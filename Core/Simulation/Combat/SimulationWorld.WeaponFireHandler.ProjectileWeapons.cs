@@ -374,15 +374,32 @@ public sealed partial class SimulationWorld
                 directionRadians = MathF.Atan2(aimDeltaY, aimDeltaX);
             }
 
-            var spreadRadians = GetWeaponSpreadRadians(attacker.Id, weaponDefinition.SpreadDegrees);
-            var bulletAngle = directionRadians + spreadRadians;
-            var projectileCount = GetExperimentalProjectilesPerShot(attacker, 1);
+            var lastToDieProfile = attacker.ClassId == PlayerClass.Spy
+                && weaponClassId == PlayerClass.Spy
+                ? attacker.LastToDieSpyRevolverProfile
+                : global::OpenGarrison.Core.LastToDie.LastToDieSpyRevolverProfile.Stock;
+            var projectileCount = lastToDieProfile.BlunderbussRank > 0
+                ? lastToDieProfile.PelletCount
+                : GetExperimentalProjectilesPerShot(attacker, weaponDefinition.ProjectilesPerShot);
+            var deadlyCritical = lastToDieProfile.DeadlyEnabled
+                && _world.TryRollLastToDieSpyDeadlyCritical(attacker);
+            var appliesLuckyStrikeStun = lastToDieProfile.LuckyStrikeEnabled
+                && attacker.LastPrimaryShotAppliesLastToDieLuckyStrikeStun;
             for (var projectileIndex = 0; projectileIndex < projectileCount; projectileIndex += 1)
             {
-                var spreadOffset = projectileCount == 1
-                    ? 0f
-                    : DegreesToRadians((projectileIndex - ((projectileCount - 1) * 0.5f)) * 6f);
-                var finalAngle = bulletAngle + spreadOffset;
+                // Blunderbuss is a single authored volley. Its pellets form one
+                // stable, evenly-spaced arc even when random weapon spread is on.
+                var spreadRadians = lastToDieProfile.BlunderbussRank > 0
+                    ? GetDeterministicPelletSpreadRadians(
+                        projectileIndex,
+                        projectileCount,
+                        weaponDefinition.SpreadDegrees)
+                    : GetWeaponSpreadRadians(
+                        attacker.Id,
+                        weaponDefinition.SpreadDegrees,
+                        projectileIndex,
+                        projectileCount);
+                var finalAngle = directionRadians + spreadRadians;
                 var (finalVelocityX, finalVelocityY) = _world.ApplyExperimentalProjectileSpeedMultiplier(
                     attacker,
                     MathF.Cos(finalAngle) * weaponDefinition.MinShotSpeed,
@@ -397,7 +414,10 @@ public sealed partial class SimulationWorld
                     finalVelocityX + (attacker.HorizontalSpeed * (float)Config.FixedDeltaSeconds),
                     finalVelocityY,
                     weaponDefinition.DirectHitDamage ?? RevolverProjectileEntity.DamagePerHit,
-                    killFeedWeaponSpriteNameOverride);
+                    killFeedWeaponSpriteNameOverride,
+                    lastToDieProfile,
+                    deadlyCritical,
+                    appliesLuckyStrikeStun);
             }
         }
 

@@ -81,6 +81,16 @@ public sealed class CivvieMoneyTrailTracker
         int ticksPerSecond,
         PlayerEntity player)
     {
+        _ = TryRegisterTrail(frame, ticksPerSecond, player, out _);
+    }
+
+    public bool TryRegisterTrail(
+        ulong frame,
+        int ticksPerSecond,
+        PlayerEntity player,
+        out CivvieMoneyTrailSpawn spawn)
+    {
+        spawn = default;
         if (!CivvieMoneyTrailRules.IsEligibleTrailSource(player)
             || !CivvieMoneyTrailRules.ShouldEmitDeterministicSourceTickChance(
                 frame,
@@ -88,7 +98,7 @@ public sealed class CivvieMoneyTrailTracker
                 ticksPerSecond,
                 CivvieMoneyTrailRules.TrailSpawnChance))
         {
-            return;
+            return false;
         }
 
         var trailDirection = player.HorizontalSpeed == 0f
@@ -100,7 +110,7 @@ public sealed class CivvieMoneyTrailTracker
             + CivvieMoneyTrailRules.GetDeterministicVerticalOffset(frame, player.Id);
         if (HasNearbyPickup(player.Id, pickupX, pickupY))
         {
-            return;
+            return false;
         }
 
         PrunePickupsForSpawn(player.Id);
@@ -110,12 +120,14 @@ public sealed class CivvieMoneyTrailTracker
             pickupX,
             pickupY,
             CivvieMoneyTrailRules.PickupLifetimeTicks));
-        _pendingSpawns.Add(new CivvieMoneyTrailSpawn(
+        spawn = new CivvieMoneyTrailSpawn(
             pickupX,
             pickupY,
             player.HorizontalSpeed,
             frame,
-            player.Id));
+            player.Id);
+        _pendingSpawns.Add(spawn);
+        return true;
     }
 
     public void AdvancePickups(

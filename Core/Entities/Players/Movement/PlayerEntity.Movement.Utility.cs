@@ -60,7 +60,7 @@ public sealed partial class PlayerEntity
 
         if (HasScopedSniperWeaponEquipped && IsSniperScoped && !IsSniperBowEquipped)
         {
-            return SniperScopedMoveScale;
+            return LastToDieSniperExtremeConditioningEnabled ? 1f : SniperScopedMoveScale;
         }
 
         if (ClassId == PlayerClass.Heavy && input.FirePrimary)
@@ -80,7 +80,7 @@ public sealed partial class PlayerEntity
 
         if (HasScopedSniperWeaponEquipped && IsSniperScoped && !IsSniperBowEquipped)
         {
-            return SniperScopedJumpScale;
+            return LastToDieSniperExtremeConditioningEnabled ? 1f : SniperScopedJumpScale;
         }
 
         if (ClassId == PlayerClass.Spy && SpyBackstabVisualTicksRemaining > 0)
@@ -120,12 +120,18 @@ public sealed partial class PlayerEntity
 
     internal void ApplyPredictionSniperChargeTicks(int chargeTicks)
     {
-        SniperChargeTicks = Math.Clamp(chargeTicks, 0, SniperChargeMaxTicks);
+        SniperChargeTicks = Math.Clamp(
+            chargeTicks,
+            0,
+            LastToDieSniperRifleFullChargeTicks);
     }
 
     internal void ApplyPredictionSniperBowChargeTicks(int chargeTicks)
     {
-        SniperBowChargeTicks = Math.Clamp(chargeTicks, 0, SniperBowMaxChargeTicks);
+        SniperBowChargeTicks = Math.Clamp(
+            chargeTicks,
+            0,
+            LastToDieSniperBowFullChargeTicks);
     }
 
     private static float NormalizeDegrees(float degrees)

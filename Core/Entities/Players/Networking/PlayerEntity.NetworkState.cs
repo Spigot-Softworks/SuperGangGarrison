@@ -14,13 +14,65 @@ public sealed partial class PlayerEntity
     /// </summary>
     public void ApplyProtocol64State(
         Protocol64PlayerState state,
-        CharacterClassDefinition classDefinition)
+        CharacterClassDefinition classDefinition,
+        int ticksPerSecond = SimulationConfig.DefaultTicksPerSecond)
     {
         Team = (PlayerTeam)state.Team;
         if (!string.Equals(ClassDefinition.GameplayClassId, classDefinition.GameplayClassId, StringComparison.Ordinal)
             || ClassDefinition.Id != classDefinition.Id)
         {
             SetClassDefinition(classDefinition);
+        }
+
+        HydrateProtocol64LastToDieWeaponProfileState(state.LastToDieSpyRevolverState);
+        HydrateProtocol64LastToDieSniperExtensionState(state.LastToDieSniperExtensionState);
+        HydrateProtocol64LastToDieSniperRuntimeState(state.LastToDieSniperRuntimeState);
+        HydrateProtocol64LastToDieMedicLinkState(state.LastToDieMedicLinkState);
+        HydrateProtocol64LastToDieSpyInfiltrateState(
+            state.LastToDieSpyInfiltrateState,
+            ticksPerSecond);
+        HydrateProtocol64LastToDieSpyAfterlifeState(
+            state.LastToDieSpyAfterlifeState,
+            ticksPerSecond);
+        HydrateProtocol64LastToDieSniperVolleyState(
+            state.LastToDieSniperVolleyState is { } volley
+                ? new LastToDieSniperVolleyState(
+                    volley.QueuedArrowCount,
+                    volley.DueArrowCount,
+                    volley.SourceTicksUntilNextArrow,
+                    volley.VelocityX,
+                    volley.VelocityY,
+                    volley.Damage,
+                    volley.FakeSpeedMultiplier,
+                    DecodeLastToDieSniperArrowPayload(
+                        volley.PayloadFlags,
+                        volley.PoisonDamagePerSecond,
+                        volley.GhostDamageMultiplier,
+                        volley.CriticalDamageMultiplier))
+                : default);
+        HydrateProtocol64LastToDieMedicHailMaryTicks(
+            state.LastToDieMedicHailMaryTicksRemaining);
+        HydrateProtocol64ServerStunTicks(state.ServerStunTicksRemaining);
+        HydrateKritzCritBoost(
+            state.KritzCritBoostTicksRemaining > 0,
+            state.KritzCritBoostTicksRemaining,
+            state.KritzCritBoostProviderPlayerId,
+            state.KritzCritBoostProviderSlot,
+            state.KritzCritBoostDamageMultiplier);
+        HydrateDispenserBuff(
+            state.IsDispenserBuffed,
+            state.DispenserAttackReloadSpeedMultiplier);
+        ApplyNetworkMaxHealth(state.MaxHealth);
+
+        // Protocol 64 intentionally does not carry the full legacy loadout
+        // snapshot. A class change therefore clears the local secondary
+        // definition before the first authoritative ammo update arrives. The
+        // authoritative max value tells us that this player has a secondary;
+        // hydrate the class's default secondary/weapon utility so its counter
+        // has a concrete definition to render against.
+        if (state.OffhandMaxAmmo > 0 && !HasExperimentalOffhandWeapon)
+        {
+            HydrateProtocol64DefaultSecondaryWeapon();
         }
 
         X = state.X;
@@ -30,13 +82,160 @@ public sealed partial class PlayerEntity
         IsGrounded = state.IsGrounded;
         RemainingAirJumps = Math.Max(0, state.RemainingAirJumps);
         IsAlive = state.IsAlive;
+        HydrateMedicUberDeliveryState(state.MedicUberDeliveryState);
         Health = state.IsAlive
             ? int.Clamp(state.Health, 0, MaxHealth)
             : 0;
+        MedicUberCharge = ClassId == PlayerClass.Medic
+            ? float.Clamp(state.MedicUberCharge, 0f, MedicUberMaxCharge)
+            : 0f;
+        IsMedicUberReady = ClassId == PlayerClass.Medic
+            && !IsMedicUbering
+            && MedicUberCharge >= GetMedicUberReadyChargeThreshold();
+        MedicHealTargetId = ClassId == PlayerClass.Medic && state.MedicHealTargetId >= 0
+            ? state.MedicHealTargetId
+            : null;
+        IsMedicHealing = MedicHealTargetId.HasValue;
+        IsSpyCloaked = ClassId == PlayerClass.Spy && state.IsSpyCloaked;
+        SpyCloakAlpha = ClassId == PlayerClass.Spy
+            ? float.Clamp(state.SpyCloakAlpha, 0f, 1f)
+            : 1f;
+        HydrateLastToDieProfessionalFireChordState(
+            ClassId == PlayerClass.Spy
+                ? state.LastToDieProfessionalFireChordState
+                : (byte)0);
+        IsSpyVisibleToEnemies = ComputeSpyVisibleToEnemies(
+            IsSpyCloaked,
+            SpyCloakAlpha,
+            SpyBackstabVisualTicksRemaining);
+        HydrateLastToDieSpyCloakMeter(
+            state.LastToDieSpyCloakMeterUnits,
+            global::OpenGarrison.Core.LastToDie.LastToDieDerivedModifiers.SpyCloakMeterDurationSeconds
+                * Math.Max(1, ticksPerSecond)
+                * global::OpenGarrison.Core.LastToDie.LastToDieDerivedModifiers.SpyCloakMeterUnitsPerTick,
+            state.LastToDieSpyRogueRampStacks,
+            state.LastToDieSpyRogueRampTicks);
+        HydrateSpyJumpBootState(
+            state.IsSpySuperjumping,
+            state.SpySuperjumpHorizontalVelocity,
+            state.SpySuperjumpCooldownTicksRemaining,
+            state.SpySuperjumpAvailableCharges,
+            state.SpySuperjumpMaximumCharges,
+            state.SpySuperjumpChargeTicks,
+            state.SpySuperjumpChargeDirectionDegrees,
+            state.SpySuperjumpChargeStartMovementButtons,
+            state.SpySuperjumpChargeStartBlockedUntilAbilityRelease);
+        // The stock Medic M2 needlegun is presented as a secondary ability,
+        // but its authoritative ammo lives in PlayerEntity.CurrentShells.
+        if (state.MaxAmmo > 0)
+        {
+            CurrentShells = int.Clamp(state.CurrentAmmo, 0, Math.Min(MaxShells, state.MaxAmmo));
+        }
+
+        if (HasAcquiredWeapon && state.AcquiredMaxAmmo > 0)
+        {
+            AcquiredWeaponCurrentShells = int.Clamp(
+                state.AcquiredAmmo,
+                0,
+                Math.Min(AcquiredWeaponMaxShells, state.AcquiredMaxAmmo));
+            AcquiredWeaponCooldownTicks = Math.Max(0, state.AcquiredCooldownTicks);
+            AcquiredWeaponReloadTicksUntilNextShell = Math.Max(0, state.AcquiredReloadTicks);
+        }
+
+        if (HasPyroWeaponAvailable)
+        {
+            SetPyroPrimaryFuelScaled(state.PyroPrimaryFuelScaled);
+        }
+
+        if (ClassId == PlayerClass.Medic || AcquiredWeaponClassId == PlayerClass.Medic)
+        {
+            MedicNeedleCooldownTicks = Math.Max(0, state.MedicNeedleCooldownTicks);
+            MedicNeedleRefillTicks = Math.Max(0, state.MedicNeedleRefillTicks);
+        }
+
+        // Protocol 64 does not carry the legacy SnapshotMessage, so keep the
+        // experimental secondary weapon's live ammo/timing on the canonical
+        // player record as well. The HUD and weapon presentation both consume
+        // these properties when the QUIC path is active.
+        if (HasExperimentalOffhandWeapon && state.OffhandMaxAmmo > 0)
+        {
+            ExperimentalOffhandCurrentShells = int.Clamp(
+                state.OffhandAmmo,
+                0,
+                Math.Min(ExperimentalOffhandMaxShells, state.OffhandMaxAmmo));
+            ExperimentalOffhandCooldownTicks = Math.Max(0, state.OffhandCooldownTicks);
+            ExperimentalOffhandReloadTicksUntilNextShell = Math.Max(0, state.OffhandReloadTicks);
+        }
+
         if (!state.IsAlive)
         {
             ResetPassiveRegenState();
             ClearMedicHealingTarget();
+        }
+    }
+
+    private void HydrateProtocol64LastToDieWeaponProfileState(ushort encoded)
+    {
+        if (ClassId == PlayerClass.Spy && encoded != 0)
+        {
+            SetReplicatedStateInt(
+                LastToDieWeaponReplicatedStateOwnerId,
+                LastToDieSpyRevolverProfileReplicatedStateKey,
+                encoded);
+        }
+        else
+        {
+            ClearReplicatedState(
+                LastToDieWeaponReplicatedStateOwnerId,
+                LastToDieSpyRevolverProfileReplicatedStateKey);
+        }
+
+        if (ClassId == PlayerClass.Sniper && encoded != 0)
+        {
+            SetReplicatedStateInt(
+                LastToDieWeaponReplicatedStateOwnerId,
+                LastToDieSniperProfileReplicatedStateKey,
+                encoded);
+        }
+        else
+        {
+            ClearReplicatedState(
+                LastToDieWeaponReplicatedStateOwnerId,
+                LastToDieSniperProfileReplicatedStateKey);
+        }
+
+        // This applies the class-specific profile before Protocol64 state clamps
+        // authoritative ammo and charge values below.
+        RefreshLastToDieWeaponProfileFromReplicatedStateEntries();
+    }
+
+    private void HydrateProtocol64DefaultSecondaryWeapon()
+    {
+        var runtimeRegistry = CharacterClassCatalog.RuntimeRegistry;
+        var candidateItemIds = new[]
+        {
+            GameplayLoadoutState.SecondaryItemId,
+            GameplayLoadoutState.UtilityItemId,
+        };
+
+        foreach (var itemId in candidateItemIds)
+        {
+            if (string.IsNullOrWhiteSpace(itemId))
+            {
+                continue;
+            }
+
+            var item = runtimeRegistry.GetRequiredItem(itemId);
+            if (!runtimeRegistry.TryGetPrimaryWeaponBinding(item.BehaviorId, out _))
+            {
+                continue;
+            }
+
+            SetExperimentalOffhandWeapon(runtimeRegistry.CreatePrimaryWeaponDefinition(item));
+            if (HasExperimentalOffhandWeapon)
+            {
+                return;
+            }
         }
     }
 
@@ -124,7 +323,14 @@ public sealed partial class PlayerEntity
         int offhandCooldownTicks = 0,
         int offhandReloadTicks = 0,
         int gibDeaths = 0,
-        bool isTypingChatMessage = false)
+        bool isTypingChatMessage = false,
+        int networkMaxHealth = 0,
+        byte medicUberDeliveryState = 0,
+        int kritzCritBoostProviderPlayerId = 0,
+        int kritzCritBoostProviderSlot = int.MaxValue,
+        float kritzCritBoostDamageMultiplier = 1f,
+        bool isDispenserBuffed = false,
+        float dispenserAttackReloadSpeedMultiplier = 1f)
     {
         var previousHealth = Health;
         Team = team;
@@ -137,6 +343,8 @@ public sealed partial class PlayerEntity
         {
             ClassDefinition = classDefinition;
         }
+
+        ApplyNetworkMaxHealth(networkMaxHealth);
 
         SetPlayerScale(playerScale);
         X = x;
@@ -152,6 +360,10 @@ public sealed partial class PlayerEntity
         IsExperimentalDemoknightChargeFlightActive = false;
         ExperimentalDemoknightChargeAcceleration = 0f;
         IsAlive = isAlive;
+        if (!isAlive)
+        {
+            BlockedJumpRetrySuppressionTicksRemaining = 0;
+        }
         Health = int.Clamp(health, 0, MaxHealth);
         if (!isAlive)
         {
@@ -203,7 +415,12 @@ public sealed partial class PlayerEntity
             : 0f;
         IsMedicUberReady = ClassId == PlayerClass.Medic
             && (isMedicUberReady || MedicUberCharge >= MedicKritzUberReadyChargeThreshold);
-        IsMedicUbering = isUbered;
+        HydrateMedicUberDeliveryState(
+            medicUberDeliveryState != 0
+                ? medicUberDeliveryState
+                : ClassId == PlayerClass.Medic && isUbered
+                    ? (byte)0x81
+                    : MedicUberDeliveryState);
         ActiveDominationCount = Math.Max(0, activeDominationCount);
         IsDominatingLocalViewer = isDominatingLocalViewer;
         IsDominatedByLocalViewer = isDominatedByLocalViewer;
@@ -238,7 +455,15 @@ public sealed partial class PlayerEntity
         BurnedByPlayerId = burnedByPlayerId > 0 ? burnedByPlayerId : null;
         NapalmCoveredSourceTicks = 0f;
         UberTicksRemaining = isUbered ? DefaultUberRefreshTicks : 0;
-        KritzCritBoostTicksRemaining = isKritzCritBoosted ? DefaultUberRefreshTicks : 0;
+        HydrateKritzCritBoost(
+            isKritzCritBoosted,
+            DefaultUberRefreshTicks,
+            kritzCritBoostProviderPlayerId,
+            kritzCritBoostProviderSlot,
+            kritzCritBoostDamageMultiplier);
+        HydrateDispenserBuff(
+            isDispenserBuffed,
+            dispenserAttackReloadSpeedMultiplier);
         IsHeavyEating = isHeavyEating;
         HeavyEatTicksRemaining = Math.Max(0, heavyEatTicksRemaining);
         ApplyObservedHeavyEatCooldown(heavyEatCooldownTicksRemaining);
@@ -333,10 +558,16 @@ public sealed partial class PlayerEntity
             gameplayEquippedItemId,
             gameplayAcquiredItemId);
         ReplaceOwnedGameplayItemIds(ownedGameplayItemIds ?? []);
-        if (replicatedStateEntries is { Count: > 0 })
-        {
-            MergeReplicatedStateEntries(replicatedStateEntries);
-        }
+        ApplyReplicatedAcquiredWeaponState(gameplayAcquiredItemId);
+        // ApplySnapshot receives a resolved full snapshot, including an intentionally empty
+        // replicated-state list when a delta/status update removes the last runtime state.
+        // Replacing the list is therefore required; skipping an empty list leaves stale
+        // offhand ammo (and availability) visible on the client.
+        ReplaceReplicatedStateEntries(replicatedStateEntries ?? []);
+        // The LTD weapon profile is carried in replicated state and may raise the
+        // authoritative clip above the stock class definition (Agent: 9 rounds).
+        // Reapply ammo only after that profile has hydrated to avoid clamping it to 6.
+        CurrentShells = int.Clamp(currentShells, 0, MaxShells);
 
         // Hydrate offhand weapon definitions before reconciling selection so Secondary-slot
         // snapshots (soldier shotgun / scout nailgun / sniper bow) can mark the offhand equipped.
@@ -349,6 +580,59 @@ public sealed partial class PlayerEntity
         // are delivered every tick rather than only with the budget-limited full-state update.
         ExperimentalOffhandCooldownTicks = Math.Max(0, offhandCooldownTicks);
         ExperimentalOffhandReloadTicksUntilNextShell = Math.Max(0, offhandReloadTicks);
+    }
+
+    private void ApplyReplicatedAcquiredWeaponState(string gameplayAcquiredItemId)
+    {
+        var runtimeRegistry = CharacterClassCatalog.RuntimeRegistry;
+        if (ClassId != PlayerClass.Soldier
+            || string.IsNullOrWhiteSpace(gameplayAcquiredItemId)
+            || !runtimeRegistry.CanUseAcquiredItem(GameplayClassId, gameplayAcquiredItemId)
+            || !runtimeRegistry.TryResolveBoundPlayerClassForPrimaryItem(gameplayAcquiredItemId, out var acquiredWeaponClassId))
+        {
+            // Do not use SetAcquiredWeapon(null) here: its gameplay-input path
+            // intentionally falls back to the Primary slot, while a snapshot may
+            // be authoritatively selecting a normal Secondary weapon.
+            AcquiredWeaponClassId = null;
+            AcquiredWeaponCurrentShells = 0;
+            AcquiredWeaponCooldownTicks = 0;
+            AcquiredWeaponReloadTicksUntilNextShell = 0;
+            IsAcquiredWeaponEquipped = false;
+            ResetAcquiredPyroStateFromCurrentAmmo();
+            ResetAcquiredMedicNeedleStateIfUnavailable();
+            RefreshGameplayLoadoutState();
+            return;
+        }
+
+        if (AcquiredWeaponClassId == acquiredWeaponClassId)
+        {
+            if (AcquiredWeapon is { } existingWeapon)
+            {
+                AcquiredWeaponCurrentShells = int.Clamp(AcquiredWeaponCurrentShells, 0, existingWeapon.MaxAmmo);
+                AcquiredWeaponCooldownTicks = Math.Max(0, AcquiredWeaponCooldownTicks);
+                AcquiredWeaponReloadTicksUntilNextShell = Math.Max(0, AcquiredWeaponReloadTicksUntilNextShell);
+            }
+
+            return;
+        }
+
+        // Snapshot loadout identity is authoritative for remote players. Do not
+        // require the viewer to own the other player's picked-up item.
+        AcquiredWeaponClassId = acquiredWeaponClassId;
+        var acquiredWeapon = AcquiredWeapon;
+        AcquiredWeaponCurrentShells = acquiredWeapon?.MaxAmmo ?? 0;
+        AcquiredWeaponCooldownTicks = 0;
+        AcquiredWeaponReloadTicksUntilNextShell = 0;
+        IsAcquiredWeaponEquipped = false;
+        ResetAcquiredPyroStateFromCurrentAmmo();
+        ResetAcquiredMedicNeedleStateIfUnavailable();
+        RefreshGameplayLoadoutState();
+    }
+
+    private void ApplyNetworkMaxHealth(int maxHealth)
+    {
+        NetworkMaxHealthOverrideValue = maxHealth > 0 ? maxHealth : null;
+        Health = int.Clamp(Health, 0, MaxHealth);
     }
 
     private void HydrateNetworkReplicatedAbilityRuntimeState()
@@ -371,7 +655,10 @@ public sealed partial class PlayerEntity
                 GameplayAbilityReplicatedState.SniperChargeTicksKey,
                 out var sniperChargeTicks))
         {
-            SniperChargeTicks = Math.Clamp(sniperChargeTicks, 0, SniperChargeMaxTicks);
+            SniperChargeTicks = Math.Clamp(
+                sniperChargeTicks,
+                0,
+                LastToDieSniperRifleFullChargeTicks);
         }
 
         if (TryGetReplicatedStateInt(
@@ -381,7 +668,10 @@ public sealed partial class PlayerEntity
         {
             if (IsSniperBowEquipped)
             {
-                SniperBowChargeTicks = Math.Clamp(sniperBowChargeTicks, 0, SniperBowMaxChargeTicks);
+                SniperBowChargeTicks = Math.Clamp(
+                    sniperBowChargeTicks,
+                    0,
+                    LastToDieSniperBowFullChargeTicks);
             }
             else
             {
@@ -501,20 +791,30 @@ public sealed partial class PlayerEntity
             return;
         }
 
-        if (TryGetReplicatedStateInt(
+        var hasPogoTrickTicks = TryGetReplicatedStateInt(
                 GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId,
                 GameplayAbilityReplicatedState.CivviePogoTrickTicksKey,
-                out var pogoTrickTicks))
+                out var pogoTrickTicks);
+        if (hasPogoTrickTicks)
         {
             CivviePogoTrickTicksRemaining = Math.Max(0, pogoTrickTicks);
         }
+        else
+        {
+            CivviePogoTrickTicksRemaining = 0;
+        }
 
-        if (TryGetReplicatedStateInt(
+        var hasPogoTrickDuration = TryGetReplicatedStateInt(
                 GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId,
                 GameplayAbilityReplicatedState.CivviePogoTrickDurationTicksKey,
-                out var pogoTrickDurationTicks))
+                out var pogoTrickDurationTicks);
+        if (hasPogoTrickDuration)
         {
             CivviePogoTrickDurationTicks = Math.Max(0, pogoTrickDurationTicks);
+        }
+        else if (!hasPogoTrickTicks || CivviePogoTrickTicksRemaining <= 0)
+        {
+            CivviePogoTrickDurationTicks = 0;
         }
     }
 

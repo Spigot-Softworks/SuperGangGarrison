@@ -39,16 +39,17 @@ public sealed class QuicClientTransportTests
     }
 
     [Fact]
-    public void DesktopWebSocketEndpointRejectsPathsBeforeOpeningSocket()
+    public void DesktopWebSocketEndpointPreservesRelayPathAndToken()
     {
-        var connected = WebSocketNetworkClientMessageTransport.TryConnect(
-            "ws64://example.com/protocol",
-            443,
-            out var transport,
-            out var error);
+        Assert.True(WebSocketNetworkClientMessageTransport.TryCreateEndpoint(
+            "wss64://example.com/api/relay/ws/session/guest?token=secret",
+            0,
+            out var endpoint,
+            out var error), error);
 
-        Assert.False(connected);
-        Assert.Null(transport);
-        Assert.Contains("cannot include a path", error);
+        Assert.Equal("wss", endpoint.Scheme);
+        Assert.Equal("example.com", endpoint.Host);
+        Assert.Equal("/api/relay/ws/session/guest", endpoint.AbsolutePath);
+        Assert.Equal("?token=secret", endpoint.Query);
     }
 }

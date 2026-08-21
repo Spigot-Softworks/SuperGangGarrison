@@ -5,6 +5,7 @@ using Microsoft.Xna.Framework.Graphics;
 using System;
 using System.Collections.Generic;
 using OpenGarrison.Core;
+using OpenGarrison.Core.LastToDie;
 using OpenGarrison.Protocol;
 
 namespace OpenGarrison.Client;
@@ -33,6 +34,10 @@ public partial class Game1
     private readonly Dictionary<int, Vector2> _heavyDashTrailLastSpawnPositions = new();
     private readonly List<SniperTracerParticle> _sniperTracerParticles = new();
     private float _medigunBeamHelixPhase;
+    private const float DispenserBeamFadeInPerSecond = 8f;
+    private const float DispenserBeamFadeOutPerSecond = 6f;
+    private readonly Dictionary<(int DispenserId, int PlayerId), float> _dispenserBeamAlphas = new();
+    private readonly List<(int DispenserId, int PlayerId)> _staleDispenserBeamKeys = new();
 
     private readonly record struct FrozenSpyFrameState(
         string SpriteName,
@@ -75,6 +80,8 @@ public partial class Game1
     private readonly List<CivvieUmbrellaShieldBlockVisual> _civvieUmbrellaShieldBlockVisuals = new();
     private readonly List<SnapshotVisualEvent> _pendingNetworkVisualEvents = new();
     private readonly List<RecentPredictedExplosionVisual> _recentPredictedExplosionVisuals = new();
+    private readonly HashSet<ulong> _presentedNetworkExplosionSoundEventIds = new();
+    private readonly HashSet<WorldSoundEvent> _presentedLocalExplosionSoundEvents = new();
     private readonly HashSet<ulong> _processedNetworkVisualEventIds = new();
     private readonly Queue<ulong> _processedNetworkVisualEventOrder = new();
     private readonly List<PresentedExplosionVisual> _presentedExplosionVisualsThisFrame = new();
@@ -84,7 +91,7 @@ public partial class Game1
     private int _nextClientBackstabVisualId = -1;
     private int _spySuperjumpTrajectoryAnimationTicks;
     private const int TrajectoryPreviewMaxTicks = 300;
-    private const float SniperBowAimArcFadeLength = 1000f;
+    private const float SniperBowAimArcPreviewLength = 2000f;
 
     // Per-player cloak-reveal timers triggered when a cloaked spy superjumps (visual only).
     // Key = player ID. Cancelled if the spy uncloaks while the timer is running.
@@ -129,12 +136,9 @@ public partial class Game1
         ResetExperimentalHealingHudIndicators();
         _portraitRumbleRemainingSeconds = 0f;
         _portraitRumbleIntensity = 0f;
-        _weaponFireHudRumbleRemainingSeconds = 0f;
-        _weaponFireHudRumbleIntensity = 0f;
         _damageVignetteIntensity = 0f;
         _damageVignetteFlashIntensity = 0f;
         _gameplayMaterialEffectsController.ResetTransientEffects();
-        ResetCivvieMoneyTrailPresentation();
         ResetCivvieUmbrellaShieldBlockObservation();
         ResetCivviePogoTrickPresentationObservation();
         ResetEvasionMissPopups();
@@ -148,12 +152,69 @@ public partial class Game1
         _civvieUmbrellaShieldBlockVisuals.Clear();
         _pendingNetworkVisualEvents.Clear();
         _recentPredictedExplosionVisuals.Clear();
+        _presentedNetworkExplosionSoundEventIds.Clear();
+        _presentedLocalExplosionSoundEvents.Clear();
         _pendingNetworkDamageEvents.Clear();
         _frozenSpyVisuals.Clear();
         _lastVisibleEnemySpyFrameStates.Clear();
         _lastHeavyDashFrameStates.Clear();
         _heavyDashTrailTickCounters.Clear();
         _heavyDashTrailLastSpawnPositions.Clear();
+        _dispenserBeamAlphas.Clear();
+    }
+
+    private void AdvanceDispenserBeamFades(float deltaSeconds)
+    {
+        var activeKeys = new HashSet<(int DispenserId, int PlayerId)>();
+        foreach (var dispenser in _world.Sentries)
+        {
+            if (!dispenser.IsDispenser || !dispenser.IsBuilt)
+            {
+                continue;
+            }
+
+            foreach (var player in EnumerateRenderablePlayers())
+            {
+                if (player.IsAlive
+                    && player.Team == dispenser.Team
+                    && player.IsDispenserBuffed
+                    && dispenser.IsNear(player.X, player.Y, 75f))
+                {
+                    activeKeys.Add((dispenser.Id, player.Id));
+                }
+            }
+        }
+
+        var step = Math.Clamp(deltaSeconds, 0f, 0.1f);
+        foreach (var key in activeKeys)
+        {
+            _dispenserBeamAlphas.TryGetValue(key, out var alpha);
+            _dispenserBeamAlphas[key] = Math.Clamp(alpha + (DispenserBeamFadeInPerSecond * step), 0f, 1f);
+        }
+
+        _staleDispenserBeamKeys.Clear();
+        foreach (var key in _dispenserBeamAlphas.Keys)
+        {
+            if (activeKeys.Contains(key))
+            {
+                continue;
+            }
+
+            var alpha = _dispenserBeamAlphas[key] - (DispenserBeamFadeOutPerSecond * step);
+            if (alpha <= 0f)
+            {
+                _staleDispenserBeamKeys.Add(key);
+            }
+            else
+            {
+                _dispenserBeamAlphas[key] = alpha;
+            }
+        }
+
+        foreach (var key in _staleDispenserBeamKeys)
+        {
+            _dispenserBeamAlphas.Remove(key);
+        }
     }
 
     private bool TryCreateExplosionVisual(WorldSoundEvent soundEvent, out ExplosionVisual? explosion)
@@ -183,6 +244,37 @@ public partial class Game1
         }
 
         return false;
+    }
+
+    private bool HasPresentedExplosionVisualForSoundEvent(WorldSoundEvent soundEvent)
+    {
+        return soundEvent.EventId != 0
+            ? _presentedNetworkExplosionSoundEventIds.Contains(soundEvent.EventId)
+            : _presentedLocalExplosionSoundEvents.Contains(soundEvent);
+    }
+
+    private void RememberPresentedExplosionVisualForSoundEvent(WorldSoundEvent soundEvent)
+    {
+        if (soundEvent.EventId != 0)
+        {
+            _presentedNetworkExplosionSoundEventIds.Add(soundEvent.EventId);
+        }
+        else
+        {
+            _presentedLocalExplosionSoundEvents.Add(soundEvent);
+        }
+    }
+
+    private void ForgetPresentedExplosionVisualForSoundEvent(WorldSoundEvent soundEvent)
+    {
+        if (soundEvent.EventId != 0)
+        {
+            _presentedNetworkExplosionSoundEventIds.Remove(soundEvent.EventId);
+        }
+        else
+        {
+            _presentedLocalExplosionSoundEvents.Remove(soundEvent);
+        }
     }
 
     private void AdvanceRecentPredictedExplosionVisuals()
@@ -382,43 +474,56 @@ public partial class Game1
 
     private void DrawSpySuperjumpVisuals(Vector2 cameraPosition)
     {
-        // Only show charging visuals for the local player (not synchronized over network)
+        // Only show charging visuals for the local player (not synchronized over network).
         var localPlayer = _world.LocalPlayer;
-        if (localPlayer == null || localPlayer.ClassId != PlayerClass.Spy || !localPlayer.IsAlive)
+        if (localPlayer == null || !localPlayer.IsAlive)
         {
             return;
         }
 
-        var chargeTicks = localPlayer.SpySuperjumpChargeTicks;
-        if (chargeTicks <= 0 || localPlayer.IsSpyBackstabAnimating || localPlayer.IsCarryingIntel)
+        var isSpySuperjump = localPlayer.ClassId == PlayerClass.Spy;
+        if (!isSpySuperjump)
         {
             return;
         }
 
-        var chargeDirection = localPlayer.SpySuperjumpChargeDirectionDegrees;
-        var chargeFraction = float.Min(1f, chargeTicks / (float)PlayerEntity.SpySuperjumpMaxChargeTicks);
+        var chargeTicks = GetPlayerSpySuperjumpChargeTicks(localPlayer);
+        if (chargeTicks <= 0
+            || GetPlayerIsSpyBackstabAnimating(localPlayer)
+            || GetPlayerIsCarryingIntel(localPlayer)
+            || localPlayer.IsTaunting
+            || localPlayer.IsHeavyEating)
+        {
+            return;
+        }
+
+        var chargeDirection = GetPlayerSpySuperjumpChargeDirectionDegrees(localPlayer);
+        var chargeFraction = float.Min(
+            1f,
+            chargeTicks / (float)localPlayer.ResolveSpySuperjumpMaxChargeTicks(PlayerEntity.SpySuperjumpMaxChargeTicks));
 
         // Draw trajectory preview
         var radians = chargeDirection * (MathF.PI / 180f);
-        var velocity = PlayerEntity.SpySuperjumpMinVelocity + (PlayerEntity.SpySuperjumpMaxVelocity - PlayerEntity.SpySuperjumpMinVelocity) * chargeFraction;
+        var velocity = PlayerEntity.SpySuperjumpMinVelocity
+            + (PlayerEntity.SpySuperjumpMaxVelocity - PlayerEntity.SpySuperjumpMinVelocity) * chargeFraction;
         var velocityX = MathF.Cos(radians) * velocity;
         var velocityY = MathF.Sin(radians) * velocity;
 
         // Apply velocity clamping to match game behavior (MaxStepSpeedPerTick = 15, SourceTicksPerSecond = 30)
-        const float maxSpeed = 15f * 30f; // 450 units/second
+        var maxSpeed = LegacyMovementModel.MaxStepSpeedPerTick * LegacyMovementModel.SourceTicksPerSecond;
         velocityX = float.Clamp(velocityX, -maxSpeed, maxSpeed);
         velocityY = float.Clamp(velocityY, -maxSpeed, maxSpeed);
 
         const int squareSize = 2;
         const int squareOutlineSize = 2;
-        const float gravityPerSecond = 540f; // 0.6 * 30 * 30 from LegacyMovementModel
-        const float maxFallSpeed = 300f; // 10 * 30 from LegacyMovementModel (terminal velocity)
+        var gravityPerSecond = LegacyMovementModel.GetGravityPerSecondSquared();
+        var maxFallSpeed = LegacyMovementModel.MaxFallSpeedPerTick * LegacyMovementModel.SourceTicksPerSecond;
         const float deltaTime = 1f / 30f; // Game physics tick duration (30 ticks per second)
         const int trajectoryPointInterval = 2; // Record trajectory point every N ticks for smooth interpolation
 
         // Simulate full trajectory and collect positions at regular time intervals
         var dotPositions = new System.Collections.Generic.List<(float x, float y, int tick)>();
-        // Start from player's center
+        // Superjumps originate at the player's center.
         var simX = localPlayer.X;
         var simY = localPlayer.Y;
         var simVelX = velocityX;
@@ -607,6 +712,9 @@ public partial class Game1
         }
     }
 
+    // Restored from the original Huntsman PR (9bc0bb18). Keep this separate from
+    // the Spy superjump preview: the bow's projectile path uses source-tick
+    // integration and the weapon rotation pivot, not the superjump renderer.
     private void DrawSniperBowAimArc(Vector2 cameraPosition)
     {
         var localPlayer = _world.LocalPlayer;
@@ -616,7 +724,7 @@ public partial class Game1
         }
 
         var chargeTicks = GetPlayerSniperBowChargeTicks(localPlayer);
-        if (chargeTicks <= 0 || localPlayer.IsTaunting || localPlayer.IsHeavyEating)
+        if (chargeTicks <= 0 || localPlayer.IsTaunting || localPlayer.IsHeavyEating || localPlayer.IsCarryingIntel)
         {
             return;
         }
@@ -672,6 +780,21 @@ public partial class Game1
             }
         }
 
+        var trajectoryPathLength = 0f;
+        for (var index = 1; index < trajectoryPoints.Count; index += 1)
+        {
+            var previous = trajectoryPoints[index - 1];
+            var current = trajectoryPoints[index];
+            var deltaX = current.X - previous.X;
+            var deltaY = current.Y - previous.Y;
+            trajectoryPathLength += MathF.Sqrt((deltaX * deltaX) + (deltaY * deltaY));
+        }
+
+        // Keep rendering the full preview at every charge/range, but make it fully transparent
+        // by the midpoint of the visible path. Normalizing against the path being drawn makes
+        // the same fade rule apply to short, blocked, and long-range trajectories.
+        var visiblePathLength = MathF.Min(trajectoryPathLength, SniperBowAimArcPreviewLength);
+        var fadeLength = MathF.Max(1f, visiblePathLength * 0.5f);
         var peakAlpha = 0.55f + (chargeFraction * 0.25f);
         var baseColor = GameplayPlayerStatusEffectRenderController.GetUberOverlayColor(localPlayer.Team);
         var cellAlphas = new Dictionary<(int GridX, int GridY), float>();
@@ -681,7 +804,7 @@ public partial class Game1
 
         for (var index = 1; index < trajectoryPoints.Count; index += 1)
         {
-            if (distanceAlongPath >= SniperBowAimArcFadeLength)
+            if (distanceAlongPath >= SniperBowAimArcPreviewLength)
             {
                 break;
             }
@@ -699,7 +822,7 @@ public partial class Game1
                 currentGrid.GridY,
                 distanceAlongPath,
                 segmentLength,
-                SniperBowAimArcFadeLength,
+                fadeLength,
                 peakAlpha,
                 cellAlphas);
             distanceAlongPath += segmentLength;
@@ -715,10 +838,10 @@ public partial class Game1
         {
             float originX;
             float originY;
-            if (TryGetPredictedLocalPlayerCameraPosition(out var predictedPosition))
+            if (CanUseLocalPrediction() && _hasPredictedLocalPlayerPosition)
             {
-                originX = predictedPosition.X;
-                originY = predictedPosition.Y;
+                originX = _predictedLocalPlayerPosition.X + _predictedLocalPlayerRenderCorrectionOffset.X;
+                originY = _predictedLocalPlayerPosition.Y + _predictedLocalPlayerRenderCorrectionOffset.Y;
             }
             else
             {
@@ -1109,7 +1232,16 @@ public partial class Game1
 
     private void SpawnBackstabVisual(int ownerId, PlayerTeam team, float x, float y, float directionDegrees)
     {
-        _gameplayGoreEffectsController.SpawnBackstabVisual(ownerId, team, x, y, directionDegrees);
+        var owner = FindPlayerById(ownerId);
+        _gameplayGoreEffectsController.SpawnBackstabVisual(
+            ownerId,
+            team,
+            x,
+            y,
+            directionDegrees,
+            owner?.LastToDieInstastabEnabled == true
+                ? LastToDieDerivedModifiers.SpyInstastabSpeedMultiplier
+                : 1);
     }
 
     private void ResetBackstabVisuals()

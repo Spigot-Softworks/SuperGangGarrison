@@ -40,7 +40,9 @@ public sealed class SimulationWorldRoundEndScorekeepingTests
             PlayerEntity.BurnMaxIntensity,
             afterburnFalloff: false,
             burnFalloffAmount: 1f);
-        victim.ForceSetHealth(0);
+        // ApplyDamage preserves the active afterburn owner; ForceSetHealth intentionally
+        // clears transient damage attribution before a forced kill.
+        Assert.True(victim.ApplyDamage(victim.Health));
 
         InvokeKillPlayer(world, victim, victim, "RocketKL");
 
@@ -51,6 +53,46 @@ public sealed class SimulationWorldRoundEndScorekeepingTests
         Assert.Equal(victim.Id, entry.VictimPlayerId);
         Assert.Equal("FlameKL", entry.WeaponSpriteName);
         Assert.Equal(" finished off ", entry.MessageText);
+    }
+
+    [Fact]
+    public void KillStreakAnnouncementsTrackNonLocalPlayersWhenEnabled()
+    {
+        var world = new SimulationWorld();
+        world.CompleteLocalPlayerJoin(PlayerClass.Scout);
+        Assert.True(world.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red));
+        world.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings(EnableKillStreakTracking: true));
+
+        Assert.True(world.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.TrySetNetworkPlayerTeam(2, PlayerTeam.Blue));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
+        Assert.True(world.TryGetNetworkPlayer(2, out var botKiller));
+
+        var victims = new List<PlayerEntity>();
+        for (byte slot = 3; slot <= 5; slot += 1)
+        {
+            Assert.True(world.TryPrepareNetworkPlayerJoin(slot));
+            Assert.True(world.TrySetNetworkPlayerTeam(slot, PlayerTeam.Red));
+            Assert.True(world.TryApplyNetworkPlayerClassSelection(slot, PlayerClass.Scout));
+            Assert.True(world.TryGetNetworkPlayer(slot, out var victim));
+            victims.Add(victim);
+        }
+
+        foreach (var victim in victims)
+        {
+            InvokeKillPlayer(world, victim, botKiller, "RocketKL");
+        }
+
+        Assert.Equal(3, botKiller.KillStreak);
+        Assert.Equal(3, botKiller.CurrentMultiKillCount);
+        Assert.Contains(world.KillFeed, entry =>
+            entry.KillerPlayerId == botKiller.Id
+            && entry.VictimPlayerId < 0
+            && entry.MessageText == " scored a Triple kill!");
+        Assert.Contains(world.KillFeed, entry =>
+            entry.KillerPlayerId == botKiller.Id
+            && entry.VictimPlayerId < 0
+            && entry.MessageText == " is on a Killing Spree!");
     }
 
     [Fact]
@@ -137,6 +179,8 @@ public sealed class SimulationWorldRoundEndScorekeepingTests
                 true,
                 false,
                 true,
+                -1,
+                false,
             ]);
     }
 

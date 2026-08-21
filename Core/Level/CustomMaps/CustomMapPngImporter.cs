@@ -70,7 +70,8 @@ public static class CustomMapPngImporter
         var walkmaskScale = CustomMapBuilderDocument.ResolveWalkmaskScale(metadata);
         var visualScale = CustomMapBuilderDocument.ResolveVisualScale(metadata, walkmaskScale);
         var mapScale = ResolveMapScale(walkmaskScale, entities, walkmaskSection);
-        if (!TryDecodeWalkmask(walkmaskSection, mapScale, out var solids, out var bounds))
+        var walkmaskScaleX = ResolveWalkmaskHorizontalScale(metadata, mapScale);
+        if (!TryDecodeWalkmask(walkmaskSection, mapScale, walkmaskScaleX, out var solids, out var bounds))
         {
             return null;
         }
@@ -237,7 +238,12 @@ public static class CustomMapPngImporter
         return input[start..end];
     }
 
-    private static bool TryDecodeWalkmask(string walkmaskSection, float mapScale, out IReadOnlyList<LevelSolid> solids, out WorldBounds bounds)
+    private static bool TryDecodeWalkmask(
+        string walkmaskSection,
+        float mapScale,
+        float walkmaskScaleX,
+        out IReadOnlyList<LevelSolid> solids,
+        out WorldBounds bounds)
     {
         solids = Array.Empty<LevelSolid>();
         if (!EmbeddedWalkmaskDecoder.TryDecodeSolidCells(walkmaskSection, out var width, out var height, out var cells))
@@ -264,13 +270,32 @@ public static class CustomMapPngImporter
                     column += 1;
                 }
 
-                decodedSolids.Add(new LevelSolid(start * mapScale, row * mapScale, (column - start) * mapScale, mapScale));
+                decodedSolids.Add(new LevelSolid(
+                    start * walkmaskScaleX,
+                    row * mapScale,
+                    (column - start) * walkmaskScaleX,
+                    mapScale));
             }
         }
 
-        bounds = new WorldBounds(width * mapScale, height * mapScale);
+        bounds = new WorldBounds(width * walkmaskScaleX, height * mapScale);
         solids = decodedSolids;
         return true;
+    }
+
+    private static float ResolveWalkmaskHorizontalScale(
+        IReadOnlyDictionary<string, string> metadata,
+        float fallback)
+    {
+        if (metadata.TryGetValue("walkmaskScaleX", out var scaleText)
+            && float.TryParse(scaleText, NumberStyles.Float, CultureInfo.InvariantCulture, out var scale)
+            && float.IsFinite(scale)
+            && scale > 0f)
+        {
+            return scale;
+        }
+
+        return fallback;
     }
 
     private static GameMakerRoomMetadata BuildRoomMetadata(
@@ -421,6 +446,7 @@ public static class CustomMapPngImporter
             LogicActivators = logicActivators,
             LogicScoreTriggers = logicScoreTriggers,
             SpritesheetPlaybackSet = spritesheetPlaybackSet,
+            IsTopDown = MapMovementModeMetadata.IsTopDown(metadata),
             ExplicitGameMode = MapGameModeMetadata.TryReadGameMode(metadata),
         };
     }

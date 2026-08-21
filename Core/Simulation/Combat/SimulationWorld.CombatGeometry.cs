@@ -252,6 +252,41 @@ public sealed partial class SimulationWorld
                 maxDistance);
         }
 
+        private static float? GetRayIntersectionDistanceWithLastToDieDecapitatorHeadZone(
+            float originX,
+            float originY,
+            float directionX,
+            float directionY,
+            SimulationWorld world,
+            PlayerEntity player,
+            float maxDistance)
+        {
+            if (!player.IsAlive || player.IsExperimentalGhostDashing)
+            {
+                return null;
+            }
+
+            world.GetCachedPlayerPresentationHitBounds(
+                player,
+                out var left,
+                out var top,
+                out var right,
+                out _);
+            var size = global::OpenGarrison.Core.LastToDie.LastToDieSniperProfile.DecapitatorHeadshotZoneSize;
+            var centerX = (left + right) * 0.5f;
+            var halfSize = size * 0.5f;
+            return GetRayIntersectionDistanceWithRectangle(
+                originX,
+                originY,
+                directionX,
+                directionY,
+                centerX - halfSize,
+                top - size,
+                centerX + halfSize,
+                top,
+                maxDistance);
+        }
+
         private static float? GetRayIntersectionDistanceWithSentry(
             float originX,
             float originY,

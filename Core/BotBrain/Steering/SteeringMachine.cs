@@ -55,6 +55,10 @@ public sealed class SteeringMachine
     private const int CertifiedEdgeRetrySlackTicks = 36;
     private const int MaximumUncertifiedTraversalEdgeTicks = 180;
     private const int MaximumWalkEdgeTicks = 60;
+    private const int TopDownStuckDetectionWindowTicks = 12;
+    private const float TopDownStuckDistanceThreshold = 2.5f;
+    private const float TopDownObstacleProbeDistance = 8f;
+    private const int TopDownDetourCommitTicks = 10;
 
     private SteeringState _state = SteeringState.Grounded;
     private float _commitDirectionX;
@@ -86,6 +90,13 @@ public sealed class SteeringMachine
     private float _walkProgressCheckY;
     private int _walkProgressTicks;
     private int _walkProgressStagnantWindows;
+    private int _topDownTrackedNode = -1;
+    private float _topDownCheckX;
+    private float _topDownCheckY;
+    private int _topDownStuckTicks;
+    private float _topDownDetourDirection;
+    private int _topDownDetourAxis;
+    private int _topDownDetourTicks;
 
     public SteeringOutput Update(
         PlayerEntity player,
@@ -94,6 +105,11 @@ public sealed class SteeringMachine
         SimpleLevel level,
         PlayerTeam team)
     {
+        if (level.IsTopDown)
+        {
+            return UpdateTopDown(player, graph, path, level, team);
+        }
+
         var output = new SteeringOutput();
         var initialPathIndex = path?.CurrentIndex ?? -1;
 
@@ -104,6 +120,27 @@ public sealed class SteeringMachine
         }
 
         TrySkipInitialWalkAttachment(player, graph, path);
+        var initialTargetNode = graph.GetNode(path.CurrentNode);
+        var initialDx = initialTargetNode.X - player.X;
+        var initialDy = initialTargetNode.Y - player.Y;
+        var initialDistSq = (initialDx * initialDx) + (initialDy * initialDy);
+        if (path.CurrentIndex == 0
+            && path.Count > 1
+            && player.ClassId == PlayerClass.Quote
+            && player.IsCivviePogoActive
+            && !player.IsGrounded
+            && !player.IsCivviePogoSuperJumpAirPhaseActive
+            && player.VerticalSpeed > 0.1f
+            && initialDistSq > WaypointReachRadius * WaypointReachRadius)
+        {
+            // A live pogo bounce can leave the bot above a different graph
+            // surface than the path's initial attachment node. Reattach from
+            // that bounce before steering toward a node it cannot physically
+            // occupy; otherwise the civilian holds neutral input under the
+            // surface and appears inert.
+            output.RequestRepath = true;
+            return output;
+        }
         if (TrySkipPassedWalkWaypoint(player, graph, path))
         {
             _stuckTicks = 0;
@@ -115,7 +152,8 @@ public sealed class SteeringMachine
         TryAdvanceToReachedFutureWaypoint(player, graph, path);
         var hasPreAdvanceEdge = path.TryGetCurrentEdge(out var preAdvanceEdge);
         var preAdvanceCompletionSatisfied = hasPreAdvanceEdge
-            && graph.IsEdgeCompletionSatisfied(player.X, player.Y, preAdvanceEdge.Completion);
+            && (graph.IsEdgeCompletionSatisfied(player.X, player.Y, preAdvanceEdge.Completion)
+                || IsCivviePogoContactCompletionSatisfied(player, preAdvanceEdge));
         var advancedWaypoint = ShouldAdvanceWaypoint(
             player,
             graph,
@@ -154,7 +192,26 @@ public sealed class SteeringMachine
         var dy = targetNode.Y - player.Y;
         UpdateState(player);
         UpdateStuckDetection(player);
-
+        if (path.CurrentIndex == 0
+            && path.Count > 1
+            && player.IsGrounded
+            && (dx * dx) + (dy * dy) > WaypointReachRadius * WaypointReachRadius
+            && _stuckEscapePhase >= 2)
+        {
+            // Initial attachment has no incoming edge, so the ordinary edge
+            // timeout/repath watchdog never runs. A stale first node otherwise
+            // leaves every class holding its initial steering decision until a
+            // later event happens to invalidate the route.
+            output.RequestRepath = true;
+            output.FailedEdge = new SteeringFailedEdge(
+                HasFailure: true,
+                FromNode: path.CurrentNode,
+                ToNode: path.GetWaypoint(1),
+                Kind: NavEdgeKind.Walk,
+                EdgeTicks: _stuckTicks,
+                Reason: "initial_node_stuck");
+            return output;
+        }
         var hasCurrentEdge = path.TryGetCurrentEdge(out var currentEdge);
         var edgeKind = hasCurrentEdge ? currentEdge.Kind : NavEdgeKind.Walk;
         var edgeTicks = UpdateCurrentEdgeTimer(player, path, hasCurrentEdge);
@@ -164,7 +221,8 @@ public sealed class SteeringMachine
         var currentEdgeCompletionSatisfied = hasCurrentEdge
             && (!advancedWaypoint
                 ? preAdvanceCompletionSatisfied
-                : graph.IsEdgeCompletionSatisfied(player.X, player.Y, currentEdge.Completion));
+                : graph.IsEdgeCompletionSatisfied(player.X, player.Y, currentEdge.Completion)
+                    || IsCivviePogoContactCompletionSatisfied(player, currentEdge));
         if (hasCurrentEdge && currentEdge.Kind == NavEdgeKind.Jump && edgeTicks == 0)
         {
             // The preceding walk edge may have committed the opposite
@@ -420,7 +478,14 @@ public sealed class SteeringMachine
             && player.IsGrounded
             && allowLocalObstacleProbing
             && ShouldUseFastJumpRetry(player, level, team, output.MoveDirection);
-        ApplyJumpPulse(ref output, fastJumpRetry);
+        var civilianPogoContact = player.ClassId == PlayerClass.Quote
+            && player.IsCivviePogoActive
+            && hasOg2ContactEdge
+            && edgeKind == NavEdgeKind.Jump;
+        if (!civilianPogoContact)
+        {
+            ApplyJumpPulse(ref output, fastJumpRetry);
+        }
         if (output.RecipeTrace.HasRecipe)
         {
             output.RecipeTrace = output.RecipeTrace with
@@ -473,6 +538,235 @@ public sealed class SteeringMachine
         return output;
     }
 
+    private SteeringOutput UpdateTopDown(
+        PlayerEntity player,
+        NavGraph graph,
+        NavPath? path,
+        SimpleLevel level,
+        PlayerTeam team)
+    {
+        var output = new SteeringOutput
+        {
+            State = SteeringState.Grounded,
+            EdgeKind = NavEdgeKind.Walk,
+        };
+
+        if (path is null || path.IsComplete || !player.IsAlive)
+        {
+            ResetTopDownProgress();
+            return output;
+        }
+
+        // Top-down routes are ordinary occupancy-grid walks. Advance through
+        // any nodes already under the body before selecting the next target;
+        // this prevents a stale attachment node from producing a neutral tick
+        // or a left/right oscillation at every diagonal waypoint.
+        while (!path.IsComplete)
+        {
+            var node = graph.GetNode(path.CurrentNode);
+            var dx = node.X - player.X;
+            var dy = node.Y - player.Y;
+            if ((dx * dx) + (dy * dy) > WaypointReachRadius * WaypointReachRadius)
+            {
+                break;
+            }
+
+            path.Advance();
+        }
+
+        if (path.IsComplete)
+        {
+            ResetTopDownProgress();
+            return output;
+        }
+
+        var target = graph.GetNode(path.CurrentNode);
+        if (_topDownTrackedNode != path.CurrentNode)
+        {
+            _topDownTrackedNode = path.CurrentNode;
+            _topDownCheckX = player.X;
+            _topDownCheckY = player.Y;
+            _topDownStuckTicks = 0;
+        }
+        else
+        {
+            var movedX = MathF.Abs(player.X - _topDownCheckX);
+            var movedY = MathF.Abs(player.Y - _topDownCheckY);
+            if (movedX >= TopDownStuckDistanceThreshold
+                || movedY >= TopDownStuckDistanceThreshold)
+            {
+                _topDownCheckX = player.X;
+                _topDownCheckY = player.Y;
+                _topDownStuckTicks = 0;
+            }
+            else
+            {
+                _topDownStuckTicks += 1;
+            }
+        }
+
+        if (_topDownStuckTicks >= TopDownStuckDetectionWindowTicks)
+        {
+            var fromNode = path.CurrentIndex > 0
+                ? path.GetWaypoint(path.CurrentIndex - 1)
+                : path.CurrentNode;
+            var toNode = path.CurrentIndex > 0 && path.CurrentIndex < path.Count
+                ? path.CurrentNode
+                : path.Count > 1
+                    ? path.GetWaypoint(1)
+                    : path.CurrentNode;
+            output.RequestRepath = true;
+            output.FailedEdge = new SteeringFailedEdge(
+                HasFailure: fromNode != toNode,
+                FromNode: fromNode,
+                ToNode: toNode,
+                Kind: NavEdgeKind.Walk,
+                EdgeTicks: _topDownStuckTicks,
+                Reason: "top_down_stuck");
+            ResetTopDownProgress();
+            return output;
+        }
+
+        var desiredDirectionX = GetMoveDirection(target.X - player.X);
+        var desiredDirectionY = GetMoveDirection(target.Y - player.Y);
+        (output.MoveDirection, output.MoveDirectionY) = ResolveTopDownObstacleDetour(
+            player,
+            level,
+            team,
+            desiredDirectionX,
+            desiredDirectionY);
+        return output;
+    }
+
+    private (float DirectionX, float DirectionY) ResolveTopDownObstacleDetour(
+        PlayerEntity player,
+        SimpleLevel level,
+        PlayerTeam team,
+        float desiredDirectionX,
+        float desiredDirectionY)
+    {
+        if (desiredDirectionX == 0f && desiredDirectionY == 0f)
+        {
+            _topDownDetourDirection = 0f;
+            _topDownDetourTicks = 0;
+            return (0f, 0f);
+        }
+
+        var canMoveX = desiredDirectionX == 0f
+            || player.CanOccupy(
+                level,
+                team,
+                player.X + (desiredDirectionX * TopDownObstacleProbeDistance),
+                player.Y);
+        var canMoveY = desiredDirectionY == 0f
+            || player.CanOccupy(
+                level,
+                team,
+                player.X,
+                player.Y + (desiredDirectionY * TopDownObstacleProbeDistance));
+
+        // The movement resolver already slides one axis at a time. Do the
+        // same at the steering layer when a route waypoint is immediately
+        // beside a wall; otherwise the bot keeps requesting the blocked
+        // axis until the stuck watchdog repaths to the same bad approach.
+        if (canMoveX && canMoveY && _topDownDetourTicks <= 0)
+        {
+            return (desiredDirectionX, desiredDirectionY);
+        }
+
+        if (canMoveX && desiredDirectionX != 0f && desiredDirectionY != 0f)
+        {
+            _topDownDetourTicks = 0;
+            return (desiredDirectionX, 0f);
+        }
+
+        if (canMoveY && desiredDirectionY != 0f)
+        {
+            _topDownDetourTicks = 0;
+            return (0f, desiredDirectionY);
+        }
+
+        if (canMoveX && desiredDirectionX != 0f)
+        {
+            _topDownDetourTicks = 0;
+            return (desiredDirectionX, 0f);
+        }
+
+        // Both the requested axis and the direct diagonal are blocked. Take
+        // a short, deterministic sidestep so the bot can get around the
+        // obstacle while the graph controller continues pursuing the same
+        // waypoint. Alternate the side on later encounters to avoid pinning
+        // a bot against a corner.
+        if (_topDownDetourTicks > 0
+            && _topDownDetourDirection != 0f
+            && CanMoveTopDownDetour(player, level, team))
+        {
+            _topDownDetourTicks -= 1;
+            return _topDownDetourAxis == 1
+                ? (_topDownDetourDirection, 0f)
+                : (0f, _topDownDetourDirection);
+        }
+
+        _topDownDetourAxis = desiredDirectionX != 0f && !canMoveX && desiredDirectionY == 0f
+            ? 2
+            : desiredDirectionY != 0f && !canMoveY && desiredDirectionX == 0f
+                ? 1
+                : 1;
+        var detourDirection = _topDownDetourDirection == 0f
+            ? 1f
+            : -_topDownDetourDirection;
+        if (desiredDirectionX != 0f && !canMoveX && desiredDirectionY == 0f)
+        {
+            detourDirection = _topDownDetourDirection == 0f ? 1f : -_topDownDetourDirection;
+        }
+
+        if (!CanMoveTopDownDetour(player, level, team, detourDirection))
+        {
+            detourDirection = -detourDirection;
+        }
+
+        if (CanMoveTopDownDetour(player, level, team, detourDirection))
+        {
+            _topDownDetourDirection = -detourDirection;
+            _topDownDetourTicks = TopDownDetourCommitTicks - 1;
+            return _topDownDetourAxis == 1
+                ? (detourDirection, 0f)
+                : (0f, detourDirection);
+        }
+
+        _topDownDetourDirection = 0f;
+        _topDownDetourAxis = 0;
+        _topDownDetourTicks = 0;
+        return (0f, 0f);
+    }
+
+    private bool CanMoveTopDownDetour(PlayerEntity player, SimpleLevel level, PlayerTeam team) =>
+        CanMoveTopDownDetour(player, level, team, _topDownDetourDirection);
+
+    private bool CanMoveTopDownDetour(
+        PlayerEntity player,
+        SimpleLevel level,
+        PlayerTeam team,
+        float direction)
+    {
+        if (direction == 0f || _topDownDetourAxis == 0)
+        {
+            return false;
+        }
+
+        return _topDownDetourAxis == 1
+            ? player.CanOccupy(
+                level,
+                team,
+                player.X + (direction * TopDownObstacleProbeDistance),
+                player.Y)
+            : player.CanOccupy(
+                level,
+                team,
+                player.X,
+                player.Y + (direction * TopDownObstacleProbeDistance));
+    }
+
     public void Reset()
     {
         _state = SteeringState.Grounded;
@@ -504,6 +798,18 @@ public sealed class SteeringMachine
         _walkProgressCheckY = 0f;
         _walkProgressTicks = 0;
         _walkProgressStagnantWindows = 0;
+        ResetTopDownProgress();
+    }
+
+    private void ResetTopDownProgress()
+    {
+        _topDownTrackedNode = -1;
+        _topDownCheckX = 0f;
+        _topDownCheckY = 0f;
+        _topDownStuckTicks = 0;
+        _topDownDetourDirection = 0f;
+        _topDownDetourAxis = 0;
+        _topDownDetourTicks = 0;
     }
 
     private bool UpdateGroundedWalkProgress(
@@ -613,6 +919,15 @@ public sealed class SteeringMachine
         var dx = targetNode.X - player.X;
         var dy = targetNode.Y - player.Y;
         var distSq = (dx * dx) + (dy * dy);
+        var civviePogoContactCompleted = path.TryGetIncomingEdge(path.CurrentIndex, out var incomingContactEdge)
+            && IsCivviePogoContactCompletionSatisfied(player, incomingContactEdge);
+        var civviePogoTraversalCompleted = !civviePogoContactCompleted
+            && path.TryGetIncomingEdge(path.CurrentIndex, out incomingContactEdge)
+            && IsCivviePogoWalkCompletionSatisfied(player, incomingContactEdge, targetNode);
+        if (civviePogoContactCompleted || civviePogoTraversalCompleted)
+        {
+            return true;
+        }
         if (path.CurrentIndex == 0
             && player.IsGrounded
             && targetNode.SurfaceId.HasValue
@@ -627,6 +942,17 @@ public sealed class SteeringMachine
 
         if (distSq < WaypointReachRadius * WaypointReachRadius)
         {
+            if (path.CurrentIndex == 0
+                && player.ClassId == PlayerClass.Quote
+                && player.IsCivviePogoActive)
+            {
+                // A live civilian pogo bounce does not expose the ordinary
+                // grounded attachment state. Once the replacement route's
+                // first surface is actually under the body, hand off to its
+                // next edge instead of waiting forever for IsGrounded.
+                return true;
+            }
+
             if (!player.IsGrounded
                 && path.TryGetIncomingEdge(path.CurrentIndex, out var incomingEdge)
                 && incomingEdge.RequiresGroundedContinuation)
@@ -638,14 +964,18 @@ public sealed class SteeringMachine
                 // of making the bot fall through the landing and replay the
                 // same jump forever. The next-edge grounded guard below still
                 // blocks a follow-up certified contact until the body lands.
-                if (!incomingEdge.IsRuntimeResolved
+                if (!civviePogoContactCompleted
+                    && (!incomingEdge.IsRuntimeResolved
                     || !currentEdgeCompletionSatisfied)
+                    )
                 {
                     return false;
                 }
             }
 
-            if (!player.IsGrounded && NextEdgeRequiresGroundedContact(path))
+            if (!player.IsGrounded
+                && !civviePogoContactCompleted
+                && NextEdgeRequiresGroundedContact(path))
             {
                 // A fall/drop can satisfy the current waypoint while the
                 // player is still airborne above its destination surface. Do
@@ -677,7 +1007,8 @@ public sealed class SteeringMachine
                 ? currentEdgeCompletionSatisfied
                     || IsNearGroundedContinuationCompletion(player, edge, level)
                 : player.ClassId != PlayerClass.Heavy
-                    && (IsAirborneCompletionContinuation(player, graph, edge)
+                    && (civviePogoContactCompleted
+                        || IsAirborneCompletionContinuation(player, graph, edge)
                         || IsNearGroundedContinuationCompletion(player, edge, level)));
     }
 
@@ -741,6 +1072,24 @@ public sealed class SteeringMachine
         {
             MaxY = edge.Completion.MaxY + AirborneCompletionContinuationSlack,
         });
+
+    private static bool IsCivviePogoContactCompletionSatisfied(PlayerEntity player, NavEdge edge) =>
+        player.ClassId == PlayerClass.Quote
+        && player.IsCivviePogoActive
+        && player.IsCivviePogoSuperJumpAirPhaseActive
+        && edge.IsOg2Contact
+        && edge.Kind == NavEdgeKind.Jump
+        && edge.Completion.Contains(player.X, player.Y);
+
+    private static bool IsCivviePogoWalkCompletionSatisfied(
+        PlayerEntity player,
+        NavEdge edge,
+        NavNode targetNode) =>
+        player.ClassId == PlayerClass.Quote
+        && player.IsCivviePogoActive
+        && edge.Kind == NavEdgeKind.Walk
+        && MathF.Abs(player.X - targetNode.X) <= WaypointReachRadius * 2f
+        && MathF.Abs(player.Y - targetNode.Y) <= WaypointReachRadius * 2f;
 
     private static bool NextEdgeRequiresGroundedLaunch(NavPath path) =>
         path.CurrentIndex + 1 < path.Count
@@ -1093,7 +1442,12 @@ public sealed class SteeringMachine
 
                     var travelDirection = MathF.Sign(edge.ProbeMoveDirectionX);
                     var passedTargetDistance = (player.X - targetNode.X) * travelDirection;
-                    if (passedTargetDistance > WaypointReachRadius)
+                    // A small waypoint overshoot is common when the previous
+                    // tick's committed walk input carries the body past a
+                    // node. Keep the measured traversal direction through
+                    // that handoff; only a materially larger miss should
+                    // reverse toward the waypoint.
+                    if (passedTargetDistance > JumpTriggerDistance)
                     {
                         // The measured direction is authoritative only while
                         // the live body is still approaching this waypoint.
@@ -1667,7 +2021,53 @@ public sealed class SteeringMachine
             return;
         }
 
+        if (edge.Kind == NavEdgeKind.Walk
+            && player.ClassId == PlayerClass.Quote
+            && player.IsCivviePogoActive
+            && targetDistance <= WaypointReachRadius * 2f
+            && MathF.Abs(player.Y - targetNode.Y) <= WaypointReachRadius * 2f)
+        {
+            // A pogo bounce can pass the measured walk waypoint without ever
+            // exposing IsGrounded. Give the coordinate handoff above a
+            // bounded extra window instead of expiring the corridor while
+            // the civilian is still crossing its target surface.
+            return;
+        }
+
+        if (edge.Kind == NavEdgeKind.Jump
+            && edge.IsOg2Contact
+            && player.ClassId == PlayerClass.Quote
+            && player.IsCivviePogoActive
+            && _currentEdgeWasAirborne
+            && edgeTicks >= 20
+            && !player.IsCivviePogoSuperJumpAirPhaseActive
+            && player.VerticalSpeed < 0f)
+        {
+            // A civilian can clear a normal jump contact and land on a
+            // different valid surface because the pogo arc is taller than
+            // the canonical jump proof. Reattach immediately from that live
+            // bounce instead of waiting for the stale target edge to expire.
+            output.RequestRepath = true;
+            output.FailedEdge = new SteeringFailedEdge(
+                HasFailure: true,
+                FromNode: fromNode,
+                ToNode: toNode,
+                Kind: edge.Kind,
+                EdgeTicks: edgeTicks,
+                Reason: "pogo_landed_off_route");
+            return;
+        }
+
         var maxTicks = ResolveMaximumEdgeTicks(edge);
+        if (edge.Kind == NavEdgeKind.Jump
+            && player.ClassId == PlayerClass.Quote
+            && player.IsCivviePogoActive)
+        {
+            // Pogo's super-bounce has a longer flight than the normal jump
+            // tape used to build this shared contact. Allow the bounce to
+            // reach its landing surface before declaring the edge stale.
+            maxTicks += 64;
+        }
         if (edgeTicks < maxTicks)
         {
             return;
@@ -1940,6 +2340,17 @@ public sealed class SteeringMachine
         {
             case NavEdgeKind.Jump:
                 output.MoveDirection = moveDir;
+                if (player.ClassId == PlayerClass.Quote
+                    && player.IsCivviePogoActive
+                    && isOg2Contact)
+                {
+                    // The civilian pogo owns vertical traversal; its Up
+                    // input is consumed by the landing-bounce state machine,
+                    // not by TryJumpIfPossible's normal jump path.
+                    output.Jump = true;
+                    break;
+                }
+
                 if (holdContactLanding)
                 {
                     // The OG2 contact already landed on the certified target
@@ -2207,6 +2618,21 @@ public sealed class SteeringMachine
             output.Jump = true;
         }
 
+        // Quote's civilian pogo replaces the normal jump impulse. While a
+        // certified jump contact is in flight, keep the super-jump input held
+        // so the next pogo landing consumes the measured contact as a
+        // traversal bounce. A civilian can enter a jump edge already
+        // airborne (including from the spawn bounce); waiting for the normal
+        // grounded launch recipe in that state leaves it drifting into the
+        // gap with no jump request at all.
+        if (player.ClassId == PlayerClass.Quote
+            && player.IsCivviePogoActive
+            && isOg2Contact
+            && edgeKind == NavEdgeKind.Jump)
+        {
+            output.Jump = true;
+        }
+
         // Airborne movement keeps residual horizontal momentum. Once a
         // measured jump is inside its completion approach band, counter-steer
         // that momentum instead of continuing to accelerate through the
@@ -2305,6 +2731,7 @@ public sealed class SteeringMachine
         {
             output.Jump = true;
         }
+
     }
 
     private void ApplyPressedWalkBlockerRepath(
@@ -2522,6 +2949,8 @@ internal enum EdgeExecutionPhase : byte
 public struct SteeringOutput
 {
     public float MoveDirection { get; set; }
+
+    public float MoveDirectionY { get; set; }
 
     public bool Jump { get; set; }
 

@@ -285,7 +285,7 @@ public partial class Game1
             case HostSetupCvarEditorKind.NumericText:
                 _hostSetupState.ActiveAdvancedCvarName = definition.Name;
                 _hostSetupState.SetAdvancedCvarRawValue(definition, _hostSetupState.GetAdvancedCvarRawValue(definition));
-                _hostSetupEditField = HostSetupEditField.AdvancedCvar;
+                _hostSetupFlowController.FocusHostSetupField(HostSetupEditField.AdvancedCvar);
                 _hostSetupState.AdvancedCvarCursorIndex = _hostSetupState.GetActiveAdvancedCvarEditBuffer().Length;
                 _hostSetupState.AdvancedCvarSelectionStart = _hostSetupState.AdvancedCvarCursorIndex;
                 if (IsTextFieldDoubleClick(TextFieldClickTarget.HostSetupAdvancedCvar))

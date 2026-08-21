@@ -78,11 +78,17 @@ public sealed class DeadBodyEntity : SimulationEntity
         TicksRemaining = ticksRemaining;
     }
 
-    public DeadBodyAdvanceResult Advance(SimpleLevel level, WorldBounds bounds)
+    public DeadBodyAdvanceResult Advance(SimpleLevel level, WorldBounds bounds, bool preservePosition = false)
     {
         if (ImpactSoundCooldownTicksRemaining > 0)
         {
             ImpactSoundCooldownTicksRemaining -= 1;
+        }
+
+        if (preservePosition)
+        {
+            TicksRemaining -= 1;
+            return new DeadBodyAdvanceResult(HitGround: false, ImpactSpeed: 0f);
         }
 
         HorizontalSpeed /= 1.1f;

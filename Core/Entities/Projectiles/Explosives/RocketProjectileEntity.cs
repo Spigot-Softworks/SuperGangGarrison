@@ -181,9 +181,18 @@ public sealed class RocketProjectileEntity : SimulationEntity
 
     public bool IsCritical { get; private set; }
 
-    public float CriticalDamageMultiplier => IsCritical ? ExperimentalGameplaySettings.KritzCriticalDamageMultiplier : 1f;
+    public float CriticalDamageMultiplier { get; private set; } = 1f;
 
-    public void SetCritical() { IsCritical = true; }
+    public void SetCritical(float damageMultiplier = ExperimentalGameplaySettings.KritzCriticalDamageMultiplier)
+        => HydrateCritical(true, damageMultiplier);
+
+    public void HydrateCritical(bool isCritical, float damageMultiplier)
+    {
+        IsCritical = isCritical;
+        CriticalDamageMultiplier = isCritical
+            ? ExperimentalGameplaySettings.NormalizeCriticalDamageMultiplier(damageMultiplier)
+            : 1f;
+    }
 
     public void AdvanceOneTick(float deltaSeconds)
     {
@@ -267,6 +276,11 @@ public sealed class RocketProjectileEntity : SimulationEntity
         OwnerId = ownerId;
         Team = team;
         DirectionRadians = directionRadians;
+        RangeAnchorOwnerId = ownerId;
+        LastKnownRangeOriginX = X;
+        LastKnownRangeOriginY = Y;
+        DistanceToTravel = MaxDistanceToTravel;
+        _passedFriendlyPlayerIds.Clear();
         TicksRemaining = LifetimeTicks;
         PreviousX = X;
         PreviousY = Y;

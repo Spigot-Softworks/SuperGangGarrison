@@ -9,6 +9,7 @@ public sealed partial class PlayerEntity
     {
         ignoreAmmoCost |= HasInfiniteAmmoFromUber;
         LastPrimaryShotIgnoredAmmoCost = false;
+        LastPrimaryShotAppliesLastToDieLuckyStrikeStun = false;
         if (ClassId == PlayerClass.Pyro)
         {
             if (!TryPreparePyroPrimaryFireAttempt(ignoreAmmoCost))
@@ -22,7 +23,11 @@ public sealed partial class PlayerEntity
         }
 
         if (!IsAlive || IsHeavyEating || IsTaunting
-            || IsCivviePogoActive || IsSpyCloaked || IsExperimentalCryoFrozen || PrimaryCooldownTicks > 0 || (!ignoreAmmoCost && CurrentShells < PrimaryWeapon.AmmoPerShot))
+            || IsCivviePogoActive
+            || (IsSpyCloaked && !CanFireLastToDieProfessionalRevolverWhileCloaked)
+            || IsExperimentalCryoFrozen
+            || PrimaryCooldownTicks > 0
+            || (!ignoreAmmoCost && CurrentShells < PrimaryWeapon.AmmoPerShot))
         {
             return false;
         }
@@ -38,11 +43,18 @@ public sealed partial class PlayerEntity
             ReloadTicksUntilNextShell = ApplyExperimentalReloadMultiplier(PrimaryWeapon.AmmoReloadTicks);
         }
 
+        CommitLastToDieRevolverTrigger(PrimaryWeapon, ClassId);
+        if (IsSpyCloaked)
+        {
+            _ = TrySpendLastToDieProfessionalShotCost();
+        }
+
         return true;
     }
 
     public bool TryFireAcquiredWeapon()
     {
+        LastPrimaryShotAppliesLastToDieLuckyStrikeStun = false;
         var ignoreAmmoCost = HasInfiniteAmmoFromUber;
         var weaponDefinition = AcquiredWeapon;
         if (weaponDefinition is null
@@ -88,11 +100,16 @@ public sealed partial class PlayerEntity
             AcquiredWeaponReloadTicksUntilNextShell = ApplyExperimentalReloadMultiplier(weaponDefinition.AmmoReloadTicks);
         }
 
+        CommitLastToDieRevolverTrigger(
+            weaponDefinition,
+            AcquiredWeaponClassId ?? ClassId);
+
         return true;
     }
 
     public bool TryFireExperimentalOffhandWeapon()
     {
+        LastPrimaryShotAppliesLastToDieLuckyStrikeStun = false;
         var ignoreAmmoCost = HasInfiniteAmmoFromUber;
         var weaponDefinition = ExperimentalOffhandWeapon;
         if (weaponDefinition is null
@@ -123,6 +140,8 @@ public sealed partial class PlayerEntity
         {
             ExperimentalOffhandReloadTicksUntilNextShell = ApplyExperimentalReloadMultiplier(weaponDefinition.AmmoReloadTicks);
         }
+
+        CommitLastToDieRevolverTrigger(weaponDefinition, ClassId);
 
         return true;
     }
@@ -159,8 +178,10 @@ public sealed partial class PlayerEntity
             ExperimentalOffhandCurrentShells -= 1;
         }
 
-        ExperimentalOffhandCooldownTicks = ApplyExperimentalWeaponCycleMultiplier(Math.Max(1, fireCooldownTicks));
-        ExperimentalOffhandReloadTicksUntilNextShell = ApplyExperimentalReloadMultiplier(Math.Max(1, refillTicks));
+        ExperimentalOffhandCooldownTicks = ApplyLastToDieMedicNeedleWeaponCycleMultiplier(
+            Math.Max(1, fireCooldownTicks));
+        ExperimentalOffhandReloadTicksUntilNextShell = ApplyLastToDieMedicNeedleReloadMultiplier(
+            Math.Max(1, refillTicks));
         return true;
     }
 
@@ -412,19 +433,36 @@ public sealed partial class PlayerEntity
 
     public int GetSniperRifleDamage()
     {
-        if (!HasScopedSniperWeaponEquipped || !IsSniperScoped)
+        return GetSniperRifleDamageForCharge(SniperChargeTicks, IsSniperScoped);
+    }
+
+    public int GetSniperRifleDamageForCharge(int chargeTicks, bool isScoped)
+    {
+        if (LastToDieSniperProfile.LightMarksmanEnabled)
+        {
+            return global::OpenGarrison.Core.LastToDie.LastToDieSniperProfile.LightMarksmanBaseDamage;
+        }
+
+        if (!HasScopedSniperWeaponEquipped || !isScoped)
         {
             return SniperBaseDamage;
         }
 
-        return SniperBaseDamage + (int)MathF.Floor(MathF.Sqrt(SniperChargeTicks * 125f / 6f));
+        var chargeFraction = Math.Clamp(
+            chargeTicks / (float)Math.Max(1, LastToDieSniperRifleFullChargeTicks),
+            0f,
+            1f);
+        return SniperBaseDamage + (int)MathF.Floor(50f * MathF.Sqrt(chargeFraction));
     }
 
     private int GetPrimaryCooldownAfterShot()
     {
-        var cooldownTicks = HasScopedSniperWeaponEquipped && IsSniperScoped
+        var cooldownTicks = HasScopedSniperWeaponEquipped
+            && IsSniperScoped
+            && !LastToDieSniperProfile.LightMarksmanEnabled
             ? PrimaryWeapon.ReloadDelayTicks + SniperScopedReloadBonusTicks
             : PrimaryWeapon.ReloadDelayTicks;
+        cooldownTicks = ApplyLastToDieSniperRifleCycleSpeed(cooldownTicks);
         return ApplyExperimentalPrimaryCooldownMultiplier(cooldownTicks);
     }
 }

@@ -572,6 +572,7 @@ public partial class Game1
         {
             EnableSecondaryAbilities = specialAbilities,
             EnableSoldierShotgunSecondaryWeapon = specialAbilities,
+            EnableKillStreakTracking = true,
         };
     }
 

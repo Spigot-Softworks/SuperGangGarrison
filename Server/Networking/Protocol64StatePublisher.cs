@@ -13,6 +13,7 @@ internal sealed class Protocol64StatePublisher
     private readonly SimulationWorld _world;
     private readonly Func<byte, uint> _lastProcessedInputSequenceProvider;
     private readonly Dictionary<(ushort Slot, ulong PlayerId), PlayerIdentityState> _playerIdentities = [];
+    private readonly HashSet<(ushort Slot, ulong PlayerId)> _activePlayerIdentities = [];
     private readonly Dictionary<ulong, ProjectileIdentityState> _projectileIdentities = [];
     private readonly Dictionary<(ushort Slot, ulong PlayerId), Protocol64PlayerIdentity> _lastRoster = [];
     private readonly Dictionary<ulong, Protocol64ProjectileState> _lastProjectiles = [];
@@ -27,17 +28,23 @@ internal sealed class Protocol64StatePublisher
         _lastProcessedInputSequenceProvider = lastProcessedInputSequenceProvider ?? (_ => 0u);
     }
 
-    public Protocol64PlayerStateBatch BuildPlayerStateBatch(uint stateTick)
+    public Protocol64PlayerStateBatch BuildPlayerStateBatch(uint stateTick, byte? viewerSlot = null)
     {
-        var players = _world.EnumerateReplicatedNetworkPlayers()
-            .Select(entry => ToPlayerState(entry.Slot, entry.Player, stateTick))
+        var entries = _world.EnumerateReplicatedNetworkPlayers().ToArray();
+        PreparePlayerIdentities(entries);
+        var viewer = ResolveViewer(viewerSlot);
+        var players = entries
+            .Where(entry => !SnapshotBroadcaster.ShouldHideSpyFromViewer(entry.Player, viewer))
+            .Select(entry => ToPlayerState(entry.Slot, entry.Player, stateTick, viewer))
             .ToArray();
         return new(NextSequence(), stateTick, players);
     }
 
     public Protocol64RosterState BuildRosterState(uint stateTick)
     {
-        var players = _world.EnumerateReplicatedNetworkPlayers()
+        var entries = _world.EnumerateReplicatedNetworkPlayers().ToArray();
+        PreparePlayerIdentities(entries);
+        var players = entries
             .Select(entry => ToPlayerIdentity(entry.Slot, entry.Player))
             .ToArray();
         var current = players.ToDictionary(
@@ -68,10 +75,15 @@ internal sealed class Protocol64StatePublisher
 
     public Protocol64StateResyncResponse BuildResyncResponse(
         Protocol64StateResyncRequest request,
-        uint stateTick)
+        uint stateTick,
+        byte? viewerSlot = null)
     {
-        var players = _world.EnumerateReplicatedNetworkPlayers()
-            .Select(entry => ToPlayerState(entry.Slot, entry.Player, stateTick))
+        var entries = _world.EnumerateReplicatedNetworkPlayers().ToArray();
+        PreparePlayerIdentities(entries);
+        var viewer = ResolveViewer(viewerSlot);
+        var players = entries
+            .Where(entry => !SnapshotBroadcaster.ShouldHideSpyFromViewer(entry.Player, viewer))
+            .Select(entry => ToPlayerState(entry.Slot, entry.Player, stateTick, viewer))
             .ToArray();
         var projectiles = BuildProjectiles(stateTick);
         _pendingProjectileLifecycles = [];
@@ -83,6 +95,19 @@ internal sealed class Protocol64StatePublisher
             Array.Empty<Protocol64PlayerIdentity>(),
             projectiles,
             Array.Empty<Protocol64ProjectileIdentity>());
+    }
+
+    private PlayerEntity? ResolveViewer(byte? viewerSlot)
+    {
+        if (!viewerSlot.HasValue
+            || !SimulationWorld.IsPlayableNetworkPlayerSlot(viewerSlot.Value)
+            || _world.IsNetworkPlayerAwaitingJoin(viewerSlot.Value)
+            || !_world.TryGetNetworkPlayer(viewerSlot.Value, out var viewer))
+        {
+            return null;
+        }
+
+        return viewer;
     }
 
     private Protocol64ProjectileState[] BuildProjectiles(uint stateTick)
@@ -111,7 +136,9 @@ internal sealed class Protocol64StatePublisher
             shot.TicksRemaining,
             active: true,
             damage: 0,
-            stateTick)));
+            stateTick,
+            isCritical: shot.IsCritical,
+            criticalDamageMultiplier: shot.CriticalDamageMultiplier)));
         projectiles.AddRange(_world.Bubbles.Select(shot => ToProjectile(
             shot.Id,
             Protocol64ProjectileKind.Custom,
@@ -124,7 +151,9 @@ internal sealed class Protocol64StatePublisher
             shot.TicksRemaining,
             active: true,
             damage: 0,
-            stateTick)));
+            stateTick,
+            isCritical: shot.IsCritical,
+            criticalDamageMultiplier: shot.CriticalDamageMultiplier)));
         projectiles.AddRange(_world.Blades.Select(shot => ToProjectile(
             shot.Id,
             Protocol64ProjectileKind.Blade,
@@ -137,20 +166,62 @@ internal sealed class Protocol64StatePublisher
             shot.TicksRemaining,
             active: true,
             damage: 0,
-            stateTick)));
-        projectiles.AddRange(_world.Needles.Select(shot => ToProjectile(
-            shot.Id,
-            Protocol64ProjectileKind.Needle,
-            shot.OwnerId,
-            shot.X,
-            shot.Y,
-            shot.VelocityX,
-            shot.VelocityY,
-            0f,
-            shot.TicksRemaining,
-            active: true,
-            damage: 0,
-            stateTick)));
+            stateTick,
+            isCritical: shot.IsCritical,
+            criticalDamageMultiplier: shot.CriticalDamageMultiplier)));
+        projectiles.AddRange(_world.Needles.Select(shot =>
+        {
+            var arrow = shot as ArrowProjectileEntity;
+            var medicKritzM2 = shot as MedicHealNeedleProjectileEntity;
+            return ToProjectile(
+                shot.Id,
+                arrow is null
+                    ? Protocol64ProjectileKind.Needle
+                    : Protocol64ProjectileKind.Arrow,
+                shot.OwnerId,
+                shot.X,
+                shot.Y,
+                shot.VelocityX,
+                shot.VelocityY,
+                0f,
+                shot.TicksRemaining,
+                active: true,
+                damage: arrow?.Damage ?? medicKritzM2?.Damage ?? 0,
+                stateTick,
+                isCritical: shot.IsCritical,
+                arrowFakeSpeedMultiplier: arrow?.FakeSpeedMultiplier ?? 1f,
+                isArrowLanded: arrow?.IsLanded ?? false,
+                appliesLastToDieGuardian: arrow?.AppliesLastToDieGuardian ?? false,
+                piercesPlayers: arrow?.PiercesPlayers ?? false,
+                appliesLastToDieTranqDarts: arrow?.AppliesLastToDieTranqDarts ?? false,
+                lastToDiePoisonDamagePerSecond: arrow?.LastToDiePoisonDamagePerSecond ?? 0f,
+                lastToDieGhostDamageMultiplier: arrow?.LastToDieGhostDamageMultiplier ?? 1f,
+                appliesLastToDieDecapitator: arrow?.AppliesLastToDieDecapitator ?? false,
+                isLastToDieDecapitatorFullyCharged: arrow?.IsLastToDieDecapitatorFullyCharged ?? false,
+                lastToDieAttachedHeadClassId: arrow?.LastToDieAttachedHeadClassId is { } headClass
+                    ? (byte)headClass
+                    : (byte)0,
+                lastToDieAttachedHeadTeam: arrow?.LastToDieAttachedHeadTeam is { } headTeam
+                    ? (byte)headTeam
+                    : (byte)0,
+                appliesLastToDieExplosiveTip: arrow?.AppliesLastToDieExplosiveTip ?? false,
+                lastToDieMedicKritzM2Payload: medicKritzM2?.LastToDiePayload.Encode() ?? 0,
+                lastToDieMedicJavelinOwnerPlayerId: medicKritzM2?.AppliesLastToDieJavelin == true
+                    ? medicKritzM2.OwnerId
+                    : 0,
+                lastToDieMedicJavelinTeam: medicKritzM2?.AppliesLastToDieJavelin == true
+                    ? (byte)medicKritzM2.Team
+                    : (byte)0,
+                isLastToDieMedicJavelinAnchored:
+                    medicKritzM2?.IsLastToDieJavelinAnchored ?? false,
+                lastToDieMedicJavelinFuseTicksRemaining: checked((ushort)Math.Clamp(
+                    medicKritzM2?.LastToDieJavelinFuseTicksRemaining ?? 0,
+                    0,
+                    ushort.MaxValue)),
+                hasLastToDieMedicJavelinExploded:
+                    medicKritzM2?.HasLastToDieJavelinExploded ?? false,
+                criticalDamageMultiplier: shot.CriticalDamageMultiplier);
+        }));
         projectiles.AddRange(_world.RevolverShots.Select(shot => ToProjectile(
             shot.Id,
             Protocol64ProjectileKind.RevolverShot,
@@ -162,8 +233,12 @@ internal sealed class Protocol64StatePublisher
             0f,
             shot.TicksRemaining,
             active: true,
-            damage: 0,
-            stateTick)));
+            damage: shot.DamageValue,
+            stateTick,
+            isCritical: shot.IsCritical,
+            lastToDieSpyRevolverProfile: checked((byte)shot.LastToDieProfile.Encode()),
+            appliesLastToDieLuckyStrikeStun: shot.AppliesLuckyStrikeStun,
+            criticalDamageMultiplier: shot.CriticalDamageMultiplier)));
         projectiles.AddRange(_world.Rockets.Select(rocket => ToProjectile(
             rocket.Id,
             Protocol64ProjectileKind.Rocket,
@@ -176,7 +251,9 @@ internal sealed class Protocol64StatePublisher
             rocket.TicksRemaining,
             active: !rocket.IsFading,
             damage: 0,
-            stateTick)));
+            stateTick,
+            isCritical: rocket.IsCritical,
+            criticalDamageMultiplier: rocket.CriticalDamageMultiplier)));
         projectiles.AddRange(_world.Flames.Select(flame => ToProjectile(
             flame.Id,
             Protocol64ProjectileKind.Flame,
@@ -189,7 +266,9 @@ internal sealed class Protocol64StatePublisher
             flame.TicksRemaining,
             active: true,
             damage: 0,
-            stateTick)));
+            stateTick,
+            isCritical: flame.IsCritical,
+            criticalDamageMultiplier: flame.CriticalDamageMultiplier)));
         projectiles.AddRange(_world.Flares.Select(flare => ToProjectile(
             flare.Id,
             Protocol64ProjectileKind.Flare,
@@ -202,7 +281,9 @@ internal sealed class Protocol64StatePublisher
             flare.TicksRemaining,
             active: true,
             damage: 0,
-            stateTick)));
+            stateTick,
+            isCritical: flare.IsCritical,
+            criticalDamageMultiplier: flare.CriticalDamageMultiplier)));
         projectiles.AddRange(_world.Mines.Select(mine => ToProjectile(
             mine.Id,
             Protocol64ProjectileKind.Mine,
@@ -215,7 +296,9 @@ internal sealed class Protocol64StatePublisher
             0,
             active: !mine.IsDestroyed,
             damage: Math.Max(0, (int)MathF.Round(mine.ExplosionDamage)),
-            stateTick)));
+            stateTick,
+            isCritical: mine.IsCritical,
+            criticalDamageMultiplier: mine.CriticalDamageMultiplier)));
         projectiles.AddRange(_world.Grenades.Select(grenade => ToProjectile(
             grenade.Id,
             Protocol64ProjectileKind.Grenade,
@@ -228,7 +311,9 @@ internal sealed class Protocol64StatePublisher
             grenade.FuseTicksLeft,
             active: true,
             damage: 0,
-            stateTick)));
+            stateTick,
+            isCritical: grenade.IsCritical,
+            criticalDamageMultiplier: grenade.CriticalDamageMultiplier)));
 
         var current = projectiles
             .Select(projectile => projectile with
@@ -245,6 +330,8 @@ internal sealed class Protocol64StatePublisher
             .Select(pair =>
             {
                 var state = pair.Value;
+                var wasLastToDieMedicJavelin =
+                    (state.LastToDieMedicKritzM2Payload & (1 << 3)) != 0;
                 return new Protocol64ProjectileLifecycle(
                     Protocol64ProjectileLifecycleKind.Despawn,
                     state.EntityId,
@@ -260,7 +347,32 @@ internal sealed class Protocol64StatePublisher
                     state.Rotation,
                     IsActive: false,
                     state.RemainingLifetimeTicks,
-                    state.Damage);
+                    state.Damage,
+                    state.IsCritical,
+                    state.LastToDieSpyRevolverProfile,
+                    state.AppliesLastToDieLuckyStrikeStun,
+                    state.ArrowFakeSpeedMultiplier,
+                    state.IsArrowLanded,
+                    state.AppliesLastToDieGuardian,
+                    state.PiercesPlayers,
+                    state.AppliesLastToDieTranqDarts,
+                    state.LastToDiePoisonDamagePerSecond,
+                    state.LastToDieGhostDamageMultiplier,
+                    state.AppliesLastToDieDecapitator,
+                    state.IsLastToDieDecapitatorFullyCharged,
+                    state.LastToDieAttachedHeadClassId,
+                    state.LastToDieAttachedHeadTeam,
+                    state.AppliesLastToDieExplosiveTip,
+                    state.LastToDieMedicKritzM2Payload,
+                    state.LastToDieMedicJavelinOwnerPlayerId,
+                    state.LastToDieMedicJavelinTeam,
+                    state.IsLastToDieMedicJavelinAnchored,
+                    wasLastToDieMedicJavelin
+                        ? (ushort)0
+                        : state.LastToDieMedicJavelinFuseTicksRemaining,
+                    wasLastToDieMedicJavelin
+                        || state.HasLastToDieMedicJavelinExploded,
+                    state.CriticalDamageMultiplier);
             })
             .ToArray();
         _lastProjectiles.Clear();
@@ -283,8 +395,30 @@ internal sealed class Protocol64StatePublisher
         float rotation,
         int lifetimeTicks,
         bool active,
-        int damage,
-        uint stateTick)
+        float damage,
+        uint stateTick,
+        bool isCritical = false,
+        byte lastToDieSpyRevolverProfile = 0,
+        bool appliesLastToDieLuckyStrikeStun = false,
+        float arrowFakeSpeedMultiplier = 1f,
+        bool isArrowLanded = false,
+        bool appliesLastToDieGuardian = false,
+        bool piercesPlayers = false,
+        bool appliesLastToDieTranqDarts = false,
+        float lastToDiePoisonDamagePerSecond = 0f,
+        float lastToDieGhostDamageMultiplier = 1f,
+        bool appliesLastToDieDecapitator = false,
+        bool isLastToDieDecapitatorFullyCharged = false,
+        byte lastToDieAttachedHeadClassId = 0,
+        byte lastToDieAttachedHeadTeam = 0,
+        bool appliesLastToDieExplosiveTip = false,
+        byte lastToDieMedicKritzM2Payload = 0,
+        int lastToDieMedicJavelinOwnerPlayerId = 0,
+        byte lastToDieMedicJavelinTeam = 0,
+        bool isLastToDieMedicJavelinAnchored = false,
+        ushort lastToDieMedicJavelinFuseTicksRemaining = 0,
+        bool hasLastToDieMedicJavelinExploded = false,
+        float criticalDamageMultiplier = 1f)
     {
         var owner = _world.EnumerateReplicatedNetworkPlayers()
             .FirstOrDefault(entry => entry.Player.Id == ownerId);
@@ -304,10 +438,39 @@ internal sealed class Protocol64StatePublisher
             rotation,
             active,
             checked((uint)Math.Max(0, lifetimeTicks)),
-            Math.Max(0, damage));
+            Math.Max(0f, damage),
+            isCritical,
+            lastToDieSpyRevolverProfile,
+            appliesLastToDieLuckyStrikeStun,
+            arrowFakeSpeedMultiplier,
+            isArrowLanded,
+            appliesLastToDieGuardian,
+            piercesPlayers,
+            appliesLastToDieTranqDarts,
+            lastToDiePoisonDamagePerSecond,
+            lastToDieGhostDamageMultiplier,
+            appliesLastToDieDecapitator,
+            isLastToDieDecapitatorFullyCharged,
+            lastToDieAttachedHeadClassId,
+            lastToDieAttachedHeadTeam,
+            appliesLastToDieExplosiveTip,
+            lastToDieMedicKritzM2Payload,
+            lastToDieMedicJavelinOwnerPlayerId,
+            lastToDieMedicJavelinTeam,
+            isLastToDieMedicJavelinAnchored,
+            lastToDieMedicJavelinFuseTicksRemaining,
+            hasLastToDieMedicJavelinExploded,
+            isCritical
+                ? ExperimentalGameplaySettings.NormalizeCriticalDamageMultiplier(
+                    criticalDamageMultiplier)
+                : 1f);
     }
 
-    private Protocol64PlayerState ToPlayerState(byte slot, PlayerEntity player, uint stateTick)
+    private Protocol64PlayerState ToPlayerState(
+        byte slot,
+        PlayerEntity player,
+        uint stateTick,
+        PlayerEntity? viewer = null)
         => new(
             slot,
             checked((ulong)Math.Max(1, player.Id)),
@@ -326,7 +489,86 @@ internal sealed class Protocol64StatePublisher
             stateTick,
             _lastProcessedInputSequenceProvider(slot),
             player.IsGrounded,
-            Math.Max(0, player.RemainingAirJumps));
+            Math.Max(0, player.RemainingAirJumps),
+            Math.Clamp(player.CurrentShells, 0, player.MaxShells),
+            Math.Max(0, player.MaxShells),
+            Math.Max(0, player.ExperimentalOffhandCurrentShells),
+            Math.Max(0, player.ExperimentalOffhandMaxShells),
+            Math.Max(0, player.ExperimentalOffhandCooldownTicks),
+            Math.Max(0, player.ExperimentalOffhandReloadTicksUntilNextShell),
+            checked((ushort)(player.ClassId switch
+            {
+                PlayerClass.Spy => player.LastToDieSpyRevolverProfile.EncodeReplicatedState(
+                    player.LastToDieLuckyStrikeTriggerProgress),
+                PlayerClass.Sniper => player.LastToDieSniperProfile.Encode(),
+                _ => 0,
+            })),
+            player.IsSpyCloaked,
+            player.SpyCloakAlpha,
+            checked((ushort)player.LastToDieSpyCloakMeterUnits),
+            checked((byte)player.LastToDieSpyRogueRampStacks),
+            checked((ushort)player.LastToDieSpyRogueRampTicks),
+            player.IsSpySuperjumping,
+            player.SpySuperjumpHorizontalVelocity,
+            checked((ushort)Math.Clamp(player.SpySuperjumpCooldownTicksRemaining, 0, ushort.MaxValue)),
+            checked((byte)Math.Clamp(player.SpySuperjumpAvailableCharges, 0, byte.MaxValue)),
+            checked((byte)Math.Clamp(player.SpySuperjumpMaximumCharges, 1, byte.MaxValue)),
+            checked((ushort)Math.Clamp(player.SpySuperjumpChargeTicks, 0, ushort.MaxValue)),
+            player.SpySuperjumpChargeDirectionDegrees,
+            player.SpySuperjumpChargeStartMovementButtons,
+            player.SpySuperjumpChargeStartBlockedUntilAbilityRelease,
+            viewer is not null
+                && !ReferenceEquals(player, viewer)
+                && player.Team != viewer.Team
+                ? checked((ushort)(player.LastToDieSniperRuntimeState & ~0x7f))
+                : player.LastToDieSniperRuntimeState,
+            player.LastToDieMedicLinkState,
+            Math.Max(0, player.AcquiredWeaponCurrentShells),
+            Math.Max(0, player.AcquiredWeaponMaxShells),
+            Math.Max(0, player.AcquiredWeaponCooldownTicks),
+            Math.Max(0, player.AcquiredWeaponReloadTicksUntilNextShell),
+            Math.Max(0, player.MedicNeedleCooldownTicks),
+            Math.Max(0, player.MedicNeedleRefillTicks),
+            Math.Max(0, player.PyroPrimaryFuelScaled),
+            player.LastToDieSniperExtensionState,
+            player.LastToDieSpyInfiltrateState,
+            player.LastToDieSpyAfterlifeState,
+            ToProtocol64SniperVolleyState(player.LastToDieSniperVolleyState),
+            player.MedicUberDeliveryState,
+            player.MedicHealTargetId ?? -1,
+            player.MedicUberCharge,
+            checked((ushort)Math.Clamp(
+                player.LastToDieMedicHailMaryTicksRemaining,
+                0,
+                ushort.MaxValue)),
+            checked((ushort)Math.Clamp(
+                player.ServerStunTicksRemaining,
+                0,
+                ushort.MaxValue)),
+            Math.Max(0, player.KritzCritBoostTicksRemaining),
+            player.IsKritzCritBoosted ? player.KritzCritBoostProviderPlayerId : 0,
+            player.IsKritzCritBoosted ? player.KritzCritBoostProviderSlot : int.MaxValue,
+            player.ActiveKritzCritDamageMultiplier,
+            player.LastToDieProfessionalFireChordState,
+            player.IsDispenserBuffed,
+            player.IsDispenserBuffed ? player.DispenserAttackReloadSpeedMultiplier : 1f);
+
+    private static Protocol64LastToDieSniperVolleyState? ToProtocol64SniperVolleyState(
+        in LastToDieSniperVolleyState state)
+        => !state.IsActive
+            ? null
+            : new Protocol64LastToDieSniperVolleyState(
+                state.QueuedArrowCount,
+                state.DueArrowCount,
+                state.SourceTicksUntilNextArrow,
+                state.VelocityX,
+                state.VelocityY,
+                state.Damage,
+                state.FakeSpeedMultiplier,
+                checked((byte)PlayerEntity.EncodeLastToDieSniperArrowPayload(state.Payload)),
+                state.Payload.PoisonDamagePerSecond,
+                state.Payload.GhostDamageMultiplier,
+                state.Payload.CriticalDamageMultiplier);
 
     private Protocol64PlayerIdentity ToPlayerIdentity(byte slot, PlayerEntity player)
         => new(
@@ -353,6 +595,39 @@ internal sealed class Protocol64StatePublisher
 
         _playerIdentities[key] = existing;
         return existing.Generation;
+    }
+
+    private void PreparePlayerIdentities(
+        IReadOnlyList<(byte Slot, PlayerEntity Player)> entries)
+    {
+        var current = new HashSet<(ushort Slot, ulong PlayerId)>();
+        foreach (var entry in entries)
+        {
+            var playerId = checked((ulong)Math.Max(1, entry.Player.Id));
+            var key = ((ushort)entry.Slot, playerId);
+            current.Add(key);
+            if (!_playerIdentities.TryGetValue(key, out var existing))
+            {
+                _playerIdentities[key] = new PlayerIdentityState(entry.Player.GameplayClassId, 1);
+                continue;
+            }
+
+            if (!_activePlayerIdentities.Contains(key)
+                || !string.Equals(existing.GameplayClassId, entry.Player.GameplayClassId, StringComparison.Ordinal))
+            {
+                _playerIdentities[key] = existing with
+                {
+                    GameplayClassId = entry.Player.GameplayClassId,
+                    Generation = checked(existing.Generation + 1),
+                };
+            }
+        }
+
+        _activePlayerIdentities.Clear();
+        foreach (var key in current)
+        {
+            _activePlayerIdentities.Add(key);
+        }
     }
 
     private uint GetProjectileGeneration(

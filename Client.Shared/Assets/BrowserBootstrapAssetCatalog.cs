@@ -228,8 +228,16 @@ public sealed class BrowserBootstrapAssetCatalog(
             "Content/Sprites/Menu/RandomizerLoadout/BackS.png",
             "Content/Sprites/Menu/Fonts/MenuBuildFontAtlas.png",
             "Content/Sprites/Menu/Fonts/MenuFontAtlas.png",
-            "Content/Sprites/Menu/LastToDie/last2die.png",
+            "Content/Sprites/Menu/LastToDie/logo.png",
             "Content/Sprites/Menu/LastToDie/ltd_buff.png",
+            "Content/Sprites/Menu/LastToDie/CharacterSelect/arrowleft.png",
+            "Content/Sprites/Menu/LastToDie/CharacterSelect/arrowright.png",
+            "Content/Sprites/Menu/LastToDie/CharacterSelect/soldiercard.png",
+            "Content/Sprites/Menu/LastToDie/CharacterSelect/democard.png",
+            "Content/Sprites/Menu/LastToDie/CharacterSelect/mediccard.png",
+            "Content/Sprites/Menu/LastToDie/CharacterSelect/engicard.png",
+            "Content/Sprites/Menu/LastToDie/CharacterSelect/snipercard.png",
+            "Content/Sprites/Menu/LastToDie/CharacterSelect/spycard.png",
             "Content/Sprites/HUDs/Feedback/miss.png",
             "Content/Sprites/InGameElements/CustomBubble/big_bubble.png",
             "Content/Sprites/Menu/Title/background.png",
@@ -252,6 +260,11 @@ public sealed class BrowserBootstrapAssetCatalog(
         binaryPaths.Add("Content/Sounds/Music/action_redo_bass.ogg");
         binaryPaths.Add("Content/Sounds/Music/transition_riser.ogg");
         binaryPaths.Add("Content/Sounds/message.ogg");
+        binaryPaths.Add("Content/Sounds/LastToDie/hover.ogg");
+        binaryPaths.Add("Content/Sounds/LastToDie/arrow.ogg");
+        binaryPaths.Add("Content/Sounds/LastToDie/lockin.ogg");
+        binaryPaths.Add("Content/Sounds/LastToDie/playerdie.ogg");
+        binaryPaths.Add("Content/Sounds/LastToDie/lose.ogg");
 
         // Browser practice/Last To Die rely on shipped point-graph assets, and the browser runtime
         // cannot safely block on async fetches once gameplay startup begins.

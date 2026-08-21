@@ -97,7 +97,9 @@ public sealed partial class SimulationWorld
                     directHitPlayer,
                     Math.Max(1, (int)MathF.Round(rocket.DirectHitDamageValue * rocket.ExperimentalStingerDamageMultiplier * rocket.CriticalDamageMultiplier)),
                     out var damageFlags);
-                if (world.ApplyPlayerDamage(
+                var infiltrateBlockedDirectHit =
+                    directHitPlayer.IsLastToDieSpyInfiltrateProjectileImmune;
+                if (world.ApplyPlayerDamageWithContext(
                         directHitPlayer,
                         hitDamage,
                         owner,
@@ -106,7 +108,9 @@ public sealed partial class SimulationWorld
                         civvieUmbrellaThreatSourceX: rocket.X,
                         civvieUmbrellaThreatSourceY: rocket.Y,
                         civvieUmbrellaDrainTicks: PlayerEntity.CivvieUmbrellaDirectExplosionDrainTicks,
-                        civvieUmbrellaCriticalBoost: PlayerEntity.IsCriticalDamageMultiplierBoosted(rocket.CriticalDamageMultiplier)))
+                        civvieUmbrellaCriticalBoost: PlayerEntity.IsCriticalDamageMultiplierBoosted(rocket.CriticalDamageMultiplier),
+                        civvieUmbrellaUseLiveAttackerCriticalBoost: false,
+                        additionalTraits: PlayerDamageTraits.DirectProjectile))
                 {
                     world.KillPlayer(
                         directHitPlayer,
@@ -115,7 +119,9 @@ public sealed partial class SimulationWorld
                         weaponSpriteName: rocket.KillFeedWeaponSpriteNameOverride ?? "RocketKL");
                 }
 
-                if (rocket.CanIgniteTargets && directHitPlayer.IsAlive)
+                if (rocket.CanIgniteTargets
+                    && directHitPlayer.IsAlive
+                    && !infiltrateBlockedDirectHit)
                 {
                     directHitPlayer.IgniteAfterburn(
                         owner?.Id ?? 0,
@@ -185,8 +191,13 @@ public sealed partial class SimulationWorld
             PlayerEntity? directHitPlayer)
         {
             var hitEnemyPlayer = false;
-            foreach (var player in world.EnumerateSimulatedPlayers())
+            var attackerWasGrounded = owner?.IsGrounded;
+            var playersSnapshot = world.EnumerateSimulatedPlayers()
+                .Select(player => (Player: player, WasGrounded: player.IsGrounded))
+                .ToArray();
+            foreach (var playerSnapshot in playersSnapshot)
             {
+                var player = playerSnapshot.Player;
                 if (!player.IsAlive)
                 {
                     continue;
@@ -239,7 +250,7 @@ public sealed partial class SimulationWorld
                 var umbrellaDrainTicks = ReferenceEquals(player, directHitPlayer)
                     ? PlayerEntity.CivvieUmbrellaRocketDirectHitSplashDrainTicks
                     : PlayerEntity.GetCivvieUmbrellaSplashExplosionDrainTicksFromDamage(appliedDamage, maxSplashDamage);
-                if (world.ApplyPlayerContinuousDamage(
+                if (world.ApplyPlayerContinuousDamageWithContext(
                         player,
                         appliedDamage,
                         owner,
@@ -247,7 +258,10 @@ public sealed partial class SimulationWorld
                         civvieUmbrellaThreatSourceX: rocket.X,
                         civvieUmbrellaThreatSourceY: rocket.Y,
                         civvieUmbrellaDrainTicks: umbrellaDrainTicks,
-                        civvieUmbrellaCriticalBoost: PlayerEntity.IsCriticalDamageMultiplierBoosted(critMultiplier)))
+                        civvieUmbrellaCriticalBoost: PlayerEntity.IsCriticalDamageMultiplierBoosted(critMultiplier),
+                        civvieUmbrellaUseLiveAttackerCriticalBoost: false,
+                        attackerWasGrounded: attackerWasGrounded,
+                        targetWasGrounded: playerSnapshot.WasGrounded))
                 {
                     world.KillPlayer(
                         player,

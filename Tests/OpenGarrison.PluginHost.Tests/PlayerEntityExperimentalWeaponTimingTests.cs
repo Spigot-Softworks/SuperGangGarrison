@@ -63,6 +63,55 @@ public sealed class PlayerEntityExperimentalWeaponTimingTests
         Assert.Equal(GetExpectedScaledTicks(PlayerEntity.MedicNeedleRefillTicksDefault, reloadMultiplier), player.MedicNeedleRefillTicks);
     }
 
+    [Fact]
+    public void SoldierCanSelectAndFireShotgunAfterStowingAcquiredWeapon()
+    {
+        var player = CreateSpawnedSoldier(1f);
+        player.SetExperimentalOffhandWeapon(CharacterClassCatalog.SoldierShotgun);
+        player.SetAcquiredWeapon(PlayerClass.Engineer);
+        player.EquipAcquiredWeapon();
+
+        player.StowAcquiredWeapon();
+        player.EquipExperimentalOffhandWeapon();
+
+        Assert.False(player.IsAcquiredWeaponPresented);
+        Assert.True(player.IsExperimentalOffhandSelected);
+        Assert.Equal(
+            player.GameplayLoadoutState.SecondaryItemId,
+            player.GameplayLoadoutState.EquippedItemId);
+        Assert.True(player.TryFireExperimentalOffhandWeapon());
+
+        player.StowExperimentalOffhandWeapon();
+        Assert.Equal(
+            player.GameplayLoadoutState.PrimaryItemId,
+            player.GameplayLoadoutState.EquippedItemId);
+        Assert.True(player.TryFirePrimaryWeapon());
+    }
+
+    [Fact]
+    public void PredictionRestorePreservesAcquiredWeaponSelectionAndAmmoState()
+    {
+        var player = CreateSpawnedSoldier(1f);
+        player.SetExperimentalOffhandWeapon(CharacterClassCatalog.SoldierShotgun);
+        player.SetAcquiredWeapon(PlayerClass.Soldier);
+        player.EquipAcquiredWeapon();
+        Assert.True(player.TryFireAcquiredWeapon());
+        var acquiredAmmoAfterShot = player.AcquiredWeaponCurrentShells;
+
+        var predictionState = player.CapturePredictionState();
+        player.StowAcquiredWeapon();
+        player.EquipExperimentalOffhandWeapon();
+
+        player.RestorePredictionState(predictionState);
+
+        Assert.Equal(PlayerClass.Soldier, player.AcquiredWeaponClassId);
+        Assert.True(player.IsAcquiredWeaponPresented);
+        Assert.Equal(acquiredAmmoAfterShot, player.AcquiredWeaponCurrentShells);
+        Assert.Equal(
+            player.GameplayLoadoutState.AcquiredItemId,
+            player.GameplayLoadoutState.EquippedItemId);
+    }
+
     private static PlayerEntity CreateSpawnedSoldier(float reloadMultiplier)
     {
         var player = new PlayerEntity(1, CharacterClassCatalog.Soldier, "Test");

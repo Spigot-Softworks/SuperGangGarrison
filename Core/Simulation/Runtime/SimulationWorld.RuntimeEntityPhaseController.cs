@@ -30,6 +30,11 @@ public sealed partial class SimulationWorld
 
         public void AdvanceProjectileAndTransientEntityPhase()
         {
+            if (!HasProjectileOrTransientStateToAdvance())
+            {
+                return;
+            }
+
             if (SlowPlayerTracingEnabled)
             {
                 AdvanceProjectileAndTransientEntityPhaseWithTracing();
@@ -55,6 +60,71 @@ public sealed partial class SimulationWorld
             _world.AdvanceDeadBodies();
             _world.AdvanceSentryGibs();
             _world.AdvanceJumpPadGibs();
+        }
+
+        private bool HasProjectileOrTransientStateToAdvance()
+        {
+            if (_world.CombatTraces.Count > 0
+                || _world.SniperAimIndicators.Count > 0
+                || _world.Shots.Count > 0
+                || _world.Bubbles.Count > 0
+                || _world.Blades.Count > 0
+                || _world.Needles.Count > 0
+                || _world.RevolverShots.Count > 0
+                || _world.StabAnimations.Count > 0
+                || _world.StabMasks.Count > 0
+                || _world.Flames.Count > 0
+                || _world.Flares.Count > 0
+                || _world.Rockets.Count > 0
+                || _world.Mines.Count > 0
+                || _world.Grenades.Count > 0
+                || _world.PlayerGibs.Count > 0
+                || _world.BloodDrops.Count > 0
+                || _world.DeadBodies.Count > 0
+                || _world.SentryGibs.Count > 0
+                || _world.JumpPadGibs.Count > 0)
+            {
+                return true;
+            }
+
+            // An enabled aim indicator is generated from scoped players rather
+            // than from a projectile collection, so retain that phase only for
+            // the frames where a scoped rifle actually needs one.
+            if (!_world.SniperAimIndicatorEnabled)
+            {
+                return false;
+            }
+
+            if (_world.LocalPlayer.IsAlive
+                && _world.LocalPlayer.IsSniperScoped
+                && !_world.LocalPlayer.IsSniperBowEquipped)
+            {
+                return true;
+            }
+
+            foreach (var slot in _world._enabledAdditionalNetworkPlayerSlots)
+            {
+                if (_world.TryGetNetworkPlayer(slot, out var player)
+                    && player.IsAlive
+                    && player.IsSniperScoped
+                    && !player.IsSniperBowEquipped)
+                {
+                    return true;
+                }
+            }
+
+            if (_world.EnemyPlayerEnabled
+                && _world.EnemyPlayer.IsAlive
+                && _world.EnemyPlayer.IsSniperScoped
+                && !_world.EnemyPlayer.IsSniperBowEquipped)
+            {
+                return true;
+            }
+
+            return _world.FriendlyDummyEnabled
+                && _world.FriendlyDummy.IsAlive
+                && _world.FriendlyDummy.IsSniperScoped
+                && !_world.FriendlyDummy.IsSniperBowEquipped;
         }
 
         private void AdvanceProjectileAndTransientEntityPhaseWithTracing()
@@ -113,20 +183,17 @@ public sealed partial class SimulationWorld
 
         public void AdvancePlayerSimulationPhase()
         {
+            _world.UpdateDispenserAuras();
             var phaseStartTimestamp = SlowPlayerTracingEnabled ? Stopwatch.GetTimestamp() : 0L;
-            byte[]? playerTimingSlots = SlowPlayerTracingEnabled ? new byte[NetworkPlayerSlots.Count] : null;
-            double[]? playerTimingMilliseconds = SlowPlayerTracingEnabled ? new double[NetworkPlayerSlots.Count] : null;
-            for (var index = 0; index < NetworkPlayerSlots.Count; index += 1)
+            var enabledAdditionalSlots = _world._enabledAdditionalNetworkPlayerSlots;
+            byte[]? playerTimingSlots = SlowPlayerTracingEnabled ? new byte[1 + enabledAdditionalSlots.Count] : null;
+            double[]? playerTimingMilliseconds = SlowPlayerTracingEnabled ? new double[1 + enabledAdditionalSlots.Count] : null;
+            var timingIndex = 0;
+
+            AdvancePlayerSlot(SimulationWorld.LocalPlayerSlot);
+            foreach (var slot in enabledAdditionalSlots)
             {
-                var slot = NetworkPlayerSlots[index];
-                var startTimestamp = SlowPlayerTracingEnabled ? Stopwatch.GetTimestamp() : 0L;
-                _world.AdvancePlayableNetworkPlayer(slot);
-                TraceSlowPlayer(slot, startTimestamp);
-                if (playerTimingSlots is not null && playerTimingMilliseconds is not null)
-                {
-                    playerTimingSlots[index] = slot;
-                    playerTimingMilliseconds[index] = ElapsedMilliseconds(startTimestamp);
-                }
+                AdvancePlayerSlot(slot);
             }
 
             TracePlayerPhaseBreakdown(phaseStartTimestamp, playerTimingSlots, playerTimingMilliseconds);
@@ -144,6 +211,19 @@ public sealed partial class SimulationWorld
                 _world.ApplyHealingCabinets(_world.FriendlyDummy);
                 _world.ApplyRoomHazards(_world.FriendlyDummy);
             }
+
+            void AdvancePlayerSlot(byte slot)
+            {
+                var startTimestamp = SlowPlayerTracingEnabled ? Stopwatch.GetTimestamp() : 0L;
+                _world.AdvancePlayableNetworkPlayer(slot);
+                TraceSlowPlayer(slot, startTimestamp);
+                if (playerTimingSlots is not null && playerTimingMilliseconds is not null)
+                {
+                    playerTimingSlots[timingIndex] = slot;
+                    playerTimingMilliseconds[timingIndex] = ElapsedMilliseconds(startTimestamp);
+                    timingIndex += 1;
+                }
+            }
         }
 
         public void AdvancePostPlayerEntityPhase()
@@ -154,6 +234,7 @@ public sealed partial class SimulationWorld
             _world.AdvanceDroppedWeapons();
             _world.AdvanceAfterburnAlertBubbles();
             _world.AdvanceSentries();
+            _world.UpdateDispenserAuras();
             _world.AdvanceJumpPads();
             _world.AdvanceCivilDefenseTurrets();
         }

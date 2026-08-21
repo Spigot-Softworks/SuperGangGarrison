@@ -87,6 +87,8 @@ internal sealed class QuicNetworkClientMessageTransport : INetworkClientMessageT
                     RemoteEndPoint = remoteEndPoint,
                     DefaultStreamErrorCode = 0x100,
                     DefaultCloseErrorCode = 0x101,
+                    MaxInboundBidirectionalStreams = 64,
+                    MaxInboundUnidirectionalStreams = 64,
                     ClientAuthenticationOptions = new SslClientAuthenticationOptions
                     {
                         TargetHost = tlsHost,

@@ -239,6 +239,8 @@ public sealed class SimulationWorldStingerRocketTests
                 true,
                 false,
                 true,
+                -1,
+                false,
             ]);
 
         Assert.False(firstVictim.IsAlive);

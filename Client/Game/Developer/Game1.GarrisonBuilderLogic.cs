@@ -1478,11 +1478,13 @@ public partial class Game1
 
     private List<string> BuildGarrisonBuilderControlPointPropertyRowsWithLogic(List<string> rows)
     {
-        var ordered = new List<string>
+        var ordered = new List<string>();
+        if (!IsGarrisonBuilderExplicitControlPointType())
         {
-            ControlPointIndexMetadata.PropertyKey,
-            ControlPointCapTimeMultiplierMetadata.PropertyKey,
-        };
+            ordered.Add(ControlPointIndexMetadata.PropertyKey);
+        }
+
+        ordered.Add(ControlPointCapTimeMultiplierMetadata.PropertyKey);
         if (!IsGarrisonBuilderControlPointOverrideEnabled())
         {
             return ordered;

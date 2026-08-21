@@ -164,9 +164,13 @@ public sealed class OpenGarrisonPreferencesDocument
 
     public bool ShowPersistentSelfNameEnabled { get; set; }
 
+    public bool ShowPlayerNamesEnabled { get; set; } = true;
+
     public bool PositionSmoothingEnabled { get; set; } = true;
 
-    public float SmoothCameraMultiplier { get; set; } = 0.35f;
+    public bool EnablePrediction { get; set; } = true;
+
+    public float SmoothCameraMultiplier { get; set; }
 
     public bool SpriteDropShadowEnabled { get; set; }
 
@@ -298,8 +302,10 @@ public sealed class OpenGarrisonPreferencesDocument
             CombatMusicVolumePercent = Math.Clamp(ini.GetInt(SettingsSection, "Combat Music Volume", DefaultCombatMusicVolumePercent), 0, MaxCombatMusicVolumePercent),
             SoundEffectsVolumePercent = Math.Clamp(ini.GetInt(SettingsSection, "Sound Effects Volume", 100), 0, 100),
             ShowPersistentSelfNameEnabled = ini.GetBool(SettingsSection, "Show Self Name", false),
+            ShowPlayerNamesEnabled = ini.GetBool(SettingsSection, "Show Player Names", true),
             PositionSmoothingEnabled = ini.GetBool(SettingsSection, "Position Smoothing", true),
-            SmoothCameraMultiplier = Math.Clamp(ini.GetFloat(SettingsSection, "Smooth Camera Multiplier", 0.35f), 0f, 1f),
+            EnablePrediction = ini.GetBool(SettingsSection, "Enable Prediction", true),
+            SmoothCameraMultiplier = Math.Clamp(ini.GetFloat(SettingsSection, "Smooth Camera Multiplier", 0f), 0f, 1f),
             SpriteDropShadowEnabled = ini.GetBool(SettingsSection, "Sprite Drop Shadow", true),
             PixelPerfectWeaponRotation = ini.GetBool(SettingsSection, "Pixel Perfect Weapon Rotation", true),
             UseLocalWeaponRotation = ini.GetBool(SettingsSection, "Use Local Weapon Rotation", false),
@@ -395,7 +401,9 @@ public sealed class OpenGarrisonPreferencesDocument
         ini.SetInt(SettingsSection, "Combat Music Volume", Math.Clamp(CombatMusicVolumePercent, 0, MaxCombatMusicVolumePercent));
         ini.SetInt(SettingsSection, "Sound Effects Volume", SoundEffectsVolumePercent);
         ini.SetBool(SettingsSection, "Show Self Name", ShowPersistentSelfNameEnabled);
+        ini.SetBool(SettingsSection, "Show Player Names", ShowPlayerNamesEnabled);
         ini.SetBool(SettingsSection, "Position Smoothing", PositionSmoothingEnabled);
+        ini.SetBool(SettingsSection, "Enable Prediction", EnablePrediction);
         ini.SetFloat(SettingsSection, "Smooth Camera Multiplier", Math.Clamp(SmoothCameraMultiplier, 0f, 1f));
         ini.SetBool(SettingsSection, "Sprite Drop Shadow", SpriteDropShadowEnabled);
         ini.SetBool(SettingsSection, "Pixel Perfect Weapon Rotation", PixelPerfectWeaponRotation);
@@ -1162,6 +1170,28 @@ public static class OpenGarrisonStockMapCatalog
         new("tdm_mantic", "Mantic", "Mantic", GameModeKind.TeamDeathmatch, 0, "mantic"),
         new("koth_gallery", "Gallery", "Gallery", GameModeKind.KingOfTheHill, 2, "gallery"),
         new("ctf_eiger", "Eiger", "Eiger", GameModeKind.CaptureTheFlag, 6, "eiger"),
+
+        // These maps are shipped in the application package and are part of the
+        // built-in practice roster. They intentionally have no default server
+        // rotation order; treating them as stock here keeps them out of the
+        // custom-map path while leaving the shipped server playlist unchanged.
+        new("Docking", "Docking", "Docking", GameModeKind.ControlPoint, 0, "docking"),
+        new("koth_bayou", "koth_bayou", "Bayou", GameModeKind.KingOfTheHill, 0, "bayou"),
+        new("koth_cdragon", "koth_cdragon", "Cdragon", GameModeKind.KingOfTheHill, 0, "cdragon"),
+        new("koth_eureka", "koth_eureka", "Eureka", GameModeKind.KingOfTheHill, 0, "eureka"),
+        new("koth_AMERICA", "koth_AMERICA", "America", GameModeKind.KingOfTheHill, 0, "america"),
+        new("3cp_kistra", "3cp_kistra", "Kistra", GameModeKind.ControlPoint, 0, "kistra"),
+        new("Kulay", "Kulay", "Kulay", GameModeKind.DoubleKingOfTheHill, 0, "kulay", "dkoth_kulay", "dkoth_kulay_v2"),
+        new("cp_coldfront_js", "cp_coldfront_js", "Coldfront", GameModeKind.ControlPoint, 0, "coldfront", "coldfront_v7", "cp_coldfront_v7"),
+        new("cp_gully", "cp_gully", "Gully", GameModeKind.ControlPoint, 0, "gully"),
+        new("koth_ravine", "koth_ravine", "Ravine", GameModeKind.KingOfTheHill, 0, "ravine"),
+        new("koth_standoff", "koth_standoff", "Standoff", GameModeKind.KingOfTheHill, 0, "standoff"),
+        new("koth_crab_v2", "koth_crab_v2", "Crab", GameModeKind.KingOfTheHill, 0, "crab"),
+        new("koth_thundermountain_v2", "koth_thundermountain_v2", "Thundermountain_v2", GameModeKind.KingOfTheHill, 0, "thundermountain_v2"),
+        new("koth_high5tower_a1", "koth_high5tower_a1", "Hightower", GameModeKind.KingOfTheHill, 0, "high5tower_a1", "hightower"),
+        new("koth_heist", "koth_heist", "Heist", GameModeKind.KingOfTheHill, 0, "heist"),
+        new("koth_drill_v3", "koth_drill_v3", "Drill", GameModeKind.KingOfTheHill, 0, "drill_v3", "drill"),
+        new("koth_nightly", "koth_nightly", "Nightly", GameModeKind.KingOfTheHill, 0, "nightly"),
     ];
 
     private static IReadOnlyList<OpenGarrisonStockMapDefinition> HiddenDefinitions { get; } =

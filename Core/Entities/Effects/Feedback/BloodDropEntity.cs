@@ -9,6 +9,7 @@ public sealed class BloodDropEntity : SimulationEntity
     public const float MaxSpeed = 11f;
     public const float DefaultScale = 1f;
     public const float MaxScale = 2f;
+    private const float TopDownFriction = 0.82f;
 
     public BloodDropEntity(int id, float x, float y, float velocityX, float velocityY, float scale = DefaultScale, bool experimentalCryoTinted = false) : base(id)
     {
@@ -54,7 +55,11 @@ public sealed class BloodDropEntity : SimulationEntity
         Scale = float.Clamp(scale, DefaultScale, MaxScale);
     }
 
-    public void Advance(SimpleLevel level, WorldBounds bounds)
+    public void Advance(
+        SimpleLevel level,
+        WorldBounds bounds,
+        bool preservePosition = false,
+        bool topDown = false)
     {
         if (TicksRemaining > 0)
         {
@@ -63,6 +68,20 @@ public sealed class BloodDropEntity : SimulationEntity
 
         if (TicksRemaining <= 0)
         {
+            return;
+        }
+
+        if (topDown)
+        {
+            AdvanceTopDown(level, bounds);
+            return;
+        }
+
+        if (preservePosition)
+        {
+            VelocityX = 0f;
+            VelocityY = 0f;
+            IsStuck = true;
             return;
         }
 
@@ -96,6 +115,57 @@ public sealed class BloodDropEntity : SimulationEntity
                 VelocityY = 0f;
                 IsStuck = true;
             }
+        }
+    }
+
+    private void AdvanceTopDown(SimpleLevel level, WorldBounds bounds)
+    {
+        if (IsStuck)
+        {
+            VelocityX = 0f;
+            VelocityY = 0f;
+            return;
+        }
+
+        var previousX = X;
+        var previousY = Y;
+        X += VelocityX;
+        Y += VelocityY;
+
+        foreach (var solid in level.Solids)
+        {
+            if (!Intersects(solid))
+            {
+                continue;
+            }
+
+            X = previousX;
+            Y = previousY;
+            VelocityX = 0f;
+            VelocityY = 0f;
+            IsStuck = true;
+            return;
+        }
+
+        var clampedX = bounds.ClampX(X, BoundingSize);
+        var clampedY = bounds.ClampY(Y, BoundingSize);
+        if (clampedX != X || clampedY != Y)
+        {
+            X = clampedX;
+            Y = clampedY;
+            VelocityX = 0f;
+            VelocityY = 0f;
+            IsStuck = true;
+            return;
+        }
+
+        VelocityX *= TopDownFriction;
+        VelocityY *= TopDownFriction;
+        if ((VelocityX * VelocityX) + (VelocityY * VelocityY) <= 0.04f)
+        {
+            VelocityX = 0f;
+            VelocityY = 0f;
+            IsStuck = true;
         }
     }
 

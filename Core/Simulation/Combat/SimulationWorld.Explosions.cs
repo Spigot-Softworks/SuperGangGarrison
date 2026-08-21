@@ -94,6 +94,7 @@ public sealed partial class SimulationWorld
         RegisterExplosionTraces(mine.X, mine.Y);
 
         var playersSnapshot = EnumerateSimulatedPlayers().ToArray();
+        var attackerWasGrounded = owner?.IsGrounded;
         foreach (var player in playersSnapshot)
         {
             if (!player.IsAlive)
@@ -123,6 +124,7 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
+            var targetWasGrounded = player.IsGrounded;
             ApplyMineExplosionImpulse(player, mine.X, mine.Y, factor);
             if (player.Id == mine.OwnerId && player.Team == mine.Team)
             {
@@ -143,7 +145,7 @@ public sealed partial class SimulationWorld
                     damage *= MineProjectileEntity.SelfDamageScale;
                 }
 
-                if (ApplyPlayerContinuousDamage(
+                if (ApplyPlayerContinuousDamageWithContext(
                         player,
                         damage,
                         owner,
@@ -151,7 +153,10 @@ public sealed partial class SimulationWorld
                         civvieUmbrellaThreatSourceX: mine.X,
                         civvieUmbrellaThreatSourceY: mine.Y,
                         civvieUmbrellaDrainTicks: PlayerEntity.CivvieUmbrellaDirectExplosionDrainTicks,
-                        civvieUmbrellaCriticalBoost: PlayerEntity.IsCriticalDamageMultiplierBoosted(critMultiplier)))
+                        civvieUmbrellaCriticalBoost: PlayerEntity.IsCriticalDamageMultiplierBoosted(critMultiplier),
+                        civvieUmbrellaUseLiveAttackerCriticalBoost: false,
+                        attackerWasGrounded: attackerWasGrounded,
+                        targetWasGrounded: targetWasGrounded))
                 {
                     KillPlayer(
                         player,
@@ -462,6 +467,7 @@ public sealed partial class SimulationWorld
         var blastDamage = global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultDangerCloseExplosionDamage;
         var knockbackPerTick = global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultDangerCloseKnockbackPerTick;
         var playersSnapshot = EnumerateSimulatedPlayers().ToArray();
+        var attackerWasGrounded = owner.IsGrounded;
 
         RegisterWorldSoundEvent("ExplosionSnd", centerX, centerY);
         RegisterVisualEffect("Explosion", centerX, centerY);
@@ -498,6 +504,7 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
+            var targetWasGrounded = player.IsGrounded;
             var impulse = GetExplosionImpulseMagnitude(
                 player,
                 centerX,
@@ -517,14 +524,16 @@ public sealed partial class SimulationWorld
 
             var appliedDamage = blastDamage * distanceFactor;
             RegisterBloodEffect(player.X, player.Y, PointDirectionDegrees(centerX, centerY, player.X, player.Y) - 180f, 3);
-            if (ApplyPlayerContinuousDamage(
+            if (ApplyPlayerContinuousDamageWithContext(
                     player,
                     appliedDamage,
                     owner,
                     PlayerEntity.SpyDamageRevealAlpha,
                     civvieUmbrellaThreatSourceX: centerX,
                     civvieUmbrellaThreatSourceY: centerY,
-                    civvieUmbrellaDrainTicks: PlayerEntity.GetCivvieUmbrellaSplashExplosionDrainTicksFromDamage(appliedDamage, blastDamage)))
+                    civvieUmbrellaDrainTicks: PlayerEntity.GetCivvieUmbrellaSplashExplosionDrainTicksFromDamage(appliedDamage, blastDamage),
+                    attackerWasGrounded: attackerWasGrounded,
+                    targetWasGrounded: targetWasGrounded))
             {
                 KillPlayer(
                     player,

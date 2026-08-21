@@ -19,6 +19,7 @@ public sealed partial class SimulationWorld
     {
         if (!LocalPlayer.IsAlive
             || LocalPlayer.IsCarryingIntel
+            || LocalPlayer.IsLastToDieSpyAfterlifeActive
             || (LocalPlayer.ClassId == PlayerClass.Spy && LocalPlayer.IsSpyCloaked))
         {
             return false;
@@ -63,6 +64,7 @@ public sealed partial class SimulationWorld
     {
         if (player.IsCarryingIntel
             || !player.IsAlive
+            || player.IsLastToDieSpyAfterlifeActive
             || player.IntelPickupCooldownTicks > 0
             || player.IsInsideBlockingTeamGate(Level, player.Team)
             || (player.ClassId == PlayerClass.Spy && player.IsSpyCloaked))
@@ -112,7 +114,7 @@ public sealed partial class SimulationWorld
 
     private void TryScoreCarriedIntel(PlayerEntity player)
     {
-        if (!player.IsCarryingIntel)
+        if (!player.IsCarryingIntel || player.IsLastToDieSpyAfterlifeActive)
         {
             return;
         }

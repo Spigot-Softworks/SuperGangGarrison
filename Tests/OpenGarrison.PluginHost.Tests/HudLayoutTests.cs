@@ -45,6 +45,17 @@ public sealed class HudLayoutTests
         Assert.False(sentry.Bounds.Intersects(health.Bounds));
     }
 
+    [Fact]
+    public void EngineerBuildMenuDefaultReportsLegacyScreenBounds()
+    {
+        var profile = new HudLayoutProfile();
+
+        Assert.True(profile.TryResolve(HudElementId.ClassEngineerBuildMenu, 1280, 720, out var resolved));
+        Assert.Equal(37f, resolved.Origin.X, precision: 3);
+        Assert.Equal(360f, resolved.Origin.Y, precision: 3);
+        Assert.Equal(new Rectangle(37, 340, 74, 244), resolved.Bounds);
+    }
+
     [Theory]
     [InlineData(800, 600)]
     [InlineData(1280, 720)]
@@ -92,6 +103,22 @@ public sealed class HudLayoutTests
             viewportHeight,
             HudElementId.LocalAbilityStack,
             HudElementId.ClassMedicUber,
+            HudElementId.LastToDieRage);
+    }
+
+    [Theory]
+    [InlineData(800, 600)]
+    [InlineData(1280, 720)]
+    [InlineData(1920, 1080)]
+    public void LastToDieSpyCloakMeterDoesNotOverlapRage(int viewportWidth, int viewportHeight)
+    {
+        var profile = new HudLayoutProfile();
+
+        AssertDefaultElementsDoNotOverlap(
+            profile,
+            viewportWidth,
+            viewportHeight,
+            HudElementId.LastToDieSpyCloak,
             HudElementId.LastToDieRage);
     }
 
@@ -269,6 +296,20 @@ public sealed class HudLayoutTests
         var defaults = HudLayoutDefaults.Create()[HudElementId.LocalAbilityStack];
         Assert.Equal(MathF.Round(defaults.Size.X * 1.5f), resolved.Bounds.Width);
         Assert.Equal(MathF.Round(defaults.Size.Y * 1.5f), resolved.Bounds.Height);
+    }
+
+    [Fact]
+    public void ElementVisibilityCanHideAndRestoreWithoutMovingIt()
+    {
+        var profile = new HudLayoutProfile();
+        Assert.True(profile.SetElementVisibility(HudElementId.MatchKillFeed, false));
+        Assert.False(profile.TryResolve(HudElementId.MatchKillFeed, 1280, 720, out _));
+        Assert.True(profile.TryResolveEvenIfHidden(HudElementId.MatchKillFeed, 1280, 720, out var hidden));
+        Assert.False(hidden.Layout.Visible);
+
+        Assert.True(profile.SetElementVisibility(HudElementId.MatchKillFeed, true));
+        Assert.True(profile.TryResolve(HudElementId.MatchKillFeed, 1280, 720, out var visible));
+        Assert.Equal(hidden.Origin, visible.Origin);
     }
 
     [Fact]

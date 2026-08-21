@@ -163,7 +163,8 @@ public sealed partial class PlayerEntity
 
         if (ExperimentalOffhandReloadTicksUntilNextShell <= 0)
         {
-            ExperimentalOffhandReloadTicksUntilNextShell = ApplyExperimentalReloadMultiplier(MedicNeedleRefillTicksDefault);
+            ExperimentalOffhandReloadTicksUntilNextShell = ApplyLastToDieMedicNeedleReloadMultiplier(
+                MedicNeedleRefillTicksDefault);
             return;
         }
 

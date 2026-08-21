@@ -14,6 +14,10 @@ public partial class Game1
 {
     private sealed class GameplayAudioMusicController
     {
+        internal const string LastToDieMenuMusicRelativePath = "Music/menu-l2d.fixed.wav";
+        internal const string LastToDieIngameMusicRelativePath = "Music/ingame_l2d.wav";
+        internal const string LastToDieGameOverMusicRelativePath = "Music/ltdgameover.fixed.wav";
+
         private readonly Game1 _game;
 
         public GameplayAudioMusicController(Game1 game)
@@ -65,7 +69,7 @@ public partial class Game1
         {
             if (_game._audioAvailable)
             {
-                TryLoadLoopedMusic(Path.Combine("Music", "menu-l2d.fixed.wav"), out _game._lastToDieMenuMusic, out _game._lastToDieMenuMusicInstance, 0.82f, disableAudioOnFailure: false);
+                TryLoadLoopedMusic(LastToDieMenuMusicRelativePath, out _game._lastToDieMenuMusic, out _game._lastToDieMenuMusicInstance, 0.82f, disableAudioOnFailure: false);
                 _game.ApplyAudioVolumeState();
             }
         }
@@ -74,7 +78,7 @@ public partial class Game1
         {
             if (_game._audioAvailable)
             {
-                TryLoadLoopedMusic(Path.Combine("Music", "ingame_l2d.wav"), out _game._lastToDieIngameMusic, out _game._lastToDieIngameMusicInstance, 0.82f, disableAudioOnFailure: false);
+                TryLoadLoopedMusic(LastToDieIngameMusicRelativePath, out _game._lastToDieIngameMusic, out _game._lastToDieIngameMusicInstance, 0.82f, disableAudioOnFailure: false);
                 _game.ApplyAudioVolumeState();
             }
         }
@@ -172,8 +176,15 @@ public partial class Game1
 
         public void EnsureIngameMusicPlaying()
         {
+            if (_game.IsHostedLastToDieMenuMusicPhase())
+            {
+                EnsureHostedLastToDieMenuMusicPlaying();
+                return;
+            }
+
             if (!_game._audioAvailable || !_game.AllowsIngameMusic())
             {
+                StopLastToDieMenuMusic();
                 StopIngameMusic();
                 StopLastToDieIngameMusic();
                 return;
@@ -195,13 +206,15 @@ public partial class Game1
 
             if (_game.IsLastToDieDeathFocusPresentationActive() || _game._world.MatchState.IsEnded)
             {
+                StopLastToDieMenuMusic();
                 StopIngameMusic();
                 StopLastToDieIngameMusic();
                 return;
             }
 
-            if (_game.IsLastToDieSessionActive && _game._lastToDieIngameMusicInstance is not null)
+            if (_game.IsAnyLastToDieSessionActive && _game._lastToDieIngameMusicInstance is not null)
             {
+                StopLastToDieMenuMusic();
                 StopIngameMusic();
                 try
                 {
@@ -218,6 +231,7 @@ public partial class Game1
                 return;
             }
 
+            StopLastToDieMenuMusic();
             StopLastToDieIngameMusic();
             if (_game._ingameMusicInstance is null)
             {
@@ -234,6 +248,48 @@ public partial class Game1
             catch (Exception ex)
             {
                 HandleMusicPlaybackFailure("starting in-game music", ex, ref _game._ingameMusic, ref _game._ingameMusicInstance);
+            }
+        }
+
+        private void EnsureHostedLastToDieMenuMusicPlaying()
+        {
+            // Hosted LTD menus are gameplay screens from the application's
+            // perspective, but musically they remain part of the LTD menu flow.
+            // Stop both gameplay tracks first so a delayed load/play cannot
+            // produce two songs at once.
+            StopIngameMusic();
+            StopLastToDieIngameMusic();
+            StopMenuMusic();
+
+            if (!_game._audioAvailable || !_game.AllowsMenuMusic())
+            {
+                StopLastToDieMenuMusic();
+                return;
+            }
+
+            EnsureBrowserMusicLoaded(
+                ref _game._lastToDieMenuMusicLoadAttempted,
+                _game._lastToDieMenuMusicInstance,
+                LoadLastToDieMenuMusic);
+            if (!CanStartAudioPlayback() || _game._lastToDieMenuMusicInstance is null)
+            {
+                return;
+            }
+
+            try
+            {
+                if (_game._lastToDieMenuMusicInstance.State != SoundState.Playing)
+                {
+                    _game._lastToDieMenuMusicInstance.Play();
+                }
+            }
+            catch (Exception ex)
+            {
+                HandleMusicPlaybackFailure(
+                    "starting hosted Last To Die menu music",
+                    ex,
+                    ref _game._lastToDieMenuMusic,
+                    ref _game._lastToDieMenuMusicInstance);
             }
         }
 
@@ -291,7 +347,7 @@ public partial class Game1
                     _game._lastToDieGameOverSoundLoadAttempted = true;
                 }
 
-                var soundPath = FindLoopedMusicPath(Path.Combine("Music", "ltdgameover.fixed.wav"));
+                var soundPath = FindLoopedMusicPath(LastToDieGameOverMusicRelativePath);
                 if (string.IsNullOrWhiteSpace(soundPath) || !MusicAssetExists(soundPath))
                 {
                     return;

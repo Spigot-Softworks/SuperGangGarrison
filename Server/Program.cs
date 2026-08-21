@@ -87,6 +87,7 @@ var server = new GameServer(
     launchOptions.PublicWebSocketUrl,
     launchOptions.QuicPort,
     launchOptions.PublicQuicUrl,
+    launchOptions.RelayHostUrl,
     clientTimeoutSeconds,
     passwordTimeoutSeconds,
     passwordRetrySeconds,
@@ -95,6 +96,9 @@ var server = new GameServer(
     launchOptions.Settings.PersistentGameplayOwnershipIdentityMode,
     launchOptions.Settings.PersistentGameplayOwnershipFile,
     launchOptions.Settings.HostDefaults,
+    launchOptions.GameplayVariant,
+    launchOptions.LastToDieDifficulty,
+    launchOptions.LastToDieSeed,
     launchOptions.SnapshotBudgetMode);
 
 using var shutdownCts = new CancellationTokenSource();

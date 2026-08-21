@@ -133,6 +133,7 @@ public partial class Game1
 
             return EnumerateLocalGameplayItemIds(includeHiddenAbilities: true)
                 .Where(static itemId => !string.IsNullOrWhiteSpace(itemId))
+                .Select(static itemId => itemId!)
                 .Distinct(StringComparer.Ordinal)
                 .ToArray();
         }
@@ -146,6 +147,7 @@ public partial class Game1
 
             return EnumerateLocalGameplayItemIds(includeHiddenAbilities: true)
                 .Where(static itemId => !string.IsNullOrWhiteSpace(itemId))
+                .Select(static itemId => itemId!)
                 .Distinct(StringComparer.Ordinal)
                 .Where(static itemId => CharacterClassCatalog.RuntimeRegistry.TryGetGameplayAbilityDefinition(itemId, out _, out _))
                 .ToArray();

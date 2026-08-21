@@ -150,7 +150,9 @@ internal static partial class ServerHelpers
             BinocularsFocusY: message.BinocularsFocusY,
             SwapWeapon: buttons.HasFlag(InputButtons.SwapWeapon),
             ReadyUp: buttons.HasFlag(InputButtons.ReadyUp),
-            IsTypingChatMessage: buttons.HasFlag(InputButtons.IsTypingChatMessage));
+            IsTypingChatMessage: buttons.HasFlag(InputButtons.IsTypingChatMessage),
+            BuildDispenser: buttons.HasFlag(InputButtons.BuildDispenser),
+            DestroyDispenser: buttons.HasFlag(InputButtons.DestroyDispenser));
     }
 
     internal static PlayerInputSnapshot ConvertRelativeAimToWorld(PlayerInputSnapshot input, float playerX, float playerY)

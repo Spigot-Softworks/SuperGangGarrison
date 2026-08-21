@@ -40,19 +40,22 @@ public sealed partial class SimulationWorld
                 {
                     var hitPlayer = hitResult.HitPlayer;
                     var shieldChargeBefore = hitPlayer.CivvieUmbrellaChargeTicks;
-                    var playerDied = ApplyPlayerContinuousDamage(
+                    var infiltrateBlockedFlame = hitPlayer.IsLastToDieSpyInfiltrateProjectileImmune;
+                    var playerDied = ApplyPlayerContinuousDamageWithContext(
                         hitPlayer,
                         flame.DirectHitDamageValue * flame.CriticalDamageMultiplier,
                         owner,
                         civvieUmbrellaThreatSourceX: flame.PreviousX,
                         civvieUmbrellaThreatSourceY: flame.PreviousY,
-                        civvieUmbrellaCriticalBoost: PlayerEntity.IsCriticalDamageMultiplierBoosted(flame.CriticalDamageMultiplier));
+                        civvieUmbrellaCriticalBoost: PlayerEntity.IsCriticalDamageMultiplierBoosted(flame.CriticalDamageMultiplier),
+                        civvieUmbrellaUseLiveAttackerCriticalBoost: false,
+                        additionalTraits: PlayerDamageTraits.DirectProjectile);
                     var umbrellaBlockedFlame = hitPlayer.CivvieUmbrellaChargeTicks < shieldChargeBefore;
                     if (playerDied)
                     {
                         KillPlayer(hitPlayer, killer: owner, weaponSpriteName: "FlameKL");
                     }
-                    else if (!umbrellaBlockedFlame)
+                    else if (!umbrellaBlockedFlame && !infiltrateBlockedFlame)
                     {
                         hitPlayer.IgniteAfterburn(
                             flame.OwnerId,
@@ -151,21 +154,37 @@ public sealed partial class SimulationWorld
                 RegisterCombatTrace(flare.PreviousX, flare.PreviousY, directionX, directionY, hitResult.Distance, hitResult.HitPlayer is not null);
                 if (hitResult.HitPlayer is not null)
                 {
-                    if (!TryAbsorbCivvieUmbrellaProjectileContact(
+                    var infiltrateBlockedFlare =
+                        hitResult.HitPlayer.IsLastToDieSpyInfiltrateProjectileImmune;
+                    if (infiltrateBlockedFlare
+                        || !TryAbsorbCivvieUmbrellaProjectileContact(
                             hitResult.HitPlayer,
                             flare.OwnerId,
                             hitResult.HitX,
                             hitResult.HitY,
                             criticalBoost: PlayerEntity.IsCriticalDamageMultiplierBoosted(flare.CriticalDamageMultiplier)))
                     {
-                        RegisterBloodEffect(hitResult.HitPlayer.X, hitResult.HitPlayer.Y, MathF.Atan2(directionY, directionX) * (180f / MathF.PI) - 180f);
+                        if (!infiltrateBlockedFlare)
+                        {
+                            RegisterBloodEffect(hitResult.HitPlayer.X, hitResult.HitPlayer.Y, MathF.Atan2(directionY, directionX) * (180f / MathF.PI) - 180f);
+                        }
+
                         var hitDamage = ApplyExperimentalAirshotDamageMultiplier(owner, hitResult.HitPlayer, (int)MathF.Round(FlareProjectileEntity.DamagePerHit * flare.CriticalDamageMultiplier), out var damageFlags);
-                        var playerDied = ApplyPlayerDamage(hitResult.HitPlayer, hitDamage, owner, PlayerEntity.SpyDamageRevealAlpha, damageFlags);
+                        var playerDied = ApplyPlayerDamageWithContext(
+                            hitResult.HitPlayer,
+                            hitDamage,
+                            owner,
+                            PlayerEntity.SpyDamageRevealAlpha,
+                            damageFlags,
+                            allowCivvieUmbrellaShield: false,
+                            civvieUmbrellaCriticalBoost: PlayerEntity.IsCriticalDamageMultiplierBoosted(flare.CriticalDamageMultiplier),
+                            civvieUmbrellaUseLiveAttackerCriticalBoost: false,
+                            additionalTraits: PlayerDamageTraits.DirectProjectile);
                         if (playerDied)
                         {
                             KillPlayer(hitResult.HitPlayer, killer: owner, weaponSpriteName: "FlareKL");
                         }
-                        else
+                        else if (!infiltrateBlockedFlare)
                         {
                             hitResult.HitPlayer.IgniteAfterburn(
                                 flare.OwnerId,
@@ -431,6 +450,10 @@ public sealed partial class SimulationWorld
 
         // Damage players
         var playersSnapshot = EnumerateSimulatedPlayers().ToArray();
+        var attackerWasGrounded = owner?.IsGrounded;
+        var groundedByPlayerId = playersSnapshot.ToDictionary(
+            static player => player.Id,
+            static player => player.IsGrounded);
         foreach (var player in playersSnapshot)
         {
             if (!player.IsAlive)
@@ -486,7 +509,7 @@ public sealed partial class SimulationWorld
                 }
 
                 var damage = maxSplashDamage * factor;
-                if (ApplyPlayerContinuousDamage(
+                if (ApplyPlayerContinuousDamageWithContext(
                         player,
                         damage,
                         owner,
@@ -494,7 +517,10 @@ public sealed partial class SimulationWorld
                         civvieUmbrellaThreatSourceX: grenade.X,
                         civvieUmbrellaThreatSourceY: grenade.Y,
                         civvieUmbrellaDrainTicks: PlayerEntity.GetCivvieUmbrellaSplashExplosionDrainTicksFromDamage(damage, maxSplashDamage),
-                        civvieUmbrellaCriticalBoost: PlayerEntity.IsCriticalDamageMultiplierBoosted(critMultiplier)))
+                        civvieUmbrellaCriticalBoost: PlayerEntity.IsCriticalDamageMultiplierBoosted(critMultiplier),
+                        civvieUmbrellaUseLiveAttackerCriticalBoost: false,
+                        attackerWasGrounded: attackerWasGrounded,
+                        targetWasGrounded: groundedByPlayerId[player.Id]))
                 {
                     KillPlayer(
                         player,
@@ -507,7 +533,12 @@ public sealed partial class SimulationWorld
 
         if (directHitPlayer is not null)
         {
-            ApplyGrenadeDirectImpactDamage(grenade, owner, directHitPlayer);
+            ApplyGrenadeDirectImpactDamage(
+                grenade,
+                owner,
+                directHitPlayer,
+                attackerWasGrounded,
+                groundedByPlayerId.GetValueOrDefault(directHitPlayer.Id, directHitPlayer.IsGrounded));
         }
 
         // Damage sentries
@@ -586,7 +617,12 @@ public sealed partial class SimulationWorld
             grenade.Team);
     }
 
-    private void ApplyGrenadeDirectImpactDamage(GrenadeProjectileEntity grenade, PlayerEntity? owner, PlayerEntity target)
+    private void ApplyGrenadeDirectImpactDamage(
+        GrenadeProjectileEntity grenade,
+        PlayerEntity? owner,
+        PlayerEntity target,
+        bool? attackerWasGrounded,
+        bool targetWasGrounded)
     {
         if (!target.IsAlive || !CanTeamDamagePlayer(grenade.Team, grenade.OwnerId, target))
         {
@@ -595,7 +631,7 @@ public sealed partial class SimulationWorld
 
         RegisterBloodEffect(target.X, target.Y, PointDirectionDegrees(grenade.X, grenade.Y, target.X, target.Y) - 180f, 3);
         var damage = Math.Max(1, (int)MathF.Round(GrenadeProjectileEntity.DirectHitDamage * grenade.CriticalDamageMultiplier));
-        if (ApplyPlayerDamage(
+        if (ApplyPlayerDamageWithContext(
                 target,
                 damage,
                 owner,
@@ -603,7 +639,11 @@ public sealed partial class SimulationWorld
                 civvieUmbrellaThreatSourceX: grenade.PreviousX,
                 civvieUmbrellaThreatSourceY: grenade.PreviousY,
                 civvieUmbrellaDrainTicks: PlayerEntity.CivvieUmbrellaDirectExplosionDrainTicks,
-                civvieUmbrellaCriticalBoost: PlayerEntity.IsCriticalDamageMultiplierBoosted(grenade.CriticalDamageMultiplier)))
+                civvieUmbrellaCriticalBoost: PlayerEntity.IsCriticalDamageMultiplierBoosted(grenade.CriticalDamageMultiplier),
+                civvieUmbrellaUseLiveAttackerCriticalBoost: false,
+                additionalTraits: PlayerDamageTraits.DirectProjectile,
+                attackerWasGrounded: attackerWasGrounded,
+                targetWasGrounded: targetWasGrounded))
         {
             KillPlayer(
                 target,

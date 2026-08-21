@@ -90,8 +90,6 @@ public partial class Game1 : Game
         Root,
         PlayOnline,
         PlayOffline,
-        Minigames,
-        Credits,
     }
 
     private enum ControlsMenuBinding
@@ -209,6 +207,7 @@ public partial class Game1 : Game
     private Texture2D? _levelBackgroundFileTexture;
     private string? _levelBackgroundFileTexturePath;
     private string? _levelBackgroundFileFailedPath;
+    private SimpleLevel? _levelBackgroundFileTextureLevel;
     private LoadedSpriteFrame? _menuBackgroundTexture;
     private string? _menuBackgroundTexturePath;
     private string? _menuBackgroundFailedPath;
@@ -256,6 +255,10 @@ public partial class Game1 : Game
     private bool _wasMatchEnded;
     private int _previousLocalDemoknightChargeTicks = PlayerEntity.ExperimentalDemoknightChargeMaxTicks;
     private MouseState _previousMouse;
+    // Draw code must use the same focus-sanitized mouse sample as Update. Reading
+    // Mouse.GetState directly during Draw lets an inactive window click through.
+    private MouseState _frameMouseState;
+    private MouseState _frameRawMouseState;
     private Point _lastKnownMousePosition;
     private bool _suppressPrimaryFireUntilMouseRelease;
     private bool _suppressSecondaryFireUntilMouseRelease;
@@ -279,6 +282,7 @@ public partial class Game1 : Game
     private string? _activeReplayPath;
     private bool _killCamEnabled = true;
     private bool _positionSmoothingEnabled = false;
+    private bool _enablePrediction = true;
     private float _smoothCameraMultiplier = ClientSettings.DefaultSmoothCameraMultiplier;
     private bool _hasSmoothCamera;
     private Vector2 _smoothCamera;
@@ -312,9 +316,6 @@ public partial class Game1 : Game
     private float _portraitRumbleRemainingSeconds;
     private float _portraitRumbleIntensity;
     private int _portraitRumbleSeed;
-    private float _weaponFireHudRumbleRemainingSeconds;
-    private float _weaponFireHudRumbleIntensity;
-    private int _weaponFireHudRumbleSeed;
     private bool _damageVignetteEnabled = true;
     private int _damageVignetteIntensityPercent = ClientSettings.DefaultDamageVignetteIntensityPercent;
     private LowHealthColorMode _lowHealthColorMode = LowHealthColorMode.Red;
@@ -324,16 +325,18 @@ public partial class Game1 : Game
     private int _damageVignetteTextureWidth;
     private int _damageVignetteTextureHeight;
     private bool _showPersistentSelfNameEnabled;
+    private bool _showPlayerNamesEnabled = true;
     private bool _spriteDropShadowEnabled;
     private bool _stuckArrowsEnabled = true;
     private bool _pixelPerfectWeaponRotation = true;
     private bool _useLocalWeaponRotation = false;
     private int _playerCardSizeMode = ClientSettings.PlayerCardSizeSmall;
     private int _cursorSizePercent = ClientSettings.DefaultCursorSizePercent;
-    private int _continuousCrosshairActiveTicks;
     private bool _uberOutlineEnabled = true;
     private bool _projectileTeamTintEnabled = true;
     private bool _wasWindowActive = true;
+    private bool _windowInputActive = true;
+    private bool _suppressFullscreenToggleUntilRelease;
     private int _menuImageFrame;
     private readonly List<ChatLine> _chatLines = new();
     private OverheadChatMessage? _localOverheadChatMessage;
@@ -463,6 +466,22 @@ public partial class Game1 : Game
 
         // Subscribe to game exit event to ensure proper server disconnection
         Exiting += OnGameExiting;
+        Activated += OnGameActivated;
+        Deactivated += OnGameDeactivated;
+    }
+
+    private void OnGameActivated(object? sender, EventArgs e)
+    {
+        _windowInputActive = true;
+        // Rebase the edge detector on the first active frame. A button held while
+        // another window was focused must not become a new click on refocus.
+        _wasWindowActive = false;
+    }
+
+    private void OnGameDeactivated(object? sender, EventArgs e)
+    {
+        _windowInputActive = false;
+        HandleWindowFocusLost(default);
     }
 
     private void OnGameExiting(object? sender, EventArgs e)
@@ -471,6 +490,7 @@ public partial class Game1 : Game
         // This sends a proper close message (WebSocket close frame or UDP socket closure)
         // so the server can immediately remove the player instead of waiting for timeout
         SendSocialPresenceOffline();
+        _networkClient.SendLastToDieLeave();
         _networkClient.Disconnect();
     }
 
@@ -613,6 +633,32 @@ public partial class Game1 : Game
         return OperatingSystem.IsBrowser()
             ? BrowserInputBridge.GetMouseState()
             : Mouse.GetState();
+    }
+
+    internal MouseState GetFrameMouseState()
+    {
+        return _frameMouseState;
+    }
+
+    internal MouseState GetFrameRawMouseState()
+    {
+        return _frameRawMouseState;
+    }
+
+    internal bool IsWindowInputActive => OperatingSystem.IsBrowser()
+        ? BrowserInputBridge.IsFocused
+        : _windowInputActive && IsActive;
+
+    internal static bool ShouldDeferFullscreenToggle(
+        bool startupSplashOpen,
+        bool loadingOverlayVisible,
+        bool contentBootstrapComplete,
+        bool loadingPresentationPending)
+    {
+        return startupSplashOpen
+            || loadingOverlayVisible
+            || !contentBootstrapComplete
+            || loadingPresentationPending;
     }
 
     private MainMenuOverlayKind GetActiveMainMenuOverlay()

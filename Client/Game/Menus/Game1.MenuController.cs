@@ -70,24 +70,7 @@ public partial class Game1
             var viewportWidth = _game.ViewportWidth;
             var viewportHeight = _game.ViewportHeight;
 
-            // Draw animated or static background based on setting
-            if (_game._menuBackgroundMode != MenuBackgroundMode.Static)
-            {
-                _game._animatedMenuBackgroundController.Draw(viewportWidth, viewportHeight);
-            }
-            else
-            {
-                EnsureMenuBackgroundTexture(viewportWidth, viewportHeight);
-
-                if (_game._menuBackgroundTexture is not null)
-                {
-                    _game.DrawLoadedSpriteFrame(_game._menuBackgroundTexture, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.White);
-                }
-                else if (!_game.TryDrawScreenSprite("MenuBackgroundS", _game._menuImageFrame, new Vector2(viewportWidth / 2f, viewportHeight / 2f), Color.White, Vector2.One))
-                {
-                    _game._spriteBatch.Draw(_game._pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), new Color(26, 24, 20));
-                }
-            }
+            DrawBackground(viewportWidth, viewportHeight);
 
             if (_game._mainMenuChromeHidden && !_game._builderEditorEnabled)
             {
@@ -105,7 +88,7 @@ public partial class Game1
 
             if (_game._builderEditorEnabled)
             {
-                var mouse = _game.GetScaledMouseState(_game.GetConstrainedMouseState(Game1.GetCurrentMouseState()));
+                var mouse = _game.GetFrameMouseState();
                 _game.DrawGarrisonBuilderEditorOverlay(mouse);
                 _game.DrawDevMessagePopup();
                 return;
@@ -129,6 +112,30 @@ public partial class Game1
             }
 
             _game.DrawDevMessagePopup();
+        }
+
+        public void DrawBackground(int viewportWidth, int viewportHeight)
+        {
+            // Keep modal menu surfaces on the exact same user-selected background
+            // path as the main menu. In particular, do not reuse the gameplay map
+            // that happens to be loaded behind a hosted Last to Die lobby.
+            if (_game._menuBackgroundMode != MenuBackgroundMode.Static)
+            {
+                _game._animatedMenuBackgroundController.Draw(viewportWidth, viewportHeight);
+            }
+            else
+            {
+                EnsureMenuBackgroundTexture(viewportWidth, viewportHeight);
+
+                if (_game._menuBackgroundTexture is not null)
+                {
+                    _game.DrawLoadedSpriteFrame(_game._menuBackgroundTexture, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.White);
+                }
+                else if (!_game.TryDrawScreenSprite("MenuBackgroundS", _game._menuImageFrame, new Vector2(viewportWidth / 2f, viewportHeight / 2f), Color.White, Vector2.One))
+                {
+                    _game._spriteBatch.Draw(_game._pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), new Color(26, 24, 20));
+                }
+            }
         }
 
         public MainMenuOverlayKind GetActiveOverlay()

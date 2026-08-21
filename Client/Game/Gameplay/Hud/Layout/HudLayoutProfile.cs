@@ -131,6 +131,26 @@ internal sealed class HudLayoutProfile
         return true;
     }
 
+    public bool SetElementVisibility(string id, bool visible)
+    {
+        if (!TryGetDefaultLayout(id, out var defaultLayout))
+        {
+            return false;
+        }
+
+        var current = ApplyOverride(defaultLayout);
+        Overrides[id] = new HudElementLayoutOverride
+        {
+            Anchor = current.Anchor,
+            OffsetX = current.Offset.X,
+            OffsetY = current.Offset.Y,
+            Scale = current.Scale,
+            Visible = visible,
+        };
+        UnknownOverrides.Remove(id);
+        return true;
+    }
+
     public void ResetElements()
     {
         Overrides.Clear();

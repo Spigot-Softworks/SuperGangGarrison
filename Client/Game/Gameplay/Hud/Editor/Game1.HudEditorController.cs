@@ -49,7 +49,7 @@ public partial class Game1
             var clickPressed = mouse.LeftButton == ButtonState.Pressed && _game._previousMouse.LeftButton != ButtonState.Pressed;
             var clickReleased = mouse.LeftButton != ButtonState.Pressed && _game._previousMouse.LeftButton == ButtonState.Pressed;
             var mousePosition = mouse.Position.ToVector2();
-            GetToolbarBounds(out var gridBounds, out var snapBounds, out var shrinkBounds, out var growBounds, out var opacityBounds, out var addAbilityBounds, out var resetBounds, out var doneBounds);
+            GetToolbarBounds(out var gridBounds, out var snapBounds, out var shrinkBounds, out var growBounds, out var opacityBounds, out var visibilityBounds, out var addAbilityBounds, out var resetBounds, out var doneBounds);
 
             if (clickPressed)
             {
@@ -82,6 +82,12 @@ public partial class Game1
                 if (opacityBounds.Contains(mouse.Position))
                 {
                     CycleHudOpacity();
+                    return;
+                }
+
+                if (visibilityBounds.Contains(mouse.Position))
+                {
+                    ToggleSelectedElementVisibility();
                     return;
                 }
 
@@ -251,13 +257,14 @@ public partial class Game1
 
         private void DrawToolbar()
         {
-            GetToolbarBounds(out var gridBounds, out var snapBounds, out var shrinkBounds, out var growBounds, out var opacityBounds, out var addAbilityBounds, out var resetBounds, out var doneBounds);
-            var mouse = Game1.GetCurrentMouseState();
+            GetToolbarBounds(out var gridBounds, out var snapBounds, out var shrinkBounds, out var growBounds, out var opacityBounds, out var visibilityBounds, out var addAbilityBounds, out var resetBounds, out var doneBounds);
+            var mouse = _game.GetFrameMouseState();
             DrawToolbarPanel(gridBounds, $"Grid {(_game._hudLayoutProfile.GridVisible ? "On" : "Off")}", gridBounds.Contains(mouse.Position));
             DrawToolbarPanel(snapBounds, $"Snap {(_game._hudLayoutProfile.SnapEnabled ? "On" : "Off")}", snapBounds.Contains(mouse.Position));
             DrawResizeToolbarButton(shrinkBounds, plus: false, shrinkBounds.Contains(mouse.Position));
             DrawResizeToolbarButton(growBounds, plus: true, growBounds.Contains(mouse.Position));
             DrawToolbarPanel(opacityBounds, $"Opacity {GetHudOpacityPercent()}%", opacityBounds.Contains(mouse.Position));
+            DrawToolbarPanel(visibilityBounds, GetSelectedVisibilityLabel(), visibilityBounds.Contains(mouse.Position));
             DrawToolbarPanel(addAbilityBounds, "Ability +", addAbilityBounds.Contains(mouse.Position));
             DrawToolbarPanel(resetBounds, "Reset", resetBounds.Contains(mouse.Position));
             DrawToolbarPanel(doneBounds, "Done", doneBounds.Contains(mouse.Position));
@@ -291,15 +298,15 @@ public partial class Game1
             }
         }
 
-        private void GetToolbarBounds(out Rectangle gridBounds, out Rectangle snapBounds, out Rectangle shrinkBounds, out Rectangle growBounds, out Rectangle opacityBounds, out Rectangle addAbilityBounds, out Rectangle resetBounds, out Rectangle doneBounds)
+        private void GetToolbarBounds(out Rectangle gridBounds, out Rectangle snapBounds, out Rectangle shrinkBounds, out Rectangle growBounds, out Rectangle opacityBounds, out Rectangle visibilityBounds, out Rectangle addAbilityBounds, out Rectangle resetBounds, out Rectangle doneBounds)
         {
             const int gap = 8;
             const int resizeButtonWidth = 44;
-            var availableWidth = Math.Max(0, _game.ViewportWidth - 16 - (gap * 7) - (resizeButtonWidth * 2));
+            var availableWidth = Math.Max(0, _game.ViewportWidth - 16 - (gap * 8) - (resizeButtonWidth * 2));
             var maxButtonWidth = _game.ViewportWidth < 620 ? 104 : 132;
-            var buttonWidth = Math.Clamp(availableWidth / 6, 68, maxButtonWidth);
+            var buttonWidth = Math.Clamp(availableWidth / 7, 64, maxButtonWidth);
             var buttonHeight = 36;
-            var totalWidth = (buttonWidth * 6) + (resizeButtonWidth * 2) + (gap * 7);
+            var totalWidth = (buttonWidth * 7) + (resizeButtonWidth * 2) + (gap * 8);
             var x = Math.Max(8, (_game.ViewportWidth - totalWidth) / 2);
             var y = 12;
             gridBounds = new Rectangle(x, y, buttonWidth, buttonHeight);
@@ -307,7 +314,8 @@ public partial class Game1
             shrinkBounds = new Rectangle(snapBounds.Right + gap, y, resizeButtonWidth, buttonHeight);
             growBounds = new Rectangle(shrinkBounds.Right + gap, y, resizeButtonWidth, buttonHeight);
             opacityBounds = new Rectangle(growBounds.Right + gap, y, buttonWidth, buttonHeight);
-            addAbilityBounds = new Rectangle(opacityBounds.Right + gap, y, buttonWidth, buttonHeight);
+            visibilityBounds = new Rectangle(opacityBounds.Right + gap, y, buttonWidth, buttonHeight);
+            addAbilityBounds = new Rectangle(visibilityBounds.Right + gap, y, buttonWidth, buttonHeight);
             resetBounds = new Rectangle(addAbilityBounds.Right + gap, y, buttonWidth, buttonHeight);
             doneBounds = new Rectangle(resetBounds.Right + gap, y, buttonWidth, buttonHeight);
         }
@@ -329,6 +337,32 @@ public partial class Game1
 
             _game._hudLayoutProfile.HudOpacity = next;
             _game.SaveHudLayout();
+        }
+
+        private string GetSelectedVisibilityLabel()
+        {
+            if (_selectedElementId is null
+                || !_game.TryResolveHudElementEvenIfHidden(_selectedElementId, out var selected))
+            {
+                return "Hide";
+            }
+
+            return selected.Layout.Visible ? "Hide" : "Show";
+        }
+
+        private void ToggleSelectedElementVisibility()
+        {
+            if (_selectedElementId is null
+                || !_game.TryResolveHudElementEvenIfHidden(_selectedElementId, out var selected)
+                || selected.Layout.Locked)
+            {
+                return;
+            }
+
+            if (_game.SetHudElementVisibility(_selectedElementId, !selected.Layout.Visible))
+            {
+                _game.SaveHudLayout();
+            }
         }
 
         private void ResizeSelectedElement(float delta)

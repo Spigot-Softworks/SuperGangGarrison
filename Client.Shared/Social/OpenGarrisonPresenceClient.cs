@@ -51,6 +51,22 @@ public sealed class OpenGarrisonPresenceClient
         response.EnsureSuccessStatusCode();
     }
 
+    public async Task<RelaySessionCreateResponse> CreateRelaySessionAsync(ClientIdentityDocument identity)
+    {
+        var httpClient = GetHttpClient() ?? throw new InvalidOperationException("HTTP client is unavailable.");
+        var request = new RelaySessionCreateRequest
+        {
+            ClientId = identity.ClientId,
+            ClientSecret = identity.ClientSecret,
+            FriendCode = identity.FriendCode,
+            DisplayName = identity.DisplayName,
+        };
+        using var response = await httpClient.PostAsJsonAsync(BuildUri("/api/relay/session"), request).ConfigureAwait(false);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<RelaySessionCreateResponse>().ConfigureAwait(false)
+            ?? throw new InvalidOperationException("Relay session response was empty.");
+    }
+
     public async Task<IReadOnlyList<FriendPresenceEntry>> GetFriendPresenceAsync(IEnumerable<string> friendCodes)
     {
         var httpClient = GetHttpClient();
@@ -236,6 +252,36 @@ public sealed class PresenceOfflineRequest
 
     [JsonPropertyName("clientSecret")]
     public string ClientSecret { get; set; } = string.Empty;
+}
+
+public sealed class RelaySessionCreateRequest
+{
+    [JsonPropertyName("clientId")]
+    public string ClientId { get; set; } = string.Empty;
+
+    [JsonPropertyName("clientSecret")]
+    public string ClientSecret { get; set; } = string.Empty;
+
+    [JsonPropertyName("friendCode")]
+    public string FriendCode { get; set; } = string.Empty;
+
+    [JsonPropertyName("displayName")]
+    public string DisplayName { get; set; } = string.Empty;
+}
+
+public sealed class RelaySessionCreateResponse
+{
+    [JsonPropertyName("sessionId")]
+    public string SessionId { get; set; } = string.Empty;
+
+    [JsonPropertyName("hostWebSocketUrl")]
+    public string HostWebSocketUrl { get; set; } = string.Empty;
+
+    [JsonPropertyName("guestWebSocketUrl")]
+    public string GuestWebSocketUrl { get; set; } = string.Empty;
+
+    [JsonPropertyName("expiresAtIso")]
+    public string ExpiresAtIso { get; set; } = string.Empty;
 }
 
 public sealed class FriendPresenceResponse

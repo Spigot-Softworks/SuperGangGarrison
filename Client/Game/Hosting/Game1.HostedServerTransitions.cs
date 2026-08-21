@@ -25,6 +25,7 @@ public partial class Game1
 
         if (disconnectNetworkClient)
         {
+            _networkClient.SendLastToDieLeave();
             _networkClient.Disconnect();
         }
     }

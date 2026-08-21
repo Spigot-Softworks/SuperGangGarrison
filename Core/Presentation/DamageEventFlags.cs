@@ -14,4 +14,6 @@ public enum DamageEventFlags : byte
     CivvieUmbrellaBlock = 1 << 3,
     AfterburnTick = 1 << 4,
     Gibbed = 1 << 5,
+    StatusTick = 1 << 6,
+    Critical = 1 << 7,
 }

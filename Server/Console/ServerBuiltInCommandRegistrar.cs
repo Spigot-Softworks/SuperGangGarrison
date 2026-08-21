@@ -176,6 +176,13 @@ internal sealed class ServerBuiltInCommandRegistrar(
             (_, arguments, _) => Task.FromResult<IReadOnlyList<string>>(ExecuteCvarCommand(arguments)),
             OpenGarrisonServerAdminPermissions.ManageServerConfiguration);
         commandRegistry.RegisterBuiltIn(
+            "frameinfo",
+            "Toggle the periodic server frame summary.",
+            "frameinfo [on|off|toggle|status]",
+            (_, arguments, _) => Task.FromResult<IReadOnlyList<string>>(ExecuteFrameInfoCommand(arguments)),
+            OpenGarrisonServerAdminPermissions.ManageServerConfiguration,
+            "frame_info");
+        commandRegistry.RegisterBuiltIn(
             "timers",
             "List scheduled server tasks.",
             "timers",
@@ -800,6 +807,50 @@ internal sealed class ServerBuiltInCommandRegistrar(
         }
 
         return lines;
+    }
+
+    private IReadOnlyList<string> ExecuteFrameInfoCommand(string arguments)
+    {
+        var operation = string.IsNullOrWhiteSpace(arguments)
+            ? "status"
+            : arguments.Trim().ToLowerInvariant();
+        if (operation is not ("on" or "off" or "toggle" or "status"))
+        {
+            return ["[server] usage: frameinfo [on|off|toggle|status]"];
+        }
+
+        if (!cvarRegistry.TryGet("sv_frame_info", includeProtectedValue: true, out var cvar))
+        {
+            return ["[server] frame info cvar is unavailable."];
+        }
+
+        if (operation == "status")
+        {
+            return [$"[server] frame info {(IsCvarEnabled(cvar.CurrentValue) ? "enabled" : "disabled")}."];
+        }
+
+        var enabled = operation == "toggle"
+            ? !IsCvarEnabled(cvar.CurrentValue)
+            : operation == "on";
+        if (!cvarRegistry.TrySet(
+                "sv_frame_info",
+                enabled ? "true" : "false",
+                allowProtectedMutation: true,
+                out _,
+                out var error))
+        {
+            return [$"[server] unable to change frame info: {error}"];
+        }
+
+        return [$"[server] frame info {(enabled ? "enabled" : "disabled")}."];
+    }
+
+    private static bool IsCvarEnabled(string value)
+    {
+        return value.Equals("1", StringComparison.OrdinalIgnoreCase)
+            || value.Equals("true", StringComparison.OrdinalIgnoreCase)
+            || value.Equals("on", StringComparison.OrdinalIgnoreCase)
+            || value.Equals("yes", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool TryRequireCheats(OpenGarrisonServerCommandContext context, string commandName)

@@ -67,7 +67,7 @@ internal sealed class Protocol64QuicServerHost : IAsyncDisposable
                         DefaultStreamErrorCode = 0x100,
                         DefaultCloseErrorCode = 0x101,
                         MaxInboundBidirectionalStreams = 64,
-                        MaxInboundUnidirectionalStreams = 0,
+                        MaxInboundUnidirectionalStreams = 64,
                         ServerAuthenticationOptions = new SslServerAuthenticationOptions
                         {
                             ApplicationProtocols = [applicationProtocol],
@@ -120,7 +120,11 @@ internal sealed class Protocol64QuicServerHost : IAsyncDisposable
         var remoteEndPoint = connection.RemoteEndPoint as IPEndPoint;
         var peer = ServerTransportPeer.FromQuicSession(sessionId, remoteEndPoint);
         var container = new Protocol64QuicConnectionContainer(
-            peer.Id,
+            // The client QUIC runtime starts with epoch 1 before it can
+            // receive any server frame. QUIC already isolates each connection,
+            // so use the same fixed per-connection epoch on both sides until
+            // an explicit epoch-negotiation frame exists.
+            connectionEpoch: 1,
             new Protocol64QuicConnectionOptions
             {
                 FirstLocallyInitiatedBidirectionalStreamId = 0,
@@ -136,7 +140,9 @@ internal sealed class Protocol64QuicServerHost : IAsyncDisposable
                 ExpectedInboundDirection = Protocol64Direction.ClientToServer,
                 WarningLogger = _log,
                 FaultSink = new DelegateProtocol64FaultSink(fault =>
-                    _log($"[server] protocol-64 QUIC fault peer={peer}: {fault.Kind} {fault.Message}")),
+                    _log(fault.Exception is null
+                        ? $"[server] protocol-64 QUIC fault peer={peer}: {fault.Kind} {fault.Message}"
+                        : $"[server] protocol-64 QUIC fault peer={peer}: {fault.Kind} {fault.Message} exception={fault.Exception.GetType().Name}: {fault.Exception.Message}")),
                 FrameReceived = frame => _transport.EnqueueInboundProtocol64Frame(peer, frame),
             });
 

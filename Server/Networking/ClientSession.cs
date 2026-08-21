@@ -7,7 +7,13 @@ using OpenGarrison.Server;
 using OpenGarrison.Server.Plugins;
 using static ServerHelpers;
 
-sealed class ClientSession(byte slot, int userId, ServerTransportPeer peer, string name, TimeSpan lastSeen)
+sealed class ClientSession(
+    byte slot,
+    int userId,
+    ServerTransportPeer peer,
+    string name,
+    TimeSpan lastSeen,
+    Guid clientInstanceId = default)
 {
     private const int MinimumSnapshotHistoryLimit = 12;
     private const int SnapshotHistorySlackFrames = 12;
@@ -24,13 +30,26 @@ sealed class ClientSession(byte slot, int userId, ServerTransportPeer peer, stri
     private string _name = PlayerEntity.NormalizeDisplayName(name);
     private int _pingMilliseconds = -1;
 
-    public ClientSession(byte slot, int userId, IPEndPoint endPoint, string name, TimeSpan lastSeen)
-        : this(slot, userId, ServerTransportPeer.FromUdpEndPoint(endPoint), name, lastSeen)
+    public ClientSession(
+        byte slot,
+        int userId,
+        IPEndPoint endPoint,
+        string name,
+        TimeSpan lastSeen,
+        Guid clientInstanceId = default)
+        : this(
+            slot,
+            userId,
+            ServerTransportPeer.FromUdpEndPoint(endPoint),
+            name,
+            lastSeen,
+            clientInstanceId)
     {
     }
 
     public byte Slot { get; set; } = slot;
     public int UserId { get; } = userId;
+    public Guid ClientInstanceId { get; } = clientInstanceId;
     public ServerTransportPeer Peer { get; } = peer;
     public IPEndPoint EndPoint => Peer.UdpEndPoint ?? throw new InvalidOperationException($"Client peer {Peer} has no UDP endpoint.");
     public IPEndPoint? UdpEndPoint => Peer.UdpEndPoint;
@@ -217,7 +236,9 @@ sealed class ClientSession(byte slot, int userId, ServerTransportPeer peer, stri
         return new InputEdge(
             Up: current.Up && !previous.Up,
             BuildSentry: current.BuildSentry && !previous.BuildSentry,
+            BuildDispenser: current.BuildDispenser && !previous.BuildDispenser,
             DestroySentry: current.DestroySentry && !previous.DestroySentry,
+            DestroyDispenser: current.DestroyDispenser && !previous.DestroyDispenser,
             Taunt: current.Taunt && !previous.Taunt,
             FirePrimary: current.FirePrimary && !previous.FirePrimary,
             FireSecondary: current.FireSecondary && !previous.FireSecondary,
@@ -235,7 +256,9 @@ sealed class ClientSession(byte slot, int userId, ServerTransportPeer peer, stri
         {
             Up = input.Up || edge.Up,
             BuildSentry = input.BuildSentry || edge.BuildSentry,
+            BuildDispenser = input.BuildDispenser || edge.BuildDispenser,
             DestroySentry = input.DestroySentry || edge.DestroySentry,
+            DestroyDispenser = input.DestroyDispenser || edge.DestroyDispenser,
             Taunt = input.Taunt || edge.Taunt,
             FirePrimary = input.FirePrimary || edge.FirePrimary,
             FireSecondary = input.FireSecondary || edge.FireSecondary,
@@ -465,7 +488,9 @@ sealed class ClientSession(byte slot, int userId, ServerTransportPeer peer, stri
     private readonly record struct InputEdge(
         bool Up,
         bool BuildSentry,
+        bool BuildDispenser,
         bool DestroySentry,
+        bool DestroyDispenser,
         bool Taunt,
         bool FirePrimary,
         bool FireSecondary,
@@ -479,7 +504,9 @@ sealed class ClientSession(byte slot, int userId, ServerTransportPeer peer, stri
         public bool HasAny =>
             Up
             || BuildSentry
+            || BuildDispenser
             || DestroySentry
+            || DestroyDispenser
             || Taunt
             || FirePrimary
             || FireSecondary
@@ -495,7 +522,9 @@ sealed class ClientSession(byte slot, int userId, ServerTransportPeer peer, stri
             return new InputEdge(
                 Up || other.Up,
                 BuildSentry || other.BuildSentry,
+                BuildDispenser || other.BuildDispenser,
                 DestroySentry || other.DestroySentry,
+                DestroyDispenser || other.DestroyDispenser,
                 Taunt || other.Taunt,
                 FirePrimary || other.FirePrimary,
                 FireSecondary || other.FireSecondary,

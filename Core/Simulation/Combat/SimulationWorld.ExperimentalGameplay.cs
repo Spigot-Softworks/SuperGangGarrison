@@ -15,7 +15,6 @@ public sealed partial class SimulationWorld
     public bool IsPlayerInsideCapturedPointHealingAuraForVisuals(PlayerEntity? player)
     {
         return player is not null
-            && IsExperimentalPracticePowerOwner(player)
             && ExperimentalGameplaySettings.EnableCapturedPointHealingAura
             && player.IsAlive
             && IsPlayerInsideCapturedPointHealingAura(player);
@@ -370,19 +369,26 @@ public sealed partial class SimulationWorld
             && attacker.CurrentCombo > 0;
     }
 
-    private bool TryEvadeExperimentalDamage(
+    private bool TryEvadePlayerDamage(
         PlayerEntity target,
         PlayerEntity? attacker,
         float damage,
         DamageEventFlags damageFlags)
     {
+        var experimentalEvasionChance = GetExperimentalTotalEvasionChance(target);
+        var lastToDieEvasionChance = GetLastToDieEvasionChance(target);
+        var totalEvasionChance = Math.Clamp(
+            1f - ((1f - experimentalEvasionChance) * (1f - lastToDieEvasionChance)),
+            0f,
+            0.95f);
         if (damage <= 0f
             || attacker is null
-            || !IsExperimentalPracticePowerOwner(target)
             || ReferenceEquals(attacker, target)
             || attacker.Team == target.Team
-            || GetExperimentalTotalEvasionChance(target) <= 0f
-            || _random.NextDouble() >= GetExperimentalTotalEvasionChance(target))
+            || totalEvasionChance <= 0f
+            || (lastToDieEvasionChance > 0f
+                ? !RollLastToDieEvasion(target, totalEvasionChance)
+                : _random.NextDouble() >= totalEvasionChance))
         {
             return false;
         }
@@ -438,7 +444,11 @@ public sealed partial class SimulationWorld
         }
 
         var thornsDamage = Math.Max(1, (int)MathF.Round(appliedDamage * ExperimentalGameplaySettings.PassiveThornsFraction));
-        ApplyPlayerDamage(attacker, thornsDamage, target);
+        ApplyPlayerDamageWithContext(
+            attacker,
+            thornsDamage,
+            target,
+            additionalTraits: PlayerDamageTraits.Reflected);
     }
 
     private bool TryPreventExperimentalFatalDamage(PlayerEntity target, int damage)
@@ -470,6 +480,15 @@ public sealed partial class SimulationWorld
 
     private void ApplyExperimentalPassivePlayerEffects(PlayerEntity player)
     {
+        // The captured-point aura is an objective effect, not a loadout perk.
+        // Apply it to every living player standing on a point owned by their
+        // team, including remote co-op participants on an authoritative server.
+        if (ExperimentalGameplaySettings.EnableCapturedPointHealingAura
+            && IsPlayerInsideCapturedPointHealingAura(player))
+        {
+            player.ApplyContinuousHealingAndGetAmount(GetExperimentalCapturedPointHealingPerTick());
+        }
+
         if (!IsExperimentalPracticePowerOwner(player))
         {
             return;
@@ -478,12 +497,6 @@ public sealed partial class SimulationWorld
         if (ExperimentalGameplaySettings.EnablePassiveHealthRegeneration)
         {
             player.ApplyContinuousHealingAndGetAmount(GetExperimentalPassiveHealthRegenerationPerTick());
-        }
-
-        if (ExperimentalGameplaySettings.EnableCapturedPointHealingAura
-            && IsPlayerInsideCapturedPointHealingAura(player))
-        {
-            player.ApplyContinuousHealingAndGetAmount(GetExperimentalCapturedPointHealingPerTick());
         }
 
         ApplyExperimentalEngineerPassivePlayerEffects(player);

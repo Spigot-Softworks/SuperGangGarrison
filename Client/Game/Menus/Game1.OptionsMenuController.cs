@@ -447,7 +447,7 @@ public partial class Game1
 
             var actions = BuildOptionsMenuActions();
             GetOptionsMenuPanelLayout(out var panel, out var listBounds, out var backBounds, out var compactLayout, out var rowHeight);
-            var mouse = _game.GetScaledMouseState(_game.GetConstrainedMouseState(Game1.GetCurrentMouseState()));
+            var mouse = _game.GetFrameMouseState();
             var visibleRowCount = Math.Max(1, listBounds.Height / rowHeight);
             ClampOptionsScrollOffset(actions.Count, visibleRowCount);
 
@@ -565,7 +565,6 @@ public partial class Game1
                 new("Sprite Shadow", _game._spriteDropShadowEnabled ? "Enabled" : "Disabled", _game.ToggleSpriteDropShadowSetting, OptionsMenuTab.Graphics),
                 new("Weapon Rotation", _game._pixelPerfectWeaponRotation ? "Pixel-Perfect" : "High-Res", _game.ToggleWeaponRotationStyleSetting, OptionsMenuTab.Graphics),
                 new("Weapon Rotation Source", _game._useLocalWeaponRotation ? "Local (snappier)" : "Remote (accurate)", _game.ToggleWeaponRotationSourceSetting, OptionsMenuTab.Graphics),
-                new("Smooth Camera", Game1.GetSmoothCameraMultiplierLabel(_game._smoothCameraMultiplier), _game.CycleSmoothCameraMultiplierSetting, OptionsMenuTab.Graphics),
                 new("Uber Outlines", _game._uberOutlineEnabled ? "Enabled" : "Disabled", _game.ToggleUberOutlinesSetting, OptionsMenuTab.Graphics),
                 new("Projectile Team Tint", _game._projectileTeamTintEnabled ? "Enabled" : "Disabled", _game.ToggleProjectileTeamTintSetting, OptionsMenuTab.Graphics),
                 new("Frame Limit", GetFrameRateLimitLabel(_game._frameRateLimit), _game.CycleFrameRateLimitSetting, OptionsMenuTab.Graphics),
@@ -610,6 +609,7 @@ public partial class Game1
                 new("MVP Art", _game._postGameMvpArtEnabled ? "Enabled" : "Disabled", _game.TogglePostGameMvpArtSetting, OptionsMenuTab.Hud),
                 new("Damage Vignette", _game._damageVignetteEnabled ? "Enabled" : "Disabled", _game.ToggleDamageVignetteSetting, OptionsMenuTab.Hud),
                 new("Vignette Intensity", Game1.GetDamageVignetteIntensityLabel(_game._damageVignetteIntensityPercent), _game.CycleDamageVignetteIntensitySetting, OptionsMenuTab.Hud),
+                new("Player Names", _game._showPlayerNamesEnabled ? "Enabled" : "Disabled", _game.ToggleShowPlayerNamesSetting, OptionsMenuTab.Hud),
                 new("Persistent Name", _game._showPersistentSelfNameEnabled ? "Enabled" : "Disabled", _game.TogglePersistentSelfNameSetting, OptionsMenuTab.Hud),
                 new("Edit HUD", _game._mainMenuOpen ? "In game only" : string.Empty, OpenHudEditorFromOptions, OptionsMenuTab.Hud),
 
@@ -617,6 +617,7 @@ public partial class Game1
                 new("Player Name", _game._editingPlayerName ? GetTextWithCursor(_game._playerNameEditBuffer, _game._playerNameEditCursorIndex) : _game._world.LocalPlayer.DisplayName, _game.BeginEditingPlayerName, OptionsMenuTab.Gameplay),
                 new("Kill Cam", _game._killCamEnabled ? "Enabled" : "Disabled", _game.ToggleKillCamSetting, OptionsMenuTab.Gameplay),
                 new("Network Smoothing", _game._positionSmoothingEnabled ? "Enabled" : "Disabled", _game.TogglePositionSmoothingSetting, OptionsMenuTab.Gameplay),
+                new("Enable Prediction", _game._enablePrediction ? "Enabled" : "Disabled", _game.TogglePredictionSetting, OptionsMenuTab.Gameplay),
             };
 
             if (_game.HasClientPluginOptions())

@@ -1,4 +1,5 @@
 using OpenGarrison.GameplayModding;
+using OpenGarrison.Core.LastToDie;
 using System.Collections.Generic;
 using System.Globalization;
 
@@ -210,9 +211,15 @@ public sealed partial class SimulationWorld
                 : 0f;
         if (healAmount > 0f)
         {
-            var previousHealth = target.Health;
-            target.ApplyContinuousHealing(healAmount);
-            AwardHealingPoints(medic, Math.Max(0, target.Health - previousHealth));
+            healAmount *= GetLastToDieMedicHealingMultiplier(medic, target);
+            if (medic.IsMedicRejuvenationRayDeliveryActive)
+            {
+                healAmount *= global::OpenGarrison.Core.LastToDie.LastToDieDerivedModifiers.MedicRejuvenationRayHealingMultiplier;
+            }
+
+            var appliedHealing = target.ApplyContinuousHealingAndGetAmount(healAmount);
+            AwardHealingPoints(medic, appliedHealing);
+            ApplyLastToDieMedicHomeostasis(medic, appliedHealing);
         }
 
         if (!medic.IsMedicUbering)
@@ -220,27 +227,60 @@ public sealed partial class SimulationWorld
             var uberGain = target.Health < target.MaxHealth || ControlPointSetupActive
                 ? MedicUberChargeGainPerTickDamagedTarget
                 : MedicUberChargeGainPerTickHealthyTarget;
-            medic.AddMedicUberCharge(uberGain);
+            medic.AddMedicUberCharge(uberGain * GetLastToDieMedicUberChargeGainMultiplier(medic));
         }
 
         medic.SetMedicHealingTarget(target);
     }
 
-    private void ApplyMedicHealNeedleTeammateHit(PlayerEntity medic, PlayerEntity target, MedicHealNeedleProjectileEntity needle)
+    private void ApplyMedicHealNeedleTeammateHit(
+        PlayerEntity? medic,
+        PlayerEntity target,
+        MedicHealNeedleProjectileEntity needle)
     {
-        target.ReduceBurnDuration((float)Config.FixedDeltaSeconds * LegacyMovementModel.SourceTicksPerSecond);
-
-        var healthBefore = target.Health;
-        if (needle.HealPerHit > 0)
+        if (!target.IsAlive
+            || target.Id == needle.OwnerId
+            || target.Team != needle.Team)
         {
-            target.ApplyContinuousHealing(needle.HealPerHit);
+            return;
         }
 
-        var healedAmount = Math.Max(0, target.Health - healthBefore);
+        if (needle.LastToDiePayload.IsMedicKritzM2
+            && needle.AppliesLastToDieHailMary)
+        {
+            _ = target.RefreshLastToDieMedicHailMaryInvulnerability(
+                Math.Max(
+                    1,
+                    (int)Math.Ceiling(
+                        LastToDieDerivedModifiers.MedicHailMaryInvulnerabilitySeconds
+                            * Math.Max(1, Config.TicksPerSecond))));
+        }
+
+        target.ReduceBurnDuration((float)Config.FixedDeltaSeconds * LegacyMovementModel.SourceTicksPerSecond);
+
+        var healedAmount = needle.HealPerHit > 0
+            ? ApplyHealingWithFeedback(
+                target,
+                needle.HealPerHit,
+                "HealSnd",
+                medic?.X ?? needle.X,
+                medic?.Y ?? needle.Y)
+            : 0;
+        if (medic is not
+            {
+                IsAlive: true,
+                ClassId: PlayerClass.Medic,
+            }
+            || !medic.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.MedigunCrit)
+            || medic.Team != needle.Team)
+        {
+            return;
+        }
+
         if (healedAmount > 0)
         {
             AwardHealingPoints(medic, healedAmount);
-            ApplyHealingWithFeedback(target, healedAmount, "HealSnd", medic.X, medic.Y);
+            ApplyLastToDieMedicHomeostasis(medic, healedAmount);
         }
 
         if (!medic.IsMedicUbering)
@@ -250,8 +290,10 @@ public sealed partial class SimulationWorld
                 : target.Health < target.MaxHealth || ControlPointSetupActive
                     ? MedicHealNeedleProjectileEntity.DamagedTargetUberChargePerHealedHealth
                     : MedicHealNeedleProjectileEntity.HealthyTargetUberChargePerHit;
-            medic.AddMedicUberCharge(uberGain);
+            medic.AddMedicUberCharge(uberGain * GetLastToDieMedicUberChargeGainMultiplier(medic));
         }
+
+        _ = TryApplyLastToDieMedicSupportRelay(medic, target);
     }
 
     private void ApplyExperimentalEngineerEssenceExtractor(PlayerEntity engineer, PlayerEntity target)
@@ -327,7 +369,8 @@ public sealed partial class SimulationWorld
 
         if (!medic.IsMedicUbering)
         {
-            medic.AddMedicUberCharge(Math.Max(0f, chargePerTick));
+            medic.AddMedicUberCharge(
+                Math.Max(0f, chargePerTick) * GetLastToDieMedicUberChargeGainMultiplier(medic));
         }
 
         medic.SetMedicHealingTarget(target);
@@ -343,13 +386,16 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            var isKritz = player.HasEquippedBehavior(BuiltInGameplayBehaviorIds.MedigunCrit);
-
-            if (isKritz)
+            if (player.IsMedicKritzUberDeliveryActive)
             {
-                player.RefreshKritzCritBoost();
+                TryGetPlayerNetworkSlot(player, out var providerSlot);
+                var criticalDamageMultiplier = GetLastToDieMedicKritzCriticalDamageMultiplier(player);
+                player.RefreshKritzCritBoost(
+                    player.Id,
+                    providerSlot,
+                    criticalDamageMultiplier);
             }
-            else
+            else if (player.IsMedicInvulnerabilityUberDeliveryActive)
             {
                 player.RefreshUber();
             }
@@ -362,11 +408,16 @@ public sealed partial class SimulationWorld
             var healTarget = FindPlayerById(player.MedicHealTargetId.Value);
             if (healTarget is not null && healTarget.IsAlive)
             {
-                if (isKritz)
+                if (player.IsMedicKritzUberDeliveryActive)
                 {
-                    healTarget.RefreshKritzCritBoost();
+                    TryGetPlayerNetworkSlot(player, out var providerSlot);
+                    healTarget.RefreshKritzCritBoost(
+                        player.Id,
+                        providerSlot,
+                        GetLastToDieMedicKritzCriticalDamageMultiplier(player));
                 }
-                else if (!healTarget.IsCarryingIntel)
+                else if (player.IsMedicInvulnerabilityUberDeliveryActive
+                    && !healTarget.IsCarryingIntel)
                 {
                     healTarget.RefreshUber();
                 }

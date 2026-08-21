@@ -26,6 +26,32 @@ public sealed partial class SimulationWorld
         return true;
     }
 
+    public bool TrySetNetworkPlayerAutomaticRespawnSuppressed(byte slot, bool suppressed)
+    {
+        if (!IsPlayableNetworkPlayerSlot(slot))
+        {
+            return false;
+        }
+
+        if (suppressed)
+        {
+            _automaticRespawnSuppressedNetworkSlots.Add(slot);
+        }
+        else
+        {
+            _automaticRespawnSuppressedNetworkSlots.Remove(slot);
+        }
+
+        return true;
+    }
+
+    public bool IsNetworkPlayerAutomaticRespawnSuppressed(PlayerEntity player)
+    {
+        ArgumentNullException.ThrowIfNull(player);
+        return TryGetPlayerNetworkSlot(player, out var slot)
+            && _automaticRespawnSuppressedNetworkSlots.Contains(slot);
+    }
+
     public void ForceRespawnLocalPlayer()
     {
         TryForceRespawnNetworkPlayer(LocalPlayerSlot);
@@ -66,6 +92,7 @@ public sealed partial class SimulationWorld
             return false;
         }
 
+        TryFailLastToDieSpyAfterlifeOnDisconnect(slot, player);
         TryClearNetworkPlayerInputOverride(slot);
         TryDropCarriedIntel(player);
         TrySetNetworkPlayerReady(slot, ready: false);
@@ -73,6 +100,11 @@ public sealed partial class SimulationWorld
         RemoveOwnedSentries(player.Id);
         RemoveOwnedMines(player.Id);
         RemoveOwnedProjectiles(player.Id);
+        ClearLastToDieStatusEffectsForReleasedPlayer(player.Id);
+        ClearLastToDieSniperMarksTargeting(slot);
+        _lastToDiePerkRuntimesBySlot.Remove(slot);
+        player.ClearLastToDieWeaponProfile();
+        player.ClearLastToDiePerkModifiers();
         ClearDominationsForPlayer(player);
         TrySetNetworkPlayerAwaitingJoin(slot, true);
         TrySetNetworkPlayerRespawnTicks(slot, 0);
@@ -81,6 +113,7 @@ public sealed partial class SimulationWorld
         TrySetNetworkPlayerConfiguredTeam(slot, GetDefaultNetworkPlayerTeam(slot));
         ConsumePendingNetworkPlayerTeamSelection(slot);
         _networkPlayerSpawnOverrides.Remove(slot);
+        _automaticRespawnSuppressedNetworkSlots.Remove(slot);
         _networkPlayerMapSpawnClassBehaviorBypassSlots.Remove(slot);
         _networkPlayerMovementSpeedScaleOverrides.Remove(slot);
         _networkPlayerGravityScaleOverrides.Remove(slot);
@@ -194,6 +227,7 @@ public sealed partial class SimulationWorld
         ConsumePendingNetworkPlayerTeamSelection(slot);
 
         ClearDominationsForPlayer(player);
+        ClearLastToDieStatusEffectsForTarget(player.Id);
         player.ClearMedicHealingTarget();
         player.Kill();
 

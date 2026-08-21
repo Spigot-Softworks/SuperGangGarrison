@@ -70,6 +70,88 @@ public partial class Game1
         public bool SecondaryAbilitiesEnabled { get; set; } = true;
         public List<OpenGarrisonMapRotationEntry> MapEntries { get; set; } = new();
 
+        private HostSetupEditField _editSnapshotField;
+        private string? _editSnapshotValue;
+        private string? _editSnapshotAdvancedCvarName;
+
+        public void BeginEditSnapshot(HostSetupEditField field)
+        {
+            _editSnapshotField = field;
+            _editSnapshotAdvancedCvarName = field == HostSetupEditField.AdvancedCvar
+                ? ActiveAdvancedCvarName
+                : null;
+            _editSnapshotValue = field == HostSetupEditField.AdvancedCvar
+                ? GetActiveAdvancedCvarEditBuffer()
+                : GetHostSetupFieldBuffer(field);
+        }
+
+        public void CommitEditSnapshot()
+        {
+            _editSnapshotField = HostSetupEditField.None;
+            _editSnapshotValue = null;
+            _editSnapshotAdvancedCvarName = null;
+        }
+
+        public bool CancelEditSnapshot()
+        {
+            if (_editSnapshotField == HostSetupEditField.None || _editSnapshotValue is null)
+            {
+                return false;
+            }
+
+            if (_editSnapshotField == HostSetupEditField.AdvancedCvar
+                && !string.IsNullOrWhiteSpace(_editSnapshotAdvancedCvarName))
+            {
+                ActiveAdvancedCvarName = _editSnapshotAdvancedCvarName;
+                SetActiveAdvancedCvarEditBuffer(_editSnapshotValue);
+            }
+            else
+            {
+                SetHostSetupFieldBuffer(_editSnapshotField, _editSnapshotValue);
+            }
+
+            CommitEditSnapshot();
+            return true;
+        }
+
+        private string GetHostSetupFieldBuffer(HostSetupEditField field)
+        {
+            return field switch
+            {
+                HostSetupEditField.ServerName => ServerNameBuffer,
+                HostSetupEditField.Port => PortBuffer,
+                HostSetupEditField.Slots => SlotsBuffer,
+                HostSetupEditField.Password => PasswordBuffer,
+                HostSetupEditField.RconPassword => RconPasswordBuffer,
+                HostSetupEditField.MapRotationFile => MapRotationFileBuffer,
+                HostSetupEditField.TimeLimit => TimeLimitBuffer,
+                HostSetupEditField.CapLimit => CapLimitBuffer,
+                HostSetupEditField.RespawnSeconds => RespawnSecondsBuffer,
+                HostSetupEditField.MapNameFilter => AvailableMapNameFilterBuffer,
+                _ => string.Empty,
+            };
+        }
+
+        private void SetHostSetupFieldBuffer(HostSetupEditField field, string value)
+        {
+            switch (field)
+            {
+                case HostSetupEditField.ServerName: ServerNameBuffer = value; break;
+                case HostSetupEditField.Port: PortBuffer = value; break;
+                case HostSetupEditField.Slots: SlotsBuffer = value; break;
+                case HostSetupEditField.Password: PasswordBuffer = value; break;
+                case HostSetupEditField.RconPassword: RconPasswordBuffer = value; break;
+                case HostSetupEditField.MapRotationFile: MapRotationFileBuffer = value; break;
+                case HostSetupEditField.TimeLimit: TimeLimitBuffer = value; break;
+                case HostSetupEditField.CapLimit: CapLimitBuffer = value; break;
+                case HostSetupEditField.RespawnSeconds: RespawnSecondsBuffer = value; break;
+                case HostSetupEditField.MapNameFilter:
+                    AvailableMapNameFilterBuffer = value;
+                    NotifyAvailableFiltersChanged();
+                    break;
+            }
+        }
+
         public void InitializeFieldCursorStates()
         {
             ServerNameCursorIndex = ServerNameBuffer.Length;
@@ -532,6 +614,7 @@ public partial class Game1
             OptionsScrollOffset = 0;
             OptionsTabIndex = 0;
             ContentScrollOffset = 0;
+            EditField = HostSetupEditField.TimeLimit;
             ClearAdvancedCvarEditFocus();
         }
 

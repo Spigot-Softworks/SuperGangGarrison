@@ -501,6 +501,13 @@ public partial class Game1
         PersistClientSettings();
     }
 
+    private void TogglePredictionSetting()
+    {
+        _enablePrediction = !_enablePrediction;
+        ResetLocalPredictionForAuthorityTransition();
+        PersistClientSettings();
+    }
+
     private void CycleSwapWeaponsBindingSetting()
     {
         _inputBindings.SwapWeaponsBinding = InputBindingsSettings.NormalizeSwapWeaponsBinding(_inputBindings.SwapWeaponsBinding) switch
@@ -760,7 +767,7 @@ public partial class Game1
             WeaponSwapBindingMode.MouseSecondary => "M2",
             WeaponSwapBindingMode.Q => "Q",
             WeaponSwapBindingMode.Custom => $"Custom ({GetBindingDisplayName(_inputBindings.SwapWeaponsCustomKey)})",
-            _ => "Space",
+            _ => "Q",
         };
     }
 
@@ -991,8 +998,6 @@ public partial class Game1
         {
             _portraitRumbleRemainingSeconds = 0f;
             _portraitRumbleIntensity = 0f;
-            _weaponFireHudRumbleRemainingSeconds = 0f;
-            _weaponFireHudRumbleIntensity = 0f;
         }
 
         PersistClientSettings();
@@ -1025,6 +1030,12 @@ public partial class Game1
     private void TogglePersistentSelfNameSetting()
     {
         _showPersistentSelfNameEnabled = !_showPersistentSelfNameEnabled;
+        PersistClientSettings();
+    }
+
+    private void ToggleShowPlayerNamesSetting()
+    {
+        _showPlayerNamesEnabled = !_showPlayerNamesEnabled;
         PersistClientSettings();
     }
 

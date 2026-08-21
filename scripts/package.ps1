@@ -577,8 +577,7 @@ function Copy-DirectoryContents {
 
 function Resolve-PackagedBrowserAtlasDirectory {
     param(
-        [Parameter(Mandatory = $true)]
-        [string]$SourceDirectory
+        [string]$SourceDirectory = ""
     )
 
     if ([string]::IsNullOrWhiteSpace($SourceDirectory)) {
@@ -698,6 +697,15 @@ function Invoke-PublishDistributionMaps {
         $DestinationDirectory,
         "--drop-unconverted-legacy-pngs"
     )
+
+    $dockingSourceDirectory = Join-Path $RepoRoot "Docking"
+    if (-not (Test-Path -LiteralPath $dockingSourceDirectory -PathType Container)) {
+        throw "Release maps are missing the canonical Docking package at '$dockingSourceDirectory'."
+    }
+
+    Copy-DirectoryContents `
+        -SourceDirectory $dockingSourceDirectory `
+        -DestinationDirectory (Join-Path $DestinationDirectory "Docking")
 }
 
 function Assert-RequiredDistributionMaps {
@@ -712,7 +720,8 @@ function Assert-RequiredDistributionMaps {
         "cp_gully",
         "cp_thundermountain_d",
         "cp_coldfront_v7",
-        "cp_docking_v2"
+        "cp_docking_v2",
+        "Docking"
     )
 
     foreach ($mapName in $requiredCustomMaps) {
@@ -739,7 +748,7 @@ function Assert-RequiredDistributionMaps {
         }
     }
 
-    Write-Host "[package] verified required distribution maps: cp_dirtbowl, cp_gully, cp_thundermountain_d, cp_coldfront_v7, cp_egypt, cp_docking_v2"
+    Write-Host "[package] verified required distribution maps: cp_dirtbowl, cp_gully, cp_thundermountain_d, cp_coldfront_v7, cp_egypt, cp_docking_v2, Docking"
 }
 
 function Restore-CollisionMaskImages {

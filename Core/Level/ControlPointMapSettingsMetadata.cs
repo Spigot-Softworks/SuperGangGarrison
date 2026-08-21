@@ -16,6 +16,7 @@ public static class ControlPointMapSettingsMetadata
             || key.Equals("void", StringComparison.OrdinalIgnoreCase)
             || key.Equals(OverrideInitialCpsPropertyKey, StringComparison.OrdinalIgnoreCase)
             || MapGameModeMetadata.IsEditableMapMetadataKey(key)
+            || MapMovementModeMetadata.IsEditableMapMetadataKey(key)
             || ScrMapSettingsMetadata.IsEditableMapMetadataKey(key);
     }
 

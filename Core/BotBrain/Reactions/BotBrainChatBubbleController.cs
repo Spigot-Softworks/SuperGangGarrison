@@ -118,8 +118,20 @@ public sealed class BotBrainChatBubbleController
             return input;
         }
 
+        if (self.Health < state.LastKnownHealth)
+        {
+            // A delayed celebration is no longer appropriate once the bot has
+            // taken damage and re-entered a fight.
+            state.PendingKillTauntFrame = null;
+        }
+
         ProcessPendingBubbles(world, slot, self, state, controlledTeamsBySlot);
-        input = ApplyPendingKillTauntInput(world, self, state, input);
+        input = ApplyPendingKillTauntInput(
+            world,
+            self,
+            state,
+            input,
+            context.CombatTarget.HasValue);
         input = ApplyNearbyHumanTauntInput(world, slot, self, team, state, input, controlledTeamsBySlot);
 
         var killCelebration = self.Kills > state.LastKills;
@@ -129,7 +141,13 @@ public sealed class BotBrainChatBubbleController
             var ctfCaptureCelebration = captureCelebration && world.MatchRules.Mode == GameModeKind.CaptureTheFlag;
             if (killCelebration)
             {
-                ScheduleKillTaunt(world, state);
+                if (!context.CombatTarget.HasValue
+                    && !input.FirePrimary
+                    && !input.FireSecondary
+                    && !input.UseAbility)
+                {
+                    ScheduleKillTaunt(world, state);
+                }
             }
 
             if (ctfCaptureCelebration)
@@ -188,11 +206,18 @@ public sealed class BotBrainChatBubbleController
         SimulationWorld world,
         PlayerEntity self,
         BotBrainChatBubbleState state,
-        PlayerInputSnapshot input)
+        PlayerInputSnapshot input,
+        bool hasCombatTarget)
     {
         if (!state.PendingKillTauntFrame.HasValue
             || world.Frame < state.PendingKillTauntFrame.Value)
         {
+            return input;
+        }
+
+        if (hasCombatTarget || input.FirePrimary || input.FireSecondary || input.UseAbility)
+        {
+            state.PendingKillTauntFrame = null;
             return input;
         }
 

@@ -40,12 +40,11 @@ public partial class Game1
         var panel = layout.Panel;
         var compactLayout = layout.CompactLayout;
         const float headerScale = 1f;
-        const float rowScale = 1f;
         const float fieldLabelScale = 1f;
         const float infoScale = 1f;
         const float inputScale = 1f;
         const float buttonScale = 1f;
-        var mouse = GetScaledMouseState(GetConstrainedMouseState(Game1.GetCurrentMouseState()));
+        var mouse = GetFrameMouseState();
         DrawRoundedRectangleOutline(panel, new Color(59, 51, 46), new Color(213, 205, 188), outlineThickness: 2, radius: 8);
 
         var headerText = _hostSetupScreen switch

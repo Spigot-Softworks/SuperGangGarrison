@@ -272,7 +272,7 @@ public partial class Game1
         _remotePlayerSnapshotHistories.Clear();
         _interpolatedEntityPositions.Clear();
         _interpolatedIntelPositions.Clear();
-        ResetCivvieMoneyTrailPresentation();
+        _localProjectileLaunchOriginOffsets.Clear();
         ResetCivvieUmbrellaShieldBlockObservation();
     }
 
@@ -795,6 +795,7 @@ public partial class Game1
     {
         for (var index = 0; index < removedIds.Count; index += 1)
         {
+            _localProjectileLaunchOriginOffsets.Remove(removedIds[index]);
             ClearSnapshotProjectileInterpolationTarget(removedIds[index]);
         }
     }
@@ -807,6 +808,21 @@ public partial class Game1
         }
 
         var snapshotServerTimeSeconds = GetSnapshotTimelineTimeSeconds(snapshot.Frame, snapshot.TickRate);
+        for (var playerIndex = 0; playerIndex < snapshot.Players.Count; playerIndex += 1)
+        {
+            var player = snapshot.Players[playerIndex];
+            if (player.Slot >= SimulationWorld.FirstSpectatorSlot || player.IsSpectator)
+            {
+                continue;
+            }
+
+            // Refresh from the resolved snapshot that was actually applied.
+            // CaptureRemoteInterpolationTargets runs before the authoritative
+            // queue is applied, so a full-snapshot reset can otherwise discard
+            // every newer sample captured in that receive batch.
+            AppendRemotePlayerSnapshot(player, snapshotServerTimeSeconds);
+        }
+
         foreach (var sentry in _world.Sentries)
         {
             RefreshRetainedEntityInterpolationHistory(

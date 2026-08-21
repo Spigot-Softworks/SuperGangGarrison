@@ -10,4 +10,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\Bootstrap\DotNetRuntimePrerequisite.cs" Link="Bootstrap\DotNetRuntimePrerequisite.cs" />
+  </ItemGroup>
 </Project>

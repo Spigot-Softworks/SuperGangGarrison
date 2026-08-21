@@ -10,11 +10,6 @@ namespace OpenGarrison.Core.BotBrain;
 public static class BotInputSynthesizer
 {
     /// <summary>
-    /// Maximum engagement range for firing weapons.
-    /// </summary>
-    private const float MaxFireRange = 500f;
-
-    /// <summary>
     /// Minimum engagement range (don't fire point-blank with explosives).
     /// </summary>
     private const float MinExplosiveFireRange = 60f;
@@ -29,8 +24,17 @@ public static class BotInputSynthesizer
     {
         var left = steering.MoveDirection < 0f;
         var right = steering.MoveDirection > 0f;
-        var up = steering.Jump && !previousInput.Up;
-        var down = steering.DropDown;
+        var up = steering.MoveDirectionY < 0f;
+        var down = steering.MoveDirectionY > 0f;
+        // Quote's pogo consumes Up as a held super-jump request at landing;
+        // unlike the normal jump action it must not be edge-pulsed.
+        if (steering.MoveDirectionY == 0f)
+        {
+            up = self.ClassId == PlayerClass.Quote
+                ? steering.Jump
+                : steering.Jump && !previousInput.Up;
+            down = steering.DropDown;
+        }
 
         var input = new PlayerInputSnapshot(
             Left: left,
@@ -57,6 +61,18 @@ public static class BotInputSynthesizer
         var useAbility = combat.UseAbility;
         var swapWeapon = input.SwapWeapon;
         var firePrimary = combat.FirePrimary;
+        var fireSecondary = combat.FireSecondary;
+        if (self.ClassId == PlayerClass.Quote
+            && self.IsCivviePogoActive
+            && useAbility)
+        {
+            // Pogo is a pressed toggle. The server handles the utility input
+            // after weapon input, so do not send a shot on the same tick as
+            // the civilian drops pogo; both weapon paths reject active pogo.
+            firePrimary = false;
+            fireSecondary = false;
+        }
+
         if (ShouldDriveOffhandWeaponSelection(self))
         {
             if (self.HasExperimentalOffhandWeapon)
@@ -79,7 +95,7 @@ public static class BotInputSynthesizer
         return input with
         {
             FirePrimary = firePrimary,
-            FireSecondary = combat.FireSecondary,
+            FireSecondary = fireSecondary,
             UseAbility = useAbility,
             SwapWeapon = swapWeapon,
         };

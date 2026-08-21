@@ -42,6 +42,7 @@ public sealed class BotBrainController
     private readonly StochasticLocalMotionPlanner _stochasticLocalMotionPlanner = new();
     private readonly NavGraph? _graphOverride;
     private readonly bool _forceAlphaNavigation;
+    private readonly bool _disableShippedNavigationGraph;
 
     private NavGraph? _navGraph;
     private bool _alphaNavigation;
@@ -157,7 +158,11 @@ public sealed class BotBrainController
     private const float AlphaCapturePointCombatEngagementDistance = 280f;
     private const float AlphaObjectiveCombatOverlayDistance = 192f;
     private const float CapturePointObstacleProbeDistance = 36f;
-    private const float ArenaCaptureDirectDriveHorizontalRange = 420f;
+    // Graphless arena bots can finish a local-motion approach on either side
+    // of the central ladder. Keep the ladder owner wide enough to take over
+    // from that recovery boundary instead of suppressing at roughly half a
+    // map-width and never reaching the capture zone.
+    private const float ArenaCaptureDirectDriveHorizontalRange = 720f;
     private const float ArenaCaptureDirectDriveVerticalMin = -320f;
     private const float ArenaCaptureDirectDriveVerticalMax = 80f;
     private const float CapturePointHoldHorizontalRange = 72f;
@@ -298,10 +303,12 @@ public sealed class BotBrainController
     private const float CombatRouteProgressDistance = 3f;
     private const int GraphlessCombatTargetRefreshTicks = 4;
     private const int GraphlessMedicHealTargetRefreshTicks = 6;
-    private const float GraphlessCombatTargetMaxRange = 375f;
+    private const float GraphlessCombatTargetMaxRange = 1100f;
     private const float GraphlessSniperCombatTargetMaxRange = 760f;
     private const float GraphlessMedicHealTargetMaxDistance = 300f;
     private const float GraphlessMedicHumanCallTargetMaxDistance = 900f;
+    private const float TopDownAllySeparationRadius = 56f;
+    private const float TopDownAllySeparationProbeDistance = 8f;
 
     private int _objectiveReevalCooldown;
     private (float X, float Y) _currentGoalPosition;
@@ -311,6 +318,15 @@ public sealed class BotBrainController
 
     public BotBrainController()
     {
+    }
+
+    /// <summary>
+    /// Diagnostic/test affordance for exercising the graphless runtime path
+    /// even when the current level has a shipped OG2 navigation graph.
+    /// </summary>
+    public BotBrainController(bool disableShippedNavigationGraph)
+    {
+        _disableShippedNavigationGraph = disableShippedNavigationGraph;
     }
 
     public BotBrainController(NavGraph graphOverride)
@@ -325,6 +341,11 @@ public sealed class BotBrainController
     }
 
     public int CurrentPathNode => _currentPath?.CurrentNode ?? -1;
+
+    public (float X, float Y) CurrentPathNodePosition =>
+        _navGraph is not null && CurrentPathNode >= 0
+            ? (_navGraph.GetNode(CurrentPathNode).X, _navGraph.GetNode(CurrentPathNode).Y)
+            : default;
 
     public int CurrentPathIndex => _currentPath?.CurrentIndex ?? -1;
 
@@ -376,8 +397,22 @@ public sealed class BotBrainController
         {
             if (!_alphaNavigation
                 || _navGraph is null
-                || _currentPath is null
-                || !_currentPath.TryGetCurrentEdge(out var edge)
+                || _currentPath is null)
+            {
+                return false;
+            }
+
+            // Top-down steering is a cheap two-axis occupancy-grid update,
+            // but its waypoint direction can change at every corner. Reusing
+            // a batched input for several ticks makes bots visibly stutter or
+            // walk into a corner before the next brain pass. Keep only this
+            // navigation heartbeat per-tick; combat decisions remain batched.
+            if (_lastLevel?.IsTopDown == true && !_currentPath.IsComplete)
+            {
+                return true;
+            }
+
+            if (!_currentPath.TryGetCurrentEdge(out var edge)
                 || !edge.IsOg2Contact)
             {
                 return false;
@@ -460,8 +495,18 @@ public sealed class BotBrainController
         {
             _alphaNavigation = _forceAlphaNavigation
                 || (_graphOverride is null && !IsLegacyNavigationOptIn());
+            // A live bot think must never synchronously build an OG2 graph.
+            // The shipped graph is a fast, immutable runtime asset; when a
+            // map has no shipped graph, stay graphless for this controller and
+            // use the direct/local fallback lanes below.  GetOrBuild remains
+            // available to explicit tooling and diagnostics, but invoking it
+            // here made the first server tick block for seconds on maps that
+            // intentionally exercise graphless navigation.
             _navGraph = _graphOverride ?? (_alphaNavigation
-                ? Og2NavigationGraphStore.GetOrBuild(world.Level)
+                ? !_disableShippedNavigationGraph
+                    && Og2NavigationGraphStore.TryLoadShipped(world.Level, out var shippedGraph)
+                        ? shippedGraph
+                        : null
                 : BotNavigationAssetStore.TryLoadCachedGraph(world.Level, out var graph)
                     ? graph
                     : null);
@@ -542,7 +587,12 @@ public sealed class BotBrainController
         LastCombatTarget = combatTarget;
         PlayerEntity? preferredEnemyObjectiveTarget = null;
         if (PreferEnemyPlayerObjective
-            && TryFindNearestEnemyPlayer(world, self, team, float.PositiveInfinity, out var preferredEnemy))
+            && TryFindNearestEnemyPlayer(
+                world,
+                self,
+                team,
+                float.PositiveInfinity,
+                out var preferredEnemy))
         {
             preferredEnemyObjectiveTarget = preferredEnemy;
         }
@@ -1097,6 +1147,7 @@ public sealed class BotBrainController
         }
         directSteeringResolvedTimestamp = Stopwatch.GetTimestamp();
         ApplyCaptureStrafeHop(world, self, team, ref steeringOutput);
+        ApplyTopDownAllySeparation(world, self, team, ref steeringOutput);
         LastSteeringOutput = steeringOutput;
         TraceRuntimeRecipeExecution(self, team, steeringOutput);
         steeringResolvedTimestamp = Stopwatch.GetTimestamp();
@@ -1111,6 +1162,14 @@ public sealed class BotBrainController
         var input = inputOverride.HasValue
             ? ApplyCombatToInputOverride(self, inputOverride.Value, combat)
             : BotInputSynthesizer.Synthesize(self, steeringOutput, aimX, aimY, combat, synthesisPreviousInput);
+        if (world.Level.IsTopDown && steeringOutput.MoveDirectionY != 0f)
+        {
+            input = input with
+            {
+                Up = steeringOutput.MoveDirectionY < 0f,
+                Down = steeringOutput.MoveDirectionY > 0f,
+            };
+        }
         input = ApplyEngineerCaptureTheFlagDefenseInput(world, self, team, input);
         input = ApplyEngineerControlPointInput(world, self, team, input);
         _previousInput = input;
@@ -1153,10 +1212,12 @@ public sealed class BotBrainController
     }
 
     /// <summary>
-    /// Advance only an already-certified OG2 contact. This is intentionally
-    /// separate from Think: high-frequency contact ticks exist to keep a measured
-    /// jump pulse in the physics time domain, not to rerun objective selection,
-    /// combat targeting, or graph search every simulation tick.
+    /// Advance the already-selected navigation route at physics-tick frequency.
+    /// OG2 contact edges need this for measured jump pulses; top-down walk edges
+    /// need it so their two-axis waypoint direction is refreshed instead of
+    /// reusing one stale input until the next expensive brain pass. This is
+    /// intentionally separate from Think: neither path reruns combat targeting
+    /// or a full objective search every simulation tick.
     /// </summary>
     public PlayerInputSnapshot ThinkRuntimeContact(
         PlayerEntity self,
@@ -1165,14 +1226,42 @@ public sealed class BotBrainController
     {
         if (!_alphaNavigation
             || _navGraph is null
-            || _currentPath is null
-            || !_currentPath.TryGetCurrentEdge(out var edge)
-            || !edge.IsOg2Contact)
+            || !self.IsAlive)
         {
             return _previousInput;
         }
 
-        PrepareAlphaRuntimeContact(self, team, world.Level);
+        var topDown = world.Level.IsTopDown;
+        if (topDown)
+        {
+            // Objective ownership, intel state, and carrier state can change
+            // between the batched Think calls. Refresh only that cheap route
+            // contract here; do not run the full combat/objective brain.
+            RefreshAlphaNavigationStateIfNeeded(world, self, team);
+        }
+
+        if (_currentPath is null || _currentPath.IsComplete)
+        {
+            return _previousInput;
+        }
+
+        // Top-down paths are ordinary walk paths and may be freshly rebuilt
+        // at waypoint index zero (most importantly when an intel pickup
+        // switches the objective from enemy base to own base). They do not
+        // have the platformer contact-edge precondition used by OG2 jump
+        // routes. Rejecting index-zero paths here returned the stale input and
+        // left carriers inert immediately after pickup.
+        if (!topDown
+            && (!_currentPath.TryGetCurrentEdge(out var edge) || !edge.IsOg2Contact))
+        {
+            return _previousInput;
+        }
+
+        if (!topDown)
+        {
+            PrepareAlphaRuntimeContact(self, team, world.Level);
+        }
+
         var steeringOutput = _steering.Update(
             self,
             _navGraph,
@@ -1182,8 +1271,37 @@ public sealed class BotBrainController
         if (steeringOutput.RequestRepath)
         {
             HandleSteeringRepathRequest(self, team, steeringOutput);
+
+            // Top-down routes have no launch/contact transaction to wait on.
+            // Reattach immediately after a stuck edge so the bot cannot spend
+            // the next batched interval replaying the failed direction.
+            if (topDown)
+            {
+                if (self.IsGrounded
+                    && (_currentPath is null
+                        || _currentPath.IsComplete
+                        || _currentPath.Count < 2))
+                {
+                    UpdatePath(world, self, team);
+                }
+
+                if (_currentPath is { IsComplete: false, Count: >= 2 })
+                {
+                    steeringOutput = _steering.Update(
+                        self,
+                        _navGraph,
+                        _currentPath,
+                        world.Level,
+                        team);
+                }
+                else
+                {
+                    steeringOutput = new SteeringOutput();
+                }
+            }
         }
 
+        ApplyTopDownAllySeparation(world, self, team, ref steeringOutput);
         LastSteeringOutput = steeringOutput;
         TraceRuntimeRecipeExecution(self, team, steeringOutput);
 
@@ -1192,8 +1310,14 @@ public sealed class BotBrainController
         {
             Left = steeringOutput.MoveDirection < 0f,
             Right = steeringOutput.MoveDirection > 0f,
-            Up = steeringOutput.Jump && !contactPreviousInput.Up,
-            Down = steeringOutput.DropDown,
+            Up = topDown
+                ? steeringOutput.MoveDirectionY < 0f
+                : self.ClassId == PlayerClass.Quote
+                ? steeringOutput.Jump
+                : steeringOutput.Jump && !contactPreviousInput.Up,
+            Down = topDown
+                ? steeringOutput.MoveDirectionY > 0f
+                : steeringOutput.DropDown,
         };
         _previousInput = input;
         return input;
@@ -1225,14 +1349,26 @@ public sealed class BotBrainController
         // contract and route immediately so a completed path cannot leave a
         // bot holding neutral input until its next expensive think.
         RefreshAlphaNavigationStateIfNeeded(world, self, team);
-        if (_currentPath is null
-            || _currentPath.IsComplete
-            || !_currentPath.TryGetCurrentEdge(out _))
+        var topDown = world.Level.IsTopDown;
+        if (_currentPath is null || _currentPath.IsComplete)
         {
             return false;
         }
 
-        PrepareAlphaRuntimeContact(self, team, world.Level);
+        // Top-down paths are walk routes and may still be at waypoint index
+        // zero, where NavPath has no incoming edge.  Runtime contact routes
+        // retain their existing edge precondition and recipe preparation.
+        if (!topDown
+            && !_currentPath.TryGetCurrentEdge(out _))
+        {
+            return false;
+        }
+
+        if (!topDown)
+        {
+            PrepareAlphaRuntimeContact(self, team, world.Level);
+        }
+
         var steeringOutput = _steering.Update(
             self,
             _navGraph,
@@ -1242,8 +1378,27 @@ public sealed class BotBrainController
         if (steeringOutput.RequestRepath)
         {
             HandleSteeringRepathRequest(self, team, steeringOutput);
+
+            if (topDown
+                && self.IsGrounded
+                && (_currentPath is null
+                    || _currentPath.IsComplete
+                    || _currentPath.Count < 2))
+            {
+                UpdatePath(world, self, team);
+                if (_currentPath is { IsComplete: false, Count: >= 2 })
+                {
+                    steeringOutput = _steering.Update(
+                        self,
+                        _navGraph,
+                        _currentPath,
+                        world.Level,
+                        team);
+                }
+            }
         }
 
+        ApplyTopDownAllySeparation(world, self, team, ref steeringOutput);
         LastSteeringOutput = steeringOutput;
         TraceRuntimeRecipeExecution(self, team, steeringOutput);
         var cachedPreviousInput = ResolveNavigationJumpPulsePreviousInput(steeringOutput, cachedInput);
@@ -1251,8 +1406,14 @@ public sealed class BotBrainController
         {
             Left = steeringOutput.MoveDirection < 0f,
             Right = steeringOutput.MoveDirection > 0f,
-            Up = steeringOutput.Jump && !cachedPreviousInput.Up,
-            Down = steeringOutput.DropDown,
+            Up = world.Level.IsTopDown
+                ? steeringOutput.MoveDirectionY < 0f
+                : self.ClassId == PlayerClass.Quote
+                    ? steeringOutput.Jump
+                    : steeringOutput.Jump && !cachedPreviousInput.Up,
+            Down = world.Level.IsTopDown
+                ? steeringOutput.MoveDirectionY > 0f
+                : steeringOutput.DropDown,
         };
         _previousInput = input;
         return true;
@@ -1287,7 +1448,12 @@ public sealed class BotBrainController
         LastCombatTarget = combatTarget;
         PlayerEntity? preferredEnemyObjectiveTarget = null;
         if (PreferEnemyPlayerObjective
-            && TryFindNearestEnemyPlayer(world, self, team, float.PositiveInfinity, out var preferredEnemy))
+            && TryFindNearestEnemyPlayer(
+                world,
+                self,
+                team,
+                float.PositiveInfinity,
+                out var preferredEnemy))
         {
             preferredEnemyObjectiveTarget = preferredEnemy;
         }
@@ -1331,6 +1497,23 @@ public sealed class BotBrainController
         var steeringOutput = new SteeringOutput();
         PlayerInputSnapshot? inputOverride = null;
         var directResolved = false;
+
+        // Map-specific graphless recovery must remain available when the
+        // shipped graph is intentionally absent. Harvest's right spool needs
+        // its authored escape sequence; falling through to the generic
+        // objective drive leaves the Pyro trapped in the pocket.
+        if (TryResolveHarvestRightSpoolRecovery(
+                world,
+                self,
+                routeRecoveryRequested: true,
+                steeringOutput,
+                out var harvestSpoolSteering,
+                out var harvestSpoolTrace))
+        {
+            steeringOutput = harvestSpoolSteering;
+            LastDirectDriveTrace = $"noGraph {harvestSpoolTrace}";
+            directResolved = true;
+        }
 
         if (!ForceObjectiveNavigationForDiagnostics
             && !PreferEnemyPlayerObjective
@@ -1386,6 +1569,7 @@ public sealed class BotBrainController
         }
 
         ApplyCaptureStrafeHop(world, self, team, ref steeringOutput);
+        ApplyTopDownAllySeparation(world, self, team, ref steeringOutput);
         LastSteeringOutput = steeringOutput;
 
         var aimHealTarget = ResolveMedicAimHealTarget(world, self, healTarget);
@@ -1394,6 +1578,14 @@ public sealed class BotBrainController
         var input = inputOverride.HasValue
             ? ApplyCombatToInputOverride(self, inputOverride.Value, combat)
             : BotInputSynthesizer.Synthesize(self, steeringOutput, aimX, aimY, combat, _previousInput);
+        if (world.Level.IsTopDown && steeringOutput.MoveDirectionY != 0f)
+        {
+            input = input with
+            {
+                Up = steeringOutput.MoveDirectionY < 0f,
+                Down = steeringOutput.MoveDirectionY > 0f,
+            };
+        }
         input = ApplyEngineerCaptureTheFlagDefenseInput(world, self, team, input);
         input = ApplyEngineerControlPointInput(world, self, team, input);
         _previousInput = input;
@@ -1728,6 +1920,112 @@ public sealed class BotBrainController
             || string.Equals(mode, "asset", StringComparison.OrdinalIgnoreCase);
     }
 
+    private int FindNavigationStartNode(
+        SimpleLevel? level,
+        PlayerEntity self,
+        PlayerTeam team,
+        bool pathMissing,
+        bool alphaNavigation)
+    {
+        if (_navGraph is null)
+        {
+            return -1;
+        }
+
+        // Top-down movement has no meaningful above/below surface ordering.
+        // The platformer attachment selector deliberately favors nodes below
+        // the player, which can attach a top-down bot to the wrong local
+        // component after a collision or a knockback. Use the nearest node
+        // with a live collision-checked connector instead of treating
+        // geometric proximity as attachment.
+        if (level?.IsTopDown == true)
+        {
+            return FindTopDownReachableStartNode(level, self, team);
+        }
+
+        return _navGraph.FindNearestTraversalStartNode(
+            self.X,
+            self.Y,
+            ResolveTraversalStartMaxAboveDistance(self, pathMissing, alphaNavigation),
+            alphaNavigation ? AlphaTraversalStartMaxBelowDistance : float.PositiveInfinity);
+    }
+
+    private int FindTopDownReachableStartNode(
+        SimpleLevel level,
+        PlayerEntity self,
+        PlayerTeam team)
+    {
+        if (_navGraph is null || _navGraph.NodeCount == 0)
+        {
+            return -1;
+        }
+
+        // A geometric nearest node is not necessarily the node the live body
+        // can reach. On a grid map a wall can sit between the trigger/spawn
+        // position and that node, making the first path segment a non-graph
+        // drive directly into the wall. Attach only to a nearby node with a
+        // clear, collision-checked connector from the actual body.
+        var candidates = Enumerable
+            .Range(0, _navGraph.NodeCount)
+            .Select(index =>
+            {
+                var node = _navGraph.GetNode(index);
+                var dx = node.X - self.X;
+                var dy = node.Y - self.Y;
+                return (Index: index, DistanceSquared: (dx * dx) + (dy * dy));
+            })
+            .OrderBy(static candidate => candidate.DistanceSquared)
+            .Take(64);
+
+        var nearestOpenNode = -1;
+        foreach (var candidate in candidates)
+        {
+            var node = _navGraph.GetNode(candidate.Index);
+            if (!self.CanOccupy(level, team, node.X, node.Y))
+            {
+                continue;
+            }
+
+            nearestOpenNode = candidate.Index;
+            if (IsTopDownConnectorClear(level, self, team, node.X, node.Y))
+            {
+                return candidate.Index;
+            }
+        }
+
+        // Preserve a recoverable attachment if the body is temporarily
+        // surrounded by another player or dynamic blocker. The local
+        // top-down recovery steering will move it out and retry this search.
+        return nearestOpenNode >= 0
+            ? nearestOpenNode
+            : _navGraph.FindNearestNode(self.X, self.Y);
+    }
+
+    private static bool IsTopDownConnectorClear(
+        SimpleLevel level,
+        PlayerEntity self,
+        PlayerTeam team,
+        float targetX,
+        float targetY)
+    {
+        var distance = MathF.Sqrt(
+            ((targetX - self.X) * (targetX - self.X))
+            + ((targetY - self.Y) * (targetY - self.Y)));
+        var samples = Math.Max(1, (int)MathF.Ceiling(distance / 8f));
+        for (var sample = 1; sample <= samples; sample += 1)
+        {
+            var fraction = sample / (float)samples;
+            var x = self.X + ((targetX - self.X) * fraction);
+            var y = self.Y + ((targetY - self.Y) * fraction);
+            if (!self.CanOccupy(level, team, x, y))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     private void UpdatePath(SimulationWorld world, PlayerEntity self, PlayerTeam team)
     {
         if (_navGraph is null)
@@ -1859,11 +2157,7 @@ public sealed class BotBrainController
         }
 
         var pathMissing = _currentPath is null;
-        var startNode = _navGraph.FindNearestTraversalStartNode(
-            self.X,
-            self.Y,
-            ResolveTraversalStartMaxAboveDistance(self, pathMissing, _alphaNavigation),
-            _alphaNavigation ? AlphaTraversalStartMaxBelowDistance : float.PositiveInfinity);
+        var startNode = FindNavigationStartNode(world.Level, self, team, pathMissing, _alphaNavigation);
         var preserveExactControlObjective = ShouldPreserveExactControlObjective();
         // A failed edge invalidates the current path, not the objective. Keep
         // the previously selected alpha goal node as the fast recovery target;
@@ -2015,17 +2309,19 @@ public sealed class BotBrainController
             // attachment selection before attempting A* from the known
             // blocked support; otherwise the first search can exhaust the
             // entire directed graph just to prove that this start is dead.
-            var reachableStartNode = _navGraph.FindNearestTraversalStartNodeForGoal(
-                self.X,
-                self.Y,
-                ResolveTraversalStartMaxAboveDistance(self, pathMissing, alphaNavigation: true),
-                AlphaTraversalStartMaxBelowDistance,
-                exactGoalNode,
-                self.BotGraphClassId,
-                activeBlockedEdges,
-                team,
-                self.IsCarryingIntel,
-                maxHorizontalDistance: AlphaRecoveryMaxHorizontalAttachmentDistance);
+            var reachableStartNode = world.Level.IsTopDown
+                ? -1
+                : _navGraph.FindNearestTraversalStartNodeForGoal(
+                    self.X,
+                    self.Y,
+                    ResolveTraversalStartMaxAboveDistance(self, pathMissing, alphaNavigation: true),
+                    AlphaTraversalStartMaxBelowDistance,
+                    exactGoalNode,
+                    self.BotGraphClassId,
+                    activeBlockedEdges,
+                    team,
+                    self.IsCarryingIntel,
+                    maxHorizontalDistance: AlphaRecoveryMaxHorizontalAttachmentDistance);
             goalAwareBlockedStartSearched = true;
             if (reachableStartNode >= 0)
             {
@@ -2049,17 +2345,19 @@ public sealed class BotBrainController
             && !objectiveApproachReattach
             && !goalAwareBlockedStartSearched)
         {
-            var reachableStartNode = _navGraph.FindNearestTraversalStartNodeForGoal(
-                self.X,
-                self.Y,
-                ResolveTraversalStartMaxAboveDistance(self, pathMissing, alphaNavigation: true),
-                AlphaTraversalStartMaxBelowDistance,
-                exactGoalNode,
-                self.BotGraphClassId,
-                activeBlockedEdges,
-                team,
-                self.IsCarryingIntel,
-                maxHorizontalDistance: AlphaRecoveryMaxHorizontalAttachmentDistance);
+            var reachableStartNode = world.Level.IsTopDown
+                ? -1
+                : _navGraph.FindNearestTraversalStartNodeForGoal(
+                    self.X,
+                    self.Y,
+                    ResolveTraversalStartMaxAboveDistance(self, pathMissing, alphaNavigation: true),
+                    AlphaTraversalStartMaxBelowDistance,
+                    exactGoalNode,
+                    self.BotGraphClassId,
+                    activeBlockedEdges,
+                    team,
+                    self.IsCarryingIntel,
+                    maxHorizontalDistance: AlphaRecoveryMaxHorizontalAttachmentDistance);
             if (reachableStartNode >= 0)
             {
                 startNode = reachableStartNode;
@@ -2123,7 +2421,9 @@ public sealed class BotBrainController
                 self.BotGraphClassId,
                 activeBlockedEdges,
                 team,
-                self.IsCarryingIntel);
+                self.IsCarryingIntel,
+                verticalWeight: world.Level.IsTopDown ? 1f : 2f,
+                penalizeLowerCandidate: !world.Level.IsTopDown);
             refreshedPath = !IsRejectedDistantDirectSeekRouteGoalProxy(_navGraph, goalNode, _currentGoalPosition.X, _currentGoalPosition.Y, rejectDistantGoalProxy)
                 && (goalNode != startNode || exactGoalNode == startNode)
                 ? _navGraph.FindPath(
@@ -2701,7 +3001,12 @@ public sealed class BotBrainController
         {
             _graphlessCombatTargetRefreshCooldown -= 1;
             if (_graphlessCombatTarget is { } cachedTarget
-                && TryRefreshReusableGraphlessCombatTarget(cachedTarget, self, team, out var refreshedTarget))
+                && TryRefreshReusableGraphlessCombatTarget(
+                    cachedTarget,
+                    self,
+                    world,
+                    team,
+                    out var refreshedTarget))
             {
                 _graphlessCombatTarget = refreshedTarget;
                 return refreshedTarget;
@@ -2773,6 +3078,7 @@ public sealed class BotBrainController
     private static bool TryRefreshReusableGraphlessCombatTarget(
         BotBrainCombatTarget target,
         PlayerEntity self,
+        SimulationWorld world,
         PlayerTeam team,
         out BotBrainCombatTarget refreshedTarget)
     {
@@ -2800,6 +3106,13 @@ public sealed class BotBrainController
                 {
                     return false;
                 }
+
+                player = TargetSelector.ResolveMartyrPriorityTarget(
+                    self,
+                    world,
+                    player,
+                    opposingTeam,
+                    maxEngagementDistanceSquared);
 
                 if (!CombatDecisionResolver.IsPlayerVisibleToBot(self, player)
                     || DistanceSquared(self.X, self.Y, player.X, player.Y) >= maxEngagementDistanceSquared)
@@ -2917,11 +3230,12 @@ public sealed class BotBrainController
             return false;
         }
 
-        var startNode = _navGraph.FindNearestTraversalStartNode(
-            self.X,
-            self.Y,
-            ResolveTraversalStartMaxAboveDistance(self, alphaNavigation: _alphaNavigation),
-            _alphaNavigation ? AlphaTraversalStartMaxBelowDistance : float.PositiveInfinity);
+        var startNode = FindNavigationStartNode(
+            _lastLevel,
+            self,
+            team,
+            pathMissing: true,
+            alphaNavigation: _alphaNavigation);
         if (startNode < 0)
         {
             return false;
@@ -3270,6 +3584,22 @@ public sealed class BotBrainController
         // second route owner during recovery and makes the bot alternate
         // between the objective and a moving combat target.  Immediate local
         // combat remains available; the next graph update owns traversal.
+        // Legacy/non-alpha controllers still need the combat-range overlay
+        // when their graph route is missing. Falling straight into the
+        // generic local-motion recovery labels the same target as an
+        // objective drive and loses class-specific spacing behavior.
+        if (!_alphaNavigation
+            && TryResolvePrimitiveCombatDrive(
+                world,
+                self,
+                combatTarget,
+                steeringOutput,
+                out directSteering,
+                out directTrace))
+        {
+            return true;
+        }
+
         if (_alphaNavigation)
         {
             return TryResolveAlphaAwarePrimitiveCombatDrive(
@@ -3443,7 +3773,40 @@ public sealed class BotBrainController
         out SteeringOutput directSteering,
         out string directTrace)
     {
-        if (_alphaNavigation)
+        if (world.Level.IsTopDown)
+        {
+            // Top-down levels do not have a platformer jump/drop fallback.
+            // If graph attachment is temporarily unavailable, use a short
+            // collision-checked recovery step. A raw sign(delta) drive is
+            // unsafe here: it holds one axis into a wall until the graph
+            // retry, which is exactly the visible wall-lock failure.
+            var deltaX = _currentGoalPosition.X - self.X;
+            var deltaY = _currentGoalPosition.Y - self.Y;
+            var (moveX, moveY) = ResolveTopDownObjectiveMove(
+                world.Level,
+                self,
+                team,
+                deltaX,
+                deltaY);
+            if (moveX != 0f || moveY != 0f)
+            {
+                directSteering = steeringOutput;
+                directSteering.MoveDirection = moveX;
+                directSteering.MoveDirectionY = moveY;
+                directSteering.Jump = false;
+                directSteering.DropDown = false;
+                directSteering.State = SteeringState.Grounded;
+                directSteering.EdgeKind = NavEdgeKind.Walk;
+                directTrace = $"topDownObjective dx:{deltaX:0.0} dy:{deltaY:0.0}";
+                return true;
+            }
+        }
+
+        // Alpha routing owns movement only while a usable graph is actually
+        // attached.  A missing/empty shipped graph must use the graphless
+        // objective and local-motion lanes below; otherwise the alpha branch
+        // returns neutral input and suppresses the fallback entirely.
+        if (_alphaNavigation && IsNavigationGraphUsable(_navGraph))
         {
             // Alpha still owns long-range traversal. This is only the
             // grounded emergency lane after the graph has no executable path
@@ -3474,7 +3837,8 @@ public sealed class BotBrainController
                     return true;
                 }
 
-                if (!forceCtfIntelApproach
+                if (!world.Level.IsTopDown
+                    && !forceCtfIntelApproach
                     && self.IsGrounded
                     && TryResolveLocalMotionRecovery(
                             world,
@@ -3510,7 +3874,8 @@ public sealed class BotBrainController
                 // covers an airborne failed-edge handoff; waiting for the
                 // next grounded think with an empty SteeringOutput is what
                 // made bots visibly freeze after a missed landing.
-                if (PrimitiveDirectDrive.TryResolveRecovery(
+                if (!world.Level.IsTopDown
+                    && PrimitiveDirectDrive.TryResolveRecovery(
                         world,
                         self,
                         alphaObjectiveTarget,
@@ -3568,6 +3933,24 @@ public sealed class BotBrainController
             return true;
         }
 
+        // Graphless alpha bots still need a direct combat owner once an enemy
+        // is inside the bounded target-selection range.  The normal alpha
+        // route resolver is unavailable without a shipped graph, so falling
+        // through to objective local-motion here made practice bots alternate
+        // between short plans and neutral input without ever engaging.
+        if (!DisableCombatForDiagnostics
+            && TryResolvePrimitiveCombatDrive(
+                world,
+                self,
+                combatTarget,
+                steeringOutput,
+                out directSteering,
+                out directTrace))
+        {
+            directTrace = $"graphlessCombat {directTrace}";
+            return true;
+        }
+
         var objectiveTarget = new DirectDriveTarget(
             DirectDriveTargetKind.Objective,
             _currentGoalPosition.X,
@@ -3584,20 +3967,91 @@ public sealed class BotBrainController
             return true;
         }
 
-        if (!IsLocalMotionSuppressionTrace(directTrace)
-            && PrimitiveDirectDrive.TryResolveRecovery(
+        var localMotionSuppressed = IsLocalMotionSuppressionTrace(directTrace);
+        if (PrimitiveDirectDrive.TryResolveRecovery(
                 world,
                 self,
                 objectiveTarget,
                 steeringOutput,
                 out directSteering,
-                out directTrace))
+                out directTrace)
+            && (!localMotionSuppressed
+                || MathF.Abs(directSteering.MoveDirection) <= 0.01f
+                || !PrimitiveDirectDrive.WouldMoveIntoObstacle(
+                    world,
+                    self,
+                    Math.Sign(directSteering.MoveDirection))))
         {
             directTrace = $"primitiveFallback {directTrace}";
             return true;
         }
 
         return false;
+    }
+
+    internal static (float MoveX, float MoveY) ResolveTopDownObjectiveMove(
+        SimpleLevel level,
+        PlayerEntity self,
+        PlayerTeam team,
+        float deltaX,
+        float deltaY)
+    {
+        const float probeDistance = 8f;
+        var desiredX = MathF.Abs(deltaX) <= 16f ? 0f : MathF.Sign(deltaX);
+        var desiredY = MathF.Abs(deltaY) <= 16f ? 0f : MathF.Sign(deltaY);
+        if (desiredX == 0f && desiredY == 0f)
+        {
+            return (0f, 0f);
+        }
+
+        bool CanMove(float moveX, float moveY) =>
+            self.CanOccupy(
+                level,
+                team,
+                self.X + (moveX * probeDistance),
+                self.Y + (moveY * probeDistance));
+
+        var canMoveX = desiredX == 0f || CanMove(desiredX, 0f);
+        var canMoveY = desiredY == 0f || CanMove(0f, desiredY);
+        if (canMoveX && canMoveY)
+        {
+            return (desiredX, desiredY);
+        }
+
+        if (desiredY != 0f && canMoveY)
+        {
+            return (0f, desiredY);
+        }
+
+        if (desiredX != 0f && canMoveX)
+        {
+            return (desiredX, 0f);
+        }
+
+        // The desired corner is blocked. Pick a perpendicular free lane in a
+        // stable per-bot order so a group does not all choose the same side
+        // of a crate, while still guaranteeing that no recovery direction is
+        // emitted into a known solid.
+        var candidates = desiredX != 0f && desiredY == 0f
+            ? self.Id % 2 == 0
+                ? new[] { (0f, 1f), (0f, -1f) }
+                : new[] { (0f, -1f), (0f, 1f) }
+            : desiredY != 0f && desiredX == 0f
+                ? self.Id % 2 == 0
+                    ? new[] { (1f, 0f), (-1f, 0f) }
+                    : new[] { (-1f, 0f), (1f, 0f) }
+                : self.Id % 2 == 0
+                    ? new[] { (desiredX, 0f), (0f, desiredY), (0f, -desiredY), (-desiredX, 0f) }
+                    : new[] { (0f, desiredY), (desiredX, 0f), (-desiredX, 0f), (0f, -desiredY) };
+        foreach (var candidate in candidates)
+        {
+            if (CanMove(candidate.Item1, candidate.Item2))
+            {
+                return candidate;
+            }
+        }
+
+        return (0f, 0f);
     }
 
     private static bool TryResolveAlphaCarrierTerminalReturn(
@@ -3624,8 +4078,11 @@ public sealed class BotBrainController
             return false;
         }
 
-        var moveDirection = Math.Sign(dx);
-        directSteering.MoveDirection = moveDirection;
+        var (moveX, moveY) = world.Level.IsTopDown
+            ? ResolveTopDownObjectiveMove(world.Level, self, team, dx, dy)
+            : (Math.Sign(dx), 0f);
+        directSteering.MoveDirection = moveX;
+        directSteering.MoveDirectionY = moveY;
         // A grounded player can always initiate the normal jump, even when
         // the class has no mid-air jumps. RemainingAirJumps only gates a
         // second jump after takeoff.
@@ -3635,7 +4092,7 @@ public sealed class BotBrainController
         directTrace = string.Create(
             CultureInfo.InvariantCulture,
             $"alphaCarrierTerminal team:{team} dx:{dx:0.0} dy:{dy:0.0} " +
-            $"dist:{distance:0.0} move:{moveDirection:0} jump:{(directSteering.Jump ? 1 : 0)}");
+            $"dist:{distance:0.0} move:({moveX:0},{moveY:0}) jump:{(directSteering.Jump ? 1 : 0)}");
         return true;
     }
 
@@ -3672,6 +4129,34 @@ public sealed class BotBrainController
         {
             return false;
         }
+
+        if (world.Level.IsTopDown)
+        {
+            var (moveX, moveY) = ResolveTopDownObjectiveMove(
+                world.Level,
+                self,
+                self.Team,
+                dx,
+                dy);
+            if (moveX == 0f && moveY == 0f)
+            {
+                directTrace = $"topDownPathlessBlocked target:{target.Label} dx:{dx:0.0} dy:{dy:0.0}";
+                return false;
+            }
+
+            directSteering = steeringOutput;
+            directSteering.MoveDirection = moveX;
+            directSteering.MoveDirectionY = moveY;
+            directSteering.Jump = false;
+            directSteering.DropDown = false;
+            directSteering.RequestRepath = false;
+            MarkAlphaRecoveryPending();
+            directTrace =
+                $"topDownPathless target:{target.Label} dx:{dx:0.0} dy:{dy:0.0} " +
+                $"move:({moveX:0},{moveY:0})";
+            return true;
+        }
+
         var desiredObjectiveDirection = MathF.Sign(dx);
         var targetCrossedCommittedDirection = terminalIntelApproach
             && desiredObjectiveDirection != 0f
@@ -3819,21 +4304,25 @@ public sealed class BotBrainController
         // The graph has already attached the body to the objective node, but
         // the live capture volume can end a few pixels short of that node's
         // completion bounds (especially on the upper Corinth platform). Use
-        // one deterministic horizontal correction to enter the real volume;
-        // this is a terminal approach correction, not a second combat or
-        // long-range navigation owner.
-        var moveDirection = MathF.Sign(dx);
-        if (moveDirection == 0f)
+        // one deterministic correction to enter the real volume; this is a
+        // terminal approach correction, not a second combat or long-range
+        // navigation owner. Top-down corrections must remain collision-aware
+        // on both axes or they can lock against a nearby wall.
+        var (moveX, moveY) = world.Level.IsTopDown
+            ? ResolveTopDownObjectiveMove(world.Level, self, self.Team, dx, dy)
+            : (MathF.Sign(dx), 0f);
+        if (moveX == 0f && moveY == 0f)
         {
             return false;
         }
 
-        correctionSteering.MoveDirection = moveDirection;
+        correctionSteering.MoveDirection = moveX;
+        correctionSteering.MoveDirectionY = moveY;
         correctionSteering.Jump = false;
         correctionSteering.DropDown = false;
         trace = string.Create(
             CultureInfo.InvariantCulture,
-            $"alphaObjectiveCorrection point:{point.Index} dx:{dx:0.0} dy:{dy:0.0} move:{moveDirection:0}");
+            $"alphaObjectiveCorrection point:{point.Index} dx:{dx:0.0} dy:{dy:0.0} move:({moveX:0},{moveY:0})");
         return true;
     }
 
@@ -3887,7 +4376,12 @@ public sealed class BotBrainController
             ? combatPlayer
             : null;
         if (target is null
-            && TryFindNearestEnemyPlayer(world, self, team, float.PositiveInfinity, out var nearestEnemy))
+            && TryFindNearestEnemyPlayer(
+                world,
+                self,
+                team,
+                float.PositiveInfinity,
+                out var nearestEnemy))
         {
             target = nearestEnemy;
         }
@@ -3910,7 +4404,12 @@ public sealed class BotBrainController
                 out directSteering,
                 out directTrace,
                 requireVerticalSeparation: false,
-                rejectDistantGoalProxy: false)
+                rejectDistantGoalProxy: false,
+                // Preferred-enemy routing is keyed by the graph goal node,
+                // not by the exact moving player coordinate. Keep the short
+                // coordinate-reuse fast path disabled so a same-node target
+                // update exercises the intended reuseGoal branch.
+                activePathReuseDistance: 0f)
             || TryResolveLocalMotionRecovery(
                 world,
                 self,
@@ -4454,6 +4953,15 @@ public sealed class BotBrainController
             return false;
         }
 
+        // A cloak-fade spy may be visible, but a valid knife opportunity still
+        // takes priority over retreat.  Retreating first made the bot walk
+        // away from the target during the fade and almost never reach the
+        // backstab branch.
+        if (CombatDecisionResolver.ResolveSpyBackstabPlan(world, self, combatTarget).ShouldAttempt)
+        {
+            return false;
+        }
+
         directSteering.MoveDirection = self.X <= target.X ? -1 : 1;
         directSteering.Jump = steeringOutput.Jump;
         directSteering.DropDown = false;
@@ -4539,7 +5047,7 @@ public sealed class BotBrainController
     {
         directSteering = steeringOutput;
         directTrace = string.Empty;
-        if (_alphaNavigation
+        if ((_alphaNavigation && IsNavigationGraphUsable(_navGraph))
             || world.MatchRules.Mode != GameModeKind.Arena
             || !TryResolveCaptureZoneUnion(world, out var centerX, out var centerY, out _, out _))
         {
@@ -5143,7 +5651,9 @@ public sealed class BotBrainController
         var radiusSquared = radius * radius;
         foreach (var sentry in world.Sentries)
         {
-            if (sentry.OwnerPlayerId != self.Id || sentry.Team != self.Team)
+            if (sentry.OwnerPlayerId != self.Id
+                || sentry.Team != self.Team
+                || sentry.IsDispenser)
             {
                 continue;
             }
@@ -5163,7 +5673,9 @@ public sealed class BotBrainController
     {
         foreach (var sentry in world.Sentries)
         {
-            if (sentry.OwnerPlayerId == self.Id && sentry.Team == self.Team)
+            if (sentry.OwnerPlayerId == self.Id
+                && sentry.Team == self.Team
+                && !sentry.IsDispenser)
             {
                 return sentry;
             }
@@ -6464,7 +6976,8 @@ public sealed class BotBrainController
         var activeRouteReuseGoal = isDynamicRoute && _hasDynamicRouteTarget
             ? _dynamicRouteTargetPosition
             : _currentGoalPosition;
-        if (_currentPath is not null
+        if (!label.StartsWith("preferredEnemy", StringComparison.Ordinal)
+            && _currentPath is not null
             && !_currentPath.IsComplete
             && DistanceBetween(activeRouteReuseGoal.X, activeRouteReuseGoal.Y, targetX, targetY) <= activePathReuseDistance)
         {
@@ -6559,11 +7072,12 @@ public sealed class BotBrainController
             return true;
         }
 
-        var startNode = _navGraph.FindNearestTraversalStartNode(
-            self.X,
-            self.Y,
-            ResolveTraversalStartMaxAboveDistance(self, _currentPath is null),
-            _alphaNavigation ? AlphaTraversalStartMaxBelowDistance : float.PositiveInfinity);
+        var startNode = FindNavigationStartNode(
+            _lastLevel,
+            self,
+            team,
+            _currentPath is null,
+            _alphaNavigation);
         goalSelectionStartTimestamp = Stopwatch.GetTimestamp();
         if (startNode < 0)
         {
@@ -6604,8 +7118,8 @@ public sealed class BotBrainController
                 activeBlockedEdges,
                 team: routeTeam,
                 carryingIntel: self.IsCarryingIntel,
-                verticalWeight: 8f,
-                penalizeLowerCandidate: true);
+                verticalWeight: _lastLevel?.IsTopDown == true ? 1f : 8f,
+                penalizeLowerCandidate: _lastLevel?.IsTopDown != true);
         if (goalNode < 0)
         {
             goalNode = _navGraph.FindNearestNode(targetX, targetY);
@@ -7140,7 +7654,7 @@ public sealed class BotBrainController
     {
         directSteering = steeringOutput;
         directTrace = string.Empty;
-        if (_alphaNavigation
+        if ((_alphaNavigation && IsNavigationGraphUsable(_navGraph))
             || world.MatchRules.Mode is not (GameModeKind.Arena or GameModeKind.ControlPoint or GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill))
         {
             return false;
@@ -8222,15 +8736,211 @@ public sealed class BotBrainController
             && player.CanOccupy(level, team, player.X + (direction * clearProbeOffset), liftedY);
     }
 
+    /// <summary>
+    /// Add a small deterministic lane bias when same-team top-down bots are
+    /// crowding one another.  This only changes movement axes: combat aim and
+    /// fire/use decisions remain owned by the normal brain.  Every candidate
+    /// bias is checked through the live body collision probe before it is
+    /// emitted, so traffic separation cannot turn a solid corner into a new
+    /// movement owner.
+    /// </summary>
+    private static void ApplyTopDownAllySeparation(
+        SimulationWorld world,
+        PlayerEntity self,
+        PlayerTeam team,
+        ref SteeringOutput steeringOutput)
+    {
+        if (!world.Level.IsTopDown || !self.IsAlive)
+        {
+            return;
+        }
+
+        var radiusSquared = TopDownAllySeparationRadius * TopDownAllySeparationRadius;
+        var repulsionX = 0f;
+        var repulsionY = 0f;
+        var hasNearbyAlly = false;
+        foreach (var (_, ally) in world.EnumerateActiveNetworkPlayers())
+        {
+            if (ReferenceEquals(ally, self)
+                || !ally.IsAlive
+                || ally.Team != team)
+            {
+                continue;
+            }
+
+            var dx = self.X - ally.X;
+            var dy = self.Y - ally.Y;
+            var distanceSquared = (dx * dx) + (dy * dy);
+            if (distanceSquared > radiusSquared)
+            {
+                continue;
+            }
+
+            hasNearbyAlly = true;
+            if (distanceSquared <= 0.01f)
+            {
+                // Exact overlap has no geometric repulsion.  Ordering by
+                // entity id gives a stable, pairwise-diverging lane sign.
+                var overlapSign = self.Id < ally.Id ? 1f : -1f;
+                repulsionX += overlapSign;
+                continue;
+            }
+
+            var distance = MathF.Sqrt(distanceSquared);
+            var strength = 1f - Math.Clamp(distance / TopDownAllySeparationRadius, 0f, 1f);
+            repulsionX += (dx / distance) * strength;
+            repulsionY += (dy / distance) * strength;
+        }
+
+        if (!hasNearbyAlly)
+        {
+            return;
+        }
+
+        var moveX = (float)MathF.Sign(steeringOutput.MoveDirection);
+        var moveY = (float)MathF.Sign(steeringOutput.MoveDirectionY);
+        var biasX = repulsionX;
+        var biasY = repulsionY;
+
+        // Prefer a lateral lane relative to the route.  Keep direct
+        // repulsion only when the bot is holding/aiming without a route.
+        if (moveX != 0f || moveY != 0f)
+        {
+            var routeLength = MathF.Sqrt((moveX * moveX) + (moveY * moveY));
+            var routeX = moveX / routeLength;
+            var routeY = moveY / routeLength;
+            var alongRoute = (biasX * routeX) + (biasY * routeY);
+            biasX -= alongRoute * routeX;
+            biasY -= alongRoute * routeY;
+
+            if ((biasX * biasX) + (biasY * biasY) <= 0.01f)
+            {
+                // The exact-overlap case (and symmetric opposing neighbors)
+                // needs a stable tie-break so a roster does not choose the
+                // same lane on every bot.
+                var laneSign = (self.Id & 1) == 0 ? 1f : -1f;
+                biasX = -routeY * laneSign;
+                biasY = routeX * laneSign;
+            }
+        }
+        else if ((biasX * biasX) + (biasY * biasY) <= 0.01f)
+        {
+            biasX = (self.Id & 1) == 0 ? 1f : -1f;
+            biasY = 0f;
+        }
+
+        var biasLength = MathF.Sqrt((biasX * biasX) + (biasY * biasY));
+        if (biasLength <= 0.01f)
+        {
+            return;
+        }
+
+        var biasDirectionX = (float)MathF.Sign(biasX);
+        var biasDirectionY = (float)MathF.Sign(biasY);
+        var candidateX = moveX;
+        var candidateY = moveY;
+        if (moveX == 0f && moveY == 0f)
+        {
+            candidateX = biasDirectionX;
+            candidateY = biasDirectionY;
+        }
+        else if (moveX != 0f && moveY != 0f)
+        {
+            // A digital input cannot add a third axis to an existing
+            // diagonal. Keep one route axis and release the other for a
+            // short lane split; never reverse either route component because
+            // a nearby ally must not make a bot backtrack from its objective.
+            var replaceHorizontal = MathF.Abs(biasX) - MathF.Abs(biasY) > 0.01f
+                || (MathF.Abs(MathF.Abs(biasX) - MathF.Abs(biasY)) <= 0.01f
+                    && (self.Id & 1) == 0);
+            if (replaceHorizontal)
+            {
+                candidateY = 0f;
+            }
+            else
+            {
+                candidateX = 0f;
+            }
+        }
+        else if (MathF.Abs(biasDirectionX) > 0f)
+        {
+            candidateX = biasDirectionX;
+        }
+        else
+        {
+            candidateY = biasDirectionY;
+        }
+
+        var candidateClear = self.CanOccupy(
+            world.Level,
+            team,
+            self.X + (candidateX * TopDownAllySeparationProbeDistance),
+            self.Y + (candidateY * TopDownAllySeparationProbeDistance));
+        if (!candidateClear)
+        {
+            // A perpendicular lane can be blocked by a wall.  Try the
+            // opposite lane once, then leave the original route untouched;
+            // in particular, never reverse one component of a diagonal route.
+            var alternateX = moveX;
+            var alternateY = moveY;
+            if (moveX == 0f && moveY == 0f)
+            {
+                alternateX = -candidateX;
+                alternateY = -candidateY;
+            }
+            else if (moveX != 0f && moveY != 0f)
+            {
+                // The digital diagonal lane split released one route axis.
+                // The original diagonal is the only safe fallback.
+                alternateX = moveX;
+                alternateY = moveY;
+            }
+            else if (moveX != 0f)
+            {
+                alternateY = -candidateY;
+            }
+            else
+            {
+                alternateX = -candidateX;
+            }
+
+            candidateClear = self.CanOccupy(
+                world.Level,
+                team,
+                self.X + (alternateX * TopDownAllySeparationProbeDistance),
+                self.Y + (alternateY * TopDownAllySeparationProbeDistance));
+            if (candidateClear)
+            {
+                candidateX = alternateX;
+                candidateY = alternateY;
+            }
+        }
+
+        if (candidateClear)
+        {
+            steeringOutput.MoveDirection = candidateX;
+            steeringOutput.MoveDirectionY = candidateY;
+        }
+    }
+
     private void ApplyCaptureStrafeHop(
         SimulationWorld world,
         PlayerEntity self,
         PlayerTeam team,
         ref SteeringOutput steeringOutput)
     {
-        if (_alphaNavigation)
+        if (_alphaNavigation && IsNavigationGraphUsable(_navGraph))
         {
             ApplyAlphaCaptureArrivalHold(world, self, team, ref steeringOutput);
+            return;
+        }
+
+        if (_alphaNavigation)
+        {
+            // A graphless alpha controller must preserve the direct/local
+            // objective steering selected above. The arrival helper is a
+            // graph-route terminal owner and would otherwise erase a required
+            // jump (or replace a graphless escape with a neutral hold).
             return;
         }
 
@@ -8845,10 +9555,8 @@ public sealed class BotBrainController
                 continue;
             }
 
-            if (!CombatDecisionResolver.HasCombatLineOfSight(world, self.X, self.Y, candidate.X, candidate.Y))
-            {
-                continue;
-            }
+            // Target acquisition is screen-wide. Weapon traces, not bot
+            // perception, decide whether a shot can pass a map object.
 
             var dx = candidate.X - self.X;
             var dy = candidate.Y - self.Y;

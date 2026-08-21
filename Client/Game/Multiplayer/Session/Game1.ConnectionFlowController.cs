@@ -87,7 +87,10 @@ public partial class Game1
 
         public void OpenManualConnectMenuFromLobbyBrowser()
         {
+            _game._lastToDieRoomCodeJoinOpen = false;
+            _game._lastToDieConnectionPresentationPending = false;
             CloseLobbyBrowser(clearStatus: false);
+            _game.CancelFriendCodeJoin();
             _game._manualConnectOpen = true;
             _game._manualConnectControllerIndex = 0;
             SetManualConnectEditingField(editHost: true);
@@ -96,8 +99,11 @@ public partial class Game1
 
         public void CloseManualConnectMenu(bool clearStatus)
         {
+            _game._lastToDieRoomCodeJoinOpen = false;
+            _game._lastToDieConnectionPresentationPending = false;
             _game._manualConnectOpen = false;
             _game._manualConnectControllerIndex = 0;
+            _game.CancelFriendCodeJoin();
             DisableManualConnectEditing();
             if (clearStatus)
             {
@@ -132,6 +138,28 @@ public partial class Game1
 
         public void TryConnectFromMenu()
         {
+            if (_game._lastToDieRoomCodeJoinOpen)
+            {
+                if (!Game1.TryExtractFriendCodeFromText(_game._connectHostBuffer, out var roomCode))
+                {
+                    _game._menuStatusMessage = "Enter a valid room code.";
+                    return;
+                }
+
+                _game._connectHostBuffer = roomCode;
+                _game.InitializeConnectHostCursor();
+                _game.BeginFriendCodeJoin(roomCode);
+                return;
+            }
+
+            if (OpenGarrison.ClientShared.ClientIdentityDocument.TryNormalizeFriendCode(
+                    _game._connectHostBuffer,
+                    out var friendCode))
+            {
+                _game.BeginFriendCodeJoin(friendCode);
+                return;
+            }
+
             if (!TryParseManualConnectTarget(out var endpoint))
             {
                 return;
@@ -242,12 +270,14 @@ public partial class Game1
             foreach (var target in BuildDefaultLobbyTargets())
             {
                 if (string.IsNullOrWhiteSpace(target.Endpoint.Host)
-                    || (!target.Endpoint.HasUdpEndpoint && !target.Endpoint.HasWebSocketEndpoint))
+                    || (!target.Endpoint.HasUdpEndpoint
+                        && !target.Endpoint.HasWebSocketEndpoint
+                        && !target.Endpoint.HasQuicEndpoint))
                 {
                     continue;
                 }
 
-                var key = $"{target.Endpoint.Host}:{target.Endpoint.UdpPort}:{target.Endpoint.WebSocketPort}:{target.Endpoint.WebSocketUrl}";
+                var key = $"{target.Endpoint.Host}:{target.Endpoint.UdpPort}:{target.Endpoint.WebSocketPort}:{target.Endpoint.WebSocketUrl}:{target.Endpoint.QuicPort}:{target.Endpoint.QuicUrl}";
                 if (seen.Add(key))
                 {
                     yield return target;

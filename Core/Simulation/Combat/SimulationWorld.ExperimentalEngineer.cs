@@ -110,7 +110,8 @@ public sealed partial class SimulationWorld
         var count = 0;
         for (var sentryIndex = 0; sentryIndex < _sentries.Count; sentryIndex += 1)
         {
-            if (_sentries[sentryIndex].OwnerPlayerId == ownerPlayerId)
+            if (_sentries[sentryIndex].OwnerPlayerId == ownerPlayerId
+                && !_sentries[sentryIndex].IsDispenser)
             {
                 count += 1;
             }
@@ -945,7 +946,16 @@ public sealed partial class SimulationWorld
         }
     }
 
-    private void ApplyExperimentalSentryPlayerHit(SentryEntity sentry, PlayerEntity owner, PlayerEntity target, int baseDamage)
+    private void ApplyExperimentalSentryPlayerHit(
+        SentryEntity sentry,
+        PlayerEntity owner,
+        PlayerEntity target,
+        int baseDamage,
+        PlayerDamageTraits additionalTraits = PlayerDamageTraits.None,
+        bool criticalBoost = false,
+        bool useLiveAttackerCriticalBoost = true,
+        float? threatSourceX = null,
+        float? threatSourceY = null)
     {
         var appliedBaseDamage = Math.Max(
             1,
@@ -965,14 +975,27 @@ public sealed partial class SimulationWorld
         }
 
         var healthBefore = target.Health;
-        if (ApplyPlayerDamage(target, appliedBaseDamage, owner, PlayerEntity.SpyDamageRevealAlpha, allowOsmosisHealOwnedSentries: false))
+        var resolution = ResolvePlayerDamageWithContext(
+            target,
+            appliedBaseDamage,
+            owner,
+            PlayerEntity.SpyDamageRevealAlpha,
+            allowOsmosisHealOwnedSentries: false,
+            civvieUmbrellaThreatSourceX: threatSourceX,
+            civvieUmbrellaThreatSourceY: threatSourceY,
+            civvieUmbrellaCriticalBoost: criticalBoost,
+            civvieUmbrellaUseLiveAttackerCriticalBoost: useLiveAttackerCriticalBoost,
+            additionalTraits: additionalTraits);
+        if (resolution.WasFatal)
         {
             KillPlayer(target, killer: owner, weaponSpriteName: "TurretKL", deathCamMessage: "You were killed by the autogun of", deathCamSentry: sentry);
         }
 
         ApplyExperimentalSentryDamageRewards(sentry, owner, Math.Max(0, healthBefore - target.Health));
 
-        if (!target.IsAlive || !IsExperimentalEngineerPerkOwner(owner))
+        if (!resolution.ShouldApplyOnHitEffects
+            || !target.IsAlive
+            || !IsExperimentalEngineerPerkOwner(owner))
         {
             return;
         }

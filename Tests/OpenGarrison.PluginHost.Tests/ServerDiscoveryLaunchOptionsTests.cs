@@ -1,5 +1,6 @@
 using System;
 using OpenGarrison.Core;
+using OpenGarrison.Core.LastToDie;
 using OpenGarrison.Protocol;
 using Xunit;
 
@@ -229,6 +230,171 @@ public sealed class ServerDiscoveryLaunchOptionsTests
         Assert.DoesNotContain("--secondary-abilities", enabledArguments);
         Assert.Contains("--no-special-abilities", disabledArguments);
         Assert.DoesNotContain("--no-secondary-abilities", disabledArguments);
+    }
+
+    [Fact]
+    public void LastToDieLaunchClampsCoopToTwoPlayersAndPreservesSolo()
+    {
+        var coopOptions = ServerLaunchOptions.Load(
+            [
+                "--max-players", "40",
+                "--gameplay-variant", "last-to-die",
+                "--last-to-die-difficulty", "hardcore",
+                "--last-to-die-seed", "4242",
+            ],
+            _ => new ServerSettings
+            {
+                AutoBalanceEnabled = true,
+                SwitchTeamsAfterRoundEnd = true,
+                CompetitiveReadyUpEnabled = true,
+            });
+        var soloOptions = ServerLaunchOptions.Load(
+            [
+                "--max-players", "1",
+                "--gameplay-variant", "last-to-die",
+            ],
+            _ => new ServerSettings());
+
+        Assert.Equal(GameplayVariantKind.LastToDie, coopOptions.GameplayVariant);
+        Assert.Equal(LastToDieDifficulty.Hardcore, coopOptions.LastToDieDifficulty);
+        Assert.Equal(4242UL, coopOptions.LastToDieSeed);
+        Assert.Equal(2, coopOptions.MaxPlayableClients);
+        Assert.Equal(2, coopOptions.MaxTotalClients);
+        Assert.Equal(0, coopOptions.MaxSpectatorClients);
+        Assert.False(coopOptions.AutoBalanceEnabled);
+        Assert.False(coopOptions.SwitchTeamsAfterRoundEnd);
+        Assert.False(coopOptions.CompetitiveReadyUpEnabled);
+        Assert.False(coopOptions.UseLobbyServer);
+        Assert.Equal(GameplayVariantKind.LastToDie, soloOptions.GameplayVariant);
+        Assert.Equal(1, soloOptions.MaxPlayableClients);
+        Assert.Equal(1, soloOptions.MaxTotalClients);
+        Assert.Equal(0, soloOptions.MaxSpectatorClients);
+    }
+
+    [Fact]
+    public void LastToDieIgnoresCustomMapAndCustomRotationSettings()
+    {
+        var options = ServerLaunchOptions.Load(
+            ["--gameplay-variant", "last-to-die"],
+            _ => new ServerSettings
+            {
+                RequestedMap = "lake",
+                MapRotationFile = "custom-rotation.txt",
+                HostDefaults = new OpenGarrisonHostSettings
+                {
+                    StockMapRotation =
+                    [
+                        new OpenGarrisonMapRotationEntry
+                        {
+                            LevelName = "lake",
+                            IniKey = "lake",
+                            IsCustomMap = true,
+                            Order = 1,
+                        },
+                    ],
+                },
+            });
+
+        Assert.Null(options.RequestedMap);
+        Assert.Null(options.MapRotationFile);
+        Assert.NotEmpty(options.StockMapRotation);
+        Assert.All(
+            options.StockMapRotation,
+            map => Assert.True(OpenGarrisonStockMapCatalog.TryGetDefinition(map, out _)));
+        Assert.DoesNotContain(options.StockMapRotation, map =>
+            string.Equals(map, "lake", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void LastToDieRegistryPublicationRequiresExplicitLaunchOptIn()
+    {
+        var options = ServerLaunchOptions.Load(
+            ["--gameplay-variant", "last-to-die", "--lobby"],
+            _ => new ServerSettings { UseLobbyServer = false });
+
+        Assert.Equal(GameplayVariantKind.LastToDie, options.GameplayVariant);
+        Assert.True(options.UseLobbyServer);
+    }
+
+    [Fact]
+    public void HostedLastToDieLaunchArgumentsCarryVariantDifficultyAndSeed()
+    {
+        var target = new OpenGarrison.Client.HostedServerLaunchTarget(
+            "OG2.Server.exe",
+            string.Empty,
+            AppContext.BaseDirectory);
+        var launchOptions = CreateHostedServerLaunchOptions(secondaryAbilitiesEnabled: true) with
+        {
+            GameplayVariant = GameplayVariantKind.LastToDie,
+            LastToDieDifficulty = LastToDieDifficulty.Hardcore,
+            LastToDieSeed = 4242UL,
+        };
+
+        var arguments = OpenGarrison.Client.HostedServerBootstrapper.BuildLaunchArguments(
+            target,
+            launchOptions);
+
+        Assert.Contains("--gameplay-variant last-to-die", arguments);
+        Assert.Contains("--last-to-die-difficulty hardcore", arguments);
+        Assert.Contains("--last-to-die-seed 4242", arguments);
+    }
+
+    [Fact]
+    public void DirectLastToDieLaunchProfileIsPrivateAndTwoPlayer()
+    {
+        var options = OpenGarrison.Client.HostedServerLaunchOptions.CreateLastToDie(
+            "server.ini",
+            "Last To Die Co-op",
+            8190,
+            LastToDieDifficulty.Hardcore,
+            seed: 4242UL);
+
+        Assert.Equal(GameplayVariantKind.LastToDie, options.GameplayVariant);
+        Assert.Equal(LastToDieDifficulty.Hardcore, options.LastToDieDifficulty);
+        Assert.Equal(2, options.MaxPlayers);
+        Assert.False(options.LobbyAnnounce);
+        Assert.False(options.AutoBalance);
+        Assert.True(options.SecondaryAbilitiesEnabled);
+        Assert.Null(options.RequestedMap);
+        Assert.Null(options.MapRotationFile);
+    }
+
+    [Fact]
+    public void HostedRelaySecretUsesChildEnvironmentAndNeverCommandLine()
+    {
+        const string relayUrl = "wss://relay.example.com/api/relay/ws/run/host?token=host-secret";
+        var target = new OpenGarrison.Client.HostedServerLaunchTarget(
+            "OG2.Server.exe",
+            string.Empty,
+            AppContext.BaseDirectory);
+        var options = OpenGarrison.Client.HostedServerLaunchOptions.CreateLastToDie(
+            "server.ini",
+            "Last To Die Co-op",
+            8190,
+            LastToDieDifficulty.Standard) with
+        {
+            RelayHostUrl = relayUrl,
+        };
+        var startInfo = new System.Diagnostics.ProcessStartInfo();
+
+        OpenGarrison.Client.HostedServerRuntimeController.ApplyRelayEnvironment(startInfo, options.RelayHostUrl);
+        var arguments = OpenGarrison.Client.HostedServerBootstrapper.BuildLaunchArguments(target, options);
+
+        Assert.Equal(relayUrl, startInfo.Environment["OPENGARRISON_RELAY_HOST_URL"]);
+        Assert.DoesNotContain("host-secret", arguments, StringComparison.Ordinal);
+        Assert.DoesNotContain("relay", arguments, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData(GameplayVariantKind.LastToDie, false, true)]
+    [InlineData(GameplayVariantKind.Standard, false, false)]
+    [InlineData(GameplayVariantKind.Standard, true, true)]
+    public void LastToDieAlwaysOffersClientPrediction(
+        GameplayVariantKind variant,
+        bool configuredEnabled,
+        bool expected)
+    {
+        Assert.Equal(expected, GameServer.ResolveLocalPredictionEnabled(variant, configuredEnabled));
     }
 
     private static OpenGarrison.Client.HostedServerLaunchOptions CreateHostedServerLaunchOptions(bool secondaryAbilitiesEnabled)

@@ -21,11 +21,19 @@ internal static class HudLayoutDefaults
     private const float EngineerSentryWidth = 86f;
     private const float EngineerSentryHeight = 64f;
     private const float EngineerSentrySourceY = DefaultAbilityWidgetTopY - AbilityWidgetGap - EngineerSentryHeight;
+    private const float EngineerDispenserSourceY = EngineerSentrySourceY - AbilityWidgetGap - EngineerSentryHeight;
+    private const float EngineerBuildMenuWidth = 74f;
+    private const float EngineerBuildMenuHeight = 244f;
+    private const float EngineerBuildMenuSourceX = 37f;
     private const float ClassStatusSourceX = 580f;
     private const float LastToDieRageBarWidth = 170f;
     private const float LastToDieRageBarHeight = 18f;
     private const float LastToDieRageSourceX = 500f;
     private const float LastToDieRageSourceY = 420f;
+    private const float LastToDieSpyCloakBarWidth = 170f;
+    private const float LastToDieSpyCloakBarHeight = 14f;
+    private const float LastToDieSpyCloakSourceX = 500f;
+    private const float LastToDieSpyCloakSourceY = 344f;
 
     public static IReadOnlyDictionary<string, HudElementLayout> Create()
     {
@@ -103,6 +111,14 @@ internal static class HudLayoutDefaults
                 new Vector2(-8f, -28f),
                 Layer: 9),
 
+            [HudElementId.LastToDieSpyCloak] = new(
+                HudElementId.LastToDieSpyCloak,
+                HudAnchor.BottomRight,
+                new Vector2(LastToDieSpyCloakSourceX - SourceHudWidth, LastToDieSpyCloakSourceY - SourceHudHeight),
+                new Vector2(LastToDieSpyCloakBarWidth + 16f, LastToDieSpyCloakBarHeight + 48f),
+                new Vector2(-8f, -28f),
+                Layer: 9),
+
             [HudElementId.LastToDieBuffIcon] = new(
                 HudElementId.LastToDieBuffIcon,
                 HudAnchor.BottomLeft,
@@ -110,6 +126,14 @@ internal static class HudLayoutDefaults
                 new Vector2(35f, 35f),
                 new Vector2(96f, -83f),
                 Layer: 11),
+
+            [HudElementId.LastToDieActionStatus] = new(
+                HudElementId.LastToDieActionStatus,
+                HudAnchor.TopLeft,
+                new Vector2(18f, 92f),
+                new Vector2(285f, 144f),
+                Vector2.Zero,
+                Layer: 12),
 
             [HudElementId.ClassMedicUber] = new(
                 HudElementId.ClassMedicUber,
@@ -134,6 +158,22 @@ internal static class HudLayoutDefaults
                 new Vector2(EngineerSentryWidth, EngineerSentryHeight),
                 Vector2.Zero,
                 Layer: 51),
+
+            [HudElementId.ClassEngineerDispenser] = new(
+                HudElementId.ClassEngineerDispenser,
+                HudAnchor.BottomRight,
+                new Vector2(EngineerSentrySourceX - SourceHudWidth, EngineerDispenserSourceY - SourceHudHeight),
+                new Vector2(EngineerSentryWidth, EngineerSentryHeight),
+                Vector2.Zero,
+                Layer: 52),
+
+            [HudElementId.ClassEngineerBuildMenu] = new(
+                HudElementId.ClassEngineerBuildMenu,
+                HudAnchor.CenterLeft,
+                new Vector2(EngineerBuildMenuSourceX, 0f),
+                new Vector2(EngineerBuildMenuWidth, EngineerBuildMenuHeight),
+                new Vector2(0f, -20f),
+                Layer: 60),
         };
     }
 }

@@ -45,6 +45,7 @@ public partial class Game1
         DrawMovingPlatforms(cameraPosition);
         DrawGameplayEffectsAndProjectiles(cameraPosition);
         DrawGameplayStructures(cameraPosition);
+        DrawDispenserBeams(cameraPosition);
         DrawDamageableZoneHealthBars(cameraPosition);
         DrawGameplayMapMarkers(cameraPosition, hasLevelBackground, centerLine, centerColumn, worldTopBorder, worldBottomBorder, worldLeftBorder, worldRightBorder, spawnRectangle);
         DrawGameplayRemains(cameraPosition, skippedDeadBodySourcePlayerId);
@@ -139,8 +140,20 @@ public partial class Game1
             return;
         }
 
+        var visibleLeft = cameraPosition.X - 1f;
+        var visibleTop = cameraPosition.Y - 1f;
+        var visibleRight = cameraPosition.X + ViewportWidth + 1f;
+        var visibleBottom = cameraPosition.Y + ViewportHeight + 1f;
         foreach (var solid in _world.Level.Solids)
         {
+            if (solid.Right <= visibleLeft
+                || solid.Left >= visibleRight
+                || solid.Bottom <= visibleTop
+                || solid.Top >= visibleBottom)
+            {
+                continue;
+            }
+
             DrawScreenPixelRectangle(
                 GetWorldScreenPosition(solid.X, solid.Y, cameraPosition),
                 solid.Width,

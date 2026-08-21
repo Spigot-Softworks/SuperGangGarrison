@@ -43,7 +43,8 @@ internal static class SimpleLevelScaling
             level.BotSpawns.Select(marker => Scale(marker, clampedScale)).ToArray(),
             level.GameplayMessages.Select(marker => Scale(marker, clampedScale)).ToArray(),
             level.GameplaySounds.Select(marker => Scale(marker, clampedScale)).ToArray(),
-            level.SpawnClassBehaviors.Select(marker => Scale(marker, clampedScale)).ToArray())
+            level.SpawnClassBehaviors.Select(marker => Scale(marker, clampedScale)).ToArray(),
+            level.IsTopDown)
         {
             ControlPointSetupGatesActive = level.ControlPointSetupGatesActive,
             ForcedBlockingTeamGates = level.ForcedBlockingTeamGates,

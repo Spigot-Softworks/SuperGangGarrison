@@ -46,7 +46,8 @@ public sealed class SimpleLevel
         IReadOnlyList<BotSpawnMarker>? botSpawns = null,
         IReadOnlyList<GameplayMessageMarker>? gameplayMessages = null,
         IReadOnlyList<GameplaySoundMarker>? gameplaySounds = null,
-        IReadOnlyList<SpawnClassBehaviorMarker>? spawnClassBehaviors = null)
+        IReadOnlyList<SpawnClassBehaviorMarker>? spawnClassBehaviors = null,
+        bool isTopDown = false)
     {
         Name = name;
         Mode = mode;
@@ -72,6 +73,7 @@ public sealed class SimpleLevel
         GameplayMessages = gameplayMessages ?? Array.Empty<GameplayMessageMarker>();
         GameplaySounds = gameplaySounds ?? Array.Empty<GameplaySoundMarker>();
         SpawnClassBehaviors = spawnClassBehaviors ?? Array.Empty<SpawnClassBehaviorMarker>();
+        IsTopDown = isTopDown;
         ControlPointSettings = controlPointSettings ?? CustomMapControlPointSettings.Default;
         ScrSettings = scrSettings ?? CustomMapScrSettings.Default;
         ShowControlPoints = showControlPoints;
@@ -146,6 +148,8 @@ public sealed class SimpleLevel
     public CustomMapScrSettings ScrSettings { get; }
 
     public bool ShowControlPoints { get; }
+
+    public bool IsTopDown { get; }
 
     public MapLogicGraph LogicGraph { get; }
 

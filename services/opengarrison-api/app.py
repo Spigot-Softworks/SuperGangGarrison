@@ -1,15 +1,18 @@
 from __future__ import annotations
 
 import hashlib
+import asyncio
 import os
 import re
+import secrets
 import sqlite3
 import time
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote, urlsplit
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -17,6 +20,10 @@ from pydantic import BaseModel
 DEFAULT_DB_PATH = "/var/lib/opengarrison-api/opengarrison.db"
 PRESENCE_TTL_SECONDS = 120
 SERVER_TTL_SECONDS = 120
+RELAY_SESSION_TTL_SECONDS = 43200
+RELAY_MAX_MESSAGE_BYTES = 4 * 1024 * 1024
+RELAY_MAX_PENDING_MESSAGES = 128
+RELAY_MAX_PENDING_BYTES = 4 * 1024 * 1024
 FRIEND_CODE_RE = re.compile(r"^OG2-[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{4}-[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{4}(?:-[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{4})?(?:-[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{4})?$")
 
 
@@ -36,6 +43,18 @@ def clamp_int(value: int | None, minimum: int, maximum: int) -> int:
     if value is None:
         return minimum
     return max(minimum, min(maximum, int(value)))
+
+
+# Normalize after clamp_int is defined so an invalid deployment value cannot
+# stop the API process.
+try:
+    RELAY_SESSION_TTL_SECONDS = clamp_int(
+        int(os.environ.get("OPENGARRISON_RELAY_SESSION_TTL_SECONDS", "43200")),
+        300,
+        86400,
+    )
+except ValueError:
+    RELAY_SESSION_TTL_SECONDS = 43200
 
 
 def clean_text(value: str | None, maximum_length: int = 128) -> str:
@@ -188,6 +207,67 @@ def request_ip(request: Request) -> str:
     return request.client.host if request.client else ""
 
 
+def relay_public_origin(request: Request) -> tuple[str, str]:
+    configured = os.environ.get("OPENGARRISON_RELAY_PUBLIC_BASE_URL", "").strip()
+    if configured:
+        parsed = urlsplit(configured)
+        if parsed.scheme in ("http", "https", "ws", "wss") and parsed.netloc:
+            secure = parsed.scheme in ("https", "wss")
+            return ("wss" if secure else "ws", parsed.netloc)
+
+    forwarded_proto = request.headers.get("x-forwarded-proto", "").split(",", 1)[0].strip().lower()
+    secure = forwarded_proto in ("https", "wss") or request.url.scheme in ("https", "wss")
+    host = request.headers.get("x-forwarded-host", "").split(",", 1)[0].strip()
+    if not host:
+        host = request.headers.get("host", "").strip()
+    if not host:
+        raise HTTPException(status_code=503, detail="relay public host is unavailable")
+    return ("wss" if secure else "ws", host)
+
+
+def relay_url(scheme: str, authority: str, session_id: str, role: str, token: str, protocol64: bool) -> str:
+    advertised_scheme = f"{scheme}64" if protocol64 else scheme
+    return (
+        f"{advertised_scheme}://{authority}/api/relay/ws/"
+        f"{quote(session_id, safe='')}/{role}?token={quote(token, safe='')}"
+    )
+
+
+def prune_relay_sessions_locked(current: int) -> list[WebSocket]:
+    stale_sockets: list[WebSocket] = []
+    stale_ids = [
+        session_id
+        for session_id, session in relay_sessions.items()
+        if session.expires_at <= current
+    ]
+    for session_id in stale_ids:
+        session = relay_sessions.pop(session_id)
+        if session.host is not None:
+            stale_sockets.append(session.host)
+        if session.guest is not None:
+            stale_sockets.append(session.guest)
+    return stale_sockets
+
+
+def enqueue_relay_payload_locked(session: "RelaySession", target_role: str, payload: bytes) -> bool:
+    queue = session.pending_host if target_role == "host" else session.pending_guest
+    pending_bytes = session.pending_host_bytes if target_role == "host" else session.pending_guest_bytes
+    if len(queue) >= RELAY_MAX_PENDING_MESSAGES or pending_bytes + len(payload) > RELAY_MAX_PENDING_BYTES:
+        return False
+    queue.append(payload)
+    if target_role == "host":
+        session.pending_host_bytes += len(payload)
+    else:
+        session.pending_guest_bytes += len(payload)
+    return True
+
+
+async def send_relay_payload(session: "RelaySession", target_role: str, socket: WebSocket, payload: bytes) -> None:
+    send_lock = session.host_send_lock if target_role == "host" else session.guest_send_lock
+    async with send_lock:
+        await socket.send_bytes(payload)
+
+
 def verify_client(
     db: sqlite3.Connection,
     client_id: str,
@@ -321,6 +401,13 @@ class PresenceOfflineRequest(BaseModel):
     clientSecret: str
 
 
+class RelaySessionCreateRequest(BaseModel):
+    clientId: str
+    clientSecret: str
+    friendCode: str
+    displayName: str = ""
+
+
 class FriendRequestCreateRequest(BaseModel):
     clientId: str
     clientSecret: str
@@ -363,6 +450,27 @@ class DirectMessagesPollRequest(BaseModel):
 
 
 app = FastAPI(title="OpenGarrison API", version="0.1.0")
+
+
+class RelaySession:
+    def __init__(self, session_id: str, owner_client_id: str, host_token: str, guest_token: str, expires_at: int):
+        self.session_id = session_id
+        self.owner_client_id = owner_client_id
+        self.host_token = host_token
+        self.guest_token = guest_token
+        self.expires_at = expires_at
+        self.host: WebSocket | None = None
+        self.guest: WebSocket | None = None
+        self.host_send_lock = asyncio.Lock()
+        self.guest_send_lock = asyncio.Lock()
+        self.pending_host: list[bytes] = []
+        self.pending_guest: list[bytes] = []
+        self.pending_host_bytes = 0
+        self.pending_guest_bytes = 0
+
+
+relay_sessions: dict[str, RelaySession] = {}
+relay_sessions_lock = asyncio.Lock()
 
 cors_origins = [
     origin.strip()
@@ -785,8 +893,185 @@ def poll_direct_messages(payload: DirectMessagesPollRequest) -> dict[str, Any]:
         }
 
 
+@app.post("/api/relay/session")
+async def create_relay_session(payload: RelaySessionCreateRequest, request: Request) -> dict[str, str]:
+    friend_code = normalize_friend_code(payload.friendCode)
+    if not friend_code:
+        raise HTTPException(status_code=400, detail="invalid friend code")
+
+    client_id = clean_text(payload.clientId, 64)
+    display_name = clean_text(payload.displayName, 64) or "Player"
+    with connect_db() as db:
+        verify_client(db, client_id, friend_code, payload.clientSecret, display_name)
+
+    current = now_seconds()
+    session_id = secrets.token_urlsafe(18)
+    host_token = secrets.token_urlsafe(32)
+    guest_token = secrets.token_urlsafe(32)
+    session = RelaySession(
+        session_id,
+        client_id,
+        host_token,
+        guest_token,
+        current + RELAY_SESSION_TTL_SECONDS,
+    )
+    async with relay_sessions_lock:
+        stale_sockets = prune_relay_sessions_locked(current)
+        previous_ids = [
+            existing_id
+            for existing_id, existing in relay_sessions.items()
+            if existing.owner_client_id == client_id
+        ]
+        for previous_id in previous_ids:
+            previous = relay_sessions.pop(previous_id)
+            if previous.host is not None:
+                stale_sockets.append(previous.host)
+            if previous.guest is not None:
+                stale_sockets.append(previous.guest)
+        relay_sessions[session_id] = session
+
+    for stale_socket in stale_sockets:
+        try:
+            await stale_socket.close(code=1001, reason="Relay session expired.")
+        except Exception:
+            pass
+
+    scheme, authority = relay_public_origin(request)
+    return {
+        "sessionId": session_id,
+        "hostWebSocketUrl": relay_url(scheme, authority, session_id, "host", host_token, protocol64=False),
+        "guestWebSocketUrl": relay_url(scheme, authority, session_id, "guest", guest_token, protocol64=True),
+        "expiresAtIso": iso_from_seconds(session.expires_at),
+    }
+
+
+@app.websocket("/api/relay/ws/{session_id}/{role}")
+async def relay_websocket(websocket: WebSocket, session_id: str, role: str, token: str = "") -> None:
+    if role not in ("host", "guest"):
+        await websocket.close(code=4404, reason="Unknown relay role.")
+        return
+
+    current = now_seconds()
+    async with relay_sessions_lock:
+        session = relay_sessions.get(session_id)
+        expected_token = "" if session is None else (session.host_token if role == "host" else session.guest_token)
+        authorized = (
+            session is not None
+            and session.expires_at > current
+            and bool(token)
+            and secrets.compare_digest(expected_token, token)
+        )
+        if not authorized:
+            session = None
+
+    if session is None:
+        await websocket.close(code=4403, reason="Relay session is invalid or expired.")
+        return
+
+    await websocket.accept()
+    async with relay_sessions_lock:
+        if relay_sessions.get(session_id) is not session or session.expires_at <= now_seconds():
+            old_socket = None
+            pending: list[bytes] = []
+            accepted = False
+        else:
+            old_socket = session.host if role == "host" else session.guest
+            if role == "host":
+                session.host = websocket
+                pending = session.pending_host
+                session.pending_host = []
+                session.pending_host_bytes = 0
+            else:
+                session.guest = websocket
+                pending = session.pending_guest
+                session.pending_guest = []
+                session.pending_guest_bytes = 0
+            accepted = True
+
+    if not accepted:
+        await websocket.close(code=4403, reason="Relay session expired.")
+        return
+
+    if old_socket is not None and old_socket is not websocket:
+        try:
+            await old_socket.close(code=1012, reason="Relay role reconnected.")
+        except Exception:
+            pass
+
+    try:
+        for queued_payload in pending:
+            await send_relay_payload(session, role, websocket, queued_payload)
+
+        while True:
+            message = await websocket.receive()
+            if message.get("type") == "websocket.disconnect":
+                break
+            payload_bytes = message.get("bytes")
+            if payload_bytes is None:
+                await websocket.close(code=1003, reason="Binary protocol messages are required.")
+                break
+            if len(payload_bytes) == 0:
+                continue
+            if len(payload_bytes) > RELAY_MAX_MESSAGE_BYTES:
+                await websocket.close(code=1009, reason="Relay message exceeded the size limit.")
+                break
+
+            target_role = "guest" if role == "host" else "host"
+            async with relay_sessions_lock:
+                if relay_sessions.get(session_id) is not session or session.expires_at <= now_seconds():
+                    target_socket = None
+                    queued = False
+                else:
+                    target_socket = session.guest if target_role == "guest" else session.host
+                    queued = target_socket is None and enqueue_relay_payload_locked(session, target_role, payload_bytes)
+
+            if target_socket is None:
+                if not queued:
+                    await websocket.close(code=1013, reason="Relay peer queue is full or the session expired.")
+                    break
+                continue
+
+            try:
+                await send_relay_payload(session, target_role, target_socket, payload_bytes)
+            except Exception:
+                async with relay_sessions_lock:
+                    if target_role == "host" and session.host is target_socket:
+                        session.host = None
+                    elif target_role == "guest" and session.guest is target_socket:
+                        session.guest = None
+                    queued = enqueue_relay_payload_locked(session, target_role, payload_bytes)
+                if not queued:
+                    await websocket.close(code=1013, reason="Relay peer queue is full.")
+                    break
+    except WebSocketDisconnect:
+        pass
+    finally:
+        async with relay_sessions_lock:
+            if role == "host" and session.host is websocket:
+                session.host = None
+                counterpart = session.guest
+                session.guest = None
+            elif role == "guest" and session.guest is websocket:
+                session.guest = None
+                counterpart = session.host
+                session.host = None
+            else:
+                counterpart = None
+            if counterpart is not None:
+                session.pending_host = []
+                session.pending_guest = []
+                session.pending_host_bytes = 0
+                session.pending_guest_bytes = 0
+
+        if counterpart is not None:
+            try:
+                await counterpart.close(code=1012, reason="Relay peer disconnected; reconnecting pair.")
+            except Exception:
+                pass
+
+
 @app.post("/api/presence/heartbeat")
-def heartbeat_presence(payload: PresenceHeartbeatRequest) -> dict[str, str]:
+def heartbeat_presence(payload: PresenceHeartbeatRequest, request: Request) -> dict[str, str]:
     friend_code = normalize_friend_code(payload.friendCode)
     if not friend_code:
         raise HTTPException(status_code=400, detail="invalid friend code")
@@ -794,6 +1079,13 @@ def heartbeat_presence(payload: PresenceHeartbeatRequest) -> dict[str, str]:
     client_id = clean_text(payload.clientId, 64)
     display_name = clean_text(payload.displayName, 64) or "Player"
     status = clean_text(payload.status, 32) or "menu"
+    udp_port = clamp_int(payload.udpPort, 0, 65535)
+    websocket_port = clamp_int(payload.webSocketPort, 0, 65535)
+    websocket_url = clean_text(payload.webSocketUrl, 512)
+    host = clean_text(payload.host, 255)
+    if payload.joinable and not host and (udp_port > 0 or websocket_port > 0 or websocket_url):
+        host = request_ip(request)
+    joinable = bool(payload.joinable and host and (udp_port > 0 or websocket_port > 0 or websocket_url))
     current = now_seconds()
     with connect_db() as db:
         prune_expired(db)
@@ -829,11 +1121,11 @@ def heartbeat_presence(payload: PresenceHeartbeatRequest) -> dict[str, str]:
                 clean_text(payload.mode, 64),
                 clean_text(payload.map, 128),
                 clean_text(payload.serverName, 128),
-                clean_text(payload.host, 255),
-                clamp_int(payload.udpPort, 0, 65535),
-                clamp_int(payload.webSocketPort, 0, 65535),
-                clean_text(payload.webSocketUrl, 512),
-                1 if payload.joinable else 0,
+                host,
+                udp_port,
+                websocket_port,
+                websocket_url,
+                1 if joinable else 0,
                 player_card_json,
                 current,
             ),

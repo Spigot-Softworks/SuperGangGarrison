@@ -75,6 +75,23 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
     }
 
     [Fact]
+    public void LastToDieMedicJoinProvidesUnlockedKritzSecondary()
+    {
+        var world = new SimulationWorld();
+        world.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings(
+            EnableSecondaryAbilities: true));
+
+        Assert.True(world.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.TrySetNetworkPlayerAutomaticRespawnSuppressed(2, suppressed: true));
+        Assert.True(world.TryForceNetworkPlayerClassSelectionAndRespawn(2, PlayerClass.Medic));
+
+        Assert.True(world.TryGetNetworkPlayer(2, out var medic));
+        Assert.True(medic.HasExperimentalOffhandWeapon);
+        Assert.Equal("weapon.medigun.crit", medic.GameplayLoadoutState.SecondaryItemId);
+        Assert.Equal(PrimaryWeaponKind.Medigun, medic.ExperimentalOffhandWeapon!.Kind);
+    }
+
+    [Fact]
     public void NetworkPlayerClassSelectionAcceptsGameplayClassId()
     {
         var world = new SimulationWorld();
@@ -136,6 +153,7 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
     public void RequestedLocalTeamSelectionWithSameClassKillsAndRespawnsAfterDelay()
     {
         var world = CreateWorldWithLocalClass(PlayerClass.Soldier);
+        world.LocalPlayer.SetSpawnRoomState(false);
         var originalTeam = world.LocalPlayer.Team;
         var oppositeTeam = originalTeam == PlayerTeam.Red ? PlayerTeam.Blue : PlayerTeam.Red;
 
@@ -166,6 +184,7 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
         Assert.True(world.TryPrepareNetworkPlayerJoin(2));
         Assert.True(world.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
         Assert.True(world.TryGetNetworkPlayer(2, out var player));
+        player.SetSpawnRoomState(false);
         var originalTeam = player.Team;
         var oppositeTeam = originalTeam == PlayerTeam.Red ? PlayerTeam.Blue : PlayerTeam.Red;
 
@@ -194,6 +213,7 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
         Assert.True(world.TryPrepareNetworkPlayerJoin(2));
         Assert.True(world.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
         Assert.True(world.TryGetNetworkPlayer(2, out var player));
+        player.SetSpawnRoomState(false);
         var originalTeam = player.Team;
 
         Assert.True(world.TryRequestNetworkPlayerTeamSelection(2, originalTeam));
@@ -280,6 +300,207 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
     }
 
     [Fact]
+    public void LastToDieRespawnSuppressionKeepsDeadParticipantDeadUntilStageRespawn()
+    {
+        var world = CreateWorldWithLocalClass(PlayerClass.Soldier);
+        Assert.True(world.TrySetNetworkPlayerAutomaticRespawnSuppressed(
+            SimulationWorld.LocalPlayerSlot,
+            suppressed: true));
+
+        world.ForceKillLocalPlayer();
+        for (var tick = 0; tick < world.Config.TicksPerSecond * 8; tick += 1)
+        {
+            world.AdvanceOneTick();
+        }
+
+        Assert.False(world.LocalPlayer.IsAlive);
+        Assert.Null(world.LocalDeathCam);
+        Assert.True(world.TryForceNetworkPlayerClassSelectionAndRespawn(
+            SimulationWorld.LocalPlayerSlot,
+            PlayerClass.Soldier));
+        Assert.True(world.LocalPlayer.IsAlive);
+    }
+
+    [Theory]
+    [InlineData(PlayerClass.Sniper)]
+    [InlineData(PlayerClass.Medic)]
+    public void LastToDieParticipantCanSwapLockedPrimaryAwayFromWeaponStation(PlayerClass playerClass)
+    {
+        var world = CreateWorldWithLocalClass(playerClass);
+        world.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings(
+            EnableSecondaryAbilities: true));
+        world.LocalPlayer.SetSpawnRoomState(false);
+        world.TeleportLocalPlayer(512f, 256f);
+        Assert.False(world.IsNearPrimaryWeaponSwapStation(world.LocalPlayer));
+        Assert.False(world.LocalPlayer.IsExperimentalOffhandEquipped);
+
+        PressWeaponSwap(world);
+        Assert.False(world.LocalPlayer.IsExperimentalOffhandEquipped);
+
+        world.SetLocalInput(default);
+        world.AdvanceOneTick();
+        Assert.True(world.TrySetNetworkPlayerAutomaticRespawnSuppressed(
+            SimulationWorld.LocalPlayerSlot,
+            suppressed: true));
+        PressWeaponSwap(world);
+
+        Assert.True(world.LocalPlayer.IsExperimentalOffhandEquipped);
+        Assert.Equal(GameplayEquipmentSlot.Secondary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
+        Assert.Equal(
+            playerClass == PlayerClass.Sniper
+                ? BuiltInGameplayBehaviorIds.SniperBow
+                : BuiltInGameplayBehaviorIds.MedigunCrit,
+            world.LocalPlayer.EquippedBehaviorId);
+    }
+
+    [Fact]
+    public void LastToDieObjectiveSpawnMovesRemoteParticipantToControlPoint()
+    {
+        const float pointX = 320f;
+        const float pointY = 240f;
+        var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
+        world.CombatTestSetLevel(new SimpleLevel(
+            name: "ltd_network_objective_spawn",
+            mode: GameModeKind.KingOfTheHill,
+            bounds: new WorldBounds(640f, 480f),
+            mapScale: 1f,
+            backgroundAssetName: null,
+            mapAreaIndex: 1,
+            mapAreaCount: 1,
+            localSpawn: new SpawnPoint(64f, 64f),
+            redSpawns: [new SpawnPoint(64f, 64f)],
+            blueSpawns: [new SpawnPoint(576f, 64f)],
+            intelBases: [],
+            roomObjects:
+            [
+                new RoomObjectMarker(
+                    RoomObjectType.ControlPoint,
+                    pointX - 21f,
+                    pointY - 21f,
+                    42f,
+                    42f,
+                    "ControlPointNeutralS",
+                    SourceName: "ControlPoint1"),
+            ],
+            floorY: 320f,
+            solids: [new LevelSolid(0f, 320f, 640f, 160f)],
+            importedFromSource: false));
+
+        Assert.True(world.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.TrySetNetworkPlayerTeam(2, PlayerTeam.Red));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Medic));
+        Assert.True(world.TryGetNetworkPlayer(2, out var remotePlayer));
+        Assert.True(world.TryMoveNetworkPlayerToLastToDieObjectiveSpawn(2));
+
+        Assert.InRange(remotePlayer.X, pointX - 64f, pointX + 64f);
+        Assert.InRange(remotePlayer.Y, pointY - 96f, pointY + 96f);
+        Assert.False(remotePlayer.IsInSpawnRoom);
+    }
+
+    [Fact]
+    public void LastToDieEnemyCanUseOpposingSideIngressWithoutEnteringItsSpawnRoom()
+    {
+        const byte enemySlot = 3;
+        var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
+        world.CombatTestSetLevel(new SimpleLevel(
+            name: "ltd_enemy_ingress",
+            mode: GameModeKind.KingOfTheHill,
+            bounds: new WorldBounds(640f, 240f),
+            mapScale: 1f,
+            backgroundAssetName: null,
+            mapAreaIndex: 1,
+            mapAreaCount: 1,
+            localSpawn: new SpawnPoint(48f, 156f),
+            redSpawns: [new SpawnPoint(48f, 156f)],
+            blueSpawns: [new SpawnPoint(592f, 156f)],
+            intelBases: [],
+            roomObjects:
+            [
+                new RoomObjectMarker(
+                    RoomObjectType.SpawnRoom,
+                    0f,
+                    100f,
+                    96f,
+                    80f,
+                    string.Empty,
+                    SourceName: "RedSpawnRoom"),
+                new RoomObjectMarker(
+                    RoomObjectType.TeamGate,
+                    96f,
+                    100f,
+                    8f,
+                    80f,
+                    string.Empty,
+                    PlayerTeam.Red,
+                    "RedTeamGate"),
+            ],
+            floorY: 180f,
+            solids: [new LevelSolid(0f, 180f, 640f, 60f)],
+            importedFromSource: false));
+
+        Assert.True(world.TryPrepareNetworkPlayerJoin(enemySlot));
+        Assert.True(world.TrySetNetworkPlayerTeam(enemySlot, PlayerTeam.Blue));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(enemySlot, PlayerClass.Scout));
+        Assert.True(world.TryMoveNetworkPlayerToLastToDieEnemySpawn(enemySlot, PlayerTeam.Red));
+        Assert.True(world.TryGetNetworkPlayer(enemySlot, out var enemy));
+
+        var ingressX = enemy.X;
+        Assert.Equal(PlayerTeam.Blue, enemy.Team);
+        Assert.InRange(ingressX, 104.01f, 319.99f);
+        Assert.False(enemy.IsInSpawnRoom);
+        Assert.False(enemy.IsInsideBlockingTeamGate(world.Level, enemy.Team));
+
+        Assert.True(world.ForceKillNetworkPlayer(enemySlot));
+        Assert.True(world.TryConfigureNetworkPlayerLastToDieEnemySpawn(
+            enemySlot,
+            PlayerTeam.Blue,
+            repositionAlivePlayer: false));
+        Assert.True(world.TryForceNetworkPlayerClassSelectionAndRespawn(enemySlot, PlayerClass.Scout));
+        Assert.InRange(enemy.X, 320.01f, 639.99f);
+        Assert.NotEqual(ingressX, enemy.X);
+        Assert.False(enemy.IsInSpawnRoom);
+        Assert.False(enemy.IsInsideBlockingTeamGate(world.Level, enemy.Team));
+
+        Assert.True(world.ForceKillNetworkPlayer(enemySlot));
+        Assert.True(world.TryConfigureNetworkPlayerLastToDieEnemySpawn(
+            enemySlot,
+            PlayerTeam.Red,
+            repositionAlivePlayer: false));
+        Assert.True(world.TryForceNetworkPlayerClassSelectionAndRespawn(enemySlot, PlayerClass.Scout));
+        Assert.Equal(ingressX, enemy.X);
+    }
+
+    [Theory]
+    [InlineData("Truefort")]
+    [InlineData("Conflict")]
+    [InlineData("Waterway")]
+    [InlineData("Dirtbowl")]
+    [InlineData("Egypt")]
+    [InlineData("Montane")]
+    [InlineData("Lumberyard")]
+    [InlineData("Valley")]
+    [InlineData("Corinth")]
+    [InlineData("Harvest")]
+    [InlineData("Gallery")]
+    [InlineData("Eiger")]
+    public void LastToDieEnemyOpposingIngressIsSafeOnDefaultRotationMaps(string levelName)
+    {
+        const byte enemySlot = 3;
+        var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
+        Assert.True(world.TryLoadLevel(levelName, mapAreaIndex: 1, preservePlayerStats: false));
+        Assert.True(world.TryPrepareNetworkPlayerJoin(enemySlot));
+        Assert.True(world.TrySetNetworkPlayerTeam(enemySlot, PlayerTeam.Blue));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(enemySlot, PlayerClass.Scout));
+
+        Assert.True(world.TryMoveNetworkPlayerToLastToDieEnemySpawn(enemySlot, PlayerTeam.Red));
+        Assert.True(world.TryGetNetworkPlayer(enemySlot, out var enemy));
+        Assert.Equal(PlayerTeam.Blue, enemy.Team);
+        Assert.False(enemy.IsInSpawnRoom);
+        Assert.False(enemy.IsInsideBlockingTeamGate(world.Level, enemy.Team));
+        Assert.True(enemy.CanOccupy(world.Level, enemy.Team, enemy.X, enemy.Y));
+    }
+
+    [Fact]
     public void ChangingLocalTeamDoesNotRespawnOtherJoinedPlayers()
     {
         var world = CreateWorldWithLocalClass(PlayerClass.Soldier);
@@ -306,6 +527,7 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
     public void ChangingLiveNetworkPlayerTeamSchedulesRespawnInsteadOfImmediateSpawn()
     {
         var world = CreateWorldWithLocalClass(PlayerClass.Soldier);
+        world.LocalPlayer.SetSpawnRoomState(false);
         var oppositeTeam = world.LocalPlayer.Team == PlayerTeam.Red ? PlayerTeam.Blue : PlayerTeam.Red;
 
         Assert.True(world.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, oppositeTeam));
@@ -368,6 +590,26 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
         _ = world.DrainPendingSoundEvents();
         Assert.Equal(playerClass, world.LocalPlayer.ClassId);
         return world;
+    }
+
+    private static void PressWeaponSwap(SimulationWorld world)
+    {
+        world.SetLocalInput(new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: false,
+            FireSecondary: false,
+            AimWorldX: world.LocalPlayer.X + 96f,
+            AimWorldY: world.LocalPlayer.Y,
+            DebugKill: false,
+            UseAbility: true,
+            SwapWeapon: true));
+        world.AdvanceOneTick();
     }
 
     private static void AdvanceUntilRespawn(SimulationWorld world, byte slot)

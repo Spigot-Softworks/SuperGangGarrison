@@ -4,36 +4,207 @@ public sealed partial class SimulationWorld
 {
     public bool TryMoveLocalPlayerToControlPointSpawn()
     {
-        if (LocalPlayerAwaitingJoin || !LocalPlayer.IsAlive)
+        return TryMoveNetworkPlayerToControlPointSpawn(LocalPlayerSlot);
+    }
+
+    public bool TryMoveNetworkPlayerToControlPointSpawn(byte slot)
+    {
+        if (IsNetworkPlayerAwaitingJoin(slot)
+            || !TryGetNetworkPlayer(slot, out var player)
+            || !player.IsAlive)
         {
             return false;
         }
 
-        if (!TryResolveControlPointSpawn(LocalPlayer, LocalPlayer.Team, out var spawnX, out var spawnY))
+        if (!TryResolveControlPointSpawn(player, player.Team, out var spawnX, out var spawnY))
         {
             return false;
         }
 
-        SpawnPlayerResolved(LocalPlayer, LocalPlayer.Team, spawnX, spawnY, clearMedicHealingTarget: false);
+        SpawnPlayerResolved(player, player.Team, spawnX, spawnY, clearMedicHealingTarget: false);
         return true;
     }
 
     public bool TryMoveLocalPlayerToIntelSpawn()
     {
-        if (LocalPlayerAwaitingJoin || !LocalPlayer.IsAlive)
+        return TryMoveNetworkPlayerToIntelSpawn(LocalPlayerSlot);
+    }
+
+    public bool TryMoveNetworkPlayerToIntelSpawn(byte slot)
+    {
+        if (IsNetworkPlayerAwaitingJoin(slot)
+            || !TryGetNetworkPlayer(slot, out var player)
+            || !player.IsAlive)
         {
             return false;
         }
 
-        var ownIntelBase = Level.GetIntelBase(LocalPlayer.Team);
+        var ownIntelBase = Level.GetIntelBase(player.Team);
         if (!ownIntelBase.HasValue
-            || !TryFindSafeObjectiveSpawnPosition(LocalPlayer, LocalPlayer.Team, ownIntelBase.Value.X, ownIntelBase.Value.Y, out var spawnX, out var spawnY))
+            || !TryFindSafeObjectiveSpawnPosition(player, player.Team, ownIntelBase.Value.X, ownIntelBase.Value.Y, out var spawnX, out var spawnY))
         {
             return false;
         }
 
-        SpawnPlayerResolved(LocalPlayer, LocalPlayer.Team, spawnX, spawnY, clearMedicHealingTarget: false);
+        SpawnPlayerResolved(player, player.Team, spawnX, spawnY, clearMedicHealingTarget: false);
         return true;
+    }
+
+    public bool TryMoveNetworkPlayerToLastToDieObjectiveSpawn(byte slot)
+    {
+        return MatchRules.Mode == GameModeKind.CaptureTheFlag
+            ? TryMoveNetworkPlayerToIntelSpawn(slot)
+            : TryMoveNetworkPlayerToControlPointSpawn(slot);
+    }
+
+    public bool TryMoveNetworkPlayerToLastToDieEnemySpawn(byte slot, PlayerTeam spawnSide)
+        => TryConfigureNetworkPlayerLastToDieEnemySpawn(
+            slot,
+            spawnSide,
+            repositionAlivePlayer: true);
+
+    public bool TryConfigureNetworkPlayerLastToDieEnemySpawn(
+        byte slot,
+        PlayerTeam spawnSide,
+        bool repositionAlivePlayer)
+    {
+        if (spawnSide is not (PlayerTeam.Red or PlayerTeam.Blue)
+            || IsNetworkPlayerAwaitingJoin(slot)
+            || !TryGetNetworkPlayer(slot, out var player)
+            || repositionAlivePlayer && !player.IsAlive)
+        {
+            return false;
+        }
+
+        var sideSpawns = spawnSide == PlayerTeam.Red ? Level.RedSpawns : Level.BlueSpawns;
+        if (sideSpawns.Count == 0)
+        {
+            return false;
+        }
+
+        if (spawnSide == player.Team)
+        {
+            if (!TryClearNetworkPlayerSpawnOverride(slot) || !repositionAlivePlayer)
+            {
+                return !repositionAlivePlayer;
+            }
+
+            var teamSpawn = ReserveSpawn(player, spawnSide);
+            return SpawnPlayerResolved(
+                player,
+                player.Team,
+                teamSpawn,
+                clearMedicHealingTarget: false);
+        }
+
+        var opposingSpawn = ReserveSpawn(player, spawnSide);
+        if (!TryFindLastToDieEnemyIngressSpawnPosition(
+                player,
+                opposingSpawn,
+                out var spawnX,
+                out var spawnY))
+        {
+            return false;
+        }
+
+        if (!TrySetNetworkPlayerSpawnOverride(slot, spawnX, spawnY))
+        {
+            return false;
+        }
+
+        if (!repositionAlivePlayer)
+        {
+            return true;
+        }
+
+        return SpawnPlayerResolved(
+                player,
+                player.Team,
+                spawnX,
+                spawnY,
+                clearMedicHealingTarget: false);
+    }
+
+    private bool TryFindLastToDieEnemyIngressSpawnPosition(
+        PlayerEntity player,
+        SpawnPoint sourceSpawn,
+        out float spawnX,
+        out float spawnY)
+    {
+        const float step = 8f;
+        var centerX = Bounds.Width * 0.5f;
+        var direction = MathF.Sign(centerX - sourceSpawn.X);
+        if (direction == 0f)
+        {
+            direction = player.Team == PlayerTeam.Blue ? -1 : 1;
+        }
+
+        var spawnRooms = Level.GetRoomObjects(RoomObjectType.SpawnRoom);
+        (float X, float Y)? firstOpenPosition = null;
+        var maximumSteps = Math.Max(1, (int)MathF.Ceiling(Bounds.Width / step));
+        var previousX = sourceSpawn.X;
+        for (var stepIndex = 0; stepIndex <= maximumSteps; stepIndex += 1)
+        {
+            var candidateX = Math.Clamp(
+                sourceSpawn.X + (direction * stepIndex * step),
+                -player.CollisionLeftOffset,
+                Bounds.Width - player.CollisionRightOffset);
+            if (stepIndex > 0 && candidateX == previousX)
+            {
+                break;
+            }
+
+            previousX = candidateX;
+            if (IntersectsAnySpawnRoom(player, candidateX, sourceSpawn.Y, spawnRooms)
+                || !player.CanOccupy(Level, player.Team, candidateX, sourceSpawn.Y))
+            {
+                continue;
+            }
+
+            firstOpenPosition ??= (candidateX, sourceSpawn.Y);
+            if (!player.CanOccupy(Level, player.Team, candidateX, sourceSpawn.Y + 1f))
+            {
+                spawnX = candidateX;
+                spawnY = sourceSpawn.Y;
+                return true;
+            }
+        }
+
+        if (firstOpenPosition.HasValue)
+        {
+            spawnX = firstOpenPosition.Value.X;
+            spawnY = firstOpenPosition.Value.Y;
+            return true;
+        }
+
+        spawnX = 0f;
+        spawnY = 0f;
+        return false;
+    }
+
+    private static bool IntersectsAnySpawnRoom(
+        PlayerEntity player,
+        float x,
+        float y,
+        IReadOnlyList<RoomObjectMarker> spawnRooms)
+    {
+        var left = x + player.CollisionLeftOffset;
+        var right = x + player.CollisionRightOffset;
+        var top = y + player.CollisionTopOffset;
+        var bottom = y + player.CollisionBottomOffset;
+        for (var index = 0; index < spawnRooms.Count; index += 1)
+        {
+            var room = spawnRooms[index];
+            if (left < room.Right
+                && right > room.Left
+                && top < room.Bottom
+                && bottom > room.Top)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private bool SpawnPlayerResolved(
@@ -47,6 +218,11 @@ public sealed partial class SimulationWorld
         if (ShouldCancelSpawn(player, team, x, y))
         {
             return false;
+        }
+
+        if (clearMedicHealingTarget)
+        {
+            ClearLastToDieStatusEffectsForTarget(player.Id);
         }
 
         player.Spawn(team, x, y);

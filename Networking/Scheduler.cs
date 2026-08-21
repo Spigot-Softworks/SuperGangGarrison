@@ -23,6 +23,13 @@ public sealed record Protocol64ChannelSchedulerOptions
 /// </summary>
 public sealed class Protocol64ChannelScheduler
 {
+    // QUIC has a simulation-thread producer and an I/O-thread consumer. The
+    // original scheduler was written as a single-threaded primitive, but the
+    // native QUIC backend shares it across those two lifetimes. Keep the
+    // scheduler as the ownership boundary so callers cannot concurrently
+    // mutate one of the dictionaries while TryDequeue/GetActiveStreams is
+    // enumerating it.
+    private readonly object _gate = new();
     private readonly Protocol64ChannelSchedulerOptions _options;
     private readonly Dictionary<ChannelType, Queue<PendingFrame>> _ordered = [];
     private readonly Dictionary<(ChannelType Channel, int Lane), Queue<PendingFrame>> _unordered = [];
@@ -41,166 +48,220 @@ public sealed class Protocol64ChannelScheduler
         ValidateOptions(_options);
     }
 
-    public int PendingReliableFrames => _pendingReliableFrames;
+    public int PendingReliableFrames
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _pendingReliableFrames;
+            }
+        }
+    }
 
-    public long PendingReliableBytes => _pendingReliableBytes;
+    public long PendingReliableBytes
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _pendingReliableBytes;
+            }
+        }
+    }
 
-    public int PendingLastWinsFrames => _pendingLastWinsFrames;
+    public int PendingLastWinsFrames
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _pendingLastWinsFrames;
+            }
+        }
+    }
 
-    public long PendingLastWinsBytes => _pendingLastWinsBytes;
+    public long PendingLastWinsBytes
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _pendingLastWinsBytes;
+            }
+        }
+    }
 
-    public int PendingFrames => _pendingReliableFrames + _pendingLastWinsFrames;
+    public int PendingFrames
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _pendingReliableFrames + _pendingLastWinsFrames;
+            }
+        }
+    }
 
     public ConnectionSendResult Enqueue(Protocol64OutboundFrame frame)
     {
-        ArgumentNullException.ThrowIfNull(frame);
-
-        var validationFault = Protocol64ConnectionFrameValidation.ValidateOutbound(frame);
-        if (validationFault is not null)
+        lock (_gate)
         {
-            return ConnectionSendResult.Rejected(validationFault);
-        }
+            ArgumentNullException.ThrowIfNull(frame);
 
-        var effectiveChannel = frame.EffectiveChannel;
-        var descriptor = frame.Delivery;
-        if (descriptor.IsLastWins)
-        {
-            return EnqueueLastWins(frame, effectiveChannel);
-        }
-
-        if (!descriptor.Channel.HasValue)
-        {
-            return ConnectionSendResult.Rejected(Protocol64ConnectionFrameValidation.Fault(
-                Protocol64FaultKind.ValidationFailed,
-                "Reliable protocol-64 delivery must declare a channel."));
-        }
-
-        if (_pendingReliableFrames >= _options.MaxPendingReliableFrames ||
-            _pendingReliableBytes > _options.MaxPendingReliableBytes - frame.EncodedLength)
-        {
-            return new ConnectionSendResult(
-                ConnectionSendStatus.Backpressured,
-                null,
-                PendingReliableFrames: _pendingReliableFrames,
-                PendingReliableBytes: _pendingReliableBytes);
-        }
-
-        var stream = descriptor.Kind == Protocol64DeliveryKind.ReliableOrdered
-            ? new Protocol64StreamKey(effectiveChannel, descriptor.Kind, 0)
-            : SelectUnorderedStream(effectiveChannel, descriptor.Kind);
-        var pending = CreatePending(frame, stream);
-
-        if (descriptor.Kind == Protocol64DeliveryKind.ReliableOrdered)
-        {
-            if (!_ordered.TryGetValue(effectiveChannel, out var queue))
+            var validationFault = Protocol64ConnectionFrameValidation.ValidateOutbound(frame);
+            if (validationFault is not null)
             {
-                queue = new Queue<PendingFrame>();
-                _ordered.Add(effectiveChannel, queue);
+                return ConnectionSendResult.Rejected(validationFault);
             }
 
-            queue.Enqueue(pending);
-        }
-        else
-        {
-            var key = (effectiveChannel, stream.Lane);
-            if (!_unordered.TryGetValue(key, out var queue))
+            var effectiveChannel = frame.EffectiveChannel;
+            var descriptor = frame.Delivery;
+            if (descriptor.IsLastWins)
             {
-                queue = new Queue<PendingFrame>();
-                _unordered.Add(key, queue);
+                return EnqueueLastWins(frame, effectiveChannel);
             }
 
-            queue.Enqueue(pending);
-        }
+            if (!descriptor.Channel.HasValue)
+            {
+                return ConnectionSendResult.Rejected(Protocol64ConnectionFrameValidation.Fault(
+                    Protocol64FaultKind.ValidationFailed,
+                    "Reliable protocol-64 delivery must declare a channel."));
+            }
 
-        _pendingReliableFrames++;
-        _pendingReliableBytes += frame.EncodedLength;
-        return Queued(ConnectionSendStatus.Queued, stream);
+            if (_pendingReliableFrames >= _options.MaxPendingReliableFrames ||
+                _pendingReliableBytes > _options.MaxPendingReliableBytes - frame.EncodedLength)
+            {
+                return new ConnectionSendResult(
+                    ConnectionSendStatus.Backpressured,
+                    null,
+                    PendingReliableFrames: _pendingReliableFrames,
+                    PendingReliableBytes: _pendingReliableBytes);
+            }
+
+            var stream = descriptor.Kind == Protocol64DeliveryKind.ReliableOrdered
+                ? new Protocol64StreamKey(effectiveChannel, descriptor.Kind, 0)
+                : SelectUnorderedStream(effectiveChannel, descriptor.Kind);
+            var pending = CreatePending(frame, stream);
+
+            if (descriptor.Kind == Protocol64DeliveryKind.ReliableOrdered)
+            {
+                if (!_ordered.TryGetValue(effectiveChannel, out var queue))
+                {
+                    queue = new Queue<PendingFrame>();
+                    _ordered.Add(effectiveChannel, queue);
+                }
+
+                queue.Enqueue(pending);
+            }
+            else
+            {
+                var key = (effectiveChannel, stream.Lane);
+                if (!_unordered.TryGetValue(key, out var queue))
+                {
+                    queue = new Queue<PendingFrame>();
+                    _unordered.Add(key, queue);
+                }
+
+                queue.Enqueue(pending);
+            }
+
+            _pendingReliableFrames++;
+            _pendingReliableBytes += frame.EncodedLength;
+            return Queued(ConnectionSendStatus.Queued, stream);
+        }
     }
 
     public bool TryDequeue(out Protocol64ScheduledFrame frame)
     {
-        PendingFrame? selected = null;
-        Action? remove = null;
-
-        foreach (var pair in _ordered)
+        lock (_gate)
         {
-            if (pair.Value.Count == 0)
+            PendingFrame? selected = null;
+            Action? remove = null;
+
+            foreach (var pair in _ordered)
             {
-                continue;
+                if (pair.Value.Count == 0)
+                {
+                    continue;
+                }
+
+                Consider(pair.Value.Peek(), ref selected, ref remove, () => pair.Value.Dequeue());
             }
 
-            Consider(pair.Value.Peek(), ref selected, ref remove, () => pair.Value.Dequeue());
-        }
-
-        foreach (var pair in _unordered)
-        {
-            if (pair.Value.Count == 0)
+            foreach (var pair in _unordered)
             {
-                continue;
+                if (pair.Value.Count == 0)
+                {
+                    continue;
+                }
+
+                Consider(pair.Value.Peek(), ref selected, ref remove, () => pair.Value.Dequeue());
             }
 
-            Consider(pair.Value.Peek(), ref selected, ref remove, () => pair.Value.Dequeue());
-        }
+            foreach (var pair in _lastWins)
+            {
+                Consider(pair.Value, ref selected, ref remove, () => _lastWins.Remove(pair.Key));
+            }
 
-        foreach (var pair in _lastWins)
-        {
-            Consider(pair.Value, ref selected, ref remove, () => _lastWins.Remove(pair.Key));
-        }
+            if (selected is null || remove is null)
+            {
+                frame = null!;
+                return false;
+            }
 
-        if (selected is null || remove is null)
-        {
-            frame = null!;
-            return false;
-        }
+            remove();
+            if (selected.Frame.Delivery.IsReliable)
+            {
+                _pendingReliableFrames--;
+                _pendingReliableBytes -= selected.Frame.EncodedLength;
+            }
+            else
+            {
+                _pendingLastWinsFrames--;
+                _pendingLastWinsBytes -= selected.Frame.EncodedLength;
+            }
 
-        remove();
-        if (selected.Frame.Delivery.IsReliable)
-        {
-            _pendingReliableFrames--;
-            _pendingReliableBytes -= selected.Frame.EncodedLength;
+            frame = new Protocol64ScheduledFrame(
+                selected.Frame,
+                selected.Stream,
+                selected.StreamSequence,
+                selected.SchedulerSequence);
+            return true;
         }
-        else
-        {
-            _pendingLastWinsFrames--;
-            _pendingLastWinsBytes -= selected.Frame.EncodedLength;
-        }
-
-        frame = new Protocol64ScheduledFrame(
-            selected.Frame,
-            selected.Stream,
-            selected.StreamSequence,
-            selected.SchedulerSequence);
-        return true;
     }
 
     public IReadOnlyList<Protocol64StreamKey> GetActiveStreams()
     {
-        var streams = new HashSet<Protocol64StreamKey>();
-        foreach (var pair in _ordered)
+        lock (_gate)
         {
-            if (pair.Value.Count > 0)
+            var streams = new HashSet<Protocol64StreamKey>();
+            foreach (var pair in _ordered)
             {
-                streams.Add(new Protocol64StreamKey(pair.Key, Protocol64DeliveryKind.ReliableOrdered, 0));
+                if (pair.Value.Count > 0)
+                {
+                    streams.Add(new Protocol64StreamKey(pair.Key, Protocol64DeliveryKind.ReliableOrdered, 0));
+                }
             }
-        }
 
-        foreach (var pair in _unordered)
-        {
-            if (pair.Value.Count > 0)
+            foreach (var pair in _unordered)
             {
-                streams.Add(new Protocol64StreamKey(pair.Key.Channel, Protocol64DeliveryKind.ReliableUnordered, pair.Key.Lane));
+                if (pair.Value.Count > 0)
+                {
+                    streams.Add(new Protocol64StreamKey(pair.Key.Channel, Protocol64DeliveryKind.ReliableUnordered, pair.Key.Lane));
+                }
             }
-        }
 
-        foreach (var pair in _lastWins)
-        {
-            if (pair.Value is not null)
+            foreach (var pair in _lastWins)
             {
-                streams.Add(pair.Value.Stream);
+                if (pair.Value is not null)
+                {
+                    streams.Add(pair.Value.Stream);
+                }
             }
-        }
 
-        return streams.OrderBy(stream => stream.Channel).ThenBy(stream => stream.Delivery).ThenBy(stream => stream.Lane).ToArray();
+            return streams.OrderBy(stream => stream.Channel).ThenBy(stream => stream.Delivery).ThenBy(stream => stream.Lane).ToArray();
+        }
     }
 
     private ConnectionSendResult EnqueueLastWins(

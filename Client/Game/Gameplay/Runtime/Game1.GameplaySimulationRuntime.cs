@@ -11,6 +11,8 @@ public partial class Game1
 {
     private const int BrowserOfflineSimulationMaxCatchUpTicks = 2;
     private const double BrowserOfflineSimulationMaxElapsedSeconds = 0.08d;
+    private const int NetworkSimulationMaxCatchUpTicks = 4;
+    private const double NetworkSimulationMaxElapsedSeconds = 0.12d;
     private const int PracticeBotOfflineSimulationMaxCatchUpTicks = 4;
     private const double PracticeBotOfflineSimulationMaxElapsedSeconds = 0.12d;
 
@@ -24,8 +26,14 @@ public partial class Game1
             // Run client prediction: simulate projectiles only
             // Server snapshots remain authoritative and will correct any mispredictions
             _simulator.World.ClientPredictionMode = true;
-            var elapsedSeconds = gameTime.ElapsedGameTime.TotalSeconds;
-            simulationTickCount = _simulator.Step(elapsedSeconds, AdvanceGameplayLogicPresentationTriggers);
+            var elapsedSeconds = Math.Min(
+                gameTime.ElapsedGameTime.TotalSeconds,
+                NetworkSimulationMaxElapsedSeconds);
+            simulationTickCount = _simulator.Step(
+                elapsedSeconds,
+                beforeTickAdvanced: null,
+                onTickAdvanced: AdvanceGameplayLogicPresentationTriggers,
+                maxTicksPerAdvance: NetworkSimulationMaxCatchUpTicks);
         }
         else
         {

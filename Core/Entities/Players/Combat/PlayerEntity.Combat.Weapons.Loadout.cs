@@ -27,6 +27,12 @@ public sealed partial class PlayerEntity
         }
 
         SelectedGameplayLoadoutId = resolvedLoadoutId;
+        // A loadout change is a deliberate equipment identity change. Do not
+        // carry the prior loadout's selected secondary/utility slot into the
+        // new loadout; only a same-loadout respawn can restore a locked primary.
+        SelectedGameplayEquippedSlot = GameplayEquipmentSlot.Primary;
+        IsExperimentalOffhandEquipped = false;
+        IsAcquiredWeaponEquipped = false;
         RefreshGameplayLoadoutState();
         return true;
     }

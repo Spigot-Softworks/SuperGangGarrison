@@ -1,3 +1,5 @@
+using OpenGarrison.Core.LastToDie;
+
 namespace OpenGarrison.Core;
 
 public sealed partial class SimulationWorld
@@ -50,7 +52,7 @@ public sealed partial class SimulationWorld
             playerSlowRefreshTicks);
         if (owner.IsKritzCritBoosted)
         {
-            shot.SetCritical();
+            shot.SetCritical(owner.ActiveKritzCritDamageMultiplier);
         }
 
         _shots.Add(shot);
@@ -68,6 +70,11 @@ public sealed partial class SimulationWorld
             velocityX,
             velocityY,
             GetSimulationTicksFromSourceTicks(BubbleProjectileEntity.LifetimeTicks));
+        if (owner.IsKritzCritBoosted)
+        {
+            bubble.SetCritical(owner.ActiveKritzCritDamageMultiplier);
+        }
+
         owner.IncrementQuoteBubbleCount();
         _bubbles.Add(bubble);
         _entities.Add(bubble.Id, bubble);
@@ -87,7 +94,7 @@ public sealed partial class SimulationWorld
             lifetimeTicks);
         if (owner.IsKritzCritBoosted)
         {
-            blade.SetCritical();
+            blade.SetCritical(owner.ActiveKritzCritDamageMultiplier);
         }
 
         owner.IncrementQuoteBladeCount();
@@ -107,7 +114,7 @@ public sealed partial class SimulationWorld
             velocityY);
         if (owner.IsKritzCritBoosted)
         {
-            nail.SetCritical();
+            nail.SetCritical(owner.ActiveKritzCritDamageMultiplier);
         }
 
         _needles.Add(nail);
@@ -115,6 +122,60 @@ public sealed partial class SimulationWorld
     }
 
     private void SpawnArrow(PlayerEntity owner, float x, float y, float velocityX, float velocityY, int damage, float fakeSpeedMultiplier)
+    {
+        var sniperProfile = owner.LastToDieSniperProfile;
+        var ghostDamageMultiplier = owner.CaptureLastToDieSniperGhostShot(Config.TicksPerSecond);
+        var isFullyCharged = damage >= PlayerEntity.SniperBowMaxDamage;
+        var chargeFraction = (fakeSpeedMultiplier - PlayerEntity.SniperBowMinFakeSpeedMultiplier)
+            / (PlayerEntity.SniperBowMaxFakeSpeedMultiplier - PlayerEntity.SniperBowMinFakeSpeedMultiplier);
+        var capturedDamage = sniperProfile.TranqDartsEnabled
+            ? Math.Max(
+                1,
+                (int)MathF.Round(
+                    damage * LastToDieSniperProfile.TranqDartsDirectDamageMultiplier))
+            : damage;
+        var payload = new LastToDieSniperArrowPayload(
+            sniperProfile.GuardianEnabled,
+            sniperProfile.MechanicaEnabled && isFullyCharged,
+            sniperProfile.TranqDartsEnabled,
+            sniperProfile.PoisonTipEnabled
+                ? LastToDieSniperProfile.GetPoisonTipDamagePerSecond(chargeFraction)
+                : 0f,
+            ghostDamageMultiplier,
+            sniperProfile.DecapitatorEnabled,
+            isFullyCharged,
+            sniperProfile.ExplosiveTipEnabled,
+            owner.IsKritzCritBoosted,
+            owner.ActiveKritzCritDamageMultiplier);
+        SpawnArrowWithPayload(
+            owner,
+            x,
+            y,
+            velocityX,
+            velocityY,
+            capturedDamage,
+            fakeSpeedMultiplier,
+            payload);
+        if (sniperProfile.MenageATroisEnabled && isFullyCharged)
+        {
+            owner.BeginLastToDieSniperVolley(
+                velocityX,
+                velocityY,
+                capturedDamage,
+                fakeSpeedMultiplier,
+                payload);
+        }
+    }
+
+    private void SpawnArrowWithPayload(
+        PlayerEntity owner,
+        float x,
+        float y,
+        float velocityX,
+        float velocityY,
+        int damage,
+        float fakeSpeedMultiplier,
+        in LastToDieSniperArrowPayload payload)
     {
         var arrow = new ArrowProjectileEntity(
             AllocateEntityId(),
@@ -125,15 +186,38 @@ public sealed partial class SimulationWorld
             velocityX,
             velocityY,
             damage,
-            fakeSpeedMultiplier);
-        if (owner.IsKritzCritBoosted)
+            fakeSpeedMultiplier,
+            appliesLastToDieGuardian: payload.AppliesGuardian,
+            piercesPlayers: payload.PiercesPlayers,
+            appliesLastToDieTranqDarts: payload.AppliesTranqDarts,
+            lastToDiePoisonDamagePerSecond: payload.PoisonDamagePerSecond,
+            lastToDieGhostDamageMultiplier: payload.GhostDamageMultiplier,
+            appliesLastToDieDecapitator: payload.AppliesDecapitator,
+            isLastToDieDecapitatorFullyCharged: payload.IsDecapitatorFullyCharged,
+            appliesLastToDieExplosiveTip: payload.AppliesExplosiveTip);
+        if (payload.IsCritical)
         {
-            arrow.SetCritical();
+            arrow.SetCritical(payload.CriticalDamageMultiplier);
         }
 
         _needles.Add(arrow);
         _entities.Add(arrow.Id, arrow);
     }
+
+    private void SpawnQueuedLastToDieSniperArrow(
+        PlayerEntity owner,
+        float x,
+        float y,
+        in LastToDieSniperVolleyState volley)
+        => SpawnArrowWithPayload(
+            owner,
+            x,
+            y,
+            volley.VelocityX,
+            volley.VelocityY,
+            volley.Damage,
+            volley.FakeSpeedMultiplier,
+            volley.Payload);
 
     private void SpawnNeedle(PlayerEntity owner, float x, float y, float velocityX, float velocityY)
     {
@@ -147,7 +231,7 @@ public sealed partial class SimulationWorld
             velocityY);
         if (owner.IsKritzCritBoosted)
         {
-            needle.SetCritical();
+            needle.SetCritical(owner.ActiveKritzCritDamageMultiplier);
         }
 
         _needles.Add(needle);
@@ -163,6 +247,14 @@ public sealed partial class SimulationWorld
         int healPerHit = MedicHealNeedleProjectileEntity.DefaultHealPerHit,
         int enemyDamagePerHit = MedicHealNeedleProjectileEntity.DefaultEnemyDamagePerHit)
     {
+        var lastToDiePayload = CaptureLastToDieMedicKritzM2Payload(owner);
+        var lastToDieJavelinFuseTicks = lastToDiePayload.AppliesJavelin
+            ? Math.Max(
+                1,
+                (int)Math.Ceiling(
+                    LastToDieDerivedModifiers.MedicJavelinFuseSeconds
+                        * Math.Max(1, Config.TicksPerSecond)))
+            : 0;
         var needle = new MedicHealNeedleProjectileEntity(
             AllocateEntityId(),
             owner.Team,
@@ -172,17 +264,29 @@ public sealed partial class SimulationWorld
             velocityX,
             velocityY,
             healPerHit,
-            enemyDamagePerHit);
+            enemyDamagePerHit,
+            lastToDiePayload,
+            lastToDieJavelinFuseTicks);
         if (owner.IsKritzCritBoosted)
         {
-            needle.SetCritical();
+            needle.SetCritical(owner.ActiveKritzCritDamageMultiplier);
         }
 
         _needles.Add(needle);
         _entities.Add(needle.Id, needle);
     }
 
-    private void SpawnRevolverShot(PlayerEntity owner, float x, float y, float velocityX, float velocityY, float damagePerHit = RevolverProjectileEntity.DamagePerHit, string? killFeedWeaponSpriteNameOverride = null)
+    private void SpawnRevolverShot(
+        PlayerEntity owner,
+        float x,
+        float y,
+        float velocityX,
+        float velocityY,
+        float damagePerHit = RevolverProjectileEntity.DamagePerHit,
+        string? killFeedWeaponSpriteNameOverride = null,
+        global::OpenGarrison.Core.LastToDie.LastToDieSpyRevolverProfile? lastToDieProfile = null,
+        bool forceCritical = false,
+        bool appliesLuckyStrikeStun = false)
     {
         var shot = new RevolverProjectileEntity(
             AllocateEntityId(),
@@ -193,8 +297,14 @@ public sealed partial class SimulationWorld
             velocityX,
             velocityY,
             damagePerHit,
-            killFeedWeaponSpriteNameOverride);
+            killFeedWeaponSpriteNameOverride,
+            lastToDieProfile,
+            appliesLuckyStrikeStun);
         if (owner.IsKritzCritBoosted)
+        {
+            shot.SetCritical(owner.ActiveKritzCritDamageMultiplier);
+        }
+        else if (forceCritical)
         {
             shot.SetCritical();
         }
@@ -211,7 +321,10 @@ public sealed partial class SimulationWorld
             owner.Team,
             owner.X,
             owner.Y,
-            directionDegrees);
+            directionDegrees,
+            owner.LastToDieInstastabEnabled
+                ? LastToDieDerivedModifiers.SpyInstastabSpeedMultiplier
+                : 1);
         _stabAnimations.Add(stabAnimation);
         _entities.Add(stabAnimation.Id, stabAnimation);
         RegisterVisualEffect(
@@ -259,7 +372,7 @@ public sealed partial class SimulationWorld
             burnDamagePerTick: burnDamagePerTick);
         if (owner.IsKritzCritBoosted)
         {
-            flame.SetCritical();
+            flame.SetCritical(owner.ActiveKritzCritDamageMultiplier);
         }
 
         _flames.Add(flame);
@@ -278,7 +391,7 @@ public sealed partial class SimulationWorld
             velocityY);
         if (owner.IsKritzCritBoosted)
         {
-            flare.SetCritical();
+            flare.SetCritical(owner.ActiveKritzCritDamageMultiplier);
         }
 
         _flares.Add(flare);
@@ -331,7 +444,7 @@ public sealed partial class SimulationWorld
 
         if (owner.IsKritzCritBoosted)
         {
-            rocket.SetCritical();
+            rocket.SetCritical(owner.ActiveKritzCritDamageMultiplier);
         }
 
         _rockets.Add(rocket);
@@ -357,7 +470,8 @@ public sealed partial class SimulationWorld
             rocket.IsFading,
             rocket.FadeSourceTicksRemaining,
             rocket.ExplodeImmediately,
-            rocket.IsCritical));
+            rocket.IsCritical,
+            CriticalDamageMultiplier: rocket.CriticalDamageMultiplier));
     }
 
     private void AdvancePendingRocketsForOwner(int ownerId)
@@ -379,7 +493,7 @@ public sealed partial class SimulationWorld
             createdFrame: Frame);
         if (owner.IsKritzCritBoosted)
         {
-            mine.SetCritical();
+            mine.SetCritical(owner.ActiveKritzCritDamageMultiplier);
         }
 
         _mines.Add(mine);
@@ -399,7 +513,7 @@ public sealed partial class SimulationWorld
             killFeedWeaponSpriteNameOverride);
         if (owner.IsKritzCritBoosted)
         {
-            grenade.SetCritical();
+            grenade.SetCritical(owner.ActiveKritzCritDamageMultiplier);
         }
 
         _grenades.Add(grenade);

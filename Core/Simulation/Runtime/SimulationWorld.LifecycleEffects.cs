@@ -125,6 +125,13 @@ public sealed partial class SimulationWorld
             var resolvedFrameIndex = frameIndex ?? _random.Next(randomFrameCount);
             var velocityX = inheritedVelocityX + ((_random.NextSingle() * ((velocityRangeX * 2f) + 1f)) - velocityRangeX);
             var velocityY = inheritedVelocityY + ((_random.NextSingle() * ((velocityRangeY * 2f) + 1f)) - velocityRangeY);
+            if (Level.IsTopDown)
+            {
+                var angle = _random.NextSingle() * (MathF.PI * 2f);
+                var radialSpeed = MathF.Max(2f, MathF.Max(velocityRangeX, velocityRangeY) * (0.45f + (_random.NextSingle() * 0.55f)));
+                velocityX = inheritedVelocityX + (MathF.Cos(angle) * radialSpeed);
+                velocityY = inheritedVelocityY + (MathF.Sin(angle) * radialSpeed);
+            }
             var rotationSpeed = (_random.NextSingle() * ((rotationRange * 2f) + 1f)) - rotationRange;
 
             // Create gib entity locally (for offline mode and server-side simulation)
@@ -288,7 +295,7 @@ public sealed partial class SimulationWorld
         for (var gibIndex = _playerGibs.Count - 1; gibIndex >= 0; gibIndex -= 1)
         {
             var gib = _playerGibs[gibIndex];
-            gib.Advance(Level, Bounds);
+            gib.Advance(Level, Bounds, topDown: Level.IsTopDown);
             TryApplyPlayerGibSplat(gib);
             TrySpawnBloodDropFromGib(gib);
             if (!gib.IsExpired)
@@ -342,7 +349,7 @@ public sealed partial class SimulationWorld
         for (var dropIndex = _bloodDrops.Count - 1; dropIndex >= 0; dropIndex -= 1)
         {
             var bloodDrop = _bloodDrops[dropIndex];
-            bloodDrop.Advance(Level, Bounds);
+            bloodDrop.Advance(Level, Bounds, topDown: Level.IsTopDown);
             if (!bloodDrop.IsExpired)
             {
                 continue;
@@ -529,7 +536,7 @@ public sealed partial class SimulationWorld
         for (var deadBodyIndex = _deadBodies.Count - 1; deadBodyIndex >= 0; deadBodyIndex -= 1)
         {
             var deadBody = _deadBodies[deadBodyIndex];
-            var advanceResult = deadBody.Advance(Level, Bounds);
+            var advanceResult = deadBody.Advance(Level, Bounds, preservePosition: Level.IsTopDown);
             if (!ClientPredictionMode
                 && advanceResult.HitGround
                 && advanceResult.ImpactSpeed >= 3.5f

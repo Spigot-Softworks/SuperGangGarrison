@@ -14,7 +14,6 @@ public partial class Game1
 {
     private const int BrowserPendingSoundEventLifetimeTicks = 30;
     private const int BrowserPendingSoundEventLimit = 96;
-    private const int PendingNetworkSoundEventRetryLimit = 96;
     private const int RecentGibSoundEchoLifetimeTicks = 18;
     private const int RecentGibSoundEchoLimit = 16;
     private const float RecentGibSoundEchoDistanceSquared = 64f * 64f;
@@ -541,7 +540,6 @@ public partial class Game1
         }
 
         TriggerLocalWeaponSoundFocus();
-        TriggerLocalWeaponFireHudRumble(GetWeaponSoundHudRumbleIntensity(soundName));
     }
 
     private static bool IsLowPriorityWorldSoundName(string soundName)
@@ -928,48 +926,6 @@ public partial class Game1
             || string.Equals(soundName, "BladeSnd", StringComparison.OrdinalIgnoreCase)
             || string.Equals(soundName, "EyelanderSnd", StringComparison.OrdinalIgnoreCase)
             || string.Equals(soundName, "KnifeSnd", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static float GetWeaponSoundHudRumbleIntensity(string soundName)
-    {
-        if (string.Equals(soundName, "RocketSnd", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(soundName, "DirecthitSnd", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(soundName, "MinegunSnd", StringComparison.OrdinalIgnoreCase))
-        {
-            return 0.9f;
-        }
-
-        if (string.Equals(soundName, "RifleSnd", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(soundName, "SniperSnd", StringComparison.OrdinalIgnoreCase))
-        {
-            return 0.85f;
-        }
-
-        if (string.Equals(soundName, "RevolverSnd", StringComparison.OrdinalIgnoreCase))
-        {
-            return 0.65f;
-        }
-
-        if (string.Equals(soundName, "BladeSnd", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(soundName, "EyelanderSnd", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(soundName, "KnifeSnd", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(soundName, "BowSnd", StringComparison.OrdinalIgnoreCase))
-        {
-            return 0.45f;
-        }
-
-        if (string.Equals(soundName, "ChaingunSnd", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(soundName, "FlamethrowerSnd", StringComparison.OrdinalIgnoreCase))
-        {
-            return 0.35f;
-        }
-
-        if (string.Equals(soundName, "MedigunSnd", StringComparison.OrdinalIgnoreCase))
-        {
-            return 0.25f;
-        }
-
-        return 0.55f;
     }
 
     private void StopLocalRapidFireWeaponAudio()

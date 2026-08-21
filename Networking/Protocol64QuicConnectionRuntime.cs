@@ -419,6 +419,17 @@ public sealed class Protocol64QuicConnectionRuntime : IAsyncDisposable
                     _options.FrameReceived?.Invoke(released);
                 }
 
+                // LastWins frames are held by the semantic receive scheduler
+                // until the newest value for a replacement key is selected.
+                // They therefore do not appear in ReleasedFrames from
+                // AcceptReceived. Drain that mailbox here or QUIC state frames
+                // (including player snapshots) can be accepted forever without
+                // ever reaching the game client.
+                while (_container.TryDequeueReceived(out var pending))
+                {
+                    _options.FrameReceived?.Invoke(pending);
+                }
+
                 if (accepted.Fault is not null)
                 {
                     await HandleTransportFaultAsync(accepted.Fault, cancellationToken).ConfigureAwait(false);

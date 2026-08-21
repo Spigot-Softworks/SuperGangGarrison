@@ -1,13 +1,13 @@
 {
   "id": "weapon.bow",
-  "displayName": "Bow",
+  "displayName": "Huntsman",
   "slot": "Secondary",
   "behaviorId": "builtin.weapon.sniper_bow",
   "ammo": {
     "maxAmmo": 1,
     "ammoPerUse": 1,
     "projectilesPerUse": 1,
-    "useDelaySourceTicks": 25,
+    "useDelaySourceTicks": 33,
     "reloadSourceTicks": 0,
     "autoReloads": true,
     "ammoRegenPerTick": 0,

@@ -76,6 +76,78 @@ public partial class Game1
         }
     }
 
+    private void DrawDispenserBeams(Vector2 cameraPosition)
+    {
+        foreach (var dispenser in _world.Sentries)
+        {
+            if (!dispenser.IsDispenser || !dispenser.IsBuilt)
+            {
+                continue;
+            }
+
+            var dispenserPosition = GetRenderPosition(dispenser.Id, dispenser.X, dispenser.Y);
+            if (!IsFiniteVector(dispenserPosition))
+            {
+                continue;
+            }
+
+            foreach (var player in EnumerateRenderablePlayers())
+            {
+                if (!_dispenserBeamAlphas.TryGetValue((dispenser.Id, player.Id), out var fade)
+                    || fade <= 0f
+                    || !player.IsAlive
+                    || player.Team != dispenser.Team
+                    || !HasFreshPlayerRenderHistory(player))
+                {
+                    continue;
+                }
+
+                var targetPosition = GetRenderPosition(player);
+                var toTarget = targetPosition - dispenserPosition;
+                if (!IsFiniteVector(targetPosition)
+                    || !IsFiniteVector(toTarget)
+                    || toTarget.LengthSquared() <= 0.0001f)
+                {
+                    continue;
+                }
+
+                var aimDirection = Vector2.Normalize(toTarget);
+                GetMedicBeamSegmentColors(
+                    player.Team,
+                    isFreezeRayBeam: false,
+                    isEssenceExtractorBeam: false,
+                    isOffensiveKritzBeam: false,
+                    out var beamStartColor,
+                    out var beamColor,
+                    out var helixStartColor);
+                var beamOpacity = 0.5f * fade;
+                DrawCurvedWorldLine(
+                    dispenserPosition.X,
+                    dispenserPosition.Y - 8f,
+                    targetPosition.X,
+                    targetPosition.Y,
+                    cameraPosition,
+                    beamStartColor * beamOpacity,
+                    beamColor * beamOpacity,
+                    nozzleThickness: 2f,
+                    maxThickness: 4f,
+                    tailThickness: 1f,
+                    rampDistPixels: 8f,
+                    aimDirection);
+                DrawMedicBeamHelix(
+                    dispenserPosition.X,
+                    dispenserPosition.Y - 8f,
+                    targetPosition.X,
+                    targetPosition.Y,
+                    cameraPosition,
+                    aimDirection,
+                    helixStartColor * beamOpacity,
+                    beamColor * beamOpacity,
+                    radiusScale: 0.5f);
+            }
+        }
+    }
+
     private void DrawMedicBeamForPlayer(PlayerEntity medic, Vector2 cameraPosition)
     {
         if (!medic.IsMedicHealing
@@ -260,7 +332,8 @@ public partial class Game1
         Vector2 cameraPosition,
         Vector2 aimDirection,
         Color helixStartColor,
-        Color helixEndColor)
+        Color helixEndColor,
+        float radiusScale = 1f)
     {
         if (!AreFinite(startX, startY, endX, endY)
             || !IsFiniteVector(cameraPosition)
@@ -331,7 +404,7 @@ public partial class Game1
                 tangent /= tangentLen;
                 var perp = new Vector2(-tangent.Y, tangent.X);
 
-                var radius = maxRadius * oneMinusT;
+                var radius = maxRadius * radiusScale * oneMinusT;
                 var alpha = oneMinusT;
 
                 // Pin to beam centre at origin via sin difference
@@ -1012,10 +1085,11 @@ public partial class Game1
 
     private void DrawNeedleProjectile(NeedleProjectileEntity needle, Vector2 cameraPosition)
     {
-        if (needle is ArrowProjectileEntity { IsLanded: true })
+        if (needle is ArrowProjectileEntity { IsLanded: true } landedArrow)
         {
             // Landed arrows are presented by the StuckArrow visual event, which
             // owns the existing visibility and fade-out behavior.
+            DrawLastToDieAttachedArrowHead(landedArrow, cameraPosition);
             return;
         }
 
@@ -1085,6 +1159,44 @@ public partial class Game1
             // Draw screen blend overlay on top
             DrawCriticalProjectileOverlay(needleSpriteName, needleFrameIndex, renderPosition.X, renderPosition.Y, cameraPosition, needle.Team, rotation, needleScale);
         }
+
+        if (needle is ArrowProjectileEntity arrow)
+        {
+            DrawLastToDieAttachedArrowHead(arrow, cameraPosition);
+        }
+    }
+
+    private void DrawLastToDieAttachedArrowHead(
+        ArrowProjectileEntity arrow,
+        Vector2 cameraPosition)
+    {
+        if (!arrow.HasLastToDieAttachedHead)
+        {
+            return;
+        }
+
+        var spriteName = arrow.LastToDieAttachedHeadSpriteName;
+        if (string.IsNullOrWhiteSpace(spriteName))
+        {
+            return;
+        }
+
+        var renderPosition = GetRenderPosition(arrow.Id, arrow.X, arrow.Y);
+        var rotation = GetVelocityRotation(arrow.VelocityX, arrow.VelocityY);
+        var speed = MathF.Sqrt(
+            (arrow.VelocityX * arrow.VelocityX)
+            + (arrow.VelocityY * arrow.VelocityY));
+        var directionX = speed > 0.0001f ? arrow.VelocityX / speed : 1f;
+        var directionY = speed > 0.0001f ? arrow.VelocityY / speed : 0f;
+        var attachmentOffset = arrow.HitProbeForwardOffset * 0.7f;
+        TryDrawSprite(
+            spriteName,
+            0,
+            renderPosition.X + (directionX * attachmentOffset),
+            renderPosition.Y + (directionY * attachmentOffset),
+            cameraPosition,
+            Color.White,
+            rotation);
     }
 
     private void DrawBubbleProjectile(BubbleProjectileEntity bubble, Vector2 cameraPosition)
@@ -1901,8 +2013,9 @@ public partial class Game1
     private void DrawMineProjectile(MineProjectileEntity mine, Vector2 cameraPosition)
     {
         var renderPosition = GetRenderPosition(mine.Id, mine.X, mine.Y);
-        var frameIndex = (mine.Team == PlayerTeam.Blue ? 2 : 0)
-            + (mine.IsStickied ? 1 : 0);
+        // Keep flying mines dark as well as stickied mines.  The lit frames
+        // disappear into light map backgrounds during fights.
+        var frameIndex = mine.Team == PlayerTeam.Blue ? 3 : 1;
 
         // Draw outline first (behind sprite) if critical
         if (mine.IsCritical)

@@ -1,4 +1,5 @@
 using OpenGarrison.GameplayModding;
+using OpenGarrison.Core.LastToDie;
 
 namespace OpenGarrison.Core;
 
@@ -218,7 +219,12 @@ public sealed partial class PlayerEntity
 
     public bool TryToggleSniperScope()
     {
-        if (!IsAlive || !HasScopedSniperWeaponEquipped || IsTaunting || IsUsingBinoculars)
+        if (!IsAlive
+            || !HasScopedSniperWeaponEquipped
+            || IsSniperBowEquipped
+            || LastToDieSniperProfile.LightMarksmanEnabled
+            || IsTaunting
+            || IsUsingBinoculars)
         {
             return false;
         }
@@ -266,15 +272,21 @@ public sealed partial class PlayerEntity
                 return false;
             }
         }
-        else if (SpyCloakAlpha < 0.9999f)
+        else if (SpyCloakAlpha < 0.9999f
+            || (LastToDieRogueCommanderEnabled && LastToDieSpyCloakMeterUnits <= 0))
         {
             return false;
         }
 
         IsSpyCloaked = !IsSpyCloaked;
+        if (IsSpyCloaked)
+        {
+            OnLastToDieSpyCloakStarted();
+        }
         if (!IsSpyCloaked)
         {
             IsSpyVisibleToEnemies = false;
+            ResetLastToDieProfessionalFireChord();
         }
 
         return true;
@@ -288,13 +300,26 @@ public sealed partial class PlayerEntity
         }
 
         SpyBackstabDirectionDegrees = directionDegrees;
-        SpyBackstabWindupTicksRemaining = SpyBackstabWindupTicksDefault;
+        SpyBackstabWindupTicksRemaining = ResolveSpyBackstabDurationTicks(SpyBackstabWindupTicksDefault);
         SpyBackstabRecoveryTicksRemaining = 0;
-        SpyBackstabVisualTicksRemaining = SpyBackstabVisualTicksDefault;
+        SpyBackstabVisualTicksRemaining = ResolveSpyBackstabVisualDurationTicks();
         SpyBackstabHitboxPending = false;
         IsSpyVisibleToEnemies = true;
         return true;
     }
+
+    private int ResolveSpyBackstabDurationTicks(int defaultTicks) =>
+        LastToDieInstastabEnabled
+            ? Math.Max(
+                1,
+                (int)MathF.Ceiling(
+                    defaultTicks / (float)LastToDieDerivedModifiers.SpyInstastabSpeedMultiplier))
+            : defaultTicks;
+
+    private int ResolveSpyBackstabVisualDurationTicks() =>
+        LastToDieInstastabEnabled
+            ? StabAnimEntity.ResolveLifetimeTicks(LastToDieDerivedModifiers.SpyInstastabSpeedMultiplier)
+            : SpyBackstabVisualTicksDefault;
 
     public bool TryConsumeSpyBackstabHitboxTrigger(out float directionDegrees)
     {
@@ -328,6 +353,35 @@ public sealed partial class PlayerEntity
 
     public bool IsMedicKritzUberEquipped =>
         ClassId == PlayerClass.Medic && HasEquippedBehavior(BuiltInGameplayBehaviorIds.MedigunCrit);
+
+    public bool IsMedicUberDeliveryActive =>
+        IsAlive && ClassId == PlayerClass.Medic && IsMedicUbering;
+
+    public bool IsMedicRegularUberDeliveryActive =>
+        IsMedicUberDeliveryActive
+        && MedicUberDeliveryMode is MedicUberDeliveryMode.RegularInvulnerability
+            or MedicUberDeliveryMode.RejuvenationRay;
+
+    public bool IsMedicInvulnerabilityUberDeliveryActive =>
+        IsMedicUberDeliveryActive
+        && MedicUberDeliveryMode == MedicUberDeliveryMode.RegularInvulnerability;
+
+    public bool IsMedicKritzUberDeliveryActive =>
+        IsMedicUberDeliveryActive
+        && MedicUberDeliveryMode == MedicUberDeliveryMode.Kritz;
+
+    public bool IsMedicRejuvenationRayDeliveryActive =>
+        IsMedicUberDeliveryActive
+        && MedicUberDeliveryMode == MedicUberDeliveryMode.RejuvenationRay;
+
+    public MedicUberDeliveryMode MedicUberPresentationMode =>
+        IsMedicUberDeliveryActive
+            ? MedicUberDeliveryMode
+            : ResolveConfiguredMedicUberDeliveryMode();
+
+    public byte MedicUberDeliveryState => (byte)(
+        (byte)MedicUberPresentationMode
+        | (IsMedicUberDeliveryActive ? 0x80 : 0));
 
     public bool IsMedicMedigunSwapLocked =>
         ClassId == PlayerClass.Medic && IsMedicUbering;
@@ -394,6 +448,11 @@ public sealed partial class PlayerEntity
         }
 
         IsMedicUbering = true;
+        MedicUberDeliveryMode = isKritz
+            ? MedicUberDeliveryMode.Kritz
+            : LastToDieMedicRejuvenationRayEnabled
+                ? MedicUberDeliveryMode.RejuvenationRay
+                : MedicUberDeliveryMode.RegularInvulnerability;
         IsMedicUberReady = false;
         MedicUberReadyPresentationPending = false;
         if (isKritz)
@@ -474,8 +533,10 @@ public sealed partial class PlayerEntity
             CurrentShells -= 1;
         }
 
-        MedicNeedleCooldownTicks = ApplyExperimentalWeaponCycleMultiplier(Math.Max(1, fireCooldownTicks));
-        MedicNeedleRefillTicks = ApplyExperimentalReloadMultiplier(Math.Max(1, refillTicks));
+        MedicNeedleCooldownTicks = ApplyLastToDieMedicNeedleWeaponCycleMultiplier(
+            Math.Max(1, fireCooldownTicks));
+        MedicNeedleRefillTicks = ApplyLastToDieMedicNeedleReloadMultiplier(
+            Math.Max(1, refillTicks));
         return true;
     }
 
@@ -529,13 +590,69 @@ public sealed partial class PlayerEntity
     }
 
     public void RefreshKritzCritBoost(int ticks = DefaultUberRefreshTicks)
+        => RefreshKritzCritBoost(
+            providerPlayerId: 0,
+            providerSlot: int.MaxValue,
+            ExperimentalGameplaySettings.KritzCriticalDamageMultiplier,
+            ticks);
+
+    public void RefreshKritzCritBoost(
+        int providerPlayerId,
+        int providerSlot,
+        float criticalDamageMultiplier,
+        int ticks = DefaultUberRefreshTicks)
     {
-        if (!IsAlive)
+        if (!IsAlive || ticks <= 0 || !float.IsFinite(criticalDamageMultiplier))
         {
             return;
         }
 
-        KritzCritBoostTicksRemaining = int.Max(KritzCritBoostTicksRemaining, ticks);
+        criticalDamageMultiplier = MathF.Max(1f, criticalDamageMultiplier);
+        providerPlayerId = Math.Max(0, providerPlayerId);
+        providerSlot = Math.Max(0, providerSlot);
+        var sameProvider = KritzCritBoostProviderPlayerId == providerPlayerId
+            && KritzCritBoostProviderSlot == providerSlot;
+        var candidateWins = !IsKritzCritBoosted
+            || criticalDamageMultiplier > KritzCritBoostDamageMultiplier + 0.0001f
+            || (MathF.Abs(criticalDamageMultiplier - KritzCritBoostDamageMultiplier) <= 0.0001f
+                && (providerSlot < KritzCritBoostProviderSlot
+                    || (providerSlot == KritzCritBoostProviderSlot
+                        && providerPlayerId < KritzCritBoostProviderPlayerId)));
+        if (!sameProvider && !candidateWins)
+        {
+            return;
+        }
+
+        KritzCritBoostProviderPlayerId = providerPlayerId;
+        KritzCritBoostProviderSlot = providerSlot;
+        KritzCritBoostDamageMultiplier = criticalDamageMultiplier;
+        KritzCritBoostTicksRemaining = sameProvider
+            ? int.Max(KritzCritBoostTicksRemaining, ticks)
+            : ticks;
+    }
+
+    internal void HydrateKritzCritBoost(
+        bool isActive,
+        int ticksRemaining,
+        int providerPlayerId,
+        int providerSlot,
+        float criticalDamageMultiplier)
+    {
+        if (!isActive || ticksRemaining <= 0)
+        {
+            KritzCritBoostTicksRemaining = 0;
+            KritzCritBoostProviderPlayerId = 0;
+            KritzCritBoostProviderSlot = int.MaxValue;
+            KritzCritBoostDamageMultiplier = 1f;
+            return;
+        }
+
+        KritzCritBoostTicksRemaining = ticksRemaining;
+        KritzCritBoostProviderPlayerId = Math.Max(0, providerPlayerId);
+        KritzCritBoostProviderSlot = Math.Max(0, providerSlot);
+        KritzCritBoostDamageMultiplier =
+            ExperimentalGameplaySettings.NormalizeCriticalDamageMultiplier(
+                criticalDamageMultiplier);
     }
 
     public int ApplyContinuousHealingAndGetAmount(float healing)
@@ -573,7 +690,7 @@ public sealed partial class PlayerEntity
             return;
         }
 
-        if (SniperChargeTicks < SniperChargeMaxTicks)
+        if (SniperChargeTicks < LastToDieSniperRifleFullChargeTicks)
         {
             SniperChargeTicks += 1;
         }
@@ -607,7 +724,7 @@ public sealed partial class PlayerEntity
             SpyBackstabWindupTicksRemaining -= 1;
             if (SpyBackstabWindupTicksRemaining == 0)
             {
-                SpyBackstabRecoveryTicksRemaining = SpyBackstabRecoveryTicksDefault;
+                SpyBackstabRecoveryTicksRemaining = ResolveSpyBackstabDurationTicks(SpyBackstabRecoveryTicksDefault);
                 SpyBackstabHitboxPending = true;
             }
         }
@@ -652,6 +769,12 @@ public sealed partial class PlayerEntity
         if (KritzCritBoostTicksRemaining > 0)
         {
             KritzCritBoostTicksRemaining -= 1;
+            if (KritzCritBoostTicksRemaining == 0)
+            {
+                KritzCritBoostProviderPlayerId = 0;
+                KritzCritBoostProviderSlot = int.MaxValue;
+                KritzCritBoostDamageMultiplier = 1f;
+            }
         }
     }
 
@@ -674,6 +797,7 @@ public sealed partial class PlayerEntity
                 {
                     MedicUberCharge = 0f;
                     IsMedicUbering = false;
+                    MedicUberDeliveryMode = MedicUberDeliveryMode.None;
                     MedicUberCommittedCharge = 0f;
                     MedicUberingTotalTicks = 0;
                     MedicUberUsesFixedDuration = false;
@@ -691,6 +815,7 @@ public sealed partial class PlayerEntity
                 {
                     MedicUberCharge = 0f;
                     IsMedicUbering = false;
+                    MedicUberDeliveryMode = MedicUberDeliveryMode.None;
                 }
             }
         }
@@ -708,7 +833,8 @@ public sealed partial class PlayerEntity
 
         if (MedicNeedleRefillTicks <= 0)
         {
-            MedicNeedleRefillTicks = ApplyExperimentalReloadMultiplier(MedicNeedleRefillTicksDefault);
+            MedicNeedleRefillTicks = ApplyLastToDieMedicNeedleReloadMultiplier(
+                MedicNeedleRefillTicksDefault);
             return;
         }
 
@@ -736,12 +862,14 @@ public sealed partial class PlayerEntity
     {
         TimeUnscathedSourceTicks = 0;
         MedicPassiveRegenElapsedSourceTicks = 0;
+        LastToDieMedicIronWillHealingRemainder = 0;
     }
 
     private void AdvanceMedicPassiveRegenState()
     {
         if (Health >= MaxHealth)
         {
+            ResetLastToDieMedicDynamicState();
             MedicPassiveRegenElapsedSourceTicks = (MedicPassiveRegenElapsedSourceTicks + 1)
                 % MedicPassiveRegenIntervalSourceTicks;
             return;
@@ -759,13 +887,22 @@ public sealed partial class PlayerEntity
             : TimeUnscathedSourceTicks < MedicPassiveRegenSecondThresholdSourceTicks
                 ? 4
                 : 5;
+        healAmount = ApplyLastToDieMedicPassiveRegenerationMultiplier(healAmount);
         Health = int.Min(MaxHealth, Health + healAmount);
     }
 
     public bool TryStartSpySuperjumpCharge(float aimDirectionDegrees, bool leftHeld, bool rightHeld, bool upHeld, bool downHeld)
     {
         // Can't start charging while already superjumping or already charging or on cooldown or backstabbing or carrying intel
-        if (!IsAlive || ClassId != PlayerClass.Spy || IsTaunting || IsSpyBackstabAnimating || IsCarryingIntel || SpySuperjumpChargeTicks > 0 || IsSpySuperjumping || SpySuperjumpCooldownTicksRemaining > 0 || SpySuperjumpChargeStartBlockedUntilAbilityRelease)
+        if (!IsAlive
+            || ClassId != PlayerClass.Spy
+            || IsTaunting
+            || IsSpyBackstabAnimating
+            || IsCarryingIntel
+            || SpySuperjumpChargeTicks > 0
+            || SpySuperjumpAvailableCharges <= 0
+            || IsSpySuperjumping && !LastToDieDoubleJumpEnabled
+            || SpySuperjumpChargeStartBlockedUntilAbilityRelease)
         {
             return false;
         }
@@ -828,6 +965,18 @@ public sealed partial class PlayerEntity
         SpySuperjumpChargeDirectionDegrees = aimDirectionDegrees;
     }
 
+    public int ResolveSpySuperjumpMaxChargeTicks(int configuredMaxChargeTicks)
+    {
+        configuredMaxChargeTicks = Math.Max(1, configuredMaxChargeTicks);
+        return LastToDieDoubleJumpEnabled
+            ? Math.Max(
+                1,
+                (int)MathF.Ceiling(
+                    configuredMaxChargeTicks
+                        / (float)LastToDieDerivedModifiers.SpyDoubleJumpChargeSpeedMultiplier))
+            : configuredMaxChargeTicks;
+    }
+
     public bool TryReleaseSpySuperjump(
         out float velocityX,
         out float velocityY,
@@ -858,13 +1007,14 @@ public sealed partial class PlayerEntity
         var calculatedVelocityY = MathF.Sin(radians) * velocity;
 
         // Only execute jump if grounded, but always clear charge state
-        var wasGrounded = IsGrounded;
+        var canLaunch = IsGrounded
+            || LastToDieDoubleJumpEnabled && IsSpySuperjumping && SpySuperjumpAvailableCharges > 0;
 
         SpySuperjumpChargeTicks = 0;
         SpySuperjumpChargeDirectionDegrees = 0f;
         SpySuperjumpChargeStartMovementButtons = 0;
 
-        if (!wasGrounded)
+        if (!canLaunch || SpySuperjumpAvailableCharges <= 0)
         {
             return false;
         }
@@ -873,9 +1023,104 @@ public sealed partial class PlayerEntity
         velocityY = calculatedVelocityY;
         IsSpySuperjumping = true;
         SpySuperjumpHorizontalVelocity = velocityX; // Store horizontal velocity to maintain during flight
-        SpySuperjumpCooldownTicksRemaining = cooldownTicks; // Start cooldown
+        SpySuperjumpAvailableCharges -= 1;
+        if (SpySuperjumpCooldownTicksRemaining <= 0)
+        {
+            SpySuperjumpCooldownTicksRemaining = cooldownTicks;
+        }
 
         return true;
+    }
+
+    internal void HydrateMedicUberDeliveryState(byte encoded)
+    {
+        var mode = (MedicUberDeliveryMode)(encoded & 0x03);
+        var active = IsAlive && (encoded & 0x80) != 0;
+        if (ClassId != PlayerClass.Medic
+            || !Enum.IsDefined(mode)
+            || mode == MedicUberDeliveryMode.None)
+        {
+            active = false;
+            mode = MedicUberDeliveryMode.None;
+        }
+
+        IsMedicUbering = active;
+        MedicUberDeliveryMode = active ? mode : MedicUberDeliveryMode.None;
+        if (ClassId == PlayerClass.Medic)
+        {
+            ConfigureLastToDieMedicRejuvenationRay(mode == MedicUberDeliveryMode.RejuvenationRay);
+        }
+    }
+
+    private MedicUberDeliveryMode ResolveConfiguredMedicUberDeliveryMode()
+    {
+        if (ClassId != PlayerClass.Medic)
+        {
+            return MedicUberDeliveryMode.None;
+        }
+
+        if (IsMedicKritzUberEquipped)
+        {
+            return MedicUberDeliveryMode.Kritz;
+        }
+
+        return LastToDieMedicRejuvenationRayEnabled
+            ? MedicUberDeliveryMode.RejuvenationRay
+            : MedicUberDeliveryMode.RegularInvulnerability;
+    }
+
+    internal void RestoreLastToDieSpyJumpBootCharges()
+    {
+        if (ClassId != PlayerClass.Spy)
+        {
+            return;
+        }
+
+        SpySuperjumpAvailableCharges = SpySuperjumpMaximumCharges;
+        SpySuperjumpCooldownTicksRemaining = 0;
+    }
+
+    internal void HydrateSpyJumpBootState(
+        bool isActive,
+        float horizontalVelocity,
+        int cooldownTicksRemaining,
+        int availableCharges,
+        int maximumCharges,
+        int chargeTicks = 0,
+        float chargeDirectionDegrees = 0f,
+        byte chargeStartMovementButtons = 0,
+        bool chargeStartBlockedUntilAbilityRelease = false)
+    {
+        if (ClassId != PlayerClass.Spy)
+        {
+            IsSpySuperjumping = false;
+            SpySuperjumpHorizontalVelocity = 0f;
+            SpySuperjumpCooldownTicksRemaining = 0;
+            SpySuperjumpMaximumChargesValue = 1;
+            SpySuperjumpAvailableCharges = 1;
+            SpySuperjumpChargeTicks = 0;
+            SpySuperjumpChargeDirectionDegrees = 0f;
+            SpySuperjumpChargeStartMovementButtons = 0;
+            SpySuperjumpChargeStartBlockedUntilAbilityRelease = false;
+            return;
+        }
+
+        SpySuperjumpMaximumChargesValue = Math.Clamp(maximumCharges, 1, 2);
+        LastToDieDoubleJumpEnabledValue = SpySuperjumpMaximumChargesValue > 1;
+        SpySuperjumpAvailableCharges = Math.Clamp(
+            availableCharges,
+            0,
+            SpySuperjumpMaximumChargesValue);
+        SpySuperjumpCooldownTicksRemaining = Math.Max(0, cooldownTicksRemaining);
+        IsSpySuperjumping = isActive;
+        SpySuperjumpHorizontalVelocity = isActive ? horizontalVelocity : 0f;
+        SpySuperjumpChargeTicks = Math.Clamp(
+            chargeTicks,
+            0,
+            ResolveSpySuperjumpMaxChargeTicks(SpySuperjumpMaxChargeTicks));
+        SpySuperjumpChargeDirectionDegrees = chargeDirectionDegrees;
+        SpySuperjumpChargeStartMovementButtons = (byte)(chargeStartMovementButtons & 0x0F);
+        SpySuperjumpChargeStartBlockedUntilAbilityRelease = chargeStartBlockedUntilAbilityRelease;
     }
 
     private void AdvanceSpySuperjumpState()
@@ -886,6 +1131,7 @@ public sealed partial class PlayerEntity
             IsSpySuperjumping = false;
             SpySuperjumpHorizontalVelocity = 0f;
             SpySuperjumpCooldownTicksRemaining = 0;
+            SpySuperjumpAvailableCharges = SpySuperjumpMaximumCharges;
             SpySuperjumpChargeStartBlockedUntilAbilityRelease = false;
             return;
         }
@@ -894,6 +1140,10 @@ public sealed partial class PlayerEntity
         if (SpySuperjumpCooldownTicksRemaining > 0)
         {
             SpySuperjumpCooldownTicksRemaining -= 1;
+            if (SpySuperjumpCooldownTicksRemaining == 0)
+            {
+                SpySuperjumpAvailableCharges = SpySuperjumpMaximumCharges;
+            }
         }
 
         // Clear superjumping flag and stored velocity when grounded
@@ -933,9 +1183,11 @@ public sealed partial class PlayerEntity
         SniperBowChargeDirectionDegrees = 0f;
     }
 
-    public void IncrementSniperBowCharge(float aimDirectionDegrees, int maxChargeTicks = SniperBowMaxChargeTicks)
+    public void IncrementSniperBowCharge(float aimDirectionDegrees, int maxChargeTicks = -1)
     {
-        maxChargeTicks = Math.Max(1, maxChargeTicks);
+        maxChargeTicks = maxChargeTicks > 0
+            ? maxChargeTicks
+            : LastToDieSniperBowFullChargeTicks;
         if (SniperBowChargeTicks > 0 && SniperBowChargeTicks < maxChargeTicks)
         {
             SniperBowChargeTicks += 1;
@@ -949,7 +1201,7 @@ public sealed partial class PlayerEntity
         out float velocityY,
         out int damage,
         out float fakeSpeedMultiplier,
-        int maxChargeTicks = SniperBowMaxChargeTicks,
+        int maxChargeTicks = -1,
         float minVelocity = SniperBowMinVelocity,
         float maxVelocity = SniperBowMaxVelocity)
     {
@@ -963,7 +1215,9 @@ public sealed partial class PlayerEntity
             return false;
         }
 
-        maxChargeTicks = Math.Max(1, maxChargeTicks);
+        maxChargeTicks = maxChargeTicks > 0
+            ? maxChargeTicks
+            : LastToDieSniperBowFullChargeTicks;
         minVelocity = MathF.Max(0f, minVelocity);
         maxVelocity = MathF.Max(minVelocity, maxVelocity);
 
@@ -999,6 +1253,7 @@ public sealed partial class PlayerEntity
         {
             SniperBowChargeTicks = 0;
             SniperBowChargeDirectionDegrees = 0f;
+            CancelLastToDieSniperVolley();
         }
     }
 }

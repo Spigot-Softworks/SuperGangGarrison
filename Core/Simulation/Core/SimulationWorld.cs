@@ -84,13 +84,16 @@ public sealed partial class SimulationWorld
     private readonly Dictionary<byte, PlayerEntity> _additionalNetworkPlayersBySlot = new();
     private readonly Dictionary<int, PlayerEntity> _activeNetworkPlayersById = new();
     private readonly Dictionary<int, byte> _networkPlayerSlotsByPlayerId = new();
-    private readonly HashSet<byte> _enabledAdditionalNetworkPlayerSlots = new();
+    // Keep enabled slots ordered so hot-path player enumeration retains the
+    // same slot order without scanning all forty possible network slots.
+    private readonly SortedSet<byte> _enabledAdditionalNetworkPlayerSlots = new();
     private readonly Dictionary<byte, CharacterClassDefinition> _additionalNetworkPlayerClassDefinitions = new();
     private readonly Dictionary<byte, PlayerInputSnapshot> _additionalNetworkPlayerInputs = new();
     private readonly Dictionary<byte, PlayerInputSnapshot> _additionalNetworkPlayerPreviousInputs = new();
     private readonly Dictionary<byte, InputButtons> _networkPlayerForcedPressedButtons = new();
     private readonly Dictionary<byte, bool> _additionalNetworkPlayerAwaitingJoin = new();
     private readonly Dictionary<byte, int> _additionalNetworkPlayerRespawnTicks = new();
+    private readonly HashSet<byte> _automaticRespawnSuppressedNetworkSlots = new();
     private readonly Dictionary<int, int> _jumpInputBufferTicksByPlayerId = new();
     private readonly Dictionary<(int PlayerId, int RoomObjectIndex), bool> _catapultContacts = new();
     private SimpleLevel? _catapultContactLevel;

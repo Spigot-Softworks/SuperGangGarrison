@@ -25,6 +25,11 @@ public sealed partial class SimulationWorld
             && ReferenceEquals(player, LocalPlayer);
     }
 
+    private static bool ShouldTrackKillStreakForPlayer(PlayerEntity? player)
+    {
+        return player is not null;
+    }
+
     private void TryRegisterCombatComboHit(PlayerEntity? attacker, PlayerEntity target, int appliedDamage)
     {
         if (appliedDamage <= 0
@@ -44,7 +49,7 @@ public sealed partial class SimulationWorld
     {
         if (killer is null
             || !ExperimentalGameplaySettings.EnableKillStreakTracking
-            || !ShouldTrackCombatPerformanceForPlayer(killer)
+            || !ShouldTrackKillStreakForPlayer(killer)
             || ReferenceEquals(killer, victim)
             || killer.Team == victim.Team)
         {

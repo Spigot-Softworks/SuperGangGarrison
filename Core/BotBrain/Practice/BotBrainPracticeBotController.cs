@@ -47,6 +47,12 @@ public sealed class BotBrainPracticeBotController : IPracticeBotController
     private readonly BotBrainChatBubbleController _chatBubbles = new();
     private readonly List<BotControllerDiagnosticsEntry> _diagnosticEntries = new();
     private BotControllerDiagnosticsSnapshot _lastDiagnostics = BotControllerDiagnosticsSnapshot.Empty;
+    private readonly bool _disableShippedNavigationGraphs;
+
+    public BotBrainPracticeBotController(bool disableShippedNavigationGraphs = false)
+    {
+        _disableShippedNavigationGraphs = disableShippedNavigationGraphs;
+    }
 
     public bool CollectDiagnostics { get; set; }
 
@@ -149,7 +155,7 @@ public sealed class BotBrainPracticeBotController : IPracticeBotController
         {
             if (!_controllersBySlot.TryGetValue(slot, out var controller))
             {
-                controller = new BotBrainController();
+                controller = new BotBrainController(_disableShippedNavigationGraphs);
                 controller.PreferEnemyPlayerObjective = controlledSlot.PreferEnemyPlayerObjective;
                 _controllersBySlot[slot] = controller;
                 _configuredSlots[slot] = controlledSlot;
@@ -383,7 +389,7 @@ public sealed class BotBrainPracticeBotController : IPracticeBotController
 
             if (!_controllersBySlot.TryGetValue(slot, out var controller))
             {
-                controller = new BotBrainController();
+                controller = new BotBrainController(_disableShippedNavigationGraphs);
                 controller.PreferEnemyPlayerObjective = controlledSlot.PreferEnemyPlayerObjective;
                 _controllersBySlot[slot] = controller;
                 _configuredSlots[slot] = controlledSlot;
@@ -440,16 +446,17 @@ public sealed class BotBrainPracticeBotController : IPracticeBotController
         IReadOnlyDictionary<byte, PlayerTeam> controlledTeamsBySlot)
     {
         var startTimestamp = BotThinkSpikeTracingEnabled ? Stopwatch.GetTimestamp() : 0L;
-        var input = workItem.Controller.RequiresPerTickNavigationThink
-            ? workItem.Controller.ThinkRuntimeContact(
-                workItem.Player,
-                world,
-                workItem.ControlledSlot.Team)
-            : workItem.Controller.Think(
-                workItem.Player,
-                world,
-                workItem.ControlledSlot.Team,
-                controlledTeamsBySlot);
+        // A scheduled think is always the complete brain pass.  In
+        // particular, an active top-down route must not turn this into a
+        // navigation-only heartbeat or the controller will stop refreshing
+        // combat target selection and fire decisions indefinitely.  The
+        // scheduler advances stale cached routes separately through
+        // AdvanceCachedNavigationForSlots.
+        var input = workItem.Controller.Think(
+            workItem.Player,
+            world,
+            workItem.ControlledSlot.Team,
+            controlledTeamsBySlot);
         if (BotThinkSpikeTracingEnabled)
         {
             var elapsedMilliseconds = (Stopwatch.GetTimestamp() - startTimestamp) * 1000d / Stopwatch.Frequency;

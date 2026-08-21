@@ -211,6 +211,10 @@ public partial class Game1
                 timeLimitMinutes: timeLimitMinutes,
                 capLimit: capLimit,
                 respawnSeconds: respawnSeconds);
+            if (sessionKind == GameplaySessionKind.Practice)
+            {
+                _game.ResetPracticeRoundPoints();
+            }
             LogBrowserPracticeStartupStep("configure-world");
 
             if (!_game._world.TryLoadLevel(levelName))
@@ -219,11 +223,6 @@ public partial class Game1
                 return false;
             }
             LogBrowserPracticeStartupStep("load-level");
-            // Warm the shared alpha graph while the map is still in the
-            // session-loading phase. This keeps the first bot Think out of
-            // the frame-time-critical simulation loop.
-            _game.LoadPracticeNavigationAssetsForCurrentLevel();
-            LogBrowserPracticeStartupStep("load-navigation");
 
             var forcedBlockingTeamGates = TeamGateLockMask.None;
             if (sessionKind == GameplaySessionKind.LastToDie && _game._lastToDieRun is not null)
@@ -251,6 +250,12 @@ public partial class Game1
                 LogBrowserPracticeStartupStep("prepare-local-join");
             }
 
+            // Queue the graph warmup after all callers have finished their
+            // synchronous session setup. The next gameplay update starts the
+            // background task while the reusable loading overlay is visible,
+            // and gameplay remains paused until it has completed.
+            _game.QueuePracticeNavigationWarmupForCurrentLevel();
+            LogBrowserPracticeStartupStep("queue-navigation");
             _game.AddConsoleLine($"{consoleSessionName} started on {levelName} tickrate={tickRate}");
             LogBrowserPracticeStartupStep("complete");
             return true;

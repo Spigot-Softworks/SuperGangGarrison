@@ -8,6 +8,8 @@
     <RootNamespace>OpenGarrison.Client.Browser</RootNamespace>
     <OpenGarrisonClientAsLibrary>true</OpenGarrisonClientAsLibrary>
     <OpenGarrisonBrowserAot Condition="'$(OpenGarrisonBrowserAot)' == ''">true</OpenGarrisonBrowserAot>
+    <OpenGarrisonBrowserBuildVersion Condition="'$(OpenGarrisonBrowserBuildVersion)' == ''">dev</OpenGarrisonBrowserBuildVersion>
+    <OpenGarrisonBrowserReleaseChannel Condition="'$(OpenGarrisonBrowserReleaseChannel)' == ''">stable</OpenGarrisonBrowserReleaseChannel>
     <DisableBuildCompression>true</DisableBuildCompression>
   </PropertyGroup>
 
@@ -28,6 +30,8 @@
   </Target>
 
   <ItemGroup>
+    <AssemblyMetadata Include="OpenGarrisonBrowserBuildVersion" Value="$(OpenGarrisonBrowserBuildVersion)" />
+    <AssemblyMetadata Include="OpenGarrisonBrowserReleaseChannel" Value="$(OpenGarrisonBrowserReleaseChannel)" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.5" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="10.0.5" PrivateAssets="all" />
     <PackageReference Include="nkast.Kni.Platform.Blazor.GL" Version="4.2.9001.2" />

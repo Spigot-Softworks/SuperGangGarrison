@@ -237,7 +237,10 @@ public partial class Game1
 
     private LobbyBrowserEntry? AddLobbyBrowserEntry(string displayName, NetworkEndpoint endpoint, bool isPrivate, bool isLobbyEntry)
     {
-        if (string.IsNullOrWhiteSpace(endpoint.Host) || (!endpoint.HasUdpEndpoint && !endpoint.HasWebSocketEndpoint))
+        if (string.IsNullOrWhiteSpace(endpoint.Host)
+            || (!endpoint.HasUdpEndpoint
+                && !endpoint.HasWebSocketEndpoint
+                && !endpoint.HasQuicEndpoint))
         {
             return null;
         }
@@ -297,6 +300,22 @@ public partial class Game1
         if (existing.HasUdpEndpoint && incoming.HasUdpEndpoint && existing.UdpPort == incoming.UdpPort)
         {
             return true;
+        }
+
+        if (existing.HasQuicEndpoint && incoming.HasQuicEndpoint)
+        {
+            if (!string.IsNullOrWhiteSpace(existing.QuicUrl)
+                && !string.IsNullOrWhiteSpace(incoming.QuicUrl))
+            {
+                return existing.QuicUrl.Equals(incoming.QuicUrl, StringComparison.OrdinalIgnoreCase);
+            }
+
+            if (existing.QuicPort is > 0
+                && incoming.QuicPort is > 0
+                && existing.QuicPort == incoming.QuicPort)
+            {
+                return true;
+            }
         }
 
         if (!existing.HasWebSocketEndpoint || !incoming.HasWebSocketEndpoint)

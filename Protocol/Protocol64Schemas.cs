@@ -58,6 +58,10 @@ public enum Protocol64EventId : ushort
     StateResyncResponse = 37,
     RetransmitRequest = 38,
     RetransmitResponse = 39,
+    LastToDieCommand = LastToDieProtocolSchemaIds.Command,
+    LastToDieCommandResult = LastToDieProtocolSchemaIds.CommandResult,
+    LastToDieRunSnapshot = LastToDieProtocolSchemaIds.RunSnapshot,
+    LastToDieRunSnapshotAck = LastToDieProtocolSchemaIds.RunSnapshotAck,
 }
 
 public readonly record struct Protocol64SchemaKey(ushort SchemaId, ushort Revision);

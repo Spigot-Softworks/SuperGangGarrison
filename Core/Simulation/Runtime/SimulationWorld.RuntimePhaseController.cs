@@ -34,6 +34,8 @@ public sealed partial class SimulationWorld
         public void AdvancePrePlayerSimulationPhase()
         {
             _matchPhaseController.AdvancePrePlayerMatchPhase();
+            _world.BeginLastToDieStatusEffectsTick();
+            _world.RefreshLastToDieMedicLinkProjections();
             _entityPhaseController.AdvanceProjectileAndTransientEntityPhase();
             _matchPhaseController.AdvancePresentationAndChatPhase();
         }
@@ -46,6 +48,7 @@ public sealed partial class SimulationWorld
         public void AdvancePostPlayerSimulationPhase()
         {
             _entityPhaseController.AdvancePostPlayerEntityPhase();
+            _world.EndLastToDieStatusEffectsTick();
             _world.TickMapLogicTimersOncePerFrame();
             _matchPhaseController.AdvancePostPlayerMatchPhase();
         }

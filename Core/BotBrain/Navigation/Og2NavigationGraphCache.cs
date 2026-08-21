@@ -22,6 +22,11 @@ internal static class Og2NavigationGraphCache
     private const byte BrotliCompression = 1;
     private const string CacheDirectoryName = "botbrain-og2-nav";
     private const string ShippedDirectoryName = "BotBrainOg2Nav";
+    private static readonly string[] CompatibleShippedGeneratorFingerprints =
+    [
+        "og2-contact-20260731-v50-merge-static-class-edges",
+        "og2-contact-20260731-v49-shipped-geometry-key",
+    ];
     private const long MaxUncompressedCacheBytes = 512L * 1024L * 1024L;
 
     public static bool Enabled =>
@@ -105,9 +110,7 @@ internal static class Og2NavigationGraphCache
 
     public static bool TryLoad(SimpleLevel level, string key, out NavGraph graph, out string path)
     {
-        path = GetShippedPath(level, key);
-        graph = null!;
-        if (File.Exists(path) && TryLoadFile(level, key, path, out graph))
+        if (TryLoadShipped(level, key, out graph, out path))
         {
             return true;
         }
@@ -119,6 +122,50 @@ internal static class Og2NavigationGraphCache
         }
 
         return TryLoadFile(level, key, path, out graph);
+    }
+
+    public static bool TryLoadShipped(SimpleLevel level, string key, out NavGraph graph, out string path)
+    {
+        path = GetShippedPath(level, key);
+        graph = null!;
+        if (File.Exists(path) && TryLoadFile(level, key, path, out graph))
+        {
+            return true;
+        }
+
+        // v51 added top-down routing and a top-down bit to the geometry
+        // fingerprint. The shipped stock snapshots were produced by v50
+        // (with a small number of v49 fallbacks). Existing platformer maps
+        // must load those snapshots instead of rebuilding them at runtime;
+        // an old platformer graph is never valid for a top-down map.
+        if (level.IsTopDown)
+        {
+            return false;
+        }
+
+        foreach (var generatorFingerprint in CompatibleShippedGeneratorFingerprints)
+        {
+            var compatibleKey = BuildCompatibleShippedKey(level, generatorFingerprint);
+            path = GetShippedPath(level, compatibleKey);
+            if (File.Exists(path) && TryLoadFile(level, compatibleKey, path, out graph))
+            {
+                return true;
+            }
+        }
+
+        path = GetShippedPath(level, key);
+        return false;
+    }
+
+    private static string BuildCompatibleShippedKey(SimpleLevel level, string generatorFingerprint)
+    {
+        var parts = BuildKey(level, sweepTicksOverride: "32", contactGraphOverride: "1")
+            .Split('|');
+        parts[1] = generatorFingerprint;
+        parts[7] = "32";
+        parts[8] = "none";
+        parts[^1] = ComputeGraphGeometryFingerprint(level, includeTopDown: false);
+        return string.Join('|', parts);
     }
 
     internal static void SaveShipped(SimpleLevel level, string key, NavGraph graph, out string path)
@@ -623,10 +670,16 @@ internal static class Og2NavigationGraphCache
             $"og2-alpha|{Og2NavigationGraphBuilder.GeneratorFingerprint}|",
             StringComparison.Ordinal);
 
-    private static string ComputeGraphGeometryFingerprint(SimpleLevel level)
+    private static string ComputeGraphGeometryFingerprint(
+        SimpleLevel level,
+        bool includeTopDown = true)
     {
         var builder = new StringBuilder();
         AppendFingerprint(builder, level.Mode.ToString());
+        if (includeTopDown)
+        {
+            AppendFingerprint(builder, level.IsTopDown.ToString());
+        }
         AppendFingerprint(builder, level.MapAreaIndex);
         AppendFingerprint(builder, level.MapScale);
         AppendFingerprint(builder, level.Bounds.Width);

@@ -1,4 +1,5 @@
 using System;
+using OpenGarrison.Core.LastToDie;
 using OpenGarrison.Protocol;
 
 namespace OpenGarrison.Core;
@@ -148,7 +149,31 @@ public sealed partial class SimulationWorld
             offhandCooldownTicks: snapshotPlayer.OffhandCooldownTicks,
             offhandReloadTicks: snapshotPlayer.OffhandReloadTicks,
             gibDeaths: snapshotPlayer.GibDeaths,
-            isTypingChatMessage: snapshotPlayer.IsTypingChatMessage);
+            isTypingChatMessage: snapshotPlayer.IsTypingChatMessage,
+            networkMaxHealth: snapshotPlayer.MaxHealth,
+            medicUberDeliveryState: snapshotPlayer.MedicUberDeliveryState,
+            kritzCritBoostProviderPlayerId: snapshotPlayer.KritzCritBoostProviderPlayerId,
+            kritzCritBoostProviderSlot: snapshotPlayer.KritzCritBoostProviderSlot,
+            kritzCritBoostDamageMultiplier: snapshotPlayer.KritzCritBoostDamageMultiplier,
+            isDispenserBuffed: snapshotPlayer.IsDispenserBuffed,
+            dispenserAttackReloadSpeedMultiplier: snapshotPlayer.DispenserAttackReloadSpeedMultiplier);
+        player.HydrateLastToDieSpyCloakMeter(
+            snapshotPlayer.LastToDieSpyCloakMeterUnits,
+            global::OpenGarrison.Core.LastToDie.LastToDieDerivedModifiers.SpyCloakMeterDurationSeconds
+                * Math.Max(1, Config.TicksPerSecond)
+                * global::OpenGarrison.Core.LastToDie.LastToDieDerivedModifiers.SpyCloakMeterUnitsPerTick,
+            snapshotPlayer.LastToDieSpyRogueRampStacks,
+            snapshotPlayer.LastToDieSpyRogueRampTicks);
+        player.HydrateSpyJumpBootState(
+            snapshotPlayer.IsSpySuperjumping,
+            snapshotPlayer.SpySuperjumpHorizontalVelocity,
+            snapshotPlayer.SpySuperjumpCooldownTicksRemaining,
+            snapshotPlayer.SpySuperjumpAvailableCharges,
+            snapshotPlayer.SpySuperjumpMaximumCharges,
+            snapshotPlayer.SpySuperjumpChargeTicks,
+            snapshotPlayer.SpySuperjumpChargeDirectionDegrees,
+            snapshotPlayer.SpySuperjumpChargeStartMovementButtons,
+            snapshotPlayer.SpySuperjumpChargeStartBlockedUntilAbilityRelease);
     }
 
     private static CharacterClassDefinition ResolveSnapshotClassDefinition(SnapshotPlayerState snapshotPlayer, string gameplayClassId)
@@ -207,19 +232,19 @@ public sealed partial class SimulationWorld
             state =>
         {
                 var shot = new ShotProjectileEntity(state.Id, (PlayerTeam)state.Team, state.OwnerId, state.X, state.Y, state.VelocityX, state.VelocityY);
-                if (state.IsCritical)
-                    shot.SetCritical();
+                shot.HydrateCritical(state.IsCritical, state.CriticalDamageMultiplier);
                 return shot;
             },
             static (entity, state) =>
             {
                 entity.ApplyNetworkState(state.X, state.Y, state.VelocityX, state.VelocityY, state.TicksRemaining);
-                if (state.IsCritical && !entity.IsCritical)
-                    entity.SetCritical();
+                entity.HydrateCritical(state.IsCritical, state.CriticalDamageMultiplier);
             },
             entity => TryRegisterServerTerminatedProjectilePlayerHitEffect(
                 entity.X, entity.Y, entity.PreviousX, entity.PreviousY, entity.Team, entity.OwnerId),
-            static (entity, state) => ShouldApplyLocallySimulatedProjectileState(entity.TicksRemaining, state.TicksRemaining));
+            static (entity, state) => ShouldApplyLocallySimulatedProjectileState(entity.TicksRemaining, state.TicksRemaining)
+                || entity.IsCritical != state.IsCritical
+                || entity.CriticalDamageMultiplier != state.CriticalDamageMultiplier);
         ApplySnapshotShots(
             snapshot.Bubbles,
             snapshot.RemovedBubbleIds,
@@ -228,10 +253,18 @@ public sealed partial class SimulationWorld
             static (entity, state) => entity.Team == (PlayerTeam)state.Team && entity.OwnerId == state.OwnerId,
             state =>
         {
-                return new BubbleProjectileEntity(state.Id, (PlayerTeam)state.Team, state.OwnerId, state.X, state.Y, state.VelocityX, state.VelocityY);
+                var bubble = new BubbleProjectileEntity(state.Id, (PlayerTeam)state.Team, state.OwnerId, state.X, state.Y, state.VelocityX, state.VelocityY);
+                bubble.HydrateCritical(state.IsCritical, state.CriticalDamageMultiplier);
+                return bubble;
             },
-            static (entity, state) => entity.ApplyNetworkState(state.X, state.Y, state.VelocityX, state.VelocityY, state.TicksRemaining),
-            shouldApplyExistingState: static (entity, state) => ShouldApplyLocallySimulatedProjectileState(entity.TicksRemaining, state.TicksRemaining));
+            static (entity, state) =>
+            {
+                entity.ApplyNetworkState(state.X, state.Y, state.VelocityX, state.VelocityY, state.TicksRemaining);
+                entity.HydrateCritical(state.IsCritical, state.CriticalDamageMultiplier);
+            },
+            shouldApplyExistingState: static (entity, state) => ShouldApplyLocallySimulatedProjectileState(entity.TicksRemaining, state.TicksRemaining)
+                || entity.IsCritical != state.IsCritical
+                || entity.CriticalDamageMultiplier != state.CriticalDamageMultiplier);
         ApplySnapshotShots(
             snapshot.Blades,
             snapshot.RemovedBladeIds,
@@ -241,19 +274,19 @@ public sealed partial class SimulationWorld
             state =>
         {
                 var blade = new BladeProjectileEntity(state.Id, (PlayerTeam)state.Team, state.OwnerId, state.X, state.Y, state.VelocityX, state.VelocityY, hitDamage: 0);
-                if (state.IsCritical)
-                    blade.SetCritical();
+                blade.HydrateCritical(state.IsCritical, state.CriticalDamageMultiplier);
                 return blade;
             },
             static (entity, state) =>
             {
                 entity.ApplyNetworkState(state.X, state.Y, state.VelocityX, state.VelocityY, state.TicksRemaining, hitDamage: 0);
-                if (state.IsCritical && !entity.IsCritical)
-                    entity.SetCritical();
+                entity.HydrateCritical(state.IsCritical, state.CriticalDamageMultiplier);
             },
             entity => TryRegisterServerTerminatedProjectilePlayerHitEffect(
                 entity.X, entity.Y, entity.PreviousX, entity.PreviousY, entity.Team, entity.OwnerId, bloodCount: 6),
-            static (entity, state) => ShouldApplyLocallySimulatedProjectileState(entity.TicksRemaining, state.TicksRemaining));
+            static (entity, state) => ShouldApplyLocallySimulatedProjectileState(entity.TicksRemaining, state.TicksRemaining)
+                || entity.IsCritical != state.IsCritical
+                || entity.CriticalDamageMultiplier != state.CriticalDamageMultiplier);
         ApplySnapshotShots(
             snapshot.Needles,
             snapshot.RemovedNeedleIds,
@@ -262,6 +295,9 @@ public sealed partial class SimulationWorld
             static (entity, state) => entity.Team == (PlayerTeam)state.Team
                 && entity.OwnerId == state.OwnerId
                 && entity is MedicHealNeedleProjectileEntity == state.IsMedicHealNeedle
+                && (entity is not MedicHealNeedleProjectileEntity medicHealNeedle
+                    || medicHealNeedle.LastToDiePayload.Encode()
+                        == state.LastToDieMedicKritzM2Payload)
                 && entity is ArrowProjectileEntity == state.IsArrow,
             state =>
         {
@@ -274,12 +310,43 @@ public sealed partial class SimulationWorld
                         state.Y,
                         state.VelocityX,
                         state.VelocityY,
-                        fakeSpeedMultiplier: state.ArrowFakeSpeedMultiplier)
+                        Math.Max(0, (int)MathF.Round(state.DamageValue)),
+                        fakeSpeedMultiplier: state.ArrowFakeSpeedMultiplier,
+                        appliesLastToDieGuardian: state.AppliesLastToDieGuardian,
+                        piercesPlayers: state.PiercesPlayers,
+                        appliesLastToDieTranqDarts: state.AppliesLastToDieTranqDarts,
+                        lastToDiePoisonDamagePerSecond: state.LastToDiePoisonDamagePerSecond,
+                        lastToDieGhostDamageMultiplier: state.LastToDieGhostDamageMultiplier,
+                        appliesLastToDieDecapitator: state.AppliesLastToDieDecapitator,
+                        isLastToDieDecapitatorFullyCharged: state.IsLastToDieDecapitatorFullyCharged,
+                        appliesLastToDieExplosiveTip: state.AppliesLastToDieExplosiveTip,
+                        lastToDieAttachedHeadClassId: state.LastToDieAttachedHeadClassId > 0
+                            ? (PlayerClass?)state.LastToDieAttachedHeadClassId
+                            : null,
+                        lastToDieAttachedHeadTeam: state.LastToDieAttachedHeadTeam > 0
+                            ? (PlayerTeam?)state.LastToDieAttachedHeadTeam
+                            : null)
                     : state.IsMedicHealNeedle
-                    ? new MedicHealNeedleProjectileEntity(state.Id, (PlayerTeam)state.Team, state.OwnerId, state.X, state.Y, state.VelocityX, state.VelocityY)
+                    ? new MedicHealNeedleProjectileEntity(
+                        state.Id,
+                        (PlayerTeam)state.Team,
+                        state.OwnerId,
+                        state.X,
+                        state.Y,
+                        state.VelocityX,
+                        state.VelocityY,
+                        lastToDiePayload: LastToDieMedicKritzM2Payload.Decode(
+                            state.LastToDieMedicKritzM2Payload),
+                        lastToDieJavelinFuseTicksRemaining:
+                            state.LastToDieMedicJavelinFuseTicksRemaining,
+                        isLastToDieJavelinAnchored:
+                            state.IsLastToDieMedicJavelinAnchored,
+                        hasLastToDieJavelinExploded:
+                            state.HasLastToDieMedicJavelinExploded)
                     : new NeedleProjectileEntity(state.Id, (PlayerTeam)state.Team, state.OwnerId, state.X, state.Y, state.VelocityX, state.VelocityY);
-                if (state.IsCritical)
-                    needle.SetCritical();
+                needle.HydrateCritical(state.IsCritical, state.CriticalDamageMultiplier);
+                if (needle is ArrowProjectileEntity arrow)
+                    arrow.SetLanded(state.IsLanded);
                 return needle;
             },
             static (entity, state) =>
@@ -289,31 +356,75 @@ public sealed partial class SimulationWorld
                 {
                     arrow.SetFakeSpeedMultiplier(state.ArrowFakeSpeedMultiplier);
                     arrow.SetLanded(state.IsLanded);
+                    arrow.ConfigureLastToDiePayload(
+                        state.AppliesLastToDieGuardian,
+                        state.PiercesPlayers,
+                        state.AppliesLastToDieTranqDarts,
+                        state.LastToDiePoisonDamagePerSecond,
+                        state.LastToDieGhostDamageMultiplier,
+                        state.AppliesLastToDieDecapitator,
+                        state.IsLastToDieDecapitatorFullyCharged,
+                        state.AppliesLastToDieExplosiveTip,
+                        state.LastToDieAttachedHeadClassId > 0
+                            ? (PlayerClass?)state.LastToDieAttachedHeadClassId
+                            : null,
+                        state.LastToDieAttachedHeadTeam > 0
+                            ? (PlayerTeam?)state.LastToDieAttachedHeadTeam
+                            : null);
                 }
-                if (state.IsCritical && !entity.IsCritical)
-                    entity.SetCritical();
+                if (entity is MedicHealNeedleProjectileEntity medicHealNeedle)
+                {
+                    medicHealNeedle.HydrateLastToDieJavelinState(
+                        state.IsLastToDieMedicJavelinAnchored,
+                        state.LastToDieMedicJavelinFuseTicksRemaining,
+                        state.HasLastToDieMedicJavelinExploded);
+                }
+                entity.HydrateCritical(state.IsCritical, state.CriticalDamageMultiplier);
             },
             entity => TryRegisterServerTerminatedProjectilePlayerHitEffect(
                 entity.X, entity.Y, entity.PreviousX, entity.PreviousY, entity.Team, entity.OwnerId),
-            static (entity, state) => ShouldApplyLocallySimulatedProjectileState(entity.TicksRemaining, state.TicksRemaining));
+            static (entity, state) => ShouldApplyLocallySimulatedProjectileState(entity.TicksRemaining, state.TicksRemaining)
+                || entity.IsCritical != state.IsCritical
+                || entity.CriticalDamageMultiplier != state.CriticalDamageMultiplier);
         ApplySnapshotShots(
             snapshot.RevolverShots,
             snapshot.RemovedRevolverShotIds,
             IsSnapshotEntityCollectionComplete(snapshot, SnapshotEntityCollectionCompletenessFlags.RevolverShots),
             _revolverShots,
-            static (entity, state) => entity.Team == (PlayerTeam)state.Team && entity.OwnerId == state.OwnerId,
+            static (entity, state) => entity.Team == (PlayerTeam)state.Team
+                && entity.OwnerId == state.OwnerId
+                && entity.IsCritical == state.IsCritical
+                && entity.CriticalDamageMultiplier == state.CriticalDamageMultiplier
+                && entity.DamageValue == (state.DamageValue > 0f
+                    ? state.DamageValue
+                    : RevolverProjectileEntity.DamagePerHit)
+                && entity.LastToDieProfile.Encode() == state.LastToDieRevolverProfile
+                && entity.AppliesLuckyStrikeStun == state.AppliesLuckyStrikeStun,
             state =>
         {
-                var shot = new RevolverProjectileEntity(state.Id, (PlayerTeam)state.Team, state.OwnerId, state.X, state.Y, state.VelocityX, state.VelocityY);
-                if (state.IsCritical)
-                    shot.SetCritical();
+                var profile = global::OpenGarrison.Core.LastToDie.LastToDieSpyRevolverProfile.Decode(
+                    state.LastToDieRevolverProfile);
+                var damage = state.DamageValue > 0f
+                    ? state.DamageValue
+                    : RevolverProjectileEntity.DamagePerHit;
+                var shot = new RevolverProjectileEntity(
+                    state.Id,
+                    (PlayerTeam)state.Team,
+                    state.OwnerId,
+                    state.X,
+                    state.Y,
+                    state.VelocityX,
+                    state.VelocityY,
+                    damage,
+                    lastToDieProfile: profile,
+                    appliesLuckyStrikeStun: state.AppliesLuckyStrikeStun);
+                shot.HydrateCritical(state.IsCritical, state.CriticalDamageMultiplier);
                 return shot;
             },
             static (entity, state) =>
             {
                 entity.ApplyNetworkState(state.X, state.Y, state.VelocityX, state.VelocityY, state.TicksRemaining);
-                if (state.IsCritical && !entity.IsCritical)
-                    entity.SetCritical();
+                entity.HydrateCritical(state.IsCritical, state.CriticalDamageMultiplier);
             },
             entity => TryRegisterServerTerminatedProjectilePlayerHitEffect(
                 entity.X, entity.Y, entity.PreviousX, entity.PreviousY, entity.Team, entity.OwnerId),
@@ -336,17 +447,17 @@ public sealed partial class SimulationWorld
             state =>
         {
                 var flare = new FlareProjectileEntity(state.Id, (PlayerTeam)state.Team, state.OwnerId, state.X, state.Y, state.VelocityX, state.VelocityY);
-                if (state.IsCritical)
-                    flare.SetCritical();
+                flare.HydrateCritical(state.IsCritical, state.CriticalDamageMultiplier);
                 return flare;
             },
             static (entity, state) =>
             {
                 entity.ApplyNetworkState(state.X, state.Y, state.VelocityX, state.VelocityY, state.TicksRemaining);
-                if (state.IsCritical && !entity.IsCritical)
-                    entity.SetCritical();
+                entity.HydrateCritical(state.IsCritical, state.CriticalDamageMultiplier);
             },
-            shouldApplyExistingState: static (entity, state) => ShouldApplyLocallySimulatedProjectileState(entity.TicksRemaining, state.TicksRemaining));
+            shouldApplyExistingState: static (entity, state) => ShouldApplyLocallySimulatedProjectileState(entity.TicksRemaining, state.TicksRemaining)
+                || entity.IsCritical != state.IsCritical
+                || entity.CriticalDamageMultiplier != state.CriticalDamageMultiplier);
         ApplySnapshotMines(
             snapshot.Mines,
             snapshot.RemovedMineIds,
@@ -462,7 +573,8 @@ public sealed partial class SimulationWorld
             jumpPads,
             _jumpPads,
             static state => state.Id,
-            static (entity, state) => entity.OwnerPlayerId == state.OwnerPlayerId && entity.Team == (PlayerTeam)state.Team,
+            static (entity, state) => entity.OwnerPlayerId == state.OwnerPlayerId
+                && entity.Team == (PlayerTeam)state.Team,
             state => new JumpPadEntity(
                 state.Id,
                 state.OwnerPlayerId,
@@ -483,14 +595,18 @@ public sealed partial class SimulationWorld
             sentries,
             _sentries,
             static state => state.Id,
-            static (entity, state) => entity.OwnerPlayerId == state.OwnerPlayerId && entity.Team == (PlayerTeam)state.Team,
+            static (entity, state) => entity.OwnerPlayerId == state.OwnerPlayerId
+                && entity.Team == (PlayerTeam)state.Team
+                && entity.IsDispenser == state.IsDispenser,
             state => new SentryEntity(
                 state.Id,
                 state.OwnerPlayerId,
                 (PlayerTeam)state.Team,
                 state.X,
                 state.Y,
-                state.FacingDirectionX),
+                state.FacingDirectionX,
+                state.IsDispenser ? SentryEntity.DispenserMaxHealth : SentryEntity.DefaultMaxHealth,
+                state.IsDispenser),
             static (entity, state) => entity.ApplyNetworkState(
                 state.X,
                 state.Y,
@@ -502,7 +618,8 @@ public sealed partial class SimulationWorld
                 state.HasLanded,
                 state.HasActiveTarget,
                 state.LastShotTargetX,
-                state.LastShotTargetY));
+                state.LastShotTargetY,
+                state.DispenserRampTicks));
     }
 
     private void ApplySnapshotSentryUpdates(IReadOnlyList<SnapshotSentryUpdateState> updates)
@@ -531,7 +648,8 @@ public sealed partial class SimulationWorld
                     sentry.HasLanded, // Keep existing static fields
                     update.HasActiveTarget,
                     update.LastShotTargetX,
-                    update.LastShotTargetY);
+                    update.LastShotTargetY,
+                    update.DispenserRampTicks);
             }
         }
     }
@@ -633,10 +751,7 @@ public sealed partial class SimulationWorld
             state.IsFading,
             state.FadeSourceTicksRemaining,
             state.PassedFriendlyPlayerIds);
-        if (state.IsCritical && !entity.IsCritical)
-        {
-            entity.SetCritical();
-        }
+        entity.HydrateCritical(state.IsCritical, state.CriticalDamageMultiplier);
     }
 
     private static void ApplyFlameSnapshotState(FlameProjectileEntity entity, SnapshotFlameState state)
@@ -652,10 +767,7 @@ public sealed partial class SimulationWorld
             state.AttachedPlayerId < 0 ? null : state.AttachedPlayerId,
             state.AttachedOffsetX,
             state.AttachedOffsetY);
-        if (state.IsCritical && !entity.IsCritical)
-        {
-            entity.SetCritical();
-        }
+        entity.HydrateCritical(state.IsCritical, state.CriticalDamageMultiplier);
     }
 
     private static void ApplyMineSnapshotState(MineProjectileEntity entity, SnapshotMineState state)
@@ -668,10 +780,7 @@ public sealed partial class SimulationWorld
             state.IsStickied,
             state.IsDestroyed,
             state.ExplosionDamage);
-        if (state.IsCritical && !entity.IsCritical)
-        {
-            entity.SetCritical();
-        }
+        entity.HydrateCritical(state.IsCritical, state.CriticalDamageMultiplier);
     }
 
     private static void ApplyGrenadeSnapshotState(GrenadeProjectileEntity entity, SnapshotGrenadeState state)
@@ -686,10 +795,7 @@ public sealed partial class SimulationWorld
             isDestroyed: false,
             GrenadeProjectileEntity.BaseExplosionDamage,
             state.FuseTicksLeft);
-        if (state.IsCritical && !entity.IsCritical)
-        {
-            entity.SetCritical();
-        }
+        entity.HydrateCritical(state.IsCritical, state.CriticalDamageMultiplier);
     }
 
     private static bool ShouldApplyExistingRocketState(RocketProjectileEntity entity, SnapshotRocketState state)
@@ -699,7 +805,8 @@ public sealed partial class SimulationWorld
             return true;
         }
 
-        return (state.IsCritical && !entity.IsCritical)
+        return entity.IsCritical != state.IsCritical
+            || entity.CriticalDamageMultiplier != state.CriticalDamageMultiplier
             || (!entity.IsFading && state.IsFading);
     }
 
@@ -711,7 +818,8 @@ public sealed partial class SimulationWorld
             return true;
         }
 
-        return (state.IsCritical && !entity.IsCritical)
+        return entity.IsCritical != state.IsCritical
+            || entity.CriticalDamageMultiplier != state.CriticalDamageMultiplier
             || (attachedPlayerId.HasValue && entity.AttachedPlayerId != attachedPlayerId);
     }
 
@@ -719,13 +827,15 @@ public sealed partial class SimulationWorld
     {
         return (!entity.IsStickied && state.IsStickied)
             || (!entity.IsDestroyed && state.IsDestroyed)
-            || state.IsCritical && !entity.IsCritical;
+            || entity.IsCritical != state.IsCritical
+            || entity.CriticalDamageMultiplier != state.CriticalDamageMultiplier;
     }
 
     private static bool ShouldApplyExistingGrenadeState(GrenadeProjectileEntity entity, SnapshotGrenadeState state)
     {
         return ShouldApplyLocallySimulatedProjectileState(entity.FuseTicksLeft, state.FuseTicksLeft)
-            || state.IsCritical && !entity.IsCritical;
+            || entity.IsCritical != state.IsCritical
+            || entity.CriticalDamageMultiplier != state.CriticalDamageMultiplier;
     }
 
     /// <summary>
@@ -863,8 +973,7 @@ public sealed partial class SimulationWorld
                     isFading: state.IsFading,
                     fadeSourceTicksRemaining: state.FadeSourceTicksRemaining,
                     passedFriendlyPlayerIds: state.PassedFriendlyPlayerIds);
-                if (state.IsCritical)
-                    rocket.SetCritical();
+                rocket.HydrateCritical(state.IsCritical, state.CriticalDamageMultiplier);
                 return rocket;
             },
             static (entity, state) => ApplyRocketSnapshotState(entity, state),
@@ -930,10 +1039,7 @@ public sealed partial class SimulationWorld
                 distanceToTravel: e.DistanceToTravel,
                 isFading: e.IsFading,
                 fadeSourceTicksRemaining: e.FadeSourceTicksRemaining);
-            if (e.IsCritical)
-            {
-                rocket.SetCritical();
-            }
+            rocket.HydrateCritical(e.IsCritical, e.CriticalDamageMultiplier);
 
             rocket.ApplyNetworkState(
                 e.X,
@@ -988,8 +1094,7 @@ public sealed partial class SimulationWorld
                     state.Y,
                     state.VelocityX,
                     state.VelocityY);
-                if (state.IsCritical)
-                    flame.SetCritical();
+                flame.HydrateCritical(state.IsCritical, state.CriticalDamageMultiplier);
                 return flame;
             },
             static (entity, state) => ApplyFlameSnapshotState(entity, state),
@@ -1070,8 +1175,7 @@ public sealed partial class SimulationWorld
                     state.Y,
                     state.VelocityX,
                     state.VelocityY);
-                if (state.IsCritical)
-                    mine.SetCritical();
+                mine.HydrateCritical(state.IsCritical, state.CriticalDamageMultiplier);
                 return mine;
             },
             static (entity, state) => ApplyMineSnapshotState(entity, state),
@@ -1114,8 +1218,7 @@ public sealed partial class SimulationWorld
                     state.Y,
                     state.VelocityX,
                     state.VelocityY);
-                if (state.IsCritical)
-                    grenade.SetCritical();
+                grenade.HydrateCritical(state.IsCritical, state.CriticalDamageMultiplier);
                 return grenade;
             },
             static (entity, state) => ApplyGrenadeSnapshotState(entity, state),
@@ -1178,12 +1281,14 @@ public sealed partial class SimulationWorld
             _sentryGibs,
             static state => state.Id,
             static (entity, state) =>
-                entity.Team == (PlayerTeam)state.Team,
+                entity.Team == (PlayerTeam)state.Team
+                    && entity.IsDispenser == state.IsDispenser,
             state => new SentryGibEntity(
                 state.Id,
                 (PlayerTeam)state.Team,
                 state.X,
-                state.Y),
+                state.Y,
+                state.IsDispenser),
             static (entity, state) => entity.ApplyNetworkState(
                 state.X,
                 state.Y,
@@ -1383,6 +1488,22 @@ public sealed partial class SimulationWorld
 
             ApplySnapshotPlayer(player, appliedSnapshotPlayer);
             _remoteSnapshotScoreboardPlayers.Add(player);
+        }
+
+        // A normal snapshot may omit cloaked/backstabbing enemy spies from the
+        // visible player roster. Keep those retained snapshot players available
+        // to the scoreboard until the server explicitly reports them again.
+        foreach (var entry in _remoteSnapshotPlayersBySlot)
+        {
+            if (_snapshotSeenRemotePlayerSlots.Contains(entry.Key)
+                || !ShouldRetainMissingRemoteSnapshotPlayerForScoreboard(entry.Value))
+            {
+                continue;
+            }
+
+            _snapshotSeenRemotePlayerSlots.Add(entry.Key);
+            _remoteSnapshotScoreboardPlayersBySlot[entry.Key] = entry.Value;
+            _remoteSnapshotScoreboardPlayers.Add(entry.Value);
         }
 
         _snapshotStaleRemotePlayerSlots.Clear();

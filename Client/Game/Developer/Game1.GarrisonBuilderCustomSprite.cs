@@ -238,6 +238,8 @@ public partial class Game1
             pixelHeight,
             configuration.Scale,
             configuration);
+        width *= NormalizeGarrisonBuilderEntityScale(entity.XScale);
+        height *= NormalizeGarrisonBuilderEntityScale(entity.YScale);
         return width > 0f && height > 0f;
     }
 
@@ -259,22 +261,8 @@ public partial class Game1
             return false;
         }
 
-        var configuration = CustomMapCustomSpriteMetadata.ParseConfiguration(entity.Properties);
-        var pixelWidth = Math.Max(1, (int)MathF.Round(width / MathF.Max(0.001f, configuration.Scale)));
-        var pixelHeight = Math.Max(1, (int)MathF.Round(height / MathF.Max(0.001f, configuration.Scale)));
-        if (TryGetGarrisonBuilderCustomSpritePixelSize(entity, out var decodedWidth, out var decodedHeight))
-        {
-            pixelWidth = decodedWidth;
-            pixelHeight = decodedHeight;
-        }
-
-        (left, top, width, height) = CustomMapCustomSpriteMetadata.ResolveWorldBounds(
-            centerX,
-            centerY,
-            pixelWidth,
-            pixelHeight,
-            configuration.Scale,
-            configuration);
+        left = centerX - (width * 0.5f);
+        top = centerY - (height * 0.5f);
         return true;
     }
 
@@ -420,6 +408,11 @@ public partial class Game1
             return;
         }
 
+        var previousResourceName = _builderPropertyEditorValues.TryGetValue(
+            CustomMapCustomSpriteMetadata.ImagePropertyKey,
+            out var previous)
+            ? previous
+            : string.Empty;
         RecordGarrisonBuilderHistory();
         _builderResourcePathBuffer = selectedPath;
         var resources = new Dictionary<string, CustomMapBuilderResource>(
@@ -429,6 +422,7 @@ public partial class Game1
         _builderDocument = _builderDocument with { Resources = resources };
         _builderPropertyEditorValues[CustomMapCustomSpriteMetadata.ImagePropertyKey] = resourceName;
         ApplyGarrisonBuilderPropertyEditorLivePreview();
+        PruneGarrisonBuilderResourceIfUnreferenced(previousResourceName);
         MarkGarrisonBuilderPropertyEditorChanged();
         _builderDirty = true;
         _builderStatus = $"sprite {resourceName}";

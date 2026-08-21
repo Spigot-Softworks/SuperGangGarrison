@@ -24,6 +24,7 @@ public partial class Game1
     private Task<FriendRequestEntry>? _friendRequestRespondTask;
     private Task<IReadOnlyList<FriendDirectMessageEntry>>? _directMessagesPollTask;
     private Task<FriendDirectMessageEntry>? _directMessageSendTask;
+    private Task<IReadOnlyList<FriendPresenceEntry>>? _friendCodeJoinTask;
     private readonly Dictionary<string, FriendPresenceEntry> _friendPresenceByCode = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<FriendRequestEntry> _friendRequestEntries = [];
     private readonly List<FriendDirectMessageEntry> _friendMessageEntries = [];
@@ -35,6 +36,9 @@ public partial class Game1
     private bool _directMessagesInitialPollCompleted;
     private string _lastSocialPresenceSignature = string.Empty;
     private string _lastDirectMessageSenderFriendCode = string.Empty;
+    private string _pendingFriendCodeJoin = string.Empty;
+    private int _hostedSocialPresenceUdpPort;
+    private string _hostedSocialPresenceRelayGuestUrl = string.Empty;
 
     private void SetSocialPresenceNetworkEndpoint(NetworkEndpoint endpoint)
     {
@@ -46,8 +50,31 @@ public partial class Game1
         _socialPresenceNetworkEndpoint = null;
     }
 
+    private void SetHostedSocialPresenceEndpoint(int udpPort, string? relayGuestUrl = null)
+    {
+        _hostedSocialPresenceUdpPort = Math.Clamp(udpPort, 0, 65535);
+        _hostedSocialPresenceRelayGuestUrl = relayGuestUrl?.Trim() ?? string.Empty;
+        _socialPresenceSecondsUntilHeartbeat = 0d;
+        _lastSocialPresenceSignature = string.Empty;
+    }
+
+    private void ClearHostedSocialPresenceEndpoint()
+    {
+        if (_hostedSocialPresenceUdpPort == 0 && string.IsNullOrWhiteSpace(_hostedSocialPresenceRelayGuestUrl))
+        {
+            return;
+        }
+
+        _hostedSocialPresenceUdpPort = 0;
+        _hostedSocialPresenceRelayGuestUrl = string.Empty;
+        _socialPresenceNetworkEndpoint = null;
+        _socialPresenceSecondsUntilHeartbeat = 0d;
+        _lastSocialPresenceSignature = string.Empty;
+    }
+
     private void PumpSocialPresence(double elapsedSeconds)
     {
+        CompleteHostedLastToDieRelayLaunch();
         CompleteSocialPresenceTasks();
         if (OperatingSystem.IsBrowser())
         {
@@ -97,6 +124,8 @@ public partial class Game1
 
     private void CompleteSocialPresenceTasks()
     {
+        CompleteFriendCodeJoinTask();
+
         if (_socialPresenceHeartbeatTask is not null && _socialPresenceHeartbeatTask.IsCompleted)
         {
             if (!_socialPresenceHeartbeatTask.IsCompletedSuccessfully)
@@ -255,6 +284,86 @@ public partial class Game1
 
         _friendsPresenceSecondsUntilRefresh = FriendsPresenceRefreshIntervalSeconds;
         _friendsPresenceRequestTask = _presenceClient.GetFriendPresenceAsync(_friendList.Friends.Select(friend => friend.FriendCode));
+    }
+
+    private void BeginFriendCodeJoin(string friendCode)
+    {
+        if (!ClientIdentityDocument.TryNormalizeFriendCode(friendCode, out var normalizedFriendCode))
+        {
+            _menuStatusMessage = "Enter a valid OG2 friend code.";
+            return;
+        }
+
+        if (_friendCodeJoinTask is not null)
+        {
+            _menuStatusMessage = _lastToDieRoomCodeJoinOpen
+                ? "Room-code lookup is already in progress."
+                : "Friend-code lookup is already in progress.";
+            return;
+        }
+
+        _pendingFriendCodeJoin = normalizedFriendCode;
+        _menuStatusMessage = $"Finding {_pendingFriendCodeJoin}...";
+        _friendCodeJoinTask = _presenceClient.GetFriendPresenceAsync([_pendingFriendCodeJoin]);
+    }
+
+    private void CancelFriendCodeJoin()
+    {
+        if (_friendCodeJoinTask is { IsCompleted: false } abandonedTask)
+        {
+            _ = abandonedTask.ContinueWith(
+                static completedTask => _ = completedTask.Exception,
+                TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously);
+        }
+
+        _friendCodeJoinTask = null;
+        _pendingFriendCodeJoin = string.Empty;
+    }
+
+    private void CompleteFriendCodeJoinTask()
+    {
+        if (_friendCodeJoinTask is null || !_friendCodeJoinTask.IsCompleted)
+        {
+            return;
+        }
+
+        var lookupTask = _friendCodeJoinTask;
+        var friendCode = _pendingFriendCodeJoin;
+        _friendCodeJoinTask = null;
+        _pendingFriendCodeJoin = string.Empty;
+        if (!_manualConnectOpen)
+        {
+            return;
+        }
+
+        if (!lookupTask.IsCompletedSuccessfully)
+        {
+            var lookupLabel = _lastToDieRoomCodeJoinOpen ? "Room-code" : "Friend-code";
+            _menuStatusMessage = $"{lookupLabel} lookup failed: {lookupTask.Exception?.GetBaseException().Message ?? "request failed"}";
+            return;
+        }
+
+        var presence = lookupTask.Result.FirstOrDefault(entry =>
+            string.Equals(entry.FriendCode, friendCode, StringComparison.OrdinalIgnoreCase));
+        if (_lastToDieRoomCodeJoinOpen
+            && !FriendPresenceSessionResolver.IsLastToDieRoom(presence))
+        {
+            _menuStatusMessage = "That code does not point to a Last to Die room.";
+            return;
+        }
+
+        if (!FriendPresenceSessionResolver.TryCreateJoinEndpoint(presence, out var endpoint))
+        {
+            _menuStatusMessage = _lastToDieRoomCodeJoinOpen
+                ? "That Last to Die room is not currently joinable."
+                : "That player is not hosting a joinable game.";
+            return;
+        }
+
+        if (TryConnectToServer(endpoint, addConsoleFeedback: false))
+        {
+            _lastToDieRoomCodeJoinOpen = false;
+        }
     }
 
     private void RefreshFriendRequests()
@@ -430,9 +539,12 @@ public partial class Game1
 
         if (_networkClient.IsConnected && _gameplaySessionKind == GameplaySessionKind.Online)
         {
-            request.Status = "server";
-            request.Mode = _world.MatchRules.Mode.ToString();
-            request.Map = _world.Level.Name;
+            var hostedLastToDie = _hostedSocialPresenceUdpPort > 0;
+            request.Status = hostedLastToDie ? "last_to_die" : "server";
+            request.Mode = hostedLastToDie ? "Last to Die" : _world.MatchRules.Mode.ToString();
+            request.Map = hostedLastToDie
+                ? _networkClient.LastToDieState.Snapshot?.CurrentMap ?? string.Empty
+                : _world.Level.Name;
             request.ServerName = _networkClient.ServerDescription ?? string.Empty;
             ApplySocialPresenceEndpoint(request);
             return request;
@@ -469,6 +581,27 @@ public partial class Game1
 
     private void ApplySocialPresenceEndpoint(PresenceHeartbeatRequest request)
     {
+        if (_hostedSocialPresenceUdpPort > 0)
+        {
+            if (!string.IsNullOrWhiteSpace(_hostedSocialPresenceRelayGuestUrl))
+            {
+                FriendPresenceSessionResolver.ApplyRelayEndpoint(
+                    request,
+                    _hostedSocialPresenceRelayGuestUrl,
+                    IsHostedServerRunning);
+                return;
+            }
+
+            // An empty host asks the presence service to use the public address
+            // observed for this authenticated heartbeat. The local client still
+            // connects to its child server over loopback.
+            FriendPresenceSessionResolver.ApplyObservedUdpEndpoint(
+                request,
+                _hostedSocialPresenceUdpPort,
+                IsHostedServerRunning);
+            return;
+        }
+
         if (!_socialPresenceNetworkEndpoint.HasValue)
         {
             return;

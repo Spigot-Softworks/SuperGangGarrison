@@ -44,16 +44,18 @@ public sealed class BotBrainClassBehaviorTests
         var pyro = world.LocalPlayer;
         pyro.TeleportTo(3022f, 762f);
         pyro.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: null, facingDirectionX: -1f);
-        var controller = new BotBrainController();
+        var controller = new BotBrainController(disableShippedNavigationGraph: true);
 
         PlayerInputSnapshot input = default;
+        var sawJump = false;
         for (var tick = 0; tick < 12; tick += 1)
         {
             input = controller.Think(pyro, world, PlayerTeam.Red);
+            sawJump |= input.Up;
         }
 
         Assert.True(input.Left);
-        Assert.True(input.Up);
+        Assert.True(sawJump);
         Assert.Contains("harvestRightSpoolEscape", controller.LastDirectDriveTrace, StringComparison.Ordinal);
     }
 
@@ -100,6 +102,89 @@ public sealed class BotBrainClassBehaviorTests
         Assert.True(input.SwapWeapon);
         Assert.False(input.UseAbility);
         Assert.False(input.FirePrimary);
+    }
+
+    [Fact]
+    public void CivilianUsesPogoWhenItHasNoCombatAction()
+    {
+        var world = CreateClassWorld(PlayerClass.Quote, out var civilian);
+
+        var decision = CombatDecisionResolver.Resolve(
+            world,
+            civilian,
+            combatTarget: null,
+            healTarget: null,
+            new CombatDecisionMemory());
+
+        Assert.True(decision.UseAbility);
+        Assert.False(decision.FirePrimary);
+        Assert.False(decision.FireSecondary);
+    }
+
+    [Fact]
+    public void CivilianDropsPogoBeforeFiringPrimaryWeapon()
+    {
+        var world = CreateClassWorld(PlayerClass.Quote, out var civilian);
+        Assert.True(civilian.TryToggleCivviePogo());
+        var target = AddNetworkPlayer(world, 2, PlayerClass.Heavy, PlayerTeam.Blue, civilian.X + 500f, civilian.Y);
+        var combatTarget = new BotBrainCombatTarget(
+            BotBrainCombatTargetKind.Player,
+            target.Team,
+            target.X,
+            target.Y,
+            Player: target);
+
+        var decision = CombatDecisionResolver.Resolve(
+            world,
+            civilian,
+            combatTarget,
+            healTarget: null,
+            new CombatDecisionMemory());
+        var input = BotInputSynthesizer.Synthesize(
+            civilian,
+            default,
+            target.X,
+            target.Y,
+            decision,
+            default);
+
+        Assert.True(decision.FirePrimary);
+        Assert.True(decision.UseAbility);
+        Assert.True(input.UseAbility);
+        Assert.False(input.FirePrimary);
+    }
+
+    [Fact]
+    public void CivilianDropsPogoBeforeUsingUmbrellaShield()
+    {
+        var world = CreateClassWorld(PlayerClass.Quote, out var civilian);
+        Assert.True(civilian.TryToggleCivviePogo());
+        var target = AddNetworkPlayer(world, 2, PlayerClass.Heavy, PlayerTeam.Blue, civilian.X + 180f, civilian.Y);
+        var combatTarget = new BotBrainCombatTarget(
+            BotBrainCombatTargetKind.Player,
+            target.Team,
+            target.X,
+            target.Y,
+            Player: target);
+
+        var decision = CombatDecisionResolver.Resolve(
+            world,
+            civilian,
+            combatTarget,
+            healTarget: null,
+            new CombatDecisionMemory());
+        var input = BotInputSynthesizer.Synthesize(
+            civilian,
+            default,
+            target.X,
+            target.Y,
+            decision,
+            default);
+
+        Assert.True(decision.FireSecondary);
+        Assert.True(decision.UseAbility);
+        Assert.True(input.UseAbility);
+        Assert.False(input.FireSecondary);
     }
 
     [Fact]

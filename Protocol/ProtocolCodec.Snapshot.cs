@@ -60,7 +60,7 @@ public static partial class ProtocolCodec
         WriteEntityIdList(writer, snapshot.RemovedBladeIds);
         WriteShotStates(writer, snapshot.Needles);
         WriteEntityIdList(writer, snapshot.RemovedNeedleIds);
-        WriteShotStates(writer, snapshot.RevolverShots);
+        WriteShotStates(writer, snapshot.RevolverShots, includeRevolverPayload: true);
         WriteEntityIdList(writer, snapshot.RemovedRevolverShotIds);
         WriteRocketStates(writer, snapshot.Rockets);
         WriteEntityIdList(writer, snapshot.RemovedRocketIds);
@@ -153,7 +153,7 @@ public static partial class ProtocolCodec
         var removedBladeIds = ReadEntityIdList(reader);
         var needles = ReadShotStates(reader);
         var removedNeedleIds = ReadEntityIdList(reader);
-        var revolverShots = ReadShotStates(reader);
+        var revolverShots = ReadShotStates(reader, includeRevolverPayload: true);
         var removedRevolverShotIds = ReadEntityIdList(reader);
         var rockets = ReadRocketStates(reader);
         var removedRocketIds = ReadEntityIdList(reader);
@@ -465,6 +465,21 @@ public static partial class ProtocolCodec
             if (player.GameplayClassCacheId == 0)
                 WriteString(writer, player.GameplayClassId, MaxGameplayIdBytes, nameof(player.GameplayClassId));
             writer.Write(player.PingMilliseconds);
+            writer.Write(player.LastToDieSpyCloakMeterUnits);
+            writer.Write(player.LastToDieSpyRogueRampStacks);
+            writer.Write(player.LastToDieSpyRogueRampTicks);
+            writer.Write(player.SpySuperjumpAvailableCharges);
+            writer.Write(player.SpySuperjumpMaximumCharges);
+            writer.Write(player.SpySuperjumpChargeTicks);
+            writer.Write(player.SpySuperjumpChargeDirectionDegrees);
+            writer.Write(player.SpySuperjumpChargeStartMovementButtons);
+            writer.Write(player.SpySuperjumpChargeStartBlockedUntilAbilityRelease);
+            writer.Write(player.MedicUberDeliveryState);
+            writer.Write(player.KritzCritBoostProviderPlayerId);
+            writer.Write(player.KritzCritBoostProviderSlot);
+            writer.Write(player.KritzCritBoostDamageMultiplier);
+            writer.Write(player.IsDispenserBuffed);
+            writer.Write(player.DispenserAttackReloadSpeedMultiplier);
         }
     }
 
@@ -577,6 +592,21 @@ public static partial class ProtocolCodec
             var gameplayClassCacheId = reader.ReadUInt16();
             var gameplayClassId = gameplayClassCacheId == 0 ? ReadString(reader, MaxGameplayIdBytes) : string.Empty;
             var pingMilliseconds = reader.ReadInt32();
+            var lastToDieSpyCloakMeterUnits = reader.ReadUInt16();
+            var lastToDieSpyRogueRampStacks = reader.ReadByte();
+            var lastToDieSpyRogueRampTicks = reader.ReadUInt16();
+            var spySuperjumpAvailableCharges = reader.ReadByte();
+            var spySuperjumpMaximumCharges = reader.ReadByte();
+            var spySuperjumpChargeTicks = reader.ReadUInt16();
+            var spySuperjumpChargeDirectionDegrees = reader.ReadSingle();
+            var spySuperjumpChargeStartMovementButtons = reader.ReadByte();
+            var spySuperjumpChargeStartBlockedUntilAbilityRelease = reader.ReadBoolean();
+            var medicUberDeliveryState = reader.ReadByte();
+            var kritzCritBoostProviderPlayerId = reader.ReadInt32();
+            var kritzCritBoostProviderSlot = reader.ReadInt32();
+            var kritzCritBoostDamageMultiplier = reader.ReadSingle();
+            var isDispenserBuffed = reader.ReadBoolean();
+            var dispenserAttackReloadSpeedMultiplier = reader.ReadSingle();
 
             players.Add(new SnapshotPlayerState(
                 slot, playerId, name, team, classId, isAlive, isAwaitingJoin, isSpectator,
@@ -605,7 +635,15 @@ public static partial class ProtocolCodec
                 gameplayEquippedItemCacheId, gameplayAcquiredItemCacheId,
                 ownedGameplayItemIds, replicatedStates, playerScale, aimWorldX, aimWorldY,
                 offhandCooldownTicks, offhandReloadTicks, gibDeaths, isReady,
-                gameplayClassId, gameplayClassCacheId, pingMilliseconds));
+                gameplayClassId, gameplayClassCacheId, pingMilliseconds,
+                lastToDieSpyCloakMeterUnits, lastToDieSpyRogueRampStacks,
+                lastToDieSpyRogueRampTicks, spySuperjumpAvailableCharges,
+                spySuperjumpMaximumCharges, spySuperjumpChargeTicks,
+                spySuperjumpChargeDirectionDegrees, spySuperjumpChargeStartMovementButtons,
+                spySuperjumpChargeStartBlockedUntilAbilityRelease, medicUberDeliveryState,
+                kritzCritBoostProviderPlayerId, kritzCritBoostProviderSlot,
+                kritzCritBoostDamageMultiplier, isDispenserBuffed,
+                dispenserAttackReloadSpeedMultiplier));
         }
 
         return players;
@@ -789,6 +827,21 @@ public static partial class ProtocolCodec
             writer.Write((ushort)Math.Clamp(state.PyroFlameLoopTicksRemaining, 0, ushort.MaxValue));
             writer.Write((ushort)Math.Clamp(state.HeavyEatCooldownTicksRemaining, 0, ushort.MaxValue));
             writer.Write(QuantizeScaledUInt16(state.MedicUberCharge, QuantizedMedicUberChargeScale));
+            writer.Write(state.LastToDieSpyCloakMeterUnits);
+            writer.Write(state.LastToDieSpyRogueRampStacks);
+            writer.Write(state.LastToDieSpyRogueRampTicks);
+            writer.Write(state.SpySuperjumpAvailableCharges);
+            writer.Write(state.SpySuperjumpMaximumCharges);
+            writer.Write(state.SpySuperjumpChargeTicks);
+            writer.Write(QuantizeAngleDegrees(state.SpySuperjumpChargeDirectionDegrees));
+            writer.Write(state.SpySuperjumpChargeStartMovementButtons);
+            writer.Write(state.SpySuperjumpChargeStartBlockedUntilAbilityRelease);
+            writer.Write(state.MedicUberDeliveryState);
+            writer.Write(state.KritzCritBoostProviderPlayerId);
+            writer.Write(state.KritzCritBoostProviderSlot);
+            writer.Write(state.KritzCritBoostDamageMultiplier);
+            writer.Write(state.IsDispenserBuffed);
+            writer.Write(state.DispenserAttackReloadSpeedMultiplier);
         }
     }
 
@@ -824,7 +877,22 @@ public static partial class ProtocolCodec
                 IsPlayerExtendedPyroPrimaryRequiresReleaseAfterEmpty(flags1),
                 reader.ReadUInt16(),
                 ReadScaledUInt16(reader, QuantizedMedicUberChargeScale),
-                IsPlayerExtendedMedicUberReady(flags1)));
+                IsPlayerExtendedMedicUberReady(flags1),
+                reader.ReadUInt16(),
+                reader.ReadByte(),
+                reader.ReadUInt16(),
+                reader.ReadByte(),
+                reader.ReadByte(),
+                reader.ReadUInt16(),
+                ReadQuantizedAngleDegrees(reader),
+                reader.ReadByte(),
+                reader.ReadBoolean(),
+                reader.ReadByte(),
+                reader.ReadInt32(),
+                reader.ReadInt32(),
+                reader.ReadSingle(),
+                reader.ReadBoolean(),
+                reader.ReadSingle()));
         }
 
         return states;

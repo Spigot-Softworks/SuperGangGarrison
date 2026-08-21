@@ -101,6 +101,8 @@ internal sealed class ServerBotManager
 
     public IReadOnlyDictionary<byte, ServerBotSlotState> BotSlots => _botSlots;
 
+    public bool SeekEnemyPlayersAfterOwningControlPoint { get; set; }
+
     public ServerBotRuntimeMetrics Metrics
     {
         get
@@ -835,7 +837,11 @@ internal sealed class ServerBotManager
             _controlledSlotsBuffer[entry.Key] = new ControlledBotSlot(
                 entry.Key,
                 player.Team,
-                player.ClassId);
+                player.ClassId,
+                PreferEnemyPlayerObjective: ShouldSeekEnemyPlayersAfterOwningControlPoint(
+                    SeekEnemyPlayersAfterOwningControlPoint,
+                    player.Team,
+                    _world.ControlPoints));
         }
     }
 
@@ -856,7 +862,11 @@ internal sealed class ServerBotManager
             _controllerConfigurationSlotsBuffer[entry.Key] = new ControlledBotSlot(
                 entry.Key,
                 state.Team,
-                state.ClassId);
+                state.ClassId,
+                PreferEnemyPlayerObjective: ShouldSeekEnemyPlayersAfterOwningControlPoint(
+                    SeekEnemyPlayersAfterOwningControlPoint,
+                    state.Team,
+                    _world.ControlPoints));
         }
 
         if (pendingSlot.HasValue)
@@ -864,10 +874,35 @@ internal sealed class ServerBotManager
             _controllerConfigurationSlotsBuffer[pendingSlot.Value] = new ControlledBotSlot(
                 pendingSlot.Value,
                 pendingTeam,
-                pendingClassId);
+                pendingClassId,
+                PreferEnemyPlayerObjective: ShouldSeekEnemyPlayersAfterOwningControlPoint(
+                    SeekEnemyPlayersAfterOwningControlPoint,
+                    pendingTeam,
+                    _world.ControlPoints));
         }
 
         _botController.ConfigureSpawnOverrides(_world, _controllerConfigurationSlotsBuffer);
+    }
+
+    internal static bool ShouldSeekEnemyPlayersAfterOwningControlPoint(
+        bool enabled,
+        PlayerTeam team,
+        IReadOnlyList<ControlPointState> controlPoints)
+    {
+        if (!enabled)
+        {
+            return false;
+        }
+
+        foreach (var point in controlPoints)
+        {
+            if (point.Team == team)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private Dictionary<byte, PlayerInputSnapshot> GetBotInputs()
@@ -886,6 +921,45 @@ internal sealed class ServerBotManager
         }
 
         SyncInputCache(refreshedInputs);
+
+        // Full-think slots already advanced their route in Think.  For stale
+        // slots, only the per-tick navigation heartbeat is eligible here;
+        // merge its movement axes into the sanitized cached frame so combat,
+        // aim, and held utility state keep the normal cache semantics.
+        _staleSlotsBuffer.Clear();
+        foreach (var slot in _controlledSlotsBuffer.Keys)
+        {
+            if (!_botThinkSlotsBuffer.Contains(slot)
+                && _botController.RequiresPerTickNavigationThink(slot))
+            {
+                _staleSlotsBuffer.Add(slot);
+            }
+        }
+
+        if (_staleSlotsBuffer.Count > 0)
+        {
+            var cachedNavigationInputs = _botController.AdvanceCachedNavigationForSlots(
+                _world,
+                _controlledSlotsBuffer,
+                _staleSlotsBuffer,
+                _inputCache);
+            foreach (var entry in cachedNavigationInputs)
+            {
+                if (!_inputCache.TryGetValue(entry.Key, out var cachedInput))
+                {
+                    continue;
+                }
+
+                _inputCache[entry.Key] = cachedInput with
+                {
+                    Left = entry.Value.Left,
+                    Right = entry.Value.Right,
+                    Up = entry.Value.Up,
+                    Down = entry.Value.Down,
+                };
+            }
+        }
+
         foreach (var entry in _botSlots)
         {
             var state = entry.Value;
@@ -1059,7 +1133,9 @@ internal sealed class ServerBotManager
         input = input with
         {
             BuildSentry = false,
+            BuildDispenser = false,
             DestroySentry = false,
+            DestroyDispenser = false,
             Taunt = false,
             DebugKill = false,
             DropIntel = false,
@@ -1108,7 +1184,9 @@ internal sealed class ServerBotManager
             || input.Up
             || input.Down
             || input.BuildSentry
+            || input.BuildDispenser
             || input.DestroySentry
+            || input.DestroyDispenser
             || input.Taunt
             || input.FirePrimary
             || input.FireSecondary

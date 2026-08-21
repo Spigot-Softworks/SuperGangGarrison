@@ -11,6 +11,7 @@ using Xunit;
 
 namespace OpenGarrison.PluginHost.Tests;
 
+[Collection(MapDirectoryTestGroup.Name)]
 public sealed class CustomMapPngExporterTests
 {
     [Fact]
@@ -47,7 +48,7 @@ public sealed class CustomMapPngExporterTests
                             Mode = GameModeKind.CaptureTheFlag,
                             IsCustomMap = true,
                             DefaultOrder = 21,
-                            Order = 3,
+                            Order = 73,
                         })
                         .ToList(),
                 },
@@ -60,7 +61,9 @@ public sealed class CustomMapPngExporterTests
                 loaded.HostSettings.StockMapRotation,
                 entry => entry.LevelName == "menu_custom");
             Assert.True(customEntry.IsCustomMap);
-            Assert.Equal(3, customEntry.Order);
+            Assert.Equal(
+                loaded.HostSettings.StockMapRotation.Max(static entry => entry.Order),
+                customEntry.Order);
         }
         finally
         {
@@ -198,6 +201,58 @@ public sealed class CustomMapPngExporterTests
         Assert.Equal(12f, gate.Width);
         Assert.Equal(60f, gate.Height);
         Assert.Equal("redteamgate", gate.SourceName);
+    }
+
+    [Fact]
+    public void ExportImportPreservesExplicitControlPointIdentityWhenIndexPropertyIsEdited()
+    {
+        using var workspace = TempWorkspace.Create();
+        var backgroundPath = workspace.PathFor("background.png");
+        var walkmaskPath = workspace.PathFor("walkmask.png");
+        var outputPath = workspace.PathFor("control-points.png");
+        var reexportedPath = workspace.PathFor("control-points-reexported.png");
+        WriteSolidPng(backgroundPath, 8, 8, new Rgba32(32, 64, 96, 255));
+        WriteWalkmaskPng(walkmaskPath);
+
+        var document = new CustomMapBuilderDocument(
+            Name: "control-points",
+            BackgroundImagePath: backgroundPath,
+            WalkmaskImagePath: walkmaskPath,
+            Scale: 6f,
+            VisualScale: 6f,
+            Metadata: new Dictionary<string, string>(),
+            Entities:
+            [
+                CustomMapBuilderEntity.Create("KothControlPoint", 12f, 12f),
+                CustomMapBuilderEntity.Create("KothRedControlPoint", 24f, 12f),
+                CustomMapBuilderEntity.Create("KothBlueControlPoint", 36f, 12f),
+                CustomMapBuilderEntity.Create("ArenaControlPoint", 48f, 12f),
+            ],
+            Resources: new Dictionary<string, CustomMapBuilderResource>(),
+            ParallaxLayers: []);
+
+        CustomMapPngExporter.Export(document, outputPath);
+        var editable = CustomMapBuilderPngImporter.Import(outputPath);
+        Assert.NotNull(editable);
+        var editedEntities = editable.Entities
+            .Select(entity => entity with
+            {
+                Properties = new Dictionary<string, string>(entity.Properties)
+                {
+                    [ControlPointIndexMetadata.PropertyKey] = "3",
+                },
+            })
+            .ToArray();
+
+        CustomMapPngExporter.Export(editable with { Entities = editedEntities }, reexportedPath);
+        var imported = CustomMapPngImporter.Import(reexportedPath);
+        Assert.NotNull(imported);
+
+        Assert.Contains(imported.Room.RoomObjects, marker => marker.IsSingleKothControlPoint());
+        Assert.Contains(imported.Room.RoomObjects, marker => marker.IsRedKothControlPoint());
+        Assert.Contains(imported.Room.RoomObjects, marker => marker.IsBlueKothControlPoint());
+        Assert.Contains(imported.Room.RoomObjects, marker => marker.Type == RoomObjectType.ArenaControlPoint
+            && marker.SourceName.Equals("ArenaControlPoint", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -494,13 +549,14 @@ public sealed class CustomMapPngExporterTests
             Assert.NotEqual(File.ReadAllBytes(FindRepoFile("Core", "Content", "StockMaps", "ctf_conflict.png")), level.CustomMapVisuals.Foreground.Bytes);
 
             var layers = level.CustomMapVisuals.ParallaxLayers.ToDictionary(static layer => layer.Index);
-            Assert.Equal([0, 1, 2, 3, 4, 5], layers.Keys.OrderBy(static key => key).ToArray());
+            Assert.Equal([0, 1, 2, 3, 4, 5, 6], layers.Keys.OrderBy(static key => key).ToArray());
             Assert.Equal(10f, layers[0].XFactor);
             Assert.Equal(9f, layers[1].XFactor);
             Assert.Equal(8f, layers[2].XFactor);
             Assert.Equal(7f, layers[3].XFactor);
             Assert.Equal(6f, layers[4].XFactor);
             Assert.Equal(5f, layers[5].XFactor);
+            Assert.Equal(4f, layers[6].XFactor);
 
             using var sourceImage = Image.Load<Rgba32>(FindRepoFile("Core", "Content", "StockMaps", "Conflict", "background.png"));
             using var foregroundImage = Image.Load<Rgba32>(level.CustomMapVisuals.Foreground.Bytes);

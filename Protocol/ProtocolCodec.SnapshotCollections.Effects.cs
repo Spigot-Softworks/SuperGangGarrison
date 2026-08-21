@@ -16,6 +16,7 @@ public static partial class ProtocolCodec
             writer.Write(sentryGib.X);
             writer.Write(sentryGib.Y);
             writer.Write(sentryGib.TicksRemaining);
+            writer.Write(sentryGib.IsDispenser);
         }
     }
 
@@ -30,7 +31,8 @@ public static partial class ProtocolCodec
                 reader.ReadByte(),
                 reader.ReadSingle(),
                 reader.ReadSingle(),
-                reader.ReadInt32()));
+                reader.ReadInt32(),
+                reader.ReadBoolean()));
         }
 
         return sentryGibs;
@@ -155,6 +157,7 @@ public static partial class ProtocolCodec
             writer.Write(e.IsCritical);
             writer.Write(e.EventId);
             WriteEntityIdList(writer, e.PassedFriendlyPlayerIds ?? []);
+            writer.Write(e.CriticalDamageMultiplier);
         }
     }
 
@@ -186,7 +189,8 @@ public static partial class ProtocolCodec
                 reader.ReadBoolean(),
                 reader.ReadBoolean(),
                 reader.ReadUInt64(),
-                ReadEntityIdList(reader)));
+                ReadEntityIdList(reader),
+                reader.ReadSingle()));
         }
 
         return events;

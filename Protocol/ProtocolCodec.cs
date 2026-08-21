@@ -206,7 +206,8 @@ public static partial class ProtocolCodec
                     reader.ReadUInt64(),
                     ReadString(reader, MaxFriendCodeBytes),
                     ReadString(reader, MaxPlayerCardBytes),
-                    stream.Position < stream.Length ? (ConnectionIntent)reader.ReadByte() : ConnectionIntent.Join),
+                    stream.Position < stream.Length ? (ConnectionIntent)reader.ReadByte() : ConnectionIntent.Join,
+                    stream.Position < stream.Length ? new Guid(reader.ReadBytes(16)) : Guid.Empty),
                 MessageType.Welcome => new WelcomeMessage(
                     ReadString(reader, MaxServerNameBytes),
                     reader.ReadInt32(),
@@ -249,7 +250,7 @@ public static partial class ProtocolCodec
                 MessageType.ServerDetailsResponse => ReadServerDetailsResponse(reader),
                 MessageType.InputState => new InputStateMessage(
                     reader.ReadUInt32(),
-                    (InputButtons)reader.ReadUInt16(),
+                    (InputButtons)reader.ReadUInt32(),
                     reader.ReadSingle(),
                     reader.ReadSingle(),
                     reader.ReadInt32(),
@@ -299,6 +300,10 @@ public static partial class ProtocolCodec
                     reader.ReadUInt32(),
                     ReadCustomBubblePixels(reader)),
                 MessageType.CustomBubbleClear => new CustomBubbleClearMessage(reader.ReadByte()),
+                MessageType.LastToDieCommand => ReadLastToDieCommand(reader),
+                MessageType.LastToDieCommandResult => ReadLastToDieCommandResult(reader),
+                MessageType.LastToDieRunSnapshot => ReadLastToDieRunSnapshot(reader),
+                MessageType.LastToDieRunSnapshotAck => ReadLastToDieRunSnapshotAck(reader),
                 MessageType.Snapshot => ReadSnapshot(reader),
                 _ => null,
             };
@@ -398,6 +403,7 @@ public static partial class ProtocolCodec
                 WriteString(writer, hello.FriendCode ?? string.Empty, MaxFriendCodeBytes, nameof(hello.FriendCode));
                 WriteString(writer, hello.PlayerCardJson ?? string.Empty, MaxPlayerCardBytes, nameof(hello.PlayerCardJson));
                 writer.Write((byte)hello.Intent);
+                writer.Write(hello.ClientInstanceId.ToByteArray());
                 break;
             case WelcomeMessage welcome:
                 WriteString(writer, welcome.ServerName, MaxServerNameBytes, nameof(welcome.ServerName));
@@ -462,7 +468,7 @@ public static partial class ProtocolCodec
                 break;
             case InputStateMessage input:
                 writer.Write(input.Sequence);
-                writer.Write((ushort)input.Buttons);
+                writer.Write((uint)input.Buttons);
                 writer.Write(input.AimRelX);
                 writer.Write(input.AimRelY);
                 writer.Write(input.ChatBubbleFrameIndex);
@@ -529,6 +535,18 @@ public static partial class ProtocolCodec
                 break;
             case CustomBubbleClearMessage customBubbleClear:
                 writer.Write(customBubbleClear.PlayerSlot);
+                break;
+            case LastToDieCommandMessage lastToDieCommand:
+                WriteLastToDieCommand(writer, lastToDieCommand);
+                break;
+            case LastToDieCommandResultMessage lastToDieCommandResult:
+                WriteLastToDieCommandResult(writer, lastToDieCommandResult);
+                break;
+            case LastToDieRunSnapshotMessage lastToDieRunSnapshot:
+                WriteLastToDieRunSnapshot(writer, lastToDieRunSnapshot);
+                break;
+            case LastToDieRunSnapshotAckMessage lastToDieRunSnapshotAck:
+                WriteLastToDieRunSnapshotAck(writer, lastToDieRunSnapshotAck);
                 break;
             case SnapshotMessage snapshot:
                 WriteSnapshot(writer, snapshot);

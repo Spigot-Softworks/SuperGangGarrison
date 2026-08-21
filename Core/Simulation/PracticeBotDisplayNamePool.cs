@@ -43,6 +43,15 @@ public sealed class PracticeBotDisplayNamePool
             return projectFilePath;
         }
 
+        var packagedConfigPath = Path.Combine(
+            RuntimePaths.ApplicationRoot,
+            "config",
+            "practice-bot-names.txt");
+        if (File.Exists(packagedConfigPath))
+        {
+            return packagedConfigPath;
+        }
+
         var configPath = RuntimePaths.GetConfigPath("practice-bot-names.txt");
         return File.Exists(configPath) ? configPath : null;
     }

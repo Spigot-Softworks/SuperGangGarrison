@@ -30,8 +30,10 @@ public static class ChatBubbleFrameCatalog
             PlayerClass.Scout => offset,
             PlayerClass.Pyro => offset + 1,
             PlayerClass.Soldier => offset + 2,
-            PlayerClass.Demoman => offset + 3,
-            PlayerClass.Heavy => offset + 4,
+            // BubblesS stores Heavy before Demoman. Keep this mapping aligned
+            // with the actual atlas order used by bot callouts.
+            PlayerClass.Demoman => offset + 4,
+            PlayerClass.Heavy => offset + 3,
             PlayerClass.Medic => offset + 5,
             PlayerClass.Engineer => offset + 6,
             PlayerClass.Spy => offset + 7,

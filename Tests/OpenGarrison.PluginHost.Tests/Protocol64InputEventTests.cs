@@ -14,7 +14,7 @@ public sealed class Protocol64InputEventTests
             CommandId: 9,
             InputSequence: 44,
             Kind: Protocol64InputCommandKind.Jump,
-            HeldButtons: InputButtons.Right,
+            HeldButtons: InputButtons.Right | InputButtons.BuildDispenser,
             AimRelX: 12.5f,
             AimRelY: -3.25f,
             ClientTick: 101,

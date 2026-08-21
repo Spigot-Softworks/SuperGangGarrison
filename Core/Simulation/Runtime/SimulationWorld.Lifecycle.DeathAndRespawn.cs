@@ -16,29 +16,41 @@ public sealed partial class SimulationWorld
         bool createDeathCam = true,
         bool spawnRemains = true,
         bool forceCorpseRemains = false,
-        bool recordKillFeed = true)
+        bool recordKillFeed = true,
+        int assistingPlayerIdOverride = -1,
+        bool completingLastToDieSpyAfterlifeDeath = false)
     {
-        if (player.IsAlive && player.IsExperimentalLuckyBastardActive)
+        if (!completingLastToDieSpyAfterlifeDeath
+            && player.IsLastToDieSpyAfterlifeActive)
         {
             return;
         }
 
-        if (forceCorpseRemains)
+        if (!completingLastToDieSpyAfterlifeDeath
+            && player.IsAlive
+            && player.IsExperimentalLuckyBastardActive)
+        {
+            return;
+        }
+
+        if (!completingLastToDieSpyAfterlifeDeath && forceCorpseRemains)
         {
             gibbed = false;
         }
-        else if (player.IsExperimentalCryoFrozen)
+        else if (!completingLastToDieSpyAfterlifeDeath && player.IsExperimentalCryoFrozen)
         {
             gibbed = true;
         }
 
-        if (ShouldCancelDeath(player, gibbed, killer, weaponSpriteName))
+        if (!completingLastToDieSpyAfterlifeDeath
+            && ShouldCancelDeath(player, gibbed, killer, weaponSpriteName))
         {
             return;
         }
 
         var originalKillerWasSelf = killer is not null && ReferenceEquals(killer, player);
-        if ((killer is null || originalKillerWasSelf)
+        if (!completingLastToDieSpyAfterlifeDeath
+            && (killer is null || originalKillerWasSelf)
             && player.Health <= 0
             && TryResolveAfterburnDeathCredit(player, out var afterburnKiller))
         {
@@ -50,9 +62,47 @@ public sealed partial class SimulationWorld
             }
         }
 
-        var assistingPlayer = killer is not null && !ReferenceEquals(killer, player)
-            ? ResolveAssistPlayer(player, killer)
-            : null;
+        var hasPinnedAssistingPlayer = assistingPlayerIdOverride > 0;
+        PlayerEntity? assistingPlayer;
+        if (hasPinnedAssistingPlayer)
+        {
+            assistingPlayer = FindPlayerById(assistingPlayerIdOverride);
+            if (assistingPlayer is not null
+                && (assistingPlayer.Id == player.Id
+                    || assistingPlayer.Id == killer?.Id))
+            {
+                assistingPlayer = null;
+            }
+        }
+        else if (!completingLastToDieSpyAfterlifeDeath)
+        {
+            assistingPlayer = killer is not null && !ReferenceEquals(killer, player)
+                ? ResolveAssistPlayer(player, killer)
+                : null;
+        }
+        else
+        {
+            assistingPlayer = null;
+        }
+
+        if (!completingLastToDieSpyAfterlifeDeath
+            && TryStartLastToDieSpyAfterlife(
+                player,
+                gibbed,
+                killer,
+                weaponSpriteName,
+                deadBodyAnimationKind,
+                deathCamMessage,
+                deathCamSentry,
+                killFeedMessage,
+                createDeathCam,
+                spawnRemains,
+                forceCorpseRemains,
+                recordKillFeed,
+                assistingPlayer?.Id ?? -1))
+        {
+            return;
+        }
 
         ApplyVipDeathTimerPenalty(player, killer);
 
@@ -66,9 +116,18 @@ public sealed partial class SimulationWorld
         if (killer is not null && !ReferenceEquals(killer, player))
         {
             killer.AddKill();
+            TryCompleteLastToDieSpyAfterlifeSuccess(killer, player);
+            TryRegisterLastToDieSniperConquistadorKill(killer, player);
             TryRegisterKillStreakKill(killer, player);
             AwardKillPoints(player, killer, weaponSpriteName);
-            AwardAssistPoints(assistingPlayer, player, killer);
+            if (hasPinnedAssistingPlayer)
+            {
+                AwardPinnedAssistPoints(assistingPlayer, player, killer);
+            }
+            else
+            {
+                AwardAssistPoints(assistingPlayer, player, killer);
+            }
             ApplyExperimentalKillRewards(killer, player);
             TrySpawnExperimentalEnemyHealthPackDrop(player, killer);
             TrySpawnExperimentalEnemyDroppedWeapon(player, killer);
@@ -128,6 +187,7 @@ public sealed partial class SimulationWorld
 
         var shouldCreateDeathCam = createDeathCam
             && hasNetworkSlot
+            && !_automaticRespawnSuppressedNetworkSlots.Contains(slot)
             && (deathCamSentry is not null || (killer is not null && !ReferenceEquals(killer, player)));
         if (shouldCreateDeathCam)
         {
@@ -186,8 +246,11 @@ public sealed partial class SimulationWorld
         }
 
         player.Kill();
+        ClearLastToDieStatusEffectsForTarget(player.Id);
         if (hasNetworkSlot)
         {
+            ClearLastToDieSniperMarksTargeting(slot);
+            ResetLastToDiePerkRuntimeOnDeath(slot);
             TrySetNetworkPlayerRespawnTicks(slot, respawnTicks);
         }
         else if (ReferenceEquals(player, EnemyPlayer))
@@ -202,6 +265,23 @@ public sealed partial class SimulationWorld
                 otherPlayer.ClearMedicHealingTarget();
             }
         }
+    }
+
+    private void AwardPinnedAssistPoints(
+        PlayerEntity? assistant,
+        PlayerEntity victim,
+        PlayerEntity killer)
+    {
+        if (!ShouldAwardRoundPoints()
+            || assistant is null
+            || assistant.Id == victim.Id
+            || assistant.Id == killer.Id)
+        {
+            return;
+        }
+
+        assistant.AddAssist();
+        assistant.AddPoints(AssistPointValue);
     }
 
     private bool TryResolveAfterburnDeathCredit(PlayerEntity victim, out PlayerEntity killer)
@@ -316,6 +396,7 @@ public sealed partial class SimulationWorld
     private void AdvanceNetworkRespawnTimer(byte slot)
     {
         if (IsNetworkPlayerAwaitingJoin(slot)
+            || _automaticRespawnSuppressedNetworkSlots.Contains(slot)
             || !TryGetNetworkPlayer(slot, out var player))
         {
             return;

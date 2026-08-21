@@ -30,6 +30,11 @@ internal sealed class SpritesheetMapEntityRuntimeImporter : ICustomMapEntityRunt
                 configuration);
         }
 
+        var xScale = NormalizeEntityScale(args.XScale);
+        var yScale = NormalizeEntityScale(args.YScale);
+        width *= xScale;
+        height *= yScale;
+
         var (left, top) = CustomMapEntityPlacementAnchor.ToTopLeft(
             args.X,
             args.Y,
@@ -46,5 +51,10 @@ internal sealed class SpritesheetMapEntityRuntimeImporter : ICustomMapEntityRunt
             SourceName: EntityType,
             Spritesheet: configuration with { }));
         return true;
+    }
+
+    private static float NormalizeEntityScale(float scale)
+    {
+        return MathF.Abs(scale) > 0.0001f ? MathF.Abs(scale) : 1f;
     }
 }

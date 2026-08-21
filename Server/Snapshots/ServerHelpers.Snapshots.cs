@@ -42,8 +42,11 @@ internal static partial class ServerHelpers
         var isDominatedByLocalViewer = viewer is not null
             && !ReferenceEquals(player, viewer)
             && viewer.GetDominationKillCount(player.Id) > 3;
+        var hidesSniperMark = viewer is not null
+            && !ReferenceEquals(player, viewer)
+            && player.Team != viewer.Team;
         var replicatedStates = player.GetReplicatedStateEntries()
-            .Select(static entry => new SnapshotReplicatedStateEntry(
+            .Select(entry => new SnapshotReplicatedStateEntry(
                 entry.OwnerId,
                 entry.Key,
                 entry.Kind switch
@@ -52,7 +55,17 @@ internal static partial class ServerHelpers
                     GameplayReplicatedStateValueKind.Scalar => SnapshotReplicatedStateValueKind.Scalar,
                     _ => SnapshotReplicatedStateValueKind.Toggle,
                 },
-                entry.IntValue,
+                hidesSniperMark
+                    && string.Equals(
+                        entry.OwnerId,
+                        PlayerEntity.LastToDieWeaponReplicatedStateOwnerId,
+                        StringComparison.Ordinal)
+                    && string.Equals(
+                        entry.Key,
+                        PlayerEntity.LastToDieSniperRuntimeReplicatedStateKey,
+                        StringComparison.Ordinal)
+                        ? entry.IntValue & ~0x7f
+                        : entry.IntValue,
                 entry.FloatValue,
                 entry.BoolValue))
             .ToList();
@@ -297,7 +310,24 @@ internal static partial class ServerHelpers
             IsReady: world.IsNetworkPlayerReady(slot),
             GameplayClassId: player.GameplayClassId,
             GameplayClassCacheId: stringCache.GetOrAddCacheId(player.GameplayClassId),
-            PingMilliseconds: pingMilliseconds);
+            PingMilliseconds: pingMilliseconds,
+            LastToDieSpyCloakMeterUnits: checked((ushort)player.LastToDieSpyCloakMeterUnits),
+            LastToDieSpyRogueRampStacks: checked((byte)player.LastToDieSpyRogueRampStacks),
+            LastToDieSpyRogueRampTicks: checked((ushort)player.LastToDieSpyRogueRampTicks),
+            SpySuperjumpAvailableCharges: checked((byte)player.SpySuperjumpAvailableCharges),
+            SpySuperjumpMaximumCharges: checked((byte)player.SpySuperjumpMaximumCharges),
+            SpySuperjumpChargeTicks: checked((ushort)player.SpySuperjumpChargeTicks),
+            SpySuperjumpChargeDirectionDegrees: player.SpySuperjumpChargeDirectionDegrees,
+            SpySuperjumpChargeStartMovementButtons: player.SpySuperjumpChargeStartMovementButtons,
+            SpySuperjumpChargeStartBlockedUntilAbilityRelease: player.SpySuperjumpChargeStartBlockedUntilAbilityRelease,
+            MedicUberDeliveryState: player.MedicUberDeliveryState,
+            KritzCritBoostProviderPlayerId: player.KritzCritBoostProviderPlayerId,
+            KritzCritBoostProviderSlot: player.KritzCritBoostProviderSlot,
+            KritzCritBoostDamageMultiplier: player.ActiveKritzCritDamageMultiplier,
+            IsDispenserBuffed: player.IsDispenserBuffed,
+            DispenserAttackReloadSpeedMultiplier: player.IsDispenserBuffed
+                ? player.DispenserAttackReloadSpeedMultiplier
+                : 1f);
     }
 
     internal static SnapshotIntelState ToSnapshotIntelState(TeamIntelligenceState intel)
@@ -327,7 +357,9 @@ internal static partial class ServerHelpers
             sentry.HasLanded,
             sentry.HasActiveTarget,
             sentry.LastShotTargetX,
-            sentry.LastShotTargetY);
+            sentry.LastShotTargetY,
+            sentry.IsDispenser,
+            sentry.DispenserRampTicks);
     }
 
     internal static SnapshotJumpPadState ToSnapshotJumpPadState(JumpPadEntity pad)
@@ -419,12 +451,13 @@ internal static partial class ServerHelpers
 
     internal static SnapshotShotState ToSnapshotBulletState(ShotProjectileEntity shot)
     {
-        return new SnapshotShotState(shot.Id, (byte)shot.Team, shot.OwnerId, shot.X, shot.Y, shot.VelocityX, shot.VelocityY, shot.TicksRemaining, shot.IsCritical);
+        return new SnapshotShotState(shot.Id, (byte)shot.Team, shot.OwnerId, shot.X, shot.Y, shot.VelocityX, shot.VelocityY, shot.TicksRemaining, shot.IsCritical, CriticalDamageMultiplier: shot.CriticalDamageMultiplier);
     }
 
     internal static SnapshotShotState ToSnapshotNeedleState(NeedleProjectileEntity shot)
     {
         var isArrow = shot is ArrowProjectileEntity;
+        var medicHealNeedle = shot as MedicHealNeedleProjectileEntity;
         return new SnapshotShotState(
             shot.Id,
             (byte)shot.Team,
@@ -438,22 +471,59 @@ internal static partial class ServerHelpers
             shot is MedicHealNeedleProjectileEntity,
             isArrow,
             isArrow ? ((ArrowProjectileEntity)shot).FakeSpeedMultiplier : 1f,
-            isArrow && ((ArrowProjectileEntity)shot).IsLanded);
+            isArrow && ((ArrowProjectileEntity)shot).IsLanded,
+            isArrow && ((ArrowProjectileEntity)shot).AppliesLastToDieGuardian,
+            isArrow && ((ArrowProjectileEntity)shot).PiercesPlayers,
+            isArrow && ((ArrowProjectileEntity)shot).AppliesLastToDieTranqDarts,
+            isArrow ? ((ArrowProjectileEntity)shot).LastToDiePoisonDamagePerSecond : 0f,
+            isArrow ? ((ArrowProjectileEntity)shot).LastToDieGhostDamageMultiplier : 1f,
+            isArrow && ((ArrowProjectileEntity)shot).AppliesLastToDieDecapitator,
+            isArrow && ((ArrowProjectileEntity)shot).IsLastToDieDecapitatorFullyCharged,
+            isArrow && ((ArrowProjectileEntity)shot).LastToDieAttachedHeadClassId.HasValue
+                ? (byte)((ArrowProjectileEntity)shot).LastToDieAttachedHeadClassId!.Value
+                : (byte)0,
+            isArrow && ((ArrowProjectileEntity)shot).LastToDieAttachedHeadTeam.HasValue
+                ? (byte)((ArrowProjectileEntity)shot).LastToDieAttachedHeadTeam!.Value
+                : (byte)0,
+            isArrow && ((ArrowProjectileEntity)shot).AppliesLastToDieExplosiveTip,
+            DamageValue: isArrow ? ((ArrowProjectileEntity)shot).Damage : 0f,
+            LastToDieMedicKritzM2Payload: medicHealNeedle is not null
+                ? medicHealNeedle.LastToDiePayload.Encode()
+                : (byte)0,
+            IsLastToDieMedicJavelinAnchored: medicHealNeedle?.IsLastToDieJavelinAnchored ?? false,
+            LastToDieMedicJavelinFuseTicksRemaining:
+                medicHealNeedle?.LastToDieJavelinFuseTicksRemaining ?? 0,
+            HasLastToDieMedicJavelinExploded:
+                medicHealNeedle?.HasLastToDieJavelinExploded ?? false,
+            CriticalDamageMultiplier: shot.CriticalDamageMultiplier);
     }
 
     internal static SnapshotShotState ToSnapshotBubbleState(BubbleProjectileEntity bubble)
     {
-        return new SnapshotShotState(bubble.Id, (byte)bubble.Team, bubble.OwnerId, bubble.X, bubble.Y, bubble.VelocityX, bubble.VelocityY, bubble.TicksRemaining);
+        return new SnapshotShotState(bubble.Id, (byte)bubble.Team, bubble.OwnerId, bubble.X, bubble.Y, bubble.VelocityX, bubble.VelocityY, bubble.TicksRemaining, bubble.IsCritical, CriticalDamageMultiplier: bubble.CriticalDamageMultiplier);
     }
 
     internal static SnapshotShotState ToSnapshotBladeState(BladeProjectileEntity blade)
     {
-        return new SnapshotShotState(blade.Id, (byte)blade.Team, blade.OwnerId, blade.X, blade.Y, blade.VelocityX, blade.VelocityY, blade.TicksRemaining, blade.IsCritical);
+        return new SnapshotShotState(blade.Id, (byte)blade.Team, blade.OwnerId, blade.X, blade.Y, blade.VelocityX, blade.VelocityY, blade.TicksRemaining, blade.IsCritical, CriticalDamageMultiplier: blade.CriticalDamageMultiplier);
     }
 
     internal static SnapshotShotState ToSnapshotRevolverState(RevolverProjectileEntity shot)
     {
-        return new SnapshotShotState(shot.Id, (byte)shot.Team, shot.OwnerId, shot.X, shot.Y, shot.VelocityX, shot.VelocityY, shot.TicksRemaining, shot.IsCritical);
+        return new SnapshotShotState(
+            shot.Id,
+            (byte)shot.Team,
+            shot.OwnerId,
+            shot.X,
+            shot.Y,
+            shot.VelocityX,
+            shot.VelocityY,
+            shot.TicksRemaining,
+            shot.IsCritical,
+            DamageValue: shot.DamageValue,
+            LastToDieRevolverProfile: shot.LastToDieProfile.Encode(),
+            AppliesLuckyStrikeStun: shot.AppliesLuckyStrikeStun,
+            CriticalDamageMultiplier: shot.CriticalDamageMultiplier);
     }
 
     internal static SnapshotRocketState ToSnapshotRocketState(RocketProjectileEntity rocket)
@@ -482,7 +552,8 @@ internal static partial class ServerHelpers
             rocket.IsFading,
             rocket.FadeSourceTicksRemaining,
             passedFriendlyPlayerIds,
-            rocket.IsCritical);
+            rocket.IsCritical,
+            rocket.CriticalDamageMultiplier);
     }
 
     internal static SnapshotFlameState ToSnapshotFlameState(FlameProjectileEntity flame)
@@ -501,12 +572,13 @@ internal static partial class ServerHelpers
             flame.AttachedPlayerId ?? -1,
             flame.AttachedOffsetX,
             flame.AttachedOffsetY,
-            flame.IsCritical);
+            flame.IsCritical,
+            flame.CriticalDamageMultiplier);
     }
 
     internal static SnapshotShotState ToSnapshotFlareState(FlareProjectileEntity flare)
     {
-        return new SnapshotShotState(flare.Id, (byte)flare.Team, flare.OwnerId, flare.X, flare.Y, flare.VelocityX, flare.VelocityY, flare.TicksRemaining, flare.IsCritical);
+        return new SnapshotShotState(flare.Id, (byte)flare.Team, flare.OwnerId, flare.X, flare.Y, flare.VelocityX, flare.VelocityY, flare.TicksRemaining, flare.IsCritical, CriticalDamageMultiplier: flare.CriticalDamageMultiplier);
     }
 
     internal static SnapshotMineState ToSnapshotMineState(MineProjectileEntity mine)
@@ -522,7 +594,8 @@ internal static partial class ServerHelpers
             mine.IsStickied,
             mine.IsDestroyed,
             mine.ExplosionDamage,
-            mine.IsCritical);
+            mine.IsCritical,
+            mine.CriticalDamageMultiplier);
     }
 
     internal static SnapshotGrenadeState ToSnapshotGrenadeState(GrenadeProjectileEntity grenade)
@@ -538,7 +611,8 @@ internal static partial class ServerHelpers
             grenade.VelocityX,
             grenade.VelocityY,
             grenade.FuseTicksLeft,
-            grenade.IsCritical);
+            grenade.IsCritical,
+            grenade.CriticalDamageMultiplier);
     }
 
     internal static SnapshotDeadBodyState ToSnapshotDeadBodyState(DeadBodyEntity deadBody)
@@ -566,7 +640,8 @@ internal static partial class ServerHelpers
             (byte)sentryGib.Team,
             sentryGib.X,
             sentryGib.Y,
-            sentryGib.TicksRemaining);
+            sentryGib.TicksRemaining,
+            sentryGib.IsDispenser);
     }
 
     internal static SnapshotControlPointState ToSnapshotControlPointState(ControlPointState point)

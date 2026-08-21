@@ -2,6 +2,7 @@ using System.Net;
 using System.Globalization;
 using System.Reflection;
 using OpenGarrison.Core;
+using OpenGarrison.Core.LastToDie;
 using OpenGarrison.GameplayModding;
 using OpenGarrison.Protocol;
 using OpenGarrison.Server;
@@ -1283,6 +1284,26 @@ public sealed class SnapshotDeltaBudgeterTests
     }
 
     [Fact]
+    public void TransientEventBufferRetainsAuthoritativeCivvieMoneyVisualEvents()
+    {
+        var world = new SimulationWorld();
+        GetPendingVisualEvents(world).Add(new WorldVisualEvent(
+            "CivvieMoney",
+            128f,
+            64f,
+            DirectionDegrees: 4.5f));
+        var buffer = new SnapshotTransientEventBuffer(transientEventReplayTicks: 3);
+
+        var events = buffer.CaptureCurrentEvents(world);
+
+        var moneyEvent = Assert.Single(events.VisualEvents);
+        Assert.Equal("CivvieMoney", moneyEvent.EffectName);
+        Assert.Equal(4.5f, moneyEvent.DirectionDegrees);
+        Assert.NotEqual<ulong>(0, moneyEvent.EventId);
+        Assert.Empty(world.DrainPendingVisualEvents());
+    }
+
+    [Fact]
     public void TransientEventBufferSkipsManagedRapidFireLoopSounds()
     {
         var world = new SimulationWorld();
@@ -1895,6 +1916,70 @@ public sealed class SnapshotDeltaBudgeterTests
     }
 
     [Fact]
+    public void BuildBudgetedSnapshotPreservesExplosionEventsWhenOptionalVisualsCrowdOutThePacket()
+    {
+        var baseline = CreateSnapshot(882);
+        var current = CreateSnapshot(883);
+        var soundEvents = new[]
+        {
+            new SnapshotSoundEvent("ordinary-sound", 128f, 96f, EventId: 1, SourceFrame: 883),
+            new SnapshotSoundEvent("ExplosionSnd", 160f, 96f, EventId: 2, SourceFrame: 883),
+            new SnapshotSoundEvent("ordinary-sound-2", 192f, 96f, EventId: 3, SourceFrame: 883),
+        };
+        var visualEvents = Enumerable.Range(0, 80)
+            .Select(static index => new SnapshotVisualEvent(
+                $"optional-visual-{index:D2}-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                128f + index,
+                96f,
+                0f,
+                1,
+                EventId: (ulong)(index + 10)))
+            .ToArray();
+        var soundOnlyDelta = current with
+        {
+            IsDelta = true,
+            BaselineFrame = baseline.Frame,
+            SoundEvents = soundEvents,
+        };
+        var targetPayloadBytes = ProtocolCodec.Serialize(
+            soundOnlyDelta,
+            ProtocolCodec.MeasureSerializedSize(soundOnlyDelta),
+            ServerProtocolCompression.Settings).Length + 64;
+        var contributions = new List<SnapshotDeltaBudgeter.Contribution>
+        {
+            new(
+                Priority: 850,
+                DistanceSquared: 0f,
+                EstimatedBytes: 1,
+                Apply: builder =>
+                {
+                    for (var index = 0; index < soundEvents.Length; index += 1)
+                    {
+                        builder.SoundEvents.Add(soundEvents[index]);
+                    }
+                },
+                Kind: SnapshotDeltaBudgeter.ContributionKind.TransientSoundEvent),
+            new(
+                Priority: 840,
+                DistanceSquared: 0f,
+                EstimatedBytes: 1,
+                Apply: builder =>
+                {
+                    for (var index = 0; index < visualEvents.Length; index += 1)
+                    {
+                        builder.VisualEvents.Add(visualEvents[index]);
+                    }
+                }),
+        };
+
+        var result = SnapshotDeltaBudgeter.BuildBudgetedSnapshot(current, baseline, contributions, targetPayloadBytes);
+
+        Assert.True(result.Payload.Length <= targetPayloadBytes);
+        Assert.Contains(result.Message.SoundEvents, soundEvent => soundEvent.SoundName == "ExplosionSnd");
+        Assert.Empty(result.Message.VisualEvents);
+    }
+
+    [Fact]
     public void BuildBudgetedSnapshotPreservesPlayerChatBubbleWhenFullDetailIsCrowdedOut()
     {
         var baselinePlayer = CreatePlayerState(1, 981, "Bubbly");
@@ -2046,10 +2131,55 @@ public sealed class SnapshotDeltaBudgeterTests
 
         var mergedSoldier = Assert.Single(merged.Players);
         var states = mergedSoldier.ReplicatedStates ?? [];
-        Assert.Contains(states, state => state.Key == "soldier_shotgun_equipped" && state.BoolValue);
+        Assert.DoesNotContain(states, state => state.Key == "soldier_shotgun_equipped");
         Assert.DoesNotContain(states, state => state.Key == "soldier_shotgun_ammo");
         Assert.DoesNotContain(states, state => state.Key == "soldier_shotgun_reload_ticks");
         Assert.DoesNotContain(states, state => state.Key == "soldier_shotgun_cooldown_ticks");
+    }
+
+    [Fact]
+    public void SnapshotDeltaStatusUpdateClearsRemovedLastToDieWeaponState()
+    {
+        var baselineSpy = CreatePlayerState(2, 10920, "Remote Spy") with
+        {
+            ClassId = (byte)PlayerClass.Spy,
+            ReplicatedStates =
+            [
+                new SnapshotReplicatedStateEntry(
+                    PlayerEntity.LastToDieWeaponReplicatedStateOwnerId,
+                    PlayerEntity.LastToDieSpyRevolverProfileReplicatedStateKey,
+                    SnapshotReplicatedStateValueKind.Whole,
+                    IntValue: LastToDieSpyRevolverProfile.FromPerks(
+                        new HashSet<LastToDiePerkId>
+                        {
+                            LastToDiePerkIds.Spy.Agent,
+                            LastToDiePerkIds.Spy.LuckyStrike,
+                        }).EncodeReplicatedState(luckyStrikeTriggerProgress: 2)),
+            ],
+        };
+        var baseline = CreateSnapshot(10920) with { Players = [baselineSpy] };
+        var delta = CreateSnapshot(10921) with
+        {
+            IsDelta = true,
+            BaselineFrame = baseline.Frame,
+            PlayerStatusStates =
+            [
+                new SnapshotPlayerStatusState(
+                    baselineSpy.Slot,
+                    baselineSpy.Health,
+                    baselineSpy.MaxHealth,
+                    baselineSpy.Ammo,
+                    baselineSpy.MaxAmmo,
+                    baselineSpy.Metal,
+                    baselineSpy.IsCarryingIntel,
+                    baselineSpy.IntelRechargeTicks,
+                    SecondaryAmmoStates: []),
+            ],
+        };
+
+        var merged = SnapshotDelta.ToFullSnapshot(delta, baseline);
+
+        Assert.Empty(Assert.Single(merged.Players).ReplicatedStates ?? []);
     }
 
     [Fact]
@@ -2216,6 +2346,142 @@ public sealed class SnapshotDeltaBudgeterTests
     }
 
     [Fact]
+    public void BuildContributionsKeepsLastToDieMovementAndStunStateInCompactStatus()
+    {
+        var localPlayer = CreatePlayerState(1, 1151, "Viewer");
+        var baselineRemotePlayer = CreatePlayerState(2, 1152, "Remote Spy") with
+        {
+            ClassId = (byte)PlayerClass.Spy,
+            ReplicatedStates =
+            [
+                new SnapshotReplicatedStateEntry(
+                    PlayerEntity.LastToDieStatusReplicatedStateOwnerId,
+                    PlayerEntity.LastToDieStatusMovementSpeedMultiplierReplicatedStateKey,
+                    SnapshotReplicatedStateValueKind.Scalar,
+                    FloatValue: 0.8f),
+                new SnapshotReplicatedStateEntry(
+                    PlayerEntity.ServerTuningReplicatedStateOwnerId,
+                    PlayerEntity.StunTicksReplicatedStateKey,
+                    SnapshotReplicatedStateValueKind.Whole,
+                    IntValue: 20),
+            ],
+        };
+        var currentRemotePlayer = baselineRemotePlayer with
+        {
+            ReplicatedStates =
+            [
+                new SnapshotReplicatedStateEntry(
+                    PlayerEntity.LastToDieStatusReplicatedStateOwnerId,
+                    PlayerEntity.LastToDieStatusMovementSpeedMultiplierReplicatedStateKey,
+                    SnapshotReplicatedStateValueKind.Scalar,
+                    FloatValue: 0.6f),
+                new SnapshotReplicatedStateEntry(
+                    PlayerEntity.ServerTuningReplicatedStateOwnerId,
+                    PlayerEntity.StunTicksReplicatedStateKey,
+                    SnapshotReplicatedStateValueKind.Whole,
+                    IntValue: 19),
+            ],
+        };
+        var baseline = CreateSnapshot(1150) with { Players = [localPlayer, baselineRemotePlayer] };
+        var current = CreateSnapshot(1151) with { Players = [localPlayer, currentRemotePlayer] };
+        var client = new ClientSession(
+            1,
+            userId: 101,
+            new IPEndPoint(IPAddress.Loopback, 8190),
+            "Viewer",
+            TimeSpan.Zero);
+        var world = new SimulationWorld();
+        typeof(SimulationWorld)
+            .GetProperty(nameof(SimulationWorld.Frame))!
+            .SetValue(world, 1151L);
+
+        var contributions = SnapshotContributionPlanner.BuildContributions(client, current, baseline, world);
+        var result = SnapshotDeltaBudgeter.BuildBudgetedSnapshot(
+            current,
+            baseline,
+            contributions,
+            targetPayloadBytes: 512);
+        var merged = SnapshotDelta.ToFullSnapshot(result.Message, baseline);
+
+        Assert.Empty(result.Message.Players);
+        var status = Assert.Single(result.Message.PlayerStatusStates, state => state.Slot == 2);
+        Assert.Contains(
+            status.SecondaryAmmoStates ?? [],
+            state => state.OwnerId == PlayerEntity.LastToDieStatusReplicatedStateOwnerId
+                && state.FloatValue == 0.6f);
+        Assert.Contains(
+            status.SecondaryAmmoStates ?? [],
+            state => state.OwnerId == PlayerEntity.ServerTuningReplicatedStateOwnerId
+                && state.Key == PlayerEntity.StunTicksReplicatedStateKey
+                && state.IntValue == 19);
+        var mergedRemote = Assert.Single(merged.Players, player => player.Slot == 2);
+        Assert.Contains(
+            mergedRemote.ReplicatedStates ?? [],
+            state => state.OwnerId == PlayerEntity.LastToDieStatusReplicatedStateOwnerId
+                && state.FloatValue == 0.6f);
+    }
+
+    [Theory]
+    [InlineData(PlayerClass.Soldier, "soldier_shotgun_ammo")]
+    [InlineData(PlayerClass.Demoman, "demoman_gl_ammo")]
+    [InlineData(PlayerClass.Scout, "scout_nailgun_ammo")]
+    [InlineData(PlayerClass.Sniper, "sniper_bow_ammo")]
+    [InlineData(PlayerClass.Medic, "medic_kritz_ammo")]
+    public void BuildContributionsCarriesEveryOffhandAmmoThroughBudgetedStatus(
+        PlayerClass playerClass,
+        string ammoKey)
+    {
+        var baselinePlayer = CreatePlayerState(1, 1141, "Viewer") with
+        {
+            ClassId = (byte)playerClass,
+            ReplicatedStates =
+            [
+                new SnapshotReplicatedStateEntry(
+                    "core.player",
+                    ammoKey,
+                    SnapshotReplicatedStateValueKind.Whole,
+                    IntValue: 4),
+            ],
+        };
+        var currentPlayer = baselinePlayer with
+        {
+            ReplicatedStates =
+            [
+                new SnapshotReplicatedStateEntry(
+                    "core.player",
+                    ammoKey,
+                    SnapshotReplicatedStateValueKind.Whole,
+                    IntValue: 0),
+            ],
+        };
+        var baseline = CreateSnapshot(1140) with { Players = [baselinePlayer] };
+        var current = CreateSnapshot(1141) with { Players = [currentPlayer] };
+        var client = new ClientSession(
+            1,
+            userId: 101,
+            new IPEndPoint(IPAddress.Loopback, 8190),
+            "Viewer",
+            TimeSpan.Zero);
+        var world = new SimulationWorld();
+        var contributions = SnapshotContributionPlanner.BuildContributions(client, current, baseline, world);
+
+        var result = SnapshotDeltaBudgeter.BuildBudgetedSnapshot(current, baseline, contributions, targetPayloadBytes: 512);
+        var merged = SnapshotDelta.ToFullSnapshot(result.Message, baseline);
+
+        Assert.True(result.Payload.Length <= 512);
+        Assert.Empty(result.Message.Players);
+        var status = Assert.Single(result.Message.PlayerStatusStates);
+        var ammoState = Assert.Single(status.SecondaryAmmoStates ?? Array.Empty<SnapshotReplicatedStateEntry>());
+        Assert.Equal(ammoKey, ammoState.Key);
+        Assert.Equal(0, ammoState.IntValue);
+
+        var mergedPlayer = Assert.Single(merged.Players);
+        var mergedAmmoState = Assert.Single(mergedPlayer.ReplicatedStates ?? Array.Empty<SnapshotReplicatedStateEntry>());
+        Assert.Equal(ammoKey, mergedAmmoState.Key);
+        Assert.Equal(0, mergedAmmoState.IntValue);
+    }
+
+    [Fact]
     public void BuildContributionsDefersLowFrequencyPlayerDetailBetweenRefreshWindows()
     {
         var localPlayer = CreatePlayerState(1, 1001, "Viewer");
@@ -2347,6 +2613,45 @@ public sealed class SnapshotDeltaBudgeterTests
         Assert.InRange(mergedRemoteSpy.SpyCloakAlpha, 0.34f, 0.36f);
         Assert.Equal(24, mergedRemoteSpy.SpyBackstabVisualTicksRemaining);
         Assert.True(mergedRemoteSpy.IsUbered);
+    }
+
+    [Fact]
+    public void RogueRampProgressUsesOnlyCompactExtendedStatusDelta()
+    {
+        var localPlayer = CreatePlayerState(1, 1111, "Viewer");
+        var baselineRemoteSpy = CreatePlayerState(2, 1112, "Remote Spy") with
+        {
+            ClassId = (byte)PlayerClass.Spy,
+            LastToDieSpyCloakMeterUnits = 1800,
+            LastToDieSpyRogueRampStacks = 2,
+            LastToDieSpyRogueRampTicks = 11,
+        };
+        var currentRemoteSpy = baselineRemoteSpy with
+        {
+            LastToDieSpyCloakMeterUnits = 1805,
+            LastToDieSpyRogueRampTicks = 12,
+        };
+        var baseline = CreateSnapshot(1110) with { Players = [localPlayer, baselineRemoteSpy] };
+        var current = CreateSnapshot(1111) with { Players = [localPlayer, currentRemoteSpy] };
+        var client = new ClientSession(
+            1,
+            userId: 101,
+            new IPEndPoint(IPAddress.Loopback, 8190),
+            "Viewer",
+            TimeSpan.Zero);
+        var contributions = SnapshotContributionPlanner.BuildContributions(client, current, baseline, new SimulationWorld());
+
+        var result = SnapshotDeltaBudgeter.BuildBudgetedSnapshot(current, baseline, contributions, targetPayloadBytes: 1024);
+        var merged = SnapshotDelta.ToFullSnapshot(result.Message, baseline);
+
+        Assert.Empty(result.Message.Players);
+        var extendedState = Assert.Single(result.Message.PlayerExtendedStatusStates, state => state.Slot == 2);
+        Assert.Equal((ushort)1805, extendedState.LastToDieSpyCloakMeterUnits);
+        Assert.Equal((byte)2, extendedState.LastToDieSpyRogueRampStacks);
+        Assert.Equal((ushort)12, extendedState.LastToDieSpyRogueRampTicks);
+        var mergedRemoteSpy = Assert.Single(merged.Players, player => player.Slot == 2);
+        Assert.Equal((ushort)1805, mergedRemoteSpy.LastToDieSpyCloakMeterUnits);
+        Assert.Equal((ushort)12, mergedRemoteSpy.LastToDieSpyRogueRampTicks);
     }
 
     [Fact]
@@ -2938,6 +3243,13 @@ public sealed class SnapshotDeltaBudgeterTests
         var field = typeof(SimulationWorld).GetField("_pendingGibSpawnEvents", BindingFlags.Instance | BindingFlags.NonPublic);
         Assert.NotNull(field);
         return Assert.IsType<List<WorldGibSpawnEvent>>(field!.GetValue(world));
+    }
+
+    private static List<WorldVisualEvent> GetPendingVisualEvents(SimulationWorld world)
+    {
+        var field = typeof(SimulationWorld).GetField("_pendingVisualEvents", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(field);
+        return Assert.IsType<List<WorldVisualEvent>>(field!.GetValue(world));
     }
 
     private static List<WorldSoundEvent> GetPendingSoundEvents(SimulationWorld world)

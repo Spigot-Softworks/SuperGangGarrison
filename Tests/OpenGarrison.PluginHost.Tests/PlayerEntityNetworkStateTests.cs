@@ -1,5 +1,6 @@
 using OpenGarrison.Core;
 using OpenGarrison.GameplayModding;
+using OpenGarrison.Protocol;
 using Xunit;
 
 namespace OpenGarrison.PluginHost.Tests;
@@ -186,6 +187,25 @@ public sealed class PlayerEntityNetworkStateTests
     }
 
     [Fact]
+    public void ApplyNetworkStateHydratesEquippedAcquiredSoldierWeaponIdentity()
+    {
+        var player = new PlayerEntity(1, CharacterClassCatalog.Scout, "Test");
+
+        ApplySoldierNetworkSnapshot(
+            player,
+            GameplayEquipmentSlot.Secondary,
+            includeFullLoadoutState: true,
+            acquiredItemId: "weapon.rocketlauncher",
+            equippedItemIdOverride: "weapon.rocketlauncher");
+
+        Assert.Equal(PlayerClass.Soldier, player.AcquiredWeaponClassId);
+        Assert.True(player.IsAcquiredWeaponPresented);
+        Assert.Equal("weapon.rocketlauncher", player.GameplayLoadoutState.AcquiredItemId);
+        Assert.Equal("weapon.rocketlauncher", player.GameplayLoadoutState.EquippedItemId);
+        Assert.Equal(PrimaryWeaponKind.RocketLauncher, player.AcquiredWeapon?.Kind);
+    }
+
+    [Fact]
     public void ApplyNetworkStateHydratesSniperBowFromReplicatedAvailability()
     {
         var player = new PlayerEntity(1, CharacterClassCatalog.Sniper, "Test");
@@ -271,6 +291,164 @@ public sealed class PlayerEntityNetworkStateTests
         Assert.Equal(6, player.ExperimentalOffhandMaxShells);
         Assert.Equal("weapon.medigun.crit", player.GameplayLoadoutState.SecondaryItemId);
         Assert.Equal("weapon.medigun.crit", player.GameplayLoadoutState.EquippedItemId);
+    }
+
+    [Fact]
+    public void ApplyProtocol64StateHydratesMedicM2AmmoIntoCurrentShells()
+    {
+        var player = new PlayerEntity(1, CharacterClassCatalog.Scout, "Test");
+        var state = new Protocol64PlayerState(
+            Slot: 1,
+            PlayerId: 1,
+            Generation: 1,
+            GameplayClassId: "medic",
+            Health: 100,
+            MaxHealth: 150,
+            Team: (byte)PlayerTeam.Red,
+            IsAlive: true,
+            X: 0f,
+            Y: 0f,
+            VelocityX: 0f,
+            VelocityY: 0f,
+            ActiveWeapon: 0,
+            AbilityState: 0,
+            StateTick: 1,
+            CurrentAmmo: 17,
+            MaxAmmo: 40,
+            OffhandAmmo: 4,
+            OffhandMaxAmmo: 6,
+            OffhandCooldownTicks: 2,
+            OffhandReloadTicks: 3,
+            MedicNeedleCooldownTicks: 5,
+            MedicNeedleRefillTicks: 17);
+
+        player.ApplyProtocol64State(state, CharacterClassCatalog.Medic);
+
+        Assert.Equal(PlayerClass.Medic, player.ClassId);
+        Assert.Equal(150, player.MaxHealth);
+        Assert.Equal(17, player.CurrentShells);
+        Assert.Equal(40, player.MaxShells);
+        Assert.True(player.HasExperimentalOffhandWeapon);
+        Assert.Equal(4, player.ExperimentalOffhandCurrentShells);
+        Assert.Equal(6, player.ExperimentalOffhandMaxShells);
+        Assert.Equal(2, player.ExperimentalOffhandCooldownTicks);
+        Assert.Equal(3, player.ExperimentalOffhandReloadTicksUntilNextShell);
+        Assert.Equal(5, player.MedicNeedleCooldownTicks);
+        Assert.Equal(17, player.MedicNeedleRefillTicks);
+    }
+
+    [Fact]
+    public void ApplyNetworkStateUsesAuthoritativeMaxHealthForReplicatedPlayer()
+    {
+        var player = new PlayerEntity(1, CharacterClassCatalog.Scout, "Test");
+
+        ApplySoldierNetworkSnapshot(
+            player,
+            GameplayEquipmentSlot.Primary,
+            includeFullLoadoutState: true,
+            networkMaxHealth: 200);
+
+        Assert.Equal(200, player.MaxHealth);
+        Assert.Equal(200, player.Health);
+    }
+
+    [Fact]
+    public void PredictionRestorePreservesAuthoritativeNetworkMaxHealth()
+    {
+        var player = new PlayerEntity(1, CharacterClassCatalog.Scout, "Test");
+        player.ApplyProtocol64State(
+            new Protocol64PlayerState(
+                Slot: 1,
+                PlayerId: 1,
+                Generation: 1,
+                GameplayClassId: "medic",
+                Health: 100,
+                MaxHealth: 150,
+                Team: (byte)PlayerTeam.Red,
+                IsAlive: true,
+                X: 0f,
+                Y: 0f,
+                VelocityX: 0f,
+                VelocityY: 0f,
+                ActiveWeapon: 0,
+                AbilityState: 0,
+                StateTick: 1,
+                CurrentAmmo: 40,
+                MaxAmmo: 40),
+            CharacterClassCatalog.Medic);
+
+        var predictionState = player.CapturePredictionState();
+        player.SetClassDefinition(CharacterClassCatalog.Scout);
+        player.RestorePredictionState(predictionState);
+
+        Assert.Equal(150, player.MaxHealth);
+        Assert.Equal(100, player.Health);
+    }
+
+    [Fact]
+    public void PredictionRestorePreservesTransientAbilityMovementState()
+    {
+        var spy = new PlayerEntity(1, CharacterClassCatalog.Spy, "Spy");
+        spy.Spawn(PlayerTeam.Red, 100f, 100f);
+        Assert.True(spy.TryStartSpySuperjumpCharge(32f, leftHeld: true, rightHeld: false, upHeld: false, downHeld: false));
+        var spyState = spy.CapturePredictionState();
+
+        spy.CancelSpySuperjumpCharge();
+        spy.RestorePredictionState(spyState);
+
+        Assert.Equal(spyState.SpySuperjumpChargeTicks, spy.SpySuperjumpChargeTicks);
+        Assert.Equal(spyState.SpySuperjumpChargeDirectionDegrees, spy.SpySuperjumpChargeDirectionDegrees);
+        Assert.Equal(spyState.SpySuperjumpChargeStartMovementButtons, spy.SpySuperjumpChargeStartMovementButtons);
+
+        var heavy = new PlayerEntity(2, CharacterClassCatalog.Heavy, "Heavy");
+        heavy.Spawn(PlayerTeam.Red, 100f, 100f);
+        Assert.True(heavy.TryStartExperimentalGhostDash(
+            dashTicks: 12,
+            cooldownTicks: 40,
+            nextAttackDamageMultiplier: 2f,
+            dashImpulse: 48f,
+            requireExperimentalDemoknight: false,
+            useMomentum: true,
+            movementTicks: 8,
+            slideVelocityPerTick: 3.5f,
+            burstSpeedMultiplier: 4f,
+            disableGravity: true,
+            enableGhostTrail: true));
+        var heavyState = heavy.CapturePredictionState();
+
+        heavy.AdvanceTickState(default, 1d / 30d);
+        heavy.RestorePredictionState(heavyState);
+        var restoredHeavyState = heavy.CapturePredictionState();
+
+        Assert.Equal(heavyState.ExperimentalGhostDashMovementTicksRemaining, restoredHeavyState.ExperimentalGhostDashMovementTicksRemaining);
+        Assert.Equal(heavyState.ExperimentalGhostDashDistanceRemaining, restoredHeavyState.ExperimentalGhostDashDistanceRemaining);
+        Assert.Equal(heavyState.ExperimentalGhostDashInitialDistance, restoredHeavyState.ExperimentalGhostDashInitialDistance);
+        Assert.Equal(heavyState.ExperimentalGhostDashMomentumDirectionX, restoredHeavyState.ExperimentalGhostDashMomentumDirectionX);
+        Assert.Equal(heavyState.ExperimentalGhostDashSlideVelocityPerTick, restoredHeavyState.ExperimentalGhostDashSlideVelocityPerTick);
+        Assert.Equal(heavyState.ExperimentalGhostDashNextAttackDamageMultiplierValue, restoredHeavyState.ExperimentalGhostDashNextAttackDamageMultiplierValue);
+    }
+
+    [Theory]
+    [InlineData(PlayerClass.Soldier, "soldier_shotgun_ammo")]
+    [InlineData(PlayerClass.Demoman, "demoman_gl_ammo")]
+    [InlineData(PlayerClass.Scout, "scout_nailgun_ammo")]
+    [InlineData(PlayerClass.Sniper, "sniper_bow_ammo")]
+    [InlineData(PlayerClass.Medic, "medic_kritz_ammo")]
+    public void ApplyNetworkStateReplacesResolvedReplicatedOffhandAmmoState(
+        PlayerClass playerClass,
+        string ammoKey)
+    {
+        var player = new PlayerEntity(1, CharacterClassCatalog.Scout, "Test");
+        var classDefinition = CharacterClassCatalog.GetDefinition(playerClass);
+
+        ApplyReplicatedAmmoSnapshot(player, classDefinition, ammoKey, 4);
+        Assert.True(player.TryGetReplicatedStateInt("core.player", ammoKey, out var initialAmmo));
+        Assert.Equal(4, initialAmmo);
+
+        // A resolved delta can legitimately contain an empty replicated-state list after the
+        // server status merge removes the last runtime weapon state.
+        ApplyReplicatedAmmoSnapshot(player, classDefinition, ammoKey, null);
+        Assert.False(player.TryGetReplicatedStateInt("core.player", ammoKey, out _));
     }
 
     [Fact]
@@ -736,6 +914,13 @@ public sealed class PlayerEntityNetworkStateTests
         Assert.Equal(2, player.CivviePogoCrunchTicksRemaining);
         Assert.Equal(11, player.CivviePogoTrickTicksRemaining);
         Assert.Equal(18, player.CivviePogoTrickDurationAtStart);
+
+        // A delta snapshot omits expired ability entries.  The client must clear
+        // the old trick state instead of replaying the previous taunt frame.
+        ApplyCivilianNetworkSnapshot(player, []);
+
+        Assert.Equal(0, player.CivviePogoTrickTicksRemaining);
+        Assert.Equal(0, player.CivviePogoTrickDurationAtStart);
     }
 
     [Fact]
@@ -881,15 +1066,83 @@ public sealed class PlayerEntityNetworkStateTests
         Assert.True(player.BurnVisualCount > 0);
     }
 
+    private static void ApplyReplicatedAmmoSnapshot(
+        PlayerEntity player,
+        CharacterClassDefinition classDefinition,
+        string ammoKey,
+        int? ammo)
+    {
+        player.ApplyNetworkState(
+            team: PlayerTeam.Red,
+            classDefinition: classDefinition,
+            isAlive: true,
+            x: 10f,
+            y: 20f,
+            horizontalSpeed: 0f,
+            verticalSpeed: 0f,
+            health: 100,
+            currentShells: 1,
+            kills: 0,
+            deaths: 0,
+            caps: 0,
+            points: 0f,
+            healPoints: 0,
+            activeDominationCount: 0,
+            isDominatingLocalViewer: false,
+            isDominatedByLocalViewer: false,
+            metal: 0f,
+            isGrounded: true,
+            remainingAirJumps: 0,
+            isCarryingIntel: false,
+            intelRechargeTicks: 0f,
+            isSpyCloaked: false,
+            spyCloakAlpha: 0f,
+            isSpySuperjumping: false,
+            spySuperjumpHorizontalVelocity: 0f,
+            spySuperjumpCooldownTicksRemaining: 0,
+            spyBackstabVisualTicksRemaining: 0,
+            isUbered: false,
+            isKritzCritBoosted: false,
+            isHeavyEating: false,
+            heavyEatTicksRemaining: 0,
+            isSniperScoped: false,
+            sniperChargeTicks: 0,
+            isUsingBinoculars: false,
+            binocularsFocusX: 0f,
+            binocularsFocusY: 0f,
+            facingDirectionX: 1f,
+            aimDirectionDegrees: 0f,
+            aimWorldX: 100f,
+            aimWorldY: 20f,
+            isTaunting: false,
+            tauntFrameIndex: 0f,
+            isChatBubbleVisible: false,
+            chatBubbleFrameIndex: 0,
+            chatBubbleAlpha: 0f,
+            replicatedStateEntries: ammo.HasValue
+                ? [new GameplayReplicatedStateEntry(
+                    "core.player",
+                    ammoKey,
+                    GameplayReplicatedStateValueKind.Whole,
+                    ammo.Value,
+                    0f,
+                    false)]
+                : []);
+    }
+
     private static void ApplySoldierNetworkSnapshot(
         PlayerEntity player,
         GameplayEquipmentSlot equippedSlot,
         bool includeFullLoadoutState,
-        GameplayReplicatedStateEntry[]? replicatedStateEntries = null)
+        GameplayReplicatedStateEntry[]? replicatedStateEntries = null,
+        string acquiredItemId = "",
+        string? equippedItemIdOverride = null,
+        int networkMaxHealth = 0)
     {
         var equippedItemId = equippedSlot == GameplayEquipmentSlot.Secondary
             ? "weapon.soldier-shotgun"
             : "weapon.rocketlauncher";
+        equippedItemId = equippedItemIdOverride ?? equippedItemId;
 
         player.ApplyNetworkState(
             team: PlayerTeam.Red,
@@ -945,8 +1198,9 @@ public sealed class PlayerEntityNetworkStateTests
             gameplayUtilityItemId: includeFullLoadoutState ? "ability.soldier-utility" : "",
             gameplayEquippedSlot: (byte)equippedSlot,
             gameplayEquippedItemId: includeFullLoadoutState ? equippedItemId : "",
-            gameplayAcquiredItemId: "",
-            replicatedStateEntries: replicatedStateEntries);
+            gameplayAcquiredItemId: acquiredItemId,
+            replicatedStateEntries: replicatedStateEntries,
+            networkMaxHealth: networkMaxHealth);
     }
 
     private static void ApplySniperNetworkSnapshot(

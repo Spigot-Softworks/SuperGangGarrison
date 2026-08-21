@@ -19,7 +19,6 @@ public partial class Game1
     private static readonly Queue<string> _browserRecentGameplayRenderTraces = new();
     private const float GameplayHudCoveredPlayerOpacity = 0.45f;
     private const float GameplayHudAutoFadeSpeedPerSecond = 4f;
-    private const float WeaponFireHudRumbleDurationSeconds = 0.12f;
 
     public static string GetBrowserLastGameplayRenderTrace()
     {
@@ -46,7 +45,7 @@ public partial class Game1
         _damageVignetteCompositeDeferred = false;
         var effectiveOpacity = GetEffectiveGameplayHudCompositeOpacity();
         if (_gameplayHudHidden
-            || (effectiveOpacity >= HudLayoutProfile.MaxHudOpacity - 0.001f && _weaponFireHudRumbleRemainingSeconds <= 0f)
+            || effectiveOpacity >= HudLayoutProfile.MaxHudOpacity - 0.001f
             || OperatingSystem.IsBrowser())
         {
             return;
@@ -94,7 +93,7 @@ public partial class Game1
         }
 
         var opacity = GetEffectiveGameplayHudCompositeOpacity();
-        _spriteBatch.Draw(_hudRenderTarget, GetWeaponFireHudRumbleOffset(), Color.White * opacity);
+        _spriteBatch.Draw(_hudRenderTarget, Vector2.Zero, Color.White * opacity);
     }
 
     private float GetEffectiveGameplayHudCompositeOpacity()
@@ -167,42 +166,6 @@ public partial class Game1
         return false;
     }
 
-    private void TriggerLocalWeaponFireHudRumble(float intensity = 1f)
-    {
-        if (!_portraitRumbleEnabled || intensity <= 0f)
-        {
-            return;
-        }
-
-        _weaponFireHudRumbleSeed += 1;
-        _weaponFireHudRumbleRemainingSeconds = WeaponFireHudRumbleDurationSeconds;
-        _weaponFireHudRumbleIntensity = Math.Clamp(intensity, 0.35f, 1.2f);
-    }
-
-    private Vector2 GetWeaponFireHudRumbleOffset()
-    {
-        if (!_portraitRumbleEnabled || _weaponFireHudRumbleRemainingSeconds <= 0f)
-        {
-            _weaponFireHudRumbleRemainingSeconds = 0f;
-            _weaponFireHudRumbleIntensity = 0f;
-            return Vector2.Zero;
-        }
-
-        var progress = Math.Clamp(_weaponFireHudRumbleRemainingSeconds / WeaponFireHudRumbleDurationSeconds, 0f, 1f);
-        var falloff = progress * progress;
-        var shakePixels = 1.35f * _weaponFireHudRumbleIntensity * falloff;
-        var seed = _weaponFireHudRumbleSeed * 11.71f;
-        var phase = (WeaponFireHudRumbleDurationSeconds - _weaponFireHudRumbleRemainingSeconds) * 130f;
-        var offset = new Vector2(
-            MathF.Sin(seed + phase) * shakePixels,
-            MathF.Cos((seed * 0.59f) + (phase * 1.43f)) * shakePixels * 0.55f);
-
-        _weaponFireHudRumbleRemainingSeconds = Math.Max(
-            0f,
-            _weaponFireHudRumbleRemainingSeconds - Math.Max(0f, _clientUpdateElapsedSeconds));
-        return offset;
-    }
-
     private void EnsureHudRenderTarget()
     {
         if (_hudRenderTarget is not null
@@ -228,6 +191,14 @@ public partial class Game1
     {
         BeginHudElementFrame();
         var browserHudDrawStartTimestamp = ShouldMeasureClientPerformanceDurations() ? Stopwatch.GetTimestamp() : 0L;
+        if (IsHostedLastToDieBlockingGameplay())
+        {
+            // Hosted LTD menus are complete modal scenes. Do not render stale
+            // respawn, win-banner, MVP, or ordinary match HUD behind them.
+            RecordBrowserHudDrawDuration(browserHudDrawStartTimestamp);
+            return;
+        }
+
         if (IsLastToDieDeathFocusPresentationActive())
         {
             RecordBrowserHudDrawDuration(browserHudDrawStartTimestamp);
@@ -269,6 +240,7 @@ public partial class Game1
         DrawWinBannerHud();
         WriteGameplayRenderTrace("hud after winbanner");
         DrawLastToDieHud();
+        DrawHostedLastToDieHud();
         WriteGameplayRenderTrace("hud after lasttodie");
         DrawVipPresentationOverlay();
         WriteGameplayRenderTrace("hud after vippresentation");
@@ -325,11 +297,7 @@ public partial class Game1
             WriteGameplayRenderTrace("hud after droppedweaponhud");
         }
 
-        if (CanDrawGameplayBuildHud())
-        {
-            DrawBuildMenuHud();
-            WriteGameplayRenderTrace("hud after buildmenu");
-        }
+        DrawLockedPrimaryWeaponSwapPrompt(cameraPosition);
 
         DrawNoticeHud();
         WriteGameplayRenderTrace("hud after notice");
@@ -544,6 +512,8 @@ public partial class Game1
         WriteGameplayRenderTrace("modal after quitprompt");
         DrawLastToDieFailureOverlay();
         WriteGameplayRenderTrace("modal after failureoverlay");
+        DrawHostedLastToDieModal();
+        WriteGameplayRenderTrace("modal after hosted-lasttodie");
 
         if (ShouldDrawSoftwareMenuCursor())
         {

@@ -270,6 +270,7 @@ public partial class Game1
 
     private bool TryGetLevelBackgroundFileTexture(string? backgroundName, out Texture2D texture)
     {
+        EnsureLevelBackgroundFileCacheLevel(_world.Level);
         if (string.IsNullOrWhiteSpace(backgroundName))
         {
             texture = null!;
@@ -345,6 +346,78 @@ public partial class Game1
 
         texture = _levelBackgroundFileTexture;
         return true;
+    }
+
+    private void EnsureLevelBackgroundFileCacheLevel(SimpleLevel level)
+    {
+        if (!ShouldInvalidateLevelBackgroundFileCache(_levelBackgroundFileTextureLevel, level))
+        {
+            return;
+        }
+
+        _levelBackgroundFileTexture?.Dispose();
+        _levelBackgroundFileTexture = null;
+        _levelBackgroundFileTexturePath = null;
+        _levelBackgroundFileFailedPath = null;
+        _levelBackgroundFileTextureLevel = level;
+    }
+
+    internal static bool ShouldInvalidateLevelBackgroundFileCache(SimpleLevel? cachedLevel, SimpleLevel currentLevel)
+    {
+        return !ReferenceEquals(cachedLevel, currentLevel);
+    }
+
+    /// <summary>
+    /// Loads a background for a temporary map preview without touching the
+    /// single cached texture used by the active gameplay map.
+    /// </summary>
+    private bool TryLoadIndependentLevelBackgroundTexture(string? backgroundName, out Texture2D texture)
+    {
+        if (string.IsNullOrWhiteSpace(backgroundName)
+            || (!Path.IsPathRooted(backgroundName)
+                && !backgroundName.Contains(Path.DirectorySeparatorChar)
+                && !backgroundName.Contains(Path.AltDirectorySeparatorChar)))
+        {
+            texture = null!;
+            return false;
+        }
+
+        try
+        {
+            byte[]? bytes = null;
+            if (File.Exists(backgroundName))
+            {
+                bytes = File.ReadAllBytes(backgroundName);
+            }
+            else if (BrowserContentCatalog.TryGetBinaryForPath(backgroundName, out var browserBytes))
+            {
+                bytes = browserBytes;
+            }
+
+            if (bytes is null || bytes.Length == 0)
+            {
+                texture = null!;
+                return false;
+            }
+
+            texture = TextureDecodeUtility.LoadTexture(GraphicsDevice, bytes, applyLegacyChromaKey: false);
+            return true;
+        }
+        catch (IOException)
+        {
+            texture = null!;
+            return false;
+        }
+        catch (InvalidOperationException)
+        {
+            texture = null!;
+            return false;
+        }
+        catch (NotSupportedException)
+        {
+            texture = null!;
+            return false;
+        }
     }
 
     private void DrawWorldLine(float startX, float startY, float endX, float endY, Vector2 cameraPosition, Color color, float thickness)
@@ -637,7 +710,10 @@ public partial class Game1
         Vector2 scale,
         SpriteEffects effects = SpriteEffects.None)
     {
-        if (!OperatingSystem.IsBrowser() && _spriteDropShadowEnabled && tint.A > 0)
+        if (!OperatingSystem.IsBrowser()
+            && !_world.Level.IsTopDown
+            && _spriteDropShadowEnabled
+            && tint.A > 0)
         {
             var shadowAlpha = ((tint.A / 255f) * 0.32f);
             var shadowTint = new Color(0, 0, 0) * shadowAlpha;
@@ -695,7 +771,10 @@ public partial class Game1
         Vector2 scale,
         SpriteEffects effects = SpriteEffects.None)
     {
-        if (!OperatingSystem.IsBrowser() && _spriteDropShadowEnabled && tint.A > 0)
+        if (!OperatingSystem.IsBrowser()
+            && !_world.Level.IsTopDown
+            && _spriteDropShadowEnabled
+            && tint.A > 0)
         {
             var shadowAlpha = ((tint.A / 255f) * 0.32f);
             var shadowTint = new Color(0, 0, 0) * shadowAlpha;
@@ -710,6 +789,40 @@ public partial class Game1
                 effects,
                 0f);
         }
+    }
+
+    private void DrawTopDownPlayerShadow(
+        PlayerEntity player,
+        Vector2 renderPosition,
+        Vector2 cameraPosition,
+        Color tint)
+    {
+        if (OperatingSystem.IsBrowser()
+            || !_world.Level.IsTopDown
+            || !_spriteDropShadowEnabled
+            || tint.A <= 0)
+        {
+            return;
+        }
+
+        var playerScale = player.PlayerScale;
+        var shadowWidth = Math.Max(2, (int)MathF.Round(player.Width * 1.15f));
+        var shadowHeight = Math.Max(2, (int)MathF.Round(5f * playerScale));
+        var feet = GetPlayerSpriteScreenOrigin(
+            new Vector2(
+                renderPosition.X,
+                renderPosition.Y
+                    + (player.Height * 0.5f)
+                    + (shadowHeight * 0.5f)
+                    + 9f),
+            cameraPosition);
+        var shadowRectangle = new Rectangle(
+            (int)MathF.Round(feet.X - (shadowWidth * 0.5f)),
+            (int)MathF.Round(feet.Y - shadowHeight),
+            shadowWidth,
+            shadowHeight);
+        var shadowAlpha = (tint.A / 255f) * 0.32f;
+        _spriteBatch.Draw(_pixel, shadowRectangle, Color.Black * shadowAlpha);
     }
 
     private static readonly Vector2[] SpriteFrameOutlineOffsets =

@@ -63,6 +63,7 @@ public partial class Game1
         DispatchPendingDamageEventsToPlugins();
         QueuePendingExperimentalHealingHudIndicators();
         AdvanceHealingCharacterEffects((float)gameTime.ElapsedGameTime.TotalSeconds);
+        AdvanceDispenserBeamFades((float)gameTime.ElapsedGameTime.TotalSeconds);
         UpdateLocalRapidFireWeaponAudio();
         PlayDemoknightChargeReadySoundIfNeeded();
         PlayDeathCamSoundIfNeeded();
@@ -76,6 +77,7 @@ public partial class Game1
         {
             RecordClientPerformanceMetric(ClientPerformanceMetric.Music, GetDiagnosticsElapsedMilliseconds(musicStartTimestamp));
         }
+        UpdateHostedLastToDiePresentation(keyboard, mouse);
         UpdateLastToDieSession(clientTicks);
         UpdateLastToDieCombatFeedbackPresentation();
         UpdateEvasionMissPopups();

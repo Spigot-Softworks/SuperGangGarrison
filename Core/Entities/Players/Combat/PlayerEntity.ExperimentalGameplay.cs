@@ -1,4 +1,5 @@
 using System;
+using OpenGarrison.Core.LastToDie;
 
 namespace OpenGarrison.Core;
 
@@ -144,6 +145,8 @@ public sealed partial class PlayerEntity
     public bool IsServerFrozen => ServerFrozenValue;
 
     public bool IsServerStunned => ServerStunTicksRemainingValue > 0;
+
+    public int ServerStunTicksRemaining => ServerStunTicksRemainingValue;
 
     public bool IsServerInputSuppressed => ServerFrozenValue || IsServerStunned;
 
@@ -348,6 +351,16 @@ public sealed partial class PlayerEntity
             ServerTuningReplicatedStateOwnerId,
             StunTicksReplicatedStateKey,
             ServerStunTicksRemainingValue);
+    }
+
+    public bool RefreshServerStunTicks(int ticks)
+    {
+        return SetServerStunTicks(Math.Max(ServerStunTicksRemainingValue, ticks));
+    }
+
+    internal void HydrateProtocol64ServerStunTicks(int ticks)
+    {
+        ServerStunTicksRemainingValue = Math.Max(0, ticks);
     }
 
     private void AdvanceServerStunState()
@@ -1411,6 +1424,16 @@ public sealed partial class PlayerEntity
             multiplier *= DirectFireSlowMovementMultiplierValue;
         }
 
+        multiplier *= LastToDieStatusMovementSpeedMultiplierValue;
+        multiplier *= LastToDieCloakedMovementSpeedMultiplier;
+        multiplier *= LastToDieSniperMovementSpeedMultiplier;
+        multiplier *= LastToDieMedicLinkMovementSpeedMultiplier;
+
+        if (IsSniperBowEquipped && SniperBowChargeTicks > 0)
+        {
+            multiplier *= 0.9f;
+        }
+
         return multiplier;
     }
 
@@ -1482,6 +1505,12 @@ public sealed partial class PlayerEntity
             out var replicatedStunTicks)
             ? Math.Max(0, replicatedStunTicks)
             : 0;
+        RefreshLastToDieStatusRuntimeFromReplicatedStateEntries();
+        RefreshLastToDieWeaponProfileFromReplicatedStateEntries();
+        RefreshLastToDieMedicLinkFromReplicatedStateEntries();
+        RefreshLastToDieSpyInfiltrateFromReplicatedStateEntries();
+        RefreshLastToDieSpyAfterlifeFromReplicatedStateEntries();
+        RefreshLastToDieProfessionalFireChordFromReplicatedStateEntries();
     }
 
     private void StartExperimentalDemoknightChargeMovementState()
@@ -1515,7 +1544,13 @@ public sealed partial class PlayerEntity
     private int ApplyExperimentalReloadMultiplier(int ticks)
     {
         var clampedTicks = Math.Max(1, ticks);
-        return Math.Max(1, (int)MathF.Round(clampedTicks / ExperimentalReloadSpeedMultiplierValue));
+        return Math.Max(
+            1,
+            (int)MathF.Round(
+                clampedTicks
+                    / (ExperimentalReloadSpeedMultiplierValue
+                        * DispenserAttackReloadSpeedMultiplier
+                        * LastToDieMedicLinkAttackSpeedMultiplier)));
     }
 
     private int ApplyExperimentalWeaponCycleMultiplier(int ticks)
@@ -1524,6 +1559,35 @@ public sealed partial class PlayerEntity
         if (ExperimentalFreezeRayCombatDebuffTicksRemaining > 0)
         {
             adjustedTicks = Math.Max(1, (int)MathF.Round(adjustedTicks * ExperimentalFreezeRayWeaponCycleMultiplierValue));
+        }
+
+        return adjustedTicks;
+    }
+
+    private int ApplyLastToDieMedicNeedleReloadMultiplier(int ticks)
+    {
+        var clampedTicks = Math.Max(1, ticks);
+        var modifiedSpringMultiplier = LastToDieMedicModifiedSpringEnabled
+            ? LastToDieDerivedModifiers.MedicModifiedSpringAttackSpeedMultiplier
+            : 1f;
+        return Math.Max(
+            1,
+            (int)MathF.Round(
+                clampedTicks
+                    / (ExperimentalReloadSpeedMultiplierValue
+                        * DispenserAttackReloadSpeedMultiplier
+                        * LastToDieMedicLinkAttackSpeedMultiplier
+                        * modifiedSpringMultiplier)));
+    }
+
+    private int ApplyLastToDieMedicNeedleWeaponCycleMultiplier(int ticks)
+    {
+        var adjustedTicks = ApplyLastToDieMedicNeedleReloadMultiplier(ticks);
+        if (ExperimentalFreezeRayCombatDebuffTicksRemaining > 0)
+        {
+            adjustedTicks = Math.Max(
+                1,
+                (int)MathF.Round(adjustedTicks * ExperimentalFreezeRayWeaponCycleMultiplierValue));
         }
 
         return adjustedTicks;

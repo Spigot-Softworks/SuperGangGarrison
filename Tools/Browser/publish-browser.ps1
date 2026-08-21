@@ -1,6 +1,9 @@
 param(
     [string]$Configuration = "Release",
-    [string]$Output = ""
+    [string]$Output = "",
+    [string]$Version = "dev",
+    [ValidateSet("stable", "beta", "alpha", "nightly")]
+    [string]$Channel = "stable"
 )
 
 $ErrorActionPreference = "Stop"
@@ -32,6 +35,10 @@ $publishArgs = @(
     "-p:UseSharedCompilation=false",
     "-nodeReuse:false",
     "-p:OpenGarrisonBrowserAot=true",
+    "-p:OpenGarrisonBrowserBuildVersion=$Version",
+    "-p:OpenGarrisonBrowserReleaseChannel=$Channel",
+    "-p:InformationalVersion=$Version",
+    "-p:Version=$Version",
     "-p:DisableParallelAot=true",
     "-p:DisableParallelEmccCompile=true",
     "-p:WasmNativeDebugSymbols=false",
@@ -43,6 +50,8 @@ Write-Host "Publishing browser client from $projectPath"
 Write-Host "Configuration: $Configuration"
 Write-Host "Output: $outputPath"
 Write-Host "AOT enabled: true"
+Write-Host "Build version: $Version"
+Write-Host "Release channel: $Channel"
 
 if (Test-Path $outputPath) {
     Remove-Item -LiteralPath $outputPath -Recurse -Force

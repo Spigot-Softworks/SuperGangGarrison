@@ -166,6 +166,29 @@ public partial class Game1
     private bool TryDrawSentry(SentryEntity sentry, Vector2 cameraPosition)
     {
         var renderPosition = RoundToSourcePixels(GetRenderPosition(sentry.Id, sentry.X, sentry.Y));
+        if (sentry.IsDispenser)
+        {
+            var dispenserSpriteName = sentry.Team == PlayerTeam.Blue ? "DispenserBlue" : "DispenserRed";
+            var dispenserSprite = GetResolvedSprite(dispenserSpriteName);
+            if (dispenserSprite is null || dispenserSprite.Frames.Count == 0)
+            {
+                return false;
+            }
+
+            var frameIndex = GetDispenserFrameIndex(sentry, dispenserSprite.Frames.Count);
+            DrawLoadedSpriteFrame(
+                dispenserSprite.Frames[frameIndex],
+                new Vector2(renderPosition.X - cameraPosition.X, renderPosition.Y - cameraPosition.Y),
+                null,
+                Color.White,
+                0f,
+                dispenserSprite.Origin.ToVector2(),
+                Vector2.One,
+                SpriteEffects.None,
+                0f);
+            return true;
+        }
+
         var baseSpriteName = sentry.Team == PlayerTeam.Blue ? "SentryBlue" : "SentryRed";
         var baseSprite = GetResolvedSprite(baseSpriteName);
         if (baseSprite is null || baseSprite.Frames.Count == 0)
@@ -325,9 +348,29 @@ public partial class Game1
         return Math.Clamp(buildFrame, 0, frameCount - 1);
     }
 
+    private static int GetDispenserFrameIndex(SentryEntity dispenser, int frameCount)
+    {
+        if (frameCount <= 0)
+        {
+            return 0;
+        }
+
+        if (dispenser.IsBuilt)
+        {
+            return frameCount - 1;
+        }
+
+        var buildProgress = (dispenser.Health - SentryEntity.InitialHealth)
+            / (float)Math.Max(1, dispenser.MaxHealth - SentryEntity.InitialHealth);
+        return Math.Clamp(
+            (int)MathF.Floor(Math.Clamp(buildProgress, 0f, 1f) * (frameCount - 1)),
+            0,
+            frameCount - 1);
+    }
+
     private bool TryDrawSentryGib(SentryGibEntity gib, Vector2 cameraPosition)
     {
-        var sprite = GetResolvedSprite("SentryGibsS");
+        var sprite = GetResolvedSprite(gib.IsDispenser ? "DispenserGibS" : "SentryGibsS");
         if (sprite is null || sprite.Frames.Count == 0)
         {
             return false;

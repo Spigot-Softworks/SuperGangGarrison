@@ -98,7 +98,7 @@ public partial class Game1
     private void RecordResolvedSnapshotPredictionError(SnapshotMessage resolvedSnapshot)
     {
         var localSnapshotPlayer = resolvedSnapshot.Players.FirstOrDefault(player => player.Slot == _networkClient.LocalPlayerSlot);
-        if (_networkDiagnosticsEnabled && localSnapshotPlayer is not null && _hasPredictedLocalPlayerPosition)
+        if (_networkDiagnosticsEnabled && localSnapshotPlayer is not null && CanUseLocalPrediction() && _hasPredictedLocalPlayerPosition)
         {
             RecordPredictionError(Vector2.Distance(_predictedLocalPlayerPosition, new Vector2(localSnapshotPlayer.X, localSnapshotPlayer.Y)));
         }
@@ -222,6 +222,8 @@ public partial class Game1
             return;
         }
 
+        _networkClient.NotifyWorldSnapshotApplied(snapshot);
+
         var mapChanged = !string.Equals(previousLevelName, _world.Level.Name, StringComparison.OrdinalIgnoreCase)
             || previousMapAreaIndex != _world.Level.MapAreaIndex;
         var currentLocalPlayerId = GetResolvedLocalPlayerId();
@@ -276,7 +278,6 @@ public partial class Game1
             _networkClient.AcknowledgeProcessedInput(snapshot.LastProcessedInputSequence);
             ReconcileLocalPrediction(snapshot.LastProcessedInputSequence);
         }
-        ProcessOnlineCivvieMoneyTrailPresentation(snapshot);
         if (_networkDiagnosticsEnabled)
         {
             RecordReconcileDuration(GetDiagnosticsElapsedMilliseconds(reconcileStartTimestamp));

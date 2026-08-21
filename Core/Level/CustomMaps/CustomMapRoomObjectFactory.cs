@@ -31,6 +31,7 @@ public static class CustomMapRoomObjectFactory
             "cabinets" or "healingcabinet" or "medcabinet" => CreateMarker(RoomObjectType.HealingCabinet, x, y, 32f, 48f, "sprite74", normalizedXScale, normalizedYScale, sourceName: entityType),
             "killbox" or "pitfall" => CreateMarker(RoomObjectType.KillBox, x, y, 42f, 42f, "sprite64", normalizedXScale, normalizedYScale, sourceName: entityType),
             "fragbox" => CreateMarker(RoomObjectType.FragBox, x, y, 42f, 42f, "sprite64", normalizedXScale, normalizedYScale, sourceName: entityType),
+            "firebox" or "burnbox" => CreateMarker(RoomObjectType.FireBox, x, y, 42f, 42f, "sprite64", normalizedXScale, normalizedYScale, sourceName: entityType),
             "redteamgate" => CreateMarker(RoomObjectType.TeamGate, x, y, 6f, 60f, "sprite45", normalizedXScale, normalizedYScale, PlayerTeam.Red, entityType),
             "blueteamgate" => CreateMarker(RoomObjectType.TeamGate, x, y, 6f, 60f, "sprite45", normalizedXScale, normalizedYScale, PlayerTeam.Blue, entityType),
             "redteamgate2" => CreateMarker(RoomObjectType.TeamGate, x, y, 60f, 6f, "sprite44", normalizedXScale, normalizedYScale, PlayerTeam.Red, entityType),
@@ -178,6 +179,14 @@ public static class CustomMapRoomObjectFactory
 
     private static string ResolveControlPointSourceName(string sourceName, IReadOnlyDictionary<string, string> properties)
     {
+        // These source names carry gameplay semantics (single/dual KOTH and
+        // Arena).  Builder properties may contain an index for editing, but
+        // that index must not erase the explicit objective identity on import.
+        if (IsExplicitControlPointSourceName(sourceName))
+        {
+            return sourceName;
+        }
+
         if (ControlPointMarkerIndex.TryParseSourceName(sourceName, out _))
         {
             return sourceName;
@@ -190,6 +199,14 @@ public static class CustomMapRoomObjectFactory
         }
 
         return sourceName;
+    }
+
+    private static bool IsExplicitControlPointSourceName(string sourceName)
+    {
+        return sourceName.Equals("KothControlPoint", StringComparison.OrdinalIgnoreCase)
+            || sourceName.Equals("KothRedControlPoint", StringComparison.OrdinalIgnoreCase)
+            || sourceName.Equals("KothBlueControlPoint", StringComparison.OrdinalIgnoreCase)
+            || sourceName.Equals("ArenaControlPoint", StringComparison.OrdinalIgnoreCase);
     }
 
     private static float ResolveResetMoveStatus(IReadOnlyDictionary<string, string> properties)

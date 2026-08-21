@@ -36,7 +36,9 @@ public partial class Game1
             && _predictedLocalActionState.IsSniperScoped
             && !player.IsSniperBowEquipped)
         {
-            return PlayerEntity.SniperScopedMoveScale;
+            return player.LastToDieSniperExtremeConditioningEnabled
+                ? 1f
+                : PlayerEntity.SniperScopedMoveScale;
         }
 
         if (player.ClassId == PlayerClass.Heavy && input.FirePrimary)
@@ -58,7 +60,9 @@ public partial class Game1
             && _predictedLocalActionState.IsSniperScoped
             && !player.IsSniperBowEquipped)
         {
-            return PlayerEntity.SniperScopedJumpScale;
+            return player.LastToDieSniperExtremeConditioningEnabled
+                ? 1f
+                : PlayerEntity.SniperScopedJumpScale;
         }
 
         if (player.ClassId == PlayerClass.Spy && IsPredictedSpyBackstabAnimating())

@@ -40,7 +40,9 @@ public partial class Game1
         _damageVignetteIntensityPercent = ClientSettings.NormalizeDamageVignetteIntensityPercent(_clientSettings.DamageVignetteIntensityPercent);
         _lowHealthColorMode = ClientSettings.NormalizeLowHealthColorMode(_clientSettings.LowHealthColorMode);
         _showPersistentSelfNameEnabled = _clientSettings.ShowPersistentSelfNameEnabled;
+        _showPlayerNamesEnabled = _clientSettings.ShowPlayerNamesEnabled;
         _positionSmoothingEnabled = _clientSettings.PositionSmoothingEnabled;
+        _enablePrediction = _clientSettings.EnablePrediction;
         _smoothCameraMultiplier = NormalizeSmoothCameraMultiplier(_clientSettings.SmoothCameraMultiplier);
         if (_smoothCameraMultiplier <= 0f)
         {
@@ -106,7 +108,9 @@ public partial class Game1
         _clientSettings.DamageVignetteIntensityPercent = ClientSettings.NormalizeDamageVignetteIntensityPercent(_damageVignetteIntensityPercent);
         _clientSettings.LowHealthColorMode = ClientSettings.NormalizeLowHealthColorMode(_lowHealthColorMode);
         _clientSettings.ShowPersistentSelfNameEnabled = _showPersistentSelfNameEnabled;
+        _clientSettings.ShowPlayerNamesEnabled = _showPlayerNamesEnabled;
         _clientSettings.PositionSmoothingEnabled = _positionSmoothingEnabled;
+        _clientSettings.EnablePrediction = _enablePrediction;
         _clientSettings.SmoothCameraMultiplier = NormalizeSmoothCameraMultiplier(_smoothCameraMultiplier);
         _clientSettings.SpriteDropShadowEnabled = _spriteDropShadowEnabled;
         _clientSettings.StuckArrowsEnabled = _stuckArrowsEnabled;

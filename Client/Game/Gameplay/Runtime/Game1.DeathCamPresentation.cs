@@ -21,7 +21,10 @@ public partial class Game1
 
     private bool IsDeathCamPresentationActive()
     {
-        return _killCamEnabled && !_world.LocalPlayer.IsAlive && _world.LocalDeathCam is not null;
+        return !IsHostedLastToDieActive()
+            && _killCamEnabled
+            && !_world.LocalPlayer.IsAlive
+            && _world.LocalDeathCam is not null;
     }
 
     private static int GetDeathCamInitialTicks(LocalDeathCamState deathCam)

@@ -126,7 +126,10 @@ public sealed partial class PlayerEntity
 
         HorizontalSpeed += velocityX;
         VerticalSpeed += velocityY;
-        if (velocityY < 0f)
+        // Any explosive vertical impulse invalidates the grounded state. The
+        // downward/side-biased edge case used to leave MovementState airborne
+        // while IsGrounded stayed true until the player supplied movement input.
+        if (MathF.Abs(velocityY) > 0.0001f)
         {
             IsGrounded = false;
         }

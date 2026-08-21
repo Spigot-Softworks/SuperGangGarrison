@@ -41,7 +41,7 @@ public sealed partial class SimulationWorld
             foreach (var player in world.EnumerateSimulatedPlayers())
             {
                 if (!player.IsAlive
-                    || player.IsSpyCloaked
+                    || !world.CanPlayerContributeToControlPoint(player)
                     || IsIgnoringPlayerForCapture(world, player)
                     || !world.CanPlayerAffectControlPointInVipMode(player))
                 {
@@ -309,6 +309,11 @@ public sealed partial class SimulationWorld
 
         private static bool IsIgnoringPlayerForCapture(SimulationWorld world, PlayerEntity player)
         {
+            if (player.IsMedicRegularUberDeliveryActive)
+            {
+                return !world.CanPlayerCaptureControlPointsWhileUbered(player);
+            }
+
             if (!player.IsUbered)
             {
                 return false;

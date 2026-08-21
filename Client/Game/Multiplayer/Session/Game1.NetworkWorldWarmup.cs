@@ -78,6 +78,12 @@ public partial class Game1
             return;
         }
 
+        if (_queuedAuthoritativeSnapshots.Count > 0)
+        {
+            ShowJoiningServerLoadingOverlay();
+            return;
+        }
+
         HideLoadingOverlay();
         CancelNetworkWorldWarmup();
     }

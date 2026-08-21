@@ -144,29 +144,13 @@ public partial class Game1
                 MainMenuPage.PlayOffline => (
                     [
                         new MenuPageAction("Practice", _game.OpenPracticeSetupMenu),
-                        new MenuPageAction("Minigames", () => OpenMainMenuPage(MainMenuPage.Minigames)),
-                    ],
-                    null,
-                    "Back",
-                    () => OpenMainMenuPage(MainMenuPage.Root)),
-                MainMenuPage.Minigames => (
-                    [
-                        new MenuPageAction("Jump", () => _game.OpenJumpMenu()),
-                        new MenuPageAction("Last to Die", () => _game.OpenLastToDieMenu()),
-                    ],
-                    null,
-                    "Back",
-                    () => OpenMainMenuPage(MainMenuPage.PlayOffline)),
-                MainMenuPage.Credits => (
-                    [
-                        new MenuPageAction("Play Credits", _game.OpenCreditsMenu),
                     ],
                     null,
                     "Back",
                     () => OpenMainMenuPage(MainMenuPage.Root)),
                 _ => (
                     BuildRootMainMenuActions(),
-                    new MenuPageAction("Credits", () => OpenMainMenuPage(MainMenuPage.Credits)),
+                    null,
                     "Quit",
                     _game.OpenQuitPrompt),
             };
@@ -178,6 +162,7 @@ public partial class Game1
             {
                 new MenuPageAction("Play Online", () => OpenMainMenuPage(MainMenuPage.PlayOnline)),
                 new MenuPageAction("Play Offline", () => OpenMainMenuPage(MainMenuPage.PlayOffline)),
+                new MenuPageAction("Last to Die", () => _game.OpenLastToDieMenu()),
                 new MenuPageAction("Settings", () => _game.OpenOptionsMenu(fromGameplay: false)),
             };
 

@@ -53,6 +53,7 @@ public sealed class ServerOutboundMessagingTests
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
         Assert.True(world.TryLoadLevel("vip_egypt"));
+        world.CompleteLocalPlayerJoin(PlayerClass.Scout);
         JoinNetworkPlayer(world, 2);
         JoinNetworkPlayer(world, 3);
 
@@ -117,7 +118,9 @@ public sealed class ServerOutboundMessagingTests
     private static void JoinNetworkPlayer(SimulationWorld world, byte slot)
     {
         Assert.True(world.TryPrepareNetworkPlayerJoin(slot));
-        Assert.True(world.TryApplyNetworkPlayerClassSelection(slot, PlayerClass.Scout));
+        Assert.True(world.TrySetNetworkPlayerTeam(slot, slot == 2 ? PlayerTeam.Blue : PlayerTeam.Red));
+        var playerClass = slot == 2 ? PlayerClass.Scout : PlayerClass.Soldier;
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(slot, playerClass));
     }
 
     private sealed class ThrowingServerMessageTransport : IServerMessageTransport

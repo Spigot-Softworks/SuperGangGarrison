@@ -56,12 +56,15 @@ public partial class Game1
                 (int)MathF.Round(iconPosition.Y - (11f * 2f * hudScale)),
                 Math.Max(1, (int)MathF.Round(68f * 2f * hudScale)),
                 Math.Max(1, (int)MathF.Round(23f * 2f * hudScale)));
-            _game._world.LocalPlayer.GetMedicUberHudMeter(out var meterValue, out var meterMax);
+            var localMedic = _game._world.LocalPlayer;
+            localMedic.GetMedicUberHudMeter(out _, out var meterMax);
+            var meterValue = _game.GetPlayerMedicUberCharge(localMedic);
             _game.DrawScreenHealthBar(uberRectangle, meterValue, meterMax, false, Color.White, Color.Black);
 
             // Darken the uber icon and text when carrying intel with regular medigun (kritz can still activate)
-            var isKritz = _game._world.LocalPlayer.HasEquippedBehavior(BuiltInGameplayBehaviorIds.MedigunCrit);
-            var isUberDisabled = _game._world.LocalPlayer.IsCarryingIntel && !isKritz;
+            var deliveryMode = _game.GetPlayerMedicUberDeliveryMode(localMedic);
+            var isKritz = deliveryMode == MedicUberDeliveryMode.Kritz;
+            var isUberDisabled = localMedic.IsCarryingIntel && !isKritz;
             var iconColor = isUberDisabled ? new Color(128, 128, 128) : Color.White;
             var textColor = isUberDisabled ? new Color(108, 108, 92) : new Color(0xD9, 0xD9, 0xB7);
             _game.TryDrawScreenSprite("UberHudS", hudFrameIndex, iconPosition, iconColor, new Vector2(2f * hudScale, 2f * hudScale));
@@ -70,8 +73,7 @@ public partial class Game1
             var labelScale = 0.5f * hudScale;
             var labelLineHeight = _game.MeasureMenuBitmapFontHeight(labelScale);
             var labelOrigin = TransformPoint(new Vector2(viewportWidth - 123f, viewportHeight - 89f - labelLineHeight - 1f));
-            var labelTop = isKritz ? "CRIT" : "SUPER";
-            var labelBottom = isKritz ? "CRAZE" : "BURST";
+            var (labelTop, labelBottom) = GetLastToDieMedicUberHudLabels(deliveryMode);
             _game.DrawMenuBitmapFontText(labelTop, new Vector2(labelOrigin.X, labelOrigin.Y), textColor, labelScale);
             _game.DrawMenuBitmapFontText(labelBottom, new Vector2(labelOrigin.X, labelOrigin.Y + labelLineHeight + 2f * hudScale - 1f * hudScale), textColor, labelScale);
 

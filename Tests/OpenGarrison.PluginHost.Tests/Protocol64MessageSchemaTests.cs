@@ -49,6 +49,10 @@ public sealed class Protocol64MessageSchemaTests
             [Protocol64EventId.StateResyncResponse] = (typeof(Protocol64StateResyncResponse), Protocol64Direction.ServerToClient, Protocol64DeliveryKind.ReliableOrdered, ChannelType.Control),
             [Protocol64EventId.RetransmitRequest] = (typeof(Protocol64RetransmitRequest), Protocol64Direction.Bidirectional, Protocol64DeliveryKind.ReliableOrdered, ChannelType.Control),
             [Protocol64EventId.RetransmitResponse] = (typeof(Protocol64RetransmitResponse), Protocol64Direction.Bidirectional, Protocol64DeliveryKind.ReliableOrdered, ChannelType.Control),
+            [Protocol64EventId.LastToDieCommand] = (typeof(LastToDieCommandMessage), Protocol64Direction.ClientToServer, Protocol64DeliveryKind.ReliableOrdered, ChannelType.Control),
+            [Protocol64EventId.LastToDieCommandResult] = (typeof(LastToDieCommandResultMessage), Protocol64Direction.ServerToClient, Protocol64DeliveryKind.ReliableOrdered, ChannelType.Control),
+            [Protocol64EventId.LastToDieRunSnapshot] = (typeof(LastToDieRunSnapshotMessage), Protocol64Direction.ServerToClient, Protocol64DeliveryKind.ReliableOrdered, ChannelType.GameplayEvents),
+            [Protocol64EventId.LastToDieRunSnapshotAck] = (typeof(LastToDieRunSnapshotAckMessage), Protocol64Direction.ClientToServer, Protocol64DeliveryKind.ReliableOrdered, ChannelType.Control),
         };
 
     [Fact]
@@ -56,17 +60,12 @@ public sealed class Protocol64MessageSchemaTests
     {
         var registry = Protocol64SchemaRegistryFactory.CreateDefault();
 
-        Assert.Equal(39, registry.Count);
-        Assert.Equal(39, ExpectedSchemas.Count);
+        Assert.Equal(43, registry.Count);
+        Assert.Equal(43, ExpectedSchemas.Count);
 
         foreach (var (eventId, expected) in ExpectedSchemas)
         {
-            var expectedRevision = eventId is Protocol64EventId.InputCommand
-                or Protocol64EventId.InputCommandResult
-                or Protocol64EventId.PlayerStateBatch
-                or Protocol64EventId.StateResyncResponse
-                ? (ushort)2
-                : (ushort)1;
+            var expectedRevision = GetExpectedRevision(eventId);
             Assert.True(
                 registry.TryGet((ushort)eventId, revision: expectedRevision, out var schema),
                 $"Schema {eventId} was not registered.");
@@ -85,18 +84,30 @@ public sealed class Protocol64MessageSchemaTests
 
         foreach (var (eventId, expected) in ExpectedSchemas)
         {
-            var expectedRevision = eventId is Protocol64EventId.InputCommand
-                or Protocol64EventId.InputCommandResult
-                or Protocol64EventId.PlayerStateBatch
-                or Protocol64EventId.StateResyncResponse
-                ? (ushort)2
-                : (ushort)1;
+            var expectedRevision = GetExpectedRevision(eventId);
             var schema = registry.Get((ushort)eventId, revision: expectedRevision);
 
             Assert.Equal(expected.Direction, schema.Descriptor.Direction);
             Assert.Equal(expected.Delivery, schema.Descriptor.Delivery.Kind);
             Assert.Equal(expected.Channel, schema.Descriptor.Delivery.Channel);
         }
+    }
+
+    private static ushort GetExpectedRevision(Protocol64EventId eventId)
+    {
+        return eventId switch
+        {
+            Protocol64EventId.Hello => 2,
+            Protocol64EventId.PlayerStateBatch => 20,
+            Protocol64EventId.StateResyncResponse => 24,
+            Protocol64EventId.Snapshot => 4,
+            Protocol64EventId.ProjectileState
+                or Protocol64EventId.ProjectileLifecycle => 10,
+            Protocol64EventId.LastToDieRunSnapshot => 4,
+            Protocol64EventId.InputCommand => 3,
+            Protocol64EventId.InputCommandResult => 2,
+            _ => 1,
+        };
     }
 
     [Fact]
@@ -110,7 +121,8 @@ public sealed class Protocol64MessageSchemaTests
             BadgeMask: 0x12,
             FriendCode: "friend",
             PlayerCardJson: "{\"theme\":\"blue\"}",
-            Intent: ConnectionIntent.Join);
+            Intent: ConnectionIntent.Join,
+            ClientInstanceId: Guid.Parse("12345678-1234-1234-1234-123456789abc"));
         var decodedHello = RoundTrip<HelloMessage>(registry, hello, frameId: 1);
         Assert.Equal(hello, decodedHello);
 

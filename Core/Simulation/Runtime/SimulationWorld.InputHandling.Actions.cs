@@ -45,9 +45,16 @@ public sealed partial class SimulationWorld
         var ignorePrimaryAmmoCost = player.ClassId == PlayerClass.Soldier
             && player.IsRaging
             && ExperimentalGameplaySettings.EnableSoldierInfiniteAmmoDuringRage;
+        var isLastToDieProfessionalFireChord = input.FireSecondary
+            && player.CanFireLastToDieProfessionalRevolverWhileCloaked;
         if (!input.FirePrimary || !player.TryFirePrimaryWeapon(ignorePrimaryAmmoCost))
         {
             return;
+        }
+
+        if (isLastToDieProfessionalFireChord)
+        {
+            _ = player.MarkLastToDieProfessionalFireChordConsumed();
         }
 
         FirePrimaryWeapon(player, input.AimWorldX, input.AimWorldY);
@@ -245,12 +252,17 @@ public sealed partial class SimulationWorld
             && player.ClassId == PlayerClass.Spy
             && player.IsSpyCloaked)
         {
-            if (player.IsSpyBackstabReady)
+            // A cloaked M1 is always the stock knife windup. The Professional
+            // explicitly changes M1 to the revolver only while M2 is held.
+            var isLastToDieProfessionalFireChord = input.FireSecondary
+                && player.CanFireLastToDieProfessionalRevolverWhileCloaked;
+            if (!isLastToDieProfessionalFireChord && player.IsSpyBackstabReady)
             {
                 _ = TryStartSpyBackstab(player, input.AimWorldX, input.AimWorldY);
+                return true;
             }
 
-            return true;
+            return !isLastToDieProfessionalFireChord;
         }
 
         if (player.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.Blade))
@@ -405,6 +417,13 @@ public sealed partial class SimulationWorld
             return false;
         }
 
+        if (player.IsLockedPrimaryWeaponClass
+            && !IsNetworkPlayerAutomaticRespawnSuppressed(player)
+            && !IsNearPrimaryWeaponSwapStation(player))
+        {
+            return false;
+        }
+
         return TryHandleSecondaryWeaponToggle(player);
     }
 
@@ -492,6 +511,13 @@ public sealed partial class SimulationWorld
         if (!ExperimentalGameplaySettings.EnableSecondaryAbilities)
         {
             return false;
+        }
+
+        // These three primary-weapon users do not have a spacebar ability yet.
+        // Their weapon swap is handled separately and remains station-gated.
+        if (player.IsLockedPrimaryWeaponClass)
+        {
+            return true;
         }
 
         if (swappedWeaponThisTick)

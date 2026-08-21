@@ -21,6 +21,7 @@ public sealed record CustomMapBuilderDocument(
     public const float DefaultScale = 6f;
     public const string DefaultBackgroundColor = "ffffff";
     public const string DefaultVoidColor = "000000";
+    public const string WalkmaskHorizontalScaleMetadataKey = "walkmaskScaleX";
 
     public static CustomMapBuilderDocument CreateEmpty(string name = "untitled") => new(
         NormalizeName(name),
@@ -184,6 +185,15 @@ public sealed record CustomMapBuilderDocument(
         return TryReadMetadataScale(metadata, "visualScale", out var visualScale)
             ? visualScale
             : walkmaskScale;
+    }
+
+    public static float ResolveWalkmaskHorizontalScale(
+        IReadOnlyDictionary<string, string> metadata,
+        float fallback)
+    {
+        return TryReadMetadataScale(metadata, WalkmaskHorizontalScaleMetadataKey, out var horizontalScale)
+            ? horizontalScale
+            : fallback;
     }
 
     private static bool TryReadMetadataScale(IReadOnlyDictionary<string, string> metadata, string key, out float scale)

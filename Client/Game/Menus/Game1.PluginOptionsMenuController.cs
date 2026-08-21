@@ -271,7 +271,7 @@ public partial class Game1
 
             var rows = BuildPluginOptionsMenuRows();
             GetPluginOptionsPanelLayout(out var panel, out var listBounds, out var backBounds, out var compactLayout, out var rowHeight);
-            var mouse = _game.GetScaledMouseState(_game.GetConstrainedMouseState(Game1.GetCurrentMouseState()));
+            var mouse = _game.GetFrameMouseState();
             var visibleRowCount = Math.Max(1, Math.Min(rows.Count, listBounds.Height / rowHeight));
             ClampPluginOptionsScrollOffset(rows.Count, visibleRowCount);
 

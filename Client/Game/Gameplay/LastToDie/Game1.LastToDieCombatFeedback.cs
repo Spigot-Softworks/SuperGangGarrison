@@ -25,6 +25,8 @@ public partial class Game1
     private const float LastToDieRageShakeMagnitude = 10f;
     private const int LastToDieRageBarWidth = 170;
     private const int LastToDieRageBarHeight = 18;
+    private const int LastToDieSpyCloakBarWidth = 170;
+    private const int LastToDieSpyCloakBarHeight = 14;
 
     private readonly record struct LastToDieComboMilestoneDefinition(int Threshold, string Text);
 
@@ -80,7 +82,7 @@ public partial class Game1
 
     private void ObserveLastToDieCombatFeedbackState()
     {
-        if (!IsLastToDieSessionActive || _world.LocalPlayerAwaitingJoin)
+        if (!IsCombatPerformanceFeedbackSessionActive || _world.LocalPlayerAwaitingJoin)
         {
             _lastToDieObservedCombo = 0;
             _lastToDieObservedRageActive = false;
@@ -95,7 +97,7 @@ public partial class Game1
 
     private void UpdateLastToDieCombatFeedbackPresentation()
     {
-        if (!IsLastToDieSessionActive || _lastToDieRun is null)
+        if (!IsCombatPerformanceFeedbackSessionActive)
         {
             ResetLastToDieCombatFeedbackPresentation();
             return;
@@ -155,6 +157,12 @@ public partial class Game1
 
         ObserveLastToDieCombatAnnouncementPopup();
 
+        if (!IsLastToDieSessionActive || _lastToDieRun is null)
+        {
+            ObserveLastToDieCombatFeedbackState();
+            return;
+        }
+
         var currentCombo = _world.LocalPlayer.CurrentCombo;
         if (currentCombo > _lastToDieObservedCombo)
         {
@@ -186,13 +194,18 @@ public partial class Game1
 
     private void DrawLastToDieCombatFeedbackHud()
     {
-        if (!ShouldDrawLastToDieCombatFeedbackHud())
+        if (!ShouldDrawCombatPerformanceFeedbackHud())
         {
             return;
         }
 
-        DrawLastToDieComboOverlay();
-        DrawLastToDieRageOverlay();
+        if (IsLastToDieSessionActive)
+        {
+            DrawLastToDieComboOverlay();
+            DrawLastToDieRageOverlay();
+        }
+
+        DrawLastToDieCombatAnnouncementPopup();
     }
 
     private bool ShouldDrawLastToDieCombatFeedbackHud()
@@ -202,6 +215,16 @@ public partial class Game1
             && !_lastToDiePerkMenuOpen
             && !IsLastToDieFailurePresentationActive()
             && !_world.LocalPlayerAwaitingJoin;
+    }
+
+    private bool IsCombatPerformanceFeedbackSessionActive =>
+        IsPracticeSessionActive || IsLastToDieSessionActive;
+
+    private bool ShouldDrawCombatPerformanceFeedbackHud()
+    {
+        return IsCombatPerformanceFeedbackSessionActive
+            && !_world.LocalPlayerAwaitingJoin
+            && (!IsLastToDieSessionActive || ShouldDrawLastToDieCombatFeedbackHud());
     }
 
     private void DrawLastToDieComboOverlay()
@@ -231,21 +254,52 @@ public partial class Game1
 
         DrawBitmapFontTextCentered(comboText, drawPosition + shadowOffset, Color.White * alpha, scale);
         DrawBitmapFontTextCentered(comboText, drawPosition, new Color(214, 24, 24) * alpha, scale);
+    }
 
+    private void DrawLastToDieCombatAnnouncementPopup()
+    {
         if (_lastToDieComboMilestoneTicksRemaining <= 0 || string.IsNullOrWhiteSpace(_lastToDieComboMilestoneText))
         {
             return;
         }
 
+        var localPlayer = _world.LocalPlayer;
+        var popupAnchor = new Vector2(ViewportWidth * 0.5f, Math.Max(104f, ViewportHeight * 0.28f));
+        var popupAnchorOffsetX = 0f;
+        var popupAlpha = Math.Clamp(
+            _lastToDieComboMilestoneTicksRemaining / (float)LastToDieComboMilestonePopupTicks,
+            0f,
+            1f);
+        if (localPlayer.CurrentCombo >= 2)
+        {
+            var comboTimeoutTicks = Math.Max(
+                1,
+                (int)MathF.Round(_config.TicksPerSecond * ExperimentalGameplaySettings.ComboTimeoutSeconds));
+            var comboLife = Math.Clamp(localPlayer.ComboTicksRemaining / (float)comboTimeoutTicks, 0f, 1f);
+            var comboGrowthScale = MathF.Min(
+                LastToDieComboMaxScaleGrowth,
+                Math.Max(0, localPlayer.CurrentCombo - 2) * LastToDieComboScaleStepPerHit);
+            var comboScale = LastToDieComboBaseScale + comboGrowthScale + _lastToDieComboScaleBonus;
+            var comboText = "x" + localPlayer.CurrentCombo.ToString(CultureInfo.InvariantCulture);
+            popupAnchor = new Vector2(
+                48f + (MeasureBitmapFontWidth(comboText, comboScale) * 0.5f),
+                Math.Max(104f, ViewportHeight * 0.18f));
+            popupAnchorOffsetX = (MeasureBitmapFontWidth(comboText, comboScale) * 0.58f) + 54f;
+            popupAlpha = (0.45f + (comboLife * 0.55f))
+                * Math.Clamp(
+                    _lastToDieComboMilestoneTicksRemaining / (float)LastToDieComboMilestonePopupTicks,
+                    0f,
+                    1f);
+        }
+
         var popupProgress = 1f - (_lastToDieComboMilestoneTicksRemaining / (float)LastToDieComboMilestonePopupTicks);
         var popupBounceScale = MathF.Sin(popupProgress * MathF.PI) * 0.28f;
         var popupScale = LastToDieComboMilestoneBaseScale + _lastToDieComboMilestoneScaleBonus + popupBounceScale;
-        var popupAlpha = alpha * Math.Clamp(_lastToDieComboMilestoneTicksRemaining / (float)LastToDieComboMilestonePopupTicks, 0f, 1f);
         var popupRiseOffset = (1f - popupProgress) * 16f;
         var popupRotation = GetLastToDieComboMilestoneRotation(popupProgress);
         var popupPosition = new Vector2(
-            drawPosition.X + (MeasureBitmapFontWidth(comboText, scale) * 0.58f) + 54f,
-            drawPosition.Y + 4f - popupRiseOffset);
+            popupAnchor.X + popupAnchorOffsetX,
+            popupAnchor.Y + 4f - popupRiseOffset);
         var popupShadowOffset = new Vector2(4f, 4f);
 
         DrawBitmapFontTextCentered(_lastToDieComboMilestoneText, popupPosition + popupShadowOffset, Color.White * popupAlpha, popupScale, popupRotation);
@@ -324,6 +378,73 @@ public partial class Game1
         DrawBitmapFontTextCentered(stateText, new Vector2(barRectangle.Center.X, barRectangle.Bottom + 8f), Color.Black * 0.7f, stateScale);
         DrawBitmapFontTextCentered(stateText, new Vector2(barRectangle.Center.X, barRectangle.Bottom + 6f), stateColor, stateScale);
         UpdateHudElementBounds(HudElementId.LastToDieRage, renderedBounds);
+    }
+
+    private bool ShouldDrawLastToDieSpyCloakHud()
+    {
+        var localPlayer = _world.LocalPlayer;
+        return ShouldDrawLastToDieActionStatusHud()
+            && localPlayer.ClassId == PlayerClass.Spy
+            && (localPlayer.LastToDieRogueCommanderEnabled || localPlayer.LastToDieProfessionalEnabled);
+    }
+
+    private void DrawLastToDieSpyCloakHud()
+    {
+        var localPlayer = _world.LocalPlayer;
+        if (!TryResolveHudElement(HudElementId.LastToDieSpyCloak, out var resolved))
+        {
+            return;
+        }
+
+        var origin = resolved.Origin;
+        var barRectangle = new Rectangle(
+            (int)MathF.Round(origin.X),
+            (int)MathF.Round(origin.Y),
+            LastToDieSpyCloakBarWidth,
+            LastToDieSpyCloakBarHeight);
+        var shadowRectangle = new Rectangle(barRectangle.X + 4, barRectangle.Y + 4, barRectangle.Width, barRectangle.Height);
+        var frameRectangle = new Rectangle(barRectangle.X - 3, barRectangle.Y - 3, barRectangle.Width + 6, barRectangle.Height + 6);
+        var troughRectangle = new Rectangle(barRectangle.X + 2, barRectangle.Y + 2, barRectangle.Width - 4, barRectangle.Height - 4);
+        var meterFraction = GetPlayerLastToDieSpyCloakMeterFraction(localPlayer);
+        var fillRectangle = new Rectangle(
+            troughRectangle.X,
+            troughRectangle.Y,
+            (int)MathF.Round(troughRectangle.Width * meterFraction),
+            troughRectangle.Height);
+        var fillColor = GetPlayerIsSpyCloaked(localPlayer)
+            ? new Color(124, 218, 255)
+            : new Color(74, 155, 204);
+
+        _spriteBatch.Draw(_pixel, shadowRectangle, ApplyCurrentHudElementOpacity(Color.Black * 0.4f));
+        _spriteBatch.Draw(_pixel, frameRectangle, ApplyCurrentHudElementOpacity(new Color(204, 231, 241)));
+        _spriteBatch.Draw(_pixel, barRectangle, ApplyCurrentHudElementOpacity(new Color(10, 22, 31)));
+        _spriteBatch.Draw(_pixel, troughRectangle, ApplyCurrentHudElementOpacity(new Color(18, 48, 67)));
+        if (fillRectangle.Width > 0)
+        {
+            _spriteBatch.Draw(_pixel, fillRectangle, ApplyCurrentHudElementOpacity(fillColor));
+        }
+
+        var meterPercent = (int)MathF.Round(meterFraction * 100f);
+        var labelPosition = new Vector2(barRectangle.Center.X, barRectangle.Y - 18f);
+        var label = $"CLOAK {meterPercent.ToString(CultureInfo.InvariantCulture)}%";
+        DrawBitmapFontTextCentered(label, labelPosition + new Vector2(2f, 2f), Color.Black * 0.75f, 1f);
+        DrawBitmapFontTextCentered(label, labelPosition, new Color(230, 246, 255), 1f);
+
+        var renderedBounds = Rectangle.Union(
+            frameRectangle,
+            new Rectangle(barRectangle.X - 8, barRectangle.Y - 28, barRectangle.Width + 16, barRectangle.Height + 48));
+        var rampStacks = GetPlayerLastToDieSpyRogueRampStacks(localPlayer);
+        if (localPlayer.LastToDieRogueCommanderEnabled && rampStacks > 0)
+        {
+            var rampPercent = rampStacks * 5;
+            var rampText = $"POWER +{rampPercent.ToString(CultureInfo.InvariantCulture)}%";
+            const float rampScale = 0.9f;
+            var rampPosition = new Vector2(barRectangle.Center.X, barRectangle.Bottom + 7f);
+            DrawBitmapFontTextCentered(rampText, rampPosition + new Vector2(2f, 2f), Color.Black * 0.7f, rampScale);
+            DrawBitmapFontTextCentered(rampText, rampPosition, new Color(185, 232, 255), rampScale);
+        }
+
+        UpdateHudElementBounds(HudElementId.LastToDieSpyCloak, renderedBounds);
     }
 
     private void DrawLastToDieRageOverlay()
@@ -407,7 +528,9 @@ public partial class Game1
             }
 
             latestObservedEventId = Math.Max(latestObservedEventId, entry.EventId);
-            if (entry.KillerPlayerId != localPlayerId
+            if ((IsLastToDieSessionActive
+                    ? entry.KillerPlayerId != localPlayerId
+                    : entry.KillerPlayerId < 0)
                 || entry.VictimPlayerId >= 0
                 || entry.MessageHighlightLength <= 0
                 || string.IsNullOrWhiteSpace(entry.MessageText))
@@ -442,7 +565,9 @@ public partial class Game1
         var localPlayerId = _world.LocalPlayer.Id;
         foreach (var entry in _world.KillFeed)
         {
-            if (entry.KillerPlayerId == localPlayerId
+            if ((IsLastToDieSessionActive
+                    ? entry.KillerPlayerId == localPlayerId
+                    : entry.KillerPlayerId >= 0)
                 && entry.VictimPlayerId < 0
                 && entry.MessageHighlightLength > 0)
             {

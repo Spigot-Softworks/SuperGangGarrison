@@ -15,4 +15,15 @@ public sealed class SniperChargeHudTests
     {
         Assert.Equal(expectedWidth, Game1.GetSniperChargeHudFillWidthForTicks(chargeTicks));
     }
+
+    [Fact]
+    public void LastToDieEffectiveChargeMaximaFillBothSniperMeters()
+    {
+        Assert.Equal(
+            Game1.SniperChargeHudFillMaxWidth,
+            Game1.GetSniperChargeHudFillWidthForTicks(45, 45));
+        Assert.Equal(
+            Game1.SniperChargeHudFillMaxWidth,
+            Game1.GetSniperBowChargeHudFillWidthForTicks(15, 15));
+    }
 }

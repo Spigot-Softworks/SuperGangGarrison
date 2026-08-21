@@ -265,7 +265,13 @@ public partial class Game1
 
         if (OperatingSystem.IsBrowser())
         {
-            return DefaultLobbyRegistryPath;
+            // Older browser builds stored the relative fallback path in settings. Keep
+            // that value from pinning the client to a stale static v59 snapshot: the
+            // browser must use the live registry so it can discover the current beta
+            // servers and their protocol-64 endpoints.
+            return string.Equals(lobbyHost, DefaultLobbyRegistryPath, StringComparison.OrdinalIgnoreCase)
+                ? OpenGarrisonPreferencesDocument.DefaultLobbyHost
+                : DefaultLobbyRegistryPath;
         }
 
         var builder = new UriBuilder(Uri.UriSchemeHttps, lobbyHost)

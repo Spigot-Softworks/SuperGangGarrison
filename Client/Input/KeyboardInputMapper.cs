@@ -15,15 +15,20 @@ internal static class KeyboardInputMapper
         float localPlayerY,
         bool isUsingBinoculars = false,
         float binocularsFocusX = 0f,
-        float binocularsFocusY = 0f)
+        float binocularsFocusY = 0f,
+        bool useMultiplayerExclusivePrimarySwapBinding = false)
     {
         var mouseWorldX = cameraX + mouse.X;
         var mouseWorldY = cameraY + mouse.Y;
         var swapWeaponsBinding = InputBindingsSettings.NormalizeSwapWeaponsBinding(bindings.SwapWeaponsBinding);
-        var swapWeapon = IsSwapWeaponInputDown(bindings, swapWeaponsBinding, keyboard, mouse);
+        var qIsExclusivePrimarySwap = useMultiplayerExclusivePrimarySwapBinding
+            && keyboard.IsKeyDown(Keys.Q);
+        var swapWeapon = IsSwapWeaponInputDown(bindings, swapWeaponsBinding, keyboard, mouse)
+            || qIsExclusivePrimarySwap;
         var fireSecondary = mouse.RightButton == ButtonState.Pressed;
         var interactWeapon = InputBindingInput.IsDown(bindings.InteractWeapon, keyboard, mouse)
-            && !IsBindingReservedForSwapWeapons(bindings, swapWeaponsBinding, bindings.InteractWeapon);
+            && !IsBindingReservedForSwapWeapons(bindings, swapWeaponsBinding, bindings.InteractWeapon)
+            && !(qIsExclusivePrimarySwap && bindings.InteractWeapon.IsKeyboardKey(Keys.Q));
         
         return new PlayerInputSnapshot(
             Left: InputBindingInput.IsDown(bindings.MoveLeft, keyboard, mouse) || keyboard.IsKeyDown(Keys.Left),
@@ -47,6 +52,14 @@ internal static class KeyboardInputMapper
             SwapWeapon: swapWeapon,
             ReadyUp: keyboard.IsKeyDown(Keys.F4));
     }
+
+    internal static bool UsesMultiplayerExclusivePrimarySwapBinding(
+        bool isNetworkMultiplayerSession,
+        bool isLastToDieSession,
+        bool isLockedPrimaryWeaponClass)
+        => isNetworkMultiplayerSession
+            && !isLastToDieSession
+            && isLockedPrimaryWeaponClass;
 
     internal static bool IsSwapWeaponInputDown(
         InputBindingsSettings bindings,

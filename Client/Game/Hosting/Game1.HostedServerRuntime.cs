@@ -109,6 +109,7 @@ public partial class Game1
     private void StopHostedServer()
     {
         _hostedServerRuntime.Stop();
+        ClearHostedSocialPresenceEndpoint();
     }
 
     private void AppendHostedServerLog(string source, string message)

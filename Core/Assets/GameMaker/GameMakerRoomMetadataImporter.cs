@@ -287,6 +287,7 @@ public static class GameMakerRoomMetadataImporter
             "SpawnRoom" => new RoomObjectMarker(RoomObjectType.SpawnRoom, x, y, 42f, 42f, "sprite64", SourceName: objectName),
             "FragBox" => new RoomObjectMarker(RoomObjectType.FragBox, x, y, 42f, 42f, "sprite64", SourceName: objectName),
             "KillBox" => new RoomObjectMarker(RoomObjectType.KillBox, x, y, 42f, 42f, "sprite64", SourceName: objectName),
+            "FireBox" => new RoomObjectMarker(RoomObjectType.FireBox, x, y, 42f, 42f, "sprite64", SourceName: objectName),
             "ArenaControlPoint" => new RoomObjectMarker(RoomObjectType.ArenaControlPoint, x, y, 42f, 42f, "ControlPointNeutralS", SourceName: objectName),
             "CaptureZone" => new RoomObjectMarker(RoomObjectType.CaptureZone, x, y, 42f, 42f, string.Empty, SourceName: objectName),
             "ControlPoint" => new RoomObjectMarker(RoomObjectType.ControlPoint, x, y, 42f, 42f, "ControlPointNeutralS", SourceName: objectName),

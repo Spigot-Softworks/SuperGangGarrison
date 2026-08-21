@@ -7,12 +7,26 @@ public sealed class SentryEntity : SimulationEntity
     public const float GravityPerTick = 0.6f;
     public const float MaxFallSpeed = 10f;
     public const int DefaultMaxHealth = 100;
+    public const int DispenserMaxHealth = 75;
+    public const float DispenserBaseHealingPerSecond = 5f;
+    public const float DispenserMaxHealingPerSecond = 13f;
+    public const float DispenserBaseAttackReloadSpeedMultiplier = 1.1f;
+    public const float DispenserMaxAttackReloadSpeedMultiplier = 1.3f;
+    public const float DispenserRampDurationSeconds = 5f;
     public const int InitialHealth = 25;
     public const float TargetRange = 375f;
     public const int ReloadTicks = 5;
     public const int HitDamage = 8;
     public const int ShotTraceTicks = 1;
-    public SentryEntity(int id, int ownerPlayerId, PlayerTeam team, float x, float y, float startDirectionX, int maxHealth = DefaultMaxHealth) : base(id)
+    public SentryEntity(
+        int id,
+        int ownerPlayerId,
+        PlayerTeam team,
+        float x,
+        float y,
+        float startDirectionX,
+        int maxHealth = DefaultMaxHealth,
+        bool isDispenser = false) : base(id)
     {
         OwnerPlayerId = ownerPlayerId;
         Team = team;
@@ -23,11 +37,21 @@ public sealed class SentryEntity : SimulationEntity
         DesiredFacingDirectionX = StartDirectionX;
         RotationStartDirectionX = StartDirectionX;
         AimDirectionDegrees = StartDirectionX < 0f ? 180f : 0f;
-        MaxHealth = Math.Max(InitialHealth, maxHealth);
+        IsDispenser = isDispenser;
+        MaxHealth = Math.Max(
+            InitialHealth,
+            isDispenser ? Math.Max(maxHealth, DispenserMaxHealth) : maxHealth);
         Health = InitialHealth;
     }
 
     public int OwnerPlayerId { get; }
+
+    /// <summary>
+    /// Dispensers share the sentry's authoritative structure/damage pipeline, but
+    /// do not acquire targets or fire. Keeping the variant on the entity lets all
+    /// existing collision, explosion, destruction, and snapshot paths stay aligned.
+    /// </summary>
+    public bool IsDispenser { get; }
 
     public PlayerTeam Team { get; }
 
@@ -83,9 +107,65 @@ public sealed class SentryEntity : SimulationEntity
 
     public float ContinuousHealingAccumulator { get; private set; }
 
+    public int DispenserRampTicks { get; private set; }
+
+    private readonly Dictionary<int, int> _pendingDispenserHealingFeedback = new();
+
+    public float GetDispenserRampProgress(int ticksPerSecond)
+    {
+        if (!IsDispenser || !IsBuilt)
+        {
+            return 0f;
+        }
+
+        var rampDurationTicks = Math.Max(1, (int)MathF.Round(Math.Max(1, ticksPerSecond) * DispenserRampDurationSeconds));
+        return Math.Clamp(DispenserRampTicks / (float)rampDurationTicks, 0f, 1f);
+    }
+
+    public float GetDispenserHealingPerSecond(int ticksPerSecond)
+    {
+        return DispenserBaseHealingPerSecond
+            + ((DispenserMaxHealingPerSecond - DispenserBaseHealingPerSecond)
+                * GetDispenserRampProgress(ticksPerSecond));
+    }
+
+    public float GetDispenserAttackReloadSpeedMultiplier(int ticksPerSecond)
+    {
+        return DispenserBaseAttackReloadSpeedMultiplier
+            + ((DispenserMaxAttackReloadSpeedMultiplier - DispenserBaseAttackReloadSpeedMultiplier)
+                * GetDispenserRampProgress(ticksPerSecond));
+    }
+
+    public void AccumulateDispenserHealingFeedback(int playerId, int amount)
+    {
+        if (amount <= 0)
+        {
+            return;
+        }
+
+        _pendingDispenserHealingFeedback[playerId] =
+            _pendingDispenserHealingFeedback.GetValueOrDefault(playerId) + amount;
+    }
+
+    public IReadOnlyDictionary<int, int> PendingDispenserHealingFeedback => _pendingDispenserHealingFeedback;
+
+    public void ClearDispenserHealingFeedback()
+    {
+        _pendingDispenserHealingFeedback.Clear();
+    }
+
     public void Advance(SimpleLevel level, WorldBounds bounds)
     {
-        if (!HasLanded)
+        if (level.IsTopDown)
+        {
+            // Top-down maps have no support plane. Structures are placed in
+            // map coordinates and must remain there; applying the platformer
+            // fall integrator would send an otherwise valid sentry/dispenser
+            // to the bottom edge before it finishes building.
+            VerticalSpeed = 0f;
+            HasLanded = true;
+        }
+        else if (!HasLanded)
         {
             VerticalSpeed = float.Min(MaxFallSpeed, VerticalSpeed + GravityPerTick);
             Y += VerticalSpeed;
@@ -123,6 +203,11 @@ public sealed class SentryEntity : SimulationEntity
             {
                 IsBuilt = true;
             }
+        }
+
+        if (IsDispenser && IsBuilt)
+        {
+            DispenserRampTicks += 1;
         }
 
         AdvanceRuntimeTimers();
@@ -275,7 +360,8 @@ public sealed class SentryEntity : SimulationEntity
         bool hasLanded,
         bool hasActiveTarget,
         float lastShotTargetX,
-        float lastShotTargetY)
+        float lastShotTargetY,
+        int dispenserRampTicks = -1)
     {
         X = x;
         Y = y;
@@ -290,6 +376,10 @@ public sealed class SentryEntity : SimulationEntity
         CurrentTargetPlayerId = null; // Client doesn't need to know which player
         LastShotTargetX = lastShotTargetX;
         LastShotTargetY = lastShotTargetY;
+        if (IsDispenser && dispenserRampTicks >= 0)
+        {
+            DispenserRampTicks = Math.Max(0, dispenserRampTicks);
+        }
         // Reset client-side animation state
         RotationTicksRemaining = 0;
         RotationStartDirectionX = FacingDirectionX;

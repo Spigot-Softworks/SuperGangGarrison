@@ -11,6 +11,7 @@ public partial class Game1
 {
     private CustomMapVisualMetadata? _loadedCustomMapVisualsSource;
     private RuntimeCustomMapVisuals? _loadedCustomMapVisuals;
+    private SimpleLevel? _loadedCustomMapVisualsLevel;
 
     private void DrawCustomMapBackdrop(int viewportWidth, int viewportHeight)
     {
@@ -146,13 +147,15 @@ public partial class Game1
             return null;
         }
 
-        if (ReferenceEquals(source, _loadedCustomMapVisualsSource))
+        if (ReferenceEquals(source, _loadedCustomMapVisualsSource)
+            && ReferenceEquals(_loadedCustomMapVisualsLevel, _world.Level))
         {
             return _loadedCustomMapVisuals;
         }
 
         ClearRuntimeCustomMapVisuals();
         _loadedCustomMapVisualsSource = source;
+        _loadedCustomMapVisualsLevel = _world.Level;
         _loadedCustomMapVisuals = LoadRuntimeCustomMapVisuals(source);
         return _loadedCustomMapVisuals;
     }
@@ -226,6 +229,7 @@ public partial class Game1
         _loadedCustomMapVisuals?.Dispose();
         _loadedCustomMapVisuals = null;
         _loadedCustomMapVisualsSource = null;
+        _loadedCustomMapVisualsLevel = null;
         ClearCustomMapSpriteTextureCache();
         ClearGameplayMessageSoundCache();
     }

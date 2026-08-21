@@ -53,8 +53,12 @@ public partial class Game1
         var redTeam = GetScoreboardPlayers(PlayerTeam.Red);
         var blueTeam = GetScoreboardPlayers(PlayerTeam.Blue);
         var isKothMode = _world.MatchRules.Mode is GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill;
-        var redCenterValue = _world.MatchRules.Mode == GameModeKind.Arena ? _world.ArenaRedConsecutiveWins : _world.RedCaps;
-        var blueCenterValue = _world.MatchRules.Mode == GameModeKind.Arena ? _world.ArenaBlueConsecutiveWins : _world.BlueCaps;
+        var redCenterValue = _world.MatchRules.Mode == GameModeKind.Arena
+            ? _world.ArenaRedConsecutiveWins
+            : IsPracticeSessionActive ? GetPracticeRoundPoints(PlayerTeam.Red) : _world.RedCaps;
+        var blueCenterValue = _world.MatchRules.Mode == GameModeKind.Arena
+            ? _world.ArenaBlueConsecutiveWins
+            : IsPracticeSessionActive ? GetPracticeRoundPoints(PlayerTeam.Blue) : _world.BlueCaps;
         var redCenterText = isKothMode
             ? FormatHudTimerText(_world.KothRedTimerTicksRemaining)
             : redCenterValue.ToString(CultureInfo.InvariantCulture);

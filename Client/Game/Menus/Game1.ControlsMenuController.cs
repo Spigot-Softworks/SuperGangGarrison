@@ -331,7 +331,7 @@ public partial class Game1
             var controllerPage = IsControllerControlsPage();
             var itemCount = controllerPage ? controllerItems.Count : keyboardItems.Count;
             GetControlsMenuPanelLayout(out var panel, out var listBounds, out var backBounds, out var compactLayout, out var rowHeight);
-            var mouse = _game.GetScaledMouseState(_game.GetConstrainedMouseState(Game1.GetCurrentMouseState()));
+            var mouse = _game.GetFrameMouseState();
             var visibleRowCount = Math.Max(1, listBounds.Height / rowHeight);
             ClampControlsScrollOffset(itemCount, visibleRowCount);
 

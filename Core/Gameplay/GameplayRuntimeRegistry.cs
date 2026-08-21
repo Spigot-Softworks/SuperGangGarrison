@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using OpenGarrison.GameplayModding;
 
 namespace OpenGarrison.Core;
@@ -11,7 +12,7 @@ public sealed partial class GameplayRuntimeRegistry
     private readonly Dictionary<string, string> _classOwningModPackIds = new(StringComparer.Ordinal);
     private readonly Dictionary<PlayerClass, GameplayClassRuntimeBinding> _classBindings = new();
     private readonly Dictionary<string, GameplayClassRuntimeBinding> _classBindingsByClassId = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, CharacterClassDefinition> _characterClassDefinitionCache = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, CharacterClassDefinition> _characterClassDefinitionCache = new(StringComparer.Ordinal);
     private readonly Dictionary<string, GameplayPrimaryWeaponRuntimeBinding> _primaryWeaponBindingsByBehaviorId = new(StringComparer.Ordinal);
     private readonly Dictionary<string, IGameplayAbilityExecutor> _abilityExecutorsById = new(StringComparer.Ordinal);
     private bool _abilityDefinitionsSealed;

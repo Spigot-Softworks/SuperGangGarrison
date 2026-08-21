@@ -4,6 +4,7 @@ windows
 - game, server, content, maps, and plugin files live under `app`
 - launch `Super Gang Garrison.exe` from this folder for normal play so updates are checked
 - the Windows package is framework-dependent; install the .NET 10 runtime and ASP.NET Core runtime before launching the client/server
+- the Windows launcher checks the packaged server's ASP.NET Core version requirement and offers the official Microsoft download page when the compatible runtime is missing
 - Windows MsQuic is supplied by supported .NET runtimes; Windows 11 or Windows Server 2022 (or newer) is required for QUIC
 
 linux/macOS

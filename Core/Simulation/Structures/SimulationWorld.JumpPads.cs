@@ -69,7 +69,12 @@ public sealed partial class SimulationWorld
         }
     }
 
-    private bool TryApplyJumpPadJumpBoostFromPlayerJump(PlayerEntity player, bool jumped)
+    internal bool TryApplyJumpPadJumpBoostForPrediction(PlayerEntity player, bool jumped)
+    {
+        return TryApplyJumpPadJumpBoostFromPlayerJump(player, jumped, emitPresentationEvents: false);
+    }
+
+    private bool TryApplyJumpPadJumpBoostFromPlayerJump(PlayerEntity player, bool jumped, bool emitPresentationEvents = true)
     {
         if (!jumped || !player.IsAlive || player.VerticalSpeed >= 0f)
         {
@@ -82,10 +87,10 @@ public sealed partial class SimulationWorld
             return false;
         }
 
-        return TryApplyJumpPadActivation(player, pad);
+        return TryApplyJumpPadActivation(player, pad, emitPresentationEvents);
     }
 
-    private bool TryApplyJumpPadActivation(PlayerEntity player, JumpPadEntity pad)
+    private bool TryApplyJumpPadActivation(PlayerEntity player, JumpPadEntity pad, bool emitPresentationEvents)
     {
         if (!player.IsAlive)
         {
@@ -98,12 +103,12 @@ public sealed partial class SimulationWorld
             && ExperimentalGameplaySettings.EnableEngineerEntanglementTraverser
             && IsExperimentalEngineerPerkOwner(owner))
         {
-            applied = TryApplyJumpPadTeleport(player, owner, pad);
+            applied = TryApplyJumpPadTeleport(player, owner, pad, emitPresentationEvents);
         }
 
         if (!applied)
         {
-            applied = TryApplyJumpPadLaunchImpulse(player, owner);
+            applied = TryApplyJumpPadLaunchImpulse(player, owner, emitPresentationEvents);
         }
 
         if (applied && owner is not null)
@@ -114,7 +119,7 @@ public sealed partial class SimulationWorld
         return applied;
     }
 
-    private bool TryApplyJumpPadLaunchImpulse(PlayerEntity player, PlayerEntity? owner)
+    private bool TryApplyJumpPadLaunchImpulse(PlayerEntity player, PlayerEntity? owner, bool emitPresentationEvents)
     {
         var boostedVerticalSpeed = -player.JumpSpeed * GetJumpPadJumpBoostMultiplier(owner);
         if (player.VerticalSpeed <= boostedVerticalSpeed + JumpPadLaunchEpsilon)
@@ -124,8 +129,11 @@ public sealed partial class SimulationWorld
 
         var extraVerticalImpulse = boostedVerticalSpeed - player.VerticalSpeed;
         player.AddImpulse(0f, extraVerticalImpulse);
-        RegisterSoundEvent(player, "JumpPadSnd");
-        RegisterVisualEffect("AirBlast", player.X, player.Y - 8f, 270f);
+        if (emitPresentationEvents)
+        {
+            RegisterSoundEvent(player, "JumpPadSnd");
+            RegisterVisualEffect("AirBlast", player.X, player.Y - 8f, 270f);
+        }
         return true;
     }
 
@@ -162,7 +170,7 @@ public sealed partial class SimulationWorld
 
     private void HandleJumpPadTriggerContactEffects(PlayerEntity player)
     {
-        if (!player.IsAlive)
+        if (Level.IsTopDown || !player.IsAlive)
         {
             return;
         }
@@ -299,7 +307,7 @@ public sealed partial class SimulationWorld
         player.RefreshExperimentalGravitonEffect(GetExperimentalJumpPadGravitonSlowTicks());
     }
 
-    private bool TryApplyJumpPadTeleport(PlayerEntity player, PlayerEntity owner, JumpPadEntity sourcePad)
+    private bool TryApplyJumpPadTeleport(PlayerEntity player, PlayerEntity owner, JumpPadEntity sourcePad, bool emitPresentationEvents)
     {
         var sentry = FindNearestOwnedBuiltSentry(owner.Id, sourcePad.X, sourcePad.Y);
         if (sentry is null)
@@ -309,9 +317,12 @@ public sealed partial class SimulationWorld
 
         player.TeleportTo(sentry.X, sentry.Y - MathF.Max(player.Height, SentryEntity.Height));
         player.ResolveBlockingOverlap(Level, player.Team);
-        RegisterSoundEvent(player, "AirblastSnd");
-        RegisterVisualEffect("Poof", sourcePad.X, sourcePad.Y);
-        RegisterVisualEffect("Poof", player.X, player.Y);
+        if (emitPresentationEvents)
+        {
+            RegisterSoundEvent(player, "AirblastSnd");
+            RegisterVisualEffect("Poof", sourcePad.X, sourcePad.Y);
+            RegisterVisualEffect("Poof", player.X, player.Y);
+        }
         return true;
     }
 

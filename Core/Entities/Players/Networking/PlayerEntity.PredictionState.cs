@@ -15,10 +15,12 @@ public sealed partial class PlayerEntity
         float LegacyStateTickAccumulator,
         LegacyMovementState MovementState,
         bool IsGrounded,
+        int BlockedJumpRetrySuppressionTicksRemaining,
         bool IsExperimentalDemoknightChargeDashActive,
         bool IsExperimentalDemoknightChargeFlightActive,
         float ExperimentalDemoknightChargeAcceleration,
         int Health,
+        int? NetworkMaxHealthOverrideValue,
         float Metal,
         bool IsCarryingIntel,
         int IntelPickupCooldownTicks,
@@ -37,6 +39,11 @@ public sealed partial class PlayerEntity
         int ExperimentalOffhandCooldownTicks,
         int ExperimentalOffhandReloadTicksUntilNextShell,
         bool IsExperimentalOffhandEquipped,
+        PlayerClass? AcquiredWeaponClassId,
+        int AcquiredWeaponCurrentShells,
+        int AcquiredWeaponCooldownTicks,
+        int AcquiredWeaponReloadTicksUntilNextShell,
+        bool IsAcquiredWeaponEquipped,
         float ContinuousDamageAccumulator,
         int TimeUnscathedSourceTicks,
         int MedicPassiveRegenElapsedSourceTicks,
@@ -54,11 +61,16 @@ public sealed partial class PlayerEntity
         float BinocularsFocusX,
         float BinocularsFocusY,
         int UberTicksRemaining,
+        int KritzCritBoostTicksRemaining,
+        int KritzCritBoostProviderPlayerId,
+        int KritzCritBoostProviderSlot,
+        float KritzCritBoostDamageMultiplier,
         int? MedicHealTargetId,
         bool IsMedicHealing,
         float MedicUberCharge,
         bool IsMedicUberReady,
         bool IsMedicUbering,
+        MedicUberDeliveryMode MedicUberDeliveryMode,
         int MedicNeedleCooldownTicks,
         int MedicNeedleRefillTicks,
         float ContinuousHealingAccumulator,
@@ -119,7 +131,57 @@ public sealed partial class PlayerEntity
         int LastDamageDealerAssistTicksRemaining = 0,
         int? SecondToLastDamageDealerPlayerId = null,
         int SecondToLastDamageDealerAssistTicksRemaining = 0,
-        GameplayReplicatedStateEntry[]? ReplicatedStateEntries = null);
+        GameplayReplicatedStateEntry[]? ReplicatedStateEntries = null,
+        int SpySuperjumpChargeTicks = 0,
+        float SpySuperjumpChargeDirectionDegrees = 0f,
+        byte SpySuperjumpChargeStartMovementButtons = 0,
+        bool SpySuperjumpChargeStartBlockedUntilAbilityRelease = false,
+        int ExperimentalGhostDashTicksRemaining = 0,
+        int ExperimentalGhostDashCooldownTicksRemaining = 0,
+        int ExperimentalGhostDashVisibilityTicksRemaining = 0,
+        int ExperimentalGhostDashMovementTicksRemaining = 0,
+        float ExperimentalGhostDashDistanceRemaining = 0f,
+        float ExperimentalGhostDashSpeedPerSecondValue = 0f,
+        bool ExperimentalGhostDashUsesMomentum = false,
+        float ExperimentalGhostDashBurstSpeedMultiplier = 0f,
+        bool ExperimentalGhostDashDisablesGravity = false,
+        bool ExperimentalGhostDashEnablesTrail = false,
+        int ExperimentalGhostDashInitialTicks = 0,
+        float ExperimentalGhostDashInitialDistance = 0f,
+        float ExperimentalGhostDashDistanceTraveled = 0f,
+        float ExperimentalGhostDashLastMoveDistance = 0f,
+        float ExperimentalGhostDashMomentumDirectionX = 1f,
+        float ExperimentalGhostDashSlideVelocityPerTick = ExperimentalGameplaySettings.DefaultGhostDashSlideVelocityPerTick,
+        float ExperimentalGhostDashSlideVisualSpeedPerSecond = 0f,
+        float ExperimentalGhostDashSlideVisualInitialSpeedPerSecond = 0f,
+        float ExperimentalGhostDashTrailAlphaValue = 0f,
+        float ExperimentalGhostDashNextAttackDamageMultiplierValue = 1f,
+        float LastToDieCloakedMovementSpeedMultiplierValue = 1f,
+        float LastToDieCloakedDamageTakenMultiplierValue = 1f,
+        bool LastToDieRogueCommanderEnabledValue = false,
+        bool LastToDieProfessionalEnabledValue = false,
+        int LastToDieSpyCloakMeterUnitsValue = 0,
+        int LastToDieSpyCloakMeterMaximumUnitsValue = 0,
+        int LastToDieSpyRogueRampStacksValue = 0,
+        int LastToDieSpyRogueRampTicksValue = 0,
+        bool LastToDieMultistabEnabledValue = false,
+        bool LastToDieSpringLoadedEnabledValue = false,
+        bool LastToDieInstastabEnabledValue = false,
+        bool LastToDieHealstabEnabledValue = false,
+        bool LastToDieHealingHarnessEnabledValue = false,
+        bool LastToDieDoubleJumpEnabledValue = false,
+        int SpySuperjumpAvailableCharges = 1,
+        bool LastToDieMedicCombatMedicEnabledValue = false,
+        bool LastToDieMedicSpikedVestEnabledValue = false,
+        bool LastToDieMedicIronWillEnabledValue = false,
+        int LastToDieMedicIronWillHealingRemainder = 0,
+        bool LastToDieMedicStimulantDripLinkActiveValue = false,
+        bool LastToDieMedicAgilityDriveLinkActiveValue = false,
+        bool LastToDieMedicMartyrProtectedLinkActiveValue = false,
+        bool LastToDieMedicMartyrProtectorLinkActiveValue = false,
+        bool LastToDieMedicKritPowerEnabledValue = false,
+        bool IsDispenserBuffedValue = false,
+        float DispenserAttackReloadSpeedMultiplierValue = 1f);
 
     internal PredictionState CapturePredictionState()
     {
@@ -134,10 +196,12 @@ public sealed partial class PlayerEntity
             LegacyStateTickAccumulator,
             MovementState,
             IsGrounded,
+            BlockedJumpRetrySuppressionTicksRemaining,
             IsExperimentalDemoknightChargeDashActive,
             IsExperimentalDemoknightChargeFlightActive,
             ExperimentalDemoknightChargeAcceleration,
             Health,
+            NetworkMaxHealthOverrideValue,
             Metal,
             IsCarryingIntel,
             IntelPickupCooldownTicks,
@@ -156,6 +220,11 @@ public sealed partial class PlayerEntity
             ExperimentalOffhandCooldownTicks,
             ExperimentalOffhandReloadTicksUntilNextShell,
             IsExperimentalOffhandEquipped,
+            AcquiredWeaponClassId,
+            AcquiredWeaponCurrentShells,
+            AcquiredWeaponCooldownTicks,
+            AcquiredWeaponReloadTicksUntilNextShell,
+            IsAcquiredWeaponEquipped,
             ContinuousDamageAccumulator,
             TimeUnscathedSourceTicks,
             MedicPassiveRegenElapsedSourceTicks,
@@ -173,11 +242,16 @@ public sealed partial class PlayerEntity
             BinocularsFocusX,
             BinocularsFocusY,
             UberTicksRemaining,
+            KritzCritBoostTicksRemaining,
+            KritzCritBoostProviderPlayerId,
+            KritzCritBoostProviderSlot,
+            KritzCritBoostDamageMultiplier,
             MedicHealTargetId,
             IsMedicHealing,
             MedicUberCharge,
             IsMedicUberReady,
             IsMedicUbering,
+            MedicUberDeliveryMode,
             MedicNeedleCooldownTicks,
             MedicNeedleRefillTicks,
             ContinuousHealingAccumulator,
@@ -238,7 +312,57 @@ public sealed partial class PlayerEntity
             LastDamageDealerAssistTicksRemaining,
             SecondToLastDamageDealerPlayerId,
             SecondToLastDamageDealerAssistTicksRemaining,
-            GetReplicatedStateEntries().ToArray());
+            GetReplicatedStateEntries().ToArray(),
+            SpySuperjumpChargeTicks,
+            SpySuperjumpChargeDirectionDegrees,
+            SpySuperjumpChargeStartMovementButtons,
+            SpySuperjumpChargeStartBlockedUntilAbilityRelease,
+            ExperimentalGhostDashTicksRemaining,
+            ExperimentalGhostDashCooldownTicksRemaining,
+            ExperimentalGhostDashVisibilityTicksRemaining,
+            ExperimentalGhostDashMovementTicksRemaining,
+            ExperimentalGhostDashDistanceRemaining,
+            ExperimentalGhostDashSpeedPerSecondValue,
+            ExperimentalGhostDashUsesMomentum,
+            ExperimentalGhostDashBurstSpeedMultiplier,
+            ExperimentalGhostDashDisablesGravity,
+            ExperimentalGhostDashEnablesTrail,
+            ExperimentalGhostDashInitialTicks,
+            ExperimentalGhostDashInitialDistance,
+            ExperimentalGhostDashDistanceTraveled,
+            ExperimentalGhostDashLastMoveDistance,
+            ExperimentalGhostDashMomentumDirectionX,
+            ExperimentalGhostDashSlideVelocityPerTick,
+            ExperimentalGhostDashSlideVisualSpeedPerSecond,
+            ExperimentalGhostDashSlideVisualInitialSpeedPerSecond,
+            ExperimentalGhostDashTrailAlphaValue,
+            ExperimentalGhostDashNextAttackDamageMultiplierValue,
+            LastToDieCloakedMovementSpeedMultiplierValue,
+            LastToDieCloakedDamageTakenMultiplierValue,
+            LastToDieRogueCommanderEnabledValue,
+            LastToDieProfessionalEnabledValue,
+            LastToDieSpyCloakMeterUnitsValue,
+            LastToDieSpyCloakMeterMaximumUnitsValue,
+            LastToDieSpyRogueRampStacksValue,
+            LastToDieSpyRogueRampTicksValue,
+            LastToDieMultistabEnabledValue,
+            LastToDieSpringLoadedEnabledValue,
+            LastToDieInstastabEnabledValue,
+            LastToDieHealstabEnabledValue,
+            LastToDieHealingHarnessEnabledValue,
+            LastToDieDoubleJumpEnabledValue,
+            SpySuperjumpAvailableCharges,
+            LastToDieMedicCombatMedicEnabledValue,
+            LastToDieMedicSpikedVestEnabledValue,
+            LastToDieMedicIronWillEnabledValue,
+            LastToDieMedicIronWillHealingRemainder,
+            LastToDieMedicStimulantDripLinkActiveValue,
+            LastToDieMedicAgilityDriveLinkActiveValue,
+            LastToDieMedicMartyrProtectedLinkActiveValue,
+            LastToDieMedicMartyrProtectorLinkActiveValue,
+            LastToDieMedicKritPowerEnabledValue,
+            IsDispenserBuffed,
+            DispenserAttackReloadSpeedMultiplier);
     }
 
     internal void RestorePredictionState(in PredictionState state)
@@ -253,10 +377,12 @@ public sealed partial class PlayerEntity
         LegacyStateTickAccumulator = state.LegacyStateTickAccumulator;
         MovementState = state.MovementState;
         IsGrounded = state.IsGrounded;
+        BlockedJumpRetrySuppressionTicksRemaining = Math.Max(0, state.BlockedJumpRetrySuppressionTicksRemaining);
         IsExperimentalDemoknightChargeDashActive = state.IsExperimentalDemoknightChargeDashActive;
         IsExperimentalDemoknightChargeFlightActive = state.IsExperimentalDemoknightChargeFlightActive;
         ExperimentalDemoknightChargeAcceleration = state.ExperimentalDemoknightChargeAcceleration;
-        Health = state.Health;
+        NetworkMaxHealthOverrideValue = state.NetworkMaxHealthOverrideValue;
+        Health = int.Clamp(state.Health, 0, MaxHealth);
         Metal = state.Metal;
         IsCarryingIntel = state.IsCarryingIntel;
         IntelPickupCooldownTicks = state.IntelPickupCooldownTicks;
@@ -278,6 +404,14 @@ public sealed partial class PlayerEntity
         ExperimentalOffhandCooldownTicks = Math.Max(0, state.ExperimentalOffhandCooldownTicks);
         ExperimentalOffhandReloadTicksUntilNextShell = Math.Max(0, state.ExperimentalOffhandReloadTicksUntilNextShell);
         IsExperimentalOffhandEquipped = state.ExperimentalOffhandWeapon is not null && state.IsExperimentalOffhandEquipped;
+        AcquiredWeaponClassId = state.AcquiredWeaponClassId;
+        AcquiredWeaponCurrentShells = int.Clamp(
+            state.AcquiredWeaponCurrentShells,
+            0,
+            AcquiredWeapon?.MaxAmmo ?? 0);
+        AcquiredWeaponCooldownTicks = Math.Max(0, state.AcquiredWeaponCooldownTicks);
+        AcquiredWeaponReloadTicksUntilNextShell = Math.Max(0, state.AcquiredWeaponReloadTicksUntilNextShell);
+        IsAcquiredWeaponEquipped = state.AcquiredWeaponClassId.HasValue && state.IsAcquiredWeaponEquipped;
         ContinuousDamageAccumulator = state.ContinuousDamageAccumulator;
         TimeUnscathedSourceTicks = state.TimeUnscathedSourceTicks;
         MedicPassiveRegenElapsedSourceTicks = state.MedicPassiveRegenElapsedSourceTicks;
@@ -291,17 +425,33 @@ public sealed partial class PlayerEntity
         IsTaunting = state.IsTaunting;
         TauntFrameIndex = state.TauntFrameIndex;
         IsSniperScoped = state.IsSniperScoped;
-        SniperChargeTicks = state.SniperChargeTicks;
-        SniperBowChargeTicks = Math.Clamp(state.SniperBowChargeTicks, 0, SniperBowMaxChargeTicks);
+        SniperChargeTicks = Math.Clamp(
+            state.SniperChargeTicks,
+            0,
+            LastToDieSniperRifleFullChargeTicks);
+        SniperBowChargeTicks = Math.Clamp(
+            state.SniperBowChargeTicks,
+            0,
+            LastToDieSniperBowFullChargeTicks);
         IsUsingBinoculars = state.IsUsingBinoculars;
         BinocularsFocusX = state.BinocularsFocusX;
         BinocularsFocusY = state.BinocularsFocusY;
         UberTicksRemaining = state.UberTicksRemaining;
+        KritzCritBoostTicksRemaining = state.KritzCritBoostTicksRemaining;
+        KritzCritBoostProviderPlayerId = state.KritzCritBoostProviderPlayerId;
+        KritzCritBoostProviderSlot = state.KritzCritBoostProviderSlot;
+        KritzCritBoostDamageMultiplier = state.KritzCritBoostDamageMultiplier;
+        HydrateDispenserBuff(
+            state.IsDispenserBuffedValue,
+            state.DispenserAttackReloadSpeedMultiplierValue);
         MedicHealTargetId = state.MedicHealTargetId;
         IsMedicHealing = state.IsMedicHealing;
         MedicUberCharge = state.MedicUberCharge;
         IsMedicUberReady = state.IsMedicUberReady;
         IsMedicUbering = state.IsMedicUbering;
+        MedicUberDeliveryMode = state.IsMedicUbering
+            ? state.MedicUberDeliveryMode
+            : MedicUberDeliveryMode.None;
         MedicNeedleCooldownTicks = state.MedicNeedleCooldownTicks;
         MedicNeedleRefillTicks = state.MedicNeedleRefillTicks;
         ContinuousHealingAccumulator = state.ContinuousHealingAccumulator;
@@ -324,6 +474,70 @@ public sealed partial class PlayerEntity
         IsSpySuperjumping = state.IsSpySuperjumping;
         SpySuperjumpHorizontalVelocity = state.SpySuperjumpHorizontalVelocity;
         SpySuperjumpCooldownTicksRemaining = state.SpySuperjumpCooldownTicksRemaining;
+        SpySuperjumpChargeTicks = Math.Max(0, state.SpySuperjumpChargeTicks);
+        SpySuperjumpChargeDirectionDegrees = state.SpySuperjumpChargeDirectionDegrees;
+        SpySuperjumpChargeStartMovementButtons = state.SpySuperjumpChargeStartMovementButtons;
+        SpySuperjumpChargeStartBlockedUntilAbilityRelease = state.SpySuperjumpChargeStartBlockedUntilAbilityRelease;
+        ExperimentalGhostDashTicksRemaining = Math.Max(0, state.ExperimentalGhostDashTicksRemaining);
+        ExperimentalGhostDashCooldownTicksRemaining = Math.Max(0, state.ExperimentalGhostDashCooldownTicksRemaining);
+        ExperimentalGhostDashVisibilityTicksRemaining = Math.Max(0, state.ExperimentalGhostDashVisibilityTicksRemaining);
+        ExperimentalGhostDashMovementTicksRemaining = Math.Max(0, state.ExperimentalGhostDashMovementTicksRemaining);
+        ExperimentalGhostDashDistanceRemaining = MathF.Max(0f, state.ExperimentalGhostDashDistanceRemaining);
+        ExperimentalGhostDashSpeedPerSecondValue = MathF.Max(0f, state.ExperimentalGhostDashSpeedPerSecondValue);
+        ExperimentalGhostDashUsesMomentum = state.ExperimentalGhostDashUsesMomentum;
+        ExperimentalGhostDashBurstSpeedMultiplier = MathF.Max(0f, state.ExperimentalGhostDashBurstSpeedMultiplier);
+        ExperimentalGhostDashDisablesGravity = state.ExperimentalGhostDashDisablesGravity;
+        ExperimentalGhostDashEnablesTrail = state.ExperimentalGhostDashEnablesTrail;
+        ExperimentalGhostDashInitialTicks = Math.Max(0, state.ExperimentalGhostDashInitialTicks);
+        ExperimentalGhostDashInitialDistance = MathF.Max(0f, state.ExperimentalGhostDashInitialDistance);
+        ExperimentalGhostDashDistanceTraveled = MathF.Max(0f, state.ExperimentalGhostDashDistanceTraveled);
+        ExperimentalGhostDashLastMoveDistance = MathF.Max(0f, state.ExperimentalGhostDashLastMoveDistance);
+        ExperimentalGhostDashMomentumDirectionX = state.ExperimentalGhostDashMomentumDirectionX < 0f ? -1f : 1f;
+        ExperimentalGhostDashSlideVelocityPerTick = MathF.Max(0f, state.ExperimentalGhostDashSlideVelocityPerTick);
+        ExperimentalGhostDashSlideVisualSpeedPerSecond = MathF.Max(0f, state.ExperimentalGhostDashSlideVisualSpeedPerSecond);
+        ExperimentalGhostDashSlideVisualInitialSpeedPerSecond = MathF.Max(0f, state.ExperimentalGhostDashSlideVisualInitialSpeedPerSecond);
+        ExperimentalGhostDashTrailAlphaValue = float.Clamp(state.ExperimentalGhostDashTrailAlphaValue, 0f, 1f);
+        ExperimentalGhostDashNextAttackDamageMultiplierValue = MathF.Max(1f, state.ExperimentalGhostDashNextAttackDamageMultiplierValue);
+        LastToDieCloakedMovementSpeedMultiplierValue = MathF.Max(
+            1f,
+            state.LastToDieCloakedMovementSpeedMultiplierValue);
+        LastToDieCloakedDamageTakenMultiplierValue = Math.Clamp(
+            state.LastToDieCloakedDamageTakenMultiplierValue,
+            0.05f,
+            1f);
+        LastToDieRogueCommanderEnabledValue = state.LastToDieRogueCommanderEnabledValue;
+        LastToDieProfessionalEnabledValue = state.LastToDieProfessionalEnabledValue;
+        LastToDieMultistabEnabledValue = state.LastToDieMultistabEnabledValue;
+        LastToDieSpringLoadedEnabledValue = state.LastToDieSpringLoadedEnabledValue;
+        LastToDieInstastabEnabledValue = state.LastToDieInstastabEnabledValue;
+        LastToDieHealstabEnabledValue = state.LastToDieHealstabEnabledValue;
+        LastToDieHealingHarnessEnabledValue = state.LastToDieHealingHarnessEnabledValue;
+        LastToDieDoubleJumpEnabledValue = state.LastToDieDoubleJumpEnabledValue;
+        LastToDieMedicCombatMedicEnabledValue = state.LastToDieMedicCombatMedicEnabledValue;
+        LastToDieMedicSpikedVestEnabledValue = state.LastToDieMedicSpikedVestEnabledValue;
+        LastToDieMedicIronWillEnabledValue = state.LastToDieMedicIronWillEnabledValue;
+        LastToDieMedicIronWillHealingRemainder = Math.Clamp(
+            state.LastToDieMedicIronWillHealingRemainder,
+            0,
+            global::OpenGarrison.Core.LastToDie.LastToDieDerivedModifiers.MedicIronWillRegenerationDenominator - 1);
+        SpySuperjumpMaximumChargesValue = state.LastToDieDoubleJumpEnabledValue ? 2 : 1;
+        SpySuperjumpAvailableCharges = Math.Clamp(
+            state.SpySuperjumpAvailableCharges,
+            0,
+            SpySuperjumpMaximumCharges);
+        LastToDieSpyCloakMeterMaximumUnitsValue = Math.Clamp(
+            state.LastToDieSpyCloakMeterMaximumUnitsValue,
+            0,
+            ushort.MaxValue);
+        LastToDieSpyCloakMeterUnitsValue = Math.Clamp(
+            state.LastToDieSpyCloakMeterUnitsValue,
+            0,
+            LastToDieSpyCloakMeterMaximumUnitsValue);
+        LastToDieSpyRogueRampStacksValue = Math.Clamp(
+            state.LastToDieSpyRogueRampStacksValue,
+            0,
+            global::OpenGarrison.Core.LastToDie.LastToDieDerivedModifiers.SpyRogueMaximumRampStacks);
+        LastToDieSpyRogueRampTicksValue = Math.Max(0, state.LastToDieSpyRogueRampTicksValue);
         SpyBackstabWindupTicksRemaining = state.SpyBackstabWindupTicksRemaining;
         SpyBackstabRecoveryTicksRemaining = state.SpyBackstabRecoveryTicksRemaining;
         SpyBackstabVisualTicksRemaining = state.SpyBackstabVisualTicksRemaining;
@@ -365,6 +579,17 @@ public sealed partial class PlayerEntity
         SecondToLastDamageDealerPlayerId = state.SecondToLastDamageDealerPlayerId;
         SecondToLastDamageDealerAssistTicksRemaining = state.SecondToLastDamageDealerAssistTicksRemaining;
         ReplaceReplicatedStateEntries(state.ReplicatedStateEntries ?? []);
+        LastToDieMedicStimulantDripLinkActiveValue =
+            state.LastToDieMedicStimulantDripLinkActiveValue;
+        LastToDieMedicAgilityDriveLinkActiveValue =
+            state.LastToDieMedicAgilityDriveLinkActiveValue;
+        LastToDieMedicMartyrProtectedLinkActiveValue =
+            state.LastToDieMedicMartyrProtectedLinkActiveValue;
+        LastToDieMedicMartyrProtectorLinkActiveValue =
+            state.LastToDieMedicMartyrProtectorLinkActiveValue;
+        LastToDieMedicKritPowerEnabledValue =
+            state.LastToDieMedicKritPowerEnabledValue;
+        CurrentShells = int.Clamp(state.CurrentShells, 0, MaxShells);
         RefreshGameplayLoadoutState();
     }
 

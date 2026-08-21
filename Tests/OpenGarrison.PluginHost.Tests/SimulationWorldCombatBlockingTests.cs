@@ -23,6 +23,21 @@ public sealed class SimulationWorldCombatBlockingTests
     }
 
     [Fact]
+    public void RifleHitStopsWhenFriendlyBodyOverlapsEnemy()
+    {
+        var world = CreateCombatWorld(PlayerClass.Sniper);
+        var attacker = world.LocalPlayer;
+        attacker.TeleportTo(0f, 0f);
+        _ = AddNetworkPlayer(world, slot: 2, PlayerTeam.Red, PlayerClass.Soldier, x: 70f, y: 0f);
+        var enemy = AddNetworkPlayer(world, slot: 3, PlayerTeam.Blue, PlayerClass.Soldier, x: 96f, y: 0f);
+
+        var hit = ResolveRifleHit(world, attacker, directionX: 1f, directionY: 0f, maxDistance: 200f);
+
+        Assert.Null(hit.HitPlayer);
+        Assert.True(hit.Distance < enemy.X);
+    }
+
+    [Fact]
     public void DirectFireShotPassesThroughFriendlyBeforeEnemy()
     {
         var world = CreateCombatWorld(PlayerClass.Scout);
@@ -249,7 +264,7 @@ public sealed class SimulationWorldCombatBlockingTests
     {
         var method = typeof(SimulationWorld).GetMethod("TryHandleNetworkPrimaryFire", BindingFlags.Instance | BindingFlags.NonPublic);
         Assert.NotNull(method);
-        _ = method!.Invoke(world, [player, input, primaryPressed, suppressPyroPrimaryThisTick]);
+        _ = method!.Invoke(world, [player, input, default(PlayerInputSnapshot), primaryPressed, suppressPyroPrimaryThisTick]);
     }
 
     private static void InvokeFirePrimaryWeapon(SimulationWorld world, PlayerEntity player, float aimWorldX, float aimWorldY)

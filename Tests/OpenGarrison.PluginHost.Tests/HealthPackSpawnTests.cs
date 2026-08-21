@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Reflection;
 using OpenGarrison.Core;
 using Xunit;
 
@@ -6,6 +7,10 @@ namespace OpenGarrison.PluginHost.Tests;
 
 public sealed class HealthPackSpawnTests
 {
+    private static readonly MethodInfo KillPlayerMethod = typeof(SimulationWorld)
+        .GetMethods(BindingFlags.Instance | BindingFlags.NonPublic)
+        .Single(method => method.Name == "KillPlayer" && method.GetParameters().Length == 14);
+
     [Fact]
     public void RuntimeImporterCreatesHealthPackSpawnMarker()
     {
@@ -85,5 +90,50 @@ public sealed class HealthPackSpawnTests
         var respawnedPack = Assert.Single(world.HealthPacks);
         Assert.Equal(HealthPackSize.Small, respawnedPack.Size);
         Assert.True(respawnedPack.IsMapSpawned);
+    }
+
+    [Theory]
+    [InlineData(PlayerClass.Soldier)]
+    [InlineData(PlayerClass.Scout)]
+    [InlineData(PlayerClass.Medic)]
+    [InlineData(PlayerClass.Sniper)]
+    public void EnemyHealthPackDropDoesNotDependOnKillerClass(PlayerClass killerClass)
+    {
+        var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
+        Assert.True(world.TryLoadLevel("Harvest"));
+        world.PrepareLocalPlayerJoin();
+        world.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.CompleteLocalPlayerJoin(killerClass);
+        Assert.True(world.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.TrySetNetworkPlayerTeam(2, PlayerTeam.Blue));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Scout));
+        Assert.True(world.TryGetNetworkPlayer(2, out var victim));
+        Assert.Equal(PlayerTeam.Red, world.LocalPlayer.Team);
+        Assert.Equal(PlayerTeam.Blue, victim.Team);
+        world.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings(
+            EnableEnemyHealthPackDrops: true,
+            EnemyHealthPackDropChance: 1f));
+
+        KillPlayerMethod.Invoke(
+            world,
+            [
+                victim,
+                false,
+                world.LocalPlayer,
+                null,
+                DeadBodyAnimationKind.Default,
+                null,
+                null,
+                null,
+                true,
+                true,
+                false,
+                true,
+                -1,
+                false,
+            ]);
+
+        Assert.False(victim.IsAlive);
+        Assert.Single(world.HealthPacks.Where(candidate => !candidate.IsMapSpawned));
     }
 }

@@ -1,0 +1,9 @@
+{
+  "id": "DispenserGibS",
+  "framePaths": [
+    "assets/world/in-game-elements/DispenserGibS.images/image 0.png",
+    "assets/world/in-game-elements/DispenserGibS.images/image 1.png"
+  ],
+  "originX": 24,
+  "originY": 20
+}

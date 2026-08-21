@@ -13,6 +13,8 @@ public partial class Game1
     // Preserved for future reuse. Cross particles remain the active healing visual.
     private const bool HealingCharacterSweepEffectEnabled = false;
 
+    private static bool IsHealingCharacterSweepEffectEnabled() => HealingCharacterSweepEffectEnabled;
+
     private const float HealingCharacterSweepDurationSeconds = 0.38f;
     private const float HealingCharacterSweepBandHeightPixels = 8f;
     private const float HealingCharacterSweepMinSpawnIntervalSeconds = 0.3f;
@@ -57,7 +59,7 @@ public partial class Game1
 
     private void AdvanceHealingCharacterSweepEffects(float deltaSeconds)
     {
-        if (!HealingCharacterSweepEffectEnabled)
+        if (!IsHealingCharacterSweepEffectEnabled())
         {
             return;
         }

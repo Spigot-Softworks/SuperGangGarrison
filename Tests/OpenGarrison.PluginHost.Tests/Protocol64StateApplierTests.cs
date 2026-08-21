@@ -1,6 +1,9 @@
+using System.Reflection;
 using OpenGarrison.Client;
 using OpenGarrison.Core;
+using OpenGarrison.Core.LastToDie;
 using OpenGarrison.Protocol;
+using OpenGarrison.Server;
 using Xunit;
 
 namespace OpenGarrison.PluginHost.Tests;
@@ -134,6 +137,282 @@ public sealed class Protocol64StateApplierTests
     }
 
     [Fact]
+    public void Protocol64PublisherCarriesMedicM2AmmoFromCurrentShells()
+    {
+        var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
+        Assert.True(world.TrySetLocalClass(PlayerClass.Medic));
+        world.LocalPlayer.ForceSetAmmo(17);
+
+        var publisher = new Protocol64StatePublisher(world);
+        var player = Assert.Single(publisher.BuildPlayerStateBatch(1).Players);
+
+        Assert.Equal(CharacterClassCatalog.Medic.GameplayClassId, player.GameplayClassId);
+        Assert.Equal(17, player.CurrentAmmo);
+        Assert.Equal(40, player.MaxAmmo);
+    }
+
+    [Fact]
+    public void Protocol64PublisherAndWorldHydrateEffectiveMedicLinkState()
+    {
+        var source = CreateJoinedWorld(PlayerClass.Heavy);
+        source.LocalPlayer.SetLastToDieMedicLinkProjection(
+            stimulantDripActive: true,
+            agilityDriveActive: true);
+        var publisher = new Protocol64StatePublisher(source);
+
+        var state = Assert.Single(publisher.BuildPlayerStateBatch(1).Players);
+        Assert.Equal((byte)3, state.LastToDieMedicLinkState);
+
+        var receiver = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
+        Assert.True(receiver.ApplyProtocol64PlayerState(state));
+        Assert.True(receiver.LocalPlayer.LastToDieMedicStimulantDripLinkActive);
+        Assert.True(receiver.LocalPlayer.LastToDieMedicAgilityDriveLinkActive);
+    }
+
+    [Fact]
+    public void Protocol64PublisherAndWorldHydrateExactSpyCloakRuntime()
+    {
+        var source = CreateJoinedWorld(PlayerClass.Spy);
+        Assert.True(source.TryConfigureLastToDiePlayerBuild(
+            SimulationWorld.LocalPlayerSlot,
+            [LastToDiePerkIds.Spy.RogueCommander, LastToDiePerkIds.Spy.Professional],
+            resetDynamicState: true));
+        Assert.True(source.LocalPlayer.TryToggleSpyCloak());
+        Assert.True(source.LocalPlayer.TryBeginLastToDieProfessionalFireChord());
+        for (var tick = 0; tick < 7; tick += 1)
+        {
+            source.AdvanceOneTick();
+        }
+
+        var publisher = new Protocol64StatePublisher(source);
+        var state = Assert.Single(publisher.BuildPlayerStateBatch(7).Players);
+        Assert.Equal(source.LocalPlayer.LastToDieSpyCloakMeterUnits, state.LastToDieSpyCloakMeterUnits);
+
+        var receiver = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
+        Assert.True(receiver.ApplyProtocol64PlayerState(state));
+        var hydratedMeter = receiver.LocalPlayer.LastToDieSpyCloakMeterUnits;
+        Assert.True(receiver.TryApplyLastToDiePlayerPredictionProfile(
+            SimulationWorld.LocalPlayerSlot,
+            [LastToDiePerkIds.Spy.RogueCommander.Value, LastToDiePerkIds.Spy.Professional.Value]));
+
+        Assert.Equal(state.LastToDieSpyCloakMeterUnits, hydratedMeter);
+        Assert.Equal(hydratedMeter, receiver.LocalPlayer.LastToDieSpyCloakMeterUnits);
+        Assert.True(receiver.LocalPlayer.LastToDieRogueCommanderEnabled);
+        Assert.True(receiver.LocalPlayer.LastToDieProfessionalEnabled);
+        Assert.Equal((byte)1, state.LastToDieProfessionalFireChordState);
+        Assert.Equal(state.LastToDieProfessionalFireChordState, receiver.LocalPlayer.LastToDieProfessionalFireChordState);
+    }
+
+    [Fact]
+    public void Protocol64HydrationPreservesRogueRampTickRemainder()
+    {
+        var source = CreateJoinedWorld(PlayerClass.Spy);
+        Assert.True(source.TryConfigureLastToDiePlayerBuild(
+            SimulationWorld.LocalPlayerSlot,
+            [LastToDiePerkIds.Spy.RogueCommander],
+            resetDynamicState: true));
+
+        for (var tick = 0; tick < source.Config.TicksPerSecond - 1; tick += 1)
+        {
+            source.LocalPlayer.AdvanceLastToDieSpyCloakMeter(source.Config.TicksPerSecond);
+        }
+
+        var state = Assert.Single(new Protocol64StatePublisher(source).BuildPlayerStateBatch(8).Players);
+        Assert.Equal((ushort)(source.Config.TicksPerSecond - 1), state.LastToDieSpyRogueRampTicks);
+
+        var receiver = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
+        Assert.True(receiver.ApplyProtocol64PlayerState(state));
+        Assert.True(receiver.TryApplyLastToDiePlayerPredictionProfile(
+            SimulationWorld.LocalPlayerSlot,
+            [LastToDiePerkIds.Spy.RogueCommander.Value]));
+        Assert.Equal(source.Config.TicksPerSecond - 1, receiver.LocalPlayer.LastToDieSpyRogueRampTicks);
+
+        receiver.LocalPlayer.AdvanceLastToDieSpyCloakMeter(receiver.Config.TicksPerSecond);
+
+        Assert.Equal(1, receiver.LocalPlayer.LastToDieSpyRogueRampStacks);
+        Assert.Equal(0, receiver.LocalPlayer.LastToDieSpyRogueRampTicks);
+    }
+
+    [Fact]
+    public void Protocol64PublisherRedactsHiddenEnemySpyStatePerViewer()
+    {
+        var world = CreateJoinedWorld(PlayerClass.Scout);
+        world.LocalPlayer.Spawn(PlayerTeam.Red, 100f, 0f);
+        Assert.True(world.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.TrySetNetworkPlayerTeam(2, PlayerTeam.Blue));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Spy));
+        Assert.True(world.TryGetNetworkPlayer(2, out var enemySpy));
+        enemySpy.Spawn(PlayerTeam.Blue, 50f, 0f);
+        Assert.True(enemySpy.TryToggleSpyCloak());
+        for (var tick = 0; tick < 20; tick += 1)
+        {
+            enemySpy.AdvanceTickState(default, world.Config.FixedDeltaSeconds);
+        }
+        Assert.False(enemySpy.IsSpyVisibleToEnemies);
+
+        var publisher = new Protocol64StatePublisher(world);
+
+        Assert.Equal(2, publisher.BuildPlayerStateBatch(1).Players.Count);
+        var viewerBatch = publisher.BuildPlayerStateBatch(2, SimulationWorld.LocalPlayerSlot);
+        Assert.Contains(viewerBatch.Players, player => player.Slot == SimulationWorld.LocalPlayerSlot);
+        Assert.DoesNotContain(viewerBatch.Players, player => player.Slot == 2);
+        var resync = publisher.BuildResyncResponse(
+            new Protocol64StateResyncRequest(1, 0, 0, 0, Protocol64StateResyncReason.ClientRequested),
+            2,
+            SimulationWorld.LocalPlayerSlot);
+        Assert.DoesNotContain(resync.Players, player => player.Slot == 2);
+
+        enemySpy.Spawn(PlayerTeam.Blue, 150f, 0f);
+        Assert.Contains(
+            publisher.BuildPlayerStateBatch(3, SimulationWorld.LocalPlayerSlot).Players,
+            player => player.Slot == 2);
+    }
+
+    [Fact]
+    public void FullPlayerBatchReplacementRemovesAndCanReapplySameGeneration()
+    {
+        var applier = new Protocol64StateApplier();
+        var local = Player(1, 11, 1, StockGameplayModCatalog.GetClassId(PlayerClass.Scout), 125);
+        var spy = Player(2, 22, 1, StockGameplayModCatalog.GetClassId(PlayerClass.Spy), 100);
+        var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
+
+        Assert.Equal(
+            Protocol64StateApplyStatus.Applied,
+            applier.ApplyPlayerStateBatch(new Protocol64PlayerStateBatch(1, 1, [local, spy])).Status);
+        applier.ApplyToWorld(world);
+        Assert.Contains(world.EnumerateReplicatedNetworkPlayers(), entry => entry.Slot == 2);
+
+        Assert.Equal(
+            Protocol64StateApplyStatus.Applied,
+            applier.ApplyPlayerStateBatch(new Protocol64PlayerStateBatch(2, 2, [local])).Status);
+        applier.ApplyToWorld(world);
+        Assert.DoesNotContain(world.EnumerateReplicatedNetworkPlayers(), entry => entry.Slot == 2);
+
+        Assert.Equal(
+            Protocol64StateApplyStatus.Applied,
+            applier.ApplyPlayerStateBatch(new Protocol64PlayerStateBatch(3, 3, [local, spy])).Status);
+        applier.ApplyToWorld(world);
+        var reapplied = Assert.Single(world.EnumerateReplicatedNetworkPlayers(), entry => entry.Slot == 2);
+        Assert.Equal(PlayerClass.Spy, reapplied.Player.ClassId);
+    }
+
+    [Fact]
+    public void SameClassSlotReappearanceAdvancesGenerationPastRemovalTombstone()
+    {
+        var source = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
+        Assert.True(source.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(source.TrySetNetworkPlayerTeam(2, PlayerTeam.Red));
+        Assert.True(source.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Spy));
+        var publisher = new Protocol64StatePublisher(source);
+        var applier = new Protocol64StateApplier();
+
+        var firstBatch = publisher.BuildPlayerStateBatch(1);
+        var first = Assert.Single(firstBatch.Players, player => player.Slot == 2);
+        Assert.Equal(1U, first.Generation);
+        Assert.Equal(Protocol64StateApplyStatus.Applied, applier.ApplyPlayerStateBatch(firstBatch).Status);
+        _ = publisher.BuildRosterState(1);
+
+        Assert.True(source.TryReleaseNetworkPlayerSlot(2));
+        _ = publisher.BuildPlayerStateBatch(2);
+        var removedRoster = publisher.BuildRosterState(2);
+        Assert.Equal(Protocol64StateApplyStatus.Applied, applier.ApplyRosterState(removedRoster).Status);
+
+        Assert.True(source.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(source.TrySetNetworkPlayerTeam(2, PlayerTeam.Red));
+        Assert.True(source.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Spy));
+        var rejoinedBatch = publisher.BuildPlayerStateBatch(3);
+        var rejoined = Assert.Single(rejoinedBatch.Players, player => player.Slot == 2);
+        Assert.Equal(2U, rejoined.Generation);
+        Assert.Equal(Protocol64StateApplyStatus.Applied, applier.ApplyPlayerStateBatch(rejoinedBatch).Status);
+        Assert.Contains(applier.Players, player => player.Slot == 2 && player.Generation == 2);
+    }
+
+    [Fact]
+    public void Protocol64PlayerStateHydratesSpyProfileAndLuckyProgressBeforeAmmoClamp()
+    {
+        var source = CreateJoinedWorld(PlayerClass.Spy);
+        Assert.True(source.TryConfigureLastToDiePlayerBuild(
+            SimulationWorld.LocalPlayerSlot,
+            [LastToDiePerkIds.Spy.Agent, LastToDiePerkIds.Spy.LuckyStrike],
+            refillHealth: true));
+
+        Assert.True(source.LocalPlayer.TryFirePrimaryWeapon());
+        AdvanceUntilPrimaryReady(source);
+        Assert.True(source.LocalPlayer.TryFirePrimaryWeapon());
+
+        var publisher = new Protocol64StatePublisher(source);
+        var state = Assert.Single(publisher.BuildPlayerStateBatch(12).Players);
+        Assert.Equal(9, state.MaxAmmo);
+        Assert.Equal(7, state.CurrentAmmo);
+        Assert.Equal(
+            (ushort)source.LocalPlayer.LastToDieSpyRevolverProfile.EncodeReplicatedState(2),
+            state.LastToDieSpyRevolverState);
+        Assert.True(source.LocalPlayer.TryToggleSpyCloak());
+        state = Assert.Single(publisher.BuildPlayerStateBatch(13).Players);
+        Assert.True(state.IsSpyCloaked);
+
+        var receiver = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
+        Assert.True(receiver.ApplyProtocol64PlayerState(state));
+
+        Assert.True(receiver.LocalPlayer.LastToDieSpyRevolverProfile.AgentEnabled);
+        Assert.True(receiver.LocalPlayer.LastToDieSpyRevolverProfile.LuckyStrikeEnabled);
+        Assert.Equal(2, receiver.LocalPlayer.LastToDieLuckyStrikeTriggerProgress);
+        Assert.Equal(9, receiver.LocalPlayer.MaxShells);
+        Assert.Equal(7, receiver.LocalPlayer.CurrentShells);
+        Assert.True(receiver.LocalPlayer.IsSpyCloaked);
+        Assert.Equal(source.LocalPlayer.SpyCloakAlpha, receiver.LocalPlayer.SpyCloakAlpha, precision: 2);
+    }
+
+    [Fact]
+    public void Protocol64PublisherAndWorldRecreateImmutableSpyRevolverPayload()
+    {
+        var source = CreateJoinedWorld(PlayerClass.Spy);
+        source.RandomSpreadEnabled = false;
+        Assert.True(source.TryConfigureLastToDiePlayerBuild(
+            SimulationWorld.LocalPlayerSlot,
+            [
+                LastToDiePerkIds.Spy.Blunderbuss1,
+                LastToDiePerkIds.Spy.Blunderbuss2,
+                LastToDiePerkIds.Spy.Ricochet,
+                LastToDiePerkIds.Spy.LuckyStrike,
+            ],
+            refillHealth: true));
+
+        Assert.True(source.LocalPlayer.TryFirePrimaryWeapon());
+        AdvanceUntilPrimaryReady(source);
+        Assert.True(source.LocalPlayer.TryFirePrimaryWeapon());
+        AdvanceUntilPrimaryReady(source);
+        source.LocalPlayer.RefreshKritzCritBoost();
+        Assert.True(source.LocalPlayer.TryFirePrimaryWeapon());
+        InvokeFirePrimaryWeapon(source, source.LocalPlayer, 100f, 0f);
+
+        Assert.Equal(LastToDieSpyRevolverProfile.BlunderbussBasePelletCount, source.RevolverShots.Count);
+        Assert.All(source.RevolverShots, shot => Assert.True(shot.AppliesLuckyStrikeStun));
+        var original = source.RevolverShots[0];
+        original.AdvanceOneTick();
+        var publisher = new Protocol64StatePublisher(source);
+        var state = Assert.Single(
+            publisher.BuildProjectileStates(20),
+            projectile => projectile.EntityId == (ulong)original.Id);
+
+        Assert.Equal(original.DamageValue, state.Damage);
+        Assert.True(state.IsCritical);
+        Assert.Equal((byte)original.LastToDieProfile.Encode(), state.LastToDieSpyRevolverProfile);
+        Assert.True(state.AppliesLastToDieLuckyStrikeStun);
+        Assert.Equal((uint)original.TicksRemaining, state.RemainingLifetimeTicks);
+
+        var receiver = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
+        Assert.True(receiver.ApplyProtocol64ProjectileState(state));
+        var recreated = Assert.Single(receiver.RevolverShots);
+
+        Assert.Equal(original.DamageValue, recreated.DamageValue);
+        Assert.True(recreated.IsCritical);
+        Assert.Equal(original.LastToDieProfile, recreated.LastToDieProfile);
+        Assert.True(recreated.AppliesLuckyStrikeStun);
+        Assert.Equal(original.TicksRemaining, recreated.TicksRemaining);
+    }
+
+    [Fact]
     public void PlayerStateExposesTheLocalInputWatermarkForReconciliation()
     {
         var applier = new Protocol64StateApplier();
@@ -187,4 +466,40 @@ public sealed class Protocol64StateApplierTests
 
     private static Protocol64ProjectileState Projectile(ulong id, uint generation, Protocol64ProjectileKind kind, uint tick)
         => new(id, generation, kind, tick, 1, 1, 0, 0, 1, 0, 0, true, 20, 10);
+
+    private static SimulationWorld CreateJoinedWorld(PlayerClass playerClass)
+    {
+        var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
+        world.PrepareLocalPlayerJoin();
+        world.CompleteLocalPlayerJoin(playerClass);
+        return world;
+    }
+
+    private static void AdvanceUntilPrimaryReady(SimulationWorld world)
+    {
+        for (var tick = 0;
+             tick < 120
+                && (world.LocalPlayer.PrimaryCooldownTicks > 0
+                    || world.LocalPlayer.CurrentShells < world.LocalPlayer.PrimaryWeapon.AmmoPerShot);
+             tick += 1)
+        {
+            world.AdvanceOneTick();
+        }
+
+        Assert.Equal(0, world.LocalPlayer.PrimaryCooldownTicks);
+        Assert.True(world.LocalPlayer.CurrentShells >= world.LocalPlayer.PrimaryWeapon.AmmoPerShot);
+    }
+
+    private static void InvokeFirePrimaryWeapon(
+        SimulationWorld world,
+        PlayerEntity player,
+        float aimWorldX,
+        float aimWorldY)
+    {
+        var method = typeof(SimulationWorld).GetMethod(
+            "FirePrimaryWeapon",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(method);
+        _ = method!.Invoke(world, [player, aimWorldX, aimWorldY]);
+    }
 }

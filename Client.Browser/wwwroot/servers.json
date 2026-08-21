@@ -1,40 +1,32 @@
 {
   "servers": [
     {
-      "name": "Super GG #1 - US West",
-      "host": "15.204.86.156",
-      "udpPort": 8190,
-      "webSocketPort": 8190,
-      "webSocketUrl": "wss://gs1.superganggarrison.com/opengarrison/ws",
-      "private": false,
-      "protocolVersion": 59,
-      "buildVersion": "0.5.7.3",
-      "releaseChannel": "stable",
-      "compatibilityKey": "stable:0.5.7.3:59"
-    },
-    {
-      "name": "Super GG #2 - 24/7 VIP",
+      "name": "Super GG #2 - Beta US",
       "host": "15.204.86.156",
       "udpPort": 8191,
       "webSocketPort": 8191,
       "webSocketUrl": "wss://gs2.superganggarrison.com/opengarrison/ws",
+      "quicPort": 8193,
+      "quicUrl": "quic64://gs2.superganggarrison.com:8193/",
       "private": false,
-      "protocolVersion": 59,
-      "buildVersion": "0.5.7.3",
-      "releaseChannel": "stable",
-      "compatibilityKey": "stable:0.5.7.3:59"
+      "protocolVersion": 64,
+      "buildVersion": "64.0.0",
+      "releaseChannel": "beta",
+      "compatibilityKey": "beta:64.0.0:64"
     },
     {
-      "name": "Local WebSocket",
-      "host": "127.0.0.1",
-      "udpPort": 0,
-      "webSocketPort": 8191,
-      "webSocketUrl": "",
+      "name": "Super GG #3 - Beta EU",
+      "host": "57.128.249.167",
+      "udpPort": 8190,
+      "webSocketPort": 8190,
+      "webSocketUrl": "wss://57-128-249-167.sslip.io:8190/opengarrison/ws",
+      "quicPort": 8192,
+      "quicUrl": "quic64://57-128-249-167.sslip.io:8192/",
       "private": false,
-      "protocolVersion": 59,
-      "buildVersion": "0.5.7.3",
-      "releaseChannel": "stable",
-      "compatibilityKey": "stable:0.5.7.3:59"
+      "protocolVersion": 64,
+      "buildVersion": "64.0.0",
+      "releaseChannel": "beta",
+      "compatibilityKey": "beta:64.0.0:64"
     }
   ]
 }

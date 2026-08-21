@@ -22,6 +22,7 @@ public partial class Game1
 
     private void ReturnToMainMenuWithNetworkStatus(string statusMessage, string consoleMessage)
     {
+        _gameplaySessionController.ClearPendingConnectionCandidates();
         CancelNetworkWorldWarmup();
         HideLoadingOverlay();
         ClearPendingNetworkMapSync();
@@ -31,6 +32,7 @@ public partial class Game1
 
     private void ReturnToMainMenuWithNetworkStatus(string statusMessage)
     {
+        _gameplaySessionController.ClearPendingConnectionCandidates();
         CancelNetworkWorldWarmup();
         HideLoadingOverlay();
         ClearPendingNetworkMapSync();

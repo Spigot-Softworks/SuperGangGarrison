@@ -58,6 +58,8 @@ public partial class Game1
         public bool FacingLeft { get; }
 
         public int ElapsedTicks { get; set; }
+
+        public bool OpenFailureOnComplete { get; set; }
     }
 
     private LastToDieDeathFocusState? _lastToDieDeathFocus;
@@ -67,7 +69,8 @@ public partial class Game1
 
     private bool IsLastToDieDeathFocusPresentationActive()
     {
-        return IsLastToDieSessionActive && _lastToDieDeathFocus is not null;
+        return (IsLastToDieSessionActive || IsHostedLastToDieActive())
+            && _lastToDieDeathFocus is not null;
     }
 
     private bool IsLastToDieFailurePresentationActive()
@@ -81,9 +84,15 @@ public partial class Game1
         _lastToDieFailureCorpseTargetHasVisual = false;
     }
 
-    private void TriggerLastToDieDeathFocusFailure()
+    private void TriggerLastToDieDeathFocusFailure(bool openFailureOnComplete = true)
     {
-        if (IsLastToDieFailurePresentationActive())
+        if (_lastToDieDeathFocus is not null)
+        {
+            _lastToDieDeathFocus.OpenFailureOnComplete |= openFailureOnComplete;
+            return;
+        }
+
+        if (IsLastToDieFailureOverlayActive())
         {
             return;
         }
@@ -91,6 +100,8 @@ public partial class Game1
         StopIngameMusic();
         StopLastToDieIngameMusic();
         CloseInGameMenu();
+        EnsureLastToDieSurvivorCarouselAssets();
+        TryPlaySound(_lastToDiePlayerDieSound, 0.95f, 0f, 0f);
 
         var localPlayer = _world.LocalPlayer;
         var fallbackClassId = GetLastToDieLocalDeathFocusClassId();
@@ -125,6 +136,7 @@ public partial class Game1
                 corpseFacingLeft);
         }
 
+        focusState.OpenFailureOnComplete = openFailureOnComplete;
         _lastToDieDeathFocus = focusState;
     }
 
@@ -173,11 +185,24 @@ public partial class Game1
         }
 
         _lastToDieDeathFocus.ElapsedTicks += 1;
-        if (!_lastToDieFailureOverlayOpen
-            && _lastToDieDeathFocus.ElapsedTicks >= LastToDieDeathFocusDurationTicks)
+        if (IsHostedLastToDieActive()
+            && _networkClient.LastToDieState.Snapshot?.Phase == OpenGarrison.Protocol.LastToDieWirePhase.Lost)
+        {
+            _lastToDieDeathFocus.OpenFailureOnComplete = true;
+        }
+
+        if (_lastToDieDeathFocus.ElapsedTicks < LastToDieDeathFocusDurationTicks)
+        {
+            return;
+        }
+
+        if (_lastToDieDeathFocus.OpenFailureOnComplete)
         {
             OpenLastToDieFailureOverlay();
+            return;
         }
+
+        ClearLastToDieDeathFocusPresentation();
     }
 
     private void OpenLastToDieFailureOverlay()
@@ -192,6 +217,7 @@ public partial class Game1
 
         _lastToDieFailureOverlayOpen = true;
         _lastToDieFailureOverlayTicks = 0;
+        _lastToDieFailureActionIndex = 0;
         PlayLastToDieGameOverSound();
     }
 
@@ -447,6 +473,11 @@ public partial class Game1
 
     private PlayerClass GetLastToDieLocalDeathFocusClassId()
     {
+        if (IsHostedLastToDieActive())
+        {
+            return _world.LocalPlayer.ClassId;
+        }
+
         return _lastToDieRun?.SurvivorKind switch
         {
             LastToDieSurvivorKind.Demoknight => PlayerClass.Demoman,

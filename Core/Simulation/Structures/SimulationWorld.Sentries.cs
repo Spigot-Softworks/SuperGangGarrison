@@ -3,7 +3,9 @@
 public sealed partial class SimulationWorld
 {
     private const float SentryBuildCost = 100f;
+    private const float DispenserBuildCost = 100f;
     private const float SentryBuildProximityRadius = 50f;
+    private const float DispenserAuraRadius = 75f;
     private const float StructurePlacementHorizontalAssistRadius = 16f;
     private const float StructurePlacementHorizontalAssistStep = 1f;
     private const float SentryDestroyBlastRadius = 65f;
@@ -31,12 +33,53 @@ public sealed partial class SimulationWorld
         return TryBuildSentry(LocalPlayer);
     }
 
+    public bool TryBuildLocalDispenser()
+    {
+        return TryBuildDispenser(LocalPlayer);
+    }
+
+    /// <summary>
+    /// Primary-weapon swaps are intentionally restricted to healing cabinets and
+    /// allied dispensers. This is shared by authority and client prediction.
+    /// </summary>
+    public bool IsNearPrimaryWeaponSwapStation(PlayerEntity player)
+    {
+        for (var index = 0; index < Level.RoomObjects.Count; index += 1)
+        {
+            if (!Level.IsRoomObjectActive(index))
+            {
+                continue;
+            }
+
+            var marker = Level.RoomObjects[index];
+            if (marker.Type == RoomObjectType.HealingCabinet
+                && player.IntersectsMarker(marker.CenterX, marker.CenterY, marker.Width, marker.Height))
+            {
+                return true;
+            }
+        }
+
+        for (var index = 0; index < _sentries.Count; index += 1)
+        {
+            var structure = _sentries[index];
+            if (structure.IsDispenser
+                && structure.Team == player.Team
+                && structure.IsBuilt
+                && structure.IsNear(player.X, player.Y, DispenserAuraRadius))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public bool TryDestroyLocalSentry()
     {
         for (var sentryIndex = _sentries.Count - 1; sentryIndex >= 0; sentryIndex -= 1)
         {
             var sentry = _sentries[sentryIndex];
-            if (sentry.OwnerPlayerId != LocalPlayer.Id)
+            if (sentry.OwnerPlayerId != LocalPlayer.Id || sentry.IsDispenser)
             {
                 continue;
             }
@@ -139,6 +182,12 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
+            if (sentry.IsDispenser)
+            {
+                AdvanceDispenser(sentry);
+                continue;
+            }
+
             ApplyExperimentalEngineerSentryPassiveEffects(sentry, owner);
 
             var target = AcquireSentryTarget(sentry);
@@ -168,6 +217,76 @@ public sealed partial class SimulationWorld
             var idleResetTicks = GetExperimentalSentryIdleResetTicks();
             RegisterWorldSoundEvent("ShotgunSnd", sentry.X, sentry.Y);
             FireExperimentalSentry(sentry, owner, target.Value, reloadTicks, idleResetTicks);
+        }
+    }
+
+    private void AdvanceDispenser(SentryEntity dispenser)
+    {
+        var ticksPerSecond = Math.Max(1, Config.TicksPerSecond);
+        var speedMultiplier = dispenser.GetDispenserAttackReloadSpeedMultiplier(ticksPerSecond);
+        foreach (var player in EnumerateSimulatedPlayers())
+        {
+            if (!player.IsAlive
+                || player.Team != dispenser.Team
+                || !dispenser.IsNear(player.X, player.Y, DispenserAuraRadius))
+            {
+                continue;
+            }
+
+            player.SetDispenserBuffed(true, speedMultiplier);
+            var appliedHealing = player.ApplyContinuousHealingAndGetAmount(
+                dispenser.GetDispenserHealingPerSecond(ticksPerSecond) / ticksPerSecond);
+            dispenser.AccumulateDispenserHealingFeedback(player.Id, appliedHealing);
+        }
+
+        if (dispenser.LifetimeTicks % ticksPerSecond == 0)
+        {
+            foreach (var feedback in dispenser.PendingDispenserHealingFeedback)
+            {
+                var player = FindPlayerById(feedback.Key);
+                if (player is not null && player.IsAlive && feedback.Value > 0)
+                {
+                    RegisterHealingEvent(player, feedback.Value);
+                }
+            }
+
+            if (dispenser.PendingDispenserHealingFeedback.Count > 0)
+            {
+                RegisterWorldSoundEvent("MedigunSnd", dispenser.X, dispenser.Y);
+            }
+
+            dispenser.ClearDispenserHealingFeedback();
+        }
+    }
+
+    private void UpdateDispenserAuras()
+    {
+        foreach (var player in EnumerateSimulatedPlayers())
+        {
+            player.SetDispenserBuffed(false);
+        }
+
+        for (var index = 0; index < _sentries.Count; index += 1)
+        {
+            var dispenser = _sentries[index];
+            if (!dispenser.IsDispenser
+                || !dispenser.IsBuilt
+                || IsSentryDisabledByHumiliation(dispenser))
+            {
+                continue;
+            }
+
+            foreach (var player in EnumerateSimulatedPlayers())
+            {
+                if (player.IsAlive
+                    && player.Team == dispenser.Team
+                    && dispenser.IsNear(player.X, player.Y, DispenserAuraRadius))
+                {
+                    player.SetDispenserBuffed(
+                        true,
+                        dispenser.GetDispenserAttackReloadSpeedMultiplier(Math.Max(1, Config.TicksPerSecond)));
+                }
+            }
         }
     }
 
@@ -501,7 +620,7 @@ public sealed partial class SimulationWorld
             _lastToDieDroneSentryIds.Remove(sentry.Id);
             RegisterWorldSoundEvent("ExplosionSnd", sentry.X, sentry.Y);
             RegisterVisualEffect("Explosion", sentry.X, sentry.Y);
-            SpawnSentryGibs(sentry.Team, sentry.X, sentry.Y);
+            SpawnSentryGibs(sentry.Team, sentry.X, sentry.Y, sentry.IsDispenser);
             break;
         }
     }
@@ -561,9 +680,9 @@ public sealed partial class SimulationWorld
         ApplyExplosionImpulse(owner, sentry.X, sentry.Y, impulse);
     }
 
-    private void SpawnSentryGibs(PlayerTeam team, float x, float y)
+    private void SpawnSentryGibs(PlayerTeam team, float x, float y, bool isDispenser)
     {
-        var gib = new SentryGibEntity(AllocateEntityId(), team, x, y);
+        var gib = new SentryGibEntity(AllocateEntityId(), team, x, y, isDispenser);
         _sentryGibs.Add(gib);
         _entities.Add(gib.Id, gib);
     }
@@ -619,6 +738,63 @@ public sealed partial class SimulationWorld
         return true;
     }
 
+    private bool TryBuildDispenser(PlayerEntity player)
+    {
+        if (!player.IsAlive
+            || player.ClassId != PlayerClass.Engineer
+            || player.Metal < DispenserBuildCost
+            || player.IsInSpawnRoom)
+        {
+            return false;
+        }
+
+        var ownedDispenserCount = 0;
+        foreach (var structure in _sentries)
+        {
+            if (structure.OwnerPlayerId == player.Id && structure.IsDispenser)
+            {
+                ownedDispenserCount += 1;
+            }
+        }
+
+        if (ownedDispenserCount > 0
+            || !TryResolveStructurePlacement(player.X, player.Y, SentryEntity.Width, SentryEntity.Height, out var placementX, out var placementY))
+        {
+            return false;
+        }
+
+        foreach (var structure in _sentries)
+        {
+            if (structure.IsNear(placementX, placementY, SentryBuildProximityRadius))
+            {
+                return false;
+            }
+        }
+
+        if (!player.SpendMetal(DispenserBuildCost))
+        {
+            return false;
+        }
+
+        var aimRadians = player.AimDirectionDegrees * (MathF.PI / 180f);
+        var aimDirectionX = MathF.Cos(aimRadians);
+        var startDirectionX = MathF.Abs(aimDirectionX) > 0.001f
+            ? (aimDirectionX >= 0f ? 1f : -1f)
+            : player.FacingDirectionX;
+        var dispenser = new SentryEntity(
+            AllocateEntityId(),
+            player.Id,
+            player.Team,
+            placementX,
+            placementY,
+            startDirectionX,
+            SentryEntity.DispenserMaxHealth,
+            isDispenser: true);
+        _sentries.Add(dispenser);
+        _entities.Add(dispenser.Id, dispenser);
+        return true;
+    }
+
     private bool TryResolveStructurePlacement(float x, float y, float width, float height, out float placementX, out float placementY)
     {
         placementX = x;
@@ -665,10 +841,20 @@ public sealed partial class SimulationWorld
 
     private bool TryDestroySentry(PlayerEntity player)
     {
-        return TryDestroySentryForOwnerCommand(player) == OwnedSentryDestroyResult.Destroyed;
+        return TryDestroyOwnedStructureForOwnerCommand(player, isDispenser: false) == OwnedSentryDestroyResult.Destroyed;
+    }
+
+    private bool TryDestroyDispenser(PlayerEntity player)
+    {
+        return TryDestroyOwnedStructureForOwnerCommand(player, isDispenser: true) == OwnedSentryDestroyResult.Destroyed;
     }
 
     private OwnedSentryDestroyResult TryDestroySentryForOwnerCommand(PlayerEntity player)
+    {
+        return TryDestroyOwnedStructureForOwnerCommand(player, isDispenser: false);
+    }
+
+    private OwnedSentryDestroyResult TryDestroyOwnedStructureForOwnerCommand(PlayerEntity player, bool? isDispenser)
     {
         if (!player.IsAlive)
         {
@@ -681,6 +867,11 @@ public sealed partial class SimulationWorld
         {
             var sentry = _sentries[index];
             if (sentry.OwnerPlayerId != player.Id)
+            {
+                continue;
+            }
+
+            if (isDispenser.HasValue && sentry.IsDispenser != isDispenser.Value)
             {
                 continue;
             }

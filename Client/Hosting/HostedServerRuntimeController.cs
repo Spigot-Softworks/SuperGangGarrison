@@ -25,10 +25,12 @@ internal sealed class HostedServerRuntimeController : IDisposable
     private HostedServerSessionInfo? _session;
     private int _statePollTicks;
     private HostedServerProcessLogPaths? _processLogPaths;
+    private readonly string? _sessionPath;
 
-    public HostedServerRuntimeController(HostedServerConsoleState console)
+    public HostedServerRuntimeController(HostedServerConsoleState console, string? sessionPath = null)
     {
         _console = console ?? throw new ArgumentNullException(nameof(console));
+        _sessionPath = sessionPath;
     }
 
     public bool IsRunning
@@ -87,7 +89,7 @@ internal sealed class HostedServerRuntimeController : IDisposable
         error = string.Empty;
 
         Stop();
-        HostedServerSessionInfo.Delete();
+        HostedServerSessionInfo.Delete(_sessionPath);
 
         if (!HostedServerBootstrapper.IsUdpPortAvailable(launchOptions.Port))
         {
@@ -100,6 +102,12 @@ internal sealed class HostedServerRuntimeController : IDisposable
         if (serverLaunchTarget is null)
         {
             error = "Could not find OG2.Server. Build the server first.";
+            return false;
+        }
+
+        if (!HostedServerBootstrapper.TryValidateRuntimePrerequisites(serverLaunchTarget, out error))
+        {
+            _console.AppendLog("launcher", error);
             return false;
         }
 
@@ -123,6 +131,7 @@ internal sealed class HostedServerRuntimeController : IDisposable
                 RedirectStandardError = true,
             };
             startInfo.Environment["OPENGARRISON_LAUNCH_MODE"] = "launcher";
+            ApplyRelayEnvironment(startInfo, launchOptions.RelayHostUrl);
             _console.AppendLog("launcher", $"Starting {serverLaunchTarget.FileName} {arguments}");
             var process = Process.Start(startInfo);
             if (process is null)
@@ -149,7 +158,7 @@ internal sealed class HostedServerRuntimeController : IDisposable
         error = string.Empty;
 
         Stop();
-        HostedServerSessionInfo.Delete();
+        HostedServerSessionInfo.Delete(_sessionPath);
 
         if (!HostedServerBootstrapper.IsUdpPortAvailable(launchOptions.Port))
         {
@@ -161,6 +170,12 @@ internal sealed class HostedServerRuntimeController : IDisposable
         if (serverLaunchTarget is null)
         {
             error = "Could not find OG2.Server. Build the server first.";
+            return false;
+        }
+
+        if (!HostedServerBootstrapper.TryValidateRuntimePrerequisites(serverLaunchTarget, out error))
+        {
+            _console.AppendLog("launcher", error);
             return false;
         }
 
@@ -178,6 +193,7 @@ internal sealed class HostedServerRuntimeController : IDisposable
                 UseShellExecute = true,
                 WorkingDirectory = serverLaunchTarget.WorkingDirectory,
             };
+            ApplyRelayEnvironment(startInfo, launchOptions.RelayHostUrl);
             Process.Start(startInfo);
             return true;
         }
@@ -186,6 +202,18 @@ internal sealed class HostedServerRuntimeController : IDisposable
             error = $"Failed to start dedicated server terminal: {ex.Message}";
             return false;
         }
+    }
+
+    internal static void ApplyRelayEnvironment(ProcessStartInfo startInfo, string? relayHostUrl)
+    {
+        ArgumentNullException.ThrowIfNull(startInfo);
+        if (string.IsNullOrWhiteSpace(relayHostUrl))
+        {
+            startInfo.Environment.Remove("OPENGARRISON_RELAY_HOST_URL");
+            return;
+        }
+
+        startInfo.Environment["OPENGARRISON_RELAY_HOST_URL"] = relayHostUrl.Trim();
     }
 
     public void Stop()
@@ -232,13 +260,13 @@ internal sealed class HostedServerRuntimeController : IDisposable
         finally
         {
             ClearTracking();
-            HostedServerSessionInfo.Delete();
+            HostedServerSessionInfo.Delete(_sessionPath);
         }
     }
 
     public bool TryResumeSession(bool loadExistingLog, int? expectedProcessId = null)
     {
-        var session = HostedServerSessionInfo.Load();
+        var session = HostedServerSessionInfo.Load(_sessionPath);
         if (session is null)
         {
             return false;
@@ -251,7 +279,7 @@ internal sealed class HostedServerRuntimeController : IDisposable
 
         if (!HostedServerBootstrapper.TryGetProcess(session.ProcessId, out var attachedProcess))
         {
-            HostedServerSessionInfo.Delete();
+            HostedServerSessionInfo.Delete(_sessionPath);
             return false;
         }
 
@@ -278,14 +306,23 @@ internal sealed class HostedServerRuntimeController : IDisposable
 
     public bool TrySendCommand(string command, out List<string> responseLines, out string error)
     {
-        if (_session is null || string.IsNullOrWhiteSpace(_session.PipeName))
+        if ((_session is null || string.IsNullOrWhiteSpace(_session.PipeName))
+            && !TryResumeSession(loadExistingLog: false, expectedProcessId: TrackedProcessId))
         {
             responseLines = new List<string>();
             error = "Dedicated server control channel is unavailable.";
             return false;
         }
 
-        return HostedServerAdminClient.TrySendCommand(_session.PipeName, command, out responseLines, out error);
+        var session = _session;
+        if (session is null)
+        {
+            responseLines = new List<string>();
+            error = "Dedicated server control channel is unavailable.";
+            return false;
+        }
+
+        return HostedServerAdminClient.TrySendCommand(session.PipeName, command, out responseLines, out error);
     }
 
     public HostedServerRuntimeUpdateState UpdateForLauncher()
@@ -306,7 +343,7 @@ internal sealed class HostedServerRuntimeController : IDisposable
 
                 _session = null;
                 _statePollTicks = 0;
-                HostedServerSessionInfo.Delete();
+                HostedServerSessionInfo.Delete(_sessionPath);
                 return HostedServerRuntimeUpdateState.SessionEnded;
             }
 

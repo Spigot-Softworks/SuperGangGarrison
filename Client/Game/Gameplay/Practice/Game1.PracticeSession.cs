@@ -8,7 +8,40 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
+    private int _practiceRedRoundPoints;
+    private int _practiceBlueRoundPoints;
+
     private bool IsPracticeSessionActive => _gameplaySessionKind == GameplaySessionKind.Practice;
+
+    private void ResetPracticeRoundPoints()
+    {
+        _practiceRedRoundPoints = 0;
+        _practiceBlueRoundPoints = 0;
+    }
+
+    private void ObservePracticeRoundCompletion()
+    {
+        if (!IsPracticeSessionActive
+            || _wasMatchEnded
+            || !_world.MatchState.IsEnded)
+        {
+            return;
+        }
+
+        if (_world.MatchState.WinnerTeam == PlayerTeam.Red)
+        {
+            _practiceRedRoundPoints += 1;
+        }
+        else if (_world.MatchState.WinnerTeam == PlayerTeam.Blue)
+        {
+            _practiceBlueRoundPoints += 1;
+        }
+    }
+
+    private int GetPracticeRoundPoints(PlayerTeam team)
+    {
+        return team == PlayerTeam.Red ? _practiceRedRoundPoints : _practiceBlueRoundPoints;
+    }
 
     private void TryStartPracticeFromSetup()
     {

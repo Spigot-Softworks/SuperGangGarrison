@@ -4,14 +4,14 @@
   "slot": "Secondary",
   "behaviorId": "builtin.weapon.scout_nailgun",
   "ammo": {
-    "maxAmmo": 15,
+    "maxAmmo": 35,
     "ammoPerUse": 1,
     "projectilesPerUse": 1,
     "useDelaySourceTicks": 6,
     "reloadSourceTicks": 28,
     "spreadDegrees": 4.0,
-    "minProjectileSpeed": 12.0,
-    "additionalProjectileSpeed": 3.6,
+    "minProjectileSpeed": 15.6,
+    "additionalProjectileSpeed": 4.68,
     "autoReloads": true,
     "ammoRegenPerTick": 0,
     "refillsAllAtOnce": true

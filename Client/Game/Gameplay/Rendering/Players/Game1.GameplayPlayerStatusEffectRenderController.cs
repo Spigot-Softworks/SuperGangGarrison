@@ -422,7 +422,9 @@ public partial class Game1
 
         private Vector2 GetExperimentalDemoknightChargeBlurDirectionCore(PlayerEntity player)
         {
-            var velocity = ReferenceEquals(player, _game._world.LocalPlayer) && _game._hasPredictedLocalPlayerPosition
+            var velocity = ReferenceEquals(player, _game._world.LocalPlayer)
+                && _game.CanUseLocalPrediction()
+                && _game._hasPredictedLocalPlayerPosition
                 ? _game._predictedLocalPlayerVelocity
                 : new Vector2(player.HorizontalSpeed, player.VerticalSpeed);
             if (velocity.LengthSquared() <= 0.01f)

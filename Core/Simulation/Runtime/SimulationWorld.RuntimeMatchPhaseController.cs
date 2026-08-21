@@ -25,9 +25,10 @@ public sealed partial class SimulationWorld
             _world.AdvanceKillFeed();
             _world.AdvanceLocalDeathCam();
 
-            for (var index = 0; index < NetworkPlayerSlots.Count; index += 1)
+            AdvanceNetworkPlayerChatBubbleState(SimulationWorld.LocalPlayerSlot);
+            foreach (var slot in _world._enabledAdditionalNetworkPlayerSlots)
             {
-                AdvanceNetworkPlayerChatBubbleState(NetworkPlayerSlots[index]);
+                AdvanceNetworkPlayerChatBubbleState(slot);
             }
 
             if (_world.EnemyPlayerEnabled)

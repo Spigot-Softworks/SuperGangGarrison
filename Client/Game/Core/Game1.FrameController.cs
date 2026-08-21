@@ -29,7 +29,7 @@ public partial class Game1
             var wasWindowActive = _game._wasWindowActive;
             var windowActive = OperatingSystem.IsBrowser()
                 ? BrowserInputBridge.IsFocused
-                : _game.IsActive;
+                : _game.IsWindowInputActive;
             var keyboard = windowActive ? Game1.GetCurrentKeyboardState() : default;
             var rawMouse = _game.GetConstrainedMouseState(Game1.GetCurrentMouseState());
             var mouse = _game.GetScaledMouseState(rawMouse);
@@ -43,6 +43,8 @@ public partial class Game1
                 mouse = CreateReleasedMouseState(mouse);
                 _game._lastKnownMousePosition = new Point(mouse.X, mouse.Y);
             }
+            _game._frameRawMouseState = rawMouse;
+            _game._frameMouseState = mouse;
 
             if (wasWindowActive && !windowActive)
             {
@@ -79,10 +81,31 @@ public partial class Game1
                 _game.ToggleAudioMute();
             }
 
-            var toggleFullscreenPressed = keyboard.IsKeyDown(Keys.F11) && !_game._previousKeyboard.IsKeyDown(Keys.F11);
+            var fullscreenDown = keyboard.IsKeyDown(Keys.F11);
+            if (!fullscreenDown)
+            {
+                _game._suppressFullscreenToggleUntilRelease = false;
+            }
+
+            var toggleFullscreenPressed = fullscreenDown && !_game._previousKeyboard.IsKeyDown(Keys.F11);
             if (toggleFullscreenPressed)
             {
-                _game.ToggleFullscreenHotkey();
+                var deferFullscreenToggle = Game1.ShouldDeferFullscreenToggle(
+                    _game._startupSplashOpen,
+                    _game._loadingOverlayVisible,
+                    _game._bootstrapController.IsContentBootstrapComplete,
+                    _game._lastToDieConnectionPresentationPending);
+                if (deferFullscreenToggle)
+                {
+                    // Consume the edge while startup/loading owns the
+                    // presentation.  A held F11 must not toggle as soon as
+                    // loading finishes.
+                    _game._suppressFullscreenToggleUntilRelease = true;
+                }
+                else if (!_game._suppressFullscreenToggleUntilRelease)
+                {
+                    _game.ToggleFullscreenHotkey();
+                }
             }
 
             var toggleConsolePressed = InputBindingInput.IsPressed(
@@ -210,7 +233,7 @@ public partial class Game1
             _game.DrawLoadingOverlay();
             if (!_game._mainMenuChromeHidden && _game.ShouldDrawSoftwareMenuCursor())
             {
-                _game.DrawSoftwareMenuCursor(_game.GetScaledMouseState(_game.GetConstrainedMouseState(Game1.GetCurrentMouseState())));
+                _game.DrawSoftwareMenuCursor(_game.GetFrameMouseState());
             }
 
             if (!_game._mainMenuChromeHidden)

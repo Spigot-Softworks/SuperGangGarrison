@@ -51,9 +51,19 @@ public sealed partial class SimulationWorld
             _world.RegisterSoundEvent(attacker, soundName);
         }
 
-        private bool ApplyPlayerDamage(PlayerEntity target, int damage, PlayerEntity? attacker, float spyRevealAlpha = 0f)
+        private bool ApplyPlayerDamage(
+            PlayerEntity target,
+            int damage,
+            PlayerEntity? attacker,
+            float spyRevealAlpha = 0f,
+            bool? targetWasGrounded = null)
         {
-            return _world.ApplyPlayerDamage(target, damage, attacker, spyRevealAlpha);
+            return _world.ApplyPlayerDamageWithContext(
+                target,
+                damage,
+                attacker,
+                spyRevealAlpha,
+                targetWasGrounded: targetWasGrounded);
         }
 
         private bool ApplySentryDamage(SentryEntity sentry, int damage, PlayerEntity? attacker)
@@ -99,6 +109,25 @@ public sealed partial class SimulationWorld
         private RifleHitResult ResolveRifleHit(PlayerEntity attacker, float originX, float originY, float directionX, float directionY, float maxDistance)
         {
             return _world.ResolveRifleHit(attacker, originX, originY, directionX, directionY, maxDistance);
+        }
+
+        private OrderedRifleHitResult ResolveOrderedRifleHits(
+            PlayerEntity attacker,
+            float originX,
+            float originY,
+            float directionX,
+            float directionY,
+            float maxDistance,
+            RifleTracePolicy policy)
+        {
+            return _world.ResolveOrderedRifleHits(
+                attacker,
+                originX,
+                originY,
+                directionX,
+                directionY,
+                maxDistance,
+                policy);
         }
 
         private void SpawnShot(
@@ -199,9 +228,22 @@ public sealed partial class SimulationWorld
             float velocityX,
             float velocityY,
             float damagePerHit = RevolverProjectileEntity.DamagePerHit,
-            string? killFeedWeaponSpriteNameOverride = null)
+            string? killFeedWeaponSpriteNameOverride = null,
+            global::OpenGarrison.Core.LastToDie.LastToDieSpyRevolverProfile? lastToDieProfile = null,
+            bool forceCritical = false,
+            bool appliesLuckyStrikeStun = false)
         {
-            _world.SpawnRevolverShot(owner, x, y, velocityX, velocityY, damagePerHit, killFeedWeaponSpriteNameOverride);
+            _world.SpawnRevolverShot(
+                owner,
+                x,
+                y,
+                velocityX,
+                velocityY,
+                damagePerHit,
+                killFeedWeaponSpriteNameOverride,
+                lastToDieProfile,
+                forceCritical,
+                appliesLuckyStrikeStun);
         }
 
         private void SpawnMine(PlayerEntity owner, float x, float y, float velocityX, float velocityY, string? killFeedWeaponSpriteNameOverride = null)

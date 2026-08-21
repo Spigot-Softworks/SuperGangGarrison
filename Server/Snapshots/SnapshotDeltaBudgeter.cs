@@ -426,23 +426,23 @@ internal static class SnapshotDeltaBudgeter
         var fullPlayerBytes = EstimateByteCountCollection(snapshot.Players, EstimatePlayerBytes);
         var movementBytes = EstimateByteCountCollection(snapshot.PlayerMovementStates, EstimatePlayerMovementBytes);
         var statusBytes = EstimateByteCountCollection(snapshot.PlayerStatusStates, static _ => 14);
-        var extendedStatusBytes = EstimateByteCountCollection(snapshot.PlayerExtendedStatusStates, static _ => 30);
+        var extendedStatusBytes = EstimateByteCountCollection(snapshot.PlayerExtendedStatusStates, static _ => 59);
         var chatBubbleBytes = EstimateByteCountCollection(snapshot.PlayerChatBubbleStates, static _ => 6);
         var projectileBytes =
             EstimateShotCollectionBytes(snapshot.Shots)
             + EstimateShotCollectionBytes(snapshot.Bubbles)
             + EstimateShotCollectionBytes(snapshot.Blades)
             + EstimateShotCollectionBytes(snapshot.Needles)
-            + EstimateShotCollectionBytes(snapshot.RevolverShots)
+            + EstimateShotCollectionBytes(snapshot.RevolverShots, includeRevolverPayload: true)
             + EstimateShotCollectionBytes(snapshot.Flares)
             + EstimateUShortCountCollection(snapshot.Rockets, EstimateRocketBytes)
             + EstimateUShortCountCollection(snapshot.RocketSpawnEvents, EstimateRocketSpawnEventBytes)
-            + EstimateUShortCountCollection(snapshot.Flames, static _ => 50)
-            + EstimateUShortCountCollection(snapshot.Mines, static _ => 32)
-            + EstimateUShortCountCollection(snapshot.Grenades, static _ => 48);
+            + EstimateUShortCountCollection(snapshot.Flames, static _ => 54)
+            + EstimateUShortCountCollection(snapshot.Mines, static _ => 36)
+            + EstimateUShortCountCollection(snapshot.Grenades, static _ => 52);
         var sentryBytes =
-            EstimateUShortCountCollection(snapshot.Sentries, static _ => 44)
-            + EstimateUShortCountCollection(snapshot.SentryUpdateStates, static _ => 37)
+            EstimateUShortCountCollection(snapshot.Sentries, static _ => 49)
+            + EstimateUShortCountCollection(snapshot.SentryUpdateStates, static _ => 41)
             + EstimateUShortCountCollection(snapshot.JumpPads, static _ => 22);
         var eventBytes =
             EstimateUShortCountCollection(snapshot.CombatTraces, static _ => 24)
@@ -453,7 +453,7 @@ internal static class SnapshotDeltaBudgeter
             + EstimateUShortCountCollection(snapshot.SoundEvents, EstimateSoundEventBytes)
             + EstimateUShortCountCollection(snapshot.GibSpawnEvents, EstimateGibSpawnEventBytes)
             + EstimateUShortCountCollection(snapshot.DeadBodies, static _ => 40)
-            + EstimateUShortCountCollection(snapshot.SentryGibs, static _ => 17)
+            + EstimateUShortCountCollection(snapshot.SentryGibs, static _ => 18)
             + EstimateUShortCountCollection(snapshot.JumpPadGibs, static _ => 17)
             + EstimateUShortCountCollection(snapshot.HealthPacks, static _ => 35);
         var removalBytes =
@@ -533,11 +533,24 @@ internal static class SnapshotDeltaBudgeter
 
     private static int EstimateEntityIdListBytes(IReadOnlyList<int> ids) => 1 + (ids.Count * 4);
 
-    private static int EstimateShotCollectionBytes(IReadOnlyList<SnapshotShotState> shots) => 2 + (shots.Count * 32);
+    private static int EstimateShotCollectionBytes(
+        IReadOnlyList<SnapshotShotState> shots,
+        bool includeRevolverPayload = false)
+    {
+        var bytes = 2;
+        for (var index = 0; index < shots.Count; index += 1)
+        {
+            bytes += 36
+                + (shots[index].IsArrow ? 7 : 0)
+                + (includeRevolverPayload ? 9 : 0);
+        }
+
+        return bytes;
+    }
 
     private static int EstimateRocketBytes(SnapshotRocketState rocket)
     {
-        return 69 + ((rocket.PassedFriendlyPlayerIds?.Count ?? 0) * 4);
+        return 73 + ((rocket.PassedFriendlyPlayerIds?.Count ?? 0) * 4);
     }
 
     private static int EstimatePlayerMovementBytes(SnapshotPlayerMovementState state)
@@ -560,7 +573,7 @@ internal static class SnapshotDeltaBudgeter
 
     private static int EstimatePlayerBytes(SnapshotPlayerState player)
     {
-        var bytes = 211
+        var bytes = 245
             + EstimateStringBytes(player.Name)
             + EstimateCachedStringBytes(player.GameplayModPackCacheId, player.GameplayModPackId)
             + EstimateCachedStringBytes(player.GameplayLoadoutCacheId, player.GameplayLoadoutId)
@@ -634,7 +647,7 @@ internal static class SnapshotDeltaBudgeter
 
     private static int EstimateRocketSpawnEventBytes(SnapshotRocketSpawnEvent rocketEvent)
     {
-        return 82 + 2 + ((rocketEvent.PassedFriendlyPlayerIds?.Count ?? 0) * 4);
+        return 86 + 2 + ((rocketEvent.PassedFriendlyPlayerIds?.Count ?? 0) * 4);
     }
 
     private static int EstimateDeathCamBytes(SnapshotDeathCamState? deathCam)
@@ -725,7 +738,14 @@ internal static class SnapshotDeltaBudgeter
                 && entry.Kind == SnapshotReplicatedStateValueKind.Whole
                 && entry.Key.IndexOf("cooldown", StringComparison.OrdinalIgnoreCase) >= 0)
             || (string.Equals(entry.OwnerId, "core.ability", StringComparison.Ordinal)
-                && entry.Key is "sniper_charge_ticks" or "sniper_bow_charge_ticks");
+                && entry.Key is "sniper_charge_ticks" or "sniper_bow_charge_ticks")
+            || string.Equals(entry.OwnerId, "ltd.status", StringComparison.Ordinal)
+            || string.Equals(entry.OwnerId, "ltd.weapon", StringComparison.Ordinal)
+            || string.Equals(entry.OwnerId, "ltd.link", StringComparison.Ordinal)
+            || string.Equals(entry.OwnerId, "ltd.infiltrate", StringComparison.Ordinal)
+            || string.Equals(entry.OwnerId, "ltd.afterlife", StringComparison.Ordinal)
+            || (string.Equals(entry.OwnerId, "serverruntime", StringComparison.Ordinal)
+                && string.Equals(entry.Key, "stunticks", StringComparison.Ordinal));
     }
 
     private static SnapshotPlayerState ReducePlayerStateAggressivelyForBudget(SnapshotPlayerState player)
@@ -734,7 +754,9 @@ internal static class SnapshotDeltaBudgeter
         {
             Name = player.Name.Length > 12 ? player.Name[..12] : player.Name,
             OwnedGameplayItemIds = Array.Empty<string>(),
-            ReplicatedStates = Array.Empty<SnapshotReplicatedStateEntry>(),
+            ReplicatedStates = player.ReplicatedStates is { Count: > 0 }
+                ? player.ReplicatedStates.Where(static entry => IsBudgetCriticalReplicatedState(entry)).ToArray()
+                : Array.Empty<SnapshotReplicatedStateEntry>(),
             IsChatBubbleVisible = false,
             ChatBubbleFrameIndex = 0,
             ChatBubbleAlpha = 0f,
@@ -851,7 +873,9 @@ internal static class SnapshotDeltaBudgeter
         // of the viewport go first.
         static builder => RemoveLastIfAboveMinimum(builder.SniperAimIndicators, minimumCount: 0),
         static builder => RemoveLastIfAboveMinimum(builder.CombatTraces, minimumCount: 0),
-        static builder => RemoveLastIfAboveMinimum(builder.SoundEvents, minimumCount: 1),
+        // Explosion sounds also provide the client's reliable fallback explosion visual. Keep
+        // those ahead of ordinary transient audio when trimming an over-budget snapshot.
+        static builder => RemoveLastNonExplosionSoundIfAboveMinimum(builder.SoundEvents, minimumCount: 1),
         static builder => RemoveLastIfAboveMinimum(builder.RocketSpawnEvents, minimumCount: 0),
         // Projectile motion is visual-critical: keep it until cheaper cosmetics, traces, and
         // repeated transient events have already been exhausted.
@@ -868,7 +892,7 @@ internal static class SnapshotDeltaBudgeter
             // from disappearing in one snapshot while its explosion visual is withheld until
             // a later snapshot due to budget pressure.
             var changed = false;
-            changed |= ClearIfAny(builder.VisualEvents);
+            changed |= RemoveNonExplosionVisualIfAny(builder.VisualEvents);
             changed |= ClearProjectileCollectionIfAny(builder, builder.Mines, SnapshotEntityCollectionCompletenessFlags.Mines);
             changed |= ClearProjectileCollectionIfAny(builder, builder.Grenades, SnapshotEntityCollectionCompletenessFlags.Grenades);
             changed |= ClearProjectileCollectionIfAny(builder, builder.Flames, SnapshotEntityCollectionCompletenessFlags.Flames);
@@ -959,6 +983,58 @@ internal static class SnapshotDeltaBudgeter
 
         list.RemoveLast();
         return true;
+    }
+
+    private static bool RemoveLastNonExplosionSoundIfAboveMinimum(
+        TrackingList<SnapshotSoundEvent> list,
+        int minimumCount)
+    {
+        if (list.Count <= minimumCount)
+        {
+            return false;
+        }
+
+        for (var index = list.Count - 1; index >= 0; index -= 1)
+        {
+            if (IsExplosionSound(list[index].SoundName))
+            {
+                continue;
+            }
+
+            list.RemoveAt(index);
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool RemoveNonExplosionVisualIfAny(TrackingList<SnapshotVisualEvent> list)
+    {
+        var changed = false;
+        for (var index = list.Count - 1; index >= 0; index -= 1)
+        {
+            if (IsExplosionVisual(list[index].EffectName))
+            {
+                continue;
+            }
+
+            list.RemoveAt(index);
+            changed = true;
+        }
+
+        return changed;
+    }
+
+    private static bool IsExplosionSound(string soundName)
+    {
+        return soundName.StartsWith("ExplosionSnd", StringComparison.OrdinalIgnoreCase)
+            || soundName.StartsWith("HealExplosionSnd", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsExplosionVisual(string effectName)
+    {
+        return string.Equals(effectName, "Explosion", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(effectName, "HealExplosion", StringComparison.OrdinalIgnoreCase);
     }
 
     internal sealed class Builder
@@ -1251,6 +1327,12 @@ internal static class SnapshotDeltaBudgeter
             }
 
             _items.RemoveAt(_items.Count - 1);
+            _cachedArray = null;
+        }
+
+        public void RemoveAt(int index)
+        {
+            _items.RemoveAt(index);
             _cachedArray = null;
         }
 

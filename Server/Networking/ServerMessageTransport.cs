@@ -432,7 +432,7 @@ internal sealed class CompositeServerMessageTransport : IServerMessageTransport
         {
             if (_protocol64QuicConnections.TryGetValue(remotePeer.Id, out var quicConnection))
             {
-                var result = quicConnection.EnqueueFrame(payload);
+                var result = quicConnection.EnqueueFrame(payload, replacementKey);
                 if (!result.Accepted)
                 {
                     _log($"[server] protocol-64 QUIC peer {remotePeer} rejected outbound frame: {result.Fault?.Message}");
@@ -560,6 +560,74 @@ internal sealed class CompositeServerMessageTransport : IServerMessageTransport
                 "Protocol-64 WebSocket session ended.",
                 CancellationToken.None).ConfigureAwait(false);
         }
+    }
+
+    public async Task RunOutboundProtocol64RelayAsync(
+        Uri relayEndpoint,
+        Action<string> log,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(relayEndpoint);
+        if (relayEndpoint.Scheme is not ("ws" or "wss"))
+        {
+            throw new ArgumentException("The relay endpoint must use ws or wss.", nameof(relayEndpoint));
+        }
+
+        var retryDelay = TimeSpan.FromSeconds(1);
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            using var socket = new ClientWebSocket();
+            socket.Options.KeepAliveInterval = TimeSpan.FromSeconds(20);
+            try
+            {
+                log($"[server] connecting outbound protocol-64 relay at {RedactRelayEndpoint(relayEndpoint)}");
+                await socket.ConnectAsync(relayEndpoint, cancellationToken).ConfigureAwait(false);
+                log("[server] outbound protocol-64 relay connected.");
+                retryDelay = TimeSpan.FromSeconds(1);
+                await RunProtocol64WebSocketPeerAsync(
+                    socket,
+                    remoteAddress: null,
+                    remotePort: relayEndpoint.IsDefaultPort ? 0 : relayEndpoint.Port,
+                    log,
+                    cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (Exception exception) when (exception is not OutOfMemoryException)
+            {
+                // ClientWebSocket exception messages may echo the requested
+                // URI, whose query contains the host bearer token.
+                log($"[server] outbound relay unavailable ({exception.GetType().Name}); retrying.");
+            }
+
+            if (cancellationToken.IsCancellationRequested)
+            {
+                break;
+            }
+
+            try
+            {
+                await Task.Delay(retryDelay, cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                break;
+            }
+
+            retryDelay = TimeSpan.FromSeconds(Math.Min(10d, retryDelay.TotalSeconds * 2d));
+        }
+    }
+
+    internal static string RedactRelayEndpoint(Uri endpoint)
+    {
+        var builder = new UriBuilder(endpoint)
+        {
+            Query = string.IsNullOrWhiteSpace(endpoint.Query) ? string.Empty : "token=REDACTED",
+            Fragment = string.Empty,
+        };
+        return builder.Uri.ToString();
     }
 
     public void RegisterProtocol64QuicConnection(

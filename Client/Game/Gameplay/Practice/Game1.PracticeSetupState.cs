@@ -13,11 +13,49 @@ public partial class Game1
 {
     private sealed class PracticeSetupState
     {
+        public enum PracticeMapBrowserSection
+        {
+            AllBuiltIn,
+            SuperGangGarrison,
+            Classic,
+            Custom,
+        }
+
         private static readonly int[] TickRateOptions = [30, 60, 120];
         private static readonly int[] TimeLimitOptions = [5, 10, 15, 20, 30, 45, 60];
         private static readonly int[] CapLimitOptions = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
         private static readonly int[] RespawnOptions = [0, 3, 5, 10, 15];
         private static readonly int[] BotCountOptions = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+        private static readonly (string LevelName, string DisplayName)[] OrderedPracticeMapOptions =
+        [
+            ("cp_coldfront_js", "Coldfront"),
+            ("Kulay", "Kulay"),
+            ("Harvest", "Harvest"),
+            ("Docking", "Docking"),
+            ("Conflict", "Conflict"),
+            ("Gallery", "Gallery"),
+            ("Valley", "Valley"),
+            ("Corinth", "Corinth"),
+            ("Dirtbowl", "Dirtbowl"),
+            ("Egypt", "Egypt"),
+            ("Eiger", "Eiger"),
+            ("Truefort", "Truefort"),
+            ("Waterway", "Waterway"),
+            ("koth_bayou", "Bayou"),
+            ("koth_cdragon", "Cdragon"),
+            ("koth_eureka", "Eureka"),
+            ("koth_AMERICA", "America"),
+            ("3cp_kistra", "Kistra"),
+            ("cp_gully", "Gully"),
+            ("koth_ravine", "Ravine"),
+            ("koth_standoff", "Standoff"),
+            ("koth_crab_v2", "Crab"),
+            ("koth_thundermountain_v2", "Thundermountain_v2"),
+            ("koth_high5tower_a1", "Hightower"),
+            ("koth_heist", "Heist"),
+            ("koth_drill_v3", "Drill"),
+            ("koth_nightly", "Nightly"),
+        ];
         public int MapIndex { get; set; } = -1;
         public List<PracticeMapEntry> MapEntries { get; set; } = new();
         public int TickRate { get; set; } = SimulationConfig.DefaultTicksPerSecond;
@@ -36,6 +74,14 @@ public partial class Game1
         public GameModeKind? AvailableMapModeFilter { get; set; }
         public bool ModeFilterDropdownOpen { get; set; }
         public bool FiltersPopupOpen { get; set; }
+        public PracticeMapBrowserSection MapBrowserSection { get; set; } = PracticeMapBrowserSection.AllBuiltIn;
+        public bool ShowCustomMaps
+        {
+            get => MapBrowserSection == PracticeMapBrowserSection.Custom;
+            set => MapBrowserSection = value
+                ? PracticeMapBrowserSection.Custom
+                : PracticeMapBrowserSection.AllBuiltIn;
+        }
         public bool IncludeCustomMaps { get; set; } = true;
         public bool IncludeBaseMaps { get; set; } = true;
         public HashSet<string> FavouriteLevelNames { get; set; } = new(StringComparer.OrdinalIgnoreCase);
@@ -61,13 +107,25 @@ public partial class Game1
 
         public void CycleMap(int direction)
         {
-            if (MapEntries.Count == 0)
+            var builtInMapIndices = MapEntries
+                .Select((entry, index) => (entry, index))
+                .Where(static item => !item.entry.IsCustomMap)
+                .Select(static item => item.index)
+                .ToArray();
+            if (builtInMapIndices.Length == 0)
             {
                 return;
             }
 
-            var count = MapEntries.Count;
-            MapIndex = ((MapIndex + direction) % count + count) % count;
+            var currentIndex = Array.IndexOf(builtInMapIndices, MapIndex);
+            if (currentIndex < 0)
+            {
+                currentIndex = direction < 0 ? 0 : -1;
+            }
+
+            currentIndex = ((currentIndex + direction) % builtInMapIndices.Length + builtInMapIndices.Length)
+                % builtInMapIndices.Length;
+            MapIndex = builtInMapIndices[currentIndex];
         }
 
         public void OpenMapBrowser()
@@ -77,6 +135,12 @@ public partial class Game1
             AvailableMapScrollOffset = 0;
             ModeFilterDropdownOpen = false;
             FiltersPopupOpen = false;
+            var selectedEntry = GetSelectedMapEntry();
+            MapBrowserSection = selectedEntry?.IsCustomMap == true
+                ? PracticeMapBrowserSection.Custom
+                : selectedEntry is not null && IsSuperGangGarrisonMap(selectedEntry)
+                    ? PracticeMapBrowserSection.SuperGangGarrison
+                    : PracticeMapBrowserSection.Classic;
             SyncAvailableMapSelectionToSelectedMap();
         }
 
@@ -100,6 +164,20 @@ public partial class Game1
             NotifyAvailableMapFiltersChanged();
         }
 
+        public void SetMapBrowserSource(bool showCustomMaps)
+        {
+            MapBrowserSection = showCustomMaps
+                ? PracticeMapBrowserSection.Custom
+                : PracticeMapBrowserSection.AllBuiltIn;
+            ResetAvailableMapFilters();
+        }
+
+        public void SetMapBrowserSection(PracticeMapBrowserSection section)
+        {
+            MapBrowserSection = section;
+            ResetAvailableMapFilters();
+        }
+
         public void NotifyAvailableMapFiltersChanged()
         {
             AvailableMapScrollOffset = 0;
@@ -109,6 +187,15 @@ public partial class Game1
         public List<OpenGarrisonMapRotationEntry> GetAvailableMapsForDisplay()
         {
             IEnumerable<PracticeMapEntry> query = MapEntries;
+            query = MapBrowserSection switch
+            {
+                PracticeMapBrowserSection.SuperGangGarrison => query.Where(static entry => !entry.IsCustomMap && IsSuperGangGarrisonMap(entry)),
+                PracticeMapBrowserSection.Classic => query.Where(static entry => !entry.IsCustomMap && !IsSuperGangGarrisonMap(entry)),
+                PracticeMapBrowserSection.Custom => query.Where(static entry => entry.IsCustomMap),
+                _ => ShowCustomMaps
+                    ? query.Where(static entry => entry.IsCustomMap)
+                    : query.Where(static entry => !entry.IsCustomMap),
+            };
             if (AvailableMapModeFilter is { } modeFilter)
             {
                 query = query.Where(entry => entry.Mode == modeFilter);
@@ -131,19 +218,10 @@ public partial class Game1
                     || entry.LevelName.Contains(AvailableMapNameFilterBuffer, StringComparison.OrdinalIgnoreCase));
             }
 
-            var filtered = query
-                .OrderBy(entry => entry.DisplayName, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-            var favourites = filtered
-                .Where(entry => FavouriteLevelNames.Contains(entry.LevelName))
-                .ToList();
-            var regular = filtered
-                .Where(entry => !FavouriteLevelNames.Contains(entry.LevelName))
-                .ToList();
-            var combined = new List<PracticeMapEntry>(favourites.Count + regular.Count);
-            combined.AddRange(favourites);
-            combined.AddRange(regular);
-            return combined.Select(ToRotationEntry).ToList();
+            // MapEntries is deliberately built in the shipped practice order.
+            // Keep filters stable instead of re-sorting or moving favourites:
+            // the roster is part of the practice setup contract.
+            return query.Select(ToRotationEntry).ToList();
         }
 
         public PracticeMapEntry? GetSelectedAvailableMapEntry()
@@ -322,6 +400,105 @@ public partial class Game1
             SimpleLevelFactory.ClearCachedCatalog();
             var stockDefinitions = OpenGarrisonStockMapCatalog.Definitions
                 .ToDictionary(definition => definition.LevelName, definition => definition, StringComparer.OrdinalIgnoreCase);
+            var availableLevels = SimpleLevelFactory.GetAvailableSourceLevels()
+                .GroupBy(level => level.Name, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(
+                    group => group.Key,
+                    group => group.OrderBy(static level => level.IsCustomMap).First(),
+                    StringComparer.OrdinalIgnoreCase);
+            var entries = new List<PracticeMapEntry>(OrderedPracticeMapOptions.Length);
+            foreach (var (levelName, displayName) in OrderedPracticeMapOptions)
+            {
+                var level = availableLevels.TryGetValue(levelName, out var exactLevel)
+                    ? exactLevel
+                    : availableLevels.Values.FirstOrDefault(candidate =>
+                        string.Equals(
+                            NormalizePracticeMapName(candidate.Name),
+                            NormalizePracticeMapName(levelName),
+                            StringComparison.OrdinalIgnoreCase));
+                var hasResolvedLevel = !string.IsNullOrWhiteSpace(level.Name);
+                var resolvedLevelName = hasResolvedLevel ? level.Name : levelName;
+
+                var iniKey = stockDefinitions.TryGetValue(levelName, out var definition)
+                    ? definition.IniKey
+                    : stockDefinitions.TryGetValue(resolvedLevelName, out definition)
+                    ? definition.IniKey
+                    : resolvedLevelName;
+                entries.Add(new PracticeMapEntry(
+                    resolvedLevelName,
+                    displayName,
+                    hasResolvedLevel ? level.Mode : InferPracticeMapMode(resolvedLevelName),
+                    hasResolvedLevel && level.IsCustomMap,
+                    iniKey));
+            }
+
+            return entries;
+        }
+
+        private static bool IsSuperGangGarrisonMap(PracticeMapEntry entry)
+        {
+            return entry.DisplayName.Equals("Coldfront", StringComparison.OrdinalIgnoreCase)
+                || entry.DisplayName.Equals("Kulay", StringComparison.OrdinalIgnoreCase)
+                || entry.DisplayName.Equals("Harvest", StringComparison.OrdinalIgnoreCase)
+                || entry.DisplayName.Equals("Docking", StringComparison.OrdinalIgnoreCase)
+                || entry.DisplayName.Equals("Conflict", StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static List<PracticeMapEntry> BuildAllPracticeMapEntries()
+        {
+            var entries = BuildMapEntries();
+            var knownLevelNames = entries
+                .Select(static entry => entry.LevelName)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var customEntry in BuildAllLocalMapEntries().Where(static entry => entry.IsCustomMap))
+            {
+                if (knownLevelNames.Add(customEntry.LevelName))
+                {
+                    entries.Add(customEntry);
+                }
+            }
+
+            return entries;
+        }
+
+        private static string NormalizePracticeMapName(string levelName)
+        {
+            var trimmed = levelName.Trim();
+            var separatorIndex = trimmed.IndexOf('_');
+            if (separatorIndex >= 0
+                && (trimmed.StartsWith("ctf_", StringComparison.OrdinalIgnoreCase)
+                    || trimmed.StartsWith("cp_", StringComparison.OrdinalIgnoreCase)
+                    || trimmed.StartsWith("koth_", StringComparison.OrdinalIgnoreCase)
+                    || trimmed.StartsWith("3cp_", StringComparison.OrdinalIgnoreCase)))
+            {
+                return trimmed[(separatorIndex + 1)..];
+            }
+
+            return trimmed;
+        }
+
+        private static GameModeKind InferPracticeMapMode(string levelName)
+        {
+            if (levelName.StartsWith("koth_", StringComparison.OrdinalIgnoreCase))
+            {
+                return GameModeKind.KingOfTheHill;
+            }
+
+            if (levelName.StartsWith("cp_", StringComparison.OrdinalIgnoreCase)
+                || levelName.StartsWith("3cp_", StringComparison.OrdinalIgnoreCase))
+            {
+                return GameModeKind.ControlPoint;
+            }
+
+            return GameModeKind.CaptureTheFlag;
+        }
+
+        public static List<PracticeMapEntry> BuildAllLocalMapEntries()
+        {
+            SimpleLevelFactory.ClearCachedCatalog();
+            var stockDefinitions = OpenGarrisonStockMapCatalog.Definitions
+                .ToDictionary(definition => definition.LevelName, definition => definition, StringComparer.OrdinalIgnoreCase);
             var hiddenStockLevelNames = OpenGarrisonStockMapCatalog.SourceDefinitions
                 .Where(definition => !stockDefinitions.ContainsKey(definition.LevelName))
                 .Select(definition => definition.LevelName)
@@ -331,24 +508,18 @@ public partial class Game1
                 .Where(level => !hiddenStockLevelNames.Contains(level.Name))
                 .Select(level =>
                 {
-                    var isCustomMap = level.IsCustomMap;
                     var hasStockDefinition = stockDefinitions.TryGetValue(level.Name, out var definition);
-                    var displayName = hasStockDefinition ? definition.DisplayName : level.Name;
-                    var iniKey = hasStockDefinition ? definition.IniKey : level.Name;
-                    return new PracticeMapEntry(level.Name, displayName, level.Mode, isCustomMap, iniKey);
+                    return new PracticeMapEntry(
+                        level.Name,
+                        hasStockDefinition ? definition.DisplayName : level.Name,
+                        level.Mode,
+                        level.IsCustomMap,
+                        hasStockDefinition ? definition.IniKey : level.Name);
                 })
                 .OrderBy(entry => entry.DisplayName, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
-            AddPracticeVipMapEntries(entries);
-            return entries
-                .OrderBy(entry => entry.DisplayName, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-        }
-
-        private static void AddPracticeVipMapEntries(List<PracticeMapEntry> mapEntries)
-        {
-            foreach (var baseEntry in mapEntries
+            foreach (var baseEntry in entries
                          .Where(entry => OpenGarrisonStockMapCatalog.IsCpPrefixedIniKey(entry.IniKey) && entry.Mode != GameModeKind.Vip)
                          .ToList())
             {
@@ -360,25 +531,25 @@ public partial class Game1
                     Mode = baseEntry.Mode,
                     IsCustomMap = baseEntry.IsCustomMap,
                 };
-                if (!OpenGarrisonStockMapCatalog.TryCreateVipMapRotationEntry(rotationBase, out var vipEntry))
-                {
-                    continue;
-                }
-
-                if (mapEntries.Any(entry =>
+                if (!OpenGarrisonStockMapCatalog.TryCreateVipMapRotationEntry(rotationBase, out var vipEntry)
+                    || entries.Any(entry =>
                         string.Equals(entry.IniKey, vipEntry.IniKey, StringComparison.OrdinalIgnoreCase)
                         || string.Equals(entry.LevelName, vipEntry.LevelName, StringComparison.OrdinalIgnoreCase)))
                 {
                     continue;
                 }
 
-                mapEntries.Add(new PracticeMapEntry(
+                entries.Add(new PracticeMapEntry(
                     vipEntry.LevelName,
                     vipEntry.DisplayName,
                     GameModeKind.Vip,
                     vipEntry.IsCustomMap,
                     vipEntry.IniKey));
             }
+
+            return entries
+                .OrderBy(entry => entry.DisplayName, StringComparer.OrdinalIgnoreCase)
+                .ToList();
         }
 
         private static int NormalizeOption(int currentValue, int[] options, int fallback)
@@ -465,6 +636,16 @@ public partial class Game1
     private static List<PracticeMapEntry> BuildPracticeMapEntries()
     {
         return PracticeSetupState.BuildMapEntries();
+    }
+
+    private static List<PracticeMapEntry> BuildAllPracticeMapEntries()
+    {
+        return PracticeSetupState.BuildAllPracticeMapEntries();
+    }
+
+    private static List<PracticeMapEntry> BuildAllLocalMapEntries()
+    {
+        return PracticeSetupState.BuildAllLocalMapEntries();
     }
 
     private void CyclePracticeMap(int direction)

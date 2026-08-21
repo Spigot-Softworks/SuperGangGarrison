@@ -25,6 +25,11 @@ public partial class Game1
 
         UpdateBinocularsFocusPosition(keyboard, mouse, deltaSeconds);
 
+        var useMultiplayerExclusivePrimarySwapBinding = KeyboardInputMapper.UsesMultiplayerExclusivePrimarySwapBinding(
+            _networkClient.IsConnected && !_networkClient.IsReplayConnection && _gameplaySessionKind == GameplaySessionKind.Online,
+            IsLastToDieSessionActive,
+            _world.LocalPlayer.IsLockedPrimaryWeaponClass);
+
         var fullInput = KeyboardInputMapper.BuildGameplaySnapshot(
             _inputBindings,
             keyboard,
@@ -35,12 +40,16 @@ public partial class Game1
             _world.LocalPlayer.Y,
             GetPlayerIsUsingBinoculars(_world.LocalPlayer),
             _binocularsFocusX,
-            _binocularsFocusY);
+            _binocularsFocusY,
+            useMultiplayerExclusivePrimarySwapBinding);
         fullInput = ApplyControllerGameplayInput(fullInput, deltaSeconds);
         if (IsNetworkWorldWarmupBlockingGameplay())
         {
             return (default, default);
         }
+
+        UpdateBuildMenuState(keyboard, mouse);
+        fullInput = ApplyBuildMenuInputSelection(fullInput);
 
         if (_bubbleMenuKind != BubbleMenuKind.None && !_bubbleMenuClosing)
         {
@@ -115,7 +124,9 @@ public partial class Game1
                 InteractWeapon = false,
                 SwapWeapon = false,
                 BuildSentry = false,
+                BuildDispenser = false,
                 DestroySentry = false,
+                DestroyDispenser = false,
             };
             networkInput = networkInput with
             {
@@ -125,7 +136,9 @@ public partial class Game1
                 InteractWeapon = false,
                 SwapWeapon = false,
                 BuildSentry = false,
+                BuildDispenser = false,
                 DestroySentry = false,
+                DestroyDispenser = false,
             };
         }
 
@@ -142,7 +155,6 @@ public partial class Game1
 
         networkInput = networkInput with { IsTypingChatMessage = _chatOpen };
 
-        UpdateBuildMenuState(keyboard, mouse);
         TryShowEngineerJumpPadBuildNoticeOnUtilityPress(networkInput);
 
         return (gameplayInput, networkInput);
@@ -241,7 +253,9 @@ public partial class Game1
             Up = false,
             Down = false,
             BuildSentry = false,
+            BuildDispenser = false,
             DestroySentry = false,
+            DestroyDispenser = false,
             Taunt = false,
             FirePrimary = false,
             FireSecondary = false,

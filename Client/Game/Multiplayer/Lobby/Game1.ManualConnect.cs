@@ -23,13 +23,20 @@ public partial class Game1
         if ((keyboard.IsKeyDown(Keys.Escape) && !_previousKeyboard.IsKeyDown(Keys.Escape))
             || IsControllerMenuBackPressed())
         {
-            CloseManualConnectMenu(clearStatus: false);
+            CloseManualConnectMenuToOrigin(clearStatus: false);
             return;
         }
 
         if (keyboard.IsKeyDown(Keys.Tab) && !_previousKeyboard.IsKeyDown(Keys.Tab))
         {
-            _connectionFlowController.ToggleManualConnectEditingField();
+            if (_lastToDieRoomCodeJoinOpen)
+            {
+                _connectionFlowController.SetManualConnectEditingField(editHost: true);
+            }
+            else
+            {
+                _connectionFlowController.ToggleManualConnectEditingField();
+            }
         }
 
         if (keyboard.IsKeyDown(Keys.Enter) && !_previousKeyboard.IsKeyDown(Keys.Enter))
@@ -73,13 +80,13 @@ public partial class Game1
             ResetTextFieldClickTarget();
             if (connectBounds.Contains(point))
             {
-                _manualConnectControllerIndex = 2;
+                _manualConnectControllerIndex = _lastToDieRoomCodeJoinOpen ? 1 : 2;
                 TryConnectFromMenu();
             }
             else if (backBounds.Contains(point))
             {
-                _manualConnectControllerIndex = 3;
-                CloseManualConnectMenu(clearStatus: false);
+                _manualConnectControllerIndex = _lastToDieRoomCodeJoinOpen ? 2 : 3;
+                CloseManualConnectMenuToOrigin(clearStatus: false);
             }
         }
     }
@@ -96,7 +103,11 @@ public partial class Game1
             var step = verticalStep != 0 ? verticalStep : horizontalStep;
             if (step != 0)
             {
-                _manualConnectControllerIndex = MoveControllerMenuSelectionClamped(_manualConnectControllerIndex, 4, step);
+                var itemCount = _lastToDieRoomCodeJoinOpen ? 3 : 4;
+                _manualConnectControllerIndex = MoveControllerMenuSelectionClamped(
+                    _manualConnectControllerIndex,
+                    itemCount,
+                    step);
                 ApplyManualConnectControllerSelection();
                 return true;
             }
@@ -105,6 +116,24 @@ public partial class Game1
         if (!IsControllerMenuConfirmPressed())
         {
             return false;
+        }
+
+        if (_lastToDieRoomCodeJoinOpen)
+        {
+            switch (_manualConnectControllerIndex)
+            {
+                case 0:
+                    _connectionFlowController.SetManualConnectEditingField(editHost: true);
+                    break;
+                case 1:
+                    TryConnectFromMenu();
+                    break;
+                default:
+                    CloseManualConnectMenuToOrigin(clearStatus: false);
+                    break;
+            }
+
+            return true;
         }
 
         switch (_manualConnectControllerIndex)
@@ -119,7 +148,7 @@ public partial class Game1
                 TryConnectFromMenu();
                 break;
             default:
-                CloseManualConnectMenu(clearStatus: false);
+                CloseManualConnectMenuToOrigin(clearStatus: false);
                 break;
         }
 
@@ -132,7 +161,7 @@ public partial class Game1
         {
             _connectionFlowController.SetManualConnectEditingField(editHost: true);
         }
-        else if (_manualConnectControllerIndex == 1)
+        else if (!_lastToDieRoomCodeJoinOpen && _manualConnectControllerIndex == 1)
         {
             _connectionFlowController.SetManualConnectEditingField(editHost: false);
         }
@@ -154,7 +183,12 @@ public partial class Game1
             const int bottomBarHeight = 76;
             var barY = viewportHeight - bottomBarHeight;
             var bottomBarBounds = new Rectangle(0, barY, viewportWidth, bottomBarHeight);
-            _spriteBatch.Draw(_pixel, bottomBarBounds, new Color(0x57, 0x4f, 0x47));
+            _spriteBatch.Draw(
+                _pixel,
+                bottomBarBounds,
+                _lastToDieRoomCodeJoinOpen
+                    ? new Color(0x4b, 0x4d, 0x50)
+                    : new Color(0x57, 0x4f, 0x47));
             _menuBottomBarRunners.Draw(bottomBarBounds);
         }
 
@@ -167,11 +201,27 @@ public partial class Game1
             out var compactLayout);
         const float labelScale = 1f;
         const float buttonScale = 1f;
-        var mouse = GetScaledMouseState(GetConstrainedMouseState(Game1.GetCurrentMouseState()));
+        var mouse = GetFrameMouseState();
         DrawRoundedRectangleOutline(panel, new Color(59, 51, 46), new Color(213, 205, 188), outlineThickness: 2, radius: 8);
 
-        DrawBitmapFontText("Host", new Vector2(hostBounds.X, hostBounds.Y - 16f), Color.White, labelScale);
-        DrawBitmapFontText("Port", new Vector2(portBounds.X, portBounds.Y - 16f), Color.White, labelScale);
+        if (_lastToDieRoomCodeJoinOpen)
+        {
+            DrawBitmapFontText(
+                "Join Last to Die",
+                new Vector2(panel.X + 24f, panel.Y + 22f),
+                Color.White,
+                1.15f);
+        }
+
+        DrawBitmapFontText(
+            _lastToDieRoomCodeJoinOpen ? "Room Code" : "Host or OG2 Friend Code",
+            new Vector2(hostBounds.X, hostBounds.Y - 16f),
+            Color.White,
+            labelScale);
+        if (!_lastToDieRoomCodeJoinOpen)
+        {
+            DrawBitmapFontText("Port (direct connection only)", new Vector2(portBounds.X, portBounds.Y - 16f), Color.White, labelScale);
+        }
 
         DrawMenuInputBoxScaled(
             hostBounds,
@@ -180,23 +230,28 @@ public partial class Game1
             buttonScale,
             _connectHostCursorIndex,
             _connectHostSelectionStart);
-        DrawMenuInputBoxScaled(
-            portBounds,
-            _connectPortBuffer,
-            _editingConnectPort || portBounds.Contains(mouse.Position),
-            buttonScale,
-            _connectPortCursorIndex,
-            _connectPortSelectionStart);
+        if (!_lastToDieRoomCodeJoinOpen)
+        {
+            DrawMenuInputBoxScaled(
+                portBounds,
+                _connectPortBuffer,
+                _editingConnectPort || portBounds.Contains(mouse.Position),
+                buttonScale,
+                _connectPortCursorIndex,
+                _connectPortSelectionStart);
+        }
         DrawMenuButtonScaled(
             connectBounds,
-            "Connect",
-            (IsControllerMenuInputActive() && _manualConnectControllerIndex == 2)
+            _lastToDieRoomCodeJoinOpen ? "Join" : "Connect",
+            (IsControllerMenuInputActive()
+                && _manualConnectControllerIndex == (_lastToDieRoomCodeJoinOpen ? 1 : 2))
                 || connectBounds.Contains(mouse.Position),
             buttonScale);
         DrawMenuButtonScaled(
             backBounds,
             "Back",
-            (IsControllerMenuInputActive() && _manualConnectControllerIndex == 3)
+            (IsControllerMenuInputActive()
+                && _manualConnectControllerIndex == (_lastToDieRoomCodeJoinOpen ? 2 : 3))
                 || backBounds.Contains(mouse.Position),
             buttonScale);
 
@@ -215,7 +270,10 @@ public partial class Game1
         out bool compactLayout)
     {
         var panelWidth = System.Math.Min(ViewportWidth - 32, 560);
-        var panelHeight = System.Math.Min(ViewportHeight - 32, ViewportHeight < 540 ? 260 : 320);
+        var desiredPanelHeight = _lastToDieRoomCodeJoinOpen
+            ? 240
+            : ViewportHeight < 540 ? 260 : 320;
+        var panelHeight = System.Math.Min(ViewportHeight - 32, desiredPanelHeight);
         panel = new Rectangle(
             (ViewportWidth - panelWidth) / 2,
             (ViewportHeight - panelHeight) / 2,
@@ -228,9 +286,17 @@ public partial class Game1
         var buttonHeight = compactLayout ? 36 : 42;
         var buttonGap = compactLayout ? 12 : 20;
         var buttonWidth = (panel.Width - (padding * 2) - buttonGap) / 2;
-        var contentTop = panel.Y + (compactLayout ? 58 : 74);
+        var contentTop = panel.Y + (_lastToDieRoomCodeJoinOpen
+            ? compactLayout ? 80 : 92
+            : compactLayout ? 58 : 74);
         hostBounds = new Rectangle(panel.X + padding, contentTop, panel.Width - (padding * 2), fieldHeight);
-        portBounds = new Rectangle(panel.X + padding, hostBounds.Bottom + (compactLayout ? 42 : 52), System.Math.Min(220, hostBounds.Width), fieldHeight);
+        portBounds = _lastToDieRoomCodeJoinOpen
+            ? Rectangle.Empty
+            : new Rectangle(
+                panel.X + padding,
+                hostBounds.Bottom + (compactLayout ? 42 : 52),
+                System.Math.Min(220, hostBounds.Width),
+                fieldHeight);
         connectBounds = new Rectangle(panel.X + padding, panel.Bottom - padding - buttonHeight - 6, buttonWidth, buttonHeight);
         backBounds = new Rectangle(connectBounds.Right + buttonGap, connectBounds.Y, buttonWidth, buttonHeight);
     }

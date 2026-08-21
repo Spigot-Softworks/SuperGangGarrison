@@ -1,0 +1,9 @@
+{
+  "id": "BuildMenuS",
+  "framePaths": [
+    "assets/hud/builder/BuildMenuS.images/image 0.png",
+    "assets/hud/builder/BuildMenuS.images/image 1.png"
+  ],
+  "originX": 0,
+  "originY": 20
+}

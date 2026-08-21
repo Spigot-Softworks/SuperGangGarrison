@@ -21,6 +21,7 @@ internal static class BrowserAssetBuildPipeline
 
         ContentRoot.Initialize(context.ContentRoot);
         EnsureDirectories(context);
+        StageBundledMapPackages(context);
 
         var generatedFiles = new List<string>();
         var warnings = new List<string>();
@@ -96,6 +97,40 @@ internal static class BrowserAssetBuildPipeline
         Directory.CreateDirectory(context.BrowserManifestsRoot);
         Directory.CreateDirectory(context.BrowserBootstrapRoot);
         Directory.CreateDirectory(Path.Combine(context.OutputContentRoot, "Gameplay", "stock.gg2"));
+    }
+
+    private static void StageBundledMapPackages(BrowserAssetBuildContext context)
+    {
+        var destinationRoot = Path.Combine(context.OutputContentRoot, "StockMaps");
+        var sourceDirectories = new List<(string Source, string Name)>();
+
+        var mapsRoot = Path.Combine(context.RepoRoot.FullName, "Maps");
+        if (Directory.Exists(mapsRoot))
+        {
+            foreach (var directory in Directory.EnumerateDirectories(mapsRoot, "*", SearchOption.TopDirectoryOnly))
+            {
+                sourceDirectories.Add((directory, Path.GetFileName(directory)));
+            }
+        }
+
+        var canonicalDocking = Path.Combine(context.RepoRoot.FullName, "Docking");
+        if (Directory.Exists(canonicalDocking))
+        {
+            sourceDirectories.Add((canonicalDocking, "Docking"));
+        }
+
+        foreach (var (sourceDirectory, directoryName) in sourceDirectories
+                     .OrderBy(static entry => entry.Name, StringComparer.OrdinalIgnoreCase))
+        {
+            var destinationDirectory = Path.Combine(destinationRoot, directoryName);
+            foreach (var sourcePath in Directory.EnumerateFiles(sourceDirectory, "*", SearchOption.AllDirectories))
+            {
+                var relativePath = Path.GetRelativePath(sourceDirectory, sourcePath);
+                var destinationPath = Path.Combine(destinationDirectory, relativePath);
+                Directory.CreateDirectory(Path.GetDirectoryName(destinationPath)!);
+                File.Copy(sourcePath, destinationPath, overwrite: true);
+            }
+        }
     }
 
     private static GameMakerAssetManifest BuildLegacyGameMakerManifest(BrowserAssetBuildContext context, List<string> generatedFiles)

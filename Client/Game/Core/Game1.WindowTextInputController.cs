@@ -22,6 +22,11 @@ public partial class Game1
 
         public void Handle(char character)
         {
+            if (!_game.IsWindowInputActive)
+            {
+                return;
+            }
+
             if (_game.HandleGarrisonBuilderTextInput(character))
             {
                 return;

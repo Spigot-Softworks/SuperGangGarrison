@@ -20,7 +20,10 @@ public partial class Game1
 
         public void DrawPersistentSelfNameHud(Vector2 cameraPosition)
         {
-            if (!_game._showPersistentSelfNameEnabled || _game.IsLocalSpectatorPresentationActive() || !_game._world.LocalPlayer.IsAlive)
+            if (!_game._showPlayerNamesEnabled
+                || !_game._showPersistentSelfNameEnabled
+                || _game.IsLocalSpectatorPresentationActive()
+                || !_game._world.LocalPlayer.IsAlive)
             {
                 return;
             }
@@ -30,6 +33,11 @@ public partial class Game1
 
         public void DrawForcedPlayerNameHuds(Vector2 cameraPosition)
         {
+            if (!_game._showPlayerNamesEnabled)
+            {
+                return;
+            }
+
             foreach (var player in _game.EnumerateRenderablePlayers())
             {
                 if (!player.IsAlive
@@ -45,6 +53,11 @@ public partial class Game1
 
         public void DrawHoveredPlayerNameHud(MouseState mouse, Vector2 cameraPosition)
         {
+            if (!_game._showPlayerNamesEnabled)
+            {
+                return;
+            }
+
             var hoveredPlayer = GetHoveredPlayerForNameHud(mouse, cameraPosition);
             if (hoveredPlayer is null)
             {

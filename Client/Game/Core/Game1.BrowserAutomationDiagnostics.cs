@@ -259,6 +259,16 @@ public partial class Game1
             out var connectBounds,
             out var backBounds,
             out _);
+        if (_lastToDieRoomCodeJoinOpen)
+        {
+            return
+            [
+                new BrowserAutomationAction("Edit Room Code", BrowserAutomationRect.FromRectangle(hostBounds)),
+                new BrowserAutomationAction("Join", BrowserAutomationRect.FromRectangle(connectBounds)),
+                new BrowserAutomationAction("Back", BrowserAutomationRect.FromRectangle(backBounds)),
+            ];
+        }
+
         return
         [
             new BrowserAutomationAction("Edit Host", BrowserAutomationRect.FromRectangle(hostBounds)),
@@ -409,6 +419,12 @@ public partial class Game1
 
         switch (label)
         {
+            case "Edit Room Code" when _lastToDieRoomCodeJoinOpen:
+                _connectionFlowController.SetManualConnectEditingField(editHost: true);
+                return true;
+            case "Join" when _lastToDieRoomCodeJoinOpen:
+                TryConnectFromMenu();
+                return true;
             case "Edit Host":
                 _connectionFlowController.SetManualConnectEditingField(editHost: true);
                 return true;
@@ -419,7 +435,7 @@ public partial class Game1
                 TryConnectFromMenu();
                 return true;
             case "Back":
-                CloseManualConnectMenu(clearStatus: false);
+                CloseManualConnectMenuToOrigin(clearStatus: false);
                 return true;
             default:
                 return false;

@@ -11,7 +11,7 @@ public sealed class ClientSettings
     private const string LegacyFileName = "client.settings.json";
     public const int CorpseDurationDefault = 0;
     public const int CorpseDurationInfinite = 1;
-    public const float DefaultSmoothCameraMultiplier = 0.35f;
+    public const float DefaultSmoothCameraMultiplier = 0f;
     public const int DefaultDamageVignetteIntensityPercent = OpenGarrisonPreferencesDocument.DefaultDamageVignetteIntensityPercent;
     public const int PlayerCardSizeSmall = 0;
     public const int PlayerCardSizeMedium = 1;
@@ -119,7 +119,11 @@ public sealed class ClientSettings
 
     public bool ShowPersistentSelfNameEnabled { get; set; }
 
+    public bool ShowPlayerNamesEnabled { get; set; } = true;
+
     public bool PositionSmoothingEnabled { get; set; } = true;
+
+    public bool EnablePrediction { get; set; } = true;
 
     public float SmoothCameraMultiplier { get; set; } = DefaultSmoothCameraMultiplier;
 
@@ -282,7 +286,9 @@ public sealed class ClientSettings
             CombatMusicVolumePercent = Math.Clamp(document.CombatMusicVolumePercent, 0, OpenGarrisonPreferencesDocument.MaxCombatMusicVolumePercent),
             SoundEffectsVolumePercent = Math.Clamp(document.SoundEffectsVolumePercent, 0, 100),
             ShowPersistentSelfNameEnabled = document.ShowPersistentSelfNameEnabled,
+            ShowPlayerNamesEnabled = document.ShowPlayerNamesEnabled,
             PositionSmoothingEnabled = document.PositionSmoothingEnabled,
+            EnablePrediction = document.EnablePrediction,
             SmoothCameraMultiplier = Math.Clamp(document.SmoothCameraMultiplier, 0f, 1f),
             SpriteDropShadowEnabled = document.SpriteDropShadowEnabled,
             PixelPerfectWeaponRotation = document.PixelPerfectWeaponRotation,
@@ -364,7 +370,9 @@ public sealed class ClientSettings
         preferences.CombatMusicVolumePercent = Math.Clamp(CombatMusicVolumePercent, 0, OpenGarrisonPreferencesDocument.MaxCombatMusicVolumePercent);
         preferences.SoundEffectsVolumePercent = SoundEffectsVolumePercent;
         preferences.ShowPersistentSelfNameEnabled = ShowPersistentSelfNameEnabled;
+        preferences.ShowPlayerNamesEnabled = ShowPlayerNamesEnabled;
         preferences.PositionSmoothingEnabled = PositionSmoothingEnabled;
+        preferences.EnablePrediction = EnablePrediction;
         preferences.SmoothCameraMultiplier = Math.Clamp(SmoothCameraMultiplier, 0f, 1f);
         preferences.SpriteDropShadowEnabled = SpriteDropShadowEnabled;
         preferences.PixelPerfectWeaponRotation = PixelPerfectWeaponRotation;

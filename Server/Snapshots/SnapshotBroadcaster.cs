@@ -814,7 +814,7 @@ sealed class SnapshotBroadcaster
             || string.Equals(soundName, "MedigunSnd", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static bool ShouldHideSpyFromViewer(PlayerEntity player, PlayerEntity? viewer)
+    internal static bool ShouldHideSpyFromViewer(PlayerEntity player, PlayerEntity? viewer)
     {
         if (viewer is null)
         {

@@ -38,6 +38,7 @@ public sealed class GameplayModPackLoaderTests
                 OverheadChatEnabled = true,
                 HudShowOnlyActiveWeapon = true,
                 DisableLegacyGameplaySpriteFallback = true,
+                EnablePrediction = false,
                 RecentConnection = new ClientRecentConnectionSettings
                 {
                     Host = "example.invalid",
@@ -62,6 +63,7 @@ public sealed class GameplayModPackLoaderTests
             Assert.True(loaded.OverheadChatEnabled);
             Assert.True(loaded.HudShowOnlyActiveWeapon);
             Assert.True(loaded.DisableLegacyGameplaySpriteFallback);
+            Assert.False(loaded.EnablePrediction);
             Assert.Equal("example.invalid", loaded.RecentConnection.Host);
             Assert.Equal(9001, loaded.RecentConnection.Port);
             Assert.Equal("lobby.example.invalid", loaded.LobbyHost);
@@ -1197,6 +1199,90 @@ public sealed class GameplayModPackLoaderTests
         Assert.Equal("ability.civilian-pogo", registry.GetDefaultLoadout(PlayerClass.Quote).UtilityItemId);
         Assert.Equal("Quote/Curly", registry.GetClassDefinition("plugin.quote-curly.quote").DisplayName);
         Assert.Equal("plugin.quote-curly.weapon.blade", registry.GetDefaultLoadout("plugin.quote-curly.quote").PrimaryItemId);
+    }
+
+    [Fact]
+    public void QuoteCurlyUsesBubbleOnPrimaryAndDamageBladeOnSecondary()
+    {
+        EnsureQuoteCurlyGameplayPackRegistered();
+
+        var world = new SimulationWorld();
+        world.PrepareLocalPlayerJoin();
+        world.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.CompleteLocalPlayerJoin("plugin.quote-curly.quote");
+
+        var player = world.LocalPlayer;
+        Assert.Equal(PlayerClass.Quote, player.ClassId);
+        Assert.Equal("plugin.quote-curly.quote", player.GameplayClassId);
+        Assert.Equal("plugin.quote-curly.weapon.blade", player.GameplayLoadoutState.PrimaryItemId);
+        Assert.Equal("plugin.quote-curly.ability.blade-throw", player.GameplayLoadoutState.SecondaryItemId);
+        Assert.Equal(BuiltInGameplayBehaviorIds.Blade, player.PrimaryBehaviorId);
+        Assert.Equal(BuiltInGameplayBehaviorIds.QuoteBladeThrow, player.SecondaryBehaviorId);
+
+        world.SetLocalInput(new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: true,
+            FireSecondary: false,
+            AimWorldX: player.X + 96f,
+            AimWorldY: player.Y,
+            DebugKill: false));
+        world.AdvanceOneTick();
+
+        Assert.Single(world.Bubbles);
+        Assert.Empty(world.Blades);
+
+        world.SetLocalInput(default);
+        world.AdvanceOneTick();
+        for (var tick = 0; tick < 10 && player.PrimaryCooldownTicks > 0; tick += 1)
+        {
+            world.AdvanceOneTick();
+        }
+
+        world.SetLocalInput(new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: false,
+            FireSecondary: true,
+            AimWorldX: player.X + 96f,
+            AimWorldY: player.Y,
+            DebugKill: false));
+        world.AdvanceOneTick();
+
+        Assert.Single(world.Blades);
+        Assert.Equal(1, player.QuoteBladesOut);
+    }
+
+    private static void EnsureQuoteCurlyGameplayPackRegistered()
+    {
+        if (CharacterClassCatalog.RuntimeRegistry.TryGetClassBinding("plugin.quote-curly.quote", out _))
+        {
+            return;
+        }
+
+        var packDirectory = ProjectSourceLocator.FindDirectory(Path.Combine(
+            "Plugins",
+            "Packaged",
+            "Server",
+            "Lua.QuoteCurly",
+            "Gameplay",
+            "quote-curly.gg2"));
+        Assert.False(string.IsNullOrWhiteSpace(packDirectory));
+
+        var pack = GameplayModPackDirectoryLoader.LoadFromDirectory(packDirectory!);
+        Assert.True(
+            CharacterClassCatalog.RuntimeRegistry.TryRegisterModPack(pack, allowRuntimeClassBindingOverride: false, out var error),
+            error);
     }
 
     [Fact]

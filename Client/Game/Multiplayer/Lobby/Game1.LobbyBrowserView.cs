@@ -226,7 +226,7 @@ public partial class Game1
         const float headerScale = 1f;
         const float rowScale = 1f;
         const float buttonScale = 1f;
-        var mouse = GetScaledMouseState(GetConstrainedMouseState(Game1.GetCurrentMouseState()));
+        var mouse = GetFrameMouseState();
         DrawRoundedRectangleOutline(panel, new Color(59, 51, 46), new Color(213, 205, 188), outlineThickness: 2, radius: 8);
         DrawRoundedRectangleOutline(listBounds, new Color(59, 51, 46), new Color(213, 205, 188), outlineThickness: 1, radius: 6);
 
@@ -326,7 +326,7 @@ public partial class Game1
         DrawBitmapFontText("ROSTER", new Vector2(rosterBounds.X + 12f, rosterBounds.Y - 22f), Color.White, 1f);
         DrawServerDetailsRoster(details, rosterBounds, compactLayout);
 
-        var mouse = GetScaledMouseState(GetConstrainedMouseState(Game1.GetCurrentMouseState()));
+        var mouse = GetFrameMouseState();
         DrawMenuButtonScaled(refreshBounds, "Refresh", refreshBounds.Contains(mouse.Position), 1f);
         DrawMenuButtonScaled(watchBounds, "Watch", watchBounds.Contains(mouse.Position), 1f);
         DrawMenuButtonScaled(backBounds, "Back", backBounds.Contains(mouse.Position), 1f);

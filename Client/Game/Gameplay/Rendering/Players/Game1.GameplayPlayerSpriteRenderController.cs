@@ -20,14 +20,21 @@ public partial class Game1
         public bool TryDrawPlayerSprite(PlayerEntity player, Vector2 cameraPosition, Color tint, PlayerBodySpriteSelection bodySelection)
         {
             var renderPosition = _game.GetRenderPosition(player);
-            return TryDrawPlayerSpriteAtPosition(player, renderPosition, cameraPosition, tint, bodySelection, true);
+            return TryDrawPlayerSpriteAtPosition(player, renderPosition, cameraPosition, tint, bodySelection, true, drawTopDownShadow: true);
         }
 
-        public bool TryDrawPlayerSpriteAtPosition(PlayerEntity player, Vector2 renderPosition, Vector2 cameraPosition, Color tint, PlayerBodySpriteSelection bodySelection, bool drawIntelOverlay)
+        public bool TryDrawPlayerSpriteAtPosition(
+            PlayerEntity player,
+            Vector2 renderPosition,
+            Vector2 cameraPosition,
+            Color tint,
+            PlayerBodySpriteSelection bodySelection,
+            bool drawIntelOverlay,
+            bool drawTopDownShadow = false)
         {
             var isHeavyEating = _game.GetPlayerIsHeavyEating(player);
-            var isPogo = _game.GetPlayerIsCivviePogoActive(player);
-            var isPogoTrick = isPogo && _game.GetPlayerIsCivviePogoTrickActive(player);
+            var isPogoTrick = _game.GetPlayerIsCivviePogoTrickActive(player);
+            var isPogo = _game.GetPlayerIsCivviePogoActive(player) || isPogoTrick;
             var spriteName = isHeavyEating
                 ? GetHeavyEatSpriteName(player)
                 : isPogoTrick
@@ -67,6 +74,11 @@ public partial class Game1
             var screenOrigin = _game.GetPlayerSpriteScreenOrigin(renderPosition, cameraPosition);
             var bodyYOffset = isHeavyEating || player.IsTaunting || isPogo ? 0f : bodySelection.BodyYOffset * playerScale;
             var position = _game.GetPlayerSpriteScreenOrigin(new Vector2(renderPosition.X, renderPosition.Y + bodyYOffset), cameraPosition);
+
+            if (drawTopDownShadow)
+            {
+                _game.DrawTopDownPlayerShadow(player, renderPosition, cameraPosition, tint);
+            }
 
             if (drawIntelOverlay && !isHeavyEating && !player.IsTaunting && bodySelection.DrawIntelUnderlay)
             {
@@ -158,8 +170,8 @@ public partial class Game1
             }
 
             var isHeavyEating = _game.GetPlayerIsHeavyEating(player);
-            var isPogo = _game.GetPlayerIsCivviePogoActive(player);
-            var isPogoTrick = isPogo && _game.GetPlayerIsCivviePogoTrickActive(player);
+            var isPogoTrick = _game.GetPlayerIsCivviePogoTrickActive(player);
+            var isPogo = _game.GetPlayerIsCivviePogoActive(player) || isPogoTrick;
             var spriteName = isHeavyEating
                 ? GetHeavyEatSpriteName(player)
                 : isPogoTrick
@@ -498,7 +510,11 @@ public partial class Game1
 
         private string? GetStandingSpriteNameCore(PlayerEntity player)
         {
-            if (OperatingSystem.IsBrowser())
+            // Top-down maps do not have a support plane or platformer edge
+            // lean presentation. Besides selecting the wrong one-leg pose,
+            // the lean probe scans every solid in the map for every idle
+            // player, which is especially costly for large walkmasks.
+            if (OperatingSystem.IsBrowser() || _game._world.Level.IsTopDown)
             {
                 return GetPresentationSpriteName(player, static presentation => presentation.StandSuffix ?? presentation.BaseSuffix, "StandS");
             }

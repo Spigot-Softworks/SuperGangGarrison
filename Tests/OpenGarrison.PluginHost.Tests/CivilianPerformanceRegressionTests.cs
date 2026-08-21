@@ -88,11 +88,14 @@ public sealed class CivilianPerformanceRegressionTests
         var suppressedStates = GetIntField(stateSummary, "suppressed_states");
         var detailedStateChanges = events.Count(static e => e.Name == "gameplay_ability_state_changed");
         Assert.True(
-            suppressedStates >= TotalPlayerCount,
-            "umbrella cooldown meter changes should be counted in the summary instead of published every tick");
+            detailedStateChanges == TotalPlayerCount,
+            $"only the initial umbrella activation transition should be detailed; detailed={detailedStateChanges}, suppressed={suppressedStates}");
         Assert.True(
-            detailedStateChanges < suppressedStates,
-            $"expected summary-only cooldown changes to dominate detailed state changes, detailed={detailedStateChanges} suppressed={suppressedStates}");
+            suppressedStates == 0,
+            $"holding an umbrella with a non-decaying shield should not generate synthetic cooldown state changes; detailed={detailedStateChanges} suppressed={suppressedStates}");
+        Assert.All(
+            events.Where(static e => e.Name == "gameplay_ability_state_changed"),
+            static e => Assert.Equal(GameplayAbilityReplicatedState.CivvieUmbrellaActiveKey, e.Fields["state_key"]));
     }
 
     private static ScenarioResult MeasureRoster(PlayerClass playerClass, ScenarioInputMode inputMode)

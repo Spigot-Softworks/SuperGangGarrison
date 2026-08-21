@@ -23,6 +23,7 @@ internal sealed class HostSetupMapPreviewState : IDisposable
     private readonly Color? _voidColor;
     private readonly List<(Texture2D Texture, float XFactor, float YFactor)> _parallaxLayers = new();
     private readonly Texture2D? _stockBackground;
+    private readonly bool _ownsStockBackground;
     private readonly Texture2D? _foreground;
     private readonly Dictionary<string, Texture2D> _spriteTextures = new(StringComparer.OrdinalIgnoreCase);
     private readonly float _imageScale;
@@ -38,6 +39,7 @@ internal sealed class HostSetupMapPreviewState : IDisposable
         Color? voidColor,
         float imageScale,
         Texture2D? stockBackground,
+        bool ownsStockBackground,
         Texture2D? foreground,
         List<(Texture2D Texture, float XFactor, float YFactor)> parallaxLayers,
         Dictionary<string, Texture2D> spriteTextures,
@@ -50,6 +52,7 @@ internal sealed class HostSetupMapPreviewState : IDisposable
         _voidColor = voidColor;
         _imageScale = imageScale;
         _stockBackground = stockBackground;
+        _ownsStockBackground = ownsStockBackground;
         _foreground = foreground;
         _parallaxLayers.AddRange(parallaxLayers);
         foreach (var pair in spriteTextures)
@@ -65,7 +68,8 @@ internal sealed class HostSetupMapPreviewState : IDisposable
         Game1 game,
         SimpleLevel level,
         Texture2D pixel,
-        Texture2D? stockBackground)
+        Texture2D? stockBackground,
+        bool ownsStockBackground = false)
     {
         var imageScale = 1f;
         Color? backgroundColor = null;
@@ -116,6 +120,7 @@ internal sealed class HostSetupMapPreviewState : IDisposable
             voidColor,
             imageScale,
             stockBackground,
+            ownsStockBackground,
             foreground,
             parallaxLayers,
             spriteTextures,
@@ -248,6 +253,11 @@ internal sealed class HostSetupMapPreviewState : IDisposable
 
     public void Dispose()
     {
+        if (_ownsStockBackground)
+        {
+            _stockBackground?.Dispose();
+        }
+
         foreach (var (texture, _, _) in _parallaxLayers)
         {
             texture.Dispose();
