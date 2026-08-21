@@ -43,6 +43,7 @@ public sealed class SimpleLevel
         MapLogicScoreTriggerSet? logicScoreTriggers = null,
         SpritesheetPlaybackSet? spritesheetPlaybackSet = null,
         IReadOnlyList<HealthPackSpawnMarker>? healthPackSpawns = null,
+        IReadOnlyList<JumpPadSpawnMarker>? jumpPadSpawns = null,
         IReadOnlyList<BotSpawnMarker>? botSpawns = null,
         IReadOnlyList<GameplayMessageMarker>? gameplayMessages = null,
         IReadOnlyList<GameplaySoundMarker>? gameplaySounds = null,
@@ -69,6 +70,7 @@ public sealed class SimpleLevel
         CustomMapVisuals = customMapVisuals ?? CustomMapVisualMetadata.Empty;
         MovingPlatforms = movingPlatforms ?? Array.Empty<MovingPlatformMarker>();
         HealthPackSpawns = healthPackSpawns ?? Array.Empty<HealthPackSpawnMarker>();
+        JumpPadSpawns = jumpPadSpawns ?? Array.Empty<JumpPadSpawnMarker>();
         BotSpawns = botSpawns ?? Array.Empty<BotSpawnMarker>();
         GameplayMessages = gameplayMessages ?? Array.Empty<GameplayMessageMarker>();
         GameplaySounds = gameplaySounds ?? Array.Empty<GameplaySoundMarker>();
@@ -134,6 +136,8 @@ public sealed class SimpleLevel
     public IReadOnlyList<MovingPlatformMarker> MovingPlatforms { get; }
 
     public IReadOnlyList<HealthPackSpawnMarker> HealthPackSpawns { get; }
+
+    public IReadOnlyList<JumpPadSpawnMarker> JumpPadSpawns { get; }
 
     public IReadOnlyList<BotSpawnMarker> BotSpawns { get; }
 

@@ -1011,7 +1011,13 @@ public partial class Game1
                 && definition.IconFrame + (selected ? 1 : 0) >= 0
                 && definition.IconFrame + (selected ? 1 : 0) < _builderEntityButtonSprite.Frames.Count)
             {
-                DrawLoadedSpriteFrame(_builderEntityButtonSprite.Frames[definition.IconFrame + (selected ? 1 : 0)], buttonBounds, Color.White);
+                var iconFrame = _builderEntityButtonSprite.Frames[definition.IconFrame + (selected ? 1 : 0)];
+                if (definition.Type.Equals(JumpPadMetadata.EntityType, StringComparison.OrdinalIgnoreCase))
+                {
+                    iconFrame = GetNeutralSpriteFrame(iconFrame);
+                }
+
+                DrawLoadedSpriteFrame(iconFrame, buttonBounds, Color.White);
             }
             else
             {
@@ -1534,6 +1540,10 @@ public partial class Game1
             && frameIndex < _builderEntityButtonSprite.Frames.Count)
         {
             var frame = _builderEntityButtonSprite.Frames[frameIndex];
+            if (definition.Type.Equals(JumpPadMetadata.EntityType, StringComparison.OrdinalIgnoreCase))
+            {
+                frame = GetNeutralSpriteFrame(frame);
+            }
             var source = frame.SourceRectangle ?? new Rectangle(0, 0, frame.Texture.Width, frame.Texture.Height);
             var scale = MathF.Min(bounds.Width / (float)source.Width, bounds.Height / (float)source.Height);
             var drawWidth = MathF.Max(1f, source.Width * scale);
@@ -4144,6 +4154,11 @@ public partial class Game1
             return false;
         }
 
+        if (definition.Type.Equals(JumpPadMetadata.EntityType, StringComparison.OrdinalIgnoreCase))
+        {
+            frame = GetNeutralSpriteFrame(frame);
+        }
+
         var screen = _builderUseModernUi
             ? BuilderWorldToScreen(new Vector2(entity.X, entity.Y))
             : new Vector2(entity.X - _builderCamera.X, entity.Y - _builderCamera.Y);
@@ -4336,6 +4351,11 @@ public partial class Game1
 
         if (definition.Type.Equals("spawn", StringComparison.OrdinalIgnoreCase)
             && GetEntityProperty(entity.Properties, "team", "red").Equals("neutral", StringComparison.OrdinalIgnoreCase))
+        {
+            return ResolveGarrisonBuilderNeutralTint(baseTint);
+        }
+
+        if (definition.Type.Equals(JumpPadMetadata.EntityType, StringComparison.OrdinalIgnoreCase))
         {
             return ResolveGarrisonBuilderNeutralTint(baseTint);
         }

@@ -135,14 +135,14 @@ internal static class PracticeMapsMenuLayoutCalculator
         var footerHeight = compactLayout ? 72 : 84;
         var actionGap = compactLayout ? 10 : 12;
 
-        var confirmBounds = new Rectangle(
+        var backBounds = new Rectangle(
             panel.Right - padding - actionButtonWidth,
             panel.Bottom - actionPaddingBottom - actionButtonHeight,
             actionButtonWidth,
             actionButtonHeight);
-        var backBounds = new Rectangle(
-            confirmBounds.X - actionGap - actionButtonWidth,
-            confirmBounds.Y,
+        var confirmBounds = new Rectangle(
+            backBounds.X - actionGap - actionButtonWidth,
+            backBounds.Y,
             actionButtonWidth,
             actionButtonHeight);
 

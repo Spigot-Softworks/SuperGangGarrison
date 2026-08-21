@@ -23,7 +23,9 @@ public static class NetworkClientMessageTransportRegistry
     {
         if (QuicNetworkClientMessageTransport.IsQuicEndpoint(host))
         {
-            return QuicNetworkClientMessageTransport.TryConnect(host, port, out transport, out error);
+            transport = null;
+            error = "QUIC is currently disabled; use the server's UDP endpoint.";
+            return false;
         }
 
         if (WebSocketNetworkClientMessageTransport.IsWebSocketEndpoint(host)

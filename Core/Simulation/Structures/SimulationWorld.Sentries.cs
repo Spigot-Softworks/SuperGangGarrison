@@ -530,7 +530,7 @@ public sealed partial class SimulationWorld
         for (var index = 0; index < _jumpPads.Count; index += 1)
         {
             var targetPad = _jumpPads[index];
-            if (targetPad.Team == sentry.Team || !targetPad.IsBuilt || targetPad.IsDead)
+            if (targetPad.IsNeutral || targetPad.Team == sentry.Team || !targetPad.IsBuilt || targetPad.IsDead)
             {
                 continue;
             }

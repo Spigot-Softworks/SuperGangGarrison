@@ -230,8 +230,12 @@ public sealed class ReDsmReplayParserTests
                 transport.EnqueueInbound(ProtocolCodec.Serialize(BuildMinimalSnapshotMessage()));
 
                 Assert.True(client.Connect(transport, "Recorder", 0UL, out var connectError), connectError);
-                var messages = client.ReceiveMessages().ToArray();
-                Assert.Equal(2, messages.Length);
+                var messages = new List<IProtocolMessage>();
+                for (var receiveFrame = 0; receiveFrame < 4 && transport.HasPendingMessages; receiveFrame += 1)
+                {
+                    messages.AddRange(client.ReceiveMessages());
+                }
+                Assert.Equal(2, messages.Count);
 
                 client.Disconnect();
                 Assert.True(client.TryConsumeCompletedDemoRecordingNotice(out var notice));

@@ -30,6 +30,12 @@ public partial class Game1
     private int _pendingPredictedBuildDispenserTicksRemaining;
     private int _pendingPredictedDestroySentryTicksRemaining;
     private int _pendingPredictedDestroyDispenserTicksRemaining;
+    // Practice collects input once per render frame but advances the world on
+    // fixed ticks. Retain build-menu edges until a local tick consumes them.
+    private bool _pendingOfflineBuildSentry;
+    private bool _pendingOfflineBuildDispenser;
+    private bool _pendingOfflineDestroySentry;
+    private bool _pendingOfflineDestroyDispenser;
     private uint _latchedJumpPressSequence;
 
     private bool _hasLatestLocalAimWorldPosition;
@@ -88,6 +94,10 @@ public partial class Game1
         _pendingPredictedBuildDispenserTicksRemaining = 0;
         _pendingPredictedDestroySentryTicksRemaining = 0;
         _pendingPredictedDestroyDispenserTicksRemaining = 0;
+        _pendingOfflineBuildSentry = false;
+        _pendingOfflineBuildDispenser = false;
+        _pendingOfflineDestroySentry = false;
+        _pendingOfflineDestroyDispenser = false;
     }
 
     private void CapturePendingPredictedInputEdges(KeyboardState keyboard, MouseState mouse, PlayerInputSnapshot networkInput)
@@ -95,6 +105,31 @@ public partial class Game1
         _previousPredictedLocalInput = _latestPredictedLocalInput;
         _latestPredictedLocalInput = networkInput;
         var previousPredictedInput = _previousPredictedLocalInput;
+
+        if (!_networkClient.IsConnected)
+        {
+            if (networkInput.BuildSentry && !previousPredictedInput.BuildSentry)
+            {
+                _pendingOfflineBuildSentry = true;
+            }
+
+            if (networkInput.BuildDispenser && !previousPredictedInput.BuildDispenser)
+            {
+                _pendingOfflineBuildDispenser = true;
+            }
+
+            if (networkInput.DestroySentry && !previousPredictedInput.DestroySentry)
+            {
+                _pendingOfflineDestroySentry = true;
+            }
+
+            if (networkInput.DestroyDispenser && !previousPredictedInput.DestroyDispenser)
+            {
+                _pendingOfflineDestroyDispenser = true;
+            }
+
+            return;
+        }
 
         if (networkInput.BuildSentry && !previousPredictedInput.BuildSentry)
         {
@@ -116,12 +151,6 @@ public partial class Game1
         {
             _pendingPredictedDestroyDispenserTicksRemaining = GetBuildMenuCommandRetryInputTicks();
             _pendingPredictedBuildDispenserTicksRemaining = 0;
-        }
-
-        if (!_networkClient.IsConnected)
-        {
-            ClearPendingPredictedInputEdges();
-            return;
         }
 
         var abilityReleased = !networkInput.UseAbility && previousPredictedInput.UseAbility;
@@ -199,6 +228,26 @@ public partial class Game1
     {
         if (!_networkClient.IsConnected)
         {
+            if (_pendingOfflineBuildSentry && !input.BuildSentry)
+            {
+                input = input with { BuildSentry = true };
+            }
+
+            if (_pendingOfflineBuildDispenser && !input.BuildDispenser)
+            {
+                input = input with { BuildDispenser = true };
+            }
+
+            if (_pendingOfflineDestroySentry && !input.DestroySentry)
+            {
+                input = input with { DestroySentry = true };
+            }
+
+            if (_pendingOfflineDestroyDispenser && !input.DestroyDispenser)
+            {
+                input = input with { DestroyDispenser = true };
+            }
+
             return input;
         }
 
@@ -255,6 +304,14 @@ public partial class Game1
         _pendingPredictedSecondaryAbilityPress = false;
     }
 
+    private void ClearPendingOfflineBuildMenuCommands()
+    {
+        _pendingOfflineBuildSentry = false;
+        _pendingOfflineBuildDispenser = false;
+        _pendingOfflineDestroySentry = false;
+        _pendingOfflineDestroyDispenser = false;
+    }
+
     private void AdvanceNetworkInputLane(PlayerInputSnapshot networkInput)
     {
         _networkInputAccumulatorSeconds += _clientUpdateElapsedSeconds;
@@ -298,22 +355,30 @@ public partial class Game1
             ClearPendingPredictedInputEdges();
             if (buildSentryCommandSent)
             {
-                _pendingPredictedBuildSentryTicksRemaining = GetRemainingBuildMenuCommandRetryInputTicks();
+                _pendingPredictedBuildSentryTicksRemaining = Math.Max(
+                    0,
+                    _pendingPredictedBuildSentryTicksRemaining - 1);
             }
 
             if (buildDispenserCommandSent)
             {
-                _pendingPredictedBuildDispenserTicksRemaining = GetRemainingBuildMenuCommandRetryInputTicks();
+                _pendingPredictedBuildDispenserTicksRemaining = Math.Max(
+                    0,
+                    _pendingPredictedBuildDispenserTicksRemaining - 1);
             }
 
             if (destroySentryCommandSent)
             {
-                _pendingPredictedDestroySentryTicksRemaining = GetRemainingBuildMenuCommandRetryInputTicks();
+                _pendingPredictedDestroySentryTicksRemaining = Math.Max(
+                    0,
+                    _pendingPredictedDestroySentryTicksRemaining - 1);
             }
 
             if (destroyDispenserCommandSent)
             {
-                _pendingPredictedDestroyDispenserTicksRemaining = GetRemainingBuildMenuCommandRetryInputTicks();
+                _pendingPredictedDestroyDispenserTicksRemaining = Math.Max(
+                    0,
+                    _pendingPredictedDestroyDispenserTicksRemaining - 1);
             }
         }
     }
@@ -323,13 +388,6 @@ public partial class Game1
         return _networkClient.Protocol64ModeEnabled
             ? 1
             : LegacyBuildMenuCommandRetryInputTicks;
-    }
-
-    private int GetRemainingBuildMenuCommandRetryInputTicks()
-    {
-        return _networkClient.Protocol64ModeEnabled
-            ? 0
-            : LegacyBuildMenuCommandRetryInputTicks - 1;
     }
 
     private void AcknowledgeLatchedPredictedInputs(uint lastProcessedInputSequence)

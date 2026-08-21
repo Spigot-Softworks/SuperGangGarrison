@@ -436,7 +436,7 @@ public sealed partial class SimulationWorld
         {
             foreach (var pad in _jumpPads)
             {
-                if (pad.Team == attacker.Team || !pad.IsBuilt || pad.IsDead) { continue; }
+                if (pad.IsNeutral || pad.Team == attacker.Team || !pad.IsBuilt || pad.IsDead) { continue; }
                 var distance = GetRayIntersectionDistanceWithJumpPad(originX, originY, directionX, directionY, pad, hitState.NearestDistance);
                 if (distance.HasValue)
                 {

@@ -10,6 +10,7 @@ namespace OpenGarrison.Client;
 public partial class Game1
 {
     private const float JumpPadBuildNoticeCost = 50f;
+    private const float DispenserBuildNoticeCost = 100f;
     private bool _buildMenuNumericInputConsumed;
     private bool _buildMenuSentrySelectionPressed;
     private bool _buildMenuDispenserSelectionPressed;
@@ -118,6 +119,7 @@ public partial class Game1
                 _buildMenuNumericInputConsumed = true;
                 _buildMenuDispenserSelectionPressed = true;
                 BeginClosingBuildMenu();
+                TryShowEngineerBuildResourceNotice(player, DispenserBuildNoticeCost);
             }
             else if (_buildMenuOpen && fourPressed)
             {
@@ -175,9 +177,8 @@ public partial class Game1
             return;
         }
 
-        if (GetPlayerMetal(player) < player.MaxMetal)
+        if (TryShowEngineerBuildResourceNotice(player, player.MaxMetal))
         {
-            ShowNotice(NoticeKind.NutsNBolts);
             return;
         }
 
@@ -194,6 +195,22 @@ public partial class Game1
         {
             return;
         }
+    }
+
+    private bool TryShowEngineerBuildResourceNotice(PlayerEntity player, float requiredMetal)
+    {
+        if (!IsEngineerBuildResourceInsufficient(GetPlayerMetal(player), requiredMetal))
+        {
+            return false;
+        }
+
+        ShowNotice(NoticeKind.NutsNBolts);
+        return true;
+    }
+
+    internal static bool IsEngineerBuildResourceInsufficient(float metal, float requiredMetal)
+    {
+        return metal < requiredMetal;
     }
 
     private bool HasLocalOwnedJumpPad()

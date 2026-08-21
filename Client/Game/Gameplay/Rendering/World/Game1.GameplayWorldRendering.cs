@@ -213,9 +213,11 @@ public partial class Game1
         {
             if (!TryDrawJumpPad(jumpPad, cameraPosition))
             {
-                var padColor = jumpPad.Team == PlayerTeam.Blue
-                    ? new Color(100, 160, 235)
-                    : new Color(220, 110, 90);
+                var padColor = jumpPad.IsNeutral
+                    ? new Color(175, 175, 175)
+                    : jumpPad.Team == PlayerTeam.Blue
+                        ? new Color(100, 160, 235)
+                        : new Color(220, 110, 90);
                 DrawScreenPixelRectangle(
                     GetWorldScreenPosition(jumpPad.X - JumpPadEntity.Width / 2f, jumpPad.Y - JumpPadEntity.Height / 2f, cameraPosition),
                     JumpPadEntity.Width,

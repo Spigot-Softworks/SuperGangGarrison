@@ -392,8 +392,13 @@ public partial class Game1
 
     private bool TryDrawJumpPad(JumpPadEntity jumpPad, Vector2 cameraPosition)
     {
-        var spriteName = jumpPad.Team == PlayerTeam.Blue ? "JumpPadBlue" : "JumpPadRed";
-        var buildSpriteName = jumpPad.Team == PlayerTeam.Blue ? "JumpPadBlueBuild" : "JumpPadRedBuild";
+        var isNeutral = jumpPad.IsNeutral;
+        var spriteName = isNeutral
+            ? JumpPadMetadata.SpriteName
+            : jumpPad.Team == PlayerTeam.Blue ? "JumpPadBlue" : "JumpPadRed";
+        var buildSpriteName = isNeutral
+            ? JumpPadMetadata.BuildSpriteName
+            : jumpPad.Team == PlayerTeam.Blue ? "JumpPadBlueBuild" : "JumpPadRedBuild";
         var renderPosition = RoundToSourcePixels(GetRenderPosition(jumpPad.Id, jumpPad.X, jumpPad.Y));
         var jumpPadRenderYOffset = jumpPad.HasLanded ? 10f : 0f;
 
@@ -408,8 +413,13 @@ public partial class Game1
             var buildProgress = (jumpPad.Health - JumpPadEntity.InitialHealth) / (float)(JumpPadEntity.MaxHealth - JumpPadEntity.InitialHealth);
             var buildFrame = (int)MathF.Floor(buildProgress * (buildSprite.Frames.Count - 1));
             buildFrame = Math.Clamp(buildFrame, 0, buildSprite.Frames.Count - 1);
+            var buildSpriteFrame = buildSprite.Frames[buildFrame];
+            if (isNeutral)
+            {
+                buildSpriteFrame = GetNeutralSpriteFrame(buildSpriteFrame);
+            }
             DrawLoadedSpriteFrame(
-                buildSprite.Frames[buildFrame],
+                buildSpriteFrame,
                 new Vector2(renderPosition.X - cameraPosition.X, renderPosition.Y + jumpPadRenderYOffset - cameraPosition.Y),
                 null,
                 Color.White,
@@ -432,9 +442,14 @@ public partial class Game1
         var frameIndex = animatedFrameCount > 0
             ? (int)((Environment.TickCount64 / millisecondsPerFrame) % animatedFrameCount)
             : 0;
+        var spriteFrame = sprite.Frames[frameIndex];
+        if (isNeutral)
+        {
+            spriteFrame = GetNeutralSpriteFrame(spriteFrame);
+        }
 
         DrawLoadedSpriteFrame(
-            sprite.Frames[frameIndex],
+            spriteFrame,
             new Vector2(renderPosition.X - cameraPosition.X, renderPosition.Y + jumpPadRenderYOffset - cameraPosition.Y),
             null,
             Color.White,
@@ -455,8 +470,13 @@ public partial class Game1
         }
 
         var frameIndex = Math.Clamp(gib.Team == PlayerTeam.Blue ? 1 : 0, 0, sprite.Frames.Count - 1);
+        var spriteFrame = sprite.Frames[frameIndex];
+        if (gib.Team == PlayerTeam.Neutral)
+        {
+            spriteFrame = GetNeutralSpriteFrame(spriteFrame);
+        }
         DrawLoadedSpriteFrame(
-            sprite.Frames[frameIndex],
+            spriteFrame,
             new Vector2(gib.X - cameraPosition.X, gib.Y - cameraPosition.Y),
             null,
             Color.White,

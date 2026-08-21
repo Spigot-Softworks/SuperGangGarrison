@@ -453,6 +453,7 @@ public sealed partial class SimulationWorld
         FriendlyDummy.Kill();
         _entities.Add(FriendlyDummy.Id, FriendlyDummy);
         ResetHealthPackSpawnsForLevel();
+        ResetJumpPadSpawnsForLevel();
     }
 
     public void ConfigureExperimentalGameplaySettings(ExperimentalGameplaySettings settings)

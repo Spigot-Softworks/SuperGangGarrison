@@ -80,6 +80,7 @@ public partial class Game1
             if (simulationTickCount > 0)
             {
                 ClearPendingSecondaryAbilityPress();
+                ClearPendingOfflineBuildMenuCommands();
             }
 
             FinalizeBotDiagnosticsFrame();

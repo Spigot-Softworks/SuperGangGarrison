@@ -37,6 +37,27 @@ public partial class Game1
             && !_networkClient.IsReplayConnection;
     }
 
+    // The world warmup is the visibility gate for a newly joined online session.
+    // It must not release while interpolation is still seeding its presentation
+    // histories; otherwise the first rendered frames can expose uninitialized
+    // remote-player presentation state even though an authoritative snapshot has
+    // already been applied.
+    internal static bool ShouldReleaseNetworkWorldWarmup(
+        bool hasAuthoritativeLocalPlayer,
+        bool fullSnapshotApplied,
+        int appliedSnapshotsAfterFull,
+        bool hasFreshRemotePlayerHistories,
+        bool hasQueuedAuthoritativeSnapshots,
+        bool interpolationWarmupActive)
+    {
+        return hasAuthoritativeLocalPlayer
+            && fullSnapshotApplied
+            && appliedSnapshotsAfterFull >= NetworkWorldWarmupMinimumAppliedSnapshotsAfterFull
+            && hasFreshRemotePlayerHistories
+            && !hasQueuedAuthoritativeSnapshots
+            && !interpolationWarmupActive;
+    }
+
     private void ObserveAppliedNetworkWorldSnapshot(SnapshotMessage snapshot, bool isServerFullSnapshot)
     {
         if (!IsNetworkWorldWarmupBlockingGameplay())
@@ -54,31 +75,16 @@ public partial class Game1
             _networkWorldWarmupAppliedSnapshotsAfterFull += 1;
         }
 
-        if (!HasAuthoritativeLocalPlayerForNetworkWorldWarmup())
-        {
-            ShowJoiningServerLoadingOverlay();
-            return;
-        }
-
-        if (!_networkWorldWarmupFullSnapshotApplied)
-        {
-            ShowJoiningServerLoadingOverlay();
-            return;
-        }
-
-        if (_networkWorldWarmupAppliedSnapshotsAfterFull < NetworkWorldWarmupMinimumAppliedSnapshotsAfterFull)
-        {
-            ShowJoiningServerLoadingOverlay();
-            return;
-        }
-
-        if (!HasFreshRemotePlayerHistoriesForCurrentWorld())
-        {
-            ShowJoiningServerLoadingOverlay();
-            return;
-        }
-
-        if (_queuedAuthoritativeSnapshots.Count > 0)
+        var hasAuthoritativeLocalPlayer = HasAuthoritativeLocalPlayerForNetworkWorldWarmup();
+        var hasFreshRemotePlayerHistories = hasAuthoritativeLocalPlayer
+            && HasFreshRemotePlayerHistoriesForCurrentWorld();
+        if (!ShouldReleaseNetworkWorldWarmup(
+                hasAuthoritativeLocalPlayer,
+                _networkWorldWarmupFullSnapshotApplied,
+                _networkWorldWarmupAppliedSnapshotsAfterFull,
+                hasFreshRemotePlayerHistories,
+                _queuedAuthoritativeSnapshots.Count > 0,
+                IsNetworkInterpolationWarmupActive()))
         {
             ShowJoiningServerLoadingOverlay();
             return;

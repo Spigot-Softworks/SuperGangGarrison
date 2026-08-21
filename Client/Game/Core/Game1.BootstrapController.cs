@@ -293,6 +293,11 @@ public partial class Game1
             _game._runtimeAssets?.Dispose();
             _game._rotatedWeaponSprites?.Dispose();
             _game._rotatedWeaponSprites = null;
+            foreach (var frame in _game._neutralSpriteFrameCache.Values)
+            {
+                frame.Dispose();
+            }
+            _game._neutralSpriteFrameCache.Clear();
             _game._browserAtlasTextureCache?.Dispose();
             _game._browserAtlasTextureCache = null;
             _game._browserBootstrapAtlasResolver = null;

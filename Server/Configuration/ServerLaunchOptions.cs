@@ -136,14 +136,12 @@ sealed class ServerLaunchOptions
         string? webSocketCertificatePath = null;
         string? webSocketCertificatePassword = null;
         string? publicWebSocketUrl = Environment.GetEnvironmentVariable("OPENGARRISON_PUBLIC_WEBSOCKET_URL");
-        string? publicQuicUrl = Environment.GetEnvironmentVariable("OPENGARRISON_PUBLIC_QUIC_URL");
+        // QUIC remains available in the source tree for later work, but is
+        // intentionally not exposed or advertised by the current UDP-first
+        // server package.
+        string? publicQuicUrl = null;
         var relayHostUrl = NormalizeRelayHostUrl(Environment.GetEnvironmentVariable("OPENGARRISON_RELAY_HOST_URL"));
         var quicPort = 0;
-        if (int.TryParse(Environment.GetEnvironmentVariable("OPENGARRISON_QUIC_PORT"), out var environmentQuicPort)
-            && environmentQuicPort is > 0 and <= 65535)
-        {
-            quicPort = environmentQuicPort;
-        }
         var snapshotBudgetMode = SnapshotBudgetModeParser.Parse(
             Environment.GetEnvironmentVariable("OPENGARRISON_SNAPSHOT_BUDGET_MODE"),
             settings.SnapshotBudgetMode);
@@ -624,11 +622,8 @@ sealed class ServerLaunchOptions
                     || string.Equals(arg, "--quic64-port", StringComparison.OrdinalIgnoreCase))
                 && index + 1 < args.Length)
             {
-                if (int.TryParse(args[index + 1], out var parsedQuicPort) && parsedQuicPort is > 0 and <= 65535)
-                {
-                    quicPort = parsedQuicPort;
-                }
-
+                // Reserved while QUIC is shelved; consume the value so old
+                // launch scripts do not shift the remaining arguments.
                 index += 1;
                 continue;
             }
@@ -638,7 +633,8 @@ sealed class ServerLaunchOptions
                     || string.Equals(arg, "--quic64-url", StringComparison.OrdinalIgnoreCase))
                 && index + 1 < args.Length)
             {
-                publicQuicUrl = NormalizePublicQuicUrl(args[index + 1]);
+                // Reserved while QUIC is shelved; consume the value without
+                // publishing a QUIC endpoint.
                 index += 1;
                 continue;
             }

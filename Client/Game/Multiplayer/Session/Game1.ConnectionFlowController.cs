@@ -397,21 +397,7 @@ public partial class Game1
             {
                 if (string.Equals(explicitUri.Scheme, "quic64", StringComparison.OrdinalIgnoreCase))
                 {
-                    var quicPort = explicitUri.IsDefaultPort ? port : explicitUri.Port;
-                    if (quicPort is <= 0 or > 65535)
-                    {
-                        return false;
-                    }
-
-                    var builder = new UriBuilder(explicitUri.Scheme, explicitUri.Host)
-                    {
-                        Port = quicPort,
-                        Path = string.Empty,
-                        Query = string.Empty,
-                        Fragment = string.Empty,
-                    };
-                    endpoint = new NetworkEndpoint(explicitUri.Host, 0, 0, QuicUrl: builder.Uri.ToString());
-                    return true;
+                    return false;
                 }
 
                 if (OperatingSystem.IsBrowser())

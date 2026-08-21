@@ -408,7 +408,7 @@ public sealed partial class SimulationWorld
         // Check jump pads
         foreach (var jumpPad in _jumpPads)
         {
-            if (jumpPad.IsDead || jumpPad.Team == grenade.Team)
+            if (jumpPad.IsNeutral || jumpPad.IsDead || jumpPad.Team == grenade.Team)
             {
                 continue;
             }
@@ -574,7 +574,7 @@ public sealed partial class SimulationWorld
         {
             var jumpPad = _jumpPads[jumpPadIndex];
             var distance = DistanceBetween(grenade.X, grenade.Y, jumpPad.X, jumpPad.Y);
-            if (distance >= GrenadeProjectileEntity.BlastRadius || jumpPad.Team == grenade.Team || jumpPad.IsDead)
+            if (distance >= GrenadeProjectileEntity.BlastRadius || jumpPad.IsNeutral || jumpPad.Team == grenade.Team || jumpPad.IsDead)
             {
                 continue;
             }
@@ -670,7 +670,7 @@ public sealed partial class SimulationWorld
         }
         else if (target is JumpPadEntity jumpPad)
         {
-            if (jumpPad.IsDead || jumpPad.Team == grenade.Team)
+            if (jumpPad.IsNeutral || jumpPad.IsDead || jumpPad.Team == grenade.Team)
             {
                 return;
             }

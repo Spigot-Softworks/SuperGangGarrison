@@ -81,6 +81,15 @@ public static class CustomMapBuilderEntityCatalog
             HealthPackMetadata.MediumStaticSpriteName,
             0),
         Define(
+            JumpPadMetadata.EntityType,
+            AllModes,
+            $"{JumpPadMetadata.NeutralTeamPropertyKey}={JumpPadMetadata.NeutralTeamPropertyValue}",
+            114,
+            "Neutral jump pad",
+            "Map-authored jump pad usable by both teams. Uses the normal engineer jump-pad animation, sound, and launch behavior.",
+            JumpPadMetadata.SpriteName,
+            0),
+        Define(
             TeleportMetadata.TeleportEntityType,
             AllModes,
             "xscale=1;yscale=1;team=all;teleportExit=",

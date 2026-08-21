@@ -7,19 +7,18 @@ namespace OpenGarrison.PluginHost.Tests;
 public sealed class NetworkEndpointTests
 {
     [Fact]
-    public void NativeSinglePortConnectionsPreferUdpAndRetainQuicFallback()
+    public void NativeSinglePortConnectionsUseOnlyUdp()
     {
         var endpoint = NetworkEndpoint.ForCurrentRuntimeSinglePort("127.0.0.1", 8190);
         var candidates = endpoint.GetConnectionCandidates();
 
-        Assert.NotEmpty(candidates);
-        Assert.Equal(NetworkEndpointTransport.Udp, candidates[0].Transport);
-        Assert.Equal(8190, candidates[0].Port);
-        Assert.Contains(candidates, candidate => candidate.Transport == NetworkEndpointTransport.Quic);
+        var candidate = Assert.Single(candidates);
+        Assert.Equal(NetworkEndpointTransport.Udp, candidate.Transport);
+        Assert.Equal(8190, candidate.Port);
     }
 
     [Fact]
-    public void NativeAdvertisedEndpointsTryUdpBeforeOtherFallbacks()
+    public void NativeAdvertisedEndpointsTryUdpThenWebSocketAndSkipQuic()
     {
         var endpoint = new NetworkEndpoint("127.0.0.1", 8190, 8191, QuicPort: 8192);
         var candidates = endpoint.GetConnectionCandidates();
@@ -28,12 +27,8 @@ public sealed class NetworkEndpointTests
             [
                 NetworkEndpointTransport.Udp,
                 NetworkEndpointTransport.WebSocket,
-                NetworkEndpointTransport.Quic,
             ],
             candidates.Select(candidate => candidate.Transport));
-
-        var quicCandidate = candidates.Single(candidate => candidate.Transport == NetworkEndpointTransport.Quic);
-        Assert.Equal("quic64://127.0.0.1", quicCandidate.Host);
-        Assert.Equal(8192, quicCandidate.Port);
+        Assert.DoesNotContain(candidates, candidate => candidate.Transport == NetworkEndpointTransport.Quic);
     }
 }
