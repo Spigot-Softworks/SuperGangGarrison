@@ -1,0 +1,4317 @@
+{
+  "formatVersion": 1,
+  "name": "cp_coldfront_js",
+  "scale": 2,
+  "visualScale": 2,
+  "backgroundImage": "background.png",
+  "walkmaskImage": "walkmask.png",
+  "metadata": {
+    "background": "ffffff",
+    "entity_schema": "modern",
+    "gameMode": "cp",
+    "void": "000000"
+  },
+  "entities": [
+    {
+      "type": "redteamgate",
+      "x": 498,
+      "y": 798,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "5ddbb7cb"
+      }
+    },
+    {
+      "type": "redteamgate",
+      "x": 498,
+      "y": 828,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "f3c7018a"
+      }
+    },
+    {
+      "type": "redteamgate",
+      "x": 492,
+      "y": 828,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "c680fe5d"
+      }
+    },
+    {
+      "type": "redteamgate",
+      "x": 486,
+      "y": 828,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "caa21bb4"
+      }
+    },
+    {
+      "type": "redteamgate",
+      "x": 486,
+      "y": 804,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "4e2ea872"
+      }
+    },
+    {
+      "type": "redteamgate",
+      "x": 492,
+      "y": 792,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "4f9a6d54"
+      }
+    },
+    {
+      "type": "redteamgate",
+      "x": 492,
+      "y": 792,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "d067ce6f"
+      }
+    },
+    {
+      "type": "redteamgate",
+      "x": 564,
+      "y": 504,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "9069b2af"
+      }
+    },
+    {
+      "type": "redteamgate",
+      "x": 552,
+      "y": 504,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "90a11a36"
+      }
+    },
+    {
+      "type": "redteamgate",
+      "x": 558,
+      "y": 504,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "e1dee148"
+      }
+    },
+    {
+      "type": "redteamgate",
+      "x": 552,
+      "y": 522,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "823ddf03"
+      }
+    },
+    {
+      "type": "redteamgate",
+      "x": 558,
+      "y": 522,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "e99ef766"
+      }
+    },
+    {
+      "type": "redteamgate",
+      "x": 564,
+      "y": 522,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "9c74f667"
+      }
+    },
+    {
+      "type": "medCabinet",
+      "x": 240,
+      "y": 840,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "7bbcb499"
+      }
+    },
+    {
+      "type": "medCabinet",
+      "x": 240,
+      "y": 810,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "e4ea3e74"
+      }
+    },
+    {
+      "type": "medCabinet",
+      "x": 264,
+      "y": 804,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "203e8bc0"
+      }
+    },
+    {
+      "type": "medCabinet",
+      "x": 276,
+      "y": 804,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "d1b568ef"
+      }
+    },
+    {
+      "type": "medCabinet",
+      "x": 276,
+      "y": 840,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "f9195daa"
+      }
+    },
+    {
+      "type": "medCabinet",
+      "x": 264,
+      "y": 846,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "b44a7b5f"
+      }
+    },
+    {
+      "type": "redspawn",
+      "x": 336,
+      "y": 858,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "959c9f23"
+      }
+    },
+    {
+      "type": "redspawn",
+      "x": 372,
+      "y": 858,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "bd5c1c9f"
+      }
+    },
+    {
+      "type": "redspawn",
+      "x": 408,
+      "y": 858,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "34f93957"
+      }
+    },
+    {
+      "type": "redspawn",
+      "x": 438,
+      "y": 858,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "3ed275d7"
+      }
+    },
+    {
+      "type": "redspawn1",
+      "x": 1098,
+      "y": 942,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "adeffb22"
+      }
+    },
+    {
+      "type": "redspawn1",
+      "x": 1128,
+      "y": 942,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "5020056f"
+      }
+    },
+    {
+      "type": "redspawn1",
+      "x": 1152,
+      "y": 942,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "f084b3a5"
+      }
+    },
+    {
+      "type": "blueteamgate",
+      "x": 5496,
+      "y": 798,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "260a1a88"
+      }
+    },
+    {
+      "type": "blueteamgate",
+      "x": 5496,
+      "y": 834,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "308c7be0"
+      }
+    },
+    {
+      "type": "blueteamgate",
+      "x": 5502,
+      "y": 834,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "41a1922f"
+      }
+    },
+    {
+      "type": "blueteamgate",
+      "x": 5502,
+      "y": 804,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "640b8623"
+      }
+    },
+    {
+      "type": "blueteamgate",
+      "x": 5508,
+      "y": 798,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "78eb235d"
+      }
+    },
+    {
+      "type": "blueteamgate",
+      "x": 5508,
+      "y": 834,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "472eeeff"
+      }
+    },
+    {
+      "type": "blueteamgate",
+      "x": 5430,
+      "y": 504,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "fff89c53"
+      }
+    },
+    {
+      "type": "blueteamgate",
+      "x": 5430,
+      "y": 522,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "2803e671"
+      }
+    },
+    {
+      "type": "blueteamgate",
+      "x": 5436,
+      "y": 522,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "937aaae7"
+      }
+    },
+    {
+      "type": "blueteamgate",
+      "x": 5436,
+      "y": 492,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "3d02f55a"
+      }
+    },
+    {
+      "type": "blueteamgate",
+      "x": 5436,
+      "y": 492,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "df8bb595"
+      }
+    },
+    {
+      "type": "blueteamgate",
+      "x": 5430,
+      "y": 498,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "453b6be0"
+      }
+    },
+    {
+      "type": "blueteamgate",
+      "x": 5442,
+      "y": 498,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "35f35327"
+      }
+    },
+    {
+      "type": "blueteamgate",
+      "x": 5442,
+      "y": 522,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "9dbc5558"
+      }
+    },
+    {
+      "type": "medCabinet",
+      "x": 5694,
+      "y": 840,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "26e2013f"
+      }
+    },
+    {
+      "type": "medCabinet",
+      "x": 5694,
+      "y": 804,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "dab882d1"
+      }
+    },
+    {
+      "type": "medCabinet",
+      "x": 5712,
+      "y": 804,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "7ef34508"
+      }
+    },
+    {
+      "type": "medCabinet",
+      "x": 5730,
+      "y": 804,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "c4e3cb55"
+      }
+    },
+    {
+      "type": "medCabinet",
+      "x": 5730,
+      "y": 822,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "5a291de8"
+      }
+    },
+    {
+      "type": "medCabinet",
+      "x": 5730,
+      "y": 840,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "2c46a2ca"
+      }
+    },
+    {
+      "type": "medCabinet",
+      "x": 5718,
+      "y": 840,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "803d9704"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5502,
+      "y": 792,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "a3a7e938"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5502,
+      "y": 822,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "d79a1f36"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5502,
+      "y": 846,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "5a2c7978"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5682,
+      "y": 852,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "91d940a7"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5718,
+      "y": 852,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "f94c1e6d"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5742,
+      "y": 840,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "2bacd447"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5748,
+      "y": 852,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "9676758e"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5760,
+      "y": 834,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "c7ee00e1"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5778,
+      "y": 816,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "80fed907"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5790,
+      "y": 798,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "8ee14c01"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5808,
+      "y": 774,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "1252217a"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5832,
+      "y": 756,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "76d23fde"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5850,
+      "y": 738,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "d401cfe2"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5844,
+      "y": 762,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "74cf2bfb"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5820,
+      "y": 786,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "bdd9b3a9"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5796,
+      "y": 828,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "b5383e3f"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5718,
+      "y": 816,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "ba7ab7f6"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5664,
+      "y": 816,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "5887e067"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5640,
+      "y": 816,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "240b3682"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5568,
+      "y": 816,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "1afa5ff6"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5532,
+      "y": 816,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "f111575b"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5604,
+      "y": 816,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "dd61e605"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5688,
+      "y": 816,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "e13570b8"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5742,
+      "y": 804,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "803887aa"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5742,
+      "y": 774,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "7fd885a8"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5712,
+      "y": 774,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "f07fea6a"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5664,
+      "y": 768,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "98dad31a"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5670,
+      "y": 774,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "18476109"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5646,
+      "y": 774,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "1ff10198"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5610,
+      "y": 768,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "a8fd1d64"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5604,
+      "y": 774,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "12d0f9c8"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5586,
+      "y": 774,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "1ae11518"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5544,
+      "y": 774,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "d68496f4"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5520,
+      "y": 774,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "b6fcc645"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5772,
+      "y": 774,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "2b4a7880"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5844,
+      "y": 714,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "49bcca39"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5838,
+      "y": 672,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "90366793"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5844,
+      "y": 672,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "078bd336"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5850,
+      "y": 648,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "80eadf94"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5850,
+      "y": 624,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "83cc82e3"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5856,
+      "y": 600,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "1bd4bcb1"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5850,
+      "y": 576,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "0f856bf8"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5814,
+      "y": 576,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "6443dbde"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5814,
+      "y": 606,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "a16369ed"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5814,
+      "y": 636,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "7e4e1ff0"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5814,
+      "y": 672,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "e5c14e36"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5814,
+      "y": 708,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "2fac142a"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5814,
+      "y": 726,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "c36009ff"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5808,
+      "y": 738,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "cb220b0d"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5784,
+      "y": 714,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "ef4aa36f"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5784,
+      "y": 684,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "498f1c72"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5784,
+      "y": 666,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "3faf36a1"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5784,
+      "y": 636,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "e27455db"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5778,
+      "y": 594,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "72a95103"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5778,
+      "y": 576,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "51964ff7"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5742,
+      "y": 576,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "302d694e"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5748,
+      "y": 594,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "731dcdfa"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5742,
+      "y": 624,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "8c2292de"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5748,
+      "y": 648,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "e9b284fc"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5748,
+      "y": 672,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "ebee753a"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5748,
+      "y": 696,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "eefdce7f"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5712,
+      "y": 648,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "4701be6b"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5712,
+      "y": 618,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "529606eb"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5712,
+      "y": 588,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "905e015c"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5712,
+      "y": 570,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "3e7b0fdd"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5442,
+      "y": 492,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "0705555e"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5442,
+      "y": 516,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "f765df34"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5442,
+      "y": 540,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "55cff9dd"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5460,
+      "y": 540,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "1b06aed4"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5472,
+      "y": 516,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "087a896c"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5472,
+      "y": 504,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "2745da54"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5496,
+      "y": 504,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "b78cad40"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5520,
+      "y": 510,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "9fc9aa8f"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5538,
+      "y": 528,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "0ba18f5f"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5562,
+      "y": 546,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "58bfd29b"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5580,
+      "y": 558,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "5fe1716f"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5616,
+      "y": 564,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "eae348ee"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5652,
+      "y": 570,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "21289adf"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5682,
+      "y": 570,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "c1a892f9"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5676,
+      "y": 594,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "f8f498be"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5676,
+      "y": 618,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "2c05345d"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5676,
+      "y": 642,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "5481dd76"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5664,
+      "y": 642,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "5431669d"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5640,
+      "y": 642,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "640cc294"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5616,
+      "y": 642,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "b64a262b"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5592,
+      "y": 642,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "5767ed79"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5580,
+      "y": 642,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "638c77dd"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5544,
+      "y": 618,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "b501319b"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5526,
+      "y": 600,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "8f20cc76"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5490,
+      "y": 564,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "970ad029"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5484,
+      "y": 540,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "b7ec0099"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5502,
+      "y": 534,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "5a9cb35d"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5514,
+      "y": 564,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "11ac075b"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5544,
+      "y": 576,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "9ca403a8"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5574,
+      "y": 600,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "b4f0b411"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5610,
+      "y": 600,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "b02e3dd1"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5640,
+      "y": 606,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "b084e381"
+      }
+    },
+    {
+      "type": "rightdoor",
+      "x": 4884,
+      "y": 564,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "0bad691d"
+      }
+    },
+    {
+      "type": "rightdoor",
+      "x": 4884,
+      "y": 576,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "d350dfc0"
+      }
+    },
+    {
+      "type": "rightdoor",
+      "x": 4890,
+      "y": 576,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "8b8d263b"
+      }
+    },
+    {
+      "type": "rightdoor",
+      "x": 4890,
+      "y": 564,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "2989380a"
+      }
+    },
+    {
+      "type": "leftdoor",
+      "x": 1104,
+      "y": 564,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "bbb978a0"
+      }
+    },
+    {
+      "type": "leftdoor",
+      "x": 1104,
+      "y": 576,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "5bea2929"
+      }
+    },
+    {
+      "type": "leftdoor",
+      "x": 1110,
+      "y": 576,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "42d4e9fd"
+      }
+    },
+    {
+      "type": "leftdoor",
+      "x": 1110,
+      "y": 558,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "e3bd8333"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 456,
+      "y": 852,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "f7d225de"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 456,
+      "y": 816,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "bea30525"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 450,
+      "y": 786,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "c5ed3188"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 444,
+      "y": 762,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "511c6861"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 408,
+      "y": 762,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "6a674977"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 366,
+      "y": 762,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "dd05f917"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 318,
+      "y": 756,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "7d0fd065"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 282,
+      "y": 756,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "258c1fb7"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 246,
+      "y": 756,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "47f2d0a3"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 198,
+      "y": 756,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "d3bd8a5c"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 336,
+      "y": 762,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "8f365acd"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 420,
+      "y": 792,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "34d22a49"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 420,
+      "y": 834,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "48d7e446"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 420,
+      "y": 852,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "ca857061"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 384,
+      "y": 846,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "54531ecb"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 354,
+      "y": 846,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "00a1b2e0"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 312,
+      "y": 840,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "4e8e6697"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 276,
+      "y": 846,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "607ae08c"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 324,
+      "y": 852,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "161290a0"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 264,
+      "y": 852,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "7c4b7488"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 294,
+      "y": 858,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "6c8d2b63"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 240,
+      "y": 852,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "fc84e1ed"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 204,
+      "y": 858,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "9edc504f"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 192,
+      "y": 846,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "3a5b726e"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 168,
+      "y": 822,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "cdb7cbd3"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 156,
+      "y": 804,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "738dbdd1"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 132,
+      "y": 786,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "773f0199"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 114,
+      "y": 774,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "73c57a9b"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 102,
+      "y": 756,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "d75c4221"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 162,
+      "y": 768,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "2fa8c1eb"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 210,
+      "y": 768,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "c4fad1be"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 174,
+      "y": 792,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "c84821e2"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 198,
+      "y": 816,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "dba24fda"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 204,
+      "y": 804,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "57ddf510"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 216,
+      "y": 816,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "988778a7"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 222,
+      "y": 792,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "5ebcdcaf"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 240,
+      "y": 816,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "73e880a8"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 252,
+      "y": 792,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "c6f46afd"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 270,
+      "y": 816,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "7393f8b3"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 276,
+      "y": 792,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "f03fcae5"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 294,
+      "y": 816,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "c10d3a71"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 312,
+      "y": 792,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "d69bb771"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 324,
+      "y": 822,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "4f5e0dd0"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 348,
+      "y": 792,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "4706a5da"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 360,
+      "y": 822,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "fe80c3ed"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 372,
+      "y": 798,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "e6b77f24"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 384,
+      "y": 816,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "bf489866"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 402,
+      "y": 798,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "4316f0af"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 138,
+      "y": 756,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "0dad12a2"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 120,
+      "y": 732,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "32828423"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 114,
+      "y": 714,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "f0838798"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 114,
+      "y": 696,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "f60c0130"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 120,
+      "y": 654,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "dad84cab"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 114,
+      "y": 648,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "f9ec12f2"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 114,
+      "y": 660,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "0f8505fa"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 114,
+      "y": 624,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "4e524805"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 114,
+      "y": 594,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "466eaea2"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 114,
+      "y": 582,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "bf5cd7a7"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 132,
+      "y": 570,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "5210ae60"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 162,
+      "y": 564,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "c89567d6"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 216,
+      "y": 570,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "4bc81c4e"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 240,
+      "y": 564,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "b425dfb4"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 288,
+      "y": 558,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "7852dcdf"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 312,
+      "y": 552,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "df17f42a"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 348,
+      "y": 552,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "eedb15ed"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 378,
+      "y": 552,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "6a47e962"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 408,
+      "y": 540,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "2e00d56b"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 414,
+      "y": 516,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "a4f6d318"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 444,
+      "y": 498,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "e1e23d2e"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 492,
+      "y": 498,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "645418a2"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 522,
+      "y": 498,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "59dd5baa"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 510,
+      "y": 534,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "0c0ed6e2"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 498,
+      "y": 528,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "0b1c3565"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 468,
+      "y": 504,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "717f87ac"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 474,
+      "y": 540,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "61ff0aa2"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 450,
+      "y": 564,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "47e3da6c"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 432,
+      "y": 588,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "a1468b94"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 408,
+      "y": 606,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "d9e15074"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 384,
+      "y": 612,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "574c7e90"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 396,
+      "y": 624,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "b256dd27"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 480,
+      "y": 570,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "619c65e1"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 444,
+      "y": 528,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "a152d9f7"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 408,
+      "y": 564,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "43a6a422"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 372,
+      "y": 588,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "3f8a391f"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 330,
+      "y": 582,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "327d5015"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 300,
+      "y": 582,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "c4669651"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 264,
+      "y": 564,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "23696b27"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 174,
+      "y": 570,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "37fc12b8"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 276,
+      "y": 594,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "a7ef8c57"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 216,
+      "y": 594,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "cf51272e"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 174,
+      "y": 600,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "e242cbc5"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 144,
+      "y": 606,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "a8a7ebbe"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 144,
+      "y": 636,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "ffbb7339"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 144,
+      "y": 672,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "78adc8d8"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 144,
+      "y": 708,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "aedf1d59"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 144,
+      "y": 732,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "f288c72f"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 168,
+      "y": 726,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "5146fc71"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 174,
+      "y": 702,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "895c5a56"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 180,
+      "y": 678,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "66bfa5ff"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 186,
+      "y": 654,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "6fb70e7f"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 186,
+      "y": 630,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "3f4979f2"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 246,
+      "y": 600,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "2c049fce"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 216,
+      "y": 630,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "72d1f8cb"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 198,
+      "y": 666,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "f7c8a632"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 192,
+      "y": 690,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "5ec6dd70"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 222,
+      "y": 672,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "3a33bba8"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 240,
+      "y": 642,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "791c51e2"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 246,
+      "y": 624,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "c61fedb7"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 294,
+      "y": 618,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "e81a4056"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 312,
+      "y": 612,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "2bb53c7f"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 348,
+      "y": 612,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "9c768160"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 384,
+      "y": 642,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "d5fc468a"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 354,
+      "y": 642,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "39325032"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 312,
+      "y": 642,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "33a25295"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 264,
+      "y": 642,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "fd52dc5b"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 270,
+      "y": 624,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "4f9cf53b"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 276,
+      "y": 648,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "bf94eedf"
+      }
+    },
+    {
+      "type": "controlPoint1",
+      "x": 663,
+      "y": 626,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "ff8c9bd3"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 636,
+      "y": 600,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "62e5210b"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 624,
+      "y": 576,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "c3858f50"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 660,
+      "y": 576,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "7f65aed9"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 660,
+      "y": 612,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "98356c2c"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 624,
+      "y": 612,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "e2191f2f"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 624,
+      "y": 648,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "6644731e"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 624,
+      "y": 660,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "b7d10b30"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 660,
+      "y": 660,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "78be7b20"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 660,
+      "y": 642,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "abf58603"
+      }
+    },
+    {
+      "type": "controlPoint2",
+      "x": 1617,
+      "y": 588,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "2a48533b"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 1596,
+      "y": 618,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "8c40222c"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 1596,
+      "y": 630,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "b70c2078"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 1578,
+      "y": 630,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "af2ea196"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 1578,
+      "y": 594,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "4ed45589"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 1578,
+      "y": 552,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "50d1993b"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 1614,
+      "y": 630,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "e86470b3"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 1614,
+      "y": 588,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "3babd421"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 1614,
+      "y": 552,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "6b5e6e97"
+      }
+    },
+    {
+      "type": "controlPoint4",
+      "x": 4384,
+      "y": 590,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "5095c1f8"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 4368,
+      "y": 600,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "308016b6"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 4380,
+      "y": 630,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "2c447223"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 4344,
+      "y": 630,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "68bff7e3"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 4344,
+      "y": 594,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "a0ebf1a4"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 4344,
+      "y": 552,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "289adb67"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 4380,
+      "y": 588,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "76761dcb"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 4380,
+      "y": 552,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "96f026d5"
+      }
+    },
+    {
+      "type": "controlPoint5",
+      "x": 5338,
+      "y": 628,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "459207f9"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 5316,
+      "y": 600,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "785b4c7c"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 5298,
+      "y": 576,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "c73fe2c5"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 5334,
+      "y": 576,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "ca446606"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 5334,
+      "y": 612,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "40d7ad7d"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 5334,
+      "y": 660,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "fd1a4bf7"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 5334,
+      "y": 642,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "1291a449"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 5298,
+      "y": 660,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "2c96bede"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 5298,
+      "y": 630,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "491ab95b"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 5304,
+      "y": 606,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "640fd896"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 5298,
+      "y": 606,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "c24adbb3"
+      }
+    },
+    {
+      "type": "blueteamgate",
+      "x": 4782,
+      "y": 912,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "a860e494"
+      }
+    },
+    {
+      "type": "blueteamgate",
+      "x": 4788,
+      "y": 888,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "df856d43"
+      }
+    },
+    {
+      "type": "blueteamgate",
+      "x": 4788,
+      "y": 912,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "5d074dd8"
+      }
+    },
+    {
+      "type": "blueteamgate",
+      "x": 4788,
+      "y": 918,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "9a85d67b"
+      }
+    },
+    {
+      "type": "blueteamgate",
+      "x": 4782,
+      "y": 918,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "d039498f"
+      }
+    },
+    {
+      "type": "blueteamgate",
+      "x": 4776,
+      "y": 912,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "7f233b82"
+      }
+    },
+    {
+      "type": "blueteamgate",
+      "x": 4776,
+      "y": 924,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "fb0c354a"
+      }
+    },
+    {
+      "type": "medCabinet",
+      "x": 4920,
+      "y": 900,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "352e0961"
+      }
+    },
+    {
+      "type": "medCabinet",
+      "x": 4920,
+      "y": 936,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "ad5cf95c"
+      }
+    },
+    {
+      "type": "medCabinet",
+      "x": 4944,
+      "y": 930,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "734f8a2e"
+      }
+    },
+    {
+      "type": "medCabinet",
+      "x": 4950,
+      "y": 936,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "cedf6c71"
+      }
+    },
+    {
+      "type": "medCabinet",
+      "x": 4950,
+      "y": 906,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "99213002"
+      }
+    },
+    {
+      "type": "medCabinet",
+      "x": 4950,
+      "y": 888,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "5f20ad87"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 4782,
+      "y": 876,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "855fcd4e"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 4782,
+      "y": 918,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "6ca83897"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 4782,
+      "y": 942,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "84431906"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 4794,
+      "y": 942,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "137aad8a"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 4926,
+      "y": 936,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "44879d4c"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 4956,
+      "y": 936,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "926bda0a"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 4896,
+      "y": 942,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "75163ef2"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 4974,
+      "y": 942,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "4790a9b3"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 4968,
+      "y": 912,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "0039b3b9"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 4968,
+      "y": 894,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "ceebb27e"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 4968,
+      "y": 876,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "63ce3a44"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 4956,
+      "y": 864,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "d3962a5f"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 4920,
+      "y": 858,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "98749a7a"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 4866,
+      "y": 864,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "540812f8"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 4830,
+      "y": 864,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "e0a42d24"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 4806,
+      "y": 864,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "de68416b"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 4794,
+      "y": 864,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "9a125c89"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 4908,
+      "y": 864,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "2a4a492b"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 4896,
+      "y": 882,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "dea4ac3e"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 4890,
+      "y": 900,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "bf70e3a5"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 4848,
+      "y": 900,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "46e4d1ac"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 4824,
+      "y": 900,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "962077dc"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 4812,
+      "y": 900,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "57eb0456"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 4932,
+      "y": 894,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "ca0c0cd9"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 4938,
+      "y": 948,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "5b07cbe3"
+      }
+    },
+    {
+      "type": "redteamgate",
+      "x": 1212,
+      "y": 912,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "6d4c3acc"
+      }
+    },
+    {
+      "type": "redteamgate",
+      "x": 1212,
+      "y": 888,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "37f63a90"
+      }
+    },
+    {
+      "type": "redteamgate",
+      "x": 1206,
+      "y": 906,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "af17075b"
+      }
+    },
+    {
+      "type": "redteamgate",
+      "x": 1206,
+      "y": 888,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "3819d3c6"
+      }
+    },
+    {
+      "type": "redteamgate",
+      "x": 1206,
+      "y": 924,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "f6e35477"
+      }
+    },
+    {
+      "type": "redteamgate",
+      "x": 1212,
+      "y": 924,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "5aae292c"
+      }
+    },
+    {
+      "type": "redteamgate",
+      "x": 1212,
+      "y": 924,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "75130fcc"
+      }
+    },
+    {
+      "type": "redteamgate",
+      "x": 1218,
+      "y": 906,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "723d57c7"
+      }
+    },
+    {
+      "type": "redteamgate",
+      "x": 1218,
+      "y": 930,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "f85f778d"
+      }
+    },
+    {
+      "type": "medCabinet",
+      "x": 1050,
+      "y": 930,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "ae6ec642"
+      }
+    },
+    {
+      "type": "medCabinet",
+      "x": 1050,
+      "y": 906,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "ce1a106e"
+      }
+    },
+    {
+      "type": "medCabinet",
+      "x": 1050,
+      "y": 894,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "e86a4fcf"
+      }
+    },
+    {
+      "type": "medCabinet",
+      "x": 1044,
+      "y": 888,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "d8bb5d05"
+      }
+    },
+    {
+      "type": "medCabinet",
+      "x": 1032,
+      "y": 894,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "4876358a"
+      }
+    },
+    {
+      "type": "medCabinet",
+      "x": 1020,
+      "y": 894,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "8e3e0e8b"
+      }
+    },
+    {
+      "type": "medCabinet",
+      "x": 1014,
+      "y": 900,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "281ff0c9"
+      }
+    },
+    {
+      "type": "medCabinet",
+      "x": 1014,
+      "y": 918,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "6637ce2d"
+      }
+    },
+    {
+      "type": "medCabinet",
+      "x": 1020,
+      "y": 930,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "935ff127"
+      }
+    },
+    {
+      "type": "medCabinet",
+      "x": 1026,
+      "y": 936,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "da06ef97"
+      }
+    },
+    {
+      "type": "medCabinet",
+      "x": 1014,
+      "y": 936,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "0bc49f7e"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 1176,
+      "y": 882,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "6eca7777"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 1176,
+      "y": 900,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "54ff8c46"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 1170,
+      "y": 930,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "5528454d"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 1170,
+      "y": 936,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "52986c7e"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 1128,
+      "y": 936,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "8aba16c9"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 1086,
+      "y": 936,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "ba335cbe"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 1056,
+      "y": 936,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "65b04a74"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 1020,
+      "y": 936,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "ef593ff2"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 996,
+      "y": 936,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "7abfb9f4"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 996,
+      "y": 906,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "a09715fd"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 1008,
+      "y": 900,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "73f0f559"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 1050,
+      "y": 900,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "32f3d5a0"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 1074,
+      "y": 900,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "e9f279fe"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 1104,
+      "y": 900,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "a715db19"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 1128,
+      "y": 900,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "af8d4443"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 1146,
+      "y": 900,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "277067df"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 1170,
+      "y": 858,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "0aebabdb"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 1134,
+      "y": 864,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "2efe4a85"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 1098,
+      "y": 864,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "6ccb8234"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 1056,
+      "y": 864,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "3111bcc4"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 1014,
+      "y": 864,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "f860821b"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 984,
+      "y": 864,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "82217540"
+      }
+    },
+    {
+      "type": "controlPoint3",
+      "x": 3001,
+      "y": 563,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "5426a2c2"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 2988,
+      "y": 594,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "26f62cc9"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 3000,
+      "y": 612,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "0c880d61"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 2958,
+      "y": 612,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "7e78372f"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 2958,
+      "y": 570,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "2844a1d8"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 2958,
+      "y": 528,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "baf1013d"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 3000,
+      "y": 576,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "80169a51"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 2994,
+      "y": 540,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "61282fd5"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 3000,
+      "y": 534,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "3efaf2f3"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 3000,
+      "y": 528,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "6a989ef0"
+      }
+    },
+    {
+      "type": "bluespawn1",
+      "x": 4890,
+      "y": 948,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "1a9efa1a"
+      }
+    },
+    {
+      "type": "bluespawn1",
+      "x": 4866,
+      "y": 948,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "9cb8ae21"
+      }
+    },
+    {
+      "type": "bluespawn1",
+      "x": 4830,
+      "y": 948,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "c7b339dd"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 4818,
+      "y": 936,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "d8b5d995"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 4842,
+      "y": 930,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "ef36d4d0"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 4860,
+      "y": 942,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "56ca246e"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 4878,
+      "y": 936,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "dbee758a"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 4848,
+      "y": 912,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "1fc46609"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 4872,
+      "y": 906,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "e22a3265"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 4806,
+      "y": 912,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "206c7023"
+      }
+    },
+    {
+      "type": "bluespawn",
+      "x": 5550,
+      "y": 852,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "8764434f"
+      }
+    },
+    {
+      "type": "bluespawn",
+      "x": 5586,
+      "y": 852,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "a892deed"
+      }
+    },
+    {
+      "type": "bluespawn",
+      "x": 5616,
+      "y": 852,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "12e831b5"
+      }
+    },
+    {
+      "type": "bluespawn",
+      "x": 5640,
+      "y": 852,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "d7600a2f"
+      }
+    },
+    {
+      "type": "bluespawn",
+      "x": 5664,
+      "y": 846,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "dbe54911"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5544,
+      "y": 828,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "3b298468"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5532,
+      "y": 834,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "9157d3d2"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5538,
+      "y": 852,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "172cbf91"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5568,
+      "y": 846,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "8bff75b9"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5574,
+      "y": 840,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "7836d49c"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5586,
+      "y": 852,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "0b3d85b1"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5622,
+      "y": 840,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "20378e22"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5652,
+      "y": 840,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "4fe21e72"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5646,
+      "y": 828,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "ecd9af4a"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5610,
+      "y": 822,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "a4aeac5c"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5610,
+      "y": 852,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "8a7b646a"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5640,
+      "y": 852,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "b6616722"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5646,
+      "y": 846,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "38ac70d0"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5556,
+      "y": 816,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "8a3693ec"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 5604,
+      "y": 810,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "42d630ab"
+      }
+    }
+  ],
+  "resources": [
+    {
+      "name": "bg_foreground",
+      "kind": "foreground",
+      "path": "bg_foreground.png"
+    },
+    {
+      "name": "bg_layer0",
+      "kind": "parallaxLayer",
+      "path": "bg_layer0.png"
+    },
+    {
+      "name": "bg_layer1",
+      "kind": "parallaxLayer",
+      "path": "bg_layer1.png"
+    }
+  ],
+  "parallaxLayers": [
+    {
+      "index": 0,
+      "resourceName": "bg_layer0",
+      "xFactor": 0,
+      "yFactor": 5
+    },
+    {
+      "index": 1,
+      "resourceName": "bg_layer1",
+      "xFactor": 4.8,
+      "yFactor": 4.8
+    }
+  ]
+}
