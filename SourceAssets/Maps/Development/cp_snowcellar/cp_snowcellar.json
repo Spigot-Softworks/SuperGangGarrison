@@ -1,0 +1,1298 @@
+{
+  "formatVersion": 1,
+  "name": "cp_snowcellar",
+  "scale": 3,
+  "visualScale": 3,
+  "backgroundImage": "background.png",
+  "walkmaskImage": "walkmask.png",
+  "metadata": {
+    "background": "ffffff",
+    "blueStartingScore": "0",
+    "entity_schema": "modern",
+    "gameMode": "adcp",
+    "overrideInitialCps": "false",
+    "redStartingScore": "0",
+    "roundEndWin": "morePoints",
+    "scoreToWin": "10",
+    "showCps": "false",
+    "void": "000000",
+    "winWhenScore": "moreEqual"
+  },
+  "entities": [
+    {
+      "type": "spawn",
+      "x": 1000.5,
+      "y": 1679.5,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "forward": "false",
+        "linkObjective": "controlPoint1",
+        "mapEntityId": "a5cce641",
+        "priority": "1",
+        "team": "red",
+        "useWhen": "owned"
+      }
+    },
+    {
+      "type": "spawn",
+      "x": 1045.5,
+      "y": 1679.5,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "forward": "false",
+        "linkObjective": "controlPoint1",
+        "mapEntityId": "297c1944",
+        "priority": "1",
+        "team": "red",
+        "useWhen": "owned"
+      }
+    },
+    {
+      "type": "spawn",
+      "x": 1083,
+      "y": 1679.5,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "forward": "false",
+        "linkObjective": "controlPoint1",
+        "mapEntityId": "a4aa91b3",
+        "priority": "1",
+        "team": "red",
+        "useWhen": "owned"
+      }
+    },
+    {
+      "type": "spawn",
+      "x": 1125,
+      "y": 1678,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "forward": "false",
+        "linkObjective": "controlPoint1",
+        "mapEntityId": "6b40b7cf",
+        "priority": "1",
+        "team": "red",
+        "useWhen": "owned"
+      }
+    },
+    {
+      "type": "spawn",
+      "x": 1168.5,
+      "y": 1678,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "forward": "false",
+        "linkObjective": "controlPoint1",
+        "mapEntityId": "cbeb763f",
+        "priority": "1",
+        "team": "red",
+        "useWhen": "owned"
+      }
+    },
+    {
+      "type": "spawn",
+      "x": 1207.5,
+      "y": 1678,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "forward": "false",
+        "linkObjective": "controlPoint1",
+        "mapEntityId": "3453900c",
+        "priority": "1",
+        "team": "red",
+        "useWhen": "owned"
+      }
+    },
+    {
+      "type": "medCabinet",
+      "x": 1246.5,
+      "y": 1656,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "heal": "true",
+        "mapEntityId": "90009597",
+        "refill": "true",
+        "uber": "false"
+      }
+    },
+    {
+      "type": "barrier",
+      "x": 1311,
+      "y": 1617,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "blueIntel": "block",
+        "bluePlayers": "block",
+        "blueShots": "block",
+        "mapEntityId": "cf4e0a31",
+        "redIntel": "block",
+        "redPlayers": "allow",
+        "redShots": "block"
+      }
+    },
+    {
+      "type": "barrier",
+      "x": 1311,
+      "y": 1659,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "blueIntel": "block",
+        "bluePlayers": "block",
+        "blueShots": "block",
+        "mapEntityId": "3a645ac3",
+        "redIntel": "block",
+        "redPlayers": "allow",
+        "redShots": "block"
+      }
+    },
+    {
+      "type": "barrier",
+      "x": 1311,
+      "y": 1701,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "blueIntel": "block",
+        "bluePlayers": "block",
+        "blueShots": "block",
+        "mapEntityId": "8eb750dc",
+        "redIntel": "block",
+        "redPlayers": "allow",
+        "redShots": "block"
+      }
+    },
+    {
+      "type": "barrier",
+      "x": 1765.5,
+      "y": 1725,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "blueIntel": "block",
+        "bluePlayers": "block",
+        "blueShots": "block",
+        "mapEntityId": "8f8278f9",
+        "redIntel": "block",
+        "redPlayers": "allow",
+        "redShots": "block"
+      }
+    },
+    {
+      "type": "barrier",
+      "x": 1765.5,
+      "y": 1767,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "blueIntel": "block",
+        "bluePlayers": "block",
+        "blueShots": "block",
+        "mapEntityId": "07d4caad",
+        "redIntel": "block",
+        "redPlayers": "allow",
+        "redShots": "block"
+      }
+    },
+    {
+      "type": "barrier",
+      "x": 1765.5,
+      "y": 1809,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "blueIntel": "block",
+        "bluePlayers": "block",
+        "blueShots": "block",
+        "mapEntityId": "671c83bf",
+        "redIntel": "block",
+        "redPlayers": "allow",
+        "redShots": "block"
+      }
+    },
+    {
+      "type": "barrier",
+      "x": 1767,
+      "y": 1509,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "blueIntel": "block",
+        "bluePlayers": "block",
+        "blueShots": "block",
+        "mapEntityId": "2dfb28c0",
+        "redIntel": "block",
+        "redPlayers": "allow",
+        "redShots": "block"
+      }
+    },
+    {
+      "type": "barrier",
+      "x": 1767,
+      "y": 1551,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "blueIntel": "block",
+        "bluePlayers": "block",
+        "blueShots": "block",
+        "mapEntityId": "0763947b",
+        "redIntel": "block",
+        "redPlayers": "allow",
+        "redShots": "block"
+      }
+    },
+    {
+      "type": "barrier",
+      "x": 1767,
+      "y": 1593,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "blueIntel": "block",
+        "bluePlayers": "block",
+        "blueShots": "block",
+        "mapEntityId": "d2d8c40d",
+        "redIntel": "block",
+        "redPlayers": "allow",
+        "redShots": "block"
+      }
+    },
+    {
+      "type": "medCabinet",
+      "x": 1594.5,
+      "y": 1776,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "heal": "true",
+        "mapEntityId": "4b77cd3b",
+        "refill": "true",
+        "uber": "false"
+      }
+    },
+    {
+      "type": "controlPoint",
+      "x": 2883,
+      "y": 1533,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "capTimeMultiplier": "1",
+        "index": "1",
+        "mapEntityId": "14265403"
+      }
+    },
+    {
+      "type": "controlPoint",
+      "x": 5208,
+      "y": 1396.5,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "capTimeMultiplier": "2",
+        "index": "2",
+        "mapEntityId": "207f5482"
+      }
+    },
+    {
+      "type": "controlPoint",
+      "x": 7263,
+      "y": 958.5,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "capTimeMultiplier": "1",
+        "index": "3",
+        "mapEntityId": "8246ce1f"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 2806.5,
+      "y": 1603.5,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "d967adb6"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 2847,
+      "y": 1603.5,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "f09ada22"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 2887.5,
+      "y": 1603.5,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "e1d7f0a7"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 2910,
+      "y": 1603.5,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "0d028d07"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 2910,
+      "y": 1561.5,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "1897be87"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 2868,
+      "y": 1561.5,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "847d440d"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 2826,
+      "y": 1561.5,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "15e42ab0"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 2806.5,
+      "y": 1561.5,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "9c39b157"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 2806.5,
+      "y": 1521,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "b5a3e95a"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 2847,
+      "y": 1521,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "45143052"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 2887.5,
+      "y": 1521,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "ad5d6de2"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 2910,
+      "y": 1521,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "d97ed627"
+      }
+    },
+    {
+      "type": "barrier",
+      "x": 5071.5,
+      "y": 1545,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "blueIntel": "block",
+        "bluePlayers": "block",
+        "blueShots": "allow",
+        "mapEntityId": "ece7f3ae",
+        "redIntel": "block",
+        "redPlayers": "block",
+        "redShots": "allow"
+      }
+    },
+    {
+      "type": "barrier",
+      "x": 5103,
+      "y": 1545,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "blueIntel": "block",
+        "bluePlayers": "block",
+        "blueShots": "allow",
+        "mapEntityId": "ab494957",
+        "redIntel": "block",
+        "redPlayers": "block",
+        "redShots": "allow"
+      }
+    },
+    {
+      "type": "barrier",
+      "x": 5325,
+      "y": 1545,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "blueIntel": "block",
+        "bluePlayers": "block",
+        "blueShots": "allow",
+        "mapEntityId": "344ae8cd",
+        "redIntel": "block",
+        "redPlayers": "block",
+        "redShots": "allow"
+      }
+    },
+    {
+      "type": "barrier",
+      "x": 5367,
+      "y": 1545,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "blueIntel": "block",
+        "bluePlayers": "block",
+        "blueShots": "allow",
+        "mapEntityId": "d245f173",
+        "redIntel": "block",
+        "redPlayers": "block",
+        "redShots": "allow"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 5136,
+      "y": 1470,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "4ad79ec0"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 5178,
+      "y": 1470,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "5ccc58ed"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 5220,
+      "y": 1470,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "ea404323"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 5238,
+      "y": 1470,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "e6780eed"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 5238,
+      "y": 1428,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "37f37eb8"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 5238,
+      "y": 1386,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "f062e184"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 5238,
+      "y": 1344,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "7307344f"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 5197.5,
+      "y": 1428,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "10e9d29c"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 5155.5,
+      "y": 1428,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "3e002324"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 5136,
+      "y": 1428,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "cab89e5b"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 5136,
+      "y": 1386,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "4f92206a"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 5136,
+      "y": 1344,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "fa4072da"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 5178,
+      "y": 1344,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "6bd349a2"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 5208,
+      "y": 1344,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "ecbd7b39"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 5178,
+      "y": 1386,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "cd62f3bb"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 5209.5,
+      "y": 1386,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "645b2ca5"
+      }
+    },
+    {
+      "type": "SetupGate",
+      "x": 1755,
+      "y": 1704,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "3c5749d6"
+      }
+    },
+    {
+      "type": "SetupGate",
+      "x": 1755,
+      "y": 1735.5,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "09c2c13c"
+      }
+    },
+    {
+      "type": "SetupGate",
+      "x": 1755,
+      "y": 1765.5,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "6e639e34"
+      }
+    },
+    {
+      "type": "SetupGate",
+      "x": 1755,
+      "y": 1792.5,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "2a67ffa8"
+      }
+    },
+    {
+      "type": "SetupGate",
+      "x": 1755,
+      "y": 1551,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "824fa598"
+      }
+    },
+    {
+      "type": "SetupGate",
+      "x": 1755,
+      "y": 1519.5,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "9e9094ab"
+      }
+    },
+    {
+      "type": "SetupGate",
+      "x": 1755,
+      "y": 1488,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "87f7f021"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 7194,
+      "y": 1026,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "86f65537"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 7236,
+      "y": 1026,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "4e8e202b"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 7278,
+      "y": 1026,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "03bd8594"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 7296,
+      "y": 1026,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "bfaf86b0"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 7296,
+      "y": 984,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "50985c14"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 7255.5,
+      "y": 984,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "2c74e462"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 7213.5,
+      "y": 984,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "de00e0cd"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 7194,
+      "y": 984,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "b7ce16bd"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 7194,
+      "y": 942,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "3c46e652"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 7236,
+      "y": 942,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "721e0127"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 7278,
+      "y": 942,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "2be989b1"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 7296,
+      "y": 942,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "fbe274dc"
+      }
+    },
+    {
+      "type": "spawn",
+      "x": 7897.5,
+      "y": 512.5,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "forward": "false",
+        "mapEntityId": "e14d6483",
+        "team": "blue"
+      }
+    },
+    {
+      "type": "spawn",
+      "x": 7927.5,
+      "y": 511,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "forward": "false",
+        "mapEntityId": "4abfa1c5",
+        "team": "blue"
+      }
+    },
+    {
+      "type": "spawn",
+      "x": 7966.5,
+      "y": 511,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "forward": "false",
+        "mapEntityId": "2f8f5f31",
+        "team": "blue"
+      }
+    },
+    {
+      "type": "spawn",
+      "x": 8118,
+      "y": 511,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "forward": "false",
+        "mapEntityId": "c5b1894d",
+        "team": "blue"
+      }
+    },
+    {
+      "type": "spawn",
+      "x": 8152.5,
+      "y": 511,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "forward": "false",
+        "mapEntityId": "eb86389e",
+        "team": "blue"
+      }
+    },
+    {
+      "type": "spawn",
+      "x": 8179.5,
+      "y": 511,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "forward": "false",
+        "mapEntityId": "14287f55",
+        "team": "blue"
+      }
+    },
+    {
+      "type": "spawn",
+      "x": 7890,
+      "y": 643,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "forward": "false",
+        "mapEntityId": "e25a4a2e",
+        "team": "blue"
+      }
+    },
+    {
+      "type": "spawn",
+      "x": 7918.5,
+      "y": 644.5,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "forward": "false",
+        "mapEntityId": "653636f2",
+        "team": "blue"
+      }
+    },
+    {
+      "type": "spawn",
+      "x": 7953,
+      "y": 644.5,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "forward": "false",
+        "mapEntityId": "3bafdae7",
+        "team": "blue"
+      }
+    },
+    {
+      "type": "barrier",
+      "x": 7965,
+      "y": 765,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "blueIntel": "block",
+        "bluePlayers": "allow",
+        "blueShots": "block",
+        "mapEntityId": "7a16f8ac",
+        "redIntel": "block",
+        "redPlayers": "block",
+        "redShots": "block"
+      }
+    },
+    {
+      "type": "barrier",
+      "x": 7965,
+      "y": 807,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "blueIntel": "block",
+        "bluePlayers": "allow",
+        "blueShots": "block",
+        "mapEntityId": "73ef5c85",
+        "redIntel": "block",
+        "redPlayers": "block",
+        "redShots": "block"
+      }
+    },
+    {
+      "type": "barrier",
+      "x": 8164.5,
+      "y": 951,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "blueIntel": "block",
+        "bluePlayers": "allow",
+        "blueShots": "block",
+        "mapEntityId": "eb31238d",
+        "redIntel": "block",
+        "redPlayers": "block",
+        "redShots": "block"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 946.5,
+      "y": 1507.5,
+      "xScale": 8.535714,
+      "yScale": 5.321429,
+      "properties": {
+        "mapEntityId": "5506fd8d"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 1303.5,
+      "y": 1423.5,
+      "xScale": 10.892858,
+      "yScale": 9.892858,
+      "properties": {
+        "mapEntityId": "e07a200c"
+      }
+    },
+    {
+      "type": "medCabinet",
+      "x": 7989,
+      "y": 624,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "heal": "true",
+        "mapEntityId": "f6ace92b",
+        "refill": "true",
+        "uber": "false"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 7860,
+      "y": 375,
+      "xScale": 8.071428,
+      "yScale": 7.678571,
+      "properties": {
+        "mapEntityId": "83b0e514"
+      }
+    },
+    {
+      "type": "teleport",
+      "x": 6105,
+      "y": 1503,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "edb07103",
+        "team": "all",
+        "teleportExit": "entity:teleportExit@id:d6f8618b"
+      }
+    },
+    {
+      "type": "teleport",
+      "x": 6105,
+      "y": 1461,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "92f42e7e",
+        "team": "all",
+        "teleportExit": "entity:teleportExit@id:d6f8618b"
+      }
+    },
+    {
+      "type": "teleport",
+      "x": 6105,
+      "y": 1419,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "995b3c86",
+        "team": "all",
+        "teleportExit": "entity:teleportExit@id:d6f8618b"
+      }
+    },
+    {
+      "type": "teleport",
+      "x": 6105,
+      "y": 1377,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "5332383a",
+        "team": "all",
+        "teleportExit": "entity:teleportExit@id:d6f8618b"
+      }
+    },
+    {
+      "type": "teleportExit",
+      "x": 6015,
+      "y": 1012.5,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "d6f8618b"
+      }
+    },
+    {
+      "type": "healthPack",
+      "x": 5582.5,
+      "y": 1609,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "9652469e",
+        "respawnSeconds": "10",
+        "size": "small"
+      }
+    },
+    {
+      "type": "healthPack",
+      "x": 4248,
+      "y": 1446,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "e3978774",
+        "respawnSeconds": "10",
+        "size": "medium"
+      }
+    },
+    {
+      "type": "healthPack",
+      "x": 2497,
+      "y": 1474,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "918bce49",
+        "respawnSeconds": "10",
+        "size": "medium"
+      }
+    },
+    {
+      "type": "healthPack",
+      "x": 5580,
+      "y": 1440,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "d8ec3292",
+        "respawnSeconds": "10",
+        "size": "small"
+      }
+    },
+    {
+      "type": "barrier",
+      "x": 5085,
+      "y": 1545,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "blueIntel": "block",
+        "bluePlayers": "block",
+        "blueShots": "allow",
+        "mapEntityId": "7637c773",
+        "redIntel": "block",
+        "redPlayers": "block",
+        "redShots": "allow"
+      }
+    },
+    {
+      "type": "barrier",
+      "x": 5133,
+      "y": 1545,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "blueIntel": "block",
+        "bluePlayers": "block",
+        "blueShots": "allow",
+        "mapEntityId": "00d2c3a2",
+        "redIntel": "block",
+        "redPlayers": "block",
+        "redShots": "allow"
+      }
+    },
+    {
+      "type": "barrier",
+      "x": 5301,
+      "y": 1545,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "blueIntel": "block",
+        "bluePlayers": "block",
+        "blueShots": "allow",
+        "mapEntityId": "8a9561f8",
+        "redIntel": "block",
+        "redPlayers": "block",
+        "redShots": "allow"
+      }
+    },
+    {
+      "type": "barrier",
+      "x": 5352,
+      "y": 1545,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "blueIntel": "block",
+        "bluePlayers": "block",
+        "blueShots": "allow",
+        "mapEntityId": "d3909b7d",
+        "redIntel": "block",
+        "redPlayers": "block",
+        "redShots": "allow"
+      }
+    },
+    {
+      "type": "barrier",
+      "x": 7965,
+      "y": 885,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "blueIntel": "block",
+        "bluePlayers": "allow",
+        "blueShots": "block",
+        "mapEntityId": "708eda78",
+        "redIntel": "block",
+        "redPlayers": "block",
+        "redShots": "block"
+      }
+    },
+    {
+      "type": "barrier",
+      "x": 7965,
+      "y": 927,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "blueIntel": "block",
+        "bluePlayers": "allow",
+        "blueShots": "block",
+        "mapEntityId": "b3ca7c89",
+        "redIntel": "block",
+        "redPlayers": "block",
+        "redShots": "block"
+      }
+    },
+    {
+      "type": "barrier",
+      "x": 7857,
+      "y": 609,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "blueIntel": "block",
+        "bluePlayers": "allow",
+        "blueShots": "block",
+        "mapEntityId": "8a34f741",
+        "redIntel": "block",
+        "redPlayers": "block",
+        "redShots": "block"
+      }
+    },
+    {
+      "type": "barrier",
+      "x": 7857,
+      "y": 651,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "blueIntel": "block",
+        "bluePlayers": "allow",
+        "blueShots": "block",
+        "mapEntityId": "d39d867d",
+        "redIntel": "block",
+        "redPlayers": "block",
+        "redShots": "block"
+      }
+    },
+    {
+      "type": "SetupGate",
+      "x": 1755,
+      "y": 1680,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "f37fb565"
+      }
+    }
+  ],
+  "resources": [],
+  "parallaxLayers": []
+}

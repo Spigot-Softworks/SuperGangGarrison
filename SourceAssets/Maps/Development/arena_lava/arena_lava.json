@@ -1,0 +1,403 @@
+{
+  "formatVersion": 1,
+  "name": "arena_lava",
+  "scale": 6,
+  "visualScale": 6,
+  "backgroundImage": "background.png",
+  "walkmaskImage": "walkmask.png",
+  "metadata": {
+    "background": "ffffff",
+    "blueStartingScore": "0",
+    "entity_schema": "modern",
+    "gameMode": "koth",
+    "movementMode": "topdown",
+    "overrideInitialCps": "false",
+    "redStartingScore": "0",
+    "roundEndWin": "morePoints",
+    "scoreToWin": "10",
+    "showCps": "false",
+    "void": "000000",
+    "winWhenScore": "moreEqual"
+  },
+  "entities": [
+    {
+      "type": "spawn",
+      "x": 1938,
+      "y": 3448,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "forward": "false",
+        "mapEntityId": "ffd42419",
+        "team": "red"
+      }
+    },
+    {
+      "type": "spawn",
+      "x": 1926,
+      "y": 187,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "forward": "false",
+        "mapEntityId": "621febe5",
+        "team": "blue"
+      }
+    },
+    {
+      "type": "ArenaControlPoint",
+      "x": 1923,
+      "y": 1923,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "capTimeMultiplier": "1",
+        "initialOwner": "modeDefault",
+        "mapEntityId": "65ea9d67"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 1671,
+      "y": 1674,
+      "xScale": 11.214286,
+      "yScale": 11,
+      "properties": {
+        "mapEntityId": "c45c4391"
+      }
+    },
+    {
+      "type": "firebox",
+      "x": 2079,
+      "y": 2163,
+      "xScale": 0.25,
+      "yScale": 0.25,
+      "properties": {
+        "mapEntityId": "9e7a8561"
+      }
+    },
+    {
+      "type": "firebox",
+      "x": 1785,
+      "y": 2133,
+      "xScale": 7.357143,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "a5239d8d"
+      }
+    },
+    {
+      "type": "firebox",
+      "x": 1653,
+      "y": 1755,
+      "xScale": 4.785714,
+      "yScale": 7.928571,
+      "properties": {
+        "mapEntityId": "42a89974"
+      }
+    },
+    {
+      "type": "firebox",
+      "x": 1716,
+      "y": 2097,
+      "xScale": 3.2142856,
+      "yScale": 1.8571428,
+      "properties": {
+        "mapEntityId": "f35a5df5"
+      }
+    },
+    {
+      "type": "firebox",
+      "x": 1713,
+      "y": 2028,
+      "xScale": 3.642857,
+      "yScale": 2.2142856,
+      "properties": {
+        "mapEntityId": "1d8dbaeb"
+      }
+    },
+    {
+      "type": "firebox",
+      "x": 1692,
+      "y": 1692,
+      "xScale": 10.571428,
+      "yScale": 10.428572,
+      "properties": {
+        "mapEntityId": "09b4fdfc"
+      }
+    },
+    {
+      "type": "firebox",
+      "x": 1755,
+      "y": 1653,
+      "xScale": 7.857143,
+      "yScale": 1.1428572,
+      "properties": {
+        "mapEntityId": "76fda8e3"
+      }
+    },
+    {
+      "type": "firebox",
+      "x": 2112,
+      "y": 1692,
+      "xScale": 0.25,
+      "yScale": 6.428571,
+      "properties": {
+        "mapEntityId": "a9118a63"
+      }
+    },
+    {
+      "type": "firebox",
+      "x": 2142,
+      "y": 1749,
+      "xScale": 0.85714287,
+      "yScale": 7.785714,
+      "properties": {
+        "mapEntityId": "207544b2"
+      }
+    },
+    {
+      "type": "firebox",
+      "x": 2124,
+      "y": 2070,
+      "xScale": 1,
+      "yScale": 0.9285714,
+      "properties": {
+        "mapEntityId": "d1c199c1"
+      }
+    },
+    {
+      "type": "firebox",
+      "x": 2064,
+      "y": 2118,
+      "xScale": 1.4285715,
+      "yScale": 0.85714287,
+      "properties": {
+        "mapEntityId": "fab6b23e"
+      }
+    },
+    {
+      "type": "firebox",
+      "x": 2058,
+      "y": 2178,
+      "xScale": 0.25,
+      "yScale": 0.25,
+      "properties": {
+        "mapEntityId": "25835e46"
+      }
+    },
+    {
+      "type": "firebox",
+      "x": 1980,
+      "y": 2181,
+      "xScale": 2.4285715,
+      "yScale": 0.25,
+      "properties": {
+        "mapEntityId": "38ca8b8b"
+      }
+    },
+    {
+      "type": "firebox",
+      "x": 1764,
+      "y": 2166,
+      "xScale": 6.928571,
+      "yScale": 0.5,
+      "properties": {
+        "mapEntityId": "364177f5"
+      }
+    },
+    {
+      "type": "firebox",
+      "x": 9,
+      "y": 2247,
+      "xScale": 35.785713,
+      "yScale": 37.07143,
+      "properties": {
+        "mapEntityId": "95863516"
+      }
+    },
+    {
+      "type": "firebox",
+      "x": 1506,
+      "y": 2295,
+      "xScale": 2.0714285,
+      "yScale": 36.142857,
+      "properties": {
+        "mapEntityId": "bfd26758"
+      }
+    },
+    {
+      "type": "firebox",
+      "x": -9,
+      "y": 3762,
+      "xScale": 38.642857,
+      "yScale": 2.0714285,
+      "properties": {
+        "mapEntityId": "eceec930"
+      }
+    },
+    {
+      "type": "firebox",
+      "x": 2616,
+      "y": 2490,
+      "xScale": 0.35714287,
+      "yScale": 0.42857143,
+      "properties": {
+        "mapEntityId": "cae276b7"
+      }
+    },
+    {
+      "type": "firebox",
+      "x": 2283,
+      "y": 2292,
+      "xScale": 31.857143,
+      "yScale": 25.714285,
+      "properties": {
+        "mapEntityId": "44182963"
+      }
+    },
+    {
+      "type": "firebox",
+      "x": 2247,
+      "y": 2301,
+      "xScale": 15.571428,
+      "yScale": 36.57143,
+      "properties": {
+        "mapEntityId": "f1f8cb7c"
+      }
+    },
+    {
+      "type": "firebox",
+      "x": 2304,
+      "y": 2235,
+      "xScale": 36.714287,
+      "yScale": 3.7142856,
+      "properties": {
+        "mapEntityId": "c911ca45"
+      }
+    },
+    {
+      "type": "firebox",
+      "x": 2883,
+      "y": 2370,
+      "xScale": 22.928572,
+      "yScale": 35.142857,
+      "properties": {
+        "mapEntityId": "8678bc33"
+      }
+    },
+    {
+      "type": "firebox",
+      "x": -3,
+      "y": 6,
+      "xScale": 38.285713,
+      "yScale": 35.142857,
+      "properties": {
+        "mapEntityId": "bda73995"
+      }
+    },
+    {
+      "type": "firebox",
+      "x": 12,
+      "y": 1455,
+      "xScale": 35.5,
+      "yScale": 3.4285715,
+      "properties": {
+        "mapEntityId": "c1c178fb"
+      }
+    },
+    {
+      "type": "firebox",
+      "x": 1470,
+      "y": 1341,
+      "xScale": 2.7857144,
+      "yScale": 4.571429,
+      "properties": {
+        "mapEntityId": "d5d5ebe2"
+      }
+    },
+    {
+      "type": "firebox",
+      "x": 1446,
+      "y": 1500,
+      "xScale": 2.4285715,
+      "yScale": 1.9285715,
+      "properties": {
+        "mapEntityId": "bfe8978f"
+      }
+    },
+    {
+      "type": "firebox",
+      "x": -24,
+      "y": 1371,
+      "xScale": 3.7857144,
+      "yScale": 5.285714,
+      "properties": {
+        "mapEntityId": "58f09316"
+      }
+    },
+    {
+      "type": "firebox",
+      "x": 2235,
+      "y": -6,
+      "xScale": 38.07143,
+      "yScale": 35.857143,
+      "properties": {
+        "mapEntityId": "7ee3a3b4"
+      }
+    },
+    {
+      "type": "firebox",
+      "x": 2265,
+      "y": 1500,
+      "xScale": 2.2857144,
+      "yScale": 1.4285715,
+      "properties": {
+        "mapEntityId": "90da7d0c"
+      }
+    },
+    {
+      "type": "firebox",
+      "x": 2361,
+      "y": 1506,
+      "xScale": 35.714287,
+      "yScale": 1.4285715,
+      "properties": {
+        "mapEntityId": "87e72595"
+      }
+    },
+    {
+      "type": "firebox",
+      "x": 2325,
+      "y": 1560,
+      "xScale": 36.5,
+      "yScale": 1.1428572,
+      "properties": {
+        "mapEntityId": "bfd73f46"
+      }
+    },
+    {
+      "type": "firebox",
+      "x": 2391,
+      "y": 1455,
+      "xScale": 36,
+      "yScale": 2.2857144,
+      "properties": {
+        "mapEntityId": "12074d57"
+      }
+    },
+    {
+      "type": "KothControlPoint",
+      "x": 1926,
+      "y": 1911,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "initialOwner": "modeDefault",
+        "mapEntityId": "a8a9832a"
+      }
+    }
+  ],
+  "resources": [],
+  "parallaxLayers": []
+}

@@ -1,0 +1,26 @@
+In order, for 16:9 (960x540):
+
+Draw reel.png at x216 y-270
+Draw guy.png at x264 y128
+Draw logo-x278-y210.png at guy.png's coordinates + the aforementioned x278y210 (so, x542y338)
+Draw reel-holes.png at x228 and x708. The sprite is designed to repeat vertically in increments of 448px and have varying vertical offsets to simulate the tape scrolling by
+Draw fade-overlay.png at x0y0
+Draw fade-overlay.png at x0y270 (Vertical mirrored)
+
+In order, for 5:4 (780x624):
+
+Draw reel.png at x126 y-228
+Draw guy.png at x174 y170
+Draw logo-x278-y128.png at guy.png's coordinates + the aforementioned x278y210 (so, x452y298)
+Draw reel-holes.png at x138 and x618
+Draw fade-overlay.png at x0y0
+Draw fade-overlay.png at x0y354 (Vertical mirrored)
+
+In order, for 4:3 (800x600):
+
+Draw reel.png at x y-268
+Draw guy.png at x184 y158
+Draw logo-x278-y128.png at guy.png's coordinates + the aforementioned x278y210 (so, x462y286)
+Draw reel-holes.png at x148 and x628
+Draw fade-overlay.png at x0y0
+Draw fade-overlay.png at x0y330 (Vertical mirrored)

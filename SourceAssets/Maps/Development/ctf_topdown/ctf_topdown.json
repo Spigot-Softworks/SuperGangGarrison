@@ -1,0 +1,192 @@
+{
+  "formatVersion": 1,
+  "name": "ctf_topdown",
+  "scale": 6,
+  "visualScale": 6,
+  "backgroundImage": "background.png",
+  "walkmaskImage": "walkmask.png",
+  "metadata": {
+    "background": "ffffff",
+    "blueStartingScore": "0",
+    "entity_schema": "modern",
+    "gameMode": "ctf",
+    "movementMode": "topdown",
+    "overrideInitialCps": "false",
+    "redStartingScore": "0",
+    "roundEndWin": "morePoints",
+    "scoreToWin": "10",
+    "showCps": "false",
+    "void": "000000",
+    "winWhenScore": "moreEqual"
+  },
+  "entities": [
+    {
+      "type": "spawn",
+      "x": 1314,
+      "y": 880,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "forward": "false",
+        "mapEntityId": "a1de260e",
+        "team": "red"
+      }
+    },
+    {
+      "type": "botSpawn",
+      "x": 216,
+      "y": 658,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "class": "random",
+        "forceHealthBar": "false",
+        "forceNameplate": "false",
+        "kind": "bot",
+        "mapEntityId": "31634f30",
+        "name": "",
+        "nameMode": "random",
+        "onDeathTrigger": "",
+        "respawn": "true",
+        "respawnAt": "spawn",
+        "team": "blue",
+        "trigger": ""
+      }
+    },
+    {
+      "type": "redintel",
+      "x": 2154,
+      "y": 876,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "24a83df7"
+      }
+    },
+    {
+      "type": "blueintel",
+      "x": 219,
+      "y": 474,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "56f72475"
+      }
+    },
+    {
+      "type": "spawn",
+      "x": 993,
+      "y": 2029,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "forward": "false",
+        "mapEntityId": "66b71a38",
+        "team": "blue"
+      }
+    },
+    {
+      "type": "logicPlayerTrigger",
+      "x": 1308,
+      "y": 961.5,
+      "xScale": 2.7142856,
+      "yScale": 1.6428572,
+      "properties": {
+        "detect": "playerEnter",
+        "intelCarriersOnly": "false",
+        "logicKey": "bdae62d5",
+        "mapEntityId": "1de0900b",
+        "maxFires": "1",
+        "nodePriority": "0",
+        "signal": "impulse",
+        "team": "any"
+      }
+    },
+    {
+      "type": "botSpawn",
+      "x": 1038,
+      "y": 685,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "class": "random",
+        "forceHealthBar": "true",
+        "forceNameplate": "false",
+        "kind": "bot",
+        "mapEntityId": "b9bd9b7b",
+        "name": "",
+        "nameMode": "random",
+        "onDeathTrigger": "",
+        "respawn": "true",
+        "respawnAt": "node",
+        "team": "blue",
+        "trigger": "node:bdae62d5"
+      }
+    },
+    {
+      "type": "botSpawn",
+      "x": 1302,
+      "y": 685,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "class": "random",
+        "forceHealthBar": "false",
+        "forceNameplate": "true",
+        "kind": "bot",
+        "mapEntityId": "2cad04e5",
+        "name": "",
+        "nameMode": "random",
+        "onDeathTrigger": "",
+        "respawn": "true",
+        "respawnAt": "node",
+        "team": "blue",
+        "trigger": "node:bdae62d5"
+      }
+    },
+    {
+      "type": "botSpawn",
+      "x": 1650,
+      "y": 880,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "class": "random",
+        "forceHealthBar": "true",
+        "forceNameplate": "false",
+        "kind": "bot",
+        "mapEntityId": "7404e820",
+        "name": "",
+        "nameMode": "random",
+        "onDeathTrigger": "",
+        "respawn": "true",
+        "respawnAt": "node",
+        "team": "blue",
+        "trigger": "node:bdae62d5"
+      }
+    },
+    {
+      "type": "botSpawn",
+      "x": 1035,
+      "y": 1168,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "class": "random",
+        "forceHealthBar": "true",
+        "forceNameplate": "false",
+        "kind": "bot",
+        "mapEntityId": "8d8c1a48",
+        "name": "",
+        "nameMode": "random",
+        "onDeathTrigger": "",
+        "respawn": "true",
+        "respawnAt": "node",
+        "team": "blue",
+        "trigger": "node:bdae62d5"
+      }
+    }
+  ],
+  "resources": [],
+  "parallaxLayers": []
+}
