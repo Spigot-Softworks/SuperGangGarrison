@@ -57,6 +57,15 @@ internal sealed class ServerMapMetadataResolver(
         }
 
         var trimmedUrl = downloadUrl.Trim();
+        // A leading slash is a server-relative URL, not a local file URL.  On
+        // Unix, Uri.TryCreate(..., UriKind.Absolute) classifies these paths as
+        // file: URIs, which would make a valid hosted map URL disappear from
+        // the metadata advertised to clients.
+        if (trimmedUrl.Length > 0 && trimmedUrl[0] == '/')
+        {
+            return trimmedUrl;
+        }
+
         if (Uri.TryCreate(trimmedUrl, UriKind.Absolute, out var absoluteUri))
         {
             return string.Equals(absoluteUri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase)

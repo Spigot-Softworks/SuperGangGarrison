@@ -344,6 +344,26 @@ internal static class CustomMapSyncService
     {
         error = string.Empty;
 
+        // A leading slash is a server-relative URL, not a local file URL. On
+        // Unix, Uri.TryCreate(..., UriKind.Absolute) classifies these paths as
+        // file: URIs, so resolve them against the server's HTTP base first.
+        if (trimmedUrl.Length > 0 && trimmedUrl[0] == '/')
+        {
+            if (serverDownloadBaseUri is not null
+                && Uri.TryCreate(serverDownloadBaseUri, trimmedUrl, out var resolvedRelativeUri))
+            {
+                if (IsSupportedDownloadUri(resolvedRelativeUri))
+                {
+                    return resolvedRelativeUri.ToString();
+                }
+
+                error = FormatUnsupportedDownloadUrlScheme(resolvedRelativeUri.Scheme);
+                return string.Empty;
+            }
+
+            return trimmedUrl;
+        }
+
         if (Uri.TryCreate(trimmedUrl, UriKind.Absolute, out var absoluteUri))
         {
             if (IsSupportedDownloadUri(absoluteUri))
