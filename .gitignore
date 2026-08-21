@@ -55,6 +55,10 @@ Tests/BrowserSmoke/node_modules/
 /combined plan.txt
 /name.pem
 
+# Local duplicate map exports; canonical copies live under /Maps/
+/Docking/
+/Docking (VIP)/
+
 # Generated bot navigation and canary artifacts
 /BotBrain.Tools/canaries/
 /scripts/run-botbrain-canaries.ps1
