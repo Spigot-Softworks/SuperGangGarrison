@@ -22,6 +22,11 @@ jobs:
       - name: Restore solution
         run: dotnet restore OpenGarrison.sln
 
+      - name: Restore browser build graph
+        run: >
+          dotnet restore Client.Browser/OpenGarrison.Client.Browser.csproj
+          -p:OpenGarrisonClientAsLibrary=true
+
       - name: Build solution
         run: >
           dotnet build OpenGarrison.sln
