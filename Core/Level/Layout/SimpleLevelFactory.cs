@@ -112,6 +112,7 @@ public static class SimpleLevelFactory
         var roomObjects = FilterByArea(importedRoom.RoomObjects, areaFilter);
         var movingPlatforms = FilterByArea(importedRoom.MovingPlatforms, areaFilter);
         var healthPackSpawns = FilterByArea(importedRoom.HealthPackSpawns, areaFilter);
+        var jumpPadSpawns = FilterByArea(importedRoom.JumpPadSpawns, areaFilter);
         var botSpawns = FilterByArea(importedRoom.BotSpawns, areaFilter);
         var gameplayMessages = FilterByArea(importedRoom.GameplayMessages, areaFilter);
         var gameplaySounds = FilterByArea(importedRoom.GameplaySounds, areaFilter);
@@ -157,6 +158,7 @@ public static class SimpleLevelFactory
             customMapVisuals: importedRoom.CustomMapVisuals,
             movingPlatforms: movingPlatforms,
             healthPackSpawns: healthPackSpawns,
+            jumpPadSpawns: jumpPadSpawns,
             controlPointSettings: importedRoom.ControlPointSettings,
             scrSettings: importedRoom.ScrSettings,
             showControlPoints: importedRoom.ShowControlPoints,
@@ -893,6 +895,15 @@ public static class SimpleLevelFactory
         {
             return source
                 .Cast<HealthPackSpawnMarker>()
+                .Where(marker => includeY(marker.Y))
+                .Cast<T>()
+                .ToArray();
+        }
+
+        if (typeof(T) == typeof(JumpPadSpawnMarker))
+        {
+            return source
+                .Cast<JumpPadSpawnMarker>()
                 .Where(marker => includeY(marker.Y))
                 .Cast<T>()
                 .ToArray();

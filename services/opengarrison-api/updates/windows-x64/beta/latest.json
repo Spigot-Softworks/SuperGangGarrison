@@ -1,10 +1,10 @@
-﻿{
-    "version":  "67.0.0",
-    "packageVersion":  "67.0.0",
-    "channel":  "beta",
-    "url":  "OpenGarrison-Windows-x64.zip",
-    "sha256":  "0c3b6734d696d59f34830085f4d6b47ee64c2f1acedf8221a8294a7868b848dc",
-    "size":  79412866,
-    "minLauncherVersion":  "0.1.0",
-    "notesUrl":  ""
+{
+  "version": "0.7",
+  "packageVersion": "0.7",
+  "channel": "beta",
+  "url": "OpenGarrison-Windows-x64.zip",
+  "sha256": "6e78e6404395d0289c41a6e265c062814c49365524efb98b69417030d17c84ff",
+  "size": 79783986,
+  "minLauncherVersion": "0.1.0",
+  "notesUrl": ""
 }

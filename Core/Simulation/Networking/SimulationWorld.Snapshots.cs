@@ -1391,8 +1391,22 @@ public sealed partial class SimulationWorld
             _snapshotSeenRemotePlayerSlots.Add(appliedSnapshotPlayer.Slot);
             var hadRemotePlayer = _remoteSnapshotPlayersBySlot.TryGetValue(appliedSnapshotPlayer.Slot, out var existingPlayer);
             PlayerEntity player;
-            if (!hadRemotePlayer)
+            if (!hadRemotePlayer || existingPlayer!.Id != appliedSnapshotPlayer.PlayerId)
             {
+                // Slots are reusable across disconnects. PlayerId is the
+                // immutable identity used by interpolation histories and
+                // presentation de-duplication, so never carry an old slot's
+                // entity across an identity change.
+                if (hadRemotePlayer)
+                {
+                    _presentedNetworkGibDeathCountsByPlayerId.Remove(existingPlayer!.Id);
+                    if (_remoteSnapshotScoreboardPlayersBySlot.TryGetValue(appliedSnapshotPlayer.Slot, out var staleScoreboardPlayer)
+                        && staleScoreboardPlayer.Id != appliedSnapshotPlayer.PlayerId)
+                    {
+                        _remoteSnapshotScoreboardPlayersBySlot.Remove(appliedSnapshotPlayer.Slot);
+                    }
+                }
+
                 ReserveEntityId(appliedSnapshotPlayer.PlayerId);
                 var gameplayClassId = _snapshotStringCache.Resolve(appliedSnapshotPlayer.GameplayClassCacheId, appliedSnapshotPlayer.GameplayClassId);
                 player = new PlayerEntity(
@@ -1471,12 +1485,25 @@ public sealed partial class SimulationWorld
             var appliedSnapshotPlayer = NormalizeAwaitingJoinSnapshotPlayerState(snapshotPlayer);
             _snapshotSeenRemotePlayerSlots.Add(appliedSnapshotPlayer.Slot);
             PlayerEntity player;
-            if (_remoteSnapshotPlayersBySlot.TryGetValue(appliedSnapshotPlayer.Slot, out var visiblePlayer))
+            if (_remoteSnapshotPlayersBySlot.TryGetValue(appliedSnapshotPlayer.Slot, out var visiblePlayer)
+                && visiblePlayer.Id == appliedSnapshotPlayer.PlayerId)
             {
                 player = visiblePlayer;
             }
-            else if (!_remoteSnapshotScoreboardPlayersBySlot.TryGetValue(appliedSnapshotPlayer.Slot, out player!))
+            else if (_remoteSnapshotScoreboardPlayersBySlot.TryGetValue(appliedSnapshotPlayer.Slot, out player!)
+                && player.Id == appliedSnapshotPlayer.PlayerId)
             {
+                // Retained scoreboard entities can outlive a visible roster
+                // entry, but only while they still represent the same player.
+            }
+            else
+            {
+                if (visiblePlayer is not null)
+                {
+                    _remoteSnapshotPlayersBySlot.Remove(appliedSnapshotPlayer.Slot);
+                    _presentedNetworkGibDeathCountsByPlayerId.Remove(visiblePlayer.Id);
+                }
+
                 ReserveEntityId(appliedSnapshotPlayer.PlayerId);
                 var gameplayClassId = _snapshotStringCache.Resolve(appliedSnapshotPlayer.GameplayClassCacheId, appliedSnapshotPlayer.GameplayClassId);
                 player = new PlayerEntity(
@@ -1509,9 +1536,14 @@ public sealed partial class SimulationWorld
         _snapshotStaleRemotePlayerSlots.Clear();
         foreach (var entry in _remoteSnapshotScoreboardPlayersBySlot)
         {
-            if (!_snapshotSeenRemotePlayerSlots.Contains(entry.Key)
-                || _remoteSnapshotPlayersBySlot.TryGetValue(entry.Key, out var visiblePlayer)
-                && ReferenceEquals(entry.Value, visiblePlayer))
+            if (!_snapshotSeenRemotePlayerSlots.Contains(entry.Key))
+            {
+                _snapshotStaleRemotePlayerSlots.Add(entry.Key);
+                continue;
+            }
+
+            if (_remoteSnapshotPlayersBySlot.TryGetValue(entry.Key, out var visiblePlayer)
+                && (entry.Value.Id != visiblePlayer.Id || ReferenceEquals(entry.Value, visiblePlayer)))
             {
                 _snapshotStaleRemotePlayerSlots.Add(entry.Key);
             }

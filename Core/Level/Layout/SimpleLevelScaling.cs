@@ -40,6 +40,7 @@ internal static class SimpleLevelScaling
             level.LogicScoreTriggers,
             level.SpritesheetPlaybackSet,
             level.HealthPackSpawns.Select(marker => Scale(marker, clampedScale)).ToArray(),
+            level.JumpPadSpawns.Select(marker => Scale(marker, clampedScale)).ToArray(),
             level.BotSpawns.Select(marker => Scale(marker, clampedScale)).ToArray(),
             level.GameplayMessages.Select(marker => Scale(marker, clampedScale)).ToArray(),
             level.GameplaySounds.Select(marker => Scale(marker, clampedScale)).ToArray(),
@@ -109,6 +110,10 @@ internal static class SimpleLevelScaling
         marker.Y * scale,
         marker.Size,
         marker.RespawnTicks);
+
+    private static JumpPadSpawnMarker Scale(JumpPadSpawnMarker marker, float scale) => new(
+        marker.X * scale,
+        marker.Y * scale);
 
     private static BotSpawnMarker Scale(BotSpawnMarker marker, float scale) => new(
         marker.X * scale,

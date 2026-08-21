@@ -17,12 +17,27 @@ public sealed class JumpPadEntity : SimulationEntity
         Team = team;
         X = x;
         Y = y;
-        Health = InitialHealth;
+        if (IsNeutral)
+        {
+            Health = MaxHealth;
+            HasLanded = true;
+            IsBuilt = true;
+        }
+        else
+        {
+            Health = InitialHealth;
+        }
     }
 
     public int OwnerPlayerId { get; }
 
     public PlayerTeam Team { get; }
+
+    /// <summary>
+    /// Map-authored pads use owner id 0 and neutral team so the existing
+    /// snapshot shape remains wire-compatible with team-owned pads.
+    /// </summary>
+    public bool IsNeutral => OwnerPlayerId == 0 && Team == PlayerTeam.Neutral;
 
     public float X { get; private set; }
 

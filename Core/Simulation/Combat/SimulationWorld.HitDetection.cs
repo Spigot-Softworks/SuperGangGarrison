@@ -55,6 +55,7 @@ public sealed partial class SimulationWorld
         ResetModeStateForNewRound();
         ResetMovingPlatformsForLevel();
         ResetHealthPackSpawnsForLevel();
+        ResetJumpPadSpawnsForLevel();
     }
 
     internal void CombatTestAddSentry(SentryEntity sentry)

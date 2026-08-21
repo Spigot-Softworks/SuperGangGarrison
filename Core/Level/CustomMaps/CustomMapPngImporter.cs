@@ -314,6 +314,7 @@ public static class CustomMapPngImporter
         var roomObjects = new List<RoomObjectMarker>();
         var movingPlatforms = new List<MovingPlatformMarker>();
         var healthPackSpawns = new List<HealthPackSpawnMarker>();
+        var jumpPadSpawns = new List<JumpPadSpawnMarker>();
         var botSpawns = new List<BotSpawnMarker>();
         var gameplayMessages = new List<GameplayMessageMarker>();
         var gameplaySounds = new List<GameplaySoundMarker>();
@@ -338,6 +339,7 @@ public static class CustomMapPngImporter
                 BlueSpawns = blueSpawns,
                 RoomObjects = roomObjects,
                 HealthPackSpawns = healthPackSpawns,
+                JumpPadSpawns = jumpPadSpawns,
                 BotSpawns = botSpawns,
                 GameplayMessages = gameplayMessages,
                 GameplaySounds = gameplaySounds,
@@ -434,6 +436,7 @@ public static class CustomMapPngImporter
             CustomMapVisuals = visuals,
             MovingPlatforms = movingPlatforms.ToArray(),
             HealthPackSpawns = healthPackSpawns.ToArray(),
+            JumpPadSpawns = jumpPadSpawns.ToArray(),
             BotSpawns = resolvedBotSpawns,
             GameplayMessages = resolvedGameplayMessages,
             GameplaySounds = resolvedGameplaySounds,

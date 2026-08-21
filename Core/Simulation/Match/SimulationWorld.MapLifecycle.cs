@@ -204,6 +204,7 @@ public sealed partial class SimulationWorld
         ClearDynamicEntities();
         ResetMovingPlatformsForLevel();
         ResetHealthPackSpawnsForLevel();
+        ResetJumpPadSpawnsForLevel();
         RespawnPlayersForNewRound();
         if (_competitiveReadyUpEnabled
             && enterCompetitiveSkirmish

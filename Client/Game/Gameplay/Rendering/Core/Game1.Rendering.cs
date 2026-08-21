@@ -12,6 +12,7 @@ namespace OpenGarrison.Client;
 public partial class Game1
 {
     private readonly Dictionary<LoadedSpriteFrame, Texture2D> _spriteFrameAlphaMaskCache = new();
+    private readonly Dictionary<LoadedSpriteFrame, LoadedSpriteFrame> _neutralSpriteFrameCache = new();
     private static readonly BlendState _multiplyColorBlendState = new()
     {
         ColorSourceBlend = Blend.DestinationColor,
@@ -972,6 +973,39 @@ public partial class Game1
         mask.SetData(pixels);
         _spriteFrameAlphaMaskCache[frame] = mask;
         return mask;
+    }
+
+    private LoadedSpriteFrame GetNeutralSpriteFrame(LoadedSpriteFrame frame)
+    {
+        if (_neutralSpriteFrameCache.TryGetValue(frame, out var cachedFrame))
+        {
+            return cachedFrame;
+        }
+
+        var sourceRectangle = frame.SourceRectangle ?? new Rectangle(0, 0, frame.Texture.Width, frame.Texture.Height);
+        var pixels = new Color[sourceRectangle.Width * sourceRectangle.Height];
+        if (!frame.TryCopyPixelData(pixels))
+        {
+            frame.Texture.GetData(0, sourceRectangle, pixels, 0, pixels.Length);
+        }
+
+        for (var index = 0; index < pixels.Length; index += 1)
+        {
+            var pixel = pixels[index];
+            var luminance = (byte)Math.Clamp(
+                (int)MathF.Round((pixel.R * 0.299f) + (pixel.G * 0.587f) + (pixel.B * 0.114f)),
+                0,
+                byte.MaxValue);
+            pixels[index] = new Color(luminance, luminance, luminance, pixel.A);
+        }
+
+        var texture = new Texture2D(GraphicsDevice, sourceRectangle.Width, sourceRectangle.Height);
+        texture.SetData(pixels);
+        var neutralFrame = new LoadedSpriteFrame(
+            texture,
+            PixelSource: new LoadedSpriteFramePixelSource(pixels, sourceRectangle.Width, sourceRectangle.Height));
+        _neutralSpriteFrameCache[frame] = neutralFrame;
+        return neutralFrame;
     }
 
     private void DrawLoadedSpriteFrame(

@@ -43,7 +43,8 @@ public sealed partial class SimulationWorld
         {
             var pad = _jumpPads[index];
             var owner = FindPlayerById(pad.OwnerPlayerId);
-            if (owner is null || owner.ClassId != PlayerClass.Engineer || owner.Team != pad.Team)
+            if (!pad.IsNeutral
+                && (owner is null || owner.ClassId != PlayerClass.Engineer || owner.Team != pad.Team))
             {
                 DestroyJumpPad(pad);
                 continue;
@@ -57,7 +58,7 @@ public sealed partial class SimulationWorld
                 RegisterWorldSoundEvent("SentryBuildSnd", pad.X, pad.Y);
             }
 
-            if (pad.HasLanded)
+            if (pad.HasLanded && owner is not null)
             {
                 ApplyExperimentalJumpPadPassiveEffects(pad, owner);
             }
@@ -197,6 +198,11 @@ public sealed partial class SimulationWorld
 
     private static bool CanUseJumpPad(PlayerEntity player, JumpPadEntity pad)
     {
+        if (pad.IsNeutral)
+        {
+            return true;
+        }
+
         if (player.Id == pad.OwnerPlayerId)
         {
             return true;
@@ -289,7 +295,7 @@ public sealed partial class SimulationWorld
 
     private void TryApplyExperimentalEnemyJumpPadEffects(PlayerEntity player, JumpPadEntity pad)
     {
-        if (player.Team == pad.Team)
+        if (pad.IsNeutral || player.Team == pad.Team)
         {
             return;
         }
@@ -485,6 +491,28 @@ public sealed partial class SimulationWorld
         _jumpPads.Add(entity);
         _entities.Add(entity.Id, entity);
         return true;
+    }
+
+    private void ResetJumpPadSpawnsForLevel()
+    {
+        RemoveEntities(_jumpPads);
+        if (Level.JumpPadSpawns.Count == 0)
+        {
+            return;
+        }
+
+        for (var index = 0; index < Level.JumpPadSpawns.Count; index += 1)
+        {
+            var marker = Level.JumpPadSpawns[index];
+            var pad = new JumpPadEntity(
+                AllocateEntityId(),
+                0,
+                PlayerTeam.Neutral,
+                marker.X,
+                marker.Y);
+            _jumpPads.Add(pad);
+            _entities.Add(pad.Id, pad);
+        }
     }
 
     private bool TryDestroyJumpPad(PlayerEntity player)

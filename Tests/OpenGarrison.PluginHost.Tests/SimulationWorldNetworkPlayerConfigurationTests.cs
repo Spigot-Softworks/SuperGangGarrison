@@ -299,6 +299,29 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
         Assert.Contains(world.PendingSoundEvents, soundEvent => soundEvent.SoundName == "RespawnSnd");
     }
 
+    [Theory]
+    [InlineData(PlayerClass.Sniper)]
+    [InlineData(PlayerClass.Scout)]
+    [InlineData(PlayerClass.Medic)]
+    public void LockedAlternatePrimarySelectionSurvivesLocalNetworkRespawn(PlayerClass playerClass)
+    {
+        var world = CreateWorldWithLocalClass(playerClass);
+        world.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings(
+            EnableSecondaryAbilities: true));
+        world.LocalPlayer.SetSpawnRoomState(false);
+        world.LocalPlayer.EquipExperimentalOffhandWeapon();
+
+        Assert.True(world.LocalPlayer.IsExperimentalOffhandEquipped);
+        Assert.Equal(GameplayEquipmentSlot.Secondary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
+
+        world.ForceKillLocalPlayer();
+        AdvanceUntilRespawn(world, SimulationWorld.LocalPlayerSlot);
+
+        Assert.True(world.LocalPlayer.IsAlive);
+        Assert.True(world.LocalPlayer.IsExperimentalOffhandEquipped);
+        Assert.Equal(GameplayEquipmentSlot.Secondary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
+    }
+
     [Fact]
     public void LastToDieRespawnSuppressionKeepsDeadParticipantDeadUntilStageRespawn()
     {

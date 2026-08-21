@@ -18,7 +18,6 @@ public partial class Game1
 {
     private const string ApplicationVersionFileName = "version.txt";
     private const string DevelopmentVersionLabel = "dev";
-    private const string AlphaVersionSuffix = " (Alpha)";
 
     private static string? _cachedApplicationVersionLabel;
 
@@ -339,10 +338,7 @@ public partial class Game1
 
     private static string FormatApplicationVersionDisplayLabel(string version)
     {
-        var trimmed = version.Trim();
-        return trimmed.EndsWith(AlphaVersionSuffix, StringComparison.OrdinalIgnoreCase)
-            ? trimmed
-            : trimmed + AlphaVersionSuffix;
+        return version.Trim();
     }
 
     private static bool IsDefaultSdkVersionLabel(string version)

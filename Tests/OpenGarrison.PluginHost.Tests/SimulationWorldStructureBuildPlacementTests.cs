@@ -82,6 +82,25 @@ public sealed class SimulationWorldStructureBuildPlacementTests
     }
 
     [Fact]
+    public void BuildingDispenserFailsWhenMetalIsInsufficient()
+    {
+        var world = CreateEngineerWorld(
+            solids:
+            [
+                new LevelSolid(0f, 120f, 512f, 20f),
+            ]);
+        world.TeleportLocalPlayer(100f, 100f);
+        world.LocalPlayer.SetSpawnRoomState(false);
+        Assert.True(world.LocalPlayer.SpendMetal(1f));
+        var metalBefore = world.LocalPlayer.Metal;
+
+        Assert.False(world.TryBuildLocalDispenser());
+
+        Assert.Empty(world.Sentries);
+        Assert.Equal(metalBefore, world.LocalPlayer.Metal);
+    }
+
+    [Fact]
     public void BuiltDispenserHealsAndMarksNearbyAlliedPlayersAsBuffed()
     {
         var world = CreateEngineerWorld(

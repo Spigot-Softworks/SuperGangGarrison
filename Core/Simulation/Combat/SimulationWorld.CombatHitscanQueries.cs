@@ -427,7 +427,7 @@ public sealed partial class SimulationWorld
             var halfH = JumpPadEntity.HitboxHeight / 2f;
             foreach (var pad in _jumpPads)
             {
-                if (pad.Team == projectileTeam || !pad.IsBuilt || pad.IsDead) { continue; }
+                if (pad.IsNeutral || pad.Team == projectileTeam || !pad.IsBuilt || pad.IsDead) { continue; }
                 if (!RayBoundsMayIntersectRectangle(rayBounds, pad.X - halfW, pad.Y - halfH, pad.X + halfW, pad.Y + halfH)) { continue; }
                 var distance = GetRayIntersectionDistanceWithJumpPad(previousX, previousY, directionX, directionY, pad, maxDistance);
                 if (distance.HasValue && (!nearestHit.HasValue || distance.Value < nearestHit.Value.Distance))

@@ -65,9 +65,9 @@ internal readonly record struct NetworkEndpoint(string Host, int UdpPort, int We
             yield break;
         }
 
-        // Native clients prefer the reliable UDP transport. QUIC remains a
-        // fallback for endpoints that advertise it, while explicit QUIC-only
-        // endpoints still work when no UDP endpoint is present.
+        // Native clients intentionally use the shipped UDP transport. QUIC is
+        // retained in the codebase for later work, but is not a selectable or
+        // advertised native connection fallback in this release.
         if (HasUdpEndpoint)
         {
             yield return new NetworkEndpointCandidate(host, UdpPort, NetworkEndpointTransport.Udp);
@@ -86,19 +86,6 @@ internal readonly record struct NetworkEndpoint(string Host, int UdpPort, int We
             yield return new NetworkEndpointCandidate($"ws64://{host}", WebSocketPort, NetworkEndpointTransport.WebSocket);
         }
 
-        var quicUrl = QuicUrl.Trim();
-        if (!string.IsNullOrWhiteSpace(quicUrl))
-        {
-            yield return new NetworkEndpointCandidate(quicUrl, 0, NetworkEndpointTransport.Quic);
-        }
-        else if (QuicPort is > 0 and <= 65535)
-        {
-            // The transport registry selects the native transport from the
-            // endpoint scheme. Keep the advertised transport metadata and the
-            // actual connection target in agreement; passing a plain host
-            // here would make a QUIC fallback go through UDP instead.
-            yield return new NetworkEndpointCandidate($"quic64://{host}", QuicPort, NetworkEndpointTransport.Quic);
-        }
     }
 
     public string AddressLabel
@@ -146,7 +133,7 @@ internal readonly record struct NetworkEndpoint(string Host, int UdpPort, int We
         var normalizedPort = NormalizePort(port);
         return OperatingSystem.IsBrowser()
             ? new NetworkEndpoint(host, 0, normalizedPort)
-            : new NetworkEndpoint(host, normalizedPort, 0, QuicPort: normalizedPort);
+            : new NetworkEndpoint(host, normalizedPort, 0);
     }
 
     private static int NormalizePort(int port)

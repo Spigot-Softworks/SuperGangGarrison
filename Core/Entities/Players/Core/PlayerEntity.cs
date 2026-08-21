@@ -910,14 +910,25 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     public void SetClassDefinition(CharacterClassDefinition classDefinition)
     {
+        var classChanged = ClassDefinition.Id != classDefinition.Id
+            || !string.Equals(
+                ClassDefinition.GameplayClassId,
+                classDefinition.GameplayClassId,
+                StringComparison.Ordinal);
+        var preserveLockedAlternateSelection = !classChanged
+            && IsLockedPrimaryWeaponClass
+            && SelectedGameplayEquippedSlot == GameplayEquipmentSlot.Secondary;
         CancelLastToDieSniperVolley();
         ResetLastToDieSpyInfiltrateDynamicState();
         NetworkMaxHealthOverrideValue = null;
         ClassDefinition = classDefinition;
         RefreshLastToDieWeaponOverrideForClassDefinition();
-        SelectedGameplayLoadoutId = CharacterClassCatalog.RuntimeRegistry.GetDefaultLoadout(GameplayClassId).Id;
-        SelectedGameplayEquippedSlot = GameplayEquipmentSlot.Primary;
-        SetExperimentalOffhandWeapon(null);
+        if (classChanged)
+        {
+            SelectedGameplayLoadoutId = CharacterClassCatalog.RuntimeRegistry.GetDefaultLoadout(GameplayClassId).Id;
+            SelectedGameplayEquippedSlot = GameplayEquipmentSlot.Primary;
+            SetExperimentalOffhandWeapon(null);
+        }
         Health = int.Clamp(Health, 0, MaxHealth);
         CurrentShells = int.Clamp(CurrentShells, 0, MaxShells);
         ResetPyroPrimaryStateFromCurrentAmmo();
@@ -930,6 +941,10 @@ public sealed partial class PlayerEntity : SimulationEntity
         else
         {
             ResetAcquiredWeaponRuntimeState(refillAmmo: false);
+        }
+        if (preserveLockedAlternateSelection)
+        {
+            SelectedGameplayEquippedSlot = GameplayEquipmentSlot.Secondary;
         }
         ResetExperimentalPowerRuntimeState();
         IntelRechargeTicks = 0f;

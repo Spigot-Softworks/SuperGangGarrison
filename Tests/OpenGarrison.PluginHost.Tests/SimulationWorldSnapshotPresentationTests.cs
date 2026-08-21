@@ -9,6 +9,35 @@ namespace OpenGarrison.PluginHost.Tests;
 public sealed class SimulationWorldSnapshotPresentationTests
 {
     [Fact]
+    public void ApplySnapshotReplacesRemotePlayerWhenAVisibleSlotGetsANewPlayerId()
+    {
+        var world = new SimulationWorld();
+        var local = CreatePlayerState(1, 101, "Local", PlayerTeam.Red, PlayerClass.Scout, isAlive: true, gibDeaths: 0);
+        var firstRemote = CreatePlayerState(2, 202, "First remote", PlayerTeam.Blue, PlayerClass.Soldier, isAlive: true, gibDeaths: 0);
+        var secondRemote = CreatePlayerState(2, 303, "Second remote", PlayerTeam.Blue, PlayerClass.Soldier, isAlive: true, gibDeaths: 0) with
+        {
+            X = 640f,
+            Y = 320f,
+        };
+
+        Assert.True(world.ApplySnapshot(CreateSnapshot(world, 80, local, firstRemote), localPlayerSlot: 1));
+        var firstAppliedPlayer = Assert.Single(world.RemoteSnapshotPlayers);
+        Assert.Equal(202, firstAppliedPlayer.Id);
+
+        Assert.True(world.ApplySnapshot(CreateSnapshot(world, 81, local, secondRemote), localPlayerSlot: 1));
+
+        var secondAppliedPlayer = Assert.Single(world.RemoteSnapshotPlayers);
+        Assert.Equal(303, secondAppliedPlayer.Id);
+        Assert.Equal("Second remote", secondAppliedPlayer.DisplayName);
+        Assert.Equal(640f, secondAppliedPlayer.X);
+        Assert.Equal(320f, secondAppliedPlayer.Y);
+        Assert.NotSame(firstAppliedPlayer, secondAppliedPlayer);
+        var secondScoreboardPlayer = Assert.Single(world.RemoteSnapshotScoreboardPlayers);
+        Assert.Equal(303, secondScoreboardPlayer.Id);
+        Assert.Same(secondAppliedPlayer, secondScoreboardPlayer);
+    }
+
+    [Fact]
     public void ApplySnapshotRetainsPendingSoundEventsAcrossNewerSnapshots()
     {
         var world = new SimulationWorld();

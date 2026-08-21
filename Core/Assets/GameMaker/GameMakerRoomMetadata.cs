@@ -22,6 +22,8 @@ public sealed record GameMakerRoomMetadata(
 
     public IReadOnlyList<HealthPackSpawnMarker> HealthPackSpawns { get; init; } = Array.Empty<HealthPackSpawnMarker>();
 
+    public IReadOnlyList<JumpPadSpawnMarker> JumpPadSpawns { get; init; } = Array.Empty<JumpPadSpawnMarker>();
+
     public IReadOnlyList<BotSpawnMarker> BotSpawns { get; init; } = Array.Empty<BotSpawnMarker>();
 
     public IReadOnlyList<GameplayMessageMarker> GameplayMessages { get; init; } = Array.Empty<GameplayMessageMarker>();

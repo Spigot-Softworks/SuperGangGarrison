@@ -32,6 +32,7 @@ public static class CustomMapEntityRuntimeRegistry
         Register(new ForegroundSpriteMapEntityRuntimeImporter());
         Register(new SpritesheetMapEntityRuntimeImporter());
         Register(new HealthPackMapEntityRuntimeImporter());
+        Register(new JumpPadMapEntityRuntimeImporter());
         Register(new BotSpawnMapEntityRuntimeImporter());
         Register(new GameplayMessageMapEntityRuntimeImporter());
         Register(new GameplaySoundMapEntityRuntimeImporter());
@@ -117,6 +118,7 @@ public sealed class CustomMapEntityImportContext
     public IList<SpawnPoint> BlueSpawns { get; init; } = [];
     public List<RoomObjectMarker> RoomObjects { get; init; } = [];
     public IList<HealthPackSpawnMarker> HealthPackSpawns { get; init; } = [];
+    public IList<JumpPadSpawnMarker> JumpPadSpawns { get; init; } = [];
     public IList<BotSpawnMarker> BotSpawns { get; init; } = [];
     public IList<GameplayMessageMarker> GameplayMessages { get; init; } = [];
     public IList<GameplaySoundMarker> GameplaySounds { get; init; } = [];
@@ -143,6 +145,30 @@ internal sealed class HealthPackMapEntityRuntimeImporter : ICustomMapEntityRunti
         }
 
         context.HealthPackSpawns.Add(HealthPackSpawnMarker.FromProperties(args.X, args.Y, args.Properties));
+        return true;
+    }
+}
+
+internal sealed class JumpPadMapEntityRuntimeImporter : ICustomMapEntityRuntimeImporter
+{
+    public string EntityType => JumpPadMetadata.EntityType;
+
+    public bool TryImport(CustomMapEntityImportArgs args, CustomMapEntityImportContext context)
+    {
+        if (!JumpPadMetadata.IsJumpPadEntityType(args.Type))
+        {
+            return false;
+        }
+
+        // The builder entry is intentionally neutral-only. Treat missing team
+        // as neutral for hand-authored package/PNG entities, but ignore a
+        // malformed team override rather than silently creating a team pad.
+        if (!JumpPadMetadata.IsNeutral(args.Properties))
+        {
+            return true;
+        }
+
+        context.JumpPadSpawns.Add(new JumpPadSpawnMarker(args.X, args.Y));
         return true;
     }
 }
