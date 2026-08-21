@@ -232,7 +232,7 @@ public static class TopologyLocalMotionLab
         }
 
         var command =
-            $"dotnet run --project BotBrain.Tools/OpenGarrison.BotBrain.Tools.csproj -- --topology-local-motion-lab true --map {options.MapName} --area {options.AreaIndex} --team {options.Team} --class {options.ClassId}";
+            $"dotnet run --project Tools/BotBrain/OpenGarrison.BotBrain.Tools.csproj -- --topology-local-motion-lab true --map {options.MapName} --area {options.AreaIndex} --team {options.Team} --class {options.ClassId}";
         return new TopologyLocalMotionLabSummary(
             command,
             options.ArtifactsDirectory,

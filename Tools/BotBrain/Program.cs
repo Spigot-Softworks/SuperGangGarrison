@@ -7807,7 +7807,7 @@ internal static class BotBrainToolCommandHelpers
                 Dx: toNode.X - fromNode.X,
                 Dy: toNode.Y - fromNode.Y,
                 SuggestedProbeCommand:
-                    $"dotnet run --project BotBrain.Tools\\OpenGarrison.BotBrain.Tools.csproj --no-build -- --map {recording.LevelName} --area {recording.MapAreaIndex} --team {recording.Team} --class {recording.PlayerClass} --ticks 180 --probe-from {from.NodeIndex} --probe-to {to.NodeIndex}"));
+                    $"dotnet run --project Tools\\BotBrain\\OpenGarrison.BotBrain.Tools.csproj --no-build -- --map {recording.LevelName} --area {recording.MapAreaIndex} --team {recording.Team} --class {recording.PlayerClass} --ticks 180 --probe-from {from.NodeIndex} --probe-to {to.NodeIndex}"));
         }
 
         var compiled = new BotBrainCompiledCorridor(

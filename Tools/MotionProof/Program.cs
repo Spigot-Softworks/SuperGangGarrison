@@ -4580,7 +4580,7 @@ internal static class MotionProofRunner
 internal sealed class MotionProofOptions
 {
     public const string Usage =
-        "usage: dotnet run --project MotionProof.Tools -- --map Truefort --team Blue --class Heavy [--max-expanded N] [--search-budget-ms N] [--area N] [--output path] [--mirror-artifact path] [--bake-graph] [--repair-graph --graph path --output path] [--seed-walkable-grid N] [--seed-walkable-limit N] [--seed-search-budget-ms N] [--prove-graph --graph path --goal-x X --goal-y Y] [--solve-primitive --start-x X --start-bottom Y --goal-x X --goal-y Y [--start-carrying-intel] [--validate-primitive] [--require-primitive-validation] [--output-proof-graph path] [--route-action-only-pickup] [--proof-trace-hold-ticks N]]";
+        "usage: dotnet run --project Tools/MotionProof -- --map Truefort --team Blue --class Heavy [--max-expanded N] [--search-budget-ms N] [--area N] [--output path] [--mirror-artifact path] [--bake-graph] [--repair-graph --graph path --output path] [--seed-walkable-grid N] [--seed-walkable-limit N] [--seed-search-budget-ms N] [--prove-graph --graph path --goal-x X --goal-y Y] [--solve-primitive --start-x X --start-bottom Y --goal-x X --goal-y Y [--start-carrying-intel] [--validate-primitive] [--require-primitive-validation] [--output-proof-graph path] [--route-action-only-pickup] [--proof-trace-hold-ticks N]]";
 
     public string MapName { get; private set; } = "Truefort";
     public int MapAreaIndex { get; private set; } = 1;

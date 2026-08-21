@@ -14,7 +14,7 @@ $catalogPath = Join-Path $repoRoot "Core\Configuration\Gg2PreferencesDocument.cs
 $botNavPath = Join-Path $repoRoot "Core\Content\BotNav"
 $scoreRoutePath = Join-Path $repoRoot "Core\Content\BotNavScoreRoutes"
 $hintPath = Join-Path $repoRoot "Core\Content\BotNavHints"
-$runtimeCachePath = Join-Path $repoRoot "BotBrain.Tools\bin\Debug\net10.0\config\botbrain-nav"
+$runtimeCachePath = Join-Path $repoRoot "Tools\BotBrain\bin\Debug\net10.0\config\botbrain-nav"
 $artifactsPath = if ([System.IO.Path]::IsPathRooted($ArtifactsRoot)) { $ArtifactsRoot } else { Join-Path $repoRoot $ArtifactsRoot }
 $outputPath = if ([System.IO.Path]::IsPathRooted($OutputDirectory)) { $OutputDirectory } else { Join-Path $repoRoot $OutputDirectory }
 

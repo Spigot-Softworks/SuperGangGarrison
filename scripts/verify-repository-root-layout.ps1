@@ -17,6 +17,7 @@ if (-not (Test-Path -LiteralPath $rootPath -PathType Container)) {
 
 $allowedFiles = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
 foreach ($name in @(
+    ".git",
     ".editorconfig",
     ".gitattributes",
     ".gitignore",
@@ -34,9 +35,8 @@ $allowedDirectories = [System.Collections.Generic.HashSet[string]]::new([System.
 foreach ($name in @(
     ".git", ".github", ".local", ".vscode",
     "artifacts", "bin", "dist", "obj",
-    "BotBrain.Tools", "Client", "Client.Browser", "Client.Shared", "Core", "docs",
-    "GameplayModding.Abstractions", "Maps", "Modern", "MotionProof.Tools",
-    "packaging", "Plugins", "Protocol", "scripts", "Server", "ServerLauncher",
+    "Bootstrap", "Client", "Client.Browser", "Client.Shared", "Core", "docs",
+    "Maps", "Modern", "Networking", "packaging", "Plugins", "Protocol", "scripts", "Server", "ServerLauncher",
     "services", "SourceAssets", "Tests", "Tools", "Updater"
 )) {
     [void]$allowedDirectories.Add($name)
@@ -50,6 +50,15 @@ foreach ($file in Get-ChildItem -LiteralPath $rootPath -Force -File) {
 }
 
 foreach ($directory in Get-ChildItem -LiteralPath $rootPath -Force -Directory) {
+    $pathSpec = "$($directory.Name)/**"
+    $trackedEntries = @(git -C $rootPath ls-files -- $pathSpec | Where-Object {
+        Test-Path -LiteralPath (Join-Path $rootPath $_)
+    })
+    $untrackedEntries = @(git -C $rootPath ls-files --others --exclude-standard -- $pathSpec)
+    if ($trackedEntries.Count -eq 0 -and $untrackedEntries.Count -eq 0) {
+        continue
+    }
+
     if (-not $allowedDirectories.Contains($directory.Name)) {
         $violations.Add("unowned root directory: $($directory.Name)")
     }

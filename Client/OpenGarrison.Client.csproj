@@ -81,7 +81,7 @@
     <ProjectReference Include="..\Client.Shared\OpenGarrison.Client.Shared.csproj" />
     <ProjectReference Include="..\Plugins\OpenGarrison.PluginHost.Abstractions\OpenGarrison.PluginHost.Abstractions.csproj" />
     <ProjectReference Include="..\Core\OpenGarrison.Core.csproj" />
-    <ProjectReference Include="..\GameplayModding.Abstractions\OpenGarrison.GameplayModding.Abstractions.csproj" />
+    <ProjectReference Include="..\Plugins\GameplayModding.Abstractions\OpenGarrison.GameplayModding.Abstractions.csproj" />
     <ProjectReference Include="..\Protocol\OpenGarrison.Protocol.csproj" />
     <ProjectReference Include="..\Networking\OpenGarrison.Networking.csproj" />
   </ItemGroup>

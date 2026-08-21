@@ -60,6 +60,7 @@ Tests/BrowserSmoke/node_modules/
 /Docking (VIP)/
 
 # Generated bot navigation and canary artifacts
+/Tools/BotBrain/canaries/
 /BotBrain.Tools/canaries/
 /scripts/run-botbrain-canaries.ps1
 /Core/Content/BotNav/Original/*.pts
@@ -83,7 +84,10 @@ __pycache__/
 *.py[cod]
 
 # MotionProof bake scratch outputs
+/Tools/MotionProof/candidates/
+/Tools/MotionProof/logs/
 /MotionProof.Tools/
-/MotionProof.Tools/candidates/
-/MotionProof.Tools/logs/
+
+# Reproducible historical source extraction
+/Tools/NavAuthoringLegacy/extracted/
 
