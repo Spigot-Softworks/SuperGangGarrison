@@ -8,6 +8,8 @@ Gang-Garrison-2/
 /bot work.txt
 .codex-dotnet/
 .codex-temp/
+.codex-temp-dotnet-tools/
+.codex-recovery-baseline/
 .dotnet/
 /.tmp*/
 %TEMP%/
@@ -15,6 +17,9 @@ Tests/**/TestResults/
 test-results/
 *.log
 build_output*.txt
+/build-*.txt
+/alpha-truefort-*.txt
+/bot-plan.txt
 tmp_*.cs
 tmp_*.txt
 tmp_*.json
@@ -34,6 +39,7 @@ ReferenceAssets/GG2Randomizer/
 Client.Browser/wwwroot/Content/
 Client.Browser/wwwroot/Plugins/
 artifacts/
+/.build/
 /.build-temp/
 Tests/BrowserSmoke/artifacts/
 Tests/BrowserSmoke/node_modules/
@@ -67,6 +73,10 @@ Tests/BrowserSmoke/node_modules/
 **/Build/
 **/Content/bin/
 **/Content/obj/
+
+# Python bytecode and interpreter caches
+__pycache__/
+*.py[cod]
 
 # MotionProof bake scratch outputs
 /MotionProof.Tools/
