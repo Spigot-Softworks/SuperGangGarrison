@@ -31,12 +31,12 @@ public sealed partial class SimulationWorld
 
     internal void AdvanceJumpPads()
     {
-        if (ExperimentalGameplaySettings.EnableEngineerAuraEnergizer)
+        // Aura state is rebuilt from each pad owner's profile every tick. Do
+        // this unconditionally so one hosted participant's perk cannot leak
+        // into another participant's movement state.
+        foreach (var player in EnumerateSimulatedPlayers())
         {
-            foreach (var player in EnumerateSimulatedPlayers())
-            {
-                player.SetExperimentalJumpPadAuraMovementSpeedMultiplier(1f);
-            }
+            player.SetExperimentalJumpPadAuraMovementSpeedMultiplier(1f);
         }
 
         for (var index = _jumpPads.Count - 1; index >= 0; index -= 1)
@@ -101,7 +101,7 @@ public sealed partial class SimulationWorld
         var owner = FindPlayerById(pad.OwnerPlayerId);
         var applied = false;
         if (owner is not null
-            && ExperimentalGameplaySettings.EnableEngineerEntanglementTraverser
+            && GetLastToDieGameplaySettings(owner).EnableEngineerEntanglementTraverser
             && IsExperimentalEngineerPerkOwner(owner))
         {
             applied = TryApplyJumpPadTeleport(player, owner, pad, emitPresentationEvents);
@@ -140,7 +140,8 @@ public sealed partial class SimulationWorld
 
     private float GetJumpPadJumpBoostMultiplier(PlayerEntity? owner)
     {
-        if (!ExperimentalGameplaySettings.EnableEngineerAuraEnergizer
+        if (owner is null
+            || !GetLastToDieGameplaySettings(owner).EnableEngineerAuraEnergizer
             || !IsExperimentalEngineerPerkOwner(owner))
         {
             return JumpPadJumpBoostMultiplier;
@@ -234,12 +235,13 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        if (ExperimentalGameplaySettings.EnableEngineerAuraEnergizer)
+        var settings = GetLastToDieGameplaySettings(owner);
+        if (settings.EnableEngineerAuraEnergizer)
         {
             ApplyExperimentalJumpPadAuraEnergizer(pad, owner);
         }
 
-        if (ExperimentalGameplaySettings.EnableEngineerGravitonAffixer)
+        if (settings.EnableEngineerGravitonAffixer)
         {
             ApplyExperimentalJumpPadGravitonPull(pad, owner);
         }
@@ -301,7 +303,8 @@ public sealed partial class SimulationWorld
         }
 
         var owner = FindPlayerById(pad.OwnerPlayerId);
-        if (!ExperimentalGameplaySettings.EnableEngineerGravitonAffixer
+        if (owner is null
+            || !GetLastToDieGameplaySettings(owner).EnableEngineerGravitonAffixer
             || !IsExperimentalEngineerPerkOwner(owner))
         {
             return;
@@ -334,7 +337,7 @@ public sealed partial class SimulationWorld
 
     private void ApplyExperimentalJumpPadTraversalEffects(PlayerEntity player, PlayerEntity owner)
     {
-        if (!ExperimentalGameplaySettings.EnableEngineerAuraEnergizer
+        if (!GetLastToDieGameplaySettings(owner).EnableEngineerAuraEnergizer
             || !IsExperimentalEngineerPerkOwner(owner))
         {
             return;

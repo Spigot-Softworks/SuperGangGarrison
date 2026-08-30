@@ -13,6 +13,7 @@ public static partial class ProtocolCodec
     private const float QuantizedSpyCloakAlphaScale = 255f;
     private const float QuantizedMedicUberChargeScale = 4f;
     private const float QuantizedMovementBurnIntensityScale = 100f;
+    private const float QuantizedRageChargeScale = 10f;
 
     private static void WriteSnapshot(BinaryWriter writer, SnapshotMessage snapshot)
     {
@@ -480,6 +481,9 @@ public static partial class ProtocolCodec
             writer.Write(player.KritzCritBoostDamageMultiplier);
             writer.Write(player.IsDispenserBuffed);
             writer.Write(player.DispenserAttackReloadSpeedMultiplier);
+            writer.Write(QuantizeScaledUInt16(player.RageCharge, QuantizedRageChargeScale));
+            writer.Write((ushort)Math.Clamp(player.RageTicksRemaining, 0, ushort.MaxValue));
+            writer.Write(player.IsRageReady);
         }
     }
 
@@ -607,6 +611,9 @@ public static partial class ProtocolCodec
             var kritzCritBoostDamageMultiplier = reader.ReadSingle();
             var isDispenserBuffed = reader.ReadBoolean();
             var dispenserAttackReloadSpeedMultiplier = reader.ReadSingle();
+            var rageCharge = ReadScaledUInt16(reader, QuantizedRageChargeScale);
+            var rageTicksRemaining = reader.ReadUInt16();
+            var isRageReady = reader.ReadBoolean();
 
             players.Add(new SnapshotPlayerState(
                 slot, playerId, name, team, classId, isAlive, isAwaitingJoin, isSpectator,
@@ -643,7 +650,8 @@ public static partial class ProtocolCodec
                 spySuperjumpChargeStartBlockedUntilAbilityRelease, medicUberDeliveryState,
                 kritzCritBoostProviderPlayerId, kritzCritBoostProviderSlot,
                 kritzCritBoostDamageMultiplier, isDispenserBuffed,
-                dispenserAttackReloadSpeedMultiplier));
+                dispenserAttackReloadSpeedMultiplier, rageCharge, isRageReady,
+                rageTicksRemaining));
         }
 
         return players;
@@ -842,6 +850,8 @@ public static partial class ProtocolCodec
             writer.Write(state.KritzCritBoostDamageMultiplier);
             writer.Write(state.IsDispenserBuffed);
             writer.Write(state.DispenserAttackReloadSpeedMultiplier);
+            writer.Write(QuantizeScaledUInt16(state.RageCharge, QuantizedRageChargeScale));
+            writer.Write((ushort)Math.Clamp(state.RageTicksRemaining, 0, ushort.MaxValue));
         }
     }
 
@@ -892,7 +902,10 @@ public static partial class ProtocolCodec
                 reader.ReadInt32(),
                 reader.ReadSingle(),
                 reader.ReadBoolean(),
-                reader.ReadSingle()));
+                reader.ReadSingle(),
+                ReadScaledUInt16(reader, QuantizedRageChargeScale),
+                IsPlayerExtendedRageReady(flags1),
+                reader.ReadUInt16()));
         }
 
         return states;
@@ -996,6 +1009,11 @@ public static partial class ProtocolCodec
             flags |= 0x02;
         }
 
+        if (state.IsRageReady)
+        {
+            flags |= 0x04;
+        }
+
         return flags;
     }
 
@@ -1016,6 +1034,8 @@ public static partial class ProtocolCodec
     private static bool IsPlayerExtendedPyroPrimaryRequiresReleaseAfterEmpty(byte flags) => (flags & 0x01) != 0;
 
     private static bool IsPlayerExtendedMedicUberReady(byte flags) => (flags & 0x02) != 0;
+
+    private static bool IsPlayerExtendedRageReady(byte flags) => (flags & 0x04) != 0;
 
     private static ushort QuantizeAngleDegrees(float degrees)
     {

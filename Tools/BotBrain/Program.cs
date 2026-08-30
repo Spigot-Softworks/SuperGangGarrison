@@ -201,6 +201,12 @@ if (rawOptions.ContainsKey("alpha-graph-gate"))
     return;
 }
 
+if (rawOptions.ContainsKey("audit-shipped-alpha-graphs"))
+{
+    Og2AlphaNavigationDiagnostics.RunShippedGraphAudit(rawOptions);
+    return;
+}
+
 if (rawOptions.ContainsKey("prewarm-alpha-graphs"))
 {
     Og2AlphaNavigationDiagnostics.RunPrewarmShippedGraphs(rawOptions);
@@ -2106,6 +2112,7 @@ static void ObserveTraversalSoakBotPreAdvance(
     stats.LastPreY = bot.Y;
     stats.LastPreBottom = bot.Bottom;
     stats.LastInput = input;
+    stats.LastSteering = controller.LastSteeringOutput;
         stats.LastTraversalTrace = FormatTraversalSoakControllerTrace(controller);
     stats.LastSemanticTrace = controller.LastSemanticRecoveryTrace;
         stats.ThinkTicks += 1;
@@ -2841,6 +2848,8 @@ static string FormatPracticeRosterBotTick(PracticeRosterBotStats stats)
         CultureInfo.InvariantCulture,
         $"practiceBotTick=slot:{stats.Slot} {stats.Team} {stats.ClassId} pos=({stats.LastX:0.0},{stats.LastY:0.0}) " +
         $"speed=({stats.LastHorizontalSpeed:0.0},{stats.LastVerticalSpeed:0.0}) caps:{stats.LastCaps} " +
+        $"input=L{Bit(stats.LastInput.Left)}R{Bit(stats.LastInput.Right)}U{Bit(stats.LastInput.Up)}D{Bit(stats.LastInput.Down)}F{Bit(stats.LastInput.FirePrimary)} " +
+        $"steer=({stats.LastSteering.MoveDirection:0.0},{stats.LastSteering.MoveDirectionY:0.0}) repath:{(stats.LastSteering.RequestRepath ? 1 : 0)} " +
         $"carrying:{(stats.LastCarryingIntel ? 1 : 0)} " +
         $"stagnant:{(stats.RecentStagnant ? 1 : 0)} windowMove:{stats.RecentWindowMovement:0.0} " +
         $"auth:{authority} alpha:{(stats.LastAlphaNavigation ? 1 : 0)} path:{stats.LastPathIndex}/{stats.LastPathCount} trace:{trace}");
@@ -9772,6 +9781,8 @@ internal sealed class TraversalSoakBotStats
 
     public PlayerInputSnapshot LastInput { get; set; }
 
+    public SteeringOutput LastSteering { get; set; }
+
     public string LastTraversalTrace { get; set; } = string.Empty;
 
     public string LastSemanticTrace { get; set; } = string.Empty;
@@ -9920,6 +9931,8 @@ internal sealed class PracticeRosterBotStats
     public float LastVerticalSpeed { get; set; }
 
     public PlayerInputSnapshot LastInput { get; set; }
+
+    public SteeringOutput LastSteering { get; set; }
 
     public string LastProofTrace { get; set; } = string.Empty;
 

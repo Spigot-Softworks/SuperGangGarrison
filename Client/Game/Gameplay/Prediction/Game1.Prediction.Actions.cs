@@ -299,6 +299,25 @@ public partial class Game1
             return;
         }
 
+        if (player.IsAcquiredWeaponEquipped)
+        {
+            // Acquired weapons use their own cooldown/ammo state. Predict the
+            // state transition here as well; projectile creation remains on
+            // the authoritative simulation path.
+            if (!predictedInput.Input.FirePrimary
+                || player.HasEquippedBehavior(BuiltInGameplayBehaviorIds.Medigun))
+            {
+                return;
+            }
+
+            if (player.TryFireAcquiredWeapon())
+            {
+                SyncPredictedLocalPlayerState(player);
+            }
+
+            return;
+        }
+
         if (player.PrimaryWeapon.Kind == PrimaryWeaponKind.Medigun)
         {
             if (!predictedInput.Input.FirePrimary)

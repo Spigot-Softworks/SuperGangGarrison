@@ -2,6 +2,7 @@ using System.Reflection;
 using OpenGarrison.Client;
 using OpenGarrison.Core;
 using OpenGarrison.Core.LastToDie;
+using OpenGarrison.GameplayModding;
 using OpenGarrison.Protocol;
 using OpenGarrison.Server;
 using Xunit;
@@ -149,6 +150,51 @@ public sealed class Protocol64StateApplierTests
         Assert.Equal(CharacterClassCatalog.Medic.GameplayClassId, player.GameplayClassId);
         Assert.Equal(17, player.CurrentAmmo);
         Assert.Equal(40, player.MaxAmmo);
+    }
+
+    [Fact]
+    public void Protocol64PublisherAndWorldHydratePrimaryCooldownAndReloadTimers()
+    {
+        var source = CreateJoinedWorld(PlayerClass.Soldier);
+        Assert.True(source.LocalPlayer.TryFirePrimaryWeapon());
+
+        var state = Assert.Single(new Protocol64StatePublisher(source).BuildPlayerStateBatch(1).Players);
+        Assert.True(state.PrimaryCooldownTicks > 0);
+        Assert.True(state.PrimaryReloadTicks > 0);
+
+        var receiver = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
+        Assert.True(receiver.ApplyProtocol64PlayerState(state));
+        Assert.Equal(state.PrimaryCooldownTicks, receiver.LocalPlayer.PrimaryCooldownTicks);
+        Assert.Equal(state.PrimaryReloadTicks, receiver.LocalPlayer.ReloadTicksUntilNextShell);
+    }
+
+    [Theory]
+    [InlineData(PlayerClass.Sniper, "weapon.bow")]
+    [InlineData(PlayerClass.Scout, "weapon.scout-nailgun")]
+    [InlineData(PlayerClass.Medic, "weapon.medigun.crit")]
+    public void Protocol64PublisherAndReceiverPreserveLockedPrimaryAcrossRespawn(
+        PlayerClass playerClass,
+        string expectedSecondaryItemId)
+    {
+        var source = CreateJoinedWorld(playerClass);
+        source.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings(
+            EnableSecondaryAbilities: true));
+        source.LocalPlayer.SetSpawnRoomState(false);
+        source.LocalPlayer.EquipExperimentalOffhandWeapon();
+
+        Assert.True(source.LocalPlayer.IsExperimentalOffhandSelected);
+        source.ForceKillLocalPlayer();
+        AdvanceUntilRespawn(source);
+
+        var state = Assert.Single(new Protocol64StatePublisher(source).BuildPlayerStateBatch(1).Players);
+        Assert.Equal((byte)GameplayEquipmentSlot.Secondary, state.ActiveWeapon);
+
+        var receiver = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
+        Assert.True(receiver.ApplyProtocol64PlayerState(state));
+
+        Assert.True(receiver.LocalPlayer.IsExperimentalOffhandSelected);
+        Assert.Equal(GameplayEquipmentSlot.Secondary, receiver.LocalPlayer.GameplayLoadoutState.EquippedSlot);
+        Assert.Equal(expectedSecondaryItemId, receiver.LocalPlayer.GameplayLoadoutState.EquippedItemId);
     }
 
     [Fact]
@@ -488,6 +534,19 @@ public sealed class Protocol64StateApplierTests
 
         Assert.Equal(0, world.LocalPlayer.PrimaryCooldownTicks);
         Assert.True(world.LocalPlayer.CurrentShells >= world.LocalPlayer.PrimaryWeapon.AmmoPerShot);
+    }
+
+    private static void AdvanceUntilRespawn(SimulationWorld world)
+    {
+        for (var tick = 0;
+             tick < world.Config.TicksPerSecond * 6
+                && world.GetNetworkPlayerRespawnTicks(SimulationWorld.LocalPlayerSlot) > 0;
+             tick += 1)
+        {
+            world.AdvanceOneTick();
+        }
+
+        Assert.True(world.LocalPlayer.IsAlive);
     }
 
     private static void InvokeFirePrimaryWeapon(

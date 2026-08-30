@@ -164,11 +164,14 @@ public partial class Game1
             _world.TrySetNetworkPlayerAutomaticRespawnSuppressed(
                 slot,
                 perksBySlot.ContainsKey(slot));
-            _world.TryApplyLastToDiePlayerPredictionProfile(
-                slot,
-                perksBySlot.TryGetValue(slot, out var perkIds)
-                    ? perkIds
-                    : Array.Empty<string>());
+            if (perksBySlot.TryGetValue(slot, out var perkIds))
+            {
+                _world.TryApplyLastToDiePlayerPredictionProfile(slot, perkIds);
+            }
+            else
+            {
+                _world.ClearLastToDiePlayerPredictionProfile(slot);
+            }
         }
     }
 

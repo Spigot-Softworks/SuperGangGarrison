@@ -2,6 +2,7 @@
 
 using Microsoft.Xna.Framework;
 using OpenGarrison.Core;
+using OpenGarrison.Protocol;
 using System;
 using System.Globalization;
 
@@ -210,11 +211,29 @@ public partial class Game1
 
     private bool ShouldDrawLastToDieCombatFeedbackHud()
     {
+        if (IsHostedLastToDieActive())
+        {
+            return ShouldPresentHostedLastToDieCombatFeedbackHud(
+                _networkClient.LastToDieState.Snapshot?.Phase,
+                _world.LocalPlayer.IsAlive,
+                _world.LocalPlayerAwaitingJoin);
+        }
+
         return IsLastToDieSessionActive
             && _lastToDieRun is not null
             && !_lastToDiePerkMenuOpen
             && !IsLastToDieFailurePresentationActive()
             && !_world.LocalPlayerAwaitingJoin;
+    }
+
+    internal static bool ShouldPresentHostedLastToDieCombatFeedbackHud(
+        LastToDieWirePhase? phase,
+        bool localPlayerAlive,
+        bool localPlayerAwaitingJoin)
+    {
+        return phase == LastToDieWirePhase.Playing
+            && localPlayerAlive
+            && !localPlayerAwaitingJoin;
     }
 
     private bool IsCombatPerformanceFeedbackSessionActive =>

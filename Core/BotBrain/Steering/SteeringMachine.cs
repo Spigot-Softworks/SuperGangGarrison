@@ -665,6 +665,30 @@ public sealed class SteeringMachine
                 player.X,
                 player.Y + (desiredDirectionY * TopDownObstacleProbeDistance));
 
+        // A detour is a short movement transaction.  Honor it before the
+        // requested-axis fast paths below; otherwise a one-tick change in the
+        // waypoint delta clears the commitment and sends a bot back toward
+        // the blocked corner.  This was the source of the exact two-cycle
+        // left/right oscillation seen on graph-backed top-down routes.
+        if (_topDownDetourTicks > 0
+            && _topDownDetourDirection != 0f
+            && CanMoveTopDownDetour(player, level, team))
+        {
+            _topDownDetourTicks -= 1;
+            return _topDownDetourAxis == 1
+                ? (_topDownDetourDirection, 0f)
+                : (0f, _topDownDetourDirection);
+        }
+
+        if (_topDownDetourTicks > 0)
+        {
+            // The committed lane became blocked.  Do not hold stale input;
+            // the selection below will probe both sides again.
+            _topDownDetourDirection = 0f;
+            _topDownDetourAxis = 0;
+            _topDownDetourTicks = 0;
+        }
+
         // The movement resolver already slides one axis at a time. Do the
         // same at the steering layer when a route waypoint is immediately
         // beside a wall; otherwise the bot keeps requesting the blocked
@@ -697,16 +721,6 @@ public sealed class SteeringMachine
         // obstacle while the graph controller continues pursuing the same
         // waypoint. Alternate the side on later encounters to avoid pinning
         // a bot against a corner.
-        if (_topDownDetourTicks > 0
-            && _topDownDetourDirection != 0f
-            && CanMoveTopDownDetour(player, level, team))
-        {
-            _topDownDetourTicks -= 1;
-            return _topDownDetourAxis == 1
-                ? (_topDownDetourDirection, 0f)
-                : (0f, _topDownDetourDirection);
-        }
-
         _topDownDetourAxis = desiredDirectionX != 0f && !canMoveX && desiredDirectionY == 0f
             ? 2
             : desiredDirectionY != 0f && !canMoveY && desiredDirectionX == 0f
@@ -727,7 +741,10 @@ public sealed class SteeringMachine
 
         if (CanMoveTopDownDetour(player, level, team, detourDirection))
         {
-            _topDownDetourDirection = -detourDirection;
+            // Keep the selected direction for the active commitment.  The
+            // old code stored the opposite sign, so the first follow-up tick
+            // immediately reversed the detour and reproduced the two-cycle.
+            _topDownDetourDirection = detourDirection;
             _topDownDetourTicks = TopDownDetourCommitTicks - 1;
             return _topDownDetourAxis == 1
                 ? (detourDirection, 0f)

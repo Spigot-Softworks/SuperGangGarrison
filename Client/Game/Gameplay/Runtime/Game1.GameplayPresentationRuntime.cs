@@ -36,6 +36,7 @@ public partial class Game1
         }
 
         HandleGameplayMapTransitionIfNeeded();
+        AdvancePredictedWeaponFireVisuals((float)gameTime.ElapsedGameTime.TotalSeconds);
         UpdateLocalSentryNotice();
         UpdateIntelNotice();
         UpdateLocalPredictedRenderPosition();

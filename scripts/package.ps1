@@ -751,6 +751,67 @@ function Assert-RequiredDistributionMaps {
     Write-Host "[package] verified required distribution maps: cp_dirtbowl, cp_gully, cp_thundermountain_d, cp_coldfront_v7, cp_egypt, cp_docking_v2, Docking"
 }
 
+function Assert-PackagedOg2NavigationCoverage {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$RepoRoot,
+        [Parameter(Mandatory = $true)]
+        [string]$ContentDirectory,
+        [Parameter(Mandatory = $true)]
+        [string]$MapsDirectory
+    )
+
+    # This is deliberately a load-only audit.  In particular, do not call the
+    # alpha graph prewarm/build command here: a package must never turn a
+    # missing shipped snapshot into a machine-specific generated artifact.
+    $toolProject = Join-Path $RepoRoot "Tools\BotBrain\OpenGarrison.BotBrain.Tools.csproj"
+    if (-not (Test-Path -LiteralPath $toolProject -PathType Leaf)) {
+        throw "Cannot audit packaged OG2 navigation because the BotBrain tool project is missing at '$toolProject'."
+    }
+
+    $previousMapsDirectory = $env:OPENGARRISON_MAPS_DIR
+    $previousPersistentCache = $env:BOTBRAIN_NAV_ALPHA_PERSISTENT_CACHE
+    try {
+        # Keep the tool from seeing developer/user maps or a local persistent
+        # cache.  The only accepted source is the package payload itself.
+        $env:OPENGARRISON_MAPS_DIR = [System.IO.Path]::GetFullPath($MapsDirectory)
+        $env:BOTBRAIN_NAV_ALPHA_PERSISTENT_CACHE = "0"
+
+        Invoke-DotNet -Arguments @(
+            "run",
+            "--project",
+            $toolProject,
+            "-c",
+            $configuration,
+            "-p:OpenGarrisonPackageScriptOwnsContent=true",
+            "--no-restore",
+            "--",
+            "--audit-shipped-alpha-graphs",
+            "--content-root",
+            ([System.IO.Path]::GetFullPath($ContentDirectory)),
+            "--maps-root",
+            ([System.IO.Path]::GetFullPath($MapsDirectory))
+        )
+    }
+    finally {
+        if ($null -eq $previousMapsDirectory) {
+            Remove-Item Env:OPENGARRISON_MAPS_DIR -ErrorAction SilentlyContinue
+        }
+        else {
+            $env:OPENGARRISON_MAPS_DIR = $previousMapsDirectory
+        }
+
+        if ($null -eq $previousPersistentCache) {
+            Remove-Item Env:BOTBRAIN_NAV_ALPHA_PERSISTENT_CACHE -ErrorAction SilentlyContinue
+        }
+        else {
+            $env:BOTBRAIN_NAV_ALPHA_PERSISTENT_CACHE = $previousPersistentCache
+        }
+    }
+
+    Write-Host "[package] verified packaged OG2 navigation snapshots for every discovered map area."
+}
+
 function Restore-CollisionMaskImages {
     param(
         [Parameter(Mandatory = $true)]
@@ -1901,6 +1962,10 @@ foreach ($runtimeIdentifier in $Platforms) {
     & (Join-Path $repoRoot "scripts/verify-packaged-content.ps1") -Path (Join-Path $payloadDirectory "Content")
     Assert-PackagedDesktopPayloadPolicy -PayloadDirectory $payloadDirectory
     Assert-RequiredDistributionMaps -MapsDirectory (Join-Path $payloadDirectory "Maps") -ContentDirectory (Join-Path $payloadDirectory "Content")
+    Assert-PackagedOg2NavigationCoverage `
+        -RepoRoot $repoRoot `
+        -ContentDirectory (Join-Path $payloadDirectory "Content") `
+        -MapsDirectory (Join-Path $payloadDirectory "Maps")
     Copy-DirectoryContents -SourceDirectory (Join-Path $repoRoot "packaging/config") -DestinationDirectory (Join-Path $payloadDirectory "config")
     Copy-Item (Join-Path $repoRoot "Client/practice-bot-names.txt") (Join-Path $payloadDirectory "config/practice-bot-names.txt") -Force
     Copy-Item (Join-Path $repoRoot "packaging/config/sampleMapRotation.txt") (Join-Path $payloadDirectory "config/sampleMapRotation.txt") -Force

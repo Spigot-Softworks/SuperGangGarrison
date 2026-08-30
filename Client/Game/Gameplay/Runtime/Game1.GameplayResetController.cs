@@ -71,6 +71,10 @@ public partial class Game1
         {
             _game.StopLocalRapidFireWeaponAudio();
             _game.StopIngameMusic();
+            _game.StopMenuMusic();
+            _game.StopLastToDieMenuMusic();
+            _game.StopLastToDieIngameMusic();
+            _game.StopLastToDieGameOverSound();
             _game.ResetTransientPresentationEffects();
             _game.ResetProcessedNetworkEventHistory();
         }

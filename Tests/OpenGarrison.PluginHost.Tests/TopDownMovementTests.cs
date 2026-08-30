@@ -135,11 +135,13 @@ public sealed class TopDownMovementTests
     [Fact]
     public void CtfHangarRoutesBothTeamsFromRealSpawnsToEnemyIntel()
     {
-        var mapDirectory = ProjectSourceLocator.FindDirectory(
-            Path.Combine("Tests", "Fixtures", "Maps", "ctf_hangar"));
-        Assert.NotNull(mapDirectory);
+        var mapsDirectory = ResolveCanonicalHangarMapsDirectory();
         var previousMapsDirectory = Environment.GetEnvironmentVariable("OPENGARRISON_MAPS_DIR");
-        Environment.SetEnvironmentVariable("OPENGARRISON_MAPS_DIR", Path.GetDirectoryName(mapDirectory!));
+        var previousContentRoot = ContentRoot.Path;
+        var coreContent = ProjectSourceLocator.FindDirectory(Path.Combine("Core", "Content"));
+        Assert.False(string.IsNullOrWhiteSpace(coreContent));
+        Environment.SetEnvironmentVariable("OPENGARRISON_MAPS_DIR", mapsDirectory);
+        ContentRoot.Initialize(coreContent!);
         SimpleLevelFactory.ClearCachedCatalog();
 
         try
@@ -151,7 +153,7 @@ public sealed class TopDownMovementTests
         Assert.NotEmpty(level.RedSpawns);
         Assert.NotEmpty(level.BlueSpawns);
 
-        var graph = Og2NavigationGraphBuilder.Build(level);
+        Assert.True(Og2NavigationGraphStore.TryLoadShipped(level, out var graph));
         foreach (var team in new[] { PlayerTeam.Red, PlayerTeam.Blue })
         {
             var startSpawn = team == PlayerTeam.Red ? level.RedSpawns[0] : level.BlueSpawns[0];
@@ -195,6 +197,7 @@ public sealed class TopDownMovementTests
         finally
         {
             Environment.SetEnvironmentVariable("OPENGARRISON_MAPS_DIR", previousMapsDirectory);
+            ContentRoot.Initialize(previousContentRoot);
             SimpleLevelFactory.ClearCachedCatalog();
         }
     }
@@ -202,11 +205,13 @@ public sealed class TopDownMovementTests
     [Fact]
     public void CtfHangarBotLeavesEachSpawnAndCompletesCapture()
     {
-        var mapDirectory = ProjectSourceLocator.FindDirectory(
-            Path.Combine("Tests", "Fixtures", "Maps", "ctf_hangar"));
-        Assert.NotNull(mapDirectory);
+        var mapsDirectory = ResolveCanonicalHangarMapsDirectory();
         var previousMapsDirectory = Environment.GetEnvironmentVariable("OPENGARRISON_MAPS_DIR");
-        Environment.SetEnvironmentVariable("OPENGARRISON_MAPS_DIR", Path.GetDirectoryName(mapDirectory!));
+        var previousContentRoot = ContentRoot.Path;
+        var coreContent = ProjectSourceLocator.FindDirectory(Path.Combine("Core", "Content"));
+        Assert.False(string.IsNullOrWhiteSpace(coreContent));
+        Environment.SetEnvironmentVariable("OPENGARRISON_MAPS_DIR", mapsDirectory);
+        ContentRoot.Initialize(coreContent!);
         SimpleLevelFactory.ClearCachedCatalog();
 
         try
@@ -223,14 +228,17 @@ public sealed class TopDownMovementTests
                 const byte botSlot = 2;
                 Assert.True(world.TryPrepareNetworkPlayerJoin(botSlot));
                 Assert.True(world.TrySetNetworkPlayerTeam(botSlot, team));
-                Assert.True(world.TryApplyNetworkPlayerClassSelection(botSlot, PlayerClass.Scout));
+                // The current packaged Hangar routes through authored fire
+                // zones. Use Pyro so this remains a navigation/capture test
+                // instead of repeatedly dying to the map's afterburn hazard.
+                Assert.True(world.TryApplyNetworkPlayerClassSelection(botSlot, PlayerClass.Pyro));
                 Assert.True(world.TryGetNetworkPlayer(botSlot, out var bot));
 
-                // This fixture intentionally has no shipped .og2nav.bin. Build
-                // the graph explicitly for the integration harness, matching
-                // CtfHangarRoutesBothTeamsFromRealSpawnsToEnemyIntel above;
-                // live bot thinks must not synchronously generate navigation.
-                var graph = Og2NavigationGraphBuilder.Build(world.Level);
+                // The canonical Hangar map ships its OG2 graph. This assertion
+                // keeps the integration harness on the same graph handoff as
+                // live practice/server startup and prevents a cold build from
+                // masking a missing shipped asset.
+                Assert.True(Og2NavigationGraphStore.TryLoadShipped(world.Level, out var graph));
 
                 var startX = bot.X;
                 var startY = bot.Y;
@@ -288,6 +296,7 @@ public sealed class TopDownMovementTests
         finally
         {
             Environment.SetEnvironmentVariable("OPENGARRISON_MAPS_DIR", previousMapsDirectory);
+            ContentRoot.Initialize(previousContentRoot);
             SimpleLevelFactory.ClearCachedCatalog();
         }
     }
@@ -599,6 +608,46 @@ public sealed class TopDownMovementTests
     }
 
     [Fact]
+    public void TopDownSteeringKeepsCommittedDetourDirectionAcrossTicks()
+    {
+        var player = new PlayerEntity(1, CharacterClassCatalog.Scout, "Top-down test");
+        player.Spawn(PlayerTeam.Red, 240f, 240f);
+        // A small body makes both sides of the synthetic blocker clear at the
+        // 8px probe distance, which isolates the detour commitment itself.
+        player.SetPlayerScale(0.25f);
+        player.TeleportTo(240f, 240f);
+        var wall = new LevelSolid(
+            player.Right + 1f,
+            player.Top + 1f,
+            160f,
+            MathF.Max(1f, (player.Bottom - player.Top) - 2f));
+        var level = CreateTopDownLevel([wall]);
+        var graph = new NavGraph(
+            nodes:
+            [
+                new NavNode(240f, 240f, NavNodeKind.Surface, 1),
+                new NavNode(480f, 240f, NavNodeKind.Objective, 1),
+            ],
+            adjacency:
+            [
+                new List<NavEdge> { new(1, NavEdgeKind.Walk, 240f) },
+                new List<NavEdge>(),
+            ],
+            levelName: level.Name,
+            mode: level.Mode);
+        var path = new NavPath([0, 1], 240f);
+        var steeringMachine = new SteeringMachine();
+
+        var first = steeringMachine.Update(player, graph, path, level, PlayerTeam.Red);
+        var second = steeringMachine.Update(player, graph, path, level, PlayerTeam.Red);
+
+        Assert.NotEqual(0f, first.MoveDirectionY);
+        Assert.Equal(first.MoveDirectionY, second.MoveDirectionY);
+        Assert.Equal(0f, first.MoveDirection);
+        Assert.Equal(0f, second.MoveDirection);
+    }
+
+    [Fact]
     public void TopDownPathlessRecoveryDoesNotDriveIntoBlockedObjectiveAxis()
     {
         var player = new PlayerEntity(1, CharacterClassCatalog.Scout, "Top-down test");
@@ -626,6 +675,88 @@ public sealed class TopDownMovementTests
                 PlayerTeam.Red,
                 player.X,
                 player.Y + (recovery.MoveY * 8f)));
+    }
+
+    [Fact]
+    public void WarmedNonShippedGraphIsAttachedByBotThinkWithoutBuilding()
+    {
+        var level = CreateTopDownLevel(name: $"topdown_warmed_runtime_{Guid.NewGuid():N}");
+        Assert.False(Og2NavigationGraphStore.TryLoadShipped(level, out _));
+        Assert.False(Og2NavigationGraphStore.TryGetCached(level, out _));
+
+        var warmedGraph = Og2NavigationGraphStore.GetOrBuild(level);
+        Assert.True(Og2NavigationGraphStore.TryGetCached(level, out var cachedGraph));
+        Assert.Same(warmedGraph, cachedGraph);
+
+        var world = CreateWorldForTopDownLevel(level);
+        var controller = new BotBrainController
+        {
+            ForceObjectiveNavigationForDiagnostics = true,
+            DisableCombatForDiagnostics = true,
+        };
+
+        _ = controller.Think(world.LocalPlayer, world, PlayerTeam.Red);
+
+        Assert.True(controller.HasNavigationGraph);
+        Assert.Equal("memory", controller.LastNavigationGraphSource);
+        Assert.True(controller.CurrentPathCount > 0);
+    }
+
+    [Fact]
+    public void UnwarmedControllerDoesNotGenerateAnOg2GraphDuringThink()
+    {
+        var level = CreateTopDownLevel(name: $"topdown_unwarmed_runtime_{Guid.NewGuid():N}");
+        var world = CreateWorldForTopDownLevel(level);
+        var controller = new BotBrainController(disableShippedNavigationGraph: false)
+        {
+            ForceObjectiveNavigationForDiagnostics = true,
+            DisableCombatForDiagnostics = true,
+        };
+
+        Assert.False(Og2NavigationGraphStore.TryGetCached(level, out _));
+        _ = controller.Think(world.LocalPlayer, world, PlayerTeam.Red);
+
+        Assert.False(controller.HasNavigationGraph);
+        Assert.Equal("none", controller.LastNavigationGraphSource);
+        Assert.False(Og2NavigationGraphStore.TryGetCached(level, out _));
+    }
+
+    [Fact]
+    public void TopDownAllySeparationNeverReversesAnActiveGraphRoute()
+    {
+        var level = CreateTopDownLevel(name: $"topdown_ally_route_{Guid.NewGuid():N}");
+        var world = CreateWorldForTopDownLevel(level);
+        Assert.True(world.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.TrySetNetworkPlayerTeam(2, PlayerTeam.Red));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
+        Assert.True(world.TryGetNetworkPlayer(2, out var ally));
+
+        var player = world.LocalPlayer;
+        player.TeleportTo(240f, 240f);
+        ally.TeleportTo(264f, 240f);
+        var graph = new NavGraph(
+            nodes:
+            [
+                new NavNode(240f, 240f, NavNodeKind.Surface, 1),
+                new NavNode(520f, 240f, NavNodeKind.Objective, 1),
+            ],
+            adjacency:
+            [
+                new List<NavEdge> { new(1, NavEdgeKind.Walk, 280f) },
+                new List<NavEdge>(),
+            ],
+            levelName: level.Name,
+            mode: level.Mode);
+        var controller = new BotBrainController(graph, forceAlphaNavigation: true)
+        {
+            ForceObjectiveNavigationForDiagnostics = true,
+            DisableCombatForDiagnostics = true,
+        };
+
+        var input = controller.Think(player, world, PlayerTeam.Red);
+
+        Assert.False(input.Left, "ally separation must not reverse the active graph edge");
+        Assert.True(input.Right || input.Up || input.Down, "ally separation left the bot with no movement lane");
     }
 
     [Fact]
@@ -701,10 +832,11 @@ public sealed class TopDownMovementTests
 
     private static SimpleLevel CreateTopDownLevel(
         IReadOnlyList<LevelSolid>? solids = null,
-        IReadOnlyList<BotSpawnMarker>? botSpawns = null)
+        IReadOnlyList<BotSpawnMarker>? botSpawns = null,
+        string? name = null)
     {
         return new SimpleLevel(
-            name: "topdown_test",
+            name: name ?? "topdown_test",
             mode: GameModeKind.CaptureTheFlag,
             bounds: new WorldBounds(800f, 600f),
             mapScale: 1f,
@@ -725,6 +857,43 @@ public sealed class TopDownMovementTests
             importedFromSource: false,
             botSpawns: botSpawns,
             isTopDown: true);
+    }
+
+    private static SimulationWorld CreateWorldForTopDownLevel(SimpleLevel level)
+    {
+        var world = new SimulationWorld(new SimulationConfig
+        {
+            EnableEnemyTrainingDummy = false,
+            EnableFriendlySupportDummy = false,
+        });
+        var setLevel = typeof(SimulationWorld).GetMethod(
+            "CombatTestSetLevel",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(setLevel);
+        _ = setLevel!.Invoke(world, [level]);
+        Assert.True(world.TrySetLocalClass(PlayerClass.Soldier));
+        Assert.True(world.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red));
+        world.ForceRespawnLocalPlayer();
+        world.LocalPlayer.RestoreMovementProbeState(
+            isGrounded: true,
+            remainingAirJumps: null,
+            facingDirectionX: 1f);
+        return world;
+    }
+
+    private static string ResolveCanonicalHangarMapsDirectory()
+    {
+        // Resolve the manifest rather than the directory: build output can
+        // contain an empty Maps/ctf_hangar shadow directory, while the source
+        // manifest uniquely identifies the canonical packaged map.
+        var manifestPath = ProjectSourceLocator.FindFile(
+            Path.Combine("Maps", "ctf_hangar", "ctf_hangar.json"));
+        Assert.False(string.IsNullOrWhiteSpace(manifestPath));
+        var mapDirectory = Path.GetDirectoryName(manifestPath!);
+        Assert.False(string.IsNullOrWhiteSpace(mapDirectory));
+        var mapsDirectory = Path.GetDirectoryName(mapDirectory!);
+        Assert.False(string.IsNullOrWhiteSpace(mapsDirectory));
+        return mapsDirectory!;
     }
 
     private static NavGraph CreateDiagonalObjectiveGraph(SimpleLevel level)

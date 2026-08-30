@@ -1313,8 +1313,8 @@ public sealed class CustomMapPngExporterTests
         var platform = Assert.Single(imported.Room.MovingPlatforms);
         Assert.Equal(30f, platform.X);
         Assert.Equal(42f, platform.Y);
-        Assert.Equal(120f, platform.Width);
-        Assert.Equal(12f, platform.Height);
+        Assert.Equal(20f, platform.Width);
+        Assert.Equal(20f, platform.Height);
         Assert.Equal(18f, platform.TravelX);
         Assert.Equal(-36f, platform.TravelY);
         Assert.Equal(4f, platform.UpSpeed);
@@ -1324,6 +1324,26 @@ public sealed class CustomMapPngExporterTests
         Assert.Equal("lift", platform.ResourceName);
         Assert.DoesNotContain("moving_platform", imported.Room.UnsupportedEntities);
         Assert.True(imported.Room.CustomMapVisuals.Resources.ContainsKey("lift"));
+    }
+
+    [Fact]
+    public void CdragonMovingPlatformUsesReplacementSpriteDimensions()
+    {
+        var manifestPath = FindRepoFile("Maps", "koth_cdragon", "koth_cdragon.json");
+        var imported = CustomMapPackageImporter.Import(manifestPath);
+
+        Assert.NotNull(imported);
+        var platform = Assert.Single(imported!.Room.MovingPlatforms);
+
+        // The map's mplatform.png is 18x4 and its GG2 scale is 6. The previous
+        // importer used the inherited 60x6 DropdownPlatform dimensions, making
+        // this platform 3.3x too wide and shifting its visual center to the right.
+        Assert.Equal(2196f, platform.X);
+        Assert.Equal(666f, platform.Y);
+        Assert.Equal(108f, platform.Width);
+        Assert.Equal(24f, platform.Height);
+        Assert.Equal(2250f, platform.X + (platform.Width / 2f));
+        Assert.Equal(678f, platform.Y + (platform.Height / 2f));
     }
 
     [Fact]

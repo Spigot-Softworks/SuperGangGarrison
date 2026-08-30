@@ -208,6 +208,17 @@ public partial class Game1
             _hostedLastToDieObservedPhase = null;
         }
 
+        // The loading/menu track owns the connection gap only until the
+        // authoritative LTD snapshot arrives.  Leaving this set forever
+        // makes the music selector return to the menu branch even after the
+        // server has entered Playing.
+        if (ShouldClearHostedLastToDieConnectionPresentationPending(
+                _networkClient.IsConnected,
+                snapshot.Phase))
+        {
+            _lastToDieConnectionPresentationPending = false;
+        }
+
         var enteredLostPhase = _hostedLastToDieObservedPhase != LastToDieWirePhase.Lost
             && snapshot.Phase == LastToDieWirePhase.Lost;
         if (_hostedLastToDieObservedPhase != snapshot.Phase)
@@ -494,6 +505,11 @@ public partial class Game1
             or LastToDieWirePhase.SurvivorChoice
             or LastToDieWirePhase.RewardChoice
             or LastToDieWirePhase.LoadingStage;
+
+    internal static bool ShouldClearHostedLastToDieConnectionPresentationPending(
+        bool isConnected,
+        LastToDieWirePhase? phase)
+        => isConnected && phase.HasValue;
 
     private int GetHostedLastToDieDigitChoice(KeyboardState keyboard, int count)
     {

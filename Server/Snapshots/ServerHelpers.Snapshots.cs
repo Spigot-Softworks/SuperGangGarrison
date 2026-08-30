@@ -327,7 +327,10 @@ internal static partial class ServerHelpers
             IsDispenserBuffed: player.IsDispenserBuffed,
             DispenserAttackReloadSpeedMultiplier: player.IsDispenserBuffed
                 ? player.DispenserAttackReloadSpeedMultiplier
-                : 1f);
+                : 1f,
+            RageCharge: player.RageCharge,
+            IsRageReady: player.IsRageReady,
+            RageTicksRemaining: Math.Max(0, player.RageTicksRemaining));
     }
 
     internal static SnapshotIntelState ToSnapshotIntelState(TeamIntelligenceState intel)

@@ -300,6 +300,57 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
     }
 
     [Theory]
+    [InlineData(PlayerClass.Sniper, "weapon.bow")]
+    [InlineData(PlayerClass.Scout, "weapon.scout-nailgun")]
+    [InlineData(PlayerClass.Medic, "weapon.medigun.crit")]
+    public void LockedAlternatePrimarySelectedThroughGameplayInputSurvivesPracticeRespawn(
+        PlayerClass playerClass,
+        string expectedSecondaryItemId)
+    {
+        var world = CreateWorldWithLocalClass(playerClass);
+        world.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings(
+            EnableSecondaryAbilities: true));
+        InstallPrimaryWeaponSwapCabinetAtLocalPlayer(world);
+        world.SetLocalInput(default);
+        world.SetLocalPreviousInput(default);
+
+        Assert.True(world.LocalPlayer.IsAlive);
+        Assert.True(world.LocalPlayer.HasExperimentalOffhandWeapon);
+        Assert.False(world.LocalPlayer.IsExperimentalOffhandEquipped);
+        Assert.True(world.IsNearPrimaryWeaponSwapStation(world.LocalPlayer));
+        PressWeaponSwap(world);
+        Assert.True(world.LocalPlayer.IsExperimentalOffhandEquipped);
+        Assert.Equal(GameplayEquipmentSlot.Secondary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
+
+        world.LocalPlayer.SetSpawnRoomState(false);
+        world.ForceKillLocalPlayer();
+
+        // A settings/snapshot resync can run while the player is dead. This
+        // must not interpret the intentionally-cleared runtime offhand flag as
+        // a request to forget the persistent locked-primary choice.
+        world.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings(
+            EnableSecondaryAbilities: true));
+
+        // A same-class team confirmation is another real resync path used by
+        // the network lifecycle while a player is awaiting respawn.
+        Assert.True(world.TryRequestNetworkPlayerTeamSelection(
+            SimulationWorld.LocalPlayerSlot,
+            world.LocalPlayer.Team));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(
+            SimulationWorld.LocalPlayerSlot,
+            playerClass));
+        Assert.False(world.LocalPlayer.IsAlive);
+
+        AdvanceUntilRespawn(world, SimulationWorld.LocalPlayerSlot);
+
+        Assert.True(world.LocalPlayer.IsAlive);
+        Assert.True(world.LocalPlayer.IsExperimentalOffhandEquipped);
+        Assert.True(world.LocalPlayer.IsExperimentalOffhandSelected);
+        Assert.Equal(GameplayEquipmentSlot.Secondary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
+        Assert.Equal(expectedSecondaryItemId, world.LocalPlayer.GameplayLoadoutState.EquippedItemId);
+    }
+
+    [Theory]
     [InlineData(PlayerClass.Sniper)]
     [InlineData(PlayerClass.Scout)]
     [InlineData(PlayerClass.Medic)]
@@ -633,6 +684,39 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
             UseAbility: true,
             SwapWeapon: true));
         world.AdvanceOneTick();
+    }
+
+    private static void InstallPrimaryWeaponSwapCabinetAtLocalPlayer(SimulationWorld world)
+    {
+        var spawn = new SpawnPoint(world.LocalPlayer.X, world.LocalPlayer.Y);
+        world.CombatTestSetLevel(new SimpleLevel(
+            name: "locked_primary_respawn",
+            mode: GameModeKind.TeamDeathmatch,
+            bounds: new WorldBounds(640f, 480f),
+            mapScale: 1f,
+            backgroundAssetName: null,
+            mapAreaIndex: 1,
+            mapAreaCount: 1,
+            localSpawn: spawn,
+            redSpawns: [spawn],
+            blueSpawns: [spawn],
+            intelBases: [],
+            roomObjects:
+            [
+                new RoomObjectMarker(
+                    RoomObjectType.HealingCabinet,
+                    world.LocalPlayer.X - 16f,
+                    world.LocalPlayer.Y - 24f,
+                    32f,
+                    48f,
+                    "sprite74",
+                    SourceName: "HealingCabinet"),
+            ],
+            floorY: world.LocalPlayer.Y + 64f,
+            solids: [],
+            importedFromSource: false));
+
+        Assert.True(world.IsNearPrimaryWeaponSwapStation(world.LocalPlayer));
     }
 
     private static void AdvanceUntilRespawn(SimulationWorld world, byte slot)

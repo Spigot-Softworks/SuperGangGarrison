@@ -459,7 +459,12 @@ public sealed record SnapshotPlayerState(
     // Optional-at-end normal gameplay buff state. Older constructor call
     // sites remain valid and decode as an unbuffed player.
     bool IsDispenserBuffed = false,
-    float DispenserAttackReloadSpeedMultiplier = 1f);
+    float DispenserAttackReloadSpeedMultiplier = 1f,
+    // Authoritative Last to Die Rage state. The optional-at-end placement
+    // keeps existing constructor call sites source-compatible.
+    float RageCharge = 0f,
+    bool IsRageReady = false,
+    int RageTicksRemaining = 0);
 
 public sealed record SnapshotPlayerMovementState(
     byte Slot,
@@ -542,7 +547,10 @@ public sealed record SnapshotPlayerExtendedStatusState(
     int KritzCritBoostProviderSlot = int.MaxValue,
     float KritzCritBoostDamageMultiplier = 1f,
     bool IsDispenserBuffed = false,
-    float DispenserAttackReloadSpeedMultiplier = 1f);
+    float DispenserAttackReloadSpeedMultiplier = 1f,
+    float RageCharge = 0f,
+    bool IsRageReady = false,
+    int RageTicksRemaining = 0);
 
 public sealed record SnapshotIntelState(
     byte Team,

@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using OpenGarrison.Core;
+using OpenGarrison.GameplayModding;
 
 namespace OpenGarrison.Client;
 
@@ -74,12 +75,19 @@ public partial class Game1
 
     private sealed class RecentProjectileSoundEvent
     {
-        public RecentProjectileSoundEvent(string soundName, float x, float y, bool isNetworkEvent, int ticksRemaining)
+        public RecentProjectileSoundEvent(
+            string soundName,
+            float x,
+            float y,
+            bool isNetworkEvent,
+            int sourcePlayerId,
+            int ticksRemaining)
         {
             SoundName = soundName;
             X = x;
             Y = y;
             IsNetworkEvent = isNetworkEvent;
+            SourcePlayerId = sourcePlayerId;
             TicksRemaining = ticksRemaining;
         }
 
@@ -90,6 +98,8 @@ public partial class Game1
         public float Y { get; }
 
         public bool IsNetworkEvent { get; }
+
+        public int SourcePlayerId { get; }
 
         public int TicksRemaining { get; set; }
     }
@@ -350,6 +360,94 @@ public partial class Game1
         RememberPlayedGibSound(soundEvent);
     }
 
+    private void PlayPredictedPrimaryFireSound()
+    {
+        if (!_audioAvailable || _runtimeAssets is null)
+        {
+            return;
+        }
+
+        var player = GetImmediatePrimaryPresentationPlayer();
+        var soundName = ResolvePredictedPrimaryFireSoundName(player);
+        if (string.IsNullOrWhiteSpace(soundName)
+            || IsManagedRapidFireSoundName(soundName))
+        {
+            // Looped minigun/flamethrower audio is started by the rapid-fire
+            // controller, which also keeps it alive while the trigger is held.
+            return;
+        }
+
+        var soundEvent = new WorldSoundEvent(
+            soundName,
+            player.X,
+            player.Y,
+            SourceFrame: (ulong)Math.Max(0, _world.Frame),
+            SourcePlayerId: player.Id);
+        if (ShouldSuppressPredictedProjectileSoundEcho(soundName, soundEvent))
+        {
+            return;
+        }
+
+        var sound = _runtimeAssets.GetSound(soundName);
+        if (sound is null)
+        {
+            return;
+        }
+
+        var (volume, pan) = GetWorldSoundMix(soundEvent);
+        if (volume <= 0f || !TryPlaySound(sound, volume, 0f, pan))
+        {
+            return;
+        }
+
+        // The authoritative event carries a non-zero EventId. Keeping this
+        // local EventId=0 entry lets the normal event pump suppress that echo.
+        RememberPlayedProjectileSound(soundName, soundEvent);
+    }
+
+    private static string? ResolvePredictedPrimaryFireSoundName(PlayerEntity player)
+    {
+        var weapon = player.IsAcquiredWeaponEquipped
+            ? player.AcquiredWeapon
+            : player.IsExperimentalOffhandSelected
+                ? player.ExperimentalOffhandWeapon
+                : player.PrimaryWeapon;
+        if (weapon is null)
+        {
+            return null;
+        }
+
+        if (!string.IsNullOrWhiteSpace(weapon.FireSoundName))
+        {
+            return weapon.FireSoundName;
+        }
+
+        var behaviorId = player.IsAcquiredWeaponEquipped
+            ? player.AcquiredBehaviorId
+            : player.IsExperimentalOffhandSelected
+                ? player.EquippedBehaviorId ?? player.SecondaryBehaviorId ?? player.UtilityBehaviorId
+                : player.PrimaryBehaviorId;
+        if (!string.IsNullOrWhiteSpace(behaviorId)
+            && CharacterClassCatalog.RuntimeRegistry.TryGetPrimaryWeaponBinding(behaviorId, out var binding)
+            && !string.IsNullOrWhiteSpace(binding.FireSoundName))
+        {
+            return binding.FireSoundName;
+        }
+
+        return weapon.Kind switch
+        {
+            PrimaryWeaponKind.PelletGun => "ShotgunSnd",
+            PrimaryWeaponKind.FlameThrower => "FlamethrowerSnd",
+            PrimaryWeaponKind.RocketLauncher => "RocketSnd",
+            PrimaryWeaponKind.MineLauncher => "MinegunSnd",
+            PrimaryWeaponKind.Minigun => "ChaingunSnd",
+            PrimaryWeaponKind.Rifle => "SniperSnd",
+            PrimaryWeaponKind.Revolver => "RevolverSnd",
+            PrimaryWeaponKind.Blade => "BladeSnd",
+            _ => null,
+        };
+    }
+
     private void BeginExplosionSoundDeduplicationFrame()
     {
         _playedExplosionSoundsThisFrame.Clear();
@@ -477,7 +575,15 @@ public partial class Game1
             || string.Equals(soundName, "HealExplosionSnd", StringComparison.OrdinalIgnoreCase)
             || string.Equals(soundName, "RocketSnd", StringComparison.OrdinalIgnoreCase)
             || string.Equals(soundName, "DirecthitSnd", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(soundName, "MinegunSnd", StringComparison.OrdinalIgnoreCase);
+            || string.Equals(soundName, "MinegunSnd", StringComparison.OrdinalIgnoreCase)
+            || IsWeaponFireSoundName(soundName) && !IsManagedRapidFireSoundName(soundName);
+    }
+
+    private static bool IsManagedRapidFireSoundName(string soundName)
+    {
+        return string.Equals(soundName, "ChaingunSnd", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(soundName, "FlamethrowerSnd", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(soundName, "MedigunSnd", StringComparison.OrdinalIgnoreCase);
     }
 
     private static float GetProjectileSoundEchoDistanceSquared(string soundName)
@@ -485,6 +591,29 @@ public partial class Game1
         return string.Equals(NormalizeProjectileSoundEchoName(soundName), "ExplosionSnd", StringComparison.OrdinalIgnoreCase)
             ? RecentProjectileExplosionSoundEchoDistanceSquared
             : RecentProjectileFireSoundEchoDistanceSquared;
+    }
+
+    internal static bool AreProjectileSoundEchoSourcesCompatible(
+        string normalizedSoundName,
+        int recentSourcePlayerId,
+        int currentSourcePlayerId)
+    {
+        // Explosion sounds can be emitted by world objects and older
+        // snapshots do not always carry an owner. Position remains the only
+        // reliable correlation key for those events. Weapon-fire sounds are
+        // different: suppressing solely by sound name and position can eat a
+        // nearby remote player's legitimate shot when it happens to match the
+        // locally predicted weapon. Require both events to identify the same
+        // player, and prefer the duplicate over suppressing an unrelated shot
+        // when either side lacks an identity.
+        if (!IsWeaponFireSoundName(normalizedSoundName))
+        {
+            return true;
+        }
+
+        return recentSourcePlayerId >= 0
+            && currentSourcePlayerId >= 0
+            && recentSourcePlayerId == currentSourcePlayerId;
     }
 
     private void AdvanceRecentProjectileSoundEvents()
@@ -625,6 +754,14 @@ public partial class Game1
                 continue;
             }
 
+            if (!AreProjectileSoundEchoSourcesCompatible(
+                    normalizedSoundName,
+                    recent.SourcePlayerId,
+                    soundEvent.SourcePlayerId))
+            {
+                continue;
+            }
+
             var deltaX = soundEvent.X - recent.X;
             var deltaY = soundEvent.Y - recent.Y;
             if ((deltaX * deltaX) + (deltaY * deltaY) <= maxDistanceSquared)
@@ -653,6 +790,7 @@ public partial class Game1
             soundEvent.X,
             soundEvent.Y,
             soundEvent.EventId != 0,
+            soundEvent.SourcePlayerId,
             RecentProjectileSoundEchoLifetimeTicks));
     }
 

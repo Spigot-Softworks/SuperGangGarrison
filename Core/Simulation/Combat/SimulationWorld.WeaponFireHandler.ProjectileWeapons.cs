@@ -182,9 +182,10 @@ public sealed partial class SimulationWorld
             PrimaryWeaponDefinition weaponDefinition,
             string? killFeedWeaponSpriteNameOverride)
         {
+            var settings = _world.GetLastToDieGameplaySettings(attacker);
             if (weaponClassId != PlayerClass.Engineer
                 || !_world.IsExperimentalPracticePowerOwner(attacker)
-                || !_world.ExperimentalGameplaySettings.EnableEngineerExperimentalOverkillAugment)
+                || !settings.EnableEngineerExperimentalOverkillAugment)
             {
                 return;
             }
@@ -280,6 +281,7 @@ public sealed partial class SimulationWorld
             var explodeImmediately = _world.IsProjectileSpawnBlocked(weaponOrigin.BaseX, weaponOrigin.BaseY, spawnX, spawnY, attacker.Team);
             var experimentalSoldierPerkOwner = _world.IsExperimentalPracticePowerOwner(attacker)
                 && attacker.ClassId == PlayerClass.Soldier;
+            var soldierSettings = _world.GetLastToDieGameplaySettings(attacker);
             var rocketCombat = _world.ApplyExperimentalSoldierRocketCombat(attacker, weaponDefinition.RocketCombat);
             var projectileCount = GetExperimentalProjectilesPerShot(attacker, 1);
             for (var projectileIndex = 0; projectileIndex < projectileCount; projectileIndex += 1)
@@ -297,17 +299,17 @@ public sealed partial class SimulationWorld
                     weaponDefinition.DirectHitHealAmount ?? 0f,
                     explodeImmediately,
                     canGrantExperimentalInstantReloadOnHit: experimentalSoldierPerkOwner
-                        && _world.ExperimentalGameplaySettings.EnableSoldierInstantReload,
-                    knockbackScale: experimentalSoldierPerkOwner && _world.ExperimentalGameplaySettings.EnableSoldierNapalmRockets
+                        && soldierSettings.EnableSoldierInstantReload,
+                    knockbackScale: experimentalSoldierPerkOwner && soldierSettings.EnableSoldierNapalmRockets
                         ? 0.75f
                         : 1f,
-                    canIgniteTargets: experimentalSoldierPerkOwner && _world.ExperimentalGameplaySettings.EnableSoldierNapalmRockets,
-                    enableExperimentalStingerTracking: experimentalSoldierPerkOwner && _world.ExperimentalGameplaySettings.EnableSoldierStingerRockets,
+                    canIgniteTargets: experimentalSoldierPerkOwner && soldierSettings.EnableSoldierNapalmRockets,
+                    enableExperimentalStingerTracking: experimentalSoldierPerkOwner && soldierSettings.EnableSoldierStingerRockets,
                     killFeedWeaponSpriteNameOverride: killFeedWeaponSpriteNameOverride);
             }
 
             if (experimentalSoldierPerkOwner
-                && _world.ExperimentalGameplaySettings.EnableSoldierFinalClipRocketBurst
+                && soldierSettings.EnableSoldierFinalClipRocketBurst
                 && !attacker.LastPrimaryShotIgnoredAmmoCost
                 && attacker.CurrentShells == 0)
             {
@@ -319,12 +321,12 @@ public sealed partial class SimulationWorld
                     directionRadians,
                     rocketCombat,
                     weaponDefinition.DirectHitHealAmount ?? 0f,
-                    canGrantExperimentalInstantReloadOnHit: _world.ExperimentalGameplaySettings.EnableSoldierInstantReload,
-                    knockbackScale: experimentalSoldierPerkOwner && _world.ExperimentalGameplaySettings.EnableSoldierNapalmRockets
+                    canGrantExperimentalInstantReloadOnHit: soldierSettings.EnableSoldierInstantReload,
+                    knockbackScale: experimentalSoldierPerkOwner && soldierSettings.EnableSoldierNapalmRockets
                         ? 0.75f
                         : 1f,
-                    canIgniteTargets: experimentalSoldierPerkOwner && _world.ExperimentalGameplaySettings.EnableSoldierNapalmRockets,
-                    enableStingerTracking: experimentalSoldierPerkOwner && _world.ExperimentalGameplaySettings.EnableSoldierStingerRockets,
+                    canIgniteTargets: experimentalSoldierPerkOwner && soldierSettings.EnableSoldierNapalmRockets,
+                    enableStingerTracking: experimentalSoldierPerkOwner && soldierSettings.EnableSoldierStingerRockets,
                     killFeedWeaponSpriteNameOverride: killFeedWeaponSpriteNameOverride);
             }
         }

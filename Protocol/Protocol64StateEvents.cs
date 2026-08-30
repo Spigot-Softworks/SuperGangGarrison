@@ -180,7 +180,20 @@ public sealed record Protocol64PlayerState(
     // Normal gameplay buff state. Constructor defaults preserve source
     // compatibility; the enclosing wire schemas carry bumped revisions.
     bool IsDispenserBuffed = false,
-    float DispenserAttackReloadSpeedMultiplier = 1f);
+    float DispenserAttackReloadSpeedMultiplier = 1f,
+    // Authoritative Last to Die Rage meter/state. These fields are kept on
+    // every player record so the local HUD does not depend on client-side
+    // damage prediction.
+    float RageCharge = 0f,
+    bool IsRageReady = false,
+    int RageTicksRemaining = 0,
+    // Primary weapon timing is authoritative just like the compact offhand
+    // timing above.  Keeping it on the protocol-64 baseline is required for
+    // client prediction reconciliation: without it a rebuild seeds a weapon
+    // from a stale ready state and the render animation briefly starts then
+    // snaps back to idle/reload.
+    int PrimaryCooldownTicks = 0,
+    int PrimaryReloadTicks = 0);
 
 public sealed record Protocol64PlayerStateBatch(
     ulong StateSequence,
@@ -311,7 +324,7 @@ public sealed class Protocol64PlayerStateBatchSchema
     public const int MaxBodyBytes = 64 * 1024;
 
     public Protocol64PlayerStateBatchSchema()
-        : base(Protocol64StateSchemaIds.PlayerStateBatch, 20, Protocol64Direction.ServerToClient, MaxBodyBytes)
+        : base(Protocol64StateSchemaIds.PlayerStateBatch, 22, Protocol64Direction.ServerToClient, MaxBodyBytes)
     {
     }
 
@@ -469,7 +482,7 @@ public sealed class Protocol64StateResyncResponseSchema
     public const int MaxBodyBytes = 256 * 1024;
 
     public Protocol64StateResyncResponseSchema()
-        : base(Protocol64StateSchemaIds.StateResyncResponse, 24, Protocol64Direction.ServerToClient, MaxBodyBytes)
+        : base(Protocol64StateSchemaIds.StateResyncResponse, 25, Protocol64Direction.ServerToClient, MaxBodyBytes)
     {
     }
 
@@ -579,8 +592,17 @@ internal static class Protocol64StateValidation
             throw new Protocol64SchemaValidationException("Player remaining air jumps cannot be negative.");
         }
 
+        if (!float.IsFinite(value.RageCharge)
+            || value.RageCharge < 0f
+            || value.RageTicksRemaining < 0)
+        {
+            throw new Protocol64SchemaValidationException("Player Rage state must be finite and non-negative.");
+        }
+
         if (value.CurrentAmmo < 0
             || value.MaxAmmo < 0
+            || value.PrimaryCooldownTicks < 0
+            || value.PrimaryReloadTicks < 0
             || value.OffhandAmmo < 0
             || value.OffhandMaxAmmo < 0
             || value.OffhandCooldownTicks < 0
@@ -1465,6 +1487,11 @@ internal static class Protocol64StateBinary
         writer.Write(value.LastToDieProfessionalFireChordState);
         writer.Write(value.IsDispenserBuffed);
         writer.Write(value.DispenserAttackReloadSpeedMultiplier);
+        writer.Write(value.RageCharge);
+        writer.Write(value.IsRageReady);
+        writer.Write(value.RageTicksRemaining);
+        writer.Write(value.PrimaryCooldownTicks);
+        writer.Write(value.PrimaryReloadTicks);
     }
 
     public static Protocol64PlayerState ReadPlayer(BinaryReader reader)
@@ -1532,7 +1559,12 @@ internal static class Protocol64StateBinary
             reader.ReadSingle(),
             reader.ReadByte(),
             reader.ReadBoolean(),
-            reader.ReadSingle());
+            reader.ReadSingle(),
+            reader.ReadSingle(),
+            reader.ReadBoolean(),
+            reader.ReadInt32(),
+            reader.ReadInt32(),
+            reader.ReadInt32());
 
     public static void WriteProjectileState(BinaryWriter writer, Protocol64ProjectileState value)
     {

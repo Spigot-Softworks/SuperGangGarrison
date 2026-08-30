@@ -51,6 +51,46 @@ public sealed class LastToDieActionStatusHudTests
     }
 
     [Theory]
+    [InlineData(true, LastToDieWirePhase.Lobby, true)]
+    [InlineData(true, LastToDieWirePhase.Playing, true)]
+    [InlineData(true, LastToDieWirePhase.Lost, true)]
+    [InlineData(true, null, false)]
+    [InlineData(false, LastToDieWirePhase.Playing, false)]
+    public void HostedLastToDieConnectionMusicOwnershipEndsAtFirstSnapshot(
+        bool connected,
+        LastToDieWirePhase? phase,
+        bool expectedClear)
+    {
+        Assert.Equal(
+            expectedClear,
+            Game1.ShouldClearHostedLastToDieConnectionPresentationPending(
+                connected,
+                phase));
+    }
+
+    [Theory]
+    [InlineData(true, true, false, false, true)]
+    [InlineData(true, true, true, false, false)]
+    [InlineData(true, true, false, true, false)]
+    [InlineData(false, true, false, false, false)]
+    [InlineData(true, false, false, false, false)]
+    public void LastToDieFailurePresentationOwnsTerminalMusic(
+        bool sessionActive,
+        bool hasIngameTrack,
+        bool failurePresentationActive,
+        bool matchEnded,
+        bool expectedIngameMusic)
+    {
+        Assert.Equal(
+            expectedIngameMusic,
+            Game1.ShouldPlayLastToDieIngameMusic(
+                sessionActive,
+                hasIngameTrack,
+                failurePresentationActive,
+                matchEnded));
+    }
+
+    [Theory]
     [InlineData(1, LastToDieWirePhase.Lost, LastToDieWirePhase.Lobby, true)]
     [InlineData(1, LastToDieWirePhase.Won, LastToDieWirePhase.Lobby, true)]
     [InlineData(1, LastToDieWirePhase.Playing, LastToDieWirePhase.Lobby, false)]

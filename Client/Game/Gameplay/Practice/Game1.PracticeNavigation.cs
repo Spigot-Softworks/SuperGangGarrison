@@ -148,7 +148,7 @@ public partial class Game1
         }
 
         var stopwatch = Stopwatch.StartNew();
-        var alphaGraph = Og2NavigationGraphStore.GetOrBuild(_world.Level);
+        var alphaGraph = Og2NavigationGraphStore.GetOrBuild(_world.Level, out var resolution);
         var warmedAlphaPaths = alphaGraph.WarmAlphaObjectiveRoutes(_world.Level, GetEligiblePracticeBotClassCycle());
         _world.WarmCombatSpatialIndices();
         var tapeLoaded = BotBrainObjectiveTapeStore.TryLoad(_world.Level, out _);
@@ -157,10 +157,16 @@ public partial class Game1
 
         if (warmTrace)
         {
-            Console.WriteLine($"[botbrain] practice-warm-result paths={warmedAlphaPaths} cache={alphaGraph.AlphaPathCacheCount} elapsedMs={stopwatch.Elapsed.TotalMilliseconds:0.0}");
+            Console.WriteLine(
+                $"[botbrain] practice-warm-result paths={warmedAlphaPaths} " +
+                $"cache={alphaGraph.AlphaPathCacheCount} elapsedMs={stopwatch.Elapsed.TotalMilliseconds:0.0} " +
+                $"source={resolution.Source} sourcePath=\"{resolution.Path}\"");
         }
 
-        return $" botbrain-warmup alphaNodes={alphaGraph.NodeCount} alphaPaths={warmedAlphaPaths} tape={tapeLoaded} proofgraphs={proofGraphCount} elapsed={stopwatch.Elapsed.TotalMilliseconds:0.0}ms";
+        return
+            $" botbrain-warmup alphaNodes={alphaGraph.NodeCount} alphaPaths={warmedAlphaPaths} " +
+            $"tape={tapeLoaded} proofgraphs={proofGraphCount} elapsed={stopwatch.Elapsed.TotalMilliseconds:0.0}ms " +
+            $"source={resolution.Source} sourcePath=\"{resolution.Path}\"";
     }
 
     private static PracticeNavigationWarmupResult BuildPracticeNavigationWarmup(
@@ -176,7 +182,7 @@ public partial class Game1
             }
 
             var stopwatch = Stopwatch.StartNew();
-            var alphaGraph = Og2NavigationGraphStore.GetOrBuild(level);
+            var alphaGraph = Og2NavigationGraphStore.GetOrBuild(level, out var resolution);
             var warmedAlphaPaths = alphaGraph.WarmAlphaObjectiveRoutes(level, eligibleClasses);
             var tapeLoaded = BotBrainObjectiveTapeStore.TryLoad(level, out _);
             var proofGraphCount = WarmPracticeBotBrainProofGraphs(level, eligibleClasses);
@@ -184,12 +190,18 @@ public partial class Game1
 
             if (warmTrace)
             {
-                Console.WriteLine($"[botbrain] practice-warm-result paths={warmedAlphaPaths} cache={alphaGraph.AlphaPathCacheCount} elapsedMs={stopwatch.Elapsed.TotalMilliseconds:0.0}");
+                Console.WriteLine(
+                    $"[botbrain] practice-warm-result paths={warmedAlphaPaths} " +
+                    $"cache={alphaGraph.AlphaPathCacheCount} elapsedMs={stopwatch.Elapsed.TotalMilliseconds:0.0} " +
+                    $"source={resolution.Source} sourcePath=\"{resolution.Path}\"");
             }
 
             return new PracticeNavigationWarmupResult(
                 Success: true,
-                Diagnostics: $" botbrain-warmup alphaNodes={alphaGraph.NodeCount} alphaPaths={warmedAlphaPaths} tape={tapeLoaded} proofgraphs={proofGraphCount} elapsed={stopwatch.Elapsed.TotalMilliseconds:0.0}ms");
+                Diagnostics:
+                    $" botbrain-warmup alphaNodes={alphaGraph.NodeCount} alphaPaths={warmedAlphaPaths} " +
+                    $"tape={tapeLoaded} proofgraphs={proofGraphCount} elapsed={stopwatch.Elapsed.TotalMilliseconds:0.0}ms " +
+                    $"source={resolution.Source} sourcePath=\"{resolution.Path}\"");
         }
         catch (Exception exception)
         {

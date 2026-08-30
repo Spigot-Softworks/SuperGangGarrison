@@ -48,9 +48,13 @@ public sealed partial class SimulationWorld
                     continue;
                 }
 
-                if (world.ExperimentalGameplaySettings.EnableSoldierRageCaptureLockout
-                    && world.LocalPlayer.IsRaging
-                    && player.Team != world.LocalPlayer.Team)
+                if (player.Team != world.LocalPlayer.Team
+                    && world.EnumerateSimulatedPlayers().Any(owner =>
+                        owner.IsAlive
+                        && owner.IsRaging
+                        && owner.ClassId == PlayerClass.Soldier
+                        && owner.Team != player.Team
+                        && world.GetLastToDieGameplaySettings(owner).EnableSoldierRageCaptureLockout))
                 {
                     continue;
                 }
@@ -275,14 +279,14 @@ public sealed partial class SimulationWorld
                 return 2;
             }
 
-            if (world.ExperimentalGameplaySettings.EnableSoldierFastCapture
+            if (world.GetLastToDieGameplaySettings(player).EnableSoldierFastCapture
                 && player.ClassId == PlayerClass.Soldier
                 && world.IsExperimentalPracticePowerOwner(player))
             {
                 return 2;
             }
 
-            if (world.ExperimentalGameplaySettings.EnableDemoknightFastCapture
+            if (world.GetLastToDieGameplaySettings(player).EnableDemoknightFastCapture
                 && player.ClassId == PlayerClass.Demoman
                 && player.IsExperimentalDemoknightEnabled
                 && world.IsExperimentalPracticePowerOwner(player))
@@ -319,7 +323,7 @@ public sealed partial class SimulationWorld
                 return false;
             }
 
-            return !world.ExperimentalGameplaySettings.EnableSoldierRageCaptureDuringRage
+            return !world.GetLastToDieGameplaySettings(player).EnableSoldierRageCaptureDuringRage
                 || !player.IsRaging
                 || player.ClassId != PlayerClass.Soldier
                 || !world.IsExperimentalPracticePowerOwner(player);
@@ -427,7 +431,7 @@ public sealed partial class SimulationWorld
             point.Cappers = 0;
             point.RedCappers = 0;
             point.BlueCappers = 0;
-            point.HasHealingAura = world.ExperimentalGameplaySettings.EnableCapturedPointHealingAura
+            point.HasHealingAura = world.IsLastToDieGameplaySettingEnabled(settings => settings.EnableCapturedPointHealingAura)
                 && team == PlayerTeam.Red;
 
             var finalCapperIds = team == PlayerTeam.Red ? redCappersByPoint[pointIndex] : blueCappersByPoint[pointIndex];

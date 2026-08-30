@@ -105,6 +105,9 @@ using var shutdownCts = new CancellationTokenSource();
 var sessionInfo = new HostedServerSessionInfo
 {
     ProcessId = Environment.ProcessId,
+    ProcessStartTimeUtcTicks = HostedServerProcessIdentity.TryCaptureCurrent(out var serverIdentity)
+        ? serverIdentity.StartTimeUtcTicks
+        : 0,
     Port = launchOptions.Port,
     ServerName = launchOptions.ServerName,
     PipeName = pipeName,
@@ -137,6 +140,11 @@ using var adminPipeHost = new HostedServerAdminPipeHost(
         }
     },
     shutdownCts.Token);
+using var parentLifetimeMonitor = HostedServerParentLifetimeMonitor.TryStart(
+    shutdownCts,
+    Console.WriteLine,
+    shutdownCts.Token,
+    forceProcessExitOnTimeout: true);
 
 try
 {
@@ -144,6 +152,7 @@ try
 }
 finally
 {
+    parentLifetimeMonitor?.MarkServerRunCompleted();
     shutdownCts.Cancel();
     HostedServerSessionInfo.Delete(sessionPath);
     Console.CancelKeyPress -= cancelHandler;

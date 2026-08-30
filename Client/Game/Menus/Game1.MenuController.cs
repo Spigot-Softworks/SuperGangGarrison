@@ -24,6 +24,11 @@ public partial class Game1
             EnsureMenuMusicPlaying();
             _game.StopFaucetMusic();
             _game.StopIngameMusic();
+            // Returning to any main-menu page must also release LTD's
+            // gameplay loop.  The menu track and LTD gameplay track are
+            // separate instances, so stopping only the generic loop can
+            // leave ingame_l2d playing underneath the menu.
+            _game.StopLastToDieIngameMusic();
 
             // Update animated menu background if enabled
             if (_game._menuBackgroundMode != MenuBackgroundMode.Static)

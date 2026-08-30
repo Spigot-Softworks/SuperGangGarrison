@@ -90,6 +90,11 @@ public sealed class BotBrainController
     private (float X, float Y) _dynamicRouteTargetPosition;
     private int _alphaPathlessEscapeDirection;
     private int _alphaPathlessEscapeUntilThinkTick;
+    private float _topDownGraphlessDetourDirectionX;
+    private float _topDownGraphlessDetourDirectionY;
+    private float _topDownGraphlessDetourGoalX;
+    private float _topDownGraphlessDetourGoalY;
+    private int _topDownGraphlessDetourTicks;
     private string? _alphaDynamicRecoveryLabel;
     private float _alphaDynamicRecoveryLastX;
     private float _alphaDynamicRecoveryLastY;
@@ -309,6 +314,8 @@ public sealed class BotBrainController
     private const float GraphlessMedicHumanCallTargetMaxDistance = 900f;
     private const float TopDownAllySeparationRadius = 56f;
     private const float TopDownAllySeparationProbeDistance = 8f;
+    private const int TopDownGraphlessDetourCommitTicks = 12;
+    private const float TopDownGraphlessDetourGoalChangeDistance = 48f;
 
     private int _objectiveReevalCooldown;
     private (float X, float Y) _currentGoalPosition;
@@ -376,6 +383,13 @@ public sealed class BotBrainController
     public bool DisableCombatForDiagnostics { get; set; }
 
     public bool HasNavigationGraph => IsNavigationGraphUsable(_navGraph);
+
+    /// <summary>
+    /// Non-building source used for the current alpha graph attachment. This
+    /// is intentionally separate from the legacy asset diagnostic so a live
+    /// server can distinguish a warmed in-memory graph from a shipped graph.
+    /// </summary>
+    public string LastNavigationGraphSource { get; private set; } = "none";
 
     public bool HasObjectiveTapeAsset => _objectiveTapeAsset is not null;
 
@@ -502,14 +516,22 @@ public sealed class BotBrainController
             // available to explicit tooling and diagnostics, but invoking it
             // here made the first server tick block for seconds on maps that
             // intentionally exercise graphless navigation.
-            _navGraph = _graphOverride ?? (_alphaNavigation
-                ? !_disableShippedNavigationGraph
-                    && Og2NavigationGraphStore.TryLoadShipped(world.Level, out var shippedGraph)
-                        ? shippedGraph
-                        : null
-                : BotNavigationAssetStore.TryLoadCachedGraph(world.Level, out var graph)
+            if (_graphOverride is not null)
+            {
+                LastNavigationGraphSource = "override";
+                _navGraph = _graphOverride;
+            }
+            else if (_alphaNavigation)
+            {
+                _navGraph = TryLoadWarmedOrShippedAlphaGraph(world.Level, _disableShippedNavigationGraph);
+            }
+            else
+            {
+                _navGraph = BotNavigationAssetStore.TryLoadCachedGraph(world.Level, out var graph)
                     ? graph
-                    : null);
+                    : null;
+                LastNavigationGraphSource = _navGraph is null ? "none" : "legacy";
+            }
             _objectiveTapeAsset = !_alphaNavigation
                 && BotBrainObjectiveTapeStore.TryLoad(world.Level, out var tapeAsset)
                     ? tapeAsset
@@ -531,7 +553,7 @@ public sealed class BotBrainController
 
             if (_alphaNavigation)
             {
-                ReportAlphaNavigationLoadDiagnostic(world.Level, _navGraph);
+                ReportAlphaNavigationLoadDiagnostic(world.Level, _navGraph, LastNavigationGraphSource);
             }
             else
             {
@@ -1816,7 +1838,10 @@ public sealed class BotBrainController
             $"runtimeCache={diagnostic.RuntimeCacheStatus} runtimeCachePath=\"{diagnostic.RuntimeCachePath}\"");
     }
 
-    private static void ReportAlphaNavigationLoadDiagnostic(SimpleLevel level, NavGraph? graph)
+    private static void ReportAlphaNavigationLoadDiagnostic(
+        SimpleLevel level,
+        NavGraph? graph,
+        string source)
     {
         var loaded = IsNavigationGraphUsable(graph);
         var key = $"alpha:{level.Name}:{level.MapAreaIndex}:{loaded}:{graph?.NodeCount ?? 0}";
@@ -1830,7 +1855,7 @@ public sealed class BotBrainController
 
         Console.WriteLine(
             $"[botbrain] alpha-nav level={level.Name} area={level.MapAreaIndex} " +
-            $"loaded={loaded} nodes={graph?.NodeCount ?? 0}");
+            $"loaded={loaded} source={source} nodes={graph?.NodeCount ?? 0}");
     }
 
     private static (float X, float Y) ResolveDiagnosticObjectiveGoal(
@@ -2785,6 +2810,7 @@ public sealed class BotBrainController
     public void Reset()
     {
         _navGraph = null;
+        LastNavigationGraphSource = "none";
         _currentPath = null;
         _goalNodeIndex = -1;
         _repathCooldownTicks = 0;
@@ -2804,6 +2830,7 @@ public sealed class BotBrainController
         _harvestRightSpoolLowMotionTicks = 0;
         _alphaPathlessEscapeDirection = 0;
         _alphaPathlessEscapeUntilThinkTick = 0;
+        ResetTopDownGraphlessDetour();
         ResetAlphaDynamicRecoveryProgress();
         ResetDynamicRouteProgress();
         ResetCarrierReturnDirectEscape();
@@ -2925,6 +2952,46 @@ public sealed class BotBrainController
     private static bool IsNavigationGraphUsable(NavGraph? graph) =>
         graph is { NodeCount: > 0 };
 
+    private void ResetTopDownGraphlessDetour()
+    {
+        _topDownGraphlessDetourDirectionX = 0f;
+        _topDownGraphlessDetourDirectionY = 0f;
+        _topDownGraphlessDetourGoalX = 0f;
+        _topDownGraphlessDetourGoalY = 0f;
+        _topDownGraphlessDetourTicks = 0;
+    }
+
+    private NavGraph? TryLoadWarmedOrShippedAlphaGraph(
+        SimpleLevel level,
+        bool disableShippedNavigationGraph)
+    {
+        if (disableShippedNavigationGraph)
+        {
+            LastNavigationGraphSource = "disabled";
+            return null;
+        }
+
+        // Server/practice warmup resolves the graph off the live tick and
+        // leaves it in Og2NavigationGraphStore's in-memory cache. Prefer that
+        // graph so a generated or extended warm result is not discarded just
+        // because it is not also present as a shipped file. Both lookups are
+        // non-building; an unwarmed controller must remain graphless here.
+        if (Og2NavigationGraphStore.TryGetCached(level, out var warmedGraph))
+        {
+            LastNavigationGraphSource = "memory";
+            return warmedGraph;
+        }
+
+        if (Og2NavigationGraphStore.TryLoadShipped(level, out var shippedGraph))
+        {
+            LastNavigationGraphSource = "shipped";
+            return shippedGraph;
+        }
+
+        LastNavigationGraphSource = "none";
+        return null;
+    }
+
     private static int ResolveRouteVariant(PlayerEntity self)
     {
         unchecked
@@ -2956,6 +3023,7 @@ public sealed class BotBrainController
         _harvestRightSpoolLowMotionTicks = 0;
         _alphaPathlessEscapeDirection = 0;
         _alphaPathlessEscapeUntilThinkTick = 0;
+        ResetTopDownGraphlessDetour();
         ResetDynamicRouteProgress();
         ResetCarrierReturnDirectEscape();
         _objectiveReevalCooldown = 0;
@@ -3782,7 +3850,7 @@ public sealed class BotBrainController
             // retry, which is exactly the visible wall-lock failure.
             var deltaX = _currentGoalPosition.X - self.X;
             var deltaY = _currentGoalPosition.Y - self.Y;
-            var (moveX, moveY) = ResolveTopDownObjectiveMove(
+            var (moveX, moveY) = ResolveTopDownObjectiveMoveWithHysteresis(
                 world.Level,
                 self,
                 team,
@@ -3989,6 +4057,80 @@ public sealed class BotBrainController
         return false;
     }
 
+    private (float MoveX, float MoveY) ResolveTopDownObjectiveMoveWithHysteresis(
+        SimpleLevel level,
+        PlayerEntity self,
+        PlayerTeam team,
+        float deltaX,
+        float deltaY)
+    {
+        if (MathF.Abs(deltaX) <= TopDownGraphlessDetourDeadZone
+            && MathF.Abs(deltaY) <= TopDownGraphlessDetourDeadZone)
+        {
+            ResetTopDownGraphlessDetour();
+            return (0f, 0f);
+        }
+
+        var targetChanged = _topDownGraphlessDetourTicks > 0
+            && (MathF.Abs(_topDownGraphlessDetourGoalX - (self.X + deltaX)) > TopDownGraphlessDetourGoalChangeDistance
+                || MathF.Abs(_topDownGraphlessDetourGoalY - (self.Y + deltaY)) > TopDownGraphlessDetourGoalChangeDistance);
+        if (targetChanged)
+        {
+            ResetTopDownGraphlessDetour();
+        }
+
+        if (_topDownGraphlessDetourTicks > 0)
+        {
+            var committedX = _topDownGraphlessDetourDirectionX;
+            var committedY = _topDownGraphlessDetourDirectionY;
+            if (self.CanOccupy(
+                    level,
+                    team,
+                    self.X + (committedX * TopDownGraphlessDetourProbeDistance),
+                    self.Y + (committedY * TopDownGraphlessDetourProbeDistance)))
+            {
+                _topDownGraphlessDetourTicks -= 1;
+                return (committedX, committedY);
+            }
+
+            // A dynamic blocker may have closed the committed lane. Release
+            // it and choose a new collision-checked lane rather than holding a
+            // stale input into the new obstacle.
+            ResetTopDownGraphlessDetour();
+        }
+
+        var desiredX = MathF.Abs(deltaX) <= TopDownGraphlessDetourDeadZone ? 0f : MathF.Sign(deltaX);
+        var desiredY = MathF.Abs(deltaY) <= TopDownGraphlessDetourDeadZone ? 0f : MathF.Sign(deltaY);
+        var move = ResolveTopDownObjectiveMove(level, self, team, deltaX, deltaY);
+        if (move is { MoveX: 0f, MoveY: 0f })
+        {
+            return move;
+        }
+
+        // Once a blocked objective axis has selected a perpendicular lane,
+        // keep that lane for a short bounded window. Without this commitment,
+        // a body straddling the objective's horizontal dead zone alternates
+        // between the two free sides of a wall every tick (the exact 2-cycle
+        // seen on graphless top-down maps).
+        var isDetour = (desiredX != 0f && move.MoveX == 0f)
+            || (desiredY != 0f && move.MoveY == 0f)
+            || (desiredX == 0f && move.MoveX != 0f)
+            || (desiredY == 0f && move.MoveY != 0f);
+        if (isDetour && (move.MoveX != 0f || move.MoveY != 0f))
+        {
+            _topDownGraphlessDetourDirectionX = move.MoveX;
+            _topDownGraphlessDetourDirectionY = move.MoveY;
+            _topDownGraphlessDetourGoalX = self.X + deltaX;
+            _topDownGraphlessDetourGoalY = self.Y + deltaY;
+            _topDownGraphlessDetourTicks = TopDownGraphlessDetourCommitTicks - 1;
+        }
+
+        return move;
+    }
+
+    private const float TopDownGraphlessDetourProbeDistance = 8f;
+    private const float TopDownGraphlessDetourDeadZone = 16f;
+
     internal static (float MoveX, float MoveY) ResolveTopDownObjectiveMove(
         SimpleLevel level,
         PlayerEntity self,
@@ -4054,7 +4196,7 @@ public sealed class BotBrainController
         return (0f, 0f);
     }
 
-    private static bool TryResolveAlphaCarrierTerminalReturn(
+    private bool TryResolveAlphaCarrierTerminalReturn(
         SimulationWorld world,
         PlayerEntity self,
         PlayerTeam team,
@@ -4079,7 +4221,7 @@ public sealed class BotBrainController
         }
 
         var (moveX, moveY) = world.Level.IsTopDown
-            ? ResolveTopDownObjectiveMove(world.Level, self, team, dx, dy)
+            ? ResolveTopDownObjectiveMoveWithHysteresis(world.Level, self, team, dx, dy)
             : (Math.Sign(dx), 0f);
         directSteering.MoveDirection = moveX;
         directSteering.MoveDirectionY = moveY;
@@ -4132,7 +4274,7 @@ public sealed class BotBrainController
 
         if (world.Level.IsTopDown)
         {
-            var (moveX, moveY) = ResolveTopDownObjectiveMove(
+            var (moveX, moveY) = ResolveTopDownObjectiveMoveWithHysteresis(
                 world.Level,
                 self,
                 self.Team,
@@ -4309,7 +4451,7 @@ public sealed class BotBrainController
         // navigation owner. Top-down corrections must remain collision-aware
         // on both axes or they can lock against a nearby wall.
         var (moveX, moveY) = world.Level.IsTopDown
-            ? ResolveTopDownObjectiveMove(world.Level, self, self.Team, dx, dy)
+            ? ResolveTopDownObjectiveMoveWithHysteresis(world.Level, self, self.Team, dx, dy)
             : (MathF.Sign(dx), 0f);
         if (moveX == 0f && moveY == 0f)
         {
@@ -8861,6 +9003,27 @@ public sealed class BotBrainController
             {
                 candidateX = 0f;
             }
+        }
+        else if (moveX != 0f
+            && biasDirectionX == -moveX)
+        {
+            // A teammate directly ahead should make the bot take a lateral
+            // lane, not reverse the active graph edge. Reversing here lets
+            // two bots repeatedly push one another across the same waypoint
+            // and produces a visible same-edge left/right cycle.
+            candidateX = 0f;
+            candidateY = biasDirectionY != 0f
+                ? biasDirectionY
+                : (self.Id & 1) == 0 ? 1f : -1f;
+        }
+        else if (moveY != 0f
+            && biasDirectionY == -moveY)
+        {
+            // Symmetric guard for a vertical route edge.
+            candidateX = biasDirectionX != 0f
+                ? biasDirectionX
+                : (self.Id & 1) == 0 ? 1f : -1f;
+            candidateY = 0f;
         }
         else if (MathF.Abs(biasDirectionX) > 0f)
         {

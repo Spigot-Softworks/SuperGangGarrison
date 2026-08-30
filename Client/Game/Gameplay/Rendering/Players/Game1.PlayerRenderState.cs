@@ -61,6 +61,8 @@ public partial class Game1
 
         public int PreviousReloadTicks { get; set; }
 
+        public float PendingImmediateShotConfirmationSeconds { get; set; }
+
         public bool PreviousCivvieUmbrellaActive { get; set; }
 
         // Identifies the weapon slot currently being animated (null = primary, "offhand:soldier" = soldier shotgun, "acquired" = acquired weapon).
@@ -216,6 +218,8 @@ public partial class Game1
             renderState.ActiveWeaponTag = activeWeaponTag;
             StopWeaponAnimation(renderState);
             renderState.BowAnimationPauseRemainingSeconds = 0f;
+            renderState.PendingImmediateShotConfirmationSeconds = 0f;
+            renderState.ReloadAnimationCompleted = false;
             renderState.PreviousAmmoCount = GetRenderWeaponAmmoCount(player);
             renderState.PreviousCooldownTicks = GetRenderWeaponCooldownTicks(player);
             renderState.PreviousReloadTicks = GetRenderWeaponReloadTicks(player);
@@ -245,12 +249,34 @@ public partial class Game1
         var currentAmmoCount = GetRenderWeaponAmmoCount(player);
         var currentCooldownTicks = GetRenderWeaponCooldownTicks(player);
         var currentReloadTicks = GetRenderWeaponReloadTicks(player);
-        var reloadRestarted = currentReloadTicks > renderState.PreviousReloadTicks;
-        var cooldownRestarted = currentCooldownTicks > renderState.PreviousCooldownTicks;
-        var shotStarted = currentCooldownTicks > 0
-            && (currentAmmoCount < renderState.PreviousAmmoCount
-                || renderState.PreviousCooldownTicks <= 0
-                || cooldownRestarted);
+        // Reconciliation can replace a live predicted timer with a newer
+        // authoritative value.  A positive-to-positive increase is not a new
+        // fire/reload event; treating it as one restarts the sprite every
+        // render frame while the server catches up (the visible 4-5 frame
+        // firing spam).  Real shell reload cycles and shots still have a
+        // clean zero-to-positive edge, while ammo consumption covers weapons
+        // whose cadence restarts before their previous cooldown reaches zero.
+        var reloadRestarted = IsWeaponReloadAnimationRestart(
+            renderState.PreviousReloadTicks,
+            currentReloadTicks);
+        var shotStarted = IsWeaponFireAnimationStart(
+            renderState.PreviousAmmoCount,
+            currentAmmoCount,
+            renderState.PreviousCooldownTicks,
+            currentCooldownTicks);
+        var immediateLocalPrimaryPress = ReferenceEquals(player, _world.LocalPlayer)
+            && _pendingImmediateWeaponFirePresentation;
+        if (immediateLocalPrimaryPress)
+        {
+            _pendingImmediateWeaponFirePresentation = false;
+        }
+        var pendingImmediateShotConfirmationSeconds = renderState.PendingImmediateShotConfirmationSeconds;
+        shotStarted = ResolvePredictedWeaponAnimationStart(
+            shotStarted,
+            immediateLocalPrimaryPress,
+            elapsedSeconds,
+            ref pendingImmediateShotConfirmationSeconds);
+        renderState.PendingImmediateShotConfirmationSeconds = pendingImmediateShotConfirmationSeconds;
         var ammoIncreased = currentAmmoCount > renderState.PreviousAmmoCount;
         var shellReloaded = ammoIncreased && currentAmmoCount < maxAmmoCount;
         var preserveRecoilLoop = weaponRenderDefinition.LoopRecoilWhileActive
@@ -341,6 +367,58 @@ public partial class Game1
         renderState.PreviousAmmoCount = currentAmmoCount;
         renderState.PreviousCooldownTicks = currentCooldownTicks;
         renderState.PreviousReloadTicks = currentReloadTicks;
+    }
+
+    internal static bool ResolvePredictedWeaponAnimationStart(
+        bool authoritativeShotStarted,
+        bool immediateLocalPrimaryPress,
+        float elapsedSeconds,
+        ref float pendingConfirmationSeconds)
+    {
+        pendingConfirmationSeconds = MathF.Max(
+            0f,
+            pendingConfirmationSeconds - MathF.Max(0f, elapsedSeconds));
+
+        if (immediateLocalPrimaryPress)
+        {
+            // If the fixed simulation/prediction tick already advanced, this is
+            // one observation of the shot and needs no later suppression.
+            pendingConfirmationSeconds = authoritativeShotStarted ? 0f : 0.25f;
+            return true;
+        }
+
+        if (authoritativeShotStarted && pendingConfirmationSeconds > 0f)
+        {
+            // The render-frame preview and this fixed-tick state transition are
+            // the same local shot. Consume the confirmation instead of
+            // restarting recoil and emitting a second shell visual.
+            pendingConfirmationSeconds = 0f;
+            return false;
+        }
+
+        return authoritativeShotStarted;
+    }
+
+    internal static bool IsWeaponFireAnimationStart(
+        int previousAmmoCount,
+        int currentAmmoCount,
+        int previousCooldownTicks,
+        int currentCooldownTicks)
+    {
+        if (currentCooldownTicks <= 0)
+        {
+            return false;
+        }
+
+        return currentAmmoCount < previousAmmoCount
+            || previousCooldownTicks <= 0;
+    }
+
+    internal static bool IsWeaponReloadAnimationRestart(
+        int previousReloadTicks,
+        int currentReloadTicks)
+    {
+        return currentReloadTicks > 0 && previousReloadTicks <= 0;
     }
 
     private static bool UpdateCivvieUmbrellaWeaponAnimationState(PlayerEntity player, PlayerRenderState renderState, bool isCivvieUmbrellaActive)
@@ -745,11 +823,18 @@ public partial class Game1
 
         if (ShouldPresentAcquiredWeapon(player))
         {
-            return player.AcquiredWeaponCurrentShells;
+            return IsUsingPredictedLocalState(player)
+                ? _predictedLocalActionState.AcquiredWeaponCurrentShells
+                : player.AcquiredWeaponCurrentShells;
         }
 
         if (ShouldPresentExperimentalSoldierShotgun(player))
         {
+            if (IsUsingPredictedLocalState(player))
+            {
+                return _predictedLocalActionState.ExperimentalOffhandCurrentShells;
+            }
+
             if (player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, SoldierShotgunAmmoKey, out var replicatedAmmo))
             {
                 return Math.Max(0, replicatedAmmo);
@@ -760,6 +845,11 @@ public partial class Game1
 
         if (ShouldPresentExperimentalScoutNailgun(player))
         {
+            if (IsUsingPredictedLocalState(player))
+            {
+                return _predictedLocalActionState.ExperimentalOffhandCurrentShells;
+            }
+
             if (player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, ScoutNailgunAmmoKey, out var replicatedAmmo))
             {
                 return Math.Max(0, replicatedAmmo);
@@ -770,6 +860,11 @@ public partial class Game1
 
         if (ShouldPresentSniperBow(player))
         {
+            if (IsUsingPredictedLocalState(player))
+            {
+                return _predictedLocalActionState.ExperimentalOffhandCurrentShells;
+            }
+
             if (player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, SniperBowAmmoKey, out var replicatedAmmo))
             {
                 return Math.Max(0, replicatedAmmo);
@@ -780,6 +875,11 @@ public partial class Game1
 
         if (ShouldPresentExperimentalDemomanGrenadeLauncher(player))
         {
+            if (IsUsingPredictedLocalState(player))
+            {
+                return _predictedLocalActionState.ExperimentalOffhandCurrentShells;
+            }
+
             return player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, DemomanGrenadeLauncherAmmoKey, out var replicatedAmmo)
                 ? Math.Max(0, replicatedAmmo)
                 : player.ExperimentalOffhandCurrentShells;
@@ -787,6 +887,11 @@ public partial class Game1
 
         if (ShouldPresentExperimentalMedicKritzHealNeedles(player))
         {
+            if (IsUsingPredictedLocalState(player))
+            {
+                return _predictedLocalActionState.ExperimentalOffhandCurrentShells;
+            }
+
             if (player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, MedicKritzAmmoKey, out var replicatedAmmo))
             {
                 return Math.Max(0, replicatedAmmo);
@@ -807,32 +912,44 @@ public partial class Game1
     {
         if (ShouldPresentAcquiredWeapon(player))
         {
-            return player.AcquiredWeaponCooldownTicks;
+            return IsUsingPredictedLocalState(player)
+                ? _predictedLocalActionState.AcquiredWeaponCooldownTicks
+                : player.AcquiredWeaponCooldownTicks;
         }
 
         if (ShouldPresentExperimentalSoldierShotgun(player))
         {
-            return player.ExperimentalOffhandCooldownTicks;
+            return IsUsingPredictedLocalState(player)
+                ? _predictedLocalActionState.ExperimentalOffhandCooldownTicks
+                : player.ExperimentalOffhandCooldownTicks;
         }
 
         if (ShouldPresentExperimentalScoutNailgun(player))
         {
-            return player.ExperimentalOffhandCooldownTicks;
+            return IsUsingPredictedLocalState(player)
+                ? _predictedLocalActionState.ExperimentalOffhandCooldownTicks
+                : player.ExperimentalOffhandCooldownTicks;
         }
 
         if (ShouldPresentSniperBow(player))
         {
-            return player.ExperimentalOffhandCooldownTicks;
+            return IsUsingPredictedLocalState(player)
+                ? _predictedLocalActionState.ExperimentalOffhandCooldownTicks
+                : player.ExperimentalOffhandCooldownTicks;
         }
 
         if (ShouldPresentExperimentalDemomanGrenadeLauncher(player))
         {
-            return player.ExperimentalOffhandCooldownTicks;
+            return IsUsingPredictedLocalState(player)
+                ? _predictedLocalActionState.ExperimentalOffhandCooldownTicks
+                : player.ExperimentalOffhandCooldownTicks;
         }
 
         if (ShouldPresentExperimentalMedicKritzHealNeedles(player))
         {
-            return player.ExperimentalOffhandCooldownTicks;
+            return IsUsingPredictedLocalState(player)
+                ? _predictedLocalActionState.ExperimentalOffhandCooldownTicks
+                : player.ExperimentalOffhandCooldownTicks;
         }
 
         if (_networkClient.IsConnected
@@ -859,32 +976,44 @@ public partial class Game1
 
         if (ShouldPresentAcquiredWeapon(player))
         {
-            return player.AcquiredWeaponReloadTicksUntilNextShell;
+            return IsUsingPredictedLocalState(player)
+                ? _predictedLocalActionState.AcquiredWeaponReloadTicksUntilNextShell
+                : player.AcquiredWeaponReloadTicksUntilNextShell;
         }
 
         if (ShouldPresentExperimentalSoldierShotgun(player))
         {
-            return player.ExperimentalOffhandReloadTicksUntilNextShell;
+            return IsUsingPredictedLocalState(player)
+                ? _predictedLocalActionState.ExperimentalOffhandReloadTicksUntilNextShell
+                : player.ExperimentalOffhandReloadTicksUntilNextShell;
         }
 
         if (ShouldPresentExperimentalScoutNailgun(player))
         {
-            return player.ExperimentalOffhandReloadTicksUntilNextShell;
+            return IsUsingPredictedLocalState(player)
+                ? _predictedLocalActionState.ExperimentalOffhandReloadTicksUntilNextShell
+                : player.ExperimentalOffhandReloadTicksUntilNextShell;
         }
 
         if (ShouldPresentSniperBow(player))
         {
-            return player.ExperimentalOffhandReloadTicksUntilNextShell;
+            return IsUsingPredictedLocalState(player)
+                ? _predictedLocalActionState.ExperimentalOffhandReloadTicksUntilNextShell
+                : player.ExperimentalOffhandReloadTicksUntilNextShell;
         }
 
         if (ShouldPresentExperimentalDemomanGrenadeLauncher(player))
         {
-            return player.ExperimentalOffhandReloadTicksUntilNextShell;
+            return IsUsingPredictedLocalState(player)
+                ? _predictedLocalActionState.ExperimentalOffhandReloadTicksUntilNextShell
+                : player.ExperimentalOffhandReloadTicksUntilNextShell;
         }
 
         if (ShouldPresentExperimentalMedicKritzHealNeedles(player))
         {
-            return player.ExperimentalOffhandReloadTicksUntilNextShell;
+            return IsUsingPredictedLocalState(player)
+                ? _predictedLocalActionState.ExperimentalOffhandReloadTicksUntilNextShell
+                : player.ExperimentalOffhandReloadTicksUntilNextShell;
         }
 
         if (_networkClient.IsConnected

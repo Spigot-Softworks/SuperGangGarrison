@@ -13,7 +13,7 @@ public sealed partial class SimulationWorld
         {
             var weaponDefinition = attacker.ExperimentalOffhandWeapon ?? CharacterClassCatalog.SoldierShotgun;
             var pelletCountMultiplier = _world.IsExperimentalPracticePowerOwner(attacker)
-                ? Math.Max(1, _world.ExperimentalGameplaySettings.SoldierShotgunPelletMultiplier)
+                ? Math.Max(1, _world.GetLastToDieGameplaySettings(attacker).SoldierShotgunPelletMultiplier)
                 : 1;
             DispatchPrimaryWeaponFire(
                 attacker,

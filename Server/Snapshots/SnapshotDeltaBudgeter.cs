@@ -426,7 +426,7 @@ internal static class SnapshotDeltaBudgeter
         var fullPlayerBytes = EstimateByteCountCollection(snapshot.Players, EstimatePlayerBytes);
         var movementBytes = EstimateByteCountCollection(snapshot.PlayerMovementStates, EstimatePlayerMovementBytes);
         var statusBytes = EstimateByteCountCollection(snapshot.PlayerStatusStates, static _ => 14);
-        var extendedStatusBytes = EstimateByteCountCollection(snapshot.PlayerExtendedStatusStates, static _ => 59);
+        var extendedStatusBytes = EstimateByteCountCollection(snapshot.PlayerExtendedStatusStates, static _ => 63);
         var chatBubbleBytes = EstimateByteCountCollection(snapshot.PlayerChatBubbleStates, static _ => 6);
         var projectileBytes =
             EstimateShotCollectionBytes(snapshot.Shots)
@@ -573,7 +573,7 @@ internal static class SnapshotDeltaBudgeter
 
     private static int EstimatePlayerBytes(SnapshotPlayerState player)
     {
-        var bytes = 245
+        var bytes = 250
             + EstimateStringBytes(player.Name)
             + EstimateCachedStringBytes(player.GameplayModPackCacheId, player.GameplayModPackId)
             + EstimateCachedStringBytes(player.GameplayLoadoutCacheId, player.GameplayLoadoutId)

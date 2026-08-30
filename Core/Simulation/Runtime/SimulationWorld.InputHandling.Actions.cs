@@ -44,7 +44,7 @@ public sealed partial class SimulationWorld
 
         var ignorePrimaryAmmoCost = player.ClassId == PlayerClass.Soldier
             && player.IsRaging
-            && ExperimentalGameplaySettings.EnableSoldierInfiniteAmmoDuringRage;
+            && GetLastToDieGameplaySettings(player).EnableSoldierInfiniteAmmoDuringRage;
         var isLastToDieProfessionalFireChord = input.FireSecondary
             && player.CanFireLastToDieProfessionalRevolverWhileCloaked;
         if (!input.FirePrimary || !player.TryFirePrimaryWeapon(ignorePrimaryAmmoCost))
@@ -160,7 +160,7 @@ public sealed partial class SimulationWorld
     private bool TryHandleExperimentalSoldierStingerPrimaryBurst(PlayerEntity player)
     {
         if (player.ClassId != PlayerClass.Soldier
-            || !ExperimentalGameplaySettings.EnableSoldierStingerRockets
+            || !GetLastToDieGameplaySettings(player).EnableSoldierStingerRockets
             || !IsExperimentalPracticePowerOwner(player))
         {
             return false;
@@ -430,7 +430,7 @@ public sealed partial class SimulationWorld
     private bool TryHandleExperimentalSoldierStingerDetonation(PlayerEntity player)
     {
         if (player.ClassId != PlayerClass.Soldier
-            || !ExperimentalGameplaySettings.EnableSoldierStingerRockets
+            || !GetLastToDieGameplaySettings(player).EnableSoldierStingerRockets
             || !IsExperimentalPracticePowerOwner(player))
         {
             return false;
@@ -458,7 +458,7 @@ public sealed partial class SimulationWorld
     private bool TryHandleExperimentalSoldierCivilDefenseTurret(PlayerEntity player)
     {
         if (player.ClassId != PlayerClass.Soldier
-            || !ExperimentalGameplaySettings.EnableSoldierCivilDefenseTurret
+            || !GetLastToDieGameplaySettings(player).EnableSoldierCivilDefenseTurret
             || !IsExperimentalPracticePowerOwner(player))
         {
             return false;
@@ -484,7 +484,7 @@ public sealed partial class SimulationWorld
     private bool TryHandleExperimentalSoldierThundergunner(PlayerEntity player, PlayerInputSnapshot input)
     {
         if (player.ClassId != PlayerClass.Soldier
-            || !ExperimentalGameplaySettings.EnableSoldierThundergunner
+            || !GetLastToDieGameplaySettings(player).EnableSoldierThundergunner
             || !IsExperimentalPracticePowerOwner(player)
             || !player.TryFireExperimentalSoldierThundergunner(
                 global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultSoldierThundergunnerCooldownTicks))
@@ -563,7 +563,7 @@ public sealed partial class SimulationWorld
 
     private void TryHandleNetworkWeaponInteraction(PlayerEntity player)
     {
-        if (ExperimentalGameplaySettings.EnableSecondaryAbilities
+        if (GetLastToDieGameplaySettings(player).EnableSecondaryAbilities
             && TryHandleExperimentalEngineerAlternateWeaponInteraction(player))
         {
             return;

@@ -2092,7 +2092,43 @@ public static class Og2NavigationGraphStore
         }
     }
 
+    /// <summary>
+    /// Returns a graph that has already been resolved for this level by an
+    /// explicit warmup/build call without touching the persistent cache or
+    /// generating a graph.  Live bot thinking uses this seam after the server
+    /// or practice warmup has populated <see cref="Cache"/>.  In particular,
+    /// this also returns an extended-sweep graph whose effective key differs
+    /// from the original requested key.
+    /// </summary>
+    public static bool TryGetCached(SimpleLevel level, out NavGraph graph)
+    {
+        ArgumentNullException.ThrowIfNull(level);
+        ConfigureProductionGraphSettings();
+
+        var requestedKey = Og2NavigationGraphCache.BuildKey(level);
+        lock (Sync)
+        {
+            if (Cache.TryGetValue(level, out var cached)
+                && (string.Equals(cached.RequestedKey, requestedKey, StringComparison.Ordinal)
+                    || string.Equals(cached.EffectiveKey, requestedKey, StringComparison.Ordinal)))
+            {
+                graph = cached.Graph;
+                return true;
+            }
+        }
+
+        graph = null!;
+        return false;
+    }
+
     public static NavGraph GetOrBuild(SimpleLevel level)
+    {
+        return GetOrBuild(level, out _);
+    }
+
+    public static NavGraph GetOrBuild(
+        SimpleLevel level,
+        out Og2NavigationGraphResolution resolution)
     {
         ArgumentNullException.ThrowIfNull(level);
 
@@ -2110,6 +2146,9 @@ public static class Og2NavigationGraphStore
             if (string.Equals(cached.RequestedKey, requestedKey, StringComparison.Ordinal)
                 || string.Equals(cached.EffectiveKey, requestedKey, StringComparison.Ordinal))
             {
+                resolution = new Og2NavigationGraphResolution(
+                    Og2NavigationGraphResolutionSource.InMemory,
+                    string.Empty);
                 return cached.Graph;
             }
 
@@ -2123,6 +2162,9 @@ public static class Og2NavigationGraphStore
                 if (string.Equals(cached.RequestedKey, requestedKey, StringComparison.Ordinal)
                     || string.Equals(cached.EffectiveKey, requestedKey, StringComparison.Ordinal))
                 {
+                    resolution = new Og2NavigationGraphResolution(
+                        Og2NavigationGraphResolutionSource.InMemory,
+                        string.Empty);
                     return cached.Graph;
                 }
 
@@ -2131,15 +2173,23 @@ public static class Og2NavigationGraphStore
 
             NavGraph graph;
             var effectiveKey = requestedKey;
+            var resolutionSource = Og2NavigationGraphResolutionSource.RuntimeCache;
+            var resolutionPath = string.Empty;
             if (Og2NavigationGraphCache.TryLoad(level, requestedKey, out var cachedGraph, out var cachePath))
             {
                 graph = cachedGraph;
+                resolutionPath = cachePath;
+                resolutionSource = IsShippedGraphPath(cachePath)
+                    ? Og2NavigationGraphResolutionSource.Shipped
+                    : Og2NavigationGraphResolutionSource.RuntimeCache;
                 TraceCache(level, "hit", cachePath, cachedGraph);
             }
             else
             {
                 graph = Og2NavigationGraphBuilder.Build(level);
                 Og2NavigationGraphCache.Save(level, requestedKey, graph, out var savedPath);
+                resolutionSource = Og2NavigationGraphResolutionSource.Built;
+                resolutionPath = savedPath;
                 TraceCache(level, "miss-built", savedPath, graph);
             }
 
@@ -2167,6 +2217,10 @@ public static class Og2NavigationGraphStore
                     if (Og2NavigationGraphCache.TryLoad(level, effectiveKey, out var extendedGraph, out var extendedCachePath))
                     {
                         graph = extendedGraph;
+                        resolutionPath = extendedCachePath;
+                        resolutionSource = IsShippedGraphPath(extendedCachePath)
+                            ? Og2NavigationGraphResolutionSource.Shipped
+                            : Og2NavigationGraphResolutionSource.RuntimeCache;
                         TraceCache(level, "hit-extended", extendedCachePath, graph);
                     }
                     else
@@ -2184,6 +2238,8 @@ public static class Og2NavigationGraphStore
                         }
 
                         Og2NavigationGraphCache.Save(level, effectiveKey, graph, out var extendedSavedPath);
+                        resolutionSource = Og2NavigationGraphResolutionSource.Built;
+                        resolutionPath = extendedSavedPath;
                         TraceCache(level, "miss-built-extended", extendedSavedPath, graph);
                     }
                 }
@@ -2195,8 +2251,19 @@ public static class Og2NavigationGraphStore
             }
 
             Cache.Add(level, new CachedGraph(requestedKey, effectiveKey, graph));
+            resolution = new Og2NavigationGraphResolution(resolutionSource, resolutionPath);
             return graph;
         }
+    }
+
+    private static bool IsShippedGraphPath(string path)
+    {
+        var shippedRoot = Path.GetFullPath(ContentRoot.GetPath("BotBrainOg2Nav"));
+        var candidate = Path.GetFullPath(path);
+        return candidate.StartsWith(
+            shippedRoot.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                + Path.DirectorySeparatorChar,
+            StringComparison.OrdinalIgnoreCase);
     }
 
     private static PlayerClass[] ResolveExtendedContactClasses(SimpleLevel level, NavGraph graph)

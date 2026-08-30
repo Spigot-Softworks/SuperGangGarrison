@@ -36,7 +36,7 @@
       "primaryItemId": "weapon.medigun",
       "secondaryItemId": "weapon.medigun.crit",
       "utilityItemId": "ability.medic-uber",
-      "abilityItemIds": [ "ability.experimental-ltd-passive" ]
+      "abilityItemIds": [ "ability.experimental-ltd-passive", "ability.experimental-ltd-rage" ]
     }
   },
   "defaultLoadoutId": "medic.stock"

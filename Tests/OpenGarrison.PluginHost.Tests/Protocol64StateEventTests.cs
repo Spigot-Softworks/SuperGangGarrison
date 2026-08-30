@@ -71,7 +71,12 @@ public sealed class Protocol64StateEventTests
                     KritzCritBoostProviderPlayerId: 91,
                     KritzCritBoostProviderSlot: 3,
                     KritzCritBoostDamageMultiplier: 3.5f,
-                    LastToDieProfessionalFireChordState: 2),
+                    LastToDieProfessionalFireChordState: 2,
+                    RageCharge: 375f,
+                    IsRageReady: false,
+                    RageTicksRemaining: 0,
+                    PrimaryCooldownTicks: 13,
+                    PrimaryReloadTicks: 27),
             ]);
 
         var decoded = RoundTrip(registry, value, 1);
@@ -123,7 +128,12 @@ public sealed class Protocol64StateEventTests
         Assert.Equal(3, player.KritzCritBoostProviderSlot);
         Assert.Equal(3.5f, player.KritzCritBoostDamageMultiplier);
         Assert.Equal((byte)2, player.LastToDieProfessionalFireChordState);
-        Assert.Equal((ushort)20, registry.Get<Protocol64PlayerStateBatch>().Descriptor.Key.Revision);
+        Assert.Equal(375f, player.RageCharge);
+        Assert.False(player.IsRageReady);
+        Assert.Equal(0, player.RageTicksRemaining);
+        Assert.Equal(13, player.PrimaryCooldownTicks);
+        Assert.Equal(27, player.PrimaryReloadTicks);
+        Assert.Equal((ushort)22, registry.Get<Protocol64PlayerStateBatch>().Descriptor.Key.Revision);
     }
 
     [Fact]
@@ -501,7 +511,7 @@ public sealed class Protocol64StateEventTests
         Assert.Equal(Protocol64DeliveryKind.LastWins, schemas[2].Descriptor.Delivery.Kind);
         Assert.Equal(ChannelType.Control, schemas[4].Descriptor.Delivery.Channel);
         Assert.Equal(
-            new ushort[] { 20, 1, 10, 10, 1, 24 },
+            new ushort[] { 22, 1, 10, 10, 1, 25 },
             schemas.Select(schema => schema.Descriptor.Key.Revision).ToArray());
     }
 

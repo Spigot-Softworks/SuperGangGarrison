@@ -79,8 +79,12 @@ public partial class Game1
 
             if (simulationTickCount > 0)
             {
-                ClearPendingSecondaryAbilityPress();
-                ClearPendingOfflineBuildMenuCommands();
+                // A render-frame tap may have been merged into the fixed-tick
+                // input by ApplyPendingInputEdges. Clear all one-shot latches
+                // after the tick consumes them so a held button remains held
+                // through the live input, but a tap cannot fire twice.
+                ClearConsumedPredictedInputEdges();
+                _world.SetLocalInput(_latestPredictedLocalInput);
             }
 
             FinalizeBotDiagnosticsFrame();
@@ -111,6 +115,12 @@ public partial class Game1
         AdvanceLastToDieSimulationTick();
         UpdateLastToDieBotReactions();
         AdvanceJumpSimulationTick();
+
+        // Only the first fixed tick should consume a render-frame edge. Restore
+        // the raw current input before a possible catch-up tick so a tap cannot
+        // turn into multiple automatic-weapon shots or repeated commands.
+        ClearConsumedPredictedInputEdges();
+        _world.SetLocalInput(_latestPredictedLocalInput);
     }
 
     private void AdvanceGameplayLogicPresentationTriggers()

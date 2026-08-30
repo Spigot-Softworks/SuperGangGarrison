@@ -25,7 +25,7 @@ internal static class SnapshotContributionPlanner
     // Byte budget estimates per player contribution type. These must stay at or above the
     // true serialized size so the budgeter does not over-admit contributions.
     // SnapshotPlayerFixedBytes accounts for the full WriteSnapshotPlayers entry:
-    //   ~273 fixed bytes (all strings cache-hit, empty owned-item / replicated-state lists)
+    //   ~278 fixed bytes (all strings cache-hit, empty owned-item / replicated-state lists)
     //   + ~18 bytes for a typical player name (16 chars + 2-byte length prefix)
     //   = ~286 bytes. Keep a small margin above the true value.
     private const int SnapshotPlayerFixedBytes = 295;
@@ -34,7 +34,7 @@ internal static class SnapshotContributionPlanner
     private const string CoreReplicatedOwnerId = "core.player";
     // Matches the encoded compact status payload, including authoritative Kritz
     // source state and normal gameplay dispenser state.
-    private const int SnapshotPlayerExtendedStatusBytes = 59;
+    private const int SnapshotPlayerExtendedStatusBytes = 63;
     private const int SnapshotPlayerChatBubbleBytes = 10;
     private const int PlayerMovementHeartbeatIntervalTicks = 1;
     private const int ProjectileSnapshotUpdateIntervalTicks = 1;
@@ -724,7 +724,10 @@ internal static class SnapshotContributionPlanner
             player.KritzCritBoostProviderSlot,
             player.KritzCritBoostDamageMultiplier,
             player.IsDispenserBuffed,
-            player.DispenserAttackReloadSpeedMultiplier);
+            player.DispenserAttackReloadSpeedMultiplier,
+            player.RageCharge,
+            player.IsRageReady,
+            player.RageTicksRemaining);
     }
 
     private static bool HasPlayerMovementChanged(SnapshotPlayerState player, SnapshotPlayerState baselinePlayer)
@@ -949,7 +952,10 @@ internal static class SnapshotContributionPlanner
             || player.KritzCritBoostProviderSlot != baselinePlayer.KritzCritBoostProviderSlot
             || player.KritzCritBoostDamageMultiplier != baselinePlayer.KritzCritBoostDamageMultiplier
             || player.IsDispenserBuffed != baselinePlayer.IsDispenserBuffed
-            || player.DispenserAttackReloadSpeedMultiplier != baselinePlayer.DispenserAttackReloadSpeedMultiplier;
+            || player.DispenserAttackReloadSpeedMultiplier != baselinePlayer.DispenserAttackReloadSpeedMultiplier
+            || player.RageCharge != baselinePlayer.RageCharge
+            || player.IsRageReady != baselinePlayer.IsRageReady
+            || player.RageTicksRemaining != baselinePlayer.RageTicksRemaining;
     }
 
     private static bool ShouldSendLowFrequencyPlayerDetail(long frame, byte slot)

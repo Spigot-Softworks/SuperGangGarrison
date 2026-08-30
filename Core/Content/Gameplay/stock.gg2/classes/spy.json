@@ -36,7 +36,7 @@
       "primaryItemId": "weapon.revolver",
       "secondaryItemId": "ability.spy-cloak",
       "utilityItemId": "ability.spy-utility",
-      "abilityItemIds": [ "ability.experimental-ltd-passive" ]
+      "abilityItemIds": [ "ability.experimental-ltd-passive", "ability.experimental-ltd-rage" ]
     },
     "spy.diamondback": {
       "id": "spy.diamondback",
@@ -44,7 +44,7 @@
       "primaryItemId": "weapon.diamondback",
       "secondaryItemId": "ability.spy-cloak",
       "utilityItemId": "ability.spy-utility",
-      "abilityItemIds": [ "ability.experimental-ltd-passive" ]
+      "abilityItemIds": [ "ability.experimental-ltd-passive", "ability.experimental-ltd-rage" ]
     }
   },
   "defaultLoadoutId": "spy.stock"

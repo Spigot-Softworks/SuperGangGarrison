@@ -8,6 +8,14 @@ public sealed partial class SimulationWorld
     {
         public LastToDieDerivedModifiers Modifiers { get; set; } = modifiers;
 
+        /// <summary>
+        /// The original offline Last to Die perks are represented by the
+        /// experimental gameplay settings model. This copy is per network
+        /// slot; <see cref="SimulationWorld.ExperimentalGameplaySettings"/>
+        /// remains the world/practice fallback.
+        /// </summary>
+        public ExperimentalGameplaySettings LegacySettings { get; set; } = new();
+
         public int DamageHealingRemainder { get; set; }
 
         public float ScopedHealingAccumulator { get; set; }
@@ -34,6 +42,10 @@ public sealed partial class SimulationWorld
     }
 
     private readonly Dictionary<byte, LastToDiePlayerPerkRuntime> _lastToDiePerkRuntimesBySlot = [];
+    // Client prediction receives the authoritative survivor/perk snapshot but
+    // must not create the server-owned combat runtime. Keep that profile
+    // separate so inactive online slots never become LTD owners.
+    private readonly Dictionary<byte, ExperimentalGameplaySettings> _lastToDieLegacyGameplaySettingsBySlot = [];
     private ulong _lastToDieCombatSeed;
     private bool _lastToDieCombatSeedConfigured;
 
@@ -85,7 +97,12 @@ public sealed partial class SimulationWorld
             return false;
         }
 
-        var modifiers = LastToDieDerivedModifiers.FromPerks(perks);
+        var ownedPerks = perks.ToArray();
+        var modifiers = LastToDieDerivedModifiers.FromPerks(ownedPerks);
+        var legacySettings = LastToDieLegacyPerkSettings.FromPerks(
+            player.ClassId,
+            ownedPerks,
+            ExperimentalGameplaySettings);
         var previousMaximumHealthBonus = 0;
         var healthBeforeConfiguration = player.Health;
         if (_lastToDiePerkRuntimesBySlot.TryGetValue(slot, out var runtime))
@@ -135,11 +152,14 @@ public sealed partial class SimulationWorld
                     : null;
             }
             runtime.Modifiers = modifiers;
+            runtime.LegacySettings = legacySettings;
+            _lastToDieLegacyGameplaySettingsBySlot[slot] = legacySettings;
         }
         else
         {
             runtime = new LastToDiePlayerPerkRuntime(modifiers)
             {
+                LegacySettings = legacySettings,
                 RevolverCriticalRandom = _lastToDieCombatSeedConfigured
                     ? CreateLastToDieRevolverCriticalRandom(slot)
                     : null,
@@ -152,7 +172,14 @@ public sealed partial class SimulationWorld
                     && player.IsSpyCloaked,
             };
             _lastToDiePerkRuntimesBySlot.Add(slot, runtime);
+            _lastToDieLegacyGameplaySettingsBySlot[slot] = legacySettings;
         }
+
+        // Class/respawn synchronization ran before the reward build was
+        // installed. Reapply the per-slot legacy profile now so the first
+        // hosted stage immediately gets the original Demo/Soldier/Engineer
+        // loadout state instead of waiting for a later resync tick.
+        SyncExperimentalGameplayLoadout(slot, player);
 
         player.SetLastToDieSpyRevolverProfile(modifiers.SpyRevolverProfile, refillHealth);
         player.SetLastToDieCloakedPerkMultipliers(
@@ -214,6 +241,60 @@ public sealed partial class SimulationWorld
     }
 
     /// <summary>
+    /// Gets the authoritative legacy settings for a hosted Last to Die
+    /// participant. Practice/offline callers that have no Last to Die build
+    /// continue to use the world-level experimental settings.
+    /// </summary>
+    private bool TryGetLastToDieLegacyGameplaySettings(
+        byte slot,
+        out ExperimentalGameplaySettings settings)
+    {
+        if (_lastToDieLegacyGameplaySettingsBySlot.TryGetValue(slot, out settings))
+        {
+            return true;
+        }
+
+        if (_lastToDiePerkRuntimesBySlot.TryGetValue(slot, out var runtime))
+        {
+            settings = runtime.LegacySettings;
+            return true;
+        }
+
+        settings = ExperimentalGameplaySettings;
+        return false;
+    }
+
+    private ExperimentalGameplaySettings GetLastToDieGameplaySettings(PlayerEntity? player)
+    {
+        return player is not null
+            && TryGetPlayerNetworkSlot(player, out var slot)
+            && TryGetLastToDieLegacyGameplaySettings(slot, out var settings)
+            ? settings
+            : ExperimentalGameplaySettings;
+    }
+
+    /// <summary>
+    /// Resolves settings that are intentionally run-global in the original
+    /// Last to Die rules (rage, drops, and the captured-point aura). Hosted
+    /// participants keep those defaults in their per-slot profiles, so these
+    /// gates must not depend on whichever world-level practice record happens
+    /// to be installed.
+    /// </summary>
+    internal bool IsLastToDieGameplaySettingEnabled(
+        Func<ExperimentalGameplaySettings, bool> selector)
+    {
+        ArgumentNullException.ThrowIfNull(selector);
+        if (_lastToDiePerkRuntimesBySlot.Count == 0
+            && _lastToDieLegacyGameplaySettingsBySlot.Count == 0)
+        {
+            return selector(ExperimentalGameplaySettings);
+        }
+
+        return _lastToDiePerkRuntimesBySlot.Values.Any(runtime => selector(runtime.LegacySettings))
+            || _lastToDieLegacyGameplaySettingsBySlot.Values.Any(selector);
+    }
+
+    /// <summary>
     /// Applies only the deterministic client prediction/presentation portion
     /// of an authoritative Last to Die build. Healing, evasion, and damage
     /// rewards remain exclusively in the server-owned perk runtime.
@@ -228,8 +309,25 @@ public sealed partial class SimulationWorld
             return false;
         }
 
-        var modifiers = LastToDieDerivedModifiers.FromPerks(
-            ownedPerkIds.Select(static perkId => new LastToDiePerkId(perkId)));
+        var ownedPerks = ownedPerkIds
+            .Select(static perkId => new LastToDiePerkId(perkId))
+            .Distinct()
+            .ToArray();
+        _lastToDieLegacyGameplaySettingsBySlot[slot] = LastToDieLegacyPerkSettings.FromPerks(
+            player.ClassId,
+            ownedPerks,
+            ExperimentalGameplaySettings);
+        var modifiers = LastToDieDerivedModifiers.FromPerks(ownedPerks);
+        ApplyLastToDiePlayerPredictionModifiers(slot, player, modifiers);
+        return true;
+    }
+
+    private void ApplyLastToDiePlayerPredictionModifiers(
+        byte slot,
+        PlayerEntity player,
+        LastToDieDerivedModifiers modifiers)
+    {
+        player.SetLastToDieSpyRevolverProfile(modifiers.SpyRevolverProfile, refillAmmo: false);
         player.SetLastToDieCloakedPerkMultipliers(
             modifiers.CloakedMovementSpeedMultiplier,
             modifiers.CloakedDamageTakenMultiplier);
@@ -267,6 +365,21 @@ public sealed partial class SimulationWorld
         player.ConfigureLastToDieMedicRejuvenationRay(modifiers.MedicRejuvenationRayEnabled);
         player.ConfigureLastToDieMedicKritPower(modifiers.MedicKritPowerEnabled);
         player.SetLastToDieSniperProfile(modifiers.SniperProfile);
+        SyncExperimentalGameplayLoadout(slot, player);
+    }
+
+    public bool ClearLastToDiePlayerPredictionProfile(byte slot)
+    {
+        if (!TryGetNetworkPlayer(slot, out var player))
+        {
+            return false;
+        }
+
+        _lastToDieLegacyGameplaySettingsBySlot.Remove(slot);
+        ApplyLastToDiePlayerPredictionModifiers(
+            slot,
+            player,
+            new LastToDieDerivedModifiers());
         return true;
     }
 

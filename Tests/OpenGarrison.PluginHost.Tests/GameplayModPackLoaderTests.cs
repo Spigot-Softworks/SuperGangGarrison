@@ -503,6 +503,23 @@ public sealed class GameplayModPackLoaderTests
         Assert.NotNull(heavyStock.AbilityItemIds);
         Assert.Contains("ability.experimental-ltd-passive", heavyStock.AbilityItemIds!);
         Assert.DoesNotContain("ability.experimental-ltd-rage", heavyStock.AbilityItemIds!);
+
+        var demomanStock = pack.Classes["demoman"].Loadouts["demoman.stock"];
+        Assert.Contains("ability.experimental-ltd-rage", demomanStock.AbilityItemIds!);
+
+        var engineerStock = pack.Classes["engineer"].Loadouts["engineer.stock"];
+        Assert.Contains("ability.experimental-ltd-rage", engineerStock.AbilityItemIds!);
+
+        var spyStock = pack.Classes["spy"].Loadouts["spy.stock"];
+        var spyDiamondback = pack.Classes["spy"].Loadouts["spy.diamondback"];
+        Assert.Contains("ability.experimental-ltd-rage", spyStock.AbilityItemIds!);
+        Assert.Contains("ability.experimental-ltd-rage", spyDiamondback.AbilityItemIds!);
+
+        var medicStock = pack.Classes["medic"].Loadouts["medic.stock"];
+        Assert.Contains("ability.experimental-ltd-rage", medicStock.AbilityItemIds!);
+
+        var sniperStock = pack.Classes["sniper"].Loadouts["sniper.stock"];
+        Assert.Contains("ability.experimental-ltd-rage", sniperStock.AbilityItemIds!);
     }
 
     [Fact]

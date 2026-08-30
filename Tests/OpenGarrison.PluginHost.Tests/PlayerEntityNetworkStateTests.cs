@@ -337,6 +337,44 @@ public sealed class PlayerEntityNetworkStateTests
         Assert.Equal(17, player.MedicNeedleRefillTicks);
     }
 
+    [Theory]
+    [InlineData("sniper", 125, "weapon.bow", 1)]
+    [InlineData("scout", 125, "weapon.scout-nailgun", 35)]
+    [InlineData("medic", 150, "weapon.medigun.crit", 6)]
+    public void ApplyProtocol64StateAppliesAuthoritativeLockedPrimarySelection(
+        string gameplayClassId,
+        int maxHealth,
+        string expectedSecondaryItemId,
+        int offhandMaxAmmo)
+    {
+        var player = new PlayerEntity(1, CharacterClassCatalog.Scout, "Test");
+        var state = new Protocol64PlayerState(
+            Slot: 1,
+            PlayerId: 1,
+            Generation: 1,
+            GameplayClassId: gameplayClassId,
+            Health: maxHealth,
+            MaxHealth: maxHealth,
+            Team: (byte)PlayerTeam.Red,
+            IsAlive: true,
+            X: 0f,
+            Y: 0f,
+            VelocityX: 0f,
+            VelocityY: 0f,
+            ActiveWeapon: (byte)GameplayEquipmentSlot.Secondary,
+            AbilityState: 0,
+            StateTick: 1,
+            OffhandAmmo: offhandMaxAmmo,
+            OffhandMaxAmmo: offhandMaxAmmo);
+
+        player.ApplyProtocol64State(state, CharacterClassCatalog.GetDefinition(gameplayClassId));
+
+        Assert.Equal(GameplayEquipmentSlot.Secondary, player.SelectedGameplayEquippedSlot);
+        Assert.Equal(GameplayEquipmentSlot.Secondary, player.GameplayLoadoutState.EquippedSlot);
+        Assert.Equal(expectedSecondaryItemId, player.GameplayLoadoutState.EquippedItemId);
+        Assert.True(player.IsExperimentalOffhandSelected);
+    }
+
     [Fact]
     public void ApplyNetworkStateUsesAuthoritativeMaxHealthForReplicatedPlayer()
     {

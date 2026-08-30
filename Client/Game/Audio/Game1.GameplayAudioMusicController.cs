@@ -12,6 +12,16 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
+    internal static bool ShouldPlayLastToDieIngameMusic(
+        bool anyLastToDieSessionActive,
+        bool hasLastToDieIngameMusic,
+        bool failurePresentationActive,
+        bool matchEnded)
+        => anyLastToDieSessionActive
+            && hasLastToDieIngameMusic
+            && !failurePresentationActive
+            && !matchEnded;
+
     private sealed class GameplayAudioMusicController
     {
         internal const string LastToDieMenuMusicRelativePath = "Music/menu-l2d.fixed.wav";
@@ -204,7 +214,7 @@ public partial class Game1
                 return;
             }
 
-            if (_game.IsLastToDieDeathFocusPresentationActive() || _game._world.MatchState.IsEnded)
+            if (_game.IsLastToDieFailurePresentationActive() || _game._world.MatchState.IsEnded)
             {
                 StopLastToDieMenuMusic();
                 StopIngameMusic();
@@ -212,15 +222,20 @@ public partial class Game1
                 return;
             }
 
-            if (_game.IsAnyLastToDieSessionActive && _game._lastToDieIngameMusicInstance is not null)
+            var lastToDieIngameMusicInstance = _game._lastToDieIngameMusicInstance;
+            if (Game1.ShouldPlayLastToDieIngameMusic(
+                    _game.IsAnyLastToDieSessionActive,
+                    lastToDieIngameMusicInstance is not null,
+                    _game.IsLastToDieFailurePresentationActive(),
+                    _game._world.MatchState.IsEnded))
             {
                 StopLastToDieMenuMusic();
                 StopIngameMusic();
                 try
                 {
-                    if (_game._lastToDieIngameMusicInstance.State != SoundState.Playing)
+                    if (lastToDieIngameMusicInstance!.State != SoundState.Playing)
                     {
-                        _game._lastToDieIngameMusicInstance.Play();
+                        lastToDieIngameMusicInstance.Play();
                     }
                 }
                 catch (Exception ex)
@@ -334,6 +349,16 @@ public partial class Game1
             {
                 return;
             }
+
+            // The game-over cue is the sole LTD terminal music owner.  Stop
+            // every looped track before starting it so a transition that
+            // arrives between presentation phases cannot layer the cue over
+            // the menu, generic gameplay, or LTD gameplay song.
+            _game.StopMenuMusic();
+            _game.StopLastToDieMenuMusic();
+            _game.StopFaucetMusic();
+            _game.StopIngameMusic();
+            _game.StopLastToDieIngameMusic();
 
             if (_game._lastToDieGameOverSound is null)
             {

@@ -69,7 +69,7 @@ public partial class Game1
                 return false;
             }
 
-            var player = _game._world.LocalPlayer;
+            var player = _game.GetImmediatePrimaryPresentationPlayer();
             return !_game._world.LocalPlayerAwaitingJoin
                 && IsRapidFireWeaponSoundActive(player, weaponKind);
         }
@@ -277,6 +277,11 @@ public partial class Game1
             if (weaponKind == PrimaryWeaponKind.Minigun && _game.GetPlayerIsHeavyEating(player))
             {
                 return false;
+            }
+
+            if (_game._pendingImmediateRapidFireWeaponKind == weaponKind)
+            {
+                return true;
             }
 
             if (weaponKind == PrimaryWeaponKind.FlameThrower)

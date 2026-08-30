@@ -21,7 +21,9 @@ public sealed partial class SimulationWorld
 
         if (attackerId == target.Id)
         {
-            return !ExperimentalGameplaySettings.DisableSelfDamage;
+            var selfAttacker = FindPlayerById(attackerId);
+            return selfAttacker is null
+                || !GetLastToDieGameplaySettings(selfAttacker).DisableSelfDamage;
         }
 
         var attacker = FindPlayerById(attackerId);
@@ -32,7 +34,7 @@ public sealed partial class SimulationWorld
 
     private bool IsExperimentalConfusionFriendlyFireAllowed(PlayerEntity attacker, PlayerEntity target)
     {
-        return ExperimentalGameplaySettings.EnableEngineerConfusionField
+        return GetLastToDieGameplaySettings(attacker).EnableEngineerConfusionField
             && attacker.Team == target.Team
             && attacker.Id != target.Id
             && (attacker.ExperimentalConfusedAttackTargetPlayerId == target.Id

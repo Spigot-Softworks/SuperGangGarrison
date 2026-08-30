@@ -15,6 +15,8 @@ public sealed class HostedServerSessionInfo
 
     public int ProcessId { get; set; }
 
+    public long ProcessStartTimeUtcTicks { get; set; }
+
     public int Port { get; set; }
 
     public string ServerName { get; set; } = string.Empty;

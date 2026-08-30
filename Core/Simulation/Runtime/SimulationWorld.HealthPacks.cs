@@ -137,10 +137,15 @@ public sealed partial class SimulationWorld
 
     private void TrySpawnExperimentalEnemyHealthPackDrop(PlayerEntity victim, PlayerEntity? killer)
     {
-        var dropChance = ExperimentalGameplaySettings.EnemyHealthPackDropChance;
-        if (!ExperimentalGameplaySettings.EnableEnemyHealthPackDrops
+        if (killer is null)
+        {
+            return;
+        }
+
+        var settings = GetLastToDieGameplaySettings(killer);
+        var dropChance = settings.EnemyHealthPackDropChance;
+        if (!settings.EnableEnemyHealthPackDrops
             || dropChance <= 0f
-            || killer is null
             || ReferenceEquals(killer, victim)
             || killer.Team == victim.Team
             || victim.Team == LocalPlayerTeam
@@ -149,7 +154,7 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        var size = _random.NextSingle() < ExperimentalGameplaySettings.EnemyHealthPackLargeChance
+        var size = _random.NextSingle() < global::OpenGarrison.Core.ExperimentalGameplaySettings.EnemyHealthPackLargeChance
             ? HealthPackSize.Large
             : HealthPackSize.Small;
         SpawnHealthPack(victim.X, victim.Bottom - 16f, size);

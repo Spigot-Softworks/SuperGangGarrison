@@ -492,6 +492,11 @@ public partial class Game1 : Game
         SendSocialPresenceOffline();
         _networkClient.SendLastToDieLeave();
         _networkClient.Disconnect();
+        // Last to Die and other local hosted sessions own a hidden server
+        // process. Stop it while the runtime controller is still alive; relying
+        // on Game.Dispose/UnloadContent is not sufficient on every fatal-exit
+        // path.
+        StopHostedServer();
     }
 
     public void EnsureBrowserHostLifecycleInitialized()

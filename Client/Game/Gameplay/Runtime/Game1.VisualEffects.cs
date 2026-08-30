@@ -124,6 +124,7 @@ public partial class Game1
 
     private void ResetTransientPresentationEffects()
     {
+        ClearPredictedWeaponFireVisuals();
         _gameplayImpactEffectsController.ResetTransientEffects();
         ResetRetainedDeadBodies();
         ResetImmediateNetworkDeadBodies();
