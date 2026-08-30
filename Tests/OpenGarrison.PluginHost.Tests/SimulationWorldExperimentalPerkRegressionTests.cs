@@ -988,6 +988,27 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         Assert.True(world.LocalPlayer.IsRaging);
     }
 
+    [Theory]
+    [InlineData(PlayerClass.Soldier)]
+    [InlineData(PlayerClass.Demoman)]
+    [InlineData(PlayerClass.Engineer)]
+    [InlineData(PlayerClass.Spy)]
+    [InlineData(PlayerClass.Medic)]
+    [InlineData(PlayerClass.Sniper)]
+    public void EveryHostedLastToDieSurvivorCanActivateSharedRage(PlayerClass survivorClass)
+    {
+        var settings = new ExperimentalGameplaySettings(
+            EnableDemoknightKit: survivorClass == PlayerClass.Demoman);
+        var world = CreateJoinedRageWorld(survivorClass, settings);
+        Assert.True(world.TryConfigureLastToDiePlayerBuild(SimulationWorld.LocalPlayerSlot, []));
+        world.LocalPlayer.AddRageCharge(
+            ExperimentalGameplaySettings.RageMaxCharge,
+            ExperimentalGameplaySettings.RageMaxCharge);
+
+        Assert.True(InvokeTryHandleExperimentalRageActivation(world, world.LocalPlayer));
+        Assert.True(world.LocalPlayer.IsRaging);
+    }
+
     [Fact]
     public void JumpPadLaunchesEngineerOnlyWhenJumpIsPressed()
     {
@@ -3433,6 +3454,22 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         world.CompleteLocalPlayerJoin(PlayerClass.Engineer);
         world.ConfigureExperimentalGameplaySettings(settings);
         return world;
+    }
+
+    private static SimulationWorld CreateJoinedRageWorld(
+        PlayerClass survivorClass,
+        ExperimentalGameplaySettings settings)
+    {
+        return survivorClass switch
+        {
+            PlayerClass.Soldier => CreateJoinedSoldierWorld(settings),
+            PlayerClass.Demoman => CreateJoinedDemomanWorld(settings),
+            PlayerClass.Engineer => CreateJoinedEngineerWorld(settings),
+            PlayerClass.Spy => CreateJoinedSpyWorld(settings),
+            PlayerClass.Medic => CreateJoinedMedicWorld(settings),
+            PlayerClass.Sniper => CreateJoinedSniperWorld(settings),
+            _ => throw new ArgumentOutOfRangeException(nameof(survivorClass), survivorClass, null),
+        };
     }
 
     private static SimulationWorld CreatePrototypeEngineerWorld(ExperimentalGameplaySettings settings)

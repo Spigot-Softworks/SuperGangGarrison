@@ -103,6 +103,7 @@ public sealed partial class SimulationWorld
         ClearLastToDieStatusEffectsForReleasedPlayer(player.Id);
         ClearLastToDieSniperMarksTargeting(slot);
         _lastToDiePerkRuntimesBySlot.Remove(slot);
+        _lastToDieLegacyGameplaySettingsBySlot.Remove(slot);
         player.ClearLastToDieWeaponProfile();
         player.ClearLastToDiePerkModifiers();
         ClearDominationsForPlayer(player);

@@ -75,6 +75,13 @@ public sealed partial class PlayerEntity
             HydrateProtocol64DefaultSecondaryWeapon();
         }
 
+        // Protocol 64 is the authoritative input/state stream on the online
+        // transport. Its ActiveWeapon field is the only copy of the selected
+        // equipment slot on that path; without applying it here, a legacy
+        // snapshot (or a class-change reset) leaves the client on Primary even
+        // while the server is retaining a locked alternate primary.
+        ApplyProtocol64ActiveWeapon(state.ActiveWeapon);
+
         X = state.X;
         Y = state.Y;
         HorizontalSpeed = state.VelocityX;
@@ -86,6 +93,10 @@ public sealed partial class PlayerEntity
         Health = state.IsAlive
             ? int.Clamp(state.Health, 0, MaxHealth)
             : 0;
+        HydrateNetworkRageState(
+            state.RageCharge,
+            state.IsRageReady,
+            state.RageTicksRemaining);
         MedicUberCharge = ClassId == PlayerClass.Medic
             ? float.Clamp(state.MedicUberCharge, 0f, MedicUberMaxCharge)
             : 0f;
@@ -132,6 +143,13 @@ public sealed partial class PlayerEntity
             CurrentShells = int.Clamp(state.CurrentAmmo, 0, Math.Min(MaxShells, state.MaxAmmo));
         }
 
+        // Protocol 64 is also the prediction reconciliation baseline. Keep
+        // the primary timers authoritative just like the compact secondary
+        // timers below; otherwise every rebuild can briefly see a ready gun
+        // and terminate/restart its reload animation.
+        PrimaryCooldownTicks = Math.Max(0, state.PrimaryCooldownTicks);
+        ReloadTicksUntilNextShell = Math.Max(0, state.PrimaryReloadTicks);
+
         if (HasAcquiredWeapon && state.AcquiredMaxAmmo > 0)
         {
             AcquiredWeaponCurrentShells = int.Clamp(
@@ -172,6 +190,34 @@ public sealed partial class PlayerEntity
             ResetPassiveRegenState();
             ClearMedicHealingTarget();
         }
+    }
+
+    private void ApplyProtocol64ActiveWeapon(byte activeWeapon)
+    {
+        if (!Enum.IsDefined(typeof(GameplayEquipmentSlot), (int)activeWeapon))
+        {
+            return;
+        }
+
+        var equippedSlot = (GameplayEquipmentSlot)activeWeapon;
+        if (!CharacterClassCatalog.RuntimeRegistry.CanEquipSlot(
+                GameplayClassId,
+                SelectedGameplayLoadoutId,
+                equippedSlot,
+                ResolveRegisteredWeaponItemId(ExperimentalOffhandWeapon),
+                GameplayLoadoutState.AcquiredItemId))
+        {
+            return;
+        }
+
+        SelectedGameplayEquippedSlot = equippedSlot;
+        if (equippedSlot != GameplayEquipmentSlot.Secondary)
+        {
+            IsExperimentalOffhandEquipped = false;
+            IsAcquiredWeaponEquipped = false;
+        }
+
+        RefreshGameplayLoadoutState();
     }
 
     private void HydrateProtocol64LastToDieWeaponProfileState(ushort encoded)

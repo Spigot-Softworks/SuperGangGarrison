@@ -120,9 +120,9 @@ public sealed partial class SimulationWorld
 
     private bool CanUseExperimentalDroppedWeapons(PlayerEntity? player)
     {
-        return ExperimentalGameplaySettings.EnableEnemyDroppedWeapons
+        return player is not null
+            && GetLastToDieGameplaySettings(player).EnableEnemyDroppedWeapons
             && IsExperimentalPracticePowerOwner(player)
-            && player is not null
             && player.ClassId == PlayerClass.Soldier;
     }
 
@@ -149,14 +149,13 @@ public sealed partial class SimulationWorld
 
     private void TrySpawnExperimentalEnemyDroppedWeapon(PlayerEntity victim, PlayerEntity? killer)
     {
-        if (!ExperimentalGameplaySettings.EnableEnemyDroppedWeapons
-            || killer is null
+        if (killer is null
             || !CanUseExperimentalDroppedWeapons(killer)
             || ReferenceEquals(killer, victim)
             || killer.Team == victim.Team
             || victim.Team == LocalPlayerTeam
             || !CharacterClassCatalog.SupportsExperimentalAcquiredWeapon(victim.ClassId)
-            || _random.NextSingle() > ExperimentalGameplaySettings.EnemyDroppedWeaponChance)
+            || _random.NextSingle() > global::OpenGarrison.Core.ExperimentalGameplaySettings.EnemyDroppedWeaponChance)
         {
             return;
         }

@@ -267,6 +267,9 @@ public static class SnapshotDelta
                 KritzCritBoostProviderPlayerId = status.KritzCritBoostProviderPlayerId,
                 KritzCritBoostProviderSlot = status.KritzCritBoostProviderSlot,
                 KritzCritBoostDamageMultiplier = status.KritzCritBoostDamageMultiplier,
+                RageCharge = status.RageCharge,
+                IsRageReady = status.IsRageReady,
+                RageTicksRemaining = status.RageTicksRemaining,
             };
         }
 

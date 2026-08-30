@@ -857,6 +857,95 @@ internal static class Og2AlphaNavigationDiagnostics
         }
     }
 
+    public static void RunShippedGraphAudit(IReadOnlyDictionary<string, string> rawOptions)
+    {
+        Environment.SetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_CONTACT_GRAPH", "1");
+        Environment.SetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_SWEEP_TICKS", "32");
+        Environment.SetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_EXTENDED_SWEEP", "0");
+        Environment.SetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_CONTACT_CLASSES", null);
+
+        if (rawOptions.TryGetValue("content-root", out var configuredContentRoot)
+            && !string.IsNullOrWhiteSpace(configuredContentRoot))
+        {
+            ContentRoot.Initialize(Path.GetFullPath(configuredContentRoot));
+        }
+
+        var requestedMaps = rawOptions.TryGetValue("maps", out var mapText)
+            ? mapText.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            : DiscoverShippedGraphMaps(rawOptions);
+        var loaded = 0;
+        var runtimeCached = 0;
+        var missing = 0;
+        var failed = 0;
+        var auditedAreas = 0;
+        foreach (var requestedMap in requestedMaps)
+        {
+            var mapName = NormalizeMapName(requestedMap);
+            var firstArea = SimpleLevelFactory.CreateImportedLevel(mapName, 1);
+            if (firstArea is null)
+            {
+                failed += 1;
+                Console.WriteLine($"shippedAlphaGraphAudit map={requestedMap} status=load_failed");
+                continue;
+            }
+
+            for (var area = 1; area <= firstArea.MapAreaCount; area += 1)
+            {
+                var level = area == 1
+                    ? firstArea
+                    : SimpleLevelFactory.CreateImportedLevel(mapName, area);
+                if (level is null)
+                {
+                    failed += 1;
+                    Console.WriteLine(
+                        $"shippedAlphaGraphAudit map={requestedMap} loadedMap={mapName} area={area} status=load_failed");
+                    continue;
+                }
+
+                auditedAreas += 1;
+                var found = Og2NavigationGraphStore.TryLoadShipped(level, out var graph);
+                var runtimePath = string.Empty;
+                var foundInRuntimeCache = false;
+                if (found)
+                {
+                    loaded += 1;
+                }
+                else
+                {
+                    var key = Og2NavigationGraphCache.BuildKey(level);
+                    foundInRuntimeCache = Og2NavigationGraphCache.TryLoad(
+                        level,
+                        key,
+                        out graph,
+                        out runtimePath);
+                    if (foundInRuntimeCache)
+                    {
+                        runtimeCached += 1;
+                    }
+                    else
+                    {
+                        missing += 1;
+                    }
+                }
+
+                Console.WriteLine(
+                    $"shippedAlphaGraphAudit map={requestedMap} loadedMap={level.Name} area={area} " +
+                    $"mode={level.Mode} topDown={(level.IsTopDown ? 1 : 0)} " +
+                    $"status={(found ? "loaded" : foundInRuntimeCache ? "runtime_only" : "missing")} " +
+                    $"nodes={(found || foundInRuntimeCache ? graph.NodeCount : 0)} " +
+                    $"runtimePath=\"{runtimePath}\"");
+            }
+        }
+
+        Console.WriteLine(
+            $"shippedAlphaGraphAuditSuite maps={requestedMaps.Length} areas={auditedAreas} " +
+            $"loaded={loaded} runtimeOnly={runtimeCached} missing={missing} failed={failed}");
+        if (runtimeCached > 0 || missing > 0 || failed > 0)
+        {
+            Environment.ExitCode = 1;
+        }
+    }
+
     private static string[] DiscoverShippedGraphMaps(IReadOnlyDictionary<string, string> rawOptions)
     {
         var mapNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);

@@ -77,6 +77,82 @@ public static class LastToDiePerkIds
         public static readonly LastToDiePerkId Conquistador = Id("sniper.conquistador");
     }
 
+    public static class Soldier
+    {
+        public static readonly LastToDiePerkId Shotgun = Id("soldier.shotgun");
+        public static readonly LastToDiePerkId HealOnDamage = Id("soldier.heal-on-damage");
+        public static readonly LastToDiePerkId HealOnKill = Id("soldier.heal-on-kill");
+        public static readonly LastToDiePerkId RateOfFireOnDamage = Id("soldier.rate-of-fire-on-damage");
+        public static readonly LastToDiePerkId InstantReload = Id("soldier.instant-reload");
+        public static readonly LastToDiePerkId PassiveHealthRegeneration = Id("soldier.passive-health-regeneration");
+        public static readonly LastToDiePerkId InvincibilityOnKill = Id("soldier.invincibility-on-kill");
+        public static readonly LastToDiePerkId ProjectileSpeedMultiplier = Id("soldier.projectile-speed-multiplier");
+        public static readonly LastToDiePerkId AirshotDamageMultiplier = Id("soldier.airshot-damage-multiplier");
+        public static readonly LastToDiePerkId StingerRockets = Id("soldier.stinger-rockets");
+        public static readonly LastToDiePerkId RageExtensionOnKill = Id("soldier.rage-extension-on-kill");
+        public static readonly LastToDiePerkId DangerClose = Id("soldier.danger-close");
+        public static readonly LastToDiePerkId SelfDamageHealing = Id("soldier.self-damage-healing");
+        public static readonly LastToDiePerkId ReloadSpeedMultiplier = Id("soldier.reload-speed-multiplier");
+        public static readonly LastToDiePerkId AmmoRegeneratesWhileSwappedOut = Id("soldier.ammo-regenerates-while-swapped-out");
+        public static readonly LastToDiePerkId InfiniteAmmoDuringRage = Id("soldier.infinite-ammo-during-rage");
+        public static readonly LastToDiePerkId RageCaptureLockout = Id("soldier.rage-capture-lockout");
+        public static readonly LastToDiePerkId NapalmRockets = Id("soldier.napalm-rockets");
+        public static readonly LastToDiePerkId FinalClipRocketBurst = Id("soldier.final-clip-rocket-burst");
+        public static readonly LastToDiePerkId RageCaptureDuringRage = Id("soldier.rage-capture-during-rage");
+        public static readonly LastToDiePerkId CivilDefenseTurret = Id("soldier.civil-defense-turret");
+        public static readonly LastToDiePerkId LuckyBastard = Id("soldier.lucky-bastard");
+        public static readonly LastToDiePerkId Thundergunner = Id("soldier.thundergunner");
+        public static readonly LastToDiePerkId Battleborn = Id("soldier.battleborn");
+        public static readonly LastToDiePerkId FogOfWar = Id("soldier.fog-of-war");
+    }
+
+    public static class Demoknight
+    {
+        public static readonly LastToDiePerkId MeleeRange = Id("demoknight.melee-range");
+        public static readonly LastToDiePerkId Lifesteal = Id("demoknight.lifesteal");
+        public static readonly LastToDiePerkId MoveSpeed = Id("demoknight.move-speed");
+        public static readonly LastToDiePerkId KillHeal = Id("demoknight.kill-heal");
+        public static readonly LastToDiePerkId KillInvincibility = Id("demoknight.kill-invincibility");
+        public static readonly LastToDiePerkId ChargeRate = Id("demoknight.charge-rate");
+        public static readonly LastToDiePerkId ChargeResistance = Id("demoknight.charge-resistance");
+        public static readonly LastToDiePerkId DamageMultiplier = Id("demoknight.damage-multiplier");
+        public static readonly LastToDiePerkId FullHealOnKill = Id("demoknight.full-heal-on-kill");
+        public static readonly LastToDiePerkId AttackSpeed = Id("demoknight.attack-speed");
+        public static readonly LastToDiePerkId PostRageRegeneration = Id("demoknight.post-rage-regeneration");
+        public static readonly LastToDiePerkId FullControlDuringCharge = Id("demoknight.full-control-during-charge");
+        public static readonly LastToDiePerkId GhostDash = Id("demoknight.ghost-dash");
+    }
+
+    public static class Engineer
+    {
+        public static readonly LastToDiePerkId GuardianMatrix = Id("engineer.guardian-matrix");
+        public static readonly LastToDiePerkId IncendiaryEnhancements = Id("engineer.incendiary-enhancements");
+        public static readonly LastToDiePerkId CryonicMunitions = Id("engineer.cryonic-munitions");
+        public static readonly LastToDiePerkId AutonomousPhaseEngine = Id("engineer.autonomous-phase-engine");
+        public static readonly LastToDiePerkId OutputInducer = Id("engineer.output-inducer");
+        public static readonly LastToDiePerkId EssenceExtractor = Id("engineer.essence-extractor");
+        public static readonly LastToDiePerkId CooperativeTargetingHarness = Id("engineer.cooperative-targeting-harness");
+        public static readonly LastToDiePerkId RegenerativeDiode = Id("engineer.regenerative-diode");
+        public static readonly LastToDiePerkId OsmosisConductor = Id("engineer.osmosis-conductor");
+        public static readonly LastToDiePerkId AmperageAccelerator = Id("engineer.amperage-accelerator");
+        public static readonly LastToDiePerkId HardwareHardener = Id("engineer.hardware-hardener");
+        public static readonly LastToDiePerkId CaveatInjector = Id("engineer.caveat-injector");
+        public static readonly LastToDiePerkId PrecisionInstantiator = Id("engineer.precision-instantiator");
+        public static readonly LastToDiePerkId BuckshotConversion = Id("engineer.buckshot-conversion");
+        public static readonly LastToDiePerkId IntegrityProjector = Id("engineer.integrity-projector");
+        public static readonly LastToDiePerkId MisdirectionField = Id("engineer.misdirection-field");
+        public static readonly LastToDiePerkId ConfusionField = Id("engineer.confusion-field");
+        public static readonly LastToDiePerkId GravitonAffixer = Id("engineer.graviton-affixer");
+        public static readonly LastToDiePerkId AuraEnergizer = Id("engineer.aura-energizer");
+        public static readonly LastToDiePerkId EntanglementTraverser = Id("engineer.entanglement-traverser");
+        public static readonly LastToDiePerkId AlchemicalAnode = Id("engineer.alchemical-anode");
+        public static readonly LastToDiePerkId ExperimentalOverkillAugment = Id("engineer.experimental-overkill-augment");
+        public static readonly LastToDiePerkId EfficiencyStabilizer = Id("engineer.efficiency-stabilizer");
+        public static readonly LastToDiePerkId MateriaRecycler = Id("engineer.materia-recycler");
+        public static readonly LastToDiePerkId DestinyPunctuator = Id("engineer.destiny-punctuator");
+        public static readonly LastToDiePerkId FreezeRay = Id("engineer.freeze-ray");
+    }
+
     private static LastToDiePerkId Id(string suffix) => new($"ltd.perk.{suffix}");
 }
 
@@ -90,6 +166,9 @@ public static class LastToDieExpansionPerkCatalog
         var spy = LastToDieSurvivorCatalog.SpyId;
         var medic = LastToDieSurvivorCatalog.MedicId;
         var sniper = LastToDieSurvivorCatalog.SniperId;
+        var soldier = LastToDieSurvivorCatalog.SoldierId;
+        var demoknight = LastToDieSurvivorCatalog.DemoknightId;
+        var engineer = LastToDieSurvivorCatalog.EngineerId;
         var agentAndRubber = new[] { LastToDiePerkIds.Spy.Agent, LastToDiePerkIds.Spy.RubberBullets };
         var blunderbussRanks = new[]
         {
@@ -100,6 +179,10 @@ public static class LastToDieExpansionPerkCatalog
 
         return
         [
+            ..CreateSoldierDefinitions(soldier),
+            ..CreateDemoknightDefinitions(demoknight),
+            ..CreateEngineerDefinitions(engineer),
+
             Perk(LastToDiePerkIds.Spy.Blunderbuss1, spy, "Blunderbuss", "Single-shot 13-pellet revolver conversion with bleed and +30% reload speed.", excludes: agentAndRubber, tags: ["revolver", "weapon-profile", "bleed"]),
             Perk(LastToDiePerkIds.Spy.Blunderbuss2, spy, "Blunderbuss II", "Two-shell clip with stronger bleed, damage, and knockback.", 2, [LastToDiePerkIds.Spy.Blunderbuss1], agentAndRubber, ["revolver", "weapon-profile", "bleed"]),
             Perk(LastToDiePerkIds.Spy.Blunderbuss3, spy, "Blunderbuss III", "Double pellets, wider spread, and faster reload.", 3, [LastToDiePerkIds.Spy.Blunderbuss1, LastToDiePerkIds.Spy.Blunderbuss2], agentAndRubber, ["revolver", "weapon-profile"]),
@@ -167,6 +250,85 @@ public static class LastToDieExpansionPerkCatalog
             Perk(LastToDiePerkIds.Sniper.Conquistador, sniper, "Conquistador", "Kills grant stacking damage until death.", tags: ["kill-reward", "damage"]),
         ];
     }
+
+    private static IReadOnlyList<LastToDiePerkDefinition> CreateSoldierDefinitions(LastToDieSurvivorId survivor)
+        =>
+        [
+            Perk(LastToDiePerkIds.Soldier.Shotgun, survivor, "12 Gauge", "Doubles shotgun pellet count."),
+            Perk(LastToDiePerkIds.Soldier.HealOnDamage, survivor, "Sadist", "Restore 35% of dealt damage."),
+            Perk(LastToDiePerkIds.Soldier.HealOnKill, survivor, "Natural Born Killer", "Restore 75 health on kill."),
+            Perk(LastToDiePerkIds.Soldier.RateOfFireOnDamage, survivor, "Rocket Frenzy", "Landing a hit instantly requeues primary fire."),
+            Perk(LastToDiePerkIds.Soldier.InstantReload, survivor, "Re-Armament", "Landing a rocket hit refills 1 rocket."),
+            Perk(LastToDiePerkIds.Soldier.PassiveHealthRegeneration, survivor, "Tough as Nails", "Restore 8 health per second while alive."),
+            Perk(LastToDiePerkIds.Soldier.InvincibilityOnKill, survivor, "Untouchable", "Gain 1s ghost phase on kill: partial transparency and projectile passthrough."),
+            Perk(LastToDiePerkIds.Soldier.ProjectileSpeedMultiplier, survivor, "Hypersonic", "All spawned projectile weapons fly 60% faster."),
+            Perk(LastToDiePerkIds.Soldier.AirshotDamageMultiplier, survivor, "AA Gun", "Direct projectile airshots deal bonus damage."),
+            Perk(LastToDiePerkIds.Soldier.StingerRockets, survivor, "STINGER Rockets", "Phase 1 rockets deal 100% more damage, have 60% larger blast radius, fly 70% slower, steer harder, burst to double speed on primary fire, and detonate on right click."),
+            Perk(LastToDiePerkIds.Soldier.RageExtensionOnKill, survivor, "Fury Drive", "Kills scored during rage add 2 seconds to rage duration."),
+            Perk(LastToDiePerkIds.Soldier.DangerClose, survivor, "Danger Close", "Gibbed enemies explode where they die and can chain nearby explosives."),
+            Perk(LastToDiePerkIds.Soldier.SelfDamageHealing, survivor, "Shrapnel Junkie", "Self damage heals instead of damaging."),
+            Perk(LastToDiePerkIds.Soldier.ReloadSpeedMultiplier, survivor, "Speed Loader", "All weapons recharge and reload 40% faster."),
+            Perk(LastToDiePerkIds.Soldier.AmmoRegeneratesWhileSwappedOut, survivor, "Bandolier", "Reload stowed weapons alongside the active weapon."),
+            Perk(LastToDiePerkIds.Soldier.InfiniteAmmoDuringRage, survivor, "Locked N' Loaded", "Fire rockets without spending ammo while raging."),
+            Perk(LastToDiePerkIds.Soldier.RageCaptureLockout, survivor, "Area Denial", "Enemies are locked out of captures during rage."),
+            Perk(LastToDiePerkIds.Soldier.NapalmRockets, survivor, "Napalm Rockets", "Napalm fucking rockets."),
+            Perk(LastToDiePerkIds.Soldier.FinalClipRocketBurst, survivor, "Last Kiss", "Emptying your clip fires a delayed bonus rocket."),
+            Perk(LastToDiePerkIds.Soldier.RageCaptureDuringRage, survivor, "Manifest Destiny", "Keep capturing objectives while raging."),
+            Perk(LastToDiePerkIds.Soldier.CivilDefenseTurret, survivor, "Civil Defense Turret", "Right-click deploys a sentry that destroys bullets, rockets, and mines."),
+            Perk(LastToDiePerkIds.Soldier.LuckyBastard, survivor, "Lucky Bastard", "Critical damage triggers 5s invulnerability, then revives based on your kill threshold."),
+            Perk(LastToDiePerkIds.Soldier.Thundergunner, survivor, "Thundergunner", "Right-click unleashes a stronger airblast that reflects projectiles and bullets and knocks enemies away."),
+            Perk(LastToDiePerkIds.Soldier.Battleborn, survivor, "Battleborn", "Gain a damage bonus equal to your current combo meter count."),
+            Perk(LastToDiePerkIds.Soldier.FogOfWar, survivor, "Fog of War", "Taking damage grants stacking evasion for 3s. Evaded attacks flash Miss! above you."),
+        ];
+
+    private static IReadOnlyList<LastToDiePerkDefinition> CreateDemoknightDefinitions(LastToDieSurvivorId survivor)
+        =>
+        [
+            Perk(LastToDiePerkIds.Demoknight.MeleeRange, survivor, "Longinus", "Increase Eyelander range by 50%."),
+            Perk(LastToDiePerkIds.Demoknight.Lifesteal, survivor, "Vampiric", "Restore 60% of dealt sword damage."),
+            Perk(LastToDiePerkIds.Demoknight.MoveSpeed, survivor, "Zealous", "Gain 30% passive movement speed."),
+            Perk(LastToDiePerkIds.Demoknight.KillHeal, survivor, "Bloodthirsty", "Restore 75 health on kill."),
+            Perk(LastToDiePerkIds.Demoknight.KillInvincibility, survivor, "Deity", "Gain 2 seconds of invulnerability after kills."),
+            Perk(LastToDiePerkIds.Demoknight.ChargeRate, survivor, "Vigorous", "Recharge the Demoknight charge meter 80% faster."),
+            Perk(LastToDiePerkIds.Demoknight.ChargeResistance, survivor, "Relentless", "Take 80% less damage while charging."),
+            Perk(LastToDiePerkIds.Demoknight.DamageMultiplier, survivor, "Butchery", "Increase Eyelander damage by 40%."),
+            Perk(LastToDiePerkIds.Demoknight.FullHealOnKill, survivor, "Gore Obsessed", "Restore to full health on kill."),
+            Perk(LastToDiePerkIds.Demoknight.AttackSpeed, survivor, "Typhoon", "Swing the Eyelander 50% faster."),
+            Perk(LastToDiePerkIds.Demoknight.PostRageRegeneration, survivor, "Meditation", "Regenerate health for 10 seconds after rage."),
+            Perk(LastToDiePerkIds.Demoknight.FullControlDuringCharge, survivor, "Full Control", "Keep full turn and jump control while charging."),
+            Perk(LastToDiePerkIds.Demoknight.GhostDash, survivor, "Naught Spectre", "Right-click dashes through danger with a boosted next hit."),
+        ];
+
+    private static IReadOnlyList<LastToDiePerkDefinition> CreateEngineerDefinitions(LastToDieSurvivorId survivor)
+        =>
+        [
+            Perk(LastToDiePerkIds.Engineer.GuardianMatrix, survivor, "Guardian Matrix", "+100 sentry health. Nearby sentries project a 200hp shield onto you."),
+            Perk(LastToDiePerkIds.Engineer.IncendiaryEnhancements, survivor, "Incendiary Enhancements", "Sentry bullets ignite targets, and nearby enemies get washed with flames."),
+            Perk(LastToDiePerkIds.Engineer.CryonicMunitions, survivor, "Cryonic Munitions", "Sentry bullets slow targets and freeze them solid after sustained fire."),
+            Perk(LastToDiePerkIds.Engineer.AutonomousPhaseEngine, survivor, "Autonomous Phase Engine", "Built sentries float and follow you instead of staying planted."),
+            Perk(LastToDiePerkIds.Engineer.OutputInducer, survivor, "Output Inducer", "Place an additional sentry."),
+            Perk(LastToDiePerkIds.Engineer.EssenceExtractor, survivor, "Essence Extractor", "Press Q to equip the Essence Extractor, a beamgun that steals enemy HP and amplifies damage taken."),
+            Perk(LastToDiePerkIds.Engineer.CooperativeTargetingHarness, survivor, "Cooperative Targeting Harness", "Sentries prioritize enemies you recently damaged and deal bonus damage to them."),
+            Perk(LastToDiePerkIds.Engineer.RegenerativeDiode, survivor, "Regenerative Diode", "You and your sentries regenerate 5 health per second."),
+            Perk(LastToDiePerkIds.Engineer.OsmosisConductor, survivor, "Osmosis Conductor", "Sentry damage heals you, and your damage heals your sentries."),
+            Perk(LastToDiePerkIds.Engineer.AmperageAccelerator, survivor, "Amperage Accelerator", "Sentries ramp their rate of fire up to 300% until they go idle."),
+            Perk(LastToDiePerkIds.Engineer.HardwareHardener, survivor, "Hardware Hardener", "+200 sentry health. Above 50% health, sentries resist 30% of incoming damage."),
+            Perk(LastToDiePerkIds.Engineer.CaveatInjector, survivor, "C.A.V.E.A.T. Injector", "Every 5th sentry shot launches 3 scrambling mini-rockets."),
+            Perk(LastToDiePerkIds.Engineer.PrecisionInstantiator, survivor, "Precision Instantiator", "Sentries fire slower, but shoot fully charged rifle rounds across the whole map."),
+            Perk(LastToDiePerkIds.Engineer.BuckshotConversion, survivor, "Buckshot Conversion", "Sentries fire slower but blast out oversized scattergun volleys."),
+            Perk(LastToDiePerkIds.Engineer.IntegrityProjector, survivor, "Integrity Projector", "Sentries automatically reflect rockets and stickies around them."),
+            Perk(LastToDiePerkIds.Engineer.MisdirectionField, survivor, "Misdirection Field", "Nearby sentries ghost you slightly and grant 60% evasion."),
+            Perk(LastToDiePerkIds.Engineer.ConfusionField, survivor, "Confusion Field", "Nearby sentries scramble enemy judgement and can turn them on each other."),
+            Perk(LastToDiePerkIds.Engineer.GravitonAffixer, survivor, "Graviton Affixer", "Jump pads slow enemies that walk through them and pull nearby enemies inward after placement."),
+            Perk(LastToDiePerkIds.Engineer.AuraEnergizer, survivor, "Aura Energizer", "Jump pads radiate speed, grant a burst when crossed, and launch lower."),
+            Perk(LastToDiePerkIds.Engineer.EntanglementTraverser, survivor, "Entanglement Traverser", "Jump pads teleport you to your sentry instead of launching you upward."),
+            Perk(LastToDiePerkIds.Engineer.AlchemicalAnode, survivor, "Alchemical Anode", "Sentries self-repair for 20% of the damage they deal."),
+            Perk(LastToDiePerkIds.Engineer.ExperimentalOverkillAugment, survivor, "Experimental Overkill Augment", "Your shotgun also spits out two C.A.V.E.A.T. rockets per shot."),
+            Perk(LastToDiePerkIds.Engineer.EfficiencyStabilizer, survivor, "Efficiency Stabilizer", "Gain 1% movement speed for every NutsNBolts you currently hold."),
+            Perk(LastToDiePerkIds.Engineer.MateriaRecycler, survivor, "Materia Recycler", "+100 max NutsNBolts and recover metal when dealing damage."),
+            Perk(LastToDiePerkIds.Engineer.DestinyPunctuator, survivor, "Destiny Punctuator", "Sacrifices sentries for a brutal double-barrel and enhanced stats."),
+            Perk(LastToDiePerkIds.Engineer.FreezeRay, survivor, "Freeze Ray", "Press Q to equip the Freeze Ray, a beamgun that slows enemies, weakens their attacks, and freezes them after enough exposure."),
+        ];
 
     private static LastToDiePerkDefinition Perk(
         LastToDiePerkId id,

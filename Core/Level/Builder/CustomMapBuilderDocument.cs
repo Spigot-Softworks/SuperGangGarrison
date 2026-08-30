@@ -22,6 +22,10 @@ public sealed record CustomMapBuilderDocument(
     public const string DefaultBackgroundColor = "ffffff";
     public const string DefaultVoidColor = "000000";
     public const string WalkmaskHorizontalScaleMetadataKey = "walkmaskScaleX";
+    // Keep collision geometry in its native coordinate frame when a legacy
+    // map's visual background is wider than its walkmask.
+    public const string VisualWidthMetadataKey = "visualWidth";
+    public const string VisualHeightMetadataKey = "visualHeight";
 
     public static CustomMapBuilderDocument CreateEmpty(string name = "untitled") => new(
         NormalizeName(name),
@@ -196,6 +200,20 @@ public sealed record CustomMapBuilderDocument(
             : fallback;
     }
 
+    public static float? ResolveVisualWidth(IReadOnlyDictionary<string, string> metadata)
+    {
+        return TryReadMetadataDimension(metadata, VisualWidthMetadataKey, out var width)
+            ? width
+            : null;
+    }
+
+    public static float? ResolveVisualHeight(IReadOnlyDictionary<string, string> metadata)
+    {
+        return TryReadMetadataDimension(metadata, VisualHeightMetadataKey, out var height)
+            ? height
+            : null;
+    }
+
     private static bool TryReadMetadataScale(IReadOnlyDictionary<string, string> metadata, string key, out float scale)
     {
         scale = DefaultScale;
@@ -204,6 +222,19 @@ public sealed record CustomMapBuilderDocument(
             && parsedScale > 0f
             && float.IsFinite(parsedScale)
             && (scale = parsedScale) > 0f;
+    }
+
+    private static bool TryReadMetadataDimension(
+        IReadOnlyDictionary<string, string> metadata,
+        string key,
+        out float dimension)
+    {
+        dimension = 0f;
+        return metadata.TryGetValue(key, out var dimensionText)
+            && float.TryParse(dimensionText, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsedDimension)
+            && parsedDimension > 0f
+            && float.IsFinite(parsedDimension)
+            && (dimension = parsedDimension) > 0f;
     }
 
     private static string GetMetadataValue(IReadOnlyDictionary<string, string> metadata, string key, string fallback)

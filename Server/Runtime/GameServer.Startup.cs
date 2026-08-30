@@ -342,18 +342,18 @@ partial class GameServer
         // stage commit preloads the graph after the client is registered.
         var botNavigationPreloadMs = 0d;
         var botNavigationPreloaded = false;
+        var botNavigationWarmup = default(Og2NavigationGraphResolution);
         if (!IsLastToDieHosted)
         {
-            botNavigationPreloaded = PreloadBotNavigationForCurrentLevel(out botNavigationPreloadMs);
+            botNavigationPreloaded = PreloadBotNavigationForCurrentLevel(
+                out botNavigationPreloadMs,
+                out botNavigationWarmup);
         }
-        var botNavigationDiagnostic = BotNavigationAssetStore.GetLoadDiagnostic(_world.Level);
         Console.WriteLine(
             "[botbrain] startup-nav " +
             $"level={_world.Level.Name} area={_world.Level.MapAreaIndex} " +
             $"preloaded={botNavigationPreloaded} preloadMs={botNavigationPreloadMs:0.###} " +
-            $"expectedFingerprint={TrimDiagnosticFingerprint(botNavigationDiagnostic.ExpectedFingerprint)} " +
-            $"shipped={botNavigationDiagnostic.ShippedStatus} shippedPath=\"{botNavigationDiagnostic.ShippedPath}\" " +
-            $"runtimeCache={botNavigationDiagnostic.RuntimeCacheStatus}");
+            $"source={botNavigationWarmup.Source} sourcePath=\"{botNavigationWarmup.Path}\"");
         Console.WriteLine($"Event log: {eventLog.FilePath}");
         Console.WriteLine(_passwordRequired ? "[server] password required" : "[server] no password set");
         if (_useLobbyServer)
@@ -395,13 +395,6 @@ partial class GameServer
         _pluginHost?.NotifyServerStarted();
     }
 
-    private static string TrimDiagnosticFingerprint(string fingerprint)
-    {
-        return string.IsNullOrWhiteSpace(fingerprint)
-            ? string.Empty
-            : fingerprint[..Math.Min(12, fingerprint.Length)];
-    }
-
     private int ResolveMapDownloadPort()
     {
         return _webSocketPort > 0 ? _webSocketPort : _port;
@@ -419,7 +412,9 @@ partial class GameServer
             : descriptor.SourceUrl;
     }
 
-    private bool PreloadBotNavigationForCurrentLevel(out double elapsedMilliseconds)
+    private bool PreloadBotNavigationForCurrentLevel(
+        out double elapsedMilliseconds,
+        out Og2NavigationGraphResolution diagnostic)
     {
         var startTimestamp = Stopwatch.GetTimestamp();
         // The live bot brain is OG2-first. The previous preload only queried
@@ -427,7 +422,7 @@ partial class GameServer
         // the first bot Think on the simulation thread. Resolve the shared OG2
         // graph at startup/map transition instead; every controller then sees a
         // warmed immutable graph and cannot block a running simulation tick.
-        _ = Og2NavigationGraphStore.GetOrBuild(_world.Level);
+        _ = Og2NavigationGraphStore.GetOrBuild(_world.Level, out diagnostic);
         var loaded = true;
         elapsedMilliseconds = Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds;
         return loaded;
@@ -499,11 +494,14 @@ partial class GameServer
                             _autoBalancer.Tick(now, 1, _autoBalanceEnabled);
                             if (_mapRotationManager.TryApplyPendingMapChange(out var transition))
                             {
-                                var botNavigationPreloaded = PreloadBotNavigationForCurrentLevel(out var botNavigationPreloadMs);
+                                var botNavigationPreloaded = PreloadBotNavigationForCurrentLevel(
+                                    out var botNavigationPreloadMs,
+                                    out var botNavigationWarmup);
                                 Console.WriteLine(
                                     "[botbrain] map-nav " +
                                     $"level={_world.Level.Name} area={_world.Level.MapAreaIndex} " +
-                                    $"preloaded={botNavigationPreloaded} preloadMs={botNavigationPreloadMs:0.###}");
+                                    $"preloaded={botNavigationPreloaded} preloadMs={botNavigationPreloadMs:0.###} " +
+                                    $"source={botNavigationWarmup.Source} sourcePath=\"{botNavigationWarmup.Path}\"");
                                 ApplyRoundEndTeamRules(transition);
                                 var restoredBotCount = _botManager.ReactivateBotsAfterMapChange();
                                 _mapBotSpawnController.Reset();

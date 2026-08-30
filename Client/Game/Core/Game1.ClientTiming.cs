@@ -4,6 +4,7 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using System;
 using OpenGarrison.Core;
+using OpenGarrison.GameplayModding;
 
 namespace OpenGarrison.Client;
 
@@ -21,6 +22,11 @@ public partial class Game1
     private float _goreSourceTickAccumulator;
     private bool _pendingPredictedJumpPress;
     private bool _pendingPredictedPrimaryPress;
+    // Presentation-only edge. The simulation/prediction lane may not advance
+    // until the next fixed tick, so retain the press long enough to show local
+    // recoil on the current render frame without spawning a second projectile.
+    private bool _pendingImmediateWeaponFirePresentation;
+    private PrimaryWeaponKind? _pendingImmediateRapidFireWeaponKind;
     private bool _pendingPredictedSecondaryAbilityPress;
     private bool _pendingPredictedSecondaryAbilityRelease;
     private bool _pendingPredictedAbilityPress;
@@ -83,6 +89,18 @@ public partial class Game1
 
     private void ClearPendingPredictedInputEdges()
     {
+        ClearConsumedPredictedInputEdges();
+        _pendingImmediateWeaponFirePresentation = false;
+        _pendingImmediateRapidFireWeaponKind = null;
+        ClearPredictedWeaponFireVisuals();
+    }
+
+    // The network/offline simulation lane consumes these one-shot edges before
+    // rendering. The immediate weapon presentation edge is intentionally kept
+    // separate so a render-frame press is still visible when the fixed tick
+    // has not advanced yet.
+    private void ClearConsumedPredictedInputEdges()
+    {
         _pendingPredictedJumpPress = false;
         _pendingPredictedPrimaryPress = false;
         _pendingPredictedSecondaryAbilityPress = false;
@@ -98,6 +116,7 @@ public partial class Game1
         _pendingOfflineBuildDispenser = false;
         _pendingOfflineDestroySentry = false;
         _pendingOfflineDestroyDispenser = false;
+        _pendingImmediateRapidFireWeaponKind = null;
     }
 
     private void CapturePendingPredictedInputEdges(KeyboardState keyboard, MouseState mouse, PlayerInputSnapshot networkInput)
@@ -105,9 +124,40 @@ public partial class Game1
         _previousPredictedLocalInput = _latestPredictedLocalInput;
         _latestPredictedLocalInput = networkInput;
         var previousPredictedInput = _previousPredictedLocalInput;
-
-        if (!_networkClient.IsConnected)
+        if (!networkInput.FirePrimary)
         {
+            _pendingImmediateRapidFireWeaponKind = null;
+        }
+
+        if (_networkClient.IsConnected)
+        {
+            if (networkInput.BuildSentry && !previousPredictedInput.BuildSentry)
+            {
+                _pendingPredictedBuildSentryTicksRemaining = GetBuildMenuCommandRetryInputTicks();
+            }
+
+            if (networkInput.BuildDispenser && !previousPredictedInput.BuildDispenser)
+            {
+                _pendingPredictedBuildDispenserTicksRemaining = GetBuildMenuCommandRetryInputTicks();
+                _pendingPredictedDestroyDispenserTicksRemaining = 0;
+            }
+
+            if (networkInput.DestroySentry && !previousPredictedInput.DestroySentry)
+            {
+                _pendingPredictedDestroySentryTicksRemaining = GetBuildMenuCommandRetryInputTicks();
+            }
+
+            if (networkInput.DestroyDispenser && !previousPredictedInput.DestroyDispenser)
+            {
+                _pendingPredictedDestroyDispenserTicksRemaining = GetBuildMenuCommandRetryInputTicks();
+                _pendingPredictedBuildDispenserTicksRemaining = 0;
+            }
+        }
+        else
+        {
+            // Practice runs the full simulation locally, but it still samples input
+            // once per render frame while the world advances on fixed ticks. Preserve
+            // build edges across that boundary just as the network path does.
             if (networkInput.BuildSentry && !previousPredictedInput.BuildSentry)
             {
                 _pendingOfflineBuildSentry = true;
@@ -127,30 +177,6 @@ public partial class Game1
             {
                 _pendingOfflineDestroyDispenser = true;
             }
-
-            return;
-        }
-
-        if (networkInput.BuildSentry && !previousPredictedInput.BuildSentry)
-        {
-            _pendingPredictedBuildSentryTicksRemaining = GetBuildMenuCommandRetryInputTicks();
-        }
-
-        if (networkInput.BuildDispenser && !previousPredictedInput.BuildDispenser)
-        {
-            _pendingPredictedBuildDispenserTicksRemaining = GetBuildMenuCommandRetryInputTicks();
-            _pendingPredictedDestroyDispenserTicksRemaining = 0;
-        }
-
-        if (networkInput.DestroySentry && !previousPredictedInput.DestroySentry)
-        {
-            _pendingPredictedDestroySentryTicksRemaining = GetBuildMenuCommandRetryInputTicks();
-        }
-
-        if (networkInput.DestroyDispenser && !previousPredictedInput.DestroyDispenser)
-        {
-            _pendingPredictedDestroyDispenserTicksRemaining = GetBuildMenuCommandRetryInputTicks();
-            _pendingPredictedBuildDispenserTicksRemaining = 0;
         }
 
         var abilityReleased = !networkInput.UseAbility && previousPredictedInput.UseAbility;
@@ -196,6 +222,29 @@ public partial class Game1
         if (primaryPressed)
         {
             _pendingPredictedPrimaryPress = true;
+            var canPresentImmediateFire = CanStartImmediatePrimaryFirePresentation(networkInput);
+            _pendingImmediateWeaponFirePresentation = canPresentImmediateFire;
+            _pendingImmediateRapidFireWeaponKind = null;
+            if (canPresentImmediateFire)
+            {
+                QueuePredictedWeaponFireVisual(GetImmediatePrimaryPresentationPlayer(), networkInput);
+            }
+
+            if (canPresentImmediateFire && CanUseLocalPrediction())
+            {
+                var immediateWeapon = GetImmediatePrimaryPresentationPlayer();
+                var immediateWeaponKind = immediateWeapon.IsAcquiredWeaponEquipped
+                    ? immediateWeapon.AcquiredWeapon?.Kind
+                    : immediateWeapon.IsExperimentalOffhandSelected
+                        ? immediateWeapon.ExperimentalOffhandWeapon?.Kind
+                        : immediateWeapon.PrimaryWeapon.Kind;
+                if (immediateWeaponKind is PrimaryWeaponKind.Minigun or PrimaryWeaponKind.FlameThrower)
+                {
+                    _pendingImmediateRapidFireWeaponKind = immediateWeaponKind;
+                }
+
+                PlayPredictedPrimaryFireSound();
+            }
         }
 
         var secondaryAbilityPressed = networkInput.FireSecondary
@@ -226,6 +275,14 @@ public partial class Game1
 
     private PlayerInputSnapshot ApplyPendingInputEdges(PlayerInputSnapshot input)
     {
+        input = ApplyLatchedOneShotInputEdges(
+            input,
+            _pendingPredictedJumpPress,
+            _pendingPredictedSecondaryAbilityPress,
+            _pendingPredictedPrimaryPress,
+            _pendingPredictedSwapWeaponPress,
+            _pendingPredictedAbilityPress);
+
         if (!_networkClient.IsConnected)
         {
             if (_pendingOfflineBuildSentry && !input.BuildSentry)
@@ -251,31 +308,6 @@ public partial class Game1
             return input;
         }
 
-        if (_pendingPredictedJumpPress && !input.Up)
-        {
-            input = input with { Up = true };
-        }
-
-        if (_pendingPredictedSecondaryAbilityPress && !input.FireSecondary)
-        {
-            input = input with { FireSecondary = true };
-        }
-
-        if (_pendingPredictedPrimaryPress && !input.FirePrimary)
-        {
-            input = input with { FirePrimary = true };
-        }
-
-        if (_pendingPredictedSwapWeaponPress && !input.SwapWeapon)
-        {
-            input = input with { SwapWeapon = true };
-        }
-
-        if (_pendingPredictedAbilityPress && !input.UseAbility)
-        {
-            input = input with { UseAbility = true };
-        }
-
         if (_pendingPredictedBuildSentryTicksRemaining > 0 && !input.BuildSentry)
         {
             input = input with { BuildSentry = true };
@@ -299,9 +331,137 @@ public partial class Game1
         return input;
     }
 
+    internal static PlayerInputSnapshot ApplyLatchedOneShotInputEdges(
+        PlayerInputSnapshot input,
+        bool jumpPressed,
+        bool secondaryAbilityPressed,
+        bool primaryPressed,
+        bool swapWeaponPressed,
+        bool abilityPressed)
+    {
+        if (jumpPressed && !input.Up)
+        {
+            input = input with { Up = true };
+        }
+
+        if (secondaryAbilityPressed && !input.FireSecondary)
+        {
+            input = input with { FireSecondary = true };
+        }
+
+        if (primaryPressed && !input.FirePrimary)
+        {
+            input = input with { FirePrimary = true };
+        }
+
+        if (swapWeaponPressed && !input.SwapWeapon)
+        {
+            input = input with { SwapWeapon = true };
+        }
+
+        if (abilityPressed && !input.UseAbility)
+        {
+            input = input with { UseAbility = true };
+        }
+
+        return input;
+    }
+
     private void ClearPendingSecondaryAbilityPress()
     {
         _pendingPredictedSecondaryAbilityPress = false;
+    }
+
+    private bool CanStartImmediatePrimaryFirePresentation(PlayerInputSnapshot input)
+    {
+        var player = GetImmediatePrimaryPresentationPlayer();
+        if (!player.IsAlive
+            || player.IsTaunting
+            || player.IsHeavyEating
+            || player.IsCivviePogoActive
+            || player.IsExperimentalCryoFrozen
+            || player.IsServerFrozen
+            || player.IsUsingBinoculars)
+        {
+            return false;
+        }
+
+        if (_world.IsPlayerHumiliated(_world.LocalPlayer))
+        {
+            return false;
+        }
+
+        if (player.IsSniperBowEquipped
+            || player.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.Medigun)
+            || player.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.Medigun)
+            || player.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.MedigunCrit))
+        {
+            // Bow charge and medic healing have dedicated presentation paths;
+            // do not fake a generic recoil frame for them.
+            return false;
+        }
+
+        if (player.IsSpyCloaked
+            && (!input.FireSecondary || !player.CanFireLastToDieProfessionalRevolverWhileCloaked))
+        {
+            return false;
+        }
+
+        if (player.IsAcquiredWeaponEquipped && player.AcquiredWeapon is { } acquiredWeapon)
+        {
+            if (acquiredWeapon.Kind == PrimaryWeaponKind.FlameThrower
+                && player.PyroPrimaryRequiresReleaseAfterEmpty)
+            {
+                return false;
+            }
+
+            return CanStartImmediateWeaponFirePresentation(
+                    player.AcquiredWeaponCooldownTicks,
+                    acquiredWeapon.AmmoPerShot,
+                    player.HasInfiniteAmmoFromUber
+                        ? int.MaxValue
+                        : player.AcquiredWeaponCurrentShells);
+        }
+
+        if (player.IsExperimentalOffhandSelected && player.ExperimentalOffhandWeapon is { } offhandWeapon)
+        {
+            return CanStartImmediateWeaponFirePresentation(
+                player.ExperimentalOffhandCooldownTicks,
+                offhandWeapon.AmmoPerShot,
+                player.HasInfiniteAmmoFromUber
+                    ? int.MaxValue
+                    : player.ExperimentalOffhandCurrentShells);
+        }
+
+        if (player.HasPyroWeaponEquipped && player.PyroPrimaryRequiresReleaseAfterEmpty)
+        {
+            return false;
+        }
+
+        return CanStartImmediateWeaponFirePresentation(
+            player.PrimaryCooldownTicks,
+            player.PrimaryWeapon.AmmoPerShot,
+            player.HasInfiniteAmmoFromUber
+                ? int.MaxValue
+                : player.CurrentShells);
+    }
+
+    private PlayerEntity GetImmediatePrimaryPresentationPlayer()
+    {
+        return CanUseLocalPrediction()
+            && _hasPredictedLocalActionState
+            && _predictedLocalPlayerShadow is not null
+            ? _predictedLocalPlayerShadow
+            : _world.LocalPlayer;
+    }
+
+    internal static bool CanStartImmediateWeaponFirePresentation(
+        int cooldownTicks,
+        int ammoPerShot,
+        int availableAmmo)
+    {
+        return cooldownTicks <= 0
+            && (ammoPerShot <= 0 || availableAmmo >= ammoPerShot);
     }
 
     private void ClearPendingOfflineBuildMenuCommands()
@@ -352,7 +512,12 @@ public partial class Game1
                 _pendingPredictedSwapWeaponPress,
                 outboundNetworkInput.Taunt && !_previousPredictedLocalInput.Taunt,
                 _pendingPredictedAbilityRelease);
-            ClearPendingPredictedInputEdges();
+            ClearConsumedPredictedInputEdges();
+            // PrepareFrame returns the edge-augmented snapshot so the local
+            // world can observe it. A catch-up loop must use the raw current
+            // render input after the first network tick; otherwise one brief
+            // press is replayed as a held button across every catch-up tick.
+            networkInput = _latestPredictedLocalInput;
             if (buildSentryCommandSent)
             {
                 _pendingPredictedBuildSentryTicksRemaining = Math.Max(

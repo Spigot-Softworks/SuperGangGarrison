@@ -146,6 +146,24 @@ public sealed class CustomMapBuilderDocumentTests
     }
 
     [Fact]
+    public void ResolveVisualDimensionsPreservesASeparateVisualCoordinateFrame()
+    {
+        var metadata = new Dictionary<string, string>
+        {
+            [CustomMapBuilderDocument.VisualWidthMetadataKey] = "832",
+            [CustomMapBuilderDocument.VisualHeightMetadataKey] = "190",
+        };
+
+        Assert.Equal(832f, CustomMapBuilderDocument.ResolveVisualWidth(metadata)!.Value);
+        Assert.Equal(190f, CustomMapBuilderDocument.ResolveVisualHeight(metadata)!.Value);
+
+        var exported = CustomMapBuilderDocument.CreateEmpty("visual-frame") with { Metadata = metadata };
+        var exportMetadata = exported.BuildExportMetadata();
+        Assert.Equal("832", exportMetadata[CustomMapBuilderDocument.VisualWidthMetadataKey]);
+        Assert.Equal("190", exportMetadata[CustomMapBuilderDocument.VisualHeightMetadataKey]);
+    }
+
+    [Fact]
     public void BuildExportMetadataEmbedsResourceBytesAsLegacyStrings()
     {
         var resourceBytes = new byte[] { 137, 80, 78, 71, 13, 10, 26, 10, 1, 2, 3 };

@@ -128,6 +128,11 @@ public partial class Game1
         if (clearPendingInputs)
         {
             _pendingPredictedInputs.Clear();
+            // Clear presentation-only edges with the prediction queue.  The
+            // Protocol64 path can transition to dead/awaiting-join without
+            // applying a legacy snapshot, so leaving this latch alive would
+            // replay a stale recoil on the next respawn.
+            ClearPendingPredictedInputEdges();
         }
     }
 
@@ -418,6 +423,12 @@ public partial class Game1
             CurrentShells = player.CurrentShells,
             PrimaryCooldownTicks = player.PrimaryCooldownTicks,
             ReloadTicksUntilNextShell = player.ReloadTicksUntilNextShell,
+            ExperimentalOffhandCurrentShells = player.ExperimentalOffhandCurrentShells,
+            ExperimentalOffhandCooldownTicks = player.ExperimentalOffhandCooldownTicks,
+            ExperimentalOffhandReloadTicksUntilNextShell = player.ExperimentalOffhandReloadTicksUntilNextShell,
+            AcquiredWeaponCurrentShells = player.AcquiredWeaponCurrentShells,
+            AcquiredWeaponCooldownTicks = player.AcquiredWeaponCooldownTicks,
+            AcquiredWeaponReloadTicksUntilNextShell = player.AcquiredWeaponReloadTicksUntilNextShell,
             PyroFlareCooldownTicks = player.PyroFlareCooldownTicks,
             IsCivvieUmbrellaActive = player.IsCivvieUmbrellaActive,
             IsCivvieUmbrellaBroken = player.IsCivvieUmbrellaBroken,
@@ -570,6 +581,12 @@ public partial class Game1
         public int CurrentShells;
         public int PrimaryCooldownTicks;
         public int ReloadTicksUntilNextShell;
+        public int ExperimentalOffhandCurrentShells;
+        public int ExperimentalOffhandCooldownTicks;
+        public int ExperimentalOffhandReloadTicksUntilNextShell;
+        public int AcquiredWeaponCurrentShells;
+        public int AcquiredWeaponCooldownTicks;
+        public int AcquiredWeaponReloadTicksUntilNextShell;
         public int PyroFlareCooldownTicks;
         public bool IsCivvieUmbrellaActive;
         public bool IsCivvieUmbrellaBroken;

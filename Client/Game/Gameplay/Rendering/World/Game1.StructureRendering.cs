@@ -654,7 +654,7 @@ public partial class Game1
 
     private void DrawDroppedWeaponInteractionHud(Vector2 cameraPosition)
     {
-        if (!_world.ExperimentalGameplaySettings.EnableEnemyDroppedWeapons
+        if (!_world.IsLastToDieGameplaySettingEnabled(settings => settings.EnableEnemyDroppedWeapons)
             || !_world.LocalPlayer.IsAlive
             || _world.LocalPlayer.ClassId != PlayerClass.Soldier
             || TryGetNearbyDroppedWeaponForLocalPlayer() is not { } nearbyWeapon)

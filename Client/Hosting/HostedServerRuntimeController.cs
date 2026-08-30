@@ -38,7 +38,7 @@ internal sealed class HostedServerRuntimeController : IDisposable
         get
         {
             if (_session is not null
-                && HostedServerBootstrapper.TryGetProcess(_session.ProcessId, out var attachedProcess))
+                && HostedServerBootstrapper.TryGetProcess(_session, out var attachedProcess))
             {
                 attachedProcess?.Dispose();
                 return true;
@@ -131,6 +131,10 @@ internal sealed class HostedServerRuntimeController : IDisposable
                 RedirectStandardError = true,
             };
             startInfo.Environment["OPENGARRISON_LAUNCH_MODE"] = "launcher";
+            if (HostedServerProcessIdentity.TryCaptureCurrent(out var parentIdentity))
+            {
+                parentIdentity.ApplyParentEnvironment(startInfo);
+            }
             ApplyRelayEnvironment(startInfo, launchOptions.RelayHostUrl);
             _console.AppendLog("launcher", $"Starting {serverLaunchTarget.FileName} {arguments}");
             var process = Process.Start(startInfo);
@@ -193,6 +197,9 @@ internal sealed class HostedServerRuntimeController : IDisposable
                 UseShellExecute = true,
                 WorkingDirectory = serverLaunchTarget.WorkingDirectory,
             };
+            startInfo.Environment["OPENGARRISON_LAUNCH_MODE"] = "direct";
+            startInfo.Environment.Remove(HostedServerProcessIdentity.ParentProcessIdEnvironmentVariable);
+            startInfo.Environment.Remove(HostedServerProcessIdentity.ParentProcessStartTimeEnvironmentVariable);
             ApplyRelayEnvironment(startInfo, launchOptions.RelayHostUrl);
             Process.Start(startInfo);
             return true;
@@ -220,33 +227,90 @@ internal sealed class HostedServerRuntimeController : IDisposable
     {
         var session = _session;
         var trackedProcess = _trackedProcess;
+
+        if (session is null && trackedProcess is null)
+        {
+            var persistedSession = HostedServerSessionInfo.Load(_sessionPath);
+            if (IsClientOwnedBackgroundSession(persistedSession))
+            {
+                // Reattach only to a server this client launched in the
+                // background. Terminal/direct servers remain independent.
+                TryResumeSession(
+                    loadExistingLog: false,
+                    commandTimeoutMilliseconds: HostedServerAdminClient.ShutdownTimeoutMilliseconds);
+                // Keep the persisted identity as the cleanup candidate even
+                // when a hung admin pipe prevents the reattach ping. The
+                // process lookup below still validates its PID/start time.
+                session = persistedSession;
+                trackedProcess = _trackedProcess;
+            }
+        }
+
         if (session is null && trackedProcess is null)
         {
             return;
         }
 
+        var preserveUnresolvedLegacySession = false;
         try
         {
             if (session is not null)
             {
                 _console.AppendLog("launcher", "Stop requested for hosted server.");
-                if (!TrySendCommand("shutdown", out _, out var shutdownError))
+                if (_session is not null
+                    && !TrySendCommand(
+                        "shutdown",
+                        out _,
+                        out var shutdownError,
+                        HostedServerAdminClient.ShutdownTimeoutMilliseconds))
                 {
                     _console.AppendLog("launcher", shutdownError);
                 }
 
-                if (HostedServerBootstrapper.TryGetProcess(session.ProcessId, out var processToStop)
-                    && processToStop is not null
-                    && !processToStop.WaitForExit(2000)
+                var processOwnershipValidated = session.ProcessStartTimeUtcTicks > 0
+                    || _session is not null
+                    || trackedProcess is not null && trackedProcess.Id == session.ProcessId;
+                HostedServerBootstrapper.TryGetProcess(session, out var processToStop);
+                if (processToStop is null
                     && trackedProcess is not null
                     && trackedProcess.Id == session.ProcessId)
                 {
-                    _console.AppendLog("launcher", "Hosted server did not exit after shutdown; terminating process tree.");
-                    trackedProcess.Kill(entireProcessTree: true);
-                    trackedProcess.WaitForExit(1000);
+                    try
+                    {
+                        if (!trackedProcess.HasExited)
+                        {
+                            // A tracked Process handle is already owned by
+                            // this controller, so it remains a safe fallback
+                            // if the persisted identity cannot be resolved.
+                            processToStop = trackedProcess;
+                        }
+                    }
+                    catch
+                    {
+                    }
                 }
 
-                processToStop?.Dispose();
+                if (processToStop is not null && !processToStop.WaitForExit(2000))
+                {
+                    if (processOwnershipValidated)
+                    {
+                        _console.AppendLog("launcher", "Hosted server did not exit after shutdown; terminating process tree.");
+                        processToStop.Kill(entireProcessTree: true);
+                        processToStop.WaitForExit(1000);
+                    }
+                    else
+                    {
+                        preserveUnresolvedLegacySession = true;
+                        _console.AppendLog(
+                            "launcher",
+                            "Hosted server did not exit, but its legacy session has no process identity; leaving the unresolved process running.");
+                    }
+                }
+
+                if (processToStop is not null && !ReferenceEquals(processToStop, trackedProcess))
+                {
+                    processToStop.Dispose();
+                }
             }
             else if (trackedProcess is not null && !trackedProcess.HasExited)
             {
@@ -260,11 +324,17 @@ internal sealed class HostedServerRuntimeController : IDisposable
         finally
         {
             ClearTracking();
-            HostedServerSessionInfo.Delete(_sessionPath);
+            if (!preserveUnresolvedLegacySession)
+            {
+                HostedServerSessionInfo.Delete(_sessionPath);
+            }
         }
     }
 
-    public bool TryResumeSession(bool loadExistingLog, int? expectedProcessId = null)
+    public bool TryResumeSession(
+        bool loadExistingLog,
+        int? expectedProcessId = null,
+        int commandTimeoutMilliseconds = HostedServerAdminClient.DefaultTimeoutMilliseconds)
     {
         var session = HostedServerSessionInfo.Load(_sessionPath);
         if (session is null)
@@ -277,7 +347,7 @@ internal sealed class HostedServerRuntimeController : IDisposable
             return false;
         }
 
-        if (!HostedServerBootstrapper.TryGetProcess(session.ProcessId, out var attachedProcess))
+        if (!HostedServerBootstrapper.TryGetProcess(session, out var attachedProcess))
         {
             HostedServerSessionInfo.Delete(_sessionPath);
             return false;
@@ -287,7 +357,11 @@ internal sealed class HostedServerRuntimeController : IDisposable
         _session = session;
         _console.ApplySessionInfo(session);
 
-        if (!TrySendCommand("__ping", out _, out _))
+        if (!TrySendCommand(
+                "__ping",
+                out _,
+                out _,
+                commandTimeoutMilliseconds))
         {
             _session = null;
             return false;
@@ -295,7 +369,11 @@ internal sealed class HostedServerRuntimeController : IDisposable
 
         _ = loadExistingLog;
 
-        if (TrySendCommand("__snapshot", out var snapshotLines, out _))
+        if (TrySendCommand(
+                "__snapshot",
+                out var snapshotLines,
+                out _,
+                commandTimeoutMilliseconds))
         {
             _console.ApplyServerMessages(snapshotLines);
         }
@@ -304,10 +382,17 @@ internal sealed class HostedServerRuntimeController : IDisposable
         return true;
     }
 
-    public bool TrySendCommand(string command, out List<string> responseLines, out string error)
+    public bool TrySendCommand(
+        string command,
+        out List<string> responseLines,
+        out string error,
+        int commandTimeoutMilliseconds = HostedServerAdminClient.DefaultTimeoutMilliseconds)
     {
         if ((_session is null || string.IsNullOrWhiteSpace(_session.PipeName))
-            && !TryResumeSession(loadExistingLog: false, expectedProcessId: TrackedProcessId))
+            && !TryResumeSession(
+                loadExistingLog: false,
+                expectedProcessId: TrackedProcessId,
+                commandTimeoutMilliseconds: commandTimeoutMilliseconds))
         {
             responseLines = new List<string>();
             error = "Dedicated server control channel is unavailable.";
@@ -322,7 +407,12 @@ internal sealed class HostedServerRuntimeController : IDisposable
             return false;
         }
 
-        return HostedServerAdminClient.TrySendCommand(session.PipeName, command, out responseLines, out error);
+        return HostedServerAdminClient.TrySendCommand(
+            session.PipeName,
+            command,
+            out responseLines,
+            out error,
+            commandTimeoutMilliseconds);
     }
 
     public HostedServerRuntimeUpdateState UpdateForLauncher()
@@ -334,7 +424,7 @@ internal sealed class HostedServerRuntimeController : IDisposable
 
         if (_session is not null)
         {
-            if (!HostedServerBootstrapper.TryGetProcess(_session.ProcessId, out var attachedProcess))
+            if (!HostedServerBootstrapper.TryGetProcess(_session, out var attachedProcess))
             {
                 if (_trackedProcess is not null && _trackedProcess.Id == _session.ProcessId)
                 {
@@ -397,6 +487,10 @@ internal sealed class HostedServerRuntimeController : IDisposable
         process.Exited += OnTrackedProcessExited;
         _trackedProcess = process;
     }
+
+    private static bool IsClientOwnedBackgroundSession(HostedServerSessionInfo? session)
+        => session is not null
+            && string.Equals(session.LaunchMode, "launcher", StringComparison.OrdinalIgnoreCase);
 
     private void ClearTracking()
     {

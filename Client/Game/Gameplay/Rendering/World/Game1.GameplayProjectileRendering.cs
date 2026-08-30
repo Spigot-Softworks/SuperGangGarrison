@@ -923,6 +923,7 @@ public partial class Game1
         }
 
         WriteGameplayRenderTrace("effects before projectile-sprites");
+        DrawPredictedWeaponFireVisuals(cameraPosition);
         DrawSniperTracers(cameraPosition);
 
         foreach (var shot in _world.Shots)

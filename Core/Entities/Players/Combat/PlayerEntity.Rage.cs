@@ -4,6 +4,13 @@ namespace OpenGarrison.Core;
 
 public sealed partial class PlayerEntity
 {
+    internal void HydrateNetworkRageState(float charge, bool ready, int ticksRemaining)
+    {
+        RageCharge = Math.Clamp(charge, 0f, ExperimentalGameplaySettings.RageMaxCharge);
+        IsRageReady = ready;
+        RageTicksRemaining = Math.Max(0, ticksRemaining);
+    }
+
     public void AddRageCharge(float amount, float maxCharge)
     {
         if (!IsAlive || IsRaging || amount <= 0f || maxCharge <= 0f)

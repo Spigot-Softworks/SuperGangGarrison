@@ -183,9 +183,27 @@ public sealed class LevelCatalogCollisionTests
         try
         {
             Assert.True(
-                CustomMapPackageImporter.TryReadManifest(manifestPath!, out _, out var manifestError),
+                CustomMapPackageImporter.TryReadManifest(manifestPath!, out var manifest, out var manifestError),
                 $"{manifestError} path={manifestPath}");
-            Assert.NotNull(CustomMapPackageImporter.Import(manifestPath!));
+            Assert.Equal("832", manifest.Metadata[CustomMapBuilderDocument.VisualWidthMetadataKey]);
+            Assert.Equal("190", manifest.Metadata[CustomMapBuilderDocument.VisualHeightMetadataKey]);
+            Assert.DoesNotContain(CustomMapBuilderDocument.WalkmaskHorizontalScaleMetadataKey, manifest.Metadata.Keys);
+
+            var imported = CustomMapPackageImporter.Import(manifestPath!);
+            Assert.NotNull(imported);
+            // The mask is 800px wide, while the visual frame is 832px wide.
+            // Its native 6px horizontal cells must not be stretched to 6.24px:
+            // the feature beginning at mask column 109 remains at world X=654.
+            Assert.Contains(
+                imported!.Solids,
+                solid => MathF.Abs(solid.X - (109f * 6f)) < 0.001f
+                    && MathF.Abs(solid.Width - (33f * 6f)) < 0.001f
+                    && MathF.Abs(solid.Y - (79f * 6f)) < 0.001f);
+            Assert.DoesNotContain(
+                imported.Solids,
+                solid => MathF.Abs(solid.X - (109f * 6.24f)) < 0.001f
+                    && MathF.Abs(solid.Width - (33f * 6.24f)) < 0.001f
+                    && MathF.Abs(solid.Y - (79f * 6f)) < 0.001f);
 
             SimpleLevelFactory.ClearCachedCatalog();
             var level = SimpleLevelFactory.CreateImportedLevel("koth_eureka");
@@ -199,6 +217,35 @@ public sealed class LevelCatalogCollisionTests
             Environment.SetEnvironmentVariable("OPENGARRISON_MAPS_DIR", previousMapsDirectory);
             SimpleLevelFactory.ClearCachedCatalog();
         }
+    }
+
+    [Fact]
+    public void VisualBoundsNeverCropCollisionGeometry()
+    {
+        using var workspace = TempWorkspace.Create();
+        var backgroundPath = workspace.PathFor("background.png");
+        var walkmaskPath = workspace.PathFor("walkmask.png");
+        WriteSolidPng(backgroundPath, 8, 4, new Rgba32(32, 64, 96, 255));
+        WriteWalkmaskPng(walkmaskPath);
+
+        var document = CreateSpawnOnlyDocument(backgroundPath, walkmaskPath, 12f, 36f) with
+        {
+            Name = "visual_bounds_smaller_than_collision",
+            Metadata = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                [CustomMapBuilderDocument.VisualWidthMetadataKey] = "4",
+                [CustomMapBuilderDocument.VisualHeightMetadataKey] = "2",
+            },
+        };
+        var packageDirectory = workspace.PathFor("visual_bounds_smaller_than_collision");
+        CustomMapPackageExporter.Export(document, packageDirectory);
+
+        var imported = CustomMapPackageImporter.Import(
+            Path.Combine(packageDirectory, "visual_bounds_smaller_than_collision.json"));
+
+        Assert.NotNull(imported);
+        Assert.Equal(8f * 6f, imported!.Room.Bounds.Width);
+        Assert.Equal(4f * 6f, imported.Room.Bounds.Height);
     }
 
     [Fact]

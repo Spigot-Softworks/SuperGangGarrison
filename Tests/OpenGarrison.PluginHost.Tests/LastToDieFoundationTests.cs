@@ -17,11 +17,14 @@ public sealed class LastToDieFoundationTests
         var survivors = LastToDieSurvivorCatalog.CreateStock();
         var catalog = LastToDieExpansionPerkCatalog.Create(survivors);
 
-        Assert.Equal(63, catalog.Definitions.Count);
+        Assert.Equal(127, catalog.Definitions.Count);
+        Assert.Equal(25, catalog.Definitions.Count(perk => perk.SurvivorId == LastToDieSurvivorCatalog.SoldierId));
+        Assert.Equal(13, catalog.Definitions.Count(perk => perk.SurvivorId == LastToDieSurvivorCatalog.DemoknightId));
+        Assert.Equal(26, catalog.Definitions.Count(perk => perk.SurvivorId == LastToDieSurvivorCatalog.EngineerId));
         Assert.Equal(25, catalog.Definitions.Count(perk => perk.SurvivorId == LastToDieSurvivorCatalog.SpyId));
         Assert.Equal(20, catalog.Definitions.Count(perk => perk.SurvivorId == LastToDieSurvivorCatalog.MedicId));
         Assert.Equal(18, catalog.Definitions.Count(perk => perk.SurvivorId == LastToDieSurvivorCatalog.SniperId));
-        Assert.Equal(63, catalog.Definitions.Select(perk => perk.Id).Distinct().Count());
+        Assert.Equal(127, catalog.Definitions.Select(perk => perk.Id).Distinct().Count());
 
         var levelThree = catalog.GetRequired(LastToDiePerkIds.Spy.Blunderbuss3);
         Assert.Equal(3, levelThree.Rank);
@@ -32,6 +35,202 @@ public sealed class LastToDieFoundationTests
         var agent = catalog.GetRequired(LastToDiePerkIds.Spy.Agent);
         Assert.Contains(LastToDiePerkIds.Spy.Blunderbuss1, agent.Excludes);
         Assert.Contains(LastToDiePerkIds.Spy.Agent, catalog.GetRequired(LastToDiePerkIds.Spy.Blunderbuss1).Excludes);
+    }
+
+    [Fact]
+    public void EveryStockSurvivorReceivesAnOpeningHostedRewardOffer()
+    {
+        var survivorIds = new[]
+        {
+            LastToDieSurvivorCatalog.SoldierId,
+            LastToDieSurvivorCatalog.DemoknightId,
+            LastToDieSurvivorCatalog.EngineerId,
+            LastToDieSurvivorCatalog.SpyId,
+            LastToDieSurvivorCatalog.MedicId,
+            LastToDieSurvivorCatalog.SniperId,
+        };
+
+        for (var index = 0; index < survivorIds.Length; index += 1)
+        {
+            var director = CreateDirector(seed: (ulong)(700 + index));
+            var survivorId = survivorIds[index];
+            Assert.True(director.TryAddPlayer(SoloPlayerId, out var addError), addError);
+            Assert.True(director.TryStart(out var startError), startError);
+            Assert.True(director.TrySelectSurvivor(SoloPlayerId, survivorId, out var survivorError), survivorError);
+            var offer = Assert.IsType<LastToDieRewardOffer>(GetSolo(director).ActiveOffer);
+            var catalog = LastToDieExpansionPerkCatalog.Create(LastToDieSurvivorCatalog.CreateStock());
+            Assert.All(
+                offer.Choices,
+                choice => Assert.Equal(survivorId, catalog.GetRequired(choice).SurvivorId));
+            Assert.True(director.TrySelectReward(SoloPlayerId, offer.OfferId, offer.Choices[0], out var rewardError), rewardError);
+            var snapshot = director.CreateSnapshot();
+            Assert.Equal(LastToDiePhase.LoadingStage, snapshot.Phase);
+        }
+    }
+
+    [Fact]
+    public void LegacyPerkTranslatorRetainsOriginalRepresentativeSemantics()
+    {
+        var soldier = LastToDieLegacyPerkSettings.FromPerks(
+            PlayerClass.Soldier,
+            [LastToDiePerkIds.Soldier.HealOnDamage, LastToDiePerkIds.Soldier.InstantReload]);
+        Assert.True(soldier.EnableHealOnDamage);
+        Assert.Equal(0.35f, soldier.HealOnDamageFraction);
+        Assert.True(soldier.EnableSoldierInstantReload);
+
+        var demoknight = LastToDieLegacyPerkSettings.FromPerks(
+            PlayerClass.Demoman,
+            [LastToDiePerkIds.Demoknight.Lifesteal, LastToDiePerkIds.Demoknight.ChargeResistance]);
+        Assert.Equal(0.6f, demoknight.HealOnDamageFraction);
+        Assert.Equal(0.2f, demoknight.DemoknightChargeDamageTakenMultiplier);
+
+        var engineer = LastToDieLegacyPerkSettings.FromPerks(
+            PlayerClass.Engineer,
+            [LastToDiePerkIds.Engineer.DestinyPunctuator, LastToDiePerkIds.Engineer.MateriaRecycler]);
+        Assert.True(engineer.EnableEngineerDestinyPunctuator);
+        Assert.Equal(1.3f, engineer.PassiveMovementSpeedMultiplier);
+        Assert.Equal(1.3f, engineer.PassiveJumpHeightMultiplier);
+        Assert.True(engineer.EnableEngineerMateriaRecycler);
+    }
+
+    [Fact]
+    public void LegacyPerkTranslatorDeduplicatesRepeatedChoices()
+    {
+        var single = LastToDieLegacyPerkSettings.FromPerks(
+            PlayerClass.Engineer,
+            [LastToDiePerkIds.Engineer.DestinyPunctuator]);
+        var repeated = LastToDieLegacyPerkSettings.FromPerks(
+            PlayerClass.Engineer,
+            [LastToDiePerkIds.Engineer.DestinyPunctuator, LastToDiePerkIds.Engineer.DestinyPunctuator]);
+
+        Assert.Equal(single, repeated);
+        Assert.Equal(1.3f, repeated.PassiveMovementSpeedMultiplier);
+        Assert.Equal(1.3f, repeated.PassiveJumpHeightMultiplier);
+    }
+
+    [Fact]
+    public void EveryOriginalClassPerkChangesItsLegacySettingsProfile()
+    {
+        var survivors = LastToDieSurvivorCatalog.CreateStock();
+        var catalog = LastToDieExpansionPerkCatalog.Create(survivors);
+        var originalClasses = new Dictionary<LastToDieSurvivorId, PlayerClass>
+        {
+            [LastToDieSurvivorCatalog.SoldierId] = PlayerClass.Soldier,
+            [LastToDieSurvivorCatalog.DemoknightId] = PlayerClass.Demoman,
+            [LastToDieSurvivorCatalog.EngineerId] = PlayerClass.Engineer,
+        };
+
+        foreach (var (survivorId, playerClass) in originalClasses)
+        {
+            var baseline = LastToDieLegacyPerkSettings.FromPerks(playerClass, []);
+            foreach (var definition in catalog.Definitions.Where(definition => definition.SurvivorId == survivorId))
+            {
+                var withPerk = LastToDieLegacyPerkSettings.FromPerks(playerClass, [definition.Id]);
+                Assert.False(
+                    Equals(baseline, withPerk),
+                    $"Legacy translator left {definition.Id.Value} inert for {playerClass}.");
+            }
+        }
+    }
+
+    [Fact]
+    public void HostedLegacyBuildProfilesRemainIsolatedPerNetworkSlot()
+    {
+        var world = new SimulationWorld();
+        Assert.True(world.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.TryPrepareNetworkPlayerJoin(3));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Demoman));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(3, PlayerClass.Demoman));
+        Assert.True(world.TryGetNetworkPlayer(2, out var boosted));
+        Assert.True(world.TryGetNetworkPlayer(3, out var stock));
+
+        var baseRunPower = stock.ClassDefinition.RunPower;
+        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+            2,
+            [LastToDiePerkIds.Demoknight.MoveSpeed],
+            refillHealth: true));
+        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+            3,
+            [],
+            refillHealth: true));
+
+        Assert.Equal(baseRunPower * 1.3f, boosted.RunPower, precision: 3);
+        Assert.Equal(baseRunPower, stock.RunPower, precision: 3);
+    }
+
+    [Fact]
+    public void HostedClientPredictionInstallsAndClearsLegacyProfileWithoutCreatingServerRuntime()
+    {
+        var world = new SimulationWorld();
+        Assert.True(world.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Demoman));
+        Assert.True(world.TryGetNetworkPlayer(2, out var player));
+        var baseRunPower = player.ClassDefinition.RunPower;
+
+        Assert.True(world.TryApplyLastToDiePlayerPredictionProfile(
+            2,
+            [LastToDiePerkIds.Demoknight.MoveSpeed.Value]));
+        Assert.Equal(baseRunPower * 1.3f, player.RunPower, precision: 3);
+
+        Assert.True(world.ClearLastToDiePlayerPredictionProfile(2));
+        Assert.Equal(baseRunPower, player.RunPower, precision: 3);
+    }
+
+    [Fact]
+    public void HostedEngineerLegacyBuildSynchronizesMetalCapacityImmediately()
+    {
+        var world = new SimulationWorld();
+        Assert.True(world.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.TryPrepareNetworkPlayerJoin(3));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Engineer));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(3, PlayerClass.Engineer));
+        Assert.True(world.TryGetNetworkPlayer(2, out var recycler));
+        Assert.True(world.TryGetNetworkPlayer(3, out var stock));
+
+        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+            2,
+            [LastToDiePerkIds.Engineer.MateriaRecycler],
+            refillHealth: true));
+        Assert.True(world.TryConfigureLastToDiePlayerBuild(3, [], refillHealth: true));
+
+        Assert.Equal(200f, recycler.MaxMetal);
+        Assert.Equal(100f, stock.MaxMetal);
+    }
+
+    [Fact]
+    public void HostedSoldierLegacyDamageRewardAppliesImmediatelyAndPerSlot()
+    {
+        var world = new SimulationWorld();
+        Assert.True(world.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.TryPrepareNetworkPlayerJoin(3));
+        Assert.True(world.TryPrepareNetworkPlayerJoin(4));
+        Assert.True(world.TryPrepareNetworkPlayerJoin(5));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(3, PlayerClass.Soldier));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(4, PlayerClass.Heavy));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(5, PlayerClass.Heavy));
+        Assert.True(world.TrySetNetworkPlayerTeam(2, PlayerTeam.Red, respawnLivePlayerImmediately: true));
+        Assert.True(world.TrySetNetworkPlayerTeam(3, PlayerTeam.Red, respawnLivePlayerImmediately: true));
+        Assert.True(world.TrySetNetworkPlayerTeam(4, PlayerTeam.Blue, respawnLivePlayerImmediately: true));
+        Assert.True(world.TrySetNetworkPlayerTeam(5, PlayerTeam.Blue, respawnLivePlayerImmediately: true));
+        Assert.True(world.TryGetNetworkPlayer(2, out var sadist));
+        Assert.True(world.TryGetNetworkPlayer(3, out var stock));
+        Assert.True(world.TryGetNetworkPlayer(4, out var firstTarget));
+        Assert.True(world.TryGetNetworkPlayer(5, out var secondTarget));
+
+        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+            2,
+            [LastToDiePerkIds.Soldier.HealOnDamage],
+            refillHealth: true));
+        Assert.True(world.TryConfigureLastToDiePlayerBuild(3, [], refillHealth: true));
+        sadist.ForceSetHealth(sadist.MaxHealth - 50);
+        stock.ForceSetHealth(stock.MaxHealth - 50);
+
+        Assert.True(world.TryApplyGameplayDamage(firstTarget.Id, 40f, sadist.Id, null));
+        Assert.True(world.TryApplyGameplayDamage(secondTarget.Id, 40f, stock.Id, null));
+
+        Assert.Equal(sadist.MaxHealth - 36, sadist.Health);
+        Assert.Equal(stock.MaxHealth - 50, stock.Health);
     }
 
     [Fact]

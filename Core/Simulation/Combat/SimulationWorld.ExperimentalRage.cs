@@ -92,7 +92,7 @@ public sealed partial class SimulationWorld
         bool enableStingerTracking,
         string? killFeedWeaponSpriteNameOverride)
     {
-        if (!ExperimentalGameplaySettings.EnableSoldierFinalClipRocketBurst
+        if (!GetLastToDieGameplaySettings(owner).EnableSoldierFinalClipRocketBurst
             || !IsExperimentalPracticePowerOwner(owner)
             || owner.ClassId != PlayerClass.Soldier)
         {
@@ -118,11 +118,14 @@ public sealed partial class SimulationWorld
     private bool CanUseExperimentalRage(PlayerEntity? player)
     {
         return player is not null
-            && ExperimentalGameplaySettings.EnableRage
+            && GetLastToDieGameplaySettings(player).EnableRage
             && IsExperimentalPracticePowerOwner(player)
             && (player.ClassId == PlayerClass.Soldier
                 || player.ClassId == PlayerClass.Engineer
-                || player.IsExperimentalDemoknightEnabled);
+                || player.IsExperimentalDemoknightEnabled
+                || player.ClassId == PlayerClass.Spy
+                || player.ClassId == PlayerClass.Medic
+                || player.ClassId == PlayerClass.Sniper);
     }
 
     private bool TryHandleExperimentalRageActivation(PlayerEntity player)
@@ -142,7 +145,7 @@ public sealed partial class SimulationWorld
         {
             player.RefreshUber();
         }
-        if (ExperimentalGameplaySettings.EnableDemoknightPostRageRegeneration
+        if (GetLastToDieGameplaySettings(player).EnableDemoknightPostRageRegeneration
             && player.IsExperimentalDemoknightEnabled)
         {
             player.ConfigureExperimentalDemoknightPostRageRegeneration(GetExperimentalDemoknightPostRageRegenerationPerSecond());
@@ -157,7 +160,7 @@ public sealed partial class SimulationWorld
 
     private void ApplyExperimentalRageEffects()
     {
-        if (!ExperimentalGameplaySettings.EnableRage)
+        if (!IsLastToDieGameplaySettingEnabled(settings => settings.EnableRage))
         {
             _experimentalRageEnemyHumiliationTicksRemaining = 0;
             return;
@@ -231,7 +234,7 @@ public sealed partial class SimulationWorld
 
     private bool IsExperimentalRageHumiliationActiveForPlayer(PlayerEntity player)
     {
-        return ExperimentalGameplaySettings.EnableRage
+        return IsLastToDieGameplaySettingEnabled(settings => settings.EnableRage)
             && _experimentalRageEnemyHumiliationTicksRemaining > 0
             && !ReferenceEquals(player, LocalPlayer)
             && player.Team != LocalPlayer.Team;

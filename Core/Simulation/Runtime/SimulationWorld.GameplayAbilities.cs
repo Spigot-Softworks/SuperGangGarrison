@@ -485,7 +485,7 @@ public sealed partial class SimulationWorld
             return GameplayAbilityResult.Ignored;
         }
 
-        if (ExperimentalGameplaySettings.EnableDemoknightGhostDash)
+        if (GetLastToDieGameplaySettings(player).EnableDemoknightGhostDash)
         {
             if (player.TryStartExperimentalGhostDash(
                     GetExperimentalGhostDashDurationTicks(),

@@ -71,10 +71,12 @@ public static class CustomMapPngImporter
         var visualScale = CustomMapBuilderDocument.ResolveVisualScale(metadata, walkmaskScale);
         var mapScale = ResolveMapScale(walkmaskScale, entities, walkmaskSection);
         var walkmaskScaleX = ResolveWalkmaskHorizontalScale(metadata, mapScale);
-        if (!TryDecodeWalkmask(walkmaskSection, mapScale, walkmaskScaleX, out var solids, out var bounds))
+        if (!TryDecodeWalkmask(walkmaskSection, mapScale, walkmaskScaleX, out var solids, out var collisionBounds))
         {
             return null;
         }
+
+        var bounds = ResolveVisualBounds(metadata, collisionBounds, visualScale);
 
         var decodedResources = MergeDecodedResources(
             CustomMapBuilderResourceCodec.DecodeResourcesFromMetadata(metadata),
@@ -298,6 +300,22 @@ public static class CustomMapPngImporter
         return fallback;
     }
 
+    private static WorldBounds ResolveVisualBounds(
+        IReadOnlyDictionary<string, string> metadata,
+        WorldBounds collisionBounds,
+        float visualScale)
+    {
+        var visualWidth = CustomMapBuilderDocument.ResolveVisualWidth(metadata);
+        var visualHeight = CustomMapBuilderDocument.ResolveVisualHeight(metadata);
+        return new WorldBounds(
+            visualWidth.HasValue
+                ? MathF.Max(collisionBounds.Width, visualWidth.Value * visualScale)
+                : collisionBounds.Width,
+            visualHeight.HasValue
+                ? MathF.Max(collisionBounds.Height, visualHeight.Value * visualScale)
+                : collisionBounds.Height);
+    }
+
     private static GameMakerRoomMetadata BuildRoomMetadata(
         string mapName,
         string pngPath,
@@ -374,7 +392,7 @@ public static class CustomMapPngImporter
                     areaTransitionMarkers.Add(new AreaTransitionMarker(x, y, AreaTransitionDirection.Previous, entityType));
                     break;
                 default:
-                    if (TryCreateMovingPlatform(entity, out var movingPlatform))
+                    if (TryCreateMovingPlatform(entity, decodedResources, out var movingPlatform))
                     {
                         movingPlatforms.Add(movingPlatform);
                     }
@@ -695,7 +713,10 @@ public static class CustomMapPngImporter
             : fallback;
     }
 
-    private static bool TryCreateMovingPlatform(ImportedEntity entity, out MovingPlatformMarker marker)
+    private static bool TryCreateMovingPlatform(
+        ImportedEntity entity,
+        IReadOnlyDictionary<string, CustomMapBuilderResource> resources,
+        out MovingPlatformMarker marker)
     {
         marker = default;
         var entityType = entity.Type;
@@ -715,11 +736,26 @@ public static class CustomMapPngImporter
             ? rawResource.Trim()
             : string.Empty;
 
+        // MovingPlatform inherits the stock 60x6 DropdownPlatform sprite, but GG2
+        // replaces that sprite with the resource after applying the entity's scale.
+        // Use the replacement image dimensions when one is present; otherwise retain
+        // the stock sprite dimensions for maps that do not provide a resource.
+        var platformWidth = DefaultMovingPlatformWidth;
+        var platformHeight = DefaultMovingPlatformHeight;
+        if (!string.IsNullOrWhiteSpace(resourceName)
+            && resources.TryGetValue(resourceName, out var resource)
+            && CustomMapBuilderResourceCodec.TryGetResourceBytes(resource, out var resourceBytes)
+            && CustomMapCustomSpriteMetadata.TryParsePngDimensions(resourceBytes, out var resourceWidth, out var resourceHeight))
+        {
+            platformWidth = resourceWidth;
+            platformHeight = resourceHeight;
+        }
+
         marker = new MovingPlatformMarker(
             entity.X,
             entity.Y,
-            DefaultMovingPlatformWidth * platformScale,
-            DefaultMovingPlatformHeight * platformScale,
+            platformWidth * platformScale,
+            platformHeight * platformScale,
             travelX,
             travelY,
             upSpeed,

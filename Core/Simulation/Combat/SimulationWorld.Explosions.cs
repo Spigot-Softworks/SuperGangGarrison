@@ -419,8 +419,8 @@ public sealed partial class SimulationWorld
 
     private void TryTriggerExperimentalDangerCloseExplosion(PlayerEntity victim, PlayerEntity? killer)
     {
-        if (!ExperimentalGameplaySettings.EnableSoldierDangerClose
-            || killer is null
+        if (killer is null
+            || !GetLastToDieGameplaySettings(killer).EnableSoldierDangerClose
             || !IsExperimentalPracticePowerOwner(killer)
             || killer.ClassId != PlayerClass.Soldier
             || ReferenceEquals(killer, victim)

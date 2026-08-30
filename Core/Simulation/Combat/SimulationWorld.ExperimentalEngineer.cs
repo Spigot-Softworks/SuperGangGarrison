@@ -24,19 +24,19 @@ public sealed partial class SimulationWorld
     private bool HasExperimentalEngineerDestinyPunctuator(PlayerEntity? player)
     {
         return IsExperimentalEngineerPerkOwner(player)
-            && ExperimentalGameplaySettings.EnableEngineerDestinyPunctuator;
+            && GetLastToDieGameplaySettings(player!).EnableEngineerDestinyPunctuator;
     }
 
     private bool HasExperimentalEngineerEssenceExtractorAvailable(PlayerEntity? player)
     {
         return IsExperimentalEngineerPerkOwner(player)
-            && ExperimentalGameplaySettings.EnableEngineerEssenceExtractor;
+            && GetLastToDieGameplaySettings(player!).EnableEngineerEssenceExtractor;
     }
 
     private bool HasExperimentalEngineerFreezeRayAvailable(PlayerEntity? player)
     {
         return IsExperimentalEngineerPerkOwner(player)
-            && ExperimentalGameplaySettings.EnableEngineerFreezeRay;
+            && GetLastToDieGameplaySettings(player!).EnableEngineerFreezeRay;
     }
 
     private bool HasExperimentalEngineerAlternateWeaponAvailable(PlayerEntity? player)
@@ -88,7 +88,7 @@ public sealed partial class SimulationWorld
         var owner = FindPlayerById(sentry.OwnerPlayerId);
         return sentry.IsBuilt
             && IsExperimentalEngineerPerkOwner(owner)
-            && ExperimentalGameplaySettings.EnableEngineerAutonomousPhaseEngine;
+            && GetLastToDieGameplaySettings(owner).EnableEngineerAutonomousPhaseEngine;
     }
 
     public static bool ShouldTreatPlayerAsExperimentalFriendlyFireTarget(PlayerEntity observer, PlayerEntity candidate)
@@ -132,8 +132,9 @@ public sealed partial class SimulationWorld
             return 0;
         }
 
+        var settings = GetLastToDieGameplaySettings(player);
         return 1
-            + (ExperimentalGameplaySettings.EnableEngineerOutputInducer
+            + (settings.EnableEngineerOutputInducer
                 ? global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerOutputInducerAdditionalSentries
                 : 0);
     }
@@ -146,12 +147,13 @@ public sealed partial class SimulationWorld
             return maxHealth;
         }
 
-        if (ExperimentalGameplaySettings.EnableEngineerGuardianMatrix)
+        var settings = GetLastToDieGameplaySettings(owner);
+        if (settings.EnableEngineerGuardianMatrix)
         {
             maxHealth += global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerGuardianMatrixSentryBonusHealth;
         }
 
-        if (ExperimentalGameplaySettings.EnableEngineerHardwareHardener)
+        if (settings.EnableEngineerHardwareHardener)
         {
             maxHealth += global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerHardwareHardenerSentryBonusHealth;
         }
@@ -167,14 +169,15 @@ public sealed partial class SimulationWorld
             return reloadTicks;
         }
 
-        if (ExperimentalGameplaySettings.EnableEngineerPrecisionInstantiator)
+        var settings = GetLastToDieGameplaySettings(owner);
+        if (settings.EnableEngineerPrecisionInstantiator)
         {
             reloadTicks = Math.Max(
                 1,
                 (int)MathF.Round(
                     reloadTicks * global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerPrecisionInstantiatorReloadMultiplier));
         }
-        else if (ExperimentalGameplaySettings.EnableEngineerBuckshotConversion)
+        else if (settings.EnableEngineerBuckshotConversion)
         {
             reloadTicks = Math.Max(
                 1,
@@ -182,7 +185,7 @@ public sealed partial class SimulationWorld
                     reloadTicks * global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerBuckshotConversionReloadMultiplier));
         }
 
-        if (!ExperimentalGameplaySettings.EnableEngineerAmperageAccelerator)
+        if (!settings.EnableEngineerAmperageAccelerator)
         {
             return reloadTicks;
         }
@@ -204,8 +207,8 @@ public sealed partial class SimulationWorld
     private float GetExperimentalSentryTargetRange(PlayerEntity owner)
     {
         if (IsExperimentalEngineerPerkOwner(owner)
-            && (ExperimentalGameplaySettings.EnableEngineerPrecisionInstantiator
-                || ExperimentalGameplaySettings.EnableEngineerCaveatInjector))
+            && (GetLastToDieGameplaySettings(owner).EnableEngineerPrecisionInstantiator
+                || GetLastToDieGameplaySettings(owner).EnableEngineerCaveatInjector))
         {
             return GetExperimentalEngineerInfiniteTargetRange();
         }
@@ -227,7 +230,7 @@ public sealed partial class SimulationWorld
     {
         var maxMetal = 100f;
         if (IsExperimentalEngineerPerkOwner(player)
-            && ExperimentalGameplaySettings.EnableEngineerMateriaRecycler)
+            && GetLastToDieGameplaySettings(player).EnableEngineerMateriaRecycler)
         {
             maxMetal += global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerMateriaRecyclerBonusMaxMetal;
         }
@@ -244,7 +247,7 @@ public sealed partial class SimulationWorld
     private float GetExperimentalEngineerMovementSpeedMultiplier(PlayerEntity player)
     {
         if (!IsExperimentalEngineerPerkOwner(player)
-            || !ExperimentalGameplaySettings.EnableEngineerEfficiencyStabilizer)
+            || !GetLastToDieGameplaySettings(player).EnableEngineerEfficiencyStabilizer)
         {
             return 1f;
         }
@@ -279,7 +282,7 @@ public sealed partial class SimulationWorld
     public bool IsPlayerInsideExperimentalEngineerMisdirectionFieldForVisuals(PlayerEntity? player)
     {
         return player is not null
-            && ExperimentalGameplaySettings.EnableEngineerMisdirectionField
+            && GetLastToDieGameplaySettings(player).EnableEngineerMisdirectionField
             && IsPlayerNearExperimentalOwnedSentry(player);
     }
 
@@ -367,14 +370,15 @@ public sealed partial class SimulationWorld
             player.IsExperimentalOffhandPresented
             && player.ExperimentalEngineerAlternateWeaponMode == ExperimentalEngineerAlternateWeaponMode.EssenceExtractor);
 
-        if (ExperimentalGameplaySettings.EnableEngineerRegenerativeDiode)
+        var settings = GetLastToDieGameplaySettings(player);
+        if (settings.EnableEngineerRegenerativeDiode)
         {
             ApplyHealingWithFeedback(
                 player,
                 global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerRegenerativeDiodeHealthPerSecond / Math.Max(1, Config.TicksPerSecond));
         }
 
-        if (ExperimentalGameplaySettings.EnableEngineerGuardianMatrix && IsPlayerNearExperimentalOwnedSentry(player))
+        if (settings.EnableEngineerGuardianMatrix && IsPlayerNearExperimentalOwnedSentry(player))
         {
             player.SetExperimentalShieldHealth(global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerGuardianMatrixShieldHealth);
             return;
@@ -395,7 +399,8 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        if (ExperimentalGameplaySettings.EnableEngineerRegenerativeDiode
+        var settings = GetLastToDieGameplaySettings(owner);
+        if (settings.EnableEngineerRegenerativeDiode
             && sentry.Health < sentry.MaxHealth)
         {
             sentry.ApplyContinuousHealing(
@@ -404,17 +409,17 @@ public sealed partial class SimulationWorld
 
         if (sentry.IsBuilt)
         {
-            if (ExperimentalGameplaySettings.EnableEngineerAutonomousPhaseEngine)
+            if (settings.EnableEngineerAutonomousPhaseEngine)
             {
                 AdvanceExperimentalAutonomousSentry(sentry, owner);
             }
 
-            if (ExperimentalGameplaySettings.EnableEngineerIntegrityProjector)
+            if (settings.EnableEngineerIntegrityProjector)
             {
                 TryApplyExperimentalIntegrityProjector(sentry, owner);
             }
 
-            if (ExperimentalGameplaySettings.EnableEngineerConfusionField)
+            if (settings.EnableEngineerConfusionField)
             {
                 ApplyExperimentalConfusionFieldAura(sentry);
             }
@@ -565,7 +570,7 @@ public sealed partial class SimulationWorld
 
         var owner = FindPlayerById(sentry.OwnerPlayerId);
         if (!IsExperimentalEngineerPerkOwner(owner)
-            || !ExperimentalGameplaySettings.EnableEngineerHardwareHardener
+            || !GetLastToDieGameplaySettings(owner!).EnableEngineerHardwareHardener
             || sentry.Health <= (sentry.MaxHealth / 2))
         {
             return damage;
@@ -577,7 +582,7 @@ public sealed partial class SimulationWorld
 
     private bool IsExperimentalEngineerPriorityTarget(PlayerEntity owner, PlayerEntity candidate)
     {
-        return ExperimentalGameplaySettings.EnableEngineerCooperativeTargetingHarness
+        return GetLastToDieGameplaySettings(owner).EnableEngineerCooperativeTargetingHarness
             && IsExperimentalEngineerPerkOwner(owner)
             && !HasExperimentalEngineerDestinyPunctuator(owner)
             && candidate.LastDamageDealerPlayerId == owner.Id
@@ -602,12 +607,13 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        if (ExperimentalGameplaySettings.EnableEngineerOsmosisConductor)
+        var settings = GetLastToDieGameplaySettings(owner);
+        if (settings.EnableEngineerOsmosisConductor)
         {
             ApplyHealingWithFeedback(owner, appliedDamage);
         }
 
-        if (ExperimentalGameplaySettings.EnableEngineerAlchemicalAnode)
+        if (settings.EnableEngineerAlchemicalAnode)
         {
             sentry.Heal(Math.Max(1, (int)MathF.Round(appliedDamage * global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerAlchemicalAnodeHealingFraction)));
         }
@@ -617,7 +623,7 @@ public sealed partial class SimulationWorld
     {
         if (appliedDamage <= 0
             || !IsExperimentalEngineerPerkOwner(owner)
-            || !ExperimentalGameplaySettings.EnableEngineerOsmosisConductor
+            || !GetLastToDieGameplaySettings(owner).EnableEngineerOsmosisConductor
             || HasExperimentalEngineerDestinyPunctuator(owner))
         {
             return;
@@ -637,7 +643,7 @@ public sealed partial class SimulationWorld
     {
         if (appliedDamage <= 0
             || !IsExperimentalEngineerPerkOwner(owner)
-            || !ExperimentalGameplaySettings.EnableEngineerMateriaRecycler)
+            || !GetLastToDieGameplaySettings(owner).EnableEngineerMateriaRecycler)
         {
             return;
         }
@@ -659,7 +665,7 @@ public sealed partial class SimulationWorld
     private void ApplyExperimentalEngineerFriendlyFireRetaliation(PlayerEntity attacker, PlayerEntity target, int appliedDamage)
     {
         if (appliedDamage <= 0
-            || !ExperimentalGameplaySettings.EnableEngineerConfusionField
+            || !GetLastToDieGameplaySettings(attacker).EnableEngineerConfusionField
             || attacker.Team != target.Team
             || !attacker.IsExperimentalConfused
             || attacker.Id == target.Id)
@@ -749,15 +755,16 @@ public sealed partial class SimulationWorld
         sentry.FireAt(target.X, target.Y, reloadTicks, idleResetTicks);
         var ownerHasExperimentalEngineerPerks = IsExperimentalEngineerPerkOwner(owner);
 
+        var settings = GetLastToDieGameplaySettings(owner);
         if (ownerHasExperimentalEngineerPerks
-            && ExperimentalGameplaySettings.EnableEngineerPrecisionInstantiator)
+            && settings.EnableEngineerPrecisionInstantiator)
         {
             FireExperimentalPrecisionSentryShot(sentry, owner, target);
             return true;
         }
 
         if (ownerHasExperimentalEngineerPerks
-            && ExperimentalGameplaySettings.EnableEngineerBuckshotConversion)
+            && settings.EnableEngineerBuckshotConversion)
         {
             FireExperimentalBuckshotSentryShot(sentry, owner, target);
             return true;
@@ -791,7 +798,7 @@ public sealed partial class SimulationWorld
         }
 
         if (IsExperimentalEngineerPerkOwner(owner)
-            && ExperimentalGameplaySettings.EnableEngineerCaveatInjector
+            && GetLastToDieGameplaySettings(owner).EnableEngineerCaveatInjector
             && sentry.ConsecutiveShotsFired % global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerCaveatInjectorShotInterval == 0)
         {
             FireExperimentalCaveatMiniRockets(sentry, owner, target);
@@ -862,7 +869,7 @@ public sealed partial class SimulationWorld
         }
 
         if (IsExperimentalEngineerPerkOwner(owner)
-            && ExperimentalGameplaySettings.EnableEngineerCaveatInjector
+            && GetLastToDieGameplaySettings(owner).EnableEngineerCaveatInjector
             && sentry.ConsecutiveShotsFired % global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerCaveatInjectorShotInterval == 0)
         {
             FireExperimentalCaveatMiniRockets(sentry, owner, target);
@@ -1000,7 +1007,8 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        if (ExperimentalGameplaySettings.EnableEngineerIncendiaryEnhancements)
+        var settings = GetLastToDieGameplaySettings(owner);
+        if (settings.EnableEngineerIncendiaryEnhancements)
         {
             target.IgniteAfterburn(
                 owner.Id,
@@ -1011,7 +1019,7 @@ public sealed partial class SimulationWorld
             TrySpawnExperimentalIncendiaryFlames(sentry, owner, target);
         }
 
-        if (ExperimentalGameplaySettings.EnableEngineerCryonicMunitions)
+        if (settings.EnableEngineerCryonicMunitions)
         {
             target.AccumulateExperimentalCryoHit(
                 owner.Id,
@@ -1092,11 +1100,12 @@ public sealed partial class SimulationWorld
     private bool TryResolveExperimentalEngineerRocketTrackingDirection(RocketProjectileEntity rocket, PlayerEntity owner, out float targetDirectionRadians)
     {
         targetDirectionRadians = 0f;
+        var settings = GetLastToDieGameplaySettings(owner);
         if (!rocket.EnableExperimentalCaveatTracking
             || rocket.ExperimentalTrackingLockTicksRemaining > 0
             || !IsExperimentalEngineerPerkOwner(owner)
-            || (!ExperimentalGameplaySettings.EnableEngineerCaveatInjector
-                && !ExperimentalGameplaySettings.EnableEngineerExperimentalOverkillAugment))
+            || (!settings.EnableEngineerCaveatInjector
+                && !settings.EnableEngineerExperimentalOverkillAugment))
         {
             return false;
         }

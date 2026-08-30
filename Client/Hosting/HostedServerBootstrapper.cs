@@ -273,6 +273,28 @@ internal static class HostedServerBootstrapper
         return string.Join(' ', arguments);
     }
 
+    public static bool TryGetProcess(HostedServerSessionInfo session, out Process? process)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+
+        if (!TryGetProcess(session.ProcessId, out process) || process is null)
+        {
+            return false;
+        }
+
+        if (session.ProcessStartTimeUtcTicks > 0
+            && !new HostedServerProcessIdentity(
+                session.ProcessId,
+                session.ProcessStartTimeUtcTicks).Matches(process))
+        {
+            process.Dispose();
+            process = null;
+            return false;
+        }
+
+        return true;
+    }
+
     public static bool TryValidateRuntimePrerequisites(
         HostedServerLaunchTarget launchTarget,
         out string error)

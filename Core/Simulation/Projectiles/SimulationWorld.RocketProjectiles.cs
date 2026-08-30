@@ -174,7 +174,7 @@ public sealed partial class SimulationWorld
             {
                 rocket.RefreshRangeOrigin(rangeAnchorPlayer.X, rangeAnchorPlayer.Y);
                 if (rocket.EnableExperimentalStingerTracking
-                    && world.ExperimentalGameplaySettings.EnableSoldierStingerRockets
+                    && world.GetLastToDieGameplaySettings(rangeAnchorPlayer).EnableSoldierStingerRockets
                     && rangeAnchorPlayer.ClassId == PlayerClass.Soldier
                     && world.IsExperimentalPracticePowerOwner(rangeAnchorPlayer))
                 {

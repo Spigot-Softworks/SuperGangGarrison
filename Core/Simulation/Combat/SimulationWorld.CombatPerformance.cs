@@ -34,7 +34,7 @@ public sealed partial class SimulationWorld
     {
         if (appliedDamage <= 0
             || attacker is null
-            || !ExperimentalGameplaySettings.EnableComboTracking
+            || !IsLastToDieGameplaySettingEnabled(settings => settings.EnableComboTracking)
             || !ShouldTrackCombatPerformanceForPlayer(attacker)
             || ReferenceEquals(attacker, target)
             || attacker.Team == target.Team)
@@ -48,7 +48,7 @@ public sealed partial class SimulationWorld
     private void TryRegisterKillStreakKill(PlayerEntity? killer, PlayerEntity victim)
     {
         if (killer is null
-            || !ExperimentalGameplaySettings.EnableKillStreakTracking
+            || !IsLastToDieGameplaySettingEnabled(settings => settings.EnableKillStreakTracking)
             || !ShouldTrackKillStreakForPlayer(killer)
             || ReferenceEquals(killer, victim)
             || killer.Team == victim.Team)

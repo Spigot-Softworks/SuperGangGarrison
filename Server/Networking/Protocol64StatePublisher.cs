@@ -551,7 +551,12 @@ internal sealed class Protocol64StatePublisher
             player.ActiveKritzCritDamageMultiplier,
             player.LastToDieProfessionalFireChordState,
             player.IsDispenserBuffed,
-            player.IsDispenserBuffed ? player.DispenserAttackReloadSpeedMultiplier : 1f);
+            player.IsDispenserBuffed ? player.DispenserAttackReloadSpeedMultiplier : 1f,
+            player.RageCharge,
+            player.IsRageReady,
+            Math.Max(0, player.RageTicksRemaining),
+            Math.Max(0, player.PrimaryCooldownTicks),
+            Math.Max(0, player.ReloadTicksUntilNextShell));
 
     private static Protocol64LastToDieSniperVolleyState? ToProtocol64SniperVolleyState(
         in LastToDieSniperVolleyState state)

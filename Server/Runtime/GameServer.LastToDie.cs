@@ -254,7 +254,9 @@ partial class GameServer
         _mapRotationManager.AlignExternalMapChange(_world.Level.Name);
         ConfigureLastToDieParticipants(session);
         ConfigureLastToDieEnemies(directorSnapshot.EnemyCount);
-        var botNavigationPreloaded = PreloadBotNavigationForCurrentLevel(out var botNavigationPreloadMs);
+        var botNavigationPreloaded = PreloadBotNavigationForCurrentLevel(
+            out var botNavigationPreloadMs,
+            out var botNavigationWarmup);
         _mapBotSpawnController.Reset();
 
         var transition = new MapChangeTransition(
@@ -289,7 +291,8 @@ partial class GameServer
         Console.WriteLine(
             $"[ltd] committed stage={directorSnapshot.StageInstanceId} map={_world.Level.Name} " +
             $"baseline={baselineFrame} navPreloaded={botNavigationPreloaded} " +
-            $"navPreloadMs={botNavigationPreloadMs:0.###}");
+            $"navPreloadMs={botNavigationPreloadMs:0.###} " +
+            $"navSource={botNavigationWarmup.Source} navSourcePath=\"{botNavigationWarmup.Path}\"");
         return true;
     }
 

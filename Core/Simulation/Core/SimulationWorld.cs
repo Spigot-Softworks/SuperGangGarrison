@@ -672,8 +672,14 @@ public sealed partial class SimulationWorld
 
     private void SyncExperimentalGameplayLoadout(byte slot, PlayerEntity player)
     {
-        var specialAbilitiesEnabled = ExperimentalGameplaySettings.EnableSecondaryAbilities;
-        if (slot != LocalPlayerSlot)
+        var hasLastToDieProfile = TryGetLastToDieLegacyGameplaySettings(
+            slot,
+            out var lastToDieSettings);
+        var settings = hasLastToDieProfile
+            ? lastToDieSettings
+            : ExperimentalGameplaySettings;
+        var specialAbilitiesEnabled = settings.EnableSecondaryAbilities;
+        if (slot != LocalPlayerSlot && !hasLastToDieProfile)
         {
             player.SetExperimentalDemoknightEnabled(false);
             player.SetExperimentalPassiveMovementSpeedMultiplier(global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultPassiveMovementSpeedMultiplier);
@@ -694,39 +700,48 @@ public sealed partial class SimulationWorld
             player.SetExperimentalOffhandWeapon(specialAbilitiesEnabled
                 ? ResolveGameplaySecondaryWeapon(player, allowSoldierShotgun: false, allowSoldierShotgunLtd: false)
                 : null);
-            player.SetAcquiredWeapon(null);
+            // Acquired weapons only exist for Soldier. Clearing a null
+            // acquired weapon on a dead locked-primary player also clears the
+            // remembered alternate slot because the runtime offhand flag is
+            // intentionally false during death. Keep this cleanup scoped to
+            // Soldier so a settings/resync pass cannot turn Bow/Nailgun/Kritz
+            // back into the stock primary before the next respawn.
+            if (player.ClassId == PlayerClass.Soldier)
+            {
+                player.SetAcquiredWeapon(null);
+            }
             ApplyNetworkPlayerMaxHealthOverride(slot, player, refillHealth: false);
             return;
         }
 
         player.SetExperimentalDemoknightEnabled(
-            ExperimentalGameplaySettings.EnableDemoknightKit
+            settings.EnableDemoknightKit
             && player.ClassId == PlayerClass.Demoman);
-        player.SetExperimentalPassiveMovementSpeedMultiplier(ExperimentalGameplaySettings.PassiveMovementSpeedMultiplier);
-        player.SetExperimentalJumpHeightMultiplier(ExperimentalGameplaySettings.PassiveJumpHeightMultiplier);
-        player.SetExperimentalBonusAirJumps(ExperimentalGameplaySettings.PassiveBonusAirJumps);
-        player.SetExperimentalDemoknightSwordRangeMultiplier(ExperimentalGameplaySettings.DemoknightSwordRangeMultiplier);
-        player.SetExperimentalDemoknightSwordBaseDamage(ExperimentalGameplaySettings.DemoknightSwordBaseDamage);
-        player.SetExperimentalDemoknightSwordDamageMultiplier(ExperimentalGameplaySettings.DemoknightSwordDamageMultiplier);
-        player.SetExperimentalDemoknightSwordCooldownMultiplier(ExperimentalGameplaySettings.DemoknightSwordCooldownMultiplier);
-        player.SetExperimentalDemoknightChargeRechargeMultiplier(ExperimentalGameplaySettings.DemoknightChargeRechargeMultiplier);
+        player.SetExperimentalPassiveMovementSpeedMultiplier(settings.PassiveMovementSpeedMultiplier);
+        player.SetExperimentalJumpHeightMultiplier(settings.PassiveJumpHeightMultiplier);
+        player.SetExperimentalBonusAirJumps(settings.PassiveBonusAirJumps);
+        player.SetExperimentalDemoknightSwordRangeMultiplier(settings.DemoknightSwordRangeMultiplier);
+        player.SetExperimentalDemoknightSwordBaseDamage(settings.DemoknightSwordBaseDamage);
+        player.SetExperimentalDemoknightSwordDamageMultiplier(settings.DemoknightSwordDamageMultiplier);
+        player.SetExperimentalDemoknightSwordCooldownMultiplier(settings.DemoknightSwordCooldownMultiplier);
+        player.SetExperimentalDemoknightChargeRechargeMultiplier(settings.DemoknightChargeRechargeMultiplier);
         player.SetExperimentalSoldierAmmoRegeneratesWhileSwappedOut(
-            ExperimentalGameplaySettings.EnableSoldierAmmoRegeneratesWhileSwappedOut
+            settings.EnableSoldierAmmoRegeneratesWhileSwappedOut
             && player.ClassId == PlayerClass.Soldier);
         player.SetExperimentalSelfDamageHealing(
-            ExperimentalGameplaySettings.EnableSelfDamageHealing
+            settings.EnableSelfDamageHealing
             && player.ClassId == PlayerClass.Soldier);
         player.SetExperimentalSoldierInfiniteAmmoDuringRage(
-            ExperimentalGameplaySettings.EnableSoldierInfiniteAmmoDuringRage
+            settings.EnableSoldierInfiniteAmmoDuringRage
             && player.ClassId == PlayerClass.Soldier);
         player.SetExperimentalReloadSpeedMultiplier(
             player.ClassId == PlayerClass.Soldier
-                ? ExperimentalGameplaySettings.ReloadSpeedMultiplierValue
+                ? settings.ReloadSpeedMultiplierValue
                 : global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultReloadSpeedMultiplier);
         player.SetExperimentalDemoknightChargeFullControlEnabled(
-            ExperimentalGameplaySettings.EnableDemoknightFullControlDuringCharge
+            settings.EnableDemoknightFullControlDuringCharge
             && player.ClassId == PlayerClass.Demoman);
-        if (ExperimentalGameplaySettings.EnableDemoknightPostRageRegeneration
+        if (settings.EnableDemoknightPostRageRegeneration
             && player.ClassId == PlayerClass.Demoman)
         {
             player.ConfigureExperimentalDemoknightPostRageRegeneration(
@@ -740,13 +755,21 @@ public sealed partial class SimulationWorld
         player.SetExperimentalOffhandWeapon(specialAbilitiesEnabled
             ? ResolveGameplaySecondaryWeapon(
                 player,
-                allowSoldierShotgun: ExperimentalGameplaySettings.EnableSoldierShotgunSecondaryWeapon,
-                allowSoldierShotgunLtd: ExperimentalGameplaySettings.EnableSoldierShotgunLtdPerk)
+                allowSoldierShotgun: settings.EnableSoldierShotgunSecondaryWeapon,
+                allowSoldierShotgunLtd: settings.EnableSoldierShotgunLtdPerk)
             : null);
-        if (!ExperimentalGameplaySettings.EnableEnemyDroppedWeapons
-            || player.ClassId != PlayerClass.Soldier)
+        if (player.ClassId == PlayerClass.Soldier
+            && !settings.EnableEnemyDroppedWeapons)
         {
             player.SetAcquiredWeapon(null);
+        }
+
+        if (player.ClassId == PlayerClass.Engineer)
+        {
+            // Legacy Engineer perks alter metal capacity and alternate
+            // weapon presentation. Apply those profile-owned fields during
+            // the same synchronization pass as the rest of the loadout.
+            ApplyExperimentalEngineerPassivePlayerEffects(player);
         }
 
         ApplyNetworkPlayerMaxHealthOverride(slot, player, refillHealth: false);

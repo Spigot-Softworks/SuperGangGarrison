@@ -73,6 +73,12 @@ public partial class Game1
             Game1.ResetPracticeNavigationState();
             _game._networkClient.SendLastToDieLeave();
             _game._networkClient.Disconnect();
+            // Returning to the menu also covers hosted Last to Die network
+            // errors and the generic in-game Disconnect action. If this client
+            // owns a hidden local server, release its UDP port with the rest of
+            // the session. Dedicated terminal launches are not tracked here
+            // and therefore remain independent.
+            _game.StopHostedServer();
             _game.ClearSocialPresenceNetworkEndpoint();
             _game.ClearHostedSocialPresenceEndpoint();
             _game.ResetGameplayTransitionEffects();

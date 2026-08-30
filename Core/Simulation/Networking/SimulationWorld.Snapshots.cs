@@ -157,6 +157,10 @@ public sealed partial class SimulationWorld
             kritzCritBoostDamageMultiplier: snapshotPlayer.KritzCritBoostDamageMultiplier,
             isDispenserBuffed: snapshotPlayer.IsDispenserBuffed,
             dispenserAttackReloadSpeedMultiplier: snapshotPlayer.DispenserAttackReloadSpeedMultiplier);
+        player.HydrateNetworkRageState(
+            snapshotPlayer.RageCharge,
+            snapshotPlayer.IsRageReady,
+            snapshotPlayer.RageTicksRemaining);
         player.HydrateLastToDieSpyCloakMeter(
             snapshotPlayer.LastToDieSpyCloakMeterUnits,
             global::OpenGarrison.Core.LastToDie.LastToDieDerivedModifiers.SpyCloakMeterDurationSeconds
