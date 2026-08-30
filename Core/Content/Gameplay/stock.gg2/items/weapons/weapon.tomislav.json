@@ -1,7 +1,8 @@
 {
   "id": "weapon.tomislav",
+  "kind": "Weapon",
+  "weaponSlot": "Primary",
   "displayName": "Tomislav",
-  "slot": "Primary",
   "behaviorId": "builtin.weapon.minigun",
   "ammo": {
     "maxAmmo": 200,

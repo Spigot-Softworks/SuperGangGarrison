@@ -393,8 +393,8 @@ public partial class Game1
 
         if (player.IsSniperBowEquipped
             || player.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.Medigun)
-            || player.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.Medigun)
-            || player.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.MedigunCrit))
+            || player.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.MedigunCrit)
+            || player.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.Medigun))
         {
             // Bow charge and medic healing have dedicated presentation paths;
             // do not fake a generic recoil frame for them.

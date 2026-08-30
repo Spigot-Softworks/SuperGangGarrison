@@ -383,7 +383,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         var world = CreateJoinedDemomanWorld(new ExperimentalGameplaySettings(EnableSecondaryAbilities: false));
         AdvanceTicks(world, 1);
-        Assert.False(world.LocalPlayer.HasExperimentalOffhandWeapon);
+        Assert.True(world.LocalPlayer.HasExperimentalOffhandWeapon);
         FirePrimaryOnce(world);
         Assert.NotEmpty(world.Mines);
 
@@ -417,7 +417,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
 
         Assert.NotEmpty(world.Needles);
         Assert.False(world.LocalPlayer.IsMedicHealing);
-        AssertCoreSecondaryAbilityEvent(world, "weapon.medigun", BuiltInGameplayBehaviorIds.MedicNeedlegun);
+        AssertCoreSecondaryAbilityEvent(world, "ability.medic-needlegun", BuiltInGameplayBehaviorIds.MedicNeedlegun);
     }
 
     [Fact]
@@ -454,7 +454,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
 
         Assert.NotEmpty(world.Needles);
         Assert.False(world.LocalPlayer.IsMedicHealing);
-        AssertCoreSecondaryAbilityEvent(world, "weapon.medigun", BuiltInGameplayBehaviorIds.MedicNeedlegun);
+        AssertCoreSecondaryAbilityEvent(world, "ability.medic-needlegun", BuiltInGameplayBehaviorIds.MedicNeedlegun);
     }
 
     [Fact]
@@ -467,6 +467,10 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         MoveKritzBeamTestPlayersToOpenCombatLevel(world, enemy);
         var healthBefore = enemy.Health;
         PressSwapWeaponSpace(world);
+        Assert.True(world.LocalPlayer.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.MedigunCrit));
+        Assert.True(world.LocalPlayer.HasGameplayAbilityBehavior(
+            GameplayAbilityConstants.SpecialChannel,
+            BuiltInGameplayBehaviorIds.MedicKritzHealNeedles));
 
         var magazineCycleTicks = (18 * 5) + 45;
         for (var tick = 0; tick < magazineCycleTicks; tick += 1)
@@ -497,6 +501,10 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         teammate.ApplyContinuousDamage(50f);
         var healthBefore = teammate.Health;
         PressSwapWeaponSpace(world);
+        Assert.True(world.LocalPlayer.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.MedigunCrit));
+        Assert.True(world.LocalPlayer.HasGameplayAbilityBehavior(
+            GameplayAbilityConstants.SpecialChannel,
+            BuiltInGameplayBehaviorIds.MedicKritzHealNeedles));
 
         PressFireSecondary(world);
         AdvanceTicks(world, 20);
@@ -542,7 +550,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         Assert.Equal(teammate.Id, world.LocalPlayer.MedicHealTargetId);
         var abilityEvent = Assert.Single(world.DrainPendingGameplayAbilityEvents());
         Assert.True(abilityEvent.Handled);
-        Assert.Equal("weapon.medigun.crit", abilityEvent.ItemId);
+        Assert.Equal("ability.medic-kritz-heal-needles", abilityEvent.ItemId);
         Assert.Equal(BuiltInGameplayBehaviorIds.MedicKritzHealNeedles, abilityEvent.ExecutorId);
     }
 
@@ -2349,23 +2357,23 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     }
 
     [Fact]
-    public void SpecialAbilitiesDisabledBlocksDataDrivenSecondaryWeapons()
+    public void SpecialAbilitiesDisabledDoesNotBlockTrueSecondaryWeapons()
     {
         var world = CreateJoinedSoldierWorld(new ExperimentalGameplaySettings(
             EnableSecondaryAbilities: false,
             EnableSoldierShotgunSecondaryWeapon: true));
         AdvanceTicks(world, 1);
 
-        Assert.False(world.LocalPlayer.HasExperimentalOffhandWeapon);
+        Assert.True(world.LocalPlayer.HasExperimentalOffhandWeapon);
 
         PressSwapWeaponSpace(world);
 
-        Assert.False(world.LocalPlayer.IsExperimentalOffhandEquipped);
-        Assert.Equal(GameplayEquipmentSlot.Primary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
+        Assert.True(world.LocalPlayer.IsExperimentalOffhandEquipped);
+        Assert.Equal(GameplayEquipmentSlot.Secondary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
     }
 
     [Fact]
-    public void DisablingSpecialAbilitiesAtRuntimeResyncsExistingSecondaryWeapons()
+    public void DisablingSpecialAbilitiesAtRuntimeKeepsExistingSecondaryWeapons()
     {
         var world = CreateJoinedSoldierWorld(new ExperimentalGameplaySettings(EnableSoldierShotgunSecondaryWeapon: true));
         var networkSoldier = CreateNetworkSoldier(world, 2);
@@ -2383,10 +2391,10 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
             EnableSoldierShotgunSecondaryWeapon = false,
         });
 
-        Assert.False(world.LocalPlayer.HasExperimentalOffhandWeapon);
-        Assert.False(world.LocalPlayer.IsExperimentalOffhandEquipped);
-        Assert.False(networkSoldier.HasExperimentalOffhandWeapon);
-        Assert.False(networkSoldier.IsExperimentalOffhandEquipped);
+        Assert.True(world.LocalPlayer.HasExperimentalOffhandWeapon);
+        Assert.True(world.LocalPlayer.IsExperimentalOffhandEquipped);
+        Assert.True(networkSoldier.HasExperimentalOffhandWeapon);
+        Assert.True(networkSoldier.IsExperimentalOffhandEquipped);
     }
 
     [Fact]
@@ -2430,20 +2438,22 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         var world = CreateJoinedSniperWorld(new ExperimentalGameplaySettings());
         AdvanceTicks(world, 1);
 
-        Assert.True(world.LocalPlayer.HasExperimentalOffhandWeapon);
+        Assert.False(world.LocalPlayer.HasExperimentalOffhandWeapon);
         Assert.False(world.LocalPlayer.IsSniperBowEquipped);
 
         PressSwapWeaponSpace(world);
 
-        Assert.True(world.LocalPlayer.IsExperimentalOffhandEquipped);
+        Assert.False(world.LocalPlayer.IsExperimentalOffhandEquipped);
         Assert.True(world.LocalPlayer.IsSniperBowEquipped);
-        Assert.Equal(GameplayEquipmentSlot.Secondary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
+        Assert.Equal("weapon.bow", world.LocalPlayer.GameplayLoadoutState.PrimaryItemId);
+        Assert.Equal(GameplayEquipmentSlot.Primary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
 
         ReleaseAllInput(world);
         PressSwapWeaponSpace(world);
 
         Assert.False(world.LocalPlayer.IsExperimentalOffhandEquipped);
         Assert.False(world.LocalPlayer.IsSniperBowEquipped);
+        Assert.Equal("weapon.rifle", world.LocalPlayer.GameplayLoadoutState.PrimaryItemId);
         Assert.Equal(GameplayEquipmentSlot.Primary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
     }
 
@@ -2606,18 +2616,20 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         var player = CreateNetworkSniper(world, 2);
         AdvanceTicks(world, 1);
 
-        Assert.True(player.HasExperimentalOffhandWeapon);
+        Assert.False(player.HasExperimentalOffhandWeapon);
         Assert.False(player.IsSniperBowEquipped);
 
         PressNetworkSwapWeaponSpace(world, 2, player);
-        Assert.True(player.IsExperimentalOffhandEquipped);
+        Assert.False(player.IsExperimentalOffhandEquipped);
         Assert.True(player.IsSniperBowEquipped);
+        Assert.Equal("weapon.bow", player.GameplayLoadoutState.PrimaryItemId);
 
         ReleaseNetworkInput(world, 2);
 
         PressNetworkSwapWeaponSpace(world, 2, player);
         Assert.False(player.IsExperimentalOffhandEquipped);
         Assert.False(player.IsSniperBowEquipped);
+        Assert.Equal("weapon.rifle", player.GameplayLoadoutState.PrimaryItemId);
         Assert.Equal(GameplayEquipmentSlot.Primary, player.GameplayLoadoutState.EquippedSlot);
     }
 
@@ -2677,7 +2689,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     [Fact]
     public void SwapWeaponInputTogglesAnyClassSecondaryWeaponWithoutFiringUtility()
     {
-        var world = CreateJoinedScoutWorld(new ExperimentalGameplaySettings());
+        var world = CreateJoinedPyroWorld(new ExperimentalGameplaySettings());
         Assert.True(world.TrySetNetworkPlayerGameplaySecondaryItem(SimulationWorld.LocalPlayerSlot, "weapon.rocketlauncher"));
         AdvanceTicks(world, 1);
 
@@ -2704,16 +2716,16 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         var world = CreateJoinedMedicWorld(new ExperimentalGameplaySettings());
         AdvanceTicks(world, 1);
 
-        Assert.True(world.LocalPlayer.HasExperimentalOffhandWeapon);
+        Assert.False(world.LocalPlayer.HasExperimentalOffhandWeapon);
         Assert.False(world.LocalPlayer.IsExperimentalOffhandEquipped);
         world.LocalPlayer.FillMedicUberCharge();
 
         PressSwapWeaponSpace(world);
 
         Assert.False(world.LocalPlayer.IsMedicUbering);
-        Assert.True(world.LocalPlayer.IsExperimentalOffhandEquipped);
-        Assert.Equal(GameplayEquipmentSlot.Secondary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
-        Assert.True(world.LocalPlayer.HasEquippedBehavior(BuiltInGameplayBehaviorIds.MedigunCrit));
+        Assert.False(world.LocalPlayer.IsExperimentalOffhandEquipped);
+        Assert.Equal(GameplayEquipmentSlot.Primary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
+        Assert.True(world.LocalPlayer.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.MedigunCrit));
     }
 
     [Fact]
@@ -2742,14 +2754,16 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         world.LocalPlayer.FillMedicUberCharge();
         Assert.True(world.LocalPlayer.TryStartMedicUber());
         Assert.True(world.LocalPlayer.IsMedicUbering);
-        Assert.True(world.LocalPlayer.IsExperimentalOffhandEquipped);
-        Assert.Equal(GameplayEquipmentSlot.Secondary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
+        Assert.False(world.LocalPlayer.IsExperimentalOffhandEquipped);
+        Assert.True(world.LocalPlayer.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.MedigunCrit));
+        Assert.Equal(GameplayEquipmentSlot.Primary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
 
         PressSwapWeaponSpace(world);
 
         Assert.True(world.LocalPlayer.IsMedicUbering);
-        Assert.True(world.LocalPlayer.IsExperimentalOffhandEquipped);
-        Assert.Equal(GameplayEquipmentSlot.Secondary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
+        Assert.False(world.LocalPlayer.IsExperimentalOffhandEquipped);
+        Assert.True(world.LocalPlayer.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.MedigunCrit));
+        Assert.Equal(GameplayEquipmentSlot.Primary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
     }
 
     [Fact]
@@ -2764,7 +2778,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         Assert.False(world.LocalPlayer.IsMedicHealing);
         Assert.False(world.LocalPlayer.IsExperimentalOffhandEquipped);
         Assert.Equal(GameplayEquipmentSlot.Primary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
-        AssertCoreSecondaryAbilityEvent(world, "weapon.medigun", BuiltInGameplayBehaviorIds.MedicNeedlegun);
+        AssertCoreSecondaryAbilityEvent(world, "ability.medic-needlegun", BuiltInGameplayBehaviorIds.MedicNeedlegun);
     }
 
     [Fact]
@@ -3739,7 +3753,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         // Locked-primary weapon tests model Last to Die's post-death interaction state;
         // normal gameplay still requires the player to be at a primary swap station.
-        if (world.LocalPlayer.IsLockedPrimaryWeaponClass)
+        if (world.LocalPlayer.HasAlternatePrimaryWeapons)
         {
             Assert.True(world.TrySetNetworkPlayerAutomaticRespawnSuppressed(SimulationWorld.LocalPlayerSlot, suppressed: true));
         }
@@ -3948,7 +3962,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
 
     private static void PressNetworkSwapWeaponSpace(SimulationWorld world, byte slot, PlayerEntity player)
     {
-        if (player.IsLockedPrimaryWeaponClass)
+        if (player.HasAlternatePrimaryWeapons)
         {
             Assert.True(world.TrySetNetworkPlayerAutomaticRespawnSuppressed(slot, suppressed: true));
         }

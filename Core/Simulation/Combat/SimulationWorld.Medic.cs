@@ -37,7 +37,8 @@ public sealed partial class SimulationWorld
 
     private void UpdateMedicHealing(PlayerEntity medic, float aimWorldX, float aimWorldY)
     {
-        if (!medic.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.Medigun))
+        if (!medic.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.Medigun)
+            && !medic.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.MedigunCrit))
         {
             return;
         }
@@ -124,7 +125,7 @@ public sealed partial class SimulationWorld
         float damagePerSecond = MedicKritzBeamDefaultDamagePerSecond,
         float chargePerTick = MedicKritzBeamDefaultChargePerTick)
     {
-        if (medic.ClassId != PlayerClass.Medic || !medic.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.MedigunCrit))
+        if (medic.ClassId != PlayerClass.Medic || !medic.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.MedigunCrit))
         {
             return false;
         }
@@ -271,7 +272,7 @@ public sealed partial class SimulationWorld
                 IsAlive: true,
                 ClassId: PlayerClass.Medic,
             }
-            || !medic.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.MedigunCrit)
+            || !medic.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.MedigunCrit)
             || medic.Team != needle.Team)
         {
             return;

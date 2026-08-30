@@ -146,13 +146,17 @@ public sealed partial class PlayerEntity : SimulationEntity
     private const int ChatBubbleHoldTicks = 60;
     private const float ChatBubbleFadePerTick = 0.05f;
     private float _playerScale = 1f;
+    private PrimaryWeaponDefinition? _selectedGameplayPrimaryWeapon;
 
     public PlayerEntity(int id, CharacterClassDefinition classDefinition, string? displayName = null) : base(id)
     {
         ClassDefinition = classDefinition;
         DisplayName = SanitizeDisplayName(displayName);
         FacingDirectionX = 1f;
-        SelectedGameplayLoadoutId = CharacterClassCatalog.RuntimeRegistry.GetDefaultLoadout(GameplayClassId).Id;
+        var defaultLoadout = CharacterClassCatalog.RuntimeRegistry.GetDefaultLoadout(GameplayClassId);
+        SelectedGameplayLoadoutId = defaultLoadout.Id;
+        SelectedGameplayPrimaryItemId = defaultLoadout.Primary?.DefaultItemId ?? defaultLoadout.PrimaryItemId;
+        RefreshSelectedGameplayPrimaryWeapon();
         SelectedGameplayEquippedSlot = GameplayEquipmentSlot.Primary;
         GameplayLoadoutState = CreateGameplayLoadoutState();
     }
@@ -180,6 +184,8 @@ public sealed partial class PlayerEntity : SimulationEntity
     public GameplayPlayerLoadoutState GameplayLoadoutState { get; private set; }
 
     public string SelectedGameplayLoadoutId { get; private set; }
+
+    public string SelectedGameplayPrimaryItemId { get; private set; }
 
     public GameplayEquipmentSlot SelectedGameplayEquippedSlot { get; private set; }
 
@@ -257,6 +263,7 @@ public sealed partial class PlayerEntity : SimulationEntity
     public PrimaryWeaponDefinition PrimaryWeapon =>
         LastToDiePrimaryWeaponOverride
         ?? ExperimentalPrimaryWeaponOverride
+        ?? _selectedGameplayPrimaryWeapon
         ?? ClassDefinition.PrimaryWeapon;
     public float AimWorldX { get; private set; }
 
@@ -335,7 +342,12 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     public string? SecondaryBehaviorId => GetBehaviorIdFromItem(GameplayLoadoutState.SecondaryItemId);
 
-    public string? UtilityBehaviorId => GetBehaviorIdFromItem(GameplayLoadoutState.UtilityItemId);
+    public string? SpecialAbilityBehaviorId => GetFirstGameplayAbilityBehaviorId(GameplayAbilityConstants.SpecialChannel);
+
+    public string? UtilityAbilityBehaviorId => GetFirstGameplayAbilityBehaviorId(GameplayAbilityConstants.UtilityChannel);
+
+    public string? UtilityBehaviorId => GetBehaviorIdFromItem(GameplayLoadoutState.UtilityItemId)
+        ?? UtilityAbilityBehaviorId;
 
     public string? EquippedBehaviorId => GetBehaviorIdFromItem(GameplayLoadoutState.EquippedItemId);
 
@@ -448,20 +460,19 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     public float DispenserAttackReloadSpeedMultiplier { get; private set; } = 1f;
 
-    public bool IsLockedPrimaryWeaponClass =>
-        ClassId is PlayerClass.Scout or PlayerClass.Sniper or PlayerClass.Medic
-        && IsLockedPrimaryWeaponItem;
-
-    private bool IsLockedPrimaryWeaponItem
-    {
-        get
+    public bool HasAlternatePrimaryWeapons =>
+        CharacterClassCatalog.RuntimeRegistry.TryGetLoadout(
+            GameplayClassId,
+            SelectedGameplayLoadoutId,
+            out var loadout)
+        && loadout.Primary is
         {
-            var itemId = GameplayLoadoutState.SecondaryItemId;
-            return string.Equals(itemId, "weapon.bow", StringComparison.Ordinal)
-                || string.Equals(itemId, "weapon.medigun.crit", StringComparison.Ordinal)
-                || string.Equals(itemId, "weapon.scout-nailgun", StringComparison.Ordinal);
-        }
-    }
+            ItemIds.Count: > 1,
+            SwitchPolicy: GameplayLoadoutPolicies.PrimarySwapStation,
+        };
+
+    [Obsolete("Use HasAlternatePrimaryWeapons. Alternate primaries are no longer represented by a secondary slot.")]
+    public bool IsLockedPrimaryWeaponClass => HasAlternatePrimaryWeapons;
 
     public void SetDispenserBuffed(bool enabled, float attackReloadSpeedMultiplier = 1f)
     {
@@ -915,9 +926,6 @@ public sealed partial class PlayerEntity : SimulationEntity
                 ClassDefinition.GameplayClassId,
                 classDefinition.GameplayClassId,
                 StringComparison.Ordinal);
-        var preserveLockedAlternateSelection = !classChanged
-            && IsLockedPrimaryWeaponClass
-            && SelectedGameplayEquippedSlot == GameplayEquipmentSlot.Secondary;
         CancelLastToDieSniperVolley();
         ResetLastToDieSpyInfiltrateDynamicState();
         NetworkMaxHealthOverrideValue = null;
@@ -925,7 +933,10 @@ public sealed partial class PlayerEntity : SimulationEntity
         RefreshLastToDieWeaponOverrideForClassDefinition();
         if (classChanged)
         {
-            SelectedGameplayLoadoutId = CharacterClassCatalog.RuntimeRegistry.GetDefaultLoadout(GameplayClassId).Id;
+            var defaultLoadout = CharacterClassCatalog.RuntimeRegistry.GetDefaultLoadout(GameplayClassId);
+            SelectedGameplayLoadoutId = defaultLoadout.Id;
+            SelectedGameplayPrimaryItemId = defaultLoadout.Primary?.DefaultItemId ?? defaultLoadout.PrimaryItemId;
+            RefreshSelectedGameplayPrimaryWeapon();
             SelectedGameplayEquippedSlot = GameplayEquipmentSlot.Primary;
             SetExperimentalOffhandWeapon(null);
         }
@@ -941,10 +952,6 @@ public sealed partial class PlayerEntity : SimulationEntity
         else
         {
             ResetAcquiredWeaponRuntimeState(refillAmmo: false);
-        }
-        if (preserveLockedAlternateSelection)
-        {
-            SelectedGameplayEquippedSlot = GameplayEquipmentSlot.Secondary;
         }
         ResetExperimentalPowerRuntimeState();
         IntelRechargeTicks = 0f;
@@ -967,17 +974,9 @@ public sealed partial class PlayerEntity : SimulationEntity
         IsGrounded = false;
         IsCarryingIntel = false;
         IntelRechargeTicks = 0f;
-        var preserveLockedAlternateSelection = IsLockedPrimaryWeaponClass
-            && SelectedGameplayEquippedSlot == GameplayEquipmentSlot.Secondary;
-        // Clear acquired/drop equipment while the remembered locked-primary
-        // selection is still represented by the offhand flag. SetAcquiredWeapon
-        // otherwise falls back to Primary when it sees neither equipped flag.
         SetAcquiredWeapon(null);
         ResetExperimentalOffhandRuntimeState(refillAmmo: false);
-        if (!preserveLockedAlternateSelection)
-        {
-            SelectedGameplayEquippedSlot = GameplayEquipmentSlot.Primary;
-        }
+        SelectedGameplayEquippedSlot = GameplayEquipmentSlot.Primary;
         ResetExperimentalPowerRuntimeState();
         ResetTransientState(
             pyroFlareCooldownTicks: 0,
@@ -1268,13 +1267,7 @@ public sealed partial class PlayerEntity : SimulationEntity
         ExperimentalOffhandReloadTicksUntilNextShell = refillAmmo
             ? 0
             : Math.Max(0, ExperimentalOffhandReloadTicksUntilNextShell);
-        // A locked alternate primary is a class/loadout choice, not a dropped
-        // weapon. Keep its selected slot through death and restore the runtime
-        // equipped flag on the next same-class/loadout Spawn. Normal offhands
-        // and acquired weapons never satisfy this predicate.
-        IsExperimentalOffhandEquipped = refillAmmo
-            && IsLockedPrimaryWeaponClass
-            && SelectedGameplayEquippedSlot == GameplayEquipmentSlot.Secondary;
+        IsExperimentalOffhandEquipped = false;
     }
 
     private void ResetAcquiredWeaponRuntimeState(bool refillAmmo)
@@ -1327,9 +1320,7 @@ public sealed partial class PlayerEntity : SimulationEntity
         }
         else if (IsExperimentalOffhandEquipped)
         {
-            equippedSlot = secondaryItemId is not null
-                ? GameplayEquipmentSlot.Secondary
-                : GameplayEquipmentSlot.Utility;
+            equippedSlot = GameplayEquipmentSlot.Secondary;
         }
         else
         {
@@ -1341,31 +1332,48 @@ public sealed partial class PlayerEntity : SimulationEntity
             SelectedGameplayLoadoutId,
             equippedSlot,
             secondaryItemOverrideId: secondaryItemId,
-            acquiredItemId: acquiredItemId);
+            acquiredItemId: acquiredItemId,
+            selectedPrimaryItemId: SelectedGameplayPrimaryItemId);
 
         // Acquired weapons and a normal secondary weapon share the Secondary slot
         // in the replicated loadout schema. The registry cannot infer which one is
         // actually selected, so keep EquippedItemId aligned with the runtime flag.
         if (!IsAcquiredWeaponEquipped && IsExperimentalOffhandEquipped)
         {
-            var equippedOffhandItemId = equippedSlot switch
-            {
-                GameplayEquipmentSlot.Secondary => secondaryItemId,
-                GameplayEquipmentSlot.Utility => loadoutState.UtilityItemId,
-                _ => null,
-            };
-
-            if (!string.IsNullOrWhiteSpace(equippedOffhandItemId))
+            if (!string.IsNullOrWhiteSpace(secondaryItemId))
             {
                 loadoutState = loadoutState with
                 {
-                    EquippedSlot = equippedSlot,
-                    EquippedItemId = equippedOffhandItemId,
+                    EquippedSlot = GameplayEquipmentSlot.Secondary,
+                    EquippedItemId = secondaryItemId,
                 };
             }
         }
 
         return loadoutState;
+    }
+
+    private void RefreshSelectedGameplayPrimaryWeapon()
+    {
+        var runtimeRegistry = CharacterClassCatalog.RuntimeRegistry;
+        if (!runtimeRegistry.CanUsePrimaryItem(
+                GameplayClassId,
+                SelectedGameplayLoadoutId,
+                SelectedGameplayPrimaryItemId))
+        {
+            var loadout = runtimeRegistry.TryGetLoadout(GameplayClassId, SelectedGameplayLoadoutId, out var selectedLoadout)
+                ? selectedLoadout
+                : runtimeRegistry.GetDefaultLoadout(GameplayClassId);
+            SelectedGameplayPrimaryItemId = loadout.Primary?.DefaultItemId ?? loadout.PrimaryItemId;
+        }
+
+        _selectedGameplayPrimaryWeapon = runtimeRegistry.TryGetItem(
+                SelectedGameplayPrimaryItemId,
+                out var item)
+            && item.Kind == GameplayItemKind.Weapon
+            && item.WeaponSlot == GameplayWeaponSlot.Primary
+                ? runtimeRegistry.CreatePrimaryWeaponDefinition(item)
+                : null;
     }
 
     private static string? ResolveRegisteredWeaponItemId(PrimaryWeaponDefinition? weaponDefinition)
@@ -1397,12 +1405,14 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     public bool HasSecondaryBehavior(string behaviorId)
     {
-        return string.Equals(SecondaryBehaviorId, behaviorId, StringComparison.Ordinal);
+        return string.Equals(SecondaryBehaviorId, behaviorId, StringComparison.Ordinal)
+            || HasGameplayAbilityBehavior(GameplayAbilityConstants.SpecialChannel, behaviorId);
     }
 
     public bool HasUtilityBehavior(string behaviorId)
     {
-        return string.Equals(UtilityBehaviorId, behaviorId, StringComparison.Ordinal);
+        return string.Equals(GetBehaviorIdFromItem(GameplayLoadoutState.UtilityItemId), behaviorId, StringComparison.Ordinal)
+            || HasGameplayAbilityBehavior(GameplayAbilityConstants.UtilityChannel, behaviorId);
     }
 
     public bool HasEquippedBehavior(string behaviorId)
@@ -1421,6 +1431,125 @@ public sealed partial class PlayerEntity : SimulationEntity
             || HasSecondaryBehavior(behaviorId)
             || HasUtilityBehavior(behaviorId)
             || HasAcquiredBehavior(behaviorId);
+    }
+
+    public bool HasGameplayAbilityBehavior(string channel, string behaviorId)
+    {
+        if (string.IsNullOrWhiteSpace(channel) || string.IsNullOrWhiteSpace(behaviorId))
+        {
+            return false;
+        }
+
+        foreach (var abilityItem in EnumerateGameplayAbilityItems())
+        {
+            if (abilityItem.Ability is { } ability
+                && string.Equals(ability.Channel, channel, StringComparison.Ordinal)
+                && string.Equals(abilityItem.BehaviorId, behaviorId, StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public IReadOnlyList<GameplayItemDefinition> GetGameplayAbilityItems()
+    {
+        return EnumerateGameplayAbilityItems().ToArray();
+    }
+
+    public bool TryGetGameplayAbilityItem(
+        string channel,
+        string behaviorId,
+        out GameplayItemDefinition item)
+    {
+        foreach (var abilityItem in EnumerateGameplayAbilityItems())
+        {
+            if (abilityItem.Ability is { } ability
+                && string.Equals(ability.Channel, channel, StringComparison.Ordinal)
+                && string.Equals(abilityItem.BehaviorId, behaviorId, StringComparison.Ordinal))
+            {
+                item = abilityItem;
+                return true;
+            }
+        }
+
+        item = null!;
+        return false;
+    }
+
+    private string? GetFirstGameplayAbilityBehaviorId(string channel)
+    {
+        foreach (var abilityItem in EnumerateGameplayAbilityItems())
+        {
+            if (abilityItem.Ability is { } ability
+                && string.Equals(ability.Channel, channel, StringComparison.Ordinal))
+            {
+                return abilityItem.BehaviorId;
+            }
+        }
+
+        return null;
+    }
+
+    private IEnumerable<GameplayItemDefinition> EnumerateGameplayAbilityItems()
+    {
+        var runtimeRegistry = CharacterClassCatalog.RuntimeRegistry;
+        var seenItemIds = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var abilityItemId in GameplayLoadoutState.AbilityItemIds ?? [])
+        {
+            if (TryResolveAbilityItem(abilityItemId, runtimeRegistry, seenItemIds, out var abilityItem))
+            {
+                yield return abilityItem;
+            }
+        }
+
+        var weaponItemIds = new[]
+        {
+            GameplayLoadoutState.PrimaryItemId,
+            GameplayLoadoutState.SecondaryItemId,
+            GameplayLoadoutState.AcquiredItemId,
+            GameplayLoadoutState.EquippedItemId,
+        };
+        foreach (var weaponItemId in weaponItemIds)
+        {
+            if (string.IsNullOrWhiteSpace(weaponItemId)
+                || !runtimeRegistry.TryGetItem(weaponItemId, out var weaponItem))
+            {
+                continue;
+            }
+
+            if (weaponItem.Ability is not null && seenItemIds.Add(weaponItem.Id))
+            {
+                yield return weaponItem;
+            }
+
+            foreach (var abilityItemId in weaponItem.GrantedAbilityItemIds)
+            {
+                if (TryResolveAbilityItem(abilityItemId, runtimeRegistry, seenItemIds, out var abilityItem))
+                {
+                    yield return abilityItem;
+                }
+            }
+        }
+    }
+
+    private static bool TryResolveAbilityItem(
+        string? itemId,
+        GameplayRuntimeRegistry runtimeRegistry,
+        HashSet<string> seenItemIds,
+        out GameplayItemDefinition item)
+    {
+        if (!string.IsNullOrWhiteSpace(itemId)
+            && seenItemIds.Add(itemId)
+            && runtimeRegistry.TryGetGameplayAbilityDefinition(itemId, out item, out _))
+        {
+            return true;
+        }
+
+        item = null!;
+        return false;
     }
 
     public bool OwnsGameplayItem(string? itemId)

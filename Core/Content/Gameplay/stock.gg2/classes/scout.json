@@ -33,10 +33,13 @@
     "scout.stock": {
       "id": "scout.stock",
       "displayName": "Stock",
-      "primaryItemId": "weapon.scattergun",
-      "secondaryItemId": "weapon.scout-nailgun",
-      "utilityItemId": "ability.scout-nailgun-utility",
-      "abilityItemIds": [ "ability.experimental-ltd-passive" ]
+      "primary": {
+        "defaultItemId": "weapon.scattergun",
+        "itemIds": [ "weapon.scattergun", "weapon.scout-nailgun" ],
+        "switchPolicy": "primary_swap_station",
+        "selectionPersistence": "same_class_loadout"
+      },
+      "abilities": [ "ability.experimental-ltd-passive" ]
     }
   },
   "defaultLoadoutId": "scout.stock"

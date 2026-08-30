@@ -300,17 +300,17 @@ public sealed partial class PlayerEntity
             MedicNeedleRefillTicks,
             oldSpeedMultiplier,
             newSpeedMultiplier);
-        if (!HasSecondaryBehavior(global::OpenGarrison.GameplayModding.BuiltInGameplayBehaviorIds.MedigunCrit))
+        if (!HasPrimaryBehavior(global::OpenGarrison.GameplayModding.BuiltInGameplayBehaviorIds.MedigunCrit))
         {
             return;
         }
 
-        ExperimentalOffhandCooldownTicks = RescaleLastToDieMedicLinkWeaponTimer(
-            ExperimentalOffhandCooldownTicks,
+        PrimaryCooldownTicks = RescaleLastToDieMedicLinkWeaponTimer(
+            PrimaryCooldownTicks,
             oldSpeedMultiplier,
             newSpeedMultiplier);
-        ExperimentalOffhandReloadTicksUntilNextShell = RescaleLastToDieMedicLinkWeaponTimer(
-            ExperimentalOffhandReloadTicksUntilNextShell,
+        ReloadTicksUntilNextShell = RescaleLastToDieMedicLinkWeaponTimer(
+            ReloadTicksUntilNextShell,
             oldSpeedMultiplier,
             newSpeedMultiplier);
     }

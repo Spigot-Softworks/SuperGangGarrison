@@ -1,10 +1,11 @@
 {
   "id": "ability.spy-cloak",
+  "kind": "Ability",
   "displayName": "Invisibility Watch",
-  "slot": "Secondary",
   "behaviorId": "builtin.ability.spy_cloak",
   "ability": {
     "category": "secondary",
+    "channel": "special",
     "activation": "pressed",
     "executorId": "builtin.ability.spy_cloak",
     "tags": [ "core_m2", "cloak", "toggle" ]

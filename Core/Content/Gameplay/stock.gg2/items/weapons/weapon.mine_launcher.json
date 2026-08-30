@@ -1,7 +1,8 @@
 {
   "id": "weapon.minelauncher",
+  "kind": "Weapon",
+  "weaponSlot": "Primary",
   "displayName": "Mine Launcher",
-  "slot": "Primary",
   "behaviorId": "builtin.weapon.mine_launcher",
   "ammo": {
     "maxAmmo": 8,

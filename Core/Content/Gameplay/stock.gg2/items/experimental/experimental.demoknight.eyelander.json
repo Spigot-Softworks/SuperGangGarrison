@@ -1,7 +1,8 @@
 {
   "id": "weapon.experimental-demoknight-eyelander",
+  "kind": "Weapon",
+  "weaponSlot": "Primary",
   "displayName": "Eyelander",
-  "slot": "Primary",
   "behaviorId": "builtin.weapon.blade",
   "ammo": {
     "maxAmmo": 100,

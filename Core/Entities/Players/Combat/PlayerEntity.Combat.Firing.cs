@@ -151,19 +151,18 @@ public sealed partial class PlayerEntity
         int refillTicks = MedicNeedleRefillTicksDefault)
     {
         var ignoreAmmoCost = HasInfiniteAmmoFromUber;
-        var weaponDefinition = ExperimentalOffhandWeapon;
-        if (weaponDefinition is null
-            || !IsAlive
+        var weaponDefinition = PrimaryWeapon;
+        if (!IsAlive
             || ClassId != PlayerClass.Medic
-            || !HasSecondaryBehavior(BuiltInGameplayBehaviorIds.MedigunCrit)
-            || !IsExperimentalOffhandEquipped
+            || !HasPrimaryBehavior(BuiltInGameplayBehaviorIds.MedigunCrit)
+            || GameplayLoadoutState.EquippedSlot != GameplayEquipmentSlot.Primary
             || IsHeavyEating
             || IsTaunting
             || IsCivviePogoActive
             || IsSpyCloaked
             || IsExperimentalCryoFrozen
-            || ExperimentalOffhandCooldownTicks > 0
-            || (!ignoreAmmoCost && ExperimentalOffhandCurrentShells <= 0))
+            || PrimaryCooldownTicks > 0
+            || (!ignoreAmmoCost && CurrentShells <= 0))
         {
             return false;
         }
@@ -175,12 +174,12 @@ public sealed partial class PlayerEntity
 
         if (!ignoreAmmoCost)
         {
-            ExperimentalOffhandCurrentShells -= 1;
+            CurrentShells -= 1;
         }
 
-        ExperimentalOffhandCooldownTicks = ApplyLastToDieMedicNeedleWeaponCycleMultiplier(
+        PrimaryCooldownTicks = ApplyLastToDieMedicNeedleWeaponCycleMultiplier(
             Math.Max(1, fireCooldownTicks));
-        ExperimentalOffhandReloadTicksUntilNextShell = ApplyLastToDieMedicNeedleReloadMultiplier(
+        ReloadTicksUntilNextShell = ApplyLastToDieMedicNeedleReloadMultiplier(
             Math.Max(1, refillTicks));
         return true;
     }

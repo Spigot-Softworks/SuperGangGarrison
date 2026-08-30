@@ -1,10 +1,11 @@
 {
   "id": "ability.heavy-sandvich",
+  "kind": "Ability",
   "displayName": "Sandvich",
-  "slot": "Secondary",
   "behaviorId": "builtin.ability.heavy_sandvich",
   "ability": {
     "category": "secondary",
+    "channel": "special",
     "activation": "pressed",
     "executorId": "builtin.ability.heavy_sandvich",
     "tags": [ "core_m2", "heal", "cooldown" ],

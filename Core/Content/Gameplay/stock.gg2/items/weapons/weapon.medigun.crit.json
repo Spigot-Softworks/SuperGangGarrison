@@ -1,7 +1,9 @@
 {
   "id": "weapon.medigun.crit",
+  "kind": "Weapon",
+  "weaponSlot": "Primary",
+  "grantedAbilityItemIds": [ "ability.medic-kritz-heal-needles" ],
   "displayName": "Kritz Kraze",
-  "slot": "Secondary",
   "behaviorId": "builtin.weapon.medigun.crit",
   "ammo": {
     "maxAmmo": 6,
@@ -15,16 +17,6 @@
     "autoReloads": false,
     "ammoRegenPerTick": 0,
     "refillsAllAtOnce": false
-  },
-  "ability": {
-    "category": "secondary",
-    "activation": "held",
-    "executorId": "builtin.ability.medic_kritz_heal_needles",
-    "tags": [ "core_m2", "projectile", "heal", "charge" ],
-    "parameters": {
-      "healPerHit": 30,
-      "enemyDamagePerHit": 22
-    }
   },
   "presentation": {
     "worldSpriteName": "MedigunCritS",

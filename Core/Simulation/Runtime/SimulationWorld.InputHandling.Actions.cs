@@ -71,11 +71,11 @@ public sealed partial class SimulationWorld
         if (!input.FirePrimary && previousInput.FirePrimary)
         {
             if (player.TryReleaseSniperBowCharge(out var velocityX, out var velocityY, out var damage, out var fakeSpeedMultiplier)
-                && player.TryFireExperimentalOffhandWeapon())
+                && player.TryFirePrimaryWeapon())
             {
                 WeaponHandler.FireSniperBow(
                     player,
-                    player.ExperimentalOffhandWeapon!,
+                    player.PrimaryWeapon,
                     input.AimWorldX,
                     input.AimWorldY,
                     velocityX,
@@ -114,11 +114,6 @@ public sealed partial class SimulationWorld
         if (TryHandleExperimentalEngineerBeamPrimaryFire(player, input))
         {
             return true;
-        }
-
-        if (player.IsSniperBowEquipped)
-        {
-            return input.FirePrimary;
         }
 
         if (!input.FirePrimary
@@ -223,7 +218,8 @@ public sealed partial class SimulationWorld
             return true;
         }
 
-        if (player.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.Medigun))
+        if (player.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.Medigun)
+            || player.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.MedigunCrit))
         {
             if (input.FirePrimary)
             {
@@ -410,18 +406,19 @@ public sealed partial class SimulationWorld
 
     private bool TryHandleNetworkWeaponSwap(PlayerEntity player)
     {
-        if (!ExperimentalGameplaySettings.EnableSecondaryAbilities
-            || player.IsTaunting
+        if (player.IsTaunting
             || player.IsExperimentalCryoFrozen)
         {
             return false;
         }
 
-        if (player.IsLockedPrimaryWeaponClass
-            && !IsNetworkPlayerAutomaticRespawnSuppressed(player)
-            && !IsNearPrimaryWeaponSwapStation(player))
+        if (player.HasAlternatePrimaryWeapons)
         {
-            return false;
+            if (IsNetworkPlayerAutomaticRespawnSuppressed(player)
+                || IsNearPrimaryWeaponSwapStation(player))
+            {
+                return player.TryCycleGameplayPrimaryItem();
+            }
         }
 
         return TryHandleSecondaryWeaponToggle(player);
@@ -515,7 +512,7 @@ public sealed partial class SimulationWorld
 
         // These three primary-weapon users do not have a spacebar ability yet.
         // Their weapon swap is handled separately and remains station-gated.
-        if (player.IsLockedPrimaryWeaponClass)
+        if (player.HasAlternatePrimaryWeapons)
         {
             return true;
         }
@@ -680,11 +677,18 @@ public sealed partial class SimulationWorld
                 && player.IsExperimentalDemoknightEnabled);
     }
 
-    private static bool ShouldUseHeldUtilityAbility(PlayerEntity player)
+    private bool ShouldUseHeldUtilityAbility(PlayerEntity player)
     {
-        var runtimeRegistry = CharacterClassCatalog.RuntimeRegistry;
-        return runtimeRegistry.TryGetGameplayAbilityDefinition(player.GameplayLoadoutState.UtilityItemId, out _, out var ability)
-            && string.Equals(ability.Activation, GameplayAbilityConstants.HeldActivation, StringComparison.Ordinal);
+        foreach (var item in ResolveGameplayAbilityItems(player, GameplayAbilityConstants.UtilityChannel))
+        {
+            if (item.Ability is { } ability
+                && string.Equals(ability.Activation, GameplayAbilityConstants.HeldActivation, StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private void TryActivatePendingSpyBackstab(PlayerEntity player)

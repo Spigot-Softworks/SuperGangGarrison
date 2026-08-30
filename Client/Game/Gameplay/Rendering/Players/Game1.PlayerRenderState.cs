@@ -845,32 +845,16 @@ public partial class Game1
 
         if (ShouldPresentExperimentalScoutNailgun(player))
         {
-            if (IsUsingPredictedLocalState(player))
-            {
-                return _predictedLocalActionState.ExperimentalOffhandCurrentShells;
-            }
-
-            if (player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, ScoutNailgunAmmoKey, out var replicatedAmmo))
-            {
-                return Math.Max(0, replicatedAmmo);
-            }
-
-            return player.ExperimentalOffhandCurrentShells;
+            return IsUsingPredictedLocalState(player)
+                ? _predictedLocalActionState.CurrentShells
+                : player.CurrentShells;
         }
 
         if (ShouldPresentSniperBow(player))
         {
-            if (IsUsingPredictedLocalState(player))
-            {
-                return _predictedLocalActionState.ExperimentalOffhandCurrentShells;
-            }
-
-            if (player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, SniperBowAmmoKey, out var replicatedAmmo))
-            {
-                return Math.Max(0, replicatedAmmo);
-            }
-
-            return player.ExperimentalOffhandCurrentShells;
+            return IsUsingPredictedLocalState(player)
+                ? _predictedLocalActionState.CurrentShells
+                : player.CurrentShells;
         }
 
         if (ShouldPresentExperimentalDemomanGrenadeLauncher(player))
@@ -887,17 +871,9 @@ public partial class Game1
 
         if (ShouldPresentExperimentalMedicKritzHealNeedles(player))
         {
-            if (IsUsingPredictedLocalState(player))
-            {
-                return _predictedLocalActionState.ExperimentalOffhandCurrentShells;
-            }
-
-            if (player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, MedicKritzAmmoKey, out var replicatedAmmo))
-            {
-                return Math.Max(0, replicatedAmmo);
-            }
-
-            return player.ExperimentalOffhandCurrentShells;
+            return IsUsingPredictedLocalState(player)
+                ? _predictedLocalActionState.CurrentShells
+                : player.CurrentShells;
         }
 
         return _networkClient.IsConnected
@@ -927,15 +903,15 @@ public partial class Game1
         if (ShouldPresentExperimentalScoutNailgun(player))
         {
             return IsUsingPredictedLocalState(player)
-                ? _predictedLocalActionState.ExperimentalOffhandCooldownTicks
-                : player.ExperimentalOffhandCooldownTicks;
+                ? _predictedLocalActionState.PrimaryCooldownTicks
+                : player.PrimaryCooldownTicks;
         }
 
         if (ShouldPresentSniperBow(player))
         {
             return IsUsingPredictedLocalState(player)
-                ? _predictedLocalActionState.ExperimentalOffhandCooldownTicks
-                : player.ExperimentalOffhandCooldownTicks;
+                ? _predictedLocalActionState.PrimaryCooldownTicks
+                : player.PrimaryCooldownTicks;
         }
 
         if (ShouldPresentExperimentalDemomanGrenadeLauncher(player))
@@ -948,8 +924,8 @@ public partial class Game1
         if (ShouldPresentExperimentalMedicKritzHealNeedles(player))
         {
             return IsUsingPredictedLocalState(player)
-                ? _predictedLocalActionState.ExperimentalOffhandCooldownTicks
-                : player.ExperimentalOffhandCooldownTicks;
+                ? _predictedLocalActionState.PrimaryCooldownTicks
+                : player.PrimaryCooldownTicks;
         }
 
         if (_networkClient.IsConnected
@@ -991,15 +967,15 @@ public partial class Game1
         if (ShouldPresentExperimentalScoutNailgun(player))
         {
             return IsUsingPredictedLocalState(player)
-                ? _predictedLocalActionState.ExperimentalOffhandReloadTicksUntilNextShell
-                : player.ExperimentalOffhandReloadTicksUntilNextShell;
+                ? _predictedLocalActionState.ReloadTicksUntilNextShell
+                : player.ReloadTicksUntilNextShell;
         }
 
         if (ShouldPresentSniperBow(player))
         {
             return IsUsingPredictedLocalState(player)
-                ? _predictedLocalActionState.ExperimentalOffhandReloadTicksUntilNextShell
-                : player.ExperimentalOffhandReloadTicksUntilNextShell;
+                ? _predictedLocalActionState.ReloadTicksUntilNextShell
+                : player.ReloadTicksUntilNextShell;
         }
 
         if (ShouldPresentExperimentalDemomanGrenadeLauncher(player))
@@ -1012,8 +988,8 @@ public partial class Game1
         if (ShouldPresentExperimentalMedicKritzHealNeedles(player))
         {
             return IsUsingPredictedLocalState(player)
-                ? _predictedLocalActionState.ExperimentalOffhandReloadTicksUntilNextShell
-                : player.ExperimentalOffhandReloadTicksUntilNextShell;
+                ? _predictedLocalActionState.ReloadTicksUntilNextShell
+                : player.ReloadTicksUntilNextShell;
         }
 
         if (_networkClient.IsConnected
@@ -1052,16 +1028,12 @@ public partial class Game1
 
         if (ShouldPresentExperimentalScoutNailgun(player))
         {
-            return player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, ScoutNailgunMaxAmmoKey, out var replicatedMaxAmmo)
-                ? Math.Max(1, replicatedMaxAmmo)
-                : player.ExperimentalOffhandMaxShells;
+            return player.MaxShells;
         }
 
         if (ShouldPresentSniperBow(player))
         {
-            return player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, SniperBowMaxAmmoKey, out var replicatedMaxAmmo)
-                ? Math.Max(1, replicatedMaxAmmo)
-                : player.ExperimentalOffhandMaxShells;
+            return player.MaxShells;
         }
 
         if (ShouldPresentExperimentalDemomanGrenadeLauncher(player))
@@ -1073,9 +1045,7 @@ public partial class Game1
 
         if (ShouldPresentExperimentalMedicKritzHealNeedles(player))
         {
-            return player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, MedicKritzMaxAmmoKey, out var replicatedMaxAmmo)
-                ? Math.Max(1, replicatedMaxAmmo)
-                : Math.Max(1, player.ExperimentalOffhandMaxShells);
+            return player.MaxShells;
         }
 
         return player.MaxShells;
@@ -1105,12 +1075,12 @@ public partial class Game1
 
         if (ShouldPresentExperimentalScoutNailgun(player))
         {
-            return player.ExperimentalOffhandWeapon ?? player.PrimaryWeapon;
+            return player.PrimaryWeapon;
         }
 
         if (ShouldPresentSniperBow(player))
         {
-            return player.ExperimentalOffhandWeapon ?? player.PrimaryWeapon;
+            return player.PrimaryWeapon;
         }
 
         if (ShouldPresentExperimentalDemomanGrenadeLauncher(player))
@@ -1120,7 +1090,7 @@ public partial class Game1
 
         if (ShouldPresentExperimentalMedicKritzHealNeedles(player))
         {
-            return player.ExperimentalOffhandWeapon ?? player.PrimaryWeapon;
+            return player.PrimaryWeapon;
         }
 
         return player.PrimaryWeapon;
@@ -1203,8 +1173,8 @@ public partial class Game1
     private static bool ShouldPresentExperimentalMedicKritzHealNeedles(PlayerEntity player)
     {
         return player.ClassId == PlayerClass.Medic
-            && player.IsExperimentalOffhandEquipped
-            && player.HasEquippedBehavior(BuiltInGameplayBehaviorIds.MedigunCrit);
+            && player.GameplayLoadoutState.EquippedSlot == GameplayEquipmentSlot.Primary
+            && player.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.MedigunCrit);
     }
 
     private static bool ShouldPresentExperimentalDemomanGrenadeLauncher(PlayerEntity player)
@@ -1222,16 +1192,14 @@ public partial class Game1
 
     private static bool ShouldPresentExperimentalScoutNailgun(PlayerEntity player)
     {
-        if (player.ClassId != PlayerClass.Scout) return false;
-        return player.IsExperimentalOffhandPresented
-            || player.GameplayLoadoutState.EquippedSlot == GameplayEquipmentSlot.Secondary;
+        return player.ClassId == PlayerClass.Scout
+            && player.GameplayLoadoutState.EquippedSlot == GameplayEquipmentSlot.Primary
+            && player.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.ScoutNailgun);
     }
 
     private static bool ShouldPresentSniperBow(PlayerEntity player)
     {
-        if (player.ClassId != PlayerClass.Sniper) return false;
-        return player.IsExperimentalOffhandPresented
-            || player.GameplayLoadoutState.EquippedSlot == GameplayEquipmentSlot.Secondary;
+        return player.IsSniperBowEquipped;
     }
 
     private static float WrapAnimationImage(float animationImage, float length)

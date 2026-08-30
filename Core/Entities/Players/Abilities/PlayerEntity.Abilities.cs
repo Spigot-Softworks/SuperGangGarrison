@@ -1156,8 +1156,8 @@ public sealed partial class PlayerEntity
 
     public bool IsSniperBowEquipped =>
         ClassId == PlayerClass.Sniper
-        && IsExperimentalOffhandSelected
-        && HasEquippedBehavior(BuiltInGameplayBehaviorIds.SniperBow);
+        && GameplayLoadoutState.EquippedSlot == GameplayEquipmentSlot.Primary
+        && HasPrimaryBehavior(BuiltInGameplayBehaviorIds.SniperBow);
 
     public bool TryStartSniperBowCharge(float aimDirectionDegrees)
     {
@@ -1166,8 +1166,8 @@ public sealed partial class PlayerEntity
             || IsTaunting
             || IsHeavyEating
             || SniperBowChargeTicks > 0
-            || ExperimentalOffhandCooldownTicks > 0
-            || ExperimentalOffhandCurrentShells <= 0)
+            || PrimaryCooldownTicks > 0
+            || CurrentShells <= 0)
         {
             return false;
         }

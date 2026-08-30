@@ -103,7 +103,7 @@ public static class BotInputSynthesizer
 
     private static bool ShouldDriveOffhandWeaponSelection(PlayerEntity self)
     {
-        if (self.HasUtilityBehavior(BuiltInGameplayBehaviorIds.SoldierSecondaryWeapon))
+        if (self.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.PelletGun))
         {
             return true;
         }

@@ -1,7 +1,8 @@
 {
   "id": "weapon.scattergun",
+  "kind": "Weapon",
+  "weaponSlot": "Primary",
   "displayName": "Scattergun",
-  "slot": "Primary",
   "behaviorId": "builtin.weapon.pellet_gun",
   "ammo": {
     "maxAmmo": 6,

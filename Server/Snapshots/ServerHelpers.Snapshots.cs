@@ -7,6 +7,9 @@ using OpenGarrison.Protocol;
 internal static partial class ServerHelpers
 {
     private const string CoreReplicatedOwnerId = "core.player";
+    private const string SecondaryWeaponAvailableKey = "secondary_weapon_available";
+    private const string SecondaryWeaponAmmoKey = "secondary_weapon_ammo";
+    private const string SecondaryWeaponMaxAmmoKey = "secondary_weapon_max_ammo";
     private const string SoldierShotgunAvailableKey = "soldier_shotgun_available";
     private const string SoldierShotgunEquippedKey = "soldier_shotgun_equipped";
     private const string SoldierShotgunAmmoKey = "soldier_shotgun_ammo";
@@ -83,6 +86,31 @@ internal static partial class ServerHelpers
                 entry.IntValue,
                 entry.FloatValue,
                 entry.BoolValue)));
+
+        if (!string.IsNullOrWhiteSpace(player.GameplayLoadoutState.SecondaryItemId))
+        {
+            replicatedStates.Add(new SnapshotReplicatedStateEntry(
+                CoreReplicatedOwnerId,
+                SecondaryWeaponAvailableKey,
+                SnapshotReplicatedStateValueKind.Toggle,
+                0,
+                0f,
+                player.HasExperimentalOffhandWeapon));
+            replicatedStates.Add(new SnapshotReplicatedStateEntry(
+                CoreReplicatedOwnerId,
+                SecondaryWeaponAmmoKey,
+                SnapshotReplicatedStateValueKind.Whole,
+                player.ExperimentalOffhandCurrentShells,
+                0f,
+                false));
+            replicatedStates.Add(new SnapshotReplicatedStateEntry(
+                CoreReplicatedOwnerId,
+                SecondaryWeaponMaxAmmoKey,
+                SnapshotReplicatedStateValueKind.Whole,
+                player.ExperimentalOffhandMaxShells,
+                0f,
+                false));
+        }
 
         if (player.ClassId == PlayerClass.Soldier)
         {

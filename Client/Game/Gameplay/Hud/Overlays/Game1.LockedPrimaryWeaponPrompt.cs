@@ -12,16 +12,13 @@ public partial class Game1
         var player = _world.LocalPlayer;
         if (IsLocalSpectatorPresentationActive()
             || !player.IsAlive
-            || !player.IsLockedPrimaryWeaponClass
-            || !player.HasExperimentalOffhandWeapon
+            || !player.HasAlternatePrimaryWeapons
             || !_world.IsNearPrimaryWeaponSwapStation(player))
         {
             return;
         }
 
-        var alternateWeapon = player.IsExperimentalOffhandSelected
-            ? player.PrimaryWeapon.DisplayName
-            : player.ExperimentalOffhandWeapon?.DisplayName;
+        var alternateWeapon = player.GetNextGameplayPrimaryItemDisplayName();
         if (string.IsNullOrWhiteSpace(alternateWeapon))
         {
             return;

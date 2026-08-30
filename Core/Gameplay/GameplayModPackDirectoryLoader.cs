@@ -99,6 +99,7 @@ public static class GameplayModPackDirectoryLoader
                 };
             });
         var itemsById = items.ToDictionary(static item => item.Id, StringComparer.Ordinal);
+        ValidateGrantedAbilityItems(itemsById, fullPackDirectory);
         var sprites = LoadDefinitionsFromDirectory<GameplaySpriteAssetDefinition>(
             fullPackDirectory,
             "sprites",
@@ -351,6 +352,17 @@ public static class GameplayModPackDirectoryLoader
             kind = InferLegacyItemKind(item);
         }
 
+        if (schemaVersion >= 2 && kind == GameplayItemKind.Ability && item.Ability is null)
+        {
+            throw new InvalidOperationException($"Gameplay schema v2 ability \"{item.Id}\" must declare ability metadata in \"{filePath}\".");
+        }
+
+        if (schemaVersion >= 2 && kind == GameplayItemKind.Weapon && item.Ability is not null)
+        {
+            throw new InvalidOperationException(
+                $"Gameplay schema v2 weapon \"{item.Id}\" cannot embed ability metadata; reference a standalone ability through grantedAbilityItemIds in \"{filePath}\".");
+        }
+
         var weaponSlot = item.WeaponSlot;
         if (kind == GameplayItemKind.Weapon)
         {
@@ -381,6 +393,11 @@ public static class GameplayModPackDirectoryLoader
             .Select(static itemId => itemId.Trim())
             .Distinct(StringComparer.Ordinal)
             .ToArray();
+        if (kind != GameplayItemKind.Weapon && grantedAbilityItemIds.Length > 0)
+        {
+            throw new InvalidOperationException(
+                $"Gameplay ability item \"{item.Id}\" cannot declare grantedAbilityItemIds in \"{filePath}\".");
+        }
 
         return item with
         {
@@ -457,6 +474,23 @@ public static class GameplayModPackDirectoryLoader
             SwitchPolicy = loadout.Primary.SwitchPolicy?.Trim() ?? string.Empty,
             SelectionPersistence = loadout.Primary.SelectionPersistence?.Trim() ?? string.Empty,
         };
+        if (!string.Equals(
+                normalizedPrimary.SwitchPolicy,
+                GameplayLoadoutPolicies.PrimarySwapStation,
+                StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                $"Gameplay schema v2 class \"{classId}\" loadout \"{loadout.Id}\" declared unsupported primary switchPolicy \"{normalizedPrimary.SwitchPolicy}\" in \"{filePath}\".");
+        }
+
+        if (!string.Equals(
+                normalizedPrimary.SelectionPersistence,
+                GameplayLoadoutPolicies.SameClassLoadout,
+                StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                $"Gameplay schema v2 class \"{classId}\" loadout \"{loadout.Id}\" declared unsupported primary selectionPersistence \"{normalizedPrimary.SelectionPersistence}\" in \"{filePath}\".");
+        }
         var secondaryItemId = string.IsNullOrWhiteSpace(loadout.Secondary?.ItemId)
             ? null
             : loadout.Secondary.ItemId.Trim();
@@ -597,6 +631,79 @@ public static class GameplayModPackDirectoryLoader
         }
 
         ValidateCanonicalAbilityItems(items, loadout.Abilities, classId, loadout.Id, filePath);
+        ValidateEffectiveAbilityChannels(items, loadout, classId, filePath);
+    }
+
+    private static void ValidateEffectiveAbilityChannels(
+        IReadOnlyDictionary<string, GameplayItemDefinition> items,
+        GameplayClassLoadoutDefinition loadout,
+        string classId,
+        string filePath)
+    {
+        foreach (var primaryItemId in loadout.Primary!.ItemIds)
+        {
+            var activeChannels = new Dictionary<string, string>(StringComparer.Ordinal);
+            var seenAbilityItemIds = new HashSet<string>(StringComparer.Ordinal);
+
+            AddAbilityChannels(loadout.Abilities, "loadout", activeChannels, seenAbilityItemIds);
+            AddWeaponAbilityChannels(primaryItemId, "primary", activeChannels, seenAbilityItemIds);
+            if (loadout.Secondary is not null)
+            {
+                AddWeaponAbilityChannels(loadout.Secondary.ItemId, "secondary", activeChannels, seenAbilityItemIds);
+            }
+
+            void AddWeaponAbilityChannels(
+                string weaponItemId,
+                string source,
+                Dictionary<string, string> channels,
+                HashSet<string> seenIds)
+            {
+                var weaponItem = items[weaponItemId];
+                AddAbilityChannels(weaponItem.GrantedAbilityItemIds, source, channels, seenIds);
+                if (weaponItem.Ability is not null && seenIds.Add(weaponItem.Id))
+                {
+                    AddActiveChannel(weaponItem.Id, weaponItem.Ability, source, channels);
+                }
+            }
+
+            void AddAbilityChannels(
+                IReadOnlyList<string> abilityItemIds,
+                string source,
+                Dictionary<string, string> channels,
+                HashSet<string> seenIds)
+            {
+                foreach (var abilityItemId in abilityItemIds)
+                {
+                    if (!seenIds.Add(abilityItemId))
+                    {
+                        continue;
+                    }
+
+                    var abilityItem = items[abilityItemId];
+                    AddActiveChannel(abilityItem.Id, abilityItem.Ability!, source, channels);
+                }
+            }
+
+            void AddActiveChannel(
+                string abilityItemId,
+                GameplayAbilityDefinition ability,
+                string source,
+                Dictionary<string, string> channels)
+            {
+                if (ability.Channel is not (GameplayAbilityConstants.SpecialChannel or GameplayAbilityConstants.UtilityChannel))
+                {
+                    return;
+                }
+
+                if (channels.TryAdd(ability.Channel, $"{source} ability \"{abilityItemId}\""))
+                {
+                    return;
+                }
+
+                throw new InvalidOperationException(
+                    $"Gameplay class \"{classId}\" loadout \"{loadout.Id}\" primary \"{primaryItemId}\" combines {channels[ability.Channel]} and {source} ability \"{abilityItemId}\" on active channel \"{ability.Channel}\" in \"{filePath}\".");
+            }
+        }
     }
 
     private static void ValidateCanonicalWeaponItem(
@@ -642,6 +749,34 @@ public static class GameplayModPackDirectoryLoader
             {
                 throw new InvalidOperationException(
                     $"Gameplay class \"{classId}\" loadout \"{loadoutId}\" declares more than one active ability for channel \"{channel}\" in \"{filePath}\".");
+            }
+        }
+    }
+
+    private static void ValidateGrantedAbilityItems(
+        IReadOnlyDictionary<string, GameplayItemDefinition> items,
+        string packDirectory)
+    {
+        foreach (var item in items.Values)
+        {
+            var activeChannels = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var abilityItemId in item.GrantedAbilityItemIds)
+            {
+                if (!items.TryGetValue(abilityItemId, out var abilityItem)
+                    || abilityItem.Kind != GameplayItemKind.Ability
+                    || abilityItem.Ability is null)
+                {
+                    throw new InvalidOperationException(
+                        $"Gameplay item \"{item.Id}\" grants invalid ability \"{abilityItemId}\" in \"{packDirectory}\".");
+                }
+
+                var channel = abilityItem.Ability.Channel;
+                if (channel is GameplayAbilityConstants.SpecialChannel or GameplayAbilityConstants.UtilityChannel
+                    && !activeChannels.Add(channel))
+                {
+                    throw new InvalidOperationException(
+                        $"Gameplay item \"{item.Id}\" grants more than one active ability for channel \"{channel}\" in \"{packDirectory}\".");
+                }
             }
         }
     }

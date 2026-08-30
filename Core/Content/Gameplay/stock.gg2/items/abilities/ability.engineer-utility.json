@@ -1,10 +1,11 @@
 {
   "id": "ability.engineer-utility",
+  "kind": "Ability",
   "displayName": "Engineer Utility",
-  "slot": "Utility",
   "behaviorId": "builtin.utility.engineer",
   "ability": {
     "category": "utility",
+    "channel": "utility",
     "activation": "pressed",
     "executorId": "builtin.ability.engineer_jump_pad",
     "tags": [ "build", "jump_pad" ]

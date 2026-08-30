@@ -33,10 +33,13 @@
     "pyro.stock": {
       "id": "pyro.stock",
       "displayName": "Stock",
-      "primaryItemId": "weapon.flamethrower",
-      "secondaryItemId": "ability.pyro-airblast",
-      "utilityItemId": "ability.pyro-utility",
-      "abilityItemIds": [ "ability.experimental-ltd-passive" ]
+      "primary": {
+        "defaultItemId": "weapon.flamethrower",
+        "itemIds": [ "weapon.flamethrower" ],
+        "switchPolicy": "primary_swap_station",
+        "selectionPersistence": "same_class_loadout"
+      },
+      "abilities": [ "ability.pyro-airblast", "ability.pyro-utility", "ability.experimental-ltd-passive" ]
     }
   },
   "defaultLoadoutId": "pyro.stock"

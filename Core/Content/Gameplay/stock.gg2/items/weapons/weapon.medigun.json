@@ -1,7 +1,9 @@
 {
   "id": "weapon.medigun",
+  "kind": "Weapon",
+  "weaponSlot": "Primary",
+  "grantedAbilityItemIds": [ "ability.medic-needlegun" ],
   "displayName": "Medigun",
-  "slot": "Primary",
   "behaviorId": "builtin.weapon.medigun",
   "ammo": {
     "maxAmmo": 40,
@@ -12,12 +14,6 @@
     "autoReloads": false,
     "ammoRegenPerTick": 0,
     "refillsAllAtOnce": false
-  },
-  "ability": {
-    "category": "secondary",
-    "activation": "held",
-    "executorId": "builtin.ability.medic_needlegun",
-    "tags": [ "core_m2", "projectile", "cooldown" ]
   },
   "presentation": {
     "worldSpriteName": "MedigunS",

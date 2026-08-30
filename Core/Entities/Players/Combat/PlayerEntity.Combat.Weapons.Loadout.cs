@@ -27,14 +27,111 @@ public sealed partial class PlayerEntity
         }
 
         SelectedGameplayLoadoutId = resolvedLoadoutId;
-        // A loadout change is a deliberate equipment identity change. Do not
-        // carry the prior loadout's selected secondary/utility slot into the
-        // new loadout; only a same-loadout respawn can restore a locked primary.
+        var selectedLoadout = runtimeRegistry.GetRequiredLoadout(GameplayClassId, resolvedLoadoutId);
+        SelectedGameplayPrimaryItemId = selectedLoadout.Primary?.DefaultItemId ?? selectedLoadout.PrimaryItemId;
+        RefreshSelectedGameplayPrimaryWeapon();
         SelectedGameplayEquippedSlot = GameplayEquipmentSlot.Primary;
         IsExperimentalOffhandEquipped = false;
         IsAcquiredWeaponEquipped = false;
+        CurrentShells = PrimaryWeapon.MaxAmmo;
+        PrimaryCooldownTicks = 0;
+        ReloadTicksUntilNextShell = 0;
+        CancelSniperBowCharge();
+        IsSniperScoped = false;
+        ClearMedicHealingTarget();
         RefreshGameplayLoadoutState();
         return true;
+    }
+
+    public bool TrySelectGameplayPrimaryItem(string? itemId, bool refillAmmo = true)
+    {
+        var runtimeRegistry = CharacterClassCatalog.RuntimeRegistry;
+        if (!runtimeRegistry.CanUsePrimaryItem(GameplayClassId, SelectedGameplayLoadoutId, itemId))
+        {
+            return false;
+        }
+
+        var normalizedItemId = itemId!.Trim();
+        if (!OwnsGameplayItem(normalizedItemId))
+        {
+            return false;
+        }
+
+        if (IsMedicMedigunSwapLocked
+            && !string.Equals(SelectedGameplayPrimaryItemId, normalizedItemId, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        if (string.Equals(SelectedGameplayPrimaryItemId, normalizedItemId, StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        SelectedGameplayPrimaryItemId = normalizedItemId;
+        RefreshSelectedGameplayPrimaryWeapon();
+        SelectedGameplayEquippedSlot = GameplayEquipmentSlot.Primary;
+        IsExperimentalOffhandEquipped = false;
+        IsAcquiredWeaponEquipped = false;
+        CurrentShells = refillAmmo
+            ? PrimaryWeapon.MaxAmmo
+            : int.Clamp(CurrentShells, 0, PrimaryWeapon.MaxAmmo);
+        PrimaryCooldownTicks = 0;
+        ReloadTicksUntilNextShell = 0;
+        CancelSniperBowCharge();
+        IsSniperScoped = false;
+        ClearMedicHealingTarget();
+        ResetPyroPrimaryStateFromCurrentAmmo();
+        RefreshGameplayLoadoutState();
+        return true;
+    }
+
+    public bool TryCycleGameplayPrimaryItem()
+    {
+        var nextItemId = GetNextGameplayPrimaryItemId();
+        return nextItemId is not null
+            && !string.Equals(nextItemId, SelectedGameplayPrimaryItemId, StringComparison.Ordinal)
+            && TrySelectGameplayPrimaryItem(nextItemId);
+    }
+
+    public string? GetNextGameplayPrimaryItemId()
+    {
+        var runtimeRegistry = CharacterClassCatalog.RuntimeRegistry;
+        if (!runtimeRegistry.TryGetLoadout(GameplayClassId, SelectedGameplayLoadoutId, out var loadout)
+            || loadout.Primary is not { ItemIds.Count: > 1 } primary)
+        {
+            return null;
+        }
+
+        var currentIndex = 0;
+        for (var index = 0; index < primary.ItemIds.Count; index += 1)
+        {
+            if (string.Equals(primary.ItemIds[index], SelectedGameplayPrimaryItemId, StringComparison.Ordinal))
+            {
+                currentIndex = index;
+                break;
+            }
+        }
+
+        for (var offset = 1; offset <= primary.ItemIds.Count; offset += 1)
+        {
+            var candidateIndex = (currentIndex + offset) % primary.ItemIds.Count;
+            var candidateItemId = primary.ItemIds[candidateIndex];
+            if (OwnsGameplayItem(candidateItemId))
+            {
+                return candidateItemId;
+            }
+        }
+
+        return null;
+    }
+
+    public string? GetNextGameplayPrimaryItemDisplayName()
+    {
+        var itemId = GetNextGameplayPrimaryItemId();
+        return itemId is null
+            ? null
+            : CharacterClassCatalog.RuntimeRegistry.GetRequiredItem(itemId).DisplayName;
     }
 
     public bool TrySelectGameplayEquippedSlot(GameplayEquipmentSlot equippedSlot)

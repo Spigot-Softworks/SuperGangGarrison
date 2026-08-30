@@ -1,10 +1,11 @@
 {
   "id": "ability.civilian-taunt",
+  "kind": "Ability",
   "displayName": "Money Taunt",
-  "slot": "Utility",
   "behaviorId": "builtin.ability.civvie_taunt",
   "ability": {
     "category": "taunt",
+    "channel": "taunt",
     "activation": "pressed",
     "executorId": "builtin.ability.civvie_taunt",
     "tags": [ "taunt", "healing" ],

@@ -1,10 +1,11 @@
 {
   "id": "ability.experimental-ltd-rage",
+  "kind": "Ability",
   "displayName": "Experimental LTD Rage",
-  "slot": "Utility",
   "behaviorId": "builtin.ability.experimental_ltd.rage",
   "ability": {
     "category": "taunt",
+    "channel": "taunt",
     "activation": "pressed",
     "executorId": "builtin.ability.experimental_ltd.rage",
     "tags": [ "experimental_ltd", "rage" ]

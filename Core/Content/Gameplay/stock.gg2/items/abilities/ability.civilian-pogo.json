@@ -1,10 +1,11 @@
 {
   "id": "ability.civilian-pogo",
+  "kind": "Ability",
   "displayName": "Pogo Stick",
-  "slot": "Utility",
   "behaviorId": "builtin.ability.civvie_pogo",
   "ability": {
     "category": "utility",
+    "channel": "utility",
     "activation": "pressed",
     "executorId": "builtin.ability.civvie_pogo",
     "tags": [ "movement", "toggle" ],

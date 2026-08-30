@@ -1,10 +1,11 @@
 {
   "id": "ability.soldier-utility",
+  "kind": "Ability",
   "displayName": "Soldier Utility",
-  "slot": "Utility",
   "behaviorId": "builtin.utility.soldier_secondary_weapon",
   "ability": {
     "category": "utility",
+    "channel": "utility",
     "activation": "pressed",
     "executorId": "builtin.ability.soldier_secondary_toggle",
     "tags": [ "weapon_toggle" ]

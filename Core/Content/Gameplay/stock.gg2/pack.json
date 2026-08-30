@@ -1,5 +1,6 @@
 {
   "id": "stock.gg2",
   "displayName": "Stock OpenGarrison Gameplay",
-  "version": "1.0.0"
+  "version": "1.0.0",
+  "schemaVersion": 2
 }

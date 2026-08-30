@@ -116,7 +116,7 @@ public sealed class LastToDieMedicRejuvenationRayRuntimeTests
         Assert.True(kritzWorld.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.RejuvenationRay]));
-        Assert.True(kritzMedic.TrySelectGameplayEquippedSlot(GameplayEquipmentSlot.Secondary));
+        Assert.True(kritzMedic.TrySelectGameplayPrimaryItem("weapon.medigun.crit"));
         StartUber(kritzMedic);
         Assert.Equal(MedicUberDeliveryMode.Kritz, kritzMedic.MedicUberDeliveryMode);
         Assert.False(kritzMedic.IsMedicRejuvenationRayDeliveryActive);

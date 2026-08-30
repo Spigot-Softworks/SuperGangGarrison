@@ -1,6 +1,7 @@
 using System.Reflection;
 using OpenGarrison.Core;
 using OpenGarrison.Core.LastToDie;
+using OpenGarrison.GameplayModding;
 using OpenGarrison.Server;
 using Xunit;
 
@@ -1644,10 +1645,11 @@ public sealed class LastToDiePerkRuntimeTests
             AimWorldY: spy.Y,
             DebugKill: false,
             UseAbility: true);
-        Assert.True(CharacterClassCatalog.RuntimeRegistry.TryGetGameplayAbilityDefinition(
-            spy.GameplayLoadoutState.UtilityItemId,
-            out var item,
-            out var ability));
+        Assert.True(spy.TryGetGameplayAbilityItem(
+            GameplayAbilityConstants.UtilityChannel,
+            BuiltInGameplayBehaviorIds.SpyUtility,
+            out var item));
+        var ability = Assert.IsType<GameplayAbilityDefinition>(item.Ability);
         var heldResult = world.ExecuteSpySuperjumpAbility(new GameplayAbilityContext
         {
             World = world,

@@ -1,7 +1,8 @@
 {
   "id": "weapon.bow",
+  "kind": "Weapon",
+  "weaponSlot": "Primary",
   "displayName": "Huntsman",
-  "slot": "Secondary",
   "behaviorId": "builtin.weapon.sniper_bow",
   "ammo": {
     "maxAmmo": 1,

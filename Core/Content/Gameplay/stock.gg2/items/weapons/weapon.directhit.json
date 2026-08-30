@@ -1,7 +1,8 @@
 {
   "id": "weapon.directhit",
+  "kind": "Weapon",
+  "weaponSlot": "Primary",
   "displayName": "Direct Hit",
-  "slot": "Primary",
   "behaviorId": "builtin.weapon.rocket_launcher",
   "ammo": {
     "maxAmmo": 4,

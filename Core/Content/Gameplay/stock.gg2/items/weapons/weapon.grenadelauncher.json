@@ -1,7 +1,8 @@
 {
   "id": "weapon.grenadelauncher",
+  "kind": "Weapon",
+  "weaponSlot": "Secondary",
   "displayName": "Grenade Launcher",
-  "slot": "Utility",
   "behaviorId": "builtin.weapon.grenade_launcher",
   "ammo": {
     "maxAmmo": 1,

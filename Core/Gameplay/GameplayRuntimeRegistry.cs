@@ -1231,7 +1231,7 @@ public sealed partial class GameplayRuntimeRegistry
         return false;
     }
 
-    private bool TryGetItem(string? itemId, out GameplayItemDefinition item)
+    public bool TryGetItem(string? itemId, out GameplayItemDefinition item)
     {
         if (!string.IsNullOrWhiteSpace(itemId)
             && _items.TryGetValue(itemId, out var resolvedItem))

@@ -128,19 +128,20 @@ public sealed class PlayerEntityNetworkStateTests
             gameplayModPackId: "stock.gg2",
             gameplayLoadoutId: "heavy.stock",
             gameplayPrimaryItemId: "weapon.minigun",
-            gameplaySecondaryItemId: "ability.heavy-sandvich",
+            gameplaySecondaryItemId: "",
             gameplayUtilityItemId: "",
-            gameplayEquippedSlot: (byte)GameplayEquipmentSlot.Secondary,
-            gameplayEquippedItemId: "ability.heavy-sandvich",
+            gameplayEquippedSlot: (byte)GameplayEquipmentSlot.Primary,
+            gameplayEquippedItemId: "weapon.minigun",
             gameplayAcquiredItemId: "");
 
         Assert.Equal(PlayerClass.Heavy, player.ClassId);
         Assert.Equal("heavy.stock", player.SelectedGameplayLoadoutId);
         Assert.Equal("heavy.stock", player.GameplayLoadoutState.LoadoutId);
-        Assert.Equal("ability.heavy-sandvich", player.GameplayLoadoutState.SecondaryItemId);
-        Assert.Equal(GameplayEquipmentSlot.Secondary, player.SelectedGameplayEquippedSlot);
-        Assert.Equal(GameplayEquipmentSlot.Secondary, player.GameplayLoadoutState.EquippedSlot);
-        Assert.Equal("ability.heavy-sandvich", player.GameplayLoadoutState.EquippedItemId);
+        Assert.Null(player.GameplayLoadoutState.SecondaryItemId);
+        Assert.Contains("ability.heavy-sandvich", player.GameplayLoadoutState.AbilityItemIds ?? []);
+        Assert.Equal(GameplayEquipmentSlot.Primary, player.SelectedGameplayEquippedSlot);
+        Assert.Equal(GameplayEquipmentSlot.Primary, player.GameplayLoadoutState.EquippedSlot);
+        Assert.Equal("weapon.minigun", player.GameplayLoadoutState.EquippedItemId);
     }
 
     [Theory]
@@ -206,7 +207,7 @@ public sealed class PlayerEntityNetworkStateTests
     }
 
     [Fact]
-    public void ApplyNetworkStateHydratesSniperBowFromReplicatedAvailability()
+    public void ApplyNetworkStateHydratesSniperBowAsSelectedPrimary()
     {
         var player = new PlayerEntity(1, CharacterClassCatalog.Sniper, "Test");
         player.Spawn(PlayerTeam.Red, 0f, 0f);
@@ -216,40 +217,16 @@ public sealed class PlayerEntityNetworkStateTests
 
         ApplySniperNetworkSnapshot(
             player,
-            GameplayEquipmentSlot.Secondary,
-            [
-                new GameplayReplicatedStateEntry(
-                    "core.player",
-                    "sniper_bow_available",
-                    GameplayReplicatedStateValueKind.Toggle,
-                    0,
-                    0f,
-                    true),
-                new GameplayReplicatedStateEntry(
-                    "core.player",
-                    "sniper_bow_ammo",
-                    GameplayReplicatedStateValueKind.Whole,
-                    1,
-                    0f,
-                    false),
-                new GameplayReplicatedStateEntry(
-                    "core.player",
-                    "sniper_bow_max_ammo",
-                    GameplayReplicatedStateValueKind.Whole,
-                    1,
-                    0f,
-                    false),
-            ]);
+            "weapon.bow");
 
-        Assert.True(player.HasExperimentalOffhandWeapon);
-        Assert.True(player.IsExperimentalOffhandEquipped);
+        Assert.False(player.HasExperimentalOffhandWeapon);
         Assert.True(player.IsSniperBowEquipped);
-        Assert.Equal("weapon.bow", player.GameplayLoadoutState.SecondaryItemId);
+        Assert.Equal("weapon.bow", player.GameplayLoadoutState.PrimaryItemId);
         Assert.Equal("weapon.bow", player.GameplayLoadoutState.EquippedItemId);
     }
 
     [Fact]
-    public void ApplyNetworkStateHydratesMedicKritzHealNeedlesFromReplicatedAvailability()
+    public void ApplyNetworkStateHydratesMedicKritzAsSelectedPrimary()
     {
         var player = new PlayerEntity(1, CharacterClassCatalog.Medic, "Test");
         player.Spawn(PlayerTeam.Red, 0f, 0f);
@@ -259,37 +236,13 @@ public sealed class PlayerEntityNetworkStateTests
 
         ApplyMedicNetworkSnapshot(
             player,
-            GameplayEquipmentSlot.Secondary,
-            [
-                new GameplayReplicatedStateEntry(
-                    "core.player",
-                    "medic_kritz_available",
-                    GameplayReplicatedStateValueKind.Toggle,
-                    0,
-                    0f,
-                    true),
-                new GameplayReplicatedStateEntry(
-                    "core.player",
-                    "medic_kritz_ammo",
-                    GameplayReplicatedStateValueKind.Whole,
-                    4,
-                    0f,
-                    false),
-                new GameplayReplicatedStateEntry(
-                    "core.player",
-                    "medic_kritz_max_ammo",
-                    GameplayReplicatedStateValueKind.Whole,
-                    6,
-                    0f,
-                    false),
-            ]);
+            "weapon.medigun.crit");
 
-        Assert.True(player.HasExperimentalOffhandWeapon);
-        Assert.True(player.IsExperimentalOffhandEquipped);
-        Assert.True(player.IsExperimentalOffhandSelected);
-        Assert.Equal(4, player.ExperimentalOffhandCurrentShells);
-        Assert.Equal(6, player.ExperimentalOffhandMaxShells);
-        Assert.Equal("weapon.medigun.crit", player.GameplayLoadoutState.SecondaryItemId);
+        Assert.False(player.HasExperimentalOffhandWeapon);
+        Assert.Equal(4, player.CurrentShells);
+        Assert.Equal(6, player.MaxShells);
+        Assert.Null(player.GameplayLoadoutState.SecondaryItemId);
+        Assert.Equal("weapon.medigun.crit", player.GameplayLoadoutState.PrimaryItemId);
         Assert.Equal("weapon.medigun.crit", player.GameplayLoadoutState.EquippedItemId);
     }
 
@@ -328,23 +281,18 @@ public sealed class PlayerEntityNetworkStateTests
         Assert.Equal(150, player.MaxHealth);
         Assert.Equal(17, player.CurrentShells);
         Assert.Equal(40, player.MaxShells);
-        Assert.True(player.HasExperimentalOffhandWeapon);
-        Assert.Equal(4, player.ExperimentalOffhandCurrentShells);
-        Assert.Equal(6, player.ExperimentalOffhandMaxShells);
-        Assert.Equal(2, player.ExperimentalOffhandCooldownTicks);
-        Assert.Equal(3, player.ExperimentalOffhandReloadTicksUntilNextShell);
+        Assert.False(player.HasExperimentalOffhandWeapon);
         Assert.Equal(5, player.MedicNeedleCooldownTicks);
         Assert.Equal(17, player.MedicNeedleRefillTicks);
     }
 
     [Theory]
-    [InlineData("sniper", 125, "weapon.bow", 1)]
-    [InlineData("scout", 125, "weapon.scout-nailgun", 35)]
-    [InlineData("medic", 150, "weapon.medigun.crit", 6)]
-    public void ApplyProtocol64StateAppliesAuthoritativeLockedPrimarySelection(
+    [InlineData("sniper", 125, 1)]
+    [InlineData("scout", 125, 35)]
+    [InlineData("medic", 150, 6)]
+    public void Protocol64DoesNotReinterpretAlternatePrimaryAmmoAsASecondary(
         string gameplayClassId,
         int maxHealth,
-        string expectedSecondaryItemId,
         int offhandMaxAmmo)
     {
         var player = new PlayerEntity(1, CharacterClassCatalog.Scout, "Test");
@@ -369,10 +317,10 @@ public sealed class PlayerEntityNetworkStateTests
 
         player.ApplyProtocol64State(state, CharacterClassCatalog.GetDefinition(gameplayClassId));
 
-        Assert.Equal(GameplayEquipmentSlot.Secondary, player.SelectedGameplayEquippedSlot);
-        Assert.Equal(GameplayEquipmentSlot.Secondary, player.GameplayLoadoutState.EquippedSlot);
-        Assert.Equal(expectedSecondaryItemId, player.GameplayLoadoutState.EquippedItemId);
-        Assert.True(player.IsExperimentalOffhandSelected);
+        Assert.Equal(GameplayEquipmentSlot.Primary, player.SelectedGameplayEquippedSlot);
+        Assert.Equal(GameplayEquipmentSlot.Primary, player.GameplayLoadoutState.EquippedSlot);
+        Assert.False(player.HasExperimentalOffhandWeapon);
+        Assert.False(player.IsExperimentalOffhandSelected);
     }
 
     [Fact]
@@ -1233,7 +1181,7 @@ public sealed class PlayerEntityNetworkStateTests
             gameplayLoadoutId: includeFullLoadoutState ? "soldier.stock" : "",
             gameplayPrimaryItemId: includeFullLoadoutState ? "weapon.rocketlauncher" : "",
             gameplaySecondaryItemId: includeFullLoadoutState ? "weapon.soldier-shotgun" : "",
-            gameplayUtilityItemId: includeFullLoadoutState ? "ability.soldier-utility" : "",
+            gameplayUtilityItemId: "",
             gameplayEquippedSlot: (byte)equippedSlot,
             gameplayEquippedItemId: includeFullLoadoutState ? equippedItemId : "",
             gameplayAcquiredItemId: acquiredItemId,
@@ -1243,13 +1191,9 @@ public sealed class PlayerEntityNetworkStateTests
 
     private static void ApplySniperNetworkSnapshot(
         PlayerEntity player,
-        GameplayEquipmentSlot equippedSlot,
+        string primaryItemId,
         GameplayReplicatedStateEntry[]? replicatedStateEntries = null)
     {
-        var equippedItemId = equippedSlot == GameplayEquipmentSlot.Secondary
-            ? "weapon.bow"
-            : "weapon.rifle";
-
         player.ApplyNetworkState(
             team: PlayerTeam.Red,
             classDefinition: CharacterClassCatalog.Sniper,
@@ -1299,24 +1243,20 @@ public sealed class PlayerEntityNetworkStateTests
             chatBubbleAlpha: 0f,
             gameplayModPackId: "stock.gg2",
             gameplayLoadoutId: "sniper.stock",
-            gameplayPrimaryItemId: "weapon.rifle",
-            gameplaySecondaryItemId: "weapon.bow",
-            gameplayUtilityItemId: "ability.sniper-bow-toggle",
-            gameplayEquippedSlot: (byte)equippedSlot,
-            gameplayEquippedItemId: equippedItemId,
+            gameplayPrimaryItemId: primaryItemId,
+            gameplaySecondaryItemId: "",
+            gameplayUtilityItemId: "",
+            gameplayEquippedSlot: (byte)GameplayEquipmentSlot.Primary,
+            gameplayEquippedItemId: primaryItemId,
             gameplayAcquiredItemId: "",
             replicatedStateEntries: replicatedStateEntries);
     }
 
     private static void ApplyMedicNetworkSnapshot(
         PlayerEntity player,
-        GameplayEquipmentSlot equippedSlot,
+        string primaryItemId,
         GameplayReplicatedStateEntry[]? replicatedStateEntries = null)
     {
-        var equippedItemId = equippedSlot == GameplayEquipmentSlot.Secondary
-            ? "weapon.medigun.crit"
-            : "weapon.medigun";
-
         player.ApplyNetworkState(
             team: PlayerTeam.Red,
             classDefinition: CharacterClassCatalog.Medic,
@@ -1326,7 +1266,7 @@ public sealed class PlayerEntityNetworkStateTests
             horizontalSpeed: 0f,
             verticalSpeed: 0f,
             health: 120,
-            currentShells: 40,
+            currentShells: string.Equals(primaryItemId, "weapon.medigun.crit", StringComparison.Ordinal) ? 4 : 40,
             kills: 0,
             deaths: 0,
             caps: 0,
@@ -1366,11 +1306,11 @@ public sealed class PlayerEntityNetworkStateTests
             chatBubbleAlpha: 0f,
             gameplayModPackId: "stock.gg2",
             gameplayLoadoutId: "medic.stock",
-            gameplayPrimaryItemId: "weapon.medigun",
-            gameplaySecondaryItemId: "weapon.medigun.crit",
-            gameplayUtilityItemId: "ability.medic-uber",
-            gameplayEquippedSlot: (byte)equippedSlot,
-            gameplayEquippedItemId: equippedItemId,
+            gameplayPrimaryItemId: primaryItemId,
+            gameplaySecondaryItemId: "",
+            gameplayUtilityItemId: "",
+            gameplayEquippedSlot: (byte)GameplayEquipmentSlot.Primary,
+            gameplayEquippedItemId: primaryItemId,
             gameplayAcquiredItemId: "",
             replicatedStateEntries: replicatedStateEntries);
     }

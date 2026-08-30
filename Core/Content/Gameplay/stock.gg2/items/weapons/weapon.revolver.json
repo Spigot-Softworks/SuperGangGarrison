@@ -1,7 +1,8 @@
 {
   "id": "weapon.revolver",
+  "kind": "Weapon",
+  "weaponSlot": "Primary",
   "displayName": "Revolver",
-  "slot": "Primary",
   "behaviorId": "builtin.weapon.revolver",
   "ammo": {
     "maxAmmo": 6,

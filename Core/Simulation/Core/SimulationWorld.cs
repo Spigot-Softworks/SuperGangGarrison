@@ -678,7 +678,6 @@ public sealed partial class SimulationWorld
         var settings = hasLastToDieProfile
             ? lastToDieSettings
             : ExperimentalGameplaySettings;
-        var specialAbilitiesEnabled = settings.EnableSecondaryAbilities;
         if (slot != LocalPlayerSlot && !hasLastToDieProfile)
         {
             player.SetExperimentalDemoknightEnabled(false);
@@ -697,15 +696,8 @@ public sealed partial class SimulationWorld
             player.SetExperimentalDemoknightChargeFullControlEnabled(false);
             player.ConfigureExperimentalDemoknightPostRageRegeneration(0f);
             player.StartExperimentalDemoknightPostRageRegeneration(0);
-            player.SetExperimentalOffhandWeapon(specialAbilitiesEnabled
-                ? ResolveGameplaySecondaryWeapon(player, allowSoldierShotgun: false, allowSoldierShotgunLtd: false)
-                : null);
-            // Acquired weapons only exist for Soldier. Clearing a null
-            // acquired weapon on a dead locked-primary player also clears the
-            // remembered alternate slot because the runtime offhand flag is
-            // intentionally false during death. Keep this cleanup scoped to
-            // Soldier so a settings/resync pass cannot turn Bow/Nailgun/Kritz
-            // back into the stock primary before the next respawn.
+            player.SetExperimentalOffhandWeapon(
+                ResolveGameplaySecondaryWeapon(player, allowSoldierShotgun: false, allowSoldierShotgunLtd: false));
             if (player.ClassId == PlayerClass.Soldier)
             {
                 player.SetAcquiredWeapon(null);
@@ -752,12 +744,11 @@ public sealed partial class SimulationWorld
             player.ConfigureExperimentalDemoknightPostRageRegeneration(0f);
             player.StartExperimentalDemoknightPostRageRegeneration(0);
         }
-        player.SetExperimentalOffhandWeapon(specialAbilitiesEnabled
-            ? ResolveGameplaySecondaryWeapon(
+        player.SetExperimentalOffhandWeapon(
+            ResolveGameplaySecondaryWeapon(
                 player,
                 allowSoldierShotgun: settings.EnableSoldierShotgunSecondaryWeapon,
-                allowSoldierShotgunLtd: settings.EnableSoldierShotgunLtdPerk)
-            : null);
+                allowSoldierShotgunLtd: settings.EnableSoldierShotgunLtdPerk));
         if (player.ClassId == PlayerClass.Soldier
             && !settings.EnableEnemyDroppedWeapons)
         {
@@ -781,6 +772,11 @@ public sealed partial class SimulationWorld
         bool allowSoldierShotgunLtd)
     {
         var runtimeRegistry = CharacterClassCatalog.RuntimeRegistry;
+        if (allowSoldierShotgunLtd && player.ClassId == PlayerClass.Soldier)
+        {
+            return CharacterClassCatalog.SoldierShotgunLtd;
+        }
+
         var secondaryItemId = player.GameplayLoadoutState.SecondaryItemId;
         if (!string.IsNullOrWhiteSpace(secondaryItemId))
         {
@@ -789,22 +785,6 @@ public sealed partial class SimulationWorld
             {
                 return runtimeRegistry.CreatePrimaryWeaponDefinition(secondaryItem);
             }
-        }
-
-        // Also check utility slot for weapons (e.g., Demoman grenade launcher)
-        var utilityItemId = player.GameplayLoadoutState.UtilityItemId;
-        if (!string.IsNullOrWhiteSpace(utilityItemId))
-        {
-            var utilityItem = runtimeRegistry.GetRequiredItem(utilityItemId);
-            if (runtimeRegistry.TryGetPrimaryWeaponBinding(utilityItem.BehaviorId, out _))
-            {
-                return runtimeRegistry.CreatePrimaryWeaponDefinition(utilityItem);
-            }
-        }
-
-        if (allowSoldierShotgunLtd && player.ClassId == PlayerClass.Soldier)
-        {
-            return CharacterClassCatalog.SoldierShotgunLtd;
         }
 
         return allowSoldierShotgun && player.ClassId == PlayerClass.Soldier

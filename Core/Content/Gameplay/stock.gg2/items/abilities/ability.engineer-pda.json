@@ -1,10 +1,11 @@
 {
   "id": "ability.engineer-pda",
+  "kind": "Ability",
   "displayName": "Engineer PDA",
-  "slot": "Secondary",
   "behaviorId": "builtin.ability.engineer_pda",
   "ability": {
     "category": "secondary",
+    "channel": "special",
     "activation": "pressed",
     "executorId": "builtin.ability.engineer_pda",
     "tags": [ "core_m2", "build", "sentry", "experimental_ltd" ]

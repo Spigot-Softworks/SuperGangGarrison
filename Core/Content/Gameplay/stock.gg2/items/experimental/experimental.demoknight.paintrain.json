@@ -1,7 +1,8 @@
 {
   "id": "weapon.experimental-demoknight-paintrain",
+  "kind": "Weapon",
+  "weaponSlot": "Primary",
   "displayName": "Pain Train",
-  "slot": "Primary",
   "behaviorId": "builtin.weapon.blade",
   "ammo": {
     "maxAmmo": 100,
