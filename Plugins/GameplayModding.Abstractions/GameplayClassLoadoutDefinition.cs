@@ -5,7 +5,14 @@ namespace OpenGarrison.GameplayModding;
 public sealed record GameplayClassLoadoutDefinition(
     string Id,
     string DisplayName,
-    string PrimaryItemId,
+    string PrimaryItemId = "",
     string? SecondaryItemId = null,
     string? UtilityItemId = null,
-    IReadOnlyList<string>? AbilityItemIds = null);
+    IReadOnlyList<string>? AbilityItemIds = null)
+{
+    public GameplayPrimaryLoadoutDefinition? Primary { get; init; }
+
+    public GameplaySecondaryLoadoutDefinition? Secondary { get; init; }
+
+    public IReadOnlyList<string> Abilities { get; init; } = [];
+}

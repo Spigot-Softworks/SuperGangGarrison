@@ -310,6 +310,7 @@ public sealed class GameplayModPackLoaderTests
 
         Assert.Equal("stock.gg2", pack.Id);
         Assert.Equal("Stock OpenGarrison Gameplay", pack.DisplayName);
+        Assert.Equal(1, pack.SchemaVersion);
         Assert.True(pack.Items.ContainsKey("weapon.scattergun"));
         Assert.True(pack.Items.ContainsKey("weapon.directhit"));
         Assert.True(pack.Items.ContainsKey("weapon.umbrella"));
@@ -403,6 +404,160 @@ public sealed class GameplayModPackLoaderTests
         Assert.Equal("assets/hud/mvp/red/heavy/winner_0.png", redHeavyWinnerMvpSprite.FramePaths[0]);
         Assert.Equal(26, redHeavyWinnerMvpSprite.OriginX);
         Assert.Equal(52, redHeavyWinnerMvpSprite.OriginY);
+
+        var scattergun = pack.Items["weapon.scattergun"];
+        Assert.Equal(GameplayItemKind.Weapon, scattergun.Kind);
+        Assert.Equal(GameplayWeaponSlot.Primary, scattergun.WeaponSlot);
+
+        var scoutNailgun = pack.Items["weapon.scout-nailgun"];
+        Assert.Equal(GameplayItemKind.Weapon, scoutNailgun.Kind);
+        Assert.Equal(GameplayWeaponSlot.Primary, scoutNailgun.WeaponSlot);
+
+        var pyroAirblast = pack.Items["ability.pyro-airblast"];
+        Assert.Equal(GameplayItemKind.Ability, pyroAirblast.Kind);
+        Assert.Null(pyroAirblast.WeaponSlot);
+        Assert.Equal(GameplayAbilityConstants.SpecialChannel, pyroAirblast.Ability?.Channel);
+
+        var scoutStock = pack.Classes["scout"].Loadouts["scout.stock"];
+        Assert.NotNull(scoutStock.Primary);
+        Assert.Equal("weapon.scattergun", scoutStock.Primary!.DefaultItemId);
+        Assert.Equal(["weapon.scattergun", "weapon.scout-nailgun"], scoutStock.Primary.ItemIds);
+        Assert.Null(scoutStock.Secondary);
+        Assert.Contains("ability.scout-nailgun-utility", scoutStock.Abilities);
+
+        var soldierStock = pack.Classes["soldier"].Loadouts["soldier.stock"];
+        Assert.Equal("weapon.soldier-shotgun", soldierStock.Secondary?.ItemId);
+        Assert.Contains("ability.soldier-utility", soldierStock.Abilities);
+
+        var demomanStock = pack.Classes["demoman"].Loadouts["demoman.stock"];
+        Assert.Equal("weapon.grenadelauncher", demomanStock.Secondary?.ItemId);
+        Assert.Contains("ability.demoman-detonate", demomanStock.Abilities);
+    }
+
+    [Fact]
+    public void GameplaySchemaV2SeparatesPrimarySecondaryAndAbilities()
+    {
+        var rootDirectory = Path.Combine(Path.GetTempPath(), "og2-gameplay-pack-tests", Path.GetRandomFileName());
+        var packDirectory = Path.Combine(rootDirectory, "schema-v2");
+        Directory.CreateDirectory(Path.Combine(packDirectory, "items"));
+        Directory.CreateDirectory(Path.Combine(packDirectory, "classes"));
+
+        try
+        {
+            File.WriteAllText(
+                Path.Combine(packDirectory, "pack.json"),
+                """
+                {
+                  "id": "schema.v2",
+                  "displayName": "Schema V2",
+                  "version": "1.0.0",
+                  "schemaVersion": 2
+                }
+                """);
+            File.WriteAllText(
+                Path.Combine(packDirectory, "items", "weapon.primary-a.json"),
+                """
+                {
+                  "id": "weapon.primary-a",
+                  "displayName": "Primary A",
+                  "kind": "Weapon",
+                  "weaponSlot": "Primary",
+                  "behaviorId": "builtin.weapon.pellet_gun",
+                  "ammo": { "maxAmmo": 6 },
+                  "presentation": {}
+                }
+                """);
+            File.WriteAllText(
+                Path.Combine(packDirectory, "items", "weapon.primary-b.json"),
+                """
+                {
+                  "id": "weapon.primary-b",
+                  "displayName": "Primary B",
+                  "kind": "Weapon",
+                  "weaponSlot": "Primary",
+                  "behaviorId": "builtin.weapon.pellet_gun",
+                  "ammo": { "maxAmmo": 8 },
+                  "presentation": {}
+                }
+                """);
+            File.WriteAllText(
+                Path.Combine(packDirectory, "items", "weapon.secondary.json"),
+                """
+                {
+                  "id": "weapon.secondary",
+                  "displayName": "Secondary",
+                  "kind": "Weapon",
+                  "weaponSlot": "Secondary",
+                  "behaviorId": "builtin.weapon.pellet_gun",
+                  "ammo": { "maxAmmo": 4 },
+                  "presentation": {}
+                }
+                """);
+            File.WriteAllText(
+                Path.Combine(packDirectory, "items", "ability.special.json"),
+                """
+                {
+                  "id": "ability.special",
+                  "displayName": "Special",
+                  "kind": "Ability",
+                  "behaviorId": "builtin.ability.pyro_airblast",
+                  "ammo": {},
+                  "presentation": {},
+                  "ability": {
+                    "channel": "special",
+                    "category": "secondary",
+                    "activation": "pressed",
+                    "executorId": "builtin.ability.pyro_airblast"
+                  }
+                }
+                """);
+            File.WriteAllText(
+                Path.Combine(packDirectory, "classes", "tester.json"),
+                """
+                {
+                  "id": "tester",
+                  "displayName": "Tester",
+                  "movement": {},
+                  "loadouts": {
+                    "tester.stock": {
+                      "id": "tester.stock",
+                      "displayName": "Stock",
+                      "primary": {
+                        "defaultItemId": "weapon.primary-a",
+                        "itemIds": [ "weapon.primary-a", "weapon.primary-b" ],
+                        "switchPolicy": "primary_swap_station",
+                        "selectionPersistence": "same_class_loadout"
+                      },
+                      "secondary": { "itemId": "weapon.secondary" },
+                      "abilities": [ "ability.special" ]
+                    }
+                  },
+                  "defaultLoadoutId": "tester.stock"
+                }
+                """);
+
+            var pack = GameplayModPackDirectoryLoader.LoadFromDirectory(packDirectory);
+            var loadout = pack.Classes["tester"].Loadouts["tester.stock"];
+
+            Assert.Equal(2, pack.SchemaVersion);
+            Assert.Equal("weapon.primary-a", loadout.Primary?.DefaultItemId);
+            Assert.Equal(["weapon.primary-a", "weapon.primary-b"], loadout.Primary?.ItemIds);
+            Assert.Equal("weapon.secondary", loadout.Secondary?.ItemId);
+            Assert.Equal(["ability.special"], loadout.Abilities);
+
+            Assert.Equal("weapon.primary-a", loadout.PrimaryItemId);
+            Assert.Equal("weapon.secondary", loadout.SecondaryItemId);
+            Assert.Null(loadout.UtilityItemId);
+            Assert.Equal(["ability.special"], loadout.AbilityItemIds);
+            Assert.Equal(GameplayEquipmentSlot.Secondary, pack.Items["ability.special"].Slot);
+        }
+        finally
+        {
+            if (Directory.Exists(rootDirectory))
+            {
+                Directory.Delete(rootDirectory, recursive: true);
+            }
+        }
     }
 
     [Fact]

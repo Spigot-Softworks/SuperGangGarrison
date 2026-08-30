@@ -12,7 +12,14 @@ public static class GameplayModPackDirectoryLoader
 {
     private const string PackMetadataFileName = "pack.json";
     private const string RuntimeMetadataFileName = "runtime.json";
+    private const int CurrentSchemaVersion = 2;
     private static readonly JsonSerializerOptions JsonOptions = CreateJsonOptions();
+    private static readonly HashSet<string> LegacyAlternatePrimaryItemIds = new(StringComparer.Ordinal)
+    {
+        "weapon.bow",
+        "weapon.medigun.crit",
+        "weapon.scout-nailgun",
+    };
 
     public static IReadOnlyList<GameplayModPackDefinition> LoadAllFromContentRoot()
     {
@@ -49,14 +56,17 @@ public static class GameplayModPackDirectoryLoader
             throw new DirectoryNotFoundException($"Gameplay mod pack directory was not found: {fullPackDirectory}");
         }
 
-        var metadata = LoadRequiredJson<PackMetadataDocument>(Path.Combine(fullPackDirectory, PackMetadataFileName));
+        var metadataPath = Path.Combine(fullPackDirectory, PackMetadataFileName);
+        var metadata = LoadRequiredJson<PackMetadataDocument>(metadataPath);
+        var schemaVersion = ValidateSchemaVersion(metadata.SchemaVersion, metadataPath);
         var runtimeMetadataPath = Path.Combine(fullPackDirectory, RuntimeMetadataFileName);
         if (File.Exists(runtimeMetadataPath))
         {
             var runtimeDefinition = LoadRequiredJson<BrowserGameplayModPackDefinitionDocument>(runtimeMetadataPath).ToDefinition();
             if (!string.Equals(runtimeDefinition.Id, metadata.Id, StringComparison.Ordinal)
                 || !string.Equals(runtimeDefinition.DisplayName, metadata.DisplayName, StringComparison.Ordinal)
-                || !string.Equals(runtimeDefinition.Version.ToString(), metadata.Version, StringComparison.Ordinal))
+                || !string.Equals(runtimeDefinition.Version.ToString(), metadata.Version, StringComparison.Ordinal)
+                || runtimeDefinition.SchemaVersion != schemaVersion)
             {
                 throw new InvalidOperationException(
                     $"Gameplay runtime metadata \"{runtimeMetadataPath}\" does not match \"{PackMetadataFileName}\".");
@@ -70,19 +80,22 @@ public static class GameplayModPackDirectoryLoader
             "items",
             (item, _, filePath) =>
             {
-                ValidateRequiredText(item.Id, nameof(GameplayItemDefinition.Id), filePath);
-                ValidateRequiredText(item.DisplayName, nameof(GameplayItemDefinition.DisplayName), filePath);
-                ValidateRequiredText(item.BehaviorId, nameof(GameplayItemDefinition.BehaviorId), filePath);
-                if (item.Slot == GameplayEquipmentSlot.Primary && item.Ammo.MaxAmmo < 0)
+                var normalizedItem = NormalizeItemDefinition(item, schemaVersion, filePath);
+                ValidateRequiredText(normalizedItem.Id, nameof(GameplayItemDefinition.Id), filePath);
+                ValidateRequiredText(normalizedItem.DisplayName, nameof(GameplayItemDefinition.DisplayName), filePath);
+                ValidateRequiredText(normalizedItem.BehaviorId, nameof(GameplayItemDefinition.BehaviorId), filePath);
+                if (normalizedItem.Kind == GameplayItemKind.Weapon
+                    && normalizedItem.WeaponSlot == GameplayWeaponSlot.Primary
+                    && normalizedItem.Ammo.MaxAmmo < 0)
                 {
                     throw new InvalidOperationException($"Primary item ammo cannot be negative in gameplay item file \"{filePath}\".");
                 }
 
-                return item with
+                return normalizedItem with
                 {
-                    Presentation = NormalizeItemPresentation(item.Presentation ?? new GameplayItemPresentationDefinition(), filePath),
-                    Ownership = item.Ownership ?? new GameplayItemOwnershipDefinition(),
-                    Ability = NormalizeAbilityDefinition(item, filePath),
+                    Presentation = NormalizeItemPresentation(normalizedItem.Presentation, filePath),
+                    Ownership = normalizedItem.Ownership ?? new GameplayItemOwnershipDefinition(),
+                    Ability = NormalizeAbilityDefinition(normalizedItem, filePath),
                 };
             });
         var itemsById = items.ToDictionary(static item => item.Id, StringComparer.Ordinal);
@@ -130,21 +143,30 @@ public static class GameplayModPackDirectoryLoader
                     throw new InvalidOperationException($"Gameplay class \"{gameplayClass.Id}\" default loadout \"{gameplayClass.DefaultLoadoutId}\" was not found in \"{filePath}\".");
                 }
 
-                foreach (var loadout in gameplayClass.Loadouts.Values)
+                var normalizedLoadouts = gameplayClass.Loadouts.Values
+                    .Select(loadout => NormalizeLoadoutDefinition(loadout, itemsById, schemaVersion, gameplayClass.Id, filePath))
+                    .ToDictionary(static loadout => loadout.Id, StringComparer.Ordinal);
+                foreach (var loadout in normalizedLoadouts.Values)
                 {
                     ValidateRequiredText(loadout.Id, nameof(GameplayClassLoadoutDefinition.Id), filePath);
                     ValidateRequiredText(loadout.DisplayName, nameof(GameplayClassLoadoutDefinition.DisplayName), filePath);
-                    ValidateRequiredText(loadout.PrimaryItemId, nameof(GameplayClassLoadoutDefinition.PrimaryItemId), filePath);
-                    ValidateReferencedItem(itemsById, loadout.PrimaryItemId, GameplayEquipmentSlot.Primary, gameplayClass.Id, loadout.Id, filePath);
-                    ValidateOptionalReferencedItem(itemsById, loadout.SecondaryItemId, GameplayEquipmentSlot.Secondary, gameplayClass.Id, loadout.Id, filePath);
-                    ValidateOptionalReferencedItem(itemsById, loadout.UtilityItemId, GameplayEquipmentSlot.Utility, gameplayClass.Id, loadout.Id, filePath);
-                    ValidateReferencedAbilityItems(itemsById, loadout.AbilityItemIds, gameplayClass.Id, loadout.Id, filePath);
+                    if (schemaVersion == 1)
+                    {
+                        ValidateRequiredText(loadout.PrimaryItemId, nameof(GameplayClassLoadoutDefinition.PrimaryItemId), filePath);
+                        ValidateReferencedItem(itemsById, loadout.PrimaryItemId, GameplayEquipmentSlot.Primary, gameplayClass.Id, loadout.Id, filePath);
+                        ValidateOptionalReferencedItem(itemsById, loadout.SecondaryItemId, GameplayEquipmentSlot.Secondary, gameplayClass.Id, loadout.Id, filePath);
+                        ValidateOptionalReferencedItem(itemsById, loadout.UtilityItemId, GameplayEquipmentSlot.Utility, gameplayClass.Id, loadout.Id, filePath);
+                        ValidateReferencedAbilityItems(itemsById, loadout.AbilityItemIds, gameplayClass.Id, loadout.Id, filePath);
+                    }
+
+                    ValidateCanonicalLoadout(itemsById, loadout, gameplayClass.Id, filePath);
                 }
 
                 return gameplayClass with
                 {
                     Presentation = NormalizePresentation(gameplayClass.Presentation),
                     Runtime = NormalizeRuntime(gameplayClass.Runtime, filePath),
+                    Loadouts = normalizedLoadouts,
                 };
             });
         var classesById = classes.ToDictionary(static gameplayClass => gameplayClass.Id, StringComparer.Ordinal);
@@ -163,7 +185,8 @@ public static class GameplayModPackDirectoryLoader
             Version: version,
             Items: itemsById,
             Classes: classesById,
-            Assets: new GameplayModPackAssetCatalog(spritesById));
+            Assets: new GameplayModPackAssetCatalog(spritesById),
+            SchemaVersion: schemaVersion);
     }
 
     public static string? FindPackDirectory(string packDirectoryName)
@@ -297,6 +320,330 @@ public static class GameplayModPackDirectoryLoader
         }
 
         return results;
+    }
+
+    private static int ValidateSchemaVersion(int schemaVersion, string metadataPath)
+    {
+        var normalizedSchemaVersion = schemaVersion <= 0 ? 1 : schemaVersion;
+        if (normalizedSchemaVersion is < 1 or > CurrentSchemaVersion)
+        {
+            throw new InvalidOperationException(
+                $"Gameplay mod pack schema version \"{schemaVersion}\" is not supported in \"{metadataPath}\". "
+                + $"Supported versions are 1 through {CurrentSchemaVersion}.");
+        }
+
+        return normalizedSchemaVersion;
+    }
+
+    private static GameplayItemDefinition NormalizeItemDefinition(
+        GameplayItemDefinition item,
+        int schemaVersion,
+        string filePath)
+    {
+        var kind = item.Kind;
+        if (schemaVersion >= 2 && kind == GameplayItemKind.Unspecified)
+        {
+            throw new InvalidOperationException($"Gameplay schema v2 item \"{item.Id}\" must declare kind in \"{filePath}\".");
+        }
+
+        if (kind == GameplayItemKind.Unspecified)
+        {
+            kind = InferLegacyItemKind(item);
+        }
+
+        var weaponSlot = item.WeaponSlot;
+        if (kind == GameplayItemKind.Weapon)
+        {
+            if (schemaVersion >= 2 && weaponSlot is null)
+            {
+                throw new InvalidOperationException($"Gameplay schema v2 weapon \"{item.Id}\" must declare weaponSlot in \"{filePath}\".");
+            }
+
+            weaponSlot ??= item.Slot == GameplayEquipmentSlot.Primary
+                || (schemaVersion == 1 && LegacyAlternatePrimaryItemIds.Contains(item.Id))
+                ? GameplayWeaponSlot.Primary
+                : GameplayWeaponSlot.Secondary;
+        }
+        else if (weaponSlot is not null)
+        {
+            throw new InvalidOperationException($"Gameplay ability item \"{item.Id}\" cannot declare weaponSlot in \"{filePath}\".");
+        }
+
+        var compatibilitySlot = schemaVersion == 1
+            ? item.Slot
+            : kind == GameplayItemKind.Weapon
+                ? weaponSlot == GameplayWeaponSlot.Primary
+                    ? GameplayEquipmentSlot.Primary
+                    : GameplayEquipmentSlot.Secondary
+                : ResolveCompatibilityAbilitySlot(item.Ability, item.Slot);
+        var grantedAbilityItemIds = (item.GrantedAbilityItemIds ?? [])
+            .Where(static itemId => !string.IsNullOrWhiteSpace(itemId))
+            .Select(static itemId => itemId.Trim())
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+
+        return item with
+        {
+            Kind = kind,
+            WeaponSlot = weaponSlot,
+            Slot = compatibilitySlot,
+            Ammo = item.Ammo ?? new GameplayItemAmmoDefinition(),
+            Presentation = item.Presentation ?? new GameplayItemPresentationDefinition(),
+            GrantedAbilityItemIds = grantedAbilityItemIds,
+        };
+    }
+
+    private static GameplayItemKind InferLegacyItemKind(GameplayItemDefinition item)
+    {
+        if (item.Slot == GameplayEquipmentSlot.Primary
+            || item.BehaviorId.StartsWith("builtin.weapon.", StringComparison.Ordinal)
+            || (item.Ammo?.MaxAmmo ?? 0) > 0)
+        {
+            return GameplayItemKind.Weapon;
+        }
+
+        return GameplayItemKind.Ability;
+    }
+
+    private static GameplayEquipmentSlot ResolveCompatibilityAbilitySlot(
+        GameplayAbilityDefinition? ability,
+        GameplayEquipmentSlot legacySlot)
+    {
+        var channel = ability?.Channel;
+        if (string.IsNullOrWhiteSpace(channel))
+        {
+            channel = ToAbilityChannel(ability?.Category, legacySlot);
+        }
+
+        return string.Equals(channel, GameplayAbilityConstants.SpecialChannel, StringComparison.Ordinal)
+            ? GameplayEquipmentSlot.Secondary
+            : GameplayEquipmentSlot.Utility;
+    }
+
+    private static GameplayClassLoadoutDefinition NormalizeLoadoutDefinition(
+        GameplayClassLoadoutDefinition loadout,
+        IReadOnlyDictionary<string, GameplayItemDefinition> items,
+        int schemaVersion,
+        string classId,
+        string filePath)
+    {
+        return schemaVersion >= 2
+            ? NormalizeSchemaV2Loadout(loadout, classId, filePath)
+            : NormalizeLegacyLoadout(loadout, items);
+    }
+
+    private static GameplayClassLoadoutDefinition NormalizeSchemaV2Loadout(
+        GameplayClassLoadoutDefinition loadout,
+        string classId,
+        string filePath)
+    {
+        if (loadout.Primary is null)
+        {
+            throw new InvalidOperationException(
+                $"Gameplay schema v2 class \"{classId}\" loadout \"{loadout.Id}\" must declare primary in \"{filePath}\".");
+        }
+
+        var defaultPrimaryItemId = loadout.Primary.DefaultItemId?.Trim() ?? string.Empty;
+        var primaryItemIds = loadout.Primary.ItemIds
+            .Where(static itemId => !string.IsNullOrWhiteSpace(itemId))
+            .Select(static itemId => itemId.Trim())
+            .Prepend(defaultPrimaryItemId)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        var normalizedPrimary = loadout.Primary with
+        {
+            DefaultItemId = defaultPrimaryItemId,
+            ItemIds = primaryItemIds,
+            SwitchPolicy = loadout.Primary.SwitchPolicy?.Trim() ?? string.Empty,
+            SelectionPersistence = loadout.Primary.SelectionPersistence?.Trim() ?? string.Empty,
+        };
+        var secondaryItemId = string.IsNullOrWhiteSpace(loadout.Secondary?.ItemId)
+            ? null
+            : loadout.Secondary.ItemId.Trim();
+        var abilities = loadout.Abilities
+            .Where(static itemId => !string.IsNullOrWhiteSpace(itemId))
+            .Select(static itemId => itemId.Trim())
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+
+        return loadout with
+        {
+            Primary = normalizedPrimary,
+            Secondary = secondaryItemId is null ? null : new GameplaySecondaryLoadoutDefinition(secondaryItemId),
+            Abilities = abilities,
+            PrimaryItemId = defaultPrimaryItemId,
+            SecondaryItemId = secondaryItemId,
+            UtilityItemId = null,
+            AbilityItemIds = abilities,
+        };
+    }
+
+    private static GameplayClassLoadoutDefinition NormalizeLegacyLoadout(
+        GameplayClassLoadoutDefinition loadout,
+        IReadOnlyDictionary<string, GameplayItemDefinition> items)
+    {
+        var primaryItemIds = new List<string>();
+        AddDistinctItemId(primaryItemIds, loadout.PrimaryItemId);
+
+        var legacySecondaryIsAlternatePrimary = !string.IsNullOrWhiteSpace(loadout.SecondaryItemId)
+            && LegacyAlternatePrimaryItemIds.Contains(loadout.SecondaryItemId)
+            && items.TryGetValue(loadout.SecondaryItemId, out var legacyAlternatePrimary)
+            && legacyAlternatePrimary.Kind == GameplayItemKind.Weapon;
+        if (legacySecondaryIsAlternatePrimary)
+        {
+            AddDistinctItemId(primaryItemIds, loadout.SecondaryItemId);
+        }
+
+        string? canonicalSecondaryItemId = null;
+        if (!legacySecondaryIsAlternatePrimary
+            && TryGetItemOfKind(items, loadout.SecondaryItemId, GameplayItemKind.Weapon, out var legacySecondaryWeapon))
+        {
+            canonicalSecondaryItemId = legacySecondaryWeapon.Id;
+        }
+        else if (TryGetItemOfKind(items, loadout.UtilityItemId, GameplayItemKind.Weapon, out var legacyUtilityWeapon))
+        {
+            canonicalSecondaryItemId = legacyUtilityWeapon.Id;
+        }
+
+        var abilities = new List<string>();
+        if (loadout.AbilityItemIds is not null)
+        {
+            foreach (var abilityItemId in loadout.AbilityItemIds)
+            {
+                AddDistinctItemId(abilities, abilityItemId);
+            }
+        }
+
+        if (TryGetItemOfKind(items, loadout.SecondaryItemId, GameplayItemKind.Ability, out var legacySecondaryAbility))
+        {
+            AddDistinctItemId(abilities, legacySecondaryAbility.Id);
+        }
+
+        if (TryGetItemOfKind(items, loadout.UtilityItemId, GameplayItemKind.Ability, out var legacyUtilityAbility))
+        {
+            AddDistinctItemId(abilities, legacyUtilityAbility.Id);
+        }
+
+        return loadout with
+        {
+            Primary = new GameplayPrimaryLoadoutDefinition(
+                loadout.PrimaryItemId,
+                primaryItemIds),
+            Secondary = canonicalSecondaryItemId is null
+                ? null
+                : new GameplaySecondaryLoadoutDefinition(canonicalSecondaryItemId),
+            Abilities = abilities,
+        };
+    }
+
+    private static bool TryGetItemOfKind(
+        IReadOnlyDictionary<string, GameplayItemDefinition> items,
+        string? itemId,
+        GameplayItemKind kind,
+        out GameplayItemDefinition item)
+    {
+        if (!string.IsNullOrWhiteSpace(itemId)
+            && items.TryGetValue(itemId, out var candidate)
+            && candidate.Kind == kind)
+        {
+            item = candidate;
+            return true;
+        }
+
+        item = null!;
+        return false;
+    }
+
+    private static void AddDistinctItemId(List<string> itemIds, string? itemId)
+    {
+        if (string.IsNullOrWhiteSpace(itemId))
+        {
+            return;
+        }
+
+        var normalizedItemId = itemId.Trim();
+        if (!itemIds.Contains(normalizedItemId, StringComparer.Ordinal))
+        {
+            itemIds.Add(normalizedItemId);
+        }
+    }
+
+    private static void ValidateCanonicalLoadout(
+        IReadOnlyDictionary<string, GameplayItemDefinition> items,
+        GameplayClassLoadoutDefinition loadout,
+        string classId,
+        string filePath)
+    {
+        if (loadout.Primary is null)
+        {
+            throw new InvalidOperationException($"Gameplay class \"{classId}\" loadout \"{loadout.Id}\" has no normalized primary definition in \"{filePath}\".");
+        }
+
+        ValidateRequiredText(loadout.Primary.DefaultItemId, nameof(GameplayPrimaryLoadoutDefinition.DefaultItemId), filePath);
+        if (loadout.Primary.ItemIds.Count == 0
+            || !loadout.Primary.ItemIds.Contains(loadout.Primary.DefaultItemId, StringComparer.Ordinal))
+        {
+            throw new InvalidOperationException($"Gameplay class \"{classId}\" loadout \"{loadout.Id}\" primary itemIds must include its default item in \"{filePath}\".");
+        }
+
+        foreach (var primaryItemId in loadout.Primary.ItemIds)
+        {
+            ValidateCanonicalWeaponItem(items, primaryItemId, GameplayWeaponSlot.Primary, classId, loadout.Id, filePath);
+        }
+
+        if (loadout.Secondary is not null)
+        {
+            ValidateCanonicalWeaponItem(items, loadout.Secondary.ItemId, GameplayWeaponSlot.Secondary, classId, loadout.Id, filePath);
+        }
+
+        ValidateCanonicalAbilityItems(items, loadout.Abilities, classId, loadout.Id, filePath);
+    }
+
+    private static void ValidateCanonicalWeaponItem(
+        IReadOnlyDictionary<string, GameplayItemDefinition> items,
+        string itemId,
+        GameplayWeaponSlot expectedSlot,
+        string classId,
+        string loadoutId,
+        string filePath)
+    {
+        if (!items.TryGetValue(itemId, out var item))
+        {
+            throw new InvalidOperationException($"Gameplay class \"{classId}\" loadout \"{loadoutId}\" references unknown weapon \"{itemId}\" in \"{filePath}\".");
+        }
+
+        if (item.Kind != GameplayItemKind.Weapon || item.WeaponSlot != expectedSlot)
+        {
+            throw new InvalidOperationException(
+                $"Gameplay class \"{classId}\" loadout \"{loadoutId}\" expected \"{itemId}\" to be a {expectedSlot} weapon in \"{filePath}\".");
+        }
+    }
+
+    private static void ValidateCanonicalAbilityItems(
+        IReadOnlyDictionary<string, GameplayItemDefinition> items,
+        IReadOnlyList<string> itemIds,
+        string classId,
+        string loadoutId,
+        string filePath)
+    {
+        var activeChannels = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var itemId in itemIds)
+        {
+            if (!items.TryGetValue(itemId, out var item)
+                || item.Kind != GameplayItemKind.Ability
+                || item.Ability is null)
+            {
+                throw new InvalidOperationException($"Gameplay class \"{classId}\" loadout \"{loadoutId}\" references invalid ability \"{itemId}\" in \"{filePath}\".");
+            }
+
+            var channel = item.Ability.Channel;
+            if (channel is GameplayAbilityConstants.SpecialChannel or GameplayAbilityConstants.UtilityChannel
+                && !activeChannels.Add(channel))
+            {
+                throw new InvalidOperationException(
+                    $"Gameplay class \"{classId}\" loadout \"{loadoutId}\" declares more than one active ability for channel \"{channel}\" in \"{filePath}\".");
+            }
+        }
     }
 
     private static void ValidateReferencedItem(
@@ -497,6 +844,9 @@ public static class GameplayModPackDirectoryLoader
         var category = string.IsNullOrWhiteSpace(ability.Category)
             ? GetDefaultAbilityCategory(item.Slot)
             : ability.Category.Trim();
+        var channel = string.IsNullOrWhiteSpace(ability.Channel)
+            ? ToAbilityChannel(category, item.Slot)
+            : ability.Channel.Trim();
         var activation = string.IsNullOrWhiteSpace(ability.Activation)
             ? GameplayAbilityConstants.PressedActivation
             : ability.Activation.Trim();
@@ -505,8 +855,14 @@ public static class GameplayModPackDirectoryLoader
             : ability.ExecutorId.Trim();
 
         ValidateRequiredText(category, nameof(GameplayAbilityDefinition.Category), filePath);
+        ValidateRequiredText(channel, nameof(GameplayAbilityDefinition.Channel), filePath);
         ValidateRequiredText(activation, nameof(GameplayAbilityDefinition.Activation), filePath);
         ValidateRequiredText(executorId, nameof(GameplayAbilityDefinition.ExecutorId), filePath);
+        if (!IsKnownAbilityChannel(channel))
+        {
+            throw new InvalidOperationException($"Gameplay ability \"{item.Id}\" declared unsupported channel \"{channel}\" in \"{filePath}\".");
+        }
+
         if (!IsKnownAbilityActivation(activation))
         {
             throw new InvalidOperationException($"Gameplay ability \"{item.Id}\" declared unsupported activation \"{activation}\" in \"{filePath}\".");
@@ -515,6 +871,7 @@ public static class GameplayModPackDirectoryLoader
         var normalizedAbility = ability with
         {
             Category = category,
+            Channel = channel,
             Activation = activation,
             ExecutorId = executorId,
             Tags = NormalizeAbilityTags(ability.Tags),
@@ -601,6 +958,41 @@ public static class GameplayModPackDirectoryLoader
         return slot == GameplayEquipmentSlot.Utility
             ? GameplayAbilityConstants.UtilityCategory
             : GameplayAbilityConstants.SecondaryCategory;
+    }
+
+    private static string ToAbilityChannel(string? category, GameplayEquipmentSlot slot)
+    {
+        if (string.Equals(category, GameplayAbilityConstants.SecondaryCategory, StringComparison.Ordinal))
+        {
+            return GameplayAbilityConstants.SpecialChannel;
+        }
+
+        if (string.Equals(category, GameplayAbilityConstants.UtilityCategory, StringComparison.Ordinal))
+        {
+            return GameplayAbilityConstants.UtilityChannel;
+        }
+
+        if (string.Equals(category, GameplayAbilityConstants.PassiveCategory, StringComparison.Ordinal))
+        {
+            return GameplayAbilityConstants.PassiveChannel;
+        }
+
+        if (string.Equals(category, GameplayAbilityConstants.TauntCategory, StringComparison.Ordinal))
+        {
+            return GameplayAbilityConstants.TauntChannel;
+        }
+
+        return slot == GameplayEquipmentSlot.Utility
+            ? GameplayAbilityConstants.UtilityChannel
+            : GameplayAbilityConstants.SpecialChannel;
+    }
+
+    private static bool IsKnownAbilityChannel(string channel)
+    {
+        return string.Equals(channel, GameplayAbilityConstants.SpecialChannel, StringComparison.Ordinal)
+            || string.Equals(channel, GameplayAbilityConstants.UtilityChannel, StringComparison.Ordinal)
+            || string.Equals(channel, GameplayAbilityConstants.PassiveChannel, StringComparison.Ordinal)
+            || string.Equals(channel, GameplayAbilityConstants.TauntChannel, StringComparison.Ordinal);
     }
 
     private static bool IsKnownAbilityActivation(string activation)
@@ -750,5 +1142,6 @@ public static class GameplayModPackDirectoryLoader
     private sealed record PackMetadataDocument(
         string Id,
         string DisplayName,
-        string Version);
+        string Version,
+        int SchemaVersion = 1);
 }

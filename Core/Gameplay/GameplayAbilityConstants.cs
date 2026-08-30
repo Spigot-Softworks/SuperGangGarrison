@@ -4,6 +4,11 @@ namespace OpenGarrison.Core;
 
 public static class GameplayAbilityConstants
 {
+    public const string SpecialChannel = "special";
+    public const string UtilityChannel = "utility";
+    public const string PassiveChannel = "passive";
+    public const string TauntChannel = "taunt";
+
     // These categories have stock simulation dispatch hooks today.
     public const string SecondaryCategory = "secondary";
     public const string UtilityCategory = "utility";

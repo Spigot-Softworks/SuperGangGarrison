@@ -7,7 +7,8 @@ public sealed record GameplayAbilityDefinition(
     string Activation = "",
     string ExecutorId = "",
     IReadOnlyList<string>? Tags = null,
-    IReadOnlyDictionary<string, JsonElement>? Parameters = null)
+    IReadOnlyDictionary<string, JsonElement>? Parameters = null,
+    string Channel = "")
 {
     public IReadOnlyList<string> Tags { get; init; } = Tags ?? Array.Empty<string>();
 

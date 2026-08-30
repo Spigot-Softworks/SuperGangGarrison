@@ -650,7 +650,13 @@ public sealed partial class GameplayRuntimeRegistry
             registration.Presentation ?? new GameplayItemPresentationDefinition(),
             registration.Combat,
             registration.Ownership,
-            registration.Description);
+            registration.Description)
+        {
+            Kind = GameplayItemKind.Weapon,
+            WeaponSlot = registration.Slot == GameplayEquipmentSlot.Primary
+                ? GameplayWeaponSlot.Primary
+                : GameplayWeaponSlot.Secondary,
+        };
         AddRuntimeItem(modPackId, item);
         return true;
     }
@@ -693,7 +699,10 @@ public sealed partial class GameplayRuntimeRegistry
             registration.BehaviorId.Trim(),
             new GameplayItemAmmoDefinition(),
             registration.Presentation ?? new GameplayItemPresentationDefinition(),
-            Ability: normalizedAbility);
+            Ability: normalizedAbility)
+        {
+            Kind = GameplayItemKind.Ability,
+        };
         AddRuntimeItem(modPackId, item);
         return true;
     }
@@ -714,7 +723,8 @@ public sealed partial class GameplayRuntimeRegistry
                     [item.Id] = item,
                 },
                 new Dictionary<string, GameplayClassDefinition>(StringComparer.Ordinal),
-                new GameplayModPackAssetCatalog(new Dictionary<string, GameplaySpriteAssetDefinition>(StringComparer.Ordinal)));
+                new GameplayModPackAssetCatalog(new Dictionary<string, GameplaySpriteAssetDefinition>(StringComparer.Ordinal)),
+                SchemaVersion: 2);
         }
         else
         {
@@ -757,13 +767,26 @@ public sealed partial class GameplayRuntimeRegistry
             return false;
         }
 
+        var primaryItemId = registration.PrimaryItemId.Trim();
+        var secondaryItemId = NormalizeOptionalItemId(registration.SecondaryItemId);
+        var utilityItemId = NormalizeOptionalItemId(registration.UtilityItemId);
+        var abilityItemIds = NormalizeAbilityItemIds(registration.AbilityItemIds);
         var loadout = new GameplayClassLoadoutDefinition(
             loadoutId,
             registration.DisplayName.Trim(),
-            registration.PrimaryItemId.Trim(),
-            NormalizeOptionalItemId(registration.SecondaryItemId),
-            NormalizeOptionalItemId(registration.UtilityItemId),
-            NormalizeAbilityItemIds(registration.AbilityItemIds));
+            primaryItemId,
+            secondaryItemId,
+            utilityItemId,
+            abilityItemIds)
+        {
+            Primary = new GameplayPrimaryLoadoutDefinition(primaryItemId, [primaryItemId]),
+            Secondary = TryGetRegisteredWeaponItemId(secondaryItemId, out var registeredSecondaryItemId)
+                ? new GameplaySecondaryLoadoutDefinition(registeredSecondaryItemId)
+                : TryGetRegisteredWeaponItemId(utilityItemId, out var registeredUtilityWeaponItemId)
+                    ? new GameplaySecondaryLoadoutDefinition(registeredUtilityWeaponItemId)
+                    : null,
+            Abilities = ResolveRegisteredAbilityItemIds(secondaryItemId, utilityItemId, abilityItemIds),
+        };
         if (!ValidateRuntimeLoadoutItems(loadout, out errorMessage))
         {
             return false;
@@ -1000,9 +1023,13 @@ public sealed partial class GameplayRuntimeRegistry
 
     private static GameplayAbilityDefinition NormalizeRuntimeAbility(GameplayAbilityDefinition ability, string fallbackExecutorId)
     {
+        var category = ability.Category.Trim();
         return ability with
         {
-            Category = ability.Category.Trim(),
+            Category = category,
+            Channel = string.IsNullOrWhiteSpace(ability.Channel)
+                ? ResolveRuntimeAbilityChannel(category)
+                : ability.Channel.Trim(),
             Activation = ability.Activation.Trim(),
             ExecutorId = string.IsNullOrWhiteSpace(ability.ExecutorId)
                 ? fallbackExecutorId.Trim()
@@ -1014,6 +1041,67 @@ public sealed partial class GameplayRuntimeRegistry
                 .ToArray(),
             Parameters = ability.Parameters,
         };
+    }
+
+    private static string ResolveRuntimeAbilityChannel(string category)
+    {
+        if (string.Equals(category, GameplayAbilityConstants.UtilityCategory, StringComparison.Ordinal))
+        {
+            return GameplayAbilityConstants.UtilityChannel;
+        }
+
+        if (string.Equals(category, GameplayAbilityConstants.PassiveCategory, StringComparison.Ordinal))
+        {
+            return GameplayAbilityConstants.PassiveChannel;
+        }
+
+        if (string.Equals(category, GameplayAbilityConstants.TauntCategory, StringComparison.Ordinal))
+        {
+            return GameplayAbilityConstants.TauntChannel;
+        }
+
+        return GameplayAbilityConstants.SpecialChannel;
+    }
+
+    private bool TryGetRegisteredWeaponItemId(string? itemId, out string normalizedItemId)
+    {
+        normalizedItemId = NormalizeOptionalItemId(itemId) ?? string.Empty;
+        return normalizedItemId.Length > 0
+            && _items.TryGetValue(normalizedItemId, out var item)
+            && item.Kind == GameplayItemKind.Weapon;
+    }
+
+    private IReadOnlyList<string> ResolveRegisteredAbilityItemIds(
+        string? secondaryItemId,
+        string? utilityItemId,
+        IReadOnlyList<string>? abilityItemIds)
+    {
+        var results = new List<string>();
+        AddRegisteredAbilityItemId(results, secondaryItemId);
+        AddRegisteredAbilityItemId(results, utilityItemId);
+        if (abilityItemIds is not null)
+        {
+            foreach (var itemId in abilityItemIds)
+            {
+                AddRegisteredAbilityItemId(results, itemId);
+            }
+        }
+
+        return results;
+    }
+
+    private void AddRegisteredAbilityItemId(List<string> results, string? itemId)
+    {
+        var normalizedItemId = NormalizeOptionalItemId(itemId);
+        if (normalizedItemId is null
+            || results.Contains(normalizedItemId, StringComparer.Ordinal)
+            || !_items.TryGetValue(normalizedItemId, out var item)
+            || item.Kind != GameplayItemKind.Ability)
+        {
+            return;
+        }
+
+        results.Add(normalizedItemId);
     }
 
     private static string? NormalizeOptionalItemId(string? itemId)
