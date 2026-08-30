@@ -1,7 +1,8 @@
 {
   "id": "weapon.minigun",
+  "kind": "Weapon",
+  "weaponSlot": "Primary",
   "displayName": "Minigun",
-  "slot": "Primary",
   "behaviorId": "builtin.weapon.minigun",
   "ammo": {
     "maxAmmo": 200,

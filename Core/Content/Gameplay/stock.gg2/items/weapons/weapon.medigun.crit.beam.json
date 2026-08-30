@@ -1,7 +1,9 @@
 {
   "id": "weapon.medigun.crit.beam",
+  "kind": "Weapon",
+  "weaponSlot": "Primary",
+  "grantedAbilityItemIds": [ "ability.medic-kritz-beam" ],
   "displayName": "Kritzkrieg (Beam)",
-  "slot": "Secondary",
   "behaviorId": "builtin.weapon.medigun.crit",
   "ammo": {
     "maxAmmo": 40,
@@ -12,16 +14,6 @@
     "autoReloads": false,
     "ammoRegenPerTick": 0,
     "refillsAllAtOnce": false
-  },
-  "ability": {
-    "category": "secondary",
-    "activation": "held",
-    "executorId": "builtin.ability.medic_kritz_beam",
-    "tags": [ "core_m2", "beam", "damage", "charge" ],
-    "parameters": {
-      "range": 150,
-      "damagePerSecond": 1
-    }
   },
   "presentation": {
     "worldSpriteName": "MedigunCritS",

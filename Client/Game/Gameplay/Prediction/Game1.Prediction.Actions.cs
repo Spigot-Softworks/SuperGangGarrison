@@ -520,11 +520,11 @@ public partial class Game1
 
     private static GameplayAbilityDefinition? GetPredictedSpySuperjumpAbility(PlayerEntity player)
     {
-        return CharacterClassCatalog.RuntimeRegistry.TryGetGameplayAbilityDefinition(
-                player.GameplayLoadoutState.UtilityItemId,
-                out _,
-                out var ability)
-            ? ability
+        return player.TryGetGameplayAbilityItem(
+                GameplayAbilityConstants.UtilityChannel,
+                BuiltInGameplayBehaviorIds.SpyUtility,
+                out var abilityItem)
+            ? abilityItem.Ability
             : null;
     }
 
@@ -542,11 +542,19 @@ public partial class Game1
             return false;
         }
 
-        if (player.IsLockedPrimaryWeaponClass
-            && !_world.IsNetworkPlayerAutomaticRespawnSuppressed(player)
-            && !_world.IsNearPrimaryWeaponSwapStation(player))
+        if (player.HasAlternatePrimaryWeapons)
         {
-            return false;
+            if (_world.IsNetworkPlayerAutomaticRespawnSuppressed(player)
+                || _world.IsNearPrimaryWeaponSwapStation(player))
+            {
+                if (!player.TryCycleGameplayPrimaryItem())
+                {
+                    return false;
+                }
+
+                SyncPredictedLocalPlayerState(player);
+                return true;
+            }
         }
 
         return TryPredictedToggleSecondaryWeapon(player);
@@ -582,7 +590,7 @@ public partial class Game1
                 return false;
             }
 
-            if (player.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.MedigunCrit))
+            if (player.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.MedigunCrit))
             {
                 if (predictedInput.Input.FirePrimary
                     && _predictedLocalActionState.IsMedicUberReady
@@ -875,12 +883,11 @@ public partial class Game1
 
     private static GameplayAbilityDefinition? GetPredictedCivvieTauntAbility(PlayerEntity player)
     {
-        return CharacterClassCatalog.RuntimeRegistry.TryGetGameplayAbilityDefinition(
-                player.GameplayLoadoutState.UtilityItemId,
-                out _,
-                out var ability)
-            && string.Equals(ability.Category, GameplayAbilityConstants.TauntCategory, StringComparison.Ordinal)
-            ? ability
+        return player.TryGetGameplayAbilityItem(
+                GameplayAbilityConstants.TauntChannel,
+                BuiltInGameplayBehaviorIds.CivvieTaunt,
+                out var abilityItem)
+            ? abilityItem.Ability
             : null;
     }
 
@@ -943,11 +950,11 @@ public partial class Game1
 
     private static GameplayAbilityDefinition? GetPredictedHeavyGhostDashAbility(PlayerEntity player)
     {
-        return CharacterClassCatalog.RuntimeRegistry.TryGetGameplayAbilityDefinition(
-                player.GameplayLoadoutState.UtilityItemId,
-                out _,
-                out var ability)
-            ? ability
+        return player.TryGetGameplayAbilityItem(
+                GameplayAbilityConstants.UtilityChannel,
+                BuiltInGameplayBehaviorIds.HeavyGhostDash,
+                out var abilityItem)
+            ? abilityItem.Ability
             : null;
     }
 
@@ -1032,7 +1039,11 @@ public partial class Game1
 
     private static bool IsPredictedStockHeavyGhostDashUtility(PlayerEntity player, GameplayAbilityDefinition? ability)
     {
-        return string.Equals(player.GameplayLoadoutState.UtilityItemId, StockGameplayModCatalog.HeavyUtilityItemId, StringComparison.Ordinal)
+        return player.TryGetGameplayAbilityItem(
+                GameplayAbilityConstants.UtilityChannel,
+                BuiltInGameplayBehaviorIds.HeavyGhostDash,
+                out var abilityItem)
+            && string.Equals(abilityItem.Id, StockGameplayModCatalog.HeavyUtilityItemId, StringComparison.Ordinal)
             && (ability is null || string.Equals(ability.ExecutorId, BuiltInGameplayBehaviorIds.HeavyGhostDash, StringComparison.Ordinal));
     }
 

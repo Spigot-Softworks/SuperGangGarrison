@@ -1,10 +1,11 @@
 {
   "id": "ability.spy-utility",
+  "kind": "Ability",
   "displayName": "Spy Utility",
-  "slot": "Utility",
   "behaviorId": "builtin.utility.spy",
   "ability": {
     "category": "utility",
+    "channel": "utility",
     "activation": "held",
     "executorId": "builtin.ability.spy_superjump",
     "tags": [ "movement", "charge", "cooldown" ],

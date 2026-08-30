@@ -11,21 +11,21 @@ public sealed class PlayerEntityLockedPrimarySelectionTests
     {
         var player = new PlayerEntity(1, CharacterClassCatalog.Scout, "Scout");
         player.Spawn(PlayerTeam.Red, 100f, 100f);
-        player.SetExperimentalOffhandWeapon(CreateWeapon("weapon.scout-nailgun"));
-        player.EquipExperimentalOffhandWeapon();
+        Assert.True(player.TrySelectGameplayPrimaryItem("weapon.scout-nailgun"));
 
-        Assert.Equal(GameplayEquipmentSlot.Secondary, player.SelectedGameplayEquippedSlot);
-        Assert.True(player.IsExperimentalOffhandEquipped);
+        Assert.Equal(GameplayEquipmentSlot.Primary, player.SelectedGameplayEquippedSlot);
+        Assert.Equal("weapon.scout-nailgun", player.SelectedGameplayPrimaryItemId);
+        Assert.False(player.HasExperimentalOffhandWeapon);
 
         player.Kill();
         Assert.False(player.IsExperimentalOffhandEquipped);
-        Assert.Equal(GameplayEquipmentSlot.Secondary, player.SelectedGameplayEquippedSlot);
+        Assert.Equal("weapon.scout-nailgun", player.SelectedGameplayPrimaryItemId);
 
         player.Spawn(PlayerTeam.Red, 100f, 100f);
 
-        Assert.Equal(GameplayEquipmentSlot.Secondary, player.SelectedGameplayEquippedSlot);
-        Assert.True(player.IsExperimentalOffhandEquipped);
-        Assert.True(player.IsExperimentalOffhandSelected);
+        Assert.Equal(GameplayEquipmentSlot.Primary, player.SelectedGameplayEquippedSlot);
+        Assert.Equal("weapon.scout-nailgun", player.GameplayLoadoutState.PrimaryItemId);
+        Assert.True(player.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.ScoutNailgun));
     }
 
     [Fact]
@@ -33,12 +33,12 @@ public sealed class PlayerEntityLockedPrimarySelectionTests
     {
         var player = new PlayerEntity(1, CharacterClassCatalog.Scout, "Scout");
         player.Spawn(PlayerTeam.Red, 100f, 100f);
-        player.SetExperimentalOffhandWeapon(CreateWeapon("weapon.scout-nailgun"));
-        player.EquipExperimentalOffhandWeapon();
+        Assert.True(player.TrySelectGameplayPrimaryItem("weapon.scout-nailgun"));
 
         player.SetClassDefinition(CharacterClassCatalog.Sniper);
 
         Assert.Equal(GameplayEquipmentSlot.Primary, player.SelectedGameplayEquippedSlot);
+        Assert.Equal("weapon.rifle", player.SelectedGameplayPrimaryItemId);
         Assert.False(player.IsExperimentalOffhandEquipped);
         Assert.False(player.HasExperimentalOffhandWeapon);
     }
@@ -54,8 +54,7 @@ public sealed class PlayerEntityLockedPrimarySelectionTests
         var classDefinition = CharacterClassCatalog.GetDefinition(playerClass);
         var player = new PlayerEntity(1, classDefinition, classDefinition.DisplayName);
         player.Spawn(PlayerTeam.Red, 100f, 100f);
-        player.SetExperimentalOffhandWeapon(CreateWeapon(alternateWeaponItemId));
-        player.EquipExperimentalOffhandWeapon();
+        Assert.True(player.TrySelectGameplayPrimaryItem(alternateWeaponItemId));
 
         player.Kill();
         // The authoritative network respawn path reapplies the class definition
@@ -63,9 +62,10 @@ public sealed class PlayerEntityLockedPrimarySelectionTests
         player.SetClassDefinition(classDefinition);
         player.Spawn(PlayerTeam.Red, 100f, 100f);
 
-        Assert.Equal(GameplayEquipmentSlot.Secondary, player.SelectedGameplayEquippedSlot);
-        Assert.True(player.IsExperimentalOffhandEquipped);
-        Assert.True(player.IsExperimentalOffhandSelected);
+        Assert.Equal(GameplayEquipmentSlot.Primary, player.SelectedGameplayEquippedSlot);
+        Assert.Equal(alternateWeaponItemId, player.SelectedGameplayPrimaryItemId);
+        Assert.Equal(alternateWeaponItemId, player.GameplayLoadoutState.PrimaryItemId);
+        Assert.False(player.HasExperimentalOffhandWeapon);
     }
 
     [Theory]
@@ -79,17 +79,18 @@ public sealed class PlayerEntityLockedPrimarySelectionTests
         var classDefinition = CharacterClassCatalog.GetDefinition(playerClass);
         var player = new PlayerEntity(1, classDefinition, classDefinition.DisplayName);
         player.Spawn(PlayerTeam.Red, 100f, 100f);
-        player.SetExperimentalOffhandWeapon(CreateWeapon(alternateWeaponItemId));
-        player.EquipExperimentalOffhandWeapon();
+        Assert.True(player.TrySelectGameplayPrimaryItem(alternateWeaponItemId));
 
         player.ForceSetHealth(0);
-        Assert.Equal(GameplayEquipmentSlot.Secondary, player.SelectedGameplayEquippedSlot);
+        Assert.Equal(GameplayEquipmentSlot.Primary, player.SelectedGameplayEquippedSlot);
+        Assert.Equal(alternateWeaponItemId, player.SelectedGameplayPrimaryItemId);
 
         player.Spawn(PlayerTeam.Red, 100f, 100f);
 
-        Assert.Equal(GameplayEquipmentSlot.Secondary, player.SelectedGameplayEquippedSlot);
-        Assert.True(player.IsExperimentalOffhandEquipped);
-        Assert.True(player.IsExperimentalOffhandSelected);
+        Assert.Equal(GameplayEquipmentSlot.Primary, player.SelectedGameplayEquippedSlot);
+        Assert.Equal(alternateWeaponItemId, player.SelectedGameplayPrimaryItemId);
+        Assert.Equal(alternateWeaponItemId, player.GameplayLoadoutState.PrimaryItemId);
+        Assert.False(player.HasExperimentalOffhandWeapon);
     }
 
     [Fact]
@@ -109,9 +110,56 @@ public sealed class PlayerEntityLockedPrimarySelectionTests
         Assert.Equal(GameplayEquipmentSlot.Primary, player.SelectedGameplayEquippedSlot);
     }
 
-    private static PrimaryWeaponDefinition CreateWeapon(string itemId)
+    [Fact]
+    public void WeaponGrantedAbilitiesFollowTheSelectedPrimary()
     {
-        return CharacterClassCatalog.RuntimeRegistry.CreatePrimaryWeaponDefinition(
-            CharacterClassCatalog.RuntimeRegistry.GetRequiredItem(itemId));
+        var sniper = new PlayerEntity(1, CharacterClassCatalog.Sniper, "Sniper");
+        sniper.Spawn(PlayerTeam.Red, 100f, 100f);
+
+        Assert.True(sniper.TryGetGameplayAbilityItem(
+            GameplayAbilityConstants.SpecialChannel,
+            BuiltInGameplayBehaviorIds.SniperScope,
+            out var scope));
+        Assert.Equal("ability.sniper-scope", scope.Id);
+
+        Assert.True(sniper.TrySelectGameplayPrimaryItem("weapon.bow"));
+        Assert.False(sniper.TryGetGameplayAbilityItem(
+            GameplayAbilityConstants.SpecialChannel,
+            BuiltInGameplayBehaviorIds.SniperScope,
+            out _));
+
+        var medic = new PlayerEntity(2, CharacterClassCatalog.Medic, "Medic");
+        medic.Spawn(PlayerTeam.Red, 100f, 100f);
+
+        Assert.True(medic.HasGameplayAbilityBehavior(
+            GameplayAbilityConstants.SpecialChannel,
+            BuiltInGameplayBehaviorIds.MedicNeedlegun));
+
+        Assert.True(medic.TrySelectGameplayPrimaryItem("weapon.medigun.crit"));
+        Assert.False(medic.HasGameplayAbilityBehavior(
+            GameplayAbilityConstants.SpecialChannel,
+            BuiltInGameplayBehaviorIds.MedicNeedlegun));
+        Assert.True(medic.HasGameplayAbilityBehavior(
+            GameplayAbilityConstants.SpecialChannel,
+            BuiltInGameplayBehaviorIds.MedicKritzHealNeedles));
+    }
+
+    [Fact]
+    public void AbilityItemsDoNotOccupyTheSecondaryWeaponSlot()
+    {
+        var heavy = new PlayerEntity(1, CharacterClassCatalog.Heavy, "Heavy");
+        heavy.Spawn(PlayerTeam.Red, 100f, 100f);
+
+        Assert.Null(heavy.GameplayLoadoutState.SecondaryItemId);
+        Assert.Contains("ability.heavy-sandvich", heavy.GameplayLoadoutState.AbilityItemIds ?? []);
+        Assert.True(heavy.HasGameplayAbilityBehavior(
+            GameplayAbilityConstants.SpecialChannel,
+            BuiltInGameplayBehaviorIds.HeavySandvich));
+
+        var soldier = new PlayerEntity(2, CharacterClassCatalog.Soldier, "Soldier");
+        soldier.Spawn(PlayerTeam.Red, 100f, 100f);
+
+        Assert.Equal("weapon.soldier-shotgun", soldier.GameplayLoadoutState.SecondaryItemId);
+        Assert.Equal(BuiltInGameplayBehaviorIds.PelletGun, soldier.SecondaryBehaviorId);
     }
 }

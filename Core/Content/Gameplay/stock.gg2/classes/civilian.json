@@ -33,10 +33,13 @@
     "civilian.stock": {
       "id": "civilian.stock",
       "displayName": "Stock",
-      "primaryItemId": "weapon.umbrella",
-      "secondaryItemId": "ability.umbrella",
-      "utilityItemId": "ability.civilian-pogo",
-      "abilityItemIds": [ "ability.civilian-taunt" ]
+      "primary": {
+        "defaultItemId": "weapon.umbrella",
+        "itemIds": [ "weapon.umbrella" ],
+        "switchPolicy": "primary_swap_station",
+        "selectionPersistence": "same_class_loadout"
+      },
+      "abilities": [ "ability.umbrella", "ability.civilian-pogo", "ability.civilian-taunt" ]
     }
   },
   "defaultLoadoutId": "civilian.stock"

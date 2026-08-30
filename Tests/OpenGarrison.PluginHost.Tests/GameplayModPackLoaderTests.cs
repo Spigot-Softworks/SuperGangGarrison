@@ -310,7 +310,7 @@ public sealed class GameplayModPackLoaderTests
 
         Assert.Equal("stock.gg2", pack.Id);
         Assert.Equal("Stock OpenGarrison Gameplay", pack.DisplayName);
-        Assert.Equal(1, pack.SchemaVersion);
+        Assert.Equal(2, pack.SchemaVersion);
         Assert.True(pack.Items.ContainsKey("weapon.scattergun"));
         Assert.True(pack.Items.ContainsKey("weapon.directhit"));
         Assert.True(pack.Items.ContainsKey("weapon.umbrella"));
@@ -323,9 +323,11 @@ public sealed class GameplayModPackLoaderTests
         var civilianClass = pack.Classes["civilian"];
         Assert.Equal("Civilian/Employer", civilianClass.DisplayName);
         Assert.Equal("civilian.stock", civilianClass.DefaultLoadoutId);
-        Assert.Equal("weapon.umbrella", civilianClass.Loadouts["civilian.stock"].PrimaryItemId);
-        Assert.Equal("ability.umbrella", civilianClass.Loadouts["civilian.stock"].SecondaryItemId);
-        Assert.Equal("ability.civilian-pogo", civilianClass.Loadouts["civilian.stock"].UtilityItemId);
+        var civilianLoadout = civilianClass.Loadouts["civilian.stock"];
+        Assert.Equal("weapon.umbrella", civilianLoadout.Primary!.DefaultItemId);
+        Assert.Null(civilianLoadout.Secondary);
+        Assert.Contains("ability.umbrella", civilianLoadout.Abilities);
+        Assert.Contains("ability.civilian-pogo", civilianLoadout.Abilities);
         Assert.Equal(nameof(PlayerClass.Quote), civilianClass.Runtime?.PlayerClass);
         Assert.Equal("CivvieUmbrellaKL", civilianClass.Runtime?.PrimaryWeaponKillFeedSprite);
         Assert.Equal("Civvie", civilianClass.Presentation?.SpritePrefix);
@@ -423,11 +425,14 @@ public sealed class GameplayModPackLoaderTests
         Assert.Equal("weapon.scattergun", scoutStock.Primary!.DefaultItemId);
         Assert.Equal(["weapon.scattergun", "weapon.scout-nailgun"], scoutStock.Primary.ItemIds);
         Assert.Null(scoutStock.Secondary);
-        Assert.Contains("ability.scout-nailgun-utility", scoutStock.Abilities);
+        Assert.DoesNotContain("ability.scout-nailgun-utility", scoutStock.Abilities);
 
         var soldierStock = pack.Classes["soldier"].Loadouts["soldier.stock"];
         Assert.Equal("weapon.soldier-shotgun", soldierStock.Secondary?.ItemId);
-        Assert.Contains("ability.soldier-utility", soldierStock.Abilities);
+        Assert.DoesNotContain("ability.soldier-utility", soldierStock.Abilities);
+        Assert.Contains(
+            "ability.experimental-ltd-soldier-secondary",
+            pack.Items["weapon.soldier-shotgun"].GrantedAbilityItemIds);
 
         var demomanStock = pack.Classes["demoman"].Loadouts["demoman.stock"];
         Assert.Equal("weapon.grenadelauncher", demomanStock.Secondary?.ItemId);
@@ -560,6 +565,107 @@ public sealed class GameplayModPackLoaderTests
         }
     }
 
+    [Theory]
+    [InlineData("future_switch_policy", GameplayLoadoutPolicies.SameClassLoadout, "switchPolicy")]
+    [InlineData(GameplayLoadoutPolicies.PrimarySwapStation, "future_persistence_policy", "selectionPersistence")]
+    public void GameplaySchemaV2RejectsUnsupportedPrimaryPolicies(
+        string switchPolicy,
+        string selectionPersistence,
+        string expectedFieldName)
+    {
+        var (rootDirectory, packDirectory) = CreateMinimalSchemaV2ValidationPack();
+
+        try
+        {
+            WriteMinimalSchemaV2Class(packDirectory, switchPolicy, selectionPersistence);
+
+            var ex = Assert.Throws<InvalidOperationException>(
+                () => GameplayModPackDirectoryLoader.LoadFromDirectory(packDirectory));
+
+            Assert.Contains(expectedFieldName, ex.Message, StringComparison.Ordinal);
+            Assert.Contains("unsupported", ex.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(rootDirectory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void GameplaySchemaV2RejectsConflictingLoadoutAndWeaponGrantedActiveAbilities()
+    {
+        var (rootDirectory, packDirectory) = CreateMinimalSchemaV2ValidationPack();
+
+        try
+        {
+            File.WriteAllText(
+                Path.Combine(packDirectory, "items", "ability.loadout.json"),
+                """
+                {
+                  "id": "ability.loadout",
+                  "displayName": "Loadout Special",
+                  "kind": "Ability",
+                  "behaviorId": "builtin.ability.pyro_airblast",
+                  "ammo": {},
+                  "presentation": {},
+                  "ability": {
+                    "channel": "special",
+                    "category": "secondary",
+                    "activation": "pressed",
+                    "executorId": "builtin.ability.pyro_airblast"
+                  }
+                }
+                """);
+            File.WriteAllText(
+                Path.Combine(packDirectory, "items", "ability.weapon.json"),
+                """
+                {
+                  "id": "ability.weapon",
+                  "displayName": "Weapon Special",
+                  "kind": "Ability",
+                  "behaviorId": "builtin.ability.medic_needlegun",
+                  "ammo": {},
+                  "presentation": {},
+                  "ability": {
+                    "channel": "special",
+                    "category": "secondary",
+                    "activation": "held",
+                    "executorId": "builtin.ability.medic_needlegun"
+                  }
+                }
+                """);
+            File.WriteAllText(
+                Path.Combine(packDirectory, "items", "weapon.primary.json"),
+                """
+                {
+                  "id": "weapon.primary",
+                  "displayName": "Primary",
+                  "kind": "Weapon",
+                  "weaponSlot": "Primary",
+                  "grantedAbilityItemIds": [ "ability.weapon" ],
+                  "behaviorId": "builtin.weapon.pellet_gun",
+                  "ammo": { "maxAmmo": 6 },
+                  "presentation": {}
+                }
+                """);
+            WriteMinimalSchemaV2Class(
+                packDirectory,
+                GameplayLoadoutPolicies.PrimarySwapStation,
+                GameplayLoadoutPolicies.SameClassLoadout,
+                "\"abilities\": [ \"ability.loadout\" ]");
+
+            var ex = Assert.Throws<InvalidOperationException>(
+                () => GameplayModPackDirectoryLoader.LoadFromDirectory(packDirectory));
+
+            Assert.Contains("combines", ex.Message, StringComparison.Ordinal);
+            Assert.Contains("active channel \"special\"", ex.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(rootDirectory, recursive: true);
+        }
+    }
+
     [Fact]
     public void StockGameplayPackExposesOwnershipReadyExperimentalItems()
     {
@@ -601,19 +707,23 @@ public sealed class GameplayModPackLoaderTests
         Assert.True(heavyUtility.Parameters["disableGravity"].GetBoolean());
         Assert.True(heavyUtility.Parameters["enableGhostTrail"].GetBoolean());
 
-        var soldierExperimentalSecondary = pack.Items["weapon.soldier-shotgun"].Ability;
+        var soldierExperimentalSecondary = pack.Items["ability.experimental-ltd-soldier-secondary"].Ability;
         Assert.NotNull(soldierExperimentalSecondary);
         Assert.Equal(GameplayAbilityConstants.SecondaryCategory, soldierExperimentalSecondary!.Category);
         Assert.Equal(BuiltInGameplayBehaviorIds.ExperimentalSoldierSecondary, soldierExperimentalSecondary.ExecutorId);
         Assert.Contains("experimental_ltd", soldierExperimentalSecondary.Tags);
 
-        var medigunNeedles = pack.Items["weapon.medigun"].Ability;
+        var medigun = pack.Items["weapon.medigun"];
+        Assert.Contains("ability.medic-needlegun", medigun.GrantedAbilityItemIds);
+        var medigunNeedles = pack.Items["ability.medic-needlegun"].Ability;
         Assert.NotNull(medigunNeedles);
         Assert.Equal(GameplayAbilityConstants.SecondaryCategory, medigunNeedles!.Category);
         Assert.Equal(GameplayAbilityConstants.HeldActivation, medigunNeedles.Activation);
         Assert.Equal(BuiltInGameplayBehaviorIds.MedicNeedlegun, medigunNeedles.ExecutorId);
 
-        var kritzHealNeedles = pack.Items["weapon.medigun.crit"].Ability;
+        var kritz = pack.Items["weapon.medigun.crit"];
+        Assert.Contains("ability.medic-kritz-heal-needles", kritz.GrantedAbilityItemIds);
+        var kritzHealNeedles = pack.Items["ability.medic-kritz-heal-needles"].Ability;
         Assert.NotNull(kritzHealNeedles);
         Assert.Equal(GameplayAbilityConstants.SecondaryCategory, kritzHealNeedles!.Category);
         Assert.Equal(GameplayAbilityConstants.HeldActivation, kritzHealNeedles.Activation);
@@ -621,7 +731,7 @@ public sealed class GameplayModPackLoaderTests
         Assert.Equal(30, kritzHealNeedles.Parameters["healPerHit"].GetInt32());
         Assert.Equal(22, kritzHealNeedles.Parameters["enemyDamagePerHit"].GetInt32());
 
-        var kritzBeam = pack.Items["weapon.medigun.crit.beam"].Ability;
+        var kritzBeam = pack.Items["ability.medic-kritz-beam"].Ability;
         Assert.NotNull(kritzBeam);
         Assert.Equal(BuiltInGameplayBehaviorIds.MedicKritzBeam, kritzBeam!.ExecutorId);
         Assert.Equal(150, kritzBeam.Parameters["range"].GetInt32());
@@ -1367,14 +1477,16 @@ public sealed class GameplayModPackLoaderTests
         Assert.Equal("civilian", quoteBinding.ClassId);
         Assert.Equal("Civilian/Employer", registry.GetClassDefinition(PlayerClass.Quote).DisplayName);
         Assert.Equal("weapon.umbrella", registry.GetDefaultLoadout(PlayerClass.Quote).PrimaryItemId);
-        Assert.Equal("ability.umbrella", registry.GetDefaultLoadout(PlayerClass.Quote).SecondaryItemId);
-        Assert.Equal("ability.civilian-pogo", registry.GetDefaultLoadout(PlayerClass.Quote).UtilityItemId);
+        Assert.Null(registry.GetDefaultLoadout(PlayerClass.Quote).SecondaryItemId);
+        Assert.Null(registry.GetDefaultLoadout(PlayerClass.Quote).UtilityItemId);
+        Assert.Contains("ability.umbrella", registry.GetDefaultLoadout(PlayerClass.Quote).Abilities);
+        Assert.Contains("ability.civilian-pogo", registry.GetDefaultLoadout(PlayerClass.Quote).Abilities);
         Assert.Equal("Quote/Curly", registry.GetClassDefinition("plugin.quote-curly.quote").DisplayName);
         Assert.Equal("plugin.quote-curly.weapon.blade", registry.GetDefaultLoadout("plugin.quote-curly.quote").PrimaryItemId);
     }
 
     [Fact]
-    public void QuoteCurlyUsesBubbleOnPrimaryAndDamageBladeOnSecondary()
+    public void QuoteCurlyUsesBubbleOnPrimaryAndDamageBladeAsSpecialAbility()
     {
         EnsureQuoteCurlyGameplayPackRegistered();
 
@@ -1387,9 +1499,10 @@ public sealed class GameplayModPackLoaderTests
         Assert.Equal(PlayerClass.Quote, player.ClassId);
         Assert.Equal("plugin.quote-curly.quote", player.GameplayClassId);
         Assert.Equal("plugin.quote-curly.weapon.blade", player.GameplayLoadoutState.PrimaryItemId);
-        Assert.Equal("plugin.quote-curly.ability.blade-throw", player.GameplayLoadoutState.SecondaryItemId);
+        Assert.Null(player.GameplayLoadoutState.SecondaryItemId);
+        Assert.Contains("plugin.quote-curly.ability.blade-throw", player.GameplayLoadoutState.AbilityItemIds ?? []);
         Assert.Equal(BuiltInGameplayBehaviorIds.Blade, player.PrimaryBehaviorId);
-        Assert.Equal(BuiltInGameplayBehaviorIds.QuoteBladeThrow, player.SecondaryBehaviorId);
+        Assert.Equal(BuiltInGameplayBehaviorIds.QuoteBladeThrow, player.SpecialAbilityBehaviorId);
 
         world.SetLocalInput(new PlayerInputSnapshot(
             Left: false,
@@ -2097,6 +2210,79 @@ public sealed class GameplayModPackLoaderTests
         {
             return Task.FromResult(_responder(request));
         }
+    }
+
+    private static (string RootDirectory, string PackDirectory) CreateMinimalSchemaV2ValidationPack()
+    {
+        var rootDirectory = Path.Combine(Path.GetTempPath(), "og2-gameplay-pack-tests", Path.GetRandomFileName());
+        var packDirectory = Path.Combine(rootDirectory, "schema-v2-validation");
+        Directory.CreateDirectory(Path.Combine(packDirectory, "items"));
+        Directory.CreateDirectory(Path.Combine(packDirectory, "classes"));
+        File.WriteAllText(
+            Path.Combine(packDirectory, "pack.json"),
+            """
+            {
+              "id": "schema.v2.validation",
+              "displayName": "Schema V2 Validation",
+              "version": "1.0.0",
+              "schemaVersion": 2
+            }
+            """);
+        File.WriteAllText(
+            Path.Combine(packDirectory, "items", "weapon.primary.json"),
+            """
+            {
+              "id": "weapon.primary",
+              "displayName": "Primary",
+              "kind": "Weapon",
+              "weaponSlot": "Primary",
+              "behaviorId": "builtin.weapon.pellet_gun",
+              "ammo": { "maxAmmo": 6 },
+              "presentation": {}
+            }
+            """);
+        WriteMinimalSchemaV2Class(
+            packDirectory,
+            GameplayLoadoutPolicies.PrimarySwapStation,
+            GameplayLoadoutPolicies.SameClassLoadout);
+        return (rootDirectory, packDirectory);
+    }
+
+    private static void WriteMinimalSchemaV2Class(
+        string packDirectory,
+        string switchPolicy,
+        string selectionPersistence,
+        string additionalLoadoutProperty = "")
+    {
+        const string template =
+            """
+            {
+              "id": "tester",
+              "displayName": "Tester",
+              "movement": {},
+              "loadouts": {
+                "tester.stock": {
+                  "id": "tester.stock",
+                  "displayName": "Stock",
+                  "primary": {
+                    "defaultItemId": "weapon.primary",
+                    "itemIds": [ "weapon.primary" ],
+                    "switchPolicy": "$SWITCH_POLICY$",
+                    "selectionPersistence": "$SELECTION_PERSISTENCE$"
+                  }$ADDITIONAL_LOADOUT_PROPERTY$
+                }
+              },
+              "defaultLoadoutId": "tester.stock"
+            }
+            """;
+        var additionalProperty = string.IsNullOrWhiteSpace(additionalLoadoutProperty)
+            ? string.Empty
+            : ",\n      " + additionalLoadoutProperty;
+        var document = template
+            .Replace("$SWITCH_POLICY$", switchPolicy, StringComparison.Ordinal)
+            .Replace("$SELECTION_PERSISTENCE$", selectionPersistence, StringComparison.Ordinal)
+            .Replace("$ADDITIONAL_LOADOUT_PROPERTY$", additionalProperty, StringComparison.Ordinal);
+        File.WriteAllText(Path.Combine(packDirectory, "classes", "tester.json"), document);
     }
 
     private sealed class StubAssetBinarySource(IReadOnlyDictionary<string, byte[]> assets) : IAssetBinarySource

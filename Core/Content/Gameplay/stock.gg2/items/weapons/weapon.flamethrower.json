@@ -1,7 +1,8 @@
 {
   "id": "weapon.flamethrower",
+  "kind": "Weapon",
+  "weaponSlot": "Primary",
   "displayName": "Flamethrower",
-  "slot": "Primary",
   "behaviorId": "builtin.weapon.flamethrower",
   "ammo": {
     "maxAmmo": 200,

@@ -1,10 +1,11 @@
 {
   "id": "ability.demoman-detonate",
+  "kind": "Ability",
   "displayName": "Mine Detonator",
-  "slot": "Secondary",
   "behaviorId": "builtin.ability.demoman_detonate",
   "ability": {
     "category": "secondary",
+    "channel": "special",
     "activation": "held",
     "executorId": "builtin.ability.demoman_detonate",
     "tags": [ "core_m2", "detonate", "allowed_while_taunting", "experimental_ltd" ]

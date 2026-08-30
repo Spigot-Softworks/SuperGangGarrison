@@ -35,26 +35,35 @@
     "heavy.stock": {
       "id": "heavy.stock",
       "displayName": "Stock",
-      "primaryItemId": "weapon.minigun",
-      "secondaryItemId": "ability.heavy-sandvich",
-      "utilityItemId": "ability.heavy-utility",
-      "abilityItemIds": [ "ability.experimental-ltd-passive" ]
+      "primary": {
+        "defaultItemId": "weapon.minigun",
+        "itemIds": [ "weapon.minigun" ],
+        "switchPolicy": "primary_swap_station",
+        "selectionPersistence": "same_class_loadout"
+      },
+      "abilities": [ "ability.heavy-sandvich", "ability.heavy-utility", "ability.experimental-ltd-passive" ]
     },
     "heavy.tomislav": {
       "id": "heavy.tomislav",
       "displayName": "Tomislav",
-      "primaryItemId": "weapon.tomislav",
-      "secondaryItemId": "ability.heavy-sandvich",
-      "utilityItemId": "ability.heavy-utility",
-      "abilityItemIds": [ "ability.experimental-ltd-passive" ]
+      "primary": {
+        "defaultItemId": "weapon.tomislav",
+        "itemIds": [ "weapon.tomislav" ],
+        "switchPolicy": "primary_swap_station",
+        "selectionPersistence": "same_class_loadout"
+      },
+      "abilities": [ "ability.heavy-sandvich", "ability.heavy-utility", "ability.experimental-ltd-passive" ]
     },
     "heavy.brass-beast": {
       "id": "heavy.brass-beast",
       "displayName": "Brass Beast",
-      "primaryItemId": "weapon.brassbeast",
-      "secondaryItemId": "ability.heavy-sandvich",
-      "utilityItemId": "ability.heavy-utility",
-      "abilityItemIds": [ "ability.experimental-ltd-passive" ]
+      "primary": {
+        "defaultItemId": "weapon.brassbeast",
+        "itemIds": [ "weapon.brassbeast" ],
+        "switchPolicy": "primary_swap_station",
+        "selectionPersistence": "same_class_loadout"
+      },
+      "abilities": [ "ability.heavy-sandvich", "ability.heavy-utility", "ability.experimental-ltd-passive" ]
     }
   },
   "defaultLoadoutId": "heavy.stock"

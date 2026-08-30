@@ -33,10 +33,13 @@
     "engineer.stock": {
       "id": "engineer.stock",
       "displayName": "Stock",
-      "primaryItemId": "weapon.shotgun",
-      "secondaryItemId": "ability.engineer-pda",
-      "utilityItemId": "ability.engineer-utility",
-      "abilityItemIds": [ "ability.experimental-ltd-passive", "ability.experimental-ltd-rage" ]
+      "primary": {
+        "defaultItemId": "weapon.shotgun",
+        "itemIds": [ "weapon.shotgun" ],
+        "switchPolicy": "primary_swap_station",
+        "selectionPersistence": "same_class_loadout"
+      },
+      "abilities": [ "ability.engineer-pda", "ability.engineer-utility", "ability.experimental-ltd-passive", "ability.experimental-ltd-rage" ]
     }
   },
   "defaultLoadoutId": "engineer.stock"

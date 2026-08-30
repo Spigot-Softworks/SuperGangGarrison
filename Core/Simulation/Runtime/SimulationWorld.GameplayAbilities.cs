@@ -49,10 +49,11 @@ public sealed partial class SimulationWorld
         float sourceY)
     {
         var runtimeRegistry = CharacterClassCatalog.RuntimeRegistry;
-        foreach (var item in ResolveGameplayAbilityItems(player, category))
+        var channel = ToGameplayAbilityChannel(category);
+        foreach (var item in ResolveGameplayAbilityItems(player, channel))
         {
             if (item.Ability is not { } ability
-                || !AbilityCategoryMatches(ability, category)
+                || !AbilityChannelMatches(ability, channel)
                 || !AbilityActivationMatches(ability, phase)
                 || IsGameplayAbilityBlockedBySpecialAbilitiesSetting(ability))
             {
@@ -206,13 +207,25 @@ public sealed partial class SimulationWorld
 
     private static bool IsCoreSecondaryInputAbility(GameplayAbilityDefinition ability)
     {
-        return string.Equals(ability.Category, GameplayAbilityConstants.SecondaryCategory, StringComparison.Ordinal)
+        return string.Equals(ability.Channel, GameplayAbilityConstants.SpecialChannel, StringComparison.Ordinal)
             && ability.Tags.Contains(GameplayAbilityConstants.CoreSecondaryInputTag, StringComparer.Ordinal);
     }
 
-    private static bool AbilityCategoryMatches(GameplayAbilityDefinition ability, string category)
+    private static bool AbilityChannelMatches(GameplayAbilityDefinition ability, string channel)
     {
-        return string.Equals(ability.Category, category, StringComparison.Ordinal);
+        return string.Equals(ability.Channel, channel, StringComparison.Ordinal);
+    }
+
+    private static string ToGameplayAbilityChannel(string categoryOrChannel)
+    {
+        return categoryOrChannel switch
+        {
+            GameplayAbilityConstants.SecondaryCategory => GameplayAbilityConstants.SpecialChannel,
+            GameplayAbilityConstants.UtilityCategory => GameplayAbilityConstants.UtilityChannel,
+            GameplayAbilityConstants.PassiveCategory => GameplayAbilityConstants.PassiveChannel,
+            GameplayAbilityConstants.TauntCategory => GameplayAbilityConstants.TauntChannel,
+            _ => categoryOrChannel,
+        };
     }
 
     private static bool AbilityActivationMatches(GameplayAbilityDefinition ability, GameplayAbilityInputPhase phase)
@@ -236,133 +249,83 @@ public sealed partial class SimulationWorld
         };
     }
 
-    private IEnumerable<GameplayItemDefinition> ResolveGameplayAbilityItems(PlayerEntity player, string category)
+    private IEnumerable<GameplayItemDefinition> ResolveGameplayAbilityItems(PlayerEntity player, string channel)
     {
-        var runtimeRegistry = CharacterClassCatalog.RuntimeRegistry;
-        if (string.Equals(category, GameplayAbilityConstants.UtilityCategory, StringComparison.Ordinal))
+        foreach (var item in ResolveAllPlayerGameplayAbilityItems(player))
         {
-            if (runtimeRegistry.TryGetGameplayAbilityDefinition(player.GameplayLoadoutState.UtilityItemId, out var utilityItem, out _))
-            {
-                yield return utilityItem;
-            }
-
-            yield break;
-        }
-
-        if (string.Equals(category, GameplayAbilityConstants.SecondaryCategory, StringComparison.Ordinal))
-        {
-            if (TryResolveSecondaryGameplayAbilityItem(player, out var item))
+            if (item.Ability is { } ability && AbilityChannelMatches(ability, channel))
             {
                 yield return item;
             }
-
-            yield break;
-        }
-
-        foreach (var item in ResolveAllPlayerGameplayAbilityItems(player))
-        {
-            yield return item;
         }
     }
 
-    private static IEnumerable<GameplayItemDefinition> ResolveAllPlayerGameplayAbilityItems(PlayerEntity player)
+    private static IReadOnlyList<GameplayItemDefinition> ResolveAllPlayerGameplayAbilityItems(PlayerEntity player)
     {
         var runtimeRegistry = CharacterClassCatalog.RuntimeRegistry;
         var seenItemIds = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var itemId in new[]
-        {
-            player.GameplayLoadoutState.PrimaryItemId,
-            player.GameplayLoadoutState.SecondaryItemId,
-            player.GameplayLoadoutState.UtilityItemId,
-            player.GameplayLoadoutState.AcquiredItemId,
-            player.GameplayLoadoutState.EquippedItemId,
-        })
+        var results = new List<GameplayItemDefinition>();
+
+        void AddAbilityItem(string? itemId)
         {
             if (string.IsNullOrWhiteSpace(itemId) || !seenItemIds.Add(itemId))
             {
-                continue;
+                return;
             }
 
             if (runtimeRegistry.TryGetGameplayAbilityDefinition(itemId, out var item, out _))
             {
-                yield return item;
+                results.Add(item);
             }
         }
 
-        if (!runtimeRegistry.TryGetLoadout(player.GameplayClassId, player.SelectedGameplayLoadoutId, out var selectedLoadout)
-            || selectedLoadout.AbilityItemIds is null)
+        void AddWeaponGrantedAbilities(string? weaponItemId)
         {
-            yield break;
+            if (string.IsNullOrWhiteSpace(weaponItemId)
+                || !runtimeRegistry.TryGetItem(weaponItemId, out var weaponItem))
+            {
+                return;
+            }
+
+            // Embedded weapon abilities are retained for schema-v1 and runtime-plugin
+            // compatibility. Schema-v2 content should use grantedAbilityItemIds.
+            if (weaponItem.Ability is not null && seenItemIds.Add(weaponItem.Id))
+            {
+                results.Add(weaponItem);
+            }
+
+            foreach (var abilityItemId in weaponItem.GrantedAbilityItemIds)
+            {
+                AddAbilityItem(abilityItemId);
+            }
         }
 
-        foreach (var itemId in selectedLoadout.AbilityItemIds)
+        foreach (var itemId in player.GameplayLoadoutState.AbilityItemIds ?? [])
         {
-            if (string.IsNullOrWhiteSpace(itemId) || !seenItemIds.Add(itemId))
-            {
-                continue;
-            }
-
-            if (runtimeRegistry.TryGetGameplayAbilityDefinition(itemId, out var item, out _))
-            {
-                yield return item;
-            }
+            AddAbilityItem(itemId);
         }
+
+        AddWeaponGrantedAbilities(player.GameplayLoadoutState.PrimaryItemId);
+        AddWeaponGrantedAbilities(player.GameplayLoadoutState.SecondaryItemId);
+        AddWeaponGrantedAbilities(player.GameplayLoadoutState.AcquiredItemId);
+        AddWeaponGrantedAbilities(player.GameplayLoadoutState.EquippedItemId);
+        return results;
     }
 
     private static bool TryResolveSecondaryGameplayAbilityItem(PlayerEntity player, out GameplayItemDefinition item)
     {
-        var runtimeRegistry = CharacterClassCatalog.RuntimeRegistry;
-        if (player.ClassId == PlayerClass.Demoman
-            && runtimeRegistry.TryGetLoadout(player.GameplayClassId, player.SelectedGameplayLoadoutId, out var demomanLoadout)
-            && runtimeRegistry.TryGetGameplayAbilityDefinition(demomanLoadout.SecondaryItemId, out item, out _))
+        foreach (var candidate in ResolveAllPlayerGameplayAbilityItems(player))
         {
-            return true;
-        }
-
-        if (player.ClassId != PlayerClass.Engineer
-            && (player.IsAcquiredWeaponEquipped || player.IsExperimentalOffhandSelected)
-            && runtimeRegistry.TryGetGameplayAbilityDefinition(player.GameplayLoadoutState.EquippedItemId, out item, out _))
-        {
-            return true;
-        }
-
-        if (player.GameplayLoadoutState.EquippedSlot == GameplayEquipmentSlot.Primary
-            && runtimeRegistry.TryGetGameplayAbilityDefinition(player.GameplayLoadoutState.PrimaryItemId, out item, out var primaryAbility)
-            && AbilityCategoryMatches(primaryAbility, GameplayAbilityConstants.SecondaryCategory))
-        {
-            return true;
-        }
-
-        var secondaryItemId = player.GameplayLoadoutState.SecondaryItemId;
-        if ((player.ClassId == PlayerClass.Engineer
-                || (player.HasExperimentalOffhandWeapon && !player.IsExperimentalOffhandSelected))
-            && runtimeRegistry.TryGetLoadout(player.GameplayClassId, player.SelectedGameplayLoadoutId, out var selectedLoadout))
-        {
-            secondaryItemId = selectedLoadout.SecondaryItemId;
-        }
-
-        if (runtimeRegistry.TryGetLoadout(player.GameplayClassId, player.SelectedGameplayLoadoutId, out var loadout)
-            && loadout.AbilityItemIds is not null)
-        {
-            foreach (var abilityItemId in loadout.AbilityItemIds)
+            if (candidate.Ability is { } ability
+                && AbilityChannelMatches(ability, GameplayAbilityConstants.SpecialChannel))
             {
-                if (string.IsNullOrWhiteSpace(abilityItemId))
-                {
-                    continue;
-                }
-
-                if (!runtimeRegistry.TryGetGameplayAbilityDefinition(abilityItemId, out var abilityItem, out var abilityDefinition)
-                    || !string.Equals(abilityDefinition.Category, GameplayAbilityConstants.SecondaryCategory, StringComparison.Ordinal))
-                {
-                    continue;
-                }
-
-                item = abilityItem;
+                item = candidate;
                 return true;
             }
         }
 
-        return runtimeRegistry.TryGetGameplayAbilityDefinition(secondaryItemId, out item, out _);
+        item = null!;
+        return false;
     }
 
     private WorldGameplayAbilityEvent CreateGameplayAbilityEvent(

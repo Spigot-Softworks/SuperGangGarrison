@@ -147,14 +147,9 @@ public sealed partial class PlayerEntity
         IsCarryingIntel = false;
         IntelRechargeTicks = 0f;
         ContinuousDamageAccumulator = 0f;
-        var preserveLockedAlternateSelection = IsLockedPrimaryWeaponClass
-            && SelectedGameplayEquippedSlot == GameplayEquipmentSlot.Secondary;
         ResetExperimentalOffhandRuntimeState(refillAmmo: false);
         SetAcquiredWeapon(null);
-        if (preserveLockedAlternateSelection)
-        {
-            SelectedGameplayEquippedSlot = GameplayEquipmentSlot.Secondary;
-        }
+        SelectedGameplayEquippedSlot = GameplayEquipmentSlot.Primary;
         ResetExperimentalPowerRuntimeState();
         ExtinguishAfterburn();
         IsHeavyEating = false;

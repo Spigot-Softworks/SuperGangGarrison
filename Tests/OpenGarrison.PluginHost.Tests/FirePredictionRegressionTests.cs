@@ -87,10 +87,9 @@ public sealed class FirePredictionRegressionTests
         world.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings(
             EnableSecondaryAbilities: true));
         var player = world.LocalPlayer;
-        player.EquipExperimentalOffhandWeapon();
-        Assert.True(player.IsExperimentalOffhandSelected);
-        var initialPrimaryAmmo = player.CurrentShells;
-        var initialNailgunAmmo = player.ExperimentalOffhandCurrentShells;
+        Assert.True(player.TrySelectGameplayPrimaryItem("weapon.scout-nailgun"));
+        Assert.True(player.HasPrimaryBehavior(OpenGarrison.GameplayModding.BuiltInGameplayBehaviorIds.ScoutNailgun));
+        var initialNailgunAmmo = player.CurrentShells;
         var game = CreatePredictionHarness(world);
         var predictedInput = CreatePredictedLocalInput(
             default(PlayerInputSnapshot) with
@@ -108,11 +107,10 @@ public sealed class FirePredictionRegressionTests
             player,
             predictedInput);
 
-        Assert.Equal(initialPrimaryAmmo, player.CurrentShells);
         Assert.Equal(
-            initialNailgunAmmo - player.ExperimentalOffhandWeapon!.AmmoPerShot,
-            player.ExperimentalOffhandCurrentShells);
-        Assert.True(player.ExperimentalOffhandCooldownTicks > 0);
+            initialNailgunAmmo - player.PrimaryWeapon.AmmoPerShot,
+            player.CurrentShells);
+        Assert.True(player.PrimaryCooldownTicks > 0);
         Assert.Empty(world.Needles);
     }
 

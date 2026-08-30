@@ -9,14 +9,16 @@ public sealed partial class GameplayRuntimeRegistry
         string? loadoutId = null,
         GameplayEquipmentSlot equippedSlot = GameplayEquipmentSlot.Primary,
         string? secondaryItemOverrideId = null,
-        string? acquiredItemId = null)
+        string? acquiredItemId = null,
+        string? selectedPrimaryItemId = null)
     {
         return CreatePlayerLoadoutState(
             GetRequiredClassBinding(playerClass).ClassId,
             loadoutId,
             equippedSlot,
             secondaryItemOverrideId,
-            acquiredItemId);
+            acquiredItemId,
+            selectedPrimaryItemId);
     }
 
     public GameplayPlayerLoadoutState CreatePlayerLoadoutState(
@@ -24,9 +26,17 @@ public sealed partial class GameplayRuntimeRegistry
         string? loadoutId = null,
         GameplayEquipmentSlot equippedSlot = GameplayEquipmentSlot.Primary,
         string? secondaryItemOverrideId = null,
-        string? acquiredItemId = null)
+        string? acquiredItemId = null,
+        string? selectedPrimaryItemId = null)
     {
-        if (TryCreateValidatedPlayerLoadoutState(gameplayClassId, loadoutId, equippedSlot, secondaryItemOverrideId, acquiredItemId, out var loadoutState))
+        if (TryCreateValidatedPlayerLoadoutState(
+                gameplayClassId,
+                loadoutId,
+                equippedSlot,
+                secondaryItemOverrideId,
+                acquiredItemId,
+                selectedPrimaryItemId,
+                out var loadoutState))
         {
             return loadoutState;
         }
@@ -48,6 +58,26 @@ public sealed partial class GameplayRuntimeRegistry
             equippedSlot,
             secondaryItemOverrideId,
             acquiredItemId,
+            selectedPrimaryItemId: null,
+            out loadoutState);
+    }
+
+    public bool TryCreateValidatedPlayerLoadoutState(
+        PlayerClass playerClass,
+        string? loadoutId,
+        GameplayEquipmentSlot equippedSlot,
+        string? secondaryItemOverrideId,
+        string? acquiredItemId,
+        string? selectedPrimaryItemId,
+        out GameplayPlayerLoadoutState loadoutState)
+    {
+        return TryCreateValidatedPlayerLoadoutState(
+            GetRequiredClassBinding(playerClass).ClassId,
+            loadoutId,
+            equippedSlot,
+            secondaryItemOverrideId,
+            acquiredItemId,
+            selectedPrimaryItemId,
             out loadoutState);
     }
 
@@ -59,9 +89,28 @@ public sealed partial class GameplayRuntimeRegistry
         string? acquiredItemId,
         out GameplayPlayerLoadoutState loadoutState)
     {
+        return TryCreateValidatedPlayerLoadoutState(
+            gameplayClassId,
+            loadoutId,
+            equippedSlot,
+            secondaryItemOverrideId,
+            acquiredItemId,
+            selectedPrimaryItemId: null,
+            out loadoutState);
+    }
+
+    public bool TryCreateValidatedPlayerLoadoutState(
+        string gameplayClassId,
+        string? loadoutId,
+        GameplayEquipmentSlot equippedSlot,
+        string? secondaryItemOverrideId,
+        string? acquiredItemId,
+        string? selectedPrimaryItemId,
+        out GameplayPlayerLoadoutState loadoutState)
+    {
         var binding = GetRequiredClassBinding(gameplayClassId);
         var loadout = ResolveValidatedLoadout(gameplayClassId, loadoutId);
-        var primaryItemId = loadout.PrimaryItemId;
+        var primaryItemId = ResolveValidatedPrimaryItemId(loadout, selectedPrimaryItemId);
         var secondaryItemId = ResolveValidatedSecondaryItemId(gameplayClassId, loadout, secondaryItemOverrideId);
         var utilityItemId = loadout.UtilityItemId;
         var validatedAcquiredItemId = ResolveValidatedAcquiredItemId(gameplayClassId, acquiredItemId);
@@ -69,13 +118,11 @@ public sealed partial class GameplayRuntimeRegistry
             equippedSlot,
             primaryItemId,
             secondaryItemId,
-            utilityItemId,
             validatedAcquiredItemId);
 
         var equippedItemId = validatedEquippedSlot switch
         {
             GameplayEquipmentSlot.Secondary => validatedAcquiredItemId ?? secondaryItemId ?? primaryItemId,
-            GameplayEquipmentSlot.Utility => utilityItemId ?? primaryItemId,
             _ => primaryItemId,
         };
 
@@ -88,8 +135,29 @@ public sealed partial class GameplayRuntimeRegistry
             UtilityItemId: utilityItemId,
             EquippedSlot: validatedEquippedSlot,
             EquippedItemId: equippedItemId,
-            AcquiredItemId: validatedAcquiredItemId);
+            AcquiredItemId: validatedAcquiredItemId,
+            AbilityItemIds: loadout.Abilities);
         return true;
+    }
+
+    public bool CanUsePrimaryItem(PlayerClass playerClass, string? loadoutId, string? primaryItemId)
+    {
+        return CanUsePrimaryItem(GetRequiredClassBinding(playerClass).ClassId, loadoutId, primaryItemId);
+    }
+
+    public bool CanUsePrimaryItem(string gameplayClassId, string? loadoutId, string? primaryItemId)
+    {
+        var loadout = ResolveValidatedLoadout(gameplayClassId, loadoutId);
+        if (string.IsNullOrWhiteSpace(primaryItemId) || loadout.Primary is null)
+        {
+            return false;
+        }
+
+        var normalizedItemId = primaryItemId.Trim();
+        return loadout.Primary.ItemIds.Contains(normalizedItemId, StringComparer.Ordinal)
+            && TryGetItem(normalizedItemId, out var item)
+            && item.Kind == GameplayItemKind.Weapon
+            && item.WeaponSlot == GameplayWeaponSlot.Primary;
     }
 
     public bool CanUseSecondaryOverrideItem(PlayerClass playerClass, string? secondaryItemId)
@@ -122,7 +190,8 @@ public sealed partial class GameplayRuntimeRegistry
         return string.IsNullOrWhiteSpace(acquiredItemId)
             || (SupportsExperimentalAcquiredWeapon(gameplayClassId)
                 && TryGetItem(acquiredItemId, out var acquiredItem)
-                && acquiredItem.Slot == GameplayEquipmentSlot.Primary);
+                && acquiredItem.Kind == GameplayItemKind.Weapon
+                && acquiredItem.WeaponSlot == GameplayWeaponSlot.Primary);
     }
 
     public bool CanEquipSlot(
@@ -149,13 +218,11 @@ public sealed partial class GameplayRuntimeRegistry
     {
         var loadout = ResolveValidatedLoadout(gameplayClassId, loadoutId);
         var secondaryItemId = ResolveValidatedSecondaryItemId(gameplayClassId, loadout, secondaryItemOverrideId);
-        var utilityItemId = loadout.UtilityItemId;
         var validatedAcquiredItemId = ResolveValidatedAcquiredItemId(gameplayClassId, acquiredItemId);
         return ResolveValidatedEquippedSlot(
             equippedSlot,
-            loadout.PrimaryItemId,
+            loadout.Primary?.DefaultItemId ?? loadout.PrimaryItemId,
             secondaryItemId,
-            utilityItemId,
             validatedAcquiredItemId) == equippedSlot;
     }
 
@@ -166,7 +233,7 @@ public sealed partial class GameplayRuntimeRegistry
             return true;
         }
 
-        var defaultSecondaryItemId = loadout.SecondaryItemId;
+        var defaultSecondaryItemId = loadout.Secondary?.ItemId;
         if (string.Equals(defaultSecondaryItemId, secondaryItemId, StringComparison.Ordinal))
         {
             return true;
@@ -176,7 +243,7 @@ public sealed partial class GameplayRuntimeRegistry
         return (binding.SupportsExperimentalAcquiredWeapon
             || binding.PlayerClass == PlayerClass.Engineer)
             && TryGetItem(secondaryItemId, out var secondaryItem)
-            && secondaryItem.Slot == GameplayEquipmentSlot.Primary;
+            && secondaryItem.Kind == GameplayItemKind.Weapon;
     }
 
     private GameplayPlayerLoadoutState CreateFallbackPlayerLoadoutState(PlayerClass playerClass)
@@ -188,16 +255,18 @@ public sealed partial class GameplayRuntimeRegistry
     {
         var binding = GetRequiredClassBinding(gameplayClassId);
         var loadout = GetDefaultLoadout(gameplayClassId);
+        var primaryItemId = loadout.Primary?.DefaultItemId ?? loadout.PrimaryItemId;
         return new GameplayPlayerLoadoutState(
             ModPackId: binding.ModPackId,
             ClassId: binding.ClassId,
             LoadoutId: loadout.Id,
-            PrimaryItemId: loadout.PrimaryItemId,
-            SecondaryItemId: loadout.SecondaryItemId,
+            PrimaryItemId: primaryItemId,
+            SecondaryItemId: loadout.Secondary?.ItemId,
             UtilityItemId: loadout.UtilityItemId,
             EquippedSlot: GameplayEquipmentSlot.Primary,
-            EquippedItemId: loadout.PrimaryItemId,
-            AcquiredItemId: null);
+            EquippedItemId: primaryItemId,
+            AcquiredItemId: null,
+            AbilityItemIds: loadout.Abilities);
     }
 
     private GameplayClassLoadoutDefinition ResolveValidatedLoadout(PlayerClass playerClass, string? loadoutId)
@@ -215,8 +284,28 @@ public sealed partial class GameplayRuntimeRegistry
     private string? ResolveValidatedSecondaryItemId(string gameplayClassId, GameplayClassLoadoutDefinition loadout, string? secondaryItemOverrideId)
     {
         return CanUseSecondaryOverrideItem(gameplayClassId, loadout, secondaryItemOverrideId)
-            ? (string.IsNullOrWhiteSpace(secondaryItemOverrideId) ? loadout.SecondaryItemId : secondaryItemOverrideId)
-            : loadout.SecondaryItemId;
+            ? (string.IsNullOrWhiteSpace(secondaryItemOverrideId) ? loadout.Secondary?.ItemId : secondaryItemOverrideId.Trim())
+            : loadout.Secondary?.ItemId;
+    }
+
+    private string ResolveValidatedPrimaryItemId(
+        GameplayClassLoadoutDefinition loadout,
+        string? selectedPrimaryItemId)
+    {
+        var defaultPrimaryItemId = loadout.Primary?.DefaultItemId ?? loadout.PrimaryItemId;
+        if (string.IsNullOrWhiteSpace(selectedPrimaryItemId))
+        {
+            return defaultPrimaryItemId;
+        }
+
+        var normalizedItemId = selectedPrimaryItemId.Trim();
+        return loadout.Primary is not null
+            && loadout.Primary.ItemIds.Contains(normalizedItemId, StringComparer.Ordinal)
+            && TryGetItem(normalizedItemId, out var item)
+            && item.Kind == GameplayItemKind.Weapon
+            && item.WeaponSlot == GameplayWeaponSlot.Primary
+                ? normalizedItemId
+                : defaultPrimaryItemId;
     }
 
     private string? ResolveValidatedAcquiredItemId(PlayerClass playerClass, string? acquiredItemId)
@@ -235,15 +324,12 @@ public sealed partial class GameplayRuntimeRegistry
         GameplayEquipmentSlot requestedSlot,
         string primaryItemId,
         string? secondaryItemId,
-        string? utilityItemId,
         string? acquiredItemId)
     {
         return requestedSlot switch
         {
             GameplayEquipmentSlot.Secondary when !string.IsNullOrWhiteSpace(acquiredItemId) || !string.IsNullOrWhiteSpace(secondaryItemId)
                 => GameplayEquipmentSlot.Secondary,
-            GameplayEquipmentSlot.Utility when !string.IsNullOrWhiteSpace(utilityItemId)
-                => GameplayEquipmentSlot.Utility,
             _ => GameplayEquipmentSlot.Primary,
         };
     }

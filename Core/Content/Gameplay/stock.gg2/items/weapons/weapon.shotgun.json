@@ -1,7 +1,8 @@
 {
   "id": "weapon.shotgun",
+  "kind": "Weapon",
+  "weaponSlot": "Primary",
   "displayName": "Shotgun",
-  "slot": "Primary",
   "behaviorId": "builtin.weapon.pellet_gun",
   "ammo": {
     "maxAmmo": 8,

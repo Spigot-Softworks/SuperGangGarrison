@@ -1,0 +1,19 @@
+{
+  "id": "ability.medic-kritz-beam",
+  "kind": "Ability",
+  "displayName": "Kritz Beam",
+  "behaviorId": "builtin.ability.medic_kritz_beam",
+  "ability": {
+    "category": "secondary",
+    "channel": "special",
+    "activation": "held",
+    "executorId": "builtin.ability.medic_kritz_beam",
+    "tags": [ "core_m2", "beam", "damage", "charge" ],
+    "parameters": {
+      "range": 150,
+      "damagePerSecond": 1
+    }
+  },
+  "ammo": {},
+  "presentation": {}
+}

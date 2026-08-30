@@ -1,7 +1,8 @@
 {
   "id": "weapon.rocketlauncher",
+  "kind": "Weapon",
+  "weaponSlot": "Primary",
   "displayName": "Rocket Launcher",
-  "slot": "Primary",
   "behaviorId": "builtin.weapon.rocket_launcher",
   "ammo": {
     "maxAmmo": 4,

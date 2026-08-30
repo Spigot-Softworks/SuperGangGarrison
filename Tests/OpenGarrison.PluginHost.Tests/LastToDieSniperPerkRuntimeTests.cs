@@ -422,7 +422,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
         Assert.True(world.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Sniper.Overcharged]));
-        player.EquipExperimentalOffhandWeapon();
+        Assert.True(player.TrySelectGameplayPrimaryItem("weapon.bow"));
         Assert.True(player.IsSniperBowEquipped);
         Assert.True(player.TryStartSniperBowCharge(0f));
         for (var tick = 1; tick < 15; tick += 1)
@@ -995,10 +995,10 @@ public sealed class LastToDieSniperPerkRuntimeTests
         Assert.True(world.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Sniper.MenageATrois, LastToDiePerkIds.Sniper.ExplosiveTip]));
-        sniper.EquipExperimentalOffhandWeapon();
+        Assert.True(sniper.TrySelectGameplayPrimaryItem("weapon.bow"));
         Assert.True(sniper.IsSniperBowEquipped);
-        var ammoBefore = sniper.ExperimentalOffhandCurrentShells;
-        Assert.True(sniper.TryFireExperimentalOffhandWeapon());
+        var ammoBefore = sniper.CurrentShells;
+        Assert.True(sniper.TryFirePrimaryWeapon());
 
         _ = SpawnTestArrow(
             world,
@@ -1006,7 +1006,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
             velocityX: 1f,
             damage: PlayerEntity.SniperBowMaxDamage);
 
-        Assert.Equal(ammoBefore - 1, sniper.ExperimentalOffhandCurrentShells);
+        Assert.Equal(ammoBefore - 1, sniper.CurrentShells);
         Assert.Single(world.Needles);
         Assert.Equal((byte)2, sniper.LastToDieSniperVolleyState.QueuedArrowCount);
         Assert.Equal((byte)3, sniper.LastToDieSniperVolleyState.SourceTicksUntilNextArrow);
@@ -1031,7 +1031,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
             world.Needles.Cast<ArrowProjectileEntity>(),
             static arrow => Assert.True(arrow.AppliesLastToDieExplosiveTip));
         Assert.False(sniper.LastToDieSniperVolleyState.IsActive);
-        Assert.Equal(ammoBefore - 1, sniper.ExperimentalOffhandCurrentShells);
+        Assert.Equal(ammoBefore - 1, sniper.CurrentShells);
     }
 
     [Fact]
@@ -1042,7 +1042,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
         Assert.True(world.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Sniper.MenageATrois]));
-        sniper.EquipExperimentalOffhandWeapon();
+        Assert.True(sniper.TrySelectGameplayPrimaryItem("weapon.bow"));
         _ = SpawnTestArrow(world, sniper, 1f, PlayerEntity.SniperBowMaxDamage);
 
         sniper.ForceSetHealth(0);
@@ -1063,7 +1063,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
         Assert.True(world.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Sniper.ExplosiveTip]));
-        sniper.EquipExperimentalOffhandWeapon();
+        Assert.True(sniper.TrySelectGameplayPrimaryItem("weapon.bow"));
         _ = SpawnTestArrow(world, sniper, 0f, PlayerEntity.SniperBowMinDamage);
         _ = SpawnTestArrow(world, sniper, 0f, PlayerEntity.SniperBowMinDamage);
         Assert.Equal(2, world.Needles.Count);

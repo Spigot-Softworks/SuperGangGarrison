@@ -1,7 +1,8 @@
 {
   "id": "weapon.diamondback",
+  "kind": "Weapon",
+  "weaponSlot": "Primary",
   "displayName": "Diamondback",
-  "slot": "Primary",
   "behaviorId": "builtin.weapon.revolver",
   "ammo": {
     "maxAmmo": 6,

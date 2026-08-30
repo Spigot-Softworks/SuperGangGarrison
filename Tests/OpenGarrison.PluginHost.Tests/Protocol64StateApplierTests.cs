@@ -172,29 +172,24 @@ public sealed class Protocol64StateApplierTests
     [InlineData(PlayerClass.Sniper, "weapon.bow")]
     [InlineData(PlayerClass.Scout, "weapon.scout-nailgun")]
     [InlineData(PlayerClass.Medic, "weapon.medigun.crit")]
-    public void Protocol64PublisherAndReceiverPreserveLockedPrimaryAcrossRespawn(
+    public void Protocol64PublisherKeepsAlternatePrimaryInPrimarySlotAcrossRespawn(
         PlayerClass playerClass,
-        string expectedSecondaryItemId)
+        string selectedPrimaryItemId)
     {
         var source = CreateJoinedWorld(playerClass);
         source.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings(
             EnableSecondaryAbilities: true));
         source.LocalPlayer.SetSpawnRoomState(false);
-        source.LocalPlayer.EquipExperimentalOffhandWeapon();
+        Assert.True(source.LocalPlayer.TrySelectGameplayPrimaryItem(selectedPrimaryItemId));
 
-        Assert.True(source.LocalPlayer.IsExperimentalOffhandSelected);
+        Assert.Equal(selectedPrimaryItemId, source.LocalPlayer.GameplayLoadoutState.PrimaryItemId);
         source.ForceKillLocalPlayer();
         AdvanceUntilRespawn(source);
 
         var state = Assert.Single(new Protocol64StatePublisher(source).BuildPlayerStateBatch(1).Players);
-        Assert.Equal((byte)GameplayEquipmentSlot.Secondary, state.ActiveWeapon);
-
-        var receiver = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        Assert.True(receiver.ApplyProtocol64PlayerState(state));
-
-        Assert.True(receiver.LocalPlayer.IsExperimentalOffhandSelected);
-        Assert.Equal(GameplayEquipmentSlot.Secondary, receiver.LocalPlayer.GameplayLoadoutState.EquippedSlot);
-        Assert.Equal(expectedSecondaryItemId, receiver.LocalPlayer.GameplayLoadoutState.EquippedItemId);
+        Assert.Equal((byte)GameplayEquipmentSlot.Primary, state.ActiveWeapon);
+        Assert.Equal(source.LocalPlayer.CurrentShells, state.CurrentAmmo);
+        Assert.Equal(source.LocalPlayer.MaxShells, state.MaxAmmo);
     }
 
     [Fact]

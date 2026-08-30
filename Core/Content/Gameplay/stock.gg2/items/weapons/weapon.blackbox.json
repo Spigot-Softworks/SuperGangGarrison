@@ -1,7 +1,8 @@
 {
   "id": "weapon.blackbox",
+  "kind": "Weapon",
+  "weaponSlot": "Primary",
   "displayName": "Black Box",
-  "slot": "Primary",
   "behaviorId": "builtin.weapon.rocket_launcher",
   "ammo": {
     "maxAmmo": 3,

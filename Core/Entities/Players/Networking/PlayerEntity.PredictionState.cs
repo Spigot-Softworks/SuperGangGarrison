@@ -119,6 +119,7 @@ public sealed partial class PlayerEntity
         int ChatBubbleTicksRemaining,
         bool IsTypingChatMessage = false,
         string? SelectedGameplayLoadoutId = null,
+        string? SelectedGameplayPrimaryItemId = null,
         GameplayEquipmentSlot SelectedGameplayEquippedSlot = GameplayEquipmentSlot.Primary,
         int PyroFlareCooldownTicks = 0,
         int PyroPrimaryFuelScaled = 0,
@@ -300,6 +301,7 @@ public sealed partial class PlayerEntity
             ChatBubbleTicksRemaining,
             IsTypingChatMessage,
             SelectedGameplayLoadoutId,
+            SelectedGameplayPrimaryItemId,
             SelectedGameplayEquippedSlot,
             PyroFlareCooldownTicks,
             PyroPrimaryFuelScaled,
@@ -567,6 +569,11 @@ public sealed partial class PlayerEntity
         SelectedGameplayLoadoutId = string.IsNullOrWhiteSpace(state.SelectedGameplayLoadoutId)
             ? CharacterClassCatalog.RuntimeRegistry.GetDefaultLoadout(GameplayClassId).Id
             : state.SelectedGameplayLoadoutId;
+        SelectedGameplayPrimaryItemId = string.IsNullOrWhiteSpace(state.SelectedGameplayPrimaryItemId)
+            ? CharacterClassCatalog.RuntimeRegistry.GetDefaultLoadout(GameplayClassId).Primary?.DefaultItemId
+                ?? CharacterClassCatalog.RuntimeRegistry.GetDefaultLoadout(GameplayClassId).PrimaryItemId
+            : state.SelectedGameplayPrimaryItemId;
+        RefreshSelectedGameplayPrimaryWeapon();
         SelectedGameplayEquippedSlot = state.SelectedGameplayEquippedSlot;
         PyroPrimaryFuelScaledValue = state.PyroPrimaryFuelScaled;
         IsPyroPrimaryRefilling = state.IsPyroPrimaryRefilling;

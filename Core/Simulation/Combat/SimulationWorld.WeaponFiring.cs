@@ -16,7 +16,9 @@ public sealed partial class SimulationWorld
         int enemyDamagePerHit = MedicHealNeedleProjectileEntity.DefaultEnemyDamagePerHit)
         => WeaponHandler.FireMedicKritzHealNeedle(
             attacker,
-            attacker.ExperimentalOffhandWeapon ?? CharacterClassCatalog.Medigun,
+            attacker.HasPrimaryBehavior(global::OpenGarrison.GameplayModding.BuiltInGameplayBehaviorIds.MedigunCrit)
+                ? attacker.PrimaryWeapon
+                : attacker.ExperimentalOffhandWeapon ?? CharacterClassCatalog.Medigun,
             aimWorldX,
             aimWorldY,
             healPerHit,

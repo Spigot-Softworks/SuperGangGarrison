@@ -1,10 +1,11 @@
 {
   "id": "ability.medic-needlegun",
+  "kind": "Ability",
   "displayName": "Needlegun",
-  "slot": "Secondary",
   "behaviorId": "builtin.ability.medic_needlegun",
   "ability": {
     "category": "secondary",
+    "channel": "special",
     "activation": "held",
     "executorId": "builtin.ability.medic_needlegun",
     "tags": [ "core_m2", "projectile", "cooldown" ],

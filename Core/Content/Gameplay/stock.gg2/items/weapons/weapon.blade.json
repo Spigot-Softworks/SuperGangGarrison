@@ -1,7 +1,8 @@
 {
   "id": "weapon.blade",
+  "kind": "Weapon",
+  "weaponSlot": "Primary",
   "displayName": "Blade",
-  "slot": "Primary",
   "behaviorId": "builtin.weapon.blade",
   "ammo": {
     "maxAmmo": 100,

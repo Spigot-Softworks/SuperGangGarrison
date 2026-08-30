@@ -1,10 +1,11 @@
 {
   "id": "ability.sniper-scope",
+  "kind": "Ability",
   "displayName": "Scope",
-  "slot": "Secondary",
   "behaviorId": "builtin.ability.sniper_scope",
   "ability": {
     "category": "secondary",
+    "channel": "special",
     "activation": "pressed",
     "executorId": "builtin.ability.sniper_scope",
     "tags": [ "core_m2", "scope", "toggle", "charge" ]

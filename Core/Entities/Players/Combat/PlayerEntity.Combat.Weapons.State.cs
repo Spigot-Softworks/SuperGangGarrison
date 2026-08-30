@@ -29,6 +29,14 @@ public sealed partial class PlayerEntity
 
         AdvancePyroAirblastState();
 
+        if (HasPrimaryBehavior(BuiltInGameplayBehaviorIds.MedigunCrit))
+        {
+            AdvanceMedicKritzPrimaryRefill();
+            AdvanceExperimentalOffhandWeaponState();
+            AdvanceAcquiredWeaponState();
+            return;
+        }
+
         if (PrimaryCooldownTicks > 0)
         {
             AdvanceExperimentalOffhandWeaponState();
@@ -91,6 +99,29 @@ public sealed partial class PlayerEntity
 
         AdvanceExperimentalOffhandWeaponState();
         AdvanceAcquiredWeaponState();
+    }
+
+    private void AdvanceMedicKritzPrimaryRefill()
+    {
+        if (CurrentShells >= PrimaryWeapon.MaxAmmo)
+        {
+            ReloadTicksUntilNextShell = 0;
+            return;
+        }
+
+        if (ReloadTicksUntilNextShell <= 0)
+        {
+            ReloadTicksUntilNextShell = ApplyLastToDieMedicNeedleReloadMultiplier(
+                MedicNeedleRefillTicksDefault);
+            return;
+        }
+
+        ReloadTicksUntilNextShell -= 1;
+        if (ReloadTicksUntilNextShell <= 0)
+        {
+            CurrentShells = PrimaryWeapon.MaxAmmo;
+            ReloadTicksUntilNextShell = 0;
+        }
     }
 
     private void AdvanceExperimentalOffhandWeaponState()

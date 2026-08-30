@@ -729,11 +729,6 @@ public sealed partial class PlayerEntity
 
     private void HydrateNetworkReplicatedSecondaryWeaponFromSnapshot()
     {
-        if (ClassId is not (PlayerClass.Soldier or PlayerClass.Scout or PlayerClass.Sniper or PlayerClass.Medic))
-        {
-            return;
-        }
-
         if (!IsReplicatedSecondaryWeaponAvailable())
         {
             if (HasExperimentalOffhandWeapon)
@@ -774,26 +769,38 @@ public sealed partial class PlayerEntity
         }
 
         const string coreReplicatedOwnerId = "core.player";
-        var ammoKey = ClassId switch
+        if (TryGetReplicatedStateInt(coreReplicatedOwnerId, "secondary_weapon_ammo", out var genericAmmo))
+        {
+            ExperimentalOffhandCurrentShells = int.Clamp(genericAmmo, 0, ExperimentalOffhandMaxShells);
+            return;
+        }
+
+        var legacyAmmoKey = ClassId switch
         {
             PlayerClass.Soldier => "soldier_shotgun_ammo",
+            PlayerClass.Demoman => "demoman_gl_ammo",
             PlayerClass.Scout => "scout_nailgun_ammo",
             PlayerClass.Sniper => "sniper_bow_ammo",
             PlayerClass.Medic => "medic_kritz_ammo",
             _ => null,
         };
-        if (ammoKey is null
-            || !TryGetReplicatedStateInt(coreReplicatedOwnerId, ammoKey, out var ammo))
+        if (legacyAmmoKey is null
+            || !TryGetReplicatedStateInt(coreReplicatedOwnerId, legacyAmmoKey, out var legacyAmmo))
         {
             return;
         }
 
-        ExperimentalOffhandCurrentShells = int.Clamp(ammo, 0, ExperimentalOffhandMaxShells);
+        ExperimentalOffhandCurrentShells = int.Clamp(legacyAmmo, 0, ExperimentalOffhandMaxShells);
     }
 
     private bool IsReplicatedSecondaryWeaponAvailable()
     {
         const string coreReplicatedOwnerId = "core.player";
+
+        if (TryGetReplicatedStateBool(coreReplicatedOwnerId, "secondary_weapon_available", out var secondaryAvailable))
+        {
+            return secondaryAvailable;
+        }
 
         return ClassId switch
         {
@@ -801,6 +808,8 @@ public sealed partial class PlayerEntity
                     && shotgunAvailable)
                 || TryGetReplicatedStateInt(coreReplicatedOwnerId, "soldier_shotgun_ammo", out _)
                 || TryGetReplicatedStateInt(coreReplicatedOwnerId, "soldier_shotgun_max_ammo", out _),
+            PlayerClass.Demoman => TryGetReplicatedStateInt(coreReplicatedOwnerId, "demoman_gl_ammo", out _)
+                || TryGetReplicatedStateInt(coreReplicatedOwnerId, "demoman_gl_max_ammo", out _),
             PlayerClass.Scout => (TryGetReplicatedStateBool(coreReplicatedOwnerId, "scout_nailgun_available", out var nailgunAvailable)
                     && nailgunAvailable)
                 || TryGetReplicatedStateInt(coreReplicatedOwnerId, "scout_nailgun_ammo", out _)
@@ -956,9 +965,12 @@ public sealed partial class PlayerEntity
                 equippedSlot,
                 string.IsNullOrWhiteSpace(gameplaySecondaryItemId) ? null : gameplaySecondaryItemId,
                 string.IsNullOrWhiteSpace(gameplayAcquiredItemId) ? null : gameplayAcquiredItemId,
+                gameplayPrimaryItemId,
                 out var validatedLoadoutState))
         {
             SelectedGameplayLoadoutId = validatedLoadoutState.LoadoutId;
+            SelectedGameplayPrimaryItemId = validatedLoadoutState.PrimaryItemId;
+            RefreshSelectedGameplayPrimaryWeapon();
             SelectedGameplayEquippedSlot = validatedLoadoutState.EquippedSlot;
             GameplayLoadoutState = validatedLoadoutState;
             return;

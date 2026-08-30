@@ -1,7 +1,9 @@
 {
   "id": "weapon.rifle",
+  "kind": "Weapon",
+  "weaponSlot": "Primary",
+  "grantedAbilityItemIds": [ "ability.sniper-scope" ],
   "displayName": "Rifle",
-  "slot": "Primary",
   "behaviorId": "builtin.weapon.rifle",
   "ammo": {
     "maxAmmo": 1,

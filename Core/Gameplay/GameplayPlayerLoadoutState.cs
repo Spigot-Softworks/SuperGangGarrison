@@ -11,4 +11,5 @@ public sealed record GameplayPlayerLoadoutState(
     string? UtilityItemId,
     GameplayEquipmentSlot EquippedSlot,
     string EquippedItemId,
-    string? AcquiredItemId = null);
+    string? AcquiredItemId = null,
+    IReadOnlyList<string>? AbilityItemIds = null);

@@ -1,10 +1,11 @@
 {
   "id": "ability.medic-uber",
+  "kind": "Ability",
   "displayName": "UberCharge",
-  "slot": "Utility",
   "behaviorId": "builtin.ability.medic_uber",
   "ability": {
     "category": "utility",
+    "channel": "utility",
     "activation": "pressed",
     "executorId": "builtin.ability.medic_uber",
     "tags": [ "uber", "charge" ]

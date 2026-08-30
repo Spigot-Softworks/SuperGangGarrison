@@ -417,6 +417,12 @@ public sealed partial class SimulationWorld
         return player.TrySelectGameplayLoadout(loadoutId);
     }
 
+    public bool TrySetNetworkPlayerGameplayPrimaryItem(byte slot, string itemId, bool refillAmmo = true)
+    {
+        return TryGetOrEnsurePlayableNetworkPlayer(slot, out var player)
+            && player.TrySelectGameplayPrimaryItem(itemId, refillAmmo);
+    }
+
     public bool TrySetNetworkPlayerGameplaySecondaryItem(byte slot, string? itemId)
     {
         if (!TryGetOrEnsurePlayableNetworkPlayer(slot, out var player))
@@ -439,13 +445,7 @@ public sealed partial class SimulationWorld
         PrimaryWeaponDefinition? weaponDefinition = null;
         if (!string.IsNullOrWhiteSpace(normalizedItemId))
         {
-            var selectedLoadout = runtimeRegistry.TryGetLoadout(player.GameplayClassId, player.SelectedGameplayLoadoutId, out var resolvedLoadout)
-                ? resolvedLoadout
-                : runtimeRegistry.GetDefaultLoadout(player.GameplayClassId);
-            if (!string.Equals(selectedLoadout.SecondaryItemId, normalizedItemId, StringComparison.Ordinal))
-            {
-                weaponDefinition = runtimeRegistry.CreatePrimaryWeaponDefinition(runtimeRegistry.GetRequiredItem(normalizedItemId));
-            }
+            weaponDefinition = runtimeRegistry.CreatePrimaryWeaponDefinition(runtimeRegistry.GetRequiredItem(normalizedItemId));
         }
 
         player.SetExperimentalOffhandWeapon(weaponDefinition);

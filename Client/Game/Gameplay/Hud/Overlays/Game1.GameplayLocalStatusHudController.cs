@@ -15,24 +15,15 @@ public partial class Game1
     internal static bool ShouldShowStowedPrimaryWeaponHud(bool showOnlyActiveWeapon, bool alternatePrimarySelected)
         => !showOnlyActiveWeapon && !alternatePrimarySelected;
 
-    // Locked alternate primaries (Scout nailgun, Sniper bow, and Medic Kritz
-    // needles) occupy the active primary presentation slot. They are not an
-    // additional secondary panel, even when the user asks to show stowed
-    // weapons. Keep this decision pure so the row builder and regression tests
-    // share the same rule.
+    // Primary alternatives occupy the primary row. A secondary row represents
+    // only a real secondary weapon, regardless of whether the class can swap
+    // primaries at a station.
     internal static bool ShouldShowSecondaryWeaponHud(
         bool showOnlyActiveWeapon,
-        bool lockedPrimaryWeaponClass,
-        bool lockedPrimaryWeaponSelected,
         bool secondaryWeaponAvailable)
     {
         return !showOnlyActiveWeapon
-            && secondaryWeaponAvailable
-            // Locked alternate-primary classes have one exclusive primary
-            // presentation slot. The selected-slot bit can briefly lag the
-            // loadout during spawn, so the class rule must suppress the
-            // independent secondary row in either state.
-            && !lockedPrimaryWeaponClass;
+            && secondaryWeaponAvailable;
     }
 
     private const float PortraitRumbleDurationSeconds = 0.24f;
@@ -99,6 +90,9 @@ public partial class Game1
     {
         private const string CoreReplicatedOwnerId = "core.player";
         private const string SoldierShotgunAvailableKey = "soldier_shotgun_available";
+        private const string SecondaryWeaponAvailableKey = "secondary_weapon_available";
+        private const string SecondaryWeaponAmmoKey = "secondary_weapon_ammo";
+        private const string SecondaryWeaponMaxAmmoKey = "secondary_weapon_max_ammo";
         private const string SoldierShotgunAmmoKey = "soldier_shotgun_ammo";
         private const string SoldierShotgunMaxAmmoKey = "soldier_shotgun_max_ammo";
         private const string DemomanGrenadeLauncherAmmoKey = "demoman_gl_ammo";
@@ -646,12 +640,6 @@ public partial class Game1
             var hasGrenadeLauncher = HasLocalDemomanGrenadeLauncher();
             var showOnlyActiveWeapon = _game._hudShowOnlyActiveWeapon;
             var localPlayer = _game._world.LocalPlayer;
-            var lockedPrimaryWeaponSelected = localPlayer.IsLockedPrimaryWeaponClass
-                && localPlayer.GameplayLoadoutState.EquippedSlot == GameplayEquipmentSlot.Secondary
-                && string.Equals(
-                    localPlayer.GameplayLoadoutState.EquippedItemId,
-                    localPlayer.GameplayLoadoutState.SecondaryItemId,
-                    StringComparison.Ordinal);
             var selectedOffhandItemId = IsLocalDisplayedOffhandWeaponSelected()
                 ? GetLocalDisplayedOffhandPresentationItemId()
                 : null;
@@ -690,8 +678,7 @@ public partial class Game1
             // such as Soldier/Scout/Sniper appear to carry two primaries.
             if (ShouldShowStowedPrimaryWeaponHud(
                     showOnlyActiveWeapon,
-                    !IsLocalDisplayedMainWeaponAcquired() || selectedOffhandItemId is not null)
-                && !lockedPrimaryWeaponSelected)
+                    !IsLocalDisplayedMainWeaponAcquired() || selectedOffhandItemId is not null))
             {
                 AddStowedPrimaryWeaponHudRow(rows);
             }
@@ -714,8 +701,6 @@ public partial class Game1
 
             if (ShouldShowSecondaryWeaponHud(
                     showOnlyActiveWeapon,
-                    localPlayer.IsLockedPrimaryWeaponClass,
-                    lockedPrimaryWeaponSelected,
                     ShouldDrawSecondaryWeaponHudRow(out var secondaryItem)))
             {
                 rows.Add(new WeaponHudRow(
@@ -890,15 +875,8 @@ public partial class Game1
 
         private bool TryGetLocalUtilityHudItem(out GameplayItemDefinition item)
         {
-            item = null!;
-            var utilityItemId = _game._world.LocalPlayer.GameplayLoadoutState.UtilityItemId;
-            if (string.IsNullOrWhiteSpace(utilityItemId))
-            {
-                return false;
-            }
-
-            item = CharacterClassCatalog.RuntimeRegistry.GetRequiredItem(utilityItemId);
-            return true;
+            item = TryGetLocalGrenadeLauncherItem()!;
+            return item is not null;
         }
 
         private void AddPrimaryWeaponHudRow(List<WeaponHudRow> rows, PrimaryWeaponDefinition displayedWeaponStats, bool hasGrenadeLauncher)
@@ -1075,19 +1053,9 @@ public partial class Game1
 
         private IEnumerable<GameplayItemDefinition> GetLocalConfiguredAbilityHudItems()
         {
-            var seen = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var itemId in new[]
+            foreach (var item in _game._world.LocalPlayer.GetGameplayAbilityItems())
             {
-                _game._world.LocalPlayer.GameplayLoadoutState.SecondaryItemId,
-                _game._world.LocalPlayer.GameplayLoadoutState.UtilityItemId,
-            })
-            {
-                if (string.IsNullOrWhiteSpace(itemId) || !seen.Add(itemId))
-                {
-                    continue;
-                }
-
-                yield return CharacterClassCatalog.RuntimeRegistry.GetRequiredItem(itemId);
+                yield return item;
             }
         }
 
@@ -1189,7 +1157,7 @@ public partial class Game1
                 "local.weapon.primary" => GetLocalDisplayedMainWeaponPresentationItemId(),
                 "local.weapon.primary.stowed" => player.GameplayLoadoutState.PrimaryItemId,
                 "local.weapon.secondary" => player.GameplayLoadoutState.SecondaryItemId,
-                "local.weapon.utility" => player.GameplayLoadoutState.UtilityItemId,
+                "local.weapon.utility" => TryGetLocalGrenadeLauncherItem()?.Id,
                 "local.weapon.acquired" when ShouldDrawAcquiredWeaponHud() => GetLocalAlternatePrimaryWeaponPresentationItemId(),
                 _ => null,
             };
@@ -1533,13 +1501,15 @@ public partial class Game1
 
         private void DrawSpySuperjumpHudCore()
         {
-            var utilityItemId = _game._world.LocalPlayer.GameplayLoadoutState.UtilityItemId;
-            if (string.IsNullOrWhiteSpace(utilityItemId))
+            if (!_game._world.LocalPlayer.TryGetGameplayAbilityItem(
+                    GameplayAbilityConstants.UtilityChannel,
+                    BuiltInGameplayBehaviorIds.SpyUtility,
+                    out var utilityItem))
             {
                 return;
             }
 
-            DrawConfiguredAbilityCooldownHud(CharacterClassCatalog.RuntimeRegistry.GetRequiredItem(utilityItemId), 515f);
+            DrawConfiguredAbilityCooldownHud(utilityItem, 515f);
         }
 
         private void DrawConfiguredAbilityCooldownHud(GameplayItemDefinition item, float sourceY)
@@ -1819,13 +1789,12 @@ public partial class Game1
 
         private void DrawGrenadeLauncherHud(float sourceY)
         {
-            var utilityItemId = _game._world.LocalPlayer.GameplayLoadoutState.UtilityItemId;
-            if (string.IsNullOrWhiteSpace(utilityItemId))
+            var utilityItem = TryGetLocalGrenadeLauncherItem();
+            if (utilityItem is null)
             {
                 return;
             }
 
-            var utilityItem = CharacterClassCatalog.RuntimeRegistry.GetRequiredItem(utilityItemId);
             var presentation = utilityItem.Presentation;
             var hudFrameIndex = _game._world.LocalPlayer.Team == PlayerTeam.Blue ? presentation.BlueTeamHudFrameOffset : 0;
             var hudSpriteName = presentation.HudSpriteName ?? "GrenadeLauncherAmmoS";
@@ -1903,12 +1872,16 @@ public partial class Game1
                     ? SniperBowMaxAmmoKey
                     : SoldierShotgunMaxAmmoKey;
 
-            var currentShells = _game._world.LocalPlayer.TryGetReplicatedStateInt(CoreReplicatedOwnerId, offhandAmmoKey, out var replicatedOffhandAmmo)
-                ? replicatedOffhandAmmo
-                : _game._world.LocalPlayer.ExperimentalOffhandCurrentShells;
-            var maxShells = _game._world.LocalPlayer.TryGetReplicatedStateInt(CoreReplicatedOwnerId, offhandMaxAmmoKey, out var replicatedOffhandMaxAmmo)
-                ? Math.Max(1, replicatedOffhandMaxAmmo)
-                : Math.Max(1, _game._world.LocalPlayer.ExperimentalOffhandMaxShells);
+            var currentShells = _game._world.LocalPlayer.TryGetReplicatedStateInt(CoreReplicatedOwnerId, SecondaryWeaponAmmoKey, out var replicatedSecondaryAmmo)
+                ? replicatedSecondaryAmmo
+                : _game._world.LocalPlayer.TryGetReplicatedStateInt(CoreReplicatedOwnerId, offhandAmmoKey, out var replicatedOffhandAmmo)
+                    ? replicatedOffhandAmmo
+                    : _game._world.LocalPlayer.ExperimentalOffhandCurrentShells;
+            var maxShells = _game._world.LocalPlayer.TryGetReplicatedStateInt(CoreReplicatedOwnerId, SecondaryWeaponMaxAmmoKey, out var replicatedSecondaryMaxAmmo)
+                ? Math.Max(1, replicatedSecondaryMaxAmmo)
+                : _game._world.LocalPlayer.TryGetReplicatedStateInt(CoreReplicatedOwnerId, offhandMaxAmmoKey, out var replicatedOffhandMaxAmmo)
+                    ? Math.Max(1, replicatedOffhandMaxAmmo)
+                    : Math.Max(1, _game._world.LocalPlayer.ExperimentalOffhandMaxShells);
             var reloadTicksRemaining = _game._world.LocalPlayer.ExperimentalOffhandReloadTicksUntilNextShell;
             var reloadTicksPerShell = Math.Max(1, _game._world.LocalPlayer.ExperimentalOffhandWeapon?.AmmoReloadTicks ?? CharacterClassCatalog.SoldierShotgun.AmmoReloadTicks);
             var reloadProgress = currentShells >= maxShells
@@ -1951,6 +1924,11 @@ public partial class Game1
             if (player.HasExperimentalOffhandWeapon)
             {
                 return true;
+            }
+
+            if (player.TryGetReplicatedStateBool(CoreReplicatedOwnerId, SecondaryWeaponAvailableKey, out var secondaryAvailable))
+            {
+                return secondaryAvailable;
             }
 
             if (player.TryGetReplicatedStateBool(CoreReplicatedOwnerId, SoldierShotgunAvailableKey, out var shotgunAvailable)
@@ -2265,7 +2243,7 @@ public partial class Game1
         private bool HasLocalDemomanGrenadeLauncher()
         {
             return _game._world.LocalPlayer.ClassId == PlayerClass.Demoman
-                && _game._world.LocalPlayer.HasUtilityBehavior(BuiltInGameplayBehaviorIds.GrenadeLauncher);
+                && _game._world.LocalPlayer.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.GrenadeLauncher);
         }
 
         private void DrawPyroFlareHudCore(int frameIndex)
@@ -2712,16 +2690,26 @@ public partial class Game1
 
         private GameplayItemDefinition? TryGetLocalGrenadeLauncherItem()
         {
-            var utilityItemId = _game._world.LocalPlayer.GameplayLoadoutState.UtilityItemId;
-            if (string.IsNullOrWhiteSpace(utilityItemId))
+            var player = _game._world.LocalPlayer;
+            foreach (var itemId in new[]
             {
-                return null;
+                player.GameplayLoadoutState.SecondaryItemId,
+                player.GameplayLoadoutState.UtilityItemId,
+            })
+            {
+                if (string.IsNullOrWhiteSpace(itemId))
+                {
+                    continue;
+                }
+
+                var item = CharacterClassCatalog.RuntimeRegistry.GetRequiredItem(itemId);
+                if (string.Equals(item.BehaviorId, BuiltInGameplayBehaviorIds.GrenadeLauncher, StringComparison.Ordinal))
+                {
+                    return item;
+                }
             }
 
-            var item = CharacterClassCatalog.RuntimeRegistry.GetRequiredItem(utilityItemId);
-            return string.Equals(item.BehaviorId, BuiltInGameplayBehaviorIds.GrenadeLauncher, StringComparison.Ordinal)
-                ? item
-                : null;
+            return null;
         }
 
         private int GetLocalDisplayedOffhandReloadTicks()

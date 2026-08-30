@@ -34,10 +34,13 @@
     "sniper.stock": {
       "id": "sniper.stock",
       "displayName": "Stock",
-      "primaryItemId": "weapon.rifle",
-      "secondaryItemId": "weapon.bow",
-      "utilityItemId": "ability.sniper-bow-toggle",
-      "abilityItemIds": [ "ability.experimental-ltd-passive", "ability.experimental-ltd-rage", "ability.sniper-scope" ]
+      "primary": {
+        "defaultItemId": "weapon.rifle",
+        "itemIds": [ "weapon.rifle", "weapon.bow" ],
+        "switchPolicy": "primary_swap_station",
+        "selectionPersistence": "same_class_loadout"
+      },
+      "abilities": [ "ability.experimental-ltd-passive", "ability.experimental-ltd-rage" ]
     }
   },
   "defaultLoadoutId": "sniper.stock"

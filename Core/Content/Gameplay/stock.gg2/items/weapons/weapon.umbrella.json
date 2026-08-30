@@ -1,7 +1,8 @@
 {
   "id": "weapon.umbrella",
+  "kind": "Weapon",
+  "weaponSlot": "Primary",
   "displayName": "Umbrella",
-  "slot": "Primary",
   "behaviorId": "builtin.weapon.revolver",
   "ammo": {
     "maxAmmo": 4,

@@ -1,10 +1,11 @@
 {
   "id": "ability.experimental-ltd-passive",
+  "kind": "Ability",
   "displayName": "Experimental LTD Passive",
-  "slot": "Utility",
   "behaviorId": "builtin.ability.experimental_ltd.passive",
   "ability": {
     "category": "passive",
+    "channel": "passive",
     "activation": "passive_tick",
     "executorId": "builtin.ability.experimental_ltd.passive",
     "tags": [ "experimental_ltd", "passive" ]

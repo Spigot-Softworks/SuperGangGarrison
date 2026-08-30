@@ -1,7 +1,9 @@
 {
   "id": "weapon.soldier-shotgun-ltd",
+  "kind": "Weapon",
+  "weaponSlot": "Secondary",
+  "grantedAbilityItemIds": [ "ability.experimental-ltd-soldier-secondary" ],
   "displayName": "12 Gauge",
-  "slot": "Secondary",
   "behaviorId": "builtin.weapon.pellet_gun",
   "ammo": {
     "maxAmmo": 8,
@@ -18,15 +20,6 @@
   },
   "combat": {
     "fireSoundName": "ShotgunSnd"
-  },
-  "ability": {
-    "category": "secondary",
-    "activation": "pressed",
-    "executorId": "builtin.ability.experimental_ltd.soldier_secondary",
-    "tags": [ "experimental_ltd", "soldier", "stinger", "turret", "thundergunner" ],
-    "parameters": {
-      "requiresExperimentalFlag": true
-    }
   },
   "presentation": {
     "worldSpriteName": "stock.gg2.weapon.soldier-shotgun.world",

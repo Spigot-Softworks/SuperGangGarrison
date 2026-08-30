@@ -28,7 +28,7 @@ public partial class Game1
         var useMultiplayerExclusivePrimarySwapBinding = KeyboardInputMapper.UsesMultiplayerExclusivePrimarySwapBinding(
             _networkClient.IsConnected && !_networkClient.IsReplayConnection && _gameplaySessionKind == GameplaySessionKind.Online,
             IsLastToDieSessionActive,
-            _world.LocalPlayer.IsLockedPrimaryWeaponClass);
+            _world.LocalPlayer.HasAlternatePrimaryWeapons);
 
         var fullInput = KeyboardInputMapper.BuildGameplaySnapshot(
             _inputBindings,
@@ -169,6 +169,7 @@ public partial class Game1
 
         var player = _world.LocalPlayer;
         return player.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.Medigun)
+            || player.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.MedigunCrit)
             || (player.IsExperimentalOffhandSelected
                 && (player.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.Medigun)
                     || player.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.MedigunCrit)));

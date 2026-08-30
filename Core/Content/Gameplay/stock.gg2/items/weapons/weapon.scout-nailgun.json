@@ -1,7 +1,8 @@
 {
   "id": "weapon.scout-nailgun",
+  "kind": "Weapon",
+  "weaponSlot": "Primary",
   "displayName": "Nailgun",
-  "slot": "Secondary",
   "behaviorId": "builtin.weapon.scout_nailgun",
   "ammo": {
     "maxAmmo": 35,

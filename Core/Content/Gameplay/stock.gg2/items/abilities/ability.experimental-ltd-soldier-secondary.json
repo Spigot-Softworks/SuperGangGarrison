@@ -1,0 +1,18 @@
+{
+  "id": "ability.experimental-ltd-soldier-secondary",
+  "kind": "Ability",
+  "displayName": "Last to Die Soldier Secondary",
+  "behaviorId": "builtin.ability.experimental_ltd.soldier_secondary",
+  "ability": {
+    "category": "secondary",
+    "channel": "special",
+    "activation": "pressed",
+    "executorId": "builtin.ability.experimental_ltd.soldier_secondary",
+    "tags": [ "experimental_ltd", "soldier", "stinger", "turret", "thundergunner" ],
+    "parameters": {
+      "requiresExperimentalFlag": true
+    }
+  },
+  "ammo": {},
+  "presentation": {}
+}

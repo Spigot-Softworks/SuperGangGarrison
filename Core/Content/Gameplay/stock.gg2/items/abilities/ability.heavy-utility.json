@@ -1,10 +1,11 @@
 {
   "id": "ability.heavy-utility",
+  "kind": "Ability",
   "displayName": "Heavy Utility",
-  "slot": "Utility",
   "behaviorId": "builtin.utility.heavy",
   "ability": {
     "category": "utility",
+    "channel": "utility",
     "activation": "pressed",
     "executorId": "builtin.ability.heavy_ghost_dash",
     "tags": [ "movement", "dash", "cooldown", "charge" ],

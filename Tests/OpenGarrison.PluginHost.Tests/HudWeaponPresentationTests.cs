@@ -21,15 +21,11 @@ public sealed class HudWeaponPresentationTests
     }
 
     [Theory]
-    [InlineData(false, true, true, true, false)]
-    [InlineData(false, true, false, true, false)]
-    [InlineData(false, false, true, true, true)]
-    [InlineData(true, true, true, true, false)]
-    [InlineData(false, true, true, false, false)]
-    public void LockedAlternatePrimaryOccupiesTheOnlyActiveWeaponPanel(
+    [InlineData(false, true, true)]
+    [InlineData(false, false, false)]
+    [InlineData(true, true, false)]
+    public void SecondaryPanelRepresentsOnlyARealSecondaryWeapon(
         bool showOnlyActiveWeapon,
-        bool lockedPrimaryWeaponClass,
-        bool lockedPrimaryWeaponSelected,
         bool secondaryWeaponAvailable,
         bool expected)
     {
@@ -37,8 +33,6 @@ public sealed class HudWeaponPresentationTests
             expected,
             Game1.ShouldShowSecondaryWeaponHud(
                 showOnlyActiveWeapon,
-                lockedPrimaryWeaponClass,
-                lockedPrimaryWeaponSelected,
                 secondaryWeaponAvailable));
     }
 }

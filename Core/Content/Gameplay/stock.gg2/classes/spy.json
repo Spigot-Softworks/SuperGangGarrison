@@ -33,18 +33,24 @@
     "spy.stock": {
       "id": "spy.stock",
       "displayName": "Stock",
-      "primaryItemId": "weapon.revolver",
-      "secondaryItemId": "ability.spy-cloak",
-      "utilityItemId": "ability.spy-utility",
-      "abilityItemIds": [ "ability.experimental-ltd-passive", "ability.experimental-ltd-rage" ]
+      "primary": {
+        "defaultItemId": "weapon.revolver",
+        "itemIds": [ "weapon.revolver" ],
+        "switchPolicy": "primary_swap_station",
+        "selectionPersistence": "same_class_loadout"
+      },
+      "abilities": [ "ability.spy-cloak", "ability.spy-utility", "ability.experimental-ltd-passive", "ability.experimental-ltd-rage" ]
     },
     "spy.diamondback": {
       "id": "spy.diamondback",
       "displayName": "Diamondback",
-      "primaryItemId": "weapon.diamondback",
-      "secondaryItemId": "ability.spy-cloak",
-      "utilityItemId": "ability.spy-utility",
-      "abilityItemIds": [ "ability.experimental-ltd-passive", "ability.experimental-ltd-rage" ]
+      "primary": {
+        "defaultItemId": "weapon.diamondback",
+        "itemIds": [ "weapon.diamondback" ],
+        "switchPolicy": "primary_swap_station",
+        "selectionPersistence": "same_class_loadout"
+      },
+      "abilities": [ "ability.spy-cloak", "ability.spy-utility", "ability.experimental-ltd-passive", "ability.experimental-ltd-rage" ]
     }
   },
   "defaultLoadoutId": "spy.stock"

@@ -19,7 +19,7 @@ public sealed class LastToDieMedicKritPowerRuntimeTests
         Assert.True(world.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.KritPower]));
-        Assert.True(medic.TrySelectGameplayEquippedSlot(GameplayEquipmentSlot.Secondary));
+        Assert.True(medic.TrySelectGameplayPrimaryItem("weapon.medigun.crit"));
         medic.SetMedicHealingTarget(target);
         medic.FillMedicUberCharge();
         Assert.True(medic.TryStartMedicUber());
@@ -173,9 +173,9 @@ public sealed class LastToDieMedicKritPowerRuntimeTests
         Assert.True(world.TryConfigureLastToDiePlayerBuild(
             2,
             [LastToDiePerkIds.Medic.KritPower]));
-        sniper.EquipExperimentalOffhandWeapon();
+        Assert.True(sniper.TrySelectGameplayPrimaryItem("weapon.bow"));
         Assert.True(sniper.IsSniperBowEquipped);
-        Assert.True(provider.TrySelectGameplayEquippedSlot(GameplayEquipmentSlot.Secondary));
+        Assert.True(provider.TrySelectGameplayPrimaryItem("weapon.medigun.crit"));
         provider.SetMedicHealingTarget(sniper);
         provider.FillMedicUberCharge();
         Assert.True(provider.TryStartMedicUber());

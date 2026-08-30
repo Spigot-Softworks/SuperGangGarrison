@@ -1,7 +1,8 @@
 {
   "id": "weapon.brassbeast",
+  "kind": "Weapon",
+  "weaponSlot": "Primary",
   "displayName": "Brass Beast",
-  "slot": "Primary",
   "behaviorId": "builtin.weapon.minigun",
   "ammo": {
     "maxAmmo": 200,

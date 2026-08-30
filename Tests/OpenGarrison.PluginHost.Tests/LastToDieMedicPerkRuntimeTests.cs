@@ -160,10 +160,10 @@ public sealed class LastToDieMedicPerkRuntimeTests
         Assert.Equal(9, springMedic.MedicNeedleCooldownTicks);
         Assert.Equal(30, springMedic.MedicNeedleRefillTicks);
 
-        springMedic.EquipExperimentalOffhandWeapon();
+        Assert.True(springMedic.TrySelectGameplayPrimaryItem("weapon.medigun.crit"));
         Assert.True(springMedic.TryFireMedicKritzHealNeedle(fireCooldownTicks: 18, refillTicks: 60));
-        Assert.Equal(9, springMedic.ExperimentalOffhandCooldownTicks);
-        Assert.Equal(30, springMedic.ExperimentalOffhandReloadTicksUntilNextShell);
+        Assert.Equal(9, springMedic.PrimaryCooldownTicks);
+        Assert.Equal(30, springMedic.ReloadTicksUntilNextShell);
 
         var composedWorld = CreateMedicWorld();
         var composedMedic = composedWorld.LocalPlayer;
@@ -189,32 +189,31 @@ public sealed class LastToDieMedicPerkRuntimeTests
     }
 
     [Fact]
-    public void ModifiedSpringRescalesActiveM2TimersWithoutTouchingPrimaryBeamTimers()
+    public void ModifiedSpringRescalesActiveMedicSecondaryInputTimers()
     {
         var world = CreateMedicWorld();
         var medic = world.LocalPlayer;
+        Assert.True(medic.TrySelectGameplayPrimaryItem("weapon.medigun.crit"));
+        medic.ForceSetAmmo(1);
         SetPlayerTimer(medic, nameof(PlayerEntity.PrimaryCooldownTicks), 12);
+        SetPlayerTimer(medic, nameof(PlayerEntity.ReloadTicksUntilNextShell), 20);
         SetPlayerTimer(medic, nameof(PlayerEntity.MedicNeedleCooldownTicks), 12);
         SetPlayerTimer(medic, nameof(PlayerEntity.MedicNeedleRefillTicks), 20);
-        SetPlayerTimer(medic, nameof(PlayerEntity.ExperimentalOffhandCooldownTicks), 12);
-        SetPlayerTimer(medic, nameof(PlayerEntity.ExperimentalOffhandReloadTicksUntilNextShell), 20);
 
         Assert.True(world.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.ModifiedSpring]));
 
-        Assert.Equal(12, medic.PrimaryCooldownTicks);
+        Assert.Equal(6, medic.PrimaryCooldownTicks);
+        Assert.Equal(10, medic.ReloadTicksUntilNextShell);
         Assert.Equal(6, medic.MedicNeedleCooldownTicks);
         Assert.Equal(10, medic.MedicNeedleRefillTicks);
-        Assert.Equal(6, medic.ExperimentalOffhandCooldownTicks);
-        Assert.Equal(10, medic.ExperimentalOffhandReloadTicksUntilNextShell);
 
         Assert.True(world.TryConfigureLastToDiePlayerBuild(SimulationWorld.LocalPlayerSlot, []));
         Assert.Equal(12, medic.PrimaryCooldownTicks);
+        Assert.Equal(20, medic.ReloadTicksUntilNextShell);
         Assert.Equal(12, medic.MedicNeedleCooldownTicks);
         Assert.Equal(20, medic.MedicNeedleRefillTicks);
-        Assert.Equal(12, medic.ExperimentalOffhandCooldownTicks);
-        Assert.Equal(20, medic.ExperimentalOffhandReloadTicksUntilNextShell);
     }
 
     [Fact]
@@ -229,7 +228,7 @@ public sealed class LastToDieMedicPerkRuntimeTests
         Assert.Equal(13, primary.PrimaryCooldownTicks);
         Assert.Equal(17, primary.ReloadTicksUntilNextShell);
 
-        var offhand = CreateMedicWorld().LocalPlayer;
+        var offhand = CreateWorld(PlayerClass.Soldier).LocalPlayer;
         offhand.EquipExperimentalOffhandWeapon();
         SetPlayerTimer(offhand, nameof(PlayerEntity.ExperimentalOffhandCurrentShells), 1);
         SetPlayerTimer(offhand, nameof(PlayerEntity.ExperimentalOffhandCooldownTicks), 8);
@@ -342,6 +341,7 @@ public sealed class LastToDieMedicPerkRuntimeTests
             world,
             LastToDieDerivedModifiers.MedicSupportRelayCooldownSeconds
                 * world.Config.TicksPerSecond);
+        Assert.True(medic.TrySelectGameplayPrimaryItem("weapon.medigun.crit"));
         var needle = new MedicHealNeedleProjectileEntity(
             100,
             medic.Team,

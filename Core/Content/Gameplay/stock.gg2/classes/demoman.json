@@ -33,10 +33,14 @@
     "demoman.stock": {
       "id": "demoman.stock",
       "displayName": "Stock",
-      "primaryItemId": "weapon.minelauncher",
-      "secondaryItemId": "ability.demoman-detonate",
-      "utilityItemId": "weapon.grenadelauncher",
-      "abilityItemIds": [ "ability.experimental-ltd-passive", "ability.experimental-ltd-rage" ]
+      "primary": {
+        "defaultItemId": "weapon.minelauncher",
+        "itemIds": [ "weapon.minelauncher" ],
+        "switchPolicy": "primary_swap_station",
+        "selectionPersistence": "same_class_loadout"
+      },
+      "secondary": { "itemId": "weapon.grenadelauncher" },
+      "abilities": [ "ability.demoman-detonate", "ability.experimental-ltd-passive", "ability.experimental-ltd-rage" ]
     }
   },
   "defaultLoadoutId": "demoman.stock"

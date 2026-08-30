@@ -1,10 +1,11 @@
 {
   "id": "ability.pyro-utility",
+  "kind": "Ability",
   "displayName": "Pyro Utility",
-  "slot": "Utility",
   "behaviorId": "builtin.utility.pyro",
   "ability": {
     "category": "utility",
+    "channel": "utility",
     "activation": "pressed",
     "executorId": "builtin.ability.pyro_airblast",
     "tags": [ "airblast", "movement", "cooldown" ],

@@ -33,10 +33,13 @@
     "medic.stock": {
       "id": "medic.stock",
       "displayName": "Stock",
-      "primaryItemId": "weapon.medigun",
-      "secondaryItemId": "weapon.medigun.crit",
-      "utilityItemId": "ability.medic-uber",
-      "abilityItemIds": [ "ability.experimental-ltd-passive", "ability.experimental-ltd-rage" ]
+      "primary": {
+        "defaultItemId": "weapon.medigun",
+        "itemIds": [ "weapon.medigun", "weapon.medigun.crit" ],
+        "switchPolicy": "primary_swap_station",
+        "selectionPersistence": "same_class_loadout"
+      },
+      "abilities": [ "ability.medic-uber", "ability.experimental-ltd-passive", "ability.experimental-ltd-rage" ]
     }
   },
   "defaultLoadoutId": "medic.stock"

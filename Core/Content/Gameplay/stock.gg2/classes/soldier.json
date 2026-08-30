@@ -33,26 +33,38 @@
     "soldier.stock": {
       "id": "soldier.stock",
       "displayName": "Stock",
-      "primaryItemId": "weapon.rocketlauncher",
-      "secondaryItemId": "weapon.soldier-shotgun",
-      "utilityItemId": "ability.soldier-utility",
-      "abilityItemIds": [ "ability.experimental-ltd-passive", "ability.experimental-ltd-rage" ]
+      "primary": {
+        "defaultItemId": "weapon.rocketlauncher",
+        "itemIds": [ "weapon.rocketlauncher" ],
+        "switchPolicy": "primary_swap_station",
+        "selectionPersistence": "same_class_loadout"
+      },
+      "secondary": { "itemId": "weapon.soldier-shotgun" },
+      "abilities": [ "ability.experimental-ltd-passive", "ability.experimental-ltd-rage" ]
     },
     "soldier.direct-hit": {
       "id": "soldier.direct-hit",
       "displayName": "Direct Hit",
-      "primaryItemId": "weapon.directhit",
-      "secondaryItemId": "weapon.soldier-shotgun",
-      "utilityItemId": "ability.soldier-utility",
-      "abilityItemIds": [ "ability.experimental-ltd-passive", "ability.experimental-ltd-rage" ]
+      "primary": {
+        "defaultItemId": "weapon.directhit",
+        "itemIds": [ "weapon.directhit" ],
+        "switchPolicy": "primary_swap_station",
+        "selectionPersistence": "same_class_loadout"
+      },
+      "secondary": { "itemId": "weapon.soldier-shotgun" },
+      "abilities": [ "ability.experimental-ltd-passive", "ability.experimental-ltd-rage" ]
     },
     "soldier.black-box": {
       "id": "soldier.black-box",
       "displayName": "Black Box",
-      "primaryItemId": "weapon.blackbox",
-      "secondaryItemId": "weapon.soldier-shotgun",
-      "utilityItemId": "ability.soldier-utility",
-      "abilityItemIds": [ "ability.experimental-ltd-passive", "ability.experimental-ltd-rage" ]
+      "primary": {
+        "defaultItemId": "weapon.blackbox",
+        "itemIds": [ "weapon.blackbox" ],
+        "switchPolicy": "primary_swap_station",
+        "selectionPersistence": "same_class_loadout"
+      },
+      "secondary": { "itemId": "weapon.soldier-shotgun" },
+      "abilities": [ "ability.experimental-ltd-passive", "ability.experimental-ltd-rage" ]
     }
   },
   "defaultLoadoutId": "soldier.stock"

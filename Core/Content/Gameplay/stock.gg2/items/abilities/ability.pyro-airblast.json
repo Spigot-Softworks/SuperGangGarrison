@@ -1,10 +1,11 @@
 {
   "id": "ability.pyro-airblast",
+  "kind": "Ability",
   "displayName": "Compression Blast",
-  "slot": "Secondary",
   "behaviorId": "builtin.ability.pyro_airblast",
   "ability": {
     "category": "secondary",
+    "channel": "special",
     "activation": "pressed",
     "executorId": "builtin.ability.pyro_airblast",
     "tags": [ "core_m2", "airblast", "cooldown", "suppresses_primary" ],
