@@ -14,6 +14,9 @@ public sealed class BrowserGameplayModPackDefinitionDocument
     [JsonPropertyName("version")]
     public string Version { get; init; } = string.Empty;
 
+    [JsonPropertyName("schemaVersion")]
+    public int SchemaVersion { get; init; } = 1;
+
     [JsonPropertyName("items")]
     public Dictionary<string, GameplayItemDefinition> Items { get; init; } = new(StringComparer.Ordinal);
 
@@ -32,6 +35,7 @@ public sealed class BrowserGameplayModPackDefinitionDocument
             Id = definition.Id,
             DisplayName = definition.DisplayName,
             Version = definition.Version.ToString(),
+            SchemaVersion = definition.SchemaVersion,
             Items = definition.Items.ToDictionary(
                 static pair => pair.Key,
                 static pair => pair.Value,
@@ -57,7 +61,8 @@ public sealed class BrowserGameplayModPackDefinitionDocument
             Version: parsedVersion,
             Items: Items,
             Classes: Classes,
-            Assets: Assets.ToCatalog());
+            Assets: Assets.ToCatalog(),
+            SchemaVersion: SchemaVersion <= 0 ? 1 : SchemaVersion);
     }
 }
 
