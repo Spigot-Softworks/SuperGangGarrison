@@ -172,6 +172,7 @@ public sealed partial class PlayerEntity
         KritzCritBoostProviderPlayerId = 0;
         KritzCritBoostProviderSlot = int.MaxValue;
         KritzCritBoostDamageMultiplier = 1f;
+        ResetBuffBannerState();
         SetLastToDieMedicHailMaryTicks(0);
         MedicHealTargetId = null;
         IsMedicHealing = false;

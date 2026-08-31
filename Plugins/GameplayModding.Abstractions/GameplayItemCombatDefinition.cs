@@ -2,6 +2,7 @@ namespace OpenGarrison.GameplayModding;
 
 public sealed record GameplayItemCombatDefinition(
     string? FireSoundName = null,
+    string? KillFeedSpriteName = null,
     float? DirectHitDamage = null,
     float? DamagePerTick = null,
     float? DirectHitHealAmount = null,

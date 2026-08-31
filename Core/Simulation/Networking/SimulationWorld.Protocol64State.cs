@@ -152,7 +152,17 @@ public sealed partial class SimulationWorld
                         state.IsLastToDieMedicJavelinAnchored,
                     hasLastToDieJavelinExploded:
                         state.HasLastToDieMedicJavelinExploded),
-            Protocol64ProjectileKind.Needle => new NeedleProjectileEntity(id, team, ownerId, state.X, state.Y, state.VelocityX, state.VelocityY),
+            Protocol64ProjectileKind.Needle => new NeedleProjectileEntity(
+                id,
+                team,
+                ownerId,
+                state.X,
+                state.Y,
+                state.VelocityX,
+                state.VelocityY,
+                damagePerHit: state.Damage > 0f
+                    ? Math.Max(0, (int)MathF.Round(state.Damage))
+                    : NeedleProjectileEntity.DamagePerHit),
             Protocol64ProjectileKind.Arrow => CreateProtocol64ArrowProjectile(
                 state,
                 id,
@@ -174,7 +184,16 @@ public sealed partial class SimulationWorld
                 MathF.Sqrt((state.VelocityX * state.VelocityX) + (state.VelocityY * state.VelocityY)),
                 MathF.Atan2(state.VelocityY, state.VelocityX)),
             Protocol64ProjectileKind.Flame => new FlameProjectileEntity(id, team, ownerId, state.X, state.Y, state.VelocityX, state.VelocityY, lifetime),
-            Protocol64ProjectileKind.Flare => new FlareProjectileEntity(id, team, ownerId, state.X, state.Y, state.VelocityX, state.VelocityY, lifetime),
+            Protocol64ProjectileKind.Flare => new FlareProjectileEntity(
+                id,
+                team,
+                ownerId,
+                state.X,
+                state.Y,
+                state.VelocityX,
+                state.VelocityY,
+                lifetime,
+                state.Damage > 0f ? state.Damage : FlareProjectileEntity.DefaultDamagePerHit),
             Protocol64ProjectileKind.Mine => new MineProjectileEntity(id, team, ownerId, state.X, state.Y, state.VelocityX, state.VelocityY),
             Protocol64ProjectileKind.Grenade => new GrenadeProjectileEntity(id, team, ownerId, state.X, state.Y, state.VelocityX, state.VelocityY),
             // Bubble is intentionally represented as Custom on the wire so

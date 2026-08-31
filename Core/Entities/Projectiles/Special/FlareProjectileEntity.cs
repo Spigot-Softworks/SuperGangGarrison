@@ -3,7 +3,7 @@ namespace OpenGarrison.Core;
 public sealed class FlareProjectileEntity : SimulationEntity
 {
     public const int LifetimeTicks = 40;
-    public const int DamagePerHit = 30;
+    public const int DefaultDamagePerHit = 30;
     public const float BurnIntensityIncrease = 8f;
     public const float BurnDurationIncreaseSourceTicks = 35f;
     public const bool AfterburnFalloff = false;
@@ -16,7 +16,9 @@ public sealed class FlareProjectileEntity : SimulationEntity
         float y,
         float velocityX,
         float velocityY,
-        int ticksRemaining = LifetimeTicks) : base(id)
+        int ticksRemaining = LifetimeTicks,
+        float damagePerHit = DefaultDamagePerHit,
+        string killFeedWeaponSpriteName = "FlareKL") : base(id)
     {
         Team = team;
         OwnerId = ownerId;
@@ -25,6 +27,10 @@ public sealed class FlareProjectileEntity : SimulationEntity
         VelocityX = velocityX;
         VelocityY = velocityY;
         TicksRemaining = ticksRemaining;
+        DamagePerHit = Math.Max(0f, damagePerHit);
+        KillFeedWeaponSpriteName = string.IsNullOrWhiteSpace(killFeedWeaponSpriteName)
+            ? "FlareKL"
+            : killFeedWeaponSpriteName.Trim();
     }
 
     public PlayerTeam Team { get; private set; }
@@ -44,6 +50,10 @@ public sealed class FlareProjectileEntity : SimulationEntity
     public float VelocityY { get; private set; }
 
     public int TicksRemaining { get; private set; }
+
+    public float DamagePerHit { get; }
+
+    public string KillFeedWeaponSpriteName { get; }
 
     public bool IsExpired => TicksRemaining <= 0;
 

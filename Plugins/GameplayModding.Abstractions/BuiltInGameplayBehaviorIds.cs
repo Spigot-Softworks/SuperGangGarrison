@@ -13,6 +13,8 @@ public static class BuiltInGameplayBehaviorIds
     public const string MedigunCrit = "builtin.weapon.medigun.crit";
     public const string Revolver = "builtin.weapon.revolver";
     public const string Blade = "builtin.weapon.blade";
+    public const string Flaregun = "builtin.weapon.flaregun";
+    public const string Needlegun = "builtin.weapon.needlegun";
 
     public const string EngineerPda = "builtin.ability.engineer_pda";
     public const string PyroAirblast = "builtin.ability.pyro_airblast";
@@ -39,6 +41,7 @@ public static class BuiltInGameplayBehaviorIds
     public const string ExperimentalSoldierSecondary = "builtin.ability.experimental_ltd.soldier_secondary";
     public const string ExperimentalLtdPassive = "builtin.ability.experimental_ltd.passive";
     public const string ExperimentalLtdRage = "builtin.ability.experimental_ltd.rage";
+    public const string SoldierBuffBanner = "builtin.ability.soldier_buff_banner";
 
     public const string ScoutUtility = "builtin.utility.scout";
     public const string ScoutNailgunUtility = "builtin.utility.scout_nailgun";

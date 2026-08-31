@@ -219,7 +219,14 @@ public sealed partial class SimulationWorld
             volley.FakeSpeedMultiplier,
             volley.Payload);
 
-    private void SpawnNeedle(PlayerEntity owner, float x, float y, float velocityX, float velocityY)
+    private void SpawnNeedle(
+        PlayerEntity owner,
+        float x,
+        float y,
+        float velocityX,
+        float velocityY,
+        int damagePerHit = NeedleProjectileEntity.DamagePerHit,
+        string killFeedWeaponSpriteName = "NeedleKL")
     {
         var needle = new NeedleProjectileEntity(
             AllocateEntityId(),
@@ -228,7 +235,9 @@ public sealed partial class SimulationWorld
             x,
             y,
             velocityX,
-            velocityY);
+            velocityY,
+            damagePerHit: damagePerHit,
+            killFeedWeaponSpriteName: killFeedWeaponSpriteName);
         if (owner.IsKritzCritBoosted)
         {
             needle.SetCritical(owner.ActiveKritzCritDamageMultiplier);
@@ -379,7 +388,14 @@ public sealed partial class SimulationWorld
         _entities.Add(flame.Id, flame);
     }
 
-    private void SpawnFlare(PlayerEntity owner, float x, float y, float velocityX, float velocityY)
+    private void SpawnFlare(
+        PlayerEntity owner,
+        float x,
+        float y,
+        float velocityX,
+        float velocityY,
+        float damagePerHit = FlareProjectileEntity.DefaultDamagePerHit,
+        string killFeedWeaponSpriteName = "FlareKL")
     {
         var flare = new FlareProjectileEntity(
             AllocateEntityId(),
@@ -388,7 +404,9 @@ public sealed partial class SimulationWorld
             x,
             y,
             velocityX,
-            velocityY);
+            velocityY,
+            damagePerHit: damagePerHit,
+            killFeedWeaponSpriteName: killFeedWeaponSpriteName);
         if (owner.IsKritzCritBoosted)
         {
             flare.SetCritical(owner.ActiveKritzCritDamageMultiplier);

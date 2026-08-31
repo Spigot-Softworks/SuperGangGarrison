@@ -39,6 +39,7 @@
         "switchPolicy": "primary_swap_station",
         "selectionPersistence": "same_class_loadout"
       },
+      "secondary": { "itemId": "weapon.scout-pistol" },
       "abilities": [ "ability.experimental-ltd-passive" ]
     }
   },

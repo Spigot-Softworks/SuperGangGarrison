@@ -39,6 +39,7 @@
         "switchPolicy": "primary_swap_station",
         "selectionPersistence": "same_class_loadout"
       },
+      "secondary": { "itemId": "weapon.engineer-pistol" },
       "abilities": [ "ability.engineer-pda", "ability.engineer-utility", "ability.experimental-ltd-passive", "ability.experimental-ltd-rage" ]
     }
   },

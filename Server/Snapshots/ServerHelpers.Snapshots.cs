@@ -517,7 +517,7 @@ internal static partial class ServerHelpers
                 ? (byte)((ArrowProjectileEntity)shot).LastToDieAttachedHeadTeam!.Value
                 : (byte)0,
             isArrow && ((ArrowProjectileEntity)shot).AppliesLastToDieExplosiveTip,
-            DamageValue: isArrow ? ((ArrowProjectileEntity)shot).Damage : 0f,
+            DamageValue: shot.Damage,
             LastToDieMedicKritzM2Payload: medicHealNeedle is not null
                 ? medicHealNeedle.LastToDiePayload.Encode()
                 : (byte)0,
@@ -609,7 +609,18 @@ internal static partial class ServerHelpers
 
     internal static SnapshotShotState ToSnapshotFlareState(FlareProjectileEntity flare)
     {
-        return new SnapshotShotState(flare.Id, (byte)flare.Team, flare.OwnerId, flare.X, flare.Y, flare.VelocityX, flare.VelocityY, flare.TicksRemaining, flare.IsCritical, CriticalDamageMultiplier: flare.CriticalDamageMultiplier);
+        return new SnapshotShotState(
+            flare.Id,
+            (byte)flare.Team,
+            flare.OwnerId,
+            flare.X,
+            flare.Y,
+            flare.VelocityX,
+            flare.VelocityY,
+            flare.TicksRemaining,
+            flare.IsCritical,
+            DamageValue: flare.DamagePerHit,
+            CriticalDamageMultiplier: flare.CriticalDamageMultiplier);
     }
 
     internal static SnapshotMineState ToSnapshotMineState(MineProjectileEntity mine)

@@ -1,0 +1,45 @@
+{
+  "id": "ability.soldier-buff-banner",
+  "kind": "Ability",
+  "displayName": "Buff Banner",
+  "behaviorId": "builtin.ability.soldier_buff_banner",
+  "ability": {
+    "category": "utility",
+    "channel": "utility",
+    "activation": "pressed",
+    "executorId": "builtin.ability.soldier_buff_banner",
+    "tags": [ "buff", "aura", "charge", "minicrit" ],
+    "parameters": {
+      "maxChargeKills": 4,
+      "deployTicks": 44,
+      "activeTicks": 150,
+      "radius": 128,
+      "damageMultiplier": 1.35
+    }
+  },
+  "ammo": {},
+  "presentation": {
+    "hudSpriteName": "BuffBannerS",
+    "hud": {
+      "displayKind": "meter",
+      "stackGroup": "ability",
+      "order": 80,
+      "stateProvider": "abilityCooldown",
+      "stateOwner": "core.ability",
+      "cooldownKey": "buff_banner_missing_kills",
+      "maxCooldown": 4,
+      "activeKey": "buff_banner_deploying_or_active",
+      "hideWhenUnavailable": true
+    }
+  },
+  "description": {
+    "summary": "Earn one charge per enemy kill, then deploy a team minicrit aura with Ability.",
+    "positiveAttributes": [
+      "buffs nearby teammates to 135% damage for 150 ticks"
+    ],
+    "negativeAttributes": [
+      "requires 4 enemy kills",
+      "deployment takes 44 ticks"
+    ]
+  }
+}

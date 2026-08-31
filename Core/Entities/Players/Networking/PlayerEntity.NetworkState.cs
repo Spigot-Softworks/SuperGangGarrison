@@ -97,6 +97,10 @@ public sealed partial class PlayerEntity
             state.RageCharge,
             state.IsRageReady,
             state.RageTicksRemaining);
+        HydrateBuffBannerState(
+            state.BuffBannerChargeKills,
+            state.BuffBannerDeployTicksRemaining,
+            state.BuffBannerActiveTicksRemaining);
         MedicUberCharge = ClassId == PlayerClass.Medic
             ? float.Clamp(state.MedicUberCharge, 0f, MedicUberMaxCharge)
             : 0f;
@@ -686,6 +690,31 @@ public sealed partial class PlayerEntity
         HydrateNetworkReplicatedSniperRuntimeState();
         HydrateNetworkReplicatedHeavyRuntimeState();
         HydrateNetworkReplicatedCivvieRuntimeState();
+        HydrateNetworkReplicatedBuffBannerRuntimeState();
+    }
+
+    private void HydrateNetworkReplicatedBuffBannerRuntimeState()
+    {
+        if (ClassId != PlayerClass.Soldier)
+        {
+            ResetBuffBannerState();
+            return;
+        }
+
+        const string ownerId = GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId;
+        TryGetReplicatedStateInt(
+            ownerId,
+            GameplayAbilityReplicatedState.BuffBannerChargeKillsKey,
+            out var chargeKills);
+        TryGetReplicatedStateInt(
+            ownerId,
+            GameplayAbilityReplicatedState.BuffBannerDeployTicksKey,
+            out var deployTicks);
+        TryGetReplicatedStateInt(
+            ownerId,
+            GameplayAbilityReplicatedState.BuffBannerActiveTicksKey,
+            out var activeTicks);
+        HydrateBuffBannerState(chargeKills, deployTicks, activeTicks);
     }
 
     private void HydrateNetworkReplicatedSniperRuntimeState()

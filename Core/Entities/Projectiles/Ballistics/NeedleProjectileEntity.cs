@@ -6,7 +6,9 @@ public class NeedleProjectileEntity : SimulationEntity
     public const int DamagePerHit = 4;
     public const float GravityPerTick = 0.2f;
 
-    public virtual int Damage => DamagePerHit;
+    private readonly int _damagePerHit;
+
+    public virtual int Damage => _damagePerHit;
 
     protected virtual float ProjectileGravityPerTick => GravityPerTick;
 
@@ -18,7 +20,9 @@ public class NeedleProjectileEntity : SimulationEntity
         float y,
         float velocityX,
         float velocityY,
-        int lifetimeTicks = LifetimeTicks) : base(id)
+        int lifetimeTicks = LifetimeTicks,
+        int damagePerHit = DamagePerHit,
+        string killFeedWeaponSpriteName = "NeedleKL") : base(id)
     {
         Team = team;
         OwnerId = ownerId;
@@ -27,6 +31,10 @@ public class NeedleProjectileEntity : SimulationEntity
         VelocityX = velocityX;
         VelocityY = velocityY;
         TicksRemaining = lifetimeTicks;
+        _damagePerHit = Math.Max(0, damagePerHit);
+        KillFeedWeaponSpriteName = string.IsNullOrWhiteSpace(killFeedWeaponSpriteName)
+            ? "NeedleKL"
+            : killFeedWeaponSpriteName.Trim();
     }
 
     public PlayerTeam Team { get; private set; }
@@ -46,6 +54,8 @@ public class NeedleProjectileEntity : SimulationEntity
     public float VelocityY { get; private set; }
 
     public int TicksRemaining { get; private set; }
+
+    public string KillFeedWeaponSpriteName { get; }
 
     public bool IsExpired => TicksRemaining <= 0;
 

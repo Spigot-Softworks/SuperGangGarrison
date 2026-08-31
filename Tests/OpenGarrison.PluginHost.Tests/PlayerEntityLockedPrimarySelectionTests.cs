@@ -16,6 +16,7 @@ public sealed class PlayerEntityLockedPrimarySelectionTests
         Assert.Equal(GameplayEquipmentSlot.Primary, player.SelectedGameplayEquippedSlot);
         Assert.Equal("weapon.scout-nailgun", player.SelectedGameplayPrimaryItemId);
         Assert.False(player.HasExperimentalOffhandWeapon);
+        Assert.Equal("weapon.scout-pistol", player.GameplayLoadoutState.SecondaryItemId);
 
         player.Kill();
         Assert.False(player.IsExperimentalOffhandEquipped);
@@ -41,6 +42,7 @@ public sealed class PlayerEntityLockedPrimarySelectionTests
         Assert.Equal("weapon.rifle", player.SelectedGameplayPrimaryItemId);
         Assert.False(player.IsExperimentalOffhandEquipped);
         Assert.False(player.HasExperimentalOffhandWeapon);
+        Assert.Equal("weapon.sniper-smg", player.GameplayLoadoutState.SecondaryItemId);
     }
 
     [Theory]
@@ -145,12 +147,12 @@ public sealed class PlayerEntityLockedPrimarySelectionTests
     }
 
     [Fact]
-    public void AbilityItemsDoNotOccupyTheSecondaryWeaponSlot()
+    public void AbilityItemsRemainSeparateFromTheSecondaryWeaponSlot()
     {
         var heavy = new PlayerEntity(1, CharacterClassCatalog.Heavy, "Heavy");
         heavy.Spawn(PlayerTeam.Red, 100f, 100f);
 
-        Assert.Null(heavy.GameplayLoadoutState.SecondaryItemId);
+        Assert.Equal("weapon.heavy-shotgun", heavy.GameplayLoadoutState.SecondaryItemId);
         Assert.DoesNotContain("ability.heavy-sandvich", heavy.GameplayLoadoutState.AbilityItemIds ?? []);
         Assert.Contains("ability.heavy-sandvich", heavy.GetGameplayAbilityItems().Select(static item => item.Id));
         Assert.True(heavy.HasGameplayAbilityBehavior(

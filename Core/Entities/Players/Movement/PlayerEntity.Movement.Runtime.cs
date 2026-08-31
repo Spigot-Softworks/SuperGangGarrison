@@ -157,6 +157,7 @@ public sealed partial class PlayerEntity
             AdvanceEngineerResources();
             AdvanceExperimentalPowerState();
             AdvanceWeaponState();
+            AdvanceBuffBannerState();
             AdvanceCivvieUmbrellaState();
             AdvanceCivviePogoState();
             AdvanceHeavyState();
@@ -215,6 +216,7 @@ public sealed partial class PlayerEntity
         canMove = !IsHeavyEating
             && (!IsTaunting || IsRaging)
             && !IsSpyBackstabAnimating
+            && !IsBuffBannerDeploying
             && !IsExperimentalCryoFrozen;
 
         if (level.IsTopDown)

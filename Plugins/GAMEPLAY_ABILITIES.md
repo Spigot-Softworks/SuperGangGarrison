@@ -367,11 +367,14 @@ the other weapon is held.
 
 - Spacebar action with cooldown HUD:
   `Core/Content/Gameplay/stock.gg2/items/abilities/ability.heavy-utility.json`
+- Kill-charged Spacebar aura kept separate from Soldier's secondary shotgun:
+  `Core/Content/Gameplay/stock.gg2/items/abilities/ability.soldier-buff-banner.json` and
+  `Core/Content/Gameplay/stock.gg2/items/weapons/weapon.soldier-shotgun.json`
 - Weapon alt-fire action and its granting weapon:
   `Core/Content/Gameplay/stock.gg2/items/abilities/ability.pyro-airblast.json` and
   `Core/Content/Gameplay/stock.gg2/items/weapons/weapon.flamethrower.json`
-- Secondary weapon slot item:
-  `Core/Content/Gameplay/stock.gg2/items/weapons/weapon.soldier-shotgun.json`
+- Data-authored secondary weapon slot item:
+  `Core/Content/Gameplay/stock.gg2/items/weapons/weapon.pyro-flaregun.json`
 - Hidden passive:
   `Core/Content/Gameplay/stock.gg2/items/abilities/ability.experimental-ltd-passive.json`
 - Taunt interception:

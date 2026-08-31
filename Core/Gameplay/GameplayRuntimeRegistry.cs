@@ -476,6 +476,7 @@ public sealed partial class GameplayRuntimeRegistry
             MinShotSpeed: item.Ammo.MinProjectileSpeed,
             AdditionalRandomShotSpeed: item.Ammo.AdditionalProjectileSpeed,
             FireSoundName: item.Combat?.FireSoundName ?? binding.FireSoundName,
+            KillFeedWeaponSpriteName: item.Combat?.KillFeedSpriteName,
             DirectHitDamage: resolvedDirectHitDamage,
             DamagePerTick: resolvedDamagePerTick,
             DirectHitHealAmount: item.Combat?.DirectHitHealAmount,
@@ -486,7 +487,8 @@ public sealed partial class GameplayRuntimeRegistry
             AutoReloads: item.Ammo.AutoReloads,
             AmmoRegenPerTick: item.Ammo.AmmoRegenPerTick,
             RefillsAllAtOnce: item.Ammo.RefillsAllAtOnce,
-            ActiveProjectileLimit: item.Combat?.ActiveProjectileLimit);
+            ActiveProjectileLimit: item.Combat?.ActiveProjectileLimit,
+            ItemId: item.Id);
     }
 
     private static float? ResolveDirectHitDamage(
@@ -1081,6 +1083,13 @@ public sealed partial class GameplayRuntimeRegistry
     public bool TryResolvePrimaryWeaponItemId(PrimaryWeaponDefinition weaponDefinition, out string itemId)
     {
         ArgumentNullException.ThrowIfNull(weaponDefinition);
+
+        if (!string.IsNullOrWhiteSpace(weaponDefinition.ItemId)
+            && _items.ContainsKey(weaponDefinition.ItemId))
+        {
+            itemId = weaponDefinition.ItemId;
+            return true;
+        }
 
         foreach (var item in _items.Values)
         {

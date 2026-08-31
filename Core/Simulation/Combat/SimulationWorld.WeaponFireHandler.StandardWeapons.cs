@@ -33,7 +33,67 @@ public sealed partial class SimulationWorld
         public void FireMedicNeedle(PlayerEntity attacker, float aimWorldX, float aimWorldY)
         {
             RegisterSoundEvent(attacker, "MedichaingunSnd");
-            FireMedicNeedle(attacker, GetSourceWeaponOrigin(attacker), aimWorldX, aimWorldY);
+            FireMedicNeedle(attacker, null, GetSourceWeaponOrigin(attacker), aimWorldX, aimWorldY);
+        }
+
+        public void FireMedicNeedlegun(
+            PlayerEntity attacker,
+            PrimaryWeaponDefinition weapon,
+            float aimWorldX,
+            float aimWorldY)
+        {
+            FireMedicNeedle(attacker, weapon, GetSourceWeaponOrigin(attacker, PlayerClass.Medic), aimWorldX, aimWorldY);
+        }
+
+        public void FireFlaregun(
+            PlayerEntity attacker,
+            PrimaryWeaponDefinition weapon,
+            float aimWorldX,
+            float aimWorldY,
+            string killFeedWeaponSpriteName)
+        {
+            var weaponOrigin = GetSourceWeaponOrigin(attacker, PlayerClass.Pyro);
+            var aimDeltaX = aimWorldX - weaponOrigin.BaseX;
+            var aimDeltaY = aimWorldY - weaponOrigin.BaseY;
+            if (aimDeltaX == 0f && aimDeltaY == 0f)
+            {
+                aimDeltaX = attacker.FacingDirectionX;
+            }
+
+            var directionRadians = MathF.Atan2(aimDeltaY, aimDeltaX);
+            var speed = MathF.Max(0f, weapon.MinShotSpeed);
+            if (_world.RandomSpreadEnabled && weapon.AdditionalRandomShotSpeed > 0f)
+            {
+                speed += _random.NextSingle() * weapon.AdditionalRandomShotSpeed;
+            }
+
+            var directionX = MathF.Cos(directionRadians);
+            var directionY = MathF.Sin(directionRadians);
+            var spawnX = weaponOrigin.BaseX + (directionX * 13f);
+            var spawnY = weaponOrigin.BaseY + weaponOrigin.WeaponYOffset + weaponOrigin.EquipmentOffset + (directionY * 13f);
+            if (_world.IsProjectileSpawnBlocked(
+                    weaponOrigin.BaseX,
+                    weaponOrigin.BaseY + weaponOrigin.WeaponYOffset + weaponOrigin.EquipmentOffset,
+                    spawnX,
+                    spawnY,
+                    attacker.Team))
+            {
+                spawnX = weaponOrigin.BaseX;
+                spawnY = weaponOrigin.BaseY + weaponOrigin.WeaponYOffset + weaponOrigin.EquipmentOffset;
+            }
+
+            var (velocityX, velocityY) = _world.ApplyExperimentalProjectileSpeedMultiplier(
+                attacker,
+                directionX * speed,
+                directionY * speed);
+            SpawnFlare(
+                attacker,
+                spawnX,
+                spawnY,
+                velocityX + (attacker.HorizontalSpeed * (float)Config.FixedDeltaSeconds),
+                velocityY,
+                weapon.DirectHitDamage ?? 20f,
+                killFeedWeaponSpriteName);
         }
 
         public void FireScoutNailgun(PlayerEntity attacker, PrimaryWeaponDefinition weapon, float aimWorldX, float aimWorldY)
@@ -170,11 +230,12 @@ public sealed partial class SimulationWorld
         public void FireAcquiredMedicNeedle(PlayerEntity attacker, float aimWorldX, float aimWorldY)
         {
             RegisterSoundEvent(attacker, "MedichaingunSnd");
-            FireMedicNeedle(attacker, GetSourceWeaponOrigin(attacker, PlayerClass.Medic), aimWorldX, aimWorldY);
+            FireMedicNeedle(attacker, null, GetSourceWeaponOrigin(attacker, PlayerClass.Medic), aimWorldX, aimWorldY);
         }
 
         private void FireMedicNeedle(
             PlayerEntity attacker,
+            PrimaryWeaponDefinition? weapon,
             SourceWeaponOrigin weaponOrigin,
             float aimWorldX,
             float aimWorldY)
@@ -216,14 +277,21 @@ public sealed partial class SimulationWorld
             }
 
             var directionRadians = MathF.Atan2(shotAimDeltaY, shotAimDeltaX);
+            var spreadDegrees = weapon?.SpreadDegrees ?? 4f;
             if (!_world.RandomSpreadEnabled)
             {
-                directionRadians += GetDeterministicContinuousSpreadRadians(attacker.Id, 4f);
+                directionRadians += GetDeterministicContinuousSpreadRadians(attacker.Id, spreadDegrees);
+            }
+            else if (spreadDegrees > 0f)
+            {
+                directionRadians += DegreesToRadians(((_random.NextSingle() * 2f) - 1f) * spreadDegrees);
             }
 
+            var minSpeed = MathF.Max(0f, weapon?.MinShotSpeed ?? 7f);
+            var additionalSpeed = MathF.Max(0f, weapon?.AdditionalRandomShotSpeed ?? 3f);
             var speed = _world.RandomSpreadEnabled
-                ? 7f + (_random.NextSingle() * 3f)
-                : 7f;
+                ? minSpeed + (_random.NextSingle() * additionalSpeed)
+                : minSpeed;
 
             var (launchedVelocityX, launchedVelocityY) = _world.ApplyExperimentalProjectileSpeedMultiplier(
                 attacker,
@@ -234,7 +302,11 @@ public sealed partial class SimulationWorld
                 spawnX,
                 spawnY,
                 launchedVelocityX + (attacker.HorizontalSpeed * (float)Config.FixedDeltaSeconds),
-                launchedVelocityY);
+                launchedVelocityY,
+                damagePerHit: Math.Max(
+                    0,
+                    (int)MathF.Round(weapon?.DirectHitDamage ?? NeedleProjectileEntity.DamagePerHit)),
+                killFeedWeaponSpriteName: weapon?.KillFeedWeaponSpriteName ?? "NeedleKL");
         }
 
         public void FireMedicKritzHealNeedle(

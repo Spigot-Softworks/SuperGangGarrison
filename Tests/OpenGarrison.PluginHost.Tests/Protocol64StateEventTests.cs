@@ -133,7 +133,7 @@ public sealed class Protocol64StateEventTests
         Assert.Equal(0, player.RageTicksRemaining);
         Assert.Equal(13, player.PrimaryCooldownTicks);
         Assert.Equal(27, player.PrimaryReloadTicks);
-        Assert.Equal((ushort)22, registry.Get<Protocol64PlayerStateBatch>().Descriptor.Key.Revision);
+        Assert.Equal((ushort)23, registry.Get<Protocol64PlayerStateBatch>().Descriptor.Key.Revision);
     }
 
     [Fact]
@@ -511,7 +511,7 @@ public sealed class Protocol64StateEventTests
         Assert.Equal(Protocol64DeliveryKind.LastWins, schemas[2].Descriptor.Delivery.Kind);
         Assert.Equal(ChannelType.Control, schemas[4].Descriptor.Delivery.Channel);
         Assert.Equal(
-            new ushort[] { 22, 1, 10, 10, 1, 25 },
+            new ushort[] { 23, 1, 10, 10, 1, 26 },
             schemas.Select(schema => schema.Descriptor.Key.Revision).ToArray());
     }
 

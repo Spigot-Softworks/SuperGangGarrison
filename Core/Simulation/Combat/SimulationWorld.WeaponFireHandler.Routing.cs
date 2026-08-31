@@ -42,7 +42,8 @@ public sealed partial class SimulationWorld
                 behaviorId,
                 attacker.ClassId,
                 aimWorldX,
-                aimWorldY);
+                aimWorldY,
+                killFeedWeaponSpriteNameOverride: weaponDefinition.KillFeedWeaponSpriteName);
         }
 
         public void FireAcquiredWeapon(PlayerEntity attacker, float aimWorldX, float aimWorldY)

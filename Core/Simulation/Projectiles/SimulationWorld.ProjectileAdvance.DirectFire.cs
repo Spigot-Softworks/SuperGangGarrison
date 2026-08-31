@@ -411,7 +411,7 @@ public sealed partial class SimulationWorld
                         var killFeedSprite = needle is ArrowProjectileEntity ? "BowKL"
                             : needle is NailProjectileEntity ? "NailgunKL"
                             : needle is MedicHealNeedleProjectileEntity ? "NeedleKL"
-                            : "NeedleKL";
+                            : needle.KillFeedWeaponSpriteName;
                         KillPlayer(
                             hitResult.HitPlayer,
                             killer: owner,

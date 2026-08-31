@@ -186,7 +186,7 @@ internal sealed class Protocol64StatePublisher
                 0f,
                 shot.TicksRemaining,
                 active: true,
-                damage: arrow?.Damage ?? medicKritzM2?.Damage ?? 0,
+                damage: shot.Damage,
                 stateTick,
                 isCritical: shot.IsCritical,
                 arrowFakeSpeedMultiplier: arrow?.FakeSpeedMultiplier ?? 1f,
@@ -280,7 +280,7 @@ internal sealed class Protocol64StatePublisher
             0f,
             flare.TicksRemaining,
             active: true,
-            damage: 0,
+            damage: flare.DamagePerHit,
             stateTick,
             isCritical: flare.IsCritical,
             criticalDamageMultiplier: flare.CriticalDamageMultiplier)));
@@ -556,7 +556,10 @@ internal sealed class Protocol64StatePublisher
             player.IsRageReady,
             Math.Max(0, player.RageTicksRemaining),
             Math.Max(0, player.PrimaryCooldownTicks),
-            Math.Max(0, player.ReloadTicksUntilNextShell));
+            Math.Max(0, player.ReloadTicksUntilNextShell),
+            Math.Max(0, player.BuffBannerChargeKills),
+            Math.Max(0, player.BuffBannerDeployTicksRemaining),
+            Math.Max(0, player.BuffBannerActiveTicksRemaining));
 
     private static Protocol64LastToDieSniperVolleyState? ToProtocol64SniperVolleyState(
         in LastToDieSniperVolleyState state)

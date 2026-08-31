@@ -1,0 +1,49 @@
+{
+  "id": "weapon.medic-needlegun",
+  "kind": "Weapon",
+  "weaponSlot": "Secondary",
+  "displayName": "Needlegun",
+  "behaviorId": "builtin.weapon.needlegun",
+  "ammo": {
+    "maxAmmo": 40,
+    "ammoPerUse": 1,
+    "projectilesPerUse": 1,
+    "useDelaySourceTicks": 3,
+    "reloadSourceTicks": 55,
+    "spreadDegrees": 4,
+    "minProjectileSpeed": 7,
+    "additionalProjectileSpeed": 3,
+    "autoReloads": true,
+    "ammoRegenPerTick": 0,
+    "refillsAllAtOnce": true
+  },
+  "combat": {
+    "fireSoundName": "MedichaingunSnd",
+    "killFeedSpriteName": "NeedleKL",
+    "directHitDamage": 4
+  },
+  "presentation": {
+    "worldSpriteName": "NeedlegunS",
+    "recoilSpriteName": "NeedlegunFS",
+    "reloadSpriteName": "NeedlegunFRS",
+    "hudSpriteName": "NeedleAmmoS",
+    "weaponOffsetX": -7,
+    "weaponOffsetY": -3,
+    "recoilDurationSourceTicks": 3,
+    "reloadDurationSourceTicks": 55,
+    "blueTeamHudFrameOffset": 1,
+    "hud": {
+      "displayKind": "ammoPanel",
+      "stackGroup": "weapon",
+      "order": 60,
+      "stateProvider": "secondaryAmmo",
+      "hideWhenUnavailable": true
+    }
+  },
+  "description": {
+    "summary": "Medic's standalone projectile needlegun.",
+    "positiveAttributes": [
+      "fires with Secondary Weapon"
+    ]
+  }
+}

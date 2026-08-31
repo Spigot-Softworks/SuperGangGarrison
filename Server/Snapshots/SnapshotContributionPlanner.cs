@@ -1174,7 +1174,12 @@ internal static class SnapshotContributionPlanner
             or GameplayAbilityReplicatedState.CivviePogoTrickTicksKey
             or GameplayAbilityReplicatedState.CivviePogoTrickDurationTicksKey
             or GameplayAbilityReplicatedState.SniperChargeTicksKey
-            or GameplayAbilityReplicatedState.SniperBowChargeTicksKey;
+            or GameplayAbilityReplicatedState.SniperBowChargeTicksKey
+            or GameplayAbilityReplicatedState.BuffBannerChargeKillsKey
+            or GameplayAbilityReplicatedState.BuffBannerMissingKillsKey
+            or GameplayAbilityReplicatedState.BuffBannerDeployTicksKey
+            or GameplayAbilityReplicatedState.BuffBannerActiveTicksKey
+            or GameplayAbilityReplicatedState.BuffBannerDeployingOrActiveKey;
     }
 
     private static bool ReplicatedStateKeysEqual(SnapshotReplicatedStateEntry left, SnapshotReplicatedStateEntry right)

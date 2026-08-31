@@ -1,0 +1,49 @@
+{
+  "id": "weapon.pyro-flaregun",
+  "kind": "Weapon",
+  "weaponSlot": "Secondary",
+  "displayName": "Flare Gun",
+  "behaviorId": "builtin.weapon.flaregun",
+  "ammo": {
+    "maxAmmo": 1,
+    "ammoPerUse": 1,
+    "projectilesPerUse": 1,
+    "useDelaySourceTicks": 45,
+    "reloadSourceTicks": 15,
+    "spreadDegrees": 0,
+    "minProjectileSpeed": 15,
+    "additionalProjectileSpeed": 0,
+    "autoReloads": true,
+    "ammoRegenPerTick": 0,
+    "refillsAllAtOnce": true
+  },
+  "combat": {
+    "fireSoundName": "FlaregunSnd",
+    "killFeedSpriteName": "FlareKL",
+    "directHitDamage": 20
+  },
+  "presentation": {
+    "worldSpriteName": "FlaregunS",
+    "recoilSpriteName": "FlaregunFS",
+    "hudSpriteName": "FlaregunS",
+    "weaponOffsetX": -3,
+    "weaponOffsetY": -2,
+    "recoilDurationSourceTicks": 45,
+    "reloadDurationSourceTicks": 15,
+    "blueTeamHudFrameOffset": 1,
+    "hud": {
+      "displayKind": "ammoPanel",
+      "stackGroup": "weapon",
+      "order": 60,
+      "stateProvider": "secondaryAmmo",
+      "hideWhenUnavailable": true
+    }
+  },
+  "description": {
+    "summary": "Pyro's standalone flare-launching secondary.",
+    "positiveAttributes": [
+      "ignites enemies",
+      "fires with Secondary Weapon"
+    ]
+  }
+}

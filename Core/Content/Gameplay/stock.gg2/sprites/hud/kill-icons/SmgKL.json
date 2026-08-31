@@ -1,0 +1,20 @@
+{
+  "id": "SmgKL",
+  "framePaths": [
+    "assets/hud/kill-icons/SmgKL.images/image 0.png",
+    "assets/hud/kill-icons/SmgKL.images/image 1.png",
+    "assets/hud/kill-icons/SmgKL.images/image 2.png",
+    "assets/hud/kill-icons/SmgKL.images/image 3.png"
+  ],
+  "originX": 15,
+  "originY": 5,
+  "mask": {
+    "separate": false,
+    "shape": "PRECISE",
+    "boundsMode": "AUTO",
+    "left": null,
+    "top": null,
+    "right": null,
+    "bottom": null
+  }
+}

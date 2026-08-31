@@ -88,8 +88,8 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
 
         Assert.True(world.TryGetNetworkPlayer(2, out var medic));
         Assert.True(medic.HasAlternatePrimaryWeapons);
-        Assert.False(medic.HasExperimentalOffhandWeapon);
-        Assert.Null(medic.GameplayLoadoutState.SecondaryItemId);
+        Assert.True(medic.HasExperimentalOffhandWeapon);
+        Assert.Equal("weapon.medic-needlegun", medic.GameplayLoadoutState.SecondaryItemId);
         Assert.True(world.TrySetNetworkPlayerGameplayPrimaryItem(2, "weapon.medigun.crit"));
         Assert.Equal("weapon.medigun.crit", medic.GameplayLoadoutState.PrimaryItemId);
         Assert.Equal(PrimaryWeaponKind.Medigun, medic.PrimaryWeapon.Kind);
@@ -112,16 +112,23 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
     }
 
     [Fact]
-    public void HeavySandvichIsAnAbilityAndCannotBeSelectedAsASecondaryWeapon()
+    public void HeavySandvichRemainsPrimaryAltFireWhenShotgunIsSelected()
     {
         var world = CreateWorldWithLocalClass(PlayerClass.Heavy);
 
         var changed = world.TrySetNetworkPlayerGameplayEquippedSlot(SimulationWorld.LocalPlayerSlot, GameplayEquipmentSlot.Secondary);
 
-        Assert.False(changed);
-        Assert.Equal(GameplayEquipmentSlot.Primary, world.LocalPlayer.SelectedGameplayEquippedSlot);
-        Assert.Null(world.LocalPlayer.GameplayLoadoutState.SecondaryItemId);
+        Assert.True(changed);
+        Assert.Equal(GameplayEquipmentSlot.Secondary, world.LocalPlayer.SelectedGameplayEquippedSlot);
+        Assert.Equal("weapon.heavy-shotgun", world.LocalPlayer.GameplayLoadoutState.SecondaryItemId);
         Assert.DoesNotContain("ability.heavy-sandvich", world.LocalPlayer.GameplayLoadoutState.AbilityItemIds!);
+        Assert.False(world.LocalPlayer.HasGameplayAbilityBehavior(
+            GameplayAbilityConstants.SpecialChannel,
+            BuiltInGameplayBehaviorIds.HeavySandvich));
+
+        Assert.True(world.TrySetNetworkPlayerGameplayEquippedSlot(
+            SimulationWorld.LocalPlayerSlot,
+            GameplayEquipmentSlot.Primary));
         Assert.True(world.LocalPlayer.HasGameplayAbilityBehavior(
             GameplayAbilityConstants.SpecialChannel,
             BuiltInGameplayBehaviorIds.HeavySandvich));
@@ -359,7 +366,7 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
 
         Assert.True(world.LocalPlayer.IsAlive);
         Assert.True(world.LocalPlayer.HasAlternatePrimaryWeapons);
-        Assert.False(world.LocalPlayer.HasExperimentalOffhandWeapon);
+        Assert.True(world.LocalPlayer.HasExperimentalOffhandWeapon);
         Assert.True(world.IsNearPrimaryWeaponSwapStation(world.LocalPlayer));
         PressWeaponSwap(world);
         Assert.Equal(expectedPrimaryItemId, world.LocalPlayer.SelectedGameplayPrimaryItemId);
@@ -386,7 +393,7 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
         AdvanceUntilRespawn(world, SimulationWorld.LocalPlayerSlot);
 
         Assert.True(world.LocalPlayer.IsAlive);
-        Assert.False(world.LocalPlayer.HasExperimentalOffhandWeapon);
+        Assert.True(world.LocalPlayer.HasExperimentalOffhandWeapon);
         Assert.Equal(GameplayEquipmentSlot.Primary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
         Assert.Equal(expectedPrimaryItemId, world.LocalPlayer.GameplayLoadoutState.PrimaryItemId);
         Assert.Equal(expectedPrimaryItemId, world.LocalPlayer.GameplayLoadoutState.EquippedItemId);

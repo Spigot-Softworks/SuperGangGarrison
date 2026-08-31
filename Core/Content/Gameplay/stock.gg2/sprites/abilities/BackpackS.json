@@ -1,0 +1,18 @@
+{
+  "id": "BackpackS",
+  "framePaths": [
+    "assets/abilities/buff-banner/BackpackS.images/image 0.png",
+    "assets/abilities/buff-banner/BackpackS.images/image 1.png"
+  ],
+  "originX": 22,
+  "originY": 28,
+  "mask": {
+    "separate": false,
+    "shape": "PRECISE",
+    "boundsMode": "AUTO",
+    "left": null,
+    "top": null,
+    "right": null,
+    "bottom": null
+  }
+}

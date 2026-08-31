@@ -40,6 +40,7 @@
         "switchPolicy": "primary_swap_station",
         "selectionPersistence": "same_class_loadout"
       },
+      "secondary": { "itemId": "weapon.sniper-smg" },
       "abilities": [ "ability.experimental-ltd-passive", "ability.experimental-ltd-rage" ]
     }
   },
