@@ -332,13 +332,19 @@ public sealed partial class SimulationWorld
         var freezeAvailable = HasExperimentalEngineerFreezeRayAvailable(player);
         if (!essenceAvailable && !freezeAvailable)
         {
-            if (player.IsExperimentalOffhandSelected)
+            var stockSecondary = ResolveGameplaySecondaryWeapon(
+                player,
+                allowSoldierShotgun: false,
+                allowSoldierShotgunLtd: false);
+            var isLegacyAlternateSelected = player.IsExperimentalOffhandSelected
+                && player.ExperimentalEngineerAlternateWeaponMode != ExperimentalEngineerAlternateWeaponMode.None;
+            if (isLegacyAlternateSelected)
             {
                 ClearExperimentalEngineerAlternateWeaponState(player);
                 player.StowExperimentalOffhandWeapon();
             }
 
-            player.SetExperimentalOffhandWeapon(null);
+            player.SetExperimentalOffhandWeapon(stockSecondary);
             player.SetExperimentalEngineerAlternateWeaponMode(ExperimentalEngineerAlternateWeaponMode.None);
         }
         else

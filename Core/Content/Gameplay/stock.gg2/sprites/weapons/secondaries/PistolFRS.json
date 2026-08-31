@@ -1,0 +1,32 @@
+{
+  "id": "PistolFRS",
+  "framePaths": [
+    "assets/weapons/secondaries/pistol/PistolFRS.images/image 0.png",
+    "assets/weapons/secondaries/pistol/PistolFRS.images/image 1.png",
+    "assets/weapons/secondaries/pistol/PistolFRS.images/image 2.png",
+    "assets/weapons/secondaries/pistol/PistolFRS.images/image 3.png",
+    "assets/weapons/secondaries/pistol/PistolFRS.images/image 4.png",
+    "assets/weapons/secondaries/pistol/PistolFRS.images/image 5.png",
+    "assets/weapons/secondaries/pistol/PistolFRS.images/image 6.png",
+    "assets/weapons/secondaries/pistol/PistolFRS.images/image 7.png",
+    "assets/weapons/secondaries/pistol/PistolFRS.images/image 8.png",
+    "assets/weapons/secondaries/pistol/PistolFRS.images/image 9.png",
+    "assets/weapons/secondaries/pistol/PistolFRS.images/image 10.png",
+    "assets/weapons/secondaries/pistol/PistolFRS.images/image 11.png",
+    "assets/weapons/secondaries/pistol/PistolFRS.images/image 12.png",
+    "assets/weapons/secondaries/pistol/PistolFRS.images/image 13.png",
+    "assets/weapons/secondaries/pistol/PistolFRS.images/image 14.png",
+    "assets/weapons/secondaries/pistol/PistolFRS.images/image 15.png"
+  ],
+  "originX": 10,
+  "originY": 12,
+  "mask": {
+    "separate": false,
+    "shape": "PRECISE",
+    "boundsMode": "AUTO",
+    "left": null,
+    "top": null,
+    "right": null,
+    "bottom": null
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "id": "weapon.sniper-smg",
+  "kind": "Weapon",
+  "weaponSlot": "Secondary",
+  "displayName": "SMG",
+  "behaviorId": "builtin.weapon.pellet_gun",
+  "ammo": {
+    "maxAmmo": 25,
+    "ammoPerUse": 1,
+    "projectilesPerUse": 1,
+    "useDelaySourceTicks": 3,
+    "reloadSourceTicks": 45,
+    "spreadDegrees": 4,
+    "minProjectileSpeed": 13,
+    "additionalProjectileSpeed": 0,
+    "autoReloads": true,
+    "ammoRegenPerTick": 0,
+    "refillsAllAtOnce": true
+  },
+  "combat": {
+    "fireSoundName": "ChaingunSnd",
+    "killFeedSpriteName": "SmgKL",
+    "directHitDamage": 5
+  },
+  "presentation": {
+    "worldSpriteName": "SmgS",
+    "recoilSpriteName": "SmgFS",
+    "hudSpriteName": "SmgS",
+    "weaponOffsetX": -3,
+    "weaponOffsetY": -6,
+    "recoilDurationSourceTicks": 3,
+    "reloadDurationSourceTicks": 45,
+    "blueTeamHudFrameOffset": 1,
+    "hud": {
+      "displayKind": "ammoPanel",
+      "stackGroup": "weapon",
+      "order": 60,
+      "stateProvider": "secondaryAmmo",
+      "hideWhenUnavailable": true
+    }
+  },
+  "description": {
+    "summary": "Sniper's automatic secondary weapon.",
+    "positiveAttributes": [
+      "fires with Secondary Weapon"
+    ]
+  }
+}

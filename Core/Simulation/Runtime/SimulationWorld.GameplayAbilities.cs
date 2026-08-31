@@ -935,6 +935,49 @@ public sealed partial class SimulationWorld
         return GameplayAbilityResult.HandledAndConsumed;
     }
 
+    internal GameplayAbilityResult ExecuteSoldierBuffBannerAbility(GameplayAbilityContext context)
+    {
+        var maxChargeKills = GameplayAbilityParameterReader.GetInt(
+            context.Ability,
+            "maxChargeKills",
+            PlayerEntity.BuffBannerDefaultMaxChargeKills,
+            minValue: 1);
+        var deployTicks = GameplayAbilityParameterReader.GetTicks(
+            context.Ability,
+            "deployTicks",
+            "deploySeconds",
+            PlayerEntity.BuffBannerDefaultDeployTicks,
+            Config.TicksPerSecond);
+        var activeTicks = GameplayAbilityParameterReader.GetTicks(
+            context.Ability,
+            "activeTicks",
+            "activeSeconds",
+            PlayerEntity.BuffBannerDefaultActiveTicks,
+            Config.TicksPerSecond);
+        var radius = GameplayAbilityParameterReader.GetFloat(
+            context.Ability,
+            "radius",
+            PlayerEntity.BuffBannerDefaultRadius,
+            minValue: 1f);
+        var damageMultiplier = GameplayAbilityParameterReader.GetFloat(
+            context.Ability,
+            "damageMultiplier",
+            PlayerEntity.BuffBannerDefaultDamageMultiplier,
+            minValue: 1f);
+        var started = context.Player.TryStartBuffBanner(
+            maxChargeKills,
+            deployTicks,
+            activeTicks,
+            radius,
+            damageMultiplier);
+        if (started)
+        {
+            RegisterWorldSoundEvent("BuffbannerSnd", context.Player.X, context.Player.Y, context.Player.Id);
+        }
+
+        return new GameplayAbilityResult(Handled: started, ConsumedInput: true);
+    }
+
     internal GameplayAbilityResult ExecuteScoutNailgunToggleAbility(GameplayAbilityContext context)
     {
         if (!context.Input.SwapWeapon)
@@ -966,6 +1009,23 @@ public sealed partial class SimulationWorld
     internal GameplayPrimaryWeaponResult ExecuteScoutNailgunPrimaryWeapon(GameplayPrimaryWeaponContext context)
     {
         WeaponHandler.FireScoutNailgun(context.Player, context.Weapon, context.AimWorldX, context.AimWorldY);
+        return GameplayPrimaryWeaponResult.HandledResult;
+    }
+
+    internal GameplayPrimaryWeaponResult ExecuteFlaregunPrimaryWeapon(GameplayPrimaryWeaponContext context)
+    {
+        WeaponHandler.FireFlaregun(
+            context.Player,
+            context.Weapon,
+            context.AimWorldX,
+            context.AimWorldY,
+            context.KillFeedWeaponSpriteName);
+        return GameplayPrimaryWeaponResult.HandledResult;
+    }
+
+    internal GameplayPrimaryWeaponResult ExecuteNeedlegunPrimaryWeapon(GameplayPrimaryWeaponContext context)
+    {
+        WeaponHandler.FireMedicNeedlegun(context.Player, context.Weapon, context.AimWorldX, context.AimWorldY);
         return GameplayPrimaryWeaponResult.HandledResult;
     }
 

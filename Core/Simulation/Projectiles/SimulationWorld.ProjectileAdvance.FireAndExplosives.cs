@@ -169,7 +169,7 @@ public sealed partial class SimulationWorld
                             RegisterBloodEffect(hitResult.HitPlayer.X, hitResult.HitPlayer.Y, MathF.Atan2(directionY, directionX) * (180f / MathF.PI) - 180f);
                         }
 
-                        var hitDamage = ApplyExperimentalAirshotDamageMultiplier(owner, hitResult.HitPlayer, (int)MathF.Round(FlareProjectileEntity.DamagePerHit * flare.CriticalDamageMultiplier), out var damageFlags);
+                        var hitDamage = ApplyExperimentalAirshotDamageMultiplier(owner, hitResult.HitPlayer, (int)MathF.Round(flare.DamagePerHit * flare.CriticalDamageMultiplier), out var damageFlags);
                         var playerDied = ApplyPlayerDamageWithContext(
                             hitResult.HitPlayer,
                             hitDamage,
@@ -182,7 +182,7 @@ public sealed partial class SimulationWorld
                             additionalTraits: PlayerDamageTraits.DirectProjectile);
                         if (playerDied)
                         {
-                            KillPlayer(hitResult.HitPlayer, killer: owner, weaponSpriteName: "FlareKL");
+                            KillPlayer(hitResult.HitPlayer, killer: owner, weaponSpriteName: flare.KillFeedWeaponSpriteName);
                         }
                         else if (!infiltrateBlockedFlare)
                         {
@@ -195,17 +195,17 @@ public sealed partial class SimulationWorld
                         }
                     }
                 }
-                else if (hitResult.HitSentry is not null && ApplySentryDamage(hitResult.HitSentry, (int)MathF.Round(FlareProjectileEntity.DamagePerHit * flare.CriticalDamageMultiplier), owner))
+                else if (hitResult.HitSentry is not null && ApplySentryDamage(hitResult.HitSentry, (int)MathF.Round(flare.DamagePerHit * flare.CriticalDamageMultiplier), owner))
                 {
                     DestroySentry(hitResult.HitSentry, owner);
                 }
                 else if (hitResult.HitGenerator is not null)
                 {
-                    TryDamageGenerator(hitResult.HitGenerator.Team, FlareProjectileEntity.DamagePerHit * flare.CriticalDamageMultiplier, owner);
+                    TryDamageGenerator(hitResult.HitGenerator.Team, flare.DamagePerHit * flare.CriticalDamageMultiplier, owner);
                 }
                 else if (hitResult.HitJumpPad is not null)
                 {
-                    hitResult.HitJumpPad.TakeDamage((int)MathF.Round(FlareProjectileEntity.DamagePerHit * flare.CriticalDamageMultiplier));
+                    hitResult.HitJumpPad.TakeDamage((int)MathF.Round(flare.DamagePerHit * flare.CriticalDamageMultiplier));
                 }
 
                 flare.Destroy();

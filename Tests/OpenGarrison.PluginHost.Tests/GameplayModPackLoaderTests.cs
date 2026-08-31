@@ -427,8 +427,13 @@ public sealed class GameplayModPackLoaderTests
         Assert.NotNull(scoutStock.Primary);
         Assert.Equal("weapon.scattergun", scoutStock.Primary!.DefaultItemId);
         Assert.Equal(["weapon.scattergun", "weapon.scout-nailgun"], scoutStock.Primary.ItemIds);
-        Assert.Null(scoutStock.Secondary);
+        Assert.Equal("weapon.scout-pistol", scoutStock.Secondary?.ItemId);
         Assert.DoesNotContain("ability.scout-nailgun-utility", scoutStock.Abilities);
+
+        var scoutPistol = pack.Items["weapon.scout-pistol"];
+        Assert.Equal(GameplayWeaponSlot.Secondary, scoutPistol.WeaponSlot);
+        Assert.Equal("PistolKL", scoutPistol.Combat?.KillFeedSpriteName);
+        Assert.Equal(8f, scoutPistol.Combat?.DirectHitDamage);
 
         var soldierStock = pack.Classes["soldier"].Loadouts["soldier.stock"];
         Assert.Equal("weapon.soldier-shotgun", soldierStock.Secondary?.ItemId);

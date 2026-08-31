@@ -347,7 +347,17 @@ public sealed partial class SimulationWorld
                             state.IsLastToDieMedicJavelinAnchored,
                         hasLastToDieJavelinExploded:
                             state.HasLastToDieMedicJavelinExploded)
-                    : new NeedleProjectileEntity(state.Id, (PlayerTeam)state.Team, state.OwnerId, state.X, state.Y, state.VelocityX, state.VelocityY);
+                    : new NeedleProjectileEntity(
+                        state.Id,
+                        (PlayerTeam)state.Team,
+                        state.OwnerId,
+                        state.X,
+                        state.Y,
+                        state.VelocityX,
+                        state.VelocityY,
+                        damagePerHit: state.DamageValue > 0f
+                            ? Math.Max(0, (int)MathF.Round(state.DamageValue))
+                            : NeedleProjectileEntity.DamagePerHit);
                 needle.HydrateCritical(state.IsCritical, state.CriticalDamageMultiplier);
                 if (needle is ArrowProjectileEntity arrow)
                     arrow.SetLanded(state.IsLanded);
@@ -450,7 +460,17 @@ public sealed partial class SimulationWorld
             static (entity, state) => entity.Team == (PlayerTeam)state.Team && entity.OwnerId == state.OwnerId,
             state =>
         {
-                var flare = new FlareProjectileEntity(state.Id, (PlayerTeam)state.Team, state.OwnerId, state.X, state.Y, state.VelocityX, state.VelocityY);
+                var flare = new FlareProjectileEntity(
+                    state.Id,
+                    (PlayerTeam)state.Team,
+                    state.OwnerId,
+                    state.X,
+                    state.Y,
+                    state.VelocityX,
+                    state.VelocityY,
+                    damagePerHit: state.DamageValue > 0f
+                        ? state.DamageValue
+                        : FlareProjectileEntity.DefaultDamagePerHit);
                 flare.HydrateCritical(state.IsCritical, state.CriticalDamageMultiplier);
                 return flare;
             },

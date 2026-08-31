@@ -184,6 +184,7 @@ public sealed partial class SimulationWorld
         public void AdvancePlayerSimulationPhase()
         {
             _world.UpdateDispenserAuras();
+            _world.UpdateBuffBannerAuras();
             var phaseStartTimestamp = SlowPlayerTracingEnabled ? Stopwatch.GetTimestamp() : 0L;
             var enabledAdditionalSlots = _world._enabledAdditionalNetworkPlayerSlots;
             byte[]? playerTimingSlots = SlowPlayerTracingEnabled ? new byte[1 + enabledAdditionalSlots.Count] : null;
@@ -197,6 +198,7 @@ public sealed partial class SimulationWorld
             }
 
             TracePlayerPhaseBreakdown(phaseStartTimestamp, playerTimingSlots, playerTimingMilliseconds);
+            _world.UpdateBuffBannerAuras();
 
             // Taunt frames are advanced inside PlayerEntity.AdvanceTickState during full
             // simulation. AdvanceRemoteSnapshotPlayerTauntStates is client-prediction only.

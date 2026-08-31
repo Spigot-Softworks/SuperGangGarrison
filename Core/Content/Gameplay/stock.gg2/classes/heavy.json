@@ -41,6 +41,7 @@
         "switchPolicy": "primary_swap_station",
         "selectionPersistence": "same_class_loadout"
       },
+      "secondary": { "itemId": "weapon.heavy-shotgun" },
       "abilities": [ "ability.heavy-utility", "ability.experimental-ltd-passive" ]
     },
     "heavy.tomislav": {
@@ -52,6 +53,7 @@
         "switchPolicy": "primary_swap_station",
         "selectionPersistence": "same_class_loadout"
       },
+      "secondary": { "itemId": "weapon.heavy-shotgun" },
       "abilities": [ "ability.heavy-utility", "ability.experimental-ltd-passive" ]
     },
     "heavy.brass-beast": {
@@ -63,6 +65,7 @@
         "switchPolicy": "primary_swap_station",
         "selectionPersistence": "same_class_loadout"
       },
+      "secondary": { "itemId": "weapon.heavy-shotgun" },
       "abilities": [ "ability.heavy-utility", "ability.experimental-ltd-passive" ]
     }
   },

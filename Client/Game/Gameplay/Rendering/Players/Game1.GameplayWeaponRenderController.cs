@@ -32,6 +32,8 @@ public partial class Game1
 
         public bool TryDrawWeaponSpriteBackdrop(PlayerEntity player, Vector2 cameraPosition, Color tint, float visibilityAlpha, PlayerBodySpriteSelection bodySelection)
         {
+            DrawBuffBannerBackpack(player, cameraPosition, tint, visibilityAlpha);
+
             if (_game.GetPlayerIsCivviePogoActive(player))
             {
                 return false;
@@ -117,7 +119,7 @@ public partial class Game1
 
         public bool TryDrawWeaponSpriteAtPosition(PlayerEntity player, Vector2 renderPosition, Vector2 cameraPosition, Color tint, float visibilityAlpha, PlayerBodySpriteSelection bodySelection)
         {
-            if (_game.GetPlayerIsCivviePogoActive(player))
+            if (player.IsBuffBannerDeploying || _game.GetPlayerIsCivviePogoActive(player))
             {
                 return false;
             }
@@ -234,6 +236,7 @@ public partial class Game1
             IReadOnlyList<Vector2>? outlineOffsets = null)
         {
             if (outlineTint.A <= 0
+                || player.IsBuffBannerDeploying
                 || _game.GetPlayerIsCivviePogoActive(player)
                 || _game.ShouldHideLastToDieWeaponForPlayer(player)
                 || _game.GetPlayerIsHeavyEating(player)
@@ -293,6 +296,43 @@ public partial class Game1
                 out var drawFrame, out var drawOrigin, out var drawRotation, out var scale);
             _game.DrawSpriteFrameOutline(drawFrame, position, outlineTint, drawRotation, drawOrigin, scale, outlineOffsets: outlineOffsets);
             return true;
+        }
+
+        private void DrawBuffBannerBackpack(
+            PlayerEntity player,
+            Vector2 cameraPosition,
+            Color tint,
+            float visibilityAlpha)
+        {
+            if (!player.IsAlive
+                || !player.IsBuffBannerActive
+                || visibilityAlpha <= 0f
+                || _game.GetPlayerIsCivviePogoActive(player))
+            {
+                return;
+            }
+
+            var sprite = _game.GetResolvedSprite("BackpackS");
+            if (sprite is null || sprite.Frames.Count == 0)
+            {
+                return;
+            }
+
+            var frameIndex = Math.Clamp(
+                player.Team == PlayerTeam.Blue ? 1 : 0,
+                0,
+                sprite.Frames.Count - 1);
+            var renderPosition = _game.GetRenderPosition(player);
+            var position = _game.GetPlayerSpriteScreenOrigin(renderPosition, cameraPosition);
+            var playerScale = player.PlayerScale;
+            var scale = new Vector2(GetRenderFacingScale(player) * playerScale, playerScale);
+            _game.DrawSpriteFrameWithOptionalShadow(
+                sprite.Frames[frameIndex],
+                position,
+                tint * visibilityAlpha,
+                0f,
+                sprite.Origin.ToVector2(),
+                scale);
         }
 
         public Vector2 GetWeaponShellSpawnOrigin(PlayerEntity player)

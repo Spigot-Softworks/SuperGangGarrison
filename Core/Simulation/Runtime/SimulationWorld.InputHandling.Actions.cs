@@ -6,7 +6,7 @@ public sealed partial class SimulationWorld
 {
     private void TryHandleNetworkPrimaryFire(PlayerEntity player, PlayerInputSnapshot input, PlayerInputSnapshot previousInput, bool primaryPressed, bool suppressPyroPrimaryThisTick)
     {
-        if (player.IsTaunting)
+        if (player.IsTaunting || player.IsBuffBannerDeploying)
         {
             return;
         }
@@ -141,14 +141,14 @@ public sealed partial class SimulationWorld
         }
 
         var offhandBehaviorId = player.EquippedBehaviorId ?? player.SecondaryBehaviorId ?? player.UtilityBehaviorId;
-        if (CharacterClassCatalog.RuntimeRegistry.TryGetPrimaryWeaponBinding(offhandBehaviorId, out var secondaryBinding)
-            && secondaryBinding.Executor is not null)
+        if (player.ClassId == PlayerClass.Soldier
+            && player.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.PelletGun))
         {
-            WeaponHandler.FireExperimentalOffhandWeapon(player, offhandBehaviorId, input.AimWorldX, input.AimWorldY);
+            WeaponHandler.FireSoldierShotgun(player, input.AimWorldX, input.AimWorldY);
             return true;
         }
 
-        WeaponHandler.FireSoldierShotgun(player, input.AimWorldX, input.AimWorldY);
+        WeaponHandler.FireExperimentalOffhandWeapon(player, offhandBehaviorId, input.AimWorldX, input.AimWorldY);
         return true;
     }
 

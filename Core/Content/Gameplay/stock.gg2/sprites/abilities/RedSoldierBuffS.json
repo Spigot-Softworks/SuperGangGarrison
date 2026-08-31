@@ -1,0 +1,27 @@
+{
+  "id": "RedSoldierBuffS",
+  "framePaths": [
+    "assets/abilities/buff-banner/RedSoldierBuffS.images/image 0.png",
+    "assets/abilities/buff-banner/RedSoldierBuffS.images/image 1.png",
+    "assets/abilities/buff-banner/RedSoldierBuffS.images/image 2.png",
+    "assets/abilities/buff-banner/RedSoldierBuffS.images/image 3.png",
+    "assets/abilities/buff-banner/RedSoldierBuffS.images/image 4.png",
+    "assets/abilities/buff-banner/RedSoldierBuffS.images/image 5.png",
+    "assets/abilities/buff-banner/RedSoldierBuffS.images/image 6.png",
+    "assets/abilities/buff-banner/RedSoldierBuffS.images/image 7.png",
+    "assets/abilities/buff-banner/RedSoldierBuffS.images/image 8.png",
+    "assets/abilities/buff-banner/RedSoldierBuffS.images/image 9.png",
+    "assets/abilities/buff-banner/RedSoldierBuffS.images/image 10.png"
+  ],
+  "originX": 30,
+  "originY": 40,
+  "mask": {
+    "separate": false,
+    "shape": "PRECISE",
+    "boundsMode": "AUTO",
+    "left": null,
+    "top": null,
+    "right": null,
+    "bottom": null
+  }
+}

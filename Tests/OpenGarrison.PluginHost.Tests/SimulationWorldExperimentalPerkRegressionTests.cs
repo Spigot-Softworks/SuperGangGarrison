@@ -1492,7 +1492,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     }
 
     [Fact]
-    public void SoldierUseAbilityInputCanToggleOffhandBackToPrimary()
+    public void SoldierUseAbilityInputDoesNotToggleShotgun()
     {
         var world = CreateJoinedSoldierWorld(new ExperimentalGameplaySettings(EnableSoldierShotgunSecondaryWeapon: true));
         AdvanceTicks(world, 1);
@@ -1501,7 +1501,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         Assert.False(world.LocalPlayer.IsExperimentalOffhandEquipped);
 
         PressUseAbilitySpace(world);
-        Assert.True(world.LocalPlayer.IsExperimentalOffhandEquipped);
+        Assert.False(world.LocalPlayer.IsExperimentalOffhandEquipped);
 
         ReleaseAllInput(world);
 
@@ -2120,7 +2120,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         AdvanceTicks(world, 1);
 
         Assert.True(world.LocalPlayer.HasExperimentalOffhandWeapon);
-        PressUseAbilitySpace(world);
+        PressSwapWeaponSpace(world);
         Assert.True(world.LocalPlayer.IsExperimentalOffhandEquipped);
 
         ReleaseAllInput(world);
@@ -2471,7 +2471,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         var world = CreateJoinedSniperWorld(new ExperimentalGameplaySettings());
         AdvanceTicks(world, 1);
 
-        Assert.False(world.LocalPlayer.HasExperimentalOffhandWeapon);
+        Assert.True(world.LocalPlayer.HasExperimentalOffhandWeapon);
         Assert.False(world.LocalPlayer.IsSniperBowEquipped);
 
         PressSwapWeaponSpace(world);
@@ -2649,7 +2649,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         var player = CreateNetworkSniper(world, 2);
         AdvanceTicks(world, 1);
 
-        Assert.False(player.HasExperimentalOffhandWeapon);
+        Assert.True(player.HasExperimentalOffhandWeapon);
         Assert.False(player.IsSniperBowEquipped);
 
         PressNetworkSwapWeaponSpace(world, 2, player);
@@ -2749,7 +2749,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         var world = CreateJoinedMedicWorld(new ExperimentalGameplaySettings());
         AdvanceTicks(world, 1);
 
-        Assert.False(world.LocalPlayer.HasExperimentalOffhandWeapon);
+        Assert.True(world.LocalPlayer.HasExperimentalOffhandWeapon);
         Assert.False(world.LocalPlayer.IsExperimentalOffhandEquipped);
         world.LocalPlayer.FillMedicUberCharge();
 

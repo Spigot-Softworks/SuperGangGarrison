@@ -193,7 +193,10 @@ public sealed record Protocol64PlayerState(
     // from a stale ready state and the render animation briefly starts then
     // snaps back to idle/reload.
     int PrimaryCooldownTicks = 0,
-    int PrimaryReloadTicks = 0);
+    int PrimaryReloadTicks = 0,
+    int BuffBannerChargeKills = 0,
+    int BuffBannerDeployTicksRemaining = 0,
+    int BuffBannerActiveTicksRemaining = 0);
 
 public sealed record Protocol64PlayerStateBatch(
     ulong StateSequence,
@@ -324,7 +327,7 @@ public sealed class Protocol64PlayerStateBatchSchema
     public const int MaxBodyBytes = 64 * 1024;
 
     public Protocol64PlayerStateBatchSchema()
-        : base(Protocol64StateSchemaIds.PlayerStateBatch, 22, Protocol64Direction.ServerToClient, MaxBodyBytes)
+        : base(Protocol64StateSchemaIds.PlayerStateBatch, 23, Protocol64Direction.ServerToClient, MaxBodyBytes)
     {
     }
 
@@ -482,7 +485,7 @@ public sealed class Protocol64StateResyncResponseSchema
     public const int MaxBodyBytes = 256 * 1024;
 
     public Protocol64StateResyncResponseSchema()
-        : base(Protocol64StateSchemaIds.StateResyncResponse, 25, Protocol64Direction.ServerToClient, MaxBodyBytes)
+        : base(Protocol64StateSchemaIds.StateResyncResponse, 26, Protocol64Direction.ServerToClient, MaxBodyBytes)
     {
     }
 
@@ -692,6 +695,15 @@ internal static class Protocol64StateValidation
         {
             throw new Protocol64SchemaValidationException(
                 "Dispenser buff state or multiplier is invalid.");
+        }
+
+        if (value.BuffBannerChargeKills < 0
+            || value.BuffBannerDeployTicksRemaining < 0
+            || value.BuffBannerActiveTicksRemaining < 0
+            || (value.BuffBannerDeployTicksRemaining > 0 && value.BuffBannerActiveTicksRemaining > 0))
+        {
+            throw new Protocol64SchemaValidationException(
+                "Buff Banner charge, deployment, or active state is invalid.");
         }
     }
 
@@ -1492,6 +1504,9 @@ internal static class Protocol64StateBinary
         writer.Write(value.RageTicksRemaining);
         writer.Write(value.PrimaryCooldownTicks);
         writer.Write(value.PrimaryReloadTicks);
+        writer.Write(value.BuffBannerChargeKills);
+        writer.Write(value.BuffBannerDeployTicksRemaining);
+        writer.Write(value.BuffBannerActiveTicksRemaining);
     }
 
     public static Protocol64PlayerState ReadPlayer(BinaryReader reader)
@@ -1562,6 +1577,9 @@ internal static class Protocol64StateBinary
             reader.ReadSingle(),
             reader.ReadSingle(),
             reader.ReadBoolean(),
+            reader.ReadInt32(),
+            reader.ReadInt32(),
+            reader.ReadInt32(),
             reader.ReadInt32(),
             reader.ReadInt32(),
             reader.ReadInt32());

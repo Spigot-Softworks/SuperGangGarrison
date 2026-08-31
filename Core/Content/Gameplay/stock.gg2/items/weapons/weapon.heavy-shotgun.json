@@ -1,0 +1,49 @@
+{
+  "id": "weapon.heavy-shotgun",
+  "kind": "Weapon",
+  "weaponSlot": "Secondary",
+  "displayName": "Shotgun",
+  "behaviorId": "builtin.weapon.pellet_gun",
+  "ammo": {
+    "maxAmmo": 6,
+    "ammoPerUse": 1,
+    "projectilesPerUse": 5,
+    "useDelaySourceTicks": 20,
+    "reloadSourceTicks": 15,
+    "spreadDegrees": 5,
+    "minProjectileSpeed": 11,
+    "additionalProjectileSpeed": 4,
+    "autoReloads": true,
+    "ammoRegenPerTick": 0,
+    "refillsAllAtOnce": false
+  },
+  "combat": {
+    "fireSoundName": "ShotgunSnd",
+    "killFeedSpriteName": "ShotgunKL",
+    "directHitDamage": 7
+  },
+  "presentation": {
+    "worldSpriteName": "HeavyShotgunS",
+    "recoilSpriteName": "HeavyShotgunFS",
+    "reloadSpriteName": "HeavyShotgunFRS",
+    "hudSpriteName": "ShotgunAmmoS",
+    "weaponOffsetX": -5,
+    "weaponOffsetY": -2,
+    "recoilDurationSourceTicks": 20,
+    "reloadDurationSourceTicks": 15,
+    "blueTeamHudFrameOffset": 1,
+    "hud": {
+      "displayKind": "ammoPanel",
+      "stackGroup": "weapon",
+      "order": 60,
+      "stateProvider": "secondaryAmmo",
+      "hideWhenUnavailable": true
+    }
+  },
+  "description": {
+    "summary": "Heavy's close-range secondary shotgun.",
+    "positiveAttributes": [
+      "fires with Secondary Weapon"
+    ]
+  }
+}

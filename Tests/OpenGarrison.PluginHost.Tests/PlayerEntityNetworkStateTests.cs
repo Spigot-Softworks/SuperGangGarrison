@@ -128,7 +128,7 @@ public sealed class PlayerEntityNetworkStateTests
             gameplayModPackId: "stock.gg2",
             gameplayLoadoutId: "heavy.stock",
             gameplayPrimaryItemId: "weapon.minigun",
-            gameplaySecondaryItemId: "",
+            gameplaySecondaryItemId: "weapon.heavy-shotgun",
             gameplayUtilityItemId: "",
             gameplayEquippedSlot: (byte)GameplayEquipmentSlot.Primary,
             gameplayEquippedItemId: "weapon.minigun",
@@ -137,7 +137,7 @@ public sealed class PlayerEntityNetworkStateTests
         Assert.Equal(PlayerClass.Heavy, player.ClassId);
         Assert.Equal("heavy.stock", player.SelectedGameplayLoadoutId);
         Assert.Equal("heavy.stock", player.GameplayLoadoutState.LoadoutId);
-        Assert.Null(player.GameplayLoadoutState.SecondaryItemId);
+        Assert.Equal("weapon.heavy-shotgun", player.GameplayLoadoutState.SecondaryItemId);
         Assert.DoesNotContain("ability.heavy-sandvich", player.GameplayLoadoutState.AbilityItemIds ?? []);
         Assert.True(player.HasGameplayAbilityBehavior(
             GameplayAbilityConstants.SpecialChannel,
@@ -224,6 +224,7 @@ public sealed class PlayerEntityNetworkStateTests
 
         Assert.False(player.HasExperimentalOffhandWeapon);
         Assert.True(player.IsSniperBowEquipped);
+        Assert.Equal("weapon.sniper-smg", player.GameplayLoadoutState.SecondaryItemId);
         Assert.Equal("weapon.bow", player.GameplayLoadoutState.PrimaryItemId);
         Assert.Equal("weapon.bow", player.GameplayLoadoutState.EquippedItemId);
     }
@@ -244,7 +245,7 @@ public sealed class PlayerEntityNetworkStateTests
         Assert.False(player.HasExperimentalOffhandWeapon);
         Assert.Equal(4, player.CurrentShells);
         Assert.Equal(6, player.MaxShells);
-        Assert.Null(player.GameplayLoadoutState.SecondaryItemId);
+        Assert.Equal("weapon.medic-needlegun", player.GameplayLoadoutState.SecondaryItemId);
         Assert.Equal("weapon.medigun.crit", player.GameplayLoadoutState.PrimaryItemId);
         Assert.Equal("weapon.medigun.crit", player.GameplayLoadoutState.EquippedItemId);
     }
@@ -284,19 +285,20 @@ public sealed class PlayerEntityNetworkStateTests
         Assert.Equal(150, player.MaxHealth);
         Assert.Equal(17, player.CurrentShells);
         Assert.Equal(40, player.MaxShells);
-        Assert.False(player.HasExperimentalOffhandWeapon);
+        Assert.True(player.HasExperimentalOffhandWeapon);
         Assert.Equal(5, player.MedicNeedleCooldownTicks);
         Assert.Equal(17, player.MedicNeedleRefillTicks);
     }
 
     [Theory]
-    [InlineData("sniper", 125, 1)]
-    [InlineData("scout", 125, 35)]
-    [InlineData("medic", 150, 6)]
-    public void Protocol64DoesNotReinterpretAlternatePrimaryAmmoAsASecondary(
+    [InlineData("sniper", 125, 25, "weapon.sniper-smg")]
+    [InlineData("scout", 125, 12, "weapon.scout-pistol")]
+    [InlineData("medic", 150, 40, "weapon.medic-needlegun")]
+    public void Protocol64HydratesConfiguredSecondaryIndependentlyFromAlternatePrimaries(
         string gameplayClassId,
         int maxHealth,
-        int offhandMaxAmmo)
+        int offhandMaxAmmo,
+        string expectedSecondaryItemId)
     {
         var player = new PlayerEntity(1, CharacterClassCatalog.Scout, "Test");
         var state = new Protocol64PlayerState(
@@ -320,10 +322,11 @@ public sealed class PlayerEntityNetworkStateTests
 
         player.ApplyProtocol64State(state, CharacterClassCatalog.GetDefinition(gameplayClassId));
 
-        Assert.Equal(GameplayEquipmentSlot.Primary, player.SelectedGameplayEquippedSlot);
-        Assert.Equal(GameplayEquipmentSlot.Primary, player.GameplayLoadoutState.EquippedSlot);
-        Assert.False(player.HasExperimentalOffhandWeapon);
-        Assert.False(player.IsExperimentalOffhandSelected);
+        Assert.Equal(GameplayEquipmentSlot.Secondary, player.SelectedGameplayEquippedSlot);
+        Assert.Equal(GameplayEquipmentSlot.Secondary, player.GameplayLoadoutState.EquippedSlot);
+        Assert.Equal(expectedSecondaryItemId, player.GameplayLoadoutState.SecondaryItemId);
+        Assert.True(player.HasExperimentalOffhandWeapon);
+        Assert.True(player.IsExperimentalOffhandSelected);
     }
 
     [Fact]

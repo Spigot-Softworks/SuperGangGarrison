@@ -116,6 +116,7 @@ public sealed partial class SimulationWorld
         if (killer is not null && !ReferenceEquals(killer, player))
         {
             killer.AddKill();
+            TryRegisterBuffBannerKill(killer, player);
             TryCompleteLastToDieSpyAfterlifeSuccess(killer, player);
             TryRegisterLastToDieSniperConquistadorKill(killer, player);
             TryRegisterKillStreakKill(killer, player);

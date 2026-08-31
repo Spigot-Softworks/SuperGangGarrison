@@ -1,0 +1,32 @@
+{
+  "id": "HeavyShotgunFRS",
+  "framePaths": [
+    "assets/weapons/secondaries/heavy-shotgun/HeavyShotgunFRS.images/image 0.png",
+    "assets/weapons/secondaries/heavy-shotgun/HeavyShotgunFRS.images/image 1.png",
+    "assets/weapons/secondaries/heavy-shotgun/HeavyShotgunFRS.images/image 2.png",
+    "assets/weapons/secondaries/heavy-shotgun/HeavyShotgunFRS.images/image 3.png",
+    "assets/weapons/secondaries/heavy-shotgun/HeavyShotgunFRS.images/image 4.png",
+    "assets/weapons/secondaries/heavy-shotgun/HeavyShotgunFRS.images/image 5.png",
+    "assets/weapons/secondaries/heavy-shotgun/HeavyShotgunFRS.images/image 6.png",
+    "assets/weapons/secondaries/heavy-shotgun/HeavyShotgunFRS.images/image 7.png",
+    "assets/weapons/secondaries/heavy-shotgun/HeavyShotgunFRS.images/image 8.png",
+    "assets/weapons/secondaries/heavy-shotgun/HeavyShotgunFRS.images/image 9.png",
+    "assets/weapons/secondaries/heavy-shotgun/HeavyShotgunFRS.images/image 10.png",
+    "assets/weapons/secondaries/heavy-shotgun/HeavyShotgunFRS.images/image 11.png",
+    "assets/weapons/secondaries/heavy-shotgun/HeavyShotgunFRS.images/image 12.png",
+    "assets/weapons/secondaries/heavy-shotgun/HeavyShotgunFRS.images/image 13.png",
+    "assets/weapons/secondaries/heavy-shotgun/HeavyShotgunFRS.images/image 14.png",
+    "assets/weapons/secondaries/heavy-shotgun/HeavyShotgunFRS.images/image 15.png"
+  ],
+  "originX": 20,
+  "originY": 11,
+  "mask": {
+    "separate": false,
+    "shape": "PRECISE",
+    "boundsMode": "AUTO",
+    "left": null,
+    "top": null,
+    "right": null,
+    "bottom": null
+  }
+}

@@ -182,7 +182,10 @@ public sealed partial class PlayerEntity
         bool LastToDieMedicMartyrProtectorLinkActiveValue = false,
         bool LastToDieMedicKritPowerEnabledValue = false,
         bool IsDispenserBuffedValue = false,
-        float DispenserAttackReloadSpeedMultiplierValue = 1f);
+        float DispenserAttackReloadSpeedMultiplierValue = 1f,
+        int BuffBannerChargeKillsValue = 0,
+        int BuffBannerDeployTicksRemainingValue = 0,
+        int BuffBannerActiveTicksRemainingValue = 0);
 
     internal PredictionState CapturePredictionState()
     {
@@ -364,7 +367,10 @@ public sealed partial class PlayerEntity
             LastToDieMedicMartyrProtectorLinkActiveValue,
             LastToDieMedicKritPowerEnabledValue,
             IsDispenserBuffed,
-            DispenserAttackReloadSpeedMultiplier);
+            DispenserAttackReloadSpeedMultiplier,
+            BuffBannerChargeKills,
+            BuffBannerDeployTicksRemaining,
+            BuffBannerActiveTicksRemaining);
     }
 
     internal void RestorePredictionState(in PredictionState state)
@@ -446,6 +452,10 @@ public sealed partial class PlayerEntity
         HydrateDispenserBuff(
             state.IsDispenserBuffedValue,
             state.DispenserAttackReloadSpeedMultiplierValue);
+        HydrateBuffBannerState(
+            state.BuffBannerChargeKillsValue,
+            state.BuffBannerDeployTicksRemainingValue,
+            state.BuffBannerActiveTicksRemainingValue);
         MedicHealTargetId = state.MedicHealTargetId;
         IsMedicHealing = state.IsMedicHealing;
         MedicUberCharge = state.MedicUberCharge;

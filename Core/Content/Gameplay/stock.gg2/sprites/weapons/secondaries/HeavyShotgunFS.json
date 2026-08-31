@@ -1,0 +1,40 @@
+{
+  "id": "HeavyShotgunFS",
+  "framePaths": [
+    "assets/weapons/secondaries/heavy-shotgun/HeavyShotgunFS.images/image 0.png",
+    "assets/weapons/secondaries/heavy-shotgun/HeavyShotgunFS.images/image 1.png",
+    "assets/weapons/secondaries/heavy-shotgun/HeavyShotgunFS.images/image 2.png",
+    "assets/weapons/secondaries/heavy-shotgun/HeavyShotgunFS.images/image 3.png",
+    "assets/weapons/secondaries/heavy-shotgun/HeavyShotgunFS.images/image 4.png",
+    "assets/weapons/secondaries/heavy-shotgun/HeavyShotgunFS.images/image 5.png",
+    "assets/weapons/secondaries/heavy-shotgun/HeavyShotgunFS.images/image 6.png",
+    "assets/weapons/secondaries/heavy-shotgun/HeavyShotgunFS.images/image 7.png",
+    "assets/weapons/secondaries/heavy-shotgun/HeavyShotgunFS.images/image 8.png",
+    "assets/weapons/secondaries/heavy-shotgun/HeavyShotgunFS.images/image 9.png",
+    "assets/weapons/secondaries/heavy-shotgun/HeavyShotgunFS.images/image 10.png",
+    "assets/weapons/secondaries/heavy-shotgun/HeavyShotgunFS.images/image 11.png",
+    "assets/weapons/secondaries/heavy-shotgun/HeavyShotgunFS.images/image 12.png",
+    "assets/weapons/secondaries/heavy-shotgun/HeavyShotgunFS.images/image 13.png",
+    "assets/weapons/secondaries/heavy-shotgun/HeavyShotgunFS.images/image 14.png",
+    "assets/weapons/secondaries/heavy-shotgun/HeavyShotgunFS.images/image 15.png",
+    "assets/weapons/secondaries/heavy-shotgun/HeavyShotgunFS.images/image 16.png",
+    "assets/weapons/secondaries/heavy-shotgun/HeavyShotgunFS.images/image 17.png",
+    "assets/weapons/secondaries/heavy-shotgun/HeavyShotgunFS.images/image 18.png",
+    "assets/weapons/secondaries/heavy-shotgun/HeavyShotgunFS.images/image 19.png",
+    "assets/weapons/secondaries/heavy-shotgun/HeavyShotgunFS.images/image 20.png",
+    "assets/weapons/secondaries/heavy-shotgun/HeavyShotgunFS.images/image 21.png",
+    "assets/weapons/secondaries/heavy-shotgun/HeavyShotgunFS.images/image 22.png",
+    "assets/weapons/secondaries/heavy-shotgun/HeavyShotgunFS.images/image 23.png"
+  ],
+  "originX": 20,
+  "originY": 23,
+  "mask": {
+    "separate": false,
+    "shape": "PRECISE",
+    "boundsMode": "AUTO",
+    "left": null,
+    "top": null,
+    "right": null,
+    "bottom": null
+  }
+}

@@ -1028,6 +1028,7 @@ public sealed partial class PlayerEntity : SimulationEntity
         KritzCritBoostProviderPlayerId = 0;
         KritzCritBoostProviderSlot = int.MaxValue;
         KritzCritBoostDamageMultiplier = 1f;
+        ResetBuffBannerState();
         SpySuperjumpCooldownTicksRemaining = 0;
         SpySuperjumpAvailableCharges = SpySuperjumpMaximumCharges;
         MedicHealTargetId = null;

@@ -179,9 +179,16 @@ public sealed partial class SimulationWorld
             _world.SpawnFlame(owner, x, y, velocityX, velocityY, directHitDamage, burnDamagePerTick);
         }
 
-        private void SpawnFlare(PlayerEntity owner, float x, float y, float velocityX, float velocityY)
+        private void SpawnFlare(
+            PlayerEntity owner,
+            float x,
+            float y,
+            float velocityX,
+            float velocityY,
+            float damagePerHit = FlareProjectileEntity.DefaultDamagePerHit,
+            string killFeedWeaponSpriteName = "FlareKL")
         {
-            _world.SpawnFlare(owner, x, y, velocityX, velocityY);
+            _world.SpawnFlare(owner, x, y, velocityX, velocityY, damagePerHit, killFeedWeaponSpriteName);
         }
 
         private void SpawnRocket(
@@ -256,9 +263,23 @@ public sealed partial class SimulationWorld
             _world.SpawnGrenade(owner, x, y, velocityX, velocityY, killFeedWeaponSpriteNameOverride);
         }
 
-        private void SpawnNeedle(PlayerEntity owner, float x, float y, float velocityX, float velocityY)
+        private void SpawnNeedle(
+            PlayerEntity owner,
+            float x,
+            float y,
+            float velocityX,
+            float velocityY,
+            int damagePerHit = NeedleProjectileEntity.DamagePerHit,
+            string killFeedWeaponSpriteName = "NeedleKL")
         {
-            _world.SpawnNeedle(owner, x, y, velocityX, velocityY);
+            _world.SpawnNeedle(
+                owner,
+                x,
+                y,
+                velocityX,
+                velocityY,
+                damagePerHit,
+                killFeedWeaponSpriteName);
         }
 
         private void SpawnMedicHealNeedle(

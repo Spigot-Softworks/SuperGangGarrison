@@ -25,6 +25,11 @@ public static class GameplayAbilityReplicatedState
     public const string HeavyDashActiveKey = "heavy_dash_active";
     public const string HeavyDashVisibleKey = "heavy_dash_visible";
     public const string HeavyDashTrailAlphaKey = "heavy_dash_trail_alpha";
+    public const string BuffBannerChargeKillsKey = "buff_banner_charge_kills";
+    public const string BuffBannerMissingKillsKey = "buff_banner_missing_kills";
+    public const string BuffBannerDeployTicksKey = "buff_banner_deploy_ticks";
+    public const string BuffBannerActiveTicksKey = "buff_banner_active_ticks";
+    public const string BuffBannerDeployingOrActiveKey = "buff_banner_deploying_or_active";
 
     public static IReadOnlyList<GameplayReplicatedStateEntry> CreateEntries(PlayerEntity player)
     {
@@ -48,6 +53,14 @@ public static class GameplayAbilityReplicatedState
                 Toggle(HeavyDashActiveKey, player.IsExperimentalGhostDashing),
                 Toggle(HeavyDashVisibleKey, player.IsExperimentalGhostDashVisible),
                 Scalar(HeavyDashTrailAlphaKey, player.ExperimentalGhostDashTrailAlpha),
+            ],
+            PlayerClass.Soldier =>
+            [
+                Whole(BuffBannerChargeKillsKey, player.BuffBannerChargeKills),
+                Whole(BuffBannerMissingKillsKey, player.BuffBannerMissingChargeKills),
+                Whole(BuffBannerDeployTicksKey, player.BuffBannerDeployTicksRemaining),
+                Whole(BuffBannerActiveTicksKey, player.BuffBannerActiveTicksRemaining),
+                Toggle(BuffBannerDeployingOrActiveKey, player.IsBuffBannerDeploying || player.IsBuffBannerActive),
             ],
             PlayerClass.Sniper =>
             [
@@ -77,6 +90,19 @@ public static class GameplayAbilityReplicatedState
 
     public static bool TryGetInt(PlayerEntity player, string key, out int value)
     {
+        if (player.ClassId == PlayerClass.Soldier
+            && key is BuffBannerChargeKillsKey
+                or BuffBannerMissingKillsKey
+                or BuffBannerDeployTicksKey
+                or BuffBannerActiveTicksKey
+            && player.TryGetReplicatedStateInt(
+                GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId,
+                key,
+                out value))
+        {
+            return true;
+        }
+
         if (key == HeavyDashCooldownTicksKey
             && player.ClassId == PlayerClass.Heavy
             && player.TryGetReplicatedStateInt(
@@ -121,6 +147,10 @@ public static class GameplayAbilityReplicatedState
             CivviePogoCrunchTicksKey when player.ClassId == PlayerClass.Quote => player.CivviePogoCrunchTicksRemaining,
             CivviePogoTrickTicksKey when player.ClassId == PlayerClass.Quote => player.CivviePogoTrickTicksRemaining,
             CivviePogoTrickDurationTicksKey when player.ClassId == PlayerClass.Quote => player.CivviePogoTrickDurationAtStart,
+            BuffBannerChargeKillsKey when player.ClassId == PlayerClass.Soldier => player.BuffBannerChargeKills,
+            BuffBannerMissingKillsKey when player.ClassId == PlayerClass.Soldier => player.BuffBannerMissingChargeKills,
+            BuffBannerDeployTicksKey when player.ClassId == PlayerClass.Soldier => player.BuffBannerDeployTicksRemaining,
+            BuffBannerActiveTicksKey when player.ClassId == PlayerClass.Soldier => player.BuffBannerActiveTicksRemaining,
             _ => default,
         };
 
@@ -135,6 +165,10 @@ public static class GameplayAbilityReplicatedState
                 or CivviePogoCrunchTicksKey
                 or CivviePogoTrickTicksKey
                 or CivviePogoTrickDurationTicksKey => player.ClassId == PlayerClass.Quote,
+            BuffBannerChargeKillsKey
+                or BuffBannerMissingKillsKey
+                or BuffBannerDeployTicksKey
+                or BuffBannerActiveTicksKey => player.ClassId == PlayerClass.Soldier,
             _ => false,
         };
     }
@@ -160,6 +194,16 @@ public static class GameplayAbilityReplicatedState
 
     public static bool TryGetBool(PlayerEntity player, string key, out bool value)
     {
+        if (player.ClassId == PlayerClass.Soldier
+            && key == BuffBannerDeployingOrActiveKey
+            && player.TryGetReplicatedStateBool(
+                GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId,
+                key,
+                out value))
+        {
+            return true;
+        }
+
         if (player.ClassId == PlayerClass.Quote
             && key is CivvieUmbrellaActiveKey or CivvieUmbrellaDisabledKey or CivviePogoActiveKey
             && player.TryGetReplicatedStateBool(
@@ -180,6 +224,7 @@ public static class GameplayAbilityReplicatedState
             CivvieUmbrellaActiveKey when player.ClassId == PlayerClass.Quote => player.IsCivvieUmbrellaActive,
             CivvieUmbrellaDisabledKey when player.ClassId == PlayerClass.Quote => player.IsCivvieUmbrellaDisabled,
             CivviePogoActiveKey when player.ClassId == PlayerClass.Quote => player.IsCivviePogoActive,
+            BuffBannerDeployingOrActiveKey when player.ClassId == PlayerClass.Soldier => player.IsBuffBannerDeploying || player.IsBuffBannerActive,
             _ => default,
         };
 
@@ -189,6 +234,7 @@ public static class GameplayAbilityReplicatedState
             HeavyDashActiveKey or HeavyDashVisibleKey => player.ClassId == PlayerClass.Heavy,
             SpySuperjumpActiveKey or SpySuperjumpDisabledKey => player.ClassId == PlayerClass.Spy,
             CivvieUmbrellaActiveKey or CivvieUmbrellaDisabledKey or CivviePogoActiveKey => player.ClassId == PlayerClass.Quote,
+            BuffBannerDeployingOrActiveKey => player.ClassId == PlayerClass.Soldier,
             _ => false,
         };
     }

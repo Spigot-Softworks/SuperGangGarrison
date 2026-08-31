@@ -40,7 +40,7 @@
         "selectionPersistence": "same_class_loadout"
       },
       "secondary": { "itemId": "weapon.soldier-shotgun" },
-      "abilities": [ "ability.experimental-ltd-passive", "ability.experimental-ltd-rage" ]
+      "abilities": [ "ability.soldier-buff-banner", "ability.experimental-ltd-passive", "ability.experimental-ltd-rage" ]
     },
     "soldier.direct-hit": {
       "id": "soldier.direct-hit",
@@ -52,7 +52,7 @@
         "selectionPersistence": "same_class_loadout"
       },
       "secondary": { "itemId": "weapon.soldier-shotgun" },
-      "abilities": [ "ability.experimental-ltd-passive", "ability.experimental-ltd-rage" ]
+      "abilities": [ "ability.soldier-buff-banner", "ability.experimental-ltd-passive", "ability.experimental-ltd-rage" ]
     },
     "soldier.black-box": {
       "id": "soldier.black-box",
@@ -64,7 +64,7 @@
         "selectionPersistence": "same_class_loadout"
       },
       "secondary": { "itemId": "weapon.soldier-shotgun" },
-      "abilities": [ "ability.experimental-ltd-passive", "ability.experimental-ltd-rage" ]
+      "abilities": [ "ability.soldier-buff-banner", "ability.experimental-ltd-passive", "ability.experimental-ltd-rage" ]
     }
   },
   "defaultLoadoutId": "soldier.stock"

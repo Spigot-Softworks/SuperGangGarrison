@@ -55,4 +55,7 @@
   <resource name="VoteNoSnd" type="RESOURCE"/>
   <resource name="VoteSuccessSnd" type="RESOURCE"/>
   <resource name="VoteFailSnd" type="RESOURCE"/>
+  <resource name="PistolSnd" type="RESOURCE"/>
+  <resource name="FlaregunSnd" type="RESOURCE"/>
+  <resource name="BuffbannerSnd" type="RESOURCE"/>
 </resources>

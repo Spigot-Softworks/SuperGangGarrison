@@ -27,6 +27,7 @@ public sealed record PrimaryWeaponDefinition(
     float MinShotSpeed,
     float AdditionalRandomShotSpeed,
     string? FireSoundName = null,
+    string? KillFeedWeaponSpriteName = null,
     float? DirectHitDamage = null,
     float? DamagePerTick = null,
     float? DirectHitHealAmount = null,
@@ -37,4 +38,5 @@ public sealed record PrimaryWeaponDefinition(
     int? ActiveProjectileLimit = null,
     float PlayerKnockbackScale = 1f,
     float? PlayerSlowMovementMultiplier = null,
-    int PlayerSlowRefreshSourceTicks = 0);
+    int PlayerSlowRefreshSourceTicks = 0,
+    string? ItemId = null);
