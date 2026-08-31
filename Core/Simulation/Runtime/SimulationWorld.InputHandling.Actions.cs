@@ -332,7 +332,7 @@ public sealed partial class SimulationWorld
             input,
             previousInput,
             phase,
-            GameplayAbilityConstants.SecondaryCategory,
+            GameplayAbilityConstants.SpecialChannel,
             sourceX,
             sourceY);
         if (dispatchResult.ConsumedInput)

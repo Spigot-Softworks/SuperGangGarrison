@@ -220,6 +220,7 @@ public sealed partial class SimulationWorld
     {
         return categoryOrChannel switch
         {
+            GameplayAbilityConstants.WeaponAltFireCategory => GameplayAbilityConstants.SpecialChannel,
             GameplayAbilityConstants.SecondaryCategory => GameplayAbilityConstants.SpecialChannel,
             GameplayAbilityConstants.UtilityCategory => GameplayAbilityConstants.UtilityChannel,
             GameplayAbilityConstants.PassiveCategory => GameplayAbilityConstants.PassiveChannel,
@@ -262,54 +263,7 @@ public sealed partial class SimulationWorld
 
     private static IReadOnlyList<GameplayItemDefinition> ResolveAllPlayerGameplayAbilityItems(PlayerEntity player)
     {
-        var runtimeRegistry = CharacterClassCatalog.RuntimeRegistry;
-        var seenItemIds = new HashSet<string>(StringComparer.Ordinal);
-        var results = new List<GameplayItemDefinition>();
-
-        void AddAbilityItem(string? itemId)
-        {
-            if (string.IsNullOrWhiteSpace(itemId) || !seenItemIds.Add(itemId))
-            {
-                return;
-            }
-
-            if (runtimeRegistry.TryGetGameplayAbilityDefinition(itemId, out var item, out _))
-            {
-                results.Add(item);
-            }
-        }
-
-        void AddWeaponGrantedAbilities(string? weaponItemId)
-        {
-            if (string.IsNullOrWhiteSpace(weaponItemId)
-                || !runtimeRegistry.TryGetItem(weaponItemId, out var weaponItem))
-            {
-                return;
-            }
-
-            // Embedded weapon abilities are retained for schema-v1 and runtime-plugin
-            // compatibility. Schema-v2 content should use grantedAbilityItemIds.
-            if (weaponItem.Ability is not null && seenItemIds.Add(weaponItem.Id))
-            {
-                results.Add(weaponItem);
-            }
-
-            foreach (var abilityItemId in weaponItem.GrantedAbilityItemIds)
-            {
-                AddAbilityItem(abilityItemId);
-            }
-        }
-
-        foreach (var itemId in player.GameplayLoadoutState.AbilityItemIds ?? [])
-        {
-            AddAbilityItem(itemId);
-        }
-
-        AddWeaponGrantedAbilities(player.GameplayLoadoutState.PrimaryItemId);
-        AddWeaponGrantedAbilities(player.GameplayLoadoutState.SecondaryItemId);
-        AddWeaponGrantedAbilities(player.GameplayLoadoutState.AcquiredItemId);
-        AddWeaponGrantedAbilities(player.GameplayLoadoutState.EquippedItemId);
-        return results;
+        return CharacterClassCatalog.RuntimeRegistry.ResolveGameplayAbilityItems(player.GameplayLoadoutState);
     }
 
     private static bool TryResolveSecondaryGameplayAbilityItem(PlayerEntity player, out GameplayItemDefinition item)

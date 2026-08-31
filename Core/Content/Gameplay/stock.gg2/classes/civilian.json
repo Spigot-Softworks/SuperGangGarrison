@@ -39,7 +39,7 @@
         "switchPolicy": "primary_swap_station",
         "selectionPersistence": "same_class_loadout"
       },
-      "abilities": [ "ability.umbrella", "ability.civilian-pogo", "ability.civilian-taunt" ]
+      "abilities": [ "ability.civilian-pogo", "ability.civilian-taunt" ]
     }
   },
   "defaultLoadoutId": "civilian.stock"

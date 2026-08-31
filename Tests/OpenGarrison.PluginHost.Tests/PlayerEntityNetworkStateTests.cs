@@ -138,7 +138,10 @@ public sealed class PlayerEntityNetworkStateTests
         Assert.Equal("heavy.stock", player.SelectedGameplayLoadoutId);
         Assert.Equal("heavy.stock", player.GameplayLoadoutState.LoadoutId);
         Assert.Null(player.GameplayLoadoutState.SecondaryItemId);
-        Assert.Contains("ability.heavy-sandvich", player.GameplayLoadoutState.AbilityItemIds ?? []);
+        Assert.DoesNotContain("ability.heavy-sandvich", player.GameplayLoadoutState.AbilityItemIds ?? []);
+        Assert.True(player.HasGameplayAbilityBehavior(
+            GameplayAbilityConstants.SpecialChannel,
+            BuiltInGameplayBehaviorIds.HeavySandvich));
         Assert.Equal(GameplayEquipmentSlot.Primary, player.SelectedGameplayEquippedSlot);
         Assert.Equal(GameplayEquipmentSlot.Primary, player.GameplayLoadoutState.EquippedSlot);
         Assert.Equal("weapon.minigun", player.GameplayLoadoutState.EquippedItemId);

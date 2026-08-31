@@ -2,6 +2,7 @@
   "id": "weapon.flamethrower",
   "kind": "Weapon",
   "weaponSlot": "Primary",
+  "grantedAbilityItemIds": [ "ability.pyro-airblast" ],
   "displayName": "Flamethrower",
   "behaviorId": "builtin.weapon.flamethrower",
   "ammo": {

@@ -10,4 +10,7 @@ public sealed record GameplayWeaponItemRegistration(
     GameplayItemPresentationDefinition? Presentation = null,
     GameplayItemCombatDefinition? Combat = null,
     GameplayItemOwnershipDefinition? Ownership = null,
-    GameplayItemDescriptionDefinition? Description = null);
+    GameplayItemDescriptionDefinition? Description = null)
+{
+    public IReadOnlyList<string> GrantedAbilityItemIds { get; init; } = [];
+}

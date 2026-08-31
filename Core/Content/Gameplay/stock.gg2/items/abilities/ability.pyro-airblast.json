@@ -4,7 +4,7 @@
   "displayName": "Compression Blast",
   "behaviorId": "builtin.ability.pyro_airblast",
   "ability": {
-    "category": "secondary",
+    "category": "weaponAltFire",
     "channel": "special",
     "activation": "pressed",
     "executorId": "builtin.ability.pyro_airblast",

@@ -41,7 +41,7 @@
         "switchPolicy": "primary_swap_station",
         "selectionPersistence": "same_class_loadout"
       },
-      "abilities": [ "ability.heavy-sandvich", "ability.heavy-utility", "ability.experimental-ltd-passive" ]
+      "abilities": [ "ability.heavy-utility", "ability.experimental-ltd-passive" ]
     },
     "heavy.tomislav": {
       "id": "heavy.tomislav",
@@ -52,7 +52,7 @@
         "switchPolicy": "primary_swap_station",
         "selectionPersistence": "same_class_loadout"
       },
-      "abilities": [ "ability.heavy-sandvich", "ability.heavy-utility", "ability.experimental-ltd-passive" ]
+      "abilities": [ "ability.heavy-utility", "ability.experimental-ltd-passive" ]
     },
     "heavy.brass-beast": {
       "id": "heavy.brass-beast",
@@ -63,7 +63,7 @@
         "switchPolicy": "primary_swap_station",
         "selectionPersistence": "same_class_loadout"
       },
-      "abilities": [ "ability.heavy-sandvich", "ability.heavy-utility", "ability.experimental-ltd-passive" ]
+      "abilities": [ "ability.heavy-utility", "ability.experimental-ltd-passive" ]
     }
   },
   "defaultLoadoutId": "heavy.stock"

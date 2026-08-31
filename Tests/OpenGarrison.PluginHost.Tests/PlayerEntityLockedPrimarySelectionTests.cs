@@ -151,7 +151,8 @@ public sealed class PlayerEntityLockedPrimarySelectionTests
         heavy.Spawn(PlayerTeam.Red, 100f, 100f);
 
         Assert.Null(heavy.GameplayLoadoutState.SecondaryItemId);
-        Assert.Contains("ability.heavy-sandvich", heavy.GameplayLoadoutState.AbilityItemIds ?? []);
+        Assert.DoesNotContain("ability.heavy-sandvich", heavy.GameplayLoadoutState.AbilityItemIds ?? []);
+        Assert.Contains("ability.heavy-sandvich", heavy.GetGameplayAbilityItems().Select(static item => item.Id));
         Assert.True(heavy.HasGameplayAbilityBehavior(
             GameplayAbilityConstants.SpecialChannel,
             BuiltInGameplayBehaviorIds.HeavySandvich));
@@ -161,5 +162,46 @@ public sealed class PlayerEntityLockedPrimarySelectionTests
 
         Assert.Equal("weapon.soldier-shotgun", soldier.GameplayLoadoutState.SecondaryItemId);
         Assert.Equal(BuiltInGameplayBehaviorIds.PelletGun, soldier.SecondaryBehaviorId);
+        Assert.True(soldier.HasGameplayAbilityBehavior(
+            GameplayAbilityConstants.SpecialChannel,
+            BuiltInGameplayBehaviorIds.ExperimentalSoldierSecondary));
+
+        Assert.True(soldier.TrySelectGameplayEquippedSlot(GameplayEquipmentSlot.Secondary));
+        Assert.True(soldier.HasGameplayAbilityBehavior(
+            GameplayAbilityConstants.SpecialChannel,
+            BuiltInGameplayBehaviorIds.ExperimentalSoldierSecondary));
+
+        Assert.True(soldier.TrySelectGameplayEquippedSlot(GameplayEquipmentSlot.Primary));
+        Assert.True(soldier.HasGameplayAbilityBehavior(
+            GameplayAbilityConstants.SpecialChannel,
+            BuiltInGameplayBehaviorIds.ExperimentalSoldierSecondary));
+    }
+
+    [Fact]
+    public void WeaponAltFireAbilitiesOnlyResolveForTheirEquippedWeapon()
+    {
+        var sniper = new PlayerEntity(1, CharacterClassCatalog.Sniper, "Sniper");
+        sniper.Spawn(PlayerTeam.Red, 100f, 100f);
+        var registry = CharacterClassCatalog.RuntimeRegistry;
+        var rifleItemId = sniper.GameplayLoadoutState.PrimaryItemId;
+        var stowedRifleState = sniper.GameplayLoadoutState with
+        {
+            SecondaryItemId = "weapon.soldier-shotgun",
+            EquippedSlot = GameplayEquipmentSlot.Secondary,
+            EquippedItemId = "weapon.soldier-shotgun",
+        };
+
+        Assert.DoesNotContain(
+            registry.ResolveGameplayAbilityItems(stowedRifleState),
+            static item => item.Id == "ability.sniper-scope");
+
+        var equippedRifleState = stowedRifleState with
+        {
+            EquippedSlot = GameplayEquipmentSlot.Primary,
+            EquippedItemId = rifleItemId,
+        };
+        Assert.Contains(
+            registry.ResolveGameplayAbilityItems(equippedRifleState),
+            static item => item.Id == "ability.sniper-scope");
     }
 }

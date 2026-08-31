@@ -593,6 +593,78 @@ public sealed partial class GameplayRuntimeRegistry
         return false;
     }
 
+    public IReadOnlyList<GameplayItemDefinition> ResolveGameplayAbilityItems(GameplayPlayerLoadoutState loadoutState)
+    {
+        ArgumentNullException.ThrowIfNull(loadoutState);
+        var seenItemIds = new HashSet<string>(StringComparer.Ordinal);
+        var results = new List<GameplayItemDefinition>();
+
+        void AddAbilityItem(string? itemId, bool weaponIsEquipped)
+        {
+            if (string.IsNullOrWhiteSpace(itemId)
+                || seenItemIds.Contains(itemId)
+                || !TryGetGameplayAbilityDefinition(itemId, out var abilityItem, out var ability)
+                || IsUnequippedWeaponAltFire(ability, weaponIsEquipped))
+            {
+                return;
+            }
+
+            seenItemIds.Add(itemId);
+            results.Add(abilityItem);
+        }
+
+        void AddWeaponGrantedAbilities(string? weaponItemId)
+        {
+            if (string.IsNullOrWhiteSpace(weaponItemId)
+                || !TryGetItem(weaponItemId, out var weaponItem))
+            {
+                return;
+            }
+
+            var weaponIsEquipped = string.Equals(
+                weaponItem.Id,
+                loadoutState.EquippedItemId,
+                StringComparison.Ordinal);
+
+            // Embedded weapon abilities remain supported for schema-v1 and
+            // runtime-plugin compatibility. Schema-v2 content uses grants.
+            if (weaponItem.Ability is { } embeddedAbility
+                && !seenItemIds.Contains(weaponItem.Id)
+                && !IsUnequippedWeaponAltFire(embeddedAbility, weaponIsEquipped))
+            {
+                seenItemIds.Add(weaponItem.Id);
+                results.Add(weaponItem);
+            }
+
+            foreach (var abilityItemId in weaponItem.GrantedAbilityItemIds)
+            {
+                AddAbilityItem(abilityItemId, weaponIsEquipped);
+            }
+        }
+
+        foreach (var abilityItemId in loadoutState.AbilityItemIds ?? [])
+        {
+            // Schema-v2 validation prevents weaponAltFire entries here. Keeping
+            // direct runtime registrations available preserves legacy content.
+            AddAbilityItem(abilityItemId, weaponIsEquipped: true);
+        }
+
+        AddWeaponGrantedAbilities(loadoutState.PrimaryItemId);
+        AddWeaponGrantedAbilities(loadoutState.SecondaryItemId);
+        AddWeaponGrantedAbilities(loadoutState.AcquiredItemId);
+        AddWeaponGrantedAbilities(loadoutState.EquippedItemId);
+        return results;
+    }
+
+    private static bool IsUnequippedWeaponAltFire(GameplayAbilityDefinition ability, bool weaponIsEquipped)
+    {
+        return !weaponIsEquipped
+            && string.Equals(
+                ability.Category,
+                GameplayAbilityConstants.WeaponAltFireCategory,
+                StringComparison.Ordinal);
+    }
+
     public void SealAbilityDefinitions()
     {
         _abilityDefinitionsSealed = true;
@@ -641,6 +713,24 @@ public sealed partial class GameplayRuntimeRegistry
         var modPackId = string.IsNullOrWhiteSpace(registration.ModPackId)
             ? "plugin.weapon"
             : registration.ModPackId.Trim();
+        var grantedAbilityItemIds = NormalizeAbilityItemIds(registration.GrantedAbilityItemIds) ?? [];
+        var activeAbilityChannels = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var abilityItemId in grantedAbilityItemIds)
+        {
+            if (!TryGetGameplayAbilityDefinition(abilityItemId, out _, out var ability))
+            {
+                errorMessage = $"Gameplay weapon item grants unknown or invalid ability item \"{abilityItemId}\".";
+                return false;
+            }
+
+            if (ability.Channel is GameplayAbilityConstants.SpecialChannel or GameplayAbilityConstants.UtilityChannel
+                && !activeAbilityChannels.Add(ability.Channel))
+            {
+                errorMessage = $"Gameplay weapon item grants more than one active ability for channel \"{ability.Channel}\".";
+                return false;
+            }
+        }
+
         var item = new GameplayItemDefinition(
             itemId,
             registration.DisplayName.Trim(),
@@ -656,6 +746,7 @@ public sealed partial class GameplayRuntimeRegistry
             WeaponSlot = registration.Slot == GameplayEquipmentSlot.Primary
                 ? GameplayWeaponSlot.Primary
                 : GameplayWeaponSlot.Secondary,
+            GrantedAbilityItemIds = grantedAbilityItemIds,
         };
         AddRuntimeItem(modPackId, item);
         return true;
@@ -692,6 +783,11 @@ public sealed partial class GameplayRuntimeRegistry
             ? "plugin.ability"
             : registration.ModPackId.Trim();
         var normalizedAbility = NormalizeRuntimeAbility(registration.Ability, registration.BehaviorId);
+        if (!ValidateRuntimeAbility(normalizedAbility, out errorMessage))
+        {
+            return false;
+        }
+
         var item = new GameplayItemDefinition(
             itemId,
             registration.DisplayName.Trim(),
@@ -899,9 +995,15 @@ public sealed partial class GameplayRuntimeRegistry
             Tags = patch.Tags ?? existingAbility.Tags,
             Parameters = patch.Parameters ?? existingAbility.Parameters,
         };
+        var normalizedPatchedAbility = NormalizeRuntimeAbility(patchedAbility, item.BehaviorId);
+        if (!ValidateRuntimeAbility(normalizedPatchedAbility, out errorMessage))
+        {
+            return false;
+        }
+
         var updatedItem = item with
         {
-            Ability = NormalizeRuntimeAbility(patchedAbility, item.BehaviorId),
+            Ability = normalizedPatchedAbility,
         };
         _items[updatedItem.Id] = updatedItem;
 
@@ -1043,8 +1145,32 @@ public sealed partial class GameplayRuntimeRegistry
         };
     }
 
+    private static bool ValidateRuntimeAbility(GameplayAbilityDefinition ability, out string errorMessage)
+    {
+        if (string.Equals(
+                ability.Category,
+                GameplayAbilityConstants.WeaponAltFireCategory,
+                StringComparison.Ordinal)
+            && !string.Equals(
+                ability.Channel,
+                GameplayAbilityConstants.SpecialChannel,
+                StringComparison.Ordinal))
+        {
+            errorMessage = $"Gameplay weaponAltFire ability must use channel \"{GameplayAbilityConstants.SpecialChannel}\".";
+            return false;
+        }
+
+        errorMessage = string.Empty;
+        return true;
+    }
+
     private static string ResolveRuntimeAbilityChannel(string category)
     {
+        if (string.Equals(category, GameplayAbilityConstants.WeaponAltFireCategory, StringComparison.Ordinal))
+        {
+            return GameplayAbilityConstants.SpecialChannel;
+        }
+
         if (string.Equals(category, GameplayAbilityConstants.UtilityCategory, StringComparison.Ordinal))
         {
             return GameplayAbilityConstants.UtilityChannel;
@@ -1157,6 +1283,15 @@ public sealed partial class GameplayRuntimeRegistry
             if (item.Ability is null)
             {
                 errorMessage = $"Gameplay loadout ability item \"{itemId}\" does not declare ability metadata.";
+                return false;
+            }
+
+            if (string.Equals(
+                    item.Ability.Category,
+                    GameplayAbilityConstants.WeaponAltFireCategory,
+                    StringComparison.Ordinal))
+            {
+                errorMessage = $"Gameplay loadout cannot attach weaponAltFire ability item \"{itemId}\" directly; grant it from a weapon item.";
                 return false;
             }
         }

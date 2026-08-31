@@ -2,6 +2,7 @@
   "id": "weapon.brassbeast",
   "kind": "Weapon",
   "weaponSlot": "Primary",
+  "grantedAbilityItemIds": [ "ability.heavy-sandvich" ],
   "displayName": "Brass Beast",
   "behaviorId": "builtin.weapon.minigun",
   "ammo": {

@@ -121,7 +121,10 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
         Assert.False(changed);
         Assert.Equal(GameplayEquipmentSlot.Primary, world.LocalPlayer.SelectedGameplayEquippedSlot);
         Assert.Null(world.LocalPlayer.GameplayLoadoutState.SecondaryItemId);
-        Assert.Contains("ability.heavy-sandvich", world.LocalPlayer.GameplayLoadoutState.AbilityItemIds!);
+        Assert.DoesNotContain("ability.heavy-sandvich", world.LocalPlayer.GameplayLoadoutState.AbilityItemIds!);
+        Assert.True(world.LocalPlayer.HasGameplayAbilityBehavior(
+            GameplayAbilityConstants.SpecialChannel,
+            BuiltInGameplayBehaviorIds.HeavySandvich));
     }
 
     [Fact]

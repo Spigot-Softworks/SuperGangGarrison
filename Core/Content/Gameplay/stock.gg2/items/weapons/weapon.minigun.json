@@ -2,6 +2,7 @@
   "id": "weapon.minigun",
   "kind": "Weapon",
   "weaponSlot": "Primary",
+  "grantedAbilityItemIds": [ "ability.heavy-sandvich" ],
   "displayName": "Minigun",
   "behaviorId": "builtin.weapon.minigun",
   "ammo": {

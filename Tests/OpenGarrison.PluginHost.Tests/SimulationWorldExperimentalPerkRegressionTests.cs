@@ -183,7 +183,11 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         PressFireSecondary(world);
 
         Assert.True(world.LocalPlayer.PyroAirblastCooldownTicks > 0);
-        AssertCoreSecondaryAbilityEvent(world, "ability.pyro-airblast", BuiltInGameplayBehaviorIds.PyroAirblast);
+        AssertCoreSecondaryAbilityEvent(
+            world,
+            "ability.pyro-airblast",
+            BuiltInGameplayBehaviorIds.PyroAirblast,
+            GameplayAbilityConstants.WeaponAltFireCategory);
     }
 
     [Fact]
@@ -356,7 +360,10 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         Assert.Empty(world.Mines);
         Assert.False(world.LocalPlayer.IsExperimentalOffhandEquipped);
         Assert.Equal(GameplayEquipmentSlot.Primary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
-        AssertCoreSecondaryAbilityEvent(world, "ability.demoman-detonate", BuiltInGameplayBehaviorIds.DemomanDetonate);
+        AssertCoreSecondaryAbilityEvent(
+            world,
+            "ability.demoman-detonate",
+            BuiltInGameplayBehaviorIds.DemomanDetonate);
     }
 
     [Fact]
@@ -375,7 +382,10 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         PressFireSecondary(world);
 
         Assert.Empty(world.Mines);
-        AssertCoreSecondaryAbilityEvent(world, "ability.demoman-detonate", BuiltInGameplayBehaviorIds.DemomanDetonate);
+        AssertCoreSecondaryAbilityEvent(
+            world,
+            "ability.demoman-detonate",
+            BuiltInGameplayBehaviorIds.DemomanDetonate);
     }
 
     [Fact]
@@ -391,7 +401,10 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         PressFireSecondary(world);
 
         Assert.Empty(world.Mines);
-        AssertCoreSecondaryAbilityEvent(world, "ability.demoman-detonate", BuiltInGameplayBehaviorIds.DemomanDetonate);
+        AssertCoreSecondaryAbilityEvent(
+            world,
+            "ability.demoman-detonate",
+            BuiltInGameplayBehaviorIds.DemomanDetonate);
     }
 
     [Fact]
@@ -404,7 +417,11 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         PressFireSecondary(world);
 
         Assert.True(world.LocalPlayer.IsHeavyEating);
-        AssertCoreSecondaryAbilityEvent(world, "ability.heavy-sandvich", BuiltInGameplayBehaviorIds.HeavySandvich);
+        AssertCoreSecondaryAbilityEvent(
+            world,
+            "ability.heavy-sandvich",
+            BuiltInGameplayBehaviorIds.HeavySandvich,
+            GameplayAbilityConstants.WeaponAltFireCategory);
     }
 
     [Fact]
@@ -417,7 +434,11 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
 
         Assert.NotEmpty(world.Needles);
         Assert.False(world.LocalPlayer.IsMedicHealing);
-        AssertCoreSecondaryAbilityEvent(world, "ability.medic-needlegun", BuiltInGameplayBehaviorIds.MedicNeedlegun);
+        AssertCoreSecondaryAbilityEvent(
+            world,
+            "ability.medic-needlegun",
+            BuiltInGameplayBehaviorIds.MedicNeedlegun,
+            GameplayAbilityConstants.WeaponAltFireCategory);
     }
 
     [Fact]
@@ -454,7 +475,11 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
 
         Assert.NotEmpty(world.Needles);
         Assert.False(world.LocalPlayer.IsMedicHealing);
-        AssertCoreSecondaryAbilityEvent(world, "ability.medic-needlegun", BuiltInGameplayBehaviorIds.MedicNeedlegun);
+        AssertCoreSecondaryAbilityEvent(
+            world,
+            "ability.medic-needlegun",
+            BuiltInGameplayBehaviorIds.MedicNeedlegun,
+            GameplayAbilityConstants.WeaponAltFireCategory);
     }
 
     [Fact]
@@ -724,7 +749,11 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
 
         Assert.True(world.LocalPlayer.IsSniperScoped);
         Assert.Equal(GameplayEquipmentSlot.Primary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
-        AssertCoreSecondaryAbilityEvent(world, "ability.sniper-scope", BuiltInGameplayBehaviorIds.SniperScope);
+        AssertCoreSecondaryAbilityEvent(
+            world,
+            "ability.sniper-scope",
+            BuiltInGameplayBehaviorIds.SniperScope,
+            GameplayAbilityConstants.WeaponAltFireCategory);
     }
 
     [Fact]
@@ -2346,7 +2375,11 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         PressFireSecondary(world);
 
         Assert.True(world.LocalPlayer.IsHeavyEating);
-        AssertCoreSecondaryAbilityEvent(world, "ability.heavy-sandvich", BuiltInGameplayBehaviorIds.HeavySandvich);
+        AssertCoreSecondaryAbilityEvent(
+            world,
+            "ability.heavy-sandvich",
+            BuiltInGameplayBehaviorIds.HeavySandvich,
+            GameplayAbilityConstants.WeaponAltFireCategory);
 
         ReleaseAllInput(world);
         PressUseAbilitySpace(world);
@@ -2778,7 +2811,11 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         Assert.False(world.LocalPlayer.IsMedicHealing);
         Assert.False(world.LocalPlayer.IsExperimentalOffhandEquipped);
         Assert.Equal(GameplayEquipmentSlot.Primary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
-        AssertCoreSecondaryAbilityEvent(world, "ability.medic-needlegun", BuiltInGameplayBehaviorIds.MedicNeedlegun);
+        AssertCoreSecondaryAbilityEvent(
+            world,
+            "ability.medic-needlegun",
+            BuiltInGameplayBehaviorIds.MedicNeedlegun,
+            GameplayAbilityConstants.WeaponAltFireCategory);
     }
 
     [Fact]
@@ -3948,14 +3985,15 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     private static void AssertCoreSecondaryAbilityEvent(
         SimulationWorld world,
         string expectedItemId,
-        string expectedExecutorId)
+        string expectedExecutorId,
+        string expectedCategory = GameplayAbilityConstants.SecondaryCategory)
     {
         var abilityEvent = Assert.Single(world.DrainPendingGameplayAbilityEvents());
         Assert.True(abilityEvent.Handled);
         Assert.True(abilityEvent.ConsumedInput);
         Assert.False(abilityEvent.Cancelled);
         Assert.Equal(expectedItemId, abilityEvent.ItemId);
-        Assert.Equal(GameplayAbilityConstants.SecondaryCategory, abilityEvent.AbilityCategory);
+        Assert.Equal(expectedCategory, abilityEvent.AbilityCategory);
         Assert.Equal(expectedExecutorId, abilityEvent.ExecutorId);
         Assert.Contains(GameplayAbilityConstants.CoreSecondaryInputTag, abilityEvent.Tags);
     }

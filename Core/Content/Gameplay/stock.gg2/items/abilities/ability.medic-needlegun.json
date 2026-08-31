@@ -4,7 +4,7 @@
   "displayName": "Needlegun",
   "behaviorId": "builtin.ability.medic_needlegun",
   "ability": {
-    "category": "secondary",
+    "category": "weaponAltFire",
     "channel": "special",
     "activation": "held",
     "executorId": "builtin.ability.medic_needlegun",
