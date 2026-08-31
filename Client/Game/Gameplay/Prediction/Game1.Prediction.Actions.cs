@@ -583,14 +583,28 @@ public partial class Game1
             return true;
         }
 
-        if (player.ClassId == PlayerClass.Medic)
+        var specialAbilityBehaviorId = player.SpecialAbilityBehaviorId;
+        var hasMedicNeedlegun = string.Equals(
+            specialAbilityBehaviorId,
+            BuiltInGameplayBehaviorIds.MedicNeedlegun,
+            StringComparison.Ordinal);
+        var hasMedicKritzHealNeedles = string.Equals(
+            specialAbilityBehaviorId,
+            BuiltInGameplayBehaviorIds.MedicKritzHealNeedles,
+            StringComparison.Ordinal);
+        var hasMedicKritzBeam = string.Equals(
+            specialAbilityBehaviorId,
+            BuiltInGameplayBehaviorIds.MedicKritzBeam,
+            StringComparison.Ordinal);
+        if (player.ClassId == PlayerClass.Medic
+            && (hasMedicNeedlegun || hasMedicKritzHealNeedles || hasMedicKritzBeam))
         {
             if (!predictedInput.Input.FireSecondary)
             {
                 return false;
             }
 
-            if (player.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.MedigunCrit))
+            if (hasMedicKritzHealNeedles)
             {
                 if (predictedInput.Input.FirePrimary
                     && _predictedLocalActionState.IsMedicUberReady
@@ -607,7 +621,12 @@ public partial class Game1
                 return true;
             }
 
-            if (TryPredictedFireMedicNeedle(player))
+            if (hasMedicKritzBeam)
+            {
+                return true;
+            }
+
+            if (hasMedicNeedlegun && TryPredictedFireMedicNeedle(player))
             {
                 return true;
             }
@@ -632,13 +651,21 @@ public partial class Game1
             return true;
         }
 
-        if (player.ClassId == PlayerClass.Heavy)
+        if (player.ClassId == PlayerClass.Heavy
+            && string.Equals(
+                specialAbilityBehaviorId,
+                BuiltInGameplayBehaviorIds.HeavySandvich,
+                StringComparison.Ordinal))
         {
             TryPredictedStartHeavySelfHeal(player);
             return true;
         }
 
-        if (player.ClassId == PlayerClass.Pyro)
+        if (player.ClassId == PlayerClass.Pyro
+            && string.Equals(
+                specialAbilityBehaviorId,
+                BuiltInGameplayBehaviorIds.PyroAirblast,
+                StringComparison.Ordinal))
         {
             if (player.TryFirePyroAirblast())
             {
@@ -653,7 +680,12 @@ public partial class Game1
             return true;
         }
 
-        if (player.HasScopedSniperWeaponEquipped && !player.IsSniperBowEquipped)
+        if (string.Equals(
+                specialAbilityBehaviorId,
+                BuiltInGameplayBehaviorIds.SniperScope,
+                StringComparison.Ordinal)
+            && player.HasScopedSniperWeaponEquipped
+            && !player.IsSniperBowEquipped)
         {
             TryPredictedToggleSniperScope(player);
             return true;

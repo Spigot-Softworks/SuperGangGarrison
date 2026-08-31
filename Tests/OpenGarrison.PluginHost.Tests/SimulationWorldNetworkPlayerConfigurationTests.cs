@@ -128,6 +128,43 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
     }
 
     [Fact]
+    public void RemoteNetworkPyroOnlyDispatchesAirblastWithItsGrantingWeaponEquipped()
+    {
+        const byte slot = 2;
+        var world = new SimulationWorld();
+        Assert.True(world.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.TrySetNetworkPlayerTeam(slot, PlayerTeam.Red));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(slot, PlayerClass.Pyro));
+        Assert.True(world.TryGetNetworkPlayer(slot, out var pyro));
+        pyro.SetSpawnRoomState(false);
+        Assert.True(world.TrySetNetworkPlayerGameplaySecondaryItem(slot, "weapon.rocketlauncher"));
+        Assert.True(world.TrySetNetworkPlayerGameplayEquippedSlot(slot, GameplayEquipmentSlot.Secondary));
+
+        Assert.True(world.TrySetNetworkPlayerInput(slot, SecondaryInput(pyro)));
+        world.AdvanceOneTick();
+
+        Assert.Equal(0, pyro.PyroAirblastCooldownTicks);
+        Assert.DoesNotContain(
+            world.DrainPendingGameplayAbilityEvents(),
+            abilityEvent => abilityEvent.PlayerId == pyro.Id
+                && abilityEvent.ItemId == "ability.pyro-airblast");
+
+        Assert.True(world.TrySetNetworkPlayerInput(slot, default));
+        world.AdvanceOneTick();
+        Assert.True(world.TrySetNetworkPlayerGameplayEquippedSlot(slot, GameplayEquipmentSlot.Primary));
+        Assert.True(world.TrySetNetworkPlayerInput(slot, SecondaryInput(pyro)));
+        world.AdvanceOneTick();
+
+        Assert.True(pyro.PyroAirblastCooldownTicks > 0);
+        Assert.Contains(
+            world.DrainPendingGameplayAbilityEvents(),
+            abilityEvent => abilityEvent.PlayerId == pyro.Id
+                && abilityEvent.ItemId == "ability.pyro-airblast"
+                && abilityEvent.AbilityCategory == GameplayAbilityConstants.WeaponAltFireCategory
+                && abilityEvent.Handled);
+    }
+
+    [Fact]
     public void TrySetNetworkPlayerGameplayEquippedSlotSelectsSoldierShotgunWhenAvailable()
     {
         var world = CreateWorldWithLocalClass(PlayerClass.Soldier);
@@ -452,6 +489,16 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
         Assert.Equal(primaryItemId, world.LocalPlayer.GameplayLoadoutState.PrimaryItemId);
         Assert.Equal(GameplayEquipmentSlot.Secondary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
         Assert.Equal("weapon.soldier-shotgun", world.LocalPlayer.GameplayLoadoutState.EquippedItemId);
+    }
+
+    private static PlayerInputSnapshot SecondaryInput(PlayerEntity player)
+    {
+        return default(PlayerInputSnapshot) with
+        {
+            FireSecondary = true,
+            AimWorldX = player.X + 96f,
+            AimWorldY = player.Y,
+        };
     }
 
     [Fact]

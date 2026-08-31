@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using OpenGarrison.Client;
 using OpenGarrison.Core;
+using OpenGarrison.GameplayModding;
 using Xunit;
 
 namespace OpenGarrison.PluginHost.Tests;
@@ -115,6 +116,47 @@ public sealed class FirePredictionRegressionTests
     }
 
     [Fact]
+    public void PredictedSecondaryDoesNotFireStowedPyroWeaponAltFire()
+    {
+        var world = new SimulationWorld();
+        world.PrepareLocalPlayerJoin();
+        world.CompleteLocalPlayerJoin(PlayerClass.Pyro);
+        Assert.True(world.TrySetNetworkPlayerGameplaySecondaryItem(
+            SimulationWorld.LocalPlayerSlot,
+            "weapon.rocketlauncher"));
+        Assert.True(world.TrySetNetworkPlayerGameplayEquippedSlot(
+            SimulationWorld.LocalPlayerSlot,
+            GameplayEquipmentSlot.Secondary));
+
+        var player = world.LocalPlayer;
+        Assert.False(player.HasGameplayAbilityBehavior(
+            GameplayAbilityConstants.SpecialChannel,
+            BuiltInGameplayBehaviorIds.PyroAirblast));
+        var initialFuel = player.PyroPrimaryFuelScaled;
+        var game = CreatePredictionHarness(world);
+        var predictedInput = CreatePredictedLocalInput(
+            default(PlayerInputSnapshot) with
+            {
+                FireSecondary = true,
+                AimWorldX = player.X + 256f,
+                AimWorldY = player.Y,
+            },
+            primaryPressed: false,
+            secondaryAbilityPressed: true);
+
+        InvokePrivate(
+            typeof(Game1),
+            game,
+            "ApplyPredictedInputStep",
+            player,
+            predictedInput);
+
+        Assert.Equal(0, player.PyroAirblastCooldownTicks);
+        Assert.Equal(initialFuel, player.PyroPrimaryFuelScaled);
+        Assert.Equal(GameplayEquipmentSlot.Secondary, player.GameplayLoadoutState.EquippedSlot);
+    }
+
+    [Fact]
     public void ImmediatePresentationLatchAndAuthorityConfirmationAreSeparateOneShotStates()
     {
         var pendingConfirmationSeconds = 0f;
@@ -148,7 +190,8 @@ public sealed class FirePredictionRegressionTests
 
     private static object CreatePredictedLocalInput(
         PlayerInputSnapshot input,
-        bool primaryPressed)
+        bool primaryPressed,
+        bool secondaryAbilityPressed = false)
     {
         var inputType = typeof(Game1).GetNestedType(
             "PredictedLocalInput",
@@ -178,7 +221,7 @@ public sealed class FirePredictionRegressionTests
             input,
             false,
             primaryPressed,
-            false,
+            secondaryAbilityPressed,
             false,
             false,
             false,

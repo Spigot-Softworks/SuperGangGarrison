@@ -168,19 +168,14 @@ public partial class Game1
                 yield return itemId;
             }
 
-            if (!includeHiddenAbilities
-                || !CharacterClassCatalog.RuntimeRegistry.TryGetLoadout(
-                    game._world.LocalPlayer.GameplayClassId,
-                    game._world.LocalPlayer.SelectedGameplayLoadoutId,
-                    out var selectedLoadout)
-                || selectedLoadout.AbilityItemIds is null)
+            if (!includeHiddenAbilities)
             {
                 yield break;
             }
 
-            foreach (var itemId in selectedLoadout.AbilityItemIds)
+            foreach (var item in CharacterClassCatalog.RuntimeRegistry.ResolveGameplayAbilityItems(loadout))
             {
-                yield return itemId;
+                yield return item.Id;
             }
         }
 
