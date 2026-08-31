@@ -605,47 +605,7 @@ internal sealed class ServerReadOnlyStateView(
 
     private static IEnumerable<GameplayItemDefinition> EnumeratePlayerGameplayAbilityItems(PlayerEntity player)
     {
-        var runtimeRegistry = CharacterClassCatalog.RuntimeRegistry;
-        var seenItemIds = new HashSet<string>(StringComparer.Ordinal);
-
-        foreach (var itemId in new[]
-        {
-            player.GameplayLoadoutState.PrimaryItemId,
-            player.GameplayLoadoutState.SecondaryItemId,
-            player.GameplayLoadoutState.UtilityItemId,
-            player.GameplayLoadoutState.AcquiredItemId,
-            player.GameplayLoadoutState.EquippedItemId,
-        })
-        {
-            if (string.IsNullOrWhiteSpace(itemId) || !seenItemIds.Add(itemId))
-            {
-                continue;
-            }
-
-            if (runtimeRegistry.TryGetGameplayAbilityDefinition(itemId, out var item, out _))
-            {
-                yield return item;
-            }
-        }
-
-        if (!runtimeRegistry.TryGetLoadout(player.GameplayClassId, player.SelectedGameplayLoadoutId, out var selectedLoadout)
-            || selectedLoadout.AbilityItemIds is null)
-        {
-            yield break;
-        }
-
-        foreach (var itemId in selectedLoadout.AbilityItemIds)
-        {
-            if (string.IsNullOrWhiteSpace(itemId) || !seenItemIds.Add(itemId))
-            {
-                continue;
-            }
-
-            if (runtimeRegistry.TryGetGameplayAbilityDefinition(itemId, out var item, out _))
-            {
-                yield return item;
-            }
-        }
+        return CharacterClassCatalog.RuntimeRegistry.ResolveGameplayAbilityItems(player.GameplayLoadoutState);
     }
 
     private static OpenGarrisonServerGameplayAbilityInfo ToGameplayAbilityInfo(GameplayItemDefinition item)
