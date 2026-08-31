@@ -331,7 +331,8 @@ Built-in simulation dispatch currently calls these categories:
 
 | Category | Input path | Typical use |
 | --- | --- | --- |
-| `secondary` | Secondary fire / right click | Airblast, scope, cloak, weapon-item secondary actions |
+| `weaponAltFire` | Secondary fire / right click while the granting weapon is equipped | Airblast, Sandvich, scope, and other weapon-owned alt-fire actions |
+| `secondary` | Secondary fire / right click | Class-owned special actions such as cloak or the Engineer PDA |
 | `utility` | Use ability / Spacebar | Dash, superjump, jump pad, utility actions |
 | `taunt` | Taunt button before normal taunt starts | Rage or taunt replacement abilities |
 | `passive` | Central per-player passive tick loop | Passive effects and cooldown ticking |
@@ -342,8 +343,16 @@ them if a caller dispatches them:
 | Category | Status |
 | --- | --- |
 | `movement` | Reserved semantic category; use `utility` or `passive` unless a caller dispatches it |
-| `primary_alt` | Reserved semantic category; no built-in input hook yet |
+| `primary_alt` | Deprecated legacy name; use `weaponAltFire` for weapon-owned M2 actions |
 | `status` | Reserved semantic category; usually implemented through passive/status operations |
+
+`weaponAltFire` is an ownership category as well as an input category. Define the
+behavior as a standalone ability item, reference it from the weapon's
+`grantedAbilityItemIds`, and do not list it directly in a class loadout's
+`abilities`. The loader requires the `special` channel, and runtime resolution
+only exposes the action while its granting weapon is equipped. This lets primary
+and secondary weapons each define M2 behavior without either action leaking while
+the other weapon is held.
 
 ## Activations
 
@@ -357,15 +366,16 @@ them if a caller dispatches them:
 ## Current Stock Examples
 
 - Spacebar action with cooldown HUD:
-  `Core/Content/Gameplay/stock.gg2/items/ability.heavy-utility.json`
-- Secondary-fire action:
-  `Core/Content/Gameplay/stock.gg2/items/ability.pyro-airblast.json`
-- Weapon item with its own secondary ability:
-  `Core/Content/Gameplay/stock.gg2/items/weapon.soldier-shotgun.json`
+  `Core/Content/Gameplay/stock.gg2/items/abilities/ability.heavy-utility.json`
+- Weapon alt-fire action and its granting weapon:
+  `Core/Content/Gameplay/stock.gg2/items/abilities/ability.pyro-airblast.json` and
+  `Core/Content/Gameplay/stock.gg2/items/weapons/weapon.flamethrower.json`
+- Secondary weapon slot item:
+  `Core/Content/Gameplay/stock.gg2/items/weapons/weapon.soldier-shotgun.json`
 - Hidden passive:
-  `Core/Content/Gameplay/stock.gg2/items/ability.experimental-ltd-passive.json`
+  `Core/Content/Gameplay/stock.gg2/items/abilities/ability.experimental-ltd-passive.json`
 - Taunt interception:
-  `Core/Content/Gameplay/stock.gg2/items/ability.experimental-ltd-rage.json`
+  `Core/Content/Gameplay/stock.gg2/items/abilities/ability.experimental-ltd-rage.json`
 - Class runtime binding:
   `Core/Content/Gameplay/stock.gg2/classes/soldier.json`
 - Data-backed blade limits and cost:
@@ -495,9 +505,11 @@ that gameplay item.
 
 ## Lua Loadout Attachment
 
-Use `secondaryItemId` for right-click abilities and secondary weapon items. Use
-`utilityItemId` for Spacebar abilities. Use hidden `abilityItemIds` for passives,
-taunt interceptors, and abilities that should not replace a visible slot.
+Use `secondaryItemId` for class-owned right-click abilities and secondary weapon
+items. A weapon-owned right-click action instead belongs in that weapon's
+`grantedAbilityItemIds` as a `weaponAltFire` ability. Use `utilityItemId` for
+Spacebar abilities. Use hidden `abilityItemIds` for passives, taunt interceptors,
+and abilities that should not replace a visible slot.
 
 Register a full loadout:
 
@@ -507,7 +519,6 @@ host.register_gameplay_loadout({
     loadoutId = "heavy.example-dash",
     displayName = "Example Dash",
     primaryItemId = "weapon.minigun",
-    secondaryItemId = "ability.heavy-sandvich",
     utilityItemId = "ability.example-dash",
     abilityItemIds = { "ability.example-passive" }
 })

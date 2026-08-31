@@ -326,7 +326,8 @@ public sealed class GameplayModPackLoaderTests
         var civilianLoadout = civilianClass.Loadouts["civilian.stock"];
         Assert.Equal("weapon.umbrella", civilianLoadout.Primary!.DefaultItemId);
         Assert.Null(civilianLoadout.Secondary);
-        Assert.Contains("ability.umbrella", civilianLoadout.Abilities);
+        Assert.DoesNotContain("ability.umbrella", civilianLoadout.Abilities);
+        Assert.Contains("ability.umbrella", pack.Items["weapon.umbrella"].GrantedAbilityItemIds);
         Assert.Contains("ability.civilian-pogo", civilianLoadout.Abilities);
         Assert.Equal(nameof(PlayerClass.Quote), civilianClass.Runtime?.PlayerClass);
         Assert.Equal("CivvieUmbrellaKL", civilianClass.Runtime?.PrimaryWeaponKillFeedSprite);
@@ -418,7 +419,9 @@ public sealed class GameplayModPackLoaderTests
         var pyroAirblast = pack.Items["ability.pyro-airblast"];
         Assert.Equal(GameplayItemKind.Ability, pyroAirblast.Kind);
         Assert.Null(pyroAirblast.WeaponSlot);
+        Assert.Equal(GameplayAbilityConstants.WeaponAltFireCategory, pyroAirblast.Ability?.Category);
         Assert.Equal(GameplayAbilityConstants.SpecialChannel, pyroAirblast.Ability?.Channel);
+        Assert.Contains("ability.pyro-airblast", pack.Items["weapon.flamethrower"].GrantedAbilityItemIds);
 
         var scoutStock = pack.Classes["scout"].Loadouts["scout.stock"];
         Assert.NotNull(scoutStock.Primary);
@@ -692,7 +695,7 @@ public sealed class GameplayModPackLoaderTests
 
         var pyroAirblast = pack.Items["ability.pyro-airblast"].Ability;
         Assert.NotNull(pyroAirblast);
-        Assert.Equal(GameplayAbilityConstants.SecondaryCategory, pyroAirblast!.Category);
+        Assert.Equal(GameplayAbilityConstants.WeaponAltFireCategory, pyroAirblast!.Category);
         Assert.Equal(GameplayAbilityConstants.PressedActivation, pyroAirblast.Activation);
         Assert.Equal(BuiltInGameplayBehaviorIds.PyroAirblast, pyroAirblast.ExecutorId);
 
@@ -717,7 +720,7 @@ public sealed class GameplayModPackLoaderTests
         Assert.Contains("ability.medic-needlegun", medigun.GrantedAbilityItemIds);
         var medigunNeedles = pack.Items["ability.medic-needlegun"].Ability;
         Assert.NotNull(medigunNeedles);
-        Assert.Equal(GameplayAbilityConstants.SecondaryCategory, medigunNeedles!.Category);
+        Assert.Equal(GameplayAbilityConstants.WeaponAltFireCategory, medigunNeedles!.Category);
         Assert.Equal(GameplayAbilityConstants.HeldActivation, medigunNeedles.Activation);
         Assert.Equal(BuiltInGameplayBehaviorIds.MedicNeedlegun, medigunNeedles.ExecutorId);
 
@@ -725,7 +728,7 @@ public sealed class GameplayModPackLoaderTests
         Assert.Contains("ability.medic-kritz-heal-needles", kritz.GrantedAbilityItemIds);
         var kritzHealNeedles = pack.Items["ability.medic-kritz-heal-needles"].Ability;
         Assert.NotNull(kritzHealNeedles);
-        Assert.Equal(GameplayAbilityConstants.SecondaryCategory, kritzHealNeedles!.Category);
+        Assert.Equal(GameplayAbilityConstants.WeaponAltFireCategory, kritzHealNeedles!.Category);
         Assert.Equal(GameplayAbilityConstants.HeldActivation, kritzHealNeedles.Activation);
         Assert.Equal(BuiltInGameplayBehaviorIds.MedicKritzHealNeedles, kritzHealNeedles.ExecutorId);
         Assert.Equal(30, kritzHealNeedles.Parameters["healPerHit"].GetInt32());
@@ -790,6 +793,7 @@ public sealed class GameplayModPackLoaderTests
     [Fact]
     public void GameplayAbilityConstantsLabelBuiltInAndReservedCategories()
     {
+        Assert.True(GameplayAbilityConstants.IsBuiltInDispatchedCategory(GameplayAbilityConstants.WeaponAltFireCategory));
         Assert.True(GameplayAbilityConstants.IsBuiltInDispatchedCategory(GameplayAbilityConstants.SecondaryCategory));
         Assert.True(GameplayAbilityConstants.IsBuiltInDispatchedCategory(GameplayAbilityConstants.UtilityCategory));
         Assert.True(GameplayAbilityConstants.IsBuiltInDispatchedCategory(GameplayAbilityConstants.PassiveCategory));
@@ -801,6 +805,196 @@ public sealed class GameplayModPackLoaderTests
 
         Assert.False(GameplayAbilityConstants.IsBuiltInDispatchedCategory(GameplayAbilityConstants.MovementCategory));
         Assert.False(GameplayAbilityConstants.IsReservedCategory(GameplayAbilityConstants.UtilityCategory));
+    }
+
+    [Fact]
+    public void GameplaySchemaV2RejectsWeaponAltFireAttachedDirectlyToLoadout()
+    {
+        var (rootDirectory, packDirectory) = CreateMinimalSchemaV2ValidationPack();
+
+        try
+        {
+            File.WriteAllText(
+                Path.Combine(packDirectory, "items", "ability.weapon-alt.json"),
+                """
+                {
+                  "id": "ability.weapon-alt",
+                  "displayName": "Weapon Alt Fire",
+                  "kind": "Ability",
+                  "behaviorId": "builtin.ability.pyro_airblast",
+                  "ammo": {},
+                  "presentation": {},
+                  "ability": {
+                    "channel": "special",
+                    "category": "weaponAltFire",
+                    "activation": "pressed",
+                    "executorId": "builtin.ability.pyro_airblast"
+                  }
+                }
+                """);
+            WriteMinimalSchemaV2Class(
+                packDirectory,
+                GameplayLoadoutPolicies.PrimarySwapStation,
+                GameplayLoadoutPolicies.SameClassLoadout,
+                "\"abilities\": [ \"ability.weapon-alt\" ]");
+
+            var exception = Assert.Throws<InvalidOperationException>(
+                () => GameplayModPackDirectoryLoader.LoadFromDirectory(packDirectory));
+
+            Assert.Contains("cannot attach weaponAltFire", exception.Message, StringComparison.Ordinal);
+            Assert.Contains("grant it from a weapon item", exception.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(rootDirectory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void GameplayPackLoaderRejectsWeaponAltFireOnNonSpecialChannel()
+    {
+        var (rootDirectory, packDirectory) = CreateMinimalSchemaV2ValidationPack();
+
+        try
+        {
+            File.WriteAllText(
+                Path.Combine(packDirectory, "items", "ability.weapon-alt.json"),
+                """
+                {
+                  "id": "ability.weapon-alt",
+                  "displayName": "Weapon Alt Fire",
+                  "kind": "Ability",
+                  "behaviorId": "builtin.ability.pyro_airblast",
+                  "ammo": {},
+                  "presentation": {},
+                  "ability": {
+                    "channel": "utility",
+                    "category": "weaponAltFire",
+                    "activation": "pressed",
+                    "executorId": "builtin.ability.pyro_airblast"
+                  }
+                }
+                """);
+
+            var exception = Assert.Throws<InvalidOperationException>(
+                () => GameplayModPackDirectoryLoader.LoadFromDirectory(packDirectory));
+
+            Assert.Contains("must use channel \"special\"", exception.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(rootDirectory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void GameplaySchemaV2AllowsEachEquippableWeaponToGrantItsOwnAltFire()
+    {
+        var (rootDirectory, packDirectory) = CreateMinimalSchemaV2ValidationPack();
+
+        try
+        {
+            File.WriteAllText(
+                Path.Combine(packDirectory, "items", "ability.primary-alt.json"),
+                CreateWeaponAltFireAbilityJson("ability.primary-alt"));
+            File.WriteAllText(
+                Path.Combine(packDirectory, "items", "ability.secondary-alt.json"),
+                CreateWeaponAltFireAbilityJson("ability.secondary-alt"));
+            File.WriteAllText(
+                Path.Combine(packDirectory, "items", "weapon.primary.json"),
+                """
+                {
+                  "id": "weapon.primary",
+                  "displayName": "Primary",
+                  "kind": "Weapon",
+                  "weaponSlot": "Primary",
+                  "grantedAbilityItemIds": [ "ability.primary-alt" ],
+                  "behaviorId": "builtin.weapon.pellet_gun",
+                  "ammo": { "maxAmmo": 6 },
+                  "presentation": {}
+                }
+                """);
+            File.WriteAllText(
+                Path.Combine(packDirectory, "items", "weapon.secondary.json"),
+                """
+                {
+                  "id": "weapon.secondary",
+                  "displayName": "Secondary",
+                  "kind": "Weapon",
+                  "weaponSlot": "Secondary",
+                  "grantedAbilityItemIds": [ "ability.secondary-alt" ],
+                  "behaviorId": "builtin.weapon.pellet_gun",
+                  "ammo": { "maxAmmo": 4 },
+                  "presentation": {}
+                }
+                """);
+            WriteMinimalSchemaV2Class(
+                packDirectory,
+                GameplayLoadoutPolicies.PrimarySwapStation,
+                GameplayLoadoutPolicies.SameClassLoadout,
+                "\"secondary\": { \"itemId\": \"weapon.secondary\" }");
+
+            var pack = GameplayModPackDirectoryLoader.LoadFromDirectory(packDirectory);
+
+            Assert.Contains("ability.primary-alt", pack.Items["weapon.primary"].GrantedAbilityItemIds);
+            Assert.Contains("ability.secondary-alt", pack.Items["weapon.secondary"].GrantedAbilityItemIds);
+        }
+        finally
+        {
+            Directory.Delete(rootDirectory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void RuntimeWeaponRegistrationCarriesGrantedWeaponAltFireItems()
+    {
+        var registry = new GameplayRuntimeRegistry();
+        registry.RegisterPrimaryWeaponBehavior("tests.weapon", PrimaryWeaponKind.Custom);
+        Assert.False(
+            registry.TryRegisterGameplayAbility(
+                new GameplayAbilityRegistration(
+                    "ability.tests-invalid-alt",
+                    "Invalid Tests Alt Fire",
+                    GameplayEquipmentSlot.Secondary,
+                    "tests.invalid-alt-fire",
+                    new GameplayAbilityDefinition(
+                        GameplayAbilityConstants.WeaponAltFireCategory,
+                        GameplayAbilityConstants.PressedActivation,
+                        "tests.invalid-alt-fire",
+                        Channel: GameplayAbilityConstants.UtilityChannel)),
+                out var invalidAbilityError));
+        Assert.Contains("must use channel \"special\"", invalidAbilityError, StringComparison.Ordinal);
+
+        Assert.True(
+            registry.TryRegisterGameplayAbility(
+                new GameplayAbilityRegistration(
+                    "ability.tests-alt",
+                    "Tests Alt Fire",
+                    GameplayEquipmentSlot.Secondary,
+                    "tests.alt-fire",
+                    new GameplayAbilityDefinition(
+                        GameplayAbilityConstants.WeaponAltFireCategory,
+                        GameplayAbilityConstants.PressedActivation,
+                        "tests.alt-fire",
+                        Channel: GameplayAbilityConstants.SpecialChannel)),
+                out var abilityError),
+            abilityError);
+        Assert.True(
+            registry.TryRegisterGameplayWeaponItem(
+                new GameplayWeaponItemRegistration(
+                    "weapon.tests",
+                    "Tests Weapon",
+                    GameplayEquipmentSlot.Primary,
+                    "tests.weapon",
+                    new GameplayItemAmmoDefinition())
+                {
+                    GrantedAbilityItemIds = ["ability.tests-alt"],
+                },
+                out var weaponError),
+            weaponError);
+
+        Assert.True(registry.TryGetItem("weapon.tests", out var weapon));
+        Assert.Equal(["ability.tests-alt"], weapon.GrantedAbilityItemIds);
     }
 
     [Fact]
@@ -1479,7 +1673,8 @@ public sealed class GameplayModPackLoaderTests
         Assert.Equal("weapon.umbrella", registry.GetDefaultLoadout(PlayerClass.Quote).PrimaryItemId);
         Assert.Null(registry.GetDefaultLoadout(PlayerClass.Quote).SecondaryItemId);
         Assert.Null(registry.GetDefaultLoadout(PlayerClass.Quote).UtilityItemId);
-        Assert.Contains("ability.umbrella", registry.GetDefaultLoadout(PlayerClass.Quote).Abilities);
+        Assert.DoesNotContain("ability.umbrella", registry.GetDefaultLoadout(PlayerClass.Quote).Abilities);
+        Assert.Contains("ability.umbrella", registry.GetRequiredItem("weapon.umbrella").GrantedAbilityItemIds);
         Assert.Contains("ability.civilian-pogo", registry.GetDefaultLoadout(PlayerClass.Quote).Abilities);
         Assert.Equal("Quote/Curly", registry.GetClassDefinition("plugin.quote-curly.quote").DisplayName);
         Assert.Equal("plugin.quote-curly.weapon.blade", registry.GetDefaultLoadout("plugin.quote-curly.quote").PrimaryItemId);
@@ -2246,6 +2441,26 @@ public sealed class GameplayModPackLoaderTests
             GameplayLoadoutPolicies.PrimarySwapStation,
             GameplayLoadoutPolicies.SameClassLoadout);
         return (rootDirectory, packDirectory);
+    }
+
+    private static string CreateWeaponAltFireAbilityJson(string itemId)
+    {
+        return $$"""
+            {
+              "id": "{{itemId}}",
+              "displayName": "Weapon Alt Fire",
+              "kind": "Ability",
+              "behaviorId": "builtin.ability.pyro_airblast",
+              "ammo": {},
+              "presentation": {},
+              "ability": {
+                "channel": "special",
+                "category": "weaponAltFire",
+                "activation": "pressed",
+                "executorId": "builtin.ability.pyro_airblast"
+              }
+            }
+            """;
     }
 
     private static void WriteMinimalSchemaV2Class(

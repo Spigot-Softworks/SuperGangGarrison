@@ -642,14 +642,18 @@ public static class GameplayModPackDirectoryLoader
     {
         foreach (var primaryItemId in loadout.Primary!.ItemIds)
         {
-            var activeChannels = new Dictionary<string, string>(StringComparer.Ordinal);
-            var seenAbilityItemIds = new HashSet<string>(StringComparer.Ordinal);
-
-            AddAbilityChannels(loadout.Abilities, "loadout", activeChannels, seenAbilityItemIds);
-            AddWeaponAbilityChannels(primaryItemId, "primary", activeChannels, seenAbilityItemIds);
+            ValidateEquippedWeaponChannels(primaryItemId, "primary");
             if (loadout.Secondary is not null)
             {
-                AddWeaponAbilityChannels(loadout.Secondary.ItemId, "secondary", activeChannels, seenAbilityItemIds);
+                ValidateEquippedWeaponChannels(loadout.Secondary.ItemId, "secondary");
+            }
+
+            void ValidateEquippedWeaponChannels(string weaponItemId, string source)
+            {
+                var activeChannels = new Dictionary<string, string>(StringComparer.Ordinal);
+                var seenAbilityItemIds = new HashSet<string>(StringComparer.Ordinal);
+                AddAbilityChannels(loadout.Abilities, "loadout", activeChannels, seenAbilityItemIds);
+                AddWeaponAbilityChannels(weaponItemId, source, activeChannels, seenAbilityItemIds);
             }
 
             void AddWeaponAbilityChannels(
@@ -701,7 +705,7 @@ public static class GameplayModPackDirectoryLoader
                 }
 
                 throw new InvalidOperationException(
-                    $"Gameplay class \"{classId}\" loadout \"{loadout.Id}\" primary \"{primaryItemId}\" combines {channels[ability.Channel]} and {source} ability \"{abilityItemId}\" on active channel \"{ability.Channel}\" in \"{filePath}\".");
+                    $"Gameplay class \"{classId}\" loadout \"{loadout.Id}\" primary selection \"{primaryItemId}\" combines {channels[ability.Channel]} and {source} ability \"{abilityItemId}\" on active channel \"{ability.Channel}\" in \"{filePath}\".");
             }
         }
     }
@@ -741,6 +745,15 @@ public static class GameplayModPackDirectoryLoader
                 || item.Ability is null)
             {
                 throw new InvalidOperationException($"Gameplay class \"{classId}\" loadout \"{loadoutId}\" references invalid ability \"{itemId}\" in \"{filePath}\".");
+            }
+
+            if (string.Equals(
+                    item.Ability.Category,
+                    GameplayAbilityConstants.WeaponAltFireCategory,
+                    StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(
+                    $"Gameplay class \"{classId}\" loadout \"{loadoutId}\" cannot attach weaponAltFire ability \"{itemId}\" directly; grant it from a weapon item in \"{filePath}\".");
             }
 
             var channel = item.Ability.Channel;
@@ -998,6 +1011,13 @@ public static class GameplayModPackDirectoryLoader
             throw new InvalidOperationException($"Gameplay ability \"{item.Id}\" declared unsupported channel \"{channel}\" in \"{filePath}\".");
         }
 
+        if (string.Equals(category, GameplayAbilityConstants.WeaponAltFireCategory, StringComparison.Ordinal)
+            && !string.Equals(channel, GameplayAbilityConstants.SpecialChannel, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                $"Gameplay weaponAltFire ability \"{item.Id}\" must use channel \"{GameplayAbilityConstants.SpecialChannel}\" in \"{filePath}\".");
+        }
+
         if (!IsKnownAbilityActivation(activation))
         {
             throw new InvalidOperationException($"Gameplay ability \"{item.Id}\" declared unsupported activation \"{activation}\" in \"{filePath}\".");
@@ -1097,6 +1117,11 @@ public static class GameplayModPackDirectoryLoader
 
     private static string ToAbilityChannel(string? category, GameplayEquipmentSlot slot)
     {
+        if (string.Equals(category, GameplayAbilityConstants.WeaponAltFireCategory, StringComparison.Ordinal))
+        {
+            return GameplayAbilityConstants.SpecialChannel;
+        }
+
         if (string.Equals(category, GameplayAbilityConstants.SecondaryCategory, StringComparison.Ordinal))
         {
             return GameplayAbilityConstants.SpecialChannel;

@@ -1806,6 +1806,7 @@ public sealed class LuaPluginHostSmokeTests
                     displayName = "Plugin Nailgun",
                     slot = "Secondary",
                     behaviorId = behavior_id,
+                    grantedAbilityItemIds = { "ability.plugin-nailgun-alt" },
                     ammo = {
                         maxAmmo = 30,
                         ammoPerUse = 1,
@@ -1897,6 +1898,7 @@ public sealed class LuaPluginHostSmokeTests
         Assert.Equal(GameplayEquipmentSlot.Secondary, registeredWeapon.Slot);
         Assert.Equal(30, registeredWeapon.Ammo.MaxAmmo);
         Assert.Equal(9f, registeredWeapon.Ammo.MinProjectileSpeed);
+        Assert.Equal(["ability.plugin-nailgun-alt"], registeredWeapon.GrantedAbilityItemIds);
         Assert.Equal(GameplayItemHudStateProviders.SecondaryAmmo, registeredWeapon.Presentation?.Hud?.StateProvider);
         var registeredSlotItem = Assert.Single(fakeContext.RegisteredGameplaySlotItems);
         Assert.Equal("scout", registeredSlotItem.ClassId);

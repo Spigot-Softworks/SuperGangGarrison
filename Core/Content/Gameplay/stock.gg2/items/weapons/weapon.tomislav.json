@@ -2,6 +2,7 @@
   "id": "weapon.tomislav",
   "kind": "Weapon",
   "weaponSlot": "Primary",
+  "grantedAbilityItemIds": [ "ability.heavy-sandvich" ],
   "displayName": "Tomislav",
   "behaviorId": "builtin.weapon.minigun",
   "ammo": {

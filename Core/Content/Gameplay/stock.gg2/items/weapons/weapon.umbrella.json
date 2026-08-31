@@ -2,6 +2,7 @@
   "id": "weapon.umbrella",
   "kind": "Weapon",
   "weaponSlot": "Primary",
+  "grantedAbilityItemIds": [ "ability.umbrella" ],
   "displayName": "Umbrella",
   "behaviorId": "builtin.weapon.revolver",
   "ammo": {

@@ -1494,62 +1494,10 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     private IEnumerable<GameplayItemDefinition> EnumerateGameplayAbilityItems()
     {
-        var runtimeRegistry = CharacterClassCatalog.RuntimeRegistry;
-        var seenItemIds = new HashSet<string>(StringComparer.Ordinal);
-
-        foreach (var abilityItemId in GameplayLoadoutState.AbilityItemIds ?? [])
+        foreach (var abilityItem in CharacterClassCatalog.RuntimeRegistry.ResolveGameplayAbilityItems(GameplayLoadoutState))
         {
-            if (TryResolveAbilityItem(abilityItemId, runtimeRegistry, seenItemIds, out var abilityItem))
-            {
-                yield return abilityItem;
-            }
+            yield return abilityItem;
         }
-
-        var weaponItemIds = new[]
-        {
-            GameplayLoadoutState.PrimaryItemId,
-            GameplayLoadoutState.SecondaryItemId,
-            GameplayLoadoutState.AcquiredItemId,
-            GameplayLoadoutState.EquippedItemId,
-        };
-        foreach (var weaponItemId in weaponItemIds)
-        {
-            if (string.IsNullOrWhiteSpace(weaponItemId)
-                || !runtimeRegistry.TryGetItem(weaponItemId, out var weaponItem))
-            {
-                continue;
-            }
-
-            if (weaponItem.Ability is not null && seenItemIds.Add(weaponItem.Id))
-            {
-                yield return weaponItem;
-            }
-
-            foreach (var abilityItemId in weaponItem.GrantedAbilityItemIds)
-            {
-                if (TryResolveAbilityItem(abilityItemId, runtimeRegistry, seenItemIds, out var abilityItem))
-                {
-                    yield return abilityItem;
-                }
-            }
-        }
-    }
-
-    private static bool TryResolveAbilityItem(
-        string? itemId,
-        GameplayRuntimeRegistry runtimeRegistry,
-        HashSet<string> seenItemIds,
-        out GameplayItemDefinition item)
-    {
-        if (!string.IsNullOrWhiteSpace(itemId)
-            && seenItemIds.Add(itemId)
-            && runtimeRegistry.TryGetGameplayAbilityDefinition(itemId, out item, out _))
-        {
-            return true;
-        }
-
-        item = null!;
-        return false;
     }
 
     public bool OwnsGameplayItem(string? itemId)

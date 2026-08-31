@@ -4,7 +4,7 @@
   "displayName": "Kritz Heal Needles",
   "behaviorId": "builtin.ability.medic_kritz_heal_needles",
   "ability": {
-    "category": "secondary",
+    "category": "weaponAltFire",
     "channel": "special",
     "activation": "held",
     "executorId": "builtin.ability.medic_kritz_heal_needles",

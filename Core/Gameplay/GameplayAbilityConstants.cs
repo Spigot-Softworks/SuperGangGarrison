@@ -10,6 +10,7 @@ public static class GameplayAbilityConstants
     public const string TauntChannel = "taunt";
 
     // These categories have stock simulation dispatch hooks today.
+    public const string WeaponAltFireCategory = "weaponAltFire";
     public const string SecondaryCategory = "secondary";
     public const string UtilityCategory = "utility";
     public const string PassiveCategory = "passive";
@@ -18,6 +19,7 @@ public static class GameplayAbilityConstants
     // These names are reserved semantic categories; callers must add a dispatch hook
     // before ability definitions in these categories can execute automatically.
     public const string MovementCategory = "movement";
+    // Legacy compatibility name. New weapon-owned M2 actions use weaponAltFire.
     public const string PrimaryAltCategory = "primary_alt";
     public const string StatusCategory = "status";
 
@@ -31,7 +33,8 @@ public static class GameplayAbilityConstants
 
     public static bool IsBuiltInDispatchedCategory(string? category)
     {
-        return string.Equals(category, SecondaryCategory, StringComparison.Ordinal)
+        return string.Equals(category, WeaponAltFireCategory, StringComparison.Ordinal)
+            || string.Equals(category, SecondaryCategory, StringComparison.Ordinal)
             || string.Equals(category, UtilityCategory, StringComparison.Ordinal)
             || string.Equals(category, PassiveCategory, StringComparison.Ordinal)
             || string.Equals(category, TauntCategory, StringComparison.Ordinal);

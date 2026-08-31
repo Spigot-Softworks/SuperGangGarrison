@@ -2066,7 +2066,14 @@ internal sealed class LuaServerPlugin(
             ReadOptionalGameplayItemPresentationDefinition(table),
             ReadOptionalGameplayItemCombatDefinition(table),
             ReadOptionalGameplayItemOwnershipDefinition(table),
-            ReadOptionalGameplayItemDescriptionDefinition(table));
+            ReadOptionalGameplayItemDescriptionDefinition(table))
+        {
+            GrantedAbilityItemIds = ReadStringListField(
+                table,
+                "grantedAbilityItemIds",
+                "GrantedAbilityItemIds",
+                "granted_ability_item_ids") ?? [],
+        };
     }
 
     private static GameplayAbilityRegistration ReadGameplayAbilityRegistration(DynValue value)
