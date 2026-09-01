@@ -26,6 +26,13 @@ public sealed class LastToDieFoundationTests
         Assert.Equal(18, catalog.Definitions.Count(perk => perk.SurvivorId == LastToDieSurvivorCatalog.SniperId));
         Assert.Equal(127, catalog.Definitions.Select(perk => perk.Id).Distinct().Count());
 
+        var essenceExtractor = catalog.GetRequired(LastToDiePerkIds.Engineer.EssenceExtractor);
+        var freezeRay = catalog.GetRequired(LastToDiePerkIds.Engineer.FreezeRay);
+        Assert.Contains(LastToDieExpansionPerkCatalog.InteractWeaponBindingToken, essenceExtractor.Description);
+        Assert.Contains(LastToDieExpansionPerkCatalog.InteractWeaponBindingToken, freezeRay.Description);
+        Assert.DoesNotContain("Press Q", essenceExtractor.Description, StringComparison.Ordinal);
+        Assert.DoesNotContain("Press Q", freezeRay.Description, StringComparison.Ordinal);
+
         var levelThree = catalog.GetRequired(LastToDiePerkIds.Spy.Blunderbuss3);
         Assert.Equal(3, levelThree.Rank);
         Assert.Equal(

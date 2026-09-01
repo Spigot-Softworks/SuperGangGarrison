@@ -158,6 +158,8 @@ public static class LastToDiePerkIds
 
 public static class LastToDieExpansionPerkCatalog
 {
+    public const string InteractWeaponBindingToken = "{InteractWeapon}";
+
     public static LastToDiePerkCatalog Create(LastToDieSurvivorCatalog survivors)
         => new(survivors, CreateDefinitions());
 
@@ -307,7 +309,7 @@ public static class LastToDieExpansionPerkCatalog
             Perk(LastToDiePerkIds.Engineer.CryonicMunitions, survivor, "Cryonic Munitions", "Sentry bullets slow targets and freeze them solid after sustained fire."),
             Perk(LastToDiePerkIds.Engineer.AutonomousPhaseEngine, survivor, "Autonomous Phase Engine", "Built sentries float and follow you instead of staying planted."),
             Perk(LastToDiePerkIds.Engineer.OutputInducer, survivor, "Output Inducer", "Place an additional sentry."),
-            Perk(LastToDiePerkIds.Engineer.EssenceExtractor, survivor, "Essence Extractor", "Press Q to equip the Essence Extractor, a beamgun that steals enemy HP and amplifies damage taken."),
+            Perk(LastToDiePerkIds.Engineer.EssenceExtractor, survivor, "Essence Extractor", $"Press {InteractWeaponBindingToken} to equip the Essence Extractor, a beamgun that steals enemy HP and amplifies damage taken."),
             Perk(LastToDiePerkIds.Engineer.CooperativeTargetingHarness, survivor, "Cooperative Targeting Harness", "Sentries prioritize enemies you recently damaged and deal bonus damage to them."),
             Perk(LastToDiePerkIds.Engineer.RegenerativeDiode, survivor, "Regenerative Diode", "You and your sentries regenerate 5 health per second."),
             Perk(LastToDiePerkIds.Engineer.OsmosisConductor, survivor, "Osmosis Conductor", "Sentry damage heals you, and your damage heals your sentries."),
@@ -327,7 +329,7 @@ public static class LastToDieExpansionPerkCatalog
             Perk(LastToDiePerkIds.Engineer.EfficiencyStabilizer, survivor, "Efficiency Stabilizer", "Gain 1% movement speed for every NutsNBolts you currently hold."),
             Perk(LastToDiePerkIds.Engineer.MateriaRecycler, survivor, "Materia Recycler", "+100 max NutsNBolts and recover metal when dealing damage."),
             Perk(LastToDiePerkIds.Engineer.DestinyPunctuator, survivor, "Destiny Punctuator", "Sacrifices sentries for a brutal double-barrel and enhanced stats."),
-            Perk(LastToDiePerkIds.Engineer.FreezeRay, survivor, "Freeze Ray", "Press Q to equip the Freeze Ray, a beamgun that slows enemies, weakens their attacks, and freezes them after enough exposure."),
+            Perk(LastToDiePerkIds.Engineer.FreezeRay, survivor, "Freeze Ray", $"Press {InteractWeaponBindingToken} to equip the Freeze Ray, a beamgun that slows enemies, weakens their attacks, and freezes them after enough exposure."),
         ];
 
     private static LastToDiePerkDefinition Perk(
