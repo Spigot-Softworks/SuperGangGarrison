@@ -6,18 +6,17 @@ namespace OpenGarrison.PluginHost.Tests;
 public sealed class HudWeaponPresentationTests
 {
     [Theory]
-    [InlineData(false, false, true)]
-    [InlineData(true, false, false)]
-    [InlineData(false, true, false)]
+    [InlineData(false, true, true)]
     [InlineData(true, true, false)]
-    public void AlternatePrimaryDoesNotAddAStowedPrimaryPanel(
+    [InlineData(false, false, false)]
+    public void StowedPrimaryPanelAppearsBesideAnEquippedSecondary(
         bool showOnlyActiveWeapon,
-        bool alternatePrimarySelected,
+        bool hasStowedPrimaryWeapon,
         bool expected)
     {
         Assert.Equal(
             expected,
-            Game1.ShouldShowStowedPrimaryWeaponHud(showOnlyActiveWeapon, alternatePrimarySelected));
+            Game1.ShouldShowStowedPrimaryWeaponHud(showOnlyActiveWeapon, hasStowedPrimaryWeapon));
     }
 
     [Theory]

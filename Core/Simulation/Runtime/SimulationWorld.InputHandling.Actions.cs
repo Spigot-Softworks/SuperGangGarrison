@@ -497,8 +497,7 @@ public sealed partial class SimulationWorld
         PlayerEntity player,
         PlayerInputSnapshot input,
         PlayerInputSnapshot previousInput,
-        GameplayAbilityInputPhase phase,
-        bool swappedWeaponThisTick)
+        GameplayAbilityInputPhase phase)
     {
         if (player.IsTaunting && !CanUseUtilityAbilityWhileTaunting(player, phase))
         {
@@ -508,18 +507,6 @@ public sealed partial class SimulationWorld
         if (!ExperimentalGameplaySettings.EnableSecondaryAbilities)
         {
             return false;
-        }
-
-        // These three primary-weapon users do not have a spacebar ability yet.
-        // Their weapon swap is handled separately and remains station-gated.
-        if (player.HasAlternatePrimaryWeapons)
-        {
-            return true;
-        }
-
-        if (swappedWeaponThisTick)
-        {
-            return true;
         }
 
         var dispatchResult = TryDispatchGameplayAbility(
@@ -535,14 +522,6 @@ public sealed partial class SimulationWorld
             return true;
         }
 
-        // Backward compatibility for clients that still send UseAbility for weapon swapping.
-        // Real utility abilities must get first refusal, otherwise classes like Civilian can
-        // toggle a stale secondary weapon instead of activating their utility.
-        if (!input.SwapWeapon)
-        {
-            TryHandleLegacyNetworkSecondaryWeaponToggle(player, input);
-        }
-
         return false;
     }
 
@@ -550,12 +529,6 @@ public sealed partial class SimulationWorld
     {
         _ = phase;
         return player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.DemomanUtility);
-    }
-
-    private static void TryHandleLegacyNetworkSecondaryWeaponToggle(PlayerEntity player, PlayerInputSnapshot input)
-    {
-        _ = input;
-        TryHandleSecondaryWeaponToggle(player);
     }
 
     private void TryHandleNetworkWeaponInteraction(PlayerEntity player)

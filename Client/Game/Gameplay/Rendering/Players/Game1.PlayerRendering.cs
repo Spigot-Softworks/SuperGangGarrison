@@ -383,9 +383,9 @@ public partial class Game1
         return _gameplayWeaponRenderController.GetWeaponSpriteFrameIndex(player, weaponAnimationMode, weaponDefinition, frameCount);
     }
 
-    private static WeaponRenderDefinition GetWeaponRenderDefinition(PlayerEntity player)
+    private WeaponRenderDefinition GetWeaponRenderDefinition(PlayerEntity player)
     {
-        return GameplayWeaponRenderController.GetWeaponRenderDefinitionProxy(player);
+        return _gameplayWeaponRenderController.GetWeaponRenderDefinitionProxy(player);
     }
 
     private static float GetSourceTicksAsSeconds(float ticks)

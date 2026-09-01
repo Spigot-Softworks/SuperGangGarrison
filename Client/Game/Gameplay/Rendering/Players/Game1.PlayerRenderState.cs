@@ -816,6 +816,8 @@ public partial class Game1
 
     private int GetRenderWeaponAmmoCount(PlayerEntity player)
     {
+        player = GetPlayerPredictedPresentationState(player);
+
         if (player.IsExperimentalDemoknightEnabled)
         {
             return 1;
@@ -826,6 +828,11 @@ public partial class Game1
             return IsUsingPredictedLocalState(player)
                 ? _predictedLocalActionState.AcquiredWeaponCurrentShells
                 : player.AcquiredWeaponCurrentShells;
+        }
+
+        if (ShouldPresentGameplayOffhandWeapon(player))
+        {
+            return player.ExperimentalOffhandCurrentShells;
         }
 
         if (ShouldPresentExperimentalSoldierShotgun(player))
@@ -886,11 +893,18 @@ public partial class Game1
 
     private int GetRenderWeaponCooldownTicks(PlayerEntity player)
     {
+        player = GetPlayerPredictedPresentationState(player);
+
         if (ShouldPresentAcquiredWeapon(player))
         {
             return IsUsingPredictedLocalState(player)
                 ? _predictedLocalActionState.AcquiredWeaponCooldownTicks
                 : player.AcquiredWeaponCooldownTicks;
+        }
+
+        if (ShouldPresentGameplayOffhandWeapon(player))
+        {
+            return player.ExperimentalOffhandCooldownTicks;
         }
 
         if (ShouldPresentExperimentalSoldierShotgun(player))
@@ -945,6 +959,8 @@ public partial class Game1
 
     private int GetRenderWeaponReloadTicks(PlayerEntity player)
     {
+        player = GetPlayerPredictedPresentationState(player);
+
         if (player.IsExperimentalDemoknightEnabled)
         {
             return 0;
@@ -955,6 +971,11 @@ public partial class Game1
             return IsUsingPredictedLocalState(player)
                 ? _predictedLocalActionState.AcquiredWeaponReloadTicksUntilNextShell
                 : player.AcquiredWeaponReloadTicksUntilNextShell;
+        }
+
+        if (ShouldPresentGameplayOffhandWeapon(player))
+        {
+            return player.ExperimentalOffhandReloadTicksUntilNextShell;
         }
 
         if (ShouldPresentExperimentalSoldierShotgun(player))
@@ -1007,8 +1028,10 @@ public partial class Game1
             : player.ReloadTicksUntilNextShell;
     }
 
-    private static int GetRenderWeaponMaxShells(PlayerEntity player)
+    private int GetRenderWeaponMaxShells(PlayerEntity player)
     {
+        player = GetPlayerPredictedPresentationState(player);
+
         if (player.IsExperimentalDemoknightEnabled)
         {
             return 1;
@@ -1017,6 +1040,11 @@ public partial class Game1
         if (ShouldPresentAcquiredWeapon(player))
         {
             return player.AcquiredWeaponMaxShells;
+        }
+
+        if (ShouldPresentGameplayOffhandWeapon(player))
+        {
+            return Math.Max(1, player.ExperimentalOffhandMaxShells);
         }
 
         if (ShouldPresentExperimentalSoldierShotgun(player))
@@ -1051,8 +1079,10 @@ public partial class Game1
         return player.MaxShells;
     }
 
-    private static PrimaryWeaponDefinition GetRenderWeaponStats(PlayerEntity player)
+    private PrimaryWeaponDefinition GetRenderWeaponStats(PlayerEntity player)
     {
+        player = GetPlayerPredictedPresentationState(player);
+
         if (player.IsExperimentalDemoknightEnabled)
         {
             return CharacterClassCatalog.ExperimentalDemoknightEyelander;
@@ -1066,6 +1096,11 @@ public partial class Game1
         if (ShouldPresentAcquiredWeapon(player))
         {
             return player.AcquiredWeapon ?? player.PrimaryWeapon;
+        }
+
+        if (ShouldPresentGameplayOffhandWeapon(player))
+        {
+            return player.ExperimentalOffhandWeapon ?? player.PrimaryWeapon;
         }
 
         if (ShouldPresentExperimentalSoldierShotgun(player))
@@ -1118,6 +1153,12 @@ public partial class Game1
         return player.IsAcquiredWeaponPresented;
     }
 
+    private static bool ShouldPresentGameplayOffhandWeapon(PlayerEntity player)
+    {
+        return player.IsExperimentalOffhandSelected
+            && player.ExperimentalOffhandWeapon is not null;
+    }
+
     private static bool ShouldPresentExperimentalEngineerEssenceExtractor(PlayerEntity player)
     {
         return player.ClassId == PlayerClass.Engineer
@@ -1135,11 +1176,22 @@ public partial class Game1
     // Returns a stable tag string identifying which weapon slot is currently being rendered.
     // null = primary weapon, "acquired" = a picked-up weapon, "offhand:soldier" = soldier shotgun.
     // Add new tags here when additional alternate weapons are introduced for other classes.
-    private static string? GetActiveWeaponTag(PlayerEntity player)
+    private string? GetActiveWeaponTag(PlayerEntity player)
     {
+        player = GetPlayerPredictedPresentationState(player);
+
         if (ShouldPresentAcquiredWeapon(player))
         {
             return "acquired";
+        }
+
+        if (ShouldPresentGameplayOffhandWeapon(player))
+        {
+            var itemId = player.GameplayLoadoutState.EquippedItemId
+                ?? player.GameplayLoadoutState.SecondaryItemId
+                ?? player.GameplayLoadoutState.UtilityItemId
+                ?? "unknown";
+            return $"offhand:{itemId}";
         }
 
         if (ShouldPresentExperimentalSoldierShotgun(player))

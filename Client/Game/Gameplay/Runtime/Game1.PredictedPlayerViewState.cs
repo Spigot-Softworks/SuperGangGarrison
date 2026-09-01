@@ -14,6 +14,13 @@ public partial class Game1
             && _hasPredictedLocalActionState;
     }
 
+    private PlayerEntity GetPlayerPredictedPresentationState(PlayerEntity player)
+    {
+        return IsUsingPredictedLocalState(player) && _predictedLocalPlayerShadow is not null
+            ? _predictedLocalPlayerShadow
+            : player;
+    }
+
     private bool GetPlayerIsHeavyEating(PlayerEntity player)
     {
         return IsUsingPredictedLocalState(player)
@@ -284,6 +291,72 @@ public partial class Game1
         return IsUsingPredictedLocalState(player)
             ? _predictedLocalActionState.ReloadTicksUntilNextShell
             : player.ReloadTicksUntilNextShell;
+    }
+
+    private int GetPlayerExperimentalOffhandCurrentShells(PlayerEntity player)
+    {
+        return IsUsingPredictedLocalState(player)
+            ? _predictedLocalActionState.ExperimentalOffhandCurrentShells
+            : player.ExperimentalOffhandCurrentShells;
+    }
+
+    private int GetPlayerExperimentalOffhandCooldownTicks(PlayerEntity player)
+    {
+        return IsUsingPredictedLocalState(player)
+            ? _predictedLocalActionState.ExperimentalOffhandCooldownTicks
+            : player.ExperimentalOffhandCooldownTicks;
+    }
+
+    private int GetPlayerExperimentalOffhandReloadTicksUntilNextShell(PlayerEntity player)
+    {
+        return IsUsingPredictedLocalState(player)
+            ? _predictedLocalActionState.ExperimentalOffhandReloadTicksUntilNextShell
+            : player.ExperimentalOffhandReloadTicksUntilNextShell;
+    }
+
+    private int GetPlayerBuffBannerChargeKills(PlayerEntity player)
+    {
+        return IsUsingPredictedLocalState(player)
+            ? _predictedLocalActionState.BuffBannerChargeKills
+            : player.BuffBannerChargeKills;
+    }
+
+    private int GetPlayerBuffBannerMaxChargeKills(PlayerEntity player)
+    {
+        return IsUsingPredictedLocalState(player)
+            ? Math.Max(1, _predictedLocalActionState.BuffBannerMaxChargeKills)
+            : Math.Max(1, player.BuffBannerMaxChargeKills);
+    }
+
+    private int GetPlayerBuffBannerMissingChargeKills(PlayerEntity player)
+    {
+        return Math.Max(0, GetPlayerBuffBannerMaxChargeKills(player) - GetPlayerBuffBannerChargeKills(player));
+    }
+
+    private int GetPlayerBuffBannerDeployTicksRemaining(PlayerEntity player)
+    {
+        return IsUsingPredictedLocalState(player)
+            ? _predictedLocalActionState.BuffBannerDeployTicksRemaining
+            : player.BuffBannerDeployTicksRemaining;
+    }
+
+    private int GetPlayerBuffBannerDeployDurationTicks(PlayerEntity player)
+    {
+        return IsUsingPredictedLocalState(player)
+            ? Math.Max(1, _predictedLocalActionState.BuffBannerDeployDurationTicks)
+            : Math.Max(1, player.BuffBannerDeployDurationTicks);
+    }
+
+    private bool GetPlayerIsBuffBannerDeploying(PlayerEntity player)
+    {
+        return GetPlayerBuffBannerDeployTicksRemaining(player) > 0;
+    }
+
+    private bool GetPlayerIsBuffBannerActive(PlayerEntity player)
+    {
+        return IsUsingPredictedLocalState(player)
+            ? _predictedLocalActionState.BuffBannerActiveTicksRemaining > 0
+            : player.IsBuffBannerActive;
     }
 
     private int GetPlayerPyroFlareCooldownTicks(PlayerEntity player)

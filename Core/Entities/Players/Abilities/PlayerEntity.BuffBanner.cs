@@ -115,26 +115,47 @@ public sealed partial class PlayerEntity
         int deployTicksRemaining,
         int activeTicksRemaining)
     {
+        HydrateBuffBannerState(
+            chargeKills,
+            BuffBannerDefaultMaxChargeKills,
+            deployTicksRemaining,
+            Math.Max(BuffBannerDefaultDeployTicks, Math.Max(0, deployTicksRemaining)),
+            activeTicksRemaining,
+            Math.Max(BuffBannerDefaultActiveTicks, Math.Max(0, activeTicksRemaining)),
+            BuffBannerDefaultRadius,
+            BuffBannerDefaultDamageMultiplier);
+    }
+
+    internal void HydrateBuffBannerState(
+        int chargeKills,
+        int maxChargeKills,
+        int deployTicksRemaining,
+        int deployDurationTicks,
+        int activeTicksRemaining,
+        int activeDurationTicks,
+        float radius,
+        float damageMultiplier)
+    {
         if (ClassId != PlayerClass.Soldier)
         {
             ResetBuffBannerState();
             return;
         }
 
-        BuffBannerMaxChargeKills = BuffBannerDefaultMaxChargeKills;
+        BuffBannerMaxChargeKills = Math.Max(1, maxChargeKills);
         BuffBannerChargeKills = Math.Clamp(chargeKills, 0, BuffBannerMaxChargeKills);
-        BuffBannerDeployDurationTicks = Math.Max(
-            BuffBannerDefaultDeployTicks,
-            Math.Max(0, deployTicksRemaining));
+        BuffBannerDeployDurationTicks = Math.Max(1, Math.Max(deployDurationTicks, deployTicksRemaining));
         BuffBannerDeployTicksRemaining = Math.Max(0, deployTicksRemaining);
-        BuffBannerActiveDurationTicks = Math.Max(
-            BuffBannerDefaultActiveTicks,
-            Math.Max(0, activeTicksRemaining));
+        BuffBannerActiveDurationTicks = Math.Max(1, Math.Max(activeDurationTicks, activeTicksRemaining));
         BuffBannerActiveTicksRemaining = BuffBannerDeployTicksRemaining > 0
             ? 0
             : Math.Max(0, activeTicksRemaining);
-        BuffBannerRadius = BuffBannerDefaultRadius;
-        BuffBannerDamageMultiplier = BuffBannerDefaultDamageMultiplier;
+        BuffBannerRadius = float.IsFinite(radius)
+            ? MathF.Max(1f, radius)
+            : BuffBannerDefaultRadius;
+        BuffBannerDamageMultiplier = float.IsFinite(damageMultiplier)
+            ? MathF.Max(1f, damageMultiplier)
+            : BuffBannerDefaultDamageMultiplier;
     }
 
     internal void ResetBuffBannerState()

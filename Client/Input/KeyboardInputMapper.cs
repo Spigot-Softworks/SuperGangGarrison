@@ -73,7 +73,7 @@ internal static class KeyboardInputMapper
             WeaponSwapBindingMode.MouseSecondary => mouse.RightButton == ButtonState.Pressed,
             WeaponSwapBindingMode.Q => keyboard.IsKeyDown(Keys.Q),
             WeaponSwapBindingMode.Custom => InputBindingInput.IsDown(bindings.SwapWeaponsCustomKey, keyboard, mouse),
-            _ => keyboard.IsKeyDown(Keys.Space),
+            _ => keyboard.IsKeyDown(Keys.Q),
         };
     }
 

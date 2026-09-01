@@ -3788,6 +3788,8 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
 
     private static void PressSwapWeaponSpace(SimulationWorld world)
     {
+        // This helper predates the dedicated Q default. A weapon-swap press must carry only
+        // the swap action; utility activation is a separate Space input.
         // Locked-primary weapon tests model Last to Die's post-death interaction state;
         // normal gameplay still requires the player to be at a primary swap station.
         if (world.LocalPlayer.HasAlternatePrimaryWeapons)
@@ -3808,7 +3810,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
             AimWorldX: world.LocalPlayer.X + 96f,
             AimWorldY: world.LocalPlayer.Y,
             DebugKill: false,
-            UseAbility: true,
+            UseAbility: false,
             SwapWeapon: true));
         world.AdvanceOneTick();
     }

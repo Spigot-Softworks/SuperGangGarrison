@@ -343,10 +343,9 @@ public sealed partial class SimulationWorld
             secondaryAbilityConsumedInput = secondaryResult.ConsumedInput;
         }
 
-        var swappedWeaponThisTick = false;
         if (swapWeaponPressed && !secondaryAbilityConsumedInput)
         {
-            swappedWeaponThisTick = TryHandleNetworkWeaponSwap(player);
+            _ = TryHandleNetworkWeaponSwap(player);
         }
 
         var utilityInputActive = abilityPressed
@@ -359,13 +358,11 @@ public sealed partial class SimulationWorld
             var utilityPhase = allowHeldUtilityAbility
                 ? (abilityReleased ? GameplayAbilityInputPhase.Released : GameplayAbilityInputPhase.Held)
                 : GameplayAbilityInputPhase.Pressed;
-            var abilityInputConsumedByWeaponSwap = TryHandleNetworkAbilityInput(
+            _ = TryHandleNetworkAbilityInput(
                 player,
                 input,
                 previousInput,
-                utilityPhase,
-                swappedWeaponThisTick);
-            _ = abilityInputConsumedByWeaponSwap;
+                utilityPhase);
         }
 
         if (interactWeaponPressed)

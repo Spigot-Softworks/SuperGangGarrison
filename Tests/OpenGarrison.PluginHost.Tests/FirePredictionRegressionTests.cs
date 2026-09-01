@@ -157,6 +157,50 @@ public sealed class FirePredictionRegressionTests
     }
 
     [Fact]
+    public void PredictedBuffBannerDeploymentConsumesChargeAndBlocksFollowingPrimaryFire()
+    {
+        var world = new SimulationWorld();
+        world.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings(
+            EnableSecondaryAbilities: true));
+        world.PrepareLocalPlayerJoin();
+        world.CompleteLocalPlayerJoin(PlayerClass.Soldier);
+        var player = world.LocalPlayer;
+        Assert.True(player.TryAddBuffBannerKillCharge(PlayerEntity.BuffBannerDefaultMaxChargeKills));
+        var game = CreatePredictionHarness(world);
+
+        InvokePrivate(
+            typeof(Game1),
+            game,
+            "ApplyPredictedInputStep",
+            player,
+            CreatePredictedLocalInput(
+                default(PlayerInputSnapshot) with { UseAbility = true },
+                primaryPressed: false,
+                abilityPressed: true));
+
+        Assert.True(player.IsBuffBannerDeploying);
+        Assert.Equal(0, player.BuffBannerChargeKills);
+        var ammoAfterDeploy = player.CurrentShells;
+
+        InvokePrivate(
+            typeof(Game1),
+            game,
+            "ApplyPredictedInputStep",
+            player,
+            CreatePredictedLocalInput(
+                default(PlayerInputSnapshot) with
+                {
+                    FirePrimary = true,
+                    AimWorldX = player.X + 256f,
+                    AimWorldY = player.Y,
+                },
+                primaryPressed: true));
+
+        Assert.Equal(ammoAfterDeploy, player.CurrentShells);
+        Assert.Empty(world.Rockets);
+    }
+
+    [Fact]
     public void ImmediatePresentationLatchAndAuthorityConfirmationAreSeparateOneShotStates()
     {
         var pendingConfirmationSeconds = 0f;
@@ -191,7 +235,8 @@ public sealed class FirePredictionRegressionTests
     private static object CreatePredictedLocalInput(
         PlayerInputSnapshot input,
         bool primaryPressed,
-        bool secondaryAbilityPressed = false)
+        bool secondaryAbilityPressed = false,
+        bool abilityPressed = false)
     {
         var inputType = typeof(Game1).GetNestedType(
             "PredictedLocalInput",
@@ -223,7 +268,7 @@ public sealed class FirePredictionRegressionTests
             primaryPressed,
             secondaryAbilityPressed,
             false,
-            false,
+            abilityPressed,
             false,
             false,
             false,

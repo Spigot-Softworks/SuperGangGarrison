@@ -426,6 +426,14 @@ public partial class Game1
             ExperimentalOffhandCurrentShells = player.ExperimentalOffhandCurrentShells,
             ExperimentalOffhandCooldownTicks = player.ExperimentalOffhandCooldownTicks,
             ExperimentalOffhandReloadTicksUntilNextShell = player.ExperimentalOffhandReloadTicksUntilNextShell,
+            BuffBannerChargeKills = player.BuffBannerChargeKills,
+            BuffBannerMaxChargeKills = player.BuffBannerMaxChargeKills,
+            BuffBannerDeployTicksRemaining = player.BuffBannerDeployTicksRemaining,
+            BuffBannerDeployDurationTicks = player.BuffBannerDeployDurationTicks,
+            BuffBannerActiveTicksRemaining = player.BuffBannerActiveTicksRemaining,
+            BuffBannerActiveDurationTicks = player.BuffBannerActiveDurationTicks,
+            BuffBannerRadius = player.BuffBannerRadius,
+            BuffBannerDamageMultiplier = player.BuffBannerDamageMultiplier,
             AcquiredWeaponCurrentShells = player.AcquiredWeaponCurrentShells,
             AcquiredWeaponCooldownTicks = player.AcquiredWeaponCooldownTicks,
             AcquiredWeaponReloadTicksUntilNextShell = player.AcquiredWeaponReloadTicksUntilNextShell,
@@ -584,6 +592,14 @@ public partial class Game1
         public int ExperimentalOffhandCurrentShells;
         public int ExperimentalOffhandCooldownTicks;
         public int ExperimentalOffhandReloadTicksUntilNextShell;
+        public int BuffBannerChargeKills;
+        public int BuffBannerMaxChargeKills;
+        public int BuffBannerDeployTicksRemaining;
+        public int BuffBannerDeployDurationTicks;
+        public int BuffBannerActiveTicksRemaining;
+        public int BuffBannerActiveDurationTicks;
+        public float BuffBannerRadius;
+        public float BuffBannerDamageMultiplier;
         public int AcquiredWeaponCurrentShells;
         public int AcquiredWeaponCooldownTicks;
         public int AcquiredWeaponReloadTicksUntilNextShell;

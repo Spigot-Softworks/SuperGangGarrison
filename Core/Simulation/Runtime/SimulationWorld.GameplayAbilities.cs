@@ -927,12 +927,10 @@ public sealed partial class SimulationWorld
 
     internal GameplayAbilityResult ExecuteSoldierSecondaryToggleAbility(GameplayAbilityContext context)
     {
-        if (!context.Input.SwapWeapon)
-        {
-            TryHandleLegacyNetworkSecondaryWeaponToggle(context.Player, context.Input);
-        }
-
-        return GameplayAbilityResult.HandledAndConsumed;
+        // Legacy compatibility definition only. Weapon selection is exclusively driven by
+        // PlayerInputSnapshot.SwapWeapon and must never be reached through a utility ability.
+        _ = context;
+        return GameplayAbilityResult.Ignored;
     }
 
     internal GameplayAbilityResult ExecuteSoldierBuffBannerAbility(GameplayAbilityContext context)
@@ -980,30 +978,18 @@ public sealed partial class SimulationWorld
 
     internal GameplayAbilityResult ExecuteScoutNailgunToggleAbility(GameplayAbilityContext context)
     {
-        if (!context.Input.SwapWeapon)
-        {
-            TryHandleLegacyNetworkSecondaryWeaponToggle(context.Player, context.Input);
-        }
-
-        return GameplayAbilityResult.HandledAndConsumed;
+        // Legacy compatibility definition only. Alternate primaries are selected at a swap
+        // station and secondary weapons are selected through the dedicated swap input.
+        _ = context;
+        return GameplayAbilityResult.Ignored;
     }
 
     internal GameplayAbilityResult ExecuteSniperBowToggleAbility(GameplayAbilityContext context)
     {
-        var player = context.Player;
-        if (player.IsSniperScoped)
-        {
-            player.TryToggleSniperScope();
-        }
-
-        player.CancelSniperBowCharge();
-
-        if (!context.Input.SwapWeapon)
-        {
-            TryHandleLegacyNetworkSecondaryWeaponToggle(context.Player, context.Input);
-        }
-
-        return GameplayAbilityResult.HandledAndConsumed;
+        // Legacy compatibility definition only. Weapon swaps perform their own scope and bow
+        // cleanup through the dedicated swap path.
+        _ = context;
+        return GameplayAbilityResult.Ignored;
     }
 
     internal GameplayPrimaryWeaponResult ExecuteScoutNailgunPrimaryWeapon(GameplayPrimaryWeaponContext context)

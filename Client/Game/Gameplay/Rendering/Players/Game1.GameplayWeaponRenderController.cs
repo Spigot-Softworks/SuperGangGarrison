@@ -119,7 +119,7 @@ public partial class Game1
 
         public bool TryDrawWeaponSpriteAtPosition(PlayerEntity player, Vector2 renderPosition, Vector2 cameraPosition, Color tint, float visibilityAlpha, PlayerBodySpriteSelection bodySelection)
         {
-            if (player.IsBuffBannerDeploying || _game.GetPlayerIsCivviePogoActive(player))
+            if (_game.GetPlayerIsBuffBannerDeploying(player) || _game.GetPlayerIsCivviePogoActive(player))
             {
                 return false;
             }
@@ -236,7 +236,7 @@ public partial class Game1
             IReadOnlyList<Vector2>? outlineOffsets = null)
         {
             if (outlineTint.A <= 0
-                || player.IsBuffBannerDeploying
+                || _game.GetPlayerIsBuffBannerDeploying(player)
                 || _game.GetPlayerIsCivviePogoActive(player)
                 || _game.ShouldHideLastToDieWeaponForPlayer(player)
                 || _game.GetPlayerIsHeavyEating(player)
@@ -305,7 +305,7 @@ public partial class Game1
             float visibilityAlpha)
         {
             if (!player.IsAlive
-                || !player.IsBuffBannerActive
+                || !_game.GetPlayerIsBuffBannerActive(player)
                 || visibilityAlpha <= 0f
                 || _game.GetPlayerIsCivviePogoActive(player))
             {
@@ -758,7 +758,7 @@ public partial class Game1
             return GetWeaponSpriteFrameIndexCore(player, weaponAnimationMode, weaponDefinition, frameCount);
         }
 
-        public static WeaponRenderDefinition GetWeaponRenderDefinitionProxy(PlayerEntity player, bool forceCivvieUmbrellaPresentation = false)
+        public WeaponRenderDefinition GetWeaponRenderDefinitionProxy(PlayerEntity player, bool forceCivvieUmbrellaPresentation = false)
             => GetWeaponRenderDefinition(player, forceCivvieUmbrellaPresentation);
         public static float GetSourceTicksAsSecondsProxy(float ticks) => GetSourceTicksAsSeconds(ticks);
 
@@ -824,8 +824,9 @@ public partial class Game1
             return System.Math.Clamp(teamOffset + animationFrame, 0, frameCount - 1);
         }
 
-        private static WeaponRenderDefinition GetWeaponRenderDefinition(PlayerEntity player, bool forceCivvieUmbrellaPresentation = false)
+        private WeaponRenderDefinition GetWeaponRenderDefinition(PlayerEntity player, bool forceCivvieUmbrellaPresentation = false)
         {
+            player = _game.GetPlayerPredictedPresentationState(player);
             var presentation = ResolveRenderPresentation(player, forceCivvieUmbrellaPresentation);
             var rifleCycleSpeed = player.ClassId == PlayerClass.Sniper
                     && player.PrimaryWeapon.Kind == PrimaryWeaponKind.Rifle

@@ -66,11 +66,11 @@ public sealed class InputBindingsSettings
 
     public InputBinding UseAbility { get; set; } = InputBinding.FromKey(Keys.Space);
 
-    public InputBinding InteractWeapon { get; set; } = InputBinding.FromKey(Keys.Q);
+    public InputBinding InteractWeapon { get; set; } = InputBinding.FromKey(Keys.G);
 
-    public WeaponSwapBindingMode SwapWeaponsBinding { get; set; } = WeaponSwapBindingMode.Space;
+    public WeaponSwapBindingMode SwapWeaponsBinding { get; set; } = WeaponSwapBindingMode.Q;
 
-    public InputBinding SwapWeaponsCustomKey { get; set; } = InputBinding.FromKey(Keys.Space);
+    public InputBinding SwapWeaponsCustomKey { get; set; } = InputBinding.FromKey(Keys.Q);
 
     public InputBinding ShowScoreboard { get; set; } = InputBinding.FromKey(Keys.Tab);
 
@@ -161,7 +161,7 @@ public sealed class InputBindingsSettings
         }
 
         var document = IniConfigurationFile.Load(path);
-        return new InputBindingsSettings
+        return ResolveLegacyDefaultBindingCollisions(new InputBindingsSettings
         {
             MoveUp = ReadBinding(document, "jump", Keys.W),
             MoveDown = ReadBinding(document, "down", Keys.S),
@@ -170,9 +170,9 @@ public sealed class InputBindingsSettings
             Taunt = ReadBinding(document, "taunt", Keys.F),
             CallMedic = ReadBinding(document, "medic", Keys.E),
             UseAbility = ReadBinding(document, "secondaryWeapon", Keys.Space),
-            InteractWeapon = ReadBinding(document, "interactWeapon", Keys.Q),
+            InteractWeapon = ReadBinding(document, "interactWeapon", Keys.G),
             SwapWeaponsBinding = ReadSwapWeaponsBinding(document),
-            SwapWeaponsCustomKey = ReadBinding(document, "swapWeaponsCustomKey", Keys.Space),
+            SwapWeaponsCustomKey = ReadBinding(document, "swapWeaponsCustomKey", Keys.Q),
             ChangeTeam = ReadBinding(document, "changeTeam", Keys.N),
             ChangeClass = ReadBinding(document, "changeClass", Keys.M),
             ShowScoreboard = ReadBinding(document, "showScores", Keys.LeftShift),
@@ -181,7 +181,7 @@ public sealed class InputBindingsSettings
             OpenBubbleMenuX = ReadBinding(document, "bubbleMenuX", Keys.X),
             OpenBubbleMenuC = ReadBinding(document, "bubbleMenuC", Keys.C),
             CustomBubble = ReadBinding(document, "customBubble", Keys.R),
-        };
+        });
     }
 
     private static InputBinding ReadBinding(IniConfigurationFile document, string key, Keys fallback)
@@ -290,7 +290,7 @@ public sealed class InputBindingsSettings
 
     private static InputBindingsSettings FromLegacy(LegacyInputBindingsSettings legacy)
     {
-        return new InputBindingsSettings
+        return ResolveLegacyDefaultBindingCollisions(new InputBindingsSettings
         {
             MoveLeft = InputBinding.FromKey(legacy.MoveLeft),
             MoveRight = InputBinding.FromKey(legacy.MoveRight),
@@ -310,15 +310,35 @@ public sealed class InputBindingsSettings
             OpenBubbleMenuX = InputBinding.FromKey(legacy.OpenBubbleMenuX),
             OpenBubbleMenuC = InputBinding.FromKey(legacy.OpenBubbleMenuC),
             CustomBubble = InputBinding.FromKey(legacy.CustomBubble),
-        };
+        });
     }
 
     private static WeaponSwapBindingMode ReadSwapWeaponsBinding(IniConfigurationFile document)
     {
-        var text = document.GetString("Controls", "swapWeapons", WeaponSwapBindingMode.Space.ToString());
+        var text = document.GetString("Controls", "swapWeapons", WeaponSwapBindingMode.Q.ToString());
         return Enum.TryParse<WeaponSwapBindingMode>(text, ignoreCase: true, out var binding)
             ? NormalizeSwapWeaponsBinding(binding)
-            : WeaponSwapBindingMode.Space;
+            : WeaponSwapBindingMode.Q;
+    }
+
+    private static InputBindingsSettings ResolveLegacyDefaultBindingCollisions(InputBindingsSettings settings)
+    {
+        // Older builds shipped both actions on Space. Treat that exact pair as
+        // the old default and migrate it, while preserving a customized Space
+        // swap when the utility ability has already been rebound.
+        if (NormalizeSwapWeaponsBinding(settings.SwapWeaponsBinding) == WeaponSwapBindingMode.Space
+            && settings.UseAbility.IsKeyboardKey(Keys.Space))
+        {
+            settings.SwapWeaponsBinding = WeaponSwapBindingMode.Q;
+        }
+
+        if (NormalizeSwapWeaponsBinding(settings.SwapWeaponsBinding) == WeaponSwapBindingMode.Q
+            && settings.InteractWeapon.IsKeyboardKey(Keys.Q))
+        {
+            settings.InteractWeapon = InputBinding.FromKey(Keys.G);
+        }
+
+        return settings;
     }
 
     public static WeaponSwapBindingMode NormalizeSwapWeaponsBinding(WeaponSwapBindingMode binding)
@@ -329,7 +349,7 @@ public sealed class InputBindingsSettings
             WeaponSwapBindingMode.MouseSecondary => WeaponSwapBindingMode.MouseSecondary,
             WeaponSwapBindingMode.Q => WeaponSwapBindingMode.Q,
             WeaponSwapBindingMode.Custom => WeaponSwapBindingMode.Custom,
-            _ => WeaponSwapBindingMode.Space,
+            _ => WeaponSwapBindingMode.Q,
         };
     }
 
@@ -342,9 +362,9 @@ public sealed class InputBindingsSettings
         public Keys Taunt { get; set; } = Keys.F;
         public Keys CallMedic { get; set; } = Keys.E;
         public Keys UseAbility { get; set; } = Keys.Space;
-        public Keys InteractWeapon { get; set; } = Keys.Q;
-        public WeaponSwapBindingMode SwapWeaponsBinding { get; set; } = WeaponSwapBindingMode.Space;
-        public Keys SwapWeaponsCustomKey { get; set; } = Keys.Space;
+        public Keys InteractWeapon { get; set; } = Keys.G;
+        public WeaponSwapBindingMode SwapWeaponsBinding { get; set; } = WeaponSwapBindingMode.Q;
+        public Keys SwapWeaponsCustomKey { get; set; } = Keys.Q;
         public Keys ShowScoreboard { get; set; } = Keys.Tab;
         public Keys ChangeTeam { get; set; } = Keys.N;
         public Keys ChangeClass { get; set; } = Keys.M;
