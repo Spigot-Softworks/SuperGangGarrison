@@ -106,6 +106,11 @@ public partial class Game1
             return _onlineSessionController.TryPlayOpenGarrisonDemo(demoPath, addConsoleFeedback);
         }
 
+        public bool TrySeekOpenGarrisonDemo(int deltaMilliseconds, out int targetMilliseconds, out string error)
+        {
+            return _onlineSessionController.TrySeekOpenGarrisonDemo(deltaMilliseconds, out targetMilliseconds, out error);
+        }
+
         public void HandleWelcomeMessage(OpenGarrison.Protocol.WelcomeMessage welcome)
         {
             _onlineSessionController.HandleWelcomeMessage(welcome);

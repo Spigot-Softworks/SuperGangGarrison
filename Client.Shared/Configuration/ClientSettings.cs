@@ -73,6 +73,8 @@ public sealed class ClientSettings
 
     public bool KillCamEnabled { get; set; } = true;
 
+    public bool AlwaysRecordGames { get; set; }
+
     public int ParticleMode { get; set; }
 
     public int FlameRenderMode { get; set; }
@@ -262,6 +264,7 @@ public sealed class ClientSettings
             GibLevel = document.GibLevel,
             CorpseDurationMode = document.CorpseDurationMode,
             KillCamEnabled = document.KillCamEnabled,
+            AlwaysRecordGames = document.AlwaysRecordGames,
             HealerRadarEnabled = document.HealerRadarEnabled,
             ShowHealerEnabled = document.ShowHealerEnabled,
             ShowHealingEnabled = document.ShowHealingEnabled,
@@ -341,6 +344,7 @@ public sealed class ClientSettings
         preferences.MusicMode = MusicMode;
         preferences.BotMode = BotMode;
         preferences.KillCamEnabled = KillCamEnabled;
+        preferences.AlwaysRecordGames = AlwaysRecordGames;
         preferences.ParticleMode = ParticleMode;
         preferences.FlameRenderMode = FlameRenderMode;
         preferences.MenuBackgroundMode = MenuBackgroundMode;

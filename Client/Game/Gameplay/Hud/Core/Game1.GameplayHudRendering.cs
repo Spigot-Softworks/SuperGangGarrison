@@ -436,6 +436,7 @@ public partial class Game1
             WriteGameplayRenderTrace("modal after console");
         }
 
+        DrawReplayPlaybackControls(mouse);
         DrawNetworkDiagnosticsOverlay();
         WriteGameplayRenderTrace("modal after networkdiagnostics");
         DrawBotDiagnosticsOverlay();

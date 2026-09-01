@@ -33,6 +33,120 @@ public partial class Game1
         return _networkClient.TryStartDemoRecording(resolvedPath, remoteDescription, initialWelcomePayload, out status, out error);
     }
 
+    private void ToggleAlwaysRecordGames()
+    {
+        if (OperatingSystem.IsBrowser())
+        {
+            return;
+        }
+
+        _clientSettings.AlwaysRecordGames = !_clientSettings.AlwaysRecordGames;
+        if (_clientSettings.AlwaysRecordGames)
+        {
+            try
+            {
+                _ = RuntimePaths.ReplaysDirectory;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+            {
+                _clientSettings.AlwaysRecordGames = false;
+                _menuStatusMessage = $"Replay recording failed: {ex.Message}";
+                PersistClientSettings();
+                return;
+            }
+
+            if (_networkClient.IsConnected
+                && !_networkClient.IsReplayConnection
+                && _networkClient.IsAwaitingWelcome
+                && !_networkClient.IsDemoRecordingActive)
+            {
+                TryStartAutomaticDemoRecording(
+                    _networkClient.ServerDescription ?? "server",
+                    "session",
+                    out var status,
+                    out var error);
+                _menuStatusMessage = string.IsNullOrWhiteSpace(error) ? status : $"Replay recording failed: {error}";
+            }
+            else if (_networkClient.IsConnected
+                && !_networkClient.IsReplayConnection
+                && !_networkClient.IsDemoRecordingActive)
+            {
+                // A recording that starts after the welcome may receive delta snapshots whose
+                // baseline predates the file. Start cleanly with the next connection instead.
+                _menuStatusMessage = "Always Record Games enabled. Recording starts with the next game.";
+            }
+        }
+        else if (_networkClient.IsAutomaticDemoRecordingActive)
+        {
+            if (_networkClient.TryStopDemoRecording(saveRecording: true, out var status, out var error))
+            {
+                _menuStatusMessage = status;
+            }
+            else if (!string.IsNullOrWhiteSpace(error))
+            {
+                _menuStatusMessage = $"Replay recording failed: {error}";
+            }
+        }
+
+        PersistClientSettings();
+    }
+
+    private void EnsureAutomaticDemoRecordingForConnection(string serverLabel)
+    {
+        if (!_clientSettings.AlwaysRecordGames
+            || OperatingSystem.IsBrowser()
+            || _networkClient.IsReplayConnection
+            || _networkClient.IsDemoRecordingActive)
+        {
+            return;
+        }
+
+        if (!TryStartAutomaticDemoRecording(serverLabel, "session", out var status, out var error))
+        {
+            AddNetworkConsoleLine($"automatic demo recording failed: {error}");
+            return;
+        }
+
+        AddNetworkConsoleLine(status);
+    }
+
+    private bool TryStartAutomaticDemoRecording(
+        string serverName,
+        string levelName,
+        out string status,
+        out string error)
+    {
+        status = string.Empty;
+        error = string.Empty;
+        if (_networkClient.IsReplayConnection || _networkClient.IsDemoRecordingActive)
+        {
+            return false;
+        }
+
+        if (_networkClient.IsConnected && !_networkClient.IsAwaitingWelcome)
+        {
+            error = "automatic recording must start before the server welcome; it will start with the next game.";
+            return false;
+        }
+
+        try
+        {
+            var outputPath = ResolveAvailableDemoRecordingOutputPath(serverName, levelName);
+            return _networkClient.TryStartDemoRecording(
+                outputPath,
+                _networkClient.ServerDescription ?? serverName,
+                initialWelcomePayload: null,
+                out status,
+                out error,
+                automatic: true);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            error = ex.Message;
+            return false;
+        }
+    }
+
     private WelcomeMessage BuildSyntheticDemoRecordingWelcome()
     {
         return new WelcomeMessage(
@@ -62,9 +176,14 @@ public partial class Game1
 
     private string BuildDefaultDemoRecordingFileName()
     {
-        var timestamp = DateTime.Now.ToString("yyyy-MM-dd HH-mm-ss", CultureInfo.InvariantCulture);
         var levelName = string.IsNullOrWhiteSpace(_world.Level.Name) ? "unknown-map" : _world.Level.Name;
         var serverName = string.IsNullOrWhiteSpace(_networkClient.ServerDescription) ? "server" : _networkClient.ServerDescription;
+        return BuildDemoRecordingFileName(serverName, levelName);
+    }
+
+    private static string BuildDemoRecordingFileName(string serverName, string levelName)
+    {
+        var timestamp = DateTime.Now.ToString("yyyy-MM-dd HH-mm-ss-fff", CultureInfo.InvariantCulture);
         var builder = new StringBuilder();
         builder.Append(timestamp);
         builder.Append(' ');
@@ -73,6 +192,29 @@ public partial class Game1
         builder.Append(SanitizeDemoRecordingPathSegment(levelName));
         builder.Append(".ogdemo");
         return builder.ToString();
+    }
+
+    private static string ResolveAvailableDemoRecordingOutputPath(string serverName, string levelName)
+    {
+        var replayDirectory = RuntimePaths.ReplaysDirectory;
+        var fileName = BuildDemoRecordingFileName(serverName, levelName);
+        var candidate = Path.Combine(replayDirectory, fileName);
+        if (!File.Exists(candidate) && !File.Exists(candidate + ".recording"))
+        {
+            return candidate;
+        }
+
+        var stem = Path.GetFileNameWithoutExtension(fileName);
+        for (var suffix = 2; suffix < int.MaxValue; suffix += 1)
+        {
+            candidate = Path.Combine(replayDirectory, $"{stem} ({suffix}).ogdemo");
+            if (!File.Exists(candidate) && !File.Exists(candidate + ".recording"))
+            {
+                return candidate;
+            }
+        }
+
+        throw new IOException("Could not allocate a unique demo recording filename.");
     }
 
     private static string SanitizeDemoRecordingPathSegment(string value)
@@ -95,7 +237,8 @@ public partial class Game1
             builder.Append(char.IsWhiteSpace(character) ? ' ' : character);
         }
 
-        return string.IsNullOrWhiteSpace(builder.ToString()) ? "session" : builder.ToString().Trim();
+        var sanitized = string.IsNullOrWhiteSpace(builder.ToString()) ? "session" : builder.ToString().Trim();
+        return sanitized.Length <= 80 ? sanitized : sanitized[..80].TrimEnd();
     }
 
     private void PublishCompletedDemoRecordingNoticeIfAvailable()

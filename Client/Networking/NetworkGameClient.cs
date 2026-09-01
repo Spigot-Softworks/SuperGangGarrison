@@ -14,6 +14,16 @@ namespace OpenGarrison.Client;
 
 internal sealed class NetworkGameClient : IDisposable
 {
+    public readonly record struct ReplayPlaybackState(
+        bool IsPaused,
+        float PlaybackRate,
+        int CurrentTick,
+        int TotalTicks,
+        bool CanSeek,
+        int PositionMilliseconds,
+        int DurationMilliseconds,
+        bool IsSeekCatchUpPending);
+
     internal readonly record struct ReceiveDiagnostics(
         int PacketsRead,
         int BytesRead,
@@ -105,6 +115,7 @@ internal sealed class NetworkGameClient : IDisposable
     private string? _lastDisconnectReason;
     private OpenGarrisonDemoRecordingWriter? _demoRecorder;
     private string? _armedDemoRecordingPath;
+    private bool _demoRecordingIsAutomatic;
     private int _demoRecordingRecordedSnapshots;
     private ulong _demoRecordingFirstSnapshotFrame;
     private bool _demoRecordingFirstSnapshotFrameInitialized;
@@ -143,6 +154,8 @@ internal sealed class NetworkGameClient : IDisposable
     public bool IsAwaitingWelcome => IsConnected && LocalPlayerSlot == 0;
     public bool IsSpectator => IsConnected && LocalPlayerSlot >= SimulationWorld.FirstSpectatorSlot;
     public bool IsReplayConnection { get; private set; }
+    public bool IsDemoRecordingActive => _demoRecorder is not null || !string.IsNullOrWhiteSpace(_armedDemoRecordingPath);
+    public bool IsAutomaticDemoRecordingActive => IsDemoRecordingActive && _demoRecordingIsAutomatic;
 
     public byte LocalPlayerSlot { get; private set; }
     public string? ServerDescription { get; private set; }
@@ -172,10 +185,12 @@ internal sealed class NetworkGameClient : IDisposable
     {
         error = string.Empty;
         var armedDemoRecordingPath = _demoRecorder is null ? _armedDemoRecordingPath : null;
+        var armedDemoRecordingIsAutomatic = _demoRecorder is null && _demoRecordingIsAutomatic;
         Disconnect();
         if (!string.IsNullOrWhiteSpace(armedDemoRecordingPath))
         {
             _armedDemoRecordingPath = armedDemoRecordingPath;
+            _demoRecordingIsAutomatic = armedDemoRecordingIsAutomatic;
         }
 
         try
@@ -225,10 +240,12 @@ internal sealed class NetworkGameClient : IDisposable
         error = string.Empty;
         ArgumentNullException.ThrowIfNull(transport);
         var armedDemoRecordingPath = _demoRecorder is null ? _armedDemoRecordingPath : null;
+        var armedDemoRecordingIsAutomatic = _demoRecorder is null && _demoRecordingIsAutomatic;
         Disconnect();
         if (!string.IsNullOrWhiteSpace(armedDemoRecordingPath))
         {
             _armedDemoRecordingPath = armedDemoRecordingPath;
+            _demoRecordingIsAutomatic = armedDemoRecordingIsAutomatic;
         }
 
         _transport = transport;
@@ -376,6 +393,70 @@ internal sealed class NetworkGameClient : IDisposable
         return true;
     }
 
+    public bool TryGetReplayPlaybackState(out ReplayPlaybackState state)
+    {
+        if (_transport is not IPlaybackMessageTransport replayTransport)
+        {
+            state = default;
+            return false;
+        }
+
+        if (replayTransport is ISeekablePlaybackMessageTransport seekableTransport)
+        {
+            state = new ReplayPlaybackState(
+                replayTransport.IsPaused,
+                replayTransport.PlaybackRate,
+                replayTransport.CurrentTick,
+                replayTransport.TotalTicks,
+                CanSeek: true,
+                seekableTransport.PositionMilliseconds,
+                seekableTransport.DurationMilliseconds,
+                seekableTransport.IsSeekCatchUpPending);
+            return true;
+        }
+
+        state = new ReplayPlaybackState(
+            replayTransport.IsPaused,
+            replayTransport.PlaybackRate,
+            replayTransport.CurrentTick,
+            replayTransport.TotalTicks,
+            CanSeek: false,
+            PositionMilliseconds: 0,
+            DurationMilliseconds: 0,
+            IsSeekCatchUpPending: false);
+        return true;
+    }
+
+    public bool TryCreateSeekedReplayTransport(
+        int deltaMilliseconds,
+        out INetworkClientMessageTransport? transport,
+        out int targetMilliseconds,
+        out string error)
+    {
+        transport = null;
+        targetMilliseconds = 0;
+        error = string.Empty;
+        if (_transport is not ISeekablePlaybackMessageTransport replayTransport)
+        {
+            error = "the active replay does not support seeking.";
+            return false;
+        }
+
+        var currentPosition = replayTransport.PositionMilliseconds;
+        var maximumPosition = Math.Max(0, replayTransport.DurationMilliseconds - 1);
+        targetMilliseconds = (int)Math.Clamp((long)currentPosition + deltaMilliseconds, 0L, maximumPosition);
+        if (targetMilliseconds == currentPosition)
+        {
+            error = deltaMilliseconds < 0
+                ? "the replay is already at the beginning."
+                : "the replay is already at the end.";
+            return false;
+        }
+
+        transport = replayTransport.CreateSeekedPlayback(targetMilliseconds);
+        return true;
+    }
+
     public bool TryGetReplayStatus(out string status)
     {
         if (_transport is not IPlaybackMessageTransport replayTransport)
@@ -385,12 +466,26 @@ internal sealed class NetworkGameClient : IDisposable
         }
 
         var pauseLabel = replayTransport.IsPaused ? "paused" : "playing";
-        status =
-            $"replay {pauseLabel} tick={replayTransport.CurrentTick}/{replayTransport.TotalTicks} speed={(replayTransport.PlaybackRate * 100f).ToString("0", CultureInfo.InvariantCulture)}%";
+        status = replayTransport is ISeekablePlaybackMessageTransport seekableTransport
+            ? $"replay {pauseLabel} time={FormatReplayTime(seekableTransport.PositionMilliseconds)}/{FormatReplayTime(seekableTransport.DurationMilliseconds)} " +
+              $"tick={replayTransport.CurrentTick}/{replayTransport.TotalTicks} speed={(replayTransport.PlaybackRate * 100f).ToString("0", CultureInfo.InvariantCulture)}%"
+            : $"replay {pauseLabel} tick={replayTransport.CurrentTick}/{replayTransport.TotalTicks} speed={(replayTransport.PlaybackRate * 100f).ToString("0", CultureInfo.InvariantCulture)}%";
         return true;
     }
 
-    public bool TryStartDemoRecording(string demoPath, string remoteDescription, byte[]? initialWelcomePayload, out string status, out string error)
+    private static string FormatReplayTime(int milliseconds)
+    {
+        var totalSeconds = Math.Max(0, milliseconds) / 1000;
+        return $"{totalSeconds / 60}:{totalSeconds % 60:00}";
+    }
+
+    public bool TryStartDemoRecording(
+        string demoPath,
+        string remoteDescription,
+        byte[]? initialWelcomePayload,
+        out string status,
+        out string error,
+        bool automatic = false)
     {
         status = string.Empty;
         error = string.Empty;
@@ -422,10 +517,17 @@ internal sealed class NetworkGameClient : IDisposable
         var resolvedPath = Path.GetFullPath(demoPath.Trim().Trim('"'));
         if (initialWelcomePayload is not null)
         {
-            return TryCreateActiveDemoRecorder(resolvedPath, remoteDescription, initialWelcomePayload, out status, out error);
+            return TryCreateActiveDemoRecorder(
+                resolvedPath,
+                remoteDescription,
+                initialWelcomePayload,
+                automatic,
+                out status,
+                out error);
         }
 
         _armedDemoRecordingPath = resolvedPath;
+        _demoRecordingIsAutomatic = automatic;
         status = $"demo recording armed: {resolvedPath}";
         return true;
     }
@@ -870,7 +972,7 @@ internal sealed class NetworkGameClient : IDisposable
                 if (payload.Length >= sizeof(uint)
                     && System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(payload) == Protocol64FrameHeader.Magic)
                 {
-                    if (HandleProtocol64Frame(payload) is { } protocol64Message)
+                    if (HandleProtocol64Frame(transport, payload) is { } protocol64Message)
                     {
                         messages.Add(protocol64Message);
                     }
@@ -1104,7 +1206,7 @@ internal sealed class NetworkGameClient : IDisposable
         return true;
     }
 
-    private IProtocolMessage? HandleProtocol64Frame(byte[] payload)
+    private IProtocolMessage? HandleProtocol64Frame(INetworkClientMessageTransport transport, byte[] payload)
     {
         var decoded = Protocol64FrameCodec.Decode(
             payload,
@@ -1134,6 +1236,8 @@ internal sealed class NetworkGameClient : IDisposable
         {
             _protocol64ConnectionEpoch = header.ConnectionEpoch;
         }
+
+        CaptureInboundProtocol64DemoEvent(transport, decoded.Event, payload);
 
         switch (decoded.Event)
         {
@@ -1236,11 +1340,12 @@ internal sealed class NetworkGameClient : IDisposable
             }
 
             if (!TryCreateActiveDemoRecorder(
-                    _armedDemoRecordingPath,
-                    ServerDescription ?? transport.RemoteDescription,
-                    payload,
-                    out _,
-                    out var activationError))
+                _armedDemoRecordingPath,
+                ServerDescription ?? transport.RemoteDescription,
+                payload,
+                _demoRecordingIsAutomatic,
+                out _,
+                out var activationError))
             {
                 _lastCompletedDemoRecordingNotice = $"demo recording failed: {activationError}";
             }
@@ -1261,10 +1366,52 @@ internal sealed class NetworkGameClient : IDisposable
         }
     }
 
+    private void CaptureInboundProtocol64DemoEvent(
+        INetworkClientMessageTransport transport,
+        object message,
+        byte[] payload)
+    {
+        if (_demoRecorder is null)
+        {
+            if (message is not WelcomeMessage || string.IsNullOrWhiteSpace(_armedDemoRecordingPath))
+            {
+                return;
+            }
+
+            if (!TryCreateActiveDemoRecorder(
+                _armedDemoRecordingPath,
+                ServerDescription ?? transport.RemoteDescription,
+                payload,
+                _demoRecordingIsAutomatic,
+                out _,
+                out var activationError))
+            {
+                _lastCompletedDemoRecordingNotice = $"demo recording failed: {activationError}";
+            }
+
+            return;
+        }
+
+        if (message is WelcomeMessage)
+        {
+            return;
+        }
+
+        var dueMilliseconds = message is IProtocolMessage protocolMessage
+            ? ResolveDemoMessageDueMilliseconds(protocolMessage)
+            : ResolveDemoElapsedDueMilliseconds();
+        _demoRecorder.AppendMessage(dueMilliseconds, payload);
+        if (message is SnapshotMessage)
+        {
+            _demoRecordingRecordedSnapshots += 1;
+        }
+    }
+
     private bool TryCreateActiveDemoRecorder(
         string resolvedPath,
         string remoteDescription,
         byte[] initialWelcomePayload,
+        bool automatic,
         out string status,
         out string error)
     {
@@ -1282,6 +1429,7 @@ internal sealed class NetworkGameClient : IDisposable
             _demoRecordingStartedAtMilliseconds = _clock.ElapsedMilliseconds;
             _demoRecorder = recorder;
             _armedDemoRecordingPath = null;
+            _demoRecordingIsAutomatic = automatic;
             status = $"demo recording started: {resolvedPath}";
             return true;
         }
@@ -1291,6 +1439,7 @@ internal sealed class NetworkGameClient : IDisposable
             _demoRecorder?.Dispose();
             _demoRecorder = null;
             _armedDemoRecordingPath = null;
+            _demoRecordingIsAutomatic = false;
             error = ex.Message;
             return false;
         }
@@ -1326,6 +1475,11 @@ internal sealed class NetworkGameClient : IDisposable
             return _demoRecordingLastDueMilliseconds;
         }
 
+        return ResolveDemoElapsedDueMilliseconds();
+    }
+
+    private int ResolveDemoElapsedDueMilliseconds()
+    {
         var startMilliseconds = _demoRecordingStartedAtMilliseconds >= 0
             ? _demoRecordingStartedAtMilliseconds
             : _clock.ElapsedMilliseconds;
@@ -1345,6 +1499,7 @@ internal sealed class NetworkGameClient : IDisposable
             }
 
             _armedDemoRecordingPath = null;
+            _demoRecordingIsAutomatic = false;
             return saveRecording
                 ? $"demo recording canceled before any welcome payload was captured ({armedPath})"
                 : $"demo recording canceled ({armedPath})";
@@ -1353,6 +1508,7 @@ internal sealed class NetworkGameClient : IDisposable
         var recorder = _demoRecorder;
         _demoRecorder = null;
         _armedDemoRecordingPath = null;
+        _demoRecordingIsAutomatic = false;
 
         try
         {

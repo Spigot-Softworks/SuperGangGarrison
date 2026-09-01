@@ -332,6 +332,7 @@ public partial class Game1
             _game._gameplayLoadoutDogTagsTexture?.Dispose();
             _game._lastToDieLogoTexture?.Dispose();
             _game.DisposeLastToDieSurvivorCarouselAssets();
+            _game.DisposeReplayPlaybackControlAssets();
             _game.DisposeLastToDieBuffIconFrame();
             _game.DisposeGameplayMissPopupFrame();
             _game.DisposeGarrisonBuilderEditorAssets();

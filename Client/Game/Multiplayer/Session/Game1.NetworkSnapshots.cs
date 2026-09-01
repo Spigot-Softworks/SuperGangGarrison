@@ -80,10 +80,13 @@ public partial class Game1
             return false;
         }
 
-        RecordResolvedSnapshotPredictionError(resolvedSnapshot);
-        QueueResolvedSnapshotVisualEvents(resolvedSnapshot);
-        QueueResolvedSnapshotSoundEvents(resolvedSnapshot);
-        QueueResolvedSnapshotDamageEvents(resolvedSnapshot);
+        if (!_replaySeekCatchUpActive)
+        {
+            RecordResolvedSnapshotPredictionError(resolvedSnapshot);
+            QueueResolvedSnapshotVisualEvents(resolvedSnapshot);
+            QueueResolvedSnapshotSoundEvents(resolvedSnapshot);
+            QueueResolvedSnapshotDamageEvents(resolvedSnapshot);
+        }
 
         resolvedBatchSnapshotsByFrame ??= new Dictionary<ulong, SnapshotBaselineState>();
         resolvedBatchSnapshotsByFrame[resolvedSnapshot.Frame] = SnapshotBaselineState.FromSnapshot(resolvedSnapshot);
