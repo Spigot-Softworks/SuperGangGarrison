@@ -10,9 +10,12 @@ namespace OpenGarrison.PluginHost.Tests;
 public sealed class InputBindingsSettingsTests
 {
     [Fact]
-    public void WeaponSwapDefaultsToSpaceOutsideExclusiveMultiplayerWeapons()
+    public void WeaponSwapDefaultsToQAndUtilityAbilityDefaultsToSpace()
     {
-        Assert.Equal(WeaponSwapBindingMode.Space, new InputBindingsSettings().SwapWeaponsBinding);
+        var bindings = new InputBindingsSettings();
+        Assert.Equal(WeaponSwapBindingMode.Q, bindings.SwapWeaponsBinding);
+        Assert.Equal(InputBinding.FromKey(Keys.Space), bindings.UseAbility);
+        Assert.Equal(InputBinding.FromKey(Keys.G), bindings.InteractWeapon);
         Assert.True(KeyboardInputMapper.UsesMultiplayerExclusivePrimarySwapBinding(
             isNetworkMultiplayerSession: true,
             isLastToDieSession: false,
@@ -21,6 +24,60 @@ public sealed class InputBindingsSettingsTests
             isNetworkMultiplayerSession: true,
             isLastToDieSession: true,
             isLockedPrimaryWeaponClass: true));
+    }
+
+    [Fact]
+    public void DefaultQAndSpaceInputsAreMutuallyExclusive()
+    {
+        var bindings = new InputBindingsSettings();
+
+        var qInput = KeyboardInputMapper.BuildGameplaySnapshot(
+            bindings,
+            new KeyboardState(Keys.Q),
+            new MouseState(),
+            cameraX: 0f,
+            cameraY: 0f,
+            localPlayerX: 0f,
+            localPlayerY: 0f);
+        var spaceInput = KeyboardInputMapper.BuildGameplaySnapshot(
+            bindings,
+            new KeyboardState(Keys.Space),
+            new MouseState(),
+            cameraX: 0f,
+            cameraY: 0f,
+            localPlayerX: 0f,
+            localPlayerY: 0f);
+
+        Assert.True(qInput.SwapWeapon);
+        Assert.False(qInput.UseAbility);
+        Assert.True(spaceInput.UseAbility);
+        Assert.False(spaceInput.SwapWeapon);
+    }
+
+    [Fact]
+    public void LoadingOldSpaceCollisionMigratesSwapToQ()
+    {
+        var path = Path.Combine(Path.GetTempPath(), "opengarrison-controls-tests", Guid.NewGuid().ToString("N"), InputBindingsSettings.DefaultFileName);
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(
+            path,
+            "[Controls]" + Environment.NewLine
+            + "secondaryWeapon=Keyboard:Space" + Environment.NewLine
+            + "swapWeapons=Space" + Environment.NewLine
+            + "interactWeapon=Keyboard:Q" + Environment.NewLine);
+
+        try
+        {
+            var loaded = InputBindingsSettings.Load(path);
+
+            Assert.Equal(WeaponSwapBindingMode.Q, loaded.SwapWeaponsBinding);
+            Assert.Equal(InputBinding.FromKey(Keys.Space), loaded.UseAbility);
+            Assert.Equal(InputBinding.FromKey(Keys.G), loaded.InteractWeapon);
+        }
+        finally
+        {
+            Directory.Delete(Path.GetDirectoryName(path)!, recursive: true);
+        }
     }
 
     [Fact]

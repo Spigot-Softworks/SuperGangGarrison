@@ -289,7 +289,7 @@ public partial class Game1
 
     private void ApplyPredictedPrimaryFire(PlayerEntity player, PredictedLocalInput predictedInput)
     {
-        if (player.IsTaunting)
+        if (player.IsTaunting || player.IsBuffBannerDeploying)
         {
             return;
         }
@@ -419,8 +419,17 @@ public partial class Game1
     {
         if (player.IsTaunting
             || predictedInput.Input.FireSecondary
-            || !_world.ExperimentalGameplaySettings.EnableSecondaryAbilities
-            || !player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.SpyUtility))
+            || !_world.ExperimentalGameplaySettings.EnableSecondaryAbilities)
+        {
+            return;
+        }
+
+        if (TryPredictedStartBuffBanner(player, predictedInput))
+        {
+            return;
+        }
+
+        if (!player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.SpyUtility))
         {
             return;
         }
@@ -516,6 +525,56 @@ public partial class Game1
         }
 
         SyncPredictedLocalPlayerState(player);
+    }
+
+    private bool TryPredictedStartBuffBanner(PlayerEntity player, PredictedLocalInput predictedInput)
+    {
+        if (!predictedInput.AbilityPressed
+            || !player.TryGetGameplayAbilityItem(
+                GameplayAbilityConstants.UtilityChannel,
+                BuiltInGameplayBehaviorIds.SoldierBuffBanner,
+                out var abilityItem)
+            || abilityItem.Ability is not { } ability)
+        {
+            return false;
+        }
+
+        var maxChargeKills = GameplayAbilityParameterReader.GetInt(
+            ability,
+            "maxChargeKills",
+            PlayerEntity.BuffBannerDefaultMaxChargeKills,
+            minValue: 1);
+        var deployTicks = GameplayAbilityParameterReader.GetTicks(
+            ability,
+            "deployTicks",
+            "deploySeconds",
+            PlayerEntity.BuffBannerDefaultDeployTicks,
+            _config.TicksPerSecond);
+        var activeTicks = GameplayAbilityParameterReader.GetTicks(
+            ability,
+            "activeTicks",
+            "activeSeconds",
+            PlayerEntity.BuffBannerDefaultActiveTicks,
+            _config.TicksPerSecond);
+        var radius = GameplayAbilityParameterReader.GetFloat(
+            ability,
+            "radius",
+            PlayerEntity.BuffBannerDefaultRadius,
+            minValue: 1f);
+        var damageMultiplier = GameplayAbilityParameterReader.GetFloat(
+            ability,
+            "damageMultiplier",
+            PlayerEntity.BuffBannerDefaultDamageMultiplier,
+            minValue: 1f);
+
+        _ = player.TryStartBuffBanner(
+            maxChargeKills,
+            deployTicks,
+            activeTicks,
+            radius,
+            damageMultiplier);
+        SyncPredictedLocalPlayerState(player);
+        return true;
     }
 
     private static GameplayAbilityDefinition? GetPredictedSpySuperjumpAbility(PlayerEntity player)

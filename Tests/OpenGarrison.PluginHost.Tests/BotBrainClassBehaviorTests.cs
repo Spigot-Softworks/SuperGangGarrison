@@ -67,9 +67,46 @@ public sealed class BotBrainClassBehaviorTests
         AddIncomingRocket(world, projectileId, heavy, timeToImpactTicks: 8f);
 
         var decision = CombatDecisionResolver.Resolve(world, heavy, null, null, new CombatDecisionMemory());
+        var input = BotInputSynthesizer.Synthesize(
+            heavy,
+            default,
+            heavy.X + 96f,
+            heavy.Y,
+            decision,
+            default);
 
         Assert.True(decision.UseAbility);
         Assert.False(decision.FireSecondary);
+        Assert.True(input.UseAbility);
+        Assert.False(input.SwapWeapon);
+    }
+
+    [Fact]
+    public void SoldierBotDeploysReadyBannerWithoutConvertingAbilityToWeaponSwap()
+    {
+        var world = CreateClassWorld(PlayerClass.Soldier, out var soldier);
+        Assert.True(soldier.TryAddBuffBannerKillCharge(PlayerEntity.BuffBannerDefaultMaxChargeKills));
+        var target = AddNetworkPlayer(world, 2, PlayerClass.Heavy, PlayerTeam.Blue, soldier.X + 320f, soldier.Y);
+        var combatTarget = new BotBrainCombatTarget(
+            BotBrainCombatTargetKind.Player,
+            target.Team,
+            target.X,
+            target.Y,
+            Player: target);
+
+        var decision = CombatDecisionResolver.Resolve(world, soldier, combatTarget, null, new CombatDecisionMemory());
+        var input = BotInputSynthesizer.Synthesize(
+            soldier,
+            default,
+            target.X,
+            target.Y,
+            decision,
+            default);
+
+        Assert.True(decision.UseAbility);
+        Assert.False(decision.SelectSecondaryWeapon);
+        Assert.True(input.UseAbility);
+        Assert.False(input.SwapWeapon);
     }
 
     [Fact]
@@ -85,13 +122,14 @@ public sealed class BotBrainClassBehaviorTests
         for (var tick = 0; tick < 180; tick += 1)
         {
             decision = CombatDecisionResolver.Resolve(world, demoman, combatTarget, null, memory);
-            if (decision.UseAbility)
+            if (decision.SelectSecondaryWeapon)
             {
                 break;
             }
         }
 
-        Assert.True(decision.UseAbility);
+        Assert.True(decision.SelectSecondaryWeapon);
+        Assert.False(decision.UseAbility);
         var input = BotInputSynthesizer.Synthesize(
             demoman,
             default,
@@ -199,7 +237,11 @@ public sealed class BotBrainClassBehaviorTests
             default,
             soldier.X + 96f,
             soldier.Y,
-            new CombatFireDecision(FirePrimary: false, FireSecondary: false, UseAbility: true),
+            new CombatFireDecision(
+                FirePrimary: false,
+                FireSecondary: false,
+                UseAbility: false,
+                SelectSecondaryWeapon: true),
             default);
 
         Assert.True(shotgunInput.SwapWeapon);
@@ -211,7 +253,11 @@ public sealed class BotBrainClassBehaviorTests
             default,
             soldier.X + 96f,
             soldier.Y,
-            new CombatFireDecision(FirePrimary: true, FireSecondary: false, UseAbility: false),
+            new CombatFireDecision(
+                FirePrimary: true,
+                FireSecondary: false,
+                UseAbility: false,
+                SelectSecondaryWeapon: false),
             shotgunInput);
 
         Assert.False(releaseInput.SwapWeapon);
@@ -222,7 +268,11 @@ public sealed class BotBrainClassBehaviorTests
             default,
             soldier.X + 96f,
             soldier.Y,
-            new CombatFireDecision(FirePrimary: true, FireSecondary: false, UseAbility: false),
+            new CombatFireDecision(
+                FirePrimary: true,
+                FireSecondary: false,
+                UseAbility: false,
+                SelectSecondaryWeapon: false),
             releaseInput);
 
         Assert.True(launcherInput.SwapWeapon);

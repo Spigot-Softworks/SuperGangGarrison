@@ -1,5 +1,3 @@
-using OpenGarrison.GameplayModding;
-
 namespace OpenGarrison.Core.BotBrain;
 
 /// <summary>
@@ -73,23 +71,18 @@ public static class BotInputSynthesizer
             fireSecondary = false;
         }
 
-        if (ShouldDriveOffhandWeaponSelection(self))
+        if (self.HasExperimentalOffhandWeapon)
         {
-            if (self.HasExperimentalOffhandWeapon)
+            var wantsOffhand = combat.SelectSecondaryWeapon;
+            if (wantsOffhand != self.IsExperimentalOffhandSelected && !previousInput.SwapWeapon)
             {
-                var wantsOffhand = combat.UseAbility;
-                if (wantsOffhand != self.IsExperimentalOffhandSelected && !previousInput.SwapWeapon)
-                {
-                    swapWeapon = true;
-                }
-
-                if (wantsOffhand && !self.IsExperimentalOffhandSelected)
-                {
-                    firePrimary = false;
-                }
+                swapWeapon = true;
             }
 
-            useAbility = false;
+            if (wantsOffhand && !self.IsExperimentalOffhandSelected)
+            {
+                firePrimary = false;
+            }
         }
 
         return input with
@@ -101,14 +94,4 @@ public static class BotInputSynthesizer
         };
     }
 
-    private static bool ShouldDriveOffhandWeaponSelection(PlayerEntity self)
-    {
-        if (self.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.PelletGun))
-        {
-            return true;
-        }
-
-        return self.ClassId == PlayerClass.Demoman
-            && self.ExperimentalOffhandWeapon?.Kind == PrimaryWeaponKind.GrenadeLauncher;
-    }
 }

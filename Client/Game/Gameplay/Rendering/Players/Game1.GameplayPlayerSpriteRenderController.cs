@@ -244,11 +244,14 @@ public partial class Game1
                 return new PlayerBodySpriteSelection(GetPresentationSpriteName(player, static presentation => presentation.HumiliationSuffix ?? presentation.BaseSuffix, "HS"), animationImage, 0f, 0f, false, true);
             }
 
-            if (player.ClassId == PlayerClass.Soldier && player.IsBuffBannerDeploying)
+            if (player.ClassId == PlayerClass.Soldier && _game.GetPlayerIsBuffBannerDeploying(player))
             {
-                var deployDuration = Math.Max(1, player.BuffBannerDeployDurationTicks);
+                var deployDuration = _game.GetPlayerBuffBannerDeployDurationTicks(player);
+                var deployTicksElapsed = Math.Max(
+                    0,
+                    deployDuration - _game.GetPlayerBuffBannerDeployTicksRemaining(player));
                 var deployImage = Math.Clamp(
-                    player.BuffBannerDeployTicksElapsed * 11f / deployDuration,
+                    deployTicksElapsed * 11f / deployDuration,
                     0f,
                     10.999f);
                 return new PlayerBodySpriteSelection(

@@ -31,7 +31,8 @@ public sealed class CombatDecisionMemory
 public readonly record struct CombatFireDecision(
     bool FirePrimary,
     bool FireSecondary,
-    bool UseAbility);
+    bool UseAbility,
+    bool SelectSecondaryWeapon = false);
 
 public enum MedicHealTargetSelectionKind
 {
@@ -281,8 +282,9 @@ public static class CombatDecisionResolver
         var firePrimary = ResolvePrimaryFire(world, self, combatTarget, healTarget, memory, isBeingHealed);
         var fireSecondary = ResolveSecondaryFire(world, self, combatTarget, healTarget, memory, isBeingHealed);
         var useAbility = ResolveAbilityInputFromLoadout(world, self, combatTarget, healTarget, firePrimary, fireSecondary, memory);
+        var selectSecondaryWeapon = ResolveSecondaryWeaponSelection(world, self, combatTarget, firePrimary, fireSecondary, memory);
         ApplyReloadDiscipline(self, memory, ref firePrimary, ref fireSecondary, ref useAbility);
-        return new CombatFireDecision(firePrimary, fireSecondary, useAbility);
+        return new CombatFireDecision(firePrimary, fireSecondary, useAbility, selectSecondaryWeapon);
     }
 
     private static bool ResolvePrimaryFire(
@@ -674,7 +676,7 @@ public static class CombatDecisionResolver
             return true;
         }
 
-        if (combatTarget is not { } target)
+        if (combatTarget is null)
         {
             return false;
         }
@@ -684,22 +686,39 @@ public static class CombatDecisionResolver
             return false;
         }
 
-        if (self.HasUtilityBehavior(BuiltInGameplayBehaviorIds.SoldierSecondaryWeapon))
+        if (self.HasUtilityBehavior(BuiltInGameplayBehaviorIds.SoldierBuffBanner))
         {
-            return HasPracticalCombatFiringSolution(world, self, target)
-                && !fireSecondary
+            return self.IsBuffBannerReady;
+        }
+
+        return false;
+    }
+
+    private static bool ResolveSecondaryWeaponSelection(
+        SimulationWorld world,
+        PlayerEntity self,
+        BotBrainCombatTarget? combatTarget,
+        bool firePrimary,
+        bool fireSecondary,
+        CombatDecisionMemory memory)
+    {
+        if (!self.HasExperimentalOffhandWeapon
+            || combatTarget is not { } target
+            || !HasPracticalCombatFiringSolution(world, self, target))
+        {
+            return false;
+        }
+
+        if (self.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.PelletGun))
+        {
+            return !fireSecondary
                 && (!firePrimary || self.CurrentShells <= 0)
                 && self.ExperimentalOffhandCurrentShells > 0
                 && DistanceBetween(self.X, self.Y, target.X, target.Y) <= SoldierShotgunDistance;
         }
 
-        if (HasPracticalCombatFiringSolution(world, self, target)
-            && ShouldDemomanUseGrenadeLauncher(self, target, fireSecondary, memory))
-        {
-            return true;
-        }
-
-        return false;
+        return self.ClassId == PlayerClass.Demoman
+            && ShouldDemomanUseGrenadeLauncher(self, target, fireSecondary, memory);
     }
 
     private static bool ShouldCivilianUseUmbrella(
