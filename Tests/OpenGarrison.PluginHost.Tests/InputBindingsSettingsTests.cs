@@ -3,6 +3,7 @@ using System.Globalization;
 using System.IO;
 using Microsoft.Xna.Framework.Input;
 using OpenGarrison.Client;
+using OpenGarrison.Core.LastToDie;
 using Xunit;
 
 namespace OpenGarrison.PluginHost.Tests;
@@ -52,6 +53,20 @@ public sealed class InputBindingsSettingsTests
         Assert.False(qInput.UseAbility);
         Assert.True(spaceInput.UseAbility);
         Assert.False(spaceInput.SwapWeapon);
+    }
+
+    [Theory]
+    [InlineData("G", "Press G to equip the Freeze Ray.")]
+    [InlineData("Mouse 4", "Press Mouse 4 to equip the Freeze Ray.")]
+    public void LastToDiePerkDescriptionsResolveConfiguredInteractionBinding(
+        string bindingLabel,
+        string expected)
+    {
+        var description = $"Press {LastToDieExpansionPerkCatalog.InteractWeaponBindingToken} to equip the Freeze Ray.";
+
+        Assert.Equal(
+            expected,
+            Game1.ResolveLastToDiePerkDescriptionBindingLabels(description, bindingLabel));
     }
 
     [Fact]

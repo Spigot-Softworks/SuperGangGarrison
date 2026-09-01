@@ -354,7 +354,7 @@ public partial class Game1
         new(LastToDiePerkKind.EngineerCryonicMunitions, "Cryonic Munitions", "Sentry bullets slow targets and freeze them solid after sustained fire."),
         new(LastToDiePerkKind.EngineerAutonomousPhaseEngine, "Autonomous Phase Engine", "Built sentries float and follow you instead of staying planted."),
         new(LastToDiePerkKind.EngineerOutputInducer, "Output Inducer", "Place an additional sentry."),
-        new(LastToDiePerkKind.EngineerEssenceExtractor, "Essence Extractor", "Press Q to equip the Essence Extractor, a beamgun that steals enemy HP and amplifies damage taken."),
+        new(LastToDiePerkKind.EngineerEssenceExtractor, "Essence Extractor", $"Press {OpenGarrison.Core.LastToDie.LastToDieExpansionPerkCatalog.InteractWeaponBindingToken} to equip the Essence Extractor, a beamgun that steals enemy HP and amplifies damage taken."),
         new(LastToDiePerkKind.EngineerCooperativeTargetingHarness, "Cooperative Targeting Harness", "Sentries prioritize enemies you recently damaged and deal bonus damage to them."),
         new(LastToDiePerkKind.EngineerRegenerativeDiode, "Regenerative Diode", "You and your sentries regenerate 5 health per second."),
         new(LastToDiePerkKind.EngineerOsmosisConductor, "Osmosis Conductor", "Sentry damage heals you, and your damage heals your sentries."),
@@ -374,7 +374,7 @@ public partial class Game1
         new(LastToDiePerkKind.EngineerEfficiencyStabilizer, "Efficiency Stabilizer", "Gain 1% movement speed for every NutsNBolts you currently hold."),
         new(LastToDiePerkKind.EngineerMateriaRecycler, "Materia Recycler", "+100 max NutsNBolts and recover metal when dealing damage."),
         new(LastToDiePerkKind.EngineerDestinyPunctuator, "Destiny Punctuator", "Sacrifices sentries for a brutal double-barrel and enhanced stats."),
-        new(LastToDiePerkKind.EngineerFreezeRay, "Freeze Ray", "Press Q to equip the Freeze Ray, a beamgun that slows enemies, weakens their attacks, and freezes them after enough exposure."),
+        new(LastToDiePerkKind.EngineerFreezeRay, "Freeze Ray", $"Press {OpenGarrison.Core.LastToDie.LastToDieExpansionPerkCatalog.InteractWeaponBindingToken} to equip the Freeze Ray, a beamgun that slows enemies, weakens their attacks, and freezes them after enough exposure."),
     ];
 
     private LastToDieRunState? _lastToDieRun;
@@ -2036,14 +2036,26 @@ public partial class Game1
         return choice.Perk?.Label ?? string.Empty;
     }
 
-    private static string GetLastToDieRewardChoiceDescription(LastToDieRewardChoice choice)
+    private string GetLastToDieRewardChoiceDescription(LastToDieRewardChoice choice)
     {
         if (choice.Accessory.HasValue)
         {
             return GetLastToDieAccessoryDescription(choice.Accessory.Value);
         }
 
-        return choice.Perk?.Description ?? string.Empty;
+        return ResolveLastToDiePerkDescriptionBindingLabels(
+            choice.Perk?.Description ?? string.Empty,
+            GetBindingDisplayName(_inputBindings.InteractWeapon));
+    }
+
+    internal static string ResolveLastToDiePerkDescriptionBindingLabels(
+        string description,
+        string interactWeaponBindingLabel)
+    {
+        return description.Replace(
+            OpenGarrison.Core.LastToDie.LastToDieExpansionPerkCatalog.InteractWeaponBindingToken,
+            interactWeaponBindingLabel,
+            StringComparison.Ordinal);
     }
 
     private static string GetLastToDieAccessoryPrefix(LastToDieAccessoryDefinition accessory)

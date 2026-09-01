@@ -841,7 +841,11 @@ public partial class Game1
                 0.98f);
 
             var descriptionLines = WrapMenuParagraph(
-                hasDefinition ? definition!.Description : "Perk details unavailable.",
+                hasDefinition
+                    ? ResolveLastToDiePerkDescriptionBindingLabels(
+                        definition!.Description,
+                        GetBindingDisplayName(_inputBindings.InteractWeapon))
+                    : "Perk details unavailable.",
                 28);
             var lineY = bounds.Y + 84f;
             for (var lineIndex = 0; lineIndex < descriptionLines.Length; lineIndex += 1)
