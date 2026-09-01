@@ -22,6 +22,7 @@ public partial class Game1
             var wasGameplayInputBlocked = _game.IsGameplayInputBlocked();
             _game.UpdateGameplayScreenState(keyboard, mouse);
             _game.UpdateGameplayMenuState(keyboard, mouse);
+            _game.UpdateReplayPlaybackControls(keyboard, mouse);
             _game.SuppressMouseFireAfterGameplayInputUnblocks(wasGameplayInputBlocked, mouse);
             _game.UpdateRespawnCameraState((float)gameTime.ElapsedGameTime.TotalSeconds, keyboard, mouse);
             _game.UpdateBotBrainCorridorRecorderHotkeys(keyboard);

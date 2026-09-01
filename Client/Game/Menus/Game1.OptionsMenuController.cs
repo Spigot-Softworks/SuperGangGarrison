@@ -664,9 +664,16 @@ public partial class Game1
             var actions = new List<OptionsMenuAction>();
             if (OperatingSystem.IsBrowser())
             {
+                actions.Add(new OptionsMenuAction("Always Record Games:", "Unavailable in browser", NoOp, OptionsMenuTab.Replays));
                 actions.Add(new OptionsMenuAction("Replay Browser", "Unavailable in browser", NoOp, OptionsMenuTab.Replays));
                 return actions;
             }
+
+            actions.Add(new OptionsMenuAction(
+                "Always Record Games:",
+                _game._clientSettings.AlwaysRecordGames ? "Yes" : "No (Default)",
+                _game.ToggleAlwaysRecordGames,
+                OptionsMenuTab.Replays));
 
             var entries = GetReplayMenuEntries(out var status);
             actions.Add(new OptionsMenuAction("Replay Folders", status, NoOp, OptionsMenuTab.Replays));

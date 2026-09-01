@@ -34,6 +34,15 @@ public interface IPlaybackMessageTransport : INetworkClientMessageTransport
     void SetPlaybackRate(float playbackRate);
 }
 
+public interface ISeekablePlaybackMessageTransport : IPlaybackMessageTransport
+{
+    int PositionMilliseconds { get; }
+    int DurationMilliseconds { get; }
+    bool IsSeekCatchUpPending { get; }
+
+    ISeekablePlaybackMessageTransport CreateSeekedPlayback(int positionMilliseconds);
+}
+
 internal sealed class UdpNetworkClientMessageTransport : INetworkClientMessageTransport
 {
     private const int SioUdpConnReset = -1744830452;

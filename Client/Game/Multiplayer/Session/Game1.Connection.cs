@@ -63,6 +63,11 @@ public partial class Game1
         return _gameplaySessionController.TryPlayOpenGarrisonDemo(demoPath, addConsoleFeedback);
     }
 
+    private bool TrySeekOpenGarrisonDemo(int deltaMilliseconds, out int targetMilliseconds, out string error)
+    {
+        return _gameplaySessionController.TrySeekOpenGarrisonDemo(deltaMilliseconds, out targetMilliseconds, out error);
+    }
+
     private void ShowAutoBalanceNotice(string text, int seconds)
     {
         _connectionFlowController.ShowAutoBalanceNotice(text, seconds);

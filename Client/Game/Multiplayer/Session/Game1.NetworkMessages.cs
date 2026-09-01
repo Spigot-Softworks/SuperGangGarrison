@@ -13,6 +13,7 @@ public partial class Game1
 {
     private void ProcessNetworkMessages()
     {
+        var suppressReplayCatchUpEvents = _replaySeekCatchUpActive;
         UpdatePendingNetworkMapSync();
         var processStartTimestamp = _networkDiagnosticsEnabled ? Stopwatch.GetTimestamp() : 0L;
         var messages = _networkClient.ReceiveMessages();
@@ -46,19 +47,29 @@ public partial class Game1
                     HandlePasswordResultMessage(passwordResult);
                     break;
                 case ChatRelayMessage chatRelay:
-                    HandleChatRelayMessage(chatRelay);
+                    if (!suppressReplayCatchUpEvents)
+                    {
+                        HandleChatRelayMessage(chatRelay);
+                    }
                     break;
                 case AutoBalanceNoticeMessage notice:
-                    HandleAutoBalanceNoticeMessage(notice);
+                    if (!suppressReplayCatchUpEvents)
+                    {
+                        HandleAutoBalanceNoticeMessage(notice);
+                    }
                     break;
                 case SessionSlotChangedMessage slotChanged:
                     HandleSessionSlotChangedMessage(slotChanged);
                     break;
                 case ControlAckMessage ack:
-                    HandleControlAckMessage(ack);
+                    if (!suppressReplayCatchUpEvents)
+                    {
+                        HandleControlAckMessage(ack);
+                    }
                     break;
                 case ServerPluginMessage serverPluginMessage:
-                    if (!TryHandleBuiltInVotePresentationMessage(serverPluginMessage)
+                    if (!suppressReplayCatchUpEvents
+                        && !TryHandleBuiltInVotePresentationMessage(serverPluginMessage)
                         && !TryHandleBuiltInVipPresentationMessage(serverPluginMessage))
                     {
                         NotifyClientPluginsServerMessage(serverPluginMessage);
@@ -90,6 +101,7 @@ public partial class Game1
         }
 
         ApplyQueuedAuthoritativeSnapshots();
+        CompleteReplaySeekCatchUpIfReady(latestResolvedSnapshot is not null);
         PublishCompletedDemoRecordingNoticeIfAvailable();
 
         if (_networkDiagnosticsEnabled)

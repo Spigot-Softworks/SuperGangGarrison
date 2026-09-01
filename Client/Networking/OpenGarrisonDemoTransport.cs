@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -9,7 +10,7 @@ using OpenGarrison.Protocol;
 
 namespace OpenGarrison.Client;
 
-public sealed class OpenGarrisonDemoTransport : IPlaybackMessageTransport
+public sealed class OpenGarrisonDemoTransport : ISeekablePlaybackMessageTransport
 {
     private readonly List<ScheduledDemoPayload> _payloads;
     private readonly long _ticksPerSecond;
@@ -26,6 +27,8 @@ public sealed class OpenGarrisonDemoTransport : IPlaybackMessageTransport
     private long _lastPlaybackTimestamp;
     private float _playbackRate = 1f;
     private bool _isPaused;
+    private bool _isSeekCatchUpPending;
+    private bool _resumePausedAfterSeekCatchUp;
 
     private OpenGarrisonDemoTransport(
         string remoteDescription,
@@ -34,7 +37,11 @@ public sealed class OpenGarrisonDemoTransport : IPlaybackMessageTransport
         string playbackServerName,
         string playbackMapName,
         DateTime? playbackDateUtc,
-        List<ScheduledDemoPayload> payloads)
+        List<ScheduledDemoPayload> payloads,
+        int initialPositionMilliseconds = 0,
+        bool resumePaused = false,
+        float playbackRate = 1f,
+        bool seekCatchUp = false)
     {
         _remoteDescription = remoteDescription;
         _completionReason = completionReason;
@@ -44,6 +51,11 @@ public sealed class OpenGarrisonDemoTransport : IPlaybackMessageTransport
         _playbackDateUtc = playbackDateUtc;
         _payloads = payloads;
         _ticksPerSecond = Stopwatch.Frequency;
+        _accumulatedPlaybackMilliseconds = Math.Clamp(initialPositionMilliseconds, 0, DurationMilliseconds);
+        _playbackRate = Math.Clamp(playbackRate, 0.1f, 8f);
+        _isSeekCatchUpPending = seekCatchUp && initialPositionMilliseconds > 0;
+        _resumePausedAfterSeekCatchUp = resumePaused;
+        _isPaused = _isSeekCatchUpPending || resumePaused;
         _lastPlaybackTimestamp = Stopwatch.GetTimestamp();
     }
 
@@ -57,7 +69,13 @@ public sealed class OpenGarrisonDemoTransport : IPlaybackMessageTransport
                 return false;
             }
 
-            return GetCurrentPlaybackMilliseconds() >= _payloads[_nextPayloadIndex].DueMilliseconds;
+            var hasPendingMessage = GetCurrentPlaybackMilliseconds() >= _payloads[_nextPayloadIndex].DueMilliseconds;
+            if (!hasPendingMessage && _isSeekCatchUpPending)
+            {
+                CompleteSeekCatchUp();
+            }
+
+            return hasPendingMessage;
         }
     }
 
@@ -67,6 +85,12 @@ public sealed class OpenGarrisonDemoTransport : IPlaybackMessageTransport
     public float PlaybackRate => _playbackRate;
     public int CurrentTick => _nextPayloadIndex <= 0 ? 0 : Math.Max(0, _nextPayloadIndex - 1);
     public int TotalTicks => Math.Max(0, _payloads.Count - 1);
+    public int PositionMilliseconds => (int)Math.Clamp(
+        Math.Round(GetCurrentPlaybackMilliseconds(), MidpointRounding.AwayFromZero),
+        0d,
+        DurationMilliseconds);
+    public int DurationMilliseconds => _payloads.Count == 0 ? 0 : Math.Max(0, _payloads[^1].DueMilliseconds);
+    public bool IsSeekCatchUpPending => _isSeekCatchUpPending;
     public string PlaybackDisplayName => _playbackDisplayName;
     public string PlaybackServerName => _playbackServerName;
     public string PlaybackMapName => _playbackMapName;
@@ -110,6 +134,12 @@ public sealed class OpenGarrisonDemoTransport : IPlaybackMessageTransport
 
     public void SetPaused(bool paused)
     {
+        if (_isSeekCatchUpPending)
+        {
+            _resumePausedAfterSeekCatchUp = paused;
+            return;
+        }
+
         if (_isPaused == paused)
         {
             return;
@@ -133,6 +163,25 @@ public sealed class OpenGarrisonDemoTransport : IPlaybackMessageTransport
 
         SynchronizePlaybackClock();
         _playbackRate = Math.Clamp(playbackRate, 0.1f, 8f);
+    }
+
+    public ISeekablePlaybackMessageTransport CreateSeekedPlayback(int positionMilliseconds)
+    {
+        var maximumPosition = Math.Max(0, DurationMilliseconds - 1);
+        var targetPosition = Math.Clamp(positionMilliseconds, 0, maximumPosition);
+        var resumePaused = _isSeekCatchUpPending ? _resumePausedAfterSeekCatchUp : _isPaused;
+        return new OpenGarrisonDemoTransport(
+            _remoteDescription,
+            _completionReason,
+            _playbackDisplayName,
+            _playbackServerName,
+            _playbackMapName,
+            _playbackDateUtc,
+            _payloads,
+            targetPosition,
+            resumePaused,
+            _playbackRate,
+            seekCatchUp: targetPosition > 0);
     }
 
     public void Dispose()
@@ -221,10 +270,11 @@ public sealed class OpenGarrisonDemoTransport : IPlaybackMessageTransport
     {
         serverName = string.Empty;
         mapName = string.Empty;
+        var protocol64Registry = Protocol64SchemaRegistryFactory.CreateDefault();
         foreach (var message in messages)
         {
-            if (!ProtocolCodec.TryDeserialize(message.Payload, out var protocolMessage)
-                || protocolMessage is not WelcomeMessage welcome)
+            if (!TryDecodeDemoEvent(message.Payload, protocol64Registry, out var demoEvent)
+                || demoEvent is not WelcomeMessage welcome)
             {
                 continue;
             }
@@ -250,6 +300,7 @@ public sealed class OpenGarrisonDemoTransport : IPlaybackMessageTransport
 
     private static PlaybackVerificationResult VerifyPlayback(IReadOnlyList<OpenGarrisonDemoMessage> messages)
     {
+        var protocol64Registry = Protocol64SchemaRegistryFactory.CreateDefault();
         SimulationWorld? world = null;
         WelcomeMessage? welcome = null;
         SnapshotMessage? lastSnapshot = null;
@@ -259,7 +310,7 @@ public sealed class OpenGarrisonDemoTransport : IPlaybackMessageTransport
         for (var index = 0; index < messages.Count; index += 1)
         {
             var payload = messages[index].Payload;
-            if (!ProtocolCodec.TryDeserialize(payload, out var message) || message is null)
+            if (!TryDecodeDemoEvent(payload, protocol64Registry, out var message) || message is null)
             {
                 throw new InvalidDataException($"Demo payload {index} could not be deserialized by the current protocol codec.");
             }
@@ -320,6 +371,31 @@ public sealed class OpenGarrisonDemoTransport : IPlaybackMessageTransport
             world.BlueCaps);
     }
 
+    private static bool TryDecodeDemoEvent(
+        byte[] payload,
+        Protocol64SchemaRegistry protocol64Registry,
+        out object? demoEvent)
+    {
+        if (payload.Length >= sizeof(uint)
+            && BinaryPrimitives.ReadUInt32LittleEndian(payload) == Protocol64FrameHeader.Magic)
+        {
+            var decoded = Protocol64FrameCodec.Decode(
+                payload,
+                protocol64Registry,
+                new Protocol64FrameDecodeOptions
+                {
+                    Backend = "demo",
+                    ExpectedDirection = Protocol64Direction.ServerToClient,
+                });
+            demoEvent = decoded.Event;
+            return decoded.Succeeded && demoEvent is not null;
+        }
+
+        var deserialized = ProtocolCodec.TryDeserialize(payload, out var protocolMessage);
+        demoEvent = protocolMessage;
+        return deserialized && demoEvent is not null;
+    }
+
     private double GetCurrentPlaybackMilliseconds()
     {
         if (_isPaused)
@@ -342,6 +418,18 @@ public sealed class OpenGarrisonDemoTransport : IPlaybackMessageTransport
         }
 
         _lastPlaybackTimestamp = now;
+    }
+
+    private void CompleteSeekCatchUp()
+    {
+        if (!_isSeekCatchUpPending)
+        {
+            return;
+        }
+
+        _isSeekCatchUpPending = false;
+        _isPaused = _resumePausedAfterSeekCatchUp;
+        _lastPlaybackTimestamp = Stopwatch.GetTimestamp();
     }
 
     private void MarkPlaybackEnded()

@@ -106,6 +106,8 @@ public sealed class OpenGarrisonPreferencesDocument
 
     public bool KillCamEnabled { get; set; } = true;
 
+    public bool AlwaysRecordGames { get; set; }
+
     public int ParticleMode { get; set; }
 
     public int FlameRenderMode { get; set; }
@@ -273,6 +275,7 @@ public sealed class OpenGarrisonPreferencesDocument
             MusicMode = LoadMusicMode(ini),
             BotMode = ParseBotMode(ini.GetString(SettingsSection, "Bot Mode", OfflineBotControllerMode.BotBrain.ToString())),
             KillCamEnabled = ini.GetBool(SettingsSection, "Kill Cam", true),
+            AlwaysRecordGames = ini.GetBool(SettingsSection, "Always Record Games", false),
             ParticleMode = ini.GetInt(SettingsSection, "Particles", 0),
             FlameRenderMode = ini.GetInt(SettingsSection, "Flame Render Mode", 0),
             MenuBackgroundMode = (MenuBackgroundMode)ini.GetInt(SettingsSection, "Menu Background Mode", (int)MenuBackgroundMode.DefaultMaps),
@@ -375,6 +378,7 @@ public sealed class OpenGarrisonPreferencesDocument
         ini.SetInt(SettingsSection, "Gib Level", GibLevel);
         ini.SetInt(SettingsSection, "Corpse Duration", CorpseDurationMode);
         ini.SetBool(SettingsSection, "Kill Cam", KillCamEnabled);
+        ini.SetBool(SettingsSection, "Always Record Games", AlwaysRecordGames);
         ini.SetBool(SettingsSection, "Monitor Sync", VSync);
         ini.SetInt(SettingsSection, "Frame Rate Limit", FrameRateLimit);
         ini.SetBool(SettingsSection, "Healer Radar", HealerRadarEnabled);

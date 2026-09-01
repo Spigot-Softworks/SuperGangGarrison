@@ -187,7 +187,7 @@ public partial class Game1
             var clientInstanceId = Guid.TryParse(_game._clientIdentity.ClientId, out var parsedClientInstanceId)
                 ? parsedClientInstanceId
                 : Guid.Empty;
-            return _game._networkClient.Connect(
+            var connected = _game._networkClient.Connect(
                 candidate.Host,
                 candidate.Port,
                 _game._world.LocalPlayer.DisplayName,
@@ -197,6 +197,12 @@ public partial class Game1
                 PlayerCardProfile.Serialize(_game._clientIdentity.PlayerCard),
                 ToProtocolConnectionIntent(intent),
                 clientInstanceId);
+            if (connected)
+            {
+                _game.EnsureAutomaticDemoRecordingForConnection(candidate.Host);
+            }
+
+            return connected;
         }
 
         private void PresentSuccessfulConnectionStart(
@@ -334,6 +340,41 @@ public partial class Game1
             return false;
         }
 
+        public bool TrySeekOpenGarrisonDemo(int deltaMilliseconds, out int targetMilliseconds, out string error)
+        {
+            targetMilliseconds = 0;
+            error = string.Empty;
+            if (!_game._networkClient.TryCreateSeekedReplayTransport(
+                    deltaMilliseconds,
+                    out var transport,
+                    out targetMilliseconds,
+                    out error)
+                || transport is null)
+            {
+                return false;
+            }
+
+            if (!_game._networkClient.Connect(
+                    transport,
+                    _game._world.LocalPlayer.DisplayName,
+                    _game._world.LocalPlayer.BadgeMask,
+                    out error))
+            {
+                transport.Dispose();
+                return false;
+            }
+
+            _game._onlineConnectionIntent = OnlineConnectionIntent.Join;
+            _game._replaySeekCatchUpActive = true;
+            _game._replaySeekTargetMilliseconds = targetMilliseconds;
+            _game.ClearOnlinePlayerSocialProfiles();
+            _game.ResetGameplayRuntimeState();
+            _game._world.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings());
+            _game.ShowLoadingOverlay($"Seeking replay to {Game1.FormatReplayPlaybackTime(targetMilliseconds)}...", progress: null);
+            _game.SetNetworkStatus($"Seeking replay to {Game1.FormatReplayPlaybackTime(targetMilliseconds)}...");
+            return true;
+        }
+
         public void HandleWelcomeMessage(WelcomeMessage welcome)
         {
             ClearPendingConnectionCandidates();
@@ -397,7 +438,9 @@ public partial class Game1
             _game.BeginNetworkWorldWarmup(welcome.LevelName);
             _sessionController.EnterGameplaySession(
                 GameplaySessionKind.Online,
-                openJoinMenus: _game._onlineConnectionIntent != OnlineConnectionIntent.Watch && !_game._networkClient.IsSpectator,
+                openJoinMenus: !_game._networkClient.IsReplayConnection
+                    && _game._onlineConnectionIntent != OnlineConnectionIntent.Watch
+                    && !_game._networkClient.IsSpectator,
                 statusMessage: _game._networkClient.IsSpectator ? "Connected as spectator." : string.Empty);
             _game.StopMenuMusic();
             _game.AddNetworkConsoleLine(

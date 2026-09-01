@@ -259,6 +259,174 @@ public sealed class ReDsmReplayParserTests
         }
     }
 
+    [Fact]
+    public void NativeDemoSeekReplaysFromStartAndPreservesPlaybackState()
+    {
+        var demoPath = Path.Combine(Path.GetTempPath(), $"og-demo-seek-{Guid.NewGuid():N}.ogdemo");
+        try
+        {
+            OpenGarrisonDemoFile.Write(
+                demoPath,
+                new OpenGarrisonDemoFile(
+                    "demo:test",
+                    "Demo ended.",
+                    new[]
+                    {
+                        new OpenGarrisonDemoMessage(0, ProtocolCodec.Serialize(BuildMinimalWelcomeMessage())),
+                        new OpenGarrisonDemoMessage(1000, ProtocolCodec.Serialize(BuildMinimalSnapshotMessage())),
+                        new OpenGarrisonDemoMessage(4000, ProtocolCodec.Serialize(BuildMinimalSnapshotMessage())),
+                        new OpenGarrisonDemoMessage(8000, ProtocolCodec.Serialize(BuildMinimalSnapshotMessage())),
+                    }));
+
+            Assert.True(OpenGarrisonDemoTransport.TryCreate(demoPath, out var createdTransport, out var error), error);
+            using var transport = Assert.IsAssignableFrom<ISeekablePlaybackMessageTransport>(createdTransport);
+            transport.SetPaused(true);
+            transport.SetPlaybackRate(2f);
+
+            using var seeked = transport.CreateSeekedPlayback(5000);
+            Assert.Equal(5000, seeked.PositionMilliseconds);
+            Assert.Equal(8000, seeked.DurationMilliseconds);
+            Assert.True(seeked.IsSeekCatchUpPending);
+            Assert.Equal(2f, seeked.PlaybackRate);
+
+            var releasedPayloads = new List<byte[]>();
+            while (seeked.HasPendingMessages)
+            {
+                Assert.True(seeked.TryReceive(out var payload));
+                releasedPayloads.Add(payload);
+            }
+
+            Assert.Equal(3, releasedPayloads.Count);
+            Assert.False(seeked.IsSeekCatchUpPending);
+            Assert.True(seeked.IsPaused);
+            Assert.Equal(5000, seeked.PositionMilliseconds);
+            Assert.Equal(2, seeked.CurrentTick);
+            Assert.IsType<WelcomeMessage>(Deserialize(releasedPayloads[0]));
+            Assert.IsType<SnapshotMessage>(Deserialize(releasedPayloads[1]));
+            Assert.IsType<SnapshotMessage>(Deserialize(releasedPayloads[2]));
+        }
+        finally
+        {
+            if (File.Exists(demoPath))
+            {
+                File.Delete(demoPath);
+            }
+        }
+    }
+
+    [Fact]
+    public void NetworkClientCreatesClampedSeekTransportForNativeDemo()
+    {
+        var demoPath = Path.Combine(Path.GetTempPath(), $"og-demo-client-seek-{Guid.NewGuid():N}.ogdemo");
+        try
+        {
+            OpenGarrisonDemoFile.Write(
+                demoPath,
+                new OpenGarrisonDemoFile(
+                    "demo:test",
+                    "Demo ended.",
+                    new[]
+                    {
+                        new OpenGarrisonDemoMessage(0, ProtocolCodec.Serialize(BuildMinimalWelcomeMessage())),
+                        new OpenGarrisonDemoMessage(1000, ProtocolCodec.Serialize(BuildMinimalSnapshotMessage())),
+                        new OpenGarrisonDemoMessage(8000, ProtocolCodec.Serialize(BuildMinimalSnapshotMessage())),
+                    }));
+
+            Assert.True(OpenGarrisonDemoTransport.TryCreate(demoPath, out var transport, out var createError), createError);
+            using var client = new NetworkGameClient();
+            Assert.True(client.Connect(transport!, "Viewer", 0UL, out var connectError), connectError);
+            Assert.True(client.TryCreateSeekedReplayTransport(10_000, out var seeked, out var target, out var seekError), seekError);
+            using (seeked)
+            {
+                Assert.Equal(7999, target);
+                var timed = Assert.IsAssignableFrom<ISeekablePlaybackMessageTransport>(seeked);
+                Assert.Equal(target, timed.PositionMilliseconds);
+                Assert.True(timed.IsSeekCatchUpPending);
+            }
+        }
+        finally
+        {
+            if (File.Exists(demoPath))
+            {
+                File.Delete(demoPath);
+            }
+        }
+    }
+
+    [Fact]
+    public void AutomaticRecordingCapturesProtocol64AndClearsOwnershipOnDisconnect()
+    {
+        var demoPath = Path.Combine(Path.GetTempPath(), $"og-demo-auto-{Guid.NewGuid():N}.ogdemo");
+        try
+        {
+            using (var client = new NetworkGameClient())
+            {
+                Assert.True(client.TryStartDemoRecording(
+                    demoPath,
+                    "demo:test",
+                    initialWelcomePayload: null,
+                    out _,
+                    out var armError,
+                    automatic: true), armError);
+                Assert.True(client.IsDemoRecordingActive);
+                Assert.True(client.IsAutomaticDemoRecordingActive);
+
+                var registry = Protocol64SchemaRegistryFactory.CreateDefault();
+                var welcome = Protocol64FrameCodec.Encode(
+                    registry,
+                    BuildMinimalWelcomeMessage(),
+                    connectionEpoch: 1,
+                    frameId: 1);
+                var snapshot = Protocol64FrameCodec.Encode(
+                    registry,
+                    BuildMinimalSnapshotMessage(),
+                    connectionEpoch: 1,
+                    frameId: 2);
+                Assert.True(welcome.Succeeded, welcome.Fault?.Message);
+                Assert.True(snapshot.Succeeded, snapshot.Fault?.Message);
+
+                var transport = new FakeInboundTransport("wss64://127.0.0.1:8190");
+                transport.EnqueueInbound(welcome.Payload!);
+                transport.EnqueueInbound(snapshot.Payload!);
+                Assert.True(client.Connect(transport, "Recorder", 0UL, out var connectError), connectError);
+                Assert.True(client.IsAutomaticDemoRecordingActive);
+                var messages = new List<IProtocolMessage>();
+                for (var receiveFrame = 0; receiveFrame < 4 && transport.HasPendingMessages; receiveFrame += 1)
+                {
+                    messages.AddRange(client.ReceiveMessages());
+                }
+                Assert.Equal(2, messages.Count);
+                Assert.True(client.IsAutomaticDemoRecordingActive);
+
+                client.Disconnect();
+                Assert.False(client.IsDemoRecordingActive);
+                Assert.False(client.IsAutomaticDemoRecordingActive);
+            }
+
+            Assert.True(OpenGarrisonDemoTransport.TryVerifyPlaybackSummary(demoPath, out var summary, out var error), error);
+            Assert.Contains("verifiedMessages=2", summary, StringComparison.Ordinal);
+            Assert.Contains("appliedSnapshots=1", summary, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (File.Exists(demoPath))
+            {
+                File.Delete(demoPath);
+            }
+
+            if (File.Exists(demoPath + ".recording"))
+            {
+                File.Delete(demoPath + ".recording");
+            }
+        }
+    }
+
+    private static IProtocolMessage Deserialize(byte[] payload)
+    {
+        Assert.True(ProtocolCodec.TryDeserialize(payload, out var message));
+        return Assert.IsAssignableFrom<IProtocolMessage>(message);
+    }
+
     [Theory]
     [InlineData("arena_lumberyard")]
     [InlineData("cp_dirtbowl")]
