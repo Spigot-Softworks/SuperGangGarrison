@@ -6,6 +6,7 @@ public static class GameplayAbilityReplicatedState
     public const string MedicUberChargeKey = "medic_uber_charge";
     public const string MedicUberReadyKey = "medic_uber_ready";
     public const string MedicNeedlegunCooldownTicksKey = "medic_needlegun_cooldown_ticks";
+    public const string MedicHealDartCooldownTicksKey = "medic_heal_dart_cooldown_ticks";
     public const string HeavyEatTicksRemainingKey = "heavy_eat_ticks_remaining";
     public const string HeavyEatCooldownTicksKey = "heavy_eat_cooldown_ticks";
     public const string SniperChargeTicksKey = "sniper_charge_ticks";
@@ -25,8 +26,8 @@ public static class GameplayAbilityReplicatedState
     public const string HeavyDashActiveKey = "heavy_dash_active";
     public const string HeavyDashVisibleKey = "heavy_dash_visible";
     public const string HeavyDashTrailAlphaKey = "heavy_dash_trail_alpha";
-    public const string BuffBannerChargeKillsKey = "buff_banner_charge_kills";
-    public const string BuffBannerMissingKillsKey = "buff_banner_missing_kills";
+    public const string BuffBannerChargeDamageKey = "buff_banner_charge_damage";
+    public const string BuffBannerMissingDamageKey = "buff_banner_missing_damage";
     public const string BuffBannerDeployTicksKey = "buff_banner_deploy_ticks";
     public const string BuffBannerActiveTicksKey = "buff_banner_active_ticks";
     public const string BuffBannerDeployingOrActiveKey = "buff_banner_deploying_or_active";
@@ -44,6 +45,7 @@ public static class GameplayAbilityReplicatedState
                 Scalar(MedicUberChargeKey, player.MedicUberCharge),
                 Toggle(MedicUberReadyKey, player.IsMedicUberReady),
                 Whole(MedicNeedlegunCooldownTicksKey, player.MedicNeedleCooldownTicks),
+                Whole(MedicHealDartCooldownTicksKey, player.MedicHealDartCooldownTicks),
             ],
             PlayerClass.Heavy =>
             [
@@ -56,8 +58,8 @@ public static class GameplayAbilityReplicatedState
             ],
             PlayerClass.Soldier =>
             [
-                Whole(BuffBannerChargeKillsKey, player.BuffBannerChargeKills),
-                Whole(BuffBannerMissingKillsKey, player.BuffBannerMissingChargeKills),
+                Whole(BuffBannerChargeDamageKey, player.BuffBannerChargeDamage),
+                Whole(BuffBannerMissingDamageKey, player.BuffBannerMissingChargeDamage),
                 Whole(BuffBannerDeployTicksKey, player.BuffBannerDeployTicksRemaining),
                 Whole(BuffBannerActiveTicksKey, player.BuffBannerActiveTicksRemaining),
                 Toggle(BuffBannerDeployingOrActiveKey, player.IsBuffBannerDeploying || player.IsBuffBannerActive),
@@ -91,8 +93,8 @@ public static class GameplayAbilityReplicatedState
     public static bool TryGetInt(PlayerEntity player, string key, out int value)
     {
         if (player.ClassId == PlayerClass.Soldier
-            && key is BuffBannerChargeKillsKey
-                or BuffBannerMissingKillsKey
+            && key is BuffBannerChargeDamageKey
+                or BuffBannerMissingDamageKey
                 or BuffBannerDeployTicksKey
                 or BuffBannerActiveTicksKey
             && player.TryGetReplicatedStateInt(
@@ -137,6 +139,7 @@ public static class GameplayAbilityReplicatedState
         {
             PyroAirblastCooldownTicksKey when player.ClassId == PlayerClass.Pyro => player.PyroAirblastCooldownTicks,
             MedicNeedlegunCooldownTicksKey when player.ClassId == PlayerClass.Medic => player.MedicNeedleCooldownTicks,
+            MedicHealDartCooldownTicksKey when player.ClassId == PlayerClass.Medic => player.MedicHealDartCooldownTicks,
             HeavyEatTicksRemainingKey when player.ClassId == PlayerClass.Heavy => player.HeavyEatTicksRemaining,
             HeavyEatCooldownTicksKey when player.ClassId == PlayerClass.Heavy => player.HeavyEatCooldownTicksRemaining,
             HeavyDashCooldownTicksKey when player.ClassId == PlayerClass.Heavy => player.ExperimentalGhostDashCooldownTicksRemaining,
@@ -147,8 +150,8 @@ public static class GameplayAbilityReplicatedState
             CivviePogoCrunchTicksKey when player.ClassId == PlayerClass.Quote => player.CivviePogoCrunchTicksRemaining,
             CivviePogoTrickTicksKey when player.ClassId == PlayerClass.Quote => player.CivviePogoTrickTicksRemaining,
             CivviePogoTrickDurationTicksKey when player.ClassId == PlayerClass.Quote => player.CivviePogoTrickDurationAtStart,
-            BuffBannerChargeKillsKey when player.ClassId == PlayerClass.Soldier => player.BuffBannerChargeKills,
-            BuffBannerMissingKillsKey when player.ClassId == PlayerClass.Soldier => player.BuffBannerMissingChargeKills,
+            BuffBannerChargeDamageKey when player.ClassId == PlayerClass.Soldier => player.BuffBannerChargeDamage,
+            BuffBannerMissingDamageKey when player.ClassId == PlayerClass.Soldier => player.BuffBannerMissingChargeDamage,
             BuffBannerDeployTicksKey when player.ClassId == PlayerClass.Soldier => player.BuffBannerDeployTicksRemaining,
             BuffBannerActiveTicksKey when player.ClassId == PlayerClass.Soldier => player.BuffBannerActiveTicksRemaining,
             _ => default,
@@ -157,7 +160,8 @@ public static class GameplayAbilityReplicatedState
         return key switch
         {
             PyroAirblastCooldownTicksKey => player.ClassId == PlayerClass.Pyro,
-            MedicNeedlegunCooldownTicksKey => player.ClassId == PlayerClass.Medic,
+            MedicNeedlegunCooldownTicksKey
+                or MedicHealDartCooldownTicksKey => player.ClassId == PlayerClass.Medic,
             HeavyEatTicksRemainingKey or HeavyEatCooldownTicksKey or HeavyDashCooldownTicksKey => player.ClassId == PlayerClass.Heavy,
             SniperChargeTicksKey or SniperBowChargeTicksKey => player.ClassId == PlayerClass.Sniper,
             SpySuperjumpCooldownTicksKey => player.ClassId == PlayerClass.Spy,
@@ -165,8 +169,8 @@ public static class GameplayAbilityReplicatedState
                 or CivviePogoCrunchTicksKey
                 or CivviePogoTrickTicksKey
                 or CivviePogoTrickDurationTicksKey => player.ClassId == PlayerClass.Quote,
-            BuffBannerChargeKillsKey
-                or BuffBannerMissingKillsKey
+            BuffBannerChargeDamageKey
+                or BuffBannerMissingDamageKey
                 or BuffBannerDeployTicksKey
                 or BuffBannerActiveTicksKey => player.ClassId == PlayerClass.Soldier,
             _ => false,

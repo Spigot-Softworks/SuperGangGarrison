@@ -7,6 +7,20 @@ namespace OpenGarrison.PluginHost.Tests;
 public sealed class SecondaryWeaponRuntimeTests
 {
     [Theory]
+    [InlineData(PlayerClass.Heavy, "weapon.heavy-shotgun")]
+    [InlineData(PlayerClass.Soldier, "weapon.soldier-shotgun")]
+    public void HeavyAndSoldierShotgunsUseFourRoundClips(
+        PlayerClass playerClass,
+        string expectedItemId)
+    {
+        var world = CreateWorld(playerClass);
+
+        Assert.Equal(expectedItemId, world.LocalPlayer.GameplayLoadoutState.SecondaryItemId);
+        Assert.Equal(4, world.LocalPlayer.ExperimentalOffhandMaxShells);
+        Assert.Equal(4, world.LocalPlayer.ExperimentalOffhandCurrentShells);
+    }
+
+    [Theory]
     [InlineData(PlayerClass.Scout, "weapon.scout-pistol", 1, 8f, "PistolKL")]
     [InlineData(PlayerClass.Engineer, "weapon.engineer-pistol", 1, 8f, "PistolKL")]
     [InlineData(PlayerClass.Heavy, "weapon.heavy-shotgun", 5, 7f, "ShotgunKL")]

@@ -268,7 +268,7 @@ public sealed class LastToDieSpyInfiltrateRuntimeTests
 
         var decodedPlayer = Assert.Single(decoded.Players);
         Assert.Equal(publishedPlayer.LastToDieSpyInfiltrateState, decodedPlayer.LastToDieSpyInfiltrateState);
-        Assert.Equal((ushort)23, schema.Descriptor.Key.Revision);
+        Assert.Equal((ushort)24, schema.Descriptor.Key.Revision);
 
         var receiver = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
         Assert.True(receiver.ApplyProtocol64PlayerState(decodedPlayer));

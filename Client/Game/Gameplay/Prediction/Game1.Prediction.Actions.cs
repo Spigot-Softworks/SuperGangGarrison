@@ -205,6 +205,11 @@ public partial class Game1
             _predictedLocalActionState.MedicNeedleCooldownTicks -= 1;
         }
 
+        if (_predictedLocalActionState.MedicHealDartCooldownTicks > 0)
+        {
+            _predictedLocalActionState.MedicHealDartCooldownTicks -= 1;
+        }
+
         var maxShells = player.MaxShells;
         if (_predictedLocalActionState.CurrentShells >= maxShells)
         {
@@ -424,6 +429,11 @@ public partial class Game1
             return;
         }
 
+        if (TryPredictedFireMedicHealDart(player, predictedInput))
+        {
+            return;
+        }
+
         if (TryPredictedStartBuffBanner(player, predictedInput))
         {
             return;
@@ -527,6 +537,29 @@ public partial class Game1
         SyncPredictedLocalPlayerState(player);
     }
 
+    private bool TryPredictedFireMedicHealDart(PlayerEntity player, PredictedLocalInput predictedInput)
+    {
+        if (!predictedInput.AbilityPressed
+            || !player.TryGetGameplayAbilityItem(
+                GameplayAbilityConstants.UtilityChannel,
+                BuiltInGameplayBehaviorIds.MedicKritzHealNeedles,
+                out var abilityItem)
+            || abilityItem.Ability is not { } ability)
+        {
+            return false;
+        }
+
+        var cooldownTicks = GameplayAbilityParameterReader.GetTicks(
+            ability,
+            "cooldownTicks",
+            "cooldownSeconds",
+            PlayerEntity.MedicHealDartDefaultCooldownTicks,
+            _config.TicksPerSecond);
+        _ = player.TryFireMedicHealDart(cooldownTicks);
+        SyncPredictedLocalPlayerState(player);
+        return true;
+    }
+
     private bool TryPredictedStartBuffBanner(PlayerEntity player, PredictedLocalInput predictedInput)
     {
         if (!predictedInput.AbilityPressed
@@ -539,10 +572,10 @@ public partial class Game1
             return false;
         }
 
-        var maxChargeKills = GameplayAbilityParameterReader.GetInt(
+        var maxChargeDamage = GameplayAbilityParameterReader.GetInt(
             ability,
-            "maxChargeKills",
-            PlayerEntity.BuffBannerDefaultMaxChargeKills,
+            "maxChargeDamage",
+            PlayerEntity.BuffBannerDefaultMaxChargeDamage,
             minValue: 1);
         var deployTicks = GameplayAbilityParameterReader.GetTicks(
             ability,
@@ -566,13 +599,19 @@ public partial class Game1
             "damageMultiplier",
             PlayerEntity.BuffBannerDefaultDamageMultiplier,
             minValue: 1f);
+        var healthRegenPerSecond = GameplayAbilityParameterReader.GetFloat(
+            ability,
+            "healthRegenPerSecond",
+            PlayerEntity.BuffBannerDefaultHealthRegenPerSecond,
+            minValue: 0f);
 
         _ = player.TryStartBuffBanner(
-            maxChargeKills,
+            maxChargeDamage,
             deployTicks,
             activeTicks,
             radius,
-            damageMultiplier);
+            damageMultiplier,
+            healthRegenPerSecond);
         SyncPredictedLocalPlayerState(player);
         return true;
     }
@@ -647,34 +686,27 @@ public partial class Game1
             specialAbilityBehaviorId,
             BuiltInGameplayBehaviorIds.MedicNeedlegun,
             StringComparison.Ordinal);
-        var hasMedicKritzHealNeedles = string.Equals(
-            specialAbilityBehaviorId,
-            BuiltInGameplayBehaviorIds.MedicKritzHealNeedles,
-            StringComparison.Ordinal);
         var hasMedicKritzBeam = string.Equals(
             specialAbilityBehaviorId,
             BuiltInGameplayBehaviorIds.MedicKritzBeam,
             StringComparison.Ordinal);
+        var hasMedicUber = string.Equals(
+            specialAbilityBehaviorId,
+            BuiltInGameplayBehaviorIds.MedicUber,
+            StringComparison.Ordinal);
         if (player.ClassId == PlayerClass.Medic
-            && (hasMedicNeedlegun || hasMedicKritzHealNeedles || hasMedicKritzBeam))
+            && (hasMedicNeedlegun || hasMedicKritzBeam || hasMedicUber))
         {
             if (!predictedInput.Input.FireSecondary)
             {
                 return false;
             }
 
-            if (hasMedicKritzHealNeedles)
+            if (hasMedicUber)
             {
-                if (predictedInput.Input.FirePrimary
-                    && _predictedLocalActionState.IsMedicUberReady
-                    && player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.MedicUber))
+                if (predictedInput.Input.FirePrimary && _predictedLocalActionState.IsMedicUberReady)
                 {
                     TryPredictedStartMedicUber(player);
-                }
-                else if (!predictedInput.Input.FirePrimary
-                    && player.TryFireMedicKritzHealNeedle())
-                {
-                    SyncPredictedLocalPlayerState(player);
                 }
 
                 return true;
@@ -866,15 +898,6 @@ public partial class Game1
             return;
         }
 
-        if (player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.ScoutUtility))
-
-        if (player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.MedicUtility)
-            || player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.MedicUber))
-        {
-            TryPredictedToggleMedicMedigun(player);
-            return;
-        }
-
         if (player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.HeavyUtility))
         {
             TryPredictedStartHeavyGhostDash(player);
@@ -884,25 +907,7 @@ public partial class Game1
         if (player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.SniperBinoculars))
         {
             TryPredictedToggleBinoculars(player);
-            return;
         }
-
-        if (!predictedInput.Input.SwapWeapon && TryPredictedToggleSecondaryWeapon(player))
-        {
-            return;
-        }
-
-        if (!player.HasExperimentalOffhandWeapon)
-        {
-            return;
-        }
-
-        if (predictedInput.Input.SwapWeapon)
-        {
-            return;
-        }
-
-        TryPredictedToggleSecondaryWeapon(player);
     }
 
     private bool TryPredictedFirePrimaryWeapon(PlayerEntity player)
@@ -1250,20 +1255,6 @@ public partial class Game1
     private bool TryPredictedStartMedicUber(PlayerEntity player)
     {
         if (!player.TryStartMedicUber())
-        {
-            return false;
-        }
-
-        SyncPredictedLocalPlayerState(player);
-        return true;
-    }
-
-    private bool TryPredictedToggleMedicMedigun(PlayerEntity player)
-    {
-        var targetSlot = player.GameplayLoadoutState.EquippedSlot == GameplayEquipmentSlot.Secondary
-            ? GameplayEquipmentSlot.Primary
-            : GameplayEquipmentSlot.Secondary;
-        if (!player.TrySelectGameplayEquippedSlot(targetSlot))
         {
             return false;
         }

@@ -400,8 +400,7 @@ public static class CombatDecisionResolver
                 return self.IsMedicUberReady && (healTarget.Health < 50 || self.Health < 40);
             }
 
-            return combatTarget is { } target
-                && HasPracticalCombatFiringSolution(world, self, target);
+            return false;
         }
 
         if (self.ClassId == PlayerClass.Heavy)
@@ -665,9 +664,11 @@ public static class CombatDecisionResolver
             return true;
         }
 
-        if (self.HasUtilityBehavior(BuiltInGameplayBehaviorIds.MedicUber))
+        if (self.HasUtilityBehavior(BuiltInGameplayBehaviorIds.MedicKritzHealNeedles))
         {
-            return self.IsMedicUberReady && (self.Health < 40 || healTarget is { Health: < 50 });
+            return self.MedicHealDartCooldownTicks <= 0
+                && (healTarget is { Health: var health } && health < healTarget.MaxHealth
+                    || combatTarget is { } target && HasPracticalCombatFiringSolution(world, self, target));
         }
 
         if (self.HasUtilityBehavior(BuiltInGameplayBehaviorIds.HeavyUtility)

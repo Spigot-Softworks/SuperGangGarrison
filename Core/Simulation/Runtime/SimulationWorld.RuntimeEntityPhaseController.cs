@@ -183,6 +183,7 @@ public sealed partial class SimulationWorld
 
         public void AdvancePlayerSimulationPhase()
         {
+            _world.ApplyBuffBannerRegeneration();
             _world.UpdateDispenserAuras();
             _world.UpdateBuffBannerAuras();
             var phaseStartTimestamp = SlowPlayerTracingEnabled ? Stopwatch.GetTimestamp() : 0L;

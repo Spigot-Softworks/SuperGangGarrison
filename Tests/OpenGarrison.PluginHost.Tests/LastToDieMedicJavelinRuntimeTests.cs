@@ -100,7 +100,7 @@ public sealed class LastToDieMedicJavelinRuntimeTests
 
         Assert.Equal(
             MedicHealNeedleProjectileEntity.DefaultEnemyDamagePerHit
-                + LastToDieDerivedModifiers.MedicJavelinEnemyCenterDamage,
+                + (int)SimulationWorld.ExplosiveSplashMinimumDamage,
             healthBefore - enemy.Health);
         Assert.Equal(anchoredX, javelin.X);
         Assert.Equal(anchoredY, javelin.Y);
@@ -158,8 +158,10 @@ public sealed class LastToDieMedicJavelinRuntimeTests
         var blockedEnemy = AddPlayer(world, 6, PlayerClass.Heavy, PlayerTeam.Blue);
         centerAlly.TeleportTo(explosionX, explosionY);
         centerEnemy.TeleportTo(explosionX, explosionY);
-        PlaceHitboxRightAt(edgeAlly, explosionX - LastToDieDerivedModifiers.MedicJavelinBlastRadius, explosionY);
-        PlaceHitboxRightAt(edgeEnemy, explosionX - LastToDieDerivedModifiers.MedicJavelinBlastRadius, explosionY);
+        var blastRadius = SimulationWorld.ResolveExplosiveSplashRadius(
+            LastToDieDerivedModifiers.MedicJavelinBlastRadius);
+        PlaceHitboxRightAt(edgeAlly, explosionX - blastRadius + 0.01f, explosionY);
+        PlaceHitboxRightAt(edgeEnemy, explosionX - blastRadius + 0.01f, explosionY);
         blockedEnemy.TeleportTo(470f, explosionY);
         centerAlly.ForceSetHealth(centerAlly.MaxHealth - 100);
         edgeAlly.ForceSetHealth(edgeAlly.MaxHealth - 100);
@@ -185,10 +187,10 @@ public sealed class LastToDieMedicJavelinRuntimeTests
             edgeAlly.MaxHealth - 100 + LastToDieDerivedModifiers.MedicJavelinAllyEdgeHealing,
             edgeAlly.Health);
         Assert.Equal(
-            LastToDieDerivedModifiers.MedicJavelinEnemyCenterDamage,
+            (int)SimulationWorld.ExplosiveSplashMinimumDamage,
             centerEnemyHealthBefore - centerEnemy.Health);
         Assert.Equal(
-            LastToDieDerivedModifiers.MedicJavelinEnemyEdgeDamage,
+            (int)SimulationWorld.ExplosiveSplashMinimumDamage,
             edgeEnemyHealthBefore - edgeEnemy.Health);
         Assert.Equal(blockedEnemyHealthBefore, blockedEnemy.Health);
     }
@@ -227,7 +229,7 @@ public sealed class LastToDieMedicJavelinRuntimeTests
 
         Assert.True(ally.IsLastToDieMedicHailMaryInvulnerable);
         Assert.Equal(
-            LastToDieDerivedModifiers.MedicJavelinEnemyCenterDamage,
+            (int)SimulationWorld.ExplosiveSplashMinimumDamage,
             unstunnedHealthBefore - unstunnedEnemy.Health);
         Assert.Equal(
             LastToDieDerivedModifiers.MedicJavelinEnemyCenterDamage

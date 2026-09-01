@@ -16,6 +16,8 @@ public sealed partial class SimulationWorld
 
         var x = explosionX ?? arrow.X;
         var y = explosionY ?? arrow.Y;
+        var blastRadius = ResolveExplosiveSplashRadius(
+            LastToDieSniperProfile.ExplosiveTipBlastRadius);
         RegisterWorldSoundEvent("ExplosionSnd", x, y, arrow.OwnerId);
         RegisterVisualEffect("Explosion", x, y);
         if (ClientPredictionMode)
@@ -40,14 +42,14 @@ public sealed partial class SimulationWorld
             }
 
             var distance = GetExplosionDistanceToPlayer(this, target, x, y);
-            if (distance > LastToDieSniperProfile.ExplosiveTipBlastRadius
+            if (distance > blastRadius
                 || !HasObstacleLineOfSight(x, y, target.X, target.Y))
             {
                 continue;
             }
 
             var distanceFraction = Math.Clamp(
-                distance / LastToDieSniperProfile.ExplosiveTipBlastRadius,
+                distance / blastRadius,
                 0f,
                 1f);
             var damage = LastToDieSniperProfile.ExplosiveTipCenterDamage
@@ -71,6 +73,8 @@ public sealed partial class SimulationWorld
                 damage *= arrow.CriticalDamageMultiplier;
                 traits |= PlayerDamageTraits.Critical;
             }
+
+            damage = MathF.Max(ExplosiveSplashMinimumDamage, damage);
 
             var resolution = ResolvePlayerDamage(
                 target,

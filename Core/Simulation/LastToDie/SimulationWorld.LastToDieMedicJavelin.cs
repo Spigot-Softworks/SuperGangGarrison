@@ -14,6 +14,8 @@ public sealed partial class SimulationWorld
 
         var explosionX = needle.X;
         var explosionY = needle.Y;
+        var blastRadius = ResolveExplosiveSplashRadius(
+            LastToDieDerivedModifiers.MedicJavelinBlastRadius);
         RegisterWorldSoundEvent("ExplosionSnd", explosionX, explosionY, needle.OwnerId);
         RegisterVisualEffect("Explosion", explosionX, explosionY);
         if (ClientPredictionMode)
@@ -34,7 +36,7 @@ public sealed partial class SimulationWorld
                 target,
                 explosionX,
                 explosionY);
-            if (distance > LastToDieDerivedModifiers.MedicJavelinBlastRadius)
+            if (distance > blastRadius)
             {
                 continue;
             }
@@ -56,7 +58,7 @@ public sealed partial class SimulationWorld
             }
 
             var distanceFraction = Math.Clamp(
-                distance / LastToDieDerivedModifiers.MedicJavelinBlastRadius,
+                distance / blastRadius,
                 0f,
                 1f);
             if (target.Team == needle.Team)
@@ -143,6 +145,8 @@ public sealed partial class SimulationWorld
         {
             damage *= LastToDieDerivedModifiers.MedicNeurotoxinPreStunnedDamageMultiplier;
         }
+
+        damage = MathF.Max(ExplosiveSplashMinimumDamage, damage);
 
         var resolution = ResolvePlayerDamageWithContext(
             target,

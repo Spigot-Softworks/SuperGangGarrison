@@ -5,7 +5,7 @@
   "displayName": "Shotgun",
   "behaviorId": "builtin.weapon.pellet_gun",
   "ammo": {
-    "maxAmmo": 6,
+    "maxAmmo": 4,
     "ammoPerUse": 1,
     "projectilesPerUse": 5,
     "useDelaySourceTicks": 20,

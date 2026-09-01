@@ -425,26 +425,26 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     }
 
     [Fact]
-    public void StockMedicRightClickFiresNeedlesWhenSpecialAbilitiesAreDisabled()
+    public void StockMedicRightClickDoesNotFireASecondNeedlegunWhenSpecialAbilitiesAreDisabled()
     {
         var world = CreateJoinedMedicWorld(new ExperimentalGameplaySettings(EnableSecondaryAbilities: false));
         AdvanceTicks(world, 1);
 
         PressFireSecondary(world);
 
-        Assert.NotEmpty(world.Needles);
+        Assert.Empty(world.Needles);
         Assert.False(world.LocalPlayer.IsMedicHealing);
-        AssertCoreSecondaryAbilityEvent(
-            world,
-            "ability.medic-needlegun",
-            BuiltInGameplayBehaviorIds.MedicNeedlegun,
-            GameplayAbilityConstants.WeaponAltFireCategory);
+        var abilityEvent = Assert.Single(world.DrainPendingGameplayAbilityEvents());
+        Assert.False(abilityEvent.Handled);
+        Assert.True(abilityEvent.ConsumedInput);
+        Assert.Equal("ability.medic-uber", abilityEvent.ItemId);
+        Assert.Equal(BuiltInGameplayBehaviorIds.MedicUber, abilityEvent.ExecutorId);
     }
 
     [Fact]
-    public void StockMedicRightClickFiresNeedlesAfterHealingTarget()
+    public void StockMedicRightClickDoesNotFireASecondNeedlegunAfterHealingTarget()
     {
-        var world = CreateJoinedMedicWorld(new ExperimentalGameplaySettings());
+        var world = CreateJoinedMedicWorld(new ExperimentalGameplaySettings(EnableSecondaryAbilities: true));
         AdvanceTicks(world, 1);
         var teammate = CreateRedNetworkScout(world, 2);
         SetOpenCombatLevel(world);
@@ -473,48 +473,45 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
 
         PressFireSecondary(world);
 
-        Assert.NotEmpty(world.Needles);
+        Assert.Empty(world.Needles);
         Assert.False(world.LocalPlayer.IsMedicHealing);
-        AssertCoreSecondaryAbilityEvent(
-            world,
-            "ability.medic-needlegun",
-            BuiltInGameplayBehaviorIds.MedicNeedlegun,
-            GameplayAbilityConstants.WeaponAltFireCategory);
+        var abilityEvent = Assert.Single(world.DrainPendingGameplayAbilityEvents());
+        Assert.False(abilityEvent.Handled);
+        Assert.True(abilityEvent.ConsumedInput);
+        Assert.Equal("ability.medic-uber", abilityEvent.ItemId);
+        Assert.Equal(BuiltInGameplayBehaviorIds.MedicUber, abilityEvent.ExecutorId);
     }
 
     [Fact]
-    public void StockMedicKritzHealNeedlesDealReducedDpsToEnemies()
+    public void StockMedicHealingDartDealsAuthoredDamageFromSpace()
     {
-        var world = CreateJoinedMedicWorld(new ExperimentalGameplaySettings());
+        var world = CreateJoinedMedicWorld(new ExperimentalGameplaySettings(EnableSecondaryAbilities: true));
         AdvanceTicks(world, 1);
         Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
         var enemy = CreateBlueNetworkScout(world, 2);
         MoveKritzBeamTestPlayersToOpenCombatLevel(world, enemy);
         var healthBefore = enemy.Health;
-        PressSwapWeaponSpace(world);
-        Assert.True(world.LocalPlayer.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.MedigunCrit));
+        Assert.True(world.LocalPlayer.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.Medigun));
         Assert.True(world.LocalPlayer.HasGameplayAbilityBehavior(
-            GameplayAbilityConstants.SpecialChannel,
+            GameplayAbilityConstants.UtilityChannel,
             BuiltInGameplayBehaviorIds.MedicKritzHealNeedles));
 
-        var magazineCycleTicks = (18 * 5) + 45;
-        for (var tick = 0; tick < magazineCycleTicks; tick += 1)
-        {
-            PressFireSecondary(world);
-        }
-
-        AdvanceTicks(world, 40);
+        PressUseAbilitySpace(world, enemy.X, enemy.Y);
+        AdvanceTicks(world, 20);
 
         var damageDealt = healthBefore - enemy.Health;
         var expectedDamagePerHit = MedicHealNeedleProjectileEntity.DefaultEnemyDamagePerHit;
-        Assert.InRange(damageDealt, expectedDamagePerHit * 2, expectedDamagePerHit * 6);
-        Assert.Equal(0, damageDealt % expectedDamagePerHit);
+        Assert.Equal(expectedDamagePerHit, damageDealt);
+        Assert.InRange(
+            world.LocalPlayer.MedicHealDartCooldownTicks,
+            PlayerEntity.MedicHealDartDefaultCooldownTicks - 21,
+            PlayerEntity.MedicHealDartDefaultCooldownTicks - 1);
     }
 
     [Fact]
-    public void StockMedicKritzHealNeedlesHealTeammatesAndChargeUber()
+    public void KritzMedicHealingDartHealsTeammatesAndChargesUberFromSpace()
     {
-        var world = CreateJoinedMedicWorld(new ExperimentalGameplaySettings());
+        var world = CreateJoinedMedicWorld(new ExperimentalGameplaySettings(EnableSecondaryAbilities: true));
         AdvanceTicks(world, 1);
         Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
         var teammate = CreateRedNetworkScout(world, 2);
@@ -528,10 +525,10 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         PressSwapWeaponSpace(world);
         Assert.True(world.LocalPlayer.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.MedigunCrit));
         Assert.True(world.LocalPlayer.HasGameplayAbilityBehavior(
-            GameplayAbilityConstants.SpecialChannel,
+            GameplayAbilityConstants.UtilityChannel,
             BuiltInGameplayBehaviorIds.MedicKritzHealNeedles));
 
-        PressFireSecondary(world);
+        PressUseAbilitySpace(world, teammate.X, teammate.Y);
         AdvanceTicks(world, 20);
 
         Assert.True(teammate.Health > healthBefore);
@@ -575,8 +572,8 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         Assert.Equal(teammate.Id, world.LocalPlayer.MedicHealTargetId);
         var abilityEvent = Assert.Single(world.DrainPendingGameplayAbilityEvents());
         Assert.True(abilityEvent.Handled);
-        Assert.Equal("ability.medic-kritz-heal-needles", abilityEvent.ItemId);
-        Assert.Equal(BuiltInGameplayBehaviorIds.MedicKritzHealNeedles, abilityEvent.ExecutorId);
+        Assert.Equal("ability.medic-uber", abilityEvent.ItemId);
+        Assert.Equal(BuiltInGameplayBehaviorIds.MedicUber, abilityEvent.ExecutorId);
     }
 
     [Fact]
@@ -633,10 +630,6 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         teammate.SetSpawnRoomState(false);
         PressSwapWeaponSpace(world);
 
-        PressFireSecondary(world);
-        AdvanceTicks(world, 20);
-        Assert.NotEmpty(world.Needles);
-
         world.SetLocalInput(new PlayerInputSnapshot(
             Left: false,
             Right: false,
@@ -661,7 +654,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     [Fact]
     public void StockMedicKritzUberIsReadyAtSeventyFivePercentCharge()
     {
-        var world = CreateJoinedMedicWorld(new ExperimentalGameplaySettings());
+        var world = CreateJoinedMedicWorld(new ExperimentalGameplaySettings(EnableSecondaryAbilities: true));
         AdvanceTicks(world, 1);
         PressSwapWeaponSpace(world);
 
@@ -723,16 +716,14 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     }
 
     [Fact]
-    public void StockMedicKritzHealNeedlesDoNotRetainBeamTargets()
+    public void StockMedicHealingDartsDoNotRetainBeamTargets()
     {
         var world = CreateJoinedMedicWorld(new ExperimentalGameplaySettings());
         AdvanceTicks(world, 1);
         Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
         var enemy = CreateBlueNetworkScout(world, 2);
         MoveKritzBeamTestPlayersToOpenCombatLevel(world, enemy);
-        PressSwapWeaponSpace(world);
-
-        PressFireSecondary(world);
+        PressUseAbilitySpace(world, enemy.X, enemy.Y);
         AdvanceTicks(world, 5);
 
         Assert.Null(world.LocalPlayer.MedicHealTargetId);
@@ -1628,6 +1619,28 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
 
         Assert.True(world.LocalPlayer.IsUsingHealingCabinet);
         Assert.Equal(0, world.LocalPlayer.ExperimentalGhostDashCooldownTicksRemaining);
+    }
+
+    [Fact]
+    public void HealingCabinetRefreshesMedicHealingDartCooldownWithoutAmmoState()
+    {
+        var world = CreateJoinedMedicWorld(new ExperimentalGameplaySettings(EnableSecondaryAbilities: true));
+        AdvanceTicks(world, 1);
+        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+
+        PressUseAbilitySpace(world);
+        Assert.True(world.LocalPlayer.MedicHealDartCooldownTicks > 0);
+
+        world.LocalPlayer.ForceSetHealth(world.LocalPlayer.MaxHealth);
+        world.LocalPlayer.ForceSetAmmo(world.LocalPlayer.MaxShells);
+        world.SetLocalInput(default);
+        var cabinet = world.Level.GetRoomObjects(RoomObjectType.HealingCabinet).First();
+        world.TeleportLocalPlayer(cabinet.CenterX, cabinet.CenterY);
+
+        world.AdvanceOneTick();
+
+        Assert.True(world.LocalPlayer.IsUsingHealingCabinet);
+        Assert.Equal(0, world.LocalPlayer.MedicHealDartCooldownTicks);
     }
 
     [Fact]
@@ -2800,22 +2813,26 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     }
 
     [Fact]
-    public void MedicRightClickFiresNeedlesWithoutEquippingSecondaryWeapon()
+    public void MedicSpaceFiresHealingDartWithoutEquippingSecondaryWeapon()
     {
-        var world = CreateJoinedMedicWorld(new ExperimentalGameplaySettings());
+        var world = CreateJoinedMedicWorld(new ExperimentalGameplaySettings(EnableSecondaryAbilities: true));
         AdvanceTicks(world, 1);
 
-        PressFireSecondary(world);
+        PressUseAbilitySpace(world);
 
         Assert.NotEmpty(world.Needles);
+        Assert.InRange(
+            world.LocalPlayer.MedicHealDartCooldownTicks,
+            PlayerEntity.MedicHealDartDefaultCooldownTicks - 1,
+            PlayerEntity.MedicHealDartDefaultCooldownTicks);
         Assert.False(world.LocalPlayer.IsMedicHealing);
         Assert.False(world.LocalPlayer.IsExperimentalOffhandEquipped);
         Assert.Equal(GameplayEquipmentSlot.Primary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
         AssertCoreSecondaryAbilityEvent(
             world,
-            "ability.medic-needlegun",
-            BuiltInGameplayBehaviorIds.MedicNeedlegun,
-            GameplayAbilityConstants.WeaponAltFireCategory);
+            "ability.medic-kritz-heal-needles",
+            BuiltInGameplayBehaviorIds.MedicKritzHealNeedles,
+            GameplayAbilityConstants.UtilityCategory);
     }
 
     [Fact]
@@ -3997,7 +4014,10 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         Assert.Equal(expectedItemId, abilityEvent.ItemId);
         Assert.Equal(expectedCategory, abilityEvent.AbilityCategory);
         Assert.Equal(expectedExecutorId, abilityEvent.ExecutorId);
-        Assert.Contains(GameplayAbilityConstants.CoreSecondaryInputTag, abilityEvent.Tags);
+        if (!string.Equals(expectedCategory, GameplayAbilityConstants.UtilityCategory, StringComparison.Ordinal))
+        {
+            Assert.Contains(GameplayAbilityConstants.CoreSecondaryInputTag, abilityEvent.Tags);
+        }
     }
 
     private static void PressNetworkSwapWeaponSpace(SimulationWorld world, byte slot, PlayerEntity player)

@@ -248,6 +248,7 @@ public sealed partial class PlayerEntity
             || ExperimentalGhostDashCooldownTicksRemaining > 0
             || SpySuperjumpCooldownTicksRemaining > 0
             || MedicNeedleCooldownTicks > 0
+            || MedicHealDartCooldownTicks > 0
             || PyroAirblastCooldownTicks > 0
             || PyroFlareCooldownTicks > 0
             || ExperimentalOffhandCooldownTicks > 0
@@ -302,6 +303,7 @@ public sealed partial class PlayerEntity
         ExperimentalGhostDashCooldownTicksRemaining = 0;
         RestoreLastToDieSpyJumpBootCharges();
         MedicNeedleCooldownTicks = 0;
+        MedicHealDartCooldownTicks = 0;
         PyroAirblastCooldownTicks = 0;
         PyroFlareCooldownTicks = 0;
         ResetCivvieUmbrellaState();

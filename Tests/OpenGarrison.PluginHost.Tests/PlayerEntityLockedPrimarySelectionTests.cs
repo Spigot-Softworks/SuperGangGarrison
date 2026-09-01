@@ -135,14 +135,17 @@ public sealed class PlayerEntityLockedPrimarySelectionTests
 
         Assert.True(medic.HasGameplayAbilityBehavior(
             GameplayAbilityConstants.SpecialChannel,
-            BuiltInGameplayBehaviorIds.MedicNeedlegun));
+            BuiltInGameplayBehaviorIds.MedicUber));
+        Assert.True(medic.HasGameplayAbilityBehavior(
+            GameplayAbilityConstants.UtilityChannel,
+            BuiltInGameplayBehaviorIds.MedicKritzHealNeedles));
 
         Assert.True(medic.TrySelectGameplayPrimaryItem("weapon.medigun.crit"));
-        Assert.False(medic.HasGameplayAbilityBehavior(
-            GameplayAbilityConstants.SpecialChannel,
-            BuiltInGameplayBehaviorIds.MedicNeedlegun));
         Assert.True(medic.HasGameplayAbilityBehavior(
             GameplayAbilityConstants.SpecialChannel,
+            BuiltInGameplayBehaviorIds.MedicUber));
+        Assert.True(medic.HasGameplayAbilityBehavior(
+            GameplayAbilityConstants.UtilityChannel,
             BuiltInGameplayBehaviorIds.MedicKritzHealNeedles));
     }
 

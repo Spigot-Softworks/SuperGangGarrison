@@ -10,11 +10,12 @@
     "executorId": "builtin.ability.soldier_buff_banner",
     "tags": [ "buff", "aura", "charge", "minicrit" ],
     "parameters": {
-      "maxChargeKills": 4,
+      "maxChargeDamage": 400,
       "deployTicks": 44,
       "activeTicks": 150,
       "radius": 128,
-      "damageMultiplier": 1.35
+      "damageMultiplier": 1.35,
+      "healthRegenPerSecond": 5
     }
   },
   "ammo": {},
@@ -26,19 +27,20 @@
       "order": 80,
       "stateProvider": "abilityCooldown",
       "stateOwner": "core.ability",
-      "cooldownKey": "buff_banner_missing_kills",
-      "maxCooldown": 4,
+      "cooldownKey": "buff_banner_missing_damage",
+      "maxCooldown": 400,
       "activeKey": "buff_banner_deploying_or_active",
       "hideWhenUnavailable": true
     }
   },
   "description": {
-    "summary": "Earn one charge per enemy kill, then deploy a team minicrit aura with Ability.",
+    "summary": "Deal damage to charge, then deploy a team minicrit and regeneration aura with Ability.",
     "positiveAttributes": [
-      "buffs nearby teammates to 135% damage for 150 ticks"
+      "buffs nearby teammates to 135% damage for 150 ticks",
+      "grants nearby teammates 5 health regeneration per second"
     ],
     "negativeAttributes": [
-      "requires 4 enemy kills",
+      "requires 400 enemy damage",
       "deployment takes 44 ticks"
     ]
   }

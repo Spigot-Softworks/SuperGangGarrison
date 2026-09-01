@@ -165,7 +165,7 @@ public sealed class FirePredictionRegressionTests
         world.PrepareLocalPlayerJoin();
         world.CompleteLocalPlayerJoin(PlayerClass.Soldier);
         var player = world.LocalPlayer;
-        Assert.True(player.TryAddBuffBannerKillCharge(PlayerEntity.BuffBannerDefaultMaxChargeKills));
+        Assert.True(player.TryAddBuffBannerDamageCharge(PlayerEntity.BuffBannerDefaultMaxChargeDamage));
         var game = CreatePredictionHarness(world);
 
         InvokePrivate(
@@ -179,7 +179,7 @@ public sealed class FirePredictionRegressionTests
                 abilityPressed: true));
 
         Assert.True(player.IsBuffBannerDeploying);
-        Assert.Equal(0, player.BuffBannerChargeKills);
+        Assert.Equal(0, player.BuffBannerChargeDamage);
         var ammoAfterDeploy = player.CurrentShells;
 
         InvokePrivate(
@@ -198,6 +198,41 @@ public sealed class FirePredictionRegressionTests
 
         Assert.Equal(ammoAfterDeploy, player.CurrentShells);
         Assert.Empty(world.Rockets);
+    }
+
+    [Fact]
+    public void PredictedMedicHealingDartUsesIndependentUtilityCooldown()
+    {
+        var world = new SimulationWorld();
+        world.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings(
+            EnableSecondaryAbilities: true));
+        world.PrepareLocalPlayerJoin();
+        world.CompleteLocalPlayerJoin(PlayerClass.Medic);
+        var player = world.LocalPlayer;
+        var primaryAmmoBefore = player.CurrentShells;
+        var equippedSlotBefore = player.GameplayLoadoutState.EquippedSlot;
+        var equippedItemBefore = player.GameplayLoadoutState.EquippedItemId;
+        var game = CreatePredictionHarness(world);
+
+        InvokePrivate(
+            typeof(Game1),
+            game,
+            "ApplyPredictedInputStep",
+            player,
+            CreatePredictedLocalInput(
+                default(PlayerInputSnapshot) with
+                {
+                    UseAbility = true,
+                    AimWorldX = player.X + 256f,
+                    AimWorldY = player.Y,
+                },
+                primaryPressed: false,
+                abilityPressed: true));
+
+        Assert.Equal(primaryAmmoBefore, player.CurrentShells);
+        Assert.Equal(PlayerEntity.MedicHealDartDefaultCooldownTicks, player.MedicHealDartCooldownTicks);
+        Assert.Equal(equippedSlotBefore, player.GameplayLoadoutState.EquippedSlot);
+        Assert.Equal(equippedItemBefore, player.GameplayLoadoutState.EquippedItemId);
     }
 
     [Fact]

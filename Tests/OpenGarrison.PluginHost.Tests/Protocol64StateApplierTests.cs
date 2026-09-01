@@ -138,18 +138,19 @@ public sealed class Protocol64StateApplierTests
     }
 
     [Fact]
-    public void Protocol64PublisherCarriesMedicM2AmmoFromCurrentShells()
+    public void Protocol64PublisherKeepsMedicNeedlegunAmmoInTheSecondaryState()
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
         Assert.True(world.TrySetLocalClass(PlayerClass.Medic));
-        world.LocalPlayer.ForceSetAmmo(17);
 
         var publisher = new Protocol64StatePublisher(world);
         var player = Assert.Single(publisher.BuildPlayerStateBatch(1).Players);
 
         Assert.Equal(CharacterClassCatalog.Medic.GameplayClassId, player.GameplayClassId);
-        Assert.Equal(17, player.CurrentAmmo);
-        Assert.Equal(40, player.MaxAmmo);
+        Assert.Equal(1, player.CurrentAmmo);
+        Assert.Equal(1, player.MaxAmmo);
+        Assert.Equal(40, player.OffhandAmmo);
+        Assert.Equal(40, player.OffhandMaxAmmo);
     }
 
     [Fact]

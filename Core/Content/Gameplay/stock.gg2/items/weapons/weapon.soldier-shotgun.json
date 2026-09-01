@@ -6,7 +6,7 @@
   "displayName": "12 Gauge",
   "behaviorId": "builtin.weapon.pellet_gun",
   "ammo": {
-    "maxAmmo": 2,
+    "maxAmmo": 4,
     "ammoPerUse": 1,
     "projectilesPerUse": 4,
     "useDelaySourceTicks": 20,

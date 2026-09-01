@@ -300,17 +300,8 @@ public sealed partial class PlayerEntity
             MedicNeedleRefillTicks,
             oldSpeedMultiplier,
             newSpeedMultiplier);
-        if (!HasPrimaryBehavior(global::OpenGarrison.GameplayModding.BuiltInGameplayBehaviorIds.MedigunCrit))
-        {
-            return;
-        }
-
-        PrimaryCooldownTicks = RescaleLastToDieMedicLinkWeaponTimer(
-            PrimaryCooldownTicks,
-            oldSpeedMultiplier,
-            newSpeedMultiplier);
-        ReloadTicksUntilNextShell = RescaleLastToDieMedicLinkWeaponTimer(
-            ReloadTicksUntilNextShell,
+        MedicHealDartCooldownTicks = RescaleLastToDieMedicLinkWeaponTimer(
+            MedicHealDartCooldownTicks,
             oldSpeedMultiplier,
             newSpeedMultiplier);
     }

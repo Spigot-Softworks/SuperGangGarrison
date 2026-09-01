@@ -78,6 +78,7 @@ public sealed partial class SimulationWorld
     private void ExplodeMine(MineProjectileEntity mine, bool triggerNearbyMines = true)
     {
         var owner = FindPlayerById(mine.OwnerId);
+        var blastRadius = ResolveExplosiveSplashRadius(MineProjectileEntity.BlastRadius);
         for (var mineIndex = _mines.Count - 1; mineIndex >= 0; mineIndex -= 1)
         {
             if (_mines[mineIndex].Id == mine.Id)
@@ -103,7 +104,7 @@ public sealed partial class SimulationWorld
             }
 
             var distance = GetExplosionDistanceToPlayer(this, player, mine.X, mine.Y);
-            if (distance >= MineProjectileEntity.BlastRadius)
+            if (distance >= blastRadius)
             {
                 continue;
             }
@@ -113,8 +114,8 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            var factor = 1f - (distance / MineProjectileEntity.BlastRadius);
-            if (factor <= MineProjectileEntity.SplashThresholdFactor)
+            var factor = 1f - (distance / blastRadius);
+            if (factor <= 0f)
             {
                 continue;
             }
@@ -139,11 +140,13 @@ public sealed partial class SimulationWorld
             {
                 RegisterBloodEffect(player.X, player.Y, PointDirectionDegrees(mine.X, mine.Y, player.X, player.Y) - 180f, 3);
                 var critMultiplier = (player.Id == mine.OwnerId && player.Team == mine.Team) ? 1f : mine.CriticalDamageMultiplier;
-                var damage = mine.ExplosionDamage * critMultiplier * factor;
+                var maximumDamage = mine.ExplosionDamage * critMultiplier;
                 if (player.Id == mine.OwnerId && player.Team == mine.Team)
                 {
-                    damage *= MineProjectileEntity.SelfDamageScale;
+                    maximumDamage *= MineProjectileEntity.SelfDamageScale;
                 }
+
+                var damage = ResolveExplosiveSplashDamage(maximumDamage, factor);
 
                 if (ApplyPlayerContinuousDamageWithContext(
                         player,
@@ -171,18 +174,20 @@ public sealed partial class SimulationWorld
         {
             var sentry = _sentries[sentryIndex];
             var distance = DistanceBetween(mine.X, mine.Y, sentry.X, sentry.Y);
-            if (distance >= MineProjectileEntity.BlastRadius || sentry.Team == mine.Team)
+            if (distance >= blastRadius || sentry.Team == mine.Team)
             {
                 continue;
             }
 
-            var factor = 1f - (distance / MineProjectileEntity.BlastRadius);
-            if (factor <= MineProjectileEntity.SplashThresholdFactor)
+            var factor = 1f - (distance / blastRadius);
+            if (factor <= 0f)
             {
                 continue;
             }
 
-            var damage = mine.ExplosionDamage * MineProjectileEntity.SentryDamageMultiplier * mine.CriticalDamageMultiplier * factor;
+            var damage = ResolveExplosiveSplashDamage(
+                mine.ExplosionDamage * MineProjectileEntity.SentryDamageMultiplier * mine.CriticalDamageMultiplier,
+                factor);
             if (ApplySentryDamage(sentry, (int)MathF.Ceiling(damage), owner))
             {
                 DestroySentry(sentry, owner);
@@ -193,18 +198,20 @@ public sealed partial class SimulationWorld
         {
             var generator = _generators[generatorIndex];
             var distance = DistanceBetween(mine.X, mine.Y, generator.Marker.CenterX, generator.Marker.CenterY);
-            if (distance >= MineProjectileEntity.BlastRadius || generator.Team == mine.Team || generator.IsDestroyed)
+            if (distance >= blastRadius || generator.Team == mine.Team || generator.IsDestroyed)
             {
                 continue;
             }
 
-            var damageFactor = 1f - (distance / MineProjectileEntity.BlastRadius);
-            if (damageFactor <= MineProjectileEntity.SplashThresholdFactor)
+            var damageFactor = 1f - (distance / blastRadius);
+            if (damageFactor <= 0f)
             {
                 continue;
             }
 
-            var damage = mine.ExplosionDamage * mine.CriticalDamageMultiplier * damageFactor;
+            var damage = ResolveExplosiveSplashDamage(
+                mine.ExplosionDamage * mine.CriticalDamageMultiplier,
+                damageFactor);
             TryDamageGenerator(generator.Team, damage, owner);
         }
 
@@ -251,6 +258,7 @@ public sealed partial class SimulationWorld
 
     private IEnumerable<MineProjectileEntity> GetTriggeredMines(MineProjectileEntity sourceMine)
     {
+        var blastRadius = ResolveExplosiveSplashRadius(MineProjectileEntity.BlastRadius);
         foreach (var mine in _mines)
         {
             if (mine.Id == sourceMine.Id)
@@ -259,13 +267,13 @@ public sealed partial class SimulationWorld
             }
 
             var distance = DistanceBetween(sourceMine.X, sourceMine.Y, mine.X, mine.Y);
-            if (distance >= MineProjectileEntity.BlastRadius)
+            if (distance >= blastRadius)
             {
                 continue;
             }
 
-            var distanceFactor = 1f - (distance / MineProjectileEntity.BlastRadius);
-            if (distanceFactor <= MineProjectileEntity.SplashThresholdFactor)
+            var distanceFactor = 1f - (distance / blastRadius);
+            if (distanceFactor <= 0f)
             {
                 continue;
             }
@@ -463,7 +471,8 @@ public sealed partial class SimulationWorld
 
     private void TriggerExperimentalDangerCloseExplosion(float centerX, float centerY, PlayerEntity owner)
     {
-        var blastRadius = global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultDangerCloseBlastRadius;
+        var blastRadius = ResolveExplosiveSplashRadius(
+            global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultDangerCloseBlastRadius);
         var blastDamage = global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultDangerCloseExplosionDamage;
         var knockbackPerTick = global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultDangerCloseKnockbackPerTick;
         var playersSnapshot = EnumerateSimulatedPlayers().ToArray();
@@ -494,7 +503,7 @@ public sealed partial class SimulationWorld
             }
 
             var distanceFactor = 1f - (distance / blastRadius);
-            if (distanceFactor <= RocketProjectileEntity.SplashThresholdFactor)
+            if (distanceFactor <= 0f)
             {
                 continue;
             }
@@ -522,7 +531,7 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            var appliedDamage = blastDamage * distanceFactor;
+            var appliedDamage = ResolveExplosiveSplashDamage(blastDamage, distanceFactor);
             RegisterBloodEffect(player.X, player.Y, PointDirectionDegrees(centerX, centerY, player.X, player.Y) - 180f, 3);
             if (ApplyPlayerContinuousDamageWithContext(
                     player,
@@ -552,7 +561,7 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            var damage = blastDamage * (1f - (distance / blastRadius));
+            var damage = ResolveExplosiveSplashDamage(blastDamage, 1f - (distance / blastRadius));
             if (ApplySentryDamage(sentry, (int)MathF.Ceiling(damage), owner))
             {
                 DestroySentry(sentry, owner);
@@ -568,7 +577,7 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            var damage = blastDamage * (1f - (distance / blastRadius));
+            var damage = ResolveExplosiveSplashDamage(blastDamage, 1f - (distance / blastRadius));
             TryDamageGenerator(generator.Team, damage, owner);
         }
 
@@ -622,9 +631,10 @@ public sealed partial class SimulationWorld
 
     private void DestroyBubblesInMineBlast(MineProjectileEntity mine)
     {
+        var blastRadius = ResolveExplosiveSplashRadius(MineProjectileEntity.BlastRadius);
         for (var bubbleIndex = _bubbles.Count - 1; bubbleIndex >= 0; bubbleIndex -= 1)
         {
-            if (DistanceBetween(mine.X, mine.Y, _bubbles[bubbleIndex].X, _bubbles[bubbleIndex].Y) < MineProjectileEntity.BlastRadius + BubbleProjectileEntity.SelfPopRadius)
+            if (DistanceBetween(mine.X, mine.Y, _bubbles[bubbleIndex].X, _bubbles[bubbleIndex].Y) < blastRadius + BubbleProjectileEntity.SelfPopRadius)
             {
                 RemoveBubbleAt(bubbleIndex);
             }

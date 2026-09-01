@@ -557,7 +557,7 @@ internal sealed class Protocol64StatePublisher
             Math.Max(0, player.RageTicksRemaining),
             Math.Max(0, player.PrimaryCooldownTicks),
             Math.Max(0, player.ReloadTicksUntilNextShell),
-            Math.Max(0, player.BuffBannerChargeKills),
+            Math.Max(0, player.BuffBannerChargeDamage),
             Math.Max(0, player.BuffBannerDeployTicksRemaining),
             Math.Max(0, player.BuffBannerActiveTicksRemaining));
 

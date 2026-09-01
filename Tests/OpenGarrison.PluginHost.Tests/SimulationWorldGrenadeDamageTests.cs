@@ -39,6 +39,36 @@ public sealed class SimulationWorldGrenadeDamageTests
     }
 
     [Fact]
+    public void ExplosiveSplashUsesExpandedRadiusAndTwentyFiveDamageFloor()
+    {
+        Assert.Equal(
+            GrenadeProjectileEntity.BlastRadius * SimulationWorld.ExplosiveSplashRadiusMultiplier,
+            SimulationWorld.ResolveExplosiveSplashRadius(GrenadeProjectileEntity.BlastRadius));
+        Assert.Equal(
+            SimulationWorld.ExplosiveSplashMinimumDamage,
+            SimulationWorld.ResolveExplosiveSplashDamage(
+                GrenadeProjectileEntity.BaseExplosionDamage,
+                distanceFactor: 0.01f));
+
+        var world = CreateCombatWorld();
+        var owner = world.LocalPlayer;
+        owner.TeleportTo(-500f, 0f);
+        var enemy = AddEnemy(
+            world,
+            id: 2,
+            x: GrenadeProjectileEntity.BlastRadius * 1.1f,
+            y: 0f);
+        var healthBefore = enemy.Health;
+
+        var grenade = SpawnGrenade(world, owner, x: 0f, y: 0f);
+        ExplodeGrenade(world, grenade);
+
+        Assert.Equal(
+            healthBefore - (int)SimulationWorld.ExplosiveSplashMinimumDamage,
+            enemy.Health);
+    }
+
+    [Fact]
     public void ClientPredictionGrenadeExplosionEmitsLocalPresentationWithoutDamage()
     {
         var world = CreateCombatWorld();

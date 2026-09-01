@@ -42,6 +42,12 @@ public sealed partial class SimulationWorld
             wasFatal,
             flags,
             SourceFrame: (ulong)Frame));
+        if (targetKind == DamageTargetKind.Player
+            && attacker is not null
+            && playerTarget is not null)
+        {
+            TryRegisterBuffBannerDamage(attacker, playerTarget, amount);
+        }
     }
 
     private int FindHealingMedicPlayerId(int targetPlayerId)

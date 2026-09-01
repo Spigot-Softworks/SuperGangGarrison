@@ -441,11 +441,12 @@ public sealed partial class SimulationWorld
         }
 
         var owner = FindPlayerById(grenade.OwnerId);
+        var blastRadius = ResolveExplosiveSplashRadius(GrenadeProjectileEntity.BlastRadius);
 
         RegisterWorldSoundEvent("ExplosionSnd", grenade.X, grenade.Y);
         RegisterVisualEffect("Explosion", grenade.X, grenade.Y);
-        ApplyDeadBodyExplosionImpulse(grenade.X, grenade.Y, GrenadeProjectileEntity.BlastRadius * 0.75f, 10f, GrenadeProjectileEntity.BlastRadius);
-        ApplyPlayerGibExplosionImpulse(grenade.X, grenade.Y, GrenadeProjectileEntity.BlastRadius * 0.75f, 15f, GrenadeProjectileEntity.BlastRadius);
+        ApplyDeadBodyExplosionImpulse(grenade.X, grenade.Y, blastRadius * 0.75f, 10f, blastRadius);
+        ApplyPlayerGibExplosionImpulse(grenade.X, grenade.Y, blastRadius * 0.75f, 15f, blastRadius);
         RegisterExplosionTraces(grenade.X, grenade.Y);
 
         // Damage players
@@ -462,7 +463,7 @@ public sealed partial class SimulationWorld
             }
 
             var distance = GetExplosionDistanceToPlayer(this, player, grenade.X, grenade.Y);
-            if (distance >= GrenadeProjectileEntity.BlastRadius)
+            if (distance >= blastRadius)
             {
                 continue;
             }
@@ -472,8 +473,8 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            var factor = 1f - (distance / GrenadeProjectileEntity.BlastRadius);
-            if (factor <= GrenadeProjectileEntity.SplashThresholdFactor)
+            var factor = 1f - (distance / blastRadius);
+            if (factor <= 0f)
             {
                 continue;
             }
@@ -508,7 +509,7 @@ public sealed partial class SimulationWorld
                     maxSplashDamage *= GrenadeProjectileEntity.SelfDamageScale;
                 }
 
-                var damage = maxSplashDamage * factor;
+                var damage = ResolveExplosiveSplashDamage(maxSplashDamage, factor);
                 if (ApplyPlayerContinuousDamageWithContext(
                         player,
                         damage,
@@ -546,13 +547,13 @@ public sealed partial class SimulationWorld
         {
             var sentry = _sentries[sentryIndex];
             var distance = DistanceBetween(grenade.X, grenade.Y, sentry.X, sentry.Y);
-            if (distance >= GrenadeProjectileEntity.BlastRadius || sentry.Team == grenade.Team)
+            if (distance >= blastRadius || sentry.Team == grenade.Team)
             {
                 continue;
             }
 
-            var factor = 1f - (distance / GrenadeProjectileEntity.BlastRadius);
-            if (factor <= GrenadeProjectileEntity.SplashThresholdFactor)
+            var factor = 1f - (distance / blastRadius);
+            if (factor <= 0f)
             {
                 continue;
             }
@@ -562,7 +563,9 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            var damage = grenade.ExplosionDamage * GrenadeProjectileEntity.SentryDamageMultiplier * grenade.CriticalDamageMultiplier * factor;
+            var damage = ResolveExplosiveSplashDamage(
+                grenade.ExplosionDamage * GrenadeProjectileEntity.SentryDamageMultiplier * grenade.CriticalDamageMultiplier,
+                factor);
             if (ApplySentryDamage(sentry, (int)MathF.Ceiling(damage), owner))
             {
                 DestroySentry(sentry, owner);
@@ -574,13 +577,13 @@ public sealed partial class SimulationWorld
         {
             var jumpPad = _jumpPads[jumpPadIndex];
             var distance = DistanceBetween(grenade.X, grenade.Y, jumpPad.X, jumpPad.Y);
-            if (distance >= GrenadeProjectileEntity.BlastRadius || jumpPad.IsNeutral || jumpPad.Team == grenade.Team || jumpPad.IsDead)
+            if (distance >= blastRadius || jumpPad.IsNeutral || jumpPad.Team == grenade.Team || jumpPad.IsDead)
             {
                 continue;
             }
 
-            var factor = 1f - (distance / GrenadeProjectileEntity.BlastRadius);
-            if (factor <= GrenadeProjectileEntity.SplashThresholdFactor)
+            var factor = 1f - (distance / blastRadius);
+            if (factor <= 0f)
             {
                 continue;
             }
@@ -590,7 +593,9 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            var damage = grenade.ExplosionDamage * grenade.CriticalDamageMultiplier * factor;
+            var damage = ResolveExplosiveSplashDamage(
+                grenade.ExplosionDamage * grenade.CriticalDamageMultiplier,
+                factor);
             jumpPad.TakeDamage((int)MathF.Ceiling(damage));
         }
 
@@ -610,11 +615,12 @@ public sealed partial class SimulationWorld
         ApplyExplosiveDamageToDamageableZones(
             grenade.X,
             grenade.Y,
-            GrenadeProjectileEntity.BlastRadius,
+            blastRadius,
             grenade.ExplosionDamage * grenade.CriticalDamageMultiplier,
-            GrenadeProjectileEntity.SplashThresholdFactor,
+            0f,
             directHitDamageableZoneIndex,
-            grenade.Team);
+            grenade.Team,
+            ExplosiveSplashMinimumDamage);
     }
 
     private void ApplyGrenadeDirectImpactDamage(

@@ -41,6 +41,7 @@ public sealed partial class PlayerEntity : SimulationEntity
     public const int MedicPassiveRegenSecondThresholdSourceTicks = 14 * 30;
     public const int MedicNeedleRefillTicksDefault = 55;
     public const int MedicNeedleFireCooldownTicks = 3;
+    public const int MedicHealDartDefaultCooldownTicks = 90;
     public const int IntelRechargeMaxTicks = 900;
     public const int SpyBackstabWindupTicksDefault = 32;
     public const int SpyBackstabRecoveryTicksDefault = 18;
@@ -453,6 +454,8 @@ public sealed partial class PlayerEntity : SimulationEntity
     public int MedicNeedleCooldownTicks { get; private set; }
 
     public int MedicNeedleRefillTicks { get; private set; }
+
+    public int MedicHealDartCooldownTicks { get; private set; }
 
     public float ContinuousHealingAccumulator { get; private set; }
 
@@ -1048,6 +1051,7 @@ public sealed partial class PlayerEntity : SimulationEntity
         MedicUberUsesFixedDuration = false;
         MedicNeedleCooldownTicks = 0;
         MedicNeedleRefillTicks = 0;
+        ResetMedicHealDartState();
         ContinuousHealingAccumulator = 0f;
         IsDispenserBuffed = false;
         DispenserAttackReloadSpeedMultiplier = 1f;
