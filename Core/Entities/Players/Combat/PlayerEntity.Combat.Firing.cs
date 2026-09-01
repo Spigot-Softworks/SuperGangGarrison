@@ -146,41 +146,23 @@ public sealed partial class PlayerEntity
         return true;
     }
 
-    public bool TryFireMedicKritzHealNeedle(
-        int fireCooldownTicks = -1,
-        int refillTicks = MedicNeedleRefillTicksDefault)
+    public bool TryFireMedicHealDart(int cooldownTicks = MedicHealDartDefaultCooldownTicks)
     {
-        var ignoreAmmoCost = HasInfiniteAmmoFromUber;
-        var weaponDefinition = PrimaryWeapon;
         if (!IsAlive
             || ClassId != PlayerClass.Medic
-            || !HasPrimaryBehavior(BuiltInGameplayBehaviorIds.MedigunCrit)
-            || GameplayLoadoutState.EquippedSlot != GameplayEquipmentSlot.Primary
             || IsHeavyEating
             || IsTaunting
             || IsCivviePogoActive
             || IsSpyCloaked
             || IsExperimentalCryoFrozen
-            || PrimaryCooldownTicks > 0
-            || (!ignoreAmmoCost && CurrentShells <= 0))
+            || MedicHealDartCooldownTicks > 0)
         {
             return false;
         }
 
-        if (fireCooldownTicks < 0)
-        {
-            fireCooldownTicks = Math.Max(1, weaponDefinition.ReloadDelayTicks);
-        }
+        MedicHealDartCooldownTicks = ApplyLastToDieMedicNeedleWeaponCycleMultiplier(
+            Math.Max(1, cooldownTicks));
 
-        if (!ignoreAmmoCost)
-        {
-            CurrentShells -= 1;
-        }
-
-        PrimaryCooldownTicks = ApplyLastToDieMedicNeedleWeaponCycleMultiplier(
-            Math.Max(1, fireCooldownTicks));
-        ReloadTicksUntilNextShell = ApplyLastToDieMedicNeedleReloadMultiplier(
-            Math.Max(1, refillTicks));
         return true;
     }
 

@@ -175,10 +175,11 @@ internal static class ModernGraphRouteCombatReference
         bool firePrimary,
         bool fireSecondary)
     {
-        if (player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.MedicUber))
+        if (player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.MedicKritzHealNeedles))
         {
-            return player.IsMedicUberReady
-                && (player.Health < 40 || healTarget is { Health: < 50 });
+            return player.MedicHealDartCooldownTicks <= 0
+                && (healTarget is { Health: var health } && health < healTarget.MaxHealth
+                    || combatTargetX.HasValue && combatTargetY.HasValue);
         }
 
         if (player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.PyroUtility))

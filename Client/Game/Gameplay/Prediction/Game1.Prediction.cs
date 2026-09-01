@@ -420,20 +420,22 @@ public partial class Game1
             MedicUberDeliveryMode = player.MedicUberPresentationMode,
             MedicNeedleCooldownTicks = player.MedicNeedleCooldownTicks,
             MedicNeedleRefillTicks = player.MedicNeedleRefillTicks,
+            MedicHealDartCooldownTicks = player.MedicHealDartCooldownTicks,
             CurrentShells = player.CurrentShells,
             PrimaryCooldownTicks = player.PrimaryCooldownTicks,
             ReloadTicksUntilNextShell = player.ReloadTicksUntilNextShell,
             ExperimentalOffhandCurrentShells = player.ExperimentalOffhandCurrentShells,
             ExperimentalOffhandCooldownTicks = player.ExperimentalOffhandCooldownTicks,
             ExperimentalOffhandReloadTicksUntilNextShell = player.ExperimentalOffhandReloadTicksUntilNextShell,
-            BuffBannerChargeKills = player.BuffBannerChargeKills,
-            BuffBannerMaxChargeKills = player.BuffBannerMaxChargeKills,
+            BuffBannerChargeDamage = player.BuffBannerChargeDamage,
+            BuffBannerMaxChargeDamage = player.BuffBannerMaxChargeDamage,
             BuffBannerDeployTicksRemaining = player.BuffBannerDeployTicksRemaining,
             BuffBannerDeployDurationTicks = player.BuffBannerDeployDurationTicks,
             BuffBannerActiveTicksRemaining = player.BuffBannerActiveTicksRemaining,
             BuffBannerActiveDurationTicks = player.BuffBannerActiveDurationTicks,
             BuffBannerRadius = player.BuffBannerRadius,
             BuffBannerDamageMultiplier = player.BuffBannerDamageMultiplier,
+            BuffBannerHealthRegenPerSecond = player.BuffBannerHealthRegenPerSecond,
             AcquiredWeaponCurrentShells = player.AcquiredWeaponCurrentShells,
             AcquiredWeaponCooldownTicks = player.AcquiredWeaponCooldownTicks,
             AcquiredWeaponReloadTicksUntilNextShell = player.AcquiredWeaponReloadTicksUntilNextShell,
@@ -586,20 +588,22 @@ public partial class Game1
         public MedicUberDeliveryMode MedicUberDeliveryMode;
         public int MedicNeedleCooldownTicks;
         public int MedicNeedleRefillTicks;
+        public int MedicHealDartCooldownTicks;
         public int CurrentShells;
         public int PrimaryCooldownTicks;
         public int ReloadTicksUntilNextShell;
         public int ExperimentalOffhandCurrentShells;
         public int ExperimentalOffhandCooldownTicks;
         public int ExperimentalOffhandReloadTicksUntilNextShell;
-        public int BuffBannerChargeKills;
-        public int BuffBannerMaxChargeKills;
+        public int BuffBannerChargeDamage;
+        public int BuffBannerMaxChargeDamage;
         public int BuffBannerDeployTicksRemaining;
         public int BuffBannerDeployDurationTicks;
         public int BuffBannerActiveTicksRemaining;
         public int BuffBannerActiveDurationTicks;
         public float BuffBannerRadius;
         public float BuffBannerDamageMultiplier;
+        public float BuffBannerHealthRegenPerSecond;
         public int AcquiredWeaponCurrentShells;
         public int AcquiredWeaponCooldownTicks;
         public int AcquiredWeaponReloadTicksUntilNextShell;

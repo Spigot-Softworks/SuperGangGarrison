@@ -194,7 +194,7 @@ public sealed record Protocol64PlayerState(
     // snaps back to idle/reload.
     int PrimaryCooldownTicks = 0,
     int PrimaryReloadTicks = 0,
-    int BuffBannerChargeKills = 0,
+    int BuffBannerChargeDamage = 0,
     int BuffBannerDeployTicksRemaining = 0,
     int BuffBannerActiveTicksRemaining = 0);
 
@@ -327,7 +327,7 @@ public sealed class Protocol64PlayerStateBatchSchema
     public const int MaxBodyBytes = 64 * 1024;
 
     public Protocol64PlayerStateBatchSchema()
-        : base(Protocol64StateSchemaIds.PlayerStateBatch, 23, Protocol64Direction.ServerToClient, MaxBodyBytes)
+        : base(Protocol64StateSchemaIds.PlayerStateBatch, 24, Protocol64Direction.ServerToClient, MaxBodyBytes)
     {
     }
 
@@ -485,7 +485,7 @@ public sealed class Protocol64StateResyncResponseSchema
     public const int MaxBodyBytes = 256 * 1024;
 
     public Protocol64StateResyncResponseSchema()
-        : base(Protocol64StateSchemaIds.StateResyncResponse, 26, Protocol64Direction.ServerToClient, MaxBodyBytes)
+        : base(Protocol64StateSchemaIds.StateResyncResponse, 27, Protocol64Direction.ServerToClient, MaxBodyBytes)
     {
     }
 
@@ -697,7 +697,7 @@ internal static class Protocol64StateValidation
                 "Dispenser buff state or multiplier is invalid.");
         }
 
-        if (value.BuffBannerChargeKills < 0
+        if (value.BuffBannerChargeDamage < 0
             || value.BuffBannerDeployTicksRemaining < 0
             || value.BuffBannerActiveTicksRemaining < 0
             || (value.BuffBannerDeployTicksRemaining > 0 && value.BuffBannerActiveTicksRemaining > 0))
@@ -1504,7 +1504,7 @@ internal static class Protocol64StateBinary
         writer.Write(value.RageTicksRemaining);
         writer.Write(value.PrimaryCooldownTicks);
         writer.Write(value.PrimaryReloadTicks);
-        writer.Write(value.BuffBannerChargeKills);
+        writer.Write(value.BuffBannerChargeDamage);
         writer.Write(value.BuffBannerDeployTicksRemaining);
         writer.Write(value.BuffBannerActiveTicksRemaining);
     }

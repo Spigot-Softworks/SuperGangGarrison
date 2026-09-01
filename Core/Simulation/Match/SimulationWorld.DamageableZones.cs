@@ -214,7 +214,8 @@ public sealed partial class SimulationWorld
         float damage,
         float splashThresholdFactor = 0f,
         int excludeRoomObjectIndex = -1,
-        PlayerTeam? damagingTeam = null)
+        PlayerTeam? damagingTeam = null,
+        float minimumSplashDamage = 0f)
     {
         if (damage <= 0f || blastRadius <= 0f)
         {
@@ -252,7 +253,10 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            TryApplyDamageableZoneDamage(index, damage * factor, damagingTeam);
+            TryApplyDamageableZoneDamage(
+                index,
+                MathF.Max(MathF.Max(0f, minimumSplashDamage), damage * factor),
+                damagingTeam);
         }
     }
 

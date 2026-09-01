@@ -243,15 +243,15 @@ public sealed class PlayerEntityNetworkStateTests
             "weapon.medigun.crit");
 
         Assert.False(player.HasExperimentalOffhandWeapon);
-        Assert.Equal(4, player.CurrentShells);
-        Assert.Equal(6, player.MaxShells);
+        Assert.Equal(1, player.CurrentShells);
+        Assert.Equal(1, player.MaxShells);
         Assert.Equal("weapon.medic-needlegun", player.GameplayLoadoutState.SecondaryItemId);
         Assert.Equal("weapon.medigun.crit", player.GameplayLoadoutState.PrimaryItemId);
         Assert.Equal("weapon.medigun.crit", player.GameplayLoadoutState.EquippedItemId);
     }
 
     [Fact]
-    public void ApplyProtocol64StateHydratesMedicM2AmmoIntoCurrentShells()
+    public void ApplyProtocol64StateKeepsMedicSecondaryAmmoSeparateFromMedigun()
     {
         var player = new PlayerEntity(1, CharacterClassCatalog.Scout, "Test");
         var state = new Protocol64PlayerState(
@@ -270,10 +270,10 @@ public sealed class PlayerEntityNetworkStateTests
             ActiveWeapon: 0,
             AbilityState: 0,
             StateTick: 1,
-            CurrentAmmo: 17,
-            MaxAmmo: 40,
-            OffhandAmmo: 4,
-            OffhandMaxAmmo: 6,
+            CurrentAmmo: 1,
+            MaxAmmo: 1,
+            OffhandAmmo: 17,
+            OffhandMaxAmmo: 40,
             OffhandCooldownTicks: 2,
             OffhandReloadTicks: 3,
             MedicNeedleCooldownTicks: 5,
@@ -283,11 +283,29 @@ public sealed class PlayerEntityNetworkStateTests
 
         Assert.Equal(PlayerClass.Medic, player.ClassId);
         Assert.Equal(150, player.MaxHealth);
-        Assert.Equal(17, player.CurrentShells);
-        Assert.Equal(40, player.MaxShells);
+        Assert.Equal(1, player.CurrentShells);
+        Assert.Equal(1, player.MaxShells);
         Assert.True(player.HasExperimentalOffhandWeapon);
+        Assert.Equal(17, player.ExperimentalOffhandCurrentShells);
+        Assert.Equal(40, player.ExperimentalOffhandMaxShells);
         Assert.Equal(5, player.MedicNeedleCooldownTicks);
         Assert.Equal(17, player.MedicNeedleRefillTicks);
+    }
+
+    [Fact]
+    public void ApplyNetworkStateHydratesMedicHealDartCooldownFromReplicatedState()
+    {
+        var player = new PlayerEntity(1, CharacterClassCatalog.Medic, "Test");
+
+        ApplyMedicNetworkSnapshot(
+            player,
+            "weapon.medigun",
+            [
+                WholeGameplayState(GameplayAbilityReplicatedState.MedicHealDartCooldownTicksKey, 7),
+            ]);
+
+        Assert.Equal(7, player.MedicHealDartCooldownTicks);
+        Assert.Equal(1, player.CurrentShells);
     }
 
     [Theory]
@@ -1272,7 +1290,7 @@ public sealed class PlayerEntityNetworkStateTests
             horizontalSpeed: 0f,
             verticalSpeed: 0f,
             health: 120,
-            currentShells: string.Equals(primaryItemId, "weapon.medigun.crit", StringComparison.Ordinal) ? 4 : 40,
+            currentShells: 1,
             kills: 0,
             deaths: 0,
             caps: 0,
@@ -1444,4 +1462,11 @@ public sealed class PlayerEntityNetworkStateTests
             gameplayAcquiredItemId: "",
             replicatedStateEntries: replicatedStateEntries);
     }
+
+    private static GameplayReplicatedStateEntry WholeGameplayState(string key, int value)
+        => new(
+            GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId,
+            key,
+            GameplayReplicatedStateValueKind.Whole,
+            IntValue: value);
 }

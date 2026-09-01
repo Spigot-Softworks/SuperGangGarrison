@@ -148,7 +148,7 @@ public sealed class LastToDieMedicPerkRuntimeTests
     }
 
     [Fact]
-    public void ModifiedSpringAcceleratesOnlyMedicM2AndComposesWithStimulantDrip()
+    public void ModifiedSpringAcceleratesMedicNeedlesAndHealingDartAndComposesWithStimulantDrip()
     {
         var springWorld = CreateMedicWorld();
         var springMedic = springWorld.LocalPlayer;
@@ -160,10 +160,8 @@ public sealed class LastToDieMedicPerkRuntimeTests
         Assert.Equal(9, springMedic.MedicNeedleCooldownTicks);
         Assert.Equal(30, springMedic.MedicNeedleRefillTicks);
 
-        Assert.True(springMedic.TrySelectGameplayPrimaryItem("weapon.medigun.crit"));
-        Assert.True(springMedic.TryFireMedicKritzHealNeedle(fireCooldownTicks: 18, refillTicks: 60));
-        Assert.Equal(9, springMedic.PrimaryCooldownTicks);
-        Assert.Equal(30, springMedic.ReloadTicksUntilNextShell);
+        Assert.True(springMedic.TryFireMedicHealDart());
+        Assert.Equal(PlayerEntity.MedicHealDartDefaultCooldownTicks / 2, springMedic.MedicHealDartCooldownTicks);
 
         var composedWorld = CreateMedicWorld();
         var composedMedic = composedWorld.LocalPlayer;
@@ -194,26 +192,22 @@ public sealed class LastToDieMedicPerkRuntimeTests
         var world = CreateMedicWorld();
         var medic = world.LocalPlayer;
         Assert.True(medic.TrySelectGameplayPrimaryItem("weapon.medigun.crit"));
-        medic.ForceSetAmmo(1);
-        SetPlayerTimer(medic, nameof(PlayerEntity.PrimaryCooldownTicks), 12);
-        SetPlayerTimer(medic, nameof(PlayerEntity.ReloadTicksUntilNextShell), 20);
         SetPlayerTimer(medic, nameof(PlayerEntity.MedicNeedleCooldownTicks), 12);
         SetPlayerTimer(medic, nameof(PlayerEntity.MedicNeedleRefillTicks), 20);
+        SetPlayerTimer(medic, nameof(PlayerEntity.MedicHealDartCooldownTicks), 12);
 
         Assert.True(world.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.ModifiedSpring]));
 
-        Assert.Equal(6, medic.PrimaryCooldownTicks);
-        Assert.Equal(10, medic.ReloadTicksUntilNextShell);
         Assert.Equal(6, medic.MedicNeedleCooldownTicks);
         Assert.Equal(10, medic.MedicNeedleRefillTicks);
+        Assert.Equal(6, medic.MedicHealDartCooldownTicks);
 
         Assert.True(world.TryConfigureLastToDiePlayerBuild(SimulationWorld.LocalPlayerSlot, []));
-        Assert.Equal(12, medic.PrimaryCooldownTicks);
-        Assert.Equal(20, medic.ReloadTicksUntilNextShell);
         Assert.Equal(12, medic.MedicNeedleCooldownTicks);
         Assert.Equal(20, medic.MedicNeedleRefillTicks);
+        Assert.Equal(12, medic.MedicHealDartCooldownTicks);
     }
 
     [Fact]
@@ -242,16 +236,21 @@ public sealed class LastToDieMedicPerkRuntimeTests
 
         var acquired = CreateWorld(PlayerClass.Soldier).LocalPlayer;
         var acquiredItemId = CharacterClassCatalog.RuntimeRegistry
-            .GetPrimaryItem(PlayerClass.Medic)
+            .GetPrimaryItem(PlayerClass.Demoman)
             .Id;
         Assert.True(acquired.TryGrantGameplayItem(acquiredItemId));
-        acquired.SetAcquiredWeapon(PlayerClass.Medic);
+        acquired.SetAcquiredWeapon(PlayerClass.Demoman);
         acquired.EquipAcquiredWeapon();
-        SetPlayerTimer(acquired, nameof(PlayerEntity.AcquiredWeaponCurrentShells), 31);
+        SetPlayerTimer(
+            acquired,
+            nameof(PlayerEntity.AcquiredWeaponCurrentShells),
+            acquired.AcquiredWeaponMaxShells - LastToDieDerivedModifiers.MedicSupportRelayAmmoRestoreDivisor);
         SetPlayerTimer(acquired, nameof(PlayerEntity.AcquiredWeaponCooldownTicks), 11);
         SetPlayerTimer(acquired, nameof(PlayerEntity.AcquiredWeaponReloadTicksUntilNextShell), 23);
         Assert.True(acquired.TryRestoreLastToDieSupportRelayAmmo());
-        Assert.Equal(33, acquired.AcquiredWeaponCurrentShells);
+        Assert.Equal(
+            acquired.AcquiredWeaponMaxShells - LastToDieDerivedModifiers.MedicSupportRelayAmmoRestoreDivisor + 1,
+            acquired.AcquiredWeaponCurrentShells);
         Assert.Equal(11, acquired.AcquiredWeaponCooldownTicks);
         Assert.Equal(23, acquired.AcquiredWeaponReloadTicksUntilNextShell);
 

@@ -893,6 +893,7 @@ public partial class Game1
                     rows.Add(new WeaponHudRow("local.weapon.primary", GetMainAmmoHudPanelHeight(), DrawQuoteAmmoHudAt, SourceMainAmmoHudY, Order: WeaponHudOrderPrimary));
                     return;
                 case PrimaryWeaponKind.Rifle:
+                case PrimaryWeaponKind.Medigun:
                     return;
                 default:
                     rows.Add(new WeaponHudRow(
@@ -1664,15 +1665,32 @@ public partial class Game1
 
                     maxCooldownTicks = GameplayAbilityParameterReader.GetInt(
                         ability,
-                        "maxChargeKills",
-                        PlayerEntity.BuffBannerDefaultMaxChargeKills,
+                        "maxChargeDamage",
+                        PlayerEntity.BuffBannerDefaultMaxChargeDamage,
                         minValue: 1);
                     cooldownRemaining = Math.Clamp(
-                        _game.GetPlayerBuffBannerMissingChargeKills(player),
+                        _game.GetPlayerBuffBannerMissingChargeDamage(player),
                         0,
                         maxCooldownTicks);
                     isActive = _game.GetPlayerIsBuffBannerDeploying(player)
                         || _game.GetPlayerIsBuffBannerActive(player);
+                    return true;
+                case BuiltInGameplayBehaviorIds.MedicKritzHealNeedles:
+                    if (player.ClassId != PlayerClass.Medic)
+                    {
+                        return false;
+                    }
+
+                    maxCooldownTicks = GameplayAbilityParameterReader.GetTicks(
+                        ability,
+                        "cooldownTicks",
+                        "cooldownSeconds",
+                        PlayerEntity.MedicHealDartDefaultCooldownTicks,
+                        _game._config.TicksPerSecond);
+                    cooldownRemaining = Math.Clamp(
+                        _game.GetPlayerMedicHealDartCooldownTicks(player),
+                        0,
+                        maxCooldownTicks);
                     return true;
             }
 
@@ -2574,10 +2592,7 @@ public partial class Game1
 
         private bool IsLocalMedicKritzHealNeedlesPresented()
         {
-            var player = GetLocalWeaponPresentationPlayer();
-            return player.ClassId == PlayerClass.Medic
-                && player.IsExperimentalOffhandSelected
-                && player.HasEquippedBehavior(BuiltInGameplayBehaviorIds.MedigunCrit);
+            return false;
         }
 
         private bool IsLocalDisplayedOffhandWeaponSelected()

@@ -1175,8 +1175,9 @@ internal static class SnapshotContributionPlanner
             or GameplayAbilityReplicatedState.CivviePogoTrickDurationTicksKey
             or GameplayAbilityReplicatedState.SniperChargeTicksKey
             or GameplayAbilityReplicatedState.SniperBowChargeTicksKey
-            or GameplayAbilityReplicatedState.BuffBannerChargeKillsKey
-            or GameplayAbilityReplicatedState.BuffBannerMissingKillsKey
+            or GameplayAbilityReplicatedState.MedicHealDartCooldownTicksKey
+            or GameplayAbilityReplicatedState.BuffBannerChargeDamageKey
+            or GameplayAbilityReplicatedState.BuffBannerMissingDamageKey
             or GameplayAbilityReplicatedState.BuffBannerDeployTicksKey
             or GameplayAbilityReplicatedState.BuffBannerActiveTicksKey
             or GameplayAbilityReplicatedState.BuffBannerDeployingOrActiveKey;

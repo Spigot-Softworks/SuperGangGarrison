@@ -509,7 +509,9 @@ public sealed partial class SimulationWorld
 
         if (player.IsMedicUberReady
             && context.Input.FirePrimary
-            && player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.MedicUber))
+            && player.HasGameplayAbilityBehavior(
+                GameplayAbilityConstants.SpecialChannel,
+                BuiltInGameplayBehaviorIds.MedicUber))
         {
             return ExecuteMedicUberAbility(context);
         }
@@ -522,7 +524,9 @@ public sealed partial class SimulationWorld
         if (context.Input.FirePrimary)
         {
             if (context.Player.IsMedicUberReady
-                && context.Player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.MedicUber))
+                && context.Player.HasGameplayAbilityBehavior(
+                    GameplayAbilityConstants.SpecialChannel,
+                    BuiltInGameplayBehaviorIds.MedicUber))
             {
                 return ExecuteMedicUberAbility(context);
             }
@@ -559,17 +563,6 @@ public sealed partial class SimulationWorld
 
     internal GameplayAbilityResult ExecuteMedicKritzHealNeedlesAbility(GameplayAbilityContext context)
     {
-        if (context.Input.FirePrimary)
-        {
-            if (context.Player.IsMedicUberReady
-                && context.Player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.MedicUber))
-            {
-                return ExecuteMedicUberAbility(context);
-            }
-
-            return new GameplayAbilityResult(Handled: false, ConsumedInput: true);
-        }
-
         var healPerHit = GameplayAbilityParameterReader.GetInt(
             context.Ability,
             "healPerHit",
@@ -580,8 +573,24 @@ public sealed partial class SimulationWorld
             "enemyDamagePerHit",
             MedicHealNeedleProjectileEntity.DefaultEnemyDamagePerHit,
             minValue: 0);
+        var projectileSpeed = GameplayAbilityParameterReader.GetFloat(
+            context.Ability,
+            "projectileSpeed",
+            MedicHealNeedleProjectileEntity.DefaultProjectileSpeed,
+            minValue: 0f);
+        var spreadDegrees = GameplayAbilityParameterReader.GetFloat(
+            context.Ability,
+            "spreadDegrees",
+            MedicHealNeedleProjectileEntity.DefaultSpreadDegrees,
+            minValue: 0f);
+        var cooldownTicks = GameplayAbilityParameterReader.GetTicks(
+            context.Ability,
+            "cooldownTicks",
+            "cooldownSeconds",
+            PlayerEntity.MedicHealDartDefaultCooldownTicks,
+            Config.TicksPerSecond);
 
-        if (!context.Player.TryFireMedicKritzHealNeedle())
+        if (!context.Player.TryFireMedicHealDart(cooldownTicks))
         {
             return new GameplayAbilityResult(Handled: false, ConsumedInput: true);
         }
@@ -591,13 +600,17 @@ public sealed partial class SimulationWorld
             context.Input.AimWorldX,
             context.Input.AimWorldY,
             healPerHit,
-            enemyDamagePerHit);
+            enemyDamagePerHit,
+            projectileSpeed,
+            spreadDegrees);
         return GameplayAbilityResult.HandledAndConsumed;
     }
 
     internal GameplayAbilityResult ExecuteMedicUberAbility(GameplayAbilityContext context)
     {
-        if (!context.Player.IsMedicUberReady || !context.Player.TryStartMedicUber())
+        if (!context.Input.FirePrimary
+            || !context.Player.IsMedicUberReady
+            || !context.Player.TryStartMedicUber())
         {
             return new GameplayAbilityResult(Handled: false, ConsumedInput: true);
         }
@@ -935,10 +948,10 @@ public sealed partial class SimulationWorld
 
     internal GameplayAbilityResult ExecuteSoldierBuffBannerAbility(GameplayAbilityContext context)
     {
-        var maxChargeKills = GameplayAbilityParameterReader.GetInt(
+        var maxChargeDamage = GameplayAbilityParameterReader.GetInt(
             context.Ability,
-            "maxChargeKills",
-            PlayerEntity.BuffBannerDefaultMaxChargeKills,
+            "maxChargeDamage",
+            PlayerEntity.BuffBannerDefaultMaxChargeDamage,
             minValue: 1);
         var deployTicks = GameplayAbilityParameterReader.GetTicks(
             context.Ability,
@@ -962,12 +975,18 @@ public sealed partial class SimulationWorld
             "damageMultiplier",
             PlayerEntity.BuffBannerDefaultDamageMultiplier,
             minValue: 1f);
+        var healthRegenPerSecond = GameplayAbilityParameterReader.GetFloat(
+            context.Ability,
+            "healthRegenPerSecond",
+            PlayerEntity.BuffBannerDefaultHealthRegenPerSecond,
+            minValue: 0f);
         var started = context.Player.TryStartBuffBanner(
-            maxChargeKills,
+            maxChargeDamage,
             deployTicks,
             activeTicks,
             radius,
-            damageMultiplier);
+            damageMultiplier,
+            healthRegenPerSecond);
         if (started)
         {
             RegisterWorldSoundEvent("BuffbannerSnd", context.Player.X, context.Player.Y, context.Player.Id);

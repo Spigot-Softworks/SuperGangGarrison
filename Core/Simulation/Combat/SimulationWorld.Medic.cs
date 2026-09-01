@@ -26,7 +26,9 @@ public sealed partial class SimulationWorld
 
     public bool TryFillLocalMedicUber()
     {
-        if (!LocalPlayer.HasUtilityBehavior(BuiltInGameplayBehaviorIds.MedicUber))
+        if (!LocalPlayer.HasGameplayAbilityBehavior(
+                GameplayAbilityConstants.SpecialChannel,
+                BuiltInGameplayBehaviorIds.MedicUber))
         {
             return false;
         }
@@ -382,7 +384,11 @@ public sealed partial class SimulationWorld
     {
         foreach (var player in EnumerateSimulatedPlayers())
         {
-            if (!player.IsAlive || !player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.MedicUber) || !player.IsMedicUbering)
+            if (!player.IsAlive
+                || !player.HasGameplayAbilityBehavior(
+                    GameplayAbilityConstants.SpecialChannel,
+                    BuiltInGameplayBehaviorIds.MedicUber)
+                || !player.IsMedicUbering)
             {
                 continue;
             }

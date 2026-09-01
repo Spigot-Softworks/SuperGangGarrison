@@ -1,19 +1,39 @@
 {
   "id": "ability.medic-kritz-heal-needles",
   "kind": "Ability",
-  "displayName": "Kritz Heal Needles",
+  "displayName": "Healing Darts",
   "behaviorId": "builtin.ability.medic_kritz_heal_needles",
   "ability": {
-    "category": "weaponAltFire",
-    "channel": "special",
-    "activation": "held",
+    "category": "utility",
+    "channel": "utility",
+    "activation": "pressed",
     "executorId": "builtin.ability.medic_kritz_heal_needles",
-    "tags": [ "core_m2", "projectile", "heal", "charge" ],
+    "tags": [ "projectile", "heal", "charge" ],
     "parameters": {
+      "cooldownSeconds": 3,
+      "projectileSpeed": 20,
+      "spreadDegrees": 1,
       "healPerHit": 30,
       "enemyDamagePerHit": 22
     }
   },
   "ammo": {},
-  "presentation": {}
+  "presentation": {
+    "hud": {
+      "displayKind": "meter",
+      "stackGroup": "ability",
+      "order": 81,
+      "stateProvider": "abilityCooldown",
+      "stateOwner": "core.ability",
+      "cooldownKey": "medic_heal_dart_cooldown_ticks",
+      "maxCooldown": 90,
+      "hideWhenUnavailable": true
+    }
+  },
+  "description": {
+    "summary": "Medic's class utility fires a healing dart with Ability.",
+    "positiveAttributes": [
+      "available with either medigun"
+    ]
+  }
 }

@@ -9,7 +9,7 @@ namespace OpenGarrison.PluginHost.Tests;
 public sealed class BuffBannerRuntimeTests
 {
     [Fact]
-    public void EnemyKillsChargeBannerWithoutReplacingShotgunOrRage()
+    public void EnemyDamageChargesBannerWithoutReplacingShotgunOrRage()
     {
         var world = CreateSoldierWorld();
         var soldier = world.LocalPlayer;
@@ -19,19 +19,25 @@ public sealed class BuffBannerRuntimeTests
             GameplayAbilityConstants.UtilityChannel,
             BuiltInGameplayBehaviorIds.SoldierBuffBanner));
 
-        for (byte slot = 2; slot <= 5; slot += 1)
-        {
-            var enemy = AddNetworkPlayer(world, slot, PlayerClass.Scout, PlayerTeam.Blue);
-            Assert.True(world.TryApplyGameplayDamage(enemy.Id, 10_000f, soldier.Id, "RocketKL"));
-        }
+        var firstEnemy = AddNetworkPlayer(world, 2, PlayerClass.Heavy, PlayerTeam.Blue);
+        Assert.True(world.TryApplyGameplayDamage(firstEnemy.Id, 150f, soldier.Id, "RocketKL"));
+        Assert.True(firstEnemy.IsAlive);
+        Assert.Equal(150, soldier.BuffBannerChargeDamage);
 
-        Assert.Equal(PlayerEntity.BuffBannerDefaultMaxChargeKills, soldier.BuffBannerChargeKills);
+        Assert.True(world.TryApplyGameplayDamage(firstEnemy.Id, 10_000f, soldier.Id, "RocketKL"));
+        Assert.False(firstEnemy.IsAlive);
+        Assert.Equal(200, soldier.BuffBannerChargeDamage);
+
+        var secondEnemy = AddNetworkPlayer(world, 3, PlayerClass.Heavy, PlayerTeam.Blue);
+        Assert.True(world.TryApplyGameplayDamage(secondEnemy.Id, 10_000f, soldier.Id, "RocketKL"));
+
+        Assert.Equal(PlayerEntity.BuffBannerDefaultMaxChargeDamage, soldier.BuffBannerChargeDamage);
         Assert.True(soldier.IsBuffBannerReady);
         Assert.False(soldier.IsRageReady);
 
-        var teammate = AddNetworkPlayer(world, 6, PlayerClass.Scout, PlayerTeam.Red);
+        var teammate = AddNetworkPlayer(world, 4, PlayerClass.Scout, PlayerTeam.Red);
         Assert.False(world.TryApplyGameplayDamage(teammate.Id, 10_000f, soldier.Id, "RocketKL"));
-        Assert.Equal(PlayerEntity.BuffBannerDefaultMaxChargeKills, soldier.BuffBannerChargeKills);
+        Assert.Equal(PlayerEntity.BuffBannerDefaultMaxChargeDamage, soldier.BuffBannerChargeDamage);
     }
 
     [Fact]
@@ -39,7 +45,7 @@ public sealed class BuffBannerRuntimeTests
     {
         var world = CreateSoldierWorld();
         var soldier = world.LocalPlayer;
-        Assert.True(soldier.TryAddBuffBannerKillCharge(4));
+        Assert.True(soldier.TryAddBuffBannerDamageCharge(PlayerEntity.BuffBannerDefaultMaxChargeDamage));
         soldier.AddRageCharge(100f, ExperimentalGameplaySettings.RageMaxCharge);
 
         world.SetLocalPreviousInput(default);
@@ -48,7 +54,7 @@ public sealed class BuffBannerRuntimeTests
 
         Assert.True(soldier.IsBuffBannerDeploying);
         Assert.Equal(PlayerEntity.BuffBannerDefaultDeployTicks, soldier.BuffBannerDeployTicksRemaining);
-        Assert.Equal(0, soldier.BuffBannerChargeKills);
+        Assert.Equal(0, soldier.BuffBannerChargeDamage);
         Assert.Equal(100f, soldier.RageCharge);
         Assert.Contains(world.PendingSoundEvents, sound => sound.SoundName == "BuffbannerSnd");
 
@@ -80,7 +86,7 @@ public sealed class BuffBannerRuntimeTests
         enemy.TeleportTo(soldier.X + 64f, soldier.Y);
         distantTeammate.TeleportTo(soldier.X + 256f, soldier.Y);
 
-        Assert.True(soldier.TryAddBuffBannerKillCharge(4));
+        Assert.True(soldier.TryAddBuffBannerDamageCharge(PlayerEntity.BuffBannerDefaultMaxChargeDamage));
         Assert.True(soldier.TryStartBuffBanner());
         Advance(world, PlayerEntity.BuffBannerDefaultDeployTicks);
 
@@ -90,6 +96,17 @@ public sealed class BuffBannerRuntimeTests
         Assert.Equal(PlayerEntity.BuffBannerDefaultDamageMultiplier, nearbyTeammate.ActiveKritzCritDamageMultiplier);
         Assert.False(enemy.IsKritzCritBoosted);
         Assert.False(distantTeammate.IsKritzCritBoosted);
+
+        nearbyTeammate.ApplyContinuousDamage(20f);
+        distantTeammate.ApplyContinuousDamage(20f);
+        enemy.ApplyContinuousDamage(20f);
+        var nearbyHealthBeforeRegen = nearbyTeammate.Health;
+        var distantHealthBeforeRegen = distantTeammate.Health;
+        var enemyHealthBeforeRegen = enemy.Health;
+        Advance(world, world.Config.TicksPerSecond);
+        Assert.Equal(nearbyHealthBeforeRegen + 5, nearbyTeammate.Health);
+        Assert.Equal(distantHealthBeforeRegen, distantTeammate.Health);
+        Assert.Equal(enemyHealthBeforeRegen, enemy.Health);
 
         nearbyTeammate.RefreshKritzCritBoost(
             providerPlayerId: 999,
@@ -106,7 +123,7 @@ public sealed class BuffBannerRuntimeTests
     public void BannerStateResetsOnDeathAndRoundTripsThroughProtocol64()
     {
         var source = CreateSoldierWorld();
-        Assert.True(source.LocalPlayer.TryAddBuffBannerKillCharge(4));
+        Assert.True(source.LocalPlayer.TryAddBuffBannerDamageCharge(PlayerEntity.BuffBannerDefaultMaxChargeDamage));
         Assert.True(source.LocalPlayer.TryStartBuffBanner());
         Advance(source, 7);
 
@@ -132,7 +149,7 @@ public sealed class BuffBannerRuntimeTests
         Assert.Equal(37, receiver.LocalPlayer.BuffBannerDeployTicksRemaining);
 
         source.ForceKillLocalPlayer();
-        Assert.Equal(0, source.LocalPlayer.BuffBannerChargeKills);
+        Assert.Equal(0, source.LocalPlayer.BuffBannerChargeDamage);
         Assert.False(source.LocalPlayer.IsBuffBannerDeploying);
         Assert.False(source.LocalPlayer.IsBuffBannerActive);
     }

@@ -183,14 +183,16 @@ public sealed partial class PlayerEntity
         bool LastToDieMedicKritPowerEnabledValue = false,
         bool IsDispenserBuffedValue = false,
         float DispenserAttackReloadSpeedMultiplierValue = 1f,
-        int BuffBannerChargeKillsValue = 0,
+        int BuffBannerChargeDamageValue = 0,
         int BuffBannerDeployTicksRemainingValue = 0,
         int BuffBannerActiveTicksRemainingValue = 0,
-        int BuffBannerMaxChargeKillsValue = BuffBannerDefaultMaxChargeKills,
+        int BuffBannerMaxChargeDamageValue = BuffBannerDefaultMaxChargeDamage,
         int BuffBannerDeployDurationTicksValue = BuffBannerDefaultDeployTicks,
         int BuffBannerActiveDurationTicksValue = BuffBannerDefaultActiveTicks,
         float BuffBannerRadiusValue = BuffBannerDefaultRadius,
-        float BuffBannerDamageMultiplierValue = BuffBannerDefaultDamageMultiplier);
+        float BuffBannerDamageMultiplierValue = BuffBannerDefaultDamageMultiplier,
+        float BuffBannerHealthRegenPerSecondValue = BuffBannerDefaultHealthRegenPerSecond,
+        int MedicHealDartCooldownTicksValue = 0);
 
     internal PredictionState CapturePredictionState()
     {
@@ -373,14 +375,16 @@ public sealed partial class PlayerEntity
             LastToDieMedicKritPowerEnabledValue,
             IsDispenserBuffed,
             DispenserAttackReloadSpeedMultiplier,
-            BuffBannerChargeKills,
+            BuffBannerChargeDamage,
             BuffBannerDeployTicksRemaining,
             BuffBannerActiveTicksRemaining,
-            BuffBannerMaxChargeKills,
+            BuffBannerMaxChargeDamage,
             BuffBannerDeployDurationTicks,
             BuffBannerActiveDurationTicks,
             BuffBannerRadius,
-            BuffBannerDamageMultiplier);
+            BuffBannerDamageMultiplier,
+            BuffBannerHealthRegenPerSecond,
+            MedicHealDartCooldownTicks);
     }
 
     internal void RestorePredictionState(in PredictionState state)
@@ -463,14 +467,16 @@ public sealed partial class PlayerEntity
             state.IsDispenserBuffedValue,
             state.DispenserAttackReloadSpeedMultiplierValue);
         HydrateBuffBannerState(
-            state.BuffBannerChargeKillsValue,
-            state.BuffBannerMaxChargeKillsValue,
+            state.BuffBannerChargeDamageValue,
+            state.BuffBannerMaxChargeDamageValue,
             state.BuffBannerDeployTicksRemainingValue,
             state.BuffBannerDeployDurationTicksValue,
             state.BuffBannerActiveTicksRemainingValue,
             state.BuffBannerActiveDurationTicksValue,
             state.BuffBannerRadiusValue,
-            state.BuffBannerDamageMultiplierValue);
+            state.BuffBannerDamageMultiplierValue,
+            state.BuffBannerHealthRegenPerSecondValue);
+        HydrateMedicHealDartState(state.MedicHealDartCooldownTicksValue);
         MedicHealTargetId = state.MedicHealTargetId;
         IsMedicHealing = state.IsMedicHealing;
         MedicUberCharge = state.MedicUberCharge;

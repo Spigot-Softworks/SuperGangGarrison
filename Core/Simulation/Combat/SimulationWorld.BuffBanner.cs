@@ -4,12 +4,14 @@ namespace OpenGarrison.Core;
 
 public sealed partial class SimulationWorld
 {
-    private void TryRegisterBuffBannerKill(PlayerEntity killer, PlayerEntity victim)
+    private void TryRegisterBuffBannerDamage(PlayerEntity attacker, PlayerEntity target, int appliedDamage)
     {
-        if (!killer.IsAlive
-            || killer.ClassId != PlayerClass.Soldier
-            || killer.Team == victim.Team
-            || !killer.TryGetGameplayAbilityItem(
+        if (!attacker.IsAlive
+            || attacker.ClassId != PlayerClass.Soldier
+            || appliedDamage <= 0
+            || ReferenceEquals(attacker, target)
+            || attacker.Team == target.Team
+            || !attacker.TryGetGameplayAbilityItem(
                 GameplayAbilityConstants.UtilityChannel,
                 BuiltInGameplayBehaviorIds.SoldierBuffBanner,
                 out var bannerItem)
@@ -18,12 +20,12 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        var maxChargeKills = GameplayAbilityParameterReader.GetInt(
+        var maxChargeDamage = GameplayAbilityParameterReader.GetInt(
             bannerAbility,
-            "maxChargeKills",
-            PlayerEntity.BuffBannerDefaultMaxChargeKills,
+            "maxChargeDamage",
+            PlayerEntity.BuffBannerDefaultMaxChargeDamage,
             minValue: 1);
-        killer.TryAddBuffBannerKillCharge(maxChargeKills: maxChargeKills);
+        attacker.TryAddBuffBannerDamageCharge(appliedDamage, maxChargeDamage);
     }
 
     private void UpdateBuffBannerAuras()
@@ -63,6 +65,50 @@ public sealed partial class SimulationWorld
                     providerSlot,
                     source.BuffBannerDamageMultiplier,
                     ticks: 2);
+            }
+        }
+    }
+
+    private void ApplyBuffBannerRegeneration()
+    {
+        foreach (var target in EnumerateSimulatedPlayers())
+        {
+            if (!target.IsAlive)
+            {
+                continue;
+            }
+
+            var healthRegenPerSecond = 0f;
+            foreach (var source in EnumerateSimulatedPlayers())
+            {
+                if (!source.IsAlive
+                    || !source.IsBuffBannerActive
+                    || source.ClassId != PlayerClass.Soldier
+                    || source.Team != target.Team
+                    || !source.HasGameplayAbilityBehavior(
+                        GameplayAbilityConstants.UtilityChannel,
+                        BuiltInGameplayBehaviorIds.SoldierBuffBanner))
+                {
+                    continue;
+                }
+
+                var deltaX = target.X - source.X;
+                var deltaY = target.Y - source.Y;
+                if ((deltaX * deltaX) + (deltaY * deltaY) >= source.BuffBannerRadius * source.BuffBannerRadius)
+                {
+                    continue;
+                }
+
+                healthRegenPerSecond = MathF.Max(
+                    healthRegenPerSecond,
+                    source.BuffBannerHealthRegenPerSecond);
+            }
+
+            if (healthRegenPerSecond > 0f)
+            {
+                ApplyHealingWithFeedback(
+                    target,
+                    healthRegenPerSecond / Math.Max(1, Config.TicksPerSecond));
             }
         }
     }

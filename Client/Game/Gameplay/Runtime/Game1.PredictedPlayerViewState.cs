@@ -314,23 +314,30 @@ public partial class Game1
             : player.ExperimentalOffhandReloadTicksUntilNextShell;
     }
 
-    private int GetPlayerBuffBannerChargeKills(PlayerEntity player)
+    private int GetPlayerBuffBannerChargeDamage(PlayerEntity player)
     {
         return IsUsingPredictedLocalState(player)
-            ? _predictedLocalActionState.BuffBannerChargeKills
-            : player.BuffBannerChargeKills;
+            ? _predictedLocalActionState.BuffBannerChargeDamage
+            : player.BuffBannerChargeDamage;
     }
 
-    private int GetPlayerBuffBannerMaxChargeKills(PlayerEntity player)
+    private int GetPlayerMedicHealDartCooldownTicks(PlayerEntity player)
     {
         return IsUsingPredictedLocalState(player)
-            ? Math.Max(1, _predictedLocalActionState.BuffBannerMaxChargeKills)
-            : Math.Max(1, player.BuffBannerMaxChargeKills);
+            ? _predictedLocalActionState.MedicHealDartCooldownTicks
+            : player.MedicHealDartCooldownTicks;
     }
 
-    private int GetPlayerBuffBannerMissingChargeKills(PlayerEntity player)
+    private int GetPlayerBuffBannerMaxChargeDamage(PlayerEntity player)
     {
-        return Math.Max(0, GetPlayerBuffBannerMaxChargeKills(player) - GetPlayerBuffBannerChargeKills(player));
+        return IsUsingPredictedLocalState(player)
+            ? Math.Max(1, _predictedLocalActionState.BuffBannerMaxChargeDamage)
+            : Math.Max(1, player.BuffBannerMaxChargeDamage);
+    }
+
+    private int GetPlayerBuffBannerMissingChargeDamage(PlayerEntity player)
+    {
+        return Math.Max(0, GetPlayerBuffBannerMaxChargeDamage(player) - GetPlayerBuffBannerChargeDamage(player));
     }
 
     private int GetPlayerBuffBannerDeployTicksRemaining(PlayerEntity player)

@@ -98,7 +98,7 @@ public sealed partial class PlayerEntity
             state.IsRageReady,
             state.RageTicksRemaining);
         HydrateBuffBannerState(
-            state.BuffBannerChargeKills,
+            state.BuffBannerChargeDamage,
             state.BuffBannerDeployTicksRemaining,
             state.BuffBannerActiveTicksRemaining);
         MedicUberCharge = ClassId == PlayerClass.Medic
@@ -691,6 +691,23 @@ public sealed partial class PlayerEntity
         HydrateNetworkReplicatedHeavyRuntimeState();
         HydrateNetworkReplicatedCivvieRuntimeState();
         HydrateNetworkReplicatedBuffBannerRuntimeState();
+        HydrateNetworkReplicatedMedicHealDartRuntimeState();
+    }
+
+    private void HydrateNetworkReplicatedMedicHealDartRuntimeState()
+    {
+        if (ClassId != PlayerClass.Medic)
+        {
+            ResetMedicHealDartState();
+            return;
+        }
+
+        const string ownerId = GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId;
+        TryGetReplicatedStateInt(
+            ownerId,
+            GameplayAbilityReplicatedState.MedicHealDartCooldownTicksKey,
+            out var cooldownTicks);
+        HydrateMedicHealDartState(cooldownTicks);
     }
 
     private void HydrateNetworkReplicatedBuffBannerRuntimeState()
@@ -704,8 +721,8 @@ public sealed partial class PlayerEntity
         const string ownerId = GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId;
         TryGetReplicatedStateInt(
             ownerId,
-            GameplayAbilityReplicatedState.BuffBannerChargeKillsKey,
-            out var chargeKills);
+            GameplayAbilityReplicatedState.BuffBannerChargeDamageKey,
+            out var chargeDamage);
         TryGetReplicatedStateInt(
             ownerId,
             GameplayAbilityReplicatedState.BuffBannerDeployTicksKey,
@@ -714,7 +731,7 @@ public sealed partial class PlayerEntity
             ownerId,
             GameplayAbilityReplicatedState.BuffBannerActiveTicksKey,
             out var activeTicks);
-        HydrateBuffBannerState(chargeKills, deployTicks, activeTicks);
+        HydrateBuffBannerState(chargeDamage, deployTicks, activeTicks);
     }
 
     private void HydrateNetworkReplicatedSniperRuntimeState()

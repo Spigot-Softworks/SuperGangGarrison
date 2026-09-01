@@ -85,7 +85,7 @@ public sealed class BotBrainClassBehaviorTests
     public void SoldierBotDeploysReadyBannerWithoutConvertingAbilityToWeaponSwap()
     {
         var world = CreateClassWorld(PlayerClass.Soldier, out var soldier);
-        Assert.True(soldier.TryAddBuffBannerKillCharge(PlayerEntity.BuffBannerDefaultMaxChargeKills));
+        Assert.True(soldier.TryAddBuffBannerDamageCharge(PlayerEntity.BuffBannerDefaultMaxChargeDamage));
         var target = AddNetworkPlayer(world, 2, PlayerClass.Heavy, PlayerTeam.Blue, soldier.X + 320f, soldier.Y);
         var combatTarget = new BotBrainCombatTarget(
             BotBrainCombatTargetKind.Player,

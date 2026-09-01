@@ -159,7 +159,9 @@ public partial class Game1
                 || !player.IsAlive
                 || player.ClassId != PlayerClass.Medic
                 || !player.IsMedicUberReady
-                || !player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.MedicUber)
+                || !player.HasGameplayAbilityBehavior(
+                    GameplayAbilityConstants.SpecialChannel,
+                    BuiltInGameplayBehaviorIds.MedicUber)
                 || _game._world.MatchState.IsEnded)
             {
                 StopLocalRapidFireWeaponSound(ref _game._localUberIdleSoundInstance);

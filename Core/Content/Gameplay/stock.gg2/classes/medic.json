@@ -40,7 +40,7 @@
         "selectionPersistence": "same_class_loadout"
       },
       "secondary": { "itemId": "weapon.medic-needlegun" },
-      "abilities": [ "ability.medic-uber", "ability.experimental-ltd-passive", "ability.experimental-ltd-rage" ]
+      "abilities": [ "ability.medic-kritz-heal-needles", "ability.experimental-ltd-passive", "ability.experimental-ltd-rage" ]
     }
   },
   "defaultLoadoutId": "medic.stock"

@@ -13,14 +13,15 @@ public sealed partial class SimulationWorld
         float aimWorldX,
         float aimWorldY,
         int healPerHit = MedicHealNeedleProjectileEntity.DefaultHealPerHit,
-        int enemyDamagePerHit = MedicHealNeedleProjectileEntity.DefaultEnemyDamagePerHit)
+        int enemyDamagePerHit = MedicHealNeedleProjectileEntity.DefaultEnemyDamagePerHit,
+        float projectileSpeed = MedicHealNeedleProjectileEntity.DefaultProjectileSpeed,
+        float spreadDegrees = MedicHealNeedleProjectileEntity.DefaultSpreadDegrees)
         => WeaponHandler.FireMedicKritzHealNeedle(
             attacker,
-            attacker.HasPrimaryBehavior(global::OpenGarrison.GameplayModding.BuiltInGameplayBehaviorIds.MedigunCrit)
-                ? attacker.PrimaryWeapon
-                : attacker.ExperimentalOffhandWeapon ?? CharacterClassCatalog.Medigun,
             aimWorldX,
             aimWorldY,
             healPerHit,
-            enemyDamagePerHit);
+            enemyDamagePerHit,
+            projectileSpeed,
+            spreadDegrees);
 }

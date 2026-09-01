@@ -2,15 +2,16 @@ namespace OpenGarrison.Core;
 
 public sealed partial class PlayerEntity
 {
-    public const int BuffBannerDefaultMaxChargeKills = 4;
+    public const int BuffBannerDefaultMaxChargeDamage = 400;
     public const int BuffBannerDefaultDeployTicks = 44;
     public const int BuffBannerDefaultActiveTicks = 150;
     public const float BuffBannerDefaultRadius = 128f;
     public const float BuffBannerDefaultDamageMultiplier = 1.35f;
+    public const float BuffBannerDefaultHealthRegenPerSecond = 5f;
 
-    public int BuffBannerChargeKills { get; private set; }
+    public int BuffBannerChargeDamage { get; private set; }
 
-    public int BuffBannerMaxChargeKills { get; private set; } = BuffBannerDefaultMaxChargeKills;
+    public int BuffBannerMaxChargeDamage { get; private set; } = BuffBannerDefaultMaxChargeDamage;
 
     public int BuffBannerDeployTicksRemaining { get; private set; }
 
@@ -24,38 +25,43 @@ public sealed partial class PlayerEntity
 
     public float BuffBannerDamageMultiplier { get; private set; } = BuffBannerDefaultDamageMultiplier;
 
-    public bool IsBuffBannerReady => BuffBannerChargeKills >= BuffBannerMaxChargeKills;
+    public float BuffBannerHealthRegenPerSecond { get; private set; } = BuffBannerDefaultHealthRegenPerSecond;
+
+    public bool IsBuffBannerReady => BuffBannerChargeDamage >= BuffBannerMaxChargeDamage;
 
     public bool IsBuffBannerDeploying => BuffBannerDeployTicksRemaining > 0;
 
     public bool IsBuffBannerActive => BuffBannerActiveTicksRemaining > 0;
 
-    public int BuffBannerMissingChargeKills => Math.Max(0, BuffBannerMaxChargeKills - BuffBannerChargeKills);
+    public int BuffBannerMissingChargeDamage => Math.Max(0, BuffBannerMaxChargeDamage - BuffBannerChargeDamage);
 
     public int BuffBannerDeployTicksElapsed => Math.Max(0, BuffBannerDeployDurationTicks - BuffBannerDeployTicksRemaining);
 
-    public bool TryAddBuffBannerKillCharge(int amount = 1, int maxChargeKills = BuffBannerDefaultMaxChargeKills)
+    public bool TryAddBuffBannerDamageCharge(
+        int damage,
+        int maxChargeDamage = BuffBannerDefaultMaxChargeDamage)
     {
-        if (!IsAlive || ClassId != PlayerClass.Soldier || amount <= 0)
+        if (!IsAlive || ClassId != PlayerClass.Soldier || damage <= 0)
         {
             return false;
         }
 
-        BuffBannerMaxChargeKills = Math.Max(1, maxChargeKills);
-        var previousCharge = BuffBannerChargeKills;
-        BuffBannerChargeKills = Math.Clamp(
-            BuffBannerChargeKills + amount,
+        BuffBannerMaxChargeDamage = Math.Max(1, maxChargeDamage);
+        var previousCharge = BuffBannerChargeDamage;
+        BuffBannerChargeDamage = Math.Clamp(
+            BuffBannerChargeDamage + damage,
             0,
-            BuffBannerMaxChargeKills);
-        return BuffBannerChargeKills != previousCharge;
+            BuffBannerMaxChargeDamage);
+        return BuffBannerChargeDamage != previousCharge;
     }
 
     public bool TryStartBuffBanner(
-        int maxChargeKills = BuffBannerDefaultMaxChargeKills,
+        int maxChargeDamage = BuffBannerDefaultMaxChargeDamage,
         int deployTicks = BuffBannerDefaultDeployTicks,
         int activeTicks = BuffBannerDefaultActiveTicks,
         float radius = BuffBannerDefaultRadius,
-        float damageMultiplier = BuffBannerDefaultDamageMultiplier)
+        float damageMultiplier = BuffBannerDefaultDamageMultiplier,
+        float healthRegenPerSecond = BuffBannerDefaultHealthRegenPerSecond)
     {
         if (!IsAlive
             || ClassId != PlayerClass.Soldier
@@ -65,13 +71,13 @@ public sealed partial class PlayerEntity
             return false;
         }
 
-        BuffBannerMaxChargeKills = Math.Max(1, maxChargeKills);
-        if (BuffBannerChargeKills < BuffBannerMaxChargeKills)
+        BuffBannerMaxChargeDamage = Math.Max(1, maxChargeDamage);
+        if (BuffBannerChargeDamage < BuffBannerMaxChargeDamage)
         {
             return false;
         }
 
-        BuffBannerChargeKills = 0;
+        BuffBannerChargeDamage = 0;
         BuffBannerDeployDurationTicks = Math.Max(1, deployTicks);
         BuffBannerDeployTicksRemaining = BuffBannerDeployDurationTicks;
         BuffBannerActiveDurationTicks = Math.Max(1, activeTicks);
@@ -82,6 +88,9 @@ public sealed partial class PlayerEntity
         BuffBannerDamageMultiplier = float.IsFinite(damageMultiplier)
             ? MathF.Max(1f, damageMultiplier)
             : BuffBannerDefaultDamageMultiplier;
+        BuffBannerHealthRegenPerSecond = float.IsFinite(healthRegenPerSecond)
+            ? MathF.Max(0f, healthRegenPerSecond)
+            : BuffBannerDefaultHealthRegenPerSecond;
         return true;
     }
 
@@ -111,30 +120,32 @@ public sealed partial class PlayerEntity
     }
 
     internal void HydrateBuffBannerState(
-        int chargeKills,
+        int chargeDamage,
         int deployTicksRemaining,
         int activeTicksRemaining)
     {
         HydrateBuffBannerState(
-            chargeKills,
-            BuffBannerDefaultMaxChargeKills,
+            chargeDamage,
+            BuffBannerDefaultMaxChargeDamage,
             deployTicksRemaining,
             Math.Max(BuffBannerDefaultDeployTicks, Math.Max(0, deployTicksRemaining)),
             activeTicksRemaining,
             Math.Max(BuffBannerDefaultActiveTicks, Math.Max(0, activeTicksRemaining)),
             BuffBannerDefaultRadius,
-            BuffBannerDefaultDamageMultiplier);
+            BuffBannerDefaultDamageMultiplier,
+            BuffBannerDefaultHealthRegenPerSecond);
     }
 
     internal void HydrateBuffBannerState(
-        int chargeKills,
-        int maxChargeKills,
+        int chargeDamage,
+        int maxChargeDamage,
         int deployTicksRemaining,
         int deployDurationTicks,
         int activeTicksRemaining,
         int activeDurationTicks,
         float radius,
-        float damageMultiplier)
+        float damageMultiplier,
+        float healthRegenPerSecond)
     {
         if (ClassId != PlayerClass.Soldier)
         {
@@ -142,8 +153,8 @@ public sealed partial class PlayerEntity
             return;
         }
 
-        BuffBannerMaxChargeKills = Math.Max(1, maxChargeKills);
-        BuffBannerChargeKills = Math.Clamp(chargeKills, 0, BuffBannerMaxChargeKills);
+        BuffBannerMaxChargeDamage = Math.Max(1, maxChargeDamage);
+        BuffBannerChargeDamage = Math.Clamp(chargeDamage, 0, BuffBannerMaxChargeDamage);
         BuffBannerDeployDurationTicks = Math.Max(1, Math.Max(deployDurationTicks, deployTicksRemaining));
         BuffBannerDeployTicksRemaining = Math.Max(0, deployTicksRemaining);
         BuffBannerActiveDurationTicks = Math.Max(1, Math.Max(activeDurationTicks, activeTicksRemaining));
@@ -156,17 +167,21 @@ public sealed partial class PlayerEntity
         BuffBannerDamageMultiplier = float.IsFinite(damageMultiplier)
             ? MathF.Max(1f, damageMultiplier)
             : BuffBannerDefaultDamageMultiplier;
+        BuffBannerHealthRegenPerSecond = float.IsFinite(healthRegenPerSecond)
+            ? MathF.Max(0f, healthRegenPerSecond)
+            : BuffBannerDefaultHealthRegenPerSecond;
     }
 
     internal void ResetBuffBannerState()
     {
-        BuffBannerChargeKills = 0;
-        BuffBannerMaxChargeKills = BuffBannerDefaultMaxChargeKills;
+        BuffBannerChargeDamage = 0;
+        BuffBannerMaxChargeDamage = BuffBannerDefaultMaxChargeDamage;
         BuffBannerDeployTicksRemaining = 0;
         BuffBannerDeployDurationTicks = BuffBannerDefaultDeployTicks;
         BuffBannerActiveTicksRemaining = 0;
         BuffBannerActiveDurationTicks = BuffBannerDefaultActiveTicks;
         BuffBannerRadius = BuffBannerDefaultRadius;
         BuffBannerDamageMultiplier = BuffBannerDefaultDamageMultiplier;
+        BuffBannerHealthRegenPerSecond = BuffBannerDefaultHealthRegenPerSecond;
     }
 }

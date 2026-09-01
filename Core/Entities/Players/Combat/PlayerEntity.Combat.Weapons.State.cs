@@ -8,6 +8,8 @@ public sealed partial class PlayerEntity
 {
     private void AdvanceWeaponState()
     {
+        AdvanceMedicHealDartState();
+
         if (ClassId == PlayerClass.Pyro)
         {
             AdvancePyroWeaponState();
@@ -99,6 +101,30 @@ public sealed partial class PlayerEntity
 
         AdvanceExperimentalOffhandWeaponState();
         AdvanceAcquiredWeaponState();
+    }
+
+    private void AdvanceMedicHealDartState()
+    {
+        if (ClassId != PlayerClass.Medic)
+        {
+            ResetMedicHealDartState();
+            return;
+        }
+
+        if (MedicHealDartCooldownTicks > 0)
+        {
+            MedicHealDartCooldownTicks -= 1;
+        }
+    }
+
+    private void ResetMedicHealDartState()
+    {
+        MedicHealDartCooldownTicks = 0;
+    }
+
+    internal void HydrateMedicHealDartState(int cooldownTicks)
+    {
+        MedicHealDartCooldownTicks = Math.Max(0, cooldownTicks);
     }
 
     private void AdvanceMedicKritzPrimaryRefill()

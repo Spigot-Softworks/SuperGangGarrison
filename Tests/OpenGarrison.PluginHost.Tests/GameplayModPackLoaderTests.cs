@@ -437,10 +437,20 @@ public sealed class GameplayModPackLoaderTests
 
         var soldierStock = pack.Classes["soldier"].Loadouts["soldier.stock"];
         Assert.Equal("weapon.soldier-shotgun", soldierStock.Secondary?.ItemId);
+        Assert.Equal(4, pack.Items["weapon.soldier-shotgun"].Ammo.MaxAmmo);
         Assert.DoesNotContain("ability.soldier-utility", soldierStock.Abilities);
         Assert.Contains(
             "ability.experimental-ltd-soldier-secondary",
             pack.Items["weapon.soldier-shotgun"].GrantedAbilityItemIds);
+
+        var heavyStock = pack.Classes["heavy"].Loadouts["heavy.stock"];
+        Assert.Equal("weapon.heavy-shotgun", heavyStock.Secondary?.ItemId);
+        Assert.Equal(4, pack.Items["weapon.heavy-shotgun"].Ammo.MaxAmmo);
+
+        var buffBanner = pack.Items["ability.soldier-buff-banner"].Ability;
+        Assert.NotNull(buffBanner);
+        Assert.Equal(400, buffBanner!.Parameters["maxChargeDamage"].GetInt32());
+        Assert.Equal(5f, buffBanner.Parameters["healthRegenPerSecond"].GetSingle());
 
         var demomanStock = pack.Classes["demoman"].Loadouts["demoman.stock"];
         Assert.Equal("weapon.grenadelauncher", demomanStock.Secondary?.ItemId);
@@ -722,22 +732,32 @@ public sealed class GameplayModPackLoaderTests
         Assert.Contains("experimental_ltd", soldierExperimentalSecondary.Tags);
 
         var medigun = pack.Items["weapon.medigun"];
-        Assert.Contains("ability.medic-needlegun", medigun.GrantedAbilityItemIds);
-        var medigunNeedles = pack.Items["ability.medic-needlegun"].Ability;
-        Assert.NotNull(medigunNeedles);
-        Assert.Equal(GameplayAbilityConstants.WeaponAltFireCategory, medigunNeedles!.Category);
-        Assert.Equal(GameplayAbilityConstants.HeldActivation, medigunNeedles.Activation);
-        Assert.Equal(BuiltInGameplayBehaviorIds.MedicNeedlegun, medigunNeedles.ExecutorId);
+        Assert.Contains("ability.medic-uber", medigun.GrantedAbilityItemIds);
+        Assert.Equal(1, medigun.Ammo.MaxAmmo);
+        Assert.Equal(0, medigun.Ammo.AmmoPerUse);
+        Assert.Null(medigun.Presentation.HudSpriteName);
 
         var kritz = pack.Items["weapon.medigun.crit"];
-        Assert.Contains("ability.medic-kritz-heal-needles", kritz.GrantedAbilityItemIds);
+        Assert.Contains("ability.medic-uber", kritz.GrantedAbilityItemIds);
+        Assert.Equal(1, kritz.Ammo.MaxAmmo);
+        Assert.Equal(0, kritz.Ammo.AmmoPerUse);
+        Assert.Null(kritz.Presentation.HudSpriteName);
+
+        var medicStock = pack.Classes["medic"].Loadouts["medic.stock"];
+        Assert.Contains("ability.medic-kritz-heal-needles", medicStock.Abilities);
         var kritzHealNeedles = pack.Items["ability.medic-kritz-heal-needles"].Ability;
         Assert.NotNull(kritzHealNeedles);
-        Assert.Equal(GameplayAbilityConstants.WeaponAltFireCategory, kritzHealNeedles!.Category);
-        Assert.Equal(GameplayAbilityConstants.HeldActivation, kritzHealNeedles.Activation);
+        Assert.Equal(GameplayAbilityConstants.UtilityCategory, kritzHealNeedles!.Category);
+        Assert.Equal(GameplayAbilityConstants.UtilityChannel, kritzHealNeedles.Channel);
+        Assert.Equal(GameplayAbilityConstants.PressedActivation, kritzHealNeedles.Activation);
         Assert.Equal(BuiltInGameplayBehaviorIds.MedicKritzHealNeedles, kritzHealNeedles.ExecutorId);
+        Assert.Equal(3, kritzHealNeedles.Parameters["cooldownSeconds"].GetInt32());
+        Assert.Equal(20, kritzHealNeedles.Parameters["projectileSpeed"].GetInt32());
+        Assert.Equal(1, kritzHealNeedles.Parameters["spreadDegrees"].GetInt32());
         Assert.Equal(30, kritzHealNeedles.Parameters["healPerHit"].GetInt32());
         Assert.Equal(22, kritzHealNeedles.Parameters["enemyDamagePerHit"].GetInt32());
+        Assert.Equal(0, pack.Items["ability.medic-kritz-heal-needles"].Ammo.MaxAmmo);
+        Assert.Equal(0, pack.Items["ability.medic-kritz-heal-needles"].Ammo.AmmoPerUse);
 
         var kritzBeam = pack.Items["ability.medic-kritz-beam"].Ability;
         Assert.NotNull(kritzBeam);
@@ -1019,6 +1039,17 @@ public sealed class GameplayModPackLoaderTests
         Assert.Equal(GameplayItemHudDisplayKinds.AmmoPanel, grenadeLauncherHud!.DisplayKind);
         Assert.Equal(GameplayItemHudStateProviders.UtilityAmmo, grenadeLauncherHud.StateProvider);
         Assert.Equal(40, grenadeLauncherHud.Order);
+
+        var medicHealDartHud = pack.Items["ability.medic-kritz-heal-needles"].Presentation.Hud;
+        Assert.Null(pack.Items["ability.medic-kritz-heal-needles"].Presentation.HudSpriteName);
+        Assert.NotNull(medicHealDartHud);
+        Assert.Equal(GameplayItemHudDisplayKinds.Meter, medicHealDartHud!.DisplayKind);
+        Assert.Equal(GameplayItemHudStackGroups.Ability, medicHealDartHud.StackGroup);
+        Assert.Equal(GameplayItemHudStateProviders.AbilityCooldown, medicHealDartHud.StateProvider);
+        Assert.Equal(GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId, medicHealDartHud.StateOwner);
+        Assert.Equal(GameplayAbilityReplicatedState.MedicHealDartCooldownTicksKey, medicHealDartHud.CooldownKey);
+        Assert.Equal(PlayerEntity.MedicHealDartDefaultCooldownTicks, medicHealDartHud.MaxCooldown);
+        Assert.Equal(81, medicHealDartHud.Order);
 
         var sandvichHud = pack.Items["ability.heavy-sandvich"].Presentation.Hud;
         Assert.NotNull(sandvichHud);
