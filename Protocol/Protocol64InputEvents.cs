@@ -19,6 +19,7 @@ public enum Protocol64InputCommandKind : byte
     ReadyUp = 12,
     BuildDispenser = 13,
     DestroyDispenser = 14,
+    ToggleSecondaryWeapon = 15,
 }
 
 public enum Protocol64InputCommandResultKind : byte
@@ -69,7 +70,7 @@ public sealed class Protocol64InputCommandSchema
     public Protocol64InputCommandSchema()
         : base(
             Protocol64InputSchemaIds.InputCommand,
-            revision: 3,
+            revision: 4,
             Protocol64Direction.ClientToServer,
             maxBodyBytes: 64)
     {

@@ -53,30 +53,15 @@ public sealed partial class SimulationWorld
                             criticalBoost: PlayerEntity.IsCriticalDamageMultiplierBoosted(shot.CriticalDamageMultiplier),
                             useLiveAttackerCriticalBoost: false,
                             threatSourceX: shot.PreviousX,
-                            threatSourceY: shot.PreviousY);
+                            threatSourceY: shot.PreviousY,
+                            knockbackPayload: shot.PlayerKnockbackPayload,
+                            impactDirectionX: directionX,
+                            impactDirectionY: directionY);
                     }
                     else
                     {
-                        if (!hitResult.HitPlayer.IsUbered)
-                        {
-                            var bulletKnockbackPerSecond = 0.5f * LegacyMovementModel.SourceTicksPerSecond;
-                            if (shot.PlayerKnockbackScale > 0f)
-                            {
-                                hitResult.HitPlayer.AddImpulse(
-                                    directionX * bulletKnockbackPerSecond * shot.PlayerKnockbackScale,
-                                    directionY * bulletKnockbackPerSecond * shot.PlayerKnockbackScale);
-                            }
-
-                            if (shot.PlayerSlowMovementMultiplier.HasValue && shot.PlayerSlowRefreshTicks > 0)
-                            {
-                                hitResult.HitPlayer.RefreshDirectFireSlow(
-                                    shot.PlayerSlowRefreshTicks,
-                                    shot.PlayerSlowMovementMultiplier.Value);
-                            }
-                        }
-
                         var hitDamage = ApplyExperimentalAirshotDamageMultiplier(owner, hitResult.HitPlayer, (int)MathF.Round(shot.DamageValue * shot.CriticalDamageMultiplier), out var damageFlags);
-                        if (ApplyPlayerDamageWithContext(
+                        var resolution = ResolvePlayerDamageWithContext(
                                 hitResult.HitPlayer,
                                 hitDamage,
                                 owner,
@@ -86,8 +71,24 @@ public sealed partial class SimulationWorld
                                 civvieUmbrellaThreatSourceY: shot.PreviousY,
                                 civvieUmbrellaCriticalBoost: PlayerEntity.IsCriticalDamageMultiplierBoosted(shot.CriticalDamageMultiplier),
                                 civvieUmbrellaUseLiveAttackerCriticalBoost: false,
-                                additionalTraits: PlayerDamageTraits.DirectProjectile,
-                                targetWasGrounded: targetWasGrounded))
+                                additionalTraits: PlayerDamageTraits.Bullet | PlayerDamageTraits.DirectProjectile,
+                                targetWasGrounded: targetWasGrounded);
+                        if (resolution.ShouldApplyOnHitEffects && hitResult.HitPlayer.IsAlive)
+                        {
+                            BulletKnockbackRules.Apply(
+                                hitResult.HitPlayer,
+                                directionX,
+                                directionY,
+                                shot.PlayerKnockbackPayload);
+                            if (shot.PlayerSlowMovementMultiplier.HasValue && shot.PlayerSlowRefreshTicks > 0)
+                            {
+                                hitResult.HitPlayer.RefreshDirectFireSlow(
+                                    shot.PlayerSlowRefreshTicks,
+                                    shot.PlayerSlowMovementMultiplier.Value);
+                            }
+                        }
+
+                        if (resolution.WasFatal)
                         {
                             KillPlayer(
                                 hitResult.HitPlayer,
@@ -730,6 +731,14 @@ public sealed partial class SimulationWorld
                 AttackId: unchecked((ulong)(uint)shot.Id)));
         if (resolution.ShouldApplyOnHitEffects)
         {
+            if (target.IsAlive)
+            {
+                BulletKnockbackRules.Apply(
+                    target,
+                    directionX,
+                    directionY,
+                    shot.PlayerKnockbackPayload);
+            }
             RegisterBloodEffect(
                 target.X,
                 target.Y,
@@ -851,15 +860,6 @@ public sealed partial class SimulationWorld
         float directionY)
     {
         var profile = shot.LastToDieProfile;
-        if (profile.KnockbackScale > 0f && !target.IsUbered)
-        {
-            const float revolverKnockbackPerSourceTick = 0.5f;
-            var impulse = revolverKnockbackPerSourceTick
-                * LegacyMovementModel.SourceTicksPerSecond
-                * profile.KnockbackScale;
-            target.AddImpulse(directionX * impulse, directionY * impulse);
-        }
-
         if (profile.BleedDamagePerSecond > 0f)
         {
             TryApplyLastToDieStatusEffect(

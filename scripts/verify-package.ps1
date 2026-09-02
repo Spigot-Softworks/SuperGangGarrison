@@ -20,9 +20,15 @@ function Test-IsPathWithinDirectory {
         [string]$Directory
     )
 
+    $comparison = if ($RuntimeIdentifier -eq "win-x64") {
+        [System.StringComparison]::OrdinalIgnoreCase
+    }
+    else {
+        [System.StringComparison]::Ordinal
+    }
     $candidate = [System.IO.Path]::GetFullPath($CandidatePath)
     $root = [System.IO.Path]::GetFullPath($Directory)
-    if ($candidate.Equals($root, [System.StringComparison]::OrdinalIgnoreCase)) {
+    if ($candidate.Equals($root, $comparison)) {
         return $true
     }
 
@@ -30,7 +36,7 @@ function Test-IsPathWithinDirectory {
         $root += [System.IO.Path]::DirectorySeparatorChar
     }
 
-    return $candidate.StartsWith($root, [System.StringComparison]::OrdinalIgnoreCase)
+    return $candidate.StartsWith($root, $comparison)
 }
 
 function Assert-RequiredFile {
@@ -84,6 +90,7 @@ try {
         "README.txt",
         "version.txt",
         "release-channel.txt",
+        "package-manifest.json",
         "app/Content/_gamemaker-asset-manifest.json",
         "app/Content/Gameplay/stock.gg2/runtime.json",
         "app/Content/Browser/Manifests/stock-pack-atlas-manifest.json",
@@ -91,6 +98,59 @@ try {
         "app/Maps/Docking/Docking.json"
     )) {
         Assert-RequiredFile -Root $extractRoot -RelativePath $relativePath
+    }
+
+    $packageManifestPath = Join-Path $extractRoot "package-manifest.json"
+    $packageManifest = Get-Content -LiteralPath $packageManifestPath -Raw | ConvertFrom-Json
+    if ([int]$packageManifest.schemaVersion -ne 1 -or
+        [string]::IsNullOrWhiteSpace([string]$packageManifest.version) -or
+        $null -eq $packageManifest.files -or
+        $packageManifest.files.Count -eq 0) {
+        throw "Package file manifest is missing required metadata."
+    }
+
+    $pathComparer = if ($RuntimeIdentifier -eq "win-x64") {
+        [System.StringComparer]::OrdinalIgnoreCase
+    }
+    else {
+        [System.StringComparer]::Ordinal
+    }
+    $manifestPaths = [System.Collections.Generic.HashSet[string]]::new($pathComparer)
+    foreach ($entry in $packageManifest.files) {
+        $relativePath = ([string]$entry.path).Replace('\', '/')
+        if ([string]::IsNullOrWhiteSpace($relativePath) -or
+            [System.IO.Path]::IsPathRooted($relativePath) -or
+            ($relativePath -split '/') -contains ".." -or
+            -not $manifestPaths.Add($relativePath)) {
+            throw "Package file manifest contains an invalid or duplicate path '$relativePath'."
+        }
+
+        $filePath = [System.IO.Path]::GetFullPath((Join-Path $extractRoot $relativePath))
+        if (-not (Test-IsPathWithinDirectory -CandidatePath $filePath -Directory $extractRoot) -or
+            -not (Test-Path -LiteralPath $filePath -PathType Leaf)) {
+            throw "Package manifest file is missing or outside the package: '$relativePath'."
+        }
+
+        $file = Get-Item -LiteralPath $filePath
+        if ($file.Length -ne [long]$entry.size) {
+            throw "Package manifest size mismatch for '$relativePath'."
+        }
+
+        $actualSha256 = (Get-FileHash -LiteralPath $filePath -Algorithm SHA256).Hash.ToLowerInvariant()
+        if (-not $actualSha256.Equals(([string]$entry.sha256).Trim(), [System.StringComparison]::OrdinalIgnoreCase)) {
+            throw "Package manifest hash mismatch for '$relativePath'."
+        }
+    }
+
+    $archiveFiles = @(Get-ChildItem -LiteralPath $extractRoot -File -Recurse |
+        ForEach-Object {
+            [System.IO.Path]::GetRelativePath($extractRoot, $_.FullName).Replace('\', '/')
+        } |
+        Where-Object { -not $_.Equals("package-manifest.json", [System.StringComparison]::OrdinalIgnoreCase) })
+    if ($archiveFiles.Count -ne $manifestPaths.Count) {
+        $unlistedFiles = @($archiveFiles | Where-Object { -not $manifestPaths.Contains($_) })
+        $missingFiles = @($manifestPaths | Where-Object { $_ -notin $archiveFiles })
+        throw "Package manifest/archive inventory mismatch. Unlisted: $($unlistedFiles -join ', '); missing: $($missingFiles -join ', ')."
     }
 
     if ($RuntimeIdentifier -eq "win-x64") {

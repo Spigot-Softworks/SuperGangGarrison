@@ -42,6 +42,17 @@ jobs:
         shell: pwsh
         run: ./scripts/verify-packaged-content.ps1 -SelfTest
 
+      - name: Run updater transaction tests
+        run: dotnet test Tests/OpenGarrison.Updater.Tests/OpenGarrison.Updater.Tests.csproj --configuration Release --verbosity minimal
+
+      - name: Fetch currently published packages for incremental updates
+        shell: pwsh
+        run: |
+          ./scripts/fetch-update-delta-bases.ps1 `
+            -Platforms @("linux-x64", "win-x64") `
+            -Channel stable `
+            -OutputDirectory ./dist/delta-bases
+
       - name: Package Linux and Windows
         shell: pwsh
         run: |
@@ -51,7 +62,10 @@ jobs:
           }
 
           $platforms = @("linux-x64", "win-x64")
-          ./scripts/package.ps1 -Platforms $platforms -Version $version
+          ./scripts/package.ps1 `
+            -Platforms $platforms `
+            -Version $version `
+            -DeltaBaseDirectory ./dist/delta-bases
 
       - name: Verify distribution archives
         shell: pwsh
@@ -59,11 +73,30 @@ jobs:
           ./scripts/verify-package.ps1 -RuntimeIdentifier linux-x64 -ArchivePath ./dist/OpenGarrison-Linux-x64.tar.gz
           ./scripts/verify-package.ps1 -RuntimeIdentifier win-x64 -ArchivePath ./dist/OpenGarrison-Windows-x64.zip
 
+          $updaterAssembly = (Resolve-Path ./Updater/bin/Release/net10.0/OG2.Updater.dll).Path
+          $winBase = Get-ChildItem ./dist/delta-bases/win-x64 -File -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name.EndsWith('.zip', [System.StringComparison]::OrdinalIgnoreCase) } |
+            Select-Object -First 1
+          $linuxBase = Get-ChildItem ./dist/delta-bases/linux-x64 -File -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name.EndsWith('.tar.gz', [System.StringComparison]::OrdinalIgnoreCase) -or $_.Name.EndsWith('.tgz', [System.StringComparison]::OrdinalIgnoreCase) } |
+            Select-Object -First 1
+
+          Get-ChildItem ./dist -File -Filter '*.delta.zip' | ForEach-Object {
+            if ($null -eq $winBase) { throw 'A Windows delta was generated without its base archive.' }
+            ./scripts/verify-update-delta.ps1 -RuntimeIdentifier win-x64 -ArchivePath $_.FullName -BaseArchivePath $winBase.FullName -UpdaterAssemblyPath $updaterAssembly
+          }
+          Get-ChildItem ./dist -File -Filter '*.delta.tar.gz' | ForEach-Object {
+            if ($null -eq $linuxBase) { throw 'A Linux delta was generated without its base archive.' }
+            ./scripts/verify-update-delta.ps1 -RuntimeIdentifier linux-x64 -ArchivePath $_.FullName -BaseArchivePath $linuxBase.FullName -UpdaterAssemblyPath $updaterAssembly
+          }
+
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
             dist/OpenGarrison-Linux-x64.tar.gz
             dist/OpenGarrison-Windows-x64.zip
+            dist/*.delta.zip
+            dist/*.delta.tar.gz
             services/opengarrison-api/updates/linux-x64/stable/latest.json
             services/opengarrison-api/updates/windows-x64/stable/latest.json

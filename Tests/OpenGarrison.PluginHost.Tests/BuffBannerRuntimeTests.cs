@@ -23,10 +23,12 @@ public sealed class BuffBannerRuntimeTests
         Assert.True(world.TryApplyGameplayDamage(firstEnemy.Id, 150f, soldier.Id, "RocketKL"));
         Assert.True(firstEnemy.IsAlive);
         Assert.Equal(150, soldier.BuffBannerChargeDamage);
+        Assert.DoesNotContain(world.PendingSoundEvents, sound => sound.SoundName == "UberChargedSnd");
 
         Assert.True(world.TryApplyGameplayDamage(firstEnemy.Id, 10_000f, soldier.Id, "RocketKL"));
         Assert.False(firstEnemy.IsAlive);
         Assert.Equal(200, soldier.BuffBannerChargeDamage);
+        Assert.DoesNotContain(world.PendingSoundEvents, sound => sound.SoundName == "UberChargedSnd");
 
         var secondEnemy = AddNetworkPlayer(world, 3, PlayerClass.Heavy, PlayerTeam.Blue);
         Assert.True(world.TryApplyGameplayDamage(secondEnemy.Id, 10_000f, soldier.Id, "RocketKL"));
@@ -34,10 +36,17 @@ public sealed class BuffBannerRuntimeTests
         Assert.Equal(PlayerEntity.BuffBannerDefaultMaxChargeDamage, soldier.BuffBannerChargeDamage);
         Assert.True(soldier.IsBuffBannerReady);
         Assert.False(soldier.IsRageReady);
+        var readySound = Assert.Single(
+            world.PendingSoundEvents,
+            sound => sound.SoundName == "UberChargedSnd");
+        Assert.Equal(soldier.Id, readySound.SourcePlayerId);
+        Assert.Equal(soldier.X, readySound.X);
+        Assert.Equal(soldier.Y, readySound.Y);
 
         var teammate = AddNetworkPlayer(world, 4, PlayerClass.Scout, PlayerTeam.Red);
         Assert.False(world.TryApplyGameplayDamage(teammate.Id, 10_000f, soldier.Id, "RocketKL"));
         Assert.Equal(PlayerEntity.BuffBannerDefaultMaxChargeDamage, soldier.BuffBannerChargeDamage);
+        Assert.Single(world.PendingSoundEvents, sound => sound.SoundName == "UberChargedSnd");
     }
 
     [Fact]

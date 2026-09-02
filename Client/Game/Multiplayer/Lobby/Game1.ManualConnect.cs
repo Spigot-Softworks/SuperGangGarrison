@@ -16,6 +16,7 @@ public partial class Game1
             out _,
             out var hostBounds,
             out var portBounds,
+            out var pasteBounds,
             out var connectBounds,
             out var backBounds,
             out _);
@@ -78,7 +79,16 @@ public partial class Game1
         else
         {
             ResetTextFieldClickTarget();
-            if (connectBounds.Contains(point))
+            if (_lastToDieRoomCodeJoinOpen && pasteBounds.Contains(point))
+            {
+                _manualConnectControllerIndex = 0;
+                _connectionFlowController.SetManualConnectEditingField(editHost: true);
+                if (!PasteActiveClipboard())
+                {
+                    _menuStatusMessage = "Clipboard does not contain a room or friend code.";
+                }
+            }
+            else if (connectBounds.Contains(point))
             {
                 _manualConnectControllerIndex = _lastToDieRoomCodeJoinOpen ? 1 : 2;
                 TryConnectFromMenu();
@@ -196,6 +206,7 @@ public partial class Game1
             out var panel,
             out var hostBounds,
             out var portBounds,
+            out var pasteBounds,
             out var connectBounds,
             out var backBounds,
             out var compactLayout);
@@ -214,7 +225,7 @@ public partial class Game1
         }
 
         DrawBitmapFontText(
-            _lastToDieRoomCodeJoinOpen ? "Room Code" : "Host or OG2 Friend Code",
+            _lastToDieRoomCodeJoinOpen ? "Room or OG2 Friend Code" : "Host or OG2 Friend Code",
             new Vector2(hostBounds.X, hostBounds.Y - 16f),
             Color.White,
             labelScale);
@@ -230,6 +241,14 @@ public partial class Game1
             buttonScale,
             _connectHostCursorIndex,
             _connectHostSelectionStart);
+        if (_lastToDieRoomCodeJoinOpen)
+        {
+            DrawMenuButtonScaled(
+                pasteBounds,
+                "Paste",
+                pasteBounds.Contains(mouse.Position),
+                buttonScale);
+        }
         if (!_lastToDieRoomCodeJoinOpen)
         {
             DrawMenuInputBoxScaled(
@@ -257,7 +276,10 @@ public partial class Game1
 
         if (!string.IsNullOrWhiteSpace(_menuStatusMessage))
         {
-            DrawBitmapFontText(_menuStatusMessage, new Vector2(panel.X + 24f, panel.Bottom - (compactLayout ? 34f : 38f)), new Color(230, 220, 180), 1f);
+            var statusY = _lastToDieRoomCodeJoinOpen
+                ? connectBounds.Y - 28f
+                : panel.Bottom - (compactLayout ? 34f : 38f);
+            DrawBitmapFontText(_menuStatusMessage, new Vector2(panel.X + 24f, statusY), new Color(230, 220, 180), 1f);
         }
     }
 
@@ -265,6 +287,7 @@ public partial class Game1
         out Rectangle panel,
         out Rectangle hostBounds,
         out Rectangle portBounds,
+        out Rectangle pasteBounds,
         out Rectangle connectBounds,
         out Rectangle backBounds,
         out bool compactLayout)
@@ -289,7 +312,19 @@ public partial class Game1
         var contentTop = panel.Y + (_lastToDieRoomCodeJoinOpen
             ? compactLayout ? 80 : 92
             : compactLayout ? 58 : 74);
-        hostBounds = new Rectangle(panel.X + padding, contentTop, panel.Width - (padding * 2), fieldHeight);
+        var fullFieldWidth = panel.Width - (padding * 2);
+        var pasteGap = compactLayout ? 8 : 10;
+        var pasteWidth = compactLayout ? 96 : 112;
+        hostBounds = new Rectangle(
+            panel.X + padding,
+            contentTop,
+            _lastToDieRoomCodeJoinOpen
+                ? fullFieldWidth - pasteWidth - pasteGap
+                : fullFieldWidth,
+            fieldHeight);
+        pasteBounds = _lastToDieRoomCodeJoinOpen
+            ? new Rectangle(hostBounds.Right + pasteGap, contentTop, pasteWidth, fieldHeight)
+            : Rectangle.Empty;
         portBounds = _lastToDieRoomCodeJoinOpen
             ? Rectangle.Empty
             : new Rectangle(

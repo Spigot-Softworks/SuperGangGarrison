@@ -3,6 +3,7 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
+using OpenGarrison.ClientShared;
 using System;
 using System.Runtime.InteropServices;
 
@@ -924,9 +925,17 @@ public partial class Game1
         if (_mainMenuOpen && _manualConnectOpen && _editingConnectHost)
         {
             if (_lastToDieRoomCodeJoinOpen
-                && TryExtractFriendCodeFromText(pasteText, out var roomCode))
+                && RelayRoomCode.TryNormalize(pasteText, out var roomCode))
             {
                 _connectHostBuffer = roomCode;
+                InitializeConnectHostCursor();
+                return true;
+            }
+
+            if (_lastToDieRoomCodeJoinOpen
+                && TryExtractFriendCodeFromText(pasteText, out var friendCode))
+            {
+                _connectHostBuffer = friendCode;
                 InitializeConnectHostCursor();
                 return true;
             }
@@ -1511,14 +1520,16 @@ public partial class Game1
     private static bool TryGetClipboardText(out string text)
     {
         text = string.Empty;
-        if (!OperatingSystem.IsWindows())
+        if (OperatingSystem.IsBrowser())
         {
             return false;
         }
 
         try
         {
-            return TryGetClipboardTextWindows(out text);
+            return OperatingSystem.IsWindows()
+                ? TryGetClipboardTextWindows(out text)
+                : TryGetClipboardTextSdl(out text);
         }
         catch
         {
@@ -1528,14 +1539,16 @@ public partial class Game1
 
     private static bool TrySetClipboardText(string text)
     {
-        if (!OperatingSystem.IsWindows())
+        if (OperatingSystem.IsBrowser())
         {
             return false;
         }
 
         try
         {
-            return TrySetClipboardTextWindows(text);
+            return OperatingSystem.IsWindows()
+                ? TrySetClipboardTextWindows(text)
+                : TrySetClipboardTextSdl(text);
         }
         catch
         {
@@ -1610,22 +1623,33 @@ public partial class Game1
                 return false;
             }
 
+            var clipboardOwnsMemory = false;
             try
             {
-                Marshal.Copy(unicodeText.ToCharArray(), 0, pointer, unicodeText.Length);
-                Marshal.WriteInt16(pointer, unicodeText.Length * 2, 0);
+                try
+                {
+                    Marshal.Copy(unicodeText.ToCharArray(), 0, pointer, unicodeText.Length);
+                    Marshal.WriteInt16(pointer, unicodeText.Length * 2, 0);
+                }
+                finally
+                {
+                    GlobalUnlock(global);
+                }
+
                 if (SetClipboardData(CF_UNICODETEXT, global) == IntPtr.Zero)
                 {
-                    GlobalFree(global);
                     return false;
                 }
 
-                global = IntPtr.Zero;
+                clipboardOwnsMemory = true;
                 return true;
             }
             finally
             {
-                GlobalUnlock(pointer);
+                if (!clipboardOwnsMemory)
+                {
+                    GlobalFree(global);
+                }
             }
         }
         finally
@@ -1633,6 +1657,101 @@ public partial class Game1
             CloseClipboard();
         }
     }
+
+    private static bool TryGetClipboardTextSdl(out string text)
+    {
+        text = string.Empty;
+        if (!TryGetSdlClipboardFunctions(out _, out var getClipboardText, out var free))
+        {
+            return false;
+        }
+
+        var pointer = getClipboardText();
+        if (pointer == IntPtr.Zero)
+        {
+            return false;
+        }
+
+        try
+        {
+            text = Marshal.PtrToStringUTF8(pointer) ?? string.Empty;
+            return true;
+        }
+        finally
+        {
+            free(pointer);
+        }
+    }
+
+    private static bool TrySetClipboardTextSdl(string text)
+    {
+        return TryGetSdlClipboardFunctions(out var setClipboardText, out _, out _)
+            && setClipboardText(text ?? string.Empty) == 0;
+    }
+
+    private static bool TryGetSdlClipboardFunctions(
+        out SdlSetClipboardTextDelegate setClipboardText,
+        out SdlGetClipboardTextDelegate getClipboardText,
+        out SdlFreeDelegate free)
+    {
+        lock (SdlClipboardLock)
+        {
+            if (!_sdlClipboardLoadAttempted)
+            {
+                _sdlClipboardLoadAttempted = true;
+                var candidates = OperatingSystem.IsLinux()
+                    ? new[] { "libSDL2-2.0.so.0", "libSDL2.so" }
+                    : OperatingSystem.IsMacOS()
+                        ? new[] { "libSDL2-2.0.0.dylib", "libSDL2.dylib", "SDL2" }
+                        : new[] { "SDL2.dll", "SDL2" };
+                foreach (var candidate in candidates)
+                {
+                    if (!NativeLibrary.TryLoad(candidate, out var library))
+                    {
+                        continue;
+                    }
+
+                    if (NativeLibrary.TryGetExport(library, "SDL_SetClipboardText", out var setExport)
+                        && NativeLibrary.TryGetExport(library, "SDL_GetClipboardText", out var getExport)
+                        && NativeLibrary.TryGetExport(library, "SDL_free", out var freeExport))
+                    {
+                        _sdlClipboardLibrary = library;
+                        _sdlSetClipboardText = Marshal.GetDelegateForFunctionPointer<SdlSetClipboardTextDelegate>(setExport);
+                        _sdlGetClipboardText = Marshal.GetDelegateForFunctionPointer<SdlGetClipboardTextDelegate>(getExport);
+                        _sdlFree = Marshal.GetDelegateForFunctionPointer<SdlFreeDelegate>(freeExport);
+                        break;
+                    }
+
+                    NativeLibrary.Free(library);
+                }
+            }
+
+            setClipboardText = _sdlSetClipboardText!;
+            getClipboardText = _sdlGetClipboardText!;
+            free = _sdlFree!;
+            return _sdlClipboardLibrary != IntPtr.Zero
+                && setClipboardText is not null
+                && getClipboardText is not null
+                && free is not null;
+        }
+    }
+
+    private static readonly object SdlClipboardLock = new();
+    private static bool _sdlClipboardLoadAttempted;
+    private static IntPtr _sdlClipboardLibrary;
+    private static SdlSetClipboardTextDelegate? _sdlSetClipboardText;
+    private static SdlGetClipboardTextDelegate? _sdlGetClipboardText;
+    private static SdlFreeDelegate? _sdlFree;
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate int SdlSetClipboardTextDelegate(
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string text);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate IntPtr SdlGetClipboardTextDelegate();
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate void SdlFreeDelegate(IntPtr memory);
 
     private const uint CF_UNICODETEXT = 13;
     private const uint GMEM_MOVEABLE = 0x0002;

@@ -18,6 +18,13 @@
     "ammoRegenPerTick": 1,
     "refillsAllAtOnce": false
   },
+  "combat": {
+    "airborneVelocityReach": {
+      "baseline": "classRunJump",
+      "bonusPerExcessBaseline": 0.5,
+      "maxReachMultiplier": 1.5
+    }
+  },
   "presentation": {
     "worldSpriteName": "FlamethrowerS",
     "recoilSpriteName": "FlamethrowerFS",

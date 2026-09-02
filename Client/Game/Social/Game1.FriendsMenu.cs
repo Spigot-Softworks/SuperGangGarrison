@@ -1351,6 +1351,7 @@ public partial class Game1
     private bool CanInviteToHostedLastToDie()
     {
         if (_hostedSocialPresenceUdpPort <= 0
+            || !RelayRoomCode.TryNormalize(_hostedLastToDieRoomCode, out _)
             || !IsHostedServerRunning
             || _networkClient.LastToDieState.Snapshot is not { } snapshot
             || snapshot.Phase != OpenGarrison.Protocol.LastToDieWirePhase.Lobby)
@@ -1378,7 +1379,7 @@ public partial class Game1
 
         var sent = TrySendDirectMessage(
             friend.FriendCode,
-            $"Last to Die invite from {GetSocialPresenceDisplayName()}. Open Social and select Join, or use code {_clientIdentity.FriendCode}.",
+            $"Last to Die invite from {GetSocialPresenceDisplayName()}. Open Social and select Join, or enter room code {_hostedLastToDieRoomCode}.",
             echoToChat: false);
         if (sent)
         {

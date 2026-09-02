@@ -39,4 +39,6 @@ public sealed record PrimaryWeaponDefinition(
     float PlayerKnockbackScale = 1f,
     float? PlayerSlowMovementMultiplier = null,
     int PlayerSlowRefreshSourceTicks = 0,
+    AirborneVelocityReachDefinition? AirborneVelocityReach = null,
+    PlayerKnockbackDefinition? PlayerKnockback = null,
     string? ItemId = null);

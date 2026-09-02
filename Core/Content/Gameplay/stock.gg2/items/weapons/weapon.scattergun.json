@@ -18,7 +18,12 @@
     "refillsAllAtOnce": false
   },
   "combat": {
-    "fireSoundName": "ShotgunSnd"
+    "fireSoundName": "ShotgunSnd",
+    "playerKnockback": {
+      "impulsePerUse": 4.0,
+      "airborneVerticalScale": 0.5,
+      "groundedVerticalScale": 0.5
+    }
   },
   "presentation": {
     "worldSpriteName": "ScattergunS",

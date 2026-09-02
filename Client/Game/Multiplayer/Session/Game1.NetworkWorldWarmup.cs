@@ -37,6 +37,29 @@ public partial class Game1
             && !_networkClient.IsReplayConnection;
     }
 
+    private bool IsNetworkWorldWarmupBlockingPresentation()
+        => ShouldBlockNetworkWorldWarmupPresentation(
+            IsNetworkWorldWarmupBlockingGameplay(),
+            _networkClient.LastToDieState.Snapshot?.Phase);
+
+    // Hosted LTD begins in semantic lobby and selection phases before the
+    // server creates an authoritative gameplay entity for the local player.
+    // Those full-screen menus are safe to present without a warmed gameplay
+    // world. Keeping them behind the ordinary online warmup gate would create
+    // a deadlock: the guest cannot choose a survivor, so the entity that would
+    // release warmup is never spawned.
+    internal static bool ShouldBlockNetworkWorldWarmupPresentation(
+        bool gameplayWarmupBlocking,
+        LastToDieWirePhase? lastToDiePhase)
+        => gameplayWarmupBlocking
+            && lastToDiePhase is not (
+                LastToDieWirePhase.Lobby
+                or LastToDieWirePhase.SurvivorChoice
+                or LastToDieWirePhase.RewardChoice
+                or LastToDieWirePhase.LoadingStage
+                or LastToDieWirePhase.Won
+                or LastToDieWirePhase.Lost);
+
     // The world warmup is the visibility gate for a newly joined online session.
     // It must not release while interpolation is still seeding its presentation
     // histories; otherwise the first rendered frames can expose uninitialized

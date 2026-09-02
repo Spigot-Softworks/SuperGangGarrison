@@ -301,6 +301,16 @@ public partial class Game1
         _gameplayAudioEventController.PlayDemoknightChargeReadySoundIfNeeded();
     }
 
+    private void PlayBuffBannerReadySoundIfNeeded()
+    {
+        _gameplayAudioEventController.PlayBuffBannerReadySoundIfNeeded();
+    }
+
+    private void ResetBuffBannerReadySoundObservation()
+    {
+        _gameplayAudioEventController.ResetBuffBannerReadySoundObservation();
+    }
+
     private void PlayRoundEndSoundIfNeeded()
     {
         _gameplayAudioEventController.PlayRoundEndSoundIfNeeded();

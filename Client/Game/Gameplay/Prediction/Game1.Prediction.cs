@@ -39,6 +39,7 @@ public partial class Game1
         bool secondaryAbilityReleased,
         bool abilityPressed,
         bool swapWeaponPressed,
+        bool toggleSecondaryWeaponPressed,
         bool tauntPressed,
         bool abilityReleased)
     {
@@ -59,6 +60,7 @@ public partial class Game1
             secondaryAbilityReleased,
             abilityPressed,
             swapWeaponPressed,
+            toggleSecondaryWeaponPressed,
             tauntPressed,
             abilityReleased));
         if (_pendingPredictedInputs.Count > MaxPendingPredictedInputs)
@@ -626,6 +628,7 @@ public partial class Game1
         bool SecondaryAbilityReleased,
         bool AbilityPressed,
         bool SwapWeaponPressed,
+        bool ToggleSecondaryWeaponPressed,
         bool TauntPressed,
         bool AbilityReleased);
 }

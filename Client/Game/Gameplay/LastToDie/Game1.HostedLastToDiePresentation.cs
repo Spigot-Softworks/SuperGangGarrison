@@ -367,7 +367,10 @@ public partial class Game1
             && clicked
             && roomCodeBounds.Contains(mouse.Position))
         {
-            _hostedLastToDieRoomCodeCopyFailed = !TrySetClipboardText(_clientIdentity.FriendCode);
+            _hostedLastToDieRoomCodeCopyFailed = !RelayRoomCode.TryNormalize(
+                    _hostedLastToDieRoomCode,
+                    out var roomCode)
+                || !TrySetClipboardText(roomCode);
             _hostedLastToDieRoomCodeFeedbackSeconds = 2f;
             return;
         }
@@ -723,7 +726,9 @@ public partial class Game1
                 new Color(190, 190, 190),
                 0.8f);
         }
-        if (localPlayer.IsHost && IsHostedServerRunning)
+        if (localPlayer.IsHost
+            && IsHostedServerRunning
+            && RelayRoomCode.TryNormalize(_hostedLastToDieRoomCode, out _))
         {
             DrawHostedLastToDieLobbyButton(
                 GetHostedLastToDieRoomCodeButtonBounds(),

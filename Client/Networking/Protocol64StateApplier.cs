@@ -318,7 +318,10 @@ public sealed class Protocol64StateApplier
             lifecycle.IsLastToDieMedicJavelinAnchored,
             lifecycle.LastToDieMedicJavelinFuseTicksRemaining,
             lifecycle.HasLastToDieMedicJavelinExploded,
-            lifecycle.CriticalDamageMultiplier));
+            lifecycle.CriticalDamageMultiplier,
+            lifecycle.PlayerKnockbackImpulse,
+            lifecycle.PlayerKnockbackAirborneVerticalScale,
+            lifecycle.PlayerKnockbackGroundedVerticalScale));
     }
 
     public Protocol64StateApplyResult ApplyResyncResponse(Protocol64StateResyncResponse response)

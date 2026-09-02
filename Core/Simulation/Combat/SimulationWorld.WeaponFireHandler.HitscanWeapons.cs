@@ -6,11 +6,12 @@ public sealed partial class SimulationWorld
     {
         private void FireRifle(PlayerEntity attacker, float aimWorldX, float aimWorldY)
         {
-            FireRifle(attacker, attacker.ClassId, aimWorldX, aimWorldY, "RifleKL");
+            FireRifle(attacker, attacker.PrimaryWeapon, attacker.ClassId, aimWorldX, aimWorldY, "RifleKL");
         }
 
         private void FireRifle(
             PlayerEntity attacker,
+            PrimaryWeaponDefinition weaponDefinition,
             PlayerClass weaponClassId,
             float aimWorldX,
             float aimWorldY,
@@ -79,6 +80,7 @@ public sealed partial class SimulationWorld
                 isSniperTracer: true,
                 isCritical: isCritical);
             var damage = attacker.GetSniperRifleDamage();
+            var knockbackPayload = BulletKnockbackRules.ResolvePayload(weaponDefinition, actualProjectileCount: 1);
             if (sniperProfile.TranqDartsEnabled)
             {
                 damage = Math.Max(
@@ -124,6 +126,14 @@ public sealed partial class SimulationWorld
                     executesTarget,
                     isCritical,
                     killFeedWeaponSpriteNameOverride);
+                if (resolution.ShouldApplyOnHitEffects)
+                {
+                    BulletKnockbackRules.Apply(
+                        playerHit.Player,
+                        directionX,
+                        directionY,
+                        knockbackPayload);
+                }
                 if (resolution.ShouldApplyOnHitEffects && sniperProfile.TranqDartsEnabled)
                 {
                     _world.TryApplyLastToDieSniperStatusPayload(

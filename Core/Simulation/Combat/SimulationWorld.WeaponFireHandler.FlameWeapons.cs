@@ -48,12 +48,16 @@ public sealed partial class SimulationWorld
                 attacker,
                 MathF.Cos(flameAngle) * flameSpeed,
                 MathF.Sin(flameAngle) * flameSpeed);
+            var airborneReachMultiplier = AirborneVelocityReachRules.ResolveMultiplier(
+                attacker,
+                weaponDefinition.AirborneVelocityReach);
             SpawnFlame(
                 attacker,
                 spawnX,
                 spawnY,
-                launchedVelocityX + (attacker.HorizontalSpeed / LegacyMovementModel.SourceTicksPerSecond),
-                launchedVelocityY);
+                (launchedVelocityX * airborneReachMultiplier)
+                    + (attacker.HorizontalSpeed / LegacyMovementModel.SourceTicksPerSecond),
+                launchedVelocityY * airborneReachMultiplier);
             return true;
         }
     }

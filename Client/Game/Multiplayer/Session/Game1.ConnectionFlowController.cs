@@ -140,15 +140,25 @@ public partial class Game1
         {
             if (_game._lastToDieRoomCodeJoinOpen)
             {
-                if (!Game1.TryExtractFriendCodeFromText(_game._connectHostBuffer, out var roomCode))
+                if (OpenGarrison.ClientShared.RelayRoomCode.TryNormalize(
+                        _game._connectHostBuffer,
+                        out var roomCode))
                 {
-                    _game._menuStatusMessage = "Enter a valid room code.";
+                    _game._connectHostBuffer = roomCode;
+                    _game.InitializeConnectHostCursor();
+                    _game.BeginRelayRoomJoin(roomCode);
                     return;
                 }
 
-                _game._connectHostBuffer = roomCode;
-                _game.InitializeConnectHostCursor();
-                _game.BeginFriendCodeJoin(roomCode);
+                if (Game1.TryExtractFriendCodeFromText(_game._connectHostBuffer, out var lastToDieFriendCode))
+                {
+                    _game._connectHostBuffer = lastToDieFriendCode;
+                    _game.InitializeConnectHostCursor();
+                    _game.BeginFriendCodeJoin(lastToDieFriendCode);
+                    return;
+                }
+
+                _game._menuStatusMessage = "Enter a four-character room code or OG2 friend code.";
                 return;
             }
 

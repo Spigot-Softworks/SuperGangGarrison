@@ -20,7 +20,12 @@
   "combat": {
     "fireSoundName": "ChaingunSnd",
     "killFeedSpriteName": "SmgKL",
-    "directHitDamage": 5
+    "directHitDamage": 5,
+    "playerKnockback": {
+      "impulsePerUse": 1.25,
+      "airborneVerticalScale": 0.5,
+      "groundedVerticalScale": 0.5
+    }
   },
   "presentation": {
     "worldSpriteName": "SmgS",

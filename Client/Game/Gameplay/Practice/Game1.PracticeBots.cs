@@ -1004,6 +1004,7 @@ public partial class Game1
             DropIntel = false,
             InteractWeapon = false,
             SwapWeapon = false,
+            ToggleSecondaryWeapon = false,
             ReadyUp = false,
         };
 

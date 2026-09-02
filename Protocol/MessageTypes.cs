@@ -81,6 +81,7 @@ public enum InputButtons : uint
     IsTypingChatMessage = 1 << 15,
     BuildDispenser = 1 << 16,
     DestroyDispenser = 1 << 17,
+    ToggleSecondaryWeapon = 1 << 18,
 }
 
 public interface IProtocolMessage
@@ -625,7 +626,10 @@ public sealed record SnapshotShotState(
     bool IsLastToDieMedicJavelinAnchored = false,
     int LastToDieMedicJavelinFuseTicksRemaining = 0,
     bool HasLastToDieMedicJavelinExploded = false,
-    float CriticalDamageMultiplier = 1f);
+    float CriticalDamageMultiplier = 1f,
+    float PlayerKnockbackImpulse = 0f,
+    float PlayerKnockbackAirborneVerticalScale = 1f,
+    float PlayerKnockbackGroundedVerticalScale = 1f);
 
 public sealed record SnapshotGrenadeState(
     int Id,

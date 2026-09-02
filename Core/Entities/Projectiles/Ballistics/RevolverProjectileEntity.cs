@@ -19,7 +19,10 @@ public sealed class RevolverProjectileEntity : SimulationEntity
         float damagePerHit = DamagePerHit,
         string? killFeedWeaponSpriteNameOverride = null,
         LastToDieSpyRevolverProfile? lastToDieProfile = null,
-        bool appliesLuckyStrikeStun = false) : base(id)
+        bool appliesLuckyStrikeStun = false,
+        float playerKnockbackImpulse = 0f,
+        float playerKnockbackAirborneVerticalScale = 1f,
+        float playerKnockbackGroundedVerticalScale = 1f) : base(id)
     {
         Team = team;
         OwnerId = ownerId;
@@ -31,6 +34,9 @@ public sealed class RevolverProjectileEntity : SimulationEntity
         KillFeedWeaponSpriteNameOverride = killFeedWeaponSpriteNameOverride;
         LastToDieProfile = lastToDieProfile ?? LastToDieSpyRevolverProfile.Stock;
         AppliesLuckyStrikeStun = appliesLuckyStrikeStun;
+        PlayerKnockbackImpulse = Math.Max(0f, playerKnockbackImpulse);
+        PlayerKnockbackAirborneVerticalScale = Math.Clamp(playerKnockbackAirborneVerticalScale, 0f, 1f);
+        PlayerKnockbackGroundedVerticalScale = Math.Clamp(playerKnockbackGroundedVerticalScale, 0f, 1f);
         TicksRemaining = LifetimeTicks;
     }
 
@@ -57,6 +63,17 @@ public sealed class RevolverProjectileEntity : SimulationEntity
     public LastToDieSpyRevolverProfile LastToDieProfile { get; }
 
     public bool AppliesLuckyStrikeStun { get; }
+
+    public float PlayerKnockbackImpulse { get; private set; }
+
+    public float PlayerKnockbackAirborneVerticalScale { get; private set; }
+
+    public float PlayerKnockbackGroundedVerticalScale { get; private set; }
+
+    public BulletKnockbackPayload PlayerKnockbackPayload => new(
+        PlayerKnockbackImpulse,
+        PlayerKnockbackAirborneVerticalScale,
+        PlayerKnockbackGroundedVerticalScale);
 
     public bool IsCritical { get; private set; }
 
@@ -110,7 +127,16 @@ public sealed class RevolverProjectileEntity : SimulationEntity
         TicksRemaining = LifetimeTicks;
     }
 
-    public void ApplyNetworkState(float x, float y, float velocityX, float velocityY, int ticksRemaining)
+    public void ApplyNetworkState(
+        float x,
+        float y,
+        float velocityX,
+        float velocityY,
+        int ticksRemaining,
+        float? damageValue = null,
+        float? playerKnockbackImpulse = null,
+        float? playerKnockbackAirborneVerticalScale = null,
+        float? playerKnockbackGroundedVerticalScale = null)
     {
         PreviousX = X;
         PreviousY = Y;
@@ -119,5 +145,21 @@ public sealed class RevolverProjectileEntity : SimulationEntity
         VelocityX = velocityX;
         VelocityY = velocityY;
         TicksRemaining = ticksRemaining;
+        if (damageValue.HasValue)
+        {
+            DamageValue = Math.Max(0f, damageValue.Value);
+        }
+        if (playerKnockbackImpulse.HasValue)
+        {
+            PlayerKnockbackImpulse = Math.Max(0f, playerKnockbackImpulse.Value);
+        }
+        if (playerKnockbackAirborneVerticalScale.HasValue)
+        {
+            PlayerKnockbackAirborneVerticalScale = Math.Clamp(playerKnockbackAirborneVerticalScale.Value, 0f, 1f);
+        }
+        if (playerKnockbackGroundedVerticalScale.HasValue)
+        {
+            PlayerKnockbackGroundedVerticalScale = Math.Clamp(playerKnockbackGroundedVerticalScale.Value, 0f, 1f);
+        }
     }
 }

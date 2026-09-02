@@ -483,6 +483,8 @@ public sealed partial class GameplayRuntimeRegistry
             PlayerKnockbackScale: Math.Max(0f, item.Combat?.PlayerKnockbackScale ?? 1f),
             PlayerSlowMovementMultiplier: NormalizePlayerSlowMovementMultiplier(item.Combat?.PlayerSlowMovementMultiplier),
             PlayerSlowRefreshSourceTicks: Math.Max(0, item.Combat?.PlayerSlowRefreshSourceTicks ?? 0),
+            AirborneVelocityReach: ResolveAirborneVelocityReachDefinition(item.Combat?.AirborneVelocityReach),
+            PlayerKnockback: ResolvePlayerKnockbackDefinition(item.Combat?.PlayerKnockback),
             RocketCombat: resolvedRocketCombat,
             AutoReloads: item.Ammo.AutoReloads,
             AmmoRegenPerTick: item.Ammo.AmmoRegenPerTick,
@@ -490,6 +492,42 @@ public sealed partial class GameplayRuntimeRegistry
             ActiveProjectileLimit: item.Combat?.ActiveProjectileLimit,
             ItemId: item.Id);
     }
+
+    private static AirborneVelocityReachDefinition? ResolveAirborneVelocityReachDefinition(
+        GameplayAirborneVelocityReachDefinition? definition)
+    {
+        if (definition is null)
+        {
+            return null;
+        }
+
+        if (!string.Equals(definition.Baseline?.Trim(), "classRunJump", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                $"Unsupported airborne velocity reach baseline \"{definition.Baseline}\". Expected \"classRunJump\".");
+        }
+
+        return new AirborneVelocityReachDefinition(
+            BonusPerExcessBaseline: NormalizeFiniteNonNegative(definition.BonusPerExcessBaseline),
+            MaxReachMultiplier: MathF.Max(1f, NormalizeFiniteNonNegative(definition.MaxReachMultiplier)));
+    }
+
+    private static PlayerKnockbackDefinition? ResolvePlayerKnockbackDefinition(
+        GameplayPlayerKnockbackDefinition? definition)
+    {
+        if (definition is null)
+        {
+            return null;
+        }
+
+        return new PlayerKnockbackDefinition(
+            ImpulsePerUse: NormalizeFiniteNonNegative(definition.ImpulsePerUse),
+            AirborneVerticalScale: Math.Clamp(NormalizeFiniteNonNegative(definition.AirborneVerticalScale), 0f, 1f),
+            GroundedVerticalScale: Math.Clamp(NormalizeFiniteNonNegative(definition.GroundedVerticalScale), 0f, 1f));
+    }
+
+    private static float NormalizeFiniteNonNegative(float value)
+        => float.IsFinite(value) ? MathF.Max(0f, value) : 0f;
 
     private static float? ResolveDirectHitDamage(
         PrimaryWeaponKind weaponKind,

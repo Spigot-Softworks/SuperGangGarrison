@@ -16,7 +16,8 @@ internal static class KeyboardInputMapper
         bool isUsingBinoculars = false,
         float binocularsFocusX = 0f,
         float binocularsFocusY = 0f,
-        bool useMultiplayerExclusivePrimarySwapBinding = false)
+        bool useMultiplayerExclusivePrimarySwapBinding = false,
+        MouseState? previousMouse = null)
     {
         var mouseWorldX = cameraX + mouse.X;
         var mouseWorldY = cameraY + mouse.Y;
@@ -50,7 +51,19 @@ internal static class KeyboardInputMapper
             BinocularsFocusX: isUsingBinoculars ? binocularsFocusX : localPlayerX,
             BinocularsFocusY: isUsingBinoculars ? binocularsFocusY : localPlayerY,
             SwapWeapon: swapWeapon,
+            ToggleSecondaryWeapon: IsScrollWheelWeaponSwapRequested(bindings, mouse, previousMouse),
             ReadyUp: keyboard.IsKeyDown(Keys.F4));
+    }
+
+    internal static bool IsScrollWheelWeaponSwapRequested(
+        InputBindingsSettings bindings,
+        MouseState mouse,
+        MouseState? previousMouse)
+    {
+        ArgumentNullException.ThrowIfNull(bindings);
+        return bindings.ScrollWheelWeaponSwapEnabled
+            && previousMouse.HasValue
+            && mouse.ScrollWheelValue != previousMouse.Value.ScrollWheelValue;
     }
 
     internal static bool UsesMultiplayerExclusivePrimarySwapBinding(

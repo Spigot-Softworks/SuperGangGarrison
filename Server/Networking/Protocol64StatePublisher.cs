@@ -135,9 +135,12 @@ internal sealed class Protocol64StatePublisher
             0f,
             shot.TicksRemaining,
             active: true,
-            damage: 0,
+            damage: shot.DamageValue,
             stateTick,
             isCritical: shot.IsCritical,
+            playerKnockbackImpulse: shot.PlayerKnockbackImpulse,
+            playerKnockbackAirborneVerticalScale: shot.PlayerKnockbackAirborneVerticalScale,
+            playerKnockbackGroundedVerticalScale: shot.PlayerKnockbackGroundedVerticalScale,
             criticalDamageMultiplier: shot.CriticalDamageMultiplier)));
         projectiles.AddRange(_world.Bubbles.Select(shot => ToProjectile(
             shot.Id,
@@ -238,6 +241,9 @@ internal sealed class Protocol64StatePublisher
             isCritical: shot.IsCritical,
             lastToDieSpyRevolverProfile: checked((byte)shot.LastToDieProfile.Encode()),
             appliesLastToDieLuckyStrikeStun: shot.AppliesLuckyStrikeStun,
+            playerKnockbackImpulse: shot.PlayerKnockbackImpulse,
+            playerKnockbackAirborneVerticalScale: shot.PlayerKnockbackAirborneVerticalScale,
+            playerKnockbackGroundedVerticalScale: shot.PlayerKnockbackGroundedVerticalScale,
             criticalDamageMultiplier: shot.CriticalDamageMultiplier)));
         projectiles.AddRange(_world.Rockets.Select(rocket => ToProjectile(
             rocket.Id,
@@ -372,7 +378,10 @@ internal sealed class Protocol64StatePublisher
                         : state.LastToDieMedicJavelinFuseTicksRemaining,
                     wasLastToDieMedicJavelin
                         || state.HasLastToDieMedicJavelinExploded,
-                    state.CriticalDamageMultiplier);
+                    state.CriticalDamageMultiplier,
+                    state.PlayerKnockbackImpulse,
+                    state.PlayerKnockbackAirborneVerticalScale,
+                    state.PlayerKnockbackGroundedVerticalScale);
             })
             .ToArray();
         _lastProjectiles.Clear();
@@ -418,6 +427,9 @@ internal sealed class Protocol64StatePublisher
         bool isLastToDieMedicJavelinAnchored = false,
         ushort lastToDieMedicJavelinFuseTicksRemaining = 0,
         bool hasLastToDieMedicJavelinExploded = false,
+        float playerKnockbackImpulse = 0f,
+        float playerKnockbackAirborneVerticalScale = 1f,
+        float playerKnockbackGroundedVerticalScale = 1f,
         float criticalDamageMultiplier = 1f)
     {
         var owner = _world.EnumerateReplicatedNetworkPlayers()
@@ -463,7 +475,10 @@ internal sealed class Protocol64StatePublisher
             isCritical
                 ? ExperimentalGameplaySettings.NormalizeCriticalDamageMultiplier(
                     criticalDamageMultiplier)
-                : 1f);
+                : 1f,
+            MathF.Max(0f, playerKnockbackImpulse),
+            Math.Clamp(playerKnockbackAirborneVerticalScale, 0f, 1f),
+            Math.Clamp(playerKnockbackGroundedVerticalScale, 0f, 1f));
     }
 
     private Protocol64PlayerState ToPlayerState(

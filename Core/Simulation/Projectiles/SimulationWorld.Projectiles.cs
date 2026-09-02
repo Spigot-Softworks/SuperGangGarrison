@@ -17,7 +17,10 @@ public sealed partial class SimulationWorld
         bool applyExperimentalEngineerSentryPerkEffects = false,
         float playerKnockbackScale = 1f,
         float? playerSlowMovementMultiplier = null,
-        int playerSlowRefreshTicks = 0)
+        int playerSlowRefreshTicks = 0,
+        float? playerKnockbackImpulse = null,
+        float playerKnockbackAirborneVerticalScale = 1f,
+        float playerKnockbackGroundedVerticalScale = 1f)
     {
         var shotTeam = owner.Team;
         if (sourceSentryId is int sentryId)
@@ -49,7 +52,10 @@ public sealed partial class SimulationWorld
             applyExperimentalEngineerSentryPerkEffects,
             playerKnockbackScale,
             playerSlowMovementMultiplier,
-            playerSlowRefreshTicks);
+            playerSlowRefreshTicks,
+            playerKnockbackImpulse,
+            playerKnockbackAirborneVerticalScale,
+            playerKnockbackGroundedVerticalScale);
         if (owner.IsKritzCritBoosted)
         {
             shot.SetCritical(owner.ActiveKritzCritDamageMultiplier);
@@ -295,7 +301,10 @@ public sealed partial class SimulationWorld
         string? killFeedWeaponSpriteNameOverride = null,
         global::OpenGarrison.Core.LastToDie.LastToDieSpyRevolverProfile? lastToDieProfile = null,
         bool forceCritical = false,
-        bool appliesLuckyStrikeStun = false)
+        bool appliesLuckyStrikeStun = false,
+        float playerKnockbackImpulse = 0f,
+        float playerKnockbackAirborneVerticalScale = 1f,
+        float playerKnockbackGroundedVerticalScale = 1f)
     {
         var shot = new RevolverProjectileEntity(
             AllocateEntityId(),
@@ -308,7 +317,10 @@ public sealed partial class SimulationWorld
             damagePerHit,
             killFeedWeaponSpriteNameOverride,
             lastToDieProfile,
-            appliesLuckyStrikeStun);
+            appliesLuckyStrikeStun,
+            playerKnockbackImpulse,
+            playerKnockbackAirborneVerticalScale,
+            playerKnockbackGroundedVerticalScale);
         if (owner.IsKritzCritBoosted)
         {
             shot.SetCritical(owner.ActiveKritzCritDamageMultiplier);

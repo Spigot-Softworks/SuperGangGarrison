@@ -91,6 +91,36 @@ example, must opt in explicitly:
 ]
 ```
 
+Weapon combat metadata can opt into velocity-scaled projectile reach and a
+per-trigger player-knockback budget. Both are authoritative gameplay settings:
+
+```json
+"combat": {
+  "airborneVelocityReach": {
+    "baseline": "classRunJump",
+    "bonusPerExcessBaseline": 0.5,
+    "maxReachMultiplier": 1.5
+  },
+  "playerKnockback": {
+    "impulsePerUse": 4.0,
+    "airborneVerticalScale": 0.5,
+    "groundedVerticalScale": 0.5
+  }
+}
+```
+
+`airborneVelocityReach` applies only while the owner is airborne. The
+`classRunJump` baseline is the vector magnitude of the class's effective run
+and jump speeds, so an ordinary running jump receives no bonus. The bonus is
+linear above that threshold and capped by `maxReachMultiplier`.
+
+`playerKnockback.impulsePerUse` is expressed in legacy source-step velocity and
+is divided across the actual projectile count after gameplay modifiers. This
+keeps a shotgun's total force stable when perks add pellets. The two vertical
+scales must be between zero and one; horizontal force is not scaled. Weapons
+that omit `playerKnockback` retain the legacy per-projectile force for backward
+compatibility.
+
 ## Lua Shape
 
 The entry point should return a table. The host calls functions on that table when events happen.

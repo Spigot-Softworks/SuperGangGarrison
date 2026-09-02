@@ -114,7 +114,7 @@ public sealed class ProtocolCodecTests
     {
         var message = new InputStateMessage(
             Sequence: 55,
-            Buttons: InputButtons.Left | InputButtons.FirePrimary | InputButtons.BuildDispenser,
+            Buttons: InputButtons.Left | InputButtons.FirePrimary | InputButtons.BuildDispenser | InputButtons.ToggleSecondaryWeapon,
             AimRelX: 16f,
             AimRelY: -8f,
             ChatBubbleFrameIndex: 2,
@@ -129,6 +129,7 @@ public sealed class ProtocolCodecTests
         var input = Assert.IsType<InputStateMessage>(roundTripped);
         Assert.Equal(84, input.PingMilliseconds);
         Assert.True(input.Buttons.HasFlag(InputButtons.BuildDispenser));
+        Assert.True(input.Buttons.HasFlag(InputButtons.ToggleSecondaryWeapon));
     }
 
     [Fact]
@@ -324,7 +325,24 @@ public sealed class ProtocolCodecTests
             CombatTraces: [new SnapshotCombatTraceState(0f, 0f, 8f, 8f, 2, true, 1, false)],
             SniperAimIndicators: [],
             Sentries: Array.Empty<SnapshotSentryState>(),
-            Shots: [new SnapshotShotState(8, 1, 5, 100f, 120f, 10f, 0f, 15, IsCritical: true, CriticalDamageMultiplier: 3.5f)],
+            Shots:
+            [
+                new SnapshotShotState(
+                    8,
+                    1,
+                    5,
+                    100f,
+                    120f,
+                    10f,
+                    0f,
+                    15,
+                    IsCritical: true,
+                    DamageValue: 9.5f,
+                    CriticalDamageMultiplier: 3.5f,
+                    PlayerKnockbackImpulse: 1.25f,
+                    PlayerKnockbackAirborneVerticalScale: 0.5f,
+                    PlayerKnockbackGroundedVerticalScale: 0.25f),
+            ],
             Bubbles: Array.Empty<SnapshotShotState>(),
             Blades: Array.Empty<SnapshotShotState>(),
             Needles:
@@ -382,7 +400,10 @@ public sealed class ProtocolCodecTests
                     DamageValue: 11.2f,
                     LastToDieRevolverProfile: 0b1100_0010,
                     AppliesLuckyStrikeStun: true,
-                    CriticalDamageMultiplier: 3.5f),
+                    CriticalDamageMultiplier: 3.5f,
+                    PlayerKnockbackImpulse: 2.5f,
+                    PlayerKnockbackAirborneVerticalScale: 0.5f,
+                    PlayerKnockbackGroundedVerticalScale: 0.25f),
             ],
             Rockets: [new SnapshotRocketState(9, 1, 5, 100f, 120f, 96f, 120f, 0.2f, 240f, 20)],
             Flames: Array.Empty<SnapshotFlameState>(),
@@ -575,7 +596,12 @@ public sealed class ProtocolCodecTests
         var rocketSpawn = Assert.Single(roundTrippedSnapshot.RocketSpawnEvents);
         Assert.Equal(901, rocketSpawn.Id);
         Assert.Equal(3.5f, rocketSpawn.CriticalDamageMultiplier);
-        Assert.Equal(3.5f, Assert.Single(roundTrippedSnapshot.Shots).CriticalDamageMultiplier);
+        var bulletShot = Assert.Single(roundTrippedSnapshot.Shots);
+        Assert.Equal(3.5f, bulletShot.CriticalDamageMultiplier);
+        Assert.Equal(9.5f, bulletShot.DamageValue);
+        Assert.Equal(1.25f, bulletShot.PlayerKnockbackImpulse);
+        Assert.Equal(0.5f, bulletShot.PlayerKnockbackAirborneVerticalScale);
+        Assert.Equal(0.25f, bulletShot.PlayerKnockbackGroundedVerticalScale);
         Assert.Equal(3.5f, Assert.Single(roundTrippedSnapshot.RevolverShots).CriticalDamageMultiplier);
         var landedArrow = Assert.Single(
             roundTrippedSnapshot.Needles,
@@ -603,6 +629,9 @@ public sealed class ProtocolCodecTests
         Assert.False(medicKritzM2.HasLastToDieMedicJavelinExploded);
         var revolverShot = Assert.Single(roundTrippedSnapshot.RevolverShots);
         Assert.Equal(11.2f, revolverShot.DamageValue);
+        Assert.Equal(2.5f, revolverShot.PlayerKnockbackImpulse);
+        Assert.Equal(0.5f, revolverShot.PlayerKnockbackAirborneVerticalScale);
+        Assert.Equal(0.25f, revolverShot.PlayerKnockbackGroundedVerticalScale);
         Assert.Equal(0b1100_0010, revolverShot.LastToDieRevolverProfile);
         Assert.True(revolverShot.IsCritical);
         Assert.True(revolverShot.AppliesLuckyStrikeStun);

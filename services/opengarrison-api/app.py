@@ -14,6 +14,7 @@ from urllib.parse import quote, urlsplit
 
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.utils import get_openapi
 from pydantic import BaseModel
 
 
@@ -24,7 +25,12 @@ RELAY_SESSION_TTL_SECONDS = 43200
 RELAY_MAX_MESSAGE_BYTES = 4 * 1024 * 1024
 RELAY_MAX_PENDING_MESSAGES = 128
 RELAY_MAX_PENDING_BYTES = 4 * 1024 * 1024
+RELAY_ROOM_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+RELAY_ROOM_CODE_LENGTH = 4
+RELAY_ROOM_LOOKUP_WINDOW_SECONDS = 60
+RELAY_ROOM_LOOKUP_MAX_ATTEMPTS = 30
 FRIEND_CODE_RE = re.compile(r"^OG2-[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{4}-[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{4}(?:-[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{4})?(?:-[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{4})?$")
+RELAY_ROOM_CODE_RE = re.compile(r"^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{4}$")
 
 
 def now_seconds() -> int:
@@ -79,6 +85,13 @@ def normalize_friend_code(value: str | None) -> str:
         return ""
     formatted = "OG2-" + "-".join(compact[index:index + 4] for index in range(0, len(compact), 4))
     return formatted if FRIEND_CODE_RE.match(formatted) else ""
+
+
+def normalize_relay_room_code(value: str | None) -> str:
+    if not value:
+        return ""
+    compact = "".join(ch for ch in value.upper() if ch.isalnum())
+    return compact if RELAY_ROOM_CODE_RE.fullmatch(compact) else ""
 
 
 def secret_hash(secret: str) -> str:
@@ -242,11 +255,40 @@ def prune_relay_sessions_locked(current: int) -> list[WebSocket]:
     ]
     for session_id in stale_ids:
         session = relay_sessions.pop(session_id)
+        if relay_session_ids_by_room_code.get(session.room_code) == session_id:
+            relay_session_ids_by_room_code.pop(session.room_code, None)
         if session.host is not None:
             stale_sockets.append(session.host)
         if session.guest is not None:
             stale_sockets.append(session.guest)
     return stale_sockets
+
+
+def create_relay_room_code_locked() -> str:
+    for _ in range(128):
+        room_code = "".join(
+            secrets.choice(RELAY_ROOM_CODE_ALPHABET)
+            for _ in range(RELAY_ROOM_CODE_LENGTH)
+        )
+        if room_code not in relay_session_ids_by_room_code:
+            return room_code
+    raise HTTPException(status_code=503, detail="relay room codes are temporarily unavailable")
+
+
+def enforce_relay_room_lookup_rate_limit(request: Request) -> None:
+    current = now_seconds()
+    cutoff = current - RELAY_ROOM_LOOKUP_WINDOW_SECONDS
+    lookup_key = request_ip(request) or "unknown"
+    attempts = [
+        attempted_at
+        for attempted_at in relay_room_lookup_attempts.get(lookup_key, [])
+        if attempted_at > cutoff
+    ]
+    if len(attempts) >= RELAY_ROOM_LOOKUP_MAX_ATTEMPTS:
+        relay_room_lookup_attempts[lookup_key] = attempts
+        raise HTTPException(status_code=429, detail="too many relay room lookups")
+    attempts.append(current)
+    relay_room_lookup_attempts[lookup_key] = attempts
 
 
 def enqueue_relay_payload_locked(session: "RelaySession", target_role: str, payload: bytes) -> bool:
@@ -449,13 +491,67 @@ class DirectMessagesPollRequest(BaseModel):
     afterId: int = 0
 
 
-app = FastAPI(title="OpenGarrison API", version="0.1.0")
+app = FastAPI(title="OpenGarrison API", version="0.2.0")
+
+
+def openapi_with_relay_websocket() -> dict[str, Any]:
+    """Document the WebSocket relay route, which FastAPI omits by default."""
+    if app.openapi_schema:
+        return app.openapi_schema
+
+    schema = get_openapi(title=app.title, version=app.version, routes=app.routes)
+    schema.setdefault("paths", {})["/api/relay/ws/{session_id}/{role}"] = {
+        "summary": "Protocol64 relay WebSocket",
+        "description": (
+            "Binary relay endpoint. Connect with the bearer token returned by "
+            "the relay session endpoint. WebSocket routes are represented as an "
+            "OpenAPI path item extension because OpenAPI has no WebSocket operation."
+        ),
+        "x-websocket": True,
+        "x-websocket-protocols": ["wss", "ws64"],
+        "parameters": [
+            {
+                "name": "session_id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string"},
+            },
+            {
+                "name": "role",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "enum": ["host", "guest"]},
+            },
+            {
+                "name": "token",
+                "in": "query",
+                "required": True,
+                "schema": {"type": "string"},
+            },
+        ],
+    }
+    app.openapi_schema = schema
+    return schema
+
+
+app.openapi = openapi_with_relay_websocket
 
 
 class RelaySession:
-    def __init__(self, session_id: str, owner_client_id: str, host_token: str, guest_token: str, expires_at: int):
+    def __init__(
+        self,
+        session_id: str,
+        owner_client_id: str,
+        owner_friend_code: str,
+        room_code: str,
+        host_token: str,
+        guest_token: str,
+        expires_at: int,
+    ):
         self.session_id = session_id
         self.owner_client_id = owner_client_id
+        self.owner_friend_code = owner_friend_code
+        self.room_code = room_code
         self.host_token = host_token
         self.guest_token = guest_token
         self.expires_at = expires_at
@@ -470,6 +566,8 @@ class RelaySession:
 
 
 relay_sessions: dict[str, RelaySession] = {}
+relay_session_ids_by_room_code: dict[str, str] = {}
+relay_room_lookup_attempts: dict[str, list[int]] = {}
 relay_sessions_lock = asyncio.Lock()
 
 cors_origins = [
@@ -908,13 +1006,6 @@ async def create_relay_session(payload: RelaySessionCreateRequest, request: Requ
     session_id = secrets.token_urlsafe(18)
     host_token = secrets.token_urlsafe(32)
     guest_token = secrets.token_urlsafe(32)
-    session = RelaySession(
-        session_id,
-        client_id,
-        host_token,
-        guest_token,
-        current + RELAY_SESSION_TTL_SECONDS,
-    )
     async with relay_sessions_lock:
         stale_sockets = prune_relay_sessions_locked(current)
         previous_ids = [
@@ -924,11 +1015,24 @@ async def create_relay_session(payload: RelaySessionCreateRequest, request: Requ
         ]
         for previous_id in previous_ids:
             previous = relay_sessions.pop(previous_id)
+            if relay_session_ids_by_room_code.get(previous.room_code) == previous_id:
+                relay_session_ids_by_room_code.pop(previous.room_code, None)
             if previous.host is not None:
                 stale_sockets.append(previous.host)
             if previous.guest is not None:
                 stale_sockets.append(previous.guest)
+        room_code = create_relay_room_code_locked()
+        session = RelaySession(
+            session_id,
+            client_id,
+            friend_code,
+            room_code,
+            host_token,
+            guest_token,
+            current + RELAY_SESSION_TTL_SECONDS,
+        )
         relay_sessions[session_id] = session
+        relay_session_ids_by_room_code[room_code] = session_id
 
     for stale_socket in stale_sockets:
         try:
@@ -939,10 +1043,79 @@ async def create_relay_session(payload: RelaySessionCreateRequest, request: Requ
     scheme, authority = relay_public_origin(request)
     return {
         "sessionId": session_id,
+        "roomCode": room_code,
         "hostWebSocketUrl": relay_url(scheme, authority, session_id, "host", host_token, protocol64=False),
         "guestWebSocketUrl": relay_url(scheme, authority, session_id, "guest", guest_token, protocol64=True),
         "expiresAtIso": iso_from_seconds(session.expires_at),
     }
+
+
+async def resolve_relay_session(
+    request: Request,
+    *,
+    room_code: str = "",
+    friend_code: str = "",
+) -> dict[str, str]:
+    current = now_seconds()
+    async with relay_sessions_lock:
+        stale_sockets = prune_relay_sessions_locked(current)
+        if room_code:
+            session_id = relay_session_ids_by_room_code.get(room_code, "")
+            session = relay_sessions.get(session_id)
+        else:
+            session = next(
+                (
+                    candidate
+                    for candidate in relay_sessions.values()
+                    if candidate.owner_friend_code == friend_code
+                ),
+                None,
+            )
+        host_connected = session is not None and session.host is not None
+
+    for stale_socket in stale_sockets:
+        try:
+            await stale_socket.close(code=1001, reason="Relay session expired.")
+        except Exception:
+            pass
+
+    if session is None or session.expires_at <= current:
+        raise HTTPException(status_code=404, detail="relay room not found or expired")
+    if not host_connected:
+        raise HTTPException(status_code=409, detail="relay room is still starting")
+
+    scheme, authority = relay_public_origin(request)
+    return {
+        "roomCode": session.room_code,
+        "friendCode": session.owner_friend_code,
+        "guestWebSocketUrl": relay_url(
+            scheme,
+            authority,
+            session.session_id,
+            "guest",
+            session.guest_token,
+            protocol64=True,
+        ),
+        "expiresAtIso": iso_from_seconds(session.expires_at),
+    }
+
+
+@app.get("/api/relay/room/{room_code}")
+async def resolve_relay_room(room_code: str, request: Request) -> dict[str, str]:
+    enforce_relay_room_lookup_rate_limit(request)
+    normalized_room_code = normalize_relay_room_code(room_code)
+    if not normalized_room_code:
+        raise HTTPException(status_code=404, detail="relay room not found or expired")
+    return await resolve_relay_session(request, room_code=normalized_room_code)
+
+
+@app.get("/api/relay/friend/{friend_code}")
+async def resolve_relay_room_by_friend_code(friend_code: str, request: Request) -> dict[str, str]:
+    enforce_relay_room_lookup_rate_limit(request)
+    normalized_friend_code = normalize_friend_code(friend_code)
+    if not normalized_friend_code:
+        raise HTTPException(status_code=404, detail="relay room not found or expired")
+    return await resolve_relay_session(request, friend_code=normalized_friend_code)
 
 
 @app.websocket("/api/relay/ws/{session_id}/{role}")

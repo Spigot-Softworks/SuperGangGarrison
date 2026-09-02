@@ -12,6 +12,7 @@ const string UpdateManifestBaseUrl = "https://api.superganggarrison.com/updates"
 const string VersionFileName = "version.txt";
 const string ReleaseChannelFileName = "release-channel.txt";
 const string ApplyUpdateArgument = "--apply-update";
+const string ApplyDeltaArgument = "--apply-delta";
 const string NoLaunchAfterUpdateArgument = "--no-launch-after-update";
 const string UpdateOnlyArgument = "--update-only";
 const string AppPayloadDirectoryName = "app";
@@ -23,7 +24,13 @@ if (args.Length > 0 && string.Equals(args[0], ApplyUpdateArgument, StringCompari
     return;
 }
 
-var appDirectory = AppContext.BaseDirectory;
+if (args.Length > 0 && string.Equals(args[0], ApplyDeltaArgument, StringComparison.Ordinal))
+{
+    await RunApplyDeltaModeAsync(args).ConfigureAwait(false);
+    return;
+}
+
+var appDirectory = ResolveInstallationRoot(AppContext.BaseDirectory);
 var manifestUrl = Environment.GetEnvironmentVariable("OPENGARRISON_UPDATE_MANIFEST");
 var manifestUrlOverridden = !string.IsNullOrWhiteSpace(manifestUrl);
 var expectedManifestChannel = string.Empty;
@@ -44,6 +51,7 @@ var helperGameArgs = suppressLaunchAfterUpdate
 var launchGame = true;
 try
 {
+    TransactionalUpdateInstaller.RecoverPendingTransaction(appDirectory);
     var result = await TryApplyUpdateAsync(appDirectory, manifestUrl, expectedManifestChannel, helperGameArgs, updateUi).ConfigureAwait(false);
     if (result == UpdateApplyResult.NoUpdate && !manifestUrlOverridden)
     {
@@ -66,9 +74,14 @@ catch (Exception ex)
 {
     // Launch should remain reliable even when the updater endpoint is offline or a package is bad.
     LogUpdaterEvent(appDirectory, "update check failed; launching installed version", ex);
+    launchGame = !TransactionalUpdateInstaller.HasUncommittedTransaction(appDirectory);
     if (updateUi.IsVisible)
     {
-        updateUi.Report(UpdateUiState.KnownProgress("Update failed. Launching installed version...", 0d));
+        updateUi.Report(UpdateUiState.KnownProgress(
+            launchGame
+                ? "Update failed. Launching installed version..."
+                : "Update recovery is incomplete. Please restart the launcher.",
+            0d));
         await Task.Delay(900).ConfigureAwait(false);
     }
 }
@@ -92,6 +105,7 @@ static async Task RunApplyUpdateModeAsync(string[] args)
     _ = int.TryParse(args[4], out var parentProcessId);
     var gameArgs = StripUpdaterOnlyArguments(GetArgumentsAfterSeparator(args, startIndex: 5));
     var suppressLaunchAfterUpdate = HasNoLaunchAfterUpdateArgument(args) || HasNoLaunchAfterUpdateArgument(gameArgs);
+    var launchInstalledVersion = true;
 
     using var updateUi = UpdateUi.Create();
     try
@@ -106,11 +120,23 @@ static async Task RunApplyUpdateModeAsync(string[] args)
         }
 
         LogUpdaterEvent(destinationDirectory, $"applying update source=\"{sourceDirectory}\" destination=\"{destinationDirectory}\" version=\"{version}\"");
-        RemoveObsoleteContentPayload(sourceDirectory, destinationDirectory);
-        CopyUpdatePayload(
+        var appliedTransactionally = TransactionalUpdateInstaller.TryApplyFullPackage(
             sourceDirectory,
             destinationDirectory,
-            progress => updateUi.Report(UpdateUiState.KnownProgress("Installing update...", progress)));
+            progress => updateUi.Report(UpdateUiState.KnownProgress("Installing update...", progress)),
+            expectedVersion: version);
+        if (!appliedTransactionally)
+        {
+            TransactionalUpdateInstaller.ApplyLegacyFullPackage(destinationDirectory, () =>
+            {
+                RemoveObsoleteContentPayload(sourceDirectory, destinationDirectory);
+                CopyUpdatePayload(
+                    sourceDirectory,
+                    destinationDirectory,
+                    progress => updateUi.Report(UpdateUiState.KnownProgress("Installing update...", progress)));
+            });
+        }
+
         RemoveObsoleteRootEntrypointsForAppLayout(sourceDirectory, destinationDirectory);
         EnsurePackagedExecutablePermissions(destinationDirectory);
 
@@ -120,11 +146,14 @@ static async Task RunApplyUpdateModeAsync(string[] args)
             LogUpdaterEvent(destinationDirectory, $"using package version \"{appliedVersion}\" instead of manifest bootstrap version \"{version}\"");
         }
 
-        File.WriteAllText(Path.Combine(destinationDirectory, VersionFileName), appliedVersion);
-        var releaseChannel = ReadReleaseChannelFile(sourceDirectory);
-        if (!string.IsNullOrWhiteSpace(releaseChannel))
+        if (!appliedTransactionally)
         {
-            File.WriteAllText(Path.Combine(destinationDirectory, ReleaseChannelFileName), releaseChannel);
+            File.WriteAllText(Path.Combine(destinationDirectory, VersionFileName), appliedVersion);
+            var releaseChannel = ReadReleaseChannelFile(sourceDirectory);
+            if (!string.IsNullOrWhiteSpace(releaseChannel))
+            {
+                File.WriteAllText(Path.Combine(destinationDirectory, ReleaseChannelFileName), releaseChannel);
+            }
         }
 
         var chainedResult = await TryApplyChainedUpdateAsync(
@@ -148,12 +177,103 @@ static async Task RunApplyUpdateModeAsync(string[] args)
     }
     catch (Exception ex)
     {
-        LogUpdaterEvent(destinationDirectory, "update install failed; launching installed version", ex);
-        updateUi.Report(UpdateUiState.KnownProgress("Update failed. Launching installed version...", 0d));
+        launchInstalledVersion = !TransactionalUpdateInstaller.HasUncommittedTransaction(destinationDirectory);
+        LogUpdaterEvent(
+            destinationDirectory,
+            launchInstalledVersion
+                ? "update install failed; launching installed version"
+                : "update install failed and rollback remains pending; suppressing game launch",
+            ex);
+        updateUi.Report(UpdateUiState.KnownProgress(
+            launchInstalledVersion
+                ? "Update failed. Launching installed version..."
+                : "Update recovery is incomplete. Please restart the launcher.",
+            0d));
         await Task.Delay(900).ConfigureAwait(false);
     }
 
-    if (!suppressLaunchAfterUpdate)
+    if (!suppressLaunchAfterUpdate && launchInstalledVersion)
+    {
+        LaunchGame(destinationDirectory, gameArgs);
+    }
+}
+
+static async Task RunApplyDeltaModeAsync(string[] args)
+{
+    if (args.Length < 5)
+    {
+        return;
+    }
+
+    var sourceDirectory = Path.GetFullPath(args[1]);
+    var destinationDirectory = Path.GetFullPath(args[2]);
+    var targetVersion = args[3];
+    _ = int.TryParse(args[4], out var parentProcessId);
+    var gameArgs = StripUpdaterOnlyArguments(GetArgumentsAfterSeparator(args, startIndex: 5));
+    var suppressLaunchAfterUpdate = HasNoLaunchAfterUpdateArgument(args) || HasNoLaunchAfterUpdateArgument(gameArgs);
+    var launchInstalledVersion = true;
+
+    using var updateUi = UpdateUi.Create();
+    try
+    {
+        updateUi.Show();
+        updateUi.Report(UpdateUiState.Indeterminate("Installing incremental update..."));
+        WaitForProcessExit(parentProcessId, TimeSpan.FromSeconds(30));
+        TransactionalUpdateInstaller.RecoverPendingTransaction(destinationDirectory);
+
+        var currentVersion = ReadCurrentVersion(destinationDirectory).Version;
+        var package = PreparedDeltaPackage.LoadAndValidate(
+            sourceDirectory,
+            currentVersion,
+            targetVersion);
+        if (!package.CanApplyTo(destinationDirectory, out var rejectionReason))
+        {
+            throw new InvalidDataException($"Installed files no longer match the delta base: {rejectionReason}");
+        }
+
+        LogUpdaterEvent(
+            destinationDirectory,
+            $"applying delta source=\"{sourceDirectory}\" destination=\"{destinationDirectory}\" from=\"{currentVersion}\" to=\"{targetVersion}\"");
+        TransactionalUpdateInstaller.ApplyDelta(
+            package,
+            destinationDirectory,
+            progress => updateUi.Report(UpdateUiState.KnownProgress("Installing incremental update...", progress)));
+        EnsurePackagedExecutablePermissions(destinationDirectory);
+
+        var chainedResult = await TryApplyChainedUpdateAsync(
+            destinationDirectory,
+            ReadChainedUpdateManifestUrl(destinationDirectory),
+            gameArgs,
+            updateUi,
+            "delta chain").ConfigureAwait(false);
+        if (chainedResult == UpdateApplyResult.DelegatedToHelper)
+        {
+            return;
+        }
+
+        updateUi.Report(UpdateUiState.KnownProgress(
+            suppressLaunchAfterUpdate ? "Update installed." : "Launching updated version...",
+            1d));
+        await Task.Delay(300).ConfigureAwait(false);
+    }
+    catch (Exception ex)
+    {
+        launchInstalledVersion = !TransactionalUpdateInstaller.HasUncommittedTransaction(destinationDirectory);
+        LogUpdaterEvent(
+            destinationDirectory,
+            launchInstalledVersion
+                ? "delta install failed; restored installed version"
+                : "delta install failed and rollback remains pending; suppressing game launch",
+            ex);
+        updateUi.Report(UpdateUiState.KnownProgress(
+            launchInstalledVersion
+                ? "Update failed. Launching installed version..."
+                : "Update recovery is incomplete. Please restart the launcher.",
+            0d));
+        await Task.Delay(900).ConfigureAwait(false);
+    }
+
+    if (!suppressLaunchAfterUpdate && launchInstalledVersion)
     {
         LaunchGame(destinationDirectory, gameArgs);
     }
@@ -219,9 +339,9 @@ static async Task<UpdateApplyResult> TryApplyUpdateAsync(
     };
 
     var manifest = await httpClient.GetFromJsonAsync<UpdateManifest>(manifestUrl).ConfigureAwait(false);
-    if (manifest is null || string.IsNullOrWhiteSpace(manifest.Url) || string.IsNullOrWhiteSpace(manifest.Version))
+    if (manifest is null || string.IsNullOrWhiteSpace(manifest.Version))
     {
-        LogUpdaterEvent(appDirectory, "update manifest missing required version or url");
+        LogUpdaterEvent(appDirectory, "update manifest missing required version");
         return UpdateApplyResult.NoUpdate;
     }
 
@@ -248,32 +368,132 @@ static async Task<UpdateApplyResult> TryApplyUpdateAsync(
     updateUi.Show();
     updateUi.Report(UpdateUiState.KnownProgress("Starting update...", 0d));
 
-    var packageUri = new Uri(new Uri(manifestUrl), manifest.Url);
-    var tempRoot = Path.Combine(Path.GetTempPath(), "OpenGarrisonUpdate");
-    var packagePath = Path.Combine(tempRoot, "package.zip");
-    var extractPath = Path.Combine(tempRoot, "extract");
-    if (Directory.Exists(tempRoot))
+    var launcherVersion = ReadCurrentLauncherVersion();
+    var selectedDelta = manifest.SchemaVersion >= 2
+        && IsVersionAtLeast(launcherVersion, manifest.MinLauncherVersion)
+        ? (manifest.Deltas ?? [])
+            .Where(delta =>
+                !string.IsNullOrWhiteSpace(delta.Url)
+                && string.Equals(delta.FromVersion.Trim(), currentVersion.Trim(), StringComparison.OrdinalIgnoreCase)
+                && (string.IsNullOrWhiteSpace(delta.ToVersion)
+                    || string.Equals(delta.ToVersion.Trim(), updateVersion.Trim(), StringComparison.OrdinalIgnoreCase))
+                && IsVersionAtLeast(launcherVersion, delta.MinLauncherVersion))
+            .OrderBy(static delta => delta.Size <= 0 ? long.MaxValue : delta.Size)
+            .FirstOrDefault()
+        : null;
+    if (selectedDelta is not null)
     {
-        Directory.Delete(tempRoot, recursive: true);
+        try
+        {
+            LogUpdaterEvent(
+                appDirectory,
+                $"selected delta from=\"{selectedDelta.FromVersion}\" to=\"{updateVersion}\" size={selectedDelta.Size} launcher=\"{launcherVersion}\"");
+            var deltaResult = await TryDownloadAndDelegateUpdatePackageAsync(
+                httpClient,
+                manifestUrl,
+                selectedDelta,
+                selectedDelta,
+                appDirectory,
+                currentVersion,
+                updateVersion,
+                gameArgs,
+                updateUi).ConfigureAwait(false);
+            if (deltaResult == UpdateApplyResult.DelegatedToHelper)
+            {
+                return deltaResult;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            LogUpdaterEvent(appDirectory, "delta preparation failed; falling back to full package", ex);
+        }
+
+        updateUi.Report(UpdateUiState.KnownProgress("Incremental update unavailable. Preparing full update...", 0d));
     }
 
-    Directory.CreateDirectory(tempRoot);
-    LogUpdaterEvent(appDirectory, $"downloading update package \"{packageUri}\"");
-    await DownloadPackageAsync(httpClient, packageUri, packagePath, manifest.Size, updateUi).ConfigureAwait(false);
+    var fullPackage = manifest.FullPackage ?? new UpdatePackageDescriptor
+    {
+        Url = manifest.Url,
+        Sha256 = manifest.Sha256,
+        Size = manifest.Size,
+    };
+    if (string.IsNullOrWhiteSpace(fullPackage.Url))
+    {
+        LogUpdaterEvent(appDirectory, "update manifest has no usable full package fallback");
+        return UpdateApplyResult.NoUpdate;
+    }
+
+    return await TryDownloadAndDelegateUpdatePackageAsync(
+        httpClient,
+        manifestUrl,
+        fullPackage,
+        deltaDescriptor: null,
+        appDirectory,
+        currentVersion,
+        updateVersion,
+        gameArgs,
+        updateUi).ConfigureAwait(false);
+}
+
+static async Task<UpdateApplyResult> TryDownloadAndDelegateUpdatePackageAsync(
+    HttpClient httpClient,
+    string manifestUrl,
+    UpdatePackageDescriptor package,
+    UpdateDeltaDescriptor? deltaDescriptor,
+    string appDirectory,
+    string currentVersion,
+    string updateVersion,
+    string[] gameArgs,
+    IUpdateUi updateUi)
+{
+    var packageUri = new Uri(new Uri(manifestUrl), package.Url);
+    var tempRoot = CreateTemporaryUpdateRoot();
+    var packagePath = Path.Combine(tempRoot, "package.download");
+    var extractPath = Path.Combine(tempRoot, "extract");
+    LogUpdaterEvent(appDirectory, $"downloading {(deltaDescriptor is null ? "full" : "delta")} update package \"{packageUri}\"");
+    await DownloadPackageAsync(httpClient, packageUri, packagePath, package.Size, updateUi).ConfigureAwait(false);
 
     updateUi.Report(UpdateUiState.Indeterminate("Verifying update..."));
     var actualSha256 = await ComputeSha256Async(packagePath).ConfigureAwait(false);
-    if (!string.IsNullOrWhiteSpace(manifest.Sha256)
-        && !string.Equals(actualSha256, manifest.Sha256, StringComparison.OrdinalIgnoreCase))
+    if (string.IsNullOrWhiteSpace(package.Sha256)
+        || !string.Equals(actualSha256, package.Sha256, StringComparison.OrdinalIgnoreCase))
     {
-        LogUpdaterEvent(appDirectory, $"update verification failed expectedSha256=\"{manifest.Sha256}\" actualSha256=\"{actualSha256}\"");
-        updateUi.Report(UpdateUiState.KnownProgress("Update verification failed.", 0d));
-        await Task.Delay(900).ConfigureAwait(false);
-        return UpdateApplyResult.NoUpdate;
+        throw new InvalidDataException(
+            $"Update package verification failed: expected '{package.Sha256}', got '{actualSha256}'.");
     }
 
     updateUi.Report(UpdateUiState.Indeterminate("Preparing update..."));
     ExtractPackageArchive(packagePath, packageUri, extractPath);
+    if (deltaDescriptor is not null)
+    {
+        var deltaRoot = ResolveMetadataPackageRoot(extractPath, UpdateFileNames.DeltaPlan);
+        var preparedDelta = PreparedDeltaPackage.LoadAndValidate(
+            deltaRoot,
+            currentVersion,
+            updateVersion,
+            deltaDescriptor.PlanSha256,
+            deltaDescriptor.TargetManifestSha256);
+        updateUi.Report(UpdateUiState.Indeterminate("Checking installed files..."));
+        if (!preparedDelta.CanApplyTo(appDirectory, out var rejectionReason))
+        {
+            LogUpdaterEvent(appDirectory, $"delta rejected; installed base mismatch reason=\"{rejectionReason}\"");
+            return UpdateApplyResult.NoUpdate;
+        }
+
+        if (TryLaunchDeltaUpdateHelper(deltaRoot, appDirectory, updateVersion, gameArgs, tempRoot))
+        {
+            updateUi.Report(UpdateUiState.KnownProgress("Installing incremental update...", 1d));
+            await Task.Delay(250).ConfigureAwait(false);
+            return UpdateApplyResult.DelegatedToHelper;
+        }
+
+        return UpdateApplyResult.NoUpdate;
+    }
+
     var packageRoot = ResolveExtractedPackageRoot(extractPath);
     if (!string.Equals(packageRoot, extractPath, StringComparison.OrdinalIgnoreCase))
     {
@@ -293,9 +513,93 @@ static async Task<UpdateApplyResult> TryApplyUpdateAsync(
     return UpdateApplyResult.NoUpdate;
 }
 
+static string CreateTemporaryUpdateRoot()
+{
+    var parent = Path.Combine(Path.GetTempPath(), "OpenGarrisonUpdate");
+    Directory.CreateDirectory(parent);
+    try
+    {
+        var staleBefore = DateTime.UtcNow - TimeSpan.FromDays(2);
+        foreach (var directory in Directory.EnumerateDirectories(parent))
+        {
+            try
+            {
+                if (Directory.GetLastWriteTimeUtc(directory) < staleBefore)
+                {
+                    Directory.Delete(directory, recursive: true);
+                }
+            }
+            catch
+            {
+                // Another updater may own the directory, or antivirus may still be scanning it.
+            }
+        }
+    }
+    catch
+    {
+        // Stale temporary update cleanup is best-effort only.
+    }
+
+    var tempRoot = Path.Combine(
+        parent,
+        $"{Environment.ProcessId}-{Guid.NewGuid():N}");
+    Directory.CreateDirectory(tempRoot);
+    return tempRoot;
+}
+
+static string ResolveMetadataPackageRoot(string extractPath, string metadataFileName)
+{
+    if (File.Exists(Path.Combine(extractPath, metadataFileName)))
+    {
+        return extractPath;
+    }
+
+    string[] children;
+    try
+    {
+        children = Directory.GetDirectories(extractPath);
+    }
+    catch
+    {
+        return extractPath;
+    }
+
+    return children.Length == 1 && File.Exists(Path.Combine(children[0], metadataFileName))
+        ? children[0]
+        : extractPath;
+}
+
 static string GetDefaultManifestUrl(string channel)
 {
     return $"{UpdateManifestBaseUrl}/{GetUpdatePlatformSegment()}/{NormalizeUpdateChannel(channel)}/latest.json";
+}
+
+static string ResolveInstallationRoot(string runtimeDirectory)
+{
+    var resolvedRuntimeDirectory = Path.GetFullPath(runtimeDirectory);
+    var trimmedRuntimeDirectory = resolvedRuntimeDirectory.TrimEnd(
+        Path.DirectorySeparatorChar,
+        Path.AltDirectorySeparatorChar);
+    if (!string.Equals(Path.GetFileName(trimmedRuntimeDirectory), AppPayloadDirectoryName, StringComparison.OrdinalIgnoreCase))
+    {
+        return resolvedRuntimeDirectory;
+    }
+
+    var parent = Directory.GetParent(trimmedRuntimeDirectory)?.FullName;
+    if (string.IsNullOrWhiteSpace(parent))
+    {
+        return resolvedRuntimeDirectory;
+    }
+
+    var hasPackageRootMetadata = File.Exists(Path.Combine(parent, VersionFileName))
+        || File.Exists(Path.Combine(parent, ReleaseChannelFileName))
+        || File.Exists(Path.Combine(parent, "README.txt"));
+    var hasRootLauncher = OperatingSystem.IsWindows()
+        ? File.Exists(Path.Combine(parent, "Super Gang Garrison.exe"))
+        : File.Exists(Path.Combine(parent, "OG2"));
+    return hasPackageRootMetadata || hasRootLauncher
+        ? parent
+        : resolvedRuntimeDirectory;
 }
 
 static string GetUpdateChannel(string appDirectory)
@@ -619,6 +923,72 @@ static string[] GetUpdaterHelperExecutableRelativePaths()
         ];
 }
 
+static bool TryLaunchDeltaUpdateHelper(
+    string deltaPackageRoot,
+    string appDirectory,
+    string version,
+    string[] gameArgs,
+    string tempRoot)
+{
+    var currentProcessPath = Environment.ProcessPath;
+    if (string.IsNullOrWhiteSpace(currentProcessPath) || !File.Exists(currentProcessPath))
+    {
+        LogUpdaterEvent(appDirectory, "delta helper unavailable because the updater process path could not be resolved");
+        return false;
+    }
+
+    var runtimeDirectory = Path.GetFullPath(AppContext.BaseDirectory);
+    var helperDirectory = Path.Combine(tempRoot, "helper");
+    try
+    {
+        Directory.CreateDirectory(helperDirectory);
+        foreach (var runtimeFile in Directory.EnumerateFiles(runtimeDirectory, "*", SearchOption.TopDirectoryOnly))
+        {
+            var destinationPath = Path.Combine(helperDirectory, Path.GetFileName(runtimeFile));
+            File.Copy(runtimeFile, destinationPath, overwrite: true);
+        }
+
+        var helperPath = Path.Combine(helperDirectory, Path.GetFileName(currentProcessPath));
+        if (!File.Exists(helperPath))
+        {
+            File.Copy(currentProcessPath, helperPath, overwrite: true);
+        }
+
+        EnsureExecutablePermission(helperPath);
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = helperPath,
+            WorkingDirectory = helperDirectory,
+            UseShellExecute = false,
+        };
+        startInfo.ArgumentList.Add(ApplyDeltaArgument);
+        startInfo.ArgumentList.Add(deltaPackageRoot);
+        startInfo.ArgumentList.Add(appDirectory);
+        startInfo.ArgumentList.Add(version);
+        startInfo.ArgumentList.Add(Environment.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        startInfo.ArgumentList.Add("--");
+        foreach (var argument in gameArgs)
+        {
+            startInfo.ArgumentList.Add(argument);
+        }
+
+        var process = Process.Start(startInfo);
+        if (process is null)
+        {
+            LogUpdaterEvent(appDirectory, $"delta update helper did not start \"{helperPath}\"");
+            return false;
+        }
+
+        LogUpdaterEvent(appDirectory, $"delegated delta update to helper \"{helperPath}\"");
+        return true;
+    }
+    catch (Exception ex)
+    {
+        LogUpdaterEvent(appDirectory, "delta update helper preparation failed", ex);
+        return false;
+    }
+}
+
 static string[] GetGameExecutableRelativePaths()
 {
     return OperatingSystem.IsWindows()
@@ -741,6 +1111,54 @@ static string NormalizeCurrentVersionForManifest(CurrentVersionInfo currentVersi
     }
 
     return "0.0.0";
+}
+
+static string ReadCurrentLauncherVersion()
+{
+    try
+    {
+        var processPath = Environment.ProcessPath;
+        if (!string.IsNullOrWhiteSpace(processPath))
+        {
+            var version = FileVersionInfo.GetVersionInfo(processPath).ProductVersion;
+            if (!string.IsNullOrWhiteSpace(version))
+            {
+                return version.Trim();
+            }
+        }
+    }
+    catch
+    {
+    }
+
+    return "0.0.0";
+}
+
+static bool IsVersionAtLeast(string candidate, string required)
+{
+    if (string.IsNullOrWhiteSpace(required))
+    {
+        return true;
+    }
+
+    if (!TryParseComparableVersion(candidate, out var candidateVersion)
+        || !TryParseComparableVersion(required, out var requiredVersion))
+    {
+        return false;
+    }
+
+    var count = Math.Max(candidateVersion.Length, requiredVersion.Length);
+    for (var index = 0; index < count; index += 1)
+    {
+        var candidatePart = index < candidateVersion.Length ? candidateVersion[index] : 0;
+        var requiredPart = index < requiredVersion.Length ? requiredVersion[index] : 0;
+        if (candidatePart != requiredPart)
+        {
+            return candidatePart > requiredPart;
+        }
+    }
+
+    return true;
 }
 
 static string ResolveManifestPackageVersion(UpdateManifest manifest)
@@ -1271,6 +1689,8 @@ internal enum UpdateApplyResult
 
 internal sealed class UpdateManifest
 {
+    public int SchemaVersion { get; set; } = 1;
+
     public string Version { get; set; } = string.Empty;
 
     public string PackageVersion { get; set; } = string.Empty;
@@ -1286,6 +1706,10 @@ internal sealed class UpdateManifest
     public string MinLauncherVersion { get; set; } = string.Empty;
 
     public string NotesUrl { get; set; } = string.Empty;
+
+    public UpdatePackageDescriptor? FullPackage { get; set; }
+
+    public List<UpdateDeltaDescriptor> Deltas { get; set; } = [];
 }
 
 internal readonly record struct CurrentVersionInfo(string Version, bool FromVersionFile);

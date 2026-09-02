@@ -17,6 +17,7 @@ public sealed class InputBindingsSettingsTests
         Assert.Equal(WeaponSwapBindingMode.Q, bindings.SwapWeaponsBinding);
         Assert.Equal(InputBinding.FromKey(Keys.Space), bindings.UseAbility);
         Assert.Equal(InputBinding.FromKey(Keys.G), bindings.InteractWeapon);
+        Assert.True(bindings.ScrollWheelWeaponSwapEnabled);
         Assert.True(KeyboardInputMapper.UsesMultiplayerExclusivePrimarySwapBinding(
             isNetworkMultiplayerSession: true,
             isLastToDieSession: false,
@@ -88,6 +89,7 @@ public sealed class InputBindingsSettingsTests
             Assert.Equal(WeaponSwapBindingMode.Q, loaded.SwapWeaponsBinding);
             Assert.Equal(InputBinding.FromKey(Keys.Space), loaded.UseAbility);
             Assert.Equal(InputBinding.FromKey(Keys.G), loaded.InteractWeapon);
+            Assert.True(loaded.ScrollWheelWeaponSwapEnabled);
         }
         finally
         {
@@ -169,6 +171,7 @@ public sealed class InputBindingsSettingsTests
         {
             ShowScoreboard = InputBinding.FromMouse(InputMouseButton.XButton1),
             ToggleConsole = InputBinding.FromMouse(InputMouseButton.Middle),
+            ScrollWheelWeaponSwapEnabled = false,
         };
 
         try
@@ -179,6 +182,7 @@ public sealed class InputBindingsSettingsTests
 
             Assert.Equal(InputBinding.FromMouse(InputMouseButton.XButton1), loaded.ShowScoreboard);
             Assert.Equal(InputBinding.FromMouse(InputMouseButton.Middle), loaded.ToggleConsole);
+            Assert.False(loaded.ScrollWheelWeaponSwapEnabled);
         }
         finally
         {
@@ -189,4 +193,67 @@ public sealed class InputBindingsSettingsTests
             }
         }
     }
+
+    [Theory]
+    [InlineData(120)]
+    [InlineData(-120)]
+    public void ScrollWheelMovementRequestsDedicatedSecondaryWeaponToggle(int wheelValue)
+    {
+        var bindings = new InputBindingsSettings();
+        var previousMouse = CreateMouseState(scrollWheelValue: 0);
+        var currentMouse = CreateMouseState(scrollWheelValue: wheelValue);
+
+        var snapshot = KeyboardInputMapper.BuildGameplaySnapshot(
+            bindings,
+            new KeyboardState(),
+            currentMouse,
+            cameraX: 0f,
+            cameraY: 0f,
+            localPlayerX: 0f,
+            localPlayerY: 0f,
+            previousMouse: previousMouse);
+
+        Assert.True(snapshot.ToggleSecondaryWeapon);
+        Assert.False(snapshot.SwapWeapon);
+    }
+
+    [Fact]
+    public void ScrollWheelWeaponSwapCanBeDisabledAndRequiresWheelMovement()
+    {
+        var disabled = new InputBindingsSettings { ScrollWheelWeaponSwapEnabled = false };
+        var enabled = new InputBindingsSettings();
+        var previousMouse = CreateMouseState(scrollWheelValue: 120);
+        var currentMouse = CreateMouseState(scrollWheelValue: 120);
+        var movedMouse = CreateMouseState(scrollWheelValue: 240);
+
+        Assert.False(KeyboardInputMapper.BuildGameplaySnapshot(
+            disabled,
+            new KeyboardState(),
+            movedMouse,
+            0f,
+            0f,
+            0f,
+            0f,
+            previousMouse: previousMouse).ToggleSecondaryWeapon);
+        Assert.False(KeyboardInputMapper.BuildGameplaySnapshot(
+            enabled,
+            new KeyboardState(),
+            currentMouse,
+            0f,
+            0f,
+            0f,
+            0f,
+            previousMouse: previousMouse).ToggleSecondaryWeapon);
+    }
+
+    private static MouseState CreateMouseState(int scrollWheelValue)
+        => new(
+            0,
+            0,
+            scrollWheelValue,
+            ButtonState.Released,
+            ButtonState.Released,
+            ButtonState.Released,
+            ButtonState.Released,
+            ButtonState.Released);
 }

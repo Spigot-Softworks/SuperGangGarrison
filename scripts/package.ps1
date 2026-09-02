@@ -8,6 +8,7 @@ param(
     [string]$UpdateManifestFileName = "latest.json",
     [string]$ArchiveNameSuffix = "",
     [string]$ChainedUpdateManifestUrl = "",
+    [string]$DeltaBaseDirectory = "",
     [string]$LinuxMsQuicLibraryPath = "",
     [string]$ReusePackagedAtlasFrom = "",
     [switch]$LegacyRootLayout,
@@ -432,6 +433,305 @@ function New-PackageArchive {
     }
 }
 
+function Get-PackageFileManifestEntries {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$RootDirectory,
+
+        [Parameter(Mandatory = $true)]
+        [string]$RuntimeIdentifier
+    )
+
+    $root = [System.IO.Path]::GetFullPath($RootDirectory)
+    $entries = [System.Collections.Generic.List[object]]::new()
+    foreach ($file in Get-ChildItem -LiteralPath $root -Recurse -File | Sort-Object FullName) {
+        $relativePath = [System.IO.Path]::GetRelativePath($root, $file.FullName).Replace('\', '/')
+        if ($relativePath.Equals("package-manifest.json", [System.StringComparison]::OrdinalIgnoreCase)) {
+            continue
+        }
+
+        $firstSegment = ($relativePath -split '/', 2)[0]
+        if ($firstSegment.Equals("logs", [System.StringComparison]::OrdinalIgnoreCase) -or
+            $firstSegment.Equals("replays", [System.StringComparison]::OrdinalIgnoreCase) -or
+            $firstSegment.Equals("config", [System.StringComparison]::OrdinalIgnoreCase)) {
+            continue
+        }
+
+        $executable = $false
+        if (-not (Test-IsWindowsRuntime -RuntimeIdentifier $RuntimeIdentifier) -and
+            ($file.Name -in @("OG2", "OG2.Game", "OG2.Updater", "OG2.Launcher", "OG2.Server", "OG2.ServerLauncher") -or
+             $file.Name.EndsWith(".sh", [System.StringComparison]::OrdinalIgnoreCase))) {
+            $executable = $true
+        }
+
+        $entries.Add([ordered]@{
+            path = $relativePath
+            sha256 = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            size = $file.Length
+            executable = $executable
+        })
+    }
+
+    return $entries.ToArray()
+}
+
+function Write-PackageFileManifest {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$RootDirectory,
+
+        [Parameter(Mandatory = $true)]
+        [string]$RuntimeIdentifier,
+
+        [Parameter(Mandatory = $true)]
+        [string]$PackageVersion,
+
+        [Parameter(Mandatory = $true)]
+        [string]$ReleaseChannel
+    )
+
+    $manifestPath = Join-Path $RootDirectory "package-manifest.json"
+    $manifest = [ordered]@{
+        schemaVersion = 1
+        version = $PackageVersion
+        channel = $ReleaseChannel
+        files = @(Get-PackageFileManifestEntries -RootDirectory $RootDirectory -RuntimeIdentifier $RuntimeIdentifier)
+    }
+    $manifest | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $manifestPath -Encoding UTF8
+    return $manifestPath
+}
+
+function Expand-PackageArchiveForDelta {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$RuntimeIdentifier,
+
+        [Parameter(Mandatory = $true)]
+        [string]$ArchivePath,
+
+        [Parameter(Mandatory = $true)]
+        [string]$DestinationDirectory
+    )
+
+    New-Item -ItemType Directory -Path $DestinationDirectory -Force | Out-Null
+    if (Test-IsWindowsRuntime -RuntimeIdentifier $RuntimeIdentifier) {
+        [System.IO.Compression.ZipFile]::ExtractToDirectory(
+            [System.IO.Path]::GetFullPath($ArchivePath),
+            [System.IO.Path]::GetFullPath($DestinationDirectory))
+        return
+    }
+
+    & tar -xzf $ArchivePath -C $DestinationDirectory
+    if ($LASTEXITCODE -ne 0) {
+        throw "tar failed while extracting delta base '$ArchivePath'."
+    }
+}
+
+function Resolve-ExtractedPackageRootForDelta {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ExtractDirectory
+    )
+
+    if ((Test-Path -LiteralPath (Join-Path $ExtractDirectory "version.txt") -PathType Leaf) -or
+        (Test-Path -LiteralPath (Join-Path $ExtractDirectory "package-manifest.json") -PathType Leaf)) {
+        return $ExtractDirectory
+    }
+
+    $children = @(Get-ChildItem -LiteralPath $ExtractDirectory -Directory)
+    if ($children.Count -eq 1 -and
+        ((Test-Path -LiteralPath (Join-Path $children[0].FullName "version.txt") -PathType Leaf) -or
+         (Test-Path -LiteralPath (Join-Path $children[0].FullName "package-manifest.json") -PathType Leaf))) {
+        return $children[0].FullName
+    }
+
+    return $ExtractDirectory
+}
+
+function Get-SafeVersionFileSegment {
+    param([string]$Version)
+
+    $safe = $Version.Trim()
+    foreach ($invalid in [System.IO.Path]::GetInvalidFileNameChars()) {
+        $safe = $safe.Replace([string]$invalid, "-")
+    }
+    return $safe.Replace('+', '-').Replace(' ', '-')
+}
+
+function New-DeltaPackages {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$RuntimeIdentifier,
+
+        [Parameter(Mandatory = $true)]
+        [string]$TargetDirectory,
+
+        [Parameter(Mandatory = $true)]
+        [string]$TargetManifestPath,
+
+        [Parameter(Mandatory = $true)]
+        [string]$TargetVersion,
+
+        [string]$BaseDirectory,
+
+        [string]$ArchiveNameSuffix = ""
+    )
+
+    if ([string]::IsNullOrWhiteSpace($BaseDirectory)) {
+        return @()
+    }
+
+    $runtimeBaseDirectory = Join-Path $BaseDirectory $RuntimeIdentifier
+    if (-not (Test-Path -LiteralPath $runtimeBaseDirectory -PathType Container)) {
+        Write-Host "[package] no delta base directory for $RuntimeIdentifier"
+        return @()
+    }
+
+    $baseArchives = @(Get-ChildItem -LiteralPath $runtimeBaseDirectory -File |
+        Where-Object {
+            ($_.Name.EndsWith(".zip", [System.StringComparison]::OrdinalIgnoreCase) -or
+             $_.Name.EndsWith(".tar.gz", [System.StringComparison]::OrdinalIgnoreCase) -or
+             $_.Name.EndsWith(".tgz", [System.StringComparison]::OrdinalIgnoreCase)) -and
+            -not $_.Name.Contains(".delta.", [System.StringComparison]::OrdinalIgnoreCase)
+        } | Sort-Object Name)
+    if ($baseArchives.Count -eq 0) {
+        Write-Host "[package] no delta base archives for $RuntimeIdentifier"
+        return @()
+    }
+
+    $pathComparer = if (Test-IsWindowsRuntime -RuntimeIdentifier $RuntimeIdentifier) {
+        [System.StringComparer]::OrdinalIgnoreCase
+    }
+    else {
+        [System.StringComparer]::Ordinal
+    }
+    $targetManifest = Get-Content -LiteralPath $TargetManifestPath -Raw | ConvertFrom-Json
+    $targetEntriesByPath = [System.Collections.Generic.Dictionary[string, object]]::new($pathComparer)
+    foreach ($entry in $targetManifest.files) {
+        $targetEntriesByPath[$entry.path] = $entry
+    }
+
+    $deltaDescriptors = [System.Collections.Generic.List[object]]::new()
+    $processedBaseVersions = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    $deltaScratchRoot = Join-Path $stagingRoot "$RuntimeIdentifier-deltas"
+    if (Test-Path -LiteralPath $deltaScratchRoot) {
+        Remove-Item -LiteralPath $deltaScratchRoot -Recurse -Force
+    }
+    New-Item -ItemType Directory -Path $deltaScratchRoot -Force | Out-Null
+
+    try {
+        foreach ($baseArchive in $baseArchives) {
+            $baseExtractDirectory = Join-Path $deltaScratchRoot "base-$([Guid]::NewGuid().ToString('N'))"
+            Expand-PackageArchiveForDelta `
+                -RuntimeIdentifier $RuntimeIdentifier `
+                -ArchivePath $baseArchive.FullName `
+                -DestinationDirectory $baseExtractDirectory
+            $baseRoot = Resolve-ExtractedPackageRootForDelta -ExtractDirectory $baseExtractDirectory
+            $baseVersionPath = Join-Path $baseRoot "version.txt"
+            if (-not (Test-Path -LiteralPath $baseVersionPath -PathType Leaf)) {
+                Write-Warning "Skipping delta base '$($baseArchive.FullName)' because version.txt is missing."
+                continue
+            }
+
+            $baseVersion = (Get-Content -LiteralPath $baseVersionPath -Raw).Trim()
+            if ([string]::IsNullOrWhiteSpace($baseVersion) -or
+                $baseVersion.Equals($TargetVersion, [System.StringComparison]::OrdinalIgnoreCase)) {
+                continue
+            }
+            if (-not $processedBaseVersions.Add($baseVersion)) {
+                Write-Warning "Skipping duplicate delta base version '$baseVersion' from '$($baseArchive.FullName)'."
+                continue
+            }
+
+            $baseManifestPath = Join-Path $baseRoot "package-manifest.json"
+            $baseEntries = if (Test-Path -LiteralPath $baseManifestPath -PathType Leaf) {
+                @((Get-Content -LiteralPath $baseManifestPath -Raw | ConvertFrom-Json).files)
+            }
+            else {
+                @(Get-PackageFileManifestEntries -RootDirectory $baseRoot -RuntimeIdentifier $RuntimeIdentifier)
+            }
+            $baseEntriesByPath = [System.Collections.Generic.Dictionary[string, object]]::new($pathComparer)
+            foreach ($entry in $baseEntries) {
+                $baseEntriesByPath[$entry.path] = $entry
+            }
+
+            $changedEntries = [System.Collections.Generic.List[object]]::new()
+            foreach ($targetEntry in $targetManifest.files) {
+                if (-not $baseEntriesByPath.ContainsKey($targetEntry.path) -or
+                    -not $baseEntriesByPath[$targetEntry.path].sha256.Equals($targetEntry.sha256, [System.StringComparison]::OrdinalIgnoreCase)) {
+                    $changedEntries.Add($targetEntry)
+                }
+            }
+            $deletedFiles = @($baseEntriesByPath.Keys | Where-Object { -not $targetEntriesByPath.ContainsKey($_) } | Sort-Object)
+
+            $deltaRoot = Join-Path $deltaScratchRoot "delta-$([Guid]::NewGuid().ToString('N'))"
+            $payloadRoot = Join-Path $deltaRoot "payload"
+            New-Item -ItemType Directory -Path $payloadRoot -Force | Out-Null
+            foreach ($entry in $changedEntries) {
+                $sourcePath = Join-Path $TargetDirectory $entry.path
+                $destinationPath = Join-Path $payloadRoot $entry.path
+                New-Item -ItemType Directory -Path (Split-Path -Parent $destinationPath) -Force | Out-Null
+                Copy-Item -LiteralPath $sourcePath -Destination $destinationPath -Force
+            }
+
+            $targetManifestCopyPath = Join-Path $deltaRoot "target-package-manifest.json"
+            Copy-Item -LiteralPath $TargetManifestPath -Destination $targetManifestCopyPath -Force
+            $targetManifestSha256 = (Get-FileHash -LiteralPath $targetManifestCopyPath -Algorithm SHA256).Hash.ToLowerInvariant()
+            $plan = [ordered]@{
+                schemaVersion = 1
+                fromVersion = $baseVersion
+                toVersion = $TargetVersion
+                targetManifestSha256 = $targetManifestSha256
+                files = @($changedEntries)
+                deletedFiles = @($deletedFiles)
+            }
+            $planPath = Join-Path $deltaRoot "delta-plan.json"
+            $plan | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $planPath -Encoding UTF8
+
+            $safeFromVersion = Get-SafeVersionFileSegment -Version $baseVersion
+            $safeTargetVersion = Get-SafeVersionFileSegment -Version $TargetVersion
+            $fullArchiveName = Get-ArchiveName -RuntimeIdentifier $RuntimeIdentifier -Suffix $ArchiveNameSuffix
+            if ($fullArchiveName.EndsWith(".tar.gz", [System.StringComparison]::OrdinalIgnoreCase)) {
+                $archiveStem = $fullArchiveName.Substring(0, $fullArchiveName.Length - ".tar.gz".Length)
+                $deltaArchiveName = "$archiveStem-$safeFromVersion-to-$safeTargetVersion.delta.tar.gz"
+            }
+            else {
+                $archiveStem = [System.IO.Path]::GetFileNameWithoutExtension($fullArchiveName)
+                $deltaArchiveName = "$archiveStem-$safeFromVersion-to-$safeTargetVersion.delta.zip"
+            }
+
+            $deltaArchivePath = Join-Path $distRoot $deltaArchiveName
+            if (Test-Path -LiteralPath $deltaArchivePath) {
+                Remove-Item -LiteralPath $deltaArchivePath -Force
+            }
+            New-PackageArchive `
+                -RuntimeIdentifier $RuntimeIdentifier `
+                -SourceDirectory $deltaRoot `
+                -ArchivePath $deltaArchivePath
+
+            $deltaItem = Get-Item -LiteralPath $deltaArchivePath
+            $deltaDescriptors.Add([ordered]@{
+                fromVersion = $baseVersion
+                toVersion = $TargetVersion
+                url = $deltaItem.Name
+                sha256 = (Get-FileHash -LiteralPath $deltaItem.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+                size = $deltaItem.Length
+                planSha256 = (Get-FileHash -LiteralPath $planPath -Algorithm SHA256).Hash.ToLowerInvariant()
+                targetManifestSha256 = $targetManifestSha256
+                minLauncherVersion = $baseVersion
+            })
+            Write-Host "[package] delta $RuntimeIdentifier $baseVersion -> ${TargetVersion}: $($deltaItem.Length) bytes, $($changedEntries.Count) changed/new, $($deletedFiles.Count) deleted"
+        }
+    }
+    finally {
+        if (Test-Path -LiteralPath $deltaScratchRoot) {
+            Remove-Item -LiteralPath $deltaScratchRoot -Recurse -Force
+        }
+    }
+
+    return $deltaDescriptors.ToArray()
+}
+
 function Write-UpdateManifest {
     param(
         [Parameter(Mandatory = $true)]
@@ -445,7 +745,9 @@ function Write-UpdateManifest {
         [Parameter(Mandatory = $true)]
         [string]$ReleaseChannel,
         [Parameter(Mandatory = $true)]
-        [string]$ManifestFileName
+        [string]$ManifestFileName,
+
+        [object[]]$DeltaPackages = @()
     )
 
     $platformSegment = Get-UpdatePlatformSegment -RuntimeIdentifier $RuntimeIdentifier
@@ -455,6 +757,7 @@ function Write-UpdateManifest {
     $manifestPath = Join-Path $manifestDirectory $ManifestFileName
     $archiveItem = Get-Item $ArchivePath
     $manifest = [ordered]@{
+        schemaVersion = 2
         version = $ManifestVersion
         packageVersion = $PackageVersion
         channel = $ReleaseChannel
@@ -463,9 +766,15 @@ function Write-UpdateManifest {
         size = $archiveItem.Length
         minLauncherVersion = "0.1.0"
         notesUrl = ""
+        fullPackage = [ordered]@{
+            url = $archiveItem.Name
+            sha256 = (Get-FileHash -Path $ArchivePath -Algorithm SHA256).Hash.ToLowerInvariant()
+            size = $archiveItem.Length
+        }
+        deltas = @($DeltaPackages)
     }
 
-    $manifest | ConvertTo-Json | Set-Content -Path $manifestPath -Encoding UTF8
+    $manifest | ConvertTo-Json -Depth 8 | Set-Content -Path $manifestPath -Encoding UTF8
     return $manifestPath
 }
 
@@ -1820,6 +2129,16 @@ $releaseChannel = $Channel.Trim().ToLowerInvariant()
 $resolvedUpdateManifestFileName = Get-UpdateManifestFileName -Value $UpdateManifestFileName
 $resolvedArchiveNameSuffix = Get-ArchiveNameSuffix -Value $ArchiveNameSuffix
 $chainedUpdateManifestUrl = $ChainedUpdateManifestUrl.Trim()
+$resolvedDeltaBaseDirectory = if ([string]::IsNullOrWhiteSpace($DeltaBaseDirectory)) {
+    ""
+}
+else {
+    $candidate = [System.IO.Path]::GetFullPath($DeltaBaseDirectory)
+    if (-not (Test-Path -LiteralPath $candidate -PathType Container)) {
+        throw "Delta base directory '$DeltaBaseDirectory' does not exist."
+    }
+    $candidate
+}
 $assemblyFileVersion = Get-AssemblyFileVersion -PackageVersion $packageVersion
 Write-Host "[package] version: $packageVersion"
 if (-not [string]::Equals($manifestVersion, $packageVersion, [System.StringComparison]::OrdinalIgnoreCase)) {
@@ -1835,6 +2154,9 @@ if (-not [string]::IsNullOrWhiteSpace($resolvedArchiveNameSuffix)) {
 }
 if (-not [string]::IsNullOrWhiteSpace($chainedUpdateManifestUrl)) {
     Write-Host "[package] chained update manifest: $chainedUpdateManifestUrl"
+}
+if (-not [string]::IsNullOrWhiteSpace($resolvedDeltaBaseDirectory)) {
+    Write-Host "[package] delta bases: $resolvedDeltaBaseDirectory"
 }
 
 $toolManifestPaths = @(
@@ -2003,6 +2325,20 @@ foreach ($runtimeIdentifier in $Platforms) {
             -RootDirectoryName "LegacyPlugins"
     }
 
+    $packageFileManifestPath = Write-PackageFileManifest `
+        -RootDirectory $stagingDirectory `
+        -RuntimeIdentifier $runtimeIdentifier `
+        -PackageVersion $packageVersion `
+        -ReleaseChannel $releaseChannel
+
+    $deltaPackages = @(New-DeltaPackages `
+        -RuntimeIdentifier $runtimeIdentifier `
+        -TargetDirectory $stagingDirectory `
+        -TargetManifestPath $packageFileManifestPath `
+        -TargetVersion $packageVersion `
+        -BaseDirectory $resolvedDeltaBaseDirectory `
+        -ArchiveNameSuffix $resolvedArchiveNameSuffix)
+
     $finalDirectory = Get-AvailableOutputDirectory -PreferredPath (Join-Path $distRoot $runtimeIdentifier)
     Copy-DirectoryContents -SourceDirectory $stagingDirectory -DestinationDirectory $finalDirectory
 
@@ -2018,13 +2354,15 @@ foreach ($runtimeIdentifier in $Platforms) {
         -PackageVersion $packageVersion `
         -ManifestVersion $manifestVersion `
         -ReleaseChannel $releaseChannel `
-        -ManifestFileName $resolvedUpdateManifestFileName
+        -ManifestFileName $resolvedUpdateManifestFileName `
+        -DeltaPackages $deltaPackages
 
     $builtOutputs += [pscustomobject]@{
         Runtime = $runtimeIdentifier
         Directory = $finalDirectory
         Archive = $archivePath
         Manifest = $manifestPath
+        Deltas = $deltaPackages
     }
 }
 
@@ -2035,6 +2373,9 @@ foreach ($output in $builtOutputs) {
     Write-Host "    folder:  $($output.Directory)"
     Write-Host "    archive: $($output.Archive)"
     Write-Host "    manifest: $($output.Manifest)"
+    foreach ($delta in $output.Deltas) {
+        Write-Host "    delta:   $($delta.url) ($($delta.fromVersion) -> $($delta.toVersion))"
+    }
 }
 
 if (Test-Path $stagingRoot) {

@@ -213,7 +213,7 @@ public sealed partial class SimulationWorld
                     FireRevolver(attacker, weaponDefinition, weaponClassId, aimWorldX, aimWorldY, resolvedKillFeedWeaponSpriteName);
                     return;
                 case PrimaryWeaponKind.Rifle:
-                    FireRifle(attacker, weaponClassId, aimWorldX, aimWorldY, resolvedKillFeedWeaponSpriteName);
+                    FireRifle(attacker, weaponDefinition, weaponClassId, aimWorldX, aimWorldY, resolvedKillFeedWeaponSpriteName);
                     return;
                 case PrimaryWeaponKind.RocketLauncher:
                     FireRocketLauncher(attacker, weaponDefinition, weaponClassId, aimWorldX, aimWorldY, resolvedKillFeedWeaponSpriteName);

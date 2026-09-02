@@ -67,6 +67,64 @@ public sealed class OpenGarrisonPresenceClient
             ?? throw new InvalidOperationException("Relay session response was empty.");
     }
 
+    public async Task<RelayRoomResolveResponse?> ResolveRelayRoomAsync(string roomCode)
+    {
+        if (!RelayRoomCode.TryNormalize(roomCode, out var normalizedRoomCode))
+        {
+            return null;
+        }
+
+        return await ResolveRelayRoomEndpointAsync(
+            $"/api/relay/room/{Uri.EscapeDataString(normalizedRoomCode)}").ConfigureAwait(false);
+    }
+
+    public async Task<RelayRoomResolveResponse?> ResolveRelayRoomByFriendCodeAsync(string friendCode)
+    {
+        if (!ClientIdentityDocument.TryNormalizeFriendCode(friendCode, out var normalizedFriendCode))
+        {
+            return null;
+        }
+
+        return await ResolveRelayRoomEndpointAsync(
+            $"/api/relay/friend/{Uri.EscapeDataString(normalizedFriendCode)}").ConfigureAwait(false);
+    }
+
+    private async Task<RelayRoomResolveResponse?> ResolveRelayRoomEndpointAsync(string relativePath)
+    {
+        var httpClient = GetHttpClient() ?? throw new InvalidOperationException("HTTP client is unavailable.");
+        const int maximumAttempts = 9;
+        for (var attempt = 0; attempt < maximumAttempts; attempt += 1)
+        {
+            using var response = await httpClient.GetAsync(BuildUri(relativePath)).ConfigureAwait(false);
+            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                var error = await response.Content.ReadFromJsonAsync<ApiErrorResponse>().ConfigureAwait(false);
+                if (string.Equals(error?.Detail, "Not Found", StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new InvalidOperationException("The online co-op relay service is unavailable.");
+                }
+
+                return null;
+            }
+
+            if (response.StatusCode == System.Net.HttpStatusCode.Conflict)
+            {
+                if (attempt + 1 < maximumAttempts)
+                {
+                    await Task.Delay(TimeSpan.FromMilliseconds(750)).ConfigureAwait(false);
+                    continue;
+                }
+
+                throw new InvalidOperationException("The relay room did not finish starting.");
+            }
+
+            response.EnsureSuccessStatusCode();
+            return await response.Content.ReadFromJsonAsync<RelayRoomResolveResponse>().ConfigureAwait(false)
+                ?? throw new InvalidOperationException("Relay room response was empty.");
+        }
+        return null;
+    }
+
     public async Task<IReadOnlyList<FriendPresenceEntry>> GetFriendPresenceAsync(IEnumerable<string> friendCodes)
     {
         var httpClient = GetHttpClient();
@@ -274,6 +332,9 @@ public sealed class RelaySessionCreateResponse
     [JsonPropertyName("sessionId")]
     public string SessionId { get; set; } = string.Empty;
 
+    [JsonPropertyName("roomCode")]
+    public string RoomCode { get; set; } = string.Empty;
+
     [JsonPropertyName("hostWebSocketUrl")]
     public string HostWebSocketUrl { get; set; } = string.Empty;
 
@@ -282,6 +343,27 @@ public sealed class RelaySessionCreateResponse
 
     [JsonPropertyName("expiresAtIso")]
     public string ExpiresAtIso { get; set; } = string.Empty;
+}
+
+public sealed class RelayRoomResolveResponse
+{
+    [JsonPropertyName("roomCode")]
+    public string RoomCode { get; set; } = string.Empty;
+
+    [JsonPropertyName("friendCode")]
+    public string FriendCode { get; set; } = string.Empty;
+
+    [JsonPropertyName("guestWebSocketUrl")]
+    public string GuestWebSocketUrl { get; set; } = string.Empty;
+
+    [JsonPropertyName("expiresAtIso")]
+    public string ExpiresAtIso { get; set; } = string.Empty;
+}
+
+internal sealed class ApiErrorResponse
+{
+    [JsonPropertyName("detail")]
+    public string Detail { get; set; } = string.Empty;
 }
 
 public sealed class FriendPresenceResponse

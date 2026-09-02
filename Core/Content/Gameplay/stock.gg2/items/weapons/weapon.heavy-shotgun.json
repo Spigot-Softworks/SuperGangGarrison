@@ -20,7 +20,12 @@
   "combat": {
     "fireSoundName": "ShotgunSnd",
     "killFeedSpriteName": "ShotgunKL",
-    "directHitDamage": 7
+    "directHitDamage": 7,
+    "playerKnockback": {
+      "impulsePerUse": 4.0,
+      "airborneVerticalScale": 0.5,
+      "groundedVerticalScale": 0.5
+    }
   },
   "presentation": {
     "worldSpriteName": "HeavyShotgunS",

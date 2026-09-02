@@ -8,6 +8,7 @@ public sealed partial class PlayerEntity
     public const float BuffBannerDefaultRadius = 128f;
     public const float BuffBannerDefaultDamageMultiplier = 1.35f;
     public const float BuffBannerDefaultHealthRegenPerSecond = 5f;
+    public const string BuffBannerReadySoundName = "UberChargedSnd";
 
     public int BuffBannerChargeDamage { get; private set; }
 

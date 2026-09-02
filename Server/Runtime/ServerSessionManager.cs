@@ -284,6 +284,7 @@ sealed class ServerSessionManager
             UseAbility = buttons.HasFlag(InputButtons.UseAbility),
             InteractWeapon = buttons.HasFlag(InputButtons.InteractWeapon),
             SwapWeapon = buttons.HasFlag(InputButtons.SwapWeapon),
+            ToggleSecondaryWeapon = buttons.HasFlag(InputButtons.ToggleSecondaryWeapon),
             ReadyUp = buttons.HasFlag(InputButtons.ReadyUp),
             IsTypingChatMessage = buttons.HasFlag(InputButtons.IsTypingChatMessage),
             AimWorldX = command.AimRelX,
@@ -305,6 +306,7 @@ sealed class ServerSessionManager
             Protocol64InputCommandKind.UseAbility => input with { UseAbility = true },
             Protocol64InputCommandKind.InteractWeapon => input with { InteractWeapon = true },
             Protocol64InputCommandKind.SwapWeapon => input with { SwapWeapon = true },
+            Protocol64InputCommandKind.ToggleSecondaryWeapon => input with { ToggleSecondaryWeapon = true },
             Protocol64InputCommandKind.ReadyUp => input with { ReadyUp = true },
             _ => input,
         };
@@ -326,6 +328,7 @@ sealed class ServerSessionManager
             Protocol64InputCommandKind.UseAbility => InputButtons.UseAbility,
             Protocol64InputCommandKind.InteractWeapon => InputButtons.InteractWeapon,
             Protocol64InputCommandKind.SwapWeapon => InputButtons.SwapWeapon,
+            Protocol64InputCommandKind.ToggleSecondaryWeapon => InputButtons.ToggleSecondaryWeapon,
             Protocol64InputCommandKind.ReadyUp => InputButtons.ReadyUp,
             _ => InputButtons.None,
         };

@@ -41,7 +41,8 @@ public partial class Game1
             GetPlayerIsUsingBinoculars(_world.LocalPlayer),
             _binocularsFocusX,
             _binocularsFocusY,
-            useMultiplayerExclusivePrimarySwapBinding);
+            useMultiplayerExclusivePrimarySwapBinding,
+            previousMouse: _previousMouse);
         fullInput = ApplyControllerGameplayInput(fullInput, deltaSeconds);
         if (IsNetworkWorldWarmupBlockingGameplay())
         {
@@ -75,12 +76,14 @@ public partial class Game1
                 FirePrimary = false,
                 FireSecondary = false,
                 SwapWeapon = false,
+                ToggleSecondaryWeapon = false,
             };
             networkInput = networkInput with
             {
                 FirePrimary = false,
                 FireSecondary = false,
                 SwapWeapon = false,
+                ToggleSecondaryWeapon = false,
             };
         }
 
@@ -123,6 +126,7 @@ public partial class Game1
                 UseAbility = false,
                 InteractWeapon = false,
                 SwapWeapon = false,
+                ToggleSecondaryWeapon = false,
                 BuildSentry = false,
                 BuildDispenser = false,
                 DestroySentry = false,
@@ -135,6 +139,7 @@ public partial class Game1
                 UseAbility = false,
                 InteractWeapon = false,
                 SwapWeapon = false,
+                ToggleSecondaryWeapon = false,
                 BuildSentry = false,
                 BuildDispenser = false,
                 DestroySentry = false,
@@ -184,6 +189,7 @@ public partial class Game1
             UseAbility = false,
             InteractWeapon = false,
             SwapWeapon = false,
+            ToggleSecondaryWeapon = false,
         };
     }
 
@@ -263,6 +269,7 @@ public partial class Game1
             UseAbility = false,
             InteractWeapon = false,
             SwapWeapon = false,
+            ToggleSecondaryWeapon = false,
             DebugKill = false,
             DropIntel = false,
         };

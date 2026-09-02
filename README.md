@@ -99,4 +99,15 @@ Bash wrapper:
 bash ./scripts/build.sh linux-x64
 ```
 
+Release CI downloads each channel's currently published full package before packaging. The
+packager compares its file inventory with the new package, emits an exact-version delta archive,
+and writes both the delta and a full-package fallback into the version-2 update manifest. Delta
+installation is hash-verified and transactional; a modified or incomplete local base automatically
+falls back to the full archive. To reproduce that flow locally:
+
+```powershell
+./scripts/fetch-update-delta-bases.ps1 -Platforms @("linux-x64", "win-x64") -Channel stable -OutputDirectory ./dist/delta-bases
+./scripts/package.ps1 -Platforms @("linux-x64", "win-x64") -Version 1.0.2 -DeltaBaseDirectory ./dist/delta-bases
+```
+
 See [packaging/DISTRO_QUICKSTART.txt] and [packaging/README.txt] for current packaging details.

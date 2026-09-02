@@ -13,7 +13,7 @@ public sealed class Protocol64InputEventTests
         var value = new Protocol64InputCommand(
             CommandId: 9,
             InputSequence: 44,
-            Kind: Protocol64InputCommandKind.Jump,
+            Kind: Protocol64InputCommandKind.ToggleSecondaryWeapon,
             HeldButtons: InputButtons.Right | InputButtons.BuildDispenser,
             AimRelX: 12.5f,
             AimRelY: -3.25f,
@@ -21,6 +21,7 @@ public sealed class Protocol64InputEventTests
             CommandSequence: 8);
 
         var schema = registry.Get<Protocol64InputCommand>();
+        Assert.Equal((ushort)4, schema.Descriptor.Key.Revision);
         Assert.Equal(Protocol64DeliveryKind.ReliableOrdered, schema.Descriptor.Delivery.Kind);
         Assert.Equal(ChannelType.Input, schema.Descriptor.Delivery.Channel);
 

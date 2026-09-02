@@ -41,6 +41,7 @@ public sealed partial class SimulationWorld
                 attacker,
                 directionX * shotSpeed,
                 directionY * shotSpeed);
+            var knockbackPayload = BulletKnockbackRules.ResolvePayload(weaponDefinition, actualProjectileCount: 1);
 
             // Spawn bullets 14 pixels forward from the weapon pivot along the firing direction
             const float minigunBarrelForwardOffset = 14f;
@@ -59,7 +60,10 @@ public sealed partial class SimulationWorld
                 playerSlowMovementMultiplier: weaponDefinition.PlayerSlowMovementMultiplier,
                 playerSlowRefreshTicks: weaponDefinition.PlayerSlowRefreshSourceTicks > 0
                     ? _world.GetSimulationTicksFromSourceTicks(weaponDefinition.PlayerSlowRefreshSourceTicks)
-                    : 0);
+                    : 0,
+                playerKnockbackImpulse: knockbackPayload.Impulse,
+                playerKnockbackAirborneVerticalScale: knockbackPayload.AirborneVerticalScale,
+                playerKnockbackGroundedVerticalScale: knockbackPayload.GroundedVerticalScale);
         }
 
         private float GetWeaponSpreadRadians(int attackerId, float spreadDegrees, int pelletIndex = 0, int projectilesPerShot = 1)
@@ -139,6 +143,7 @@ public sealed partial class SimulationWorld
             var projectileCount = GetExperimentalProjectilesPerShot(
                 attacker,
                 weaponDefinition.ProjectilesPerShot * Math.Max(1, pelletCountMultiplier));
+            var knockbackPayload = BulletKnockbackRules.ResolvePayload(weaponDefinition, projectileCount);
             for (var pelletIndex = 0; pelletIndex < projectileCount; pelletIndex += 1)
             {
                 var spreadRadians = GetWeaponSpreadRadians(
@@ -162,7 +167,15 @@ public sealed partial class SimulationWorld
                     launchedVelocityY,
                     weaponDefinition.DirectHitDamage ?? ShotProjectileEntity.DamagePerHit,
                     forceGibOnKill,
-                    killFeedWeaponSpriteNameOverride);
+                    killFeedWeaponSpriteNameOverride,
+                    playerKnockbackScale: weaponDefinition.PlayerKnockbackScale,
+                    playerSlowMovementMultiplier: weaponDefinition.PlayerSlowMovementMultiplier,
+                    playerSlowRefreshTicks: weaponDefinition.PlayerSlowRefreshSourceTicks > 0
+                        ? _world.GetSimulationTicksFromSourceTicks(weaponDefinition.PlayerSlowRefreshSourceTicks)
+                        : 0,
+                    playerKnockbackImpulse: knockbackPayload.Impulse,
+                    playerKnockbackAirborneVerticalScale: knockbackPayload.AirborneVerticalScale,
+                    playerKnockbackGroundedVerticalScale: knockbackPayload.GroundedVerticalScale);
             }
 
             TryFireExperimentalEngineerOverkillAugment(
@@ -387,6 +400,7 @@ public sealed partial class SimulationWorld
                 && _world.TryRollLastToDieSpyDeadlyCritical(attacker);
             var appliesLuckyStrikeStun = lastToDieProfile.LuckyStrikeEnabled
                 && attacker.LastPrimaryShotAppliesLastToDieLuckyStrikeStun;
+            var knockbackPayload = BulletKnockbackRules.ResolvePayload(weaponDefinition, projectileCount);
             for (var projectileIndex = 0; projectileIndex < projectileCount; projectileIndex += 1)
             {
                 // Blunderbuss is a single authored volley. Its pellets form one
@@ -419,7 +433,10 @@ public sealed partial class SimulationWorld
                     killFeedWeaponSpriteNameOverride,
                     lastToDieProfile,
                     deadlyCritical,
-                    appliesLuckyStrikeStun);
+                    appliesLuckyStrikeStun,
+                    knockbackPayload.Impulse,
+                    knockbackPayload.AirborneVerticalScale,
+                    knockbackPayload.GroundedVerticalScale);
             }
         }
 

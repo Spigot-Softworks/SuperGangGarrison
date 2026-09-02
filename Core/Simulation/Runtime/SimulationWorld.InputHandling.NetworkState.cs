@@ -80,6 +80,7 @@ public sealed partial class SimulationWorld
             UseAbility = false,
             InteractWeapon = false,
             SwapWeapon = false,
+            ToggleSecondaryWeapon = false,
             ReadyUp = false,
         };
     }
@@ -103,6 +104,7 @@ public sealed partial class SimulationWorld
             UseAbility = forcedPressedButtons.HasFlag(InputButtons.UseAbility) ? false : input.UseAbility,
             InteractWeapon = forcedPressedButtons.HasFlag(InputButtons.InteractWeapon) ? false : input.InteractWeapon,
             SwapWeapon = forcedPressedButtons.HasFlag(InputButtons.SwapWeapon) ? false : input.SwapWeapon,
+            ToggleSecondaryWeapon = forcedPressedButtons.HasFlag(InputButtons.ToggleSecondaryWeapon) ? false : input.ToggleSecondaryWeapon,
             ReadyUp = forcedPressedButtons.HasFlag(InputButtons.ReadyUp) ? false : input.ReadyUp,
         };
     }

@@ -42,6 +42,7 @@ public partial class Game1
             _game._pendingNetworkSoundEvents.Clear();
             _game._pendingNetworkVisualEvents.Clear();
             _game._pendingNetworkDamageEvents.Clear();
+            _game.ResetBuffBannerReadySoundObservation();
             _game.ResetHealingCharacterEffects();
             _game.ResetBackstabVisuals();
             _game._hasPredictedLocalPlayerPosition = false;
@@ -77,6 +78,7 @@ public partial class Game1
             _game.StopLastToDieGameOverSound();
             _game.ResetTransientPresentationEffects();
             _game.ResetProcessedNetworkEventHistory();
+            _game.ResetBuffBannerReadySoundObservation();
         }
     }
 }

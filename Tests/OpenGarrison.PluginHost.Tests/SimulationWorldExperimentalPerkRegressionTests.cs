@@ -345,6 +345,102 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     }
 
     [Fact]
+    public void FlamethrowerReachScalesByAirborneVelocityAboveRunJumpBaseline()
+    {
+        var baselineWorld = CreateJoinedPyroWorld(new ExperimentalGameplaySettings());
+        var boostedWorld = CreateJoinedPyroWorld(new ExperimentalGameplaySettings());
+        PrepareOpenFlamethrowerTestWorld(baselineWorld);
+        PrepareOpenFlamethrowerTestWorld(boostedWorld);
+        var baselineSpeed = MathF.Sqrt(
+            (baselineWorld.LocalPlayer.MaxRunSpeed * baselineWorld.LocalPlayer.MaxRunSpeed)
+            + (baselineWorld.LocalPlayer.JumpSpeed * baselineWorld.LocalPlayer.JumpSpeed));
+        baselineWorld.LocalPlayer.ApplyVelocityImpulse(0f, -baselineSpeed);
+        boostedWorld.LocalPlayer.ApplyVelocityImpulse(0f, -baselineSpeed * 1.5f);
+        SetPlayerProperty(baselineWorld.LocalPlayer, nameof(PlayerEntity.IsGrounded), false);
+        SetPlayerProperty(boostedWorld.LocalPlayer, nameof(PlayerEntity.IsGrounded), false);
+
+        Assert.True(baselineWorld.LocalPlayer.TryFirePrimaryWeapon());
+        Assert.True(boostedWorld.LocalPlayer.TryFirePrimaryWeapon());
+        InvokeFirePrimaryWeapon(
+            baselineWorld,
+            baselineWorld.LocalPlayer,
+            baselineWorld.LocalPlayer.X + 128f,
+            baselineWorld.LocalPlayer.Y);
+        InvokeFirePrimaryWeapon(
+            boostedWorld,
+            boostedWorld.LocalPlayer,
+            boostedWorld.LocalPlayer.X + 128f,
+            boostedWorld.LocalPlayer.Y);
+
+        var baselineFlame = Assert.Single(baselineWorld.Flames);
+        var boostedFlame = Assert.Single(boostedWorld.Flames);
+        var baselineFlameSpeed = MathF.Sqrt(
+            (baselineFlame.VelocityX * baselineFlame.VelocityX)
+            + (baselineFlame.VelocityY * baselineFlame.VelocityY));
+        var boostedFlameSpeed = MathF.Sqrt(
+            (boostedFlame.VelocityX * boostedFlame.VelocityX)
+            + (boostedFlame.VelocityY * boostedFlame.VelocityY));
+
+        Assert.Equal(1.25f, boostedFlameSpeed / baselineFlameSpeed, precision: 3);
+        Assert.Equal(baselineFlame.TicksRemaining, boostedFlame.TicksRemaining);
+    }
+
+    [Fact]
+    public void StockScattergunSplitsKnockbackAcrossItsActualPelletCount()
+    {
+        var world = CreateJoinedScoutWorld(new ExperimentalGameplaySettings());
+        world.RandomSpreadEnabled = false;
+        SetOpenCombatLevel(world);
+        world.TeleportLocalPlayer(100f, 100f);
+        world.LocalPlayer.SetSpawnRoomState(false);
+
+        Assert.True(world.LocalPlayer.TryFirePrimaryWeapon());
+        InvokeFirePrimaryWeapon(world, world.LocalPlayer, 228f, 100f);
+
+        Assert.Equal(world.LocalPlayer.PrimaryWeapon.ProjectilesPerShot, world.Shots.Count);
+        Assert.Equal(4f, world.Shots.Sum(static shot => shot.PlayerKnockbackImpulse), precision: 3);
+        Assert.All(world.Shots, static shot =>
+        {
+            Assert.Equal(0.5f, shot.PlayerKnockbackAirborneVerticalScale);
+            Assert.Equal(0.5f, shot.PlayerKnockbackGroundedVerticalScale);
+        });
+    }
+
+    [Fact]
+    public void DirectBulletHitAppliesTheCarriedKnockbackPayload()
+    {
+        var world = CreateJoinedScoutWorld(new ExperimentalGameplaySettings());
+        SetOpenCombatLevel(world);
+        world.TeleportLocalPlayer(50f, 100f);
+        world.LocalPlayer.SetSpawnRoomState(false);
+        var enemy = CreateBlueNetworkScout(world, 2);
+        enemy.TeleportTo(130f, 100f);
+        enemy.SetSpawnRoomState(false);
+        SetPlayerProperty(enemy, nameof(PlayerEntity.IsGrounded), true);
+
+        InvokeSpawnShot(
+            world,
+            world.LocalPlayer,
+            x: 100f,
+            y: 100f,
+            velocityX: 40f,
+            velocityY: 0f,
+            damagePerHit: 8f,
+            playerKnockbackScale: 1f,
+            playerSlowMovementMultiplier: null,
+            playerSlowRefreshTicks: 0,
+            playerKnockbackImpulse: 4f,
+            playerKnockbackAirborneVerticalScale: 0.5f,
+            playerKnockbackGroundedVerticalScale: 0.5f);
+
+        InvokeAdvanceShots(world);
+
+        Assert.Equal(120f, enemy.HorizontalSpeed, precision: 3);
+        Assert.Equal(0f, enemy.VerticalSpeed);
+        Assert.Equal(enemy.MaxHealth - 8, enemy.Health);
+    }
+
+    [Fact]
     public void StockDemomanRightClickDetonatesInsteadOfSwappingWhenMouseSecondaryIsSwapBound()
     {
         var world = CreateJoinedDemomanWorld(new ExperimentalGameplaySettings());
@@ -4279,7 +4375,20 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         ApplyExperimentalSentryPlayerHitMethod.Invoke(
             world,
-            [sentry, owner, target, baseDamage, PlayerDamageTraits.None, false, true, null, null]);
+            [
+                sentry,
+                owner,
+                target,
+                baseDamage,
+                PlayerDamageTraits.None,
+                false,
+                true,
+                null,
+                null,
+                Type.Missing,
+                Type.Missing,
+                Type.Missing,
+            ]);
     }
 
     private static void InvokeSpawnRocket(
@@ -4324,7 +4433,10 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         float damagePerHit,
         float playerKnockbackScale,
         float? playerSlowMovementMultiplier,
-        int playerSlowRefreshTicks)
+        int playerSlowRefreshTicks,
+        float? playerKnockbackImpulse = null,
+        float playerKnockbackAirborneVerticalScale = 1f,
+        float playerKnockbackGroundedVerticalScale = 1f)
     {
         SpawnShotMethod.Invoke(
             world,
@@ -4342,7 +4454,28 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
                 playerKnockbackScale,
                 playerSlowMovementMultiplier,
                 playerSlowRefreshTicks,
+                playerKnockbackImpulse.HasValue ? playerKnockbackImpulse.Value : Type.Missing,
+                playerKnockbackAirborneVerticalScale,
+                playerKnockbackGroundedVerticalScale,
             ]);
+    }
+
+    private static void InvokeAdvanceShots(SimulationWorld world)
+    {
+        var method = typeof(SimulationWorld).GetMethod(
+            "AdvanceShots",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(method);
+        _ = method!.Invoke(world, null);
+    }
+
+    private static void PrepareOpenFlamethrowerTestWorld(SimulationWorld world)
+    {
+        world.DespawnFriendlyDummy();
+        world.DespawnEnemyDummy();
+        SetOpenCombatLevel(world);
+        world.TeleportLocalPlayer(100f, 100f);
+        world.LocalPlayer.SetSpawnRoomState(false);
     }
 
     private static void InvokeFirePrimaryWeapon(SimulationWorld world, PlayerEntity attacker, float aimWorldX, float aimWorldY)

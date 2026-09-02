@@ -111,7 +111,7 @@ public sealed class FirePredictionRegressionTests
         Assert.Equal(
             initialNailgunAmmo - player.PrimaryWeapon.AmmoPerShot,
             player.CurrentShells);
-        Assert.True(player.PrimaryCooldownTicks > 0);
+        Assert.Equal(5, player.PrimaryCooldownTicks);
         Assert.Empty(world.Needles);
     }
 
@@ -291,6 +291,7 @@ public sealed class FirePredictionRegressionTests
                 typeof(bool),
                 typeof(bool),
                 typeof(bool),
+                typeof(bool),
             ],
             modifiers: null)
             ?? throw new MissingMethodException(inputType.FullName, ".ctor");
@@ -304,6 +305,7 @@ public sealed class FirePredictionRegressionTests
             secondaryAbilityPressed,
             false,
             abilityPressed,
+            false,
             false,
             false,
             false,

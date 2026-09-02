@@ -115,7 +115,7 @@ public sealed class SnapshotMessageSchema
             Protocol64EventId.Snapshot,
             Protocol64Direction.ServerToClient,
             MaxBodyBytes,
-            revision: 4)
+            revision: 5)
     {
     }
 }

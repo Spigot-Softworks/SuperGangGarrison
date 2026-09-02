@@ -4,14 +4,61 @@ using Microsoft.Xna.Framework.Audio;
 using System;
 using System.Collections.Generic;
 using OpenGarrison.Core;
+using OpenGarrison.GameplayModding;
 using OpenGarrison.Protocol;
 
 namespace OpenGarrison.Client;
+
+internal sealed class BuffBannerReadyCueTracker
+{
+    private bool _hasObservedEligibleState;
+    private bool _playedForCurrentChargeCycle;
+
+    public bool Observe(bool eligible, int chargeDamage, int maxChargeDamage)
+    {
+        if (!eligible)
+        {
+            Reset();
+            return false;
+        }
+
+        var normalizedMaximum = Math.Max(1, maxChargeDamage);
+        var normalizedCharge = Math.Clamp(chargeDamage, 0, normalizedMaximum);
+        var ready = normalizedCharge >= normalizedMaximum;
+        if (!_hasObservedEligibleState)
+        {
+            _hasObservedEligibleState = true;
+            _playedForCurrentChargeCycle = ready;
+            return false;
+        }
+
+        if ((long)normalizedCharge * 2 < normalizedMaximum)
+        {
+            _playedForCurrentChargeCycle = false;
+        }
+
+        if (!ready || _playedForCurrentChargeCycle)
+        {
+            return false;
+        }
+
+        _playedForCurrentChargeCycle = true;
+        return true;
+    }
+
+    public void Reset()
+    {
+        _hasObservedEligibleState = false;
+        _playedForCurrentChargeCycle = false;
+    }
+}
 
 public partial class Game1
 {
     private sealed class GameplayAudioEventController
     {
+        private const float LocalBuffBannerReadyCueVolume = 0.9f;
+        private const float LocalBuffBannerReadyCueEchoSuppressionSeconds = 2f;
         private readonly Game1 _game;
 
         public GameplayAudioEventController(Game1 game)
@@ -66,6 +113,42 @@ public partial class Game1
 
             var sound = _game._runtimeAssets.GetSound(ExperimentalDemoknightCatalog.ChargeReadySoundName);
             _game.TryPlaySound(sound, 0.8f, 0f, 0f);
+        }
+
+        public void PlayBuffBannerReadySoundIfNeeded()
+        {
+            _game._localBuffBannerReadyCueEchoSuppressionSeconds = Math.Max(
+                0f,
+                _game._localBuffBannerReadyCueEchoSuppressionSeconds
+                    - _game._gameplayPresentationDeltaSeconds);
+            var player = _game._world.LocalPlayer;
+            var eligible = player.IsAlive
+                && player.ClassId == PlayerClass.Soldier
+                && player.HasGameplayAbilityBehavior(
+                    GameplayAbilityConstants.UtilityChannel,
+                    BuiltInGameplayBehaviorIds.SoldierBuffBanner);
+            if (!_game._localBuffBannerReadyCueTracker.Observe(
+                    eligible,
+                    _game.GetPlayerBuffBannerChargeDamage(player),
+                    _game.GetPlayerBuffBannerMaxChargeDamage(player))
+                || !_game._audioAvailable)
+            {
+                return;
+            }
+
+            var sound = _game._runtimeAssets?.GetSound(PlayerEntity.BuffBannerReadySoundName);
+            if (sound is not null
+                && _game.TryPlaySound(sound, LocalBuffBannerReadyCueVolume, 0f, 0f))
+            {
+                _game._localBuffBannerReadyCueEchoSuppressionSeconds =
+                    LocalBuffBannerReadyCueEchoSuppressionSeconds;
+            }
+        }
+
+        public void ResetBuffBannerReadySoundObservation()
+        {
+            _game._localBuffBannerReadyCueTracker.Reset();
+            _game._localBuffBannerReadyCueEchoSuppressionSeconds = 0f;
         }
 
         public void PlayRoundEndSoundIfNeeded()
@@ -219,6 +302,12 @@ public partial class Game1
                 return true;
             }
 
+            if (ShouldSuppressLocalBuffBannerReadySoundEcho(soundEvent))
+            {
+                _game._localBuffBannerReadyCueEchoSuppressionSeconds = 0f;
+                return CompleteSoundEvent(soundEvent);
+            }
+
             if (string.Equals(soundEvent.SoundName, "ExplosionSnd", StringComparison.OrdinalIgnoreCase)
                 && !_game.HasPresentedExplosionVisualThisFrame(soundEvent.X, soundEvent.Y)
                 && !_game.HasPresentedExplosionVisualForSoundEvent(soundEvent)
@@ -346,6 +435,21 @@ public partial class Game1
             }
 
             return _game.TryPlaySound(sound, volume, 0f, pan);
+        }
+
+        private bool ShouldSuppressLocalBuffBannerReadySoundEcho(WorldSoundEvent soundEvent)
+        {
+            var player = _game._world.LocalPlayer;
+            return _game._localBuffBannerReadyCueEchoSuppressionSeconds > 0f
+                && string.Equals(
+                    soundEvent.SoundName,
+                    PlayerEntity.BuffBannerReadySoundName,
+                    StringComparison.OrdinalIgnoreCase)
+                && _game.IsLocalPlayerSoundSource(soundEvent.SourcePlayerId)
+                && player.ClassId == PlayerClass.Soldier
+                && player.HasGameplayAbilityBehavior(
+                    GameplayAbilityConstants.UtilityChannel,
+                    BuiltInGameplayBehaviorIds.SoldierBuffBanner);
         }
 
         private bool TryPlayResolvedWorldSound(string resolvedSoundName, WorldSoundEvent soundEvent, bool allowBrowserDefer)

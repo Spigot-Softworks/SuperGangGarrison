@@ -247,6 +247,7 @@ sealed class ClientSession(
             UseAbility: current.UseAbility && !previous.UseAbility,
             InteractWeapon: current.InteractWeapon && !previous.InteractWeapon,
             SwapWeapon: current.SwapWeapon && !previous.SwapWeapon,
+            ToggleSecondaryWeapon: current.ToggleSecondaryWeapon && !previous.ToggleSecondaryWeapon,
             ReadyUp: current.ReadyUp && !previous.ReadyUp);
     }
 
@@ -267,6 +268,7 @@ sealed class ClientSession(
             UseAbility = input.UseAbility || edge.UseAbility,
             InteractWeapon = input.InteractWeapon || edge.InteractWeapon,
             SwapWeapon = input.SwapWeapon || edge.SwapWeapon,
+            ToggleSecondaryWeapon = input.ToggleSecondaryWeapon || edge.ToggleSecondaryWeapon,
             ReadyUp = input.ReadyUp || edge.ReadyUp,
         };
     }
@@ -499,6 +501,7 @@ sealed class ClientSession(
         bool UseAbility,
         bool InteractWeapon,
         bool SwapWeapon,
+        bool ToggleSecondaryWeapon,
         bool ReadyUp)
     {
         public bool HasAny =>
@@ -515,6 +518,7 @@ sealed class ClientSession(
             || UseAbility
             || InteractWeapon
             || SwapWeapon
+            || ToggleSecondaryWeapon
             || ReadyUp;
 
         public InputEdge Combine(InputEdge other)
@@ -533,6 +537,7 @@ sealed class ClientSession(
                 UseAbility || other.UseAbility,
                 InteractWeapon || other.InteractWeapon,
                 SwapWeapon || other.SwapWeapon,
+                ToggleSecondaryWeapon || other.ToggleSecondaryWeapon,
                 ReadyUp || other.ReadyUp);
         }
     }

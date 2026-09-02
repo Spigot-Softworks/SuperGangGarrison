@@ -482,7 +482,21 @@ internal static partial class ServerHelpers
 
     internal static SnapshotShotState ToSnapshotBulletState(ShotProjectileEntity shot)
     {
-        return new SnapshotShotState(shot.Id, (byte)shot.Team, shot.OwnerId, shot.X, shot.Y, shot.VelocityX, shot.VelocityY, shot.TicksRemaining, shot.IsCritical, CriticalDamageMultiplier: shot.CriticalDamageMultiplier);
+        return new SnapshotShotState(
+            shot.Id,
+            (byte)shot.Team,
+            shot.OwnerId,
+            shot.X,
+            shot.Y,
+            shot.VelocityX,
+            shot.VelocityY,
+            shot.TicksRemaining,
+            shot.IsCritical,
+            DamageValue: shot.DamageValue,
+            CriticalDamageMultiplier: shot.CriticalDamageMultiplier,
+            PlayerKnockbackImpulse: shot.PlayerKnockbackImpulse,
+            PlayerKnockbackAirborneVerticalScale: shot.PlayerKnockbackAirborneVerticalScale,
+            PlayerKnockbackGroundedVerticalScale: shot.PlayerKnockbackGroundedVerticalScale);
     }
 
     internal static SnapshotShotState ToSnapshotNeedleState(NeedleProjectileEntity shot)
@@ -554,7 +568,10 @@ internal static partial class ServerHelpers
             DamageValue: shot.DamageValue,
             LastToDieRevolverProfile: shot.LastToDieProfile.Encode(),
             AppliesLuckyStrikeStun: shot.AppliesLuckyStrikeStun,
-            CriticalDamageMultiplier: shot.CriticalDamageMultiplier);
+            CriticalDamageMultiplier: shot.CriticalDamageMultiplier,
+            PlayerKnockbackImpulse: shot.PlayerKnockbackImpulse,
+            PlayerKnockbackAirborneVerticalScale: shot.PlayerKnockbackAirborneVerticalScale,
+            PlayerKnockbackGroundedVerticalScale: shot.PlayerKnockbackGroundedVerticalScale);
     }
 
     internal static SnapshotRocketState ToSnapshotRocketState(RocketProjectileEntity rocket)

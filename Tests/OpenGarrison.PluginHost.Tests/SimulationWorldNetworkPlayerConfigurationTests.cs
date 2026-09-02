@@ -498,6 +498,33 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
         Assert.Equal("weapon.soldier-shotgun", world.LocalPlayer.GameplayLoadoutState.EquippedItemId);
     }
 
+    [Fact]
+    public void DedicatedSecondaryToggleDoesNotCycleAlternatePrimaryAtWeaponStation()
+    {
+        var world = CreateWorldWithLocalClass(PlayerClass.Scout);
+        world.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings(
+            EnableSecondaryAbilities: true));
+        InstallPrimaryWeaponSwapCabinetAtLocalPlayer(world);
+        world.SetLocalInput(default);
+        world.SetLocalPreviousInput(default);
+        var primaryItemId = world.LocalPlayer.GameplayLoadoutState.PrimaryItemId;
+
+        Assert.True(world.LocalPlayer.HasAlternatePrimaryWeapons);
+        Assert.True(world.LocalPlayer.HasExperimentalOffhandWeapon);
+
+        PressSecondaryWeaponToggle(world);
+
+        Assert.Equal(primaryItemId, world.LocalPlayer.GameplayLoadoutState.PrimaryItemId);
+        Assert.Equal(GameplayEquipmentSlot.Secondary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
+
+        world.SetLocalInput(default);
+        world.AdvanceOneTick();
+        PressSecondaryWeaponToggle(world);
+
+        Assert.Equal(primaryItemId, world.LocalPlayer.GameplayLoadoutState.PrimaryItemId);
+        Assert.Equal(GameplayEquipmentSlot.Primary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
+    }
+
     private static PlayerInputSnapshot SecondaryInput(PlayerEntity player)
     {
         return default(PlayerInputSnapshot) with
@@ -764,6 +791,17 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
             DebugKill: false,
             UseAbility: true,
             SwapWeapon: true));
+        world.AdvanceOneTick();
+    }
+
+    private static void PressSecondaryWeaponToggle(SimulationWorld world)
+    {
+        world.SetLocalInput(default(PlayerInputSnapshot) with
+        {
+            AimWorldX = world.LocalPlayer.X + 96f,
+            AimWorldY = world.LocalPlayer.Y,
+            ToggleSecondaryWeapon = true,
+        });
         world.AdvanceOneTick();
     }
 

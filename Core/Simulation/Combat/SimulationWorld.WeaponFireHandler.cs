@@ -141,7 +141,10 @@ public sealed partial class SimulationWorld
             string? killFeedWeaponSpriteNameOverride = null,
             float playerKnockbackScale = 1f,
             float? playerSlowMovementMultiplier = null,
-            int playerSlowRefreshTicks = 0)
+            int playerSlowRefreshTicks = 0,
+            float? playerKnockbackImpulse = null,
+            float playerKnockbackAirborneVerticalScale = 1f,
+            float playerKnockbackGroundedVerticalScale = 1f)
         {
             _world.SpawnShot(
                 owner,
@@ -154,7 +157,10 @@ public sealed partial class SimulationWorld
                 killFeedWeaponSpriteNameOverride,
                 playerKnockbackScale: playerKnockbackScale,
                 playerSlowMovementMultiplier: playerSlowMovementMultiplier,
-                playerSlowRefreshTicks: playerSlowRefreshTicks);
+                playerSlowRefreshTicks: playerSlowRefreshTicks,
+                playerKnockbackImpulse: playerKnockbackImpulse,
+                playerKnockbackAirborneVerticalScale: playerKnockbackAirborneVerticalScale,
+                playerKnockbackGroundedVerticalScale: playerKnockbackGroundedVerticalScale);
         }
 
         private void SpawnBubble(PlayerEntity owner, float x, float y, float velocityX, float velocityY)
@@ -238,7 +244,10 @@ public sealed partial class SimulationWorld
             string? killFeedWeaponSpriteNameOverride = null,
             global::OpenGarrison.Core.LastToDie.LastToDieSpyRevolverProfile? lastToDieProfile = null,
             bool forceCritical = false,
-            bool appliesLuckyStrikeStun = false)
+            bool appliesLuckyStrikeStun = false,
+            float playerKnockbackImpulse = 0f,
+            float playerKnockbackAirborneVerticalScale = 1f,
+            float playerKnockbackGroundedVerticalScale = 1f)
         {
             _world.SpawnRevolverShot(
                 owner,
@@ -250,7 +259,10 @@ public sealed partial class SimulationWorld
                 killFeedWeaponSpriteNameOverride,
                 lastToDieProfile,
                 forceCritical,
-                appliesLuckyStrikeStun);
+                appliesLuckyStrikeStun,
+                playerKnockbackImpulse,
+                playerKnockbackAirborneVerticalScale,
+                playerKnockbackGroundedVerticalScale);
         }
 
         private void SpawnMine(PlayerEntity owner, float x, float y, float velocityX, float velocityY, string? killFeedWeaponSpriteNameOverride = null)

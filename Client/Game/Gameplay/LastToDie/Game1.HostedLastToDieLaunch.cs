@@ -1,6 +1,8 @@
 #nullable enable
 
 using System;
+using System.Net;
+using System.Net.Http;
 using System.Threading.Tasks;
 using OpenGarrison.Core;
 using OpenGarrison.ClientShared;
@@ -14,6 +16,7 @@ public partial class Game1
     private bool _hostedLastToDieRelayLaunchRequested;
     private bool _lastToDieConnectionPresentationPending;
     private bool _lastToDieRoomCodeJoinOpen;
+    private string _hostedLastToDieRoomCode = string.Empty;
     private OpenGarrison.Core.LastToDie.LastToDieDifficulty _pendingHostedLastToDieDifficulty;
     private int _pendingHostedLastToDiePort;
 
@@ -46,7 +49,6 @@ public partial class Game1
             difficulty,
             port,
             relay: null,
-            relayFailure: string.Empty,
             maxPlayers: 1,
             publishSocialPresence: false);
     }
@@ -107,17 +109,29 @@ public partial class Game1
         _hostedLastToDieRelayLaunchRequested = false;
         var relay = task.IsCompletedSuccessfully ? task.Result : null;
         var validRelay = relay is not null
+            && RelayRoomCode.TryNormalize(relay.RoomCode, out _)
             && Uri.TryCreate(relay.HostWebSocketUrl, UriKind.Absolute, out var hostUri)
             && hostUri.Scheme is "ws" or "wss"
             && WebSocketNetworkClientMessageTransport.IsWebSocketEndpoint(relay.GuestWebSocketUrl);
-        var relayFailure = validRelay
-            ? string.Empty
-            : task.Exception?.GetBaseException().Message ?? "relay service returned an invalid session";
+        if (!validRelay)
+        {
+            var relayException = task.Exception?.GetBaseException();
+            _menuStatusMessage = relayException switch
+            {
+                HttpRequestException { StatusCode: HttpStatusCode.NotFound } =>
+                    "Online co-op is temporarily unavailable because the relay service is not deployed.",
+                HttpRequestException { StatusCode: HttpStatusCode.ServiceUnavailable } =>
+                    "Online co-op relay is temporarily unavailable. Please try again later.",
+                _ => $"Could not create the co-op room: {relayException?.Message ?? "the relay service returned an invalid session"}",
+            };
+            _lastToDieConnectionPresentationPending = false;
+            return;
+        }
+
         StartHostedLastToDieRun(
             _pendingHostedLastToDieDifficulty,
             _pendingHostedLastToDiePort,
-            validRelay ? relay : null,
-            relayFailure);
+            relay);
     }
 
     private void CancelPendingHostedLastToDieRelayLaunch()
@@ -129,10 +143,15 @@ public partial class Game1
         OpenGarrison.Core.LastToDie.LastToDieDifficulty difficulty,
         int port,
         RelaySessionCreateResponse? relay,
-        string relayFailure,
         int maxPlayers = 2,
         bool publishSocialPresence = true)
     {
+        if (maxPlayers > 1 && relay is null)
+        {
+            _menuStatusMessage = "Online co-op requires the relay service. Please try again later.";
+            return;
+        }
+
         var launchOptions = HostedServerLaunchOptions.CreateLastToDie(
             RuntimePaths.GetConfigPath(OpenGarrisonPreferencesDocument.DefaultFileName),
             maxPlayers == 1 ? "Last To Die Solo" : "Last To Die Co-op",
@@ -158,8 +177,6 @@ public partial class Game1
             resetConsole: true,
             launcherLogMessage: maxPlayers == 1
                 ? "Starting local authoritative Last to Die solo run."
-                : relay is null
-                ? $"Relay unavailable ({relayFailure}); starting direct Last to Die co-op on UDP port {port}."
                 : "Starting private Last to Die co-op through the social relay.");
 
         if (!_hostedServerRuntime.TryStartBackground(launchOptions, out var error))
@@ -170,6 +187,7 @@ public partial class Game1
 
         if (publishSocialPresence)
         {
+            _hostedLastToDieRoomCode = relay?.RoomCode ?? string.Empty;
             SetHostedSocialPresenceEndpoint(port, relay?.GuestWebSocketUrl);
         }
 

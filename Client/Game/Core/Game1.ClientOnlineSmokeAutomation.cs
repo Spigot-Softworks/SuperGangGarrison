@@ -260,6 +260,7 @@ public partial class Game1
             UseAbility = false,
             InteractWeapon = false,
             SwapWeapon = false,
+            ToggleSecondaryWeapon = false,
         };
     }
 

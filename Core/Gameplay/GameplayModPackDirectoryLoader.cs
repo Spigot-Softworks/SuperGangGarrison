@@ -93,6 +93,7 @@ public static class GameplayModPackDirectoryLoader
 
                 return normalizedItem with
                 {
+                    Combat = NormalizeItemCombat(normalizedItem.Combat, filePath),
                     Presentation = NormalizeItemPresentation(normalizedItem.Presentation, filePath),
                     Ownership = normalizedItem.Ownership ?? new GameplayItemOwnershipDefinition(),
                     Ability = NormalizeAbilityDefinition(normalizedItem, filePath),
@@ -1113,6 +1114,68 @@ public static class GameplayModPackDirectoryLoader
         return slot == GameplayEquipmentSlot.Utility
             ? GameplayAbilityConstants.UtilityCategory
             : GameplayAbilityConstants.SecondaryCategory;
+    }
+
+    private static GameplayItemCombatDefinition? NormalizeItemCombat(
+        GameplayItemCombatDefinition? combat,
+        string filePath)
+    {
+        if (combat is null)
+        {
+            return null;
+        }
+
+        var airborneReach = combat.AirborneVelocityReach;
+        if (airborneReach is not null)
+        {
+            if (!string.Equals(airborneReach.Baseline?.Trim(), "classRunJump", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(
+                    $"Gameplay airborneVelocityReach baseline must be \"classRunJump\" in \"{filePath}\".");
+            }
+
+            ValidateFiniteNonNegative(
+                airborneReach.BonusPerExcessBaseline,
+                "airborneVelocityReach.bonusPerExcessBaseline",
+                filePath);
+            ValidateFiniteNonNegative(
+                airborneReach.MaxReachMultiplier,
+                "airborneVelocityReach.maxReachMultiplier",
+                filePath);
+            if (airborneReach.MaxReachMultiplier < 1f)
+            {
+                throw new InvalidOperationException(
+                    $"Gameplay combat field \"airborneVelocityReach.maxReachMultiplier\" must be at least 1 in \"{filePath}\".");
+            }
+        }
+
+        var playerKnockback = combat.PlayerKnockback;
+        if (playerKnockback is not null)
+        {
+            ValidateFiniteNonNegative(playerKnockback.ImpulsePerUse, "playerKnockback.impulsePerUse", filePath);
+            ValidateUnitScale(playerKnockback.AirborneVerticalScale, "playerKnockback.airborneVerticalScale", filePath);
+            ValidateUnitScale(playerKnockback.GroundedVerticalScale, "playerKnockback.groundedVerticalScale", filePath);
+        }
+
+        return combat;
+    }
+
+    private static void ValidateFiniteNonNegative(float value, string fieldName, string filePath)
+    {
+        if (!float.IsFinite(value) || value < 0f)
+        {
+            throw new InvalidOperationException(
+                $"Gameplay combat field \"{fieldName}\" must be finite and non-negative in \"{filePath}\".");
+        }
+    }
+
+    private static void ValidateUnitScale(float value, string fieldName, string filePath)
+    {
+        if (!float.IsFinite(value) || value is < 0f or > 1f)
+        {
+            throw new InvalidOperationException(
+                $"Gameplay combat field \"{fieldName}\" must be between 0 and 1 in \"{filePath}\".");
+        }
     }
 
     private static string ToAbilityChannel(string? category, GameplayEquipmentSlot slot)

@@ -216,12 +216,15 @@ public sealed class Protocol64StateEventTests
             IsCritical: true,
             LastToDieSpyRevolverProfile: 210,
             AppliesLastToDieLuckyStrikeStun: true,
-            CriticalDamageMultiplier: 3.5f);
+            CriticalDamageMultiplier: 3.5f,
+            PlayerKnockbackImpulse: 2.5f,
+            PlayerKnockbackAirborneVerticalScale: 0.5f,
+            PlayerKnockbackGroundedVerticalScale: 0.25f);
 
         var decoded = RoundTrip(registry, value, 2);
 
         Assert.Equal(value, decoded);
-        Assert.Equal((ushort)10, registry.Get<Protocol64ProjectileState>().Descriptor.Key.Revision);
+        Assert.Equal((ushort)11, registry.Get<Protocol64ProjectileState>().Descriptor.Key.Revision);
     }
 
     [Fact]
@@ -421,7 +424,7 @@ public sealed class Protocol64StateEventTests
 
         var decoded = RoundTrip(registry, value, 2);
         Assert.Equal(value, decoded);
-        Assert.Equal((ushort)10, schema.Descriptor.Key.Revision);
+        Assert.Equal((ushort)11, schema.Descriptor.Key.Revision);
     }
 
     [Fact]
@@ -493,6 +496,34 @@ public sealed class Protocol64StateEventTests
     }
 
     [Fact]
+    public void InvalidProjectileKnockbackPayloadIsRejectedBeforeEncoding()
+    {
+        var registry = CreateRegistry(new Protocol64ProjectileStateSchema());
+        var invalid = new Protocol64ProjectileState(
+            8,
+            1,
+            Protocol64ProjectileKind.Bullet,
+            1,
+            1,
+            1,
+            0,
+            0,
+            1,
+            0,
+            0,
+            true,
+            1,
+            8,
+            PlayerKnockbackImpulse: 1f,
+            PlayerKnockbackAirborneVerticalScale: 1.01f);
+
+        var encoded = Protocol64FrameCodec.Encode(registry, invalid, connectionEpoch: 1, frameId: 1);
+
+        Assert.False(encoded.Succeeded);
+        Assert.Equal(Protocol64FaultKind.ValidationFailed, encoded.Fault!.Kind);
+    }
+
+    [Fact]
     public void SchemasUseDisjointStableIdsAndExplicitStateDelivery()
     {
         var schemas = new IProtocol64EventSchema[]
@@ -511,7 +542,7 @@ public sealed class Protocol64StateEventTests
         Assert.Equal(Protocol64DeliveryKind.LastWins, schemas[2].Descriptor.Delivery.Kind);
         Assert.Equal(ChannelType.Control, schemas[4].Descriptor.Delivery.Channel);
         Assert.Equal(
-            new ushort[] { 24, 1, 10, 10, 1, 27 },
+            new ushort[] { 24, 1, 11, 11, 1, 27 },
             schemas.Select(schema => schema.Descriptor.Key.Revision).ToArray());
     }
 
