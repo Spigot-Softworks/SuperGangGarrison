@@ -3,6 +3,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
+using System.Net.Http;
 using System.Threading.Tasks;
 using OpenGarrison.ClientShared;
 
@@ -25,6 +27,7 @@ public partial class Game1
     private Task<IReadOnlyList<FriendDirectMessageEntry>>? _directMessagesPollTask;
     private Task<FriendDirectMessageEntry>? _directMessageSendTask;
     private Task<IReadOnlyList<FriendPresenceEntry>>? _friendCodeJoinTask;
+    private Task<RelayRoomResolveResponse?>? _relayRoomJoinTask;
     private readonly Dictionary<string, FriendPresenceEntry> _friendPresenceByCode = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<FriendRequestEntry> _friendRequestEntries = [];
     private readonly List<FriendDirectMessageEntry> _friendMessageEntries = [];
@@ -37,6 +40,8 @@ public partial class Game1
     private string _lastSocialPresenceSignature = string.Empty;
     private string _lastDirectMessageSenderFriendCode = string.Empty;
     private string _pendingFriendCodeJoin = string.Empty;
+    private string _pendingRelayRoomCodeJoin = string.Empty;
+    private bool _pendingRelayRoomLookupUsesFriendCode;
     private int _hostedSocialPresenceUdpPort;
     private string _hostedSocialPresenceRelayGuestUrl = string.Empty;
 
@@ -62,11 +67,13 @@ public partial class Game1
     {
         if (_hostedSocialPresenceUdpPort == 0 && string.IsNullOrWhiteSpace(_hostedSocialPresenceRelayGuestUrl))
         {
+            _hostedLastToDieRoomCode = string.Empty;
             return;
         }
 
         _hostedSocialPresenceUdpPort = 0;
         _hostedSocialPresenceRelayGuestUrl = string.Empty;
+        _hostedLastToDieRoomCode = string.Empty;
         _socialPresenceNetworkEndpoint = null;
         _socialPresenceSecondsUntilHeartbeat = 0d;
         _lastSocialPresenceSignature = string.Empty;
@@ -125,6 +132,7 @@ public partial class Game1
     private void CompleteSocialPresenceTasks()
     {
         CompleteFriendCodeJoinTask();
+        CompleteRelayRoomJoinTask();
 
         if (_socialPresenceHeartbeatTask is not null && _socialPresenceHeartbeatTask.IsCompleted)
         {
@@ -294,7 +302,7 @@ public partial class Game1
             return;
         }
 
-        if (_friendCodeJoinTask is not null)
+        if (_friendCodeJoinTask is not null || _relayRoomJoinTask is not null)
         {
             _menuStatusMessage = _lastToDieRoomCodeJoinOpen
                 ? "Room-code lookup is already in progress."
@@ -304,7 +312,37 @@ public partial class Game1
 
         _pendingFriendCodeJoin = normalizedFriendCode;
         _menuStatusMessage = $"Finding {_pendingFriendCodeJoin}...";
+        if (_lastToDieRoomCodeJoinOpen)
+        {
+            _pendingRelayRoomCodeJoin = normalizedFriendCode;
+            _pendingRelayRoomLookupUsesFriendCode = true;
+            _relayRoomJoinTask = _presenceClient.ResolveRelayRoomByFriendCodeAsync(normalizedFriendCode);
+            _pendingFriendCodeJoin = string.Empty;
+            _menuStatusMessage = "Finding that friend's Last to Die room...";
+            return;
+        }
+
         _friendCodeJoinTask = _presenceClient.GetFriendPresenceAsync([_pendingFriendCodeJoin]);
+    }
+
+    private void BeginRelayRoomJoin(string roomCode)
+    {
+        if (!RelayRoomCode.TryNormalize(roomCode, out var normalizedRoomCode))
+        {
+            _menuStatusMessage = "Enter a valid four-character room code.";
+            return;
+        }
+
+        if (_friendCodeJoinTask is not null || _relayRoomJoinTask is not null)
+        {
+            _menuStatusMessage = "A room lookup is already in progress.";
+            return;
+        }
+
+        _pendingRelayRoomCodeJoin = normalizedRoomCode;
+        _pendingRelayRoomLookupUsesFriendCode = false;
+        _menuStatusMessage = $"Finding room {_pendingRelayRoomCodeJoin}...";
+        _relayRoomJoinTask = _presenceClient.ResolveRelayRoomAsync(_pendingRelayRoomCodeJoin);
     }
 
     private void CancelFriendCodeJoin()
@@ -318,6 +356,16 @@ public partial class Game1
 
         _friendCodeJoinTask = null;
         _pendingFriendCodeJoin = string.Empty;
+        if (_relayRoomJoinTask is { IsCompleted: false } abandonedRoomTask)
+        {
+            _ = abandonedRoomTask.ContinueWith(
+                static completedTask => _ = completedTask.Exception,
+                TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously);
+        }
+
+        _relayRoomJoinTask = null;
+        _pendingRelayRoomCodeJoin = string.Empty;
+        _pendingRelayRoomLookupUsesFriendCode = false;
     }
 
     private void CompleteFriendCodeJoinTask()
@@ -338,7 +386,7 @@ public partial class Game1
 
         if (!lookupTask.IsCompletedSuccessfully)
         {
-            var lookupLabel = _lastToDieRoomCodeJoinOpen ? "Room-code" : "Friend-code";
+            var lookupLabel = _lastToDieRoomCodeJoinOpen ? "Friend-code room" : "Friend-code";
             _menuStatusMessage = $"{lookupLabel} lookup failed: {lookupTask.Exception?.GetBaseException().Message ?? "request failed"}";
             return;
         }
@@ -348,7 +396,7 @@ public partial class Game1
         if (_lastToDieRoomCodeJoinOpen
             && !FriendPresenceSessionResolver.IsLastToDieRoom(presence))
         {
-            _menuStatusMessage = "That code does not point to a Last to Die room.";
+            _menuStatusMessage = "That friend is not hosting a Last to Die room.";
             return;
         }
 
@@ -357,6 +405,53 @@ public partial class Game1
             _menuStatusMessage = _lastToDieRoomCodeJoinOpen
                 ? "That Last to Die room is not currently joinable."
                 : "That player is not hosting a joinable game.";
+            return;
+        }
+
+        if (TryConnectToServer(endpoint, addConsoleFeedback: false))
+        {
+            _lastToDieRoomCodeJoinOpen = false;
+        }
+    }
+
+    private void CompleteRelayRoomJoinTask()
+    {
+        if (_relayRoomJoinTask is null || !_relayRoomJoinTask.IsCompleted)
+        {
+            return;
+        }
+
+        var lookupTask = _relayRoomJoinTask;
+        var usedFriendCode = _pendingRelayRoomLookupUsesFriendCode;
+        _relayRoomJoinTask = null;
+        _pendingRelayRoomCodeJoin = string.Empty;
+        _pendingRelayRoomLookupUsesFriendCode = false;
+        if (!_manualConnectOpen)
+        {
+            return;
+        }
+
+        if (!lookupTask.IsCompletedSuccessfully)
+        {
+            var exception = lookupTask.Exception?.GetBaseException();
+            _menuStatusMessage = exception is HttpRequestException { StatusCode: HttpStatusCode.TooManyRequests }
+                ? "Too many room lookups. Wait a minute and try again."
+                : $"{(usedFriendCode ? "Friend room" : "Room")} lookup failed: {exception?.Message ?? "request failed"}";
+            return;
+        }
+
+        var room = lookupTask.Result;
+        if (room is null)
+        {
+            _menuStatusMessage = usedFriendCode
+                ? "That friend is not hosting a Last to Die room."
+                : "Room code not found or expired.";
+            return;
+        }
+
+        if (!FriendPresenceSessionResolver.TryCreateRelayJoinEndpoint(room, out var endpoint))
+        {
+            _menuStatusMessage = "That room returned an invalid relay address.";
             return;
         }
 
@@ -589,16 +684,10 @@ public partial class Game1
                     request,
                     _hostedSocialPresenceRelayGuestUrl,
                     IsHostedServerRunning);
-                return;
             }
 
-            // An empty host asks the presence service to use the public address
-            // observed for this authenticated heartbeat. The local client still
-            // connects to its child server over loopback.
-            FriendPresenceSessionResolver.ApplyObservedUdpEndpoint(
-                request,
-                _hostedSocialPresenceUdpPort,
-                IsHostedServerRunning);
+            // Hosted Last to Die is relay-only. If relay state is ever missing,
+            // leave the presence non-joinable instead of exposing a UDP fallback.
             return;
         }
 

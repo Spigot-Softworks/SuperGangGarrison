@@ -32,6 +32,7 @@ public partial class Game1
     private bool _pendingPredictedAbilityPress;
     private bool _pendingPredictedAbilityRelease;
     private bool _pendingPredictedSwapWeaponPress;
+    private bool _pendingPredictedToggleSecondaryWeaponPress;
     private int _pendingPredictedBuildSentryTicksRemaining;
     private int _pendingPredictedBuildDispenserTicksRemaining;
     private int _pendingPredictedDestroySentryTicksRemaining;
@@ -108,6 +109,7 @@ public partial class Game1
         _pendingPredictedAbilityPress = false;
         _pendingPredictedAbilityRelease = false;
         _pendingPredictedSwapWeaponPress = false;
+        _pendingPredictedToggleSecondaryWeaponPress = false;
         _pendingPredictedBuildSentryTicksRemaining = 0;
         _pendingPredictedBuildDispenserTicksRemaining = 0;
         _pendingPredictedDestroySentryTicksRemaining = 0;
@@ -196,6 +198,7 @@ public partial class Game1
             && !networkInput.FireSecondary
             && !networkInput.UseAbility
             && !networkInput.SwapWeapon
+            && !networkInput.ToggleSecondaryWeapon
             && !networkInput.BuildSentry
             && !networkInput.BuildDispenser
             && !networkInput.DestroySentry
@@ -271,6 +274,13 @@ public partial class Game1
         {
             _pendingPredictedSwapWeaponPress = true;
         }
+
+        var toggleSecondaryWeaponPressed = networkInput.ToggleSecondaryWeapon
+            && !previousPredictedInput.ToggleSecondaryWeapon;
+        if (toggleSecondaryWeaponPressed)
+        {
+            _pendingPredictedToggleSecondaryWeaponPress = true;
+        }
     }
 
     private PlayerInputSnapshot ApplyPendingInputEdges(PlayerInputSnapshot input)
@@ -281,7 +291,8 @@ public partial class Game1
             _pendingPredictedSecondaryAbilityPress,
             _pendingPredictedPrimaryPress,
             _pendingPredictedSwapWeaponPress,
-            _pendingPredictedAbilityPress);
+            _pendingPredictedAbilityPress,
+            _pendingPredictedToggleSecondaryWeaponPress);
 
         if (!_networkClient.IsConnected)
         {
@@ -337,7 +348,8 @@ public partial class Game1
         bool secondaryAbilityPressed,
         bool primaryPressed,
         bool swapWeaponPressed,
-        bool abilityPressed)
+        bool abilityPressed,
+        bool toggleSecondaryWeaponPressed = false)
     {
         if (jumpPressed && !input.Up)
         {
@@ -357,6 +369,11 @@ public partial class Game1
         if (swapWeaponPressed && !input.SwapWeapon)
         {
             input = input with { SwapWeapon = true };
+        }
+
+        if (toggleSecondaryWeaponPressed && !input.ToggleSecondaryWeapon)
+        {
+            input = input with { ToggleSecondaryWeapon = true };
         }
 
         if (abilityPressed && !input.UseAbility)
@@ -510,6 +527,7 @@ public partial class Game1
                 _pendingPredictedSecondaryAbilityRelease,
                 _pendingPredictedAbilityPress,
                 _pendingPredictedSwapWeaponPress,
+                _pendingPredictedToggleSecondaryWeaponPress,
                 outboundNetworkInput.Taunt && !_previousPredictedLocalInput.Taunt,
                 _pendingPredictedAbilityRelease);
             ClearConsumedPredictedInputEdges();

@@ -416,7 +416,8 @@ public partial class Game1
             return;
         }
 
-        var swappedWeaponThisTick = ApplyPredictedWeaponSwap(player, predictedInput);
+        var swappedWeaponThisTick = ApplyPredictedSecondaryWeaponToggle(player, predictedInput)
+            || ApplyPredictedWeaponSwap(player, predictedInput);
         ApplyPredictedSecondaryWeaponFire(player, predictedInput, swappedWeaponThisTick);
     }
 
@@ -653,6 +654,18 @@ public partial class Game1
                 SyncPredictedLocalPlayerState(player);
                 return true;
             }
+        }
+
+        return TryPredictedToggleSecondaryWeapon(player);
+    }
+
+    private bool ApplyPredictedSecondaryWeaponToggle(PlayerEntity player, PredictedLocalInput predictedInput)
+    {
+        if (player.IsTaunting
+            || player.IsExperimentalCryoFrozen
+            || !predictedInput.ToggleSecondaryWeaponPressed)
+        {
+            return false;
         }
 
         return TryPredictedToggleSecondaryWeapon(player);

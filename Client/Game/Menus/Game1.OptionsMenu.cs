@@ -516,6 +516,12 @@ public partial class Game1
         PersistInputBindings();
     }
 
+    private void ToggleScrollWheelWeaponSwapSetting()
+    {
+        _inputBindings.ScrollWheelWeaponSwapEnabled = !_inputBindings.ScrollWheelWeaponSwapEnabled;
+        PersistInputBindings();
+    }
+
     private void CycleControllerInputModeSetting()
     {
         _clientSettings.ControllerInputMode = OpenGarrisonPreferencesDocument.NormalizeControllerInputMode(_clientSettings.ControllerInputMode) switch

@@ -411,10 +411,24 @@ public sealed class GameplayModPackLoaderTests
         var scattergun = pack.Items["weapon.scattergun"];
         Assert.Equal(GameplayItemKind.Weapon, scattergun.Kind);
         Assert.Equal(GameplayWeaponSlot.Primary, scattergun.WeaponSlot);
+        Assert.Equal(4f, scattergun.Combat?.PlayerKnockback?.ImpulsePerUse);
+        Assert.Equal(0.5f, scattergun.Combat?.PlayerKnockback?.AirborneVerticalScale);
+        Assert.Equal(0.5f, scattergun.Combat?.PlayerKnockback?.GroundedVerticalScale);
+
+        var flamethrowerReach = pack.Items["weapon.flamethrower"].Combat?.AirborneVelocityReach;
+        Assert.NotNull(flamethrowerReach);
+        Assert.Equal("classRunJump", flamethrowerReach!.Baseline);
+        Assert.Equal(0.5f, flamethrowerReach.BonusPerExcessBaseline);
+        Assert.Equal(1.5f, flamethrowerReach.MaxReachMultiplier);
 
         var scoutNailgun = pack.Items["weapon.scout-nailgun"];
         Assert.Equal(GameplayItemKind.Weapon, scoutNailgun.Kind);
         Assert.Equal(GameplayWeaponSlot.Primary, scoutNailgun.WeaponSlot);
+        Assert.Equal(5, scoutNailgun.Ammo.UseDelaySourceTicks);
+
+        var engineerPistol = pack.Items["weapon.engineer-pistol"];
+        Assert.Equal(GameplayWeaponSlot.Secondary, engineerPistol.WeaponSlot);
+        Assert.Equal(22, engineerPistol.Ammo.MaxAmmo);
 
         var pyroAirblast = pack.Items["ability.pyro-airblast"];
         Assert.Equal(GameplayItemKind.Ability, pyroAirblast.Kind);
@@ -2302,6 +2316,9 @@ public sealed class GameplayModPackLoaderTests
 
         Assert.Equal(FlameProjectileEntity.DirectHitDamage, stockFlamethrower.DirectHitDamage);
         Assert.Equal(FlameProjectileEntity.BurnDamagePerTick, stockFlamethrower.DamagePerTick);
+        Assert.Equal(new AirborneVelocityReachDefinition(0.5f, 1.5f), stockFlamethrower.AirborneVelocityReach);
+        Assert.Equal(new PlayerKnockbackDefinition(4f, 0.5f, 0.5f), CharacterClassCatalog.Scattergun.PlayerKnockback);
+        Assert.Equal(new PlayerKnockbackDefinition(2.5f, 0.5f, 0.5f), stockRevolver.PlayerKnockback);
         Assert.Equal(PlayerEntity.QuoteBubbleLimit, stockBlade.ActiveProjectileLimit);
 
         static void AssertHeavyBulletPlayerEffects(PrimaryWeaponDefinition weapon)

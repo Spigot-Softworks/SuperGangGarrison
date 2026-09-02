@@ -100,11 +100,11 @@ public sealed class Protocol64MessageSchemaTests
             Protocol64EventId.Hello => 2,
             Protocol64EventId.PlayerStateBatch => 24,
             Protocol64EventId.StateResyncResponse => 27,
-            Protocol64EventId.Snapshot => 4,
+            Protocol64EventId.Snapshot => 5,
             Protocol64EventId.ProjectileState
-                or Protocol64EventId.ProjectileLifecycle => 10,
+                or Protocol64EventId.ProjectileLifecycle => 11,
             Protocol64EventId.LastToDieRunSnapshot => 4,
-            Protocol64EventId.InputCommand => 3,
+            Protocol64EventId.InputCommand => 4,
             Protocol64EventId.InputCommandResult => 2,
             _ => 1,
         };

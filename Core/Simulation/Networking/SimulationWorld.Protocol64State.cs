@@ -132,7 +132,12 @@ public sealed partial class SimulationWorld
     {
         return state.EntityKind switch
         {
-            Protocol64ProjectileKind.Bullet => new ShotProjectileEntity(id, team, ownerId, state.X, state.Y, state.VelocityX, state.VelocityY),
+            Protocol64ProjectileKind.Bullet => CreateProtocol64BulletProjectile(
+                state,
+                id,
+                team,
+                ownerId,
+                lifetime),
             Protocol64ProjectileKind.Blade => new BladeProjectileEntity(id, team, ownerId, state.X, state.Y, state.VelocityX, state.VelocityY, Math.Max(0, (int)MathF.Round(state.Damage)), lifetime),
             Protocol64ProjectileKind.Needle when state.LastToDieMedicKritzM2Payload != 0
                 => new MedicHealNeedleProjectileEntity(
@@ -205,6 +210,39 @@ public sealed partial class SimulationWorld
         };
     }
 
+    private static ShotProjectileEntity CreateProtocol64BulletProjectile(
+        Protocol64ProjectileState state,
+        int id,
+        PlayerTeam team,
+        int ownerId,
+        int lifetime)
+    {
+        var damage = Math.Max(0f, state.Damage);
+        var shot = new ShotProjectileEntity(
+            id,
+            team,
+            ownerId,
+            state.X,
+            state.Y,
+            state.VelocityX,
+            state.VelocityY,
+            damagePerHit: damage,
+            playerKnockbackImpulse: state.PlayerKnockbackImpulse,
+            playerKnockbackAirborneVerticalScale: state.PlayerKnockbackAirborneVerticalScale,
+            playerKnockbackGroundedVerticalScale: state.PlayerKnockbackGroundedVerticalScale);
+        shot.ApplyNetworkState(
+            state.X,
+            state.Y,
+            state.VelocityX,
+            state.VelocityY,
+            lifetime,
+            damage,
+            state.PlayerKnockbackImpulse,
+            state.PlayerKnockbackAirborneVerticalScale,
+            state.PlayerKnockbackGroundedVerticalScale);
+        return shot;
+    }
+
     private static RevolverProjectileEntity CreateProtocol64RevolverProjectile(
         Protocol64ProjectileState state,
         int id,
@@ -223,13 +261,20 @@ public sealed partial class SimulationWorld
             Math.Max(0f, state.Damage),
             lastToDieProfile: LastToDieSpyRevolverProfile.Decode(
                 state.LastToDieSpyRevolverProfile),
-            appliesLuckyStrikeStun: state.AppliesLastToDieLuckyStrikeStun);
+            appliesLuckyStrikeStun: state.AppliesLastToDieLuckyStrikeStun,
+            playerKnockbackImpulse: state.PlayerKnockbackImpulse,
+            playerKnockbackAirborneVerticalScale: state.PlayerKnockbackAirborneVerticalScale,
+            playerKnockbackGroundedVerticalScale: state.PlayerKnockbackGroundedVerticalScale);
         shot.ApplyNetworkState(
             state.X,
             state.Y,
             state.VelocityX,
             state.VelocityY,
-            lifetime);
+            lifetime,
+            Math.Max(0f, state.Damage),
+            state.PlayerKnockbackImpulse,
+            state.PlayerKnockbackAirborneVerticalScale,
+            state.PlayerKnockbackGroundedVerticalScale);
         return shot;
     }
 

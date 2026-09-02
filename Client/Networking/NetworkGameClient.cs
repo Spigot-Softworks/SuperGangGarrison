@@ -70,6 +70,7 @@ internal sealed class NetworkGameClient : IDisposable
         | InputButtons.UseAbility
         | InputButtons.InteractWeapon
         | InputButtons.SwapWeapon
+        | InputButtons.ToggleSecondaryWeapon
         | InputButtons.ReadyUp
         | InputButtons.BuildDispenser;
 
@@ -769,6 +770,7 @@ internal sealed class NetworkGameClient : IDisposable
         if (input.UseAbility) buttons |= InputButtons.UseAbility;
         if (input.InteractWeapon) buttons |= InputButtons.InteractWeapon;
         if (input.SwapWeapon) buttons |= InputButtons.SwapWeapon;
+        if (input.ToggleSecondaryWeapon) buttons |= InputButtons.ToggleSecondaryWeapon;
         if (input.ReadyUp) buttons |= InputButtons.ReadyUp;
         if (input.IsTypingChatMessage) buttons |= InputButtons.IsTypingChatMessage;
 
@@ -1186,6 +1188,7 @@ internal sealed class NetworkGameClient : IDisposable
         allSent &= SendProtocol64Edge(input.UseAbility && !previous.UseAbility, Protocol64InputCommandKind.UseAbility, inputSequence, heldButtons, aimRelX, aimRelY);
         allSent &= SendProtocol64Edge(input.InteractWeapon && !previous.InteractWeapon, Protocol64InputCommandKind.InteractWeapon, inputSequence, heldButtons, aimRelX, aimRelY);
         allSent &= SendProtocol64Edge(input.SwapWeapon && !previous.SwapWeapon, Protocol64InputCommandKind.SwapWeapon, inputSequence, heldButtons, aimRelX, aimRelY);
+        allSent &= SendProtocol64Edge(input.ToggleSecondaryWeapon && !previous.ToggleSecondaryWeapon, Protocol64InputCommandKind.ToggleSecondaryWeapon, inputSequence, heldButtons, aimRelX, aimRelY);
         allSent &= SendProtocol64Edge(input.ReadyUp && !previous.ReadyUp, Protocol64InputCommandKind.ReadyUp, inputSequence, heldButtons, aimRelX, aimRelY);
         return allSent;
     }

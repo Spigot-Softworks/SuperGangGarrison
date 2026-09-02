@@ -842,6 +842,9 @@ public sealed partial class SimulationWorld
             (int)MathF.Round(
                 CharacterClassCatalog.Scattergun.ProjectilesPerShot
                 * global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerBuckshotConversionPelletMultiplier));
+        var pelletKnockback = BulletKnockbackRules.ResolvePayload(
+            CharacterClassCatalog.Scattergun,
+            pelletCount);
         var baseAngle = MathF.Atan2(target.Y - sentry.Y, target.X - sentry.X);
         for (var pelletIndex = 0; pelletIndex < pelletCount; pelletIndex += 1)
         {
@@ -871,7 +874,10 @@ public sealed partial class SimulationWorld
                 pelletDamage,
                 killFeedWeaponSpriteNameOverride: "TurretKL",
                 sourceSentryId: sentry.Id,
-                applyExperimentalEngineerSentryPerkEffects: true);
+                applyExperimentalEngineerSentryPerkEffects: true,
+                playerKnockbackImpulse: pelletKnockback.Impulse,
+                playerKnockbackAirborneVerticalScale: pelletKnockback.AirborneVerticalScale,
+                playerKnockbackGroundedVerticalScale: pelletKnockback.GroundedVerticalScale);
         }
 
         if (IsExperimentalEngineerPerkOwner(owner)
@@ -968,25 +974,16 @@ public sealed partial class SimulationWorld
         bool criticalBoost = false,
         bool useLiveAttackerCriticalBoost = true,
         float? threatSourceX = null,
-        float? threatSourceY = null)
+        float? threatSourceY = null,
+        BulletKnockbackPayload? knockbackPayload = null,
+        float? impactDirectionX = null,
+        float? impactDirectionY = null)
     {
         var appliedBaseDamage = Math.Max(
             1,
             (int)MathF.Round(
                 baseDamage * GetExperimentalOutgoingSentryDamageMultiplier(owner, target)));
         RegisterBloodEffect(target.X, target.Y, sentry.AimDirectionDegrees - 180f, 2);
-        if (!target.IsUbered)
-        {
-            var distance = DistanceBetween(sentry.X, sentry.Y, target.X, target.Y);
-            if (distance > 0.001f)
-            {
-                var sentryKnockbackPerSecond = 0.5f * LegacyMovementModel.SourceTicksPerSecond;
-                var directionX = (target.X - sentry.X) / distance;
-                var directionY = (target.Y - sentry.Y) / distance;
-                target.AddImpulse(directionX * sentryKnockbackPerSecond, directionY * sentryKnockbackPerSecond);
-            }
-        }
-
         var healthBefore = target.Health;
         var resolution = ResolvePlayerDamageWithContext(
             target,
@@ -998,7 +995,17 @@ public sealed partial class SimulationWorld
             civvieUmbrellaThreatSourceY: threatSourceY,
             civvieUmbrellaCriticalBoost: criticalBoost,
             civvieUmbrellaUseLiveAttackerCriticalBoost: useLiveAttackerCriticalBoost,
-            additionalTraits: additionalTraits);
+            additionalTraits: PlayerDamageTraits.Bullet | additionalTraits);
+        if (resolution.ShouldApplyOnHitEffects && target.IsAlive)
+        {
+            var directionX = impactDirectionX ?? (target.X - sentry.X);
+            var directionY = impactDirectionY ?? (target.Y - sentry.Y);
+            BulletKnockbackRules.Apply(
+                target,
+                directionX,
+                directionY,
+                knockbackPayload ?? BulletKnockbackRules.CreateSentryPayload());
+        }
         if (resolution.WasFatal)
         {
             KillPlayer(target, killer: owner, weaponSpriteName: "TurretKL", deathCamMessage: "You were killed by the autogun of", deathCamSentry: sentry);

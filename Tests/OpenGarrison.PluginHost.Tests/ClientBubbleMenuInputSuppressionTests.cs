@@ -25,7 +25,8 @@ public sealed class ClientBubbleMenuInputSuppressionTests
             DropIntel: false,
             UseAbility: true,
             InteractWeapon: true,
-            SwapWeapon: true);
+            SwapWeapon: true,
+            ToggleSecondaryWeapon: true);
 
         var result = Game1.ApplyBubbleMenuGameplaySuppression(input);
 
@@ -34,5 +35,6 @@ public sealed class ClientBubbleMenuInputSuppressionTests
         Assert.False(result.UseAbility);
         Assert.False(result.InteractWeapon);
         Assert.False(result.SwapWeapon);
+        Assert.False(result.ToggleSecondaryWeapon);
     }
 }

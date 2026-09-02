@@ -1,4 +1,5 @@
 using OpenGarrison.Client;
+using OpenGarrison.Protocol;
 using Xunit;
 
 namespace OpenGarrison.PluginHost.Tests;
@@ -44,5 +45,37 @@ public sealed class ClientNetworkWorldWarmupTests
             hasFreshRemotePlayerHistories: true,
             hasQueuedAuthoritativeSnapshots: true,
             interpolationWarmupActive: false));
+    }
+
+    [Theory]
+    [InlineData(LastToDieWirePhase.Lobby)]
+    [InlineData(LastToDieWirePhase.SurvivorChoice)]
+    [InlineData(LastToDieWirePhase.RewardChoice)]
+    [InlineData(LastToDieWirePhase.LoadingStage)]
+    [InlineData(LastToDieWirePhase.Won)]
+    [InlineData(LastToDieWirePhase.Lost)]
+    public void WarmupDoesNotHideHostedLastToDieFullScreenMenus(LastToDieWirePhase phase)
+    {
+        Assert.False(Game1.ShouldBlockNetworkWorldWarmupPresentation(
+            gameplayWarmupBlocking: true,
+            lastToDiePhase: phase));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData(LastToDieWirePhase.Playing)]
+    public void WarmupStillHidesUnreadyGameplayWorld(LastToDieWirePhase? phase)
+    {
+        Assert.True(Game1.ShouldBlockNetworkWorldWarmupPresentation(
+            gameplayWarmupBlocking: true,
+            lastToDiePhase: phase));
+    }
+
+    [Fact]
+    public void InactiveWarmupNeverBlocksPresentation()
+    {
+        Assert.False(Game1.ShouldBlockNetworkWorldWarmupPresentation(
+            gameplayWarmupBlocking: false,
+            lastToDiePhase: LastToDieWirePhase.Playing));
     }
 }

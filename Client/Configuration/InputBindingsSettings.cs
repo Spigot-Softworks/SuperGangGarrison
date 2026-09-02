@@ -72,6 +72,8 @@ public sealed class InputBindingsSettings
 
     public InputBinding SwapWeaponsCustomKey { get; set; } = InputBinding.FromKey(Keys.Q);
 
+    public bool ScrollWheelWeaponSwapEnabled { get; set; } = true;
+
     public InputBinding ShowScoreboard { get; set; } = InputBinding.FromKey(Keys.Tab);
 
     public InputBinding ChangeTeam { get; set; } = InputBinding.FromKey(Keys.N);
@@ -141,6 +143,7 @@ public sealed class InputBindingsSettings
         document.SetString("Controls", "interactWeapon", FormatBinding(InteractWeapon));
         document.SetString("Controls", "swapWeapons", NormalizeSwapWeaponsBinding(SwapWeaponsBinding).ToString());
         document.SetString("Controls", "swapWeaponsCustomKey", FormatBinding(SwapWeaponsCustomKey));
+        document.SetBool("Controls", "scrollWheelWeaponSwap", ScrollWheelWeaponSwapEnabled);
         document.SetString("Controls", "changeTeam", FormatBinding(ChangeTeam));
         document.SetString("Controls", "changeClass", FormatBinding(ChangeClass));
         document.SetString("Controls", "showScores", FormatBinding(ShowScoreboard));
@@ -173,6 +176,7 @@ public sealed class InputBindingsSettings
             InteractWeapon = ReadBinding(document, "interactWeapon", Keys.G),
             SwapWeaponsBinding = ReadSwapWeaponsBinding(document),
             SwapWeaponsCustomKey = ReadBinding(document, "swapWeaponsCustomKey", Keys.Q),
+            ScrollWheelWeaponSwapEnabled = document.GetBool("Controls", "scrollWheelWeaponSwap", true),
             ChangeTeam = ReadBinding(document, "changeTeam", Keys.N),
             ChangeClass = ReadBinding(document, "changeClass", Keys.M),
             ShowScoreboard = ReadBinding(document, "showScores", Keys.LeftShift),

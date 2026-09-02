@@ -47,6 +47,22 @@ public sealed class ClientInputEdgeLatchTests
     }
 
     [Fact]
+    public void LatchedScrollWheelToggleSurvivesAReleasedRenderFrame()
+    {
+        var fixedTickInput = Game1.ApplyLatchedOneShotInputEdges(
+            default,
+            jumpPressed: false,
+            secondaryAbilityPressed: false,
+            primaryPressed: false,
+            swapWeaponPressed: false,
+            abilityPressed: false,
+            toggleSecondaryWeaponPressed: true);
+
+        Assert.True(fixedTickInput.ToggleSecondaryWeapon);
+        Assert.False(fixedTickInput.SwapWeapon);
+    }
+
+    [Fact]
     public void PrimaryPressStartsLocalWeaponPresentationBeforeAuthorityStateChanges()
     {
         var pendingConfirmationSeconds = 0f;

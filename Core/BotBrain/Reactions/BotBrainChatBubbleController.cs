@@ -877,6 +877,7 @@ public sealed class BotBrainChatBubbleController
             UseAbility = false,
             InteractWeapon = false,
             SwapWeapon = false,
+            ToggleSecondaryWeapon = false,
         };
     }
 

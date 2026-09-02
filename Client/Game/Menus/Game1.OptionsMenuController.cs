@@ -584,6 +584,7 @@ public partial class Game1
                 // Controls: bindings and controller aiming behavior.
                 new("Keyboard & Mouse", string.Empty, OpenControlsMenuFromOptions, OptionsMenuTab.Controls),
                 new("Swap Weapons", _game.GetSwapWeaponsBindingLabel(), _game.CycleSwapWeaponsBindingSetting, OptionsMenuTab.Controls),
+                new("Scroll Wheel Weapon Swap", _game._inputBindings.ScrollWheelWeaponSwapEnabled ? "On" : "Off", _game.ToggleScrollWheelWeaponSwapSetting, OptionsMenuTab.Controls),
                 new("Controller Input", Game1.GetControllerInputModeLabel(_game._clientSettings.ControllerInputMode), _game.CycleControllerInputModeSetting, OptionsMenuTab.Controls),
                 new("Controller Reticle", Game1.GetControllerReticleModeLabel(_game._clientSettings.ControllerReticleMode), _game.CycleControllerReticleModeSetting, OptionsMenuTab.Controls),
                 new("Controller Aim Assist", _game._clientSettings.ControllerAimAssistEnabled ? "Enabled" : "Disabled", _game.ToggleControllerAimAssistSetting, OptionsMenuTab.Controls),

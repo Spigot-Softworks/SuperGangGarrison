@@ -56,6 +56,7 @@ public sealed partial class SimulationWorld
                 UseAbility = false,
                 InteractWeapon = false,
                 SwapWeapon = false,
+                ToggleSecondaryWeapon = false,
             };
         }
         var isHumiliated = IsPlayerHumiliated(player);
@@ -70,6 +71,7 @@ public sealed partial class SimulationWorld
                 FireSecondary = false,
                 UseAbility = false,
                 SwapWeapon = false,
+                ToggleSecondaryWeapon = false,
                 BuildSentry = false,
                 BuildDispenser = false,
                 DestroySentry = false,
@@ -128,6 +130,7 @@ public sealed partial class SimulationWorld
         var abilityPressed = input.UseAbility && !previousInput.UseAbility;
         var abilityReleased = !input.UseAbility && previousInput.UseAbility;
         var swapWeaponPressed = input.SwapWeapon && !previousInput.SwapWeapon;
+        var toggleSecondaryWeaponPressed = input.ToggleSecondaryWeapon && !previousInput.ToggleSecondaryWeapon;
         var interactWeaponPressed = input.InteractWeapon && !previousInput.InteractWeapon;
         if (jumpPressed)
         {
@@ -343,7 +346,13 @@ public sealed partial class SimulationWorld
             secondaryAbilityConsumedInput = secondaryResult.ConsumedInput;
         }
 
-        if (swapWeaponPressed && !secondaryAbilityConsumedInput)
+        if (toggleSecondaryWeaponPressed
+            && !player.IsTaunting
+            && !player.IsExperimentalCryoFrozen)
+        {
+            _ = TryHandleSecondaryWeaponToggle(player);
+        }
+        else if (swapWeaponPressed && !secondaryAbilityConsumedInput)
         {
             _ = TryHandleNetworkWeaponSwap(player);
         }

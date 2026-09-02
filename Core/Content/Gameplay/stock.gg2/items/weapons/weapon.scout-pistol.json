@@ -20,7 +20,12 @@
   "combat": {
     "fireSoundName": "PistolSnd",
     "killFeedSpriteName": "PistolKL",
-    "directHitDamage": 8
+    "directHitDamage": 8,
+    "playerKnockback": {
+      "impulsePerUse": 1.25,
+      "airborneVerticalScale": 0.5,
+      "groundedVerticalScale": 0.5
+    }
   },
   "presentation": {
     "worldSpriteName": "PistolS",

@@ -18,7 +18,12 @@
     "refillsAllAtOnce": true
   },
   "combat": {
-    "fireSoundName": "RevolverSnd"
+    "fireSoundName": "RevolverSnd",
+    "playerKnockback": {
+      "impulsePerUse": 2.5,
+      "airborneVerticalScale": 0.5,
+      "groundedVerticalScale": 0.5
+    }
   },
   "presentation": {
     "worldSpriteName": "RevolverS",

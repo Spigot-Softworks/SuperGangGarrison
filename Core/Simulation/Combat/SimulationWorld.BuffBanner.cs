@@ -25,7 +25,12 @@ public sealed partial class SimulationWorld
             "maxChargeDamage",
             PlayerEntity.BuffBannerDefaultMaxChargeDamage,
             minValue: 1);
-        attacker.TryAddBuffBannerDamageCharge(appliedDamage, maxChargeDamage);
+        var wasReady = attacker.IsBuffBannerReady;
+        var chargeChanged = attacker.TryAddBuffBannerDamageCharge(appliedDamage, maxChargeDamage);
+        if (chargeChanged && !wasReady && attacker.IsBuffBannerReady)
+        {
+            RegisterWorldSoundEvent(PlayerEntity.BuffBannerReadySoundName, attacker.X, attacker.Y, attacker.Id);
+        }
     }
 
     private void UpdateBuffBannerAuras()

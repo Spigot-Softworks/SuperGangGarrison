@@ -1141,6 +1141,7 @@ internal sealed class ServerBotManager
             DropIntel = false,
             InteractWeapon = false,
             SwapWeapon = false,
+            ToggleSecondaryWeapon = false,
             ReadyUp = false,
         };
 
@@ -1195,6 +1196,7 @@ internal sealed class ServerBotManager
             || input.UseAbility
             || input.InteractWeapon
             || input.SwapWeapon
+            || input.ToggleSecondaryWeapon
             || input.IsUsingBinoculars;
     }
 

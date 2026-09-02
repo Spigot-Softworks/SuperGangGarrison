@@ -21,7 +21,7 @@ public partial class Game1
 
         public void DrawFrame(GameTime gameTime)
         {
-            if (_game.IsNetworkWorldWarmupBlockingGameplay()
+            if (_game.IsNetworkWorldWarmupBlockingPresentation()
                 || _game.IsPracticeNavigationWarmupBlockingGameplay())
             {
                 _game.BeginLogicalFrame(new Color(24, 32, 48));

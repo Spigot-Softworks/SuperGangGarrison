@@ -452,6 +452,36 @@ public sealed class Protocol64StateApplierTests
         Assert.Equal(original.LastToDieProfile, recreated.LastToDieProfile);
         Assert.True(recreated.AppliesLuckyStrikeStun);
         Assert.Equal(original.TicksRemaining, recreated.TicksRemaining);
+        Assert.Equal(original.PlayerKnockbackPayload, recreated.PlayerKnockbackPayload);
+    }
+
+    [Fact]
+    public void Protocol64PublisherAndWorldRecreateBulletDamageKnockbackAndLifetime()
+    {
+        var source = CreateJoinedWorld(PlayerClass.Scout);
+        source.RandomSpreadEnabled = false;
+        Assert.True(source.LocalPlayer.TryFirePrimaryWeapon());
+        InvokeFirePrimaryWeapon(source, source.LocalPlayer, 100f, 0f);
+        var original = source.Shots[0];
+        original.AdvanceOneTick();
+        var publisher = new Protocol64StatePublisher(source);
+        var state = Assert.Single(
+            publisher.BuildProjectileStates(20),
+            projectile => projectile.EntityId == (ulong)original.Id);
+
+        Assert.Equal(original.DamageValue, state.Damage);
+        Assert.Equal(original.PlayerKnockbackImpulse, state.PlayerKnockbackImpulse);
+        Assert.Equal(original.PlayerKnockbackAirborneVerticalScale, state.PlayerKnockbackAirborneVerticalScale);
+        Assert.Equal(original.PlayerKnockbackGroundedVerticalScale, state.PlayerKnockbackGroundedVerticalScale);
+        Assert.Equal((uint)original.TicksRemaining, state.RemainingLifetimeTicks);
+
+        var receiver = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
+        Assert.True(receiver.ApplyProtocol64ProjectileState(state));
+        var recreated = Assert.Single(receiver.Shots);
+
+        Assert.Equal(original.DamageValue, recreated.DamageValue);
+        Assert.Equal(original.PlayerKnockbackPayload, recreated.PlayerKnockbackPayload);
+        Assert.Equal(original.TicksRemaining, recreated.TicksRemaining);
     }
 
     [Fact]

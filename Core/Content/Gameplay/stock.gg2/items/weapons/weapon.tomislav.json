@@ -23,7 +23,12 @@
     "directHitDamage": 7.0,
     "playerKnockbackScale": 1.05,
     "playerSlowMovementMultiplier": 0.97,
-    "playerSlowRefreshSourceTicks": 6
+    "playerSlowRefreshSourceTicks": 6,
+    "playerKnockback": {
+      "impulsePerUse": 1.25,
+      "airborneVerticalScale": 0.5,
+      "groundedVerticalScale": 0.5
+    }
   },
   "presentation": {
     "worldSpriteName": "stock.gg2.weapon.tomislav.world",

@@ -21,7 +21,10 @@ public sealed class ShotProjectileEntity : SimulationEntity
         bool applyExperimentalEngineerSentryPerkEffects = false,
         float playerKnockbackScale = 1f,
         float? playerSlowMovementMultiplier = null,
-        int playerSlowRefreshTicks = 0) : base(id)
+        int playerSlowRefreshTicks = 0,
+        float? playerKnockbackImpulse = null,
+        float playerKnockbackAirborneVerticalScale = 1f,
+        float playerKnockbackGroundedVerticalScale = 1f) : base(id)
     {
         Team = team;
         OwnerId = ownerId;
@@ -35,6 +38,12 @@ public sealed class ShotProjectileEntity : SimulationEntity
         SourceSentryId = sourceSentryId;
         ApplyExperimentalEngineerSentryPerkEffects = applyExperimentalEngineerSentryPerkEffects;
         PlayerKnockbackScale = Math.Max(0f, playerKnockbackScale);
+        PlayerKnockbackImpulse = Math.Max(
+            0f,
+            playerKnockbackImpulse
+                ?? (BulletKnockbackRules.LegacyImpulsePerProjectile * PlayerKnockbackScale));
+        PlayerKnockbackAirborneVerticalScale = Math.Clamp(playerKnockbackAirborneVerticalScale, 0f, 1f);
+        PlayerKnockbackGroundedVerticalScale = Math.Clamp(playerKnockbackGroundedVerticalScale, 0f, 1f);
         PlayerSlowMovementMultiplier = playerSlowMovementMultiplier.HasValue
             ? Math.Clamp(playerSlowMovementMultiplier.Value, 0.05f, 1f)
             : null;
@@ -69,6 +78,17 @@ public sealed class ShotProjectileEntity : SimulationEntity
     public bool ApplyExperimentalEngineerSentryPerkEffects { get; }
 
     public float PlayerKnockbackScale { get; private set; }
+
+    public float PlayerKnockbackImpulse { get; private set; }
+
+    public float PlayerKnockbackAirborneVerticalScale { get; private set; }
+
+    public float PlayerKnockbackGroundedVerticalScale { get; private set; }
+
+    public BulletKnockbackPayload PlayerKnockbackPayload => new(
+        PlayerKnockbackImpulse,
+        PlayerKnockbackAirborneVerticalScale,
+        PlayerKnockbackGroundedVerticalScale);
 
     public float? PlayerSlowMovementMultiplier { get; private set; }
 
@@ -126,7 +146,16 @@ public sealed class ShotProjectileEntity : SimulationEntity
         TicksRemaining = LifetimeTicks;
     }
 
-    public void ApplyNetworkState(float x, float y, float velocityX, float velocityY, int ticksRemaining)
+    public void ApplyNetworkState(
+        float x,
+        float y,
+        float velocityX,
+        float velocityY,
+        int ticksRemaining,
+        float? damageValue = null,
+        float? playerKnockbackImpulse = null,
+        float? playerKnockbackAirborneVerticalScale = null,
+        float? playerKnockbackGroundedVerticalScale = null)
     {
         PreviousX = X;
         PreviousY = Y;
@@ -135,9 +164,24 @@ public sealed class ShotProjectileEntity : SimulationEntity
         VelocityX = velocityX;
         VelocityY = velocityY;
         TicksRemaining = ticksRemaining;
-        DamageValue = DamagePerHit;
-        PlayerKnockbackScale = 1f;
-        PlayerSlowMovementMultiplier = null;
-        PlayerSlowRefreshTicks = 0;
+        if (damageValue.HasValue)
+        {
+            DamageValue = Math.Max(0f, damageValue.Value);
+        }
+        if (playerKnockbackImpulse.HasValue)
+        {
+            PlayerKnockbackScale = BulletKnockbackRules.LegacyImpulsePerProjectile <= 0f
+                ? 0f
+                : Math.Max(0f, playerKnockbackImpulse.Value) / BulletKnockbackRules.LegacyImpulsePerProjectile;
+            PlayerKnockbackImpulse = Math.Max(0f, playerKnockbackImpulse.Value);
+        }
+        if (playerKnockbackAirborneVerticalScale.HasValue)
+        {
+            PlayerKnockbackAirborneVerticalScale = Math.Clamp(playerKnockbackAirborneVerticalScale.Value, 0f, 1f);
+        }
+        if (playerKnockbackGroundedVerticalScale.HasValue)
+        {
+            PlayerKnockbackGroundedVerticalScale = Math.Clamp(playerKnockbackGroundedVerticalScale.Value, 0f, 1f);
+        }
     }
 }

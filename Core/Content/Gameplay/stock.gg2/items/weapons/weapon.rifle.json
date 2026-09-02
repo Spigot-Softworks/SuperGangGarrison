@@ -16,7 +16,12 @@
     "refillsAllAtOnce": false
   },
   "combat": {
-    "fireSoundName": "SniperSnd"
+    "fireSoundName": "SniperSnd",
+    "playerKnockback": {
+      "impulsePerUse": 4.0,
+      "airborneVerticalScale": 0.5,
+      "groundedVerticalScale": 0.5
+    }
   },
   "presentation": {
     "worldSpriteName": "RifleS",

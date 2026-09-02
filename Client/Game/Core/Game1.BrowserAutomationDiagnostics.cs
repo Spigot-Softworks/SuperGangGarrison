@@ -256,6 +256,7 @@ public partial class Game1
             out _,
             out var hostBounds,
             out var portBounds,
+            out var pasteBounds,
             out var connectBounds,
             out var backBounds,
             out _);
@@ -264,6 +265,7 @@ public partial class Game1
             return
             [
                 new BrowserAutomationAction("Edit Room Code", BrowserAutomationRect.FromRectangle(hostBounds)),
+                new BrowserAutomationAction("Paste Room Code", BrowserAutomationRect.FromRectangle(pasteBounds)),
                 new BrowserAutomationAction("Join", BrowserAutomationRect.FromRectangle(connectBounds)),
                 new BrowserAutomationAction("Back", BrowserAutomationRect.FromRectangle(backBounds)),
             ];
@@ -422,6 +424,9 @@ public partial class Game1
             case "Edit Room Code" when _lastToDieRoomCodeJoinOpen:
                 _connectionFlowController.SetManualConnectEditingField(editHost: true);
                 return true;
+            case "Paste Room Code" when _lastToDieRoomCodeJoinOpen:
+                _connectionFlowController.SetManualConnectEditingField(editHost: true);
+                return PasteActiveClipboard();
             case "Join" when _lastToDieRoomCodeJoinOpen:
                 TryConnectFromMenu();
                 return true;

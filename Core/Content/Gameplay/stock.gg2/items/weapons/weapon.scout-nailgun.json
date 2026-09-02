@@ -8,7 +8,7 @@
     "maxAmmo": 35,
     "ammoPerUse": 1,
     "projectilesPerUse": 1,
-    "useDelaySourceTicks": 6,
+    "useDelaySourceTicks": 5,
     "reloadSourceTicks": 28,
     "spreadDegrees": 4.0,
     "minProjectileSpeed": 15.6,
@@ -25,7 +25,7 @@
     "hudSpriteName": "NailgunAmmoS",
     "weaponOffsetX": -10.0,
     "weaponOffsetY": -10.0,
-    "recoilDurationSourceTicks": 6,
+    "recoilDurationSourceTicks": 5,
     "reloadDurationSourceTicks": 28,
     "blueTeamHudFrameOffset": 1,
     "hud": {

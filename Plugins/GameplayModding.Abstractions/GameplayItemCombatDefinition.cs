@@ -10,4 +10,6 @@ public sealed record GameplayItemCombatDefinition(
     GameplayRocketCombatDefinition? Rocket = null,
     float? PlayerKnockbackScale = null,
     float? PlayerSlowMovementMultiplier = null,
-    int? PlayerSlowRefreshSourceTicks = null);
+    int? PlayerSlowRefreshSourceTicks = null,
+    GameplayAirborneVelocityReachDefinition? AirborneVelocityReach = null,
+    GameplayPlayerKnockbackDefinition? PlayerKnockback = null);

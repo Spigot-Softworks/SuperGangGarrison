@@ -53,7 +53,7 @@ public static partial class ProtocolCodec
         WriteSentryStates(writer, snapshot.Sentries);
         WriteSentryUpdateStates(writer, snapshot.SentryUpdateStates);
         WriteEntityIdList(writer, snapshot.RemovedSentryIds);
-        WriteShotStates(writer, snapshot.Shots);
+        WriteShotStates(writer, snapshot.Shots, includeBulletPayload: true);
         WriteEntityIdList(writer, snapshot.RemovedShotIds);
         WriteShotStates(writer, snapshot.Bubbles);
         WriteEntityIdList(writer, snapshot.RemovedBubbleIds);
@@ -61,7 +61,7 @@ public static partial class ProtocolCodec
         WriteEntityIdList(writer, snapshot.RemovedBladeIds);
         WriteShotStates(writer, snapshot.Needles);
         WriteEntityIdList(writer, snapshot.RemovedNeedleIds);
-        WriteShotStates(writer, snapshot.RevolverShots, includeRevolverPayload: true);
+        WriteShotStates(writer, snapshot.RevolverShots, includeBulletPayload: true, includeRevolverPayload: true);
         WriteEntityIdList(writer, snapshot.RemovedRevolverShotIds);
         WriteRocketStates(writer, snapshot.Rockets);
         WriteEntityIdList(writer, snapshot.RemovedRocketIds);
@@ -146,7 +146,7 @@ public static partial class ProtocolCodec
         var sentries = ReadSentryStates(reader);
         var sentryUpdateStates = ReadSentryUpdateStates(reader);
         var removedSentryIds = ReadEntityIdList(reader);
-        var shots = ReadShotStates(reader);
+        var shots = ReadShotStates(reader, includeBulletPayload: true);
         var removedShotIds = ReadEntityIdList(reader);
         var bubbles = ReadShotStates(reader);
         var removedBubbleIds = ReadEntityIdList(reader);
@@ -154,7 +154,7 @@ public static partial class ProtocolCodec
         var removedBladeIds = ReadEntityIdList(reader);
         var needles = ReadShotStates(reader);
         var removedNeedleIds = ReadEntityIdList(reader);
-        var revolverShots = ReadShotStates(reader, includeRevolverPayload: true);
+        var revolverShots = ReadShotStates(reader, includeBulletPayload: true, includeRevolverPayload: true);
         var removedRevolverShotIds = ReadEntityIdList(reader);
         var rockets = ReadRocketStates(reader);
         var removedRocketIds = ReadEntityIdList(reader);

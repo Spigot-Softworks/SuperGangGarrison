@@ -449,6 +449,23 @@ internal sealed class LuaServerPlugin(
                 context.Weapon.DamagePerTick,
                 context.Weapon.DirectHitHealAmount,
                 context.Weapon.ActiveProjectileLimit,
+                context.Weapon.PlayerKnockbackScale,
+                PlayerKnockback = context.Weapon.PlayerKnockback is null
+                    ? null
+                    : new
+                    {
+                        context.Weapon.PlayerKnockback.ImpulsePerUse,
+                        context.Weapon.PlayerKnockback.AirborneVerticalScale,
+                        context.Weapon.PlayerKnockback.GroundedVerticalScale,
+                    },
+                AirborneVelocityReach = context.Weapon.AirborneVelocityReach is null
+                    ? null
+                    : new
+                    {
+                        Baseline = "classRunJump",
+                        context.Weapon.AirborneVelocityReach.BonusPerExcessBaseline,
+                        context.Weapon.AirborneVelocityReach.MaxReachMultiplier,
+                    },
             },
             context.SourceX,
             context.SourceY,
@@ -2243,11 +2260,55 @@ internal sealed class LuaServerPlugin(
 
         return new GameplayItemCombatDefinition(
             FireSoundName: ReadOptionalStringField(combatTable, "fireSoundName", "FireSoundName", "fire_sound_name"),
+            KillFeedSpriteName: ReadOptionalStringField(combatTable, "killFeedSpriteName", "KillFeedSpriteName", "kill_feed_sprite_name"),
             DirectHitDamage: ReadOptionalFloatField(combatTable, null, "directHitDamage", "DirectHitDamage", "direct_hit_damage"),
             DamagePerTick: ReadOptionalFloatField(combatTable, null, "damagePerTick", "DamagePerTick", "damage_per_tick"),
             DirectHitHealAmount: ReadOptionalFloatField(combatTable, null, "directHitHealAmount", "DirectHitHealAmount", "direct_hit_heal_amount"),
             ActiveProjectileLimit: ReadOptionalIntField(combatTable, null, "activeProjectileLimit", "ActiveProjectileLimit", "active_projectile_limit"),
-            Rocket: ReadOptionalGameplayRocketCombatDefinition(combatTable));
+            Rocket: ReadOptionalGameplayRocketCombatDefinition(combatTable),
+            PlayerKnockbackScale: ReadOptionalFloatField(combatTable, null, "playerKnockbackScale", "PlayerKnockbackScale", "player_knockback_scale"),
+            PlayerSlowMovementMultiplier: ReadOptionalFloatField(combatTable, null, "playerSlowMovementMultiplier", "PlayerSlowMovementMultiplier", "player_slow_movement_multiplier"),
+            PlayerSlowRefreshSourceTicks: ReadOptionalIntField(combatTable, null, "playerSlowRefreshSourceTicks", "PlayerSlowRefreshSourceTicks", "player_slow_refresh_source_ticks"),
+            AirborneVelocityReach: ReadOptionalGameplayAirborneVelocityReachDefinition(combatTable),
+            PlayerKnockback: ReadOptionalGameplayPlayerKnockbackDefinition(combatTable));
+    }
+
+    private static GameplayAirborneVelocityReachDefinition? ReadOptionalGameplayAirborneVelocityReachDefinition(
+        Table combatTable)
+    {
+        var reachTable = ReadOptionalTableField(
+            combatTable,
+            "airborneVelocityReach",
+            "AirborneVelocityReach",
+            "airborne_velocity_reach");
+        if (reachTable is null)
+        {
+            return null;
+        }
+
+        return new GameplayAirborneVelocityReachDefinition(
+            Baseline: ReadOptionalStringField(reachTable, "baseline", "Baseline") ?? "classRunJump",
+            BonusPerExcessBaseline: ReadOptionalFloatField(reachTable, 0.5f, "bonusPerExcessBaseline", "BonusPerExcessBaseline", "bonus_per_excess_baseline"),
+            MaxReachMultiplier: ReadOptionalFloatField(reachTable, 1.5f, "maxReachMultiplier", "MaxReachMultiplier", "max_reach_multiplier"));
+    }
+
+    private static GameplayPlayerKnockbackDefinition? ReadOptionalGameplayPlayerKnockbackDefinition(
+        Table combatTable)
+    {
+        var knockbackTable = ReadOptionalTableField(
+            combatTable,
+            "playerKnockback",
+            "PlayerKnockback",
+            "player_knockback");
+        if (knockbackTable is null)
+        {
+            return null;
+        }
+
+        return new GameplayPlayerKnockbackDefinition(
+            ImpulsePerUse: ReadOptionalFloatField(knockbackTable, 0f, "impulsePerUse", "ImpulsePerUse", "impulse_per_use"),
+            AirborneVerticalScale: ReadOptionalFloatField(knockbackTable, 0.5f, "airborneVerticalScale", "AirborneVerticalScale", "airborne_vertical_scale"),
+            GroundedVerticalScale: ReadOptionalFloatField(knockbackTable, 0.5f, "groundedVerticalScale", "GroundedVerticalScale", "grounded_vertical_scale"));
     }
 
     private static GameplayRocketCombatDefinition? ReadOptionalGameplayRocketCombatDefinition(Table combatTable)

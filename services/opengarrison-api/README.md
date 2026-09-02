@@ -20,7 +20,15 @@ the API, so neither player needs an inbound router mapping. Gameplay stays serve
 authoritative and uses the normal Protocol64 prediction/reconciliation path; the relay only
 forwards complete binary frames.
 
-Direct UDP advertisement remains available as a fallback when relay creation is unavailable.
+Each relay session receives a collision-checked four-character room code. Guests can resolve
+the session with either `GET /api/relay/room/{roomCode}` or
+`GET /api/relay/friend/{friendCode}`. Resolution remains unavailable until the host relay
+WebSocket is connected, and lookup attempts are rate-limited per observed address. The short
+room code is only a locator; the returned WebSocket URL carries the full guest bearer token.
+
+Last to Die co-op requires a relay session; the client does not silently fall back to a
+port-forwarded UDP room when relay creation is unavailable. Direct UDP advertisement remains
+available for other explicitly direct-hosted sessions.
 The relay runtime is currently in-process, so deploy uvicorn with one worker. A service restart
 drops active relay sockets, after which the child server retries until the session expires.
 

@@ -104,6 +104,7 @@ public static partial class ProtocolCodec
     private static void WriteShotStates(
         BinaryWriter writer,
         IReadOnlyList<SnapshotShotState> shots,
+        bool includeBulletPayload = false,
         bool includeRevolverPayload = false)
     {
         writer.Write((ushort)shots.Count);
@@ -144,9 +145,15 @@ public static partial class ProtocolCodec
                 writer.Write(shot.AppliesLastToDieExplosiveTip);
                 writer.Write(shot.DamageValue);
             }
-            if (includeRevolverPayload)
+            if (includeBulletPayload)
             {
                 writer.Write(shot.DamageValue);
+                writer.Write(shot.PlayerKnockbackImpulse);
+                writer.Write(shot.PlayerKnockbackAirborneVerticalScale);
+                writer.Write(shot.PlayerKnockbackGroundedVerticalScale);
+            }
+            if (includeRevolverPayload)
+            {
                 writer.Write(shot.LastToDieRevolverProfile);
                 writer.Write(shot.AppliesLuckyStrikeStun);
             }
@@ -156,6 +163,7 @@ public static partial class ProtocolCodec
 
     private static List<SnapshotShotState> ReadShotStates(
         BinaryReader reader,
+        bool includeBulletPayload = false,
         bool includeRevolverPayload = false)
     {
         var count = reader.ReadUInt16();
@@ -197,7 +205,10 @@ public static partial class ProtocolCodec
             var lastToDieAttachedHeadClassId = isArrow ? reader.ReadByte() : (byte)0;
             var lastToDieAttachedHeadTeam = isArrow ? reader.ReadByte() : (byte)0;
             var appliesLastToDieExplosiveTip = isArrow && reader.ReadBoolean();
-            var damageValue = isArrow || includeRevolverPayload ? reader.ReadSingle() : 0f;
+            var damageValue = isArrow || includeBulletPayload ? reader.ReadSingle() : 0f;
+            var playerKnockbackImpulse = includeBulletPayload ? reader.ReadSingle() : 0f;
+            var playerKnockbackAirborneVerticalScale = includeBulletPayload ? reader.ReadSingle() : 1f;
+            var playerKnockbackGroundedVerticalScale = includeBulletPayload ? reader.ReadSingle() : 1f;
             var lastToDieRevolverProfile = includeRevolverPayload ? reader.ReadInt32() : 0;
             var appliesLuckyStrikeStun = includeRevolverPayload && reader.ReadBoolean();
             var criticalDamageMultiplier = reader.ReadSingle();
@@ -232,7 +243,10 @@ public static partial class ProtocolCodec
                 isLastToDieMedicJavelinAnchored,
                 lastToDieMedicJavelinFuseTicksRemaining,
                 hasLastToDieMedicJavelinExploded,
-                criticalDamageMultiplier));
+                criticalDamageMultiplier,
+                playerKnockbackImpulse,
+                playerKnockbackAirborneVerticalScale,
+                playerKnockbackGroundedVerticalScale));
         }
 
         return shots;

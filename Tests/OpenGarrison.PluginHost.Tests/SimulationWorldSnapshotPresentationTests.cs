@@ -2,12 +2,45 @@ using System.Reflection;
 using OpenGarrison.Core;
 using OpenGarrison.Core.LastToDie;
 using OpenGarrison.Protocol;
+using OpenGarrison.Server;
 using Xunit;
 
 namespace OpenGarrison.PluginHost.Tests;
 
 public sealed class SimulationWorldSnapshotPresentationTests
 {
+    [Fact]
+    public void SnapshotProducerAndWorldPreserveBulletDamageKnockbackAndLifetime()
+    {
+        var world = new SimulationWorld();
+        var local = CreatePlayerState(1, 101, "Local", PlayerTeam.Red, PlayerClass.Scout, isAlive: true, gibDeaths: 0);
+        var owner = CreatePlayerState(2, 202, "Remote Scout", PlayerTeam.Blue, PlayerClass.Scout, isAlive: true, gibDeaths: 0);
+        var source = new ShotProjectileEntity(
+            899,
+            PlayerTeam.Blue,
+            owner.PlayerId,
+            128f,
+            96f,
+            12f,
+            0f,
+            damagePerHit: 9.5f,
+            playerKnockbackImpulse: 1.25f,
+            playerKnockbackAirborneVerticalScale: 0.5f,
+            playerKnockbackGroundedVerticalScale: 0.25f);
+        source.AdvanceOneTick();
+        var snapshot = CreateSnapshot(world, frame: 79, localPlayer: local, remotePlayer: owner) with
+        {
+            Shots = [ServerHelpers.ToSnapshotBulletState(source)],
+        };
+
+        Assert.True(world.ApplySnapshot(snapshot, localPlayerSlot: 1));
+
+        var recreated = Assert.Single(world.Shots);
+        Assert.Equal(source.DamageValue, recreated.DamageValue);
+        Assert.Equal(source.PlayerKnockbackPayload, recreated.PlayerKnockbackPayload);
+        Assert.Equal(source.TicksRemaining, recreated.TicksRemaining);
+    }
+
     [Fact]
     public void ApplySnapshotReplacesRemotePlayerWhenAVisibleSlotGetsANewPlayerId()
     {
@@ -105,7 +138,10 @@ public sealed class SimulationWorldSnapshotPresentationTests
                     IsCritical: true,
                     DamageValue: 11.2f,
                     LastToDieRevolverProfile: profile.Encode(),
-                    AppliesLuckyStrikeStun: true),
+                    AppliesLuckyStrikeStun: true,
+                    PlayerKnockbackImpulse: 2.5f,
+                    PlayerKnockbackAirborneVerticalScale: 0.5f,
+                    PlayerKnockbackGroundedVerticalScale: 0.25f),
             ],
         };
 
@@ -116,6 +152,7 @@ public sealed class SimulationWorldSnapshotPresentationTests
         Assert.Equal(profile, shot.LastToDieProfile);
         Assert.True(shot.IsCritical);
         Assert.True(shot.AppliesLuckyStrikeStun);
+        Assert.Equal(new BulletKnockbackPayload(2.5f, 0.5f, 0.25f), shot.PlayerKnockbackPayload);
     }
 
     [Fact]

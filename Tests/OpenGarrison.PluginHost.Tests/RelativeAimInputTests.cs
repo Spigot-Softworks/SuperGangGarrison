@@ -12,7 +12,7 @@ public sealed class RelativeAimInputTests
     {
         var message = new InputStateMessage(
             Sequence: 7,
-            Buttons: InputButtons.FirePrimary,
+            Buttons: InputButtons.FirePrimary | InputButtons.ToggleSecondaryWeapon,
             AimRelX: 120f,
             AimRelY: -48f,
             ChatBubbleFrameIndex: -1);
@@ -21,6 +21,7 @@ public sealed class RelativeAimInputTests
 
         Assert.Equal(120f, input.AimWorldX);
         Assert.Equal(-48f, input.AimWorldY);
+        Assert.True(input.ToggleSecondaryWeapon);
     }
 
     [Fact]

@@ -254,6 +254,8 @@ public partial class Game1 : Game
     private bool _wasDeathCamActive;
     private bool _wasMatchEnded;
     private int _previousLocalDemoknightChargeTicks = PlayerEntity.ExperimentalDemoknightChargeMaxTicks;
+    private readonly BuffBannerReadyCueTracker _localBuffBannerReadyCueTracker = new();
+    private float _localBuffBannerReadyCueEchoSuppressionSeconds;
     private MouseState _previousMouse;
     // Draw code must use the same focus-sanitized mouse sample as Update. Reading
     // Mouse.GetState directly during Draw lets an inactive window click through.

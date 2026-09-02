@@ -249,7 +249,10 @@ public sealed record Protocol64ProjectileState(
     bool IsLastToDieMedicJavelinAnchored = false,
     ushort LastToDieMedicJavelinFuseTicksRemaining = 0,
     bool HasLastToDieMedicJavelinExploded = false,
-    float CriticalDamageMultiplier = 1f);
+    float CriticalDamageMultiplier = 1f,
+    float PlayerKnockbackImpulse = 0f,
+    float PlayerKnockbackAirborneVerticalScale = 1f,
+    float PlayerKnockbackGroundedVerticalScale = 1f);
 
 public sealed record Protocol64ProjectileIdentity(
     ulong EntityId,
@@ -298,7 +301,10 @@ public sealed record Protocol64ProjectileLifecycle(
     bool IsLastToDieMedicJavelinAnchored = false,
     ushort LastToDieMedicJavelinFuseTicksRemaining = 0,
     bool HasLastToDieMedicJavelinExploded = false,
-    float CriticalDamageMultiplier = 1f);
+    float CriticalDamageMultiplier = 1f,
+    float PlayerKnockbackImpulse = 0f,
+    float PlayerKnockbackAirborneVerticalScale = 1f,
+    float PlayerKnockbackGroundedVerticalScale = 1f);
 
 public sealed record Protocol64StateResyncRequest(
     ulong RequestId,
@@ -404,7 +410,7 @@ public sealed class Protocol64ProjectileStateSchema
     public const int MaxBodyBytes = 128;
 
     public Protocol64ProjectileStateSchema()
-        : base(Protocol64StateSchemaIds.ProjectileState, 10, Protocol64Direction.ServerToClient, MaxBodyBytes)
+        : base(Protocol64StateSchemaIds.ProjectileState, 11, Protocol64Direction.ServerToClient, MaxBodyBytes)
     {
     }
 
@@ -428,7 +434,7 @@ public sealed class Protocol64ProjectileLifecycleSchema
     public const int MaxBodyBytes = 160;
 
     public Protocol64ProjectileLifecycleSchema()
-        : base(Protocol64StateSchemaIds.ProjectileLifecycle, 10, Protocol64Direction.ServerToClient, MaxBodyBytes)
+        : base(Protocol64StateSchemaIds.ProjectileLifecycle, 11, Protocol64Direction.ServerToClient, MaxBodyBytes)
     {
     }
 
@@ -798,6 +804,10 @@ internal static class Protocol64StateValidation
         {
             throw new Protocol64SchemaValidationException("Projectile damage must be finite and non-negative.");
         }
+        ValidatePlayerKnockbackPayload(
+            value.PlayerKnockbackImpulse,
+            value.PlayerKnockbackAirborneVerticalScale,
+            value.PlayerKnockbackGroundedVerticalScale);
         ValidateCriticalDamageMultiplier(value.IsCritical, value.CriticalDamageMultiplier);
 
         ValidateLastToDieSpyRevolverProjectilePayload(
@@ -845,6 +855,10 @@ internal static class Protocol64StateValidation
         {
             throw new Protocol64SchemaValidationException("Projectile damage must be finite and non-negative.");
         }
+        ValidatePlayerKnockbackPayload(
+            value.PlayerKnockbackImpulse,
+            value.PlayerKnockbackAirborneVerticalScale,
+            value.PlayerKnockbackGroundedVerticalScale);
         ValidateCriticalDamageMultiplier(value.IsCritical, value.CriticalDamageMultiplier);
 
         ValidateLastToDieSpyRevolverProjectilePayload(
@@ -890,6 +904,27 @@ internal static class Protocol64StateValidation
         {
             throw new Protocol64SchemaValidationException(
                 "Projectile critical multiplier is inconsistent with its critical flag.");
+        }
+    }
+
+    private static void ValidatePlayerKnockbackPayload(
+        float impulse,
+        float airborneVerticalScale,
+        float groundedVerticalScale)
+    {
+        if (!float.IsFinite(impulse) || impulse < 0f)
+        {
+            throw new Protocol64SchemaValidationException(
+                "Projectile player knockback impulse must be finite and non-negative.");
+        }
+
+        if (!float.IsFinite(airborneVerticalScale)
+            || airborneVerticalScale is < 0f or > 1f
+            || !float.IsFinite(groundedVerticalScale)
+            || groundedVerticalScale is < 0f or > 1f)
+        {
+            throw new Protocol64SchemaValidationException(
+                "Projectile player knockback vertical scales must be between zero and one.");
         }
     }
 
@@ -1622,6 +1657,9 @@ internal static class Protocol64StateBinary
         writer.Write(value.LastToDieMedicJavelinFuseTicksRemaining);
         writer.Write(value.HasLastToDieMedicJavelinExploded);
         writer.Write(value.CriticalDamageMultiplier);
+        writer.Write(value.PlayerKnockbackImpulse);
+        writer.Write(value.PlayerKnockbackAirborneVerticalScale);
+        writer.Write(value.PlayerKnockbackGroundedVerticalScale);
     }
 
     public static Protocol64ProjectileState ReadProjectileState(BinaryReader reader)
@@ -1661,6 +1699,9 @@ internal static class Protocol64StateBinary
             reader.ReadBoolean(),
             reader.ReadUInt16(),
             reader.ReadBoolean(),
+            reader.ReadSingle(),
+            reader.ReadSingle(),
+            reader.ReadSingle(),
             reader.ReadSingle());
 
     public static void WriteProjectileLifecycle(BinaryWriter writer, Protocol64ProjectileLifecycle value)
@@ -1702,6 +1743,9 @@ internal static class Protocol64StateBinary
         writer.Write(value.LastToDieMedicJavelinFuseTicksRemaining);
         writer.Write(value.HasLastToDieMedicJavelinExploded);
         writer.Write(value.CriticalDamageMultiplier);
+        writer.Write(value.PlayerKnockbackImpulse);
+        writer.Write(value.PlayerKnockbackAirborneVerticalScale);
+        writer.Write(value.PlayerKnockbackGroundedVerticalScale);
     }
 
     public static Protocol64ProjectileLifecycle ReadProjectileLifecycle(BinaryReader reader)
@@ -1742,6 +1786,9 @@ internal static class Protocol64StateBinary
             reader.ReadBoolean(),
             reader.ReadUInt16(),
             reader.ReadBoolean(),
+            reader.ReadSingle(),
+            reader.ReadSingle(),
+            reader.ReadSingle(),
             reader.ReadSingle());
 
     private static void WriteLastToDieSniperVolleyState(

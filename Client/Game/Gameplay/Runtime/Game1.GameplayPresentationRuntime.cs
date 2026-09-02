@@ -59,6 +59,7 @@ public partial class Game1
         ObserveCivvieUmbrellaShieldBlocksFromPlayerState();
         ObserveCivviePogoTrickPresentationFromPlayerState();
         PlayPendingVisualEvents();
+        PlayBuffBannerReadySoundIfNeeded();
         PlayPendingSoundEvents();
         ObservePlayerHealthChangesForHealingCharacterEffects();
         DispatchPendingDamageEventsToPlugins();

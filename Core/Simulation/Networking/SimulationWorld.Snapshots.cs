@@ -235,20 +235,44 @@ public sealed partial class SimulationWorld
             static (entity, state) => entity.Team == (PlayerTeam)state.Team && entity.OwnerId == state.OwnerId,
             state =>
         {
-                var shot = new ShotProjectileEntity(state.Id, (PlayerTeam)state.Team, state.OwnerId, state.X, state.Y, state.VelocityX, state.VelocityY);
+                var shot = new ShotProjectileEntity(
+                    state.Id,
+                    (PlayerTeam)state.Team,
+                    state.OwnerId,
+                    state.X,
+                    state.Y,
+                    state.VelocityX,
+                    state.VelocityY,
+                    damagePerHit: Math.Max(0f, state.DamageValue),
+                    playerKnockbackImpulse: state.PlayerKnockbackImpulse,
+                    playerKnockbackAirborneVerticalScale: state.PlayerKnockbackAirborneVerticalScale,
+                    playerKnockbackGroundedVerticalScale: state.PlayerKnockbackGroundedVerticalScale);
                 shot.HydrateCritical(state.IsCritical, state.CriticalDamageMultiplier);
                 return shot;
             },
             static (entity, state) =>
             {
-                entity.ApplyNetworkState(state.X, state.Y, state.VelocityX, state.VelocityY, state.TicksRemaining);
+                entity.ApplyNetworkState(
+                    state.X,
+                    state.Y,
+                    state.VelocityX,
+                    state.VelocityY,
+                    state.TicksRemaining,
+                    Math.Max(0f, state.DamageValue),
+                    state.PlayerKnockbackImpulse,
+                    state.PlayerKnockbackAirborneVerticalScale,
+                    state.PlayerKnockbackGroundedVerticalScale);
                 entity.HydrateCritical(state.IsCritical, state.CriticalDamageMultiplier);
             },
             entity => TryRegisterServerTerminatedProjectilePlayerHitEffect(
                 entity.X, entity.Y, entity.PreviousX, entity.PreviousY, entity.Team, entity.OwnerId),
             static (entity, state) => ShouldApplyLocallySimulatedProjectileState(entity.TicksRemaining, state.TicksRemaining)
                 || entity.IsCritical != state.IsCritical
-                || entity.CriticalDamageMultiplier != state.CriticalDamageMultiplier);
+                || entity.CriticalDamageMultiplier != state.CriticalDamageMultiplier
+                || entity.DamageValue != Math.Max(0f, state.DamageValue)
+                || entity.PlayerKnockbackImpulse != state.PlayerKnockbackImpulse
+                || entity.PlayerKnockbackAirborneVerticalScale != state.PlayerKnockbackAirborneVerticalScale
+                || entity.PlayerKnockbackGroundedVerticalScale != state.PlayerKnockbackGroundedVerticalScale);
         ApplySnapshotShots(
             snapshot.Bubbles,
             snapshot.RemovedBubbleIds,
@@ -409,18 +433,17 @@ public sealed partial class SimulationWorld
                 && entity.OwnerId == state.OwnerId
                 && entity.IsCritical == state.IsCritical
                 && entity.CriticalDamageMultiplier == state.CriticalDamageMultiplier
-                && entity.DamageValue == (state.DamageValue > 0f
-                    ? state.DamageValue
-                    : RevolverProjectileEntity.DamagePerHit)
+                && entity.DamageValue == Math.Max(0f, state.DamageValue)
+                && entity.PlayerKnockbackImpulse == state.PlayerKnockbackImpulse
+                && entity.PlayerKnockbackAirborneVerticalScale == state.PlayerKnockbackAirborneVerticalScale
+                && entity.PlayerKnockbackGroundedVerticalScale == state.PlayerKnockbackGroundedVerticalScale
                 && entity.LastToDieProfile.Encode() == state.LastToDieRevolverProfile
                 && entity.AppliesLuckyStrikeStun == state.AppliesLuckyStrikeStun,
             state =>
         {
                 var profile = global::OpenGarrison.Core.LastToDie.LastToDieSpyRevolverProfile.Decode(
                     state.LastToDieRevolverProfile);
-                var damage = state.DamageValue > 0f
-                    ? state.DamageValue
-                    : RevolverProjectileEntity.DamagePerHit;
+                var damage = Math.Max(0f, state.DamageValue);
                 var shot = new RevolverProjectileEntity(
                     state.Id,
                     (PlayerTeam)state.Team,
@@ -431,13 +454,25 @@ public sealed partial class SimulationWorld
                     state.VelocityY,
                     damage,
                     lastToDieProfile: profile,
-                    appliesLuckyStrikeStun: state.AppliesLuckyStrikeStun);
+                    appliesLuckyStrikeStun: state.AppliesLuckyStrikeStun,
+                    playerKnockbackImpulse: state.PlayerKnockbackImpulse,
+                    playerKnockbackAirborneVerticalScale: state.PlayerKnockbackAirborneVerticalScale,
+                    playerKnockbackGroundedVerticalScale: state.PlayerKnockbackGroundedVerticalScale);
                 shot.HydrateCritical(state.IsCritical, state.CriticalDamageMultiplier);
                 return shot;
             },
             static (entity, state) =>
             {
-                entity.ApplyNetworkState(state.X, state.Y, state.VelocityX, state.VelocityY, state.TicksRemaining);
+                entity.ApplyNetworkState(
+                    state.X,
+                    state.Y,
+                    state.VelocityX,
+                    state.VelocityY,
+                    state.TicksRemaining,
+                    Math.Max(0f, state.DamageValue),
+                    state.PlayerKnockbackImpulse,
+                    state.PlayerKnockbackAirborneVerticalScale,
+                    state.PlayerKnockbackGroundedVerticalScale);
                 entity.HydrateCritical(state.IsCritical, state.CriticalDamageMultiplier);
             },
             entity => TryRegisterServerTerminatedProjectilePlayerHitEffect(

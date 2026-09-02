@@ -6,23 +6,24 @@ namespace OpenGarrison.PluginHost.Tests;
 
 public sealed class FriendPresenceSessionResolverTests
 {
-    [Fact]
-    public void HostedHeartbeatRequestsObservedPublicAddress()
+    [Theory]
+    [InlineData("k7pm", "K7PM")]
+    [InlineData(" K7-PM ", "K7PM")]
+    public void RelayRoomCodesNormalizeForHumanEntry(string input, string expected)
     {
-        var heartbeat = new PresenceHeartbeatRequest
-        {
-            Host = "127.0.0.1",
-            WebSocketPort = 8191,
-            WebSocketUrl = "ws://127.0.0.1:8191/",
-        };
+        Assert.True(RelayRoomCode.TryNormalize(input, out var normalized));
+        Assert.Equal(expected, normalized);
+    }
 
-        FriendPresenceSessionResolver.ApplyObservedUdpEndpoint(heartbeat, 8190, joinable: true);
-
-        Assert.Equal(string.Empty, heartbeat.Host);
-        Assert.Equal(8190, heartbeat.UdpPort);
-        Assert.Equal(0, heartbeat.WebSocketPort);
-        Assert.Equal(string.Empty, heartbeat.WebSocketUrl);
-        Assert.True(heartbeat.Joinable);
+    [Theory]
+    [InlineData("")]
+    [InlineData("ABC")]
+    [InlineData("ABCDE")]
+    [InlineData("ABCI")]
+    [InlineData("ABC0")]
+    public void RelayRoomCodesRejectInvalidOrAmbiguousInput(string input)
+    {
+        Assert.False(RelayRoomCode.TryNormalize(input, out _));
     }
 
     [Fact]
@@ -71,6 +72,22 @@ public sealed class FriendPresenceSessionResolverTests
         Assert.Equal(heartbeat.WebSocketUrl, candidate.Host);
     }
 
+    [Fact]
+    public void RelayRoomLookupCreatesProtocol64Endpoint()
+    {
+        var room = new RelayRoomResolveResponse
+        {
+            RoomCode = "K7PM",
+            FriendCode = "OG2-ABCD-EFGH-JKLM",
+            GuestWebSocketUrl = "wss64://relay.example.com/api/relay/ws/run/guest?token=join-secret",
+        };
+
+        Assert.True(FriendPresenceSessionResolver.TryCreateRelayJoinEndpoint(room, out var endpoint));
+        var candidate = Assert.Single(endpoint.GetConnectionCandidates());
+        Assert.Equal(NetworkEndpointTransport.WebSocket, candidate.Transport);
+        Assert.Equal(room.GuestWebSocketUrl, candidate.Host);
+    }
+
     [Theory]
     [InlineData("last_to_die", "", true)]
     [InlineData("server", "Last to Die", true)]
@@ -84,6 +101,22 @@ public sealed class FriendPresenceSessionResolverTests
         };
 
         Assert.Equal(expected, FriendPresenceSessionResolver.IsLastToDieRoom(presence));
+    }
+
+    [Fact]
+    public void LastToDiePresenceRejectsDirectUdpFallback()
+    {
+        var presence = new FriendPresenceEntry
+        {
+            Online = true,
+            Joinable = true,
+            Status = "last_to_die",
+            Mode = "Last to Die",
+            Host = "203.0.113.42",
+            UdpPort = 8190,
+        };
+
+        Assert.False(FriendPresenceSessionResolver.TryCreateJoinEndpoint(presence, out _));
     }
 
     [Theory]

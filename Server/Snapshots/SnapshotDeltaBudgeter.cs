@@ -429,11 +429,11 @@ internal static class SnapshotDeltaBudgeter
         var extendedStatusBytes = EstimateByteCountCollection(snapshot.PlayerExtendedStatusStates, static _ => 63);
         var chatBubbleBytes = EstimateByteCountCollection(snapshot.PlayerChatBubbleStates, static _ => 6);
         var projectileBytes =
-            EstimateShotCollectionBytes(snapshot.Shots)
+            EstimateShotCollectionBytes(snapshot.Shots, includeBulletPayload: true)
             + EstimateShotCollectionBytes(snapshot.Bubbles)
             + EstimateShotCollectionBytes(snapshot.Blades)
             + EstimateShotCollectionBytes(snapshot.Needles)
-            + EstimateShotCollectionBytes(snapshot.RevolverShots, includeRevolverPayload: true)
+            + EstimateShotCollectionBytes(snapshot.RevolverShots, includeBulletPayload: true, includeRevolverPayload: true)
             + EstimateShotCollectionBytes(snapshot.Flares)
             + EstimateUShortCountCollection(snapshot.Rockets, EstimateRocketBytes)
             + EstimateUShortCountCollection(snapshot.RocketSpawnEvents, EstimateRocketSpawnEventBytes)
@@ -535,14 +535,17 @@ internal static class SnapshotDeltaBudgeter
 
     private static int EstimateShotCollectionBytes(
         IReadOnlyList<SnapshotShotState> shots,
+        bool includeBulletPayload = false,
         bool includeRevolverPayload = false)
     {
         var bytes = 2;
         for (var index = 0; index < shots.Count; index += 1)
         {
             bytes += 36
-                + (shots[index].IsArrow ? 7 : 0)
-                + (includeRevolverPayload ? 9 : 0);
+                + (shots[index].IsMedicHealNeedle ? 7 : 0)
+                + (shots[index].IsArrow ? 25 : 0)
+                + (includeBulletPayload ? 16 : 0)
+                + (includeRevolverPayload ? 5 : 0);
         }
 
         return bytes;
