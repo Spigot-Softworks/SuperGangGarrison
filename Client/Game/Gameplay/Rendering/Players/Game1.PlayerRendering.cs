@@ -32,7 +32,8 @@ public partial class Game1
         float Width,
         float Height,
         bool FacingLeft,
-        int TicksRemaining);
+        int TicksRemaining,
+        string GameplayClassId = "");
 
     private readonly record struct ImmediateNetworkDeadBodyVisual(
         int SourcePlayerId,
@@ -44,7 +45,8 @@ public partial class Game1
         float Width,
         float Height,
         bool FacingLeft,
-        int TicksRemaining);
+        int TicksRemaining,
+        string GameplayClassId = "");
 
     private readonly record struct WeaponRenderDefinition(
         string? NormalSpriteName,
@@ -203,6 +205,24 @@ public partial class Game1
         Vector2 cameraPosition)
     {
         _gameplayDeadBodyRenderController.DrawDeadBodyVisual(id, sourcePlayerId, classId, team, animationKind, x, y, width, height, facingLeft, ticksRemaining, cameraPosition);
+    }
+
+    private void DrawDeadBodyVisual(
+        int id,
+        int sourcePlayerId,
+        PlayerClass classId,
+        PlayerTeam team,
+        DeadBodyAnimationKind animationKind,
+        float x,
+        float y,
+        float width,
+        float height,
+        bool facingLeft,
+        int ticksRemaining,
+        Vector2 cameraPosition,
+        string gameplayClassId)
+    {
+        _gameplayDeadBodyRenderController.DrawDeadBodyVisual(id, sourcePlayerId, classId, team, animationKind, x, y, width, height, facingLeft, ticksRemaining, gameplayClassId, cameraPosition);
     }
 
     private ClientDeadBodyAnimationKind ResolveClientPluginDeadBodyAnimationKind(int sourcePlayerId, PlayerClass classId, PlayerTeam team, DeadBodyAnimationKind animationKind)
@@ -431,6 +451,13 @@ public partial class Game1
     private static string? GetDeadBodySpriteName(PlayerClass classId, PlayerTeam team, DeadBodyAnimationKind animationKind = DeadBodyAnimationKind.Default)
     {
         return GameplayPlayerSpriteRenderController.GetDeadBodySpriteName(classId, team, animationKind);
+    }
+
+    private static string? GetDeadBodySpriteName(string gameplayClassId, PlayerClass classId, PlayerTeam team, DeadBodyAnimationKind animationKind = DeadBodyAnimationKind.Default)
+    {
+        return string.IsNullOrWhiteSpace(gameplayClassId)
+            ? GetDeadBodySpriteName(classId, team, animationKind)
+            : GameplayPlayerSpriteRenderController.GetDeadBodySpriteName(gameplayClassId, classId, team, animationKind);
     }
 
     private static string? GetTeamSpriteName(PlayerClass classId, PlayerTeam team, string suffix)

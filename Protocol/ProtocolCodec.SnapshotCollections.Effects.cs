@@ -57,6 +57,7 @@ public static partial class ProtocolCodec
             writer.Write(deadBody.VerticalSpeed);
             writer.Write(deadBody.FacingLeft);
             writer.Write(deadBody.TicksRemaining);
+            WriteString(writer, deadBody.GameplayClassId, MaxGameplayIdBytes, nameof(deadBody.GameplayClassId));
         }
     }
 
@@ -79,7 +80,8 @@ public static partial class ProtocolCodec
                 reader.ReadSingle(),
                 reader.ReadSingle(),
                 reader.ReadBoolean(),
-                reader.ReadInt32()));
+                reader.ReadInt32(),
+                ReadString(reader, MaxGameplayIdBytes)));
         }
 
         return deadBodies;
@@ -158,6 +160,9 @@ public static partial class ProtocolCodec
             writer.Write(e.EventId);
             WriteEntityIdList(writer, e.PassedFriendlyPlayerIds ?? []);
             writer.Write(e.CriticalDamageMultiplier);
+            writer.Write(e.IsBallistic);
+            writer.Write(e.BallisticGravityPerTick);
+            writer.Write(e.SuppressSmokeTrail);
         }
     }
 
@@ -190,7 +195,10 @@ public static partial class ProtocolCodec
                 reader.ReadBoolean(),
                 reader.ReadUInt64(),
                 ReadEntityIdList(reader),
-                reader.ReadSingle()));
+                reader.ReadSingle(),
+                reader.ReadBoolean(),
+                reader.ReadSingle(),
+                reader.ReadBoolean()));
         }
 
         return events;
@@ -362,6 +370,7 @@ public static partial class ProtocolCodec
             writer.Write(visualEvent.DirectionDegrees);
             writer.Write(visualEvent.Count);
             writer.Write(visualEvent.EventId);
+            writer.Write(visualEvent.SourceFrame);
         }
     }
 
@@ -377,6 +386,7 @@ public static partial class ProtocolCodec
                 reader.ReadSingle(),
                 reader.ReadSingle(),
                 reader.ReadInt32(),
+                reader.ReadUInt64(),
                 reader.ReadUInt64()));
         }
 
@@ -418,6 +428,39 @@ public static partial class ProtocolCodec
         }
 
         return jumpPads;
+    }
+
+    private static void WriteCivilDefenseTurretStates(BinaryWriter writer, IReadOnlyList<SnapshotCivilDefenseTurretState> turrets)
+    {
+        writer.Write((ushort)turrets.Count);
+        foreach (var turret in turrets)
+        {
+            writer.Write(turret.Id);
+            writer.Write(turret.OwnerPlayerId);
+            writer.Write(turret.Team);
+            writer.Write(turret.X);
+            writer.Write(turret.Y);
+            writer.Write(turret.Health);
+            writer.Write(turret.HasLanded);
+            writer.Write(turret.IsBuilt);
+            writer.Write(turret.FacingDirectionX);
+            writer.Write(turret.AimDirectionDegrees);
+            writer.Write(turret.ReloadTicksRemaining);
+            writer.Write(turret.ShotTraceTicksRemaining);
+            writer.Write(turret.LastShotTargetX);
+            writer.Write(turret.LastShotTargetY);
+        }
+    }
+
+    private static List<SnapshotCivilDefenseTurretState> ReadCivilDefenseTurretStates(BinaryReader reader)
+    {
+        var count = reader.ReadUInt16();
+        var turrets = new List<SnapshotCivilDefenseTurretState>(count);
+        for (var index = 0; index < count; index++)
+            turrets.Add(new(reader.ReadInt32(), reader.ReadInt32(), reader.ReadByte(),
+                reader.ReadSingle(), reader.ReadSingle(), reader.ReadInt32(), reader.ReadBoolean(), reader.ReadBoolean(),
+                reader.ReadSingle(), reader.ReadSingle(), reader.ReadInt32(), reader.ReadInt32(), reader.ReadSingle(), reader.ReadSingle()));
+        return turrets;
     }
 
     private static void WriteJumpPadGibStates(BinaryWriter writer, IReadOnlyList<SnapshotJumpPadGibState> jumpPadGibs)

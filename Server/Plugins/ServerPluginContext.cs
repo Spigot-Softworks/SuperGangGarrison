@@ -20,6 +20,10 @@ internal delegate bool RegisterGameplayLoadoutDelegate(string pluginId, Gameplay
 
 internal delegate bool RegisterGameplaySlotItemDelegate(string pluginId, GameplaySlotItemRegistration registration, out string errorMessage);
 
+internal delegate bool RegisterServerVoteKindDelegate(string pluginId, OpenGarrisonServerVoteRegistration registration, out string errorMessage);
+
+internal delegate bool StartServerVoteDelegate(string pluginId, string voteKindId, byte initiatorSlot, string argument, out string errorMessage);
+
 internal delegate bool ApplyGameplayImpulseDelegate(int playerId, float velocityX, float velocityY);
 
 internal delegate bool SetGameplayAbilityCooldownDelegate(string pluginId, int playerId, string cooldownKey, int ticks);
@@ -56,6 +60,8 @@ internal sealed class ServerPluginContext(
     RegisterGameplayWeaponItemDelegate registerGameplayWeaponItem,
     RegisterGameplayLoadoutDelegate registerGameplayLoadout,
     RegisterGameplaySlotItemDelegate registerGameplaySlotItem,
+    RegisterServerVoteKindDelegate registerServerVoteKind,
+    StartServerVoteDelegate startServerVote,
     ApplyGameplayImpulseDelegate applyGameplayImpulse,
     SetGameplayAbilityCooldownDelegate setGameplayAbilityCooldown,
     ApplyGameplayDamageDelegate applyGameplayDamage,
@@ -178,6 +184,16 @@ internal sealed class ServerPluginContext(
     public bool TryRegisterGameplaySlotItem(GameplaySlotItemRegistration registration, out string errorMessage)
     {
         return registerGameplaySlotItem(PluginId, registration, out errorMessage);
+    }
+
+    public bool TryRegisterVoteKind(OpenGarrisonServerVoteRegistration registration, out string errorMessage)
+    {
+        return registerServerVoteKind(PluginId, registration, out errorMessage);
+    }
+
+    public bool TryStartVote(string voteKindId, byte initiatorSlot, string argument, out string errorMessage)
+    {
+        return startServerVote(PluginId, voteKindId, initiatorSlot, argument, out errorMessage);
     }
 
     public void RegisterCommand(IOpenGarrisonServerCommand command, OpenGarrisonServerAdminPermissions requiredPermissions)

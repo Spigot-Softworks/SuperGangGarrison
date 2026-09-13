@@ -44,7 +44,6 @@ internal sealed class NetworkGameClient : IDisposable
         long ControlMessagesSent,
         long SnapshotAckMessagesSent);
 
-    private const int WsaConnReset = 10054;
     private const int SioUdpConnReset = -1744830452;
     private const long HelloRetryMilliseconds = 500;
     private const long WelcomeTimeoutMilliseconds = 4000;
@@ -59,15 +58,11 @@ internal sealed class NetworkGameClient : IDisposable
     private const double MaxReceiveMillisecondsPerFrame = 4d;
     private const long PingIntervalMilliseconds = 1000;
     private const InputButtons Protocol64OneShotInputMask =
-        InputButtons.Up
-        | InputButtons.BuildSentry
+        InputButtons.BuildSentry
         | InputButtons.DestroySentry
         | InputButtons.DestroyDispenser
         | InputButtons.Taunt
-        | InputButtons.FirePrimary
-        | InputButtons.FireSecondary
         | InputButtons.DropIntel
-        | InputButtons.UseAbility
         | InputButtons.InteractWeapon
         | InputButtons.SwapWeapon
         | InputButtons.ToggleSecondaryWeapon
@@ -81,6 +76,7 @@ internal sealed class NetworkGameClient : IDisposable
     private ulong _nextProtocol64FrameId = 1;
     private ulong _nextProtocol64CommandId = 1;
     private ulong _nextLastToDieCommandId = 1;
+    private ulong _nextGameplayAccountAttachRequestId = 1;
     private readonly Guid _defaultClientInstanceId = Guid.NewGuid();
     private ulong _lastToDieContentReadyStageInstanceId;
     private ulong _protocol64ConnectionEpoch = 1;
@@ -114,6 +110,7 @@ internal sealed class NetworkGameClient : IDisposable
     private long _lastPingSentAtMilliseconds = -1;
     private long _lastServerMessageReceivedAtMilliseconds = -1;
     private string? _lastDisconnectReason;
+    private string? _pendingTransportFailure;
     private OpenGarrisonDemoRecordingWriter? _demoRecorder;
     private string? _armedDemoRecordingPath;
     private bool _demoRecordingIsAutomatic;
@@ -138,6 +135,8 @@ internal sealed class NetworkGameClient : IDisposable
 
     public LastToDieReplicatedState LastToDieState => _lastToDieState;
 
+    public uint ConnectionGeneration { get; private set; }
+
     public bool TryGetProtocol64PlayerState(byte slot, out Protocol64PlayerState state)
         => _protocol64State.TryGetPlayerState(slot, out state);
 
@@ -145,14 +144,16 @@ internal sealed class NetworkGameClient : IDisposable
     {
         if (Protocol64ModeEnabled)
         {
-            _protocol64State.ApplyToWorld(world);
+            if (LocalPlayerSlot != 0)
+                _protocol64State.ApplyToWorld(world, LocalPlayerSlot);
         }
     }
 
     // Keep this as a diagnostics knob, but do not add deliberate input latency by default.
     public int NetworkInputDelayTicks { get; set; }
     public bool IsConnected => _transport is not null;
-    public bool IsAwaitingWelcome => IsConnected && LocalPlayerSlot == 0;
+    private bool _welcomeReceived;
+    public bool IsAwaitingWelcome => IsConnected && !_welcomeReceived;
     public bool IsSpectator => IsConnected && LocalPlayerSlot >= SimulationWorld.FirstSpectatorSlot;
     public bool IsReplayConnection { get; private set; }
     public bool IsDemoRecordingActive => _demoRecorder is not null || !string.IsNullOrWhiteSpace(_armedDemoRecordingPath);
@@ -289,17 +290,28 @@ internal sealed class NetworkGameClient : IDisposable
         _connectStartedAtMilliseconds = _clock.ElapsedMilliseconds;
         _lastHelloSentAtMilliseconds = -1;
         LocalPlayerSlot = 0;
+        _welcomeReceived = false;
         ServerMaxPlayerCount = 0;
         SendHello();
+        if (_pendingTransportFailure is { } startupError)
+        {
+            error = startupError;
+            Disconnect();
+            return false;
+        }
         ServerDescription = transport.RemoteDescription;
         return true;
     }
 
     public void Disconnect()
     {
+        ConnectionGeneration++;
         FinalizeDemoRecording(saveRecording: true, completedByDisconnect: true);
-        _transport?.Dispose();
+        // A socket that has been invalidated by the OS must not throw again during cleanup.
+        try { _transport?.Dispose(); }
+        catch (Exception ex) when (IsTransportException(ex)) { }
         _transport = null;
+        _pendingTransportFailure = null;
         _nextInputSequence = 1;
         _nextProtocol64CommandSequence = 1;
         _nextProtocol64FrameId = 1;
@@ -326,6 +338,7 @@ internal sealed class NetworkGameClient : IDisposable
         _nextPingSequence = 1;
         IsReplayConnection = false;
         LocalPlayerSlot = 0;
+        _welcomeReceived = false;
         ServerDescription = null;
         MapDownloadBaseUri = null;
         ReplayDisplayName = null;
@@ -584,6 +597,17 @@ internal sealed class NetworkGameClient : IDisposable
     public void SetLocalPlayerSlot(byte slot)
     {
         LocalPlayerSlot = slot;
+        AcknowledgeWelcomeReceipt();
+    }
+
+    public void SetMapDownloadBaseUri(Uri? baseUri)
+    {
+        MapDownloadBaseUri = baseUri;
+    }
+
+    public void AcknowledgeWelcomeReceipt()
+    {
+        _welcomeReceived = true;
         _pendingHelloPlayerName = null;
         _connectStartedAtMilliseconds = -1;
         _lastHelloSentAtMilliseconds = -1;
@@ -680,6 +704,50 @@ internal sealed class NetworkGameClient : IDisposable
         Send(new ChatSubmitMessage(text, teamOnly));
     }
 
+    public ulong AttachGameplayAccount(string gameplayToken)
+    {
+        if (!IsConnected
+            || IsAwaitingWelcome
+            || IsReplayConnection
+            || string.IsNullOrWhiteSpace(gameplayToken))
+        {
+            return 0;
+        }
+
+        var requestId = _nextGameplayAccountAttachRequestId++;
+        if (requestId == 0)
+        {
+            requestId = _nextGameplayAccountAttachRequestId++;
+        }
+
+        Send(new GameplayAccountAttachRequestMessage(requestId, gameplayToken.Trim()));
+        return requestId;
+    }
+
+    public void SendVoteCommand(
+        VoteCommandKind command,
+        string target = "",
+        int areaIndex = 1,
+        byte targetSlot = 0,
+        byte team = 0,
+        ulong voteId = 0,
+        string argument = "")
+    {
+        if (!IsConnected || IsAwaitingWelcome || IsReplayConnection)
+        {
+            return;
+        }
+
+        Send(new VoteCommandMessage(
+            command,
+            target?.Trim() ?? string.Empty,
+            areaIndex,
+            targetSlot,
+            team,
+            voteId,
+            argument?.Trim() ?? string.Empty));
+    }
+
     public void SendCustomBubbleUpload(byte slot, uint revision, byte[] rgba64Pixels)
     {
         if (!IsConnected
@@ -701,6 +769,17 @@ internal sealed class NetworkGameClient : IDisposable
         }
 
         Send(new CustomBubbleClearMessage(0));
+    }
+
+    public void SendVoice(bool teamOnly, AudioPacket packet)
+    {
+        if (IsConnected && !IsAwaitingWelcome && !IsReplayConnection && AudioWireFormat.IsValid(packet))
+            Send(new VoiceSubmitMessage(teamOnly, packet));
+    }
+
+    public void SendVoiceChannelMembership(VoiceChannelMembershipMessage message)
+    {
+        if (IsConnected && !IsReplayConnection && !IsAwaitingWelcome) Send(message);
     }
 
     public void UpdatePlayerProfile(string playerName, ulong badgeMask, string? friendCode = null, string? playerCardJson = null)
@@ -783,6 +862,9 @@ internal sealed class NetworkGameClient : IDisposable
             SendPendingControlCommands();
 
             var protocol64Sequence = _nextInputSequence++;
+            // Fire, jump, and ability buttons have held behavior as well as a
+            // reliable press edge (automatic fire, charging, and release actions).
+            // Only buttons with exclusively one-shot behavior can be masked out.
             var heldButtons = buttons & ~Protocol64OneShotInputMask;
             TrySendProtocol64Event(new InputStateMessage(
                 protocol64Sequence,
@@ -947,18 +1029,20 @@ internal sealed class NetworkGameClient : IDisposable
         var receiveBudgetHit = false;
         var receiveStartTimestamp = Stopwatch.GetTimestamp();
         var messages = new List<IProtocolMessage>();
-        while (transport.HasPendingMessages)
+        while (_pendingTransportFailure is null && ReferenceEquals(_transport, transport))
         {
-            if (packetsRead >= MaxReceivePacketsPerFrame
-                || (packetsRead > 0
-                    && Stopwatch.GetElapsedTime(receiveStartTimestamp).TotalMilliseconds >= MaxReceiveMillisecondsPerFrame))
-            {
-                receiveBudgetHit = true;
-                break;
-            }
-
             try
             {
+                // Socket.Available can fail too, including while a firewall/security
+                // prompt changes the connection. Keep the probe inside the boundary.
+                if (!transport.HasPendingMessages) break;
+                if (packetsRead >= MaxReceivePacketsPerFrame
+                    || (packetsRead > 0
+                        && Stopwatch.GetElapsedTime(receiveStartTimestamp).TotalMilliseconds >= MaxReceiveMillisecondsPerFrame))
+                {
+                    receiveBudgetHit = true;
+                    break;
+                }
                 if (!transport.TryReceive(out var payload))
                 {
                     break;
@@ -1016,10 +1100,13 @@ internal sealed class NetworkGameClient : IDisposable
                     messages.Add(message);
                 }
             }
-            catch (SocketException ex) when (ex.SocketErrorCode == SocketError.ConnectionReset || ex.ErrorCode == WsaConnReset)
+            catch (SocketException ex) when (IsTransientTransportError(transport, ex))
             {
-                _lastDisconnectReason = "Connection reset by remote host.";
-                Disconnect();
+                break;
+            }
+            catch (Exception ex) when (IsTransportException(ex))
+            {
+                RecordTransportFailure(transport, "receive", ex);
                 break;
             }
         }
@@ -1155,12 +1242,14 @@ internal sealed class NetworkGameClient : IDisposable
         }
 
         var schema = _protocol64Registry.Get(encoded.Header!.SchemaId, encoded.Header.SchemaRevision);
-        if (schema.Descriptor.Direction != Protocol64Direction.ClientToServer)
+        if (schema.Descriptor.Direction is not (Protocol64Direction.ClientToServer or Protocol64Direction.Bidirectional))
         {
             return false;
         }
 
-        transport.Send(encoded.Payload);
+        TrySendTransportPayload(transport, encoded.Payload, ephemeralAudio: eventValue is VoiceSubmitMessage);
+        // The event was encoded for this protocol, even if the transport failed.
+        // Returning false here would send a second copy using legacy framing.
         return true;
     }
 
@@ -1264,8 +1353,7 @@ internal sealed class NetworkGameClient : IDisposable
                 SendStateRepairIfNeeded(_protocol64State.ApplyResyncResponse(resync));
                 break;
             case LastToDieCommandResultMessage lastToDieResult:
-                _lastToDieState.ApplyCommandResult(lastToDieResult);
-                _pendingLastToDieCommands.Remove(lastToDieResult.CommandId);
+                ApplyLastToDieCommandResult(lastToDieResult);
                 break;
             case LastToDieRunSnapshotMessage lastToDieSnapshot:
                 var lastToDieApply = _lastToDieState.ApplySnapshot(lastToDieSnapshot);
@@ -1311,6 +1399,11 @@ internal sealed class NetworkGameClient : IDisposable
 
         var payload = ProtocolCodec.Serialize(message, GetSendCompressionSettings(message));
         RecordSendDiagnostics(message, payload.Length);
+        if (message is VoiceSubmitMessage && transport is INetworkClientAudioMessageTransport)
+        {
+            TrySendTransportPayload(transport, payload, ephemeralAudio: true);
+            return;
+        }
         if (SimulatedLatencyMilliseconds > 0)
         {
             _pendingOutboundPackets.Enqueue(new PendingPacket(_clock.ElapsedMilliseconds + SimulatedLatencyMilliseconds, payload));
@@ -1318,7 +1411,7 @@ internal sealed class NetworkGameClient : IDisposable
             return;
         }
 
-        transport.Send(payload);
+        TrySendTransportPayload(transport, payload);
     }
 
     private static ProtocolCompressionSettings GetSendCompressionSettings(IProtocolMessage message)
@@ -1630,8 +1723,7 @@ internal sealed class NetworkGameClient : IDisposable
                 AcknowledgePing(pingResponse.Sequence);
                 return true;
             case LastToDieCommandResultMessage result:
-                _lastToDieState.ApplyCommandResult(result);
-                _pendingLastToDieCommands.Remove(result.CommandId);
+                ApplyLastToDieCommandResult(result);
                 return true;
             case LastToDieRunSnapshotMessage snapshot:
                 _lastToDieState.ApplySnapshot(snapshot);
@@ -1708,7 +1800,7 @@ internal sealed class NetworkGameClient : IDisposable
             while (_pendingOutboundPackets.Count > 0)
             {
                 var pending = _pendingOutboundPackets.Dequeue();
-                _transport?.Send(pending.Payload);
+                if (_transport is { } transport) TrySendTransportPayload(transport, pending.Payload);
             }
         }
     }
@@ -1725,7 +1817,7 @@ internal sealed class NetworkGameClient : IDisposable
         while (_pendingOutboundPackets.Count > 0 && _pendingOutboundPackets.Peek().ReleaseAtMilliseconds <= _clock.ElapsedMilliseconds)
         {
             var pending = _pendingOutboundPackets.Dequeue();
-            transport.Send(pending.Payload);
+            TrySendTransportPayload(transport, pending.Payload);
         }
     }
 
@@ -1787,6 +1879,27 @@ internal sealed class NetworkGameClient : IDisposable
         }
     }
 
+    private void ApplyLastToDieCommandResult(LastToDieCommandResultMessage result)
+    {
+        _lastToDieState.ApplyCommandResult(result);
+        if (result.Result != LastToDieCommandResultKind.Accepted
+            || !_pendingLastToDieCommands.TryGetValue(result.CommandId, out var pending)
+            || !RequiresAuthoritativeLastToDieProof(pending.Command.Kind))
+        {
+            _pendingLastToDieCommands.Remove(result.CommandId);
+        }
+    }
+
+    private static bool RequiresAuthoritativeLastToDieProof(LastToDieCommandKind kind)
+        => kind is LastToDieCommandKind.RequestStart
+            or LastToDieCommandKind.ChooseSurvivor
+            or LastToDieCommandKind.SelectReward
+            or LastToDieCommandKind.Ready
+            or LastToDieCommandKind.Unready
+            or LastToDieCommandKind.StageContentReady
+            or LastToDieCommandKind.Retry
+            or LastToDieCommandKind.ReturnToLobby;
+
     private void CompleteProvenLastToDieCommands(LastToDieRunSnapshotMessage snapshot)
     {
         if (_pendingLastToDieCommands.Count == 0)
@@ -1818,6 +1931,10 @@ internal sealed class NetworkGameClient : IDisposable
                         || snapshot.Phase is LastToDieWirePhase.Playing
                             or LastToDieWirePhase.Won
                             or LastToDieWirePhase.Lost,
+                LastToDieCommandKind.Unready
+                    => localPlayer is not null
+                        && !localPlayer.IsReady
+                        && string.IsNullOrEmpty(localPlayer.SurvivorId),
                 LastToDieCommandKind.Leave
                     => localPlayer is null,
                 LastToDieCommandKind.Retry
@@ -1871,16 +1988,16 @@ internal sealed class NetworkGameClient : IDisposable
 
     private long GetWelcomeTimeoutMilliseconds()
     {
-        return IsLoopbackConnection()
+        return Math.Max(_transport?.ReceiveTimeoutMilliseconds ?? 0, IsLoopbackConnection()
             ? LocalWelcomeTimeoutMilliseconds
-            : WelcomeTimeoutMilliseconds;
+            : WelcomeTimeoutMilliseconds);
     }
 
     private long GetConnectedTimeoutMilliseconds()
     {
-        return IsLoopbackConnection()
+        return Math.Max(_transport?.ReceiveTimeoutMilliseconds ?? 0, IsLoopbackConnection()
             ? LocalConnectedTimeoutMilliseconds
-            : ConnectedTimeoutMilliseconds;
+            : ConnectedTimeoutMilliseconds);
     }
 
     private bool IsLoopbackConnection()
@@ -1891,15 +2008,61 @@ internal sealed class NetworkGameClient : IDisposable
     private void FlushTransportState()
     {
         var transport = _transport;
-        if (transport is null || !transport.TryConsumeDisconnectReason(out var reason))
+        if (transport is null) return;
+        string? reason = _pendingTransportFailure;
+        if (reason is null)
         {
-            return;
+            try
+            {
+                if (!transport.TryConsumeDisconnectReason(out reason)) return;
+            }
+            catch (Exception ex) when (IsTransportException(ex))
+            {
+                RecordTransportFailure(transport, "connection status", ex);
+                reason = _pendingTransportFailure;
+            }
         }
 
         _lastDisconnectReason = string.IsNullOrWhiteSpace(reason)
             ? "Connection closed."
             : reason;
         Disconnect();
+    }
+
+    private void TrySendTransportPayload(INetworkClientMessageTransport transport, byte[] payload, bool ephemeralAudio = false)
+    {
+        if (_pendingTransportFailure is not null || !ReferenceEquals(_transport, transport)) return;
+        try
+        {
+            if (ephemeralAudio && transport is INetworkClientAudioMessageTransport audioTransport) audioTransport.SendAudio(payload);
+            else transport.Send(payload);
+        }
+        catch (SocketException ex) when (IsTransientTransportError(transport, ex))
+        {
+            // Nonblocking transports may temporarily have no capacity. Handshakes and
+            // acknowledged commands retry through their existing queues; audio is ephemeral.
+        }
+        catch (Exception ex) when (IsTransportException(ex))
+        {
+            RecordTransportFailure(transport, "send", ex);
+        }
+    }
+
+    private static bool IsTransportException(Exception exception) => exception is SocketException or IOException or ObjectDisposedException;
+
+    private bool IsTransientTransportError(INetworkClientMessageTransport transport, SocketException exception)
+        => exception.SocketErrorCode is SocketError.WouldBlock or SocketError.IOPending or SocketError.Interrupted or SocketError.NoBufferSpaceAvailable
+            // A newly launched local UDP server may not have bound its port yet.
+            || IsAwaitingWelcome && transport is UdpNetworkClientMessageTransport
+                && exception.SocketErrorCode is SocketError.ConnectionReset or SocketError.ConnectionRefused;
+
+    private void RecordTransportFailure(INetworkClientMessageTransport transport, string operation, Exception exception)
+    {
+        if (!ReferenceEquals(_transport, transport)) return;
+        var detail = exception is SocketException socket ? $"{socket.SocketErrorCode}: {socket.Message}" : exception.Message;
+        _pendingTransportFailure ??= $"Network {operation} failed: {detail}";
+        // Defer disconnect until the frame pump: Send can run while iterating pending
+        // commands, and Disconnect clears those collections.
     }
 
     private void RecordSendDiagnostics(IProtocolMessage message, int payloadBytes)

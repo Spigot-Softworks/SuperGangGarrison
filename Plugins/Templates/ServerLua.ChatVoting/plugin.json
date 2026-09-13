@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
   "id": "sample.server.lua-chat-voting",
-  "displayName": "Lua Chat Voting",
-  "version": "0.1.0",
+  "displayName": "Lua Native Vote Extension",
+  "version": "0.2.0",
   "type": "Server",
   "runtime": "Lua",
   "entryPoint": "main.lua",
-  "description": "Lua version of the stock chat voting plugin built on the host seams.",
+  "description": "Registers a restart-map vote with the native server vote coordinator.",
   "compatibility": {
     "hostApiVersion": "1.0"
   },

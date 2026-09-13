@@ -101,9 +101,26 @@ public sealed class CivilDefenseTurretEntity : SimulationEntity
         }
     }
 
+    public void ApplyNetworkState(float x, float y, int health, bool hasLanded, bool isBuilt,
+        float facingDirectionX, float aimDirectionDegrees, int reloadTicksRemaining,
+        int shotTraceTicksRemaining, float lastShotTargetX, float lastShotTargetY)
+    {
+        X = x;
+        Y = y;
+        Health = Math.Clamp(health, 0, MaxHealth);
+        HasLanded = hasLanded;
+        IsBuilt = isBuilt;
+        FacingDirectionX = facingDirectionX;
+        AimDirectionDegrees = aimDirectionDegrees;
+        ReloadTicksRemaining = Math.Max(0, reloadTicksRemaining);
+        ShotTraceTicksRemaining = Math.Max(0, shotTraceTicksRemaining);
+        LastShotTargetX = lastShotTargetX;
+        LastShotTargetY = lastShotTargetY;
+    }
+
     public bool CanFire()
     {
-        return IsBuilt && ReloadTicksRemaining == 0;
+        return IsBuilt && !IsDead && ReloadTicksRemaining == 0;
     }
 
     public void FireAt(float targetX, float targetY)

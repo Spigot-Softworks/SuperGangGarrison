@@ -690,7 +690,7 @@ public sealed partial class PlayerEntity
             return;
         }
 
-        if (SniperChargeTicks < LastToDieSniperRifleFullChargeTicks)
+        if (SniperChargeTicks < SniperRifleFullChargeTicks)
         {
             SniperChargeTicks += 1;
         }
@@ -741,7 +741,7 @@ public sealed partial class PlayerEntity
 
     private void AdvancePyroAirblastState()
     {
-        if (!HasPyroWeaponAvailable)
+        if (ClassId != PlayerClass.Pyro && AcquiredWeaponClassId != PlayerClass.Pyro)
         {
             PyroAirblastCooldownTicks = 0;
             PyroFlareCooldownTicks = 0;
@@ -1159,6 +1159,65 @@ public sealed partial class PlayerEntity
         && GameplayLoadoutState.EquippedSlot == GameplayEquipmentSlot.Primary
         && HasPrimaryBehavior(BuiltInGameplayBehaviorIds.SniperBow);
 
+    public bool IsMortarLauncherEquipped =>
+        ClassId == PlayerClass.Soldier
+        && GameplayLoadoutState.EquippedSlot == GameplayEquipmentSlot.Primary
+        && HasPrimaryBehavior(BuiltInGameplayBehaviorIds.MortarLauncher);
+
+    public int MortarLauncherChargeTicks => IsMortarLauncherEquipped ? SniperBowChargeTicks : 0;
+
+    public bool TryStartMortarLauncherCharge(float aimDirectionDegrees)
+    {
+        if (!IsAlive
+            || !IsMortarLauncherEquipped
+            || IsTaunting
+            || IsHeavyEating
+            || SniperBowChargeTicks > 0
+            || PrimaryCooldownTicks > 0
+            || CurrentShells <= 0)
+        {
+            return false;
+        }
+
+        SniperBowChargeTicks = 1;
+        SniperBowChargeDirectionDegrees = aimDirectionDegrees;
+        return true;
+    }
+
+    public void IncrementMortarLauncherCharge(float aimDirectionDegrees)
+    {
+        if (SniperBowChargeTicks > 0 && SniperBowChargeTicks < MortarLauncherMaxChargeTicks)
+        {
+            SniperBowChargeTicks += 1;
+        }
+
+        SniperBowChargeDirectionDegrees = aimDirectionDegrees;
+    }
+
+    public bool TryReleaseMortarLauncherCharge(out float chargeFraction, out float directionRadians)
+    {
+        chargeFraction = 0f;
+        directionRadians = 0f;
+        if (!IsAlive || !IsMortarLauncherEquipped || SniperBowChargeTicks <= 0)
+        {
+            return false;
+        }
+
+        chargeFraction = float.Min(1f, SniperBowChargeTicks / (float)MortarLauncherMaxChargeTicks);
+        directionRadians = SniperBowChargeDirectionDegrees * (MathF.PI / 180f);
+        CancelMortarLauncherCharge();
+        return true;
+    }
+
+    public void CancelMortarLauncherCharge()
+    {
+        if (!IsSniperBowEquipped)
+        {
+            SniperBowChargeTicks = 0;
+            SniperBowChargeDirectionDegrees = 0f;
+        }
+    }
+
     public bool TryStartSniperBowCharge(float aimDirectionDegrees)
     {
         if (!IsAlive
@@ -1249,7 +1308,7 @@ public sealed partial class PlayerEntity
 
     private void AdvanceSniperBowState()
     {
-        if (ClassId != PlayerClass.Sniper || !IsSniperBowEquipped)
+        if (!IsSniperBowEquipped && !IsMortarLauncherEquipped)
         {
             SniperBowChargeTicks = 0;
             SniperBowChargeDirectionDegrees = 0f;

@@ -68,7 +68,7 @@ public static partial class ProtocolCodec
         WriteRocketSpawnEvents(writer, snapshot.RocketSpawnEvents);
         WriteFlameStates(writer, snapshot.Flames);
         WriteEntityIdList(writer, snapshot.RemovedFlameIds);
-        WriteShotStates(writer, snapshot.Flares);
+        WriteShotStates(writer, snapshot.Flares, includeFlarePayload: true);
         WriteEntityIdList(writer, snapshot.RemovedFlareIds);
         WriteMineStates(writer, snapshot.Mines);
         WriteEntityIdList(writer, snapshot.RemovedMineIds);
@@ -80,7 +80,9 @@ public static partial class ProtocolCodec
         WriteSentryGibStates(writer, snapshot.SentryGibs);
         WriteEntityIdList(writer, snapshot.RemovedSentryGibIds);
         WriteJumpPadStates(writer, snapshot.JumpPads);
+        WriteCivilDefenseTurretStates(writer, snapshot.CivilDefenseTurrets);
         WriteEntityIdList(writer, snapshot.RemovedJumpPadIds);
+        WriteEntityIdList(writer, snapshot.RemovedCivilDefenseTurretIds);
         WriteJumpPadGibStates(writer, snapshot.JumpPadGibs);
         WriteEntityIdList(writer, snapshot.RemovedJumpPadGibIds);
         WriteHealthPackStates(writer, snapshot.HealthPacks);
@@ -161,7 +163,7 @@ public static partial class ProtocolCodec
         var rocketSpawnEvents = ReadRocketSpawnEvents(reader);
         var flames = ReadFlameStates(reader);
         var removedFlameIds = ReadEntityIdList(reader);
-        var flares = ReadShotStates(reader);
+        var flares = ReadShotStates(reader, includeFlarePayload: true);
         var removedFlareIds = ReadEntityIdList(reader);
         var mines = ReadMineStates(reader);
         var removedMineIds = ReadEntityIdList(reader);
@@ -173,7 +175,9 @@ public static partial class ProtocolCodec
         var sentryGibs = ReadSentryGibStates(reader);
         var removedSentryGibIds = ReadEntityIdList(reader);
         var jumpPads = ReadJumpPadStates(reader);
+        var civilDefenseTurrets = ReadCivilDefenseTurretStates(reader);
         var removedJumpPadIds = ReadEntityIdList(reader);
+        var removedCivilDefenseTurretIds = ReadEntityIdList(reader);
         var jumpPadGibs = ReadJumpPadGibStates(reader);
         var removedJumpPadGibIds = ReadEntityIdList(reader);
         var healthPacks = ReadHealthPackStates(reader);
@@ -286,7 +290,9 @@ public static partial class ProtocolCodec
             SentryGibs = sentryGibs,
             RemovedSentryGibIds = removedSentryGibIds,
             JumpPads = jumpPads,
+            CivilDefenseTurrets = civilDefenseTurrets,
             RemovedJumpPadIds = removedJumpPadIds,
+            RemovedCivilDefenseTurretIds = removedCivilDefenseTurretIds,
             JumpPadGibs = jumpPadGibs,
             RemovedJumpPadGibIds = removedJumpPadGibIds,
             HealthPacks = healthPacks,
@@ -484,6 +490,7 @@ public static partial class ProtocolCodec
             writer.Write(QuantizeScaledUInt16(player.RageCharge, QuantizedRageChargeScale));
             writer.Write((ushort)Math.Clamp(player.RageTicksRemaining, 0, ushort.MaxValue));
             writer.Write(player.IsRageReady);
+            writer.Write(player.IsBot);
         }
     }
 
@@ -614,6 +621,7 @@ public static partial class ProtocolCodec
             var rageCharge = ReadScaledUInt16(reader, QuantizedRageChargeScale);
             var rageTicksRemaining = reader.ReadUInt16();
             var isRageReady = reader.ReadBoolean();
+            var isBot = reader.ReadBoolean();
 
             players.Add(new SnapshotPlayerState(
                 slot, playerId, name, team, classId, isAlive, isAwaitingJoin, isSpectator,
@@ -651,7 +659,7 @@ public static partial class ProtocolCodec
                 kritzCritBoostProviderPlayerId, kritzCritBoostProviderSlot,
                 kritzCritBoostDamageMultiplier, isDispenserBuffed,
                 dispenserAttackReloadSpeedMultiplier, rageCharge, isRageReady,
-                rageTicksRemaining));
+                rageTicksRemaining, isBot));
         }
 
         return players;

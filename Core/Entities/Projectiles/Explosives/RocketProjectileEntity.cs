@@ -51,6 +51,9 @@ public sealed class RocketProjectileEntity : SimulationEntity
         bool enableExperimentalCaveatTracking = false,
         float experimentalVisualScale = 1f,
         int experimentalTrackingLockTicksRemaining = 0,
+        bool isBallistic = false,
+        float ballisticGravityPerTick = 0f,
+        bool suppressSmokeTrail = false,
         string? killFeedWeaponSpriteNameOverride = null) : base(id)
     {
         Team = team;
@@ -65,6 +68,8 @@ public sealed class RocketProjectileEntity : SimulationEntity
         ExplosionDamageValue = resolvedCombat.ExplosionDamage;
         BlastRadiusValue = resolvedCombat.BlastRadius;
         SplashThresholdFactorValue = resolvedCombat.SplashThresholdFactor;
+        MinimumSplashDamageValue = MathF.Max(0f, resolvedCombat.MinimumSplashDamage);
+        SelfDamageMultiplier = MathF.Max(0f, resolvedCombat.SelfDamageMultiplier);
         ReducedKnockbackSourceTicksRemaining = MathF.Max(0f, reducedKnockbackSourceTicksRemaining);
         ZeroKnockbackSourceTicksRemaining = MathF.Max(0f, zeroKnockbackSourceTicksRemaining);
         RangeAnchorOwnerId = rangeAnchorOwnerId ?? ownerId;
@@ -83,6 +88,9 @@ public sealed class RocketProjectileEntity : SimulationEntity
                 ? 1.4f
                 : experimentalVisualScale);
         ExperimentalTrackingLockTicksRemaining = Math.Max(0, experimentalTrackingLockTicksRemaining);
+        IsBallistic = isBallistic;
+        BallisticGravityPerTick = MathF.Max(0f, ballisticGravityPerTick);
+        SuppressSmokeTrail = suppressSmokeTrail;
         KillFeedWeaponSpriteNameOverride = killFeedWeaponSpriteNameOverride;
         IsFading = isFading;
         FadeSourceTicksRemaining = isFading ? MathF.Max(0f, fadeSourceTicksRemaining) : 0f;
@@ -135,13 +143,21 @@ public sealed class RocketProjectileEntity : SimulationEntity
 
     public string? KillFeedWeaponSpriteNameOverride { get; }
 
+    public bool IsBallistic { get; private set; }
+
+    public float BallisticGravityPerTick { get; private set; }
+
+    public bool SuppressSmokeTrail { get; private set; }
+
     public bool IsFading { get; private set; }
 
     public float FadeSourceTicksRemaining { get; private set; }
 
     public IReadOnlyCollection<int> PassedFriendlyPlayerIds => _passedFriendlyPlayerIds;
 
-    public float CurrentKnockback => ZeroKnockbackSourceTicksRemaining <= 0f
+    public float CurrentKnockback => IsBallistic
+        ? InitialKnockback * KnockbackScale
+        : ZeroKnockbackSourceTicksRemaining <= 0f
         ? 0f
         : ReducedKnockbackSourceTicksRemaining <= 0f
             ? ReducedKnockback * KnockbackScale
@@ -154,6 +170,10 @@ public sealed class RocketProjectileEntity : SimulationEntity
     public float BlastRadiusValue { get; }
 
     public float SplashThresholdFactorValue { get; }
+
+    public float MinimumSplashDamageValue { get; }
+
+    public float SelfDamageMultiplier { get; }
 
     public float DirectHitHealAmountValue { get; }
 
@@ -194,14 +214,30 @@ public sealed class RocketProjectileEntity : SimulationEntity
             : 1f;
     }
 
-    public void AdvanceOneTick(float deltaSeconds)
+    public void AdvanceOneTick(float deltaSeconds, float gravityScale = 1f)
     {
         PreviousX = X;
         PreviousY = Y;
-        X += MathF.Cos(DirectionRadians) * Speed;
-        Y += MathF.Sin(DirectionRadians) * Speed;
-        Speed += 1f;
-        Speed *= 0.92f;
+        if (IsBallistic)
+        {
+            var velocityX = MathF.Cos(DirectionRadians) * Speed;
+            var velocityY = MathF.Sin(DirectionRadians) * Speed;
+            X += velocityX;
+            Y += velocityY;
+            velocityY += BallisticGravityPerTick * MathF.Max(0f, gravityScale);
+            Speed = MathF.Sqrt((velocityX * velocityX) + (velocityY * velocityY));
+            if (Speed > 0.0001f)
+            {
+                DirectionRadians = MathF.Atan2(velocityY, velocityX);
+            }
+        }
+        else
+        {
+            X += MathF.Cos(DirectionRadians) * Speed;
+            Y += MathF.Sin(DirectionRadians) * Speed;
+            Speed += 1f;
+            Speed *= 0.92f;
+        }
         TicksRemaining -= 1;
         if (ExperimentalTrackingLockTicksRemaining > 0)
         {
@@ -209,6 +245,13 @@ public sealed class RocketProjectileEntity : SimulationEntity
         }
 
         AdvanceKnockbackDecay(deltaSeconds);
+    }
+
+    public void HydrateBallisticState(bool isBallistic, float gravityPerTick, bool suppressSmokeTrail)
+    {
+        IsBallistic = isBallistic;
+        BallisticGravityPerTick = MathF.Max(0f, gravityPerTick);
+        SuppressSmokeTrail = suppressSmokeTrail;
     }
 
     public void RefreshRangeOrigin(float rangeOriginX, float rangeOriginY)

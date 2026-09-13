@@ -13,6 +13,9 @@ public sealed partial class SimulationWorld
     }
 
     public static float ResolveExplosiveSplashDamage(float maximumDamage, float distanceFactor)
+        => ResolveExplosiveSplashDamage(maximumDamage, distanceFactor, ExplosiveSplashMinimumDamage);
+
+    public static float ResolveExplosiveSplashDamage(float maximumDamage, float distanceFactor, float minimumDamage)
     {
         if (!float.IsFinite(maximumDamage)
             || !float.IsFinite(distanceFactor)
@@ -23,7 +26,7 @@ public sealed partial class SimulationWorld
         }
 
         return MathF.Max(
-            ExplosiveSplashMinimumDamage,
+            MathF.Max(0f, minimumDamage),
             maximumDamage * Math.Clamp(distanceFactor, 0f, 1f));
     }
 }

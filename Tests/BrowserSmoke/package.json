@@ -3,7 +3,15 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "smoke": "node smoke.mjs"
+    "smoke": "node smoke.mjs",
+    "voice": "node voice-audio.mjs",
+    "rooms": "node private-rooms.mjs",
+    "practice-maps": "node practice-maps.mjs",
+    "resizing": "node resizing.mjs",
+    "hud": "node hud.mjs",
+    "performance": "node performance.mjs",
+    "browser-regressions": "node browser-regressions.mjs",
+    "transport": "node transport-urls.mjs"
   },
   "dependencies": {
     "playwright": "^1.54.2"

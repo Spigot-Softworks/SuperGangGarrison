@@ -30,7 +30,8 @@ internal sealed record HostedServerLaunchOptions(
     GameplayVariantKind GameplayVariant = GameplayVariantKind.Standard,
     LastToDieDifficulty LastToDieDifficulty = LastToDieDifficulty.Standard,
     ulong? LastToDieSeed = null,
-    string RelayHostUrl = "")
+    string RelayHostUrl = "",
+    string ManagementConfigPath = "")
 {
     public static HostedServerLaunchOptions CreateLastToDie(
         string configPath,
@@ -38,12 +39,12 @@ internal sealed record HostedServerLaunchOptions(
         int port,
         LastToDieDifficulty difficulty,
         ulong? seed = null,
-        int maxPlayers = 2)
+        int maxPlayers = 4)
         => new(
             configPath,
             serverName,
             port,
-            MaxPlayers: Math.Clamp(maxPlayers, 1, 2),
+            MaxPlayers: Math.Clamp(maxPlayers, 1, 4),
             Password: string.Empty,
             RconPassword: string.Empty,
             TimeLimitMinutes: 30,
@@ -81,6 +82,25 @@ internal static class HostedServerBootstrapper
         catch (SocketException)
         {
             return false;
+        }
+    }
+
+    public static bool IsTcpPortAvailable(int port)
+    {
+        TcpListener? probe = null;
+        try
+        {
+            probe = new TcpListener(System.Net.IPAddress.Loopback, port);
+            probe.Start();
+            return true;
+        }
+        catch (SocketException)
+        {
+            return false;
+        }
+        finally
+        {
+            probe?.Stop();
         }
     }
 
@@ -197,80 +217,44 @@ internal static class HostedServerBootstrapper
         }
     }
 
-    public static string BuildLaunchArguments(HostedServerLaunchTarget launchTarget, HostedServerLaunchOptions options)
+    public static ProcessStartInfo BuildStartInfo(HostedServerLaunchTarget target, HostedServerLaunchOptions options)
     {
-        var arguments = new List<string>();
-        if (!string.IsNullOrWhiteSpace(launchTarget.ArgumentsPrefix))
-        {
-            arguments.Add(launchTarget.ArgumentsPrefix);
-        }
-
-        arguments.Add($"--config {QuoteArgument(options.ConfigPath)}");
-
+        var info = new ProcessStartInfo(target.FileName) { UseShellExecute = false, WorkingDirectory = target.WorkingDirectory };
+        // FindLaunchTarget's only prefix is the quoted managed entry-point path.
+        if (!string.IsNullOrWhiteSpace(target.ArgumentsPrefix))
+            info.ArgumentList.Add(target.ArgumentsPrefix.Trim().Trim('"'));
+        void Add(string key, object value) { info.ArgumentList.Add(key); info.ArgumentList.Add(value.ToString()!); }
+        Add("--config", options.ConfigPath);
+        if (!string.IsNullOrWhiteSpace(options.ManagementConfigPath)) Add("--management-config", options.ManagementConfigPath);
         if (options.GameplayVariant == GameplayVariantKind.LastToDie)
         {
-            arguments.Add("--gameplay-variant last-to-die");
-            arguments.Add($"--last-to-die-difficulty {options.LastToDieDifficulty.ToString().ToLowerInvariant()}");
-            if (options.LastToDieSeed is { } seed)
-            {
-                arguments.Add($"--last-to-die-seed {seed}");
-            }
+            Add("--gameplay-variant", "last-to-die");
+            Add("--last-to-die-difficulty", options.LastToDieDifficulty.ToString().ToLowerInvariant());
+            if (options.LastToDieSeed is { } seed) Add("--last-to-die-seed", seed);
         }
+        if (options.Port > 0) Add("--port", options.Port);
+        if (!string.IsNullOrWhiteSpace(options.ServerName)) Add("--name", options.ServerName);
+        if (options.MaxPlayers > 0) Add("--max-players", options.MaxPlayers);
+        if (!string.IsNullOrWhiteSpace(options.Password)) Add("--password", options.Password);
+        if (!string.IsNullOrWhiteSpace(options.RconPassword)) Add("--rcon-password", options.RconPassword);
+        if (!string.IsNullOrWhiteSpace(options.RequestedMap)) Add("--map", options.RequestedMap);
+        if (!string.IsNullOrWhiteSpace(options.MapRotationFile)) Add("--map-rotation", options.MapRotationFile);
+        if (options.TimeLimitMinutes > 0) Add("--time-limit", options.TimeLimitMinutes);
+        if (options.CapLimit > 0) Add("--cap-limit", options.CapLimit);
+        if (options.RespawnSeconds >= 0) Add("--respawn-seconds", options.RespawnSeconds);
+        info.ArgumentList.Add(options.LobbyAnnounce ? "--lobby" : "--no-lobby");
+        info.ArgumentList.Add(options.AutoBalance ? "--auto-balance" : "--no-auto-balance");
+        info.ArgumentList.Add(options.SecondaryAbilitiesEnabled ? "--special-abilities" : "--no-special-abilities");
+        return info;
+    }
 
-        if (options.Port > 0)
-        {
-            arguments.Add($"--port {options.Port}");
-        }
-
-        if (!string.IsNullOrWhiteSpace(options.ServerName))
-        {
-            arguments.Add($"--name {QuoteArgument(options.ServerName)}");
-        }
-
-        if (options.MaxPlayers > 0)
-        {
-            arguments.Add($"--max-players {options.MaxPlayers}");
-        }
-
-        if (!string.IsNullOrWhiteSpace(options.Password))
-        {
-            arguments.Add($"--password {QuoteArgument(options.Password)}");
-        }
-
-        if (!string.IsNullOrWhiteSpace(options.RconPassword))
-        {
-            arguments.Add($"--rcon-password {QuoteArgument(options.RconPassword)}");
-        }
-
-        if (!string.IsNullOrWhiteSpace(options.RequestedMap))
-        {
-            arguments.Add($"--map {QuoteArgument(options.RequestedMap)}");
-        }
-
-        if (!string.IsNullOrWhiteSpace(options.MapRotationFile))
-        {
-            arguments.Add($"--map-rotation {QuoteArgument(options.MapRotationFile)}");
-        }
-
-        if (options.TimeLimitMinutes > 0)
-        {
-            arguments.Add($"--time-limit {options.TimeLimitMinutes}");
-        }
-
-        if (options.CapLimit > 0)
-        {
-            arguments.Add($"--cap-limit {options.CapLimit}");
-        }
-
-        if (options.RespawnSeconds >= 0)
-        {
-            arguments.Add($"--respawn-seconds {options.RespawnSeconds}");
-        }
-
-        arguments.Add(options.LobbyAnnounce ? "--lobby" : "--no-lobby");
-        arguments.Add(options.AutoBalance ? "--auto-balance" : "--no-auto-balance");
-        arguments.Add(options.SecondaryAbilitiesEnabled ? "--special-abilities" : "--no-special-abilities");
-        return string.Join(' ', arguments);
+    public static string BuildLaunchArguments(HostedServerLaunchTarget target, HostedServerLaunchOptions options)
+    {
+        var arguments = BuildStartInfo(target, options).ArgumentList;
+        return string.Join(" ", arguments.Select((argument, index) =>
+            index == 0 && !argument.StartsWith("--", StringComparison.Ordinal)
+                || index > 0 && arguments[index - 1] is "--config" or "--management-config" or "--name" or "--password" or "--rcon-password" or "--map" or "--map-rotation"
+                ? DedicatedServerTerminalLauncher.QuoteWindowsArgument(argument) : argument));
     }
 
     public static bool TryGetProcess(HostedServerSessionInfo session, out Process? process)
@@ -338,9 +322,9 @@ internal static class HostedServerBootstrapper
         return false;
     }
 
-    public static HostedServerProcessLogPaths PrepareProcessLogFiles()
+    public static HostedServerProcessLogPaths PrepareProcessLogFiles(string? instanceDirectory = null)
     {
-        var logsDirectory = Path.Combine(OpenGarrison.Core.RuntimePaths.ConfigDirectory, "logs");
+        var logsDirectory = instanceDirectory ?? Path.Combine(OpenGarrison.Core.RuntimePaths.ConfigDirectory, "logs", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(logsDirectory);
         var stdoutPath = Path.Combine(logsDirectory, HostedServerStdOutLogFileName);
         var stderrPath = Path.Combine(logsDirectory, HostedServerStdErrLogFileName);

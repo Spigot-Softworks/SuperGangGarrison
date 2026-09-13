@@ -81,6 +81,11 @@ public partial class Game1
 
     private void QueuePredictedWeaponFireVisual(PlayerEntity player, PlayerInputSnapshot input)
     {
+        if (player.IsExperimentalDemoknightEnabled)
+        {
+            return;
+        }
+
         var (weaponKind, behaviorId) = GetImmediateWeaponPresentationSelection(player);
         var family = ResolvePredictedWeaponFireVisualFamily(weaponKind, behaviorId);
         if (family == PredictedWeaponFireVisualFamily.None)
@@ -148,9 +153,10 @@ public partial class Game1
             return PredictedWeaponFireVisualFamily.Needle;
         }
 
-        // Bow release is charge/release driven and is intentionally left to its
-        // dedicated presentation path.
-        if (string.Equals(behaviorId, BuiltInGameplayBehaviorIds.SniperBow, StringComparison.Ordinal))
+        // Charge/release weapons are intentionally left to their dedicated
+        // presentation paths so mouse-down cannot look like a fired shot.
+        if (string.Equals(behaviorId, BuiltInGameplayBehaviorIds.SniperBow, StringComparison.Ordinal)
+            || string.Equals(behaviorId, BuiltInGameplayBehaviorIds.MortarLauncher, StringComparison.Ordinal))
         {
             return PredictedWeaponFireVisualFamily.None;
         }

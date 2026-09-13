@@ -79,12 +79,8 @@ public partial class Game1
             "ConsoleFont" =>
             [
                 (
-                    ContentRoot.GetPath("Sprites", "Menu", "Fonts", "MenuFontAtlas.png"),
-                    ContentRoot.GetPath("Sprites", "Menu", "Fonts", "MenuFontAtlas.json")
-                ),
-                (
-                    ContentRoot.GetPath("Sprites", "Menu", "Fonts", "MenuBuildFontAtlas.png"),
-                    ContentRoot.GetPath("Sprites", "Menu", "Fonts", "MenuBuildFontAtlas.json")
+                    ContentRoot.GetPath("Sprites", "Menu", "Fonts", "ConsoleFontAtlas.png"),
+                    ContentRoot.GetPath("Sprites", "Menu", "Fonts", "ConsoleFontAtlas.json")
                 ),
             ],
             _ => [],

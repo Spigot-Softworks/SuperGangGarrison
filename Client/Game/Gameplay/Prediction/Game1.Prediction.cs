@@ -315,7 +315,10 @@ public partial class Game1
         int previousPredictedCharge,
         int previousPendingCount)
     {
-        if (!predictedPlayer.IsSniperBowEquipped && !authorityPlayer.IsSniperBowEquipped)
+        if (!predictedPlayer.IsSniperBowEquipped
+            && !authorityPlayer.IsSniperBowEquipped
+            && !predictedPlayer.IsMortarLauncherEquipped
+            && !authorityPlayer.IsMortarLauncherEquipped)
         {
             return;
         }

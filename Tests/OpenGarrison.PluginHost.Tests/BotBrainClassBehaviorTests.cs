@@ -8,6 +8,38 @@ namespace OpenGarrison.PluginHost.Tests;
 
 public sealed class BotBrainClassBehaviorTests
 {
+    [Theory]
+    [InlineData(1061f, 775.6f)]
+    [InlineData(1090f, 762f)]
+    public void LookaheadCannotSkipTheCurrentGroundedJumpContact(float x, float y)
+    {
+        var player = new PlayerEntity(1, CharacterClassCatalog.Scout, "Scout");
+        player.Spawn(PlayerTeam.Red, x, y);
+        player.RestoreMovementProbeState(isGrounded: false, remainingAirJumps: null, facingDirectionX: 1f);
+        var nodes = new[]
+        {
+            new NavNode(1000f, 810f, NavNodeKind.Surface, 1),
+            new NavNode(1097.28f, 762f, NavNodeKind.Surface, 2),
+            new NavNode(1080f, 762f, NavNodeKind.Surface, 2),
+            new NavNode(1200f, 762f, NavNodeKind.Surface, 2),
+        };
+        var adjacency = CreateAdjacency(nodes.Length);
+        adjacency[0].Add(new NavEdge(1, NavEdgeKind.Jump, 100f)
+        {
+            RequiresGroundedContinuation = true,
+            IsRuntimeResolved = true,
+            Completion = new NavEdgeCompletion(1050, 1110, 750, 790, []),
+        });
+        adjacency[1].Add(new NavEdge(2, NavEdgeKind.Walk, 17f));
+        adjacency[2].Add(new NavEdge(3, NavEdgeKind.Walk, 120f));
+        var graph = new NavGraph(nodes, adjacency);
+        var path = graph.FindPath(0, 3, PlayerClass.Scout, team: PlayerTeam.Red)!;
+        path.Advance();
+        typeof(SteeringMachine).GetMethod("TryAdvanceToReachedFutureWaypoint", BindingFlags.NonPublic | BindingFlags.Static)!
+            .Invoke(null, [player, graph, path]);
+        Assert.Equal(1, path.CurrentIndex);
+    }
+
     [Fact]
     public void PyroReflectsAccurateIncomingProjectileInAirblastWindow()
     {
@@ -137,7 +169,8 @@ public sealed class BotBrainClassBehaviorTests
             target.Y,
             decision,
             default);
-        Assert.True(input.SwapWeapon);
+        Assert.True(input.ToggleSecondaryWeapon);
+        Assert.False(input.SwapWeapon);
         Assert.False(input.UseAbility);
         Assert.False(input.FirePrimary);
     }
@@ -226,7 +259,7 @@ public sealed class BotBrainClassBehaviorTests
     }
 
     [Fact]
-    public void SoldierBotPulsesSwapWeaponForShotgunAndLauncherSelection()
+    public void SoldierBotPulsesSecondaryToggleForShotgunAndLauncherSelection()
     {
         var soldier = new PlayerEntity(1, CharacterClassCatalog.Soldier, "Soldier");
         soldier.Spawn(PlayerTeam.Blue, 100f, 100f);
@@ -244,7 +277,8 @@ public sealed class BotBrainClassBehaviorTests
                 SelectSecondaryWeapon: true),
             default);
 
-        Assert.True(shotgunInput.SwapWeapon);
+        Assert.True(shotgunInput.ToggleSecondaryWeapon);
+        Assert.False(shotgunInput.SwapWeapon);
         Assert.False(shotgunInput.UseAbility);
 
         soldier.EquipExperimentalOffhandWeapon();
@@ -261,6 +295,7 @@ public sealed class BotBrainClassBehaviorTests
             shotgunInput);
 
         Assert.False(releaseInput.SwapWeapon);
+        Assert.False(releaseInput.ToggleSecondaryWeapon);
         Assert.False(releaseInput.UseAbility);
 
         var launcherInput = BotInputSynthesizer.Synthesize(
@@ -275,7 +310,8 @@ public sealed class BotBrainClassBehaviorTests
                 SelectSecondaryWeapon: false),
             releaseInput);
 
-        Assert.True(launcherInput.SwapWeapon);
+        Assert.True(launcherInput.ToggleSecondaryWeapon);
+        Assert.False(launcherInput.SwapWeapon);
         Assert.False(launcherInput.UseAbility);
     }
 

@@ -19,6 +19,7 @@ public partial class Game1
     private string _consoleInput = string.Empty;
     private int _consoleScrollOffset;
     private readonly List<string> _consoleHistory = new();
+    private (OpenGarrison.SessionRuntime.EmbeddedSessionHost Host, System.Threading.Tasks.Task<IReadOnlyList<string>> Result)? _embeddedConsoleCommand;
 
     private bool TryHandleEnemyDummyConsoleCommand(string commandText)
     {
@@ -727,7 +728,20 @@ public partial class Game1
 
     private void TryForwardHostedLastToDieConsoleCommand(string commandText)
     {
-        if (!IsHostedServerRunning)
+        var embeddedHost = GetOwnedEmbeddedConsoleHost();
+        if (embeddedHost is not null)
+        {
+            if (_embeddedConsoleCommand is not null)
+            {
+                AddConsoleLine("A host command is still being processed.");
+                return;
+            }
+
+            _embeddedConsoleCommand = (embeddedHost, embeddedHost.ExecuteHostCommandAsync(commandText.Trim()));
+            return;
+        }
+
+        if (_peerRoomSession is not null || !IsHostedServerRunning)
         {
             AddConsoleLine("Last to Die developer commands can only be issued by the room host.");
             return;
@@ -744,6 +758,31 @@ public partial class Game1
         foreach (var line in responseLines)
         {
             AddConsoleLine(line);
+        }
+    }
+
+    private OpenGarrison.SessionRuntime.EmbeddedSessionHost? GetOwnedEmbeddedConsoleHost()
+        => _peerRoomSession is not null
+            ? (_peerRoomSession.IsOwner ? _peerRoomSession.Host : null)
+            : _embeddedSessionHost;
+
+    private void UpdateEmbeddedConsoleCommand()
+    {
+        if (_embeddedConsoleCommand is not { } pending) return;
+        if (!ReferenceEquals(pending.Host, GetOwnedEmbeddedConsoleHost()))
+        {
+            _embeddedConsoleCommand = null;
+            return;
+        }
+        if (!pending.Result.IsCompleted) return;
+        _embeddedConsoleCommand = null;
+        try
+        {
+            foreach (var line in pending.Result.GetAwaiter().GetResult()) AddConsoleLine(line);
+        }
+        catch (Exception exception)
+        {
+            AddConsoleLine("Host command failed: " + exception.Message);
         }
     }
 

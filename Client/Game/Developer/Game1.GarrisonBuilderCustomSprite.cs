@@ -226,7 +226,7 @@ public partial class Game1
             && entity.Properties.TryGetValue(CustomMapCustomSpriteMetadata.ImagePropertyKey, out var resourceName)
             && !string.IsNullOrWhiteSpace(resourceName)
             && _builderDocument.Resources.TryGetValue(resourceName.Trim(), out var resource)
-            && CustomMapBuilderResourceCodec.TryGetResourceBytes(resource, out var bytes)
+            && TryGetGarrisonBuilderResourceBytes(resource, out var bytes)
             && CustomMapCustomSpriteMetadata.TryParsePngDimensions(bytes, out var decodedWidth, out var decodedHeight))
         {
             pixelWidth = decodedWidth;
@@ -388,7 +388,7 @@ public partial class Game1
         if (!_builderPropertyEditorValues.TryGetValue(CustomMapCustomSpriteMetadata.ImagePropertyKey, out var resourceName)
             || string.IsNullOrWhiteSpace(resourceName)
             || !_builderDocument.Resources.TryGetValue(resourceName.Trim(), out var resource)
-            || !CustomMapBuilderResourceCodec.TryGetResourceBytes(resource, out var bytes)
+            || !TryGetGarrisonBuilderResourceBytes(resource, out var bytes)
             || !CustomMapCustomSpriteMetadata.TryParsePngDimensions(bytes, out pixelWidth, out pixelHeight))
         {
             return false;
@@ -399,15 +399,14 @@ public partial class Game1
 
     private void TryChooseGarrisonBuilderCustomSpriteImage()
     {
-        if (!TryChooseGarrisonBuilderFile(
+        BeginChooseGarrisonBuilderFile(
                 "Select sprite image",
                 "Image files (*.png;*.gif)|*.png;*.gif|PNG files (*.png)|*.png|GIF files (*.gif)|*.gif|All files (*.*)|*.*",
                 _builderResourcePathBuffer,
-                out var selectedPath))
+                selectedPath =>
         {
-            return;
-        }
-
+        BeginGarrisonBuilderPropertyTransaction();
+        RecordGarrisonBuilderHistory();
         var previousResourceName = _builderPropertyEditorValues.TryGetValue(
             CustomMapCustomSpriteMetadata.ImagePropertyKey,
             out var previous)
@@ -426,6 +425,7 @@ public partial class Game1
         MarkGarrisonBuilderPropertyEditorChanged();
         _builderDirty = true;
         _builderStatus = $"sprite {resourceName}";
+        });
     }
 
     private string GetGarrisonBuilderCustomSpritePropertyDisplayLabel(string key, string value)
@@ -694,7 +694,7 @@ public partial class Game1
         if (!entity.Properties.TryGetValue(CustomMapCustomSpriteMetadata.ImagePropertyKey, out var resourceName)
             || string.IsNullOrWhiteSpace(resourceName)
             || !_builderDocument.Resources.TryGetValue(resourceName.Trim(), out var resource)
-            || !CustomMapBuilderResourceCodec.TryGetResourceBytes(resource, out var bytes)
+            || !TryGetGarrisonBuilderResourceBytes(resource, out var bytes)
             || !CustomMapCustomSpriteMetadata.TryParsePngDimensions(bytes, out pixelWidth, out pixelHeight))
         {
             return false;

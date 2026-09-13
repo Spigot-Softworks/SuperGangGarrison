@@ -40,6 +40,9 @@ public partial class Game1
 
         public void ResetToMainMenuState(string? statusMessage)
         {
+            _game._firstPlayHints?.LeaveSession();
+            _game.HideLoadingOverlay();
+            _game.SetJoiningServerLoadingLabel(null);
             _game._lastToDieConnectionPresentationPending = false;
             _game._pendingHostedConnectTicks = -1;
             _game._pendingHostedConnectPort = 8190;
@@ -69,10 +72,16 @@ public partial class Game1
 
         public void ResetActiveSessionState()
         {
+            _game.HideLoadingOverlay();
+            _game.LeaveManagedRoom();
+            _game.LeavePeerRoom();
+            _game.StopLocalJukebox();
+            _game._offlinePracticeNextMap = null;
             _game.ResetPracticeBotManagerState(releaseWorldSlots: true);
             Game1.ResetPracticeNavigationState();
             _game._networkClient.SendLastToDieLeave();
             _game._networkClient.Disconnect();
+            _game.StopEmbeddedSession();
             // Returning to the menu also covers hosted Last to Die network
             // errors and the generic in-game Disconnect action. If this client
             // owns a hidden local server, release its UDP port with the rest of

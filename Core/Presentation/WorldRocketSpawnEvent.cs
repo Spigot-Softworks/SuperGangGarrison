@@ -24,4 +24,7 @@ public readonly record struct WorldRocketSpawnEvent(
     bool ExplodeImmediately,
     bool IsCritical,
     IReadOnlyList<int>? PassedFriendlyPlayerIds = null,
-    float CriticalDamageMultiplier = 1f);
+    float CriticalDamageMultiplier = 1f,
+    bool IsBallistic = false,
+    float BallisticGravityPerTick = 0f,
+    bool SuppressSmokeTrail = false);

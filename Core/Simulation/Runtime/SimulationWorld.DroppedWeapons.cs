@@ -153,7 +153,6 @@ public sealed partial class SimulationWorld
             || !CanUseExperimentalDroppedWeapons(killer)
             || ReferenceEquals(killer, victim)
             || killer.Team == victim.Team
-            || victim.Team == LocalPlayerTeam
             || !CharacterClassCatalog.SupportsExperimentalAcquiredWeapon(victim.ClassId)
             || _random.NextSingle() > global::OpenGarrison.Core.ExperimentalGameplaySettings.EnemyDroppedWeaponChance)
         {

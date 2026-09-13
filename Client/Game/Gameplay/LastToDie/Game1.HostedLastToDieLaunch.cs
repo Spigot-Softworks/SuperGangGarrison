@@ -22,74 +22,10 @@ public partial class Game1
 
     private void TryStartSoloLastToDieRun(
         OpenGarrison.Core.LastToDie.LastToDieDifficulty difficulty)
-    {
-        if (OperatingSystem.IsBrowser())
-        {
-            _menuStatusMessage = "Playing Last to Die solo is unavailable in browser.";
-            return;
-        }
+        => TryStartEmbeddedSolo(difficulty);
 
-        if (IsHostedServerRunning)
-        {
-            _menuStatusMessage = "Stop the current hosted server before starting Last to Die.";
-            return;
-        }
-
-        if (!_bootstrapController.CanEnterGameplaySession(out var bootstrapReason))
-        {
-            _menuStatusMessage = bootstrapReason ?? "Client assets are still loading.";
-            return;
-        }
-
-        var port = int.TryParse(_hostPortBuffer.Trim(), out var configuredPort)
-            && configuredPort is > 0 and <= 65535
-                ? configuredPort
-                : HostedLastToDieDefaultPort;
-        StartHostedLastToDieRun(
-            difficulty,
-            port,
-            relay: null,
-            maxPlayers: 1,
-            publishSocialPresence: false);
-    }
-
-    private void TryStartHostedLastToDieRun(
-        OpenGarrison.Core.LastToDie.LastToDieDifficulty difficulty)
-    {
-        if (OperatingSystem.IsBrowser())
-        {
-            _menuStatusMessage = "Hosting Last to Die is unavailable in browser.";
-            return;
-        }
-
-        if (IsHostedServerRunning)
-        {
-            _menuStatusMessage = "Stop the current hosted server before starting Last to Die.";
-            return;
-        }
-
-        if (!_bootstrapController.CanEnterGameplaySession(out var bootstrapReason))
-        {
-            _menuStatusMessage = bootstrapReason ?? "Client assets are still loading.";
-            return;
-        }
-
-        var port = int.TryParse(_hostPortBuffer.Trim(), out var configuredPort)
-            && configuredPort is > 0 and <= 65535
-                ? configuredPort
-                : HostedLastToDieDefaultPort;
-        if (_hostedLastToDieRelayCreateTask is not null)
-        {
-            _menuStatusMessage = "A co-op relay is already being prepared.";
-            return;
-        }
-
-        _pendingHostedLastToDieDifficulty = difficulty;
-        _pendingHostedLastToDiePort = port;
-        _hostedLastToDieRelayLaunchRequested = true;
-        _menuStatusMessage = "Creating private co-op relay...";
-        _hostedLastToDieRelayCreateTask = _presenceClient.CreateRelaySessionAsync(_clientIdentity);
-    }
+    private void TryStartHostedLastToDieRun(OpenGarrison.Core.LastToDie.LastToDieDifficulty difficulty)
+        => BeginPeerRoom(true, new PeerPracticeSettings(BlueBots: 0, Difficulty: difficulty == OpenGarrison.Core.LastToDie.LastToDieDifficulty.Hardcore ? "hardcore" : "standard"));
 
     private void CompleteHostedLastToDieRelayLaunch()
     {
@@ -188,7 +124,7 @@ public partial class Game1
         if (publishSocialPresence)
         {
             _hostedLastToDieRoomCode = relay?.RoomCode ?? string.Empty;
-            SetHostedSocialPresenceEndpoint(port, relay?.GuestWebSocketUrl);
+            SetHostedSocialPresenceEndpoint(0, relay?.GuestWebSocketUrl);
         }
 
         _lastToDieConnectionPresentationPending = true;
@@ -201,20 +137,9 @@ public partial class Game1
 
     private void OpenLastToDieRoomCodeJoin()
     {
-        if (OperatingSystem.IsBrowser())
-        {
-            _menuStatusMessage = "Direct Last to Die join is unavailable in browser.";
-            return;
-        }
-
-        OpenManualConnectMenu();
-        _lastToDieRoomCodeJoinOpen = true;
-        _lastToDieConnectionPresentationPending = true;
-        _connectHostBuffer = string.Empty;
-        InitializeConnectHostCursor();
-        _connectionFlowController.SetManualConnectEditingField(editHost: true);
-        _connectPortBuffer = HostedLastToDieDefaultPort.ToString();
-        _menuStatusMessage = string.Empty;
+        var practice = _practiceCoOpMenu;
+        OpenManagedRoomJoin();
+        _practiceCoOpMenu = practice;
     }
 
     private void CloseManualConnectMenuToOrigin(bool clearStatus)

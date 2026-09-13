@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Protocol\OpenGarrison.Protocol.csproj" />
+    <Compile Include="..\Server\Networking\Protocol64WebSocketConnection.cs" Link="Protocol64WebSocketConnection.cs" />
   </ItemGroup>
 
   <ItemGroup>

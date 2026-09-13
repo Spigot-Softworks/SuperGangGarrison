@@ -235,43 +235,24 @@ public static class ForwardSpawnMetadata
     public static void ApplyForwardSpawnControlPointLinks(
         IList<SpawnPoint> redSpawns,
         IList<SpawnPoint> blueSpawns,
-        int totalControlPoints)
+        int totalControlPoints,
+        bool isAttackDefense = false)
     {
         for (var index = 0; index < redSpawns.Count; index += 1)
-        {
-            redSpawns[index] = RemapForwardSpawnControlPointLink(redSpawns[index], PlayerTeam.Red, totalControlPoints);
-        }
-
+            redSpawns[index] = ResolveLegacySpawn(redSpawns[index], PlayerTeam.Red, totalControlPoints, isAttackDefense);
         for (var index = 0; index < blueSpawns.Count; index += 1)
-        {
-            blueSpawns[index] = RemapForwardSpawnControlPointLink(blueSpawns[index], PlayerTeam.Blue, totalControlPoints);
-        }
+            blueSpawns[index] = ResolveLegacySpawn(blueSpawns[index], PlayerTeam.Blue, totalControlPoints, isAttackDefense);
     }
 
-    private static SpawnPoint RemapForwardSpawnControlPointLink(
-        SpawnPoint spawn,
-        PlayerTeam team,
-        int totalControlPoints)
+    private static SpawnPoint ResolveLegacySpawn(SpawnPoint spawn, PlayerTeam team, int totalControlPoints, bool isAttackDefense)
     {
-        if (!spawn.IsForwardSpawn)
-        {
+        // Explicit editor links and priorities are independent. Only numbered
+        // legacy markers express a slot relative to a team's home objective.
+        if (!spawn.IsForwardSpawn || spawn.LegacySpawnSlot <= 0)
             return spawn;
-        }
-
-        if (spawn.LinkedControlPointIndex > 0 && spawn.Priority < ForwardSpawnPriorityMetadata.MinPriority)
-        {
-            return spawn;
-        }
-
-        var spawnSlot = spawn.Priority >= ForwardSpawnPriorityMetadata.MinPriority
-            ? spawn.Priority
-            : spawn.LinkedControlPointIndex;
-        if (spawnSlot <= 0)
-        {
-            return spawn;
-        }
-
-        var linkedIndex = ResolveForwardSpawnControlPointIndex(team, spawnSlot, totalControlPoints);
-        return spawn with { LinkedControlPointIndex = linkedIndex };
+        var linkedIndex = isAttackDefense
+            ? spawn.LegacySpawnSlot
+            : ResolveForwardSpawnControlPointIndex(team, spawn.LegacySpawnSlot, totalControlPoints);
+        return spawn with { LinkedControlPointIndex = linkedIndex, Priority = spawn.LegacySpawnSlot };
     }
 }

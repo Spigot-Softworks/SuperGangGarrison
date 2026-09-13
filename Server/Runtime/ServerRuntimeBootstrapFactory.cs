@@ -124,7 +124,8 @@ internal static class ServerRuntimeBootstrapFactory
             pluginHostGetter,
             eventReporter.WriteEvent,
             log,
-            recordBroadcastMessage: message => demoRecorder?.RecordBroadcastMessage(message));
+            recordBroadcastMessage: message => demoRecorder?.RecordBroadcastMessage(message),
+            isBotSlotProvider: slot => botManager?.BotSlots.ContainsKey(slot) == true);
         SnapshotBroadcaster? snapshotBroadcaster = null;
 
         var sessionManager = new ServerSessionManager(
@@ -156,6 +157,7 @@ internal static class ServerRuntimeBootstrapFactory
             {
                 eventReporter.NotifyPasswordAccepted(client);
                 outboundMessaging.SendCustomBubbleStatesToClient(client.Peer);
+                outboundMessaging.SendCurrentVoteState(client);
             },
             eventReporter.NotifyPlayerTeamChanged,
             eventReporter.NotifyPlayerClassChanged,

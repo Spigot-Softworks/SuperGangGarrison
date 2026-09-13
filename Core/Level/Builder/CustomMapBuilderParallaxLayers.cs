@@ -14,7 +14,7 @@ public static class CustomMapBuilderParallaxLayers
         {
             var layerKey = $"bg_layer{index}";
             var resourceName = metadata.TryGetValue(layerKey, out var resource) ? resource : string.Empty;
-            if (resources.ContainsKey(layerKey))
+            if (metadata.ContainsKey(layerKey) && resources.ContainsKey(layerKey))
             {
                 resourceName = layerKey;
             }
@@ -88,7 +88,7 @@ public static class CustomMapBuilderParallaxLayers
         }
 
         var layerKey = $"bg_layer{layerIndex}";
-        if (resources.ContainsKey(layerKey))
+        if (metadata.ContainsKey(layerKey) && resources.ContainsKey(layerKey))
         {
             return layerKey;
         }

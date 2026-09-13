@@ -20,6 +20,7 @@ internal static class Og2NavigationGraphCache
     private const int LegacyFormatVersion = 3;
     private const int FormatVersion = 4;
     private const byte BrotliCompression = 1;
+    private const byte GzipCompression = 2;
     private const string CacheDirectoryName = "botbrain-og2-nav";
     private const string ShippedDirectoryName = "BotBrainOg2Nav";
     private static readonly string[] CompatibleShippedGeneratorFingerprints =
@@ -128,7 +129,7 @@ internal static class Og2NavigationGraphCache
     {
         path = GetShippedPath(level, key);
         graph = null!;
-        if (File.Exists(path) && TryLoadFile(level, key, path, out graph))
+        if (Exists(path) && TryLoadFile(level, key, path, out graph))
         {
             return true;
         }
@@ -147,7 +148,7 @@ internal static class Og2NavigationGraphCache
         {
             var compatibleKey = BuildCompatibleShippedKey(level, generatorFingerprint);
             path = GetShippedPath(level, compatibleKey);
-            if (File.Exists(path) && TryLoadFile(level, compatibleKey, path, out graph))
+            if (Exists(path) && TryLoadFile(level, compatibleKey, path, out graph))
             {
                 return true;
             }
@@ -217,12 +218,19 @@ internal static class Og2NavigationGraphCache
         }
     }
 
+    private static bool Exists(string path) =>
+        BrowserContentCatalog.TryGetBinaryForPath(path, out _) || File.Exists(path);
+
     private static bool TryLoadFile(SimpleLevel level, string key, string path, out NavGraph graph)
     {
         graph = null!;
         try
         {
-            using var stream = File.OpenRead(path);
+            if (OperatingSystem.IsBrowser() && Environment.GetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_CACHE_TRACE") == "1")
+                Console.WriteLine($"[botbrain] reading browser graph {path}");
+            using Stream stream = BrowserContentCatalog.TryGetBinaryForPath(path, out var bytes)
+                ? new MemoryStream(bytes, writable: false)
+                : File.OpenRead(path);
             using var reader = new BinaryReader(stream, Encoding.UTF8, leaveOpen: false);
             if (reader.ReadUInt32() != Magic)
             {
@@ -235,10 +243,12 @@ internal static class Og2NavigationGraphCache
                 return TryReadLegacyGraph(reader, level, key, out graph);
             }
 
-            if (version != FormatVersion || reader.ReadByte() != BrotliCompression)
+            if (version != FormatVersion)
             {
                 return false;
             }
+            var compression = reader.ReadByte();
+            if (compression is not (BrotliCompression or GzipCompression)) return false;
 
             var uncompressedLength = reader.ReadInt64();
             if (uncompressedLength is < 0 or > MaxUncompressedCacheBytes)
@@ -247,9 +257,11 @@ internal static class Og2NavigationGraphCache
             }
 
             using var decompressed = new MemoryStream((int)Math.Min(uncompressedLength, int.MaxValue));
-            using (var brotli = new BrotliStream(stream, CompressionMode.Decompress, leaveOpen: true))
+            using (Stream decoder = compression == GzipCompression
+                ? new GZipStream(stream, CompressionMode.Decompress, leaveOpen: true)
+                : new BrotliStream(stream, CompressionMode.Decompress, leaveOpen: true))
             {
-                brotli.CopyTo(decompressed);
+                decoder.CopyTo(decompressed);
             }
 
             if (decompressed.Length != uncompressedLength)
@@ -274,6 +286,7 @@ internal static class Og2NavigationGraphCache
             or FormatException
             or NotSupportedException)
         {
+            if (OperatingSystem.IsBrowser()) Console.WriteLine($"[botbrain] graph read failed: {ex.GetType().Name}: {ex.Message}");
             graph = null!;
             return false;
         }

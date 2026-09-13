@@ -14,6 +14,61 @@ namespace OpenGarrison.PluginHost.Tests;
 
 public sealed class LastToDieNetworkingSliceTests
 {
+    [Fact]
+    public void NetworkSnapshotPublishesAuthoritativeAttemptResult()
+    {
+        var server = LastToDieServerDirector.CreateFirstSlice(["Truefort"], LastToDieDifficulty.Standard, seed: 1);
+        var controller = new LastToDieProtocolController(server);
+        Assert.True(controller.TryRegisterPlayer(1, HostId, out _));
+        var attemptId = Guid.NewGuid();
+        var session = new LastToDieNetworkSession(
+            controller,
+            () => 100,
+            (_, _) => { },
+            attemptId: () => attemptId,
+            completedRounds: () => 7,
+            scoreUnits: slot => slot == 1 ? 1_250 : 0);
+
+        var snapshot = session.CreateSnapshot(1);
+
+        Assert.Equal(attemptId, snapshot.AttemptId);
+        Assert.Equal(7, snapshot.CompletedRounds);
+        Assert.Equal(1_250, Assert.Single(snapshot.Players).ScoreUnits);
+    }
+
+    [Fact]
+    public void ManagedRoomReservesOwnershipWhenGuestArrivesFirst()
+    {
+        var server = LastToDieServerDirector.CreateFirstSlice(["Truefort"], LastToDieDifficulty.Standard, seed: 1);
+        var controller = new LastToDieProtocolController(server, managedOwnership: true);
+        Assert.True(controller.TryRegisterPlayer(2, Guid.NewGuid(), out _));
+        Assert.False(Assert.Single(controller.CreateSnapshot(2, 1).Players).IsHost);
+        Assert.True(controller.TryRegisterPlayer(1, Guid.NewGuid(), out _));
+        var state = controller.CreateSnapshot(1, 1);
+        Assert.True(state.Players.Single(p => p.Slot == 1).IsHost);
+        Assert.False(state.Players.Single(p => p.Slot == 2).IsHost);
+    }
+
+    [Fact]
+    public void SoloPauseIsAuthorizedOnlyDuringPlayingAndCanResume()
+    {
+        var server = LastToDieServerDirector.CreateFirstSlice(["Truefort"], LastToDieDifficulty.Standard,
+            seed: 1, runId: RunId, maximumPlayers: 1);
+        var paused = false;
+        var controller = new LastToDieProtocolController(server, value => { paused = value; return true; }, managedOwnership: true);
+        long tick = 1;
+        var session = new LastToDieNetworkSession(controller, () => tick, (_, _) => { });
+        var client = new ClientSession(1, 100, new IPEndPoint(IPAddress.Loopback, 8191), "Host", TimeSpan.Zero, HostClientInstanceId);
+        session.SynchronizeAuthorizedClients([client]);
+        Assert.Equal(LastToDieCommandResultKind.Rejected, Handle(controller, 1, 500, LastToDieCommandKind.PauseSolo, controller.Director.StructuralRevision).Result.Result);
+        StartSinglePlayerStage(session, controller, client, ref tick);
+        Assert.Equal(LastToDieCommandResultKind.Rejected, Handle(controller, 2, 501, LastToDieCommandKind.PauseSolo, controller.Director.StructuralRevision).Result.Result);
+        Assert.Equal(LastToDieCommandResultKind.Accepted, Handle(controller, 1, 502, LastToDieCommandKind.PauseSolo, controller.Director.StructuralRevision).Result.Result);
+        Assert.True(paused);
+        Assert.Equal(LastToDieCommandResultKind.Accepted, Handle(controller, 1, 503, LastToDieCommandKind.ResumeSolo, controller.Director.StructuralRevision).Result.Result);
+        Assert.False(paused);
+    }
+
     private static readonly Guid RunId = Guid.Parse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
     private static readonly Guid HostId = Guid.Parse("11111111-2222-3333-4444-555555555555");
     private static readonly Guid GuestId = Guid.Parse("66666666-7777-8888-9999-aaaaaaaaaaaa");
@@ -23,7 +78,7 @@ public sealed class LastToDieNetworkingSliceTests
     [Fact]
     public void SemanticMessagesRoundTripThroughLegacyAndProtocol64Codecs()
     {
-        Assert.Equal(88, ProtocolVersion.Current);
+        Assert.Equal(99, ProtocolVersion.Current);
         var hello = new HelloMessage(
             "Host",
             ProtocolVersion.Current,
@@ -51,6 +106,12 @@ public sealed class LastToDieNetworkingSliceTests
         };
         Assert.Equal(retry, LegacyRoundTrip<LastToDieCommandMessage>(retry));
         Assert.Equal(retry, Protocol64RoundTrip(retry));
+        foreach (var kind in new[] { LastToDieCommandKind.PauseSolo, LastToDieCommandKind.ResumeSolo })
+        {
+            var pauseCommand = retry with { Kind = kind };
+            Assert.Equal(pauseCommand, LegacyRoundTrip<LastToDieCommandMessage>(pauseCommand));
+            Assert.Equal(pauseCommand, Protocol64RoundTrip(pauseCommand));
+        }
 
         var result = new LastToDieCommandResultMessage(
             command.CommandId,
@@ -358,6 +419,95 @@ public sealed class LastToDieNetworkingSliceTests
         Assert.Equal(sentBeforeRetry + 1, transport.SentPayloads.Count);
     }
 
+    [Theory]
+    [InlineData("127.0.0.1:8190")]
+    [InlineData("ws64://127.0.0.1:8190")]
+    public void AcceptedRewardCommandRetriesUntilAuthoritativeSnapshotProvesSelection(string endpoint)
+    {
+        using var client = new NetworkGameClient();
+        var transport = new RecordingClientTransport(endpoint);
+        Assert.True(client.Connect(transport, "Tester", 0, out var error), error);
+        client.SetLocalPlayerSlot(1);
+        var initial = CreateWireSnapshot();
+        Assert.True(client.LastToDieState.ApplySnapshot(initial).Applied);
+        var player = GetPlayer(initial, 1);
+        var selectedPerk = player.ActiveOfferChoices[0];
+        var commandId = client.SendLastToDieCommand(
+            LastToDieCommandKind.SelectReward,
+            selectedPerk,
+            player.ActiveOfferId);
+        Assert.NotEqual(0UL, commandId);
+
+        transport.QueueServerMessage(
+            new LastToDieCommandResultMessage(
+                commandId,
+                LastToDieCommandResultKind.Accepted,
+                initial.StructuralRevision + 1),
+            frameId: 1);
+        _ = client.ReceiveMessages().ToArray();
+
+        var pendingField = typeof(NetworkGameClient).GetField(
+            "_pendingLastToDieCommands",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        var pendingCommands = Assert.IsAssignableFrom<IDictionary>(pendingField!.GetValue(client));
+        Assert.True(pendingCommands.Contains(commandId));
+
+        var pending = pendingCommands[commandId];
+        Assert.NotNull(pending);
+        pending.GetType().GetProperty("LastSentAtMilliseconds")!
+            .SetValue(pending, -1_000L);
+        var sentBeforeRetry = transport.SentPayloads.Count;
+        _ = client.ReceiveMessages().ToArray();
+        Assert.Equal(sentBeforeRetry + 1, transport.SentPayloads.Count);
+
+        var provenPlayer = player with
+        {
+            OwnedPerkIds = player.OwnedPerkIds.Concat([selectedPerk]).ToArray(),
+            ActiveOfferId = 0,
+            ActiveOfferOrdinal = 0,
+            ActiveOfferChoices = [],
+        };
+        transport.QueueServerMessage(
+            initial with
+            {
+                StructuralRevision = initial.StructuralRevision + 1,
+                ServerTick = initial.ServerTick + 1,
+                Players = [provenPlayer],
+            },
+            frameId: 2);
+        _ = client.ReceiveMessages().ToArray();
+
+        Assert.False(pendingCommands.Contains(commandId));
+    }
+
+    [Theory]
+    [InlineData(LastToDieCommandKind.Leave)]
+    [InlineData(LastToDieCommandKind.PauseSolo)]
+    [InlineData(LastToDieCommandKind.ResumeSolo)]
+    public void AcceptedCommandsWithoutSnapshotProofStopRetryingOnTheirResult(LastToDieCommandKind kind)
+    {
+        using var client = new NetworkGameClient();
+        var transport = new RecordingClientTransport("127.0.0.1:8190");
+        Assert.True(client.Connect(transport, "Tester", 0, out var error), error);
+        Assert.True(client.LastToDieState.ApplySnapshot(CreateWireSnapshot()).Applied);
+        var commandId = client.SendLastToDieCommand(kind);
+        Assert.NotEqual(0UL, commandId);
+
+        transport.QueueServerMessage(
+            new LastToDieCommandResultMessage(
+                commandId,
+                LastToDieCommandResultKind.Accepted,
+                CreateWireSnapshot().StructuralRevision),
+            frameId: 1);
+        _ = client.ReceiveMessages().ToArray();
+
+        var pendingField = typeof(NetworkGameClient).GetField(
+            "_pendingLastToDieCommands",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        var pendingCommands = Assert.IsAssignableFrom<IDictionary>(pendingField!.GetValue(client));
+        Assert.False(pendingCommands.Contains(commandId));
+    }
+
     [Fact]
     public void ClientReusesOneNonEmptyInstanceIdAcrossTransportReconnects()
     {
@@ -466,7 +616,7 @@ public sealed class LastToDieNetworkingSliceTests
             LastToDieDifficulty.Standard,
             seed: 91,
             runId: RunId,
-            maximumPlayers: 1);
+            maximumPlayers: 4);
         var controller = new LastToDieProtocolController(serverDirector);
         var session = new LastToDieNetworkSession(
             controller,
@@ -529,7 +679,7 @@ public sealed class LastToDieNetworkingSliceTests
     }
 
     [Fact]
-    public void DuplicateCommandRetriesReplayCachedResultWithoutConsumingRateBudget()
+    public void DuplicateCommandRetriesReplayCachedResultAndRecipientSnapshotWithoutConsumingRateBudget()
     {
         var serverDirector = LastToDieServerDirector.CreateFirstSlice(
             ["Truefort"],
@@ -568,10 +718,11 @@ public sealed class LastToDieNetworkingSliceTests
             session.HandleCommand(host, command);
         }
 
-        Assert.Equal(40, sent.Count);
+        Assert.Equal(40, sent.OfType<LastToDieCommandResultMessage>().Count());
+        Assert.Equal(40, sent.OfType<LastToDieRunSnapshotMessage>().Count());
         Assert.All(
-            sent,
-            message => Assert.Equal(accepted, Assert.IsType<LastToDieCommandResultMessage>(message)));
+            sent.OfType<LastToDieCommandResultMessage>(),
+            message => Assert.Equal(accepted, message));
 
         sent.Clear();
         session.HandleCommand(
@@ -857,18 +1008,24 @@ public sealed class LastToDieNetworkingSliceTests
         Assert.True(controller.TryAcknowledgeWorldBaseline(1, 500, out _, out var baselineError), baselineError);
         Assert.True(GetPlayer(controller.CreateSnapshot(1, ++serverTick), 1).IsReady);
 
+        Assert.True(controller.TryAcknowledgeSnapshot(1,
+            new LastToDieRunSnapshotAckMessage(RunId, controller.Director.StructuralRevision), out _));
+        Assert.NotEqual(0UL, controller.GetLastAcknowledgedStructuralRevision(1));
         Assert.Equal([(byte)1], session.SynchronizeAuthorizedClients([replacement]));
+        Assert.Equal(0UL, controller.GetLastAcknowledgedStructuralRevision(1));
         var reboundLoadingPlayer = GetPlayer(controller.CreateSnapshot(1, ++serverTick), 1);
         Assert.True(reboundLoadingPlayer.IsConnected);
         Assert.False(reboundLoadingPlayer.IsReady);
 
         Assert.True(controller.TryAcknowledgeWorldBaseline(1, 500, out _, out baselineError), baselineError);
+        // NetworkGameClient restarts command IDs when a transport reconnects.
+        // ID 1 belonged to RequestStart on the previous peer.
         Assert.Equal(
             LastToDieCommandResultKind.Accepted,
             Handle(
                 controller,
                 1,
-                5,
+                1,
                 LastToDieCommandKind.StageContentReady,
                 controller.Director.StructuralRevision,
                 selectedId: snapshot.CurrentMap).Result.Result);
@@ -1010,6 +1167,63 @@ public sealed class LastToDieNetworkingSliceTests
             anyAfterlifeWindowActive: session.HasActiveReconnectGrace(),
             out var advanceError), advanceError);
         Assert.Equal(LastToDiePhase.Lost, controller.Director.Phase);
+    }
+
+    [Fact]
+    public void SessionClockWaitsForWorldObjectiveCheckBeforeCompletingStage()
+    {
+        var serverDirector = LastToDieServerDirector.CreateFirstSlice(
+            ["Truefort"],
+            LastToDieDifficulty.Standard,
+            seed: 801,
+            ticksPerSecond: 30,
+            runId: RunId,
+            maximumPlayers: 1);
+        var controller = new LastToDieProtocolController(serverDirector);
+        long serverTick = 1;
+        var outboundSnapshots = new List<LastToDieRunSnapshotMessage>();
+        var session = new LastToDieNetworkSession(
+            controller,
+            () => serverTick,
+            (_, message) =>
+            {
+                if (message is LastToDieRunSnapshotMessage snapshot)
+                {
+                    outboundSnapshots.Add(snapshot);
+                }
+            },
+            ticksPerSecond: 30);
+        var host = new ClientSession(
+            1,
+            100,
+            new IPEndPoint(IPAddress.Loopback, 8191),
+            "Host",
+            TimeSpan.Zero,
+            HostClientInstanceId);
+
+        Assert.Equal([(byte)1], session.SynchronizeAuthorizedClients([host]));
+        StartSinglePlayerStage(session, controller, host, ref serverTick);
+        var playing = controller.Director.CreateSnapshot();
+        Assert.Equal(LastToDiePhase.Playing, playing.Phase);
+
+        serverTick = playing.StageEndServerTick - 1;
+        Assert.False(session.Tick());
+        Assert.Equal(LastToDiePhase.Playing, controller.Director.Phase);
+
+        serverTick = playing.StageEndServerTick;
+        Assert.False(session.Tick());
+        Assert.Equal(LastToDiePhase.Playing, controller.Director.Phase);
+        Assert.True(controller.Director.TryAdvancePlayingState(serverTick, false, false, false, out _,
+            canCompleteStageOnTimeout: false));
+        Assert.Equal(LastToDiePhase.Playing, controller.Director.Phase);
+        Assert.True(controller.Director.TryAdvancePlayingState(serverTick, false, false, false, out _,
+            canCompleteStageOnTimeout: true));
+        session.BroadcastSnapshots();
+        Assert.Equal(LastToDiePhase.RewardChoice, controller.Director.Phase);
+        Assert.Equal(
+            LastToDieWirePhase.RewardChoice,
+            Assert.IsType<LastToDieRunSnapshotMessage>(outboundSnapshots[^1]).Phase);
+        Assert.Equal(serverTick, outboundSnapshots[^1].ServerTick);
     }
 
     [Fact]
@@ -1305,15 +1519,15 @@ public sealed class LastToDieNetworkingSliceTests
         Assert.True(remaining.IsHost);
         Assert.Equal((byte)0, session.ResolveReconnectSlot(HostClientInstanceId));
         Assert.True(controller.Director.TrySetLobbyReady(remaining.PlayerId, true, out var readyError), readyError);
-        var rejectedStart = controller.HandleCommand(
+        var partialStart = controller.HandleCommand(
             2,
             new LastToDieCommandMessage(
                 1,
                 RunId,
                 controller.Director.StructuralRevision,
                 LastToDieCommandKind.RequestStart));
-        Assert.Equal(LastToDieCommandResultKind.Rejected, rejectedStart.Result.Result);
-        Assert.Contains("seat", rejectedStart.Result.Reason, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(LastToDieCommandResultKind.Accepted, partialStart.Result.Result);
+        Assert.Equal(LastToDiePhase.SurvivorChoice, controller.Director.Phase);
     }
 
     [Fact]
@@ -1548,9 +1762,12 @@ public sealed class LastToDieNetworkingSliceTests
                     IsAlive: true,
                     Kills: 3,
                     ConquistadorStacks: 37,
-                    ReconnectGraceEndServerTick: 130),
+                    ReconnectGraceEndServerTick: 130,
+                    ScoreUnits: 1_250),
             ],
-            BaselineStartFrame: 90);
+            BaselineStartFrame: 90,
+            AttemptId: Guid.Parse("10a274f8-4c75-46a9-888d-16dc25d70d50"),
+            CompletedRounds: 1);
 
     private static T LegacyRoundTrip<T>(T message)
         where T : class, IProtocolMessage
@@ -1585,6 +1802,8 @@ public sealed class LastToDieNetworkingSliceTests
         Assert.Equal(expected.StageInstanceId, actual.StageInstanceId);
         Assert.Equal(expected.BaselineStartFrame, actual.BaselineStartFrame);
         Assert.Equal(expected.MaximumPlayers, actual.MaximumPlayers);
+        Assert.Equal(expected.AttemptId, actual.AttemptId);
+        Assert.Equal(expected.CompletedRounds, actual.CompletedRounds);
         Assert.Equal(expected.CurrentMap, actual.CurrentMap);
         Assert.Equal(expected.Players.Count, actual.Players.Count);
         for (var index = 0; index < expected.Players.Count; index += 1)
@@ -1596,17 +1815,54 @@ public sealed class LastToDieNetworkingSliceTests
             Assert.Equal(
                 expected.Players[index].ReconnectGraceEndServerTick,
                 actual.Players[index].ReconnectGraceEndServerTick);
+            Assert.Equal(expected.Players[index].ScoreUnits, actual.Players[index].ScoreUnits);
             Assert.Equal(expected.Players[index].OwnedPerkIds, actual.Players[index].OwnedPerkIds);
             Assert.Equal(expected.Players[index].ActiveOfferChoices, actual.Players[index].ActiveOfferChoices);
         }
     }
 
+    [Theory]
+    [InlineData("127.0.0.1:8190", false)]
+    [InlineData("ws64://127.0.0.1:8190", true)]
+    public void VoiceMembershipUsesTheConnectedTransportAndConnectionGenerationChangesOnReconnect(string endpoint, bool protocol64)
+    {
+        using var client = new NetworkGameClient();
+        var initialGeneration = client.ConnectionGeneration;
+        var transport = new RecordingClientTransport(endpoint);
+        Assert.True(client.Connect(transport, "Tester", 0, out var error), error);
+        Assert.NotEqual(initialGeneration, client.ConnectionGeneration);
+        var connectedGeneration = client.ConnectionGeneration;
+        transport.SentPayloads.Clear();
+        var request = new VoiceChannelMembershipMessage(1, true);
+        client.SendVoiceChannelMembership(request);
+        Assert.Empty(transport.SentPayloads); // Awaiting welcome cannot opt in.
+        client.SetLocalPlayerSlot(1);
+        client.SendVoiceChannelMembership(request);
+        var payload = Assert.Single(transport.SentPayloads);
+        if (protocol64)
+        {
+            var decoded = Protocol64FrameCodec.Decode(payload, Protocol64SchemaRegistryFactory.CreateDefault());
+            Assert.True(decoded.Succeeded, decoded.Fault?.Message);
+            Assert.Equal(request, Assert.IsType<VoiceChannelMembershipMessage>(decoded.Event));
+        }
+        else
+        {
+            Assert.True(ProtocolCodec.TryDeserialize(payload, out var decoded));
+            Assert.Equal(request, decoded);
+        }
+        client.Disconnect();
+        Assert.NotEqual(connectedGeneration, client.ConnectionGeneration);
+        client.SendVoiceChannelMembership(request);
+        Assert.Single(transport.SentPayloads);
+    }
+
     private sealed class RecordingClientTransport(string remoteDescription)
         : INetworkClientMessageTransport
     {
+        private readonly Queue<byte[]> _receivedPayloads = [];
         public List<byte[]> SentPayloads { get; } = [];
 
-        public bool HasPendingMessages => false;
+        public bool HasPendingMessages => _receivedPayloads.Count > 0;
 
         public bool IsLoopbackConnection => true;
 
@@ -1614,8 +1870,31 @@ public sealed class LastToDieNetworkingSliceTests
 
         public bool TryReceive(out byte[] payload)
         {
+            if (_receivedPayloads.Count > 0)
+            {
+                payload = _receivedPayloads.Dequeue();
+                return true;
+            }
+
             payload = [];
             return false;
+        }
+
+        public void QueueServerMessage(IProtocolMessage message, uint frameId)
+        {
+            if (RemoteDescription.StartsWith("ws64://", StringComparison.OrdinalIgnoreCase))
+            {
+                var encoded = Protocol64FrameCodec.EncodeObject(
+                    Protocol64SchemaRegistryFactory.CreateDefault(),
+                    message,
+                    connectionEpoch: 1,
+                    frameId: frameId);
+                Assert.True(encoded.Succeeded, encoded.Fault?.Message);
+                _receivedPayloads.Enqueue(encoded.Payload!);
+                return;
+            }
+
+            _receivedPayloads.Enqueue(ProtocolCodec.Serialize(message));
         }
 
         public bool TryConsumeDisconnectReason(out string reason)

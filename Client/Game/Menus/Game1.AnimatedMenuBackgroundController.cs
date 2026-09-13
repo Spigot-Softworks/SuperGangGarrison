@@ -31,6 +31,7 @@ public partial class Game1
         private AnimatedBackgroundMapState? _currentMap;
         private AnimatedBackgroundMapState? _nextMap;
         private bool _nextMapLoaded;
+        private bool _useGrayscale = true;
 
         public AnimatedMenuBackgroundController(Game1 game)
         {
@@ -39,6 +40,8 @@ public partial class Game1
             _random = new Random(Environment.TickCount);
         }
 
+        public bool IsInitialized => _isInitialized;
+
         public void Initialize(MenuBackgroundMode mode)
         {
             if (_isInitialized)
@@ -46,11 +49,8 @@ public partial class Game1
                 return;
             }
 
-            var viewportWidth = _game.ViewportWidth;
-            var viewportHeight = _game.ViewportHeight;
-
             // Build list of available map names based on mode
-            _mapNames.Clear();
+            var mapNames = new List<string>();
 
             if (mode == MenuBackgroundMode.DefaultMaps || mode == MenuBackgroundMode.AllMaps)
             {
@@ -60,7 +60,7 @@ public partial class Game1
                     .Select(def => def.LevelName)
                     .ToList();
 
-                _mapNames.AddRange(stockMaps);
+                mapNames.AddRange(stockMaps);
             }
 
             if (mode == MenuBackgroundMode.AllMaps)
@@ -69,11 +69,32 @@ public partial class Game1
                 var catalog = SimpleLevelFactory.GetAvailableSourceLevels();
                 var customMapNames = catalog
                     .Select(entry => entry.Name)
-                    .Where(name => !_mapNames.Contains(name, StringComparer.OrdinalIgnoreCase))
+                    .Where(name => !mapNames.Contains(name, StringComparer.OrdinalIgnoreCase))
                     .ToList();
 
-                _mapNames.AddRange(customMapNames);
+                mapNames.AddRange(customMapNames);
             }
+
+            InitializeMaps(mapNames, useGrayscale: true);
+        }
+
+        public void InitializeSuperGangGarrisonShowcase()
+        {
+            InitializeMaps(GetSuperGangGarrisonShowcaseMapNames(), useGrayscale: false);
+        }
+
+        private void InitializeMaps(IEnumerable<string> mapNames, bool useGrayscale)
+        {
+            if (_isInitialized)
+            {
+                return;
+            }
+
+            var viewportWidth = _game.ViewportWidth;
+            var viewportHeight = _game.ViewportHeight;
+            _mapNames.Clear();
+            _mapNames.AddRange(mapNames.Distinct(StringComparer.OrdinalIgnoreCase));
+            _useGrayscale = useGrayscale;
 
             if (_mapNames.Count == 0)
             {
@@ -144,6 +165,7 @@ public partial class Game1
             _nextMap = null;
             _isInitialized = false;
             _nextMapLoaded = false;
+            _useGrayscale = true;
         }
 
         public void Update(float deltaTime)
@@ -230,9 +252,10 @@ public partial class Game1
             }
         }
 
-        public void Draw(int viewportWidth, int viewportHeight)
+        public void Draw(int viewportWidth, int viewportHeight, float opacity = 1f)
         {
-            if (!_isInitialized || _currentMap is null)
+            opacity = Math.Clamp(opacity, 0f, 1f);
+            if (!_isInitialized || _currentMap is null || opacity <= 0f)
             {
                 return;
             }
@@ -240,11 +263,11 @@ public partial class Game1
             // Draw next map if we're in fade transition
             if (_nextMap is not null && _transitionTimer > _currentTransitionDuration - FadeDurationSeconds)
             {
-                DrawMap(_nextMap, viewportWidth, viewportHeight, 1f);
+                DrawMap(_nextMap, viewportWidth, viewportHeight, opacity);
             }
 
             // Draw current map with fade alpha
-            DrawMap(_currentMap, viewportWidth, viewportHeight, _fadeAlpha);
+            DrawMap(_currentMap, viewportWidth, viewportHeight, _fadeAlpha * opacity);
         }
 
         private AnimatedBackgroundMapState? LoadMap(string mapName)
@@ -322,12 +345,15 @@ public partial class Game1
 
             if (hasParallaxLayers || stockBackground is not null)
             {
-                // Draw parallax layers and main background with grayscale effect
-                _game._spriteBatch.End();
-                _game._spriteBatch.Begin(
-                    samplerState: SamplerState.PointClamp,
-                    effect: _game._grayscaleEffect,
-                    rasterizerState: RasterizerState.CullNone);
+                var changedBatch = _useGrayscale && _game._grayscaleEffect is not null;
+                if (changedBatch)
+                {
+                    _game._spriteBatch.End();
+                    _game._spriteBatch.Begin(
+                        samplerState: SamplerState.PointClamp,
+                        effect: _game._grayscaleEffect,
+                        rasterizerState: RasterizerState.CullNone);
+                }
 
                 foreach (var (texture, xFactor, yFactor) in mapState.ParallaxLayers)
                 {
@@ -339,11 +365,16 @@ public partial class Game1
                     _game._spriteBatch.Draw(stockBackground, worldRectangle, Color.White * alpha);
                 }
 
-                // Restore normal SpriteBatch state
-                _game._spriteBatch.End();
-                _game._spriteBatch.Begin(
-                    samplerState: SamplerState.PointClamp,
-                    rasterizerState: RasterizerState.CullNone);
+                if (changedBatch)
+                {
+                    // Restore normal SpriteBatch state after the normal menu's
+                    // grayscale presentation. The title showcase deliberately
+                    // stays in the full-color batch.
+                    _game._spriteBatch.End();
+                    _game._spriteBatch.Begin(
+                        samplerState: SamplerState.PointClamp,
+                        rasterizerState: RasterizerState.CullNone);
+                }
                 return;
             }
 

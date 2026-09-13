@@ -14,6 +14,41 @@ namespace OpenGarrison.PluginHost.Tests;
 [Collection(MapDirectoryTestGroup.Name)]
 public sealed class CustomMapPngExporterTests
 {
+    [Theory]
+    [InlineData("cp", 2)]
+    [InlineData("dkoth", 2)]
+    [InlineData("adcp", 1)]
+    public void SpawnLinksSurvivePngPackageAndEditorExport(string mode, int expectedBlueLink)
+    {
+        using var workspace = TempWorkspace.Create();
+        var background = workspace.PathFor("background.png");
+        var walkmask = workspace.PathFor("walkmask.png");
+        WriteSolidPng(background, 4, 2, new Rgba32(32, 64, 96, 255));
+        WriteWalkmaskPng(walkmask);
+        var document = CreateSpawnOnlyDocument(background, walkmask, 6, 18) with
+        {
+            Metadata = new Dictionary<string, string> { ["gameMode"] = mode },
+            Entities = [CustomMapBuilderEntity.Create("redspawn1", 6, 6),
+                CustomMapBuilderEntity.Create("bluespawn1", 18, 6),
+                CustomMapBuilderEntity.Create("controlPoint1", 8, 6),
+                CustomMapBuilderEntity.Create("controlPoint2", 16, 6),
+                CustomMapBuilderEntity.Create("spawn", 20, 6, new Dictionary<string, string>
+                { ["team"] = "blue", ["forward"] = "true", ["objectiveIndex"] = "1", ["priority"] = "4", ["useWhen"] = "neutral" })],
+        };
+        var png = workspace.PathFor("spawn_roundtrip.png");
+        CustomMapPngExporter.Export(document, png);
+        var imported = CustomMapPngImporter.Import(png)!;
+        Assert.Equal(expectedBlueLink, imported.Room.BlueSpawns[0].LinkedControlPointIndex);
+        Assert.Equal(1, imported.Room.BlueSpawns[1].LinkedControlPointIndex);
+        Assert.Equal(4, imported.Room.BlueSpawns[1].Priority);
+        var editor = CustomMapBuilderPngImporter.Import(png)!;
+        var package = workspace.PathFor("package/spawn_roundtrip.json");
+        CustomMapPackageExporter.Export(editor, package);
+        var reloaded = CustomMapPackageImporter.Import(package)!;
+        Assert.Equal(imported.Room.BlueSpawns, reloaded.Room.BlueSpawns);
+        Assert.Equal(imported.Room.RedSpawns, reloaded.Room.RedSpawns);
+    }
+
     [Fact]
     public void UserMapsDirectoryIsDiscoveredAndCustomRotationPersists()
     {
@@ -346,7 +381,7 @@ public sealed class CustomMapPngExporterTests
         WriteSolidPng(backgroundPath, 4, 2, new Rgba32(20, 40, 60, 255));
         WriteWalkmaskPng(walkmaskPath);
         WriteSolidPng(layerPath, 2, 2, new Rgba32(100, 120, 140, 255));
-        File.WriteAllBytes(foregroundPath, "GIF89a"u8.ToArray());
+        using (var foregroundImage = new Image<Rgba32>(2, 2, new Rgba32(20, 60, 40, 255))) foregroundImage.SaveAsGif(foregroundPath);
 
         var document = new CustomMapBuilderDocument(
             Name: "resources",
@@ -794,6 +829,69 @@ public sealed class CustomMapPngExporterTests
             Assert.True(File.Exists(finalManifestPath));
             Assert.NotNull(CustomMapPackageImporter.Import(finalManifestPath));
             Assert.Empty(Directory.EnumerateDirectories(RuntimePaths.MapsDirectory, "*.download"));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("OPENGARRISON_MAPS_DIR", previousMapsDirectory);
+            SimpleLevelFactory.ClearCachedCatalog();
+        }
+    }
+
+    [Fact]
+    public async Task CustomMapSyncHotLoadsLegacyPngInsertedWhileDownloadIsPending()
+    {
+        using var workspace = TempWorkspace.Create();
+        var serverMapsDirectory = workspace.PathFor("ServerMaps");
+        Directory.CreateDirectory(serverMapsDirectory);
+        var backgroundPath = workspace.PathFor("hot-background.png");
+        var walkmaskPath = workspace.PathFor("hot-walkmask.png");
+        var serverLegacyMapPath = Path.Combine(serverMapsDirectory, "hot_insert.png");
+        WriteSolidPng(backgroundPath, 4, 2, new Rgba32(20, 70, 120, 255));
+        WriteWalkmaskPng(walkmaskPath);
+        CustomMapPngExporter.Export(
+            CreateSpawnOnlyDocument(backgroundPath, walkmaskPath, 6f, 18f) with { Name = "hot_insert" },
+            serverLegacyMapPath);
+        Assert.True(
+            CustomMapLegacyPackageAutoConverter.TryConvertLegacyPng(
+                serverLegacyMapPath,
+                out var sourceManifestPath,
+                out var conversionError),
+            conversionError);
+        var packageHash = CustomMapHashService.ComputePackageSha256(sourceManifestPath);
+
+        var previousMapsDirectory = Environment.GetEnvironmentVariable("OPENGARRISON_MAPS_DIR");
+        Environment.SetEnvironmentVariable("OPENGARRISON_MAPS_DIR", workspace.PathFor("ClientMaps"));
+        try
+        {
+            Directory.CreateDirectory(RuntimePaths.MapsDirectory);
+            SimpleLevelFactory.ClearCachedCatalog();
+            Assert.DoesNotContain(
+                SimpleLevelFactory.GetAvailableSourceLevels(),
+                entry => entry.Name.Equals("hot_insert", StringComparison.OrdinalIgnoreCase));
+
+            var handler = new BlockingHttpMessageHandler();
+            using var httpClient = new HttpClient(handler) { Timeout = Timeout.InfiniteTimeSpan };
+            var syncTask = CustomMapSyncService.EnsureMapAvailableAsync(
+                "hot_insert",
+                isCustomMap: true,
+                "/opengarrison/maps/hot_insert/hot_insert.json",
+                $"sha256:{packageHash}",
+                new Uri("http://example.invalid:8191/"),
+                httpClient);
+
+            await handler.RequestStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            File.Copy(serverLegacyMapPath, CustomMapLocatorStore.GetMapPath("hot_insert"));
+            var result = await syncTask.WaitAsync(TimeSpan.FromSeconds(5));
+
+            Assert.True(result.Success, result.Error);
+            var localManifestPath = CustomMapLocatorStore.GetPackageManifestPath("hot_insert");
+            Assert.True(File.Exists(localManifestPath));
+            Assert.True(CustomMapHashService.PackageMatchesHash(
+                localManifestPath,
+                CustomMapHashService.ParseHash($"sha256:{packageHash}")));
+            Assert.Contains(
+                SimpleLevelFactory.GetAvailableSourceLevels(),
+                entry => entry.Name.Equals("hot_insert", StringComparison.OrdinalIgnoreCase));
         }
         finally
         {
@@ -1559,6 +1657,20 @@ public sealed class CustomMapPngExporterTests
             {
                 Content = content,
             };
+        }
+    }
+
+    private sealed class BlockingHttpMessageHandler : HttpMessageHandler
+    {
+        public TaskCompletionSource<bool> RequestStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        protected override async Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            RequestStarted.TrySetResult(true);
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            return new HttpResponseMessage(HttpStatusCode.RequestTimeout);
         }
     }
 

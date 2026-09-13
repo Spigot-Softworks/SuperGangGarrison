@@ -35,7 +35,7 @@
       "displayName": "Stock",
       "primary": {
         "defaultItemId": "weapon.flamethrower",
-        "itemIds": [ "weapon.flamethrower" ],
+        "itemIds": [ "weapon.flamethrower", "weapon.dragon-rage" ],
         "switchPolicy": "primary_swap_station",
         "selectionPersistence": "same_class_loadout"
       },

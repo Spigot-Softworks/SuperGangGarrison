@@ -17,7 +17,8 @@ internal static class HostSetupLaunchPlaylist
             return null;
         }
 
-        var path = RuntimePaths.GetConfigPath(LaunchPlaylistFileName);
+        var path = RuntimePaths.GetConfigPath(Path.Combine("host-playlists", Guid.NewGuid().ToString("N"), LaunchPlaylistFileName));
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         var lines = new List<string>(levelNames.Count + 2)
         {
             "# OpenGarrison host launch playlist",

@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using OpenGarrison.Protocol;
 
@@ -16,6 +17,7 @@ public partial class Game1
     }
 
     private Task<CustomMapSyncService.CustomMapSyncResult>? _pendingNetworkMapSyncTask;
+    private CancellationTokenSource? _pendingNetworkMapSyncCancellation;
     private string _pendingNetworkMapSyncKey = string.Empty;
     private WelcomeMessage? _pendingWelcomeAfterNetworkMapSync;
     private readonly object _pendingNetworkMapSyncProgressGate = new();
@@ -53,6 +55,9 @@ public partial class Game1
 
     private void ClearPendingNetworkMapSync()
     {
+        _pendingNetworkMapSyncCancellation?.Cancel();
+        _pendingNetworkMapSyncCancellation?.Dispose();
+        _pendingNetworkMapSyncCancellation = null;
         _pendingNetworkMapSyncTask = null;
         _pendingNetworkMapSyncKey = string.Empty;
         _pendingWelcomeAfterNetworkMapSync = null;
@@ -118,15 +123,18 @@ public partial class Game1
 
         StorePendingNetworkMapSyncProgress(new CustomMapSyncService.CustomMapSyncProgress("Downloading custom map...", null));
         var progress = new Progress<CustomMapSyncService.CustomMapSyncProgress>(StorePendingNetworkMapSyncProgress);
+        var cancellation = new CancellationTokenSource();
         task = CustomMapSyncService.EnsureMapAvailableAsync(
             levelName,
             isCustomMap,
             mapDownloadUrl,
             mapContentHash,
             _networkClient.MapDownloadBaseUri,
-            progress);
+            progress,
+            cancellation.Token);
         if (task.IsCompleted)
         {
+            cancellation.Dispose();
             var completed = GetCompletedNetworkMapSyncResult(task);
             if (completed.Success)
             {
@@ -138,6 +146,7 @@ public partial class Game1
         }
 
         _pendingNetworkMapSyncTask = task;
+        _pendingNetworkMapSyncCancellation = cancellation;
         _pendingNetworkMapSyncKey = syncKey;
         ApplyPendingNetworkMapSyncProgress();
         return NetworkMapSyncStatus.Pending;

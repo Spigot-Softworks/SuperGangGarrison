@@ -1,6 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 using OpenGarrison.ClientShared;
 using OpenGarrison.Core;
@@ -45,7 +48,8 @@ internal static class CustomMapSyncService
         string mapDownloadUrl,
         string mapContentHash,
         Uri? serverDownloadBaseUri,
-        IProgress<CustomMapSyncProgress>? progress = null)
+        IProgress<CustomMapSyncProgress>? progress = null,
+        CancellationToken cancellationToken = default)
     {
         var httpClient = OperatingSystem.IsBrowser()
             ? ClientRuntimeBootstrap.GetBrowserHttpClient() ?? HttpClient
@@ -57,7 +61,8 @@ internal static class CustomMapSyncService
             mapContentHash,
             serverDownloadBaseUri,
             httpClient,
-            progress);
+            progress,
+            cancellationToken);
     }
 
     internal static async Task<CustomMapSyncResult> EnsureMapAvailableAsync(
@@ -67,7 +72,8 @@ internal static class CustomMapSyncService
         string mapContentHash,
         Uri? serverDownloadBaseUri,
         HttpClient httpClient,
-        IProgress<CustomMapSyncProgress>? progress = null)
+        IProgress<CustomMapSyncProgress>? progress = null,
+        CancellationToken cancellationToken = default)
     {
         if (!isCustomMap)
         {
@@ -85,21 +91,7 @@ internal static class CustomMapSyncService
         var expectedHash = CustomMapHashService.ParseHash(mapContentHash);
         var downloadUrl = ResolveDownloadUrl(normalizedLevelName, mapDownloadUrl, mapContentHash, serverDownloadBaseUri, out var downloadUrlError);
         var mapPath = CustomMapLocatorStore.GetMapPath(normalizedLevelName);
-        var hasExpectedHash = expectedHash.HasValue;
-        if (File.Exists(mapPath)
-            && (!hasExpectedHash || CustomMapHashService.FileMatchesHash(mapPath, expectedHash)))
-        {
-            if (string.IsNullOrWhiteSpace(downloadUrlError))
-            {
-                CacheLocator(normalizedLevelName, downloadUrl, expectedHash);
-            }
-
-            ReportProgress(progress, "Loading map...", 1d);
-            return CustomMapSyncResult.Ok;
-        }
-
-        if (CustomMapLocatorStore.TryGetPackageManifestPath(normalizedLevelName, out var packageManifestPath)
-            && (!hasExpectedHash || CustomMapHashService.PackageMatchesHash(packageManifestPath, expectedHash)))
+        if (TryEnsureLocalMapAvailable(normalizedLevelName, expectedHash))
         {
             if (string.IsNullOrWhiteSpace(downloadUrlError))
             {
@@ -122,14 +114,22 @@ internal static class CustomMapSyncService
 
         var isPackageDownload = ShouldDownloadPackage(downloadUrl, expectedHash);
         ReportProgress(progress, "Downloading custom map...", null);
-        var result = isPackageDownload
-            ? await TryDownloadPackageAsync(httpClient, normalizedLevelName, downloadUrl, expectedHash, progress).ConfigureAwait(false)
-            : await TryDownloadLegacyMapAsync(httpClient, downloadUrl, mapPath, expectedHash, progress).ConfigureAwait(false);
+        var result = await DownloadWithHotLocalFallbackAsync(
+                httpClient,
+                normalizedLevelName,
+                downloadUrl,
+                mapPath,
+                expectedHash,
+                isPackageDownload,
+                progress,
+                cancellationToken)
+            .ConfigureAwait(false);
         if (!result.Success)
         {
             return result;
         }
 
+        SimpleLevelFactory.ClearCachedCatalog();
         ReportProgress(progress, "Loading map...", 1d);
         CacheLocator(normalizedLevelName, downloadUrl, expectedHash);
         return CustomMapSyncResult.Ok;
@@ -195,20 +195,7 @@ internal static class CustomMapSyncService
         var expectedHash = CustomMapHashService.ParseHash(mapContentHash);
         var downloadUrl = ResolveDownloadUrl(normalizedLevelName, mapDownloadUrl, mapContentHash, serverDownloadBaseUri, out var downloadUrlError);
         var mapPath = CustomMapLocatorStore.GetMapPath(normalizedLevelName);
-        var hasExpectedHash = expectedHash.HasValue;
-        if (File.Exists(mapPath)
-            && (!hasExpectedHash || CustomMapHashService.FileMatchesHash(mapPath, expectedHash)))
-        {
-            if (string.IsNullOrWhiteSpace(downloadUrlError))
-            {
-                CacheLocator(normalizedLevelName, downloadUrl, expectedHash);
-            }
-
-            return true;
-        }
-
-        if (CustomMapLocatorStore.TryGetPackageManifestPath(normalizedLevelName, out var packageManifestPath)
-            && (!hasExpectedHash || CustomMapHashService.PackageMatchesHash(packageManifestPath, expectedHash)))
+        if (TryEnsureLocalMapAvailable(normalizedLevelName, expectedHash))
         {
             if (string.IsNullOrWhiteSpace(downloadUrlError))
             {
@@ -243,8 +230,248 @@ internal static class CustomMapSyncService
             return false;
         }
 
+        SimpleLevelFactory.ClearCachedCatalog();
         CacheLocator(normalizedLevelName, downloadUrl, expectedHash);
         return true;
+    }
+
+    private static async Task<CustomMapSyncResult> DownloadWithHotLocalFallbackAsync(
+        HttpClient httpClient,
+        string levelName,
+        string downloadUrl,
+        string mapPath,
+        CustomMapHashValue expectedHash,
+        bool isPackageDownload,
+        IProgress<CustomMapSyncProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        using var downloadCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var downloadTask = isPackageDownload
+            ? TryDownloadPackageAsync(
+                httpClient,
+                levelName,
+                downloadUrl,
+                expectedHash,
+                progress,
+                downloadCancellation.Token)
+            : TryDownloadLegacyMapAsync(
+                httpClient,
+                downloadUrl,
+                mapPath,
+                expectedHash,
+                progress,
+                downloadCancellation.Token);
+
+        while (!downloadTask.IsCompleted)
+        {
+            try
+            {
+                var completedTask = await Task.WhenAny(
+                        downloadTask,
+                        Task.Delay(TimeSpan.FromMilliseconds(250), cancellationToken))
+                    .ConfigureAwait(false);
+                if (ReferenceEquals(completedTask, downloadTask))
+                {
+                    break;
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                downloadCancellation.Cancel();
+                _ = await downloadTask.ConfigureAwait(false);
+                return CustomMapSyncResult.Fail("Map download canceled.");
+            }
+
+            if (!TryEnsureLocalMapAvailable(levelName, expectedHash))
+            {
+                continue;
+            }
+
+            downloadCancellation.Cancel();
+            _ = await downloadTask.ConfigureAwait(false);
+            return CustomMapSyncResult.Ok;
+        }
+
+        var result = await downloadTask.ConfigureAwait(false);
+        return result.Success || !TryEnsureLocalMapAvailable(levelName, expectedHash)
+            ? result
+            : CustomMapSyncResult.Ok;
+    }
+
+    private static bool TryEnsureLocalMapAvailable(string levelName, CustomMapHashValue expectedHash)
+    {
+        foreach (var mapsDirectory in EnumerateLocalMapDirectories())
+        {
+            if (TryFindPackageManifest(mapsDirectory, levelName, out var manifestPath)
+                && (!expectedHash.HasValue
+                    || expectedHash.Algorithm == CustomMapHashAlgorithm.Sha256
+                    && CustomMapHashService.PackageMatchesHash(manifestPath, expectedHash)))
+            {
+                SimpleLevelFactory.ClearCachedCatalog();
+                return true;
+            }
+
+            if (!TryFindLegacyMap(mapsDirectory, levelName, out var legacyMapPath))
+            {
+                continue;
+            }
+
+            if (!expectedHash.HasValue
+                || expectedHash.Algorithm == CustomMapHashAlgorithm.Md5
+                && FileMatchesHashSafely(legacyMapPath, expectedHash))
+            {
+                SimpleLevelFactory.ClearCachedCatalog();
+                return true;
+            }
+
+            if (expectedHash.Algorithm != CustomMapHashAlgorithm.Sha256
+                || !CustomMapLegacyPackageAutoConverter.TryConvertLegacyPng(
+                    legacyMapPath,
+                    out var convertedManifestPath,
+                    out _))
+            {
+                continue;
+            }
+
+            SimpleLevelFactory.ClearCachedCatalog();
+            if (CustomMapHashService.PackageMatchesHash(convertedManifestPath, expectedHash))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool FileMatchesHashSafely(string filePath, CustomMapHashValue expectedHash)
+    {
+        try
+        {
+            return CustomMapHashService.FileMatchesHash(filePath, expectedHash);
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
+    private static IEnumerable<string> EnumerateLocalMapDirectories()
+    {
+        var comparer = OperatingSystem.IsWindows()
+            ? StringComparer.OrdinalIgnoreCase
+            : StringComparer.Ordinal;
+        var seen = new HashSet<string>(comparer);
+
+        foreach (var directory in RuntimePaths.MapSearchDirectories.Prepend(RuntimePaths.MapsDirectory))
+        {
+            if (string.IsNullOrWhiteSpace(directory))
+            {
+                continue;
+            }
+
+            var fullPath = Path.GetFullPath(directory);
+            if (seen.Add(fullPath))
+            {
+                yield return fullPath;
+            }
+        }
+    }
+
+    private static bool TryFindPackageManifest(string mapsDirectory, string levelName, out string manifestPath)
+    {
+        manifestPath = string.Empty;
+        try
+        {
+            var directDirectory = Path.Combine(mapsDirectory, levelName);
+            if (CustomMapPackageImporter.TryFindManifestInDirectory(directDirectory, out manifestPath)
+                && Path.GetFileNameWithoutExtension(manifestPath).Equals(levelName, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (!Directory.Exists(mapsDirectory))
+            {
+                return false;
+            }
+
+            foreach (var packageDirectory in Directory.EnumerateDirectories(mapsDirectory, "*", SearchOption.TopDirectoryOnly))
+            {
+                if (!Path.GetFileName(packageDirectory).Equals(levelName, StringComparison.OrdinalIgnoreCase)
+                    || !CustomMapPackageImporter.TryFindManifestInDirectory(packageDirectory, out manifestPath)
+                    || !Path.GetFileNameWithoutExtension(manifestPath).Equals(levelName, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                return true;
+            }
+        }
+        catch (IOException)
+        {
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
+
+        manifestPath = string.Empty;
+        return false;
+    }
+
+    private static bool TryFindLegacyMap(string mapsDirectory, string levelName, out string mapPath)
+    {
+        try
+        {
+            mapPath = Path.Combine(mapsDirectory, $"{levelName}.png");
+            if (File.Exists(mapPath))
+            {
+                return true;
+            }
+
+            if (!Directory.Exists(mapsDirectory))
+            {
+                mapPath = string.Empty;
+                return false;
+            }
+
+            mapPath = Directory
+                .EnumerateFiles(mapsDirectory, "*.png", SearchOption.TopDirectoryOnly)
+                .FirstOrDefault(path => Path.GetFileNameWithoutExtension(path).Equals(levelName, StringComparison.OrdinalIgnoreCase))
+                ?? string.Empty;
+            return mapPath.Length > 0;
+        }
+        catch (IOException)
+        {
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
+
+        mapPath = string.Empty;
+        return false;
+    }
+
+    internal static bool TryCreateServerDownloadBaseUri(
+        NetworkEndpoint endpoint,
+        NetworkEndpointCandidate connectedCandidate,
+        out Uri baseUri)
+    {
+        if (!string.IsNullOrWhiteSpace(endpoint.WebSocketUrl)
+            && TryCreateServerDownloadBaseUri(endpoint.WebSocketUrl, port: 0, out baseUri))
+        {
+            return true;
+        }
+
+        if (endpoint.WebSocketPort is > 0 and <= 65535
+            && TryCreateServerDownloadBaseUri(endpoint.Host, endpoint.WebSocketPort, out baseUri))
+        {
+            return true;
+        }
+
+        return TryCreateServerDownloadBaseUri(connectedCandidate.Host, connectedCandidate.Port, out baseUri);
     }
 
     internal static bool TryCreateServerDownloadBaseUri(string host, int port, out Uri baseUri)
@@ -264,6 +491,9 @@ internal static class CustomMapSyncService
                 || absoluteUri.Scheme == Uri.UriSchemeHttp
                 || absoluteUri.Scheme == Uri.UriSchemeHttps))
         {
+            var shouldApplyConnectionPort = port is > 0 and <= 65535
+                && absoluteUri.IsDefaultPort
+                && absoluteUri.Scheme is "ws" or "wss" or "ws64" or "wss64";
             var builder = new UriBuilder(absoluteUri)
             {
                 Scheme = absoluteUri.Scheme is "wss" or "wss64"
@@ -275,6 +505,11 @@ internal static class CustomMapSyncService
                 Query = string.Empty,
                 Fragment = string.Empty,
             };
+            if (shouldApplyConnectionPort)
+            {
+                builder.Port = port;
+            }
+
             baseUri = EnsureTrailingSlash(builder.Uri);
             return true;
         }
@@ -569,7 +804,8 @@ internal static class CustomMapSyncService
         string mapDownloadUrl,
         string mapPath,
         CustomMapHashValue expectedHash,
-        IProgress<CustomMapSyncProgress>? progress)
+        IProgress<CustomMapSyncProgress>? progress,
+        CancellationToken cancellationToken)
     {
         if (!TryCreateSupportedDownloadUri(mapDownloadUrl, "map download URL", out var mapUri, out var error))
         {
@@ -580,7 +816,9 @@ internal static class CustomMapSyncService
         var tempPath = mapPath + ".download";
         try
         {
-            using var response = await httpClient.GetAsync(mapUri, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
+            using var response = await httpClient
+                .GetAsync(mapUri, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
+                .ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
             {
                 return CustomMapSyncResult.Fail($"Map download failed ({(int)response.StatusCode} {response.ReasonPhrase}).");
@@ -593,7 +831,7 @@ internal static class CustomMapSyncService
                 return CustomMapSyncResult.Fail($"Map download returned unsupported content type: {mediaType}.");
             }
 
-            using (var networkStream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
+            using (var networkStream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false))
             using (var fileStream = File.Create(tempPath))
             {
                 await CopyToFileWithProgressAsync(
@@ -601,7 +839,8 @@ internal static class CustomMapSyncService
                         fileStream,
                         response.Content.Headers.ContentLength,
                         "Downloading custom map...",
-                        progress)
+                        progress,
+                        cancellationToken)
                     .ConfigureAwait(false);
             }
 
@@ -756,7 +995,8 @@ internal static class CustomMapSyncService
         string levelName,
         string manifestDownloadUrl,
         CustomMapHashValue expectedHash,
-        IProgress<CustomMapSyncProgress>? progress)
+        IProgress<CustomMapSyncProgress>? progress,
+        CancellationToken cancellationToken)
     {
         if (!TryCreateSupportedDownloadUri(manifestDownloadUrl, "map package manifest URL", out var manifestUri, out var packageError))
         {
@@ -777,7 +1017,8 @@ internal static class CustomMapSyncService
                     tempManifestPath,
                     IsSupportedManifestContentType,
                     "Map package manifest",
-                    progress)
+                    progress,
+                    cancellationToken)
                 .ConfigureAwait(false);
             if (!manifestResult.Success)
             {
@@ -809,7 +1050,8 @@ internal static class CustomMapSyncService
                         contentOutputPath,
                         GetPackageContentTypeValidator(normalizedRelativePath),
                         GetPackageContentLabel(normalizedRelativePath),
-                        progress)
+                        progress,
+                        cancellationToken)
                     .ConfigureAwait(false);
                 if (!contentResult.Success)
                 {
@@ -914,9 +1156,12 @@ internal static class CustomMapSyncService
         string outputPath,
         Func<string?, bool> contentTypeValidator,
         string label,
-        IProgress<CustomMapSyncProgress>? progress)
+        IProgress<CustomMapSyncProgress>? progress,
+        CancellationToken cancellationToken)
     {
-        using var response = await httpClient.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
+        using var response = await httpClient
+            .GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
+            .ConfigureAwait(false);
         if (!response.IsSuccessStatusCode)
         {
             return CustomMapSyncResult.Fail($"{label} download failed ({(int)response.StatusCode} {response.ReasonPhrase}).");
@@ -929,7 +1174,7 @@ internal static class CustomMapSyncService
         }
 
         Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
-        using (var networkStream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
+        using (var networkStream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false))
         using (var fileStream = File.Create(outputPath))
         {
             await CopyToFileWithProgressAsync(
@@ -937,7 +1182,8 @@ internal static class CustomMapSyncService
                     fileStream,
                     response.Content.Headers.ContentLength,
                     $"Downloading {label.ToLowerInvariant()}...",
-                    progress)
+                    progress,
+                    cancellationToken)
                 .ConfigureAwait(false);
         }
 
@@ -949,7 +1195,8 @@ internal static class CustomMapSyncService
         Stream destination,
         long? totalBytes,
         string message,
-        IProgress<CustomMapSyncProgress>? progress)
+        IProgress<CustomMapSyncProgress>? progress,
+        CancellationToken cancellationToken)
     {
         var buffer = new byte[81920];
         long copiedBytes = 0;
@@ -957,13 +1204,13 @@ internal static class CustomMapSyncService
 
         while (true)
         {
-            var bytesRead = await source.ReadAsync(buffer.AsMemory(0, buffer.Length)).ConfigureAwait(false);
+            var bytesRead = await source.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken).ConfigureAwait(false);
             if (bytesRead <= 0)
             {
                 break;
             }
 
-            await destination.WriteAsync(buffer.AsMemory(0, bytesRead)).ConfigureAwait(false);
+            await destination.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken).ConfigureAwait(false);
             copiedBytes += bytesRead;
             if (totalBytes.HasValue && totalBytes.Value > 0)
             {

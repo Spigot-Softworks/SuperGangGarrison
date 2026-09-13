@@ -146,6 +146,7 @@ public partial class Game1
         if (layout.PlayerCardButtonBounds.Contains(point))
         {
             CloseFriendsContextMenu();
+            CommitPlayerCardBioEdit();
             _playerCardOwnOpen = !_playerCardOwnOpen;
             _playerCardEditorOpen = false;
             _playerCardDraggingPortrait = false;
@@ -1391,6 +1392,7 @@ public partial class Game1
 
     private bool TryJoinSelectedFriend()
     {
+        if (IsRestrictedBrowserEdition) return false;
         if (!TryGetSelectedFriendPresence(out var presence)
             || !FriendPresenceSessionResolver.TryCreateJoinEndpoint(presence, out var endpoint))
         {

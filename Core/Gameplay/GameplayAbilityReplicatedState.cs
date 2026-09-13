@@ -11,6 +11,7 @@ public static class GameplayAbilityReplicatedState
     public const string HeavyEatCooldownTicksKey = "heavy_eat_cooldown_ticks";
     public const string SniperChargeTicksKey = "sniper_charge_ticks";
     public const string SniperBowChargeTicksKey = "sniper_bow_charge_ticks";
+    public const string SniperRifleStreakKey = "sniper_rifle_streak";
     public const string SpyCloakAlphaKey = "spy_cloak_alpha";
     public const string SpySuperjumpCooldownTicksKey = "spy_superjump_cooldown_ticks";
     public const string SpySuperjumpActiveKey = "spy_superjump_active";
@@ -18,6 +19,9 @@ public static class GameplayAbilityReplicatedState
     public const string CivvieUmbrellaCooldownTicksKey = "civvie_umbrella_cooldown_ticks";
     public const string CivvieUmbrellaActiveKey = "civvie_umbrella_active";
     public const string CivvieUmbrellaDisabledKey = "civvie_umbrella_disabled";
+    public const string CivvieUmbrellaOpeningTicksKey = "civvie_umbrella_opening_ticks";
+    public const string CivvieUmbrellaOpeningSequenceKey = "civvie_umbrella_opening_sequence";
+    public const string CivvieUmbrellaOpeningSpentKey = "civvie_umbrella_opening_spent";
     public const string CivviePogoActiveKey = "civvie_pogo_active";
     public const string CivviePogoCrunchTicksKey = "civvie_pogo_crunch_ticks";
     public const string CivviePogoTrickTicksKey = "civvie_pogo_trick_ticks";
@@ -58,6 +62,7 @@ public static class GameplayAbilityReplicatedState
             ],
             PlayerClass.Soldier =>
             [
+                Whole(SniperBowChargeTicksKey, player.MortarLauncherChargeTicks),
                 Whole(BuffBannerChargeDamageKey, player.BuffBannerChargeDamage),
                 Whole(BuffBannerMissingDamageKey, player.BuffBannerMissingChargeDamage),
                 Whole(BuffBannerDeployTicksKey, player.BuffBannerDeployTicksRemaining),
@@ -68,6 +73,7 @@ public static class GameplayAbilityReplicatedState
             [
                 Whole(SniperChargeTicksKey, player.SniperChargeTicks),
                 Whole(SniperBowChargeTicksKey, player.SniperBowChargeTicks),
+                Whole(SniperRifleStreakKey, player.SniperRifleFullyChargedHitStreak),
             ],
             PlayerClass.Spy =>
             [
@@ -81,6 +87,9 @@ public static class GameplayAbilityReplicatedState
                 Whole(CivvieUmbrellaCooldownTicksKey, player.CivvieUmbrellaCooldownTicks),
                 Toggle(CivvieUmbrellaActiveKey, player.IsCivvieUmbrellaActive),
                 Toggle(CivvieUmbrellaDisabledKey, player.IsCivvieUmbrellaDisabled),
+                Whole(CivvieUmbrellaOpeningTicksKey, player.CivvieUmbrellaOpeningElapsedTicks),
+                Whole(CivvieUmbrellaOpeningSequenceKey, player.CivvieUmbrellaOpeningSequence),
+                Toggle(CivvieUmbrellaOpeningSpentKey, player.CivvieUmbrellaOpeningAirblastTriggered),
                 Toggle(CivviePogoActiveKey, player.IsCivviePogoActive),
                 Whole(CivviePogoCrunchTicksKey, player.CivviePogoCrunchTicksRemaining),
                 Whole(CivviePogoTrickTicksKey, player.CivviePogoTrickTicksRemaining),
@@ -144,7 +153,8 @@ public static class GameplayAbilityReplicatedState
             HeavyEatCooldownTicksKey when player.ClassId == PlayerClass.Heavy => player.HeavyEatCooldownTicksRemaining,
             HeavyDashCooldownTicksKey when player.ClassId == PlayerClass.Heavy => player.ExperimentalGhostDashCooldownTicksRemaining,
             SniperChargeTicksKey when player.ClassId == PlayerClass.Sniper => player.SniperChargeTicks,
-            SniperBowChargeTicksKey when player.ClassId == PlayerClass.Sniper => player.SniperBowChargeTicks,
+            SniperBowChargeTicksKey when player.ClassId is PlayerClass.Sniper or PlayerClass.Soldier => player.SniperBowChargeTicks,
+            SniperRifleStreakKey when player.ClassId == PlayerClass.Sniper => player.SniperRifleFullyChargedHitStreak,
             SpySuperjumpCooldownTicksKey when player.ClassId == PlayerClass.Spy => player.SpySuperjumpCooldownTicksRemaining,
             CivvieUmbrellaCooldownTicksKey when player.ClassId == PlayerClass.Quote => player.CivvieUmbrellaCooldownTicks,
             CivviePogoCrunchTicksKey when player.ClassId == PlayerClass.Quote => player.CivviePogoCrunchTicksRemaining,
@@ -163,7 +173,8 @@ public static class GameplayAbilityReplicatedState
             MedicNeedlegunCooldownTicksKey
                 or MedicHealDartCooldownTicksKey => player.ClassId == PlayerClass.Medic,
             HeavyEatTicksRemainingKey or HeavyEatCooldownTicksKey or HeavyDashCooldownTicksKey => player.ClassId == PlayerClass.Heavy,
-            SniperChargeTicksKey or SniperBowChargeTicksKey => player.ClassId == PlayerClass.Sniper,
+            SniperChargeTicksKey or SniperRifleStreakKey => player.ClassId == PlayerClass.Sniper,
+            SniperBowChargeTicksKey => player.ClassId is PlayerClass.Sniper or PlayerClass.Soldier,
             SpySuperjumpCooldownTicksKey => player.ClassId == PlayerClass.Spy,
             CivvieUmbrellaCooldownTicksKey
                 or CivviePogoCrunchTicksKey

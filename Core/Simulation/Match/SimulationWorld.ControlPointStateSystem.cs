@@ -461,8 +461,10 @@ public sealed partial class SimulationWorld
 
             if (world._controlPointSetupMode)
             {
-                var bonusTicks = world.Config.TicksPerSecond * 60 * 5;
-                world.MatchState = world.MatchState with { TimeRemainingTicks = world.MatchState.TimeRemainingTicks + bonusTicks };
+                var updatedTimeRemainingTicks = Math.Min(
+                    world.GetControlPointMaximumTimeTicks(),
+                    world.MatchState.TimeRemainingTicks + world.GetControlPointCaptureBonusTicks());
+                world.MatchState = world.MatchState with { TimeRemainingTicks = updatedTimeRemainingTicks };
             }
 
             world.RegisterWorldSoundEvent("CPCapturedSnd", point.Marker.CenterX, point.Marker.CenterY);

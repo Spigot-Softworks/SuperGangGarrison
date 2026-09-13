@@ -298,8 +298,9 @@ public sealed partial class SimulationWorld
                 }
             }
 
-            foreach (var gate in Level.RoomObjects)
+            foreach (var index in Level.HitscanObstacleIndices)
             {
+                ref readonly var gate = ref Level.GetRoomObject(index);
                 if (!IsBlockingHitscanRoomObjectForAnyTeam(gate))
                 {
                     continue;
@@ -357,8 +358,9 @@ public sealed partial class SimulationWorld
                 }
             }
 
-            foreach (var gate in Level.RoomObjects)
+            foreach (var index in Level.GateIndices)
             {
+                ref readonly var gate = ref Level.GetRoomObject(index);
                 if (!IsBlockingGateForTeam(gate, targetTeam))
                 {
                     continue;
@@ -453,14 +455,14 @@ public sealed partial class SimulationWorld
                 }
             }
 
-            for (var roomObjectIndex = 0; roomObjectIndex < Level.RoomObjects.Count; roomObjectIndex += 1)
+            foreach (var roomObjectIndex in Level.ProjectileObstacleIndices)
             {
                 if (!Level.IsRoomObjectActive(roomObjectIndex))
                 {
                     continue;
                 }
 
-                var roomObject = Level.RoomObjects[roomObjectIndex];
+                ref readonly var roomObject = ref Level.GetRoomObject(roomObjectIndex);
                 if (!IsBlockingProjectileRoomObject(roomObjectIndex, roomObject, shotTeam))
                 {
                     continue;
@@ -594,14 +596,14 @@ public sealed partial class SimulationWorld
                 }
             }
 
-            for (var roomObjectIndex = 0; roomObjectIndex < Level.RoomObjects.Count; roomObjectIndex += 1)
+            foreach (var roomObjectIndex in Level.ProjectileObstacleIndices)
             {
                 if (!Level.IsRoomObjectActive(roomObjectIndex))
                 {
                     continue;
                 }
 
-                var roomObject = Level.RoomObjects[roomObjectIndex];
+                ref readonly var roomObject = ref Level.GetRoomObject(roomObjectIndex);
                 if (!RayBoundsMayIntersectRectangle(
                         rayBounds,
                         roomObject.Left,
@@ -711,8 +713,9 @@ public sealed partial class SimulationWorld
                 }
             }
 
-            foreach (var gate in Level.RoomObjects)
+            foreach (var index in Level.GateIndices)
             {
+                ref readonly var gate = ref Level.GetRoomObject(index);
                 if (!IsBlockingGateForTeam(gate, team))
                 {
                     continue;

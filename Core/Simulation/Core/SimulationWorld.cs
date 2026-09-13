@@ -90,7 +90,7 @@ public sealed partial class SimulationWorld
     private readonly Dictionary<byte, CharacterClassDefinition> _additionalNetworkPlayerClassDefinitions = new();
     private readonly Dictionary<byte, PlayerInputSnapshot> _additionalNetworkPlayerInputs = new();
     private readonly Dictionary<byte, PlayerInputSnapshot> _additionalNetworkPlayerPreviousInputs = new();
-    private readonly Dictionary<byte, InputButtons> _networkPlayerForcedPressedButtons = new();
+    private readonly Dictionary<byte, (InputButtons Buttons, bool ExplicitOnly)> _networkPlayerForcedPressedButtons = new();
     private readonly Dictionary<byte, bool> _additionalNetworkPlayerAwaitingJoin = new();
     private readonly Dictionary<byte, int> _additionalNetworkPlayerRespawnTicks = new();
     private readonly HashSet<byte> _automaticRespawnSuppressedNetworkSlots = new();
@@ -98,11 +98,13 @@ public sealed partial class SimulationWorld
     private readonly Dictionary<(int PlayerId, int RoomObjectIndex), bool> _catapultContacts = new();
     private SimpleLevel? _catapultContactLevel;
     private readonly Dictionary<byte, int> _networkPlayerPingMillisecondsBySlot = new();
+    private readonly HashSet<byte> _networkBotSlots = new();
     private readonly Dictionary<byte, PlayerTeam> _additionalNetworkPlayerTeams = new();
     private readonly HashSet<byte> _pendingNetworkPlayerTeamSelections = new();
     private readonly Dictionary<byte, SpawnPoint> _networkPlayerSpawnOverrides = new();
     private readonly HashSet<byte> _networkPlayerMapSpawnClassBehaviorBypassSlots = new();
     private readonly Dictionary<byte, float> _networkPlayerMovementSpeedScaleOverrides = new();
+    private readonly Dictionary<byte, float> _networkPlayerLastToDieEnemyDamageScaleOverrides = new();
     private readonly Dictionary<byte, float> _networkPlayerGravityScaleOverrides = new();
     private readonly Dictionary<byte, int> _networkPlayerMaxHealthOverrides = new();
     private readonly Dictionary<PlayerClass, int> _configuredClassLimits = new();
@@ -114,6 +116,7 @@ public sealed partial class SimulationWorld
     private readonly Dictionary<int, long> _terminatedProjectileExpiryFrames = new();
     private readonly ClientSnapshotStringCache _snapshotStringCache = new();
     private readonly Random _random = new(1337);
+    private readonly Random _deathCamPhraseRandom = new(0x474732);
     private int _configuredTimeLimitMinutes = DefaultTimeLimitMinutes;
     private int _configuredCapLimit = DefaultCapLimit;
     private int _configuredRespawnSeconds = DefaultRespawnSeconds;

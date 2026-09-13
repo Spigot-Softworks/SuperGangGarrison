@@ -21,6 +21,12 @@ public static class NetworkClientMessageTransportRegistry
 
     internal static bool TryConnect(string host, int port, out INetworkClientMessageTransport? transport, out string error)
     {
+        if (!OpenGarrison.ClientShared.ClientDistribution.AllowsEndpoint(host))
+        {
+            transport = null;
+            error = "This browser edition connects through Last to Die rooms only.";
+            return false;
+        }
         if (QuicNetworkClientMessageTransport.IsQuicEndpoint(host))
         {
             transport = null;

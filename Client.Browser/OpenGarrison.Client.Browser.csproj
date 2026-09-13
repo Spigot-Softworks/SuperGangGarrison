@@ -9,8 +9,15 @@
     <OpenGarrisonClientAsLibrary>true</OpenGarrisonClientAsLibrary>
     <OpenGarrisonBrowserAot Condition="'$(OpenGarrisonBrowserAot)' == ''">true</OpenGarrisonBrowserAot>
     <OpenGarrisonBrowserBuildVersion Condition="'$(OpenGarrisonBrowserBuildVersion)' == ''">dev</OpenGarrisonBrowserBuildVersion>
+    <OpenGarrisonBrowserEdition Condition="'$(OpenGarrisonBrowserEdition)' == ''">Full</OpenGarrisonBrowserEdition>
+    <OpenGarrisonRoomContentId Condition="'$(OpenGarrisonRoomContentId)' == ''">dev</OpenGarrisonRoomContentId>
+    <OpenGarrisonRoomServiceOrigin Condition="'$(OpenGarrisonRoomServiceOrigin)' == ''">https://api.superganggarrison.com</OpenGarrisonRoomServiceOrigin>
     <OpenGarrisonBrowserReleaseChannel Condition="'$(OpenGarrisonBrowserReleaseChannel)' == ''">stable</OpenGarrisonBrowserReleaseChannel>
     <DisableBuildCompression>true</DisableBuildCompression>
+    <OpenGarrisonBrowserAssetCacheRoot Condition="'$(OpenGarrisonBrowserAssetCacheRoot)' == '' and '$(OpenGarrisonBuildRoot)' != ''">$(OpenGarrisonBuildRoot)/browser-assets</OpenGarrisonBrowserAssetCacheRoot>
+    <OpenGarrisonBrowserAssetCacheRoot Condition="'$(OpenGarrisonBrowserAssetCacheRoot)' == ''">$(MSBuildProjectDirectory)/obj/browser-assets</OpenGarrisonBrowserAssetCacheRoot>
+    <OpenGarrisonBrowserGeneratedWwwRoot Condition="'$(OpenGarrisonBrowserGeneratedWwwRoot)' == '' and '$(OpenGarrisonBuildRoot)' != ''">$(OpenGarrisonBuildRoot)/browser-wwwroot</OpenGarrisonBrowserGeneratedWwwRoot>
+    <OpenGarrisonBrowserGeneratedWwwRoot Condition="'$(OpenGarrisonBrowserGeneratedWwwRoot)' == ''">$(MSBuildProjectDirectory)/wwwroot</OpenGarrisonBrowserGeneratedWwwRoot>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(OpenGarrisonBrowserAot)' == 'true'">
@@ -25,11 +32,14 @@
 
   <Target Name="RejectNonAotBrowserPublish"
           BeforeTargets="Publish"
-          Condition="'$(OpenGarrisonBrowserAot)' != 'true' or '$(RunAOTCompilation)' != 'true'">
+          Condition="'$(OpenGarrisonBrowserAot)' != 'true' or '$(RunAOTCompilation)' != 'true' or '$(OpenGarrisonSkipBrowserAssetSync)' == 'true'">
     <Error Text="The browser publish path is AOT-only. Remove non-AOT overrides and publish with OpenGarrisonBrowserAot=true." />
   </Target>
 
   <ItemGroup>
+    <AssemblyMetadata Include="OpenGarrisonBrowserEdition" Value="$(OpenGarrisonBrowserEdition)" />
+    <AssemblyMetadata Include="OpenGarrisonRoomContentId" Value="$(OpenGarrisonRoomContentId)" />
+    <AssemblyMetadata Include="OpenGarrisonRoomServiceOrigin" Value="$(OpenGarrisonRoomServiceOrigin)" />
     <AssemblyMetadata Include="OpenGarrisonBrowserBuildVersion" Value="$(OpenGarrisonBrowserBuildVersion)" />
     <AssemblyMetadata Include="OpenGarrisonBrowserReleaseChannel" Value="$(OpenGarrisonBrowserReleaseChannel)" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.5" />
@@ -60,7 +70,7 @@
 
   <Target Name="SyncCoreContentToBrowserWwwroot"
           BeforeTargets="ResolveProjectStaticWebAssets"
-          Condition="'$(DesignTimeBuild)' != 'true'">
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(OpenGarrisonSkipBrowserAssetSync)' != 'true'">
     <ItemGroup>
       <BrowserGeneratedContentItems Include="@(Content)" Condition="$([System.String]::Copy('%(Content.Identity)').StartsWith('wwwroot\Content\'))" />
       <BrowserGeneratedContentItems Include="@(Content)" Condition="$([System.String]::Copy('%(Content.Identity)').StartsWith('wwwroot/Content/'))" />
@@ -70,31 +80,30 @@
       <BrowserGeneratedContentItems Include="@(Content)" Condition="$([System.String]::Copy('%(Content.Identity)').StartsWith('wwwroot/Plugins/'))" />
       <BrowserGeneratedContentItems Include="@(Content)" Condition="$([System.String]::Copy('%(Content.Identity)').Contains('\wwwroot\Plugins\'))" />
       <BrowserGeneratedContentItems Include="@(Content)" Condition="$([System.String]::Copy('%(Content.Identity)').Contains('/wwwroot/Plugins/'))" />
-      <BrowserMirroredContent Include="..\Core\Content\**\*"
-                              Exclude="..\Core\Content\bin\**\*;..\Core\Content\obj\**\*;..\Core\Content\**\*.mgcb;..\Core\Content\**\*.cs" />
-      <BrowserCompiledClientContent Include="..\Client\Content\bin\DesktopGL\Content\**\*" />
-      <BrowserStaleSourceFiles Include="$(MSBuildProjectDirectory)\wwwroot\Content\**\*.cs" />
       <BrowserStaticWebAssetCacheFiles Include="$(IntermediateOutputPath)*.dswa.cache.json;
                                            $(IntermediateOutputPath)swae.*.cache;
                                            $(IntermediateOutputPath)staticwebassets.build.json.cache" />
     </ItemGroup>
 
+    <Exec Command="python &quot;$(MSBuildProjectDirectory)/../Tools/Browser/browser_build_cache.py&quot; sync-assets --repo &quot;$(MSBuildProjectDirectory)/..&quot; --wwwroot &quot;$(OpenGarrisonBrowserGeneratedWwwRoot)&quot; --cache &quot;$(OpenGarrisonBrowserAssetCacheRoot)&quot; --sdk &quot;$(NETCoreSdkVersion)&quot;" />
+    <!-- Refresh discovery/fingerprint metadata after synchronization, while
+         retaining the expensive content-keyed gzip/Brotli outputs. -->
     <Delete Files="@(BrowserStaticWebAssetCacheFiles)" />
-    <RemoveDir Directories="$(IntermediateOutputPath)compressed" />
-    <Delete Files="@(BrowserStaleSourceFiles)" />
-    <RemoveDir Directories="$(MSBuildProjectDirectory)\wwwroot\Content;$(MSBuildProjectDirectory)\wwwroot\Plugins" />
-    <MakeDir Directories="$(MSBuildProjectDirectory)\wwwroot\Content" />
-    <Copy SourceFiles="@(BrowserMirroredContent)"
-          DestinationFiles="@(BrowserMirroredContent->'$(MSBuildProjectDirectory)\wwwroot\Content\%(RecursiveDir)%(Filename)%(Extension)')"
-          SkipUnchangedFiles="true" />
-    <Copy SourceFiles="@(BrowserCompiledClientContent)"
-          DestinationFiles="@(BrowserCompiledClientContent->'$(MSBuildProjectDirectory)\wwwroot\Content\%(RecursiveDir)%(Filename)%(Extension)')"
-          SkipUnchangedFiles="true" />
-    <Exec Command="dotnet run --project &quot;$(MSBuildProjectDirectory)\..\Tools\BrowserAssetBuilder\OpenGarrison.Tools.BrowserAssetBuilder.csproj&quot; -- &quot;$(MSBuildProjectDirectory)\wwwroot\Content&quot; &quot;$(MSBuildProjectDirectory)\..\Plugins\Packaged\Client&quot;" />
     <ItemGroup>
       <Content Remove="@(BrowserGeneratedContentItems)" />
-      <Content Include="wwwroot\Content\**\*;wwwroot\Plugins\**\*"
-               Exclude="wwwroot\Content\**\*.cs"
+      <BrowserGeneratedCoreContent Include="$(OpenGarrisonBrowserGeneratedWwwRoot)/Content/**/*"
+                                   Exclude="$(OpenGarrisonBrowserGeneratedWwwRoot)/Content/**/*.cs" />
+      <BrowserGeneratedPluginContent Include="$(OpenGarrisonBrowserGeneratedWwwRoot)/Plugins/**/*" />
+      <!-- Qualify metadata to the generated items: unqualified metadata here
+           batches over existing Content and can give every asset app.css's path. -->
+      <Content Include="@(BrowserGeneratedCoreContent)"
+               Link="wwwroot/Content/%(BrowserGeneratedCoreContent.RecursiveDir)%(BrowserGeneratedCoreContent.Filename)%(BrowserGeneratedCoreContent.Extension)"
+               ContentRoot="$(OpenGarrisonBrowserGeneratedWwwRoot)/"
+               CopyToOutputDirectory="PreserveNewest"
+               CopyToPublishDirectory="PreserveNewest" />
+      <Content Include="@(BrowserGeneratedPluginContent)"
+               Link="wwwroot/Plugins/%(BrowserGeneratedPluginContent.RecursiveDir)%(BrowserGeneratedPluginContent.Filename)%(BrowserGeneratedPluginContent.Extension)"
+               ContentRoot="$(OpenGarrisonBrowserGeneratedWwwRoot)/"
                CopyToOutputDirectory="PreserveNewest"
                CopyToPublishDirectory="PreserveNewest" />
     </ItemGroup>
@@ -108,5 +117,12 @@
   <Target Name="CleanBrowserMirroredContent" AfterTargets="Clean">
     <RemoveDir Directories="$(MSBuildProjectDirectory)\wwwroot\Content" />
     <RemoveDir Directories="$(MSBuildProjectDirectory)\wwwroot\Plugins" />
+  </Target>
+
+  <Target Name="PruneObsoleteBrowserPublishFiles" AfterTargets="Publish">
+    <WriteLinesToFile File="$(IntermediateOutputPath)browser-publish-files.txt"
+                      Lines="@(_PublishStaticWebAssetsTargetPath->'%(TargetPath)')"
+                      Overwrite="true" WriteOnlyWhenDifferent="true" />
+    <Exec Command="python &quot;$(MSBuildProjectDirectory)/../Tools/Browser/browser_build_cache.py&quot; prune-publish --wwwroot &quot;$(PublishDir)wwwroot&quot; --inventory &quot;$(IntermediateOutputPath)browser-publish-files.txt&quot;" />
   </Target>
 </Project>

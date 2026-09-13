@@ -58,6 +58,7 @@ public static class BotInputSynthesizer
     {
         var useAbility = combat.UseAbility;
         var swapWeapon = input.SwapWeapon;
+        var toggleSecondaryWeapon = input.ToggleSecondaryWeapon;
         var firePrimary = combat.FirePrimary;
         var fireSecondary = combat.FireSecondary;
         if (self.ClassId == PlayerClass.Quote
@@ -74,9 +75,15 @@ public static class BotInputSynthesizer
         if (self.HasExperimentalOffhandWeapon)
         {
             var wantsOffhand = combat.SelectSecondaryWeapon;
-            if (wantsOffhand != self.IsExperimentalOffhandSelected && !previousInput.SwapWeapon)
+            // Secondary selection is a distinct action from a primary locker
+            // cycle. Sending SwapWeapon near a healing cabinet/dispenser lets
+            // the server consume the edge as an alternate-primary cycle before
+            // it reaches the offhand toggle path.
+            if (wantsOffhand != self.IsExperimentalOffhandSelected
+                && !previousInput.ToggleSecondaryWeapon
+                && !input.SwapWeapon)
             {
-                swapWeapon = true;
+                toggleSecondaryWeapon = true;
             }
 
             if (wantsOffhand && !self.IsExperimentalOffhandSelected)
@@ -91,6 +98,7 @@ public static class BotInputSynthesizer
             FireSecondary = fireSecondary,
             UseAbility = useAbility,
             SwapWeapon = swapWeapon,
+            ToggleSecondaryWeapon = toggleSecondaryWeapon,
         };
     }
 

@@ -6,6 +6,9 @@ namespace OpenGarrison.Client;
 
 internal static class NetworkInterpolationPolicy
 {
+    public static bool IsSourceFrameReady(ulong sourceFrame, int tickRate, double renderTimeSeconds)
+        => sourceFrame == 0 || sourceFrame / (double)Math.Max(1, tickRate) <= renderTimeSeconds;
+
     public static bool IsSnapshotInterpolationActive(
         bool isConnected,
         bool positionSmoothingEnabled,

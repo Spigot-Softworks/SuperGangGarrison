@@ -17,6 +17,7 @@ public enum ChannelType : byte
     Chat = 5,
     Social = 6,
     Plugin = 7,
+    Audio = 8,
 }
 
 public enum Protocol64DeliveryKind : byte

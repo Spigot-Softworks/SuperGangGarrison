@@ -289,6 +289,9 @@ public partial class Game1
             _game._lastToDieIngameMusic?.Dispose();
             _game.StopHostedServer();
             _game._networkClient.Dispose();
+            _game.LeavePeerRoom();
+            _game.StopEmbeddedSession();
+            _game.StopLocalJukebox();
             _game._gameplayModAssets?.Dispose();
             _game._runtimeAssets?.Dispose();
             _game._rotatedWeaponSprites?.Dispose();
@@ -331,6 +334,7 @@ public partial class Game1
             _game._gameplayLoadoutHelmetTexture?.Dispose();
             _game._gameplayLoadoutDogTagsTexture?.Dispose();
             _game._lastToDieLogoTexture?.Dispose();
+            _game.DisposeBrandLogoAssets();
             _game.DisposeLastToDieSurvivorCarouselAssets();
             _game.DisposeReplayPlaybackControlAssets();
             _game.DisposeLastToDieBuffIconFrame();

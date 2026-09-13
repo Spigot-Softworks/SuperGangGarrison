@@ -35,9 +35,19 @@ public sealed class Protocol64MessageSchemaTests
             [Protocol64EventId.ServerDetailsResponse] = (typeof(ServerDetailsResponseMessage), Protocol64Direction.ServerToClient, Protocol64DeliveryKind.ReliableOrdered, ChannelType.Control),
             [Protocol64EventId.CustomBubbleUpload] = (typeof(CustomBubbleUploadMessage), Protocol64Direction.ClientToServer, Protocol64DeliveryKind.ReliableUnordered, ChannelType.Social),
             [Protocol64EventId.CustomBubbleState] = (typeof(CustomBubbleStateMessage), Protocol64Direction.ServerToClient, Protocol64DeliveryKind.ReliableUnordered, ChannelType.Social),
-            [Protocol64EventId.CustomBubbleClear] = (typeof(CustomBubbleClearMessage), Protocol64Direction.ServerToClient, Protocol64DeliveryKind.ReliableUnordered, ChannelType.Social),
+            [Protocol64EventId.CustomBubbleClear] = (typeof(CustomBubbleClearMessage), Protocol64Direction.Bidirectional, Protocol64DeliveryKind.ReliableUnordered, ChannelType.Social),
             [Protocol64EventId.PingRequest] = (typeof(PingRequestMessage), Protocol64Direction.ClientToServer, Protocol64DeliveryKind.ReliableOrdered, ChannelType.Control),
             [Protocol64EventId.PingResponse] = (typeof(PingResponseMessage), Protocol64Direction.ServerToClient, Protocol64DeliveryKind.ReliableOrdered, ChannelType.Control),
+            [Protocol64EventId.GameplayAccountAttachRequest] = (typeof(GameplayAccountAttachRequestMessage), Protocol64Direction.ClientToServer, Protocol64DeliveryKind.ReliableOrdered, ChannelType.Control),
+            [Protocol64EventId.GameplayAccountAttachResult] = (typeof(GameplayAccountAttachResultMessage), Protocol64Direction.ServerToClient, Protocol64DeliveryKind.ReliableOrdered, ChannelType.Control),
+            [Protocol64EventId.PlayerPointsState] = (typeof(PlayerPointsStateMessage), Protocol64Direction.ServerToClient, Protocol64DeliveryKind.ReliableOrdered, ChannelType.Social),
+            [Protocol64EventId.VoteCommand] = (typeof(VoteCommandMessage), Protocol64Direction.ClientToServer, Protocol64DeliveryKind.ReliableOrdered, ChannelType.Control),
+            [Protocol64EventId.VoteState] = (typeof(VoteStateMessage), Protocol64Direction.ServerToClient, Protocol64DeliveryKind.ReliableOrdered, ChannelType.GameplayEvents),
+            [Protocol64EventId.VoteMenu] = (typeof(VoteMenuMessage), Protocol64Direction.ServerToClient, Protocol64DeliveryKind.ReliableOrdered, ChannelType.Control),
+            [Protocol64EventId.VoiceSubmit] = (typeof(VoiceSubmitMessage), Protocol64Direction.ClientToServer, Protocol64DeliveryKind.LastWins, ChannelType.Audio),
+            [Protocol64EventId.AudioRelay] = (typeof(AudioRelayMessage), Protocol64Direction.ServerToClient, Protocol64DeliveryKind.LastWins, ChannelType.Audio),
+            [Protocol64EventId.ServerAudioState] = (typeof(ServerAudioStateMessage), Protocol64Direction.ServerToClient, Protocol64DeliveryKind.LastWins, ChannelType.Audio),
+            [Protocol64EventId.VoiceChannelMembership] = (typeof(VoiceChannelMembershipMessage), Protocol64Direction.ClientToServer, Protocol64DeliveryKind.LastWins, ChannelType.Audio),
             [Protocol64EventId.InputCommand] = (typeof(Protocol64InputCommand), Protocol64Direction.ClientToServer, Protocol64DeliveryKind.ReliableOrdered, ChannelType.Input),
             [Protocol64EventId.InputCommandResult] = (typeof(Protocol64InputCommandResult), Protocol64Direction.ServerToClient, Protocol64DeliveryKind.ReliableOrdered, ChannelType.Input),
             [Protocol64EventId.InputCommandResultAck] = (typeof(Protocol64InputCommandResultAck), Protocol64Direction.ClientToServer, Protocol64DeliveryKind.ReliableOrdered, ChannelType.Input),
@@ -60,8 +70,8 @@ public sealed class Protocol64MessageSchemaTests
     {
         var registry = Protocol64SchemaRegistryFactory.CreateDefault();
 
-        Assert.Equal(43, registry.Count);
-        Assert.Equal(43, ExpectedSchemas.Count);
+        Assert.Equal(53, registry.Count);
+        Assert.Equal(53, ExpectedSchemas.Count);
 
         foreach (var (eventId, expected) in ExpectedSchemas)
         {
@@ -98,11 +108,11 @@ public sealed class Protocol64MessageSchemaTests
         return eventId switch
         {
             Protocol64EventId.Hello => 2,
-            Protocol64EventId.PlayerStateBatch => 24,
-            Protocol64EventId.StateResyncResponse => 27,
-            Protocol64EventId.Snapshot => 5,
+            Protocol64EventId.PlayerStateBatch => 27,
+            Protocol64EventId.StateResyncResponse => 31,
+            Protocol64EventId.Snapshot => 7,
             Protocol64EventId.ProjectileState
-                or Protocol64EventId.ProjectileLifecycle => 11,
+                or Protocol64EventId.ProjectileLifecycle => 12,
             Protocol64EventId.LastToDieRunSnapshot => 4,
             Protocol64EventId.InputCommand => 4,
             Protocol64EventId.InputCommandResult => 2,

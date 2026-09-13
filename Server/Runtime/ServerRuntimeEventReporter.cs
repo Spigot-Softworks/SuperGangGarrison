@@ -9,6 +9,8 @@ internal sealed class ServerRuntimeEventReporter(
     Action<string, (string Key, object? Value)[]> writeEvent,
     ServerMapMetadataResolver mapMetadataResolver)
 {
+    private Action<OpenGarrisonServerDamageEvent>? _statsDamageObserver;
+    private Action<RoundEndedEvent>? _statsRoundEndedObserver;
     private readonly Dictionary<int, bool> _lastObservedPlayerAliveById = new();
     private readonly Dictionary<(int PlayerId, string OwnerId, string StateKey), GameplayReplicatedStateEntry> _lastObservedAbilityStateByPlayerAndKey = new();
     private long _lastAbilityStateSummaryFrame;
@@ -105,6 +107,14 @@ internal sealed class ServerRuntimeEventReporter(
         _lastObservedBlueIntelY = world.BlueIntel.Y;
     }
 
+    public void ConfigureStatsObservers(
+        Action<OpenGarrisonServerDamageEvent> damageObserver,
+        Action<RoundEndedEvent> roundEndedObserver)
+    {
+        _statsDamageObserver = damageObserver;
+        _statsRoundEndedObserver = roundEndedObserver;
+    }
+
     public void WriteEvent(string eventName, params (string Key, object? Value)[] fields)
     {
         writeEvent(eventName, fields);
@@ -181,12 +191,14 @@ internal sealed class ServerRuntimeEventReporter(
                 ("winner_team", world.MatchState.WinnerTeam?.ToString()),
                 ("red_caps", world.RedCaps),
                 ("blue_caps", world.BlueCaps));
-            pluginHostGetter()?.NotifyRoundEnded(new RoundEndedEvent(
+            var roundEndedEvent = new RoundEndedEvent(
                 world.MatchRules.Mode,
                 world.MatchState.WinnerTeam,
                 world.RedCaps,
                 world.BlueCaps,
-                world.Frame));
+                world.Frame);
+            pluginHostGetter()?.NotifyRoundEnded(roundEndedEvent);
+            _statsRoundEndedObserver?.Invoke(roundEndedEvent);
         }
 
         _lastObservedMatchPhase = world.MatchState.Phase;
@@ -607,7 +619,7 @@ internal sealed class ServerRuntimeEventReporter(
                 ? FindPlayerById(damageEvent.TargetEntityId)
                 : null;
 
-            pluginHost?.NotifyDamage(new OpenGarrisonServerDamageEvent(
+            var publishedDamageEvent = new OpenGarrisonServerDamageEvent(
                 world.Frame,
                 damageEvent.Amount,
                 (DamageTargetKind)damageEvent.TargetKind,
@@ -624,7 +636,9 @@ internal sealed class ServerRuntimeEventReporter(
                 victim?.Team,
                 damageEvent.X,
                 damageEvent.Y,
-                DamageEventFlags.None));
+                DamageEventFlags.None);
+            pluginHost?.NotifyDamage(publishedDamageEvent);
+            _statsDamageObserver?.Invoke(publishedDamageEvent);
 
             if (!damageEvent.WasFatal || victim is null)
             {

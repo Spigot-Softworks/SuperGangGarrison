@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using OpenGarrison.Core;
+using OpenGarrison.Core.LastToDie;
 using OpenGarrison.Protocol;
 using Microsoft.Xna.Framework;
 
@@ -13,10 +14,14 @@ public partial class Game1
 {
     private void ProcessNetworkMessages()
     {
+        UpdateGameplayAccountAttach();
         var suppressReplayCatchUpEvents = _replaySeekCatchUpActive;
         UpdatePendingNetworkMapSync();
         var processStartTimestamp = _networkDiagnosticsEnabled ? Stopwatch.GetTimestamp() : 0L;
         var messages = _networkClient.ReceiveMessages();
+        CaptureProtocol64RemovedProjectilePresentationEntities(
+            _networkClient.Protocol64State.RemovedProjectileLifecycles,
+            (ulong)Math.Max(0L, _world.Frame));
         _networkClient.ApplyProtocol64StateToWorld(_world);
         ApplyHostedLastToDiePredictionProfiles();
         ReconcileProtocol64PredictionState();
@@ -34,6 +39,12 @@ public partial class Game1
             RecordNetworkMessageProcessed(message);
             switch (message)
             {
+                case AudioRelayMessage audio:
+                    if (!_networkClient.IsReplayConnection) EnsureVoiceChat()?.Receive(audio, VoiceClockSeconds);
+                    break;
+                case ServerAudioStateMessage audioState:
+                    if (!_networkClient.IsReplayConnection) EnsureVoiceChat()?.ApplyState(audioState);
+                    break;
                 case WelcomeMessage welcome:
                     HandleWelcomeMessage(welcome);
                     break;
@@ -76,6 +87,11 @@ public partial class Game1
                     }
                     break;
                 case PlayerSocialProfileUpdateMessage socialProfileUpdate:
+                    foreach (var removedSlot in socialProfileUpdate.RemovedSlots)
+                    {
+                        _voiceChat?.RemoveSpeaker(removedSlot);
+                        _scoreboardMutedSlots.Remove(removedSlot);
+                    }
                     HandlePlayerSocialProfileUpdateMessage(socialProfileUpdate);
                     break;
                 case CustomBubbleStateMessage customBubbleState:
@@ -83,6 +99,24 @@ public partial class Game1
                     break;
                 case CustomBubbleClearMessage customBubbleClear:
                     HandleCustomBubbleClearMessage(customBubbleClear);
+                    break;
+                case GameplayAccountAttachResultMessage accountAttachResult:
+                    if (!suppressReplayCatchUpEvents)
+                    {
+                        HandleGameplayAccountAttachResult(accountAttachResult);
+                    }
+                    break;
+                case PlayerPointsStateMessage pointsState:
+                    HandlePlayerPointsState(pointsState);
+                    break;
+                case VoteStateMessage voteState:
+                    HandleVoteStateMessage(voteState, suppressReplayCatchUpEvents);
+                    break;
+                case VoteMenuMessage voteMenu:
+                    if (!suppressReplayCatchUpEvents)
+                    {
+                        HandleVoteMenuMessage(voteMenu);
+                    }
                     break;
                 case SnapshotMessage snapshot:
                     TryHandleSnapshotMessage(
@@ -94,6 +128,8 @@ public partial class Game1
                     break;
             }
         }
+
+        ObserveNetworkPresentationPhaseTransition();
 
         if (latestResolvedSnapshot is not null && resolvedBatchSnapshots is not null)
         {
@@ -111,6 +147,8 @@ public partial class Game1
 
         if (_networkClient.TryConsumeDisconnectReason(out var disconnectReason))
         {
+            if (TryReconnectPeerRoom()) return;
+            if (TryReconnectManagedRoom()) return;
             if (TryHandleReplayDisconnect(disconnectReason))
             {
                 return;
@@ -159,31 +197,44 @@ public partial class Game1
     {
         if (!_networkClient.IsConnected)
         {
+            _world.ReconcileRemoteLastToDieDemoknightPresentation(new HashSet<byte>());
             return;
         }
 
         var perksBySlot = new Dictionary<byte, IReadOnlyList<string>>();
+        var demoknightServerSlots = new HashSet<byte>();
         if (_networkClient.LastToDieState.Snapshot is { } snapshot)
         {
             foreach (var player in snapshot.Players)
             {
                 perksBySlot[player.Slot] = player.OwnedPerkIds;
+                if (string.Equals(
+                        player.SurvivorId,
+                        global::OpenGarrison.Core.LastToDie.LastToDieSurvivorCatalog.DemoknightId.Value,
+                        StringComparison.Ordinal))
+                {
+                    demoknightServerSlots.Add(player.Slot);
+                }
             }
         }
 
-        foreach (var slot in SimulationWorld.NetworkPlayerSlots)
+        _world.ReconcileRemoteLastToDieDemoknightPresentation(demoknightServerSlots);
+
+        // Only LocalPlayer is predicted. Server slots are not simulation slots:
+        // this client may own server slot 2 while its local entity uses slot 1.
+        var hasLocalProfile = !_networkClient.IsSpectator
+            && perksBySlot.TryGetValue(_networkClient.LocalPlayerSlot, out _);
+        _world.TrySetLastToDieSurvivorBuff(SimulationWorld.LocalPlayerSlot, hasLocalProfile);
+        _world.TrySetNetworkPlayerAutomaticRespawnSuppressed(
+            SimulationWorld.LocalPlayerSlot, hasLocalProfile);
+        if (hasLocalProfile)
         {
-            _world.TrySetNetworkPlayerAutomaticRespawnSuppressed(
-                slot,
-                perksBySlot.ContainsKey(slot));
-            if (perksBySlot.TryGetValue(slot, out var perkIds))
-            {
-                _world.TryApplyLastToDiePlayerPredictionProfile(slot, perkIds);
-            }
-            else
-            {
-                _world.ClearLastToDiePlayerPredictionProfile(slot);
-            }
+            _world.TryApplyLastToDiePlayerPredictionProfile(
+                SimulationWorld.LocalPlayerSlot, perksBySlot[_networkClient.LocalPlayerSlot]);
+        }
+        else
+        {
+            _world.ClearLastToDiePlayerPredictionProfile(SimulationWorld.LocalPlayerSlot);
         }
     }
 

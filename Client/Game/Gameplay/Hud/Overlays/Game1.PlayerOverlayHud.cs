@@ -36,11 +36,6 @@ public partial class Game1
         return GameplayLocalStatusHudController.GetCharacterHudFrameIndex(player);
     }
 
-    private void DrawAmmoHud()
-    {
-        _gameplayLocalStatusHudController.DrawAmmoHud();
-    }
-
     private void DrawDemoknightHud()
     {
         _gameplayLocalStatusHudController.DrawDemoknightHud();

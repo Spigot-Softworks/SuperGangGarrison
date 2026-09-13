@@ -2,6 +2,8 @@
 param(
     [string[]]$Platforms = @("win-x64", "linux-x64"),
     [string]$Version = "",
+    [ValidateRange(0, 2147483647)]
+    [int]$PackageRevision = 0,
     [ValidateSet("stable", "beta")]
     [string]$Channel = "stable",
     [string]$UpdateManifestVersion = "",
@@ -9,11 +11,18 @@ param(
     [string]$ArchiveNameSuffix = "",
     [string]$ChainedUpdateManifestUrl = "",
     [string]$DeltaBaseDirectory = "",
+    [string]$UpdateAssetBaseUrl = "",
     [string]$LinuxMsQuicLibraryPath = "",
     [string]$ReusePackagedAtlasFrom = "",
+    [string]$RoomContentId = "dev",
+    [string]$RoomServiceOrigin = "https://api.superganggarrison.com",
+    [string]$DistributionRoot = "",
+    [string]$UpdateManifestRoot = "",
+    [string]$BuildRoot = "",
     [switch]$LegacyRootLayout,
     [switch]$RunTests,
     [switch]$SkipTests,
+    [switch]$RequireDeltas,
     [switch]$IncludeLegacyClrPlugins
 )
 
@@ -26,8 +35,37 @@ if ($RunTests -or $SkipTests) {
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $distRoot = Join-Path $repoRoot "dist"
+if (![string]::IsNullOrWhiteSpace($DistributionRoot)) { $distRoot = [System.IO.Path]::GetFullPath($DistributionRoot) }
 $stagingRoot = Join-Path $distRoot "_staging"
 $configuration = "Release"
+$resolvedUpdateAssetBaseUrl = $UpdateAssetBaseUrl.Trim().TrimEnd('/')
+if (-not [string]::IsNullOrWhiteSpace($resolvedUpdateAssetBaseUrl)) {
+    $assetBaseUri = $null
+    if (-not [System.Uri]::TryCreate($resolvedUpdateAssetBaseUrl, [System.UriKind]::Absolute, [ref]$assetBaseUri) -or
+        $assetBaseUri.Scheme -notin @("https", "http")) {
+        throw "Update asset base URL must be an absolute HTTP(S) URL: '$UpdateAssetBaseUrl'."
+    }
+}
+
+function Get-PublishedUpdateAssetUrl {
+    param([Parameter(Mandatory = $true)][string]$AssetName)
+
+    if ([string]::IsNullOrWhiteSpace($resolvedUpdateAssetBaseUrl)) {
+        return $AssetName
+    }
+
+    return "$resolvedUpdateAssetBaseUrl/$AssetName"
+}
+
+function Remove-PackageTree {
+    param([Parameter(Mandatory = $true)][string]$Path)
+    $resolved = (Resolve-Path -LiteralPath $Path -ErrorAction Stop).Path
+    $allowed = [System.IO.Path]::GetFullPath($distRoot).TrimEnd('\', '/') + [System.IO.Path]::DirectorySeparatorChar
+    if (!$resolved.StartsWith($allowed, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Package cleanup refused a path outside the distribution directory: $resolved"
+    }
+    Remove-Item -LiteralPath $resolved -Recurse -Force
+}
 $appPayloadDirectoryName = "app"
 $projects =
 @(
@@ -52,6 +90,9 @@ function Invoke-DotNet {
         [string[]]$Arguments
     )
 
+    if (![string]::IsNullOrWhiteSpace($BuildRoot) -and $Arguments[0] -in @("restore", "build", "publish")) {
+        $Arguments += "-p:OpenGarrisonBuildRoot=$([System.IO.Path]::GetFullPath($BuildRoot))"
+    }
     & dotnet @Arguments
     if ($LASTEXITCODE -ne 0) {
         throw "dotnet $($Arguments -join ' ') failed with exit code $LASTEXITCODE."
@@ -615,7 +656,7 @@ function New-DeltaPackages {
     $processedBaseVersions = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
     $deltaScratchRoot = Join-Path $stagingRoot "$RuntimeIdentifier-deltas"
     if (Test-Path -LiteralPath $deltaScratchRoot) {
-        Remove-Item -LiteralPath $deltaScratchRoot -Recurse -Force
+        Remove-PackageTree $deltaScratchRoot
     }
     New-Item -ItemType Directory -Path $deltaScratchRoot -Force | Out-Null
 
@@ -713,7 +754,7 @@ function New-DeltaPackages {
             $deltaDescriptors.Add([ordered]@{
                 fromVersion = $baseVersion
                 toVersion = $TargetVersion
-                url = $deltaItem.Name
+                url = Get-PublishedUpdateAssetUrl -AssetName $deltaItem.Name
                 sha256 = (Get-FileHash -LiteralPath $deltaItem.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
                 size = $deltaItem.Length
                 planSha256 = (Get-FileHash -LiteralPath $planPath -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -725,7 +766,7 @@ function New-DeltaPackages {
     }
     finally {
         if (Test-Path -LiteralPath $deltaScratchRoot) {
-            Remove-Item -LiteralPath $deltaScratchRoot -Recurse -Force
+            Remove-PackageTree $deltaScratchRoot
         }
     }
 
@@ -752,22 +793,26 @@ function Write-UpdateManifest {
 
     $platformSegment = Get-UpdatePlatformSegment -RuntimeIdentifier $RuntimeIdentifier
     $manifestDirectory = Join-Path $repoRoot "services/opengarrison-api/updates/$platformSegment/$ReleaseChannel"
+    if (![string]::IsNullOrWhiteSpace($UpdateManifestRoot)) {
+        $manifestDirectory = Join-Path ([System.IO.Path]::GetFullPath($UpdateManifestRoot)) "$platformSegment/$ReleaseChannel"
+    }
     New-Item -ItemType Directory -Path $manifestDirectory -Force | Out-Null
 
     $manifestPath = Join-Path $manifestDirectory $ManifestFileName
     $archiveItem = Get-Item $ArchivePath
+    $publishedArchiveUrl = Get-PublishedUpdateAssetUrl -AssetName $archiveItem.Name
     $manifest = [ordered]@{
         schemaVersion = 2
         version = $ManifestVersion
         packageVersion = $PackageVersion
         channel = $ReleaseChannel
-        url = $archiveItem.Name
+        url = $publishedArchiveUrl
         sha256 = (Get-FileHash -Path $ArchivePath -Algorithm SHA256).Hash.ToLowerInvariant()
         size = $archiveItem.Length
         minLauncherVersion = "0.1.0"
         notesUrl = ""
         fullPackage = [ordered]@{
-            url = $archiveItem.Name
+            url = $publishedArchiveUrl
             sha256 = (Get-FileHash -Path $ArchivePath -Algorithm SHA256).Hash.ToLowerInvariant()
             size = $archiveItem.Length
         }
@@ -861,12 +906,6 @@ function Get-AvailableOutputDirectory {
             return $candidate
         }
 
-        try {
-            Remove-Item $candidate -Recurse -Force -ErrorAction Stop
-            return $candidate
-        }
-        catch {
-        }
     }
 
     throw "Could not acquire a writable output directory based on '$PreferredPath'."
@@ -882,6 +921,45 @@ function Copy-DirectoryContents {
 
     New-Item -ItemType Directory -Path $DestinationDirectory -Force | Out-Null
     Copy-Item (Join-Path $SourceDirectory "*") $DestinationDirectory -Recurse -Force
+}
+
+function Write-LatestPackageTestLauncher {
+    param(
+        [Parameter(Mandatory = $true)][string]$DistributionDirectory,
+        [Parameter(Mandatory = $true)][string]$PackageDirectory,
+        [Parameter(Mandatory = $true)][string]$RuntimeIdentifier
+    )
+
+    # Packages deliberately keep previous output folders. Give local testing a
+    # stable entrypoint that advances to the newly completed package every time.
+    # Launch the packaged game directly so testing never substitutes a download.
+    $executableName = Get-RuntimeExecutableName -RuntimeIdentifier $RuntimeIdentifier -BaseName "OG2.Game"
+    $gamePath = Join-Path $PackageDirectory "app/$executableName"
+    if (-not (Test-Path -LiteralPath $gamePath -PathType Leaf)) {
+        $gamePath = Join-Path $PackageDirectory $executableName
+    }
+    if (-not (Test-Path -LiteralPath $gamePath -PathType Leaf)) {
+        throw "Latest-package test launcher cannot find '$executableName' in '$PackageDirectory'."
+    }
+    $relativeGame = [System.IO.Path]::GetRelativePath($DistributionDirectory, $gamePath)
+    $relativeDirectory = [System.IO.Path]::GetRelativePath($DistributionDirectory, (Split-Path -Parent $gamePath))
+    if (Test-IsWindowsRuntime -RuntimeIdentifier $RuntimeIdentifier) {
+        $launcherPath = Join-Path $DistributionDirectory "play-latest-$RuntimeIdentifier.cmd"
+        $scriptContents = @'
+@echo off
+setlocal DisableDelayedExpansion
+rem Local package test: bypasses the updater and always follows the latest package.
+start "" /D "%~dp0__DIRECTORY__" "%~dp0__GAME__" %*
+'@.Replace("__DIRECTORY__", $relativeDirectory.Replace('/', '\').Replace('%', '%%')).
+   Replace("__GAME__", $relativeGame.Replace('/', '\').Replace('%', '%%'))
+        [System.IO.File]::WriteAllText($launcherPath, $scriptContents, [System.Text.Encoding]::ASCII)
+    }
+    else {
+        $launcherPath = Join-Path $DistributionDirectory "play-latest-$RuntimeIdentifier.sh"
+        New-UnixLauncherScript -DestinationPath $launcherPath -ExecutableName $executableName -WorkingDirectory $relativeDirectory.Replace('\', '/')
+        Set-UnixExecutable -Path $launcherPath
+    }
+    return $launcherPath
 }
 
 function Resolve-PackagedBrowserAtlasDirectory {
@@ -940,7 +1018,7 @@ function Copy-PackagedBrowserAtlas {
 
     $destinationDirectory = Join-Path $ContentDirectory "Browser"
     if (Test-Path -LiteralPath $destinationDirectory) {
-        Remove-Item -LiteralPath $destinationDirectory -Recurse -Force
+        Remove-PackageTree $destinationDirectory
     }
 
     Copy-DirectoryContents -SourceDirectory $SourceDirectory -DestinationDirectory $destinationDirectory
@@ -1183,7 +1261,7 @@ function Remove-PackagedContentResidue {
     foreach ($relativeDirectory in $knownSourceDirectories) {
         $directory = Join-Path $ContentDirectory $relativeDirectory
         if ((Test-Path $directory) -and (Test-IsPathWithinDirectory -Path $directory -Directory $contentRoot)) {
-            Remove-Item $directory -Recurse -Force
+            Remove-PackageTree $directory
             $removedDirectories += 1
         }
     }
@@ -1198,7 +1276,7 @@ function Remove-PackagedContentResidue {
             continue
         }
 
-        Remove-Item $directory.FullName -Recurse -Force
+        Remove-PackageTree $directory.FullName
         $removedDirectories += 1
     }
 
@@ -1475,7 +1553,7 @@ function Remove-PackagedLooseSpriteFrameDirectories {
         }
 
         $fileCount = (Get-ChildItem -Path $directory.FullName -File -Recurse -Force | Measure-Object).Count
-        Remove-Item -LiteralPath $directory.FullName -Recurse -Force
+        Remove-PackageTree $directory.FullName
         $removedDirectories += 1
         $removedFiles += $fileCount
     }
@@ -1499,7 +1577,7 @@ function Remove-PackagedGameplaySpriteSources {
         $sourceDirectory = Join-Path $stockPackDirectory $sourceDirectoryName
         if ((Test-Path -LiteralPath $sourceDirectory -PathType Container) `
             -and (Test-IsPathWithinDirectory -Path $sourceDirectory -Directory $contentRoot)) {
-            Remove-Item -LiteralPath $sourceDirectory -Recurse -Force
+            Remove-PackageTree $sourceDirectory
             Write-Host "[package] removed stock sprite build input: Gameplay/stock.gg2/$sourceDirectoryName"
         }
     }
@@ -1871,7 +1949,7 @@ function Publish-RootUpdaterEntrypoint {
     }
 
     if (Test-Path $ScratchDirectory) {
-        Remove-Item $ScratchDirectory -Recurse -Force
+        Remove-PackageTree $ScratchDirectory
     }
 
     New-Item -ItemType Directory -Path $ScratchDirectory -Force | Out-Null
@@ -1932,7 +2010,7 @@ function Publish-RootUpdaterEntrypoint {
         }
     }
 
-    Remove-Item $ScratchDirectory -Recurse -Force
+    Remove-PackageTree $ScratchDirectory
     Write-Host "[package] clean root entrypoint: $rootEntrypointName is a single-file updater helper"
 }
 
@@ -2101,7 +2179,7 @@ function Publish-PackagedExamples {
 
             $destinationDirectory = Join-Path $destinationScopeDirectory $exampleDirectory.Name
             if (Test-Path $destinationDirectory) {
-                Remove-Item $destinationDirectory -Recurse -Force
+                Remove-PackageTree $destinationDirectory
             }
 
             Copy-DirectoryContents -SourceDirectory $exampleDirectory.FullName -DestinationDirectory $destinationDirectory
@@ -2113,6 +2191,12 @@ New-Item -ItemType Directory -Path $distRoot -Force | Out-Null
 New-Item -ItemType Directory -Path $stagingRoot -Force | Out-Null
 
 $packageVersion = Get-PackageVersion -RequestedVersion $Version
+if ($PackageRevision -gt 0 -and ($LegacyRootLayout -or $packageVersion -notmatch '^\d+(\.\d+){1,3}$')) {
+    throw "PackageRevision requires a numeric game version and the app/ payload layout."
+}
+# The updater reads root metadata; the game reads app/version.txt. A revision
+# delivers a same-version hotfix without changing the game's network identity.
+$updaterPackageVersion = if ($PackageRevision -gt 0) { "$packageVersion.$PackageRevision" } else { $packageVersion }
 $manifestVersion = if ([string]::IsNullOrWhiteSpace($UpdateManifestVersion)) {
     $packageVersion
 }
@@ -2139,8 +2223,12 @@ else {
     }
     $candidate
 }
+if ($RequireDeltas -and [string]::IsNullOrWhiteSpace($resolvedDeltaBaseDirectory)) {
+    throw "DeltaBaseDirectory is required when RequireDeltas is enabled."
+}
 $assemblyFileVersion = Get-AssemblyFileVersion -PackageVersion $packageVersion
 Write-Host "[package] version: $packageVersion"
+if ($PackageRevision -gt 0) { Write-Host "[package] updater package version: $updaterPackageVersion" }
 if (-not [string]::Equals($manifestVersion, $packageVersion, [System.StringComparison]::OrdinalIgnoreCase)) {
     Write-Host "[package] update manifest version: $manifestVersion"
 }
@@ -2157,6 +2245,12 @@ if (-not [string]::IsNullOrWhiteSpace($chainedUpdateManifestUrl)) {
 }
 if (-not [string]::IsNullOrWhiteSpace($resolvedDeltaBaseDirectory)) {
     Write-Host "[package] delta bases: $resolvedDeltaBaseDirectory"
+}
+if (-not [string]::IsNullOrWhiteSpace($resolvedUpdateAssetBaseUrl)) {
+    Write-Host "[package] update asset base: $resolvedUpdateAssetBaseUrl"
+}
+if ($RequireDeltas) {
+    Write-Host "[package] delta generation is required"
 }
 
 $toolManifestPaths = @(
@@ -2185,10 +2279,10 @@ foreach ($runtimeIdentifier in $Platforms) {
     $stagingDirectory = Join-Path $stagingRoot $runtimeIdentifier
     $updaterScratchDirectory = Join-Path $stagingRoot "$runtimeIdentifier-root-updater"
     if (Test-Path $stagingDirectory) {
-        Remove-Item $stagingDirectory -Recurse -Force
+        Remove-PackageTree $stagingDirectory
     }
     if (Test-Path $updaterScratchDirectory) {
-        Remove-Item $updaterScratchDirectory -Recurse -Force
+        Remove-PackageTree $updaterScratchDirectory
     }
 
     New-Item -ItemType Directory -Path $stagingDirectory -Force | Out-Null
@@ -2229,12 +2323,15 @@ foreach ($runtimeIdentifier in $Platforms) {
             "/nr:false",
             "/m:1",
             "-p:OpenGarrisonPackageScriptOwnsContent=true",
+            "-p:RunAnalyzers=false",
             "-p:DebugType=None",
             "-p:DebugSymbols=false",
             "-p:Version=$assemblyFileVersion",
             "-p:AssemblyVersion=$assemblyFileVersion",
             "-p:FileVersion=$assemblyFileVersion",
             "-p:InformationalVersion=$packageVersion",
+            "-p:OpenGarrisonRoomContentId=$RoomContentId",
+            "-p:OpenGarrisonRoomServiceOrigin=$RoomServiceOrigin",
             "-p:IncludeSourceRevisionInInformationalVersion=false",
             "-o", $payloadDirectory
         )
@@ -2292,7 +2389,7 @@ foreach ($runtimeIdentifier in $Platforms) {
     Copy-Item (Join-Path $repoRoot "Client/practice-bot-names.txt") (Join-Path $payloadDirectory "config/practice-bot-names.txt") -Force
     Copy-Item (Join-Path $repoRoot "packaging/config/sampleMapRotation.txt") (Join-Path $payloadDirectory "config/sampleMapRotation.txt") -Force
     Copy-Item (Join-Path $repoRoot "packaging/README.txt") (Join-Path $stagingDirectory "README.txt") -Force
-    Set-Content -Path (Join-Path $stagingDirectory "version.txt") -Value $packageVersion -NoNewline -Encoding ASCII
+    Set-Content -Path (Join-Path $stagingDirectory "version.txt") -Value $updaterPackageVersion -NoNewline -Encoding ASCII
     Set-Content -Path (Join-Path $stagingDirectory "release-channel.txt") -Value $releaseChannel -NoNewline -Encoding ASCII
     if (-not $LegacyRootLayout) {
         Set-Content -Path (Join-Path $payloadDirectory "version.txt") -Value $packageVersion -NoNewline -Encoding ASCII
@@ -2328,16 +2425,19 @@ foreach ($runtimeIdentifier in $Platforms) {
     $packageFileManifestPath = Write-PackageFileManifest `
         -RootDirectory $stagingDirectory `
         -RuntimeIdentifier $runtimeIdentifier `
-        -PackageVersion $packageVersion `
+        -PackageVersion $updaterPackageVersion `
         -ReleaseChannel $releaseChannel
 
     $deltaPackages = @(New-DeltaPackages `
         -RuntimeIdentifier $runtimeIdentifier `
         -TargetDirectory $stagingDirectory `
         -TargetManifestPath $packageFileManifestPath `
-        -TargetVersion $packageVersion `
+        -TargetVersion $updaterPackageVersion `
         -BaseDirectory $resolvedDeltaBaseDirectory `
         -ArchiveNameSuffix $resolvedArchiveNameSuffix)
+    if ($RequireDeltas -and $deltaPackages.Count -eq 0) {
+        throw "No delta package was generated for $runtimeIdentifier. Refusing to publish a full-only release."
+    }
 
     $finalDirectory = Get-AvailableOutputDirectory -PreferredPath (Join-Path $distRoot $runtimeIdentifier)
     Copy-DirectoryContents -SourceDirectory $stagingDirectory -DestinationDirectory $finalDirectory
@@ -2351,11 +2451,16 @@ foreach ($runtimeIdentifier in $Platforms) {
     $manifestPath = Write-UpdateManifest `
         -RuntimeIdentifier $runtimeIdentifier `
         -ArchivePath $archivePath `
-        -PackageVersion $packageVersion `
+        -PackageVersion $updaterPackageVersion `
         -ManifestVersion $manifestVersion `
         -ReleaseChannel $releaseChannel `
         -ManifestFileName $resolvedUpdateManifestFileName `
         -DeltaPackages $deltaPackages
+
+    $testLauncherPath = Write-LatestPackageTestLauncher `
+        -DistributionDirectory $distRoot `
+        -PackageDirectory $finalDirectory `
+        -RuntimeIdentifier $runtimeIdentifier
 
     $builtOutputs += [pscustomobject]@{
         Runtime = $runtimeIdentifier
@@ -2363,6 +2468,7 @@ foreach ($runtimeIdentifier in $Platforms) {
         Archive = $archivePath
         Manifest = $manifestPath
         Deltas = $deltaPackages
+        TestLauncher = $testLauncherPath
     }
 }
 
@@ -2373,11 +2479,14 @@ foreach ($output in $builtOutputs) {
     Write-Host "    folder:  $($output.Directory)"
     Write-Host "    archive: $($output.Archive)"
     Write-Host "    manifest: $($output.Manifest)"
+    Write-Host "    test latest build: $($output.TestLauncher)"
     foreach ($delta in $output.Deltas) {
         Write-Host "    delta:   $($delta.url) ($($delta.fromVersion) -> $($delta.toVersion))"
     }
 }
 
+Write-Host "Previous package folders are retained. Use the test launcher above to run this build locally."
+
 if (Test-Path $stagingRoot) {
-    Remove-Item $stagingRoot -Recurse -Force
+    Remove-PackageTree $stagingRoot
 }

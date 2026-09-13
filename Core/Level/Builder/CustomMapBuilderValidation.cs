@@ -37,11 +37,33 @@ public static class CustomMapBuilderValidator
         var effectiveMode = mode == CustomMapBuilderGameMode.Free ? InferGameMode(normalized.Entities) : mode;
         var issues = new List<CustomMapBuilderValidationIssue>();
         ValidateRequiredSpawns(normalized.Entities, issues);
-        ValidateObjectiveMode(normalized.Entities, effectiveMode, issues);
+        ValidateObjectiveAreas(normalized.Entities, effectiveMode, issues);
         ValidateGates(normalized.Entities, issues);
         ValidateMapSolids(normalized, issues);
         ValidateControlPointSettings(normalized, issues);
+        ValidateReferences(normalized.Entities, issues);
         return new CustomMapBuilderValidationResult(effectiveMode, issues);
+    }
+
+    private static void ValidateReferences(IReadOnlyList<CustomMapBuilderEntity> entities, List<CustomMapBuilderValidationIssue> issues)
+    {
+        var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var logicKeys = entities.Select(e => e.Properties.GetValueOrDefault(MapLogicMetadata.LogicKeyPropertyKey, "")).Where(k => k.Length > 0).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var entity in entities)
+        {
+            if (entity.Properties.TryGetValue(MapLogicMetadata.MapEntityIdPropertyKey, out var id) && !string.IsNullOrWhiteSpace(id) && !ids.Add(id))
+                AddError(issues, "duplicate_entity_id", $"Duplicate map entity ID '{id}'. Reassign the duplicate and check its links.");
+            foreach (var key in BuilderReferenceProperties.Entity)
+            {
+                if (!entity.Properties.TryGetValue(key, out var value)) continue;
+                foreach (var reference in MapLogicEntityReferenceList.Parse(value))
+                    if (reference.StartsWith("entity:", StringComparison.OrdinalIgnoreCase) && !MapLogicEntityReference.TryFindBuilderEntityIndex(entities, reference, out _))
+                        issues.Add(new(CustomMapBuilderValidationSeverity.Warning, "missing_entity_reference", $"{entity.Type} at {entity.X:0},{entity.Y:0}: {key} points to a missing entity."));
+            }
+            foreach (var key in BuilderReferenceProperties.Logic)
+                if (entity.Properties.TryGetValue(key, out var value) && MapLogicMetadata.TryParseLogicRef(value, out var target) && !logicKeys.Contains(target))
+                    issues.Add(new(CustomMapBuilderValidationSeverity.Warning, "missing_logic_reference", $"{entity.Type} at {entity.X:0},{entity.Y:0}: {key} points to missing logic."));
+        }
     }
 
     private static void ValidateControlPointSettings(
@@ -135,6 +157,37 @@ public static class CustomMapBuilderValidator
         }
     }
 
+    private static void ValidateObjectiveAreas(
+        IReadOnlyList<CustomMapBuilderEntity> entities,
+        CustomMapBuilderGameMode mode,
+        List<CustomMapBuilderValidationIssue> issues)
+    {
+        var transitions = new List<AreaTransitionMarker>();
+        foreach (var entity in entities)
+        {
+            if (entity.Type.Equals("NextAreaO", StringComparison.OrdinalIgnoreCase))
+                transitions.Add(new(entity.X, entity.Y, AreaTransitionDirection.Next));
+            else if (entity.Type.Equals("PreviousAreaO", StringComparison.OrdinalIgnoreCase))
+                transitions.Add(new(entity.X, entity.Y, AreaTransitionDirection.Previous));
+        }
+
+        var boundaries = AreaTransitionMetadata.BuildAreaBoundaries(transitions);
+        if (boundaries.Length == 0)
+        {
+            ValidateObjectiveMode(entities, mode, issues);
+            return;
+        }
+
+        // Runtime activates one area at a time; objectives in later stages are not duplicates.
+        for (var area = 1; area <= boundaries.Length + 1; area++)
+        {
+            var areaEntities = entities.Where(entity => AreaTransitionMetadata.IsInArea(entity.Y, area, boundaries)).ToArray();
+            var areaIssues = new List<CustomMapBuilderValidationIssue>();
+            ValidateObjectiveMode(areaEntities, mode, areaIssues);
+            issues.AddRange(areaIssues.Select(issue => issue with { Message = $"Stage {area}: {issue.Message}" }));
+        }
+    }
+
     private static void ValidateObjectiveMode(
         IReadOnlyList<CustomMapBuilderEntity> entities,
         CustomMapBuilderGameMode mode,
@@ -210,7 +263,9 @@ public static class CustomMapBuilderValidator
 
             try
             {
-                using var image = Image.Load<Rgba32>(document.WalkmaskImagePath);
+                var bytes = BuilderImageValidation.ReadFile(document.WalkmaskImagePath);
+                BuilderImageValidation.Validate(bytes);
+                using var image = Image.Load<Rgba32>(bytes);
                 for (var y = 0; y < image.Height; y += 1)
                 {
                     for (var x = 0; x < image.Width; x += 1)

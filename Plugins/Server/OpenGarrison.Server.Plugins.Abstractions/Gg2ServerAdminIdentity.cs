@@ -27,6 +27,7 @@ public enum OpenGarrisonServerAdminAuthority
     AdminPipe,
     RconSession,
     PluginHost,
+    ServerConfiguration,
 }
 
 public enum OpenGarrisonServerCommandSource

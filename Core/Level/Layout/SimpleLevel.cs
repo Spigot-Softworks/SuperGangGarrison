@@ -5,12 +5,21 @@ namespace OpenGarrison.Core;
 
 public sealed class SimpleLevel
 {
+    private readonly RoomObjectMarker[] _roomObjectMarkers;
     private readonly Dictionary<RoomObjectType, RoomObjectMarker[]> _roomObjectsByType;
     private readonly IndexedRoomObject[] _playerWalls;
     private readonly IndexedRoomObject[] _barriers;
     private readonly IndexedRoomObject[] _directionalWalls;
     private readonly IndexedRoomObject[] _damageableZones;
     private readonly SpatialSolidIndex _solidIndex;
+    private readonly Dictionary<RoomObjectType, int[]> _roomObjectIndicesByType;
+    private readonly int[] _moveBoxIndices;
+    private readonly int[] _hazardIndices;
+    private readonly int[] _teleportCandidateIndices;
+    private readonly int[] _gateIndices;
+    private readonly int[] _hitscanObstacleIndices;
+    private readonly int[] _projectileObstacleIndices;
+    private readonly int[] _roomObjectParentIndices;
     private bool _controlPointSetupGatesActive;
     private TeamGateLockMask _forcedBlockingTeamGates;
     private readonly ConcurrentDictionary<BlockingTeamGateCacheKey, RoomObjectMarker[]> _blockingTeamGateCaches = [];
@@ -61,7 +70,8 @@ public sealed class SimpleLevel
         RedSpawns = redSpawns;
         BlueSpawns = blueSpawns;
         IntelBases = intelBases;
-        RoomObjects = roomObjects;
+        _roomObjectMarkers = roomObjects as RoomObjectMarker[] ?? roomObjects.ToArray();
+        RoomObjects = _roomObjectMarkers;
         FloorY = floorY;
         Solids = solids;
         ImportedFromSource = importedFromSource;
@@ -90,6 +100,24 @@ public sealed class SimpleLevel
         _roomObjectsByType = RoomObjects
             .GroupBy(roomObject => roomObject.Type)
             .ToDictionary(group => group.Key, group => group.ToArray());
+        _roomObjectIndicesByType = Enumerable.Range(0, RoomObjects.Count)
+            .GroupBy(index => RoomObjects[index].Type)
+            .ToDictionary(group => group.Key, group => group.ToArray());
+        _roomObjectParentIndices = Enumerable.Repeat(-1, RoomObjects.Count).ToArray();
+        foreach (var index in GetRoomObjectIndices(RoomObjectType.AreaExtension))
+            _roomObjectParentIndices[index] = RoomObjects[index].AreaExtension.ParentRoomObjectIndex;
+        _moveBoxIndices = BuildOrderedIndices(RoomObjectType.MoveBoxUp, RoomObjectType.MoveBoxDown,
+            RoomObjectType.MoveBoxLeft, RoomObjectType.MoveBoxRight);
+        _hazardIndices = BuildOrderedIndices(RoomObjectType.FragBox, RoomObjectType.KillBox, RoomObjectType.FireBox);
+        _teleportCandidateIndices = BuildOrderedIndices(RoomObjectType.TeleportZone, RoomObjectType.AreaExtension);
+        _gateIndices = BuildOrderedIndices(RoomObjectType.TeamGate, RoomObjectType.ControlPointSetupGate);
+        _hitscanObstacleIndices = BuildOrderedIndices(RoomObjectType.TeamGate, RoomObjectType.ControlPointSetupGate,
+            RoomObjectType.BulletWall, RoomObjectType.IntelGate);
+        // A conservative union for all projectile profiles; flames also hit
+        // cabinets. Each caller still applies its original live collision rules.
+        _projectileObstacleIndices = BuildOrderedIndices(RoomObjectType.TeamGate, RoomObjectType.ControlPointSetupGate,
+            RoomObjectType.BulletWall, RoomObjectType.Barrier, RoomObjectType.DirectionalWall,
+            RoomObjectType.DamageableZone, RoomObjectType.HealingCabinet);
         _playerWalls = BuildIndexedRoomObjects(RoomObjectType.PlayerWall);
         _barriers = BuildIndexedRoomObjects(RoomObjectType.Barrier);
         _directionalWalls = BuildIndexedRoomObjects(RoomObjectType.DirectionalWall);
@@ -208,13 +236,9 @@ public sealed class SimpleLevel
             return true;
         }
 
-        var marker = RoomObjects[roomObjectIndex];
-        if (marker.Type != RoomObjectType.AreaExtension)
-        {
-            return true;
-        }
-
-        var parentIndex = marker.AreaExtension.ParentRoomObjectIndex;
+        // Activation is queried for every collision probe. The immutable parent
+        // relation needs only an integer, not a copy of the full marker record.
+        var parentIndex = _roomObjectParentIndices[roomObjectIndex];
         return parentIndex < 0 || IsRoomObjectActive(parentIndex);
     }
 
@@ -286,15 +310,41 @@ public sealed class SimpleLevel
     // indexed by collision-relevant marker type while retaining the original
     // room-object index for logic-activation checks. This is behaviorally
     // identical to scanning RoomObjects and skipping unrelated markers.
-    internal IReadOnlyList<IndexedRoomObject> PlayerWalls => _playerWalls;
+    internal ReadOnlySpan<IndexedRoomObject> PlayerWalls => _playerWalls;
 
-    internal IReadOnlyList<IndexedRoomObject> Barriers => _barriers;
+    internal ReadOnlySpan<IndexedRoomObject> Barriers => _barriers;
 
-    internal IReadOnlyList<IndexedRoomObject> DirectionalWalls => _directionalWalls;
+    internal ReadOnlySpan<IndexedRoomObject> DirectionalWalls => _directionalWalls;
 
-    internal IReadOnlyList<IndexedRoomObject> DamageableZones => _damageableZones;
+    internal ReadOnlySpan<IndexedRoomObject> DamageableZones => _damageableZones;
+
+    // RoomObjectMarker is a large value type. Scan only relevant indices on
+    // each player tick, retaining source order and live activation checks.
+    internal ReadOnlySpan<int> GetRoomObjectIndices(RoomObjectType type)
+        => _roomObjectIndicesByType.TryGetValue(type, out var indices) ? indices : [];
+
+    internal ReadOnlySpan<int> MoveBoxIndices => _moveBoxIndices;
+    internal ReadOnlySpan<int> HazardIndices => _hazardIndices;
+    internal ReadOnlySpan<int> TeleportCandidateIndices => _teleportCandidateIndices;
+    internal ReadOnlySpan<int> GateIndices => _gateIndices;
+    internal ReadOnlySpan<int> HitscanObstacleIndices => _hitscanObstacleIndices;
+    internal ReadOnlySpan<int> ProjectileObstacleIndices => _projectileObstacleIndices;
+
+    internal ref readonly RoomObjectMarker GetRoomObject(int index) => ref _roomObjectMarkers[index];
+
+    private int[] BuildOrderedIndices(params RoomObjectType[] types)
+        => types.SelectMany(type => _roomObjectIndicesByType.GetValueOrDefault(type) ?? [])
+            .Order().ToArray();
+
+    public bool ContainsSolidPoint(float x, float y) => _solidIndex.ContainsPoint(x, y);
 
     public IReadOnlyList<RoomObjectMarker> GetBlockingTeamGates(PlayerTeam team, bool carryingIntel)
+        => GetBlockingTeamGateArray(team, carryingIntel);
+
+    internal ReadOnlySpan<RoomObjectMarker> GetBlockingTeamGateSpan(PlayerTeam team, bool carryingIntel)
+        => GetBlockingTeamGateArray(team, carryingIntel);
+
+    private RoomObjectMarker[] GetBlockingTeamGateArray(PlayerTeam team, bool carryingIntel)
     {
         var cacheKey = new BlockingTeamGateCacheKey(team, carryingIntel, ControlPointSetupGatesActive, ForcedBlockingTeamGates);
         if (_blockingTeamGateCaches.TryGetValue(cacheKey, out var cachedGates))
@@ -365,19 +415,7 @@ public sealed class SimpleLevel
     }
 
     private static bool IsIntelGateBlocking(RoomObjectMarker roomObject, PlayerTeam team, bool carryingIntel)
-    {
-        if (carryingIntel)
-        {
-            return false;
-        }
-
-        if (roomObject.Team.HasValue)
-        {
-            return roomObject.Team.Value != team;
-        }
-
-        return true;
-    }
+        => IntelGateCollision.BlocksPlayer(roomObject.Team, team, carryingIntel);
 
     private readonly record struct BlockingTeamGateCacheKey(
         PlayerTeam Team,
@@ -385,7 +423,11 @@ public sealed class SimpleLevel
         bool ControlPointSetupGatesActive,
         TeamGateLockMask ForcedBlockingTeamGates);
 
-    internal readonly record struct IndexedRoomObject(int Index, RoomObjectMarker Marker);
+    internal readonly struct IndexedRoomObject(int index, RoomObjectMarker marker)
+    {
+        public readonly int Index = index;
+        public readonly RoomObjectMarker Marker = marker;
+    }
 
     private IndexedRoomObject[] BuildIndexedRoomObjects(RoomObjectType type)
     {
@@ -398,12 +440,12 @@ public sealed class SimpleLevel
     private sealed class SpatialSolidIndex
     {
         private const float CellSize = 128f;
-        private readonly IReadOnlyList<LevelSolid> _solids;
+        private readonly LevelSolid[] _solids;
         private readonly Dictionary<CellKey, List<int>> _solidIndicesByCell;
 
         private SpatialSolidIndex(IReadOnlyList<LevelSolid> solids, Dictionary<CellKey, List<int>> solidIndicesByCell)
         {
-            _solids = solids;
+            _solids = solids as LevelSolid[] ?? solids.ToArray();
             _solidIndicesByCell = solidIndicesByCell;
         }
 
@@ -438,7 +480,7 @@ public sealed class SimpleLevel
 
         public bool Intersects(float left, float top, float right, float bottom)
         {
-            if (_solids.Count == 0)
+            if (_solids.Length == 0)
             {
                 return false;
             }
@@ -470,9 +512,22 @@ public sealed class SimpleLevel
             return false;
         }
 
+        public bool ContainsPoint(float x, float y)
+        {
+            if (!_solidIndicesByCell.TryGetValue(new CellKey(GetCellCoordinate(x), GetCellCoordinate(y)), out var indices))
+                return false;
+            foreach (var index in indices)
+            {
+                var solid = _solids[index];
+                if (x >= solid.Left && x < solid.Right && y >= solid.Top && y < solid.Bottom)
+                    return true;
+            }
+            return false;
+        }
+
         public float? FindTop(float left, float top, float right, float bottom)
         {
-            if (_solids.Count == 0)
+            if (_solids.Length == 0)
             {
                 return null;
             }

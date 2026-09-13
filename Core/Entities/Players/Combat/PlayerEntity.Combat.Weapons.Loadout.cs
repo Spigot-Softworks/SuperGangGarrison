@@ -37,6 +37,8 @@ public sealed partial class PlayerEntity
         PrimaryCooldownTicks = 0;
         ReloadTicksUntilNextShell = 0;
         CancelSniperBowCharge();
+        CancelMortarLauncherCharge();
+        SniperRifleFullyChargedHitStreak = 0;
         IsSniperScoped = false;
         ClearMedicHealingTarget();
         RefreshGameplayLoadoutState();
@@ -79,6 +81,8 @@ public sealed partial class PlayerEntity
         PrimaryCooldownTicks = 0;
         ReloadTicksUntilNextShell = 0;
         CancelSniperBowCharge();
+        CancelMortarLauncherCharge();
+        SniperRifleFullyChargedHitStreak = 0;
         IsSniperScoped = false;
         ClearMedicHealingTarget();
         ResetPyroPrimaryStateFromCurrentAmmo();
@@ -369,9 +373,19 @@ public sealed partial class PlayerEntity
 
     private void ResetPyroPrimaryStateFromCurrentAmmo()
     {
-        if (ClassId != PlayerClass.Pyro)
+        if (ClassId != PlayerClass.Pyro
+            || !HasPrimaryBehavior(BuiltInGameplayBehaviorIds.Flamethrower))
         {
             ResetAcquiredPyroStateFromCurrentAmmo();
+            if (!HasPyroWeaponAvailable)
+            {
+                PyroPrimaryFuelScaledValue = 0;
+                IsPyroPrimaryRefilling = false;
+                PyroFlameLoopTicksRemaining = 0;
+                PyroPrimaryRequiresReleaseAfterEmpty = false;
+                PyroAirblastCooldownTicks = 0;
+                PyroFlareCooldownTicks = 0;
+            }
             return;
         }
 

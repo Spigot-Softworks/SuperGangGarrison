@@ -31,6 +31,12 @@ public static class CustomMapPngImporter
 
     public static Result? Import(string pngPath)
     {
+        try { return ImportCore(pngPath); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException or SixLabors.ImageSharp.UnknownImageFormatException or SixLabors.ImageSharp.InvalidImageContentException) { return null; }
+    }
+
+    private static Result? ImportCore(string pngPath)
+    {
         if (!TryExtractLevelData(pngPath, out var levelData))
         {
             return null;
@@ -97,128 +103,12 @@ public static class CustomMapPngImporter
 
     private static bool TryExtractLevelData(string pngPath, out string levelData)
     {
-        Stream? stream = null;
-        if (File.Exists(pngPath))
-        {
-            stream = File.OpenRead(pngPath);
-        }
-        else if (OperatingSystem.IsBrowser() && BrowserContentCatalog.TryGetBinaryForPath(pngPath, out var bytes))
-        {
+        Stream? stream = File.Exists(pngPath) ? File.OpenRead(pngPath) : null;
+        if (stream is null && OperatingSystem.IsBrowser() && BrowserContentCatalog.TryGetBinaryForPath(pngPath, out var bytes))
             stream = new MemoryStream(bytes, writable: false);
-        }
-
-        if (stream is null)
-        {
-            levelData = string.Empty;
-            return false;
-        }
-
-        using (stream)
-        {
-            using var reader = new BinaryReader(stream, Encoding.UTF8, leaveOpen: true);
-            var signature = reader.ReadBytes(PngSignature.Length);
-            if (!signature.SequenceEqual(PngSignature))
-            {
-                levelData = string.Empty;
-                return false;
-            }
-
-            var builder = new StringBuilder();
-            while (stream.Position + 8 <= stream.Length)
-            {
-                var lengthBytes = reader.ReadBytes(4);
-                if (lengthBytes.Length < 4)
-                {
-                    break;
-                }
-
-                var dataLength = BinaryPrimitives.ReadInt32BigEndian(lengthBytes);
-                var chunkType = Encoding.ASCII.GetString(reader.ReadBytes(4));
-                var chunkData = reader.ReadBytes(Math.Max(0, dataLength));
-                _ = reader.ReadUInt32();
-
-                switch (chunkType)
-                {
-                    case "tEXt":
-                        AppendTextChunk(builder, chunkData);
-                        break;
-                    case "zTXt":
-                        AppendCompressedTextChunk(builder, chunkData);
-                        break;
-                    case "iTXt":
-                        AppendInternationalTextChunk(builder, chunkData);
-                        break;
-                }
-            }
-
-            levelData = builder.Length > 0 ? builder.ToString() : string.Empty;
-            return levelData.Length > 0;
-        }
-    }
-
-    private static void AppendTextChunk(StringBuilder builder, byte[] chunkData)
-    {
-        var separatorIndex = Array.IndexOf(chunkData, (byte)0);
-        if (separatorIndex < 0 || separatorIndex >= chunkData.Length - 1)
-        {
-            return;
-        }
-
-        builder.Append(Encoding.Latin1.GetString(chunkData, separatorIndex + 1, chunkData.Length - separatorIndex - 1));
-    }
-
-    private static void AppendCompressedTextChunk(StringBuilder builder, byte[] chunkData)
-    {
-        var separatorIndex = Array.IndexOf(chunkData, (byte)0);
-        if (separatorIndex < 0 || separatorIndex >= chunkData.Length - 2)
-        {
-            return;
-        }
-
-        using var compressedStream = new MemoryStream(chunkData, separatorIndex + 2, chunkData.Length - separatorIndex - 2, writable: false);
-        using var zlibStream = new ZLibStream(compressedStream, CompressionMode.Decompress);
-        using var reader = new StreamReader(zlibStream, Encoding.Latin1);
-        builder.Append(reader.ReadToEnd());
-    }
-
-    private static void AppendInternationalTextChunk(StringBuilder builder, byte[] chunkData)
-    {
-        var index = Array.IndexOf(chunkData, (byte)0);
-        if (index < 0 || index + 5 >= chunkData.Length)
-        {
-            return;
-        }
-
-        var compressed = chunkData[index + 1] == 1;
-        index += 3;
-        while (index < chunkData.Length && chunkData[index] != 0)
-        {
-            index += 1;
-        }
-
-        index += 1;
-        while (index < chunkData.Length && chunkData[index] != 0)
-        {
-            index += 1;
-        }
-
-        index += 1;
-        if (index >= chunkData.Length)
-        {
-            return;
-        }
-
-        if (compressed)
-        {
-            using var compressedStream = new MemoryStream(chunkData, index, chunkData.Length - index, writable: false);
-            using var zlibStream = new ZLibStream(compressedStream, CompressionMode.Decompress);
-            using var reader = new StreamReader(zlibStream, Encoding.UTF8);
-            builder.Append(reader.ReadToEnd());
-        }
-        else
-        {
-            builder.Append(Encoding.UTF8.GetString(chunkData, index, chunkData.Length - index));
-        }
+        if (stream is null) { levelData = string.Empty; return false; }
+        using (stream) levelData = PngMapData.Read(stream, out _);
+        return levelData.Length > 0;
     }
 
     private static string ExtractSection(string input, string startMarker, string endMarker)
@@ -417,7 +307,10 @@ public static class CustomMapPngImporter
         }
 
         var totalControlPoints = ForwardSpawnMetadata.CountMapControlPoints(roomObjects);
-        ForwardSpawnMetadata.ApplyForwardSpawnControlPointLinks(redSpawns, blueSpawns, totalControlPoints);
+        var isAttackDefense = metadata.TryGetValue(MapGameModeMetadata.GameModePropertyKey, out var modeName)
+            ? modeName.Equals(MapGameModeMetadata.AttackDefenseControlPointPropertyValue, StringComparison.OrdinalIgnoreCase)
+            : entities.Any(entity => entity.Type.Equals("SetupGate", StringComparison.OrdinalIgnoreCase));
+        ForwardSpawnMetadata.ApplyForwardSpawnControlPointLinks(redSpawns, blueSpawns, totalControlPoints, isAttackDefense);
 
         var mapEntities = ToMapImportedEntities(entities);
         var logicGraph = MapLogicGraphImporter.BuildFromEntities(mapEntities, roomObjects);

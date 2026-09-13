@@ -9,10 +9,13 @@ public static class CustomMapBuilderPngImporter
 {
     private static readonly byte[] PngSignature = [137, 80, 78, 71, 13, 10, 26, 10];
 
-    public static CustomMapBuilderDocument? Import(string pngPath)
+    public static CustomMapBuilderDocument? Import(string pngPath) => Import(pngPath, out _);
+
+    public static CustomMapBuilderDocument? Import(string pngPath, out string warning)
     {
+        warning = string.Empty;
         ArgumentException.ThrowIfNullOrWhiteSpace(pngPath);
-        if (!TryExtractLevelData(pngPath, out var levelData))
+        if (!TryExtractLevelData(pngPath, out var levelData, out warning))
         {
             return null;
         }
@@ -21,18 +24,26 @@ public static class CustomMapBuilderPngImporter
         var entitiesSection = ExtractSection(levelData, "{ENTITIES}", "{END ENTITIES}");
         if (string.IsNullOrWhiteSpace(walkmaskSection) || string.IsNullOrWhiteSpace(entitiesSection))
         {
-            return null;
+            throw new InvalidDataException("The PNG contains incomplete map metadata.");
         }
 
         if (!TryDecodeEntities(entitiesSection.Trim(), out var metadata, out var entities))
         {
-            return null;
+            throw new InvalidDataException("The PNG entity data could not be parsed.");
         }
 
         var walkmaskScale = CustomMapBuilderDocument.ResolveWalkmaskScale(metadata);
         var visualScale = CustomMapBuilderDocument.ResolveVisualScale(metadata, walkmaskScale);
 
         var resources = CustomMapBuilderResourceCodec.DecodeResourcesFromMetadata(metadata);
+        var layers = CustomMapBuilderParallaxLayers.DecodeFromMetadata(metadata, resources);
+        foreach (var key in metadata.Keys.ToArray())
+        {
+            if (resources.ContainsKey(key) || key.Equals("bg_foreground", StringComparison.OrdinalIgnoreCase)
+                || key.StartsWith("bg_layer", StringComparison.OrdinalIgnoreCase)
+                || (key.StartsWith("layer", StringComparison.OrdinalIgnoreCase) && (key.EndsWith("xfactor") || key.EndsWith("yfactor"))))
+                metadata.Remove(key);
+        }
         return new CustomMapBuilderDocument(
             Name: Path.GetFileNameWithoutExtension(pngPath),
             BackgroundImagePath: pngPath,
@@ -42,11 +53,11 @@ public static class CustomMapBuilderPngImporter
             Metadata: new ReadOnlyDictionary<string, string>(metadata),
             Entities: entities,
             Resources: resources,
-            ParallaxLayers: CustomMapBuilderParallaxLayers.DecodeFromMetadata(metadata, resources),
-            EmbeddedWalkmaskSection: walkmaskSection.Trim());
+            ParallaxLayers: layers,
+            EmbeddedWalkmaskSection: walkmaskSection);
     }
 
-    private static bool TryDecodeEntities(
+    internal static bool TryDecodeEntities(
         string entitiesSection,
         out Dictionary<string, string> metadata,
         out IReadOnlyList<CustomMapBuilderEntity> entities)
@@ -110,7 +121,7 @@ public static class CustomMapBuilderPngImporter
         metadata.TryAdd("background", CustomMapBuilderDocument.DefaultBackgroundColor);
         metadata.TryAdd("void", CustomMapBuilderDocument.DefaultVoidColor);
         entities = decodedEntities;
-        return decodedEntities.Count > 0;
+        return true;
     }
 
     private static bool TryDecodeLegacyLineEntities(
@@ -140,7 +151,7 @@ public static class CustomMapBuilderPngImporter
         metadata.TryAdd("background", CustomMapBuilderDocument.DefaultBackgroundColor);
         metadata.TryAdd("void", CustomMapBuilderDocument.DefaultVoidColor);
         entities = decodedEntities;
-        return decodedEntities.Count > 0;
+        return true;
     }
 
     private static float GetLegacyDefaultParallaxFactor(int index)
@@ -203,115 +214,13 @@ public static class CustomMapBuilderPngImporter
         return false;
     }
 
-    private static bool TryExtractLevelData(string pngPath, out string levelData)
+    private static bool TryExtractLevelData(string pngPath, out string levelData, out string warning)
     {
-        if (!File.Exists(pngPath))
-        {
-            levelData = string.Empty;
-            return false;
-        }
-
+        warning = string.Empty;
+        if (!File.Exists(pngPath)) { levelData = string.Empty; return false; }
         using var stream = File.OpenRead(pngPath);
-        using var reader = new BinaryReader(stream, Encoding.UTF8, leaveOpen: true);
-        var signature = reader.ReadBytes(PngSignature.Length);
-        if (!signature.SequenceEqual(PngSignature))
-        {
-            levelData = string.Empty;
-            return false;
-        }
-
-        var builder = new StringBuilder();
-        while (stream.Position + 8 <= stream.Length)
-        {
-            var lengthBytes = reader.ReadBytes(4);
-            if (lengthBytes.Length < 4)
-            {
-                break;
-            }
-
-            var dataLength = BinaryPrimitives.ReadInt32BigEndian(lengthBytes);
-            var chunkType = Encoding.ASCII.GetString(reader.ReadBytes(4));
-            var chunkData = reader.ReadBytes(Math.Max(0, dataLength));
-            _ = reader.ReadUInt32();
-            switch (chunkType)
-            {
-                case "tEXt":
-                    AppendTextChunk(builder, chunkData);
-                    break;
-                case "zTXt":
-                    AppendCompressedTextChunk(builder, chunkData);
-                    break;
-                case "iTXt":
-                    AppendInternationalTextChunk(builder, chunkData);
-                    break;
-            }
-        }
-
-        levelData = builder.ToString();
-        return levelData.Length > 0;
-    }
-
-    private static void AppendTextChunk(StringBuilder builder, byte[] chunkData)
-    {
-        var separatorIndex = Array.IndexOf(chunkData, (byte)0);
-        if (separatorIndex >= 0 && separatorIndex < chunkData.Length - 1)
-        {
-            builder.Append(Encoding.Latin1.GetString(chunkData, separatorIndex + 1, chunkData.Length - separatorIndex - 1));
-        }
-    }
-
-    private static void AppendCompressedTextChunk(StringBuilder builder, byte[] chunkData)
-    {
-        var separatorIndex = Array.IndexOf(chunkData, (byte)0);
-        if (separatorIndex < 0 || separatorIndex >= chunkData.Length - 2)
-        {
-            return;
-        }
-
-        using var compressedStream = new MemoryStream(chunkData, separatorIndex + 2, chunkData.Length - separatorIndex - 2, writable: false);
-        using var zlibStream = new ZLibStream(compressedStream, CompressionMode.Decompress);
-        using var reader = new StreamReader(zlibStream, Encoding.Latin1);
-        builder.Append(reader.ReadToEnd());
-    }
-
-    private static void AppendInternationalTextChunk(StringBuilder builder, byte[] chunkData)
-    {
-        var index = Array.IndexOf(chunkData, (byte)0);
-        if (index < 0 || index + 5 >= chunkData.Length)
-        {
-            return;
-        }
-
-        var compressed = chunkData[index + 1] == 1;
-        index += 3;
-        while (index < chunkData.Length && chunkData[index] != 0)
-        {
-            index += 1;
-        }
-
-        index += 1;
-        while (index < chunkData.Length && chunkData[index] != 0)
-        {
-            index += 1;
-        }
-
-        index += 1;
-        if (index >= chunkData.Length)
-        {
-            return;
-        }
-
-        if (compressed)
-        {
-            using var compressedStream = new MemoryStream(chunkData, index, chunkData.Length - index, writable: false);
-            using var zlibStream = new ZLibStream(compressedStream, CompressionMode.Decompress);
-            using var reader = new StreamReader(zlibStream, Encoding.UTF8);
-            builder.Append(reader.ReadToEnd());
-        }
-        else
-        {
-            builder.Append(Encoding.UTF8.GetString(chunkData, index, chunkData.Length - index));
-        }
+        levelData = PngMapData.Read(stream, out warning);
+        return levelData.Contains("{ENTITIES}", StringComparison.OrdinalIgnoreCase) || levelData.Contains("{WALKMASK}", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string ExtractSection(string input, string startMarker, string endMarker)

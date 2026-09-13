@@ -23,6 +23,8 @@ public sealed record CustomMapBuilderEntity(
 
     public CustomMapBuilderEntity NormalizeForEditing()
     {
+        if (!float.IsFinite(X) || !float.IsFinite(Y) || Math.Abs(X) > 10_000_000 || Math.Abs(Y) > 10_000_000)
+            throw new InvalidDataException("Entity coordinates must be finite and within map limits.");
         var normalizedProperties = new Dictionary<string, string>(
             Properties ?? EmptyProperties,
             StringComparer.OrdinalIgnoreCase)
@@ -34,6 +36,8 @@ public sealed record CustomMapBuilderEntity(
 
         var normalizedXScale = NormalizeScale(XScale);
         var normalizedYScale = NormalizeScale(YScale);
+        normalizedProperties.Remove("xscale");
+        normalizedProperties.Remove("yscale");
         if (Math.Abs(normalizedXScale - 1f) > float.Epsilon)
         {
             normalizedProperties["xscale"] = normalizedXScale.ToString(CultureInfo.InvariantCulture);

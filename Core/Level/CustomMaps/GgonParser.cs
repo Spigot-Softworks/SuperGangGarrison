@@ -33,6 +33,7 @@ internal static class GgonParser
     {
         private readonly string _text;
         private int _index;
+        private int _depth;
 
         public Parser(string text)
         {
@@ -60,13 +61,14 @@ internal static class GgonParser
                 throw new FormatException("Unexpected end of GGON input.");
             }
 
-            return Peek() switch
+            if (++_depth > 64) throw new FormatException("GGON nesting exceeds 64 levels.");
+            try { return Peek() switch
             {
                 '{' => ParseMap(),
                 '[' => ParseList(),
                 '\'' => new GgonValue.Scalar(ParseQuotedString()),
                 _ => new GgonValue.Scalar(ParseUnquotedString()),
-            };
+            }; } finally { _depth--; }
         }
 
         private GgonValue.Map ParseMap()

@@ -302,6 +302,7 @@ public partial class Game1
         DrawNoticeHud();
         WriteGameplayRenderTrace("hud after notice");
         DrawGameplayMessageHud(cameraPosition);
+        DrawFirstPlayHints(cameraPosition);
         WriteGameplayRenderTrace("hud after gameplaymessage");
         DrawScoreboardHud();
         WriteGameplayRenderTrace("hud after scoreboard");
@@ -444,6 +445,11 @@ public partial class Game1
         DrawCameraDebugOverlay(cameraPosition);
         WriteGameplayRenderTrace("modal after camdebug");
 
+        // Hosted choices form the background; the ordinary menu owns input
+        // whenever it is open and must be drawn above that background too.
+        DrawHostedLastToDieModal();
+        WriteGameplayRenderTrace("modal after hosted-lasttodie");
+
         switch (GetActiveGameplayOverlay())
         {
             case GameplayOverlayKind.InGameMenu:
@@ -503,6 +509,10 @@ public partial class Game1
                 DrawHudEditor();
                 WriteGameplayRenderTrace("modal after hudeditor");
                 break;
+            case GameplayOverlayKind.VoteMenu:
+                DrawVoteMenu();
+                WriteGameplayRenderTrace("modal after votemenu");
+                break;
             case GameplayOverlayKind.ControlsMenu:
                 DrawControlsMenu();
                 WriteGameplayRenderTrace("modal after controls");
@@ -513,8 +523,6 @@ public partial class Game1
         WriteGameplayRenderTrace("modal after quitprompt");
         DrawLastToDieFailureOverlay();
         WriteGameplayRenderTrace("modal after failureoverlay");
-        DrawHostedLastToDieModal();
-        WriteGameplayRenderTrace("modal after hosted-lasttodie");
 
         if (ShouldDrawSoftwareMenuCursor())
         {

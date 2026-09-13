@@ -24,6 +24,17 @@ public static class CustomMapLegacyPackageAutoConverter
 
     public static bool TryConvertLegacyPng(string legacyPngPath, out string manifestPath, out string error)
     {
+        try { return TryConvertLegacyPngCore(legacyPngPath, out manifestPath, out error); }
+        catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or InvalidOperationException or ArgumentException)
+        {
+            manifestPath = string.Empty;
+            error = $"Legacy map conversion failed: {ex.Message}";
+            return false;
+        }
+    }
+
+    private static bool TryConvertLegacyPngCore(string legacyPngPath, out string manifestPath, out string error)
+    {
         manifestPath = string.Empty;
         error = string.Empty;
         if (string.IsNullOrWhiteSpace(legacyPngPath)
@@ -53,6 +64,22 @@ public static class CustomMapLegacyPackageAutoConverter
         manifestPath = Path.Combine(packageDirectory, $"{mapName}.json");
         if (File.Exists(manifestPath))
         {
+            var marker = Path.Combine(packageDirectory, MarkerFileName);
+            if (!File.Exists(marker)) return true; // A user-authored package is not a conversion cache.
+            var values = File.ReadAllLines(marker).Where(line => line.Contains('='))
+                .Select(line => line.Split('=', 2)).ToDictionary(pair => pair[0], pair => pair[1]);
+            var sourceHash = CustomMapHashService.ComputeSha256(fullLegacyPath);
+            if (values.GetValueOrDefault("sourceHash") == sourceHash) return true;
+            if (!values.TryGetValue("packageHash", out var originalPackageHash)
+                || originalPackageHash != CustomMapHashService.ComputePackageSha256(manifestPath))
+            {
+                error = "The PNG and its converted package may both have changed. Open the intended file in Builder and use Save As to resolve the duplicate.";
+                return false;
+            }
+            var updated = CustomMapBuilderPngImporter.Import(fullLegacyPath);
+            if (updated is null) { error = "The edited PNG could not be loaded."; return false; }
+            CustomMapPackageExporter.Export(updated, manifestPath);
+            WriteMarkerFile(packageDirectory, fullLegacyPath);
             return true;
         }
 
@@ -133,6 +160,8 @@ public static class CustomMapLegacyPackageAutoConverter
                 "This package was generated automatically from a legacy OpenGarrison custom-map PNG.",
                 $"source={Path.GetFileName(sourcePath)}",
                 $"convertedUtc={DateTime.UtcNow:O}",
+                $"sourceHash={CustomMapHashService.ComputeSha256(sourcePath)}",
+                $"packageHash={CustomMapHashService.ComputePackageSha256(Path.Combine(packageDirectory, Path.GetFileNameWithoutExtension(sourcePath) + ".json"))}",
             });
         }
         catch (IOException)

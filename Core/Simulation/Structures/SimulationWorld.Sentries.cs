@@ -360,7 +360,11 @@ public sealed partial class SimulationWorld
 
         if (ApplyPlayerDamage(LocalPlayer, SentryEntity.HitDamage, null, PlayerEntity.SpyDamageRevealAlpha))
         {
-            KillPlayer(LocalPlayer, weaponSpriteName: "TurretKL", deathCamMessage: "You were killed by", deathCamSentry: sentry);
+            KillPlayer(
+                LocalPlayer,
+                killer: FindPlayerById(sentry.OwnerPlayerId),
+                weaponSpriteName: "TurretKL",
+                deathCamSentry: sentry);
         }
     }
 

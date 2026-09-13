@@ -12,6 +12,17 @@ public sealed class HostedServerRuntimeControllerTests
 {
     private static readonly object HostedServerEnvironmentGate = new();
 
+    private static void MarkTestSessionOwned(HostedServerRuntimeController runtime, string sessionPath)
+    {
+        var session = HostedServerSessionInfo.Load(sessionPath)!;
+        Assert.True(HostedServerProcessIdentity.TryCaptureCurrent(out var owner));
+        session.InstanceId = runtime.InstanceId;
+        session.OwnerProcessId = owner.ProcessId;
+        session.OwnerStartTimeUtcTicks = owner.StartTimeUtcTicks;
+        session.LaunchMode = "launcher";
+        session.Save(sessionPath);
+    }
+
     [Fact]
     public void CommandSendAttachesToSessionCreatedAfterBackgroundLaunch()
     {
@@ -50,6 +61,7 @@ public sealed class HostedServerRuntimeControllerTests
                 new HostedServerConsoleState(),
                 sessionPath);
 
+            MarkTestSessionOwned(runtime, sessionPath);
             Assert.True(runtime.TrySendCommand("ltd_win", out var responseLines, out var error), error);
             Assert.Equal(["[server] received ltd_win"], responseLines);
         }
@@ -113,6 +125,7 @@ public sealed class HostedServerRuntimeControllerTests
                 new HostedServerConsoleState(),
                 sessionPath);
 
+            MarkTestSessionOwned(runtime, sessionPath);
             Assert.True(runtime.TryResumeSession(loadExistingLog: false), "The persisted hosted session was not resumed.");
             Assert.Null(runtime.TrackedProcessId);
             Assert.True(runtime.IsRunning);

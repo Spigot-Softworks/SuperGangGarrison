@@ -115,6 +115,18 @@ public interface IOpenGarrisonServerPluginContext : IOpenGarrisonPluginHostConte
         return false;
     }
 
+    bool TryRegisterVoteKind(OpenGarrisonServerVoteRegistration registration, out string errorMessage)
+    {
+        errorMessage = "Native vote registration is not supported by this host.";
+        return false;
+    }
+
+    bool TryStartVote(string voteKindId, byte initiatorSlot, string argument, out string errorMessage)
+    {
+        errorMessage = "Native voting is not supported by this host.";
+        return false;
+    }
+
     void RegisterCommand(IOpenGarrisonServerCommand command, OpenGarrisonServerAdminPermissions requiredPermissions);
 
     void RegisterCommand(IOpenGarrisonServerCommand command, OpenGarrisonServerAdminPermissions requiredPermissions, IReadOnlyList<string> aliases)

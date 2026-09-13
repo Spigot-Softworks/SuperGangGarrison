@@ -400,15 +400,7 @@ public partial class Game1
             {
                 RemoveGarrisonBuilderSelectedEntities();
             }
-            else if (_builderEntities.Count > 0)
-            {
-                var removedIndex = _builderEntities.Count - 1;
-                NotifyGarrisonBuilderEntityRemoved(removedIndex);
-                _builderEntities.RemoveAt(removedIndex);
-                UpdateGarrisonBuilderDocumentEntities();
-                _builderDirty = true;
-                _builderStatus = "removed latest entity";
-            }
+
         }
 
         UpdateGarrisonBuilderPlacementPreview(mouse);
@@ -1620,6 +1612,7 @@ public partial class Game1
             [
                 ("New map", CreateNewGarrisonBuilderDocument),
                 ("Open map...", () => BeginEditingGarrisonBuilderPath(GarrisonBuilderPathField.OpenMap)),
+                ("Recover draft...", OpenGarrisonBuilderRecovery),
                 ("Save (Ctrl+S)", SaveGarrisonBuilderDocument),
                 ("Save as... (Ctrl+Shift+S)", () => BeginEditingGarrisonBuilderPath(GarrisonBuilderPathField.Save)),
                 ("Load background...", () => BeginEditingGarrisonBuilderPath(GarrisonBuilderPathField.Background)),
@@ -1661,6 +1654,10 @@ public partial class Game1
 
     private void CreateNewGarrisonBuilderDocument()
     {
+        if (!CommitGarrisonBuilderActiveEdits()) return;
+        if (GuardGarrisonBuilderUnsavedAction(CreateNewGarrisonBuilderDocument)) return;
+        ResetGarrisonBuilderDocumentSession();
+        _builderSelectedGameMode = CustomMapBuilderGameMode.Free;
         _builderDocument = CustomMapBuilderDocument.CreateEmpty("new_map");
         _builderEntityCoordinatesAreWalkmaskPixels = false;
         _builderEntities.Clear();
@@ -1672,10 +1669,12 @@ public partial class Game1
         _builderDirty = false;
         RequestGarrisonBuilderCameraCenter();
         _builderStatus = "new map";
+        MarkGarrisonBuilderSaved();
     }
 
     private void ClearGarrisonBuilderEntities()
     {
+        RecordGarrisonBuilderHistory();
         _builderEntities.Clear();
         ClearGarrisonBuilderHiddenEntities();
         UpdateGarrisonBuilderDocumentEntities();
@@ -3332,6 +3331,8 @@ public partial class Game1
             return;
         }
 
+        FinishGarrisonBuilderGestures();
+        BeginGarrisonBuilderPropertyTransaction();
         var entity = _builderEntities[_builderSelectedEntityIndex];
         _builderPropertyTarget = GarrisonBuilderPropertyTarget.SelectedMapEntity;
         _builderPropertyEditMode = GarrisonBuilderPropertyEditMode.List;
@@ -3605,7 +3606,7 @@ public partial class Game1
         TryGetModernGarrisonBuilderSidebarModeButtonBounds(sidebar, out var modeBounds);
         DrawBuilderMenuButton(modeBounds, "Mode " + GetGarrisonBuilderModeLabel(_builderSelectedGameMode), modeBounds.Contains(mouse.Position));
 
-        var validation = CustomMapBuilderValidator.Validate(_builderDocument with { Entities = _builderEntities.ToArray() }, _builderSelectedGameMode);
+        var validation = GetGarrisonBuilderValidation();
         var validationColor = validation.IsValid ? new Color(150, 224, 160) : new Color(255, 214, 118);
         var validationText = validation.IsValid ? "Validation OK" : $"{validation.Issues.Count} issue(s)";
         var validationScale = GetModernBuilderTextScale(0.82f);

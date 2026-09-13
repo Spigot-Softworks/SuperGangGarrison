@@ -43,7 +43,9 @@ public sealed class CivvieMoneyTrailRulesTests
         Assert.True(world.TryGetNetworkPlayer(slot: 1, out var civilian));
 
         ulong frame = 0;
-        for (var candidate = 0UL; candidate < 4096; candidate += 1)
+        // Zero is the "not found" sentinel below, not a simulated source tick.
+        // Whether it happens to pass the hash depends on the allocated player id.
+        for (var candidate = 1UL; candidate < 4096; candidate += 1)
         {
             if (CivvieMoneyTrailRules.ShouldEmitDeterministicSourceTickChance(
                     candidate,

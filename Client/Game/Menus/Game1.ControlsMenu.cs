@@ -27,6 +27,10 @@ public partial class Game1
             (ControlsMenuBinding.ChangeTeam, "Change Team:", _inputBindings.ChangeTeam),
             (ControlsMenuBinding.ChangeClass, "Change Class:", _inputBindings.ChangeClass),
             (ControlsMenuBinding.ShowScoreboard, "Show Scores:", _inputBindings.ShowScoreboard),
+            (ControlsMenuBinding.PushToTalk, "Push to Talk:", _inputBindings.PushToTalk),
+            (ControlsMenuBinding.VoteYes, "Vote Yes:", _inputBindings.VoteYes),
+            (ControlsMenuBinding.VoteNo, "Vote No:", _inputBindings.VoteNo),
+            (ControlsMenuBinding.OpenVoteMenu, "Vote Menu:", _inputBindings.OpenVoteMenu),
             (ControlsMenuBinding.ToggleConsole, "Console:", _inputBindings.ToggleConsole),
             (ControlsMenuBinding.OpenBubbleMenuZ, $"{bubbleMenuBindingPrefix} Z:", _inputBindings.OpenBubbleMenuZ),
             (ControlsMenuBinding.OpenBubbleMenuX, $"{bubbleMenuBindingPrefix} X:", _inputBindings.OpenBubbleMenuX),
@@ -93,6 +97,18 @@ public partial class Game1
                 break;
             case ControlsMenuBinding.ShowScoreboard:
                 _inputBindings.ShowScoreboard = input;
+                break;
+            case ControlsMenuBinding.PushToTalk:
+                _inputBindings.PushToTalk = input;
+                break;
+            case ControlsMenuBinding.VoteYes:
+                _inputBindings.VoteYes = input;
+                break;
+            case ControlsMenuBinding.VoteNo:
+                _inputBindings.VoteNo = input;
+                break;
+            case ControlsMenuBinding.OpenVoteMenu:
+                _inputBindings.OpenVoteMenu = input;
                 break;
             case ControlsMenuBinding.ToggleConsole:
                 _inputBindings.ToggleConsole = input;
@@ -172,6 +188,10 @@ public partial class Game1
             ControlsMenuBinding.ChangeTeam => "Change Team",
             ControlsMenuBinding.ChangeClass => "Change Class",
             ControlsMenuBinding.ShowScoreboard => "Show Scores",
+            ControlsMenuBinding.PushToTalk => "Push to Talk",
+            ControlsMenuBinding.VoteYes => "Vote Yes",
+            ControlsMenuBinding.VoteNo => "Vote No",
+            ControlsMenuBinding.OpenVoteMenu => "Vote Menu",
             ControlsMenuBinding.ToggleConsole => "Console",
             ControlsMenuBinding.OpenBubbleMenuZ => $"{bubbleMenuBindingPrefix} Z",
             ControlsMenuBinding.OpenBubbleMenuX => $"{bubbleMenuBindingPrefix} X",

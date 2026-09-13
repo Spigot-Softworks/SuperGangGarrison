@@ -12,6 +12,41 @@ internal static class UpdateFileNames
     public const string InstallationLock = ".opengarrison-update.lock";
 }
 
+internal static class UpdateManifestLocation
+{
+    private const string ApiBaseUrl = "https://api.superganggarrison.com/updates";
+    private const string StableReleaseBaseUrl =
+        "https://github.com/Spigot-Softworks/SuperGangGarrison/releases/latest/download";
+
+    public static string GetPrimary(string channel, string platformSegment)
+    {
+        if (channel.Equals("stable", StringComparison.OrdinalIgnoreCase))
+        {
+            return $"{StableReleaseBaseUrl}/{GetReleaseManifestAssetName(platformSegment)}";
+        }
+
+        return GetApi(channel, platformSegment);
+    }
+
+    public static string GetFallback(string channel, string platformSegment)
+        => channel.Equals("stable", StringComparison.OrdinalIgnoreCase)
+            ? GetApi(channel, platformSegment)
+            : string.Empty;
+
+    public static string GetReleaseManifestAssetName(string platformSegment)
+        => platformSegment.ToLowerInvariant() switch
+        {
+            "windows-x64" => "OpenGarrison-Windows-x64.latest.json",
+            "linux-x64" => "OpenGarrison-Linux-x64.latest.json",
+            "macos-x64" => "OpenGarrison-macOS-x64.latest.json",
+            "macos-arm64" => "OpenGarrison-macOS-arm64.latest.json",
+            _ => $"OpenGarrison-{platformSegment}.latest.json",
+        };
+
+    private static string GetApi(string channel, string platformSegment)
+        => $"{ApiBaseUrl}/{platformSegment}/{channel}/latest.json";
+}
+
 internal class UpdatePackageDescriptor
 {
     public string Url { get; set; } = string.Empty;
@@ -91,15 +126,173 @@ internal static class UpdateJson
     public static void WriteAtomic<T>(string path, T value)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
-        var directory = Path.GetDirectoryName(path);
+        var fullPath = Path.GetFullPath(path);
+        var directory = Path.GetDirectoryName(fullPath);
         if (!string.IsNullOrWhiteSpace(directory))
         {
             Directory.CreateDirectory(directory);
         }
 
-        var temporaryPath = path + ".tmp";
-        File.WriteAllText(temporaryPath, JsonSerializer.Serialize(value, Options));
-        File.Move(temporaryPath, path, overwrite: true);
+        var temporaryPath = Path.Combine(
+            directory ?? Directory.GetCurrentDirectory(),
+            $".{Path.GetFileName(fullPath)}.{Guid.NewGuid():N}.tmp");
+        try
+        {
+            using (var stream = new FileStream(
+                       temporaryPath,
+                       FileMode.CreateNew,
+                       FileAccess.Write,
+                       FileShare.None,
+                       bufferSize: 16 * 1024,
+                       FileOptions.WriteThrough))
+            {
+                JsonSerializer.Serialize(stream, value, Options);
+                stream.Flush(flushToDisk: true);
+            }
+
+            UpdateFileSystem.Move(temporaryPath, fullPath, overwrite: true);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            throw new IOException($"Unable to atomically write update metadata '{fullPath}'.", ex);
+        }
+        finally
+        {
+            UpdateFileSystem.TryDeleteFile(temporaryPath);
+        }
+    }
+}
+
+internal static class UpdateFileSystem
+{
+    private static readonly TimeSpan RetryWindow = TimeSpan.FromSeconds(5);
+
+    public static void Copy(string sourcePath, string destinationPath, bool overwrite)
+    {
+        RunWithRetry(
+            () =>
+            {
+                if (overwrite)
+                {
+                    ClearReadOnly(destinationPath);
+                }
+
+                File.Copy(sourcePath, destinationPath, overwrite);
+                ClearReadOnly(destinationPath);
+            },
+            $"copy '{sourcePath}' to '{destinationPath}'");
+    }
+
+    public static void Move(string sourcePath, string destinationPath, bool overwrite)
+    {
+        RunWithRetry(
+            () =>
+            {
+                ClearReadOnly(sourcePath);
+                if (overwrite)
+                {
+                    ClearReadOnly(destinationPath);
+                }
+
+                File.Move(sourcePath, destinationPath, overwrite);
+            },
+            $"move '{sourcePath}' to '{destinationPath}'");
+    }
+
+    public static void DeleteFile(string path)
+    {
+        RunWithRetry(
+            () =>
+            {
+                ClearReadOnly(path);
+                File.Delete(path);
+            },
+            $"delete '{path}'");
+    }
+
+    public static void DeleteDirectory(string path, bool recursive)
+    {
+        RunWithRetry(
+            () =>
+            {
+                if (!Directory.Exists(path))
+                {
+                    return;
+                }
+
+                if (recursive)
+                {
+                    ClearReadOnlyRecursively(path);
+                }
+
+                Directory.Delete(path, recursive);
+            },
+            $"delete directory '{path}'");
+    }
+
+    public static void ClearReadOnly(string path)
+    {
+        if (!File.Exists(path))
+        {
+            return;
+        }
+
+        var attributes = File.GetAttributes(path);
+        if ((attributes & FileAttributes.ReadOnly) != 0)
+        {
+            File.SetAttributes(path, attributes & ~FileAttributes.ReadOnly);
+        }
+    }
+
+    public static void TryDeleteFile(string path)
+    {
+        try
+        {
+            DeleteFile(path);
+        }
+        catch
+        {
+            // Temporary-file cleanup must not hide the operation's real result.
+        }
+    }
+
+    private static void ClearReadOnlyRecursively(string path)
+    {
+        if (!Directory.Exists(path))
+        {
+            return;
+        }
+
+        foreach (var file in Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories))
+        {
+            ClearReadOnly(file);
+        }
+    }
+
+    private static void RunWithRetry(Action operation, string description)
+    {
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        var delayMilliseconds = 25;
+        while (true)
+        {
+            try
+            {
+                operation();
+                return;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                if (stopwatch.Elapsed >= RetryWindow)
+                {
+                    throw new IOException(
+                        $"Unable to {description} after retrying for {RetryWindow.TotalSeconds:0} seconds.",
+                        ex);
+                }
+
+                Thread.Sleep(delayMilliseconds);
+                delayMilliseconds = Math.Min(delayMilliseconds * 2, 250);
+            }
+        }
     }
 }
 
@@ -413,26 +606,27 @@ internal static class TransactionalUpdateInstaller
         var journalPath = Path.Combine(transactionRoot, "journal.json");
         if (!File.Exists(journalPath))
         {
-            Directory.Delete(transactionRoot, recursive: true);
+            UpdateFileSystem.DeleteDirectory(transactionRoot, recursive: true);
             return;
         }
 
         var journal = UpdateJson.ReadRequired<UpdateTransactionJournal>(journalPath);
         if (journal.Committed)
         {
-            Directory.Delete(transactionRoot, recursive: true);
+            UpdateFileSystem.DeleteDirectory(transactionRoot, recursive: true);
             return;
         }
 
         RollBack(destinationDirectory, transactionRoot, journal);
-        Directory.Delete(transactionRoot, recursive: true);
+        UpdateFileSystem.DeleteDirectory(transactionRoot, recursive: true);
     }
 
     public static void ApplyDelta(
         PreparedDeltaPackage package,
         string destinationDirectory,
         Action<double>? reportProgress = null,
-        Action<string>? beforeInstallForTesting = null)
+        Action<string>? beforeInstallForTesting = null,
+        Action? journalPersistedForTesting = null)
     {
         ArgumentNullException.ThrowIfNull(package);
         Apply(
@@ -452,7 +646,8 @@ internal static class TransactionalUpdateInstaller
                         package.TargetManifestPath)),
             package.Plan.DeletedFiles,
             reportProgress,
-            beforeInstallForTesting);
+            beforeInstallForTesting,
+            journalPersistedForTesting);
     }
 
     public static bool TryApplyFullPackage(
@@ -460,7 +655,8 @@ internal static class TransactionalUpdateInstaller
         string destinationDirectory,
         Action<double>? reportProgress = null,
         Action<string>? beforeInstallForTesting = null,
-        string? expectedVersion = null)
+        string? expectedVersion = null,
+        Action? journalPersistedForTesting = null)
     {
         var packageManifestPath = Path.Combine(sourceDirectory, UpdateFileNames.PackageManifest);
         if (!File.Exists(packageManifestPath))
@@ -490,7 +686,10 @@ internal static class TransactionalUpdateInstaller
         {
             var sourcePath = UpdatePath.ResolveUnderRoot(sourceDirectory, entry.Path);
             UpdateHash.VerifyFile(sourcePath, entry.Size, entry.Sha256, "Full update payload");
-            installFiles.Add(new UpdateInstallFile(entry, sourcePath));
+            if (!IsInstalledFileCurrent(destinationDirectory, entry))
+            {
+                installFiles.Add(new UpdateInstallFile(entry, sourcePath));
+            }
         }
 
         installFiles.Add(new UpdateInstallFile(
@@ -509,7 +708,8 @@ internal static class TransactionalUpdateInstaller
             installFiles,
             deletedFiles,
             reportProgress,
-            beforeInstallForTesting);
+            beforeInstallForTesting,
+            journalPersistedForTesting);
         return true;
     }
 
@@ -550,12 +750,49 @@ internal static class TransactionalUpdateInstaller
         }
     }
 
+    private static bool IsInstalledFileCurrent(
+        string destinationDirectory,
+        PackageFileEntry targetEntry)
+    {
+        var destinationPath = UpdatePath.ResolveUnderRoot(destinationDirectory, targetEntry.Path);
+        try
+        {
+            if (!File.Exists(destinationPath)
+                || new FileInfo(destinationPath).Length != targetEntry.Size
+                || !string.Equals(
+                    UpdateHash.ComputeSha256(destinationPath),
+                    targetEntry.Sha256,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            if (!OperatingSystem.IsWindows() && targetEntry.Executable)
+            {
+                var executableBits = UnixFileMode.UserExecute
+                    | UnixFileMode.GroupExecute
+                    | UnixFileMode.OtherExecute;
+                if ((File.GetUnixFileMode(destinationPath) & executableBits) != executableBits)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
     private static void Apply(
         string destinationDirectory,
         IEnumerable<UpdateInstallFile> installFiles,
         IEnumerable<string> deletedFiles,
         Action<double>? reportProgress,
-        Action<string>? beforeInstallForTesting)
+        Action<string>? beforeInstallForTesting,
+        Action? journalPersistedForTesting)
     {
         var destinationRoot = Path.GetFullPath(destinationDirectory);
         Directory.CreateDirectory(destinationRoot);
@@ -601,7 +838,7 @@ internal static class TransactionalUpdateInstaller
             UpdateHash.VerifyFile(file.SourcePath, file.Entry.Size, file.Entry.Sha256, "Update source");
             var stagedPath = UpdatePath.ResolveUnderRoot(stagingRoot, file.Entry.Path);
             Directory.CreateDirectory(Path.GetDirectoryName(stagedPath) ?? stagingRoot);
-            File.Copy(file.SourcePath, stagedPath, overwrite: true);
+            UpdateFileSystem.Copy(file.SourcePath, stagedPath, overwrite: true);
             UpdateHash.VerifyFile(stagedPath, file.Entry.Size, file.Entry.Sha256, "Staged update file");
         }
 
@@ -627,7 +864,7 @@ internal static class TransactionalUpdateInstaller
         }
 
         var journalPath = Path.Combine(transactionRoot, "journal.json");
-        UpdateJson.WriteAtomic(journalPath, journal);
+        PersistJournal(journalPath, journal, journalPersistedForTesting);
 
         try
         {
@@ -641,37 +878,35 @@ internal static class TransactionalUpdateInstaller
                 if (File.Exists(destinationPath))
                 {
                     Directory.CreateDirectory(Path.GetDirectoryName(backupPath) ?? backupRoot);
-                    File.Move(destinationPath, backupPath, overwrite: false);
+                    UpdateFileSystem.Move(destinationPath, backupPath, overwrite: false);
                     entry.BackedUp = true;
-                    UpdateJson.WriteAtomic(journalPath, journal);
                 }
 
                 if (entry.Install)
                 {
                     var stagedPath = UpdatePath.ResolveUnderRoot(stagingRoot, entry.Path);
                     Directory.CreateDirectory(Path.GetDirectoryName(destinationPath) ?? destinationRoot);
-                    File.Move(stagedPath, destinationPath, overwrite: false);
+                    UpdateFileSystem.Move(stagedPath, destinationPath, overwrite: false);
                     if (entry.Executable)
                     {
                         EnsureExecutable(destinationPath);
                     }
 
                     entry.Installed = true;
-                    UpdateJson.WriteAtomic(journalPath, journal);
                 }
 
                 reportProgress?.Invoke((index + 1) / (double)Math.Max(1, journal.Entries.Count));
             }
 
             journal.Committed = true;
-            UpdateJson.WriteAtomic(journalPath, journal);
+            PersistJournal(journalPath, journal, journalPersistedForTesting);
         }
         catch
         {
             try
             {
                 RollBack(destinationRoot, transactionRoot, journal);
-                Directory.Delete(transactionRoot, recursive: true);
+                UpdateFileSystem.DeleteDirectory(transactionRoot, recursive: true);
             }
             catch
             {
@@ -683,7 +918,7 @@ internal static class TransactionalUpdateInstaller
 
         try
         {
-            Directory.Delete(transactionRoot, recursive: true);
+            UpdateFileSystem.DeleteDirectory(transactionRoot, recursive: true);
         }
         catch
         {
@@ -694,6 +929,15 @@ internal static class TransactionalUpdateInstaller
         RemoveEmptyDeletedDirectories(destinationRoot, deletes);
     }
 
+    private static void PersistJournal(
+        string journalPath,
+        UpdateTransactionJournal journal,
+        Action? journalPersistedForTesting)
+    {
+        UpdateJson.WriteAtomic(journalPath, journal);
+        journalPersistedForTesting?.Invoke();
+    }
+
     private static FileStream AcquireInstallationLock(string destinationRoot)
     {
         var lockPath = Path.Combine(destinationRoot, UpdateFileNames.InstallationLock);
@@ -702,6 +946,7 @@ internal static class TransactionalUpdateInstaller
         {
             try
             {
+                UpdateFileSystem.ClearReadOnly(lockPath);
                 return new FileStream(
                     lockPath,
                     FileMode.OpenOrCreate,
@@ -710,7 +955,9 @@ internal static class TransactionalUpdateInstaller
                     bufferSize: 1,
                     FileOptions.None);
             }
-            catch (IOException) when (DateTime.UtcNow < deadline)
+            catch (Exception ex) when (
+                ex is IOException or UnauthorizedAccessException
+                && DateTime.UtcNow < deadline)
             {
                 Thread.Sleep(100);
             }
@@ -731,13 +978,13 @@ internal static class TransactionalUpdateInstaller
             if (File.Exists(destinationPath)
                 && (entry.Installed || !entry.HadOriginal || File.Exists(backupPath)))
             {
-                File.Delete(destinationPath);
+                UpdateFileSystem.DeleteFile(destinationPath);
             }
 
             if (File.Exists(backupPath))
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(destinationPath) ?? destinationRoot);
-                File.Move(backupPath, destinationPath, overwrite: false);
+                UpdateFileSystem.Move(backupPath, destinationPath, overwrite: false);
             }
         }
     }

@@ -8,28 +8,8 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private static readonly string[] GarrisonBuilderLogicRefPropertyKeys =
-    [
-        MapLogicMetadata.LogicInputPropertyKey,
-        MapLogicMetadata.LogicInput1PropertyKey,
-        MapLogicMetadata.LogicInput2PropertyKey,
-        MapLogicMetadata.StartWhenPropertyKey,
-        MapLogicMetadata.EndWhenPropertyKey,
-        MapLogicMetadata.LogicSignalPropertyKey,
-        MapLogicMetadata.LockedWhenLogicPropertyKey,
-        MapLogicMetadata.UnlockedWhenLogicPropertyKey,
-        DamageableMetadata.HealWhenPropertyKey,
-        BotSpawnMetadata.TriggerPropertyKey,
-        BotSpawnMetadata.DeathTriggerPropertyKey,
-    ];
-
-    private static readonly string[] GarrisonBuilderEntityRefPropertyKeys =
-    [
-        MapLogicMetadata.ActivatorEntityPropertyKey,
-        TeleportMetadata.TeleportExitPropertyKey,
-        AreaExtensionMetadata.ExtendsPropertyKey,
-        DamageTriggerMetadata.DamageableEntityPropertyKey,
-    ];
+    private static readonly IReadOnlyList<string> GarrisonBuilderLogicRefPropertyKeys = BuilderReferenceProperties.Logic;
+    private static readonly IReadOnlyList<string> GarrisonBuilderEntityRefPropertyKeys = BuilderReferenceProperties.Entity;
 
     private bool TryDuplicateGarrisonBuilderEntities(
         IReadOnlyList<int> sourceIndices,
@@ -128,6 +108,16 @@ public partial class Game1
 
             foreach (var propertyKey in GarrisonBuilderEntityRefPropertyKeys)
             {
+                if (properties.TryGetValue(propertyKey, out var listValue) && IsGarrisonBuilderMultiEntityRefProperty(propertyKey))
+                {
+                    var refs = MapLogicEntityReferenceList.Parse(listValue).Select(reference =>
+                        TryResolveGarrisonBuilderEntityRefSourceIndex(reference, sourceToCloneIndex, out var sourceIndex)
+                            && sourceToCloneIndex.TryGetValue(sourceIndex, out var cloneIndex)
+                                ? MapLogicEntityReference.FormatEntityRef(_builderEntities[cloneIndex]) : reference).ToArray();
+                    properties[propertyKey] = MapLogicEntityReferenceList.Format(refs);
+                    changed = true;
+                    continue;
+                }
                 if (!properties.TryGetValue(propertyKey, out var value)
                     || string.IsNullOrWhiteSpace(value)
                     || !TryResolveGarrisonBuilderEntityRefSourceIndex(value, sourceToCloneIndex, out var referencedSourceIndex)

@@ -16,9 +16,25 @@ public sealed partial class PlayerEntity
         LegacyMovementState MovementState,
         bool IsGrounded,
         int BlockedJumpRetrySuppressionTicksRemaining,
+        float ExperimentalPassiveMovementSpeedMultiplierValue,
+        float ExperimentalJumpHeightMultiplierValue,
+        int ExperimentalBonusAirJumpsValue,
+        bool IsExperimentalDemoknightEnabled,
+        bool IsExperimentalDemoknightCharging,
+        int ExperimentalDemoknightChargeTicksRemaining,
         bool IsExperimentalDemoknightChargeDashActive,
         bool IsExperimentalDemoknightChargeFlightActive,
         float ExperimentalDemoknightChargeAcceleration,
+        float ExperimentalDemoknightSwordRangeMultiplierValue,
+        int ExperimentalDemoknightSwordBaseDamageValue,
+        float ExperimentalDemoknightSwordDamageMultiplierValue,
+        float ExperimentalDemoknightSwordCooldownMultiplierValue,
+        float ExperimentalDemoknightChargeRechargeMultiplierValue,
+        float ExperimentalDemoknightChargeRechargeAccumulator,
+        bool ExperimentalDemoknightChargeWantsLift,
+        bool ExperimentalDemoknightChargeFullControlEnabledValue,
+        int ExperimentalDemoknightPostRageRegenTicksRemaining,
+        float ExperimentalDemoknightPostRageRegenPerTickValue,
         int Health,
         int? NetworkMaxHealthOverrideValue,
         float Metal,
@@ -57,6 +73,7 @@ public sealed partial class PlayerEntity
         bool IsSniperScoped,
         int SniperChargeTicks,
         int SniperBowChargeTicks,
+        int SniperRifleFullyChargedHitStreak,
         bool IsUsingBinoculars,
         float BinocularsFocusX,
         float BinocularsFocusY,
@@ -80,6 +97,10 @@ public sealed partial class PlayerEntity
         bool IsCivvieUmbrellaActive,
         bool IsCivvieUmbrellaBroken,
         bool CivvieUmbrellaAirLiftUsed,
+        int CivvieUmbrellaOpeningElapsedTicks,
+        bool CivvieUmbrellaOpeningAirblastTriggered,
+        int CivvieUmbrellaOpeningSequence,
+        double CivvieUmbrellaOpeningTickAccumulator,
         bool IsCivviePogoActive,
         bool IsCivviePogoSuperJumpAirPhaseActive,
         bool CivviePogoSuperJumpTrickUsed,
@@ -208,9 +229,25 @@ public sealed partial class PlayerEntity
             MovementState,
             IsGrounded,
             BlockedJumpRetrySuppressionTicksRemaining,
+            ExperimentalPassiveMovementSpeedMultiplierValue,
+            ExperimentalJumpHeightMultiplierValue,
+            ExperimentalBonusAirJumpsValue,
+            IsExperimentalDemoknightEnabled,
+            IsExperimentalDemoknightCharging,
+            ExperimentalDemoknightChargeTicksRemaining,
             IsExperimentalDemoknightChargeDashActive,
             IsExperimentalDemoknightChargeFlightActive,
             ExperimentalDemoknightChargeAcceleration,
+            ExperimentalDemoknightSwordRangeMultiplierValue,
+            ExperimentalDemoknightSwordBaseDamageValue,
+            ExperimentalDemoknightSwordDamageMultiplierValue,
+            ExperimentalDemoknightSwordCooldownMultiplierValue,
+            ExperimentalDemoknightChargeRechargeMultiplierValue,
+            ExperimentalDemoknightChargeRechargeAccumulator,
+            ExperimentalDemoknightChargeWantsLift,
+            ExperimentalDemoknightChargeFullControlEnabled,
+            ExperimentalDemoknightPostRageRegenTicksRemaining,
+            ExperimentalDemoknightPostRageRegenPerTickValue,
             Health,
             NetworkMaxHealthOverrideValue,
             Metal,
@@ -249,6 +286,7 @@ public sealed partial class PlayerEntity
             IsSniperScoped,
             SniperChargeTicks,
             SniperBowChargeTicks,
+            SniperRifleFullyChargedHitStreak,
             IsUsingBinoculars,
             BinocularsFocusX,
             BinocularsFocusY,
@@ -272,6 +310,10 @@ public sealed partial class PlayerEntity
             IsCivvieUmbrellaActive,
             IsCivvieUmbrellaBroken,
             CivvieUmbrellaAirLiftUsed,
+            CivvieUmbrellaOpeningElapsedTicks,
+            CivvieUmbrellaOpeningAirblastTriggered,
+            CivvieUmbrellaOpeningSequence,
+            CivvieUmbrellaOpeningTickAccumulator,
             IsCivviePogoActive,
             IsCivviePogoSuperJumpAirPhaseActive,
             CivviePogoSuperJumpTrickUsed,
@@ -400,9 +442,58 @@ public sealed partial class PlayerEntity
         MovementState = state.MovementState;
         IsGrounded = state.IsGrounded;
         BlockedJumpRetrySuppressionTicksRemaining = Math.Max(0, state.BlockedJumpRetrySuppressionTicksRemaining);
-        IsExperimentalDemoknightChargeDashActive = state.IsExperimentalDemoknightChargeDashActive;
-        IsExperimentalDemoknightChargeFlightActive = state.IsExperimentalDemoknightChargeFlightActive;
-        ExperimentalDemoknightChargeAcceleration = state.ExperimentalDemoknightChargeAcceleration;
+        ExperimentalPassiveMovementSpeedMultiplierValue = MathF.Max(
+            1f,
+            state.ExperimentalPassiveMovementSpeedMultiplierValue);
+        ExperimentalJumpHeightMultiplierValue = MathF.Max(
+            1f,
+            state.ExperimentalJumpHeightMultiplierValue);
+        ExperimentalBonusAirJumpsValue = Math.Max(0, state.ExperimentalBonusAirJumpsValue);
+        IsExperimentalDemoknightEnabled = state.IsExperimentalDemoknightEnabled
+            && state.ClassDefinition.Id == PlayerClass.Demoman;
+        IsExperimentalDemoknightCharging = IsExperimentalDemoknightEnabled
+            && state.IsExperimentalDemoknightCharging;
+        ExperimentalDemoknightChargeTicksRemaining = IsExperimentalDemoknightEnabled
+            ? Math.Clamp(
+                state.ExperimentalDemoknightChargeTicksRemaining,
+                0,
+                ExperimentalDemoknightChargeMaxTicks)
+            : 0;
+        IsExperimentalDemoknightChargeDashActive = IsExperimentalDemoknightCharging
+            && state.IsExperimentalDemoknightChargeDashActive;
+        IsExperimentalDemoknightChargeFlightActive = IsExperimentalDemoknightCharging
+            && state.IsExperimentalDemoknightChargeFlightActive;
+        ExperimentalDemoknightChargeAcceleration = IsExperimentalDemoknightCharging
+            ? MathF.Max(0f, state.ExperimentalDemoknightChargeAcceleration)
+            : 0f;
+        ExperimentalDemoknightSwordRangeMultiplierValue = MathF.Max(
+            1f,
+            state.ExperimentalDemoknightSwordRangeMultiplierValue);
+        ExperimentalDemoknightSwordBaseDamageValue = Math.Max(
+            1,
+            state.ExperimentalDemoknightSwordBaseDamageValue);
+        ExperimentalDemoknightSwordDamageMultiplierValue = MathF.Max(
+            0.1f,
+            state.ExperimentalDemoknightSwordDamageMultiplierValue);
+        ExperimentalDemoknightSwordCooldownMultiplierValue = MathF.Max(
+            0.1f,
+            state.ExperimentalDemoknightSwordCooldownMultiplierValue);
+        ExperimentalDemoknightChargeRechargeMultiplierValue = MathF.Max(
+            1f,
+            state.ExperimentalDemoknightChargeRechargeMultiplierValue);
+        ExperimentalDemoknightChargeRechargeAccumulator = MathF.Max(
+            0f,
+            state.ExperimentalDemoknightChargeRechargeAccumulator);
+        ExperimentalDemoknightChargeWantsLift = IsExperimentalDemoknightCharging
+            && state.ExperimentalDemoknightChargeWantsLift;
+        ExperimentalDemoknightChargeFullControlEnabled = IsExperimentalDemoknightEnabled
+            && state.ExperimentalDemoknightChargeFullControlEnabledValue;
+        ExperimentalDemoknightPostRageRegenTicksRemaining = IsExperimentalDemoknightEnabled
+            ? Math.Max(0, state.ExperimentalDemoknightPostRageRegenTicksRemaining)
+            : 0;
+        ExperimentalDemoknightPostRageRegenPerTickValue = IsExperimentalDemoknightEnabled
+            ? MathF.Max(0f, state.ExperimentalDemoknightPostRageRegenPerTickValue)
+            : 0f;
         NetworkMaxHealthOverrideValue = state.NetworkMaxHealthOverrideValue;
         Health = int.Clamp(state.Health, 0, MaxHealth);
         Metal = state.Metal;
@@ -447,14 +538,18 @@ public sealed partial class PlayerEntity
         IsTaunting = state.IsTaunting;
         TauntFrameIndex = state.TauntFrameIndex;
         IsSniperScoped = state.IsSniperScoped;
+        SniperRifleFullyChargedHitStreak = Math.Clamp(
+            state.SniperRifleFullyChargedHitStreak,
+            0,
+            SniperRifleStreakMaximum);
         SniperChargeTicks = Math.Clamp(
             state.SniperChargeTicks,
             0,
-            LastToDieSniperRifleFullChargeTicks);
+            SniperRifleFullChargeTicks);
         SniperBowChargeTicks = Math.Clamp(
             state.SniperBowChargeTicks,
             0,
-            LastToDieSniperBowFullChargeTicks);
+            IsMortarLauncherEquipped ? MortarLauncherMaxChargeTicks : LastToDieSniperBowFullChargeTicks);
         IsUsingBinoculars = state.IsUsingBinoculars;
         BinocularsFocusX = state.BinocularsFocusX;
         BinocularsFocusY = state.BinocularsFocusY;
@@ -494,6 +589,10 @@ public sealed partial class PlayerEntity
         IsCivvieUmbrellaActive = state.IsCivvieUmbrellaActive;
         IsCivvieUmbrellaBroken = state.IsCivvieUmbrellaBroken;
         CivvieUmbrellaAirLiftUsed = state.CivvieUmbrellaAirLiftUsed;
+        CivvieUmbrellaOpeningElapsedTicks = state.CivvieUmbrellaOpeningElapsedTicks;
+        CivvieUmbrellaOpeningAirblastTriggered = state.CivvieUmbrellaOpeningAirblastTriggered;
+        CivvieUmbrellaOpeningSequence = state.CivvieUmbrellaOpeningSequence;
+        CivvieUmbrellaOpeningTickAccumulator = state.CivvieUmbrellaOpeningTickAccumulator;
         IsCivviePogoActive = state.IsCivviePogoActive;
         IsCivviePogoSuperJumpAirPhaseActive = state.IsCivviePogoSuperJumpAirPhaseActive;
         CivviePogoSuperJumpTrickUsed = state.CivviePogoSuperJumpTrickUsed;

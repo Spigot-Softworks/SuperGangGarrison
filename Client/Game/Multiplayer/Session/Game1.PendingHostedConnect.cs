@@ -31,7 +31,21 @@ public partial class Game1
             return;
         }
 
+        // The server selects and reserves its actual port. Never connect to
+        // the requested port while another instance may still own it.
+        if (_hostedServerRuntime.ReadyPort is not { } readyPort) return;
+        _pendingHostedConnectPort = readyPort;
+        if (_hostedSocialPresenceUdpPort > 0 || !string.IsNullOrEmpty(_hostedSocialPresenceRelayGuestUrl))
+            SetHostedSocialPresenceEndpoint(readyPort, _hostedSocialPresenceRelayGuestUrl);
         CancelPendingHostedLocalConnect();
-        TryConnectToServer(NetworkEndpoint.ForUdp("127.0.0.1", _pendingHostedConnectPort), addConsoleFeedback: false);
+        if (!TryConnectToServer(NetworkEndpoint.ForUdp("127.0.0.1", _pendingHostedConnectPort), addConsoleFeedback: false))
+        {
+            // An immediate socket/permission failure never reaches the connected
+            // frame pump. Release the owned server and the LTD loading state here.
+            var returnToLastToDie = _lastToDieConnectionPresentationPending;
+            var error = _menuStatusMessage;
+            ReturnToMainMenuWithNetworkStatus(error);
+            if (returnToLastToDie) OpenLastToDieMenu(error);
+        }
     }
 }

@@ -28,6 +28,7 @@ public static class CustomMapPngExporter
             throw new InvalidOperationException("A walkmask image or embedded walkmask section is required before exporting a custom map.");
         }
 
+        BuilderImageValidation.ValidateDecoded(BuilderImageValidation.ReadFile(normalized.BackgroundImagePath));
         var levelData = BuildLevelData(normalized);
         var outputDirectory = Path.GetDirectoryName(Path.GetFullPath(outputPath));
         if (!string.IsNullOrWhiteSpace(outputDirectory))
@@ -35,7 +36,23 @@ public static class CustomMapPngExporter
             Directory.CreateDirectory(outputDirectory);
         }
 
-        WritePngWithLevelData(normalized.BackgroundImagePath, outputPath, levelData);
+        foreach (var resource in normalized.Resources.Values)
+        {
+            if (resource.Kind == CustomMapBuilderResourceKind.MessageSound)
+                throw new InvalidOperationException("Maps with sounds must be saved as a JSON package; legacy PNG cannot preserve audio.");
+            if (!CustomMapBuilderResourceCodec.IsSupportedImage(CustomMapBuilderResourceCodec.GetResourceBytes(resource)))
+                throw new InvalidOperationException($"Resource '{resource.Name}' is missing or invalid.");
+            BuilderImageValidation.ValidateDecoded(CustomMapBuilderResourceCodec.GetResourceBytes(resource));
+        }
+        MapFileTransaction.Write(outputPath, temporary =>
+        {
+            WritePngWithLevelData(normalized.BackgroundImagePath, temporary, levelData);
+            var reopened = CustomMapBuilderPngImporter.Import(temporary)
+                ?? throw new InvalidDataException("The saved PNG could not be verified.");
+            if (BuildEntitiesSection(reopened) != BuildEntitiesSection(normalized)
+                || !EmbeddedWalkmaskDecoder.TryDecodeSolidCells(reopened.EmbeddedWalkmaskSection, out _, out _, out _))
+                throw new InvalidDataException("The saved PNG did not preserve the map data.");
+        });
     }
 
     public static string BuildLevelData(CustomMapBuilderDocument document)
@@ -76,11 +93,14 @@ public static class CustomMapPngExporter
         Image<Rgba32>? loadedImage = null;
         if (File.Exists(walkmaskImagePath))
         {
-            loadedImage = Image.Load<Rgba32>(walkmaskImagePath);
+            var bytes = BuilderImageValidation.ReadFile(walkmaskImagePath);
+            BuilderImageValidation.Validate(bytes);
+            loadedImage = Image.Load<Rgba32>(bytes);
         }
         else if (BrowserContentCatalog.TryGetBinaryForPath(walkmaskImagePath, out var walkmaskBytes)
             && walkmaskBytes.Length > 0)
         {
+            BuilderImageValidation.Validate(walkmaskBytes);
             loadedImage = Image.Load<Rgba32>(walkmaskBytes);
         }
 
@@ -152,77 +172,34 @@ public static class CustomMapPngExporter
         return string.Concat(
             "{WALKMASK}",
             Environment.NewLine,
-            document.EmbeddedWalkmaskSection.Trim(),
+            document.EmbeddedWalkmaskSection,
             Environment.NewLine,
             "{END WALKMASK}");
     }
 
     private static void WritePngWithLevelData(string backgroundImagePath, string outputPath, string levelData)
     {
-        using var input = new MemoryStream(File.ReadAllBytes(backgroundImagePath), writable: false);
+        using var input = File.OpenRead(backgroundImagePath);
         using var output = File.Create(outputPath);
-        var signature = new byte[PngSignature.Length];
-        if (input.Read(signature) != signature.Length || !signature.SequenceEqual(PngSignature))
+        output.Write(PngSignature);
+        foreach (var chunk in PngMapData.ReadChunks(input))
         {
-            throw new InvalidOperationException($"Background image \"{backgroundImagePath}\" is not a PNG file.");
+            if (PngMapData.TryText(chunk, out var keyword, out var text) && PngMapData.IsMapText(keyword, text)) continue;
+            if (chunk.Type == "IEND") WriteTextChunk(output, PngMapData.Keyword, levelData);
+            WriteChunk(output, chunk.Type, chunk.Data);
         }
-
-        output.Write(signature);
-        var inserted = false;
-        Span<byte> lengthBuffer = stackalloc byte[4];
-        Span<byte> chunkTypeBuffer = stackalloc byte[4];
-        Span<byte> crcBuffer = stackalloc byte[4];
-        while (input.Position + 8 <= input.Length)
-        {
-            input.ReadExactly(lengthBuffer);
-            var dataLength = BinaryPrimitives.ReadInt32BigEndian(lengthBuffer);
-            input.ReadExactly(chunkTypeBuffer);
-            if (dataLength < 0)
-            {
-                throw new InvalidOperationException($"PNG chunk length is invalid in \"{backgroundImagePath}\".");
-            }
-
-            var chunkData = new byte[dataLength];
-            input.ReadExactly(chunkData);
-            input.ReadExactly(crcBuffer);
-
-            var chunkType = Encoding.ASCII.GetString(chunkTypeBuffer);
-            if (chunkType == "IEND")
-            {
-                WriteTextChunk(output, "OpenGarrisonLevelData", levelData);
-                inserted = true;
-            }
-
-            if (!IsExistingLevelDataTextChunk(chunkType, chunkData))
-            {
-                output.Write(lengthBuffer);
-                output.Write(chunkTypeBuffer);
-                output.Write(chunkData);
-                output.Write(crcBuffer);
-            }
-
-            if (chunkType == "IEND")
-            {
-                break;
-            }
-        }
-
-        if (!inserted)
-        {
-            throw new InvalidOperationException($"Background image \"{backgroundImagePath}\" did not contain an IEND chunk.");
-        }
-    }
-
-    private static bool IsExistingLevelDataTextChunk(string chunkType, byte[] chunkData)
-    {
-        return chunkType == "tEXt"
-            && Encoding.Latin1.GetString(chunkData).Contains("{WALKMASK}", StringComparison.OrdinalIgnoreCase)
-            && Encoding.Latin1.GetString(chunkData).Contains("{ENTITIES}", StringComparison.OrdinalIgnoreCase);
     }
 
     private static void WriteTextChunk(Stream output, string keyword, string value)
     {
         var keywordBytes = Encoding.ASCII.GetBytes(keyword);
+        var unicode = value.Any(static character => character > 255);
+        if (unicode)
+        {
+            var header = Encoding.ASCII.GetBytes(keyword + "\0\0\0\0\0");
+            WriteChunk(output, "iTXt", header.Concat(Encoding.UTF8.GetBytes(value)).ToArray());
+            return;
+        }
         var valueBytes = Encoding.Latin1.GetBytes(value);
         var data = new byte[keywordBytes.Length + 1 + valueBytes.Length];
         Buffer.BlockCopy(keywordBytes, 0, data, 0, keywordBytes.Length);

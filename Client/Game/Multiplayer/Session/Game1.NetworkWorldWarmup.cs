@@ -8,6 +8,25 @@ namespace OpenGarrison.Client;
 public partial class Game1
 {
     private void BeginNetworkWorldWarmup(string levelName)
+        => StartNetworkWorldWarmup(levelName, acceptNextAppliedSnapshotAsBaseline: false);
+
+    private void BeginNetworkWorldWarmupFromAppliedSnapshot(string levelName)
+        => StartNetworkWorldWarmup(levelName, acceptNextAppliedSnapshotAsBaseline: false);
+
+    private void BeginNetworkWorldWarmupFromNextAppliedSnapshot(string levelName)
+    {
+        StartNetworkWorldWarmup(levelName, acceptNextAppliedSnapshotAsBaseline: true);
+        while (_queuedAuthoritativeSnapshots.Count > 0)
+        {
+            _queuedAuthoritativeSnapshots.Dequeue();
+            RecordDroppedQueuedAuthoritativeSnapshot();
+        }
+
+        _lastBufferedSnapshotFrame = _lastAppliedSnapshotFrame;
+        ResetSnapshotPresentationHistories();
+    }
+
+    private void StartNetworkWorldWarmup(string levelName, bool acceptNextAppliedSnapshotAsBaseline)
     {
         if (!_networkClient.IsConnected || _networkClient.IsReplayConnection)
         {
@@ -19,6 +38,18 @@ public partial class Game1
         _networkWorldWarmupFullSnapshotApplied = false;
         _networkWorldWarmupAppliedSnapshotsAfterFull = 0;
         _networkWorldWarmupStartedClockSeconds = _networkInterpolationClockSeconds;
+        _networkWorldWarmupAcceptNextAppliedSnapshotAsBaseline = acceptNextAppliedSnapshotAsBaseline;
+        _networkInterpolationWarmupSnapshotsRemaining = Math.Max(
+            _networkInterpolationWarmupSnapshotsRemaining,
+            NetworkInterpolationWarmupSnapshotCount - 1);
+        _networkInterpolationWarmupUntilClockSeconds = Math.Max(
+            _networkInterpolationWarmupUntilClockSeconds,
+            _networkInterpolationClockSeconds + NetworkInterpolationWarmupSeconds);
+        _hasLocalPlayerRenderTime = false;
+        _hasRemotePlayerRenderTime = false;
+        ResetTransientPresentationEffects();
+        ResetHealingCharacterEffects();
+        ResetBackstabVisuals();
         ShowJoiningServerLoadingOverlay();
     }
 
@@ -28,6 +59,7 @@ public partial class Game1
         _networkWorldWarmupFullSnapshotApplied = false;
         _networkWorldWarmupAppliedSnapshotsAfterFull = 0;
         _networkWorldWarmupStartedClockSeconds = -1d;
+        _networkWorldWarmupAcceptNextAppliedSnapshotAsBaseline = false;
     }
 
     private bool IsNetworkWorldWarmupBlockingGameplay()
@@ -81,17 +113,25 @@ public partial class Game1
             && !interpolationWarmupActive;
     }
 
-    private void ObserveAppliedNetworkWorldSnapshot(SnapshotMessage snapshot, bool isServerFullSnapshot)
+    private void ObserveAppliedNetworkWorldSnapshot(
+        SnapshotMessage snapshot,
+        bool isServerFullSnapshot,
+        bool isPresentationEpochBaselineSnapshot = false)
     {
         if (!IsNetworkWorldWarmupBlockingGameplay())
         {
             return;
         }
 
-        if (isServerFullSnapshot)
+        var establishesPresentationBaseline = isServerFullSnapshot
+            || isPresentationEpochBaselineSnapshot
+            || (_networkWorldWarmupAcceptNextAppliedSnapshotAsBaseline
+                && !_networkWorldWarmupFullSnapshotApplied);
+        if (establishesPresentationBaseline)
         {
             _networkWorldWarmupFullSnapshotApplied = true;
-            _networkWorldWarmupAppliedSnapshotsAfterFull = 1;
+            _networkWorldWarmupAppliedSnapshotsAfterFull = 0;
+            _networkWorldWarmupAcceptNextAppliedSnapshotAsBaseline = false;
         }
         else if (_networkWorldWarmupFullSnapshotApplied)
         {
@@ -119,8 +159,17 @@ public partial class Game1
 
     private bool HasAuthoritativeLocalPlayerForNetworkWorldWarmup()
     {
-        return _networkClient.IsSpectator || _localPlayerSnapshotEntityId.HasValue;
+        return ShouldTreatLocalPlayerAsAuthoritativeForWarmup(
+            _networkClient.IsSpectator,
+            _localPlayerSnapshotEntityId.HasValue,
+            _world.LocalPlayerAwaitingJoin);
     }
+
+    internal static bool ShouldTreatLocalPlayerAsAuthoritativeForWarmup(
+        bool isSpectator,
+        bool hasSnapshotEntityId,
+        bool isAwaitingJoin)
+        => isSpectator || (hasSnapshotEntityId && !isAwaitingJoin);
 
     private bool HasFreshRemotePlayerHistoriesForCurrentWorld()
     {
@@ -130,6 +179,13 @@ public partial class Game1
         }
 
         if (!HasAuthoritativeLocalPlayerForNetworkWorldWarmup())
+        {
+            return false;
+        }
+
+        if (!_networkClient.IsSpectator
+            && _world.LocalPlayer.IsAlive
+            && !HasFreshRemotePlayerRenderHistory(GetPlayerStateKey(_world.LocalPlayer)))
         {
             return false;
         }
@@ -152,13 +208,16 @@ public partial class Game1
 
     private bool HasFreshRemotePlayerRenderHistory(int playerId)
     {
-        if (!_remotePlayerSnapshotHistories.TryGetValue(playerId, out var history) || history.Count == 0)
+        if (!_remotePlayerSnapshotHistories.TryGetValue(playerId, out var history))
         {
             return false;
         }
 
-        return _latestSnapshotServerTimeSeconds < 0d
-            || _latestSnapshotServerTimeSeconds - history[^1].TimeSeconds <= NetworkWorldWarmupFreshPlayerHistorySeconds;
+        return IsNetworkPlayerPresentationHistoryReady(
+            history.Count,
+            _latestSnapshotServerTimeSeconds,
+            history.Count > 0 ? history[^1].TimeSeconds : -1d,
+            NetworkWorldWarmupFreshPlayerHistorySeconds);
     }
 
     private bool HasFreshPlayerRenderHistory(PlayerEntity player)
@@ -173,17 +232,86 @@ public partial class Game1
             return false;
         }
 
-        if (ReferenceEquals(player, _world.LocalPlayer))
+        var playerId = GetPlayerStateKey(player);
+        if (!_remotePlayerSnapshotHistories.TryGetValue(playerId, out var history))
         {
-            return true;
+            return false;
         }
 
-        if (!_remotePlayerSnapshotHistories.TryGetValue(player.Id, out var history) || history.Count == 0)
-        {
-            return true;
-        }
-
-        return _latestSnapshotServerTimeSeconds < 0d
-            || _latestSnapshotServerTimeSeconds - history[^1].TimeSeconds <= StaleRemotePlayerSnapshotHistoryPruneSeconds;
+        return IsNetworkPlayerPresentationHistoryRenderable(
+            history.Count,
+            _latestSnapshotServerTimeSeconds,
+            history.Count > 0 ? history[^1].TimeSeconds : -1d,
+            StaleRemotePlayerSnapshotHistoryPruneSeconds);
     }
+
+    internal static bool IsNetworkPlayerPresentationHistoryReady(
+        int sampleCount,
+        double latestSnapshotServerTimeSeconds,
+        double latestHistorySampleTimeSeconds,
+        double freshnessSeconds)
+        => IsNetworkPlayerPresentationHistoryUsable(
+            sampleCount,
+            NetworkPlayerPresentationMinimumSamples,
+            latestSnapshotServerTimeSeconds,
+            latestHistorySampleTimeSeconds,
+            freshnessSeconds);
+
+    internal static bool IsNetworkPlayerPresentationHistoryRenderable(
+        int sampleCount,
+        double latestSnapshotServerTimeSeconds,
+        double latestHistorySampleTimeSeconds,
+        double freshnessSeconds)
+        => IsNetworkPlayerPresentationHistoryUsable(
+            sampleCount,
+            minimumSampleCount: 1,
+            latestSnapshotServerTimeSeconds,
+            latestHistorySampleTimeSeconds,
+            freshnessSeconds);
+
+    private static bool IsNetworkPlayerPresentationHistoryUsable(
+        int sampleCount,
+        int minimumSampleCount,
+        double latestSnapshotServerTimeSeconds,
+        double latestHistorySampleTimeSeconds,
+        double freshnessSeconds)
+    {
+        if (sampleCount < minimumSampleCount
+            || !double.IsFinite(latestSnapshotServerTimeSeconds)
+            || !double.IsFinite(latestHistorySampleTimeSeconds)
+            || latestSnapshotServerTimeSeconds < 0d
+            || latestHistorySampleTimeSeconds < 0d)
+        {
+            return false;
+        }
+
+        var sampleAgeSeconds = latestSnapshotServerTimeSeconds - latestHistorySampleTimeSeconds;
+        return sampleAgeSeconds >= -0.001d && sampleAgeSeconds <= freshnessSeconds;
+    }
+
+    private void ObserveNetworkPresentationPhaseTransition()
+    {
+        if (!_networkClient.IsConnected || _networkClient.IsReplayConnection)
+        {
+            _networkPresentationObservedLastToDiePhase = null;
+            return;
+        }
+
+        var currentPhase = _networkClient.LastToDieState.Snapshot?.Phase;
+        if (ShouldRestartNetworkPresentationForLastToDiePhase(
+                _networkPresentationObservedLastToDiePhase,
+                currentPhase))
+        {
+            BeginNetworkWorldWarmupFromNextAppliedSnapshot(_world.Level.Name);
+        }
+
+        _networkPresentationObservedLastToDiePhase = currentPhase;
+    }
+
+    internal static bool ShouldRestartNetworkPresentationForLastToDiePhase(
+        LastToDieWirePhase? previousPhase,
+        LastToDieWirePhase? currentPhase)
+        => previousPhase.HasValue
+            && previousPhase != LastToDieWirePhase.Playing
+            && currentPhase == LastToDieWirePhase.Playing;
 }

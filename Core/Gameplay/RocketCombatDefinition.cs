@@ -4,4 +4,6 @@ public sealed record RocketCombatDefinition(
     int DirectHitDamage = RocketProjectileEntity.DirectHitDamage,
     float ExplosionDamage = RocketProjectileEntity.ExplosionDamage,
     float BlastRadius = RocketProjectileEntity.BlastRadius,
-    float SplashThresholdFactor = RocketProjectileEntity.SplashThresholdFactor);
+    float SplashThresholdFactor = RocketProjectileEntity.SplashThresholdFactor,
+    float MinimumSplashDamage = SimulationWorld.ExplosiveSplashMinimumDamage,
+    float SelfDamageMultiplier = 1f);

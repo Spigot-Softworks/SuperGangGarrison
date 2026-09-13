@@ -2696,7 +2696,8 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                     y,
                     directionDegrees,
                     Math.Max(1, count),
-                    EventId: _nextReplayEventId++));
+                    EventId: _nextReplayEventId++,
+                    SourceFrame: SnapshotFrame));
             }
 
             private void SpawnWeaponPresentation(LegacyReplayPlayer player)

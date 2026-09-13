@@ -30,6 +30,7 @@ public partial class Game1
         DrawBitmapFontText("AVAILABLE MAPS", new Vector2(mapsHeader.X, mapsTextY), Color.White, labelScale);
 
         DrawHostSetupColumnPanelOutline(layout.ColumnPanelBounds);
+        if (!layout.SuperGangGarrisonButtonBounds.IsEmpty)
         DrawMenuButtonScaled(
             layout.SuperGangGarrisonButtonBounds,
             "Super Gang Garrison",

@@ -30,9 +30,9 @@ public static class EmbeddedWalkmaskDecoder
 
         width = dimensions.Width;
         height = dimensions.Height;
-        cells = new bool[width * height];
+        // Validate the packed length before allocating collision cells.
         var packed = string.Concat(lines.Skip(firstContentLine + 2));
-        if (packed.Length == 0)
+        if (packed.Length < ((long)width * height + 5) / 6 || packed.Any(static c => c < 32 || c > 95))
         {
             cells = Array.Empty<bool>();
             width = 0;
@@ -40,6 +40,7 @@ public static class EmbeddedWalkmaskDecoder
             return false;
         }
 
+        cells = new bool[width * height];
         var trailingUnusedBits = Math.Max(0, (packed.Length * 6) - (width * height));
         var packedIndex = packed.Length - 1 - (trailingUnusedBits / 6);
         if (packedIndex < 0)
@@ -104,7 +105,8 @@ public static class EmbeddedWalkmaskDecoder
             || !int.TryParse(lines[firstContentLine].Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var width)
             || !int.TryParse(lines[firstContentLine + 1].Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var height)
             || width <= 0
-            || height <= 0)
+            || height <= 0
+            || width > 16384 || height > 16384 || (long)width * height > 64 * 1024 * 1024)
         {
             dimensions = default;
             return false;

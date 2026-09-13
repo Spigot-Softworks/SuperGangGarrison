@@ -10,6 +10,7 @@ internal static partial class ServerHelpers
     private const string SecondaryWeaponAvailableKey = "secondary_weapon_available";
     private const string SecondaryWeaponAmmoKey = "secondary_weapon_ammo";
     private const string SecondaryWeaponMaxAmmoKey = "secondary_weapon_max_ammo";
+    private const string EngineerAlternateWeaponModeKey = "engineer_alternate_weapon_mode";
     private const string SoldierShotgunAvailableKey = "soldier_shotgun_available";
     private const string SoldierShotgunEquippedKey = "soldier_shotgun_equipped";
     private const string SoldierShotgunAmmoKey = "soldier_shotgun_ammo";
@@ -32,7 +33,8 @@ internal static partial class ServerHelpers
         PlayerEntity player,
         PlayerEntity? viewer,
         SnapshotStringCache stringCache,
-        int pingMilliseconds = -1)
+        int pingMilliseconds = -1,
+        bool isBot = false)
     {
         var isPlayableSlot = SimulationWorld.IsPlayableNetworkPlayerSlot(slot);
         var isAwaitingJoin = isPlayableSlot && world.IsNetworkPlayerAwaitingJoin(slot);
@@ -108,6 +110,17 @@ internal static partial class ServerHelpers
                 SecondaryWeaponMaxAmmoKey,
                 SnapshotReplicatedStateValueKind.Whole,
                 player.ExperimentalOffhandMaxShells,
+                0f,
+                false));
+        }
+
+        if (player.ClassId == PlayerClass.Engineer)
+        {
+            replicatedStates.Add(new SnapshotReplicatedStateEntry(
+                CoreReplicatedOwnerId,
+                EngineerAlternateWeaponModeKey,
+                SnapshotReplicatedStateValueKind.Whole,
+                (int)player.ExperimentalEngineerAlternateWeaponMode,
                 0f,
                 false));
         }
@@ -358,7 +371,8 @@ internal static partial class ServerHelpers
                 : 1f,
             RageCharge: player.RageCharge,
             IsRageReady: player.IsRageReady,
-            RageTicksRemaining: Math.Max(0, player.RageTicksRemaining));
+            RageTicksRemaining: Math.Max(0, player.RageTicksRemaining),
+            IsBot: isBot);
     }
 
     internal static SnapshotIntelState ToSnapshotIntelState(TeamIntelligenceState intel)
@@ -392,6 +406,11 @@ internal static partial class ServerHelpers
             sentry.IsDispenser,
             sentry.DispenserRampTicks);
     }
+
+    internal static SnapshotCivilDefenseTurretState ToSnapshotCivilDefenseTurretState(CivilDefenseTurretEntity turret)
+        => new(turret.Id, turret.OwnerPlayerId, (byte)turret.Team, turret.X, turret.Y,
+            turret.Health, turret.HasLanded, turret.IsBuilt, turret.FacingDirectionX, turret.AimDirectionDegrees,
+            turret.ReloadTicksRemaining, turret.ShotTraceTicksRemaining, turret.LastShotTargetX, turret.LastShotTargetY);
 
     internal static SnapshotJumpPadState ToSnapshotJumpPadState(JumpPadEntity pad)
     {
@@ -601,7 +620,10 @@ internal static partial class ServerHelpers
             rocket.FadeSourceTicksRemaining,
             passedFriendlyPlayerIds,
             rocket.IsCritical,
-            rocket.CriticalDamageMultiplier);
+            rocket.CriticalDamageMultiplier,
+            rocket.IsBallistic,
+            rocket.BallisticGravityPerTick,
+            rocket.SuppressSmokeTrail);
     }
 
     internal static SnapshotFlameState ToSnapshotFlameState(FlameProjectileEntity flame)
@@ -637,7 +659,8 @@ internal static partial class ServerHelpers
             flare.TicksRemaining,
             flare.IsCritical,
             DamageValue: flare.DamagePerHit,
-            CriticalDamageMultiplier: flare.CriticalDamageMultiplier);
+            CriticalDamageMultiplier: flare.CriticalDamageMultiplier,
+            FlareStyle: (byte)flare.Style);
     }
 
     internal static SnapshotMineState ToSnapshotMineState(MineProjectileEntity mine)
@@ -689,7 +712,8 @@ internal static partial class ServerHelpers
             deadBody.HorizontalSpeed,
             deadBody.VerticalSpeed,
             deadBody.FacingLeft,
-            deadBody.TicksRemaining);
+            deadBody.TicksRemaining,
+            deadBody.GameplayClassId);
     }
 
     internal static SnapshotSentryGibState ToSnapshotSentryGibState(SentryGibEntity sentryGib)
@@ -789,7 +813,14 @@ internal static partial class ServerHelpers
 
     internal static SnapshotVisualEvent ToSnapshotVisualEvent(WorldVisualEvent visualEvent, ulong fallbackEventId)
     {
-        return new SnapshotVisualEvent(visualEvent.EffectName, visualEvent.X, visualEvent.Y, visualEvent.DirectionDegrees, visualEvent.Count, visualEvent.EventId == 0 ? fallbackEventId : visualEvent.EventId);
+        return new SnapshotVisualEvent(
+            visualEvent.EffectName,
+            visualEvent.X,
+            visualEvent.Y,
+            visualEvent.DirectionDegrees,
+            visualEvent.Count,
+            visualEvent.EventId == 0 ? fallbackEventId : visualEvent.EventId,
+            visualEvent.SourceFrame);
     }
 
     internal static SnapshotDamageEvent ToSnapshotDamageEvent(WorldDamageEvent damageEvent, ulong fallbackEventId)

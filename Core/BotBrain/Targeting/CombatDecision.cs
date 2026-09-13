@@ -26,6 +26,27 @@ public sealed class CombatDecisionMemory
     public int DemomanGrenadeDecisionCooldownTicks { get; set; }
 
     public int DemomanGrenadeDecisionSerial { get; set; }
+
+    // Spy awareness is sampled once when a visible Spy is first acquired.
+    // Keeping the target and remaining ticks here prevents a periodic target
+    // refresh from rerolling or bypassing the reaction window.
+    public int? SpyAwarenessTargetId { get; set; }
+
+    public int SpyAwarenessTicksRemaining { get; set; }
+
+    public int SpyAwarenessDelayMilliseconds { get; set; }
+
+    public int SpyAwarenessAcquisitionSerial { get; set; }
+
+    // Absolute simulation deadlines keep reaction time independent of the
+    // cadence at which a bot's expensive decision pass is scheduled.
+    public long SpyAwarenessReadyFrame { get; set; }
+
+    public bool HeavyWeaponDwellInitialized { get; set; }
+
+    public int HeavyWeaponDwellTicksRemaining { get; set; }
+
+    public long HeavyWeaponDwellReadyFrame { get; set; }
 }
 
 public readonly record struct CombatFireDecision(
@@ -115,6 +136,10 @@ public static class CombatDecisionResolver
     private const float CivvieUmbrellaCombatDistance = 360f;
     private const int DemomanGrenadeLoadedPreferenceTicks = 12;
     private const int DemomanGrenadeReloadPreferenceTicks = 52;
+    private const float HeavySecondaryEnterRange = 220f;
+    private const float HeavySecondaryExitRange = 300f;
+    private const float SpyAwarenessMaxEngagementRange = 1100f;
+    private const float SpyAwarenessSniperMaxEngagementRange = 760f;
 
     public static PlayerEntity? FindBestMedicHealTarget(
         SimulationWorld world,
@@ -245,6 +270,12 @@ public static class CombatDecisionResolver
 
     public static bool IsPlayerVisibleToBot(PlayerEntity observer, PlayerEntity candidate)
     {
+        if (candidate.ClassId == PlayerClass.Sniper
+            && candidate.IsLastToDieSniperGhostCloaked)
+        {
+            return false;
+        }
+
         if (candidate.ClassId != PlayerClass.Spy || !candidate.IsSpyCloaked)
         {
             return true;
@@ -282,9 +313,127 @@ public static class CombatDecisionResolver
         var firePrimary = ResolvePrimaryFire(world, self, combatTarget, healTarget, memory, isBeingHealed);
         var fireSecondary = ResolveSecondaryFire(world, self, combatTarget, healTarget, memory, isBeingHealed);
         var useAbility = ResolveAbilityInputFromLoadout(world, self, combatTarget, healTarget, firePrimary, fireSecondary, memory);
-        var selectSecondaryWeapon = ResolveSecondaryWeaponSelection(world, self, combatTarget, firePrimary, fireSecondary, memory);
+        var selectSecondaryWeapon = !(self.ClassId == PlayerClass.Medic && healTarget is not null)
+            && ResolveSecondaryWeaponSelection(world, self, combatTarget, firePrimary, fireSecondary, memory);
         ApplyReloadDiscipline(self, memory, ref firePrimary, ref fireSecondary, ref useAbility);
         return new CombatFireDecision(firePrimary, fireSecondary, useAbility, selectSecondaryWeapon);
+    }
+
+    /// <summary>
+    /// Applies the bot's reaction time to a newly visible Spy. The delay is a
+    /// single global 150-350 ms distribution, independent of difficulty. A
+    /// simulation RNG and the memory keep one sample per fresh acquisition.
+    /// </summary>
+    public static BotBrainCombatTarget? ApplySpyAwarenessDelay(
+        SimulationWorld world,
+        PlayerEntity self,
+        BotBrainCombatTarget? selectedTarget,
+        CombatDecisionMemory memory)
+    {
+        var selectedSpyId = selectedTarget is { Kind: BotBrainCombatTargetKind.Player, Player: { ClassId: PlayerClass.Spy } spy }
+            ? spy.Id
+            : (int?)null;
+
+        // A selector can legitimately return no target for one think (LOS,
+        // priority, or a roster handoff). Keep the sampled reaction window in
+        // memory, but do not scan and revive the remembered Spy here.
+        if (selectedTarget is null && memory.SpyAwarenessTargetId.HasValue)
+        {
+            if (memory.SpyAwarenessReadyFrame > 0
+                && memory.SpyAwarenessReadyFrame <= Math.Max(0L, world.Frame))
+            {
+                // The reaction has elapsed even though this selector pass
+                // found no eligible target. Keep the remembered identity so a
+                // later valid pass does not reroll, but stop the per-tick
+                // promotion once the gate itself is complete.
+                memory.SpyAwarenessReadyFrame = 0;
+                memory.SpyAwarenessTicksRemaining = 0;
+            }
+
+            return null;
+        }
+
+        if (memory.SpyAwarenessTargetId is { } trackedId)
+        {
+            var trackedSpy = FindPlayerById(world, trackedId);
+            if (trackedSpy is null
+                || !trackedSpy.IsAlive
+                || trackedSpy.ClassId != PlayerClass.Spy
+                || DistanceBetween(self.X, self.Y, trackedSpy.X, trackedSpy.Y)
+                    >= (self.ClassId == PlayerClass.Sniper
+                        ? SpyAwarenessSniperMaxEngagementRange
+                        : SpyAwarenessMaxEngagementRange))
+            {
+                memory.SpyAwarenessTargetId = null;
+                memory.SpyAwarenessTicksRemaining = 0;
+                memory.SpyAwarenessReadyFrame = 0;
+            }
+            else if (selectedSpyId == trackedId)
+            {
+                var currentFrame = Math.Max(0L, world.Frame);
+                if (memory.SpyAwarenessReadyFrame <= 0
+                    && memory.SpyAwarenessTicksRemaining > 0)
+                {
+                    // Preserve compatibility with diagnostics/tests that seed
+                    // the legacy counter directly, while all fresh samples
+                    // below use an absolute frame deadline.
+                    memory.SpyAwarenessReadyFrame = currentFrame + memory.SpyAwarenessTicksRemaining;
+                }
+
+                if (memory.SpyAwarenessReadyFrame > currentFrame)
+                {
+                    memory.SpyAwarenessTicksRemaining = (int)Math.Min(
+                        int.MaxValue,
+                        memory.SpyAwarenessReadyFrame - currentFrame);
+                    return null;
+                }
+
+                memory.SpyAwarenessReadyFrame = 0;
+                memory.SpyAwarenessTicksRemaining = 0;
+                return new BotBrainCombatTarget(
+                    BotBrainCombatTargetKind.Player,
+                    trackedSpy.Team,
+                    trackedSpy.X,
+                    trackedSpy.Y,
+                    Player: trackedSpy);
+            }
+            else if (selectedTarget is not null)
+            {
+                // A different target is a fresh acquisition. A null selector
+                // result can be a temporary LOS/priority rejection; retain the
+                // countdown in memory but never revive the rejected Spy.
+                memory.SpyAwarenessTargetId = null;
+                memory.SpyAwarenessTicksRemaining = 0;
+                memory.SpyAwarenessReadyFrame = 0;
+            }
+        }
+
+        if (selectedTarget is { Kind: BotBrainCombatTargetKind.Player, Player: { ClassId: PlayerClass.Spy } newSpy })
+        {
+            if (memory.SpyAwarenessTargetId != newSpy.Id)
+            {
+                memory.SpyAwarenessTargetId = newSpy.Id;
+                memory.SpyAwarenessAcquisitionSerial += 1;
+                var delayTicks = world.NextBotSpyAwarenessDelayTicks(world.Config.TicksPerSecond);
+                memory.SpyAwarenessReadyFrame = Math.Max(0L, world.Frame) + delayTicks;
+                memory.SpyAwarenessTicksRemaining = delayTicks;
+                memory.SpyAwarenessDelayMilliseconds = (int)MathF.Round(
+                    memory.SpyAwarenessTicksRemaining * 1000f / Math.Max(1, world.Config.TicksPerSecond));
+            }
+
+            if (memory.SpyAwarenessReadyFrame > Math.Max(0L, world.Frame))
+            {
+                memory.SpyAwarenessTicksRemaining = (int)Math.Min(
+                    int.MaxValue,
+                    memory.SpyAwarenessReadyFrame - Math.Max(0L, world.Frame));
+                return null;
+            }
+
+            memory.SpyAwarenessReadyFrame = 0;
+            memory.SpyAwarenessTicksRemaining = 0;
+        }
+
+        return selectedTarget;
     }
 
     private static bool ResolvePrimaryFire(
@@ -303,6 +452,20 @@ public static class CombatDecisionResolver
             if (healTarget is null)
             {
                 memory.BeenHealingTicks = 0;
+
+                // A Medic's standalone needlegun is a secondary weapon that
+                // fires through the normal M1 path once selected. The old
+                // Medic early return treated every enemy target as unable to
+                // fire, leaving a selected needlegun held forever.
+                if (self.IsExperimentalOffhandSelected
+                    && combatTarget is { } medicCombatTarget
+                    && HasPracticalCombatFiringSolution(world, self, medicCombatTarget))
+                {
+                    return ShouldSelectedOffhandWeaponFire(
+                        self,
+                        DistanceBetween(self.X, self.Y, medicCombatTarget.X, medicCombatTarget.Y));
+                }
+
                 return combatTarget is null
                     && existingHealTarget is not null
                     && existingHealTarget.IsAlive
@@ -369,6 +532,18 @@ public static class CombatDecisionResolver
         if (self.ClassId == PlayerClass.Heavy && ShouldHeavyEat(self, isBeingHealed, HeavyCombatEatHealth))
         {
             return false;
+        }
+
+        // Experimental secondary weapons are fired through the same M1
+        // action as the selected primary weapon. Once the bot has completed
+        // the slot transition, do not consult the stowed primary's cooldown
+        // or ammo pool: doing so leaves Soldier/alternate-weapon bots holding
+        // a selected weapon while emitting no usable fire edge.
+        if (self.IsExperimentalOffhandSelected)
+        {
+            return ShouldSelectedOffhandWeaponFire(
+                self,
+                DistanceBetween(self.X, self.Y, combatTarget.Value.X, combatTarget.Value.Y));
         }
 
         if (self.ClassId == PlayerClass.Sniper && self.IsSniperScoped)
@@ -453,6 +628,22 @@ public static class CombatDecisionResolver
         }
 
         return self.ClassId == PlayerClass.Demoman && ShouldDetonateMines(world, self);
+    }
+
+    private static bool ShouldSelectedOffhandWeaponFire(PlayerEntity self, float distanceToTarget)
+    {
+        var weapon = self.ExperimentalOffhandWeapon;
+        if (weapon is null
+            || self.ExperimentalOffhandCooldownTicks > 0
+            || self.ExperimentalOffhandCurrentShells < weapon.AmmoPerShot)
+        {
+            return false;
+        }
+
+        // Keep the existing point blank guard for explosive grenade launchers
+        // while allowing hitscan/pellet secondaries to fire at close range.
+        return weapon.Kind != PrimaryWeaponKind.GrenadeLauncher
+            || distanceToTarget >= 60f;
     }
 
     private static bool ResolveSpyPrimaryFire(
@@ -703,6 +894,13 @@ public static class CombatDecisionResolver
         bool fireSecondary,
         CombatDecisionMemory memory)
     {
+        if (self.ClassId != PlayerClass.Heavy)
+        {
+            memory.HeavyWeaponDwellInitialized = false;
+            memory.HeavyWeaponDwellTicksRemaining = 0;
+            memory.HeavyWeaponDwellReadyFrame = 0;
+        }
+
         if (!self.HasExperimentalOffhandWeapon
             || combatTarget is not { } target
             || !HasPracticalCombatFiringSolution(world, self, target))
@@ -710,12 +908,100 @@ public static class CombatDecisionResolver
             return false;
         }
 
+        if (self.ClassId == PlayerClass.Heavy
+            && self.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.PelletGun))
+        {
+            var distance = DistanceBetween(self.X, self.Y, target.X, target.Y);
+            var isOffhandSelected = self.IsExperimentalOffhandSelected;
+            var primaryUsable = self.CurrentShells > 0;
+            var secondaryUsable = self.ExperimentalOffhandCurrentShells > 0;
+            var desiredOffhand = false;
+            if (secondaryUsable)
+            {
+                desiredOffhand = !primaryUsable
+                    || (isOffhandSelected
+                        ? distance <= HeavySecondaryExitRange
+                        : distance <= HeavySecondaryEnterRange);
+            }
+
+            // Keep either weapon stable for the dwell window after a real
+            // transition. The input synthesizer may need more than one think
+            // pass to deliver the swap, so return the currently equipped slot
+            // while its usable weapon can still carry the fight.
+            var currentWeaponUsable = isOffhandSelected ? secondaryUsable : primaryUsable;
+            var currentFrame = Math.Max(0L, world.Frame);
+            if (currentWeaponUsable
+                && (memory.HeavyWeaponDwellReadyFrame > currentFrame
+                    || (memory.HeavyWeaponDwellReadyFrame <= 0
+                        && memory.HeavyWeaponDwellTicksRemaining > 0)))
+            {
+                if (memory.HeavyWeaponDwellReadyFrame <= 0)
+                {
+                    memory.HeavyWeaponDwellReadyFrame = currentFrame + memory.HeavyWeaponDwellTicksRemaining;
+                }
+
+                memory.HeavyWeaponDwellTicksRemaining = (int)Math.Min(
+                    int.MaxValue,
+                    Math.Max(0L, memory.HeavyWeaponDwellReadyFrame - currentFrame));
+                return isOffhandSelected;
+            }
+
+            memory.HeavyWeaponDwellReadyFrame = 0;
+            memory.HeavyWeaponDwellTicksRemaining = 0;
+
+            if (!memory.HeavyWeaponDwellInitialized || desiredOffhand != isOffhandSelected)
+            {
+                memory.HeavyWeaponDwellInitialized = true;
+                if (desiredOffhand != isOffhandSelected)
+                {
+                    memory.HeavyWeaponDwellReadyFrame = currentFrame + Math.Max(
+                        1,
+                        (int)MathF.Ceiling(world.Config.TicksPerSecond * 0.5f));
+                    memory.HeavyWeaponDwellTicksRemaining = (int)Math.Min(
+                        int.MaxValue,
+                        memory.HeavyWeaponDwellReadyFrame - currentFrame);
+                }
+            }
+
+            return desiredOffhand;
+        }
+
         if (self.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.PelletGun))
         {
+            if (self.IsExperimentalOffhandSelected)
+            {
+                // Keep a selected pellet secondary active until its own ammo
+                // is spent. Without this persistence the next think compares
+                // against the stowed primary and immediately toggles back
+                // before M1 can fire (Scout pistol, Sniper SMG, and Soldier
+                // shotgun all use this runtime binding).
+                return self.ExperimentalOffhandCurrentShells >= Math.Max(
+                        1,
+                        self.ExperimentalOffhandWeapon?.AmmoPerShot ?? 1)
+                    && (self.ClassId != PlayerClass.Soldier
+                        || DistanceBetween(self.X, self.Y, target.X, target.Y) <= SoldierShotgunDistance);
+            }
+
             return !fireSecondary
                 && (!firePrimary || self.CurrentShells <= 0)
                 && self.ExperimentalOffhandCurrentShells > 0
                 && DistanceBetween(self.X, self.Y, target.X, target.Y) <= SoldierShotgunDistance;
+        }
+
+        if (self.ClassId == PlayerClass.Medic
+            && self.ExperimentalOffhandWeapon is { } medicNeedlegun
+            && self.ExperimentalOffhandCurrentShells >= medicNeedlegun.AmmoPerShot)
+        {
+            if (self.IsExperimentalOffhandSelected)
+            {
+                return true;
+            }
+
+            // The medigun remains the primary healing tool. When no heal beam
+            // or Uber action is requested, let a Medic with an enemy target
+            // enter the standalone needlegun secondary and emit M1 on the
+            // following decision pass.
+            return !firePrimary && !fireSecondary;
         }
 
         return self.ClassId == PlayerClass.Demoman
@@ -873,6 +1159,17 @@ public static class CombatDecisionResolver
         ref bool useAbility)
     {
         if (memory.ReloadCounterTicks <= 0)
+        {
+            return;
+        }
+
+        // The reload counter belongs to the stowed primary pool. An equipped
+        // experimental secondary has an independent cooldown/ammo state and
+        // must remain fireable while that primary reloads.
+        if (self.IsExperimentalOffhandSelected
+            && self.ExperimentalOffhandWeapon is { } offhand
+            && self.ExperimentalOffhandCooldownTicks <= 0
+            && self.ExperimentalOffhandCurrentShells >= offhand.AmmoPerShot)
         {
             return;
         }
@@ -1847,19 +2144,7 @@ public static class CombatDecisionResolver
         }
 
         private static bool IsIntelGateBlocking(RoomObjectMarker roomObject, PlayerTeam team, bool carryingIntel)
-        {
-            if (carryingIntel)
-            {
-                return false;
-            }
-
-            if (roomObject.Team.HasValue)
-            {
-                return roomObject.Team.Value != team;
-            }
-
-            return true;
-        }
+            => IntelGateCollision.BlocksPlayer(roomObject.Team, team, carryingIntel);
     }
 
     private readonly record struct LineOfSightGateCacheKey(

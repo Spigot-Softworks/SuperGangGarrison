@@ -19,7 +19,7 @@ public partial class Game1
 
         public void DrawPlayer(PlayerEntity player, Vector2 cameraPosition, Color aliveColor, Color deadColor)
         {
-            if (!player.IsAlive)
+            if (!player.IsAlive || !_game.HasFreshPlayerRenderHistory(player))
             {
                 return;
             }

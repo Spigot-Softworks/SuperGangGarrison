@@ -16,6 +16,13 @@ internal static class HudLayoutStore
     {
         if (OperatingSystem.IsBrowser())
         {
+            try
+            {
+                if (OpenGarrison.ClientShared.BrowserPreferenceStore.Read("hud-v1") is { } json
+                    && System.Text.Json.JsonSerializer.Deserialize(json, BrowserPreferencesJsonContext.Default.HudLayoutDocument) is { Editor: not null, Elements: not null } browserDocument)
+                    return browserDocument.ToProfile();
+            }
+            catch (System.Text.Json.JsonException) { }
             return new HudLayoutProfile();
         }
 
@@ -33,6 +40,8 @@ internal static class HudLayoutStore
     {
         if (OperatingSystem.IsBrowser())
         {
+            OpenGarrison.ClientShared.BrowserPreferenceStore.Write("hud-v1",
+                System.Text.Json.JsonSerializer.Serialize(HudLayoutDocument.FromProfile(profile), BrowserPreferencesJsonContext.Default.HudLayoutDocument));
             return;
         }
 
@@ -104,6 +113,10 @@ internal sealed class HudLayoutDocument
 
         foreach (var (id, entry) in Elements)
         {
+            if (entry is null) continue;
+            // The former sliding menu's left-edge anchor is not a wheel center.
+            // Discard only that obsolete widget; keep the rest of the saved HUD.
+            if (id == HudElementId.LegacyClassEngineerBuildMenu) continue;
             if (!profile.Defaults.ContainsKey(id))
             {
                 profile.UnknownOverrides[id] = entry;

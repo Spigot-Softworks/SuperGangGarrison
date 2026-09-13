@@ -4,7 +4,6 @@ using Microsoft.Xna.Framework.Audio;
 using System;
 using System.Buffers.Binary;
 using System.IO;
-using System.Linq;
 using OpenGarrison.Core;
 using NVorbis;
 
@@ -42,18 +41,11 @@ public partial class Game1
                 return;
             }
 
-            var candidates = Enumerable.Range(1, 6)
-                .SelectMany(static index => EnumeratePreferredMusicRelativePaths(Path.Combine("Music", $"menumusic{index}.wav")))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .Where(fileName => FindLoopedMusicPath(fileName) is not null)
-                .ToArray();
-            if (candidates.Length == 0)
-            {
-                return;
-            }
-
-            var chosen = candidates[Random.Shared.Next(candidates.Length)];
-            TryLoadLoopedMusic(chosen, out _game._menuMusic, out _game._menuMusicInstance, 0.8f);
+            TryLoadLoopedMusic(
+                Path.Combine("Music", "GG2_theme.ogg"),
+                out _game._menuMusic,
+                out _game._menuMusicInstance,
+                0.8f);
             _game.ApplyAudioVolumeState();
         }
 
@@ -70,7 +62,17 @@ public partial class Game1
         {
             if (_game._audioAvailable)
             {
-                TryLoadLoopedMusic(Path.Combine("Music", "ingamemusic.wav"), out _game._ingameMusic, out _game._ingameMusicInstance, 0.8f);
+                TryLoadLoopedMusic(
+                    Path.Combine("Music", "GG2_ingame.ogg"),
+                    out _game._ingameMusic,
+                    out _game._ingameMusicInstance,
+                    0.8f);
+                TryLoadLoopedMusic(
+                    Path.Combine("Music", "GG2_combat.ogg"),
+                    out _game._ingameCombatMusic,
+                    out _game._ingameCombatMusicInstance,
+                    0f,
+                    disableAudioOnFailure: false);
                 _game.ApplyAudioVolumeState();
             }
         }
@@ -248,22 +250,7 @@ public partial class Game1
 
             StopLastToDieMenuMusic();
             StopLastToDieIngameMusic();
-            if (_game._ingameMusicInstance is null)
-            {
-                return;
-            }
-
-            try
-            {
-                if (_game._ingameMusicInstance.State != SoundState.Playing)
-                {
-                    _game._ingameMusicInstance.Play();
-                }
-            }
-            catch (Exception ex)
-            {
-                HandleMusicPlaybackFailure("starting in-game music", ex, ref _game._ingameMusic, ref _game._ingameMusicInstance);
-            }
+            EnsureIngameMusicPairPlaybackStarted();
         }
 
         private void EnsureHostedLastToDieMenuMusicPlaying()
@@ -311,7 +298,11 @@ public partial class Game1
         public void StopMenuMusic() => StopSoundInstance(_game._menuMusicInstance);
         public void StopLastToDieMenuMusic() => StopSoundInstance(_game._lastToDieMenuMusicInstance);
         public void StopFaucetMusic() => StopSoundInstance(_game._faucetMusicInstance);
-        public void StopIngameMusic() => StopSoundInstance(_game._ingameMusicInstance);
+        public void StopIngameMusic()
+        {
+            StopSoundInstance(_game._ingameMusicInstance);
+            StopSoundInstance(_game._ingameCombatMusicInstance);
+        }
         public void StopLastToDieIngameMusic() => StopSoundInstance(_game._lastToDieIngameMusicInstance);
 
         public void TryLoadOptionalLoopedMusic(string relativePath, out SoundEffect? music, out SoundEffectInstance? musicInstance, float volume = 0f)
@@ -341,6 +332,55 @@ public partial class Game1
         public bool CanStartMusicPlayback()
         {
             return CanStartAudioPlayback();
+        }
+
+        public void EnsureIngameMusicPairPlaybackStarted()
+        {
+            var backing = _game._ingameMusicInstance;
+            if (backing is null)
+            {
+                return;
+            }
+
+            var combat = _game._ingameCombatMusicInstance;
+            try
+            {
+                if (combat is null)
+                {
+                    if (backing.State != SoundState.Playing)
+                    {
+                        backing.Play();
+                    }
+
+                    return;
+                }
+
+                // The files are authored as a phase-locked pair. If either
+                // instance is interrupted, restart both from sample zero so
+                // the combat layer can never drift relative to the backing.
+                if (backing.State == SoundState.Playing && combat.State == SoundState.Playing)
+                {
+                    return;
+                }
+
+                StopSoundInstance(backing);
+                StopSoundInstance(combat);
+                _game.ApplyAudioVolumeState();
+                backing.Play();
+                combat.Play();
+            }
+            catch (Exception ex)
+            {
+                HandleMusicPlaybackFailure(
+                    "starting synchronized in-game music",
+                    ex,
+                    ref _game._ingameMusic,
+                    ref _game._ingameMusicInstance);
+                try { _game._ingameCombatMusicInstance?.Dispose(); } catch { }
+                _game._ingameCombatMusicInstance = null;
+                try { _game._ingameCombatMusic?.Dispose(); } catch { }
+                _game._ingameCombatMusic = null;
+            }
         }
 
         public void PlayLastToDieGameOverSound()

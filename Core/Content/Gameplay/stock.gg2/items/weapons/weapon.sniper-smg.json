@@ -30,6 +30,7 @@
   "presentation": {
     "worldSpriteName": "SmgS",
     "recoilSpriteName": "SmgFS",
+    "reloadSpriteName": "SmgFRS",
     "hudSpriteName": "SmgS",
     "weaponOffsetX": -3,
     "weaponOffsetY": -6,
@@ -41,6 +42,7 @@
       "stackGroup": "weapon",
       "order": 60,
       "stateProvider": "secondaryAmmo",
+      "useBackgroundPlaque": true,
       "hideWhenUnavailable": true
     }
   },

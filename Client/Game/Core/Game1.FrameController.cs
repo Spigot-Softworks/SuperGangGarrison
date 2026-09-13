@@ -21,6 +21,10 @@ public partial class Game1
         public int Update(GameTime gameTime)
         {
             var clientTicks = _game.ConsumeClientTickCount(gameTime);
+            _game.PumpPeerRoom(gameTime.ElapsedGameTime.TotalSeconds);
+            _game.UpdateOfflinePracticeMapVote();
+            _game.PumpEmbeddedSession(gameTime.ElapsedGameTime.TotalSeconds);
+            _game.UpdateEmbeddedConsoleCommand();
             if (OperatingSystem.IsBrowser())
             {
                 BrowserInputBridge.BeginFrame();
@@ -127,6 +131,7 @@ public partial class Game1
 
             _game.HandleActiveTextFieldKeyboardShortcuts(keyboard, gameTime.ElapsedGameTime.TotalSeconds);
             _game.UpdateMenuStatusMessageExpiry();
+            _game.UpdateAccountOperation();
 
             if (TryUpdateNonGameplayFrame(gameTime, keyboard, mouse, clientTicks))
             {
@@ -269,10 +274,13 @@ public partial class Game1
         ScrollbarDrag.Clear();
         ResetTextFieldClickTarget();
         ResetBubbleMenuInteractionState();
+        BeginClosingBuildMenu();
+        ResetBuildMenuInputSelection();
         ResetClientPluginBubbleMenuInputState();
         _hostMapPreviewPanActive = false;
         _playerCardDraggingPortrait = false;
         _playerCardDraggingColorWheel = false;
+        if (_builderEditorEnabled) FinishGarrisonBuilderGestures();
         _builderPlacementDragging = false;
         _builderEraseDragging = false;
         _builderLayerOffsetDragging = false;

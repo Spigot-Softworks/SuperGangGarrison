@@ -34,6 +34,7 @@ public sealed record GameplayItemHudPresentationDefinition(
     string StateProvider = "",
     bool HideWhenUnavailable = false,
     bool ShowWhenEquippedOnly = false,
+    bool UseBackgroundPlaque = false,
     string StateOwner = "",
     string CooldownKey = "",
     int MaxCooldown = 0,

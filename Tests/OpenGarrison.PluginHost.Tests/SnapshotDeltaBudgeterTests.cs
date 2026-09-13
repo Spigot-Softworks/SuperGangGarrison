@@ -2057,10 +2057,10 @@ public sealed class SnapshotDeltaBudgeterTests
         var world = new SimulationWorld();
         var contributions = SnapshotContributionPlanner.BuildContributions(client, current, baseline, world);
 
-        var result = SnapshotDeltaBudgeter.BuildBudgetedSnapshot(current, baseline, contributions, targetPayloadBytes: 320);
+        var result = SnapshotDeltaBudgeter.BuildBudgetedSnapshot(current, baseline, contributions, targetPayloadBytes: 324);
         var merged = SnapshotDelta.ToFullSnapshot(result.Message, baseline);
 
-        Assert.True(result.Payload.Length <= 320);
+        Assert.True(result.Payload.Length <= 324);
         Assert.Empty(result.Message.Players);
         var statusState = Assert.Single(result.Message.PlayerStatusStates, status => status.Slot == 2);
         Assert.Equal(58, statusState.Health);
@@ -2700,6 +2700,34 @@ public sealed class SnapshotDeltaBudgeterTests
     }
 
     [Fact]
+    public void LockerEquipmentChangeIsRequiredBeforeLowFrequencyRefresh()
+    {
+        var before = CreatePlayerState(2, 902, "Locker Scout") with
+        {
+            GameplayModPackId = "stock.gg2",
+            GameplayLoadoutId = "scout.stock",
+            GameplayPrimaryItemId = "weapon.scattergun",
+            GameplayEquippedItemId = "weapon.scattergun",
+        };
+        var after = before with
+        {
+            GameplayPrimaryItemId = "weapon.scout-nailgun",
+            GameplayEquippedItemId = "weapon.scout-nailgun",
+            Ammo = 17,
+        };
+        var baseline = CreateSnapshot(900) with { Players = [before] };
+        var current = CreateSnapshot(901) with { Players = [after] };
+        var contributions = SnapshotContributionPlanner.BuildContributions(
+            new SnapshotContributionPlanningContext(2, 0f, 0f, 901, 902), current, baseline);
+        Assert.Contains(contributions,
+            contribution => contribution.Kind == SnapshotDeltaBudgeter.ContributionKind.PlayerRosterUpdate);
+        var result = SnapshotDeltaBudgeter.BuildUntrimmedSnapshot(current, baseline, contributions);
+        var update = Assert.Single(result.Message.Players);
+        Assert.Equal("weapon.scout-nailgun", update.GameplayEquippedItemId);
+        Assert.Equal(17, update.Ammo);
+    }
+
+    [Fact]
     public void BuildBudgetedSnapshotReductionPreservesGameplayEquipmentForRemoteWeaponPresentation()
     {
         var baselineSoldier = CreatePlayerState(2, 902, "Remote Soldier") with
@@ -3177,6 +3205,47 @@ public sealed class SnapshotDeltaBudgeterTests
         Assert.Equal(movedPlayer.X, moved.X);
         Assert.Equal(movedPlayer.HorizontalSpeed, moved.HorizontalSpeed);
         Assert.Equal(movedPlayer.AimDirectionDegrees, moved.AimDirectionDegrees);
+    }
+
+    [Fact]
+    public void CivilDefenseTurretSurvivesCodecDeltaLossRecoveryAndClientHydration()
+    {
+        var world = CivilDefenseTurretRegressionTests.CreateWorld();
+        var turret = CivilDefenseTurretRegressionTests.DeployBuilt(world);
+        turret.FireAt(510f, 450f);
+        var state = ServerHelpers.ToSnapshotCivilDefenseTurretState(turret);
+        var empty = CreateSnapshot(500);
+        var full = CreateSnapshot(501) with { CivilDefenseTurrets = [state] };
+        var context = new OpenGarrison.Server.SnapshotContributionPlanningContext(1, 400f, 500f, 501, null);
+        var contributions = OpenGarrison.Server.SnapshotContributionPlanner.BuildContributions(context, full, empty);
+        var delta = SnapshotDeltaBudgeter.BuildBudgetedSnapshot(full, empty, contributions);
+        Assert.Single(delta.Message.CivilDefenseTurrets);
+        Assert.True(ProtocolCodec.TryDeserialize(delta.Payload, out var decoded));
+        var merged = SnapshotDelta.ToFullSnapshot(Assert.IsType<SnapshotMessage>(decoded), empty);
+        Assert.Equal(state, Assert.Single(merged.CivilDefenseTurrets));
+
+        var clientWorld = CivilDefenseTurretRegressionTests.CreateWorld();
+        clientWorld.ClientPredictionMode = true;
+        var apply = typeof(SimulationWorld).GetMethod("ApplySnapshotCivilDefenseTurrets", BindingFlags.NonPublic | BindingFlags.Instance)!;
+        apply.Invoke(clientWorld, [merged.CivilDefenseTurrets]);
+        Assert.Equal(state, ServerHelpers.ToSnapshotCivilDefenseTurretState(Assert.Single(clientWorld.CivilDefenseTurrets)));
+
+        var baseline = SnapshotBaselineState.FromSnapshot(merged);
+        var removed = CreateSnapshot(502);
+        contributions = OpenGarrison.Server.SnapshotContributionPlanner.BuildContributions(context, removed, baseline);
+        var removal = SnapshotDeltaBudgeter.BuildBudgetedSnapshot(removed, baseline, contributions);
+        Assert.Contains(state.Id, removal.Message.RemovedCivilDefenseTurretIds);
+        // No ACK for a lost removal: the next snapshot must send it again.
+        var retry = SnapshotDeltaBudgeter.BuildBudgetedSnapshot(removed with { Frame = 503 }, baseline, contributions);
+        Assert.Contains(state.Id, retry.Message.RemovedCivilDefenseTurretIds);
+        var recovered = SnapshotDelta.ToFullSnapshot(retry.Message, baseline);
+        apply.Invoke(clientWorld, [recovered.CivilDefenseTurrets]);
+        Assert.Empty(clientWorld.CivilDefenseTurrets);
+
+        // A late join / full resync replaces the entire collection without a delta baseline.
+        apply.Invoke(clientWorld, [full.CivilDefenseTurrets]);
+        apply.Invoke(clientWorld, [SnapshotDelta.ToFullSnapshot(removed, null).CivilDefenseTurrets]);
+        Assert.Empty(clientWorld.CivilDefenseTurrets);
     }
 
     private static SnapshotMessage CreateSnapshot(ulong frame)

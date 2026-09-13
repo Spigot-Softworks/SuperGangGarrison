@@ -57,6 +57,25 @@ sealed class MapRotationManager
     public bool TryApplyPendingMapChange(out MapChangeTransition transition)
     {
         transition = default;
+        if (!_world.IsMapChangeReady) return false;
+        var started = System.Diagnostics.Stopwatch.StartNew();
+        _log($"[server] map-transition phase=begin map={_world.Level.Name} area={_world.Level.MapAreaIndex} rotationIndex={_mapRotationIndex} rotationCount={_mapRotation.Count} frame={_world.Frame}");
+        try
+        {
+            var applied = TryApplyPendingMapChangeCore(out transition);
+            _log($"[server] map-transition phase=world-loaded applied={applied} map={_world.Level.Name} area={_world.Level.MapAreaIndex} rotationIndex={_mapRotationIndex} elapsedMs={started.ElapsedMilliseconds}");
+            return applied;
+        }
+        catch (Exception exception)
+        {
+            _log($"[server] map-transition phase=failed map={_world.Level.Name} rotationIndex={_mapRotationIndex} elapsedMs={started.ElapsedMilliseconds} error={exception}");
+            throw;
+        }
+    }
+
+    private bool TryApplyPendingMapChangeCore(out MapChangeTransition transition)
+    {
+        transition = default;
         if (!_world.IsMapChangeReady)
         {
             return false;

@@ -26,6 +26,8 @@ public partial class Game1
         _customMapLayerCacheLevel = null;
         _customMapSpriteLayerCache.Clear();
         _spritesheetLayerCache.Clear();
+        _foregroundSpriteLayerCacheLevel = null;
+        _foregroundSpriteLayerCache.Clear();
     }
 
     private (int Index, RoomObjectMarker Marker)[] GetCachedCustomMapSprites(CustomMapSpriteLayerKind layer)
@@ -87,6 +89,8 @@ public partial class Game1
         _customMapLayerCacheLevel = _world.Level;
         _customMapSpriteLayerCache.Clear();
         _spritesheetLayerCache.Clear();
+        _foregroundSpriteLayerCacheLevel = null;
+        _foregroundSpriteLayerCache.Clear();
     }
 
     private void DrawCustomMapGameplaySprites(Vector2 cameraPosition, CustomMapSpriteLayerKind layer)

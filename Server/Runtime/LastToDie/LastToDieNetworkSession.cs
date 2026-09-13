@@ -23,7 +23,10 @@ internal sealed class LastToDieNetworkSession(
     Action<ServerTransportPeer, IProtocolMessage> sendMessage,
     int ticksPerSecond = SimulationConfig.DefaultTicksPerSecond,
     Func<byte, bool>? consumeAfterlifeDisconnectFailure = null,
-    Action<ClientSession, string>? disconnectClient = null)
+    Action<ClientSession, string>? disconnectClient = null,
+    Func<Guid>? attemptId = null,
+    Func<int>? completedRounds = null,
+    Func<byte, int>? scoreUnits = null)
 {
     private const int MaximumCommandsPerWindow = 32;
     private const int ReconnectGraceSeconds = 30;
@@ -42,6 +45,9 @@ internal sealed class LastToDieNetworkSession(
     private readonly int _reconnectGraceTicks = Math.Max(1, ticksPerSecond * ReconnectGraceSeconds);
     private readonly int _loadingTimeoutTicks = Math.Max(1, ticksPerSecond * LoadingTimeoutSeconds);
     private readonly Action<ClientSession, string>? _disconnectClient = disconnectClient;
+    private readonly Func<Guid> _attemptId = attemptId ?? (() => Guid.Empty);
+    private readonly Func<int> _completedRounds = completedRounds ?? (() => 0);
+    private readonly Func<byte, int> _scoreUnits = scoreUnits ?? (_ => 0);
     private long _lastSnapshotHeartbeatTick = -1;
     private ulong _loadingStageInstanceId;
     private long _loadingDeadlineTick;
@@ -245,9 +251,14 @@ internal sealed class LastToDieNetworkSession(
         ArgumentNullException.ThrowIfNull(command);
         if (Controller.TryGetCachedCommandResult(client.Slot, command, out var cached))
         {
-            // Application retries are idempotent and do not consume command
-            // rate budget or amplify into redundant snapshot sends.
+            // An accepted result is not enough for the client to mutate semantic
+            // state. Replaying the recipient snapshot lets the retry repair a
+            // result that arrived just before its authoritative snapshot was lost.
             sendMessage(client.Peer, cached.Result);
+            if (_clientsBySlot.ContainsKey(client.Slot))
+            {
+                SendSnapshot(client);
+            }
             return;
         }
 
@@ -366,6 +377,16 @@ internal sealed class LastToDieNetworkSession(
     {
         var tick = serverTick();
         var stateChanged = ExpireReconnectReservations(tick);
+        if (Controller.Director.Phase == LastToDiePhase.Playing)
+        {
+            var revisionBeforeDeadlineAdvance = Controller.Director.StructuralRevision;
+            if (Controller.Director.TryAdvancePlayingDeadline(tick, out _))
+            {
+                stateChanged |= revisionBeforeDeadlineAdvance
+                    != Controller.Director.StructuralRevision;
+            }
+        }
+
         if (Controller.Director.Phase == LastToDiePhase.LoadingStage)
         {
             var loadingSnapshot = Controller.Director.CreateSnapshot();
@@ -584,9 +605,15 @@ internal sealed class LastToDieNetworkSession(
             {
                 ReconnectGraceEndServerTick = _reconnectGraceEndTicksBySlot
                     .GetValueOrDefault(player.Slot),
+                ScoreUnits = Math.Max(0, _scoreUnits(player.Slot)),
             })
             .ToArray();
-        return snapshot with { Players = players };
+        return snapshot with
+        {
+            Players = players,
+            AttemptId = _attemptId(),
+            CompletedRounds = Math.Max(0, _completedRounds()),
+        };
     }
 
     private void SendSnapshot(ClientSession client)

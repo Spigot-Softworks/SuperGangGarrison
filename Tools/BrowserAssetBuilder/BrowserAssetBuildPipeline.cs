@@ -21,6 +21,7 @@ internal static class BrowserAssetBuildPipeline
 
         ContentRoot.Initialize(context.ContentRoot);
         EnsureDirectories(context);
+        StagePracticeBotNames(context);
         StageBundledMapPackages(context);
 
         var generatedFiles = new List<string>();
@@ -74,6 +75,33 @@ internal static class BrowserAssetBuildPipeline
         var document = BrowserGameMakerAssetManifestDocument.FromManifest(manifest);
         var outputPath = Path.Combine(context.OutputContentRoot, GameMakerRuntimeAssetManifestLoader.ManifestRelativePath);
         WriteText(outputPath, JsonSerializer.Serialize(document, JsonOptions), []);
+        return outputPath;
+    }
+
+    public static string WriteRuntimeBundleOnly(BrowserAssetBuildContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ContentRoot.Initialize(context.ContentRoot);
+        var manifest = GameMakerAssetManifestImporter.ImportProjectAssets();
+        var outputPath = Path.Combine(context.OutputContentRoot, "_browser-runtime-assets.zip");
+        var temporaryPath = outputPath + ".tmp";
+        BuildBundle(temporaryPath, EnumerateRuntimeBundleEntries(context, manifest), []);
+        // A published site prunes loose collision masks after bundling. Retain
+        // existing entries that cannot be regenerated from that staged tree.
+        if (File.Exists(outputPath))
+        {
+            using var previous = ZipFile.OpenRead(outputPath);
+            using var updated = ZipFile.Open(temporaryPath, ZipArchiveMode.Update);
+            var names = updated.Entries.Select(static entry => entry.FullName)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            foreach (var entry in previous.Entries.Where(entry => !names.Contains(entry.FullName)))
+            {
+                using var source = entry.Open();
+                using var destination = updated.CreateEntry(entry.FullName, CompressionLevel.SmallestSize).Open();
+                source.CopyTo(destination);
+            }
+        }
+        File.Move(temporaryPath, outputPath, overwrite: true);
         return outputPath;
     }
 
@@ -131,6 +159,22 @@ internal static class BrowserAssetBuildPipeline
                 File.Copy(sourcePath, destinationPath, overwrite: true);
             }
         }
+    }
+
+    private static void StagePracticeBotNames(BrowserAssetBuildContext context)
+    {
+        var sourcePath = Path.Combine(context.RepoRoot.FullName, "Client", "practice-bot-names.txt");
+        if (!File.Exists(sourcePath))
+        {
+            return;
+        }
+
+        var destinationPath = Path.Combine(
+            context.OutputContentRoot,
+            PracticeBotDisplayNamePool.BrowserDefaultNamesRelativePath["Content/".Length..]
+                .Replace('/', Path.DirectorySeparatorChar));
+        Directory.CreateDirectory(Path.GetDirectoryName(destinationPath)!);
+        File.Copy(sourcePath, destinationPath, overwrite: true);
     }
 
     private static GameMakerAssetManifest BuildLegacyGameMakerManifest(BrowserAssetBuildContext context, List<string> generatedFiles)
@@ -655,6 +699,7 @@ internal static class BrowserAssetBuildPipeline
                      .Concat(manifest.Sounds.Values.Select(static sound => sound.AudioPath))
                      .Concat(EnumerateDirectoryFiles(context, "StockMaps", "*.png", SearchOption.AllDirectories))
                      .Concat(EnumerateDirectoryFiles(context, "StockMaps", "*.json", SearchOption.AllDirectories))
+                     .Concat(EnumerateDirectoryFiles(context, "StockMaps", "*.ogg", SearchOption.AllDirectories))
                      .Concat(EnumerateRuntimeContentPaths(context))
                      .Where(static path => !string.IsNullOrWhiteSpace(path)))
         {
@@ -668,6 +713,22 @@ internal static class BrowserAssetBuildPipeline
 
     private static IEnumerable<string> EnumerateRuntimeContentPaths(BrowserAssetBuildContext context)
     {
+        // Runtime navigation lives in the browser's in-memory content catalog.
+        // Include the current binary graphs and compressed authored assets;
+        // rebuilding a missing graph would block the WebAssembly game thread.
+        foreach (var path in EnumerateDirectoryFiles(context, "BotBrainOg2Nav", "*.og2nav.bin", SearchOption.TopDirectoryOnly))
+        {
+            yield return path;
+        }
+
+        foreach (var directory in new[] { "BotBrainNav", "BotBrainTapes", "BotBrainProofGraphs", "BotBrainCorridors" })
+        {
+            foreach (var path in EnumerateDirectoryFiles(context, directory, "*.json.gz", SearchOption.TopDirectoryOnly))
+            {
+                yield return path;
+            }
+        }
+
         foreach (var definition in OpenGarrisonStockMapCatalog.Definitions)
         {
             yield return NormalizeContentRelativePath(Path.Combine(context.ContentRoot, "Rooms", "Maps", $"{definition.LevelName}.xml"));
@@ -717,7 +778,9 @@ internal static class BrowserAssetBuildPipeline
         string pattern,
         SearchOption searchOption)
     {
-        var directory = Path.Combine(context.ContentRoot, directoryName);
+        // Maps/ and Docking/ packages are staged into the output before bundling.
+        // Enumerating Core/Content here silently omits those packages at runtime.
+        var directory = Path.Combine(context.OutputContentRoot, directoryName);
         if (!Directory.Exists(directory))
         {
             yield break;
@@ -726,7 +789,7 @@ internal static class BrowserAssetBuildPipeline
         foreach (var path in Directory.EnumerateFiles(directory, pattern, searchOption)
                      .OrderBy(static path => path, StringComparer.OrdinalIgnoreCase))
         {
-            yield return NormalizeContentRelativePath(path);
+            yield return "Content/" + Path.GetRelativePath(context.OutputContentRoot, path).Replace('\\', '/');
         }
     }
 
@@ -830,7 +893,17 @@ internal static class BrowserAssetBuildPipeline
             }
 
             var entry = archive.CreateEntry(entryPath, CompressionLevel.SmallestSize);
+            // Unchanged bundles must remain byte-identical when another asset
+            // invalidates the build cache, so downstream compression is reusable.
+            entry.LastWriteTime = new DateTimeOffset(1980, 1, 1, 0, 0, 0, TimeSpan.Zero);
             using var entryStream = entry.Open();
+            if (entryPath.EndsWith(".og2nav.bin", StringComparison.OrdinalIgnoreCase))
+            {
+                // Keep graphs compressed in the catalog without requiring the
+                // Brotli decoder that .NET does not provide in the browser.
+                entryStream.Write(OpenGarrison.Core.BotBrain.Og2NavigationGraphPackaging.EncodeForBrowser(File.ReadAllBytes(sourcePath)));
+                continue;
+            }
             using var sourceStream = File.OpenRead(sourcePath);
             sourceStream.CopyTo(entryStream);
         }

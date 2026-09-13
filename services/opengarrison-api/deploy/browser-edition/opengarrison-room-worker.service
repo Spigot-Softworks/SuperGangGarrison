@@ -1,0 +1,27 @@
+[Unit]
+Description=Super Gang Garrison private Last to Die room worker
+After=network-online.target opengarrison-api.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=opengarrison
+Group=opengarrison
+WorkingDirectory=/opt/opengarrison-api
+EnvironmentFile=/etc/opengarrison-rooms.env
+ExecStart=/opt/opengarrison-api/.venv/bin/python /opt/opengarrison-api/room_worker.py
+Restart=on-failure
+RestartSec=3
+KillMode=control-group
+TimeoutStopSec=30
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/opengarrison-api /var/lib/opengarrison-rooms
+MemoryMax=3G
+TasksMax=256
+LimitNOFILE=4096
+
+[Install]
+WantedBy=multi-user.target

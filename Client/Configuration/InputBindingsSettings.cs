@@ -76,6 +76,14 @@ public sealed class InputBindingsSettings
 
     public InputBinding ShowScoreboard { get; set; } = InputBinding.FromKey(Keys.Tab);
 
+    public InputBinding PushToTalk { get; set; } = InputBinding.FromKey(Keys.V);
+
+    public InputBinding VoteYes { get; set; } = InputBinding.FromKey(Keys.F1);
+
+    public InputBinding VoteNo { get; set; } = InputBinding.FromKey(Keys.F2);
+
+    public InputBinding OpenVoteMenu { get; set; } = InputBinding.FromKey(Keys.F3);
+
     public InputBinding ChangeTeam { get; set; } = InputBinding.FromKey(Keys.N);
 
     public InputBinding ChangeClass { get; set; } = InputBinding.FromKey(Keys.M);
@@ -88,7 +96,7 @@ public sealed class InputBindingsSettings
 
     public InputBinding OpenBubbleMenuC { get; set; } = InputBinding.FromKey(Keys.C);
 
-    public InputBinding CustomBubble { get; set; } = InputBinding.FromKey(Keys.R);
+    public InputBinding CustomBubble { get; set; } = InputBinding.FromKey(OperatingSystem.IsBrowser() ? Keys.None : Keys.R);
 
     public InputBinding ToggleClassMenu
     {
@@ -100,7 +108,14 @@ public sealed class InputBindingsSettings
     {
         if (OperatingSystem.IsBrowser())
         {
-            return new InputBindingsSettings();
+            try
+            {
+                if (OpenGarrison.ClientShared.BrowserPreferenceStore.Read("bindings-v1") is { } json
+                    && System.Text.Json.JsonSerializer.Deserialize(json, BrowserPreferencesJsonContext.Default.InputBindingsSettings) is { } saved)
+                    return ApplyBrowserDefaults(saved);
+            }
+            catch (System.Text.Json.JsonException) { }
+            return ApplyBrowserDefaults(new InputBindingsSettings());
         }
 
         var resolvedPath = path ?? RuntimePaths.GetConfigPath(DefaultFileName);
@@ -123,10 +138,21 @@ public sealed class InputBindingsSettings
         return created;
     }
 
+    internal static InputBindingsSettings ApplyBrowserDefaults(InputBindingsSettings settings)
+    {
+        // Migrate the old browser default as well as fresh profiles. Preserve
+        // deliberate alternate bindings and every other control.
+        if (settings.CustomBubble.IsKeyboardKey(Keys.R))
+            settings.CustomBubble = InputBinding.FromKey(Keys.None);
+        return settings;
+    }
+
     public void Save(string? path = null)
     {
         if (OperatingSystem.IsBrowser())
         {
+            OpenGarrison.ClientShared.BrowserPreferenceStore.Write("bindings-v1",
+                System.Text.Json.JsonSerializer.Serialize(this, BrowserPreferencesJsonContext.Default.InputBindingsSettings));
             return;
         }
 
@@ -147,6 +173,10 @@ public sealed class InputBindingsSettings
         document.SetString("Controls", "changeTeam", FormatBinding(ChangeTeam));
         document.SetString("Controls", "changeClass", FormatBinding(ChangeClass));
         document.SetString("Controls", "showScores", FormatBinding(ShowScoreboard));
+        document.SetString("Controls", "pushToTalk", FormatBinding(PushToTalk));
+        document.SetString("Controls", "voteYes", FormatBinding(VoteYes));
+        document.SetString("Controls", "voteNo", FormatBinding(VoteNo));
+        document.SetString("Controls", "openVoteMenu", FormatBinding(OpenVoteMenu));
         document.SetString("Controls", "console", FormatBinding(ToggleConsole));
         document.SetString("Controls", "bubbleMenuZ", FormatBinding(OpenBubbleMenuZ));
         document.SetString("Controls", "bubbleMenuX", FormatBinding(OpenBubbleMenuX));
@@ -179,7 +209,11 @@ public sealed class InputBindingsSettings
             ScrollWheelWeaponSwapEnabled = document.GetBool("Controls", "scrollWheelWeaponSwap", true),
             ChangeTeam = ReadBinding(document, "changeTeam", Keys.N),
             ChangeClass = ReadBinding(document, "changeClass", Keys.M),
-            ShowScoreboard = ReadBinding(document, "showScores", Keys.LeftShift),
+            ShowScoreboard = ReadBinding(document, "showScores", Keys.Tab),
+            PushToTalk = ReadBinding(document, "pushToTalk", Keys.V),
+            VoteYes = ReadBinding(document, "voteYes", Keys.F1),
+            VoteNo = ReadBinding(document, "voteNo", Keys.F2),
+            OpenVoteMenu = ReadBinding(document, "openVoteMenu", Keys.F3),
             ToggleConsole = ReadBinding(document, "console", Keys.OemTilde),
             OpenBubbleMenuZ = ReadBinding(document, "bubbleMenuZ", Keys.Z),
             OpenBubbleMenuX = ReadBinding(document, "bubbleMenuX", Keys.X),

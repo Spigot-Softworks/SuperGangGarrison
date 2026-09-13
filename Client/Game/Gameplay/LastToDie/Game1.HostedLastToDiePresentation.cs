@@ -22,6 +22,7 @@ public partial class Game1
              .ToDictionary(definition => definition.Id.Value, StringComparer.Ordinal);
     private readonly Dictionary<byte, bool> _hostedLastToDieObservedAliveBySlot = [];
     private Guid _hostedLastToDieObservedRunId;
+    private Guid _hostedLastToDieRecordedStatsAttemptId;
     private LastToDieWirePhase? _hostedLastToDieObservedPhase;
     private bool _hostedLastToDieSoloReadyCommandSent;
     private bool _hostedLastToDieSoloStartCommandSent;
@@ -33,6 +34,8 @@ public partial class Game1
     private bool? _hostedLastToDieOptimisticReadyState;
     private ulong _hostedLastToDieReadyCommandId;
     private bool _hostedLastToDieRetryMusicPending;
+    private bool? _hostedLastToDieSoloSimulationPauseState;
+    private long _hostedLastToDieSoloSimulationPauseRetryAtMilliseconds;
 
     private bool IsHostedLastToDieActive()
         => _networkClient.IsConnected
@@ -96,8 +99,10 @@ public partial class Game1
 
     private void UpdateHostedLastToDiePresentation(KeyboardState keyboard, MouseState mouse)
     {
+        var snapshot = _networkClient.LastToDieState.Snapshot;
+        ReconcileHostedLastToDieSoloSimulationPause(snapshot);
         if (!IsHostedLastToDieActive()
-            || _networkClient.LastToDieState.Snapshot is not { } snapshot)
+            || snapshot is null)
         {
             return;
         }
@@ -126,10 +131,7 @@ public partial class Game1
             _menuBottomBarRunners.Update(presentationDeltaSeconds);
         }
 
-        if (_consoleOpen
-            || _chatOpen
-            || _passwordPromptOpen
-            || HasOpenGameplayOverlay())
+        if (!CanUpdateHostedLastToDieMenuInput())
         {
             return;
         }
@@ -150,6 +152,7 @@ public partial class Game1
         switch (snapshot.Phase)
         {
             case LastToDieWirePhase.Lobby:
+                if (_peerRoomSession is not null) return;
                 UpdateHostedLastToDieLobby(snapshot, localPlayer, keyboard, mouse);
                 break;
 
@@ -165,29 +168,126 @@ public partial class Game1
                 break;
 
             case LastToDieWirePhase.RewardChoice:
+                if (_hostedRewardInput.ReconcileHostedContext(
+                        snapshot.RunId,
+                        localPlayer.ActiveOfferId,
+                        _networkClient.ConnectionGeneration,
+                        Environment.TickCount64))
+                {
+                    _rewardInputCommandId = 0;
+                }
+                if (_rewardInputCommandId != 0
+                    && _networkClient.LastToDieState.TryGetCommandResult(_rewardInputCommandId, out var rewardResult)
+                    && rewardResult.Result != LastToDieCommandResultKind.Accepted)
+                {
+                    _rewardInputCommandId = 0;
+                    _hostedRewardInput.Reject();
+                }
                 var rewardLayout = GetLastToDieChoiceMenuLayout(localPlayer.ActiveOfferChoices.Count);
                 _hostedLastToDieRewardHoverIndex = GetLastToDieChoiceHoverIndex(
                     mouse.Position,
                     rewardLayout);
-                var rewardIndex = GetHostedLastToDieDigitChoice(
-                    keyboard,
-                    localPlayer.ActiveOfferChoices.Count);
-                var rewardClicked = mouse.LeftButton == ButtonState.Pressed
-                    && _previousMouse.LeftButton != ButtonState.Pressed;
-                if (rewardIndex < 0 && rewardClicked)
+                if (localPlayer.ActiveOfferId != 0
+                    && UpdateLastToDieRewardInput(_hostedRewardInput, rewardLayout, keyboard, mouse,
+                        index => index < localPlayer.ActiveOfferChoices.Count))
                 {
-                    rewardIndex = _hostedLastToDieRewardHoverIndex;
-                }
-                if (rewardIndex >= 0 && localPlayer.ActiveOfferId != 0)
-                {
-                    _networkClient.SendLastToDieCommand(
+                    _rewardInputCommandId = _networkClient.SendLastToDieCommand(
                         LastToDieCommandKind.SelectReward,
-                        localPlayer.ActiveOfferChoices[rewardIndex],
+                        localPlayer.ActiveOfferChoices[_hostedRewardInput.SelectedIndex],
                         localPlayer.ActiveOfferId);
+                    if (_rewardInputCommandId == 0) _hostedRewardInput.Reject();
                 }
                 break;
 
         }
+    }
+
+    private void ReconcileHostedLastToDieSoloSimulationPause(
+        LastToDieRunSnapshotMessage? snapshot)
+    {
+        if (HasManagedRoom || IsEmbeddedSessionOwner) { ReconcileManagedSoloPause(snapshot); return; }
+        var nowMilliseconds = Environment.TickCount64;
+        var ownsEligibleSoloServer = IsHostedServerRunning
+            && _networkClient.IsConnected
+            && snapshot?.MaximumPlayers == 1;
+        if (!ownsEligibleSoloServer)
+        {
+            if (_hostedLastToDieSoloSimulationPauseState == true
+                && IsHostedServerRunning
+                && nowMilliseconds >= _hostedLastToDieSoloSimulationPauseRetryAtMilliseconds)
+            {
+                if (!TrySendHostedServerAdminCommand("ltd_pause 0", out _, out _))
+                {
+                    _hostedLastToDieSoloSimulationPauseRetryAtMilliseconds = nowMilliseconds + 500;
+                    return;
+                }
+            }
+
+            _hostedLastToDieSoloSimulationPauseState = null;
+            _hostedLastToDieSoloSimulationPauseRetryAtMilliseconds = 0;
+            return;
+        }
+
+        var soloSnapshot = snapshot!;
+        var shouldPause = ShouldPauseHostedLastToDieSoloSimulation(
+            isHostedServerRunning: true,
+            isConnected: true,
+            maximumPlayers: soloSnapshot.MaximumPlayers,
+            phase: soloSnapshot.Phase,
+            hasOpenGameplayOverlay: HasOpenGameplayOverlay() || !IsWindowInputActive,
+            isLoading: IsGameplayLoadingForMenuInput());
+        if (_hostedLastToDieSoloSimulationPauseState is null && !shouldPause)
+        {
+            _hostedLastToDieSoloSimulationPauseState = false;
+            return;
+        }
+
+        if (_hostedLastToDieSoloSimulationPauseState == shouldPause
+            || nowMilliseconds < _hostedLastToDieSoloSimulationPauseRetryAtMilliseconds)
+        {
+            return;
+        }
+
+        if (!TrySendHostedServerAdminCommand(
+                shouldPause ? "ltd_pause 1" : "ltd_pause 0",
+                out _,
+                out _))
+        {
+            _hostedLastToDieSoloSimulationPauseRetryAtMilliseconds = nowMilliseconds + 500;
+            return;
+        }
+
+        _hostedLastToDieSoloSimulationPauseState = shouldPause;
+        _hostedLastToDieSoloSimulationPauseRetryAtMilliseconds = 0;
+    }
+
+    private bool ShouldPauseHostedLastToDieSoloClientSimulation()
+    {
+        var snapshot = _networkClient.LastToDieState.Snapshot;
+        return snapshot is not null
+            && ShouldPauseHostedLastToDieSoloSimulation(
+                IsHostedServerRunning || IsManagedRoomOwner || IsEmbeddedSessionOwner,
+                _networkClient.IsConnected,
+                snapshot.MaximumPlayers,
+                snapshot.Phase,
+                HasOpenGameplayOverlay() || !IsWindowInputActive,
+                IsGameplayLoadingForMenuInput());
+    }
+
+    internal static bool ShouldPauseHostedLastToDieSoloSimulation(
+        bool isHostedServerRunning,
+        bool isConnected,
+        int maximumPlayers,
+        LastToDieWirePhase phase,
+        bool hasOpenGameplayOverlay,
+        bool isLoading = false)
+    {
+        return isHostedServerRunning
+            && isConnected
+            && maximumPlayers == 1
+            && phase == LastToDieWirePhase.Playing
+            && !isLoading
+            && hasOpenGameplayOverlay;
     }
 
     internal static bool ShouldExitCompletedHostedLastToDieSolo(
@@ -200,6 +300,7 @@ public partial class Game1
 
     private void ObserveHostedLastToDiePresentationState(LastToDieRunSnapshotMessage snapshot)
     {
+        HideJoiningServerLoadingOverlay();
         EnsureLastToDieSurvivorCarouselAssets();
         if (_hostedLastToDieObservedRunId != snapshot.RunId)
         {
@@ -207,6 +308,8 @@ public partial class Game1
             _hostedLastToDieObservedAliveBySlot.Clear();
             _hostedLastToDieObservedPhase = null;
         }
+
+        PersistHostedLastToDieRunStats(snapshot);
 
         // The loading/menu track owns the connection gap only until the
         // authoritative LTD snapshot arrives.  Leaving this set forever
@@ -298,6 +401,29 @@ public partial class Game1
         }
     }
 
+    private void PersistHostedLastToDieRunStats(LastToDieRunSnapshotMessage snapshot)
+    {
+        if (snapshot.Phase is not (LastToDieWirePhase.Won or LastToDieWirePhase.Lost)
+            || snapshot.AttemptId == Guid.Empty
+            || snapshot.AttemptId == _hostedLastToDieRecordedStatsAttemptId)
+        {
+            return;
+        }
+
+        var localPlayer = snapshot.Players.FirstOrDefault(
+            player => player.Slot == _networkClient.LocalPlayerSlot);
+        if (localPlayer is null)
+        {
+            return;
+        }
+
+        if (_lastToDieStats.RecordRun(localPlayer.ScoreUnits, snapshot.CompletedRounds, snapshot.AttemptId))
+        {
+            _lastToDieStats.Save();
+        }
+        _hostedLastToDieRecordedStatsAttemptId = snapshot.AttemptId;
+    }
+
     private void ClearTransientLastToDieOverlaysForHostedRewardChoice()
     {
         // Hosted reward choice owns this screen. Legacy/offline LTD overlays
@@ -363,15 +489,24 @@ public partial class Game1
         }
 
         if (localPlayer.IsHost
-            && IsHostedServerRunning
+            && (IsHostedServerRunning || IsManagedRoomOwner || IsEmbeddedSessionOwner)
+            && RelayRoomCode.TryNormalize(_hostedLastToDieRoomCode, out var roomCode)
             && clicked
             && roomCodeBounds.Contains(mouse.Position))
         {
-            _hostedLastToDieRoomCodeCopyFailed = !RelayRoomCode.TryNormalize(
-                    _hostedLastToDieRoomCode,
-                    out var roomCode)
-                || !TrySetClipboardText(roomCode);
-            _hostedLastToDieRoomCodeFeedbackSeconds = 2f;
+            if (OperatingSystem.IsBrowser() && OpenGarrison.ClientShared.BrowserPreferenceStore.CopyText is { } copy)
+                _managedRoomCopyTask = copy(roomCode);
+            else
+            {
+                _hostedLastToDieRoomCodeCopyFailed = !TrySetClipboardText(roomCode);
+                _hostedLastToDieRoomCodeFeedbackSeconds = 2f;
+            }
+            return;
+        }
+
+        if (clicked && GetHostedLastToDieVoiceButtonBounds().Contains(mouse.Position))
+        {
+            ToggleVoiceChannelMembership();
             return;
         }
 
@@ -393,7 +528,7 @@ public partial class Game1
             return;
         }
 
-        var allReady = snapshot.Players.Count == snapshot.MaximumPlayers
+        var allReady = snapshot.Players.Count > 0
             && snapshot.Players.All(player => player.IsConnected && player.IsReady);
         if (localPlayer.IsHost
             && allReady
@@ -425,6 +560,7 @@ public partial class Game1
 
     private void ExitHostedLastToDieLobby()
     {
+        LeaveManagedRoom();
         _networkClient.SendLastToDieLeave();
         _networkClient.Disconnect();
         if (IsHostedServerRunning)
@@ -453,10 +589,20 @@ public partial class Game1
         var width = Math.Clamp((int)MathF.Round(ViewportWidth * 0.28f), 240, 380);
         var height = Math.Clamp((int)MathF.Round(ViewportHeight * 0.064f), 40, 58);
         return new Rectangle(
-            (ViewportWidth - width) / 2,
+            (ViewportWidth - (width * 2) - 20) / 2,
             (int)MathF.Round(ViewportHeight * 0.82f),
             width,
             height);
+    }
+
+    private Rectangle GetHostedLastToDieVoiceButtonBounds()
+    {
+        var roomCode = GetHostedLastToDieRoomCodeButtonBounds();
+        var showRoomCode = (IsHostedServerRunning || IsManagedRoomOwner || IsEmbeddedSessionOwner)
+            && _networkClient.LastToDieState.Snapshot?.Players.Any(player => player.Slot == _networkClient.LocalPlayerSlot && player.IsHost) == true
+            && RelayRoomCode.TryNormalize(_hostedLastToDieRoomCode, out _);
+        return new Rectangle(showRoomCode ? roomCode.Right + 20 : (ViewportWidth - roomCode.Width) / 2,
+            roomCode.Y, roomCode.Width, roomCode.Height);
     }
 
     private Rectangle GetHostedLastToDieExitButtonBounds()
@@ -554,10 +700,9 @@ public partial class Game1
             return;
         }
 
-        var remainingTicks = (int)Math.Clamp(
-            snapshot.StageEndServerTick - Math.Max(snapshot.ServerTick, _world.Frame),
-            0L,
-            int.MaxValue);
+        var remainingTicks = ResolveHostedLastToDieRemainingTicks(
+            snapshot.StageEndServerTick,
+            snapshot.ServerTick);
         DrawTimerFontTextRightAligned(
             FormatHudTimerText(remainingTicks),
             new Vector2(ViewportWidth - 18f, 18f),
@@ -587,6 +732,16 @@ public partial class Game1
                 new Color(255, 196, 96),
                 0.82f);
         }
+    }
+
+    internal static int ResolveHostedLastToDieRemainingTicks(
+        long stageEndServerTick,
+        long serverTick)
+    {
+        return (int)Math.Clamp(
+            stageEndServerTick - serverTick,
+            0L,
+            int.MaxValue);
     }
 
     private void DrawHostedLastToDieModal()
@@ -676,6 +831,29 @@ public partial class Game1
         LastToDieRunSnapshotMessage snapshot,
         LastToDiePlayerSnapshotMessage localPlayer)
     {
+        if (!ShouldShowHostedLastToDieLobby(snapshot.MaximumPlayers))
+        {
+            // Solo is admitted through the same authoritative lobby phase as
+            // co-op, but it immediately sends Ready and Start. Keep that
+            // handshake from exposing co-op controls while those commands
+            // round-trip through the embedded/managed server. The generic
+            // stage-loading copy is reserved for an actual stage barrier;
+            // during this short startup phase there is no reliable map/world
+            // detail to show yet.
+            DrawHudTextCentered(
+                "Starting Last to Die...",
+                new Vector2(ViewportWidth / 2f, ViewportHeight * 0.47f),
+                Color.White,
+                1.15f);
+            return;
+        }
+
+        if (OperatingSystem.IsBrowser()) _browserHostedLobbyDrawCount++;
+        if (_peerRoomSession is not null)
+        {
+            DrawHudTextCentered("Connecting players...", new Vector2(ViewportWidth / 2f, ViewportHeight * .45f), Color.White, 1.2f);
+            return;
+        }
         var connected = snapshot.Players.Count(player => player.IsConnected);
         DrawHudTextCentered(
             $"Players: {connected}/{snapshot.MaximumPlayers}",
@@ -686,7 +864,7 @@ public partial class Game1
         for (var slot = 1; slot <= snapshot.MaximumPlayers; slot += 1)
         {
             var player = snapshot.Players.FirstOrDefault(candidate => candidate.Slot == slot);
-            var y = ViewportHeight * (0.40f + ((slot - 1) * 0.09f));
+            var y = ViewportHeight * (0.37f + ((slot - 1) * (snapshot.MaximumPlayers > 2 ? 0.075f : 0.09f)));
             var name = player is null
                 ? "Waiting for player..."
                 : _world.TryGetNetworkPlayer((byte)slot, out var entity)
@@ -706,7 +884,7 @@ public partial class Game1
                 1f);
         }
 
-        var allReady = snapshot.Players.Count == snapshot.MaximumPlayers
+        var allReady = snapshot.Players.Count > 0
             && snapshot.Players.All(player => player.IsConnected && player.IsReady);
         var (readyBounds, startBounds) = GetHostedLastToDieLobbyButtonBounds(localPlayer.IsHost);
         var displayedReady = _hostedLastToDieOptimisticReadyState ?? localPlayer.IsReady;
@@ -727,22 +905,30 @@ public partial class Game1
                 0.8f);
         }
         if (localPlayer.IsHost
-            && IsHostedServerRunning
+            && (IsHostedServerRunning || IsManagedRoomOwner || IsEmbeddedSessionOwner)
             && RelayRoomCode.TryNormalize(_hostedLastToDieRoomCode, out _))
         {
             DrawHostedLastToDieLobbyButton(
                 GetHostedLastToDieRoomCodeButtonBounds(),
                 _hostedLastToDieRoomCodeFeedbackSeconds > 0f
                     ? _hostedLastToDieRoomCodeCopyFailed ? "COPY FAILED" : "ROOM CODE COPIED!"
-                    : "COPY ROOM CODE",
+                    : $"ROOM: {_hostedLastToDieRoomCode} (COPY)",
                 enabled: true);
         }
+
+        DrawHostedLastToDieLobbyButton(
+            GetHostedLastToDieVoiceButtonBounds(),
+            GetVoiceChannelActionLabel(),
+            enabled: _voiceChat?.ServerState?.VoiceChannelRequiresJoin == true);
 
         DrawHostedLastToDieLobbyButton(
             GetHostedLastToDieExitButtonBounds(),
             "EXIT",
             enabled: true);
     }
+
+    internal static bool ShouldShowHostedLastToDieLobby(int maximumPlayers)
+        => maximumPlayers != 1;
 
     private string GetHostedLastToDieRoomTitle(LastToDieRunSnapshotMessage snapshot)
     {
@@ -808,9 +994,7 @@ public partial class Game1
             Color.White,
             1.22f);
         DrawBitmapFontText(
-            snapshot.StageNumber == 0
-                ? "Choose 1 perk."
-                : "Choose 1 reward for the next stage.",
+            "Select a perk, then Confirm or Enter.",
             new Vector2(layout.Panel.X + 28f, layout.Panel.Y + 58f),
             new Color(212, 212, 212),
             0.94f);
@@ -820,7 +1004,8 @@ public partial class Game1
             var perkId = localPlayer.ActiveOfferChoices[index];
             var hasDefinition = HostedLastToDiePerks.TryGetValue(perkId, out var definition);
             var bounds = layout.CardBounds[index];
-            var isHovered = index == _hostedLastToDieRewardHoverIndex;
+            var isSelected = index == _hostedRewardInput.SelectedIndex;
+            var isHovered = index == _hostedLastToDieRewardHoverIndex || isSelected;
             _spriteBatch.Draw(
                 _pixel,
                 bounds,
@@ -828,7 +1013,7 @@ public partial class Game1
             _spriteBatch.Draw(
                 _pixel,
                 new Rectangle(bounds.X, bounds.Y, bounds.Width, 3),
-                isHovered ? new Color(210, 78, 78) : new Color(118, 126, 140));
+                isSelected ? new Color(255, 214, 82) : isHovered ? new Color(210, 78, 78) : new Color(118, 126, 140));
             _spriteBatch.Draw(
                 _pixel,
                 new Rectangle(bounds.X, bounds.Bottom - 3, bounds.Width, 3),
@@ -869,6 +1054,7 @@ public partial class Game1
             new Vector2(layout.Panel.X + 28f, layout.Panel.Bottom - 42f),
             new Color(188, 188, 188),
             0.88f);
+        DrawLastToDieRewardConfirm(_hostedRewardInput, layout);
     }
 
     private void DrawHostedLastToDieLoading(LastToDieRunSnapshotMessage snapshot)

@@ -10,6 +10,8 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
+    private const float MedicBeamPresentationMaxDistance = 300f;
+    private const float DispenserBeamPresentationMaxDistance = 75f;
     private readonly System.Collections.Generic.Dictionary<LoadedSpriteFrame, Vector2> _spriteFrameCenterOfMassCache = new();
 
     private Color ResolveProjectileTint(PlayerTeam team, Color blueColor, Color redColor, Color neutralColor)
@@ -106,7 +108,7 @@ public partial class Game1
                 var toTarget = targetPosition - dispenserPosition;
                 if (!IsFiniteVector(targetPosition)
                     || !IsFiniteVector(toTarget)
-                    || toTarget.LengthSquared() <= 0.0001f)
+                    || !IsDispenserBeamPresentationDistanceValid(toTarget.LengthSquared()))
                 {
                     continue;
                 }
@@ -173,7 +175,7 @@ public partial class Game1
         }
 
         var toTarget = healTargetRenderPosition - beamOrigin;
-        if (!IsFiniteVector(toTarget) || toTarget.LengthSquared() <= 0.0001f)
+        if (!IsMedicBeamPresentationDistanceValid(toTarget.LengthSquared()))
         {
             return;
         }
@@ -212,7 +214,10 @@ public partial class Game1
         void DrawMedicBeamSegment(PlayerEntity target)
         {
             var targetRenderPosition = GetRenderPosition(target);
-            if (!IsFiniteVector(targetRenderPosition))
+            var targetOffset = targetRenderPosition - beamOrigin;
+            if (!IsFiniteVector(targetRenderPosition)
+                || !IsFiniteVector(targetOffset)
+                || !IsMedicBeamPresentationDistanceValid(targetOffset.LengthSquared()))
             {
                 return;
             }
@@ -279,6 +284,16 @@ public partial class Game1
                 beamColor);
         }
     }
+
+    internal static bool IsMedicBeamPresentationDistanceValid(float distanceSquared)
+        => float.IsFinite(distanceSquared)
+            && distanceSquared > 0.0001f
+            && distanceSquared <= MedicBeamPresentationMaxDistance * MedicBeamPresentationMaxDistance;
+
+    internal static bool IsDispenserBeamPresentationDistanceValid(float distanceSquared)
+        => float.IsFinite(distanceSquared)
+            && distanceSquared > 0.0001f
+            && distanceSquared <= DispenserBeamPresentationMaxDistance * DispenserBeamPresentationMaxDistance;
 
     private static void GetMedicBeamSegmentColors(
         PlayerTeam targetTeam,
@@ -980,6 +995,8 @@ public partial class Game1
         {
             DrawRocketProjectile(rocket, cameraPosition);
         }
+
+        DrawRetainedTerminalProjectileVisuals(cameraPosition);
 
         if (_particleMode != 1)
         {
@@ -1877,6 +1894,12 @@ public partial class Game1
 
     private void DrawFlareProjectile(FlareProjectileEntity flare, Vector2 cameraPosition)
     {
+        if (flare.IsDragonRageSlug)
+        {
+            DrawDragonRageSlug(flare, cameraPosition);
+            return;
+        }
+
         if (_flameRenderMode == 0)
         {
             DrawFlareProjectileAsParticle(flare, cameraPosition);
@@ -1920,6 +1943,43 @@ public partial class Game1
             // Draw screen blend overlay on top
             DrawCriticalProjectileOverlay("FlareS", 0, renderPosition.X, renderPosition.Y, cameraPosition, flare.Team, rotation);
         }
+    }
+
+    private void DrawDragonRageSlug(FlareProjectileEntity flare, Vector2 cameraPosition)
+    {
+        var renderPosition = GetRenderPosition(flare.Id, flare.X, flare.Y) - cameraPosition;
+        var rotation = GetVelocityRotation(flare.VelocityX, flare.VelocityY);
+        var alpha = flare.PresentationAlpha;
+        if (alpha <= 0f)
+        {
+            return;
+        }
+
+        var outerColor = (flare.IsCritical
+            ? GetCriticalProjectileOverlayColor(flare.Team)
+            : new Color(188, 67, 24)) * alpha;
+        var coreColor = new Color(255, 210, 74) * alpha;
+        var pixelOrigin = new Vector2(0.5f, 0.5f);
+        _spriteBatch.Draw(
+            _pixel,
+            renderPosition,
+            sourceRectangle: null,
+            outerColor,
+            rotation,
+            pixelOrigin,
+            new Vector2(FlareProjectileEntity.DragonRageVisualWidth, 6f),
+            SpriteEffects.None,
+            layerDepth: 0f);
+        _spriteBatch.Draw(
+            _pixel,
+            renderPosition,
+            sourceRectangle: null,
+            coreColor,
+            rotation,
+            pixelOrigin,
+            new Vector2(FlareProjectileEntity.DragonRageCoreVisualWidth, 2f),
+            SpriteEffects.None,
+            layerDepth: 0f);
     }
 
     private void DrawFlareProjectileAsParticle(FlareProjectileEntity flare, Vector2 cameraPosition)
@@ -1970,7 +2030,7 @@ public partial class Game1
             new Color(120, 180, 255),
             new Color(255, 110, 90),
             new Color(230, 220, 210));
-        var rocketFrame = rocket.Team == PlayerTeam.Blue ? 0 : 1;
+        var rocketFrame = GetRocketSpriteFrame(rocket.Team);
         var rocketScale = rocket.ExperimentalVisualScale;
 
         // Draw outline first (behind sprite) if critical
@@ -2008,6 +2068,25 @@ public partial class Game1
         {
             // Draw screen blend overlay on top
             DrawCriticalProjectileOverlay("RocketS", rocketFrame, renderPosition.X, renderPosition.Y, cameraPosition, rocket.Team, rocket.DirectionRadians, new Vector2(rocketScale, rocketScale));
+        }
+    }
+
+    internal static int GetRocketSpriteFrame(PlayerTeam team)
+    {
+        // RocketS is stored red-first, blue-second.
+        return team == PlayerTeam.Blue ? 1 : 0;
+    }
+
+    private void DrawRetainedTerminalProjectileVisuals(Vector2 cameraPosition)
+    {
+        foreach (var flare in _retainedFlarePresentationEntities.Values)
+        {
+            DrawFlareProjectile(flare, cameraPosition);
+        }
+
+        foreach (var rocket in _retainedRocketPresentationEntities.Values)
+        {
+            DrawRocketProjectile(rocket, cameraPosition);
         }
     }
 

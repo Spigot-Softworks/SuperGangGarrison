@@ -17,6 +17,14 @@ public sealed partial class PlayerEntity
         CharacterClassDefinition classDefinition,
         int ticksPerSecond = SimulationConfig.DefaultTicksPerSecond)
     {
+        // Reject the complete packet before class, profile, loadout, or ammo
+        // fields are touched. A malformed nested equipment record is not a
+        // legacy partial update and must never leave a half-hydrated player.
+        if (!PlayerEntity.IsValidProtocol64EquipmentState(state))
+        {
+            return;
+        }
+
         Team = (PlayerTeam)state.Team;
         if (!string.Equals(ClassDefinition.GameplayClassId, classDefinition.GameplayClassId, StringComparison.Ordinal)
             || ClassDefinition.Id != classDefinition.Id)
@@ -64,13 +72,20 @@ public sealed partial class PlayerEntity
             state.DispenserAttackReloadSpeedMultiplier);
         ApplyNetworkMaxHealth(state.MaxHealth);
 
+        // A nested equipment record is an atomic identity-plus-ammo baseline.
+        // Validate it before touching any weapon counters. An invalid record
+        // must not fall back to ActiveWeapon and pair the incoming counters
+        // with the previously selected weapon.
+        var hasNestedEquipment = state.Equipment is not null;
+        var nestedEquipmentApplied = !hasNestedEquipment || ApplyProtocol64EquipmentState(state);
+
         // Protocol 64 intentionally does not carry the full legacy loadout
         // snapshot. A class change therefore clears the local secondary
         // definition before the first authoritative ammo update arrives. The
         // authoritative max value tells us that this player has a secondary;
         // hydrate the class's default secondary/weapon utility so its counter
         // has a concrete definition to render against.
-        if (state.OffhandMaxAmmo > 0 && !HasExperimentalOffhandWeapon)
+        if (!hasNestedEquipment && state.OffhandMaxAmmo > 0 && !HasExperimentalOffhandWeapon)
         {
             HydrateProtocol64DefaultSecondaryWeapon();
         }
@@ -80,7 +95,8 @@ public sealed partial class PlayerEntity
         // equipment slot on that path; without applying it here, a legacy
         // snapshot (or a class-change reset) leaves the client on Primary even
         // while the server is retaining a locked alternate primary.
-        ApplyProtocol64ActiveWeapon(state.ActiveWeapon);
+        if (!hasNestedEquipment)
+            ApplyProtocol64ActiveWeapon(state.ActiveWeapon);
 
         X = state.X;
         Y = state.Y;
@@ -89,6 +105,7 @@ public sealed partial class PlayerEntity
         IsGrounded = state.IsGrounded;
         RemainingAirJumps = Math.Max(0, state.RemainingAirJumps);
         IsAlive = state.IsAlive;
+        HydrateProtocol64UmbrellaState(state.Umbrella);
         HydrateMedicUberDeliveryState(state.MedicUberDeliveryState);
         Health = state.IsAlive
             ? int.Clamp(state.Health, 0, MaxHealth)
@@ -107,7 +124,10 @@ public sealed partial class PlayerEntity
         IsMedicUberReady = ClassId == PlayerClass.Medic
             && !IsMedicUbering
             && MedicUberCharge >= GetMedicUberReadyChargeThreshold();
-        MedicHealTargetId = ClassId == PlayerClass.Medic && state.MedicHealTargetId >= 0
+        var canPresentMedicBeam = ClassId == PlayerClass.Medic
+            || (ClassId == PlayerClass.Engineer && IsExperimentalOffhandSelected
+                && ExperimentalEngineerAlternateWeaponMode != ExperimentalEngineerAlternateWeaponMode.None);
+        MedicHealTargetId = canPresentMedicBeam && state.MedicHealTargetId >= 0
             ? state.MedicHealTargetId
             : null;
         IsMedicHealing = MedicHealTargetId.HasValue;
@@ -142,7 +162,7 @@ public sealed partial class PlayerEntity
             state.SpySuperjumpChargeStartBlockedUntilAbilityRelease);
         // The stock Medic M2 needlegun is presented as a secondary ability,
         // but its authoritative ammo lives in PlayerEntity.CurrentShells.
-        if (state.MaxAmmo > 0)
+        if ((!hasNestedEquipment || nestedEquipmentApplied) && state.MaxAmmo > 0)
         {
             CurrentShells = int.Clamp(state.CurrentAmmo, 0, Math.Min(MaxShells, state.MaxAmmo));
         }
@@ -151,10 +171,15 @@ public sealed partial class PlayerEntity
         // the primary timers authoritative just like the compact secondary
         // timers below; otherwise every rebuild can briefly see a ready gun
         // and terminate/restart its reload animation.
-        PrimaryCooldownTicks = Math.Max(0, state.PrimaryCooldownTicks);
-        ReloadTicksUntilNextShell = Math.Max(0, state.PrimaryReloadTicks);
+        if (!hasNestedEquipment || nestedEquipmentApplied)
+        {
+            PrimaryCooldownTicks = Math.Max(0, state.PrimaryCooldownTicks);
+            ReloadTicksUntilNextShell = Math.Max(0, state.PrimaryReloadTicks);
+        }
 
-        if (HasAcquiredWeapon && state.AcquiredMaxAmmo > 0)
+        if ((!hasNestedEquipment || nestedEquipmentApplied)
+            && HasAcquiredWeapon
+            && state.AcquiredMaxAmmo > 0)
         {
             AcquiredWeaponCurrentShells = int.Clamp(
                 state.AcquiredAmmo,
@@ -164,12 +189,13 @@ public sealed partial class PlayerEntity
             AcquiredWeaponReloadTicksUntilNextShell = Math.Max(0, state.AcquiredReloadTicks);
         }
 
-        if (HasPyroWeaponAvailable)
+        if ((!hasNestedEquipment || nestedEquipmentApplied) && HasPyroWeaponAvailable)
         {
             SetPyroPrimaryFuelScaled(state.PyroPrimaryFuelScaled);
         }
 
-        if (ClassId == PlayerClass.Medic || AcquiredWeaponClassId == PlayerClass.Medic)
+        if ((!hasNestedEquipment || nestedEquipmentApplied)
+            && (ClassId == PlayerClass.Medic || AcquiredWeaponClassId == PlayerClass.Medic))
         {
             MedicNeedleCooldownTicks = Math.Max(0, state.MedicNeedleCooldownTicks);
             MedicNeedleRefillTicks = Math.Max(0, state.MedicNeedleRefillTicks);
@@ -179,7 +205,9 @@ public sealed partial class PlayerEntity
         // experimental secondary weapon's live ammo/timing on the canonical
         // player record as well. The HUD and weapon presentation both consume
         // these properties when the QUIC path is active.
-        if (HasExperimentalOffhandWeapon && state.OffhandMaxAmmo > 0)
+        if ((!hasNestedEquipment || nestedEquipmentApplied)
+            && HasExperimentalOffhandWeapon
+            && state.OffhandMaxAmmo > 0)
         {
             ExperimentalOffhandCurrentShells = int.Clamp(
                 state.OffhandAmmo,
@@ -424,7 +452,8 @@ public sealed partial class PlayerEntity
             ResetUnscathedTime();
         }
         CurrentShells = int.Clamp(currentShells, 0, MaxShells);
-        if (ClassId == PlayerClass.Pyro)
+        if (ClassId == PlayerClass.Pyro
+            && HasPrimaryBehavior(BuiltInGameplayBehaviorIds.Flamethrower))
         {
             PyroPrimaryFuelScaledValue = int.Clamp(
                 pyroPrimaryFuelScaled > 0 ? pyroPrimaryFuelScaled : CurrentShells * PyroPrimaryFuelScale,
@@ -736,6 +765,27 @@ public sealed partial class PlayerEntity
 
     private void HydrateNetworkReplicatedSniperRuntimeState()
     {
+        if (ClassId == PlayerClass.Soldier)
+        {
+            if (IsMortarLauncherEquipped
+                && TryGetReplicatedStateInt(
+                    GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId,
+                    GameplayAbilityReplicatedState.SniperBowChargeTicksKey,
+                    out var mortarChargeTicks))
+            {
+                SniperBowChargeTicks = Math.Clamp(
+                    mortarChargeTicks,
+                    0,
+                    MortarLauncherMaxChargeTicks);
+            }
+            else
+            {
+                CancelMortarLauncherCharge();
+            }
+
+            return;
+        }
+
         if (ClassId != PlayerClass.Sniper)
         {
             return;
@@ -750,7 +800,7 @@ public sealed partial class PlayerEntity
             SniperChargeTicks = Math.Clamp(
                 sniperChargeTicks,
                 0,
-                LastToDieSniperRifleFullChargeTicks);
+                SniperRifleFullChargeTicks);
         }
 
         if (TryGetReplicatedStateInt(
@@ -770,6 +820,17 @@ public sealed partial class PlayerEntity
                 SniperBowChargeTicks = 0;
                 SniperBowChargeDirectionDegrees = 0f;
             }
+        }
+
+        if (TryGetReplicatedStateInt(
+                GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId,
+                GameplayAbilityReplicatedState.SniperRifleStreakKey,
+                out var sniperRifleStreak))
+        {
+            SniperRifleFullyChargedHitStreak = Math.Clamp(
+                sniperRifleStreak,
+                0,
+                SniperRifleStreakMaximum);
         }
     }
 
@@ -972,6 +1033,16 @@ public sealed partial class PlayerEntity
         {
             IsCivviePogoActive = pogoActive;
         }
+
+        if (TryGetReplicatedStateInt(CoreAbilityOwnerId, GameplayAbilityReplicatedState.CivvieUmbrellaOpeningTicksKey, out var openingTicks))
+        {
+            CivvieUmbrellaOpeningElapsedTicks = Math.Clamp(openingTicks, 0, CivvieUmbrellaOpeningDurationTicks);
+            CivvieUmbrellaOpeningTickAccumulator = 0;
+        }
+        if (TryGetReplicatedStateInt(CoreAbilityOwnerId, GameplayAbilityReplicatedState.CivvieUmbrellaOpeningSequenceKey, out var openingSequence))
+            CivvieUmbrellaOpeningSequence = Math.Max(0, openingSequence);
+        if (TryGetReplicatedStateBool(CoreAbilityOwnerId, GameplayAbilityReplicatedState.CivvieUmbrellaOpeningSpentKey, out var openingSpent))
+            CivvieUmbrellaOpeningAirblastTriggered = openingSpent;
 
         if (TryGetReplicatedStateInt(
                 CoreAbilityOwnerId,

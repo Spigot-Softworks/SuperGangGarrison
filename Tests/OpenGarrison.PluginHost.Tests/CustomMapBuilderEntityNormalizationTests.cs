@@ -18,7 +18,7 @@ public sealed class CustomMapBuilderEntityNormalizationTests
     }
 
     [Fact]
-    public void ResolveSpawnForwardExportsLegacyType()
+    public void ResolveSpawnForwardPreservesExplicitObjective()
     {
         var entity = CustomMapBuilderEntity.Create(
             "spawn",
@@ -33,7 +33,8 @@ public sealed class CustomMapBuilderEntityNormalizationTests
 
         var exported = CustomMapBuilderEntityNormalization.ResolveEntityForExport(entity);
 
-        Assert.Equal("bluespawn3", exported.Type);
+        Assert.Equal("spawn", exported.Type);
+        Assert.Equal("3", exported.Properties["objectiveIndex"]);
     }
 
     [Fact]

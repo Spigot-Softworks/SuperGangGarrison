@@ -19,8 +19,12 @@ public partial class Game1
 
         public PlayerInputSnapshot PrepareFrame(GameTime gameTime, KeyboardState keyboard, MouseState mouse, MouseState rawMouse)
         {
+            // Closing an overlay must not pass that same Escape/click through
+            // to the hosted choice screen underneath it later in this frame.
+            _game._gameplayModalOwnedInputThisFrame = _game.HasGameplayModalInputOwner();
             var wasGameplayInputBlocked = _game.IsGameplayInputBlocked();
             _game.UpdateGameplayScreenState(keyboard, mouse);
+            _game.TryHandleVoteShortcut(keyboard, mouse);
             _game.UpdateGameplayMenuState(keyboard, mouse);
             _game.UpdateReplayPlaybackControls(keyboard, mouse);
             _game.SuppressMouseFireAfterGameplayInputUnblocks(wasGameplayInputBlocked, mouse);

@@ -7,11 +7,16 @@ content pack are derived from **GG2 Randomizer** by PrOF-kk and contributors:
 - Researched revision: `e318d58b826b806065efde3fcfddc5c9e6f7c567`
 - License: Mozilla Public License 2.0
 
-The imported files include the Pistol, Heavy Shotgun, Flare Gun, SMG,
+The imported files include the Pistol, Heavy Shotgun, Pyro Shotgun, Flare Gun, SMG,
 Needlegun, Buff Banner, Soldier buff-animation and backpack sprites; the
 Pistol and SMG kill icons; and the Pistol, Flare Gun and Buff Banner sounds.
 They were reorganized into OpenGarrison's content-pack layout, represented by
 JSON sprite metadata, and connected to newly implemented C# gameplay logic.
+
+The Dragon's Rage weapon sprites are deterministic modifications of the
+GG2 Randomizer `PyroShotgunS` artwork: a 4-by-4 source-pixel block was removed
+from the muzzle end, and the remaining visible pixels were converted to
+grayscale and darkened by 60 percent. No generated artwork is included.
 
 The original source remains available at the URL above. The MPL 2.0 license
 text is available at https://www.mozilla.org/MPL/2.0/.

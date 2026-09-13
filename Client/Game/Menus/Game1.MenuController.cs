@@ -36,6 +36,8 @@ public partial class Game1
                 _game._animatedMenuBackgroundController.Update((float)gameTime.ElapsedGameTime.TotalSeconds);
             }
 
+            _game.AdvanceBrandLogoFlame((float)gameTime.ElapsedGameTime.TotalSeconds);
+
             // Update bottom bar runners
             _game._menuBottomBarRunners.Update((float)gameTime.ElapsedGameTime.TotalSeconds);
 
@@ -85,8 +87,9 @@ public partial class Game1
 
             DrawMenuBackgroundAttribution();
 
-            // Draw OpenGarrison logo in top right when using animated background
-            if (_game._menuBackgroundMode != MenuBackgroundMode.Static)
+            // The brand intro draws the same logo while it moves into this
+            // exact destination. Suppress the menu-owned copy until handoff.
+            if (!_game._brandIntroActive)
             {
                 DrawAnimatedMenuLogo(viewportWidth);
             }
@@ -314,36 +317,26 @@ public partial class Game1
 
         private void DrawAnimatedMenuLogo(int viewportWidth)
         {
-            var sprite = _game.GetResolvedSprite("OpenGarrisonLogoS");
-            if (sprite is null || sprite.Frames.Count == 0)
+            if (ClientDistribution.IsRestricted)
             {
+                var sprite = _game.GetResolvedSprite("OpenGarrisonLogoS");
+                if (sprite is null || sprite.Frames.Count == 0)
+                {
+                    return;
+                }
+
+                var frame = sprite.Frames[0];
+                var source = new Rectangle(0, 0, Math.Min(169, frame.Width), Math.Min(40, frame.Height));
+                var scale = MathF.Min(3f, MathF.Max(1f, viewportWidth - 40f) / Math.Max(1, source.Width));
+                _game.DrawLoadedSpriteFrame(
+                    frame,
+                    new Vector2(MathF.Max(20f, viewportWidth - source.Width * scale - 20f), 20f),
+                    source, Color.White, 0f, Vector2.Zero, new Vector2(scale), SpriteEffects.None, 0f);
                 return;
             }
 
-            const float padding = 20f;
-            const float logoScale = 3f;
-            const int logoSourceWidth = 169;
-            const int logoSourceHeight = 40;
-
-            var frame = sprite.Frames[0];
-            var visibleLogoSource = new Rectangle(
-                0,
-                0,
-                Math.Min(logoSourceWidth, frame.Width),
-                Math.Min(logoSourceHeight, frame.Height));
-            var logoX = MathF.Max(padding, viewportWidth - (visibleLogoSource.Width * logoScale) - padding);
-            var logoY = padding;
-
-            _game.DrawLoadedSpriteFrame(
-                frame,
-                new Vector2(logoX, logoY),
-                visibleLogoSource,
-                Color.White,
-                0f,
-                Vector2.Zero,
-                new Vector2(logoScale, logoScale),
-                SpriteEffects.None,
-                0f);
+            var destination = Game1.GetPermanentBrandLogoBounds(viewportWidth, _game.ViewportHeight);
+            _game.DrawFlamingBrandLogo(destination);
         }
 
     }

@@ -35,14 +35,24 @@ public partial class Game1
                 return true;
             }
 
-            var currentFrame = (ulong)Math.Max(0L, _game._world.Frame);
-            if (currentFrame <= soundEvent.SourceFrame)
+            // Local world events are already emitted on the local simulation
+            // timeline. Only network events need to be seeded from the shared
+            // presentation clock; using _world.Frame here starts fallback art
+            // late by the network interpolation back-time.
+            if (soundEvent.EventId == 0)
             {
                 return true;
             }
 
-            var elapsedSourceTicks = (currentFrame - soundEvent.SourceFrame)
-                * (LegacyMovementModel.SourceTicksPerSecond / (float)_game._config.TicksPerSecond);
+            var sourceTimeSeconds = soundEvent.SourceFrame / (double)Math.Max(1, _game._config.TicksPerSecond);
+            var elapsedPresentationSeconds = _game.GetProjectileRenderTimeSeconds() - sourceTimeSeconds;
+            if (elapsedPresentationSeconds <= 0d)
+            {
+                return true;
+            }
+
+            var elapsedSourceTicks = (float)(elapsedPresentationSeconds * LegacyMovementModel.SourceTicksPerSecond);
+            elapsedSourceTicks *= ExplosionVisual.PlaybackRate;
             if (elapsedSourceTicks >= ExplosionVisual.LifetimeSourceTicks)
             {
                 explosion = null;
@@ -87,10 +97,11 @@ public partial class Game1
                 }
             }
 
+            var explosionSourceTickAdvance = sourceTickAdvance * ExplosionVisual.PlaybackRate;
             for (var index = _game._explosions.Count - 1; index >= 0; index -= 1)
             {
                 var explosion = _game._explosions[index];
-                explosion.PendingSourceTicks += sourceTickAdvance;
+                explosion.PendingSourceTicks += explosionSourceTickAdvance;
                 while (explosion.PendingSourceTicks >= 1f && explosion.ElapsedSourceTicks < ExplosionVisual.LifetimeSourceTicks)
                 {
                     explosion.PendingSourceTicks -= 1f;
@@ -173,8 +184,8 @@ public partial class Game1
 
             foreach (var explosion in _game._explosions)
             {
-                DrawExplosionSprite(explosion, cameraPosition, largeSprite, 2.2f * explosion.LargeScaleMultiplier, 0.92f, explosion.LargeSpriteColor, startingFrameBias: 3);
-                DrawExplosionSprite(explosion, cameraPosition, smallSprite, 1.45f * explosion.SmallScaleMultiplier, 0.78f, explosion.SmallSpriteColor, startingFrameBias: 2);
+                DrawExplosionSprite(explosion, cameraPosition, largeSprite, 2.64f * explosion.LargeScaleMultiplier, 0.92f, explosion.LargeSpriteColor, startingFrameBias: 3);
+                DrawExplosionSprite(explosion, cameraPosition, smallSprite, 1.74f * explosion.SmallScaleMultiplier, 0.78f, explosion.SmallSpriteColor, startingFrameBias: 2);
             }
         }
 
@@ -409,15 +420,16 @@ public partial class Game1
                 return;
             }
 
+            var progress = GetExplosionProgress(explosion);
             var rawFrameIndex = explosion.ElapsedSourceTicks == 0
                 ? Math.Min(startingFrameBias, sprite.Frames.Count - 1)
-                : (int)MathF.Floor(explosion.ElapsedSourceTicks * sprite.Frames.Count / (float)ExplosionVisual.LifetimeSourceTicks);
+                : (int)MathF.Floor(progress * sprite.Frames.Count);
             var frameIndex = Math.Clamp(rawFrameIndex, 0, sprite.Frames.Count - 1);
             _game.DrawLoadedSpriteFrame(
                 sprite.Frames[frameIndex],
                 new Vector2(explosion.X - cameraPosition.X, explosion.Y - cameraPosition.Y),
                 null,
-                tint * alpha,
+                tint * (alpha * MathHelper.Clamp(1f - progress, 0f, 1f)),
                 0f,
                 sprite.Origin.ToVector2(),
                 new Vector2(scale, scale),
@@ -429,8 +441,8 @@ public partial class Game1
         {
             foreach (var explosion in _game._explosions)
             {
-                var progress = explosion.ElapsedSourceTicks / (float)ExplosionVisual.LifetimeSourceTicks;
-                var radius = 12f + (progress * 18f);
+                var progress = GetExplosionProgress(explosion);
+                var radius = (12f + (progress * 18f)) * 1.2f;
                 var innerRadius = radius * 0.5f;
                 var alpha = MathHelper.Clamp(1f - progress, 0f, 1f);
                 var outerRectangle = new Rectangle(
@@ -446,6 +458,12 @@ public partial class Game1
                 _game._spriteBatch.Draw(_game._pixel, outerRectangle, explosion.FallbackOuterColor * alpha);
                 _game._spriteBatch.Draw(_game._pixel, innerRectangle, explosion.FallbackInnerColor * alpha);
             }
+        }
+
+        private static float GetExplosionProgress(ExplosionVisual explosion)
+        {
+            var elapsedSourceTicks = explosion.ElapsedSourceTicks + explosion.PendingSourceTicks;
+            return MathHelper.Clamp(elapsedSourceTicks / ExplosionVisual.LifetimeSourceTicks, 0f, 1f);
         }
 
         private void DrawBubblePopVisuals(Vector2 cameraPosition)
@@ -478,25 +496,37 @@ public partial class Game1
         private void DrawAirBlastVisuals(Vector2 cameraPosition)
         {
             var sprite = _game.GetResolvedSprite("AirBlastS");
-            if (sprite is null || sprite.Frames.Count == 0)
-            {
-                return;
-            }
 
             foreach (var airBlast in _game._airBlasts)
             {
                 var elapsedTicks = AirBlastVisual.LifetimeTicks - airBlast.TicksRemaining;
-                var frameIndex = Math.Clamp((int)MathF.Floor(elapsedTicks * sprite.Frames.Count / (float)AirBlastVisual.LifetimeTicks), 0, sprite.Frames.Count - 1);
-                _game.DrawLoadedSpriteFrame(
-                    sprite.Frames[frameIndex],
-                    new Vector2(airBlast.X - cameraPosition.X, airBlast.Y - cameraPosition.Y),
-                    null,
-                    Color.White,
-                    airBlast.RotationRadians,
-                    sprite.Origin.ToVector2(),
-                    Vector2.One,
-                    SpriteEffects.None,
-                    0f);
+                var progress = MathHelper.Clamp(elapsedTicks / (float)AirBlastVisual.LifetimeTicks, 0f, 1f);
+                var alpha = MathHelper.Clamp(1f - progress, 0f, 1f);
+                var renderPosition = new Vector2(airBlast.X - cameraPosition.X, airBlast.Y - cameraPosition.Y);
+                if (sprite is not null && sprite.Frames.Count > 0)
+                {
+                    var frameIndex = Math.Clamp((int)MathF.Floor(progress * sprite.Frames.Count), 0, sprite.Frames.Count - 1);
+                    _game.DrawLoadedSpriteFrame(
+                        sprite.Frames[frameIndex],
+                        renderPosition,
+                        null,
+                        Color.White * alpha,
+                        airBlast.RotationRadians,
+                        sprite.Origin.ToVector2(),
+                        Vector2.One,
+                        SpriteEffects.None,
+                        0f);
+                }
+                else
+                {
+                    var radius = 10f + progress * 26f;
+                    var outer = new Rectangle(
+                        (int)MathF.Round(renderPosition.X - radius),
+                        (int)MathF.Round(renderPosition.Y - radius * 0.4f),
+                        (int)MathF.Round(radius * 2f),
+                        (int)MathF.Round(radius * 0.8f));
+                    _game._spriteBatch.Draw(_game._pixel, outer, new Color(210, 240, 255) * alpha);
+                }
             }
         }
     }

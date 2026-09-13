@@ -437,6 +437,18 @@ public sealed class BotBrainController
     }
 
     /// <summary>
+    /// Awareness-gated combat must be reevaluated on each simulation tick so
+    /// cached fire/aim input cannot bypass the sampled Spy reaction window.
+    /// The deadline is stored in simulation frames, therefore this promotion
+    /// does not depend on the normal expensive-think cadence.
+    /// </summary>
+    public bool RequiresPerTickCombatThink(SimulationWorld world)
+    {
+        return _combatMemory.SpyAwarenessTargetId.HasValue
+            && _combatMemory.SpyAwarenessReadyFrame > 0;
+    }
+
+    /// <summary>
     /// A batched client must promote a bot whose alpha route was cleared back
     /// into the next full brain pass. Cached steering cannot reconstruct the
     /// objective target or choose a new graph attachment on its own.
@@ -606,6 +618,11 @@ public sealed class BotBrainController
         var combatTarget = DisableCombatForDiagnostics
             ? null
             : TargetSelector.SelectCombatTarget(self, world, team);
+        combatTarget = CombatDecisionResolver.ApplySpyAwarenessDelay(
+            world,
+            self,
+            combatTarget,
+            _combatMemory);
         LastCombatTarget = combatTarget;
         PlayerEntity? preferredEnemyObjectiveTarget = null;
         if (PreferEnemyPlayerObjective
@@ -1168,7 +1185,14 @@ public sealed class BotBrainController
             }
         }
         directSteeringResolvedTimestamp = Stopwatch.GetTimestamp();
-        ApplyCaptureStrafeHop(world, self, team, ref steeringOutput);
+        if (!ForceObjectiveNavigationForDiagnostics && !DisableCombatForDiagnostics
+            && TryResolveMedicRetreat(world, self, team, healTarget, steeringOutput, out var medicRetreatSteering, out var medicRetreatTrace))
+        {
+            steeringOutput = medicRetreatSteering;
+            LastDirectDriveTrace = medicRetreatTrace;
+            inputOverride = null;
+        }
+        else ApplyCaptureStrafeHop(world, self, team, ref steeringOutput);
         ApplyTopDownAllySeparation(world, self, team, ref steeringOutput);
         LastSteeringOutput = steeringOutput;
         TraceRuntimeRecipeExecution(self, team, steeringOutput);
@@ -1467,6 +1491,11 @@ public sealed class BotBrainController
         var combatTarget = DisableCombatForDiagnostics
             ? null
             : SelectGraphlessCombatTarget(self, world, team);
+        combatTarget = CombatDecisionResolver.ApplySpyAwarenessDelay(
+            world,
+            self,
+            combatTarget,
+            _combatMemory);
         LastCombatTarget = combatTarget;
         PlayerEntity? preferredEnemyObjectiveTarget = null;
         if (PreferEnemyPlayerObjective
@@ -1590,7 +1619,14 @@ public sealed class BotBrainController
                 $"noGraphObjective=idle target:({_currentGoalPosition.X:0.0},{_currentGoalPosition.Y:0.0})";
         }
 
-        ApplyCaptureStrafeHop(world, self, team, ref steeringOutput);
+        if (!ForceObjectiveNavigationForDiagnostics && !DisableCombatForDiagnostics
+            && TryResolveMedicRetreat(world, self, team, healTarget, steeringOutput, out var medicRetreatSteering, out var medicRetreatTrace))
+        {
+            steeringOutput = medicRetreatSteering;
+            LastDirectDriveTrace = medicRetreatTrace;
+            inputOverride = null;
+        }
+        else ApplyCaptureStrafeHop(world, self, team, ref steeringOutput);
         ApplyTopDownAllySeparation(world, self, team, ref steeringOutput);
         LastSteeringOutput = steeringOutput;
 
@@ -3051,6 +3087,14 @@ public sealed class BotBrainController
         _combatMemory.BeenHealingTicks = 0;
         _combatMemory.ReloadCounterTicks = 0;
         _combatMemory.ZoomToShootTicks = 50;
+        _combatMemory.SpyAwarenessTargetId = null;
+        _combatMemory.SpyAwarenessTicksRemaining = 0;
+        _combatMemory.SpyAwarenessDelayMilliseconds = 0;
+        _combatMemory.SpyAwarenessAcquisitionSerial = 0;
+        _combatMemory.SpyAwarenessReadyFrame = 0;
+        _combatMemory.HeavyWeaponDwellInitialized = false;
+        _combatMemory.HeavyWeaponDwellTicksRemaining = 0;
+        _combatMemory.HeavyWeaponDwellReadyFrame = 0;
         ResetGraphlessTargetSelection();
     }
 
@@ -3552,6 +3596,14 @@ public sealed class BotBrainController
         out SteeringOutput directSteering,
         out string directTrace)
     {
+        if (combatTarget is { Kind: BotBrainCombatTargetKind.Player, Player: { } elevatedTarget }
+            && ShouldKeepNavigationBelowOccupiedPoint(world, self, elevatedTarget))
+        {
+            directSteering = steeringOutput;
+            directTrace = string.Empty;
+            return false;
+        }
+
         if (PreferEnemyPlayerObjective)
         {
             return TryResolvePreferredEnemyPlayerSeek(
@@ -5014,6 +5066,52 @@ public sealed class BotBrainController
         directSteering.DropDown = false;
         directTrace = $"{label} holdFallback dx:{dx:0.0} dy:{dy:0.0} dist:{distance:0.0}{healLinkTiming}";
         return true;
+    }
+
+    private bool TryResolveMedicRetreat(
+        SimulationWorld world, PlayerEntity self, PlayerTeam team, PlayerEntity? healTarget,
+        SteeringOutput steeringOutput, out SteeringOutput directSteering, out string directTrace)
+    {
+        directSteering = steeringOutput;
+        directTrace = string.Empty;
+        if (self.ClassId != PlayerClass.Medic || self.IsCarryingIntel || world.Level.IsTopDown)
+            return false;
+
+        var allies = 1;
+        var enemies = 0;
+        var threatX = 0f;
+        foreach (var player in CombatDecisionResolver.EnumeratePlayers(world))
+        {
+            if (!player.IsAlive || player.Id == self.Id || player.IsSpyCloaked
+                || MathF.Abs(player.Y - self.Y) > 180f
+                || MathF.Abs(player.X - self.X) > 420f
+                || !CombatDecisionResolver.HasLineOfSight(world, self.X, self.Y, player.X, player.Y, team, false))
+                continue;
+            if (player.Team == team) allies++;
+            else { enemies++; threatX += player.X; }
+        }
+        if (enemies == 0) return false;
+        threatX /= enemies;
+        var away = Math.Sign(self.X - threatX);
+        if (away == 0) return false;
+        var patientBehind = healTarget is { IsAlive: true } && healTarget.Team == team
+            && (healTarget.X - self.X) * away > 30f;
+        var patientWithdrawing = patientBehind && healTarget!.HorizontalSpeed * away > 20f;
+        if (enemies <= allies && self.Health > self.MaxHealth * .4f && !patientWithdrawing)
+            return false;
+
+        var targetX = patientBehind ? healTarget!.X : self.X + away * 220f;
+        var targetY = patientBehind ? healTarget!.Y : self.Y;
+        const string label = "medicRetreat";
+        if (TryRouteToDirectSeekTarget(world, self, team, targetX, targetY, label,
+                steeringOutput, out directSteering, out directTrace,
+                requireVerticalSeparation: false, activePathReuseDistance: MovingCarrierRouteReuseDistance))
+            return true;
+        // Retreat is movement toward safety, not combat range maintenance.
+        steeringOutput.Jump = false;
+        return PrimitiveDirectDrive.TryResolveRecovery(world, self,
+            new DirectDriveTarget(DirectDriveTargetKind.Escort, targetX, targetY, label),
+            steeringOutput, out directSteering, out directTrace);
     }
 
     private static PlayerEntity? ResolveMedicAimHealTarget(
@@ -7968,6 +8066,31 @@ public sealed class BotBrainController
         return resolved;
     }
 
+    private bool ShouldKeepNavigationBelowOccupiedPoint(
+        SimulationWorld world, PlayerEntity self, PlayerEntity target)
+    {
+        if (!_alphaNavigation || !IsNavigationGraphUsable(_navGraph)
+            || world.Level.IsTopDown || target.Y >= self.Y - 24f)
+        {
+            return false;
+        }
+
+        // Being close to an opponent on a point does not mean we share its
+        // platform. Combat spacing below Harvest's bridge kept replacing the
+        // climb route with jumps into the underside. Keep the route's movement
+        // until we enter the capture area or reach the opponent's elevation;
+        // targeting and firing still run independently.
+        foreach (var point in world.ControlPoints)
+        {
+            if (world.IsPlayerInControlPointCaptureZone(target, point.Index)
+                && !world.IsPlayerInControlPointCaptureZone(self, point.Index))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private bool TryResolveControlPointEnemyClearSeekCore(
         SimulationWorld world,
         PlayerEntity self,
@@ -7979,6 +8102,11 @@ public sealed class BotBrainController
         directSteering = steeringOutput;
         directTrace = string.Empty;
         if (!TryFindControlPointEnemyClearTarget(world, self, team, out var target, out var point))
+        {
+            return false;
+        }
+
+        if (ShouldKeepNavigationBelowOccupiedPoint(world, self, target))
         {
             return false;
         }

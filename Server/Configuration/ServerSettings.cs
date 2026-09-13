@@ -48,6 +48,8 @@ sealed class ServerSettings
 
     public bool RandomSpreadEnabled { get; set; } = true;
 
+    public bool HlxEnabled { get; set; } = true;
+
     public bool CompetitiveReadyUpEnabled { get; set; }
 
     public int CompetitiveSetupSeconds { get; set; } = 10;
@@ -152,6 +154,7 @@ sealed class ServerSettings
             TeamShuffleAfterWins = OpenGarrisonHostSettings.NormalizeTeamShuffleAfterWins(hostDefaults.TeamShuffleAfterWins),
             SecondaryAbilitiesEnabled = hostDefaults.SecondaryAbilitiesEnabled,
             RandomSpreadEnabled = hostDefaults.RandomSpreadEnabled,
+            HlxEnabled = hostDefaults.HlxEnabled,
             CompetitiveReadyUpEnabled = hostDefaults.CompetitiveReadyUpEnabled,
             CompetitiveSetupSeconds = hostDefaults.CompetitiveSetupSeconds,
             TimeLimitMinutes = hostDefaults.TimeLimitMinutes,
@@ -188,6 +191,7 @@ sealed class ServerSettings
         hostDefaults.TeamShuffleAfterWins = OpenGarrisonHostSettings.NormalizeTeamShuffleAfterWins(TeamShuffleAfterWins);
         hostDefaults.SecondaryAbilitiesEnabled = SecondaryAbilitiesEnabled;
         hostDefaults.RandomSpreadEnabled = RandomSpreadEnabled;
+        hostDefaults.HlxEnabled = HlxEnabled;
         hostDefaults.CompetitiveReadyUpEnabled = CompetitiveReadyUpEnabled;
         hostDefaults.CompetitiveSetupSeconds = Math.Clamp(CompetitiveSetupSeconds, 0, 120);
         hostDefaults.TimeLimitMinutes = TimeLimitMinutes;

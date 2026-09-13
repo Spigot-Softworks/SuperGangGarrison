@@ -219,6 +219,11 @@ public sealed partial class SimulationWorld
             {
                 var startTimestamp = SlowPlayerTracingEnabled ? Stopwatch.GetTimestamp() : 0L;
                 _world.AdvancePlayableNetworkPlayer(slot);
+                if (_world._lastToDieStageNumber > 0 && _world.IsNetworkPlayerActive(slot)
+                    && _world.TryGetNetworkPlayer(slot, out var survivor))
+                {
+                    survivor.AdvanceLastToDieSurvivorRegeneration(_world.Config.TicksPerSecond);
+                }
                 TraceSlowPlayer(slot, startTimestamp);
                 if (playerTimingSlots is not null && playerTimingMilliseconds is not null)
                 {
@@ -239,7 +244,6 @@ public sealed partial class SimulationWorld
             _world.AdvanceSentries();
             _world.UpdateDispenserAuras();
             _world.AdvanceJumpPads();
-            _world.AdvanceCivilDefenseTurrets();
         }
 
         private static double ResolveSlowPlayerThresholdMilliseconds()

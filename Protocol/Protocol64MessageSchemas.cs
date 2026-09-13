@@ -115,7 +115,7 @@ public sealed class SnapshotMessageSchema
             Protocol64EventId.Snapshot,
             Protocol64Direction.ServerToClient,
             MaxBodyBytes,
-            revision: 5)
+            revision: 7)
     {
     }
 }
@@ -379,7 +379,7 @@ public sealed class CustomBubbleClearMessageSchema
     public const int MaxBodyBytes = 64;
 
     public CustomBubbleClearMessageSchema()
-        : base(Protocol64EventId.CustomBubbleClear, Protocol64Direction.ServerToClient, MaxBodyBytes)
+        : base(Protocol64EventId.CustomBubbleClear, Protocol64Direction.Bidirectional, MaxBodyBytes)
     {
     }
 }
@@ -404,6 +404,78 @@ public sealed class PingResponseMessageSchema
 
     public PingResponseMessageSchema()
         : base(Protocol64EventId.PingResponse, Protocol64Direction.ServerToClient, MaxBodyBytes)
+    {
+    }
+}
+
+[ReliableOrdered(ChannelType.Control)]
+public sealed class GameplayAccountAttachRequestMessageSchema
+    : Protocol64LegacyMessageSchema<GameplayAccountAttachRequestMessage>
+{
+    public const int MaxBodyBytes = 512;
+
+    public GameplayAccountAttachRequestMessageSchema()
+        : base(Protocol64EventId.GameplayAccountAttachRequest, Protocol64Direction.ClientToServer, MaxBodyBytes)
+    {
+    }
+}
+
+[ReliableOrdered(ChannelType.Control)]
+public sealed class GameplayAccountAttachResultMessageSchema
+    : Protocol64LegacyMessageSchema<GameplayAccountAttachResultMessage>
+{
+    public const int MaxBodyBytes = 1024;
+
+    public GameplayAccountAttachResultMessageSchema()
+        : base(Protocol64EventId.GameplayAccountAttachResult, Protocol64Direction.ServerToClient, MaxBodyBytes)
+    {
+    }
+}
+
+[ReliableOrdered(ChannelType.Social)]
+public sealed class PlayerPointsStateMessageSchema
+    : Protocol64LegacyMessageSchema<PlayerPointsStateMessage>
+{
+    public const int MaxBodyBytes = 128;
+
+    public PlayerPointsStateMessageSchema()
+        : base(Protocol64EventId.PlayerPointsState, Protocol64Direction.ServerToClient, MaxBodyBytes)
+    {
+    }
+}
+
+[ReliableOrdered(ChannelType.Control)]
+public sealed class VoteCommandMessageSchema
+    : Protocol64LegacyMessageSchema<VoteCommandMessage>
+{
+    public const int MaxBodyBytes = 512;
+
+    public VoteCommandMessageSchema()
+        : base(Protocol64EventId.VoteCommand, Protocol64Direction.ClientToServer, MaxBodyBytes)
+    {
+    }
+}
+
+[ReliableOrdered(ChannelType.GameplayEvents)]
+public sealed class VoteStateMessageSchema
+    : Protocol64LegacyMessageSchema<VoteStateMessage>
+{
+    public const int MaxBodyBytes = 1024;
+
+    public VoteStateMessageSchema()
+        : base(Protocol64EventId.VoteState, Protocol64Direction.ServerToClient, MaxBodyBytes)
+    {
+    }
+}
+
+[ReliableOrdered(ChannelType.Control)]
+public sealed class VoteMenuMessageSchema
+    : Protocol64LegacyMessageSchema<VoteMenuMessage>
+{
+    public const int MaxBodyBytes = 128 * 1024;
+
+    public VoteMenuMessageSchema()
+        : base(Protocol64EventId.VoteMenu, Protocol64Direction.ServerToClient, MaxBodyBytes)
     {
     }
 }
@@ -447,6 +519,16 @@ public static class Protocol64SchemaRegistryFactory
         registry.Register(new CustomBubbleClearMessageSchema());
         registry.Register(new PingRequestMessageSchema());
         registry.Register(new PingResponseMessageSchema());
+        registry.Register(new GameplayAccountAttachRequestMessageSchema());
+        registry.Register(new GameplayAccountAttachResultMessageSchema());
+        registry.Register(new PlayerPointsStateMessageSchema());
+        registry.Register(new VoteCommandMessageSchema());
+        registry.Register(new VoteStateMessageSchema());
+        registry.Register(new VoteMenuMessageSchema());
+        registry.Register(new VoiceSubmitMessageSchema());
+        registry.Register(new AudioRelayMessageSchema());
+        registry.Register(new ServerAudioStateMessageSchema());
+        registry.Register(new VoiceChannelMembershipMessageSchema());
         registry.Register(new Protocol64InputCommandSchema());
         registry.Register(new Protocol64InputCommandResultSchema());
         registry.Register(new Protocol64InputCommandResultAckSchema());

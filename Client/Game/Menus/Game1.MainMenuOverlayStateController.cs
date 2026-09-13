@@ -15,6 +15,7 @@ public partial class Game1
 
         public void OpenHostSetupMenu()
         {
+            if (IsRestrictedBrowserEdition) return;
             PrepareForExclusiveMainMenuOverlayOpen();
             _game._hostSetupOpen = true;
             _game._menuStatusMessage = string.Empty;
@@ -36,6 +37,7 @@ public partial class Game1
 
         public void OpenManualConnectMenu()
         {
+            if (IsRestrictedBrowserEdition) return;
             PrepareForExclusiveMainMenuOverlayOpen();
             _game._lastToDieRoomCodeJoinOpen = false;
             _game.CancelFriendCodeJoin();
@@ -54,6 +56,7 @@ public partial class Game1
 
         public void OpenFriendsMenu()
         {
+            if (IsRestrictedBrowserEdition) return;
             PrepareForExclusiveMainMenuOverlayOpen();
             _game._friendsMenuOpen = true;
             _game._mainMenuHoverIndex = -1;
@@ -113,6 +116,7 @@ public partial class Game1
 
         public void CloseLastToDieMenu(bool clearStatus = false)
         {
+            _game.CancelManagedRoomRequest();
             _game.CancelPendingHostedLastToDieRelayLaunch();
             _game._lastToDieMenuOpen = false;
             _game._lastToDieMenuPage = LastToDieMenuPage.Root;
@@ -125,6 +129,7 @@ public partial class Game1
 
         public void OpenJumpMenu(string? statusMessage = null)
         {
+            if (IsRestrictedBrowserEdition) return;
             PrepareForExclusiveMainMenuOverlayOpen();
             _game.PrepareJumpMenuMapEntries();
             _game._jumpMenuOpen = true;

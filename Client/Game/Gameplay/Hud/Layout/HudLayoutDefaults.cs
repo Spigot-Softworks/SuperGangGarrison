@@ -10,9 +10,6 @@ internal static class HudLayoutDefaults
 {
     private const float SourceHudWidth = 800f;
     private const float SourceHudHeight = 600f;
-    private const float SourceAmmoHudBaseY = SourceHudHeight / 1.26f;
-    private const float MainAmmoSourceX = 728f;
-    private const float MainAmmoSourceY = SourceAmmoHudBaseY + 86f;
     private const float AbilitySourceX = 730f;
     private const float AbilitySourceY = 515f;
     private const float DefaultAbilityWidgetTopY = 494f;
@@ -22,9 +19,8 @@ internal static class HudLayoutDefaults
     private const float EngineerSentryHeight = 64f;
     private const float EngineerSentrySourceY = DefaultAbilityWidgetTopY - AbilityWidgetGap - EngineerSentryHeight;
     private const float EngineerDispenserSourceY = EngineerSentrySourceY - AbilityWidgetGap - EngineerSentryHeight;
-    private const float EngineerBuildMenuWidth = 74f;
-    private const float EngineerBuildMenuHeight = 244f;
-    private const float EngineerBuildMenuSourceX = 37f;
+    private const float EngineerBuildMenuWidth = 201f;
+    private const float EngineerBuildMenuHeight = 201f;
     private const float ClassStatusSourceX = 580f;
     private const float LastToDieRageBarWidth = 170f;
     private const float LastToDieRageBarHeight = 18f;
@@ -46,14 +42,6 @@ internal static class HudLayoutDefaults
                 new Vector2(96f, 72f),
                 Vector2.Zero,
                 Layer: 10),
-
-            [HudElementId.LocalWeaponStack] = new(
-                HudElementId.LocalWeaponStack,
-                HudAnchor.BottomRight,
-                new Vector2(MainAmmoSourceX - SourceHudWidth, MainAmmoSourceY - SourceHudHeight),
-                new Vector2(82f, 48f),
-                new Vector2(-39f, -48f),
-                Layer: 20),
 
             [HudElementId.LocalAbilityStack] = new(
                 HudElementId.LocalAbilityStack,
@@ -122,7 +110,7 @@ internal static class HudLayoutDefaults
             [HudElementId.LastToDieBuffIcon] = new(
                 HudElementId.LastToDieBuffIcon,
                 HudAnchor.BottomLeft,
-                new Vector2(96f, -83f),
+                Vector2.Zero,
                 new Vector2(35f, 35f),
                 new Vector2(96f, -83f),
                 Layer: 11),
@@ -169,10 +157,10 @@ internal static class HudLayoutDefaults
 
             [HudElementId.ClassEngineerBuildMenu] = new(
                 HudElementId.ClassEngineerBuildMenu,
-                HudAnchor.CenterLeft,
-                new Vector2(EngineerBuildMenuSourceX, 0f),
+                HudAnchor.Center,
+                Vector2.Zero,
                 new Vector2(EngineerBuildMenuWidth, EngineerBuildMenuHeight),
-                new Vector2(0f, -20f),
+                new Vector2(-100f, -100f),
                 Layer: 60),
         };
     }

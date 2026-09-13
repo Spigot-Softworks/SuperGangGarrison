@@ -50,6 +50,14 @@ internal sealed partial class LuaClientPlugin
         _cachedScoreboardHudCanvas = DynValue.Nil;
         _activeHudCanvas = null;
         _activeScoreboardCanvas = null;
+        _callbackDispatcher = null;
+        _callbackDispatcherRequestTable = null;
+        _callbackDispatcherCompletionMarkerTable = null;
+        _callbackDispatcherRequest = DynValue.Nil;
+        _callbackDispatcherCompletionMarker = DynValue.Nil;
+        _callbackDispatcherInitializationArguments = null;
+        _callbackDispatcherStartArguments = null;
+        _callbackDispatcherActive = false;
         _pluginTable = null;
         _script = null;
         _context = null;
@@ -562,7 +570,176 @@ internal sealed partial class LuaClientPlugin
         return TryGetCachedCallbackFunction(callbackName, out _);
     }
 
+    private void InitializeCallbackDispatcher()
+    {
+        if (_script is null)
+        {
+            return;
+        }
+
+        var dispatcherFunction = _script.DoString(
+            CallbackDispatcherSource,
+            codeFriendlyName: $"{manifest.Id}: callback dispatcher");
+        if (dispatcherFunction.Type != DataType.Function)
+        {
+            throw new InvalidOperationException("Lua callback dispatcher did not produce a function.");
+        }
+
+        var requestTable = new Table(_script);
+        var completionMarkerTable = new Table(_script);
+        _callbackDispatcherRequestTable = requestTable;
+        _callbackDispatcherCompletionMarkerTable = completionMarkerTable;
+        _callbackDispatcherRequest = DynValue.NewTable(requestTable);
+        _callbackDispatcherCompletionMarker = DynValue.NewTable(completionMarkerTable);
+        _callbackDispatcherInitializationArguments = [_callbackDispatcherCompletionMarker];
+        _callbackDispatcherStartArguments = [_callbackDispatcherRequest];
+        _callbackDispatcher = _script.CreateCoroutine(dispatcherFunction).Coroutine;
+        _callbackDispatcher.AutoYieldCounter = CallbackAutoYieldCounter;
+        _callbackDispatcher.Resume(_callbackDispatcherInitializationArguments);
+    }
+
     private DynValue InvokeCallbackWithLimits(DynValue function, DynValue[] args)
+    {
+        if (_callbackDispatcher is not null
+            && _callbackDispatcherRequestTable is not null
+            && _callbackDispatcherStartArguments is not null
+            && !_callbackDispatcherActive
+            && _callbackDispatcher.State == CoroutineState.Suspended
+            && args.Length <= 3)
+        {
+            return InvokeCallbackWithDispatcher(function, args);
+        }
+
+        return InvokeCallbackWithFreshCoroutine(function, args);
+    }
+
+    private DynValue InvokeCallbackWithDispatcher(DynValue function, DynValue[] args)
+    {
+        var dispatcher = _callbackDispatcher!;
+        var request = _callbackDispatcherRequestTable!;
+        _callbackDispatcherActive = true;
+        try
+        {
+            request.Set("callback", function);
+            request.Set("count", args.Length switch
+            {
+                0 => CallbackRequestCount0,
+                1 => CallbackRequestCount1,
+                2 => CallbackRequestCount2,
+                _ => CallbackRequestCount3,
+            });
+            request.Set("arg1", args.Length > 0 ? args[0] : DynValue.Nil);
+            request.Set("arg2", args.Length > 1 ? args[1] : DynValue.Nil);
+            request.Set("arg3", args.Length > 2 ? args[2] : DynValue.Nil);
+            var callbackStartTimestamp = Stopwatch.GetTimestamp();
+            var maxDuration = GetMaxCallbackDuration(_currentCallbackPhase);
+            var maxResumeCount = GetMaxCallbackResumeCount(_currentCallbackPhase);
+            var resumeCount = 0;
+            var firstResume = true;
+            while (true)
+            {
+                var yielded = firstResume
+                    ? dispatcher.Resume(_callbackDispatcherStartArguments!)
+                    : dispatcher.Resume();
+                firstResume = false;
+                resumeCount += 1;
+
+                if (TryReadDispatcherCompletion(yielded, out var result))
+                {
+                    return result;
+                }
+
+                if (dispatcher.State == CoroutineState.Dead)
+                {
+                    throw new InvalidOperationException("Lua callback dispatcher terminated unexpectedly.");
+                }
+
+                if (resumeCount >= maxResumeCount)
+                {
+                    throw new TimeoutException($"Lua callback exceeded the resume budget of {maxResumeCount} slices.");
+                }
+
+                if (Stopwatch.GetElapsedTime(callbackStartTimestamp) > maxDuration)
+                {
+                    throw new TimeoutException($"Lua callback exceeded the {maxDuration.TotalMilliseconds:0.##}ms budget.");
+                }
+            }
+        }
+        catch
+        {
+            AbandonCallbackDispatcher();
+            throw;
+        }
+        finally
+        {
+            ClearCallbackDispatcherRequest(request);
+            _callbackDispatcherActive = false;
+        }
+    }
+
+    private static void ClearCallbackDispatcherRequest(Table request)
+    {
+        request.Set("callback", DynValue.Nil);
+        request.Set("count", DynValue.Nil);
+        request.Set("arg1", DynValue.Nil);
+        request.Set("arg2", DynValue.Nil);
+        request.Set("arg3", DynValue.Nil);
+    }
+
+    private bool TryReadDispatcherCompletion(DynValue yielded, out DynValue result)
+    {
+        result = DynValue.Nil;
+        var markerTable = _callbackDispatcherCompletionMarkerTable;
+        if (markerTable is null)
+        {
+            return false;
+        }
+
+        if (yielded.Type == DataType.Table && ReferenceEquals(yielded.Table, markerTable))
+        {
+            return true;
+        }
+
+        if (yielded.Type != DataType.Tuple)
+        {
+            return false;
+        }
+
+        var values = yielded.Tuple;
+        if (values.Length == 0
+            || values[0].Type != DataType.Table
+            || !ReferenceEquals(values[0].Table, markerTable))
+        {
+            return false;
+        }
+
+        if (values.Length == 1)
+        {
+            return true;
+        }
+
+        if (values.Length == 2)
+        {
+            result = values[1];
+            return true;
+        }
+
+        result = DynValue.NewTuple(values[1..]);
+        return true;
+    }
+
+    private void AbandonCallbackDispatcher()
+    {
+        _callbackDispatcher = null;
+        _callbackDispatcherRequestTable = null;
+        _callbackDispatcherCompletionMarkerTable = null;
+        _callbackDispatcherRequest = DynValue.Nil;
+        _callbackDispatcherCompletionMarker = DynValue.Nil;
+        _callbackDispatcherInitializationArguments = null;
+        _callbackDispatcherStartArguments = null;
+    }
+
+    private DynValue InvokeCallbackWithFreshCoroutine(DynValue function, DynValue[] args)
     {
         if (_script is null)
         {

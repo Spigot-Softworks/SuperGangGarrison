@@ -44,6 +44,7 @@ public partial class Game1
         Rectangle SpecialAbilitiesRightBounds,
         Rectangle StartBounds,
         Rectangle ClientPowersBounds,
+        Rectangle JoinCoOpBounds,
         Rectangle BackBounds,
         bool CompactLayout);
 
@@ -94,7 +95,7 @@ public partial class Game1
                 return;
             }
 
-            var mapLayout = PracticeMapsMenuLayoutCalculator.Create(ViewportWidth, ViewportHeight);
+            var mapLayout = PracticeMapsMenuLayoutCalculator.Create(ViewportWidth, ViewportHeight, showSuperGangGarrison: !ClientDistribution.IsRestricted);
             UpdatePracticeMapSelectionMenu(keyboard, mouse, mapLayout);
             return;
         }
@@ -103,14 +104,13 @@ public partial class Game1
 
         if (IsKeyPressed(keyboard, Keys.Escape) || IsControllerMenuBackPressed())
         {
-            ClosePracticeMapBrowser();
-            _practiceSetupOpen = false;
+            BackFromPracticeSetup();
             return;
         }
 
         if (IsKeyPressed(keyboard, Keys.Enter))
         {
-            TryStartPracticeFromSetup();
+            ApplyPeerPracticeSettings();
             return;
         }
 
@@ -214,18 +214,22 @@ public partial class Game1
         else if (layout.StartBounds.Contains(point))
         {
             _practiceSetupControllerIndex = 8;
-            TryStartPracticeFromSetup();
+            ApplyPeerPracticeSettings();
         }
         else if (layout.ClientPowersBounds.Contains(point))
         {
             _practiceSetupControllerIndex = 9;
-            OpenClientPowersMenu(fromGameplay: false);
+            if (_editingPeerPractice) ShowPeerLobby(); else OpenPracticeCoOpMenu();
         }
         else if (layout.BackBounds.Contains(point))
         {
+            _practiceSetupControllerIndex = 11;
+            BackFromPracticeSetup();
+        }
+        else if (layout.JoinCoOpBounds.Contains(point) && !_editingPeerPractice)
+        {
             _practiceSetupControllerIndex = 10;
-            ClosePracticeMapBrowser();
-            _practiceSetupOpen = false;
+            OpenPracticeCoOpJoin();
         }
     }
 
@@ -240,7 +244,7 @@ public partial class Game1
         {
             if (verticalStep != 0)
             {
-                _practiceSetupControllerIndex = MoveControllerMenuSelectionClamped(_practiceSetupControllerIndex, 11, verticalStep);
+                _practiceSetupControllerIndex = MoveControllerMenuSelectionClamped(_practiceSetupControllerIndex, 12, verticalStep);
                 return true;
             }
 
@@ -309,14 +313,16 @@ public partial class Game1
                 CyclePracticeSpecialAbilities(1);
                 break;
             case 8:
-                TryStartPracticeFromSetup();
+                ApplyPeerPracticeSettings();
                 break;
             case 9:
-                OpenClientPowersMenu(fromGameplay: false);
+                if (_editingPeerPractice) ShowPeerLobby(); else OpenPracticeCoOpMenu();
                 break;
             case 10:
-                ClosePracticeMapBrowser();
-                _practiceSetupOpen = false;
+                if (!_editingPeerPractice) OpenPracticeCoOpJoin();
+                break;
+            case 11:
+                BackFromPracticeSetup();
                 break;
         }
     }
@@ -482,9 +488,10 @@ public partial class Game1
             specialAbilitiesHighlights.Value,
             specialAbilitiesHighlights.Right);
 
-        DrawMenuButtonScaled(layout.StartBounds, "Start Practice", IsPracticeControlHighlighted(8, layout.StartBounds), buttonScale);
-        DrawMenuButtonScaled(layout.ClientPowersBounds, "Experimental", IsPracticeControlHighlighted(9, layout.ClientPowersBounds), buttonScale);
-        DrawMenuButtonScaled(layout.BackBounds, "Back", IsPracticeControlHighlighted(10, layout.BackBounds), buttonScale);
+        DrawMenuButtonScaled(layout.StartBounds, _editingPeerPractice ? "Apply" : "Start Singleplayer", IsPracticeControlHighlighted(8, layout.StartBounds), Math.Min(buttonScale, layout.StartBounds.Width / 170f));
+        DrawMenuButtonScaled(layout.ClientPowersBounds, _editingPeerPractice ? "Cancel" : "Co-Op Lobby", IsPracticeControlHighlighted(9, layout.ClientPowersBounds), buttonScale);
+        DrawMenuButtonScaled(layout.JoinCoOpBounds, "Join Co-Op", IsPracticeControlHighlighted(10, layout.JoinCoOpBounds), buttonScale, !_editingPeerPractice);
+        DrawMenuButtonScaled(layout.BackBounds, "Back", IsPracticeControlHighlighted(11, layout.BackBounds), buttonScale);
 
         if (!string.IsNullOrWhiteSpace(_menuStatusMessage))
         {
@@ -497,14 +504,14 @@ public partial class Game1
 
         if (_practiceSetupState.MapBrowserOpen)
         {
-            DrawPracticeMapSelectionOverlay(PracticeMapsMenuLayoutCalculator.Create(ViewportWidth, ViewportHeight), 1f);
+            DrawPracticeMapSelectionOverlay(PracticeMapsMenuLayoutCalculator.Create(ViewportWidth, ViewportHeight, showSuperGangGarrison: !ClientDistribution.IsRestricted), 1f);
         }
     }
 
     private void OpenPracticeMapBrowser()
     {
         _practiceSetupState.OpenMapBrowser();
-        var layout = PracticeMapsMenuLayoutCalculator.Create(ViewportWidth, ViewportHeight);
+        var layout = PracticeMapsMenuLayoutCalculator.Create(ViewportWidth, ViewportHeight, showSuperGangGarrison: !ClientDistribution.IsRestricted);
         _practiceSetupState.EnsureAvailableMapSelectionVisible(layout.AvailableVisibleRowCapacity);
         _practiceMapContextMenu = null;
         _practiceEditField = PracticeEditField.None;
@@ -623,7 +630,7 @@ public partial class Game1
         var selectorValueWidth = selectorWidth - (selectorButtonWidth * 2) - 16;
         var buttonHeight = shortLayout ? 30 : compactLayout ? 34 : 38;
         var actionGap = shortLayout ? 6 : compactLayout ? 8 : 12;
-        var actionWidth = (panel.Width - (padding * 2) - (actionGap * 2)) / 3;
+        var actionWidth = (panel.Width - (padding * 2) - (actionGap * 3)) / 4;
         var actionsY = panel.Bottom - padding - buttonHeight;
 
         var mapLeftBounds = new Rectangle(selectorLeft, contentTop, selectorButtonWidth, rowHeight);
@@ -660,7 +667,8 @@ public partial class Game1
 
         var startBounds = new Rectangle(panel.X + padding, actionsY, actionWidth, buttonHeight);
         var clientPowersBounds = new Rectangle(startBounds.Right + actionGap, actionsY, actionWidth, buttonHeight);
-        var backBounds = new Rectangle(clientPowersBounds.Right + actionGap, actionsY, actionWidth, buttonHeight);
+        var joinCoOpBounds = new Rectangle(clientPowersBounds.Right + actionGap, actionsY, actionWidth, buttonHeight);
+        var backBounds = new Rectangle(joinCoOpBounds.Right + actionGap, actionsY, actionWidth, buttonHeight);
 
         return new PracticeSetupLayout(
             panel,
@@ -690,6 +698,7 @@ public partial class Game1
             specialAbilitiesRightBounds,
             startBounds,
             clientPowersBounds,
+            joinCoOpBounds,
             backBounds,
             compactLayout);
     }

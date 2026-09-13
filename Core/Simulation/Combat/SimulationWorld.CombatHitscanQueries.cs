@@ -99,14 +99,14 @@ public sealed partial class SimulationWorld
             UpdateProjectileHit<TProjectile> updateHit)
         {
             var rayBounds = GetRayBounds(previousX, previousY, directionX, directionY, maxDistance);
-            for (var roomObjectIndex = 0; roomObjectIndex < Level.RoomObjects.Count; roomObjectIndex += 1)
+            foreach (var roomObjectIndex in Level.ProjectileObstacleIndices)
             {
                 if (!Level.IsRoomObjectActive(roomObjectIndex))
                 {
                     continue;
                 }
 
-                var roomObject = Level.RoomObjects[roomObjectIndex];
+                ref readonly var roomObject = ref Level.GetRoomObject(roomObjectIndex);
                 if (!RayBoundsMayIntersectRectangle(rayBounds, roomObject.Left, roomObject.Top, roomObject.Right, roomObject.Bottom))
                 {
                     continue;

@@ -15,7 +15,20 @@ public sealed partial class SimulationWorld
         var previousInput = GetPreviousNetworkInput(slot);
         if (_networkPlayerForcedPressedButtons.TryGetValue(slot, out var forcedPressedButtons))
         {
-            previousInput = ClearForcedPressedButtons(previousInput, forcedPressedButtons);
+            if (forcedPressedButtons.ExplicitOnly)
+            {
+                // Held levels and reliable presses are independent on protocol 64.
+                // Suppress inferred rises but retain falls for release-to-fire and
+                // charge release. The command below supplies the only press edge.
+                previousInput = previousInput with
+                {
+                    Up = previousInput.Up || input.Up,
+                    FirePrimary = previousInput.FirePrimary || input.FirePrimary,
+                    FireSecondary = previousInput.FireSecondary || input.FireSecondary,
+                    UseAbility = previousInput.UseAbility || input.UseAbility,
+                };
+            }
+            previousInput = ClearForcedPressedButtons(previousInput, forcedPressedButtons.Buttons);
             _networkPlayerForcedPressedButtons.Remove(slot);
         }
         if (player.IsAlive)

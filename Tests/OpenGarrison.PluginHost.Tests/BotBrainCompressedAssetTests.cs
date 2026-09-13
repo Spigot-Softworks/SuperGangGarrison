@@ -10,6 +10,34 @@ namespace OpenGarrison.PluginHost.Tests;
 [Collection(ContentRootTestGroup.Name)]
 public sealed class BotBrainCompressedAssetTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Og2GraphLoadsFromBrowserCatalogWithoutDiskFile(bool browserCompression)
+    {
+        using var workspace = TempContentWorkspace.Create();
+        var level = TraversalLabFixtures.Create(TraversalLabFixtureKind.FlatGround);
+        var key = Og2NavigationGraphCache.BuildKey(level);
+        var graph = new NavGraph(
+            [new NavNode(10f, 20f, NavNodeKind.Surface, 0)],
+            [new List<NavEdge>()], levelName: level.Name, mode: level.Mode);
+        Og2NavigationGraphCache.SaveShipped(level, key, graph, out var diskPath);
+        var bytes = File.ReadAllBytes(diskPath);
+        if (browserCompression)
+        {
+            bytes = Og2NavigationGraphPackaging.EncodeForBrowser(bytes);
+            Assert.Equal(2, bytes[8]);
+        }
+        File.Delete(diskPath);
+        // Match the browser content root, with no real file at that path.
+        using var catalog = BrowserCatalogScope.Create("Content");
+        BrowserContentCatalog.SetBinaryAssets(
+            [new($"Content/BotBrainOg2Nav/{Path.GetFileName(diskPath)}", bytes)]);
+
+        Assert.True(Og2NavigationGraphCache.TryLoadShipped(level, key, out var loaded, out _));
+        Assert.Equal(1, loaded.NodeCount);
+    }
+
     [Fact]
     public void BotNavigationAssetStoreLoadsShippedJsonFromBrowserCatalog()
     {

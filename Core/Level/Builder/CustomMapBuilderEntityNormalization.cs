@@ -240,24 +240,9 @@ public static class CustomMapBuilderEntityNormalization
             return entity with { Type = legacyType };
         }
 
-        var priority = ForwardSpawnMetadata.ParsePriority(entity.Properties);
-        if (team.Equals("neutral", StringComparison.OrdinalIgnoreCase))
-        {
-            return entity;
-        }
-
-        priority = Math.Clamp(priority, 1, 4);
-        var forwardType = team.Equals("blue", StringComparison.OrdinalIgnoreCase)
-            ? $"bluespawn{priority}"
-            : $"redspawn{priority}";
-        var properties = CopyEditableProperties(entity);
-        properties.Remove("team");
-        properties.Remove("forward");
-        properties.Remove("objectiveIndex");
-        properties.Remove("linkObjective");
-        properties.Remove(ForwardSpawnPriorityMetadata.PropertyKey);
-        properties.Remove(ForwardSpawnMetadata.UseWhenPropertyKey);
-        return CustomMapBuilderEntity.Create(forwardType, entity.X, entity.Y, properties, entity.XScale, entity.YScale).NormalizeForEditing();
+        // A numbered legacy name cannot encode an explicit objective, condition
+        // and independent priority. Preserve the full editor entity on export.
+        return entity;
     }
 
     private static bool TryNormalizeBarrierFromLegacy(string type, CustomMapBuilderEntity entity, out CustomMapBuilderEntity barrier)

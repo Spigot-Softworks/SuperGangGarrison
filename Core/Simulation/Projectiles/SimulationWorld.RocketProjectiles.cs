@@ -41,7 +41,7 @@ public sealed partial class SimulationWorld
         const float epsilon = 0.25f;
         for (var index = 0; index < Level.RoomObjects.Count; index += 1)
         {
-            var roomObject = Level.RoomObjects[index];
+            ref readonly var roomObject = ref Level.GetRoomObject(index);
             var blocksProjectiles = roomObject.Type switch
             {
                 RoomObjectType.TeamGate => true,
@@ -224,7 +224,7 @@ public sealed partial class SimulationWorld
                 return;
             }
 
-            rocket.AdvanceOneTick(deltaSeconds);
+            rocket.AdvanceOneTick(deltaSeconds, world._configuredGravityScale);
             var movementX = rocket.X - rocket.PreviousX;
             var movementY = rocket.Y - rocket.PreviousY;
             var movementDistance = MathF.Sqrt((movementX * movementX) + (movementY * movementY));
@@ -241,6 +241,12 @@ public sealed partial class SimulationWorld
             var directionX = movementX / movementDistance;
             var directionY = movementY / movementDistance;
             var hit = ResolveRocketCollisionAlongPath(world, rocket, directionX, directionY, movementDistance);
+            if (world.TryInterceptWithCivilDefenseTurret(rocket.Team, rocket.PreviousX, rocket.PreviousY,
+                    directionX, directionY, MathF.Min(movementDistance, hit?.Distance ?? movementDistance)))
+            {
+                world.RemoveRocketAt(rocketIndex);
+                return;
+            }
             if (hit.HasValue)
             {
                 var hitResult = hit.Value;
@@ -469,14 +475,14 @@ public sealed partial class SimulationWorld
                 }
             }
 
-            for (var roomObjectIndex = 0; roomObjectIndex < world.Level.RoomObjects.Count; roomObjectIndex += 1)
+            foreach (var roomObjectIndex in world.Level.ProjectileObstacleIndices)
             {
                 if (!world.Level.IsRoomObjectActive(roomObjectIndex))
                 {
                     continue;
                 }
 
-                var roomObject = world.Level.RoomObjects[roomObjectIndex];
+                ref readonly var roomObject = ref world.Level.GetRoomObject(roomObjectIndex);
                 if (roomObject.Type == RoomObjectType.Barrier)
                 {
                     if (BarrierCollision.BlocksProjectile(roomObject.Barrier, rocket.Team)

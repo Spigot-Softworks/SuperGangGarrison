@@ -12,7 +12,8 @@ public static class CustomMapBuilderResourceCodec
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentException.ThrowIfNullOrWhiteSpace(sourcePath);
 
-        var bytes = File.ReadAllBytes(sourcePath);
+        var bytes = BuilderImageValidation.ReadFile(sourcePath);
+        if (IsImageResourceKind(kind)) BuilderImageValidation.Validate(bytes);
         if (!IsSupportedForKind(bytes, kind))
         {
             var required = kind == CustomMapBuilderResourceKind.MessageSound
@@ -102,7 +103,7 @@ public static class CustomMapBuilderResourceCodec
 
         if (!string.IsNullOrWhiteSpace(resource.SourcePath))
         {
-            return File.ReadAllBytes(resource.SourcePath);
+            return BuilderImageValidation.ReadFile(resource.SourcePath);
         }
 
         return [];

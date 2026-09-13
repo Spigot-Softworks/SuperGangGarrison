@@ -12,6 +12,7 @@ public partial class Game1
     private const string PracticeNavigationWarmupMessage = "Loading...";
 
     private bool _practiceNavigationWarmupPending;
+    private bool _practiceNavigationWarmupPresentationPending;
     private Task<PracticeNavigationWarmupResult>? _practiceNavigationWarmupTask;
     private SimpleLevel? _practiceNavigationWarmupLevel;
     private PlayerClass[] _practiceNavigationWarmupClasses = [];
@@ -35,6 +36,7 @@ public partial class Game1
         _practiceNavigationWarmupLevel = _world.Level;
         _practiceNavigationWarmupClasses = GetEligiblePracticeBotClassCycle().ToArray();
         _practiceNavigationWarmupPending = true;
+        _practiceNavigationWarmupPresentationPending = OperatingSystem.IsBrowser();
         ShowLoadingOverlay(PracticeNavigationWarmupMessage);
     }
 
@@ -53,6 +55,10 @@ public partial class Game1
 
         if (_practiceNavigationWarmupTask is null)
         {
+            // A browser Task.Run still shares the UI thread. Present the bar
+            // before scheduling graph construction so its compositor animation
+            // has a frame to start before that work blocks managed rendering.
+            if (_practiceNavigationWarmupPresentationPending) return true;
             var level = _practiceNavigationWarmupLevel;
             var classes = _practiceNavigationWarmupClasses;
             if (level is null)
@@ -99,6 +105,12 @@ public partial class Game1
 
         AddConsoleLine(GetPracticeNavigationDiagnosticsSummary() + result.Diagnostics);
         HideLoadingOverlay();
+        if (!result.Success && OperatingSystem.IsBrowser())
+        {
+            ReturnToMainMenu();
+            OpenPracticeSetupMenu();
+            SetPersistedMenuStatusMessage("Practice navigation could not load. Refresh the game and try again.");
+        }
         return false;
     }
 
@@ -107,6 +119,7 @@ public partial class Game1
         var task = _practiceNavigationWarmupTask;
         _practiceNavigationWarmupTask = null;
         _practiceNavigationWarmupPending = false;
+        _practiceNavigationWarmupPresentationPending = false;
         _practiceNavigationWarmupLevel = null;
         _practiceNavigationWarmupClasses = [];
 

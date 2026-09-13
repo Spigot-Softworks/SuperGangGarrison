@@ -1,6 +1,7 @@
 #nullable enable
 
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Input;
 using OpenGarrison.Core;
 using OpenGarrison.Protocol;
 using System;
@@ -22,6 +23,8 @@ public partial class Game1
     };
 
     private VotePresentationState? _votePresentationState;
+    private ulong _lastVotePresentationVoteId;
+    private uint _lastVotePresentationRevision;
 
     private sealed class VotePresentationState
     {
@@ -132,6 +135,155 @@ public partial class Game1
         }
     }
 
+    private void HandleVoteStateMessage(VoteStateMessage message, bool suppressEffects)
+    {
+        if (message.VoteId < _lastVotePresentationVoteId
+            || (message.VoteId == _lastVotePresentationVoteId
+                && message.Revision <= _lastVotePresentationRevision))
+        {
+            return;
+        }
+
+        _lastVotePresentationVoteId = message.VoteId;
+        _lastVotePresentationRevision = message.Revision;
+        var state = _votePresentationState ??= new VotePresentationState();
+        state.EventName = message.Event switch
+        {
+            ServerVoteEventKind.Started => "started",
+            ServerVoteEventKind.Yes => "yes",
+            ServerVoteEventKind.No => "no",
+            ServerVoteEventKind.Passed => "passed",
+            ServerVoteEventKind.Failed => "failed",
+            ServerVoteEventKind.Expired => "expired",
+            ServerVoteEventKind.Canceled => "canceled",
+            ServerVoteEventKind.ActionFailed => "failed",
+            _ => "updated",
+        };
+        state.Kind = message.Kind.ToString();
+        state.MapLabel = string.IsNullOrWhiteSpace(message.Subject) ? message.Message : message.Subject;
+        state.InitiatorName = message.InitiatorName;
+        state.ActorName = message.ActorName;
+        state.YesVotes = Math.Max(0, message.YesVotes);
+        state.NoVotes = Math.Max(0, message.NoVotes);
+        state.RequiredYesVotes = Math.Max(1, message.RequiredYesVotes);
+        state.EligibleVotes = Math.Max(0, message.EligibleVoters);
+        state.RemainingTicks = Math.Max(0, message.RemainingTicks);
+        state.FlashTicks = VotePresentationFlashTicks;
+
+        if (_voteMenuCatalog is not null
+            && message.Event is ServerVoteEventKind.Started
+                or ServerVoteEventKind.Snapshot
+                or ServerVoteEventKind.Yes
+                or ServerVoteEventKind.No)
+        {
+            _voteMenuCatalog = _voteMenuCatalog with { VoteActive = true, ActiveVoteId = message.VoteId };
+            if (message.Event == ServerVoteEventKind.Started && _voteMenuOpen)
+            {
+                SetVoteMenuPage(VoteMenuPage.Main);
+            }
+        }
+
+        switch (message.Event)
+        {
+            case ServerVoteEventKind.Started:
+                state.IsComplete = false;
+                state.Passed = false;
+                state.ResultTicks = 0;
+                PlayVotePresentationSoundUnlessSuppressed("VoteEngageSnd", suppressEffects);
+                break;
+            case ServerVoteEventKind.Yes:
+                state.IsComplete = false;
+                PlayVotePresentationSoundUnlessSuppressed("VoteYesSnd", suppressEffects);
+                break;
+            case ServerVoteEventKind.No:
+                state.IsComplete = false;
+                PlayVotePresentationSoundUnlessSuppressed("VoteNoSnd", suppressEffects);
+                break;
+            case ServerVoteEventKind.Passed:
+                state.IsComplete = true;
+                state.Passed = true;
+                state.ResultTicks = VotePresentationResultTicks;
+                PlayVotePresentationSoundUnlessSuppressed("VoteSuccessSnd", suppressEffects);
+                CloseVoteMenu();
+                break;
+            case ServerVoteEventKind.Failed:
+            case ServerVoteEventKind.Expired:
+            case ServerVoteEventKind.Canceled:
+            case ServerVoteEventKind.ActionFailed:
+                state.IsComplete = true;
+                state.Passed = false;
+                state.ResultTicks = VotePresentationResultTicks;
+                PlayVotePresentationSoundUnlessSuppressed("VoteFailSnd", suppressEffects);
+                CloseVoteMenu();
+                break;
+        }
+    }
+
+    private void ResetVotePresentation()
+    {
+        _votePresentationState = null;
+        _lastVotePresentationVoteId = 0;
+        _lastVotePresentationRevision = 0;
+        CloseVoteMenu();
+    }
+
+    private void TryHandleVoteShortcut(KeyboardState keyboard, MouseState mouse)
+    {
+        var blocked = _networkClient.IsReplayConnection
+            || (!_networkClient.IsConnected && !IsPracticeSessionActive)
+            || _chatOpen || _consoleOpen || _optionsMenuOpen || _controlsMenuOpen
+            || _passwordPromptOpen || _teamSelectOpen || _classSelectOpen || _voteMenuOpen
+            || _mainMenuOpen;
+        var hasActiveVote = _votePresentationState is { IsComplete: false, RemainingTicks: > 0 };
+        var command = ResolveVoteShortcut(
+            _inputBindings,
+            hasActiveVote,
+            blocked,
+            binding => IsBindingPressed(keyboard, mouse, binding));
+        if (command is null)
+        {
+            return;
+        }
+
+        if (command is VoteCommandKind.CastYes or VoteCommandKind.CastNo)
+        {
+            _networkClient.SendVoteCommand(command.Value, voteId: _lastVotePresentationVoteId);
+            return;
+        }
+
+        if (IsPracticeSessionActive && !_networkClient.IsConnected) OpenPracticeVoteMenu();
+        else _networkClient.SendVoteCommand(command.Value);
+    }
+
+    internal static VoteCommandKind? ResolveVoteShortcut(
+        InputBindingsSettings bindings,
+        bool hasActiveVote,
+        bool blocked,
+        Func<InputBinding, bool> isPressed)
+    {
+        if (blocked)
+        {
+            return null;
+        }
+
+        if (isPressed(bindings.OpenVoteMenu))
+        {
+            return VoteCommandKind.OpenMenu;
+        }
+
+        if (!hasActiveVote)
+        {
+            return null;
+        }
+
+        if (isPressed(bindings.VoteYes))
+        {
+            return VoteCommandKind.CastYes;
+        }
+
+        return isPressed(bindings.VoteNo) ? VoteCommandKind.CastNo : null;
+    }
+
     private void UpdateVotePresentation(int clientTicks)
     {
         var state = _votePresentationState;
@@ -199,7 +351,7 @@ public partial class Game1
 
         var subtitle = state.IsComplete
             ? $"{state.YesVotes} yes / {state.NoVotes} no"
-            : $"{Math.Max(0, state.RemainingTicks / SimulationConfig.DefaultTicksPerSecond)}s remaining";
+            : $"{Math.Max(0, state.RemainingTicks / Math.Max(1, _config.TicksPerSecond))}s remaining";
         DrawBitmapFontText(subtitle, new Vector2(bounds.X + 12f, bounds.Y + 50f), new Color(210, 210, 210) * alpha, 0.78f);
 
         DrawVoteCountRow(bounds, state, alpha);
@@ -220,7 +372,15 @@ public partial class Game1
             : $"Need {state.RequiredYesVotes}";
         if (!string.IsNullOrWhiteSpace(required))
         {
-            DrawBitmapFontText(required, new Vector2(bounds.Right - 86f, rowY + 1f), new Color(230, 220, 180) * alpha, 0.78f);
+        DrawBitmapFontText(required, new Vector2(bounds.Right - 86f, rowY + 1f), new Color(230, 220, 180) * alpha, 0.78f);
+        }
+
+        if (!state.IsComplete)
+        {
+            var hint = $"{GetBindingDisplayName(_inputBindings.VoteYes)} Yes   "
+                + $"{GetBindingDisplayName(_inputBindings.VoteNo)} No   "
+                + $"{GetBindingDisplayName(_inputBindings.OpenVoteMenu)} Vote menu";
+            DrawBitmapFontText(hint, new Vector2(bounds.X + 16f, bounds.Bottom + 7f), Color.White * alpha, 0.72f);
         }
     }
 
@@ -242,5 +402,13 @@ public partial class Game1
         }
 
         TryPlaySound(_runtimeAssets.GetSound(soundName), 0.88f, 0f, 0f);
+    }
+
+    private void PlayVotePresentationSoundUnlessSuppressed(string soundName, bool suppressEffects)
+    {
+        if (!suppressEffects)
+        {
+            PlayVotePresentationSound(soundName);
+        }
     }
 }

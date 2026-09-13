@@ -4,6 +4,14 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
+    private bool _gameplayModalOwnedInputThisFrame;
+
+    private bool HasGameplayModalInputOwner()
+        => _consoleOpen || _chatOpen || _passwordPromptOpen || HasOpenGameplayOverlay();
+
+    private bool CanUpdateHostedLastToDieMenuInput()
+        => !_gameplayModalOwnedInputThisFrame && !HasGameplayModalInputOwner();
+
     private bool IsGameplayMenuOpen()
     {
         return HasOpenGameplayBlockingMenu();
@@ -108,10 +116,18 @@ public partial class Game1
     private bool CanOpenInGamePauseMenu()
     {
         return !_consoleOpen
+            && !IsGameplayLoadingForMenuInput()
             && !ShouldBlockGameplayForGarrisonBuilder()
             && !_teamSelectOpen
             && !_classSelectOpen
             && !ShouldConsumeHostedLastToDieBackInput()
             && !HasOpenGameplayOverlay();
     }
+
+    // Pausing before warmup finishes prevents the next required snapshots arriving.
+    private bool IsGameplayLoadingForMenuInput()
+        => IsNetworkWorldWarmupBlockingPresentation()
+            || IsPracticeNavigationWarmupBlockingGameplay()
+            || _loadingOverlayVisible
+            || _networkClient.LastToDieState.Snapshot?.Phase == OpenGarrison.Protocol.LastToDieWirePhase.LoadingStage;
 }

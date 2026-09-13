@@ -43,6 +43,9 @@ public partial class Game1
     private bool _pendingOfflineBuildDispenser;
     private bool _pendingOfflineDestroySentry;
     private bool _pendingOfflineDestroyDispenser;
+    private bool _hasPendingBuildSentryAimOffset;
+    private float _pendingBuildSentryAimOffsetX;
+    private float _pendingBuildSentryAimOffsetY;
     private uint _latchedJumpPressSequence;
 
     private bool _hasLatestLocalAimWorldPosition;
@@ -118,6 +121,9 @@ public partial class Game1
         _pendingOfflineBuildDispenser = false;
         _pendingOfflineDestroySentry = false;
         _pendingOfflineDestroyDispenser = false;
+        _hasPendingBuildSentryAimOffset = false;
+        _pendingBuildSentryAimOffsetX = 0f;
+        _pendingBuildSentryAimOffsetY = 0f;
         _pendingImmediateRapidFireWeaponKind = null;
     }
 
@@ -126,6 +132,14 @@ public partial class Game1
         _previousPredictedLocalInput = _latestPredictedLocalInput;
         _latestPredictedLocalInput = networkInput;
         var previousPredictedInput = _previousPredictedLocalInput;
+        var buildSentryPressed = networkInput.BuildSentry && !previousPredictedInput.BuildSentry;
+        if (buildSentryPressed)
+        {
+            _pendingBuildSentryAimOffsetX = networkInput.AimWorldX - _world.LocalPlayer.X;
+            _pendingBuildSentryAimOffsetY = networkInput.AimWorldY - _world.LocalPlayer.Y;
+            _hasPendingBuildSentryAimOffset = true;
+        }
+
         if (!networkInput.FirePrimary)
         {
             _pendingImmediateRapidFireWeaponKind = null;
@@ -133,7 +147,7 @@ public partial class Game1
 
         if (_networkClient.IsConnected)
         {
-            if (networkInput.BuildSentry && !previousPredictedInput.BuildSentry)
+            if (buildSentryPressed)
             {
                 _pendingPredictedBuildSentryTicksRemaining = GetBuildMenuCommandRetryInputTicks();
             }
@@ -160,7 +174,7 @@ public partial class Game1
             // Practice runs the full simulation locally, but it still samples input
             // once per render frame while the world advances on fixed ticks. Preserve
             // build edges across that boundary just as the network path does.
-            if (networkInput.BuildSentry && !previousPredictedInput.BuildSentry)
+            if (buildSentryPressed)
             {
                 _pendingOfflineBuildSentry = true;
             }
@@ -316,7 +330,7 @@ public partial class Game1
                 input = input with { DestroyDispenser = true };
             }
 
-            return input;
+            return ApplyPendingBuildSentryAim(input);
         }
 
         if (_pendingPredictedBuildSentryTicksRemaining > 0 && !input.BuildSentry)
@@ -339,7 +353,18 @@ public partial class Game1
             input = input with { DestroyDispenser = true };
         }
 
-        return input;
+        return ApplyPendingBuildSentryAim(input);
+    }
+
+    private PlayerInputSnapshot ApplyPendingBuildSentryAim(PlayerInputSnapshot input)
+    {
+        return ApplyBuildWheelSentryAim(
+            input,
+            _world.LocalPlayer.X,
+            _world.LocalPlayer.Y,
+            _hasPendingBuildSentryAimOffset,
+            _pendingBuildSentryAimOffsetX,
+            _pendingBuildSentryAimOffsetY);
     }
 
     internal static PlayerInputSnapshot ApplyLatchedOneShotInputEdges(
@@ -408,12 +433,18 @@ public partial class Game1
             return false;
         }
 
+        if (player.IsExperimentalDemoknightEnabled)
+        {
+            return player.PrimaryCooldownTicks <= 0;
+        }
+
         if (player.IsSniperBowEquipped
+            || player.IsMortarLauncherEquipped
             || player.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.Medigun)
             || player.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.MedigunCrit)
             || player.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.Medigun))
         {
-            // Bow charge and medic healing have dedicated presentation paths;
+            // Charge/release weapons and medic healing have dedicated presentation paths;
             // do not fake a generic recoil frame for them.
             return false;
         }
@@ -487,6 +518,9 @@ public partial class Game1
         _pendingOfflineBuildDispenser = false;
         _pendingOfflineDestroySentry = false;
         _pendingOfflineDestroyDispenser = false;
+        _hasPendingBuildSentryAimOffset = false;
+        _pendingBuildSentryAimOffsetX = 0f;
+        _pendingBuildSentryAimOffsetY = 0f;
     }
 
     private void AdvanceNetworkInputLane(PlayerInputSnapshot networkInput)
@@ -620,7 +654,10 @@ public partial class Game1
             AdvanceShellVisuals();
             AdvanceRocketSmokeVisuals();
             AdvanceMineTrailVisuals();
-            AdvanceFlameSmokeVisuals();
+            if (!_networkClient.IsConnected)
+            {
+                AdvanceFlameSmokeVisuals();
+            }
             AdvanceLooseSheetVisuals();
             AdvanceCivvieUmbrellaShieldBlockVisuals();
             AdvanceFrozenSpyVisuals();

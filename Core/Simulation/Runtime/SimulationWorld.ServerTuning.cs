@@ -38,6 +38,35 @@ public sealed partial class SimulationWorld
         return _networkPlayerMovementSpeedScaleOverrides.ContainsKey(slot);
     }
 
+    public bool TrySetNetworkPlayerLastToDieEnemyScaling(
+        byte slot,
+        float movementSpeedMultiplier,
+        float damageMultiplier)
+    {
+        if (!TryGetNetworkPlayer(slot, out var player))
+        {
+            return false;
+        }
+
+        _networkPlayerMovementSpeedScaleOverrides[slot] = MathF.Max(0.1f, movementSpeedMultiplier);
+        _networkPlayerLastToDieEnemyDamageScaleOverrides[slot] = MathF.Max(0f, damageMultiplier);
+        ApplyServerGameplayTuning(slot, player);
+        return true;
+    }
+
+    public bool TryClearNetworkPlayerLastToDieEnemyScaling(byte slot)
+    {
+        if (!TryGetNetworkPlayer(slot, out var player))
+        {
+            return false;
+        }
+
+        _networkPlayerMovementSpeedScaleOverrides.Remove(slot);
+        _networkPlayerLastToDieEnemyDamageScaleOverrides.Remove(slot);
+        ApplyServerGameplayTuning(slot, player);
+        return true;
+    }
+
     public bool TrySetNetworkPlayerGravityScale(byte slot, float scale)
     {
         if (!TryGetNetworkPlayer(slot, out var player))
@@ -200,6 +229,10 @@ public sealed partial class SimulationWorld
         var gravityScale = GetEffectiveNetworkPlayerGravityScale(slot);
         player.SetServerMovementSpeedScale(movementSpeedScale);
         player.SetServerDamageScale(_configuredDamageScale);
+        player.SetLastToDieEnemyDamageMultiplier(
+            slot != 0 && _networkPlayerLastToDieEnemyDamageScaleOverrides.TryGetValue(slot, out var damageScale)
+                ? damageScale
+                : 1f);
         player.SetServerGravityScale(gravityScale);
         player.SetServerMovementSpeedClamps(
             _configuredHorizontalSpeedClampPerTick,

@@ -7,6 +7,7 @@ namespace OpenGarrison.Protocol;
 
 public static partial class ProtocolCodec
 {
+    public const int MaxServerPlayerTitleBytes = 64;
     public const int MaxPlayerNameBytes = 80;
     private const int MaxServerNameBytes = 128;
     private const int MaxLevelNameBytes = 64;
@@ -24,6 +25,10 @@ public static partial class ProtocolCodec
     public const int MaxAssetNameBytes = 64;
     public const int MaxKillMessageBytes = 160;
     private const int MaxGameplayIdBytes = 96;
+    private const int MaxGameplayTokenBytes = 256;
+    private const int MaxVoteSubjectBytes = 160;
+    private const int MaxVoteMessageBytes = 256;
+    private const int MaxVoteMenuEntries = 128;
     private const int MaxServerDetailsRosterEntries = 64;
     private static readonly UTF8Encoding Utf8 = new(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
 
@@ -300,6 +305,37 @@ public static partial class ProtocolCodec
                     reader.ReadUInt32(),
                     ReadCustomBubblePixels(reader)),
                 MessageType.CustomBubbleClear => new CustomBubbleClearMessage(reader.ReadByte()),
+                MessageType.GameplayAccountAttachRequest => new GameplayAccountAttachRequestMessage(
+                    reader.ReadUInt64(),
+                    ReadString(reader, MaxGameplayTokenBytes)),
+                MessageType.GameplayAccountAttachResult => new GameplayAccountAttachResultMessage(
+                    reader.ReadUInt64(),
+                    reader.ReadBoolean(),
+                    ReadString(reader, MaxReasonBytes),
+                    ReadString(reader, MaxFriendCodeBytes),
+                    ReadString(reader, MaxPlayerNameBytes),
+                    reader.ReadInt64(),
+                    reader.ReadInt64(),
+                    reader.ReadInt64()),
+                MessageType.PlayerPointsState => new PlayerPointsStateMessage(
+                    reader.ReadInt64(),
+                    reader.ReadInt64(),
+                    reader.ReadInt32(),
+                    reader.ReadInt64()),
+                MessageType.VoteCommand => new VoteCommandMessage(
+                    (VoteCommandKind)reader.ReadByte(),
+                    ReadString(reader, MaxVoteSubjectBytes),
+                    reader.ReadInt32(),
+                    reader.ReadByte(),
+                    reader.ReadByte(),
+                    reader.ReadUInt64(),
+                    ReadString(reader, MaxVoteSubjectBytes)),
+                MessageType.VoteState => ReadVoteState(reader),
+                MessageType.VoteMenu => ReadVoteMenu(reader),
+                MessageType.VoiceSubmit => new VoiceSubmitMessage(reader.ReadBoolean(), ReadAudioPacket(reader)),
+                MessageType.AudioRelay => ReadAudioRelay(reader),
+                MessageType.ServerAudioState => new ServerAudioStateMessage(reader.ReadUInt32(), reader.ReadBoolean(), reader.ReadBoolean(), reader.ReadUInt32(), reader.ReadBoolean(), reader.ReadBoolean(), ReadString(reader, AudioWireFormat.MaxTrackBytes), reader.ReadBoolean(), reader.ReadBoolean(), reader.ReadUInt32()),
+                MessageType.VoiceChannelMembership => new VoiceChannelMembershipMessage(reader.ReadUInt32(), reader.ReadBoolean()),
                 MessageType.LastToDieCommand => ReadLastToDieCommand(reader),
                 MessageType.LastToDieCommandResult => ReadLastToDieCommandResult(reader),
                 MessageType.LastToDieRunSnapshot => ReadLastToDieRunSnapshot(reader),
@@ -536,6 +572,64 @@ public static partial class ProtocolCodec
             case CustomBubbleClearMessage customBubbleClear:
                 writer.Write(customBubbleClear.PlayerSlot);
                 break;
+            case GameplayAccountAttachRequestMessage attachRequest:
+                writer.Write(attachRequest.RequestId);
+                WriteString(writer, attachRequest.GameplayToken, MaxGameplayTokenBytes, nameof(attachRequest.GameplayToken));
+                break;
+            case GameplayAccountAttachResultMessage attachResult:
+                writer.Write(attachResult.RequestId);
+                writer.Write(attachResult.Attached);
+                WriteString(writer, attachResult.Reason, MaxReasonBytes, nameof(attachResult.Reason));
+                WriteString(writer, attachResult.FriendCode, MaxFriendCodeBytes, nameof(attachResult.FriendCode));
+                WriteString(writer, attachResult.DisplayName, MaxPlayerNameBytes, nameof(attachResult.DisplayName));
+                writer.Write(attachResult.LifetimePoints);
+                writer.Write(attachResult.WalletBalance);
+                writer.Write(attachResult.ProfileRevision);
+                break;
+            case PlayerPointsStateMessage pointsState:
+                writer.Write(pointsState.LifetimePoints);
+                writer.Write(pointsState.WalletBalance);
+                writer.Write(pointsState.GlobalRank);
+                writer.Write(pointsState.ProfileRevision);
+                break;
+            case VoteCommandMessage voteCommand:
+                writer.Write((byte)voteCommand.Command);
+                WriteString(writer, voteCommand.Target, MaxVoteSubjectBytes, nameof(voteCommand.Target));
+                writer.Write(voteCommand.AreaIndex);
+                writer.Write(voteCommand.TargetSlot);
+                writer.Write(voteCommand.Team);
+                writer.Write(voteCommand.VoteId);
+                WriteString(writer, voteCommand.Argument, MaxVoteSubjectBytes, nameof(voteCommand.Argument));
+                break;
+            case VoteStateMessage voteState:
+                WriteVoteState(writer, voteState);
+                break;
+            case VoteMenuMessage voteMenu:
+                WriteVoteMenu(writer, voteMenu);
+                break;
+            case VoiceSubmitMessage voice:
+                writer.Write(voice.TeamOnly);
+                WriteAudioPacket(writer, voice.Packet);
+                break;
+            case AudioRelayMessage audio:
+                WriteAudioRelay(writer, audio);
+                break;
+            case ServerAudioStateMessage audioState:
+                writer.Write(audioState.Revision);
+                writer.Write(audioState.VoiceEnabled);
+                writer.Write(audioState.TeamOnly);
+                writer.Write(audioState.JukeboxStreamId);
+                writer.Write(audioState.JukeboxPlaying);
+                writer.Write(audioState.JukeboxPaused);
+                WriteString(writer, audioState.TrackName, AudioWireFormat.MaxTrackBytes, nameof(audioState.TrackName));
+                writer.Write(audioState.VoiceChannelRequiresJoin);
+                writer.Write(audioState.VoiceChannelJoined);
+                writer.Write(audioState.VoiceChannelRevision);
+                break;
+            case VoiceChannelMembershipMessage membership:
+                writer.Write(membership.Revision);
+                writer.Write(membership.Joined);
+                break;
             case LastToDieCommandMessage lastToDieCommand:
                 WriteLastToDieCommand(writer, lastToDieCommand);
                 break;
@@ -554,6 +648,150 @@ public static partial class ProtocolCodec
             default:
                 throw new InvalidOperationException($"Unsupported protocol message type: {message.GetType().Name}");
         }
+    }
+
+    private static VoteStateMessage ReadVoteState(BinaryReader reader)
+    {
+        return new VoteStateMessage(
+            reader.ReadUInt64(),
+            reader.ReadUInt32(),
+            (ServerVoteEventKind)reader.ReadByte(),
+            (ServerVoteKind)reader.ReadByte(),
+            ReadString(reader, MaxVoteSubjectBytes),
+            ReadString(reader, MaxPlayerNameBytes),
+            ReadString(reader, MaxPlayerNameBytes),
+            reader.ReadInt32(),
+            reader.ReadInt32(),
+            reader.ReadInt32(),
+            reader.ReadInt32(),
+            reader.ReadInt32(),
+            ReadString(reader, MaxVoteMessageBytes));
+    }
+
+    private static void WriteVoteState(BinaryWriter writer, VoteStateMessage state)
+    {
+        writer.Write(state.VoteId);
+        writer.Write(state.Revision);
+        writer.Write((byte)state.Event);
+        writer.Write((byte)state.Kind);
+        WriteString(writer, state.Subject, MaxVoteSubjectBytes, nameof(state.Subject));
+        WriteString(writer, state.InitiatorName, MaxPlayerNameBytes, nameof(state.InitiatorName));
+        WriteString(writer, state.ActorName, MaxPlayerNameBytes, nameof(state.ActorName));
+        writer.Write(state.YesVotes);
+        writer.Write(state.NoVotes);
+        writer.Write(state.RequiredYesVotes);
+        writer.Write(state.EligibleVoters);
+        writer.Write(state.RemainingTicks);
+        WriteString(writer, state.Message, MaxVoteMessageBytes, nameof(state.Message));
+    }
+
+    private static VoteMenuMessage ReadVoteMenu(BinaryReader reader)
+    {
+        var mapCount = reader.ReadUInt16();
+        if (mapCount > MaxVoteMenuEntries)
+        {
+            throw new IOException("Vote menu map list exceeds protocol limits.");
+        }
+
+        var maps = new List<VoteMenuMapEntry>(mapCount);
+        for (var index = 0; index < mapCount; index += 1)
+        {
+            maps.Add(new VoteMenuMapEntry(
+                ReadString(reader, MaxLevelNameBytes),
+                ReadString(reader, MaxVoteSubjectBytes),
+                reader.ReadInt32()));
+        }
+
+        var playerCount = reader.ReadUInt16();
+        if (playerCount > MaxVoteMenuEntries)
+        {
+            throw new IOException("Vote menu player list exceeds protocol limits.");
+        }
+
+        var players = new List<VoteMenuPlayerEntry>(playerCount);
+        for (var index = 0; index < playerCount; index += 1)
+        {
+            players.Add(new VoteMenuPlayerEntry(
+                reader.ReadByte(),
+                ReadString(reader, MaxPlayerNameBytes),
+                reader.ReadByte(),
+                reader.ReadBoolean()));
+        }
+
+        var customCount = reader.ReadUInt16();
+        if (customCount > MaxVoteMenuEntries)
+        {
+            throw new IOException("Vote menu custom vote list exceeds protocol limits.");
+        }
+
+        var customVotes = new List<VoteMenuCustomEntry>(customCount);
+        for (var index = 0; index < customCount; index += 1)
+        {
+            customVotes.Add(new VoteMenuCustomEntry(
+                ReadString(reader, MaxVoteSubjectBytes),
+                ReadString(reader, MaxVoteSubjectBytes),
+                ReadString(reader, MaxVoteMessageBytes),
+                reader.ReadByte()));
+        }
+
+        return new VoteMenuMessage(
+            maps,
+            players,
+            reader.ReadBoolean(),
+            reader.ReadBoolean(),
+            reader.ReadInt32(),
+            reader.ReadUInt64(),
+            reader.ReadBoolean(),
+            reader.ReadBoolean(),
+            reader.ReadBoolean(),
+            customVotes);
+    }
+
+    private static void WriteVoteMenu(BinaryWriter writer, VoteMenuMessage menu)
+    {
+        if (menu.Maps.Count > MaxVoteMenuEntries
+            || menu.Players.Count > MaxVoteMenuEntries
+            || menu.CustomVotes.Count > MaxVoteMenuEntries)
+        {
+            throw new InvalidOperationException("Vote menu exceeds protocol collection limits.");
+        }
+
+        writer.Write((ushort)menu.Maps.Count);
+        for (var index = 0; index < menu.Maps.Count; index += 1)
+        {
+            var map = menu.Maps[index];
+            WriteString(writer, map.LevelName, MaxLevelNameBytes, nameof(map.LevelName));
+            WriteString(writer, map.DisplayName, MaxVoteSubjectBytes, nameof(map.DisplayName));
+            writer.Write(map.AreaCount);
+        }
+
+        writer.Write((ushort)menu.Players.Count);
+        for (var index = 0; index < menu.Players.Count; index += 1)
+        {
+            var player = menu.Players[index];
+            writer.Write(player.Slot);
+            WriteString(writer, player.DisplayName, MaxPlayerNameBytes, nameof(player.DisplayName));
+            writer.Write(player.Team);
+            writer.Write(player.IsMuted);
+        }
+
+        writer.Write((ushort)menu.CustomVotes.Count);
+        for (var index = 0; index < menu.CustomVotes.Count; index += 1)
+        {
+            var customVote = menu.CustomVotes[index];
+            WriteString(writer, customVote.Id, MaxVoteSubjectBytes, nameof(customVote.Id));
+            WriteString(writer, customVote.DisplayName, MaxVoteSubjectBytes, nameof(customVote.DisplayName));
+            WriteString(writer, customVote.Description, MaxVoteMessageBytes, nameof(customVote.Description));
+            writer.Write(customVote.TargetKind);
+        }
+
+        writer.Write(menu.VipVoteAvailable);
+        writer.Write(menu.VoteActive);
+        writer.Write(menu.CooldownTicksRemaining);
+        writer.Write(menu.ActiveVoteId);
+        writer.Write(menu.KickVoteAvailable);
+        writer.Write(menu.MuteVoteAvailable);
+        writer.Write(menu.ScrambleVoteAvailable);
     }
 
     private static void WriteCustomBubblePixels(BinaryWriter writer, byte[]? pixels, string fieldName)
@@ -588,7 +826,8 @@ public static partial class ProtocolCodec
     {
         var profileCount = update.Profiles?.Count ?? 0;
         var removedCount = update.RemovedSlots?.Count ?? 0;
-        if (profileCount > byte.MaxValue || removedCount > byte.MaxValue)
+        var titleCount = update.Titles?.Count ?? 0;
+        if (profileCount > byte.MaxValue || removedCount > byte.MaxValue || titleCount > byte.MaxValue)
         {
             throw new InvalidOperationException("Player social profile update exceeds protocol collection limits.");
         }
@@ -607,6 +846,17 @@ public static partial class ProtocolCodec
         for (var index = 0; index < removedCount; index += 1)
         {
             writer.Write(update.RemovedSlots![index]);
+        }
+
+        // Appended to preserve decoding compatibility with older profile-update payloads.
+        writer.Write((byte)titleCount);
+        for (var index = 0; index < titleCount; index += 1)
+        {
+            var title = update.Titles![index];
+            writer.Write(title.Slot);
+            WriteString(writer, title.Text ?? string.Empty, MaxServerPlayerTitleBytes, nameof(title.Text));
+            writer.Write(title.ColorRgb & 0xFFFFFFu);
+            writer.Write(title.Rainbow);
         }
     }
 
@@ -630,7 +880,23 @@ public static partial class ProtocolCodec
             removedSlots[index] = reader.ReadByte();
         }
 
-        return new PlayerSocialProfileUpdateMessage(profiles, removedSlots);
+        if (reader.BaseStream.Position >= reader.BaseStream.Length)
+        {
+            return new PlayerSocialProfileUpdateMessage(profiles, removedSlots, Array.Empty<PlayerServerTitleState>());
+        }
+
+        var titleCount = reader.ReadByte();
+        var titles = new List<PlayerServerTitleState>(titleCount);
+        for (var index = 0; index < titleCount; index += 1)
+        {
+            titles.Add(new PlayerServerTitleState(
+                reader.ReadByte(),
+                ReadString(reader, MaxServerPlayerTitleBytes),
+                reader.ReadUInt32() & 0xFFFFFFu,
+                reader.ReadBoolean()));
+        }
+
+        return new PlayerSocialProfileUpdateMessage(profiles, removedSlots, titles);
     }
 
     private static void WriteServerDetailsResponse(BinaryWriter writer, ServerDetailsResponseMessage details)

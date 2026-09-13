@@ -50,7 +50,7 @@ internal sealed class WebSocketServerHost : IDisposable
         });
         builder.WebHost.ConfigureKestrel(options =>
         {
-            options.ListenAnyIP(_port, listenOptions =>
+            options.Listen(ManagedRoomRuntime.Enabled ? System.Net.IPAddress.Loopback : System.Net.IPAddress.Any, _port, listenOptions =>
             {
                 listenOptions.Protocols = HttpProtocols.Http1;
                 if (_certificatePath is not null)
@@ -61,6 +61,12 @@ internal sealed class WebSocketServerHost : IDisposable
         });
 
         var app = builder.Build();
+        if (ManagedRoomRuntime.Enabled)
+        {
+            app.MapGet("/opengarrison/session", (HttpContext context) =>
+                ManagedRoomRuntime.Authenticate(context.Request.Headers["X-OG-Room-Token"])
+                    ? Results.Json(ManagedRoomRuntime.Describe()) : Results.Unauthorized());
+        }
         if (_enableWebSocket)
         {
             app.UseWebSockets(new WebSocketOptions
@@ -125,6 +131,7 @@ internal sealed class WebSocketServerHost : IDisposable
 
     private async Task HandleWebSocketAsync(HttpContext context)
     {
+        if (ManagedRoomRuntime.Enabled) { context.Response.StatusCode = 403; return; }
         if (!context.WebSockets.IsWebSocketRequest)
         {
             context.Response.StatusCode = StatusCodes.Status400BadRequest;
@@ -142,6 +149,19 @@ internal sealed class WebSocketServerHost : IDisposable
 
     private async Task HandleProtocol64WebSocketAsync(HttpContext context)
     {
+        ManagedRoomRuntime.Participant? participant = null;
+        if (ManagedRoomRuntime.Enabled)
+        {
+            if (!ManagedRoomRuntime.Authenticate(context.Request.Headers["X-OG-Room-Token"])
+                || !Guid.TryParse(context.Request.Headers["X-OG-Client-Id"], out var clientId)
+                || !byte.TryParse(context.Request.Headers["X-OG-Player-Slot"], out var slot)
+                || slot is < 1 or > 2)
+            {
+                context.Response.StatusCode = 403;
+                return;
+            }
+            participant = new(clientId, slot);
+        }
         if (!context.WebSockets.IsWebSocketRequest)
         {
             context.Response.StatusCode = StatusCodes.Status400BadRequest;
@@ -158,7 +178,7 @@ internal sealed class WebSocketServerHost : IDisposable
             remoteIp,
             remotePort,
             _log,
-            context.RequestAborted).ConfigureAwait(false);
+            context.RequestAborted, participant).ConfigureAwait(false);
         _log($"[server] protocol-64 WebSocket session ended remote={remoteIp}:{remotePort}");
     }
 

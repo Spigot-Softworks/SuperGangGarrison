@@ -20,7 +20,8 @@ public sealed class DeadBodyEntity : SimulationEntity
         float height,
         float horizontalSpeed,
         float verticalSpeed,
-        bool facingLeft) : base(id)
+        bool facingLeft,
+        string gameplayClassId = "") : base(id)
     {
         SourcePlayerId = sourcePlayerId;
         ClassId = classId;
@@ -33,6 +34,7 @@ public sealed class DeadBodyEntity : SimulationEntity
         HorizontalSpeed = horizontalSpeed;
         VerticalSpeed = verticalSpeed;
         FacingLeft = facingLeft;
+        GameplayClassId = gameplayClassId ?? string.Empty;
         TicksRemaining = LifetimeTicks;
     }
 
@@ -57,6 +59,9 @@ public sealed class DeadBodyEntity : SimulationEntity
     public float VerticalSpeed { get; private set; }
 
     public bool FacingLeft { get; }
+
+    /// <summary>Gameplay class identity frozen at death; empty means legacy enum-only state.</summary>
+    public string GameplayClassId { get; }
 
     public int TicksRemaining { get; private set; }
 

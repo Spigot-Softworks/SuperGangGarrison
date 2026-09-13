@@ -41,9 +41,17 @@ public partial class Game1
                 : PlayerEntity.SniperScopedMoveScale;
         }
 
-        if (player.ClassId == PlayerClass.Heavy && input.FirePrimary)
+        if (player.ClassId == PlayerClass.Heavy
+            && player.PrimaryWeapon.Kind == PrimaryWeaponKind.Minigun
+            && input.FirePrimary)
         {
             return PlayerEntity.HeavyPrimaryMoveScale;
+        }
+
+        if (player.IsMortarLauncherEquipped
+            && _predictedLocalActionState.SniperBowChargeTicks > 0)
+        {
+            return PlayerEntity.MortarLauncherMoveScale;
         }
 
         return 1f;

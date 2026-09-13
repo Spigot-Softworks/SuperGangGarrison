@@ -131,7 +131,8 @@ public sealed class CustomMapEntityRuntimeRegistryTests
             context.BlueSpawns,
             ForwardSpawnMetadata.CountMapControlPoints(context.RoomObjects.ToArray()));
 
-        Assert.Equal(3, context.BlueSpawns[0].LinkedControlPointIndex);
+        Assert.Equal(1, context.BlueSpawns[0].LinkedControlPointIndex);
+        Assert.Equal(3, context.BlueSpawns[0].Priority);
     }
 
     [Fact]

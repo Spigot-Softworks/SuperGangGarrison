@@ -17,6 +17,14 @@
     <Authors>Faucet Software</Authors>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(OpenGarrisonBuildRoot)' != ''">
+    <OpenGarrisonBuildVariant Condition="'$(OpenGarrisonClientAsLibrary)' == 'true'">browser\</OpenGarrisonBuildVariant>
+    <BaseIntermediateOutputPath>$(OpenGarrisonBuildRoot)\obj\$(OpenGarrisonBuildVariant)$(MSBuildProjectName)\</BaseIntermediateOutputPath>
+    <MSBuildProjectExtensionsPath>$(BaseIntermediateOutputPath)</MSBuildProjectExtensionsPath>
+    <BaseOutputPath>$(OpenGarrisonBuildRoot)\bin\$(OpenGarrisonBuildVariant)$(MSBuildProjectName)\</BaseOutputPath>
+    <DefaultItemExcludes>$(DefaultItemExcludes);bin\**;obj\**</DefaultItemExcludes>
+  </PropertyGroup>
+
   <PropertyGroup Condition="'$(MSBuildProjectName)' == 'OpenGarrison.Core' or '$(MSBuildProjectName)' == 'OpenGarrison.Protocol'">
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);1591</NoWarn>
@@ -26,7 +34,7 @@
     <NoWarn>$(NoWarn);1591</NoWarn>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(OpenGarrisonClientAsLibrary)' == 'true' and ('$(MSBuildProjectName)' == 'OpenGarrison.Client' or '$(MSBuildProjectName)' == 'OpenGarrison.Client.Plugins.Abstractions')">
+  <PropertyGroup Condition="'$(OpenGarrisonBuildRoot)' == '' and '$(OpenGarrisonClientAsLibrary)' == 'true' and ('$(MSBuildProjectName)' == 'OpenGarrison.Client' or '$(MSBuildProjectName)' == 'OpenGarrison.Client.Plugins.Abstractions')">
     <BaseIntermediateOutputPath>obj\browser\</BaseIntermediateOutputPath>
     <MSBuildProjectExtensionsPath>obj\browser\</MSBuildProjectExtensionsPath>
     <IntermediateOutputPath>obj\browser\$(Configuration)\</IntermediateOutputPath>

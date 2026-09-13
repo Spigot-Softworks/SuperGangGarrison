@@ -664,11 +664,7 @@ public partial class Game1
         if (line.SpeakerPrefix.Length > 0)
         {
             speakerWidth = MeasureBitmapFontWidth(line.SpeakerPrefix, 1f);
-            DrawBitmapFontText(
-                line.SpeakerPrefix,
-                position,
-                (line.Line.DirectMessage ? directMessageColor : GetChatTeamColor(line.Line.Team)) * alpha,
-                1f);
+            DrawChatSpeakerPrefix(line.Line, position, alpha, directMessageColor);
         }
 
         DrawBitmapFontText(
@@ -681,12 +677,7 @@ public partial class Game1
     private void DrawChatLine(ChatLine line, Vector2 position, float alpha, float maxPanelWidth)
     {
         var directMessageColor = new Color(138, 218, 255);
-        var channelPrefix = line.TeamOnly ? "(TEAM) " : string.Empty;
-        var speakerPrefix = string.IsNullOrWhiteSpace(line.PlayerName)
-            ? channelPrefix
-            : line.DirectMessage
-                ? $"[{line.PlayerName}]: "
-                : $"{channelPrefix}{line.PlayerName}: ";
+        var speakerPrefix = GetChatLineSpeakerPrefix(line);
         var speakerWidth = MeasureBitmapFontWidth(speakerPrefix, 1f);
         var maxContentWidth = Math.Max(48f, maxPanelWidth - (ChatHudPanelHorizontalPadding * 2f));
         var wrappedMessageLines = WrapBitmapFontText(
@@ -700,7 +691,7 @@ public partial class Game1
             var textPosition = new Vector2(position.X, position.Y + lineIndex * lineHeight);
             if (lineIndex == 0 && speakerPrefix.Length > 0)
             {
-                DrawBitmapFontText(speakerPrefix, textPosition, (line.DirectMessage ? directMessageColor : GetChatTeamColor(line.Team)) * alpha, 1f);
+                DrawChatSpeakerPrefix(line, textPosition, alpha, directMessageColor);
             }
 
             DrawBitmapFontText(
@@ -781,12 +772,7 @@ public partial class Game1
 
     private float MeasureChatLineHeight(ChatLine line, float maxPanelWidth)
     {
-        var channelPrefix = line.TeamOnly ? "(TEAM) " : string.Empty;
-        var speakerPrefix = string.IsNullOrWhiteSpace(line.PlayerName)
-            ? channelPrefix
-            : line.DirectMessage
-                ? $"[{line.PlayerName}]: "
-                : $"{channelPrefix}{line.PlayerName}: ";
+        var speakerPrefix = GetChatLineSpeakerPrefix(line);
         var maxContentWidth = Math.Max(48f, maxPanelWidth - (ChatHudPanelHorizontalPadding * 2f));
         var wrappedMessageLines = WrapBitmapFontText(
             line.Text,
@@ -932,14 +918,45 @@ public partial class Game1
         }
     }
 
-    private static string GetChatLineSpeakerPrefix(ChatLine line)
+    private string GetChatLineSpeakerPrefix(ChatLine line)
     {
         var channelPrefix = line.TeamOnly ? "(TEAM) " : string.Empty;
+        var titlePrefix = !line.DirectMessage
+            && line.PlayerSlot != 0
+            && TryGetOnlinePlayerServerTitle(line.PlayerSlot, out var title)
+                ? title.Text + " "
+                : string.Empty;
         return string.IsNullOrWhiteSpace(line.PlayerName)
             ? channelPrefix
             : line.DirectMessage
                 ? $"[{line.PlayerName}]: "
-                : $"{channelPrefix}{line.PlayerName}: ";
+                : $"{channelPrefix}{titlePrefix}{line.PlayerName}: ";
+    }
+
+    private void DrawChatSpeakerPrefix(ChatLine line, Vector2 position, float alpha, Color directMessageColor)
+    {
+        if (line.DirectMessage || string.IsNullOrWhiteSpace(line.PlayerName) || line.PlayerSlot == 0
+            || !TryGetOnlinePlayerServerTitle(line.PlayerSlot, out var title))
+        {
+            DrawBitmapFontText(
+                GetChatLineSpeakerPrefix(line),
+                position,
+                (line.DirectMessage ? directMessageColor : GetChatTeamColor(line.Team)) * alpha,
+                1f);
+            return;
+        }
+
+        var teamColor = GetChatTeamColor(line.Team);
+        var cursorX = position.X;
+        var channelPrefix = line.TeamOnly ? "(TEAM) " : string.Empty;
+        if (channelPrefix.Length > 0)
+        {
+            DrawBitmapFontText(channelPrefix, position, teamColor * alpha, 1f);
+            cursorX += MeasureBitmapFontWidth(channelPrefix, 1f);
+        }
+
+        cursorX = DrawServerPlayerTitle(title, new Vector2(cursorX, position.Y), alpha, 1f);
+        DrawBitmapFontText($"{line.PlayerName}: ", new Vector2(cursorX, position.Y), teamColor * alpha, 1f);
     }
 
     private List<ChatLine> GetVisibleChatLines(float maxPanelWidth, float maxChatHeight, bool includeHistory)

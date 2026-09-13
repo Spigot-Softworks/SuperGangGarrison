@@ -105,7 +105,8 @@ public partial class Game1
     {
         foreach (var candidate in _gameplayPlayerRenderController.EnumerateRenderablePlayers())
         {
-            if (candidate.Id == playerId || GetPlayerStateKey(candidate) == playerId)
+            if ((candidate.Id == playerId || GetPlayerStateKey(candidate) == playerId)
+                && HasFreshPlayerRenderHistory(candidate))
             {
                 player = candidate;
                 return true;

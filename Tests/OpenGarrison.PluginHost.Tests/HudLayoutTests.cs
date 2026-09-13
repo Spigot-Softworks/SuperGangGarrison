@@ -7,15 +7,67 @@ namespace OpenGarrison.PluginHost.Tests;
 public sealed class HudLayoutTests
 {
     [Fact]
-    public void WeaponStackDefaultMatchesLegacySourceCoordinates()
+    public void SavedSlidingBuildMenuPositionDoesNotMoveTheReplacementWheelOffScreen()
+    {
+        var document = new HudLayoutDocument();
+        document.Elements[HudElementId.LegacyClassEngineerBuildMenu] = new()
+        { Anchor = HudAnchor.CenterLeft, OffsetX = 11, OffsetY = -106, Scale = 1, Visible = true };
+        document.Elements[HudElementId.LocalHealth] = new() { OffsetX = 37, OffsetY = -41, Scale = 1.5f };
+        var profile = document.ToProfile();
+        Assert.True(profile.TryResolve(HudElementId.ClassEngineerBuildMenu, 960, 540, out var wheel));
+        Assert.Equal(new Vector2(480, 270), wheel.Origin);
+        Assert.Equal(37f, profile.Overrides[HudElementId.LocalHealth].OffsetX);
+        Assert.Equal(1.5f, profile.Overrides[HudElementId.LocalHealth].Scale);
+        Assert.DoesNotContain(HudElementId.LegacyClassEngineerBuildMenu, HudLayoutDocument.FromProfile(profile).Elements.Keys);
+    }
+
+    [Fact]
+    public void NewWheelLayoutSurvivesReloadAlongsideAnObsoleteBuildMenuEntry()
+    {
+        var document = new HudLayoutDocument();
+        document.Elements[HudElementId.LegacyClassEngineerBuildMenu] = new() { Anchor = HudAnchor.CenterLeft, OffsetX = 11 };
+        document.Elements[HudElementId.ClassEngineerBuildMenu] = new() { Anchor = HudAnchor.Center, OffsetX = 32, OffsetY = -20, Scale = 1.25f };
+        var restored = HudLayoutDocument.FromProfile(document.ToProfile()).ToProfile();
+        Assert.True(restored.TryResolve(HudElementId.ClassEngineerBuildMenu, 960, 540, out var wheel));
+        Assert.Equal(new Vector2(512, 250), wheel.Origin);
+        Assert.Equal(1.25f, wheel.Layout.Scale);
+    }
+
+    [Theory]
+    [InlineData(320, 240, 3f)]
+    [InlineData(640, 480, 3f)]
+    [InlineData(960, 540, 0.5f)]
+    [InlineData(1920, 1080, 3f)]
+    public void CustomizedWheelAndLabelStayInsideTheResizedViewport(int width, int height, float scale)
     {
         var profile = new HudLayoutProfile();
-        Assert.True(profile.TryResolve(HudElementId.LocalWeaponStack, 1280, 720, out var resolved));
+        profile.Overrides[HudElementId.ClassEngineerBuildMenu] = new()
+        { Anchor = HudAnchor.TopLeft, OffsetX = -400, OffsetY = 2000, Scale = scale };
+        Assert.True(profile.TryResolve(HudElementId.ClassEngineerBuildMenu, width, height, out var wheel));
+        Assert.InRange(wheel.Bounds.Left, 0, width);
+        Assert.InRange(wheel.Bounds.Right, 0, width);
+        Assert.InRange(wheel.Bounds.Top, 0, height);
+        Assert.InRange(wheel.Origin.Y + 110 * wheel.Layout.Scale + 16, 0, height);
+        Assert.True(profile.TryResolveEvenIfHidden(HudElementId.ClassEngineerBuildMenu, width, height, out var editor));
+        Assert.Equal(wheel, editor);
+    }
+
+    [Fact]
+    public void WeaponWidgetsUseIndependentRuntimeLayouts()
+    {
+        var profile = new HudLayoutProfile();
+        Assert.False(profile.TryResolve(HudElementId.LocalWeaponStack, 1280, 720, out _));
+
+        profile.SetRuntimeDefault(CreateDefaultWeaponWidgetLayout(HudElementId.LocalWeaponPrimary, 0f));
+        profile.SetRuntimeDefault(CreateDefaultWeaponWidgetLayout(HudElementId.LocalWeaponSecondary, -45f));
+        Assert.True(profile.TryResolve(HudElementId.LocalWeaponPrimary, 1280, 720, out var primary));
+        Assert.True(profile.TryResolve(HudElementId.LocalWeaponSecondary, 1280, 720, out var secondary));
 
         var legacyY = (600f / 1.26f) + 86f;
         var expected = HudLayoutResolver.ResolveLegacySourcePoint(728f, legacyY, 1280, 720);
-        Assert.Equal(expected.X, resolved.Origin.X, precision: 3);
-        Assert.Equal(expected.Y, resolved.Origin.Y, precision: 3);
+        Assert.Equal(expected.X, primary.Origin.X, precision: 3);
+        Assert.Equal(expected.Y, primary.Origin.Y, precision: 3);
+        Assert.True(secondary.Origin.Y < primary.Origin.Y);
     }
 
     [Fact]
@@ -23,13 +75,13 @@ public sealed class HudLayoutTests
     {
         var profile = new HudLayoutProfile();
         Assert.True(profile.TryResolve(HudElementId.LocalAbilityStack, 1280, 720, out var resolved));
-        Assert.True(profile.TryResolve(HudElementId.LocalWeaponStack, 1280, 720, out var weapon));
 
         var expected = HudLayoutResolver.ResolveLegacySourcePoint(730f, 515f, 1280, 720);
         Assert.Equal(expected.X, resolved.Origin.X, precision: 3);
         Assert.Equal(expected.Y, resolved.Origin.Y, precision: 3);
-        Assert.Equal(2f, resolved.Origin.X - weapon.Origin.X, precision: 3);
-        Assert.True(resolved.Origin.Y < weapon.Origin.Y);
+        var weaponOrigin = HudLayoutResolver.ResolveLegacySourcePoint(728f, (600f / 1.26f) + 86f, 1280, 720);
+        Assert.Equal(2f, resolved.Origin.X - weaponOrigin.X, precision: 3);
+        Assert.True(resolved.Origin.Y < weaponOrigin.Y);
     }
 
     [Fact]
@@ -45,15 +97,18 @@ public sealed class HudLayoutTests
         Assert.False(sentry.Bounds.Intersects(health.Bounds));
     }
 
-    [Fact]
-    public void EngineerBuildMenuDefaultReportsLegacyScreenBounds()
+    [Theory]
+    [InlineData(800, 600)]
+    [InlineData(1280, 720)]
+    [InlineData(640, 480)]
+    public void EngineerBuildWheelStaysCenteredWhenViewportChanges(int width, int height)
     {
         var profile = new HudLayoutProfile();
 
-        Assert.True(profile.TryResolve(HudElementId.ClassEngineerBuildMenu, 1280, 720, out var resolved));
-        Assert.Equal(37f, resolved.Origin.X, precision: 3);
-        Assert.Equal(360f, resolved.Origin.Y, precision: 3);
-        Assert.Equal(new Rectangle(37, 340, 74, 244), resolved.Bounds);
+        Assert.True(profile.TryResolve(HudElementId.ClassEngineerBuildMenu, width, height, out var resolved));
+        Assert.Equal(width / 2f, resolved.Origin.X, precision: 3);
+        Assert.Equal(height / 2f, resolved.Origin.Y, precision: 3);
+        Assert.Equal(new Rectangle(width / 2 - 100, height / 2 - 100, 201, 201), resolved.Bounds);
     }
 
     [Theory]
@@ -63,12 +118,13 @@ public sealed class HudLayoutTests
     public void EngineerDefaultHudElementsDoNotOverlap(int viewportWidth, int viewportHeight)
     {
         var profile = new HudLayoutProfile();
+        profile.SetRuntimeDefault(CreateDefaultWeaponWidgetLayout(HudElementId.LocalWeaponPrimary, 0f));
 
         AssertDefaultElementsDoNotOverlap(
             profile,
             viewportWidth,
             viewportHeight,
-            HudElementId.LocalWeaponStack,
+            HudElementId.LocalWeaponPrimary,
             HudElementId.ClassEngineerMetal,
             HudElementId.ClassEngineerSentry,
             HudElementId.LastToDieRage);
@@ -89,12 +145,13 @@ public sealed class HudLayoutTests
     public void MedicLastToDieDefaultHudElementsDoNotOverlap(int viewportWidth, int viewportHeight)
     {
         var profile = new HudLayoutProfile();
+        profile.SetRuntimeDefault(CreateDefaultWeaponWidgetLayout(HudElementId.LocalWeaponPrimary, 0f));
 
         AssertDefaultElementsDoNotOverlap(
             profile,
             viewportWidth,
             viewportHeight,
-            HudElementId.LocalWeaponStack,
+            HudElementId.LocalWeaponPrimary,
             HudElementId.ClassMedicUber,
             HudElementId.LastToDieRage);
         AssertDefaultElementsDoNotOverlap(
@@ -126,7 +183,8 @@ public sealed class HudLayoutTests
     public void ExplicitHudOverridesCanStillOverlapOtherElements()
     {
         var profile = new HudLayoutProfile();
-        Assert.True(profile.TryResolve(HudElementId.LocalWeaponStack, 1280, 720, out var weapon));
+        profile.SetRuntimeDefault(CreateDefaultWeaponWidgetLayout(HudElementId.LocalWeaponPrimary, 0f));
+        Assert.True(profile.TryResolve(HudElementId.LocalWeaponPrimary, 1280, 720, out var weapon));
         Assert.True(profile.TryResolve(HudElementId.ClassEngineerMetal, 1280, 720, out var defaultMetal));
         Assert.False(defaultMetal.Bounds.Intersects(weapon.Bounds));
 
@@ -313,7 +371,7 @@ public sealed class HudLayoutTests
     }
 
     [Fact]
-    public void RuntimeDefaultResolvesSavedDynamicAbilityWidgetOverride()
+    public void RuntimeDefaultPromotesAndResolvesSavedDynamicWidgetOverride()
     {
         var profile = new HudLayoutProfile();
         var id = HudElementId.LocalAbilitySlot(1);
@@ -333,6 +391,8 @@ public sealed class HudLayoutTests
             new Vector2(-38f, -28f),
             Layer: 21));
 
+        Assert.False(profile.UnknownOverrides.ContainsKey(id));
+        Assert.True(profile.Overrides.ContainsKey(id));
         Assert.True(profile.TryResolve(id, 1280, 720, out var resolved));
         Assert.Equal(1152f, resolved.Origin.X, precision: 3);
         Assert.Equal(624f, resolved.Origin.Y, precision: 3);
@@ -407,5 +467,17 @@ public sealed class HudLayoutTests
                     $"{elements[left].Layout.Id} overlaps {elements[right].Layout.Id}: {elements[left].Bounds} vs {elements[right].Bounds}");
             }
         }
+    }
+
+    private static HudElementLayout CreateDefaultWeaponWidgetLayout(string id, float sourceYOffset)
+    {
+        var legacyY = (600f / 1.26f) + 86f + sourceYOffset;
+        return new HudElementLayout(
+            id,
+            HudAnchor.BottomRight,
+            new Vector2(728f - 800f, legacyY - 600f),
+            new Vector2(120f, 41f),
+            new Vector2(-60f, -20f),
+            Layer: 20);
     }
 }

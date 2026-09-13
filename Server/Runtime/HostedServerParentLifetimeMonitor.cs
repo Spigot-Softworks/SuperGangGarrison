@@ -22,16 +22,19 @@ internal sealed class HostedServerParentLifetimeMonitor : IDisposable
     private readonly TaskCompletionSource<object?> _serverRunCompleted = new(
         TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly bool _forceProcessExitOnTimeout;
+    private readonly Action<string>? _onShutdown;
 
     private HostedServerParentLifetimeMonitor(
         HostedServerProcessIdentity parentIdentity,
         CancellationTokenSource shutdownCts,
         Action<string> log,
         bool forceProcessExitOnTimeout,
-        CancellationToken serverShutdownToken)
+        CancellationToken serverShutdownToken,
+        Action<string>? onShutdown)
     {
         _parentIdentity = parentIdentity;
         _forceProcessExitOnTimeout = forceProcessExitOnTimeout;
+        _onShutdown = onShutdown;
         _monitorCts = CancellationTokenSource.CreateLinkedTokenSource(serverShutdownToken);
         _monitorTask = Task.Factory.StartNew(
             () => MonitorLoop(shutdownCts, log, _monitorCts.Token),
@@ -44,7 +47,8 @@ internal sealed class HostedServerParentLifetimeMonitor : IDisposable
         CancellationTokenSource shutdownCts,
         Action<string> log,
         CancellationToken serverShutdownToken,
-        bool forceProcessExitOnTimeout = false)
+        bool forceProcessExitOnTimeout = false,
+        Action<string>? onShutdown = null)
     {
         ArgumentNullException.ThrowIfNull(shutdownCts);
         ArgumentNullException.ThrowIfNull(log);
@@ -63,7 +67,8 @@ internal sealed class HostedServerParentLifetimeMonitor : IDisposable
                 shutdownCts,
                 log,
                 forceProcessExitOnTimeout,
-                serverShutdownToken)
+                serverShutdownToken,
+                onShutdown)
             : null;
     }
 
@@ -98,12 +103,14 @@ internal sealed class HostedServerParentLifetimeMonitor : IDisposable
             if (!IsParentAlive())
             {
                 log($"[server] hosted parent process {_parentIdentity.ProcessId} exited; shutting down.");
+                _onShutdown?.Invoke("hosted-parent-exited:" + _parentIdentity.ProcessId);
                 shutdownCts.Cancel();
                 if (_forceProcessExitOnTimeout
                     && !_serverRunCompleted.Task.Wait(ShutdownGracePeriod, CancellationToken.None))
                 {
                     log("[server] hosted shutdown did not complete within 5 seconds; forcing process exit.");
-                    Environment.Exit(0);
+                    log("[server] process-exit reason=hosted-parent-exited:shutdown-timeout exitCode=2");
+                    Environment.Exit(2);
                 }
 
                 return;

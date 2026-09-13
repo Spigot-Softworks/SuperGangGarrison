@@ -12,6 +12,7 @@ internal sealed class Protocol64StatePublisher
 {
     private readonly SimulationWorld _world;
     private readonly Func<byte, uint> _lastProcessedInputSequenceProvider;
+    private readonly Func<byte, bool> _isBotSlotProvider;
     private readonly Dictionary<(ushort Slot, ulong PlayerId), PlayerIdentityState> _playerIdentities = [];
     private readonly HashSet<(ushort Slot, ulong PlayerId)> _activePlayerIdentities = [];
     private readonly Dictionary<ulong, ProjectileIdentityState> _projectileIdentities = [];
@@ -22,10 +23,12 @@ internal sealed class Protocol64StatePublisher
 
     public Protocol64StatePublisher(
         SimulationWorld world,
-        Func<byte, uint>? lastProcessedInputSequenceProvider = null)
+        Func<byte, uint>? lastProcessedInputSequenceProvider = null,
+        Func<byte, bool>? isBotSlotProvider = null)
     {
         _world = world ?? throw new ArgumentNullException(nameof(world));
         _lastProcessedInputSequenceProvider = lastProcessedInputSequenceProvider ?? (_ => 0u);
+        _isBotSlotProvider = isBotSlotProvider ?? world.IsNetworkPlayerBot;
     }
 
     public Protocol64PlayerStateBatch BuildPlayerStateBatch(uint stateTick, byte? viewerSlot = null)
@@ -259,7 +262,10 @@ internal sealed class Protocol64StatePublisher
             damage: 0,
             stateTick,
             isCritical: rocket.IsCritical,
-            criticalDamageMultiplier: rocket.CriticalDamageMultiplier)));
+            criticalDamageMultiplier: rocket.CriticalDamageMultiplier,
+            isBallisticRocket: rocket.IsBallistic,
+            ballisticRocketGravityPerTick: rocket.BallisticGravityPerTick,
+            suppressRocketSmokeTrail: rocket.SuppressSmokeTrail)));
         projectiles.AddRange(_world.Flames.Select(flame => ToProjectile(
             flame.Id,
             Protocol64ProjectileKind.Flame,
@@ -289,7 +295,8 @@ internal sealed class Protocol64StatePublisher
             damage: flare.DamagePerHit,
             stateTick,
             isCritical: flare.IsCritical,
-            criticalDamageMultiplier: flare.CriticalDamageMultiplier)));
+            criticalDamageMultiplier: flare.CriticalDamageMultiplier,
+            flareStyle: (byte)flare.Style)));
         projectiles.AddRange(_world.Mines.Select(mine => ToProjectile(
             mine.Id,
             Protocol64ProjectileKind.Mine,
@@ -378,10 +385,14 @@ internal sealed class Protocol64StatePublisher
                         : state.LastToDieMedicJavelinFuseTicksRemaining,
                     wasLastToDieMedicJavelin
                         || state.HasLastToDieMedicJavelinExploded,
-                    state.CriticalDamageMultiplier,
-                    state.PlayerKnockbackImpulse,
-                    state.PlayerKnockbackAirborneVerticalScale,
-                    state.PlayerKnockbackGroundedVerticalScale);
+            state.CriticalDamageMultiplier,
+            state.PlayerKnockbackImpulse,
+            state.PlayerKnockbackAirborneVerticalScale,
+            state.PlayerKnockbackGroundedVerticalScale,
+            state.IsBallisticRocket,
+            state.BallisticRocketGravityPerTick,
+            state.SuppressRocketSmokeTrail,
+            state.FlareStyle);
             })
             .ToArray();
         _lastProjectiles.Clear();
@@ -430,7 +441,11 @@ internal sealed class Protocol64StatePublisher
         float playerKnockbackImpulse = 0f,
         float playerKnockbackAirborneVerticalScale = 1f,
         float playerKnockbackGroundedVerticalScale = 1f,
-        float criticalDamageMultiplier = 1f)
+        float criticalDamageMultiplier = 1f,
+        bool isBallisticRocket = false,
+        float ballisticRocketGravityPerTick = 0f,
+        bool suppressRocketSmokeTrail = false,
+        byte flareStyle = 0)
     {
         var owner = _world.EnumerateReplicatedNetworkPlayers()
             .FirstOrDefault(entry => entry.Player.Id == ownerId);
@@ -478,7 +493,11 @@ internal sealed class Protocol64StatePublisher
                 : 1f,
             MathF.Max(0f, playerKnockbackImpulse),
             Math.Clamp(playerKnockbackAirborneVerticalScale, 0f, 1f),
-            Math.Clamp(playerKnockbackGroundedVerticalScale, 0f, 1f));
+            Math.Clamp(playerKnockbackGroundedVerticalScale, 0f, 1f),
+            isBallisticRocket,
+            MathF.Max(0f, ballisticRocketGravityPerTick),
+            suppressRocketSmokeTrail,
+            flareStyle);
     }
 
     private Protocol64PlayerState ToPlayerState(
@@ -574,7 +593,10 @@ internal sealed class Protocol64StatePublisher
             Math.Max(0, player.ReloadTicksUntilNextShell),
             Math.Max(0, player.BuffBannerChargeDamage),
             Math.Max(0, player.BuffBannerDeployTicksRemaining),
-            Math.Max(0, player.BuffBannerActiveTicksRemaining));
+            Math.Max(0, player.BuffBannerActiveTicksRemaining),
+            player.CaptureProtocol64EquipmentState(),
+            player.CaptureProtocol64UmbrellaState(),
+            IsBot: _isBotSlotProvider(slot));
 
     private static Protocol64LastToDieSniperVolleyState? ToProtocol64SniperVolleyState(
         in LastToDieSniperVolleyState state)

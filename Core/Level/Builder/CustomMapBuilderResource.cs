@@ -20,8 +20,8 @@ public readonly record struct CustomMapBuilderResource(
     {
         return this with
         {
-            Name = Name.Trim(),
-            SourcePath = SourcePath.Trim(),
+            Name = (Name ?? string.Empty).Trim(),
+            SourcePath = (SourcePath ?? string.Empty).Trim(),
             EmbeddedBytes = EmbeddedBytes is { Length: > 0 } ? (byte[])EmbeddedBytes.Clone() : null,
         };
     }

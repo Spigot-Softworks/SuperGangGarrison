@@ -24,19 +24,27 @@ internal static class GameplayBuffPresentationCatalog
 {
     internal const string KritzCritTargetId = "gameplay-buff.kritz-crit-target";
     internal const string DispenserId = "gameplay-buff.dispenser";
+    internal const string SurvivorId = "ltd-buff.survivor";
 
     internal static IReadOnlyList<GameplayBuffPresentation> Collect(PlayerEntity player)
     {
         ArgumentNullException.ThrowIfNull(player);
-        return Collect(player.IsKritzCritBoosted, player.IsDispenserBuffed, player.DispenserAttackReloadSpeedMultiplier);
+        return Collect(player.IsKritzCritBoosted, player.IsDispenserBuffed,
+            player.DispenserAttackReloadSpeedMultiplier, player.HasLastToDieSurvivorBuff);
     }
 
     internal static IReadOnlyList<GameplayBuffPresentation> Collect(
         bool isKritzCritBoosted,
         bool isDispenserBuffed,
-        float dispenserAttackReloadSpeedMultiplier)
+        float dispenserAttackReloadSpeedMultiplier,
+        bool hasSurvivorBuff = false)
     {
         var presentations = new List<GameplayBuffPresentation>(2);
+        if (hasSurvivorBuff)
+        {
+            presentations.Add(new GameplayBuffPresentation(SurvivorId,
+                ["Survivor", "Damage Reduction: +20%", "Health Regeneration: +3 HP/s"]));
+        }
         if (isKritzCritBoosted)
         {
             presentations.Add(new GameplayBuffPresentation(
@@ -61,7 +69,7 @@ internal static class GameplayBuffPresentationCatalog
     internal static bool HasAny(PlayerEntity player)
     {
         ArgumentNullException.ThrowIfNull(player);
-        return player.IsKritzCritBoosted || player.IsDispenserBuffed;
+        return player.IsKritzCritBoosted || player.IsDispenserBuffed || player.HasLastToDieSurvivorBuff;
     }
 
     internal static string FormatMultiplierBonusPercentage(float multiplier)

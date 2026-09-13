@@ -22,6 +22,7 @@
     <None Remove="Properties\Icon.bmp" />
   </ItemGroup>
   <ItemGroup>
+    <EmbeddedResource Include="Configuration\FirstPlayMessages.json" LogicalName="OpenGarrison.FirstPlayMessages.json" />
     <EmbeddedResource Include="Properties\Icon.ico">
       <LogicalName>Icon.ico</LogicalName>
     </EmbeddedResource>
@@ -35,7 +36,10 @@
     <PackageReference Include="NVorbis" Version="0.10.5" />
   </ItemGroup>
   <ItemGroup Condition="'$(OpenGarrisonClientAsLibrary)' != 'true'">
+    <AssemblyMetadata Include="OpenGarrisonRoomContentId" Value="$(OpenGarrisonRoomContentId)" />
+    <AssemblyMetadata Include="OpenGarrisonRoomServiceOrigin" Value="$(OpenGarrisonRoomServiceOrigin)" />
     <PackageReference Include="DiscordRichPresence" Version="1.6.1.70" />
+    <PackageReference Include="SIPSorcery" Version="10.0.16" />
   </ItemGroup>
   <ItemGroup Condition="'$(OpenGarrisonClientAsLibrary)' == 'true'">
     <PackageReference Include="nkast.Kni.Platform.Blazor.GL" Version="4.2.9001.2" PrivateAssets="all" />
@@ -84,6 +88,7 @@
     <ProjectReference Include="..\Plugins\GameplayModding.Abstractions\OpenGarrison.GameplayModding.Abstractions.csproj" />
     <ProjectReference Include="..\Protocol\OpenGarrison.Protocol.csproj" />
     <ProjectReference Include="..\Networking\OpenGarrison.Networking.csproj" />
+    <ProjectReference Include="..\SessionRuntime\OpenGarrison.SessionRuntime.csproj" />
   </ItemGroup>
   <ItemGroup Condition="'$(OpenGarrisonClientAsLibrary)' == 'true'">
     <ProjectReference Include="..\Plugins\Client\OpenGarrison.Client.Plugins.Abstractions\OpenGarrison.Client.Plugins.Abstractions.csproj">

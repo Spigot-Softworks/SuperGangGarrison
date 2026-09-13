@@ -7,7 +7,8 @@ public readonly record struct SpawnPoint(
     int LinkedControlPointIndex = 0,
     ForwardSpawnUseCondition UseCondition = ForwardSpawnUseCondition.ObjectiveOwnedByTeam,
     int Priority = ForwardSpawnPriorityMetadata.MinPriority,
-    int LogicSignalNodeIndex = -1)
+    int LogicSignalNodeIndex = -1,
+    int LegacySpawnSlot = 0)
 {
     public bool IsForwardSpawn => Role == SpawnPointRole.Forward;
 

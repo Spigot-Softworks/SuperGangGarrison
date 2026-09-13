@@ -74,6 +74,7 @@ internal static class HostSetupServerCvarCatalog
         Def("sv_autobalance", "Auto-balance", HostSetupCvarEditorKind.Toggle, HostSetupServerCvarValueType.Boolean, hostSettingKey: nameof(OpenGarrisonHostSettings.AutoBalanceEnabled)),
         Def("sv_specialabilities", "Special Abilities", HostSetupCvarEditorKind.Toggle, HostSetupServerCvarValueType.Boolean, hostSettingKey: nameof(OpenGarrisonHostSettings.SecondaryAbilitiesEnabled)),
         Def("sv_randomspread", "Random Spread", HostSetupCvarEditorKind.Toggle, HostSetupServerCvarValueType.Boolean, hostSettingKey: nameof(OpenGarrisonHostSettings.RandomSpreadEnabled)),
+        Def("sv_hlx_enabled", "Persistent Stats / Points", HostSetupCvarEditorKind.Toggle, HostSetupServerCvarValueType.Boolean, hostSettingKey: nameof(OpenGarrisonHostSettings.HlxEnabled)),
         Def("sv_sniper_aim_indicator", "Sniper Aim Indicator", HostSetupCvarEditorKind.Toggle, HostSetupServerCvarValueType.Boolean, hostSettingKey: nameof(OpenGarrisonHostSettings.SniperAimIndicatorEnabled)),
         Def("sv_local_prediction", "Local Prediction", HostSetupCvarEditorKind.Toggle, HostSetupServerCvarValueType.Boolean, hostSettingKey: nameof(OpenGarrisonHostSettings.LocalPredictionEnabled)),
         Def("sv_competitive_readyup", "Competitive Ready-up", HostSetupCvarEditorKind.Toggle, HostSetupServerCvarValueType.Boolean, hostSettingKey: nameof(OpenGarrisonHostSettings.CompetitiveReadyUpEnabled)),

@@ -38,6 +38,7 @@ public partial class Game1
 
     private void BeginHudElementFrame()
     {
+        _gameplayLocalStatusHudController.BeginHudFrame();
         _hudResolvedElements.Clear();
         _hudLayoutProfile.ClearRuntimeDefaults();
     }

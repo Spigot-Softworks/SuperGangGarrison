@@ -233,7 +233,21 @@ public sealed class ServerDiscoveryLaunchOptionsTests
     }
 
     [Fact]
-    public void LastToDieLaunchClampsCoopToTwoPlayersAndPreservesSolo()
+    public void HostedServerLaunchArgumentsCarryManagementConfigurationPath()
+    {
+        var target = new OpenGarrison.Client.HostedServerLaunchTarget("OG2.Server.exe", string.Empty, AppContext.BaseDirectory);
+        var arguments = OpenGarrison.Client.HostedServerBootstrapper.BuildLaunchArguments(
+            target,
+            CreateHostedServerLaunchOptions(secondaryAbilitiesEnabled: true) with
+            {
+                ManagementConfigPath = "server-management.json",
+            });
+
+        Assert.Contains("--management-config \"server-management.json\"", arguments);
+    }
+
+    [Fact]
+    public void LastToDieLaunchClampsCoopToFourPlayersAndPreservesSolo()
     {
         var coopOptions = ServerLaunchOptions.Load(
             [
@@ -258,8 +272,8 @@ public sealed class ServerDiscoveryLaunchOptionsTests
         Assert.Equal(GameplayVariantKind.LastToDie, coopOptions.GameplayVariant);
         Assert.Equal(LastToDieDifficulty.Hardcore, coopOptions.LastToDieDifficulty);
         Assert.Equal(4242UL, coopOptions.LastToDieSeed);
-        Assert.Equal(2, coopOptions.MaxPlayableClients);
-        Assert.Equal(2, coopOptions.MaxTotalClients);
+        Assert.Equal(4, coopOptions.MaxPlayableClients);
+        Assert.Equal(4, coopOptions.MaxTotalClients);
         Assert.Equal(0, coopOptions.MaxSpectatorClients);
         Assert.False(coopOptions.AutoBalanceEnabled);
         Assert.False(coopOptions.SwitchTeamsAfterRoundEnd);
@@ -340,7 +354,7 @@ public sealed class ServerDiscoveryLaunchOptionsTests
     }
 
     [Fact]
-    public void DirectLastToDieLaunchProfileIsPrivateAndTwoPlayer()
+    public void DirectLastToDieLaunchProfileIsPrivateAndFourPlayer()
     {
         var options = OpenGarrison.Client.HostedServerLaunchOptions.CreateLastToDie(
             "server.ini",
@@ -351,7 +365,7 @@ public sealed class ServerDiscoveryLaunchOptionsTests
 
         Assert.Equal(GameplayVariantKind.LastToDie, options.GameplayVariant);
         Assert.Equal(LastToDieDifficulty.Hardcore, options.LastToDieDifficulty);
-        Assert.Equal(2, options.MaxPlayers);
+        Assert.Equal(4, options.MaxPlayers);
         Assert.False(options.LobbyAnnounce);
         Assert.False(options.AutoBalance);
         Assert.True(options.SecondaryAbilitiesEnabled);

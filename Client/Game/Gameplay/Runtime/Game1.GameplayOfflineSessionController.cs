@@ -192,6 +192,7 @@ public partial class Game1
             _game._botDiagnosticLatestSnapshot = BotControllerDiagnosticsSnapshot.Empty;
             _game.ResetBotDiagnosticSample();
             _game._networkClient.Disconnect();
+            _game.LeaveManagedRoom();
             _game._networkClient.ClearPendingTeamSelection();
             _game._networkClient.ClearPendingClassSelection();
             _game.StopHostedServer();

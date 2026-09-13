@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using OpenGarrison.Client;
 using OpenGarrison.Core;
 using Xunit;
 
@@ -379,11 +380,57 @@ public sealed class ForegroundSpriteTests
             out _));
     }
 
+    [Fact]
+    public void ForegroundSpriteOrderingPreservesDepthAndOriginalTieOrder()
+    {
+        var roomObjects = new List<RoomObjectMarker>
+        {
+            CreateForegroundMarker(ForegroundSpriteLayerKind.Fg, relativeZ: 2, centerX: 10f, centerY: 10f),
+            new(RoomObjectType.Barrier, 0f, 0f, 1f, 1f, string.Empty),
+            CreateForegroundMarker(ForegroundSpriteLayerKind.Bg, relativeZ: -10, centerX: 0f, centerY: 0f),
+            CreateForegroundMarker(ForegroundSpriteLayerKind.Fg, relativeZ: 1, centerX: 50f, centerY: 50f),
+            CreateForegroundMarker(ForegroundSpriteLayerKind.Fg, relativeZ: 2, centerX: 10f, centerY: 10f),
+            CreateForegroundMarker(ForegroundSpriteLayerKind.Fg, relativeZ: 2, centerX: 10f, centerY: 5f),
+        };
+
+        var ordered = Game1.OrderForegroundSprites(roomObjects, ForegroundSpriteLayerKind.Fg);
+
+        Assert.Equal([3, 5, 0, 4], ordered.Select(static entry => entry.Index));
+    }
+
     private static byte[] CreatePng(int width, int height)
     {
         using var image = new SixLabors.ImageSharp.Image<SixLabors.ImageSharp.PixelFormats.Rgba32>(width, height);
         using var stream = new MemoryStream();
         image.Save(stream, new SixLabors.ImageSharp.Formats.Png.PngEncoder());
         return stream.ToArray();
+    }
+
+    private static RoomObjectMarker CreateForegroundMarker(
+        ForegroundSpriteLayerKind layer,
+        int relativeZ,
+        float centerX,
+        float centerY)
+    {
+        return new RoomObjectMarker(
+            RoomObjectType.ForegroundSprite,
+            centerX,
+            centerY,
+            20f,
+            20f,
+            string.Empty,
+            ForegroundSprite: new ForegroundSpriteConfiguration(
+                "bush",
+                layer,
+                relativeZ,
+                1f,
+                false,
+                1f,
+                0.35f,
+                ForegroundSpriteBoundaryKind.Box,
+                false,
+                MapSpriteTileAnchor.TopLeft,
+                0f,
+                0f));
     }
 }

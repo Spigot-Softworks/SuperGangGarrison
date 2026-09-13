@@ -15,6 +15,10 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
+    private const int PlayerCardNativeWidth = 276;
+    private const int PlayerCardNativeHeight = 116;
+    internal const float PlayerCardTextScale = PixelPerfectTextLayout.NaturalScale;
+
     private static readonly PlayerClass[] PlayerCardClasses =
     [
         PlayerClass.Scout,
@@ -38,32 +42,45 @@ public partial class Game1
         "#407280",
     ];
 
-    private List<string>? _playerCardBackgroundPaths;
-    private readonly Dictionary<string, LoadedSpriteFrame?> _playerCardBackgroundFrameCache = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<Texture2D, Texture2D> _playerCardLuminosityTextureCache = new();
+    private readonly record struct PlayerCardMedalDefinition(string Id, string DisplayName, string FileName);
+
+    private static readonly PlayerCardMedalDefinition[] PlayerCardMedals =
+    [
+        new("shining-hero", "Shining Hero", "Shining Hero.png"),
+        new("bloodsoaked-batallion", "Bloodsoaked Batallion", "Bloodsoaked Batallion.png"),
+        new("keyboard-warrior", "Keyboard Warrior", "Keyboard Warrior.png"),
+        new("mercenary", "Mercenary", "Mercenary.png"),
+        new("the-legendary", "The Legendary", "The Legendary.png"),
+        new("time-tested-veteran", "Time-Tested Veteran", "Time-Tested Veteran.png"),
+    ];
+
     private Texture2D? _playerCardColorWheelTexture;
     private bool _playerCardDraggingColorWheel;
+    private readonly Dictionary<string, LoadedSpriteFrame?> _playerCardAssetFrameCache = new(StringComparer.OrdinalIgnoreCase);
+    private bool _editingPlayerCardBio;
+    private string _playerCardBioInputBuffer = string.Empty;
+    private int _playerCardBioCursorIndex;
+    private int _playerCardBioSelectionStart;
 
     private readonly record struct PlayerCardLayout(
         Rectangle Bounds,
-        Rectangle InnerBounds,
-        Rectangle PortraitBounds,
         Rectangle PortraitInnerBounds,
         Rectangle EditButtonBounds,
-        Rectangle NameBounds);
+        Rectangle NameBounds,
+        Rectangle BioBounds,
+        Rectangle MedalBounds);
 
     private readonly record struct PlayerCardEditorLayout(
         Rectangle Bounds,
-        Rectangle BackgroundPrevBounds,
-        Rectangle BackgroundNextBounds,
+        PlayerCardLayout PreviewCard,
+        Rectangle BioInputBounds,
+        Rectangle MedalPrevBounds,
+        Rectangle MedalNextBounds,
         Rectangle ClassPrevBounds,
         Rectangle ClassNextBounds,
         Rectangle TeamBounds,
         Rectangle FramePrevBounds,
         Rectangle FrameNextBounds,
-        Rectangle CardColor1Bounds,
-        Rectangle CardColor2Bounds,
-        Rectangle CardGradientBounds,
         Rectangle PortraitColor1Bounds,
         Rectangle PortraitColor2Bounds,
         Rectangle PortraitGradientBounds,
@@ -75,6 +92,7 @@ public partial class Game1
 
     private void ClosePlayerCardOverlay()
     {
+        CommitPlayerCardBioEdit();
         _playerCardOwnOpen = false;
         _playerCardEditorOpen = false;
         _playerCardDraggingPortrait = false;
@@ -90,6 +108,9 @@ public partial class Game1
 
         var cardLayout = GetPlayerCardLayout(friendsLayout, hoverRowBounds: null);
         var editorLayout = GetPlayerCardEditorLayout(cardLayout);
+        var portraitBounds = _playerCardEditorOpen
+            ? editorLayout.PreviewCard.PortraitInnerBounds
+            : cardLayout.PortraitInnerBounds;
         var point = mouse.Position;
 
         if (_playerCardDraggingPortrait)
@@ -98,7 +119,7 @@ public partial class Game1
             {
                 _playerCardDraggingPortrait = false;
                 SaveCurrentPlayerCardProfile();
-                return cardLayout.PortraitInnerBounds.Contains(point);
+                return portraitBounds.Contains(point);
             }
 
             var profile = _clientIdentity.PlayerCard;
@@ -132,15 +153,16 @@ public partial class Game1
             return false;
         }
 
-        if (cardLayout.EditButtonBounds.Contains(point))
+        if (!_playerCardEditorOpen && cardLayout.EditButtonBounds.Contains(point))
         {
+            CommitPlayerCardBioEdit();
             _playerCardEditorOpen = !_playerCardEditorOpen;
             _playerCardDraggingPortrait = false;
             _playerCardDraggingColorWheel = false;
             return true;
         }
 
-        if (_playerCardEditorOpen && TryHandlePlayerCardEditorClick(point, cardLayout, editorLayout))
+        if (_playerCardEditorOpen && TryHandlePlayerCardEditorClick(point, editorLayout))
         {
             return true;
         }
@@ -148,9 +170,17 @@ public partial class Game1
         return cardLayout.Bounds.Contains(point) || (_playerCardEditorOpen && editorLayout.Bounds.Contains(point));
     }
 
-    private bool TryHandlePlayerCardEditorClick(Point point, PlayerCardLayout cardLayout, PlayerCardEditorLayout editorLayout)
+    private bool TryHandlePlayerCardEditorClick(Point point, PlayerCardEditorLayout editorLayout)
     {
-        if (cardLayout.PortraitInnerBounds.Contains(point))
+        if (editorLayout.BioInputBounds.Contains(point))
+        {
+            BeginPlayerCardBioEdit();
+            return true;
+        }
+
+        CommitPlayerCardBioEdit();
+
+        if (editorLayout.PreviewCard.PortraitInnerBounds.Contains(point))
         {
             _playerCardDraggingPortrait = true;
             return true;
@@ -159,14 +189,14 @@ public partial class Game1
         var profile = _clientIdentity.PlayerCard;
         var changed = false;
 
-        if (editorLayout.BackgroundPrevBounds.Contains(point))
+        if (editorLayout.MedalPrevBounds.Contains(point))
         {
-            CyclePlayerCardBackground(profile, -1);
+            CyclePlayerCardMedal(profile, -1);
             changed = true;
         }
-        else if (editorLayout.BackgroundNextBounds.Contains(point))
+        else if (editorLayout.MedalNextBounds.Contains(point))
         {
-            CyclePlayerCardBackground(profile, 1);
+            CyclePlayerCardMedal(profile, 1);
             changed = true;
         }
         else if (editorLayout.ClassPrevBounds.Contains(point))
@@ -195,29 +225,14 @@ public partial class Game1
             CyclePlayerCardFrame(profile, 1);
             changed = true;
         }
-        else if (editorLayout.CardColor1Bounds.Contains(point))
+        else if (editorLayout.PortraitColor1Bounds.Contains(point))
         {
             _playerCardActiveColorIndex = 0;
             return true;
         }
-        else if (editorLayout.CardColor2Bounds.Contains(point))
-        {
-            _playerCardActiveColorIndex = 1;
-            return true;
-        }
-        else if (editorLayout.CardGradientBounds.Contains(point))
-        {
-            profile.Gradient = !profile.Gradient;
-            changed = true;
-        }
-        else if (editorLayout.PortraitColor1Bounds.Contains(point))
-        {
-            _playerCardActiveColorIndex = 2;
-            return true;
-        }
         else if (editorLayout.PortraitColor2Bounds.Contains(point))
         {
-            _playerCardActiveColorIndex = 3;
+            _playerCardActiveColorIndex = 1;
             return true;
         }
         else if (editorLayout.PortraitGradientBounds.Contains(point))
@@ -262,15 +277,87 @@ public partial class Game1
         return editorLayout.Bounds.Contains(point);
     }
 
+    private void BeginPlayerCardBioEdit()
+    {
+        if (_editingPlayerCardBio)
+        {
+            return;
+        }
+
+        _playerCardBioInputBuffer = PlayerCardProfile.Sanitize(_clientIdentity.PlayerCard).Bio;
+        _playerCardBioCursorIndex = _playerCardBioInputBuffer.Length;
+        _playerCardBioSelectionStart = _playerCardBioCursorIndex;
+        _editingPlayerCardBio = true;
+    }
+
+    private void CommitPlayerCardBioEdit()
+    {
+        if (!_editingPlayerCardBio)
+        {
+            return;
+        }
+
+        _editingPlayerCardBio = false;
+        _clientIdentity.PlayerCard.Bio = _playerCardBioInputBuffer;
+        SaveCurrentPlayerCardProfile();
+    }
+
+    private bool TryHandlePlayerCardBioTextInput(char character)
+    {
+        if (!_editingPlayerCardBio)
+        {
+            return false;
+        }
+
+        switch (character)
+        {
+            case '\b':
+            {
+                var result = DeleteTextSelectionOrBackspace(
+                    _playerCardBioInputBuffer,
+                    _playerCardBioCursorIndex,
+                    _playerCardBioSelectionStart);
+                _playerCardBioInputBuffer = result.Text;
+                _playerCardBioCursorIndex = result.CursorIndex;
+                _playerCardBioSelectionStart = result.SelectionStart;
+                break;
+            }
+            case '\r':
+            case '\n':
+                CommitPlayerCardBioEdit();
+                break;
+            default:
+                if (!char.IsControl(character) && character != '"')
+                {
+                    var result = InsertTextCharacterAtCursor(
+                        _playerCardBioInputBuffer,
+                        character,
+                        _playerCardBioCursorIndex,
+                        _playerCardBioSelectionStart,
+                        PlayerCardProfile.MaximumBioLength);
+                    _playerCardBioInputBuffer = result.Text;
+                    _playerCardBioCursorIndex = result.CursorIndex;
+                    _playerCardBioSelectionStart = result.SelectionStart;
+                    _clientIdentity.PlayerCard.Bio = _playerCardBioInputBuffer;
+                }
+                break;
+        }
+
+        return true;
+    }
+
     private void DrawPlayerCardOverlay(FriendsMenuLayout friendsLayout)
     {
         if (_playerCardOwnOpen)
         {
             var cardLayout = GetPlayerCardLayout(friendsLayout, hoverRowBounds: null);
-            DrawPlayerCard(cardLayout, _clientIdentity.PlayerCard, GetSocialPresenceDisplayName(), isOwnCard: true);
             if (_playerCardEditorOpen)
             {
-                DrawPlayerCardEditor(cardLayout, GetPlayerCardEditorLayout(cardLayout));
+                DrawPlayerCardEditor(GetPlayerCardEditorLayout(cardLayout));
+            }
+            else
+            {
+                DrawPlayerCard(cardLayout, _clientIdentity.PlayerCard, GetSocialPresenceDisplayName(), isOwnCard: true);
             }
 
             return;
@@ -295,117 +382,240 @@ public partial class Game1
         DrawPlayerCard(card, profile, displayName, isOwnCard: false);
     }
 
-    private void DrawPlayerCard(PlayerCardLayout layout, PlayerCardProfile sourceProfile, string displayName, bool isOwnCard)
+    private void DrawPlayerCard(
+        PlayerCardLayout layout,
+        PlayerCardProfile sourceProfile,
+        string displayName,
+        bool isOwnCard,
+        PlayerTeam? teamOverride = null)
     {
         DrawPlayerCard(
             layout,
             sourceProfile,
             displayName,
-            isOwnCard ? "Edit" : string.Empty,
-            isOwnCard && _playerCardEditorOpen);
+            isOwnCard ? "Edit Card" : string.Empty,
+            isOwnCard && _playerCardEditorOpen,
+            teamOverride);
     }
 
-    private void DrawPlayerCard(PlayerCardLayout layout, PlayerCardProfile sourceProfile, string displayName, string actionLabel, bool actionActive)
+    private void DrawPlayerCard(
+        PlayerCardLayout layout,
+        PlayerCardProfile sourceProfile,
+        string displayName,
+        string actionLabel,
+        bool actionActive,
+        PlayerTeam? teamOverride = null)
     {
         var profile = PlayerCardProfile.Sanitize(sourceProfile);
-        DrawRoundedRectangle(new Rectangle(layout.Bounds.X + 7, layout.Bounds.Y + 7, layout.Bounds.Width, layout.Bounds.Height), Color.Black * 0.45f, 8);
-        DrawRoundedRectangleOutline(layout.Bounds, new Color(49, 43, 39), new Color(213, 205, 188), outlineThickness: 2, radius: 8);
-        DrawPlayerCardGradient(layout.InnerBounds, PlayerCardColorFromHex(profile.Color1), profile.Gradient ? PlayerCardColorFromHex(profile.Color2) : PlayerCardColorFromHex(profile.Color1));
-        DrawPlayerCardBackgroundArt(layout.InnerBounds, profile);
+        var team = teamOverride ?? GetPlayerCardTeam(profile);
+        var template = GetPlayerCardTemplateFrame(team);
+        if (template is not null)
+        {
+            DrawLoadedSpriteFrame(template, layout.Bounds, Color.White);
+        }
+        else
+        {
+            DrawRoundedRectangleOutline(layout.Bounds, new Color(122, 130, 132), new Color(216, 224, 226), outlineThickness: 2, radius: 7);
+        }
 
-        DrawRoundedRectangle(new Rectangle(layout.PortraitBounds.X + 4, layout.PortraitBounds.Y + 4, layout.PortraitBounds.Width, layout.PortraitBounds.Height), Color.Black * 0.35f, 8);
-        DrawRoundedRectangle(layout.PortraitBounds, new Color(42, 39, 36), 16);
-        DrawRoundedPlayerCardGradient(
+        DrawPlayerCardGradient(
             layout.PortraitInnerBounds,
             PlayerCardColorFromHex(profile.PortraitColor1),
-            profile.PortraitGradient ? PlayerCardColorFromHex(profile.PortraitColor2) : PlayerCardColorFromHex(profile.PortraitColor1),
-            13);
-        DrawRectangleBorder(layout.PortraitBounds, new Color(213, 205, 188), 2);
-        DrawPlayerCardPortraitSprite(layout.PortraitInnerBounds, profile);
+            profile.PortraitGradient ? PlayerCardColorFromHex(profile.PortraitColor2) : PlayerCardColorFromHex(profile.PortraitColor1));
+        DrawPlayerCardPortraitSprite(layout.PortraitInnerBounds, profile, team);
+
+        var name = string.IsNullOrWhiteSpace(displayName) ? "PLAYER" : displayName.Trim().ToUpperInvariant();
+        var nameMaximumWidth = layout.NameBounds.Width;
+        name = PixelPerfectTextLayout.TrimToWidth(
+            name,
+            nameMaximumWidth,
+            candidate => MeasureBitmapFontWidth(candidate, PlayerCardTextScale));
+        var namePosition = PixelPerfectTextLayout.CenterNaturalText(
+            layout.NameBounds,
+            MeasureBitmapFontWidth(name, PlayerCardTextScale),
+            MeasureBitmapFontHeight(PlayerCardTextScale));
+        DrawBitmapFontText(
+            name,
+            new Vector2(layout.NameBounds.X, namePosition.Y),
+            Color.Black,
+            PlayerCardTextScale);
+
+        DrawPlayerCardBio(layout, profile);
+
+        var medal = GetPlayerCardMedalFrame(profile.Medal);
+        if (medal is not null)
+        {
+            DrawLoadedSpriteFrame(medal, layout.MedalBounds, Color.White);
+        }
 
         if (!string.IsNullOrWhiteSpace(actionLabel))
         {
-            DrawMenuButtonScaled(layout.EditButtonBounds, actionLabel, actionActive, 1f);
+            DrawPlayerCardActionButton(layout.EditButtonBounds, actionLabel, actionActive);
         }
-
-        var name = string.IsNullOrWhiteSpace(displayName) ? "PLAYER" : displayName.Trim().ToUpperInvariant();
-        var scale = GetPlayerCardNameScale(name, layout.NameBounds.Width - 18f);
-        var textWidth = MeasureBitmapFontWidth(name, scale);
-        var textPosition = new Vector2(
-            layout.NameBounds.X + ((layout.NameBounds.Width - textWidth) * 0.5f),
-            layout.NameBounds.Y + ((layout.NameBounds.Height - MeasureBitmapFontHeight(scale)) * 0.5f));
-        DrawBitmapFontText(name, textPosition + new Vector2(3f, 3f), Color.Black * 0.55f, scale);
-        DrawBitmapFontText(name, textPosition, Color.White, scale);
     }
 
-    private void DrawPlayerCardEditor(PlayerCardLayout cardLayout, PlayerCardEditorLayout layout)
+    private void DrawPlayerCardBio(PlayerCardLayout layout, PlayerCardProfile profile)
+    {
+        if (string.IsNullOrWhiteSpace(profile.Bio))
+        {
+            return;
+        }
+
+        var quotedBio = $"\"{profile.Bio.ToUpperInvariant()}\"";
+        var lines = WrapBitmapFontText(
+            quotedBio,
+            layout.BioBounds.Width,
+            layout.BioBounds.Width);
+        var lineHeight = MeasureBitmapFontHeight(PlayerCardTextScale);
+        var maximumVisibleLines = Math.Min(
+            2,
+            (int)MathF.Floor(layout.BioBounds.Height / MathF.Max(1f, lineHeight)));
+        for (var index = 0; index < Math.Min(maximumVisibleLines, lines.Count); index += 1)
+        {
+            var line = index == maximumVisibleLines - 1 && lines.Count > maximumVisibleLines
+                ? lines[index] + "..."
+                : lines[index];
+            line = PixelPerfectTextLayout.TrimToWidth(
+                line,
+                layout.BioBounds.Width,
+                candidate => MeasureBitmapFontWidth(candidate, PlayerCardTextScale));
+            DrawBitmapFontText(
+                line,
+                new Vector2(
+                    layout.BioBounds.X,
+                    MathF.Round(layout.BioBounds.Y + (index * lineHeight))),
+                Color.White,
+                PlayerCardTextScale);
+        }
+    }
+
+    private void DrawPlayerCardActionButton(Rectangle bounds, string label, bool highlighted)
+    {
+        var fillColor = highlighted
+            ? new Color(77, 69, 63)
+            : new Color(54, 47, 41);
+        DrawRoundedRectangleOutline(
+            bounds,
+            fillColor,
+            new Color(213, 205, 188),
+            outlineThickness: 2,
+            radius: 8);
+
+        const int horizontalPadding = 14;
+        var visibleLabel = PixelPerfectTextLayout.TrimToWidth(
+            label,
+            Math.Max(0f, bounds.Width - (horizontalPadding * 2f)),
+            candidate => MeasureBitmapFontWidth(candidate, PlayerCardTextScale));
+        var textY = MathF.Round(
+            bounds.Y
+            + MathF.Max(
+                4f,
+                ((bounds.Height - MeasureBitmapFontHeight(PlayerCardTextScale)) * 0.5f) - 1f));
+        DrawBitmapFontText(
+            visibleLabel,
+            new Vector2(bounds.X + horizontalPadding, textY),
+            Color.White,
+            PlayerCardTextScale);
+    }
+
+    private void DrawPlayerCardEditor(PlayerCardEditorLayout layout)
     {
         var profile = PlayerCardProfile.Sanitize(_clientIdentity.PlayerCard);
         DrawRoundedRectangle(new Rectangle(layout.Bounds.X + 6, layout.Bounds.Y + 6, layout.Bounds.Width, layout.Bounds.Height), Color.Black * 0.36f, 8);
         DrawRoundedRectangleOutline(layout.Bounds, new Color(59, 51, 46), new Color(213, 205, 188), outlineThickness: 2, radius: 8);
 
-        DrawBitmapFontText("Edit Playercard", new Vector2(layout.Bounds.X + 16f, layout.Bounds.Y + 14f), Color.White, 1f);
+        DrawBitmapFontText("Edit Playercard", new Vector2(layout.Bounds.X + 16f, layout.Bounds.Y + 12f), Color.White, 1f);
 
-        var backgroundName = Path.GetFileName(profile.Background);
-        DrawBitmapFontText("Background", new Vector2(layout.Bounds.X + 16f, layout.BackgroundPrevBounds.Y - 17f), Color.White, 1f);
-        DrawMenuButtonScaled(layout.BackgroundPrevBounds, "<", false, 1f);
-        DrawMenuButtonScaled(layout.BackgroundNextBounds, ">", false, 1f);
-        DrawBitmapFontText(TrimBitmapMenuText(backgroundName, layout.BackgroundNextBounds.X - layout.BackgroundPrevBounds.Right - 14f, 0.86f), new Vector2(layout.BackgroundPrevBounds.Right + 8f, layout.BackgroundPrevBounds.Y + 8f), Color.White, 0.86f);
+        DrawPlayerCard(
+            layout.PreviewCard,
+            profile,
+            GetSocialPresenceDisplayName(),
+            string.Empty,
+            actionActive: false);
+        DrawBitmapFontText(
+            "Drag portrait to position",
+            new Vector2(layout.PreviewCard.Bounds.X, layout.PreviewCard.Bounds.Bottom + 3f),
+            new Color(213, 205, 188),
+            0.65f);
+
+        DrawBitmapFontText("Color", new Vector2(layout.ColorWheelBounds.X, layout.ColorWheelBounds.Y - 15f), Color.White, 0.76f);
+
+        DrawBitmapFontText("Bio (26 characters)", new Vector2(layout.BioInputBounds.X, layout.BioInputBounds.Y - 16f), Color.White, 0.86f);
+        DrawRoundedRectangleOutline(
+            layout.BioInputBounds,
+            new Color(31, 28, 26),
+            _editingPlayerCardBio ? new Color(255, 242, 190) : new Color(173, 164, 139),
+            outlineThickness: 1,
+            radius: 4);
+        var bioText = _editingPlayerCardBio
+            ? GetTextWithCursor(_playerCardBioInputBuffer, _playerCardBioCursorIndex)
+            : profile.Bio;
+        DrawBitmapFontText(
+            TrimBitmapMenuText(bioText, layout.BioInputBounds.Width - 14f, 0.86f),
+            new Vector2(layout.BioInputBounds.X + 7f, layout.BioInputBounds.Y + 8f),
+            Color.White,
+            0.86f);
+
+        var medalDefinition = GetPlayerCardMedalDefinition(profile.Medal);
+        DrawBitmapFontText("Medal", new Vector2(layout.MedalPrevBounds.X, layout.MedalPrevBounds.Y - 16f), Color.White, 0.86f);
+        DrawMenuButtonScaled(layout.MedalPrevBounds, "<", false, 1f);
+        DrawMenuButtonScaled(layout.MedalNextBounds, ">", false, 1f);
+        DrawBitmapFontText(
+            TrimBitmapMenuText(medalDefinition.DisplayName, layout.MedalNextBounds.X - layout.MedalPrevBounds.Right - 14f, 0.8f),
+            new Vector2(layout.MedalPrevBounds.Right + 8f, layout.MedalPrevBounds.Y + 8f),
+            Color.White,
+            0.8f);
 
         var playerClass = GetPlayerCardClass(profile.Class);
         var className = CharacterClassCatalog.GetDefinition(playerClass).DisplayName;
-        DrawBitmapFontText("Class", new Vector2(layout.Bounds.X + 16f, layout.ClassPrevBounds.Y - 17f), Color.White, 1f);
+        DrawBitmapFontText("Class", new Vector2(layout.ClassPrevBounds.X, layout.ClassPrevBounds.Y - 16f), Color.White, 0.86f);
         DrawMenuButtonScaled(layout.ClassPrevBounds, "<", false, 1f);
         DrawMenuButtonScaled(layout.ClassNextBounds, ">", false, 1f);
-        DrawBitmapFontText(className, new Vector2(layout.ClassPrevBounds.Right + 8f, layout.ClassPrevBounds.Y + 8f), Color.White, 0.86f);
+        DrawBitmapFontText(className, new Vector2(layout.ClassPrevBounds.Right + 8f, layout.ClassPrevBounds.Y + 8f), Color.White, 0.8f);
 
-        DrawBitmapFontText("Team", new Vector2(layout.TeamBounds.X, layout.TeamBounds.Y - 17f), Color.White, 1f);
-        DrawMenuButtonScaled(layout.TeamBounds, string.Equals(profile.Team, "Red", StringComparison.OrdinalIgnoreCase) ? "Red" : "Blu", false, 1f);
+        DrawBitmapFontText("Preview team", new Vector2(layout.TeamBounds.X, layout.TeamBounds.Y - 16f), Color.White, 0.86f);
+        DrawMenuButtonScaled(layout.TeamBounds, string.Equals(profile.Team, "Red", StringComparison.OrdinalIgnoreCase) ? "Red" : "Blu", false, 0.86f);
 
-        DrawBitmapFontText("Frame", new Vector2(layout.FramePrevBounds.X, layout.FramePrevBounds.Y - 17f), Color.White, 1f);
+        DrawBitmapFontText("Frame", new Vector2(layout.FramePrevBounds.X, layout.FramePrevBounds.Y - 16f), Color.White, 0.86f);
         DrawMenuButtonScaled(layout.FramePrevBounds, "<", false, 1f);
         DrawMenuButtonScaled(layout.FrameNextBounds, ">", false, 1f);
         var frameCount = Math.Max(1, GetPlayerCardTauntFrameCount(profile));
-        DrawBitmapFontText($"Frame {Math.Clamp(profile.Frame + 1, 1, frameCount)}/{frameCount}", new Vector2(layout.FramePrevBounds.Right + 8f, layout.FramePrevBounds.Y + 8f), Color.White, 0.86f);
+        DrawBitmapFontText($"{Math.Clamp(profile.Frame + 1, 1, frameCount)}/{frameCount}", new Vector2(layout.FramePrevBounds.Right + 8f, layout.FramePrevBounds.Y + 8f), Color.White, 0.8f);
 
-        DrawBitmapFontText("Card", new Vector2(layout.CardColor1Bounds.X, layout.CardColor1Bounds.Y - 17f), Color.White, 1f);
-        DrawPlayerCardColorSwatch(layout.CardColor1Bounds, PlayerCardColorFromHex(profile.Color1), _playerCardActiveColorIndex == 0);
-        DrawPlayerCardColorSwatch(layout.CardColor2Bounds, PlayerCardColorFromHex(profile.Color2), _playerCardActiveColorIndex == 1);
-        DrawMenuButtonScaled(layout.CardGradientBounds, "Gradient", profile.Gradient, 0.86f);
+        DrawBitmapFontText("Zoom", new Vector2(layout.ZoomOutBounds.X, layout.ZoomOutBounds.Y - 16f), Color.White, 0.86f);
+        DrawMenuButtonScaled(layout.ZoomOutBounds, "-", false, 1f);
+        DrawMenuButtonScaled(layout.ZoomInBounds, "+", false, 1f);
 
-        DrawBitmapFontText("Portrait", new Vector2(layout.PortraitColor1Bounds.X, layout.PortraitColor1Bounds.Y - 17f), Color.White, 1f);
-        DrawPlayerCardColorSwatch(layout.PortraitColor1Bounds, PlayerCardColorFromHex(profile.PortraitColor1), _playerCardActiveColorIndex == 2);
-        DrawPlayerCardColorSwatch(layout.PortraitColor2Bounds, PlayerCardColorFromHex(profile.PortraitColor2), _playerCardActiveColorIndex == 3);
-        DrawMenuButtonScaled(layout.PortraitGradientBounds, "Gradient", profile.PortraitGradient, 0.86f);
+        DrawBitmapFontText("Portrait colors", new Vector2(layout.PortraitColor1Bounds.X, layout.PortraitColor1Bounds.Y - 16f), Color.White, 0.86f);
+        DrawPlayerCardColorSwatch(layout.PortraitColor1Bounds, PlayerCardColorFromHex(profile.PortraitColor1), _playerCardActiveColorIndex == 0);
+        DrawPlayerCardColorSwatch(layout.PortraitColor2Bounds, PlayerCardColorFromHex(profile.PortraitColor2), _playerCardActiveColorIndex == 1);
+        DrawMenuButtonScaled(layout.PortraitGradientBounds, "Gradient", profile.PortraitGradient, 0.8f);
 
         DrawPlayerCardColorWheel(layout.ColorWheelBounds);
         DrawPlayerCardColorBrightnessControls(layout, profile);
-
-        DrawBitmapFontText("Zoom", new Vector2(layout.ZoomOutBounds.X, layout.ZoomOutBounds.Y - 17f), Color.White, 1f);
-        DrawMenuButtonScaled(layout.ZoomOutBounds, "-", false, 1f);
-        DrawMenuButtonScaled(layout.ZoomInBounds, "+", false, 1f);
     }
 
     private PlayerCardLayout GetPlayerCardLayout(FriendsMenuLayout friendsLayout, Rectangle? hoverRowBounds)
     {
         var leftSpace = Math.Max(320, friendsLayout.Panel.X - 28);
         var baseWidth = Math.Clamp(leftSpace, 320, 500);
-        var width = Math.Clamp((int)MathF.Round(baseWidth * GetPlayerCardSizeScale()), 210, baseWidth);
-        var height = (int)MathF.Round(width * 0.61f);
+        var width = Math.Clamp((int)MathF.Round(baseWidth * GetPlayerCardSizeScale()), 241, baseWidth);
+        var height = GetPlayerCardHeight(width);
         var x = Math.Max(12, friendsLayout.Panel.X - width - 18);
         var preferredY = hoverRowBounds.HasValue
             ? hoverRowBounds.Value.Center.Y - (height / 2)
             : friendsLayout.Panel.Y + 10;
-        var y = Math.Clamp(preferredY, 12, Math.Max(12, ViewportHeight - height - 16));
+        var bottomReserve = hoverRowBounds.HasValue ? 16 : 54;
+        var y = Math.Clamp(preferredY, 12, Math.Max(12, ViewportHeight - height - bottomReserve));
         return CreatePlayerCardLayout(new Rectangle(x, y, width, height));
     }
 
     private PlayerCardEditorLayout GetPlayerCardEditorLayout(PlayerCardLayout cardLayout)
     {
         const int padding = 16;
-        var width = Math.Max(320, cardLayout.Bounds.Width);
-        var height = 352;
-        var y = cardLayout.Bounds.Bottom + 10;
+        var width = Math.Max(360, cardLayout.Bounds.Width);
+        var height = 390;
+        var y = cardLayout.EditButtonBounds.Bottom + 10;
         if (y + height > ViewportHeight - 12)
         {
             y = Math.Max(12, cardLayout.Bounds.Y - height - 10);
@@ -413,55 +623,66 @@ public partial class Game1
 
         var x = Math.Clamp(cardLayout.Bounds.Right - width, 12, Math.Max(12, ViewportWidth - width - 12));
         var bounds = new Rectangle(x, y, width, height);
-        var buttonHeight = 30;
         var smallButton = 38;
-        var rightColumnWidth = Math.Clamp(width / 4, 86, 116);
+        var rightColumnWidth = Math.Clamp(width / 4, 86, 108);
         var rightX = bounds.Right - padding - rightColumnWidth;
         var leftRightLimit = rightX - 12;
-        var rowY = bounds.Y + 52;
-        var backgroundPrev = new Rectangle(bounds.X + padding, rowY, smallButton, buttonHeight);
-        var backgroundNext = new Rectangle(leftRightLimit - smallButton, rowY, smallButton, buttonHeight);
-        var team = new Rectangle(rightX, rowY, rightColumnWidth, buttonHeight);
+        var previewWidth = Math.Min(
+            PlayerCardNativeWidth,
+            Math.Max(160, rightX - 10 - (bounds.X + padding)));
+        var previewBounds = new Rectangle(
+            bounds.X + padding,
+            bounds.Y + 34,
+            previewWidth,
+            GetPlayerCardHeight(previewWidth));
+        var previewCard = CreatePlayerCardLayout(previewBounds);
 
-        rowY += 48;
-        var classPrev = new Rectangle(bounds.X + padding, rowY, smallButton, buttonHeight);
-        var classNext = new Rectangle(Math.Min(bounds.X + 150, leftRightLimit - smallButton), rowY, smallButton, buttonHeight);
-        var zoomOut = new Rectangle(rightX, rowY, 36, buttonHeight);
-        var zoomIn = new Rectangle(rightX + 44, rowY, 40, buttonHeight);
-
-        rowY += 42;
-        var framePrev = new Rectangle(bounds.X + padding, rowY, smallButton, buttonHeight);
-        var frameNext = new Rectangle(Math.Min(bounds.X + 150, leftRightLimit - smallButton), rowY, smallButton, buttonHeight);
-
-        var colorWheelSize = Math.Clamp(rightColumnWidth, 82, 96);
-        var colorWheel = new Rectangle(bounds.Right - padding - colorWheelSize, rowY + 50, colorWheelSize, colorWheelSize);
-        var brightnessY = colorWheel.Bottom + 8;
-        var brightnessButtonWidth = 34;
+        var colorWheelSize = Math.Clamp(rightColumnWidth - 8, 72, 82);
+        var colorWheel = new Rectangle(
+            rightX + ((rightColumnWidth - colorWheelSize) / 2),
+            previewBounds.Y,
+            colorWheelSize,
+            colorWheelSize);
+        var brightnessY = colorWheel.Bottom + 6;
+        var brightnessButtonWidth = 28;
         var brightnessDown = new Rectangle(colorWheel.X, brightnessY, brightnessButtonWidth, 28);
         var brightnessUp = new Rectangle(colorWheel.Right - brightnessButtonWidth, brightnessY, brightnessButtonWidth, 28);
 
-        var cardColorY = rowY + 66;
-        var cardColor1 = new Rectangle(bounds.X + padding, cardColorY, 34, 34);
-        var cardColor2 = new Rectangle(cardColor1.Right + 8, cardColorY, 34, 34);
-        var gradientWidth = Math.Clamp(leftRightLimit - cardColor2.Right - 18, 72, 92);
-        var cardGradient = new Rectangle(cardColor2.Right + 10, cardColorY, gradientWidth, 34);
-        var portraitColorY = cardColorY + 52;
-        var portraitColor1 = new Rectangle(bounds.X + padding, portraitColorY, 34, 34);
-        var portraitColor2 = new Rectangle(portraitColor1.Right + 8, portraitColorY, 34, 34);
-        var portraitGradient = new Rectangle(portraitColor2.Right + 10, portraitColorY, gradientWidth, 34);
+        var rowY = bounds.Y + 160;
+        var bioInput = new Rectangle(bounds.X + padding, rowY, bounds.Width - (padding * 2), 28);
+
+        rowY += 42;
+        var medalPrev = new Rectangle(bounds.X + padding, rowY, smallButton, 28);
+        var medalNext = new Rectangle(leftRightLimit - smallButton, rowY, smallButton, 28);
+
+        rowY += 42;
+        var classPrev = new Rectangle(bounds.X + padding, rowY, smallButton, 28);
+        var classNext = new Rectangle(Math.Min(bounds.X + 150, leftRightLimit - smallButton), rowY, smallButton, 28);
+        var team = new Rectangle(rightX, rowY, rightColumnWidth, 28);
+
+        rowY += 42;
+        var framePrev = new Rectangle(bounds.X + padding, rowY, smallButton, 28);
+        var frameNext = new Rectangle(Math.Min(bounds.X + 126, leftRightLimit - smallButton), rowY, smallButton, 28);
+        var zoomOut = new Rectangle(rightX, rowY, 36, 28);
+        var zoomIn = new Rectangle(rightX + 44, rowY, 40, 28);
+
+        var colorRowY = rowY + 48;
+        var portraitColor1 = new Rectangle(bounds.X + padding, colorRowY, 34, 34);
+        var portraitColor2 = new Rectangle(portraitColor1.Right + 8, colorRowY, 34, 34);
+        var gradientWidth = Math.Clamp(leftRightLimit - portraitColor2.Right - 18, 72, 92);
+        var portraitGradient = new Rectangle(portraitColor2.Right + 10, colorRowY, gradientWidth, 34);
 
         return new PlayerCardEditorLayout(
             bounds,
-            backgroundPrev,
-            backgroundNext,
+            previewCard,
+            bioInput,
+            medalPrev,
+            medalNext,
             classPrev,
             classNext,
             team,
             framePrev,
             frameNext,
-            cardColor1,
-            cardColor2,
-            cardGradient,
             portraitColor1,
             portraitColor2,
             portraitGradient,
@@ -474,41 +695,81 @@ public partial class Game1
 
     private static PlayerCardLayout CreatePlayerCardLayout(Rectangle bounds)
     {
-        var inner = new Rectangle(bounds.X + 5, bounds.Y + 5, bounds.Width - 10, bounds.Height - 10);
-        var margin = Math.Clamp((int)MathF.Round(bounds.Width * 0.052f), 11, 24);
-        var portraitSize = Math.Clamp((int)MathF.Round(bounds.Width * 0.26f), 58, 156);
-        var portrait = new Rectangle(bounds.X + margin, bounds.Y + margin, portraitSize, portraitSize);
-        var portraitInset = Math.Clamp((int)MathF.Round(bounds.Width * 0.012f), 2, 3);
-        var portraitInner = new Rectangle(
-            portrait.X + portraitInset,
-            portrait.Y + portraitInset,
-            portrait.Width - (portraitInset * 2),
-            portrait.Height - (portraitInset * 2));
-        var actionGap = Math.Clamp((int)MathF.Round(bounds.Width * 0.022f), 5, 8);
-        var actionHeight = Math.Clamp((int)MathF.Round(bounds.Width * 0.075f), 22, 32);
-        var edit = new Rectangle(portrait.X, portrait.Bottom + actionGap, portrait.Width, actionHeight);
-        var nameHeight = Math.Clamp((int)MathF.Round(bounds.Width * 0.108f), 28, 46);
-        var nameBottomMargin = Math.Clamp((int)MathF.Round(bounds.Width * 0.036f), 8, 16);
-        var name = new Rectangle(bounds.X + margin, bounds.Bottom - nameBottomMargin - nameHeight, bounds.Width - (margin * 2), nameHeight);
-        return new PlayerCardLayout(bounds, inner, portrait, portraitInner, edit, name);
+        var portraitInner = ScalePlayerCardSourceRectangle(bounds, 8, 8, 64, 64);
+        var name = ScalePlayerCardSourceRectangle(bounds, 87, 18, 173, 32);
+        var bio = ScalePlayerCardSourceRectangle(bounds, 16, 81, 151, 30);
+        var medal = ScalePlayerCardSourceRectangle(bounds, 213, 45, 37, 73);
+        var editWidth = Math.Clamp((int)MathF.Round(bounds.Width * 0.36f), 100, 124);
+        var editHeight = Math.Clamp((int)MathF.Round(bounds.Width * 0.105f), 26, 34);
+        var edit = new Rectangle(bounds.Right - editWidth, bounds.Bottom + 7, editWidth, editHeight);
+        return new PlayerCardLayout(bounds, portraitInner, edit, name, bio, medal);
     }
 
-    private void DrawPlayerCardBackgroundArt(Rectangle bounds, PlayerCardProfile profile)
+    private static Rectangle ScalePlayerCardSourceRectangle(Rectangle bounds, int x, int y, int width, int height)
     {
-        var texture = TryGetPlayerCardBackgroundTexture(profile.Background);
-        if (texture is null)
+        var scaleX = bounds.Width / (float)PlayerCardNativeWidth;
+        var scaleY = bounds.Height / (float)PlayerCardNativeHeight;
+        return new Rectangle(
+            bounds.X + (int)MathF.Round(x * scaleX),
+            bounds.Y + (int)MathF.Round(y * scaleY),
+            Math.Max(1, (int)MathF.Round(width * scaleX)),
+            Math.Max(1, (int)MathF.Round(height * scaleY)));
+    }
+
+    private static int GetPlayerCardHeight(int width)
+    {
+        return Math.Max(1, (int)MathF.Round(width * (PlayerCardNativeHeight / (float)PlayerCardNativeWidth)));
+    }
+
+    private LoadedSpriteFrame? GetPlayerCardTemplateFrame(PlayerTeam team)
+    {
+        return GetPlayerCardAssetFrame(team == PlayerTeam.Red ? "redplayercard.png" : "blueplayercard.png");
+    }
+
+    private LoadedSpriteFrame? GetPlayerCardMedalFrame(string medalId)
+    {
+        var medal = GetPlayerCardMedalDefinition(medalId);
+        return GetPlayerCardAssetFrame(Path.Combine("Medals", medal.FileName));
+    }
+
+    private LoadedSpriteFrame? GetPlayerCardAssetFrame(string relativePath)
+    {
+        if (_playerCardAssetFrameCache.TryGetValue(relativePath, out var cached))
         {
-            return;
+            return cached;
         }
 
-        var drawTexture = OperatingSystem.IsBrowser() ? texture : GetPlayerCardLuminosityTexture(texture);
-        var source = GetTopAlignedCoverSourceRectangle(drawTexture.Width, drawTexture.Height, bounds.Width, bounds.Height);
-        _spriteBatch.Draw(drawTexture, bounds, source, Color.White * 0.15f);
+        var path = ContentRoot.GetPath("Sprites", "Menu", "PlayerCards", relativePath);
+        var frame = string.IsNullOrWhiteSpace(path) || !CanLoadSpriteFrameFromPath(path)
+            ? null
+            : LoadSpriteFrameFromPath(path);
+        _playerCardAssetFrameCache[relativePath] = frame;
+        return frame;
     }
 
-    private void DrawPlayerCardPortraitSprite(Rectangle portraitBounds, PlayerCardProfile profile)
+    private static PlayerTeam GetPlayerCardTeam(PlayerCardProfile profile)
     {
-        var sprite = GetResolvedSprite(GetPlayerCardTauntSpriteName(profile));
+        return string.Equals(profile.Team, "Red", StringComparison.OrdinalIgnoreCase)
+            ? PlayerTeam.Red
+            : PlayerTeam.Blue;
+    }
+
+    private static PlayerCardMedalDefinition GetPlayerCardMedalDefinition(string medalId)
+    {
+        for (var index = 0; index < PlayerCardMedals.Length; index += 1)
+        {
+            if (string.Equals(PlayerCardMedals[index].Id, medalId, StringComparison.OrdinalIgnoreCase))
+            {
+                return PlayerCardMedals[index];
+            }
+        }
+
+        return PlayerCardMedals[0];
+    }
+
+    private void DrawPlayerCardPortraitSprite(Rectangle portraitBounds, PlayerCardProfile profile, PlayerTeam team)
+    {
+        var sprite = GetResolvedSprite(GetPlayerCardTauntSpriteName(profile, team));
         if (sprite is null || sprite.Frames.Count == 0)
         {
             return;
@@ -703,10 +964,8 @@ public partial class Game1
     {
         return _playerCardActiveColorIndex switch
         {
-            1 => PlayerCardColorFromHex(profile.Color2),
-            2 => PlayerCardColorFromHex(profile.PortraitColor1),
-            3 => PlayerCardColorFromHex(profile.PortraitColor2),
-            _ => PlayerCardColorFromHex(profile.Color1),
+            1 => PlayerCardColorFromHex(profile.PortraitColor2),
+            _ => PlayerCardColorFromHex(profile.PortraitColor1),
         };
     }
 
@@ -715,19 +974,11 @@ public partial class Game1
         var hex = PlayerCardColorToHex(color);
         if (_playerCardActiveColorIndex == 1)
         {
-            profile.Color2 = hex;
-        }
-        else if (_playerCardActiveColorIndex == 2)
-        {
-            profile.PortraitColor1 = hex;
-        }
-        else if (_playerCardActiveColorIndex == 3)
-        {
             profile.PortraitColor2 = hex;
         }
         else
         {
-            profile.Color1 = hex;
+            profile.PortraitColor1 = hex;
         }
     }
 
@@ -740,119 +991,6 @@ public partial class Game1
     {
         var value = Math.Max(color.R, Math.Max(color.G, color.B)) / 255f;
         return Math.Clamp((int)MathF.Round(value * 10f) * 10, 10, 100);
-    }
-
-    private Texture2D GetPlayerCardLuminosityTexture(Texture2D source)
-    {
-        if (_playerCardLuminosityTextureCache.TryGetValue(source, out var cached))
-        {
-            return cached;
-        }
-
-        var pixels = new Color[source.Width * source.Height];
-        source.GetData(pixels);
-        for (var index = 0; index < pixels.Length; index += 1)
-        {
-            var pixel = pixels[index];
-            var luminance = (byte)Math.Clamp((int)MathF.Round((pixel.R * 0.2126f) + (pixel.G * 0.7152f) + (pixel.B * 0.0722f)), 0, 255);
-            pixels[index] = new Color(luminance, luminance, luminance, pixel.A);
-        }
-
-        cached = new Texture2D(GraphicsDevice, source.Width, source.Height);
-        cached.SetData(pixels);
-        _playerCardLuminosityTextureCache[source] = cached;
-        return cached;
-    }
-
-    private Texture2D? TryGetPlayerCardBackgroundTexture(string backgroundName)
-    {
-        var path = ResolvePlayerCardBackgroundPath(backgroundName);
-        if (string.IsNullOrWhiteSpace(path))
-        {
-            return null;
-        }
-
-        if (!_playerCardBackgroundFrameCache.TryGetValue(path, out var frame))
-        {
-            frame = LoadSpriteFrameFromPath(path);
-            _playerCardBackgroundFrameCache[path] = frame;
-        }
-
-        return frame?.Texture;
-    }
-
-    private string ResolvePlayerCardBackgroundPath(string backgroundName)
-    {
-        var backgrounds = GetPlayerCardBackgroundPaths();
-        if (backgrounds.Count == 0)
-        {
-            return string.Empty;
-        }
-
-        var match = backgrounds.FirstOrDefault(path => string.Equals(Path.GetFileName(path), backgroundName, StringComparison.OrdinalIgnoreCase));
-        return match ?? backgrounds[0];
-    }
-
-    private List<string> GetPlayerCardBackgroundPaths()
-    {
-        if (_playerCardBackgroundPaths is not null)
-        {
-            return _playerCardBackgroundPaths;
-        }
-
-        var paths = new List<string>();
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var root in EnumeratePlayerCardProbeRoots())
-        {
-            AddPlayerCardBackgroundDirectory(Path.Combine(root, "Plugins", "Client", "Lua.RandomBackgrounds", "Resources", "PrOF", "Backgrounds"), paths, seen);
-            AddPlayerCardBackgroundDirectory(Path.Combine(root, "Plugins", "Packaged", "Client", "Lua.RandomBackgrounds", "Resources", "PrOF", "Backgrounds"), paths, seen);
-            AddPlayerCardBackgroundDirectory(Path.Combine(root, "Plugins", "Client", "OpenGarrison.Client.Plugins.RandomBackgrounds", "Resources", "PrOF", "Backgrounds"), paths, seen);
-        }
-
-        _playerCardBackgroundPaths = paths
-            .OrderBy(path => Path.GetFileName(path), StringComparer.OrdinalIgnoreCase)
-            .ToList();
-        return _playerCardBackgroundPaths;
-    }
-
-    private static IEnumerable<string> EnumeratePlayerCardProbeRoots()
-    {
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var start in new[] { RuntimePaths.ApplicationRoot, AppContext.BaseDirectory, Directory.GetCurrentDirectory() })
-        {
-            if (string.IsNullOrWhiteSpace(start))
-            {
-                continue;
-            }
-
-            var directory = new DirectoryInfo(start);
-            while (directory is not null)
-            {
-                if (seen.Add(directory.FullName))
-                {
-                    yield return directory.FullName;
-                }
-
-                directory = directory.Parent;
-            }
-        }
-    }
-
-    private static void AddPlayerCardBackgroundDirectory(string directory, List<string> paths, HashSet<string> seen)
-    {
-        if (!Directory.Exists(directory))
-        {
-            return;
-        }
-
-        foreach (var path in Directory.EnumerateFiles(directory, "*.png", SearchOption.TopDirectoryOnly))
-        {
-            var fileName = Path.GetFileName(path);
-            if (!string.IsNullOrWhiteSpace(fileName) && seen.Add(fileName))
-            {
-                paths.Add(path);
-            }
-        }
     }
 
     private PlayerCardProfile CreateFallbackFriendPlayerCard(string friendCode)
@@ -869,50 +1007,30 @@ public partial class Game1
         }
 
         var positive = seed == int.MinValue ? 0 : Math.Abs(seed);
-        var backgrounds = GetPlayerCardBackgroundPaths();
         var profile = PlayerCardProfile.CreateDefault();
-        if (backgrounds.Count > 0)
-        {
-            profile.Background = Path.GetFileName(backgrounds[positive % backgrounds.Count]);
-        }
-
         var playerClass = PlayerCardClasses[positive % PlayerCardClasses.Length];
         profile.Class = playerClass.ToString();
         profile.Team = (positive & 1) == 0 ? "Blue" : "Red";
         profile.Frame = positive % Math.Max(1, GetPlayerCardTauntFrameCount(profile));
-        profile.Color1 = PlayerCardFallbackColors[positive % PlayerCardFallbackColors.Length];
-        profile.Color2 = PlayerCardFallbackColors[(positive / 7) % PlayerCardFallbackColors.Length];
-        profile.Gradient = true;
         profile.PortraitColor1 = PlayerCardFallbackColors[(positive / 11) % PlayerCardFallbackColors.Length];
         profile.PortraitColor2 = PlayerCardFallbackColors[(positive / 17) % PlayerCardFallbackColors.Length];
         profile.PortraitGradient = true;
         return PlayerCardProfile.Sanitize(profile);
     }
 
-    private void CyclePlayerCardBackground(PlayerCardProfile profile, int direction)
+    private static void CyclePlayerCardMedal(PlayerCardProfile profile, int direction)
     {
-        var backgrounds = GetPlayerCardBackgroundPaths();
-        if (backgrounds.Count == 0)
+        var currentIndex = 0;
+        for (var index = 0; index < PlayerCardMedals.Length; index += 1)
         {
-            return;
-        }
-
-        var currentIndex = -1;
-        for (var index = 0; index < backgrounds.Count; index += 1)
-        {
-            if (string.Equals(Path.GetFileName(backgrounds[index]), profile.Background, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(PlayerCardMedals[index].Id, profile.Medal, StringComparison.OrdinalIgnoreCase))
             {
                 currentIndex = index;
                 break;
             }
         }
-        if (currentIndex < 0)
-        {
-            currentIndex = 0;
-        }
 
-        var nextIndex = PositiveModulo(currentIndex + direction, backgrounds.Count);
-        profile.Background = Path.GetFileName(backgrounds[nextIndex]);
+        profile.Medal = PlayerCardMedals[PositiveModulo(currentIndex + direction, PlayerCardMedals.Length)].Id;
     }
 
     private void CyclePlayerCardClass(PlayerCardProfile profile, int direction)
@@ -949,9 +1067,14 @@ public partial class Game1
 
     private static string GetPlayerCardTauntSpriteName(PlayerCardProfile profile)
     {
+        return GetPlayerCardTauntSpriteName(profile, GetPlayerCardTeam(profile));
+    }
+
+    private static string GetPlayerCardTauntSpriteName(PlayerCardProfile profile, PlayerTeam team)
+    {
         var playerClass = GetPlayerCardClass(profile.Class);
         var className = playerClass == PlayerClass.Quote ? "Querly" : playerClass.ToString();
-        var teamName = string.Equals(profile.Team, "Red", StringComparison.OrdinalIgnoreCase) ? "Red" : "Blue";
+        var teamName = team == PlayerTeam.Red ? "Red" : "Blue";
         return $"{className}{teamName}TauntS";
     }
 
@@ -973,25 +1096,6 @@ public partial class Game1
             _world.LocalPlayer.BadgeMask,
             _clientIdentity.FriendCode,
             PlayerCardProfile.Serialize(_clientIdentity.PlayerCard));
-    }
-
-    private static Rectangle GetTopAlignedCoverSourceRectangle(int sourceWidth, int sourceHeight, int destinationWidth, int destinationHeight)
-    {
-        if (sourceWidth <= 0 || sourceHeight <= 0 || destinationWidth <= 0 || destinationHeight <= 0)
-        {
-            return Rectangle.Empty;
-        }
-
-        var sourceAspect = sourceWidth / (float)sourceHeight;
-        var destinationAspect = destinationWidth / (float)destinationHeight;
-        if (sourceAspect > destinationAspect)
-        {
-            var width = (int)MathF.Round(sourceHeight * destinationAspect);
-            return new Rectangle((sourceWidth - width) / 2, 0, width, sourceHeight);
-        }
-
-        var height = (int)MathF.Round(sourceWidth / destinationAspect);
-        return new Rectangle(0, 0, sourceWidth, height);
     }
 
     private static Color ColorFromHsv(float hue, float saturation, float value)
@@ -1074,17 +1178,6 @@ public partial class Game1
     private static string PlayerCardColorToHex(Color color)
     {
         return FormattableString.Invariant($"#{color.R:X2}{color.G:X2}{color.B:X2}");
-    }
-
-    private float GetPlayerCardNameScale(string text, float maxWidth)
-    {
-        var scale = 2.5f;
-        while (scale > 1f && MeasureBitmapFontWidth(text, scale) > maxWidth)
-        {
-            scale -= 0.1f;
-        }
-
-        return scale;
     }
 
     private static int PositiveModulo(int value, int divisor)

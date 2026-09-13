@@ -6,6 +6,12 @@ internal static class HudElementId
 {
     public const string LocalHealth = "local.health";
     public const string LocalWeaponStack = "local.weapon.stack";
+    public const string LocalWeaponPrimary = "local.weapon.primary";
+    public const string LocalWeaponSecondary = "local.weapon.secondary";
+    public const string LocalWeaponUtility = "local.weapon.utility";
+    public const string LocalWeaponAcquired = "local.weapon.acquired";
+    public const string LocalWeaponDemoknight = "local.weapon.demoknight";
+    public const string LocalWeaponPrompt = "local.weapon.prompt";
     public const string LocalAbilityStack = "local.ability.stack";
     public const string LocalAbilityPrefix = "local.ability.";
     public const string LocalAbilitySlotPrefix = "local.ability.slot.";
@@ -24,7 +30,8 @@ internal static class HudElementId
     public const string ClassEngineerMetal = "class.engineer.metal";
     public const string ClassEngineerSentry = "class.engineer.sentry";
     public const string ClassEngineerDispenser = "class.engineer.dispenser";
-    public const string ClassEngineerBuildMenu = "class.engineer.build-menu";
+    public const string LegacyClassEngineerBuildMenu = "class.engineer.build-menu";
+    public const string ClassEngineerBuildMenu = "class.engineer.build-wheel";
 
     public static string LocalAbility(string id) => LocalAbilityPrefix + id;
 

@@ -7,15 +7,37 @@ namespace OpenGarrison.Core;
 
 public sealed partial class SimulationWorld
 {
+    public void ResetProtocol64ClientLocalPlayer() => ApplySnapshotLocalPlayerState(null);
+
+    /// <summary>
+    /// Applies the authoritative semantic Last to Die identity needed by remote
+    /// weapon presentation. Remote protocol players use server slots, while the
+    /// locally owned player is always simulation slot 1 and is reconciled by the
+    /// normal local prediction profile.
+    /// </summary>
+    public void ReconcileRemoteLastToDieDemoknightPresentation(
+        IReadOnlySet<byte> demoknightServerSlots)
+    {
+        ArgumentNullException.ThrowIfNull(demoknightServerSlots);
+        foreach (var (serverSlot, player) in _remoteSnapshotPlayersBySlot)
+        {
+            player.SetExperimentalDemoknightEnabled(
+                demoknightServerSlots.Contains(serverSlot));
+        }
+    }
+
     /// <summary>
     /// Applies the authoritative player slice from protocol 64 to the actual
     /// gameplay world.  Identity/generation validation happens in the client
     /// protocol applier; this method only resolves the already-validated class
     /// and updates the slot's live entity.
     /// </summary>
-    public bool ApplyProtocol64PlayerState(Protocol64PlayerState state)
+    public bool ApplyProtocol64PlayerState(Protocol64PlayerState state, byte? clientLocalPlayerSlot = null)
     {
         if (state is null
+            || state.Slot > byte.MaxValue
+            || state.PlayerId == 0
+            || (state.Equipment is not null && !PlayerEntity.IsValidProtocol64EquipmentState(state))
             || !IsPlayableNetworkPlayerSlot((byte)state.Slot)
             || !CharacterClassCatalog.RuntimeRegistry.TryGetClassBinding(state.GameplayClassId, out _))
         {
@@ -23,6 +45,39 @@ public sealed partial class SimulationWorld
         }
 
         var slot = (byte)state.Slot;
+        var classDefinition = CharacterClassCatalog.GetDefinition(state.GameplayClassId);
+        if (clientLocalPlayerSlot.HasValue)
+        {
+            if (state.PlayerId > int.MaxValue)
+                return false;
+            if (slot == clientLocalPlayerSlot.Value)
+            {
+                if (_remoteSnapshotPlayersBySlot.Remove(slot, out var formerRemote))
+                    _remoteSnapshotPlayers.Remove(formerRemote);
+                _authoritativeLocalPlayerId = (int)state.PlayerId;
+                LocalPlayer.ApplyProtocol64State(state, classDefinition, Config.TicksPerSecond);
+                TrySetNetworkPlayerConfiguredTeam(LocalPlayerSlot, (PlayerTeam)state.Team);
+                ApplySnapshotNetworkPlayerBot(LocalPlayerSlot, state.IsBot);
+                if (state.IsAlive)
+                    TrySetNetworkPlayerAwaitingJoin(LocalPlayerSlot, false);
+                return true;
+            }
+
+            if (!_remoteSnapshotPlayersBySlot.TryGetValue(slot, out var remote)
+                || remote.Id != (int)state.PlayerId)
+            {
+                if (remote is not null)
+                    _remoteSnapshotPlayers.Remove(remote);
+                ReserveEntityId((int)state.PlayerId);
+                remote = new PlayerEntity((int)state.PlayerId, classDefinition, GetNetworkPlayerDefaultName(slot));
+                _remoteSnapshotPlayersBySlot[slot] = remote;
+            }
+            remote.ApplyProtocol64State(state, classDefinition, Config.TicksPerSecond);
+            ApplySnapshotNetworkPlayerBot(slot, state.IsBot);
+            if (!_remoteSnapshotPlayers.Contains(remote))
+                _remoteSnapshotPlayers.Add(remote);
+            return true;
+        }
         if (slot != LocalPlayerSlot)
         {
             EnsureAdditionalNetworkPlayer(slot);
@@ -34,24 +89,42 @@ public sealed partial class SimulationWorld
             return false;
         }
 
-        var classDefinition = CharacterClassCatalog.GetDefinition(state.GameplayClassId);
         player.ApplyProtocol64State(state, classDefinition, Config.TicksPerSecond);
         TrySetNetworkPlayerConfiguredTeam(slot, (PlayerTeam)state.Team);
+        ApplySnapshotNetworkPlayerBot(slot, state.IsBot);
         TrySetNetworkPlayerAwaitingJoin(slot, !state.IsAlive);
         return true;
     }
 
-    public bool RemoveProtocol64Player(Protocol64PlayerIdentity identity)
+    public bool RemoveProtocol64Player(Protocol64PlayerIdentity identity, byte? clientLocalPlayerSlot = null)
     {
-        if (identity is null || !IsPlayableNetworkPlayerSlot((byte)identity.Slot))
+        if (identity is null || identity.Slot > byte.MaxValue || identity.PlayerId > int.MaxValue
+            || !IsPlayableNetworkPlayerSlot((byte)identity.Slot))
         {
             return false;
         }
 
+        if (clientLocalPlayerSlot.HasValue)
+        {
+            if (identity.Slot == clientLocalPlayerSlot.Value)
+            {
+                if (_authoritativeLocalPlayerId != (int)identity.PlayerId)
+                    return false;
+                ResetProtocol64ClientLocalPlayer();
+                return true;
+            }
+            var slot = (byte)identity.Slot;
+            if (!_remoteSnapshotPlayersBySlot.TryGetValue(slot, out var remote)
+                || remote.Id != (int)identity.PlayerId)
+                return false;
+            _remoteSnapshotPlayersBySlot.Remove(slot);
+            _remoteSnapshotPlayers.Remove(remote);
+            return true;
+        }
         return TryReleaseNetworkPlayerSlot((byte)identity.Slot);
     }
 
-    public bool ApplyProtocol64ProjectileState(Protocol64ProjectileState state)
+    public bool ApplyProtocol64ProjectileState(Protocol64ProjectileState state, byte? clientLocalPlayerSlot = null)
     {
         if (state is null || state.EntityId > int.MaxValue)
         {
@@ -60,11 +133,18 @@ public sealed partial class SimulationWorld
 
         var id = (int)state.EntityId;
         RemoveProtocol64Projectile(id);
-        var hasLiveOwner = TryGetNetworkPlayer((byte)state.OwnerSlot, out var owner);
+        PlayerEntity? owner;
+        var hasLiveOwner = clientLocalPlayerSlot.HasValue
+            ? state.OwnerSlot == clientLocalPlayerSlot.Value
+                ? (owner = LocalPlayer) is not null
+                : _remoteSnapshotPlayersBySlot.TryGetValue((byte)state.OwnerSlot, out owner)
+            : TryGetNetworkPlayer((byte)state.OwnerSlot, out owner);
         var ownerId = state.LastToDieMedicJavelinOwnerPlayerId > 0
             ? state.LastToDieMedicJavelinOwnerPlayerId
             : hasLiveOwner
-                ? owner.Id
+                ? clientLocalPlayerSlot.HasValue && state.OwnerSlot == clientLocalPlayerSlot.Value
+                    ? _authoritativeLocalPlayerId ?? owner!.Id
+                    : owner!.Id
                 : 0;
         var team = state.LastToDieMedicJavelinTeam is >= 1 and <= 2
             ? (PlayerTeam)state.LastToDieMedicJavelinTeam
@@ -187,7 +267,10 @@ public sealed partial class SimulationWorld
                 state.X,
                 state.Y,
                 MathF.Sqrt((state.VelocityX * state.VelocityX) + (state.VelocityY * state.VelocityY)),
-                MathF.Atan2(state.VelocityY, state.VelocityX)),
+                MathF.Atan2(state.VelocityY, state.VelocityX),
+                isBallistic: state.IsBallisticRocket,
+                ballisticGravityPerTick: state.BallisticRocketGravityPerTick,
+                suppressSmokeTrail: state.SuppressRocketSmokeTrail),
             Protocol64ProjectileKind.Flame => new FlameProjectileEntity(id, team, ownerId, state.X, state.Y, state.VelocityX, state.VelocityY, lifetime),
             Protocol64ProjectileKind.Flare => new FlareProjectileEntity(
                 id,
@@ -198,7 +281,8 @@ public sealed partial class SimulationWorld
                 state.VelocityX,
                 state.VelocityY,
                 lifetime,
-                state.Damage > 0f ? state.Damage : FlareProjectileEntity.DefaultDamagePerHit),
+                state.Damage > 0f ? state.Damage : FlareProjectileEntity.DefaultDamagePerHit,
+                style: (FlareProjectileStyle)state.FlareStyle),
             Protocol64ProjectileKind.Mine => new MineProjectileEntity(id, team, ownerId, state.X, state.Y, state.VelocityX, state.VelocityY),
             Protocol64ProjectileKind.Grenade => new GrenadeProjectileEntity(id, team, ownerId, state.X, state.Y, state.VelocityX, state.VelocityY),
             // Bubble is intentionally represented as Custom on the wire so

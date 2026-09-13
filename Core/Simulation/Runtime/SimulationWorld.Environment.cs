@@ -146,12 +146,9 @@ public sealed partial class SimulationWorld
     private void ApplyHealingCabinets(PlayerEntity player)
     {
         var usingHealingCabinet = false;
-        foreach (var roomObject in Level.RoomObjects)
+        foreach (var index in Level.GetRoomObjectIndices(RoomObjectType.HealingCabinet))
         {
-            if (roomObject.Type != RoomObjectType.HealingCabinet)
-            {
-                continue;
-            }
+            ref readonly var roomObject = ref Level.GetRoomObject(index);
 
             if (!player.IntersectsMarker(
                 roomObject.CenterX,
@@ -251,12 +248,9 @@ public sealed partial class SimulationWorld
         }
 
         var consumedJumpPress = false;
-        foreach (var roomObject in Level.RoomObjects)
+        foreach (var index in Level.MoveBoxIndices)
         {
-            if (!roomObject.IsMoveBox())
-            {
-                continue;
-            }
+            ref readonly var roomObject = ref Level.GetRoomObject(index);
 
             if (!player.IntersectsMarker(
                 roomObject.CenterX,
@@ -277,13 +271,9 @@ public sealed partial class SimulationWorld
             player.AddImpulse(impulse.X, impulse.Y);
         }
 
-        for (var index = 0; index < Level.RoomObjects.Count; index += 1)
+        foreach (var index in Level.GetRoomObjectIndices(RoomObjectType.Catapult))
         {
-            var roomObject = Level.RoomObjects[index];
-            if (!roomObject.IsCatapult())
-            {
-                continue;
-            }
+            ref readonly var roomObject = ref Level.GetRoomObject(index);
 
             var intersects = player.IntersectsMarker(
                 roomObject.CenterX,
@@ -342,7 +332,7 @@ public sealed partial class SimulationWorld
 
     private void ClearCatapultContactsForPlayer(int playerId)
     {
-        for (var index = 0; index < Level.RoomObjects.Count; index += 1)
+        foreach (var index in Level.GetRoomObjectIndices(RoomObjectType.Catapult))
         {
             _catapultContacts.Remove((playerId, index));
         }
@@ -356,12 +346,9 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        foreach (var roomObject in Level.RoomObjects)
+        foreach (var index in Level.GetRoomObjectIndices(RoomObjectType.SpawnRoom))
         {
-            if (roomObject.Type != RoomObjectType.SpawnRoom)
-            {
-                continue;
-            }
+            ref readonly var roomObject = ref Level.GetRoomObject(index);
 
             if (IsPointInsideMarker(player.X, player.Y, roomObject))
             {
@@ -388,8 +375,9 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        foreach (var roomObject in Level.RoomObjects)
+        foreach (var index in Level.HazardIndices)
         {
+            ref readonly var roomObject = ref Level.GetRoomObject(index);
             switch (roomObject.Type)
             {
                 case RoomObjectType.FragBox:

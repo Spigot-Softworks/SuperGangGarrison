@@ -201,7 +201,9 @@ public sealed partial class PlayerEntity
                 return 1f;
             }
 
-            var multiplier = 1f;
+            var multiplier = HasLastToDieSurvivorBuff
+                ? LastToDieSurvivorRules.DamageTakenMultiplier
+                : 1f;
             if (LastToDieMedicStimulantDripLinkActiveValue)
             {
                 multiplier *= LastToDieDerivedModifiers.MedicStimulantDripDamageTakenMultiplier;
@@ -919,6 +921,7 @@ public sealed partial class PlayerEntity
 
     internal void ClearLastToDiePerkModifiers()
     {
+        SetLastToDieSurvivorBuff(false);
         SetLastToDieCloakedPerkMultipliers(1f, 1f);
         ConfigureLastToDieSpyCloakMeter(
             rogueCommanderEnabled: false,

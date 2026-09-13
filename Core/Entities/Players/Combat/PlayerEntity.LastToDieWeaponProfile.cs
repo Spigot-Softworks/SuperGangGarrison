@@ -27,6 +27,12 @@ public sealed partial class PlayerEntity
 
     public int LastToDieSniperRifleFullChargeTicks => LastToDieSniperProfile.RifleFullChargeTicks;
 
+    public int SniperRifleFullChargeTicks => Math.Max(
+        1,
+        (int)MathF.Ceiling(
+            LastToDieSniperRifleFullChargeTicks
+            / (1f + (SniperRifleFullyChargedHitStreak * SniperRifleStreakChargeSpeedBonus))));
+
     public int LastToDieSniperBowFullChargeTicks => LastToDieSniperProfile.HuntsmanFullChargeTicks;
 
     public byte LastToDieSniperMarkedTargetSlot { get; private set; }

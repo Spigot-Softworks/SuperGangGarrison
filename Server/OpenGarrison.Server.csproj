@@ -1,6 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <ItemGroup>
+    <Compile Remove="Networking\Protocol64WebSocketConnection.cs" />
+    <PackageReference Include="NVorbis" Version="0.10.5" />
+    <PackageReference Include="NLayer" Version="2.0.0" />
     <PackageReference Include="MoonSharp.Interpreter.netcore" Version="2.0.14" />
   </ItemGroup>
 

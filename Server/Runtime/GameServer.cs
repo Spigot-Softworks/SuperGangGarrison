@@ -83,6 +83,7 @@ sealed partial class GameServer
     private bool _svCheatsEnabled;
     private bool _serverFrameInfoEnabled;
     private bool _randomSpreadEnabled;
+    private bool _hlxEnabled = true;
     private bool _sniperAimIndicatorEnabled = true;
     private bool _localPredictionEnabled;
     private bool _competitiveReadyUpEnabled;
@@ -110,17 +111,19 @@ sealed partial class GameServer
     private readonly LastToDieDifficulty _lastToDieDifficulty;
     private readonly ulong? _lastToDieSeed;
     private readonly bool _passwordRequired;
+    private readonly OpenGarrison.Server.ServerManagementService _serverManagement;
     private readonly byte[] _protocolUuidBytes;
     private readonly ConcurrentQueue<PendingConsoleCommand> _pendingConsoleCommands = new();
     private int _nextClientUserId = 1;
 
     private UdpClient _udp = null!;
     private OpenGarrison.Server.IServerMessageTransport _messageTransport = null!;
-    private OpenGarrison.Server.WebSocketServerHost? _webSocketHost;
-    private OpenGarrison.Server.Protocol64QuicServerHost? _quicHost;
+    private IDisposable? _webSocketHost;
+    private IAsyncDisposable? _quicHost;
     private Task? _relayHostTask;
     private CancellationTokenSource? _relayHostCts;
     private bool _mapDownloadEndpointAvailable;
+    private Func<ServerTransportPeer, ManagedRoomRuntime.Participant?>? _embeddedAdmission;
     private LobbyServerRegistrar? _lobbyRegistrar;
     private HttpServerRegistryHeartbeat? _httpRegistryHeartbeat;
     private SimulationWorld _world = null!;
@@ -149,6 +152,7 @@ sealed partial class GameServer
     private ServerBanService _banService = null!;
     private ServerBotManager _botManager = null!;
     private OpenGarrison.Server.MapBotSpawnController _mapBotSpawnController = null!;
+    private OpenGarrison.Server.PlayerStatsService? _statsService;
 
     public GameServer(
         SimulationConfig config,
@@ -212,6 +216,7 @@ sealed partial class GameServer
         GameplayVariantKind gameplayVariant,
         LastToDieDifficulty lastToDieDifficulty,
         ulong? lastToDieSeed,
+        OpenGarrison.Server.ServerManagementConfiguration serverManagementConfiguration,
         OpenGarrison.Server.SnapshotBudgetMode snapshotBudgetMode = OpenGarrison.Server.SnapshotBudgetMode.GameplayCriticalUntrimmed)
     {
         _config = config;
@@ -281,6 +286,7 @@ sealed partial class GameServer
         _lastToDieSeed = lastToDieSeed;
         _snapshotBudgetMode = snapshotBudgetMode;
         _passwordRequired = !string.IsNullOrWhiteSpace(serverPassword);
+        _serverManagement = new OpenGarrison.Server.ServerManagementService(serverManagementConfiguration, Console.WriteLine);
         _protocolUuidBytes = ParseProtocolUuid(protocolUuidString);
     }
 
@@ -349,7 +355,7 @@ sealed partial class GameServer
             return [];
         }
 
-        if (TryBuildLastToDieConsoleCommandResponse(normalized, out var lastToDieResponseLines))
+        if (TryBuildLastToDieConsoleCommandResponse(normalized, source, out var lastToDieResponseLines))
         {
             return lastToDieResponseLines;
         }

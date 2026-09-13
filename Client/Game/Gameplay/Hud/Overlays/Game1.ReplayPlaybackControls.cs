@@ -11,8 +11,9 @@ namespace OpenGarrison.Client;
 public partial class Game1
 {
     private const int ReplaySeekStepMilliseconds = 5000;
+    internal const float ReplayPlaybackTextScale = PixelPerfectTextLayout.NaturalScale;
 
-    private readonly record struct ReplayPlaybackControlLayout(
+    internal readonly record struct ReplayPlaybackControlLayout(
         Rectangle Panel,
         Rectangle Status,
         Rectangle Backward,
@@ -70,7 +71,20 @@ public partial class Game1
         }
 
         EnsureReplayPlaybackControlAssets();
-        var layout = GetReplayPlaybackControlLayout(ViewportWidth, ViewportHeight);
+        var playbackLabel = state.IsSeekCatchUpPending
+            ? $"SEEKING {FormatReplayPlaybackTime(_replaySeekTargetMilliseconds)}"
+            : $"REPLAY  {FormatReplayPlaybackTime(state.PositionMilliseconds)} / {FormatReplayPlaybackTime(state.DurationMilliseconds)}";
+        if (state.IsPaused && !state.IsSeekCatchUpPending)
+        {
+            playbackLabel += "  PAUSED";
+        }
+
+        var playbackLabelSize = _consoleFont.MeasureString(playbackLabel);
+        var layout = GetReplayPlaybackControlLayout(
+            ViewportWidth,
+            ViewportHeight,
+            playbackLabelSize.X,
+            playbackLabelSize.Y);
         _spriteBatch.Draw(_pixel, layout.Panel, new Color(7, 12, 18, 210));
         DrawReplayControlBorder(layout.Panel, new Color(220, 226, 232, 210));
 
@@ -88,15 +102,7 @@ public partial class Game1
             enabled: !state.IsSeekCatchUpPending && state.PositionMilliseconds < maximumPosition,
             hovered: layout.Forward.Contains(mouse.X, mouse.Y));
 
-        var playbackLabel = state.IsSeekCatchUpPending
-            ? $"SEEKING {FormatReplayPlaybackTime(_replaySeekTargetMilliseconds)}"
-            : $"REPLAY  {FormatReplayPlaybackTime(state.PositionMilliseconds)} / {FormatReplayPlaybackTime(state.DurationMilliseconds)}";
-        if (state.IsPaused && !state.IsSeekCatchUpPending)
-        {
-            playbackLabel += "  PAUSED";
-        }
-
-        DrawReplayControlText(playbackLabel, layout.Status, Color.White, 0.8f);
+        DrawReplayControlText(playbackLabel, layout.Status, Color.White);
     }
 
     private bool TryGetInteractiveReplayPlaybackState(out NetworkGameClient.ReplayPlaybackState state)
@@ -122,12 +128,15 @@ public partial class Game1
         return true;
     }
 
-    private static ReplayPlaybackControlLayout GetReplayPlaybackControlLayout(int viewportWidth, int viewportHeight)
+    internal static ReplayPlaybackControlLayout GetReplayPlaybackControlLayout(
+        int viewportWidth,
+        int viewportHeight,
+        float naturalStatusWidth = 0f,
+        float naturalStatusHeight = 0f)
     {
         var buttonSize = Math.Clamp((int)MathF.Round(MathF.Min(viewportWidth, viewportHeight) * 0.065f), 34, 52);
         var gap = Math.Max(6, buttonSize / 6);
         var margin = Math.Max(14, buttonSize / 3);
-        var statusHeight = Math.Max(20, buttonSize / 2);
         var panelPadding = 7;
         var forward = new Rectangle(
             viewportWidth - margin - buttonSize,
@@ -135,7 +144,20 @@ public partial class Game1
             buttonSize,
             buttonSize);
         var backward = new Rectangle(forward.X - gap - buttonSize, forward.Y, buttonSize, buttonSize);
-        var status = new Rectangle(backward.X, backward.Y - statusHeight - 4, (buttonSize * 2) + gap, statusHeight);
+        var minimumStatusWidth = (buttonSize * 2) + gap;
+        var desiredStatusWidth = Math.Max(
+            minimumStatusWidth,
+            (int)MathF.Ceiling(Math.Max(0f, naturalStatusWidth)) + 8);
+        var maximumStatusWidth = Math.Max(1, forward.Right - panelPadding);
+        var statusWidth = Math.Min(desiredStatusWidth, maximumStatusWidth);
+        var statusHeight = Math.Max(
+            Math.Max(20, buttonSize / 2),
+            (int)MathF.Ceiling(Math.Max(0f, naturalStatusHeight)) + 4);
+        var status = new Rectangle(
+            forward.Right - statusWidth,
+            backward.Y - statusHeight - 4,
+            statusWidth,
+            statusHeight);
         var panel = Rectangle.Union(Rectangle.Union(backward, forward), status);
         panel.Inflate(panelPadding, panelPadding);
         return new ReplayPlaybackControlLayout(panel, status, backward, forward);
@@ -165,26 +187,38 @@ public partial class Game1
         }
         else
         {
-            DrawReplayControlText(label[0].ToString(), arrowBounds, tint, 1f);
+            DrawReplayControlText(label[0].ToString(), arrowBounds, tint);
         }
 
-        var labelBounds = new Rectangle(bounds.X, bounds.Bottom - 15, bounds.Width, 13);
-        DrawReplayControlText(label, labelBounds, tint, 0.62f);
+        var naturalLabelHeight = (int)MathF.Ceiling(_consoleFont.MeasureString(label).Y);
+        var labelHeight = Math.Min(Math.Max(1, bounds.Height - 2), Math.Max(13, naturalLabelHeight));
+        var labelBounds = new Rectangle(bounds.X, bounds.Bottom - labelHeight - 2, bounds.Width, labelHeight);
+        DrawReplayControlText(label, labelBounds, tint);
     }
 
-    private void DrawReplayControlText(string text, Rectangle bounds, Color color, float maximumScale)
+    private void DrawReplayControlText(string text, Rectangle bounds, Color color)
     {
-        var measured = _consoleFont.MeasureString(text);
+        var visibleText = PixelPerfectTextLayout.TrimToWidth(
+            text,
+            bounds.Width,
+            candidate => _consoleFont.MeasureString(candidate).X);
+        var measured = _consoleFont.MeasureString(visibleText);
         if (measured.X <= 0f || measured.Y <= 0f)
         {
             return;
         }
 
-        var scale = MathF.Min(maximumScale, MathF.Min(bounds.Width / measured.X, bounds.Height / measured.Y));
-        var position = new Vector2(
-            bounds.X + ((bounds.Width - (measured.X * scale)) * 0.5f),
-            bounds.Y + ((bounds.Height - (measured.Y * scale)) * 0.5f));
-        _spriteBatch.DrawString(_consoleFont, text, position, color, 0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
+        var position = PixelPerfectTextLayout.CenterNaturalText(bounds, measured.X, measured.Y);
+        _spriteBatch.DrawString(
+            _consoleFont,
+            visibleText,
+            new Vector2(position.X, position.Y),
+            color,
+            0f,
+            Vector2.Zero,
+            ReplayPlaybackTextScale,
+            SpriteEffects.None,
+            0f);
     }
 
     private void DrawReplayControlBorder(Rectangle bounds, Color color)

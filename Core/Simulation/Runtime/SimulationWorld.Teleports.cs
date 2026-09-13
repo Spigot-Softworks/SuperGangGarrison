@@ -66,19 +66,14 @@ public sealed partial class SimulationWorld
 
     private int FindTeleportZoneIndexContainingPlayer(PlayerEntity player)
     {
-        for (var index = 0; index < Level.RoomObjects.Count; index += 1)
+        foreach (var index in Level.TeleportCandidateIndices)
         {
             if (!Level.IsRoomObjectActive(index))
             {
                 continue;
             }
 
-            var marker = Level.RoomObjects[index];
-            if (marker.Type is not (RoomObjectType.TeleportZone or RoomObjectType.AreaExtension))
-            {
-                continue;
-            }
-
+            ref readonly var marker = ref Level.GetRoomObject(index);
             if (!AreaExtensionMetadata.TryGetEffectiveTeleportZone(Level.RoomObjects, index, out var teleportZone))
             {
                 continue;

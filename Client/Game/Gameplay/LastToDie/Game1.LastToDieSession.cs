@@ -22,7 +22,6 @@ public partial class Game1
     private const int LastToDieStageMinuteIncrement = 1;
     private const int LastToDieFinalStageMinutes =
         LastToDieStartingStageMinutes + ((LastToDieFinalEnemyBotCount - LastToDieStartingEnemyBotCount) * LastToDieStageMinuteIncrement);
-    private const int LastToDieStageCount = (LastToDieFinalEnemyBotCount - LastToDieStartingEnemyBotCount) + 1;
     private const int LastToDieMatchTimeLimitMinutes = 30;
     private const int LastToDieCapLimit = 5;
     private const int LastToDieRespawnSeconds = 5;
@@ -670,6 +669,12 @@ public partial class Game1
 
     private void ResetLastToDieState()
     {
+        foreach (var slot in _practiceBotSlots.Keys)
+        {
+            _world.TryClearNetworkPlayerLastToDieEnemyScaling(slot);
+        }
+
+        _world.ResetLastToDieClientSession();
         StopLastToDieGameOverSound();
         PersistLastToDieRunStatsIfNeeded(_lastToDieRun);
         _hostedLastToDieObservedRunId = Guid.Empty;
@@ -861,6 +866,8 @@ public partial class Game1
         }
 
         var enemyTeam = GetOpposingTeam(PlayerTeam.Red);
+        var enemyStatMultiplier = OpenGarrison.Core.LastToDie.LastToDieRuleset.GetEnemyStatMultiplier(
+            _lastToDieRun.StageNumber);
         var enemyIndex = 0;
         _lastToDieRun.CurrentSpecialRound.GigaSlots.Clear();
         foreach (var entry in _practiceBotSlots.OrderBy(static slot => slot.Key))
@@ -878,7 +885,16 @@ public partial class Game1
             player.SetExperimentalDemoknightSwordBaseDamage(ExperimentalGameplaySettings.DefaultDemoknightSwordBaseDamage);
             player.SetExperimentalDemoknightSwordDamageMultiplier(ExperimentalGameplaySettings.DefaultDemoknightSwordDamageMultiplier);
             player.SetExperimentalDemoknightSwordCooldownMultiplier(ExperimentalGameplaySettings.DefaultDemoknightSwordCooldownMultiplier);
-            ApplyLastToDieEnemyMaxHealthOverride(slot, GetStandardLastToDieEnemyMaxHealthOverride(slotState.ClassId));
+            _world.TrySetNetworkPlayerLastToDieEnemyScaling(
+                slot,
+                enemyStatMultiplier,
+                enemyStatMultiplier);
+            ApplyLastToDieEnemyMaxHealthOverride(
+                slot,
+                ScaleLastToDieEnemyMaxHealth(
+                    GetStandardLastToDieEnemyMaxHealthOverride(slotState.ClassId),
+                    slotState.ClassId,
+                    enemyStatMultiplier));
             ApplyLastToDieSniperHuntsmanLoadout(slot, slotState.ClassId);
 
             if (_lastToDieRun.CurrentSpecialRound.Kind == LastToDieSpecialRoundKind.Giga
@@ -888,7 +904,10 @@ public partial class Game1
                 _lastToDieRun.CurrentSpecialRound.GigaSlots.Add(slot);
                 ApplyLastToDieEnemyMaxHealthOverride(
                     slot,
-                    GetGigaLastToDieEnemyMaxHealthOverride(slotState.ClassId));
+                    ScaleLastToDieEnemyMaxHealth(
+                        GetGigaLastToDieEnemyMaxHealthOverride(slotState.ClassId),
+                        slotState.ClassId,
+                        enemyStatMultiplier));
             }
             else if (_lastToDieRun.CurrentSpecialRound.Kind == LastToDieSpecialRoundKind.Haxton
                      && enemyIndex == 0)
@@ -896,7 +915,12 @@ public partial class Game1
                 _lastToDieRun.CurrentSpecialRound.HaxtonSlot = slot;
                 _world.TrySetNetworkPlayerName(slot, "Haxton");
                 _world.TrySetNetworkPlayerScale(slot, LastToDieHaxtonScale);
-                ApplyLastToDieEnemyMaxHealthOverride(slot, GetHaxtonEffectiveMaxHealth(_lastToDieRun));
+                ApplyLastToDieEnemyMaxHealthOverride(
+                    slot,
+                    ScaleLastToDieEnemyMaxHealth(
+                        GetHaxtonEffectiveMaxHealth(_lastToDieRun),
+                        slotState.ClassId,
+                        enemyStatMultiplier));
                 player.SetExperimentalDemoknightEnabled(true);
                 player.SetExperimentalJumpHeightMultiplier(LastToDieHaxtonJumpHeightMultiplier);
                 player.SetExperimentalDemoknightSwordBaseDamage(LastToDieHaxtonSwordDamage);
@@ -934,6 +958,21 @@ public partial class Game1
     private void ApplyLastToDieEnemyMaxHealthOverride(byte slot, int? maxHealth)
     {
         _world.TrySetNetworkPlayerMaxHealthOverride(slot, maxHealth, refillHealth: true);
+    }
+
+    private static int? ScaleLastToDieEnemyMaxHealth(
+        int? maximumHealthOverride,
+        PlayerClass classId,
+        float multiplier)
+    {
+        if (!maximumHealthOverride.HasValue && MathF.Abs(multiplier - 1f) <= 0.0001f)
+        {
+            return null;
+        }
+
+        var baseMaximumHealth = maximumHealthOverride
+            ?? CharacterClassCatalog.GetDefinition(classId).MaxHealth;
+        return Math.Max(1, (int)MathF.Round(baseMaximumHealth * multiplier));
     }
 
     private void ApplyLastToDieSniperHuntsmanLoadout(byte slot, PlayerClass classId)
@@ -1066,6 +1105,8 @@ public partial class Game1
         _world.PrepareLocalPlayerJoin();
         _world.SetLocalPlayerTeam(PlayerTeam.Red);
         _world.CompleteLocalPlayerJoin(playerClass);
+        _world.ConfigureLastToDieStage(_lastToDieRun.StageNumber);
+        _world.TrySetLastToDieSurvivorBuff(SimulationWorld.LocalPlayerSlot, enabled: true);
         if (stageRules.SpawnLocalPlayerAtOwnIntel)
         {
             _world.TryMoveLocalPlayerToIntelSpawn();
@@ -1173,7 +1214,7 @@ public partial class Game1
             return;
         }
 
-        if (_lastToDieRun.StageRemainingTicks <= 0)
+        if (_lastToDieRun.StageRemainingTicks <= 0 && _world.CanCompleteLastToDieStageOnTimeout)
         {
             HandleLastToDieStageClear();
         }
@@ -1212,12 +1253,6 @@ public partial class Game1
         }
 
         _lastToDieRun.LevelsCompleted += 1;
-
-        if (IsLastToDieFinalStage(_lastToDieRun))
-        {
-            ReturnToLastToDieMenu("Last To Die cleared.");
-            return;
-        }
 
         OpenLastToDieStageClearOverlay();
     }
@@ -1357,12 +1392,6 @@ public partial class Game1
         OpenLastToDiePerkMenu();
     }
 
-    private static bool IsLastToDieFinalStage(LastToDieRunState run)
-    {
-        return run.EnemyBotCount >= LastToDieFinalEnemyBotCount
-            && run.StageDurationMinutes >= LastToDieFinalStageMinutes;
-    }
-
     private void OpenLastToDieSurvivorMenu()
     {
         if (_lastToDieRun is null)
@@ -1400,6 +1429,7 @@ public partial class Game1
         StopIngameMusic();
         StopLastToDieIngameMusic();
         _lastToDieRun.PendingRewardChoices = choices;
+        _localRewardInput.Reset(Environment.TickCount64);
         _lastToDiePerkMenuOpen = true;
         _lastToDiePerkHoverIndex = -1;
     }
@@ -1408,6 +1438,8 @@ public partial class Game1
     {
         var available = GetLastToDiePerkCatalog(run.SurvivorKind)
             .Where(definition => !run.ChosenPerks.Contains(definition.Kind))
+            .Where(definition => !IsLastToDieEngineerAmmoConversion(definition.Kind)
+                || !run.ChosenPerks.Any(IsLastToDieEngineerAmmoConversion))
             .ToList();
         ShuffleLastToDiePerks(available);
         var selectableChoices = available
@@ -1435,6 +1467,11 @@ public partial class Game1
 
         return choices;
     }
+
+    private static bool IsLastToDieEngineerAmmoConversion(LastToDiePerkKind kind) => kind is
+        LastToDiePerkKind.EngineerBuckshotConversion or
+        LastToDiePerkKind.EngineerPrecisionInstantiator or
+        LastToDiePerkKind.EngineerIncendiaryEnhancements;
 
     private static bool ShouldDisableLastToDiePerkChoice(LastToDieRunState run, LastToDiePerkKind perkKind)
     {
@@ -1523,7 +1560,7 @@ public partial class Game1
             return;
         }
 
-        _lastToDieRun.StageNumber = Math.Min(LastToDieStageCount, _lastToDieRun.StageNumber + 1);
+        _lastToDieRun.StageNumber = checked(_lastToDieRun.StageNumber + 1);
         _lastToDieRun.EnemyBotCount = Math.Min(LastToDieFinalEnemyBotCount, _lastToDieRun.EnemyBotCount + 1);
         _lastToDieRun.StageDurationMinutes = Math.Min(
             LastToDieFinalStageMinutes,
@@ -1892,19 +1929,9 @@ public partial class Game1
         var layout = GetLastToDieChoiceMenuLayout(_lastToDieRun.PendingRewardChoices.Length);
         _lastToDiePerkHoverIndex = GetLastToDieChoiceHoverIndex(mouse.Position, layout);
 
-        if (TryGetLastToDieChoiceHotkeySelection(keyboard, _lastToDieRun.PendingRewardChoices.Length, out var selectedIndex))
-        {
-            ChooseLastToDiePerk(selectedIndex);
-            return;
-        }
-
-        var clickPressed = mouse.LeftButton == ButtonState.Pressed && _previousMouse.LeftButton != ButtonState.Pressed;
-        if (!clickPressed || _lastToDiePerkHoverIndex < 0)
-        {
-            return;
-        }
-
-        ChooseLastToDiePerk(_lastToDiePerkHoverIndex);
+        if (UpdateLastToDieRewardInput(_localRewardInput, layout, keyboard, mouse,
+            index => _lastToDieRun.PendingRewardChoices[index].IsSelectable))
+            ChooseLastToDiePerk(_localRewardInput.SelectedIndex);
     }
 
     private void UpdateLastToDieStageClearOverlay(KeyboardState keyboard, MouseState mouse)
@@ -2263,9 +2290,7 @@ public partial class Game1
         _spriteBatch.Draw(_pixel, new Rectangle(layout.Panel.X, layout.Panel.Bottom - 3, layout.Panel.Width, 3), new Color(76, 76, 76));
 
         DrawBitmapFontText("Perks", new Vector2(layout.Panel.X + 28f, layout.Panel.Y + 24f), Color.White, 1.22f);
-        var subtitle = _lastToDieRun.AwaitingOpeningPerkSelection
-            ? "Choose 1 perk."
-            : "Choose 1 reward for the next stage.";
+        var subtitle = "Select a perk, then Confirm or Enter.";
         DrawBitmapFontText(subtitle, new Vector2(layout.Panel.X + 28f, layout.Panel.Y + 58f), new Color(212, 212, 212), 0.94f);
 
         for (var index = 0; index < _lastToDieRun.PendingRewardChoices.Length; index += 1)
@@ -2273,13 +2298,14 @@ public partial class Game1
             var choice = _lastToDieRun.PendingRewardChoices[index];
             var bounds = layout.CardBounds[index];
             var isDisabled = !choice.IsSelectable;
-            var isHovered = index == _lastToDiePerkHoverIndex && !isDisabled;
+            var isSelected = index == _localRewardInput.SelectedIndex && !isDisabled;
+            var isHovered = (index == _lastToDiePerkHoverIndex || isSelected) && !isDisabled;
             var backColor = isDisabled
                 ? new Color(28, 30, 35, 220)
                 : isHovered ? new Color(70, 38, 38, 240) : new Color(34, 37, 43, 232);
             var accentColor = isDisabled
                 ? new Color(82, 86, 94)
-                : isHovered ? new Color(210, 78, 78) : new Color(118, 126, 140);
+                : isSelected ? new Color(255, 214, 82) : isHovered ? new Color(210, 78, 78) : new Color(118, 126, 140);
             _spriteBatch.Draw(_pixel, bounds, backColor);
             _spriteBatch.Draw(_pixel, new Rectangle(bounds.X, bounds.Y, bounds.Width, 3), accentColor);
             _spriteBatch.Draw(_pixel, new Rectangle(bounds.X, bounds.Bottom - 3, bounds.Width, 3), new Color(14, 16, 19));
@@ -2310,6 +2336,7 @@ public partial class Game1
                 lineY += 20f;
             }
         }
+        DrawLastToDieRewardConfirm(_localRewardInput, layout);
     }
 
     private void DrawLastToDieStageClearOverlay()
@@ -2634,13 +2661,11 @@ public partial class Game1
             return;
         }
 
-        _lastToDieStats.HasRecordedRun = true;
-        _lastToDieStats.HighestRoundCompleted = Math.Max(_lastToDieStats.HighestRoundCompleted, run.LevelsCompleted);
+        _lastToDieStats.RecordRun(scoreUnits: 0, completedRounds: run.LevelsCompleted);
         _lastToDieStats.MostDamageSingleRun = Math.Max(_lastToDieStats.MostDamageSingleRun, run.TotalDamageDealt);
         _lastToDieStats.MostHealingSingleRun = Math.Max(_lastToDieStats.MostHealingSingleRun, run.TotalHealingReceived);
         _lastToDieStats.LongestComboSingleRun = Math.Max(_lastToDieStats.LongestComboSingleRun, run.HighestCombo);
         _lastToDieStats.TotalDamageLifetime = Math.Max(0, _lastToDieStats.TotalDamageLifetime + run.TotalDamageDealt);
-        _lastToDieStats.LastRunRound = Math.Max(1, run.StageNumber);
         _lastToDieStats.LastRunElapsedTicks = Math.Max(0, run.RunElapsedTicks);
         _lastToDieStats.Save();
     }
@@ -2672,7 +2697,7 @@ public partial class Game1
             DrawBitmapFontText(popupText, popupPosition, new Color(255, 226, 74) * alpha, 1f);
         }
 
-        var stageLabel = $"Stage {_lastToDieRun.StageNumber}/{LastToDieStageCount}";
+        var stageLabel = $"Stage {_lastToDieRun.StageNumber}";
         var enemiesLabel = GetLastToDieStageEnemyHudLabel(_lastToDieRun);
         var stageX = ViewportWidth - MeasureBitmapFontWidth(stageLabel, 0.92f) - 18f;
         var enemiesX = ViewportWidth - MeasureBitmapFontWidth(enemiesLabel, 0.92f) - 18f;

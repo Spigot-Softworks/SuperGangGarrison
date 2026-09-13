@@ -14,7 +14,7 @@ plugin runtime understands today.
 - `ClientLua.TeamOnlyMinimap` is a runnable Lua minimap HUD plugin template.
 - `ServerClr` is the baseline manifest for packaged C# server plugins.
 - `ServerLua` is a runnable first-pass Lua server plugin template.
-- `ServerLua.ChatVoting` is a runnable Lua server voting plugin template.
+- `ServerLua.ChatVoting` is a runnable Lua native vote-kind extension template.
 - `ServerLua.GameplayAbility` is a runnable Lua server gameplay ability template
   with a Spacebar action, plugin-owned cooldown HUD state, and hidden passive
   cooldown ticking.

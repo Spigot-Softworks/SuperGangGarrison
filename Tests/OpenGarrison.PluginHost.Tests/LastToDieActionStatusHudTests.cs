@@ -111,6 +111,45 @@ public sealed class LastToDieActionStatusHudTests
     }
 
     [Theory]
+    [InlineData(true, true, 1, LastToDieWirePhase.Playing, true, true)]
+    [InlineData(true, true, 1, LastToDieWirePhase.Playing, false, false)]
+    [InlineData(true, true, 2, LastToDieWirePhase.Playing, true, false)]
+    [InlineData(true, true, 1, LastToDieWirePhase.RewardChoice, true, false)]
+    [InlineData(false, true, 1, LastToDieWirePhase.Playing, true, false)]
+    [InlineData(true, false, 1, LastToDieWirePhase.Playing, true, false)]
+    public void OnlyHostedSoloGameplayOverlaysPauseTheAuthoritativeSimulation(
+        bool isHostedServerRunning,
+        bool isConnected,
+        int maximumPlayers,
+        LastToDieWirePhase phase,
+        bool hasOpenGameplayOverlay,
+        bool expected)
+    {
+        Assert.Equal(
+            expected,
+            Game1.ShouldPauseHostedLastToDieSoloSimulation(
+                isHostedServerRunning,
+                isConnected,
+                maximumPlayers,
+                phase,
+                hasOpenGameplayOverlay));
+    }
+
+    [Theory]
+    [InlineData(900, 300, 600)]
+    [InlineData(900, 900, 0)]
+    [InlineData(900, 1200, 0)]
+    public void HostedStageTimerUsesOnlyTheReplicatedServerClock(
+        long stageEndServerTick,
+        long serverTick,
+        int expectedRemainingTicks)
+    {
+        Assert.Equal(
+            expectedRemainingTicks,
+            Game1.ResolveHostedLastToDieRemainingTicks(stageEndServerTick, serverTick));
+    }
+
+    [Theory]
     [InlineData(true, "127.0.0.1:8190", "Loading Last to Die...")]
     [InlineData(false, "Example Server", "Joining Example Server...")]
     public void LastToDieConnectionUsesModeSpecificLoadingCopy(
@@ -133,6 +172,38 @@ public sealed class LastToDieActionStatusHudTests
         Assert.Equal(
             expectedGenericOverlay,
             Game1.ShouldShowJoiningServerLoadingOverlay(isLastToDie));
+    }
+
+    [Theory]
+    [InlineData(true, "Gang Garrison")]
+    [InlineData(false, "Super Gang Garrison")]
+    public void LoadingOverlayTitleFollowsRestrictedBrowserBranding(
+        bool isRestrictedBrowserEdition,
+        string expected)
+    {
+        Assert.Equal(expected, Game1.GetLoadingOverlayTitle(isRestrictedBrowserEdition));
+    }
+
+    [Theory]
+    [InlineData(1, false)]
+    [InlineData(2, true)]
+    public void HostedLastToDieSoloStartupDoesNotRenderTheCoOpLobby(
+        int maximumPlayers,
+        bool expectedLobby)
+    {
+        Assert.Equal(expectedLobby, Game1.ShouldShowHostedLastToDieLobby(maximumPlayers));
+    }
+
+    [Fact]
+    public void JoinedLastToDieRemainsSuppressedAfterConnectionPresentationFlagClears()
+    {
+        Assert.False(Game1.ShouldShowJoiningServerLoadingOverlay(true, true, false));
+        // Lobby/choice snapshots clear the transient flag before world warmup
+        // can finish. Both managed rooms and desktop-hosted LTD must stay hidden.
+        Assert.False(Game1.ShouldShowJoiningServerLoadingOverlay(false, true, true));
+        Assert.False(Game1.ShouldShowJoiningServerLoadingOverlay(false, false, true));
+        Assert.False(Game1.ShouldShowJoiningServerLoadingOverlay(false, true, false)); // reconnect
+        Assert.True(Game1.ShouldShowJoiningServerLoadingOverlay(false, false, false)); // ordinary online join
     }
 
     [Fact]

@@ -2,6 +2,7 @@
 
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using OpenGarrison.Core;
 
@@ -13,6 +14,12 @@ public sealed class ClientIdentityDocument
 
     private const string FriendCodePrefix = "OG2";
     private const string FriendCodeAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    private const int NewFriendCodeLength = 8;
+    private static readonly JsonSerializerOptions BrowserSerializerOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        WriteIndented = true,
+    };
 
     public string ClientId { get; set; } = string.Empty;
 
@@ -33,7 +40,29 @@ public sealed class ClientIdentityDocument
     {
         if (OperatingSystem.IsBrowser())
         {
-            return CreateNew(isPersistent: false);
+            try
+            {
+                var storedJson = ClientRuntimeBootstrap.GetBrowserClientIdentityJson();
+                if (!string.IsNullOrWhiteSpace(storedJson))
+                {
+                    var stored = JsonSerializer.Deserialize<ClientIdentityDocument>(storedJson, BrowserSerializerOptions);
+                    if (stored is not null && stored.IsUsable())
+                    {
+                        stored.FriendCode = NormalizeFriendCodeForStorage(stored.FriendCode);
+                        stored.PlayerCard = PlayerCardProfile.Sanitize(stored.PlayerCard);
+                        stored.IsPersistent = true;
+                        stored.Save();
+                        return stored;
+                    }
+                }
+            }
+            catch (JsonException)
+            {
+            }
+
+            var browserIdentity = CreateNew(isPersistent: true);
+            browserIdentity.Save();
+            return browserIdentity;
         }
 
         var resolvedPath = path ?? RuntimePaths.GetUserDataPath(DefaultFileName);
@@ -65,11 +94,33 @@ public sealed class ClientIdentityDocument
     {
         if (OperatingSystem.IsBrowser())
         {
+            ClientRuntimeBootstrap.SaveBrowserClientIdentityJson(JsonSerializer.Serialize(this, BrowserSerializerOptions));
             return;
         }
 
         var resolvedPath = path ?? RuntimePaths.GetUserDataPath(DefaultFileName);
         JsonConfigurationFile.Save(resolvedPath, this);
+    }
+
+    public bool ApplyAccountProfile(AccountProfileResponse profile, string? path = null)
+    {
+        ArgumentNullException.ThrowIfNull(profile);
+        if (!TryNormalizeFriendCode(profile.FriendCode, out var normalizedFriendCode))
+        {
+            return false;
+        }
+
+        FriendCode = normalizedFriendCode;
+        if (!string.IsNullOrWhiteSpace(profile.DisplayName))
+        {
+            DisplayName = profile.DisplayName.Trim();
+        }
+        if (!string.IsNullOrWhiteSpace(profile.PlayerCardJson))
+        {
+            PlayerCard = PlayerCardProfile.Deserialize(profile.PlayerCardJson);
+        }
+        Save(path);
+        return true;
     }
 
     public static bool TryNormalizeFriendCode(string? value, out string friendCode)
@@ -95,7 +146,7 @@ public sealed class ClientIdentityDocument
             text = text[FriendCodePrefix.Length..];
         }
 
-        if (text.Length is < 8 or > 16)
+        if (text.Length is not (8 or 12 or 16))
         {
             return false;
         }
@@ -135,7 +186,7 @@ public sealed class ClientIdentityDocument
 
     private static string CreateFriendCode()
     {
-        Span<char> code = stackalloc char[12];
+        Span<char> code = stackalloc char[NewFriendCodeLength];
         for (var index = 0; index < code.Length; index += 1)
         {
             code[index] = FriendCodeAlphabet[RandomNumberGenerator.GetInt32(FriendCodeAlphabet.Length)];

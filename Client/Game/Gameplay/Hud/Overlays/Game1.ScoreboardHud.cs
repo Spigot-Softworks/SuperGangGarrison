@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using OpenGarrison.Client.Plugins;
+using OpenGarrison.Protocol;
 
 namespace OpenGarrison.Client;
 
@@ -107,6 +108,11 @@ public partial class Game1
         var spectatorLines = BuildScoreboardSpectatorLines(525f, 1f);
         var footerLineHeight = MeasureBitmapFontHeight(1f) + 2f;
         var spectatorY = GetScoreboardSpectatorY(yoffset);
+        if (IsJukeboxPresent)
+        {
+            DrawJukeboxScoreboardRow(alpha);
+            spectatorY += 24;
+        }
         for (var lineIndex = 0; lineIndex < spectatorLines.Count; lineIndex += 1)
         {
             DrawScoreboardSpectatorLine(
@@ -137,7 +143,7 @@ public partial class Game1
     private ScoreboardLayout GetScoreboardLayout()
     {
         var xoffset = (ViewportWidth / 2f) - 280f;
-        var yoffset = (ViewportHeight / 2f) - 190f;
+        var yoffset = (ViewportHeight / 2f) - (IsJukeboxPresent ? 202f : 190f);
         var xsize = 480f;
         return new ScoreboardLayout(
             xoffset,
@@ -148,7 +154,7 @@ public partial class Game1
                 (int)MathF.Round(xoffset),
                 (int)MathF.Round(yoffset),
                 560,
-                400));
+                IsJukeboxPresent ? 424 : 400));
     }
 
     private List<PlayerEntity> GetScoreboardPlayers(PlayerTeam team)
@@ -241,6 +247,7 @@ public partial class Game1
         }
 
         var rows = BuildScoreboardPlayerRows();
+        if (TryHandleJukeboxScoreboardClick(mouse)) return;
         if (TryGetScoreboardPlayerRowAtPoint(rows, mouse.Position, out var hoveredRow))
         {
             _scoreboardHoveredPlayerRow = hoveredRow;
@@ -518,7 +525,8 @@ public partial class Game1
             profile,
             row.Player.DisplayName,
             string.Empty,
-            actionActive: false);
+            actionActive: false,
+            teamOverride: row.Player.Team);
     }
 
     private void DrawScoreboardContextMenu()
@@ -625,8 +633,8 @@ public partial class Game1
     {
         var maxWidth = Math.Max(300, ViewportWidth - 24);
         var baseWidth = Math.Clamp((int)MathF.Round(ViewportWidth * 0.42f), 300, Math.Min(430, maxWidth));
-        var width = Math.Clamp((int)MathF.Round(baseWidth * GetPlayerCardSizeScale()), 210, baseWidth);
-        var height = (int)MathF.Round(width * 0.61f);
+        var width = Math.Clamp((int)MathF.Round(baseWidth * GetPlayerCardSizeScale()), 241, baseWidth);
+        var height = GetPlayerCardHeight(width);
         var preferredRight = rowBounds.Center.X < ViewportWidth / 2;
         var x = preferredRight
             ? rowBounds.Right + 18
@@ -669,6 +677,11 @@ public partial class Game1
         {
             var player = players[index];
             var rowY = GetScoreboardPlayerRowY(index, yoffset);
+            var hasNetworkSlot = TryGetScoreboardPlayerNetworkSlot(player, out var playerSlot);
+            var isBot = hasNetworkSlot
+                && (_networkClient.IsConnected
+                    ? _world.IsNetworkPlayerBot(playerSlot)
+                    : _practiceBotSlots.ContainsKey(playerSlot));
             if (TryGetScoreboardPlayerNetworkSlot(player, out var slot)
                 && _scoreboardHoveredPlayerRow is { } hoveredRow
                 && hoveredRow.Slot == slot)
@@ -676,7 +689,11 @@ public partial class Game1
                 _spriteBatch.Draw(_pixel, GetScoreboardPlayerRowBounds(team, index, xoffset, yoffset, xsize), teamColor * (alpha * 0.16f));
             }
 
-            if (!IsLocalSpectatorPresentationActive() && _world.LocalPlayer.Team == player.Team)
+            if (isBot)
+            {
+                TryDrawScreenSprite("BotIconS", 0, new Vector2(iconX, rowY), Color.White * alpha, Vector2.One);
+            }
+            else if (!IsLocalSpectatorPresentationActive() && _world.LocalPlayer.Team == player.Team)
             {
                 TryDrawScreenSprite("Icon", GetScoreboardIconFrame(player.ClassId), new Vector2(iconX, rowY), Color.White * alpha, Vector2.One);
                 TryDrawScreenSprite("Icon", GetScoreboardIconFrame(player.ClassId), new Vector2(iconX, rowY), teamColor * (alpha * 0.2f), Vector2.One);
@@ -684,11 +701,19 @@ public partial class Game1
 
             const float badgeScale = 1f;
             var badgeWidth = MeasureScoreboardBadgeWidth(player.BadgeMask, badgeScale);
+            PlayerServerTitleState? serverTitle = null;
+            if (TryGetScoreboardPlayerNetworkSlot(player, out var titleSlot)
+                && TryGetOnlinePlayerServerTitle(titleSlot, out var resolvedTitle))
+            {
+                serverTitle = resolvedTitle;
+            }
+            var titleWidth = serverTitle is null ? 0f : MeasureServerPlayerTitle(serverTitle, 1f);
             var pingLabel = FormatScoreboardPingLabel(player);
             const float pingColumnWidth = 44f;
             var pingRight = pointsRight - 8f;
             var nameMaxWidth = Math.Max(24f, pingRight - pingColumnWidth - nameX - 6f);
             var scoreboardName = SanitizeScoreboardText(player.DisplayName);
+            if (IsScoreboardPlayerSpeaking(player)) scoreboardName = "> " + scoreboardName;
             if (TryGetScoreboardPlayerNetworkSlot(player, out var readySlot)
                 && _world.IsNetworkPlayerReady(readySlot))
             {
@@ -697,9 +722,9 @@ public partial class Game1
 
             var displayName = TrimBitmapMenuText(
                 scoreboardName,
-                Math.Max(24f, nameMaxWidth - badgeWidth),
+                Math.Max(24f, nameMaxWidth - badgeWidth - titleWidth),
                 1f);
-            DrawScoreboardNameWithBadges(displayName, player.BadgeMask, new Vector2(nameX, rowY), teamColor, alpha, 1f, badgeScale);
+            DrawScoreboardNameWithBadges(displayName, player.BadgeMask, new Vector2(nameX, rowY), teamColor, alpha, 1f, badgeScale, serverTitle);
             if (!string.IsNullOrEmpty(pingLabel))
             {
                 DrawBitmapFontTextRightAligned(pingLabel, new Vector2(pingRight, rowY + 1f), new Color(205, 205, 205) * alpha, 0.75f);
@@ -854,7 +879,8 @@ public partial class Game1
         Color textColor,
         float alpha,
         float textScale,
-        float badgeScale)
+        float badgeScale,
+        PlayerServerTitleState? serverTitle = null)
     {
         var cursorX = position.X;
         var badgeAdvance = GetScoreboardBadgeAdvance(badgeScale);
@@ -869,13 +895,25 @@ public partial class Game1
             }
         }
 
+        if (serverTitle is not null)
+        {
+            cursorX = DrawServerPlayerTitle(serverTitle, new Vector2(cursorX, position.Y), alpha, textScale);
+        }
+
         DrawBitmapFontText(text, new Vector2(cursorX, position.Y), textColor * alpha, textScale);
         return cursorX + MeasureBitmapFontWidth(text, textScale);
     }
 
-    private float MeasureScoreboardNameWithBadges(string text, ulong badgeMask, float textScale, float badgeScale)
+    private float MeasureScoreboardNameWithBadges(
+        string text,
+        ulong badgeMask,
+        float textScale,
+        float badgeScale,
+        PlayerServerTitleState? serverTitle = null)
     {
-        return MeasureBitmapFontWidth(text, textScale) + MeasureScoreboardBadgeWidth(badgeMask, badgeScale);
+        return MeasureBitmapFontWidth(text, textScale)
+            + MeasureScoreboardBadgeWidth(badgeMask, badgeScale)
+            + (serverTitle is null ? 0f : MeasureServerPlayerTitle(serverTitle, textScale));
     }
 
     private float MeasureScoreboardBadgeWidth(ulong badgeMask, float badgeScale)

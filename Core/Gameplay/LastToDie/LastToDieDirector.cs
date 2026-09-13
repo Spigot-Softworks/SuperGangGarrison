@@ -261,10 +261,9 @@ public sealed class LastToDieDirector
         }
 
         if (requireReadyRoster
-            && (_players.Count != _ruleset.MaximumPlayers
-                || _players.Values.Any(player => !player.IsReady)))
+            && _players.Values.Any(player => !player.IsReady))
         {
-            return Fail("Every lobby seat must be occupied and ready before the host can start.", out error);
+            return Fail("Everyone in the lobby must be ready before the host can start.", out error);
         }
 
         _phase = LastToDiePhase.SurvivorChoice;
@@ -480,7 +479,7 @@ public sealed class LastToDieDirector
 
         var stage = _ruleset.GetStage(_stageNumber);
         _stageEndServerTick = checked(serverTick + stage.DurationTicks);
-        if (_runEndServerTick == 0)
+        if (!_ruleset.Endless && _runEndServerTick == 0)
         {
             _runEndServerTick = checked(serverTick + _ruleset.RunTimeLimitTicks);
         }
@@ -567,7 +566,8 @@ public sealed class LastToDieDirector
         bool redObjectiveWon,
         bool blueObjectiveWon,
         bool anyAfterlifeWindowActive,
-        out string error)
+        out string error,
+        bool canCompleteStageOnTimeout = true)
     {
         if (_phase != LastToDiePhase.Playing)
         {
@@ -579,7 +579,7 @@ public sealed class LastToDieDirector
             return Fail("Server tick must be non-negative.", out error);
         }
 
-        if (serverTick >= _runEndServerTick)
+        if (_runEndServerTick > 0 && serverTick >= _runEndServerTick)
         {
             Lose("Run time limit expired.");
         }
@@ -591,10 +591,33 @@ public sealed class LastToDieDirector
         {
             Lose("Enemy team completed the objective.");
         }
-        else if (redObjectiveWon || serverTick >= _stageEndServerTick)
+        else if (redObjectiveWon || (serverTick >= _stageEndServerTick && canCompleteStageOnTimeout))
         {
             CompleteStage();
         }
+
+        error = string.Empty;
+        return true;
+    }
+
+    public bool TryAdvancePlayingDeadline(long serverTick, out string error)
+    {
+        if (_phase != LastToDiePhase.Playing)
+        {
+            return Fail("The Last to Die run is not in a playing stage.", out error);
+        }
+
+        if (serverTick < 0)
+        {
+            return Fail("Server tick must be non-negative.", out error);
+        }
+
+        if (_runEndServerTick > 0 && serverTick >= _runEndServerTick)
+        {
+            Lose("Run time limit expired.");
+        }
+        // Session maintenance has no objective ownership information. Only
+        // TryAdvancePlayingState may award a stage after observing the world.
 
         error = string.Empty;
         return true;
@@ -741,7 +764,7 @@ public sealed class LastToDieDirector
 
     private void CompleteStage()
     {
-        if (_stageNumber >= _ruleset.StageCount)
+        if (!_ruleset.Endless && _stageNumber >= _ruleset.StageCount)
         {
             _phase = LastToDiePhase.Won;
             _terminalReason = "All Last to Die stages completed.";

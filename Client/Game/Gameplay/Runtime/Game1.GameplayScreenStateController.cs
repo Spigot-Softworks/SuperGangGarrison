@@ -81,6 +81,10 @@ public partial class Game1
             {
                 _game.CloseGameplaySelectionMenus();
             }
+            else if (_game._buildMenuOpen && escapePressed)
+            {
+                _game.BeginClosingBuildMenu();
+            }
             else if (_game.CanOpenInGamePauseMenu() && pausePressed)
             {
                 _game.OpenInGameMenu();

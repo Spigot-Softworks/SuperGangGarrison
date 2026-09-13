@@ -681,6 +681,40 @@ internal sealed class LuaServerPlugin(
             context.RegisterCommand(registration.Command, registration.RequiredPermissions, registration.Aliases);
             return DynValue.True;
         });
+        host["register_vote_kind"] = DynValue.NewCallback((_, args) =>
+        {
+            if (!CanRegisterLuaVote("register_vote_kind", "native vote registration"))
+            {
+                return DynValue.False;
+            }
+
+            var registration = ReadLuaVoteRegistration(ReadArgument(args, 0));
+            if (context.TryRegisterVoteKind(registration, out var errorMessage))
+            {
+                return DynValue.True;
+            }
+
+            context.Log($"native vote registration rejected: {errorMessage}");
+            return DynValue.False;
+        });
+        host["try_start_vote"] = DynValue.NewCallback((_, args) =>
+        {
+            var voteKindId = ReadStringArgument(args, 0);
+            var initiatorSlot = ReadByteArgument(args, 1);
+            var argument = ReadOptionalStringArgument(args, 2) ?? string.Empty;
+            if (!CanIssueServerMutation("try_start_vote", $"vote kind {voteKindId}"))
+            {
+                return DynValue.False;
+            }
+
+            if (context.TryStartVote(voteKindId, initiatorSlot, argument, out var errorMessage))
+            {
+                return DynValue.True;
+            }
+
+            context.Log($"native vote request rejected: {errorMessage}");
+            return DynValue.False;
+        });
         host["execute_lua"] = DynValue.NewCallback((_, args) =>
         {
             if (!CanIssueServerMutation("execute_lua", "Lua execution") || !_activeCommandIdentity.HasValue)
@@ -1728,6 +1762,87 @@ internal sealed class LuaServerPlugin(
             aliases);
     }
 
+    private OpenGarrisonServerVoteRegistration ReadLuaVoteRegistration(DynValue value)
+    {
+        if (value.Type != DataType.Table)
+        {
+            throw new InvalidOperationException("Lua vote registration must be a table.");
+        }
+
+        var table = value.Table;
+        var id = ReadRequiredStringField(table, "id", "Id", "name", "Name");
+        var displayName = ReadRequiredStringField(table, "displayName", "DisplayName", "display_name", "label", "Label");
+        var description = ReadOptionalStringField(table, "description", "Description") ?? string.Empty;
+        var targetKind = ReadOptionalEnumField<OpenGarrisonServerVoteTargetKind>(
+                table,
+                "targetKind",
+                "TargetKind",
+                "target_kind")
+            ?? OpenGarrisonServerVoteTargetKind.None;
+        var apply = ReadRequiredFunctionField(table, "apply", "Apply", "handler", "Handler");
+        var validate = ReadOptionalFunctionField(table, "validate", "Validate");
+
+        return new OpenGarrisonServerVoteRegistration(
+            id,
+            displayName,
+            description,
+            targetKind,
+            request => ExecuteLuaVoteApply(apply, request),
+            validate.IsNil()
+                ? null
+                : request => ExecuteLuaVoteValidation(validate, request, displayName));
+    }
+
+    private OpenGarrisonServerVoteValidationResult ExecuteLuaVoteValidation(
+        DynValue callback,
+        OpenGarrisonServerVoteRequest request,
+        string defaultSubject)
+    {
+        return ExecuteInPhase(ServerLuaCallbackPhase.Query, () =>
+        {
+            var result = InvokeCallbackWithLimits(callback, [ToDynValue(request)]);
+            if (result.Type == DataType.String)
+            {
+                return OpenGarrisonServerVoteValidationResult.Accept(result.String);
+            }
+
+            if (result.Type == DataType.Boolean)
+            {
+                return result.Boolean
+                    ? OpenGarrisonServerVoteValidationResult.Accept(defaultSubject)
+                    : OpenGarrisonServerVoteValidationResult.Reject("The plugin rejected this vote request.");
+            }
+
+            if (result.Type != DataType.Table)
+            {
+                return OpenGarrisonServerVoteValidationResult.Reject("The plugin returned an invalid vote validation result.");
+            }
+
+            var accepted = ReadOptionalBoolField(result.Table, true, "accepted", "Accepted", "allowed", "Allowed");
+            var subject = ReadOptionalStringField(result.Table, "subject", "Subject") ?? defaultSubject;
+            var error = ReadOptionalStringField(result.Table, "error", "Error", "errorMessage", "ErrorMessage", "error_message")
+                ?? "The plugin rejected this vote request.";
+            return accepted
+                ? OpenGarrisonServerVoteValidationResult.Accept(subject)
+                : OpenGarrisonServerVoteValidationResult.Reject(error);
+        });
+    }
+
+    private bool ExecuteLuaVoteApply(DynValue callback, OpenGarrisonServerVoteRequest request)
+    {
+        return ExecuteInPhase(ServerLuaCallbackPhase.CommandInteraction, () =>
+        {
+            var result = InvokeCallbackWithLimits(callback, [ToDynValue(request)]);
+            if (result.Type == DataType.Boolean)
+            {
+                return result.Boolean;
+            }
+
+            return result.Type == DataType.Table
+                && ReadOptionalBoolField(result.Table, false, "success", "Success", "applied", "Applied");
+        });
+    }
+
     private LuaDeferredServerAction ReadDeferredServerAction(CallbackArguments args)
     {
         var actionValue = ReadArgument(args, 0);
@@ -1947,6 +2062,22 @@ internal sealed class LuaServerPlugin(
         if (value.Type != DataType.Function)
         {
             throw new InvalidOperationException($"Field \"{names[0]}\" must be a function.");
+        }
+
+        return value;
+    }
+
+    private static DynValue ReadOptionalFunctionField(Table table, params string[] names)
+    {
+        var value = ReadField(table, names);
+        if (value.IsNil())
+        {
+            return DynValue.Nil;
+        }
+
+        if (value.Type != DataType.Function)
+        {
+            throw new InvalidOperationException($"Field \"{names[0]}\" must be a function when provided.");
         }
 
         return value;
@@ -2904,6 +3035,7 @@ internal sealed class LuaServerPlugin(
     private bool CanAccessProtectedCvars()
     {
         return _activeCommandIdentity?.Authority is OpenGarrisonServerAdminAuthority.RconSession
+            or OpenGarrisonServerAdminAuthority.ServerConfiguration
             or OpenGarrisonServerAdminAuthority.HostConsole
             or OpenGarrisonServerAdminAuthority.AdminPipe;
     }
@@ -2994,6 +3126,19 @@ internal sealed class LuaServerPlugin(
             functionName,
             target,
             "Register Lua commands during initialize before the command registry is exposed to players.");
+    }
+
+    private bool CanRegisterLuaVote(string functionName, string target)
+    {
+        if (_currentCallbackPhase == ServerLuaCallbackPhase.Initialize)
+        {
+            return true;
+        }
+
+        return RejectHostOperation(
+            functionName,
+            target,
+            "Register native vote kinds during initialize before the vote catalog is exposed to players.");
     }
 
     private bool RejectHostOperation(string functionName, string target, string guidance)

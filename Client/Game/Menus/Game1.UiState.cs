@@ -41,6 +41,7 @@ public partial class Game1
         CustomBubbleEditor,
         SocialMenu,
         HudEditor,
+        VoteMenu,
         InGameMenu,
         LoadoutMenu,
         DebugMenu,

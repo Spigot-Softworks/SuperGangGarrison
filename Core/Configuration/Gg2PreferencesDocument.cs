@@ -469,6 +469,7 @@ public sealed class OpenGarrisonPreferencesDocument
         ini.SetBool(ServerAdvancedSection, "CompetitiveReadyUpEnabled", HostSettings.CompetitiveReadyUpEnabled);
         ini.SetInt(ServerAdvancedSection, "CompetitiveSetupSeconds", HostSettings.CompetitiveSetupSeconds);
         ini.SetBool(ServerAdvancedSection, "RandomSpreadEnabled", HostSettings.RandomSpreadEnabled);
+        ini.SetBool(ServerAdvancedSection, "HlxEnabled", HostSettings.HlxEnabled);
         ini.SetBool(ServerAdvancedSection, "SniperAimIndicatorEnabled", HostSettings.SniperAimIndicatorEnabled);
         ini.SetBool(ServerAdvancedSection, "LocalPredictionEnabled", HostSettings.LocalPredictionEnabled);
         ini.SetBool(ServerAdvancedSection, "RoundEndFriendlyFireEnabled", HostSettings.RoundEndFriendlyFireEnabled);
@@ -814,6 +815,8 @@ public sealed class OpenGarrisonHostSettings
 
     public bool RandomSpreadEnabled { get; set; } = true;
 
+    public bool HlxEnabled { get; set; } = true;
+
     public bool SniperAimIndicatorEnabled { get; set; } = true;
 
     public bool LocalPredictionEnabled { get; set; }
@@ -952,6 +955,7 @@ public sealed class OpenGarrisonHostSettings
             AutoBalanceEnabled = AutoBalanceEnabled,
             SecondaryAbilitiesEnabled = SecondaryAbilitiesEnabled,
             RandomSpreadEnabled = RandomSpreadEnabled,
+            HlxEnabled = HlxEnabled,
             SniperAimIndicatorEnabled = SniperAimIndicatorEnabled,
             LocalPredictionEnabled = LocalPredictionEnabled,
             RoundEndFriendlyFireEnabled = RoundEndFriendlyFireEnabled,
@@ -1021,6 +1025,7 @@ public sealed class OpenGarrisonHostSettings
             RandomSpreadEnabled = ini.ContainsKey("Server.Advanced", "RandomSpreadEnabled")
                 ? ini.GetBool("Server.Advanced", "RandomSpreadEnabled", true)
                 : true,
+            HlxEnabled = ini.GetBool("Server.Advanced", "HlxEnabled", true),
             SniperAimIndicatorEnabled = ini.GetBool("Server.Advanced", "SniperAimIndicatorEnabled", true),
             LocalPredictionEnabled = ini.GetBool("Server.Advanced", "LocalPredictionEnabled", false),
             RoundEndFriendlyFireEnabled = ini.GetBool("Server.Advanced", "RoundEndFriendlyFireEnabled", false),
@@ -1209,7 +1214,9 @@ public static class OpenGarrisonStockMapCatalog
     ];
 
     public static IReadOnlyList<OpenGarrisonStockMapDefinition> SourceDefinitions { get; } =
-        Definitions.Concat(HiddenDefinitions).ToArray();
+        Definitions.Concat(HiddenDefinitions).Concat(ClassicStockMapCatalog.Variants.Select(variant =>
+            new OpenGarrisonStockMapDefinition(variant.LevelName, variant.LevelName,
+                variant.DisplayName, variant.Mode, 0))).ToArray();
 
     private static IEnumerable<OpenGarrisonStockMapDefinition> AllDefinitions => SourceDefinitions;
 

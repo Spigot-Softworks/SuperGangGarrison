@@ -1,8 +1,8 @@
 using OpenGarrison.Tools.BrowserAssetBuilder;
 
-if (args.Length is < 1 or > 4)
+if (args.Length is < 1 or > 5)
 {
-    Console.Error.WriteLine("Usage: OpenGarrison.Tools.BrowserAssetBuilder <output-content-root> [packaged-client-plugin-source-root] [--prune-deprecated-gamemaker-metadata] [--manifest-only]");
+    Console.Error.WriteLine("Usage: OpenGarrison.Tools.BrowserAssetBuilder <output-content-root> [packaged-client-plugin-source-root] [--repo-root=<path>] [--prune-deprecated-gamemaker-metadata] [--manifest-only|--runtime-bundle-only]");
     return 1;
 }
 
@@ -14,9 +14,15 @@ var packagedClientPluginSourceRoot = args
     .FirstOrDefault(static arg => !arg.StartsWith("--", StringComparison.Ordinal));
 var context = BrowserAssetBuildContext.Create(
     outputContentRoot,
-    AppContext.BaseDirectory,
+    args.FirstOrDefault(static arg => arg.StartsWith("--repo-root=", StringComparison.Ordinal))?["--repo-root=".Length..] ?? AppContext.BaseDirectory,
     packagedClientPluginSourceRoot,
     pruneDeprecatedGameMakerMetadata);
+if (args.Any(static arg => string.Equals(arg, "--runtime-bundle-only", StringComparison.OrdinalIgnoreCase)))
+{
+    var bundlePath = BrowserAssetBuildPipeline.WriteRuntimeBundleOnly(context);
+    Console.WriteLine($"Browser runtime asset bundle generated from staged content: {bundlePath}");
+    return 0;
+}
 if (manifestOnly)
 {
     var manifestPath = BrowserAssetBuildPipeline.WriteGameMakerManifestOnly(context);

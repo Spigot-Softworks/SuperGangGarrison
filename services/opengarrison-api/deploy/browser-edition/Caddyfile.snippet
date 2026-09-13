@@ -1,0 +1,8 @@
+# Merge inside the existing api.superganggarrison.com site block.
+# Keep its existing reverse_proxy to the API; it handles WebSocket upgrades.
+# Use a current Caddy version supporting log_skip and validate before reloading.
+log_skip /api/private-rooms/ws/*
+log_skip /api/peer-rooms/ws/*
+
+# The API also redacts admission tokens in Uvicorn's WebSocket messages.
+# --no-access-log alone suppresses HTTP request logs but not WebSocket logs.

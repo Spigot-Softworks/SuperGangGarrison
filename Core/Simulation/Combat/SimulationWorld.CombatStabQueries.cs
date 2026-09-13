@@ -12,8 +12,17 @@ public sealed partial class SimulationWorld
             UpdateNearestStabHitFromSolids(ref nearestHit, originX, originY, directionX, directionY, reachLength, verticalRadius);
             UpdateNearestStabHitFromGates(ref nearestHit, originX, originY, directionX, directionY, reachLength, verticalRadius);
             UpdateNearestStabHitFromDamageableZones(ref nearestHit, originX, originY, directionX, directionY, reachLength, verticalRadius);
-            UpdateNearestStabHitFromSentries(ref nearestHit, originX, originY, mask, directionX, directionY, reachLength, verticalRadius);
+            // A dispenser is not a body obstruction for a stab that already
+            // intersects a valid hostile player. Defer dispenser candidates
+            // until after player selection so an overlapping dispenser cannot
+            // consume the player hit. Direct stabs still find a dispenser
+            // when there is no valid player target.
+            UpdateNearestStabHitFromSentries(ref nearestHit, originX, originY, mask, directionX, directionY, reachLength, verticalRadius, includeDispensers: false);
             UpdateNearestStabHitFromPlayers(ref nearestHit, originX, originY, mask, directionX, directionY, reachLength, verticalRadius);
+            if (nearestHit?.HitPlayer is null)
+            {
+                UpdateNearestStabHitFromSentries(ref nearestHit, originX, originY, mask, directionX, directionY, reachLength, verticalRadius, onlyDispensers: true);
+            }
             return nearestHit;
         }
 
@@ -307,11 +316,15 @@ public sealed partial class SimulationWorld
             float directionX,
             float directionY,
             float reachLength,
-            float verticalRadius)
+            float verticalRadius,
+            bool includeDispensers = true,
+            bool onlyDispensers = false)
         {
             foreach (var sentry in _sentries)
             {
                 if (sentry.Team == mask.Team) { continue; }
+                if (sentry.IsDispenser && !includeDispensers) { continue; }
+                if (!sentry.IsDispenser && onlyDispensers) { continue; }
                 var distance = GetStabSweepIntersectionDistanceWithRectangle(
                     originX,
                     originY,

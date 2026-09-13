@@ -36,6 +36,7 @@ public sealed partial class SimulationWorld
             _matchPhaseController.AdvancePrePlayerMatchPhase();
             _world.BeginLastToDieStatusEffectsTick();
             _world.RefreshLastToDieMedicLinkProjections();
+            _world.AdvanceCivilDefenseTurrets();
             _entityPhaseController.AdvanceProjectileAndTransientEntityPhase();
             _matchPhaseController.AdvancePresentationAndChatPhase();
         }

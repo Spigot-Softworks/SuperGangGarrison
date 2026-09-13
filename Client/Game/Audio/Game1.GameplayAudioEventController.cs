@@ -302,6 +302,16 @@ public partial class Game1
                 return true;
             }
 
+            // Impact sounds can supply fallback explosion art. Keep that path
+            // on the projectile/body timeline too, before creating the visual.
+            if (soundEvent.EventId != 0
+                && (string.Equals(soundEvent.SoundName, "ExplosionSnd", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(soundEvent.SoundName, "FlareImpactSnd", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(soundEvent.SoundName, "AirblastSnd", StringComparison.OrdinalIgnoreCase))
+                && !NetworkInterpolationPolicy.IsSourceFrameReady(
+                    soundEvent.SourceFrame, _game._config.TicksPerSecond, _game.GetProjectileRenderTimeSeconds()))
+                return false;
+
             if (ShouldSuppressLocalBuffBannerReadySoundEcho(soundEvent))
             {
                 _game._localBuffBannerReadyCueEchoSuppressionSeconds = 0f;
@@ -313,7 +323,17 @@ public partial class Game1
                 && !_game.HasPresentedExplosionVisualForSoundEvent(soundEvent)
                 && _game.TryCreateExplosionVisual(soundEvent, out var explosion))
             {
-                _game._explosions.Add(explosion!);
+                var shouldPresentAuthoritativeExplosion = _game.ShouldPresentAuthoritativeExplosionSound(soundEvent);
+                var isPredictedExplosionEcho = soundEvent.EventId != 0
+                    && _game.HasRecentPredictedExplosionVisual(soundEvent.X, soundEvent.Y);
+                if (shouldPresentAuthoritativeExplosion && !isPredictedExplosionEcho)
+                {
+                    _game._explosions.Add(explosion!);
+                }
+
+                // Mark the fallback decision even when another channel already
+                // presented it. Browser audio may retry this event while its
+                // sound asset is loading, and it must not reconsider the art.
                 _game.RememberPresentedExplosionVisualForSoundEvent(soundEvent);
             }
 
@@ -417,6 +437,12 @@ public partial class Game1
         private bool TryPlayResolvedWorldSound(string resolvedSoundName, float worldX, float worldY, bool allowBrowserDefer)
         {
             var sound = _game._runtimeAssets?.GetSound(resolvedSoundName);
+            if (sound is null && string.Equals(resolvedSoundName, "FlareImpactSnd", StringComparison.OrdinalIgnoreCase))
+            {
+                // FlareImpactSnd is a semantic mix category; stock content
+                // reuses the Direct Hit sample until it gets a dedicated one.
+                sound = _game._runtimeAssets?.GetSound("DirecthitSnd");
+            }
             if (sound is null)
             {
                 if (allowBrowserDefer)
@@ -428,7 +454,11 @@ public partial class Game1
                 return false;
             }
 
-            var (volume, pan) = _game.GetWorldSoundMix(worldX, worldY);
+            var (volume, pan) = string.Equals(resolvedSoundName, "FlareImpactSnd", StringComparison.OrdinalIgnoreCase)
+                ? _game.GetWorldSoundMix(new WorldSoundEvent(resolvedSoundName, worldX, worldY))
+                : string.Equals(resolvedSoundName, "BuffbannerSnd", StringComparison.OrdinalIgnoreCase)
+                    ? GameplayRapidFireAudioController.GetBannerSoundMix(worldX, worldY, _game.GetWorldSoundListenerPosition())
+                    : _game.GetWorldSoundMix(worldX, worldY);
             if (volume <= 0f)
             {
                 return true;
@@ -455,6 +485,10 @@ public partial class Game1
         private bool TryPlayResolvedWorldSound(string resolvedSoundName, WorldSoundEvent soundEvent, bool allowBrowserDefer)
         {
             var sound = _game._runtimeAssets?.GetSound(resolvedSoundName);
+            if (sound is null && string.Equals(resolvedSoundName, "FlareImpactSnd", StringComparison.OrdinalIgnoreCase))
+            {
+                sound = _game._runtimeAssets?.GetSound("DirecthitSnd");
+            }
             if (sound is null)
             {
                 if (allowBrowserDefer)

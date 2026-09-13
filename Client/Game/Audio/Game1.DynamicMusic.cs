@@ -75,10 +75,8 @@ public partial class Game1
     private int _dynamicMusicCombatTicksRemaining;
     private DynamicCombatMusicStage _dynamicCombatMusicStage;
     private DynamicCombatMusicStage _dynamicCombatPeakStage;
-    private DynamicCombatMusicStage _dynamicCombatRiserHoldStage;
     private DynamicCombatMusicLeadStem _dynamicCombatLeadStem;
     private bool _dynamicCombatRiserPending;
-    private bool _dynamicCombatDrumsLocked;
     private float _dynamicCombatRiserDelaySecondsRemaining;
     private DynamicMusicEventState _dynamicMusicTargetState = DynamicMusicEventState.Normal;
     private float _dynamicNormalMusicFade = 1f;
@@ -120,7 +118,6 @@ public partial class Game1
             _dynamicCombatLeadStem = Random.Shared.Next(2) == 0
                 ? DynamicCombatMusicLeadStem.Drum
                 : DynamicCombatMusicLeadStem.BodyBass;
-            _dynamicCombatDrumsLocked = false;
             _dynamicCombatPeakStage = DynamicCombatMusicStage.None;
         }
 
@@ -282,10 +279,8 @@ public partial class Game1
         _dynamicCombatParticipantTicks.Clear();
         _dynamicCombatMusicStage = DynamicCombatMusicStage.None;
         _dynamicCombatPeakStage = DynamicCombatMusicStage.None;
-        _dynamicCombatRiserHoldStage = DynamicCombatMusicStage.None;
         _dynamicCombatLeadStem = DynamicCombatMusicLeadStem.None;
         _dynamicCombatRiserPending = false;
-        _dynamicCombatDrumsLocked = false;
         _dynamicCombatRiserDelaySecondsRemaining = 0f;
         StopDynamicMusicInstance(_dynamicCombatRiserInstance);
     }
@@ -307,12 +302,10 @@ public partial class Game1
             ? ResolveDynamicCombatMusicStage()
             : DynamicCombatMusicStage.None;
         var targetState = ResolveAvailableDynamicMusicState(requestedState, requestedCombatStage);
-        var previousCombatStage = _dynamicCombatMusicStage;
         var targetCombatStage = targetState == DynamicMusicEventState.Combat
             ? requestedCombatStage
             : DynamicCombatMusicStage.None;
         _dynamicMusicTargetState = targetState;
-        UpdateDynamicCombatRiserForStage(previousCombatStage, targetCombatStage);
         _dynamicCombatMusicStage = targetCombatStage;
 
         if (_gameplayAudioMusicController.CanStartMusicPlayback())
@@ -374,40 +367,9 @@ public partial class Game1
         };
     }
 
-    private void UpdateDynamicCombatRiserForStage(DynamicCombatMusicStage previousStage, DynamicCombatMusicStage targetStage)
-    {
-        if (targetStage != DynamicCombatMusicStage.Hard)
-        {
-            if (_dynamicCombatRiserPending || _dynamicCombatRiserDelaySecondsRemaining > 0f)
-            {
-                StopDynamicMusicInstance(_dynamicCombatRiserInstance);
-            }
-
-            _dynamicCombatRiserPending = false;
-            _dynamicCombatRiserDelaySecondsRemaining = 0f;
-            _dynamicCombatRiserHoldStage = DynamicCombatMusicStage.None;
-            return;
-        }
-
-        if (previousStage == DynamicCombatMusicStage.Hard
-            || previousStage == DynamicCombatMusicStage.None
-            || _dynamicCombatRiserPending
-            || _dynamicCombatRiserDelaySecondsRemaining > 0f)
-        {
-            return;
-        }
-
-        _dynamicCombatRiserPending = true;
-        _dynamicCombatRiserDelaySecondsRemaining = 0f;
-        _dynamicCombatRiserHoldStage = previousStage;
-    }
-
     private bool HasDynamicCombatMusicInstances()
     {
-        return _dynamicCombatDrumMusicInstance is not null
-            && _dynamicCombatBodyMusicInstance is not null
-            && _dynamicCombatBassMusicInstance is not null
-            && _dynamicCombatLeadMusicInstance is not null;
+        return _ingameCombatMusicInstance is not null;
     }
 
     private bool IsNearbyUberMusicEventActive()
@@ -439,27 +401,6 @@ public partial class Game1
         }
 
         _dynamicMusicLoadAttempted = true;
-        _gameplayAudioMusicController.TryLoadOptionalLoopedMusic(
-            Path.Combine("Music", "action_redo_drum.ogg"),
-            out _dynamicCombatDrumMusic,
-            out _dynamicCombatDrumMusicInstance);
-        _gameplayAudioMusicController.TryLoadOptionalLoopedMusic(
-            Path.Combine("Music", "action_redo_body.ogg"),
-            out _dynamicCombatBodyMusic,
-            out _dynamicCombatBodyMusicInstance);
-        _gameplayAudioMusicController.TryLoadOptionalLoopedMusic(
-            Path.Combine("Music", "action_redo_bass.ogg"),
-            out _dynamicCombatBassMusic,
-            out _dynamicCombatBassMusicInstance);
-        _gameplayAudioMusicController.TryLoadOptionalLoopedMusic(
-            Path.Combine("Music", "action_redo_lead.ogg"),
-            out _dynamicCombatLeadMusic,
-            out _dynamicCombatLeadMusicInstance);
-        _gameplayAudioMusicController.TryLoadOptionalMusicSound(
-            Path.Combine("Music", "transition_riser.ogg"),
-            out _dynamicCombatRiser,
-            out _dynamicCombatRiserInstance,
-            isLooped: false);
         _gameplayAudioMusicController.TryLoadOptionalMusicSound(
             Path.Combine("Music", "menumusic1.ogg"),
             out _dynamicDirtbowlGateMusic,
@@ -511,29 +452,7 @@ public partial class Game1
 
     private void EnsureDynamicCombatMusicPlaybackStarted()
     {
-        EnsureDynamicCombatLeadStem();
-
-        if (_dynamicCombatRiserPending)
-        {
-            _dynamicCombatRiserPending = false;
-            if (_dynamicCombatRiserInstance is not null)
-            {
-                SetSoundEffectInstanceVolume(_dynamicCombatRiserInstance, GetCombatMusicVolumeScale(GetNonLinearVolumeScale(_ingameMusicVolumePercent)));
-                TryRestartDynamicMusicInstance(_dynamicCombatRiserInstance, "starting combat music riser");
-                _dynamicCombatRiserDelaySecondsRemaining = DynamicMusicCombatRiserDelaySeconds;
-            }
-            else
-            {
-                _dynamicCombatRiserHoldStage = DynamicCombatMusicStage.None;
-            }
-        }
-
-        if (_dynamicCombatRiserDelaySecondsRemaining > 0f)
-        {
-            return;
-        }
-
-        TryStartDynamicCombatLoopInstances("starting combat music event");
+        _gameplayAudioMusicController.EnsureIngameMusicPairPlaybackStarted();
     }
 
     private bool HasDynamicCombatStemFade()
@@ -621,37 +540,12 @@ public partial class Game1
 
         var fadeInStep = DynamicMusicFadeInPerSecond * elapsedSeconds;
         var fadeOutStep = DynamicMusicFadeOutPerSecond * elapsedSeconds;
-        if (targetState == DynamicMusicEventState.Combat && _dynamicCombatRiserDelaySecondsRemaining > 0f)
-        {
-            _dynamicCombatRiserDelaySecondsRemaining = Math.Max(0f, _dynamicCombatRiserDelaySecondsRemaining - elapsedSeconds);
-            if (_dynamicCombatRiserDelaySecondsRemaining <= 0f)
-            {
-                _dynamicCombatRiserHoldStage = DynamicCombatMusicStage.None;
-            }
-        }
-
         AdvanceDirtbowlGateMusicElapsed(elapsedSeconds);
         _dynamicCombatMusicFade = MoveDynamicMusicFadeToward(_dynamicCombatMusicFade, targetState == DynamicMusicEventState.Combat ? 1f : 0f, targetState == DynamicMusicEventState.Combat ? fadeInStep : fadeOutStep);
-        var combatStemStage = _dynamicCombatRiserDelaySecondsRemaining > 0f
-            ? _dynamicCombatRiserHoldStage
-            : _dynamicCombatMusicStage;
-        var combatStemTargets = targetState == DynamicMusicEventState.Combat
-            ? GetDynamicCombatStemTargetVolumes(combatStemStage)
-            : default;
-        if (targetState == DynamicMusicEventState.Combat && combatStemTargets.Drum > 0f)
-        {
-            _dynamicCombatDrumsLocked = true;
-        }
-
-        if (targetState == DynamicMusicEventState.Combat && _dynamicCombatDrumsLocked)
-        {
-            combatStemTargets.Drum = 1f;
-        }
-
-        _dynamicCombatDrumFade = MoveDynamicMusicFadeToward(_dynamicCombatDrumFade, combatStemTargets.Drum, combatStemTargets.Drum > _dynamicCombatDrumFade ? fadeInStep : fadeOutStep);
-        _dynamicCombatBodyFade = MoveDynamicMusicFadeToward(_dynamicCombatBodyFade, combatStemTargets.Body, combatStemTargets.Body > _dynamicCombatBodyFade ? fadeInStep : fadeOutStep);
-        _dynamicCombatBassFade = MoveDynamicMusicFadeToward(_dynamicCombatBassFade, combatStemTargets.Bass, combatStemTargets.Bass > _dynamicCombatBassFade ? fadeInStep : fadeOutStep);
-        _dynamicCombatLeadFade = MoveDynamicMusicFadeToward(_dynamicCombatLeadFade, combatStemTargets.Lead, combatStemTargets.Lead > _dynamicCombatLeadFade ? fadeInStep : fadeOutStep);
+        _dynamicCombatDrumFade = MoveDynamicMusicFadeToward(_dynamicCombatDrumFade, 0f, fadeOutStep);
+        _dynamicCombatBodyFade = MoveDynamicMusicFadeToward(_dynamicCombatBodyFade, 0f, fadeOutStep);
+        _dynamicCombatBassFade = MoveDynamicMusicFadeToward(_dynamicCombatBassFade, 0f, fadeOutStep);
+        _dynamicCombatLeadFade = MoveDynamicMusicFadeToward(_dynamicCombatLeadFade, 0f, fadeOutStep);
         var dirtbowlGateTargetFade = targetState == DynamicMusicEventState.DirtbowlGate ? GetDirtbowlGateMusicTargetFade() : 0f;
         _dynamicDirtbowlGateMusicFade = MoveDynamicMusicFadeToward(
             _dynamicDirtbowlGateMusicFade,
@@ -659,7 +553,9 @@ public partial class Game1
             dirtbowlGateTargetFade > _dynamicDirtbowlGateMusicFade ? fadeInStep : fadeOutStep);
         _dynamicIntelMusicFade = MoveDynamicMusicFadeToward(_dynamicIntelMusicFade, targetState == DynamicMusicEventState.Intel ? 1f : 0f, targetState == DynamicMusicEventState.Intel ? fadeInStep : fadeOutStep);
         _dynamicUberMusicFade = MoveDynamicMusicFadeToward(_dynamicUberMusicFade, targetState == DynamicMusicEventState.Uber ? 1f : 0f, targetState == DynamicMusicEventState.Uber ? fadeInStep : fadeOutStep);
-        var strongestEventFade = Math.Max(_dynamicDirtbowlGateMusicFade, Math.Max(_dynamicCombatMusicFade, Math.Max(_dynamicIntelMusicFade, _dynamicUberMusicFade)));
+        // Combat is an additive layer over the normal backing. Intel, Uber,
+        // and Dirtbowl remain replacement cues and still crossfade the base.
+        var strongestEventFade = Math.Max(_dynamicDirtbowlGateMusicFade, Math.Max(_dynamicIntelMusicFade, _dynamicUberMusicFade));
         _dynamicNormalMusicFade = 1f - strongestEventFade;
     }
 
@@ -901,10 +797,8 @@ public partial class Game1
         _dynamicCombatParticipantTicks.Clear();
         _dynamicCombatMusicStage = DynamicCombatMusicStage.None;
         _dynamicCombatPeakStage = DynamicCombatMusicStage.None;
-        _dynamicCombatRiserHoldStage = DynamicCombatMusicStage.None;
         _dynamicCombatLeadStem = DynamicCombatMusicLeadStem.None;
         _dynamicCombatRiserPending = false;
-        _dynamicCombatDrumsLocked = false;
         _dynamicCombatRiserDelaySecondsRemaining = 0f;
         _dynamicNormalMusicFade = 1f;
         _dynamicCombatMusicFade = 0f;
@@ -1002,10 +896,8 @@ public partial class Game1
         _dynamicCombatParticipantTicks.Clear();
         _dynamicCombatMusicStage = DynamicCombatMusicStage.None;
         _dynamicCombatPeakStage = DynamicCombatMusicStage.None;
-        _dynamicCombatRiserHoldStage = DynamicCombatMusicStage.None;
         _dynamicCombatLeadStem = DynamicCombatMusicLeadStem.None;
         _dynamicCombatRiserPending = false;
-        _dynamicCombatDrumsLocked = false;
         _dynamicCombatRiserDelaySecondsRemaining = 0f;
         _dynamicNormalMusicFade = 1f;
         _dynamicCombatMusicFade = 0f;
@@ -1035,6 +927,7 @@ public partial class Game1
     private void UpdateDynamicMusicInstanceVolumes(float ingameMusicVolume)
     {
         var combatMusicVolume = GetCombatMusicVolumeScale(ingameMusicVolume);
+        SetSoundEffectInstanceVolume(_ingameCombatMusicInstance, combatMusicVolume * 0.8f * _dynamicCombatMusicFade);
         var backingScale = MathHelper.Lerp(1f, DynamicMusicCombatBackingWithLeadScale, _dynamicCombatLeadFade);
         SetSoundEffectInstanceVolume(_dynamicCombatDrumMusicInstance, combatMusicVolume * backingScale * _dynamicCombatDrumFade);
         SetSoundEffectInstanceVolume(_dynamicCombatBodyMusicInstance, combatMusicVolume * backingScale * _dynamicCombatBodyFade);

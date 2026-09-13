@@ -32,5 +32,7 @@ public interface IPracticeBotController
 
     bool RequiresPerTickNavigationThink(byte slot) => false;
 
+    bool RequiresPerTickCombatThink(byte slot, SimulationWorld world) => false;
+
     bool RequiresImmediateNavigationThink(byte slot) => false;
 }

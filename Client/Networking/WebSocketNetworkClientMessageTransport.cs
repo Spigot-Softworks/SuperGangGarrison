@@ -16,7 +16,7 @@ namespace OpenGarrison.Client;
 /// protocol decoder; send failures become an explicit disconnect instead of a
 /// silently lost reliable command.
 /// </summary>
-internal sealed class WebSocketNetworkClientMessageTransport : INetworkClientMessageTransport
+internal sealed class WebSocketNetworkClientMessageTransport : INetworkClientMessageTransport, INetworkClientAudioMessageTransport
 {
     private const int ReceiveBufferBytes = 16 * 1024;
     private const int MaxMessageBytes = 4 * 1024 * 1024;
@@ -29,6 +29,7 @@ internal sealed class WebSocketNetworkClientMessageTransport : INetworkClientMes
     private readonly Task _receiveTask;
     private string? _disconnectReason;
     private int _disposed;
+    private Task _audioSendTask = Task.CompletedTask;
 
     private WebSocketNetworkClientMessageTransport(
         ClientWebSocket webSocket,
@@ -139,6 +140,28 @@ internal sealed class WebSocketNetworkClientMessageTransport : INetworkClientMes
         return !string.IsNullOrWhiteSpace(reason);
     }
 
+    public void SendAudio(byte[] payload)
+    {
+        if (Volatile.Read(ref _disposed) != 0 || !_audioSendTask.IsCompleted || !_sendGate.Wait(0)) return;
+        _audioSendTask = SendAudioAsync(payload);
+    }
+
+    private async Task SendAudioAsync(byte[] payload)
+    {
+        try
+        {
+            if (_webSocket.State != WebSocketState.Open) return;
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(_lifetimeCts.Token);
+            timeout.CancelAfter(TimeSpan.FromMilliseconds(250));
+            await _webSocket.SendAsync(payload, WebSocketMessageType.Binary, true, timeout.Token).ConfigureAwait(false);
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            SetDisconnectReason($"WebSocket audio send failed: {exception.Message}");
+        }
+        finally { _sendGate.Release(); }
+    }
+
     public void Dispose()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0)
@@ -147,6 +170,7 @@ internal sealed class WebSocketNetworkClientMessageTransport : INetworkClientMes
         }
 
         _lifetimeCts.Cancel();
+        _audioSendTask.GetAwaiter().GetResult();
         try
         {
             _receiveTask.GetAwaiter().GetResult();

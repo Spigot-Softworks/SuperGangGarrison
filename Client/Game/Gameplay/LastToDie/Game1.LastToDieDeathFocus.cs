@@ -29,7 +29,8 @@ public partial class Game1
             Vector2 worldPosition,
             float width,
             float height,
-            bool facingLeft)
+            bool facingLeft,
+            string gameplayClassId = "")
         {
             SourcePlayerId = sourcePlayerId;
             ClassId = classId;
@@ -39,6 +40,7 @@ public partial class Game1
             Width = width;
             Height = height;
             FacingLeft = facingLeft;
+            GameplayClassId = gameplayClassId ?? string.Empty;
         }
 
         public int SourcePlayerId { get; }
@@ -56,6 +58,8 @@ public partial class Game1
         public float Height { get; }
 
         public bool FacingLeft { get; }
+
+        public string GameplayClassId { get; }
 
         public int ElapsedTicks { get; set; }
 
@@ -114,7 +118,8 @@ public partial class Game1
             new Vector2(localPlayer.X, localPlayer.Y),
             localPlayer.Width,
             localPlayer.Height,
-            IsFacingLeftByAim(localPlayer));
+            IsFacingLeftByAim(localPlayer),
+            localPlayer.GameplayClassId);
 
         if (TryGetLastToDieLocalCorpseVisual(
             out var corpseClassId,
@@ -123,7 +128,8 @@ public partial class Game1
             out var corpsePosition,
             out var corpseWidth,
             out var corpseHeight,
-            out var corpseFacingLeft))
+            out var corpseFacingLeft,
+            out var corpseGameplayClassId))
         {
             focusState = new LastToDieDeathFocusState(
                 localPlayer.Id,
@@ -133,7 +139,8 @@ public partial class Game1
                 corpsePosition,
                 corpseWidth,
                 corpseHeight,
-                corpseFacingLeft);
+                corpseFacingLeft,
+                corpseGameplayClassId);
         }
 
         focusState.OpenFailureOnComplete = openFailureOnComplete;
@@ -147,7 +154,8 @@ public partial class Game1
         out Vector2 worldPosition,
         out float width,
         out float height,
-        out bool facingLeft)
+        out bool facingLeft,
+        out string gameplayClassId)
     {
         for (var index = 0; index < _world.DeadBodies.Count; index += 1)
         {
@@ -164,6 +172,7 @@ public partial class Game1
             width = deadBody.Width;
             height = deadBody.Height;
             facingLeft = deadBody.FacingLeft;
+            gameplayClassId = deadBody.GameplayClassId;
             return true;
         }
 
@@ -174,6 +183,7 @@ public partial class Game1
         width = 0f;
         height = 0f;
         facingLeft = false;
+        gameplayClassId = string.Empty;
         return false;
     }
 
@@ -371,7 +381,8 @@ public partial class Game1
             _lastToDieDeathFocus.Height,
             _lastToDieDeathFocus.FacingLeft,
             syntheticTicksRemaining,
-            pluginAnimationKind));
+            pluginAnimationKind,
+            _lastToDieDeathFocus.GameplayClassId));
         if (!_lastToDieFailureCorpseTargetHasVisual)
         {
             WriteGameplayRenderTrace("lasttodie failure drawfallbackcorpse");
@@ -386,7 +397,7 @@ public partial class Game1
 
     private bool TryDrawLastToDieFailureCorpseSprite(Vector2 corpsePosition, LastToDieDeathFocusState focusState)
     {
-        var spriteName = GetDeadBodySpriteName(focusState.ClassId, focusState.Team, focusState.AnimationKind);
+        var spriteName = GetDeadBodySpriteName(focusState.GameplayClassId, focusState.ClassId, focusState.Team, focusState.AnimationKind);
         if (spriteName is null)
         {
             return false;
@@ -433,7 +444,8 @@ public partial class Game1
             height: _lastToDieDeathFocus.Height,
             facingLeft: _lastToDieDeathFocus.FacingLeft,
             ticksRemaining: syntheticTicksRemaining,
-            cameraPosition: cameraPosition);
+            cameraPosition: cameraPosition,
+            gameplayClassId: _lastToDieDeathFocus.GameplayClassId);
     }
 
     private void DrawLastToDieFailureCorpse(int viewportWidth, int viewportHeight, float alpha)

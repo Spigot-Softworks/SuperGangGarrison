@@ -3,6 +3,7 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using OpenGarrison.Client.Plugins;
+using OpenGarrison.Protocol;
 using System;
 using System.Collections.Generic;
 
@@ -21,6 +22,7 @@ public partial class Game1
 
         public void OpenInGameMenu()
         {
+            _game._jukeboxMenuOpen = false;
             _game._inGameMenuOpen = true;
             _game._inGameMenuAwaitingEscapeRelease = true;
             _game._inGameMenuHoverIndex = -1;
@@ -189,8 +191,9 @@ public partial class Game1
             }
         }
 
-        private List<MenuPageAction> GetInGameMenuActions()
+        public List<MenuPageAction> GetInGameMenuActions()
         {
+            if (_game._jukeboxMenuOpen) return _game.GetSessionJukeboxActions();
             if (_game.IsLastToDieSessionActive)
             {
                 var lastToDieActions = new List<MenuPageAction>
@@ -205,6 +208,14 @@ public partial class Game1
                     new("Leave Last To Die", () => _game.ReturnToLastToDieMenu("Last To Die ended.")),
                     new("Quit Game", _game.OpenQuitPrompt),
                 };
+                if (_game._peerRoomSession is not null || _game.IsEmbeddedSessionOwner)
+                    lastToDieActions.Insert(1, new("Jukebox", _game.OpenSessionJukebox));
+                if (_game.IsPeerRoomOwner)
+                    lastToDieActions.Insert(1, new("Return to Lobby", () =>
+                    {
+                        CloseInGameMenu();
+                        _game._peerRoomSession?.Connection.Send(new("lobby"));
+                    }));
                 if (_game._debugMenuEnabled)
                 {
                     lastToDieActions.Insert(2, new MenuPageAction("Debug", () =>
@@ -214,7 +225,7 @@ public partial class Game1
                     }));
                 }
                 _game.AddPluginMenuActions(lastToDieActions, ClientPluginMenuLocation.InGameMenu, insertIndex: 1);
-                return lastToDieActions;
+                return FilterDistributionActions(lastToDieActions);
             }
 
             if (_game._garrisonBuilderQuickTestActive)
@@ -252,6 +263,8 @@ public partial class Game1
                 };
 
                 AddGameplaySelectionActions(practiceActions);
+                practiceActions.Insert(1, new("Jukebox", _game.OpenSessionJukebox));
+                practiceActions.Insert(2, new("Call Vote", () => { CloseInGameMenu(); _game.OpenPracticeVoteMenu(); }));
 
                 if (_game._debugMenuEnabled)
                 {
@@ -264,7 +277,7 @@ public partial class Game1
                 }
 
                 _game.AddPluginMenuActions(practiceActions, ClientPluginMenuLocation.InGameMenu, insertIndex: 1);
-                return practiceActions;
+                return FilterDistributionActions(practiceActions);
             }
 
             var defaultActions = new List<MenuPageAction>
@@ -280,7 +293,34 @@ public partial class Game1
                 new("Quit Game", _game.OpenQuitPrompt),
             };
 
+            if (_game._gameplaySessionKind == GameplaySessionKind.Online
+                && _game._networkClient.IsConnected
+                && !_game.IsHostedLastToDieActive()
+                && !_game._networkClient.IsReplayConnection)
+            {
+                defaultActions.Insert(3, new MenuPageAction("Call Vote", () =>
+                {
+                    CloseInGameMenu();
+                    _game._networkClient.SendVoteCommand(VoteCommandKind.OpenMenu);
+                }));
+            }
+
+            if (_game._networkClient.IsConnected && !_game._networkClient.IsReplayConnection)
+            {
+                defaultActions.Insert(2, new MenuPageAction(_game.GetVoiceMuteActionLabel(), _game.ToggleVoiceMute));
+                if (_game.IsHostedLastToDieActive())
+                    defaultActions.Insert(3, new MenuPageAction(_game.GetVoiceChannelActionLabel(), _game.ToggleVoiceChannelMembership));
+            }
+
             AddGameplaySelectionActions(defaultActions);
+            if (_game._peerRoomSession is not null || _game.IsEmbeddedSessionOwner)
+                defaultActions.Insert(1, new("Jukebox", _game.OpenSessionJukebox));
+            if (_game.IsPeerRoomOwner)
+                defaultActions.Insert(1, new("Return to Lobby", () =>
+                {
+                    CloseInGameMenu();
+                    _game._peerRoomSession?.Connection.Send(new("lobby"));
+                }));
 
             if (_game._debugMenuEnabled)
             {
@@ -293,7 +333,14 @@ public partial class Game1
             }
 
             _game.AddPluginMenuActions(defaultActions, ClientPluginMenuLocation.InGameMenu, insertIndex: 1);
-            return defaultActions;
+            return FilterDistributionActions(defaultActions);
+        }
+
+        private static List<MenuPageAction> FilterDistributionActions(List<MenuPageAction> actions)
+        {
+            if (IsRestrictedBrowserEdition)
+                actions.RemoveAll(action => action.Label is "Social" or "Quit Game" or "Debug");
+            return actions;
         }
 
         private void AddGameplaySelectionActions(List<MenuPageAction> actions)

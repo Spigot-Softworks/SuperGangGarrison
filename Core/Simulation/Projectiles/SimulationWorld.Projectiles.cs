@@ -407,7 +407,9 @@ public sealed partial class SimulationWorld
         float velocityX,
         float velocityY,
         float damagePerHit = FlareProjectileEntity.DefaultDamagePerHit,
-        string killFeedWeaponSpriteName = "FlareKL")
+        string killFeedWeaponSpriteName = "FlareKL",
+        FlareProjectileStyle style = FlareProjectileStyle.Standard,
+        int lifetimeTicks = FlareProjectileEntity.LifetimeTicks)
     {
         var flare = new FlareProjectileEntity(
             AllocateEntityId(),
@@ -417,8 +419,10 @@ public sealed partial class SimulationWorld
             y,
             velocityX,
             velocityY,
+            ticksRemaining: Math.Max(1, lifetimeTicks),
             damagePerHit: damagePerHit,
-            killFeedWeaponSpriteName: killFeedWeaponSpriteName);
+            killFeedWeaponSpriteName: killFeedWeaponSpriteName,
+            style: style);
         if (owner.IsKritzCritBoosted)
         {
             flare.SetCritical(owner.ActiveKritzCritDamageMultiplier);
@@ -444,6 +448,9 @@ public sealed partial class SimulationWorld
         bool enableExperimentalCaveatTracking = false,
         float experimentalVisualScale = 1f,
         int experimentalTrackingLockTicksRemaining = 0,
+        bool isBallistic = false,
+        float ballisticGravityPerTick = 0f,
+        bool suppressSmokeTrail = false,
         string? killFeedWeaponSpriteNameOverride = null)
     {
         var rocket = new RocketProjectileEntity(
@@ -466,6 +473,9 @@ public sealed partial class SimulationWorld
             enableExperimentalCaveatTracking: enableExperimentalCaveatTracking,
             experimentalVisualScale: experimentalVisualScale,
             experimentalTrackingLockTicksRemaining: experimentalTrackingLockTicksRemaining,
+            isBallistic: isBallistic,
+            ballisticGravityPerTick: ballisticGravityPerTick,
+            suppressSmokeTrail: suppressSmokeTrail,
             killFeedWeaponSpriteNameOverride: killFeedWeaponSpriteNameOverride);
         if (explodeImmediately)
         {
@@ -501,7 +511,10 @@ public sealed partial class SimulationWorld
             rocket.FadeSourceTicksRemaining,
             rocket.ExplodeImmediately,
             rocket.IsCritical,
-            CriticalDamageMultiplier: rocket.CriticalDamageMultiplier));
+            CriticalDamageMultiplier: rocket.CriticalDamageMultiplier,
+            IsBallistic: rocket.IsBallistic,
+            BallisticGravityPerTick: rocket.BallisticGravityPerTick,
+            SuppressSmokeTrail: rocket.SuppressSmokeTrail));
     }
 
     private void AdvancePendingRocketsForOwner(int ownerId)

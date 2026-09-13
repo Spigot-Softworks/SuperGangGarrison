@@ -137,7 +137,7 @@ public partial class Game1
             return;
         }
 
-        if (_predictedLocalActionState.SniperChargeTicks < player.LastToDieSniperRifleFullChargeTicks)
+        if (_predictedLocalActionState.SniperChargeTicks < player.SniperRifleFullChargeTicks)
         {
             _predictedLocalActionState.SniperChargeTicks += 1;
         }
@@ -171,6 +171,42 @@ public partial class Game1
         }
 
         _predictedLocalActionState.SniperBowChargeTicks = player.SniperBowChargeTicks;
+        return true;
+    }
+
+    private bool ApplyPredictedMortarLauncherPrimaryFire(PlayerEntity player, PredictedLocalInput predictedInput)
+    {
+        if (!player.IsMortarLauncherEquipped)
+        {
+            return false;
+        }
+
+        var input = predictedInput.Input;
+        if (input.FirePrimary)
+        {
+            var directionDegrees = player.AimDirectionDegrees;
+            if (player.MortarLauncherChargeTicks == 0)
+            {
+                _ = player.TryStartMortarLauncherCharge(directionDegrees);
+            }
+            else
+            {
+                player.IncrementMortarLauncherCharge(directionDegrees);
+            }
+        }
+        else if (player.MortarLauncherChargeTicks > 0)
+        {
+            // Consume the predicted round on release so the loaded rocket and
+            // reload animation change immediately. Projectile authority stays
+            // with the server and reconciles through its snapshot.
+            if (player.TryReleaseMortarLauncherCharge(out _, out _))
+            {
+                _ = player.TryFirePrimaryWeapon();
+            }
+        }
+
+        _predictedLocalActionState.SniperBowChargeTicks = player.SniperBowChargeTicks;
+        SyncPredictedLocalPlayerState(player);
         return true;
     }
 
@@ -304,6 +340,17 @@ public partial class Game1
             return;
         }
 
+        if (player.IsExperimentalDemoknightEnabled)
+        {
+            if (predictedInput.Input.FirePrimary
+                && player.TryFireExperimentalDemoknightSword())
+            {
+                SyncPredictedLocalPlayerState(player);
+            }
+
+            return;
+        }
+
         if (player.IsAcquiredWeaponEquipped)
         {
             // Acquired weapons use their own cooldown/ammo state. Predict the
@@ -335,6 +382,11 @@ public partial class Game1
         }
 
         if (ApplyPredictedSniperBowPrimaryFire(player, predictedInput))
+        {
+            return;
+        }
+
+        if (ApplyPredictedMortarLauncherPrimaryFire(player, predictedInput))
         {
             return;
         }
@@ -643,8 +695,7 @@ public partial class Game1
 
         if (player.HasAlternatePrimaryWeapons)
         {
-            if (_world.IsNetworkPlayerAutomaticRespawnSuppressed(player)
-                || _world.IsNearPrimaryWeaponSwapStation(player))
+            if (_world.IsNearPrimaryWeaponSwapStation(player))
             {
                 if (!player.TryCycleGameplayPrimaryItem())
                 {
@@ -773,11 +824,7 @@ public partial class Game1
         {
             if (player.TryFirePyroAirblast())
             {
-                if (predictedInput.Input.FirePrimary)
-                {
-                    player.TryFirePyroFlare();
-                }
-
+                PresentPredictedAirBlastVisual(player, predictedInput.Sequence);
                 SyncPredictedLocalPlayerState(player);
             }
 
@@ -813,8 +860,15 @@ public partial class Game1
 
         if (player.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.CivvieUmbrella))
         {
-            if (player.TryActivateCivvieUmbrella())
+            var ability = player.TryGetGameplayAbilityItem(GameplayAbilityConstants.SpecialChannel,
+                BuiltInGameplayBehaviorIds.CivvieUmbrella, out var umbrellaItem) ? umbrellaItem.Ability : null;
+            var maxCharge = ability is null ? PlayerEntity.CivvieUmbrellaMaxChargeTicks
+                : GameplayAbilityParameterReader.GetInt(ability, "maxChargeTicks", PlayerEntity.CivvieUmbrellaMaxChargeTicks, minValue: 1);
+            var chargeCost = ability is null ? PlayerEntity.CivvieUmbrellaOpeningChargeCost
+                : GameplayAbilityParameterReader.GetInt(ability, "openingChargeCost", PlayerEntity.CivvieUmbrellaOpeningChargeCost, minValue: 0);
+            if (player.TryActivateCivvieUmbrella(maxCharge))
             {
+                player.TrySpendCivvieUmbrellaOpeningCharge(chargeCost);
                 SyncPredictedLocalPlayerState(player);
             }
 
@@ -862,7 +916,7 @@ public partial class Game1
         return true;
     }
 
-    private bool TryPredictedPyroSelfAirblast(PlayerEntity player, bool fireFlare)
+    private bool TryPredictedPyroSelfAirblast(PlayerEntity player, uint inputSequence)
     {
         if (!player.TryFirePyroAirblast(
                 PlayerEntity.PyroAirburstCost,
@@ -872,16 +926,12 @@ public partial class Game1
             return false;
         }
 
-        if (fireFlare)
-        {
-            player.TryFirePyroFlare();
-        }
-
         var aimRadians = player.AimDirectionDegrees * (MathF.PI / 180f);
         player.AddImpulse(
             -MathF.Cos(aimRadians) * PredictedPyroSelfAirblastImpulse,
             -MathF.Sin(aimRadians) * PredictedPyroSelfAirblastImpulse + PredictedPyroSelfAirblastLift);
         player.SetMovementState(LegacyMovementState.Airblast);
+        PresentPredictedAirBlastVisual(player, inputSequence);
         SyncPredictedLocalPlayerState(player);
         return true;
     }
@@ -897,7 +947,7 @@ public partial class Game1
 
         if (IsPredictedPyroSelfAirblastInput(player, predictedInput))
         {
-            TryPredictedPyroSelfAirblast(player, predictedInput.Input.FirePrimary);
+            TryPredictedPyroSelfAirblast(player, predictedInput.Sequence);
             return;
         }
 

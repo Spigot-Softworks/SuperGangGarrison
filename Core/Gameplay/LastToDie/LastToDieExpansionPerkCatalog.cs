@@ -305,7 +305,7 @@ public static class LastToDieExpansionPerkCatalog
         =>
         [
             Perk(LastToDiePerkIds.Engineer.GuardianMatrix, survivor, "Guardian Matrix", "+100 sentry health. Nearby sentries project a 200hp shield onto you."),
-            Perk(LastToDiePerkIds.Engineer.IncendiaryEnhancements, survivor, "Incendiary Enhancements", "Sentry bullets ignite targets, and nearby enemies get washed with flames."),
+            Perk(LastToDiePerkIds.Engineer.IncendiaryEnhancements, survivor, "Incendiary Enhancements", "Sentry bullets ignite targets, and nearby enemies get washed with flames.", excludes: [LastToDiePerkIds.Engineer.PrecisionInstantiator, LastToDiePerkIds.Engineer.BuckshotConversion]),
             Perk(LastToDiePerkIds.Engineer.CryonicMunitions, survivor, "Cryonic Munitions", "Sentry bullets slow targets and freeze them solid after sustained fire."),
             Perk(LastToDiePerkIds.Engineer.AutonomousPhaseEngine, survivor, "Autonomous Phase Engine", "Built sentries float and follow you instead of staying planted."),
             Perk(LastToDiePerkIds.Engineer.OutputInducer, survivor, "Output Inducer", "Place an additional sentry."),
@@ -316,8 +316,8 @@ public static class LastToDieExpansionPerkCatalog
             Perk(LastToDiePerkIds.Engineer.AmperageAccelerator, survivor, "Amperage Accelerator", "Sentries ramp their rate of fire up to 300% until they go idle."),
             Perk(LastToDiePerkIds.Engineer.HardwareHardener, survivor, "Hardware Hardener", "+200 sentry health. Above 50% health, sentries resist 30% of incoming damage."),
             Perk(LastToDiePerkIds.Engineer.CaveatInjector, survivor, "C.A.V.E.A.T. Injector", "Every 5th sentry shot launches 3 scrambling mini-rockets."),
-            Perk(LastToDiePerkIds.Engineer.PrecisionInstantiator, survivor, "Precision Instantiator", "Sentries fire slower, but shoot fully charged rifle rounds across the whole map."),
-            Perk(LastToDiePerkIds.Engineer.BuckshotConversion, survivor, "Buckshot Conversion", "Sentries fire slower but blast out oversized scattergun volleys."),
+            Perk(LastToDiePerkIds.Engineer.PrecisionInstantiator, survivor, "Precision Instantiator", "Sentries fire slower, but shoot fully charged rifle rounds across the whole map.", excludes: [LastToDiePerkIds.Engineer.IncendiaryEnhancements, LastToDiePerkIds.Engineer.BuckshotConversion]),
+            Perk(LastToDiePerkIds.Engineer.BuckshotConversion, survivor, "Buckshot Conversion", "Sentries fire slower but blast out oversized scattergun volleys.", excludes: [LastToDiePerkIds.Engineer.IncendiaryEnhancements, LastToDiePerkIds.Engineer.PrecisionInstantiator]),
             Perk(LastToDiePerkIds.Engineer.IntegrityProjector, survivor, "Integrity Projector", "Sentries automatically reflect rockets and stickies around them."),
             Perk(LastToDiePerkIds.Engineer.MisdirectionField, survivor, "Misdirection Field", "Nearby sentries ghost you slightly and grant 60% evasion."),
             Perk(LastToDiePerkIds.Engineer.ConfusionField, survivor, "Confusion Field", "Nearby sentries scramble enemy judgement and can turn them on each other."),

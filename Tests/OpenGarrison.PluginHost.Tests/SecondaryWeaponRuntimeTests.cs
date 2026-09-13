@@ -94,6 +94,66 @@ public sealed class SecondaryWeaponRuntimeTests
         Assert.Contains(world.PendingSoundEvents, sound => sound.SoundName == "FlaregunSnd");
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void FlamethrowerCannotFireFlareWhenPrimaryIsCombinedWithAirblastOrAirburst(bool useAirburst)
+    {
+        var world = CreateWorld(PlayerClass.Pyro);
+        world.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings());
+        var player = world.LocalPlayer;
+        for (var tick = 0; tick <= PlayerEntity.PyroFlareReloadTicks; tick += 1)
+        {
+            world.AdvanceOneTick();
+        }
+
+        Assert.Equal(GameplayEquipmentSlot.Primary, player.GameplayLoadoutState.EquippedSlot);
+        Assert.Equal(0, player.PyroFlareCooldownTicks);
+        var fuelBefore = player.PyroPrimaryFuelScaled;
+
+        world.SetLocalInput(default(PlayerInputSnapshot) with
+        {
+            FirePrimary = true,
+            FireSecondary = !useAirburst,
+            UseAbility = useAirburst,
+            AimWorldX = player.X + 96f,
+            AimWorldY = player.Y,
+        });
+        world.AdvanceOneTick();
+
+        Assert.Empty(world.Flares);
+        Assert.Equal(0, player.PyroFlareCooldownTicks);
+        Assert.True(player.PyroAirblastCooldownTicks > 0);
+        var expectedAbilityCost = useAirburst
+            ? PlayerEntity.PyroAirburstCost
+            : PlayerEntity.PyroAirblastCost;
+        var expectedFlameCost = useAirburst ? PlayerEntity.PyroPrimaryFlameCostScaled : 0;
+        Assert.Equal(
+            fuelBefore - (expectedAbilityCost * PlayerEntity.PyroPrimaryFuelScale) - expectedFlameCost,
+            player.PyroPrimaryFuelScaled);
+    }
+
+    [Fact]
+    public void FlaregunPlaysDedicatedImpactSoundCategoryWhenFlareImpacts()
+    {
+        var world = CreateWorld(PlayerClass.Pyro);
+        var owner = world.LocalPlayer;
+        world.SpawnPracticeCombatDummy();
+        var target = world.EnemyPlayer;
+        owner.TeleportTo(200f, 200f);
+        target.TeleportTo(300f, 200f);
+        world.CombatTestSpawnFlare(owner, target.Left - 8f, target.Y, velocityX: 16f);
+        _ = world.DrainPendingSoundEvents();
+
+        world.AdvanceOneTick();
+
+        var hitSound = Assert.Single(
+            world.PendingSoundEvents,
+            sound => sound.SoundName == "FlareImpactSnd");
+        Assert.Equal(owner.Id, hitSound.SourcePlayerId);
+        Assert.Empty(world.Flares);
+    }
+
     [Fact]
     public void StandaloneNeedlegunDoesNotConsumeMedigunAmmo()
     {

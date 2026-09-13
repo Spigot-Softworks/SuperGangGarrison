@@ -131,9 +131,13 @@ partial class GameServer
     }
 
     private List<RoundEndTeamAssignment> BuildRoundEndTeamSwitchAssignments()
+        => BuildTeamSwitchAssignments(EnumerateRoundEndTeamSlots());
+
+    private static List<RoundEndTeamAssignment> BuildTeamSwitchAssignments(
+        IReadOnlyList<(byte Slot, PlayerTeam Team)> players)
     {
         var assignments = new List<RoundEndTeamAssignment>();
-        foreach (var entry in EnumerateRoundEndTeamSlots())
+        foreach (var entry in players)
         {
             assignments.Add(new RoundEndTeamAssignment(
                 entry.Slot,
@@ -145,8 +149,11 @@ partial class GameServer
     }
 
     private List<RoundEndTeamAssignment> BuildRoundEndTeamShuffleAssignments()
+        => BuildTeamShuffleAssignments(EnumerateRoundEndTeamSlots());
+
+    private List<RoundEndTeamAssignment> BuildTeamShuffleAssignments(
+        List<(byte Slot, PlayerTeam Team)> players)
     {
-        var players = EnumerateRoundEndTeamSlots();
         if (players.Count < 2)
         {
             return [];
@@ -222,6 +229,75 @@ partial class GameServer
         }
 
         return true;
+    }
+
+    private bool TryScrambleTeamsByVote()
+    {
+        var players = EnumerateVoteTeamSlots();
+        if (players.Count < 2)
+        {
+            return false;
+        }
+
+        List<RoundEndTeamAssignment> assignments = [];
+        for (var attempt = 0; attempt < 8 && assignments.Count == 0; attempt += 1)
+        {
+            assignments = BuildTeamShuffleAssignments([.. players]);
+        }
+
+        // A balanced two-player shuffle can randomly reproduce the current teams.
+        // Fall back to a complete side swap so a passed vote always has an effect.
+        if (assignments.Count == 0)
+        {
+            assignments = BuildTeamSwitchAssignments(players);
+        }
+
+        var appliedCount = 0;
+        foreach (var assignment in assignments)
+        {
+            var applied = _botManager.BotSlots.ContainsKey(assignment.Slot)
+                ? _botManager.TrySetBotTeam(assignment.Slot, assignment.Team)
+                : _adminOperations.TrySetTeam(assignment.Slot, assignment.Team);
+            if (applied)
+            {
+                appliedCount += 1;
+            }
+        }
+
+        if (appliedCount > 0)
+        {
+            ResetTeamShuffleWinStreak();
+            Console.WriteLine($"[server] player vote scrambled teams: changed {appliedCount}/{assignments.Count} slot(s).");
+        }
+
+        return appliedCount == assignments.Count;
+    }
+
+    private List<(byte Slot, PlayerTeam Team)> EnumerateVoteTeamSlots()
+    {
+        var slots = new SortedSet<byte>(_botManager.BotSlots.Keys);
+        foreach (var client in _clientsBySlot.Values)
+        {
+            if (client.IsAuthorized
+                && !ServerHelpers.IsSpectatorSlot(client.Slot)
+                && _world.TryGetNetworkPlayer(client.Slot, out _)
+                && !_world.IsNetworkPlayerAwaitingJoin(client.Slot))
+            {
+                slots.Add(client.Slot);
+            }
+        }
+
+        var players = new List<(byte Slot, PlayerTeam Team)>();
+        foreach (var slot in slots)
+        {
+            var team = _world.GetNetworkPlayerConfiguredTeam(slot);
+            if (team is PlayerTeam.Red or PlayerTeam.Blue)
+            {
+                players.Add((slot, team));
+            }
+        }
+
+        return players;
     }
 
     private static PlayerTeam GetOpposingTeam(PlayerTeam team)

@@ -59,6 +59,22 @@ Tests/BrowserSmoke/node_modules/
 /Docking/
 /Docking (VIP)/
 
+# Local loose projects, investigation notes, and exported media
+/LittleDesktop/
+/docs/
+/tmp/
+/%SystemDrive%/
+/.audit_ltd_refs.txt
+/logofire.gif
+/msgframe1.png
+/msgframe1b.png
+/msgframe2.png
+/ctf_hangar/
+/ctf_oldfort/
+/Core/Content/StockMaps/Classic/README.md
+/Tests/OpenGarrison.PluginHost.Tests/AudioFixtures/README.md
+/services/opengarrison-api/deploy/browser-edition/README.md
+
 # Generated bot navigation and canary artifacts
 /Tools/BotBrain/canaries/
 /BotBrain.Tools/canaries/
