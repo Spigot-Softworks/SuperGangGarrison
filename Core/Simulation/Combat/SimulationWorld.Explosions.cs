@@ -3,6 +3,7 @@ namespace OpenGarrison.Core;
 public sealed partial class SimulationWorld
 {
     private const float SourceExplosionKnockbackCap = 15f;
+    private const float ExplosiveJumpPadDamageMultiplier = 1.5f;
     private readonly record struct DangerCloseExplosionRequest(float CenterX, float CenterY, int OwnerPlayerId);
 
     private static void ApplyExplosionImpulse(PlayerEntity player, float originX, float originY, float impulse)
@@ -214,6 +215,13 @@ public sealed partial class SimulationWorld
                 damageFactor);
             TryDamageGenerator(generator.Team, damage, owner);
         }
+
+        ApplyExplosiveDamageToJumpPads(
+            mine.X,
+            mine.Y,
+            blastRadius,
+            mine.ExplosionDamage * mine.CriticalDamageMultiplier,
+            mine.Team);
 
         if (triggerNearbyMines)
         {
@@ -581,6 +589,13 @@ public sealed partial class SimulationWorld
             TryDamageGenerator(generator.Team, damage, owner);
         }
 
+        ApplyExplosiveDamageToJumpPads(
+            centerX,
+            centerY,
+            blastRadius,
+            blastDamage,
+            owner.Team);
+
         var rocketIdsToExplode = new List<int>();
         for (var rocketIndex = 0; rocketIndex < _rockets.Count; rocketIndex += 1)
         {
@@ -625,6 +640,58 @@ public sealed partial class SimulationWorld
             if (DistanceBetween(centerX, centerY, _bubbles[bubbleIndex].X, _bubbles[bubbleIndex].Y) < blastRadius)
             {
                 RemoveBubbleAt(bubbleIndex);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Applies ordinary explosive splash to buildable jump pads. Pads use the
+    /// same radial falloff as other structures, with the established 1.5x
+    /// structure multiplier. Neutral map pads can be damaged by either team;
+    /// team-owned pads keep the existing friendly-fire rule.
+    /// </summary>
+    internal void ApplyExplosiveDamageToJumpPads(
+        float centerX,
+        float centerY,
+        float blastRadius,
+        float maximumDamage,
+        PlayerTeam sourceTeam,
+        float minimumDamage = ExplosiveSplashMinimumDamage)
+    {
+        if (blastRadius <= 0f || maximumDamage <= 0f)
+        {
+            return;
+        }
+
+        for (var jumpPadIndex = _jumpPads.Count - 1; jumpPadIndex >= 0; jumpPadIndex -= 1)
+        {
+            var jumpPad = _jumpPads[jumpPadIndex];
+            if (jumpPad.IsDead
+                || (!jumpPad.IsNeutral && jumpPad.Team == sourceTeam))
+            {
+                continue;
+            }
+
+            var distance = DistanceBetween(centerX, centerY, jumpPad.X, jumpPad.Y);
+            if (distance >= blastRadius)
+            {
+                continue;
+            }
+
+            var distanceFactor = 1f - (distance / blastRadius);
+            if (distanceFactor <= 0f)
+            {
+                continue;
+            }
+
+            var damage = ResolveExplosiveSplashDamage(
+                maximumDamage * ExplosiveJumpPadDamageMultiplier,
+                distanceFactor,
+                minimumDamage);
+            jumpPad.TakeDamage((int)MathF.Ceiling(damage));
+            if (jumpPad.IsDead)
+            {
+                DestroyJumpPad(jumpPad);
             }
         }
     }

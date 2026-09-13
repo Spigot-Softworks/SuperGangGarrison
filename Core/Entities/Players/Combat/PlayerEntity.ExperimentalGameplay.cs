@@ -24,6 +24,8 @@ public sealed partial class PlayerEntity
 
     private float ServerDamageScaleValue { get; set; } = 1f;
 
+    internal float LastToDieEnemyDamageMultiplier { get; private set; } = 1f;
+
     private float ServerGravityScaleValue { get; set; } = 1f;
 
     private bool ServerNoclipValue { get; set; }
@@ -319,6 +321,11 @@ public sealed partial class PlayerEntity
     public void SetServerDamageScale(float multiplier)
     {
         ServerDamageScaleValue = MathF.Max(0f, multiplier);
+    }
+
+    public void SetLastToDieEnemyDamageMultiplier(float multiplier)
+    {
+        LastToDieEnemyDamageMultiplier = MathF.Max(0f, multiplier);
     }
 
     public void SetServerGravityScale(float multiplier)

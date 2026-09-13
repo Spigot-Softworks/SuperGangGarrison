@@ -618,7 +618,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         teammate.SetSpawnRoomState(false);
         teammate.ApplyContinuousDamage(50f);
         var healthBefore = teammate.Health;
-        PressSwapWeaponSpace(world);
+        Assert.True(world.LocalPlayer.TrySelectGameplayPrimaryItem("weapon.medigun.crit"));
         Assert.True(world.LocalPlayer.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.MedigunCrit));
         Assert.True(world.LocalPlayer.HasGameplayAbilityBehavior(
             GameplayAbilityConstants.UtilityChannel,
@@ -644,7 +644,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         teammate.TeleportTo(world.LocalPlayer.X + 96f, world.LocalPlayer.Y);
         teammate.SetSpawnRoomState(false);
         world.LocalPlayer.FillMedicUberCharge();
-        PressSwapWeaponSpace(world);
+        Assert.True(world.LocalPlayer.TrySelectGameplayPrimaryItem("weapon.medigun.crit"));
 
         world.SetLocalInput(new PlayerInputSnapshot(
             Left: false,
@@ -688,7 +688,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         enemy.TeleportTo(world.LocalPlayer.X + 96f, world.LocalPlayer.Y);
         enemy.SetSpawnRoomState(false);
         var enemyHealthBefore = enemy.Health;
-        PressSwapWeaponSpace(world);
+        Assert.True(world.LocalPlayer.TrySelectGameplayPrimaryItem("weapon.medigun.crit"));
 
         world.SetLocalInput(new PlayerInputSnapshot(
             Left: false,
@@ -724,7 +724,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         MoveKritzBeamTestPlayersToOpenCombatLevel(world, enemy);
         teammate.TeleportTo(world.LocalPlayer.X + 96f, world.LocalPlayer.Y);
         teammate.SetSpawnRoomState(false);
-        PressSwapWeaponSpace(world);
+        Assert.True(world.LocalPlayer.TrySelectGameplayPrimaryItem("weapon.medigun.crit"));
 
         world.SetLocalInput(new PlayerInputSnapshot(
             Left: false,
@@ -752,7 +752,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         var world = CreateJoinedMedicWorld(new ExperimentalGameplaySettings(EnableSecondaryAbilities: true));
         AdvanceTicks(world, 1);
-        PressSwapWeaponSpace(world);
+        Assert.True(world.LocalPlayer.TrySelectGameplayPrimaryItem("weapon.medigun.crit"));
 
         AddMedicUberChargeUntil(world.LocalPlayer, PlayerEntity.MedicKritzUberReadyChargeThreshold);
 
@@ -769,6 +769,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         AddMedicUberChargeUntil(world.LocalPlayer, 1600f);
 
         Assert.False(world.LocalPlayer.IsMedicUberReady);
+        InstallPrimaryWeaponSwapCabinetAtPlayer(world, world.LocalPlayer);
         PressSwapWeaponSpace(world);
         Assert.True(world.LocalPlayer.IsMedicUberReady);
     }
@@ -779,7 +780,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         var world = CreateJoinedMedicWorld(new ExperimentalGameplaySettings());
         AdvanceTicks(world, 1);
         var durationTicks = (int)(PlayerEntity.MedicUberDurationSeconds * world.Config.TicksPerSecond);
-        PressSwapWeaponSpace(world);
+        Assert.True(world.LocalPlayer.TrySelectGameplayPrimaryItem("weapon.medigun.crit"));
         world.LocalPlayer.FillMedicUberCharge();
 
         Assert.True(world.LocalPlayer.TryStartMedicUber());
@@ -802,7 +803,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         var world = CreateJoinedMedicWorld(new ExperimentalGameplaySettings());
         AdvanceTicks(world, 1);
-        PressSwapWeaponSpace(world);
+        Assert.True(world.LocalPlayer.TrySelectGameplayPrimaryItem("weapon.medigun.crit"));
         AddMedicUberChargeUntil(world.LocalPlayer, 1000f);
 
         world.LocalPlayer.GetMedicUberHudMeter(out var meterValue, out var meterMax);
@@ -2583,6 +2584,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         Assert.True(world.LocalPlayer.HasExperimentalOffhandWeapon);
         Assert.False(world.LocalPlayer.IsSniperBowEquipped);
 
+        InstallPrimaryWeaponSwapCabinetAtPlayer(world, world.LocalPlayer);
         PressSwapWeaponSpace(world);
 
         Assert.False(world.LocalPlayer.IsExperimentalOffhandEquipped);
@@ -2604,8 +2606,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         var world = CreateJoinedSniperWorld(new ExperimentalGameplaySettings());
         AdvanceTicks(world, 1);
-        PressSwapWeaponSpace(world);
-        ReleaseAllInput(world);
+        Assert.True(world.LocalPlayer.TrySelectGameplayPrimaryItem("weapon.bow"));
 
         Assert.True(world.LocalPlayer.IsSniperBowEquipped);
         Assert.False(world.LocalPlayer.TryToggleSniperScope());
@@ -2617,8 +2618,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         var world = CreateJoinedSniperWorld(new ExperimentalGameplaySettings());
         AdvanceTicks(world, 1);
-        PressSwapWeaponSpace(world);
-        ReleaseAllInput(world);
+        Assert.True(world.LocalPlayer.TrySelectGameplayPrimaryItem("weapon.bow"));
 
         Assert.True(world.LocalPlayer.IsSniperBowEquipped);
         Assert.True(world.ForceGiveEnemyIntelToLocalPlayer());
@@ -2761,6 +2761,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         Assert.True(player.HasExperimentalOffhandWeapon);
         Assert.False(player.IsSniperBowEquipped);
 
+        InstallPrimaryWeaponSwapCabinetAtPlayer(world, player);
         PressNetworkSwapWeaponSpace(world, 2, player);
         Assert.False(player.IsExperimentalOffhandEquipped);
         Assert.True(player.IsSniperBowEquipped);
@@ -2862,6 +2863,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         Assert.False(world.LocalPlayer.IsExperimentalOffhandEquipped);
         world.LocalPlayer.FillMedicUberCharge();
 
+        InstallPrimaryWeaponSwapCabinetAtPlayer(world, world.LocalPlayer);
         PressSwapWeaponSpace(world);
 
         Assert.False(world.LocalPlayer.IsMedicUbering);
@@ -2892,6 +2894,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         var world = CreateJoinedMedicWorld(new ExperimentalGameplaySettings());
         AdvanceTicks(world, 1);
+        InstallPrimaryWeaponSwapCabinetAtPlayer(world, world.LocalPlayer);
         PressSwapWeaponSpace(world);
         world.LocalPlayer.FillMedicUberCharge();
         Assert.True(world.LocalPlayer.TryStartMedicUber());
@@ -3740,6 +3743,45 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
             ]);
     }
 
+    private static void InstallPrimaryWeaponSwapCabinetAtPlayer(
+        SimulationWorld world,
+        PlayerEntity player)
+    {
+        var spawn = new SpawnPoint(player.X, player.Y);
+        CombatTestSetLevelMethod.Invoke(
+            world,
+            [
+                new SimpleLevel(
+                    name: "primary_swap_station_test",
+                    mode: GameModeKind.TeamDeathmatch,
+                    bounds: new WorldBounds(1024f, 768f),
+                    mapScale: 1f,
+                    backgroundAssetName: null,
+                    mapAreaIndex: 1,
+                    mapAreaCount: 1,
+                    localSpawn: spawn,
+                    redSpawns: [spawn],
+                    blueSpawns: [spawn],
+                    intelBases: [],
+                    roomObjects:
+                    [
+                        new RoomObjectMarker(
+                            RoomObjectType.HealingCabinet,
+                            player.X - 16f,
+                            player.Y - 24f,
+                            32f,
+                            48f,
+                            "sprite74",
+                            SourceName: "HealingCabinet"),
+                    ],
+                    floorY: player.Y + 64f,
+                    solids: [],
+                    importedFromSource: false),
+            ]);
+
+        Assert.True(world.IsNearPrimaryWeaponSwapStation(player));
+    }
+
     private static void SetArrowCollisionTestLevel(SimulationWorld world)
     {
         CombatTestSetLevelMethod.Invoke(
@@ -4419,6 +4461,9 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
                 enableExperimentalCaveatTracking,
                 visualScale,
                 trackingLockTicksRemaining,
+                Type.Missing,
+                Type.Missing,
+                Type.Missing,
                 null,
             ]);
     }

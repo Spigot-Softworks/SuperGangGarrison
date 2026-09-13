@@ -134,6 +134,12 @@ public sealed class BotBrainPracticeBotController : IPracticeBotController
             && controller.RequiresPerTickNavigationThink;
     }
 
+    public bool RequiresPerTickCombatThink(byte slot, SimulationWorld world)
+    {
+        return _controllersBySlot.TryGetValue(slot, out var controller)
+            && controller.RequiresPerTickCombatThink(world);
+    }
+
     public bool RequiresImmediateNavigationThink(byte slot)
     {
         return _controllersBySlot.TryGetValue(slot, out var controller)

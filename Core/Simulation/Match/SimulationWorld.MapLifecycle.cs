@@ -130,6 +130,16 @@ public sealed partial class SimulationWorld
         {
             if (_autoRestartOnMapChange)
             {
+                if (MatchState.WinnerTeam == PlayerTeam.Red
+                    && Level.MapAreaIndex < Level.MapAreaCount
+                    && TryLoadLevel(
+                        Level.Name,
+                        Level.MapAreaIndex + 1,
+                        preservePlayerStats: true))
+                {
+                    return false;
+                }
+
                 RestartCurrentRound(preservePlayerStats: false);
                 return false;
             }

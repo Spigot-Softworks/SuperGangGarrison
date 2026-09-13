@@ -28,3 +28,8 @@
 /processor:EffectProcessor
 /build:Grayscale.fx
 
+#begin FlamingLogo.fx
+/importer:EffectImporter
+/processor:EffectProcessor
+/build:FlamingLogo.fx
+

@@ -31,6 +31,12 @@ public sealed partial class SimulationWorld
             var directionX = movementX / movementDistance;
             var directionY = movementY / movementDistance;
             var hit = GetNearestShotHit(shot, directionX, directionY, movementDistance);
+            if (TryInterceptWithCivilDefenseTurret(shot.Team, shot.PreviousX, shot.PreviousY,
+                    directionX, directionY, MathF.Min(movementDistance, hit?.Distance ?? movementDistance)))
+            {
+                RemoveShotAt(shotIndex);
+                continue;
+            }
             if (hit.HasValue)
             {
                 var hitResult = hit.Value;
@@ -289,11 +295,18 @@ public sealed partial class SimulationWorld
             var movementEndY = needle.Y;
             needle.PrepareRaycastProbe();
             var piercedPlayerCount = 0;
+            var intercepted = false;
             while (true)
             {
                 var hit = needle is MedicHealNeedleProjectileEntity healNeedle
                     ? GetNearestMedicHealNeedleHit(healNeedle, directionX, directionY, movementDistance)
                     : GetNearestNeedleHit(needle, directionX, directionY, movementDistance);
+                if (TryInterceptWithCivilDefenseTurret(needle.Team, needle.PreviousX, needle.PreviousY,
+                        directionX, directionY, MathF.Min(movementDistance, hit?.Distance ?? movementDistance)))
+                {
+                    intercepted = true;
+                    break;
+                }
                 if (!hit.HasValue)
                 {
                     RegisterCombatTrace(needle.PreviousX, needle.PreviousY, directionX, directionY, movementDistance, false);
@@ -525,6 +538,12 @@ public sealed partial class SimulationWorld
                 break;
             }
 
+            if (intercepted)
+            {
+                RemoveNeedleAt(needleIndex);
+                continue;
+            }
+
             if (needle is MedicHealNeedleProjectileEntity
                 {
                     IsLastToDieJavelinFuseExpired: true,
@@ -583,6 +602,12 @@ public sealed partial class SimulationWorld
             var directionX = movementX / movementDistance;
             var directionY = movementY / movementDistance;
             var hit = GetNearestRevolverHit(shot, directionX, directionY, movementDistance);
+            if (TryInterceptWithCivilDefenseTurret(shot.Team, shot.PreviousX, shot.PreviousY,
+                    directionX, directionY, MathF.Min(movementDistance, hit?.Distance ?? movementDistance)))
+            {
+                RemoveRevolverShotAt(shotIndex);
+                continue;
+            }
             if (hit.HasValue)
             {
                 var hitResult = hit.Value;

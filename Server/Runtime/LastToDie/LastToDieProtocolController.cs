@@ -42,24 +42,28 @@ internal sealed class LastToDieProtocolController
     }
 
     private readonly LastToDieDirector _director;
+    private readonly Func<bool, bool>? _setSoloPaused;
+    private readonly bool _managedOwnership;
     private readonly Dictionary<byte, PlayerBinding> _playersBySlot = [];
     private readonly Dictionary<Guid, PlayerBinding> _playersById = [];
     private ulong _barrierStageInstanceId;
     private ulong _baselineStartFrame;
 
-    public LastToDieProtocolController(LastToDieServerDirector serverDirector)
+    public LastToDieProtocolController(LastToDieServerDirector serverDirector, Func<bool, bool>? setSoloPaused = null, bool? managedOwnership = null)
     {
         ArgumentNullException.ThrowIfNull(serverDirector);
         _director = serverDirector.Director;
+        _setSoloPaused = setSoloPaused;
+        _managedOwnership = managedOwnership ?? ManagedRoomRuntime.Enabled;
     }
 
     public LastToDieDirector Director => _director;
 
     public bool TryRegisterPlayer(byte slot, Guid playerId, out string error)
     {
-        if (slot is < 1 or > 2 || playerId == Guid.Empty)
+        if (slot < 1 || slot > _director.MaximumPlayers || playerId == Guid.Empty)
         {
-            return Fail("Last to Die requires player slots 1 or 2 and a non-zero player ID.", out error);
+            return Fail("Last to Die requires an available room slot and a non-zero player ID.", out error);
         }
 
         if (_playersBySlot.TryGetValue(slot, out var existingBySlot))
@@ -83,7 +87,7 @@ internal sealed class LastToDieProtocolController
             return false;
         }
 
-        var binding = new PlayerBinding(slot, playerId, isHost: _playersBySlot.Count == 0);
+        var binding = new PlayerBinding(slot, playerId, isHost: _managedOwnership ? slot == 1 : _playersBySlot.Count == 0);
         _playersBySlot.Add(slot, binding);
         _playersById.Add(playerId, binding);
         error = string.Empty;
@@ -177,6 +181,15 @@ internal sealed class LastToDieProtocolController
 
         var wasConnected = player.IsConnected;
         player.IsConnected = isConnected;
+        if (isConnected && !wasConnected)
+        {
+            // A new transport restarts the client's command sequence and must
+            // prove its own semantic snapshot receipt. Old-peer packets are
+            // excluded by the session dispatcher before reaching this controller.
+            player.CachedCommands.Clear();
+            player.CachedCommandOrder.Clear();
+            player.LastAcknowledgedStructuralRevision = 0;
+        }
         if (wasConnected != isConnected && _director.Phase == LastToDiePhase.Lobby)
         {
             _director.TrySetLobbyReady(player.PlayerId, isReady: false, out _);
@@ -378,16 +391,24 @@ internal sealed class LastToDieProtocolController
     {
         switch (command.Kind)
         {
+            case LastToDieCommandKind.PauseSolo:
+            case LastToDieCommandKind.ResumeSolo:
+                if (!player.IsHost || _director.MaximumPlayers != 1
+                    || _director.Phase != LastToDiePhase.Playing
+                    || _setSoloPaused?.Invoke(command.Kind == LastToDieCommandKind.PauseSolo) != true)
+                    return Fail("Only the solo owner can pause or resume a playing run.", out error);
+                error = string.Empty;
+                return true;
             case LastToDieCommandKind.RequestStart:
                 if (!player.IsHost)
                 {
                     return Fail("Only the Last to Die host can start the run.", out error);
                 }
 
-                if (_playersBySlot.Count != _director.MaximumPlayers
+                if (_playersBySlot.Count == 0
                     || _playersBySlot.Values.Any(candidate => !candidate.IsConnected))
                 {
-                    return Fail("Every lobby seat must be connected before the host can start.", out error);
+                    return Fail("Everyone in the lobby must be connected before the host can start.", out error);
                 }
 
                 return _director.TryStart(out error, requireReadyRoster: true);
@@ -444,7 +465,7 @@ internal sealed class LastToDieProtocolController
                 return TryLeavePlayer(player, out error);
 
             case LastToDieCommandKind.Retry:
-                if (_playersBySlot.Count != _director.MaximumPlayers
+                if (_playersBySlot.Count == 0
                     || _playersBySlot.Values.Any(candidate => !candidate.IsConnected))
                 {
                     return Fail("Every Last to Die player must be connected before retrying.", out error);
@@ -535,7 +556,7 @@ internal sealed class LastToDieProtocolController
 
         _playersBySlot.Remove(player.Slot);
         _playersById.Remove(player.PlayerId);
-        if (player.IsHost && _playersBySlot.Count > 0)
+        if (player.IsHost && _playersBySlot.Count > 0 && !_managedOwnership)
         {
             _playersBySlot.Values.OrderBy(candidate => candidate.Slot).First().IsHost = true;
         }

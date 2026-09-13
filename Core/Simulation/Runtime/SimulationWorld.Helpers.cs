@@ -93,7 +93,7 @@ public sealed partial class SimulationWorld
             // 0 ticks = 0.25 (25%), max ticks (120) = 0.80 (80%)
             var chargeRatio = MathF.Min(
                 1f,
-                player.SniperChargeTicks / (float)player.LastToDieSniperRifleFullChargeTicks);
+                player.SniperChargeTicks / (float)player.SniperRifleFullChargeTicks);
             var transparency = 0.25f + (chargeRatio * 0.55f);
 
             _sniperAimIndicators.Add(new SniperAimIndicator(
@@ -174,7 +174,13 @@ public sealed partial class SimulationWorld
         }
 
         var normalizedDirectionDegrees = NormalizeAngleDegrees(directionDegrees);
-        _pendingVisualEvents.Add(new WorldVisualEvent("Blood", x, y, normalizedDirectionDegrees, Math.Max(1, count)));
+        _pendingVisualEvents.Add(new WorldVisualEvent(
+            "Blood",
+            x,
+            y,
+            normalizedDirectionDegrees,
+            Math.Max(1, count),
+            SourceFrame: Frame < 0 ? 0UL : (ulong)Frame));
         SpawnImpactBloodDrops(x, y, normalizedDirectionDegrees, count);
     }
 
@@ -208,7 +214,13 @@ public sealed partial class SimulationWorld
         var directionValue = normalizeDirection
             ? NormalizeAngleDegrees(directionDegrees)
             : directionDegrees;
-        _pendingVisualEvents.Add(new WorldVisualEvent(effectName, x, y, directionValue, Math.Max(1, count)));
+        _pendingVisualEvents.Add(new WorldVisualEvent(
+            effectName,
+            x,
+            y,
+            directionValue,
+            Math.Max(1, count),
+            SourceFrame: Frame < 0 ? 0UL : (ulong)Frame));
     }
 
     private void RegisterImpactEffect(float x, float y, float directionDegrees)

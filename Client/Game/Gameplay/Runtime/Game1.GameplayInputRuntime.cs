@@ -49,7 +49,7 @@ public partial class Game1
             return (default, default);
         }
 
-        UpdateBuildMenuState(keyboard, mouse);
+        UpdateBuildMenuState(keyboard, mouse, fullInput);
         fullInput = ApplyBuildMenuInputSelection(fullInput);
 
         if (_bubbleMenuKind != BubbleMenuKind.None && !_bubbleMenuClosing)
@@ -92,13 +92,13 @@ public partial class Game1
             gameplayInput = gameplayInput with
             {
                 FirePrimary = false,
-                UseAbility = false,
+                UseAbility = gameplayInput.UseAbility && _buildMenuJumpPadSelectionPressed,
                 SwapWeapon = false,
             };
             networkInput = networkInput with
             {
                 FirePrimary = false,
-                UseAbility = false,
+                UseAbility = networkInput.UseAbility && _buildMenuJumpPadSelectionPressed,
                 SwapWeapon = false,
             };
         }
@@ -147,7 +147,7 @@ public partial class Game1
             };
         }
 
-        if (_autoFireActive)
+        if (_autoFireActive && !_buildMenuOpen && !_buildMenuNumericInputConsumed && !_suppressPrimaryFireUntilMouseRelease)
         {
             gameplayInput = gameplayInput with { FirePrimary = true };
             networkInput = networkInput with { FirePrimary = true };

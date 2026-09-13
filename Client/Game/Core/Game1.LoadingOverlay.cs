@@ -1,6 +1,7 @@
 #nullable enable
 
 using Microsoft.Xna.Framework;
+using OpenGarrison.ClientShared;
 using System;
 using System.Diagnostics;
 
@@ -8,7 +9,8 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private const string LoadingOverlayTitle = "Super Gang Garrison";
+    private const string DesktopLoadingOverlayTitle = "Super Gang Garrison";
+    private const string RestrictedBrowserLoadingOverlayTitle = "Gang Garrison";
     private const int LoadingOverlayWidth = 340;
     private const int LoadingOverlayHeight = 84;
     private const int LoadingOverlayMargin = 12;
@@ -16,28 +18,35 @@ public partial class Game1
     private const float LoadingOverlayTextScale = 1f;
 
     private bool _loadingOverlayVisible;
+    private bool _loadingOverlayIsJoining;
     private string _loadingOverlayMessage = string.Empty;
     private string _joiningServerLoadingLabel = string.Empty;
     private double? _loadingOverlayProgress;
+    private bool _browserLoadingProgressVisible;
 
     private void ShowLoadingOverlay(string message, double? progress = null)
     {
         _loadingOverlayVisible = true;
+        _loadingOverlayIsJoining = false;
         _loadingOverlayMessage = string.IsNullOrWhiteSpace(message) ? "Loading..." : message.Trim();
         _loadingOverlayProgress = NormalizeLoadingOverlayProgress(progress);
     }
 
     private void HideLoadingOverlay()
     {
+        HideBrowserLoadingProgress();
         _loadingOverlayVisible = false;
+        _loadingOverlayIsJoining = false;
         _loadingOverlayMessage = string.Empty;
         _loadingOverlayProgress = null;
     }
 
     private void DrawLoadingOverlay()
     {
+        if (HasLastToDieLoadingPresentation) HideJoiningServerLoadingOverlay();
         if (!_loadingOverlayVisible)
         {
+            HideBrowserLoadingProgress();
             return;
         }
 
@@ -48,29 +57,45 @@ public partial class Game1
         var bounds = new Rectangle(x, y, width, height);
 
         DrawRoundedRectangleOutline(bounds, new Color(54, 51, 50) * 0.96f, new Color(119, 119, 119), outlineThickness: 1, radius: 4);
-        DrawBitmapFontText(LoadingOverlayTitle, new Vector2(bounds.X + 10f, bounds.Y + 8f), Color.White, LoadingOverlayTextScale);
+        DrawBitmapFontText(
+            GetLoadingOverlayTitle(OperatingSystem.IsBrowser() && ClientDistribution.IsRestricted),
+            new Vector2(bounds.X + 10f, bounds.Y + 8f),
+            Color.White,
+            LoadingOverlayTextScale);
 
         var message = TrimBitmapMenuText(_loadingOverlayMessage, bounds.Width - 20f, LoadingOverlayTextScale);
         DrawBitmapFontText(message, new Vector2(bounds.X + 10f, bounds.Y + 32f), Color.White, LoadingOverlayTextScale);
         DrawLoadingOverlayProgress(bounds);
+        _practiceNavigationWarmupPresentationPending = false;
     }
 
     private void ShowJoiningServerLoadingOverlay(string? serverLabel = null)
     {
-        if (!ShouldShowJoiningServerLoadingOverlay(_lastToDieConnectionPresentationPending))
+        if (HasLastToDieLoadingPresentation)
         {
             // LTD already owns the full-screen loading presentation and progress
             // bar. Suppress the generic online popup instead of drawing the same
             // message twice.
-            HideLoadingOverlay();
+            HideJoiningServerLoadingOverlay();
             return;
         }
 
         ShowLoadingOverlay(CreateJoiningServerLoadingMessage(serverLabel), progress: null);
+        _loadingOverlayIsJoining = true;
     }
 
-    internal static bool ShouldShowJoiningServerLoadingOverlay(bool isLastToDie)
-        => !isLastToDie;
+    private bool HasLastToDieLoadingPresentation => !ShouldShowJoiningServerLoadingOverlay(
+        _lastToDieConnectionPresentationPending, HasManagedRoom,
+        _networkClient.IsConnected && _networkClient.LastToDieState.Snapshot is not null);
+
+    private void HideJoiningServerLoadingOverlay()
+    {
+        if (_loadingOverlayIsJoining) HideLoadingOverlay();
+    }
+
+    internal static bool ShouldShowJoiningServerLoadingOverlay(bool isLastToDie,
+        bool hasManagedRoom = false, bool hasLastToDieSnapshot = false)
+        => !(isLastToDie || hasManagedRoom || hasLastToDieSnapshot);
 
     private void SetJoiningServerLoadingLabel(string? serverLabel)
     {
@@ -103,6 +128,11 @@ public partial class Game1
     internal static string FormatJoiningServerLoadingMessage(bool isLastToDie, string serverLabel)
         => isLastToDie ? "Loading Last to Die..." : $"Joining {serverLabel}...";
 
+    internal static string GetLoadingOverlayTitle(bool isRestrictedBrowserEdition)
+        => isRestrictedBrowserEdition
+            ? RestrictedBrowserLoadingOverlayTitle
+            : DesktopLoadingOverlayTitle;
+
     private static string NormalizeLoadingOverlayServerLabel(string? serverLabel)
     {
         return string.IsNullOrWhiteSpace(serverLabel)
@@ -120,6 +150,27 @@ public partial class Game1
 
         var inner = new Rectangle(progressBounds.X + 1, progressBounds.Y + 1, progressBounds.Width - 2, progressBounds.Height - 2);
         _spriteBatch.Draw(_pixel, inner, new Color(54, 51, 50));
+
+        if (OperatingSystem.IsBrowser() && !_loadingOverlayProgress.HasValue
+            && BrowserLoadingProgress.Show is { } showBrowserProgress)
+        {
+            // CSS transforms run on the browser compositor, so the bar keeps
+            // moving while synchronous map/navigation work occupies WASM.
+            // Use the backbuffer, not the current logical render-target viewport.
+            var backbuffer = GraphicsDevice.PresentationParameters;
+            var surfaceWidth = Math.Max(1, backbuffer.BackBufferWidth);
+            var surfaceHeight = Math.Max(1, backbuffer.BackBufferHeight);
+            var destination = GetGameplayDestinationRectangle(surfaceWidth, surfaceHeight);
+            showBrowserProgress(
+                (destination.X + inner.X * destination.Width / (float)ViewportWidth) / surfaceWidth,
+                (destination.Y + inner.Y * destination.Height / (float)ViewportHeight) / surfaceHeight,
+                inner.Width * destination.Width / (float)ViewportWidth / surfaceWidth,
+                inner.Height * destination.Height / (float)ViewportHeight / surfaceHeight);
+            _browserLoadingProgressVisible = true;
+            return;
+        }
+
+        HideBrowserLoadingProgress();
 
         var availableWidth = inner.Width - 4;
         var segmentStride = Math.Max(6, availableWidth / LoadingOverlayProgressSegments);
@@ -144,6 +195,13 @@ public partial class Game1
 
             _spriteBatch.Draw(_pixel, new Rectangle(left, inner.Y + 3, segmentWidth, Math.Max(2, inner.Height - 6)), new Color(69, 108, 140));
         }
+    }
+
+    private void HideBrowserLoadingProgress()
+    {
+        if (!_browserLoadingProgressVisible) return;
+        _browserLoadingProgressVisible = false;
+        BrowserLoadingProgress.Hide?.Invoke();
     }
 
     private static double? NormalizeLoadingOverlayProgress(double? progress)

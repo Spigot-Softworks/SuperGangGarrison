@@ -52,6 +52,42 @@ public sealed partial class SimulationWorld
             float aimWorldY,
             string killFeedWeaponSpriteName)
         {
+            FireFlareProjectile(
+                attacker,
+                weapon,
+                aimWorldX,
+                aimWorldY,
+                killFeedWeaponSpriteName,
+                FlareProjectileStyle.Standard,
+                FlareProjectileEntity.LifetimeTicks);
+        }
+
+        public void FireDragonRage(
+            PlayerEntity attacker,
+            PrimaryWeaponDefinition weapon,
+            float aimWorldX,
+            float aimWorldY,
+            string killFeedWeaponSpriteName)
+        {
+            FireFlareProjectile(
+                attacker,
+                weapon,
+                aimWorldX,
+                aimWorldY,
+                killFeedWeaponSpriteName,
+                FlareProjectileStyle.DragonRageSlug,
+                FlareProjectileEntity.DragonRageLifetimeTicks);
+        }
+
+        private void FireFlareProjectile(
+            PlayerEntity attacker,
+            PrimaryWeaponDefinition weapon,
+            float aimWorldX,
+            float aimWorldY,
+            string killFeedWeaponSpriteName,
+            FlareProjectileStyle style,
+            int lifetimeTicks)
+        {
             var weaponOrigin = GetSourceWeaponOrigin(attacker, PlayerClass.Pyro);
             var aimDeltaX = aimWorldX - weaponOrigin.BaseX;
             var aimDeltaY = aimWorldY - weaponOrigin.BaseY;
@@ -86,14 +122,32 @@ public sealed partial class SimulationWorld
                 attacker,
                 directionX * speed,
                 directionY * speed);
+            // Preserve the authored forward launch speed even while the
+            // shooter is retreating or being displaced. Inherited movement
+            // remains intact; only the missing component along the aim ray is
+            // added back.
+            var inheritedVelocityX = attacker.HorizontalSpeed * (float)Config.FixedDeltaSeconds;
+            var inheritedVelocityY = 0f;
+            var finalVelocityX = velocityX + inheritedVelocityX;
+            var finalVelocityY = velocityY + inheritedVelocityY;
+            var stationaryForwardSpeed = MathF.Max(0f, (velocityX * directionX) + (velocityY * directionY));
+            var finalForwardSpeed = (finalVelocityX * directionX) + (finalVelocityY * directionY);
+            if (finalForwardSpeed < stationaryForwardSpeed)
+            {
+                var missingForwardSpeed = stationaryForwardSpeed - finalForwardSpeed;
+                finalVelocityX += directionX * missingForwardSpeed;
+                finalVelocityY += directionY * missingForwardSpeed;
+            }
             SpawnFlare(
                 attacker,
                 spawnX,
                 spawnY,
-                velocityX + (attacker.HorizontalSpeed * (float)Config.FixedDeltaSeconds),
-                velocityY,
+                finalVelocityX,
+                finalVelocityY,
                 weapon.DirectHitDamage ?? 20f,
-                killFeedWeaponSpriteName);
+                killFeedWeaponSpriteName,
+                style,
+                lifetimeTicks);
         }
 
         public void FireScoutNailgun(PlayerEntity attacker, PrimaryWeaponDefinition weapon, float aimWorldX, float aimWorldY)
@@ -197,6 +251,56 @@ public sealed partial class SimulationWorld
                 damage,
                 fakeSpeedMultiplier);
             _ = killFeedWeaponSpriteName;
+        }
+
+        public void FireMortarLauncher(
+            PlayerEntity attacker,
+            PrimaryWeaponDefinition weapon,
+            float directionRadians,
+            float chargeFraction)
+        {
+            RegisterSoundEvent(attacker, weapon.FireSoundName ?? "RocketSnd");
+            chargeFraction = Math.Clamp(chargeFraction, 0f, 1f);
+            var directionX = MathF.Cos(directionRadians);
+            var directionY = MathF.Sin(directionRadians);
+            var weaponOrigin = GetSourceWeaponOrigin(attacker, PlayerClass.Soldier);
+            var spawnX = weaponOrigin.BaseX + (directionX * 20f);
+            var spawnY = weaponOrigin.BaseY
+                + weaponOrigin.WeaponYOffset
+                + weaponOrigin.EquipmentOffset
+                + (directionY * 20f);
+            var speed = MathF.Max(0f, weapon.MinShotSpeed)
+                + (MathF.Max(0f, weapon.AdditionalRandomShotSpeed) * chargeFraction);
+            var (velocityX, velocityY) = _world.ApplyExperimentalProjectileSpeedMultiplier(
+                attacker,
+                directionX * speed,
+                directionY * speed);
+            velocityX += attacker.HorizontalSpeed * (float)Config.FixedDeltaSeconds;
+            var finalSpeed = MathF.Sqrt((velocityX * velocityX) + (velocityY * velocityY));
+            var finalDirection = finalSpeed > 0.0001f
+                ? MathF.Atan2(velocityY, velocityX)
+                : directionRadians;
+            var explodeImmediately = _world.IsProjectileSpawnBlocked(
+                weaponOrigin.BaseX,
+                weaponOrigin.BaseY + weaponOrigin.WeaponYOffset + weaponOrigin.EquipmentOffset,
+                spawnX,
+                spawnY,
+                attacker.Team);
+
+            SpawnRocket(
+                attacker,
+                spawnX,
+                spawnY,
+                finalSpeed,
+                finalDirection,
+                weapon.RocketCombat,
+                explodeImmediately: explodeImmediately,
+                canGrantExperimentalInstantReloadOnHit: false,
+                knockbackScale: weapon.PlayerKnockbackScale,
+                isBallistic: true,
+                ballisticGravityPerTick: PlayerEntity.MortarLauncherGravityPerTick,
+                suppressSmokeTrail: true,
+                killFeedWeaponSpriteNameOverride: weapon.KillFeedWeaponSpriteName ?? "RocketKL");
         }
 
         public void FireQueuedLastToDieSniperBowArrow(

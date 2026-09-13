@@ -101,7 +101,7 @@ internal static class TextureDecodeUtility
         return frames;
     }
 
-    private static DecodedTextureData DecodeTextureData(byte[] bytes, bool applyLegacyChromaKey)
+    internal static DecodedTextureData DecodeTextureData(byte[] bytes, bool applyLegacyChromaKey)
     {
         ArgumentNullException.ThrowIfNull(bytes);
 
@@ -141,7 +141,7 @@ internal static class TextureDecodeUtility
         return new DecodedTextureData(textureData, image.Width, image.Height, opaqueBounds);
     }
 
-    private static Texture2D CreateTexture(GraphicsDevice graphicsDevice, XnaColor[] textureData, int width, int height)
+    internal static Texture2D CreateTexture(GraphicsDevice graphicsDevice, XnaColor[] textureData, int width, int height)
     {
         var texture = new Texture2D(graphicsDevice, width, height);
         texture.SetData(textureData);
@@ -237,7 +237,7 @@ internal static class TextureDecodeUtility
             pixel.A);
     }
 
-    private sealed record DecodedTextureData(
+    internal sealed record DecodedTextureData(
         XnaColor[] PixelData,
         int Width,
         int Height,

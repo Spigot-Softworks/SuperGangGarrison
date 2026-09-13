@@ -13,6 +13,8 @@ public static class ClientRuntimeBootstrap
     private static BrowserGameMakerAtlasManifest? _browserGameMakerAtlasManifest;
     private static GameMakerAssetManifest? _browserRuntimeAssetManifest;
     private static HttpClient? _browserHttpClient;
+    private static string? _browserClientIdentityJson;
+    private static Action<string>? _browserClientIdentitySave;
 
     public static void InitializeContentRoot(string rootDirectory = "Content")
     {
@@ -102,6 +104,20 @@ public static class ClientRuntimeBootstrap
     public static HttpClient? GetBrowserHttpClient()
     {
         return _browserHttpClient;
+    }
+
+    public static void InitializeBrowserClientIdentityStore(string? identityJson, Action<string>? save)
+    {
+        _browserClientIdentityJson = identityJson;
+        _browserClientIdentitySave = save;
+    }
+
+    public static string? GetBrowserClientIdentityJson() => _browserClientIdentityJson;
+
+    public static void SaveBrowserClientIdentityJson(string json)
+    {
+        _browserClientIdentityJson = json;
+        _browserClientIdentitySave?.Invoke(json);
     }
 
     public static IAssetBinarySource? CreateGameplayPackAssetBinarySource(string packId, HttpClient? httpClient = null, string? packDirectory = null)

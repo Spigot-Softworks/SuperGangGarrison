@@ -192,9 +192,11 @@ public sealed partial class SimulationWorld
             float velocityX,
             float velocityY,
             float damagePerHit = FlareProjectileEntity.DefaultDamagePerHit,
-            string killFeedWeaponSpriteName = "FlareKL")
+            string killFeedWeaponSpriteName = "FlareKL",
+            FlareProjectileStyle style = FlareProjectileStyle.Standard,
+            int lifetimeTicks = FlareProjectileEntity.LifetimeTicks)
         {
-            _world.SpawnFlare(owner, x, y, velocityX, velocityY, damagePerHit, killFeedWeaponSpriteName);
+            _world.SpawnFlare(owner, x, y, velocityX, velocityY, damagePerHit, killFeedWeaponSpriteName, style, lifetimeTicks);
         }
 
         private void SpawnRocket(
@@ -213,6 +215,9 @@ public sealed partial class SimulationWorld
             bool enableExperimentalCaveatTracking = false,
             float experimentalVisualScale = 1f,
             int experimentalTrackingLockTicksRemaining = 0,
+            bool isBallistic = false,
+            float ballisticGravityPerTick = 0f,
+            bool suppressSmokeTrail = false,
             string? killFeedWeaponSpriteNameOverride = null)
         {
             _world.SpawnRocket(
@@ -231,6 +236,9 @@ public sealed partial class SimulationWorld
                 enableExperimentalCaveatTracking: enableExperimentalCaveatTracking,
                 experimentalVisualScale: experimentalVisualScale,
                 experimentalTrackingLockTicksRemaining: experimentalTrackingLockTicksRemaining,
+                isBallistic: isBallistic,
+                ballisticGravityPerTick: ballisticGravityPerTick,
+                suppressSmokeTrail: suppressSmokeTrail,
                 killFeedWeaponSpriteNameOverride: killFeedWeaponSpriteNameOverride);
         }
 

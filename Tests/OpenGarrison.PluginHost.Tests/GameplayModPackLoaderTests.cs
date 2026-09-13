@@ -1048,6 +1048,17 @@ public sealed class GameplayModPackLoaderTests
         Assert.Equal(GameplayItemHudStateProviders.SecondaryAmmo, soldierShotgunHud.StateProvider);
         Assert.Equal(60, soldierShotgunHud.Order);
 
+        foreach (var itemId in new[]
+                 {
+                     "weapon.scout-pistol",
+                     "weapon.engineer-pistol",
+                     "weapon.pyro-flaregun",
+                     "weapon.sniper-smg",
+                 })
+        {
+            Assert.True(pack.Items[itemId].Presentation.Hud?.UseBackgroundPlaque);
+        }
+
         var grenadeLauncherHud = pack.Items["weapon.grenadelauncher"].Presentation.Hud;
         Assert.NotNull(grenadeLauncherHud);
         Assert.Equal(GameplayItemHudDisplayKinds.AmmoPanel, grenadeLauncherHud!.DisplayKind);
@@ -1070,6 +1081,7 @@ public sealed class GameplayModPackLoaderTests
         Assert.Equal(GameplayItemHudDisplayKinds.CooldownIcon, sandvichHud!.DisplayKind);
         Assert.Equal(GameplayItemHudStackGroups.Ability, sandvichHud.StackGroup);
         Assert.Equal(GameplayItemHudStateProviders.HeavySandvichCooldown, sandvichHud.StateProvider);
+        Assert.False(sandvichHud.ShowWhenEquippedOnly);
 
         var heavyUtilityHud = pack.Items["ability.heavy-utility"].Presentation.Hud;
         Assert.Null(pack.Items["ability.heavy-utility"].Presentation.HudSpriteName);

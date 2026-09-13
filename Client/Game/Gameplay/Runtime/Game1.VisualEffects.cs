@@ -12,6 +12,10 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
+    // Normal particles opt into the same effects as desktop. Alternative and
+    // Disabled retain the browser's lighter effects budget.
+    private bool UseReducedBrowserEffects => OperatingSystem.IsBrowser() && _particleMode != 0;
+
     private readonly List<ExplosionVisual> _explosions = new();
     private readonly List<ImpactVisual> _impactVisuals = new();
     private readonly List<StuckArrowVisual> _stuckArrowVisuals = new();
@@ -28,6 +32,9 @@ public partial class Game1
     private readonly List<ShellVisual> _shellVisuals = new();
     private readonly List<RocketSmokeVisual> _rocketSmokeVisuals = new();
     private readonly Dictionary<int, FrozenSpyFrameState> _lastVisibleEnemySpyFrameStates = new();
+    private readonly Dictionary<int, ulong> _lastVisibleEnemySpyObservationEpochs = new();
+    private readonly Dictionary<int, ulong> _consumedFrozenSpyObservationEpochs = new();
+    private ulong _nextFrozenSpyObservationEpoch;
     private readonly List<FrozenSpyVisual> _frozenSpyVisuals = new();
     private readonly Dictionary<int, FrozenSpyFrameState> _lastHeavyDashFrameStates = new();
     private readonly Dictionary<int, int> _heavyDashTrailTickCounters = new();
@@ -80,6 +87,9 @@ public partial class Game1
     private readonly List<CivvieUmbrellaShieldBlockVisual> _civvieUmbrellaShieldBlockVisuals = new();
     private readonly List<SnapshotVisualEvent> _pendingNetworkVisualEvents = new();
     private readonly List<RecentPredictedExplosionVisual> _recentPredictedExplosionVisuals = new();
+    private readonly AuthoritativeExplosionPresentationTracker _authoritativeExplosionPresentations = new();
+    private readonly List<RecentPredictedAirBlastVisual> _recentPredictedAirBlastVisuals = new();
+    private uint _lastPresentedPredictedAirBlastInputSequence;
     private readonly HashSet<ulong> _presentedNetworkExplosionSoundEventIds = new();
     private readonly HashSet<WorldSoundEvent> _presentedLocalExplosionSoundEvents = new();
     private readonly HashSet<ulong> _processedNetworkVisualEventIds = new();
@@ -88,6 +98,8 @@ public partial class Game1
     private const int RecentPredictedExplosionVisualEchoLifetimeTicks = 24;
     private const int RecentPredictedExplosionVisualEchoLimit = 32;
     private const float RecentPredictedExplosionVisualEchoDistanceSquared = 64f * 64f;
+    private const int RecentPredictedAirBlastVisualEchoLifetimeTicks = 30;
+    private const float RecentPredictedAirBlastVisualEchoDistanceSquared = 64f * 64f;
     private int _nextClientBackstabVisualId = -1;
     private int _spySuperjumpTrajectoryAnimationTicks;
     private const int TrajectoryPreviewMaxTicks = 300;
@@ -153,11 +165,17 @@ public partial class Game1
         _civvieUmbrellaShieldBlockVisuals.Clear();
         _pendingNetworkVisualEvents.Clear();
         _recentPredictedExplosionVisuals.Clear();
+        _authoritativeExplosionPresentations.Clear();
+        _recentPredictedAirBlastVisuals.Clear();
+        _lastPresentedPredictedAirBlastInputSequence = 0;
         _presentedNetworkExplosionSoundEventIds.Clear();
         _presentedLocalExplosionSoundEvents.Clear();
         _pendingNetworkDamageEvents.Clear();
         _frozenSpyVisuals.Clear();
         _lastVisibleEnemySpyFrameStates.Clear();
+        _lastVisibleEnemySpyObservationEpochs.Clear();
+        _consumedFrozenSpyObservationEpochs.Clear();
+        _nextFrozenSpyObservationEpoch = 0;
         _lastHeavyDashFrameStates.Clear();
         _heavyDashTrailTickCounters.Clear();
         _heavyDashTrailLastSpawnPositions.Clear();
@@ -317,11 +335,16 @@ public partial class Game1
             return false;
         }
 
+        return HasRecentPredictedExplosionVisual(visualEvent.X, visualEvent.Y);
+    }
+
+    private bool HasRecentPredictedExplosionVisual(float x, float y)
+    {
         for (var index = 0; index < _recentPredictedExplosionVisuals.Count; index += 1)
         {
             var recent = _recentPredictedExplosionVisuals[index];
-            var deltaX = visualEvent.X - recent.X;
-            var deltaY = visualEvent.Y - recent.Y;
+            var deltaX = x - recent.X;
+            var deltaY = y - recent.Y;
             if ((deltaX * deltaX) + (deltaY * deltaY) <= RecentPredictedExplosionVisualEchoDistanceSquared)
             {
                 return true;
@@ -713,13 +736,125 @@ public partial class Game1
         }
     }
 
+    private void AdvanceRecentPredictedAirBlastVisuals()
+    {
+        for (var index = _recentPredictedAirBlastVisuals.Count - 1; index >= 0; index -= 1)
+        {
+            var cue = _recentPredictedAirBlastVisuals[index];
+            cue.TicksRemaining -= 1;
+            if (cue.TicksRemaining <= 0)
+            {
+                _recentPredictedAirBlastVisuals.RemoveAt(index);
+            }
+        }
+    }
+
+    private void PresentPredictedAirBlastVisual(PlayerEntity player, uint inputSequence)
+    {
+        // Prediction regression harnesses can invoke action logic on an
+        // uninitialized Game1 without constructing visual controllers.
+        if (_recentPredictedAirBlastVisuals is null)
+        {
+            return;
+        }
+
+        if (inputSequence == 0
+            || (_lastPresentedPredictedAirBlastInputSequence != 0
+                && !IsNewerPredictedInputSequence(inputSequence, _lastPresentedPredictedAirBlastInputSequence)))
+        {
+            return;
+        }
+
+        _lastPresentedPredictedAirBlastInputSequence = inputSequence;
+
+        var radians = player.AimDirectionDegrees * (MathF.PI / 180f);
+        var x = player.X + MathF.Cos(radians) * 25f;
+        var y = player.Y + MathF.Sin(radians) * 25f;
+        _recentPredictedAirBlastVisuals.Add(new RecentPredictedAirBlastVisual(
+            inputSequence,
+            x,
+            y,
+            player.AimDirectionDegrees,
+            RecentPredictedAirBlastVisualEchoLifetimeTicks));
+        PlayVisualEvent("AirBlast", x, y, player.AimDirectionDegrees, 1);
+    }
+
+    internal static bool IsNewerPredictedInputSequence(uint candidate, uint previous)
+    {
+        return candidate != previous && unchecked((int)(candidate - previous)) > 0;
+    }
+
+    private bool ShouldSuppressPredictedAirBlastVisualEcho(SnapshotVisualEvent visualEvent)
+    {
+        if (!string.Equals(visualEvent.EffectName, "AirBlast", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        for (var index = 0; index < _recentPredictedAirBlastVisuals.Count; index += 1)
+        {
+            var cue = _recentPredictedAirBlastVisuals[index];
+            var deltaX = cue.X - visualEvent.X;
+            var deltaY = cue.Y - visualEvent.Y;
+            if ((deltaX * deltaX) + (deltaY * deltaY) > RecentPredictedAirBlastVisualEchoDistanceSquared)
+            {
+                continue;
+            }
+
+            var angleDelta = MathF.Abs(NormalizePresentationDegrees(cue.DirectionDegrees - visualEvent.DirectionDegrees));
+            if (angleDelta <= 25f || angleDelta >= 335f)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private bool ShouldPresentAuthoritativeExplosionVisual(SnapshotVisualEvent visualEvent)
+    {
+        return !string.Equals(visualEvent.EffectName, "Explosion", StringComparison.OrdinalIgnoreCase)
+            || _authoritativeExplosionPresentations.ShouldPresent(
+                visualEvent.SourceFrame,
+                visualEvent.X,
+                visualEvent.Y,
+                AuthoritativeExplosionPresentationChannel.Visual);
+    }
+
+    private bool ShouldPresentAuthoritativeExplosionSound(WorldSoundEvent soundEvent)
+    {
+        return soundEvent.EventId == 0
+            || _authoritativeExplosionPresentations.ShouldPresent(
+                soundEvent.SourceFrame,
+                soundEvent.X,
+                soundEvent.Y,
+                AuthoritativeExplosionPresentationChannel.Sound);
+    }
+
+    private static float NormalizePresentationDegrees(float degrees)
+    {
+        while (degrees < 0f)
+        {
+            degrees += 360f;
+        }
+
+        while (degrees >= 360f)
+        {
+            degrees -= 360f;
+        }
+
+        return degrees;
+    }
+
     // Restored from the original Huntsman PR (9bc0bb18). Keep this separate from
     // the Spy superjump preview: the bow's projectile path uses source-tick
     // integration and the weapon rotation pivot, not the superjump renderer.
     private void DrawSniperBowAimArc(Vector2 cameraPosition)
     {
         var localPlayer = _world.LocalPlayer;
-        if (localPlayer is null || !localPlayer.IsAlive || !GetPlayerIsSniperBowEquipped(localPlayer))
+        var isBow = localPlayer is not null && GetPlayerIsSniperBowEquipped(localPlayer);
+        var isMortar = localPlayer is not null && GetPlayerIsMortarLauncherEquipped(localPlayer);
+        if (localPlayer is null || !localPlayer.IsAlive || (!isBow && !isMortar))
         {
             return;
         }
@@ -730,11 +865,17 @@ public partial class Game1
             return;
         }
 
-        var chargeFraction = float.Min(1f, chargeTicks / (float)PlayerEntity.SniperBowMaxChargeTicks);
+        var fullChargeTicks = isMortar
+            ? PlayerEntity.MortarLauncherMaxChargeTicks
+            : localPlayer.LastToDieSniperBowFullChargeTicks;
+        var chargeFraction = float.Min(1f, chargeTicks / (float)fullChargeTicks);
         var chargeDirection = GetLocalSniperBowAimDirectionDegrees(localPlayer);
         var radians = chargeDirection * (MathF.PI / 180f);
-        var velocity = PlayerEntity.SniperBowMinVelocity
-            + (PlayerEntity.SniperBowMaxVelocity - PlayerEntity.SniperBowMinVelocity) * chargeFraction;
+        var velocity = isMortar
+            ? localPlayer.PrimaryWeapon.MinShotSpeed
+                + (localPlayer.PrimaryWeapon.AdditionalRandomShotSpeed * chargeFraction)
+            : PlayerEntity.SniperBowMinVelocity
+                + (PlayerEntity.SniperBowMaxVelocity - PlayerEntity.SniperBowMinVelocity) * chargeFraction;
         var velocityX = MathF.Cos(radians) * velocity;
         var velocityY = MathF.Sin(radians) * velocity;
 
@@ -745,7 +886,9 @@ public partial class Game1
             spawnY = localPlayer.Y + PlayerEntity.SniperBowPivotOffsetY;
         }
 
-        const float gravityPerTick = ArrowProjectileEntity.GravityPerTick;
+        var gravityPerTick = isMortar
+            ? PlayerEntity.MortarLauncherGravityPerTick
+            : ArrowProjectileEntity.GravityPerTick;
         const int maxTicks = TrajectoryPreviewMaxTicks;
         const float collisionRadius = 1f;
         var trajectoryPoints = new List<(float X, float Y)>(maxTicks + 1)
@@ -1129,11 +1272,19 @@ public partial class Game1
             bodyYOffset,
             tint,
             drawIntelOverlay);
+        _lastVisibleEnemySpyObservationEpochs[player.Id] = ++_nextFrozenSpyObservationEpoch;
     }
 
     private void SpawnFrozenSpyVisual(int playerId)
     {
         if (!_lastVisibleEnemySpyFrameStates.TryGetValue(playerId, out var frameState))
+        {
+            return;
+        }
+
+        if (!_lastVisibleEnemySpyObservationEpochs.TryGetValue(playerId, out var observationEpoch)
+            || (_consumedFrozenSpyObservationEpochs.TryGetValue(playerId, out var consumedEpoch)
+                && !ShouldConsumeFrozenSpyObservation(observationEpoch, consumedEpoch)))
         {
             return;
         }
@@ -1146,7 +1297,13 @@ public partial class Game1
             }
         }
 
+        _consumedFrozenSpyObservationEpochs[playerId] = observationEpoch;
         _frozenSpyVisuals.Add(new FrozenSpyVisual(playerId, frameState, lifetimeTicks: 30));
+    }
+
+    internal static bool ShouldConsumeFrozenSpyObservation(ulong observationEpoch, ulong consumedEpoch)
+    {
+        return observationEpoch != 0 && observationEpoch != consumedEpoch;
     }
 
     private void RemoveFrozenSpyVisualsForPlayer(int playerId)
@@ -1163,6 +1320,8 @@ public partial class Game1
     private void ResetFrozenSpyStateForPlayer(int playerId)
     {
         _lastVisibleEnemySpyFrameStates.Remove(playerId);
+        _lastVisibleEnemySpyObservationEpochs.Remove(playerId);
+        _consumedFrozenSpyObservationEpochs.Remove(playerId);
         RemoveFrozenSpyVisualsForPlayer(playerId);
     }
 
@@ -1302,6 +1461,7 @@ public partial class Game1
     private sealed class ExplosionVisual
     {
         public const int LifetimeSourceTicks = 13;
+        public const float PlaybackRate = 0.8f;
 
         public ExplosionVisual(float x, float y)
         {
@@ -1434,6 +1594,29 @@ public partial class Game1
 
         public float RotationRadians { get; }
 
+        public int TicksRemaining { get; set; }
+    }
+
+    private sealed class RecentPredictedAirBlastVisual
+    {
+        public RecentPredictedAirBlastVisual(
+            uint inputSequence,
+            float x,
+            float y,
+            float directionDegrees,
+            int ticksRemaining)
+        {
+            InputSequence = inputSequence;
+            X = x;
+            Y = y;
+            DirectionDegrees = directionDegrees;
+            TicksRemaining = ticksRemaining;
+        }
+
+        public uint InputSequence { get; }
+        public float X { get; }
+        public float Y { get; }
+        public float DirectionDegrees { get; }
         public int TicksRemaining { get; set; }
     }
 

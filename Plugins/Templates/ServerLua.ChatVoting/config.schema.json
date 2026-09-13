@@ -1,25 +1,11 @@
 {
   "type": "object",
   "properties": {
-    "voteDurationSeconds": {
-      "type": "integer",
-      "minimum": 10,
-      "maximum": 300,
-      "default": 30
+    "enabled": {
+      "type": "boolean",
+      "default": true
     },
-    "cooldownSeconds": {
-      "type": "integer",
-      "minimum": 0,
-      "maximum": 600,
-      "default": 20
-    },
-    "minimumEligiblePlayers": {
-      "type": "integer",
-      "minimum": 1,
-      "maximum": 32,
-      "default": 1
-    },
-    "allowSpectatorsToVote": {
+    "preservePlayerStats": {
       "type": "boolean",
       "default": false
     }

@@ -582,6 +582,15 @@ public static class SimpleLevelFactory
 
     private static (string? RoomSourcePath, string? CollisionMaskSourcePath) FindStockMapSource(OpenGarrisonStockMapDefinition definition)
     {
+        if (ClassicStockMapCatalog.TryGetVariant(definition.LevelName, out var classic))
+        {
+            // Never fall through to an identically named redraw or source-room asset.
+            var runtimePath = ContentRoot.GetPath(classic.RelativeSourcePath.Split('/'));
+            if (File.Exists(runtimePath) || BrowserContentCatalog.TryGetBinaryForPath(runtimePath, out _))
+                return (runtimePath, null);
+            return (ProjectSourceLocator.FindFile(Path.Combine("Core", "Content", classic.RelativeSourcePath)), null);
+        }
+
         var packageManifestPath = FindStockMapPackageSourcePath(definition);
         if (!string.IsNullOrWhiteSpace(packageManifestPath))
         {
@@ -823,28 +832,7 @@ public static class SimpleLevelFactory
 
     private static Func<float, bool> BuildMapAreaFilter(int mapAreaIndex, IReadOnlyList<float> boundaries)
     {
-        if (boundaries.Count == 0)
-        {
-            return _ => true;
-        }
-
-        var totalAreas = boundaries.Count + 1;
-        var clampedIndex = Math.Clamp(mapAreaIndex, 1, totalAreas);
-        if (clampedIndex == 1)
-        {
-            var upper = boundaries[0];
-            return y => y <= 0f || y <= upper;
-        }
-
-        if (clampedIndex < totalAreas)
-        {
-            var lower = boundaries[clampedIndex - 2];
-            var upper = boundaries[clampedIndex - 1];
-            return y => y <= 0f || (y >= lower && y <= upper);
-        }
-
-        var finalLower = boundaries[^1];
-        return y => y <= 0f || y >= finalLower;
+        return y => AreaTransitionMetadata.IsInArea(y, mapAreaIndex, boundaries);
     }
 
     private static IReadOnlyList<T> FilterByArea<T>(IReadOnlyList<T> source, Func<float, bool> includeY)

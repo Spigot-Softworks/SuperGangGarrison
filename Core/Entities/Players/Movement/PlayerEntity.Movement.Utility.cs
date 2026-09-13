@@ -63,9 +63,16 @@ public sealed partial class PlayerEntity
             return LastToDieSniperExtremeConditioningEnabled ? 1f : SniperScopedMoveScale;
         }
 
-        if (ClassId == PlayerClass.Heavy && input.FirePrimary)
+        if (ClassId == PlayerClass.Heavy
+            && PrimaryWeapon.Kind == PrimaryWeaponKind.Minigun
+            && input.FirePrimary)
         {
             return HeavyPrimaryMoveScale;
+        }
+
+        if (IsMortarLauncherEquipped && MortarLauncherChargeTicks > 0)
+        {
+            return MortarLauncherMoveScale;
         }
 
         return 1f;
@@ -123,7 +130,7 @@ public sealed partial class PlayerEntity
         SniperChargeTicks = Math.Clamp(
             chargeTicks,
             0,
-            LastToDieSniperRifleFullChargeTicks);
+            SniperRifleFullChargeTicks);
     }
 
     internal void ApplyPredictionSniperBowChargeTicks(int chargeTicks)
@@ -131,7 +138,7 @@ public sealed partial class PlayerEntity
         SniperBowChargeTicks = Math.Clamp(
             chargeTicks,
             0,
-            LastToDieSniperBowFullChargeTicks);
+            IsMortarLauncherEquipped ? MortarLauncherMaxChargeTicks : LastToDieSniperBowFullChargeTicks);
     }
 
     private static float NormalizeDegrees(float degrees)

@@ -86,6 +86,13 @@ public partial class Game1
 
         public bool TryConnectToServer(NetworkEndpoint endpoint, bool addConsoleFeedback, OnlineConnectionIntent intent)
         {
+            if (IsRestrictedBrowserEdition
+                && (intent != OnlineConnectionIntent.Join
+                    || !OpenGarrison.ClientShared.ClientDistribution.AllowsEndpoint(endpoint.WebSocketUrl)))
+            {
+                _game.SetNetworkStatus("Join a Last to Die room to connect.");
+                return false;
+            }
             if (!_game._bootstrapController.CanEnterGameplaySession(out var bootstrapReason))
             {
                 _game.SetNetworkStatus(bootstrapReason ?? "Browser client assets are still loading.");
@@ -117,7 +124,7 @@ public partial class Game1
             for (var candidateIndex = 0; candidateIndex < candidates.Count; candidateIndex += 1)
             {
                 var candidate = candidates[candidateIndex];
-                if (TryConnectCandidate(candidate, intent, out var error))
+                if (TryConnectCandidate(endpoint, candidate, intent, out var error))
                 {
                     _nextPendingConnectionCandidateIndex = candidateIndex + 1;
                     PresentSuccessfulConnectionStart(endpoint, candidate, intent, addConsoleFeedback);
@@ -158,7 +165,7 @@ public partial class Game1
                 var candidateIndex = _nextPendingConnectionCandidateIndex;
                 var candidate = candidates[candidateIndex];
                 _nextPendingConnectionCandidateIndex = candidateIndex + 1;
-                if (TryConnectCandidate(candidate, intent, out var error))
+                if (TryConnectCandidate(endpoint, candidate, intent, out var error))
                 {
                     PresentSuccessfulConnectionStart(endpoint, candidate, intent, addConsoleFeedback: false);
                     return true;
@@ -180,6 +187,7 @@ public partial class Game1
         }
 
         private bool TryConnectCandidate(
+            NetworkEndpoint endpoint,
             NetworkEndpointCandidate candidate,
             OnlineConnectionIntent intent,
             out string error)
@@ -199,6 +207,11 @@ public partial class Game1
                 clientInstanceId);
             if (connected)
             {
+                if (CustomMapSyncService.TryCreateServerDownloadBaseUri(endpoint, candidate, out var mapDownloadBaseUri))
+                {
+                    _game._networkClient.SetMapDownloadBaseUri(mapDownloadBaseUri);
+                }
+
                 _game.EnsureAutomaticDemoRecordingForConnection(candidate.Host);
             }
 
@@ -212,7 +225,7 @@ public partial class Game1
             bool addConsoleFeedback)
         {
             _game.SetSocialPresenceNetworkEndpoint(endpoint);
-            _game.RecordRecentConnection(candidate.Host, candidate.Port);
+            if (!IsRestrictedBrowserEdition) _game.RecordRecentConnection(candidate.Host, candidate.Port);
             _game.ClearOnlinePlayerSocialProfiles();
             _game.ResetGameplayRuntimeState();
             // Online sessions must always start from default server-authoritative gameplay rules.
@@ -222,7 +235,7 @@ public partial class Game1
             _game.CloseLobbyBrowser(clearStatus: false);
             var transportLabel = FormatNetworkEndpointTransport(candidate.Transport);
             var actionLabel = intent == OnlineConnectionIntent.Watch ? "Watching" : "Connecting to";
-            _game.SetJoiningServerLoadingLabel(endpoint.AddressLabel);
+            _game.SetJoiningServerLoadingLabel(_game.HasManagedRoom ? "Last to Die" : endpoint.AddressLabel);
             _game.ShowJoiningServerLoadingOverlay();
             _game.SetNetworkStatus(
                 _game._lastToDieConnectionPresentationPending
@@ -377,6 +390,14 @@ public partial class Game1
 
         public void HandleWelcomeMessage(WelcomeMessage welcome)
         {
+            // Hello retries can leave more than one welcome in flight while a map loads.
+            // Once admitted, a repeated reply must not reset the world or join menus.
+            // Reconnect resets the slot, and replay seeks intentionally replay welcomes.
+            if (!_game._networkClient.IsReplayConnection && _game._networkClient.LocalPlayerSlot != 0)
+            {
+                return;
+            }
+
             ClearPendingConnectionCandidates();
             if (welcome.Version != ProtocolVersion.Current)
             {
@@ -387,6 +408,9 @@ public partial class Game1
                 return;
             }
 
+            // Map acquisition can span many frames. Keep normal pings running during
+            // that work instead of retrying an already completed handshake.
+            _game._networkClient.AcknowledgeWelcomeReceipt();
             var mapSyncStatus = _game.TryEnsureNetworkMapAvailable(
                 welcome.LevelName,
                 welcome.IsCustomMap,
@@ -443,10 +467,18 @@ public partial class Game1
                     && !_game._networkClient.IsSpectator,
                 statusMessage: _game._networkClient.IsSpectator ? "Connected as spectator." : string.Empty);
             _game.StopMenuMusic();
+            if (_game._peerRoomSession?.State is { Kind: "Practice", Players: { } roomPlayers })
+            {
+                var seat = roomPlayers.FirstOrDefault(player => player.Slot == welcome.PlayerSlot);
+                _game._networkClient.QueueTeamSelection(seat?.Team == "Blue" ? PlayerTeam.Blue : PlayerTeam.Red);
+                _game._teamSelectOpen = false;
+                _game.OpenGameplayClassSelection();
+            }
             _game.AddNetworkConsoleLine(
                 _game._networkClient.IsSpectator
                     ? $"connected to {welcome.ServerName} ({welcome.LevelName}) as spectator tickrate={welcome.TickRate}"
                     : $"connected to {welcome.ServerName} ({welcome.LevelName}) tickrate={welcome.TickRate}");
+            _game.BeginGameplayAccountAttach();
             _game.UploadSelectedCustomBubbleState();
         }
 

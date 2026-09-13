@@ -109,6 +109,8 @@ public partial class Game1
     private void StopHostedServer()
     {
         _hostedServerRuntime.Stop();
+        _hostedLastToDieSoloSimulationPauseState = null;
+        _hostedLastToDieSoloSimulationPauseRetryAtMilliseconds = 0;
         ClearHostedSocialPresenceEndpoint();
     }
 

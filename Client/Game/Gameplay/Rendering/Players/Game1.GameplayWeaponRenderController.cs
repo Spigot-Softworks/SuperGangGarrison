@@ -204,6 +204,17 @@ public partial class Game1
                 scale = new Vector2(facingScale * playerScale, playerScale);
             }
 
+            // The Mortar's loaded rocket sits inside the launcher, so it must be
+            // rendered after the body but before the launcher and its overlays.
+            DrawMortarLoadedRocket(
+                player,
+                roundedOrigin,
+                cameraPosition,
+                tint,
+                bodySelection,
+                facingScale,
+                rotation);
+
             if (_game.IsKritzUberWeaponOnlyVisual(player) && _game._uberOutlineEnabled)
             {
                 var teamColor = GameplayPlayerStatusEffectRenderController.GetUberOverlayColor(player.Team);
@@ -225,6 +236,62 @@ public partial class Game1
             DrawWeaponAnimationOverlay(player, weaponAnimationMode, weaponDefinition, roundedOrigin, cameraPosition, tint, bodySelection, facingScale);
 
             return true;
+        }
+
+        private void DrawMortarLoadedRocket(
+            PlayerEntity player,
+            Vector2 roundedOrigin,
+            Vector2 cameraPosition,
+            Color tint,
+            PlayerBodySpriteSelection bodySelection,
+            float facingScale,
+            float weaponRotation)
+        {
+            player = _game.GetPlayerPredictedPresentationState(player);
+            if (!player.IsMortarLauncherEquipped)
+            {
+                return;
+            }
+
+            var reloadRevealTicks = Math.Max(
+                1,
+                (int)MathF.Ceiling(player.PrimaryWeapon.AmmoReloadTicks * 0.30f));
+            var rocketIsLoaded = player.CurrentShells > 0
+                || (player.ReloadTicksUntilNextShell > 0
+                    && player.ReloadTicksUntilNextShell <= reloadRevealTicks);
+            if (!rocketIsLoaded)
+            {
+                return;
+            }
+
+            // Weapon rotation includes an extra half-turn for horizontally
+            // flipped sprites. Remove it so the unflipped rocket follows the
+            // exact same local/remote aim used to draw the launcher.
+            var aimRadians = facingScale < 0f
+                ? weaponRotation - MathF.PI
+                : weaponRotation;
+            var directionX = MathF.Cos(aimRadians);
+            var directionY = MathF.Sin(aimRadians);
+            var playerScale = player.PlayerScale;
+            const float nozzleForwardOffset = 17f;
+            const float nozzleVerticalOffset = -2f;
+            var nozzleX = roundedOrigin.X
+                + (directionX * nozzleForwardOffset * playerScale)
+                - (directionY * nozzleVerticalOffset * playerScale);
+            var nozzleY = roundedOrigin.Y
+                + (directionY * nozzleForwardOffset * playerScale)
+                + (directionX * nozzleVerticalOffset * playerScale)
+                + (bodySelection.EquipmentOffset * playerScale);
+            var rocketFrame = GetRocketSpriteFrame(player.Team);
+            _game.TryDrawSprite(
+                "RocketS",
+                rocketFrame,
+                nozzleX,
+                nozzleY,
+                cameraPosition,
+                tint,
+                aimRadians,
+                scale: playerScale);
         }
 
         public bool TryDrawPlayerHealingWeaponOutlineAtPosition(
@@ -858,6 +925,17 @@ public partial class Game1
 
         private static GameplayItemPresentationDefinition ResolveRenderPresentation(PlayerEntity player, bool forceCivvieUmbrellaPresentation = false)
         {
+            // Stock umbrella shielding is granted by the primary weapon. Its
+            // opening/hold/closing strip belongs to that ability, while the
+            // secondary weapon slot is empty in the current Civilian loadout.
+            if ((player.IsCivvieUmbrellaActive || forceCivvieUmbrellaPresentation)
+                && player.TryGetGameplayAbilityItem(GameplayAbilityConstants.SpecialChannel,
+                    BuiltInGameplayBehaviorIds.CivvieUmbrella, out var umbrellaAbility)
+                && !string.IsNullOrWhiteSpace(umbrellaAbility.Presentation.WorldSpriteName))
+            {
+                return umbrellaAbility.Presentation;
+            }
+
             if ((player.IsCivvieUmbrellaActive || forceCivvieUmbrellaPresentation)
                 && !string.IsNullOrWhiteSpace(player.GameplayLoadoutState.SecondaryItemId))
             {

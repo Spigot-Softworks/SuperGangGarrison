@@ -157,6 +157,7 @@ public sealed partial class SimulationWorld
             kritzCritBoostDamageMultiplier: snapshotPlayer.KritzCritBoostDamageMultiplier,
             isDispenserBuffed: snapshotPlayer.IsDispenserBuffed,
             dispenserAttackReloadSpeedMultiplier: snapshotPlayer.DispenserAttackReloadSpeedMultiplier);
+        player.HydrateReplicatedEngineerAlternateWeaponMode();
         player.HydrateNetworkRageState(
             snapshotPlayer.RageCharge,
             snapshotPlayer.IsRageReady,
@@ -227,6 +228,7 @@ public sealed partial class SimulationWorld
         ApplySnapshotSentries(snapshot.Sentries);
         ApplySnapshotSentryUpdates(snapshot.SentryUpdateStates);
         ApplySnapshotJumpPads(snapshot.JumpPads);
+        ApplySnapshotCivilDefenseTurrets(snapshot.CivilDefenseTurrets);
         ApplySnapshotShots(
             snapshot.Shots,
             snapshot.RemovedShotIds,
@@ -492,7 +494,9 @@ public sealed partial class SimulationWorld
             snapshot.RemovedFlareIds,
             IsSnapshotEntityCollectionComplete(snapshot, SnapshotEntityCollectionCompletenessFlags.Flares),
             _flares,
-            static (entity, state) => entity.Team == (PlayerTeam)state.Team && entity.OwnerId == state.OwnerId,
+            static (entity, state) => entity.Team == (PlayerTeam)state.Team
+                && entity.OwnerId == state.OwnerId
+                && entity.Style == (FlareProjectileStyle)state.FlareStyle,
             state =>
         {
                 var flare = new FlareProjectileEntity(
@@ -503,9 +507,11 @@ public sealed partial class SimulationWorld
                     state.Y,
                     state.VelocityX,
                     state.VelocityY,
+                    ticksRemaining: state.TicksRemaining,
                     damagePerHit: state.DamageValue > 0f
                         ? state.DamageValue
-                        : FlareProjectileEntity.DefaultDamagePerHit);
+                        : FlareProjectileEntity.DefaultDamagePerHit,
+                    style: (FlareProjectileStyle)state.FlareStyle);
                 flare.HydrateCritical(state.IsCritical, state.CriticalDamageMultiplier);
                 return flare;
             },
@@ -624,6 +630,16 @@ public sealed partial class SimulationWorld
         }
 
         return false;
+    }
+
+    private void ApplySnapshotCivilDefenseTurrets(IReadOnlyList<SnapshotCivilDefenseTurretState> turrets)
+    {
+        SyncSnapshotEntities(turrets, _civilDefenseTurrets, static state => state.Id,
+            static (entity, state) => entity.OwnerPlayerId == state.OwnerPlayerId && entity.Team == (PlayerTeam)state.Team,
+            state => new CivilDefenseTurretEntity(state.Id, state.OwnerPlayerId, (PlayerTeam)state.Team, state.X, state.Y, state.FacingDirectionX),
+            static (entity, state) => entity.ApplyNetworkState(state.X, state.Y, state.Health, state.HasLanded, state.IsBuilt,
+                state.FacingDirectionX, state.AimDirectionDegrees, state.ReloadTicksRemaining,
+                state.ShotTraceTicksRemaining, state.LastShotTargetX, state.LastShotTargetY));
     }
 
     private void ApplySnapshotJumpPads(IReadOnlyList<SnapshotJumpPadState> jumpPads)
@@ -811,6 +827,7 @@ public sealed partial class SimulationWorld
             state.FadeSourceTicksRemaining,
             state.PassedFriendlyPlayerIds);
         entity.HydrateCritical(state.IsCritical, state.CriticalDamageMultiplier);
+        entity.HydrateBallisticState(state.IsBallistic, state.BallisticGravityPerTick, state.SuppressSmokeTrail);
     }
 
     private static void ApplyFlameSnapshotState(FlameProjectileEntity entity, SnapshotFlameState state)
@@ -1031,7 +1048,10 @@ public sealed partial class SimulationWorld
                     distanceToTravel: state.DistanceToTravel,
                     isFading: state.IsFading,
                     fadeSourceTicksRemaining: state.FadeSourceTicksRemaining,
-                    passedFriendlyPlayerIds: state.PassedFriendlyPlayerIds);
+                    passedFriendlyPlayerIds: state.PassedFriendlyPlayerIds,
+                    isBallistic: state.IsBallistic,
+                    ballisticGravityPerTick: state.BallisticGravityPerTick,
+                    suppressSmokeTrail: state.SuppressSmokeTrail);
                 rocket.HydrateCritical(state.IsCritical, state.CriticalDamageMultiplier);
                 return rocket;
             },
@@ -1097,7 +1117,10 @@ public sealed partial class SimulationWorld
                 lastKnownRangeOriginY: e.LastKnownRangeOriginY,
                 distanceToTravel: e.DistanceToTravel,
                 isFading: e.IsFading,
-                fadeSourceTicksRemaining: e.FadeSourceTicksRemaining);
+                fadeSourceTicksRemaining: e.FadeSourceTicksRemaining,
+                isBallistic: e.IsBallistic,
+                ballisticGravityPerTick: e.BallisticGravityPerTick,
+                suppressSmokeTrail: e.SuppressSmokeTrail);
             rocket.HydrateCritical(e.IsCritical, e.CriticalDamageMultiplier);
 
             rocket.ApplyNetworkState(
@@ -1311,7 +1334,8 @@ public sealed partial class SimulationWorld
                 && entity.AnimationKind == (DeadBodyAnimationKind)state.AnimationKind
                 && entity.Width == state.Width
                 && entity.Height == state.Height
-                && entity.FacingLeft == state.FacingLeft,
+                && entity.FacingLeft == state.FacingLeft
+                && string.Equals(entity.GameplayClassId, state.GameplayClassId, StringComparison.Ordinal),
             state => new DeadBodyEntity(
                 state.Id,
                 state.SourcePlayerId,
@@ -1324,7 +1348,8 @@ public sealed partial class SimulationWorld
                 state.Height,
                 state.HorizontalSpeed,
                 state.VerticalSpeed,
-                state.FacingLeft),
+                state.FacingLeft,
+                state.GameplayClassId),
             static (entity, state) => entity.ApplyNetworkState(
                 state.X,
                 state.Y,
@@ -1484,6 +1509,7 @@ public sealed partial class SimulationWorld
             SynchronizeNetworkGibDeathPresentationCount(player.Id, appliedSnapshotPlayer.GibDeaths);
             ApplySnapshotPlayer(player, appliedSnapshotPlayer);
             ApplySnapshotNetworkPlayerPingMilliseconds(appliedSnapshotPlayer.Slot, appliedSnapshotPlayer.PingMilliseconds);
+            ApplySnapshotNetworkPlayerBot(appliedSnapshotPlayer.Slot, appliedSnapshotPlayer.IsBot);
             if (hadRemotePlayer
                 && wasAlive
                 && !player.IsAlive
@@ -1529,6 +1555,7 @@ public sealed partial class SimulationWorld
             {
                 ApplySnapshotNetworkPlayerReady(slot, ready: false);
                 ApplySnapshotNetworkPlayerPingMilliseconds(slot, -1);
+                ApplySnapshotNetworkPlayerBot(slot, isBot: false);
                 _presentedNetworkGibDeathCountsByPlayerId.Remove(removedPlayer.Id);
             }
         }
@@ -1573,6 +1600,7 @@ public sealed partial class SimulationWorld
             }
 
             ApplySnapshotPlayer(player, appliedSnapshotPlayer);
+            ApplySnapshotNetworkPlayerBot(appliedSnapshotPlayer.Slot, appliedSnapshotPlayer.IsBot);
             _remoteSnapshotScoreboardPlayers.Add(player);
         }
 
@@ -1610,7 +1638,12 @@ public sealed partial class SimulationWorld
 
         for (var index = 0; index < _snapshotStaleRemotePlayerSlots.Count; index += 1)
         {
-            _remoteSnapshotScoreboardPlayersBySlot.Remove(_snapshotStaleRemotePlayerSlots[index]);
+            var slot = _snapshotStaleRemotePlayerSlots[index];
+            _remoteSnapshotScoreboardPlayersBySlot.Remove(slot);
+            if (!_remoteSnapshotPlayersBySlot.ContainsKey(slot))
+            {
+                ApplySnapshotNetworkPlayerBot(slot, isBot: false);
+            }
         }
     }
 

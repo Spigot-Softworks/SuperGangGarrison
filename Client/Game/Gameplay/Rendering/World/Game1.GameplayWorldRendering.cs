@@ -485,7 +485,7 @@ public partial class Game1
 
     private void DrawLocalPlayer(Vector2 cameraPosition, Rectangle playerRectangle)
     {
-        if (!_world.LocalPlayer.IsAlive)
+        if (!_world.LocalPlayer.IsAlive || !HasFreshPlayerRenderHistory(_world.LocalPlayer))
         {
             return;
         }

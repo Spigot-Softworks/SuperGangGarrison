@@ -1,2 +1,4 @@
 fastapi==0.115.*
 uvicorn[standard]==0.34.*
+websockets==15.0.*
+anyio>=4,<5

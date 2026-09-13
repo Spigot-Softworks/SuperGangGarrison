@@ -178,9 +178,22 @@ public sealed class LastToDieFoundationTests
             2,
             [LastToDiePerkIds.Demoknight.MoveSpeed.Value]));
         Assert.Equal(baseRunPower * 1.3f, player.RunPower, precision: 3);
+        Assert.True(player.IsExperimentalDemoknightEnabled);
+        Assert.Equal(100, player.GetExperimentalDemoknightSwordDamage());
+
+        var predictionShadow = new PlayerEntity(
+            5000,
+            CharacterClassCatalog.Demoman,
+            "PredictionShadow");
+        predictionShadow.RestorePredictionState(player.CapturePredictionState());
+        Assert.True(predictionShadow.IsExperimentalDemoknightEnabled);
+        Assert.Equal(player.RunPower, predictionShadow.RunPower, precision: 3);
+        Assert.Equal(100, predictionShadow.GetExperimentalDemoknightSwordDamage());
+        Assert.True(predictionShadow.TryFireExperimentalDemoknightSword());
 
         Assert.True(world.ClearLastToDiePlayerPredictionProfile(2));
         Assert.Equal(baseRunPower, player.RunPower, precision: 3);
+        Assert.False(player.IsExperimentalDemoknightEnabled);
     }
 
     [Fact]
@@ -241,6 +254,27 @@ public sealed class LastToDieFoundationTests
     }
 
     [Fact]
+    public void EndlessEnemyScalingChangesMovementAndOutgoingDamagePerSlot()
+    {
+        var world = new SimulationWorld();
+        Assert.True(world.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.TryPrepareNetworkPlayerJoin(3));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(3, PlayerClass.Heavy));
+        Assert.True(world.TrySetNetworkPlayerTeam(2, PlayerTeam.Blue, respawnLivePlayerImmediately: true));
+        Assert.True(world.TrySetNetworkPlayerTeam(3, PlayerTeam.Red, respawnLivePlayerImmediately: true));
+        Assert.True(world.TryGetNetworkPlayer(2, out var enemy));
+        Assert.True(world.TryGetNetworkPlayer(3, out var survivor));
+        var healthBefore = survivor.Health;
+
+        Assert.True(world.TrySetNetworkPlayerLastToDieEnemyScaling(2, 1.15f, 1.15f));
+        Assert.Equal(1.15f, enemy.ServerMovementSpeedScale, precision: 3);
+        Assert.True(world.TryApplyGameplayDamage(survivor.Id, 20f, enemy.Id, null));
+
+        Assert.Equal(healthBefore - 23, survivor.Health);
+    }
+
+    [Fact]
     public void CatalogRejectsAsymmetricExclusion()
     {
         var survivors = LastToDieSurvivorCatalog.CreateStock();
@@ -298,14 +332,55 @@ public sealed class LastToDieFoundationTests
     }
 
     [Fact]
-    public void DefaultRulesetMatchesExistingNineStageCurve()
+    public void DefaultRulesetBecomesEndlessAfterTheExistingNineStageCurve()
     {
         var ruleset = LastToDieRuleset.CreateDefault(ticksPerSecond: 30);
 
         Assert.Equal(new LastToDieStageDefinition(1, 2, 5_400), ruleset.GetStage(1));
         Assert.Equal(new LastToDieStageDefinition(9, 10, 19_800), ruleset.GetStage(9));
+        Assert.Equal(new LastToDieStageDefinition(10, 10, 19_800), ruleset.GetStage(10));
+        Assert.True(ruleset.Endless);
+        Assert.False(LastToDieRuleset.CanSpawnSniper(8));
+        Assert.True(LastToDieRuleset.CanSpawnSniper(9));
+        Assert.Equal(1f, LastToDieRuleset.GetEnemyStatMultiplier(9));
+        Assert.Equal(1.05f, LastToDieRuleset.GetEnemyStatMultiplier(10));
+        Assert.Equal(1.2f, LastToDieRuleset.GetEnemyStatMultiplier(13));
         Assert.Equal(54_000, ruleset.RunTimeLimitTicks);
         Assert.Equal(90, ruleset.KillTimerReductionTicks);
+    }
+
+    [Fact]
+    public void EndlessDirectorAdvancesPastItsFormerFinalStage()
+    {
+        var survivors = LastToDieSurvivorCatalog.CreateStock();
+        var director = new LastToDieDirector(
+            LastToDieRuleset.CreateDefault() with { StageCount = 1, Endless = true },
+            survivors,
+            LastToDieExpansionPerkCatalog.Create(survivors),
+            ["Truefort"],
+            LastToDieDifficulty.Standard,
+            seed: 17,
+            RunId);
+        AdvanceToOpeningOffer(director);
+        var openingOffer = GetSolo(director).ActiveOffer!;
+        Assert.True(director.TrySelectReward(
+            SoloPlayerId,
+            openingOffer.OfferId,
+            openingOffer.Choices[0],
+            out var rewardError), rewardError);
+        Assert.True(director.TrySetStageReady(SoloPlayerId, out var readyError), readyError);
+        Assert.True(director.TryBeginStage(100, out var beginError), beginError);
+        Assert.True(director.TryAdvancePlayingState(101, true, false, false, out var clearError), clearError);
+
+        Assert.Equal(LastToDiePhase.RewardChoice, director.Phase);
+        var secondOffer = GetSolo(director).ActiveOffer!;
+        Assert.True(director.TrySelectReward(
+            SoloPlayerId,
+            secondOffer.OfferId,
+            secondOffer.Choices[0],
+            out var secondRewardError), secondRewardError);
+        Assert.Equal(2, director.CreateSnapshot().StageNumber);
+        Assert.Equal(LastToDiePhase.LoadingStage, director.Phase);
     }
 
     [Fact]
@@ -400,7 +475,7 @@ public sealed class LastToDieFoundationTests
         var playing = director.CreateSnapshot();
         Assert.Equal(LastToDiePhase.Playing, playing.Phase);
         Assert.Equal(5_500, playing.StageEndServerTick);
-        Assert.Equal(54_100, playing.RunEndServerTick);
+        Assert.Equal(0, playing.RunEndServerTick);
 
         var structuralRevision = playing.StructuralRevision;
         Assert.True(director.TryRecordKills(SoloPlayerId, killCount: 2, serverTick: 200, out var killError), killError);
@@ -435,14 +510,11 @@ public sealed class LastToDieFoundationTests
     }
 
     [Fact]
-    public void LobbyStartRequiresEveryConfiguredSeatReady()
+    public void LobbyStartRequiresEveryPresentPlayerReady()
     {
         var director = CreateDirector(seed: 101);
         Assert.True(director.TryAddPlayer(SoloPlayerId, out var firstAddError), firstAddError);
         Assert.True(director.TrySetLobbyReady(SoloPlayerId, true, out var firstReadyError), firstReadyError);
-        Assert.False(director.TryStart(out var missingSeatError, requireReadyRoster: true));
-        Assert.Contains("seat", missingSeatError, StringComparison.OrdinalIgnoreCase);
-
         Assert.True(director.TryAddPlayer(SecondPlayerId, out var secondAddError), secondAddError);
         Assert.False(director.TryStart(out var unreadyError, requireReadyRoster: true));
         Assert.Contains("ready", unreadyError, StringComparison.OrdinalIgnoreCase);
@@ -598,25 +670,48 @@ public sealed class LastToDieFoundationTests
         Assert.Equal(LastToDieRuleset.CoopStartingEnemyCount, coopLoading.EnemyCount);
     }
 
-    [Fact]
-    public void ThreeOrMoreEnemiesAlwaysUseBothSpawnDirectionsWithSeededAssignments()
+    [Theory]
+    [InlineData(GameModeKind.KingOfTheHill)]
+    [InlineData(GameModeKind.DoubleKingOfTheHill)]
+    public void KothWithThreeOrMoreEnemiesUsesBothSpawnDirectionsWithSeededAssignments(GameModeKind mapMode)
     {
         Assert.All(
             GameServer.BuildLastToDieEnemySpawnSides(
                 2,
+                mapMode,
                 new LastToDieRandom(seed: 300, sequence: 7)),
             side => Assert.Equal(PlayerTeam.Blue, side));
 
         var first = GameServer.BuildLastToDieEnemySpawnSides(
             7,
+            mapMode,
             new LastToDieRandom(seed: 301, sequence: 7));
         var replay = GameServer.BuildLastToDieEnemySpawnSides(
             7,
+            mapMode,
             new LastToDieRandom(seed: 301, sequence: 7));
 
         Assert.Equal(first, replay);
         Assert.Contains(PlayerTeam.Red, first);
         Assert.Contains(PlayerTeam.Blue, first);
+    }
+
+    [Theory]
+    [InlineData(GameModeKind.CaptureTheFlag)]
+    [InlineData(GameModeKind.ControlPoint)]
+    [InlineData(GameModeKind.Arena)]
+    [InlineData(GameModeKind.Generator)]
+    [InlineData(GameModeKind.TeamDeathmatch)]
+    [InlineData(GameModeKind.Scr)]
+    [InlineData(GameModeKind.Vip)]
+    public void NonKothMapsAlwaysUseTheNormalBlueEnemySpawn(GameModeKind mapMode)
+    {
+        var sides = GameServer.BuildLastToDieEnemySpawnSides(
+            12,
+            mapMode,
+            new LastToDieRandom(seed: 302, sequence: 7));
+
+        Assert.All(sides, side => Assert.Equal(PlayerTeam.Blue, side));
     }
 
     [Fact]
@@ -628,6 +723,26 @@ public sealed class LastToDieFoundationTests
         Assert.Equal(73, GetSolo(director).ConquistadorStacks);
         Assert.False(director.TrySetPlayerConquistadorStacks(SoloPlayerId, 101, out _));
         Assert.Equal(73, GetSolo(director).ConquistadorStacks);
+    }
+
+    [Fact]
+    public void TimeoutWaitsForPointOwnershipButObjectiveWinRemainsImmediate()
+    {
+        var director = CreatePlayingDirector();
+        var deadline = director.CreateSnapshot().StageEndServerTick;
+        Assert.True(director.TryAdvancePlayingState(deadline, false, false, false, out _, false));
+        Assert.Equal(LastToDiePhase.Playing, director.Phase);
+        Assert.True(director.TryAdvancePlayingDeadline(deadline + 1, out _));
+        Assert.Equal(LastToDiePhase.Playing, director.Phase);
+        Assert.True(director.TryAdvancePlayingState(deadline + 2, false, false, false, out _, true));
+        Assert.Equal(LastToDiePhase.RewardChoice, director.Phase);
+
+        director = CreatePlayingDirector();
+        Assert.True(director.TryAdvancePlayingState(101, true, false, false, out _, false));
+        Assert.Equal(LastToDiePhase.RewardChoice, director.Phase);
+        director = CreatePlayingDirector();
+        Assert.True(director.TryAdvancePlayingState(101, false, true, false, out _, false));
+        Assert.Equal(LastToDiePhase.Lost, director.Phase);
     }
 
     private static LastToDieDirector CreateDirector(ulong seed)

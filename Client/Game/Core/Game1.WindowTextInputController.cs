@@ -27,6 +27,8 @@ public partial class Game1
                 return;
             }
 
+            if (_game.HandleManagedRoomText(character)) return;
+
             if (_game.HandleGarrisonBuilderTextInput(character))
             {
                 return;
@@ -57,6 +59,11 @@ public partial class Game1
                 return;
             }
 
+            if (_game._friendsMenuOpen && _game._playerCardEditorOpen && _game.TryHandlePlayerCardBioTextInput(character))
+            {
+                return;
+            }
+
             if (_game._friendsMenuOpen && _game._editingFriendCode && _game._menuTextInputController.TryHandleFriendCodeEdit(character))
             {
                 return;
@@ -73,6 +80,11 @@ public partial class Game1
             }
 
             if (_game._optionsMenuOpen && _game._editingPlayerName && _game._menuTextInputController.TryHandlePlayerNameEdit(character))
+            {
+                return;
+            }
+
+            if (_game._optionsMenuOpen && _game.TryHandleAccountDialogTextInput(character))
             {
                 return;
             }

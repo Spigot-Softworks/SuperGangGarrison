@@ -17,6 +17,10 @@ public partial class Game1
 
         public void ResetGameplayRuntimeState()
         {
+            // Stage/map presentation resets keep the membership for this connection.
+            // EnsureVoiceChat resets it when the actual network connection changes.
+            if (_game._networkClient.IsConnected) _game._voiceChat?.SuspendCapture();
+            else _game.ResetVoiceChat();
             _game.CancelPracticeNavigationWarmup();
             _game.ResetClientTimingState();
             _game._lastAppliedSnapshotFrame = 0;
@@ -42,7 +46,13 @@ public partial class Game1
             _game._pendingNetworkSoundEvents.Clear();
             _game._pendingNetworkVisualEvents.Clear();
             _game._pendingNetworkDamageEvents.Clear();
+            _game._authoritativeExplosionPresentations.Clear();
+            _game._gameplayAccountSessionTask = null;
+            _game._pendingGameplayAccountAttachRequestId = 0;
+            _game._gameplayAccountTokenExpiresAt = DateTimeOffset.MinValue;
+            _game._nextGameplayAccountAttachAttemptAt = DateTimeOffset.MinValue;
             _game.ResetBuffBannerReadySoundObservation();
+            _game.ResetVotePresentation();
             _game.ResetHealingCharacterEffects();
             _game.ResetBackstabVisuals();
             _game._hasPredictedLocalPlayerPosition = false;
@@ -60,6 +70,8 @@ public partial class Game1
             _game._networkWorldWarmupFullSnapshotApplied = false;
             _game._networkWorldWarmupAppliedSnapshotsAfterFull = 0;
             _game._networkWorldWarmupStartedClockSeconds = -1d;
+            _game._networkWorldWarmupAcceptNextAppliedSnapshotAsBaseline = false;
+            _game._networkPresentationObservedLastToDiePhase = null;
             _game.ResetSnapshotPresentationHistories();
             _game.ResetCivviePogoTrickPresentationObservation();
             _game._localOverheadChatMessage = null;

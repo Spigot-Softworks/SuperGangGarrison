@@ -27,7 +27,8 @@ public sealed record OpenGarrisonPluginHostCapabilities(
     bool Hotkeys,
     bool ScoreboardPanels,
     bool AdminOperations,
-    bool LoadoutSelection);
+    bool LoadoutSelection,
+    bool Voting = false);
 
 public sealed record OpenGarrisonPluginRuntimeSurface(
     OpenGarrisonPluginRuntimeKind Runtime,
@@ -55,7 +56,8 @@ public sealed record OpenGarrisonPluginHostApi(
                 Hotkeys: true,
                 ScoreboardPanels: true,
                 AdminOperations: false,
-                LoadoutSelection: false),
+                LoadoutSelection: false,
+                Voting: false),
             [
                 new OpenGarrisonPluginRuntimeSurface(
                     OpenGarrisonPluginRuntimeKind.Lua,
@@ -79,7 +81,8 @@ public sealed record OpenGarrisonPluginHostApi(
                 Hotkeys: false,
                 ScoreboardPanels: false,
                 AdminOperations: true,
-                LoadoutSelection: true),
+                LoadoutSelection: true,
+                Voting: true),
             [
                 new OpenGarrisonPluginRuntimeSurface(
                     OpenGarrisonPluginRuntimeKind.Lua,

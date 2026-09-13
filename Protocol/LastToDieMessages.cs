@@ -13,6 +13,8 @@ public enum LastToDieCommandKind : byte
     Leave = 7,
     Retry = 8,
     ReturnToLobby = 9,
+    PauseSolo = 10,
+    ResumeSolo = 11,
 }
 
 public enum LastToDieCommandResultKind : byte
@@ -74,7 +76,8 @@ public sealed record LastToDiePlayerSnapshotMessage(
     int Kills,
     bool IsHost = false,
     int ConquistadorStacks = 0,
-    long ReconnectGraceEndServerTick = 0);
+    long ReconnectGraceEndServerTick = 0,
+    int ScoreUnits = 0);
 
 public sealed record LastToDieRunSnapshotMessage(
     Guid RunId,
@@ -93,7 +96,9 @@ public sealed record LastToDieRunSnapshotMessage(
     IReadOnlyList<LastToDiePlayerSnapshotMessage> Players,
     string TerminalReason = "",
     ulong BaselineStartFrame = 0,
-    byte MaximumPlayers = 2) : IProtocolMessage
+    byte MaximumPlayers = 2,
+    Guid AttemptId = default,
+    int CompletedRounds = 0) : IProtocolMessage
 {
     public MessageType Type => MessageType.LastToDieRunSnapshot;
 }
@@ -155,7 +160,7 @@ public sealed class LastToDieRunSnapshotSchema : Protocol64EventSchema<LastToDie
     public const int MaxBodyBytes = 32 * 1024;
 
     public LastToDieRunSnapshotSchema()
-        : base(LastToDieProtocolSchemaIds.RunSnapshot, 4, Protocol64Direction.ServerToClient, MaxBodyBytes)
+        : base(LastToDieProtocolSchemaIds.RunSnapshot, 5, Protocol64Direction.ServerToClient, MaxBodyBytes)
     {
     }
 
@@ -193,7 +198,7 @@ internal static class LastToDieProtocolValidation
         encoderShouldEmitUTF8Identifier: false,
         throwOnInvalidBytes: true);
 
-    public const int MaximumPlayers = 2;
+    public const int MaximumPlayers = 4;
     public const int MaximumOwnedPerks = 128;
     public const int MaximumOfferChoices = 3;
     public const int MaximumStableIdBytes = 96;
@@ -251,7 +256,8 @@ internal static class LastToDieProtocolValidation
             || value.StageNumber < 0
             || value.EnemyCount < 0
             || value.StageEndServerTick < 0
-            || value.RunEndServerTick < 0)
+            || value.RunEndServerTick < 0
+            || value.CompletedRounds < 0)
         {
             throw new Protocol64SchemaValidationException("Last to Die run counters cannot be negative.");
         }
@@ -280,7 +286,8 @@ internal static class LastToDieProtocolValidation
                 || player.Kills < 0
                 || player.ConquistadorStacks < 0
                 || player.ConquistadorStacks > 100
-                || player.ReconnectGraceEndServerTick < 0)
+                || player.ReconnectGraceEndServerTick < 0
+                || player.ScoreUnits < 0)
             {
                 throw new Protocol64SchemaValidationException(
                     "Last to Die player identity or counters are invalid.");
@@ -414,11 +421,14 @@ internal static class LastToDieProtocolBinary
             writer.Write(player.IsHost);
             writer.Write((byte)player.ConquistadorStacks);
             writer.Write(player.ReconnectGraceEndServerTick);
+            writer.Write(player.ScoreUnits);
         }
 
         WriteString(writer, value.TerminalReason, LastToDieProtocolValidation.MaximumReasonBytes);
         writer.Write(value.BaselineStartFrame);
         writer.Write(value.MaximumPlayers);
+        writer.Write(value.AttemptId.ToByteArray());
+        writer.Write(value.CompletedRounds);
     }
 
     public static LastToDieRunSnapshotMessage ReadRunSnapshot(BinaryReader reader)
@@ -459,12 +469,15 @@ internal static class LastToDieProtocolBinary
                 reader.ReadInt32(),
                 reader.ReadBoolean(),
                 reader.ReadByte(),
-                reader.ReadInt64());
+                reader.ReadInt64(),
+                reader.ReadInt32());
         }
 
         var terminalReason = ReadString(reader, LastToDieProtocolValidation.MaximumReasonBytes);
         var baselineStartFrame = reader.ReadUInt64();
         var maximumPlayers = reader.ReadByte();
+        var attemptId = ReadGuid(reader);
+        var completedRounds = reader.ReadInt32();
         return new LastToDieRunSnapshotMessage(
             runId,
             structuralRevision,
@@ -482,7 +495,9 @@ internal static class LastToDieProtocolBinary
             players,
             terminalReason,
             baselineStartFrame,
-            maximumPlayers);
+            maximumPlayers,
+            attemptId,
+            completedRounds);
     }
 
     public static void WriteRunSnapshotAck(BinaryWriter writer, LastToDieRunSnapshotAckMessage value)

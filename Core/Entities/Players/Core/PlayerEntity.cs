@@ -26,6 +26,10 @@ public sealed partial class PlayerEntity : SimulationEntity
     public const float SniperScopedJumpScale = 0.75f;
     public const int SniperChargeMaxTicks = 120;
     public const int SniperBaseDamage = 35;
+    public const int SniperUnscopedDamage = 25;
+    public const int SniperRifleStreakMaximum = 6;
+    public const float SniperRifleStreakChargeSpeedBonus = 0.30f;
+    public const float SniperRifleStreakDamageBonus = 0.25f;
     public const int SniperScopedReloadBonusTicks = 20;
     private const int DefaultUberRefreshTicks = 3;
     private const float MedicHealAmountPerTick = 1f;
@@ -82,6 +86,7 @@ public sealed partial class PlayerEntity : SimulationEntity
     public static int CivvieUmbrellaRocketDirectHitSplashDrainTicks
         => CivvieUmbrellaImpactDrain * CivvieUmbrellaRocketDirectHitSplashImpactMultiplier;
     public const int CivvieUmbrellaOpeningDurationTicks = 6;
+    public const int CivvieUmbrellaOpeningChargeCost = 30;
     public const int CivvieUmbrellaOpeningFrameCount = 3;
     public const int CivvieUmbrellaAirblastOpeningFrameIndex = 2;
     public const int CivvieUmbrellaAirblastOpeningTick =
@@ -327,14 +332,19 @@ public sealed partial class PlayerEntity : SimulationEntity
     public bool IsAcquiredWeaponPresented => HasAcquiredWeapon
         && IsAcquiredWeaponEquipped;
 
-    public bool HasPyroWeaponEquipped => ClassId == PlayerClass.Pyro
-        || (IsAcquiredWeaponEquipped && AcquiredWeaponClassId == PlayerClass.Pyro);
+    public bool HasPyroWeaponEquipped => (ClassId == PlayerClass.Pyro
+            && HasPrimaryBehavior(BuiltInGameplayBehaviorIds.Flamethrower))
+        || (IsAcquiredWeaponEquipped
+            && AcquiredWeaponClassId == PlayerClass.Pyro
+            && HasAcquiredBehavior(BuiltInGameplayBehaviorIds.Flamethrower));
 
     public bool HasAcquiredMedigunEquipped => IsAcquiredWeaponEquipped
         && AcquiredWeaponClassId == PlayerClass.Medic;
 
-    public bool HasPyroWeaponAvailable => ClassId == PlayerClass.Pyro
-        || AcquiredWeaponClassId == PlayerClass.Pyro;
+    public bool HasPyroWeaponAvailable => (ClassId == PlayerClass.Pyro
+            && HasPrimaryBehavior(BuiltInGameplayBehaviorIds.Flamethrower))
+        || (AcquiredWeaponClassId == PlayerClass.Pyro
+            && HasAcquiredBehavior(BuiltInGameplayBehaviorIds.Flamethrower));
 
     public bool HasScopedSniperWeaponEquipped => ClassId == PlayerClass.Sniper
         || (IsAcquiredWeaponEquipped && AcquiredWeaponClassId == PlayerClass.Sniper);
@@ -389,6 +399,8 @@ public sealed partial class PlayerEntity : SimulationEntity
     public bool IsSniperScoped { get; private set; }
 
     public int SniperChargeTicks { get; private set; }
+
+    public int SniperRifleFullyChargedHitStreak { get; private set; }
 
     public bool IsUsingBinoculars { get; private set; }
 
@@ -532,9 +544,12 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     public int CivviePogoCrunchTicksRemaining { get; private set; }
 
-    private int CivvieUmbrellaOpeningElapsedTicks { get; set; }
+    public int CivvieUmbrellaOpeningElapsedTicks { get; private set; }
 
-    private bool CivvieUmbrellaOpeningAirblastTriggered { get; set; }
+    public bool CivvieUmbrellaOpeningAirblastTriggered { get; private set; }
+
+    public int CivvieUmbrellaOpeningSequence { get; private set; }
+    private double CivvieUmbrellaOpeningTickAccumulator { get; set; }
 
     private bool CivvieUmbrellaAirLiftUsed { get; set; }
 
@@ -719,6 +734,12 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     public const int SniperBowMaxChargeTicks = 45;
 
+    public const int MortarLauncherMaxChargeTicks = SniperBowMaxChargeTicks;
+
+    public const float MortarLauncherMoveScale = 2f / 3f;
+
+    public const float MortarLauncherGravityPerTick = 0.75f;
+
     public const float SniperBowMinVelocity = 7.5f;
 
     public const float SniperBowMaxVelocity = 18f;
@@ -728,7 +749,7 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     public const float SniperBowMaxFakeSpeedMultiplier = 1.5f;
 
-    // Match unscoped rifle DPS: SniperBaseDamage/40-tick rifle cycle vs 25-tick bow cycle → round(35*25/40)=22.
+    // Kept at the established Huntsman baseline; the rifle's later unscoped-damage rework is rifle-only.
     public const int SniperBowMinDamage = 22;
 
     public const int SniperBowMaxDamage = 75;
@@ -1023,6 +1044,7 @@ public sealed partial class PlayerEntity : SimulationEntity
         CivviePogoSuperJumpSoundPending = false;
         IsSniperScoped = false;
         SniperChargeTicks = 0;
+        SniperRifleFullyChargedHitStreak = 0;
         IsUsingBinoculars = false;
         BinocularsFocusX = X;
         BinocularsFocusY = Y;
@@ -1053,6 +1075,7 @@ public sealed partial class PlayerEntity : SimulationEntity
         MedicNeedleRefillTicks = 0;
         ResetMedicHealDartState();
         ContinuousHealingAccumulator = 0f;
+        _lastToDieSurvivorHealingRemainder = 0;
         IsDispenserBuffed = false;
         DispenserAttackReloadSpeedMultiplier = 1f;
         QuoteBubbleCount = 0;
@@ -1184,7 +1207,7 @@ public sealed partial class PlayerEntity : SimulationEntity
             return false;
         }
 
-        foreach (var gate in level.GetBlockingTeamGates(team, IsCarryingIntel))
+        foreach (ref readonly var gate in level.GetBlockingTeamGateSpan(team, IsCarryingIntel))
         {
             if (left < gate.Right && right > gate.Left && top < gate.Bottom && bottom > gate.Top)
             {
@@ -1192,10 +1215,10 @@ public sealed partial class PlayerEntity : SimulationEntity
             }
         }
 
-        foreach (var wallEntry in level.PlayerWalls)
+        foreach (ref readonly var wallEntry in level.PlayerWalls)
         {
             var wallIndex = wallEntry.Index;
-            var wall = wallEntry.Marker;
+            ref readonly var wall = ref wallEntry.Marker;
             if (!level.IsRoomObjectActive(wallIndex))
             {
                 continue;
@@ -1309,7 +1332,26 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     private void RefreshGameplayLoadoutState()
     {
-        GameplayLoadoutState = CreateGameplayLoadoutState();
+        var previousLoadoutState = GameplayLoadoutState;
+        var nextLoadoutState = CreateGameplayLoadoutState();
+        if (previousLoadoutState is not null
+            && !string.Equals(
+                previousLoadoutState.EquippedItemId,
+                nextLoadoutState.EquippedItemId,
+                StringComparison.Ordinal))
+        {
+            // Scope, charge, and bow draw are properties of the held item.
+            // Clear them at the single state transition seam so every route
+            // (primary/offhand/acquired/network refresh) agrees on the pose.
+            CancelSniperBowCharge();
+            if (HasScopedSniperWeaponEquipped)
+            {
+                IsSniperScoped = false;
+                SniperChargeTicks = 0;
+            }
+        }
+
+        GameplayLoadoutState = nextLoadoutState;
         RefreshMedicUberReadyState();
     }
 

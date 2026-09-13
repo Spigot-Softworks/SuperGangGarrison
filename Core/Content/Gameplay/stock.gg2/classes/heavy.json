@@ -37,7 +37,7 @@
       "displayName": "Stock",
       "primary": {
         "defaultItemId": "weapon.minigun",
-        "itemIds": [ "weapon.minigun" ],
+        "itemIds": [ "weapon.minigun", "weapon.tommy-gun" ],
         "switchPolicy": "primary_swap_station",
         "selectionPersistence": "same_class_loadout"
       },

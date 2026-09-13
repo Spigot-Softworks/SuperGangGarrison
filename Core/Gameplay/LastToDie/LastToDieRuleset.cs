@@ -7,9 +7,12 @@ public sealed record LastToDieStageDefinition(
 
 public sealed record LastToDieRuleset
 {
-    public const int CurrentVersion = 1;
+    public const int CurrentVersion = 2;
     public const int SoloStartingEnemyCount = 2;
     public const int CoopStartingEnemyCount = 3;
+    public const int SniperStartingStage = 9;
+    public const int EnemyScalingStartingStage = 10;
+    public const float EnemyScalingPerStage = 0.05f;
 
     public int Version { get; init; } = CurrentVersion;
 
@@ -18,6 +21,8 @@ public sealed record LastToDieRuleset
     public int MaximumPlayers { get; init; } = 2;
 
     public int StageCount { get; init; } = 9;
+
+    public bool Endless { get; init; } = true;
 
     public int StartingEnemyCount { get; init; } = SoloStartingEnemyCount;
 
@@ -48,9 +53,9 @@ public sealed record LastToDieRuleset
             throw new InvalidOperationException("Last to Die tick rate must be positive.");
         }
 
-        if (MaximumPlayers is < 1 or > 2)
+        if (MaximumPlayers is < 1 or > 4)
         {
-            throw new InvalidOperationException("Last to Die currently supports one or two players.");
+            throw new InvalidOperationException("Last to Die supports one to four players.");
         }
 
         if (StageCount <= 0 || StartingEnemyCount <= 0 || EnemyCountIncrement < 0)
@@ -72,16 +77,27 @@ public sealed record LastToDieRuleset
     public LastToDieStageDefinition GetStage(int stageNumber)
     {
         Validate();
-        if (stageNumber < 1 || stageNumber > StageCount)
+        if (stageNumber < 1 || (!Endless && stageNumber > StageCount))
         {
             throw new ArgumentOutOfRangeException(nameof(stageNumber));
         }
 
-        var offset = stageNumber - 1;
+        // Endless rounds retain the former final-stage enemy count and timer;
+        // post-nine difficulty comes from stat scaling rather than unbounded bots.
+        var offset = Math.Min(stageNumber - 1, StageCount - 1);
         var enemyCount = checked(StartingEnemyCount + (offset * EnemyCountIncrement));
         var durationMinutes = checked(StartingStageMinutes + (offset * StageMinuteIncrement));
         var durationTicks = checked(durationMinutes * 60 * TicksPerSecond);
         return new LastToDieStageDefinition(stageNumber, enemyCount, durationTicks);
+    }
+
+    public static bool CanSpawnSniper(int stageNumber)
+        => stageNumber >= SniperStartingStage;
+
+    public static float GetEnemyStatMultiplier(int stageNumber)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(stageNumber, 1);
+        return 1f + (Math.Max(0, stageNumber - (EnemyScalingStartingStage - 1)) * EnemyScalingPerStage);
     }
 
     public int RunTimeLimitTicks

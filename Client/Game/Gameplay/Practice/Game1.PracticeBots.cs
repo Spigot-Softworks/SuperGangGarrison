@@ -512,7 +512,7 @@ public partial class Game1
         }
 
         if (_lastToDieRun is not null
-            && _lastToDieRun.StageNumber < 3
+            && !OpenGarrison.Core.LastToDie.LastToDieRuleset.CanSpawnSniper(_lastToDieRun.StageNumber)
             && classId == PlayerClass.Sniper)
         {
             return false;
@@ -761,7 +761,16 @@ public partial class Game1
         else
         {
             _practiceBotThinkSlotsBuffer.Clear();
-            slotsToThink = Array.Empty<byte>();
+            _practiceBotPerTickNavigationSlotsBuffer.Clear();
+            foreach (var slot in controlledSlots.Keys)
+            {
+                if (_practiceBotController.RequiresPerTickCombatThink(slot, _world))
+                {
+                    _practiceBotThinkSlotsBuffer.Add(slot);
+                }
+            }
+
+            slotsToThink = _practiceBotThinkSlotsBuffer;
         }
         if (slotsToThink.Count == 0)
         {
@@ -933,6 +942,12 @@ public partial class Game1
         foreach (var slot in _practiceBotRosterSlotsBuffer)
         {
             if (_practiceBotController.RequiresImmediateNavigationThink(slot)
+                && !_practiceBotThinkSlotsBuffer.Contains(slot))
+            {
+                _practiceBotThinkSlotsBuffer.Add(slot);
+            }
+
+            if (_practiceBotController.RequiresPerTickCombatThink(slot, _world)
                 && !_practiceBotThinkSlotsBuffer.Contains(slot))
             {
                 _practiceBotThinkSlotsBuffer.Add(slot);

@@ -11,7 +11,8 @@ internal static class ServerConsoleCommandProcessor
         bool isInputRedirected,
         CancellationTokenSource shutdownCts,
         Action<string> writeLine,
-        Action<string>? enqueueCommand = null)
+        Action<string>? enqueueCommand = null,
+        Action<string>? onShutdown = null)
     {
         if (line is null)
         {
@@ -40,6 +41,7 @@ internal static class ServerConsoleCommandProcessor
             || string.Equals(command, "quit", StringComparison.OrdinalIgnoreCase))
         {
             writeLine("[server] shutdown requested.");
+            onShutdown?.Invoke("console-command:" + command.ToLowerInvariant());
             shutdownCts.Cancel();
             return false;
         }

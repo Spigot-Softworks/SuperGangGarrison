@@ -80,9 +80,33 @@ public sealed record Protocol64LastToDieSniperVolleyState(
     float CriticalDamageMultiplier = 1f);
 
 /// <summary>
-/// A complete player record. Class identity and health are deliberately inline;
-/// applying this record never depends on a separately populated string cache.
+/// Equipment identity travels with ammo and the input acknowledgement, so a
+/// locker change never depends on a separately populated snapshot string cache.
 /// </summary>
+public sealed record Protocol64EquipmentState(
+    string ModPackId,
+    string LoadoutId,
+    string PrimaryItemId,
+    string SecondaryItemId,
+    string UtilityItemId,
+    string EquippedItemId,
+    string AcquiredItemId,
+    bool IsSniperScoped = false,
+    int SniperChargeTicks = 0,
+    byte EngineerAlternateWeaponMode = 0,
+    byte SniperRifleFullyChargedHitStreak = 0);
+
+/// <summary>A complete player record with inline class identity and health.</summary>
+public sealed record Protocol64UmbrellaState(
+    int ChargeTicks,
+    bool IsActive,
+    bool IsBroken,
+    int OpeningElapsedTicks,
+    int OpeningSequence,
+    bool OpeningAirblastTriggered,
+    bool AirLiftUsed,
+    double OpeningTickAccumulator);
+
 public sealed record Protocol64PlayerState(
     ushort Slot,
     ulong PlayerId,
@@ -196,7 +220,15 @@ public sealed record Protocol64PlayerState(
     int PrimaryReloadTicks = 0,
     int BuffBannerChargeDamage = 0,
     int BuffBannerDeployTicksRemaining = 0,
-    int BuffBannerActiveTicksRemaining = 0);
+    int BuffBannerActiveTicksRemaining = 0,
+    // Identity travels with ammo and the input watermark. StateTick is the
+    // revision of the complete equipment baseline, including locker cycles.
+    Protocol64EquipmentState? Equipment = null,
+    Protocol64UmbrellaState? Umbrella = null,
+    // Authoritative roster identity used by scoreboard presentation. Keeping
+    // this on the canonical player baseline avoids depending on a legacy
+    // snapshot having arrived first.
+    bool IsBot = false);
 
 public sealed record Protocol64PlayerStateBatch(
     ulong StateSequence,
@@ -252,7 +284,12 @@ public sealed record Protocol64ProjectileState(
     float CriticalDamageMultiplier = 1f,
     float PlayerKnockbackImpulse = 0f,
     float PlayerKnockbackAirborneVerticalScale = 1f,
-    float PlayerKnockbackGroundedVerticalScale = 1f);
+    float PlayerKnockbackGroundedVerticalScale = 1f,
+    bool IsBallisticRocket = false,
+    float BallisticRocketGravityPerTick = 0f,
+    bool SuppressRocketSmokeTrail = false,
+    // 0 = stock flare, 1 = Dragon's Rage slug.
+    byte FlareStyle = 0);
 
 public sealed record Protocol64ProjectileIdentity(
     ulong EntityId,
@@ -304,7 +341,12 @@ public sealed record Protocol64ProjectileLifecycle(
     float CriticalDamageMultiplier = 1f,
     float PlayerKnockbackImpulse = 0f,
     float PlayerKnockbackAirborneVerticalScale = 1f,
-    float PlayerKnockbackGroundedVerticalScale = 1f);
+    float PlayerKnockbackGroundedVerticalScale = 1f,
+    bool IsBallisticRocket = false,
+    float BallisticRocketGravityPerTick = 0f,
+    bool SuppressRocketSmokeTrail = false,
+    // 0 = stock flare, 1 = Dragon's Rage slug.
+    byte FlareStyle = 0);
 
 public sealed record Protocol64StateResyncRequest(
     ulong RequestId,
@@ -333,7 +375,7 @@ public sealed class Protocol64PlayerStateBatchSchema
     public const int MaxBodyBytes = 64 * 1024;
 
     public Protocol64PlayerStateBatchSchema()
-        : base(Protocol64StateSchemaIds.PlayerStateBatch, 24, Protocol64Direction.ServerToClient, MaxBodyBytes)
+        : base(Protocol64StateSchemaIds.PlayerStateBatch, 28, Protocol64Direction.ServerToClient, MaxBodyBytes)
     {
     }
 
@@ -410,7 +452,7 @@ public sealed class Protocol64ProjectileStateSchema
     public const int MaxBodyBytes = 128;
 
     public Protocol64ProjectileStateSchema()
-        : base(Protocol64StateSchemaIds.ProjectileState, 11, Protocol64Direction.ServerToClient, MaxBodyBytes)
+        : base(Protocol64StateSchemaIds.ProjectileState, 13, Protocol64Direction.ServerToClient, MaxBodyBytes)
     {
     }
 
@@ -434,7 +476,7 @@ public sealed class Protocol64ProjectileLifecycleSchema
     public const int MaxBodyBytes = 160;
 
     public Protocol64ProjectileLifecycleSchema()
-        : base(Protocol64StateSchemaIds.ProjectileLifecycle, 11, Protocol64Direction.ServerToClient, MaxBodyBytes)
+        : base(Protocol64StateSchemaIds.ProjectileLifecycle, 13, Protocol64Direction.ServerToClient, MaxBodyBytes)
     {
     }
 
@@ -491,7 +533,7 @@ public sealed class Protocol64StateResyncResponseSchema
     public const int MaxBodyBytes = 256 * 1024;
 
     public Protocol64StateResyncResponseSchema()
-        : base(Protocol64StateSchemaIds.StateResyncResponse, 27, Protocol64Direction.ServerToClient, MaxBodyBytes)
+        : base(Protocol64StateSchemaIds.StateResyncResponse, 32, Protocol64Direction.ServerToClient, MaxBodyBytes)
     {
     }
 
@@ -576,6 +618,33 @@ internal static class Protocol64StateValidation
 
         Validate(new Protocol64PlayerIdentity(value.Slot, value.PlayerId, value.Generation));
         ValidateString(value.GameplayClassId, MaxGameplayClassIdBytes, nameof(value.GameplayClassId));
+        if (value.Umbrella is { } umbrella
+            && (umbrella.ChargeTicks < 0 || umbrella.ChargeTicks > ushort.MaxValue
+                || umbrella.OpeningElapsedTicks < 0 || umbrella.OpeningElapsedTicks > byte.MaxValue
+                || umbrella.OpeningSequence < 0
+                || !double.IsFinite(umbrella.OpeningTickAccumulator)
+                || umbrella.OpeningTickAccumulator < 0 || umbrella.OpeningTickAccumulator >= 1))
+        {
+            throw new Protocol64SchemaValidationException("Umbrella runtime state is invalid.");
+        }
+        if (value.Equipment is { } equipment)
+        {
+            ValidateString(equipment.ModPackId, MaxGameplayClassIdBytes, nameof(equipment.ModPackId));
+            ValidateString(equipment.LoadoutId, MaxGameplayClassIdBytes, nameof(equipment.LoadoutId));
+            ValidateString(equipment.PrimaryItemId, MaxGameplayClassIdBytes, nameof(equipment.PrimaryItemId));
+            ValidateString(equipment.EquippedItemId, MaxGameplayClassIdBytes, nameof(equipment.EquippedItemId));
+            foreach (var itemId in new[] { equipment.SecondaryItemId, equipment.UtilityItemId, equipment.AcquiredItemId })
+            {
+                if (itemId is null || (itemId.Length > 0 && Encoding.UTF8.GetByteCount(itemId) > MaxGameplayClassIdBytes))
+                    throw new Protocol64SchemaValidationException("Equipment item identity is invalid.");
+            }
+            if (equipment.SniperChargeTicks < 0)
+                throw new Protocol64SchemaValidationException("Scope charge cannot be negative.");
+            if (equipment.EngineerAlternateWeaponMode > 2)
+                throw new Protocol64SchemaValidationException("Engineer alternate weapon mode is invalid.");
+            if (equipment.SniperRifleFullyChargedHitStreak > 6)
+                throw new Protocol64SchemaValidationException("Sniper rifle hit streak is invalid.");
+        }
         if (value.MaxHealth <= 0 || value.Health < 0 || value.Health > value.MaxHealth)
         {
             throw new Protocol64SchemaValidationException("Player health must be within 0 and positive max health.");
@@ -809,6 +878,12 @@ internal static class Protocol64StateValidation
             value.PlayerKnockbackAirborneVerticalScale,
             value.PlayerKnockbackGroundedVerticalScale);
         ValidateCriticalDamageMultiplier(value.IsCritical, value.CriticalDamageMultiplier);
+        ValidateBallisticRocketPayload(
+            value.EntityKind,
+            value.IsBallisticRocket,
+            value.BallisticRocketGravityPerTick,
+            value.SuppressRocketSmokeTrail);
+        ValidateFlareStylePayload(value.EntityKind, value.FlareStyle);
 
         ValidateLastToDieSpyRevolverProjectilePayload(
             value.EntityKind,
@@ -860,6 +935,12 @@ internal static class Protocol64StateValidation
             value.PlayerKnockbackAirborneVerticalScale,
             value.PlayerKnockbackGroundedVerticalScale);
         ValidateCriticalDamageMultiplier(value.IsCritical, value.CriticalDamageMultiplier);
+        ValidateBallisticRocketPayload(
+            value.EntityKind,
+            value.IsBallisticRocket,
+            value.BallisticRocketGravityPerTick,
+            value.SuppressRocketSmokeTrail);
+        ValidateFlareStylePayload(value.EntityKind, value.FlareStyle);
 
         ValidateLastToDieSpyRevolverProjectilePayload(
             value.EntityKind,
@@ -1011,6 +1092,50 @@ internal static class Protocol64StateValidation
             !float.IsFinite(velocityY) || !float.IsFinite(rotation))
         {
             throw new Protocol64SchemaValidationException("Projectile motion must be finite.");
+        }
+    }
+
+    private static void ValidateBallisticRocketPayload(
+        Protocol64ProjectileKind kind,
+        bool isBallistic,
+        float gravityPerTick,
+        bool suppressSmokeTrail)
+    {
+        if (!float.IsFinite(gravityPerTick) || gravityPerTick < 0f)
+        {
+            throw new Protocol64SchemaValidationException(
+                "Ballistic rocket gravity must be finite and non-negative.");
+        }
+
+        if (kind != Protocol64ProjectileKind.Rocket
+            && (isBallistic || gravityPerTick != 0f || suppressSmokeTrail))
+        {
+            throw new Protocol64SchemaValidationException(
+                "Ballistic rocket state is only valid on rocket projectiles.");
+        }
+
+        if (!isBallistic && gravityPerTick != 0f)
+        {
+            throw new Protocol64SchemaValidationException(
+                "Ballistic rocket gravity requires the ballistic flag.");
+        }
+    }
+
+    private static void ValidateFlareStylePayload(
+        Protocol64ProjectileKind kind,
+        byte flareStyle)
+    {
+        const byte DragonRageSlugStyle = 1;
+        if (flareStyle > DragonRageSlugStyle)
+        {
+            throw new Protocol64SchemaValidationException(
+                "Projectile flare style is invalid.");
+        }
+
+        if (kind != Protocol64ProjectileKind.Flare && flareStyle != 0)
+        {
+            throw new Protocol64SchemaValidationException(
+                "Flare style is only valid on flare projectiles.");
         }
     }
 
@@ -1542,6 +1667,34 @@ internal static class Protocol64StateBinary
         writer.Write(value.BuffBannerChargeDamage);
         writer.Write(value.BuffBannerDeployTicksRemaining);
         writer.Write(value.BuffBannerActiveTicksRemaining);
+        writer.Write(value.Equipment is not null);
+        if (value.Equipment is { } equipment)
+        {
+            writer.Write(equipment.ModPackId);
+            writer.Write(equipment.LoadoutId);
+            writer.Write(equipment.PrimaryItemId);
+            writer.Write(equipment.SecondaryItemId);
+            writer.Write(equipment.UtilityItemId);
+            writer.Write(equipment.EquippedItemId);
+            writer.Write(equipment.AcquiredItemId);
+            writer.Write(equipment.IsSniperScoped);
+            writer.Write(equipment.SniperChargeTicks);
+            writer.Write(equipment.EngineerAlternateWeaponMode);
+            writer.Write(equipment.SniperRifleFullyChargedHitStreak);
+        }
+        writer.Write(value.Umbrella is not null);
+        if (value.Umbrella is { } umbrella)
+        {
+            writer.Write(checked((ushort)umbrella.ChargeTicks));
+            writer.Write(umbrella.IsActive);
+            writer.Write(umbrella.IsBroken);
+            writer.Write(checked((byte)umbrella.OpeningElapsedTicks));
+            writer.Write(umbrella.OpeningSequence);
+            writer.Write(umbrella.OpeningAirblastTriggered);
+            writer.Write(umbrella.AirLiftUsed);
+            writer.Write(umbrella.OpeningTickAccumulator);
+        }
+        writer.Write(value.IsBot);
     }
 
     public static Protocol64PlayerState ReadPlayer(BinaryReader reader)
@@ -1617,7 +1770,18 @@ internal static class Protocol64StateBinary
             reader.ReadInt32(),
             reader.ReadInt32(),
             reader.ReadInt32(),
-            reader.ReadInt32());
+            reader.ReadInt32(),
+            reader.ReadBoolean()
+                ? new Protocol64EquipmentState(
+                    reader.ReadString(), reader.ReadString(), reader.ReadString(),
+                    reader.ReadString(), reader.ReadString(), reader.ReadString(), reader.ReadString(),
+                    reader.ReadBoolean(), reader.ReadInt32(), reader.ReadByte(), reader.ReadByte())
+                : null,
+            reader.ReadBoolean()
+                ? new Protocol64UmbrellaState(reader.ReadUInt16(), reader.ReadBoolean(), reader.ReadBoolean(),
+                    reader.ReadByte(), reader.ReadInt32(), reader.ReadBoolean(), reader.ReadBoolean(), reader.ReadDouble())
+                : null,
+            reader.ReadBoolean());
 
     public static void WriteProjectileState(BinaryWriter writer, Protocol64ProjectileState value)
     {
@@ -1660,6 +1824,10 @@ internal static class Protocol64StateBinary
         writer.Write(value.PlayerKnockbackImpulse);
         writer.Write(value.PlayerKnockbackAirborneVerticalScale);
         writer.Write(value.PlayerKnockbackGroundedVerticalScale);
+        writer.Write(value.IsBallisticRocket);
+        writer.Write(value.BallisticRocketGravityPerTick);
+        writer.Write(value.SuppressRocketSmokeTrail);
+        writer.Write(value.FlareStyle);
     }
 
     public static Protocol64ProjectileState ReadProjectileState(BinaryReader reader)
@@ -1702,7 +1870,11 @@ internal static class Protocol64StateBinary
             reader.ReadSingle(),
             reader.ReadSingle(),
             reader.ReadSingle(),
-            reader.ReadSingle());
+            reader.ReadSingle(),
+            reader.ReadBoolean(),
+            reader.ReadSingle(),
+            reader.ReadBoolean(),
+            reader.ReadByte());
 
     public static void WriteProjectileLifecycle(BinaryWriter writer, Protocol64ProjectileLifecycle value)
     {
@@ -1746,6 +1918,10 @@ internal static class Protocol64StateBinary
         writer.Write(value.PlayerKnockbackImpulse);
         writer.Write(value.PlayerKnockbackAirborneVerticalScale);
         writer.Write(value.PlayerKnockbackGroundedVerticalScale);
+        writer.Write(value.IsBallisticRocket);
+        writer.Write(value.BallisticRocketGravityPerTick);
+        writer.Write(value.SuppressRocketSmokeTrail);
+        writer.Write(value.FlareStyle);
     }
 
     public static Protocol64ProjectileLifecycle ReadProjectileLifecycle(BinaryReader reader)
@@ -1789,7 +1965,11 @@ internal static class Protocol64StateBinary
             reader.ReadSingle(),
             reader.ReadSingle(),
             reader.ReadSingle(),
-            reader.ReadSingle());
+            reader.ReadSingle(),
+            reader.ReadBoolean(),
+            reader.ReadSingle(),
+            reader.ReadBoolean(),
+            reader.ReadByte());
 
     private static void WriteLastToDieSniperVolleyState(
         BinaryWriter writer,

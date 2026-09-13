@@ -582,7 +582,9 @@ public sealed partial class GameplayRuntimeRegistry
             DirectHitDamage: combat?.Rocket?.DirectHitDamage ?? RocketProjectileEntity.DirectHitDamage,
             ExplosionDamage: combat?.Rocket?.ExplosionDamage ?? RocketProjectileEntity.ExplosionDamage,
             BlastRadius: combat?.Rocket?.BlastRadius ?? RocketProjectileEntity.BlastRadius,
-            SplashThresholdFactor: combat?.Rocket?.SplashThresholdFactor ?? RocketProjectileEntity.SplashThresholdFactor);
+            SplashThresholdFactor: combat?.Rocket?.SplashThresholdFactor ?? RocketProjectileEntity.SplashThresholdFactor,
+            MinimumSplashDamage: MathF.Max(0f, combat?.Rocket?.MinimumSplashDamage ?? SimulationWorld.ExplosiveSplashMinimumDamage),
+            SelfDamageMultiplier: MathF.Max(0f, combat?.Rocket?.SelfDamageMultiplier ?? 1f));
     }
 
     public bool TryGetPrimaryWeaponBinding(string? behaviorId, out GameplayPrimaryWeaponRuntimeBinding binding)

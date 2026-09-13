@@ -9,7 +9,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private void UpdateClassSelect(MouseState mouse)
+    private void UpdateClassSelect(KeyboardState keyboard, MouseState mouse, bool acceptSelectionInput = true)
     {
         if (!_classSelectOpen)
         {
@@ -28,7 +28,9 @@ public partial class Game1
             return;
         }
 
-        var keyboard = GetCurrentKeyboardState();
+        // A team choice can open this menu earlier in the same frame. Its
+        // opening key/click belongs to the team menu until the next input edge.
+        if (!acceptSelectionInput) return;
         if (IsClassSelectCivilianShortcutPressed(keyboard))
         {
             if (ApplyDirectGameplayClassSelection(ResolveClassSelectCivilianShortcutGameplayClassId()))

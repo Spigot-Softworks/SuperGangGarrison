@@ -19,23 +19,33 @@ partial class GameServer
     private const double LongServerLoopDiagnosticThresholdMilliseconds = 100d;
     private static readonly TimeSpan LongServerLoopDiagnosticCooldown = TimeSpan.FromSeconds(5);
 
-    public void Run(CancellationToken cancellationToken)
+    public void Run(CancellationToken cancellationToken, ServerListenerReservation? reservation = null, Action? onReady = null)
     {
-        using var udp = new UdpClient(_port);
+        using var udp = reservation?.Udp ?? (ManagedRoomRuntime.Enabled
+            ? new UdpClient(new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, _port))
+            : new UdpClient(_port));
         using var timerResolution = WindowsTimerResolutionScope.Create1Millisecond();
         using var eventLog = new PersistentServerEventLog(_eventLogPath, Console.WriteLine);
         InitializeUdpTransport(udp);
         InitializeOutboundRelay(cancellationToken);
         ApplyRuntimeBootstrap(CreateRuntimeBootstrap(eventLog));
+        InitializeServerAudio();
         ApplyHostGameplayDefaults();
         InitializeGameplayVariantRuntime();
+        reservation?.ReleaseHttpReservation();
         InitializeWebSocketHost();
+#if !EMBEDDED_SESSION
+        if (reservation is not null && !_mapDownloadEndpointAvailable)
+            throw new IOException($"Reserved HTTP/WebSocket listener on port {reservation.HttpPort} could not start. See the preceding listener error.");
+#endif
         InitializeQuicHost();
         InitializeGameplayOwnershipService();
         InitializePluginRuntime();
         InitializeHttpRegistryHeartbeat();
         InitializeIncomingPacketPump();
         StartAndAnnounceServer(timerResolution.IsActive, eventLog);
+        ManagedRoomRuntime.Ready = true;
+        onReady?.Invoke();
         RunMainLoop(eventLog, cancellationToken);
     }
 
@@ -79,6 +89,7 @@ partial class GameServer
 
     private void InitializeWebSocketHost()
     {
+#if !EMBEDDED_SESSION
         var enableWebSocket = _webSocketPort > 0;
         var httpPort = ResolveMapDownloadPort();
         if (httpPort <= 0)
@@ -88,7 +99,7 @@ partial class GameServer
 
         try
         {
-            _webSocketHost = new OpenGarrison.Server.WebSocketServerHost(
+            var webSocketHost = new OpenGarrison.Server.WebSocketServerHost(
                 httpPort,
                 enableWebSocket ? _webSocketCertificatePath : null,
                 enableWebSocket ? _webSocketCertificatePassword : null,
@@ -96,16 +107,18 @@ partial class GameServer
                 Console.WriteLine,
                 enableWebSocket: enableWebSocket,
                 enableMapDownloads: true);
-            _webSocketHost.Start();
+            _webSocketHost = webSocketHost;
+            webSocketHost.Start();
             _mapDownloadEndpointAvailable = true;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[server] failed to start HTTP listener: {ex.Message}");
+            Console.WriteLine($"[server] failed to start HTTP listener: {ex.Message}. Custom-map downloads and WebSocket connections are unavailable; UDP gameplay can still accept clients.");
             _webSocketHost?.Dispose();
             _webSocketHost = null;
             _mapDownloadEndpointAvailable = false;
         }
+#endif
     }
 
     private OpenGarrison.Server.ServerRuntimeBootstrap CreateRuntimeBootstrap(PersistentServerEventLog eventLog)
@@ -166,6 +179,7 @@ partial class GameServer
         _autoBalanceEnabled = host.AutoBalanceEnabled;
         _secondaryAbilitiesEnabled = host.SecondaryAbilitiesEnabled;
         _randomSpreadEnabled = host.RandomSpreadEnabled;
+        _hlxEnabled = host.HlxEnabled;
         // Relayed co-op uses the same Protocol64 reconciliation stream as a
         // directly connected game. Keep server-side prediction support on for
         // Last to Die; each client may still disable presentation prediction
@@ -234,6 +248,8 @@ partial class GameServer
 
     private void InitializeQuicHost()
     {
+#if !EMBEDDED_SESSION
+        if (OpenGarrison.Server.ManagedRoomRuntime.Enabled) return;
         if (_quicPort <= 0)
         {
             return;
@@ -260,6 +276,7 @@ partial class GameServer
             Console.WriteLine($"[server] failed to start protocol-64 QUIC listener: {ex.Message}");
             _quicHost = null;
         }
+#endif
     }
 
     private void ApplyRuntimeBootstrap(OpenGarrison.Server.ServerRuntimeBootstrap runtime)
@@ -298,7 +315,7 @@ partial class GameServer
             ? "[server] protocol-64 QUIC: disabled"
             : "[server] protocol-64 QUIC: enabled");
         Console.WriteLine(_mapDownloadEndpointAvailable
-            ? $"[server] custom map downloads: enabled on port {ResolveMapDownloadPort()}"
+            ? $"[server] custom map downloads: enabled on TCP port {ResolveMapDownloadPort()} (forward and allow TCP as well as gameplay UDP)"
             : "[server] custom map downloads: unavailable");
         Console.WriteLine($"Name: {_serverName}");
         Console.WriteLine($"Max players: {_maxPlayableClients}");
@@ -402,6 +419,9 @@ partial class GameServer
 
     private string BuildCustomMapDownloadUrl(CustomMapDescriptor descriptor)
     {
+#if EMBEDDED_SESSION
+        return descriptor.SourceUrl;
+#else
         return _mapDownloadEndpointAvailable
             ? ServerMapDownloadEndpoint.BuildAdvertisedDownloadUrl(
                 descriptor,
@@ -410,6 +430,7 @@ partial class GameServer
                 ResolveMapDownloadPort(),
                 preferHttps: _webSocketPort > 0 && !string.IsNullOrWhiteSpace(_webSocketCertificatePath))
             : descriptor.SourceUrl;
+#endif
     }
 
     private bool PreloadBotNavigationForCurrentLevel(
@@ -451,6 +472,8 @@ partial class GameServer
                 _sessionManager.PruneTimedOutClients();
                 _sessionManager.RefreshPasswordRequests();
                 SynchronizeLastToDieClients();
+                _statsService?.Tick();
+                _serverAudio?.Tick();
 
                 var now = _clock.Elapsed;
                 var elapsedSeconds = (now - _previous).TotalSeconds;
@@ -466,61 +489,12 @@ partial class GameServer
                     nextPluginHeartbeatAt = now + GetServerPluginHeartbeatInterval();
                 }
 
-                var ticks = ServerSimulationBatch.Advance(
-                    _simulator,
-                    elapsedSeconds,
-                    () =>
-                    {
-                        _sessionManager.PreparePlayableClientInputsForNextTick();
-                        if (!IsLastToDieHosted)
-                        {
-                            ProcessCompetitiveReadyUpBeforeSimulationTick();
-                        }
-                        else
-                        {
-                            PrepareLastToDieEnemySpawnsBeforeSimulationTick();
-                        }
-                        _botManager.FeedBotInputsBeforeSimulationAdvance();
-                    },
-                    () =>
-                    {
-                        _sessionManager.CompleteProtocol64InputsAfterSimulationTick();
-                        if (IsLastToDieHosted)
-                        {
-                            AdvanceLastToDieAfterSimulationTick();
-                        }
-                        else
-                        {
-                            _autoBalancer.Tick(now, 1, _autoBalanceEnabled);
-                            if (_mapRotationManager.TryApplyPendingMapChange(out var transition))
-                            {
-                                var botNavigationPreloaded = PreloadBotNavigationForCurrentLevel(
-                                    out var botNavigationPreloadMs,
-                                    out var botNavigationWarmup);
-                                Console.WriteLine(
-                                    "[botbrain] map-nav " +
-                                    $"level={_world.Level.Name} area={_world.Level.MapAreaIndex} " +
-                                    $"preloaded={botNavigationPreloaded} preloadMs={botNavigationPreloadMs:0.###} " +
-                                    $"source={botNavigationWarmup.Source} sourcePath=\"{botNavigationWarmup.Path}\"");
-                                ApplyRoundEndTeamRules(transition);
-                                var restoredBotCount = _botManager.ReactivateBotsAfterMapChange();
-                                _mapBotSpawnController.Reset();
-                                _eventReporter.ApplyMapTransition(transition);
-                                _demoRecorder.HandleMapTransition(transition);
-                                _snapshotBroadcaster.ResetTransientEvents();
-                                if (restoredBotCount > 0)
-                                {
-                                    Console.WriteLine($"[server] restored {restoredBotCount} server bots after map change.");
-                                }
-                            }
-                            PublishVipAnnouncements();
-                            _mapBotSpawnController.Tick();
-                        }
-                        // Update bot reactions/emotes AFTER simulation advances
-                        _botManager.AdvanceBotReactions();
-                    },
-                    _snapshotBroadcaster.BroadcastSnapshot,
-                    maxSimulationTicksPerAdvance);
+                var ticks = 0;
+                var simulationPaused = ShouldPauseLastToDieAuthoritativeSimulation();
+                if (!simulationPaused)
+                {
+                    ticks = AdvanceAuthoritativeSimulation(elapsedSeconds, now, maxSimulationTicksPerAdvance);
+                }
                 simTicksAdvancedTotal += ticks;
                 simTicksAdvancedMax = Math.Max(simTicksAdvancedMax, ticks);
                 if (ticks > 0)
@@ -528,7 +502,7 @@ partial class GameServer
                     simAdvanceCallsWithTicks += 1;
                 }
 
-                if (_simulator.DroppedSimulationBacklogOnLastAdvance)
+                if (!simulationPaused && _simulator.DroppedSimulationBacklogOnLastAdvance)
                 {
                     simulationBacklogDropCount += 1;
                     simulationBacklogDropSampleCount += 1;
@@ -695,6 +669,11 @@ partial class GameServer
                 SleepUntilNextServerLoop(ticks);
             }
         }
+        catch (Exception exception)
+        {
+            Console.Error.WriteLine($"[server] simulation-fault map={_world.Level.Name} area={_world.Level.MapAreaIndex} frame={_world.Frame}: {exception}");
+            throw;
+        }
         finally
         {
             _eventReporter.WriteEvent(
@@ -704,6 +683,9 @@ partial class GameServer
                 ("uptime_seconds", _clock?.Elapsed.TotalSeconds ?? 0d),
                 ("frame", _world?.Frame ?? 0L));
             _pluginHost?.NotifyServerStopping();
+            _statsService?.Dispose();
+            _serverAudio?.Dispose();
+            _statsService = null;
             _outboundMessaging.NotifyClientsOfShutdown();
             _demoRecorder.TryStop(out _, out _);
             _demoRecorder.Dispose();
@@ -737,8 +719,75 @@ partial class GameServer
             _relayHostCts = null;
             _pluginHost?.NotifyServerStopped();
             _pluginHost?.ShutdownPlugins();
-            Console.WriteLine("[server] shutdown complete.");
+            Console.WriteLine("[server] cleanup complete.");
         }
+    }
+
+
+    private int AdvanceAuthoritativeSimulation(double elapsedSeconds, TimeSpan now, int maxSimulationTicksPerAdvance)
+    {
+        return ServerSimulationBatch.Advance(
+        _simulator,
+        elapsedSeconds,
+        () =>
+        {
+            _sessionManager.PreparePlayableClientInputsForNextTick();
+            if (!IsLastToDieHosted)
+            {
+                ProcessCompetitiveReadyUpBeforeSimulationTick();
+            }
+            else
+            {
+                PrepareLastToDieEnemySpawnsBeforeSimulationTick();
+            }
+            _botManager.FeedBotInputsBeforeSimulationAdvance();
+        },
+        () =>
+        {
+            _sessionManager.CompleteProtocol64InputsAfterSimulationTick();
+            _outboundMessaging.TickVoting();
+            if (IsLastToDieHosted)
+            {
+                AdvanceLastToDieAfterSimulationTick();
+            }
+            else
+            {
+                _autoBalancer.Tick(now, 1, _autoBalanceEnabled);
+                if (_mapRotationManager.TryApplyPendingMapChange(out var transition))
+                {
+                    LogMapTransitionPhase("navigation");
+                    var botNavigationPreloaded = PreloadBotNavigationForCurrentLevel(
+                        out var botNavigationPreloadMs,
+                        out var botNavigationWarmup);
+                    Console.WriteLine(
+                        "[botbrain] map-nav " +
+                        $"level={_world.Level.Name} area={_world.Level.MapAreaIndex} " +
+                        $"preloaded={botNavigationPreloaded} preloadMs={botNavigationPreloadMs:0.###} " +
+                        $"source={botNavigationWarmup.Source} sourcePath=\"{botNavigationWarmup.Path}\"");
+                    LogMapTransitionPhase("team-rules");
+                    ApplyRoundEndTeamRules(transition);
+                    LogMapTransitionPhase("bots");
+                    var restoredBotCount = _botManager.ReactivateBotsAfterMapChange();
+                    _mapBotSpawnController.Reset();
+                    LogMapTransitionPhase("notifications");
+                    ApplyServerMapTransition(transition);
+                    LogMapTransitionPhase("recording");
+                    _demoRecorder.HandleMapTransition(transition);
+                    _snapshotBroadcaster.ResetTransientEvents();
+                    LogMapTransitionPhase("complete");
+                    if (restoredBotCount > 0)
+                    {
+                        Console.WriteLine($"[server] restored {restoredBotCount} server bots after map change.");
+                    }
+                }
+                PublishVipAnnouncements();
+                _mapBotSpawnController.Tick();
+            }
+            // Update bot reactions/emotes AFTER simulation advances
+            _botManager.AdvanceBotReactions();
+        },
+        _snapshotBroadcaster.BroadcastSnapshot,
+        maxSimulationTicksPerAdvance);
     }
 
     private TimeSpan GetServerPluginHeartbeatInterval()
@@ -837,16 +886,20 @@ partial class GameServer
             _snapshotBroadcaster,
             _botManager,
             _demoRecorder,
-            _eventReporter.ApplyMapTransition,
+            ApplyServerMapTransition,
             _outboundMessaging.SendMessage,
             _outboundMessaging.SendPluginMessage,
             _outboundMessaging.BroadcastPluginMessage,
+            _outboundMessaging.TryRegisterPluginVoteKind,
+            _outboundMessaging.TryStartPluginVote,
+            _outboundMessaging.UnregisterPluginVoteKinds,
             Console.WriteLine,
             Path.Combine(RuntimePaths.ApplicationRoot, "Plugins"),
             Path.Combine(RuntimePaths.ConfigDirectory, "plugins"),
             Path.Combine(RuntimePaths.ApplicationRoot, "Maps"),
             _banService);
         _pluginCommandRegistry = pluginRuntime.CommandRegistry;
+        RegisterServerAudioCommands();
         _pluginHost = pluginRuntime.PluginHost;
         _world.GameplayAbilityInputInterceptor = abilityEvent => _pluginHost?.TryNotifyGameplayAbilityInput(abilityEvent) ?? false;
         _world.SpawnDecisionInterceptor = request => ToWorldDecision(_pluginHost?.BeforeSpawn(request));
@@ -857,6 +910,38 @@ partial class GameServer
         _world.RoundEndDecisionInterceptor = request => ToWorldDecision(_pluginHost?.BeforeRoundEnd(request));
         _serverState = pluginRuntime.ServerState;
         _adminOperations = pluginRuntime.AdminOperations;
+        _outboundMessaging.ConfigureVoting(
+            (levelName, areaIndex) => _adminOperations.TryChangeMap(levelName, areaIndex),
+            (levelName, areaIndex) => _adminOperations.TrySetNextRoundMap(levelName, areaIndex),
+            () => _mapRotationManager.MapRotation,
+            (slot, reason) => _adminOperations.TryDisconnect(slot, reason),
+            (slot, isMuted) => _adminOperations.TrySetPlayerGagged(slot, isMuted),
+            IsLastToDieHosted ? null : TryScrambleTeamsByVote,
+            mapVotingEnabled: !IsLastToDieHosted);
+        _statsService = new OpenGarrison.Server.PlayerStatsService(
+            _world,
+            _clientsBySlot,
+            () => _hlxEnabled,
+            modeEligible: !IsLastToDieHosted,
+            _outboundMessaging.SendStatsMessage,
+            _outboundMessaging.SendStatsSystemMessage,
+            Console.WriteLine,
+            Environment.GetEnvironmentVariable("OPENGARRISON_API_BASE_URL"),
+            verifiedAccountAttached: client =>
+            {
+                _serverManagement.ApplyVerifiedIdentity(client);
+                _outboundMessaging.BroadcastPlayerSocialProfiles();
+            },
+            accountAttachmentCleared: client =>
+            {
+                if (OpenGarrison.Server.ServerManagementService.ClearManagedIdentity(client))
+                {
+                    _outboundMessaging.BroadcastPlayerSocialProfiles();
+                }
+            });
+        _outboundMessaging.ConfigureStats(_statsService);
+        _sessionManager.SetClientDisconnectingObserver(_statsService.HandleClientDisconnecting);
+        _eventReporter.ConfigureStatsObservers(_statsService.HandleDamage, _statsService.HandleRoundEnded);
         _adminChatRouter = new ServerAdminChatRouter(
             _adminSessionManager,
             () => _pluginHost,
@@ -1018,6 +1103,7 @@ partial class GameServer
     private ServerCvarRegistry CreateServerCvarRegistry()
     {
         var registry = new ServerCvarRegistry();
+        RegisterServerAudioCvars(registry);
         registry.RegisterBoolean(
             "sv_cheats",
             "Enable cheat-gated server commands. Only authenticated host/RCON administration can change this value.",
@@ -1207,6 +1293,12 @@ partial class GameServer
                 _world.RandomSpreadEnabled = value;
             });
         registry.RegisterBoolean(
+            "sv_hlx_enabled",
+            "Enable server-authoritative persistent statistics, lifetime points, and wallet-credit awards.",
+            _hlxEnabled,
+            () => _hlxEnabled,
+            value => _hlxEnabled = value);
+        registry.RegisterBoolean(
             "sv_sniper_aim_indicator",
             "Enable or disable sniper aim indicator visibility.",
             _sniperAimIndicatorEnabled,
@@ -1359,7 +1451,9 @@ partial class GameServer
             value => _botAutofillPerTeam = value,
             minValue: 0,
             maxValue: 12);
+#if !EMBEDDED_SESSION
         registry.EnableRuntimeProtectionPersistence(RuntimePaths.GetConfigPath("server-cvar-policy.json"));
+#endif
         return registry;
     }
 
@@ -1441,12 +1535,28 @@ partial class GameServer
                 _lastToDieNetworkSession?.HandleSnapshotAck(client, acknowledgement),
             allowControlCommand: (_, _) => !IsLastToDieHosted,
             resolveLastToDieReconnectSlot: clientInstanceId =>
-                _lastToDieNetworkSession?.ResolveReconnectSlot(clientInstanceId) ?? (byte)0);
+                _lastToDieNetworkSession?.ResolveReconnectSlot(clientInstanceId) ?? (byte)0,
+            receiveVoteCommand: _outboundMessaging.HandleVoteCommand,
+            receiveGameplayAccountAttach: (client, request) => _statsService?.HandleAttach(client, request),
+            authorizedClientReady: client => { _outboundMessaging.SendCurrentVoteState(client); _serverAudio?.SendState(client); },
+            receiveVoice: (client, message) => _serverAudio?.ReceiveVoice(client, message),
+            receiveVoiceMembership: (client, message) => _serverAudio?.ReceiveMembership(client, message),
+            embeddedAdmission: _embeddedAdmission);
         _incomingPacketPump = new OpenGarrison.Server.ServerIncomingPacketPump(
             _messageTransport,
             messageDispatcher,
             WsaConnReset,
             Console.WriteLine);
+    }
+
+    private void LogMapTransitionPhase(string phase)
+        => Console.WriteLine($"[server] map-transition phase={phase} map={_world.Level.Name} area={_world.Level.MapAreaIndex} rotationIndex={_mapRotationManager.CurrentRotationIndex} rotationCount={_mapRotationManager.MapRotation.Count} frame={_world.Frame}");
+
+    private void ApplyServerMapTransition(MapChangeTransition transition)
+    {
+        _outboundMessaging.HandleVotingMapTransition();
+        _statsService?.HandleMapTransition();
+        _eventReporter.ApplyMapTransition(transition);
     }
 
     private static string ResolvePersistentGameplayOwnershipPath(string configuredPath)

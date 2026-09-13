@@ -83,7 +83,8 @@ public sealed record ClientDeadBodyRenderState(
     float Height,
     bool FacingLeft,
     int TicksRemaining,
-    ClientDeadBodyAnimationKind AnimationKind);
+    ClientDeadBodyAnimationKind AnimationKind,
+    string GameplayClassId = "");
 
 public sealed record ClientBubbleMenuInputState(
     ClientBubbleMenuKind Kind,

@@ -67,6 +67,129 @@ public sealed class OpenGarrisonPresenceClient
             ?? throw new InvalidOperationException("Relay session response was empty.");
     }
 
+    public async Task<AccountProfileResponse> GetAccountProfileAsync(ClientIdentityDocument identity)
+    {
+        return await PostAccountRequestAsync(
+            "/api/account/profile",
+            AccountAuthenticatedRequest.FromIdentity(identity),
+            "Account profile response was empty.").ConfigureAwait(false);
+    }
+
+    public async Task<AccountProfileResponse> ProtectAccountAsync(ClientIdentityDocument identity)
+    {
+        return await PostAccountRequestAsync(
+            "/api/account/protect",
+            AccountAuthenticatedRequest.FromIdentity(identity),
+            "Account protection response was empty.").ConfigureAwait(false);
+    }
+
+    public async Task<AccountProfileResponse> ShortenFriendCodeAsync(ClientIdentityDocument identity)
+    {
+        return await PostAccountRequestAsync(
+            "/api/account/friend-code/shorten",
+            AccountAuthenticatedRequest.FromIdentity(identity),
+            "Friend-code response was empty.").ConfigureAwait(false);
+    }
+
+    public async Task<AccountProfileResponse> LoginAccountAsync(
+        ClientIdentityDocument identity,
+        string friendCode,
+        string recoveryKey)
+    {
+        return await PostAccountRequestAsync(
+            "/api/account/login",
+            new AccountLoginRequest
+            {
+                ClientId = identity.ClientId,
+                ClientSecret = identity.ClientSecret,
+                FriendCode = friendCode,
+                RecoveryKey = recoveryKey,
+            },
+            "Account login response was empty.").ConfigureAwait(false);
+    }
+
+    public async Task<GameplaySessionCreateResponse> CreateGameplaySessionAsync(ClientIdentityDocument identity)
+    {
+        var httpClient = GetHttpClient() ?? throw new InvalidOperationException("HTTP client is unavailable.");
+        using var response = await httpClient.PostAsJsonAsync(
+            BuildUri("/api/game-session/create"),
+            AccountAuthenticatedRequest.FromIdentity(identity)).ConfigureAwait(false);
+        await EnsureAccountSuccessAsync(response).ConfigureAwait(false);
+        return await response.Content.ReadFromJsonAsync<GameplaySessionCreateResponse>().ConfigureAwait(false)
+            ?? throw new InvalidOperationException("Gameplay-session response was empty.");
+    }
+
+    public async Task<LastToDieRankingsResponse> GetLastToDieRankingsAsync(
+        ClientIdentityDocument identity,
+        int limit = 3)
+    {
+        var httpClient = GetHttpClient() ?? throw new InvalidOperationException("HTTP client is unavailable.");
+        var request = new LastToDieRankingsRequest
+        {
+            ClientId = identity.ClientId,
+            ClientSecret = identity.ClientSecret,
+            FriendCode = identity.FriendCode,
+            Limit = Math.Clamp(limit, 1, 10),
+        };
+        using var response = await httpClient.PostAsJsonAsync(
+            BuildUri("/api/last-to-die/rankings"),
+            request).ConfigureAwait(false);
+        await EnsureAccountSuccessAsync(response).ConfigureAwait(false);
+        return await response.Content.ReadFromJsonAsync<LastToDieRankingsResponse>().ConfigureAwait(false)
+            ?? throw new InvalidOperationException("Last to Die rankings response was empty.");
+    }
+
+    public async Task<LastToDieLeaderboardResponse> GetLastToDieLeaderboardAsync(
+        string sort,
+        int limit = 50,
+        int offset = 0)
+    {
+        var httpClient = GetHttpClient() ?? throw new InvalidOperationException("HTTP client is unavailable.");
+        var normalizedSort = string.Equals(sort, "round", StringComparison.OrdinalIgnoreCase)
+            ? "round"
+            : "score";
+        var path = $"/api/last-to-die/leaderboard?sort={normalizedSort}" +
+            $"&limit={Math.Clamp(limit, 1, 50)}&offset={Math.Max(0, offset)}";
+        using var response = await httpClient.GetAsync(BuildUri(path)).ConfigureAwait(false);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<LastToDieLeaderboardResponse>().ConfigureAwait(false)
+            ?? throw new InvalidOperationException("Last to Die leaderboard response was empty.");
+    }
+
+    private async Task<AccountProfileResponse> PostAccountRequestAsync<TRequest>(
+        string relativePath,
+        TRequest request,
+        string emptyResponseMessage)
+    {
+        var httpClient = GetHttpClient() ?? throw new InvalidOperationException("HTTP client is unavailable.");
+        using var response = await httpClient.PostAsJsonAsync(BuildUri(relativePath), request).ConfigureAwait(false);
+        await EnsureAccountSuccessAsync(response).ConfigureAwait(false);
+        return await response.Content.ReadFromJsonAsync<AccountProfileResponse>().ConfigureAwait(false)
+            ?? throw new InvalidOperationException(emptyResponseMessage);
+    }
+
+    private static async Task EnsureAccountSuccessAsync(HttpResponseMessage response)
+    {
+        if (response.IsSuccessStatusCode)
+        {
+            return;
+        }
+
+        try
+        {
+            var error = await response.Content.ReadFromJsonAsync<ApiErrorResponse>().ConfigureAwait(false);
+            if (!string.IsNullOrWhiteSpace(error?.Detail))
+            {
+                throw new InvalidOperationException(error.Detail.Trim());
+            }
+        }
+        catch (System.Text.Json.JsonException)
+        {
+        }
+
+        throw new InvalidOperationException($"Account service returned HTTP {(int)response.StatusCode}.");
+    }
+
     public async Task<RelayRoomResolveResponse?> ResolveRelayRoomAsync(string roomCode)
     {
         if (!RelayRoomCode.TryNormalize(roomCode, out var normalizedRoomCode))
@@ -358,6 +481,182 @@ public sealed class RelayRoomResolveResponse
 
     [JsonPropertyName("expiresAtIso")]
     public string ExpiresAtIso { get; set; } = string.Empty;
+}
+
+public sealed class AccountAuthenticatedRequest
+{
+    [JsonPropertyName("clientId")]
+    public string ClientId { get; set; } = string.Empty;
+
+    [JsonPropertyName("clientSecret")]
+    public string ClientSecret { get; set; } = string.Empty;
+
+    [JsonPropertyName("friendCode")]
+    public string FriendCode { get; set; } = string.Empty;
+
+    public static AccountAuthenticatedRequest FromIdentity(ClientIdentityDocument identity)
+    {
+        ArgumentNullException.ThrowIfNull(identity);
+        return new AccountAuthenticatedRequest
+        {
+            ClientId = identity.ClientId,
+            ClientSecret = identity.ClientSecret,
+            FriendCode = identity.FriendCode,
+        };
+    }
+}
+
+public sealed class AccountLoginRequest
+{
+    [JsonPropertyName("clientId")]
+    public string ClientId { get; set; } = string.Empty;
+
+    [JsonPropertyName("clientSecret")]
+    public string ClientSecret { get; set; } = string.Empty;
+
+    [JsonPropertyName("friendCode")]
+    public string FriendCode { get; set; } = string.Empty;
+
+    [JsonPropertyName("recoveryKey")]
+    public string RecoveryKey { get; set; } = string.Empty;
+}
+
+public sealed class AccountProfileResponse
+{
+    [JsonPropertyName("accountId")]
+    public string AccountId { get; set; } = string.Empty;
+
+    [JsonPropertyName("friendCode")]
+    public string FriendCode { get; set; } = string.Empty;
+
+    [JsonPropertyName("displayName")]
+    public string DisplayName { get; set; } = string.Empty;
+
+    [JsonPropertyName("playerCard")]
+    public string PlayerCardJson { get; set; } = string.Empty;
+
+    [JsonPropertyName("lifetimePoints")]
+    public long LifetimePoints { get; set; }
+
+    [JsonPropertyName("walletBalance")]
+    public long WalletBalance { get; set; }
+
+    [JsonPropertyName("profileRevision")]
+    public long ProfileRevision { get; set; }
+
+    [JsonPropertyName("isProtected")]
+    public bool IsProtected { get; set; }
+
+    [JsonPropertyName("recoveryKey")]
+    public string RecoveryKey { get; set; } = string.Empty;
+
+    [JsonPropertyName("createdAtIso")]
+    public string CreatedAtIso { get; set; } = string.Empty;
+
+    [JsonPropertyName("updatedAtIso")]
+    public string UpdatedAtIso { get; set; } = string.Empty;
+}
+
+public sealed class GameplaySessionCreateResponse
+{
+    [JsonPropertyName("gameplayToken")]
+    public string GameplayToken { get; set; } = string.Empty;
+
+    [JsonPropertyName("expiresAtIso")]
+    public string ExpiresAtIso { get; set; } = string.Empty;
+
+    [JsonPropertyName("profile")]
+    public AccountProfileResponse Profile { get; set; } = new();
+}
+
+public sealed class LastToDieRankingsRequest
+{
+    [JsonPropertyName("clientId")]
+    public string ClientId { get; set; } = string.Empty;
+
+    [JsonPropertyName("clientSecret")]
+    public string ClientSecret { get; set; } = string.Empty;
+
+    [JsonPropertyName("friendCode")]
+    public string FriendCode { get; set; } = string.Empty;
+
+    [JsonPropertyName("limit")]
+    public int Limit { get; set; } = 3;
+}
+
+public sealed class LastToDiePlayerRanking
+{
+    [JsonPropertyName("friendCode")]
+    public string FriendCode { get; set; } = string.Empty;
+
+    [JsonPropertyName("displayName")]
+    public string DisplayName { get; set; } = string.Empty;
+
+    [JsonPropertyName("runsPlayed")]
+    public int RunsPlayed { get; set; }
+
+    [JsonPropertyName("bestScoreUnits")]
+    public int BestScoreUnits { get; set; }
+
+    [JsonPropertyName("highestRound")]
+    public int HighestRound { get; set; }
+
+    [JsonPropertyName("scoreRank")]
+    public int ScoreRank { get; set; }
+
+    [JsonPropertyName("roundRank")]
+    public int RoundRank { get; set; }
+}
+
+public sealed class LastToDieLeaderboardEntry
+{
+    [JsonPropertyName("rank")]
+    public int Rank { get; set; }
+
+    [JsonPropertyName("friendCode")]
+    public string FriendCode { get; set; } = string.Empty;
+
+    [JsonPropertyName("displayName")]
+    public string DisplayName { get; set; } = string.Empty;
+
+    [JsonPropertyName("runsPlayed")]
+    public int RunsPlayed { get; set; }
+
+    [JsonPropertyName("bestScoreUnits")]
+    public int BestScoreUnits { get; set; }
+
+    [JsonPropertyName("highestRound")]
+    public int HighestRound { get; set; }
+}
+
+public sealed class LastToDieRankingsResponse
+{
+    [JsonPropertyName("player")]
+    public LastToDiePlayerRanking Player { get; set; } = new();
+
+    [JsonPropertyName("scoreRecords")]
+    public List<LastToDieLeaderboardEntry> ScoreRecords { get; set; } = [];
+
+    [JsonPropertyName("roundRecords")]
+    public List<LastToDieLeaderboardEntry> RoundRecords { get; set; } = [];
+}
+
+public sealed class LastToDieLeaderboardResponse
+{
+    [JsonPropertyName("sort")]
+    public string Sort { get; set; } = "score";
+
+    [JsonPropertyName("entries")]
+    public List<LastToDieLeaderboardEntry> Entries { get; set; } = [];
+
+    [JsonPropertyName("offset")]
+    public int Offset { get; set; }
+
+    [JsonPropertyName("limit")]
+    public int Limit { get; set; }
+
+    [JsonPropertyName("total")]
+    public int Total { get; set; }
 }
 
 internal sealed class ApiErrorResponse

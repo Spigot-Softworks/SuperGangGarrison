@@ -11,31 +11,63 @@ namespace OpenGarrison.Client;
 public partial class Game1
 {
     private const float CoveredPlayerForegroundOpacity = 0.45f;
+    private SimpleLevel? _foregroundSpriteLayerCacheLevel;
+    private readonly Dictionary<ForegroundSpriteLayerKind, (int Index, RoomObjectMarker Marker)[]> _foregroundSpriteLayerCache = new();
+
+    private (int Index, RoomObjectMarker Marker)[] GetCachedForegroundSprites(ForegroundSpriteLayerKind layer)
+    {
+        EnsureForegroundSpriteLayerCacheLevel();
+        if (_foregroundSpriteLayerCache.TryGetValue(layer, out var cached))
+        {
+            return cached;
+        }
+
+        cached = OrderForegroundSprites(_world.Level.RoomObjects, layer);
+        _foregroundSpriteLayerCache[layer] = cached;
+        return cached;
+    }
+
+    private void EnsureForegroundSpriteLayerCacheLevel()
+    {
+        if (ReferenceEquals(_foregroundSpriteLayerCacheLevel, _world.Level))
+        {
+            return;
+        }
+
+        _foregroundSpriteLayerCacheLevel = _world.Level;
+        _foregroundSpriteLayerCache.Clear();
+    }
+
+    internal static (int Index, RoomObjectMarker Marker)[] OrderForegroundSprites(
+        IReadOnlyList<RoomObjectMarker> roomObjects,
+        ForegroundSpriteLayerKind layer)
+    {
+        return roomObjects
+            .Select(static (marker, index) => (Index: index, Marker: marker))
+            .Where(entry => entry.Marker.Type == RoomObjectType.ForegroundSprite
+                && entry.Marker.ForegroundSprite.Layer == layer)
+            .OrderBy(static entry => entry.Marker.ForegroundSprite.RelativeZ)
+            .ThenBy(static entry => entry.Marker.CenterX)
+            .ThenBy(static entry => entry.Marker.CenterY)
+            // Enumerable.OrderBy is stable. Include the original index explicitly
+            // so the cached order remains identical if the implementation changes
+            // to a non-stable sort later.
+            .ThenBy(static entry => entry.Index)
+            .ToArray();
+    }
 
     private void DrawForegroundSprites(Vector2 cameraPosition, ForegroundSpriteLayerKind layer)
     {
         var visuals = GetRuntimeCustomMapVisuals();
         var spriteResources = visuals?.SpriteResources;
 
-        var sprites = new List<(int Index, RoomObjectMarker Marker)>();
-        for (var index = 0; index < _world.Level.RoomObjects.Count; index += 1)
+        foreach (var (roomObjectIndex, marker) in GetCachedForegroundSprites(layer))
         {
-            var marker = _world.Level.RoomObjects[index];
-            if (marker.Type != RoomObjectType.ForegroundSprite
-                || marker.ForegroundSprite.Layer != layer
-                || !_world.Level.IsRoomObjectActive(index))
+            if (!_world.Level.IsRoomObjectActive(roomObjectIndex))
             {
                 continue;
             }
 
-            sprites.Add((index, marker));
-        }
-
-        foreach (var (roomObjectIndex, marker) in sprites
-                     .OrderBy(static entry => entry.Marker.ForegroundSprite.RelativeZ)
-                     .ThenBy(static entry => entry.Marker.CenterX)
-                     .ThenBy(static entry => entry.Marker.CenterY))
-        {
             var resourceName = marker.ForegroundSprite.ImageResourceName;
             if (string.IsNullOrWhiteSpace(resourceName)
                 || spriteResources is null

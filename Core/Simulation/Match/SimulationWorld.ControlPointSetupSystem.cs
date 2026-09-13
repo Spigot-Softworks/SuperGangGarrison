@@ -8,6 +8,8 @@ public sealed partial class SimulationWorld
 {
     private const int ControlPointSetupDurationSeconds = 30;
     private const int ControlPointAttackTimeLimitMinutes = 3;
+    private const int ControlPointCaptureBonusMinutes = 3;
+    private const int ControlPointMaximumTimeMinutes = 5;
 
     private sealed record ControlPointZone(RoomObjectMarker Marker, int ControlPointIndex);
 
@@ -21,6 +23,16 @@ public sealed partial class SimulationWorld
     private int GetControlPointAttackTimeLimitTicks()
     {
         return Math.Max(1, ControlPointAttackTimeLimitMinutes * Config.TicksPerSecond * 60);
+    }
+
+    private int GetControlPointCaptureBonusTicks()
+    {
+        return Math.Max(1, ControlPointCaptureBonusMinutes * Config.TicksPerSecond * 60);
+    }
+
+    private int GetControlPointMaximumTimeTicks()
+    {
+        return Math.Max(1, ControlPointMaximumTimeMinutes * Config.TicksPerSecond * 60);
     }
 
     private void ApplyControlPointSetupMatchRules()

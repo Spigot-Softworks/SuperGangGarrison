@@ -197,6 +197,22 @@ public sealed class ClientSettings
     {
         if (OperatingSystem.IsBrowser())
         {
+            try
+            {
+                if (BrowserPreferenceStore.Read("settings-v1") is { } json
+                    && System.Text.Json.JsonSerializer.Deserialize(json, BrowserClientSettingsJsonContext.Default.ClientSettings) is { } saved)
+                {
+                    saved.RecentConnection = new();
+                    saved.HostDefaults = new();
+                    saved.PlayerName ??= "Player";
+                    saved.Rewards ??= string.Empty;
+                    saved.DiscordApplicationId = string.Empty;
+                    saved.LobbyHost = OpenGarrisonPreferencesDocument.DefaultLobbyHost;
+                    saved.AlwaysRecordGames = false;
+                    return saved;
+                }
+            }
+            catch (System.Text.Json.JsonException) { }
             return new ClientSettings
             {
                 VSync = false,
@@ -232,6 +248,14 @@ public sealed class ClientSettings
     {
         if (OperatingSystem.IsBrowser())
         {
+            var document = System.Text.Json.JsonSerializer.SerializeToNode(this, BrowserClientSettingsJsonContext.Default.ClientSettings)?.AsObject();
+            if (document is not null)
+            {
+                document.Remove(nameof(RecentConnection));
+                document.Remove(nameof(HostDefaults));
+                document.Remove(nameof(LobbyHost));
+                BrowserPreferenceStore.Write("settings-v1", document.ToJsonString());
+            }
             return;
         }
 

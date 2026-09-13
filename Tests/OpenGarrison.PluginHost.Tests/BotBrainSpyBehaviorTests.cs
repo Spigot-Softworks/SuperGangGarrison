@@ -1,5 +1,6 @@
 using OpenGarrison.Core;
 using OpenGarrison.Core.BotBrain;
+using OpenGarrison.Core.LastToDie;
 using System.Reflection;
 using Xunit;
 
@@ -120,6 +121,20 @@ public sealed class BotBrainSpyBehaviorTests
 
         Assert.NotNull(target);
         Assert.Same(spy, target!.Value.Player);
+    }
+
+    [Fact]
+    public void BotDoesNotTargetGhostCloakedLastToDieSniper()
+    {
+        var world = CreateCombatBotWorld(out var bot);
+        var sniper = AddNetworkPlayer(world, 2, PlayerClass.Sniper, PlayerTeam.Blue, 300f, 100f);
+        Assert.True(world.TryApplyLastToDiePlayerPredictionProfile(
+            2,
+            [LastToDiePerkIds.Sniper.Ghost.Value]));
+        Assert.True(sniper.TryActivateLastToDieSniperGhostCloak());
+
+        Assert.False(CombatDecisionResolver.IsPlayerVisibleToBot(bot, sniper));
+        Assert.Null(TargetSelector.SelectCombatTarget(bot, world, bot.Team));
     }
 
     private static SimulationWorld CreateSpyWorld(out PlayerEntity spy)

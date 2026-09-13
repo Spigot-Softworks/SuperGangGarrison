@@ -139,7 +139,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
 
         Assert.False(first.IsAlive);
         Assert.Equal(1, first.GibDeaths);
-        Assert.Equal(second.MaxHealth - PlayerEntity.SniperBaseDamage, second.Health);
+        Assert.Equal(second.MaxHealth - PlayerEntity.SniperUnscopedDamage, second.Health);
         Assert.Equal(third.MaxHealth, third.Health);
         var events = world.DrainPendingDamageEvents();
         Assert.Contains(events, damageEvent =>
@@ -196,7 +196,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
 
         FireRifle(fmjWorld, fmjWorld.LocalPlayer, secondEnemy.X, secondEnemy.Y);
 
-        Assert.Equal(firstEnemy.MaxHealth - PlayerEntity.SniperBaseDamage, firstEnemy.Health);
+        Assert.Equal(firstEnemy.MaxHealth - PlayerEntity.SniperUnscopedDamage, firstEnemy.Health);
         Assert.Equal(secondEnemy.MaxHealth, secondEnemy.Health);
     }
 
@@ -524,13 +524,13 @@ public sealed class LastToDieSniperPerkRuntimeTests
 
         FireRifle(world, sniper, target.X, target.Y);
 
-        Assert.Equal(target.MaxHealth - PlayerEntity.SniperBaseDamage, target.Health);
+        Assert.Equal(target.MaxHealth - PlayerEntity.SniperUnscopedDamage, target.Health);
         Assert.Equal((byte)2, sniper.LastToDieSniperMarkedTargetSlot);
 
         AdvanceSourceTicks(sniper, 40);
         FireRifle(world, sniper, target.X, target.Y);
 
-        Assert.Equal(target.MaxHealth - (PlayerEntity.SniperBaseDamage * 3), target.Health);
+        Assert.Equal(target.MaxHealth - (PlayerEntity.SniperUnscopedDamage * 3), target.Health);
         Assert.Equal((byte)2, sniper.LastToDieSniperMarkedTargetSlot);
     }
 
@@ -551,12 +551,12 @@ public sealed class LastToDieSniperPerkRuntimeTests
 
         AdvanceSourceTicks(sniper, 40);
         FireRifle(world, sniper, second.X, second.Y);
-        Assert.Equal(second.MaxHealth - PlayerEntity.SniperBaseDamage, second.Health);
+        Assert.Equal(second.MaxHealth - PlayerEntity.SniperUnscopedDamage, second.Health);
         Assert.Equal((byte)3, sniper.LastToDieSniperMarkedTargetSlot);
 
         AdvanceSourceTicks(sniper, 40);
         FireRifle(world, sniper, first.X, first.Y);
-        Assert.Equal(first.MaxHealth - (PlayerEntity.SniperBaseDamage * 2), first.Health);
+        Assert.Equal(first.MaxHealth - (PlayerEntity.SniperUnscopedDamage * 2), first.Health);
         Assert.Equal((byte)2, sniper.LastToDieSniperMarkedTargetSlot);
     }
 
@@ -663,7 +663,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
         AdvanceSourceTicks(sniper, 100);
         FireRifle(world, sniper, nextTarget.X, nextTarget.Y);
 
-        Assert.Equal(nextTarget.MaxHealth - 36, nextTarget.Health);
+        Assert.Equal(nextTarget.MaxHealth - 26, nextTarget.Health);
     }
 
     [Fact]
@@ -685,11 +685,11 @@ public sealed class LastToDieSniperPerkRuntimeTests
             sniper.LastToDieSniperConquistadorStacks);
 
         FireRifle(world, sniper, target.X, target.Y);
-        Assert.Equal(target.MaxHealth - 105, target.Health);
+        Assert.Equal(target.MaxHealth - 75, target.Health);
 
         AdvanceSourceTicks(sniper, 40);
         FireRifle(world, sniper, target.X, target.Y);
-        Assert.Equal(target.MaxHealth - 245, target.Health);
+        Assert.Equal(target.MaxHealth - 175, target.Health);
     }
 
     [Fact]
@@ -803,7 +803,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
             AdvanceSourceTicks(sniper, 40);
         }
 
-        Assert.Equal(target.MaxHealth - 70, target.Health);
+        Assert.Equal(target.MaxHealth - 50, target.Health);
         var poison = Assert.Single(
             world.GetLastToDieStatusEffects(target.Id),
             status => status.Id == LastToDieStatusEffectIds.SniperTranqPoison);
@@ -1166,7 +1166,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
 
         Assert.True(unchargedTarget.IsAlive);
         Assert.Equal(
-            unchargedTarget.MaxHealth - PlayerEntity.SniperBaseDamage,
+            unchargedTarget.MaxHealth - PlayerEntity.SniperUnscopedDamage,
             unchargedTarget.Health);
     }
 
@@ -1319,7 +1319,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
             LastToDieSniperProfile.GhostCooldownSeconds * LegacyMovementModel.SourceTicksPerSecond,
             sniper.LastToDieSniperGhostCooldownTicksRemaining);
         Assert.Equal(
-            target.MaxHealth - (PlayerEntity.SniperBaseDamage * 3),
+            target.MaxHealth - (PlayerEntity.SniperUnscopedDamage * 3),
             target.Health);
     }
 

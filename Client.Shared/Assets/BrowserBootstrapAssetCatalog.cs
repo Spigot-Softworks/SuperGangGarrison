@@ -1,5 +1,6 @@
 using System.Net.Http;
 using System.Text;
+using OpenGarrison.Core;
 
 namespace OpenGarrison.ClientShared;
 
@@ -198,6 +199,7 @@ public sealed class BrowserBootstrapAssetCatalog(
 
     private static readonly string[] DefaultTextPaths =
     [
+        "Content/Sprites/Menu/Fonts/ConsoleFontAtlas.json",
         "Content/Sprites/Menu/Fonts/MenuBuildFontAtlas.json",
         "Content/Sprites/Menu/Fonts/MenuFontAtlas.json",
     ];
@@ -228,6 +230,16 @@ public sealed class BrowserBootstrapAssetCatalog(
             "Content/Sprites/Menu/RandomizerLoadout/BackS.png",
             "Content/Sprites/Menu/Fonts/MenuBuildFontAtlas.png",
             "Content/Sprites/Menu/Fonts/MenuFontAtlas.png",
+            "Content/Sprites/Menu/Fonts/ConsoleFontAtlas.png",
+            "Content/Sprites/Menu/PlayerCards/redplayercard.png",
+            "Content/Sprites/Menu/PlayerCards/blueplayercard.png",
+            "Content/Sprites/Menu/PlayerCards/Medals/Bloodsoaked Batallion.png",
+            "Content/Sprites/Menu/PlayerCards/Medals/Keyboard Warrior.png",
+            "Content/Sprites/Menu/PlayerCards/Medals/Mercenary.png",
+            "Content/Sprites/Menu/PlayerCards/Medals/Shining Hero.png",
+            "Content/Sprites/Menu/PlayerCards/Medals/The Legendary.png",
+            "Content/Sprites/Menu/PlayerCards/Medals/Time-Tested Veteran.png",
+            PracticeBotDisplayNamePool.BrowserDefaultNamesRelativePath,
             "Content/Sprites/Menu/LastToDie/logo.png",
             "Content/Sprites/Menu/LastToDie/ltd_buff.png",
             "Content/Sprites/Menu/LastToDie/CharacterSelect/arrowleft.png",
@@ -243,6 +255,9 @@ public sealed class BrowserBootstrapAssetCatalog(
             "Content/Sprites/Menu/Title/background.png",
             "Content/Sprites/Menu/Title/background-4x3.png",
             "Content/Sprites/Menu/Title/background-5x4.png",
+            "Content/Sprites/Menu/Title/OpenGarrisonLogo/logo-static.png",
+            "Content/Sprites/Menu/Title/OpenGarrisonLogo/logo-flame-regions.png",
+            "Content/Sprites/Menu/Title/OpenGarrisonLogo/logo-flame-overlay.png",
         };
 
         for (var index = 1; index <= 6; index += 1)

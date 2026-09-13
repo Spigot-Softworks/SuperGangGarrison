@@ -35,7 +35,7 @@
       "displayName": "Stock",
       "primary": {
         "defaultItemId": "weapon.rocketlauncher",
-        "itemIds": [ "weapon.rocketlauncher" ],
+        "itemIds": [ "weapon.rocketlauncher", "weapon.mortar-launcher" ],
         "switchPolicy": "primary_swap_station",
         "selectionPersistence": "same_class_loadout"
       },

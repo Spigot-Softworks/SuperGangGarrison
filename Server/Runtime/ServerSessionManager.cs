@@ -28,6 +28,7 @@ sealed class ServerSessionManager
     private readonly Action<ClientSession, string> _clientRemoved;
     private readonly Action<ClientSession> _clientProfileChanged;
     private readonly Action<ClientSession> _passwordAccepted;
+    private Action<ClientSession> _clientDisconnecting = _ => { };
     private readonly Action<ClientSession, PlayerTeam> _playerTeamChanged;
     private readonly Action<ClientSession, PlayerClass> _playerClassChanged;
     private readonly Func<byte, bool> _isPlayableSlotAvailable;
@@ -100,6 +101,11 @@ sealed class ServerSessionManager
         _gameplayOwnershipService = gameplayOwnershipService;
     }
 
+    public void SetClientDisconnectingObserver(Action<ClientSession> observer)
+    {
+        _clientDisconnecting = observer ?? (_ => { });
+    }
+
     public void ConfigurePlayableClientLifecyclePolicy(
         Func<byte, bool> retainPlayableSlotOnDisconnect,
         Func<byte, bool> canAcceptPlayableInput)
@@ -117,7 +123,7 @@ sealed class ServerSessionManager
         {
             client.Name = sanitizedName;
             client.BadgeMask = badgeMask;
-            if (friendCode is not null)
+            if (friendCode is not null && !client.HasAttachedGameplayAccount)
             {
                 client.FriendCode = ProtocolCodec.TruncateUtf8(friendCode.Trim(), ProtocolCodec.MaxFriendCodeBytes);
             }
@@ -151,12 +157,14 @@ sealed class ServerSessionManager
                 var hasLatestInput = client.TryGetInputForNextTick(out var latestInput);
                 var commandInput = ApplyProtocol64Command(
                     hasLatestInput ? latestInput : client.LatestReceivedInput,
-                    command);
+                    command,
+                    !client.HasAcceptedInput || IsSequenceNewer(command.InputSequence, client.LastReceivedInputSequence));
                 var commandEdges = GetProtocol64CommandEdge(command.Kind);
                 var commandsForThisTick = new List<Protocol64InputCommand> { command };
                 while (client.TryDequeueProtocol64InputCommand(out var nextCommand))
                 {
-                    commandInput = ApplyProtocol64Command(commandInput, nextCommand);
+                    commandInput = ApplyProtocol64Command(commandInput, nextCommand,
+                        !client.HasAcceptedInput || IsSequenceNewer(nextCommand.InputSequence, client.LastReceivedInputSequence));
                     commandEdges |= GetProtocol64CommandEdge(nextCommand.Kind);
                     commandsForThisTick.Add(nextCommand);
                 }
@@ -164,7 +172,8 @@ sealed class ServerSessionManager
                 var applied = _world.TrySetNetworkPlayerInput(
                     slot,
                     ConvertAimPositionFromClient(slot, commandInput),
-                    commandEdges);
+                    commandEdges,
+                    requireExplicitPresses: true);
                 foreach (var commandForThisTick in commandsForThisTick)
                 {
                     _pendingProtocol64InputConsumptions.Add(new(
@@ -178,7 +187,8 @@ sealed class ServerSessionManager
                 && _canAcceptPlayableInput(slot)
                 && client.TryGetInputForNextTick(out var input))
             {
-                _world.TrySetNetworkPlayerInput(slot, ConvertAimPositionFromClient(slot, input));
+                _world.TrySetNetworkPlayerInput(slot, ConvertAimPositionFromClient(slot, input),
+                    InputButtons.None, requireExplicitPresses: client.Protocol64Enabled);
             }
             else
             {
@@ -263,10 +273,13 @@ sealed class ServerSessionManager
 
     private static PlayerInputSnapshot ApplyProtocol64Command(
         PlayerInputSnapshot latest,
-        Protocol64InputCommand command)
+        Protocol64InputCommand command,
+        bool applyHeldState)
     {
         var buttons = command.HeldButtons;
-        var input = latest with
+        // A delayed press must not restore stale movement or another button that
+        // has since been released. Use its held snapshot only if it is newer.
+        var input = applyHeldState ? latest with
         {
             Left = buttons.HasFlag(InputButtons.Left),
             Right = buttons.HasFlag(InputButtons.Right),
@@ -289,7 +302,7 @@ sealed class ServerSessionManager
             IsTypingChatMessage = buttons.HasFlag(InputButtons.IsTypingChatMessage),
             AimWorldX = command.AimRelX,
             AimWorldY = command.AimRelY,
-        };
+        } : latest;
 
         return command.Kind switch
         {
@@ -461,6 +474,7 @@ sealed class ServerSessionManager
         }
 
         _log($"[server] client removed slot={slot} peer={removedClient.RemoteDescription} reason={reason}");
+        _clientDisconnecting(removedClient);
         _clientRemoved(removedClient, reason);
         if (SimulationWorld.IsPlayableNetworkPlayerSlot(slot))
         {

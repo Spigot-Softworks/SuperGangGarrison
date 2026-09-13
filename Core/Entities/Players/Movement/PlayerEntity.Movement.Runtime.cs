@@ -144,6 +144,7 @@ public sealed partial class PlayerEntity
 
         AdvanceAssistTracking();
         AdvanceCombatPerformanceTracking();
+        AdvanceCivvieUmbrellaOpening(dt);
         var legacyStateTicks = ConsumeLegacyStateTicks(dt);
         for (var tick = 0; tick < legacyStateTicks; tick += 1)
         {

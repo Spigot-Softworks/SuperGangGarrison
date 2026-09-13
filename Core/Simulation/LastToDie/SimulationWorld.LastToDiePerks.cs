@@ -368,6 +368,13 @@ public sealed partial class SimulationWorld
         SyncExperimentalGameplayLoadout(slot, player);
     }
 
+    public void ResetLastToDieClientSession()
+    {
+        ConfigureLastToDieStage(0);
+        ClearLastToDiePlayerPredictionProfile(LocalPlayerSlot);
+        TrySetNetworkPlayerAutomaticRespawnSuppressed(LocalPlayerSlot, false);
+    }
+
     public bool ClearLastToDiePlayerPredictionProfile(byte slot)
     {
         if (!TryGetNetworkPlayer(slot, out var player))

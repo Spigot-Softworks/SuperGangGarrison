@@ -63,7 +63,19 @@ sealed class ClientSession(
     }
     public ulong BadgeMask { get; set; }
     public string FriendCode { get; set; } = string.Empty;
+    public string VerifiedFriendCode { get; set; } = string.Empty;
     public string PlayerCardJson { get; set; } = string.Empty;
+    public string AccountId { get; set; } = string.Empty;
+    public string GameplayToken { get; set; } = string.Empty;
+    public DateTimeOffset GameplayTokenExpiresAt { get; set; } = DateTimeOffset.MinValue;
+    public long LifetimePoints { get; set; }
+    public long WalletBalance { get; set; }
+    public long AccountProfileRevision { get; set; }
+    public ulong LatestGameplayAccountAttachRequestId { get; set; }
+    public bool HasAttachedGameplayAccount =>
+        !string.IsNullOrWhiteSpace(AccountId)
+        && !string.IsNullOrWhiteSpace(GameplayToken)
+        && GameplayTokenExpiresAt > DateTimeOffset.UtcNow;
     public TimeSpan ConnectedAt { get; } = lastSeen;
     public TimeSpan LastSeen { get; set; } = lastSeen;
     public PlayerInputSnapshot LatestReceivedInput { get; private set; }
@@ -83,6 +95,10 @@ sealed class ClientSession(
     public bool IsWatchOnly { get; set; }
     public TimeSpan LastPasswordRequestSentAt { get; set; } = TimeSpan.MinValue;
     public OpenGarrisonServerAdminPermissions AdminPermissions { get; set; } = OpenGarrisonServerAdminPermissions.None;
+    public OpenGarrisonServerAdminPermissions ConfiguredAdminPermissions { get; set; } = OpenGarrisonServerAdminPermissions.None;
+    public string ServerTitleText { get; set; } = string.Empty;
+    public uint ServerTitleColorRgb { get; set; }
+    public bool ServerTitleRainbow { get; set; }
     public TimeSpan AdminAuthenticatedAt { get; set; } = TimeSpan.MinValue;
     public string PendingAdminChatCommand { get; set; } = string.Empty;
     public TimeSpan PendingAdminChatCommandQueuedAt { get; set; } = TimeSpan.MinValue;

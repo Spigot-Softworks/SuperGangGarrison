@@ -4,7 +4,7 @@ using OpenGarrison.Client;
 
 namespace OpenGarrison.Client.Browser.Services;
 
-internal sealed class BrowserWebSocketMessageTransport : INetworkClientMessageTransport
+internal sealed class BrowserWebSocketMessageTransport : INetworkClientMessageTransport, INetworkClientAudioMessageTransport
 {
     private readonly IJSInProcessRuntime _jsRuntime;
     private readonly DotNetObjectReference<BrowserWebSocketMessageTransport> _callbackReference;
@@ -41,6 +41,12 @@ internal sealed class BrowserWebSocketMessageTransport : INetworkClientMessageTr
         transport = null;
         error = string.Empty;
 
+        if (!OpenGarrison.ClientShared.ClientDistribution.AllowsEndpoint(host))
+        {
+            error = "Join a Last to Die room to connect.";
+            return false;
+        }
+
         if (jsRuntime is not IJSInProcessRuntime inProcessRuntime)
         {
             error = "Browser networking requires in-process JS interop.";
@@ -49,7 +55,9 @@ internal sealed class BrowserWebSocketMessageTransport : INetworkClientMessageTr
 
         var protocol64 = host.StartsWith("ws64://", StringComparison.OrdinalIgnoreCase)
             || host.StartsWith("wss64://", StringComparison.OrdinalIgnoreCase);
-        var remoteDescription = protocol64
+        var remoteDescription = OpenGarrison.ClientShared.ClientDistribution.IsRestricted
+            ? "Last to Die"
+            : protocol64
             ? $"{(host.StartsWith("wss64://", StringComparison.OrdinalIgnoreCase) ? "wss64" : "ws64")}://{host[(host.IndexOf("://", StringComparison.Ordinal) + 3)..]}:{port}"
             : port > 0 ? $"{host}:{port}" : host;
         var pendingTransport = new BrowserWebSocketMessageTransport(inProcessRuntime, remoteDescription, Guid.NewGuid().ToString("N"));
@@ -139,6 +147,13 @@ internal sealed class BrowserWebSocketMessageTransport : INetworkClientMessageTr
         }
 
         _callbackReference.Dispose();
+    }
+
+    public void SendAudio(byte[] payload)
+    {
+        lock (_stateGate) { if (_isDisposed || !_isReady) return; }
+        try { _jsRuntime.InvokeVoid("OpenGarrisonBrowserHost.sendWebSocketAudio", _clientId, payload); }
+        catch (JSException ex) { HandleWebSocketDisconnect(ex.Message); }
     }
 
     [JSInvokable("HandleWebSocketReady")]

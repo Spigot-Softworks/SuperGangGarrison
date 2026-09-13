@@ -7,6 +7,10 @@ param(
 
     [string]$UpdateBaseUrl = "https://api.superganggarrison.com/updates",
 
+    [string]$GitHubRepository = "",
+
+    [string]$ExcludeReleaseTag = "",
+
     [string]$OutputDirectory = "",
 
     [switch]$Required
@@ -36,10 +40,79 @@ function Get-PlatformSegment {
     }
 }
 
+function Get-ReleaseManifestAssetName {
+    param([string]$RuntimeIdentifier)
+
+    switch ($RuntimeIdentifier) {
+        "win-x64" { return "OpenGarrison-Windows-x64.latest.json" }
+        "linux-x64" { return "OpenGarrison-Linux-x64.latest.json" }
+        "osx-x64" { return "OpenGarrison-macOS-x64.latest.json" }
+        "osx-arm64" { return "OpenGarrison-macOS-arm64.latest.json" }
+        default { return "OpenGarrison-$RuntimeIdentifier.latest.json" }
+    }
+}
+
+$previousReleases = @()
+if (-not [string]::IsNullOrWhiteSpace($GitHubRepository)) {
+    if ($GitHubRepository -notmatch '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$') {
+        throw "GitHub repository must use the owner/name form: '$GitHubRepository'."
+    }
+
+    $headers = @{
+        Accept = "application/vnd.github+json"
+        "User-Agent" = "OpenGarrison-release"
+        "X-GitHub-Api-Version" = "2022-11-28"
+    }
+    $githubToken = [Environment]::GetEnvironmentVariable("GITHUB_TOKEN")
+    if (-not [string]::IsNullOrWhiteSpace($githubToken)) {
+        $headers.Authorization = "Bearer $githubToken"
+    }
+
+    try {
+        $releaseApiUrl = "https://api.github.com/repos/$GitHubRepository/releases?per_page=100"
+        $previousReleases = @(Invoke-RestMethod -Uri $releaseApiUrl -Headers $headers -Method Get -TimeoutSec 30 |
+            Where-Object {
+                -not $_.draft -and
+                ([string]::IsNullOrWhiteSpace($ExcludeReleaseTag) -or
+                    -not $_.tag_name.Equals($ExcludeReleaseTag, [System.StringComparison]::OrdinalIgnoreCase)) -and
+                (($Channel -eq "stable" -and -not $_.prerelease) -or
+                    ($Channel -eq "beta" -and $_.prerelease))
+            } |
+            Sort-Object { [DateTimeOffset]$_.published_at } -Descending)
+    }
+    catch {
+        Write-Warning "Unable to inspect prior GitHub releases: $($_.Exception.Message). Falling back to the update API."
+        $previousReleases = @()
+    }
+}
+
+function Get-PreviousReleaseManifestUrl {
+    param([string]$RuntimeIdentifier)
+
+    $assetName = Get-ReleaseManifestAssetName -RuntimeIdentifier $RuntimeIdentifier
+    foreach ($release in $previousReleases) {
+        $asset = @($release.assets | Where-Object {
+            $_.name.Equals($assetName, [System.StringComparison]::OrdinalIgnoreCase)
+        } | Select-Object -First 1)
+        if ($asset.Count -eq 1 -and -not [string]::IsNullOrWhiteSpace([string]$asset[0].browser_download_url)) {
+            return [string]$asset[0].browser_download_url
+        }
+    }
+
+    return ""
+}
+
 $downloaded = 0
 foreach ($runtimeIdentifier in $Platforms) {
     $platformSegment = Get-PlatformSegment -RuntimeIdentifier $runtimeIdentifier
-    $manifestUrl = "$($UpdateBaseUrl.TrimEnd('/'))/$platformSegment/$Channel/latest.json"
+    $releaseManifestUrl = Get-PreviousReleaseManifestUrl -RuntimeIdentifier $runtimeIdentifier
+    $manifestUrl = if ([string]::IsNullOrWhiteSpace($releaseManifestUrl)) {
+        "$($UpdateBaseUrl.TrimEnd('/'))/$platformSegment/$Channel/latest.json"
+    }
+    else {
+        $releaseManifestUrl
+    }
+    $temporaryPath = ""
     try {
         Write-Host "[delta-base] fetching $manifestUrl"
         $manifest = Invoke-RestMethod -Uri $manifestUrl -Method Get -TimeoutSec 30
@@ -107,6 +180,10 @@ foreach ($runtimeIdentifier in $Platforms) {
         $downloaded += 1
     }
     catch {
+        if (-not [string]::IsNullOrWhiteSpace($temporaryPath) -and
+            (Test-Path -LiteralPath $temporaryPath)) {
+            Remove-Item -LiteralPath $temporaryPath -Force -ErrorAction SilentlyContinue
+        }
         $message = "Unable to prepare delta base for $runtimeIdentifier from '$manifestUrl': $($_.Exception.Message)"
         if ($Required) {
             throw $message

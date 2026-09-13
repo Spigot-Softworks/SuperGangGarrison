@@ -31,11 +31,13 @@ public sealed class Protocol64StateApplier
     private readonly Dictionary<(ushort Slot, ulong PlayerId), Protocol64PlayerState> _players = [];
     private readonly Dictionary<(ushort Slot, ulong PlayerId), uint> _removedPlayerGenerations = [];
     private readonly Dictionary<ulong, Protocol64ProjectileState> _projectiles = [];
-    private readonly Dictionary<ulong, Protocol64ProjectileIdentity> _removedProjectiles = [];
+    private readonly Dictionary<ulong, Protocol64ProjectileLifecycle> _removedProjectiles = [];
     private readonly Dictionary<(ushort Slot, ulong PlayerId), uint> _lastWorldPlayers = [];
     private readonly Dictionary<ulong, Protocol64ProjectileState> _lastWorldProjectiles = [];
     private ulong _lastWorldPlayerSequence;
     private ulong _lastWorldRosterSequence;
+    private byte? _lastWorldClientSlot;
+    private bool _hasWorldSlotMapping;
     private ulong _playerStateSequence;
     private ulong _rosterStateSequence;
     private ulong _projectileStateSequence;
@@ -46,6 +48,13 @@ public sealed class Protocol64StateApplier
     public IReadOnlyCollection<Protocol64PlayerState> Players => _players.Values;
 
     public IReadOnlyCollection<Protocol64ProjectileState> Projectiles => _projectiles.Values;
+
+    /// <summary>
+    /// Despawn tombstones are exposed read-only so presentation can bridge the
+    /// authoritative removal to the same terminal state tick without applying
+    /// a detached proxy back into the simulation world.
+    /// </summary>
+    public IReadOnlyCollection<Protocol64ProjectileLifecycle> RemovedProjectileLifecycles => _removedProjectiles.Values;
 
     public ulong PlayerStateSequence => _playerStateSequence;
 
@@ -80,6 +89,8 @@ public sealed class Protocol64StateApplier
         _lastWorldProjectiles.Clear();
         _lastWorldPlayerSequence = 0;
         _lastWorldRosterSequence = 0;
+        _lastWorldClientSlot = null;
+        _hasWorldSlotMapping = false;
         _playerStateSequence = 0;
         _rosterStateSequence = 0;
         _projectileStateSequence = 0;
@@ -238,6 +249,16 @@ public sealed class Protocol64StateApplier
             return Repair(Protocol64StateResyncReason.InvalidState, "Projectile state identity is invalid.");
         }
 
+        if (_removedProjectiles.TryGetValue(state.EntityId, out var removed))
+        {
+            if (state.Generation <= removed.Generation)
+            {
+                return new(Protocol64StateApplyStatus.Stale, Reason: "Projectile state would resurrect a despawned generation.");
+            }
+
+            _removedProjectiles.Remove(state.EntityId);
+        }
+
         if (_projectiles.TryGetValue(state.EntityId, out var existing))
         {
             if (state.Generation < existing.Generation || state.StateTick < existing.StateTick)
@@ -267,13 +288,43 @@ public sealed class Protocol64StateApplier
 
         if (lifecycle.Lifecycle == Protocol64ProjectileLifecycleKind.Despawn)
         {
-            _removedProjectiles[lifecycle.EntityId] = new(
-                lifecycle.EntityId,
-                lifecycle.Generation,
-                lifecycle.EntityKind);
+            if (_projectiles.TryGetValue(lifecycle.EntityId, out var existingLive))
+            {
+                if (lifecycle.Generation < existingLive.Generation)
+                {
+                    return new(Protocol64StateApplyStatus.Stale, Reason: "Projectile despawn is older than the live generation.");
+                }
+
+                if (lifecycle.Generation == existingLive.Generation
+                    && lifecycle.StateTick < existingLive.StateTick)
+                {
+                    return new(Protocol64StateApplyStatus.Stale, Reason: "Projectile despawn is older than the live state tick.");
+                }
+
+                if (lifecycle.Generation == existingLive.Generation
+                    && lifecycle.EntityKind != existingLive.EntityKind)
+                {
+                    return Repair(Protocol64StateResyncReason.InvalidState, "Projectile kind changed without a generation change.");
+                }
+            }
+
+            if (_removedProjectiles.TryGetValue(lifecycle.EntityId, out var existingRemoved))
+            {
+                if (lifecycle.Generation < existingRemoved.Generation)
+                {
+                    return new(Protocol64StateApplyStatus.Stale, Reason: "Projectile despawn is older than the tombstone generation.");
+                }
+
+                if (lifecycle.Generation == existingRemoved.Generation)
+                {
+                    _lastStateTick = Math.Max(_lastStateTick, lifecycle.StateTick);
+                    return new(Protocol64StateApplyStatus.Applied);
+                }
+            }
+
+            _removedProjectiles[lifecycle.EntityId] = lifecycle;
             if (_projectiles.TryGetValue(lifecycle.EntityId, out var existing)
-                && existing.Generation == lifecycle.Generation
-                && existing.EntityKind == lifecycle.EntityKind)
+                && lifecycle.Generation >= existing.Generation)
             {
                 _projectiles.Remove(lifecycle.EntityId);
             }
@@ -321,7 +372,11 @@ public sealed class Protocol64StateApplier
             lifecycle.CriticalDamageMultiplier,
             lifecycle.PlayerKnockbackImpulse,
             lifecycle.PlayerKnockbackAirborneVerticalScale,
-            lifecycle.PlayerKnockbackGroundedVerticalScale));
+            lifecycle.PlayerKnockbackGroundedVerticalScale,
+            lifecycle.IsBallisticRocket,
+            lifecycle.BallisticRocketGravityPerTick,
+            lifecycle.SuppressRocketSmokeTrail,
+            lifecycle.FlareStyle));
     }
 
     public Protocol64StateApplyResult ApplyResyncResponse(Protocol64StateResyncResponse response)
@@ -408,11 +463,26 @@ public sealed class Protocol64StateApplier
     /// that prevents a decoded state from remaining stranded in a network-only
     /// cache.
     /// </summary>
-    public void ApplyToWorld(SimulationWorld world)
+    public void ApplyToWorld(SimulationWorld world, byte? clientLocalPlayerSlot = null)
     {
         if (world is null)
         {
             throw new ArgumentNullException(nameof(world));
+        }
+
+        if (!_hasWorldSlotMapping || _lastWorldClientSlot != clientLocalPlayerSlot)
+        {
+            foreach (var previous in _lastWorldPlayers)
+                world.RemoveProtocol64Player(new Protocol64PlayerIdentity(
+                    previous.Key.Slot, previous.Key.PlayerId, previous.Value), _lastWorldClientSlot);
+            if (clientLocalPlayerSlot.HasValue)
+                world.ResetProtocol64ClientLocalPlayer();
+            _lastWorldPlayers.Clear();
+            _lastWorldProjectiles.Clear();
+            _lastWorldPlayerSequence = 0;
+            _lastWorldRosterSequence = 0;
+            _lastWorldClientSlot = clientLocalPlayerSlot;
+            _hasWorldSlotMapping = true;
         }
 
         if (_lastWorldRosterSequence != _rosterStateSequence)
@@ -422,7 +492,7 @@ public sealed class Protocol64StateApplier
                 world.RemoveProtocol64Player(new Protocol64PlayerIdentity(
                     removed.Key.Slot,
                     removed.Key.PlayerId,
-                    removed.Value));
+                    removed.Value), clientLocalPlayerSlot);
             }
 
             _lastWorldRosterSequence = _rosterStateSequence;
@@ -437,13 +507,13 @@ public sealed class Protocol64StateApplier
                     world.RemoveProtocol64Player(new Protocol64PlayerIdentity(
                         previous.Key.Slot,
                         previous.Key.PlayerId,
-                        previous.Value));
+                        previous.Value), clientLocalPlayerSlot);
                 }
             }
 
             foreach (var player in _players.Values)
             {
-                world.ApplyProtocol64PlayerState(player);
+                world.ApplyProtocol64PlayerState(player, clientLocalPlayerSlot);
             }
 
             _lastWorldPlayers.Clear();
@@ -469,11 +539,50 @@ public sealed class Protocol64StateApplier
                 continue;
             }
 
-            if (world.ApplyProtocol64ProjectileState(projectile))
+            if (world.ApplyProtocol64ProjectileState(projectile, clientLocalPlayerSlot))
             {
                 _lastWorldProjectiles[projectile.EntityId] = projectile;
             }
         }
+    }
+
+    /// <summary>
+    /// A legacy snapshot can arrive after a newer projectile update on the fast
+    /// channel. Restore only states newer than that snapshot, bypassing the
+    /// projection cache that still remembers the erased entity as applied.
+    /// </summary>
+    public void RestoreNewerProjectilesAfterSnapshot(SimulationWorld world, ulong snapshotFrame, byte localPlayerSlot)
+    {
+        foreach (var projectile in _projectiles.Values)
+        {
+            if (projectile.StateTick > snapshotFrame
+                && world.ApplyProtocol64ProjectileState(projectile, localPlayerSlot))
+            {
+                _lastWorldProjectiles[projectile.EntityId] = projectile;
+            }
+        }
+
+        foreach (var removed in _removedProjectiles.Values)
+        {
+            if (removed.StateTick > snapshotFrame)
+            {
+                world.RemoveProtocol64Projectile(removed.EntityId);
+                _lastWorldProjectiles.Remove(removed.EntityId);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Legacy snapshots still supply map, score and inventory details online.
+    /// They must not replace the local baseline whose watermark retired inputs.
+    /// Restore the complete fast-state record before prediction is rebuilt.
+    /// </summary>
+    public bool RestoreLocalPlayerBaseline(SimulationWorld world, byte localPlayerSlot)
+    {
+        ArgumentNullException.ThrowIfNull(world);
+        return TryGetPlayerState(localPlayerSlot, out var state)
+            && state.Equipment is not null
+            && world.ApplyProtocol64PlayerState(state, localPlayerSlot);
     }
 
     private Protocol64StateApplyResult Repair(Protocol64StateResyncReason reason, string message)
@@ -485,6 +594,7 @@ public sealed class Protocol64StateApplier
             && player.Generation != 0
             && player.Slot < 64
             && !string.IsNullOrWhiteSpace(player.GameplayClassId)
+            && (player.Equipment is null || PlayerEntity.IsValidProtocol64EquipmentState(player))
             && player.Health >= 0
             && player.MaxHealth > 0
             && player.Health <= player.MaxHealth

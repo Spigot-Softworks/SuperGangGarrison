@@ -51,6 +51,14 @@ internal sealed partial class LuaClientPlugin(
 
     private Script? _script;
     private Table? _pluginTable;
+    private Coroutine? _callbackDispatcher;
+    private Table? _callbackDispatcherRequestTable;
+    private Table? _callbackDispatcherCompletionMarkerTable;
+    private DynValue _callbackDispatcherRequest = DynValue.Nil;
+    private DynValue _callbackDispatcherCompletionMarker = DynValue.Nil;
+    private DynValue[]? _callbackDispatcherInitializationArguments;
+    private DynValue[]? _callbackDispatcherStartArguments;
+    private bool _callbackDispatcherActive;
     private IOpenGarrisonClientPluginContext? _context;
     private readonly Dictionary<string, SoundEffect> _registeredSounds = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, Texture2D> _registeredTextures = new(StringComparer.OrdinalIgnoreCase);
@@ -90,6 +98,26 @@ internal sealed partial class LuaClientPlugin(
     private const long CallbackAutoYieldCounter = 1000;
     private const int MaxCallbackResumeCount = 4096;
     private const int MaxInitializeResumeCount = 65536;
+    private static readonly DynValue CallbackRequestCount0 = DynValue.NewNumber(0);
+    private static readonly DynValue CallbackRequestCount1 = DynValue.NewNumber(1);
+    private static readonly DynValue CallbackRequestCount2 = DynValue.NewNumber(2);
+    private static readonly DynValue CallbackRequestCount3 = DynValue.NewNumber(3);
+    private const string CallbackDispatcherSource = """
+        return function(completionMarker)
+            local request = coroutine.yield()
+            while true do
+                if request.count == 0 then
+                    request = coroutine.yield(completionMarker, request.callback())
+                elseif request.count == 1 then
+                    request = coroutine.yield(completionMarker, request.callback(request.arg1))
+                elseif request.count == 2 then
+                    request = coroutine.yield(completionMarker, request.callback(request.arg1, request.arg2))
+                else
+                    request = coroutine.yield(completionMarker, request.callback(request.arg1, request.arg2, request.arg3))
+                end
+            end
+        end
+        """;
 
     public string Id => manifest.Id;
 
@@ -122,6 +150,7 @@ internal sealed partial class LuaClientPlugin(
                 var browserResult = _script.DoString(browserScriptSource, codeFriendlyName: entryPointPath);
                 _pluginTable = ResolvePluginTable(_script, browserResult);
                 _callbackCache.Clear();
+                InitializeCallbackDispatcher();
                 ExecuteInPhase(
                     LuaCallbackPhase.Initialize,
                     () => CallIfPresent("initialize", rethrowOnFailure: true, DynValue.NewTable(browserHostTable)));

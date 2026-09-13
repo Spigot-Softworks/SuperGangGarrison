@@ -129,7 +129,6 @@ public sealed partial class SimulationWorld
                 AwardAssistPoints(assistingPlayer, player, killer);
             }
             ApplyExperimentalKillRewards(killer, player);
-            TrySpawnExperimentalEnemyHealthPackDrop(player, killer);
             TrySpawnExperimentalEnemyDroppedWeapon(player, killer);
 
             if (MatchRules.Mode == GameModeKind.TeamDeathmatch && killer.Team != player.Team)
@@ -137,6 +136,8 @@ public sealed partial class SimulationWorld
                 TryAwardTeamScore(killer.Team, 1, "team_deathmatch_kill", killer.Id);
             }
         }
+
+        TrySpawnExperimentalEnemyHealthPackDrop(player, killer);
 
         if (player.IsCarryingIntel)
         {
@@ -192,13 +193,15 @@ public sealed partial class SimulationWorld
         if (shouldCreateDeathCam)
         {
             var deathCamTicks = Math.Clamp(respawnTicks > 0 ? respawnTicks : _configuredRespawnTicks, 1, 150);
+            var resolvedDeathCamMessage = deathCamMessage
+                ?? DeathCamPhraseCatalog.ChoosePhrase(_deathCamPhraseRandom, weaponSpriteName, deathCamSentry is not null);
             LocalDeathCamState deathCam;
             if (deathCamSentry is not null)
             {
                 deathCam = new LocalDeathCamState(
                     deathCamSentry.X,
                     deathCamSentry.Y,
-                    deathCamMessage ?? "You were killed by the autogun of",
+                    resolvedDeathCamMessage,
                     killer?.DisplayName ?? string.Empty,
                     killer?.Team,
                     deathCamSentry.Health,
@@ -211,7 +214,7 @@ public sealed partial class SimulationWorld
                 deathCam = new LocalDeathCamState(
                     killer.X,
                     killer.Y,
-                    deathCamMessage ?? "You were killed by",
+                    resolvedDeathCamMessage,
                     killer.DisplayName,
                     killer.Team,
                     killer.Health,
@@ -225,7 +228,7 @@ public sealed partial class SimulationWorld
                 deathCam = new LocalDeathCamState(
                     player.X,
                     player.Y,
-                    deathCamMessage ?? "You were killed by the late",
+                    resolvedDeathCamMessage,
                     string.Empty,
                     null,
                     0,
@@ -473,7 +476,8 @@ public sealed partial class SimulationWorld
             player.Height,
             player.HorizontalSpeed * (float)Config.FixedDeltaSeconds,
             player.VerticalSpeed * (float)Config.FixedDeltaSeconds,
-            MathF.Cos(player.AimDirectionDegrees * (MathF.PI / 180f)) < 0f);
+            MathF.Cos(player.AimDirectionDegrees * (MathF.PI / 180f)) < 0f,
+            player.GameplayClassId);
         _deadBodies.Add(deadBody);
         _entities.Add(deadBody.Id, deadBody);
     }

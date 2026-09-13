@@ -116,7 +116,8 @@ public partial class Game1
         public void DrawSniperHud(Vector2 screenAimPosition)
         {
             var localPlayer = _game._world.LocalPlayer;
-            if (_game.GetPlayerIsSniperBowEquipped(localPlayer))
+            if (_game.GetPlayerIsSniperBowEquipped(localPlayer)
+                || _game.GetPlayerIsMortarLauncherEquipped(localPlayer))
             {
                 DrawSniperBowChargeHud(localPlayer, screenAimPosition);
                 return;
@@ -132,7 +133,7 @@ public partial class Game1
 
         public void DrawSpectatorSniperHud(PlayerEntity player, Vector2 screenAimPosition)
         {
-            if (player.IsSniperBowEquipped)
+            if (player.IsSniperBowEquipped || player.IsMortarLauncherEquipped)
             {
                 DrawSniperBowChargeHud(player, screenAimPosition);
                 return;
@@ -157,7 +158,10 @@ public partial class Game1
             var facingLeft = IsFacingLeftByAim(player);
             var chargeScaleX = facingLeft ? 1f : -1f;
             var chargePosition = screenAimPosition + new Vector2(15f * chargeScaleX, -10f);
-            var isFullyCharged = chargeTicks >= player.LastToDieSniperBowFullChargeTicks;
+            var fullChargeTicks = player.IsMortarLauncherEquipped
+                ? PlayerEntity.MortarLauncherMaxChargeTicks
+                : player.LastToDieSniperBowFullChargeTicks;
+            var isFullyCharged = chargeTicks >= fullChargeTicks;
             if (!isFullyCharged)
             {
                 _game.TryDrawScreenSprite("ChargeS", 0, chargePosition, Color.White * 0.25f, new Vector2(chargeScaleX, 1f));
@@ -169,7 +173,7 @@ public partial class Game1
 
             var chargeWidth = GetSniperBowChargeHudFillWidthForTicks(
                 chargeTicks,
-                player.LastToDieSniperBowFullChargeTicks);
+                fullChargeTicks);
             if (chargeWidth <= 0)
             {
                 return;
@@ -195,7 +199,7 @@ public partial class Game1
 
             var chargeWidth = GetSniperChargeHudFillWidthForTicks(
                 _game.GetPlayerSniperChargeTicks(player),
-                player.LastToDieSniperRifleFullChargeTicks);
+                player.SniperRifleFullChargeTicks);
             if (chargeWidth <= 0)
             {
                 return;

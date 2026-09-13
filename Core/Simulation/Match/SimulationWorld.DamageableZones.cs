@@ -14,7 +14,7 @@ public sealed partial class SimulationWorld
             return 0f;
         }
 
-        var marker = Level.RoomObjects[roomObjectIndex];
+        ref readonly var marker = ref Level.GetRoomObject(roomObjectIndex);
         if (marker.Type != RoomObjectType.DamageableZone)
         {
             return 0f;
@@ -31,7 +31,7 @@ public sealed partial class SimulationWorld
             return 1f;
         }
 
-        var marker = Level.RoomObjects[roomObjectIndex];
+        ref readonly var marker = ref Level.GetRoomObject(roomObjectIndex);
         if (marker.Type != RoomObjectType.DamageableZone || marker.DamageableZone.MaxHealth <= 0f)
         {
             return 1f;
@@ -47,7 +47,7 @@ public sealed partial class SimulationWorld
             return false;
         }
 
-        var marker = Level.RoomObjects[roomObjectIndex];
+        ref readonly var marker = ref Level.GetRoomObject(roomObjectIndex);
         if (marker.Type != RoomObjectType.DamageableZone)
         {
             return false;
@@ -66,7 +66,7 @@ public sealed partial class SimulationWorld
             return false;
         }
 
-        var marker = Level.RoomObjects[roomObjectIndex];
+        ref readonly var marker = ref Level.GetRoomObject(roomObjectIndex);
         if (marker.Type != RoomObjectType.DamageableZone)
         {
             return false;
@@ -106,7 +106,7 @@ public sealed partial class SimulationWorld
         _damageableZoneLastDamagingTeam = new PlayerTeam?[Level.RoomObjects.Count];
         for (var index = 0; index < Level.RoomObjects.Count; index += 1)
         {
-            var marker = Level.RoomObjects[index];
+            ref readonly var marker = ref Level.GetRoomObject(index);
             _damageableZoneHealth[index] = marker.Type == RoomObjectType.DamageableZone
                 ? marker.DamageableZone.MaxHealth
                 : 0f;
@@ -117,13 +117,9 @@ public sealed partial class SimulationWorld
 
     private void ApplyDamageableZoneHealWhenSignals()
     {
-        for (var index = 0; index < Level.RoomObjects.Count; index += 1)
+        foreach (var index in Level.GetRoomObjectIndices(RoomObjectType.DamageableZone))
         {
-            var marker = Level.RoomObjects[index];
-            if (marker.Type != RoomObjectType.DamageableZone)
-            {
-                continue;
-            }
+            ref readonly var marker = ref Level.GetRoomObject(index);
 
             var healWhenNodeIndex = marker.DamageableZone.HealWhenNodeIndex;
             if (healWhenNodeIndex < 0 || !Level.LogicGraph.GetOutput(healWhenNodeIndex))
@@ -142,7 +138,7 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        var marker = Level.RoomObjects[roomObjectIndex];
+        ref readonly var marker = ref Level.GetRoomObject(roomObjectIndex);
         if (marker.Type != RoomObjectType.DamageableZone)
         {
             return;
@@ -229,7 +225,7 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            var marker = Level.RoomObjects[index];
+            ref readonly var marker = ref Level.GetRoomObject(index);
             if (marker.Type != RoomObjectType.DamageableZone)
             {
                 continue;

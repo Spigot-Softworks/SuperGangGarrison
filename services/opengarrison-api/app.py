@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import hmac
 import asyncio
 import os
 import re
@@ -29,8 +30,18 @@ RELAY_ROOM_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 RELAY_ROOM_CODE_LENGTH = 4
 RELAY_ROOM_LOOKUP_WINDOW_SECONDS = 60
 RELAY_ROOM_LOOKUP_MAX_ATTEMPTS = 30
+ACCOUNT_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+ACCOUNT_CODE_LENGTH = 8
+RECOVERY_KEY_LENGTH = 8
+LOGIN_FAILURE_WINDOW_SECONDS = 15 * 60
+LOGIN_FAILURE_BLOCK_SECONDS = 5 * 60
+LOGIN_FAILURE_LIMIT = 5
+GAMEPLAY_SESSION_TTL_SECONDS = 6 * 60 * 60
+MAX_STAT_EVENT_POINTS = 100_000
+MAX_STAT_EVENT_CREDITS = MAX_STAT_EVENT_POINTS
 FRIEND_CODE_RE = re.compile(r"^OG2-[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{4}-[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{4}(?:-[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{4})?(?:-[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{4})?$")
 RELAY_ROOM_CODE_RE = re.compile(r"^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{4}$")
+RECOVERY_KEY_RE = re.compile(r"^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{8}$")
 
 
 def now_seconds() -> int:
@@ -94,8 +105,53 @@ def normalize_relay_room_code(value: str | None) -> str:
     return compact if RELAY_ROOM_CODE_RE.fullmatch(compact) else ""
 
 
+def normalize_recovery_key(value: str | None) -> str:
+    if not value:
+        return ""
+    compact = "".join(ch for ch in value.upper() if ch.isalnum())
+    return compact if RECOVERY_KEY_RE.fullmatch(compact) else ""
+
+
+def format_recovery_key(value: str) -> str:
+    normalized = normalize_recovery_key(value)
+    return f"{normalized[:4]}-{normalized[4:]}" if normalized else ""
+
+
 def secret_hash(secret: str) -> str:
     return hashlib.sha256(secret.encode("utf-8")).hexdigest()
+
+
+def recovery_key_hash(recovery_key: str, salt: bytes) -> str:
+    return hashlib.scrypt(
+        recovery_key.encode("ascii"),
+        salt=salt,
+        n=16384,
+        r=8,
+        p=1,
+        dklen=32,
+    ).hex()
+
+
+def create_account_id() -> str:
+    return secrets.token_hex(16)
+
+
+def create_unique_friend_code(db: sqlite3.Connection) -> str:
+    for _ in range(128):
+        compact = "".join(secrets.choice(ACCOUNT_CODE_ALPHABET) for _ in range(ACCOUNT_CODE_LENGTH))
+        friend_code = normalize_friend_code(compact)
+        existing = db.execute(
+            "SELECT 1 FROM account_friend_codes WHERE friend_code = ?",
+            (friend_code,),
+        ).fetchone()
+        if existing is None:
+            return friend_code
+    raise HTTPException(status_code=503, detail="friend codes are temporarily unavailable")
+
+
+def create_recovery_key() -> str:
+    compact = "".join(secrets.choice(ACCOUNT_CODE_ALPHABET) for _ in range(RECOVERY_KEY_LENGTH))
+    return format_recovery_key(compact)
 
 
 @contextmanager
@@ -126,6 +182,126 @@ def initialize_db() -> None:
                 created_at INTEGER NOT NULL,
                 updated_at INTEGER NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS accounts (
+                account_id TEXT PRIMARY KEY,
+                primary_friend_code TEXT NOT NULL UNIQUE,
+                display_name TEXT NOT NULL DEFAULT '',
+                player_card_json TEXT NOT NULL DEFAULT '',
+                lifetime_points INTEGER NOT NULL DEFAULT 0,
+                wallet_balance INTEGER NOT NULL DEFAULT 0,
+                profile_revision INTEGER NOT NULL DEFAULT 0,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS account_friend_codes (
+                friend_code TEXT PRIMARY KEY,
+                account_id TEXT NOT NULL,
+                is_primary INTEGER NOT NULL DEFAULT 0,
+                created_at INTEGER NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_account_friend_codes_account
+                ON account_friend_codes(account_id);
+
+            CREATE TABLE IF NOT EXISTS client_devices (
+                client_id TEXT PRIMARY KEY,
+                account_id TEXT NOT NULL,
+                secret_hash TEXT NOT NULL,
+                display_name TEXT NOT NULL DEFAULT '',
+                player_card_json TEXT NOT NULL DEFAULT '',
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL,
+                revoked_at INTEGER
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_client_devices_account
+                ON client_devices(account_id);
+
+            CREATE TABLE IF NOT EXISTS account_recovery_credentials (
+                account_id TEXT PRIMARY KEY,
+                recovery_salt TEXT NOT NULL,
+                recovery_hash TEXT NOT NULL,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS account_login_attempts (
+                attempt_key TEXT PRIMARY KEY,
+                window_started_at INTEGER NOT NULL,
+                failure_count INTEGER NOT NULL,
+                blocked_until INTEGER NOT NULL DEFAULT 0
+            );
+
+            CREATE TABLE IF NOT EXISTS gameplay_sessions (
+                token_hash TEXT PRIMARY KEY,
+                account_id TEXT NOT NULL,
+                client_id TEXT NOT NULL,
+                issued_at INTEGER NOT NULL,
+                expires_at INTEGER NOT NULL,
+                revoked_at INTEGER
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_gameplay_sessions_account
+                ON gameplay_sessions(account_id);
+
+            CREATE TABLE IF NOT EXISTS matches (
+                match_id TEXT PRIMARY KEY,
+                server_id TEXT NOT NULL DEFAULT '',
+                map_name TEXT NOT NULL DEFAULT '',
+                mode TEXT NOT NULL DEFAULT '',
+                started_at INTEGER NOT NULL,
+                ended_at INTEGER,
+                winner TEXT NOT NULL DEFAULT ''
+            );
+
+            CREATE TABLE IF NOT EXISTS stat_events (
+                event_id TEXT PRIMARY KEY,
+                account_id TEXT NOT NULL,
+                match_id TEXT NOT NULL DEFAULT '',
+                source_frame INTEGER NOT NULL DEFAULT 0,
+                event_type TEXT NOT NULL,
+                raw_value INTEGER NOT NULL DEFAULT 0,
+                points_delta INTEGER NOT NULL DEFAULT 0,
+                credits_delta INTEGER NOT NULL DEFAULT 0,
+                policy_version INTEGER NOT NULL DEFAULT 1,
+                created_at INTEGER NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_stat_events_account
+                ON stat_events(account_id, created_at);
+
+            CREATE TABLE IF NOT EXISTS last_to_die_runs (
+                submission_id TEXT PRIMARY KEY,
+                run_id TEXT NOT NULL,
+                account_id TEXT NOT NULL,
+                score_units INTEGER NOT NULL DEFAULT 0,
+                round_number INTEGER NOT NULL DEFAULT 1,
+                difficulty TEXT NOT NULL DEFAULT 'standard',
+                policy_version INTEGER NOT NULL DEFAULT 1,
+                created_at INTEGER NOT NULL,
+                UNIQUE(run_id, account_id)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_last_to_die_runs_account
+                ON last_to_die_runs(account_id, score_units DESC, round_number DESC);
+
+            CREATE INDEX IF NOT EXISTS idx_last_to_die_runs_round
+                ON last_to_die_runs(round_number DESC, score_units DESC);
+
+            CREATE TABLE IF NOT EXISTS wallet_transactions (
+                transaction_id TEXT PRIMARY KEY,
+                account_id TEXT NOT NULL,
+                kind TEXT NOT NULL,
+                amount INTEGER NOT NULL,
+                balance_after INTEGER NOT NULL,
+                reference_id TEXT NOT NULL UNIQUE,
+                created_at INTEGER NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_wallet_transactions_account
+                ON wallet_transactions(account_id, created_at);
 
             CREATE TABLE IF NOT EXISTS presence (
                 client_id TEXT PRIMARY KEY,
@@ -196,6 +372,7 @@ def initialize_db() -> None:
         ensure_column(db, "servers", "compatibility_key", "TEXT NOT NULL DEFAULT ''")
         ensure_column(db, "servers", "quic_port", "INTEGER NOT NULL DEFAULT 0")
         ensure_column(db, "servers", "quic_url", "TEXT NOT NULL DEFAULT ''")
+        migrate_legacy_clients(db)
 
 
 def ensure_column(db: sqlite3.Connection, table: str, column: str, definition: str) -> None:
@@ -205,6 +382,229 @@ def ensure_column(db: sqlite3.Connection, table: str, column: str, definition: s
     }
     if column not in existing_columns:
         db.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+
+
+def migrate_legacy_clients(db: sqlite3.Connection) -> None:
+    """Copy pre-account client rows into the account/device model idempotently."""
+    rows = db.execute(
+        """
+        SELECT client_id, friend_code, secret_hash, display_name, player_card_json, created_at, updated_at
+        FROM clients
+        """
+    ).fetchall()
+    for row in rows:
+        existing_device = db.execute(
+            "SELECT account_id FROM client_devices WHERE client_id = ?",
+            (row["client_id"],),
+        ).fetchone()
+        if existing_device is not None:
+            continue
+
+        friend_code = normalize_friend_code(row["friend_code"])
+        if not friend_code:
+            continue
+
+        alias = db.execute(
+            "SELECT account_id FROM account_friend_codes WHERE friend_code = ?",
+            (friend_code,),
+        ).fetchone()
+        account_id = alias["account_id"] if alias is not None else (
+            "legacy-" + hashlib.sha256(row["client_id"].encode("utf-8")).hexdigest()[:32]
+        )
+        created_at = int(row["created_at"])
+        updated_at = int(row["updated_at"])
+        db.execute(
+            """
+            INSERT OR IGNORE INTO accounts (
+                account_id, primary_friend_code, display_name, player_card_json,
+                lifetime_points, wallet_balance, profile_revision, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, 0, 0, 0, ?, ?)
+            """,
+            (
+                account_id,
+                friend_code,
+                row["display_name"],
+                row["player_card_json"],
+                created_at,
+                updated_at,
+            ),
+        )
+        db.execute(
+            """
+            INSERT OR IGNORE INTO account_friend_codes (friend_code, account_id, is_primary, created_at)
+            VALUES (?, ?, 1, ?)
+            """,
+            (friend_code, account_id, created_at),
+        )
+        db.execute(
+            """
+            INSERT INTO client_devices (
+                client_id, account_id, secret_hash, display_name, player_card_json,
+                created_at, updated_at, revoked_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, NULL)
+            """,
+            (
+                row["client_id"],
+                account_id,
+                row["secret_hash"],
+                row["display_name"],
+                row["player_card_json"],
+                created_at,
+                updated_at,
+            ),
+        )
+
+
+def get_account_id_for_friend_code(db: sqlite3.Connection, friend_code: str) -> str:
+    row = db.execute(
+        "SELECT account_id FROM account_friend_codes WHERE friend_code = ?",
+        (friend_code,),
+    ).fetchone()
+    return "" if row is None else str(row["account_id"])
+
+
+def get_primary_friend_code(db: sqlite3.Connection, account_id: str) -> str:
+    row = db.execute(
+        "SELECT primary_friend_code FROM accounts WHERE account_id = ?",
+        (account_id,),
+    ).fetchone()
+    return "" if row is None else str(row["primary_friend_code"])
+
+
+def canonicalize_friend_code(db: sqlite3.Connection, friend_code: str) -> str:
+    account_id = get_account_id_for_friend_code(db, friend_code)
+    return get_primary_friend_code(db, account_id) if account_id else friend_code
+
+
+def get_account_friend_codes(db: sqlite3.Connection, account_id: str) -> list[str]:
+    return [
+        str(row["friend_code"])
+        for row in db.execute(
+            "SELECT friend_code FROM account_friend_codes WHERE account_id = ?",
+            (account_id,),
+        ).fetchall()
+    ]
+
+
+def delete_empty_implicit_account(db: sqlite3.Connection, account_id: str) -> None:
+    """Remove an abandoned first-run account after its only device is linked elsewhere."""
+    if not account_id:
+        return
+    has_device = db.execute(
+        "SELECT 1 FROM client_devices WHERE account_id = ? LIMIT 1",
+        (account_id,),
+    ).fetchone()
+    has_recovery = db.execute(
+        "SELECT 1 FROM account_recovery_credentials WHERE account_id = ? LIMIT 1",
+        (account_id,),
+    ).fetchone()
+    has_stats = db.execute(
+        "SELECT 1 FROM stat_events WHERE account_id = ? LIMIT 1",
+        (account_id,),
+    ).fetchone()
+    has_wallet = db.execute(
+        "SELECT 1 FROM wallet_transactions WHERE account_id = ? LIMIT 1",
+        (account_id,),
+    ).fetchone()
+    has_last_to_die_run = db.execute(
+        "SELECT 1 FROM last_to_die_runs WHERE account_id = ? LIMIT 1",
+        (account_id,),
+    ).fetchone()
+    if (
+        has_device is not None
+        or has_recovery is not None
+        or has_stats is not None
+        or has_wallet is not None
+        or has_last_to_die_run is not None
+    ):
+        return
+    db.execute("DELETE FROM gameplay_sessions WHERE account_id = ?", (account_id,))
+    db.execute("DELETE FROM account_friend_codes WHERE account_id = ?", (account_id,))
+    db.execute("DELETE FROM accounts WHERE account_id = ?", (account_id,))
+
+
+def serialize_account_profile(db: sqlite3.Connection, account_id: str) -> dict[str, Any]:
+    reconcile_account_totals(db, account_id)
+    row = db.execute(
+        """
+        SELECT account_id, primary_friend_code, display_name, player_card_json,
+               lifetime_points, wallet_balance, profile_revision, created_at, updated_at
+        FROM accounts WHERE account_id = ?
+        """,
+        (account_id,),
+    ).fetchone()
+    if row is None:
+        raise HTTPException(status_code=404, detail="account not found")
+
+    recovery = db.execute(
+        "SELECT 1 FROM account_recovery_credentials WHERE account_id = ?",
+        (account_id,),
+    ).fetchone()
+    return {
+        "accountId": row["account_id"],
+        "friendCode": row["primary_friend_code"],
+        "displayName": row["display_name"],
+        "playerCard": row["player_card_json"],
+        "lifetimePoints": max(0, int(row["lifetime_points"])),
+        "walletBalance": max(0, int(row["wallet_balance"])),
+        "profileRevision": max(0, int(row["profile_revision"])),
+        "isProtected": recovery is not None,
+        "createdAtIso": iso_from_seconds(int(row["created_at"])),
+        "updatedAtIso": iso_from_seconds(int(row["updated_at"])),
+    }
+
+
+def reconcile_account_totals(db: sqlite3.Connection, account_id: str) -> None:
+    row = db.execute(
+        "SELECT lifetime_points, wallet_balance FROM accounts WHERE account_id = ?",
+        (account_id,),
+    ).fetchone()
+    if row is None:
+        return
+    points_row = db.execute(
+        "SELECT COALESCE(SUM(points_delta), 0) AS total FROM stat_events WHERE account_id = ?",
+        (account_id,),
+    ).fetchone()
+    wallet_row = db.execute(
+        "SELECT COALESCE(SUM(amount), 0) AS total FROM wallet_transactions WHERE account_id = ?",
+        (account_id,),
+    ).fetchone()
+    lifetime_points = max(0, int(points_row["total"]))
+    wallet_balance = max(0, int(wallet_row["total"]))
+    if lifetime_points == int(row["lifetime_points"]) and wallet_balance == int(row["wallet_balance"]):
+        return
+    current = now_seconds()
+    db.execute(
+        """
+        UPDATE accounts SET lifetime_points = ?, wallet_balance = ?,
+            profile_revision = profile_revision + 1, updated_at = ?
+        WHERE account_id = ?
+        """,
+        (lifetime_points, wallet_balance, current, account_id),
+    )
+
+
+def validate_gameplay_session(db: sqlite3.Connection, token: str) -> sqlite3.Row:
+    if not token:
+        raise HTTPException(status_code=403, detail="invalid gameplay session")
+    current = now_seconds()
+    db.execute("DELETE FROM gameplay_sessions WHERE expires_at <= ?", (current,))
+    row = db.execute(
+        """
+        SELECT token_hash, account_id, client_id, issued_at, expires_at, revoked_at
+        FROM gameplay_sessions WHERE token_hash = ?
+        """,
+        (secret_hash(token),),
+    ).fetchone()
+    if row is None or row["revoked_at"] is not None or int(row["expires_at"]) <= current:
+        raise HTTPException(status_code=403, detail="invalid gameplay session")
+    device = db.execute(
+        "SELECT revoked_at FROM client_devices WHERE client_id = ? AND account_id = ?",
+        (row["client_id"], row["account_id"]),
+    ).fetchone()
+    if device is None or device["revoked_at"] is not None:
+        raise HTTPException(status_code=403, detail="invalid gameplay session")
+    return row
 
 
 def prune_expired(db: sqlite3.Connection) -> None:
@@ -317,56 +717,131 @@ def verify_client(
     client_secret: str,
     display_name: str,
     player_card_json: str = "",
-) -> None:
+) -> str:
     if not client_id or not client_secret or not friend_code:
         raise HTTPException(status_code=400, detail="client identity is required")
 
     current = now_seconds()
     hashed_secret = secret_hash(client_secret)
-    existing = db.execute("SELECT client_id, secret_hash FROM clients WHERE client_id = ?", (client_id,)).fetchone()
-    if existing is not None and existing["secret_hash"] != hashed_secret:
+    existing = db.execute(
+        """
+        SELECT client_id, account_id, secret_hash, revoked_at
+        FROM client_devices WHERE client_id = ?
+        """,
+        (client_id,),
+    ).fetchone()
+    clean_player_card = clean_json_text(player_card_json)
+
+    if existing is None:
+        if get_account_id_for_friend_code(db, friend_code):
+            raise HTTPException(status_code=409, detail="friend code is already registered")
+
+        account_id = create_account_id()
+        try:
+            db.execute(
+                """
+                INSERT INTO accounts (
+                    account_id, primary_friend_code, display_name, player_card_json,
+                    lifetime_points, wallet_balance, profile_revision, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, 0, 0, 0, ?, ?)
+                """,
+                (account_id, friend_code, display_name, clean_player_card, current, current),
+            )
+            db.execute(
+                """
+                INSERT INTO account_friend_codes (friend_code, account_id, is_primary, created_at)
+                VALUES (?, ?, 1, ?)
+                """,
+                (friend_code, account_id, current),
+            )
+            db.execute(
+                """
+                INSERT INTO client_devices (
+                    client_id, account_id, secret_hash, display_name, player_card_json,
+                    created_at, updated_at, revoked_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, NULL)
+                """,
+                (client_id, account_id, hashed_secret, display_name, clean_player_card, current, current),
+            )
+        except sqlite3.IntegrityError as exc:
+            raise HTTPException(status_code=409, detail="client identity is already registered") from exc
+        return account_id
+
+    if existing["revoked_at"] is not None:
+        raise HTTPException(status_code=403, detail="client device is revoked")
+    if not hmac.compare_digest(str(existing["secret_hash"]), hashed_secret):
         raise HTTPException(status_code=403, detail="client secret mismatch")
 
-    existing_code = db.execute(
-        "SELECT client_id FROM clients WHERE friend_code = ? AND client_id <> ?",
-        (friend_code, client_id),
-    ).fetchone()
-    if existing_code is not None:
+    account_id = str(existing["account_id"])
+    requested_code_account_id = get_account_id_for_friend_code(db, friend_code)
+    if requested_code_account_id and requested_code_account_id != account_id:
         raise HTTPException(status_code=409, detail="friend code is already registered")
+    if not requested_code_account_id:
+        db.execute(
+            """
+            INSERT INTO account_friend_codes (friend_code, account_id, is_primary, created_at)
+            VALUES (?, ?, 0, ?)
+            """,
+            (friend_code, account_id, current),
+        )
 
     db.execute(
         """
-        INSERT INTO clients (client_id, friend_code, secret_hash, display_name, player_card_json, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(client_id) DO UPDATE SET
-            friend_code = excluded.friend_code,
-            display_name = excluded.display_name,
-            player_card_json = CASE
-                WHEN excluded.player_card_json <> '' THEN excluded.player_card_json
-                ELSE clients.player_card_json
-            END,
-            updated_at = excluded.updated_at
+        UPDATE client_devices SET
+            display_name = CASE WHEN ? <> '' THEN ? ELSE display_name END,
+            player_card_json = CASE WHEN ? <> '' THEN ? ELSE player_card_json END,
+            updated_at = ?
+        WHERE client_id = ?
         """,
-        (client_id, friend_code, hashed_secret, display_name, clean_json_text(player_card_json), current, current),
+        (
+            display_name,
+            display_name,
+            clean_player_card,
+            clean_player_card,
+            current,
+            client_id,
+        ),
     )
+
+    account = db.execute(
+        "SELECT display_name, player_card_json FROM accounts WHERE account_id = ?",
+        (account_id,),
+    ).fetchone()
+    if account is None:
+        raise HTTPException(status_code=409, detail="client account is unavailable")
+    next_display_name = display_name or str(account["display_name"])
+    next_player_card = clean_player_card or str(account["player_card_json"])
+    if next_display_name != account["display_name"] or next_player_card != account["player_card_json"]:
+        db.execute(
+            """
+            UPDATE accounts SET display_name = ?, player_card_json = ?,
+                profile_revision = profile_revision + 1, updated_at = ?
+            WHERE account_id = ?
+            """,
+            (next_display_name, next_player_card, current, account_id),
+        )
+    return account_id
 
 
 def get_friend_display_name(db: sqlite3.Connection, friend_code: str) -> str:
     row = db.execute(
         """
-        SELECT display_name FROM presence WHERE friend_code = ?
-        UNION ALL
-        SELECT display_name FROM clients WHERE friend_code = ?
+        SELECT a.display_name
+        FROM account_friend_codes afc
+        JOIN accounts a ON a.account_id = afc.account_id
+        WHERE afc.friend_code = ?
         LIMIT 1
         """,
-        (friend_code, friend_code),
+        (friend_code,),
     ).fetchone()
     return clean_text(row["display_name"], 64) if row is not None else ""
 
 
 def serialize_friend_request(db: sqlite3.Connection, row: sqlite3.Row, own_friend_code: str) -> dict[str, Any]:
-    incoming = row["to_friend_code"] == own_friend_code
-    other_code = row["from_friend_code"] if incoming else row["to_friend_code"]
+    from_code = canonicalize_friend_code(db, str(row["from_friend_code"]))
+    to_code = canonicalize_friend_code(db, str(row["to_friend_code"]))
+    incoming = to_code == own_friend_code
+    other_code = from_code if incoming else to_code
     return {
         "requestId": row["request_id"],
         "direction": "incoming" if incoming else "outgoing",
@@ -378,16 +853,98 @@ def serialize_friend_request(db: sqlite3.Connection, row: sqlite3.Row, own_frien
     }
 
 
-def serialize_direct_message(row: sqlite3.Row, own_friend_code: str) -> dict[str, Any]:
-    outgoing = row["sender_friend_code"] == own_friend_code
+def serialize_direct_message(db: sqlite3.Connection, row: sqlite3.Row, own_friend_code: str) -> dict[str, Any]:
+    sender_code = canonicalize_friend_code(db, str(row["sender_friend_code"]))
+    recipient_code = canonicalize_friend_code(db, str(row["recipient_friend_code"]))
+    outgoing = sender_code == own_friend_code
     return {
         "messageId": row["message_id"],
         "direction": "outgoing" if outgoing else "incoming",
-        "friendCode": row["recipient_friend_code"] if outgoing else row["sender_friend_code"],
+        "friendCode": recipient_code if outgoing else sender_code,
         "displayName": row["sender_display_name"],
         "text": row["text"],
         "createdAtIso": iso_from_seconds(row["created_at"]),
     }
+
+
+def login_attempt_key(request: Request, account_id: str) -> str:
+    material = f"{request_ip(request)}\n{account_id}".encode("utf-8")
+    return hashlib.sha256(material).hexdigest()
+
+
+def enforce_account_login_rate_limit(db: sqlite3.Connection, attempt_key: str) -> None:
+    current = now_seconds()
+    row = db.execute(
+        """
+        SELECT window_started_at, failure_count, blocked_until
+        FROM account_login_attempts WHERE attempt_key = ?
+        """,
+        (attempt_key,),
+    ).fetchone()
+    if row is None:
+        return
+    if int(row["blocked_until"]) > current:
+        raise HTTPException(status_code=429, detail="too many account login attempts")
+    if int(row["window_started_at"]) <= current - LOGIN_FAILURE_WINDOW_SECONDS:
+        db.execute("DELETE FROM account_login_attempts WHERE attempt_key = ?", (attempt_key,))
+
+
+def record_account_login_failure(db: sqlite3.Connection, attempt_key: str) -> None:
+    current = now_seconds()
+    row = db.execute(
+        "SELECT window_started_at, failure_count FROM account_login_attempts WHERE attempt_key = ?",
+        (attempt_key,),
+    ).fetchone()
+    if row is None or int(row["window_started_at"]) <= current - LOGIN_FAILURE_WINDOW_SECONDS:
+        window_started_at = current
+        failure_count = 1
+    else:
+        window_started_at = int(row["window_started_at"])
+        failure_count = int(row["failure_count"]) + 1
+    blocked_until = current + LOGIN_FAILURE_BLOCK_SECONDS if failure_count >= LOGIN_FAILURE_LIMIT else 0
+    db.execute(
+        """
+        INSERT INTO account_login_attempts (attempt_key, window_started_at, failure_count, blocked_until)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(attempt_key) DO UPDATE SET
+            window_started_at = excluded.window_started_at,
+            failure_count = excluded.failure_count,
+            blocked_until = excluded.blocked_until
+        """,
+        (attempt_key, window_started_at, failure_count, blocked_until),
+    )
+
+
+def verify_account_recovery_key(
+    db: sqlite3.Connection,
+    account_id: str,
+    recovery_key: str,
+    request: Request,
+) -> None:
+    attempt_key = login_attempt_key(request, account_id)
+    enforce_account_login_rate_limit(db, attempt_key)
+    credential = db.execute(
+        """
+        SELECT recovery_salt, recovery_hash
+        FROM account_recovery_credentials WHERE account_id = ?
+        """,
+        (account_id,),
+    ).fetchone()
+    valid = False
+    if credential is not None:
+        try:
+            salt = bytes.fromhex(str(credential["recovery_salt"]))
+            candidate_hash = recovery_key_hash(recovery_key, salt)
+            valid = hmac.compare_digest(str(credential["recovery_hash"]), candidate_hash)
+        except ValueError:
+            valid = False
+    if not valid:
+        record_account_login_failure(db, attempt_key)
+        # The surrounding request transaction is rolled back when HTTPException
+        # leaves connect_db(), but failed-login counters must survive that error.
+        db.commit()
+        raise HTTPException(status_code=403, detail="invalid account credentials")
+    db.execute("DELETE FROM account_login_attempts WHERE attempt_key = ?", (attempt_key,))
 
 
 class ServerRegistryRequest(BaseModel):
@@ -491,7 +1048,54 @@ class DirectMessagesPollRequest(BaseModel):
     afterId: int = 0
 
 
-app = FastAPI(title="OpenGarrison API", version="0.2.0")
+class AccountAuthenticatedRequest(BaseModel):
+    clientId: str
+    clientSecret: str
+    friendCode: str
+
+
+class AccountLoginRequest(BaseModel):
+    clientId: str
+    clientSecret: str
+    friendCode: str
+    recoveryKey: str
+
+
+class AccountProfileRequest(AccountAuthenticatedRequest):
+    pass
+
+
+class GameplaySessionValidateRequest(BaseModel):
+    gameplayToken: str
+
+
+class StatAwardRequest(BaseModel):
+    gameplayToken: str
+    eventId: str
+    matchId: str = ""
+    sourceFrame: int = 0
+    eventType: str
+    rawValue: int = 0
+    pointsDelta: int = 0
+    creditsDelta: int = 0
+    policyVersion: int = 1
+
+
+class LastToDieRunRequest(BaseModel):
+    gameplayToken: str
+    submissionId: str
+    runId: str
+    scoreUnits: int = 0
+    roundNumber: int = 0
+    difficulty: str = "standard"
+    policyVersion: int = 1
+
+
+class LastToDieRankingsRequest(AccountAuthenticatedRequest):
+    limit: int = 3
+
+
+app = FastAPI(title="OpenGarrison API", version="0.4.0")
 
 
 def openapi_with_relay_websocket() -> dict[str, Any]:
@@ -817,7 +1421,7 @@ def register_client(payload: ClientRegisterRequest) -> dict[str, str]:
         raise HTTPException(status_code=400, detail="invalid friend code")
 
     with connect_db() as db:
-        verify_client(
+        account_id = verify_client(
             db,
             clean_text(payload.clientId, 64),
             friend_code,
@@ -825,8 +1429,616 @@ def register_client(payload: ClientRegisterRequest) -> dict[str, str]:
             clean_text(payload.displayName, 64),
             clean_json_text(payload.playerCard),
         )
+        canonical_friend_code = get_primary_friend_code(db, account_id)
 
-    return {"clientId": payload.clientId, "friendCode": friend_code}
+    return {"clientId": payload.clientId, "friendCode": canonical_friend_code}
+
+
+@app.post("/api/account/profile")
+def get_account_profile(payload: AccountProfileRequest) -> dict[str, Any]:
+    friend_code = normalize_friend_code(payload.friendCode)
+    if not friend_code:
+        raise HTTPException(status_code=400, detail="invalid friend code")
+    with connect_db() as db:
+        account_id = verify_client(
+            db,
+            clean_text(payload.clientId, 64),
+            friend_code,
+            payload.clientSecret,
+            "",
+        )
+        return serialize_account_profile(db, account_id)
+
+
+@app.post("/api/account/protect")
+def protect_account(payload: AccountAuthenticatedRequest) -> dict[str, Any]:
+    friend_code = normalize_friend_code(payload.friendCode)
+    if not friend_code:
+        raise HTTPException(status_code=400, detail="invalid friend code")
+    with connect_db() as db:
+        account_id = verify_client(
+            db,
+            clean_text(payload.clientId, 64),
+            friend_code,
+            payload.clientSecret,
+            "",
+        )
+        recovery_key = create_recovery_key()
+        normalized_key = normalize_recovery_key(recovery_key)
+        salt = secrets.token_bytes(16)
+        key_hash = recovery_key_hash(normalized_key, salt)
+        current = now_seconds()
+        db.execute(
+            """
+            INSERT INTO account_recovery_credentials (
+                account_id, recovery_salt, recovery_hash, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(account_id) DO UPDATE SET
+                recovery_salt = excluded.recovery_salt,
+                recovery_hash = excluded.recovery_hash,
+                updated_at = excluded.updated_at
+            """,
+            (account_id, salt.hex(), key_hash, current, current),
+        )
+        db.execute(
+            """
+            UPDATE accounts SET profile_revision = profile_revision + 1, updated_at = ?
+            WHERE account_id = ?
+            """,
+            (current, account_id),
+        )
+        response = serialize_account_profile(db, account_id)
+        response["recoveryKey"] = recovery_key
+        return response
+
+
+@app.post("/api/account/friend-code/shorten")
+def shorten_account_friend_code(payload: AccountAuthenticatedRequest) -> dict[str, Any]:
+    friend_code = normalize_friend_code(payload.friendCode)
+    if not friend_code:
+        raise HTTPException(status_code=400, detail="invalid friend code")
+    with connect_db() as db:
+        account_id = verify_client(
+            db,
+            clean_text(payload.clientId, 64),
+            friend_code,
+            payload.clientSecret,
+            "",
+        )
+        primary_friend_code = get_primary_friend_code(db, account_id)
+        compact_primary = primary_friend_code.replace("OG2-", "").replace("-", "")
+        if len(compact_primary) != ACCOUNT_CODE_LENGTH:
+            primary_friend_code = create_unique_friend_code(db)
+            current = now_seconds()
+            db.execute(
+                "UPDATE account_friend_codes SET is_primary = 0 WHERE account_id = ?",
+                (account_id,),
+            )
+            db.execute(
+                """
+                INSERT INTO account_friend_codes (friend_code, account_id, is_primary, created_at)
+                VALUES (?, ?, 1, ?)
+                """,
+                (primary_friend_code, account_id, current),
+            )
+            db.execute(
+                """
+                UPDATE accounts SET primary_friend_code = ?,
+                    profile_revision = profile_revision + 1, updated_at = ?
+                WHERE account_id = ?
+                """,
+                (primary_friend_code, current, account_id),
+            )
+        return serialize_account_profile(db, account_id)
+
+
+@app.post("/api/account/login")
+def login_account(payload: AccountLoginRequest, request: Request) -> dict[str, Any]:
+    friend_code = normalize_friend_code(payload.friendCode)
+    recovery_key = normalize_recovery_key(payload.recoveryKey)
+    client_id = clean_text(payload.clientId, 64)
+    client_secret = payload.clientSecret
+    if not friend_code or not recovery_key or not client_id or not client_secret:
+        raise HTTPException(status_code=403, detail="invalid account credentials")
+
+    with connect_db() as db:
+        account_id = get_account_id_for_friend_code(db, friend_code)
+        if not account_id:
+            raise HTTPException(status_code=403, detail="invalid account credentials")
+        verify_account_recovery_key(db, account_id, recovery_key, request)
+
+        current = now_seconds()
+        hashed_secret = secret_hash(client_secret)
+        target_account = db.execute(
+            "SELECT display_name, player_card_json FROM accounts WHERE account_id = ?",
+            (account_id,),
+        ).fetchone()
+        if target_account is None:
+            raise HTTPException(status_code=403, detail="invalid account credentials")
+        target_display_name = str(target_account["display_name"])
+        target_player_card = str(target_account["player_card_json"])
+        device = db.execute(
+            "SELECT account_id, secret_hash FROM client_devices WHERE client_id = ?",
+            (client_id,),
+        ).fetchone()
+        if device is not None and not hmac.compare_digest(str(device["secret_hash"]), hashed_secret):
+            raise HTTPException(status_code=403, detail="invalid account credentials")
+
+        if device is None:
+            db.execute(
+                """
+                INSERT INTO client_devices (
+                    client_id, account_id, secret_hash, display_name, player_card_json,
+                    created_at, updated_at, revoked_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, NULL)
+                """,
+                (
+                    client_id,
+                    account_id,
+                    hashed_secret,
+                    target_display_name,
+                    target_player_card,
+                    current,
+                    current,
+                ),
+            )
+        else:
+            previous_account_id = str(device["account_id"])
+            db.execute(
+                """
+                UPDATE client_devices SET account_id = ?, display_name = ?, player_card_json = ?,
+                    updated_at = ?, revoked_at = NULL
+                WHERE client_id = ?
+                """,
+                (account_id, target_display_name, target_player_card, current, client_id),
+            )
+            if previous_account_id != account_id:
+                db.execute("DELETE FROM presence WHERE client_id = ?", (client_id,))
+                delete_empty_implicit_account(db, previous_account_id)
+
+        return serialize_account_profile(db, account_id)
+
+
+@app.post("/api/game-session/create")
+def create_gameplay_session(payload: AccountAuthenticatedRequest) -> dict[str, Any]:
+    friend_code = normalize_friend_code(payload.friendCode)
+    if not friend_code:
+        raise HTTPException(status_code=400, detail="invalid friend code")
+    client_id = clean_text(payload.clientId, 64)
+    with connect_db() as db:
+        account_id = verify_client(
+            db,
+            client_id,
+            friend_code,
+            payload.clientSecret,
+            "",
+        )
+        current = now_seconds()
+        db.execute("DELETE FROM gameplay_sessions WHERE expires_at <= ?", (current,))
+        token = secrets.token_urlsafe(32)
+        expires_at = current + GAMEPLAY_SESSION_TTL_SECONDS
+        db.execute(
+            """
+            INSERT INTO gameplay_sessions (
+                token_hash, account_id, client_id, issued_at, expires_at, revoked_at
+            ) VALUES (?, ?, ?, ?, ?, NULL)
+            """,
+            (secret_hash(token), account_id, client_id, current, expires_at),
+        )
+        return {
+            "gameplayToken": token,
+            "expiresAtIso": iso_from_seconds(expires_at),
+            "profile": serialize_account_profile(db, account_id),
+        }
+
+
+@app.post("/api/game-session/validate")
+def validate_gameplay_session_endpoint(payload: GameplaySessionValidateRequest) -> dict[str, Any]:
+    with connect_db() as db:
+        session = validate_gameplay_session(db, clean_text(payload.gameplayToken, 256))
+        return {
+            "valid": True,
+            "clientId": session["client_id"],
+            "expiresAtIso": iso_from_seconds(int(session["expires_at"])),
+            "profile": serialize_account_profile(db, str(session["account_id"])),
+        }
+
+
+@app.post("/api/stats/award")
+def award_stat_event(payload: StatAwardRequest) -> dict[str, Any]:
+    token = clean_text(payload.gameplayToken, 256)
+    event_id = clean_text(payload.eventId, 128)
+    event_type = clean_text(payload.eventType, 64).lower()
+    if not event_id or not event_type:
+        raise HTTPException(status_code=400, detail="event id and type are required")
+
+    points_delta = clamp_int(payload.pointsDelta, 0, MAX_STAT_EVENT_POINTS)
+    credits_delta = clamp_int(payload.creditsDelta, 0, MAX_STAT_EVENT_CREDITS)
+    if points_delta != int(payload.pointsDelta) or credits_delta != int(payload.creditsDelta):
+        raise HTTPException(status_code=400, detail="stat award is outside allowed bounds")
+
+    with connect_db() as db:
+        session = validate_gameplay_session(db, token)
+        account_id = str(session["account_id"])
+        existing = db.execute(
+            """
+            SELECT account_id, event_type, points_delta, credits_delta
+            FROM stat_events WHERE event_id = ?
+            """,
+            (event_id,),
+        ).fetchone()
+        if existing is not None:
+            if (
+                str(existing["account_id"]) != account_id
+                or str(existing["event_type"]) != event_type
+                or int(existing["points_delta"]) != points_delta
+                or int(existing["credits_delta"]) != credits_delta
+            ):
+                raise HTTPException(status_code=409, detail="event id conflicts with an existing award")
+            return {
+                "applied": False,
+                "eventId": event_id,
+                "profile": serialize_account_profile(db, account_id),
+            }
+
+        reconcile_account_totals(db, account_id)
+        account = db.execute(
+            "SELECT wallet_balance FROM accounts WHERE account_id = ?",
+            (account_id,),
+        ).fetchone()
+        if account is None:
+            raise HTTPException(status_code=404, detail="account not found")
+        current = now_seconds()
+        balance_after = int(account["wallet_balance"]) + credits_delta
+        db.execute(
+            """
+            INSERT INTO stat_events (
+                event_id, account_id, match_id, source_frame, event_type, raw_value,
+                points_delta, credits_delta, policy_version, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                event_id,
+                account_id,
+                clean_text(payload.matchId, 128),
+                clamp_int(payload.sourceFrame, 0, 9_223_372_036_854_775_807),
+                event_type,
+                clamp_int(payload.rawValue, -2_147_483_648, 2_147_483_647),
+                points_delta,
+                credits_delta,
+                clamp_int(payload.policyVersion, 1, 1_000_000),
+                current,
+            ),
+        )
+        if credits_delta > 0:
+            db.execute(
+                """
+                INSERT INTO wallet_transactions (
+                    transaction_id, account_id, kind, amount, balance_after, reference_id, created_at
+                ) VALUES (?, ?, 'stat_award', ?, ?, ?, ?)
+                """,
+                (
+                    secrets.token_hex(16),
+                    account_id,
+                    credits_delta,
+                    balance_after,
+                    f"stat:{account_id}:{event_id}",
+                    current,
+                ),
+            )
+        db.execute(
+            """
+            UPDATE accounts SET lifetime_points = lifetime_points + ?, wallet_balance = ?,
+                profile_revision = profile_revision + 1, updated_at = ?
+            WHERE account_id = ?
+            """,
+            (points_delta, balance_after, current, account_id),
+        )
+        return {
+            "applied": True,
+            "eventId": event_id,
+            "profile": serialize_account_profile(db, account_id),
+        }
+
+
+def get_account_global_rank(db: sqlite3.Connection, account_id: str) -> int:
+    row = db.execute(
+        """
+        SELECT lifetime_points,
+               1 + (
+                   SELECT COUNT(*) FROM accounts ranked
+                   WHERE ranked.lifetime_points > account.lifetime_points
+               ) AS global_rank
+        FROM accounts account
+        WHERE account_id = ?
+        """,
+        (account_id,),
+    ).fetchone()
+    if row is None or int(row["lifetime_points"]) <= 0:
+        return 0
+    return max(1, int(row["global_rank"]))
+
+
+def serialize_stat_totals(db: sqlite3.Connection, account_id: str) -> dict[str, int]:
+    rows = db.execute(
+        """
+        SELECT event_type, COALESCE(SUM(raw_value), 0) AS total
+        FROM stat_events
+        WHERE account_id = ?
+        GROUP BY event_type
+        ORDER BY event_type
+        """,
+        (account_id,),
+    ).fetchall()
+    return {str(row["event_type"]): int(row["total"]) for row in rows}
+
+
+@app.post("/api/stats/points")
+def get_player_points(payload: GameplaySessionValidateRequest) -> dict[str, Any]:
+    with connect_db() as db:
+        session = validate_gameplay_session(db, clean_text(payload.gameplayToken, 256))
+        account_id = str(session["account_id"])
+        reconcile_account_totals(db, account_id)
+        return {
+            "profile": serialize_account_profile(db, account_id),
+            "globalRank": get_account_global_rank(db, account_id),
+            "stats": serialize_stat_totals(db, account_id),
+        }
+
+
+@app.get("/api/stats/leaderboard")
+def get_points_leaderboard(limit: int = 10, offset: int = 0) -> dict[str, Any]:
+    page_limit = clamp_int(limit, 1, 50)
+    page_offset = clamp_int(offset, 0, 1_000_000)
+    with connect_db() as db:
+        rows = db.execute(
+            """
+            SELECT account_id, primary_friend_code, display_name, lifetime_points,
+                   wallet_balance, profile_revision,
+                   RANK() OVER (ORDER BY lifetime_points DESC) AS global_rank
+            FROM accounts
+            WHERE lifetime_points > 0
+            ORDER BY lifetime_points DESC, updated_at ASC, account_id ASC
+            LIMIT ? OFFSET ?
+            """,
+            (page_limit, page_offset),
+        ).fetchall()
+        total_row = db.execute(
+            "SELECT COUNT(*) AS total FROM accounts WHERE lifetime_points > 0"
+        ).fetchone()
+        entries = []
+        for index, row in enumerate(rows):
+            entries.append({
+                "rank": max(1, int(row["global_rank"])),
+                "friendCode": str(row["primary_friend_code"]),
+                "displayName": str(row["display_name"]) or "Player",
+                "lifetimePoints": max(0, int(row["lifetime_points"])),
+                "walletBalance": max(0, int(row["wallet_balance"])),
+                "profileRevision": max(0, int(row["profile_revision"])),
+            })
+        return {
+            "entries": entries,
+            "offset": page_offset,
+            "limit": page_limit,
+            "total": int(total_row["total"]) if total_row is not None else 0,
+        }
+
+
+def get_last_to_die_player_stats(db: sqlite3.Connection, account_id: str) -> dict[str, Any]:
+    aggregate = db.execute(
+        """
+        SELECT COUNT(*) AS runs_played,
+               COALESCE(MAX(score_units), 0) AS best_score_units,
+               COALESCE(MAX(round_number), 0) AS highest_round
+        FROM last_to_die_runs
+        WHERE account_id = ?
+        """,
+        (account_id,),
+    ).fetchone()
+    best_score_units = max(0, int(aggregate["best_score_units"]))
+    highest_round = max(0, int(aggregate["highest_round"]))
+    score_rank = 0
+    round_rank = 0
+    if best_score_units > 0 or highest_round > 0:
+        score_rank_row = db.execute(
+            """
+            WITH account_records AS (
+                SELECT account_id, MAX(score_units) AS best_score_units
+                FROM last_to_die_runs GROUP BY account_id
+            )
+            SELECT 1 + COUNT(*) AS rank
+            FROM account_records WHERE best_score_units > ?
+            """,
+            (best_score_units,),
+        ).fetchone()
+        round_rank_row = db.execute(
+            """
+            WITH account_records AS (
+                SELECT account_id, MAX(round_number) AS highest_round
+                FROM last_to_die_runs GROUP BY account_id
+            )
+            SELECT 1 + COUNT(*) AS rank
+            FROM account_records WHERE highest_round > ?
+            """,
+            (highest_round,),
+        ).fetchone()
+        score_rank = max(1, int(score_rank_row["rank"]))
+        round_rank = max(1, int(round_rank_row["rank"]))
+
+    profile = serialize_account_profile(db, account_id)
+    return {
+        "friendCode": profile["friendCode"],
+        "displayName": profile["displayName"] or "Player",
+        "runsPlayed": max(0, int(aggregate["runs_played"])),
+        "bestScoreUnits": best_score_units,
+        "highestRound": highest_round,
+        "scoreRank": score_rank,
+        "roundRank": round_rank,
+    }
+
+
+def get_last_to_die_leaderboard(
+    db: sqlite3.Connection,
+    sort: str,
+    limit: int,
+    offset: int,
+) -> dict[str, Any]:
+    normalized_sort = clean_text(sort, 16).lower()
+    if normalized_sort not in ("score", "round"):
+        raise HTTPException(status_code=400, detail="sort must be score or round")
+    page_limit = clamp_int(limit, 1, 50)
+    page_offset = clamp_int(offset, 0, 1_000_000)
+    rank_column = "best_score_units" if normalized_sort == "score" else "highest_round"
+    secondary_column = "highest_round" if normalized_sort == "score" else "best_score_units"
+    rows = db.execute(
+        f"""
+        WITH account_records AS (
+            SELECT account_id,
+                   MAX(score_units) AS best_score_units,
+                   MAX(round_number) AS highest_round,
+                   COUNT(*) AS runs_played
+            FROM last_to_die_runs
+            GROUP BY account_id
+        ), ranked AS (
+            SELECT account_id, best_score_units, highest_round, runs_played,
+                   RANK() OVER (ORDER BY {rank_column} DESC) AS global_rank
+            FROM account_records
+        )
+        SELECT ranked.*, accounts.primary_friend_code, accounts.display_name
+        FROM ranked
+        JOIN accounts ON accounts.account_id = ranked.account_id
+        ORDER BY {rank_column} DESC, {secondary_column} DESC,
+                 accounts.updated_at ASC, ranked.account_id ASC
+        LIMIT ? OFFSET ?
+        """,
+        (page_limit, page_offset),
+    ).fetchall()
+    total_row = db.execute(
+        "SELECT COUNT(DISTINCT account_id) AS total FROM last_to_die_runs"
+    ).fetchone()
+    entries = [
+        {
+            "rank": max(1, int(row["global_rank"])),
+            "friendCode": str(row["primary_friend_code"]),
+            "displayName": str(row["display_name"]) or "Player",
+            "runsPlayed": max(0, int(row["runs_played"])),
+            "bestScoreUnits": max(0, int(row["best_score_units"])),
+            "highestRound": max(0, int(row["highest_round"])),
+        }
+        for row in rows
+    ]
+    return {
+        "sort": normalized_sort,
+        "entries": entries,
+        "offset": page_offset,
+        "limit": page_limit,
+        "total": int(total_row["total"]) if total_row is not None else 0,
+    }
+
+
+@app.post("/api/last-to-die/run")
+def record_last_to_die_run(payload: LastToDieRunRequest) -> dict[str, Any]:
+    token = clean_text(payload.gameplayToken, 256)
+    submission_id = clean_text(payload.submissionId, 128)
+    run_id = clean_text(payload.runId, 128)
+    score_units = clamp_int(payload.scoreUnits, 0, 2_147_483_647)
+    round_number = clamp_int(payload.roundNumber, 0, 1_000_000)
+    difficulty = clean_text(payload.difficulty, 16).lower()
+    policy_version = clamp_int(payload.policyVersion, 1, 1_000_000)
+    if not submission_id or not run_id:
+        raise HTTPException(status_code=400, detail="submission id and run id are required")
+    if score_units != int(payload.scoreUnits) or round_number != int(payload.roundNumber):
+        raise HTTPException(status_code=400, detail="Last to Die result is outside allowed bounds")
+    if difficulty not in ("standard", "hardcore"):
+        raise HTTPException(status_code=400, detail="invalid Last to Die difficulty")
+
+    with connect_db() as db:
+        session = validate_gameplay_session(db, token)
+        account_id = str(session["account_id"])
+        existing = db.execute(
+            """
+            SELECT run_id, account_id, score_units, round_number, difficulty, policy_version
+            FROM last_to_die_runs WHERE submission_id = ?
+            """,
+            (submission_id,),
+        ).fetchone()
+        if existing is not None:
+            if (
+                str(existing["run_id"]) != run_id
+                or str(existing["account_id"]) != account_id
+                or int(existing["score_units"]) != score_units
+                or int(existing["round_number"]) != round_number
+                or str(existing["difficulty"]) != difficulty
+                or int(existing["policy_version"]) != policy_version
+            ):
+                raise HTTPException(status_code=409, detail="submission id conflicts with an existing run")
+            return {
+                "applied": False,
+                "submissionId": submission_id,
+                "player": get_last_to_die_player_stats(db, account_id),
+            }
+
+        duplicate_run = db.execute(
+            "SELECT submission_id FROM last_to_die_runs WHERE run_id = ? AND account_id = ?",
+            (run_id, account_id),
+        ).fetchone()
+        if duplicate_run is not None:
+            raise HTTPException(status_code=409, detail="run was already recorded for this account")
+
+        db.execute(
+            """
+            INSERT INTO last_to_die_runs (
+                submission_id, run_id, account_id, score_units, round_number,
+                difficulty, policy_version, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                submission_id,
+                run_id,
+                account_id,
+                score_units,
+                round_number,
+                difficulty,
+                policy_version,
+                now_seconds(),
+            ),
+        )
+        return {
+            "applied": True,
+            "submissionId": submission_id,
+            "player": get_last_to_die_player_stats(db, account_id),
+        }
+
+
+@app.get("/api/last-to-die/leaderboard")
+def last_to_die_leaderboard(
+    sort: str = "score",
+    limit: int = 10,
+    offset: int = 0,
+) -> dict[str, Any]:
+    with connect_db() as db:
+        return get_last_to_die_leaderboard(db, sort, limit, offset)
+
+
+@app.post("/api/last-to-die/rankings")
+def last_to_die_rankings(payload: LastToDieRankingsRequest) -> dict[str, Any]:
+    friend_code = normalize_friend_code(payload.friendCode)
+    if not friend_code:
+        raise HTTPException(status_code=400, detail="invalid friend code")
+    with connect_db() as db:
+        account_id = verify_client(
+            db,
+            clean_text(payload.clientId, 64),
+            friend_code,
+            payload.clientSecret,
+            "",
+        )
+        page_limit = clamp_int(payload.limit, 1, 10)
+        return {
+            "player": get_last_to_die_player_stats(db, account_id),
+            "scoreRecords": get_last_to_die_leaderboard(db, "score", page_limit, 0)["entries"],
+            "roundRecords": get_last_to_die_leaderboard(db, "round", page_limit, 0)["entries"],
+        }
 
 
 @app.post("/api/friends/request")
@@ -835,21 +2047,29 @@ def create_friend_request(payload: FriendRequestCreateRequest) -> dict[str, Any]
     target_code = normalize_friend_code(payload.targetFriendCode)
     if not own_code or not target_code:
         raise HTTPException(status_code=400, detail="invalid friend code")
-    if own_code == target_code:
-        raise HTTPException(status_code=400, detail="cannot request yourself")
-
     client_id = clean_text(payload.clientId, 64)
     display_name = clean_text(payload.displayName, 64) or "Player"
     current = now_seconds()
     with connect_db() as db:
-        verify_client(db, client_id, own_code, payload.clientSecret, display_name)
+        account_id = verify_client(db, client_id, own_code, payload.clientSecret, display_name)
+        own_code = get_primary_friend_code(db, account_id)
+        own_aliases = get_account_friend_codes(db, account_id)
+        target_account_id = get_account_id_for_friend_code(db, target_code)
+        target_code = get_primary_friend_code(db, target_account_id) if target_account_id else target_code
+        target_aliases = get_account_friend_codes(db, target_account_id) if target_account_id else [target_code]
+        if own_code == target_code:
+            raise HTTPException(status_code=400, detail="cannot request yourself")
 
+        own_placeholders = ",".join("?" for _ in own_aliases)
+        target_placeholders = ",".join("?" for _ in target_aliases)
         reverse = db.execute(
-            """
+            f"""
             SELECT * FROM friend_requests
-            WHERE from_friend_code = ? AND to_friend_code = ? AND status = 'pending'
+            WHERE from_friend_code IN ({target_placeholders})
+              AND to_friend_code IN ({own_placeholders})
+              AND status = 'pending'
             """,
-            (target_code, own_code),
+            (*target_aliases, *own_aliases),
         ).fetchone()
         if reverse is not None:
             db.execute(
@@ -888,16 +2108,19 @@ def list_friend_requests(payload: FriendRequestsListRequest) -> dict[str, Any]:
     client_id = clean_text(payload.clientId, 64)
     display_name = clean_text(payload.displayName, 64) or "Player"
     with connect_db() as db:
-        verify_client(db, client_id, own_code, payload.clientSecret, display_name)
+        account_id = verify_client(db, client_id, own_code, payload.clientSecret, display_name)
+        own_code = get_primary_friend_code(db, account_id)
+        own_aliases = get_account_friend_codes(db, account_id)
+        placeholders = ",".join("?" for _ in own_aliases)
         rows = db.execute(
-            """
+            f"""
             SELECT * FROM friend_requests
-            WHERE (to_friend_code = ? AND status = 'pending')
-               OR (from_friend_code = ? AND status IN ('pending', 'accepted', 'denied'))
+            WHERE (to_friend_code IN ({placeholders}) AND status = 'pending')
+               OR (from_friend_code IN ({placeholders}) AND status IN ('pending', 'accepted', 'denied'))
             ORDER BY updated_at DESC, request_id DESC
             LIMIT 50
             """,
-            (own_code, own_code),
+            (*own_aliases, *own_aliases),
         ).fetchall()
         return {
             "requests": [serialize_friend_request(db, row, own_code) for row in rows],
@@ -915,13 +2138,16 @@ def respond_friend_request(payload: FriendRequestRespondRequest) -> dict[str, An
     display_name = clean_text(payload.displayName, 64) or "Player"
     current = now_seconds()
     with connect_db() as db:
-        verify_client(db, client_id, own_code, payload.clientSecret, display_name)
+        account_id = verify_client(db, client_id, own_code, payload.clientSecret, display_name)
+        own_code = get_primary_friend_code(db, account_id)
+        own_aliases = get_account_friend_codes(db, account_id)
+        placeholders = ",".join("?" for _ in own_aliases)
         row = db.execute(
-            """
+            f"""
             SELECT * FROM friend_requests
-            WHERE request_id = ? AND to_friend_code = ? AND status = 'pending'
+            WHERE request_id = ? AND to_friend_code IN ({placeholders}) AND status = 'pending'
             """,
-            (payload.requestId, own_code),
+            (payload.requestId, *own_aliases),
         ).fetchone()
         if row is None:
             raise HTTPException(status_code=404, detail="friend request not found")
@@ -942,8 +2168,6 @@ def send_direct_message(payload: DirectMessageSendRequest) -> dict[str, Any]:
     text = clean_text(payload.text, 500)
     if not own_code or not target_code:
         raise HTTPException(status_code=400, detail="invalid friend code")
-    if own_code == target_code:
-        raise HTTPException(status_code=400, detail="cannot message yourself")
     if not text:
         raise HTTPException(status_code=400, detail="message is required")
 
@@ -951,7 +2175,11 @@ def send_direct_message(payload: DirectMessageSendRequest) -> dict[str, Any]:
     display_name = clean_text(payload.displayName, 64) or "Player"
     current = now_seconds()
     with connect_db() as db:
-        verify_client(db, client_id, own_code, payload.clientSecret, display_name)
+        account_id = verify_client(db, client_id, own_code, payload.clientSecret, display_name)
+        own_code = get_primary_friend_code(db, account_id)
+        target_code = canonicalize_friend_code(db, target_code)
+        if own_code == target_code:
+            raise HTTPException(status_code=400, detail="cannot message yourself")
         cursor = db.execute(
             """
             INSERT INTO direct_messages (
@@ -962,7 +2190,7 @@ def send_direct_message(payload: DirectMessageSendRequest) -> dict[str, Any]:
             (client_id, own_code, target_code, display_name, text, current),
         )
         row = db.execute("SELECT * FROM direct_messages WHERE message_id = ?", (cursor.lastrowid,)).fetchone()
-        return serialize_direct_message(row, own_code)
+        return serialize_direct_message(db, row, own_code)
 
 
 @app.post("/api/messages/poll")
@@ -975,18 +2203,21 @@ def poll_direct_messages(payload: DirectMessagesPollRequest) -> dict[str, Any]:
     display_name = clean_text(payload.displayName, 64) or "Player"
     after_id = max(0, int(payload.afterId))
     with connect_db() as db:
-        verify_client(db, client_id, own_code, payload.clientSecret, display_name)
+        account_id = verify_client(db, client_id, own_code, payload.clientSecret, display_name)
+        own_code = get_primary_friend_code(db, account_id)
+        own_aliases = get_account_friend_codes(db, account_id)
+        placeholders = ",".join("?" for _ in own_aliases)
         rows = db.execute(
-            """
+            f"""
             SELECT * FROM direct_messages
-            WHERE recipient_friend_code = ? AND message_id > ?
+            WHERE recipient_friend_code IN ({placeholders}) AND message_id > ?
             ORDER BY message_id ASC
             LIMIT 50
             """,
-            (own_code, after_id),
+            (*own_aliases, after_id),
         ).fetchall()
         return {
-            "messages": [serialize_direct_message(row, own_code) for row in rows],
+            "messages": [serialize_direct_message(db, row, own_code) for row in rows],
             "generatedAt": iso_from_seconds(now_seconds()),
         }
 
@@ -1000,7 +2231,8 @@ async def create_relay_session(payload: RelaySessionCreateRequest, request: Requ
     client_id = clean_text(payload.clientId, 64)
     display_name = clean_text(payload.displayName, 64) or "Player"
     with connect_db() as db:
-        verify_client(db, client_id, friend_code, payload.clientSecret, display_name)
+        account_id = verify_client(db, client_id, friend_code, payload.clientSecret, display_name)
+        friend_code = get_primary_friend_code(db, account_id)
 
     current = now_seconds()
     session_id = secrets.token_urlsafe(18)
@@ -1057,6 +2289,9 @@ async def resolve_relay_session(
     friend_code: str = "",
 ) -> dict[str, str]:
     current = now_seconds()
+    if friend_code:
+        with connect_db() as db:
+            friend_code = canonicalize_friend_code(db, friend_code)
     async with relay_sessions_lock:
         stale_sockets = prune_relay_sessions_locked(current)
         if room_code:
@@ -1263,7 +2498,8 @@ def heartbeat_presence(payload: PresenceHeartbeatRequest, request: Request) -> d
     with connect_db() as db:
         prune_expired(db)
         player_card_json = clean_json_text(payload.playerCard)
-        verify_client(db, client_id, friend_code, payload.clientSecret, display_name, player_card_json)
+        account_id = verify_client(db, client_id, friend_code, payload.clientSecret, display_name, player_card_json)
+        friend_code = get_primary_friend_code(db, account_id)
         db.execute(
             """
             INSERT INTO presence (
@@ -1304,15 +2540,21 @@ def heartbeat_presence(payload: PresenceHeartbeatRequest, request: Request) -> d
             ),
         )
 
-    return {"status": "ok"}
+    return {"status": "ok", "friendCode": friend_code}
 
 
 @app.post("/api/presence/offline")
 def offline_presence(payload: PresenceOfflineRequest) -> dict[str, str]:
     client_id = clean_text(payload.clientId, 64)
     with connect_db() as db:
-        existing = db.execute("SELECT secret_hash FROM clients WHERE client_id = ?", (client_id,)).fetchone()
-        if existing is not None and existing["secret_hash"] != secret_hash(payload.clientSecret):
+        existing = db.execute(
+            "SELECT secret_hash FROM client_devices WHERE client_id = ?",
+            (client_id,),
+        ).fetchone()
+        if existing is not None and not hmac.compare_digest(
+            str(existing["secret_hash"]),
+            secret_hash(payload.clientSecret),
+        ):
             raise HTTPException(status_code=403, detail="client secret mismatch")
         db.execute("DELETE FROM presence WHERE client_id = ?", (client_id,))
 
@@ -1336,24 +2578,42 @@ def get_presence(codes: str = "") -> dict[str, Any]:
     with connect_db() as db:
         prune_expired(db)
         placeholders = ",".join("?" for _ in requested)
-        clients = {
-            row["friend_code"]: row
-            for row in db.execute(f"SELECT * FROM clients WHERE friend_code IN ({placeholders})", requested).fetchall()
-        }
-        presence = {
-            row["friend_code"]: row
-            for row in db.execute(f"SELECT * FROM presence WHERE friend_code IN ({placeholders})", requested).fetchall()
-        }
+        alias_rows = db.execute(
+            f"""
+            SELECT afc.friend_code, a.*
+            FROM account_friend_codes afc
+            JOIN accounts a ON a.account_id = afc.account_id
+            WHERE afc.friend_code IN ({placeholders})
+            """,
+            requested,
+        ).fetchall()
+        accounts = {row["friend_code"]: row for row in alias_rows}
+        account_ids = list({str(row["account_id"]) for row in alias_rows})
+        presence_by_account: dict[str, sqlite3.Row] = {}
+        if account_ids:
+            account_placeholders = ",".join("?" for _ in account_ids)
+            presence_rows = db.execute(
+                f"""
+                SELECT p.*, d.account_id
+                FROM presence p
+                JOIN client_devices d ON d.client_id = p.client_id
+                WHERE d.account_id IN ({account_placeholders})
+                ORDER BY p.updated_at DESC
+                """,
+                account_ids,
+            ).fetchall()
+            for row in presence_rows:
+                presence_by_account.setdefault(str(row["account_id"]), row)
 
     friends = []
     for code in requested:
-        client = clients.get(code)
-        row = presence.get(code)
+        account = accounts.get(code)
+        row = presence_by_account.get(str(account["account_id"])) if account is not None else None
         online = row is not None and row["updated_at"] >= current - PRESENCE_TTL_SECONDS
         friends.append(
             {
                 "friendCode": code,
-                "displayName": (row["display_name"] if row is not None else (client["display_name"] if client is not None else "")),
+                "displayName": (row["display_name"] if row is not None else (account["display_name"] if account is not None else "")),
                 "online": online,
                 "status": row["status"] if online else "offline",
                 "mode": row["mode"] if online else "",
@@ -1364,9 +2624,17 @@ def get_presence(codes: str = "") -> dict[str, Any]:
                 "webSocketPort": row["websocket_port"] if online else 0,
                 "webSocketUrl": row["websocket_url"] if online else "",
                 "joinable": bool(row["joinable"]) if online else False,
-                "playerCard": (row["player_card_json"] if row is not None else (client["player_card_json"] if client is not None else "")),
+                "playerCard": (row["player_card_json"] if row is not None else (account["player_card_json"] if account is not None else "")),
                 "lastSeenIso": iso_from_seconds(row["updated_at"]) if row is not None else "",
             }
         )
 
     return {"friends": friends, "generatedAt": iso_from_seconds(current)}
+
+
+# Managed room control/gateway shares device authentication with LTD's social relay.
+import sys as _sys
+from private_rooms import install_private_rooms as _install_private_rooms
+_install_private_rooms(_sys.modules[__name__])
+from peer_rooms import install_peer_rooms as _install_peer_rooms
+_install_peer_rooms(_sys.modules[__name__])

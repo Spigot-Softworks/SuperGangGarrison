@@ -48,7 +48,7 @@ public static class LegacyTeamSpawnRuntimeImport
 
             result = new LegacyTeamSpawnImportResult(
                 PlayerTeam.Blue,
-                CreateForwardSpawnPoint(x, y, objectiveIndex, priority: 0));
+                CreateForwardSpawnPoint(x, y, objectiveIndex, objectiveIndex));
             return true;
         }
 
@@ -72,7 +72,8 @@ public static class LegacyTeamSpawnRuntimeImport
             SpawnPointRole.Forward,
             linkedControlPointIndex,
             ForwardSpawnUseCondition.ObjectiveOwnedByTeam,
-            priority > 0 ? ForwardSpawnPriorityMetadata.ClampPriority(priority) : 0);
+            priority,
+            LegacySpawnSlot: linkedControlPointIndex);
     }
 
     private static int ParseTrailingIndex(string type, string prefix)

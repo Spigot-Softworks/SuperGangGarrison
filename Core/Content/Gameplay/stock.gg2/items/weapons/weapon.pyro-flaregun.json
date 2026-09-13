@@ -36,6 +36,7 @@
       "stackGroup": "weapon",
       "order": 60,
       "stateProvider": "secondaryAmmo",
+      "useBackgroundPlaque": true,
       "hideWhenUnavailable": true
     }
   },

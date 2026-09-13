@@ -62,6 +62,13 @@ public sealed partial class SimulationWorld
             hitEnemyPlayer |= ApplySplashDamageToPlayers(world, rocket, owner, blastRadius, directHitPlayer);
             ApplySplashDamageToSentries(world, rocket, owner, blastRadius);
             ApplySplashDamageToGenerators(world, rocket, owner, blastRadius);
+            world.ApplyExplosiveDamageToJumpPads(
+                rocket.X,
+                rocket.Y,
+                blastRadius,
+                rocket.ExplosionDamageValue * rocket.ExperimentalStingerDamageMultiplier * rocket.CriticalDamageMultiplier,
+                rocket.Team,
+                rocket.MinimumSplashDamageValue);
             ApplySplashDamageToDamageableZones(world, rocket, blastRadius, directHitDamageableZoneRoomObjectIndex);
             TriggerMinesInBlast(world, rocket, blastRadius);
             DestroyBubblesInBlast(world, rocket, blastRadius);
@@ -182,7 +189,7 @@ public sealed partial class SimulationWorld
                 0f,
                 excludeRoomObjectIndex,
                 rocket.Team,
-                SimulationWorld.ExplosiveSplashMinimumDamage);
+                rocket.MinimumSplashDamageValue);
         }
 
         private static bool ApplySplashDamageToPlayers(
@@ -229,7 +236,15 @@ public sealed partial class SimulationWorld
                     continue;
                 }
 
-                ApplyPlayerImpulse(world, player, rocket, distanceFactor);
+                if (ReferenceEquals(player, directHitPlayer)
+                    && ShouldRedirectDescendingMortarDirectHitTowardOwner(player, owner, rocket))
+                {
+                    ApplyDescendingMortarDirectHitImpulse(world, player, owner!, rocket, distanceFactor);
+                }
+                else
+                {
+                    ApplyPlayerImpulse(world, player, rocket, distanceFactor);
+                }
                 ApplyMovementState(player, rocket);
                 var receivedBlastLiftBonus = player.Id != rocket.OwnerId && ShouldApplyBlastLiftBonus(player, rocket.X, rocket.Y);
                 if (receivedBlastLiftBonus)
@@ -246,9 +261,17 @@ public sealed partial class SimulationWorld
 
                 var critMultiplier = (player.Id == rocket.OwnerId && player.Team == rocket.Team) ? 1f : rocket.CriticalDamageMultiplier;
                 var maxSplashDamage = rocket.ExplosionDamageValue * rocket.ExperimentalStingerDamageMultiplier * critMultiplier;
+                var minimumSplashDamage = player.Id == rocket.OwnerId && player.Team == rocket.Team
+                    ? SimulationWorld.ExplosiveSplashMinimumDamage
+                    : rocket.MinimumSplashDamageValue;
                 var appliedDamage = SimulationWorld.ResolveExplosiveSplashDamage(
                     maxSplashDamage,
-                    distanceFactor);
+                    distanceFactor,
+                    minimumSplashDamage);
+                if (player.Id == rocket.OwnerId && player.Team == rocket.Team)
+                {
+                    appliedDamage *= rocket.SelfDamageMultiplier;
+                }
                 world.RegisterBloodEffect(player.X, player.Y, SimulationWorld.PointDirectionDegrees(rocket.X, rocket.Y, player.X, player.Y) - 180f, 3);
                 hitEnemyPlayer |= player.Team != rocket.Team;
                 var umbrellaDrainTicks = ReferenceEquals(player, directHitPlayer)
@@ -312,6 +335,59 @@ public sealed partial class SimulationWorld
             SimulationWorld.ApplyExplosionImpulse(player, rocket.X, rocket.Y, impulse);
         }
 
+        private static bool ShouldRedirectDescendingMortarDirectHitTowardOwner(
+            PlayerEntity player,
+            PlayerEntity? owner,
+            RocketProjectileEntity rocket)
+        {
+            if (owner is null
+                || ReferenceEquals(player, owner)
+                || !rocket.IsBallistic
+                || MathF.Sin(rocket.DirectionRadians) <= 0.0001f)
+            {
+                return false;
+            }
+
+            var playerCenterY = player.Y
+                + ((player.CollisionTopOffset + player.CollisionBottomOffset) * 0.5f);
+            return rocket.Y <= playerCenterY;
+        }
+
+        private static void ApplyDescendingMortarDirectHitImpulse(
+            SimulationWorld world,
+            PlayerEntity player,
+            PlayerEntity owner,
+            RocketProjectileEntity rocket,
+            float distanceFactor)
+        {
+            var impulse = SimulationWorld.GetExplosionImpulseMagnitude(
+                player,
+                rocket.X,
+                rocket.Y,
+                rocket.CurrentKnockback,
+                distanceFactor,
+                useMineVectorProfile: false);
+            if (impulse <= 0.0001f)
+            {
+                return;
+            }
+
+            var towardOwnerX = owner.X - player.X;
+            var towardOwnerY = owner.Y - player.Y;
+            var distanceToOwner = MathF.Sqrt(
+                (towardOwnerX * towardOwnerX) + (towardOwnerY * towardOwnerY));
+            if (distanceToOwner <= 0.0001f)
+            {
+                var fallbackDirectionX = -MathF.Cos(rocket.DirectionRadians);
+                player.AddImpulse(MathF.Sign(fallbackDirectionX) * impulse, 0f);
+                return;
+            }
+
+            player.AddImpulse(
+                (towardOwnerX / distanceToOwner) * impulse,
+                (towardOwnerY / distanceToOwner) * impulse);
+        }
+
         private static void ApplyMovementState(PlayerEntity player, RocketProjectileEntity rocket)
         {
             if (player.Id == rocket.OwnerId && player.Team == rocket.Team)
@@ -364,7 +440,8 @@ public sealed partial class SimulationWorld
 
                 var damage = SimulationWorld.ResolveExplosiveSplashDamage(
                     rocket.ExplosionDamageValue * rocket.ExperimentalStingerDamageMultiplier * rocket.CriticalDamageMultiplier,
-                    1f - (distance / blastRadius));
+                    1f - (distance / blastRadius),
+                    rocket.MinimumSplashDamageValue);
                 if (world.ApplySentryDamage(sentry, (int)MathF.Ceiling(damage), owner))
                 {
                     world.DestroySentry(sentry, owner);
@@ -385,7 +462,8 @@ public sealed partial class SimulationWorld
 
                 var damage = SimulationWorld.ResolveExplosiveSplashDamage(
                     rocket.ExplosionDamageValue * rocket.ExperimentalStingerDamageMultiplier * rocket.CriticalDamageMultiplier,
-                    1f - (distance / blastRadius));
+                    1f - (distance / blastRadius),
+                    rocket.MinimumSplashDamageValue);
                 world.TryDamageGenerator(generator.Team, damage, owner);
             }
         }

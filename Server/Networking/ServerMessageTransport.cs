@@ -500,10 +500,12 @@ internal sealed class CompositeServerMessageTransport : IServerMessageTransport
         IPAddress? remoteAddress,
         int remotePort,
         Action<string> log,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        ManagedRoomRuntime.Participant? managedParticipant = null)
     {
         var sessionId = Interlocked.Increment(ref _nextWebSocketSessionId);
         var peer = ServerTransportPeer.FromWebSocketSession(sessionId, remoteAddress, remotePort, protocol64: true);
+        if (managedParticipant is not null) ManagedRoomRuntime.Participants[peer.Id] = managedParticipant;
         var connection = new Protocol64WebSocketConnection(
             webSocket,
             _protocol64Registry,
@@ -555,6 +557,7 @@ internal sealed class CompositeServerMessageTransport : IServerMessageTransport
         finally
         {
             _protocol64WebSocketConnections.TryRemove(peer.Id, out _);
+            ManagedRoomRuntime.Participants.TryRemove(peer.Id, out _);
             await connection.CloseAsync(
                 WebSocketCloseStatus.NormalClosure,
                 "Protocol-64 WebSocket session ended.",

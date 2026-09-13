@@ -26,9 +26,8 @@ body {
     position: absolute;
     left: 0;
     top: 0;
-    width: min(800px, 100vw, calc(100vh * 4 / 3));
-    height: min(600px, 100vh, calc(100vw * 3 / 4));
-    max-height: 100vh;
+    width: 100%;
+    height: 100%;
     border: 0;
     outline: none;
     background: #000;
@@ -59,4 +58,29 @@ body {
 .browser-host-status.failed {
     background: rgba(96, 12, 12, 0.88);
     color: #fff0f0;
+}
+
+.game-loading-progress {
+    position: absolute;
+    overflow: hidden;
+    pointer-events: none;
+    contain: strict;
+    background: #363332;
+}
+
+.game-loading-progress[hidden] { display: none; }
+
+.game-loading-progress-runner {
+    position: absolute;
+    top: 25%;
+    height: 50%;
+    width: 15%;
+    background: repeating-linear-gradient(to right, #456c8c 0 16%, transparent 16% 33.333%);
+    will-change: transform;
+    animation: game-loading-progress-move 1.8s linear infinite alternate;
+}
+
+@keyframes game-loading-progress-move {
+    from { transform: translateX(0); }
+    to { transform: translateX(566.6667%); }
 }

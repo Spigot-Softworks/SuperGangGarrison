@@ -1,0 +1,52 @@
+{
+  "id": "weapon.tommy-gun",
+  "kind": "Weapon",
+  "weaponSlot": "Primary",
+  "displayName": "Tommy Gun",
+  "behaviorId": "builtin.weapon.tommy_gun",
+  "ammo": {
+    "maxAmmo": 40,
+    "ammoPerUse": 1,
+    "projectilesPerUse": 1,
+    "useDelaySourceTicks": 2,
+    "reloadSourceTicks": 54,
+    "spreadDegrees": 4.0,
+    "minProjectileSpeed": 13.0,
+    "additionalProjectileSpeed": 0.0,
+    "autoReloads": true,
+    "ammoRegenPerTick": 0,
+    "refillsAllAtOnce": true
+  },
+  "combat": {
+    "fireSoundName": "ChaingunSnd",
+    "killFeedSpriteName": "SmgKL",
+    "directHitDamage": 12,
+    "playerKnockback": {
+      "impulsePerUse": 1.25,
+      "airborneVerticalScale": 0.5,
+      "groundedVerticalScale": 0.5
+    }
+  },
+  "presentation": {
+    "worldSpriteName": "SmgS",
+    "recoilSpriteName": "SmgFS",
+    "reloadSpriteName": "SmgFRS",
+    "hudSpriteName": "SmgS",
+    "weaponOffsetX": -5.0,
+    "weaponOffsetY": -5.0,
+    "recoilDurationSourceTicks": 2,
+    "reloadDurationSourceTicks": 54,
+    "blueTeamHudFrameOffset": 1,
+    "hud": {
+      "displayKind": "ammoPanel",
+      "stackGroup": "weapon",
+      "order": 100,
+      "stateProvider": "primaryAmmo",
+      "useBackgroundPlaque": true,
+      "hideWhenUnavailable": true
+    }
+  },
+  "description": {
+    "summary": "A mobile 40-round automatic primary for Heavy."
+  }
+}

@@ -28,6 +28,7 @@ public partial class Game1
 
         private void OpenLobbyBrowser(LobbyBrowserMode mode)
         {
+            if (IsRestrictedBrowserEdition) return;
             _game._lobbyBrowserOpen = true;
             _game._lobbyBrowserMode = mode;
             _game._lobbyBrowserPage = LobbyBrowserPage.List;
@@ -62,6 +63,7 @@ public partial class Game1
 
         public void RefreshLobbyBrowser()
         {
+            if (IsRestrictedBrowserEdition) return;
             _game._lobbyBrowserRegistryRequestTask = null;
             _game.CloseLobbyBrowserLobbyClient();
             _game.ClearLobbyBrowserDetails();
@@ -87,6 +89,7 @@ public partial class Game1
 
         public void OpenManualConnectMenuFromLobbyBrowser()
         {
+            if (IsRestrictedBrowserEdition) return;
             _game._lastToDieRoomCodeJoinOpen = false;
             _game._lastToDieConnectionPresentationPending = false;
             CloseLobbyBrowser(clearStatus: false);

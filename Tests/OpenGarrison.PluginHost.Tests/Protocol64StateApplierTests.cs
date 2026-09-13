@@ -11,6 +11,48 @@ namespace OpenGarrison.PluginHost.Tests;
 
 public sealed class Protocol64StateApplierTests
 {
+    [Theory]
+    [InlineData(19, true)]
+    [InlineData(20, false)]
+    [InlineData(21, false)]
+    public void OlderSnapshotCannotEraseNewerFlameState(ulong snapshotFrame, bool shouldRestore)
+    {
+        var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
+        var applier = new Protocol64StateApplier();
+        applier.ApplyProjectileState(Projectile(777, 1, Protocol64ProjectileKind.Flame, 20));
+        applier.ApplyToWorld(world, 1);
+        Assert.Single(world.Flames);
+
+        // The legacy snapshot's complete flame collection excludes this newer
+        // fast-channel spawn. Exercise the actual collection synchronization.
+        var applyFlames = typeof(SimulationWorld).GetMethod("ApplySnapshotFlames", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        applyFlames.Invoke(world, [Array.Empty<SnapshotFlameState>(), Array.Empty<int>(), true]);
+        Assert.Empty(world.Flames);
+        applier.ApplyToWorld(world, 1);
+        Assert.Empty(world.Flames); // The unchanged projection cache cannot repair it.
+
+        applier.RestoreNewerProjectilesAfterSnapshot(world, snapshotFrame, 1);
+        Assert.Equal(shouldRestore ? 1 : 0, world.Flames.Count);
+    }
+
+    [Fact]
+    public void OlderSnapshotCannotResurrectANewerProjectileDespawn()
+    {
+        var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
+        var applier = new Protocol64StateApplier();
+        var state = Projectile(777, 1, Protocol64ProjectileKind.Flame, 20);
+        applier.ApplyProjectileState(state);
+        applier.ApplyToWorld(world, 1);
+        applier.ApplyProjectileLifecycle(new Protocol64ProjectileLifecycle(
+            Protocol64ProjectileLifecycleKind.Despawn, 777, 1, Protocol64ProjectileKind.Flame,
+            21, 1, 1, 0, 0, 1, 0, 0, false, 0, 0));
+        applier.ApplyToWorld(world, 1);
+        Assert.Empty(world.Flames);
+        world.ApplyProtocol64ProjectileState(state, 1); // Delayed legacy state.
+        applier.RestoreNewerProjectilesAfterSnapshot(world, 20, 1);
+        Assert.Empty(world.Flames);
+    }
+
     [Fact]
     public void InlineClassIdentityCannotBeChangedByAnOlderGenerationOrStaleState()
     {
@@ -36,6 +78,52 @@ public sealed class Protocol64StateApplierTests
         Assert.Equal(Protocol64StateApplyStatus.RepairRequested, applier.ApplyProjectileState(wrongKind).Status);
         Assert.Equal(Protocol64StateApplyStatus.Applied, applier.ApplyProjectileState(replacement).Status);
         Assert.Equal(Protocol64ProjectileKind.Flame, Assert.Single(applier.Projectiles).EntityKind);
+    }
+
+    [Fact]
+    public void ProjectileDespawnTombstonePreservesFirstTickAndBlocksLateResurrection()
+    {
+        var applier = new Protocol64StateApplier();
+        var firstDespawn = new Protocol64ProjectileLifecycle(
+            Protocol64ProjectileLifecycleKind.Despawn,
+            7,
+            1,
+            Protocol64ProjectileKind.Rocket,
+            20,
+            0,
+            0,
+            100f,
+            50f,
+            4f,
+            0f,
+            0f,
+            false,
+            0,
+            0f);
+        var repeatedDespawn = firstDespawn with { StateTick = 10 };
+        var lateSameGeneration = new Protocol64ProjectileState(
+            7,
+            1,
+            Protocol64ProjectileKind.Rocket,
+            21,
+            0,
+            0,
+            100f,
+            50f,
+            4f,
+            0f,
+            0f,
+            true,
+            10,
+            25f);
+        var replacement = lateSameGeneration with { Generation = 2, StateTick = 22 };
+
+        Assert.Equal(Protocol64StateApplyStatus.Applied, applier.ApplyProjectileLifecycle(firstDespawn).Status);
+        Assert.Equal(Protocol64StateApplyStatus.Applied, applier.ApplyProjectileLifecycle(repeatedDespawn).Status);
+        Assert.Equal(20u, Assert.Single(applier.RemovedProjectileLifecycles).StateTick);
+        Assert.Equal(Protocol64StateApplyStatus.Stale, applier.ApplyProjectileState(lateSameGeneration).Status);
+        Assert.Equal(Protocol64StateApplyStatus.Applied, applier.ApplyProjectileState(replacement).Status);
+        Assert.Empty(applier.RemovedProjectileLifecycles);
     }
 
     [Fact]
@@ -167,6 +255,50 @@ public sealed class Protocol64StateApplierTests
         Assert.True(receiver.ApplyProtocol64PlayerState(state));
         Assert.Equal(state.PrimaryCooldownTicks, receiver.LocalPlayer.PrimaryCooldownTicks);
         Assert.Equal(state.PrimaryReloadTicks, receiver.LocalPlayer.ReloadTicksUntilNextShell);
+    }
+
+    [Fact]
+    public void Protocol64PublisherAndWorldHydrateServerBotMetadata()
+    {
+        var source = CreateJoinedWorld(PlayerClass.Soldier);
+        var publisher = new Protocol64StatePublisher(
+            source,
+            isBotSlotProvider: slot => slot == SimulationWorld.LocalPlayerSlot);
+        var state = Assert.Single(publisher.BuildPlayerStateBatch(1).Players);
+        Assert.True(state.IsBot);
+
+        var receiver = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
+        Assert.True(receiver.ApplyProtocol64PlayerState(state));
+        Assert.True(receiver.IsNetworkPlayerBot(SimulationWorld.LocalPlayerSlot));
+    }
+
+    [Fact]
+    public void RemoteLastToDieDemoknightPresentationUsesServerSlotInsteadOfLocalSimulationSlot()
+    {
+        var receiver = CreateProtocol64ClientWithRemoteDemoknight();
+        var remote = Assert.Single(receiver.RemoteSnapshotPlayers);
+        Assert.True(receiver.TryGetPlayerNetworkSlot(remote, out var remoteServerSlot));
+        Assert.Equal((byte)1, remoteServerSlot);
+
+        receiver.ReconcileRemoteLastToDieDemoknightPresentation(new HashSet<byte> { 2 });
+        Assert.False(remote.IsExperimentalDemoknightEnabled);
+        receiver.ReconcileRemoteLastToDieDemoknightPresentation(new HashSet<byte> { 1 });
+
+        Assert.True(remote.IsExperimentalDemoknightEnabled);
+        Assert.False(receiver.LocalPlayer.IsExperimentalDemoknightEnabled);
+    }
+
+    [Fact]
+    public void RemoteLastToDieDemoknightPresentationClearsWhenSemanticSlotIsNoLongerActive()
+    {
+        var receiver = CreateProtocol64ClientWithRemoteDemoknight();
+        var remote = Assert.Single(receiver.RemoteSnapshotPlayers);
+        receiver.ReconcileRemoteLastToDieDemoknightPresentation(new HashSet<byte> { 1 });
+        Assert.True(remote.IsExperimentalDemoknightEnabled);
+
+        receiver.ReconcileRemoteLastToDieDemoknightPresentation(new HashSet<byte>());
+
+        Assert.False(remote.IsExperimentalDemoknightEnabled);
     }
 
     [Theory]
@@ -545,6 +677,18 @@ public sealed class Protocol64StateApplierTests
         world.PrepareLocalPlayerJoin();
         world.CompleteLocalPlayerJoin(playerClass);
         return world;
+    }
+
+    private static SimulationWorld CreateProtocol64ClientWithRemoteDemoknight()
+    {
+        var receiver = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
+        Assert.True(receiver.ApplyProtocol64PlayerState(
+            Player(2, 202, 1, CharacterClassCatalog.Scout.GameplayClassId, 100),
+            clientLocalPlayerSlot: 2));
+        Assert.True(receiver.ApplyProtocol64PlayerState(
+            Player(1, 101, 1, CharacterClassCatalog.Demoman.GameplayClassId, 100),
+            clientLocalPlayerSlot: 2));
+        return receiver;
     }
 
     private static void AdvanceUntilPrimaryReady(SimulationWorld world)

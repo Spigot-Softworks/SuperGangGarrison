@@ -22,6 +22,7 @@ public partial class Game1
             || _inputBindings.ChangeTeam.IsKeyboardKey(key)
             || _inputBindings.ChangeClass.IsKeyboardKey(key)
             || _inputBindings.ShowScoreboard.IsKeyboardKey(key)
+            || _inputBindings.PushToTalk.IsKeyboardKey(key)
             || _inputBindings.ToggleConsole.IsKeyboardKey(key)
             || _inputBindings.OpenBubbleMenuZ.IsKeyboardKey(key)
             || _inputBindings.OpenBubbleMenuX.IsKeyboardKey(key)

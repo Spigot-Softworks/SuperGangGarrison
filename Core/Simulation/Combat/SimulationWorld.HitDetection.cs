@@ -78,7 +78,8 @@ public sealed partial class SimulationWorld
             sourcePlayer.Height,
             horizontalSpeed,
             verticalSpeed,
-            facingLeft ?? sourcePlayer.FacingDirectionX < 0f);
+            facingLeft ?? sourcePlayer.FacingDirectionX < 0f,
+            sourcePlayer.GameplayClassId);
         _deadBodies.Add(deadBody);
         _entities[deadBody.Id] = deadBody;
         return deadBody;
@@ -217,7 +218,15 @@ public sealed partial class SimulationWorld
         return flame;
     }
 
-    internal FlareProjectileEntity CombatTestSpawnFlare(PlayerEntity owner, float x, float y, float velocityX = 0f, float velocityY = 0f)
+    internal FlareProjectileEntity CombatTestSpawnFlare(
+        PlayerEntity owner,
+        float x,
+        float y,
+        float velocityX = 0f,
+        float velocityY = 0f,
+        float damagePerHit = FlareProjectileEntity.DefaultDamagePerHit,
+        FlareProjectileStyle style = FlareProjectileStyle.Standard,
+        int lifetimeTicks = FlareProjectileEntity.LifetimeTicks)
     {
         var flare = new FlareProjectileEntity(
             AllocateEntityId(),
@@ -226,7 +235,10 @@ public sealed partial class SimulationWorld
             x,
             y,
             velocityX,
-            velocityY);
+            velocityY,
+            ticksRemaining: lifetimeTicks,
+            damagePerHit: damagePerHit,
+            style: style);
         _flares.Add(flare);
         _entities[flare.Id] = flare;
         return flare;

@@ -1023,7 +1023,9 @@ internal sealed class ServerBotManager
             var slot = entry.Key;
             var cacheMissing = !_inputCache.ContainsKey(slot);
             var lastThinkFrame = _lastBotThinkFrameBySlot.GetValueOrDefault(slot, long.MinValue / 2);
-            var shouldThink = cacheMissing || frame - lastThinkFrame >= thinkIntervalTicks;
+            var shouldThink = cacheMissing
+                || frame - lastThinkFrame >= thinkIntervalTicks
+                || _botController.RequiresPerTickCombatThink(slot, _world);
             if (_world.TryGetNetworkPlayer(slot, out var player))
             {
                 if (_lastObservedBotAliveBySlot.TryGetValue(slot, out var wasAlive)
@@ -1048,8 +1050,32 @@ internal sealed class ServerBotManager
             }
         }
 
-        _botThinkCandidateSlotsBuffer.Sort(CompareBotThinkCandidates);
-        var selectedCount = Math.Min(maxThinkSlotsPerTick, _botThinkCandidateSlotsBuffer.Count);
+        _botThinkCandidateSlotsBuffer.Sort((left, right) =>
+        {
+            // A pending Spy reaction owns a per-tick combat gate. Keep those
+            // slots ahead of ordinary cadence work so a full roster cannot
+            // make cached fire/aim input bypass the gate.
+            var leftUrgent = _botController.RequiresPerTickCombatThink(left, _world);
+            var rightUrgent = _botController.RequiresPerTickCombatThink(right, _world);
+            if (leftUrgent != rightUrgent)
+            {
+                return leftUrgent ? -1 : 1;
+            }
+
+            return CompareBotThinkCandidates(left, right);
+        });
+        var urgentCount = 0;
+        foreach (var slot in _botThinkCandidateSlotsBuffer)
+        {
+            if (_botController.RequiresPerTickCombatThink(slot, _world))
+            {
+                urgentCount += 1;
+            }
+        }
+
+        var selectedCount = Math.Min(
+            _botThinkCandidateSlotsBuffer.Count,
+            Math.Max(maxThinkSlotsPerTick, urgentCount));
         for (var index = 0; index < selectedCount; index += 1)
         {
             var slot = _botThinkCandidateSlotsBuffer[index];

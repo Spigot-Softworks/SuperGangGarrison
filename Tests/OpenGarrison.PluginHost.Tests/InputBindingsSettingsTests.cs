@@ -4,6 +4,7 @@ using System.IO;
 using Microsoft.Xna.Framework.Input;
 using OpenGarrison.Client;
 using OpenGarrison.Core.LastToDie;
+using OpenGarrison.Protocol;
 using Xunit;
 
 namespace OpenGarrison.PluginHost.Tests;
@@ -26,6 +27,9 @@ public sealed class InputBindingsSettingsTests
             isNetworkMultiplayerSession: true,
             isLastToDieSession: true,
             isLockedPrimaryWeaponClass: true));
+        Assert.Equal(InputBinding.FromKey(Keys.F1), bindings.VoteYes);
+        Assert.Equal(InputBinding.FromKey(Keys.F2), bindings.VoteNo);
+        Assert.Equal(InputBinding.FromKey(Keys.F3), bindings.OpenVoteMenu);
     }
 
     [Fact]
@@ -192,6 +196,57 @@ public sealed class InputBindingsSettingsTests
                 Directory.Delete(directory, recursive: true);
             }
         }
+    }
+
+    [Fact]
+    public void SaveAndLoadRoundTripsCustomVoteBindings()
+    {
+        var path = Path.Combine(Path.GetTempPath(), "opengarrison-controls-tests", Guid.NewGuid().ToString("N"), InputBindingsSettings.DefaultFileName);
+        var settings = new InputBindingsSettings
+        {
+            VoteYes = InputBinding.FromKey(Keys.Y),
+            VoteNo = InputBinding.FromMouse(InputMouseButton.XButton1),
+            OpenVoteMenu = InputBinding.FromKey(Keys.O),
+        };
+
+        try
+        {
+            settings.Save(path);
+            var loaded = InputBindingsSettings.Load(path);
+            Assert.Equal(settings.VoteYes, loaded.VoteYes);
+            Assert.Equal(settings.VoteNo, loaded.VoteNo);
+            Assert.Equal(settings.OpenVoteMenu, loaded.OpenVoteMenu);
+        }
+        finally
+        {
+            var directory = Path.GetDirectoryName(path);
+            if (!string.IsNullOrWhiteSpace(directory) && Directory.Exists(directory))
+            {
+                Directory.Delete(directory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public void VoteShortcutOpensMenuWithoutVoteButRequiresActiveVoteForBallotsAndHonorsGuards()
+    {
+        var bindings = new InputBindingsSettings();
+        Assert.Equal(
+            VoteCommandKind.OpenMenu,
+            Game1.ResolveVoteShortcut(bindings, hasActiveVote: false, blocked: false,
+                isPressed: binding => binding == bindings.OpenVoteMenu));
+        Assert.Null(Game1.ResolveVoteShortcut(bindings, hasActiveVote: false, blocked: false,
+            isPressed: binding => binding == bindings.VoteYes));
+        Assert.Equal(
+            VoteCommandKind.CastYes,
+            Game1.ResolveVoteShortcut(bindings, hasActiveVote: true, blocked: false,
+                isPressed: binding => binding == bindings.VoteYes));
+        Assert.Equal(
+            VoteCommandKind.CastNo,
+            Game1.ResolveVoteShortcut(bindings, hasActiveVote: true, blocked: false,
+                isPressed: binding => binding == bindings.VoteNo));
+        Assert.Null(Game1.ResolveVoteShortcut(bindings, hasActiveVote: true, blocked: true,
+            isPressed: binding => binding == bindings.OpenVoteMenu));
     }
 
     [Theory]

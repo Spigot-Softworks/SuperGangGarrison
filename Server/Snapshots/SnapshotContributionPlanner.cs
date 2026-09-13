@@ -105,6 +105,19 @@ internal static class SnapshotContributionPlanner
             static (builder, id) => builder.RemovedJumpPadIds.Add(id));
         AddEntityDelta(
             contributions,
+            fullSnapshot.CivilDefenseTurrets,
+            baseline?.CivilDefenseTurrets,
+            priority: 1195,
+            estimateUpdatedBytes: static state => 47,
+            estimatedRemovedBytes: 4,
+            focus,
+            static state => state.Id,
+            static state => state.X,
+            static state => state.Y,
+            static (builder, state) => builder.CivilDefenseTurrets.Add(state),
+            static (builder, id) => builder.RemovedCivilDefenseTurretIds.Add(id));
+        AddEntityDelta(
+            contributions,
             fullSnapshot.HealthPacks,
             baseline?.HealthPacks,
             priority: 1190,
@@ -323,7 +336,7 @@ internal static class SnapshotContributionPlanner
             fullSnapshot.DeadBodies,
             baseline?.DeadBodies,
             priority: 440,
-            estimateUpdatedBytes: static state => 40,
+            estimateUpdatedBytes: static state => 42 + state.GameplayClassId.Length,
             estimatedRemovedBytes: 4,
             focus,
             static state => state.Id,
@@ -544,7 +557,11 @@ internal static class SnapshotContributionPlanner
                 continue;
             }
 
-            if (IsPlayerRosterCriticalChange(player, baselinePlayer!))
+            // Equipment identity and its ammo/slot must arrive together. A
+            // movement-only swap followed by a low-frequency item update
+            // replays acknowledged locker cycles against the old weapon.
+            if (IsPlayerRosterCriticalChange(player, baselinePlayer!)
+                || HasPlayerEquipmentChanged(player, baselinePlayer!))
             {
                 contributions.Add(new SnapshotDeltaBudgeter.Contribution(
                     playerPriority,
@@ -873,6 +890,23 @@ internal static class SnapshotContributionPlanner
         };
     }
 
+    private static bool HasPlayerEquipmentChanged(SnapshotPlayerState player, SnapshotPlayerState baselinePlayer)
+    {
+        return player.GameplayEquippedSlot != baselinePlayer.GameplayEquippedSlot
+            || player.GameplayLoadoutId != baselinePlayer.GameplayLoadoutId
+            || player.GameplayPrimaryItemId != baselinePlayer.GameplayPrimaryItemId
+            || player.GameplaySecondaryItemId != baselinePlayer.GameplaySecondaryItemId
+            || player.GameplayUtilityItemId != baselinePlayer.GameplayUtilityItemId
+            || player.GameplayEquippedItemId != baselinePlayer.GameplayEquippedItemId
+            || player.GameplayAcquiredItemId != baselinePlayer.GameplayAcquiredItemId
+            || player.GameplayLoadoutCacheId != baselinePlayer.GameplayLoadoutCacheId
+            || player.GameplayPrimaryItemCacheId != baselinePlayer.GameplayPrimaryItemCacheId
+            || player.GameplaySecondaryItemCacheId != baselinePlayer.GameplaySecondaryItemCacheId
+            || player.GameplayUtilityItemCacheId != baselinePlayer.GameplayUtilityItemCacheId
+            || player.GameplayEquippedItemCacheId != baselinePlayer.GameplayEquippedItemCacheId
+            || player.GameplayAcquiredItemCacheId != baselinePlayer.GameplayAcquiredItemCacheId;
+    }
+
     private static bool HasPlayerLowFrequencyDetailChanged(SnapshotPlayerState player, SnapshotPlayerState baselinePlayer)
     {
         return player.Kills != baselinePlayer.Kills
@@ -1152,7 +1186,8 @@ internal static class SnapshotContributionPlanner
                 || entry.Key.EndsWith("_cooldown_ticks", StringComparison.Ordinal)
                 || entry.Key.EndsWith("_reload_ticks", StringComparison.Ordinal)
                 || entry.Key.EndsWith("_equipped", StringComparison.Ordinal)
-                || entry.Key.EndsWith("_available", StringComparison.Ordinal));
+                || entry.Key.EndsWith("_available", StringComparison.Ordinal)
+                || string.Equals(entry.Key, "engineer_alternate_weapon_mode", StringComparison.Ordinal));
     }
 
     private static bool IsCoreAbilityRuntimeReplicatedState(SnapshotReplicatedStateEntry entry)
@@ -1616,7 +1651,7 @@ internal static class SnapshotContributionPlanner
 
     private static int EstimateVisualEventBytes(SnapshotVisualEvent state)
     {
-        return 26 + state.EffectName.Length;
+        return 34 + state.EffectName.Length;
     }
 
     private static int EstimateGibSpawnEventBytes(SnapshotGibSpawnEvent state)
@@ -1698,7 +1733,7 @@ internal static class SnapshotContributionPlanner
     private static int EstimateRocketBytes(SnapshotRocketState state)
     {
         var passedFriendlyPlayerCount = state.PassedFriendlyPlayerIds?.Count ?? 0;
-        return 73 + (passedFriendlyPlayerCount * 4);
+        return 79 + (passedFriendlyPlayerCount * 4);
     }
 
     private static int EstimateShotBytes(

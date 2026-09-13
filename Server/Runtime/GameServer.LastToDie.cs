@@ -1,6 +1,8 @@
 using OpenGarrison.Core;
 using OpenGarrison.Core.LastToDie;
 using OpenGarrison.Server.LastToDie;
+using OpenGarrison.Server;
+using OpenGarrison.Server.Plugins;
 
 partial class GameServer
 {
@@ -11,7 +13,14 @@ partial class GameServer
     private readonly HashSet<byte> _lastToDieEnemySpawnPreparedWhileDead = [];
     private long _lastToDieReturnToLobbyFrame;
     private bool _lastToDieBidirectionalEnemySpawnsEnabled;
+    private bool _lastToDieSoloSimulationPaused;
     private LastToDieRandom _lastToDieEnemySpawnRandom = new(0UL, 0x535041574EUL);
+    private readonly Dictionary<byte, int> _lastToDieRunScoreUnitsBySlot = [];
+    private Guid _lastToDieLeaderboardRunId;
+    private Guid _lastToDieSubmittedLeaderboardRunId;
+    private int _lastToDieScoreCapturedThroughStage;
+    private int _lastToDieCompletedRounds;
+    private LastToDiePhase _lastToDieLeaderboardObservedPhase = LastToDiePhase.Lobby;
     private static readonly PlayerClass[] LastToDieEnemyClassCycle =
     [
         PlayerClass.Scout,
@@ -31,6 +40,7 @@ partial class GameServer
     {
         if (!IsLastToDieHosted)
         {
+            if (ManagedRoomRuntime.Enabled) throw new InvalidOperationException("Managed rooms require Last to Die authority.");
             return;
         }
 
@@ -55,20 +65,34 @@ partial class GameServer
         _lastToDieEnemySpawnRandom = new LastToDieRandom(
             seed ^ 0x4C5444535041574EUL,
             sequence: 0x535041574EUL);
+        _lastToDieRunScoreUnitsBySlot.Clear();
+        _lastToDieLeaderboardRunId = Guid.Empty;
+        _lastToDieSubmittedLeaderboardRunId = Guid.Empty;
+        _lastToDieScoreCapturedThroughStage = 0;
+        _lastToDieCompletedRounds = 0;
+        _lastToDieLeaderboardObservedPhase = LastToDiePhase.Lobby;
         var director = LastToDieServerDirector.CreateFirstSlice(
             _stockMapRotation,
             _lastToDieDifficulty,
             seed,
             _config.TicksPerSecond,
             maximumPlayers: _maxPlayableClients);
-        var controller = new LastToDieProtocolController(director);
+        var controller = new LastToDieProtocolController(director, shouldPause =>
+        {
+            _lastToDieSoloSimulationPaused = shouldPause;
+            return true;
+        }, managedOwnership: ManagedRoomRuntime.Enabled || _embeddedAdmission is not null);
+        ManagedRoomRuntime.GetPhase = () => _lastToDieSoloSimulationPaused ? "Paused" : director.Director.Phase.ToString();
         _lastToDieNetworkSession = new LastToDieNetworkSession(
             controller,
             () => _world.Frame,
             _outboundMessaging.SendMessage,
             _config.TicksPerSecond,
             _world.ConsumeLastToDieSpyAfterlifeDisconnectFailure,
-            (client, reason) => _sessionManager.RemoveClient(client.Slot, reason));
+            (client, reason) => _sessionManager.RemoveClient(client.Slot, reason),
+            () => _lastToDieLeaderboardRunId,
+            GetPublishedLastToDieCompletedRounds,
+            GetPublishedLastToDieScoreUnits);
         _sessionManager.ConfigurePlayableClientLifecyclePolicy(
             slot => _lastToDieNetworkSession?.ShouldRetainPlayableSlot(slot) == true,
             slot => _lastToDieNetworkSession?.CanAcceptGameplayInput(slot) == true);
@@ -80,13 +104,54 @@ partial class GameServer
 
     private bool TryBuildLastToDieConsoleCommandResponse(
         string commandText,
+        OpenGarrisonServerCommandSource source,
         out List<string> responseLines)
     {
         var parts = commandText.Split(
             ' ',
             StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        if (parts.Length == 0
-            || !string.Equals(parts[0], "ltd_win", StringComparison.OrdinalIgnoreCase))
+        if (parts.Length == 0)
+        {
+            responseLines = [];
+            return false;
+        }
+
+        if (string.Equals(parts[0], "ltd_pause", StringComparison.OrdinalIgnoreCase))
+        {
+            if (source != OpenGarrisonServerCommandSource.AdminPipe)
+            {
+                responseLines = ["[ltd] ltd_pause is restricted to the local hosted-server control pipe."];
+                return true;
+            }
+
+            if (parts.Length != 2 || (parts[1] != "0" && parts[1] != "1"))
+            {
+                responseLines = ["[ltd] usage: ltd_pause 0|1"];
+                return true;
+            }
+
+            var session = _lastToDieNetworkSession;
+            if (!IsLastToDieHosted
+                || session is null
+                || session.Controller.Director.MaximumPlayers != 1)
+            {
+                responseLines = ["[ltd] ltd_pause is only available for a locally hosted solo Last to Die run."];
+                return true;
+            }
+
+            var shouldPause = parts[1] == "1";
+            if (shouldPause && session.Controller.Director.Phase != LastToDiePhase.Playing)
+            {
+                responseLines = ["[ltd] the solo simulation can only be paused while a stage is playing."];
+                return true;
+            }
+
+            _lastToDieSoloSimulationPaused = shouldPause;
+            responseLines = [$"[ltd] solo simulation {(shouldPause ? "paused" : "resumed")}."];
+            return true;
+        }
+
+        if (!string.Equals(parts[0], "ltd_win", StringComparison.OrdinalIgnoreCase))
         {
             responseLines = [];
             return false;
@@ -98,14 +163,14 @@ partial class GameServer
             return true;
         }
 
-        var session = _lastToDieNetworkSession;
-        if (!IsLastToDieHosted || session is null)
+        var winSession = _lastToDieNetworkSession;
+        if (!IsLastToDieHosted || winSession is null)
         {
             responseLines = ["[ltd] ltd_win is only available during Last to Die."];
             return true;
         }
 
-        if (!session.TryTriggerStageVictoryForTesting(out var error))
+        if (!winSession.TryTriggerStageVictoryForTesting(out var error))
         {
             responseLines = [string.IsNullOrWhiteSpace(error)
                 ? "[ltd] could not trigger victory from the current run state."
@@ -115,6 +180,28 @@ partial class GameServer
 
         responseLines = ["[ltd] stage victory triggered."];
         return true;
+    }
+
+    private bool ShouldPauseLastToDieAuthoritativeSimulation()
+    {
+        if (!_lastToDieSoloSimulationPaused)
+        {
+            return false;
+        }
+
+        var session = _lastToDieNetworkSession;
+        var pauseIsStillValid = IsLastToDieHosted
+            && session is not null
+            && session.Controller.Director.MaximumPlayers == 1
+            && session.Controller.Director.Phase == LastToDiePhase.Playing
+            && session.GetParticipants().Any(participant => participant.IsConnected);
+        if (pauseIsStillValid)
+        {
+            return true;
+        }
+
+        _lastToDieSoloSimulationPaused = false;
+        return false;
     }
 
     private void SynchronizeLastToDieClients()
@@ -179,7 +266,13 @@ partial class GameServer
             ObserveLastToDiePlayingWorld(session);
         }
 
+        // The semantic session owns authoritative clock deadlines independently
+        // of ordinary map objectives. Run it before phase-dependent cleanup so
+        // a deadline transition deactivates the completed stage immediately.
+        session.Tick();
+
         var phase = session.Controller.Director.Phase;
+        ObserveLastToDieLeaderboardTransition(session, phase);
         DeactivateCompletedLastToDieStageWorld(phase);
         if (phase == LastToDiePhase.Won)
         {
@@ -199,8 +292,6 @@ partial class GameServer
         {
             _lastToDieReturnToLobbyFrame = 0;
         }
-
-        session.Tick();
     }
 
     private void DeactivateCompletedLastToDieStageWorld(LastToDiePhase phase)
@@ -235,10 +326,20 @@ partial class GameServer
         LastToDieNetworkSession session,
         LastToDieRunSnapshot directorSnapshot)
     {
+        if (directorSnapshot.StageNumber == 1)
+        {
+            _lastToDieRunScoreUnitsBySlot.Clear();
+            _lastToDieLeaderboardRunId = Guid.NewGuid();
+            _lastToDieScoreCapturedThroughStage = 0;
+            _lastToDieCompletedRounds = 0;
+        }
+
         var previousLevelName = _world.Level.Name;
         var previousAreaIndex = _world.Level.MapAreaIndex;
         var previousAreaCount = _world.Level.MapAreaCount;
         var previousMode = _world.MatchRules.Mode;
+        _world.ConfigureSpecialCaptureTheFlagRules(endMatchOnRedTeamIntelCapture: true);
+        _world.ConfigureMatchDefaults(capLimit: 3);
         if (!_world.TryLoadLevel(
                 directorSnapshot.CurrentMap,
                 mapAreaIndex: 1,
@@ -252,8 +353,9 @@ partial class GameServer
         }
 
         _mapRotationManager.AlignExternalMapChange(_world.Level.Name);
+        _world.ConfigureLastToDieStage(directorSnapshot.StageNumber);
         ConfigureLastToDieParticipants(session);
-        ConfigureLastToDieEnemies(directorSnapshot.EnemyCount);
+        ConfigureLastToDieEnemies(directorSnapshot.StageNumber, directorSnapshot.EnemyCount);
         var botNavigationPreloaded = PreloadBotNavigationForCurrentLevel(
             out var botNavigationPreloadMs,
             out var botNavigationWarmup);
@@ -346,29 +448,39 @@ partial class GameServer
             baseMaximumHealth,
             refillHealth,
             resetDynamicState: true);
+        _world.TrySetLastToDieSurvivorBuff(participant.Slot, enabled: true);
         _world.TryRestoreLastToDieSniperConquistadorStacks(
             participant.Slot,
             participant.ConquistadorStacks);
         _lastToDieObservedKillsBySlot[participant.Slot] = Math.Max(0, player.Kills);
     }
 
-    private void ConfigureLastToDieEnemies(int enemyCount)
+    private void ConfigureLastToDieEnemies(int stageNumber, int enemyCount)
     {
         foreach (var slot in _botManager.BotSlots.Keys.ToArray())
         {
             _botManager.TryRemoveBot(slot);
         }
 
-        var remaining = Math.Clamp(enemyCount, 0, SimulationWorld.MaxPlayableNetworkPlayers - 2);
-        var spawnSides = BuildLastToDieEnemySpawnSides(remaining, _lastToDieEnemySpawnRandom);
-        _lastToDieBidirectionalEnemySpawnsEnabled = spawnSides.Length >= 3;
+        var remaining = Math.Clamp(enemyCount, 0, SimulationWorld.MaxPlayableNetworkPlayers - _maxPlayableClients);
+        var spawnSides = BuildLastToDieEnemySpawnSides(
+            remaining,
+            _world.MatchRules.Mode,
+            _lastToDieEnemySpawnRandom);
+        _lastToDieBidirectionalEnemySpawnsEnabled =
+            UsesLastToDieBidirectionalEnemySpawns(_world.MatchRules.Mode)
+            && spawnSides.Length >= 3;
         _lastToDieEnemySpawnPreparedWhileDead.Clear();
+        var classCycle = LastToDieRuleset.CanSpawnSniper(stageNumber)
+            ? LastToDieEnemyClassCycle
+            : LastToDieEnemyClassCycle.Where(static classId => classId != PlayerClass.Sniper).ToArray();
+        var enemyStatMultiplier = LastToDieRuleset.GetEnemyStatMultiplier(stageNumber);
         var classIndex = 0;
-        for (var slotNumber = 3;
+        for (var slotNumber = _maxPlayableClients + 1;
              slotNumber <= SimulationWorld.MaxPlayableNetworkPlayers && remaining > 0;
              slotNumber += 1)
         {
-            var playerClass = LastToDieEnemyClassCycle[classIndex % LastToDieEnemyClassCycle.Length];
+            var playerClass = classCycle[classIndex % classCycle.Length];
             if (_botManager.TryAddBot(
                     (byte)slotNumber,
                     PlayerTeam.Blue,
@@ -385,13 +497,20 @@ partial class GameServer
                         $"{spawnSide}-side ingress; keeping its default spawn.");
                 }
 
-                if (_lastToDieDifficulty == LastToDieDifficulty.Hardcore)
-                {
-                    _world.TrySetNetworkPlayerMaxHealthOverride(
-                        (byte)slotNumber,
-                        25,
-                        refillHealth: true);
-                }
+                var baseMaximumHealth = _lastToDieDifficulty == LastToDieDifficulty.Hardcore
+                    ? 25
+                    : CharacterClassCatalog.GetDefinition(playerClass).MaxHealth;
+                var scaledMaximumHealth = Math.Max(
+                    1,
+                    (int)MathF.Round(baseMaximumHealth * enemyStatMultiplier));
+                _world.TrySetNetworkPlayerMaxHealthOverride(
+                    (byte)slotNumber,
+                    scaledMaximumHealth,
+                    refillHealth: true);
+                _world.TrySetNetworkPlayerLastToDieEnemyScaling(
+                    (byte)slotNumber,
+                    enemyStatMultiplier,
+                    enemyStatMultiplier);
 
                 remaining -= 1;
                 classIndex += 1;
@@ -402,6 +521,103 @@ partial class GameServer
         {
             Console.WriteLine($"[ltd] could not allocate {remaining} of {enemyCount} requested enemy slots.");
         }
+    }
+
+    private void ObserveLastToDieLeaderboardTransition(
+        LastToDieNetworkSession session,
+        LastToDiePhase phase)
+    {
+        var snapshot = session.Controller.Director.CreateSnapshot();
+        if (_lastToDieLeaderboardObservedPhase == LastToDiePhase.Playing
+            && phase != LastToDiePhase.Playing)
+        {
+            CaptureLastToDieStageScores(session, snapshot.StageNumber);
+            if (phase is LastToDiePhase.RewardChoice or LastToDiePhase.Won)
+            {
+                _lastToDieCompletedRounds = Math.Max(
+                    _lastToDieCompletedRounds,
+                    snapshot.StageNumber);
+            }
+        }
+
+        if (phase is LastToDiePhase.Lost or LastToDiePhase.Won
+            && _lastToDieLeaderboardRunId != Guid.Empty
+            && _lastToDieSubmittedLeaderboardRunId != _lastToDieLeaderboardRunId)
+        {
+            foreach (var participant in session.GetParticipants())
+            {
+                _lastToDieRunScoreUnitsBySlot.TryAdd(participant.Slot, 0);
+            }
+
+            _statsService?.HandleLastToDieRunEnded(
+                _lastToDieLeaderboardRunId,
+                _lastToDieCompletedRounds,
+                _lastToDieRunScoreUnitsBySlot,
+                _lastToDieDifficulty);
+            _lastToDieSubmittedLeaderboardRunId = _lastToDieLeaderboardRunId;
+        }
+
+        _lastToDieLeaderboardObservedPhase = phase;
+    }
+
+    private void CaptureLastToDieStageScores(LastToDieNetworkSession session, int stageNumber)
+    {
+        if (stageNumber <= _lastToDieScoreCapturedThroughStage)
+        {
+            return;
+        }
+
+        foreach (var participant in session.GetParticipants())
+        {
+            var scoreUnits = 0;
+            if (_world.TryGetNetworkPlayer(participant.Slot, out var player))
+            {
+                var scaledScore = player.Points * 100f;
+                scoreUnits = !float.IsFinite(scaledScore) || scaledScore <= 0f
+                    ? 0
+                    : scaledScore >= int.MaxValue
+                        ? int.MaxValue
+                        : (int)MathF.Round(scaledScore, MidpointRounding.AwayFromZero);
+            }
+
+            var accumulated = (long)_lastToDieRunScoreUnitsBySlot.GetValueOrDefault(participant.Slot)
+                + scoreUnits;
+            _lastToDieRunScoreUnitsBySlot[participant.Slot] = (int)Math.Min(int.MaxValue, accumulated);
+        }
+
+        _lastToDieScoreCapturedThroughStage = stageNumber;
+    }
+
+    private int GetPublishedLastToDieCompletedRounds()
+    {
+        var snapshot = _lastToDieNetworkSession?.Controller.Director.CreateSnapshot();
+        return snapshot?.Phase is LastToDiePhase.RewardChoice or LastToDiePhase.Won
+            ? Math.Max(_lastToDieCompletedRounds, snapshot.StageNumber)
+            : _lastToDieCompletedRounds;
+    }
+
+    private int GetPublishedLastToDieScoreUnits(byte slot)
+    {
+        var total = (long)_lastToDieRunScoreUnitsBySlot.GetValueOrDefault(slot);
+        var snapshot = _lastToDieNetworkSession?.Controller.Director.CreateSnapshot();
+        if (snapshot is not null
+            && snapshot.StageNumber > _lastToDieScoreCapturedThroughStage
+            && snapshot.Phase is LastToDiePhase.Playing
+                or LastToDiePhase.RewardChoice
+                or LastToDiePhase.Won
+                or LastToDiePhase.Lost
+            && _world.TryGetNetworkPlayer(slot, out var player))
+        {
+            var scaledScore = player.Points * 100f;
+            if (float.IsFinite(scaledScore) && scaledScore > 0f)
+            {
+                total += scaledScore >= int.MaxValue
+                    ? int.MaxValue
+                    : (int)MathF.Round(scaledScore, MidpointRounding.AwayFromZero);
+            }
+        }
+
+        return (int)Math.Clamp(total, 0L, int.MaxValue);
     }
 
     private void PrepareLastToDieEnemySpawnsBeforeSimulationTick()
@@ -446,12 +662,13 @@ partial class GameServer
 
     internal static PlayerTeam[] BuildLastToDieEnemySpawnSides(
         int enemyCount,
+        GameModeKind mapMode,
         LastToDieRandom random)
     {
         ArgumentNullException.ThrowIfNull(random);
         var count = Math.Max(0, enemyCount);
         var sides = Enumerable.Repeat(PlayerTeam.Blue, count).ToArray();
-        if (count < 3)
+        if (count < 3 || !UsesLastToDieBidirectionalEnemySpawns(mapMode))
         {
             return sides;
         }
@@ -470,6 +687,9 @@ partial class GameServer
         random.Shuffle(sides);
         return sides;
     }
+
+    internal static bool UsesLastToDieBidirectionalEnemySpawns(GameModeKind mapMode)
+        => mapMode is GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill;
 
     private void ObserveLastToDiePlayingWorld(LastToDieNetworkSession session)
     {
@@ -532,7 +752,8 @@ partial class GameServer
                 participant.IsConnected
                 && _world.IsLastToDieSpyAfterlifeWindowActive(participant.Slot))
                 || session.HasActiveReconnectGrace(),
-            out _);
+            out _,
+            canCompleteStageOnTimeout: _world.CanCompleteLastToDieStageOnTimeout);
         stateChanged |= revisionBeforeAdvance != director.StructuralRevision
             || phaseBeforeAdvance != director.Phase;
 

@@ -7,6 +7,9 @@ namespace OpenGarrison.Core;
 public sealed class HostedServerSessionInfo
 {
     public const string DefaultFileName = "hosted-server-session.json";
+    public const string SessionPathEnvironmentVariable = "OPENGARRISON_HOST_SESSION_PATH";
+    public const string InstanceEnvironmentVariable = "OPENGARRISON_HOST_INSTANCE_ID";
+    private static readonly string DirectInstanceId = Guid.NewGuid().ToString("N");
 
     private static readonly JsonSerializerOptions SerializerOptions = new()
     {
@@ -14,6 +17,11 @@ public sealed class HostedServerSessionInfo
     };
 
     public int ProcessId { get; set; }
+    public string InstanceId { get; set; } = string.Empty;
+    public int OwnerProcessId { get; set; }
+    public long OwnerStartTimeUtcTicks { get; set; }
+    public bool IsReady { get; set; }
+    public string DiagnosticsDirectory { get; set; } = string.Empty;
 
     public long ProcessStartTimeUtcTicks { get; set; }
 
@@ -33,8 +41,24 @@ public sealed class HostedServerSessionInfo
 
     public static string GetDefaultPath()
     {
-        return RuntimePaths.GetConfigPath(DefaultFileName);
+        var configured = Environment.GetEnvironmentVariable(SessionPathEnvironmentVariable);
+        return string.IsNullOrWhiteSpace(configured) ? GetInstancePath(GetCurrentInstanceId()) : configured;
     }
+
+    public static string GetCurrentInstanceId()
+        => Environment.GetEnvironmentVariable(InstanceEnvironmentVariable) is { Length: > 0 } value
+            && Guid.TryParseExact(value, "N", out _) ? value : DirectInstanceId;
+
+    public static string GetInstancePath(string instanceId)
+    {
+        if (!Guid.TryParseExact(instanceId, "N", out _)) throw new ArgumentException("Invalid host instance ID.", nameof(instanceId));
+        return RuntimePaths.GetConfigPath(Path.Combine("servers", instanceId, DefaultFileName));
+    }
+
+    public bool IsOwnedBy(string instanceId, HostedServerProcessIdentity owner)
+        => owner.IsValid && InstanceId == instanceId
+            && OwnerProcessId == owner.ProcessId && OwnerStartTimeUtcTicks == owner.StartTimeUtcTicks
+            && string.Equals(LaunchMode, "launcher", StringComparison.OrdinalIgnoreCase);
 
     public static HostedServerSessionInfo? Load(string? path = null)
     {
@@ -59,7 +83,25 @@ public sealed class HostedServerSessionInfo
     {
         var resolvedPath = path ?? GetDefaultPath();
         Directory.CreateDirectory(Path.GetDirectoryName(resolvedPath) ?? RuntimePaths.ConfigDirectory);
-        File.WriteAllText(resolvedPath, JsonSerializer.Serialize(this, SerializerOptions));
+        var temporaryPath = resolvedPath + "." + Guid.NewGuid().ToString("N") + ".tmp";
+        try
+        {
+            File.WriteAllText(temporaryPath, JsonSerializer.Serialize(this, SerializerOptions));
+            File.Move(temporaryPath, resolvedPath, overwrite: true);
+        }
+        finally
+        {
+            if (File.Exists(temporaryPath)) File.Delete(temporaryPath);
+        }
+    }
+
+    public static void DeleteIfMatching(HostedServerSessionInfo expected, string? path = null)
+    {
+        var current = Load(path);
+        if (current is not null && current.InstanceId == expected.InstanceId
+            && current.ProcessId == expected.ProcessId
+            && current.ProcessStartTimeUtcTicks == expected.ProcessStartTimeUtcTicks)
+            Delete(path);
     }
 
     public static void Delete(string? path = null)

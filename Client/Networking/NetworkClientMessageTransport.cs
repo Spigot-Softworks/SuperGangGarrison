@@ -12,6 +12,9 @@ public interface INetworkClientMessageTransport : IDisposable
     bool HasPendingMessages { get; }
     bool IsLoopbackConnection { get; }
     string RemoteDescription { get; }
+    // Player-hosted games can pause packet delivery while their host loads a map.
+    // Zero preserves the standard connection timeouts for existing transports.
+    int ReceiveTimeoutMilliseconds => 0;
 
     bool TryReceive(out byte[] payload);
     bool TryConsumeDisconnectReason(out string reason);
@@ -32,6 +35,12 @@ public interface IPlaybackMessageTransport : INetworkClientMessageTransport
     void SetPaused(bool paused);
     void TogglePaused();
     void SetPlaybackRate(float playbackRate);
+}
+
+/// <summary>Ephemeral audio may be dropped under backpressure rather than delaying gameplay or accumulating old speech.</summary>
+public interface INetworkClientAudioMessageTransport
+{
+    void SendAudio(byte[] payload);
 }
 
 public interface ISeekablePlaybackMessageTransport : IPlaybackMessageTransport

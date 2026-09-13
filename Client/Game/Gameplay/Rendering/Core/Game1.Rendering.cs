@@ -711,7 +711,7 @@ public partial class Game1
         Vector2 scale,
         SpriteEffects effects = SpriteEffects.None)
     {
-        if (!OperatingSystem.IsBrowser()
+        if (!UseReducedBrowserEffects
             && !_world.Level.IsTopDown
             && _spriteDropShadowEnabled
             && tint.A > 0)
@@ -772,7 +772,7 @@ public partial class Game1
         Vector2 scale,
         SpriteEffects effects = SpriteEffects.None)
     {
-        if (!OperatingSystem.IsBrowser()
+        if (!UseReducedBrowserEffects
             && !_world.Level.IsTopDown
             && _spriteDropShadowEnabled
             && tint.A > 0)
@@ -798,7 +798,7 @@ public partial class Game1
         Vector2 cameraPosition,
         Color tint)
     {
-        if (OperatingSystem.IsBrowser()
+        if (UseReducedBrowserEffects
             || !_world.Level.IsTopDown
             || !_spriteDropShadowEnabled
             || tint.A <= 0)

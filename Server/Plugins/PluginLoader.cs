@@ -10,7 +10,8 @@ internal static class PluginLoader
     public static IReadOnlyList<LoadedPlugin> LoadFromSearchDirectories(
         IEnumerable<PluginSearchDirectory> searchDirectories,
         Func<IOpenGarrisonServerPlugin, OpenGarrisonPluginManifest, string, IOpenGarrisonServerPluginContext> contextFactory,
-        Action<string> log)
+        Action<string> log,
+        Action<string>? initializationFailed = null)
     {
         var loadedAssemblies = new List<LoadedAssembly>();
         var seenAssemblyPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -60,13 +61,14 @@ internal static class PluginLoader
                 () => new LuaServerPlugin(luaCandidate.Manifest, luaCandidate.PluginDirectory)));
         }
 
-        return LoadPlannedCandidates(pluginCandidates, contextFactory, log);
+        return LoadPlannedCandidates(pluginCandidates, contextFactory, log, initializationFailed);
     }
 
     public static IReadOnlyList<LoadedPlugin> LoadFromAssemblies(
         IEnumerable<Assembly> assemblies,
         Func<IOpenGarrisonServerPlugin, OpenGarrisonPluginManifest, string, IOpenGarrisonServerPluginContext> contextFactory,
-        Action<string> log)
+        Action<string> log,
+        Action<string>? initializationFailed = null)
     {
         var loadedAssemblies = assemblies.Select(assembly =>
             new LoadedAssembly(
@@ -77,7 +79,7 @@ internal static class PluginLoader
             loadedAssemblies,
             new HashSet<string>(StringComparer.OrdinalIgnoreCase),
             log);
-        return LoadPlannedCandidates(pluginCandidates, contextFactory, log);
+        return LoadPlannedCandidates(pluginCandidates, contextFactory, log, initializationFailed);
     }
 
     private static List<PluginLoadCandidate> CreatePluginLoadCandidatesFromLoadedAssemblies(
@@ -142,7 +144,8 @@ internal static class PluginLoader
     private static List<LoadedPlugin> LoadPlannedCandidates(
         IEnumerable<PluginLoadCandidate> pluginCandidates,
         Func<IOpenGarrisonServerPlugin, OpenGarrisonPluginManifest, string, IOpenGarrisonServerPluginContext> contextFactory,
-        Action<string> log)
+        Action<string> log,
+        Action<string>? initializationFailed)
     {
         var plannedCandidates = OpenGarrisonPluginManifestPlanner.PlanLoadOrder(
             pluginCandidates,
@@ -164,6 +167,7 @@ internal static class PluginLoader
             }
             catch (Exception ex)
             {
+                initializationFailed?.Invoke(candidate.Manifest.Id);
                 log($"[plugin] failed to initialize \"{candidate.Manifest.Id}\" from \"{candidate.SourceDescription}\": {ex.Message}");
             }
         }

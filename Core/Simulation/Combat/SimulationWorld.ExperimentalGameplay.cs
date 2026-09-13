@@ -353,7 +353,8 @@ public sealed partial class SimulationWorld
             return 1f;
         }
 
-        var multiplier = attacker.ExperimentalFreezeRayOutgoingDamageMultiplier;
+        var multiplier = attacker.ExperimentalFreezeRayOutgoingDamageMultiplier
+            * attacker.LastToDieEnemyDamageMultiplier;
         if (!IsExperimentalPracticePowerOwner(attacker))
         {
             return MathF.Max(0.01f, multiplier);

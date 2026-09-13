@@ -164,7 +164,8 @@ public sealed class ProtocolCodecTests
                     "OG2-ABCD-EFGH-JKLM",
                     "{\"background\":\"MenuBackground1.png\",\"class\":\"Spy\"}"),
             ],
-            [7]);
+            [7],
+            [new PlayerServerTitleState(2, "[Owner]", 0x12ABEF, Rainbow: true)]);
 
         var payload = ProtocolCodec.Serialize(message, ProtocolCompressionSettings.Disabled);
 
@@ -176,6 +177,27 @@ public sealed class ProtocolCodecTests
         Assert.Equal("OG2-ABCD-EFGH-JKLM", profile.FriendCode);
         Assert.Contains("MenuBackground1", profile.PlayerCardJson);
         Assert.Equal((byte)7, Assert.Single(update.RemovedSlots));
+        var title = Assert.Single(update.Titles!);
+        Assert.Equal((byte)2, title.Slot);
+        Assert.Equal("[Owner]", title.Text);
+        Assert.Equal(0x12ABEFu, title.ColorRgb);
+        Assert.True(title.Rainbow);
+    }
+
+    [Fact]
+    public void PlayerSocialProfileUpdateAcceptsPayloadFromBeforeServerTitles()
+    {
+        var message = new PlayerSocialProfileUpdateMessage(
+            [new PlayerSocialProfileState(2, "Remote Player", "OG2-ABCD-EFGH", "{}")],
+            [7]);
+        var currentPayload = ProtocolCodec.Serialize(message, ProtocolCompressionSettings.Disabled);
+        var legacyPayload = currentPayload[..^1];
+
+        Assert.True(ProtocolCodec.TryDeserialize(legacyPayload, out var roundTripped));
+        var update = Assert.IsType<PlayerSocialProfileUpdateMessage>(roundTripped);
+        Assert.Single(update.Profiles);
+        Assert.Equal((byte)7, Assert.Single(update.RemovedSlots));
+        Assert.Empty(update.Titles!);
     }
 
     [Fact]
@@ -320,7 +342,8 @@ public sealed class ProtocolCodecTests
                     LastToDieSpyRogueRampTicks: 29,
                     KritzCritBoostProviderPlayerId: 77,
                     KritzCritBoostProviderSlot: 2,
-                    KritzCritBoostDamageMultiplier: 3.5f),
+                    KritzCritBoostDamageMultiplier: 3.5f,
+                    IsBot: true),
             ],
             CombatTraces: [new SnapshotCombatTraceState(0f, 0f, 8f, 8f, 2, true, 1, false)],
             SniperAimIndicators: [],
@@ -407,9 +430,39 @@ public sealed class ProtocolCodecTests
             ],
             Rockets: [new SnapshotRocketState(9, 1, 5, 100f, 120f, 96f, 120f, 0.2f, 240f, 20)],
             Flames: Array.Empty<SnapshotFlameState>(),
-            Flares: Array.Empty<SnapshotShotState>(),
+            Flares:
+            [
+                new SnapshotShotState(
+                    15,
+                    1,
+                    5,
+                    180f,
+                    120f,
+                    22f,
+                    0f,
+                    12,
+                    DamageValue: 45f,
+                    FlareStyle: (byte)FlareProjectileStyle.DragonRageSlug),
+            ],
             Mines: Array.Empty<SnapshotMineState>(),
-            DeadBodies: Array.Empty<SnapshotDeadBodyState>(),
+            DeadBodies:
+            [
+                new SnapshotDeadBodyState(
+                    Id: 44,
+                    SourcePlayerId: 6,
+                    Team: 2,
+                    ClassId: (byte)PlayerClass.Quote,
+                    AnimationKind: (byte)DeadBodyAnimationKind.Default,
+                    X: 14f,
+                    Y: 18f,
+                    Width: 16f,
+                    Height: 28f,
+                    HorizontalSpeed: 0f,
+                    VerticalSpeed: 2f,
+                    FacingLeft: true,
+                    TicksRemaining: 275,
+                    GameplayClassId: "plugin.quote-curly.quote"),
+            ],
             ControlPointSetupTicksRemaining: 0,
             KothUnlockTicksRemaining: 0,
             KothRedTimerTicksRemaining: 0,
@@ -424,7 +477,7 @@ public sealed class ProtocolCodecTests
                     InvolvedPlayerIds = SnapshotRoundTripKillFeedInvolvedPlayerIds,
                 },
             ],
-            VisualEvents: [new SnapshotVisualEvent("spark", 10f, 20f, 45f, 1, 55)],
+            VisualEvents: [new SnapshotVisualEvent("spark", 10f, 20f, 45f, 1, EventId: 55, SourceFrame: 101)],
             DamageEvents: [new SnapshotDamageEvent(45, 5, -1, 1, 6, 10f, 20f, false, EventId: 66, SourceFrame: 101, Flags: 6)],
             SoundEvents: [new SnapshotSoundEvent("rocket_fire", 11f, 21f, 77, 101)],
             IsCustomMap: true,
@@ -586,7 +639,11 @@ public sealed class ProtocolCodecTests
         Assert.Equal(77, player.KritzCritBoostProviderPlayerId);
         Assert.Equal(2, player.KritzCritBoostProviderSlot);
         Assert.Equal(3.5f, player.KritzCritBoostDamageMultiplier);
+        Assert.True(player.IsBot);
         Assert.Equal("plugin.example.ranger", player.GameplayClassId);
+        var deadBody = Assert.Single(roundTrippedSnapshot.DeadBodies);
+        Assert.Equal("plugin.quote-curly.quote", deadBody.GameplayClassId);
+        Assert.Equal(101UL, Assert.Single(roundTrippedSnapshot.VisualEvents).SourceFrame);
         Assert.Equal(9, roundTrippedSnapshot.CapLimit);
         var scoreboardPlayer = Assert.Single(roundTrippedSnapshot.ScoreboardPlayers);
         Assert.Equal(6, scoreboardPlayer.PlayerId);
@@ -635,6 +692,9 @@ public sealed class ProtocolCodecTests
         Assert.Equal(0b1100_0010, revolverShot.LastToDieRevolverProfile);
         Assert.True(revolverShot.IsCritical);
         Assert.True(revolverShot.AppliesLuckyStrikeStun);
+        var flare = Assert.Single(roundTrippedSnapshot.Flares);
+        Assert.Equal(45f, flare.DamageValue);
+        Assert.Equal((byte)FlareProjectileStyle.DragonRageSlug, flare.FlareStyle);
         Assert.True(rocketSpawn.ExplodeImmediately);
         Assert.True(rocketSpawn.IsCritical);
         Assert.Equal(1024UL, rocketSpawn.EventId);
@@ -762,6 +822,113 @@ public sealed class ProtocolCodecTests
         var player = Assert.Single(merged.Players);
         Assert.Equal(8, player.MedicHealTargetId);
         Assert.True(player.IsMedicHealing);
+    }
+
+    [Fact]
+    public void GameplayAccountMessagesRoundTrip()
+    {
+        var attachRequestPayload = ProtocolCodec.Serialize(
+            new GameplayAccountAttachRequestMessage(17, "gameplay-token"),
+            ProtocolCompressionSettings.Disabled);
+        Assert.True(ProtocolCodec.TryDeserialize(attachRequestPayload, out var attachRequestValue));
+        var attachRequest = Assert.IsType<GameplayAccountAttachRequestMessage>(attachRequestValue);
+        Assert.Equal(17UL, attachRequest.RequestId);
+        Assert.Equal("gameplay-token", attachRequest.GameplayToken);
+
+        var attachResultPayload = ProtocolCodec.Serialize(
+            new GameplayAccountAttachResultMessage(17, true, string.Empty, "OG2-ABCD-EFGH", "Runner", 1250, 900, 7),
+            ProtocolCompressionSettings.Disabled);
+        Assert.True(ProtocolCodec.TryDeserialize(attachResultPayload, out var attachResultValue));
+        var attachResult = Assert.IsType<GameplayAccountAttachResultMessage>(attachResultValue);
+        Assert.Equal(17UL, attachResult.RequestId);
+        Assert.True(attachResult.Attached);
+        Assert.Equal("OG2-ABCD-EFGH", attachResult.FriendCode);
+        Assert.Equal(1250, attachResult.LifetimePoints);
+        Assert.Equal(7, attachResult.ProfileRevision);
+
+        var pointsPayload = ProtocolCodec.Serialize(
+            new PlayerPointsStateMessage(1500, 1100, 3, 9),
+            ProtocolCompressionSettings.Disabled);
+        Assert.True(ProtocolCodec.TryDeserialize(pointsPayload, out var pointsValue));
+        var points = Assert.IsType<PlayerPointsStateMessage>(pointsValue);
+        Assert.Equal(1500, points.LifetimePoints);
+        Assert.Equal(1100, points.WalletBalance);
+        Assert.Equal(3, points.GlobalRank);
+        Assert.Equal(9, points.ProfileRevision);
+    }
+
+    [Fact]
+    public void NativeVotingMessagesRoundTrip()
+    {
+        var commandPayload = ProtocolCodec.Serialize(
+            new VoteCommandMessage(VoteCommandKind.StartCustom, "plugin.owner:restart", 2, 7, (byte)PlayerTeam.Blue, 41, "argument"),
+            ProtocolCompressionSettings.Disabled);
+        Assert.True(ProtocolCodec.TryDeserialize(commandPayload, out var commandValue));
+        var command = Assert.IsType<VoteCommandMessage>(commandValue);
+        Assert.Equal(VoteCommandKind.StartCustom, command.Command);
+        Assert.Equal("plugin.owner:restart", command.Target);
+        Assert.Equal(2, command.AreaIndex);
+        Assert.Equal((byte)7, command.TargetSlot);
+        Assert.Equal((byte)PlayerTeam.Blue, command.Team);
+        Assert.Equal(41UL, command.VoteId);
+        Assert.Equal("argument", command.Argument);
+
+        var statePayload = ProtocolCodec.Serialize(
+            new VoteStateMessage(
+                42,
+                5,
+                ServerVoteEventKind.Yes,
+                ServerVoteKind.ChangeMapNextRound,
+                "next map: ctf_truefort",
+                "Starter",
+                "Voter",
+                2,
+                1,
+                3,
+                5,
+                450,
+                "Voter voted yes."),
+            ProtocolCompressionSettings.Disabled);
+        Assert.True(ProtocolCodec.TryDeserialize(statePayload, out var stateValue));
+        var state = Assert.IsType<VoteStateMessage>(stateValue);
+        Assert.Equal(42UL, state.VoteId);
+        Assert.Equal(5U, state.Revision);
+        Assert.Equal(ServerVoteKind.ChangeMapNextRound, state.Kind);
+        Assert.Equal(2, state.YesVotes);
+        Assert.Equal(450, state.RemainingTicks);
+
+        var menuPayload = ProtocolCodec.Serialize(
+            new VoteMenuMessage(
+                [new VoteMenuMapEntry("ctf_truefort", "Truefort", 2)],
+                [new VoteMenuPlayerEntry(4, "Candidate", (byte)PlayerTeam.Red, IsMuted: true)],
+                VipVoteAvailable: true,
+                VoteActive: false,
+                CooldownTicksRemaining: 90,
+                ActiveVoteId: 41,
+                KickVoteAvailable: true,
+                MuteVoteAvailable: true,
+                ScrambleVoteAvailable: true,
+                RegisteredVotes:
+                [
+                    new VoteMenuCustomEntry(
+                        "plugin.owner:restart",
+                        "Restart Round",
+                        "Restarts the current round.",
+                        (byte)VoteMenuTargetKind.None),
+                ]),
+            ProtocolCompressionSettings.Disabled);
+        Assert.True(ProtocolCodec.TryDeserialize(menuPayload, out var menuValue));
+        var menu = Assert.IsType<VoteMenuMessage>(menuValue);
+        Assert.True(menu.VipVoteAvailable);
+        Assert.Equal(90, menu.CooldownTicksRemaining);
+        Assert.Equal(41UL, menu.ActiveVoteId);
+        Assert.Equal("ctf_truefort", Assert.Single(menu.Maps).LevelName);
+        Assert.Equal((byte)4, Assert.Single(menu.Players).Slot);
+        Assert.True(Assert.Single(menu.Players).IsMuted);
+        Assert.True(menu.KickVoteAvailable);
+        Assert.True(menu.MuteVoteAvailable);
+        Assert.True(menu.ScrambleVoteAvailable);
+        Assert.Equal("plugin.owner:restart", Assert.Single(menu.CustomVotes).Id);
     }
 
     private static byte[] CreateCustomBubblePixels()

@@ -17,7 +17,8 @@ internal readonly record struct ImmediateNetworkDeadBodyPresentationState(
     float Width,
     float Height,
     bool FacingLeft,
-    int TicksRemaining);
+    int TicksRemaining,
+    string GameplayClassId = "");
 
 internal static class ImmediateNetworkDeathPresentationPlanner
 {
@@ -53,7 +54,8 @@ internal static class ImmediateNetworkDeathPresentationPlanner
                 authoritativeDeadBody.Width,
                 authoritativeDeadBody.Height,
                 authoritativeDeadBody.FacingLeft,
-                lifetimeTicks);
+                lifetimeTicks,
+                authoritativeDeadBody.GameplayClassId);
         }
 
         if (targetPlayer is null)
@@ -71,7 +73,8 @@ internal static class ImmediateNetworkDeathPresentationPlanner
             targetPlayer.Width,
             targetPlayer.Height,
             MathF.Cos(targetPlayer.AimDirectionDegrees * (MathF.PI / 180f)) < 0f,
-            lifetimeTicks);
+            lifetimeTicks,
+            targetPlayer.GameplayClassId);
     }
 
     internal static bool TryGetFreshAuthoritativeDeadBodyForPlayer(
@@ -136,7 +139,7 @@ public partial class Game1
         public void DrawDeadBody(DeadBodyEntity deadBody, Vector2 cameraPosition)
         {
             var renderPosition = _game.GetRenderPosition(deadBody.Id, deadBody.X, deadBody.Y);
-            DrawDeadBodyVisual(deadBody.Id, deadBody.SourcePlayerId, deadBody.ClassId, deadBody.Team, deadBody.AnimationKind, renderPosition.X, renderPosition.Y, deadBody.Width, deadBody.Height, deadBody.FacingLeft, deadBody.TicksRemaining, cameraPosition);
+            DrawDeadBodyVisual(deadBody.Id, deadBody.SourcePlayerId, deadBody.ClassId, deadBody.Team, deadBody.AnimationKind, renderPosition.X, renderPosition.Y, deadBody.Width, deadBody.Height, deadBody.FacingLeft, deadBody.TicksRemaining, deadBody.GameplayClassId, cameraPosition);
         }
 
         public void DrawRetainedDeadBodies(Vector2 cameraPosition, int? skippedDeadBodySourcePlayerId = null)
@@ -149,7 +152,7 @@ public partial class Game1
                     continue;
                 }
 
-                DrawDeadBodyVisual(deadBody.Id, deadBody.SourcePlayerId, deadBody.ClassId, deadBody.Team, deadBody.AnimationKind, deadBody.X, deadBody.Y, deadBody.Width, deadBody.Height, deadBody.FacingLeft, deadBody.TicksRemaining, cameraPosition);
+                DrawDeadBodyVisual(deadBody.Id, deadBody.SourcePlayerId, deadBody.ClassId, deadBody.Team, deadBody.AnimationKind, deadBody.X, deadBody.Y, deadBody.Width, deadBody.Height, deadBody.FacingLeft, deadBody.TicksRemaining, deadBody.GameplayClassId, cameraPosition);
             }
         }
 
@@ -175,6 +178,7 @@ public partial class Game1
                     deadBody.Height,
                     deadBody.FacingLeft,
                     deadBody.TicksRemaining,
+                    deadBody.GameplayClassId,
                     cameraPosition);
             }
         }
@@ -195,7 +199,7 @@ public partial class Game1
 
             foreach (var deadBody in _game._world.DeadBodies)
             {
-                _game._trackedDeadBodyVisuals[deadBody.Id] = new RetainedDeadBodyVisual(deadBody.Id, deadBody.SourcePlayerId, deadBody.ClassId, deadBody.Team, deadBody.AnimationKind, deadBody.X, deadBody.Y, deadBody.Width, deadBody.Height, deadBody.FacingLeft, deadBody.TicksRemaining);
+                _game._trackedDeadBodyVisuals[deadBody.Id] = new RetainedDeadBodyVisual(deadBody.Id, deadBody.SourcePlayerId, deadBody.ClassId, deadBody.Team, deadBody.AnimationKind, deadBody.X, deadBody.Y, deadBody.Width, deadBody.Height, deadBody.FacingLeft, deadBody.TicksRemaining, deadBody.GameplayClassId);
                 _game._staleTrackedDeadBodyIds.Remove(deadBody.Id);
                 RemoveRetainedDeadBody(deadBody.Id);
             }
@@ -338,7 +342,8 @@ public partial class Game1
                 deadBody.Width,
                 deadBody.Height,
                 deadBody.FacingLeft,
-                deadBody.TicksRemaining);
+                deadBody.TicksRemaining,
+                deadBody.GameplayClassId);
         }
 
         private bool TryQueueImmediateNetworkGibPresentation(SnapshotMessage resolvedSnapshot, SnapshotDamageEvent damageEvent, PlayerEntity targetPlayer)
@@ -499,7 +504,12 @@ public partial class Game1
 
         public void DrawDeadBodyVisual(int id, int sourcePlayerId, PlayerClass classId, PlayerTeam team, DeadBodyAnimationKind animationKind, float x, float y, float width, float height, bool facingLeft, int ticksRemaining, Vector2 cameraPosition)
         {
-            DrawDeadBodyVisualCore(id, sourcePlayerId, classId, team, animationKind, x, y, width, height, facingLeft, ticksRemaining, cameraPosition);
+            DrawDeadBodyVisual(id, sourcePlayerId, classId, team, animationKind, x, y, width, height, facingLeft, ticksRemaining, string.Empty, cameraPosition);
+        }
+
+        public void DrawDeadBodyVisual(int id, int sourcePlayerId, PlayerClass classId, PlayerTeam team, DeadBodyAnimationKind animationKind, float x, float y, float width, float height, bool facingLeft, int ticksRemaining, string gameplayClassId, Vector2 cameraPosition)
+        {
+            DrawDeadBodyVisualCore(id, sourcePlayerId, classId, team, animationKind, x, y, width, height, facingLeft, ticksRemaining, gameplayClassId, cameraPosition);
         }
 
         public bool TryGetForcedLastToDieDeadBodyAnimationKind(int sourcePlayerId, PlayerClass classId, PlayerTeam team, DeadBodyAnimationKind deadBodyAnimationKind, out ClientDeadBodyAnimationKind forcedAnimationKind)
@@ -507,16 +517,16 @@ public partial class Game1
             return TryGetForcedLastToDieDeadBodyAnimationKindCore(sourcePlayerId, classId, team, deadBodyAnimationKind, out forcedAnimationKind);
         }
 
-        private void DrawDeadBodyVisualCore(int id, int sourcePlayerId, PlayerClass classId, PlayerTeam team, DeadBodyAnimationKind animationKind, float x, float y, float width, float height, bool facingLeft, int ticksRemaining, Vector2 cameraPosition)
+        private void DrawDeadBodyVisualCore(int id, int sourcePlayerId, PlayerClass classId, PlayerTeam team, DeadBodyAnimationKind animationKind, float x, float y, float width, float height, bool facingLeft, int ticksRemaining, string gameplayClassId, Vector2 cameraPosition)
         {
             var renderPosition = new Vector2(x, y);
             var pluginAnimationKind = ResolveClientPluginDeadBodyAnimationKind(sourcePlayerId, classId, team, animationKind);
-            if (_game.TryDrawClientPluginDeadBody(cameraPosition, new ClientDeadBodyRenderState(id, ToClientPluginClass(classId), ToClientPluginTeam(team), renderPosition, width, height, facingLeft, ticksRemaining, pluginAnimationKind)))
+            if (_game.TryDrawClientPluginDeadBody(cameraPosition, new ClientDeadBodyRenderState(id, ToClientPluginClass(classId), ToClientPluginTeam(team), renderPosition, width, height, facingLeft, ticksRemaining, pluginAnimationKind, gameplayClassId)))
             {
                 return;
             }
 
-            var spriteName = Game1.GetDeadBodySpriteName(classId, team, animationKind);
+            var spriteName = Game1.GetDeadBodySpriteName(gameplayClassId, classId, team, animationKind);
             if (spriteName is not null)
             {
                 var sprite = _game.GetResolvedSprite(spriteName);

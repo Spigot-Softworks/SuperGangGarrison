@@ -61,9 +61,14 @@ public partial class Game1
 
         public int PreviousReloadTicks { get; set; }
 
+        public int PreviousQuoteBladesOut { get; set; }
+
+        public int PreviousQuoteBubbleCount { get; set; }
+
         public float PendingImmediateShotConfirmationSeconds { get; set; }
 
         public bool PreviousCivvieUmbrellaActive { get; set; }
+        public int PreviousCivvieUmbrellaOpeningSequence { get; set; }
 
         // Identifies the weapon slot currently being animated (null = primary, "offhand:soldier" = soldier shotgun, "acquired" = acquired weapon).
         // When this changes, animation state is reset to avoid stale comparisons from the previous weapon.
@@ -223,6 +228,8 @@ public partial class Game1
             renderState.PreviousAmmoCount = GetRenderWeaponAmmoCount(player);
             renderState.PreviousCooldownTicks = GetRenderWeaponCooldownTicks(player);
             renderState.PreviousReloadTicks = GetRenderWeaponReloadTicks(player);
+            renderState.PreviousQuoteBladesOut = GetPlayerPredictedPresentationState(player).QuoteBladesOut;
+            renderState.PreviousQuoteBubbleCount = GetPlayerPredictedPresentationState(player).QuoteBubbleCount;
         }
 
         if (renderState.WeaponAnimationMode != WeaponAnimationMode.Idle && elapsedSeconds > 0f)
@@ -235,11 +242,13 @@ public partial class Game1
             renderState.WeaponAnimationTimeRemainingSeconds = MathF.Max(0f, renderState.WeaponAnimationTimeRemainingSeconds - elapsedSeconds);
         }
 
-        if (UpdateCivvieUmbrellaWeaponAnimationState(player, renderState, GetPlayerIsCivvieUmbrellaActive(player)))
+        if (UpdateCivvieUmbrellaWeaponAnimationState(GetPlayerPredictedPresentationState(player), renderState, GetPlayerIsCivvieUmbrellaActive(player)))
         {
             renderState.PreviousAmmoCount = GetRenderWeaponAmmoCount(player);
             renderState.PreviousCooldownTicks = GetRenderWeaponCooldownTicks(player);
             renderState.PreviousReloadTicks = GetRenderWeaponReloadTicks(player);
+            renderState.PreviousQuoteBladesOut = GetPlayerPredictedPresentationState(player).QuoteBladesOut;
+            renderState.PreviousQuoteBubbleCount = GetPlayerPredictedPresentationState(player).QuoteBubbleCount;
             return;
         }
 
@@ -249,6 +258,9 @@ public partial class Game1
         var currentAmmoCount = GetRenderWeaponAmmoCount(player);
         var currentCooldownTicks = GetRenderWeaponCooldownTicks(player);
         var currentReloadTicks = GetRenderWeaponReloadTicks(player);
+        var presentationPlayer = GetPlayerPredictedPresentationState(player);
+        var currentQuoteBladesOut = presentationPlayer.QuoteBladesOut;
+        var currentQuoteBubbleCount = presentationPlayer.QuoteBubbleCount;
         // Reconciliation can replace a live predicted timer with a newer
         // authoritative value.  A positive-to-positive increase is not a new
         // fire/reload event; treating it as one restarts the sprite every
@@ -264,6 +276,15 @@ public partial class Game1
             currentAmmoCount,
             renderState.PreviousCooldownTicks,
             currentCooldownTicks);
+        if (presentationPlayer.ClassId == PlayerClass.Quote)
+        {
+            // Quote's bubble and blade actions share cooldown/ammo state. Only
+            // a new bubble may start the primary recoil presentation; blade
+            // throws have their own projectile/effect presentation.
+            shotStarted = IsQuotePrimaryAnimationStart(
+                renderState.PreviousQuoteBubbleCount,
+                currentQuoteBubbleCount);
+        }
         var immediateLocalPrimaryPress = ReferenceEquals(player, _world.LocalPlayer)
             && _pendingImmediateWeaponFirePresentation;
         if (immediateLocalPrimaryPress)
@@ -286,13 +307,18 @@ public partial class Game1
             && weaponRenderDefinition.ReloadSpriteName is not null
             && player.IsSniperScoped;
 
-        if (player.ClassId == PlayerClass.Sniper)
+        // The rifle and Huntsman have class-specific animation timelines.
+        // Sniper's equipped SMG is an ordinary magazine-fed offhand and must
+        // pass through the generic reload state machine below.
+        if (player.ClassId == PlayerClass.Sniper && !ShouldPresentGameplayOffhandWeapon(player))
         {
             UpdateSniperWeaponAnimationState(player, renderState, weaponRenderDefinition, shotStarted, elapsedSeconds, currentCooldownTicks);
             QueueWeaponShellVisuals(player, shotStarted, ammoIncreased, reloadRestarted);
             renderState.PreviousAmmoCount = currentAmmoCount;
             renderState.PreviousCooldownTicks = currentCooldownTicks;
             renderState.PreviousReloadTicks = currentReloadTicks;
+            renderState.PreviousQuoteBladesOut = currentQuoteBladesOut;
+            renderState.PreviousQuoteBubbleCount = currentQuoteBubbleCount;
             return;
         }
 
@@ -367,6 +393,22 @@ public partial class Game1
         renderState.PreviousAmmoCount = currentAmmoCount;
         renderState.PreviousCooldownTicks = currentCooldownTicks;
         renderState.PreviousReloadTicks = currentReloadTicks;
+        renderState.PreviousQuoteBladesOut = currentQuoteBladesOut;
+        renderState.PreviousQuoteBubbleCount = currentQuoteBubbleCount;
+    }
+
+    internal static bool IsQuotePrimaryAnimationStart(int previousBubbleCount, int currentBubbleCount)
+    {
+        return currentBubbleCount > previousBubbleCount;
+    }
+
+    internal static bool IsQuoteBladeSecondaryAnimationStart(
+        PlayerClass classId,
+        int previousQuoteBladesOut,
+        int currentQuoteBladesOut)
+    {
+        return classId == PlayerClass.Quote
+            && currentQuoteBladesOut > previousQuoteBladesOut;
     }
 
     internal static bool ResolvePredictedWeaponAnimationStart(
@@ -427,6 +469,7 @@ public partial class Game1
             || !player.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.CivvieUmbrella))
         {
             renderState.PreviousCivvieUmbrellaActive = false;
+            renderState.PreviousCivvieUmbrellaOpeningSequence = 0;
             return false;
         }
 
@@ -437,6 +480,7 @@ public partial class Game1
         if (active)
         {
             if (!renderState.PreviousCivvieUmbrellaActive
+                || renderState.PreviousCivvieUmbrellaOpeningSequence != player.CivvieUmbrellaOpeningSequence
                 || renderState.WeaponAnimationMode == WeaponAnimationMode.CivvieUmbrellaClosing)
             {
                 StartWeaponAnimation(renderState, WeaponAnimationMode.CivvieUmbrellaOpening, openingDurationSeconds);
@@ -469,6 +513,7 @@ public partial class Game1
         }
 
         renderState.PreviousCivvieUmbrellaActive = active;
+        renderState.PreviousCivvieUmbrellaOpeningSequence = player.CivvieUmbrellaOpeningSequence;
         return active || renderState.WeaponAnimationMode == WeaponAnimationMode.CivvieUmbrellaClosing;
     }
 

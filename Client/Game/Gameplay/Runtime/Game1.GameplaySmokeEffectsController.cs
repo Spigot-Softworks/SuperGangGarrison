@@ -36,6 +36,11 @@ public partial class Game1
 
             foreach (var rocket in _game._world.Rockets)
             {
+                if (rocket.SuppressSmokeTrail)
+                {
+                    continue;
+                }
+
                 if (_game._particleMode == 2 && ((_game._world.Frame + rocket.Id) & 1) != 0)
                 {
                     continue;
@@ -238,6 +243,11 @@ public partial class Game1
 
             foreach (var flare in _game._world.Flares)
             {
+                if (flare.IsDragonRageSlug)
+                {
+                    continue;
+                }
+
                 if (_game._particleMode == 2 && ((_game._world.Frame + flare.Id) & 1) != 0)
                 {
                     continue;
@@ -980,9 +990,9 @@ public partial class Game1
             return float.Clamp(baseProbability * distanceScale, 0f, 1f);
         }
 
-        private static bool CanEmitBrowserVisual(int currentCount, int browserLimit)
+        private bool CanEmitBrowserVisual(int currentCount, int browserLimit)
         {
-            return !OperatingSystem.IsBrowser() || currentCount < browserLimit;
+            return !_game.UseReducedBrowserEffects || currentCount < browserLimit;
         }
     }
 }

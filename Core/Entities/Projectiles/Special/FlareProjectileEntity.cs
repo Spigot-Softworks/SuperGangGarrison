@@ -1,8 +1,17 @@
 namespace OpenGarrison.Core;
 
+public enum FlareProjectileStyle : byte
+{
+    Standard = 0,
+    DragonRageSlug = 1,
+}
+
 public sealed class FlareProjectileEntity : SimulationEntity
 {
     public const int LifetimeTicks = 40;
+    public const int DragonRageLifetimeTicks = 16;
+    public const float DragonRageVisualWidth = 21f;
+    public const float DragonRageCoreVisualWidth = 16f;
     public const int DefaultDamagePerHit = 30;
     public const float BurnIntensityIncrease = 8f;
     public const float BurnDurationIncreaseSourceTicks = 35f;
@@ -18,7 +27,8 @@ public sealed class FlareProjectileEntity : SimulationEntity
         float velocityY,
         int ticksRemaining = LifetimeTicks,
         float damagePerHit = DefaultDamagePerHit,
-        string killFeedWeaponSpriteName = "FlareKL") : base(id)
+        string? killFeedWeaponSpriteName = null,
+        FlareProjectileStyle style = FlareProjectileStyle.Standard) : base(id)
     {
         Team = team;
         OwnerId = ownerId;
@@ -28,8 +38,9 @@ public sealed class FlareProjectileEntity : SimulationEntity
         VelocityY = velocityY;
         TicksRemaining = ticksRemaining;
         DamagePerHit = Math.Max(0f, damagePerHit);
+        Style = style;
         KillFeedWeaponSpriteName = string.IsNullOrWhiteSpace(killFeedWeaponSpriteName)
-            ? "FlareKL"
+            ? style == FlareProjectileStyle.DragonRageSlug ? "DragonRageKL" : "FlareKL"
             : killFeedWeaponSpriteName.Trim();
     }
 
@@ -52,6 +63,27 @@ public sealed class FlareProjectileEntity : SimulationEntity
     public int TicksRemaining { get; private set; }
 
     public float DamagePerHit { get; }
+
+    public FlareProjectileStyle Style { get; }
+
+    public bool IsDragonRageSlug => Style == FlareProjectileStyle.DragonRageSlug;
+
+    public int InitialLifetimeTicks => IsDragonRageSlug ? DragonRageLifetimeTicks : LifetimeTicks;
+
+    public float PresentationAlpha
+    {
+        get
+        {
+            if (!IsDragonRageSlug)
+            {
+                return 1f;
+            }
+
+            var fadeTicks = DragonRageLifetimeTicks / 2f;
+            var normalized = Math.Clamp(TicksRemaining / fadeTicks, 0f, 1f);
+            return normalized * normalized;
+        }
+    }
 
     public string KillFeedWeaponSpriteName { get; }
 
@@ -101,7 +133,7 @@ public sealed class FlareProjectileEntity : SimulationEntity
         PreviousY = Y;
         VelocityX = MathF.Cos(directionRadians) * speed;
         VelocityY = MathF.Sin(directionRadians) * speed;
-        TicksRemaining = LifetimeTicks;
+        TicksRemaining = InitialLifetimeTicks;
     }
 
     public void ApplyNetworkState(float x, float y, float velocityX, float velocityY, int ticksRemaining)

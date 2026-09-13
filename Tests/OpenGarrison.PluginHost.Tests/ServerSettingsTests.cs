@@ -31,6 +31,7 @@ public sealed class ServerSettingsTests
             BotAutofillEnabled = true,
             BotAutofillMinPlayers = 10,
             BotAutofillPerTeam = 5,
+            HlxEnabled = false,
             SnapshotBudgetMode = SnapshotBudgetMode.Balanced,
         };
 
@@ -49,6 +50,7 @@ public sealed class ServerSettingsTests
         Assert.True(preferences.HostSettings.BotAutofillEnabled);
         Assert.Equal(10, preferences.HostSettings.BotAutofillMinPlayers);
         Assert.Equal(5, preferences.HostSettings.BotAutofillPerTeam);
+        Assert.False(preferences.HostSettings.HlxEnabled);
         Assert.Equal(SnapshotBudgetModeParser.GameplayCriticalUntrimmedName, preferences.SnapshotBudgetMode);
 
         var reloaded = ServerSettings.Load(configPath);
@@ -61,6 +63,7 @@ public sealed class ServerSettingsTests
         Assert.True(reloaded.BotAutofillEnabled);
         Assert.Equal(10, reloaded.BotAutofillMinPlayers);
         Assert.Equal(5, reloaded.BotAutofillPerTeam);
+        Assert.False(reloaded.HlxEnabled);
         Assert.Equal(SnapshotBudgetMode.GameplayCriticalUntrimmed, reloaded.SnapshotBudgetMode);
     }
 

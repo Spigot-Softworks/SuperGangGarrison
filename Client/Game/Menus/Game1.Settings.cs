@@ -15,6 +15,7 @@ public partial class Game1
 
     private void ApplyLoadedSettings()
     {
+        InitializeVoiceSettings();
         ApplyGraphicsSettings(persist: false);
 
         _musicMode = _clientSettings.MusicMode;
@@ -151,6 +152,8 @@ public partial class Game1
     private void PersistInputBindings()
     {
         _inputBindings.Save();
+        _voiceSettings.PushToTalkBinding = InputBindingsSettings.FormatBinding(_inputBindings.PushToTalk);
+        SaveVoiceSettings();
     }
 
     private void SetLocalPlayerNameFromSettings(string playerName)

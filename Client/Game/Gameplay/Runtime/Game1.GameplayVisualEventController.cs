@@ -19,15 +19,39 @@ public partial class Game1
         {
             _game._presentedExplosionVisualsThisFrame.Clear();
             _game.AdvanceRecentPredictedExplosionVisuals();
+            _game.AdvanceRecentPredictedAirBlastVisuals();
             foreach (var visualEvent in _game._world.DrainPendingVisualEvents())
             {
                 PlayVisualEvent(visualEvent.EffectName, visualEvent.X, visualEvent.Y, visualEvent.DirectionDegrees, visualEvent.Count);
                 _game.RememberPredictedExplosionVisual(visualEvent);
             }
 
-            foreach (var visualEvent in _game._pendingNetworkVisualEvents)
+            var retainedCount = 0;
+            var renderTime = _game.GetProjectileRenderTimeSeconds();
+            for (var index = 0; index < _game._pendingNetworkVisualEvents.Count; index++)
             {
+                var visualEvent = _game._pendingNetworkVisualEvents[index];
                 if (_game.ShouldSuppressPredictedExplosionVisualEcho(visualEvent))
+                {
+                    // Still pair the authoritative visual with its separately
+                    // replicated sound so that neither channel can replay the
+                    // already-predicted explosion later.
+                    _ = _game.ShouldPresentAuthoritativeExplosionVisual(visualEvent);
+                    continue;
+                }
+
+                if (_game.ShouldSuppressPredictedAirBlastVisualEcho(visualEvent))
+                {
+                    continue;
+                }
+
+                if (!NetworkInterpolationPolicy.IsSourceFrameReady(visualEvent.SourceFrame, _game._config.TicksPerSecond, renderTime))
+                {
+                    _game._pendingNetworkVisualEvents[retainedCount++] = visualEvent;
+                    continue;
+                }
+
+                if (!_game.ShouldPresentAuthoritativeExplosionVisual(visualEvent))
                 {
                     continue;
                 }
@@ -35,7 +59,7 @@ public partial class Game1
                 PlayVisualEvent(visualEvent.EffectName, visualEvent.X, visualEvent.Y, visualEvent.DirectionDegrees, visualEvent.Count);
             }
 
-            _game._pendingNetworkVisualEvents.Clear();
+            _game._pendingNetworkVisualEvents.RemoveRange(retainedCount, _game._pendingNetworkVisualEvents.Count - retainedCount);
         }
 
         public void PlayVisualEvent(string effectName, float x, float y, float directionDegrees, int count)

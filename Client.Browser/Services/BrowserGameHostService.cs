@@ -14,6 +14,7 @@ public sealed class BrowserGameHostService : IDisposable, IAsyncDisposable
     private readonly HttpClient _httpClient;
     private readonly IJSRuntime _jsRuntime;
     private OpenGarrison.Client.Game1? _game;
+    private BrowserVoiceAudioDevice? _voiceDevice;
     private DotNetObjectReference<BrowserGameHostService>? _inputBridgeReference;
     private bool _started;
     private bool _failed;
@@ -61,6 +62,24 @@ public sealed class BrowserGameHostService : IDisposable, IAsyncDisposable
         try
         {
             ClientRuntimeBootstrap.InitializeBrowserHttpClient(_httpClient);
+            BrowserLoadingProgress.Show = (left, top, width, height) =>
+                ((IJSInProcessRuntime)_jsRuntime).InvokeVoid("OpenGarrisonLoadingProgress.show", left, top, width, height);
+            BrowserLoadingProgress.Hide = () =>
+                ((IJSInProcessRuntime)_jsRuntime).InvokeVoid("OpenGarrisonLoadingProgress.hide");
+            var storedPreferences = new Dictionary<string, string>();
+            foreach (var key in new[] { "settings-v1", "bindings-v1", "ltd-stats-v1", "hud-v1", OpenGarrison.Client.FirstPlayHintsDocument.BrowserKey })
+            {
+                var value = await _jsRuntime.InvokeAsync<string?>("OpenGarrisonBrowserHost.loadPersistentValue", key);
+                if (!string.IsNullOrWhiteSpace(value)) storedPreferences[key] = value;
+            }
+            BrowserPreferenceStore.Initialize(storedPreferences,
+                (key, json) => ((IJSInProcessRuntime)_jsRuntime).InvokeVoid("OpenGarrisonBrowserHost.savePersistentValue", key, json));
+            var browserIdentityJson = await _jsRuntime.InvokeAsync<string?>(
+                "OpenGarrisonBrowserHost.loadPersistentValue",
+                "client-identity-v1");
+            ClientRuntimeBootstrap.InitializeBrowserClientIdentityStore(
+                browserIdentityJson,
+                json => _ = SaveBrowserClientIdentityAsync(json));
             await _jsRuntime.InvokeVoidAsync("OpenGarrisonBrowserHost.focusCanvas");
             var jsCanvasStatus = await _jsRuntime.InvokeAsync<string>("OpenGarrisonBrowserHost.describeCanvas");
             var canvas = nkast.Wasm.Dom.Window.Current.Document.GetElementById<nkast.Wasm.Canvas.Canvas>("theCanvas");
@@ -122,7 +141,16 @@ public sealed class BrowserGameHostService : IDisposable, IAsyncDisposable
             Console.WriteLine("Browser host: stock gameplay definitions loaded.");
             _statusMessage = $"Constructing real client with canvas {canvas.Width}x{canvas.Height}. JS sees: {jsCanvasStatus}";
             await PublishStateAsync();
+            OpenGarrison.Client.VoiceAudioPlatform.BrowserSettingsJson = await _jsRuntime.InvokeAsync<string?>(
+                "OpenGarrisonBrowserHost.loadPersistentValue", "voice-chat-v1");
+            OpenGarrison.Client.VoiceAudioPlatform.SaveBrowserSettings = json =>
+                ((IJSInProcessRuntime)_jsRuntime).InvokeVoid("OpenGarrisonBrowserHost.savePersistentValue", "voice-chat-v1", json);
+            _voiceDevice = new BrowserVoiceAudioDevice(_jsRuntime);
+            await _voiceDevice.InitializeAsync();
+            OpenGarrison.Client.VoiceAudioPlatform.CreateDevice = () => _voiceDevice;
             _game = new OpenGarrison.Client.Game1();
+            BrowserPreferenceStore.CopyText = async text =>
+                await _jsRuntime.InvokeAsync<bool>("OpenGarrisonBrowserHost.copyText", text);
             Console.WriteLine("Browser host: Game1 constructor completed.");
             _statusMessage = "Starting browser game loop...";
             _started = true;
@@ -169,6 +197,9 @@ public sealed class BrowserGameHostService : IDisposable, IAsyncDisposable
                 var managedPumpStartTimestamp = Stopwatch.GetTimestamp();
                 _game.RunOneFrame();
                 _game.EnsureBrowserHostLifecycleInitialized();
+                // KNI owns subsequent window/backbuffer resizes. Synchronize its
+                // initial size only once the graphics device has been created.
+                ((IJSInProcessRuntime)_jsRuntime).InvokeVoid("OpenGarrisonBrowserHost.synchronizeCanvasSize");
                 RecordManagedPumpDuration(managedPumpStartTimestamp);
                 _framePumpInitialized = true;
                 return;
@@ -197,6 +228,21 @@ public sealed class BrowserGameHostService : IDisposable, IAsyncDisposable
         finally
         {
             Volatile.Write(ref _framePumpInProgress, 0);
+        }
+    }
+
+    private async Task SaveBrowserClientIdentityAsync(string json)
+    {
+        try
+        {
+            await _jsRuntime.InvokeVoidAsync(
+                "OpenGarrisonBrowserHost.savePersistentValue",
+                "client-identity-v1",
+                json);
+        }
+        catch (JSException ex)
+        {
+            Console.WriteLine($"Browser identity persistence failed: {ex.Message}");
         }
     }
 
@@ -259,6 +305,9 @@ public sealed class BrowserGameHostService : IDisposable, IAsyncDisposable
     {
         OpenGarrison.Client.BrowserInputBridge.SetFocus(focused);
     }
+
+    [JSInvokable("HandleBrowserRoomCodePaste")]
+    public void HandleBrowserRoomCodePaste(string text) => _game?.HandleBrowserRoomCodePaste(text);
 #pragma warning restore CA1822
 
     [JSInvokable("GetAutomationState")]
@@ -321,9 +370,16 @@ public sealed class BrowserGameHostService : IDisposable, IAsyncDisposable
 
     private void DisposeCore()
     {
+        BrowserLoadingProgress.Hide?.Invoke();
+        BrowserLoadingProgress.Show = null;
+        BrowserLoadingProgress.Hide = null;
         _inputBridgeReference?.Dispose();
         _inputBridgeReference = null;
         TryDisposeGame();
+        _voiceDevice?.Dispose();
+        _voiceDevice = null;
+        OpenGarrison.Client.VoiceAudioPlatform.CreateDevice = null;
+        OpenGarrison.Client.VoiceAudioPlatform.SaveBrowserSettings = null;
         _game = null;
         _started = false;
         _failed = false;
@@ -380,6 +436,7 @@ public sealed class BrowserGameHostService : IDisposable, IAsyncDisposable
 
     private async Task HandlePumpFailureAsync()
     {
+        BrowserLoadingProgress.Hide?.Invoke();
         await PublishStateAsync();
         try
         {

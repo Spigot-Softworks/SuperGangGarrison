@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <EnablePreviewFeatures>true</EnablePreviewFeatures>
+    <DefineConstants>$(DefineConstants);EMBEDDED_SESSION</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Compile the same authority as the dedicated server, without native
+         listener/entry-point dependencies. There is no second gameplay copy. -->
+    <Compile Include="..\Server\**\*.cs"
+             Exclude="..\Server\bin\**;..\Server\obj\**;..\Server\artifacts\**;..\Server\Properties\**;..\Server\Program.cs;..\Server\Networking\WebSocketServerHost.cs;..\Server\Networking\Protocol64QuicServerHost.cs;..\Server\Networking\Protocol64WebSocketConnection.cs;..\Server\Maps\ServerMapDownloadEndpoint.cs"
+             LinkBase="Authority" />
+    <ProjectReference Include="..\Core\OpenGarrison.Core.csproj" />
+    <ProjectReference Include="..\Protocol\OpenGarrison.Protocol.csproj" />
+    <ProjectReference Include="..\Networking\OpenGarrison.Networking.csproj" />
+    <ProjectReference Include="..\Plugins\OpenGarrison.PluginHost.Abstractions\OpenGarrison.PluginHost.Abstractions.csproj" />
+    <ProjectReference Include="..\Plugins\Server\OpenGarrison.Server.Plugins.Abstractions\OpenGarrison.Server.Plugins.Abstractions.csproj" />
+    <PackageReference Include="NVorbis" Version="0.10.5" />
+    <PackageReference Include="NLayer" Version="2.0.0" />
+    <PackageReference Include="MoonSharp.Interpreter.netcore" Version="2.0.14" />
+  </ItemGroup>
+</Project>

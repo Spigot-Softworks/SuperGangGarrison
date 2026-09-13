@@ -31,4 +31,56 @@ public sealed class NetworkEndpointTests
             candidates.Select(candidate => candidate.Transport));
         Assert.DoesNotContain(candidates, candidate => candidate.Transport == NetworkEndpointTransport.Quic);
     }
+
+    [Fact]
+    public void MapDownloadBaseUsesAdvertisedWebSocketPortAfterUdpConnect()
+    {
+        var endpoint = new NetworkEndpoint("games.example.invalid", 8190, 8191);
+        var connectedCandidate = new NetworkEndpointCandidate(
+            "games.example.invalid",
+            8190,
+            NetworkEndpointTransport.Udp);
+
+        var created = CustomMapSyncService.TryCreateServerDownloadBaseUri(
+            endpoint,
+            connectedCandidate,
+            out var baseUri);
+
+        Assert.True(created);
+        Assert.Equal("http://games.example.invalid:8191/", baseUri.AbsoluteUri);
+    }
+
+    [Fact]
+    public void Protocol64WebSocketMapDownloadBaseKeepsSuppliedPort()
+    {
+        var created = CustomMapSyncService.TryCreateServerDownloadBaseUri(
+            "ws64://games.example.invalid",
+            8191,
+            out var baseUri);
+
+        Assert.True(created);
+        Assert.Equal("http://games.example.invalid:8191/", baseUri.AbsoluteUri);
+    }
+
+    [Fact]
+    public void ExplicitPublicWebSocketUrlWinsForMapDownloads()
+    {
+        var endpoint = new NetworkEndpoint(
+            "10.0.0.8",
+            8190,
+            8191,
+            "wss://public.example.invalid/opengarrison/ws");
+        var connectedCandidate = new NetworkEndpointCandidate(
+            "10.0.0.8",
+            8190,
+            NetworkEndpointTransport.Udp);
+
+        var created = CustomMapSyncService.TryCreateServerDownloadBaseUri(
+            endpoint,
+            connectedCandidate,
+            out var baseUri);
+
+        Assert.True(created);
+        Assert.Equal("https://public.example.invalid/", baseUri.AbsoluteUri);
+    }
 }

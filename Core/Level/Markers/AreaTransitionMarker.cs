@@ -17,6 +17,18 @@ public readonly record struct AreaTransitionMarker(
 
 public static class AreaTransitionMetadata
 {
+    public static bool IsInArea(float y, int areaIndex, IReadOnlyList<float> boundaries)
+    {
+        if (boundaries.Count == 0 || y <= 0f)
+        {
+            return true;
+        }
+
+        var index = System.Math.Clamp(areaIndex, 1, boundaries.Count + 1);
+        return (index == 1 || y >= boundaries[index - 2])
+            && (index > boundaries.Count || y <= boundaries[index - 1]);
+    }
+
     public static float[] BuildAreaBoundaries(IReadOnlyList<AreaTransitionMarker> markers)
     {
         var nextBoundaries = markers

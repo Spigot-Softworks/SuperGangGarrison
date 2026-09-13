@@ -13,6 +13,14 @@ public static class CustomMapPackageExporter
     {
         ArgumentNullException.ThrowIfNull(document);
         ArgumentException.ThrowIfNullOrWhiteSpace(outputPath);
+        var manifest = ResolveManifestOutputPath(document, outputPath);
+        MapPackageTransaction.Write(manifest, staged => ExportCore(document, staged));
+    }
+
+    private static void ExportCore(CustomMapBuilderDocument document, string outputPath)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        ArgumentException.ThrowIfNullOrWhiteSpace(outputPath);
 
         var normalized = document.NormalizeForEditing();
         if (string.IsNullOrWhiteSpace(normalized.BackgroundImagePath))
@@ -58,9 +66,18 @@ public static class CustomMapPackageExporter
                     throw new InvalidOperationException($"Resource \"{resource.Name}\" must be an OGG sound for package export.");
                 }
             }
-            else if (!IsPng(bytes))
+            else
             {
-                throw new InvalidOperationException($"Resource \"{resource.Name}\" must be a PNG image for package export.");
+                BuilderImageValidation.Validate(bytes);
+                using var image = Image.Load<Rgba32>(bytes);
+                if (image.Frames.Count > 1)
+                    throw new InvalidOperationException($"Resource '{resource.Name}' is animated. Convert it to a spritesheet before saving a package.");
+                if (!IsPng(bytes))
+                {
+                    using var output = new MemoryStream();
+                    image.SaveAsPng(output);
+                    bytes = output.ToArray();
+                }
             }
 
             var extension = resource.Kind == CustomMapBuilderResourceKind.MessageSound ? ".ogg" : ".png";
@@ -120,44 +137,14 @@ public static class CustomMapPackageExporter
     }
 
     /// <summary>
-    /// Resolves the manifest path for a user-chosen save location, ensuring the package
-    /// is written into its own folder named after the map. This matches the runtime
-    /// convention of one package directory per map (see
-    /// <see cref="CustomMapPackageDirectoryPublisher"/>), so saving never dumps loose
-    /// files into a shared maps folder.
+    /// Keeps an explicitly chosen manifest path exact. A chosen directory receives a map-named manifest.
     /// </summary>
     public static string ResolvePackageManifestPath(CustomMapBuilderDocument document, string outputPath)
     {
         var trimmed = outputPath.Trim().Trim('"');
-        var documentName = document.NormalizeForEditing().Name;
-
-        string parentDirectory;
-        string manifestName;
         if (Path.GetExtension(trimmed).Equals(".json", StringComparison.OrdinalIgnoreCase))
-        {
-            var manifestFullPath = Path.GetFullPath(trimmed);
-            parentDirectory = Path.GetDirectoryName(manifestFullPath) ?? trimmed;
-            manifestName = Path.GetFileNameWithoutExtension(manifestFullPath);
-        }
-        else
-        {
-            parentDirectory = Path.GetFullPath(trimmed);
-            manifestName = documentName;
-        }
-
-        if (string.IsNullOrWhiteSpace(manifestName))
-        {
-            manifestName = documentName;
-        }
-
-        // If the chosen folder is already this package's own folder, keep it instead of
-        // nesting another level deep (so repeated saves stay in the same directory).
-        if (string.Equals(Path.GetFileName(parentDirectory), manifestName, StringComparison.OrdinalIgnoreCase))
-        {
-            return Path.Combine(parentDirectory, $"{manifestName}.json");
-        }
-
-        return Path.Combine(parentDirectory, manifestName, $"{manifestName}.json");
+            return Path.GetFullPath(trimmed);
+        return Path.Combine(Path.GetFullPath(trimmed), $"{document.NormalizeForEditing().Name}.json");
     }
 
     private static Dictionary<string, string> BuildManifestMetadata(CustomMapBuilderDocument document)
@@ -241,7 +228,7 @@ public static class CustomMapPackageExporter
 
     private static void CopyPng(string sourcePath, string outputPath, string label)
     {
-        var bytes = File.ReadAllBytes(sourcePath);
+        var bytes = BuilderImageValidation.ReadFile(sourcePath);
         if (!IsPng(bytes))
         {
             throw new InvalidOperationException($"The package {label} image must be a PNG file.");
@@ -252,45 +239,19 @@ public static class CustomMapPackageExporter
             return;
         }
 
+        BuilderImageValidation.Validate(bytes);
         using var image = Image.Load<Rgba32>(bytes);
         image.Save(outputPath, new PngEncoder());
     }
 
     private static void WriteWalkmaskPng(string embeddedWalkmaskSection, string outputPath)
     {
-        var lines = embeddedWalkmaskSection
-            .Trim()
-            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
-        if (lines.Length < 3
-            || !int.TryParse(lines[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out var width)
-            || !int.TryParse(lines[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var height)
-            || width <= 0
-            || height <= 0)
-        {
-            throw new InvalidOperationException("Embedded walkmask section is invalid.");
-        }
-
-        var packed = string.Concat(lines.Skip(2));
+        if (!EmbeddedWalkmaskDecoder.TryDecodeSolidCells(embeddedWalkmaskSection, out var width, out var height, out var cells))
+            throw new InvalidDataException("Embedded collision mask is invalid or incomplete.");
         using var image = new Image<Rgba32>(width, height);
-        var pixelIndex = 0;
-        foreach (var character in packed)
-        {
-            var value = character - 32;
-            for (var bit = 5; bit >= 0 && pixelIndex < width * height; bit -= 1)
-            {
-                if (((value >> bit) & 1) != 0)
-                {
-                    var x = pixelIndex % width;
-                    var y = pixelIndex / width;
-                    image[x, y] = new Rgba32(255, 255, 255, 255);
-                }
-
-                pixelIndex += 1;
-            }
-        }
-
-        using var output = File.Create(outputPath);
-        image.Save(output, new PngEncoder());
+        for (var i = 0; i < cells.Length; i++)
+            if (cells[i]) image[i % width, i / width] = new Rgba32(255, 255, 255, 255);
+        image.SaveAsPng(outputPath);
     }
 
     private static bool IsPng(byte[] bytes)

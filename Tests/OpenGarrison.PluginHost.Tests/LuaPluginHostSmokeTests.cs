@@ -1099,6 +1099,152 @@ public sealed class LuaPluginHostSmokeTests
     }
 
     [Fact]
+    public void ServerLuaHostRegistersAndStartsNativeVoteKinds()
+    {
+        using var tempDirectory = new TempDirectory();
+        var pluginDirectory = tempDirectory.CreateSubdirectory("ServerLuaVoteApi");
+        File.WriteAllText(Path.Combine(pluginDirectory, "plugin.json"), """
+            {
+              "schemaVersion": 1,
+              "id": "tests.server.lua-vote-api",
+              "displayName": "Lua Server Vote API",
+              "version": "1.0.0",
+              "type": "Server",
+              "runtime": "Lua",
+              "entryPoint": "main.lua",
+              "compatibility": { "hostApiVersion": "1.0" }
+            }
+            """);
+        File.WriteAllText(Path.Combine(pluginDirectory, "main.lua"), """
+            local plugin = {}
+
+            function plugin.initialize(host)
+                plugin.host = host
+                host.register_vote_kind({
+                    id = "dance",
+                    displayName = "Dance Party",
+                    description = "Make the selected player dance.",
+                    targetKind = "Player",
+                    validate = function(request)
+                        return { accepted = true, subject = "dance " .. request.targetName }
+                    end,
+                    apply = function(request)
+                        plugin.applied_target = request.targetName
+                        return { success = true }
+                    end
+                })
+            end
+
+            function plugin.try_handle_chat_message(context, event)
+                if event.text == "!startdance" then
+                    return plugin.host.try_start_vote("dance", event.slot, "2")
+                end
+                return false
+            end
+
+            return plugin
+            """);
+
+        var logs = new List<string>();
+        Assert.True(
+            OpenGarrisonPluginManifestLoader.TryLoadFromPath(Path.Combine(pluginDirectory, "plugin.json"), out var manifest, out var manifestError),
+            manifestError);
+        var fakeContext = new FakeServerPluginContext(
+            manifest,
+            pluginDirectory,
+            tempDirectory.CreateSubdirectory("ServerConfig"),
+            tempDirectory.CreateSubdirectory("Maps"),
+            logs);
+        var loadedPlugin = Assert.Single(PluginLoader.LoadFromSearchDirectories(
+            [new PluginLoader.PluginSearchDirectory(pluginDirectory, SearchOption.TopDirectoryOnly)],
+            (_, _, _) => fakeContext,
+            logs.Add));
+
+        var registration = Assert.Single(fakeContext.RegisteredVotes);
+        Assert.Equal(OpenGarrisonServerVoteTargetKind.Player, registration.TargetKind);
+        var request = new OpenGarrisonServerVoteRequest(
+            "tests.server.lua-vote-api:dance",
+            1,
+            "Caller",
+            string.Empty,
+            2,
+            202,
+            "session:202",
+            "Target",
+            PlayerTeam.Blue,
+            string.Empty,
+            0);
+        var validation = Assert.IsType<OpenGarrisonServerVoteValidationResult>(registration.Validate!(request));
+        Assert.True(validation.Accepted);
+        Assert.Equal("dance Target", validation.Subject);
+        Assert.True(registration.Apply(request));
+
+        var chatHooks = Assert.IsAssignableFrom<IOpenGarrisonServerChatCommandHooks>(loadedPlugin.Plugin);
+        Assert.True(chatHooks.TryHandleChatMessage(
+            new OpenGarrisonServerChatMessageContext(
+                fakeContext.ServerState,
+                fakeContext.AdminOperations,
+                fakeContext.Cvars,
+                fakeContext.Scheduler,
+                OpenGarrisonServerAdminIdentity.CreateUnauthenticated(1)),
+            new ChatReceivedEvent(1, "Caller", "!startdance", Team: PlayerTeam.Red, TeamOnly: false)));
+        Assert.Contains(fakeContext.StartedVotes, vote =>
+            vote.VoteKindId == "dance" && vote.InitiatorSlot == 1 && vote.Argument == "2");
+        Assert.DoesNotContain(logs, line => line.Contains("rejected", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void ServerLuaVotingTemplateUsesNativeCoordinatorExtensionPoints()
+    {
+        using var tempDirectory = new TempDirectory();
+        var logs = new List<string>();
+        var loadedPlugin = LoadServerLuaTemplate(
+            "ServerLua.ChatVoting",
+            "sample.server.lua-chat-voting",
+            tempDirectory,
+            logs);
+
+        var registration = Assert.Single(loadedPlugin.Context.RegisteredVotes);
+        Assert.Equal("restart-map", registration.Id);
+        Assert.Equal(OpenGarrisonServerVoteTargetKind.None, registration.TargetKind);
+        var request = new OpenGarrisonServerVoteRequest(
+            "sample.server.lua-chat-voting:restart-map",
+            1,
+            "Caller",
+            string.Empty,
+            null,
+            null,
+            string.Empty,
+            string.Empty,
+            null,
+            string.Empty,
+            0);
+        var validation = registration.Validate!(request);
+        Assert.True(validation.Accepted);
+        Assert.Equal("restart ctf_test", validation.Subject);
+        Assert.True(registration.Apply(request));
+        Assert.Contains(
+            loadedPlugin.Context.AdminImpl.MapChangeRequests,
+            change => change.LevelName == "ctf_test"
+                && change.AreaIndex == 1
+                && !change.PreservePlayerStats);
+
+        var commandContext = CreateCommandContext(
+            loadedPlugin.Context,
+            OpenGarrisonServerAdminIdentity.CreateUnauthenticated(1));
+        Assert.True(loadedPlugin.Context.CommandRegistry.TryExecute(
+            "!voterestart",
+            commandContext,
+            CancellationToken.None,
+            out var response));
+        Assert.Empty(response);
+        Assert.Contains(
+            loadedPlugin.Context.StartedVotes,
+            vote => vote.VoteKindId == "restart-map" && vote.InitiatorSlot == 1);
+        Assert.DoesNotContain(logs, line => line.Contains("rejected", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public void ServerLuaDecisionHooksCanCancelSupportedMutations()
     {
         using var tempDirectory = new TempDirectory();
@@ -2824,77 +2970,6 @@ public sealed class LuaPluginHostSmokeTests
     }
 
     [Fact]
-    public void PackagedServerLuaChatVotingStartsVoteForAuthorizedPlayerSlot()
-    {
-        using var tempDirectory = new TempDirectory();
-        var logs = new List<string>();
-        var loadedPlugin = LoadPackagedServerLuaPlugin("Lua.ChatVoting", "chat.voting", tempDirectory, logs);
-        loadedPlugin.Context.StateImpl.Players.Add(CreateServerPlayer(slot: 1, userId: 101, name: "Voter"));
-
-        var commandContext = CreateCommandContext(
-            loadedPlugin.Context,
-            new OpenGarrisonServerAdminIdentity(
-                "Voter",
-                OpenGarrisonServerAdminAuthority.None,
-                OpenGarrisonServerAdminPermissions.None,
-                SourceSlot: 1));
-
-        Assert.True(loadedPlugin.Context.CommandRegistry.TryExecute("!votemap ctf_truefort", commandContext, CancellationToken.None, out var responseLines));
-
-        Assert.Empty(responseLines);
-        var systemMessages = string.Join(Environment.NewLine, loadedPlugin.Context.AdminImpl.SystemMessages.Select(message => message.Text));
-        Assert.True(
-            !systemMessages.Contains("could not find your slot", StringComparison.OrdinalIgnoreCase),
-            systemMessages);
-        Assert.Contains(
-            loadedPlugin.Context.AdminImpl.BroadcastSystemMessages,
-            message => message.Contains("Voter started votemap for Truefort", StringComparison.Ordinal));
-    }
-
-    [Fact]
-    public void PackagedServerLuaChatVotingYesVotePassesMapVote()
-    {
-        using var tempDirectory = new TempDirectory();
-        var logs = new List<string>();
-        var loadedPlugin = LoadPackagedServerLuaPlugin("Lua.ChatVoting", "chat.voting", tempDirectory, logs);
-        loadedPlugin.Context.StateImpl.Players.Add(CreateServerPlayer(slot: 1, userId: 101, name: "Starter"));
-        loadedPlugin.Context.StateImpl.Players.Add(CreateServerPlayer(slot: 2, userId: 202, name: "Voter"));
-
-        var starterContext = CreateCommandContext(
-            loadedPlugin.Context,
-            new OpenGarrisonServerAdminIdentity(
-                "Starter",
-                OpenGarrisonServerAdminAuthority.None,
-                OpenGarrisonServerAdminPermissions.None,
-                SourceSlot: 1));
-        var voterContext = CreateCommandContext(
-            loadedPlugin.Context,
-            new OpenGarrisonServerAdminIdentity(
-                "Voter",
-                OpenGarrisonServerAdminAuthority.None,
-                OpenGarrisonServerAdminPermissions.None,
-                SourceSlot: 2));
-
-        Assert.True(loadedPlugin.Context.CommandRegistry.TryExecute("!votemap ctf_truefort", starterContext, CancellationToken.None, out var startLines));
-        Assert.True(loadedPlugin.Context.CommandRegistry.TryExecute("!yes", voterContext, CancellationToken.None, out var yesLines));
-
-        Assert.True(startLines.Count == 0, string.Join(Environment.NewLine, startLines.Concat(logs)));
-        Assert.True(yesLines.Count == 0, string.Join(Environment.NewLine, yesLines.Concat(logs)));
-        Assert.Empty(loadedPlugin.Context.AdminImpl.MapChangeRequests);
-        Assert.Contains(
-            loadedPlugin.Context.AdminImpl.BroadcastSystemMessages,
-            message => message.Contains("Vote passed for Truefort", StringComparison.Ordinal));
-
-        var updateHooks = Assert.IsAssignableFrom<IOpenGarrisonServerUpdateHooks>(loadedPlugin.Plugin);
-        updateHooks.OnServerHeartbeat(TimeSpan.FromSeconds(1));
-
-        var mapChange = Assert.Single(loadedPlugin.Context.AdminImpl.MapChangeRequests);
-        Assert.Equal("Truefort", mapChange.LevelName);
-        Assert.Equal(1, mapChange.AreaIndex);
-        Assert.False(mapChange.PreservePlayerStats);
-    }
-
-    [Fact]
     public void PackagedServerLuaGarrisonToolsHandlesHelpStatusAndCvars()
     {
         using var tempDirectory = new TempDirectory();
@@ -4547,6 +4622,10 @@ public sealed class LuaPluginHostSmokeTests
 
         public List<GameplaySlotItemRegistration> RegisteredGameplaySlotItems { get; } = [];
 
+        public List<OpenGarrisonServerVoteRegistration> RegisteredVotes { get; } = [];
+
+        public List<(string VoteKindId, byte InitiatorSlot, string Argument)> StartedVotes { get; } = [];
+
         public PluginCommandRegistry CommandRegistry { get; } = new();
 
         public List<(IOpenGarrisonServerCommand Command, OpenGarrisonServerAdminPermissions RequiredPermissions, IReadOnlyList<string> Aliases)> RegisteredCommands { get; } = [];
@@ -4688,6 +4767,20 @@ public sealed class LuaPluginHostSmokeTests
         public bool TryRegisterGameplaySlotItem(GameplaySlotItemRegistration registration, out string errorMessage)
         {
             RegisteredGameplaySlotItems.Add(registration);
+            errorMessage = string.Empty;
+            return true;
+        }
+
+        public bool TryRegisterVoteKind(OpenGarrisonServerVoteRegistration registration, out string errorMessage)
+        {
+            RegisteredVotes.Add(registration);
+            errorMessage = string.Empty;
+            return true;
+        }
+
+        public bool TryStartVote(string voteKindId, byte initiatorSlot, string argument, out string errorMessage)
+        {
+            StartedVotes.Add((voteKindId, initiatorSlot, argument));
             errorMessage = string.Empty;
             return true;
         }
