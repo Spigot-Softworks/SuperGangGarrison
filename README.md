@@ -1,8 +1,11 @@
 # OpenGarrison Fork
 
+
+###NOTE: This game is currently under development! Everything here is subject to change, modification, removal, etc without any warning. THIS DOES NOT REPRESENT THE FINAL PRODUCT! We are hard at work preparing for Steam and other goodies. You're more than welcome to download the latest beta build. If you're interested in development or have any questions please don't hesitate to reach out! (via steam id: XR24)
+
 OpenGarrison is a C# and MonoGame reimplementation of the Gang Garrison 2 gameplay stack.
 
-Dedicated-server owners can configure API-verified administrators, moderators, special players, and colored player titles in [`docs/SERVER_MANAGEMENT.md`](docs/SERVER_MANAGEMENT.md).
+
 
 This repository contains the OpenGarrison solution and supporting tools.
 
@@ -26,7 +29,6 @@ This repository contains the OpenGarrison solution and supporting tools.
 - `Tests/BrowserSmoke/`: Playwright smoke test for the browser host.
 - `docs/`: focused design and reference notes.
 
-See `docs/REPOSITORY_AUDIT.md` for root ownership, cleanup decisions, and deferred repository-history work.
 
 See [Gameplay stack orientation](docs/CODEBASE_ORIENTATION.md) for runtime flow and [Voice chat and Jukebox](docs/design/VOICE_CHAT_JUKEBOX.md) for player controls, server playlist setup and implementation details.
 
@@ -113,5 +115,7 @@ falls back to the full archive. To reproduce that flow locally:
 ./scripts/fetch-update-delta-bases.ps1 -Platforms @("linux-x64", "win-x64") -Channel stable -OutputDirectory ./dist/delta-bases
 ./scripts/package.ps1 -Platforms @("linux-x64", "win-x64") -Version 1.0.2 -DeltaBaseDirectory ./dist/delta-bases
 ```
+
+Dedicated-server owners can configure API-verified administrators, moderators, special players, and colored player titles in [`docs/SERVER_MANAGEMENT.md`](docs/SERVER_MANAGEMENT.md).
 
 See [packaging/DISTRO_QUICKSTART.txt] and [packaging/README.txt] for current packaging details.
