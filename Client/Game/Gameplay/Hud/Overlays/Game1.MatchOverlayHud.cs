@@ -4,6 +4,7 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using System;
 using System.Globalization;
+using OpenGarrison.ClientShared;
 using OpenGarrison.Core;
 
 namespace OpenGarrison.Client;
@@ -13,6 +14,22 @@ public partial class Game1
     private const float ObjectiveHudSourceHeight = 600f;
     private static readonly Color HudTimerTextColor = new(217, 217, 183);
     private const float HudTimerCircleScale = 3f;
+    private const int DeathCamHeaderHorizontalMargin = 16;
+    internal const int DeathCamHeaderGap = 17;
+
+    internal readonly record struct DeathCamHeaderLayout(
+        int PhraseX,
+        int PhraseWidth,
+        int Gap,
+        int CardX,
+        int CardWidth)
+    {
+        internal int PhraseRight => PhraseX + PhraseWidth;
+        internal int GroupLeft => PhraseX;
+        internal int GroupRight => CardX + CardWidth;
+        internal float GroupCenter => GroupLeft + ((GroupRight - GroupLeft) * 0.5f);
+    }
+
     private const float HudTimerHudScale = 3f;
     private const float HudTimerCircleCenterXOffset = 39f;
     private const float HudTimerCenterY = 30f;
@@ -716,19 +733,60 @@ public partial class Game1
 
         var viewportWidth = ViewportWidth;
         var viewportHeight = ViewportHeight;
-        _spriteBatch.Draw(_pixel, new Rectangle(0, 0, viewportWidth, 100), Color.Black);
+        var cardWidth = Math.Clamp((int)MathF.Round(viewportWidth * 0.1875f), 146, 241);
+        var cardHeight = GetPlayerCardHeight(cardWidth);
+        var topBarHeight = cardHeight + 10;
+        _spriteBatch.Draw(_pixel, new Rectangle(0, 0, viewportWidth, topBarHeight), Color.Black);
         _spriteBatch.Draw(_pixel, new Rectangle(0, viewportHeight - 100, viewportWidth, 100), Color.Black);
 
-        var killerColor = _world.LocalDeathCam.KillerTeam.HasValue
-            ? GetKillFeedTextColor(_world.LocalDeathCam.KillerTeam.Value)
-            : Color.White;
-        DrawHudTextCentered(_world.LocalDeathCam.KillMessage, new Vector2(viewportWidth / 2f, 30f), killerColor, 2f);
-        if (!string.IsNullOrEmpty(_world.LocalDeathCam.KillerName))
-        {
-            DrawHudTextCentered(_world.LocalDeathCam.KillerName, new Vector2(viewportWidth / 2f, 60f), killerColor, 2f);
-        }
+        var killerPlayer = ResolveDeathCamKillerPlayer();
+        var killerTeam = _world.LocalDeathCam.KillerTeam ?? killerPlayer?.Team ?? PlayerTeam.Blue;
+        var phrase = _world.LocalDeathCam.KillMessage.ToUpperInvariant();
+        var phraseMaximumWidth = Math.Max(
+            0f,
+            viewportWidth
+            - (DeathCamHeaderHorizontalMargin * 2f)
+            - DeathCamHeaderGap
+            - cardWidth);
+        var phraseNaturalWidth = MeasureBitmapFontWidth(phrase, PixelPerfectTextLayout.NaturalScale);
+        var phraseScale = PixelPerfectTextLayout.SelectLargestIntegerScale(
+            phraseNaturalWidth,
+            phraseMaximumWidth,
+            preferredScale: 3);
+        phrase = PixelPerfectTextLayout.TrimToWidth(
+            phrase,
+            phraseMaximumWidth,
+            candidate => MeasureBitmapFontWidth(candidate, phraseScale));
+        var phraseWidth = (int)MathF.Ceiling(MeasureBitmapFontWidth(phrase, phraseScale));
+        var headerLayout = CenterDeathCamHeader(
+            viewportWidth,
+            phraseWidth,
+            cardWidth,
+            DeathCamHeaderGap);
 
-        DrawRespawnCountdownText(new Vector2(10f, 90f - (MeasureBitmapFontHeight(1f) / 2f)));
+        var cardX = headerLayout.CardX;
+        var cardY = (topBarHeight - cardHeight) / 2;
+        var cardLayout = CreatePlayerCardLayout(new Rectangle(cardX, cardY, cardWidth, cardHeight));
+        var killerProfile = ResolveDeathCamKillerProfile(killerPlayer, killerTeam);
+        DrawPlayerCard(
+            cardLayout,
+            killerProfile,
+            _world.LocalDeathCam.KillerName,
+            string.Empty,
+            actionActive: false,
+            teamOverride: killerTeam);
+
+        DrawBitmapFontText(
+            phrase,
+            new Vector2(
+                headerLayout.PhraseX,
+                MathF.Round(cardLayout.Bounds.Center.Y - (MeasureBitmapFontHeight(phraseScale) * 0.5f))),
+            GetKillFeedTextColor(killerTeam),
+            phraseScale);
+
+        DrawArenaRespawnNotice(new Vector2(
+            10f,
+            topBarHeight - 10f - (MeasureBitmapFontHeight(1f) * 0.5f)));
 
         if (_world.LocalDeathCam.MaxHealth > 0)
         {
@@ -739,6 +797,143 @@ public partial class Game1
                 false,
                 fillDirection: HudFillDirection.VerticalBottomToTop);
             DrawCenteredHudSprite("DeathCamHealthBarS", 0, new Vector2(viewportWidth / 2f, viewportHeight - 50f), Color.White, new Vector2(2f, 2f));
+        }
+    }
+
+    internal static DeathCamHeaderLayout CenterDeathCamHeader(
+        int viewportWidth,
+        int phraseWidth,
+        int cardWidth,
+        int gap)
+    {
+        phraseWidth = Math.Max(0, phraseWidth);
+        cardWidth = Math.Max(0, cardWidth);
+        gap = Math.Max(0, gap);
+        var groupWidth = phraseWidth + gap + cardWidth;
+        var groupLeft = (int)MathF.Round((viewportWidth - groupWidth) * 0.5f);
+        return new DeathCamHeaderLayout(
+            groupLeft,
+            phraseWidth,
+            gap,
+            groupLeft + phraseWidth + gap,
+            cardWidth);
+    }
+
+    private PlayerEntity? ResolveDeathCamKillerPlayer()
+    {
+        if (_world.LocalDeathCam is not { } deathCam)
+        {
+            return null;
+        }
+
+        var killerPlayerId = deathCam.FocusPlayerId;
+        if (killerPlayerId <= 0)
+        {
+            for (var index = _world.KillFeed.Count - 1; index >= 0; index -= 1)
+            {
+                var entry = _world.KillFeed[index];
+                if (entry.VictimPlayerId == _world.LocalPlayer.Id && entry.KillerPlayerId > 0)
+                {
+                    killerPlayerId = entry.KillerPlayerId;
+                    break;
+                }
+            }
+        }
+
+        if (MatchesDeathCamKiller(_world.LocalPlayer, killerPlayerId, deathCam))
+        {
+            return _world.LocalPlayer;
+        }
+
+        foreach (var player in _world.RemoteSnapshotScoreboardPlayers)
+        {
+            if (MatchesDeathCamKiller(player, killerPlayerId, deathCam))
+            {
+                return player;
+            }
+        }
+
+        foreach (var player in EnumerateRenderablePlayers())
+        {
+            if (MatchesDeathCamKiller(player, killerPlayerId, deathCam))
+            {
+                return player;
+            }
+        }
+
+        return null;
+    }
+
+    private static bool MatchesDeathCamKiller(PlayerEntity player, int killerPlayerId, LocalDeathCamState deathCam)
+    {
+        return (killerPlayerId > 0 && player.Id == killerPlayerId)
+            || (killerPlayerId <= 0
+                && string.Equals(player.DisplayName, deathCam.KillerName, StringComparison.OrdinalIgnoreCase)
+                && (!deathCam.KillerTeam.HasValue || player.Team == deathCam.KillerTeam.Value));
+    }
+
+    private PlayerCardProfile ResolveDeathCamKillerProfile(PlayerEntity? killerPlayer, PlayerTeam killerTeam)
+    {
+        if (killerPlayer is not null && ReferenceEquals(killerPlayer, _world.LocalPlayer))
+        {
+            return _clientIdentity.PlayerCard;
+        }
+
+        if (killerPlayer is not null
+            && TryGetScoreboardPlayerNetworkSlot(killerPlayer, out var slot)
+            && TryGetOnlinePlayerSocialProfile(slot, out var socialProfile))
+        {
+            if (!string.IsNullOrWhiteSpace(socialProfile.PlayerCardJson))
+            {
+                return PlayerCardProfile.Deserialize(socialProfile.PlayerCardJson);
+            }
+
+            if (!string.IsNullOrWhiteSpace(socialProfile.FriendCode))
+            {
+                return CreateFallbackPlayerCard(socialProfile.FriendCode);
+            }
+        }
+
+        var seed = killerPlayer is null
+            ? $"deathcam:{_world.LocalDeathCam?.KillerName}"
+            : $"deathcam:{killerPlayer.Id}:{killerPlayer.DisplayName}";
+        var fallback = CreateFallbackPlayerCard(seed);
+        fallback.Team = killerTeam == PlayerTeam.Red ? "Red" : "Blue";
+        if (killerPlayer is not null && Array.IndexOf(PlayerCardClasses, killerPlayer.ClassId) >= 0)
+        {
+            fallback.Class = killerPlayer.ClassId.ToString();
+            ClampPlayerCardFrame(fallback);
+        }
+
+        return PlayerCardProfile.Sanitize(fallback);
+    }
+
+    private void DrawRespawnHud()
+    {
+        if ((_killCamEnabled && _world.LocalDeathCam is not null)
+            || _world.LocalPlayerAwaitingJoin
+            || _world.LocalPlayer.IsAlive)
+        {
+            return;
+        }
+
+        const float respawnTextX = 10f;
+        const float respawnTextY = 10f;
+        DrawArenaRespawnNotice(new Vector2(
+            respawnTextX,
+            respawnTextY - (MeasureBitmapFontHeight(1f) * 0.5f)));
+    }
+
+    private void DrawArenaRespawnNotice(Vector2 position)
+    {
+        if (_world.LocalPlayerAwaitingJoin || _world.LocalPlayer.IsAlive)
+        {
+            return;
+        }
+
+        if (_world.MatchRules.Mode == GameModeKind.Arena && !_world.MatchState.IsEnded)
+        {
+            DrawHudTextLeftAligned("No Respawning in Arena", position, Color.White, 1f);
         }
     }
 
@@ -778,45 +973,6 @@ public partial class Game1
         var alpha = Math.Clamp(_autoBalanceNoticeTicks / (float)fadeSeconds, 0.25f, 1f);
         var color = new Color(245, 210, 120) * alpha;
         DrawHudTextCentered(_autoBalanceNoticeText, new Vector2(viewportWidth / 2f, 80f), color, 1f);
-    }
-
-    private void DrawRespawnHud()
-    {
-        if ((_killCamEnabled && _world.LocalDeathCam is not null)
-            || _world.LocalPlayerAwaitingJoin
-            || _world.LocalPlayer.IsAlive)
-        {
-            return;
-        }
-
-        const float respawnTextX = 10f;
-        const float respawnTextY = 10f;
-        DrawRespawnCountdownText(new Vector2(respawnTextX, respawnTextY - (MeasureBitmapFontHeight(1f) / 2f)));
-    }
-
-    private void DrawRespawnCountdownText(Vector2 position)
-    {
-        if (_world.LocalPlayerAwaitingJoin || _world.LocalPlayer.IsAlive)
-        {
-            return;
-        }
-
-        if (_world.MatchRules.Mode == GameModeKind.Arena && !_world.MatchState.IsEnded)
-        {
-            DrawHudTextLeftAligned(
-                "No Respawning in Arena",
-                position,
-                Color.White,
-                1f);
-            return;
-        }
-
-        var respawnSeconds = Math.Max(0f, MathF.Ceiling(_world.LocalPlayerRespawnTicks / (float)_config.TicksPerSecond));
-        DrawHudTextLeftAligned(
-            $"Respawn in {respawnSeconds:0} second(s).",
-            position,
-            Color.White,
-            1f);
     }
 
     private void DrawIntelPanelElement(TeamIntelligenceState intelState, Vector2 position, float scale = 1f)

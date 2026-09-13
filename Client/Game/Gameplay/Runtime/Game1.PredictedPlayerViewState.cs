@@ -179,6 +179,18 @@ public partial class Game1
         return player.IsSniperBowEquipped;
     }
 
+    private bool GetPlayerIsMortarLauncherEquipped(PlayerEntity player)
+    {
+        if (IsUsingPredictedLocalState(player)
+            && _predictedLocalPlayerShadow is not null
+            && ReferenceEquals(player, _world.LocalPlayer))
+        {
+            return _predictedLocalPlayerShadow.IsMortarLauncherEquipped;
+        }
+
+        return player.IsMortarLauncherEquipped;
+    }
+
     private int GetPlayerSniperRifleDamage(PlayerEntity player)
     {
         return player.GetSniperRifleDamageForCharge(

@@ -33,6 +33,36 @@ public sealed class LastToDieCaptureTheFlagRulesTests
         Assert.Equal(1, world.RedCaps);
     }
 
+    [Fact]
+    public void BlueMustCaptureThreeTimesToEndTheStage()
+    {
+        var world = CreateJoinedEngineerWorld();
+        world.ConfigureSpecialCaptureTheFlagRules(true);
+        world.SetLocalPlayerTeam(PlayerTeam.Blue);
+        world.ForceRespawnLocalPlayer();
+        for (var captures = 1; captures <= 3; captures++)
+        {
+            Assert.True(world.TryMoveLocalPlayerToIntelSpawn());
+            Assert.True(world.ForceGiveEnemyIntelToLocalPlayer());
+            world.AdvanceOneTick();
+            Assert.Equal(captures, world.BlueCaps);
+            Assert.Equal(captures == 3, world.MatchState.IsEnded);
+        }
+        Assert.Equal(PlayerTeam.Blue, world.MatchState.WinnerTeam);
+    }
+
+    [Fact]
+    public void KothTimeoutRequiresRedOwnership()
+    {
+        var world = new SimulationWorld();
+        Assert.True(world.TryLoadLevel("Harvest"));
+        Assert.False(world.CanCompleteLastToDieStageOnTimeout);
+        world.CombatTestSetControlPointOwner(1, PlayerTeam.Blue);
+        Assert.False(world.CanCompleteLastToDieStageOnTimeout);
+        world.CombatTestSetControlPointOwner(1, PlayerTeam.Red);
+        Assert.True(world.CanCompleteLastToDieStageOnTimeout);
+    }
+
     private static SimulationWorld CreateJoinedEngineerWorld()
     {
         var world = new SimulationWorld();

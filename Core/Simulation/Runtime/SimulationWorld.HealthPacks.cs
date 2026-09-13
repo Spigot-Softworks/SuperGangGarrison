@@ -137,6 +137,19 @@ public sealed partial class SimulationWorld
 
     private void TrySpawnExperimentalEnemyHealthPackDrop(PlayerEntity victim, PlayerEntity? killer)
     {
+        if (_lastToDieStageNumber > 0)
+        {
+            // Every enemy death is eligible, including environmental deaths.
+            // Survivor deaths must never create a kit for the enemy team.
+            if (victim.Team == LocalPlayerTeam || victim.HasLastToDieSurvivorBuff
+                || _random.NextSingle() >= LastToDie.LastToDieSurvivorRules.GetHealthPackDropChance(_lastToDieStageNumber))
+            {
+                return;
+            }
+            SpawnRandomEnemyHealthPack(victim);
+            return;
+        }
+
         if (killer is null)
         {
             return;
@@ -154,6 +167,11 @@ public sealed partial class SimulationWorld
             return;
         }
 
+        SpawnRandomEnemyHealthPack(victim);
+    }
+
+    private void SpawnRandomEnemyHealthPack(PlayerEntity victim)
+    {
         var size = _random.NextSingle() < global::OpenGarrison.Core.ExperimentalGameplaySettings.EnemyHealthPackLargeChance
             ? HealthPackSize.Large
             : HealthPackSize.Small;

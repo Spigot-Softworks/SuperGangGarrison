@@ -663,13 +663,7 @@ public partial class Game1
 
     private int GetBubbleWheelSelectedSlot(MouseState mouse)
     {
-        if (GetBubbleMenuPointerDistanceFromCenter(mouse) < 30f)
-        {
-            return 0;
-        }
-
-        var aimDirection = GetBubbleWheelPointerDirectionDegrees(mouse);
-        return Math.Clamp((int)(aimDirection / 40f) + 1, 1, 9);
+        return RadialWheelSelection.GetSlot(GetBubbleWheelPointerDirectionDegrees(mouse), GetBubbleMenuPointerDistanceFromCenter(mouse), 9);
     }
 
     private static ClientBubbleMenuKind ToClientBubbleMenuKind(BubbleMenuKind kind)

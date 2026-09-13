@@ -18,7 +18,7 @@ Start by copying a template from [Templates](Templates):
 - `ClientLua.DamageIndicator`: local damage events and sound playback.
 - `ClientLua.BubbleWheel`: custom client interaction UI.
 - `ServerLua`: minimal server lifecycle and player event plugin.
-- `ServerLua.ChatVoting`: commands, scheduling, map changes, and replicated voting state.
+- `ServerLua.ChatVoting`: native vote-kind registration with validation and a safe apply callback.
 - `ServerLua.GameplayAbility`: server gameplay ability registration.
 - `ServerLua.PrimaryWeapon`: server weapon behavior registration.
 
@@ -273,6 +273,7 @@ Useful server host APIs include:
 - State queries: `get_server_state`, `get_match_state`, `get_players`, `get_player_state`.
 - World queries: `get_objectives`, `get_buildables`, `get_projectiles`, `get_recent_events`, `get_map_region`, `has_line_of_sight`.
 - Commands: `register_command`, `resolve_targets`.
+- Voting: `register_vote_kind`, `try_start_vote`.
 - Chat: `broadcast_system_message`, `send_system_message`.
 - Scheduling: `schedule_once`, `schedule_repeating`, `cancel_scheduled_task`.
 - Safe mutation: `enqueue_action` and `try_*` mutation APIs.
@@ -321,6 +322,55 @@ return plugin
 Command handlers receive `(context, arguments)` and return nil, a string, or a table of strings as the command response. The context exposes `identity`, `source`, `arguments`, `has_permission(...)`, and `require_permission(...)`.
 
 Command permissions use the server's built-in admin permission flags: `ViewServerState`, `ManagePlayers`, `ManageMatch`, `ManageServerConfiguration`, `ManagePlugins`, `ManageScheduler`, and `FullAccess`. Permission names are case-insensitive and can be combined with spaces, commas, pipes, or semicolons.
+
+### Native Vote Kinds
+
+Register plugin votes during `initialize`. The host adds them to the stock vote menu and runs
+them through the same strict-majority ballot, timeout, cooldown, replay, and late-join state
+path as built-in votes. Do not implement a second ballot state machine in a plugin.
+
+```lua
+function plugin.initialize(host)
+    plugin.host = host
+
+    host.register_vote_kind({
+        id = "restart-map",
+        displayName = "Restart Current Map",
+        description = "Reload the current map and area.",
+        targetKind = "None",
+        validate = function(request)
+            local state = host.get_server_state()
+            return {
+                accepted = state.levelName ~= nil and state.levelName ~= "",
+                subject = "restart " .. tostring(state.levelName),
+                error = "No active map can be restarted."
+            }
+        end,
+        apply = function(request)
+            local state = host.get_server_state()
+            return host.try_change_map(state.levelName, state.mapAreaIndex, false)
+        end
+    })
+end
+```
+
+`targetKind` is `None`, `Player`, or `Map`. Player and map targets are resolved by the server
+before `validate` runs. The request exposes `initiatorSlot`, `initiatorName`, `argument`,
+`targetSlot`, `targetName`, `targetTeam`, `mapName`, and `mapAreaIndex`. Validation may return
+a subject string, a boolean, or `{ accepted, subject, error }`. Apply must return a boolean or
+`{ success = true }` and is called once only after the vote passes.
+
+Each public ID is namespaced as `plugin-id:local-id`; an unqualified local ID is accepted only
+when it is unique. Players can use the native menu or
+`!votecustom <plugin-id:local-id> [target]`. A plugin may call
+`host.try_start_vote(localId, initiatorSlot, argument)` from a normal mutation-capable callback
+or registered command to provide a friendly alias. Registrations and active owner votes are
+removed automatically on unload/reload. Lua registration is initialization-only; validation
+runs in the read-only query phase, while apply runs in the bounded command-interaction phase.
+
+CLR server plugins use `IGg2ServerPluginContext.TryRegisterVoteKind` and
+`TryStartVote` with `OpenGarrisonServerVoteRegistration`. The same ownership, target resolution,
+callback, and lifecycle rules apply.
 
 ### Cancellable Decision Hooks
 

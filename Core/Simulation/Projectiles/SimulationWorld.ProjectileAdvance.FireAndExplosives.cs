@@ -152,6 +152,7 @@ public sealed partial class SimulationWorld
                 var owner = FindPlayerById(flare.OwnerId);
                 flare.MoveTo(hitResult.HitX, hitResult.HitY);
                 RegisterCombatTrace(flare.PreviousX, flare.PreviousY, directionX, directionY, hitResult.Distance, hitResult.HitPlayer is not null);
+                RegisterWorldSoundEvent("FlareImpactSnd", hitResult.HitX, hitResult.HitY, flare.OwnerId);
                 if (hitResult.HitPlayer is not null)
                 {
                     var infiltrateBlockedFlare =
@@ -249,6 +250,12 @@ public sealed partial class SimulationWorld
             var directionX = movementX / movementDistance;
             var directionY = movementY / movementDistance;
             var hit = GetNearestMineHit(mine, directionX, directionY, movementDistance);
+            if (TryInterceptWithCivilDefenseTurret(mine.Team, mine.PreviousX, mine.PreviousY,
+                    directionX, directionY, MathF.Min(movementDistance, hit?.Distance ?? movementDistance)))
+            {
+                RemoveMineAt(mineIndex);
+                continue;
+            }
             if (!hit.HasValue)
             {
                 continue;
@@ -572,12 +579,14 @@ public sealed partial class SimulationWorld
             }
         }
 
-        // Damage jump pads
+        // Damage jump pads with the same structure multiplier used by sticky
+        // and rocket splash. Neutral map pads are valid targets for either
+        // team; team-owned pads retain friendly-fire protection.
         for (var jumpPadIndex = _jumpPads.Count - 1; jumpPadIndex >= 0; jumpPadIndex -= 1)
         {
             var jumpPad = _jumpPads[jumpPadIndex];
             var distance = DistanceBetween(grenade.X, grenade.Y, jumpPad.X, jumpPad.Y);
-            if (distance >= blastRadius || jumpPad.IsNeutral || jumpPad.Team == grenade.Team || jumpPad.IsDead)
+            if (distance >= blastRadius || (!jumpPad.IsNeutral && jumpPad.Team == grenade.Team) || jumpPad.IsDead)
             {
                 continue;
             }
@@ -594,9 +603,13 @@ public sealed partial class SimulationWorld
             }
 
             var damage = ResolveExplosiveSplashDamage(
-                grenade.ExplosionDamage * grenade.CriticalDamageMultiplier,
+                grenade.ExplosionDamage * ExplosiveJumpPadDamageMultiplier * grenade.CriticalDamageMultiplier,
                 factor);
             jumpPad.TakeDamage((int)MathF.Ceiling(damage));
+            if (jumpPad.IsDead)
+            {
+                DestroyJumpPad(jumpPad);
+            }
         }
 
         if (directHitBuilding is not null)
@@ -676,7 +689,7 @@ public sealed partial class SimulationWorld
         }
         else if (target is JumpPadEntity jumpPad)
         {
-            if (jumpPad.IsNeutral || jumpPad.IsDead || jumpPad.Team == grenade.Team)
+            if (jumpPad.IsDead || (!jumpPad.IsNeutral && jumpPad.Team == grenade.Team))
             {
                 return;
             }

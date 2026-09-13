@@ -559,6 +559,7 @@ sealed class SnapshotBroadcaster
             CapLimit = _world.MatchRules.CapLimit,
             SentryGibs = ConvertToArray(_world.SentryGibs, static sentryGib => ToSnapshotSentryGibState(sentryGib)),
             JumpPads = ConvertToArray(_world.JumpPads, static jumpPad => ToSnapshotJumpPadState(jumpPad)),
+            CivilDefenseTurrets = ConvertToArray(_world.CivilDefenseTurrets, static turret => ToSnapshotCivilDefenseTurretState(turret)),
             JumpPadGibs = ConvertToArray(_world.JumpPadGibs, static jumpPadGib => ToSnapshotJumpPadGibState(jumpPadGib)),
             Grenades = ConvertToArray(_world.Grenades, static grenade => ToSnapshotGrenadeState(grenade)),
             HealthPacks = ToSnapshotHealthPackStates(_world),
@@ -620,7 +621,7 @@ sealed class SnapshotBroadcaster
                 continue;
             }
 
-            var playerState = ToSnapshotPlayerState(_world, botSlot, botPlayer, viewer, _stringCache);
+            var playerState = ToSnapshotPlayerState(_world, botSlot, botPlayer, viewer, _stringCache, isBot: true);
             scoreboardPlayers.Add(playerState);
 
             if (ShouldHideSpyFromViewer(botPlayer, viewer))
@@ -804,14 +805,32 @@ sealed class SnapshotBroadcaster
     {
         return viewer is not null
             && soundEvent.SourcePlayerId == viewer.Id
-            && IsManagedRapidFireSound(soundEvent.SoundName);
+            && IsManagedRapidFireSound(soundEvent.SoundName, viewer);
     }
 
-    private static bool IsManagedRapidFireSound(string soundName)
+    private static bool IsManagedRapidFireSound(string soundName, PlayerEntity player)
+    {
+        if (string.Equals(soundName, "ChaingunSnd", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(soundName, "FlamethrowerSnd", StringComparison.OrdinalIgnoreCase))
+        {
+            return !player.IsAcquiredWeaponPresented
+                && IsManagedRapidFireWeaponSound(soundName, player.PrimaryWeapon.Kind);
+        }
+
+        if (string.Equals(soundName, "MedigunSnd", StringComparison.OrdinalIgnoreCase))
+        {
+            return player.IsMedicHealing && player.MedicHealTargetId.HasValue;
+        }
+
+        return false;
+    }
+
+    internal static bool IsManagedRapidFireWeaponSound(string soundName, PrimaryWeaponKind weaponKind)
     {
         return string.Equals(soundName, "ChaingunSnd", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(soundName, "FlamethrowerSnd", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(soundName, "MedigunSnd", StringComparison.OrdinalIgnoreCase);
+            ? weaponKind == PrimaryWeaponKind.Minigun
+            : string.Equals(soundName, "FlamethrowerSnd", StringComparison.OrdinalIgnoreCase)
+                && weaponKind == PrimaryWeaponKind.FlameThrower;
     }
 
     internal static bool ShouldHideSpyFromViewer(PlayerEntity player, PlayerEntity? viewer)
@@ -1110,7 +1129,7 @@ sealed class SnapshotBroadcaster
         {
             if (_world.TryGetNetworkPlayer(botSlot, out var botPlayer))
             {
-                players.Add(ToSnapshotPlayerState(_world, botSlot, botPlayer, viewer: null, _stringCache));
+                players.Add(ToSnapshotPlayerState(_world, botSlot, botPlayer, viewer: null, _stringCache, isBot: true));
             }
         }
 

@@ -25,12 +25,21 @@ internal sealed class HostedServerRuntimeController : IDisposable
     private HostedServerSessionInfo? _session;
     private int _statePollTicks;
     private HostedServerProcessLogPaths? _processLogPaths;
-    private readonly string? _sessionPath;
+    private string _sessionPath;
+    private readonly string? _explicitSessionPath;
+    private string _instanceId = Guid.NewGuid().ToString("N");
+    private readonly HostedServerProcessIdentity _ownerIdentity;
+
+    internal string InstanceId => _instanceId;
+    internal string SessionPath => _sessionPath;
+    public int? ReadyPort => LoadOwnedSession() is { IsReady: true } ready ? ready.Port : null;
 
     public HostedServerRuntimeController(HostedServerConsoleState console, string? sessionPath = null)
     {
         _console = console ?? throw new ArgumentNullException(nameof(console));
-        _sessionPath = sessionPath;
+        _explicitSessionPath = sessionPath;
+        _sessionPath = sessionPath ?? HostedServerSessionInfo.GetInstancePath(_instanceId);
+        HostedServerProcessIdentity.TryCaptureCurrent(out _ownerIdentity);
     }
 
     public bool IsRunning
@@ -83,132 +92,101 @@ internal sealed class HostedServerRuntimeController : IDisposable
     }
 
     public bool TryStartBackground(HostedServerLaunchOptions launchOptions, out string error)
+        => TryStart(launchOptions, terminal: false, out error);
+
+    public bool TryStartInTerminal(HostedServerLaunchOptions launchOptions, out string error)
+        => TryStart(launchOptions, terminal: true, out error);
+
+    private bool TryStart(HostedServerLaunchOptions launchOptions, bool terminal, out string error)
     {
         ArgumentNullException.ThrowIfNull(launchOptions);
-
         error = string.Empty;
-
-        Stop();
-        HostedServerSessionInfo.Delete(_sessionPath);
-
-        if (!HostedServerBootstrapper.IsUdpPortAvailable(launchOptions.Port))
-        {
-            error = $"UDP port {launchOptions.Port} is already in use.";
-            _console.AppendLog("launcher", error);
-            return false;
-        }
-
-        var serverLaunchTarget = HostedServerBootstrapper.FindLaunchTarget();
-        if (serverLaunchTarget is null)
+        var target = HostedServerBootstrapper.FindLaunchTarget();
+        if (target is null)
         {
             error = "Could not find OG2.Server. Build the server first.";
             return false;
         }
-
-        if (!HostedServerBootstrapper.TryValidateRuntimePrerequisites(serverLaunchTarget, out error))
-        {
-            _console.AppendLog("launcher", error);
-            return false;
-        }
-
-        if (!HostedServerBootstrapper.TryPrepareRuntimePlugins(serverLaunchTarget, out var pluginPreparationError))
-        {
-            error = pluginPreparationError;
-            _console.AppendLog("launcher", error);
-            return false;
-        }
+        if (!HostedServerBootstrapper.TryValidateRuntimePrerequisites(target, out error)
+            || !HostedServerBootstrapper.TryPrepareRuntimePlugins(target, out error)) return false;
 
         try
         {
-            var arguments = HostedServerBootstrapper.BuildLaunchArguments(serverLaunchTarget, launchOptions);
-            _processLogPaths = HostedServerBootstrapper.PrepareProcessLogFiles();
-            var startInfo = new ProcessStartInfo(serverLaunchTarget.FileName, arguments)
+            Stop();
+            _instanceId = Guid.NewGuid().ToString("N");
+            _sessionPath = _explicitSessionPath ?? HostedServerSessionInfo.GetInstancePath(_instanceId);
+            var directory = Path.GetDirectoryName(_sessionPath)!;
+            Directory.CreateDirectory(directory);
+            var configPath = Path.Combine(directory, "server.ini");
+            if (File.Exists(launchOptions.ConfigPath)) File.Copy(launchOptions.ConfigPath, configPath, overwrite: true);
+            var sourceConfigDirectory = Path.GetDirectoryName(Path.GetFullPath(launchOptions.ConfigPath));
+            var managementConfigPath = string.Empty;
+            if (!string.IsNullOrWhiteSpace(sourceConfigDirectory))
             {
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                WorkingDirectory = serverLaunchTarget.WorkingDirectory,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
+                var managementSource = Path.Combine(sourceConfigDirectory, "server-management.json");
+                managementConfigPath = managementSource;
+                if (File.Exists(managementSource))
+                {
+                    File.Copy(managementSource, Path.Combine(directory, "server-management.json"), overwrite: true);
+                }
+            }
+            string? playlist = null;
+            if (!string.IsNullOrWhiteSpace(launchOptions.MapRotationFile))
+            {
+                playlist = Path.Combine(directory, "rotation.txt");
+                File.Copy(launchOptions.MapRotationFile, playlist, overwrite: true);
+            }
+            launchOptions = launchOptions with
+            {
+                ConfigPath = configPath,
+                MapRotationFile = playlist,
+                ManagementConfigPath = managementConfigPath,
             };
-            startInfo.Environment["OPENGARRISON_LAUNCH_MODE"] = "launcher";
-            if (HostedServerProcessIdentity.TryCaptureCurrent(out var parentIdentity))
-            {
-                parentIdentity.ApplyParentEnvironment(startInfo);
-            }
+            _processLogPaths = HostedServerBootstrapper.PrepareProcessLogFiles(directory);
+            var startInfo = HostedServerBootstrapper.BuildStartInfo(target, launchOptions);
+            ConfigureProcessEnvironment(startInfo, terminal);
             ApplyRelayEnvironment(startInfo, launchOptions.RelayHostUrl);
-            _console.AppendLog("launcher", $"Starting {serverLaunchTarget.FileName} {arguments}");
-            var process = Process.Start(startInfo);
-            if (process is null)
+            _console.AppendLog("launcher", $"Starting server instance {_instanceId}; requested port {launchOptions.Port}. Logs: {directory}");
+            if (terminal)
             {
-                error = "Failed to start local server process.";
-                return false;
+                DedicatedServerTerminalLauncher.Start(startInfo);
+                // Direct servers are independent. Their session file is never
+                // automatically attached by this controller or another client.
+                _processLogPaths = null;
+                return true;
             }
-
+            startInfo.CreateNoWindow = true;
+            startInfo.RedirectStandardOutput = true;
+            startInfo.RedirectStandardError = true;
+            var process = Process.Start(startInfo) ?? throw new InvalidOperationException("No server process was created.");
             BeginCapturingProcessOutput(process, _processLogPaths);
             TrackProcess(process);
             return true;
         }
         catch (Exception ex)
         {
-            error = $"Failed to start local server: {ex.Message}";
+            error = $"Failed to start {(terminal ? "dedicated server terminal" : "local server")}: {ex.Message}";
+            _console.AppendLog("launcher", error);
             return false;
         }
     }
 
-    public bool TryStartInTerminal(HostedServerLaunchOptions launchOptions, out string error)
+    internal void ConfigureProcessEnvironment(ProcessStartInfo startInfo, bool terminal)
     {
-        ArgumentNullException.ThrowIfNull(launchOptions);
+        startInfo.UseShellExecute = false;
+        startInfo.Environment[HostedServerSessionInfo.SessionPathEnvironmentVariable] = _sessionPath;
+        startInfo.Environment[HostedServerSessionInfo.InstanceEnvironmentVariable] = _instanceId;
+        startInfo.Environment[RuntimePaths.UserDataRootEnvironmentVariable] = RuntimePaths.UserDataRoot;
+        startInfo.Environment["OPENGARRISON_LAUNCH_MODE"] = terminal ? "direct" : "launcher";
+        startInfo.Environment.Remove(HostedServerProcessIdentity.ParentProcessIdEnvironmentVariable);
+        startInfo.Environment.Remove(HostedServerProcessIdentity.ParentProcessStartTimeEnvironmentVariable);
+        if (!terminal) _ownerIdentity.ApplyParentEnvironment(startInfo);
+    }
 
-        error = string.Empty;
-
-        Stop();
-        HostedServerSessionInfo.Delete(_sessionPath);
-
-        if (!HostedServerBootstrapper.IsUdpPortAvailable(launchOptions.Port))
-        {
-            error = $"UDP port {launchOptions.Port} is already in use.";
-            return false;
-        }
-
-        var serverLaunchTarget = HostedServerBootstrapper.FindLaunchTarget();
-        if (serverLaunchTarget is null)
-        {
-            error = "Could not find OG2.Server. Build the server first.";
-            return false;
-        }
-
-        if (!HostedServerBootstrapper.TryValidateRuntimePrerequisites(serverLaunchTarget, out error))
-        {
-            _console.AppendLog("launcher", error);
-            return false;
-        }
-
-        if (!HostedServerBootstrapper.TryPrepareRuntimePlugins(serverLaunchTarget, out var pluginPreparationError))
-        {
-            error = pluginPreparationError;
-            return false;
-        }
-
-        try
-        {
-            var arguments = HostedServerBootstrapper.BuildLaunchArguments(serverLaunchTarget, launchOptions);
-            var startInfo = new ProcessStartInfo(serverLaunchTarget.FileName, arguments)
-            {
-                UseShellExecute = true,
-                WorkingDirectory = serverLaunchTarget.WorkingDirectory,
-            };
-            startInfo.Environment["OPENGARRISON_LAUNCH_MODE"] = "direct";
-            startInfo.Environment.Remove(HostedServerProcessIdentity.ParentProcessIdEnvironmentVariable);
-            startInfo.Environment.Remove(HostedServerProcessIdentity.ParentProcessStartTimeEnvironmentVariable);
-            ApplyRelayEnvironment(startInfo, launchOptions.RelayHostUrl);
-            Process.Start(startInfo);
-            return true;
-        }
-        catch (Exception ex)
-        {
-            error = $"Failed to start dedicated server terminal: {ex.Message}";
-            return false;
-        }
+    private HostedServerSessionInfo? LoadOwnedSession()
+    {
+        var session = HostedServerSessionInfo.Load(_sessionPath);
+        return session?.IsOwnedBy(_instanceId, _ownerIdentity) == true ? session : null;
     }
 
     internal static void ApplyRelayEnvironment(ProcessStartInfo startInfo, string? relayHostUrl)
@@ -225,109 +203,45 @@ internal sealed class HostedServerRuntimeController : IDisposable
 
     public void Stop()
     {
-        var session = _session;
-        var trackedProcess = _trackedProcess;
-
-        if (session is null && trackedProcess is null)
-        {
-            var persistedSession = HostedServerSessionInfo.Load(_sessionPath);
-            if (IsClientOwnedBackgroundSession(persistedSession))
-            {
-                // Reattach only to a server this client launched in the
-                // background. Terminal/direct servers remain independent.
-                TryResumeSession(
-                    loadExistingLog: false,
-                    commandTimeoutMilliseconds: HostedServerAdminClient.ShutdownTimeoutMilliseconds);
-                // Keep the persisted identity as the cleanup candidate even
-                // when a hung admin pipe prevents the reattach ping. The
-                // process lookup below still validates its PID/start time.
-                session = persistedSession;
-                trackedProcess = _trackedProcess;
-            }
-        }
-
-        if (session is null && trackedProcess is null)
-        {
-            return;
-        }
-
-        var preserveUnresolvedLegacySession = false;
+        var session = _session ?? LoadOwnedSession();
+        var tracked = _trackedProcess;
         try
         {
-            if (session is not null)
+            if (session is not null && session.IsOwnedBy(_instanceId, _ownerIdentity))
             {
-                _console.AppendLog("launcher", "Stop requested for hosted server.");
-                if (_session is not null
-                    && !TrySendCommand(
-                        "shutdown",
-                        out _,
-                        out var shutdownError,
-                        HostedServerAdminClient.ShutdownTimeoutMilliseconds))
+                _console.AppendLog("launcher", $"Stopping owned server instance {session.InstanceId}.");
+                HostedServerAdminClient.TrySendCommand(session.PipeName, "shutdown", out _, out _,
+                    HostedServerAdminClient.ShutdownTimeoutMilliseconds);
+                if (HostedServerBootstrapper.TryGetProcess(session, out var process) && process is not null)
                 {
-                    _console.AppendLog("launcher", shutdownError);
-                }
-
-                var processOwnershipValidated = session.ProcessStartTimeUtcTicks > 0
-                    || _session is not null
-                    || trackedProcess is not null && trackedProcess.Id == session.ProcessId;
-                HostedServerBootstrapper.TryGetProcess(session, out var processToStop);
-                if (processToStop is null
-                    && trackedProcess is not null
-                    && trackedProcess.Id == session.ProcessId)
-                {
-                    try
+                    using (process)
                     {
-                        if (!trackedProcess.HasExited)
+                        if (!process.WaitForExit(2000))
                         {
-                            // A tracked Process handle is already owned by
-                            // this controller, so it remains a safe fallback
-                            // if the persisted identity cannot be resolved.
-                            processToStop = trackedProcess;
+                            _console.AppendLog("launcher", "Owned server did not finish shutdown; terminating its process tree.");
+                            process.Kill(entireProcessTree: true);
+                            process.WaitForExit(1000);
                         }
                     }
-                    catch
-                    {
-                    }
-                }
-
-                if (processToStop is not null && !processToStop.WaitForExit(2000))
-                {
-                    if (processOwnershipValidated)
-                    {
-                        _console.AppendLog("launcher", "Hosted server did not exit after shutdown; terminating process tree.");
-                        processToStop.Kill(entireProcessTree: true);
-                        processToStop.WaitForExit(1000);
-                    }
-                    else
-                    {
-                        preserveUnresolvedLegacySession = true;
-                        _console.AppendLog(
-                            "launcher",
-                            "Hosted server did not exit, but its legacy session has no process identity; leaving the unresolved process running.");
-                    }
-                }
-
-                if (processToStop is not null && !ReferenceEquals(processToStop, trackedProcess))
-                {
-                    processToStop.Dispose();
                 }
             }
-            else if (trackedProcess is not null && !trackedProcess.HasExited)
+            // A retained Process handle belongs to this controller even when
+            // startup failed before the server published its session record.
+            if (tracked is not null && !tracked.HasExited)
             {
-                trackedProcess.Kill(entireProcessTree: true);
-                trackedProcess.WaitForExit(1000);
+                tracked.Kill(entireProcessTree: true);
+                tracked.WaitForExit(1000);
             }
         }
-        catch
+        catch (Exception ex)
         {
+            _console.AppendLog("launcher", $"Owned server cleanup failed: {ex.Message}");
         }
         finally
         {
+            if (session?.IsOwnedBy(_instanceId, _ownerIdentity) == true)
+                HostedServerSessionInfo.DeleteIfMatching(session, _sessionPath);
             ClearTracking();
-            if (!preserveUnresolvedLegacySession)
-            {
-                HostedServerSessionInfo.Delete(_sessionPath);
-            }
         }
     }
 
@@ -336,7 +250,7 @@ internal sealed class HostedServerRuntimeController : IDisposable
         int? expectedProcessId = null,
         int commandTimeoutMilliseconds = HostedServerAdminClient.DefaultTimeoutMilliseconds)
     {
-        var session = HostedServerSessionInfo.Load(_sessionPath);
+        var session = LoadOwnedSession();
         if (session is null)
         {
             return false;
@@ -349,7 +263,7 @@ internal sealed class HostedServerRuntimeController : IDisposable
 
         if (!HostedServerBootstrapper.TryGetProcess(session, out var attachedProcess))
         {
-            HostedServerSessionInfo.Delete(_sessionPath);
+            HostedServerSessionInfo.DeleteIfMatching(session, _sessionPath);
             return false;
         }
 
@@ -431,9 +345,9 @@ internal sealed class HostedServerRuntimeController : IDisposable
                     DisposeTrackedProcess();
                 }
 
+                HostedServerSessionInfo.DeleteIfMatching(_session, _sessionPath);
                 _session = null;
                 _statePollTicks = 0;
-                HostedServerSessionInfo.Delete(_sessionPath);
                 return HostedServerRuntimeUpdateState.SessionEnded;
             }
 
@@ -487,10 +401,6 @@ internal sealed class HostedServerRuntimeController : IDisposable
         process.Exited += OnTrackedProcessExited;
         _trackedProcess = process;
     }
-
-    private static bool IsClientOwnedBackgroundSession(HostedServerSessionInfo? session)
-        => session is not null
-            && string.Equals(session.LaunchMode, "launcher", StringComparison.OrdinalIgnoreCase);
 
     private void ClearTracking()
     {

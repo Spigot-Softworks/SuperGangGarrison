@@ -290,16 +290,19 @@ public sealed partial class SimulationWorld
     /// Sets a network input frame and optionally declares one-shot buttons as
     /// explicit rising edges. Protocol-64 commands use this seam so two
     /// adjacent jumps cannot be collapsed into one held-button transition.
+    /// With explicit presses, held state cannot create a second press when its
+    /// reliable command arrives on a different simulation tick.
     /// </summary>
     public bool TrySetNetworkPlayerInput(
         byte slot,
         PlayerInputSnapshot input,
-        InputButtons forcedPressedButtons)
+        InputButtons forcedPressedButtons,
+        bool requireExplicitPresses = false)
     {
         if (slot == LocalPlayerSlot)
         {
             SetLocalInput(input);
-            _networkPlayerForcedPressedButtons[slot] = forcedPressedButtons;
+            _networkPlayerForcedPressedButtons[slot] = (forcedPressedButtons, requireExplicitPresses);
             return true;
         }
 
@@ -310,7 +313,7 @@ public sealed partial class SimulationWorld
 
         EnsureAdditionalNetworkPlayer(slot);
         _additionalNetworkPlayerInputs[slot] = input;
-        _networkPlayerForcedPressedButtons[slot] = forcedPressedButtons;
+        _networkPlayerForcedPressedButtons[slot] = (forcedPressedButtons, requireExplicitPresses);
         return true;
     }
 

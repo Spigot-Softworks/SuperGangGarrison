@@ -23,6 +23,12 @@ public partial class Game1
         if (_networkClient.IsConnected)
         {
             AdvanceNetworkInputLane(networkInput);
+            if (ShouldPauseHostedLastToDieSoloClientSimulation())
+            {
+                RecordBrowserSimulationDuration(browserSimulationStartTimestamp, simulationTickCount);
+                return;
+            }
+
             // Run client prediction: simulate projectiles only
             // Server snapshots remain authoritative and will correct any mispredictions
             _simulator.World.ClientPredictionMode = true;

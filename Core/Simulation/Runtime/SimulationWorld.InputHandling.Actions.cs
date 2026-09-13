@@ -27,6 +27,11 @@ public sealed partial class SimulationWorld
             return;
         }
 
+        if (TryHandleMortarLauncherPrimaryFire(player, input, previousInput))
+        {
+            return;
+        }
+
         if (TryHandleExperimentalOffhandPrimaryFire(player, input))
         {
             return;
@@ -101,6 +106,50 @@ public sealed partial class SimulationWorld
             else
             {
                 player.IncrementSniperBowCharge(directionDegrees);
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
+    private bool TryHandleMortarLauncherPrimaryFire(PlayerEntity player, PlayerInputSnapshot input, PlayerInputSnapshot previousInput)
+    {
+        if (!player.IsMortarLauncherEquipped)
+        {
+            return false;
+        }
+
+        var directionDegrees = PointDirectionDegrees(player.X, player.Y, input.AimWorldX, input.AimWorldY);
+        if (!input.FirePrimary && previousInput.FirePrimary)
+        {
+            if (player.TryReleaseMortarLauncherCharge(out var chargeFraction, out var directionRadians)
+                && player.TryFirePrimaryWeapon())
+            {
+                WeaponHandler.FireMortarLauncher(
+                    player,
+                    player.PrimaryWeapon,
+                    directionRadians,
+                    chargeFraction);
+            }
+            else
+            {
+                player.CancelMortarLauncherCharge();
+            }
+
+            return true;
+        }
+
+        if (input.FirePrimary)
+        {
+            if (player.MortarLauncherChargeTicks == 0)
+            {
+                _ = player.TryStartMortarLauncherCharge(directionDegrees);
+            }
+            else
+            {
+                player.IncrementMortarLauncherCharge(directionDegrees);
             }
 
             return true;
@@ -379,8 +428,17 @@ public sealed partial class SimulationWorld
         }
     }
 
-    private static bool TryHandleSecondaryWeaponToggle(PlayerEntity player)
+    private bool TryHandleSecondaryWeaponToggle(PlayerEntity player)
     {
+        // LTD Engineer beams share a medigun slot but need their own mode.
+        // A generic Q equip leaves that mode at None, so the next passive
+        // update immediately stows the weapon as invalid.
+        if (GetLastToDieGameplaySettings(player).EnableSecondaryAbilities
+            && TryHandleExperimentalEngineerAlternateWeaponInteraction(player))
+        {
+            return true;
+        }
+
         if (!player.HasExperimentalOffhandWeapon)
         {
             return false;
@@ -414,8 +472,7 @@ public sealed partial class SimulationWorld
 
         if (player.HasAlternatePrimaryWeapons)
         {
-            if (IsNetworkPlayerAutomaticRespawnSuppressed(player)
-                || IsNearPrimaryWeaponSwapStation(player))
+            if (IsNearPrimaryWeaponSwapStation(player))
             {
                 return player.TryCycleGameplayPrimaryItem();
             }
@@ -461,12 +518,11 @@ public sealed partial class SimulationWorld
             return false;
         }
 
-        foreach (var turret in _civilDefenseTurrets)
+        if (ClientPredictionMode) return false;
+        if (!CanDeployCivilDefenseTurret(player))
         {
-            if (turret.OwnerPlayerId == player.Id)
-            {
-                return false;
-            }
+            RegisterWorldSoundEvent("FailureSnd", player.X, player.Y, player.Id);
+            return false;
         }
 
         if (!player.TryDeployExperimentalSoldierCivilDefenseTurret(

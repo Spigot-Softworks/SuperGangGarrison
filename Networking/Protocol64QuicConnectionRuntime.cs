@@ -139,7 +139,7 @@ public sealed class Protocol64QuicConnectionRuntime : IAsyncDisposable
             encodedPayload.ToArray(),
             decoded.Header,
             decoded.Schema.Descriptor.Delivery,
-            replacementKey));
+            replacementKey ?? AudioReplacementKey.For(decoded.Event)));
         if (result.Accepted)
         {
             SignalOutbound();
@@ -412,7 +412,8 @@ public sealed class Protocol64QuicConnectionRuntime : IAsyncDisposable
                     decoded.Schema.Descriptor.Delivery,
                     streamId,
                     lane,
-                    sequence);
+                    sequence,
+                    AudioReplacementKey.For(decoded.Event));
                 var accepted = _container.AcceptReceived(received);
                 foreach (var released in accepted.ReleasedFrames)
                 {

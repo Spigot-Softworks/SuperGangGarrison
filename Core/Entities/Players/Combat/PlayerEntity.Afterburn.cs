@@ -167,6 +167,7 @@ public sealed partial class PlayerEntity
         var damagePerTick = (BurnIntensity / LegacyMovementModel.SourceTicksPerSecond)
             * sourceDelta
             * GetServerDamageScale()
+            * LastToDieEnemyDamageMultiplier
             * LastToDieIncomingDamageMultiplier;
         if (BurnDurationSourceTicks > 0f
             && ApplyContinuousDamage(damagePerTick))

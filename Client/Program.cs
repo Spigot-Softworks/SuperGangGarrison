@@ -3,10 +3,16 @@ using System.IO;
 using System.Text;
 using System.Globalization;
 using System.Runtime.InteropServices;
+using System.Reflection;
 using OpenGarrison.Core;
 
 args = RuntimePaths.ApplyUserDataRootArgument(args);
 Directory.SetCurrentDirectory(AppContext.BaseDirectory);
+var roomMetadata = System.Reflection.Assembly.GetExecutingAssembly().GetCustomAttributes<System.Reflection.AssemblyMetadataAttribute>();
+OpenGarrison.ClientShared.ClientDistribution.Initialize("Full",
+    roomMetadata.FirstOrDefault(attribute => attribute.Key == "OpenGarrisonRoomContentId")?.Value,
+    ApplicationBuildInfo.BuildVersion,
+    roomMetadata.FirstOrDefault(attribute => attribute.Key == "OpenGarrisonRoomServiceOrigin")?.Value);
 
 // Put a splash on screen the instant the process starts so the player sees "Launching..." during
 // the several seconds of cold start before the game window appears. Closed on the first rendered

@@ -405,10 +405,10 @@ public sealed partial class PlayerEntity
         }
 
         RoomObjectMarker? bestWall = null;
-        for (var index = 0; index < level.RoomObjects.Count; index += 1)
+        foreach (var index in level.GetRoomObjectIndices(RoomObjectType.DirectionalWall))
         {
-            var wall = level.RoomObjects[index];
-            if (wall.Type != RoomObjectType.DirectionalWall || !level.IsRoomObjectActive(index))
+            ref readonly var wall = ref level.GetRoomObject(index);
+            if (!level.IsRoomObjectActive(index))
             {
                 continue;
             }

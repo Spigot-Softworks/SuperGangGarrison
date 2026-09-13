@@ -3,6 +3,7 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using OpenGarrison.Core;
+using OpenGarrison.Protocol;
 using System;
 
 namespace OpenGarrison.Client;
@@ -79,6 +80,11 @@ public partial class Game1
 
         public void DrawPlayerNameHud(PlayerEntity player, Vector2 cameraPosition, bool forceVisible = false)
         {
+            if (!_game.HasFreshPlayerRenderHistory(player))
+            {
+                return;
+            }
+
             var label = GetHudPlayerLabel(player);
             if (string.IsNullOrWhiteSpace(label))
             {
@@ -97,10 +103,17 @@ public partial class Game1
             var teamFillColor = player.Team == PlayerTeam.Blue ? new Color(0x48, 0x5C, 0x67) : new Color(0xA5, 0x46, 0x40);
             var teamOutlineColor = player.Team == PlayerTeam.Blue ? new Color(0x35, 0x44, 0x4D) : new Color(0x7E, 0x35, 0x30);
             var textColor = new Color(0xD9, 0xD9, 0xB7);
+            PlayerServerTitleState? serverTitle = null;
+            if (_game.TryGetScoreboardPlayerNetworkSlot(player, out var slot)
+                && _game.TryGetOnlinePlayerServerTitle(slot, out var resolvedTitle))
+            {
+                serverTitle = resolvedTitle;
+            }
 
             const int horizontalPadding = 2;
             const int verticalPadding = 2;
-            var textWidth = _game.MeasureBitmapFontWidth(label, 1f);
+            var titleWidth = serverTitle is null ? 0f : _game.MeasureServerPlayerTitle(serverTitle, 1f);
+            var textWidth = titleWidth + _game.MeasureBitmapFontWidth(label, 1f);
             var textHeight = _game.MeasureBitmapFontHeight(1f);
             var panelWidth = (int)MathF.Ceiling(textWidth) + (horizontalPadding * 2);
             var panelHeight = (int)MathF.Ceiling(textHeight) + (verticalPadding * 2);
@@ -116,7 +129,12 @@ public partial class Game1
             var textPosition = new Vector2(
                 panelBounds.X + ((panelBounds.Width - textWidth) / 2f),
                 panelBounds.Y + verticalPadding);
-            _game.DrawBitmapFontText(label, textPosition, textColor * (alpha * 0.6f), 1f);
+            var textX = textPosition.X;
+            if (serverTitle is not null)
+            {
+                textX = _game.DrawServerPlayerTitle(serverTitle, textPosition, alpha * 0.6f, 1f);
+            }
+            _game.DrawBitmapFontText(label, new Vector2(textX, textPosition.Y), textColor * (alpha * 0.6f), 1f);
         }
 
         public PlayerEntity? GetHoveredPlayerForNameHud(MouseState mouse, Vector2 cameraPosition)

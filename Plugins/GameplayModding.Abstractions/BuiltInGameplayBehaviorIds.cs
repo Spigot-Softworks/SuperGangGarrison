@@ -5,15 +5,18 @@ public static class BuiltInGameplayBehaviorIds
     public const string PelletGun = "builtin.weapon.pellet_gun";
     public const string Flamethrower = "builtin.weapon.flamethrower";
     public const string RocketLauncher = "builtin.weapon.rocket_launcher";
+    public const string MortarLauncher = "builtin.weapon.mortar_launcher";
     public const string MineLauncher = "builtin.weapon.mine_launcher";
     public const string GrenadeLauncher = "builtin.weapon.grenade_launcher";
     public const string Minigun = "builtin.weapon.minigun";
+    public const string TommyGun = "builtin.weapon.tommy_gun";
     public const string Rifle = "builtin.weapon.rifle";
     public const string Medigun = "builtin.weapon.medigun";
     public const string MedigunCrit = "builtin.weapon.medigun.crit";
     public const string Revolver = "builtin.weapon.revolver";
     public const string Blade = "builtin.weapon.blade";
     public const string Flaregun = "builtin.weapon.flaregun";
+    public const string DragonRage = "builtin.weapon.dragon_rage";
     public const string Needlegun = "builtin.weapon.needlegun";
 
     public const string EngineerPda = "builtin.ability.engineer_pda";

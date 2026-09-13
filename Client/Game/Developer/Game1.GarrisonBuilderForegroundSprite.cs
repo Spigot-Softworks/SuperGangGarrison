@@ -197,7 +197,7 @@ public partial class Game1
             && entity.Properties.TryGetValue(ForegroundSpriteMetadata.ImagePropertyKey, out var resourceName)
             && !string.IsNullOrWhiteSpace(resourceName)
             && _builderDocument.Resources.TryGetValue(resourceName.Trim(), out var resource)
-            && CustomMapBuilderResourceCodec.TryGetResourceBytes(resource, out var bytes)
+            && TryGetGarrisonBuilderResourceBytes(resource, out var bytes)
             && ForegroundSpriteMetadata.TryParsePngDimensions(bytes, out var decodedWidth, out var decodedHeight))
         {
             pixelWidth = decodedWidth;
@@ -241,7 +241,7 @@ public partial class Game1
         if (!entity.Properties.TryGetValue(ForegroundSpriteMetadata.ImagePropertyKey, out var resourceName)
             || string.IsNullOrWhiteSpace(resourceName)
             || !_builderDocument.Resources.TryGetValue(resourceName.Trim(), out var resource)
-            || !CustomMapBuilderResourceCodec.TryGetResourceBytes(resource, out var bytes)
+            || !TryGetGarrisonBuilderResourceBytes(resource, out var bytes)
             || !ForegroundSpriteMetadata.TryParsePngDimensions(bytes, out width, out height))
         {
             return false;
@@ -394,7 +394,7 @@ public partial class Game1
         if (!_builderPropertyEditorValues.TryGetValue(ForegroundSpriteMetadata.ImagePropertyKey, out var resourceName)
             || string.IsNullOrWhiteSpace(resourceName)
             || !_builderDocument.Resources.TryGetValue(resourceName.Trim(), out var resource)
-            || !CustomMapBuilderResourceCodec.TryGetResourceBytes(resource, out var bytes)
+            || !TryGetGarrisonBuilderResourceBytes(resource, out var bytes)
             || !ForegroundSpriteMetadata.TryParsePngDimensions(bytes, out pixelWidth, out pixelHeight))
         {
             return false;
@@ -405,15 +405,14 @@ public partial class Game1
 
     private void TryChooseGarrisonBuilderForegroundSpriteImage()
     {
-        if (!TryChooseGarrisonBuilderFile(
+        BeginChooseGarrisonBuilderFile(
                 "Select foreground sprite image",
                 "Image files (*.png;*.gif)|*.png;*.gif|PNG files (*.png)|*.png|GIF files (*.gif)|*.gif|All files (*.*)|*.*",
                 _builderResourcePathBuffer,
-                out var selectedPath))
+                selectedPath =>
         {
-            return;
-        }
-
+        BeginGarrisonBuilderPropertyTransaction();
+        RecordGarrisonBuilderHistory();
         var previousResourceName = _builderPropertyEditorValues.TryGetValue(
             ForegroundSpriteMetadata.ImagePropertyKey,
             out var previous)
@@ -432,6 +431,7 @@ public partial class Game1
         MarkGarrisonBuilderPropertyEditorChanged();
         _builderDirty = true;
         _builderStatus = $"foreground sprite {resourceName}";
+        });
     }
 
     private string GetGarrisonBuilderForegroundSpritePropertyDisplayLabel(string key, string value)

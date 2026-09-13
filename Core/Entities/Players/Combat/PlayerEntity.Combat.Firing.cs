@@ -10,7 +10,8 @@ public sealed partial class PlayerEntity
         ignoreAmmoCost |= HasInfiniteAmmoFromUber;
         LastPrimaryShotIgnoredAmmoCost = false;
         LastPrimaryShotAppliesLastToDieLuckyStrikeStun = false;
-        if (ClassId == PlayerClass.Pyro)
+        if (ClassId == PlayerClass.Pyro
+            && HasPrimaryBehavior(BuiltInGameplayBehaviorIds.Flamethrower))
         {
             if (!TryPreparePyroPrimaryFireAttempt(ignoreAmmoCost))
             {
@@ -207,23 +208,30 @@ public sealed partial class PlayerEntity
     public bool TryFirePyroAirblast(
         int fuelCost = PyroAirblastCost,
         int reloadTicks = PyroAirblastReloadTicks,
-        int noFlameTicks = PyroAirblastNoFlameTicks)
+        int noFlameTicks = PyroAirblastNoFlameTicks,
+        bool allowAirburstWithAlternatePrimary = false)
     {
         fuelCost = Math.Max(0, fuelCost);
         reloadTicks = Math.Max(1, reloadTicks);
         noFlameTicks = Math.Max(0, noFlameTicks);
         var ignoreAmmoCost = HasInfiniteAmmoFromUber;
-        if (!CanFirePyroAirblast(fuelCost))
+        var usesFlamethrowerFuel = HasPyroWeaponEquipped;
+        if (!CanFirePyroAirblast(fuelCost, allowAirburstWithAlternatePrimary))
         {
             return false;
         }
 
-        if (!ignoreAmmoCost)
+        if (usesFlamethrowerFuel && !ignoreAmmoCost)
         {
             SetPyroPrimaryFuelScaled(GetPyroPrimaryFuelScaledValue() - (fuelCost * PyroPrimaryFuelScale));
         }
 
         PyroAirblastCooldownTicks = ApplyExperimentalWeaponCycleMultiplier(reloadTicks);
+        if (!usesFlamethrowerFuel)
+        {
+            return true;
+        }
+
         var noFlameCooldownTicks = noFlameTicks <= 0
             ? 0
             : ApplyExperimentalWeaponCycleMultiplier(noFlameTicks);
@@ -311,15 +319,23 @@ public sealed partial class PlayerEntity
         return true;
     }
 
-    public bool CanFirePyroAirblast(int fuelCost = PyroAirblastCost)
+    public bool CanFirePyroAirblast(
+        int fuelCost = PyroAirblastCost,
+        bool allowAirburstWithAlternatePrimary = false)
     {
         fuelCost = Math.Max(0, fuelCost);
+        var usesFlamethrowerFuel = HasPyroWeaponEquipped;
+        var canUseAlternatePrimaryAirburst = allowAirburstWithAlternatePrimary
+            && ClassId == PlayerClass.Pyro
+            && HasPrimaryBehavior(BuiltInGameplayBehaviorIds.DragonRage);
         return IsAlive
-            && HasPyroWeaponEquipped
+            && (usesFlamethrowerFuel || canUseAlternatePrimaryAirburst)
             && !IsTaunting
             && !IsCivviePogoActive
             && PyroAirblastCooldownTicks <= 0
-            && (HasInfiniteAmmoFromUber || GetPyroPrimaryFuelScaledValue() >= fuelCost * PyroPrimaryFuelScale);
+            && (!usesFlamethrowerFuel
+                || HasInfiniteAmmoFromUber
+                || GetPyroPrimaryFuelScaledValue() >= fuelCost * PyroPrimaryFuelScale);
     }
 
     public bool TryPreparePyroPrimaryFireAttempt(bool ignoreAmmoCost = false)
@@ -426,18 +442,46 @@ public sealed partial class PlayerEntity
 
         if (!HasScopedSniperWeaponEquipped || !isScoped)
         {
-            return SniperBaseDamage;
+            return SniperUnscopedDamage;
         }
 
         var chargeFraction = Math.Clamp(
-            chargeTicks / (float)Math.Max(1, LastToDieSniperRifleFullChargeTicks),
+            chargeTicks / (float)Math.Max(1, SniperRifleFullChargeTicks),
             0f,
             1f);
         return SniperBaseDamage + (int)MathF.Floor(50f * MathF.Sqrt(chargeFraction));
     }
 
+    public float GetSniperRifleStreakDamageMultiplier(bool isFullyCharged)
+        => isFullyCharged
+            ? 1f + (SniperRifleFullyChargedHitStreak * SniperRifleStreakDamageBonus)
+            : 1f;
+
+    public void ResolveSniperRifleStreakShot(bool isFullyCharged, bool hitEnemyPlayer)
+    {
+        if (ClassId != PlayerClass.Sniper || !HasScopedSniperWeaponEquipped)
+        {
+            SniperRifleFullyChargedHitStreak = 0;
+            return;
+        }
+
+        SniperRifleFullyChargedHitStreak = isFullyCharged && hitEnemyPlayer
+            ? Math.Min(SniperRifleStreakMaximum, SniperRifleFullyChargedHitStreak + 1)
+            : 0;
+    }
+
     private int GetPrimaryCooldownAfterShot()
     {
+        if (HasPrimaryBehavior(BuiltInGameplayBehaviorIds.TommyGun))
+        {
+            // 13 SMG shots take 39 source ticks. Four evenly distributed
+            // 3-tick gaps and nine 2-tick gaps make the Tommy's 13-shot span
+            // exactly 30 ticks: 30% more shots over the same interval.
+            var shotsFired = Math.Max(1, PrimaryWeapon.MaxAmmo - CurrentShells);
+            var shotInCadence = ((shotsFired - 1) % 13) + 1;
+            return shotInCadence is 3 or 6 or 9 or 13 ? 3 : 2;
+        }
+
         var cooldownTicks = HasScopedSniperWeaponEquipped
             && IsSniperScoped
             && !LastToDieSniperProfile.LightMarksmanEnabled

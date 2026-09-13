@@ -51,7 +51,7 @@ public sealed partial class SimulationWorld
                 : global::OpenGarrison.Core.LastToDie.LastToDieSniperProfile.Stock;
             var isFullyCharged = !sniperProfile.LightMarksmanEnabled
                 && attacker.IsSniperScoped
-                && attacker.SniperChargeTicks >= attacker.LastToDieSniperRifleFullChargeTicks;
+                && attacker.SniperChargeTicks >= attacker.SniperRifleFullChargeTicks;
             var maximumEnemyPlayerHits = sniperProfile.MechanicaEnabled && isFullyCharged
                 ? 64
                 : sniperProfile.FiftyCalEnabled
@@ -80,6 +80,9 @@ public sealed partial class SimulationWorld
                 isSniperTracer: true,
                 isCritical: isCritical);
             var damage = attacker.GetSniperRifleDamage();
+            damage = Math.Max(
+                1,
+                (int)MathF.Round(damage * attacker.GetSniperRifleStreakDamageMultiplier(isFullyCharged)));
             var knockbackPayload = BulletKnockbackRules.ResolvePayload(weaponDefinition, actualProjectileCount: 1);
             if (sniperProfile.TranqDartsEnabled)
             {
@@ -189,6 +192,11 @@ public sealed partial class SimulationWorld
                     weaponOrigin.BaseY + directionY * result.Distance,
                     PointDirectionDegrees(0f, 0f, directionX, directionY));
             }
+
+            var hitEnemyPlayer = result.PlayerHits.Any(playerHit =>
+                !playerHit.IsFriendlySupport
+                && playerHit.Player.Team != attacker.Team);
+            attacker.ResolveSniperRifleStreakShot(isFullyCharged, hitEnemyPlayer);
         }
 
         private PlayerDamageResolution ResolveRiflePlayerDamage(

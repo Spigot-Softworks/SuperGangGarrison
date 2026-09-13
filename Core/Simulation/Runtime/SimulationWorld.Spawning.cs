@@ -104,6 +104,9 @@ public sealed partial class SimulationWorld
                 out var spawnX,
                 out var spawnY))
         {
+            // A failed reassignment must not retain an earlier opposing-side
+            // override when the enemy next respawns.
+            TryClearNetworkPlayerSpawnOverride(slot);
             return false;
         }
 
@@ -139,14 +142,37 @@ public sealed partial class SimulationWorld
             direction = player.Team == PlayerTeam.Blue ? -1 : 1;
         }
 
+        // Spawn-room markers can stop short of the actual exit doors (stock
+        // Harvest does this). A clear, grounded point in that gap is still
+        // trapped behind a gate that blocks this enemy's team. Start on the
+        // public side of the whole opposing gate envelope, including exits
+        // on another floor, rather than accepting the first unmarked tile.
+        var searchStartX = sourceSpawn.X;
+        foreach (var gate in Level.GetBlockingTeamGates(player.Team, carryingIntel: false))
+        {
+            if (gate.Type != RoomObjectType.TeamGate || gate.Team == player.Team)
+            {
+                continue;
+            }
+
+            if (direction > 0 && gate.Right >= sourceSpawn.X && gate.Left < centerX)
+            {
+                searchStartX = Math.Max(searchStartX, gate.Right - player.CollisionLeftOffset + 1f);
+            }
+            else if (direction < 0 && gate.Left <= sourceSpawn.X && gate.Right > centerX)
+            {
+                searchStartX = Math.Min(searchStartX, gate.Left - player.CollisionRightOffset - 1f);
+            }
+        }
+
         var spawnRooms = Level.GetRoomObjects(RoomObjectType.SpawnRoom);
         (float X, float Y)? firstOpenPosition = null;
         var maximumSteps = Math.Max(1, (int)MathF.Ceiling(Bounds.Width / step));
-        var previousX = sourceSpawn.X;
+        var previousX = searchStartX;
         for (var stepIndex = 0; stepIndex <= maximumSteps; stepIndex += 1)
         {
             var candidateX = Math.Clamp(
-                sourceSpawn.X + (direction * stepIndex * step),
+                searchStartX + (direction * stepIndex * step),
                 -player.CollisionLeftOffset,
                 Bounds.Width - player.CollisionRightOffset);
             if (stepIndex > 0 && candidateX == previousX)
@@ -223,6 +249,17 @@ public sealed partial class SimulationWorld
         if (clearMedicHealingTarget)
         {
             ClearLastToDieStatusEffectsForTarget(player.Id);
+        }
+
+        foreach (var otherPlayer in EnumerateSimulatedPlayers())
+        {
+            // EnemyPlayerEnabled defaults to true before the constructor has
+            // assigned EnemyPlayer, so the initial local spawn can encounter
+            // that not-yet-materialized enumeration entry.
+            if (otherPlayer is not null && otherPlayer.MedicHealTargetId == player.Id)
+            {
+                otherPlayer.ClearMedicHealingTarget();
+            }
         }
 
         player.Spawn(team, x, y);
@@ -334,10 +371,7 @@ public sealed partial class SimulationWorld
         var spawnPool = BuildTeamSpawnSelectionPool(spawns, team);
         var spawnRooms = Level.GetRoomObjects(RoomObjectType.SpawnRoom);
         var requireSpawnRoom = spawnRooms.Count > 0;
-        var useForwardObjectivePriority = IsForwardSpawnSelectionPool(spawnPool);
-        var startIndex = useForwardObjectivePriority
-            ? 0
-            : team == PlayerTeam.Blue ? _nextBlueSpawnIndex : _nextRedSpawnIndex;
+        var startIndex = team == PlayerTeam.Blue ? _nextBlueSpawnIndex : _nextRedSpawnIndex;
         var selectedPoolIndex = -1;
         SpawnPoint selectedSpawn = default;
 
@@ -366,17 +400,10 @@ public sealed partial class SimulationWorld
             selectedSpawn = spawnPool[selectedPoolIndex];
         }
 
-        if (!useForwardObjectivePriority)
-        {
-            if (team == PlayerTeam.Blue)
-            {
-                _nextBlueSpawnIndex = selectedPoolIndex + 1;
-            }
-            else
-            {
-                _nextRedSpawnIndex = selectedPoolIndex + 1;
-            }
-        }
+        if (team == PlayerTeam.Blue)
+            _nextBlueSpawnIndex = selectedPoolIndex + 1;
+        else
+            _nextRedSpawnIndex = selectedPoolIndex + 1;
 
         return selectedSpawn;
     }
@@ -402,18 +429,22 @@ public sealed partial class SimulationWorld
 
         if (activeForwardSpawns.Count > 0)
         {
-            activeForwardSpawns.Sort(static (left, right) =>
-                right.Priority.CompareTo(left.Priority));
-            return activeForwardSpawns;
+            var highestPriority = activeForwardSpawns.Max(spawn => spawn.Priority);
+            return OrderSpawnTier(activeForwardSpawns.Where(spawn => spawn.Priority == highestPriority));
         }
 
         if (standardSpawns.Count > 0)
-        {
-            return standardSpawns;
-        }
+            return OrderSpawnTier(standardSpawns);
 
-        return spawns;
+        // Legacy maps sometimes supply numbered spawns only, including neutral
+        // starts. In that case use the home tier, never an arbitrary forward tier.
+        var homePriority = spawns.Min(spawn => spawn.LegacySpawnSlot > 0 ? spawn.LegacySpawnSlot : spawn.Priority);
+        return OrderSpawnTier(spawns.Where(spawn =>
+            (spawn.LegacySpawnSlot > 0 ? spawn.LegacySpawnSlot : spawn.Priority) == homePriority));
     }
+
+    private static SpawnPoint[] OrderSpawnTier(IEnumerable<SpawnPoint> spawns)
+        => spawns.OrderBy(spawn => spawn.X).ThenBy(spawn => spawn.Y).ToArray();
 
     private bool IsForwardSpawnActive(SpawnPoint spawn, PlayerTeam team)
     {

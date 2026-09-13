@@ -120,7 +120,7 @@ public static class RuntimePaths
             var configuredMapsDirectory = Environment.GetEnvironmentVariable("OPENGARRISON_MAPS_DIR");
             var path = !string.IsNullOrWhiteSpace(configuredMapsDirectory)
                 ? configuredMapsDirectory
-                : ApplicationMapsDirectory;
+                : UserMapsDirectory;
             if (!OperatingSystem.IsBrowser())
             {
                 Directory.CreateDirectory(path);
@@ -130,7 +130,26 @@ public static class RuntimePaths
         }
     }
 
+    public static string UserMapsDirectory => Path.Combine(UserDataRoot, "Maps");
+
     public static string ApplicationMapsDirectory => Path.Combine(ApplicationRoot, "Maps");
+
+    public static string? LauncherAdjacentMapsDirectory
+    {
+        get
+        {
+            if (OperatingSystem.IsBrowser())
+            {
+                return null;
+            }
+
+            var applicationDirectory = new DirectoryInfo(Path.TrimEndingDirectorySeparator(Path.GetFullPath(ApplicationRoot)));
+            return applicationDirectory.Name.Equals("app", StringComparison.OrdinalIgnoreCase)
+                && applicationDirectory.Parent is not null
+                    ? Path.Combine(applicationDirectory.Parent.FullName, "Maps")
+                    : null;
+        }
+    }
 
     public static string LegacyApplicationMapsDirectory => ApplicationMapsDirectory;
 
@@ -148,6 +167,7 @@ public static class RuntimePaths
             var directories = new List<string>();
             AddUniqueDirectory(directories, MapsDirectory);
             AddUniqueDirectory(directories, ApplicationMapsDirectory);
+            AddUniqueDirectory(directories, LauncherAdjacentMapsDirectory);
             AddUniqueDirectory(directories, LegacyUserMapsDirectory);
             return directories;
         }
@@ -429,7 +449,7 @@ public static class RuntimePaths
         return false;
     }
 
-    private static void AddUniqueDirectory(List<string> directories, string path)
+    private static void AddUniqueDirectory(List<string> directories, string? path)
     {
         if (string.IsNullOrWhiteSpace(path))
         {

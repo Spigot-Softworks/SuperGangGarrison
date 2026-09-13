@@ -105,7 +105,8 @@ public static partial class ProtocolCodec
         BinaryWriter writer,
         IReadOnlyList<SnapshotShotState> shots,
         bool includeBulletPayload = false,
-        bool includeRevolverPayload = false)
+        bool includeRevolverPayload = false,
+        bool includeFlarePayload = false)
     {
         writer.Write((ushort)shots.Count);
         for (var index = 0; index < shots.Count; index += 1)
@@ -157,6 +158,11 @@ public static partial class ProtocolCodec
                 writer.Write(shot.LastToDieRevolverProfile);
                 writer.Write(shot.AppliesLuckyStrikeStun);
             }
+            if (includeFlarePayload)
+            {
+                writer.Write(shot.DamageValue);
+                writer.Write(shot.FlareStyle);
+            }
             writer.Write(shot.CriticalDamageMultiplier);
         }
     }
@@ -164,7 +170,8 @@ public static partial class ProtocolCodec
     private static List<SnapshotShotState> ReadShotStates(
         BinaryReader reader,
         bool includeBulletPayload = false,
-        bool includeRevolverPayload = false)
+        bool includeRevolverPayload = false,
+        bool includeFlarePayload = false)
     {
         var count = reader.ReadUInt16();
         var shots = new List<SnapshotShotState>(count);
@@ -211,6 +218,11 @@ public static partial class ProtocolCodec
             var playerKnockbackGroundedVerticalScale = includeBulletPayload ? reader.ReadSingle() : 1f;
             var lastToDieRevolverProfile = includeRevolverPayload ? reader.ReadInt32() : 0;
             var appliesLuckyStrikeStun = includeRevolverPayload && reader.ReadBoolean();
+            if (includeFlarePayload)
+            {
+                damageValue = reader.ReadSingle();
+            }
+            var flareStyle = includeFlarePayload ? reader.ReadByte() : (byte)0;
             var criticalDamageMultiplier = reader.ReadSingle();
             shots.Add(new SnapshotShotState(
                 id,
@@ -246,7 +258,8 @@ public static partial class ProtocolCodec
                 criticalDamageMultiplier,
                 playerKnockbackImpulse,
                 playerKnockbackAirborneVerticalScale,
-                playerKnockbackGroundedVerticalScale));
+                playerKnockbackGroundedVerticalScale,
+                flareStyle));
         }
 
         return shots;
@@ -287,6 +300,9 @@ public static partial class ProtocolCodec
                 }
             }
             writer.Write(rocket.CriticalDamageMultiplier);
+            writer.Write(rocket.IsBallistic);
+            writer.Write(rocket.BallisticGravityPerTick);
+            writer.Write(rocket.SuppressSmokeTrail);
         }
     }
 
@@ -322,6 +338,9 @@ public static partial class ProtocolCodec
                 passedFriendlyPlayerIds[passedIndex] = reader.ReadInt32();
             }
             var criticalDamageMultiplier = reader.ReadSingle();
+            var isBallistic = reader.ReadBoolean();
+            var ballisticGravityPerTick = reader.ReadSingle();
+            var suppressSmokeTrail = reader.ReadBoolean();
 
             rockets.Add(new SnapshotRocketState(
                 id,
@@ -344,7 +363,10 @@ public static partial class ProtocolCodec
                 fadeSourceTicksRemaining,
                 passedFriendlyPlayerIds,
                 isCritical,
-                criticalDamageMultiplier));
+                criticalDamageMultiplier,
+                isBallistic,
+                ballisticGravityPerTick,
+                suppressSmokeTrail));
         }
 
         return rockets;

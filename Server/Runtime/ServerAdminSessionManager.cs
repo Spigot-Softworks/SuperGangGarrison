@@ -27,12 +27,18 @@ internal sealed class ServerAdminSessionManager(
 
     public static OpenGarrisonServerAdminIdentity GetClientIdentity(ClientSession client)
     {
-        return client.AdminPermissions == OpenGarrisonServerAdminPermissions.None
+        var configuredPermissions = client.HasAttachedGameplayAccount
+            ? client.ConfiguredAdminPermissions
+            : OpenGarrisonServerAdminPermissions.None;
+        var permissions = client.AdminPermissions | configuredPermissions;
+        return permissions == OpenGarrisonServerAdminPermissions.None
             ? OpenGarrisonServerAdminIdentity.CreateUnauthenticated(client.Slot)
             : new OpenGarrisonServerAdminIdentity(
                 client.Name,
-                OpenGarrisonServerAdminAuthority.RconSession,
-                client.AdminPermissions,
+                client.AdminPermissions != OpenGarrisonServerAdminPermissions.None
+                    ? OpenGarrisonServerAdminAuthority.RconSession
+                    : OpenGarrisonServerAdminAuthority.ServerConfiguration,
+                permissions,
                 client.Slot);
     }
 

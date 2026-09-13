@@ -1,6 +1,7 @@
 #nullable enable
 
 using Microsoft.Xna.Framework.Audio;
+using Microsoft.Xna.Framework;
 using System;
 using System.Collections.Generic;
 using OpenGarrison.Core;
@@ -119,7 +120,11 @@ public partial class Game1
 
         public (float Volume, float Pan) GetWorldSoundMix(float worldX, float worldY)
         {
-            var listenerPosition = _game.GetWorldSoundListenerPosition();
+            return GetWorldSoundMix(worldX, worldY, _game.GetWorldSoundListenerPosition());
+        }
+
+        public static (float Volume, float Pan) GetWorldSoundMix(float worldX, float worldY, Vector2 listenerPosition)
+        {
             var dx = worldX - listenerPosition.X;
             var dy = worldY - listenerPosition.Y;
             var distance = MathF.Sqrt(dx * dx + dy * dy);
@@ -131,6 +136,15 @@ public partial class Game1
                     1f);
             var pan = Math.Clamp(dx / WorldSoundPanDistance, -1f, 1f);
             return (volume, pan);
+        }
+
+        public static (float Volume, float Pan) GetBannerSoundMix(float worldX, float worldY, Vector2 listenerPosition)
+        {
+            var dx = worldX - listenerPosition.X;
+            var dy = worldY - listenerPosition.Y;
+            var distance = MathF.Sqrt((dx * dx) + (dy * dy));
+            var volume = distance <= 96f ? 1f : Math.Clamp(1f - ((distance - 96f) / 416f), 0f, 1f);
+            return (volume, Math.Clamp(dx / 400f, -1f, 1f));
         }
 
         public void StopRapidFireWeaponAudio()

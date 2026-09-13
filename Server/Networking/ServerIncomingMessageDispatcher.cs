@@ -38,12 +38,25 @@ internal sealed class ServerIncomingMessageDispatcher(
     Action<ClientSession, LastToDieCommandMessage>? receiveLastToDieCommand = null,
     Action<ClientSession, LastToDieRunSnapshotAckMessage>? receiveLastToDieSnapshotAck = null,
     Func<ClientSession, ControlCommandMessage, bool>? allowControlCommand = null,
-    Func<Guid, byte>? resolveLastToDieReconnectSlot = null)
+    Func<Guid, byte>? resolveLastToDieReconnectSlot = null,
+    Action<ClientSession, VoteCommandMessage>? receiveVoteCommand = null,
+    Action<ClientSession, GameplayAccountAttachRequestMessage>? receiveGameplayAccountAttach = null,
+    Action<ClientSession>? authorizedClientReady = null,
+    Action<ClientSession, VoiceSubmitMessage>? receiveVoice = null,
+    Action<ClientSession, VoiceChannelMembershipMessage>? receiveVoiceMembership = null,
+    Func<ServerTransportPeer, ManagedRoomRuntime.Participant?>? embeddedAdmission = null)
 {
     public void Dispatch(IProtocolMessage message, ServerTransportPeer remotePeer)
     {
         switch (message)
         {
+            case VoiceChannelMembershipMessage membership:
+                if (TryGetAuthorizedClient(remotePeer, out var voiceMember)) receiveVoiceMembership?.Invoke(voiceMember, membership);
+                break;
+            case VoiceSubmitMessage voice:
+                if (TryGetAuthorizedClient(remotePeer, out var voiceClient))
+                    receiveVoice?.Invoke(voiceClient, voice);
+                break;
             case ServerStatusRequestMessage:
                 sendServerStatus(remotePeer);
                 break;
@@ -62,6 +75,7 @@ internal sealed class ServerIncomingMessageDispatcher(
                 {
                     passwordClient.LastSeen = elapsedGetter();
                     sessionManager.HandlePasswordSubmit(passwordClient, passwordSubmit);
+                    if (passwordClient.IsAuthorized) authorizedClientReady?.Invoke(passwordClient);
                 }
                 break;
             case ChatSubmitMessage chatSubmit:
@@ -147,6 +161,20 @@ internal sealed class ServerIncomingMessageDispatcher(
                             controlClient.Peer,
                             new ControlAckMessage(command.Sequence, command.Kind, Accepted: false));
                     }
+                }
+                break;
+            case VoteCommandMessage voteCommand:
+                if (TryGetAuthorizedClient(remotePeer, out var voteClient))
+                {
+                    voteClient.LastSeen = elapsedGetter();
+                    receiveVoteCommand?.Invoke(voteClient, voteCommand);
+                }
+                break;
+            case GameplayAccountAttachRequestMessage attachRequest:
+                if (TryGetAuthorizedClient(remotePeer, out var attachClient))
+                {
+                    attachClient.LastSeen = elapsedGetter();
+                    receiveGameplayAccountAttach?.Invoke(attachClient, attachRequest);
                 }
                 break;
             case LastToDieCommandMessage lastToDieCommand:
@@ -254,6 +282,23 @@ internal sealed class ServerIncomingMessageDispatcher(
 
     private void HandleHello(HelloMessage hello, ServerTransportPeer remotePeer)
     {
+        ManagedRoomRuntime.Participant? managedParticipant = null;
+        if (embeddedAdmission is not null)
+        {
+            managedParticipant = embeddedAdmission(remotePeer);
+            if (managedParticipant is null || managedParticipant.ClientId != hello.ClientInstanceId || hello.Intent != ConnectionIntent.Join)
+            {
+                sendMessage(remotePeer, new ConnectionDeniedMessage("The player does not own this room seat."));
+                return;
+            }
+        }
+        if (ManagedRoomRuntime.Enabled
+            && (!ManagedRoomRuntime.Participants.TryGetValue(remotePeer.Id, out managedParticipant)
+                || managedParticipant.ClientId != hello.ClientInstanceId || hello.Intent != ConnectionIntent.Join))
+        {
+            sendMessage(remotePeer, new ConnectionDeniedMessage("A private room admission is required."));
+            return;
+        }
         var remoteDescription = remotePeer.ToString();
         var clientName = PlayerEntity.NormalizeDisplayName(hello.Name);
         pluginHostGetter()?.NotifyHelloReceived(new HelloReceivedEvent(clientName, remoteDescription, hello.Version));
@@ -315,6 +360,7 @@ internal sealed class ServerIncomingMessageDispatcher(
             else
             {
                 sendCustomBubbleStates?.Invoke(remotePeer);
+                authorizedClientReady?.Invoke(existingClient);
             }
 
             log($"[server] client refreshed {remoteDescription} slot={existingClient.Slot} name=\"{clientName}\" version={hello.Version}");
@@ -346,6 +392,7 @@ internal sealed class ServerIncomingMessageDispatcher(
         var reconnectSlot = !watchOnly && hello.ClientInstanceId != Guid.Empty
             ? resolveLastToDieReconnectSlot?.Invoke(hello.ClientInstanceId) ?? (byte)0
             : (byte)0;
+        if (managedParticipant is not null) reconnectSlot = managedParticipant.Slot;
         if (reconnectSlot != 0
             && (!SimulationWorld.IsPlayableNetworkPlayerSlot(reconnectSlot)
                 || reconnectSlot > maxPlayableClients
@@ -431,6 +478,7 @@ internal sealed class ServerIncomingMessageDispatcher(
         else
         {
             sendCustomBubbleStates?.Invoke(remotePeer);
+            authorizedClientReady?.Invoke(client);
         }
 
         if (remoteAddress is not null)

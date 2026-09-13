@@ -1,11 +1,11 @@
 on:
   release:
-    types: [created]
+    types: [published]
   workflow_dispatch:
     inputs:
       version:
         description: 'Release version to stamp into packages, for example 1.0.1'
-        required: false
+        required: true
         type: string
 
 permissions:
@@ -13,6 +13,7 @@ permissions:
 
 jobs:
   build:
+    if: github.event_name == 'workflow_dispatch' || github.event.release.prerelease == false
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -21,6 +22,36 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
+
+      - name: Resolve release identity
+        id: release
+        shell: pwsh
+        env:
+          EVENT_TAG: ${{ github.event.release.tag_name }}
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          $tag = $env:EVENT_TAG
+          $version = $env:INPUT_VERSION
+          if ([string]::IsNullOrWhiteSpace($version)) {
+            $version = $tag
+          }
+          if ([string]::IsNullOrWhiteSpace($version)) {
+            throw 'A release version is required.'
+          }
+          if ([string]::IsNullOrWhiteSpace($tag)) {
+            $tag = if ($version.StartsWith('v', [System.StringComparison]::OrdinalIgnoreCase)) {
+              $version
+            } else {
+              "v$version"
+            }
+          }
+          if ($tag -notmatch '^v?[0-9]+(?:\.[0-9]+)+(?:[-+][0-9A-Za-z.-]+)?$') {
+            throw "Release tag '$tag' is not a supported version tag."
+          }
+          $escapedTag = [System.Uri]::EscapeDataString($tag)
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+          "asset_base_url=https://github.com/${{ github.repository }}/releases/download/$escapedTag" >> $env:GITHUB_OUTPUT
 
       - name: Install Linux MsQuic native dependency
         run: |
@@ -47,25 +78,27 @@ jobs:
 
       - name: Fetch currently published packages for incremental updates
         shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           ./scripts/fetch-update-delta-bases.ps1 `
             -Platforms @("linux-x64", "win-x64") `
             -Channel stable `
-            -OutputDirectory ./dist/delta-bases
+            -OutputDirectory ./dist/delta-bases `
+            -GitHubRepository "${{ github.repository }}" `
+            -ExcludeReleaseTag "${{ steps.release.outputs.tag }}" `
+            -Required
 
       - name: Package Linux and Windows
         shell: pwsh
         run: |
-          $version = "${{ github.event.inputs.version }}"
-          if ([string]::IsNullOrWhiteSpace($version)) {
-            $version = "${{ github.event.release.tag_name }}"
-          }
-
           $platforms = @("linux-x64", "win-x64")
           ./scripts/package.ps1 `
             -Platforms $platforms `
-            -Version $version `
-            -DeltaBaseDirectory ./dist/delta-bases
+            -Version "${{ steps.release.outputs.version }}" `
+            -DeltaBaseDirectory ./dist/delta-bases `
+            -UpdateAssetBaseUrl "${{ steps.release.outputs.asset_base_url }}" `
+            -RequireDeltas
 
       - name: Verify distribution archives
         shell: pwsh
@@ -81,22 +114,60 @@ jobs:
             Where-Object { $_.Name.EndsWith('.tar.gz', [System.StringComparison]::OrdinalIgnoreCase) -or $_.Name.EndsWith('.tgz', [System.StringComparison]::OrdinalIgnoreCase) } |
             Select-Object -First 1
 
-          Get-ChildItem ./dist -File -Filter '*.delta.zip' | ForEach-Object {
+          $winDeltas = @(Get-ChildItem ./dist -File -Filter '*.delta.zip')
+          $linuxDeltas = @(Get-ChildItem ./dist -File -Filter '*.delta.tar.gz')
+          if ($winDeltas.Count -eq 0 -or $linuxDeltas.Count -eq 0) {
+            throw 'Every release must contain verified Windows and Linux delta packages.'
+          }
+
+          $winDeltas | ForEach-Object {
             if ($null -eq $winBase) { throw 'A Windows delta was generated without its base archive.' }
             ./scripts/verify-update-delta.ps1 -RuntimeIdentifier win-x64 -ArchivePath $_.FullName -BaseArchivePath $winBase.FullName -UpdaterAssemblyPath $updaterAssembly
           }
-          Get-ChildItem ./dist -File -Filter '*.delta.tar.gz' | ForEach-Object {
+          $linuxDeltas | ForEach-Object {
             if ($null -eq $linuxBase) { throw 'A Linux delta was generated without its base archive.' }
             ./scripts/verify-update-delta.ps1 -RuntimeIdentifier linux-x64 -ArchivePath $_.FullName -BaseArchivePath $linuxBase.FullName -UpdaterAssemblyPath $updaterAssembly
           }
 
+      - name: Prepare release manifests
+        shell: pwsh
+        run: |
+          $manifests = @(
+            @{
+              Source = './services/opengarrison-api/updates/windows-x64/stable/latest.json'
+              Destination = './dist/OpenGarrison-Windows-x64.latest.json'
+            },
+            @{
+              Source = './services/opengarrison-api/updates/linux-x64/stable/latest.json'
+              Destination = './dist/OpenGarrison-Linux-x64.latest.json'
+            }
+          )
+          foreach ($item in $manifests) {
+            $manifest = Get-Content -LiteralPath $item.Source -Raw | ConvertFrom-Json
+            if ([int]$manifest.schemaVersion -lt 2 -or @($manifest.deltas).Count -eq 0) {
+              throw "Release manifest '$($item.Source)' does not advertise a delta."
+            }
+            foreach ($package in @($manifest.fullPackage) + @($manifest.deltas)) {
+              if ([string]::IsNullOrWhiteSpace([string]$package.url) -or
+                  -not ([string]$package.url).StartsWith("${{ steps.release.outputs.asset_base_url }}/", [System.StringComparison]::Ordinal)) {
+                throw "Release manifest '$($item.Source)' contains an unpinned package URL."
+              }
+            }
+            Copy-Item -LiteralPath $item.Source -Destination $item.Destination -Force
+          }
+
       - name: Upload to GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
+          tag_name: ${{ steps.release.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          make_latest: true
+          fail_on_unmatched_files: true
+          overwrite_files: true
           files: |
             dist/OpenGarrison-Linux-x64.tar.gz
             dist/OpenGarrison-Windows-x64.zip
             dist/*.delta.zip
             dist/*.delta.tar.gz
-            services/opengarrison-api/updates/linux-x64/stable/latest.json
-            services/opengarrison-api/updates/windows-x64/stable/latest.json
+            dist/OpenGarrison-Linux-x64.latest.json
+            dist/OpenGarrison-Windows-x64.latest.json

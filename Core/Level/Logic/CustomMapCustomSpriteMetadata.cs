@@ -114,24 +114,7 @@ public static class CustomMapCustomSpriteMetadata
 
     public static bool TryParsePngDimensions(byte[] bytes, out int width, out int height)
     {
-        width = 0;
-        height = 0;
-        if (bytes.Length == 0)
-        {
-            return false;
-        }
-
-        try
-        {
-            using var image = Image.Load(bytes);
-            width = image.Width;
-            height = image.Height;
-            return width > 0 && height > 0;
-        }
-        catch
-        {
-            return false;
-        }
+        return BuilderImageDimensions.TryGet(bytes, out width, out height);
     }
 
     public static (float Width, float Height) ResolveWorldDimensions(

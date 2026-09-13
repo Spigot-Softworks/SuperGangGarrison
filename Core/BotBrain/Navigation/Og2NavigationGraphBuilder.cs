@@ -2138,9 +2138,12 @@ public static class Og2NavigationGraphStore
         // override these values explicitly; an unset value gets the validated
         // production default so a practice match cannot silently fall back to
         // the deprecated graph builder or its slow exploratory sweep.
+        var browserTrace = OperatingSystem.IsBrowser() && Environment.GetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_CACHE_TRACE") == "1";
+        if (browserTrace) Console.WriteLine($"[botbrain] resolving browser graph {level.Name}");
         ConfigureProductionGraphSettings();
 
         var requestedKey = Og2NavigationGraphCache.BuildKey(level);
+        if (browserTrace) Console.WriteLine($"[botbrain] browser graph key={requestedKey}");
         if (Cache.TryGetValue(level, out var cached))
         {
             if (string.Equals(cached.RequestedKey, requestedKey, StringComparison.Ordinal)
@@ -2186,6 +2189,11 @@ public static class Og2NavigationGraphStore
             }
             else
             {
+                if (OperatingSystem.IsBrowser())
+                {
+                    Console.WriteLine($"[botbrain] missing browser graph level={level.Name} key={requestedKey} path={cachePath} assets={BrowserContentCatalog.GetBinaryPaths("Content/BotBrainOg2Nav").Count}");
+                    throw new InvalidDataException($"Packaged bot navigation is unavailable for {level.Name}.");
+                }
                 graph = Og2NavigationGraphBuilder.Build(level);
                 Og2NavigationGraphCache.Save(level, requestedKey, graph, out var savedPath);
                 resolutionSource = Og2NavigationGraphResolutionSource.Built;

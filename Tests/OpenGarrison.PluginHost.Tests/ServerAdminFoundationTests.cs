@@ -668,6 +668,9 @@ public sealed class ServerAdminFoundationTests
                 : OpenGarrisonServerAdminIdentity.CreateUnauthenticated(slot),
             static (_, _, _, _, _, _, _) => { },
             static (_, _, _, _, _, _) => { },
+            UnusedServerVoting.Register,
+            UnusedServerVoting.Start,
+            static _ => { },
             Path.Combine(rootPath, "plugins"),
             Path.Combine(rootPath, "config"),
             Path.Combine(rootPath, "maps"),
@@ -725,6 +728,9 @@ public sealed class ServerAdminFoundationTests
                 : OpenGarrisonServerAdminIdentity.CreateUnauthenticated(slot),
             static (_, _, _, _, _, _, _) => { },
             static (_, _, _, _, _, _) => { },
+            UnusedServerVoting.Register,
+            UnusedServerVoting.Start,
+            static _ => { },
             Path.Combine(repoRoot, "Plugins", "Packaged"),
             Path.Combine(configRoot, "config"),
             Path.Combine(configRoot, "maps"),
@@ -1367,6 +1373,34 @@ public sealed class ServerAdminFoundationTests
 
         Assert.Same(thinkTask, completedTask);
         await thinkTask;
+    }
+
+    [Fact]
+    public void ServerBotManagerPromotesPendingCombatReactionOutsideNormalCadence()
+    {
+        var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
+        var controller = new UrgentCombatTestController();
+        var botManager = new ServerBotManager(world, new SimulationConfig(), controller);
+
+        Assert.True(botManager.TryAddBot(2, PlayerTeam.Blue, PlayerClass.Soldier, "Blue Bot"));
+
+        // The first pass seeds the ordinary input cache. At frame 1 the
+        // normal two-tick cadence is not due, so only the urgent signal may
+        // promote this bot into a full BuildInputsForSlots call.
+        botManager.FeedBotInputsBeforeSimulationAdvance();
+        Assert.Equal(1, controller.BuildInputCalls);
+        world.AdvanceOneTick();
+
+        controller.Urgent = true;
+        botManager.FeedBotInputsBeforeSimulationAdvance();
+        Assert.Equal(2, controller.BuildInputCalls);
+        Assert.Contains((byte)2, controller.LastSlots);
+
+        // Removing the urgent signal at the same frame stops the promotion;
+        // the cached input remains eligible until ordinary cadence is due.
+        controller.Urgent = false;
+        botManager.FeedBotInputsBeforeSimulationAdvance();
+        Assert.Equal(2, controller.BuildInputCalls);
     }
 
     [Fact]
@@ -2567,6 +2601,47 @@ public sealed class ServerAdminFoundationTests
         public bool IsScheduled(Guid timerId) => false;
 
         public IReadOnlyList<OpenGarrisonServerScheduledTaskInfo> GetScheduledTasks() => [];
+    }
+
+    private sealed class UrgentCombatTestController : IPracticeBotController
+    {
+        public bool CollectDiagnostics { get; set; }
+
+        public BotControllerDiagnosticsSnapshot LastDiagnostics => BotControllerDiagnosticsSnapshot.Empty;
+
+        public bool Urgent { get; set; }
+
+        public int BuildInputCalls { get; private set; }
+
+        public IReadOnlyCollection<byte> LastSlots { get; private set; } = [];
+
+        public void Reset()
+        {
+        }
+
+        public void ConfigureSpawnOverrides(
+            SimulationWorld world,
+            IReadOnlyDictionary<byte, ControlledBotSlot> controlledSlots)
+        {
+        }
+
+        public IReadOnlyDictionary<byte, PlayerInputSnapshot> BuildInputs(
+            SimulationWorld world,
+            IReadOnlyDictionary<byte, ControlledBotSlot> controlledSlots)
+            => BuildInputsForSlots(world, controlledSlots, controlledSlots.Keys.ToArray());
+
+        public IReadOnlyDictionary<byte, PlayerInputSnapshot> BuildInputsForSlots(
+            SimulationWorld world,
+            IReadOnlyDictionary<byte, ControlledBotSlot> controlledSlots,
+            IReadOnlyCollection<byte> slotsToThink)
+        {
+            BuildInputCalls += 1;
+            LastSlots = slotsToThink.ToArray();
+            return slotsToThink.ToDictionary(slot => slot, _ => default(PlayerInputSnapshot));
+        }
+
+        public bool RequiresPerTickCombatThink(byte slot, SimulationWorld world)
+            => Urgent && slot == 2;
     }
 }
 

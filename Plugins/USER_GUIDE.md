@@ -68,7 +68,6 @@ plugins that live in the same runtime plugin folders.
 Examples include:
 
 - client HUD or visual helper plugins
-- server chat voting
 - server admin tools
 
 You can disable client packaged plugins from **Plugin Options**. Server packaged
@@ -81,10 +80,12 @@ Some server plugins add chat commands. Commands usually start with `!` or `/`.
 Examples:
 
 ```text
-!votemap ctf_truefort
-!vote yes
 !gt_help
 ```
+
+The stock vote menu and `!vote*` commands, plus `!points`, are native server features,
+not packaged plugins. Use `!votemenu` to call or join a vote and `!votehelp` for the
+chat command list. Server plugins can add vote kinds directly to the same menu.
 
 Command availability depends on the server and your permissions. Admin commands
 may require authentication or server-granted permissions.

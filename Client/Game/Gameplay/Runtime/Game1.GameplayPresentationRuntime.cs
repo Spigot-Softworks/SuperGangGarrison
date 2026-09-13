@@ -85,8 +85,10 @@ public partial class Game1
         UpdateEvasionMissPopups();
         UpdateHeavyDashDodgePopup();
         UpdateGameplayMessages(gameTime, keyboard, mouse);
+        UpdateFirstPlayHints(gameTime);
+        var teamSelectionOwnedInput = _teamSelectOpen;
         UpdateTeamSelect(keyboard, mouse);
-        UpdateClassSelect(mouse);
+        UpdateClassSelect(keyboard, mouse, acceptSelectionInput: !teamSelectionOwnedInput);
         RecordBrowserPresentationDuration(browserPresentationStartTimestamp);
     }
 

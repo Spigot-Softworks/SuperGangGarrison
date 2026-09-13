@@ -252,6 +252,28 @@ public partial class Game1
 
     private void UpdateGarrisonBuilderEditor(KeyboardState keyboard, MouseState mouse, float deltaSeconds)
     {
+        try
+        {
+            if (_builderEditorEnabled)
+            {
+                UpdateGarrisonBuilderMaintenance(deltaSeconds);
+                if (UpdateGarrisonBuilderFileWork()) return;
+                if (UpdateGarrisonBuilderFileDialog(keyboard)) return;
+                if (_builderMapNameCollisionDialogOpen) { UpdateGarrisonBuilderMapNameCollisionDialog(keyboard, mouse); return; }
+                if (UpdateGarrisonBuilderUnsavedPrompt(keyboard, mouse)) return;
+            }
+            UpdateGarrisonBuilderEditorCore(keyboard, mouse, deltaSeconds);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException or SixLabors.ImageSharp.UnknownImageFormatException or SixLabors.ImageSharp.InvalidImageContentException)
+        {
+            _builderStatus = "Builder operation failed: " + ex.Message;
+            AddConsoleLine(_builderStatus);
+            FinishGarrisonBuilderGestures();
+        }
+    }
+
+    private void UpdateGarrisonBuilderEditorCore(KeyboardState keyboard, MouseState mouse, float deltaSeconds)
+    {
         if (IsKeyPressed(keyboard, Keys.F4))
         {
             if (_builderEditorEnabled)
@@ -282,35 +304,16 @@ public partial class Game1
 
         TryApplyPendingGarrisonBuilderCameraCenter();
         UpdateLegacyGarrisonBuilderAnimation(deltaSeconds);
+        if (UpdateGarrisonBuilderPropertyEditor(keyboard, mouse)) return;
+        if (UpdateGarrisonBuilderLayerParallaxDialog(keyboard, mouse)) return;
+        if (UpdateGarrisonBuilderMapNameCollisionDialog(keyboard, mouse)) return;
+        if (UpdateGarrisonBuilderPathKeyboard(keyboard)) return;
         if (_builderUseModernUi)
         {
             SyncGarrisonBuilderActiveTool();
             UpdateModernGarrisonBuilderCamera(keyboard, mouse, deltaSeconds);
             UpdateModernGarrisonBuilderZoom(mouse, keyboard);
-            if (TryHandleGarrisonBuilderHistoryShortcuts(keyboard))
-            {
-                return;
-            }
-        }
-
-        if (UpdateGarrisonBuilderPropertyEditor(keyboard, mouse))
-        {
-            return;
-        }
-
-        if (UpdateGarrisonBuilderLayerParallaxDialog(keyboard, mouse))
-        {
-            return;
-        }
-
-        if (UpdateGarrisonBuilderMapNameCollisionDialog(keyboard, mouse))
-        {
-            return;
-        }
-
-        if (UpdateGarrisonBuilderPathKeyboard(keyboard))
-        {
-            return;
+            if (TryHandleGarrisonBuilderHistoryShortcuts(keyboard)) return;
         }
 
         TryHandleGarrisonBuilderGridAlignShortcut(keyboard);
@@ -398,15 +401,7 @@ public partial class Game1
             return;
         }
 
-        if (IsKeyPressed(keyboard, Keys.Delete) && _builderEntities.Count > 0)
-        {
-            var removedIndex = _builderEntities.Count - 1;
-            NotifyGarrisonBuilderEntityRemoved(removedIndex);
-            _builderEntities.RemoveAt(removedIndex);
-            UpdateGarrisonBuilderDocumentEntities();
-            _builderDirty = true;
-            _builderStatus = "removed latest entity";
-        }
+        if (IsKeyPressed(keyboard, Keys.Delete)) RemoveGarrisonBuilderSelectedEntities();
 
         if (mouse.LeftButton == ButtonState.Pressed && _previousMouse.LeftButton == ButtonState.Released)
         {
@@ -522,10 +517,10 @@ public partial class Game1
             return;
         }
 
-        LoadGarrisonBuilderEditorAssets();
         if (_builderUseModernUi)
         {
             DrawModernGarrisonBuilderEditorOverlay(mouse);
+            DrawGarrisonBuilderStabilityOverlays(mouse);
             return;
         }
 
@@ -552,6 +547,7 @@ public partial class Game1
         DrawGarrisonBuilderLayerParallaxDialog(mouse);
         DrawGarrisonBuilderMapNameCollisionDialog(mouse);
         DrawGarrisonBuilderTransientStatus();
+        DrawGarrisonBuilderStabilityOverlays(mouse);
     }
 
     private float GetGarrisonBuilderEditorZoom()
@@ -1287,7 +1283,7 @@ public partial class Game1
         {
             _spriteBatch.Draw(_pixel, addBounds, addBounds.Contains(mouse.Position) ? new Color(220, 220, 220) : new Color(190, 190, 190));
             DrawGarrisonBuilderText("Add new property", addBounds.Location.ToVector2() + new Vector2(4f, 2f), Color.Black, 0.95f);
-            DrawGarrisonBuilderText("Click bool to toggle, other values to edit. Esc closes.", bounds.X + 8, bounds.Bottom - 22, Color.Black, 0.66f);
+            DrawGarrisonBuilderText("Click values to edit. Enter / Esc: apply and close.", bounds.X + 8, bounds.Bottom - 22, Color.Black, 0.66f);
         }
 
         DrawGarrisonBuilderEntityRefListDropdown(mouse);
@@ -1326,7 +1322,7 @@ public partial class Game1
 
     private void DrawLegacyGarrisonBuilderStatus()
     {
-        var validation = CustomMapBuilderValidator.Validate(_builderDocument with { Entities = _builderEntities.ToArray() }, _builderSelectedGameMode);
+        var validation = GetGarrisonBuilderValidation();
         var text = $"{GetGarrisonBuilderModeLabel(validation.Mode)} | {(_builderDirty ? "dirty" : "saved")} | {_builderStatus}";
         var width = Math.Min(BuilderViewportWidth - BuilderUi(8), (int)MathF.Ceiling(MeasureGarrisonBuilderText(text, 1f).X) + BuilderUi(12));
         var bounds = new Rectangle(4, 4, width, 18);
@@ -1474,7 +1470,7 @@ public partial class Game1
         y += 18;
         DrawGarrisonBuilderText($"Placed: {_builderEntities.Count}", x, y, Color.White, 0.8f);
         y += 18;
-        var validation = CustomMapBuilderValidator.Validate(_builderDocument with { Entities = _builderEntities.ToArray() }, _builderSelectedGameMode);
+        var validation = GetGarrisonBuilderValidation();
         DrawGarrisonBuilderText($"Mode: {GetGarrisonBuilderModeLabel(validation.Mode)}", x, y, validation.IsValid ? new Color(150, 224, 160) : new Color(255, 214, 118), 0.8f);
         y += 18;
         DrawGarrisonBuilderText(validation.IsValid ? "Validation: OK" : $"Validation: {validation.Issues.Count} issue(s)", x, y, validation.IsValid ? new Color(150, 224, 160) : new Color(255, 214, 118), 0.8f);
@@ -1495,7 +1491,7 @@ public partial class Game1
         y += 28;
         DrawGarrisonBuilderText("Metadata", x, y, new Color(180, 214, 230), 0.9f);
         y += 22;
-        foreach (var pair in _builderDocument.BuildExportMetadata())
+        foreach (var pair in _builderDocument.Metadata)
         {
             if (y > panel.Bottom - 72)
             {
@@ -2334,6 +2330,7 @@ public partial class Game1
 
     private void ApplyLegacyGarrisonBuilderLayerClear()
     {
+        RecordGarrisonBuilderHistory();
         if (_builderLayerIndex == 7)
         {
             _builderDocument = _builderDocument with { BackgroundImagePath = string.Empty };
@@ -2411,6 +2408,7 @@ public partial class Game1
 
     private void CommitGarrisonBuilderResourcePath()
     {
+        RecordGarrisonBuilderHistory();
         var path = _builderResourcePathBuffer.Trim().Trim('"');
         if (string.IsNullOrWhiteSpace(_builderPendingResourceName))
         {
@@ -2567,32 +2565,8 @@ public partial class Game1
         return null;
     }
 
-    private Texture2D? GetGarrisonBuilderResourceTexture(string resourceName)
-    {
-        if (_builderResourceTextureCache.TryGetValue(resourceName, out var cached))
-        {
-            return cached;
-        }
-
-        if (!_builderDocument.Resources.TryGetValue(resourceName, out var resource)
-            || !CustomMapBuilderResourceCodec.TryGetResourceBytes(resource, out var bytes)
-            || !CustomMapBuilderResourceCodec.IsSupportedImage(bytes)
-            || bytes.Length == 0)
-        {
-            return null;
-        }
-
-        try
-        {
-            var texture = TextureDecodeUtility.LoadTexture(GraphicsDevice, bytes, applyLegacyChromaKey: false);
-            _builderResourceTextureCache[resourceName] = texture;
-            return texture;
-        }
-        catch (Exception)
-        {
-            return null;
-        }
-    }
+    private Texture2D? GetGarrisonBuilderResourceTexture(string resourceName) =>
+        _builderResourceTextureCache.TryGetValue(resourceName, out var texture) ? texture : null;
 
     private void DrawGarrisonBuilderResourcePreview(Texture2D texture, Rectangle bounds, Color? tint = null)
     {
@@ -2616,6 +2590,7 @@ public partial class Game1
         }
 
         _builderResourceTextureCache.Clear();
+        _builderResourceDecodeTasks.Clear();
     }
 
     private void OpenGarrisonBuilderLayerParallaxDialog(int layerIndex)
@@ -2851,6 +2826,8 @@ public partial class Game1
 
     private void BeginEditingGarrisonBuilderMapProperties()
     {
+        FinishGarrisonBuilderGestures();
+        BeginGarrisonBuilderPropertyTransaction();
         var normalized = _builderDocument.NormalizeForEditing();
         _builderPropertyTarget = GarrisonBuilderPropertyTarget.MapProperties;
         _builderPropertyEditMode = GarrisonBuilderPropertyEditMode.List;
@@ -2930,6 +2907,7 @@ public partial class Game1
 
     private bool TryApplyGarrisonBuilderMapPropertiesFromEditorValues()
     {
+        BeginGarrisonBuilderPropertyTransaction();
         if (!_builderPropertyEditorValues.TryGetValue(GarrisonBuilderMapPropertyNameKey, out var nameBuffer))
         {
             _builderStatus = "map name is required";
@@ -2945,7 +2923,7 @@ public partial class Game1
 
         if (!_builderPropertyEditorValues.TryGetValue(GarrisonBuilderMapPropertyVisualScaleKey, out var visualScaleBuffer)
             || !float.TryParse(visualScaleBuffer.Trim(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var visualScale)
-            || visualScale <= 0f)
+            || !float.IsFinite(visualScale) || visualScale <= 0f)
         {
             _builderStatus = "enter a positive visual scale";
             return false;
@@ -2953,7 +2931,7 @@ public partial class Game1
 
         if (!_builderPropertyEditorValues.TryGetValue(GarrisonBuilderMapPropertyWalkmaskScaleKey, out var walkmaskScaleBuffer)
             || !float.TryParse(walkmaskScaleBuffer.Trim(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var walkmaskScale)
-            || walkmaskScale <= 0f)
+            || !float.IsFinite(walkmaskScale) || walkmaskScale <= 0f)
         {
             _builderStatus = "enter a positive walkmask scale";
             return false;
@@ -3580,7 +3558,7 @@ public partial class Game1
         }
         else
         {
-            TryUndoGarrisonBuilder();
+            if (_builderUndoStack.Count > 0) _builderUndoStack.RemoveAt(_builderUndoStack.Count - 1);
             _builderStatus = "no entities in erase area";
         }
     }
@@ -5137,6 +5115,8 @@ public partial class Game1
         if (IsKeyPressed(keyboard, Keys.Escape))
         {
             _builderActivePathField = GarrisonBuilderPathField.None;
+            CancelGarrisonBuilderDialogFallback();
+            CancelGarrisonBuilderSaveAs();
             _builderStatus = "path edit canceled";
             return true;
         }
@@ -5145,7 +5125,8 @@ public partial class Game1
         {
             var field = _builderActivePathField;
             _builderActivePathField = GarrisonBuilderPathField.None;
-            ApplyGarrisonBuilderPathField(field);
+            if (_builderDialogFallback) CompleteGarrisonBuilderDialogFallback();
+            else ApplyGarrisonBuilderPathField(field);
             return true;
         }
 
@@ -5182,6 +5163,13 @@ public partial class Game1
 
     private bool HandleGarrisonBuilderTextInput(char character)
     {
+        if (_builderDialogTask is not null || _builderFileWorkTask is not null) return _builderEditorEnabled;
+        if (_builderDialogFallback)
+        {
+            var pathResult = InsertTextCharacterAtCursor(_builderResourcePathBuffer, character, _builderPathCursorIndex, _builderPathSelectionStart, 4096);
+            _builderResourcePathBuffer = pathResult.Text; _builderPathCursorIndex = pathResult.CursorIndex; _builderPathSelectionStart = pathResult.SelectionStart;
+            return true;
+        }
         if (HandleGarrisonBuilderPropertyTextInput(character))
         {
             return true;
@@ -5207,16 +5195,9 @@ public partial class Game1
 
     private void BeginEditingGarrisonBuilderPath(GarrisonBuilderPathField field)
     {
-        if (OperatingSystem.IsWindows())
-        {
-            if (!TryApplyGarrisonBuilderNativePathDialog(field)
-                && field is GarrisonBuilderPathField.ResourcePath or GarrisonBuilderPathField.ResourceName)
-            {
-                ClearGarrisonBuilderPendingResourceImport();
-            }
-
-            return;
-        }
+        if (field == GarrisonBuilderPathField.Save && !CommitGarrisonBuilderActiveEdits()) return;
+        FinishGarrisonBuilderGestures();
+        if (TryApplyGarrisonBuilderNativePathDialog(field)) return;
 
         _builderActivePathField = field;
         var text = GetGarrisonBuilderPathFieldBuffer(field);
@@ -5258,6 +5239,7 @@ public partial class Game1
                 SetGarrisonBuilderWalkmaskPath(_builderWalkmaskPathBuffer);
                 break;
             case GarrisonBuilderPathField.Save:
+                _builderSaveAsOriginalPath ??= _builderSavePath;
                 _builderSavePath = _builderSavePathBuffer.Trim().Trim('"');
                 SaveGarrisonBuilderDocument();
                 break;
@@ -5275,35 +5257,34 @@ public partial class Game1
 
     private bool TryApplyGarrisonBuilderNativePathDialog(GarrisonBuilderPathField field)
     {
-        if (!OperatingSystem.IsWindows())
-        {
-            return false;
-        }
-
+        string title, filter, initial;
+        var save = false;
+        var folder = false;
         switch (field)
         {
             case GarrisonBuilderPathField.OpenMap:
-                return TryChooseGarrisonBuilderFile("Load map", "Map files (*.png;*.json)|*.png;*.json|PNG files (*.png)|*.png|JSON packages (*.json)|*.json|All files (*.*)|*.*", _builderOpenMapBuffer, out _builderOpenMapBuffer)
-                    && ApplyChosenGarrisonBuilderPath(field);
+                title = "Open map or draft"; filter = "Maps and drafts|*.ogmap;*.png;*.json|All files|*.*"; initial = _builderOpenMapBuffer; break;
             case GarrisonBuilderPathField.Background:
-                return TryChooseGarrisonBuilderFile("Load background PNG", "PNG files (*.png)|*.png|All files (*.*)|*.*", _builderBackgroundPathBuffer, out _builderBackgroundPathBuffer)
-                    && ApplyChosenGarrisonBuilderPath(field);
+                title = "Load background"; filter = "PNG images|*.png"; initial = _builderBackgroundPathBuffer; break;
             case GarrisonBuilderPathField.Walkmask:
-                return TryChooseGarrisonBuilderFile("Load walkmask PNG", "PNG files (*.png)|*.png|All files (*.*)|*.*", _builderWalkmaskPathBuffer, out _builderWalkmaskPathBuffer)
-                    && ApplyChosenGarrisonBuilderPath(field);
+                title = "Load walkmask"; filter = "PNG images|*.png"; initial = _builderWalkmaskPathBuffer; break;
             case GarrisonBuilderPathField.ResourcePath:
-                var resourceDialog = GetGarrisonBuilderResourcePathDialogOptions();
-                return TryChooseGarrisonBuilderFile(resourceDialog.Title, resourceDialog.Filter, _builderResourcePathBuffer, out _builderResourcePathBuffer)
-                    && ApplyChosenGarrisonBuilderPath(field);
+                (title, filter) = GetGarrisonBuilderResourcePathDialogOptions(); initial = _builderResourcePathBuffer; break;
             case GarrisonBuilderPathField.ResourceOutputDirectory:
-                return TryChooseGarrisonBuilderFolder("Choose resource output directory", _builderResourceOutputDirectoryBuffer, out _builderResourceOutputDirectoryBuffer)
-                    && ApplyChosenGarrisonBuilderPath(field);
+                title = "Export resources"; filter = ""; initial = _builderResourceOutputDirectoryBuffer; folder = true; break;
             case GarrisonBuilderPathField.Save:
-                return TryChooseGarrisonBuilderSaveFile("Save map", "Package manifests (*.json)|*.json|Legacy PNG files (*.png)|*.png|All files (*.*)|*.*", _builderSavePathBuffer, out _builderSavePathBuffer)
-                    && ApplyChosenGarrisonBuilderPath(field);
-            default:
-                return false;
+                title = "Save map (drafts may be unfinished)";
+                filter = "Editable drafts (*.ogmap)|*.ogmap|Playable packages (*.json)|*.json|Legacy maps (*.png)|*.png";
+                initial = string.IsNullOrWhiteSpace(_builderSavePathBuffer) ? _builderDocument.Name + BuilderProjectStore.Extension : _builderSavePathBuffer;
+                save = true; break;
+            default: return false;
         }
+        BeginGarrisonBuilderFileDialog(title, filter, initial, save, folder, chosen =>
+        {
+            SetGarrisonBuilderPathFieldBuffer(field, chosen);
+            ApplyGarrisonBuilderPathField(field);
+        });
+        return true;
     }
 
     private static float NormalizeGarrisonBuilderEntityScale(float scale)
@@ -5515,43 +5496,19 @@ public partial class Game1
         return true;
     }
 
-    private bool TryChooseGarrisonBuilderFile(string title, string filter, string initialPath, out string selectedPath)
-    {
-        var script = string.Concat(
-            "Add-Type -AssemblyName System.Windows.Forms;",
-            "$o=$null;$d=$null;try{$o=New-Object System.Windows.Forms.Form;$o.TopMost=$true;$o.ShowInTaskbar=$false;$o.StartPosition='CenterScreen';$o.Width=1;$o.Height=1;$o.Show();$o.Activate();$d=New-Object System.Windows.Forms.OpenFileDialog;",
-            "$d.Title=", ToPowerShellSingleQuotedString(title), ";",
-            "$d.Filter=", ToPowerShellSingleQuotedString(filter), ";",
-            SetInitialDialogDirectoryScript(initialPath),
-            "$result=$d.ShowDialog($o);if($result -eq [System.Windows.Forms.DialogResult]::OK){[Console]::Write($d.FileName)}}finally{try{if($o){$o.Close()}}finally{try{if($o){$o.Dispose()}}finally{if($d){$d.Dispose()}}}}");
-        return TryRunGarrisonBuilderDialogScript(script, out selectedPath);
-    }
+    private void BeginChooseGarrisonBuilderFile(string title, string filter, string initialPath, Action<string> accepted) =>
+        BeginGarrisonBuilderFileDialog(title, filter, initialPath, false, false, accepted);
 
-    private bool TryChooseGarrisonBuilderSaveFile(string title, string filter, string initialPath, out string selectedPath)
+    private static string CreateGarrisonBuilderDialogScript(string title, string filter, string initialPath, bool save, bool folder)
     {
-        var script = string.Concat(
-            "Add-Type -AssemblyName System.Windows.Forms;",
-            "$o=$null;$d=$null;try{$o=New-Object System.Windows.Forms.Form;$o.TopMost=$true;$o.ShowInTaskbar=$false;$o.StartPosition='CenterScreen';$o.Width=1;$o.Height=1;$o.Show();$o.Activate();$d=New-Object System.Windows.Forms.SaveFileDialog;",
-            "$d.Title=", ToPowerShellSingleQuotedString(title), ";",
-            "$d.Filter=", ToPowerShellSingleQuotedString(filter), ";",
-            "$d.DefaultExt='json';",
-            "$d.FilterIndex=1;",
-            "$d.AddExtension=$true;",
-            SetInitialDialogDirectoryScript(initialPath),
-            "$result=$d.ShowDialog($o);if($result -eq [System.Windows.Forms.DialogResult]::OK){[Console]::Write($d.FileName)}}finally{try{if($o){$o.Close()}}finally{try{if($o){$o.Dispose()}}finally{if($d){$d.Dispose()}}}}");
-        return TryRunGarrisonBuilderDialogScript(script, out selectedPath);
-    }
-
-    private bool TryChooseGarrisonBuilderFolder(string title, string initialPath, out string selectedPath)
-    {
-        var script = string.Concat(
-            "Add-Type -AssemblyName System.Windows.Forms;",
-            "$o=$null;$d=$null;try{$o=New-Object System.Windows.Forms.Form;$o.TopMost=$true;$o.ShowInTaskbar=$false;$o.StartPosition='CenterScreen';$o.Width=1;$o.Height=1;$o.Show();$o.Activate();$d=New-Object System.Windows.Forms.FolderBrowserDialog;",
-            "$d.Description=", ToPowerShellSingleQuotedString(title), ";",
-            "$p=", ToPowerShellSingleQuotedString(initialPath.Trim().Trim('"')), ";",
-            "if($p -and (Test-Path -LiteralPath $p)){$d.SelectedPath=$p};",
-            "$result=$d.ShowDialog($o);if($result -eq [System.Windows.Forms.DialogResult]::OK){[Console]::Write($d.SelectedPath)}}finally{try{if($o){$o.Close()}}finally{try{if($o){$o.Dispose()}}finally{if($d){$d.Dispose()}}}}");
-        return TryRunGarrisonBuilderDialogScript(script, out selectedPath);
+        var dialogType = folder ? "FolderBrowserDialog" : save ? "SaveFileDialog" : "OpenFileDialog";
+        return string.Concat(
+            "Add-Type -AssemblyName System.Windows.Forms;[Console]::OutputEncoding=[Text.UTF8Encoding]::new($false);",
+            "$o=$null;$d=$null;try{$o=New-Object System.Windows.Forms.Form;$o.TopMost=$true;$o.ShowInTaskbar=$false;$o.StartPosition='CenterScreen';$o.Width=1;$o.Height=1;$o.Show();$o.Activate();$d=New-Object System.Windows.Forms.", dialogType, ";",
+            folder ? "$d.Description=" : "$d.Title=", ToPowerShellSingleQuotedString(title), ";",
+            folder ? "$d.SelectedPath=" + ToPowerShellSingleQuotedString(initialPath) + ";" : "$d.Filter=" + ToPowerShellSingleQuotedString(filter) + ";" + SetInitialDialogDirectoryScript(initialPath),
+            save ? "$d.DefaultExt='ogmap';$d.AddExtension=$true;$d.OverwritePrompt=$true;" : "",
+            "$result=$d.ShowDialog($o);if($result -eq [System.Windows.Forms.DialogResult]::OK){[Console]::Write(", folder ? "$d.SelectedPath" : "$d.FileName", ")}}finally{try{if($o){$o.Close()}}finally{try{if($o){$o.Dispose()}}finally{if($d){$d.Dispose()}}}}");
     }
 
     private static string SetInitialDialogDirectoryScript(string initialPath)
@@ -5568,80 +5525,6 @@ public partial class Game1
             "$i=Get-Item -LiteralPath $p;",
             "if($i.PSIsContainer){$d.InitialDirectory=$i.FullName}else{$d.InitialDirectory=$i.DirectoryName;$d.FileName=$i.Name}",
             "};");
-    }
-
-    private bool TryRunGarrisonBuilderDialogScript(string script, out string selectedPath)
-    {
-        selectedPath = string.Empty;
-        var displayModeTransition = ResolveGarrisonBuilderDialogDisplayMode(_displayMode, _clientSettings.DisplayMode);
-        var previousRequestedDisplayMode = displayModeTransition.RequestedMode;
-        var temporarilyWindowed = displayModeTransition.TemporarilyWindowed;
-        try
-        {
-            if (temporarilyWindowed)
-            {
-                // A modal process without an owner can be hidden behind a
-                // screen-filling game window.  Make the game a normal window
-                // for the duration of the picker, without persisting that
-                // temporary preference.
-                _clientSettings.DisplayMode = DisplayModeKind.Windowed;
-                ApplyGraphicsSettings(persist: false);
-            }
-
-            using var process = Process.Start(new ProcessStartInfo
-            {
-                FileName = "powershell.exe",
-                Arguments = $"-NoProfile -STA -Command {ToCommandLineArgument(script)}",
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                CreateNoWindow = true,
-            });
-            if (process is null)
-            {
-                return false;
-            }
-
-            // Drain both redirected streams concurrently so a verbose
-            // PowerShell failure cannot block the process before it exits.
-            var outputTask = process.StandardOutput.ReadToEndAsync();
-            var errorTask = process.StandardError.ReadToEndAsync();
-            process.WaitForExit();
-            selectedPath = outputTask.GetAwaiter().GetResult().Trim();
-            var error = errorTask.GetAwaiter().GetResult().Trim();
-            if (selectedPath.Length == 0)
-            {
-                if (error.Length > 0)
-                {
-                    AddConsoleLine($"builder file dialog failed: {error}");
-                }
-
-                return false;
-            }
-
-            return true;
-        }
-        catch (Exception ex)
-        {
-            AddConsoleLine($"builder file dialog failed: {ex.Message}");
-            selectedPath = string.Empty;
-            return false;
-        }
-        finally
-        {
-            if (temporarilyWindowed)
-            {
-                try
-                {
-                    _clientSettings.DisplayMode = previousRequestedDisplayMode;
-                    ApplyGraphicsSettings(persist: false);
-                }
-                catch (Exception ex)
-                {
-                    AddConsoleLine($"builder file dialog display restore failed: {ex.Message}");
-                }
-            }
-        }
     }
 
     internal static (DisplayModeKind NormalizedMode, DisplayModeKind RequestedMode, bool TemporarilyWindowed)
@@ -5767,9 +5650,9 @@ public partial class Game1
 
         if (IsKeyPressed(keyboard, Keys.Escape))
         {
-
             if (_builderPropertyEditMode == GarrisonBuilderPropertyEditMode.List)
             {
+                // Field edits are already confirmed; closing the list must keep their live preview.
                 CloseGarrisonBuilderPropertyEditor(applyChanges: true);
             }
             else
@@ -5784,6 +5667,12 @@ public partial class Game1
 
         if (_builderPropertyEditMode == GarrisonBuilderPropertyEditMode.List)
         {
+            if (!_builderEntityRefListDropdownOpen && IsKeyPressed(keyboard, Keys.Enter))
+            {
+                CloseGarrisonBuilderPropertyEditor(applyChanges: true);
+                return true;
+            }
+
             if (_builderEntityRefListDropdownOpen)
             {
                 UpdateGarrisonBuilderEntityRefListDropdownScrollbar(mouse);
@@ -6883,6 +6772,12 @@ public partial class Game1
 
     private void CloseGarrisonBuilderPropertyEditor(bool applyChanges)
     {
+        if (_builderPropertyTarget == GarrisonBuilderPropertyTarget.None && !_builderPropertyEditSnapshot.HasValue) return;
+        if (applyChanges && _builderPropertyEditMode != GarrisonBuilderPropertyEditMode.List)
+        {
+            CommitGarrisonBuilderPropertyEditorText();
+            if (_builderPropertyEditMode != GarrisonBuilderPropertyEditMode.List) return;
+        }
         if (applyChanges)
         {
             if (_builderPropertyTarget == GarrisonBuilderPropertyTarget.MapProperties)
@@ -6899,6 +6794,7 @@ public partial class Game1
             }
         }
 
+        CompleteGarrisonBuilderPropertyTransaction(applyChanges);
         CancelGarrisonBuilderObjectiveMapPick();
         CancelGarrisonBuilderLogicMapPick();
         CancelGarrisonBuilderEntityMapPick();
@@ -7307,7 +7203,7 @@ public partial class Game1
         CustomMapBuilderResource resource,
         string propertyKey)
     {
-        if (!CustomMapBuilderResourceCodec.TryGetResourceBytes(resource, out var bytes)
+        if (!TryGetGarrisonBuilderResourceBytes(resource, out var bytes)
             || bytes.Length == 0)
         {
             return false;
@@ -7321,7 +7217,7 @@ public partial class Game1
     }
 
     private static bool IsGarrisonBuilderResourceUsableForGameplaySoundProperty(CustomMapBuilderResource resource) =>
-        CustomMapBuilderResourceCodec.TryGetResourceBytes(resource, out var bytes)
+        TryGetGarrisonBuilderResourceBytes(resource, out var bytes)
         && bytes.Length > 0
         && CustomMapBuilderResourceCodec.IsSupportedSound(bytes);
 
@@ -9559,17 +9455,17 @@ public partial class Game1
 
         if (_builderPropertyTarget == GarrisonBuilderPropertyTarget.MapProperties)
         {
-            return "Visual scale: layers/background. Walkmask scale: collision. Esc saves.";
+            return "Visual scale: art. Walkmask scale: collision. Enter / Esc: apply and close.";
         }
 
         if (IsEditingGarrisonBuilderSpawnEntity())
         {
             return IsGarrisonBuilderEditedSpawnForwardEnabled()
-                ? "Use checkboxes, click Team/Use when to cycle, click Objective to pick on map. Esc closes."
-                : "Use checkboxes, click Team to cycle. Esc closes.";
+                ? "Click Team/Use when to cycle, Objective to pick on map. Enter / Esc: apply and close."
+                : "Use checkboxes, click Team to cycle. Enter / Esc: apply and close.";
         }
 
-        return "Use checkboxes, click Team to cycle, other values to edit. Esc closes.";
+        return "Click values to edit. Enter / Esc: apply and close.";
     }
 
     private void TryApplyDefaultGarrisonBuilderPlacementObjectiveLink()
@@ -10013,6 +9909,7 @@ public partial class Game1
             return;
         }
 
+        BeginGarrisonBuilderPropertyTransaction();
         var entity = _builderEntities[_builderSelectedEntityIndex];
         var properties = new Dictionary<string, string>(_builderPropertyEditorValues, StringComparer.OrdinalIgnoreCase);
         PreserveGarrisonBuilderHiddenEntityProperties(entity.Properties, properties);
@@ -10163,6 +10060,7 @@ public partial class Game1
 
     private void RemoveNearestGarrisonBuilderEntity(Vector2 worldPosition)
     {
+        RecordGarrisonBuilderHistory();
         var bestIndex = -1;
         var bestDistanceSquared = 20f * 20f;
         for (var index = 0; index < _builderEntities.Count; index += 1)
@@ -10214,6 +10112,9 @@ public partial class Game1
 
     private void DisableGarrisonBuilderEditor(string reason)
     {
+        if (!CommitGarrisonBuilderActiveEdits()) return;
+        if (reason != "quick test" && GuardGarrisonBuilderUnsavedAction(() => DisableGarrisonBuilderEditor(reason))) return;
+        FinishGarrisonBuilderGestures();
         _builderEditorEnabled = false;
         _builderLayerParallaxDialogOpen = false;
         _builderMapNameCollisionDialogOpen = false;
@@ -10302,6 +10203,7 @@ public partial class Game1
         {
             BeginEditingGarrisonBuilderPath(GarrisonBuilderPathField.Save);
         }
+        else CancelGarrisonBuilderSaveAs();
     }
 
     private Rectangle GetGarrisonBuilderMapNameCollisionDialogBounds()
@@ -10393,6 +10295,8 @@ public partial class Game1
             UpdateGarrisonBuilderDocumentEntities();
             ApplyGarrisonBuilderMapModeMetadata();
             ApplyGarrisonBuilderEntitySchemaMetadata();
+            var validation = CustomMapBuilderValidator.Validate(_builderDocument, _builderSelectedGameMode);
+            if (!validation.IsValid) { error = validation.Issues[0].Message; return false; }
             var quickTestLevelName = GarrisonBuilderQuickTestNaming.BuildQuickTestLevelName(_builderDocument.Name);
             Directory.CreateDirectory(RuntimePaths.MapsDirectory);
             var packageDirectory = Path.Combine(RuntimePaths.MapsDirectory, quickTestLevelName);
@@ -10484,6 +10388,7 @@ public partial class Game1
 
     private void QuickTestGarrisonBuilderMap()
     {
+        if (!CommitGarrisonBuilderActiveEdits()) return;
         if (TryPromptGarrisonBuilderMapNameCollisionIfNeeded(GarrisonBuilderMapNameCollisionPendingAction.QuickTest))
         {
             return;
@@ -10617,7 +10522,7 @@ public partial class Game1
             return;
         }
 
-        var section = _builderDocument.EmbeddedWalkmaskSection.Trim();
+        var section = _builderDocument.EmbeddedWalkmaskSection;
         if (section.Length == 0)
         {
             DisposeGarrisonBuilderEmbeddedWalkmaskTexture();
@@ -10749,16 +10654,7 @@ public partial class Game1
                 AddConsoleLine("builder disabled");
                 return true;
             case "new":
-                _builderDocument = CustomMapBuilderDocument.CreateEmpty(argument.Length == 0 ? "new_map" : argument);
-                _builderEntities.Clear();
-                ClearGarrisonBuilderHiddenEntities();
-                _builderOpenMapBuffer = string.Empty;
-                _builderSavePath = string.Empty;
-                SyncGarrisonBuilderPathBuffers();
-                _builderDirty = false;
-                RequestGarrisonBuilderCameraCenter();
-                _builderStatus = "new builder document";
-                AddConsoleLine("builder document reset");
+                CreateNewGarrisonBuilderDocument();
                 return true;
             case "open":
                 OpenGarrisonBuilderMap(argument);
@@ -10794,6 +10690,8 @@ public partial class Game1
 
     private void OpenGarrisonBuilderMap(string path)
     {
+        if (!CommitGarrisonBuilderActiveEdits()) return;
+        if (GuardGarrisonBuilderUnsavedAction(() => OpenGarrisonBuilderMap(path))) return;
         path = path.Trim().Trim('"');
         if (!File.Exists(path))
         {
@@ -10801,23 +10699,35 @@ public partial class Game1
             return;
         }
 
+        StartGarrisonBuilderFileWork("Opening map...", () =>
+        {
         var isPackage = Path.GetExtension(path).Equals(".json", StringComparison.OrdinalIgnoreCase);
-        var editableDocument = isPackage
-            ? CustomMapPackageImporter.ImportDocument(path)
-            : CustomMapBuilderPngImporter.Import(path);
-        if (isPackage && editableDocument is null)
+        var isDraft = Path.GetExtension(path).Equals(BuilderProjectStore.Extension, StringComparison.OrdinalIgnoreCase);
+        var warning = string.Empty;
+        var editableDocument = isDraft ? BuilderProjectStore.Load(path, Path.Combine(BuilderRecoveryDirectory, "assets"))
+            : isPackage ? CustomMapPackageImporter.ImportDocument(path) : CustomMapBuilderPngImporter.Import(path, out warning);
+        if (isPackage && editableDocument is null) throw new InvalidDataException("The package or one of its assets could not be loaded: " + path);
+        var nextDocument = editableDocument?.NormalizeForEditing() ?? CustomMapBuilderDocument.CreateEmpty(Path.GetFileNameWithoutExtension(path)) with { BackgroundImagePath = path };
+        var backgroundPixels = PrepareGarrisonBuilderImage(nextDocument.BackgroundImagePath);
+        var walkmaskPixels = PrepareGarrisonBuilderImage(nextDocument.WalkmaskImagePath);
+        if (!string.IsNullOrEmpty(nextDocument.EmbeddedWalkmaskSection)
+            && !EmbeddedWalkmaskDecoder.TryDecodeSolidCells(nextDocument.EmbeddedWalkmaskSection, out _, out _, out _))
+            throw new InvalidDataException("The map collision data is incomplete.");
+        foreach (var resource in nextDocument.Resources.Values)
+            if (CustomMapBuilderResourceCodec.IsImageResourceKind(resource.Kind)) BuilderImageValidation.ValidateDecoded(CustomMapBuilderResourceCodec.GetResourceBytes(resource));
+        return () =>
         {
-            _builderStatus = "package open failed";
-            AddConsoleLine(_builderStatus);
-            return;
+        Texture2D? background = null, walkmask = null;
+        try
+        {
+            if (backgroundPixels is not null) background = TextureDecodeUtility.CreateTexture(GraphicsDevice, backgroundPixels.PixelData, backgroundPixels.Width, backgroundPixels.Height);
+            if (walkmaskPixels is not null) walkmask = TextureDecodeUtility.CreateTexture(GraphicsDevice, walkmaskPixels.PixelData, walkmaskPixels.Width, walkmaskPixels.Height);
         }
-
-        var runtimeImport = editableDocument is null ? CustomMapPngImporter.Import(path) : null;
-        _builderDocument = editableDocument?.NormalizeForEditing() ?? CustomMapBuilderDocument.CreateEmpty(Path.GetFileNameWithoutExtension(path)) with
-        {
-            BackgroundImagePath = path,
-        };
-        ClearGarrisonBuilderResourceTextureCache();
+        catch { background?.Dispose(); walkmask?.Dispose(); throw; }
+        ResetGarrisonBuilderDocumentSession();
+        _builderDocument = nextDocument;
+        _builderBackgroundTexture?.Dispose(); _builderWalkmaskTexture?.Dispose();
+        _builderBackgroundTexture = background; _builderWalkmaskTexture = walkmask;
         _builderSelectedResourceName = string.Empty;
         _builderEntities.Clear();
         ClearGarrisonBuilderHiddenEntities();
@@ -10828,8 +10738,8 @@ public partial class Game1
         SyncGarrisonBuilderPathBuffers();
         _builderOpenMapBuffer = path;
         _builderDirty = false;
-        _builderLoadedBackgroundPath = string.Empty;
-        _builderLoadedWalkmaskPath = string.Empty;
+        _builderLoadedBackgroundPath = _builderDocument.BackgroundImagePath;
+        _builderLoadedWalkmaskPath = _builderDocument.WalkmaskImagePath;
         _builderLoadedEmbeddedWalkmaskSection = string.Empty;
         LoadGarrisonBuilderEditorAssets();
         UpdateGarrisonBuilderEntityCoordinateMode();
@@ -10837,16 +10747,22 @@ public partial class Game1
             _builderDocument.Metadata,
             _builderEntities);
         ClearGarrisonBuilderHistory();
-        _builderStatus = editableDocument is not null
-            ? isPackage
-                ? $"opened package map with {_builderEntities.Count} entities"
-                : $"opened editable map with {_builderEntities.Count} entities"
-            : runtimeImport is null
-                ? "opened PNG as background"
-                : "opened compiled map as background";
+        MarkGarrisonBuilderSaved();
+        _builderStatus = editableDocument is not null ? $"Opened {Path.GetFileName(path)}: {_builderEntities.Count} entities" : "Opened PNG as background";
+        if (!string.IsNullOrWhiteSpace(warning)) _builderStatus += ". " + warning;
         RequestGarrisonBuilderCameraCenter();
         AddConsoleLine($"builder opened: {path}");
         AddConsoleLine(_builderStatus);
+        };
+        });
+    }
+
+    private static TextureDecodeUtility.DecodedTextureData? PrepareGarrisonBuilderImage(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return null;
+        var bytes = BuilderImageValidation.ReadFile(path);
+        BuilderImageValidation.Validate(bytes);
+        return TextureDecodeUtility.DecodeTextureData(bytes, applyLegacyChromaKey: false);
     }
 
     private void SetGarrisonBuilderBackgroundPath(string path)
@@ -10858,15 +10774,26 @@ public partial class Game1
             return;
         }
 
+        StartGarrisonBuilderFileWork("Loading background...", () =>
+        {
+            var pixels = PrepareGarrisonBuilderImage(path)!;
+            return () =>
+            {
+        var texture = TextureDecodeUtility.CreateTexture(GraphicsDevice, pixels.PixelData, pixels.Width, pixels.Height);
+        RecordGarrisonBuilderHistory();
+        _builderBackgroundTexture?.Dispose();
+        _builderBackgroundTexture = texture;
         _builderDocument = _builderDocument with { BackgroundImagePath = path };
         _builderBackgroundPathBuffer = path;
-        _builderLoadedBackgroundPath = string.Empty;
+        _builderLoadedBackgroundPath = path;
         _builderDirty = true;
         LoadGarrisonBuilderEditorAssets();
         UpdateGarrisonBuilderEntityCoordinateMode();
         _builderStatus = "background loaded";
         RequestGarrisonBuilderCameraCenter();
         AddConsoleLine($"builder bg: {path}");
+            };
+        });
     }
 
     private void SetGarrisonBuilderWalkmaskPath(string path)
@@ -10878,13 +10805,22 @@ public partial class Game1
             return;
         }
 
+        StartGarrisonBuilderFileWork("Loading walkmask...", () =>
+        {
+            var pixels = PrepareGarrisonBuilderImage(path)!;
+            return () =>
+            {
+        var texture = TextureDecodeUtility.CreateTexture(GraphicsDevice, pixels.PixelData, pixels.Width, pixels.Height);
+        RecordGarrisonBuilderHistory();
+        _builderWalkmaskTexture?.Dispose();
+        _builderWalkmaskTexture = texture;
         _builderDocument = _builderDocument with
         {
             WalkmaskImagePath = path,
             EmbeddedWalkmaskSection = string.Empty,
         };
         _builderWalkmaskPathBuffer = path;
-        _builderLoadedWalkmaskPath = string.Empty;
+        _builderLoadedWalkmaskPath = path;
         _builderLoadedEmbeddedWalkmaskSection = string.Empty;
         _builderDirty = true;
         LoadGarrisonBuilderEditorAssets();
@@ -10892,10 +10828,19 @@ public partial class Game1
         _builderStatus = "walkmask loaded";
         RequestGarrisonBuilderCameraCenter();
         AddConsoleLine($"builder wm: {path}");
+            };
+        });
     }
 
     private void SaveGarrisonBuilderDocument()
     {
+        if (!CommitGarrisonBuilderActiveEdits()) return;
+        if (string.IsNullOrWhiteSpace(_builderSavePath))
+        {
+            _builderSavePathBuffer = _builderDocument.Name + BuilderProjectStore.Extension;
+            BeginEditingGarrisonBuilderPath(GarrisonBuilderPathField.Save);
+            return;
+        }
         if (!CanSaveGarrisonBuilderDocument())
         {
             _builderStatus = "set bg, wm, and output path before saving";
@@ -10903,7 +10848,8 @@ public partial class Game1
             return;
         }
 
-        if (TryPromptGarrisonBuilderMapNameCollisionIfNeeded(GarrisonBuilderMapNameCollisionPendingAction.Save))
+        if (!Path.GetExtension(_builderSavePath).Equals(BuilderProjectStore.Extension, StringComparison.OrdinalIgnoreCase)
+            && TryPromptGarrisonBuilderMapNameCollisionIfNeeded(GarrisonBuilderMapNameCollisionPendingAction.Save))
         {
             return;
         }
@@ -10913,41 +10859,63 @@ public partial class Game1
 
     private void SaveGarrisonBuilderDocumentCore()
     {
-        try
+        UpdateGarrisonBuilderDocumentEntities();
+        var original = _builderDocument;
+        var metadata = new Dictionary<string, string>(original.Metadata, StringComparer.OrdinalIgnoreCase);
+        metadata[CustomMapEntityRuntimeRegistry.EntitySchemaMetadataKey] = CustomMapEntityRuntimeRegistry.ModernEntitySchemaValue;
+        var mode = _builderSelectedGameMode;
+        var modeValue = MapGameModeMetadata.ToPropertyValue(mode);
+        if (modeValue.Length == 0) metadata.Remove(MapGameModeMetadata.GameModePropertyKey);
+        else metadata[MapGameModeMetadata.GameModePropertyKey] = modeValue;
+        var export = original with { Metadata = metadata };
+        var selectedPath = Path.GetFullPath(_builderSavePath);
+        StartGarrisonBuilderFileWork("Saving map...", () =>
         {
-            UpdateGarrisonBuilderDocumentEntities();
-            ApplyGarrisonBuilderMapModeMetadata();
-            ApplyGarrisonBuilderEntitySchemaMetadata();
-            var validation = CustomMapBuilderValidator.Validate(_builderDocument, _builderSelectedGameMode);
-            if (!validation.IsValid)
+            var output = selectedPath;
+            CustomMapBuilderDocument? saved = null;
+            var note = "";
+            var draft = Path.GetExtension(output).Equals(BuilderProjectStore.Extension, StringComparison.OrdinalIgnoreCase);
+            if (!draft)
             {
-                _builderStatus = validation.Issues[0].Message;
-                AddConsoleLine($"builder validation failed: {_builderStatus}");
-                return;
+                var validation = CustomMapBuilderValidator.Validate(export, mode);
+                if (!validation.IsValid) throw new InvalidOperationException("This map is unfinished. Save As an editable .ogmap draft, or fix: " + string.Join("; ", validation.Issues.Where(i => i.Severity == CustomMapBuilderValidationSeverity.Error).Select(i => i.Message)));
             }
-
-            if (CustomMapPackageExporter.IsPackageOutputPath(_builderSavePath))
+            if (draft)
             {
-                var manifestPath = CustomMapPackageExporter.ResolvePackageManifestPath(_builderDocument, _builderSavePath);
-                CustomMapPackageExporter.Export(_builderDocument, manifestPath);
-                _builderSavePath = manifestPath;
+                BuilderProjectStore.Save(export, output);
+                saved = BuilderProjectStore.Load(output, Path.Combine(BuilderRecoveryDirectory, "assets"));
+            }
+            else if (CustomMapPackageExporter.IsPackageOutputPath(output))
+            {
+                output = CustomMapPackageExporter.ResolvePackageManifestPath(export, output);
+                CustomMapPackageExporter.Export(export, output);
+                saved = CustomMapPackageImporter.ImportDocument(output) ?? throw new InvalidDataException("The saved package could not be reopened.");
             }
             else
             {
-                CustomMapPngExporter.Export(_builderDocument, _builderSavePath);
+                CustomMapPngExporter.Export(export, output);
+                saved = CustomMapBuilderPngImporter.Import(output);
+                // Only refresh a conversion that already exists; saving a standalone PNG should not create a duplicate package.
+                var derived = Path.Combine(Path.GetDirectoryName(output)!, Path.GetFileNameWithoutExtension(output), Path.GetFileNameWithoutExtension(output) + ".json");
+                if (File.Exists(derived))
+                {
+                    if (!CustomMapLegacyPackageAutoConverter.TryConvertLegacyPng(output, out _, out var error)) note = " Saved PNG; duplicate package needs attention: " + error;
+                    else note = " Gameplay package: " + derived;
+                }
             }
-
-            _builderSavePathBuffer = _builderSavePath;
-            _builderDirty = false;
-            _builderStatus = $"saved {Path.GetFileName(_builderSavePath)}";
-            AddConsoleLine($"builder saved: {_builderSavePath}");
-            SimpleLevelFactory.ClearCachedCatalog();
-        }
-        catch (Exception ex)
-        {
-            _builderStatus = $"save failed: {ex.Message}";
-            AddConsoleLine(_builderStatus);
-        }
+            return () =>
+            {
+                if (saved is not null) RebaseGarrisonBuilderSavedAssets(original, saved);
+                _builderSavePath = output;
+                _builderSaveAsOriginalPath = null;
+                SyncGarrisonBuilderPathBuffers();
+                MarkGarrisonBuilderSaved();
+                _builderStatus = $"Saved {Path.GetFileName(output)}" + note;
+                AddConsoleLine($"builder saved: {output}" + note);
+                SimpleLevelFactory.ClearCachedCatalog();
+                if (_builderResumeAfterSave) ContinueGarrisonBuilderUnsavedAction();
+            };
+        });
     }
 
     private void ApplyGarrisonBuilderEntitySchemaMetadata()
@@ -11004,13 +10972,7 @@ public partial class Game1
             || key.Equals(ScrMapSettingsMetadata.BlueStartingScorePropertyKey, StringComparison.OrdinalIgnoreCase);
     }
 
-    private bool CanSaveGarrisonBuilderDocument()
-    {
-        return !string.IsNullOrWhiteSpace(_builderDocument.BackgroundImagePath)
-            && (!string.IsNullOrWhiteSpace(_builderDocument.WalkmaskImagePath)
-                || !string.IsNullOrWhiteSpace(_builderDocument.EmbeddedWalkmaskSection))
-            && !string.IsNullOrWhiteSpace(_builderSavePath);
-    }
+    private bool CanSaveGarrisonBuilderDocument() => !string.IsNullOrWhiteSpace(_builderSavePath);
 
     private void OpenGarrisonBuilderFromMainMenu()
     {
@@ -11642,7 +11604,10 @@ public partial class Game1
 
     private void SelectGarrisonBuilderGameMode(CustomMapBuilderGameMode mode)
     {
+        RecordGarrisonBuilderHistory();
         _builderSelectedGameMode = mode;
+        ApplyGarrisonBuilderMapModeMetadata();
+        _builderDirty = true;
         _builderSelectedEntityType = string.Empty;
         _builderTooltipIndex = -1;
         RefreshGarrisonBuilderControlPointCapTimeMultipliersOnMap();
@@ -11737,7 +11702,8 @@ public partial class Game1
 
     private readonly record struct GarrisonBuilderHistorySnapshot(
         CustomMapBuilderDocument Document,
-        CustomMapBuilderEntity[] Entities);
+        CustomMapBuilderEntity[] Entities,
+        CustomMapBuilderGameMode Mode);
 
     private void ClearGarrisonBuilderHistory()
     {
@@ -11752,7 +11718,9 @@ public partial class Game1
             return;
         }
 
-        _builderUndoStack.Add(CreateGarrisonBuilderHistorySnapshot());
+        if (_builderPropertyEditSnapshot.HasValue && _builderPropertyHistoryRecorded) return;
+        _builderUndoStack.Add(_builderPropertyEditSnapshot ?? CreateGarrisonBuilderHistorySnapshot());
+        if (_builderPropertyEditSnapshot.HasValue) _builderPropertyHistoryRecorded = true;
         while (_builderUndoStack.Count > GarrisonBuilderHistoryCapacity)
         {
             _builderUndoStack.RemoveAt(0);
@@ -11765,7 +11733,8 @@ public partial class Game1
     {
         return new GarrisonBuilderHistorySnapshot(
             _builderDocument,
-            _builderEntities.Select(static entity => entity).ToArray());
+            _builderEntities.Select(static entity => entity).ToArray(),
+            _builderSelectedGameMode);
     }
 
     private void RestoreGarrisonBuilderHistorySnapshot(GarrisonBuilderHistorySnapshot snapshot)
@@ -11773,7 +11742,13 @@ public partial class Game1
         _builderHistoryCaptureSuspended = true;
         try
         {
+            FinishGarrisonBuilderGestures();
+            _builderPropertyEditSnapshot = null;
+            var reloadImages = _builderDocument.BackgroundImagePath != snapshot.Document.BackgroundImagePath
+                || _builderDocument.WalkmaskImagePath != snapshot.Document.WalkmaskImagePath
+                || _builderDocument.EmbeddedWalkmaskSection != snapshot.Document.EmbeddedWalkmaskSection;
             _builderDocument = snapshot.Document;
+            _builderSelectedGameMode = snapshot.Mode;
             _builderEntities.Clear();
             _builderEntities.AddRange(snapshot.Entities);
             ClearGarrisonBuilderMapEntitySelection();
@@ -11787,11 +11762,10 @@ public partial class Game1
             _builderLayerParallaxDialogOpen = false;
             _builderLayerParallaxDialogLayerIndex = -1;
             ClearGarrisonBuilderResourceTextureCache();
-            _builderLoadedBackgroundPath = string.Empty;
-            _builderLoadedWalkmaskPath = string.Empty;
-            _builderLoadedEmbeddedWalkmaskSection = string.Empty;
-            LoadGarrisonBuilderEditorAssets();
-            _builderDirty = true;
+            if (reloadImages) LoadGarrisonBuilderEditorAssets();
+            SyncGarrisonBuilderPathBuffers();
+            UpdateGarrisonBuilderEntityCoordinateMode();
+            RefreshGarrisonBuilderDirtyState();
             _builderStatus = "builder history restored";
         }
         finally
@@ -11802,6 +11776,10 @@ public partial class Game1
 
     private bool TryUndoGarrisonBuilder()
     {
+        FinishGarrisonBuilderGestures();
+        var current = CreateGarrisonBuilderHistorySnapshot();
+        while (_builderUndoStack.Count > 0 && SameGarrisonBuilderSnapshot(_builderUndoStack[^1], current))
+            _builderUndoStack.RemoveAt(_builderUndoStack.Count - 1);
         if (_builderUndoStack.Count == 0)
         {
             _builderStatus = "nothing to undo";

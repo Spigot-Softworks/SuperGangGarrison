@@ -1,0 +1,54 @@
+{
+  "id": "weapon.dragon-rage",
+  "kind": "Weapon",
+  "weaponSlot": "Primary",
+  "displayName": "Dragon's Rage",
+  "behaviorId": "builtin.weapon.dragon_rage",
+  "ammo": {
+    "maxAmmo": 4,
+    "ammoPerUse": 1,
+    "projectilesPerUse": 1,
+    "useDelaySourceTicks": 16,
+    "reloadSourceTicks": 18,
+    "spreadDegrees": 0.0,
+    "minProjectileSpeed": 22.0,
+    "additionalProjectileSpeed": 0.0,
+    "autoReloads": true,
+    "ammoRegenPerTick": 0,
+    "refillsAllAtOnce": false
+  },
+  "combat": {
+    "fireSoundName": "ShotgunSnd",
+    "killFeedSpriteName": "DragonRageKL",
+    "directHitDamage": 45
+  },
+  "presentation": {
+    "worldSpriteName": "DragonRageS",
+    "reloadSpriteName": "DragonRageFRS",
+    "hudSpriteName": "DragonRageS",
+    "weaponOffsetX": -5.0,
+    "weaponOffsetY": -2.0,
+    "reloadDurationSourceTicks": 18,
+    "blueTeamHudFrameOffset": 1,
+    "hud": {
+      "displayKind": "ammoPanel",
+      "stackGroup": "weapon",
+      "order": 100,
+      "stateProvider": "primaryAmmo",
+      "hideWhenUnavailable": true
+    }
+  },
+  "description": {
+    "summary": "Fires a fast incendiary slug that burns out at medium range.",
+    "positiveAttributes": [
+      "45 damage on direct hit",
+      "ignites enemies",
+      "large, fast-moving slug"
+    ],
+    "negativeAttributes": [
+      "4-shell clip",
+      "20% slower reload than the RM Pyro Shotgun",
+      "projectile fades at medium range"
+    ]
+  }
+}

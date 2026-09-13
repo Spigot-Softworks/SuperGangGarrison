@@ -9,6 +9,9 @@ args = RuntimePaths.ApplyUserDataRootArgument(args);
 Directory.SetCurrentDirectory(AppContext.BaseDirectory);
 ContentRoot.Initialize("Content");
 
+using var diagnostics = new ServerRunDiagnostics(Path.GetDirectoryName(HostedServerSessionInfo.GetDefaultPath())!);
+try
+{
 const string protocolUuidString = "71eb5496-492b-b186-4770-06ccb30d3f8f";
 const int lobbyHeartbeatSeconds = 30;
 const int lobbyResolveSeconds = 600;
@@ -20,7 +23,14 @@ const int autoBalanceDelaySeconds = 10;
 const int autoBalanceNewPlayerGraceSeconds = 60;
 
 var launchOptions = ServerLaunchOptions.Load(args);
-launchOptions.Settings.Save(launchOptions.ResolvedConfigPath);
+var serverManagementConfiguration = ServerManagementConfiguration.LoadOrCreate(
+    launchOptions.ManagementConfigPath,
+    Console.WriteLine);
+launchOptions.SaveInstanceConfiguration(diagnostics.DirectoryPath);
+var requestedPort = launchOptions.Port;
+using var listeners = ServerListenerReservation.Acquire(requestedPort, launchOptions.WebSocketPort, ManagedRoomRuntime.Enabled);
+launchOptions.ApplyReservedPort(listeners.Port);
+Console.WriteLine($"[server] port-selection requested={requestedPort} selected={listeners.Port} http={listeners.HttpPort}");
 var sessionPath = HostedServerSessionInfo.GetDefaultPath();
 var pipeName = $"opengarrison-hosted-server-{Environment.ProcessId}";
 
@@ -99,12 +109,17 @@ var server = new GameServer(
     launchOptions.GameplayVariant,
     launchOptions.LastToDieDifficulty,
     launchOptions.LastToDieSeed,
+    serverManagementConfiguration,
     launchOptions.SnapshotBudgetMode);
 
 using var shutdownCts = new CancellationTokenSource();
 var sessionInfo = new HostedServerSessionInfo
 {
     ProcessId = Environment.ProcessId,
+    InstanceId = HostedServerSessionInfo.GetCurrentInstanceId(),
+    OwnerProcessId = HostedServerProcessIdentity.TryReadParentFromEnvironment(out var ownerIdentity) ? ownerIdentity.ProcessId : 0,
+    OwnerStartTimeUtcTicks = ownerIdentity.StartTimeUtcTicks,
+    DiagnosticsDirectory = diagnostics.DirectoryPath,
     ProcessStartTimeUtcTicks = HostedServerProcessIdentity.TryCaptureCurrent(out var serverIdentity)
         ? serverIdentity.StartTimeUtcTicks
         : 0,
@@ -122,12 +137,12 @@ ConsoleCancelEventHandler cancelHandler = (_, e) =>
     e.Cancel = true;
     if (!shutdownCts.IsCancellationRequested)
     {
-        Console.WriteLine("[server] shutdown requested via Ctrl+C.");
+        diagnostics.RequestShutdown("console-signal");
         shutdownCts.Cancel();
     }
 };
 Console.CancelKeyPress += cancelHandler;
-var shutdownCommandTask = Task.Run(() => ListenForShutdownCommands(server, shutdownCts));
+var shutdownCommandTask = Task.Run(() => ListenForShutdownCommands(server, shutdownCts, diagnostics));
 using var adminPipeHost = new HostedServerAdminPipeHost(
     pipeName,
     server.ExecuteAdminCommandAsync,
@@ -135,7 +150,7 @@ using var adminPipeHost = new HostedServerAdminPipeHost(
     {
         if (!shutdownCts.IsCancellationRequested)
         {
-            Console.WriteLine("[server] shutdown requested.");
+            diagnostics.RequestShutdown("admin-pipe");
             shutdownCts.Cancel();
         }
     },
@@ -144,17 +159,22 @@ using var parentLifetimeMonitor = HostedServerParentLifetimeMonitor.TryStart(
     shutdownCts,
     Console.WriteLine,
     shutdownCts.Token,
-    forceProcessExitOnTimeout: true);
+    forceProcessExitOnTimeout: true,
+    onShutdown: diagnostics.RequestShutdown);
 
 try
 {
-    server.Run(shutdownCts.Token);
+    server.Run(shutdownCts.Token, listeners, () =>
+    {
+        sessionInfo.IsReady = true;
+        sessionInfo.Save(sessionPath);
+    });
 }
 finally
 {
     parentLifetimeMonitor?.MarkServerRunCompleted();
     shutdownCts.Cancel();
-    HostedServerSessionInfo.Delete(sessionPath);
+    HostedServerSessionInfo.DeleteIfMatching(sessionInfo, sessionPath);
     Console.CancelKeyPress -= cancelHandler;
     try
     {
@@ -165,9 +185,20 @@ finally
     }
 }
 
+}
+catch (Exception exception)
+{
+    diagnostics.Fatal(exception);
+    Environment.ExitCode = 1;
+}
+finally
+{
+    diagnostics.Complete(Environment.ExitCode);
+}
+
 return;
 
-static void ListenForShutdownCommands(GameServer server, CancellationTokenSource shutdownCts)
+static void ListenForShutdownCommands(GameServer server, CancellationTokenSource shutdownCts, ServerRunDiagnostics diagnostics)
 {
     try
     {
@@ -179,7 +210,8 @@ static void ListenForShutdownCommands(GameServer server, CancellationTokenSource
                     Console.IsInputRedirected,
                     shutdownCts,
                     Console.WriteLine,
-                    server.EnqueueConsoleCommand))
+                    server.EnqueueConsoleCommand,
+                    diagnostics.RequestShutdown))
             {
                 break;
             }

@@ -1008,7 +1008,7 @@ public sealed partial class SimulationWorld
         }
         if (resolution.WasFatal)
         {
-            KillPlayer(target, killer: owner, weaponSpriteName: "TurretKL", deathCamMessage: "You were killed by the autogun of", deathCamSentry: sentry);
+            KillPlayer(target, killer: owner, weaponSpriteName: "TurretKL", deathCamSentry: sentry);
         }
 
         ApplyExperimentalSentryDamageRewards(sentry, owner, Math.Max(0, healthBefore - target.Health));

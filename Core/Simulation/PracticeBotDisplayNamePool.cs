@@ -8,6 +8,7 @@ namespace OpenGarrison.Core;
 public sealed class PracticeBotDisplayNamePool
 {
     public const string DefaultNamesRelativePath = "Client/practice-bot-names.txt";
+    public const string BrowserDefaultNamesRelativePath = "Content/Config/practice-bot-names.txt";
 
     private readonly Dictionary<byte, string> _displayNamesBySlot = new();
     private readonly HashSet<string> _usedDisplayNames = new(StringComparer.OrdinalIgnoreCase);
@@ -29,6 +30,20 @@ public sealed class PracticeBotDisplayNamePool
 
     public static List<string> LoadDefaultNames()
     {
+        // Browser hosts have no usable working directory or packaged config
+        // directory. The browser asset bootstrap copies this same source file
+        // into the in-memory content catalog before Game1/server construction.
+        if (OperatingSystem.IsBrowser()
+            && BrowserContentCatalog.TryGetText(BrowserDefaultNamesRelativePath, out var browserNames))
+        {
+            return LoadNamesFromText(browserNames);
+        }
+
+        if (OperatingSystem.IsBrowser())
+        {
+            return [];
+        }
+
         var path = ResolveDefaultNamesPath();
         return string.IsNullOrWhiteSpace(path)
             ? []
@@ -129,16 +144,21 @@ public sealed class PracticeBotDisplayNamePool
 
     private static List<string> LoadNamesFromFile(string path)
     {
-        var names = new List<string>();
         if (!File.Exists(path))
         {
-            return names;
+            return [];
         }
 
+        return LoadNamesFromText(File.ReadAllText(path));
+    }
+
+    private static List<string> LoadNamesFromText(string contents)
+    {
+        var names = new List<string>();
         var seenNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var line in File.ReadAllLines(path))
+        foreach (var line in contents.Split('\n'))
         {
-            var trimmed = line.Trim();
+            var trimmed = line.TrimEnd('\r').Trim();
             if (trimmed.Length == 0 || trimmed.StartsWith('#'))
             {
                 continue;

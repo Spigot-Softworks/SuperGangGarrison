@@ -41,11 +41,16 @@ public sealed record CustomMapBuilderDocument(
 
     public CustomMapBuilderDocument NormalizeForEditing()
     {
+        if (Metadata is null || Entities is null || Resources is null || ParallaxLayers is null
+            || Entities.Any(e => e is null)
+            || Metadata.Any(p => p.Value is null)) throw new InvalidDataException("Map contains a null document entry.");
         var walkmaskScale = NormalizeScale(Scale);
         var visualScale = NormalizeScale(VisualScale > 0f ? VisualScale : walkmaskScale);
         return this with
         {
             Name = NormalizeName(Name),
+            BackgroundImagePath = BackgroundImagePath ?? string.Empty,
+            WalkmaskImagePath = WalkmaskImagePath ?? string.Empty,
             Scale = walkmaskScale,
             VisualScale = visualScale,
             Metadata = NormalizeMetadata(Metadata, walkmaskScale, visualScale),
@@ -58,7 +63,7 @@ public sealed record CustomMapBuilderDocument(
                 .Select(static layer => layer.NormalizeForEditing())
                 .OrderBy(static layer => layer.Index)
                 .ToArray(),
-            EmbeddedWalkmaskSection = EmbeddedWalkmaskSection.Trim(),
+            EmbeddedWalkmaskSection = EmbeddedWalkmaskSection ?? string.Empty,
         };
     }
 
@@ -90,6 +95,9 @@ public sealed record CustomMapBuilderDocument(
 
         foreach (var resource in normalized.Resources.Values)
         {
+            if (resource.Name.StartsWith("bg_layer", StringComparison.OrdinalIgnoreCase)
+                && !normalized.ParallaxLayers.Any(layer => layer.ResourceName.Equals(resource.Name, StringComparison.OrdinalIgnoreCase)))
+                continue;
             if (!CustomMapBuilderResourceCodec.TryGetResourceBytes(resource, out var bytes)
                 || !CustomMapBuilderResourceCodec.IsSupportedImage(bytes))
             {

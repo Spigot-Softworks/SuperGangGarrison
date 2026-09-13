@@ -115,6 +115,19 @@ public sealed partial class SimulationWorld
             : -1;
     }
 
+    public bool IsNetworkPlayerBot(byte slot) => _networkBotSlots.Contains(slot);
+
+    private void ApplySnapshotNetworkPlayerBot(byte slot, bool isBot)
+    {
+        if (isBot)
+        {
+            _networkBotSlots.Add(slot);
+            return;
+        }
+
+        _networkBotSlots.Remove(slot);
+    }
+
     private void ApplySnapshotNetworkPlayerPingMilliseconds(byte slot, int pingMilliseconds)
     {
         if (pingMilliseconds >= 0)

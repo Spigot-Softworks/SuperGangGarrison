@@ -44,14 +44,14 @@ public sealed class ImmediateNetworkDeathPresentationPlannerTests
     public void TryCreateReturnsTemporaryDeadBodyFromAuthoritativeCorpse()
     {
         var plannerMethod = GetPlannerMethod();
-        var targetPlayer = CreateDeadPlayer(playerId: 7, PlayerTeam.Red, PlayerClass.Medic, x: 144f, y: 88f, facingDirectionX: -1f);
+        var targetPlayer = CreateDeadPlayer(playerId: 7, PlayerTeam.Red, PlayerClass.Quote, x: 144f, y: 88f, facingDirectionX: -1f);
         var snapshot = CreateSnapshot(
         [
             new SnapshotDeadBodyState(
                 Id: 301,
                 SourcePlayerId: 7,
                 Team: (byte)PlayerTeam.Red,
-                ClassId: (byte)PlayerClass.Medic,
+                ClassId: (byte)PlayerClass.Quote,
                 AnimationKind: (byte)DeadBodyAnimationKind.Default,
                 X: 144f,
                 Y: 88f,
@@ -60,7 +60,8 @@ public sealed class ImmediateNetworkDeathPresentationPlannerTests
                 HorizontalSpeed: 0f,
                 VerticalSpeed: 0f,
                 FacingLeft: true,
-                TicksRemaining: 300),
+                TicksRemaining: 300,
+                GameplayClassId: "plugin.quote-curly.quote"),
         ]);
         var damageEvent = new SnapshotDamageEvent(
             Amount: 120,
@@ -78,13 +79,14 @@ public sealed class ImmediateNetworkDeathPresentationPlannerTests
 
         Assert.NotNull(result);
         Assert.Equal(7, GetPresentationValue<int>(result!, "SourcePlayerId"));
-        Assert.Equal(PlayerClass.Medic, GetPresentationValue<PlayerClass>(result!, "ClassId"));
+        Assert.Equal(PlayerClass.Quote, GetPresentationValue<PlayerClass>(result!, "ClassId"));
         Assert.Equal(PlayerTeam.Red, GetPresentationValue<PlayerTeam>(result!, "Team"));
         Assert.Equal(DeadBodyAnimationKind.Default, GetPresentationValue<DeadBodyAnimationKind>(result!, "AnimationKind"));
         Assert.Equal(144f, GetPresentationValue<float>(result!, "X"));
         Assert.Equal(88f, GetPresentationValue<float>(result!, "Y"));
         Assert.True(GetPresentationValue<bool>(result!, "FacingLeft"));
         Assert.Equal(90, GetPresentationValue<int>(result!, "TicksRemaining"));
+        Assert.Equal("plugin.quote-curly.quote", GetPresentationValue<string>(result!, "GameplayClassId"));
     }
 
     [Fact]

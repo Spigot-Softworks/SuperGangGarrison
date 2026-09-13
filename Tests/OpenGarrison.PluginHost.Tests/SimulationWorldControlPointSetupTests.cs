@@ -39,6 +39,69 @@ public sealed class SimulationWorldControlPointSetupTests
     }
 
     [Fact]
+    public void AttackDefenseCaptureClampsRoundTimerToFiveMinutes()
+    {
+        var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
+        SetAttackDefenseControlPointLevel(world);
+        world.PrepareLocalPlayerJoin();
+        Assert.True(world.TrySetNetworkPlayerTeam(
+            SimulationWorld.LocalPlayerSlot,
+            PlayerTeam.Red,
+            respawnLivePlayerImmediately: true));
+        world.CompleteLocalPlayerJoin(PlayerClass.Scout);
+
+        while (world.ControlPointSetupTicksRemaining > 0)
+        {
+            world.AdvanceOneTick();
+        }
+
+        var firstPoint = world.ControlPoints[0];
+        Assert.Equal(PlayerTeam.Blue, firstPoint.Team);
+        firstPoint.CappingTeam = PlayerTeam.Red;
+        firstPoint.CappingTicks = firstPoint.CapTimeTicks - 2f;
+        world.LocalPlayer.TeleportTo(firstPoint.Marker.CenterX, firstPoint.Marker.CenterY);
+
+        world.AdvanceOneTick();
+
+        Assert.Equal(PlayerTeam.Red, firstPoint.Team);
+        Assert.Equal(world.Config.TicksPerSecond * 60 * 5 - 1, world.MatchState.TimeRemainingTicks);
+    }
+
+    [Fact]
+    public void AttackDefenseCaptureAddsThreeMinutesBelowTimerCap()
+    {
+        var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
+        SetAttackDefenseControlPointLevel(world);
+        world.PrepareLocalPlayerJoin();
+        Assert.True(world.TrySetNetworkPlayerTeam(
+            SimulationWorld.LocalPlayerSlot,
+            PlayerTeam.Red,
+            respawnLivePlayerImmediately: true));
+        world.CompleteLocalPlayerJoin(PlayerClass.Scout);
+
+        while (world.ControlPointSetupTicksRemaining > 0)
+        {
+            world.AdvanceOneTick();
+        }
+
+        var oneMinuteTicks = world.Config.TicksPerSecond * 60;
+        while (world.MatchState.TimeRemainingTicks > oneMinuteTicks)
+        {
+            world.AdvanceOneTick();
+        }
+
+        var firstPoint = world.ControlPoints[0];
+        firstPoint.CappingTeam = PlayerTeam.Red;
+        firstPoint.CappingTicks = firstPoint.CapTimeTicks - 2f;
+        world.LocalPlayer.TeleportTo(firstPoint.Marker.CenterX, firstPoint.Marker.CenterY);
+
+        world.AdvanceOneTick();
+
+        Assert.Equal(PlayerTeam.Red, firstPoint.Team);
+        Assert.Equal(world.Config.TicksPerSecond * 60 * 4 - 1, world.MatchState.TimeRemainingTicks);
+    }
+
+    [Fact]
     public void StockDirtbowlSetupGatesKeepLowerDoorBlocks()
     {
         var areaOne = SimpleLevelFactory.CreateImportedLevel("Dirtbowl", mapAreaIndex: 1);
@@ -90,6 +153,22 @@ public sealed class SimulationWorldControlPointSetupTests
                             24f,
                             "",
                             SourceName: "ControlPoint2"),
+                        new RoomObjectMarker(
+                            RoomObjectType.CaptureZone,
+                            304f,
+                            72f,
+                            80f,
+                            64f,
+                            "",
+                            SourceName: "CaptureZone1"),
+                        new RoomObjectMarker(
+                            RoomObjectType.CaptureZone,
+                            604f,
+                            72f,
+                            80f,
+                            64f,
+                            "",
+                            SourceName: "CaptureZone2"),
                         new RoomObjectMarker(
                             RoomObjectType.ControlPointSetupGate,
                             240f,

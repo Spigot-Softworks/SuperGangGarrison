@@ -71,6 +71,9 @@ public sealed class PluginContractValidationTests
                 sentMessages.Add((slot, sourcePluginId, targetPluginId, messageType, payload, payloadFormat, schemaVersion)),
             (sourcePluginId, targetPluginId, messageType, payload, payloadFormat, schemaVersion) =>
                 broadcastMessages.Add((sourcePluginId, targetPluginId, messageType, payload, payloadFormat, schemaVersion)),
+            UnusedServerVoting.Register,
+            UnusedServerVoting.Start,
+            static _ => { },
             Path.Combine(rootPath, "plugins"),
             Path.Combine(rootPath, "config"),
             Path.Combine(rootPath, "maps"),
@@ -153,6 +156,9 @@ public sealed class PluginContractValidationTests
             (slot, sourcePluginId, targetPluginId, messageType, payload, payloadFormat, schemaVersion) =>
                 sentMessages.Add((slot, sourcePluginId, targetPluginId, messageType, payload, payloadFormat, schemaVersion)),
             static (_, _, _, _, _, _) => { },
+            UnusedServerVoting.Register,
+            UnusedServerVoting.Start,
+            static _ => { },
             Path.Combine(rootPath, "plugins"),
             Path.Combine(rootPath, "config"),
             Path.Combine(rootPath, "maps"),
@@ -295,6 +301,9 @@ public sealed class PluginContractValidationTests
             static slot => OpenGarrisonServerAdminIdentity.CreateUnauthenticated(slot),
             static (_, _, _, _, _, _, _) => { },
             static (_, _, _, _, _, _) => { },
+            UnusedServerVoting.Register,
+            UnusedServerVoting.Start,
+            static _ => { },
             Path.Combine(rootPath, "plugins"),
             Path.Combine(rootPath, "config"),
             Path.Combine(rootPath, "maps"),
@@ -358,6 +367,9 @@ public sealed class PluginContractValidationTests
                 slot),
             static (_, _, _, _, _, _, _) => { },
             static (_, _, _, _, _, _) => { },
+            UnusedServerVoting.Register,
+            UnusedServerVoting.Start,
+            static _ => { },
             Path.Combine(rootPath, "plugins"),
             Path.Combine(rootPath, "config"),
             Path.Combine(rootPath, "maps"),
@@ -715,7 +727,10 @@ public sealed class PluginContractValidationTests
     [Fact]
     public void ClientLuaHostApiAdvertisesCurrentRuntimeSurface()
     {
-        var functions = GetLuaFunctions(OpenGarrisonPluginHostApi.CreateClientDefault(), OpenGarrisonPluginType.Client);
+        var hostApi = OpenGarrisonPluginHostApi.CreateClientDefault();
+        var functions = GetLuaFunctions(hostApi, OpenGarrisonPluginType.Client);
+
+        Assert.False(hostApi.Capabilities.Voting);
 
         AssertContainsAll(functions,
             "get_client_runtime_state",
@@ -737,7 +752,10 @@ public sealed class PluginContractValidationTests
     [Fact]
     public void ServerLuaHostApiAdvertisesCurrentRuntimeSurface()
     {
-        var functions = GetLuaFunctions(OpenGarrisonPluginHostApi.CreateServerDefault(), OpenGarrisonPluginType.Server);
+        var hostApi = OpenGarrisonPluginHostApi.CreateServerDefault();
+        var functions = GetLuaFunctions(hostApi, OpenGarrisonPluginType.Server);
+
+        Assert.True(hostApi.Capabilities.Voting);
 
         AssertContainsAll(functions,
             "get_admin_summary",
@@ -745,6 +763,7 @@ public sealed class PluginContractValidationTests
             "get_cvars",
             "set_cvar",
             "register_command",
+            "register_vote_kind",
             "get_match_state",
             "get_player_state",
             "get_objectives",
@@ -758,6 +777,7 @@ public sealed class PluginContractValidationTests
             "try_set_player_scale",
             "get_bot_slots",
             "try_start_demo_recording",
+            "try_start_vote",
             "register_gameplay_ability_executor");
     }
 

@@ -1,6 +1,9 @@
+using Microsoft.Xna.Framework;
 using OpenGarrison.Client;
 using OpenGarrison.Core;
 using OpenGarrison.GameplayModding;
+using System.Reflection;
+using System.Runtime.CompilerServices;
 using Xunit;
 
 namespace OpenGarrison.PluginHost.Tests;
@@ -161,6 +164,7 @@ public sealed class ClientInputEdgeLatchTests
     [InlineData(PrimaryWeaponKind.PelletGun, null, (int)PredictedWeaponFireVisualFamily.Shot)]
     [InlineData(PrimaryWeaponKind.Custom, BuiltInGameplayBehaviorIds.ScoutNailgun, (int)PredictedWeaponFireVisualFamily.Needle)]
     [InlineData(PrimaryWeaponKind.Custom, BuiltInGameplayBehaviorIds.SniperBow, (int)PredictedWeaponFireVisualFamily.None)]
+    [InlineData(PrimaryWeaponKind.RocketLauncher, BuiltInGameplayBehaviorIds.MortarLauncher, (int)PredictedWeaponFireVisualFamily.None)]
     [InlineData(PrimaryWeaponKind.RocketLauncher, null, (int)PredictedWeaponFireVisualFamily.Rocket)]
     [InlineData(PrimaryWeaponKind.Medigun, BuiltInGameplayBehaviorIds.Medigun, (int)PredictedWeaponFireVisualFamily.None)]
     [InlineData(PrimaryWeaponKind.Revolver, null, (int)PredictedWeaponFireVisualFamily.Revolver)]
@@ -184,6 +188,13 @@ public sealed class ClientInputEdgeLatchTests
             Game1.ResolvePredictedWeaponFireVisualFamily(PrimaryWeaponKind.Custom, "mod.weapon.custom_beam"));
     }
 
+    [Fact]
+    public void RocketSpriteFramesMatchTheirTeamPalette()
+    {
+        Assert.Equal(0, Game1.GetRocketSpriteFrame(PlayerTeam.Red));
+        Assert.Equal(1, Game1.GetRocketSpriteFrame(PlayerTeam.Blue));
+    }
+
     [Theory]
     [InlineData("ShotgunSnd", 42, 42, true)]
     [InlineData("ShotgunSnd", 42, 7, false)]
@@ -201,5 +212,69 @@ public sealed class ClientInputEdgeLatchTests
                 soundName,
                 recentSourcePlayerId,
                 currentSourcePlayerId));
+    }
+
+    [Fact]
+    public void ChaingunNamedSmgShotIsNotManagedLoopButMinigunIs()
+    {
+        Assert.False(Game1.IsManagedRapidFirePresentationForWeapon(PrimaryWeaponKind.PelletGun, "ChaingunSnd"));
+        Assert.True(Game1.IsManagedRapidFirePresentationForWeapon(PrimaryWeaponKind.Minigun, "ChaingunSnd"));
+        Assert.False(SnapshotBroadcaster.IsManagedRapidFireWeaponSound("ChaingunSnd", PrimaryWeaponKind.PelletGun));
+        Assert.True(SnapshotBroadcaster.IsManagedRapidFireWeaponSound("ChaingunSnd", PrimaryWeaponKind.Minigun));
+        Assert.True(Game1.IsProjectileSoundEchoCandidate("ChaingunSnd"));
+        Assert.True(Game1.IsProjectileSoundEchoCandidate("PistolSnd"));
+    }
+
+    [Fact]
+    public void PistolEchoCorrelationIsOneShotCompatibleOnlyForSameKnownSource()
+    {
+        Assert.True(Game1.AreProjectileSoundEchoSourcesCompatible("PistolSnd", 7, 7));
+        Assert.False(Game1.AreProjectileSoundEchoSourcesCompatible("PistolSnd", 7, 8));
+        Assert.False(Game1.AreProjectileSoundEchoSourcesCompatible("PistolSnd", -1, 7));
+    }
+
+    [Theory]
+    [InlineData("PistolSnd")]
+    [InlineData("ChaingunSnd")]
+    public void PredictedAndAuthoritativeShotMatcherConsumesEachEchoOnce(string soundName)
+    {
+        var game = (Game1)RuntimeHelpers.GetUninitializedObject(typeof(Game1));
+        var eventField = typeof(Game1).GetField("_recentProjectileSoundEvents", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(eventField);
+        eventField!.SetValue(game, Activator.CreateInstance(eventField.FieldType));
+
+        var remember = typeof(Game1).GetMethod("RememberPlayedProjectileSound", BindingFlags.Instance | BindingFlags.NonPublic);
+        var suppress = typeof(Game1).GetMethod("ShouldSuppressPredictedProjectileSoundEcho", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(remember);
+        Assert.NotNull(suppress);
+
+        remember!.Invoke(game, [soundName, new WorldSoundEvent(soundName, 0f, 0f, SourcePlayerId: 22)]);
+        var authoritative = new WorldSoundEvent(soundName, 0f, 0f, EventId: 1, SourcePlayerId: 22);
+        Assert.True((bool)suppress!.Invoke(game, [soundName, authoritative])!);
+        Assert.False((bool)suppress.Invoke(game, [soundName, authoritative])!);
+    }
+
+    [Fact]
+    public void ShotMatcherLeavesPistolEchoForTheCorrectSourceAfterRejectingAnother()
+    {
+        var game = (Game1)RuntimeHelpers.GetUninitializedObject(typeof(Game1));
+        var eventField = typeof(Game1).GetField("_recentProjectileSoundEvents", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        eventField.SetValue(game, Activator.CreateInstance(eventField.FieldType));
+        var remember = typeof(Game1).GetMethod("RememberPlayedProjectileSound", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        var suppress = typeof(Game1).GetMethod("ShouldSuppressPredictedProjectileSoundEcho", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        remember.Invoke(game, ["PistolSnd", new WorldSoundEvent("PistolSnd", 0f, 0f, SourcePlayerId: 22)]);
+
+        Assert.False((bool)suppress.Invoke(game, ["PistolSnd", new WorldSoundEvent("PistolSnd", 0f, 0f, EventId: 1, SourcePlayerId: 23)])!);
+        Assert.True((bool)suppress.Invoke(game, ["PistolSnd", new WorldSoundEvent("PistolSnd", 0f, 0f, EventId: 1, SourcePlayerId: 22)])!);
+    }
+
+    [Fact]
+    public void BannerAndFlareMixUseDedicatedRangesAndImpactGain()
+    {
+        var listener = Vector2.Zero;
+        Assert.Equal(1f, Game1.GetBannerSoundMix(96f, 0f, listener).Volume);
+        Assert.Equal(0f, Game1.GetBannerSoundMix(512f, 0f, listener).Volume);
+        Assert.Equal(0.5f, Game1.GetFlareImpactSoundMix(0f, 0f, listener).Volume);
+        Assert.Equal(0f, Game1.GetFlareImpactSoundMix(1500f, 0f, listener).Volume);
     }
 }

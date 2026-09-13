@@ -10,6 +10,26 @@ public sealed class UpdateInfrastructureTests : IDisposable
         Guid.NewGuid().ToString("N"));
 
     [Fact]
+    public void StableManifestUsesUniqueGitHubReleaseAssetWithApiFallback()
+    {
+        Assert.Equal(
+            "https://github.com/Spigot-Softworks/SuperGangGarrison/releases/latest/download/OpenGarrison-Windows-x64.latest.json",
+            UpdateManifestLocation.GetPrimary("stable", "windows-x64"));
+        Assert.Equal(
+            "https://api.superganggarrison.com/updates/windows-x64/stable/latest.json",
+            UpdateManifestLocation.GetFallback("stable", "windows-x64"));
+    }
+
+    [Fact]
+    public void BetaManifestRemainsOnTheChannelAwareApiEndpoint()
+    {
+        Assert.Equal(
+            "https://api.superganggarrison.com/updates/linux-x64/beta/latest.json",
+            UpdateManifestLocation.GetPrimary("beta", "linux-x64"));
+        Assert.Empty(UpdateManifestLocation.GetFallback("beta", "linux-x64"));
+    }
+
+    [Fact]
     public void DeltaPreflightRequiresEveryUnchangedTargetFileToMatch()
     {
         var fixture = CreateDeltaFixture();
@@ -34,8 +54,12 @@ public sealed class UpdateInfrastructureTests : IDisposable
             fixture.DeltaRoot,
             "1.0.0",
             "1.1.0");
+        var journalWrites = 0;
 
-        TransactionalUpdateInstaller.ApplyDelta(package, fixture.InstallRoot);
+        TransactionalUpdateInstaller.ApplyDelta(
+            package,
+            fixture.InstallRoot,
+            journalPersistedForTesting: () => journalWrites += 1);
 
         Assert.Equal("same", File.ReadAllText(Path.Combine(fixture.InstallRoot, "app", "unchanged.txt")));
         Assert.Equal("new changed", File.ReadAllText(Path.Combine(fixture.InstallRoot, "app", "changed.txt")));
@@ -48,6 +72,7 @@ public sealed class UpdateInfrastructureTests : IDisposable
         Assert.False(Directory.Exists(Path.Combine(
             fixture.InstallRoot,
             UpdateFileNames.TransactionDirectory)));
+        Assert.Equal(2, journalWrites);
     }
 
     [Fact]
@@ -107,6 +132,8 @@ public sealed class UpdateInfrastructureTests : IDisposable
               ]
             }
             """);
+        SetReadOnly(backupPath);
+        SetReadOnly(destinationPath);
 
         TransactionalUpdateInstaller.RecoverPendingTransaction(installRoot);
 
@@ -140,10 +167,46 @@ public sealed class UpdateInfrastructureTests : IDisposable
               ]
             }
             """);
+        SetReadOnly(destinationPath);
 
         TransactionalUpdateInstaller.RecoverPendingTransaction(installRoot);
 
         Assert.False(File.Exists(destinationPath));
+        Assert.False(Directory.Exists(transactionRoot));
+    }
+
+    [Fact]
+    public void RecoveryRestoresAnExistingFileMovedWithoutPerFileJournalFlags()
+    {
+        var installRoot = Path.Combine(_root, "recover-existing-file-install");
+        var transactionRoot = Path.Combine(installRoot, UpdateFileNames.TransactionDirectory);
+        var backupPath = Path.Combine(transactionRoot, "backup", "app", "game.dll");
+        var destinationPath = Path.Combine(installRoot, "app", "game.dll");
+        Directory.CreateDirectory(Path.GetDirectoryName(backupPath)!);
+        Directory.CreateDirectory(Path.GetDirectoryName(destinationPath)!);
+        File.WriteAllText(backupPath, "old");
+        File.WriteAllText(destinationPath, "partial new");
+        File.WriteAllText(
+            Path.Combine(transactionRoot, "journal.json"),
+            """
+            {
+              "committed": false,
+              "entries": [
+                {
+                  "path": "app/game.dll",
+                  "install": true,
+                  "executable": false,
+                  "hadOriginal": true,
+                  "backedUp": false,
+                  "installed": false
+                }
+              ]
+            }
+            """);
+
+        TransactionalUpdateInstaller.RecoverPendingTransaction(installRoot);
+
+        Assert.Equal("old", File.ReadAllText(destinationPath));
         Assert.False(Directory.Exists(transactionRoot));
     }
 
@@ -172,6 +235,48 @@ public sealed class UpdateInfrastructureTests : IDisposable
     }
 
     [Fact]
+    public void FullPackageApplyDoesNotReplaceFilesThatAlreadyMatchTheTarget()
+    {
+        var sourceRoot = Path.Combine(_root, "selective-full-source");
+        var installRoot = Path.Combine(_root, "selective-full-install");
+        WriteFile(sourceRoot, "app/unchanged.dll", "same");
+        WriteFile(sourceRoot, "app/changed.dll", "new");
+        WriteFile(sourceRoot, "version.txt", "2.0.0");
+        WriteFile(installRoot, "app/unchanged.dll", "same");
+        WriteFile(installRoot, "app/changed.dll", "old");
+        WriteFile(installRoot, "version.txt", "1.0.0");
+
+        var unchangedPath = Path.Combine(installRoot, "app", "unchanged.dll");
+        var preservedTimestamp = new DateTime(2020, 1, 2, 3, 4, 6, DateTimeKind.Utc);
+        File.SetLastWriteTimeUtc(unchangedPath, preservedTimestamp);
+        var oldManifest = CreateManifest(
+            "1.0.0",
+            installRoot,
+            ["app/unchanged.dll", "app/changed.dll", "version.txt"]);
+        UpdateJson.WriteAtomic(Path.Combine(installRoot, UpdateFileNames.PackageManifest), oldManifest);
+        var targetManifest = CreateManifest(
+            "2.0.0",
+            sourceRoot,
+            ["app/unchanged.dll", "app/changed.dll", "version.txt"]);
+        UpdateJson.WriteAtomic(Path.Combine(sourceRoot, UpdateFileNames.PackageManifest), targetManifest);
+        var installedPaths = new List<string>();
+        var journalWrites = 0;
+
+        Assert.True(TransactionalUpdateInstaller.TryApplyFullPackage(
+            sourceRoot,
+            installRoot,
+            beforeInstallForTesting: installedPaths.Add,
+            journalPersistedForTesting: () => journalWrites += 1));
+
+        Assert.Equal("same", File.ReadAllText(unchangedPath));
+        Assert.Equal(preservedTimestamp, File.GetLastWriteTimeUtc(unchangedPath));
+        Assert.DoesNotContain("app/unchanged.dll", installedPaths);
+        Assert.Contains("app/changed.dll", installedPaths);
+        Assert.Equal("new", File.ReadAllText(Path.Combine(installRoot, "app", "changed.dll")));
+        Assert.Equal(2, journalWrites);
+    }
+
+    [Fact]
     public void FullPackageApplyRejectsAManifestForAnUnexpectedVersionBeforeMutation()
     {
         var sourceRoot = Path.Combine(_root, "wrong-version-source");
@@ -187,6 +292,82 @@ public sealed class UpdateInfrastructureTests : IDisposable
             expectedVersion: "2.0.1"));
 
         Assert.Equal("old", File.ReadAllText(Path.Combine(installRoot, "app", "game.dll")));
+        Assert.False(Directory.Exists(Path.Combine(
+            installRoot,
+            UpdateFileNames.TransactionDirectory)));
+    }
+
+    [Fact]
+    public void AtomicJsonWriteReplacesAReadOnlyDestination()
+    {
+        var metadataPath = Path.Combine(_root, "atomic-json", "metadata.json");
+        UpdateJson.WriteAtomic(metadataPath, new PackageFileManifest { Version = "1.0.0" });
+        File.SetAttributes(metadataPath, File.GetAttributes(metadataPath) | FileAttributes.ReadOnly);
+
+        UpdateJson.WriteAtomic(metadataPath, new PackageFileManifest { Version = "1.1.0" });
+
+        Assert.Equal("1.1.0", UpdateJson.ReadRequired<PackageFileManifest>(metadataPath).Version);
+        Assert.False(File.GetAttributes(metadataPath).HasFlag(FileAttributes.ReadOnly));
+        Assert.Empty(Directory.EnumerateFiles(
+            Path.GetDirectoryName(metadataPath)!,
+            ".metadata.json.*.tmp"));
+    }
+
+    [Fact]
+    public async Task AtomicJsonWriteRetriesAWindowsFileShareConflict()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var metadataPath = Path.Combine(_root, "locked-atomic-json", "metadata.json");
+        UpdateJson.WriteAtomic(metadataPath, new PackageFileManifest { Version = "1.0.0" });
+        var lockStream = new FileStream(
+            metadataPath,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.Read);
+        var releaseLock = Task.Run(async () =>
+        {
+            await Task.Delay(250);
+            lockStream.Dispose();
+        });
+
+        try
+        {
+            UpdateJson.WriteAtomic(metadataPath, new PackageFileManifest { Version = "1.1.0" });
+            await releaseLock;
+        }
+        finally
+        {
+            lockStream.Dispose();
+        }
+
+        Assert.Equal("1.1.0", UpdateJson.ReadRequired<PackageFileManifest>(metadataPath).Version);
+    }
+
+    [Fact]
+    public void FullPackageApplyNormalizesReadOnlyFilesAndCleansItsTransaction()
+    {
+        var sourceRoot = Path.Combine(_root, "readonly-full-source");
+        var installRoot = Path.Combine(_root, "readonly-full-install");
+        WriteFile(sourceRoot, "app/game.dll", "target");
+        WriteFile(sourceRoot, "version.txt", "2.0.0");
+        WriteFile(installRoot, "app/game.dll", "old");
+        var oldManifest = CreateManifest("1.0.0", installRoot, ["app/game.dll"]);
+        UpdateJson.WriteAtomic(Path.Combine(installRoot, UpdateFileNames.PackageManifest), oldManifest);
+        var targetManifest = CreateManifest("2.0.0", sourceRoot, ["app/game.dll", "version.txt"]);
+        UpdateJson.WriteAtomic(Path.Combine(sourceRoot, UpdateFileNames.PackageManifest), targetManifest);
+        SetReadOnly(Path.Combine(sourceRoot, "app", "game.dll"));
+        SetReadOnly(Path.Combine(installRoot, "app", "game.dll"));
+        SetReadOnly(Path.Combine(installRoot, UpdateFileNames.PackageManifest));
+
+        Assert.True(TransactionalUpdateInstaller.TryApplyFullPackage(sourceRoot, installRoot));
+
+        var installedGamePath = Path.Combine(installRoot, "app", "game.dll");
+        Assert.Equal("target", File.ReadAllText(installedGamePath));
+        Assert.False(File.GetAttributes(installedGamePath).HasFlag(FileAttributes.ReadOnly));
         Assert.False(Directory.Exists(Path.Combine(
             installRoot,
             UpdateFileNames.TransactionDirectory)));
@@ -208,7 +389,7 @@ public sealed class UpdateInfrastructureTests : IDisposable
     {
         if (Directory.Exists(_root))
         {
-            Directory.Delete(_root, recursive: true);
+            UpdateFileSystem.DeleteDirectory(_root, recursive: true);
         }
     }
 
@@ -277,6 +458,9 @@ public sealed class UpdateInfrastructureTests : IDisposable
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllText(path, contents);
     }
+
+    private static void SetReadOnly(string path)
+        => File.SetAttributes(path, File.GetAttributes(path) | FileAttributes.ReadOnly);
 
     private sealed record DeltaFixture(string InstallRoot, string DeltaRoot);
 

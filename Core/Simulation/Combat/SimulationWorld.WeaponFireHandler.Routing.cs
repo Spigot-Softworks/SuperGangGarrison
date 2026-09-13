@@ -80,7 +80,9 @@ public sealed partial class SimulationWorld
             bool forceGibOnKill = false)
         {
             var binding = ResolvePrimaryWeaponRuntimeBinding(behaviorId, weaponDefinition);
-            var resolvedKillFeedWeaponSpriteName = killFeedWeaponSpriteNameOverride ?? CharacterClassCatalog.GetPrimaryWeaponKillFeedSprite(weaponClassId);
+            var resolvedKillFeedWeaponSpriteName = killFeedWeaponSpriteNameOverride
+                ?? weaponDefinition.KillFeedWeaponSpriteName
+                ?? CharacterClassCatalog.GetPrimaryWeaponKillFeedSprite(weaponClassId);
             TryRegisterPrimaryWeaponFireSound(attacker, weaponDefinition, binding);
             if (TryDispatchPrimaryWeaponExecutor(
                     attacker,

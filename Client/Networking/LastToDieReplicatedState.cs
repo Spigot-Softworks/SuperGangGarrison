@@ -28,6 +28,7 @@ internal sealed class LastToDieReplicatedState
     private readonly Queue<ulong> _commandResultOrder = [];
 
     public LastToDieRunSnapshotMessage? Snapshot { get; private set; }
+    public LastToDieCommandResultMessage? LatestCommandResult { get; private set; }
 
     public LastToDieSnapshotApplyResult ApplySnapshot(LastToDieRunSnapshotMessage snapshot)
     {
@@ -76,6 +77,7 @@ internal sealed class LastToDieReplicatedState
         {
             return;
         }
+        LatestCommandResult = result;
 
         if (_commandResults.ContainsKey(result.CommandId))
         {
@@ -104,6 +106,7 @@ internal sealed class LastToDieReplicatedState
     public void Reset()
     {
         Snapshot = null;
+        LatestCommandResult = null;
         _commandResults.Clear();
         _commandResultOrder.Clear();
     }

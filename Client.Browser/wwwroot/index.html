@@ -48,6 +48,23 @@
                 maxPumpDurationMs: 0,
                 pumpCompletions: []
             },
+            loadPersistentValue: function (key) {
+                try {
+                    return window.localStorage.getItem("opengarrison:" + key);
+                } catch (error) {
+                    console.warn("Browser persistence read failed.", error);
+                    return null;
+                }
+            },
+            savePersistentValue: function (key, value) {
+                try {
+                    window.localStorage.setItem("opengarrison:" + key, value || "");
+                    return true;
+                } catch (error) {
+                    console.warn("Browser persistence write failed.", error);
+                    return false;
+                }
+            },
             ensureKniGlobals: function () {
                 const runtime = typeof globalThis.getDotnetRuntime === "function"
                     ? globalThis.getDotnetRuntime(0)
@@ -132,6 +149,16 @@
                 const isProtocol64 = normalizedHost.toLowerCase().startsWith("ws64://")
                     || normalizedHost.toLowerCase().startsWith("wss64://");
                 const isSecureProtocol64 = normalizedHost.toLowerCase().startsWith("wss64://");
+                if (isProtocol64) {
+                    // A room grant is already a complete endpoint. Preserve its
+                    // path, port and admission query when translating the scheme.
+                    const secure = isSecureProtocol64 || window.location.protocol === "https:";
+                    const url = new URL(normalizedHost.replace(/^wss?64:/i, secure ? "wss:" : "ws:"));
+                    if (url.pathname !== "/" || url.search) return url.href;
+                    if (!url.port && port > 0) url.port = String(port);
+                    url.pathname = "/opengarrison/ws64";
+                    return url.href;
+                }
                 const hostWithoutScheme = isProtocol64
                     ? normalizedHost.substring(normalizedHost.indexOf("://") + 3)
                     : normalizedHost;
@@ -219,6 +246,12 @@
                         : "WebSocket connection closed.";
                     closeEntry(reason);
                 };
+            },
+            sendWebSocketAudio: function (clientId, payload) {
+                const entry = window.OpenGarrisonBrowserHost.webSocketClients[clientId];
+                if (!entry || entry.isClosed || !entry.isReady || !entry.socket || entry.socket.readyState !== WebSocket.OPEN) return;
+                if (entry.socket.bufferedAmount > 16384) return;
+                entry.socket.send(payload);
             },
             sendWebSocketMessage: function (clientId, payload) {
                 const entry = window.OpenGarrisonBrowserHost.webSocketClients[clientId];
@@ -355,6 +388,9 @@
                 };
                 window.onkeydown = function (event) {
                     if (captureKeyboardForGame(event)) {
+                        // Leave the browser's paste gesture intact so it can supply
+                        // clipboard text without requesting clipboard-read permission.
+                        if ((event.ctrlKey || event.metaKey) && event.code === "KeyV") return;
                         invokeHostVoid("HandleBrowserKey", event.code ?? "", true);
                         if (event.key === "Backspace") {
                             sendTextInput("\b");
@@ -375,6 +411,14 @@
                         event.preventDefault();
                     }
                 };
+                if (api.roomCodePasteHandler) window.removeEventListener("paste", api.roomCodePasteHandler);
+                api.roomCodePasteHandler = function (event) {
+                    if (document.activeElement === canvas) {
+                        invokeHostVoid("HandleBrowserRoomCodePaste", event.clipboardData?.getData("text/plain") ?? "");
+                        event.preventDefault();
+                    }
+                };
+                window.addEventListener("paste", api.roomCodePasteHandler);
                 window.onfocus = function () {
                     invokeHostVoid("HandleBrowserFocus", document.activeElement === canvas);
                 };
@@ -395,6 +439,11 @@
                     started: !!started,
                     failed: !!failed
                 };
+            },
+            synchronizeCanvasSize: function () {
+                // Run outside the managed frame callback: KNI's resize listener
+                // synchronously calls back into .NET to reset the graphics device.
+                requestAnimationFrame(() => window.dispatchEvent(new Event("resize")));
             },
             getManagedState: function () {
                 return window.OpenGarrisonBrowserHost.hostState;
@@ -621,6 +670,12 @@
                     api.gameLoopHandle = 0;
                 }
             },
+            copyText: async function (text) {
+                try {
+                    await navigator.clipboard.writeText(text);
+                    return true;
+                } catch { return false; }
+            },
             installCanvasFocusHandlers: function () {
                 const api = window.OpenGarrisonBrowserHost;
                 api.focusCanvas();
@@ -655,6 +710,10 @@
             });
         });
     </script>
+    <script src="voice-audio.js"></script>
+    <script src="peer-rooms.js"></script>
+    <script src="jukebox-library.js"></script>
+    <script src="loading-progress.js"></script>
     <script src="_framework/blazor.webassembly.js"></script>
 </body>
 </html>

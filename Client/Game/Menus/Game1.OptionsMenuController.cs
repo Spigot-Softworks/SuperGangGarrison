@@ -18,7 +18,8 @@ public partial class Game1
             string Value,
             Action Activate,
             OptionsMenuTab Tab,
-            Action<int>? AdjustValue = null);
+            Action<int>? AdjustValue = null,
+            bool IsGroupHeader = false);
         private readonly record struct ReplayMenuEntry(string DisplayName, string Path, string Kind, bool IsOpenGarrisonDemo, DateTime LastWriteTimeUtc);
 
         private enum OptionsMenuTab
@@ -29,10 +30,11 @@ public partial class Game1
             Hud,
             Gameplay,
             Replays,
+            Account,
             Plugins,
         }
 
-        private static readonly string[] OptionsMenuTabLabels =
+        private static readonly string[] FullOptionsMenuTabLabels =
         {
             "Graphics",
             "Audio",
@@ -40,8 +42,12 @@ public partial class Game1
             "HUD",
             "Gameplay",
             "Replays",
+            "Account",
             "Plugins",
         };
+
+        private static readonly string[] BrowserOptionsMenuTabLabels = ["Graphics", "Audio", "Controls", "HUD", "Gameplay", "About"];
+        private static string[] OptionsMenuTabLabels => IsRestrictedBrowserEdition ? BrowserOptionsMenuTabLabels : FullOptionsMenuTabLabels;
 
         private const string MasterVolumeLabel = "Global Volume";
         private const string MenuMusicVolumeLabel = "Menu Music Volume";
@@ -56,6 +62,8 @@ public partial class Game1
         private const string ControllerAimDistanceTier3Label = "Aim Distance 3";
 
         private readonly Game1 _game;
+        private enum AudioOptionsGroup { Game, Chat }
+        private AudioOptionsGroup? _expandedAudioGroup = AudioOptionsGroup.Game;
 
         public OptionsMenuController(Game1 game)
         {
@@ -95,6 +103,7 @@ public partial class Game1
             _game._pluginOptionsHoverIndex = -1;
             _game._editingPlayerName = false;
             _game._playerNameEditBuffer = _game._world.LocalPlayer.DisplayName;
+            _game.CloseAccountDialog();
             if (reopenInGameMenu)
             {
                 _game.OpenInGameMenu();
@@ -159,6 +168,12 @@ public partial class Game1
 
         public void UpdateOptionsMenu(KeyboardState keyboard, MouseState mouse)
         {
+            if (_game._accountDialogOpen)
+            {
+                _game.UpdateAccountDialog(keyboard, mouse);
+                return;
+            }
+
             if (_game.IsKeyPressed(keyboard, Keys.Escape))
             {
                 if (_game._editingPlayerName)
@@ -268,6 +283,10 @@ public partial class Game1
                         _game._optionsPageIndex = tabIndex;
                         _game._optionsScrollOffset = 0;
                         _game._optionsHoverIndex = -1;
+                        if (GetOptionsMenuTab(tabIndex) == OptionsMenuTab.Account)
+                        {
+                            _game.BeginAccountProfileRefresh(silent: true);
+                        }
                         return;
                     }
                 }
@@ -369,6 +388,10 @@ public partial class Game1
                     _game._optionsPageIndex = Math.Clamp(_game._optionsPageIndex + horizontalStep, 0, OptionsMenuTabLabels.Length - 1);
                     _game._optionsScrollOffset = 0;
                     _game._optionsHoverIndex = actions.Count > 0 ? 0 : -1;
+                    if (GetOptionsMenuTab(_game._optionsPageIndex) == OptionsMenuTab.Account)
+                    {
+                        _game.BeginAccountProfileRefresh(silent: true);
+                    }
                     handled = true;
                 }
             }
@@ -480,12 +503,14 @@ public partial class Game1
                 var visibleRow = index - _game._optionsScrollOffset;
                 var rowBounds = new Rectangle(listBounds.X, listBounds.Y + (visibleRow * rowHeight), listBounds.Width, rowHeightWithoutSpacing);
                 var isHovered = index == _game._optionsHoverIndex || rowBounds.Contains(mouse.Position);
-                _game._spriteBatch.Draw(_game._pixel, rowBounds, isHovered ? new Color(36, 32, 29) : new Color(54, 47, 41));
+                var row = actions[index];
+                _game._spriteBatch.Draw(_game._pixel, rowBounds, row.IsGroupHeader
+                    ? isHovered ? new Color(101, 83, 62) : new Color(80, 66, 51)
+                    : isHovered ? new Color(36, 32, 29) : new Color(54, 47, 41));
 
                 var textScale = compactLayout ? optionsCompactRowTextScale : optionsRowTextScale;
                 var textY = rowBounds.Y + ((rowBounds.Height - _game.MeasureBitmapFontHeight(textScale)) * 0.5f);
 
-                var row = actions[index];
                 var labelX = rowBounds.X + optionsRowHorizontalPadding;
                 var valueRightX = rowBounds.Right - optionsRowHorizontalPadding;
                 var displayValue = row.Label switch
@@ -499,7 +524,7 @@ public partial class Game1
                 var labelMaxWidth = Math.Max(40f, valueX - labelX - optionsRowColumnGap);
                 var trimmedLabel = _game.TrimBitmapMenuText(row.Label, labelMaxWidth, textScale);
 
-                _game.DrawBitmapFontText(trimmedLabel, new Vector2(labelX, textY), Color.White, textScale);
+                _game.DrawBitmapFontText(trimmedLabel, new Vector2(labelX, textY), row.IsGroupHeader ? new Color(239, 201, 104) : Color.White, textScale);
 
                 if (row.Label == "Player Name" && _game._editingPlayerName)
                 {
@@ -544,11 +569,13 @@ public partial class Game1
 
             var backHovered = _game._optionsHoverIndex == actions.Count || backBounds.Contains(mouse.Position);
             _game.DrawMenuButtonScaled(backBounds, "Back", backHovered, 1f);
+            _game.DrawAccountDialog();
         }
 
         private List<OptionsMenuAction> BuildOptionsMenuActions()
         {
             var currentTab = GetOptionsMenuTab(_game._optionsPageIndex);
+            if (currentTab == OptionsMenuTab.Audio) return BuildAudioOptionsActions();
             var allActions = new List<OptionsMenuAction>
             {
                 // Graphics: display, rendering, and client-side visual presentation.
@@ -570,16 +597,6 @@ public partial class Game1
                 new("Frame Limit", GetFrameRateLimitLabel(_game._frameRateLimit), _game.CycleFrameRateLimitSetting, OptionsMenuTab.Graphics),
                 new("V Sync", _game._graphics.SynchronizeWithVerticalRetrace ? "Enabled" : "Disabled", _game.ToggleVSyncSetting, OptionsMenuTab.Graphics),
                 new("Reset Window Size", string.Empty, _game.ResetWindowSize, OptionsMenuTab.Graphics),
-
-                // Audio: volume, music, and global audio behavior.
-                new(MasterVolumeLabel, $"{_game._masterVolumePercent}%", () => _game.AdjustMasterVolume(5), OptionsMenuTab.Audio, step => _game.AdjustMasterVolume(step * 5)),
-                new("Music", GetMusicModeLabel(_game._musicMode), _game.CycleMusicModeSetting, OptionsMenuTab.Audio),
-                new(MenuMusicVolumeLabel, $"{_game._menuMusicVolumePercent}%", () => _game.AdjustMenuMusicVolume(5), OptionsMenuTab.Audio, step => _game.AdjustMenuMusicVolume(step * 5)),
-                new(InGameMusicVolumeLabel, $"{_game._ingameMusicVolumePercent}%", () => _game.AdjustIngameMusicVolume(5), OptionsMenuTab.Audio, step => _game.AdjustIngameMusicVolume(step * 5)),
-                new("Dynamic Music", _game._dynamicMusicEnabled ? "Enabled" : "Disabled", _game.ToggleDynamicMusicSetting, OptionsMenuTab.Audio),
-                new(CombatMusicVolumeLabel, $"{_game._combatMusicVolumePercent}%", () => _game.AdjustCombatMusicVolume(5), OptionsMenuTab.Audio, step => _game.AdjustCombatMusicVolume(step * 5)),
-                new(SoundEffectsVolumeLabel, $"{_game._soundEffectsVolumePercent}%", () => _game.AdjustSoundEffectsVolume(5), OptionsMenuTab.Audio, step => _game.AdjustSoundEffectsVolume(step * 5)),
-                new("Mute All Audio (F12)", _game._audioMuted ? "Muted" : "Unmuted", _game.ToggleAudioMuteSetting, OptionsMenuTab.Audio),
 
                 // Controls: bindings and controller aiming behavior.
                 new("Keyboard & Mouse", string.Empty, OpenControlsMenuFromOptions, OptionsMenuTab.Controls),
@@ -619,14 +636,35 @@ public partial class Game1
                 new("Kill Cam", _game._killCamEnabled ? "Enabled" : "Disabled", _game.ToggleKillCamSetting, OptionsMenuTab.Gameplay),
                 new("Network Smoothing", _game._positionSmoothingEnabled ? "Enabled" : "Disabled", _game.TogglePositionSmoothingSetting, OptionsMenuTab.Gameplay),
                 new("Enable Prediction", _game._enablePrediction ? "Enabled" : "Disabled", _game.TogglePredictionSetting, OptionsMenuTab.Gameplay),
+
+                // Account: portable identity, recovery, points, and future cosmetic currency.
+                new("Friend Code", _game._clientIdentity.FriendCode, NoOp, OptionsMenuTab.Account),
+                new("Protection", _game._accountIsProtected ? "Recovery enabled" : "Not protected", NoOp, OptionsMenuTab.Account),
+                new("Lifetime Points", $"{_game._accountLifetimePoints:N0}", NoOp, OptionsMenuTab.Account),
+                new("Wallet", $"{_game._accountWalletBalance:N0}", NoOp, OptionsMenuTab.Account),
+                new(
+                    "Global Rank",
+                    !_game._accountGlobalRankKnown
+                        ? "Not checked"
+                        : _game._accountGlobalRank > 0 ? $"#{_game._accountGlobalRank:N0}" : "Unranked",
+                    NoOp,
+                    OptionsMenuTab.Account),
+                new("Recovery Key", _game.GetAccountRecoveryKeyDisplay(), NoOp, OptionsMenuTab.Account),
+                new("Refresh Account", _game.IsAccountOperationPending ? "Working..." : string.Empty, () => _game.BeginAccountProfileRefresh(silent: false), OptionsMenuTab.Account),
+                new(_game._accountIsProtected ? "Replace Recovery Key" : "Protect This Account", string.Empty, _game.BeginProtectAccount, OptionsMenuTab.Account),
+                new("Shorten Friend Code", _game.CanShortenAccountFriendCode ? "Create 8-char code" : "Already short", _game.BeginShortenAccountFriendCode, OptionsMenuTab.Account),
+                new("Sign In On This Device", string.Empty, _game.OpenAccountLoginDialog, OptionsMenuTab.Account),
+                new("Account Status", _game.GetAccountStatusDisplay(), NoOp, OptionsMenuTab.Account),
             };
 
-            if (_game.HasClientPluginOptions())
+            if (!IsRestrictedBrowserEdition && _game.HasClientPluginOptions())
             {
                 allActions.Add(new OptionsMenuAction("Plugin Options", string.Empty, OpenPluginOptionsMenuFromOptions, OptionsMenuTab.Plugins));
             }
 
             allActions.Add(new OptionsMenuAction("Version", GetApplicationVersionLabel(), NoOp, OptionsMenuTab.Plugins));
+            if (IsRestrictedBrowserEdition && !_game._optionsMenuOpenedFromGameplay)
+                allActions.Add(new OptionsMenuAction("Credits", string.Empty, _game.OpenCreditsMenu, OptionsMenuTab.Plugins));
 
             if (currentTab == OptionsMenuTab.Replays)
             {
@@ -637,6 +675,8 @@ public partial class Game1
 
             foreach (var action in allActions)
             {
+                if (OperatingSystem.IsBrowser() && action.Label is "Display Mode" or "Window Size" or "Reset Window Size")
+                    continue;
                 if (action.Tab == currentTab)
                 {
                     filteredActions.Add(action);
@@ -646,8 +686,61 @@ public partial class Game1
             return filteredActions;
         }
 
+        private List<OptionsMenuAction> BuildAudioOptionsActions()
+        {
+            var actions = new List<OptionsMenuAction>
+            {
+                new("Game", _expandedAudioGroup == AudioOptionsGroup.Game ? "[-]" : "[+]",
+                    () => ToggleAudioOptionsGroup(AudioOptionsGroup.Game), OptionsMenuTab.Audio, IsGroupHeader: true),
+            };
+            if (_expandedAudioGroup == AudioOptionsGroup.Game)
+            {
+                actions.AddRange(new OptionsMenuAction[]
+                {
+                    new(MasterVolumeLabel, $"{_game._masterVolumePercent}%", () => _game.AdjustMasterVolume(5), OptionsMenuTab.Audio, step => _game.AdjustMasterVolume(step * 5)),
+                    new("Mute All Audio (F12)", _game._audioMuted ? "Muted" : "Unmuted", _game.ToggleAudioMuteSetting, OptionsMenuTab.Audio),
+                    new(SoundEffectsVolumeLabel, $"{_game._soundEffectsVolumePercent}%", () => _game.AdjustSoundEffectsVolume(5), OptionsMenuTab.Audio, step => _game.AdjustSoundEffectsVolume(step * 5)),
+                    new("Music", GetMusicModeLabel(_game._musicMode), _game.CycleMusicModeSetting, OptionsMenuTab.Audio),
+                    new(MenuMusicVolumeLabel, $"{_game._menuMusicVolumePercent}%", () => _game.AdjustMenuMusicVolume(5), OptionsMenuTab.Audio, step => _game.AdjustMenuMusicVolume(step * 5)),
+                    new(InGameMusicVolumeLabel, $"{_game._ingameMusicVolumePercent}%", () => _game.AdjustIngameMusicVolume(5), OptionsMenuTab.Audio, step => _game.AdjustIngameMusicVolume(step * 5)),
+                    new("Dynamic Music", _game._dynamicMusicEnabled ? "Enabled" : "Disabled", _game.ToggleDynamicMusicSetting, OptionsMenuTab.Audio),
+                    new(CombatMusicVolumeLabel, $"{_game._combatMusicVolumePercent}%", () => _game.AdjustCombatMusicVolume(5), OptionsMenuTab.Audio, step => _game.AdjustCombatMusicVolume(step * 5)),
+                    new("Jukebox Volume", $"{_game._voiceSettings.JukeboxVolumePercent}%", () => _game.AdjustVoiceSetting("jukebox", 5), OptionsMenuTab.Audio, step => _game.AdjustVoiceSetting("jukebox", step * 5)),
+                    new("Jukebox", _game._voiceSettings.JukeboxMuted ? "Muted" : "Unmuted", _game.ToggleJukeboxMute, OptionsMenuTab.Audio),
+                    new("Music Library", OperatingSystem.IsBrowser() ? "Import / Remove" : "Open Folder", _game.ManageJukeboxLibrary, OptionsMenuTab.Audio),
+                });
+            }
+            actions.Add(new("Chat", _expandedAudioGroup == AudioOptionsGroup.Chat ? "[-]" : "[+]",
+                () => ToggleAudioOptionsGroup(AudioOptionsGroup.Chat), OptionsMenuTab.Audio, IsGroupHeader: true));
+            if (_expandedAudioGroup == AudioOptionsGroup.Chat)
+            {
+                actions.AddRange(new OptionsMenuAction[]
+                {
+                    new(_game.GetVoiceMuteActionLabel(), _game._voiceSettings.VoiceMuted ? "Muted" : "Unmuted", _game.ToggleVoiceMute, OptionsMenuTab.Audio),
+                    new("Voice Volume", $"{_game._voiceSettings.VoiceVolumePercent}%", () => _game.AdjustVoiceSetting("voice", 5), OptionsMenuTab.Audio, step => _game.AdjustVoiceSetting("voice", step * 5)),
+                    new("Spatial Voice", _game._voiceSettings.SpatialVoice ? "On" : "Off", _game.ToggleSpatialVoice, OptionsMenuTab.Audio),
+                    new("Microphone Mode", _game.GetVoiceModeLabel(), _game.CycleVoiceMode, OptionsMenuTab.Audio),
+                    new("Push to Talk Key", InputBindingsSettings.FormatBinding(_game._inputBindings.PushToTalk), OpenControlsMenuFromOptions, OptionsMenuTab.Audio),
+                    new("Microphone", string.IsNullOrEmpty(_game._voiceSettings.MicrophoneName) ? "Default" : _game._voiceSettings.MicrophoneName, _game.CycleVoiceMicrophone, OptionsMenuTab.Audio),
+                    new("Microphone Gain", $"{_game._voiceSettings.MicrophoneGainPercent}%", () => _game.AdjustVoiceSetting("gain", 5), OptionsMenuTab.Audio, step => _game.AdjustVoiceSetting("gain", step * 5)),
+                    new("Voice Channel", _game.GetVoiceChannelLabel(), _game.ToggleVoiceTeamOnly, OptionsMenuTab.Audio),
+                    new("Voice Status", _game.GetVoiceStatusLabel(), NoOp, OptionsMenuTab.Audio),
+                });
+            }
+            return actions;
+        }
+
+        private void ToggleAudioOptionsGroup(AudioOptionsGroup group)
+        {
+            _expandedAudioGroup = _expandedAudioGroup == group ? null : group;
+            _game._optionsScrollOffset = 0;
+            _game._optionsHoverIndex = group == AudioOptionsGroup.Game ? 0 : 1;
+        }
+
         private static OptionsMenuTab GetOptionsMenuTab(int pageIndex)
         {
+            if (IsRestrictedBrowserEdition)
+                return pageIndex is >= 0 and < 5 ? (OptionsMenuTab)pageIndex : OptionsMenuTab.Plugins;
             return pageIndex switch
             {
                 0 => OptionsMenuTab.Graphics,
@@ -656,6 +749,7 @@ public partial class Game1
                 3 => OptionsMenuTab.Hud,
                 4 => OptionsMenuTab.Gameplay,
                 5 => OptionsMenuTab.Replays,
+                6 => OptionsMenuTab.Account,
                 _ => OptionsMenuTab.Plugins,
             };
         }
@@ -802,7 +896,8 @@ public partial class Game1
             var buttonHeight = compactLayout ? 34 : 42;
             var tabCount = OptionsMenuTabLabels.Length;
             var spacing = compactLayout ? 8 : 12;
-            var buttonWidth = Math.Min(160, Math.Max(72, (panel.Width - (padding * 2) - ((tabCount - 1) * spacing)) / tabCount));
+            var minimumButtonWidth = compactLayout ? 58 : 72;
+            var buttonWidth = Math.Min(160, Math.Max(minimumButtonWidth, (panel.Width - (padding * 2) - ((tabCount - 1) * spacing)) / tabCount));
             var startX = panel.X + padding;
             var y = panel.Y + (compactLayout ? 52 : 60);
             var bounds = new Rectangle[tabCount];

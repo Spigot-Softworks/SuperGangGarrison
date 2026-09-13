@@ -285,6 +285,7 @@ public partial class Game1
 
     private void RefreshFriendPresence()
     {
+        if (IsRestrictedBrowserEdition) return;
         if (OperatingSystem.IsBrowser() || _friendsPresenceRequestTask is not null)
         {
             return;
@@ -463,6 +464,7 @@ public partial class Game1
 
     private void RefreshFriendRequests()
     {
+        if (IsRestrictedBrowserEdition) return;
         if (OperatingSystem.IsBrowser() || _friendRequestsRefreshTask is not null)
         {
             return;
@@ -474,6 +476,7 @@ public partial class Game1
 
     private void PollDirectMessages()
     {
+        if (IsRestrictedBrowserEdition) return;
         if (OperatingSystem.IsBrowser() || _directMessagesPollTask is not null)
         {
             return;

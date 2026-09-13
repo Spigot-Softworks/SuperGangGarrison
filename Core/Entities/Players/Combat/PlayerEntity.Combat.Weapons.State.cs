@@ -10,7 +10,8 @@ public sealed partial class PlayerEntity
     {
         AdvanceMedicHealDartState();
 
-        if (ClassId == PlayerClass.Pyro)
+        if (ClassId == PlayerClass.Pyro
+            && HasPrimaryBehavior(BuiltInGameplayBehaviorIds.Flamethrower))
         {
             AdvancePyroWeaponState();
             AdvancePyroAirblastState();

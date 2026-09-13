@@ -87,6 +87,11 @@ public partial class Game1
                 return GameplayOverlayKind.HudEditor;
             }
 
+            if (_game._voteMenuOpen)
+            {
+                return GameplayOverlayKind.VoteMenu;
+            }
+
             if (_game._inGameMenuOpen)
             {
                 return GameplayOverlayKind.InGameMenu;
@@ -107,6 +112,8 @@ public partial class Game1
 
         public void Update(KeyboardState keyboard, MouseState mouse)
         {
+            // Loading owns input until it can render the ordinary menus again.
+            if (_game.IsGameplayLoadingForMenuInput()) return;
             if (_game._friendsMenuOpen && _game._inGameMenuOpen)
             {
                 _game.UpdateFriendsMenu(keyboard, mouse);
@@ -156,6 +163,9 @@ public partial class Game1
                     return;
                 case GameplayOverlayKind.HudEditor:
                     _game.UpdateHudEditor(keyboard, mouse);
+                    return;
+                case GameplayOverlayKind.VoteMenu:
+                    _game.UpdateVoteMenu(keyboard, mouse);
                     return;
                 case GameplayOverlayKind.InGameMenu:
                     _game.UpdateInGameMenu(keyboard, mouse);

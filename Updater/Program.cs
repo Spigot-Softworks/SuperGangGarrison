@@ -8,7 +8,6 @@ using System.Runtime.Versioning;
 using System.Security.Cryptography;
 using OpenGarrison.Bootstrap;
 
-const string UpdateManifestBaseUrl = "https://api.superganggarrison.com/updates";
 const string VersionFileName = "version.txt";
 const string ReleaseChannelFileName = "release-channel.txt";
 const string ApplyUpdateArgument = "--apply-update";
@@ -34,13 +33,15 @@ var appDirectory = ResolveInstallationRoot(AppContext.BaseDirectory);
 var manifestUrl = Environment.GetEnvironmentVariable("OPENGARRISON_UPDATE_MANIFEST");
 var manifestUrlOverridden = !string.IsNullOrWhiteSpace(manifestUrl);
 var expectedManifestChannel = string.Empty;
+var fallbackManifestUrl = string.Empty;
 if (string.IsNullOrWhiteSpace(manifestUrl))
 {
     expectedManifestChannel = GetUpdateChannel(appDirectory);
     manifestUrl = GetDefaultManifestUrl(expectedManifestChannel);
+    fallbackManifestUrl = GetFallbackManifestUrl(expectedManifestChannel);
 }
 
-LogUpdaterEvent(appDirectory, $"starting updater appDirectory=\"{appDirectory}\" manifestUrl=\"{manifestUrl}\" channel=\"{(string.IsNullOrWhiteSpace(expectedManifestChannel) ? "override" : expectedManifestChannel)}\"");
+LogUpdaterEvent(appDirectory, $"starting updater appDirectory=\"{appDirectory}\" manifestUrl=\"{manifestUrl}\" fallbackManifestUrl=\"{fallbackManifestUrl}\" channel=\"{(string.IsNullOrWhiteSpace(expectedManifestChannel) ? "override" : expectedManifestChannel)}\"");
 
 using var updateUi = UpdateUi.Create();
 var suppressLaunchAfterUpdate = HasNoLaunchAfterUpdateArgument(args);
@@ -52,7 +53,30 @@ var launchGame = true;
 try
 {
     TransactionalUpdateInstaller.RecoverPendingTransaction(appDirectory);
-    var result = await TryApplyUpdateAsync(appDirectory, manifestUrl, expectedManifestChannel, helperGameArgs, updateUi).ConfigureAwait(false);
+    UpdateApplyResult result;
+    var fallbackManifestAttempted = false;
+    try
+    {
+        result = await TryApplyUpdateAsync(appDirectory, manifestUrl, expectedManifestChannel, helperGameArgs, updateUi).ConfigureAwait(false);
+    }
+    catch (Exception ex) when (ex is not OperationCanceledException
+                               && !manifestUrlOverridden
+                               && !string.IsNullOrWhiteSpace(fallbackManifestUrl))
+    {
+        LogUpdaterEvent(appDirectory, $"primary update manifest failed; trying fallback manifestUrl=\"{fallbackManifestUrl}\"", ex);
+        fallbackManifestAttempted = true;
+        result = await TryApplyUpdateAsync(appDirectory, fallbackManifestUrl, expectedManifestChannel, helperGameArgs, updateUi).ConfigureAwait(false);
+    }
+
+    if (result == UpdateApplyResult.NoUpdate
+        && !manifestUrlOverridden
+        && !fallbackManifestAttempted
+        && !string.IsNullOrWhiteSpace(fallbackManifestUrl)
+        && !string.Equals(manifestUrl, fallbackManifestUrl, StringComparison.OrdinalIgnoreCase))
+    {
+        result = await TryApplyUpdateAsync(appDirectory, fallbackManifestUrl, expectedManifestChannel, helperGameArgs, updateUi).ConfigureAwait(false);
+    }
+
     if (result == UpdateApplyResult.NoUpdate && !manifestUrlOverridden)
     {
         result = await TryApplyChainedUpdateAsync(
@@ -571,7 +595,16 @@ static string ResolveMetadataPackageRoot(string extractPath, string metadataFile
 
 static string GetDefaultManifestUrl(string channel)
 {
-    return $"{UpdateManifestBaseUrl}/{GetUpdatePlatformSegment()}/{NormalizeUpdateChannel(channel)}/latest.json";
+    return UpdateManifestLocation.GetPrimary(
+        NormalizeUpdateChannel(channel),
+        GetUpdatePlatformSegment());
+}
+
+static string GetFallbackManifestUrl(string channel)
+{
+    return UpdateManifestLocation.GetFallback(
+        NormalizeUpdateChannel(channel),
+        GetUpdatePlatformSegment());
 }
 
 static string ResolveInstallationRoot(string runtimeDirectory)

@@ -59,7 +59,7 @@ public partial class Game1
                 AdvanceLooseSheetAxis(ref sheetY, sheetX, ref velocityY, horizontal: false);
 
                 if (!sheet.IsBurning
-                    && !OperatingSystem.IsBrowser()
+                    && !_game.UseReducedBrowserEffects
                     && IsLooseSheetIgnited(sheetX, sheetY))
                 {
                     sheet.IsBurning = true;
@@ -338,7 +338,7 @@ public partial class Game1
                 return;
             }
 
-            if (OperatingSystem.IsBrowser())
+            if (_game.UseReducedBrowserEffects)
             {
                 if (_game._visualRandom.NextSingle() > BrowserLooseSheetSpawnChance)
                 {
@@ -357,12 +357,12 @@ public partial class Game1
 
             var horizontalVelocity = (initialHorizontalSpeed / ClientUpdateTicksPerSecond) + ((_game._visualRandom.NextSingle() * 0.6f) - 0.3f);
             var verticalVelocity = -0.8f - (_game._visualRandom.NextSingle() * 0.45f);
-            var lifetimeTicks = OperatingSystem.IsBrowser()
+            var lifetimeTicks = _game.UseReducedBrowserEffects
                 ? BrowserLooseSheetLifetimeTicks
                 : isCivvieMoney
                     ? CivvieMoneySheetLifetimeTicks
                     : LooseSheetVisual.LifetimeTicks;
-            var fadeTicks = OperatingSystem.IsBrowser()
+            var fadeTicks = _game.UseReducedBrowserEffects
                 ? BrowserLooseSheetFadeTicks
                 : isCivvieMoney
                     ? CivvieMoneySheetFadeTicks
@@ -417,13 +417,8 @@ public partial class Game1
 
         public bool IsShellBlocked(float x, float y)
         {
-            foreach (var solid in _game._world.Level.Solids)
-            {
-                if (x >= solid.Left && x < solid.Right && y >= solid.Top && y < solid.Bottom)
-                {
-                    return true;
-                }
-            }
+            if (_game._world.Level.ContainsSolidPoint(x, y))
+                return true;
 
             foreach (var wall in _game._world.Level.GetRoomObjects(RoomObjectType.PlayerWall))
             {
@@ -547,13 +542,8 @@ public partial class Game1
 
         private bool IsLooseSheetBlocked(float x, float y)
         {
-            foreach (var solid in _game._world.Level.Solids)
-            {
-                if (x >= solid.Left && x < solid.Right && y >= solid.Top && y < solid.Bottom)
-                {
-                    return true;
-                }
-            }
+            if (_game._world.Level.ContainsSolidPoint(x, y))
+                return true;
 
             foreach (var wall in _game._world.Level.GetRoomObjects(RoomObjectType.PlayerWall))
             {

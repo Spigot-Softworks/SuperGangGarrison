@@ -9,6 +9,10 @@ using OpenGarrison.ClientShared;
 using OpenGarrison.Core;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
+ClientDistribution.Initialize(ReadBrowserAssemblyMetadata("OpenGarrisonBrowserEdition"),
+    ReadBrowserAssemblyMetadata("OpenGarrisonRoomContentId"),
+    ReadBrowserAssemblyMetadata("OpenGarrisonBrowserBuildVersion"),
+    ReadBrowserAssemblyMetadata("OpenGarrisonRoomServiceOrigin"));
 ApplicationBuildInfo.InitializeBrowserMetadata(
     ReadBrowserAssemblyMetadata("OpenGarrisonBrowserBuildVersion"),
     ReadBrowserAssemblyMetadata("OpenGarrisonBrowserReleaseChannel"));
@@ -40,6 +44,11 @@ ClientRuntimeBootstrap.InitializeBrowserBaseAddress(builder.HostEnvironment.Base
 
 var host = builder.Build();
 var jsRuntime = host.Services.GetRequiredService<IJSRuntime>();
+var musicLibrary = new BrowserJukeboxLibrary((IJSInProcessRuntime)jsRuntime);
+BrowserJukeboxStore.ManageLibrary = musicLibrary.Manage;
+BrowserJukeboxStore.RestoreLibrary = musicLibrary.Restore;
+PeerDataConnectionFactory.BrowserFactory = (offerer, ice, signal, receive) =>
+    new BrowserPeerDataConnection((IJSInProcessRuntime)jsRuntime, offerer, ice, signal, receive);
 NetworkClientMessageTransportRegistry.SetBrowserTransportFactory(
     (string targetHost, int targetPort, out INetworkClientMessageTransport? transport, out string error) =>
         BrowserWebSocketMessageTransport.TryConnect(jsRuntime, targetHost, targetPort, out transport, out error));

@@ -37,6 +37,16 @@ public enum MessageType : byte
     LastToDieCommandResult = 30,
     LastToDieRunSnapshot = 31,
     LastToDieRunSnapshotAck = 32,
+    GameplayAccountAttachRequest = 48,
+    GameplayAccountAttachResult = 49,
+    PlayerPointsState = 50,
+    VoteCommand = 51,
+    VoteState = 52,
+    VoteMenu = 53,
+    VoiceSubmit = 54,
+    AudioRelay = 55,
+    ServerAudioState = 56,
+    VoiceChannelMembership = 57,
 }
 
 public enum ConnectionIntent : byte
@@ -87,6 +97,138 @@ public enum InputButtons : uint
 public interface IProtocolMessage
 {
     MessageType Type { get; }
+}
+
+public enum VoteCommandKind : byte
+{
+    OpenMenu = 1,
+    StartMapNow = 2,
+    StartMapNextRound = 3,
+    StartVip = 4,
+    CastYes = 5,
+    CastNo = 6,
+    Cancel = 7,
+    RequestStatus = 8,
+    StartKick = 9,
+    StartMute = 10,
+    StartScramble = 11,
+    StartCustom = 12,
+}
+
+public enum ServerVoteKind : byte
+{
+    None = 0,
+    ChangeMapNow = 1,
+    ChangeMapNextRound = 2,
+    SelectVip = 3,
+    KickPlayer = 4,
+    MutePlayer = 5,
+    ScrambleTeams = 6,
+    PluginDefined = 7,
+}
+
+public enum ServerVoteEventKind : byte
+{
+    Snapshot = 0,
+    Started = 1,
+    Yes = 2,
+    No = 3,
+    Passed = 4,
+    Failed = 5,
+    Expired = 6,
+    Canceled = 7,
+    ActionFailed = 8,
+}
+
+public enum VoteMenuTargetKind : byte
+{
+    None = 0,
+    Player = 1,
+    Map = 2,
+}
+
+public sealed record GameplayAccountAttachRequestMessage(ulong RequestId, string GameplayToken) : IProtocolMessage
+{
+    public MessageType Type => MessageType.GameplayAccountAttachRequest;
+}
+
+public sealed record GameplayAccountAttachResultMessage(
+    ulong RequestId,
+    bool Attached,
+    string Reason,
+    string FriendCode,
+    string DisplayName,
+    long LifetimePoints,
+    long WalletBalance,
+    long ProfileRevision) : IProtocolMessage
+{
+    public MessageType Type => MessageType.GameplayAccountAttachResult;
+}
+
+public sealed record PlayerPointsStateMessage(
+    long LifetimePoints,
+    long WalletBalance,
+    int GlobalRank,
+    long ProfileRevision) : IProtocolMessage
+{
+    public MessageType Type => MessageType.PlayerPointsState;
+}
+
+public sealed record VoteCommandMessage(
+    VoteCommandKind Command,
+    string Target = "",
+    int AreaIndex = 1,
+    byte TargetSlot = 0,
+    byte Team = 0,
+    ulong VoteId = 0,
+    string Argument = "") : IProtocolMessage
+{
+    public MessageType Type => MessageType.VoteCommand;
+}
+
+public sealed record VoteStateMessage(
+    ulong VoteId,
+    uint Revision,
+    ServerVoteEventKind Event,
+    ServerVoteKind Kind,
+    string Subject,
+    string InitiatorName,
+    string ActorName,
+    int YesVotes,
+    int NoVotes,
+    int RequiredYesVotes,
+    int EligibleVoters,
+    int RemainingTicks,
+    string Message) : IProtocolMessage
+{
+    public MessageType Type => MessageType.VoteState;
+}
+
+public sealed record VoteMenuMapEntry(string LevelName, string DisplayName, int AreaCount);
+
+public sealed record VoteMenuPlayerEntry(byte Slot, string DisplayName, byte Team, bool IsMuted = false);
+
+public sealed record VoteMenuCustomEntry(
+    string Id,
+    string DisplayName,
+    string Description,
+    byte TargetKind);
+
+public sealed record VoteMenuMessage(
+    IReadOnlyList<VoteMenuMapEntry> Maps,
+    IReadOnlyList<VoteMenuPlayerEntry> Players,
+    bool VipVoteAvailable,
+    bool VoteActive,
+    int CooldownTicksRemaining,
+    ulong ActiveVoteId,
+    bool KickVoteAvailable = false,
+    bool MuteVoteAvailable = false,
+    bool ScrambleVoteAvailable = false,
+    IReadOnlyList<VoteMenuCustomEntry>? RegisteredVotes = null) : IProtocolMessage
+{
+    public MessageType Type => MessageType.VoteMenu;
+
+    public IReadOnlyList<VoteMenuCustomEntry> CustomVotes => RegisteredVotes ?? Array.Empty<VoteMenuCustomEntry>();
 }
 
 public sealed record HelloMessage(
@@ -288,9 +430,16 @@ public sealed record PlayerSocialProfileState(
     string FriendCode,
     string PlayerCardJson);
 
+public sealed record PlayerServerTitleState(
+    byte Slot,
+    string Text,
+    uint ColorRgb,
+    bool Rainbow);
+
 public sealed record PlayerSocialProfileUpdateMessage(
     IReadOnlyList<PlayerSocialProfileState> Profiles,
-    IReadOnlyList<byte> RemovedSlots) : IProtocolMessage
+    IReadOnlyList<byte> RemovedSlots,
+    IReadOnlyList<PlayerServerTitleState>? Titles = null) : IProtocolMessage
 {
     public MessageType Type => MessageType.PlayerSocialProfileUpdate;
 }
@@ -465,7 +614,11 @@ public sealed record SnapshotPlayerState(
     // keeps existing constructor call sites source-compatible.
     float RageCharge = 0f,
     bool IsRageReady = false,
-    int RageTicksRemaining = 0);
+    int RageTicksRemaining = 0,
+    // Authoritative roster identity. This is deliberately metadata rather
+    // than a name heuristic so practice, hosted, and dedicated bots render
+    // consistently on every client.
+    bool IsBot = false);
 
 public sealed record SnapshotPlayerMovementState(
     byte Slot,
@@ -629,7 +782,8 @@ public sealed record SnapshotShotState(
     float CriticalDamageMultiplier = 1f,
     float PlayerKnockbackImpulse = 0f,
     float PlayerKnockbackAirborneVerticalScale = 1f,
-    float PlayerKnockbackGroundedVerticalScale = 1f);
+    float PlayerKnockbackGroundedVerticalScale = 1f,
+    byte FlareStyle = 0);
 
 public sealed record SnapshotGrenadeState(
     int Id,
@@ -666,7 +820,10 @@ public sealed record SnapshotRocketState(
     float FadeSourceTicksRemaining = 0f,
     IReadOnlyList<int>? PassedFriendlyPlayerIds = null,
     bool IsCritical = false,
-    float CriticalDamageMultiplier = 1f);
+    float CriticalDamageMultiplier = 1f,
+    bool IsBallistic = false,
+    float BallisticGravityPerTick = 0f,
+    bool SuppressSmokeTrail = false);
 
 public sealed record SnapshotRocketSpawnEvent(
     int Id,
@@ -691,7 +848,10 @@ public sealed record SnapshotRocketSpawnEvent(
     bool IsCritical = false,
     ulong EventId = 0,
     IReadOnlyList<int>? PassedFriendlyPlayerIds = null,
-    float CriticalDamageMultiplier = 1f);
+    float CriticalDamageMultiplier = 1f,
+    bool IsBallistic = false,
+    float BallisticGravityPerTick = 0f,
+    bool SuppressSmokeTrail = false);
 
 public sealed record SnapshotFlameState(
     int Id,
@@ -751,7 +911,8 @@ public sealed record SnapshotDeadBodyState(
     float HorizontalSpeed,
     float VerticalSpeed,
     bool FacingLeft,
-    int TicksRemaining);
+    int TicksRemaining,
+    string GameplayClassId = "");
 
 public sealed record SnapshotSentryGibState(
     int Id,
@@ -777,6 +938,11 @@ public sealed record SnapshotJumpPadState(
     int Health,
     bool HasLanded,
     bool IsBuilt = false);
+
+public sealed record SnapshotCivilDefenseTurretState(
+    int Id, int OwnerPlayerId, byte Team, float X, float Y, int Health,
+    bool HasLanded, bool IsBuilt, float FacingDirectionX, float AimDirectionDegrees,
+    int ReloadTicksRemaining, int ShotTraceTicksRemaining, float LastShotTargetX, float LastShotTargetY);
 
 public sealed record SnapshotPlayerGibState(
     int Id,
@@ -858,7 +1024,8 @@ public sealed record SnapshotVisualEvent(
     float Y,
     float DirectionDegrees,
     int Count,
-    ulong EventId = 0);
+    ulong EventId = 0,
+    ulong SourceFrame = 0);
 
 public sealed record SnapshotDamageEvent(
     int Amount,
@@ -1028,7 +1195,9 @@ public sealed record SnapshotMessage(
     public IReadOnlyList<int> RemovedSentryGibIds { get; init; } = Array.Empty<int>();
     public IReadOnlyList<SnapshotSentryGibState> SentryGibs { get; init; } = Array.Empty<SnapshotSentryGibState>();
     public IReadOnlyList<SnapshotJumpPadState> JumpPads { get; init; } = Array.Empty<SnapshotJumpPadState>();
+    public IReadOnlyList<SnapshotCivilDefenseTurretState> CivilDefenseTurrets { get; init; } = Array.Empty<SnapshotCivilDefenseTurretState>();
     public IReadOnlyList<int> RemovedJumpPadIds { get; init; } = Array.Empty<int>();
+    public IReadOnlyList<int> RemovedCivilDefenseTurretIds { get; init; } = Array.Empty<int>();
     public IReadOnlyList<SnapshotJumpPadGibState> JumpPadGibs { get; init; } = Array.Empty<SnapshotJumpPadGibState>();
     public IReadOnlyList<int> RemovedJumpPadGibIds { get; init; } = Array.Empty<int>();
     public IReadOnlyList<SnapshotHealthPackState> HealthPacks { get; init; } = Array.Empty<SnapshotHealthPackState>();

@@ -101,9 +101,9 @@ public sealed partial class SimulationWorld
                 }
             }
 
-            for (var roomObjectIndex = 0; roomObjectIndex < Level.RoomObjects.Count; roomObjectIndex += 1)
+            foreach (var roomObjectIndex in Level.ProjectileObstacleIndices)
             {
-                var roomObject = Level.RoomObjects[roomObjectIndex];
+                ref readonly var roomObject = ref Level.GetRoomObject(roomObjectIndex);
                 if (roomObject.Type == RoomObjectType.DamageableZone)
                 {
                     continue;
@@ -140,14 +140,14 @@ public sealed partial class SimulationWorld
 
             var rayBounds = GetRayBounds(grenade.PreviousX, grenade.PreviousY, directionX, directionY, maxDistance);
             float? nearestDistance = null;
-            for (var index = 0; index < Level.RoomObjects.Count; index += 1)
+            foreach (var index in Level.GetRoomObjectIndices(RoomObjectType.DamageableZone))
             {
                 if (!Level.IsRoomObjectActive(index))
                 {
                     continue;
                 }
 
-                var roomObject = Level.RoomObjects[index];
+                ref readonly var roomObject = ref Level.GetRoomObject(index);
                 if (roomObject.Type != RoomObjectType.DamageableZone
                     || !_world.BlocksProjectileDamageableZone(index))
                 {
@@ -260,18 +260,19 @@ public sealed partial class SimulationWorld
             float maxDistance,
             ProjectileRoomObjectBlockerProfile blockerProfile,
             bool destroyOnHit,
-            UpdateEnvironmentProjectileHit<TProjectile, THit> updateHit)
+            UpdateEnvironmentProjectileHit<TProjectile, THit> updateHit,
+            bool applyDamage = true)
             where THit : struct
         {
             var rayBounds = GetRayBounds(previousX, previousY, directionX, directionY, maxDistance);
-            for (var roomObjectIndex = 0; roomObjectIndex < Level.RoomObjects.Count; roomObjectIndex += 1)
+            foreach (var roomObjectIndex in Level.ProjectileObstacleIndices)
             {
                 if (!Level.IsRoomObjectActive(roomObjectIndex))
                 {
                     continue;
                 }
 
-                var roomObject = Level.RoomObjects[roomObjectIndex];
+                ref readonly var roomObject = ref Level.GetRoomObject(roomObjectIndex);
                 if (!TryGetProjectileRoomObjectHitbox(roomObjectIndex, roomObject, projectileTeam, blockerProfile, out var hitbox)) { continue; }
                 if (!RayBoundsMayIntersectRectangle(rayBounds, hitbox.Left, hitbox.Top, hitbox.Right, hitbox.Bottom))
                 {
@@ -321,7 +322,7 @@ public sealed partial class SimulationWorld
                     }
                 }
 
-                if (roomObject.Type == RoomObjectType.DamageableZone)
+                if (applyDamage && roomObject.Type == RoomObjectType.DamageableZone)
                 {
                     _world.TryApplyDamageableZoneDamage(
                         roomObjectIndex,

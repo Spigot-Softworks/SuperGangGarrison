@@ -415,22 +415,6 @@ internal static class BubbleWheelInputStateExtensions
 {
     public static int SelectedSlotOrDefault(this ClientBubbleMenuInputState inputState)
     {
-        if (inputState.DistanceFromCenter < 30f)
-        {
-            return 0;
-        }
-
-        var aimDirection = inputState.AimDirectionDegrees;
-        while (aimDirection >= 360f)
-        {
-            aimDirection -= 360f;
-        }
-
-        while (aimDirection < 0f)
-        {
-            aimDirection += 360f;
-        }
-
-        return Math.Clamp((int)(aimDirection / 40f) + 1, 1, 9);
+        return RadialWheelSelection.GetSlot(inputState.AimDirectionDegrees, inputState.DistanceFromCenter, 9);
     }
 }

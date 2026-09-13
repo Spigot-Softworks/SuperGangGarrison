@@ -446,35 +446,28 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
     }
 
     [Theory]
-    [InlineData(PlayerClass.Sniper)]
-    [InlineData(PlayerClass.Medic)]
-    public void LastToDieParticipantCanSwapLockedPrimaryAwayFromWeaponStation(PlayerClass playerClass)
+    [InlineData(PlayerClass.Sniper, "weapon.sniper-smg")]
+    [InlineData(PlayerClass.Medic, "weapon.medic-needlegun")]
+    public void LastToDieParticipantUsesSecondaryAwayFromPrimarySwapStation(
+        PlayerClass playerClass,
+        string expectedSecondaryItemId)
     {
         var world = CreateWorldWithLocalClass(playerClass);
         world.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings(
             EnableSecondaryAbilities: true));
+        Assert.True(world.TrySetNetworkPlayerAutomaticRespawnSuppressed(
+            SimulationWorld.LocalPlayerSlot,
+            suppressed: true));
         world.LocalPlayer.SetSpawnRoomState(false);
         world.TeleportLocalPlayer(512f, 256f);
         Assert.False(world.IsNearPrimaryWeaponSwapStation(world.LocalPlayer));
         var defaultPrimaryItemId = world.LocalPlayer.GameplayLoadoutState.PrimaryItemId;
 
         PressWeaponSwap(world);
+
         Assert.Equal(defaultPrimaryItemId, world.LocalPlayer.GameplayLoadoutState.PrimaryItemId);
-
-        world.SetLocalInput(default);
-        world.AdvanceOneTick();
-        Assert.True(world.TrySetNetworkPlayerAutomaticRespawnSuppressed(
-            SimulationWorld.LocalPlayerSlot,
-            suppressed: true));
-        PressWeaponSwap(world);
-
-        Assert.NotEqual(defaultPrimaryItemId, world.LocalPlayer.GameplayLoadoutState.PrimaryItemId);
-        Assert.Equal(GameplayEquipmentSlot.Primary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
-        Assert.Equal(
-            playerClass == PlayerClass.Sniper
-                ? BuiltInGameplayBehaviorIds.SniperBow
-                : BuiltInGameplayBehaviorIds.MedigunCrit,
-            world.LocalPlayer.PrimaryBehaviorId);
+        Assert.Equal(GameplayEquipmentSlot.Secondary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
+        Assert.Equal(expectedSecondaryItemId, world.LocalPlayer.GameplayLoadoutState.EquippedItemId);
     }
 
     [Fact]
@@ -572,15 +565,20 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
         Assert.True(world.TrySetNetworkPlayerTeam(2, PlayerTeam.Red));
         Assert.True(world.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Medic));
         Assert.True(world.TryGetNetworkPlayer(2, out var remotePlayer));
+        world.LocalPlayer.SetMedicHealingTarget(remotePlayer);
+        Assert.Equal(remotePlayer.Id, world.LocalPlayer.MedicHealTargetId);
         Assert.True(world.TryMoveNetworkPlayerToLastToDieObjectiveSpawn(2));
 
+        Assert.Null(world.LocalPlayer.MedicHealTargetId);
         Assert.InRange(remotePlayer.X, pointX - 64f, pointX + 64f);
         Assert.InRange(remotePlayer.Y, pointY - 96f, pointY + 96f);
         Assert.False(remotePlayer.IsInSpawnRoom);
     }
 
-    [Fact]
-    public void LastToDieEnemyCanUseOpposingSideIngressWithoutEnteringItsSpawnRoom()
+    [Theory]
+    [InlineData(96f)]
+    [InlineData(160f)] // Unmarked space between the spawn-room zone and its door.
+    public void LastToDieEnemyCanUseOpposingSideIngressWithoutEnteringItsSpawnRoom(float gateX)
     {
         const byte enemySlot = 3;
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
@@ -608,7 +606,7 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
                     SourceName: "RedSpawnRoom"),
                 new RoomObjectMarker(
                     RoomObjectType.TeamGate,
-                    96f,
+                    gateX,
                     100f,
                     8f,
                     80f,
@@ -628,7 +626,8 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
 
         var ingressX = enemy.X;
         Assert.Equal(PlayerTeam.Blue, enemy.Team);
-        Assert.InRange(ingressX, 104.01f, 319.99f);
+        Assert.True(enemy.X + enemy.CollisionLeftOffset > gateX + 8f);
+        Assert.InRange(ingressX, gateX + 8.01f, 319.99f);
         Assert.False(enemy.IsInSpawnRoom);
         Assert.False(enemy.IsInsideBlockingTeamGate(world.Level, enemy.Team));
 
@@ -665,6 +664,8 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
     [InlineData("Harvest")]
     [InlineData("Gallery")]
     [InlineData("Eiger")]
+    [InlineData("gg2_koth_harvest")]
+    [InlineData("gg2_dkoth_kulay")]
     public void LastToDieEnemyOpposingIngressIsSafeOnDefaultRotationMaps(string levelName)
     {
         const byte enemySlot = 3;
@@ -680,6 +681,57 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
         Assert.False(enemy.IsInSpawnRoom);
         Assert.False(enemy.IsInsideBlockingTeamGate(world.Level, enemy.Team));
         Assert.True(enemy.CanOccupy(world.Level, enemy.Team, enemy.X, enemy.Y));
+    }
+
+    [Theory]
+    [InlineData(PlayerTeam.Blue, PlayerTeam.Red)]
+    [InlineData(PlayerTeam.Red, PlayerTeam.Blue)]
+    public void LastToDieEnemyCanLeaveStockHarvestOpposingSpawn(PlayerTeam enemyTeam, PlayerTeam spawnSide)
+    {
+        const byte slot = 3;
+        var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
+        Assert.True(world.TryLoadLevel("gg2_koth_harvest", mapAreaIndex: 1, preservePlayerStats: false));
+        Assert.True(world.TryPrepareNetworkPlayerJoin(slot));
+        world.TrySetNetworkPlayerTeam(slot, enemyTeam);
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(slot, PlayerClass.Soldier));
+        Assert.True(world.TryGetNetworkPlayer(slot, out var enemy));
+        Assert.Equal(enemyTeam, enemy.Team);
+        var doors = world.Level.GetBlockingTeamGates(enemyTeam, false)
+            .Where(gate => gate.Type == RoomObjectType.TeamGate && gate.Team == spawnSide).ToArray();
+        Assert.NotEmpty(doors);
+
+        for (var respawn = 0; respawn < 4; respawn++)
+        {
+            if (respawn == 0)
+                Assert.True(world.TryMoveNetworkPlayerToLastToDieEnemySpawn(slot, spawnSide));
+            else
+            {
+                Assert.True(world.ForceKillNetworkPlayer(slot));
+                Assert.True(world.TryConfigureNetworkPlayerLastToDieEnemySpawn(slot, spawnSide, repositionAlivePlayer: false));
+                Assert.True(world.TryForceNetworkPlayerClassSelectionAndRespawn(slot, PlayerClass.Soldier));
+            }
+
+            Assert.False(enemy.IsInSpawnRoom);
+            if (spawnSide == PlayerTeam.Red)
+                Assert.True(enemy.X + enemy.CollisionLeftOffset > doors.Max(gate => gate.Right));
+            else
+                Assert.True(enemy.X + enemy.CollisionRightOffset < doors.Min(gate => gate.Left));
+
+            var startX = enemy.X;
+            for (var tick = 0; tick < 30; tick++)
+            {
+                Assert.True(world.TrySetNetworkPlayerInput(slot, default(PlayerInputSnapshot) with
+                {
+                    Right = spawnSide == PlayerTeam.Red,
+                    Left = spawnSide == PlayerTeam.Blue,
+                    AimWorldX = world.Bounds.Width * 0.5f,
+                    AimWorldY = enemy.Y,
+                }));
+                world.AdvanceOneTick();
+            }
+            Assert.True(spawnSide == PlayerTeam.Red ? enemy.X > startX + 24f : enemy.X < startX - 24f,
+                $"Enemy could not leave {spawnSide} ingress: {startX} -> {enemy.X}");
+        }
     }
 
     [Fact]

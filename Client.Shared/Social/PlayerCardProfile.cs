@@ -7,6 +7,9 @@ namespace OpenGarrison.ClientShared;
 
 public sealed class PlayerCardProfile
 {
+    public const int MaximumBioLength = 26;
+    public const string DefaultMedalId = "shining-hero";
+
     private static readonly JsonSerializerOptions WireJsonOptions = new()
     {
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingDefault,
@@ -14,10 +17,13 @@ public sealed class PlayerCardProfile
     };
 
     [JsonPropertyName("version")]
-    public int Version { get; set; } = 1;
+    public int Version { get; set; } = 2;
 
-    [JsonPropertyName("background")]
-    public string Background { get; set; } = "MenuBackground1.png";
+    [JsonPropertyName("bio")]
+    public string Bio { get; set; } = string.Empty;
+
+    [JsonPropertyName("medal")]
+    public string Medal { get; set; } = DefaultMedalId;
 
     [JsonPropertyName("class")]
     public string Class { get; set; } = "Spy";
@@ -37,15 +43,6 @@ public sealed class PlayerCardProfile
     [JsonPropertyName("portraitOffsetY")]
     public float PortraitOffsetY { get; set; } = 0f;
 
-    [JsonPropertyName("color1")]
-    public string Color1 { get; set; } = "#263880";
-
-    [JsonPropertyName("color2")]
-    public string Color2 { get; set; } = "#80483A";
-
-    [JsonPropertyName("gradient")]
-    public bool Gradient { get; set; } = true;
-
     [JsonPropertyName("portraitColor1")]
     public string PortraitColor1 { get; set; } = "#263880";
 
@@ -60,18 +57,17 @@ public sealed class PlayerCardProfile
     public static PlayerCardProfile Sanitize(PlayerCardProfile? profile)
     {
         profile ??= CreateDefault();
-        profile.Version = Math.Clamp(profile.Version, 1, 1);
-        profile.Background = SanitizeToken(profile.Background, "MenuBackground1.png", 96);
+        profile.Version = Math.Clamp(profile.Version, 1, 2);
+        profile.Bio = SanitizeBio(profile.Bio);
+        profile.Medal = SanitizeToken(profile.Medal, DefaultMedalId, 64);
         profile.Class = SanitizeToken(profile.Class, "Spy", 24);
         profile.Team = string.Equals(profile.Team, "Red", StringComparison.OrdinalIgnoreCase) ? "Red" : "Blue";
         profile.Frame = Math.Clamp(profile.Frame, 0, 64);
         profile.PortraitZoom = Math.Clamp(float.IsFinite(profile.PortraitZoom) ? profile.PortraitZoom : 4.2f, 1.25f, 9f);
         profile.PortraitOffsetX = Math.Clamp(float.IsFinite(profile.PortraitOffsetX) ? profile.PortraitOffsetX : 0f, -80f, 80f);
         profile.PortraitOffsetY = Math.Clamp(float.IsFinite(profile.PortraitOffsetY) ? profile.PortraitOffsetY : 0f, -80f, 80f);
-        profile.Color1 = SanitizeHexColor(profile.Color1, "#263880");
-        profile.Color2 = SanitizeHexColor(profile.Color2, "#80483A");
-        profile.PortraitColor1 = SanitizeHexColor(profile.PortraitColor1, profile.Color1);
-        profile.PortraitColor2 = SanitizeHexColor(profile.PortraitColor2, profile.Color2);
+        profile.PortraitColor1 = SanitizeHexColor(profile.PortraitColor1, "#263880");
+        profile.PortraitColor2 = SanitizeHexColor(profile.PortraitColor2, "#80483A");
         return profile;
     }
 
@@ -118,6 +114,22 @@ public sealed class PlayerCardProfile
         }
 
         return sanitized.Length > maxLength ? sanitized[..maxLength] : sanitized;
+    }
+
+    private static string SanitizeBio(string? value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return string.Empty;
+        }
+
+        var sanitized = new string(value
+            .Where(character => !char.IsControl(character) && character != '"')
+            .ToArray())
+            .Trim();
+        return sanitized.Length > MaximumBioLength
+            ? sanitized[..MaximumBioLength]
+            : sanitized;
     }
 
     private static string SanitizeHexColor(string? value, string fallback)

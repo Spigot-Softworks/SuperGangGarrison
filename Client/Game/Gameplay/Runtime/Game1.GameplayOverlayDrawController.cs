@@ -21,8 +21,36 @@ public partial class Game1
 
         public void DrawFrame(GameTime gameTime)
         {
-            if (_game.IsNetworkWorldWarmupBlockingPresentation()
-                || _game.IsPracticeNavigationWarmupBlockingGameplay())
+            if (_game.IsNetworkWorldWarmupBlockingPresentation())
+            {
+                var warmupMouse = _game.GetFrameMouseState();
+                _game.BeginLogicalFrame(new Color(24, 32, 48));
+                _game.DrawLoadingOverlay();
+                if (!_game._gameplayHudHidden)
+                {
+                    if (_game._teamSelectOpen || _game._teamSelectAlpha > 0.02f)
+                    {
+                        _game.DrawTeamSelectHud();
+                    }
+
+                    if (_game._classSelectOpen || _game._classSelectAlpha > 0.02f)
+                    {
+                        _game.DrawClassSelectHud();
+                    }
+
+                    if (_game.ShouldDrawSoftwareMenuCursor())
+                    {
+                        _game.DrawSoftwareMenuCursor(warmupMouse);
+                    }
+
+                    _game.DrawVersionOverlay();
+                }
+
+                _game.EndLogicalFrame();
+                return;
+            }
+
+            if (_game.IsPracticeNavigationWarmupBlockingGameplay())
             {
                 _game.BeginLogicalFrame(new Color(24, 32, 48));
                 _game.DrawLoadingOverlay();
@@ -57,6 +85,7 @@ public partial class Game1
             }
 
             _game.DrawGameplayHudLayersOrComposite(mouse, cameraPosition);
+            _game.DrawVoiceParticipants();
             _game.DrawGameplayModalOverlays(mouse, cameraPosition);
             _game.DrawVotePresentationOverlay();
             _game.DrawLoadingOverlay();

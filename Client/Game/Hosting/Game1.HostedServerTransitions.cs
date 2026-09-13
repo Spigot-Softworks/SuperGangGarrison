@@ -93,6 +93,8 @@ public partial class Game1
             requestedMap,
             mapRotationFile);
         InitializeHostedServerConsole(reset: resetConsole);
+        _hostedLastToDieSoloSimulationPauseState = null;
+        _hostedLastToDieSoloSimulationPauseRetryAtMilliseconds = 0;
         return _hostedServerRuntime.TryStartBackground(launchOptions, out error);
     }
 

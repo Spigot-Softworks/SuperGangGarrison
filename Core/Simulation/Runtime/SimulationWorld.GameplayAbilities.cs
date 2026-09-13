@@ -340,19 +340,30 @@ public sealed partial class SimulationWorld
             PlayerEntity.PyroAirblastNoFlameTicks,
             Config.TicksPerSecond,
             minValue: 0);
-        if (!player.TryFirePyroAirblast(fuelCost, cooldownTicks, noFlameTicks))
+        var isAirburst = string.Equals(
+                context.Ability.Category,
+                GameplayAbilityConstants.UtilityCategory,
+                StringComparison.Ordinal)
+            || string.Equals(
+                context.Item.BehaviorId,
+                BuiltInGameplayBehaviorIds.PyroUtility,
+                StringComparison.Ordinal);
+        if (!player.TryFirePyroAirblast(
+                fuelCost,
+                cooldownTicks,
+                noFlameTicks,
+                allowAirburstWithAlternatePrimary: isAirburst))
         {
             return new GameplayAbilityResult(Handled: false, ConsumedInput: true);
         }
 
-        if (string.Equals(context.Ability.Category, GameplayAbilityConstants.UtilityCategory, StringComparison.Ordinal)
-            || string.Equals(context.Item.BehaviorId, BuiltInGameplayBehaviorIds.PyroUtility, StringComparison.Ordinal))
+        if (isAirburst)
         {
-            TriggerPyroSelfAirblast(player, context.Input.AimWorldX, context.Input.AimWorldY, context.Input.FirePrimary);
+            TriggerPyroSelfAirblast(player, context.Input.AimWorldX, context.Input.AimWorldY);
         }
         else
         {
-            TriggerPyroAirblast(player, context.Input.AimWorldX, context.Input.AimWorldY, context.Input.FirePrimary);
+            TriggerPyroAirblast(player, context.Input.AimWorldX, context.Input.AimWorldY);
         }
 
         return GameplayAbilityResult.HandledAndConsumed;
@@ -772,18 +783,12 @@ public sealed partial class SimulationWorld
             return new GameplayAbilityResult(Handled: false, ConsumedInput: true);
         }
 
-        if (!context.PreviousInput.FireSecondary)
-        {
-            context.Player.BeginCivvieUmbrellaOpening();
-        }
-
-        if (context.Player.ShouldTriggerCivvieUmbrellaOpeningAirblast())
+        var openingChargeCost = GameplayAbilityParameterReader.GetInt(context.Ability,
+            "openingChargeCost", PlayerEntity.CivvieUmbrellaOpeningChargeCost, minValue: 0);
+        if (context.Player.TrySpendCivvieUmbrellaOpeningCharge(openingChargeCost))
         {
             TriggerCivvieUmbrellaAirblast(context.Player, context.Input.AimWorldX, context.Input.AimWorldY);
-            context.Player.MarkCivvieUmbrellaOpeningAirblastTriggered();
         }
-
-        context.Player.AdvanceCivvieUmbrellaOpeningTick();
 
         return GameplayAbilityResult.HandledAndConsumed;
     }
@@ -1020,6 +1025,17 @@ public sealed partial class SimulationWorld
     internal GameplayPrimaryWeaponResult ExecuteFlaregunPrimaryWeapon(GameplayPrimaryWeaponContext context)
     {
         WeaponHandler.FireFlaregun(
+            context.Player,
+            context.Weapon,
+            context.AimWorldX,
+            context.AimWorldY,
+            context.KillFeedWeaponSpriteName);
+        return GameplayPrimaryWeaponResult.HandledResult;
+    }
+
+    internal GameplayPrimaryWeaponResult ExecuteDragonRagePrimaryWeapon(GameplayPrimaryWeaponContext context)
+    {
+        WeaponHandler.FireDragonRage(
             context.Player,
             context.Weapon,
             context.AimWorldX,

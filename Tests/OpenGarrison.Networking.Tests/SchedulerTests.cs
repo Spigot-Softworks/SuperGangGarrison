@@ -92,6 +92,34 @@ public sealed class SchedulerTests
     }
 
     [Fact]
+    public void AudioCoalescesEachSpeakerIndependentlyAndKeepsJukeboxState()
+    {
+        var registry = Protocol64SchemaRegistryFactory.CreateDefault();
+        var scheduler = new Protocol64ChannelScheduler();
+        var relay = new AudioRelayMessage(1, 1, "Alice", 1, new(1, [new byte[] { 0x78 }]));
+        Enqueue(relay, 1);
+        Enqueue(relay with { SpeakerSlot = 2, SpeakerName = "Bob" }, 2);
+        Enqueue(relay with { SpeakerSlot = 0 }, 3);
+        Enqueue(new ServerAudioStateMessage(1, true, false, 1, true, false, "Test song"), 4);
+        Enqueue(relay with { Packet = relay.Packet with { Sequence = 2 } }, 5);
+        Enqueue(new VoiceSubmitMessage(false, relay.Packet), 6);
+        Enqueue(new VoiceChannelMembershipMessage(1, true), 7);
+        Enqueue(new VoiceChannelMembershipMessage(2, false), 8);
+
+        Assert.Equal(new ulong[] { 2, 3, 4, 5, 6, 8 }, DequeueFrameIds(scheduler).Order().ToArray());
+
+        void Enqueue(object message, ulong frameId)
+        {
+            var encoded = Protocol64FrameCodec.EncodeObject(registry, message, 1, frameId);
+            Assert.True(encoded.Succeeded, encoded.Fault?.Message);
+            var decoded = Protocol64FrameCodec.Decode(encoded.Payload!, registry);
+            Assert.True(decoded.Succeeded, decoded.Fault?.Message);
+            Assert.True(scheduler.Enqueue(new Protocol64OutboundFrame(encoded.Payload!, decoded.Header!,
+                decoded.Schema!.Descriptor.Delivery, AudioReplacementKey.For(message))).Accepted);
+        }
+    }
+
+    [Fact]
     public async Task EnqueueAndDequeueCanRunConcurrentlyWithoutCorruptingScheduler()
     {
         var scheduler = new Protocol64ChannelScheduler(new Protocol64ChannelSchedulerOptions

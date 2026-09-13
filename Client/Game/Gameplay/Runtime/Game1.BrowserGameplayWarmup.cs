@@ -73,6 +73,13 @@ public partial class Game1
         "RandomPortraitAnimationS",
     ];
 
+    private static readonly string[] BrowserWarmupEngineerStructureSprites =
+    [
+        "SentryRed",
+        "SentryBlue",
+        "SentryTurretS",
+    ];
+
     private void WarmBrowserClassSelectionAssets(PlayerTeam team)
     {
         if (!OperatingSystem.IsBrowser())
@@ -92,6 +99,8 @@ public partial class Game1
                 WarmBrowserClassAssets(classId, team, includeExtendedAnimations: false);
             }
         }
+
+        WarmBrowserEngineerStructureAssets();
 
         WarmBrowserSprite("CrosshairS");
         WarmBrowserSprite(ContinuousCrosshairSpriteName);
@@ -113,6 +122,24 @@ public partial class Game1
             case PlayerClass.Medic:
                 WarmBrowserSound("MedigunSnd");
                 break;
+            case PlayerClass.Engineer:
+                WarmBrowserEngineerStructureAssets();
+                break;
+        }
+    }
+
+    internal static IReadOnlyList<string> GetBrowserStructureWarmupSpriteNames(PlayerClass classId)
+    {
+        return classId == PlayerClass.Engineer
+            ? BrowserWarmupEngineerStructureSprites
+            : Array.Empty<string>();
+    }
+
+    private void WarmBrowserEngineerStructureAssets()
+    {
+        foreach (var spriteName in GetBrowserStructureWarmupSpriteNames(PlayerClass.Engineer))
+        {
+            WarmBrowserSprite(spriteName);
         }
     }
 

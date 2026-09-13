@@ -2,6 +2,8 @@
 
 OpenGarrison is a C# and MonoGame reimplementation of the Gang Garrison 2 gameplay stack.
 
+Dedicated-server owners can configure API-verified administrators, moderators, special players, and colored player titles in [`docs/SERVER_MANAGEMENT.md`](docs/SERVER_MANAGEMENT.md).
+
 This repository contains the OpenGarrison solution and supporting tools.
 
 ## Repo Layout
@@ -25,6 +27,8 @@ This repository contains the OpenGarrison solution and supporting tools.
 - `docs/`: focused design and reference notes.
 
 See `docs/REPOSITORY_AUDIT.md` for root ownership, cleanup decisions, and deferred repository-history work.
+
+See [Gameplay stack orientation](docs/CODEBASE_ORIENTATION.md) for runtime flow and [Voice chat and Jukebox](docs/design/VOICE_CHAT_JUKEBOX.md) for player controls, server playlist setup and implementation details.
 
 ## Build
 

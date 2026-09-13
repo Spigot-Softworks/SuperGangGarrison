@@ -15,10 +15,10 @@ public static class SimpleLevelBarrierCollision
         float nextRight,
         float nextBottom)
     {
-        foreach (var entry in level.Barriers)
+        foreach (ref readonly var entry in level.Barriers)
         {
             var index = entry.Index;
-            var barrier = entry.Marker;
+            ref readonly var barrier = ref entry.Marker;
             if (!level.IsRoomObjectActive(index))
             {
                 continue;
@@ -42,10 +42,10 @@ public static class SimpleLevelBarrierCollision
             }
         }
 
-        foreach (var entry in level.DirectionalWalls)
+        foreach (ref readonly var entry in level.DirectionalWalls)
         {
             var index = entry.Index;
-            var wall = entry.Marker;
+            ref readonly var wall = ref entry.Marker;
             if (!level.IsRoomObjectActive(index))
             {
                 continue;
@@ -69,10 +69,10 @@ public static class SimpleLevelBarrierCollision
             }
         }
 
-        foreach (var entry in level.DamageableZones)
+        foreach (ref readonly var entry in level.DamageableZones)
         {
             var index = entry.Index;
-            var zone = entry.Marker;
+            ref readonly var zone = ref entry.Marker;
             if (!level.IsRoomObjectActive(index))
             {
                 continue;
@@ -95,10 +95,11 @@ public static class SimpleLevelBarrierCollision
 
     public static bool BlocksPointForPlayer(SimpleLevel level, PlayerTeam team, bool isCarryingIntel, float x, float y)
     {
-        for (var index = 0; index < level.RoomObjects.Count; index += 1)
+        foreach (ref readonly var entry in level.Barriers)
         {
-            var barrier = level.RoomObjects[index];
-            if (barrier.Type != RoomObjectType.Barrier || !level.IsRoomObjectActive(index))
+            var index = entry.Index;
+            ref readonly var barrier = ref entry.Marker;
+            if (!level.IsRoomObjectActive(index))
             {
                 continue;
             }

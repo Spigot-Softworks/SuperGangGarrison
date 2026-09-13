@@ -17,6 +17,9 @@ internal sealed class PluginHost
     private readonly Func<byte, OpenGarrisonServerAdminIdentity> _adminIdentityResolver;
     private readonly Action<byte, string, string, string, string, PluginMessagePayloadFormat, ushort> _sendMessageToClient;
     private readonly Action<string, string, string, string, PluginMessagePayloadFormat, ushort> _broadcastMessageToClients;
+    private readonly RegisterServerVoteKindDelegate _registerServerVoteKind;
+    private readonly StartServerVoteDelegate _startServerVote;
+    private readonly Action<string> _unregisterServerVoteKinds;
     private readonly Action<string> _log;
     private readonly string _pluginsRootDirectory;
     private readonly string _pluginConfigRoot;
@@ -35,6 +38,9 @@ internal sealed class PluginHost
         Func<byte, OpenGarrisonServerAdminIdentity> adminIdentityResolver,
         Action<byte, string, string, string, string, PluginMessagePayloadFormat, ushort> sendMessageToClient,
         Action<string, string, string, string, PluginMessagePayloadFormat, ushort> broadcastMessageToClients,
+        RegisterServerVoteKindDelegate registerServerVoteKind,
+        StartServerVoteDelegate startServerVote,
+        Action<string> unregisterServerVoteKinds,
         string pluginsDirectory,
         string pluginConfigRoot,
         string mapsDirectory,
@@ -49,6 +55,9 @@ internal sealed class PluginHost
         _adminIdentityResolver = adminIdentityResolver;
         _sendMessageToClient = sendMessageToClient;
         _broadcastMessageToClients = broadcastMessageToClients;
+        _registerServerVoteKind = registerServerVoteKind;
+        _startServerVote = startServerVote;
+        _unregisterServerVoteKinds = unregisterServerVoteKinds;
         _pluginsRootDirectory = pluginsDirectory;
         _pluginConfigRoot = pluginConfigRoot;
         _mapsDirectory = mapsDirectory;
@@ -62,8 +71,13 @@ internal sealed class PluginHost
 
     public void LoadPlugins()
     {
+        ClearLoadedPluginRegistrations();
         _loadedPlugins.Clear();
-        _loadedPlugins.AddRange(PluginLoader.LoadFromSearchDirectories(BuildPluginSearchDirectories(), CreateContext, _log));
+        _loadedPlugins.AddRange(PluginLoader.LoadFromSearchDirectories(
+            BuildPluginSearchDirectories(),
+            CreateContext,
+            _log,
+            ClearPluginRegistrations));
         foreach (var loadedPlugin in _loadedPlugins)
         {
             _log($"[plugin] loaded {loadedPlugin.Plugin.DisplayName} ({loadedPlugin.Plugin.Id} {loadedPlugin.Plugin.Version})");
@@ -72,8 +86,13 @@ internal sealed class PluginHost
 
     public void LoadPlugins(IEnumerable<System.Reflection.Assembly> assemblies)
     {
+        ClearLoadedPluginRegistrations();
         _loadedPlugins.Clear();
-        _loadedPlugins.AddRange(PluginLoader.LoadFromAssemblies(assemblies, CreateContext, _log));
+        _loadedPlugins.AddRange(PluginLoader.LoadFromAssemblies(
+            assemblies,
+            CreateContext,
+            _log,
+            ClearPluginRegistrations));
         foreach (var loadedPlugin in _loadedPlugins)
         {
             _log($"[plugin] loaded {loadedPlugin.Plugin.DisplayName} ({loadedPlugin.Plugin.Id} {loadedPlugin.Plugin.Version})");
@@ -390,13 +409,14 @@ internal sealed class PluginHost
         {
             try
             {
-                _commandRegistry.UnregisterOwner(loadedPlugin.Plugin.Id);
+                ClearPluginRegistrations(loadedPlugin.Plugin.Id);
                 loadedPlugin.Plugin.Shutdown();
                 loadedPlugin.Plugin.Initialize(loadedPlugin.Context);
                 reloaded += 1;
             }
             catch (Exception ex)
             {
+                ClearPluginRegistrations(loadedPlugin.Plugin.Id);
                 _log($"[plugin] Lua reload failed for {loadedPlugin.Plugin.Id}: {ex.Message}");
             }
         }
@@ -486,6 +506,7 @@ internal sealed class PluginHost
         {
             try
             {
+                ClearPluginRegistrations(_loadedPlugins[index].Plugin.Id);
                 _loadedPlugins[index].Plugin.Shutdown();
             }
             catch (Exception ex)
@@ -549,6 +570,8 @@ internal sealed class PluginHost
             TryRegisterGameplayWeaponItem,
             TryRegisterGameplayLoadout,
             TryRegisterGameplaySlotItem,
+            _registerServerVoteKind,
+            _startServerVote,
             (playerId, velocityX, velocityY) => _worldGetter().TryApplyGameplayImpulse(playerId, velocityX, velocityY),
             (ownerId, playerId, cooldownKey, ticks) => TrySetGameplayAbilityCooldown(ownerId, playerId, cooldownKey, ticks),
             (targetPlayerId, amount, attackerPlayerId, weaponSpriteName) => _worldGetter().TryApplyGameplayDamage(targetPlayerId, amount, attackerPlayerId, weaponSpriteName),
@@ -593,6 +616,20 @@ internal sealed class PluginHost
             _registeredManifestGameplayPackIds.Add(modPack.Id);
             _log($"[plugin] registered gameplay pack {modPack.DisplayName} ({modPack.Id} {modPack.Version})");
         }
+    }
+
+    private void ClearLoadedPluginRegistrations()
+    {
+        foreach (var pluginId in _loadedPlugins.Select(static loaded => loaded.Plugin.Id).Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            ClearPluginRegistrations(pluginId);
+        }
+    }
+
+    private void ClearPluginRegistrations(string pluginId)
+    {
+        _commandRegistry.UnregisterOwner(pluginId);
+        _unregisterServerVoteKinds(pluginId);
     }
 
     private void TrySendMessageToClient(

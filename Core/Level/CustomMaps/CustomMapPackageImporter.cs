@@ -14,6 +14,12 @@ public static class CustomMapPackageImporter
 
     public static CustomMapPngImporter.Result? Import(string manifestPath)
     {
+        try { return ImportCore(manifestPath); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException or SixLabors.ImageSharp.UnknownImageFormatException or SixLabors.ImageSharp.InvalidImageContentException) { return null; }
+    }
+
+    private static CustomMapPngImporter.Result? ImportCore(string manifestPath)
+    {
         if (!TryCreateDocument(manifestPath, out var document, out _))
         {
             return null;
@@ -259,6 +265,17 @@ public static class CustomMapPackageImporter
 
     private static bool TryCreateDocument(string manifestPath, out CustomMapBuilderDocument document, out string error)
     {
+        try { return TryCreateDocumentCore(manifestPath, out document, out error); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException)
+        {
+            document = CustomMapBuilderDocument.CreateEmpty();
+            error = $"Package could not be opened: {ex.Message}";
+            return false;
+        }
+    }
+
+    private static bool TryCreateDocumentCore(string manifestPath, out CustomMapBuilderDocument document, out string error)
+    {
         document = CustomMapBuilderDocument.CreateEmpty();
         if (!TryReadManifest(manifestPath, out var manifest, out error))
         {
@@ -291,7 +308,7 @@ public static class CustomMapPackageImporter
         var resources = new Dictionary<string, CustomMapBuilderResource>(StringComparer.OrdinalIgnoreCase);
         foreach (var manifestResource in manifest.Resources ?? [])
         {
-            if (string.IsNullOrWhiteSpace(manifestResource.Name)
+            if (manifestResource is null || string.IsNullOrWhiteSpace(manifestResource.Name)
                 || !TryResolvePackageContentPath(packageDirectory, manifestResource.Path, requireFileExists: true, out var resourcePath, out _))
             {
                 error = "Package resources must have a name and an existing relative PNG or OGG path inside the package folder.";
@@ -313,6 +330,7 @@ public static class CustomMapPackageImporter
         var entities = new List<CustomMapBuilderEntity>();
         foreach (var manifestEntity in manifest.Entities ?? [])
         {
+            if (manifestEntity is null) { error = "Package contains a null entity."; return false; }
             if (string.IsNullOrWhiteSpace(manifestEntity.Type))
             {
                 continue;
@@ -334,6 +352,7 @@ public static class CustomMapPackageImporter
         var manifestLayers = new List<CustomMapBuilderParallaxLayer>();
         foreach (var layer in manifest.ParallaxLayers ?? [])
         {
+            if (layer is null) { error = "Package contains a null layer."; return false; }
             manifestLayers.Add(new CustomMapBuilderParallaxLayer(
                 layer.Index,
                 layer.ResourceName,
@@ -437,6 +456,7 @@ public static class CustomMapPackageImporter
         text = string.Empty;
         if (File.Exists(path))
         {
+            if (new FileInfo(path).Length > 64L * 1024 * 1024) throw new InvalidDataException("Package manifest exceeds 64 MB.");
             text = File.ReadAllText(path);
             return true;
         }
@@ -454,7 +474,7 @@ public static class CustomMapPackageImporter
     {
         if (File.Exists(path))
         {
-            bytes = File.ReadAllBytes(path);
+            bytes = BuilderImageValidation.ReadFile(path);
             return true;
         }
 

@@ -9,6 +9,8 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
+    private int _prePredictionFlameCount;
+    private int _browserHostedLobbyDrawCount;
     public sealed record BrowserAutomationRect(int X, int Y, int Width, int Height)
     {
         public static BrowserAutomationRect FromRectangle(Rectangle rectangle)
@@ -18,6 +20,9 @@ public partial class Game1
     }
 
     public sealed record BrowserAutomationAction(string Label, BrowserAutomationRect Bounds, bool Enabled = true);
+
+    public sealed record BrowserRoomSnapshot(string RoomCode, string MenuPage, string Phase,
+        int PlayerCount, int LocalSlot, bool IsOwner, long ServerTick, string[] MenuLabels, string[] OfferChoices);
 
     public sealed record BrowserAutomationSnapshot(
         string Shell,
@@ -76,6 +81,50 @@ public partial class Game1
         BrowserAutomationAction[] TeamSelectButtons,
         BrowserAutomationAction[] ClassSelectButtons)
     {
+        public BrowserRoomSnapshot? LastToDie { get; init; }
+        public bool LoadingOverlayVisible { get; init; }
+        public bool JoiningOverlayVisible { get; init; }
+        public bool SurvivorBuffActive { get; init; }
+        public bool AutomaticRespawnSuppressed { get; init; }
+        public bool DroppedWeaponPickupsEnabled { get; init; }
+        public string RoomPhase { get; init; } = "";
+        public int RoomGeneration { get; init; }
+        public string RoomSettings { get; init; } = "";
+        public string[] InGameMenuLabels { get; init; } = [];
+        public bool MusicPlaying { get; init; }
+        public bool MusicPaused { get; init; }
+        public string[] VoteMenuLabels { get; init; } = [];
+        public string CurrentMap { get; init; } = "";
+        public int VoteYesCount { get; init; }
+        public bool VoteActive { get; init; }
+        public string[] RunRoster { get; init; } = [];
+        public string[] RoomRoster { get; init; } = [];
+        public ulong RunRevision { get; init; }
+        public string LastRunCommandResult { get; init; } = "";
+        public int FirstPlayHintIndex { get; init; } = -1;
+        public bool FirstPlayHintsFinished { get; init; }
+        public System.Collections.Generic.Dictionary<string, BrowserAutomationRect> HudBounds { get; init; } = [];
+        public string CustomBubbleBinding { get; init; } = "";
+        public string BubbleMenu { get; init; } = "";
+        public string[] PracticeBotNames { get; init; } = [];
+        public int ParticleMode { get; init; }
+        public int FlameRenderMode { get; init; }
+        public bool ReducedBrowserEffects { get; init; }
+        public string LoadingTitle { get; init; } = "";
+        public int HostedLobbyDrawCount { get; init; }
+        public int RocketSmokeCount { get; init; }
+        public int FlameSmokeCount { get; init; }
+        public int WorldFlameCount { get; init; }
+        public int ProtocolFlameCount { get; init; }
+        public int PrePredictionFlameCount { get; init; }
+        public string[] ProtocolFlameStates { get; init; } = [];
+        public int ShellCount { get; init; }
+        public bool UmbrellaActive { get; init; }
+        public int UmbrellaOpeningTicks { get; init; }
+        public string WeaponAnimation { get; init; } = "";
+        public string WeaponSprite { get; init; } = "";
+        public int PrimaryAmmo { get; init; }
+        public string EquippedItemId { get; init; } = "";
         public static BrowserAutomationSnapshot Empty { get; } = new(
             Shell: "Unknown",
             StartupSplashOpen: false,
@@ -183,7 +232,7 @@ public partial class Game1
             LocalPlayerX: _world.LocalPlayer.X,
             LocalPlayerY: _world.LocalPlayer.Y,
             LooseSheetVisualCount: _looseSheetVisuals.Count,
-            StatusMessage: _menuStatusMessage ?? string.Empty,
+            StatusMessage: (_lastToDieMenuOpen ? GetLastToDieMenuStatusMessage() : _menuStatusMessage) ?? string.Empty,
             SelectedPracticeMap: GetSelectedPracticeMapEntry()?.LevelName ?? string.Empty,
             PracticeTickRate: _practiceTickRate,
             PracticeEnemyBotCount: _practiceEnemyBotCount,
@@ -192,7 +241,62 @@ public partial class Game1
             ManualConnectButtons: GetBrowserManualConnectAutomationActions(),
             PracticeButtons: GetBrowserPracticeAutomationActions(),
             TeamSelectButtons: GetBrowserTeamSelectAutomationActions(),
-            ClassSelectButtons: GetBrowserClassSelectAutomationActions());
+            ClassSelectButtons: GetBrowserClassSelectAutomationActions())
+        {
+            LastToDie = new BrowserRoomSnapshot(_peerRoomSession?.Connection.Grant.Code ?? _managedRoom?.RoomCode ?? "", _lastToDieMenuPage.ToString(),
+                _networkClient.LastToDieState.Snapshot?.Phase.ToString() ?? _peerRoomSession?.State?.Phase ?? "",
+                _networkClient.LastToDieState.Snapshot?.Players.Count ?? _peerRoomSession?.State?.Players?.Length ?? 0, _networkClient.LocalPlayerSlot,
+                IsManagedRoomOwner || IsPeerRoomOwner || IsEmbeddedSessionOwner, _networkClient.LastToDieState.Snapshot?.ServerTick ?? 0,
+                _lastToDieMenuOpen ? _lastToDieMenuPage == LastToDieMenuPage.PeerLobby ? GetPeerLobbyButtons() : GetLastToDieMenuButtonLabels() : [],
+                _networkClient.LastToDieState.Snapshot?.Players.FirstOrDefault(p => p.Slot == _networkClient.LocalPlayerSlot)?.ActiveOfferChoices.ToArray() ?? []),
+            LoadingOverlayVisible = _loadingOverlayVisible,
+            RoomPhase = _peerRoomSession?.State?.Phase ?? "",
+            RoomGeneration = _peerRoomSession?.State?.Generation ?? 0,
+            RunRoster = _networkClient.LastToDieState.Snapshot?.Players.Select(p => $"{p.Slot}: connected={p.IsConnected}, ready={p.IsReady}, host={p.IsHost}, survivor={p.SurvivorId}").ToArray() ?? [],
+            RoomRoster = _peerRoomSession?.State?.Players?.Select(p => $"{p.Slot}: connected={p.Connected}, ready={p.Ready}, team={p.Team}").ToArray() ?? [],
+            RunRevision = _networkClient.LastToDieState.Snapshot?.StructuralRevision ?? 0,
+            LastRunCommandResult = _networkClient.LastToDieState.LatestCommandResult?.ToString() ?? "",
+            RoomSettings = _peerRoomSession?.State?.Settings?.ToString() ?? "",
+            InGameMenuLabels = _inGameMenuOpen ? _inGameMenuController.GetInGameMenuActions().Select(a => a.Label).ToArray() : [],
+            MusicPlaying = _voiceChat?.ServerState?.JukeboxPlaying == true,
+            MusicPaused = _voiceChat?.ServerState?.JukeboxPaused == true,
+            VoteMenuLabels = _voteMenuOpen ? BuildVoteMenuActions().Select(a => a.Label).ToArray() : [],
+            CurrentMap = _world.Level.Name,
+            FirstPlayHintIndex = _firstPlayHints is { Visible: true } hint && hint.ElapsedSeconds < hint.Marker.DurationSeconds ? hint.Index : -1,
+            FirstPlayHintsFinished = _firstPlayHints?.Finished ?? false,
+            HudBounds = _hudResolvedElements.ToDictionary(static entry => entry.Key,
+                static entry => BrowserAutomationRect.FromRectangle(entry.Value.Bounds)),
+            CustomBubbleBinding = InputBindingsSettings.FormatBinding(_inputBindings.CustomBubble),
+            BubbleMenu = _bubbleMenuKind.ToString(),
+            PracticeBotNames = _practiceBotSlots.Values.Select(slot => slot.DisplayName).ToArray(),
+            ParticleMode = _particleMode,
+            FlameRenderMode = _flameRenderMode,
+            ReducedBrowserEffects = UseReducedBrowserEffects,
+            LoadingTitle = GetLoadingOverlayTitle(IsRestrictedBrowserEdition),
+            HostedLobbyDrawCount = _browserHostedLobbyDrawCount,
+            RocketSmokeCount = _rocketSmokeVisuals.Count,
+            FlameSmokeCount = _flameSmokeVisuals.Count,
+            WorldFlameCount = _world.Flames.Count,
+            PrePredictionFlameCount = _prePredictionFlameCount,
+            ProtocolFlameStates = _networkClient.Protocol64State.Projectiles
+                .Where(projectile => projectile.EntityKind == OpenGarrison.Protocol.Protocol64ProjectileKind.Flame)
+                .Take(4).Select(projectile => $"{projectile.StateTick}/{projectile.RemainingLifetimeTicks}@{projectile.X},{projectile.Y}").ToArray(),
+            ProtocolFlameCount = _networkClient.Protocol64State.Projectiles.Count(
+                projectile => projectile.EntityKind == OpenGarrison.Protocol.Protocol64ProjectileKind.Flame),
+            ShellCount = _shellVisuals.Count,
+            UmbrellaActive = GetPlayerIsCivvieUmbrellaActive(_world.LocalPlayer),
+            UmbrellaOpeningTicks = GetPlayerPredictedPresentationState(_world.LocalPlayer).CivvieUmbrellaOpeningElapsedTicks,
+            WeaponAnimation = GetPlayerWeaponAnimationMode(_world.LocalPlayer).ToString(),
+            WeaponSprite = GetWeaponRenderDefinition(_world.LocalPlayer).NormalSpriteName ?? "",
+            PrimaryAmmo = _world.LocalPlayer.CurrentShells,
+            EquippedItemId = _world.LocalPlayer.GameplayLoadoutState.EquippedItemId,
+            VoteYesCount = _votePresentationState?.YesVotes ?? 0,
+            VoteActive = _votePresentationState is { IsComplete: false, RemainingTicks: > 0 },
+            SurvivorBuffActive = _world.LocalPlayer.HasLastToDieSurvivorBuff,
+            AutomaticRespawnSuppressed = _world.IsNetworkPlayerAutomaticRespawnSuppressed(_world.LocalPlayer),
+            DroppedWeaponPickupsEnabled = _world.IsLastToDieGameplaySettingEnabled(settings => settings.EnableEnemyDroppedWeapons),
+            JoiningOverlayVisible = _loadingOverlayVisible && _loadingOverlayIsJoining,
+        };
     }
 
     private string GetBrowserAutomationShell()
@@ -239,8 +343,9 @@ public partial class Game1
             new BrowserAutomationAction("Friendly Bots +", BrowserAutomationRect.FromRectangle(layout.FriendlyBotsRightBounds)),
             new BrowserAutomationAction("Special Abilities -", BrowserAutomationRect.FromRectangle(layout.SpecialAbilitiesLeftBounds)),
             new BrowserAutomationAction("Special Abilities +", BrowserAutomationRect.FromRectangle(layout.SpecialAbilitiesRightBounds)),
-            new BrowserAutomationAction("Start Practice", BrowserAutomationRect.FromRectangle(layout.StartBounds), canEnterGameplaySession),
-            new BrowserAutomationAction("Experimental", BrowserAutomationRect.FromRectangle(layout.ClientPowersBounds)),
+            new BrowserAutomationAction(_editingPeerPractice ? "Apply" : "Start Singleplayer", BrowserAutomationRect.FromRectangle(layout.StartBounds), canEnterGameplaySession),
+            new BrowserAutomationAction(_editingPeerPractice ? "Cancel" : "Co-Op Lobby", BrowserAutomationRect.FromRectangle(layout.ClientPowersBounds)),
+            new BrowserAutomationAction("Join Co-Op", BrowserAutomationRect.FromRectangle(layout.JoinCoOpBounds), !_editingPeerPractice),
             new BrowserAutomationAction("Back", BrowserAutomationRect.FromRectangle(layout.BackBounds)),
         ];
     }
@@ -338,6 +443,38 @@ public partial class Game1
 
         switch (actionSet.Trim().ToLowerInvariant())
         {
+            case "vote":
+                if (!_voteMenuOpen) return false;
+                var voteActions = BuildVoteMenuActions();
+                var voteIndex = voteActions.FindIndex(a => a.Label == label);
+                if (voteIndex < 0) return false;
+                voteActions[voteIndex].Activate(); return true;
+            case "ingame":
+                if (!_networkClient.IsConnected && !IsPracticeSessionActive) return false;
+                if (label == "Open") { _inGameMenuController.OpenInGameMenu(); return true; }
+                if (!_inGameMenuOpen) return false;
+                var menuActions = _inGameMenuController.GetInGameMenuActions();
+                var menuIndex = menuActions.FindIndex(a => a.Label == label);
+                if (menuIndex < 0) return false;
+                menuActions[menuIndex].Activate(); return true;
+            case "ltd":
+                if (!_lastToDieMenuOpen) return false;
+                if (_lastToDieMenuPage == LastToDieMenuPage.PeerLobby)
+                {
+                    var peerIndex = Array.IndexOf(GetPeerLobbyButtons(), label);
+                    if (peerIndex < 0) return false;
+                    ActivatePeerLobbyButton(peerIndex); return true;
+                }
+                var index = Array.IndexOf(GetLastToDieMenuButtonLabels(), label);
+                if (index < 0) return false;
+                ActivateLastToDieMenuButton(index);
+                return true;
+            case "ltdlobby":
+                if (_networkClient.LastToDieState.Snapshot?.Phase != OpenGarrison.Protocol.LastToDieWirePhase.Lobby) return false;
+                if (label == "Ready") _networkClient.SendLastToDieCommand(OpenGarrison.Protocol.LastToDieCommandKind.Ready);
+                else if (label == "Start" && IsManagedRoomOwner) _networkClient.SendLastToDieCommand(OpenGarrison.Protocol.LastToDieCommandKind.RequestStart);
+                else return false;
+                return true;
             case "menu":
                 return TryInvokeBrowserMainMenuAction(label);
             case "practice":
@@ -399,10 +536,18 @@ public partial class Game1
                 CyclePracticeSpecialAbilities(1);
                 return true;
             case "Start Practice":
-                TryStartPracticeFromSetup();
+            case "Start Singleplayer":
+            case "Apply":
+                ApplyPeerPracticeSettings();
                 return true;
-            case "Experimental":
-                OpenClientPowersMenu(fromGameplay: false);
+            case "Co-Op Lobby":
+                OpenPracticeCoOpMenu();
+                return true;
+            case "Join Co-Op":
+                OpenPracticeCoOpJoin();
+                return true;
+            case "Cancel":
+                ShowPeerLobby();
                 return true;
             case "Back":
                 _practiceSetupOpen = false;
@@ -456,6 +601,31 @@ public partial class Game1
 
         switch (fieldName.Trim().ToLowerInvariant())
         {
+            case "particle_mode":
+                if (!int.TryParse(value, out var particleMode) || particleMode is < 0 or > 2) return false;
+                _particleMode = particleMode;
+                return true;
+            case "flame_render_mode":
+                if (!int.TryParse(value, out var flameMode) || flameMode is < 0 or > 1) return false;
+                _flameRenderMode = flameMode;
+                return true;
+            case "practice_map":
+                return _practiceSetupOpen && SelectPracticeMapEntry(value);
+            case "ltd_code":
+                if (!_lastToDieMenuOpen || _lastToDieMenuPage != LastToDieMenuPage.RoomJoin) return false;
+                _managedRoomCodeBuffer = new string((value ?? "").Where(char.IsAsciiLetterOrDigit).Take(24).ToArray()).ToUpperInvariant();
+                return true;
+            case "ltd_survivor":
+                if (_networkClient.LastToDieState.Snapshot?.Phase != OpenGarrison.Protocol.LastToDieWirePhase.SurvivorChoice) return false;
+                _networkClient.SendLastToDieCommand(OpenGarrison.Protocol.LastToDieCommandKind.ChooseSurvivor, selectedId: value);
+                return true;
+            case "ltd_reward":
+                var run = _networkClient.LastToDieState.Snapshot;
+                var participant = run?.Players.FirstOrDefault(p => p.Slot == _networkClient.LocalPlayerSlot);
+                if (run?.Phase != OpenGarrison.Protocol.LastToDieWirePhase.RewardChoice || participant is null
+                    || !participant.ActiveOfferChoices.Contains(value)) return false;
+                _networkClient.SendLastToDieCommand(OpenGarrison.Protocol.LastToDieCommandKind.SelectReward, offerId: participant.ActiveOfferId, selectedId: value);
+                return true;
             case "manualconnect_host":
                 if (!_manualConnectOpen)
                 {
@@ -500,7 +670,7 @@ public partial class Game1
 
     public bool TryBeginBrowserAutomationConnect(string host, string portText)
     {
-        if (!OperatingSystem.IsBrowser())
+        if (!OperatingSystem.IsBrowser() || IsRestrictedBrowserEdition)
         {
             return false;
         }
@@ -573,6 +743,7 @@ public partial class Game1
             "Engineer" => PlayerClass.Engineer,
             "Spy" => PlayerClass.Spy,
             "Sniper" => PlayerClass.Sniper,
+            "Civilian" => PlayerClass.Quote,
             "Random" => GetRandomPlayableClass(),
             _ => default,
         };

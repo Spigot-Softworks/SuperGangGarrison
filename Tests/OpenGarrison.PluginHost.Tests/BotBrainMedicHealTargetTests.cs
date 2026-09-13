@@ -210,6 +210,35 @@ public sealed class BotBrainMedicHealTargetTests
         Assert.True(steering.MoveDirection < 0f);
     }
 
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(1)]
+    public void OutnumberedMedicFollowsPatientAwayFromEnemies(int direction)
+    {
+        var world = CreateMedicTargetWorld(out var medic, out var scout, out var soldier, out var heavy);
+        medic.TeleportTo(1000f, 100f);
+        heavy.TeleportTo(medic.X - direction * 150f, medic.Y);
+        scout.TeleportTo(1900f, 100f);
+        soldier.TeleportTo(1900f, 100f);
+        for (byte slot = 5; slot <= 8; slot++)
+        {
+            var enemy = AddNetworkPlayer(world, slot, PlayerClass.Scout, medic.X + direction * 180f, medic.Y);
+            world.TrySetNetworkPlayerTeam(slot, PlayerTeam.Blue, respawnLivePlayerImmediately: true);
+            enemy.TeleportTo(medic.X + direction * 180f, medic.Y);
+        }
+        var controller = new BotBrainController(disableShippedNavigationGraph: true);
+        var args = new object?[] { world, medic, PlayerTeam.Red, heavy,
+            new SteeringOutput(), null, null };
+        Assert.True((bool)typeof(BotBrainController).GetMethod("TryResolveMedicRetreat",
+            BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(controller, args)!);
+        Assert.True(Assert.IsType<SteeringOutput>(args[5]).MoveDirection * direction < 0f);
+        Assert.Contains("medicRetreat", Assert.IsType<string>(args[6]));
+        var input = controller.Think(medic, world, PlayerTeam.Red);
+        Assert.Equal(direction > 0, input.Left);
+        Assert.Equal(direction < 0, input.Right);
+        Assert.Contains("medicRetreat", controller.LastDirectDriveTrace);
+    }
+
     private static SimulationWorld CreateMedicTargetWorld(
         out PlayerEntity medic,
         out PlayerEntity scout,

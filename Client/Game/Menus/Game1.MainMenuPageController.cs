@@ -21,6 +21,7 @@ public partial class Game1
 
         public void OpenMainMenuPage(MainMenuPage page)
         {
+            if (IsRestrictedBrowserEdition) page = MainMenuPage.Root;
             _game._mainMenuPage = page;
             _game._mainMenuHoverIndex = -1;
             _game._mainMenuBottomBarHover = false;
@@ -51,7 +52,7 @@ public partial class Game1
                 buttons.Add(new MenuPageButton(bottomBarLabel, layout.BottomBarButtonBounds.Value, bottomBarAction, IsBottomBarButton: true));
             }
 
-            if (_game._mainMenuPage == MainMenuPage.Root)
+            if (_game._mainMenuPage == MainMenuPage.Root && !IsRestrictedBrowserEdition)
             {
                 if (GarrisonBuilderFeature.CanOpenFromMainMenu)
                 {
@@ -116,7 +117,7 @@ public partial class Game1
             }
 
             _game.DrawPlaqueMenuLayout(layout, stackedActions, soloAction, bottomBarAction is not null, bottomBarLabel, hoveredStackedIndex, soloHovered, bottomHovered, 1.15f);
-            if (_game._mainMenuPage == MainMenuPage.Root)
+            if (_game._mainMenuPage == MainMenuPage.Root && !IsRestrictedBrowserEdition)
             {
                 if (GarrisonBuilderFeature.CanOpenFromMainMenu)
                 {
@@ -129,6 +130,14 @@ public partial class Game1
 
         private (List<MenuPageAction> StackedActions, MenuPageAction? SoloAction, string BottomBarLabel, Action? BottomBarAction) GetCurrentMainMenuActions()
         {
+            if (IsRestrictedBrowserEdition)
+            {
+                return ([
+                    new("Practice", _game.OpenPracticeSetupMenu),
+                    new("Last to Die", () => _game.OpenLastToDieMenu()),
+                    new("Settings", () => _game.OpenOptionsMenu(fromGameplay: false)),
+                ], null, string.Empty, null);
+            }
             return _game._mainMenuPage switch
             {
                 MainMenuPage.PlayOnline => (
@@ -172,6 +181,7 @@ public partial class Game1
 
         public void AddPluginMenuActions(List<MenuPageAction> actions, ClientPluginMenuLocation location, int insertIndex = -1)
         {
+            if (IsRestrictedBrowserEdition) return;
             var pluginEntries = _game._clientPluginHost?.GetMenuEntries(location) ?? [];
             if (pluginEntries.Count == 0)
             {

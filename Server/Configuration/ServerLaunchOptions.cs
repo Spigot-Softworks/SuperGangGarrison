@@ -16,9 +16,10 @@ sealed class ServerLaunchOptions
     {
     }
 
-    public string ResolvedConfigPath { get; private init; } = string.Empty;
+    public string ResolvedConfigPath { get; private set; } = string.Empty;
+    public string ManagementConfigPath { get; private init; } = string.Empty;
     public ServerSettings Settings { get; private init; } = new();
-    public int Port { get; private init; }
+    public int Port { get; private set; }
     public string ServerName { get; private init; } = "My Server";
     public string? ServerPassword { get; private init; }
     public string? RconPassword { get; private init; }
@@ -34,7 +35,8 @@ sealed class ServerLaunchOptions
     public string CompatibilityKey { get; private init; } = string.Empty;
     public string? RequestedMap { get; private init; }
     public string? MapRotationFile { get; private init; }
-    public string EventLogPath { get; private init; } = string.Empty;
+    public string EventLogPath { get; private set; } = string.Empty;
+    private bool EventLogPathExplicitlyConfigured { get; init; }
     public IReadOnlyList<string> StockMapRotation { get; private init; } = Array.Empty<string>();
     public bool MapRotationShuffleEnabled { get; private init; }
     public MapRotationAdvanceMode MapRotationAdvanceMode { get; private init; } = MapRotationAdvanceMode.RoundEnd;
@@ -54,7 +56,7 @@ sealed class ServerLaunchOptions
     public int? TimeLimitMinutesOverride { get; private init; }
     public int? CapLimitOverride { get; private init; }
     public int? RespawnSecondsOverride { get; private init; }
-    public int WebSocketPort { get; private init; }
+    public int WebSocketPort { get; private set; }
     public string? WebSocketCertificatePath { get; private init; }
     public string? WebSocketCertificatePassword { get; private init; }
     public string? PublicWebSocketUrl { get; private init; }
@@ -65,6 +67,19 @@ sealed class ServerLaunchOptions
     public GameplayVariantKind GameplayVariant { get; private init; } = GameplayVariantKind.Standard;
     public LastToDieDifficulty LastToDieDifficulty { get; private init; } = LastToDieDifficulty.Standard;
     public ulong? LastToDieSeed { get; private init; }
+
+    public void ApplyReservedPort(int port)
+    {
+        if (WebSocketPort == Port) WebSocketPort = port;
+        Port = port;
+    }
+
+    public void SaveInstanceConfiguration(string directory)
+    {
+        ResolvedConfigPath = Path.Combine(directory, "server.ini");
+        Settings.Save(ResolvedConfigPath);
+        if (!EventLogPathExplicitlyConfigured) EventLogPath = Path.Combine(directory, "events.jsonl");
+    }
 
     public static ServerLaunchOptions Load(string[] args)
     {
@@ -79,6 +94,7 @@ sealed class ServerLaunchOptions
     internal static ServerLaunchOptions Load(string[] args, Func<string?, ServerSettings> loadSettings, DateTimeOffset now)
     {
         string? configPath = null;
+        string? managementConfigPath = null;
         for (var index = 0; index < args.Length; index += 1)
         {
             if ((string.Equals(args[index], "--config", StringComparison.OrdinalIgnoreCase)
@@ -86,13 +102,23 @@ sealed class ServerLaunchOptions
                 && index + 1 < args.Length)
             {
                 configPath = args[index + 1];
-                break;
+                index += 1;
+                continue;
+            }
+            if (string.Equals(args[index], "--management-config", StringComparison.OrdinalIgnoreCase)
+                && index + 1 < args.Length)
+            {
+                managementConfigPath = args[index + 1];
+                index += 1;
             }
         }
 
         var resolvedConfigPath = string.IsNullOrWhiteSpace(configPath)
             ? RuntimePaths.GetConfigPath(ServerSettings.DefaultFileName)
             : configPath;
+        var resolvedManagementConfigPath = string.IsNullOrWhiteSpace(managementConfigPath)
+            ? Path.Combine(Path.GetDirectoryName(Path.GetFullPath(resolvedConfigPath))!, ServerManagementConfiguration.DefaultFileName)
+            : Path.GetFullPath(managementConfigPath);
         var settings = loadSettings(resolvedConfigPath);
 
         var maxPlayableClients = Math.Clamp(settings.MaxPlayableClients, 1, SimulationWorld.MaxPlayableNetworkPlayers);
@@ -115,6 +141,7 @@ sealed class ServerLaunchOptions
         string? requestedMap = string.IsNullOrWhiteSpace(settings.RequestedMap) ? null : settings.RequestedMap;
         string? mapRotationFile = string.IsNullOrWhiteSpace(settings.MapRotationFile) ? null : settings.MapRotationFile;
         var eventLogPath = PersistentServerEventLog.GetDefaultPath(now);
+        var eventLogPathExplicitlyConfigured = false;
         var stockMapRotation = OpenGarrisonStockMapCatalog.GetOrderedIncludedMapLevelNames(settings.HostDefaults.StockMapRotation);
         var mapRotationShuffleEnabled = settings.MapRotationShuffleEnabled;
         var mapRotationAdvanceMode = OpenGarrisonHostSettings.NormalizeMapRotationAdvanceMode(settings.MapRotationAdvanceMode);
@@ -280,6 +307,7 @@ sealed class ServerLaunchOptions
                 eventLogPath = PersistentServerEventLog.IsDisabledPath(args[index + 1])
                     ? PersistentServerEventLog.DisabledPath
                     : Path.GetFullPath(args[index + 1]);
+                eventLogPathExplicitlyConfigured = true;
                 index += 1;
                 continue;
             }
@@ -288,6 +316,7 @@ sealed class ServerLaunchOptions
                 || string.Equals(arg, "--disable-event-log", StringComparison.OrdinalIgnoreCase))
             {
                 eventLogPath = PersistentServerEventLog.DisabledPath;
+                eventLogPathExplicitlyConfigured = true;
                 continue;
             }
 
@@ -684,7 +713,7 @@ sealed class ServerLaunchOptions
 
         if (gameplayVariant == GameplayVariantKind.LastToDie)
         {
-            maxPlayableClients = Math.Clamp(maxPlayableClients, 1, 2);
+            maxPlayableClients = Math.Clamp(maxPlayableClients, 1, 4);
             maxTotalClients = maxPlayableClients;
             maxSpectatorClients = 0;
             autoBalanceEnabled = false;
@@ -696,6 +725,7 @@ sealed class ServerLaunchOptions
         return new ServerLaunchOptions
         {
             ResolvedConfigPath = resolvedConfigPath,
+            ManagementConfigPath = resolvedManagementConfigPath,
             Settings = settings,
             Port = port,
             ServerName = serverName,
@@ -714,6 +744,7 @@ sealed class ServerLaunchOptions
             RequestedMap = requestedMap,
             MapRotationFile = mapRotationFile,
             EventLogPath = eventLogPath,
+            EventLogPathExplicitlyConfigured = eventLogPathExplicitlyConfigured,
             StockMapRotation = stockMapRotation,
             MapRotationShuffleEnabled = mapRotationShuffleEnabled,
             MapRotationAdvanceMode = mapRotationAdvanceMode,

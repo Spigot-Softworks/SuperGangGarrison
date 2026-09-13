@@ -1,6 +1,7 @@
 #nullable enable
 
 using OpenGarrison.Core;
+using OpenGarrison.ClientShared;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -174,7 +175,8 @@ public partial class Game1
 
         public void SetMapBrowserSection(PracticeMapBrowserSection section)
         {
-            MapBrowserSection = section;
+            MapBrowserSection = ClientDistribution.IsRestricted && section == PracticeMapBrowserSection.SuperGangGarrison
+                ? PracticeMapBrowserSection.Classic : section;
             ResetAvailableMapFilters();
         }
 
@@ -395,7 +397,9 @@ public partial class Game1
             };
         }
 
-        public static List<PracticeMapEntry> BuildMapEntries()
+        public static List<PracticeMapEntry> BuildMapEntries() => BuildMapEntriesForEdition(ClientDistribution.IsRestricted);
+
+        public static List<PracticeMapEntry> BuildMapEntriesForEdition(bool preferClassicMaps)
         {
             SimpleLevelFactory.ClearCachedCatalog();
             var stockDefinitions = OpenGarrisonStockMapCatalog.Definitions
@@ -407,8 +411,10 @@ public partial class Game1
                     group => group.OrderBy(static level => level.IsCustomMap).First(),
                     StringComparer.OrdinalIgnoreCase);
             var entries = new List<PracticeMapEntry>(OrderedPracticeMapOptions.Length);
-            foreach (var (levelName, displayName) in OrderedPracticeMapOptions)
+            foreach (var (originalLevelName, displayName) in OrderedPracticeMapOptions)
             {
+                var levelName = ClassicStockMapCatalog.GetPreferredLevelName(originalLevelName,
+                    preferClassicMaps);
                 var level = availableLevels.TryGetValue(levelName, out var exactLevel)
                     ? exactLevel
                     : availableLevels.Values.FirstOrDefault(candidate =>
@@ -437,11 +443,7 @@ public partial class Game1
 
         private static bool IsSuperGangGarrisonMap(PracticeMapEntry entry)
         {
-            return entry.DisplayName.Equals("Coldfront", StringComparison.OrdinalIgnoreCase)
-                || entry.DisplayName.Equals("Kulay", StringComparison.OrdinalIgnoreCase)
-                || entry.DisplayName.Equals("Harvest", StringComparison.OrdinalIgnoreCase)
-                || entry.DisplayName.Equals("Docking", StringComparison.OrdinalIgnoreCase)
-                || entry.DisplayName.Equals("Conflict", StringComparison.OrdinalIgnoreCase);
+            return Game1.IsSuperGangGarrisonMap(entry.LevelName, entry.DisplayName);
         }
 
         public static List<PracticeMapEntry> BuildAllPracticeMapEntries()

@@ -41,20 +41,7 @@ public partial class Game1
     private Point _builderMultiEntityMapPickAreaSelectStartScreen;
     private Point _builderMultiEntityMapPickAreaSelectCurrentScreen;
 
-    private static bool IsGarrisonBuilderMultiEntityRefProperty(string key)
-    {
-        for (var index = 0; index < GarrisonBuilderMultiEntityRefPropertyDescriptors.Length; index += 1)
-        {
-            if (key.Equals(
-                    GarrisonBuilderMultiEntityRefPropertyDescriptors[index].PropertyKey,
-                    StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
+    private static bool IsGarrisonBuilderMultiEntityRefProperty(string key) => BuilderReferenceProperties.IsList(key);
 
     private static bool TryGetGarrisonBuilderMultiEntityRefPropertyDescriptor(
         string key,

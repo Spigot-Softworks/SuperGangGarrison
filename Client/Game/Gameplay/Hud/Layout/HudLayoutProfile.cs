@@ -55,6 +55,15 @@ internal sealed class HudLayoutProfile
     public void SetRuntimeDefault(HudElementLayout layout)
     {
         _runtimeDefaults[layout.Id] = layout;
+
+        // Dynamic HUD widgets are not part of the startup defaults, so their
+        // saved overrides initially load as unknown. Promote an override as
+        // soon as its runtime definition appears; otherwise a hidden dynamic
+        // widget cannot be found in the editor after restarting the game.
+        if (UnknownOverrides.Remove(layout.Id, out var savedOverride))
+        {
+            Overrides[layout.Id] = savedOverride;
+        }
     }
 
     public bool TryResolve(string id, int viewportWidth, int viewportHeight, out HudResolvedElement resolved)
@@ -73,7 +82,7 @@ internal sealed class HudLayoutProfile
         }
 
         var origin = HudLayoutResolver.ResolveOrigin(layout.Anchor, layout.Offset, viewportWidth, viewportHeight);
-        resolved = new HudResolvedElement(layout, origin, layout.ResolveBounds(origin));
+        resolved = ResolveElement(layout, origin, viewportWidth, viewportHeight);
         return true;
     }
 
@@ -87,9 +96,14 @@ internal sealed class HudLayoutProfile
 
         var layout = ApplyOverride(defaultLayout);
         var origin = HudLayoutResolver.ResolveOrigin(layout.Anchor, layout.Offset, viewportWidth, viewportHeight);
-        resolved = new HudResolvedElement(layout, origin, layout.ResolveBounds(origin));
+        resolved = ResolveElement(layout, origin, viewportWidth, viewportHeight);
         return true;
     }
+
+    private static HudResolvedElement ResolveElement(HudElementLayout layout, Vector2 origin, int width, int height)
+        => layout.Id == HudElementId.ClassEngineerBuildMenu
+            ? BuildWheelPresentation.ConstrainToViewport(layout, origin, width, height)
+            : new HudResolvedElement(layout, origin, layout.ResolveBounds(origin));
 
     public void SetElementOrigin(string id, Vector2 origin, int viewportWidth, int viewportHeight)
     {

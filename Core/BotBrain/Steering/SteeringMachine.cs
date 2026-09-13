@@ -974,17 +974,14 @@ public sealed class SteeringMachine
                 && path.TryGetIncomingEdge(path.CurrentIndex, out var incomingEdge)
                 && incomingEdge.RequiresGroundedContinuation)
             {
-                // A resolved OG2 contact can enter its certified landing
-                // window one physics update before collision state refreshes
-                // IsGrounded. If the measured completion is already true,
-                // hand the route to an ordinary corridor immediately instead
-                // of making the bot fall through the landing and replay the
-                // same jump forever. The next-edge grounded guard below still
-                // blocks a follow-up certified contact until the body lands.
+                // Tolerate a delayed grounded flag only at an actual supported
+                // landing, never while rising through the completion window.
                 if (!civviePogoContactCompleted
                     && (!incomingEdge.IsRuntimeResolved
-                    || !currentEdgeCompletionSatisfied)
-                    )
+                    || !currentEdgeCompletionSatisfied
+                    || player.VerticalSpeed < 0f
+                    || !player.CanOccupy(level, player.Team, player.X, player.Y)
+                    || player.CanOccupy(level, player.Team, player.X, player.Y + 2f)))
                 {
                     return false;
                 }
@@ -1263,6 +1260,14 @@ public sealed class SteeringMachine
             return;
         }
 
+        // Contact completion belongs to ShouldAdvanceWaypoint. Proximity to a
+        // later walking node cannot replace the current edge's landing contract.
+        if (path.TryGetIncomingEdge(path.CurrentIndex, out var currentEdge)
+            && (currentEdge.Kind != NavEdgeKind.Walk || currentEdge.RequiresGroundedContinuation))
+        {
+            return;
+        }
+
         var currentNode = graph.GetNode(path.CurrentNode);
         var currentDistance = Distance(player.X, player.Y, currentNode.X, currentNode.Y);
         var bestIndex = -1;
@@ -1272,7 +1277,7 @@ public sealed class SteeringMachine
         for (var index = path.CurrentIndex + 1; index <= maxIndex; index += 1)
         {
             if (path.TryGetIncomingEdge(index, out var incomingEdge)
-                && incomingEdge.RequiresGroundedContinuation)
+                && (incomingEdge.Kind != NavEdgeKind.Walk || incomingEdge.RequiresGroundedContinuation))
             {
                 break;
             }

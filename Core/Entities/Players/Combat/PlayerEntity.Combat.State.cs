@@ -166,6 +166,7 @@ public sealed partial class PlayerEntity
         CivviePogoSuperJumpSoundPending = false;
         IsSniperScoped = false;
         SniperChargeTicks = 0;
+        SniperRifleFullyChargedHitStreak = 0;
         CancelLastToDieSniperVolley();
         UberTicksRemaining = 0;
         KritzCritBoostTicksRemaining = 0;
@@ -181,6 +182,7 @@ public sealed partial class PlayerEntity
         MedicNeedleCooldownTicks = 0;
         MedicNeedleRefillTicks = 0;
         ContinuousHealingAccumulator = 0f;
+        _lastToDieSurvivorHealingRemainder = 0;
         PyroAirblastCooldownTicks = 0;
         PyroFlareCooldownTicks = 0;
         ResetCivvieUmbrellaState();
@@ -439,6 +441,7 @@ public sealed partial class PlayerEntity
         if (!secondaryHeld)
         {
             IsCivvieUmbrellaActive = false;
+            ResetCivvieUmbrellaOpening();
         }
     }
 
@@ -468,6 +471,7 @@ public sealed partial class PlayerEntity
         IsCivvieUmbrellaActive = true;
         if (!wasActive)
         {
+            BeginCivvieUmbrellaOpening();
             TryApplyCivvieUmbrellaAirLift();
         }
 
@@ -494,14 +498,27 @@ public sealed partial class PlayerEntity
 
     public void BeginCivvieUmbrellaOpening()
     {
+        CivvieUmbrellaOpeningSequence = CivvieUmbrellaOpeningSequence == int.MaxValue ? 1 : CivvieUmbrellaOpeningSequence + 1;
         CivvieUmbrellaOpeningElapsedTicks = 0;
+        CivvieUmbrellaOpeningTickAccumulator = 0;
         CivvieUmbrellaOpeningAirblastTriggered = false;
     }
 
     public bool ShouldTriggerCivvieUmbrellaOpeningAirblast()
     {
-        return !CivvieUmbrellaOpeningAirblastTriggered
+        return IsCivvieUmbrellaActive && !IsCivvieUmbrellaBroken
+            && !CivvieUmbrellaOpeningAirblastTriggered
             && CivvieUmbrellaOpeningElapsedTicks >= CivvieUmbrellaAirblastOpeningTick;
+    }
+
+    public bool TrySpendCivvieUmbrellaOpeningCharge(int chargeCost = CivvieUmbrellaOpeningChargeCost)
+    {
+        if (!ShouldTriggerCivvieUmbrellaOpeningAirblast()) return false;
+        MarkCivvieUmbrellaOpeningAirblastTriggered();
+        chargeCost = Math.Max(0, chargeCost);
+        if (CivvieUmbrellaChargeTicks < chargeCost) return false;
+        // Spend once per opening; holding the shield still has no passive drain.
+        return TryAbsorbCivvieUmbrellaHit(chargeCost);
     }
 
     public void MarkCivvieUmbrellaOpeningAirblastTriggered()
@@ -517,9 +534,21 @@ public sealed partial class PlayerEntity
         }
     }
 
+    private void AdvanceCivvieUmbrellaOpening(double deltaSeconds)
+    {
+        if (!IsCivvieUmbrellaActive || CivvieUmbrellaOpeningElapsedTicks >= CivvieUmbrellaOpeningDurationTicks) return;
+        CivvieUmbrellaOpeningTickAccumulator += deltaSeconds * LegacyMovementModel.SourceTicksPerSecond;
+        while (CivvieUmbrellaOpeningTickAccumulator >= 1d - 1e-9)
+        {
+            CivvieUmbrellaOpeningTickAccumulator = Math.Max(0, CivvieUmbrellaOpeningTickAccumulator - 1d);
+            AdvanceCivvieUmbrellaOpeningTick();
+        }
+    }
+
     private void ResetCivvieUmbrellaOpening()
     {
         CivvieUmbrellaOpeningElapsedTicks = 0;
+        CivvieUmbrellaOpeningTickAccumulator = 0;
         CivvieUmbrellaOpeningAirblastTriggered = false;
     }
 

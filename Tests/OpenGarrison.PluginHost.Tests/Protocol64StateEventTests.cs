@@ -8,6 +8,59 @@ namespace OpenGarrison.PluginHost.Tests;
 
 public sealed class Protocol64StateEventTests
 {
+    [Theory]
+    [InlineData((byte)1)]
+    [InlineData((byte)2)]
+    public void EngineerBeamIdentityRoundTripsInUpdatesAndResync(byte mode)
+    {
+        var equipment = new Protocol64EquipmentState("stock.gg2", "loadout.engineer.default",
+            "weapon.shotgun", "weapon.medigun", "", "weapon.medigun", "",
+            EngineerAlternateWeaponMode: mode,
+            SniperRifleFullyChargedHitStreak: 4);
+        var player = new Protocol64PlayerState(1, 1, 1, "engineer", 120, 120, 1, true,
+            100, 100, 0, 0, 1, 0, 1, Equipment: equipment);
+        var batch = RoundTrip(CreateRegistry(new Protocol64PlayerStateBatchSchema()),
+            new Protocol64PlayerStateBatch(1, 1, [player]), 1);
+        Assert.Equal(equipment, Assert.Single(batch.Players).Equipment);
+        var resync = RoundTrip(CreateRegistry(new Protocol64StateResyncResponseSchema()),
+            new Protocol64StateResyncResponse(1, 1, 1, [player], [], [], []), 1);
+        Assert.Equal(equipment, Assert.Single(resync.Players).Equipment);
+        var invalid = Protocol64FrameCodec.Encode(CreateRegistry(new Protocol64PlayerStateBatchSchema()),
+            new Protocol64PlayerStateBatch(1, 1, [player with { Equipment = equipment with { EngineerAlternateWeaponMode = 3 } }]), 1, 1);
+        Assert.False(invalid.Succeeded);
+    }
+
+    [Fact]
+    public void UmbrellaRuntimeRoundTripsInPlayerUpdatesAndResync()
+    {
+        var umbrella = new Protocol64UmbrellaState(330, true, false, 4, 123, true, true, 0.5);
+        var player = new Protocol64PlayerState(1, 1, 1, "civilian", 100, 100, 1, true,
+            100, 100, 0, 0, 0, 0, 1, Umbrella: umbrella);
+        var batch = RoundTrip(CreateRegistry(new Protocol64PlayerStateBatchSchema()),
+            new Protocol64PlayerStateBatch(1, 1, [player]), 1);
+        Assert.Equal(umbrella, Assert.Single(batch.Players).Umbrella);
+        var resync = RoundTrip(CreateRegistry(new Protocol64StateResyncResponseSchema()),
+            new Protocol64StateResyncResponse(1, 1, 1, [player], [], [], []), 1);
+        Assert.Equal(umbrella, Assert.Single(resync.Players).Umbrella);
+    }
+
+    [Theory]
+    [InlineData(-1, 0, 0, 0d)]
+    [InlineData(360, -1, 0, 0d)]
+    [InlineData(360, 0, -1, 0d)]
+    [InlineData(360, 0, 0, double.NaN)]
+    [InlineData(360, 0, 0, 1d)]
+    public void InvalidUmbrellaStateIsRejectedBeforeEncoding(int charge, int ticks, int sequence, double fraction)
+    {
+        var player = new Protocol64PlayerState(1, 1, 1, "civilian", 100, 100, 1, true,
+            100, 100, 0, 0, 0, 0, 1,
+            Umbrella: new(charge, true, false, ticks, sequence, false, false, fraction));
+        var encoded = Protocol64FrameCodec.Encode(CreateRegistry(new Protocol64PlayerStateBatchSchema()),
+            new Protocol64PlayerStateBatch(1, 1, [player]), 1, 1);
+        Assert.False(encoded.Succeeded);
+        Assert.Equal(Protocol64FaultKind.ValidationFailed, encoded.Fault!.Kind);
+    }
+
     [Fact]
     public void PlayerStateBatchRoundTripsInlineIdentityClassAndHealth()
     {
@@ -76,7 +129,8 @@ public sealed class Protocol64StateEventTests
                     IsRageReady: false,
                     RageTicksRemaining: 0,
                     PrimaryCooldownTicks: 13,
-                    PrimaryReloadTicks: 27),
+                    PrimaryReloadTicks: 27,
+                    IsBot: true),
             ]);
 
         var decoded = RoundTrip(registry, value, 1);
@@ -133,7 +187,8 @@ public sealed class Protocol64StateEventTests
         Assert.Equal(0, player.RageTicksRemaining);
         Assert.Equal(13, player.PrimaryCooldownTicks);
         Assert.Equal(27, player.PrimaryReloadTicks);
-        Assert.Equal((ushort)24, registry.Get<Protocol64PlayerStateBatch>().Descriptor.Key.Revision);
+        Assert.True(player.IsBot);
+        Assert.Equal((ushort)28, registry.Get<Protocol64PlayerStateBatch>().Descriptor.Key.Revision);
     }
 
     [Fact]
@@ -224,7 +279,33 @@ public sealed class Protocol64StateEventTests
         var decoded = RoundTrip(registry, value, 2);
 
         Assert.Equal(value, decoded);
-        Assert.Equal((ushort)11, registry.Get<Protocol64ProjectileState>().Descriptor.Key.Revision);
+        Assert.Equal((ushort)13, registry.Get<Protocol64ProjectileState>().Descriptor.Key.Revision);
+    }
+
+    [Fact]
+    public void DragonRageFlareStyleRoundTrips()
+    {
+        var registry = CreateRegistry(new Protocol64ProjectileStateSchema());
+        var value = new Protocol64ProjectileState(
+            EntityId: 46,
+            Generation: 3,
+            EntityKind: Protocol64ProjectileKind.Flare,
+            StateTick: 121,
+            OwnerSlot: 2,
+            OwnerGeneration: 7,
+            X: 1,
+            Y: 2,
+            VelocityX: 22,
+            VelocityY: 0,
+            Rotation: 0,
+            IsActive: true,
+            RemainingLifetimeTicks: 16,
+            Damage: 45,
+            FlareStyle: (byte)FlareProjectileStyle.DragonRageSlug);
+
+        var decoded = RoundTrip(registry, value, 2);
+
+        Assert.Equal(value, decoded);
     }
 
     [Fact]
@@ -420,11 +501,14 @@ public sealed class Protocol64StateEventTests
             Rotation: 0.5f,
             IsActive: true,
             RemainingLifetimeTicks: 80,
-            Damage: 90);
+            Damage: 90,
+            IsBallisticRocket: true,
+            BallisticRocketGravityPerTick: 0.75f,
+            SuppressRocketSmokeTrail: true);
 
         var decoded = RoundTrip(registry, value, 2);
         Assert.Equal(value, decoded);
-        Assert.Equal((ushort)11, schema.Descriptor.Key.Revision);
+        Assert.Equal((ushort)13, schema.Descriptor.Key.Revision);
     }
 
     [Fact]
@@ -542,7 +626,7 @@ public sealed class Protocol64StateEventTests
         Assert.Equal(Protocol64DeliveryKind.LastWins, schemas[2].Descriptor.Delivery.Kind);
         Assert.Equal(ChannelType.Control, schemas[4].Descriptor.Delivery.Channel);
         Assert.Equal(
-            new ushort[] { 24, 1, 11, 11, 1, 27 },
+            new ushort[] { 28, 1, 13, 13, 1, 32 },
             schemas.Select(schema => schema.Descriptor.Key.Revision).ToArray());
     }
 

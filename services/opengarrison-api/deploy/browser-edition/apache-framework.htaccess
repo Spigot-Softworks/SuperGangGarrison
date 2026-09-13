@@ -1,0 +1,5 @@
+# WebAssembly files need an explicit MIME type on this Apache host.
+# Match the final extension so assembly names containing .Xml or .Json stay WASM.
+<FilesMatch "\.wasm$">
+    ForceType application/wasm
+</FilesMatch>

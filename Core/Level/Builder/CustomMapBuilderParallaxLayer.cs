@@ -17,7 +17,7 @@ public readonly record struct CustomMapBuilderParallaxLayer(
         return this with
         {
             Index = Math.Clamp(Index, MinIndex, MaxIndex),
-            ResourceName = ResourceName.Trim(),
+            ResourceName = (ResourceName ?? string.Empty).Trim(),
             XFactor = NormalizeFactor(XFactor),
             YFactor = NormalizeFactor(YFactor),
         };

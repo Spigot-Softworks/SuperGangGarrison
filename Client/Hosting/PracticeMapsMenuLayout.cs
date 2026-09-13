@@ -100,7 +100,7 @@ internal readonly record struct PracticeMapsMenuLayout(
 
 internal static class PracticeMapsMenuLayoutCalculator
 {
-    public static PracticeMapsMenuLayout Create(int viewportWidth, int viewportHeight)
+    public static PracticeMapsMenuLayout Create(int viewportWidth, int viewportHeight, bool showSuperGangGarrison = true)
     {
         var compactViewport = viewportWidth <= 864 || viewportHeight <= 624;
         var panelWidth = compactViewport
@@ -115,9 +115,22 @@ internal static class PracticeMapsMenuLayoutCalculator
             panelWidth,
             panelHeight);
 
-        return compactViewport
+        var layout = compactViewport
             ? CreateLayout(panel, compactLayout: true)
             : CreateLayout(panel, compactLayout: false);
+        if (showSuperGangGarrison) return layout;
+
+        var left = layout.SuperGangGarrisonButtonBounds.Left;
+        var right = layout.CustomMapsButtonBounds.Right;
+        const int gap = 6;
+        var width = (right - left - gap) / 2;
+        return layout with
+        {
+            SuperGangGarrisonButtonBounds = Rectangle.Empty,
+            ClassicMapsButtonBounds = new Rectangle(left, layout.ClassicMapsButtonBounds.Y, width, layout.ClassicMapsButtonBounds.Height),
+            CustomMapsButtonBounds = new Rectangle(left + width + gap, layout.CustomMapsButtonBounds.Y,
+                right - left - width - gap, layout.CustomMapsButtonBounds.Height),
+        };
     }
 
     private static PracticeMapsMenuLayout CreateLayout(Rectangle panel, bool compactLayout)

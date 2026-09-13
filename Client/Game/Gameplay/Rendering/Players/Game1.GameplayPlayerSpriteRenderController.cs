@@ -361,6 +361,27 @@ public partial class Game1
             return GetPresentationSpriteName(classId, team, static presentation => presentation.DeadSuffix ?? presentation.BaseSuffix, "DeadS");
         }
 
+        public static string? GetDeadBodySpriteName(string gameplayClassId, PlayerClass classId, PlayerTeam team, DeadBodyAnimationKind animationKind = DeadBodyAnimationKind.Default)
+        {
+            if (string.IsNullOrWhiteSpace(gameplayClassId))
+            {
+                return GetDeadBodySpriteName(classId, team, animationKind);
+            }
+
+            if (animationKind == DeadBodyAnimationKind.Decapitated)
+            {
+                return GetDeadBodySpriteName(classId, team, animationKind);
+            }
+
+            if (!CharacterClassCatalog.RuntimeRegistry.TryGetClassBinding(gameplayClassId, out _))
+            {
+                return GetDeadBodySpriteName(classId, team, animationKind);
+            }
+
+            var presentation = GetClassPresentation(gameplayClassId);
+            return GetTeamSpriteName(gameplayClassId, team, presentation is null ? "DeadS" : presentation.DeadSuffix ?? presentation.BaseSuffix);
+        }
+
         public void DrawIntelUnderlaySprite(PlayerEntity player, Color tint, Vector2 scale, PlayerBodySpriteSelection bodySelection, Vector2 screenOrigin)
         {
             DrawIntelUnderlaySpriteCore(player, tint, scale, bodySelection, screenOrigin);
@@ -662,6 +683,24 @@ public partial class Game1
             }
 
             var teamName = player.Team switch
+            {
+                PlayerTeam.Red => "Red",
+                PlayerTeam.Blue => "Blue",
+                _ => null,
+            };
+
+            return teamName is null ? null : $"{prefix}{teamName}{suffix}";
+        }
+
+        private static string? GetTeamSpriteName(string gameplayClassId, PlayerTeam team, string suffix)
+        {
+            var prefix = GetPresentationSpritePrefix(gameplayClassId);
+            if (prefix is null)
+            {
+                return null;
+            }
+
+            var teamName = team switch
             {
                 PlayerTeam.Red => "Red",
                 PlayerTeam.Blue => "Blue",

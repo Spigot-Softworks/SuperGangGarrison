@@ -23,7 +23,7 @@ public sealed partial class SimulationWorld
     private const float SoldierThundergunnerPlayerImpulse = 24f * LegacyMovementModel.SourceTicksPerSecond;
     private const float SoldierThundergunnerPlayerLift = -4f * LegacyMovementModel.SourceTicksPerSecond;
 
-    private void TriggerPyroSelfAirblast(PlayerEntity player, float aimWorldX, float aimWorldY, bool fireFlare)
+    private void TriggerPyroSelfAirblast(PlayerEntity player, float aimWorldX, float aimWorldY)
     {
         var (sourceX, sourceY) = WeaponHandler.GetPyroSecondaryOrigin(player);
         var aimDegrees = PointDirectionDegrees(sourceX, sourceY, aimWorldX, aimWorldY);
@@ -31,7 +31,6 @@ public sealed partial class SimulationWorld
         var poofX = sourceX + MathF.Cos(aimRadians) * 25f;
         var poofY = sourceY + MathF.Sin(aimRadians) * 25f;
 
-        TryFirePyroFlare(player, aimRadians, sourceX, sourceY, fireFlare);
         RegisterSoundEvent(player, "CompressionBlastSnd");
         RegisterVisualEffect("AirBlast", poofX, poofY, aimDegrees);
         ApplyAirblastToSelf(player, sourceX, sourceY, aimRadians);
@@ -50,7 +49,7 @@ public sealed partial class SimulationWorld
         PushLooseBodies(sourceX, sourceY, aimRadians, poofX, poofY);
     }
 
-    private void TriggerPyroAirblast(PlayerEntity player, float aimWorldX, float aimWorldY, bool fireFlare)
+    private void TriggerPyroAirblast(PlayerEntity player, float aimWorldX, float aimWorldY)
     {
         var (sourceX, sourceY) = WeaponHandler.GetPyroSecondaryOrigin(player);
         var aimDegrees = PointDirectionDegrees(sourceX, sourceY, aimWorldX, aimWorldY);
@@ -58,7 +57,6 @@ public sealed partial class SimulationWorld
         var poofX = sourceX + MathF.Cos(aimRadians) * 25f;
         var poofY = sourceY + MathF.Sin(aimRadians) * 25f;
 
-        TryFirePyroFlare(player, aimRadians, sourceX, sourceY, fireFlare);
         RegisterSoundEvent(player, "CompressionBlastSnd");
         RegisterVisualEffect("AirBlast", poofX, poofY, aimDegrees);
 
@@ -129,28 +127,6 @@ public sealed partial class SimulationWorld
             -MathF.Cos(aimRadians) * PyroAirblastPlayerImpulse * scale * PyroSelfAirblastHorizontalStrengthScale,
             -MathF.Sin(aimRadians) * PyroAirblastPlayerImpulse * scale * PyroSelfAirblastVerticalStrengthScale + (PyroAirblastPlayerLift * PyroSelfAirblastVerticalStrengthScale));
         player.SetMovementStateIfAirborne(LegacyMovementState.Airblast);
-    }
-
-    private void TryFirePyroFlare(PlayerEntity player, float aimRadians, float sourceX, float sourceY, bool fireFlare)
-    {
-        if (!fireFlare)
-        {
-            return;
-        }
-
-        var spawnX = sourceX + MathF.Cos(aimRadians) * 25f;
-        var spawnY = sourceY + MathF.Sin(aimRadians) * 25f;
-        if (IsProjectileSpawnBlocked(sourceX, sourceY, spawnX, spawnY, player.Team) || !player.TryFirePyroFlare())
-        {
-            return;
-        }
-
-        SpawnFlare(
-            player,
-            spawnX,
-            spawnY,
-            MathF.Cos(aimRadians) * 15f,
-            MathF.Sin(aimRadians) * 15f);
     }
 
     private void ReflectEnemyRockets(PlayerEntity player, float aimRadians, float poofX, float poofY)

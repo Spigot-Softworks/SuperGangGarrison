@@ -82,8 +82,14 @@ internal sealed class SnapshotTransientEventBuffer(ulong transientEventReplayTic
                 continue;
             }
 
+            var snapshotVisualEvent = ToSnapshotVisualEvent(visualEvents[index], _nextTransientEventId++);
+            if (snapshotVisualEvent.SourceFrame == 0)
+            {
+                snapshotVisualEvent = snapshotVisualEvent with { SourceFrame = currentFrame };
+            }
+
             _recentVisualEvents.Add(new RetainedSnapshotVisualEvent(
-                ToSnapshotVisualEvent(visualEvents[index], _nextTransientEventId++),
+                snapshotVisualEvent,
                 currentFrame + transientEventReplayTicks));
         }
     }
@@ -238,6 +244,9 @@ internal sealed class SnapshotTransientEventBuffer(ulong transientEventReplayTic
             rocketSpawnEvent.IsCritical,
             eventId,
             rocketSpawnEvent.PassedFriendlyPlayerIds,
-            rocketSpawnEvent.CriticalDamageMultiplier);
+            rocketSpawnEvent.CriticalDamageMultiplier,
+            rocketSpawnEvent.IsBallistic,
+            rocketSpawnEvent.BallisticGravityPerTick,
+            rocketSpawnEvent.SuppressSmokeTrail);
     }
 }

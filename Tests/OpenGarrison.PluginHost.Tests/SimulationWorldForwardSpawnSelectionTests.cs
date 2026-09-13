@@ -78,7 +78,7 @@ public sealed class SimulationWorldForwardSpawnSelectionTests
     }
 
     [Fact]
-    public void ActiveForwardSpawnsAreOrderedByDescendingPriority()
+    public void ActiveForwardSpawnsUseOnlyTheHighestPriorityTier()
     {
         var world = CreateControlPointWorld(
             redSpawns:
@@ -92,9 +92,8 @@ public sealed class SimulationWorldForwardSpawnSelectionTests
         world.CombatTestSetControlPointOwner(2, null);
         var pool = world.CombatTestGetTeamSpawnSelectionPool(PlayerTeam.Red);
 
-        Assert.Equal(2, pool.Count);
+        Assert.Single(pool);
         Assert.Equal(300f, pool[0].X);
-        Assert.Equal(100f, pool[1].X);
     }
 
     [Fact]
@@ -111,11 +110,26 @@ public sealed class SimulationWorldForwardSpawnSelectionTests
         world.CombatTestSetControlPointOwner(1, PlayerTeam.Red);
         var pool = world.CombatTestGetTeamSpawnSelectionPool(PlayerTeam.Red);
 
-        Assert.Equal(2, pool.Count);
+        Assert.Single(pool);
         Assert.Equal(300f, pool[0].X);
 
         var spawn = world.CombatTestReserveTeamSpawn(world.LocalPlayer, PlayerTeam.Red);
         Assert.Equal(300f, spawn.X);
+    }
+
+    [Fact]
+    public void EqualPrioritySpawnLocationsRotateInStableCoordinateOrder()
+    {
+        var world = CreateControlPointWorld([
+            new(300, 100, SpawnPointRole.Forward, 1, Priority: 3),
+            new(200, 100, SpawnPointRole.Forward, 1, Priority: 3),
+            new(100, 100, SpawnPointRole.Forward, 1, Priority: 1)]);
+        world.CombatTestSetControlPointOwner(1, PlayerTeam.Red);
+        var positions = Enumerable.Range(0, 4).Select(_ => world.CombatTestReserveTeamSpawn(world.LocalPlayer, PlayerTeam.Red).X).ToArray();
+        Assert.Equal(positions[0], positions[2]);
+        Assert.Equal(positions[1], positions[3]);
+        Assert.NotEqual(positions[0], positions[1]);
+        Assert.DoesNotContain(100f, positions);
     }
 
     private static SimulationWorld CreateControlPointWorld(IReadOnlyList<SpawnPoint> redSpawns)

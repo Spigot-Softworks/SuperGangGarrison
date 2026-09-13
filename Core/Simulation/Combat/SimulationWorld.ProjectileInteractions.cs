@@ -236,7 +236,7 @@ public sealed partial class SimulationWorld
         Mine,
     }
 
-    private static void FindNearestDefensibleProjectile<TProjectile>(
+    private void FindNearestDefensibleProjectile<TProjectile>(
         List<TProjectile> projectiles,
         DefensibleProjectileKind kind,
         PlayerTeam team,
@@ -268,7 +268,8 @@ public sealed partial class SimulationWorld
             var deltaX = projectileX - x;
             var deltaY = projectileY - y;
             var distanceSquared = (deltaX * deltaX) + (deltaY * deltaY);
-            if (distanceSquared > nearestDistanceSquared)
+            if (distanceSquared > nearestDistanceSquared
+                || !HasDirectLineOfSight(x, y, projectileX, projectileY, projectileTeam))
             {
                 continue;
             }

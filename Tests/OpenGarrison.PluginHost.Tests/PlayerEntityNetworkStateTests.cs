@@ -1401,6 +1401,30 @@ public sealed class PlayerEntityNetworkStateTests
             replicatedStateEntries: replicatedStateEntries);
     }
 
+    [Fact]
+    public void NetworkUmbrellaOpeningRetainsSpentChargeAndReopeningIdentity()
+    {
+        var world = new SimulationWorld();
+        var player = world.LocalPlayer;
+        player.SetClassDefinition(CharacterClassCatalog.Civilian);
+        player.TryActivateCivvieUmbrella();
+        for (var tick = 0; tick < 4; tick++) player.AdvanceCivvieUmbrellaOpeningTick();
+        Assert.True(player.TrySpendCivvieUmbrellaOpeningCharge());
+        var replica = new PlayerEntity(987, CharacterClassCatalog.Civilian, "Replica");
+        ApplyCivilianNetworkSnapshot(replica, GameplayAbilityReplicatedState.CreateEntries(player).ToArray());
+        Assert.Equal(player.CivvieUmbrellaOpeningSequence, replica.CivvieUmbrellaOpeningSequence);
+        Assert.Equal(4, replica.CivvieUmbrellaOpeningElapsedTicks);
+        Assert.False(replica.TrySpendCivvieUmbrellaOpeningCharge());
+        Assert.Equal(player.CivvieUmbrellaChargeTicks, replica.CivvieUmbrellaChargeTicks);
+
+        player.SyncCivvieUmbrellaSecondaryInput(false);
+        player.TryActivateCivvieUmbrella();
+        ApplyCivilianNetworkSnapshot(replica, GameplayAbilityReplicatedState.CreateEntries(player).ToArray());
+        Assert.Equal(2, replica.CivvieUmbrellaOpeningSequence);
+        Assert.Equal(0, replica.CivvieUmbrellaOpeningElapsedTicks);
+        Assert.False(replica.CivvieUmbrellaOpeningAirblastTriggered);
+    }
+
     private static void ApplyCivilianNetworkSnapshot(
         PlayerEntity player,
         GameplayReplicatedStateEntry[] replicatedStateEntries)

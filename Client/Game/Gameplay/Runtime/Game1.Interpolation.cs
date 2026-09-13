@@ -31,6 +31,7 @@ public partial class Game1
     private const int NetworkInterpolationWarmupSnapshotCount = 4;
     private const float NetworkInterpolationWarmupSeconds = 0.35f;
     private const int NetworkWorldWarmupMinimumAppliedSnapshotsAfterFull = 2;
+    private const int NetworkPlayerPresentationMinimumSamples = 2;
     private const float NetworkWorldWarmupFreshPlayerHistorySeconds = 0.25f;
     // Projectiles are updated every few ticks - enable extrapolation to smooth between updates
     // This prevents jittering when the camera/player moves around projectiles
@@ -53,6 +54,13 @@ public partial class Game1
     private readonly Dictionary<PlayerTeam, InterpolationTrack> _intelInterpolationTracks = new();
     private readonly Dictionary<int, List<EntitySnapshotSample>> _entitySnapshotHistories = new();
     private readonly Dictionary<int, NetworkDiagnosticEntityInterpolationKind> _entitySnapshotHistoryKinds = new();
+    // These detached proxies bridge the small interval between an authoritative
+    // projectile removal and the shared render clock reaching that terminal tick.
+    // They never enter SimulationWorld.Entities and therefore cannot participate
+    // in combat, prediction, or snapshot application.
+    private readonly Dictionary<int, RocketProjectileEntity> _retainedRocketPresentationEntities = new();
+    private readonly Dictionary<int, FlareProjectileEntity> _retainedFlarePresentationEntities = new();
+    private readonly Dictionary<int, ulong> _retainedProjectilePresentationSourceFrames = new();
     private readonly Dictionary<PlayerTeam, List<EntitySnapshotSample>> _intelSnapshotHistories = new();
     private readonly Dictionary<int, List<PlayerSnapshotSample>> _remotePlayerSnapshotHistories = new();
     // This is a launch-origin bridge only. Recomputing it every frame makes local projectiles
@@ -62,8 +70,7 @@ public partial class Game1
     private readonly List<int> _staleInterpolatedEntityIds = new();
     private readonly Dictionary<ulong, SnapshotBaselineState> _snapshotStatesByFrame = new();
     private readonly Queue<ulong> _snapshotStateFrameOrder = new();
-    private readonly Queue<SnapshotMessage> _queuedAuthoritativeSnapshots = new();
-    private readonly HashSet<ulong> _authoritativeFullSnapshotFrames = new();
+    private readonly Queue<QueuedAuthoritativeSnapshot> _queuedAuthoritativeSnapshots = new();
     private readonly Stopwatch _networkInterpolationClock = Stopwatch.StartNew();
     private double _networkInterpolationClockSeconds;
     private float _networkSnapshotInterpolationDurationSeconds = 1f / SimulationConfig.DefaultTicksPerSecond;
@@ -92,6 +99,8 @@ public partial class Game1
     private bool _networkWorldWarmupFullSnapshotApplied;
     private int _networkWorldWarmupAppliedSnapshotsAfterFull;
     private double _networkWorldWarmupStartedClockSeconds = -1d;
+    private bool _networkWorldWarmupAcceptNextAppliedSnapshotAsBaseline;
+    private LastToDieWirePhase? _networkPresentationObservedLastToDiePhase;
 
     private bool IsPositionSmoothingActive()
     {
@@ -391,14 +400,20 @@ public partial class Game1
         float ExtrapolationDurationSeconds,
         float MaxExtrapolationDistance);
 
-    private readonly record struct PlayerSnapshotSample(
+    internal readonly record struct PlayerSnapshotSample(
         Vector2 Position,
         Vector2 Velocity,
         Vector2 AimWorldPosition,
         double TimeSeconds,
         PlayerTeam Team,
         PlayerClass ClassId,
-        bool IsAlive);
+        bool IsAlive,
+        bool IsGrounded);
+
+    private readonly record struct QueuedAuthoritativeSnapshot(
+        SnapshotMessage RawSnapshot,
+        SnapshotMessage ResolvedSnapshot,
+        bool IsServerFullSnapshot);
 
     private readonly record struct EntitySnapshotSample(
         Vector2 Position,
@@ -412,7 +427,6 @@ public partial class Game1
         _snapshotStatesByFrame.Clear();
         _snapshotStateFrameOrder.Clear();
         _queuedAuthoritativeSnapshots.Clear();
-        _authoritativeFullSnapshotFrames.Clear();
         _lastBufferedSnapshotFrame = 0;
     }
 

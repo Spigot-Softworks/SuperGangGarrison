@@ -131,6 +131,8 @@ public partial class Game1
     private SoundEffectInstance? _faucetMusicInstance;
     private SoundEffect? _ingameMusic;
     private SoundEffectInstance? _ingameMusicInstance;
+    private SoundEffect? _ingameCombatMusic;
+    private SoundEffectInstance? _ingameCombatMusicInstance;
     private SoundEffect? _lastToDieIngameMusic;
     private SoundEffectInstance? _lastToDieIngameMusicInstance;
     private SoundEffect? _lastToDieGameOverSound;
@@ -380,7 +382,7 @@ public partial class Game1
         var player = GetImmediatePrimaryPresentationPlayer();
         var soundName = ResolvePredictedPrimaryFireSoundName(player);
         if (string.IsNullOrWhiteSpace(soundName)
-            || IsManagedRapidFireSoundName(soundName))
+            || IsManagedRapidFirePresentation(player, soundName))
         {
             // Looped minigun/flamethrower audio is started by the rapid-fire
             // controller, which also keeps it alive while the trigger is held.
@@ -417,6 +419,11 @@ public partial class Game1
 
     private static string? ResolvePredictedPrimaryFireSoundName(PlayerEntity player)
     {
+        if (player.IsExperimentalDemoknightEnabled)
+        {
+            return ExperimentalDemoknightCatalog.EyelanderSwingSoundName;
+        }
+
         var weapon = player.IsAcquiredWeaponEquipped
             ? player.AcquiredWeapon
             : player.IsExperimentalOffhandSelected
@@ -442,6 +449,15 @@ public partial class Game1
             && !string.IsNullOrWhiteSpace(binding.FireSoundName))
         {
             return binding.FireSoundName;
+        }
+
+        // Quote Curly's primary blade is the bubble weapon. Its secondary
+        // ability owns the blade throw cue, so the broad Blade kind fallback
+        // must not invent BladeSnd for the primary action.
+        if (weapon.Kind == PrimaryWeaponKind.Blade
+            && string.Equals(weapon.ItemId, "plugin.quote-curly.weapon.blade", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
         }
 
         return weapon.Kind switch
@@ -579,14 +595,15 @@ public partial class Game1
             : soundName;
     }
 
-    private static bool IsProjectileSoundEchoCandidate(string soundName)
+    internal static bool IsProjectileSoundEchoCandidate(string soundName)
     {
-        return string.Equals(soundName, "ExplosionSnd", StringComparison.OrdinalIgnoreCase)
+        return string.Equals(soundName, "FlareImpactSnd", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(soundName, "ExplosionSnd", StringComparison.OrdinalIgnoreCase)
             || string.Equals(soundName, "HealExplosionSnd", StringComparison.OrdinalIgnoreCase)
             || string.Equals(soundName, "RocketSnd", StringComparison.OrdinalIgnoreCase)
             || string.Equals(soundName, "DirecthitSnd", StringComparison.OrdinalIgnoreCase)
             || string.Equals(soundName, "MinegunSnd", StringComparison.OrdinalIgnoreCase)
-            || IsWeaponFireSoundName(soundName) && !IsManagedRapidFireSoundName(soundName);
+            || IsWeaponFireSoundName(soundName);
     }
 
     private static bool IsManagedRapidFireSoundName(string soundName)
@@ -594,6 +611,36 @@ public partial class Game1
         return string.Equals(soundName, "ChaingunSnd", StringComparison.OrdinalIgnoreCase)
             || string.Equals(soundName, "FlamethrowerSnd", StringComparison.OrdinalIgnoreCase)
             || string.Equals(soundName, "MedigunSnd", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsManagedRapidFirePresentation(PlayerEntity player, string soundName)
+    {
+        if (!IsManagedRapidFireSoundName(soundName))
+        {
+            return false;
+        }
+
+        var weapon = player.IsAcquiredWeaponEquipped
+            ? player.AcquiredWeapon
+            : player.IsExperimentalOffhandSelected
+                ? player.ExperimentalOffhandWeapon
+                : player.PrimaryWeapon;
+        if (weapon is null)
+        {
+            return false;
+        }
+
+        return IsManagedRapidFirePresentationForWeapon(weapon.Kind, soundName);
+    }
+
+    internal static bool IsManagedRapidFirePresentationForWeapon(PrimaryWeaponKind weaponKind, string soundName)
+    {
+        return soundName.Equals("ChaingunSnd", StringComparison.OrdinalIgnoreCase)
+            ? weaponKind == PrimaryWeaponKind.Minigun
+            : soundName.Equals("FlamethrowerSnd", StringComparison.OrdinalIgnoreCase)
+                ? weaponKind == PrimaryWeaponKind.FlameThrower
+                : soundName.Equals("MedigunSnd", StringComparison.OrdinalIgnoreCase)
+                    && weaponKind == PrimaryWeaponKind.Medigun;
     }
 
     private static float GetProjectileSoundEchoDistanceSquared(string soundName)
@@ -776,6 +823,9 @@ public partial class Game1
             var deltaY = soundEvent.Y - recent.Y;
             if ((deltaX * deltaX) + (deltaY * deltaY) <= maxDistanceSquared)
             {
+                // An echo match is one-shot. Leaving it in the recent list can
+                // swallow the next legitimate shot during sustained fire.
+                _recentProjectileSoundEvents.RemoveAt(index);
                 return true;
             }
         }
@@ -877,6 +927,10 @@ public partial class Game1
         _ingameMusicInstance = null;
         _ingameMusic?.Dispose();
         _ingameMusic = null;
+        _ingameCombatMusicInstance?.Dispose();
+        _ingameCombatMusicInstance = null;
+        _ingameCombatMusic?.Dispose();
+        _ingameCombatMusic = null;
         _lastToDieIngameMusicInstance?.Dispose();
         _lastToDieIngameMusicInstance = null;
         _lastToDieIngameMusic?.Dispose();
@@ -938,11 +992,11 @@ public partial class Game1
         SetSoundEffectInstanceVolume(_menuMusicInstance, GetNonLinearVolumeScale(_menuMusicVolumePercent) * 0.8f);
         SetSoundEffectInstanceVolume(_lastToDieMenuMusicInstance, GetNonLinearVolumeScale(_menuMusicVolumePercent) * 0.82f);
         SetSoundEffectInstanceVolume(_faucetMusicInstance, GetNonLinearVolumeScale(_menuMusicVolumePercent) * 0.8f);
-        var ingameMusicVolume = GetNonLinearVolumeScale(_ingameMusicVolumePercent);
+        var ingameMusicVolume = GetNonLinearVolumeScale(_ingameMusicVolumePercent) * (IsJukeboxAudible ? 0f : 1f);
         var gameplaySoundUnderlyingScale = GetGameplaySoundUnderlyingMusicVolumeScale();
         SetSoundEffectInstanceVolume(_ingameMusicInstance, ingameMusicVolume * 0.8f * _dynamicNormalMusicFade * gameplaySoundUnderlyingScale);
         SetSoundEffectInstanceVolume(_lastToDieIngameMusicInstance, ingameMusicVolume * 0.82f * gameplaySoundUnderlyingScale);
-        SetSoundEffectInstanceVolume(_gameplaySoundMusicOverrideInstance, GetGameplaySoundMusicOverrideVolume());
+        SetSoundEffectInstanceVolume(_gameplaySoundMusicOverrideInstance, GetGameplaySoundMusicOverrideVolume() * (IsJukeboxAudible ? 0f : 1f));
         SetSoundEffectInstanceVolume(_lastToDieGameOverSoundInstance, ingameMusicVolume * 0.85f);
         UpdateDynamicMusicInstanceVolumes(ingameMusicVolume * gameplaySoundUnderlyingScale);
     }
@@ -998,8 +1052,30 @@ public partial class Game1
         return _gameplayRapidFireAudioController.GetWorldSoundMix(worldX, worldY);
     }
 
+    internal static (float Volume, float Pan) GetBannerSoundMix(float worldX, float worldY, Vector2 listenerPosition)
+        => GameplayRapidFireAudioController.GetBannerSoundMix(worldX, worldY, listenerPosition);
+
+    internal static (float Volume, float Pan) GetFlareImpactSoundMix(float worldX, float worldY, Vector2 listenerPosition)
+    {
+        var mix = GameplayRapidFireAudioController.GetWorldSoundMix(worldX, worldY, listenerPosition);
+        return (mix.Volume * 0.5f, mix.Pan);
+    }
+
     private (float Volume, float Pan) GetWorldSoundMix(WorldSoundEvent soundEvent)
     {
+        if (string.Equals(soundEvent.SoundName, "FlareImpactSnd", StringComparison.OrdinalIgnoreCase))
+        {
+            return GetFlareImpactSoundMix(soundEvent.X, soundEvent.Y, GetWorldSoundListenerPosition());
+        }
+
+        if (string.Equals(soundEvent.SoundName, "BuffbannerSnd", StringComparison.OrdinalIgnoreCase))
+        {
+            return GetBannerSoundMix(
+                soundEvent.X,
+                soundEvent.Y,
+                GetWorldSoundListenerPosition());
+        }
+
         var (volume, pan) = GetWorldSoundMix(soundEvent.X, soundEvent.Y);
         if (!IsWeaponFireSoundName(soundEvent.SoundName))
         {
@@ -1059,7 +1135,8 @@ public partial class Game1
 
     private static bool IsWeaponFireSoundName(string soundName)
     {
-        return string.Equals(soundName, "ShotgunSnd", StringComparison.OrdinalIgnoreCase)
+        return string.Equals(soundName, "PistolSnd", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(soundName, "ShotgunSnd", StringComparison.OrdinalIgnoreCase)
             || string.Equals(soundName, "RifleSnd", StringComparison.OrdinalIgnoreCase)
             || string.Equals(soundName, "RocketSnd", StringComparison.OrdinalIgnoreCase)
             || string.Equals(soundName, "DirecthitSnd", StringComparison.OrdinalIgnoreCase)
@@ -1070,6 +1147,7 @@ public partial class Game1
             || string.Equals(soundName, "MedichaingunSnd", StringComparison.OrdinalIgnoreCase)
             || string.Equals(soundName, "ChaingunSnd", StringComparison.OrdinalIgnoreCase)
             || string.Equals(soundName, "FlamethrowerSnd", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(soundName, "FlaregunSnd", StringComparison.OrdinalIgnoreCase)
             || string.Equals(soundName, "MedigunSnd", StringComparison.OrdinalIgnoreCase)
             || string.Equals(soundName, "BladeSnd", StringComparison.OrdinalIgnoreCase)
             || string.Equals(soundName, "EyelanderSnd", StringComparison.OrdinalIgnoreCase)

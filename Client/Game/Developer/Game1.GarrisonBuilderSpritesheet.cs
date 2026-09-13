@@ -166,7 +166,7 @@ public partial class Game1
             && entity.Properties.TryGetValue(SpritesheetMetadata.ImagePropertyKey, out var resourceName)
             && !string.IsNullOrWhiteSpace(resourceName)
             && _builderDocument.Resources.TryGetValue(resourceName.Trim(), out var resource)
-            && CustomMapBuilderResourceCodec.TryGetResourceBytes(resource, out var bytes)
+            && TryGetGarrisonBuilderResourceBytes(resource, out var bytes)
             && SpritesheetMetadata.TryParsePngDimensions(bytes, out var imageWidth, out var imageHeight))
         {
             var texture = GetGarrisonBuilderResourceTexture(resourceName.Trim());
@@ -394,15 +394,14 @@ public partial class Game1
 
     private void TryChooseGarrisonBuilderSpritesheetImage()
     {
-        if (!TryChooseGarrisonBuilderFile(
+        BeginChooseGarrisonBuilderFile(
                 "Load spritesheet image",
                 "Image files (*.png;*.gif)|*.png;*.gif|PNG files (*.png)|*.png|GIF files (*.gif)|*.gif|All files (*.*)|*.*",
                 string.Empty,
-                out var selectedPath))
+                selectedPath =>
         {
-            return;
-        }
-
+        BeginGarrisonBuilderPropertyTransaction();
+        RecordGarrisonBuilderHistory();
         var previousResourceName = _builderPropertyEditorValues.TryGetValue(
             SpritesheetMetadata.ImagePropertyKey,
             out var previous)
@@ -415,6 +414,7 @@ public partial class Game1
         ApplyGarrisonBuilderPropertyEditorLivePreview();
         PruneGarrisonBuilderResourceIfUnreferenced(previousResourceName);
         MarkGarrisonBuilderPropertyEditorChanged();
+        });
     }
 
     private bool TryGetGarrisonBuilderSpritesheetDrawBounds(
@@ -470,7 +470,7 @@ public partial class Game1
             && entity.Properties.TryGetValue(SpritesheetMetadata.ImagePropertyKey, out var resourceName)
             && !string.IsNullOrWhiteSpace(resourceName)
             && _builderDocument.Resources.TryGetValue(resourceName.Trim(), out var resource)
-            && CustomMapBuilderResourceCodec.TryGetResourceBytes(resource, out var bytes)
+            && TryGetGarrisonBuilderResourceBytes(resource, out var bytes)
             && SpritesheetMetadata.TryParsePngDimensions(bytes, out imageWidth, out imageHeight);
     }
 

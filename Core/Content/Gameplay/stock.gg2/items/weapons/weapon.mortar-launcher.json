@@ -1,0 +1,66 @@
+{
+  "id": "weapon.mortar-launcher",
+  "kind": "Weapon",
+  "weaponSlot": "Primary",
+  "displayName": "Mortar Launcher",
+  "behaviorId": "builtin.weapon.mortar_launcher",
+  "ammo": {
+    "maxAmmo": 1,
+    "ammoPerUse": 1,
+    "projectilesPerUse": 1,
+    "useDelaySourceTicks": 30,
+    "reloadSourceTicks": 28,
+    "spreadDegrees": 0.0,
+    "minProjectileSpeed": 8.0,
+    "additionalProjectileSpeed": 10.0,
+    "autoReloads": true,
+    "ammoRegenPerTick": 0,
+    "refillsAllAtOnce": false
+  },
+  "combat": {
+    "fireSoundName": "RocketSnd",
+    "killFeedSpriteName": "RocketKL",
+    "rocket": {
+      "directHitDamage": 33,
+      "explosionDamage": 30.0,
+      "blastRadius": 45.5,
+      "splashThresholdFactor": 0.25,
+      "minimumSplashDamage": 45.0,
+      "selfDamageMultiplier": 1.2
+    },
+    "playerKnockbackScale": 1.3
+  },
+  "presentation": {
+    "worldSpriteName": "RocketlauncherS",
+    "recoilSpriteName": "RocketlauncherFS",
+    "reloadSpriteName": "RocketlauncherFRS",
+    "hudSpriteName": "Rocketclip",
+    "weaponOffsetX": -15.0,
+    "weaponOffsetY": -10.0,
+    "recoilDurationSourceTicks": 30,
+    "reloadDurationSourceTicks": 28,
+    "blueTeamHudFrameOffset": 1,
+    "useAmmoCountForHudFrame": true,
+    "blueTeamAmmoHudFrameOffset": 5,
+    "hud": {
+      "displayKind": "ammoPanel",
+      "stackGroup": "weapon",
+      "order": 100,
+      "stateProvider": "primaryAmmo",
+      "hideWhenUnavailable": true
+    }
+  },
+  "description": {
+    "summary": "A single-shot, charge-fired ballistic rocket launcher.",
+    "positiveAttributes": [
+      "+30% direct-hit damage",
+      "+30% explosion knockback",
+      "45 minimum splash damage"
+    ],
+    "negativeAttributes": [
+      "-30% splash radius",
+      "+20% self damage",
+      "25% slower reload"
+    ]
+  }
+}

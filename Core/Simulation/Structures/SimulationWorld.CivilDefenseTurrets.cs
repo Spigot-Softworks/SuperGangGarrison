@@ -6,6 +6,7 @@ public sealed partial class SimulationWorld
 
     private void AdvanceCivilDefenseTurrets()
     {
+        if (ClientPredictionMode) return;
         for (var index = _civilDefenseTurrets.Count - 1; index >= 0; index -= 1)
         {
             var turret = _civilDefenseTurrets[index];
@@ -46,23 +47,60 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            turret.FireAt(targetX, targetY);
-            RegisterWorldSoundEvent("ShotgunSnd", turret.X, turret.Y);
-            var distance = MathF.Max(1f, DistanceBetween(turret.X, turret.Y, targetX, targetY));
-            RegisterCombatTrace(
-                turret.X,
-                turret.Y,
-                (targetX - turret.X) / distance,
-                (targetY - turret.Y) / distance,
-                distance,
-                hitCharacter: false,
-                turret.Team);
+            FireCivilDefenseTurret(turret, targetX, targetY);
         }
     }
 
-    private bool TryDeployCivilDefenseTurret(PlayerEntity player)
+    private void FireCivilDefenseTurret(CivilDefenseTurretEntity turret, float targetX, float targetY)
     {
-        if (!player.IsAlive
+        turret.FireAt(targetX, targetY);
+        RegisterWorldSoundEvent("ShotgunSnd", turret.X, turret.Y);
+        var distance = MathF.Max(1f, DistanceBetween(turret.X, turret.Y, targetX, targetY));
+        RegisterCombatTrace(turret.X, turret.Y, (targetX - turret.X) / distance,
+            (targetY - turret.Y) / distance, distance, hitCharacter: false, turret.Team);
+    }
+
+    // Limit the segment to the first physical hit before calling this. This
+    // prevents a projectile from damaging a player and then being intercepted.
+    private bool TryInterceptWithCivilDefenseTurret(PlayerTeam projectileTeam, float x, float y,
+        float directionX, float directionY, float maxDistance)
+    {
+        if (ClientPredictionMode || _civilDefenseTurrets.Count == 0) return false;
+        CivilDefenseTurretEntity? selected = null;
+        var nearest = maxDistance;
+        foreach (var turret in _civilDefenseTurrets)
+        {
+            if (turret.Team == projectileTeam || !turret.CanFire()) continue;
+            var dx = x - turret.X;
+            var dy = y - turret.Y;
+            var c = dx * dx + dy * dy - CivilDefenseTurretEntity.TargetRange * CivilDefenseTurretEntity.TargetRange;
+            var distance = 0f;
+            if (c > 0f)
+            {
+                var projection = dx * directionX + dy * directionY;
+                var discriminant = projection * projection - c;
+                if (discriminant < 0f) continue;
+                distance = -projection - MathF.Sqrt(discriminant);
+                if (distance < 0f) continue;
+            }
+            if (distance > nearest) continue;
+            if (!HasDirectLineOfSight(turret.X, turret.Y, x + directionX * distance, y + directionY * distance, projectileTeam)) continue;
+            if (selected is not null && distance == nearest && turret.Id > selected.Id) continue;
+            selected = turret;
+            nearest = distance;
+        }
+        if (selected is null) return false;
+        var hitX = x + directionX * nearest;
+        var hitY = y + directionY * nearest;
+        FireCivilDefenseTurret(selected, hitX, hitY);
+        RegisterImpactEffect(hitX, hitY, 0f);
+        return true;
+    }
+
+    private bool CanDeployCivilDefenseTurret(PlayerEntity player)
+    {
+        if (ClientPredictionMode
+            || !player.IsAlive
             || player.ClassId != PlayerClass.Soldier
             || player.IsInSpawnRoom)
         {
@@ -82,6 +120,12 @@ public sealed partial class SimulationWorld
             }
         }
 
+        return true;
+    }
+
+    private bool TryDeployCivilDefenseTurret(PlayerEntity player)
+    {
+        if (!CanDeployCivilDefenseTurret(player)) return false;
         var entity = new CivilDefenseTurretEntity(
             AllocateEntityId(),
             player.Id,

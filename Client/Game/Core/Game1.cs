@@ -106,6 +106,10 @@ public partial class Game1 : Game
         ChangeTeam,
         ChangeClass,
         ShowScoreboard,
+        PushToTalk,
+        VoteYes,
+        VoteNo,
+        OpenVoteMenu,
         ToggleConsole,
         OpenBubbleMenuZ,
         OpenBubbleMenuX,
@@ -424,6 +428,12 @@ public partial class Game1 : Game
         _friendList = FriendListDocument.Load();
         _presenceClient = new OpenGarrisonPresenceClient();
         _graphics.HardwareModeSwitch = false;
+        if (OperatingSystem.IsBrowser())
+        {
+            // Stock map layers exceed Reach's 2048-pixel texture limit.
+            // KNI's HiDef browser profile uses WebGL2 and supports these layers.
+            _graphics.GraphicsProfile = GraphicsProfile.HiDef;
+        }
         Content.RootDirectory = "Content";
         ClientRuntimeBootstrap.InitializeContentRoot(Content.RootDirectory);
         InitializeLocalDistributionAtlasManifestsIfPresent();
@@ -446,7 +456,6 @@ public partial class Game1 : Game
         {
             IsFixedTimeStep = false;
             InactiveSleepTime = TimeSpan.Zero;
-            _particleMode = Math.Max(_particleMode, 1);
         }
         else
         {
@@ -482,12 +491,15 @@ public partial class Game1 : Game
 
     private void OnGameDeactivated(object? sender, EventArgs e)
     {
+        _voiceChat?.SuspendCapture();
         _windowInputActive = false;
         HandleWindowFocusLost(default);
     }
 
     private void OnGameExiting(object? sender, EventArgs e)
     {
+        PreserveGarrisonBuilderOnExit();
+        ResetVoiceChat();
         // Ensure we disconnect from the server before exiting
         // This sends a proper close message (WebSocket close frame or UDP socket closure)
         // so the server can immediately remove the player instead of waiting for timeout
@@ -520,6 +532,8 @@ public partial class Game1 : Game
 
     protected override void UnloadContent()
     {
+        _voiceChat?.Dispose();
+        _voiceChat = null;
         ShutdownDiscordRichPresence();
         _bootstrapController.UnloadContent();
         base.UnloadContent();
@@ -535,8 +549,10 @@ public partial class Game1 : Game
         BeginClientPerformanceDiagnosticsFrame(gameTime);
         _networkInterpolationClockSeconds = _networkInterpolationClock.Elapsed.TotalSeconds;
         var clientTicks = _frameController.Update(gameTime);
+        UpdateVoiceChat(_clientPluginKeyboard, _frameMouseState, _wasWindowActive);
         PumpDiscordRichPresence(gameTime.ElapsedGameTime.TotalSeconds);
         PumpSocialPresence(gameTime.ElapsedGameTime.TotalSeconds);
+        PumpManagedRoomOperation();
         NotifyClientPluginsFrame(gameTime, clientTicks);
         AdvanceClientPerformanceAutomation();
         FinalizeNetworkDiagnosticsFrame();
