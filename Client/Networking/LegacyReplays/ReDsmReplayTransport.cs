@@ -3787,55 +3787,61 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                 switch (classId)
                 {
                     case PlayerClass.Scout:
-                        SpawnReplayPlayerGibSet(victim, "HeadS", 1, frameIndex: 6, bloodChance: 1.4f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY);
+                        SpawnReplayPlayerGibSet(victim, ResolveReplayClassHeadSpriteName(classId, victim.Team), 1, frameIndex: 0, bloodChance: 1.4f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY);
                         SpawnReplayPlayerGibSet(victim, "FeetS", Math.Max(1, ReplayDefaultGibLevel - 1), frameIndex: 0, velocityRangeX: 2f, velocityRangeY: 0f, rotationRange: 6f, horizontalFriction: 0.3f, rotationFriction: 0.4f, bloodChance: 7f);
                         SpawnReplayPlayerGibSet(victim, "HandS", Math.Max(1, ReplayDefaultGibLevel - 1), frameIndex: 1, bloodChance: 5f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY);
                         break;
                     case PlayerClass.Pyro:
-                        SpawnReplayPlayerGibSet(victim, "HeadS", 1, frameIndex: 7, bloodChance: 1.4f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY);
+                        SpawnReplayPlayerGibSet(victim, ResolveReplayClassHeadSpriteName(classId, victim.Team), 1, frameIndex: 0, bloodChance: 1.4f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY);
                         SpawnReplayPlayerGibSet(victim, "AccesoryS", 1, frameIndex: 4, bloodChance: 28f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY);
                         SpawnReplayPlayerGibSet(victim, "FeetS", Math.Max(1, ReplayDefaultGibLevel - 1), frameIndex: 1, velocityRangeX: 2f, velocityRangeY: 0f, rotationRange: 6f, horizontalFriction: 0.3f, rotationFriction: 0.4f, bloodChance: 7f);
                         SpawnReplayPlayerGibSet(victim, "HandS", Math.Max(1, ReplayDefaultGibLevel - 1), frameIndex: 0, bloodChance: 5f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY);
                         break;
                     case PlayerClass.Soldier:
-                        SpawnReplayPlayerGibSet(victim, "HeadS", 1, frameIndex: 1, bloodChance: 1.4f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY);
+                        SpawnReplayPlayerGibSet(victim, ResolveReplayClassHeadSpriteName(classId, victim.Team), 1, frameIndex: 0, bloodChance: 1.4f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY);
                         SpawnReplayPlayerGibSet(victim, "FeetS", Math.Max(1, ReplayDefaultGibLevel - 1), frameIndex: 2, velocityRangeX: 2f, velocityRangeY: 0f, rotationRange: 6f, horizontalFriction: 0.3f, rotationFriction: 0.4f, bloodChance: 7f);
                         SpawnReplayPlayerGibSet(victim, "HandS", Math.Max(1, ReplayDefaultGibLevel - 1), frameIndex: 1, bloodChance: 5f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY);
                         SpawnReplayPlayerGibSet(victim, "AccesoryS", 1, frameIndex: ToSnapshotTeam(victim.Team) == SnapshotTeamBlue ? 2 : 1, bloodChance: 28f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY);
                         break;
                     case PlayerClass.Heavy:
-                        SpawnReplayPlayerGibSet(victim, "HeadS", 1, frameIndex: 2, bloodChance: 1.4f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY);
+                        SpawnReplayPlayerGibSet(victim, ResolveReplayClassHeadSpriteName(classId, victim.Team), 1, frameIndex: 0, bloodChance: 1.4f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY);
                         SpawnReplayPlayerGibSet(victim, "FeetS", Math.Max(1, ReplayDefaultGibLevel - 1), frameIndex: 3, velocityRangeX: 2f, velocityRangeY: 0f, rotationRange: 6f, horizontalFriction: 0.3f, rotationFriction: 0.4f, bloodChance: 7f);
                         SpawnReplayPlayerGibSet(victim, "HandS", Math.Max(1, ReplayDefaultGibLevel - 1), frameIndex: 1, bloodChance: 5f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY);
                         break;
                     case PlayerClass.Demoman:
-                        SpawnReplayPlayerGibSet(victim, "HeadS", 1, frameIndex: 4, bloodChance: 1.4f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY);
+                        SpawnReplayPlayerGibSet(victim, ResolveReplayClassHeadSpriteName(classId, victim.Team), 1, frameIndex: 0, bloodChance: 1.4f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY);
                         SpawnReplayPlayerGibSet(victim, "FeetS", Math.Max(1, ReplayDefaultGibLevel - 1), frameIndex: 4, velocityRangeX: 2f, velocityRangeY: 0f, rotationRange: 6f, horizontalFriction: 0.3f, rotationFriction: 0.4f, bloodChance: 7f);
                         SpawnReplayPlayerGibSet(victim, "HandS", Math.Max(1, ReplayDefaultGibLevel - 1), frameIndex: 0, bloodChance: 5f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY);
                         break;
                     case PlayerClass.Medic:
-                        SpawnReplayPlayerGibSet(victim, "HeadS", 1, frameIndex: 5, bloodChance: 1.4f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY);
+                        SpawnReplayPlayerGibSet(victim, ResolveReplayClassHeadSpriteName(classId, victim.Team), 1, frameIndex: 0, bloodChance: 1.4f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY);
                         SpawnReplayPlayerGibSet(victim, "FeetS", Math.Max(1, ReplayDefaultGibLevel - 1), frameIndex: 4, velocityRangeX: 2f, velocityRangeY: 0f, rotationRange: 6f, horizontalFriction: 0.3f, rotationFriction: 0.4f, bloodChance: 7f);
                         SpawnReplayPlayerGibSet(victim, "HandS", 1, frameIndex: ToSnapshotTeam(victim.Team) == SnapshotTeamBlue ? 3 : 2, bloodChance: 5f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY);
                         break;
                     case PlayerClass.Engineer:
-                        SpawnReplayPlayerGibSet(victim, "HeadS", 1, frameIndex: 8, bloodChance: 1.4f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY);
+                        SpawnReplayPlayerGibSet(victim, ResolveReplayClassHeadSpriteName(classId, victim.Team), 1, frameIndex: 0, bloodChance: 1.4f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY);
                         SpawnReplayPlayerGibSet(victim, "AccesoryS", 1, frameIndex: 3, bloodChance: 28f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY);
                         SpawnReplayPlayerGibSet(victim, "FeetS", Math.Max(1, ReplayDefaultGibLevel - 1), frameIndex: 5, velocityRangeX: 2f, velocityRangeY: 0f, rotationRange: 6f, horizontalFriction: 0.3f, rotationFriction: 0.4f, bloodChance: 7f);
                         SpawnReplayPlayerGibSet(victim, "HandS", Math.Max(1, ReplayDefaultGibLevel - 1), frameIndex: 0, bloodChance: 5f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY);
                         break;
                     case PlayerClass.Spy:
-                        SpawnReplayPlayerGibSet(victim, "HeadS", 1, frameIndex: 3, bloodChance: 1.4f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY);
+                        SpawnReplayPlayerGibSet(victim, ResolveReplayClassHeadSpriteName(classId, victim.Team), 1, frameIndex: 0, bloodChance: 1.4f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY);
                         SpawnReplayPlayerGibSet(victim, "FeetS", Math.Max(1, ReplayDefaultGibLevel - 1), frameIndex: 6, velocityRangeX: 2f, velocityRangeY: 0f, rotationRange: 6f, horizontalFriction: 0.3f, rotationFriction: 0.4f, bloodChance: 7f);
                         SpawnReplayPlayerGibSet(victim, "HandS", Math.Max(1, ReplayDefaultGibLevel - 1), frameIndex: 0, bloodChance: 5f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY);
                         break;
                     case PlayerClass.Sniper:
-                        SpawnReplayPlayerGibSet(victim, "HeadS", 1, frameIndex: 0, bloodChance: 1.4f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY);
+                        SpawnReplayPlayerGibSet(victim, ResolveReplayClassHeadSpriteName(classId, victim.Team), 1, frameIndex: 0, bloodChance: 1.4f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY);
                         SpawnReplayPlayerGibSet(victim, "AccesoryS", 1, frameIndex: 0, bloodChance: 28f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY);
                         SpawnReplayPlayerGibSet(victim, "FeetS", Math.Max(1, ReplayDefaultGibLevel - 1), frameIndex: 6, velocityRangeX: 2f, velocityRangeY: 0f, rotationRange: 6f, horizontalFriction: 0.3f, rotationFriction: 0.4f, bloodChance: 7f);
                         SpawnReplayPlayerGibSet(victim, "HandS", Math.Max(1, ReplayDefaultGibLevel - 1), frameIndex: 0, bloodChance: 5f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY);
                         break;
                 }
+            }
+
+            private static string ResolveReplayClassHeadSpriteName(PlayerClass classId, byte legacyTeam)
+            {
+                var team = ToSnapshotTeam(legacyTeam) == SnapshotTeamBlue ? PlayerTeam.Blue : PlayerTeam.Red;
+                return ExperimentalDemoknightCatalog.GetClassHeadGibSpriteName(classId, team) ?? "HeadS";
             }
 
             private void SpawnReplayPlayerGibSet(

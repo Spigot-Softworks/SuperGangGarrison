@@ -109,6 +109,7 @@ public partial class Game1
         public string[] PracticeBotNames { get; init; } = [];
         public int ParticleMode { get; init; }
         public int FlameRenderMode { get; init; }
+        public int BloodRenderMode { get; init; }
         public bool ReducedBrowserEffects { get; init; }
         public string LoadingTitle { get; init; } = "";
         public int HostedLobbyDrawCount { get; init; }
@@ -271,6 +272,7 @@ public partial class Game1
             PracticeBotNames = _practiceBotSlots.Values.Select(slot => slot.DisplayName).ToArray(),
             ParticleMode = _particleMode,
             FlameRenderMode = _flameRenderMode,
+            BloodRenderMode = _bloodRenderMode,
             ReducedBrowserEffects = UseReducedBrowserEffects,
             LoadingTitle = GetLoadingOverlayTitle(IsRestrictedBrowserEdition),
             HostedLobbyDrawCount = _browserHostedLobbyDrawCount,
@@ -608,6 +610,15 @@ public partial class Game1
             case "flame_render_mode":
                 if (!int.TryParse(value, out var flameMode) || flameMode is < 0 or > 1) return false;
                 _flameRenderMode = flameMode;
+                return true;
+            case "blood_render_mode":
+                if (!int.TryParse(value, out var bloodMode) || bloodMode is < 0 or > 1) return false;
+                _bloodRenderMode = bloodMode;
+                if (_bloodRenderMode != 0)
+                {
+                    _gameplayGoreEffectsController.ResetBloodSquibEffects();
+                }
+
                 return true;
             case "practice_map":
                 return _practiceSetupOpen && SelectPracticeMapEntry(value);

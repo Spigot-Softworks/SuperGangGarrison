@@ -112,9 +112,15 @@ public sealed class OpenGarrisonPreferencesDocument
 
     public int FlameRenderMode { get; set; }
 
+    public int BloodRenderMode { get; set; }
+
     public MenuBackgroundMode MenuBackgroundMode { get; set; } = MenuBackgroundMode.DefaultMaps;
 
     public int GibLevel { get; set; } = 3;
+
+    public int BloodAmountLevel { get; set; } = 5;
+
+    public int GibAmountLevel { get; set; } = 5;
 
     public int CorpseDurationMode { get; set; }
 
@@ -278,8 +284,11 @@ public sealed class OpenGarrisonPreferencesDocument
             AlwaysRecordGames = ini.GetBool(SettingsSection, "Always Record Games", false),
             ParticleMode = ini.GetInt(SettingsSection, "Particles", 0),
             FlameRenderMode = ini.GetInt(SettingsSection, "Flame Render Mode", 0),
+            BloodRenderMode = ini.GetInt(SettingsSection, "Blood Render Mode", 0),
             MenuBackgroundMode = (MenuBackgroundMode)ini.GetInt(SettingsSection, "Menu Background Mode", (int)MenuBackgroundMode.DefaultMaps),
-            GibLevel = ini.GetInt(SettingsSection, "Gib Level", 3),
+            GibLevel = ReadGoreMode(ini),
+            BloodAmountLevel = ReadBloodAmountLevel(ini),
+            GibAmountLevel = ReadGibAmountLevel(ini),
             CorpseDurationMode = ini.GetInt(SettingsSection, "Corpse Duration", 0),
             HealerRadarEnabled = ini.GetBool(SettingsSection, "Healer Radar", true),
             ShowHealerEnabled = ini.GetBool(SettingsSection, "Show Healer", true),
@@ -374,8 +383,11 @@ public sealed class OpenGarrisonPreferencesDocument
         ini.SetInt(SettingsSection, "PlayerLimit", HostSettings.Slots);
         ini.SetInt(SettingsSection, "Particles", ParticleMode);
         ini.SetInt(SettingsSection, "Flame Render Mode", FlameRenderMode);
+        ini.SetInt(SettingsSection, "Blood Render Mode", BloodRenderMode);
         ini.SetInt(SettingsSection, "Menu Background Mode", (int)MenuBackgroundMode);
         ini.SetInt(SettingsSection, "Gib Level", GibLevel);
+        ini.SetInt(SettingsSection, "Blood Amount", Math.Clamp(BloodAmountLevel, 1, 5));
+        ini.SetInt(SettingsSection, "Gib Amount", Math.Clamp(GibAmountLevel, 1, 5));
         ini.SetInt(SettingsSection, "Corpse Duration", CorpseDurationMode);
         ini.SetBool(SettingsSection, "Kill Cam", KillCamEnabled);
         ini.SetBool(SettingsSection, "Always Record Games", AlwaysRecordGames);
@@ -516,6 +528,51 @@ public sealed class OpenGarrisonPreferencesDocument
         return ini.GetBool(SettingsSection, "IngameMusic", true)
             ? MusicMode.MenuAndInGame
             : MusicMode.MenuOnly;
+    }
+
+    private static int ReadGoreMode(IniConfigurationFile ini)
+    {
+        var goreMode = Math.Clamp(ini.GetInt(SettingsSection, "Gib Level", 3), 0, 3);
+        // Pre-split prefs used Gib Level 2 for blood + medium gibs.
+        if (!HasSplitGoreAmountKeys(ini) && goreMode == 2)
+        {
+            goreMode = 3;
+        }
+
+        return goreMode;
+    }
+
+    private static int ReadBloodAmountLevel(IniConfigurationFile ini)
+    {
+        if (!ini.ContainsKey(SettingsSection, "Blood Amount"))
+        {
+            return 5;
+        }
+
+        return Math.Clamp(ini.GetInt(SettingsSection, "Blood Amount", 5), 1, 5);
+    }
+
+    private static int ReadGibAmountLevel(IniConfigurationFile ini)
+    {
+        if (ini.ContainsKey(SettingsSection, "Gib Amount"))
+        {
+            return Math.Clamp(ini.GetInt(SettingsSection, "Gib Amount", 5), 1, 5);
+        }
+
+        // Old Gib Level 2 was "blood and medium gibs" (~60%).
+        if (!HasSplitGoreAmountKeys(ini)
+            && Math.Clamp(ini.GetInt(SettingsSection, "Gib Level", 3), 0, 3) == 2)
+        {
+            return 3;
+        }
+
+        return 5;
+    }
+
+    private static bool HasSplitGoreAmountKeys(IniConfigurationFile ini)
+    {
+        return ini.ContainsKey(SettingsSection, "Blood Amount")
+            || ini.ContainsKey(SettingsSection, "Gib Amount");
     }
 
     private static MusicMode NormalizeMusicMode(MusicMode musicMode)

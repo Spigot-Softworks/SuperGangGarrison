@@ -9,7 +9,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private sealed class GameplayGoreEffectsController
+    private sealed partial class GameplayGoreEffectsController
     {
         private readonly Game1 _game;
 
@@ -27,20 +27,41 @@ public partial class Game1
             _game._staleStickyGibBloodPlayerIds.Clear();
             _game._processedStickyGibBloodDropIds.Clear();
             _game._staleStickyGibBloodDropIds.Clear();
+            ResetBloodSquibEffects();
         }
 
         public void AdvanceBloodVisuals()
         {
-            if (_game._gibLevel == 0)
+            if (!_game.AreBloodVisualsEnabled)
             {
                 _game._bloodVisuals.Clear();
                 _game._bloodSprayVisuals.Clear();
-                _game._stickyGibBloodCoatings.Clear();
-                _game._staleStickyGibBloodPlayerIds.Clear();
-                _game._processedStickyGibBloodDropIds.Clear();
-                _game._staleStickyGibBloodDropIds.Clear();
+                ResetBloodSquibEffects();
+                if (!_game.AreGibVisualsEnabled)
+                {
+                    _game._stickyGibBloodCoatings.Clear();
+                    _game._staleStickyGibBloodPlayerIds.Clear();
+                    _game._processedStickyGibBloodDropIds.Clear();
+                    _game._staleStickyGibBloodDropIds.Clear();
+                }
+                else
+                {
+                    AdvanceStickyGibBloodCoatings();
+                }
+
                 return;
             }
+
+            if (_game._bloodRenderMode == 0)
+            {
+                _game._bloodVisuals.Clear();
+                _game._bloodSprayVisuals.Clear();
+                AdvanceBloodSquibEffects();
+                AdvanceStickyGibBloodCoatings();
+                return;
+            }
+
+            ResetBloodSquibEffects();
 
             for (var index = _game._bloodVisuals.Count - 1; index >= 0; index -= 1)
             {
@@ -61,10 +82,10 @@ public partial class Game1
                     continue;
                 }
 
-                spray.VelocityY = MathF.Min(BloodDropEntity.MaxSpeed, spray.VelocityY + 0.35f);
+                spray.VelocityY = MathF.Min(BloodDropEntity.MaxSpeed, spray.VelocityY + 0.45f);
                 spray.X += spray.VelocityX;
                 spray.Y += spray.VelocityY;
-                spray.VelocityX *= 0.97f;
+                spray.VelocityX *= 0.96f;
             }
 
             AdvanceStickyGibBloodCoatings();
@@ -151,8 +172,9 @@ public partial class Game1
 
         public void DrawBloodVisuals(Vector2 cameraPosition)
         {
-            if (_game._gibLevel == 0)
+            if (!_game.AreBloodVisualsEnabled || _game._bloodRenderMode == 0)
             {
+                // Squib blood is drawn with remains so stains sit on top of walkmasks/structures.
                 return;
             }
 
@@ -209,6 +231,16 @@ public partial class Game1
             }
         }
 
+        public void DrawBloodSquibRemains(Vector2 cameraPosition)
+        {
+            if (!_game.AreBloodVisualsEnabled || _game._bloodRenderMode != 0)
+            {
+                return;
+            }
+
+            DrawBloodSquibEffects(cameraPosition);
+        }
+
         public bool TryPlayVisualEvent(string effectName, float x, float y, float directionDegrees, int count)
         {
             if (string.Equals(effectName, "BackstabBlue", StringComparison.OrdinalIgnoreCase))
@@ -225,12 +257,15 @@ public partial class Game1
 
             if (string.Equals(effectName, "GibBlood", StringComparison.OrdinalIgnoreCase))
             {
-                if (_game._gibLevel == 0)
+                if (!_game.AreBloodVisualsEnabled && !_game.AreGibVisualsEnabled)
                 {
                     return true;
                 }
 
-                SpawnGibBloodImpactVisuals(x, y, Math.Max(1, count));
+                var gibIntensity = Math.Max(
+                    1,
+                    (int)MathF.Round(Math.Max(1, count) * _game.GetGibAmountScale()));
+                SpawnGibBloodImpactVisuals(x, y, gibIntensity);
                 return true;
             }
 
@@ -239,24 +274,24 @@ public partial class Game1
                 return false;
             }
 
-            if (_game._gibLevel == 0)
+            if (!_game.AreBloodVisualsEnabled)
             {
                 return true;
             }
 
-            SpawnBloodImpactVisuals(x, y, directionDegrees, Math.Max(1, count));
+            SpawnBloodImpactVisuals(x, y, directionDegrees, Math.Max(1, count), explosive: false);
             return true;
         }
 
         public void SpawnImmediateFatalDamageVisuals(float x, float y, int damageAmount)
         {
-            if (_game._gibLevel == 0)
+            if (!_game.AreBloodVisualsEnabled)
             {
                 return;
             }
 
             var burstCount = Math.Clamp(Math.Max(3, damageAmount / 18), 3, 8);
-            SpawnBloodImpactVisuals(x, y, 270f, burstCount);
+            SpawnBloodImpactVisuals(x, y, 270f, burstCount, explosive: true);
         }
 
         public void SpawnBackstabVisual(
@@ -473,30 +508,52 @@ public partial class Game1
             _game._staleStickyGibBloodDropIds.Clear();
         }
 
-        private void SpawnBloodImpactVisuals(float x, float y, float directionDegrees, int burstCount)
+        private void SpawnBloodImpactVisuals(float x, float y, float directionDegrees, int burstCount, bool explosive = false)
         {
-            for (var index = 0; index < burstCount; index += 1)
+            if (!_game.AreBloodVisualsEnabled)
             {
-                var spreadDegrees = directionDegrees + (_game._visualRandom.NextSingle() * 57f) - 28f;
+                return;
+            }
+
+            if (_game._bloodRenderMode == 0)
+            {
+                SpawnBloodSquibBurst(x, y, directionDegrees, burstCount, explosive);
+                return;
+            }
+
+            var splashCount = explosive
+                ? _game.ScaleBloodVisualCount(Math.Clamp(Math.Max(4, burstCount), 4, 10))
+                : _game.ScaleBloodVisualCount(1);
+            for (var index = 0; index < splashCount; index += 1)
+            {
+                var spreadDegrees = explosive
+                    ? _game._visualRandom.NextSingle() * 360f
+                    : directionDegrees + (_game._visualRandom.NextSingle() * 6f) - 3f;
                 var spreadRadians = spreadDegrees * (MathF.PI / 180f);
-                var distance = burstCount > 1 ? _game._visualRandom.NextSingle() * 8f : 0f;
+                var distance = splashCount > 1 ? _game._visualRandom.NextSingle() * (explosive ? 8f : 1f) : 0f;
                 _game._bloodVisuals.Add(new BloodVisual(
                     x + MathF.Cos(spreadRadians) * distance,
                     y + MathF.Sin(spreadRadians) * distance));
             }
 
-            var sprayCount = Math.Clamp((burstCount * 2) + 4, 6, 14);
+            var sprayCount = explosive
+                ? _game.ScaleBloodVisualCount(Math.Clamp(Math.Max(8, burstCount * 2), 8, 16))
+                : _game.ScaleBloodVisualCount(1);
             for (var index = 0; index < sprayCount; index += 1)
             {
-                var spreadDegrees = directionDegrees + (_game._visualRandom.NextSingle() * 57f) - 28f;
+                var spreadDegrees = explosive
+                    ? _game._visualRandom.NextSingle() * 360f
+                    : directionDegrees + (_game._visualRandom.NextSingle() * 6f) - 3f;
                 var spreadRadians = spreadDegrees * (MathF.PI / 180f);
-                var speed = 4f + (_game._visualRandom.NextSingle() * 14f);
+                var speed = explosive
+                    ? 4.5f + (_game._visualRandom.NextSingle() * 10f)
+                    : 2.5f + (_game._visualRandom.NextSingle() * 3f);
                 _game._bloodSprayVisuals.Add(new BloodSprayVisual(
                     x,
                     y,
                     MathF.Cos(spreadRadians) * speed,
                     MathF.Sin(spreadRadians) * speed,
-                    _game._visualRandom.Next(24, 47)));
+                    explosive ? _game._visualRandom.Next(26, 48) : _game._visualRandom.Next(16, 30)));
             }
         }
 
@@ -504,28 +561,39 @@ public partial class Game1
         {
             TryApplyStickyGibBloodCoating(x, y, intensity);
 
-            var burstCount = Math.Max(6, intensity * 4);
+            if (!_game.AreBloodVisualsEnabled)
+            {
+                return;
+            }
+
+            if (_game._bloodRenderMode == 0)
+            {
+                SpawnBloodSquibGibBurst(x, y, intensity);
+                return;
+            }
+
+            var burstCount = _game.ScaleBloodVisualCount(Math.Clamp(8 + (intensity * 2), 8, 16));
             for (var index = 0; index < burstCount; index += 1)
             {
                 var directionRadians = _game._visualRandom.NextSingle() * MathF.Tau;
-                var distance = _game._visualRandom.NextSingle() * 11f;
+                var distance = _game._visualRandom.NextSingle() * 8f;
                 _game._bloodVisuals.Add(new BloodVisual(
                     x + MathF.Cos(directionRadians) * distance,
                     y + MathF.Sin(directionRadians) * distance));
             }
 
-            var sprayCount = Math.Max(14, intensity * 10);
+            var sprayCount = _game.ScaleBloodVisualCount(Math.Clamp(10 + (intensity * 3), 10, 20));
             for (var index = 0; index < sprayCount; index += 1)
             {
                 var directionRadians = _game._visualRandom.NextSingle() * MathF.Tau;
-                var speed = 6f + (_game._visualRandom.NextSingle() * 16f);
-                var startRadius = _game._visualRandom.NextSingle() * 8f;
+                var speed = 5f + (_game._visualRandom.NextSingle() * 12f);
+                var startRadius = _game._visualRandom.NextSingle() * 5f;
                 _game._bloodSprayVisuals.Add(new BloodSprayVisual(
                     x + MathF.Cos(directionRadians) * startRadius,
                     y + MathF.Sin(directionRadians) * startRadius,
                     MathF.Cos(directionRadians) * speed,
                     MathF.Sin(directionRadians) * speed,
-                    _game._visualRandom.Next(28, 57)));
+                    _game._visualRandom.Next(26, 48)));
             }
         }
 

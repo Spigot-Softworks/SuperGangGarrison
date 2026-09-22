@@ -24,8 +24,11 @@ public partial class Game1
         _killCamEnabled = _clientSettings.KillCamEnabled;
         _particleMode = Math.Clamp(_clientSettings.ParticleMode, 0, 2);
         _flameRenderMode = Math.Clamp(_clientSettings.FlameRenderMode, 0, 1);
+        _bloodRenderMode = Math.Clamp(_clientSettings.BloodRenderMode, 0, 1);
         _menuBackgroundMode = _clientSettings.MenuBackgroundMode;
         _gibLevel = Math.Clamp(_clientSettings.GibLevel, 0, 3);
+        _bloodAmountLevel = Math.Clamp(_clientSettings.BloodAmountLevel, 1, 5);
+        _gibAmountLevel = Math.Clamp(_clientSettings.GibAmountLevel, 1, 5);
         _corpseDurationMode = Math.Clamp(_clientSettings.CorpseDurationMode, ClientSettings.CorpseDurationDefault, ClientSettings.CorpseDurationInfinite);
         _healerRadarEnabled = _clientSettings.HealerRadarEnabled;
         _showHealerEnabled = _clientSettings.ShowHealerEnabled;
@@ -93,8 +96,11 @@ public partial class Game1
         _clientSettings.KillCamEnabled = _killCamEnabled;
         _clientSettings.ParticleMode = Math.Clamp(_particleMode, 0, 2);
         _clientSettings.FlameRenderMode = Math.Clamp(_flameRenderMode, 0, 1);
+        _clientSettings.BloodRenderMode = Math.Clamp(_bloodRenderMode, 0, 1);
         _clientSettings.MenuBackgroundMode = _menuBackgroundMode;
         _clientSettings.GibLevel = Math.Clamp(_gibLevel, 0, 3);
+        _clientSettings.BloodAmountLevel = Math.Clamp(_bloodAmountLevel, 1, 5);
+        _clientSettings.GibAmountLevel = Math.Clamp(_gibAmountLevel, 1, 5);
         _clientSettings.CorpseDurationMode = Math.Clamp(_corpseDurationMode, ClientSettings.CorpseDurationDefault, ClientSettings.CorpseDurationInfinite);
         _clientSettings.HealerRadarEnabled = _healerRadarEnabled;
         _clientSettings.ShowHealerEnabled = _showHealerEnabled;
@@ -268,5 +274,57 @@ public partial class Game1
         return int.TryParse(valueText, out var parsed)
             ? Math.Clamp(parsed, min, max)
             : fallback;
+    }
+
+    // Gore mode: 0 none, 1 blood only, 2 gibs only, 3 blood + gibs.
+    internal bool AreBloodVisualsEnabled => _gibLevel is 1 or 3;
+
+    internal bool AreGibVisualsEnabled => _gibLevel is 2 or 3;
+
+    internal float GetBloodAmountScale() => Math.Clamp(_bloodAmountLevel, 1, 5) / 5f;
+
+    internal float GetGibAmountScale() => Math.Clamp(_gibAmountLevel, 1, 5) / 5f;
+
+    internal int ScaleBloodVisualCount(int maximumCount)
+    {
+        if (!AreBloodVisualsEnabled || maximumCount <= 0)
+        {
+            return 0;
+        }
+
+        // Squib mode uses 2x the amount curve so 100% is twice as dense.
+        var amountScale = GetBloodAmountScale() * (_bloodRenderMode == 0 ? 2f : 1f);
+        return Math.Max(0, (int)MathF.Round(maximumCount * amountScale));
+    }
+
+    internal int ScaleGibVisualCount(int maximumCount)
+    {
+        if (!AreGibVisualsEnabled || maximumCount <= 0)
+        {
+            return 0;
+        }
+
+        return Math.Max(1, (int)MathF.Round(maximumCount * GetGibAmountScale()));
+    }
+
+    internal bool ShouldDrawPlayerGib(int gibId)
+    {
+        if (!AreGibVisualsEnabled)
+        {
+            return false;
+        }
+
+        var scale = GetGibAmountScale();
+        if (scale >= 0.999f)
+        {
+            return true;
+        }
+
+        // Stable per-gib fraction so amount changes don't reshuffle every frame.
+        unchecked
+        {
+            var hash = (uint)gibId * 2654435761u;
+            return (hash % 1000u) < (uint)MathF.Round(scale * 1000f);
+        }
     }
 }

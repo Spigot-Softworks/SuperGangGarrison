@@ -897,6 +897,17 @@ public partial class Game1
         PersistClientSettings();
     }
 
+    private void CycleBloodRenderModeSetting()
+    {
+        _bloodRenderMode = (_bloodRenderMode + 1) % 2;
+        if (_bloodRenderMode != 0)
+        {
+            _gameplayGoreEffectsController.ResetBloodSquibEffects();
+        }
+
+        PersistClientSettings();
+    }
+
     private void CycleMenuBackgroundModeSetting()
     {
         _menuBackgroundMode = _menuBackgroundMode switch
@@ -929,6 +940,23 @@ public partial class Game1
             2 => 3,
             _ => 0,
         };
+        if (!AreBloodVisualsEnabled)
+        {
+            _gameplayGoreEffectsController.ResetBloodSquibEffects();
+        }
+
+        PersistClientSettings();
+    }
+
+    private void CycleBloodAmountSetting()
+    {
+        _bloodAmountLevel = _bloodAmountLevel >= 5 ? 1 : _bloodAmountLevel + 1;
+        PersistClientSettings();
+    }
+
+    private void CycleGibAmountSetting()
+    {
+        _gibAmountLevel = _gibAmountLevel >= 5 ? 1 : _gibAmountLevel + 1;
         PersistClientSettings();
     }
 

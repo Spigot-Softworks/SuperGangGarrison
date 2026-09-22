@@ -154,7 +154,9 @@ public partial class Game1
 
         private bool ShouldSpawnClientBloodFromDamage(CoreDamageTargetKind targetKind, int damageAmount)
         {
-            return _game._gibLevel > 0
+            // Squib mode draws its own client squirts from visual events — skip legacy BloodDropEntity.
+            return _game.AreBloodVisualsEnabled
+                && _game._bloodRenderMode != 0
                 && targetKind == CoreDamageTargetKind.Player
                 && damageAmount > 0;
         }
