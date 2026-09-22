@@ -114,6 +114,9 @@ public sealed partial class PlayerEntity
             state.RageCharge,
             state.IsRageReady,
             state.RageTicksRemaining);
+        HydrateNetworkCombatComboState(
+            state.CurrentCombo,
+            state.ComboTicksRemaining);
         HydrateBuffBannerState(
             state.BuffBannerChargeDamage,
             state.BuffBannerDeployTicksRemaining,
@@ -602,6 +605,7 @@ public sealed partial class PlayerEntity
             IntelRechargeTicks = 0f;
             IsSniperScoped = false;
             SniperChargeTicks = 0;
+            ResetDragonRageCadence();
             MedicHealTargetId = null;
             IsMedicHealing = false;
             IsUsingBinoculars = false;

@@ -426,7 +426,7 @@ internal static class SnapshotDeltaBudgeter
         var fullPlayerBytes = EstimateByteCountCollection(snapshot.Players, EstimatePlayerBytes);
         var movementBytes = EstimateByteCountCollection(snapshot.PlayerMovementStates, EstimatePlayerMovementBytes);
         var statusBytes = EstimateByteCountCollection(snapshot.PlayerStatusStates, static _ => 14);
-        var extendedStatusBytes = EstimateByteCountCollection(snapshot.PlayerExtendedStatusStates, static _ => 63);
+        var extendedStatusBytes = EstimateByteCountCollection(snapshot.PlayerExtendedStatusStates, static _ => 71);
         var chatBubbleBytes = EstimateByteCountCollection(snapshot.PlayerChatBubbleStates, static _ => 6);
         var projectileBytes =
             EstimateShotCollectionBytes(snapshot.Shots, includeBulletPayload: true)
@@ -477,7 +477,7 @@ internal static class SnapshotDeltaBudgeter
             + EstimateEntityIdListBytes(snapshot.RemovedJumpPadGibIds)
             + EstimateEntityIdListBytes(snapshot.RemovedHealthPackIds);
         var worldBytes =
-            EstimateByteCountCollection(snapshot.ControlPoints, static _ => 8)
+            EstimateByteCountCollection(snapshot.ControlPoints, static _ => 9)
             + EstimateByteCountCollection(snapshot.Generators, static _ => 5)
             + EstimateDeathCamBytes(snapshot.LocalDeathCam);
         var knownBytes =
@@ -578,7 +578,7 @@ internal static class SnapshotDeltaBudgeter
 
     private static int EstimatePlayerBytes(SnapshotPlayerState player)
     {
-        var bytes = 250
+        var bytes = 258
             + EstimateStringBytes(player.Name)
             + EstimateCachedStringBytes(player.GameplayModPackCacheId, player.GameplayModPackId)
             + EstimateCachedStringBytes(player.GameplayLoadoutCacheId, player.GameplayLoadoutId)
@@ -627,7 +627,8 @@ internal static class SnapshotDeltaBudgeter
 
     private static int EstimateKillFeedBytes(SnapshotKillFeedEntry entry)
     {
-        return EstimateStringBytes(entry.KillerName)
+        return EstimateStringBytes(entry.AssistName) + sizeof(byte) + sizeof(int)
+            + EstimateStringBytes(entry.KillerName)
             + EstimateStringBytes(entry.WeaponSpriteName)
             + EstimateStringBytes(entry.VictimName)
             + EstimateStringBytes(entry.MessageText)

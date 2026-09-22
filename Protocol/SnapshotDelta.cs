@@ -94,6 +94,14 @@ public static class SnapshotDelta
         {
             BaselineFrame = 0,
             IsDelta = false,
+            Players = MergePlayers(
+                baseline: null,
+                updates: snapshot.Players,
+                movementUpdates: Array.Empty<SnapshotPlayerMovementState>(),
+                statusUpdates: Array.Empty<SnapshotPlayerStatusState>(),
+                extendedStatusUpdates: snapshot.PlayerExtendedStatusStates,
+                chatBubbleUpdates: Array.Empty<SnapshotPlayerChatBubbleState>(),
+                removedIds: Array.Empty<int>()),
             ScoreboardPlayers = snapshot.ScoreboardPlayers,
             PlayerMovementStates = Array.Empty<SnapshotPlayerMovementState>(),
             PlayerStatusStates = Array.Empty<SnapshotPlayerStatusState>(),
@@ -215,6 +223,8 @@ public static class SnapshotDelta
                 Metal = status.Metal,
                 IsCarryingIntel = status.IsCarryingIntel,
                 IntelRechargeTicks = status.IntelRechargeTicks,
+                CurrentCombo = status.CurrentCombo,
+                ComboTicksRemaining = status.ComboTicksRemaining,
                 ReplicatedStates = MergeRuntimeReplicatedStateUpdates(
                     player.ReplicatedStates,
                     status.SecondaryAmmoStates ?? Array.Empty<SnapshotReplicatedStateEntry>()),
@@ -273,6 +283,11 @@ public static class SnapshotDelta
                 RageCharge = status.RageCharge,
                 IsRageReady = status.IsRageReady,
                 RageTicksRemaining = status.RageTicksRemaining,
+                ExperimentalCryoSlowTicksRemaining = status.ExperimentalCryoSlowTicksRemaining,
+                ExperimentalCryoFreezeTicksRemaining = status.ExperimentalCryoFreezeTicksRemaining,
+                ExperimentalCryoExposureFraction = status.ExperimentalCryoExposureFraction,
+                ExperimentalGhostVisibilityTicksRemaining = status.ExperimentalGhostVisibilityTicksRemaining,
+                ExperimentalGhostTrailAlpha = status.ExperimentalGhostTrailAlpha,
             };
         }
 

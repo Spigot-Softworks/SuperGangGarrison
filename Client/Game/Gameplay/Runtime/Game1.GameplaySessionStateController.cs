@@ -54,6 +54,7 @@ public partial class Game1
             _game.CloseMainMenuOverlayState();
             _game.CloseGameplayOverlayState();
             _game._editingPlayerName = false;
+            _game._namePromptPresented = false;
             _game._gameplaySessionKind = GameplaySessionKind.None;
             _game._onlineConnectionIntent = OnlineConnectionIntent.Join;
             _game._offlinePracticeSpectatorMode = false;

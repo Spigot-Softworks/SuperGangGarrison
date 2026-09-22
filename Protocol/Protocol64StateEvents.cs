@@ -138,8 +138,8 @@ public sealed record Protocol64PlayerState(
     int OffhandCooldownTicks = 0,
     int OffhandReloadTicks = 0,
     // Compact class-specific Last to Die weapon profile. Spy uses bits 0-7
-    // plus Lucky Strike progress in bits 8-9; Sniper uses bits 4-15. The
-    // Sniper profile has exhausted this field and future perks need a second word.
+    // plus Lucky Strike progress in bits 8-9; Sniper uses reserved bits 0-2
+    // for scoped perks and bits 4-15 for the original profile.
     ushort LastToDieSpyRevolverState = 0,
     // Cloak is authoritative gameplay state. Alpha remains presentation state,
     // quantized to one byte by the wire codec.
@@ -228,7 +228,9 @@ public sealed record Protocol64PlayerState(
     // Authoritative roster identity used by scoreboard presentation. Keeping
     // this on the canonical player baseline avoids depending on a legacy
     // snapshot having arrived first.
-    bool IsBot = false);
+    bool IsBot = false,
+    int CurrentCombo = 0,
+    int ComboTicksRemaining = 0);
 
 public sealed record Protocol64PlayerStateBatch(
     ulong StateSequence,
@@ -375,7 +377,7 @@ public sealed class Protocol64PlayerStateBatchSchema
     public const int MaxBodyBytes = 64 * 1024;
 
     public Protocol64PlayerStateBatchSchema()
-        : base(Protocol64StateSchemaIds.PlayerStateBatch, 28, Protocol64Direction.ServerToClient, MaxBodyBytes)
+        : base(Protocol64StateSchemaIds.PlayerStateBatch, 29, Protocol64Direction.ServerToClient, MaxBodyBytes)
     {
     }
 
@@ -533,7 +535,7 @@ public sealed class Protocol64StateResyncResponseSchema
     public const int MaxBodyBytes = 256 * 1024;
 
     public Protocol64StateResyncResponseSchema()
-        : base(Protocol64StateSchemaIds.StateResyncResponse, 32, Protocol64Direction.ServerToClient, MaxBodyBytes)
+        : base(Protocol64StateSchemaIds.StateResyncResponse, 33, Protocol64Direction.ServerToClient, MaxBodyBytes)
     {
     }
 
@@ -672,9 +674,12 @@ internal static class Protocol64StateValidation
 
         if (!float.IsFinite(value.RageCharge)
             || value.RageCharge < 0f
-            || value.RageTicksRemaining < 0)
+            || value.RageTicksRemaining < 0
+            || value.CurrentCombo < 0
+            || value.ComboTicksRemaining < 0
+            || (value.CurrentCombo == 0 && value.ComboTicksRemaining != 0))
         {
-            throw new Protocol64SchemaValidationException("Player Rage state must be finite and non-negative.");
+            throw new Protocol64SchemaValidationException("Player Rage or combat combo state is invalid.");
         }
 
         if (value.CurrentAmmo < 0
@@ -1145,7 +1150,7 @@ internal static class Protocol64StateValidation
     {
         if (string.Equals(gameplayClassId, "sniper", StringComparison.Ordinal))
         {
-            const ushort KnownSniperBits = 0b1111_1111_1111_0000;
+            const ushort KnownSniperBits = 0b1111_1111_1111_0111;
             if ((encoded & ~KnownSniperBits) != 0)
             {
                 throw new Protocol64SchemaValidationException(
@@ -1695,6 +1700,8 @@ internal static class Protocol64StateBinary
             writer.Write(umbrella.OpeningTickAccumulator);
         }
         writer.Write(value.IsBot);
+        writer.Write(value.CurrentCombo);
+        writer.Write(value.ComboTicksRemaining);
     }
 
     public static Protocol64PlayerState ReadPlayer(BinaryReader reader)
@@ -1781,7 +1788,9 @@ internal static class Protocol64StateBinary
                 ? new Protocol64UmbrellaState(reader.ReadUInt16(), reader.ReadBoolean(), reader.ReadBoolean(),
                     reader.ReadByte(), reader.ReadInt32(), reader.ReadBoolean(), reader.ReadBoolean(), reader.ReadDouble())
                 : null,
-            reader.ReadBoolean());
+            reader.ReadBoolean(),
+            reader.ReadInt32(),
+            reader.ReadInt32());
 
     public static void WriteProjectileState(BinaryWriter writer, Protocol64ProjectileState value)
     {

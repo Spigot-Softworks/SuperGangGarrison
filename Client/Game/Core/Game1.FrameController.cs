@@ -24,6 +24,7 @@ public partial class Game1
             _game.PumpPeerRoom(gameTime.ElapsedGameTime.TotalSeconds);
             _game.UpdateOfflinePracticeMapVote();
             _game.PumpEmbeddedSession(gameTime.ElapsedGameTime.TotalSeconds);
+            _game.PumpRunUploads(gameTime.ElapsedGameTime.TotalSeconds);
             _game.UpdateEmbeddedConsoleCommand();
             if (OperatingSystem.IsBrowser())
             {
@@ -31,22 +32,13 @@ public partial class Game1
             }
 
             var wasWindowActive = _game._wasWindowActive;
-            var windowActive = OperatingSystem.IsBrowser()
-                ? BrowserInputBridge.IsFocused
-                : _game.IsWindowInputActive;
+            var windowActive = _game.IsWindowInputActive;
             var keyboard = windowActive ? Game1.GetCurrentKeyboardState() : default;
-            var rawMouse = _game.GetConstrainedMouseState(Game1.GetCurrentMouseState());
+            var rawMouse = Game1.GetCurrentMouseState();
+            _game._windowInputFilter.Filter(windowActive, ref keyboard, ref rawMouse);
+            if (windowActive) rawMouse = _game.GetConstrainedMouseState(rawMouse);
             var mouse = _game.GetScaledMouseState(rawMouse);
-            if (windowActive)
-            {
-                _game._lastKnownMousePosition = new Point(mouse.X, mouse.Y);
-            }
-            else
-            {
-                rawMouse = CreateReleasedMouseState(rawMouse);
-                mouse = CreateReleasedMouseState(mouse);
-                _game._lastKnownMousePosition = new Point(mouse.X, mouse.Y);
-            }
+            _game._lastKnownMousePosition = new Point(mouse.X, mouse.Y);
             _game._frameRawMouseState = rawMouse;
             _game._frameMouseState = mouse;
 
@@ -152,19 +144,6 @@ public partial class Game1
             }
         }
 
-        private static MouseState CreateReleasedMouseState(MouseState mouse)
-        {
-            return new MouseState(
-                mouse.X,
-                mouse.Y,
-                0,
-                ButtonState.Released,
-                ButtonState.Released,
-                ButtonState.Released,
-                ButtonState.Released,
-                ButtonState.Released);
-        }
-
         private bool TryHandlePasswordPromptCancel(KeyboardState keyboard, MouseState mouse)
         {
             var escapePressed = keyboard.IsKeyDown(Keys.Escape) && !_game._previousKeyboard.IsKeyDown(Keys.Escape);
@@ -263,11 +242,12 @@ public partial class Game1
 
     private void HandleWindowFocusLost(MouseState releasedMouse)
     {
+        _windowInputFilter.LoseFocus();
+        ReleaseGameplayInputForFocusLoss();
         _previousKeyboard = default;
         _previousMouse = releasedMouse;
         _clientPluginPreviousKeyboard = default;
         _clientPluginKeyboard = default;
-        _world.SetLocalInput(default);
         _suppressPrimaryFireUntilMouseRelease = false;
         _suppressSecondaryFireUntilMouseRelease = false;
         _autoFireActive = false;
@@ -287,6 +267,17 @@ public partial class Game1
         _builderPanelDragTarget = LegacyBuilderPanelDragTarget.None;
         _builderPanelDragHeaderToggleCandidate = false;
         IsMouseVisible = true;
+    }
+
+    private void ReleaseGameplayInputForFocusLoss()
+    {
+        _world.SetLocalInput(default);
+        _latestPredictedLocalInput = default;
+        _previousPredictedLocalInput = default;
+        _latchedJumpPressSequence = 0;
+        ClearPendingPredictedInputEdges();
+        _currentGamePad = default;
+        _previousGamePad = default;
     }
 
     private void EnsureWindowInactiveInputReleased(bool windowActive, MouseState releasedMouse)

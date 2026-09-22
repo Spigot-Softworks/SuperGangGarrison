@@ -877,7 +877,7 @@ public sealed class LastToDieMedicPerkRuntimeTests
     }
 
     [Fact]
-    public void ExsanguinationBleedKeepsMedicAssistAfterLinkBreakWithoutRecursing()
+    public void ExsanguinationKeepsEffectAttributionWithoutAwardingAHealingOnlyKillAssist()
     {
         var world = CreateMedicWorld();
         var medic = world.LocalPlayer;
@@ -908,19 +908,19 @@ public sealed class LastToDieMedicPerkRuntimeTests
 
         Assert.False(enemy.IsAlive);
         Assert.Equal(1, teammate.Kills);
-        Assert.Equal(1, medic.Assists);
+        Assert.Equal(0, medic.Assists);
         var statusTickEvents = world.PendingDamageEvents
             .Where(damageEvent => damageEvent.Flags.HasFlag(DamageEventFlags.StatusTick))
             .ToArray();
         Assert.NotEmpty(statusTickEvents);
         Assert.All(
             statusTickEvents,
-            damageEvent => Assert.Equal(medic.Id, damageEvent.AssistedByPlayerId));
+            damageEvent => Assert.Equal(damageEvent.WasFatal ? -1 : medic.Id, damageEvent.AssistedByPlayerId));
         Assert.Empty(world.GetLastToDieStatusEffects(enemy.Id));
     }
 
     [Fact]
-    public void ExsanguinationBleedKeepsPinnedMedicScoreCreditAfterTeamChange()
+    public void ExsanguinationDoesNotAwardAKillAssistAfterMedicChangesTeam()
     {
         var world = CreateMedicWorld();
         var medic = world.LocalPlayer;
@@ -953,10 +953,10 @@ public sealed class LastToDieMedicPerkRuntimeTests
 
         Assert.False(enemy.IsAlive);
         Assert.Equal(1, teammate.Kills);
-        Assert.Equal(1, medic.Assists);
+        Assert.Equal(0, medic.Assists);
         Assert.All(
             world.PendingDamageEvents.Where(damageEvent => damageEvent.Flags.HasFlag(DamageEventFlags.StatusTick)),
-            damageEvent => Assert.Equal(medic.Id, damageEvent.AssistedByPlayerId));
+            damageEvent => Assert.Equal(damageEvent.WasFatal ? -1 : medic.Id, damageEvent.AssistedByPlayerId));
     }
 
     private static SimulationWorld CreateMedicWorld()

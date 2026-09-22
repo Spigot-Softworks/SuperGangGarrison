@@ -98,12 +98,6 @@ public static class BarrierLegacyPropertyMigration
 
     private static IReadOnlyDictionary<string, string> StripDeprecatedBarrierProperties(IReadOnlyDictionary<string, string> properties)
     {
-        if (properties is Dictionary<string, string> mutable)
-        {
-            RemoveDeprecatedBarrierKeys(mutable);
-            return mutable;
-        }
-
         var copy = new Dictionary<string, string>(properties, StringComparer.OrdinalIgnoreCase);
         RemoveDeprecatedBarrierKeys(copy);
         return copy;
@@ -111,6 +105,10 @@ public static class BarrierLegacyPropertyMigration
 
     private static void RemoveDeprecatedBarrierKeys(Dictionary<string, string> properties)
     {
+        if (BarrierConfiguration.IsFloorOrientation(properties))
+        {
+            properties["axis"] = "floor";
+        }
         properties.Remove("mode");
         properties.Remove("shape");
         properties.Remove("orientation");

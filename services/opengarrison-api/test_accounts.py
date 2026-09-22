@@ -1,6 +1,8 @@
 import os
 import tempfile
 import unittest
+import uuid
+from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
@@ -14,12 +16,28 @@ class AccountPersistenceTests(unittest.TestCase):
             self._temporary_directory.name,
             "opengarrison-test.db",
         )
-        self.client = TestClient(opengarrison_api.app)
+        self._reward_environment = patch.dict(os.environ, {"OPENGARRISON_REWARD_AUTHORITY_KEY": "test-server-key"})
+        self._reward_environment.start()
+        self.client = TestClient(opengarrison_api.app, headers={"X-OpenGarrison-Reward-Key": "test-server-key"})
         self.client.__enter__()
 
     def tearDown(self) -> None:
         self.client.__exit__(None, None, None)
         self._temporary_directory.cleanup()
+        self._reward_environment.stop()
+
+    def test_player_token_cannot_award_rewards_or_invent_a_run(self) -> None:
+        player = self._register("untrusted-device", "secret", "OG2-ABCD-EFGH")
+        token = self._create_gameplay_session("untrusted-device", "secret", player["friendCode"])
+        for endpoint, body in [
+            ("/api/stats/award", {"gameplayToken": token, "eventId": "fake", "eventType": "kill", "pointsDelta": 100000, "creditsDelta": 100000}),
+            ("/api/last-to-die/run", {"gameplayToken": token, "submissionId": "fake", "runId": "fake", "scoreUnits": 100000000, "roundNumber": 1000000}),
+        ]:
+            for key in ("", "wrong-key", token):
+                response = self.client.post(endpoint, json=body, headers={"X-OpenGarrison-Reward-Key": key})
+                self.assertEqual(403, response.status_code, response.text)
+        with patch.dict(os.environ, {"OPENGARRISON_REWARD_AUTHORITY_KEY": ""}):
+            self.assertEqual(403, self.client.post("/api/stats/award", json={"gameplayToken": token, "eventId": "fake", "eventType": "kill"}).status_code)
 
     def test_short_codes_and_recovery_keys_normalize_without_ambiguous_characters(self) -> None:
         self.assertEqual("OG2-ABCD-EFGH", opengarrison_api.normalize_friend_code("og2 abcdefgh"))
@@ -205,6 +223,59 @@ class AccountPersistenceTests(unittest.TestCase):
         self.assertEqual("Migrated Player", profile["displayName"])
         self.assertEqual('{"background":"legacy"}', profile["playerCard"])
 
+    def test_legacy_guid_device_is_migrated_to_canonical_id(self) -> None:
+        client_id = str(uuid.uuid4())
+        canonical_id = uuid.UUID(client_id).hex
+        with opengarrison_api.connect_db() as db:
+            current = opengarrison_api.now_seconds()
+            db.execute(
+                """
+                INSERT INTO clients (
+                    client_id, friend_code, secret_hash, display_name, player_card_json,
+                    created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    client_id,
+                    "OG2-MNPQ-RSTU-VWXY",
+                    opengarrison_api.secret_hash("legacy-guid-secret"),
+                    "Legacy GUID Player",
+                    "",
+                    current,
+                    current,
+                ),
+            )
+
+        opengarrison_api.initialize_db()
+        with opengarrison_api.connect_db() as db:
+            migrated = db.execute(
+                "SELECT client_id FROM client_devices WHERE client_id = ?",
+                (canonical_id,),
+            ).fetchone()
+        self.assertIsNotNone(migrated)
+
+        profile = self._profile(client_id, "legacy-guid-secret", "OG2-MNPQ-RSTU-VWXY")
+        self.assertEqual("Legacy GUID Player", profile["displayName"])
+
+    def test_existing_dashed_device_gets_a_canonical_uuid_alias(self) -> None:
+        client_id = str(uuid.uuid4())
+        canonical_id = uuid.UUID(client_id).hex
+        registered = self._register(client_id, "dashed-secret", "OG2-ABCD-EFGH")
+        with opengarrison_api.connect_db() as db:
+            db.execute(
+                "UPDATE client_devices SET client_id = ? WHERE client_id = ?",
+                (client_id, canonical_id),
+            )
+
+        opengarrison_api.initialize_db()
+        with opengarrison_api.connect_db() as db:
+            alias = db.execute(
+                "SELECT account_id FROM client_devices WHERE client_id = ?",
+                (canonical_id,),
+            ).fetchone()
+        self.assertIsNotNone(alias)
+        self.assertEqual(registered["friendCode"], self._profile(canonical_id, "dashed-secret", "OG2-ABCD-EFGH")["friendCode"])
+
     def test_recovery_login_is_rate_limited_per_account_and_address(self) -> None:
         registered = self._register("rate-owner", "rate-secret", "OG2-ABCD-EFGH")
         self._protect("rate-owner", "rate-secret", registered["friendCode"])
@@ -357,6 +428,7 @@ class AccountPersistenceTests(unittest.TestCase):
             "scoreUnits": 800,
             "roundNumber": 10,
             "difficulty": "standard",
+            "survivorId": "ltd.survivor.soldier",
             "policyVersion": 1,
         }
         first = self.client.post("/api/last-to-die/run", json=score_run)
@@ -378,6 +450,7 @@ class AccountPersistenceTests(unittest.TestCase):
             "scoreUnits": 650,
             "roundNumber": 14,
             "difficulty": "hardcore",
+            "survivorId": "ltd.survivor.sniper",
             "policyVersion": 1,
         }
         recorded_round = self.client.post("/api/last-to-die/run", json=round_run)
@@ -401,6 +474,14 @@ class AccountPersistenceTests(unittest.TestCase):
         self.assertEqual(200, public_rounds.status_code, public_rounds.text)
         self.assertEqual(2, public_rounds.json()["total"])
         self.assertEqual(round_leader["friendCode"], public_rounds.json()["entries"][0]["friendCode"])
+        self.assertEqual("ltd.survivor.sniper", public_rounds.json()["entries"][0]["survivorId"])
+
+        soldier_scores = self.client.get(
+            "/api/last-to-die/leaderboard?sort=score&survivor=ltd.survivor.soldier"
+        )
+        self.assertEqual(200, soldier_scores.status_code, soldier_scores.text)
+        self.assertEqual(1, soldier_scores.json()["total"])
+        self.assertEqual(score_leader["friendCode"], soldier_scores.json()["entries"][0]["friendCode"])
 
     def test_last_to_die_first_round_loss_keeps_score_and_zero_completed_rounds(self) -> None:
         player = self._register("first-round-device", "first-round-secret", "OG2-ZYXW-VUTS")
@@ -417,6 +498,7 @@ class AccountPersistenceTests(unittest.TestCase):
                 "scoreUnits": 350,
                 "roundNumber": 0,
                 "difficulty": "standard",
+                "survivorId": "ltd.survivor.engineer",
                 "policyVersion": 1,
             },
         )

@@ -448,7 +448,7 @@ public partial class Game1
         var availableHeight = Math.Max(1f, (timerCircleFrame.Height * HudTimerCircleScale) - (HudTimerHudScale * 2f));
 
         var scale = MathF.Min(availableWidth / textWidthAtOne, availableHeight / textHeightAtOne);
-        scale = MathF.Max(0.55f, MathF.Min(scale, 2f));
+        scale = NormalizeUiTextScale(MathF.Max(0.55f, MathF.Min(scale, 2f)));
 
         var textWidth = textWidthAtOne * scale;
         var textHeight = textHeightAtOne * scale;
@@ -492,7 +492,7 @@ public partial class Game1
         }
 
         var scale = resolved.Layout.Scale;
-        var rowHeight = 20f * scale;
+        var rowHeight = Math.Max(20f * scale, MeasureBitmapFontHeight(scale) + 10f * scale);
         var alignment = KillFeedHudAlignmentResolver.Resolve(resolved.Bounds.Center.X, ViewportWidth);
         var feedAnchorX = KillFeedHudAlignmentResolver.ResolveAnchorX(resolved.Bounds, alignment);
         var y = resolved.Origin.Y;
@@ -546,7 +546,9 @@ public partial class Game1
         var weaponSprite = GetResolvedSprite(weaponSpriteName);
         var weaponWidth = weaponSprite?.Frames.Count > 0 ? weaponSprite.Frames[0].Width * scale : 0f;
         var hasWeaponIcon = weaponSprite is not null && weaponSprite.Frames.Count > 0;
-        var contentWidth = killerWidth
+        var assistText = entry.AssistPlayerId > 0 && !string.IsNullOrEmpty(entry.AssistName) ? " + " + entry.AssistName : "";
+        var assistWidth = MeasureBitmapFontWidth(assistText, textScale);
+        var contentWidth = killerWidth + assistWidth
             + (hasWeaponIcon ? weaponWidth + iconSpacing : 0f)
             + messagePrefixWidth
             + messageHighlightWidth
@@ -574,6 +576,12 @@ public partial class Game1
         {
             DrawBitmapFontText(entry.KillerName, new Vector2(currentX, textY), GetKillFeedTextColor(entry.KillerTeam), textScale);
             currentX += killerWidth;
+        }
+
+        if (assistText.Length > 0)
+        {
+            DrawBitmapFontText(assistText, new Vector2(currentX, textY), GetKillFeedTextColor(entry.AssistTeam), textScale);
+            currentX += assistWidth;
         }
 
         if (hasWeaponIcon)
@@ -640,7 +648,10 @@ public partial class Game1
 
     private static bool ShouldSuppressDuplicateKillFeedEntry(KillFeedEntry previousEntry, KillFeedEntry entry)
     {
-        return previousEntry.KillerName == entry.KillerName
+        return previousEntry.AssistName == entry.AssistName
+            && previousEntry.AssistTeam == entry.AssistTeam
+            && previousEntry.AssistPlayerId == entry.AssistPlayerId
+            && previousEntry.KillerName == entry.KillerName
             && previousEntry.KillerTeam == entry.KillerTeam
             && previousEntry.KillerPlayerId == entry.KillerPlayerId
             && previousEntry.VictimPlayerId == entry.VictimPlayerId
@@ -656,7 +667,7 @@ public partial class Game1
 
     private static bool IsLocalPlayerInKillFeedEntry(KillFeedEntry entry, int localPlayerId)
     {
-        if (entry.KillerPlayerId == localPlayerId || entry.VictimPlayerId == localPlayerId)
+        if (localPlayerId > 0 && (entry.KillerPlayerId == localPlayerId || entry.VictimPlayerId == localPlayerId || entry.AssistPlayerId == localPlayerId))
         {
             return true;
         }

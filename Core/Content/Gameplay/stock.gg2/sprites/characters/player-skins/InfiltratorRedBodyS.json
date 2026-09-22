@@ -1,0 +1,24 @@
+{
+  "id": "InfiltratorRedBodyS",
+  "framePaths": [
+    "assets/characters/player-skins/InfiltratorRedBodyS/0.png",
+    "assets/characters/player-skins/InfiltratorRedBodyS/1.png",
+    "assets/characters/player-skins/InfiltratorRedBodyS/2.png",
+    "assets/characters/player-skins/InfiltratorRedBodyS/3.png",
+    "assets/characters/player-skins/InfiltratorRedBodyS/4.png",
+    "assets/characters/player-skins/InfiltratorRedBodyS/5.png",
+    "assets/characters/player-skins/InfiltratorRedBodyS/6.png",
+    "assets/characters/player-skins/InfiltratorRedBodyS/7.png",
+    "assets/characters/player-skins/InfiltratorRedBodyS/8.png",
+    "assets/characters/player-skins/InfiltratorRedBodyS/9.png",
+    "assets/characters/player-skins/InfiltratorRedBodyS/10.png",
+    "assets/characters/player-skins/InfiltratorRedBodyS/11.png",
+    "assets/characters/player-skins/InfiltratorRedBodyS/12.png",
+    "assets/characters/player-skins/InfiltratorRedBodyS/13.png",
+    "assets/characters/player-skins/InfiltratorRedBodyS/14.png",
+    "assets/characters/player-skins/InfiltratorRedBodyS/15.png",
+    "assets/characters/player-skins/InfiltratorRedBodyS/16.png"
+  ],
+  "originX": 32,
+  "originY": 40
+}

@@ -1,98 +1,58 @@
-# Plugin Conventions
+# Plugins
 
-`Plugins` is the only source tree for plugin projects in this repo.
+Use the [user guide](USER_GUIDE.md) to install plugins and the
+[authoring guide](AUTHORING_GUIDE.md) to write them. Gameplay abilities and custom
+weapons have a separate [authoring guide](GAMEPLAY_ABILITIES.md).
 
-For installing and using plugins, see the end-user guide:
-[USER_GUIDE.md](USER_GUIDE.md).
+## Source layout
 
-For writing Lua plugins, see the authoring guide:
-[AUTHORING_GUIDE.md](AUTHORING_GUIDE.md).
+- `Client/` and `Server/` contain host contracts and CLR plugin projects.
+- `GameplayModding.Abstractions/` contains shared gameplay-mod contracts.
+- [Templates](Templates/README.md) provide authoring examples.
+- [Packaged](Packaged/README.md) contains the Lua plugins distributed with the game.
 
-## Layout
+Keep plugin projects in this tree. Use
+`OpenGarrison.Client.Plugins.<PluginName>` or
+`OpenGarrison.Server.Plugins.<PluginName>` for project and assembly names;
+contract projects end in `.Abstractions`.
 
-- Client plugin abstractions live under `Plugins/Client/OpenGarrison.Client.Plugins.Abstractions/`.
-- Client plugin implementations live under `Plugins/Client/OpenGarrison.Client.Plugins.<PluginName>/`.
-- Server plugin abstractions live under `Plugins/Server/OpenGarrison.Server.Plugins.Abstractions/`.
-- Server plugin implementations live under `Plugins/Server/OpenGarrison.Server.Plugins.<PluginName>/`.
+## Runtime and packaging
 
-## Naming
+Both hosts support `plugin.json` manifests. Runtime plugins load from
+`Plugins/Client/` or `Plugins/Server/` relative to the application directory.
+In a release archive that directory is under `app/`.
 
-- Project and assembly names should follow `OpenGarrison.Client.Plugins.<PluginName>` or `OpenGarrison.Server.Plugins.<PluginName>`.
-- Abstraction projects should end in `.Abstractions`.
-- The runtime plugin folder name should match the suffix after `OpenGarrison.{Client|Server}.Plugins.` when possible.
+Normal application builds and `scripts/package.ps1` copy the packaged Lua plugins
+into those runtime directories. Application projects should reference plugin
+contracts, not sample implementations merely to copy them into an output.
 
-## Build And Packaging
+CLR implementations with Lua replacements remain as migration references.
+Packaging them requires `-IncludeLegacyClrPlugins`, which places them under
+`LegacyPlugins/Client/` and `LegacyPlugins/Server/`. For migration testing,
+`StageLegacyPluginRuntimeOutput=true` enables their older live output layout.
 
-- Plugin implementation projects own their own output path into the runtime plugin folders under `Client/bin/.../Plugins/Client/<PluginName>/` or `Server/bin/.../Plugins/Server/<PluginName>/`.
-- `scripts/package.ps1` copies manifest-driven packaged Lua plugins from `Plugins/Packaged/Client/...` and `Plugins/Packaged/Server/...` into the shipped runtime `Plugins/Client/...` and `Plugins/Server/...` folders.
-- `scripts/package.ps1` does not ship legacy CLR plugins by default.
-- Legacy CLR plugin projects can still be published explicitly with `-IncludeLegacyClrPlugins`, and they are staged under `LegacyPlugins/Client/...` and `LegacyPlugins/Server/...` so they do not collide with the canonical Lua plugin ids in the live runtime plugin directories.
-- App debug builds now mirror the packaged plugin layout by copying `Plugins/Packaged/Client/...` into `Client/bin/.../Plugins/Client/...` and `Plugins/Packaged/Server/...` into `Server/bin/.../Plugins/Server/...`.
-- Legacy CLR plugin projects are no longer staged into the live runtime plugin folders by default during normal app builds. Set `StageLegacyPluginRuntimeOutput=true` only when you intentionally need the old CLR runtime layout for migration/debugging.
-- Do not add app-project references to bundled/sample plugins just to get them copied into builds or packages.
-- App projects may reference plugin abstraction projects when they need shared plugin interfaces.
+Plugin configuration belongs under `config/plugins/client/<pluginId>/` or
+`config/plugins/server/<pluginId>/` in the application's user-data directory.
 
-## Runtime Conventions
+## Extending the API
 
-- Client plugins are loaded from `Plugins/Client`.
-- Server plugins are loaded from `Plugins/Server`.
-- Both hosts support manifest-driven packaged plugins via `plugin.json`.
-- CLR plugins still load through the existing interface-based runtime contracts.
-- Lua plugins now have first-pass hosts on both client and server, but the
-  exposed surfaces are intentionally bounded and engine-shaped rather than raw
-  engine object access.
-- Client plugin config should live under `config/plugins/client/<pluginId>/`.
-- Server plugin config should live under `config/plugins/server/<pluginId>/`.
-- Engine-side seam and runtime safety rules are defined in [PLUGIN_HOST_CONTRACT.md](PLUGIN_HOST_CONTRACT.md).
+Lua is the default language for new plugins. Client APIs cover presentation,
+input callbacks, HUDs, audio, and settings. Server APIs cover events, validated
+commands, replicated state, messaging, and registered gameplay behaviors.
 
-## Lua-First Policy
+When Lua lacks a capability, prefer a reusable host API with explicit ownership,
+permissions, callback timing, and resource limits. Do not expose mutable engine
+objects or add a special case for a single plugin. CLR-only extensions are
+appropriate when native interop, engine-private access, or a demonstrated
+performance requirement cannot be served by the Lua API.
 
-- Lua is the default plugin language for OpenGarrison.
-- New plugin proposals should start from the assumption that they will be implemented as Lua plugins.
-- When a plugin author needs a capability that Lua does not expose yet, the default response is to design and add a bounded reusable Lua seam rather than approve a one-off CLR plugin.
-- CLR plugins are the exception path and should be reserved for engine-internal, unsafe-to-expose, or clearly performance-critical extensions.
-- The goal is one coherent modding surface for contributors and modders, not parallel Lua and CLR ecosystems with overlapping responsibilities.
-
-## Seam Expansion Rubric
-
-- Add a new Lua seam when the requested capability is reusable, engine-shaped, and likely to benefit more than one plugin.
-- Add a new Lua seam when the capability can be expressed as a stable callback, service, DTO, asset registration surface, or bounded command.
-- Do not add a seam that simply hands Lua broad access to unstable engine internals, raw object graphs, or authority it cannot safely own.
-- Prefer service-style APIs over exposing engine objects directly.
-- Prefer validated and bounded operations over arbitrary mutation.
-- If a requested feature would make the host API materially messier for everyone else while only serving one niche plugin, stop and reassess the design before exposing it.
-
-## CLR Exception Criteria
-
-- A CLR plugin is acceptable only when exposing the required capability to Lua would be architecturally unsound.
-- Typical reasons include deep engine-internal rendering ownership, deterministic simulation-core behavior that should remain native, platform/native interop, or a clearly demonstrated performance constraint that cannot be solved with a bounded Lua seam.
-- "Lua cannot do this today" is not, by itself, enough reason to approve a CLR plugin.
-
-## Lua Plugin Scope
-
-- Client Lua is currently suited for presentation plugins such as menu helpers,
-  background overrides, HUD widgets, scoreboard panels, simple audio cues, and
-  config-backed options.
-- Server Lua is currently suited for passive/event-driven plugins plus bounded
-  mutations through admin operations, replicated state, and client messaging.
-- Lua authoring templates live under `Plugins/Templates/`.
-- Ready-to-run packaged Lua examples live under `Plugins/Packaged/` and are copied into packaged runtime outputs.
-- Server-authoritative special abilities are documented in [GAMEPLAY_ABILITIES.md](GAMEPLAY_ABILITIES.md).
-
-## Deprecation Direction
-
-- Existing bundled CLR plugins should be treated as migration references where a Lua equivalent now exists.
-- When a bundled CLR plugin reaches feature parity with a packaged Lua version, prefer the Lua version for documentation, examples, and future seam growth.
-- Packaged runtime outputs should ship the canonical Lua plugin versions by default, while the old CLR projects remain source-side migration references.
-- Native bundled plugins should shrink over time toward engine-adjacent reference implementations rather than remain the primary modding path.
+The [host contract](PLUGIN_HOST_CONTRACT.md) defines these requirements and the
+limits of in-process execution. Prefer the packaged Lua version when a CLR
+implementation has an equivalent replacement.
 
 ## Profiling
 
-- Set `OG2_CLIENT_PLUGIN_PROFILE=1` before launching the client to emit periodic aggregate plugin hook timings to the console/log.
-- The current client host logs the hottest hooks every 5 seconds in the form `[plugin-profile] plugin=<id> hook=<stage> type=<hookType> calls=<count> totalMs=<total> avgMs=<avg> maxMs=<max>`.
-- Use packaged/dist-style runtime layouts when profiling so Lua and CLR are not mixed accidentally.
-
-## Repo Rules
-
-- Do not create new top-level `OpenGarrison.*.Plugins.*` projects outside this tree.
-- Keep sample/bundled plugins here so source layout, build layout, and package layout stay aligned.
+Set `OG2_CLIENT_PLUGIN_PROFILE=1` before launching the client. The host reports
+aggregate hook timings every five seconds, including the plugin, hook, call
+count, total time, average time, and maximum time. Profile the same plugin layout
+that will be distributed.

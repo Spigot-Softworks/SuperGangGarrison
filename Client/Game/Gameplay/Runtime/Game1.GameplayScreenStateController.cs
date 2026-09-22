@@ -31,7 +31,7 @@ public partial class Game1
             var openTeamChatPressed = _game.CanUseGameplayChatShortcut() && _game.IsChatShortcutPressed(keyboard, Keys.U);
             var controllerChangeTeamPressed = _game.IsControllerBindingPressed(_game._clientSettings.ControllerChangeTeamButton);
             var controllerChangeClassPressed = _game.IsControllerBindingPressed(_game._clientSettings.ControllerChangeClassButton);
-            var pausePressed = _game.IsControllerBindingPressed(_game._clientSettings.ControllerPauseButton) || escapePressed;
+            var controllerPausePressed = _game.IsControllerBindingPressed(_game._clientSettings.ControllerPauseButton);
 
             if (_game.CanOpenGameplayChat()
                 && (openPublicChatPressed || openTeamChatPressed))
@@ -85,7 +85,10 @@ public partial class Game1
             {
                 _game.BeginClosingBuildMenu();
             }
-            else if (_game.CanOpenInGamePauseMenu() && pausePressed)
+            else if (Game1.ShouldOpenInGamePauseMenu(
+                    escapePressed,
+                    controllerPausePressed,
+                    _game.CanOpenInGamePauseMenu()))
             {
                 _game.OpenInGameMenu();
             }

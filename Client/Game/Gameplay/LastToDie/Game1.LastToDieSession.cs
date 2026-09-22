@@ -18,7 +18,7 @@ public partial class Game1
 {
     private const int LastToDieStartingEnemyBotCount = 2;
     private const int LastToDieFinalEnemyBotCount = 10;
-    private const int LastToDieStartingStageMinutes = 3;
+    private const int LastToDieStartingStageMinutes = 1;
     private const int LastToDieStageMinuteIncrement = 1;
     private const int LastToDieFinalStageMinutes =
         LastToDieStartingStageMinutes + ((LastToDieFinalEnemyBotCount - LastToDieStartingEnemyBotCount) * LastToDieStageMinuteIncrement);
@@ -393,6 +393,9 @@ public partial class Game1
     private LoadedSpriteFrame? _lastToDieBuffIconFrame;
     private string? _lastToDieBuffIconFramePath;
     private MouseState _lastGameplayHudMouse;
+    private Rectangle _lastToDieBuffTooltipPanelBounds;
+    private int _lastToDieBuffTooltipFirstLine;
+    private int _lastToDieBuffTooltipLastScrollWheelValue = int.MinValue;
 
     private const string LastToDieHelmetLoadoutItemId = "ltd.accessory.helmet";
     private const string LastToDieDogtagsLoadoutItemId = "ltd.accessory.dogtags";
@@ -530,9 +533,14 @@ public partial class Game1
 
     private bool ShouldDrawLastToDieBuffIcon()
     {
-        var runHasBonuses = IsLastToDieSessionActive
-            && _lastToDieRun is { } run
-            && HasLastToDieBuffs(run);
+        var localPlayer = _networkClient.LastToDieState.Snapshot?.Players.FirstOrDefault(
+            player => player.Slot == _networkClient.LocalPlayerSlot);
+        var hasHostedLastToDiePerks = IsHostedLastToDieActive()
+            && localPlayer is { OwnedPerkIds.Count: > 0 };
+        var runHasBonuses = (IsLastToDieSessionActive
+                && _lastToDieRun is { } run
+                && HasLastToDieBuffs(run))
+            || hasHostedLastToDiePerks;
         return ShouldPresentLastToDieBuffIcon(
             _world.LocalPlayer.IsAlive,
             _world.LocalPlayerAwaitingJoin,
@@ -561,14 +569,24 @@ public partial class Game1
         }
 
         UpdateHudElementBounds(HudElementId.LastToDieBuffIcon, iconBounds);
-        if (!iconBounds.Contains(_lastGameplayHudMouse.Position))
+        var pointerInsideIcon = iconBounds.Contains(_lastGameplayHudMouse.Position);
+        var pointerInsideTooltip = _lastToDieBuffTooltipPanelBounds.Contains(_lastGameplayHudMouse.Position);
+        if (!pointerInsideIcon && !pointerInsideTooltip)
         {
+            _lastToDieBuffTooltipPanelBounds = Rectangle.Empty;
             return;
         }
 
         var lines = _lastToDieRun is { } run
             ? BuildLastToDieBuffTooltipLines(run)
             : [];
+        if (IsHostedLastToDieActive()
+            && _networkClient.LastToDieState.Snapshot?.Players.FirstOrDefault(
+                player => player.Slot == _networkClient.LocalPlayerSlot) is { } hostedPlayer)
+        {
+            lines.AddRange(BuildHostedLastToDieBuffTooltipLines(hostedPlayer.OwnedPerkIds));
+        }
+
         foreach (var presentation in GameplayBuffPresentationCatalog.Collect(_world.LocalPlayer))
         {
             lines.AddRange(presentation.StatLines);
@@ -579,26 +597,148 @@ public partial class Game1
             lines.Add("No stat bonuses");
         }
 
-        const float scale = 0.9f;
-        var width = 0f;
-        foreach (var line in lines)
+        const float scale = 1f;
+        var rightSpace = ViewportWidth - iconBounds.Right - 18;
+        var leftSpace = iconBounds.Left - 18;
+        var panelOnRight = rightSpace >= leftSpace;
+        var availableWidth = Math.Max(100, panelOnRight ? rightSpace : leftSpace);
+        var panelWidth = Math.Min(Math.Max(120, ViewportWidth - 24), Math.Min(520, availableWidth));
+        var wrappedLines = WrapLastToDieBuffTooltipLines(lines, panelWidth - 26, scale);
+        const int panelHeaderHeight = 32;
+        const int panelFooterHeight = 20;
+        const int lineHeight = 20;
+        var maxPanelHeight = Math.Max(60, ViewportHeight - 24);
+        var visibleLineCount = Math.Max(1, (maxPanelHeight - panelHeaderHeight - panelFooterHeight) / lineHeight);
+        visibleLineCount = Math.Min(visibleLineCount, wrappedLines.Count);
+        var panelHeight = Math.Min(
+            maxPanelHeight,
+            panelHeaderHeight + (visibleLineCount * lineHeight) + panelFooterHeight);
+        var panelX = panelOnRight
+            ? iconBounds.Right + 10
+            : iconBounds.Left - panelWidth - 10;
+        var panelY = Math.Clamp(iconBounds.Y - 13, 12, Math.Max(12, ViewportHeight - panelHeight - 12));
+        var panel = new Rectangle(panelX, panelY, panelWidth, panelHeight);
+        var maxFirstLine = Math.Max(0, wrappedLines.Count - visibleLineCount);
+        if (_lastToDieBuffTooltipLastScrollWheelValue != int.MinValue
+            && _lastGameplayHudMouse.ScrollWheelValue != _lastToDieBuffTooltipLastScrollWheelValue)
         {
-            width = MathF.Max(width, MeasureBitmapFontWidth(line, scale));
+            var wheelDelta = _lastGameplayHudMouse.ScrollWheelValue - _lastToDieBuffTooltipLastScrollWheelValue;
+            var scrollSteps = Math.Max(1, Math.Abs(wheelDelta) / 120);
+            _lastToDieBuffTooltipFirstLine -= Math.Sign(wheelDelta) * scrollSteps;
         }
+        _lastToDieBuffTooltipLastScrollWheelValue = _lastGameplayHudMouse.ScrollWheelValue;
+        _lastToDieBuffTooltipFirstLine = Math.Clamp(_lastToDieBuffTooltipFirstLine, 0, maxFirstLine);
 
-        var panel = new Rectangle(
-            iconBounds.Right + 10,
-            Math.Max(12, iconBounds.Y - 13),
-            (int)MathF.Ceiling(width + 30),
-            Math.Max(43, 23 + (lines.Count * 20)));
         _spriteBatch.Draw(_pixel, panel, new Color(20, 22, 26, 238));
         _spriteBatch.Draw(_pixel, new Rectangle(panel.X, panel.Y, panel.Width, 2), new Color(220, 72, 72));
-        var y = panel.Y + 10f;
-        foreach (var line in lines)
+        DrawBitmapFontText("Effects", new Vector2(panel.X + 12f, panel.Y + 7f), new Color(255, 214, 82), scale);
+        var y = panel.Y + panelHeaderHeight;
+        var lastVisibleLine = Math.Min(wrappedLines.Count, _lastToDieBuffTooltipFirstLine + visibleLineCount);
+        for (var index = _lastToDieBuffTooltipFirstLine; index < lastVisibleLine; index += 1)
         {
-            DrawBitmapFontText(line, new Vector2(panel.X + 13f, y), new Color(232, 232, 232), scale);
-            y += 20f;
+            DrawBitmapFontText(wrappedLines[index], new Vector2(panel.X + 12f, y), new Color(232, 232, 232), scale);
+            y += lineHeight;
         }
+
+        if (wrappedLines.Count > visibleLineCount)
+        {
+            DrawBitmapFontTextRightAligned(
+                $"{_lastToDieBuffTooltipFirstLine + 1}-{lastVisibleLine}/{wrappedLines.Count}  Scroll",
+                new Vector2(panel.Right - 12f, panel.Bottom - panelFooterHeight + 2f),
+                new Color(176, 176, 176),
+                scale);
+        }
+        _lastToDieBuffTooltipPanelBounds = panel;
+    }
+
+    private static List<string> BuildLastToDieBuffTooltipLines(LastToDieRunState run)
+    {
+        var lines = new List<string>();
+        if (run.EquippedHelmet.HasValue)
+        {
+            lines.Add(GetLastToDieAccessoryTooltipLine(run.EquippedHelmet.Value));
+            lines.Add(GetLastToDieAccessoryDescription(run.EquippedHelmet.Value));
+        }
+
+        if (run.EquippedDogtags.HasValue)
+        {
+            lines.Add(GetLastToDieAccessoryTooltipLine(run.EquippedDogtags.Value));
+            lines.Add(GetLastToDieAccessoryDescription(run.EquippedDogtags.Value));
+        }
+
+        foreach (var perk in run.ChosenPerks.OrderBy(perk => perk))
+        {
+            if (TryGetLastToDiePerkDefinition(run.SurvivorKind, perk, out var definition))
+            {
+                lines.Add($"{definition.Label}: {definition.Description}");
+            }
+        }
+
+        return lines;
+    }
+
+    private List<string> BuildHostedLastToDieBuffTooltipLines(IReadOnlyList<string> ownedPerkIds)
+    {
+        var bindingLabel = GetBindingDisplayName(_inputBindings.InteractWeapon);
+        return BuildHostedLastToDieBuffTooltipLines(
+            ownedPerkIds,
+            HostedLastToDiePerks,
+            bindingLabel);
+    }
+
+    internal static List<string> BuildHostedLastToDieBuffTooltipLines(
+        IReadOnlyList<string> ownedPerkIds,
+        IReadOnlyDictionary<string, OpenGarrison.Core.LastToDie.LastToDiePerkDefinition> perkDefinitions,
+        string bindingLabel)
+    {
+        var lines = new List<string>();
+        foreach (var perkId in ownedPerkIds)
+        {
+            if (perkDefinitions.TryGetValue(perkId, out var definition))
+            {
+                var description = ResolveLastToDiePerkDescriptionBindingLabels(definition.Description, bindingLabel);
+                lines.Add($"{definition.DisplayName}: {description}");
+            }
+            else
+            {
+                lines.Add(perkId);
+            }
+        }
+
+        return lines;
+    }
+
+    private List<string> WrapLastToDieBuffTooltipLines(IEnumerable<string> sourceLines, float maxWidth, float scale)
+    {
+        var wrapped = new List<string>();
+        foreach (var sourceLine in sourceLines)
+        {
+            foreach (var paragraph in sourceLine.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries))
+            {
+                var words = paragraph.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                var current = string.Empty;
+                foreach (var word in words)
+                {
+                    var candidate = string.IsNullOrEmpty(current) ? word : $"{current} {word}";
+                    if (current.Length > 0 && MeasureBitmapFontWidth(candidate, scale) > maxWidth)
+                    {
+                        wrapped.Add(current);
+                        current = word;
+                    }
+                    else
+                    {
+                        current = candidate;
+                    }
+                }
+
+                if (current.Length > 0)
+                {
+                    wrapped.Add(current);
+                }
+            }
+        }
+
+        return wrapped;
     }
 
     private LoadedSpriteFrame? GetLastToDieBuffIconFrame()
@@ -644,12 +784,29 @@ public partial class Game1
     private bool ShouldSuspendOfflineGameplaySimulation()
     {
         return IsGameplayMessageSimulationFreezeActive
-            || (IsLastToDieSessionActive
-            && (HasOpenGameplayOverlay()
-                || _lastToDieSurvivorMenuOpen
-                || _lastToDiePerkMenuOpen
-                || IsLastToDieStageClearOverlayActive()
-                || IsLastToDieFailurePresentationActive()));
+            || ShouldSuspendOfflineLastToDieSimulation(
+                IsLastToDieSessionActive,
+                HasOpenGameplayOverlay(),
+                _lastToDieSurvivorMenuOpen,
+                _lastToDiePerkMenuOpen,
+                IsLastToDieStageClearOverlayActive(),
+                IsLastToDieFailurePresentationActive());
+    }
+
+    internal static bool ShouldSuspendOfflineLastToDieSimulation(
+        bool isLastToDieSessionActive,
+        bool hasOpenGameplayOverlay,
+        bool survivorMenuOpen,
+        bool perkMenuOpen,
+        bool stageClearOverlayOpen,
+        bool failurePresentationActive)
+    {
+        return isLastToDieSessionActive
+            && (hasOpenGameplayOverlay
+                || survivorMenuOpen
+                || perkMenuOpen
+                || stageClearOverlayOpen
+                || failurePresentationActive);
     }
 
     private bool IsLastToDieStageClearOverlayActive()
@@ -1930,8 +2087,48 @@ public partial class Game1
         _lastToDiePerkHoverIndex = GetLastToDieChoiceHoverIndex(mouse.Position, layout);
 
         if (UpdateLastToDieRewardInput(_localRewardInput, layout, keyboard, mouse,
-            index => _lastToDieRun.PendingRewardChoices[index].IsSelectable))
+            index => _lastToDieRun.PendingRewardChoices[index].IsSelectable,
+            RerollLastToDiePerk))
             ChooseLastToDiePerk(_localRewardInput.SelectedIndex);
+    }
+
+    private void RerollLastToDiePerk(int selectedIndex)
+    {
+        if (_lastToDieRun is null
+            || selectedIndex < 0
+            || selectedIndex >= _lastToDieRun.PendingRewardChoices.Length)
+        {
+            return;
+        }
+
+        var currentChoice = _lastToDieRun.PendingRewardChoices[selectedIndex];
+        var offeredKinds = _lastToDieRun.PendingRewardChoices
+            .Where((_, index) => index != selectedIndex)
+            .Where(choice => choice.Perk.HasValue)
+            .Select(choice => choice.Perk!.Value.Kind)
+            .ToHashSet();
+        var candidates = GetLastToDiePerkCatalog(_lastToDieRun.SurvivorKind)
+            .Where(definition => !_lastToDieRun.ChosenPerks.Contains(definition.Kind))
+            .Where(definition => !offeredKinds.Contains(definition.Kind))
+            .Where(definition => !currentChoice.Perk.HasValue
+                || definition.Kind != currentChoice.Perk.Value.Kind)
+            .Where(definition => !IsLastToDieEngineerAmmoConversion(definition.Kind)
+                || !_lastToDieRun.ChosenPerks.Any(IsLastToDieEngineerAmmoConversion))
+            .ToArray();
+        if (candidates.Length == 0)
+        {
+            return;
+        }
+
+        var selectable = candidates
+            .Where(definition => !ShouldDisableLastToDiePerkChoice(_lastToDieRun, definition.Kind))
+            .ToArray();
+        var pool = selectable.Length > 0 ? selectable : candidates;
+        var replacement = pool[RandomNumberGenerator.GetInt32(pool.Length)];
+        _lastToDieRun.PendingRewardChoices[selectedIndex] = new LastToDieRewardChoice(
+            replacement,
+            null,
+            IsDisabled: ShouldDisableLastToDiePerkChoice(_lastToDieRun, replacement.Kind));
     }
 
     private void UpdateLastToDieStageClearOverlay(KeyboardState keyboard, MouseState mouse)
@@ -2141,35 +2338,6 @@ public partial class Game1
         };
     }
 
-    private static List<string> BuildLastToDieBuffTooltipLines(LastToDieRunState run)
-    {
-        var lines = new List<string>();
-        if (run.EquippedHelmet.HasValue)
-        {
-            lines.Add(GetLastToDieAccessoryTooltipLine(run.EquippedHelmet.Value));
-        }
-
-        if (run.EquippedDogtags.HasValue)
-        {
-            lines.Add(GetLastToDieAccessoryTooltipLine(run.EquippedDogtags.Value));
-        }
-
-        foreach (var perk in run.ChosenPerks.Take(8))
-        {
-            if (TryGetLastToDiePerkDefinition(run.SurvivorKind, perk, out var definition))
-            {
-                lines.Add(definition.Label);
-            }
-        }
-
-        if (run.ChosenPerks.Count > 8)
-        {
-            lines.Add($"+{run.ChosenPerks.Count - 8} perks");
-        }
-
-        return lines;
-    }
-
     private static bool HasLastToDieBuffs(LastToDieRunState run)
     {
         return run.EquippedHelmet.HasValue
@@ -2254,8 +2422,8 @@ public partial class Game1
         _spriteBatch.Draw(_pixel, new Rectangle(layout.Panel.X, layout.Panel.Y, layout.Panel.Width, 3), new Color(210, 210, 210));
         _spriteBatch.Draw(_pixel, new Rectangle(layout.Panel.X, layout.Panel.Bottom - 3, layout.Panel.Width, 3), new Color(76, 76, 76));
 
-        DrawBitmapFontText("Choose Survivor", new Vector2(layout.Panel.X + 28f, layout.Panel.Y + 24f), Color.White, 1.22f);
-        DrawBitmapFontText("Pick the survivor for this run.", new Vector2(layout.Panel.X + 28f, layout.Panel.Y + 58f), new Color(212, 212, 212), 0.94f);
+        DrawBitmapFontText("Choose Survivor", new Vector2(layout.Panel.X + 28f, layout.Panel.Y + 24f), Color.White, 1f);
+        DrawBitmapFontText("Pick the survivor for this run.", new Vector2(layout.Panel.X + 28f, layout.Panel.Y + 58f), new Color(212, 212, 212), 1f);
 
         for (var index = 0; index < LastToDieSurvivorCatalog.Length; index += 1)
         {
@@ -2269,7 +2437,7 @@ public partial class Game1
             _spriteBatch.Draw(_pixel, new Rectangle(bounds.X, bounds.Bottom - 3, bounds.Width, 3), new Color(14, 16, 19));
 
             DrawBitmapFontText($"{index + 1}", new Vector2(bounds.X + 14f, bounds.Y + 12f), new Color(236, 224, 198), 1f);
-            DrawBitmapFontText(choice.Label, new Vector2(bounds.X + 14f, bounds.Y + 58f), Color.White, 1.3f);
+            DrawBitmapFontText(choice.Label, new Vector2(bounds.X + 14f, bounds.Y + 58f), Color.White, 1f);
         }
     }
 
@@ -2289,9 +2457,9 @@ public partial class Game1
         _spriteBatch.Draw(_pixel, new Rectangle(layout.Panel.X, layout.Panel.Y, layout.Panel.Width, 3), new Color(210, 210, 210));
         _spriteBatch.Draw(_pixel, new Rectangle(layout.Panel.X, layout.Panel.Bottom - 3, layout.Panel.Width, 3), new Color(76, 76, 76));
 
-        DrawBitmapFontText("Perks", new Vector2(layout.Panel.X + 28f, layout.Panel.Y + 24f), Color.White, 1.22f);
+        DrawBitmapFontText("Perks", new Vector2(layout.Panel.X + 28f, layout.Panel.Y + 24f), Color.White, 1f);
         var subtitle = "Select a perk, then Confirm or Enter.";
-        DrawBitmapFontText(subtitle, new Vector2(layout.Panel.X + 28f, layout.Panel.Y + 58f), new Color(212, 212, 212), 0.94f);
+        DrawBitmapFontText(subtitle, new Vector2(layout.Panel.X + 28f, layout.Panel.Y + 58f), new Color(212, 212, 212), 1f);
 
         for (var index = 0; index < _lastToDieRun.PendingRewardChoices.Length; index += 1)
         {
@@ -2318,11 +2486,11 @@ public partial class Game1
                 : choice.IsAccessory ? new Color(255, 214, 82) : Color.White;
             if (choice.IsAccessory && !isDisabled)
             {
-                DrawBitmapFontText(label, new Vector2(bounds.X + 13f, bounds.Y + 43f), new Color(255, 160, 28) * 0.55f, 1.02f);
-                DrawBitmapFontText(label, new Vector2(bounds.X + 15f, bounds.Y + 45f), new Color(255, 244, 160) * 0.35f, 1.02f);
+                DrawBitmapFontText(label, new Vector2(bounds.X + 13f, bounds.Y + 43f), new Color(255, 160, 28) * 0.55f, 1f);
+                DrawBitmapFontText(label, new Vector2(bounds.X + 15f, bounds.Y + 45f), new Color(255, 244, 160) * 0.35f, 1f);
             }
 
-            DrawBitmapFontText(label, new Vector2(bounds.X + 14f, bounds.Y + 44f), labelColor, 0.98f);
+            DrawBitmapFontText(label, new Vector2(bounds.X + 14f, bounds.Y + 44f), labelColor, 1f);
 
             var descriptionLines = WrapMenuParagraph(description, 28);
             var lineY = bounds.Y + 84f;
@@ -2332,9 +2500,11 @@ public partial class Game1
                     descriptionLines[lineIndex],
                     new Vector2(bounds.X + 14f, lineY),
                     isDisabled ? new Color(140, 140, 140) : new Color(214, 214, 214),
-                    0.88f);
+                    1f);
                 lineY += 20f;
             }
+
+            DrawLastToDieRewardReroll(layout, index, enabled: !_localRewardInput.Submitted);
         }
         DrawLastToDieRewardConfirm(_localRewardInput, layout);
     }
@@ -2517,7 +2687,7 @@ public partial class Game1
 
         DrawHudTextCentered(
             hostedFailure ? "GAME OVER!" : "YOU FAILED YOUR TEAM",
-            new Vector2(viewportWidth / 2f, viewportHeight * 0.18f),
+            new Vector2(viewportWidth / 2f, viewportHeight * 0.12f),
             new Color(230, 214, 214) * alpha,
             3f);
 
@@ -2699,10 +2869,10 @@ public partial class Game1
 
         var stageLabel = $"Stage {_lastToDieRun.StageNumber}";
         var enemiesLabel = GetLastToDieStageEnemyHudLabel(_lastToDieRun);
-        var stageX = ViewportWidth - MeasureBitmapFontWidth(stageLabel, 0.92f) - 18f;
-        var enemiesX = ViewportWidth - MeasureBitmapFontWidth(enemiesLabel, 0.92f) - 18f;
-        DrawBitmapFontText(stageLabel, new Vector2(stageX, 44f), new Color(232, 232, 232), 0.92f);
-        DrawBitmapFontText(enemiesLabel, new Vector2(enemiesX, 64f), new Color(210, 196, 160), 0.92f);
+        var stageX = ViewportWidth - MeasureBitmapFontWidth(stageLabel, 1f) - 18f;
+        var enemiesX = ViewportWidth - MeasureBitmapFontWidth(enemiesLabel, 1f) - 18f;
+        DrawBitmapFontText(stageLabel, new Vector2(stageX, 44f), new Color(232, 232, 232), 1f);
+        DrawBitmapFontText(enemiesLabel, new Vector2(enemiesX, 64f), new Color(210, 196, 160), 1f);
 
         if (_lastToDieRun.StageIntroTicksRemaining > 0)
         {

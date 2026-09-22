@@ -6,7 +6,7 @@ namespace OpenGarrison.Core.BotBrain;
 /// </summary>
 public sealed class AimResolver
 {
-    private readonly Random _random = new();
+    private readonly Random _random = DeterministicSimulationScope.IsActive ? new Random(0x41494D) : new Random();
 
     /// <summary>
     /// Maximum random aim offset to prevent robotic snap-aiming.

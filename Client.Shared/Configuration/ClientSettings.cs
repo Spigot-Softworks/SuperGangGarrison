@@ -101,6 +101,12 @@ public sealed class ClientSettings
 
     public BubbleWheelBehavior BubbleWheelBehavior { get; set; } = OpenGarrisonPreferencesDocument.DefaultBubbleWheelBehavior;
 
+    public BuildMenuStyle BuildMenuStyle { get; set; } = OpenGarrisonPreferencesDocument.DefaultBuildMenuStyle;
+
+    public bool CameraPanningEnabled { get; set; } = OpenGarrisonPreferencesDocument.DefaultCameraPanningEnabled;
+
+    public PlayerSpriteStyle SpriteStyle { get; set; } = PlayerSpriteStyle.Elkondo;
+
     public bool PortraitRumbleEnabled { get; set; } = true;
 
     public bool PostGameMvpArtEnabled { get; set; } = OpenGarrisonPreferencesDocument.DefaultPostGameMvpArtEnabled;
@@ -297,6 +303,9 @@ public sealed class ClientSettings
             HudShowOnlyActiveWeapon = document.HudShowOnlyActiveWeapon,
             OverheadChatEnabled = document.OverheadChatEnabled,
             BubbleWheelBehavior = OpenGarrisonPreferencesDocument.NormalizeBubbleWheelBehavior(document.BubbleWheelBehavior),
+            BuildMenuStyle = OpenGarrisonPreferencesDocument.NormalizeBuildMenuStyle(document.BuildMenuStyle),
+            CameraPanningEnabled = document.CameraPanningEnabled,
+            SpriteStyle = OpenGarrisonPreferencesDocument.NormalizeSpriteStyle(document.SpriteStyle),
             PortraitRumbleEnabled = document.PortraitRumbleEnabled,
             PostGameMvpArtEnabled = document.PostGameMvpArtEnabled,
             DamageVignetteEnabled = document.DamageVignetteEnabled,
@@ -382,6 +391,9 @@ public sealed class ClientSettings
         preferences.HudShowOnlyActiveWeapon = HudShowOnlyActiveWeapon;
         preferences.OverheadChatEnabled = OverheadChatEnabled;
         preferences.BubbleWheelBehavior = OpenGarrisonPreferencesDocument.NormalizeBubbleWheelBehavior(BubbleWheelBehavior);
+        preferences.BuildMenuStyle = OpenGarrisonPreferencesDocument.NormalizeBuildMenuStyle(BuildMenuStyle);
+        preferences.CameraPanningEnabled = CameraPanningEnabled;
+        preferences.SpriteStyle = OpenGarrisonPreferencesDocument.NormalizeSpriteStyle(SpriteStyle);
         preferences.PortraitRumbleEnabled = PortraitRumbleEnabled;
         preferences.PostGameMvpArtEnabled = PostGameMvpArtEnabled;
         preferences.DamageVignetteEnabled = DamageVignetteEnabled;

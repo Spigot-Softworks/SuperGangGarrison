@@ -135,8 +135,7 @@ public partial class Game1
     private bool GetPlayerIsSniperScoped(PlayerEntity player)
     {
         if (!player.HasScopedSniperWeaponEquipped
-            || GetPlayerIsSniperBowEquipped(player)
-            || player.LastToDieSniperProfile.LightMarksmanEnabled)
+            || GetPlayerIsSniperBowEquipped(player))
         {
             return false;
         }

@@ -349,12 +349,7 @@
                         return false;
                     }
 
-                    if (document.activeElement !== canvas) {
-                        api.focusCanvas();
-                    }
-
-                    invokeHostVoid("HandleBrowserFocus", true);
-                    return true;
+                    return document.hasFocus() && document.activeElement === canvas;
                 };
                 const sendTextInput = function (text) {
                     if (!text || document.activeElement !== canvas) {
@@ -712,6 +707,7 @@
     </script>
     <script src="voice-audio.js"></script>
     <script src="peer-rooms.js"></script>
+    <script src="run-recordings.js"></script>
     <script src="jukebox-library.js"></script>
     <script src="loading-progress.js"></script>
     <script src="_framework/blazor.webassembly.js"></script>

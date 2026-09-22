@@ -166,6 +166,7 @@ public sealed partial class PlayerEntity
             AdvanceSniperState();
             AdvanceUberState();
             AdvanceLastToDieMedicHailMaryState();
+            AdvanceLastToDieSecondChanceState();
             AdvanceMedicState();
             AdvanceSpyState();
             AdvanceSpySuperjumpState();

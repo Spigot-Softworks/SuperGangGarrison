@@ -44,8 +44,11 @@ public sealed record LastToDieDerivedModifiers(
     bool MedicJavelinEnabled = false,
     bool MedicKritPowerEnabled = false,
     LastToDieSniperProfile? SniperProfile = null,
-    LastToDieSpyRevolverProfile? SpyRevolverProfile = null)
+    LastToDieSpyRevolverProfile? SpyRevolverProfile = null,
+    LastToDieUniversalModifiers? Universal = null)
 {
+    public LastToDieUniversalModifiers UniversalModifiers => Universal ?? new();
+
     public const float SpyStanceDamageMultiplier = 1.6f;
 
     public const float SpyRejuvenationMovementSpeedMultiplier = 1.3f;
@@ -241,6 +244,11 @@ public sealed record LastToDieDerivedModifiers(
             MedicJavelinEnabled: owned.Contains(LastToDiePerkIds.Medic.Javelin),
             MedicKritPowerEnabled: owned.Contains(LastToDiePerkIds.Medic.KritPower),
             SniperProfile: sniperProfile.IsActive ? sniperProfile : null,
-            SpyRevolverProfile: spyRevolverProfile.IsActive ? spyRevolverProfile : null);
+            SpyRevolverProfile: spyRevolverProfile.IsActive ? spyRevolverProfile : null,
+            Universal: owned.Any(static perkId =>
+                perkId.Value.StartsWith("ltd.perk.rare.", StringComparison.Ordinal)
+                || perkId.Value.StartsWith("ltd.perk.ultra.", StringComparison.Ordinal))
+                    ? LastToDieUniversalModifiers.FromPerks(owned)
+                    : null);
     }
 }

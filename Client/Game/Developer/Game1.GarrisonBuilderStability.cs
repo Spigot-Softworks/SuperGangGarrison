@@ -120,7 +120,10 @@ public partial class Game1
                 && ReferenceEquals(_builderValidationSnapshot.Value.Document, _builderDocument)
                 && _builderValidationSnapshot.Value.Mode == _builderSelectedGameMode
                 && _builderValidationSnapshot.Value.Entities.SequenceEqual(_builderEntities)) _builderCachedValidation = _builderValidationTask.Result;
-            else if (_builderValidationTask.IsFaulted) _builderStatus = "Map validation failed; check the selected assets.";
+            else if (_builderValidationTask.IsFaulted)
+                _builderCachedValidation = new CustomMapBuilderValidationResult(_builderSelectedGameMode,
+                    [new(CustomMapBuilderValidationSeverity.Error, "validation_failed",
+                        "Could not validate the map: " + _builderValidationTask.Exception?.GetBaseException().Message)]);
             _builderValidationTask = null;
         }
         if (_builderValidationTask is null && (!_builderValidationSnapshot.HasValue

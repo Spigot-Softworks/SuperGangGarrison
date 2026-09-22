@@ -6,6 +6,14 @@ public partial class Game1
 {
     private bool _gameplayModalOwnedInputThisFrame;
 
+    internal static bool ShouldOpenInGamePauseMenu(
+        bool escapePressed,
+        bool controllerPausePressed,
+        bool canOpenInGamePauseMenu)
+    {
+        return canOpenInGamePauseMenu && (escapePressed || controllerPausePressed);
+    }
+
     private bool HasGameplayModalInputOwner()
         => _consoleOpen || _chatOpen || _passwordPromptOpen || HasOpenGameplayOverlay();
 
@@ -32,9 +40,7 @@ public partial class Game1
 
     private bool IsGameplayWindowInputActive()
     {
-        return OperatingSystem.IsBrowser()
-            ? BrowserInputBridge.IsFocused
-            : IsActive;
+        return IsWindowInputActive;
     }
 
     private bool CanOpenGameplayChat()
@@ -108,7 +114,7 @@ public partial class Game1
             && !ShouldBlockGameplayForGarrisonBuilder()
             && !_consoleOpen
             && !_chatOpen
-            && !IsLastToDieSessionActive
+            && !IsAnyLastToDieSessionActive
             && !_world.MatchState.IsEnded
             && !IsGameplayDeathCamActive();
     }

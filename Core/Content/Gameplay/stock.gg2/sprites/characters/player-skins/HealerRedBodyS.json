@@ -1,0 +1,16 @@
+{
+  "id": "HealerRedBodyS",
+  "framePaths": [
+    "assets/characters/player-skins/HealerRedBodyS/0.png",
+    "assets/characters/player-skins/HealerRedBodyS/1.png",
+    "assets/characters/player-skins/HealerRedBodyS/2.png",
+    "assets/characters/player-skins/HealerRedBodyS/3.png",
+    "assets/characters/player-skins/HealerRedBodyS/4.png",
+    "assets/characters/player-skins/HealerRedBodyS/5.png",
+    "assets/characters/player-skins/HealerRedBodyS/6.png",
+    "assets/characters/player-skins/HealerRedBodyS/7.png",
+    "assets/characters/player-skins/HealerRedBodyS/8.png"
+  ],
+  "originX": 32,
+  "originY": 40
+}

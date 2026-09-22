@@ -643,7 +643,6 @@ partial class GameServer
                             ("botbrain_active_controller_count", botMetrics.BotBrainActiveControllerCount),
                             ("botbrain_navigation_loaded_count", botMetrics.BotBrainNavigationLoadedCount),
                             ("botbrain_navigation_missing_count", botMetrics.BotBrainNavigationMissingCount),
-                            ("botbrain_objective_tape_loaded_count", botMetrics.BotBrainObjectiveTapeLoadedCount),
                             ("botbrain_active_path_count", botMetrics.BotBrainActivePathCount),
                             ("sample_count", botMetrics.SampleCount),
                             ("last_build_input_ms", botMetrics.LastBuildInputMilliseconds),

@@ -308,7 +308,7 @@ public partial class Game1
             if (_game._networkClient.IsConnected && !_game._networkClient.IsReplayConnection)
             {
                 defaultActions.Insert(2, new MenuPageAction(_game.GetVoiceMuteActionLabel(), _game.ToggleVoiceMute));
-                if (_game.IsHostedLastToDieActive())
+                if (_game.IsCoopLastToDieActive())
                     defaultActions.Insert(3, new MenuPageAction(_game.GetVoiceChannelActionLabel(), _game.ToggleVoiceChannelMembership));
             }
 

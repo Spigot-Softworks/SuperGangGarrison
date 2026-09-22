@@ -140,7 +140,12 @@ public static class LegacyMovementModel
             return currentSpeed;
         }
 
-        var nextSpeed = currentSpeed + (gravityPerTick * SourceTicksPerSecond * SourceTicksPerSecond * deltaSeconds * 0.5f);
+        // Keep ascent unchanged; integrate the portion after the apex at stronger gravity.
+        var acceleration = gravityPerTick * SourceTicksPerSecond * SourceTicksPerSecond;
+        var halfStepSeconds = deltaSeconds * 0.5f;
+        var risingSeconds = currentSpeed < 0f ? MathF.Min(halfStepSeconds, -currentSpeed / acceleration) : 0f;
+        var nextSpeed = currentSpeed + acceleration * risingSeconds
+            + acceleration * 1.25f * (halfStepSeconds - risingSeconds);
         return MathF.Min(nextSpeed, MaxFallSpeedPerTick * SourceTicksPerSecond);
     }
 

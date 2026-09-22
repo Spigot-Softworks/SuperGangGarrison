@@ -8,7 +8,7 @@ internal sealed record ServerRuntimeBootstrap(
     LobbyServerRegistrar? LobbyRegistrar,
     SimulationWorld World,
     FixedStepSimulator Simulator,
-    Stopwatch Clock,
+    ServerClock Clock,
     TimeSpan Previous,
     Dictionary<byte, ClientSession> ClientsBySlot,
     ServerConnectionRateLimiter ConnectionRateLimiter,

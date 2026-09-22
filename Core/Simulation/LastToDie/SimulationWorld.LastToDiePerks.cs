@@ -8,6 +8,10 @@ public sealed partial class SimulationWorld
     {
         public LastToDieDerivedModifiers Modifiers { get; set; } = modifiers;
 
+        public int BaseMaximumHealth { get; set; }
+
+        public bool SecondChanceConsumed { get; set; }
+
         /// <summary>
         /// The original offline Last to Die perks are represented by the
         /// experimental gameplay settings model. This copy is per network
@@ -18,6 +22,8 @@ public sealed partial class SimulationWorld
 
         public int DamageHealingRemainder { get; set; }
 
+        public int ScopedDamageHealingRemainder { get; set; }
+
         public float ScopedHealingAccumulator { get; set; }
 
         public float CloakedHealingAccumulator { get; set; }
@@ -25,6 +31,12 @@ public sealed partial class SimulationWorld
         public int MedicHomeostasisHealingRemainder { get; set; }
 
         public int MedicSpikedVestReflectionRemainder { get; set; }
+
+        public int UniversalReflectionRemainder { get; set; }
+
+        public float UniversalHealingAccumulator { get; set; }
+
+        public float InfiniteSlayWorksDamageAccumulator { get; set; }
 
         public int? MedicSupportRelayActiveLinkTargetPlayerId { get; set; }
 
@@ -59,10 +71,14 @@ public sealed partial class SimulationWorld
             entry.Value.EvasionRandom = CreateLastToDieEvasionRandom(entry.Key);
             entry.Value.OverkillerRandom = CreateLastToDieOverkillerRandom(entry.Key);
             entry.Value.DamageHealingRemainder = 0;
+            entry.Value.ScopedDamageHealingRemainder = 0;
             entry.Value.ScopedHealingAccumulator = 0f;
             entry.Value.CloakedHealingAccumulator = 0f;
             entry.Value.MedicHomeostasisHealingRemainder = 0;
             entry.Value.MedicSpikedVestReflectionRemainder = 0;
+            entry.Value.UniversalReflectionRemainder = 0;
+            entry.Value.UniversalHealingAccumulator = 0f;
+            entry.Value.InfiniteSlayWorksDamageAccumulator = 0f;
             entry.Value.MedicSupportRelayActiveLinkTargetPlayerId = null;
             entry.Value.MedicSupportRelayCooldownUntilFrameByTargetPlayerId.Clear();
             entry.Value.ShroudGraceTicksRemaining = 0;
@@ -89,7 +105,10 @@ public sealed partial class SimulationWorld
         IEnumerable<LastToDiePerkId> perks,
         int? baseMaximumHealthOverride = null,
         bool refillHealth = false,
-        bool resetDynamicState = false)
+        bool resetDynamicState = false,
+        int runKills = 0,
+        bool secondChanceConsumed = false,
+        bool runKillProgressionOwner = true)
     {
         ArgumentNullException.ThrowIfNull(perks);
         if (!TryGetNetworkPlayer(slot, out var player))
@@ -103,14 +122,22 @@ public sealed partial class SimulationWorld
             player.ClassId,
             ownedPerks,
             ExperimentalGameplaySettings);
-        var previousMaximumHealthBonus = 0;
+        var previousStaticMaximumHealthBonus = 0;
+        var previousBaseMaximumHealth = player.ClassDefinition.MaxHealth;
         var healthBeforeConfiguration = player.Health;
         if (_lastToDiePerkRuntimesBySlot.TryGetValue(slot, out var runtime))
         {
-            previousMaximumHealthBonus = runtime.Modifiers.MaximumHealthBonus;
+            previousBaseMaximumHealth = runtime.BaseMaximumHealth;
+            previousStaticMaximumHealthBonus = runtime.Modifiers.MaximumHealthBonus
+                + runtime.Modifiers.UniversalModifiers.MaximumHealthBonus;
             if (runtime.Modifiers.DamageHealingFraction != modifiers.DamageHealingFraction)
             {
                 runtime.DamageHealingRemainder = 0;
+            }
+            if (runtime.Modifiers.SniperProfile?.AvariceEnabled
+                != modifiers.SniperProfile?.AvariceEnabled)
+            {
+                runtime.ScopedDamageHealingRemainder = 0;
             }
             if (runtime.Modifiers.ScopedHealingPerSecond != modifiers.ScopedHealingPerSecond)
             {
@@ -127,6 +154,9 @@ public sealed partial class SimulationWorld
             if (runtime.Modifiers.MedicSpikedVestEnabled != modifiers.MedicSpikedVestEnabled)
             {
                 runtime.MedicSpikedVestReflectionRemainder = 0;
+                runtime.UniversalReflectionRemainder = 0;
+                runtime.UniversalHealingAccumulator = 0f;
+                runtime.InfiniteSlayWorksDamageAccumulator = 0f;
             }
             if (runtime.Modifiers.MedicSupportRelayEnabled != modifiers.MedicSupportRelayEnabled)
             {
@@ -153,6 +183,10 @@ public sealed partial class SimulationWorld
             }
             runtime.Modifiers = modifiers;
             runtime.LegacySettings = legacySettings;
+            runtime.BaseMaximumHealth = Math.Max(
+                1,
+                baseMaximumHealthOverride ?? GetLastToDieBaseMaximumHealth(player));
+            runtime.SecondChanceConsumed = secondChanceConsumed;
             _lastToDieLegacyGameplaySettingsBySlot[slot] = legacySettings;
         }
         else
@@ -160,6 +194,10 @@ public sealed partial class SimulationWorld
             runtime = new LastToDiePlayerPerkRuntime(modifiers)
             {
                 LegacySettings = legacySettings,
+                BaseMaximumHealth = Math.Max(
+                    1,
+                    baseMaximumHealthOverride ?? GetLastToDieBaseMaximumHealth(player)),
+                SecondChanceConsumed = secondChanceConsumed,
                 RevolverCriticalRandom = _lastToDieCombatSeedConfigured
                     ? CreateLastToDieRevolverCriticalRandom(slot)
                     : null,
@@ -174,6 +212,12 @@ public sealed partial class SimulationWorld
             _lastToDiePerkRuntimesBySlot.Add(slot, runtime);
             _lastToDieLegacyGameplaySettingsBySlot[slot] = legacySettings;
         }
+
+        player.ConfigureLastToDieUniversalModifiers(
+            modifiers.UniversalModifiers,
+            runKills,
+            secondChanceConsumed,
+            runKillProgressionOwner);
 
         // Class/respawn synchronization ran before the reward build was
         // installed. Reapply the per-slot legacy profile now so the first
@@ -220,24 +264,128 @@ public sealed partial class SimulationWorld
         player.ConfigureLastToDieMedicKritPower(modifiers.MedicKritPowerEnabled);
         player.SetLastToDieSniperProfile(modifiers.SniperProfile);
 
-        var baseMaximumHealth = Math.Max(
-            1,
-            baseMaximumHealthOverride ?? player.ClassDefinition.MaxHealth);
+        var baseMaximumHealth = modifiers.UniversalModifiers.BaseMaximumHealthOverride
+            ?? runtime.BaseMaximumHealth;
+        var staticMaximumHealthBonus = modifiers.MaximumHealthBonus
+            + modifiers.UniversalModifiers.MaximumHealthBonus;
+        var runKillMaximumHealthBonus = checked(
+            modifiers.UniversalModifiers.MaximumHealthPerRunKill * Math.Max(0, runKills));
         var configured = TrySetNetworkPlayerMaxHealthOverride(
             slot,
-            checked(baseMaximumHealth + modifiers.MaximumHealthBonus),
+            checked(baseMaximumHealth + staticMaximumHealthBonus + runKillMaximumHealthBonus),
             refillHealth);
         if (configured
             && !refillHealth
             && player.IsAlive
-            && modifiers.MaximumHealthBonus > previousMaximumHealthBonus)
+            && (staticMaximumHealthBonus > previousStaticMaximumHealthBonus
+                || (!baseMaximumHealthOverride.HasValue
+                    && runtime.BaseMaximumHealth > previousBaseMaximumHealth)))
         {
             player.ForceSetHealth(checked(
                 healthBeforeConfiguration
-                    + (modifiers.MaximumHealthBonus - previousMaximumHealthBonus)));
+                    + (staticMaximumHealthBonus - previousStaticMaximumHealthBonus)
+                    + (!baseMaximumHealthOverride.HasValue
+                        ? Math.Max(0, runtime.BaseMaximumHealth - previousBaseMaximumHealth)
+                        : 0)));
         }
 
+        _ = TrySetNetworkPlayerScale(slot, _configuredPlayerScale * modifiers.UniversalModifiers.PlayerScale);
+
         return configured;
+    }
+
+    private static int GetLastToDieBaseMaximumHealth(PlayerEntity player)
+    {
+        var classBonus = player.ClassId is PlayerClass.Sniper
+            or PlayerClass.Medic
+            or PlayerClass.Spy
+            or PlayerClass.Demoman
+            ? 40
+            : 0;
+        return checked(player.ClassDefinition.MaxHealth + classBonus);
+    }
+
+    public bool TrySetLastToDiePlayerRunKills(byte slot, int runKills)
+    {
+        if (!TryGetNetworkPlayer(slot, out var player)
+            || !_lastToDiePerkRuntimesBySlot.TryGetValue(slot, out var runtime))
+        {
+            return false;
+        }
+
+        var normalizedKills = Math.Max(0, runKills);
+        if (player.LastToDieRunKills == normalizedKills)
+        {
+            return true;
+        }
+
+        player.SetLastToDieRunKills(normalizedKills);
+        var universal = runtime.Modifiers.UniversalModifiers;
+        if (universal.MaximumHealthPerRunKill > 0)
+        {
+            var baseMaximumHealth = universal.BaseMaximumHealthOverride
+                ?? runtime.BaseMaximumHealth;
+            var staticMaximumHealthBonus = runtime.Modifiers.MaximumHealthBonus
+                + universal.MaximumHealthBonus;
+            var runKillMaximumHealthBonus = checked(
+                universal.MaximumHealthPerRunKill * normalizedKills);
+            _ = TrySetNetworkPlayerMaxHealthOverride(
+                slot,
+                checked(baseMaximumHealth + staticMaximumHealthBonus + runKillMaximumHealthBonus),
+                refillHealth: false);
+        }
+
+        return true;
+    }
+
+    public bool TryGetLastToDieSecondChanceConsumed(byte slot, out bool consumed)
+    {
+        consumed = _lastToDiePerkRuntimesBySlot.TryGetValue(slot, out var runtime)
+            && runtime.SecondChanceConsumed;
+        return _lastToDiePerkRuntimesBySlot.ContainsKey(slot);
+    }
+
+    private bool TryActivateLastToDieSecondChance(PlayerEntity player)
+    {
+        if (!TryGetPlayerNetworkSlot(player, out var slot)
+            || !_lastToDiePerkRuntimesBySlot.TryGetValue(slot, out var runtime)
+            || !runtime.Modifiers.UniversalModifiers.SecondChance
+            || runtime.SecondChanceConsumed
+            || player.LastToDieSecondChanceConsumed)
+        {
+            return false;
+        }
+
+        ClearLastToDieStatusEffectsForTarget(player.Id);
+        player.ExtinguishAfterburn();
+        if (!player.ActivateLastToDieSecondChance(Math.Max(1, Config.TicksPerSecond * 2)))
+        {
+            return false;
+        }
+
+        runtime.SecondChanceConsumed = true;
+        player.ForceSetHealth(Math.Max(1, (player.MaxHealth + 1) / 2));
+        MarkPendingFatalPlayerDamageEventPrevented(player.Id);
+        return true;
+    }
+
+    private void ApplyLastToDieKillRewards(PlayerEntity killer)
+    {
+        if (!TryGetPlayerNetworkSlot(killer, out var slot)
+            || !_lastToDiePerkRuntimesBySlot.TryGetValue(slot, out var runtime))
+        {
+            return;
+        }
+
+        if (runtime.Modifiers.UniversalModifiers.HealPerKill > 0 && killer.IsAlive)
+        {
+            ApplyHealingWithFeedback(killer, runtime.Modifiers.UniversalModifiers.HealPerKill);
+        }
+
+        if (killer.LastToDieRunKillProgressionOwner)
+        {
+            _ = TrySetLastToDiePlayerRunKills(slot, checked(killer.LastToDieRunKills + 1));
+        }
     }
 
     /// <summary>
@@ -301,7 +449,9 @@ public sealed partial class SimulationWorld
     /// </summary>
     public bool TryApplyLastToDiePlayerPredictionProfile(
         byte slot,
-        IEnumerable<string> ownedPerkIds)
+        IEnumerable<string> ownedPerkIds,
+        int runKills = 0,
+        bool secondChanceConsumed = false)
     {
         ArgumentNullException.ThrowIfNull(ownedPerkIds);
         if (!TryGetNetworkPlayer(slot, out var player))
@@ -318,6 +468,12 @@ public sealed partial class SimulationWorld
             ownedPerks,
             ExperimentalGameplaySettings);
         var modifiers = LastToDieDerivedModifiers.FromPerks(ownedPerks);
+        player.ConfigureLastToDieUniversalModifiers(
+            modifiers.UniversalModifiers,
+            runKills,
+            secondChanceConsumed,
+            runKillProgressionOwner: false);
+        _ = TrySetNetworkPlayerScale(slot, _configuredPlayerScale * modifiers.UniversalModifiers.PlayerScale);
         ApplyLastToDiePlayerPredictionModifiers(slot, player, modifiers);
         return true;
     }
@@ -365,6 +521,11 @@ public sealed partial class SimulationWorld
         player.ConfigureLastToDieMedicRejuvenationRay(modifiers.MedicRejuvenationRayEnabled);
         player.ConfigureLastToDieMedicKritPower(modifiers.MedicKritPowerEnabled);
         player.SetLastToDieSniperProfile(modifiers.SniperProfile);
+        player.ConfigureLastToDieUniversalModifiers(
+            modifiers.UniversalModifiers,
+            player.LastToDieRunKills,
+            player.LastToDieSecondChanceConsumed,
+            player.LastToDieRunKillProgressionOwner);
         SyncExperimentalGameplayLoadout(slot, player);
     }
 
@@ -383,6 +544,12 @@ public sealed partial class SimulationWorld
         }
 
         _lastToDieLegacyGameplaySettingsBySlot.Remove(slot);
+        player.ConfigureLastToDieUniversalModifiers(
+            new LastToDieUniversalModifiers(),
+            runKills: 0,
+            secondChanceConsumed: false,
+            runKillProgressionOwner: false);
+        _ = TrySetNetworkPlayerScale(slot, _configuredPlayerScale);
         ApplyLastToDiePlayerPredictionModifiers(
             slot,
             player,
@@ -552,22 +719,47 @@ public sealed partial class SimulationWorld
             || attacker.Team == target.Team
             || !TryGetPlayerNetworkSlot(attacker, out var slot)
             || !_lastToDiePerkRuntimesBySlot.TryGetValue(slot, out var runtime)
-            || runtime.Modifiers.DamageHealingFraction <= 0f
             || attacker.Health >= attacker.MaxHealth)
         {
             return;
         }
 
-        var scaledHealing = runtime.DamageHealingRemainder
-            + (appliedDamage * (long)LastToDieDerivedModifiers.SpyVampireHealingNumerator);
-        var wholeHealing = (int)(scaledHealing / LastToDieDerivedModifiers.SpyVampireHealingDenominator);
-        runtime.DamageHealingRemainder = (int)(scaledHealing % LastToDieDerivedModifiers.SpyVampireHealingDenominator);
-        if (wholeHealing <= 0)
+        var hasVampire = runtime.Modifiers.DamageHealingFraction > 0f;
+        var hasAvarice = attacker.ClassId == PlayerClass.Sniper
+            && attacker.IsSniperScoped
+            && runtime.Modifiers.SniperProfile is { AvariceEnabled: true }
+            && attacker.LastToDieSniperProfile.AvariceEnabled;
+        if (!hasVampire && !hasAvarice)
         {
             return;
         }
 
-        ApplyHealingWithFeedback(attacker, wholeHealing);
+        if (hasAvarice)
+        {
+            const int avariceDenominator = 10;
+            var avariceNumerator = (long)MathF.Round(
+                LastToDieSniperProfile.AvariceLifestealFraction * avariceDenominator);
+            var scaledAvariceHealing = runtime.ScopedDamageHealingRemainder
+                + (appliedDamage * avariceNumerator);
+            var wholeAvariceHealing = (int)(scaledAvariceHealing / avariceDenominator);
+            runtime.ScopedDamageHealingRemainder = (int)(scaledAvariceHealing % avariceDenominator);
+            if (wholeAvariceHealing > 0)
+            {
+                ApplyHealingWithFeedback(attacker, wholeAvariceHealing);
+            }
+        }
+
+        if (hasVampire)
+        {
+            var scaledHealing = runtime.DamageHealingRemainder
+                + (appliedDamage * (long)LastToDieDerivedModifiers.SpyVampireHealingNumerator);
+            var wholeHealing = (int)(scaledHealing / LastToDieDerivedModifiers.SpyVampireHealingDenominator);
+            runtime.DamageHealingRemainder = (int)(scaledHealing % LastToDieDerivedModifiers.SpyVampireHealingDenominator);
+            if (wholeHealing > 0)
+            {
+                ApplyHealingWithFeedback(attacker, wholeHealing);
+            }
+        }
     }
 
     private void TryApplyLastToDieSniperOverkiller(
@@ -760,24 +952,80 @@ public sealed partial class SimulationWorld
             || !attacker.IsAlive
             || ReferenceEquals(attacker, target)
             || attacker.Team == target.Team
-            || target.ClassId != PlayerClass.Medic
-            || !damageTraits.HasFlag(PlayerDamageTraits.CanReflect)
             || damageTraits.HasFlag(PlayerDamageTraits.Periodic)
-            || damageTraits.HasFlag(PlayerDamageTraits.Reflected)
-            || !TryGetPlayerNetworkSlot(target, out var slot)
-            || !_lastToDiePerkRuntimesBySlot.TryGetValue(slot, out var runtime)
-            || !runtime.Modifiers.MedicSpikedVestEnabled)
+            || damageTraits.HasFlag(PlayerDamageTraits.Reflected))
         {
             return;
         }
 
-        var scaledReflection = runtime.MedicSpikedVestReflectionRemainder
-            + (appliedDamage * LastToDieDerivedModifiers.MedicSpikedVestReflectionNumerator);
-        var reflectedDamage = scaledReflection
-            / LastToDieDerivedModifiers.MedicSpikedVestReflectionDenominator;
-        runtime.MedicSpikedVestReflectionRemainder = scaledReflection
-            % LastToDieDerivedModifiers.MedicSpikedVestReflectionDenominator;
-        if (reflectedDamage <= 0)
+        if (!TryGetPlayerNetworkSlot(target, out var slot)
+            || !_lastToDiePerkRuntimesBySlot.TryGetValue(slot, out var runtime))
+        {
+            return;
+        }
+
+        var universal = runtime.Modifiers.UniversalModifiers;
+        if (damageTraits.HasFlag(PlayerDamageTraits.CanApplyOnHitEffects)
+            && universal.FreezingArmor)
+        {
+            _ = TryApplyLastToDieStatusEffect(
+                attacker.Id,
+                target.Id,
+                LastToDieStatusEffectSpec.Slow(
+                    LastToDieStatusEffectIds.RareFreezingArmor,
+                    Math.Max(1, Config.TicksPerSecond * 3),
+                    0.9f,
+                    fireSpeedMultiplier: 0.8f,
+                    reloadSpeedMultiplier: 0.8f));
+        }
+
+        if (damageTraits.HasFlag(PlayerDamageTraits.CanApplyOnHitEffects)
+            && universal.BlazingArmor)
+        {
+            attacker.IgniteAfterburn(
+                target.Id,
+                durationIncreaseSourceTicks: 60f,
+                intensityIncrease: 2.5f,
+                afterburnFalloff: false,
+                burnFalloffAmount: 0f,
+                killFeedWeaponSpriteName: "FlameKL");
+        }
+
+        if (!damageTraits.HasFlag(PlayerDamageTraits.CanReflect))
+        {
+            return;
+        }
+
+        var reflectTenths = (target.ClassId == PlayerClass.Medic
+                && runtime.Modifiers.MedicSpikedVestEnabled
+                    ? LastToDieDerivedModifiers.MedicSpikedVestReflectionNumerator
+                    : 0)
+            + (universal.ReflectionFraction > 0f
+                ? (int)MathF.Round(universal.ReflectionFraction * 10f)
+                : 0)
+            + (universal.FatalBravado
+                && target.MaxHealth > 0
+                && target.Health * 2L < target.MaxHealth
+                    ? 5
+                    : 0);
+        reflectTenths = Math.Clamp(reflectTenths, 0, 10);
+        if (reflectTenths == 0)
+        {
+            return;
+        }
+
+        var scaledReflection = runtime.UniversalReflectionRemainder + (appliedDamage * reflectTenths);
+        var reflectedDamage = scaledReflection / 10;
+        runtime.UniversalReflectionRemainder = scaledReflection % 10;
+        ApplyLastToDieReflectedDamage(target, attacker, reflectedDamage);
+    }
+
+    private void ApplyLastToDieReflectedDamage(
+        PlayerEntity reflector,
+        PlayerEntity attacker,
+        int reflectedDamage)
+    {
+        if (reflectedDamage <= 0 || !attacker.IsAlive)
         {
             return;
         }
@@ -787,7 +1035,7 @@ public sealed partial class SimulationWorld
             new PlayerDamageRequest(
                 PlayerDamageApplicationKind.Instant,
                 reflectedDamage,
-                target,
+                reflector,
                 PlayerEntity.SpyDamageRevealAlpha,
                 DamageEventFlags.None,
                 PlayerDamageTraits.Reflected,
@@ -795,7 +1043,7 @@ public sealed partial class SimulationWorld
                 new PlayerDamageUmbrellaOptions(AllowBlock: false)));
         if (resolution.WasFatal)
         {
-            KillPlayer(attacker, killer: target);
+            KillPlayer(attacker, killer: reflector);
         }
     }
 
@@ -855,6 +1103,15 @@ public sealed partial class SimulationWorld
 
         var multiplier = attacker.LastToDieStatusOutgoingDamageMultiplier
             * attacker.LastToDieMedicLinkOutgoingDamageMultiplier;
+        if (attacker.ClassId == PlayerClass.Sniper
+            && attacker.IsSniperScoped
+            && attacker.LastToDieSniperProfile.AsceticEnabled)
+        {
+            // The profile is also present on prediction-only clients, where
+            // the authoritative perk runtime is intentionally absent.
+            multiplier *= LastToDieSniperProfile.AsceticDamageMultiplier;
+        }
+
         if (!TryGetPlayerNetworkSlot(attacker, out var slot)
             || !_lastToDiePerkRuntimesBySlot.TryGetValue(slot, out var runtime))
         {
@@ -891,6 +1148,8 @@ public sealed partial class SimulationWorld
             return MathF.Max(0.05f, multiplier);
         }
 
+        multiplier *= attacker.GetLastToDieUniversalOutgoingDamageMultiplier();
+
         multiplier *= 1f + attacker.LastToDieSpyRogueOutgoingDamageBonus;
         if (attacker.ClassId == PlayerClass.Medic
             && runtime.Modifiers.MedicCombatMedicEnabled
@@ -925,6 +1184,7 @@ public sealed partial class SimulationWorld
         }
 
         var multiplier = target.LastToDieIncomingDamageMultiplier;
+        multiplier *= GetLastToDieUniversalIncomingDamageMultiplier(target, damageTraits);
         return multiplier >= 1f
             ? damage
             : Math.Max(1, (int)MathF.Round((damage * multiplier) + 0.0001f));
@@ -942,9 +1202,42 @@ public sealed partial class SimulationWorld
         }
 
         var multiplier = target.LastToDieIncomingDamageMultiplier;
+        multiplier *= GetLastToDieUniversalIncomingDamageMultiplier(target, damageTraits);
         return multiplier >= 1f
             ? damage
             : MathF.Max(0.01f, damage * multiplier);
+    }
+
+    private float GetLastToDieUniversalIncomingDamageMultiplier(
+        PlayerEntity target,
+        PlayerDamageTraits damageTraits)
+    {
+        if (!TryGetPlayerNetworkSlot(target, out var slot)
+            || !_lastToDiePerkRuntimesBySlot.TryGetValue(slot, out var runtime))
+        {
+            return 1f;
+        }
+
+        var universal = runtime.Modifiers.UniversalModifiers;
+        var multiplier = 1f;
+        if (damageTraits.HasFlag(PlayerDamageTraits.Bullet))
+        {
+            multiplier *= universal.BulletDamageTakenMultiplier;
+        }
+        if (damageTraits.HasFlag(PlayerDamageTraits.Explosive))
+        {
+            multiplier *= universal.ExplosionDamageTakenMultiplier;
+        }
+        if (universal.Fortify
+            && (target.IsCarryingIntel
+                || Enumerable.Range(1, _controlPoints.Count)
+                    .Any(index => !_controlPoints[index - 1].IsLocked
+                        && IsPlayerInControlPointCaptureZone(target, index))))
+        {
+            multiplier *= 0.7f;
+        }
+
+        return Math.Clamp(multiplier, 0.05f, 1f);
     }
 
     private float GetLastToDieEvasionChance(PlayerEntity target)
@@ -986,6 +1279,15 @@ public sealed partial class SimulationWorld
             target.LastToDieGuardianEvasionChance,
             0f,
             0.95f);
+        var universalEvasionChance = 0f;
+        if (TryGetPlayerNetworkSlot(target, out var universalSlot)
+            && _lastToDiePerkRuntimesBySlot.TryGetValue(universalSlot, out var universalRuntime)
+            && universalRuntime.Modifiers.UniversalModifiers.FightOrFlight
+            && target.MaxHealth > 0
+            && target.Health * 2L < target.MaxHealth)
+        {
+            universalEvasionChance = 0.3f;
+        }
         var medicLinkEvasionChance = Math.Clamp(
             target.LastToDieMedicLinkEvasionChance,
             0f,
@@ -994,6 +1296,7 @@ public sealed partial class SimulationWorld
             1f - ((1f - cloakedEvasionChance)
                 * (1f - stoicEvasionChance)
                 * (1f - guardianEvasionChance)
+                * (1f - universalEvasionChance)
                 * (1f - medicLinkEvasionChance)),
             0f,
             0.95f);
@@ -1055,10 +1358,14 @@ public sealed partial class SimulationWorld
         }
 
         runtime.DamageHealingRemainder = 0;
+        runtime.ScopedDamageHealingRemainder = 0;
         runtime.ScopedHealingAccumulator = 0f;
         runtime.CloakedHealingAccumulator = 0f;
         runtime.MedicHomeostasisHealingRemainder = 0;
         runtime.MedicSpikedVestReflectionRemainder = 0;
+        runtime.UniversalReflectionRemainder = 0;
+        runtime.UniversalHealingAccumulator = 0f;
+        runtime.InfiniteSlayWorksDamageAccumulator = 0f;
         runtime.WasSpyCloaked = false;
         runtime.ShroudGraceTicksRemaining = 0;
         if (TryGetNetworkPlayer(slot, out var player))
@@ -1081,6 +1388,60 @@ public sealed partial class SimulationWorld
         SyncLastToDieSpyCloakState(player, runtime, advanceGraceTimer: true);
         AdvanceLastToDieCloakedHealing(player, runtime);
         AdvanceLastToDieScopedHealing(player, runtime);
+        AdvanceLastToDieUniversalPassives(slot, player, runtime);
+    }
+
+    private void AdvanceLastToDieUniversalPassives(
+        byte slot,
+        PlayerEntity player,
+        LastToDiePlayerPerkRuntime runtime)
+    {
+        var ticksPerSecond = Math.Max(1, Config.TicksPerSecond);
+        var universal = runtime.Modifiers.UniversalModifiers;
+        if (universal.RegenerationPerSecond > 0f && player.Health < player.MaxHealth)
+        {
+            runtime.UniversalHealingAccumulator += universal.RegenerationPerSecond / ticksPerSecond;
+            var wholeHealing = (int)MathF.Floor(runtime.UniversalHealingAccumulator + 0.000001f);
+            if (wholeHealing > 0)
+            {
+                runtime.UniversalHealingAccumulator -= wholeHealing;
+                ApplyHealingWithFeedback(player, wholeHealing);
+            }
+        }
+        else
+        {
+            runtime.UniversalHealingAccumulator = 0f;
+        }
+
+        if (!universal.InfiniteSlayWorks)
+        {
+            runtime.InfiniteSlayWorksDamageAccumulator = 0f;
+            return;
+        }
+
+        runtime.InfiniteSlayWorksDamageAccumulator += 1f / ticksPerSecond;
+        var wholeDamage = (int)MathF.Floor(runtime.InfiniteSlayWorksDamageAccumulator + 0.000001f);
+        if (wholeDamage <= 0)
+        {
+            return;
+        }
+
+        runtime.InfiniteSlayWorksDamageAccumulator -= wholeDamage;
+        var resolution = ResolvePlayerDamage(
+            player,
+            new PlayerDamageRequest(
+                PlayerDamageApplicationKind.Instant,
+                wholeDamage,
+                Attacker: null,
+                PlayerEntity.SpyDamageRevealAlpha,
+                DamageEventFlags.None,
+                PlayerDamageTraits.Periodic | PlayerDamageTraits.LastToDieIncomingModifierPreApplied,
+                AllowOsmosisHealOwnedSentries: false,
+                new PlayerDamageUmbrellaOptions(AllowBlock: false)));
+        if (resolution.WasFatal)
+        {
+            KillPlayer(player, killer: null, weaponSpriteName: "DeadKL");
+        }
     }
 
     private void AdvanceLastToDieCloakedHealing(

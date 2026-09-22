@@ -419,11 +419,12 @@ public partial class Game1
 
         var widthScale = maxWidth / measuredWidth;
         var heightScale = maxHeight / measuredHeight;
-        return MathF.Max(0.4f, MathF.Min(baseScale, MathF.Min(widthScale, heightScale)));
+        return NormalizeUiTextScale(MathF.Max(0.4f, MathF.Min(baseScale, MathF.Min(widthScale, heightScale))));
     }
 
     private void DrawMenuBitmapFontText(string text, Vector2 position, Color color, float scale)
     {
+        scale = NormalizeUiTextScale(scale);
         if (string.IsNullOrEmpty(text))
         {
             return;
@@ -468,6 +469,7 @@ public partial class Game1
 
     private float MeasureMenuBitmapFontWidth(string text, float scale)
     {
+        scale = NormalizeUiTextScale(scale);
         if (string.IsNullOrEmpty(text))
         {
             return 0f;
@@ -499,6 +501,7 @@ public partial class Game1
 
     private float MeasureMenuBitmapFontHeight(float scale)
     {
+        scale = NormalizeUiTextScale(scale);
         if (_menuBitmapFontLineHeight <= 0)
         {
             return _menuFont.LineSpacing * scale;

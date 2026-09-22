@@ -14,6 +14,7 @@ public sealed partial class SimulationWorld
     }
 
     private PracticeCombatDummyMode _practiceCombatDummyMode;
+    private CharacterClassDefinition? _practiceCombatDummyClassDefinition;
     private int _practiceCombatDummyTotalDamage;
     private long _practiceCombatDummyFirstDamageFrame = -1;
     private long _practiceCombatDummyLastDamageFrame = -1;
@@ -102,15 +103,22 @@ public sealed partial class SimulationWorld
 
     public void SpawnPracticeCombatDummy()
     {
-        SpawnPracticeCombatDummy(PracticeCombatDummyMode.Combat);
+        SpawnPracticeCombatDummy(PracticeCombatDummyMode.Combat, CharacterClassCatalog.Heavy);
+    }
+
+    public void SpawnPracticeCombatDummy(PlayerClass playerClass)
+    {
+        SpawnPracticeCombatDummy(PracticeCombatDummyMode.Combat, CharacterClassCatalog.GetDefinition(playerClass));
     }
 
     public void SpawnPracticeDpsDummy()
     {
-        SpawnPracticeCombatDummy(PracticeCombatDummyMode.Dps);
+        SpawnPracticeCombatDummy(PracticeCombatDummyMode.Dps, CharacterClassCatalog.Heavy);
     }
 
-    private void SpawnPracticeCombatDummy(PracticeCombatDummyMode mode)
+    private void SpawnPracticeCombatDummy(
+        PracticeCombatDummyMode mode,
+        CharacterClassDefinition classDefinition)
     {
         if (!Config.EnableLocalDummies || !Config.EnableEnemyTrainingDummy)
         {
@@ -119,6 +127,7 @@ public sealed partial class SimulationWorld
 
         EnemyPlayerEnabled = true;
         _practiceCombatDummyMode = mode;
+        _practiceCombatDummyClassDefinition = classDefinition;
         ResetPracticeCombatDummyStats();
         _enemyDummyRespawnTicks = 0;
         ClearEnemyInputOverride();
@@ -257,7 +266,7 @@ public sealed partial class SimulationWorld
 
     private bool SpawnPracticeCombatDummyResolved(bool playRespawnSound)
     {
-        EnemyPlayer.SetClassDefinition(CharacterClassCatalog.Heavy);
+        EnemyPlayer.SetClassDefinition(_practiceCombatDummyClassDefinition ?? CharacterClassCatalog.Heavy);
         var spawn = FindEnemyDummySpawnNearLocalPlayer();
         if (SpawnPlayerResolved(EnemyPlayer, _enemyDummyTeam, spawn.X, spawn.Y, playRespawnSound: playRespawnSound))
         {
@@ -476,6 +485,7 @@ public sealed partial class SimulationWorld
     private void DisablePracticeCombatDummyMode(bool resetStats)
     {
         _practiceCombatDummyMode = PracticeCombatDummyMode.None;
+        _practiceCombatDummyClassDefinition = null;
         if (resetStats)
         {
             ResetPracticeCombatDummyStats();

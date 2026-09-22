@@ -789,9 +789,9 @@ public sealed class LastToDiePerkRuntimeTests
             refillHealth: true));
         Assert.True(world.TryConfigureLastToDiePlayerBuild(2, []));
 
-        Assert.Equal(CharacterClassCatalog.Medic.MaxHealth + 75, world.LocalPlayer.MaxHealth);
+        Assert.Equal(CharacterClassCatalog.Medic.MaxHealth + 40 + 75, world.LocalPlayer.MaxHealth);
         Assert.Equal(world.LocalPlayer.MaxHealth, world.LocalPlayer.Health);
-        Assert.Equal(CharacterClassCatalog.Medic.MaxHealth, teammate.MaxHealth);
+        Assert.Equal(CharacterClassCatalog.Medic.MaxHealth + 40, teammate.MaxHealth);
     }
 
     [Fact]
@@ -1870,6 +1870,22 @@ public sealed class LastToDiePerkRuntimeTests
         }
 
         Assert.Equal(healthBefore + 7, world.LocalPlayer.Health);
+    }
+
+    [Theory]
+    [InlineData(PlayerClass.Sniper)]
+    [InlineData(PlayerClass.Medic)]
+    [InlineData(PlayerClass.Spy)]
+    [InlineData(PlayerClass.Demoman)]
+    public void LastToDieClassBaseHealthBuffAppliesToTheFourSurvivors(PlayerClass playerClass)
+    {
+        var world = CreateWorld(playerClass);
+        var stockMaximumHealth = world.LocalPlayer.ClassDefinition.MaxHealth;
+
+        Assert.True(world.TryConfigureLastToDiePlayerBuild(SimulationWorld.LocalPlayerSlot, []));
+
+        Assert.Equal(stockMaximumHealth + 40, world.LocalPlayer.MaxHealth);
+        Assert.Equal(world.LocalPlayer.MaxHealth, world.LocalPlayer.Health);
     }
 
     private static SimulationWorld CreateWorld(PlayerClass localClass)

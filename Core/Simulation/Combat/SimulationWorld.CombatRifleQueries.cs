@@ -350,7 +350,7 @@ public sealed partial class SimulationWorld
 
             // Allocation order must not decide whether an overlapping friendly
             // body blocks an ordinary rifle trace.
-            if (!policy.AllowFriendlySupport)
+            if (!policy.AllowFriendlySupport && !policy.PierceFriendlyPlayers)
             {
                 var firstEnemyDistance = candidates
                     .Where(static candidate => !candidate.IsFriendlySupport)
@@ -381,6 +381,16 @@ public sealed partial class SimulationWorld
             {
                 if (candidate.IsFriendlySupport)
                 {
+                    if (policy.PierceFriendlyPlayers)
+                    {
+                        if (policy.AllowFriendlySupport)
+                        {
+                            orderedHits.Add(candidate);
+                        }
+
+                        continue;
+                    }
+
                     if (policy.AllowFriendlySupport)
                     {
                         orderedHits.Add(candidate);

@@ -39,9 +39,11 @@ public sealed partial class PlayerEntity
         CancelSniperBowCharge();
         CancelMortarLauncherCharge();
         SniperRifleFullyChargedHitStreak = 0;
+        ResetDragonRageCadence();
         IsSniperScoped = false;
         ClearMedicHealingTarget();
         RefreshGameplayLoadoutState();
+        ResetPyroPrimaryStateFromCurrentAmmo();
         return true;
     }
 
@@ -83,10 +85,11 @@ public sealed partial class PlayerEntity
         CancelSniperBowCharge();
         CancelMortarLauncherCharge();
         SniperRifleFullyChargedHitStreak = 0;
+        ResetDragonRageCadence();
         IsSniperScoped = false;
         ClearMedicHealingTarget();
-        ResetPyroPrimaryStateFromCurrentAmmo();
         RefreshGameplayLoadoutState();
+        ResetPyroPrimaryStateFromCurrentAmmo();
         return true;
     }
 

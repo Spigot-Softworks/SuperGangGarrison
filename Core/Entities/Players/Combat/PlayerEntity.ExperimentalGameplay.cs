@@ -74,11 +74,21 @@ public sealed partial class PlayerEntity
 
     private float ExperimentalEngineerMetalMovementSpeedMultiplierValue { get; set; } = 1f;
 
-    private int ExperimentalCryoSlowTicksRemaining { get; set; }
+    public int ExperimentalCryoSlowTicksRemaining { get; private set; }
+
+    private int NetworkExperimentalCryoSlowTicksRemaining { get; set; }
 
     private float ExperimentalCryoSlowMovementMultiplierValue { get; set; } = 1f;
 
-    private int ExperimentalCryoFreezeTicksRemaining { get; set; }
+    public int ExperimentalCryoFreezeTicksRemaining { get; private set; }
+
+    private int NetworkExperimentalCryoFreezeTicksRemaining { get; set; }
+
+    private float NetworkExperimentalCryoExposureFraction { get; set; }
+
+    private int NetworkExperimentalGhostVisibilityTicksRemaining { get; set; }
+
+    private float NetworkExperimentalGhostTrailAlpha { get; set; }
 
     private int ExperimentalCryoHitCountValue { get; set; }
 
@@ -164,11 +174,16 @@ public sealed partial class PlayerEntity
         ? MathF.Max(0f, ExperimentalPassiveMetalRegenerationPerTickValue)
         : 0f;
 
-    public bool IsExperimentalCryoSlowed => ExperimentalCryoSlowTicksRemaining > 0;
+    public int ExperimentalGhostVisibilityTicksRemaining
+        => Math.Max(ExperimentalGhostDashVisibilityTicksRemaining, NetworkExperimentalGhostVisibilityTicksRemaining);
+
+    public bool IsExperimentalCryoSlowed
+        => ExperimentalCryoSlowTicksRemaining > 0 || NetworkExperimentalCryoSlowTicksRemaining > 0;
 
     public bool IsDirectFireSlowed => DirectFireSlowTicksRemaining > 0;
 
-    public bool IsExperimentalCryoFrozen => ExperimentalCryoFreezeTicksRemaining > 0;
+    public bool IsExperimentalCryoFrozen
+        => ExperimentalCryoFreezeTicksRemaining > 0 || NetworkExperimentalCryoFreezeTicksRemaining > 0;
 
     public bool IsExperimentalEngineerEssenceExtractorPresented { get; private set; }
 
@@ -178,9 +193,29 @@ public sealed partial class PlayerEntity
 
     public int ExperimentalCryoExposureTicks => ExperimentalCryoExposureTicksValue;
 
-    public float ExperimentalCryoExposureFraction => ExperimentalCryoExposureThresholdValue > 0
-        ? Math.Clamp(ExperimentalCryoExposureValue / ExperimentalCryoExposureThresholdValue, 0f, 1f)
-        : 0f;
+    public float ExperimentalCryoExposureFraction => Math.Max(
+        ExperimentalCryoExposureThresholdValue > 0
+            ? Math.Clamp(ExperimentalCryoExposureValue / ExperimentalCryoExposureThresholdValue, 0f, 1f)
+            : 0f,
+        NetworkExperimentalCryoExposureFraction);
+
+    public void HydrateNetworkExperimentalVisualState(
+        int cryoSlowTicksRemaining,
+        int cryoFreezeTicksRemaining,
+        float cryoExposureFraction,
+        int ghostVisibilityTicksRemaining,
+        float ghostTrailAlpha)
+    {
+        NetworkExperimentalCryoSlowTicksRemaining = IsAlive ? Math.Max(0, cryoSlowTicksRemaining) : 0;
+        NetworkExperimentalCryoFreezeTicksRemaining = IsAlive ? Math.Max(0, cryoFreezeTicksRemaining) : 0;
+        NetworkExperimentalCryoExposureFraction = IsAlive && float.IsFinite(cryoExposureFraction)
+            ? Math.Clamp(cryoExposureFraction, 0f, 1f)
+            : 0f;
+        NetworkExperimentalGhostVisibilityTicksRemaining = IsAlive ? Math.Max(0, ghostVisibilityTicksRemaining) : 0;
+        NetworkExperimentalGhostTrailAlpha = IsAlive && float.IsFinite(ghostTrailAlpha)
+            ? Math.Clamp(ghostTrailAlpha, 0f, 1f)
+            : 0f;
+    }
 
     public float ExperimentalDamageTakenMultiplier => ExperimentalDamageTakenDebuffTicksRemaining > 0
         ? ExperimentalDamageTakenMultiplierValue
@@ -853,6 +888,7 @@ public sealed partial class PlayerEntity
 
         ExperimentalGhostDashTicksRemaining = Math.Max(ExperimentalGhostDashTicksRemaining, ticks);
         ExperimentalGhostDashVisibilityTicksRemaining = Math.Max(ExperimentalGhostDashVisibilityTicksRemaining, ticks);
+        ExperimentalGhostDashTrailAlphaValue = Math.Max(ExperimentalGhostDashTrailAlphaValue, 1f);
     }
 
     public void TriggerExperimentalLuckyBastard(int invulnerabilityTicks, int reviveHealth)
@@ -1278,8 +1314,13 @@ public sealed partial class PlayerEntity
         ExperimentalEngineerMetalMovementSpeedMultiplierValue = 1f;
         Metal = float.Clamp(Metal, 0f, MaxMetal);
         ExperimentalCryoSlowTicksRemaining = 0;
+        NetworkExperimentalCryoSlowTicksRemaining = 0;
         ExperimentalCryoSlowMovementMultiplierValue = 1f;
         ExperimentalCryoFreezeTicksRemaining = 0;
+        NetworkExperimentalCryoFreezeTicksRemaining = 0;
+        NetworkExperimentalCryoExposureFraction = 0f;
+        NetworkExperimentalGhostVisibilityTicksRemaining = 0;
+        NetworkExperimentalGhostTrailAlpha = 0f;
         ExperimentalCryoHitCountValue = 0;
         ExperimentalCryoExposureTicksValue = 0;
         ExperimentalCryoExposureValue = 0f;
@@ -1435,6 +1476,7 @@ public sealed partial class PlayerEntity
         multiplier *= LastToDieCloakedMovementSpeedMultiplier;
         multiplier *= LastToDieSniperMovementSpeedMultiplier;
         multiplier *= LastToDieMedicLinkMovementSpeedMultiplier;
+        multiplier *= LastToDieUniversalMovementSpeedMultiplier;
 
         if (IsSniperBowEquipped && SniperBowChargeTicks > 0)
         {
@@ -1557,12 +1599,23 @@ public sealed partial class PlayerEntity
                 clampedTicks
                     / (ExperimentalReloadSpeedMultiplierValue
                         * DispenserAttackReloadSpeedMultiplier
-                        * LastToDieMedicLinkAttackSpeedMultiplier)));
+                        * LastToDieMedicLinkAttackSpeedMultiplier
+                        * LastToDieStatusReloadSpeedMultiplier
+                        * LastToDieUniversalReloadSpeedMultiplier)));
     }
 
     private int ApplyExperimentalWeaponCycleMultiplier(int ticks)
     {
-        var adjustedTicks = ApplyExperimentalReloadMultiplier(ticks);
+        var clampedTicks = Math.Max(1, ticks);
+        var adjustedTicks = Math.Max(
+            1,
+            (int)MathF.Round(
+                clampedTicks
+                    / (ExperimentalReloadSpeedMultiplierValue
+                        * DispenserAttackReloadSpeedMultiplier
+                        * LastToDieMedicLinkAttackSpeedMultiplier
+                        * LastToDieStatusFireSpeedMultiplier
+                        * LastToDieUniversalFireSpeedMultiplier)));
         if (ExperimentalFreezeRayCombatDebuffTicksRemaining > 0)
         {
             adjustedTicks = Math.Max(1, (int)MathF.Round(adjustedTicks * ExperimentalFreezeRayWeaponCycleMultiplierValue));
@@ -1584,12 +1637,23 @@ public sealed partial class PlayerEntity
                     / (ExperimentalReloadSpeedMultiplierValue
                         * DispenserAttackReloadSpeedMultiplier
                         * LastToDieMedicLinkAttackSpeedMultiplier
+                        * LastToDieStatusReloadSpeedMultiplier
+                        * LastToDieUniversalReloadSpeedMultiplier
                         * modifiedSpringMultiplier)));
     }
 
     private int ApplyLastToDieMedicNeedleWeaponCycleMultiplier(int ticks)
     {
         var adjustedTicks = ApplyLastToDieMedicNeedleReloadMultiplier(ticks);
+        var reloadMultiplier = MathF.Max(
+            0.05f,
+            LastToDieUniversalReloadSpeedMultiplier * LastToDieStatusReloadSpeedMultiplier);
+        var fireMultiplier = MathF.Max(
+            0.05f,
+            LastToDieUniversalFireSpeedMultiplier * LastToDieStatusFireSpeedMultiplier);
+        adjustedTicks = Math.Max(
+            1,
+            (int)MathF.Round(adjustedTicks * reloadMultiplier / fireMultiplier));
         if (ExperimentalFreezeRayCombatDebuffTicksRemaining > 0)
         {
             adjustedTicks = Math.Max(

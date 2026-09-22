@@ -27,7 +27,7 @@ internal readonly record struct LastToDieActionStatusLine(
 
 public partial class Game1
 {
-    private const float LastToDieActionStatusTextScale = 0.78f;
+    private const float LastToDieActionStatusTextScale = 1f;
     private const float LastToDieActionStatusLineHeight = 18f;
 
     private bool ShouldDrawLastToDieActionStatusHud()
@@ -82,8 +82,6 @@ public partial class Game1
         var lines = BuildLastToDieActionStatusLines(
             localPlayer,
             _config.TicksPerSecond,
-            ResolveLastToDieMarkedTargetLabel,
-            _world.CountOwnedLastToDieSniperExplosiveArrows(localPlayer),
             predictedActionPlayer);
         if (lines.Count == 0)
         {
@@ -91,8 +89,8 @@ public partial class Game1
         }
 
         var layoutScale = Math.Max(0.25f, resolved.Layout.Scale);
-        var textScale = LastToDieActionStatusTextScale * layoutScale;
-        var lineHeight = LastToDieActionStatusLineHeight * layoutScale;
+        var textScale = Math.Max(1f, LastToDieActionStatusTextScale * layoutScale);
+        var lineHeight = Math.Max(LastToDieActionStatusLineHeight * layoutScale, MeasureBitmapFontHeight(textScale) + 6f);
         var paddingX = 9f * layoutScale;
         var paddingY = 7f * layoutScale;
         var widestLine = lines.Max(line => MeasureBitmapFontWidth(line.Text, textScale));
@@ -138,8 +136,6 @@ public partial class Game1
     internal static IReadOnlyList<LastToDieActionStatusLine> BuildLastToDieActionStatusLines(
         PlayerEntity player,
         int ticksPerSecond,
-        Func<byte, string?>? resolveMarkedTargetLabel = null,
-        int armedExplosiveArrowCount = 0,
         PlayerEntity? predictedActionPlayer = null)
     {
         ArgumentNullException.ThrowIfNull(player);
@@ -150,20 +146,9 @@ public partial class Game1
                 ? predictedActionPlayer
                 : player;
 
-        switch (player.ClassId)
+        if (player.ClassId == PlayerClass.Spy)
         {
-            case PlayerClass.Spy:
-                AddLastToDieSpyActionStatusLines(lines, actionPlayer, ticksPerSecond);
-                break;
-
-            case PlayerClass.Sniper:
-                AddLastToDieSniperActionStatusLines(
-                    lines,
-                    actionPlayer,
-                    ticksPerSecond,
-                    resolveMarkedTargetLabel,
-                    armedExplosiveArrowCount);
-                break;
+            AddLastToDieSpyActionStatusLines(lines, actionPlayer, ticksPerSecond);
         }
 
         AddLastToDieMedicLinkActionStatusLines(lines, actionPlayer);
@@ -279,78 +264,6 @@ public partial class Game1
         }
     }
 
-    private static void AddLastToDieSniperActionStatusLines(
-        List<LastToDieActionStatusLine> lines,
-        PlayerEntity player,
-        int ticksPerSecond,
-        Func<byte, string?>? resolveMarkedTargetLabel,
-        int armedExplosiveArrowCount)
-    {
-        var profile = player.LastToDieSniperProfile;
-        if (player.IsLastToDieSniperGhostCloaked)
-        {
-            lines.Add(new LastToDieActionStatusLine(
-                "GHOST: CLOAKED / FIRE x3",
-                LastToDieActionStatusTone.Active));
-        }
-        else if (player.LastToDieSniperGhostCooldownTicksRemaining > 0)
-        {
-            lines.Add(new LastToDieActionStatusLine(
-                $"GHOST: {FormatLastToDieActionSeconds(player.LastToDieSniperGhostCooldownTicksRemaining, ticksPerSecond)}",
-                LastToDieActionStatusTone.Cooldown));
-        }
-        else if (profile.GhostEnabled)
-        {
-            lines.Add(new LastToDieActionStatusLine(
-                "Q GHOST: READY",
-                LastToDieActionStatusTone.Ready));
-        }
-
-        if (profile.SpottedEnabled && player.LastToDieSniperMarkedTargetSlot > 0)
-        {
-            var targetLabel = resolveMarkedTargetLabel?.Invoke(player.LastToDieSniperMarkedTargetSlot);
-            if (string.IsNullOrWhiteSpace(targetLabel))
-            {
-                targetLabel = $"P{player.LastToDieSniperMarkedTargetSlot.ToString(CultureInfo.InvariantCulture)}";
-            }
-
-            targetLabel = targetLabel.Trim();
-            if (targetLabel.Length > 20)
-            {
-                targetLabel = targetLabel[..20];
-            }
-
-            lines.Add(new LastToDieActionStatusLine(
-                $"SPOTTED: {targetLabel}",
-                LastToDieActionStatusTone.Warning));
-        }
-
-        if (profile.ConquistadorEnabled)
-        {
-            var bonusPercent = player.LastToDieSniperConquistadorStacks * 2;
-            lines.Add(new LastToDieActionStatusLine(
-                $"CONQUISTADOR: +{bonusPercent.ToString(CultureInfo.InvariantCulture)}% DAMAGE",
-                LastToDieActionStatusTone.Beneficial));
-        }
-
-        var volley = player.LastToDieSniperVolleyState;
-        if (volley.IsActive)
-        {
-            var pendingCount = volley.QueuedArrowCount + volley.DueArrowCount;
-            lines.Add(new LastToDieActionStatusLine(
-                $"VOLLEY: {pendingCount.ToString(CultureInfo.InvariantCulture)} ARROW{(pendingCount == 1 ? string.Empty : "S")} PENDING",
-                LastToDieActionStatusTone.Info));
-        }
-
-        armedExplosiveArrowCount = Math.Max(0, armedExplosiveArrowCount);
-        if (profile.ExplosiveTipEnabled && armedExplosiveArrowCount > 0)
-        {
-            lines.Add(new LastToDieActionStatusLine(
-                $"M2 DETONATE: {armedExplosiveArrowCount.ToString(CultureInfo.InvariantCulture)} ARROW{(armedExplosiveArrowCount == 1 ? string.Empty : "S")}",
-                LastToDieActionStatusTone.Ready));
-        }
-    }
-
     internal static string FormatLastToDieActionSeconds(int ticks, int ticksPerSecond)
     {
         ticksPerSecond = Math.Max(1, ticksPerSecond);
@@ -372,13 +285,6 @@ public partial class Game1
             MedicUberDeliveryMode.RejuvenationRay => ("REJUV", "RAY"),
             _ => ("SUPER", "BURST"),
         };
-    }
-
-    private string? ResolveLastToDieMarkedTargetLabel(byte slot)
-    {
-        return _world.TryGetNetworkPlayer(slot, out var player)
-            ? GetHudPlayerLabel(player)
-            : null;
     }
 
     private static Color GetLastToDieActionStatusColor(LastToDieActionStatusTone tone)

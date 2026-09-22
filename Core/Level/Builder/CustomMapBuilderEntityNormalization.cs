@@ -298,7 +298,13 @@ public static class CustomMapBuilderEntityNormalization
             return entity;
         }
 
-        return CustomMapBuilderEntity.Create(legacyType, entity.X, entity.Y, properties, entity.XScale, entity.YScale).NormalizeForEditing();
+        var legacy = CustomMapBuilderEntity.Create(legacyType, entity.X, entity.Y, properties, entity.XScale, entity.YScale).NormalizeForEditing();
+        var roundTrip = NormalizeEntityForEditor(legacy);
+        // Legacy gates cannot express every combination of player, shot, and intel filters.
+        // Only use one when it preserves all six settings exactly.
+        return BarrierConfiguration.FromProperties(roundTrip.Properties).Targets == configuration.Targets
+            ? legacy
+            : entity;
     }
 
     private static CustomMapBuilderEntity ResolveDirectionalWallForExport(CustomMapBuilderEntity entity)

@@ -54,6 +54,11 @@ public partial class Game1
                 return;
             }
 
+            if (_game._mainMenuOpen && _game._namePromptOpen && _game._menuTextInputController.TryHandlePlayerNameEdit(character))
+            {
+                return;
+            }
+
             if (_game._friendsMenuOpen && _game._editingFriendNickname && _game._menuTextInputController.TryHandleFriendNicknameEdit(character))
             {
                 return;

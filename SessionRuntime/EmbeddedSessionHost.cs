@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Net;
+using OpenGarrison.Core.LastToDie;
 using OpenGarrison.Core;
 using OpenGarrison.Protocol;
 using OpenGarrison.Server;
@@ -12,16 +13,64 @@ public sealed class EmbeddedSessionHost : IDisposable
     private readonly GameServer _server;
     private readonly EmbeddedMessageTransport _transport = new();
     private bool _disposed;
+    private readonly List<RunRecordingEvent>? _recordedEvents;
+    private readonly Queue<(LastToDieRecording Recording, LastToDieRunOutcome Outcome)> _completedRecordings = new();
+    private LastToDieRunOutcome? _pendingOutcome;
+    private readonly bool _requireAdmission;
+    private int _completedRuns;
+    private long _recordedBytes;
+    private double _recordedSeconds;
+    public string RecordingError { get; private set; } = "";
+    public event Action<LastToDieRunOutcome>? RunCompleted;
+
+    public bool TryTakeRecordedRun(out LastToDieRecording recording, out LastToDieRunOutcome outcome)
+    {
+        if (_completedRecordings.TryDequeue(out var completed))
+        { recording = completed.Recording; outcome = completed.Outcome; return true; }
+        recording = null!; outcome = null!; return false;
+    }
+
+    private void Record(RunRecordingEvent entry)
+    {
+        if (_recordedEvents is null || RecordingError.Length > 0) return;
+        _recordedBytes += 160 + (entry.Payload?.LongLength ?? 0) * 2;
+        _recordedSeconds += entry.Seconds;
+        if (_recordedEvents.Count >= LastToDieRecording.MaximumEvents
+            || _recordedBytes > LastToDieRecording.MaximumDecodedBytes
+            || _recordedSeconds > LastToDieRecording.MaximumSeconds)
+        {
+            RecordingError = "This session exceeded the run recording limit. Results are saved locally.";
+            _recordedEvents.Clear();
+            return;
+        }
+        _recordedEvents.Add(entry);
+    }
+
     public EmbeddedSessionOptions Options { get; }
     public SimulationWorld World => _server.EmbeddedWorld;
 
-    public EmbeddedSessionHost(EmbeddedSessionOptions options, bool requireRoomAdmission = false)
+    public EmbeddedSessionHost(EmbeddedSessionOptions options, bool requireRoomAdmission = false, bool recordRuns = true)
     {
         options.Validate();
+        if (options.LastToDie) options = options with { Seed = options.Seed ?? unchecked((ulong)Random.Shared.NextInt64()),
+            RunIdentity = options.RunIdentity == Guid.Empty ? Guid.NewGuid() : options.RunIdentity };
         Options = options;
+        _requireAdmission = requireRoomAdmission;
+        if (options.LastToDie && recordRuns) _recordedEvents = new();
+        using var deterministic = options.LastToDie ? new DeterministicSimulationScope() : null;
         _server = new GameServer(options);
         if (requireRoomAdmission) _server.ConfigureEmbeddedAdmissions(peer => _transport.GetAdmission(peer));
-        _transport.PeerRemoved = peer => _server.RemoveEmbeddedPeer(peer);
+        _transport.PeerRemoved = peer =>
+        {
+            Record(new(RunRecordingEventKind.Disconnect, peer.Id));
+            _server.RemoveEmbeddedPeer(peer);
+        };
+        _transport.PacketReceived = packet =>
+        {
+            if (RunRecordingPackets.IsGameplayPacket(packet.Payload))
+                Record(new(RunRecordingEventKind.Packet, packet.RemotePeer.Id, Payload: packet.Payload.ToArray()));
+        };
+        _server.LastToDieRunCompleted = result => _pendingOutcome = result;
         try { _server.StartEmbedded(_transport, options); }
         catch { _transport.Dispose(); _server.StopEmbedded(); throw; }
     }
@@ -29,17 +78,39 @@ public sealed class EmbeddedSessionHost : IDisposable
     public EmbeddedSessionPeer CreatePeer(bool local = false, byte slot = 0, Guid clientId = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        return _transport.CreatePeer(local, slot, clientId);
+        var peer = _transport.CreatePeer(local, slot, clientId);
+        Record(new(RunRecordingEventKind.Connect, peer.Identity.Id, local, slot, clientId));
+        return peer;
     }
 
     public void Advance(double elapsedSeconds)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        _server.AdvanceEmbedded(Math.Clamp(double.IsFinite(elapsedSeconds) ? elapsedSeconds : 0, 0, 0.25));
+        using var deterministic = Options.LastToDie ? new DeterministicSimulationScope() : null;
+        var seconds = Math.Clamp(double.IsFinite(elapsedSeconds) ? elapsedSeconds : 0, 0, 0.25);
+        // Packet events are recorded as they are consumed; the advance follows those inputs.
+        _server.AdvanceEmbedded(seconds);
+        Record(new(RunRecordingEventKind.Advance, Seconds: seconds));
+        if (_pendingOutcome is { } result)
+        {
+            _pendingOutcome = null;
+            _completedRuns++;
+            if (_recordedEvents is not null && RecordingError.Length == 0)
+                _completedRecordings.Enqueue((new(LastToDieRecording.CurrentRuleset, Options, _requireAdmission,
+                    _completedRuns, _recordedEvents.ToArray()) { ExpectedOutcome = result }, result));
+            RunCompleted?.Invoke(result);
+        }
     }
 
     public Task<IReadOnlyList<string>> ExecuteHostCommandAsync(string command)
-        => _server.ExecuteAdminCommandAsync(command, false, CancellationToken.None);
+    {
+        if (Options.LastToDie)
+        {
+            RecordingError = "Console commands were used. Results are saved locally.";
+            _recordedEvents?.Clear();
+        }
+        return _server.ExecuteAdminCommandAsync(command, false, CancellationToken.None);
+    }
     public IReadOnlyList<string> ExecuteJukeboxCommand(string command) => _server.EmbeddedJukeboxCommand(command);
 
     public void Dispose()
@@ -104,6 +175,7 @@ public sealed class EmbeddedSessionPeer : IDisposable
 internal sealed class EmbeddedMessageTransport : IServerMessageTransport, IDisposable
 {
     public Action<ServerTransportPeer>? PeerRemoved { get; set; }
+    public Action<ServerMessagePacket>? PacketReceived { get; set; }
     private readonly Dictionary<ulong, ManagedRoomRuntime.Participant> _admissions = [];
     public ManagedRoomRuntime.Participant? GetAdmission(ServerTransportPeer peer) => _admissions.GetValueOrDefault(peer.Id);
     private readonly Queue<ServerMessagePacket> _incoming = new();
@@ -136,6 +208,7 @@ internal sealed class EmbeddedMessageTransport : IServerMessageTransport, IDispo
     {
         var packet = _incoming.Dequeue();
         _pendingBytes -= packet.Payload.Length;
+        PacketReceived?.Invoke(packet);
         return packet;
     }
     public void Send(ServerTransportPeer remotePeer, byte[] payload, MessageType? messageType = null)

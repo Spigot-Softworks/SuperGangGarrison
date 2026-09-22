@@ -127,9 +127,4 @@ public sealed partial class SimulationWorld
         }
     }
 
-    private PlayerEntity? FindHealingMedicPlayer(int targetPlayerId)
-    {
-        var medicId = FindHealingMedicPlayerId(targetPlayerId);
-        return medicId > 0 ? FindPlayerById(medicId) : null;
-    }
 }

@@ -180,7 +180,12 @@ public sealed partial class PlayerEntity
             return;
         }
 
-        if ((!IsExperimentalOffhandEquipped && !CanReloadExperimentalSoldierStowedWeapons()) || ExperimentalOffhandCooldownTicks > 0)
+        var isStowedFlaregun = ClassId == PlayerClass.Pyro
+            && string.Equals(weaponDefinition.ItemId, "weapon.pyro-flaregun", StringComparison.Ordinal);
+        if ((!IsExperimentalOffhandEquipped
+                && !CanReloadExperimentalSoldierStowedWeapons()
+                && !isStowedFlaregun)
+            || ExperimentalOffhandCooldownTicks > 0)
         {
             return;
         }
@@ -342,7 +347,8 @@ public sealed partial class PlayerEntity
 
     private bool CanReloadExperimentalSoldierStowedWeapons()
     {
-        return ExperimentalSoldierAmmoRegeneratesWhileSwappedOutEnabled
+        return (ExperimentalSoldierAmmoRegeneratesWhileSwappedOutEnabled
+                || HasPrimaryBehavior(BuiltInGameplayBehaviorIds.MortarLauncher))
             && ClassId == PlayerClass.Soldier;
     }
 

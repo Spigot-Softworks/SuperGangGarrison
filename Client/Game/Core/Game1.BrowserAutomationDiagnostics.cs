@@ -21,6 +21,9 @@ public partial class Game1
 
     public sealed record BrowserAutomationAction(string Label, BrowserAutomationRect Bounds, bool Enabled = true);
 
+    public sealed record BrowserPlayerSkinSnapshot(string BodySprite, int Pose, string Clip,
+        int BodyFrameCount, string WeaponSprite, int WeaponFrameCount, string WeaponAnimation, int WeaponPose);
+
     public sealed record BrowserRoomSnapshot(string RoomCode, string MenuPage, string Phase,
         int PlayerCount, int LocalSlot, bool IsOwner, long ServerTick, string[] MenuLabels, string[] OfferChoices);
 
@@ -82,6 +85,7 @@ public partial class Game1
         BrowserAutomationAction[] ClassSelectButtons)
     {
         public BrowserRoomSnapshot? LastToDie { get; init; }
+        public BrowserPlayerSkinSnapshot? PlayerSkin { get; init; }
         public bool LoadingOverlayVisible { get; init; }
         public bool JoiningOverlayVisible { get; init; }
         public bool SurvivorBuffActive { get; init; }
@@ -243,6 +247,7 @@ public partial class Game1
             TeamSelectButtons: GetBrowserTeamSelectAutomationActions(),
             ClassSelectButtons: GetBrowserClassSelectAutomationActions())
         {
+            PlayerSkin = GetBrowserPlayerSkinSnapshot(),
             LastToDie = new BrowserRoomSnapshot(_peerRoomSession?.Connection.Grant.Code ?? _managedRoom?.RoomCode ?? "", _lastToDieMenuPage.ToString(),
                 _networkClient.LastToDieState.Snapshot?.Phase.ToString() ?? _peerRoomSession?.State?.Phase ?? "",
                 _networkClient.LastToDieState.Snapshot?.Players.Count ?? _peerRoomSession?.State?.Players?.Length ?? 0, _networkClient.LocalPlayerSlot,

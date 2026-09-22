@@ -42,7 +42,8 @@ public partial class Game1
             _binocularsFocusX,
             _binocularsFocusY,
             useMultiplayerExclusivePrimarySwapBinding,
-            previousMouse: _previousMouse);
+            previousMouse: _previousMouse,
+            cameraZoom: GameplayCameraZoom);
         fullInput = ApplyControllerGameplayInput(fullInput, deltaSeconds);
         if (IsNetworkWorldWarmupBlockingGameplay())
         {

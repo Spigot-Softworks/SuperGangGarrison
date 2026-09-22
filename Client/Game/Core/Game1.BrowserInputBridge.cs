@@ -42,6 +42,7 @@ public static class BrowserInputBridge
             {
                 PressedKeys.Clear();
                 PendingTextInput.Clear();
+                _pendingWheelDelta = 0;
                 _leftButton = ButtonState.Released;
                 _middleButton = ButtonState.Released;
                 _rightButton = ButtonState.Released;
@@ -65,6 +66,7 @@ public static class BrowserInputBridge
     {
         lock (Sync)
         {
+            if (!_focused) return;
             _x = x;
             _y = y;
         }
@@ -75,6 +77,7 @@ public static class BrowserInputBridge
         var state = pressed ? ButtonState.Pressed : ButtonState.Released;
         lock (Sync)
         {
+            if (!_focused) return;
             switch (button)
             {
                 case 0:
@@ -100,6 +103,7 @@ public static class BrowserInputBridge
     {
         lock (Sync)
         {
+            if (!_focused) return;
             _pendingWheelDelta += delta;
         }
     }
@@ -108,6 +112,7 @@ public static class BrowserInputBridge
     {
         lock (Sync)
         {
+            if (!_focused) return;
             if (pressed)
             {
                 _userActivationObserved = true;
@@ -124,6 +129,7 @@ public static class BrowserInputBridge
     {
         lock (Sync)
         {
+            if (!_focused) return;
             PendingTextInput.Enqueue(character);
         }
     }

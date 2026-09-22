@@ -30,8 +30,64 @@ public sealed class BuilderEditorRegressionTests
     }
     private static void Set(Game1 game, string name, object? value) => typeof(Game1).GetField(name, Private)!.SetValue(game, value);
     private static object? Get(Game1 game, string name) => typeof(Game1).GetField(name, Private)!.GetValue(game);
-    private static object? Call(Game1 game, string name, params object?[] args) => typeof(Game1).GetMethod(name, Private)!.Invoke(game, args);
+    private static object? Call(Game1 game, string name, params object?[] args) => typeof(Game1).GetMethod(name, Private | BindingFlags.Static)!.Invoke(game, args);
     private static void SetEnum(Game1 game, string field, string value) => Set(game, field, Enum.Parse(typeof(Game1).GetField(field, Private)!.FieldType, value));
+
+    public static IEnumerable<object[]> ResizeCases()
+    {
+        foreach (var type in new[] { "barrier", "spawnroom", "teleport", "logicPlayerTrigger", "logicArea", "logicDamageable" })
+        foreach (var handle in Enum.GetValues<Game1.GarrisonBuilderResizeHandle>().Where(h => h != Game1.GarrisonBuilderResizeHandle.None))
+        foreach (var snap in new[] { false, true })
+            yield return [type, (int)handle, snap];
+    }
+
+    [Theory]
+    [MemberData(nameof(ResizeCases))]
+    public void GrabbingResizeHandlePreservesBoundsThenMovesOnlyTheDraggedEdges(string type, int handleValue, bool snap)
+    {
+        var handle = (Game1.GarrisonBuilderResizeHandle)handleValue;
+        var entity = CustomMapBuilderEntity.Create(type, 101, 83, xScale: 2, yScale: 3).NormalizeForEditing();
+        var game = Session(entity);
+        Set(game, "_builderSelectedEntityIndex", 0);
+        Set(game, "_builderGridAlign", snap);
+        // Atlas-backed frames do not require a graphics device to supply their dimensions.
+        var cache = (Dictionary<string, LoadedGameMakerSprite>)Get(game, "_builderCatalogSpriteCache")!;
+        Assert.True(CustomMapBuilderEntityCatalog.TryGetDefinition(type, out var definition));
+        cache[definition.EntitySpriteName] = new LoadedGameMakerSprite(
+            [new LoadedSpriteFrame(null!, new Rectangle(0, 0, 42, 42), OwnsTexture: false)], new Point(21, 21));
+        var before = Bounds(game, entity);
+        var handles = (Dictionary<Game1.GarrisonBuilderResizeHandle, Vector2>)Call(game, "GetGarrisonBuilderResizeHandlePoints", before.Left, before.Top, before.Width, before.Height)!;
+        var cursor = handles[handle] + new Vector2(2, 2);
+        Assert.True((bool)Call(game, "TryBeginGarrisonBuilderResize", cursor.ToPoint(), cursor)!);
+        Assert.Equal(handle, Get(game, "_builderActiveResizeHandle"));
+
+        Call(game, "ApplyGarrisonBuilderResizeDrag", cursor);
+        AssertBounds(before, Bounds(game, ((List<CustomMapBuilderEntity>)Get(game, "_builderEntities")!)[0]));
+
+        var delta = new Vector2(12, 6);
+        Call(game, "ApplyGarrisonBuilderResizeDrag", cursor + delta);
+        var expected = Game1.ResolveGarrisonBuilderResizeDragBounds(handle, before.Left, before.Top, before.Width, before.Height,
+            handles[handle].X + delta.X, handles[handle].Y + delta.Y);
+        // Left handles on the narrow barrier reach its six-pixel minimum.
+        if (expected.Width < 6) expected = (before.Left + before.Width - 6, expected.Top, 6, expected.Height);
+        AssertBounds(expected, Bounds(game, ((List<CustomMapBuilderEntity>)Get(game, "_builderEntities")!)[0]));
+    }
+
+    private static void AssertBounds((float Left, float Top, float Width, float Height) expected,
+        (float Left, float Top, float Width, float Height) actual)
+    {
+        Assert.Equal(expected.Left, actual.Left, 3);
+        Assert.Equal(expected.Top, actual.Top, 3);
+        Assert.Equal(expected.Width, actual.Width, 3);
+        Assert.Equal(expected.Height, actual.Height, 3);
+    }
+
+    private static (float Left, float Top, float Width, float Height) Bounds(Game1 game, CustomMapBuilderEntity entity)
+    {
+        object?[] args = [entity, 0f, 0f, 0f, 0f];
+        Assert.True((bool)Call(game, "TryGetGarrisonBuilderEntityWorldBounds", args)!);
+        return ((float)args[1]!, (float)args[2]!, (float)args[3]!, (float)args[4]!);
+    }
 
     [Theory]
     [InlineData(false, "Escape")]

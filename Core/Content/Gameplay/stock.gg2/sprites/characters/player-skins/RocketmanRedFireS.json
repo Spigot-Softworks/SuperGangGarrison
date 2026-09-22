@@ -1,0 +1,14 @@
+{
+  "id": "RocketmanRedFireS",
+  "framePaths": [
+    "assets/characters/player-skins/RocketmanRedFireS/0.png",
+    "assets/characters/player-skins/RocketmanRedFireS/1.png",
+    "assets/characters/player-skins/RocketmanRedFireS/2.png",
+    "assets/characters/player-skins/RocketmanRedFireS/3.png",
+    "assets/characters/player-skins/RocketmanRedFireS/4.png",
+    "assets/characters/player-skins/RocketmanRedFireS/5.png",
+    "assets/characters/player-skins/RocketmanRedFireS/6.png"
+  ],
+  "originX": 28,
+  "originY": 42
+}

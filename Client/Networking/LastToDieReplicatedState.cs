@@ -118,6 +118,9 @@ internal sealed class LastToDieReplicatedState
             {
                 OwnedPerkIds = Array.AsReadOnly(player.OwnedPerkIds.ToArray()),
                 ActiveOfferChoices = Array.AsReadOnly(player.ActiveOfferChoices.ToArray()),
+                ActiveOfferSlots = player.ActiveOfferSlots is null
+                    ? null
+                    : Array.AsReadOnly(player.ActiveOfferSlots.ToArray()),
             })
             .ToArray();
         return snapshot with { Players = Array.AsReadOnly(players) };

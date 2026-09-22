@@ -1,0 +1,24 @@
+{
+  "id": "RocketmanBlueBodyS",
+  "framePaths": [
+    "assets/characters/player-skins/RocketmanBlueBodyS/0.png",
+    "assets/characters/player-skins/RocketmanBlueBodyS/1.png",
+    "assets/characters/player-skins/RocketmanBlueBodyS/2.png",
+    "assets/characters/player-skins/RocketmanBlueBodyS/3.png",
+    "assets/characters/player-skins/RocketmanBlueBodyS/4.png",
+    "assets/characters/player-skins/RocketmanBlueBodyS/5.png",
+    "assets/characters/player-skins/RocketmanBlueBodyS/6.png",
+    "assets/characters/player-skins/RocketmanBlueBodyS/7.png",
+    "assets/characters/player-skins/RocketmanBlueBodyS/8.png",
+    "assets/characters/player-skins/RocketmanBlueBodyS/9.png",
+    "assets/characters/player-skins/RocketmanBlueBodyS/10.png",
+    "assets/characters/player-skins/RocketmanBlueBodyS/11.png",
+    "assets/characters/player-skins/RocketmanBlueBodyS/12.png",
+    "assets/characters/player-skins/RocketmanBlueBodyS/13.png",
+    "assets/characters/player-skins/RocketmanBlueBodyS/14.png",
+    "assets/characters/player-skins/RocketmanBlueBodyS/15.png",
+    "assets/characters/player-skins/RocketmanBlueBodyS/16.png"
+  ],
+  "originX": 32,
+  "originY": 40
+}

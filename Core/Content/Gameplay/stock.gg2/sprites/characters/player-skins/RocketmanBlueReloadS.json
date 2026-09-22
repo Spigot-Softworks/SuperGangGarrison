@@ -1,0 +1,15 @@
+{
+  "id": "RocketmanBlueReloadS",
+  "framePaths": [
+    "assets/characters/player-skins/RocketmanBlueReloadS/0.png",
+    "assets/characters/player-skins/RocketmanBlueReloadS/1.png",
+    "assets/characters/player-skins/RocketmanBlueReloadS/2.png",
+    "assets/characters/player-skins/RocketmanBlueReloadS/3.png",
+    "assets/characters/player-skins/RocketmanBlueReloadS/4.png",
+    "assets/characters/player-skins/RocketmanBlueReloadS/5.png",
+    "assets/characters/player-skins/RocketmanBlueReloadS/6.png",
+    "assets/characters/player-skins/RocketmanBlueReloadS/7.png"
+  ],
+  "originX": 28,
+  "originY": 42
+}

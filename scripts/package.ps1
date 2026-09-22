@@ -7,6 +7,7 @@ param(
     [ValidateSet("stable", "beta")]
     [string]$Channel = "stable",
     [string]$UpdateManifestVersion = "",
+    [string]$UpdaterPackageVersion = "",
     [string]$UpdateManifestFileName = "latest.json",
     [string]$ArchiveNameSuffix = "",
     [string]$ChainedUpdateManifestUrl = "",
@@ -1461,9 +1462,7 @@ function Convert-PackagedBotBrainJsonAssetsToGzip {
     $contentRoot = [System.IO.Path]::GetFullPath($ContentDirectory)
     $directories = @(
         "BotBrainNav",
-        "BotBrainProofGraphs",
-        "BotBrainCorridors",
-        "BotBrainTapes"
+        "BotBrainCorridors"
     )
 
     $compressedFiles = 0
@@ -1682,7 +1681,7 @@ function Assert-PackagedContentPolicy {
         }
     }
 
-    foreach ($relativeDirectory in @("BotBrainNav", "BotBrainProofGraphs", "BotBrainCorridors", "BotBrainTapes")) {
+    foreach ($relativeDirectory in @("BotBrainNav", "BotBrainCorridors")) {
         $directory = Join-Path $ContentDirectory $relativeDirectory
         if (-not (Test-Path $directory)) {
             continue
@@ -2196,7 +2195,13 @@ if ($PackageRevision -gt 0 -and ($LegacyRootLayout -or $packageVersion -notmatch
 }
 # The updater reads root metadata; the game reads app/version.txt. A revision
 # delivers a same-version hotfix without changing the game's network identity.
-$updaterPackageVersion = if ($PackageRevision -gt 0) { "$packageVersion.$PackageRevision" } else { $packageVersion }
+$requestedUpdaterPackageVersion = $UpdaterPackageVersion
+$updaterPackageVersion = if (-not [string]::IsNullOrWhiteSpace($requestedUpdaterPackageVersion)) {
+    $normalizedUpdaterVersion = Normalize-PackageVersion -Value $requestedUpdaterPackageVersion
+    if ([string]::IsNullOrWhiteSpace($normalizedUpdaterVersion)) { throw "Invalid updater package version: '$requestedUpdaterPackageVersion'." }
+    if ($PackageRevision -gt 0) { throw "Use either UpdaterPackageVersion or PackageRevision, not both." }
+    $normalizedUpdaterVersion
+} elseif ($PackageRevision -gt 0) { "$packageVersion.$PackageRevision" } else { $packageVersion }
 $manifestVersion = if ([string]::IsNullOrWhiteSpace($UpdateManifestVersion)) {
     $packageVersion
 }

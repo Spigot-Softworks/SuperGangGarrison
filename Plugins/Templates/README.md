@@ -1,10 +1,9 @@
 # Plugin Templates
 
-These templates describe the manifest shape and host boundary that the current
-plugin runtime understands today.
+These templates demonstrate plugin manifests and host APIs.
 
 - `ClientClr` is the baseline manifest for packaged C# client plugins.
-- `ClientLua.RandomBackgrounds` is a runnable first-pass Lua client plugin template.
+- `ClientLua.RandomBackgrounds` is a runnable Lua client plugin template.
 - `ClientLua.ShowPing` is a runnable Lua HUD and scoreboard plugin template.
 - `ClientLua.LowHealthIndicator` is a runnable Lua client update and audio plugin template.
 - `ClientLua.CameraShake` is a runnable Lua world-sound and camera-offset plugin template.
@@ -13,7 +12,7 @@ plugin runtime understands today.
 - `ClientLua.BubbleWheel` is a runnable Lua bubble-menu override template.
 - `ClientLua.TeamOnlyMinimap` is a runnable Lua minimap HUD plugin template.
 - `ServerClr` is the baseline manifest for packaged C# server plugins.
-- `ServerLua` is a runnable first-pass Lua server plugin template.
+- `ServerLua` is a runnable Lua server plugin template.
 - `ServerLua.ChatVoting` is a runnable Lua native vote-kind extension template.
 - `ServerLua.GameplayAbility` is a runnable Lua server gameplay ability template
   with a Spacebar action, plugin-owned cooldown HUD state, and hidden passive
@@ -22,15 +21,14 @@ plugin runtime understands today.
   that registers a custom weapon behavior, weapon item, and loadout.
 
 Ready-to-run packaged example installs live separately under `Plugins/Packaged/`
-so release packages can ship examples without conflating them with authoring
-templates.
+so release packages can ship examples alongside the game.
 
-The current Lua hosts are intentionally narrow:
+Supported APIs include:
 
-- Client Lua currently targets lifecycle, menu integration, main-menu overrides,
+- Client Lua supports lifecycle, menu integration, main-menu overrides,
   HUD/scoreboard drawing, lightweight audio playback, and options/config-backed
   presentation plugins.
-- Server Lua currently targets lifecycle, gameplay/map/chat/client events,
+- Server Lua supports lifecycle, gameplay/map/chat/client events,
   semantic server events, bounded admin actions, replicated state, plugin
   messaging, registered gameplay abilities, and registered primary weapon
   behaviors.

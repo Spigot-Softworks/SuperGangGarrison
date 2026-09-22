@@ -62,7 +62,7 @@ Important fields:
 - `displayName`: user-visible name.
 - `version`: your plugin version.
 - `type`: `Client` or `Server`.
-- `runtime`: currently `Lua`.
+- `runtime`: use `Lua` for these examples.
 - `entryPoint`: Lua file to load, relative to the plugin folder.
 - `compatibility.hostApiVersion`: required host API version. Use `1.0` for the current system.
 - `assetDirectories`: optional asset folders, relative to the plugin folder.
@@ -80,31 +80,36 @@ Keep all manifest paths inside the plugin folder. Do not use absolute paths or `
 
 Gameplay packs are loaded before the Lua entry point initializes. A class pack
 that intentionally owns an existing runtime slot, such as the Quote/Curly
-example, must opt in explicitly:
+example, must opt in explicitly. Add this property to the manifest:
 
 ```json
-"gameplayPacks": [
-  {
-    "path": "Gameplay/quote-curly.gg2",
-    "allowRuntimeClassBindingOverride": true
-  }
-]
+{
+  "gameplayPacks": [
+    {
+      "path": "Gameplay/quote-curly.gg2",
+      "allowRuntimeClassBindingOverride": true
+    }
+  ]
+}
 ```
 
 Weapon combat metadata can opt into velocity-scaled projectile reach and a
-per-trigger player-knockback budget. Both are authoritative gameplay settings:
+per-trigger player-knockback budget. Add this property to the weapon item; both
+are authoritative gameplay settings:
 
 ```json
-"combat": {
-  "airborneVelocityReach": {
-    "baseline": "classRunJump",
-    "bonusPerExcessBaseline": 0.5,
-    "maxReachMultiplier": 1.5
-  },
-  "playerKnockback": {
-    "impulsePerUse": 4.0,
-    "airborneVerticalScale": 0.5,
-    "groundedVerticalScale": 0.5
+{
+  "combat": {
+    "airborneVelocityReach": {
+      "baseline": "classRunJump",
+      "bonusPerExcessBaseline": 0.5,
+      "maxReachMultiplier": 1.5
+    },
+    "playerKnockback": {
+      "impulsePerUse": 4.0,
+      "airborneVerticalScale": 0.5,
+      "groundedVerticalScale": 0.5
+    }
   }
 }
 ```
@@ -467,7 +472,7 @@ local function load_config(host)
 end
 ```
 
-Keep config files small and plugin-scoped. Use `config.schema.json` to document settings and help future UI/schema validation.
+Keep config files small and plugin-scoped. Use `config.schema.json` to document settings for plugin users and configuration tools.
 
 ## Assets
 
@@ -486,7 +491,7 @@ Do not assume assets can be loaded from outside the plugin folder.
 
 ## Permissions
 
-Server command permissions are enforced through the built-in admin permission flags. Plugins can also declare permission metadata in the manifest so admins and future tooling can understand what the plugin may require:
+Server command permissions are enforced through the built-in admin permission flags. Plugins can also declare permission metadata in the manifest so admins can see what the plugin may require:
 
 ```json
 {

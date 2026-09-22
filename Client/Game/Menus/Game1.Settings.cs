@@ -44,6 +44,8 @@ public partial class Game1
         _showPlayerNamesEnabled = _clientSettings.ShowPlayerNamesEnabled;
         _positionSmoothingEnabled = _clientSettings.PositionSmoothingEnabled;
         _enablePrediction = _clientSettings.EnablePrediction;
+        _cameraPanningEnabled = _clientSettings.CameraPanningEnabled;
+        _spriteStyle = OpenGarrisonPreferencesDocument.NormalizeSpriteStyle(_clientSettings.SpriteStyle);
         _smoothCameraMultiplier = NormalizeSmoothCameraMultiplier(_clientSettings.SmoothCameraMultiplier);
         if (_smoothCameraMultiplier <= 0f)
         {
@@ -112,6 +114,8 @@ public partial class Game1
         _clientSettings.ShowPlayerNamesEnabled = _showPlayerNamesEnabled;
         _clientSettings.PositionSmoothingEnabled = _positionSmoothingEnabled;
         _clientSettings.EnablePrediction = _enablePrediction;
+        _clientSettings.CameraPanningEnabled = _cameraPanningEnabled;
+        _clientSettings.SpriteStyle = _spriteStyle;
         _clientSettings.SmoothCameraMultiplier = NormalizeSmoothCameraMultiplier(_smoothCameraMultiplier);
         _clientSettings.SpriteDropShadowEnabled = _spriteDropShadowEnabled;
         _clientSettings.StuckArrowsEnabled = _stuckArrowsEnabled;

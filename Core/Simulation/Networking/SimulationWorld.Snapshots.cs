@@ -162,6 +162,15 @@ public sealed partial class SimulationWorld
             snapshotPlayer.RageCharge,
             snapshotPlayer.IsRageReady,
             snapshotPlayer.RageTicksRemaining);
+        player.HydrateNetworkExperimentalVisualState(
+            snapshotPlayer.ExperimentalCryoSlowTicksRemaining,
+            snapshotPlayer.ExperimentalCryoFreezeTicksRemaining,
+            snapshotPlayer.ExperimentalCryoExposureFraction,
+            snapshotPlayer.ExperimentalGhostVisibilityTicksRemaining,
+            snapshotPlayer.ExperimentalGhostTrailAlpha);
+        player.HydrateNetworkCombatComboState(
+            snapshotPlayer.CurrentCombo,
+            snapshotPlayer.ComboTicksRemaining);
         player.HydrateLastToDieSpyCloakMeter(
             snapshotPlayer.LastToDieSpyCloakMeterUnits,
             global::OpenGarrison.Core.LastToDie.LastToDieDerivedModifiers.SpyCloakMeterDurationSeconds
@@ -636,10 +645,18 @@ public sealed partial class SimulationWorld
     {
         SyncSnapshotEntities(turrets, _civilDefenseTurrets, static state => state.Id,
             static (entity, state) => entity.OwnerPlayerId == state.OwnerPlayerId && entity.Team == (PlayerTeam)state.Team,
-            state => new CivilDefenseTurretEntity(state.Id, state.OwnerPlayerId, (PlayerTeam)state.Team, state.X, state.Y, state.FacingDirectionX),
+            state => new CivilDefenseTurretEntity(
+                state.Id,
+                state.OwnerPlayerId,
+                (PlayerTeam)state.Team,
+                state.X,
+                state.Y,
+                state.FacingDirectionX,
+                state.LifetimeTicksRemaining),
             static (entity, state) => entity.ApplyNetworkState(state.X, state.Y, state.Health, state.HasLanded, state.IsBuilt,
                 state.FacingDirectionX, state.AimDirectionDegrees, state.ReloadTicksRemaining,
-                state.ShotTraceTicksRemaining, state.LastShotTargetX, state.LastShotTargetY));
+                state.ShotTraceTicksRemaining, state.LastShotTargetX, state.LastShotTargetY,
+                state.LifetimeTicksRemaining));
     }
 
     private void ApplySnapshotJumpPads(IReadOnlyList<SnapshotJumpPadState> jumpPads)

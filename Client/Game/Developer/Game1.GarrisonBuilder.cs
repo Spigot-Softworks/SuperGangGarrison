@@ -1629,12 +1629,14 @@ public partial class Game1
 
         var metrics = GetGarrisonBuilderEntityMetrics(definition, entity.Properties, 1f, 1f);
         GetGarrisonBuilderEntityMinimumWorldSize(entity.Type, metrics.Width, metrics.Height, out var minWidth, out var minHeight);
-        width = MathF.Max(minWidth, metrics.Width * entity.XScale);
-        height = MathF.Max(minHeight, metrics.Height * entity.YScale);
-        if (TryGetGarrisonBuilderEntityFrame(definition, entity, out _, out var origin))
+        width = MathF.Max(minWidth, metrics.Width * MathF.Abs(entity.XScale));
+        height = MathF.Max(minHeight, metrics.Height * MathF.Abs(entity.YScale));
+        if (TryGetGarrisonBuilderEntityFrame(definition, entity, out var frame, out var origin))
         {
-            left = entity.X - (origin.X * entity.XScale);
-            top = entity.Y - (origin.Y * entity.YScale);
+            width = frame.Width * MathF.Abs(entity.XScale);
+            height = frame.Height * MathF.Abs(entity.YScale);
+            left = entity.X - (origin.X * entity.XScale) + MathF.Min(0, frame.Width * entity.XScale);
+            top = entity.Y - (origin.Y * entity.YScale) + MathF.Min(0, frame.Height * entity.YScale);
         }
         else
         {
@@ -4142,6 +4144,17 @@ public partial class Game1
             : new Vector2(entity.X - _builderCamera.X, entity.Y - _builderCamera.Y);
         var visualScale = _builderUseModernUi ? GetGarrisonBuilderMapVisualScale() : 1f;
         var spriteScale = new Vector2(entity.XScale * visualScale, entity.YScale * visualScale);
+        if (IsGarrisonBuilderAnchorSizedEntityType(entity.Type)
+            && TryGetGarrisonBuilderEntityWorldBounds(entity, out var left, out var top, out var width, out var height))
+        {
+            // Zone dimensions also drive picking and resize handles. A replacement sprite
+            // may have different pixel dimensions without changing the map's zone size.
+            screen = _builderUseModernUi ? BuilderWorldToScreen(new Vector2(left, top))
+                : new Vector2(left, top) - _builderCamera;
+            origin = Vector2.Zero;
+            spriteScale = new Vector2(width * visualScale / Math.Max(1, frame.Width),
+                height * visualScale / Math.Max(1, frame.Height));
+        }
         DrawLoadedSpriteFrame(
             frame,
             screen,
@@ -10878,7 +10891,7 @@ public partial class Game1
             if (!draft)
             {
                 var validation = CustomMapBuilderValidator.Validate(export, mode);
-                if (!validation.IsValid) throw new InvalidOperationException("This map is unfinished. Save As an editable .ogmap draft, or fix: " + string.Join("; ", validation.Issues.Where(i => i.Severity == CustomMapBuilderValidationSeverity.Error).Select(i => i.Message)));
+                if (!validation.IsValid) throw new InvalidOperationException("Map unfinished. Hover over issues, or Save As .ogmap draft.");
             }
             if (draft)
             {

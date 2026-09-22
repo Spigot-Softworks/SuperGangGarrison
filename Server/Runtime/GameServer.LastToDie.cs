@@ -6,6 +6,9 @@ using OpenGarrison.Server.Plugins;
 
 partial class GameServer
 {
+    internal Action<LastToDieRunOutcome>? LastToDieRunCompleted;
+    private Guid _lastToDieRunIdentity;
+    private int _lastToDieAttemptNumber;
     private LastToDieNetworkSession? _lastToDieNetworkSession;
     private ulong _lastToDieLoadedStageInstanceId;
     private ulong _lastToDieFailedStageInstanceId;
@@ -76,6 +79,7 @@ partial class GameServer
             _lastToDieDifficulty,
             seed,
             _config.TicksPerSecond,
+            runId: _lastToDieRunIdentity != Guid.Empty ? _lastToDieRunIdentity : null,
             maximumPlayers: _maxPlayableClients);
         var controller = new LastToDieProtocolController(director, shouldPause =>
         {
@@ -170,8 +174,13 @@ partial class GameServer
             return true;
         }
 
+        // The empty attempt ID prevents both server leaderboard submission and
+        // client-local run history from recording a test-forced victory.
+        var trackedRunId = _lastToDieLeaderboardRunId;
+        _lastToDieLeaderboardRunId = Guid.Empty;
         if (!winSession.TryTriggerStageVictoryForTesting(out var error))
         {
+            _lastToDieLeaderboardRunId = trackedRunId;
             responseLines = [string.IsNullOrWhiteSpace(error)
                 ? "[ltd] could not trigger victory from the current run state."
                 : $"[ltd] could not trigger victory: {error}"];
@@ -329,7 +338,9 @@ partial class GameServer
         if (directorSnapshot.StageNumber == 1)
         {
             _lastToDieRunScoreUnitsBySlot.Clear();
-            _lastToDieLeaderboardRunId = Guid.NewGuid();
+            _lastToDieLeaderboardRunId = _lastToDieRunIdentity == Guid.Empty ? Guid.NewGuid()
+                : new Guid(System.Security.Cryptography.SHA256.HashData(
+                    _lastToDieRunIdentity.ToByteArray().Concat(BitConverter.GetBytes(++_lastToDieAttemptNumber)).ToArray()).AsSpan(0, 16));
             _lastToDieScoreCapturedThroughStage = 0;
             _lastToDieCompletedRounds = 0;
         }
@@ -355,7 +366,11 @@ partial class GameServer
         _mapRotationManager.AlignExternalMapChange(_world.Level.Name);
         _world.ConfigureLastToDieStage(directorSnapshot.StageNumber);
         ConfigureLastToDieParticipants(session);
-        ConfigureLastToDieEnemies(directorSnapshot.StageNumber, directorSnapshot.EnemyCount);
+        ConfigureLastToDieStageBots(
+            session,
+            directorSnapshot.StageNumber,
+            directorSnapshot.EnemyCount,
+            directorSnapshot.Seed);
         var botNavigationPreloaded = PreloadBotNavigationForCurrentLevel(
             out var botNavigationPreloadMs,
             out var botNavigationWarmup);
@@ -447,7 +462,9 @@ partial class GameServer
             participant.OwnedPerkIds.Select(perkId => new LastToDiePerkId(perkId)),
             baseMaximumHealth,
             refillHealth,
-            resetDynamicState: true);
+            resetDynamicState: true,
+            runKills: participant.Kills,
+            secondChanceConsumed: participant.SecondChanceConsumed);
         _world.TrySetLastToDieSurvivorBuff(participant.Slot, enabled: true);
         _world.TryRestoreLastToDieSniperConquistadorStacks(
             participant.Slot,
@@ -455,14 +472,23 @@ partial class GameServer
         _lastToDieObservedKillsBySlot[participant.Slot] = Math.Max(0, player.Kills);
     }
 
-    private void ConfigureLastToDieEnemies(int stageNumber, int enemyCount)
+    private void ConfigureLastToDieStageBots(
+        LastToDieNetworkSession session,
+        int stageNumber,
+        int enemyCount,
+        ulong runSeed)
     {
         foreach (var slot in _botManager.BotSlots.Keys.ToArray())
         {
             _botManager.TryRemoveBot(slot);
         }
 
-        var remaining = Math.Clamp(enemyCount, 0, SimulationWorld.MaxPlayableNetworkPlayers - _maxPlayableClients);
+        // Empty and disconnected human seats remain available for their owners.
+        _botManager.LastToDieReservedPlayerSlots = _maxPlayableClients;
+        _lastToDieEnemySpawnPreparedWhileDead.Clear();
+        ConfigureLastToDieCompanions(session, stageNumber, runSeed);
+
+        var remaining = Math.Clamp(enemyCount, 0, LastToDieRuleset.MaximumEnemyCount);
         var spawnSides = BuildLastToDieEnemySpawnSides(
             remaining,
             _world.MatchRules.Mode,
@@ -470,30 +496,30 @@ partial class GameServer
         _lastToDieBidirectionalEnemySpawnsEnabled =
             UsesLastToDieBidirectionalEnemySpawns(_world.MatchRules.Mode)
             && spawnSides.Length >= 3;
-        _lastToDieEnemySpawnPreparedWhileDead.Clear();
         var classCycle = LastToDieRuleset.CanSpawnSniper(stageNumber)
             ? LastToDieEnemyClassCycle
             : LastToDieEnemyClassCycle.Where(static classId => classId != PlayerClass.Sniper).ToArray();
         var enemyStatMultiplier = LastToDieRuleset.GetEnemyStatMultiplier(stageNumber);
+        var enemyDamageMultiplier = LastToDieRuleset.GetEnemyDamageMultiplier(stageNumber);
+        var enemiesHaveGutsAndGlory = session.GetParticipants().Any(participant =>
+            participant.OwnedPerkIds.Contains(LastToDiePerkIds.Ultra.GutsAndGlory.Value, StringComparer.Ordinal));
         var classIndex = 0;
-        for (var slotNumber = _maxPlayableClients + 1;
-             slotNumber <= SimulationWorld.MaxPlayableNetworkPlayers && remaining > 0;
-             slotNumber += 1)
+        while (remaining > 0)
         {
             var playerClass = classCycle[classIndex % classCycle.Length];
-            if (_botManager.TryAddBot(
-                    (byte)slotNumber,
+            if (_botManager.TryAddLastToDieEnemyBot(
                     PlayerTeam.Blue,
                     playerClass,
-                    string.Empty))
+                    string.Empty,
+                    out var slot))
             {
                 var spawnSide = spawnSides[classIndex];
                 if (!_world.TryMoveNetworkPlayerToLastToDieEnemySpawn(
-                        (byte)slotNumber,
+                        slot,
                         spawnSide))
                 {
                     Console.WriteLine(
-                        $"[ltd] could not place enemy slot={slotNumber} at its requested " +
+                        $"[ltd] could not place enemy slot={slot} at its requested " +
                         $"{spawnSide}-side ingress; keeping its default spawn.");
                 }
 
@@ -504,22 +530,117 @@ partial class GameServer
                     1,
                     (int)MathF.Round(baseMaximumHealth * enemyStatMultiplier));
                 _world.TrySetNetworkPlayerMaxHealthOverride(
-                    (byte)slotNumber,
-                    scaledMaximumHealth,
+                    slot,
+                    enemiesHaveGutsAndGlory ? 50 : scaledMaximumHealth,
                     refillHealth: true);
                 _world.TrySetNetworkPlayerLastToDieEnemyScaling(
-                    (byte)slotNumber,
+                    slot,
                     enemyStatMultiplier,
-                    enemyStatMultiplier);
+                    enemyDamageMultiplier);
 
                 remaining -= 1;
                 classIndex += 1;
+            }
+            else
+            {
+                break;
             }
         }
 
         if (remaining > 0)
         {
             Console.WriteLine($"[ltd] could not allocate {remaining} of {enemyCount} requested enemy slots.");
+        }
+    }
+
+    private void ConfigureLastToDieCompanions(
+        LastToDieNetworkSession session,
+        int stageNumber,
+        ulong runSeed)
+    {
+        PlayerClass[] reinforcementClasses = [PlayerClass.Soldier, PlayerClass.Heavy, PlayerClass.Demoman];
+        var companionAndDraftPerks = new HashSet<string>(StringComparer.Ordinal)
+        {
+            LastToDiePerkIds.Rare.Mimic.Value,
+            LastToDiePerkIds.Rare.Triage.Value,
+            LastToDiePerkIds.Rare.Reinforcements.Value,
+            LastToDiePerkIds.Rare.FireCrew.Value,
+            LastToDiePerkIds.Ultra.DefenseBattery.Value,
+            LastToDiePerkIds.Rare.PowerBooster.Value,
+            LastToDiePerkIds.Rare.SpeedBooster.Value,
+            LastToDiePerkIds.Rare.HealthBooster.Value,
+            LastToDiePerkIds.Ultra.BattleMaster.Value,
+            LastToDiePerkIds.Ultra.LuckyDraw.Value,
+            LastToDiePerkIds.Ultra.SecondChance.Value,
+            LastToDiePerkIds.Spy.Afterlife.Value,
+        };
+
+        foreach (var participant in session.GetParticipants()
+                     .Where(participant => participant.IsConnected && participant.IsAlive))
+        {
+            var owned = participant.OwnedPerkIds.ToHashSet(StringComparer.Ordinal);
+            var playerSeed = runSeed ^ ((ulong)(uint)stageNumber << 32);
+            foreach (var byteValue in participant.PlayerId.ToByteArray())
+            {
+                playerSeed = (playerSeed * 1099511628211UL) ^ byteValue;
+            }
+            var random = new LastToDieRandom(
+                runSeed ^ playerSeed,
+                playerSeed ^ 0x4C5444434F4D50UL);
+
+            if (owned.Contains(LastToDiePerkIds.Rare.Mimic.Value)
+                && _botManager.TryAddLastToDieMimicBot(participant.Slot, out var mimicSlot))
+            {
+                var inheritedPerks = participant.OwnedPerkIds
+                    .Where(perkId => !companionAndDraftPerks.Contains(perkId))
+                    .Select(static perkId => new LastToDiePerkId(perkId));
+                _ = _world.TryConfigureLastToDiePlayerBuild(
+                    mimicSlot,
+                    inheritedPerks,
+                    refillHealth: true,
+                    resetDynamicState: true,
+                    runKills: participant.Kills,
+                    secondChanceConsumed: false,
+                    runKillProgressionOwner: false);
+                _world.TrySetLastToDieSurvivorBuff(mimicSlot, enabled: true);
+            }
+
+            if (owned.Contains(LastToDiePerkIds.Rare.Triage.Value))
+            {
+                _ = _botManager.TryAddLastToDieFollowHealerBot(
+                    participant.Slot,
+                    string.Empty,
+                    out _);
+            }
+
+            if (owned.Contains(LastToDiePerkIds.Rare.Reinforcements.Value))
+            {
+                var classId = reinforcementClasses[random.NextInt32(reinforcementClasses.Length)];
+                _ = _botManager.TryAddLastToDieCompanionBot(
+                    participant.Slot,
+                    classId,
+                    string.Empty,
+                    out _);
+            }
+
+            if (owned.Contains(LastToDiePerkIds.Rare.FireCrew.Value))
+            {
+                _ = _botManager.TryAddLastToDieCompanionBot(
+                    participant.Slot,
+                    PlayerClass.Pyro,
+                    string.Empty,
+                    out _);
+                _ = _botManager.TryAddLastToDieCompanionBot(
+                    participant.Slot,
+                    PlayerClass.Pyro,
+                    string.Empty,
+                    out _);
+            }
+
+            if (owned.Contains(LastToDiePerkIds.Ultra.DefenseBattery.Value))
+            {
+                _ = _world.TryDeployLastToDieDefenseBattery(participant.Slot);
+            }
         }
     }
 
@@ -532,12 +653,10 @@ partial class GameServer
             && phase != LastToDiePhase.Playing)
         {
             CaptureLastToDieStageScores(session, snapshot.StageNumber);
-            if (phase is LastToDiePhase.RewardChoice or LastToDiePhase.Won)
-            {
-                _lastToDieCompletedRounds = Math.Max(
-                    _lastToDieCompletedRounds,
-                    snapshot.StageNumber);
-            }
+            _lastToDieCompletedRounds = GetLastToDieCompletedRoundsAfterTransition(
+                _lastToDieCompletedRounds,
+                phase,
+                snapshot.StageNumber);
         }
 
         if (phase is LastToDiePhase.Lost or LastToDiePhase.Won
@@ -549,11 +668,24 @@ partial class GameServer
                 _lastToDieRunScoreUnitsBySlot.TryAdd(participant.Slot, 0);
             }
 
-            _statsService?.HandleLastToDieRunEnded(
-                _lastToDieLeaderboardRunId,
-                _lastToDieCompletedRounds,
-                _lastToDieRunScoreUnitsBySlot,
-                _lastToDieDifficulty);
+            if (_lastToDieRunIdentity == Guid.Empty)
+            {
+                _statsService?.HandleLastToDieRunEnded(
+                    _lastToDieLeaderboardRunId,
+                    _lastToDieCompletedRounds,
+                    _lastToDieRunScoreUnitsBySlot,
+                    session.GetParticipants().ToDictionary(
+                        participant => participant.Slot,
+                        participant => participant.SurvivorId),
+                    _lastToDieDifficulty);
+            }
+            LastToDieRunCompleted?.Invoke(new LastToDieRunOutcome(
+                _lastToDieLeaderboardRunId, _lastToDieCompletedRounds, _lastToDieDifficulty,
+                session.GetParticipants().Select(participant => new LastToDieParticipantOutcome(
+                    participant.Slot,
+                    _clientsBySlot.GetValueOrDefault(participant.Slot)?.ClientInstanceId ?? Guid.Empty,
+                    participant.SurvivorId,
+                    _lastToDieRunScoreUnitsBySlot.GetValueOrDefault(participant.Slot))).ToArray()) { CompletedFrame = _world.Frame });
             _lastToDieSubmittedLeaderboardRunId = _lastToDieLeaderboardRunId;
         }
 
@@ -562,7 +694,8 @@ partial class GameServer
 
     private void CaptureLastToDieStageScores(LastToDieNetworkSession session, int stageNumber)
     {
-        if (stageNumber <= _lastToDieScoreCapturedThroughStage)
+        if (_lastToDieLeaderboardRunId == Guid.Empty
+            || stageNumber <= _lastToDieScoreCapturedThroughStage)
         {
             return;
         }
@@ -591,13 +724,49 @@ partial class GameServer
     private int GetPublishedLastToDieCompletedRounds()
     {
         var snapshot = _lastToDieNetworkSession?.Controller.Director.CreateSnapshot();
-        return snapshot?.Phase is LastToDiePhase.RewardChoice or LastToDiePhase.Won
-            ? Math.Max(_lastToDieCompletedRounds, snapshot.StageNumber)
-            : _lastToDieCompletedRounds;
+        if (snapshot is null)
+        {
+            return _lastToDieCompletedRounds;
+        }
+
+        return snapshot.Phase switch
+        {
+            LastToDiePhase.RewardChoice or LastToDiePhase.Won => Math.Max(
+                _lastToDieCompletedRounds,
+                snapshot.StageNumber),
+            // A completed stage with no eligible reward offers skips straight
+            // to the next loading barrier. The snapshot's stage is therefore
+            // one ahead of the number of completed stages.
+            LastToDiePhase.LoadingStage => Math.Max(
+                _lastToDieCompletedRounds,
+                Math.Max(0, snapshot.StageNumber - 1)),
+            _ => _lastToDieCompletedRounds,
+        };
+    }
+
+    private static int GetLastToDieCompletedRoundsAfterTransition(
+        int completedRounds,
+        LastToDiePhase phase,
+        int stageNumber)
+    {
+        var completedStage = phase switch
+        {
+            LastToDiePhase.RewardChoice or LastToDiePhase.Won => stageNumber,
+            // CompleteStage can bypass reward choice once the reward pool is
+            // exhausted, leaving the director on the next loading stage.
+            LastToDiePhase.LoadingStage => Math.Max(0, stageNumber - 1),
+            _ => completedRounds,
+        };
+        return Math.Max(completedRounds, completedStage);
     }
 
     private int GetPublishedLastToDieScoreUnits(byte slot)
     {
+        if (_lastToDieLeaderboardRunId == Guid.Empty)
+        {
+            return 0;
+        }
+
         var total = (long)_lastToDieRunScoreUnitsBySlot.GetValueOrDefault(slot);
         var snapshot = _lastToDieNetworkSession?.Controller.Director.CreateSnapshot();
         if (snapshot is not null
@@ -628,8 +797,14 @@ partial class GameServer
             return;
         }
 
-        foreach (var slot in _botManager.BotSlots.Keys)
+        foreach (var entry in _botManager.BotSlots)
         {
+            if (entry.Value.Source != ServerBotManager.ServerBotSource.LastToDieEnemy)
+            {
+                continue;
+            }
+
+            var slot = entry.Key;
             if (!_world.TryGetNetworkPlayer(slot, out var enemy))
             {
                 _lastToDieEnemySpawnPreparedWhileDead.Remove(slot);
@@ -714,6 +889,7 @@ partial class GameServer
 
             var observedKills = Math.Max(0, worldPlayer.Kills);
             var previousKills = _lastToDieObservedKillsBySlot.GetValueOrDefault(participant.Slot);
+            var runKills = Math.Max(0, directorPlayer.Kills);
             if (observedKills > previousKills
                 && director.TryRecordKills(
                     participant.PlayerId,
@@ -721,10 +897,20 @@ partial class GameServer
                     _world.Frame,
                     out _))
             {
+                runKills = checked(runKills + observedKills - previousKills);
                 stateChanged = true;
             }
 
             _lastToDieObservedKillsBySlot[participant.Slot] = observedKills;
+            _world.TrySetLastToDiePlayerRunKills(participant.Slot, runKills);
+
+            if (_world.TryGetLastToDieSecondChanceConsumed(participant.Slot, out var secondChanceConsumed)
+                && secondChanceConsumed
+                && !directorPlayer.SecondChanceConsumed
+                && director.TryConsumeSecondChance(participant.PlayerId, out _))
+            {
+                stateChanged = true;
+            }
 
             var conquistadorStacks = _world.TryGetLastToDieSniperConquistadorStacks(
                 participant.Slot,
@@ -753,7 +939,8 @@ partial class GameServer
                 && _world.IsLastToDieSpyAfterlifeWindowActive(participant.Slot))
                 || session.HasActiveReconnectGrace(),
             out _,
-            canCompleteStageOnTimeout: _world.CanCompleteLastToDieStageOnTimeout);
+            canCompleteStageOnTimeout: _world.CanCompleteLastToDieStageOnTimeout,
+            redControlPointOwned: _world.ControlPoints.Any(point => point.Team == PlayerTeam.Red));
         stateChanged |= revisionBeforeAdvance != director.StructuralRevision
             || phaseBeforeAdvance != director.Phase;
 

@@ -128,7 +128,7 @@ sealed partial class GameServer
     private HttpServerRegistryHeartbeat? _httpRegistryHeartbeat;
     private SimulationWorld _world = null!;
     private FixedStepSimulator _simulator = null!;
-    private Stopwatch _clock = null!;
+    private ServerClock _clock = null!;
     private TimeSpan _previous;
     private Dictionary<byte, ClientSession> _clientsBySlot = null!;
     private ServerSessionManager _sessionManager = null!;

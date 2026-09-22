@@ -96,6 +96,11 @@ public partial class Game1
             }
 
             var mapLayout = PracticeMapsMenuLayoutCalculator.Create(ViewportWidth, ViewportHeight, showSuperGangGarrison: !ClientDistribution.IsRestricted);
+            if (TryUpdatePracticeMapSelectionControllerInput(mapLayout))
+            {
+                return;
+            }
+
             UpdatePracticeMapSelectionMenu(keyboard, mouse, mapLayout);
             return;
         }

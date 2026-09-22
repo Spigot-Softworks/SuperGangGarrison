@@ -492,7 +492,7 @@ public sealed class BotBrainClassBehaviorTests
         carrier.PickUpIntel();
 
         var graph = CreateObstacleWalkGraph(engineer.X, engineer.Y, carrier.X, carrier.Y);
-        var controller = new BotBrainController(graph, forceAlphaNavigation: true);
+        var controller = new BotBrainController(graph);
 
         _ = controller.Think(engineer, world, PlayerTeam.Red);
 
@@ -511,8 +511,7 @@ public sealed class BotBrainClassBehaviorTests
         carrier.PickUpIntel();
 
         var controller = new BotBrainController(
-            CreateObstacleWalkGraph(soldier.X, soldier.Y, carrier.X, carrier.Y),
-            forceAlphaNavigation: true);
+            CreateObstacleWalkGraph(soldier.X, soldier.Y, carrier.X, carrier.Y));
 
         _ = controller.Think(soldier, world, PlayerTeam.Red);
         var secondInput = controller.Think(soldier, world, PlayerTeam.Red);
@@ -528,8 +527,7 @@ public sealed class BotBrainClassBehaviorTests
         soldier.TeleportTo(100f, 100f);
         soldier.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: null, facingDirectionX: 1f);
         var controller = new BotBrainController(
-            CreateObstacleWalkGraph(soldier.X, soldier.Y, 400f, soldier.Y),
-            forceAlphaNavigation: true);
+            CreateObstacleWalkGraph(soldier.X, soldier.Y, 400f, soldier.Y));
 
         _ = controller.Think(soldier, world, PlayerTeam.Red);
         SetControllerField<NavPath?>(controller, "_currentPath", null);
@@ -555,7 +553,7 @@ public sealed class BotBrainClassBehaviorTests
         world.BlueIntel.Drop(1_000f, 100f, returnTicks: 600);
 
         var graph = CreateObstacleWalkGraph(soldier.X, soldier.Y, 1_000f, 100f);
-        var controller = new BotBrainController(graph, forceAlphaNavigation: true);
+        var controller = new BotBrainController(graph);
 
         _ = controller.Think(soldier, world, PlayerTeam.Red);
 
@@ -574,7 +572,7 @@ public sealed class BotBrainClassBehaviorTests
         carrier.PickUpIntel();
 
         var graph = CreateObstacleWalkGraph(soldier.X, soldier.Y, carrier.X, carrier.Y);
-        var controller = new BotBrainController(graph, forceAlphaNavigation: true);
+        var controller = new BotBrainController(graph);
 
         _ = controller.Think(soldier, world, PlayerTeam.Red);
 
@@ -591,8 +589,7 @@ public sealed class BotBrainClassBehaviorTests
         player.TeleportTo(120f, 100f);
         player.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: null, facingDirectionX: 1f);
         var controller = new BotBrainController(
-            CreateObstacleWalkGraph(player.X, player.Y, point.HealingAuraCenterX, point.HealingAuraCenterY),
-            forceAlphaNavigation: true);
+            CreateObstacleWalkGraph(player.X, player.Y, point.HealingAuraCenterX, point.HealingAuraCenterY));
 
         var outboundInput = controller.Think(player, world, PlayerTeam.Blue);
         Assert.True(outboundInput.Right);
@@ -625,8 +622,7 @@ public sealed class BotBrainClassBehaviorTests
         player.TeleportTo(point.HealingAuraCenterX, point.HealingAuraCenterY);
         player.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: null, facingDirectionX: 1f);
         var controller = new BotBrainController(
-            CreateSingleNodeGraph(player.X, player.Y, GameModeKind.KingOfTheHill),
-            forceAlphaNavigation: true);
+            CreateSingleNodeGraph(player.X, player.Y, GameModeKind.KingOfTheHill));
 
         _ = controller.Think(player, world, PlayerTeam.Blue);
 
@@ -653,49 +649,13 @@ public sealed class BotBrainClassBehaviorTests
         enemy.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: null, facingDirectionX: -1f);
 
         var controller = new BotBrainController(
-            CreateObstacleWalkGraph(player.X, player.Y, point.HealingAuraCenterX, point.HealingAuraCenterY),
-            forceAlphaNavigation: true);
+            CreateObstacleWalkGraph(player.X, player.Y, point.HealingAuraCenterX, point.HealingAuraCenterY));
 
         var input = controller.Think(player, world, PlayerTeam.Blue);
 
         Assert.True(input.Right);
         Assert.DoesNotContain("controlPointClearEnemy", controller.LastDirectDriveTrace, StringComparison.Ordinal);
         Assert.True(controller.HasActivePath);
-    }
-
-    [Fact]
-    public void BotDoesNotCaptureStrafeOnOwnedKothPoint()
-    {
-        var world = CreateKothWorld(PlayerTeam.Red, PlayerClass.Heavy, out var player);
-        var point = Assert.Single(world.ControlPoints);
-        point.Team = PlayerTeam.Red;
-        point.IsLocked = true;
-        player.TeleportTo(point.HealingAuraCenterX, point.HealingAuraCenterY);
-        player.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: null, facingDirectionX: 1f);
-        var controller = new BotBrainController(CreateSingleNodeGraph(player.X, player.Y, GameModeKind.KingOfTheHill));
-
-        var lateralTicks = CountLateralInputTicks(controller, player, world, PlayerTeam.Red, ticks: 32);
-
-        Assert.Equal(0, lateralTicks);
-        Assert.DoesNotContain("lockedHold", controller.LastDirectDriveTrace);
-        Assert.DoesNotContain("captureStrafeHop", controller.LastDirectDriveTrace);
-    }
-
-    [Fact]
-    public void BotStrafesMoreOftenWhileCapturingControlPoint()
-    {
-        var world = CreateControlPointWorld(PlayerTeam.Red, PlayerClass.Heavy, out var player);
-        var point = Assert.Single(world.ControlPoints, point => point.Team is null);
-        point.IsLocked = false;
-        point.CappingTeam = PlayerTeam.Red;
-        player.TeleportTo(point.HealingAuraCenterX, point.HealingAuraCenterY);
-        player.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: null, facingDirectionX: 1f);
-        var controller = new BotBrainController(CreateSingleNodeGraph(player.X, player.Y, GameModeKind.ControlPoint));
-
-        var lateralTicks = CountLateralInputTicks(controller, player, world, PlayerTeam.Red, ticks: 32);
-
-        Assert.True(lateralTicks >= 10);
-        Assert.Contains("reason:capture", controller.LastDirectDriveTrace);
     }
 
     [Fact]
@@ -1033,26 +993,6 @@ public sealed class BotBrainClassBehaviorTests
     }
 
     [Fact]
-    public void CarrierReturnBypassesProofGraphOnlyWhenProofGraphPoisonsReturn()
-    {
-        var conflict = CreateImportedWorld("Conflict");
-        var waterway = CreateImportedWorld("Waterway");
-        var truefort = CreateImportedWorld("Truefort");
-        var heavy = new PlayerEntity(1, CharacterClassCatalog.Heavy, "Heavy");
-        var scout = new PlayerEntity(2, CharacterClassCatalog.Scout, "Scout");
-        heavy.PickUpIntel();
-        scout.PickUpIntel();
-
-        Assert.True(InvokeShouldBypassCarrierReturnProofGraph(conflict, heavy, proofGraphRequired: false));
-        Assert.False(InvokeShouldBypassCarrierReturnProofGraph(conflict, scout, proofGraphRequired: false));
-        Assert.True(InvokeShouldBypassCarrierReturnProofGraph(waterway, heavy, proofGraphRequired: false));
-        Assert.True(InvokeShouldBypassCarrierReturnProofGraph(waterway, scout, proofGraphRequired: false));
-        Assert.False(InvokeShouldBypassCarrierReturnProofGraph(waterway, scout, proofGraphRequired: true));
-        Assert.False(InvokeShouldBypassCarrierReturnProofGraph(truefort, heavy, proofGraphRequired: false));
-        Assert.False(InvokeShouldBypassCarrierReturnProofGraph(truefort, scout, proofGraphRequired: false));
-    }
-
-    [Fact]
     public void CarrierReturnEscapeDoesNotOverrideFarRecoveryDirection()
     {
         var controller = new BotBrainController();
@@ -1197,22 +1137,6 @@ public sealed class BotBrainClassBehaviorTests
             modifiers: null);
         Assert.NotNull(method);
         return (bool)method!.Invoke(null, [level, player])!;
-    }
-
-    private static bool InvokeShouldBypassCarrierReturnProofGraph(
-        SimulationWorld world,
-        PlayerEntity player,
-        bool proofGraphRequired)
-    {
-        var method = typeof(BotBrainController).GetMethod(
-            "ShouldBypassCarrierReturnProofGraph",
-            BindingFlags.Static | BindingFlags.NonPublic,
-            binder: null,
-            [typeof(SimulationWorld), typeof(PlayerEntity), typeof(bool)],
-            modifiers: null);
-
-        Assert.NotNull(method);
-        return (bool)method!.Invoke(null, [world, player, proofGraphRequired])!;
     }
 
     private static void InvokeApplyCarrierReturnDirectEscape(

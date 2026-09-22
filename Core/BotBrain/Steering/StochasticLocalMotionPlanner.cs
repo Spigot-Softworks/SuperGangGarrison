@@ -157,7 +157,7 @@ public sealed class StochasticLocalMotionPlanner
         {
             if (candidates >= MaxCandidatesPerDecision
                 || simTicks + candidate.DurationTicks > MaxSimTicksPerDecision
-                || (candidates >= MinimumCandidatesBeforeStopwatchAbort
+                || (!DeterministicSimulationScope.IsActive && candidates >= MinimumCandidatesBeforeStopwatchAbort
                     && stopwatch.Elapsed.TotalMilliseconds >= MaxDecisionMilliseconds))
             {
                 break;

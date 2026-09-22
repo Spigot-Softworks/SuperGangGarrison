@@ -1017,7 +1017,7 @@ internal static class Og2AlphaNavigationDiagnostics
             return CaptureTrialResult.Failed(world.MatchRules.Mode, "bot_setup_failed");
         }
 
-        var controller = new BotBrainController(sharedGraph, forceAlphaNavigation: true);
+        var controller = new BotBrainController(sharedGraph);
         controller.ForceObjectiveNavigationForDiagnostics = true;
         var graphForTrace = sharedGraph;
         var initialRedCaps = world.RedCaps;
