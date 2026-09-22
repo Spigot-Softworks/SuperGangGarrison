@@ -256,7 +256,7 @@ public sealed class TopDownMovementTests
                     BindingFlags.Instance | BindingFlags.NonPublic);
                 Assert.NotNull(controllersField);
                 var controllers = (Dictionary<byte, BotBrainController>)controllersField!.GetValue(controller)!;
-                controllers[botSlot] = new BotBrainController(graph, forceAlphaNavigation: true)
+                controllers[botSlot] = new BotBrainController(graph)
                 {
                     DisableCombatForDiagnostics = true,
                     ForceObjectiveNavigationForDiagnostics = true,
@@ -284,7 +284,7 @@ public sealed class TopDownMovementTests
                     $"{team} did not capture: start=({startX:0.0},{startY:0.0}) end=({bot.X:0.0},{bot.Y:0.0}) " +
                     $"carryingIntel={bot.IsCarryingIntel} " +
                     $"redCaps={world.RedCaps} blueCaps={world.BlueCaps} " +
-                    $"trace={(controller.TryGetBotBrainController(botSlot, out var failedBrain) ? failedBrain!.LastTraversalTrace : "missing-brain")} " +
+                    $"trace={(controller.TryGetBotBrainController(botSlot, out var failedBrain) ? failedBrain!.LastDirectDriveTrace : "missing-brain")} " +
                     $"goal={(controller.TryGetBotBrainController(botSlot, out failedBrain) ? $"({failedBrain!.CurrentGoalPosition.X:0.0},{failedBrain.CurrentGoalPosition.Y:0.0})" : "missing" )} " +
                     $"path={(controller.TryGetBotBrainController(botSlot, out failedBrain) ? $"{failedBrain!.CurrentPathIndex}/{failedBrain.CurrentPathCount} node={failedBrain.CurrentPathNode}" : "missing")} " +
                     $"nodePos={(controller.TryGetBotBrainController(botSlot, out failedBrain) ? $"({failedBrain!.CurrentPathNodePosition.X:0.0},{failedBrain.CurrentPathNodePosition.Y:0.0})" : "missing")} " +
@@ -373,7 +373,7 @@ public sealed class TopDownMovementTests
             ],
             levelName: level.Name,
             mode: level.Mode);
-        var controller = new BotBrainController(graph, forceAlphaNavigation: true);
+        var controller = new BotBrainController(graph);
 
         var firstInput = controller.Think(player, world, PlayerTeam.Red);
         Assert.True(firstInput.Up);
@@ -413,7 +413,7 @@ public sealed class TopDownMovementTests
         player.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: null, facingDirectionX: 1f);
 
         var graph = CreateDiagonalObjectiveGraph(level);
-        var controller = new BotBrainController(graph, forceAlphaNavigation: true)
+        var controller = new BotBrainController(graph)
         {
             ForceObjectiveNavigationForDiagnostics = true,
         };
@@ -469,11 +469,11 @@ public sealed class TopDownMovementTests
         ally.TeleportTo(240f, 240f);
         ally.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: null, facingDirectionX: 1f);
         var graph = CreateDiagonalObjectiveGraph(level);
-        var localController = new BotBrainController(graph, forceAlphaNavigation: true)
+        var localController = new BotBrainController(graph)
         {
             ForceObjectiveNavigationForDiagnostics = true,
         };
-        var allyController = new BotBrainController(graph, forceAlphaNavigation: true)
+        var allyController = new BotBrainController(graph)
         {
             ForceObjectiveNavigationForDiagnostics = true,
         };
@@ -523,7 +523,7 @@ public sealed class TopDownMovementTests
             BindingFlags.Instance | BindingFlags.NonPublic);
         Assert.NotNull(controllersField);
         var controllers = (Dictionary<byte, BotBrainController>)controllersField!.GetValue(practiceController)!;
-        controllers[botSlot] = new BotBrainController(graph, forceAlphaNavigation: true);
+        controllers[botSlot] = new BotBrainController(graph);
 
         _ = practiceController.BuildInputsForSlots(world, controlledSlots, [botSlot]);
         Assert.True(practiceController.RequiresPerTickNavigationThink(botSlot));
@@ -747,7 +747,7 @@ public sealed class TopDownMovementTests
             ],
             levelName: level.Name,
             mode: level.Mode);
-        var controller = new BotBrainController(graph, forceAlphaNavigation: true)
+        var controller = new BotBrainController(graph)
         {
             ForceObjectiveNavigationForDiagnostics = true,
             DisableCombatForDiagnostics = true,

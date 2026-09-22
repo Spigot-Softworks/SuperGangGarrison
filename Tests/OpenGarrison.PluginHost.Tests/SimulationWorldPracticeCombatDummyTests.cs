@@ -54,6 +54,18 @@ public sealed class SimulationWorldPracticeCombatDummyTests
     }
 
     [Fact]
+    public void SpawnPracticeCombatDummyCanUseRequestedClass()
+    {
+        var world = new SimulationWorld();
+
+        world.SpawnPracticeCombatDummy(PlayerClass.Scout);
+
+        Assert.True(world.PracticeCombatDummyActive);
+        Assert.Equal(PlayerClass.Scout, world.EnemyPlayer.ClassId);
+        Assert.Equal(CharacterClassCatalog.Scout.MaxHealth, world.EnemyPlayer.MaxHealth);
+    }
+
+    [Fact]
     public void SpawnPracticeDpsDummyUsesHeavyHumiliationPose()
     {
         var world = new SimulationWorld();

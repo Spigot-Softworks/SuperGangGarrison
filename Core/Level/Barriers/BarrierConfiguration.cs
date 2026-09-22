@@ -17,23 +17,21 @@ public readonly record struct BarrierConfiguration(BarrierTargetFilters Targets)
 
     public static BarrierConfiguration FromProperties(IReadOnlyDictionary<string, string>? properties)
     {
-        properties = EnsureSolidWallWhenFullyOpen(BarrierLegacyPropertyMigration.EnsureModernBarrierProperties(properties));
+        properties = EnsureDefaultTargets(BarrierLegacyPropertyMigration.EnsureModernBarrierProperties(properties));
         return new BarrierConfiguration(BarrierTargetFilters.FromProperties(properties));
     }
 
     /// <summary>
-    /// Legacy maps and the first barrier catalog default used allow on every target, which skipped runtime import entirely.
-    /// Treat that as an unset solid wall so existing editor placements collide as expected.
+    /// Supply defaults only when no target settings were authored. Explicit Allow values are intentional.
     /// </summary>
-    public static IReadOnlyDictionary<string, string> EnsureSolidWallWhenFullyOpen(IReadOnlyDictionary<string, string>? properties)
+    private static IReadOnlyDictionary<string, string> EnsureDefaultTargets(IReadOnlyDictionary<string, string>? properties)
     {
         if (properties is null || properties.Count == 0)
         {
             return BarrierTargetFilters.SolidWall.ToProperties();
         }
 
-        var filters = BarrierTargetFilters.FromProperties(properties);
-        if (filters.BlocksAnyPlayerMovement() || filters.BlocksAnyProjectile())
+        if (BarrierLegacyPropertyMigration.UsesModernBarrierSchema(properties))
         {
             return properties;
         }

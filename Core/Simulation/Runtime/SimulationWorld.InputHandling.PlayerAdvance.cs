@@ -219,7 +219,11 @@ public sealed partial class SimulationWorld
             var burner = burnedByPlayerId.HasValue
                 ? FindPlayerById(burnedByPlayerId.Value)
                 : null;
-            KillPlayer(player, killer: burner, weaponSpriteName: "FlameKL");
+            KillPlayer(
+                player,
+                killer: burner,
+                weaponSpriteName: player.AfterburnKillFeedWeaponSpriteName,
+                killFeedMessage: " finished off ");
             return;
         }
 

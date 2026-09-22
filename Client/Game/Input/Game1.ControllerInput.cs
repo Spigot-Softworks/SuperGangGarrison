@@ -99,6 +99,7 @@ public partial class Game1
     {
         _previousGamePad = _currentGamePad;
         _currentGamePad = GetCurrentControllerGamePadState(windowActive, out var selectedControllerChanged);
+        _currentGamePad = _windowInputFilter.FilterController(windowActive, _currentGamePad, HasGamePadSelectionActivity(_currentGamePad));
         if (selectedControllerChanged)
         {
             _previousGamePad = default;
@@ -554,8 +555,7 @@ public partial class Game1
         var dpad = _currentGamePad.DPad;
         var moveDeadzone = MathF.Max(ControllerMovementThreshold, GetControllerAimDeadzone());
         var swapWeaponDown = IsControllerBindingDown(_clientSettings.ControllerSwapWeaponButton);
-        var useAbilityDown = IsControllerBindingDown(_clientSettings.ControllerUseAbilityButton)
-            || swapWeaponDown;
+        var useAbilityDown = IsControllerBindingDown(_clientSettings.ControllerUseAbilityButton);
 
         return baseInput with
         {

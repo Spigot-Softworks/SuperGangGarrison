@@ -63,7 +63,7 @@ public sealed partial class SimulationWorld
     private void SpawnHealthPack(float x, float y, HealthPackSize size)
     {
         var clampedX = Bounds.ClampX(x, HealthPackEntity.Width);
-        var clampedY = Bounds.ClampY(y, HealthPackEntity.Height);
+        var clampedY = ResolveHealthPackSpawnY(clampedX, y);
         var horizontalSpeed = (_random.NextSingle() * 2f - 1f) * 1.35f;
         var verticalSpeed = -2.25f - (_random.NextSingle() * 1.5f);
         var healthPack = new HealthPackEntity(
@@ -77,6 +77,52 @@ public sealed partial class SimulationWorld
         _entities.Add(healthPack.Id, healthPack);
     }
 
+    private float ResolveHealthPackSpawnY(float x, float y)
+    {
+        var resolvedY = Bounds.ClampY(y, HealthPackEntity.Height);
+        var halfWidth = HealthPackEntity.Width / 2f;
+        var halfHeight = HealthPackEntity.Height / 2f;
+
+        // Map-authored and death-drop positions can land inside a solid. Start
+        // the pack above the overlapping surface so it remains visible and
+        // its pickup bounds overlap a player standing on that surface.
+        for (var pass = 0; pass < Level.Solids.Count; pass += 1)
+        {
+            var movedAboveSolid = false;
+            foreach (var solid in Level.Solids)
+            {
+                var left = x - halfWidth;
+                var right = x + halfWidth;
+                var top = resolvedY - halfHeight;
+                var bottom = resolvedY + halfHeight;
+                if (left >= solid.Right
+                    || right <= solid.Left
+                    || top >= solid.Bottom
+                    || bottom <= solid.Top)
+                {
+                    continue;
+                }
+
+                var surfaceY = Bounds.ClampY(solid.Top - halfHeight, HealthPackEntity.Height);
+                if (surfaceY >= resolvedY)
+                {
+                    return resolvedY;
+                }
+
+                resolvedY = surfaceY;
+                movedAboveSolid = true;
+                break;
+            }
+
+            if (!movedAboveSolid)
+            {
+                break;
+            }
+        }
+
+        return resolvedY;
+    }
+
     private void SpawnMapHealthPack(int spawnIndex)
     {
         if (spawnIndex < 0 || spawnIndex >= Level.HealthPackSpawns.Count)
@@ -85,10 +131,11 @@ public sealed partial class SimulationWorld
         }
 
         var marker = Level.HealthPackSpawns[spawnIndex];
+        var x = Bounds.ClampX(marker.X, HealthPackEntity.Width);
         var healthPack = new HealthPackEntity(
             AllocateEntityId(),
-            Bounds.ClampX(marker.X, HealthPackEntity.Width),
-            Bounds.ClampY(marker.Y, HealthPackEntity.Height),
+            x,
+            ResolveHealthPackSpawnY(x, marker.Y),
             marker.Size,
             horizontalSpeed: 0f,
             verticalSpeed: 0f,

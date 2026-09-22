@@ -39,7 +39,7 @@ public sealed class MapEntityCollisionRegressionTests
     }
 
     [Fact]
-    public void FullyAllowBarrierImportsAsSolidWallForCollision()
+    public void FullyAllowBarrierDoesNotCreateBlockingRoomObject()
     {
         var context = new CustomMapEntityImportContext
         {
@@ -58,9 +58,7 @@ public sealed class MapEntityCollisionRegressionTests
             BarrierTargetFilters.Default.ToProperties(),
             context));
 
-        var barrier = Assert.Single(context.RoomObjects);
-        Assert.True(barrier.Barrier.Blocks(BarrierTargetKind.RedPlayers));
-        Assert.True(barrier.Barrier.Blocks(BarrierTargetKind.BlueIntel));
+        Assert.Empty(context.RoomObjects);
     }
 
     [Fact]

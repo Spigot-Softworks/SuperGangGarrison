@@ -18,13 +18,15 @@ public sealed class StabMaskEntity : SimulationEntity
         PlayerTeam team,
         float x,
         float y,
-        float directionDegrees) : base(id)
+        float directionDegrees,
+        float geometryScale = 1f) : base(id)
     {
         OwnerId = ownerId;
         Team = team;
         X = x;
         Y = y;
         DirectionDegrees = directionDegrees;
+        GeometryScale = float.IsFinite(geometryScale) ? MathF.Max(0.1f, geometryScale) : 1f;
         TicksRemaining = LifetimeTicks;
     }
 
@@ -37,6 +39,8 @@ public sealed class StabMaskEntity : SimulationEntity
     public float Y { get; private set; }
 
     public float DirectionDegrees { get; }
+
+    public float GeometryScale { get; }
 
     public int TicksRemaining { get; private set; }
 
@@ -59,17 +63,17 @@ public sealed class StabMaskEntity : SimulationEntity
     {
         if (FacingLeft)
         {
-            left = X - RightFacingRightOffset;
-            right = X - RightFacingLeftOffset;
+            left = X - (RightFacingRightOffset * GeometryScale);
+            right = X - (RightFacingLeftOffset * GeometryScale);
         }
         else
         {
-            left = X + RightFacingLeftOffset;
-            right = X + RightFacingRightOffset;
+            left = X + (RightFacingLeftOffset * GeometryScale);
+            right = X + (RightFacingRightOffset * GeometryScale);
         }
 
-        top = Y + TopOffset;
-        bottom = Y + BottomOffset;
+        top = Y + (TopOffset * GeometryScale);
+        bottom = Y + (BottomOffset * GeometryScale);
     }
 
     public void AdvanceOneTick(float ownerX, float ownerY)

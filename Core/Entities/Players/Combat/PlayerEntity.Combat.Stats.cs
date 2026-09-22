@@ -57,6 +57,12 @@ public sealed partial class PlayerEntity
         ComboTicksRemaining = Math.Max(1, comboTimeoutTicks);
     }
 
+    internal void HydrateNetworkCombatComboState(int currentCombo, int comboTicksRemaining)
+    {
+        CurrentCombo = Math.Max(0, currentCombo);
+        ComboTicksRemaining = CurrentCombo == 0 ? 0 : Math.Max(0, comboTicksRemaining);
+    }
+
     public void RegisterKillStreakKill(int multiKillWindowTicks)
     {
         if (!IsAlive)

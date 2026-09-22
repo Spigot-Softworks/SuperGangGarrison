@@ -6,7 +6,9 @@ Production registry endpoint:
 https://api.superganggarrison.com/api/servers
 ```
 
-The old `og2servers.php` script remains in this folder as a lightweight standalone fallback. The current deployed backend lives in `services/opengarrison-api` and also accepts the legacy `/API/og2servers.php` route for compatibility.
+The [API service](../../services/opengarrison-api/README.md) implements the registry
+and accepts the legacy `/API/og2servers.php` route. The PHP script in this
+directory is a standalone compatibility fallback.
 
 Clients do not need a token. Dedicated servers do not need a token for normal heartbeat.
 
@@ -20,13 +22,23 @@ without advertising incompatible builds to each other.
 curl https://api.superganggarrison.com/api/servers
 ```
 
-The default response is the stable channel. Beta clients request beta explicitly:
+A request without compatibility filters defaults to the stable channel. Clients
+should send their package's channel, protocol version, and compatibility key.
+For example, with values supplied by a beta package:
 
 ```bash
-curl "https://api.superganggarrison.com/api/servers?releaseChannel=beta&protocolVersion=59"
+curl --get https://api.superganggarrison.com/api/servers \
+  --data-urlencode "releaseChannel=beta" \
+  --data-urlencode "protocolVersion=$PROTOCOL_VERSION" \
+  --data-urlencode "compatibilityKey=$COMPATIBILITY_KEY"
 ```
 
-Response shape:
+`PROTOCOL_VERSION` and `COMPATIBILITY_KEY` above must match the package you are
+querying for. The source protocol version is defined in
+[ProtocolVersion.cs](../../Protocol/ProtocolVersion.cs). *Protocol64* is the
+framing implementation's name, not the current compatibility version.
+
+Illustrative response (the version and timestamp are example values):
 
 ```json
 {
@@ -43,14 +55,14 @@ Response shape:
       "players": 2,
       "maxPlayers": 16,
       "spectators": 0,
-      "protocolVersion": 38,
-      "buildVersion": "0.5.7.2",
+      "protocolVersion": 102,
+      "buildVersion": "1.0.2",
       "releaseChannel": "stable",
-      "compatibilityKey": "stable:0.5.7.2:38",
-      "lastSeenIso": "2026-04-14T12:00:00+00:00"
+      "compatibilityKey": "stable:1.0.2:102",
+      "lastSeenIso": "2026-09-19T12:00:00+00:00"
     }
   ],
-  "generatedAt": "2026-04-14T12:00:00+00:00"
+  "generatedAt": "2026-09-19T12:00:00+00:00"
 }
 ```
 
@@ -58,7 +70,7 @@ Response shape:
 
 Send every 30 seconds. Entries expire after 120 seconds.
 
-Dedicated server can publish automatically:
+From an extracted Linux release package, the dedicated server can publish automatically:
 
 ```bash
 sh run-server.sh --public-host server.example.com
@@ -85,10 +97,14 @@ Registry accepts public writes with guardrails:
 - Max 8 active servers per request IP.
 - Entries expire after 120 seconds.
 
+To register manually, save the server fields from the example to a local
+`heartbeat.json` file, replace the illustrative values with the running server's
+identity, then send:
+
 ```bash
 curl -X POST https://api.superganggarrison.com/api/servers \
   -H "Content-Type: application/json" \
-  -d "{\"name\":\"Test Server\",\"host\":\"server.example.com\",\"udpPort\":8190,\"webSocketPort\":8191,\"webSocketUrl\":\"wss://server.example.com/opengarrison/ws\",\"map\":\"ctf_orange\",\"mode\":\"CTF\",\"players\":2,\"maxPlayers\":16,\"spectators\":0,\"protocolVersion\":38,\"buildVersion\":\"0.5.7.2\",\"releaseChannel\":\"stable\",\"compatibilityKey\":\"stable:0.5.7.2:38\"}"
+  --data-binary @heartbeat.json
 ```
 
 Admin remove needs `OPENGARRISON_REGISTRY_TOKEN` configured on the service:
@@ -101,10 +117,11 @@ curl -X POST https://api.superganggarrison.com/api/servers \
 
 ## Storage
 
-The deployed service stores registry rows in:
+The service's default SQLite path is:
 
 ```text
 /var/lib/opengarrison-api/opengarrison.db
 ```
 
-No MySQL needed. Public API only exposes sanitized server fields.
+Set `OPENGARRISON_API_DB` to override this path. Public responses expose the
+server fields used for discovery, not account credentials.

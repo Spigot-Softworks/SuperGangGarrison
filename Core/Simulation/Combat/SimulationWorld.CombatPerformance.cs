@@ -22,7 +22,8 @@ public sealed partial class SimulationWorld
     private bool ShouldTrackCombatPerformanceForPlayer(PlayerEntity? player)
     {
         return player is not null
-            && ReferenceEquals(player, LocalPlayer);
+            && (ReferenceEquals(player, LocalPlayer)
+                || TryGetPlayerNetworkSlot(player, out var slot) && IsNetworkPlayerActive(slot));
     }
 
     private static bool ShouldTrackKillStreakForPlayer(PlayerEntity? player)
@@ -34,7 +35,7 @@ public sealed partial class SimulationWorld
     {
         if (appliedDamage <= 0
             || attacker is null
-            || !IsLastToDieGameplaySettingEnabled(settings => settings.EnableComboTracking)
+            || !GetLastToDieGameplaySettings(attacker).EnableComboTracking
             || !ShouldTrackCombatPerformanceForPlayer(attacker)
             || ReferenceEquals(attacker, target)
             || attacker.Team == target.Team)
@@ -48,7 +49,7 @@ public sealed partial class SimulationWorld
     private void TryRegisterKillStreakKill(PlayerEntity? killer, PlayerEntity victim)
     {
         if (killer is null
-            || !IsLastToDieGameplaySettingEnabled(settings => settings.EnableKillStreakTracking)
+            || !GetLastToDieGameplaySettings(killer).EnableKillStreakTracking
             || !ShouldTrackKillStreakForPlayer(killer)
             || ReferenceEquals(killer, victim)
             || killer.Team == victim.Team)

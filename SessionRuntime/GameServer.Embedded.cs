@@ -60,6 +60,7 @@ partial class GameServer
         ApplyHostGameplayDefaults();
         _world.ConfigureMatchDefaults(timeLimitMinutes: options.TimeLimitMinutes,
             capLimit: options.CaptureLimit, respawnSeconds: options.RespawnSeconds);
+        _lastToDieRunIdentity = options.RunIdentity;
         InitializeGameplayVariantRuntime();
         InitializePluginRuntime();
         InitializeIncomingPacketPump();
@@ -82,12 +83,14 @@ partial class GameServer
 
     internal void AdvanceEmbedded(double elapsedSeconds)
     {
+        _clock.Advance(elapsedSeconds);
         ProcessPendingConsoleCommands();
         _connectionRateLimiter.Prune();
         PumpIncomingPackets();
         _sessionManager.PruneTimedOutClients();
         _sessionManager.RefreshPasswordRequests();
         SynchronizeLastToDieClients();
+        _statsService?.Tick();
         _serverAudio?.Tick();
         _scheduler.RunDueTasks();
         var now = _clock.Elapsed;

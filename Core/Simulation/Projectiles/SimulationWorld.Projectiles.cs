@@ -364,7 +364,8 @@ public sealed partial class SimulationWorld
             owner.Team,
             owner.X,
             owner.Y,
-            directionDegrees);
+            directionDegrees,
+            owner.LastToDieUniversalModifiers.MeleeScale);
         _stabMasks.Add(stabMask);
         _entities.Add(stabMask.Id, stabMask);
         RegisterWorldSoundEvent("KnifeSnd", stabMask.X, stabMask.Y);
@@ -422,7 +423,10 @@ public sealed partial class SimulationWorld
             ticksRemaining: Math.Max(1, lifetimeTicks),
             damagePerHit: damagePerHit,
             killFeedWeaponSpriteName: killFeedWeaponSpriteName,
-            style: style);
+            style: style,
+            dragonRageShotSequence: style == FlareProjectileStyle.DragonRageSlug
+                ? owner.DragonRageCurrentShotSequence
+                : 0);
         if (owner.IsKritzCritBoosted)
         {
             flare.SetCritical(owner.ActiveKritzCritDamageMultiplier);

@@ -192,7 +192,36 @@ public partial class Game1
 
         try
         {
-            return LoadSpriteFrameFromPath(path);
+            var frame = LoadSpriteFrameFromPath(path);
+            if (frame is null || frame.SourceRectangle is null)
+            {
+                return frame;
+            }
+
+            // The flaming-logo effect samples the three logo layers as separate
+            // textures. Atlas-backed frames all share one large page, so passing
+            // the page texture plus source rectangles through a multi-texture
+            // effect lets a driver/shader path sample neighboring atlas regions.
+            // Detach these small layers before binding them to the effect so all
+            // shader UVs are local 0..1 coordinates.
+            var sourceRectangle = frame.SourceRectangle.Value;
+            var pixels = new Color[sourceRectangle.Width * sourceRectangle.Height];
+            if (!frame.TryCopyPixelData(pixels))
+            {
+                return frame;
+            }
+
+            var texture = new Texture2D(GraphicsDevice, sourceRectangle.Width, sourceRectangle.Height);
+            texture.SetData(pixels);
+            var detachedFrame = new LoadedSpriteFrame(
+                texture,
+                OpaqueBounds: frame.OpaqueBounds,
+                PixelSource: new LoadedSpriteFramePixelSource(
+                    pixels,
+                    sourceRectangle.Width,
+                    sourceRectangle.Height));
+            frame.Dispose();
+            return detachedFrame;
         }
         catch (Exception ex)
         {

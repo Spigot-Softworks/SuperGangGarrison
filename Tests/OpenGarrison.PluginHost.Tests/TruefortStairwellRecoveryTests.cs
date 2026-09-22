@@ -56,7 +56,7 @@ public sealed class TruefortStairwellRecoveryTests(ITestOutputHelper output)
                 else if (brain.RequiresPerTickNavigationThink && brain.TryAdvanceCachedNavigation(bot, world, bot.Team, input, out var updated)) input = updated;
                 world.SetLocalInput(input);
                 world.AdvanceOneTick();
-                if (tick % 60 == 0) output.WriteLine($"{tick}: ({bot.X:0},{bot.Y:0}) target=({enemy.X:0},{enemy.Y:0}) graph={brain.LastNavigationGraphSource} {brain.LastDirectDriveTrace} path={brain.CurrentPathIndex}/{brain.CurrentPathCount} {brain.LastTraversalTrace}");
+                if (tick % 60 == 0) output.WriteLine($"{tick}: ({bot.X:0},{bot.Y:0}) target=({enemy.X:0},{enemy.Y:0}) graph={brain.LastNavigationGraphSource} {brain.LastDirectDriveTrace} path={brain.CurrentPathIndex}/{brain.CurrentPathCount} {brain.LastSemanticRecoveryTrace}");
                 // CTF Constructors legitimately return to defend their intel.
                 if ((bot.X < 3990 && MathF.Abs(bot.Y - enemy.Y) < 60)
                     || (playerClass == PlayerClass.Engineer && bot.X > 4700)) { reached = true; break; }
@@ -116,7 +116,7 @@ public sealed class TruefortStairwellRecoveryTests(ITestOutputHelper output)
                     inputs[slot] = input;
                     world.TrySetNetworkPlayerInput(slot, input);
                     if (bot.X < 3990 && MathF.Abs(bot.Y - world.LocalPlayer.Y) < 70) reached.Add(slot);
-                    if (tick % 120 == 0) output.WriteLine($"{tick}: {bot.ClassId} ({bot.X:0},{bot.Y:0}) {brain.LastDirectDriveTrace} path={brain.CurrentPathIndex}/{brain.CurrentPathCount} {brain.LastTraversalTrace}");
+                    if (tick % 120 == 0) output.WriteLine($"{tick}: {bot.ClassId} ({bot.X:0},{bot.Y:0}) {brain.LastDirectDriveTrace} path={brain.CurrentPathIndex}/{brain.CurrentPathCount} {brain.LastSemanticRecoveryTrace}");
                 }
                 world.AdvanceOneTick();
             }

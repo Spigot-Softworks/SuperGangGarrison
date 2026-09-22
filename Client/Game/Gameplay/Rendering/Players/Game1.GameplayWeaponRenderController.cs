@@ -44,7 +44,8 @@ public partial class Game1
                 return false;
             }
 
-            if (_game.GetPlayerIsSpyCloaked(player) && visibilityAlpha <= PlayerEntity.SpyCloakToggleThreshold)
+            if (_game.PlayerSkinIncludesCloakedWeapon(player, bodySelection)
+                || (_game.GetPlayerIsSpyCloaked(player) && visibilityAlpha <= PlayerEntity.SpyCloakToggleThreshold))
             {
                 return false;
             }
@@ -129,7 +130,8 @@ public partial class Game1
                 return false;
             }
 
-            if (_game.GetPlayerIsSpyCloaked(player) && visibilityAlpha <= PlayerEntity.SpyCloakToggleThreshold)
+            if (_game.PlayerSkinIncludesCloakedWeapon(player, bodySelection)
+                || (_game.GetPlayerIsSpyCloaked(player) && visibilityAlpha <= PlayerEntity.SpyCloakToggleThreshold))
             {
                 return false;
             }
@@ -618,9 +620,12 @@ public partial class Game1
             playerScale = player.PlayerScale;
             var roundedOrigin = _game.GetPlayerSpriteOrigin(renderPosition);
             var anchorOrigin = GetWeaponAnchorOrigin(weaponDefinition, sprite);
-            var weaponAnchorOffsetX = weaponDefinition.XOffset + anchorOrigin.X;
+            var usesReloadSprite = weaponAnimationMode is WeaponAnimationMode.Reload or WeaponAnimationMode.ScopedRecoil;
+            var reloadSpriteXOffset = usesReloadSprite ? weaponDefinition.ReloadSpriteXOffset : 0f;
+            var reloadSpriteYOffset = usesReloadSprite ? weaponDefinition.ReloadSpriteYOffset : 0f;
+            var weaponAnchorOffsetX = weaponDefinition.XOffset + reloadSpriteXOffset + anchorOrigin.X;
             worldDrawX = roundedOrigin.X + (weaponAnchorOffsetX * facingScale * playerScale);
-            worldDrawY = roundedOrigin.Y + ((weaponDefinition.YOffset + bodySelection.EquipmentOffset + anchorOrigin.Y) * playerScale);
+            worldDrawY = roundedOrigin.Y + ((weaponDefinition.YOffset + reloadSpriteYOffset + bodySelection.EquipmentOffset + anchorOrigin.Y) * playerScale);
             rotation = GetRenderWeaponRotation(player);
             if (TryApplyLocalWeaponAim(player, roundedOrigin, weaponAnchorOffsetX, playerScale, ref facingScale, ref worldDrawX, worldDrawY, out var localAimRotation))
             {
@@ -825,8 +830,8 @@ public partial class Game1
             return GetWeaponSpriteFrameIndexCore(player, weaponAnimationMode, weaponDefinition, frameCount);
         }
 
-        public WeaponRenderDefinition GetWeaponRenderDefinitionProxy(PlayerEntity player, bool forceCivvieUmbrellaPresentation = false)
-            => GetWeaponRenderDefinition(player, forceCivvieUmbrellaPresentation);
+        public WeaponRenderDefinition GetWeaponRenderDefinitionProxy(PlayerEntity player, bool forceCivvieUmbrellaPresentation = false, bool standing = false)
+            => GetWeaponRenderDefinition(player, forceCivvieUmbrellaPresentation, standing);
         public static float GetSourceTicksAsSecondsProxy(float ticks) => GetSourceTicksAsSeconds(ticks);
 
         private Vector2 GetWeaponAnchorOriginCore(WeaponRenderDefinition weaponDefinition, LoadedGameMakerSprite currentSprite)
@@ -860,6 +865,18 @@ public partial class Game1
                 return 0;
             }
 
+            if (weaponDefinition.SingleTeamFrames)
+            {
+                var hasActionStrip = weaponAnimationMode == WeaponAnimationMode.Recoil && weaponDefinition.RecoilSpriteName is not null
+                    || weaponAnimationMode == WeaponAnimationMode.Reload && weaponDefinition.ReloadSpriteName is not null;
+                if (!hasActionStrip)
+                    return System.Math.Clamp(weaponDefinition.PoseFrameIndex, 0, frameCount - 1);
+                var progress = _game._playerRenderStates.TryGetValue(_game.GetPlayerStateKey(player), out var skinState)
+                    ? skinState.WeaponAnimationElapsedSeconds / System.MathF.Max(skinState.WeaponAnimationDurationSeconds, 0.0001f)
+                    : 0;
+                return System.Math.Clamp((int)(progress * frameCount), 0, frameCount - 1);
+            }
+
             if (IsCivvieUmbrellaAnimationMode(weaponAnimationMode))
             {
                 return GetCivvieUmbrellaFrameIndex(player, weaponAnimationMode, frameCount);
@@ -891,15 +908,16 @@ public partial class Game1
             return System.Math.Clamp(teamOffset + animationFrame, 0, frameCount - 1);
         }
 
-        private WeaponRenderDefinition GetWeaponRenderDefinition(PlayerEntity player, bool forceCivvieUmbrellaPresentation = false)
+        private WeaponRenderDefinition GetWeaponRenderDefinition(PlayerEntity player, bool forceCivvieUmbrellaPresentation = false, bool standing = false)
         {
+            var renderPlayer = player;
             player = _game.GetPlayerPredictedPresentationState(player);
             var presentation = ResolveRenderPresentation(player, forceCivvieUmbrellaPresentation);
             var rifleCycleSpeed = player.ClassId == PlayerClass.Sniper
                     && player.PrimaryWeapon.Kind == PrimaryWeaponKind.Rifle
                 ? player.LastToDieSniperProfile.RifleCycleSpeedMultiplier
                 : 1f;
-            return new WeaponRenderDefinition(
+            var definition = new WeaponRenderDefinition(
                 presentation.WorldSpriteName,
                 presentation.RecoilSpriteName,
                 presentation.ReloadSpriteName,
@@ -917,10 +935,13 @@ public partial class Game1
                     presentation.ReloadOverlayRotationDegrees),
                 presentation.WeaponOffsetX,
                 presentation.WeaponOffsetY,
+                presentation.ReloadSpriteOffsetX,
+                presentation.ReloadSpriteOffsetY,
                 GetSourceTicksAsSeconds(presentation.RecoilDurationSourceTicks) / rifleCycleSpeed,
                 GetSourceTicksAsSeconds(presentation.ReloadDurationSourceTicks),
                 GetSourceTicksAsSeconds(presentation.ScopedRecoilDurationSourceTicks) / rifleCycleSpeed,
                 presentation.LoopRecoilWhileActive);
+            return _game.ApplyPlayerSkinWeapon(renderPlayer, presentation, definition, standing);
         }
 
         private static GameplayItemPresentationDefinition ResolveRenderPresentation(PlayerEntity player, bool forceCivvieUmbrellaPresentation = false)

@@ -123,6 +123,54 @@ public partial class Game1
             }
         }
 
+        public void DrawLastToDieSniperAsceticGhosting(
+            PlayerEntity player,
+            Vector2 renderPosition,
+            Vector2 cameraPosition,
+            float visibilityAlpha,
+            PlayerBodySpriteSelection bodySelection)
+        {
+            if (player.ClassId != PlayerClass.Sniper
+                || !player.IsSniperScoped
+                || !player.LastToDieSniperProfile.AsceticEnabled
+                || visibilityAlpha <= 0.05f)
+            {
+                return;
+            }
+
+            var direction = new Vector2(player.FacingDirectionX, 0f);
+            if (direction.LengthSquared() <= 0.0001f)
+            {
+                direction = Vector2.UnitX;
+            }
+
+            var ghostTint = new Color(180, 210, 235);
+            for (var ghostIndex = 0; ghostIndex < 2; ghostIndex += 1)
+            {
+                var offset = 3f + (ghostIndex * 4f);
+                var ghostPosition = renderPosition - (direction * offset);
+                var ghostAlpha = visibilityAlpha * (ghostIndex == 0 ? 0.16f : 0.08f);
+                var tint = ghostTint * ghostAlpha;
+                _game.TryDrawPlayerSpriteAtPosition(
+                    player,
+                    ghostPosition,
+                    cameraPosition,
+                    tint,
+                    bodySelection,
+                    drawIntelOverlay: false);
+                if (ShouldDrawStatusWeaponSprite(player, bodySelection))
+                {
+                    _game.TryDrawWeaponSpriteAtPosition(
+                        player,
+                        ghostPosition,
+                        cameraPosition,
+                        tint,
+                        1f,
+                        bodySelection);
+                }
+            }
+        }
+
         public void DrawExperimentalCryoOverlays(PlayerEntity player, Vector2 renderPosition, Vector2 cameraPosition, float visibilityAlpha, PlayerBodySpriteSelection bodySelection)
         {
             if (!player.IsAlive

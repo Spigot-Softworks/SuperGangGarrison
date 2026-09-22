@@ -35,6 +35,8 @@ public sealed class OpenGarrisonPreferencesDocument
     public const DisplayScaleModeKind DefaultDisplayScaleMode = DisplayScaleModeKind.Fill;
     public const bool DefaultOverheadChatEnabled = true;
     public const BubbleWheelBehavior DefaultBubbleWheelBehavior = BubbleWheelBehavior.PressAndClick;
+    public const BuildMenuStyle DefaultBuildMenuStyle = BuildMenuStyle.List;
+    public const bool DefaultCameraPanningEnabled = true;
     public const int DefaultDamageVignetteIntensityPercent = 100;
     public const int DefaultCombatMusicVolumePercent = 120;
     public const bool DefaultPostGameMvpArtEnabled = true;
@@ -53,9 +55,9 @@ public sealed class OpenGarrisonPreferencesDocument
     public const ControllerButtonBinding DefaultControllerJumpButton = ControllerButtonBinding.A;
     public const ControllerButtonBinding DefaultControllerPrimaryFireButton = ControllerButtonBinding.RightTrigger;
     public const ControllerButtonBinding DefaultControllerSecondaryFireButton = ControllerButtonBinding.LeftTrigger;
-    public const ControllerButtonBinding DefaultControllerUseAbilityButton = ControllerButtonBinding.RightShoulder;
+    public const ControllerButtonBinding DefaultControllerUseAbilityButton = ControllerButtonBinding.Y;
     public const ControllerButtonBinding DefaultControllerInteractButton = ControllerButtonBinding.X;
-    public const ControllerButtonBinding DefaultControllerSwapWeaponButton = ControllerButtonBinding.Y;
+    public const ControllerButtonBinding DefaultControllerSwapWeaponButton = ControllerButtonBinding.RightShoulder;
     public const ControllerButtonBinding DefaultControllerScoreboardButton = ControllerButtonBinding.Back;
     public const ControllerButtonBinding DefaultControllerPauseButton = ControllerButtonBinding.Start;
     public const ControllerButtonBinding DefaultControllerAimDistanceButton = ControllerButtonBinding.RightStick;
@@ -139,6 +141,12 @@ public sealed class OpenGarrisonPreferencesDocument
     public bool OverheadChatEnabled { get; set; } = DefaultOverheadChatEnabled;
 
     public BubbleWheelBehavior BubbleWheelBehavior { get; set; } = DefaultBubbleWheelBehavior;
+
+    public BuildMenuStyle BuildMenuStyle { get; set; } = DefaultBuildMenuStyle;
+
+    public bool CameraPanningEnabled { get; set; } = DefaultCameraPanningEnabled;
+
+    public PlayerSpriteStyle SpriteStyle { get; set; } = PlayerSpriteStyle.Elkondo;
 
     public bool PortraitRumbleEnabled { get; set; } = true;
 
@@ -268,7 +276,7 @@ public sealed class OpenGarrisonPreferencesDocument
         var ini = IniConfigurationFile.Load(resolvedPath);
         var legacySelectedMap = ini.GetString(ServerSection, "SelectedMap", string.Empty);
 
-        return new OpenGarrisonPreferencesDocument
+        var preferences = new OpenGarrisonPreferencesDocument
         {
             PlayerName = ini.GetString(SettingsSection, "PlayerName", "Player"),
             Rewards = ini.GetString(SettingsSection, "Rewards", string.Empty),
@@ -298,6 +306,10 @@ public sealed class OpenGarrisonPreferencesDocument
             HudShowOnlyActiveWeapon = ini.GetBool(SettingsSection, "HUD Show Only Active Weapon", false),
             OverheadChatEnabled = ini.GetBool(SettingsSection, "Overhead Chat", DefaultOverheadChatEnabled),
             BubbleWheelBehavior = ParseBubbleWheelBehavior(ini.GetString(SettingsSection, "Bubble Wheel Behavior", DefaultBubbleWheelBehavior.ToString())),
+            BuildMenuStyle = ParseBuildMenuStyle(ini.GetString(SettingsSection, "Build Menu Style", DefaultBuildMenuStyle.ToString())),
+            CameraPanningEnabled = ini.GetBool(SettingsSection, "Camera Panning", DefaultCameraPanningEnabled),
+            SpriteStyle = Enum.TryParse<PlayerSpriteStyle>(ini.GetString(SettingsSection, "Sprites", "Elkondo"), true, out var spriteStyle)
+                ? NormalizeSpriteStyle(spriteStyle) : PlayerSpriteStyle.Kelly,
             PortraitRumbleEnabled = ini.GetBool(SettingsSection, "Portrait Rumble", true),
             PostGameMvpArtEnabled = ini.GetBool(SettingsSection, "MVP Art", DefaultPostGameMvpArtEnabled),
             DamageVignetteEnabled = ini.GetBool(SettingsSection, "Damage Vignette", true),
@@ -361,6 +373,18 @@ public sealed class OpenGarrisonPreferencesDocument
             SnapshotCompressionEnabled = ini.GetBool(ServerAdvancedSection, "SnapshotCompressionEnabled", true),
             SnapshotBudgetMode = ini.GetString(ServerAdvancedSection, "SnapshotBudgetMode", "GameplayCriticalUntrimmed"),
         };
+
+        // The original defaults assigned Y to weapon swap and the right shoulder
+        // button to ability use. Move that default pair to the console-style
+        // arrangement while preserving unrelated custom bindings.
+        if (preferences.ControllerUseAbilityButton == ControllerButtonBinding.RightShoulder
+            && preferences.ControllerSwapWeaponButton == ControllerButtonBinding.Y)
+        {
+            preferences.ControllerUseAbilityButton = DefaultControllerUseAbilityButton;
+            preferences.ControllerSwapWeaponButton = DefaultControllerSwapWeaponButton;
+        }
+
+        return preferences;
     }
 
     public void Save(string? path = null)
@@ -401,6 +425,9 @@ public sealed class OpenGarrisonPreferencesDocument
         ini.SetBool(SettingsSection, "HUD Show Only Active Weapon", HudShowOnlyActiveWeapon);
         ini.SetBool(SettingsSection, "Overhead Chat", OverheadChatEnabled);
         ini.SetString(SettingsSection, "Bubble Wheel Behavior", NormalizeBubbleWheelBehavior(BubbleWheelBehavior).ToString());
+        ini.SetString(SettingsSection, "Build Menu Style", NormalizeBuildMenuStyle(BuildMenuStyle).ToString());
+        ini.SetBool(SettingsSection, "Camera Panning", CameraPanningEnabled);
+        ini.SetString(SettingsSection, "Sprites", NormalizeSpriteStyle(SpriteStyle).ToString());
         ini.SetBool(SettingsSection, "Portrait Rumble", PortraitRumbleEnabled);
         ini.SetBool(SettingsSection, "MVP Art", PostGameMvpArtEnabled);
         ini.SetBool(SettingsSection, "Damage Vignette", DamageVignetteEnabled);
@@ -649,6 +676,29 @@ public sealed class OpenGarrisonPreferencesDocument
             BubbleWheelBehavior.HoldAndHover => BubbleWheelBehavior.HoldAndHover,
             BubbleWheelBehavior.PressAndClick => BubbleWheelBehavior.PressAndClick,
             _ => DefaultBubbleWheelBehavior,
+        };
+    }
+
+    public static PlayerSpriteStyle NormalizeSpriteStyle(PlayerSpriteStyle style) =>
+        style == PlayerSpriteStyle.Elkondo ? PlayerSpriteStyle.Elkondo : PlayerSpriteStyle.Kelly;
+
+    private static BuildMenuStyle ParseBuildMenuStyle(string value)
+    {
+        var normalizedValue = value
+            .Replace(" ", string.Empty, StringComparison.Ordinal)
+            .Replace("-", string.Empty, StringComparison.Ordinal);
+        return Enum.TryParse<BuildMenuStyle>(normalizedValue, ignoreCase: true, out var style)
+            ? NormalizeBuildMenuStyle(style)
+            : DefaultBuildMenuStyle;
+    }
+
+    public static BuildMenuStyle NormalizeBuildMenuStyle(BuildMenuStyle style)
+    {
+        return style switch
+        {
+            BuildMenuStyle.List => BuildMenuStyle.List,
+            BuildMenuStyle.Wheel => BuildMenuStyle.Wheel,
+            _ => DefaultBuildMenuStyle,
         };
     }
 

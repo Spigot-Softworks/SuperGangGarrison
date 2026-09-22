@@ -104,6 +104,13 @@ public partial class Game1
             : "Show All Weapons";
     }
 
+    private static string GetBuildMenuStyleLabel(BuildMenuStyle style)
+    {
+        return OpenGarrisonPreferencesDocument.NormalizeBuildMenuStyle(style) == BuildMenuStyle.Wheel
+            ? "Wheel"
+            : "List";
+    }
+
     private static string GetDamageVignetteIntensityLabel(int percent)
     {
         return $"{ClientSettings.NormalizeDamageVignetteIntensityPercent(percent)}%";
@@ -497,6 +504,19 @@ public partial class Game1
         PersistClientSettings();
     }
 
+    private void CycleSpriteStyleSetting()
+    {
+        _spriteStyle = _spriteStyle == PlayerSpriteStyle.Kelly ? PlayerSpriteStyle.Elkondo : PlayerSpriteStyle.Kelly;
+        PersistClientSettings();
+    }
+
+    private void ToggleCameraPanningSetting()
+    {
+        _cameraPanningEnabled = !_cameraPanningEnabled;
+        ResetCameraPanningState();
+        PersistClientSettings();
+    }
+
     private void TogglePredictionSetting()
     {
         _enablePrediction = !_enablePrediction;
@@ -520,6 +540,15 @@ public partial class Game1
     {
         _inputBindings.ScrollWheelWeaponSwapEnabled = !_inputBindings.ScrollWheelWeaponSwapEnabled;
         PersistInputBindings();
+    }
+
+    private void CycleBuildMenuStyleSetting()
+    {
+        _clientSettings.BuildMenuStyle = OpenGarrisonPreferencesDocument.NormalizeBuildMenuStyle(_clientSettings.BuildMenuStyle) == BuildMenuStyle.List
+            ? BuildMenuStyle.Wheel
+            : BuildMenuStyle.List;
+        BeginClosingBuildMenu();
+        PersistClientSettings();
     }
 
     private void CycleControllerInputModeSetting()

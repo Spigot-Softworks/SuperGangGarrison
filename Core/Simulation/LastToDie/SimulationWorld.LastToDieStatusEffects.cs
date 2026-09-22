@@ -141,7 +141,9 @@ public sealed partial class SimulationWorld
                 entry.Value.Spec.HealingPerSecond,
                 entry.Value.Spec.EvasionChance,
                 entry.Value.Spec.OutgoingDamageMultiplier,
-                entry.Value.Spec.StackCount))
+                entry.Value.Spec.StackCount,
+                entry.Value.Spec.FireSpeedMultiplier,
+                entry.Value.Spec.ReloadSpeedMultiplier))
             .ToArray();
     }
 
@@ -442,6 +444,8 @@ public sealed partial class SimulationWorld
     {
         var movementSpeedMultiplier = 1f;
         var outgoingDamageMultiplier = 1f;
+        var fireSpeedMultiplier = 1f;
+        var reloadSpeedMultiplier = 1f;
         foreach (var entry in _lastToDieStatusRuntimes)
         {
             if (entry.Key.TargetPlayerId == target.Id
@@ -453,11 +457,19 @@ public sealed partial class SimulationWorld
                 outgoingDamageMultiplier = Math.Min(
                     outgoingDamageMultiplier,
                     entry.Value.Spec.OutgoingDamageMultiplier);
+                fireSpeedMultiplier = Math.Min(
+                    fireSpeedMultiplier,
+                    entry.Value.Spec.FireSpeedMultiplier);
+                reloadSpeedMultiplier = Math.Min(
+                    reloadSpeedMultiplier,
+                    entry.Value.Spec.ReloadSpeedMultiplier);
             }
         }
 
         target.SetLastToDieStatusMovementSpeedMultiplier(movementSpeedMultiplier);
         target.SetLastToDieStatusOutgoingDamageMultiplier(outgoingDamageMultiplier);
+        target.SetLastToDieStatusFireSpeedMultiplier(fireSpeedMultiplier);
+        target.SetLastToDieStatusReloadSpeedMultiplier(reloadSpeedMultiplier);
     }
 
     private void RefreshLastToDieGuardianState(PlayerEntity target)
@@ -549,6 +561,12 @@ public sealed partial class SimulationWorld
                     OutgoingDamageMultiplier = Math.Min(
                         current.OutgoingDamageMultiplier,
                         candidate.OutgoingDamageMultiplier),
+                    FireSpeedMultiplier = Math.Min(
+                        current.FireSpeedMultiplier,
+                        candidate.FireSpeedMultiplier),
+                    ReloadSpeedMultiplier = Math.Min(
+                        current.ReloadSpeedMultiplier,
+                        candidate.ReloadSpeedMultiplier),
                     StackCount = Math.Max(current.StackCount, candidate.StackCount),
                 },
             LastToDieStatusEffectKind.BeneficialBuff => current with
@@ -584,6 +602,8 @@ public sealed partial class SimulationWorld
         var healingPerSecond = MathF.Max(0f, requested.HealingPerSecond);
         var evasionChance = Math.Clamp(requested.EvasionChance, 0f, 0.95f);
         var outgoingDamageMultiplier = Math.Clamp(requested.OutgoingDamageMultiplier, 0.05f, 1f);
+        var fireSpeedMultiplier = Math.Clamp(requested.FireSpeedMultiplier, 0.05f, 4f);
+        var reloadSpeedMultiplier = Math.Clamp(requested.ReloadSpeedMultiplier, 0.05f, 4f);
         var stackCount = Math.Clamp(requested.StackCount, 1, byte.MaxValue);
         switch (requested.Kind)
         {
@@ -597,6 +617,8 @@ public sealed partial class SimulationWorld
                 movementSpeedMultiplier = 1f;
                 healingPerSecond = 0f;
                 evasionChance = 0f;
+                fireSpeedMultiplier = 1f;
+                reloadSpeedMultiplier = 1f;
                 outgoingDamageMultiplier = 1f;
                 stackCount = 1;
                 break;
@@ -616,6 +638,8 @@ public sealed partial class SimulationWorld
                 healingPerSecond = 0f;
                 evasionChance = 0f;
                 outgoingDamageMultiplier = 1f;
+                fireSpeedMultiplier = 1f;
+                reloadSpeedMultiplier = 1f;
                 stackCount = 1;
                 break;
             case LastToDieStatusEffectKind.BeneficialBuff:
@@ -627,6 +651,8 @@ public sealed partial class SimulationWorld
                 damagePerSecond = 0f;
                 movementSpeedMultiplier = 1f;
                 outgoingDamageMultiplier = 1f;
+                fireSpeedMultiplier = 1f;
+                reloadSpeedMultiplier = 1f;
                 stackCount = 1;
                 break;
             default:
@@ -641,6 +667,8 @@ public sealed partial class SimulationWorld
             HealingPerSecond = healingPerSecond,
             EvasionChance = evasionChance,
             OutgoingDamageMultiplier = outgoingDamageMultiplier,
+            FireSpeedMultiplier = fireSpeedMultiplier,
+            ReloadSpeedMultiplier = reloadSpeedMultiplier,
             StackCount = stackCount,
         };
         return true;

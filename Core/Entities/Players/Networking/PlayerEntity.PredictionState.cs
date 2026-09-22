@@ -74,6 +74,9 @@ public sealed partial class PlayerEntity
         int SniperChargeTicks,
         int SniperBowChargeTicks,
         int SniperRifleFullyChargedHitStreak,
+        bool IsDragonRageRapidFireActive,
+        int DragonRageCurrentShotSequence,
+        bool DragonRageShotPending,
         bool IsUsingBinoculars,
         float BinocularsFocusX,
         float BinocularsFocusY,
@@ -287,6 +290,9 @@ public sealed partial class PlayerEntity
             SniperChargeTicks,
             SniperBowChargeTicks,
             SniperRifleFullyChargedHitStreak,
+            IsDragonRageRapidFireActive,
+            DragonRageCurrentShotSequence,
+            DragonRageShotPending,
             IsUsingBinoculars,
             BinocularsFocusX,
             BinocularsFocusY,
@@ -542,6 +548,9 @@ public sealed partial class PlayerEntity
             state.SniperRifleFullyChargedHitStreak,
             0,
             SniperRifleStreakMaximum);
+        IsDragonRageRapidFireActive = state.IsDragonRageRapidFireActive;
+        DragonRageCurrentShotSequence = Math.Max(0, state.DragonRageCurrentShotSequence);
+        DragonRageShotPending = state.DragonRageShotPending;
         SniperChargeTicks = Math.Clamp(
             state.SniperChargeTicks,
             0,

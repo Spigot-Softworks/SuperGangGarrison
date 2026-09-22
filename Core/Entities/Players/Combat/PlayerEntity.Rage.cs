@@ -13,7 +13,7 @@ public sealed partial class PlayerEntity
 
     public void AddRageCharge(float amount, float maxCharge)
     {
-        if (!IsAlive || IsRaging || amount <= 0f || maxCharge <= 0f)
+        if (!IsAlive || LastToDieUniversalModifiers.RageDisabled || IsRaging || amount <= 0f || maxCharge <= 0f)
         {
             return;
         }
@@ -33,6 +33,7 @@ public sealed partial class PlayerEntity
             || IsHeavyEating
             || IsSpyCloaked
             || IsSpyBackstabAnimating
+            || LastToDieUniversalModifiers.RageDisabled
             || !IsRageReady
             || ticks <= 0)
         {

@@ -39,7 +39,8 @@ public sealed class EngineerAmmoConversionOfferTests
             LastToDiePerkIds.Engineer.PrecisionInstantiator, LastToDiePerkIds.Engineer.IncendiaryEnhancements };
         foreach (var owned in conversions)
         {
-            var survivor = catalog.GetRequired(owned).SurvivorId;
+            var survivor = catalog.GetRequired(owned).SurvivorId
+                ?? throw new InvalidOperationException($"{owned} must remain survivor-scoped.");
             var eligible = catalog.GetEligible(survivor, new HashSet<LastToDiePerkId> { owned });
             Assert.DoesNotContain(eligible, perk => conversions.Contains(perk.Id));
             Assert.Contains(eligible, perk => perk.Id == LastToDiePerkIds.Engineer.CaveatInjector);

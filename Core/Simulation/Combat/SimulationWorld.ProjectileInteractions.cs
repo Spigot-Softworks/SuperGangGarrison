@@ -84,6 +84,7 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
+            ResolveDragonRageProjectileOutcome(flare, hitTarget: false);
             flare.Reflect(player.Id, player.Team, aimRadians);
             reflectedCount += 1;
         }

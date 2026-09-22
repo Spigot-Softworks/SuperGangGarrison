@@ -11,7 +11,9 @@ internal sealed record LastToDieNetworkParticipant(
     IReadOnlyList<string> OwnedPerkIds,
     bool IsConnected,
     bool IsAlive,
-    int ConquistadorStacks);
+    int ConquistadorStacks,
+    int Kills,
+    bool SecondChanceConsumed);
 
 /// <summary>
 /// Server messaging boundary for one LTD run. GameServer owns its lifetime and
@@ -240,7 +242,9 @@ internal sealed class LastToDieNetworkSession(
                     player.OwnedPerks.Select(perk => perk.Value).ToArray(),
                     _clientsBySlot.ContainsKey(entry.Key),
                     player.IsAlive,
-                    player.ConquistadorStacks);
+                    player.ConquistadorStacks,
+                    player.Kills,
+                    player.SecondChanceConsumed);
             })
             .ToArray();
     }

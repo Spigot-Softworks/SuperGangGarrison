@@ -268,6 +268,11 @@ public partial class Game1
                 return new PlayerBodySpriteSelection(GetPresentationSpriteName(player, static presentation => presentation.ScopedSuffix ?? presentation.BaseSuffix, "CrouchS"), WrapAnimationImage(animationImage, 2f), 0f, 0f, false, false);
             }
 
+            if (_game.TryGetPlayerSkinBody(player, out var skinSelection))
+            {
+                return skinSelection;
+            }
+
             string? spriteName;
             var bodyYOffset = 0f;
             var isRunSprite = false;

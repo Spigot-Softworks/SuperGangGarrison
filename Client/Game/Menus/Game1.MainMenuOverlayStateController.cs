@@ -152,6 +152,7 @@ public partial class Game1
             _game.CloseLobbyBrowser(clearStatus: false);
             _game._manualConnectOpen = false;
             _game._lastToDieRoomCodeJoinOpen = false;
+            _game._namePromptOpen = false;
             _game.CancelFriendCodeJoin();
             CloseHostSetupMenu(clearStatus: false);
             CloseCreditsMenu();

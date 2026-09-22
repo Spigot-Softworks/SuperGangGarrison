@@ -7,11 +7,18 @@ public sealed partial class PlayerEntity
     public const string LastToDieGuardianEvasionChanceReplicatedStateKey = "guardian_evasion";
     public const string LastToDieStatusOutgoingDamageMultiplierReplicatedStateKey = "outgoing_damage";
     public const string LastToDieMedicHailMaryTicksReplicatedStateKey = "hail_ticks";
+    public const string LastToDieStatusFireSpeedMultiplierReplicatedStateKey = "fire_scale";
+    public const string LastToDieStatusReloadSpeedMultiplierReplicatedStateKey = "reload_scale";
+    public const string LastToDieSecondChanceInvulnerabilityTicksReplicatedStateKey = "second_chance_ticks";
 
     private float LastToDieStatusMovementSpeedMultiplierValue { get; set; } = 1f;
     private float LastToDieGuardianEvasionChanceValue { get; set; }
     private float LastToDieStatusOutgoingDamageMultiplierValue { get; set; } = 1f;
     private int LastToDieMedicHailMaryTicksRemainingValue { get; set; }
+    private float LastToDieStatusFireSpeedMultiplierValue { get; set; } = 1f;
+    private float LastToDieStatusReloadSpeedMultiplierValue { get; set; } = 1f;
+    private int LastToDieSecondChanceInvulnerabilityTicksRemainingValue { get; set; }
+    private bool LastToDieSecondChanceConsumedValue { get; set; }
 
     public float LastToDieStatusMovementSpeedMultiplier => LastToDieStatusMovementSpeedMultiplierValue;
 
@@ -22,6 +29,15 @@ public sealed partial class PlayerEntity
 
     public int LastToDieMedicHailMaryTicksRemaining =>
         LastToDieMedicHailMaryTicksRemainingValue;
+
+    internal float LastToDieStatusFireSpeedMultiplier => LastToDieStatusFireSpeedMultiplierValue;
+
+    internal float LastToDieStatusReloadSpeedMultiplier => LastToDieStatusReloadSpeedMultiplierValue;
+
+    internal bool IsLastToDieSecondChanceInvulnerable =>
+        IsAlive && LastToDieSecondChanceInvulnerabilityTicksRemainingValue > 0;
+
+    internal bool LastToDieSecondChanceConsumed => LastToDieSecondChanceConsumedValue;
 
     public bool IsLastToDieMedicHailMaryInvulnerable =>
         IsAlive && LastToDieMedicHailMaryTicksRemainingValue > 0;
@@ -48,9 +64,12 @@ public sealed partial class PlayerEntity
     {
         SetLastToDieStatusMovementSpeedMultiplier(1f);
         SetLastToDieStatusOutgoingDamageMultiplier(1f);
+        SetLastToDieStatusFireSpeedMultiplier(1f);
+        SetLastToDieStatusReloadSpeedMultiplier(1f);
         SetLastToDieGuardianEvasionChance(0f);
         SetServerStunTicks(0);
         SetLastToDieMedicHailMaryTicks(0);
+        RefreshLastToDieSecondChanceInvulnerability(0);
     }
 
     internal bool RefreshLastToDieMedicHailMaryInvulnerability(int ticks)
@@ -76,6 +95,49 @@ public sealed partial class PlayerEntity
     internal void HydrateProtocol64LastToDieMedicHailMaryTicks(int ticks)
     {
         LastToDieMedicHailMaryTicksRemainingValue = Math.Max(0, ticks);
+    }
+
+    internal void SetLastToDieSecondChanceConsumed(bool consumed)
+    {
+        LastToDieSecondChanceConsumedValue = consumed;
+    }
+
+    internal bool ActivateLastToDieSecondChance(int ticks)
+    {
+        if (LastToDieSecondChanceConsumedValue || ticks <= 0)
+        {
+            return false;
+        }
+
+        LastToDieSecondChanceConsumedValue = true;
+        RefreshLastToDieSecondChanceInvulnerability(ticks);
+        return true;
+    }
+
+    internal void AdvanceLastToDieSecondChanceState()
+    {
+        if (LastToDieSecondChanceInvulnerabilityTicksRemainingValue > 0)
+        {
+            RefreshLastToDieSecondChanceInvulnerability(
+                LastToDieSecondChanceInvulnerabilityTicksRemainingValue - 1);
+        }
+    }
+
+    private void RefreshLastToDieSecondChanceInvulnerability(int ticks)
+    {
+        LastToDieSecondChanceInvulnerabilityTicksRemainingValue = Math.Max(0, ticks);
+        if (LastToDieSecondChanceInvulnerabilityTicksRemainingValue == 0)
+        {
+            ClearReplicatedState(
+                LastToDieStatusReplicatedStateOwnerId,
+                LastToDieSecondChanceInvulnerabilityTicksReplicatedStateKey);
+            return;
+        }
+
+        SetReplicatedStateInt(
+            LastToDieStatusReplicatedStateOwnerId,
+            LastToDieSecondChanceInvulnerabilityTicksReplicatedStateKey,
+            LastToDieSecondChanceInvulnerabilityTicksRemainingValue);
     }
 
     private bool SetLastToDieMedicHailMaryTicks(int ticks)
@@ -111,6 +173,42 @@ public sealed partial class PlayerEntity
             LastToDieStatusReplicatedStateOwnerId,
             LastToDieStatusOutgoingDamageMultiplierReplicatedStateKey,
             LastToDieStatusOutgoingDamageMultiplierValue);
+    }
+
+    internal bool SetLastToDieStatusFireSpeedMultiplier(float multiplier)
+    {
+        LastToDieStatusFireSpeedMultiplierValue = Math.Clamp(multiplier, 0.05f, 4f);
+        if (LastToDieStatusFireSpeedMultiplierValue >= 0.9999f)
+        {
+            LastToDieStatusFireSpeedMultiplierValue = 1f;
+            ClearReplicatedState(
+                LastToDieStatusReplicatedStateOwnerId,
+                LastToDieStatusFireSpeedMultiplierReplicatedStateKey);
+            return true;
+        }
+
+        return SetReplicatedStateFloat(
+            LastToDieStatusReplicatedStateOwnerId,
+            LastToDieStatusFireSpeedMultiplierReplicatedStateKey,
+            LastToDieStatusFireSpeedMultiplierValue);
+    }
+
+    internal bool SetLastToDieStatusReloadSpeedMultiplier(float multiplier)
+    {
+        LastToDieStatusReloadSpeedMultiplierValue = Math.Clamp(multiplier, 0.05f, 4f);
+        if (LastToDieStatusReloadSpeedMultiplierValue >= 0.9999f)
+        {
+            LastToDieStatusReloadSpeedMultiplierValue = 1f;
+            ClearReplicatedState(
+                LastToDieStatusReplicatedStateOwnerId,
+                LastToDieStatusReloadSpeedMultiplierReplicatedStateKey);
+            return true;
+        }
+
+        return SetReplicatedStateFloat(
+            LastToDieStatusReplicatedStateOwnerId,
+            LastToDieStatusReloadSpeedMultiplierReplicatedStateKey,
+            LastToDieStatusReloadSpeedMultiplierValue);
     }
 
     internal bool SetLastToDieGuardianEvasionChance(float chance)
@@ -160,6 +258,27 @@ public sealed partial class PlayerEntity
                 LastToDieMedicHailMaryTicksReplicatedStateKey,
                 out var hailMaryTicks)
                 ? Math.Max(0, hailMaryTicks)
+                : 0;
+        LastToDieStatusFireSpeedMultiplierValue =
+            TryGetReplicatedStateFloat(
+                LastToDieStatusReplicatedStateOwnerId,
+                LastToDieStatusFireSpeedMultiplierReplicatedStateKey,
+                out var fireSpeedMultiplier)
+                ? Math.Clamp(fireSpeedMultiplier, 0.05f, 4f)
+                : 1f;
+        LastToDieStatusReloadSpeedMultiplierValue =
+            TryGetReplicatedStateFloat(
+                LastToDieStatusReplicatedStateOwnerId,
+                LastToDieStatusReloadSpeedMultiplierReplicatedStateKey,
+                out var reloadSpeedMultiplier)
+                ? Math.Clamp(reloadSpeedMultiplier, 0.05f, 4f)
+                : 1f;
+        LastToDieSecondChanceInvulnerabilityTicksRemainingValue =
+            TryGetReplicatedStateInt(
+                LastToDieStatusReplicatedStateOwnerId,
+                LastToDieSecondChanceInvulnerabilityTicksReplicatedStateKey,
+                out var secondChanceTicks)
+                ? Math.Max(0, secondChanceTicks)
                 : 0;
     }
 }

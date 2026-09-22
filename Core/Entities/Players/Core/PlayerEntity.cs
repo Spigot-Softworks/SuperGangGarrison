@@ -402,6 +402,16 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     public int SniperRifleFullyChargedHitStreak { get; private set; }
 
+    public const float DragonRageBaseFireRateMultiplier = 0.70f;
+
+    public const float DragonRageSuccessfulHitFireRateBonus = 1f;
+
+    public bool IsDragonRageRapidFireActive { get; private set; }
+
+    internal int DragonRageCurrentShotSequence { get; private set; }
+
+    private bool DragonRageShotPending { get; set; }
+
     public bool IsUsingBinoculars { get; private set; }
 
     public float BinocularsFocusX { get; private set; }
@@ -415,6 +425,7 @@ public sealed partial class PlayerEntity : SimulationEntity
     public bool IsUbered => UberTicksRemaining > 0;
 
     public bool HasInfiniteAmmoFromUber => IsUbered
+        || (IsAlive && LastToDieUniversalModifiers.InfiniteAmmo)
         || IsMedicRegularUberDeliveryActive;
 
     public int UberTicksRemaining { get; private set; }
@@ -574,7 +585,7 @@ public sealed partial class PlayerEntity : SimulationEntity
             || HasReplicatedHeavyDashToggle(GameplayAbilityReplicatedState.HeavyDashActiveKey);
 
     public bool IsExperimentalGhostDashVisible
-        => ExperimentalGhostDashVisibilityTicksRemaining > 0
+        => ExperimentalGhostVisibilityTicksRemaining > 0
             || ExperimentalGhostDashSlideVisualSpeedPerSecond > 0f
             || HasReplicatedHeavyDashToggle(GameplayAbilityReplicatedState.HeavyDashVisibleKey)
             || HasReplicatedHeavyDashToggle(GameplayAbilityReplicatedState.HeavyDashActiveKey);
@@ -595,6 +606,11 @@ public sealed partial class PlayerEntity : SimulationEntity
             if (ExperimentalGhostDashTrailAlphaValue > 0f)
             {
                 return float.Clamp(ExperimentalGhostDashTrailAlphaValue, 0f, 1f);
+            }
+
+            if (NetworkExperimentalGhostTrailAlpha > 0f)
+            {
+                return float.Clamp(NetworkExperimentalGhostTrailAlpha, 0f, 1f);
             }
 
             return HasReplicatedHeavyDashToggle(GameplayAbilityReplicatedState.HeavyDashVisibleKey)
@@ -1045,6 +1061,7 @@ public sealed partial class PlayerEntity : SimulationEntity
         IsSniperScoped = false;
         SniperChargeTicks = 0;
         SniperRifleFullyChargedHitStreak = 0;
+        ResetDragonRageCadence();
         IsUsingBinoculars = false;
         BinocularsFocusX = X;
         BinocularsFocusY = Y;
@@ -1340,7 +1357,8 @@ public sealed partial class PlayerEntity : SimulationEntity
                 nextLoadoutState.EquippedItemId,
                 StringComparison.Ordinal))
         {
-            // Scope, charge, and bow draw are properties of the held item.
+            // Scope, charge, bow draw, and the rifle's consecutive-hit streak
+            // are properties of the held item.
             // Clear them at the single state transition seam so every route
             // (primary/offhand/acquired/network refresh) agrees on the pose.
             CancelSniperBowCharge();
@@ -1348,6 +1366,7 @@ public sealed partial class PlayerEntity : SimulationEntity
             {
                 IsSniperScoped = false;
                 SniperChargeTicks = 0;
+                SniperRifleFullyChargedHitStreak = 0;
             }
         }
 
@@ -1659,4 +1678,3 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     private HashSet<string> OwnedGameplayItemIds { get; } = new(StringComparer.Ordinal);
 }
-
