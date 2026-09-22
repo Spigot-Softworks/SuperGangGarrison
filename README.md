@@ -1,5 +1,7 @@
 # OpenGarrison Fork
 
+### NOTE: This game is currently under development! Everything here is subject to change, modification, removal, etc without any warning. THIS DOES NOT REPRESENT THE FINAL PRODUCT! We are hard at work preparing for Steam and other goodies. You're more than welcome to download the latest beta build. If you're interested in development or have any questions please don't hesitate to reach out! (via steam id: XR24)
+
 OpenGarrison is a C# reimplementation of Gang Garrison 2, with a MonoGame desktop
 client, a browser client, and a dedicated server.
 
