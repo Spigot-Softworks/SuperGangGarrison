@@ -166,6 +166,9 @@ public sealed partial class SimulationWorld
                 (KillFeedSpecialType)entry.SpecialType,
                 entry.EventId)
             {
+                AssistName = entry.AssistName,
+                AssistTeam = (PlayerTeam)entry.AssistTeam,
+                AssistPlayerId = entry.AssistPlayerId,
                 InvolvedPlayerIds = entry.InvolvedPlayerIds,
             });
             _killFeedEntryLifetimes.Insert(insertIndex, lifetime);
@@ -182,7 +185,7 @@ public sealed partial class SimulationWorld
 
     private static bool IsSnapshotKillFeedEntryLocalInvolved(SnapshotKillFeedEntry entry, int localPlayerId)
     {
-        if (entry.KillerPlayerId == localPlayerId || entry.VictimPlayerId == localPlayerId)
+        if (localPlayerId > 0 && (entry.KillerPlayerId == localPlayerId || entry.VictimPlayerId == localPlayerId || entry.AssistPlayerId == localPlayerId))
         {
             return true;
         }

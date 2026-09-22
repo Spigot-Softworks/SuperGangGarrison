@@ -426,6 +426,13 @@ internal sealed class LastToDieProtocolController
                     new LastToDiePerkId(command.SelectedId),
                     out error);
 
+            case LastToDieCommandKind.RerollReward:
+                return _director.TryRerollReward(
+                    player.PlayerId,
+                    command.OfferId,
+                    new LastToDiePerkId(command.SelectedId),
+                    out error);
+
             case LastToDieCommandKind.StageContentReady:
                 var snapshot = _director.CreateSnapshot();
                 if (command.StageInstanceId == 0
@@ -499,6 +506,8 @@ internal sealed class LastToDieProtocolController
                 => _director.Phase == LastToDiePhase.SurvivorChoice,
             LastToDieCommandKind.SelectReward
                 => _director.Phase == LastToDiePhase.RewardChoice,
+            LastToDieCommandKind.RerollReward
+                => _director.Phase == LastToDiePhase.RewardChoice,
             LastToDieCommandKind.Ready
                 => _director.Phase == LastToDiePhase.Lobby,
             LastToDieCommandKind.Unready
@@ -535,7 +544,20 @@ internal sealed class LastToDieProtocolController
             player.IsAlive,
             player.Kills,
             binding.IsHost,
-            player.ConquistadorStacks);
+            player.ConquistadorStacks,
+            ActiveOfferSlots: offer?.Slots.Select(slot => new LastToDieOfferSlotMessage(
+                slot.PerkId.Value,
+                (LastToDieWirePerkTier)slot.Tier,
+                slot.RerollsRemaining,
+                slot.HasEligibleReplacement)).ToArray() ?? [],
+            ActiveOfferTargetStage: offer?.TargetStage ?? 0,
+            ActiveOfferSelectionNumber: offer?.SelectionNumber ?? 0,
+            ActiveOfferSelectionsRequired: offer?.SelectionsRequired ?? 0,
+            ActiveOfferGuaranteedTierConsumed: offer?.GuaranteedTierConsumed ?? false,
+            PendingBonusSelections: player.PendingBonusSelections,
+            LuckyDrawRoundsRemaining: player.LuckyDrawRoundsRemaining,
+            SelectionsRemaining: player.SelectionsRemaining,
+            SecondChanceConsumed: player.SecondChanceConsumed);
     }
 
     private void PromoteStageReady(PlayerBinding player)

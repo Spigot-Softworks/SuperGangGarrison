@@ -2,6 +2,42 @@ namespace OpenGarrison.Core.LastToDie;
 
 public static class LastToDiePerkIds
 {
+    public static class Rare
+    {
+        public static readonly LastToDiePerkId Mimic = Id("rare.mimic");
+        public static readonly LastToDiePerkId Triage = Id("rare.triage");
+        public static readonly LastToDiePerkId Reinforcements = Id("rare.reinforcements");
+        public static readonly LastToDiePerkId FireCrew = Id("rare.fire-crew");
+        public static readonly LastToDiePerkId Colossus = Id("rare.colossus");
+        public static readonly LastToDiePerkId FreezingArmor = Id("rare.freezing-armor");
+        public static readonly LastToDiePerkId BlazingArmor = Id("rare.blazing-armor");
+        public static readonly LastToDiePerkId SpikedArmor = Id("rare.spiked-armor");
+        public static readonly LastToDiePerkId TroopersBlessing = Id("rare.troopers-blessing");
+        public static readonly LastToDiePerkId Ragnarok = Id("rare.ragnarok");
+        public static readonly LastToDiePerkId Fortify = Id("rare.fortify");
+        public static readonly LastToDiePerkId SleightOfHand = Id("rare.sleight-of-hand");
+        public static readonly LastToDiePerkId PowerBooster = Id("rare.power-booster");
+        public static readonly LastToDiePerkId SpeedBooster = Id("rare.speed-booster");
+        public static readonly LastToDiePerkId HealthBooster = Id("rare.health-booster");
+    }
+
+    public static class Ultra
+    {
+        public static readonly LastToDiePerkId GutsAndGlory = Id("ultra.guts-and-glory");
+        public static readonly LastToDiePerkId InfiniteSlayWorks = Id("ultra.infinite-slay-works");
+        public static readonly LastToDiePerkId ZergRush = Id("ultra.zerg-rush");
+        public static readonly LastToDiePerkId SecondChance = Id("ultra.second-chance");
+        public static readonly LastToDiePerkId FatalBravado = Id("ultra.fatal-bravado");
+        public static readonly LastToDiePerkId FightOrFlight = Id("ultra.fight-or-flight");
+        public static readonly LastToDiePerkId Sinister = Id("ultra.sinister");
+        public static readonly LastToDiePerkId ImmovableObject = Id("ultra.immovable-object");
+        public static readonly LastToDiePerkId HeartOfBravery = Id("ultra.heart-of-bravery");
+        public static readonly LastToDiePerkId LethalTango = Id("ultra.lethal-tango");
+        public static readonly LastToDiePerkId DefenseBattery = Id("ultra.defense-battery");
+        public static readonly LastToDiePerkId BattleMaster = Id("ultra.battle-master");
+        public static readonly LastToDiePerkId LuckyDraw = Id("ultra.lucky-draw");
+    }
+
     public static class Spy
     {
         public static readonly LastToDiePerkId Blunderbuss1 = Id("spy.blunderbuss.1");
@@ -74,7 +110,12 @@ public static class LastToDiePerkIds
         public static readonly LastToDiePerkId Zen = Id("sniper.zen");
         public static readonly LastToDiePerkId Overkiller = Id("sniper.overkiller");
         public static readonly LastToDiePerkId ExplosiveTip = Id("sniper.explosive-tip");
+        // Keep the original wire/save id as an alias for compatibility.
+        public static readonly LastToDiePerkId ExplosiveOrdinance = ExplosiveTip;
         public static readonly LastToDiePerkId Conquistador = Id("sniper.conquistador");
+        public static readonly LastToDiePerkId Avarice = Id("sniper.avarice");
+        public static readonly LastToDiePerkId DugIn = Id("sniper.dug-in");
+        public static readonly LastToDiePerkId Ascetic = Id("sniper.ascetic");
     }
 
     public static class Soldier
@@ -181,6 +222,7 @@ public static class LastToDieExpansionPerkCatalog
 
         return
         [
+            ..CreateUniversalDefinitions(),
             ..CreateSoldierDefinitions(soldier),
             ..CreateDemoknightDefinitions(demoknight),
             ..CreateEngineerDefinitions(engineer),
@@ -242,14 +284,58 @@ public static class LastToDieExpansionPerkCatalog
             Perk(LastToDiePerkIds.Sniper.TranqDarts, sniper, "Tranq Darts", "Shots deal less damage but poison, slow, and weaken enemies.", tags: ["rifle", "huntsman", "poison", "slow"]),
             Perk(LastToDiePerkIds.Sniper.PoisonTip, sniper, "Poison Tip", "Arrows apply charge-scaled poison.", tags: ["huntsman", "poison"]),
             Perk(LastToDiePerkIds.Sniper.Decapitator, sniper, "Decapitator", "Fully charged headshots execute and arrows carry heads.", tags: ["rifle", "huntsman", "headshot", "execute"]),
-            Perk(LastToDiePerkIds.Sniper.LightMarksman, sniper, "Light Marksman", "Rifle loses scope/charge for higher base damage and fire rate.", tags: ["rifle", "weapon-profile"]),
+            Perk(LastToDiePerkIds.Sniper.LightMarksman, sniper, "Light Marksman", "Rifle cannot charge while scoped, but deals higher base damage and fires faster.", tags: ["rifle", "scope", "weapon-profile"]),
             Perk(LastToDiePerkIds.Sniper.MenageATrois, sniper, "Menage A Trois", "Fully charged Huntsman shots fire a three-arrow volley.", tags: ["huntsman", "volley"]),
             Perk(LastToDiePerkIds.Sniper.ExtremeConditioning, sniper, "Extreme Conditioning", "Move faster without rifle charge slowdown.", tags: ["rifle", "movement"]),
             Perk(LastToDiePerkIds.Sniper.Mechanica, sniper, "Mechanica", "Fully charged rifle and Huntsman shots pierce without a target limit.", tags: ["rifle", "huntsman", "pierce"]),
             Perk(LastToDiePerkIds.Sniper.Zen, sniper, "Zen", "Regenerate health while scoped.", tags: ["scope", "healing"]),
             Perk(LastToDiePerkIds.Sniper.Overkiller, sniper, "Overkiller", "Damage has a chance to instantly kill enemies.", tags: ["execute"]),
-            Perk(LastToDiePerkIds.Sniper.ExplosiveTip, sniper, "Explosive Tip", "Detonate Huntsman arrows manually or at end of life.", tags: ["huntsman", "explosion"]),
+            Perk(LastToDiePerkIds.Sniper.ExplosiveTip, sniper, "Explosive Ordinance", "Rifle shots and Huntsman arrows create explosions wherever they collide.", tags: ["rifle", "huntsman", "explosion"]),
             Perk(LastToDiePerkIds.Sniper.Conquistador, sniper, "Conquistador", "Kills grant stacking damage until death.", tags: ["kill-reward", "damage"]),
+            Perk(LastToDiePerkIds.Sniper.Avarice, sniper, "Avarice", "Scoped shots heal you for 40% of the damage dealt.", tags: ["scope", "healing"]),
+            Perk(LastToDiePerkIds.Sniper.DugIn, sniper, "Dug In", "Take 40% less damage while scoped.", tags: ["scope", "resistance"]),
+            Perk(LastToDiePerkIds.Sniper.Ascetic, sniper, "Ascetic", "While scoped, deal and take 90% less damage.", tags: ["scope", "damage", "resistance"]),
+        ];
+    }
+
+    private static IReadOnlyList<LastToDiePerkDefinition> CreateUniversalDefinitions()
+    {
+        static LastToDiePerkDefinition Rare(LastToDiePerkId id, string name, string description, params string[] tags)
+            => new(id, null, name, description, tags: tags, tier: LastToDiePerkTier.Rare, scope: LastToDiePerkScope.AllClass);
+        static LastToDiePerkDefinition Ultra(LastToDiePerkId id, string name, string description, params string[] tags)
+            => new(id, null, name, description, tags: tags, tier: LastToDiePerkTier.Ultra, scope: LastToDiePerkScope.AllClass);
+
+        return
+        [
+            Rare(LastToDiePerkIds.Rare.Mimic, "Mimic", "Spawn a non-respawning same-class companion that copies your input and combat build.", "companion"),
+            Rare(LastToDiePerkIds.Rare.Triage, "Triage", "Spawn a non-respawning Medic companion that follows and heals you.", "companion", "healing"),
+            Rare(LastToDiePerkIds.Rare.Reinforcements, "Reinforcements", "Spawn one friendly non-respawning Soldier, Heavy, or Demoman combat bot.", "companion"),
+            Rare(LastToDiePerkIds.Rare.FireCrew, "Fire Crew", "Spawn two friendly non-respawning Pyro companions.", "companion"),
+            Rare(LastToDiePerkIds.Rare.Colossus, "Colossus", "+150 max HP and 1.3× player, melee reach, projectile, and explosion size.", "health", "scale"),
+            Rare(LastToDiePerkIds.Rare.FreezingArmor, "Freezing Armor", "Qualifying attackers are slowed and attack 20% more slowly for 3 seconds.", "damage-response", "slow"),
+            Rare(LastToDiePerkIds.Rare.BlazingArmor, "Blazing Armor", "Ignite the enemy responsible for qualifying damage.", "damage-response", "afterburn"),
+            Rare(LastToDiePerkIds.Rare.SpikedArmor, "Spiked Armor", "Reflect 20% of actual health damage back to the attacker.", "damage-response", "reflection"),
+            Rare(LastToDiePerkIds.Rare.TroopersBlessing, "Trooper's Blessing", "+5 HP/sec and 1.15× movement, fire, and reload speed.", "healing", "speed"),
+            Rare(LastToDiePerkIds.Rare.Ragnarok, "Ragnarök", "Deal up to 3× damage as your health falls; damage scales with missing health.", "damage"),
+            Rare(LastToDiePerkIds.Rare.Fortify, "Fortify", "Take 30% less damage while carrying intelligence or defending an active capture zone.", "resistance", "objective"),
+            Rare(LastToDiePerkIds.Rare.SleightOfHand, "Sleight of Hand", "Fire and reload 25% faster.", "speed"),
+            Rare(LastToDiePerkIds.Rare.PowerBooster, "Power Booster", "Deal 15% more damage and gain one additional selection next reward round.", "damage", "draft"),
+            Rare(LastToDiePerkIds.Rare.SpeedBooster, "Speed Booster", "Move, fire, and reload 15% faster; gain one additional selection next reward round.", "speed", "draft"),
+            Rare(LastToDiePerkIds.Rare.HealthBooster, "Health Booster", "+50 permanent max HP and gain one additional selection next reward round.", "health", "draft"),
+
+            Ultra(LastToDiePerkIds.Ultra.GutsAndGlory, "Guts and Glory", "Set your base max HP and all enemy max HP to 50; each kill adds 2 max HP for the run.", "health", "kill-scaling"),
+            Ultra(LastToDiePerkIds.Ultra.InfiniteSlayWorks, "Infinite Slay Works", "Never consume ammo or reload; lose 1 HP/sec and heal 10 HP per enemy kill.", "ammo", "health"),
+            Ultra(LastToDiePerkIds.Ultra.ZergRush, "Zerg Rush", "Shrink to 0.3× size, fire and reload 2× faster, lose 50 max HP, and disable rage.", "scale", "speed"),
+            Ultra(LastToDiePerkIds.Ultra.SecondChance, "Second Chance", "Once per run, survive a lethal hit at 50% max HP with cleared damaging effects and 2 seconds of invulnerability.", "death", "revive"),
+            Ultra(LastToDiePerkIds.Ultra.FatalBravado, "Fatal Bravado", "Below half health, reflect 50% of post-mitigation damage.", "damage-response", "reflection"),
+            Ultra(LastToDiePerkIds.Ultra.FightOrFlight, "Fight or Flight", "Below half health, gain 30% evasion, 1.3× movement, and 1.3× damage.", "evasion", "damage"),
+            Ultra(LastToDiePerkIds.Ultra.Sinister, "Sinister", "Deal 0.5% more damage for every enemy killed this run.", "damage", "kill-scaling"),
+            Ultra(LastToDiePerkIds.Ultra.ImmovableObject, "Immovable Object", "+60 max HP, receive 40% less knockback, and take 20% less bullet and explosion damage.", "health", "resistance"),
+            Ultra(LastToDiePerkIds.Ultra.HeartOfBravery, "Heart of Bravery", "Each enemy kill permanently adds 1 max HP for the run without healing you.", "health", "kill-scaling"),
+            Ultra(LastToDiePerkIds.Ultra.LethalTango, "Lethal Tango", "Below half health deal 2× damage; at or above half health deal 0.6× damage.", "damage"),
+            Ultra(LastToDiePerkIds.Ultra.DefenseBattery, "Defense Battery", "Spawn an owned Civil Defense turret near you at the start of each stage.", "turret"),
+            Ultra(LastToDiePerkIds.Ultra.BattleMaster, "Battle Master", "Immediately gain three distinct eligible Standard or Rare perks.", "draft"),
+            Ultra(LastToDiePerkIds.Ultra.LuckyDraw, "Lucky Draw", "Make the next two reward rounds offer Rare perks only, including bonus selections.", "draft"),
         ];
     }
 

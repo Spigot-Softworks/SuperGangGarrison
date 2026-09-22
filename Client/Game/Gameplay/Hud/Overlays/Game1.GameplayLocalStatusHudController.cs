@@ -281,15 +281,19 @@ public partial class Game1
             var crossPosition = basePosition + new Vector2(crossOffsetX - 4f, -2f);
             
             // Draw character sprite centered on background health sprite (always use basic standing sprite)
-            var characterSpriteName = GameplayPlayerSpriteRenderController.GetHudStandingSpriteName(_game._world.LocalPlayer);
+            var portraitSkin = _game.GetPlayerSkin(_game._world.LocalPlayer);
+            var characterSpriteName = portraitSkin is null
+                ? GameplayPlayerSpriteRenderController.GetHudStandingSpriteName(_game._world.LocalPlayer)
+                : portraitSkin.SpriteForTeam(portraitSkin.BodySprite, _game._world.LocalPlayer.Team);
+            var portraitFrameIndex = portraitSkin?.Clips["idle"].Frames[0] ?? 0;
             if (characterSpriteName is not null && backgroundHealthSprite is not null && backgroundHealthSprite.Frames.Count > 0)
             {
                 var characterSprite = _game.GetResolvedSprite(characterSpriteName);
                 if (characterSprite is not null && characterSprite.Frames.Count > 0)
                 {
                     var characterScale = scale;
-                    var characterWidth = characterSprite.Frames[0].Width;
-                    var characterHeight = characterSprite.Frames[0].Height;
+                    var characterWidth = characterSprite.Frames[portraitFrameIndex].Width;
+                    var characterHeight = characterSprite.Frames[portraitFrameIndex].Height;
                     var backgroundWidth = backgroundHealthSprite.Frames[0].Width * scale.X;
                     var backgroundHeight = backgroundHealthSprite.Frames[0].Height * scale.Y;
                     
@@ -302,7 +306,7 @@ public partial class Game1
                     
                     // Calculate horizontal centering based on opaque bounds (trim transparent padding)
                     float characterCenterOffsetX;
-                    var opaqueBounds = characterSprite.Frames[0].OpaqueBounds;
+                    var opaqueBounds = characterSprite.Frames[portraitFrameIndex].OpaqueBounds;
                     if (opaqueBounds.HasValue)
                     {
                         var opaqueWidth = opaqueBounds.Value.Width;
@@ -342,13 +346,13 @@ public partial class Game1
                         if (visibleHeight > 0)
                         {
                             var sourceRect = new Rectangle(0, 0, characterWidth, visibleHeight);
-                            _game.TryDrawScreenSpritePart(characterSpriteName, 0, sourceRect, characterPosition, portraitColor, characterScale);
+                            _game.TryDrawScreenSpritePart(characterSpriteName, portraitFrameIndex, sourceRect, characterPosition, portraitColor, characterScale);
                         }
                     }
                     else
                     {
                         // No masking needed
-                        _game.TryDrawScreenSprite(characterSpriteName, 0, characterPosition, portraitColor, characterScale);
+                        _game.TryDrawScreenSprite(characterSpriteName, portraitFrameIndex, characterPosition, portraitColor, characterScale);
                     }
                     
                     // Draw weapon sprite for the character (static, always facing right like HUD sprite)
@@ -369,7 +373,8 @@ public partial class Game1
 
                     var weaponDefinition = _game._gameplayWeaponRenderController.GetWeaponRenderDefinitionProxy(
                         localPlayer,
-                        forceCivvieUmbrellaPresentation);
+                        forceCivvieUmbrellaPresentation,
+                        standing: true);
                     if (weaponDefinition.NormalSpriteName is not null)
                     {
                         var weaponSprite = _game.GetResolvedSprite(weaponDefinition.NormalSpriteName);
@@ -381,7 +386,9 @@ public partial class Game1
                             // Calculate weapon position relative to character position
                             // Character position is where the character's origin is placed
                             var weaponX = characterPosition.X + ((weaponDefinition.XOffset + weaponAnchorOrigin.X) * facingScale * characterScale.X);
-                            var weaponY = characterPosition.Y + ((weaponDefinition.YOffset + weaponAnchorOrigin.Y) * characterScale.Y);
+                            var equipmentOffset = portraitSkin is null ? 0f
+                                : portraitSkin.Poses[portraitFrameIndex].EquipmentOffset * portraitSkin.PixelScale;
+                            var weaponY = characterPosition.Y + ((weaponDefinition.YOffset + weaponAnchorOrigin.Y + equipmentOffset) * characterScale.Y);
                             if (localPlayer.IsSniperBowEquipped)
                             {
                                 weaponX += PlayerEntity.SniperBowWeaponVisualForwardOffsetX * facingScale * characterScale.X;
@@ -391,7 +398,7 @@ public partial class Game1
                             var weaponScale = new Vector2(facingScale * characterScale.X, characterScale.Y);
                             var weaponFrameIndex = _game._gameplayWeaponRenderController.GetWeaponSpriteFrameIndex(
                                 localPlayer,
-                                weaponAnimationMode,
+                                weaponDefinition.SingleTeamFrames ? WeaponAnimationMode.Idle : weaponAnimationMode,
                                 weaponDefinition,
                                 weaponSprite.Frames.Count);
 

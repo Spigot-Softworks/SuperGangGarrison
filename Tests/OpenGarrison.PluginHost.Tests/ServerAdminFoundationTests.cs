@@ -1421,6 +1421,62 @@ public sealed class ServerAdminFoundationTests
     }
 
     [Fact]
+    public void LastToDieBotsLeaveEmptyHumanSeatsReserved()
+    {
+        var world = new SimulationWorld();
+        Assert.True(world.TryPrepareNetworkPlayerJoin(2));
+        var manager = new ServerBotManager(world, new SimulationConfig(), new BotBrainPracticeBotController())
+        {
+            LastToDieReservedPlayerSlots = 4,
+        };
+        Assert.True(manager.TryAddLastToDieMimicBot(2, out var mimic));
+        Assert.True(manager.TryAddLastToDieFollowHealerBot(2, "", out var healer));
+        Assert.True(manager.TryAddLastToDieCompanionBot(2, PlayerClass.Heavy, "", out var companion));
+        Assert.True(manager.TryAddLastToDieEnemyBot(PlayerTeam.Blue, PlayerClass.Soldier, "", out var enemy));
+        Assert.All(new[] { mimic, healer, companion, enemy }, slot => Assert.True(slot > 4));
+    }
+
+    [Fact]
+    public void LastToDieFriendlyCompanionsForceHealthBarsAndMimicUsesOwnersCloneName()
+    {
+        var world = new SimulationWorld();
+        Assert.True(world.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.TrySetNetworkPlayerName(2, "Alex"));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
+        var botManager = new ServerBotManager(world, new SimulationConfig(), new BotBrainPracticeBotController());
+
+        Assert.True(botManager.TryAddLastToDieMimicBot(2, out var mimicSlot));
+        Assert.Equal("Alex's Clone", botManager.BotSlots[mimicSlot].DisplayName);
+        Assert.True(botManager.BotSlots[mimicSlot].ForceHealthBar);
+
+        Assert.True(botManager.TryAddLastToDieFollowHealerBot(2, string.Empty, out var healerSlot));
+        Assert.True(botManager.TryAddLastToDieCompanionBot(2, PlayerClass.Heavy, string.Empty, out var reinforcementSlot));
+        Assert.True(botManager.BotSlots[healerSlot].ForceHealthBar);
+        Assert.True(botManager.BotSlots[reinforcementSlot].ForceHealthBar);
+
+        botManager.FeedBotInputsBeforeSimulationAdvance();
+        Assert.True(world.TryGetNetworkPlayerInput(healerSlot, out var healerInput));
+        Assert.True(healerInput.FirePrimary);
+        Assert.False(healerInput.FireSecondary);
+
+        Assert.True(world.TrySetNetworkPlayerName(2, "Very Long Survivor Name"));
+        Assert.True(botManager.TryAddLastToDieMimicBot(2, out var longNameMimicSlot));
+        var longNameMimic = botManager.BotSlots[longNameMimicSlot];
+        Assert.EndsWith("'s Clone", longNameMimic.DisplayName, StringComparison.Ordinal);
+        Assert.True(longNameMimic.DisplayName.Length <= 20);
+
+        foreach (var slot in new[] { mimicSlot, healerSlot, reinforcementSlot, longNameMimicSlot })
+        {
+            Assert.True(world.TryGetNetworkPlayer(slot, out var companion));
+            Assert.True(companion.TryGetReplicatedStateBool(
+                BotSpawnMetadata.VisualReplicatedStateOwnerId,
+                BotSpawnMetadata.ForceHealthBarReplicatedStateKey,
+                out var forceHealthBar));
+            Assert.True(forceHealthBar);
+        }
+    }
+
+    [Fact]
     public void ServerBotManagerAutoNamesBotsFromPracticeNamePool()
     {
         var practiceNames = PracticeBotDisplayNamePool.LoadDefaultNames();

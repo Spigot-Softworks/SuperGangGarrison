@@ -25,7 +25,7 @@ public sealed partial class SimulationWorld
                 RegisterWorldSoundEvent("SentryBuildSnd", turret.X, turret.Y);
             }
 
-            if (turret.IsDead)
+            if (turret.IsDead || turret.IsExpired)
             {
                 DestroyCivilDefenseTurret(turret);
                 continue;
@@ -136,6 +136,30 @@ public sealed partial class SimulationWorld
         _civilDefenseTurrets.Add(entity);
         _entities.Add(entity.Id, entity);
         RegisterWorldSoundEvent("SentryBuildSnd", entity.X, entity.Y);
+        return true;
+    }
+
+    public bool TryDeployLastToDieDefenseBattery(byte ownerSlot)
+    {
+        if (ClientPredictionMode
+            || !TryGetNetworkPlayer(ownerSlot, out var owner)
+            || !owner.IsAlive)
+        {
+            return false;
+        }
+
+        var facing = owner.FacingDirectionX >= 0f ? 1f : -1f;
+        var turret = new CivilDefenseTurretEntity(
+            AllocateEntityId(),
+            owner.Id,
+            owner.Team,
+            owner.X + (facing * 34f),
+            owner.Y - 10f,
+            facing,
+            lifetimeTicks: Math.Max(1, Config.TicksPerSecond * 30));
+        _civilDefenseTurrets.Add(turret);
+        _entities.Add(turret.Id, turret);
+        RegisterWorldSoundEvent("SentryBuildSnd", turret.X, turret.Y);
         return true;
     }
 

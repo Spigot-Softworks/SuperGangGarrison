@@ -97,7 +97,8 @@ internal static class ServerRuntimeBootstrapFactory
         world.TryPrepareNetworkPlayerJoin(SimulationWorld.LocalPlayerSlot);
 
         var simulator = new FixedStepSimulator(world);
-        var clock = Stopwatch.StartNew();
+        var clock = new ServerClock();
+        if (DeterministicSimulationScope.IsActive) clock.UseSimulationTime();
         var previous = clock.Elapsed;
         var clientsBySlot = new Dictionary<byte, ClientSession>();
         var connectionRateLimiter = new ServerConnectionRateLimiter(

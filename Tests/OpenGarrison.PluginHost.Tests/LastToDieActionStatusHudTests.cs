@@ -331,7 +331,7 @@ public sealed class LastToDieActionStatusHudTests
     }
 
     [Fact]
-    public void SniperActionStatesExposeTargetStacksVolleyAndDetonation()
+    public void SniperActionStatesDoNotAddDedicatedStatusHudLines()
     {
         var world = CreateWorld(PlayerClass.Sniper);
         var sniper = world.LocalPlayer;
@@ -361,14 +361,8 @@ public sealed class LastToDieActionStatusHudTests
 
         var lines = Game1.BuildLastToDieActionStatusLines(
             sniper,
-            world.Config.TicksPerSecond,
-            static slot => slot == 2 ? "Heavy Bot" : null,
-            armedExplosiveArrowCount: 2);
-        Assert.Contains(lines, static line => line.Text == "GHOST: CLOAKED / FIRE x3");
-        Assert.Contains(lines, static line => line.Text == "SPOTTED: Heavy Bot");
-        Assert.Contains(lines, static line => line.Text == "CONQUISTADOR: +6% DAMAGE");
-        Assert.Contains(lines, static line => line.Text == "VOLLEY: 2 ARROWS PENDING");
-        Assert.Contains(lines, static line => line.Text == "M2 DETONATE: 2 ARROWS");
+            world.Config.TicksPerSecond);
+        Assert.Empty(lines);
     }
 
     [Theory]

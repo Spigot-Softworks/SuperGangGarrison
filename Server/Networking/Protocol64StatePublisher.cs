@@ -596,7 +596,9 @@ internal sealed class Protocol64StatePublisher
             Math.Max(0, player.BuffBannerActiveTicksRemaining),
             player.CaptureProtocol64EquipmentState(),
             player.CaptureProtocol64UmbrellaState(),
-            IsBot: _isBotSlotProvider(slot));
+            IsBot: _isBotSlotProvider(slot),
+            CurrentCombo: player.CurrentCombo,
+            ComboTicksRemaining: player.ComboTicksRemaining);
 
     private static Protocol64LastToDieSniperVolleyState? ToProtocol64SniperVolleyState(
         in LastToDieSniperVolleyState state)

@@ -241,6 +241,7 @@ internal sealed class PlayerStatsService : IDisposable
         Guid runId,
         int roundNumber,
         IReadOnlyDictionary<byte, int> scoreUnitsBySlot,
+        IReadOnlyDictionary<byte, string> survivorIdsBySlot,
         OpenGarrison.Core.LastToDie.LastToDieDifficulty difficulty)
     {
         if (_disposed || runId == Guid.Empty || roundNumber < 0)
@@ -275,6 +276,7 @@ internal sealed class PlayerStatsService : IDisposable
                 ScoreUnits = Math.Max(0, scoreUnitsBySlot.GetValueOrDefault(client.Slot)),
                 RoundNumber = roundNumber,
                 Difficulty = difficulty.ToString().ToLowerInvariant(),
+                SurvivorId = survivorIdsBySlot.GetValueOrDefault(client.Slot) ?? string.Empty,
                 PolicyVersion = OpenGarrison.Core.LastToDie.LastToDieRuleset.CurrentVersion,
             };
             _ = SubmitLastToDieRunAsync(

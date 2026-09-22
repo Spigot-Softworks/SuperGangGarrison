@@ -22,7 +22,10 @@ public sealed record LastToDieSniperProfile(
     bool OverkillerEnabled = false,
     bool DecapitatorEnabled = false,
     bool MenageATroisEnabled = false,
-    bool ExplosiveTipEnabled = false)
+    bool ExplosiveTipEnabled = false,
+    bool AvariceEnabled = false,
+    bool DugInEnabled = false,
+    bool AsceticEnabled = false)
 {
     // Protocol64 reuses one class-specific compact weapon-state field. Sniper
     // decoding is unambiguous because validation selects the mask by class.
@@ -38,6 +41,11 @@ public sealed record LastToDieSniperProfile(
     private const int ConquistadorBit = 1 << 13;
     private const int TranqDartsBit = 1 << 14;
     private const int PoisonTipBit = 1 << 15;
+    // Bits 0-2 were reserved in the original Sniper word. Reuse them for
+    // the newer scoped perks; Spy has a separate class-specific mask.
+    private const int AvariceBit = 1 << 0;
+    private const int DugInBit = 1 << 1;
+    private const int AsceticBit = 1 << 2;
     private const int GhostExtensionBit = 1 << 0;
     private const int OverkillerExtensionBit = 1 << 1;
     // Bits 2-11 in the shared extension word are Ghost runtime state.
@@ -78,6 +86,10 @@ public sealed record LastToDieSniperProfile(
     public const float ExplosiveTipCenterDamage = 80f;
     public const float ExplosiveTipEdgeDamage = 40f;
     public const float ExplosiveTipSelfDamageMultiplier = 0.5f;
+    public const float AvariceLifestealFraction = 0.4f;
+    public const float DugInDamageTakenMultiplier = 0.6f;
+    public const float AsceticDamageMultiplier = 0.1f;
+    public const float AsceticDamageTakenMultiplier = 0.1f;
 
     public static LastToDieSniperProfile Stock { get; } = new();
 
@@ -98,7 +110,10 @@ public sealed record LastToDieSniperProfile(
         || OverkillerEnabled
         || DecapitatorEnabled
         || MenageATroisEnabled
-        || ExplosiveTipEnabled;
+        || ExplosiveTipEnabled
+        || AvariceEnabled
+        || DugInEnabled
+        || AsceticEnabled;
 
     public int RifleFullChargeTicks => OverchargedEnabled && !LightMarksmanEnabled
         ? OverchargedRifleFullChargeTicks
@@ -142,6 +157,9 @@ public sealed record LastToDieSniperProfile(
         if (ConquistadorEnabled) encoded |= ConquistadorBit;
         if (TranqDartsEnabled) encoded |= TranqDartsBit;
         if (PoisonTipEnabled) encoded |= PoisonTipBit;
+        if (AvariceEnabled) encoded |= AvariceBit;
+        if (DugInEnabled) encoded |= DugInBit;
+        if (AsceticEnabled) encoded |= AsceticBit;
         return encoded;
     }
 
@@ -168,7 +186,10 @@ public sealed record LastToDieSniperProfile(
         SpottedEnabled: (encoded & SpottedBit) != 0,
         ConquistadorEnabled: (encoded & ConquistadorBit) != 0,
         TranqDartsEnabled: (encoded & TranqDartsBit) != 0,
-        PoisonTipEnabled: (encoded & PoisonTipBit) != 0);
+        PoisonTipEnabled: (encoded & PoisonTipBit) != 0,
+        AvariceEnabled: (encoded & AvariceBit) != 0,
+        DugInEnabled: (encoded & DugInBit) != 0,
+        AsceticEnabled: (encoded & AsceticBit) != 0);
 
     public static LastToDieSniperProfile Decode(int encoded, int extensionEncoded)
     {
@@ -203,6 +224,9 @@ public sealed record LastToDieSniperProfile(
             owned.Contains(LastToDiePerkIds.Sniper.Overkiller),
             owned.Contains(LastToDiePerkIds.Sniper.Decapitator),
             owned.Contains(LastToDiePerkIds.Sniper.MenageATrois),
-            owned.Contains(LastToDiePerkIds.Sniper.ExplosiveTip));
+            owned.Contains(LastToDiePerkIds.Sniper.ExplosiveTip),
+            owned.Contains(LastToDiePerkIds.Sniper.Avarice),
+            owned.Contains(LastToDiePerkIds.Sniper.DugIn),
+            owned.Contains(LastToDiePerkIds.Sniper.Ascetic));
     }
 }

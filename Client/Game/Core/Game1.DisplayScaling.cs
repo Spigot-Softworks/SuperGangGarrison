@@ -167,6 +167,30 @@ public partial class Game1
         WriteGameplayRenderTrace("frame beginlogical done");
     }
 
+    private void BeginGameplayWorldSpriteBatch(RasterizerState rasterizerState)
+    {
+        _spriteBatch.End();
+        _gameplayWorldSpriteBatchActive = true;
+        _spriteBatch.Begin(
+            samplerState: SamplerState.PointClamp,
+            rasterizerState: rasterizerState,
+            transformMatrix: Matrix.CreateScale(GameplayCameraZoom, GameplayCameraZoom, 1f));
+    }
+
+    private Matrix? GetActiveGameplayWorldSpriteBatchTransform()
+    {
+        return _gameplayWorldSpriteBatchActive
+            ? Matrix.CreateScale(GameplayCameraZoom, GameplayCameraZoom, 1f)
+            : null;
+    }
+
+    private void EndGameplayWorldSpriteBatch()
+    {
+        _spriteBatch.End();
+        _gameplayWorldSpriteBatchActive = false;
+        _spriteBatch.Begin(samplerState: SamplerState.PointClamp, rasterizerState: RasterizerState.CullNone);
+    }
+
     private void EndLogicalFrame()
     {
         if (_logicalFrameRendersDirectlyToBackBuffer)

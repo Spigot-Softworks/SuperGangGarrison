@@ -9,6 +9,7 @@ public partial class Game1
     private enum MainMenuOverlayKind
     {
         None,
+        NamePrompt,
         HostSetup,
         ClientPowers,
         PracticeSetup,

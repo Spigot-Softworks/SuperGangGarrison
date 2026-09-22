@@ -1,0 +1,3275 @@
+{
+  "version": 2,
+  "defaultSet": "Elkondo",
+  "sets": {
+    "Kelly": {
+      "medic": "healer",
+      "spy": "infiltrator",
+      "soldier": "rocketman"
+    },
+    "Elkondo": {
+      "scout": "elkondo-scout",
+      "soldier": "elkondo-soldier",
+      "pyro": "elkondo-pyro",
+      "demoman": "elkondo-demoman",
+      "heavy": "elkondo-heavy",
+      "medic": "elkondo-medic",
+      "engineer": "elkondo-engineer",
+      "sniper": "elkondo-sniper",
+      "spy": "elkondo-spy"
+    }
+  },
+  "skins": {
+    "healer": {
+      "source": "Healer",
+      "canvas": [
+        32,
+        32
+      ],
+      "origin": [
+        16,
+        20
+      ],
+      "bodySprite": "Healer{team}BodyS",
+      "pixelsPerRunFrame": 15,
+      "teams": {
+        "Red": {
+          "directory": "RED",
+          "color": "red"
+        },
+        "Blue": {
+          "directory": "BLU",
+          "color": "blu"
+        }
+      },
+      "clips": {
+        "idle": {
+          "frames": [
+            0
+          ],
+          "framesPerSecond": 12,
+          "loop": true
+        },
+        "run": {
+          "frames": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8
+          ],
+          "framesPerSecond": 12,
+          "loop": true
+        },
+        "jumpStart": {
+          "frames": [
+            1
+          ],
+          "framesPerSecond": 18,
+          "loop": false
+        },
+        "rise": {
+          "frames": [
+            2
+          ],
+          "framesPerSecond": 12,
+          "loop": true
+        },
+        "fall": {
+          "frames": [
+            3
+          ],
+          "framesPerSecond": 12,
+          "loop": true
+        },
+        "land": {
+          "frames": [
+            4
+          ],
+          "framesPerSecond": 12,
+          "loop": false
+        }
+      },
+      "weapon": {
+        "itemId": "weapon.medigun",
+        "matchSprite": "MedigunS",
+        "sprite": "Healer{team}WeaponS",
+        "pivot": [
+          17,
+          24
+        ],
+        "muzzle": [
+          27,
+          22
+        ]
+      },
+      "poses": [
+        {
+          "layers": [
+            {
+              "file": "legs_0.png"
+            },
+            {
+              "file": "body_0.png"
+            }
+          ],
+          "weapon": {
+            "file": "wep_0.png"
+          },
+          "weaponOffset": [
+            0,
+            0
+          ]
+        },
+        {
+          "layers": [
+            {
+              "file": "legs_1.png"
+            },
+            {
+              "file": "body_1.png"
+            }
+          ],
+          "weapon": {
+            "file": "wep_1.png"
+          },
+          "weaponOffset": [
+            0,
+            0
+          ]
+        },
+        {
+          "layers": [
+            {
+              "file": "legs_2.png"
+            },
+            {
+              "file": "body_2.png"
+            }
+          ],
+          "weapon": {
+            "file": "wep_2.png"
+          },
+          "weaponOffset": [
+            0,
+            0
+          ]
+        },
+        {
+          "layers": [
+            {
+              "file": "legs_3.png"
+            },
+            {
+              "file": "body_3.png"
+            }
+          ],
+          "weapon": {
+            "file": "wep_3.png"
+          },
+          "weaponOffset": [
+            0,
+            -1
+          ]
+        },
+        {
+          "layers": [
+            {
+              "file": "legs_4.png"
+            },
+            {
+              "file": "body_4.png"
+            }
+          ],
+          "weapon": {
+            "file": "wep_4.png"
+          },
+          "weaponOffset": [
+            0,
+            -1
+          ]
+        },
+        {
+          "layers": [
+            {
+              "file": "legs_5.png"
+            },
+            {
+              "file": "body_5.png"
+            }
+          ],
+          "weapon": {
+            "file": "wep_5.png"
+          },
+          "weaponOffset": [
+            0,
+            0
+          ]
+        },
+        {
+          "layers": [
+            {
+              "file": "legs_6.png"
+            },
+            {
+              "file": "body_6.png"
+            }
+          ],
+          "weapon": {
+            "file": "wep_6.png"
+          },
+          "weaponOffset": [
+            0,
+            0
+          ]
+        },
+        {
+          "layers": [
+            {
+              "file": "legs_7.png"
+            },
+            {
+              "file": "body_7.png"
+            }
+          ],
+          "weapon": {
+            "file": "wep_7.png"
+          },
+          "weaponOffset": [
+            0,
+            -1
+          ]
+        },
+        {
+          "layers": [
+            {
+              "file": "legs_8.png"
+            },
+            {
+              "file": "body_8.png"
+            }
+          ],
+          "weapon": {
+            "file": "wep_8.png"
+          },
+          "weaponOffset": [
+            0,
+            -1
+          ]
+        }
+      ],
+      "pixelScale": 2
+    },
+    "infiltrator": {
+      "source": "Infiltrator",
+      "canvas": [
+        32,
+        32
+      ],
+      "origin": [
+        16,
+        20
+      ],
+      "bodySprite": "Infiltrator{team}BodyS",
+      "pixelsPerRunFrame": 15,
+      "teams": {
+        "Red": {
+          "directory": "RED",
+          "color": "red"
+        },
+        "Blue": {
+          "directory": "RED",
+          "color": "red",
+          "palette": {
+            "572828": "2c2835",
+            "84534a": "4b557f",
+            "542c2c": "2d2b39",
+            "693535": "394160",
+            "2b1e1e": "1e202b",
+            "442727": "272b44",
+            "361616": "1c1b2b"
+          }
+        }
+      },
+      "clips": {
+        "idle": {
+          "frames": [
+            0
+          ],
+          "framesPerSecond": 12,
+          "loop": true
+        },
+        "run": {
+          "frames": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8
+          ],
+          "framesPerSecond": 12,
+          "loop": true
+        },
+        "jumpStart": {
+          "frames": [
+            1
+          ],
+          "framesPerSecond": 18,
+          "loop": false
+        },
+        "rise": {
+          "frames": [
+            2
+          ],
+          "framesPerSecond": 12,
+          "loop": true
+        },
+        "fall": {
+          "frames": [
+            3,
+            4
+          ],
+          "framesPerSecond": 12,
+          "loop": false
+        },
+        "land": {
+          "frames": [
+            5
+          ],
+          "framesPerSecond": 12,
+          "loop": false
+        },
+        "runBackward": {
+          "frames": [
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16
+          ],
+          "framesPerSecond": 12,
+          "loop": true
+        }
+      },
+      "weapon": {
+        "itemId": "weapon.revolver",
+        "matchSprite": "RevolverS",
+        "sprite": "Infiltrator{team}WeaponS",
+        "pivot": [
+          18,
+          18
+        ]
+      },
+      "poses": [
+        {
+          "layers": [
+            {
+              "file": "legs_0.png"
+            },
+            {
+              "file": "body_0.png"
+            }
+          ],
+          "weapon": {
+            "file": "wep_0.png"
+          },
+          "weaponOffset": [
+            0,
+            0
+          ]
+        },
+        {
+          "layers": [
+            {
+              "file": "legs_1.png"
+            },
+            {
+              "file": "body_1.png"
+            }
+          ],
+          "weapon": {
+            "file": "wep_1.png"
+          },
+          "weaponOffset": [
+            1,
+            0
+          ]
+        },
+        {
+          "layers": [
+            {
+              "file": "legs_2.png"
+            },
+            {
+              "file": "body_2.png"
+            }
+          ],
+          "weapon": {
+            "file": "wep_2.png"
+          },
+          "weaponOffset": [
+            1,
+            0
+          ]
+        },
+        {
+          "layers": [
+            {
+              "file": "legs_3.png"
+            },
+            {
+              "file": "body_3.png"
+            }
+          ],
+          "weapon": {
+            "file": "wep_3.png"
+          },
+          "weaponOffset": [
+            2,
+            -1
+          ]
+        },
+        {
+          "layers": [
+            {
+              "file": "legs_4.png"
+            },
+            {
+              "file": "body_4.png"
+            }
+          ],
+          "weapon": {
+            "file": "wep_4.png"
+          },
+          "weaponOffset": [
+            2,
+            -1
+          ]
+        },
+        {
+          "layers": [
+            {
+              "file": "legs_5.png"
+            },
+            {
+              "file": "body_5.png"
+            }
+          ],
+          "weapon": {
+            "file": "wep_5.png"
+          },
+          "weaponOffset": [
+            1,
+            0
+          ]
+        },
+        {
+          "layers": [
+            {
+              "file": "legs_6.png"
+            },
+            {
+              "file": "body_6.png"
+            }
+          ],
+          "weapon": {
+            "file": "wep_6.png"
+          },
+          "weaponOffset": [
+            1,
+            0
+          ]
+        },
+        {
+          "layers": [
+            {
+              "file": "legs_7.png"
+            },
+            {
+              "file": "body_7.png"
+            }
+          ],
+          "weapon": {
+            "file": "wep_7.png"
+          },
+          "weaponOffset": [
+            0,
+            -1
+          ]
+        },
+        {
+          "layers": [
+            {
+              "file": "legs_8.png"
+            },
+            {
+              "file": "body_8.png"
+            }
+          ],
+          "weapon": {
+            "file": "wep_8.png"
+          },
+          "weaponOffset": [
+            0,
+            -1
+          ]
+        },
+        {
+          "layers": [
+            {
+              "file": "legs_9.png"
+            },
+            {
+              "file": "body_9.png"
+            }
+          ],
+          "weapon": {
+            "file": "wep_9.png"
+          },
+          "weaponOffset": [
+            1,
+            0
+          ]
+        },
+        {
+          "layers": [
+            {
+              "file": "legs_10.png"
+            },
+            {
+              "file": "body_10.png"
+            }
+          ],
+          "weapon": {
+            "file": "wep_10.png"
+          },
+          "weaponOffset": [
+            1,
+            0
+          ]
+        },
+        {
+          "layers": [
+            {
+              "file": "legs_11.png"
+            },
+            {
+              "file": "body_11.png"
+            }
+          ],
+          "weapon": {
+            "file": "wep_11.png"
+          },
+          "weaponOffset": [
+            2,
+            -1
+          ]
+        },
+        {
+          "layers": [
+            {
+              "file": "legs_12.png"
+            },
+            {
+              "file": "body_12.png"
+            }
+          ],
+          "weapon": {
+            "file": "wep_12.png"
+          },
+          "weaponOffset": [
+            2,
+            -1
+          ]
+        },
+        {
+          "layers": [
+            {
+              "file": "legs_13.png"
+            },
+            {
+              "file": "body_13.png"
+            }
+          ],
+          "weapon": {
+            "file": "wep_13.png"
+          },
+          "weaponOffset": [
+            1,
+            0
+          ]
+        },
+        {
+          "layers": [
+            {
+              "file": "legs_14.png"
+            },
+            {
+              "file": "body_14.png"
+            }
+          ],
+          "weapon": {
+            "file": "wep_14.png"
+          },
+          "weaponOffset": [
+            1,
+            0
+          ]
+        },
+        {
+          "layers": [
+            {
+              "file": "legs_15.png"
+            },
+            {
+              "file": "body_15.png"
+            }
+          ],
+          "weapon": {
+            "file": "wep_15.png"
+          },
+          "weaponOffset": [
+            0,
+            -1
+          ]
+        },
+        {
+          "layers": [
+            {
+              "file": "legs_16.png"
+            },
+            {
+              "file": "body_16.png"
+            }
+          ],
+          "weapon": {
+            "file": "wep_16.png"
+          },
+          "weaponOffset": [
+            0,
+            -1
+          ]
+        }
+      ],
+      "pixelScale": 2
+    },
+    "rocketman": {
+      "source": "Rocketman",
+      "canvas": [
+        32,
+        32
+      ],
+      "origin": [
+        16,
+        20
+      ],
+      "bodySprite": "Rocketman{team}BodyS",
+      "pixelsPerRunFrame": 15,
+      "teams": {
+        "Red": {
+          "directory": "RED",
+          "color": "red"
+        },
+        "Blue": {
+          "directory": "BLU",
+          "color": "blu"
+        }
+      },
+      "clips": {
+        "idle": {
+          "frames": [
+            0
+          ],
+          "framesPerSecond": 12,
+          "loop": true
+        },
+        "run": {
+          "frames": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8
+          ],
+          "framesPerSecond": 12,
+          "loop": true
+        },
+        "jumpStart": {
+          "frames": [
+            9
+          ],
+          "framesPerSecond": 18,
+          "loop": false
+        },
+        "rise": {
+          "frames": [
+            10
+          ],
+          "framesPerSecond": 12,
+          "loop": true
+        },
+        "fall": {
+          "frames": [
+            11
+          ],
+          "framesPerSecond": 12,
+          "loop": true
+        },
+        "land": {
+          "frames": [
+            12
+          ],
+          "framesPerSecond": 12,
+          "loop": false
+        },
+        "blastStart": {
+          "frames": [
+            13
+          ],
+          "framesPerSecond": 18,
+          "loop": false
+        },
+        "blastRise": {
+          "frames": [
+            14
+          ],
+          "framesPerSecond": 12,
+          "loop": true
+        },
+        "blastFall": {
+          "frames": [
+            15
+          ],
+          "framesPerSecond": 12,
+          "loop": true
+        },
+        "blastLand": {
+          "frames": [
+            16
+          ],
+          "framesPerSecond": 12,
+          "loop": false
+        }
+      },
+      "weapon": {
+        "itemId": "weapon.rocketlauncher",
+        "matchSprite": "RocketlauncherS",
+        "sprite": "Rocketman{team}WeaponS",
+        "pivot": [
+          14,
+          21
+        ],
+        "fireSprite": "Rocketman{team}FireS",
+        "firePlaybackRate": 1.6,
+        "attachmentOffset": [
+          2,
+          0
+        ],
+        "reloadSprite": "Rocketman{team}ReloadS",
+        "fireFrames": [
+          {
+            "file": "rocket_{color}/Fire/solreload2.png"
+          },
+          {
+            "file": "rocket_{color}/Fire/solreload3.png"
+          },
+          {
+            "file": "rocket_{color}/Fire/solreload4.png"
+          },
+          {
+            "file": "rocket_{color}/Fire/solreload5.png"
+          },
+          {
+            "file": "rocket_{color}/Fire/solreload6.png"
+          },
+          {
+            "file": "rocket_{color}/Fire/solreload7.png"
+          },
+          {
+            "file": "rocket_{color}/Fire/solreload8.png"
+          }
+        ],
+        "reloadFrames": [
+          {
+            "file": "rocket_{color}/Rel/solreload9.png"
+          },
+          {
+            "file": "rocket_{color}/Rel/solreload10.png"
+          },
+          {
+            "file": "rocket_{color}/Rel/solreload11.png"
+          },
+          {
+            "file": "rocket_{color}/Rel/solreload12.png"
+          },
+          {
+            "file": "rocket_{color}/Rel/solreload13.png"
+          },
+          {
+            "file": "rocket_{color}/Rel/solreload14.png"
+          },
+          {
+            "file": "rocket_{color}/Rel/solreload15.png"
+          },
+          {
+            "file": "rocket_{color}/Rel/solreload16.png"
+          }
+        ]
+      },
+      "poses": [
+        {
+          "layers": [
+            {
+              "file": "legs_0.png"
+            },
+            {
+              "file": "body.png",
+              "position": [
+                11,
+                12
+              ]
+            },
+            {
+              "file": "hat.png",
+              "position": [
+                13,
+                11
+              ]
+            }
+          ],
+          "weapon": {
+            "file": "rocket_{color}/idle.png"
+          },
+          "weaponOffset": [
+            0,
+            0
+          ]
+        },
+        {
+          "layers": [
+            {
+              "file": "legs_1.png"
+            },
+            {
+              "file": "body.png",
+              "position": [
+                11,
+                13
+              ]
+            },
+            {
+              "file": "hat.png",
+              "position": [
+                13,
+                12
+              ]
+            }
+          ],
+          "weapon": {
+            "file": "rocket_{color}/run_0.png",
+            "position": [
+              7,
+              16
+            ]
+          },
+          "weaponOffset": [
+            0,
+            0
+          ]
+        },
+        {
+          "layers": [
+            {
+              "file": "legs_2.png"
+            },
+            {
+              "file": "body.png",
+              "position": [
+                11,
+                12
+              ]
+            },
+            {
+              "file": "hat.png",
+              "position": [
+                13,
+                11
+              ]
+            }
+          ],
+          "weapon": {
+            "file": "rocket_{color}/run_0.png",
+            "position": [
+              8,
+              15
+            ]
+          },
+          "weaponOffset": [
+            1,
+            -1
+          ]
+        },
+        {
+          "layers": [
+            {
+              "file": "legs_3.png"
+            },
+            {
+              "file": "body.png",
+              "position": [
+                11,
+                11
+              ]
+            },
+            {
+              "file": "hat.png",
+              "position": [
+                13,
+                10
+              ]
+            }
+          ],
+          "weapon": {
+            "file": "rocket_{color}/run_0.png",
+            "position": [
+              9,
+              14
+            ]
+          },
+          "weaponOffset": [
+            2,
+            -2
+          ]
+        },
+        {
+          "layers": [
+            {
+              "file": "legs_4.png"
+            },
+            {
+              "file": "body.png",
+              "position": [
+                11,
+                12
+              ]
+            },
+            {
+              "file": "hat.png",
+              "position": [
+                13,
+                11
+              ]
+            }
+          ],
+          "weapon": {
+            "file": "rocket_{color}/run_0.png",
+            "position": [
+              8,
+              17
+            ]
+          },
+          "weaponOffset": [
+            1,
+            1
+          ]
+        },
+        {
+          "layers": [
+            {
+              "file": "legs_5.png"
+            },
+            {
+              "file": "body.png",
+              "position": [
+                11,
+                13
+              ]
+            },
+            {
+              "file": "hat.png",
+              "position": [
+                13,
+                12
+              ]
+            }
+          ],
+          "weapon": {
+            "file": "rocket_{color}/run_0.png",
+            "position": [
+              7,
+              16
+            ]
+          },
+          "weaponOffset": [
+            0,
+            0
+          ]
+        },
+        {
+          "layers": [
+            {
+              "file": "legs_6.png"
+            },
+            {
+              "file": "body.png",
+              "position": [
+                11,
+                12
+              ]
+            },
+            {
+              "file": "hat.png",
+              "position": [
+                13,
+                11
+              ]
+            }
+          ],
+          "weapon": {
+            "file": "rocket_{color}/run_1.png",
+            "position": [
+              6,
+              15
+            ]
+          },
+          "weaponOffset": [
+            -1,
+            -1
+          ]
+        },
+        {
+          "layers": [
+            {
+              "file": "legs_7.png"
+            },
+            {
+              "file": "body.png",
+              "position": [
+                11,
+                11
+              ]
+            },
+            {
+              "file": "hat.png",
+              "position": [
+                13,
+                10
+              ]
+            }
+          ],
+          "weapon": {
+            "file": "rocket_{color}/run_2.png",
+            "position": [
+              5,
+              14
+            ]
+          },
+          "weaponOffset": [
+            -2,
+            -2
+          ]
+        },
+        {
+          "layers": [
+            {
+              "file": "legs_8.png"
+            },
+            {
+              "file": "body.png",
+              "position": [
+                11,
+                12
+              ]
+            },
+            {
+              "file": "hat.png",
+              "position": [
+                13,
+                11
+              ]
+            }
+          ],
+          "weapon": {
+            "file": "rocket_{color}/run_1.png",
+            "position": [
+              6,
+              15
+            ]
+          },
+          "weaponOffset": [
+            -1,
+            -1
+          ]
+        },
+        {
+          "layers": [
+            {
+              "file": "legs_9.png"
+            },
+            {
+              "file": "body.png",
+              "position": [
+                11,
+                13
+              ]
+            },
+            {
+              "file": "hat.png",
+              "position": [
+                13,
+                12
+              ]
+            }
+          ],
+          "weapon": {
+            "file": "rocket_{color}/run_0.png",
+            "position": [
+              7,
+              17
+            ]
+          },
+          "weaponOffset": [
+            0,
+            1
+          ]
+        },
+        {
+          "layers": [
+            {
+              "file": "legs_10.png"
+            },
+            {
+              "file": "body.png",
+              "position": [
+                11,
+                12
+              ]
+            },
+            {
+              "file": "hat.png",
+              "position": [
+                13,
+                11
+              ]
+            }
+          ],
+          "weapon": {
+            "file": "rocket_{color}/run_0.png",
+            "position": [
+              8,
+              16
+            ]
+          },
+          "weaponOffset": [
+            1,
+            0
+          ]
+        },
+        {
+          "layers": [
+            {
+              "file": "legs_11.png"
+            },
+            {
+              "file": "body.png",
+              "position": [
+                11,
+                11
+              ]
+            },
+            {
+              "file": "hat.png",
+              "position": [
+                13,
+                10
+              ]
+            }
+          ],
+          "weapon": {
+            "file": "rocket_{color}/run_0.png",
+            "position": [
+              9,
+              14
+            ]
+          },
+          "weaponOffset": [
+            2,
+            -2
+          ]
+        },
+        {
+          "layers": [
+            {
+              "file": "legs_12.png"
+            },
+            {
+              "file": "body.png",
+              "position": [
+                11,
+                12
+              ]
+            },
+            {
+              "file": "hat.png",
+              "position": [
+                13,
+                11
+              ]
+            }
+          ],
+          "weapon": {
+            "file": "rocket_{color}/run_0.png",
+            "position": [
+              9,
+              15
+            ]
+          },
+          "weaponOffset": [
+            2,
+            -1
+          ]
+        },
+        {
+          "layers": [
+            {
+              "file": "legs_13.png"
+            },
+            {
+              "file": "body.png",
+              "position": [
+                11,
+                13
+              ]
+            },
+            {
+              "file": "hat.png",
+              "position": [
+                13,
+                12
+              ]
+            }
+          ],
+          "weapon": {
+            "file": "rocket_{color}/run_0.png",
+            "position": [
+              7,
+              17
+            ]
+          },
+          "weaponOffset": [
+            0,
+            1
+          ]
+        },
+        {
+          "layers": [
+            {
+              "file": "legs_14.png"
+            },
+            {
+              "file": "body.png",
+              "position": [
+                11,
+                12
+              ]
+            },
+            {
+              "file": "hat.png",
+              "position": [
+                13,
+                11
+              ]
+            }
+          ],
+          "weapon": {
+            "file": "rocket_{color}/run_1.png",
+            "position": [
+              6,
+              16
+            ]
+          },
+          "weaponOffset": [
+            -1,
+            0
+          ]
+        },
+        {
+          "layers": [
+            {
+              "file": "legs_15.png"
+            },
+            {
+              "file": "body.png",
+              "position": [
+                11,
+                11
+              ]
+            },
+            {
+              "file": "hat.png",
+              "position": [
+                13,
+                10
+              ]
+            }
+          ],
+          "weapon": {
+            "file": "rocket_{color}/run_2.png",
+            "position": [
+              6,
+              17
+            ]
+          },
+          "weaponOffset": [
+            -1,
+            1
+          ]
+        },
+        {
+          "layers": [
+            {
+              "file": "legs_16.png"
+            },
+            {
+              "file": "body.png",
+              "position": [
+                11,
+                12
+              ]
+            },
+            {
+              "file": "hat.png",
+              "position": [
+                13,
+                11
+              ]
+            }
+          ],
+          "weapon": {
+            "file": "rocket_{color}/run_1.png",
+            "position": [
+              6,
+              16
+            ]
+          },
+          "weaponOffset": [
+            -1,
+            0
+          ]
+        }
+      ],
+      "pixelScale": 2
+    },
+    "elkondo-scout": {
+      "source": "Elkondo/Scout",
+      "bodySprite": "ElkondoScout{team}BodyS",
+      "canvas": [
+        32,
+        32
+      ],
+      "origin": [
+        16,
+        20
+      ],
+      "pixelScale": 2,
+      "equipmentOffset": -1,
+      "pixelsPerRunFrame": 15,
+      "teams": {
+        "Red": {
+          "directory": "Red",
+          "color": "red"
+        },
+        "Blue": {
+          "directory": "Blue",
+          "color": "blu"
+        }
+      },
+      "clips": {
+        "idle": {
+          "frames": [
+            0
+          ],
+          "framesPerSecond": 12,
+          "loop": true
+        },
+        "run": {
+          "frames": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8
+          ],
+          "framesPerSecond": 12,
+          "loop": true
+        },
+        "jumpStart": {
+          "frames": [
+            1
+          ],
+          "framesPerSecond": 18,
+          "loop": false
+        },
+        "rise": {
+          "frames": [
+            2
+          ],
+          "framesPerSecond": 12,
+          "loop": false
+        },
+        "fall": {
+          "frames": [
+            3
+          ],
+          "framesPerSecond": 12,
+          "loop": false
+        },
+        "land": {
+          "frames": [
+            4
+          ],
+          "framesPerSecond": 15,
+          "loop": false
+        }
+      },
+      "poses": [
+        {
+          "layers": [
+            {
+              "file": "legs/idle.png"
+            },
+            {
+              "file": "torso/idle.png"
+            }
+          ],
+          "equipmentOffset": 0
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/1.png"
+            },
+            {
+              "file": "torso/1.png"
+            }
+          ],
+          "equipmentOffset": 0
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/2.png"
+            },
+            {
+              "file": "torso/2.png"
+            }
+          ],
+          "equipmentOffset": -1
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/3.png"
+            },
+            {
+              "file": "torso/3.png"
+            }
+          ],
+          "equipmentOffset": -1
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/4.png"
+            },
+            {
+              "file": "torso/4.png"
+            }
+          ],
+          "equipmentOffset": 0
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/5.png"
+            },
+            {
+              "file": "torso/5.png"
+            }
+          ],
+          "equipmentOffset": 0
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/6.png"
+            },
+            {
+              "file": "torso/6.png"
+            }
+          ],
+          "equipmentOffset": -1
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/7.png"
+            },
+            {
+              "file": "torso/7.png"
+            }
+          ],
+          "equipmentOffset": -1
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/8.png"
+            },
+            {
+              "file": "torso/8.png"
+            }
+          ],
+          "equipmentOffset": 0
+        }
+      ]
+    },
+    "elkondo-soldier": {
+      "source": "Elkondo/Soldier",
+      "bodySprite": "ElkondoSoldier{team}BodyS",
+      "canvas": [
+        32,
+        32
+      ],
+      "origin": [
+        16,
+        20
+      ],
+      "pixelScale": 2,
+      "equipmentOffset": -1,
+      "pixelsPerRunFrame": 15,
+      "teams": {
+        "Red": {
+          "directory": "Red",
+          "color": "red"
+        },
+        "Blue": {
+          "directory": "Blue",
+          "color": "blu"
+        }
+      },
+      "clips": {
+        "idle": {
+          "frames": [
+            0
+          ],
+          "framesPerSecond": 12,
+          "loop": true
+        },
+        "run": {
+          "frames": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8
+          ],
+          "framesPerSecond": 12,
+          "loop": true
+        },
+        "jumpStart": {
+          "frames": [
+            1
+          ],
+          "framesPerSecond": 18,
+          "loop": false
+        },
+        "rise": {
+          "frames": [
+            2
+          ],
+          "framesPerSecond": 12,
+          "loop": false
+        },
+        "fall": {
+          "frames": [
+            3
+          ],
+          "framesPerSecond": 12,
+          "loop": false
+        },
+        "land": {
+          "frames": [
+            4
+          ],
+          "framesPerSecond": 15,
+          "loop": false
+        },
+        "blastStart": {
+          "frames": [
+            9
+          ],
+          "framesPerSecond": 18,
+          "loop": false
+        },
+        "blastRise": {
+          "frames": [
+            10
+          ],
+          "framesPerSecond": 12,
+          "loop": true
+        },
+        "blastFall": {
+          "frames": [
+            11
+          ],
+          "framesPerSecond": 12,
+          "loop": true
+        },
+        "blastLand": {
+          "frames": [
+            12
+          ],
+          "framesPerSecond": 12,
+          "loop": false
+        }
+      },
+      "poses": [
+        {
+          "layers": [
+            {
+              "file": "legs/idle.png",
+              "position": [
+                0,
+                1
+              ]
+            },
+            {
+              "file": "torso/idle.png",
+              "position": [
+                0,
+                1
+              ]
+            }
+          ],
+          "equipmentOffset": 1
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/1.png"
+            },
+            {
+              "file": "torso/1.png"
+            }
+          ],
+          "equipmentOffset": 0
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/2.png"
+            },
+            {
+              "file": "torso/2.png"
+            }
+          ],
+          "equipmentOffset": 0
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/3.png"
+            },
+            {
+              "file": "torso/3.png"
+            }
+          ],
+          "equipmentOffset": 1
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/4.png"
+            },
+            {
+              "file": "torso/4.png"
+            }
+          ],
+          "equipmentOffset": 1
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/5.png"
+            },
+            {
+              "file": "torso/5.png"
+            }
+          ],
+          "equipmentOffset": 0
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/6.png"
+            },
+            {
+              "file": "torso/6.png"
+            }
+          ],
+          "equipmentOffset": 0
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/7.png"
+            },
+            {
+              "file": "torso/7.png"
+            }
+          ],
+          "equipmentOffset": 1
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/8.png"
+            },
+            {
+              "file": "torso/8.png"
+            }
+          ],
+          "equipmentOffset": 1
+        },
+        {
+          "layers": [
+            {
+              "file": "kelly-rocketjump/legs_13.png"
+            },
+            {
+              "file": "kelly-rocketjump/body.png",
+              "position": [
+                11,
+                13
+              ]
+            },
+            {
+              "file": "kelly-rocketjump/hat.png",
+              "position": [
+                13,
+                12
+              ]
+            }
+          ],
+          "weaponOffset": [
+            0,
+            1
+          ],
+          "equipmentOffset": 1,
+          "weaponSkin": "rocketman",
+          "weaponSkinPose": 13
+        },
+        {
+          "layers": [
+            {
+              "file": "kelly-rocketjump/legs_14.png"
+            },
+            {
+              "file": "kelly-rocketjump/body.png",
+              "position": [
+                11,
+                12
+              ]
+            },
+            {
+              "file": "kelly-rocketjump/hat.png",
+              "position": [
+                13,
+                11
+              ]
+            }
+          ],
+          "weaponOffset": [
+            -1,
+            0
+          ],
+          "equipmentOffset": 1,
+          "weaponSkin": "rocketman",
+          "weaponSkinPose": 14
+        },
+        {
+          "layers": [
+            {
+              "file": "kelly-rocketjump/legs_15.png"
+            },
+            {
+              "file": "kelly-rocketjump/body.png",
+              "position": [
+                11,
+                11
+              ]
+            },
+            {
+              "file": "kelly-rocketjump/hat.png",
+              "position": [
+                13,
+                10
+              ]
+            }
+          ],
+          "weaponOffset": [
+            -1,
+            1
+          ],
+          "equipmentOffset": 1,
+          "weaponSkin": "rocketman",
+          "weaponSkinPose": 15
+        },
+        {
+          "layers": [
+            {
+              "file": "kelly-rocketjump/legs_16.png"
+            },
+            {
+              "file": "kelly-rocketjump/body.png",
+              "position": [
+                11,
+                12
+              ]
+            },
+            {
+              "file": "kelly-rocketjump/hat.png",
+              "position": [
+                13,
+                11
+              ]
+            }
+          ],
+          "weaponOffset": [
+            -1,
+            0
+          ],
+          "equipmentOffset": 1,
+          "weaponSkin": "rocketman",
+          "weaponSkinPose": 16
+        }
+      ]
+    },
+    "elkondo-pyro": {
+      "source": "Elkondo/Pyro",
+      "bodySprite": "ElkondoPyro{team}BodyS",
+      "canvas": [
+        32,
+        32
+      ],
+      "origin": [
+        16,
+        20
+      ],
+      "pixelScale": 2,
+      "equipmentOffset": -1,
+      "pixelsPerRunFrame": 15,
+      "teams": {
+        "Red": {
+          "directory": "Red",
+          "color": "red"
+        },
+        "Blue": {
+          "directory": "Blue",
+          "color": "blu"
+        }
+      },
+      "clips": {
+        "idle": {
+          "frames": [
+            0
+          ],
+          "framesPerSecond": 12,
+          "loop": true
+        },
+        "run": {
+          "frames": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8
+          ],
+          "framesPerSecond": 12,
+          "loop": true
+        },
+        "jumpStart": {
+          "frames": [
+            1
+          ],
+          "framesPerSecond": 18,
+          "loop": false
+        },
+        "rise": {
+          "frames": [
+            2
+          ],
+          "framesPerSecond": 12,
+          "loop": false
+        },
+        "fall": {
+          "frames": [
+            3
+          ],
+          "framesPerSecond": 12,
+          "loop": false
+        },
+        "land": {
+          "frames": [
+            4
+          ],
+          "framesPerSecond": 15,
+          "loop": false
+        }
+      },
+      "poses": [
+        {
+          "layers": [
+            {
+              "file": "legs/idle.png"
+            },
+            {
+              "file": "torso/1.png"
+            }
+          ],
+          "equipmentOffset": 0
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/1.png"
+            },
+            {
+              "file": "torso/1.png"
+            }
+          ],
+          "equipmentOffset": 0
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/2.png"
+            },
+            {
+              "file": "torso/2.png"
+            }
+          ],
+          "equipmentOffset": 0
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/3.png"
+            },
+            {
+              "file": "torso/3.png"
+            }
+          ],
+          "equipmentOffset": 1
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/4.png"
+            },
+            {
+              "file": "torso/4.png"
+            }
+          ],
+          "equipmentOffset": 1
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/5.png"
+            },
+            {
+              "file": "torso/5.png"
+            }
+          ],
+          "equipmentOffset": 0
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/6.png"
+            },
+            {
+              "file": "torso/6.png"
+            }
+          ],
+          "equipmentOffset": 0
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/7.png"
+            },
+            {
+              "file": "torso/7.png"
+            }
+          ],
+          "equipmentOffset": 1
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/8.png"
+            },
+            {
+              "file": "torso/8.png"
+            }
+          ],
+          "equipmentOffset": 1
+        }
+      ]
+    },
+    "elkondo-demoman": {
+      "source": "Elkondo/Demoman",
+      "bodySprite": "ElkondoDemoman{team}BodyS",
+      "canvas": [
+        32,
+        32
+      ],
+      "origin": [
+        16,
+        20
+      ],
+      "pixelScale": 2,
+      "equipmentOffset": -1,
+      "pixelsPerRunFrame": 15,
+      "teams": {
+        "Red": {
+          "directory": "Red",
+          "color": "red"
+        },
+        "Blue": {
+          "directory": "Blue",
+          "color": "blu",
+          "layerOverrides": {
+            "torso/1.png": {
+              "file": "torso.png",
+              "position": [
+                0,
+                0
+              ]
+            },
+            "torso/2.png": {
+              "file": "torso.png",
+              "position": [
+                0,
+                0
+              ]
+            },
+            "torso/3.png": {
+              "file": "torso.png",
+              "position": [
+                0,
+                1
+              ]
+            },
+            "torso/4.png": {
+              "file": "torso.png",
+              "position": [
+                0,
+                1
+              ]
+            },
+            "torso/5.png": {
+              "file": "torso.png",
+              "position": [
+                0,
+                0
+              ]
+            },
+            "torso/6.png": {
+              "file": "torso.png",
+              "position": [
+                0,
+                0
+              ]
+            },
+            "torso/7.png": {
+              "file": "torso.png",
+              "position": [
+                0,
+                1
+              ]
+            },
+            "torso/8.png": {
+              "file": "torso.png",
+              "position": [
+                0,
+                1
+              ]
+            }
+          }
+        }
+      },
+      "clips": {
+        "idle": {
+          "frames": [
+            0
+          ],
+          "framesPerSecond": 12,
+          "loop": true
+        },
+        "run": {
+          "frames": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8
+          ],
+          "framesPerSecond": 12,
+          "loop": true
+        },
+        "jumpStart": {
+          "frames": [
+            1
+          ],
+          "framesPerSecond": 18,
+          "loop": false
+        },
+        "rise": {
+          "frames": [
+            2
+          ],
+          "framesPerSecond": 12,
+          "loop": false
+        },
+        "fall": {
+          "frames": [
+            3
+          ],
+          "framesPerSecond": 12,
+          "loop": false
+        },
+        "land": {
+          "frames": [
+            4
+          ],
+          "framesPerSecond": 15,
+          "loop": false
+        }
+      },
+      "poses": [
+        {
+          "layers": [
+            {
+              "file": "legs/idle.png"
+            },
+            {
+              "file": "torso/1.png"
+            }
+          ],
+          "equipmentOffset": 0
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/1.png"
+            },
+            {
+              "file": "torso/1.png"
+            }
+          ],
+          "equipmentOffset": 0
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/2.png"
+            },
+            {
+              "file": "torso/2.png"
+            }
+          ],
+          "equipmentOffset": 0
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/3.png"
+            },
+            {
+              "file": "torso/3.png"
+            }
+          ],
+          "equipmentOffset": 1
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/4.png"
+            },
+            {
+              "file": "torso/4.png"
+            }
+          ],
+          "equipmentOffset": 1
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/5.png"
+            },
+            {
+              "file": "torso/5.png"
+            }
+          ],
+          "equipmentOffset": 0
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/6.png"
+            },
+            {
+              "file": "torso/6.png"
+            }
+          ],
+          "equipmentOffset": 0
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/7.png"
+            },
+            {
+              "file": "torso/7.png"
+            }
+          ],
+          "equipmentOffset": 1
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/8.png"
+            },
+            {
+              "file": "torso/8.png"
+            }
+          ],
+          "equipmentOffset": 1
+        }
+      ]
+    },
+    "elkondo-heavy": {
+      "source": "Elkondo/Heavy",
+      "bodySprite": "ElkondoHeavy{team}BodyS",
+      "canvas": [
+        32,
+        32
+      ],
+      "origin": [
+        16,
+        20
+      ],
+      "pixelScale": 2,
+      "equipmentOffset": -1,
+      "pixelsPerRunFrame": 15,
+      "teams": {
+        "Red": {
+          "directory": "Red",
+          "color": "red"
+        },
+        "Blue": {
+          "directory": "Blue",
+          "color": "blu"
+        }
+      },
+      "clips": {
+        "idle": {
+          "frames": [
+            0
+          ],
+          "framesPerSecond": 12,
+          "loop": true
+        },
+        "run": {
+          "frames": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8
+          ],
+          "framesPerSecond": 12,
+          "loop": true
+        },
+        "jumpStart": {
+          "frames": [
+            1
+          ],
+          "framesPerSecond": 18,
+          "loop": false
+        },
+        "rise": {
+          "frames": [
+            2
+          ],
+          "framesPerSecond": 12,
+          "loop": false
+        },
+        "fall": {
+          "frames": [
+            3
+          ],
+          "framesPerSecond": 12,
+          "loop": false
+        },
+        "land": {
+          "frames": [
+            4
+          ],
+          "framesPerSecond": 15,
+          "loop": false
+        }
+      },
+      "poses": [
+        {
+          "layers": [
+            {
+              "file": "legs/idle.png"
+            },
+            {
+              "file": "torso/idle.png"
+            }
+          ],
+          "equipmentOffset": 0
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/1.png"
+            },
+            {
+              "file": "torso/1.png"
+            }
+          ],
+          "equipmentOffset": -1
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/2.png"
+            },
+            {
+              "file": "torso/2.png"
+            }
+          ],
+          "equipmentOffset": -1
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/3.png"
+            },
+            {
+              "file": "torso/3.png"
+            }
+          ],
+          "equipmentOffset": 0
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/4.png"
+            },
+            {
+              "file": "torso/4.png"
+            }
+          ],
+          "equipmentOffset": 0
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/5.png"
+            },
+            {
+              "file": "torso/5.png"
+            }
+          ],
+          "equipmentOffset": -1
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/6.png"
+            },
+            {
+              "file": "torso/6.png"
+            }
+          ],
+          "equipmentOffset": -1
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/7.png"
+            },
+            {
+              "file": "torso/7.png"
+            }
+          ],
+          "equipmentOffset": 0
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/8.png"
+            },
+            {
+              "file": "torso/8.png"
+            }
+          ],
+          "equipmentOffset": 0
+        }
+      ]
+    },
+    "elkondo-medic": {
+      "source": "Elkondo/Medic",
+      "bodySprite": "ElkondoMedic{team}BodyS",
+      "canvas": [
+        32,
+        32
+      ],
+      "origin": [
+        16,
+        20
+      ],
+      "pixelScale": 2,
+      "equipmentOffset": -1,
+      "pixelsPerRunFrame": 15,
+      "teams": {
+        "Red": {
+          "directory": "Red",
+          "color": "red"
+        },
+        "Blue": {
+          "directory": "Blue",
+          "color": "blu"
+        }
+      },
+      "clips": {
+        "idle": {
+          "frames": [
+            0
+          ],
+          "framesPerSecond": 12,
+          "loop": true
+        },
+        "run": {
+          "frames": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8
+          ],
+          "framesPerSecond": 12,
+          "loop": true
+        },
+        "jumpStart": {
+          "frames": [
+            1
+          ],
+          "framesPerSecond": 18,
+          "loop": false
+        },
+        "rise": {
+          "frames": [
+            2
+          ],
+          "framesPerSecond": 12,
+          "loop": false
+        },
+        "fall": {
+          "frames": [
+            3
+          ],
+          "framesPerSecond": 12,
+          "loop": false
+        },
+        "land": {
+          "frames": [
+            4
+          ],
+          "framesPerSecond": 15,
+          "loop": false
+        }
+      },
+      "poses": [
+        {
+          "layers": [
+            {
+              "file": "legs/idle.png"
+            },
+            {
+              "file": "torso/1.png"
+            }
+          ],
+          "equipmentOffset": 0
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/1.png"
+            },
+            {
+              "file": "torso/1.png"
+            }
+          ],
+          "equipmentOffset": 0
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/2.png"
+            },
+            {
+              "file": "torso/2.png"
+            }
+          ],
+          "equipmentOffset": 0
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/3.png"
+            },
+            {
+              "file": "torso/3.png"
+            }
+          ],
+          "equipmentOffset": 1
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/4.png"
+            },
+            {
+              "file": "torso/4.png"
+            }
+          ],
+          "equipmentOffset": 1
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/5.png"
+            },
+            {
+              "file": "torso/5.png"
+            }
+          ],
+          "equipmentOffset": 0
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/6.png"
+            },
+            {
+              "file": "torso/6.png"
+            }
+          ],
+          "equipmentOffset": 0
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/7.png"
+            },
+            {
+              "file": "torso/7.png"
+            }
+          ],
+          "equipmentOffset": 1
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/8.png"
+            },
+            {
+              "file": "torso/8.png"
+            }
+          ],
+          "equipmentOffset": 1
+        }
+      ]
+    },
+    "elkondo-engineer": {
+      "source": "Elkondo/Engineer",
+      "bodySprite": "ElkondoEngineer{team}BodyS",
+      "canvas": [
+        32,
+        32
+      ],
+      "origin": [
+        16,
+        20
+      ],
+      "pixelScale": 2,
+      "equipmentOffset": -1,
+      "pixelsPerRunFrame": 15,
+      "teams": {
+        "Red": {
+          "directory": "Red",
+          "color": "red"
+        },
+        "Blue": {
+          "directory": "Blue",
+          "color": "blu"
+        }
+      },
+      "clips": {
+        "idle": {
+          "frames": [
+            0
+          ],
+          "framesPerSecond": 12,
+          "loop": true
+        },
+        "run": {
+          "frames": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8
+          ],
+          "framesPerSecond": 12,
+          "loop": true
+        },
+        "jumpStart": {
+          "frames": [
+            1
+          ],
+          "framesPerSecond": 18,
+          "loop": false
+        },
+        "rise": {
+          "frames": [
+            2
+          ],
+          "framesPerSecond": 12,
+          "loop": false
+        },
+        "fall": {
+          "frames": [
+            3
+          ],
+          "framesPerSecond": 12,
+          "loop": false
+        },
+        "land": {
+          "frames": [
+            4
+          ],
+          "framesPerSecond": 15,
+          "loop": false
+        }
+      },
+      "poses": [
+        {
+          "layers": [
+            {
+              "file": "legs/idle.png"
+            },
+            {
+              "file": "torso/idle.png"
+            }
+          ],
+          "equipmentOffset": 0
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/1.png"
+            },
+            {
+              "file": "torso/1.png"
+            }
+          ],
+          "equipmentOffset": -1
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/2.png"
+            },
+            {
+              "file": "torso/2.png"
+            }
+          ],
+          "equipmentOffset": -1
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/3.png"
+            },
+            {
+              "file": "torso/3.png"
+            }
+          ],
+          "equipmentOffset": 0
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/4.png"
+            },
+            {
+              "file": "torso/4.png"
+            }
+          ],
+          "equipmentOffset": 0
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/5.png"
+            },
+            {
+              "file": "torso/5.png"
+            }
+          ],
+          "equipmentOffset": -1
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/6.png"
+            },
+            {
+              "file": "torso/6.png"
+            }
+          ],
+          "equipmentOffset": -1
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/7.png"
+            },
+            {
+              "file": "torso/7.png"
+            }
+          ],
+          "equipmentOffset": 0
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/8.png"
+            },
+            {
+              "file": "torso/8.png"
+            }
+          ],
+          "equipmentOffset": 0
+        }
+      ]
+    },
+    "elkondo-sniper": {
+      "source": "Elkondo/Sniper",
+      "bodySprite": "ElkondoSniper{team}BodyS",
+      "canvas": [
+        32,
+        32
+      ],
+      "origin": [
+        16,
+        20
+      ],
+      "pixelScale": 2,
+      "equipmentOffset": -1,
+      "pixelsPerRunFrame": 15,
+      "teams": {
+        "Red": {
+          "directory": "Red",
+          "color": "red"
+        },
+        "Blue": {
+          "directory": "Blue",
+          "color": "blu"
+        }
+      },
+      "clips": {
+        "idle": {
+          "frames": [
+            0
+          ],
+          "framesPerSecond": 12,
+          "loop": true
+        },
+        "run": {
+          "frames": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8
+          ],
+          "framesPerSecond": 12,
+          "loop": true
+        },
+        "jumpStart": {
+          "frames": [
+            1
+          ],
+          "framesPerSecond": 18,
+          "loop": false
+        },
+        "rise": {
+          "frames": [
+            2
+          ],
+          "framesPerSecond": 12,
+          "loop": false
+        },
+        "fall": {
+          "frames": [
+            3
+          ],
+          "framesPerSecond": 12,
+          "loop": false
+        },
+        "land": {
+          "frames": [
+            4
+          ],
+          "framesPerSecond": 15,
+          "loop": false
+        }
+      },
+      "poses": [
+        {
+          "layers": [
+            {
+              "file": "legs/idle.png"
+            },
+            {
+              "file": "torso/idle.png"
+            }
+          ],
+          "equipmentOffset": 0
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/1.png"
+            },
+            {
+              "file": "torso/1.png"
+            }
+          ],
+          "equipmentOffset": -1
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/2.png"
+            },
+            {
+              "file": "torso/2.png"
+            }
+          ],
+          "equipmentOffset": -1
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/3.png"
+            },
+            {
+              "file": "torso/3.png"
+            }
+          ],
+          "equipmentOffset": 0
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/4.png"
+            },
+            {
+              "file": "torso/4.png"
+            }
+          ],
+          "equipmentOffset": 0
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/5.png"
+            },
+            {
+              "file": "torso/5.png"
+            }
+          ],
+          "equipmentOffset": -1
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/6.png"
+            },
+            {
+              "file": "torso/6.png"
+            }
+          ],
+          "equipmentOffset": -1
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/7.png"
+            },
+            {
+              "file": "torso/7.png"
+            }
+          ],
+          "equipmentOffset": 0
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/8.png"
+            },
+            {
+              "file": "torso/8.png"
+            }
+          ],
+          "equipmentOffset": 0
+        }
+      ]
+    },
+    "elkondo-spy": {
+      "source": "Elkondo/Spy",
+      "bodySprite": "ElkondoSpy{team}BodyS",
+      "canvas": [
+        32,
+        32
+      ],
+      "origin": [
+        16,
+        20
+      ],
+      "pixelScale": 2,
+      "equipmentOffset": -1,
+      "pixelsPerRunFrame": 15,
+      "teams": {
+        "Red": {
+          "directory": "Red",
+          "color": "red"
+        },
+        "Blue": {
+          "directory": "Blue",
+          "color": "blu"
+        }
+      },
+      "clips": {
+        "idle": {
+          "frames": [
+            0
+          ],
+          "framesPerSecond": 12,
+          "loop": true
+        },
+        "run": {
+          "frames": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8
+          ],
+          "framesPerSecond": 12,
+          "loop": true
+        },
+        "jumpStart": {
+          "frames": [
+            1
+          ],
+          "framesPerSecond": 18,
+          "loop": false
+        },
+        "rise": {
+          "frames": [
+            2
+          ],
+          "framesPerSecond": 12,
+          "loop": false
+        },
+        "fall": {
+          "frames": [
+            3
+          ],
+          "framesPerSecond": 12,
+          "loop": false
+        },
+        "land": {
+          "frames": [
+            4
+          ],
+          "framesPerSecond": 15,
+          "loop": false
+        }
+      },
+      "poses": [
+        {
+          "layers": [
+            {
+              "file": "legs/idle.png"
+            },
+            {
+              "file": "torso/idle.png"
+            }
+          ],
+          "equipmentOffset": 0,
+          "cloakedLayers": [
+            {
+              "file": "legs/idle.png"
+            },
+            {
+              "file": "torso/idle.png"
+            },
+            {
+              "file": "knife/idle.png"
+            }
+          ]
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/1.png"
+            },
+            {
+              "file": "torso/1.png"
+            }
+          ],
+          "equipmentOffset": -1,
+          "cloakedLayers": [
+            {
+              "file": "legs/1.png"
+            },
+            {
+              "file": "torso/1.png"
+            },
+            {
+              "file": "knife/1.png"
+            }
+          ]
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/2.png"
+            },
+            {
+              "file": "torso/2.png"
+            }
+          ],
+          "equipmentOffset": -1,
+          "cloakedLayers": [
+            {
+              "file": "legs/2.png"
+            },
+            {
+              "file": "torso/2.png"
+            },
+            {
+              "file": "knife/2.png"
+            }
+          ]
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/3.png"
+            },
+            {
+              "file": "torso/3.png"
+            }
+          ],
+          "equipmentOffset": 0,
+          "cloakedLayers": [
+            {
+              "file": "legs/3.png"
+            },
+            {
+              "file": "torso/3.png"
+            },
+            {
+              "file": "knife/3.png"
+            }
+          ]
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/4.png"
+            },
+            {
+              "file": "torso/4.png"
+            }
+          ],
+          "equipmentOffset": 0,
+          "cloakedLayers": [
+            {
+              "file": "legs/4.png"
+            },
+            {
+              "file": "torso/4.png"
+            },
+            {
+              "file": "knife/4.png"
+            }
+          ]
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/5.png"
+            },
+            {
+              "file": "torso/5.png"
+            }
+          ],
+          "equipmentOffset": -1,
+          "cloakedLayers": [
+            {
+              "file": "legs/5.png"
+            },
+            {
+              "file": "torso/5.png"
+            },
+            {
+              "file": "knife/5.png"
+            }
+          ]
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/6.png"
+            },
+            {
+              "file": "torso/6.png"
+            }
+          ],
+          "equipmentOffset": -1,
+          "cloakedLayers": [
+            {
+              "file": "legs/6.png"
+            },
+            {
+              "file": "torso/6.png"
+            },
+            {
+              "file": "knife/6.png"
+            }
+          ]
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/7.png"
+            },
+            {
+              "file": "torso/7.png"
+            }
+          ],
+          "equipmentOffset": 0,
+          "cloakedLayers": [
+            {
+              "file": "legs/7.png"
+            },
+            {
+              "file": "torso/7.png"
+            },
+            {
+              "file": "knife/7.png"
+            }
+          ]
+        },
+        {
+          "layers": [
+            {
+              "file": "legs/8.png"
+            },
+            {
+              "file": "torso/8.png"
+            }
+          ],
+          "equipmentOffset": 0,
+          "cloakedLayers": [
+            {
+              "file": "legs/8.png"
+            },
+            {
+              "file": "torso/8.png"
+            },
+            {
+              "file": "knife/8.png"
+            }
+          ]
+        }
+      ],
+      "cloakedBodySprite": "ElkondoSpy{team}CloakedBodyS"
+    }
+  }
+}

@@ -903,7 +903,8 @@ public partial class Game1
             SpriteSortMode.Deferred,
             _multiplyColorBlendState,
             samplerState: SamplerState.PointClamp,
-            rasterizerState: RasterizerState.CullNone);
+            rasterizerState: RasterizerState.CullNone,
+            transformMatrix: GetActiveGameplayWorldSpriteBatchTransform());
         _spriteBatch.Draw(
             mask,
             position,
@@ -915,7 +916,10 @@ public partial class Game1
             effects,
             0f);
         _spriteBatch.End();
-        _spriteBatch.Begin(samplerState: SamplerState.PointClamp, rasterizerState: RasterizerState.CullNone);
+        _spriteBatch.Begin(
+            samplerState: SamplerState.PointClamp,
+            rasterizerState: RasterizerState.CullNone,
+            transformMatrix: GetActiveGameplayWorldSpriteBatchTransform());
     }
 
     private void DrawSpriteFrameScreenColor(
@@ -933,7 +937,8 @@ public partial class Game1
             SpriteSortMode.Deferred,
             _screenColorBlendState,
             samplerState: SamplerState.PointClamp,
-            rasterizerState: RasterizerState.CullNone);
+            rasterizerState: RasterizerState.CullNone,
+            transformMatrix: GetActiveGameplayWorldSpriteBatchTransform());
         _spriteBatch.Draw(
             mask,
             position,
@@ -945,7 +950,10 @@ public partial class Game1
             effects,
             0f);
         _spriteBatch.End();
-        _spriteBatch.Begin(samplerState: SamplerState.PointClamp, rasterizerState: RasterizerState.CullNone);
+        _spriteBatch.Begin(
+            samplerState: SamplerState.PointClamp,
+            rasterizerState: RasterizerState.CullNone,
+            transformMatrix: GetActiveGameplayWorldSpriteBatchTransform());
     }
 
     private Texture2D GetSpriteFrameAlphaMask(LoadedSpriteFrame frame)

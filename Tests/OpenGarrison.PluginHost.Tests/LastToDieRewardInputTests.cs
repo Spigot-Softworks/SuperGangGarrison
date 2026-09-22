@@ -73,7 +73,7 @@ public sealed class LastToDieRewardInputTests
             new[] { new Rectangle(32, 136, 290, 224), new Rectangle(340, 136, 290, 224) }
         })!;
         var result = (bool)typeof(Game1).GetMethod("UpdateLastToDieRewardInput", flags)!
-            .Invoke(game, [input, layout, keyboard, mouse, (Func<int, bool>)(_ => true)])!;
+            .Invoke(game, [input, layout, keyboard, mouse, (Func<int, bool>)(_ => true), null, null])!;
         typeof(Game1).GetField("_previousMouse", flags)!.SetValue(game, mouse);
         typeof(Game1).GetField("_previousKeyboard", flags)!.SetValue(game, keyboard);
         return result;

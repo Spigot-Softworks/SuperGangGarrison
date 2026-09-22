@@ -553,10 +553,12 @@ public partial class Game1
             dirtbowlGateTargetFade > _dynamicDirtbowlGateMusicFade ? fadeInStep : fadeOutStep);
         _dynamicIntelMusicFade = MoveDynamicMusicFadeToward(_dynamicIntelMusicFade, targetState == DynamicMusicEventState.Intel ? 1f : 0f, targetState == DynamicMusicEventState.Intel ? fadeInStep : fadeOutStep);
         _dynamicUberMusicFade = MoveDynamicMusicFadeToward(_dynamicUberMusicFade, targetState == DynamicMusicEventState.Uber ? 1f : 0f, targetState == DynamicMusicEventState.Uber ? fadeInStep : fadeOutStep);
-        // Combat is an additive layer over the normal backing. Intel, Uber,
-        // and Dirtbowl remain replacement cues and still crossfade the base.
+        // Combat and the normal track are authored as a phase-locked pair.
+        // Replace the normal track as combat fades in instead of layering the
+        // two full-length songs on top of one another. Intel, Uber, and
+        // Dirtbowl remain replacement cues and still crossfade the base.
         var strongestEventFade = Math.Max(_dynamicDirtbowlGateMusicFade, Math.Max(_dynamicIntelMusicFade, _dynamicUberMusicFade));
-        _dynamicNormalMusicFade = 1f - strongestEventFade;
+        _dynamicNormalMusicFade = (1f - strongestEventFade) * (1f - _dynamicCombatMusicFade);
     }
 
     private (float Drum, float Body, float Bass, float Lead) GetDynamicCombatStemTargetVolumes(DynamicCombatMusicStage stage)

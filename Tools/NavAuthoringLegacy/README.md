@@ -1,7 +1,7 @@
 # Legacy nav authoring extraction
 
-This folder preserves the last intact bot-navigation authoring stack from repo
-history so it can be ported back deliberately.
+This folder contains a script for extracting a historical navigation editor.
+The extracted code is a reference snapshot, not part of the current build.
 
 ## Source point
 
@@ -26,9 +26,14 @@ The generated `extracted/` directory is intentionally ignored and is not kept in
 - Supporting old `BotAI` navigation model/build/runtime files needed to make the
   editor logic understandable in isolation.
 
-Run `.\extract-legacy-nav-authoring.ps1` from this directory, or from the repo
-root with `-OutputDirectory Tools/NavAuthoringLegacy/extracted`, to refresh the
-snapshot from git history.
+From the repository root, generate the ignored snapshot with:
+
+```powershell
+.\Tools\NavAuthoringLegacy\extract-legacy-nav-authoring.ps1 -OutputDirectory Tools/NavAuthoringLegacy/extracted
+```
+
+The checkout must include commit `14b0d1ff`; shallow clones may need to fetch
+older history first. Paths listed above refer to that commit.
 
 The extracted files are intentionally not part of any project file. They depend
 on the old `OpenGarrison.BotAI` namespace and need a port to the current

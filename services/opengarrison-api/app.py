@@ -8,15 +8,18 @@ import re
 import secrets
 import sqlite3
 import time
+import uuid
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 from urllib.parse import quote, urlsplit
 
-from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi import Depends, FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 from pydantic import BaseModel
+from reward_authority import require_reward_authority
+from run_verification import install_routes as install_run_verification_routes
 
 
 DEFAULT_DB_PATH = "/var/lib/opengarrison-api/opengarrison.db"
@@ -42,6 +45,14 @@ MAX_STAT_EVENT_CREDITS = MAX_STAT_EVENT_POINTS
 FRIEND_CODE_RE = re.compile(r"^OG2-[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{4}-[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{4}(?:-[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{4})?(?:-[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{4})?$")
 RELAY_ROOM_CODE_RE = re.compile(r"^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{4}$")
 RECOVERY_KEY_RE = re.compile(r"^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{8}$")
+LAST_TO_DIE_SURVIVOR_IDS = {
+    "ltd.survivor.soldier",
+    "ltd.survivor.demoknight",
+    "ltd.survivor.engineer",
+    "ltd.survivor.spy",
+    "ltd.survivor.medic",
+    "ltd.survivor.sniper",
+}
 
 
 def now_seconds() -> int:
@@ -78,6 +89,16 @@ def clean_text(value: str | None, maximum_length: int = 128) -> str:
     if not value:
         return ""
     return value.strip()[:maximum_length]
+
+
+def normalize_client_id(value: str | None) -> str:
+    client_id = clean_text(value, 64)
+    if not client_id:
+        return ""
+    try:
+        return uuid.UUID(client_id).hex
+    except ValueError:
+        return client_id
 
 
 def clean_json_text(value: str | None, maximum_length: int = 4096) -> str:
@@ -279,6 +300,7 @@ def initialize_db() -> None:
                 score_units INTEGER NOT NULL DEFAULT 0,
                 round_number INTEGER NOT NULL DEFAULT 1,
                 difficulty TEXT NOT NULL DEFAULT 'standard',
+                survivor_id TEXT NOT NULL DEFAULT '',
                 policy_version INTEGER NOT NULL DEFAULT 1,
                 created_at INTEGER NOT NULL,
                 UNIQUE(run_id, account_id)
@@ -372,7 +394,13 @@ def initialize_db() -> None:
         ensure_column(db, "servers", "compatibility_key", "TEXT NOT NULL DEFAULT ''")
         ensure_column(db, "servers", "quic_port", "INTEGER NOT NULL DEFAULT 0")
         ensure_column(db, "servers", "quic_url", "TEXT NOT NULL DEFAULT ''")
+        ensure_column(db, "last_to_die_runs", "survivor_id", "TEXT NOT NULL DEFAULT ''")
+        db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_last_to_die_runs_survivor "
+            "ON last_to_die_runs(survivor_id, score_units DESC, round_number DESC)"
+        )
         migrate_legacy_clients(db)
+        migrate_client_id_aliases(db)
 
 
 def ensure_column(db: sqlite3.Connection, table: str, column: str, definition: str) -> None:
@@ -393,9 +421,10 @@ def migrate_legacy_clients(db: sqlite3.Connection) -> None:
         """
     ).fetchall()
     for row in rows:
+        client_id = normalize_client_id(str(row["client_id"]))
         existing_device = db.execute(
             "SELECT account_id FROM client_devices WHERE client_id = ?",
-            (row["client_id"],),
+            (client_id,),
         ).fetchone()
         if existing_device is not None:
             continue
@@ -444,13 +473,47 @@ def migrate_legacy_clients(db: sqlite3.Connection) -> None:
             ) VALUES (?, ?, ?, ?, ?, ?, ?, NULL)
             """,
             (
-                row["client_id"],
+                client_id,
                 account_id,
                 row["secret_hash"],
                 row["display_name"],
                 row["player_card_json"],
                 created_at,
                 updated_at,
+            ),
+        )
+
+
+def migrate_client_id_aliases(db: sqlite3.Connection) -> None:
+    """Add canonical UUID spellings for devices migrated by older API builds."""
+    rows = db.execute(
+        """
+        SELECT client_id, account_id, secret_hash, display_name, player_card_json,
+               created_at, updated_at, revoked_at
+        FROM client_devices
+        """
+    ).fetchall()
+    for row in rows:
+        client_id = str(row["client_id"])
+        canonical_id = normalize_client_id(client_id)
+        if canonical_id == client_id:
+            continue
+        db.execute(
+            """
+            INSERT OR IGNORE INTO client_devices (
+                client_id, account_id, secret_hash, display_name, player_card_json,
+                created_at, updated_at, revoked_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                canonical_id,
+                row["account_id"],
+                row["secret_hash"],
+                row["display_name"],
+                row["player_card_json"],
+                row["created_at"],
+                row["updated_at"],
+                row["revoked_at"],
             ),
         )
 
@@ -718,6 +781,7 @@ def verify_client(
     display_name: str,
     player_card_json: str = "",
 ) -> str:
+    client_id = normalize_client_id(client_id)
     if not client_id or not client_secret or not friend_code:
         raise HTTPException(status_code=400, detail="client identity is required")
 
@@ -1088,6 +1152,7 @@ class LastToDieRunRequest(BaseModel):
     scoreUnits: int = 0
     roundNumber: int = 0
     difficulty: str = "standard"
+    survivorId: str = ""
     policyVersion: int = 1
 
 
@@ -1423,7 +1488,7 @@ def register_client(payload: ClientRegisterRequest) -> dict[str, str]:
     with connect_db() as db:
         account_id = verify_client(
             db,
-            clean_text(payload.clientId, 64),
+            normalize_client_id(payload.clientId),
             friend_code,
             payload.clientSecret,
             clean_text(payload.displayName, 64),
@@ -1442,7 +1507,7 @@ def get_account_profile(payload: AccountProfileRequest) -> dict[str, Any]:
     with connect_db() as db:
         account_id = verify_client(
             db,
-            clean_text(payload.clientId, 64),
+            normalize_client_id(payload.clientId),
             friend_code,
             payload.clientSecret,
             "",
@@ -1458,7 +1523,7 @@ def protect_account(payload: AccountAuthenticatedRequest) -> dict[str, Any]:
     with connect_db() as db:
         account_id = verify_client(
             db,
-            clean_text(payload.clientId, 64),
+            normalize_client_id(payload.clientId),
             friend_code,
             payload.clientSecret,
             "",
@@ -1500,7 +1565,7 @@ def shorten_account_friend_code(payload: AccountAuthenticatedRequest) -> dict[st
     with connect_db() as db:
         account_id = verify_client(
             db,
-            clean_text(payload.clientId, 64),
+            normalize_client_id(payload.clientId),
             friend_code,
             payload.clientSecret,
             "",
@@ -1536,7 +1601,7 @@ def shorten_account_friend_code(payload: AccountAuthenticatedRequest) -> dict[st
 def login_account(payload: AccountLoginRequest, request: Request) -> dict[str, Any]:
     friend_code = normalize_friend_code(payload.friendCode)
     recovery_key = normalize_recovery_key(payload.recoveryKey)
-    client_id = clean_text(payload.clientId, 64)
+    client_id = normalize_client_id(payload.clientId)
     client_secret = payload.clientSecret
     if not friend_code or not recovery_key or not client_id or not client_secret:
         raise HTTPException(status_code=403, detail="invalid account credentials")
@@ -1604,7 +1669,7 @@ def create_gameplay_session(payload: AccountAuthenticatedRequest) -> dict[str, A
     friend_code = normalize_friend_code(payload.friendCode)
     if not friend_code:
         raise HTTPException(status_code=400, detail="invalid friend code")
-    client_id = clean_text(payload.clientId, 64)
+    client_id = normalize_client_id(payload.clientId)
     with connect_db() as db:
         account_id = verify_client(
             db,
@@ -1644,7 +1709,7 @@ def validate_gameplay_session_endpoint(payload: GameplaySessionValidateRequest) 
         }
 
 
-@app.post("/api/stats/award")
+@app.post("/api/stats/award", dependencies=[Depends(require_reward_authority)])
 def award_stat_event(payload: StatAwardRequest) -> dict[str, Any]:
     token = clean_text(payload.gameplayToken, 256)
     event_id = clean_text(payload.eventId, 128)
@@ -1882,25 +1947,36 @@ def get_last_to_die_leaderboard(
     sort: str,
     limit: int,
     offset: int,
+    survivor_id: str = "",
 ) -> dict[str, Any]:
     normalized_sort = clean_text(sort, 16).lower()
     if normalized_sort not in ("score", "round"):
         raise HTTPException(status_code=400, detail="sort must be score or round")
     page_limit = clamp_int(limit, 1, 50)
     page_offset = clamp_int(offset, 0, 1_000_000)
-    rank_column = "best_score_units" if normalized_sort == "score" else "highest_round"
-    secondary_column = "highest_round" if normalized_sort == "score" else "best_score_units"
+    normalized_survivor_id = clean_text(survivor_id, 96).lower()
+    if normalized_survivor_id and normalized_survivor_id not in LAST_TO_DIE_SURVIVOR_IDS:
+        raise HTTPException(status_code=400, detail="invalid Last to Die survivor")
+    rank_column = "score_units" if normalized_sort == "score" else "round_number"
+    secondary_column = "round_number" if normalized_sort == "score" else "score_units"
     rows = db.execute(
         f"""
-        WITH account_records AS (
-            SELECT account_id,
-                   MAX(score_units) AS best_score_units,
-                   MAX(round_number) AS highest_round,
-                   COUNT(*) AS runs_played
+        WITH candidate_runs AS (
+            SELECT account_id, score_units, round_number, survivor_id,
+                   COUNT(*) OVER (PARTITION BY account_id) AS runs_played,
+                   ROW_NUMBER() OVER (
+                       PARTITION BY account_id
+                       ORDER BY {rank_column} DESC, {secondary_column} DESC,
+                                created_at ASC, submission_id ASC
+                   ) AS account_record
             FROM last_to_die_runs
-            GROUP BY account_id
+            WHERE (? = '' OR survivor_id = ?)
+        ), account_records AS (
+            SELECT account_id, score_units, round_number, survivor_id, runs_played
+            FROM candidate_runs
+            WHERE account_record = 1
         ), ranked AS (
-            SELECT account_id, best_score_units, highest_round, runs_played,
+            SELECT account_id, score_units, round_number, survivor_id, runs_played,
                    RANK() OVER (ORDER BY {rank_column} DESC) AS global_rank
             FROM account_records
         )
@@ -1911,24 +1987,28 @@ def get_last_to_die_leaderboard(
                  accounts.updated_at ASC, ranked.account_id ASC
         LIMIT ? OFFSET ?
         """,
-        (page_limit, page_offset),
+        (normalized_survivor_id, normalized_survivor_id, page_limit, page_offset),
     ).fetchall()
     total_row = db.execute(
-        "SELECT COUNT(DISTINCT account_id) AS total FROM last_to_die_runs"
+        "SELECT COUNT(DISTINCT account_id) AS total FROM last_to_die_runs "
+        "WHERE (? = '' OR survivor_id = ?)",
+        (normalized_survivor_id, normalized_survivor_id),
     ).fetchone()
     entries = [
         {
             "rank": max(1, int(row["global_rank"])),
             "friendCode": str(row["primary_friend_code"]),
             "displayName": str(row["display_name"]) or "Player",
+            "survivorId": str(row["survivor_id"]),
             "runsPlayed": max(0, int(row["runs_played"])),
-            "bestScoreUnits": max(0, int(row["best_score_units"])),
-            "highestRound": max(0, int(row["highest_round"])),
+            "bestScoreUnits": max(0, int(row["score_units"])),
+            "highestRound": max(0, int(row["round_number"])),
         }
         for row in rows
     ]
     return {
         "sort": normalized_sort,
+        "survivorId": normalized_survivor_id,
         "entries": entries,
         "offset": page_offset,
         "limit": page_limit,
@@ -1936,7 +2016,7 @@ def get_last_to_die_leaderboard(
     }
 
 
-@app.post("/api/last-to-die/run")
+@app.post("/api/last-to-die/run", dependencies=[Depends(require_reward_authority)])
 def record_last_to_die_run(payload: LastToDieRunRequest) -> dict[str, Any]:
     token = clean_text(payload.gameplayToken, 256)
     submission_id = clean_text(payload.submissionId, 128)
@@ -1944,6 +2024,7 @@ def record_last_to_die_run(payload: LastToDieRunRequest) -> dict[str, Any]:
     score_units = clamp_int(payload.scoreUnits, 0, 2_147_483_647)
     round_number = clamp_int(payload.roundNumber, 0, 1_000_000)
     difficulty = clean_text(payload.difficulty, 16).lower()
+    survivor_id = clean_text(payload.survivorId, 96).lower()
     policy_version = clamp_int(payload.policyVersion, 1, 1_000_000)
     if not submission_id or not run_id:
         raise HTTPException(status_code=400, detail="submission id and run id are required")
@@ -1951,13 +2032,15 @@ def record_last_to_die_run(payload: LastToDieRunRequest) -> dict[str, Any]:
         raise HTTPException(status_code=400, detail="Last to Die result is outside allowed bounds")
     if difficulty not in ("standard", "hardcore"):
         raise HTTPException(status_code=400, detail="invalid Last to Die difficulty")
+    if survivor_id and survivor_id not in LAST_TO_DIE_SURVIVOR_IDS:
+        raise HTTPException(status_code=400, detail="invalid Last to Die survivor")
 
     with connect_db() as db:
         session = validate_gameplay_session(db, token)
         account_id = str(session["account_id"])
         existing = db.execute(
             """
-            SELECT run_id, account_id, score_units, round_number, difficulty, policy_version
+            SELECT run_id, account_id, score_units, round_number, difficulty, survivor_id, policy_version
             FROM last_to_die_runs WHERE submission_id = ?
             """,
             (submission_id,),
@@ -1969,6 +2052,7 @@ def record_last_to_die_run(payload: LastToDieRunRequest) -> dict[str, Any]:
                 or int(existing["score_units"]) != score_units
                 or int(existing["round_number"]) != round_number
                 or str(existing["difficulty"]) != difficulty
+                or str(existing["survivor_id"]) != survivor_id
                 or int(existing["policy_version"]) != policy_version
             ):
                 raise HTTPException(status_code=409, detail="submission id conflicts with an existing run")
@@ -1989,8 +2073,8 @@ def record_last_to_die_run(payload: LastToDieRunRequest) -> dict[str, Any]:
             """
             INSERT INTO last_to_die_runs (
                 submission_id, run_id, account_id, score_units, round_number,
-                difficulty, policy_version, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                difficulty, survivor_id, policy_version, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 submission_id,
@@ -1999,6 +2083,7 @@ def record_last_to_die_run(payload: LastToDieRunRequest) -> dict[str, Any]:
                 score_units,
                 round_number,
                 difficulty,
+                survivor_id,
                 policy_version,
                 now_seconds(),
             ),
@@ -2015,9 +2100,10 @@ def last_to_die_leaderboard(
     sort: str = "score",
     limit: int = 10,
     offset: int = 0,
+    survivor: str = "",
 ) -> dict[str, Any]:
     with connect_db() as db:
-        return get_last_to_die_leaderboard(db, sort, limit, offset)
+        return get_last_to_die_leaderboard(db, sort, limit, offset, survivor)
 
 
 @app.post("/api/last-to-die/rankings")
@@ -2028,7 +2114,7 @@ def last_to_die_rankings(payload: LastToDieRankingsRequest) -> dict[str, Any]:
     with connect_db() as db:
         account_id = verify_client(
             db,
-            clean_text(payload.clientId, 64),
+            normalize_client_id(payload.clientId),
             friend_code,
             payload.clientSecret,
             "",
@@ -2047,7 +2133,7 @@ def create_friend_request(payload: FriendRequestCreateRequest) -> dict[str, Any]
     target_code = normalize_friend_code(payload.targetFriendCode)
     if not own_code or not target_code:
         raise HTTPException(status_code=400, detail="invalid friend code")
-    client_id = clean_text(payload.clientId, 64)
+    client_id = normalize_client_id(payload.clientId)
     display_name = clean_text(payload.displayName, 64) or "Player"
     current = now_seconds()
     with connect_db() as db:
@@ -2105,7 +2191,7 @@ def list_friend_requests(payload: FriendRequestsListRequest) -> dict[str, Any]:
     if not own_code:
         raise HTTPException(status_code=400, detail="invalid friend code")
 
-    client_id = clean_text(payload.clientId, 64)
+    client_id = normalize_client_id(payload.clientId)
     display_name = clean_text(payload.displayName, 64) or "Player"
     with connect_db() as db:
         account_id = verify_client(db, client_id, own_code, payload.clientSecret, display_name)
@@ -2134,7 +2220,7 @@ def respond_friend_request(payload: FriendRequestRespondRequest) -> dict[str, An
     if not own_code:
         raise HTTPException(status_code=400, detail="invalid friend code")
 
-    client_id = clean_text(payload.clientId, 64)
+    client_id = normalize_client_id(payload.clientId)
     display_name = clean_text(payload.displayName, 64) or "Player"
     current = now_seconds()
     with connect_db() as db:
@@ -2171,7 +2257,7 @@ def send_direct_message(payload: DirectMessageSendRequest) -> dict[str, Any]:
     if not text:
         raise HTTPException(status_code=400, detail="message is required")
 
-    client_id = clean_text(payload.clientId, 64)
+    client_id = normalize_client_id(payload.clientId)
     display_name = clean_text(payload.displayName, 64) or "Player"
     current = now_seconds()
     with connect_db() as db:
@@ -2199,7 +2285,7 @@ def poll_direct_messages(payload: DirectMessagesPollRequest) -> dict[str, Any]:
     if not own_code:
         raise HTTPException(status_code=400, detail="invalid friend code")
 
-    client_id = clean_text(payload.clientId, 64)
+    client_id = normalize_client_id(payload.clientId)
     display_name = clean_text(payload.displayName, 64) or "Player"
     after_id = max(0, int(payload.afterId))
     with connect_db() as db:
@@ -2228,7 +2314,7 @@ async def create_relay_session(payload: RelaySessionCreateRequest, request: Requ
     if not friend_code:
         raise HTTPException(status_code=400, detail="invalid friend code")
 
-    client_id = clean_text(payload.clientId, 64)
+    client_id = normalize_client_id(payload.clientId)
     display_name = clean_text(payload.displayName, 64) or "Player"
     with connect_db() as db:
         account_id = verify_client(db, client_id, friend_code, payload.clientSecret, display_name)
@@ -2484,7 +2570,7 @@ def heartbeat_presence(payload: PresenceHeartbeatRequest, request: Request) -> d
     if not friend_code:
         raise HTTPException(status_code=400, detail="invalid friend code")
 
-    client_id = clean_text(payload.clientId, 64)
+    client_id = normalize_client_id(payload.clientId)
     display_name = clean_text(payload.displayName, 64) or "Player"
     status = clean_text(payload.status, 32) or "menu"
     udp_port = clamp_int(payload.udpPort, 0, 65535)
@@ -2545,7 +2631,7 @@ def heartbeat_presence(payload: PresenceHeartbeatRequest, request: Request) -> d
 
 @app.post("/api/presence/offline")
 def offline_presence(payload: PresenceOfflineRequest) -> dict[str, str]:
-    client_id = clean_text(payload.clientId, 64)
+    client_id = normalize_client_id(payload.clientId)
     with connect_db() as db:
         existing = db.execute(
             "SELECT secret_hash FROM client_devices WHERE client_id = ?",
@@ -2638,3 +2724,6 @@ from private_rooms import install_private_rooms as _install_private_rooms
 _install_private_rooms(_sys.modules[__name__])
 from peer_rooms import install_peer_rooms as _install_peer_rooms
 _install_peer_rooms(_sys.modules[__name__])
+
+
+install_run_verification_routes(app, connect_db, validate_gameplay_session)

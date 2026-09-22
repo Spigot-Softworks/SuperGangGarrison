@@ -23,6 +23,8 @@ public sealed class LastToDieDirector
 
         public int DraftOrdinal { get; set; }
 
+        public int RerollOrdinal { get; set; }
+
         public bool IsReady { get; set; }
 
         public bool IsAlive { get; set; } = true;
@@ -30,6 +32,24 @@ public sealed class LastToDieDirector
         public int Kills { get; set; }
 
         public int ConquistadorStacks { get; set; }
+
+        public int PendingBonusSelections { get; set; }
+
+        public int LuckyDrawRoundsRemaining { get; set; }
+
+        public int CurrentRewardTargetStage { get; set; }
+
+        public int CurrentRewardSelectionsRequired { get; set; }
+
+        public int SelectionsRemaining { get; set; }
+
+        public int CurrentRewardSelectionNumber { get; set; }
+
+        public bool LuckyDrawActiveThisRound { get; set; }
+
+        public bool UltraMilestoneConsumedThisRound { get; set; }
+
+        public bool SecondChanceConsumed { get; set; }
     }
 
     private readonly LastToDieRuleset _ruleset;
@@ -46,6 +66,7 @@ public sealed class LastToDieDirector
     private string _currentMap = string.Empty;
     private int _enemyCount;
     private long _stageEndServerTick;
+    private long _lastStageTimerEvaluationServerTick = -1;
     private long _runEndServerTick;
     private string _terminalReason = string.Empty;
 
@@ -189,6 +210,7 @@ public sealed class LastToDieDirector
         _currentMap = string.Empty;
         _enemyCount = 0;
         _stageEndServerTick = 0;
+        _lastStageTimerEvaluationServerTick = -1;
         _runEndServerTick = 0;
         _terminalReason = string.Empty;
         _nextOfferId = 1;
@@ -199,10 +221,20 @@ public sealed class LastToDieDirector
             player.OwnedPerkSet.Clear();
             player.ActiveOffer = null;
             player.DraftOrdinal = 0;
+            player.RerollOrdinal = 0;
             player.IsReady = false;
             player.IsAlive = true;
             player.Kills = 0;
             player.ConquistadorStacks = 0;
+            player.PendingBonusSelections = 0;
+            player.LuckyDrawRoundsRemaining = 0;
+            player.CurrentRewardTargetStage = 0;
+            player.CurrentRewardSelectionsRequired = 0;
+            player.SelectionsRemaining = 0;
+            player.CurrentRewardSelectionNumber = 0;
+            player.LuckyDrawActiveThisRound = false;
+            player.UltraMilestoneConsumedThisRound = false;
+            player.SecondChanceConsumed = false;
         }
 
         TouchStructure();
@@ -390,23 +422,127 @@ public sealed class LastToDieDirector
         }
 
         var survivorId = player.SurvivorId!.Value;
-        var stillEligible = _perks.GetEligible(survivorId, player.OwnedPerkSet)
-            .Any(definition => definition.Id == perkId);
-        if (!stillEligible)
+        var definition = _perks.GetEligible(survivorId, player.OwnedPerkSet)
+            .FirstOrDefault(candidate => candidate.Id == perkId);
+        if (definition is null)
         {
             return Fail("Selected perk no longer satisfies its requirements and exclusions.", out error);
         }
 
         player.OwnedPerkSet.Add(perkId);
         player.OwnedPerks.Add(perkId);
-        player.ActiveOffer = null;
-        player.IsReady = true;
+
+        if (perkId == LastToDiePerkIds.Rare.PowerBooster
+            || perkId == LastToDiePerkIds.Rare.SpeedBooster
+            || perkId == LastToDiePerkIds.Rare.HealthBooster)
+        {
+            player.PendingBonusSelections = checked(player.PendingBonusSelections + 1);
+        }
+        if (perkId == LastToDiePerkIds.Ultra.LuckyDraw)
+        {
+            player.LuckyDrawRoundsRemaining = checked(player.LuckyDrawRoundsRemaining + 2);
+        }
+        if (perkId == LastToDiePerkIds.Ultra.BattleMaster)
+        {
+            GrantBattleMasterPerks(player);
+        }
+
+        player.SelectionsRemaining = Math.Max(0, player.SelectionsRemaining - 1);
+        if (player.SelectionsRemaining > 0)
+        {
+            player.CurrentRewardSelectionNumber += 1;
+            player.ActiveOffer = CreateRewardOffer(player);
+            player.IsReady = false;
+        }
+        else
+        {
+            player.ActiveOffer = null;
+            player.IsReady = true;
+        }
 
         if (_players.Values.All(candidate => candidate.ActiveOffer is null))
         {
-            PrepareStage(_stageNumber == 0 ? 1 : _stageNumber + 1);
+            PrepareStage(player.CurrentRewardTargetStage);
         }
 
+        TouchStructure();
+        error = string.Empty;
+        return true;
+    }
+
+    public bool TryRerollReward(
+        Guid playerId,
+        ulong offerId,
+        LastToDiePerkId perkId,
+        out string error)
+    {
+        if (_phase != LastToDiePhase.RewardChoice)
+        {
+            return Fail("Rewards can only be rerolled during reward choice.", out error);
+        }
+
+        if (!TryGetPlayer(playerId, out var player, out error))
+        {
+            return false;
+        }
+
+        var offer = player.ActiveOffer;
+        if (offer is null || offer.OfferId != offerId)
+        {
+            return Fail("Reward offer is stale or does not belong to this player.", out error);
+        }
+
+        var replaceIndex = offer.Slots.ToList().FindIndex(slot => slot.PerkId == perkId);
+        if (replaceIndex < 0)
+        {
+            return Fail("Rerolled perk is not present in the active offer.", out error);
+        }
+
+        var slot = offer.Slots[replaceIndex];
+        if (slot.RerollsRemaining == 0 || !slot.HasEligibleReplacement)
+        {
+            return Fail("This reward slot has already been rerolled or has no replacement.", out error);
+        }
+
+        var retainedChoices = offer.Slots
+            .Where((_, index) => index != replaceIndex)
+            .Select(retained => retained.PerkId)
+            .ToHashSet();
+        var eligible = _perks.GetEligible(player.SurvivorId!.Value, player.OwnedPerkSet)
+            .Where(candidate => candidate.Tier == slot.Tier)
+            .Select(candidate => candidate.Id)
+            .Where(candidate => candidate != perkId && !retainedChoices.Contains(candidate))
+            .ToList();
+        if (eligible.Count == 0)
+        {
+            return Fail("No different eligible perk is available for this slot.", out error);
+        }
+
+        player.RerollOrdinal = checked(player.RerollOrdinal + 1);
+        Span<byte> playerBytes = stackalloc byte[16];
+        player.PlayerId.TryWriteBytes(playerBytes);
+        var playerKey = BinaryPrimitives.ReadUInt64LittleEndian(playerBytes)
+            ^ BinaryPrimitives.ReadUInt64LittleEndian(playerBytes[8..]);
+        var streamKey = playerKey
+            ^ ((ulong)player.DraftOrdinal << 32)
+            ^ (uint)player.RerollOrdinal;
+        var random = new LastToDieRandom(
+            LastToDieRandom.DeriveSeed(Seed, streamKey),
+            LastToDieRandom.DeriveSeed(streamKey, 0x5245524F4C4CUL));
+        var slots = offer.Slots.ToArray();
+        slots[replaceIndex] = new LastToDieRewardOfferSlot(
+            eligible[random.NextInt32(eligible.Count)],
+            slot.Tier,
+            0,
+            false);
+        player.ActiveOffer = new LastToDieRewardOffer(
+            _nextOfferId++,
+            offer.DraftOrdinal,
+            slots,
+            offer.TargetStage,
+            offer.SelectionNumber,
+            offer.SelectionsRequired,
+            offer.GuaranteedTierConsumed);
         TouchStructure();
         error = string.Empty;
         return true;
@@ -479,6 +615,7 @@ public sealed class LastToDieDirector
 
         var stage = _ruleset.GetStage(_stageNumber);
         _stageEndServerTick = checked(serverTick + stage.DurationTicks);
+        _lastStageTimerEvaluationServerTick = serverTick;
         if (!_ruleset.Endless && _runEndServerTick == 0)
         {
             _runEndServerTick = checked(serverTick + _ruleset.RunTimeLimitTicks);
@@ -516,6 +653,7 @@ public sealed class LastToDieDirector
         player.Kills = checked(player.Kills + killCount);
         var reduction = checked((long)_ruleset.KillTimerReductionTicks * killCount);
         _stageEndServerTick = Math.Max(serverTick, _stageEndServerTick - reduction);
+        TouchStructure();
         error = string.Empty;
         return true;
     }
@@ -561,13 +699,33 @@ public sealed class LastToDieDirector
         return true;
     }
 
+    public bool TryConsumeSecondChance(Guid playerId, out string error)
+    {
+        if (!TryGetPlayer(playerId, out var player, out error))
+        {
+            return false;
+        }
+
+        if (!player.OwnedPerkSet.Contains(LastToDiePerkIds.Ultra.SecondChance)
+            || player.SecondChanceConsumed)
+        {
+            return Fail("Second Chance is unavailable or has already been consumed.", out error);
+        }
+
+        player.SecondChanceConsumed = true;
+        TouchStructure();
+        error = string.Empty;
+        return true;
+    }
+
     public bool TryAdvancePlayingState(
         long serverTick,
         bool redObjectiveWon,
         bool blueObjectiveWon,
         bool anyAfterlifeWindowActive,
         out string error,
-        bool canCompleteStageOnTimeout = true)
+        bool canCompleteStageOnTimeout = true,
+        bool redControlPointOwned = false)
     {
         if (_phase != LastToDiePhase.Playing)
         {
@@ -578,6 +736,8 @@ public sealed class LastToDieDirector
         {
             return Fail("Server tick must be non-negative.", out error);
         }
+
+        AdvanceStageTimerForControlPointOwnership(serverTick, redControlPointOwned);
 
         if (_runEndServerTick > 0 && serverTick >= _runEndServerTick)
         {
@@ -598,6 +758,30 @@ public sealed class LastToDieDirector
 
         error = string.Empty;
         return true;
+    }
+
+    private void AdvanceStageTimerForControlPointOwnership(long serverTick, bool redControlPointOwned)
+    {
+        if (_lastStageTimerEvaluationServerTick < 0)
+        {
+            _lastStageTimerEvaluationServerTick = serverTick;
+            return;
+        }
+
+        var elapsedTicks = serverTick - _lastStageTimerEvaluationServerTick;
+        if (elapsedTicks <= 0)
+        {
+            return;
+        }
+
+        if (redControlPointOwned && _stageEndServerTick > serverTick)
+        {
+            var remainingTicks = _stageEndServerTick - serverTick;
+            var extraTicks = Math.Min(elapsedTicks, remainingTicks);
+            _stageEndServerTick -= extraTicks;
+        }
+
+        _lastStageTimerEvaluationServerTick = serverTick;
     }
 
     public bool TryAdvancePlayingDeadline(long serverTick, out string error)
@@ -635,7 +819,11 @@ public sealed class LastToDieDirector
                 player.IsReady,
                 player.IsAlive,
                 player.Kills,
-                player.ConquistadorStacks))
+                player.ConquistadorStacks,
+                player.PendingBonusSelections,
+                player.LuckyDrawRoundsRemaining,
+                player.SelectionsRemaining,
+                player.SecondChanceConsumed))
             .ToArray();
 
         return new LastToDieRunSnapshot(
@@ -663,18 +851,25 @@ public sealed class LastToDieDirector
         {
             player.IsReady = false;
             player.DraftOrdinal += 1;
-            var choices = CreateOfferChoices(player);
-            if (choices.Count == 0)
+            player.CurrentRewardTargetStage = nextStageNumber;
+            player.CurrentRewardSelectionsRequired = checked(1 + player.PendingBonusSelections);
+            player.SelectionsRemaining = player.CurrentRewardSelectionsRequired;
+            player.CurrentRewardSelectionNumber = 1;
+            player.PendingBonusSelections = 0;
+            player.LuckyDrawActiveThisRound = player.LuckyDrawRoundsRemaining > 0;
+            if (player.LuckyDrawActiveThisRound)
             {
-                player.ActiveOffer = null;
+                player.LuckyDrawRoundsRemaining -= 1;
+            }
+            player.UltraMilestoneConsumedThisRound = false;
+            player.ActiveOffer = CreateRewardOffer(player);
+            if (player.ActiveOffer is null)
+            {
+                player.SelectionsRemaining = 0;
                 player.IsReady = true;
                 continue;
             }
 
-            player.ActiveOffer = new LastToDieRewardOffer(
-                _nextOfferId++,
-                player.DraftOrdinal,
-                choices);
             createdOffer = true;
         }
 
@@ -704,33 +899,201 @@ public sealed class LastToDieDirector
             player.IsAlive = true;
             player.Kills = 0;
             player.ConquistadorStacks = 0;
+            player.PendingBonusSelections = 0;
+            player.LuckyDrawRoundsRemaining = 0;
+            player.CurrentRewardTargetStage = 0;
+            player.CurrentRewardSelectionsRequired = 0;
+            player.SelectionsRemaining = 0;
+            player.CurrentRewardSelectionNumber = 0;
+            player.LuckyDrawActiveThisRound = false;
+            player.UltraMilestoneConsumedThisRound = false;
+            player.SecondChanceConsumed = false;
         }
 
         BeginRewardChoice(nextStageNumber: 1);
     }
 
-    private IReadOnlyList<LastToDiePerkId> CreateOfferChoices(PlayerState player)
+    private LastToDieRewardOffer? CreateRewardOffer(PlayerState player)
     {
-        var eligible = _perks.GetEligible(player.SurvivorId!.Value, player.OwnedPerkSet)
-            .Select(definition => definition.Id)
-            .ToList();
+        var eligible = _perks.GetEligible(player.SurvivorId!.Value, player.OwnedPerkSet);
         if (eligible.Count == 0)
         {
-            return Array.Empty<LastToDiePerkId>();
+            return null;
         }
 
+        var choiceCount = Math.Min(_ruleset.RewardChoiceCount, eligible.Count);
+        var random = CreatePlayerDraftRandom(player, 0x4F46464552UL);
+        var desiredTiers = Enumerable.Repeat(LastToDiePerkTier.Standard, choiceCount).ToArray();
+        var guaranteedTier = false;
+        var isUltraMilestone = player.CurrentRewardTargetStage > 0
+            && player.CurrentRewardTargetStage % 10 == 0
+            && !player.UltraMilestoneConsumedThisRound
+            && eligible.Any(definition => definition.Tier == LastToDiePerkTier.Ultra);
+
+        if (isUltraMilestone)
+        {
+            player.UltraMilestoneConsumedThisRound = true;
+            guaranteedTier = true;
+        }
+
+        var eligibleRarePerkExists = eligible.Any(definition => definition.Tier == LastToDiePerkTier.Rare);
+        for (var index = 0; index < desiredTiers.Length; index += 1)
+        {
+            var isGuaranteedUltra = isUltraMilestone;
+            var canRollRareForSlot = player.CurrentRewardTargetStage >= 4
+                && !isUltraMilestone
+                && !player.LuckyDrawActiveThisRound
+                && eligibleRarePerkExists;
+            var rareSlotRoll = canRollRareForSlot
+                && ShouldRollRareRewardSlot(
+                    player.CurrentRewardTargetStage,
+                    player.LuckyDrawActiveThisRound,
+                    isGuaranteedUltra,
+                    eligibleRarePerkExists,
+                    random.NextInt32(100));
+            desiredTiers[index] = GetDesiredRewardTierForSlot(
+                player.CurrentRewardTargetStage,
+                player.LuckyDrawActiveThisRound,
+                isGuaranteedUltra,
+                rareSlotRoll);
+        }
+
+        if (player.CurrentRewardTargetStage == 3
+            && eligibleRarePerkExists
+            && desiredTiers.Any(tier => tier == LastToDiePerkTier.Rare))
+        {
+            guaranteedTier = true;
+        }
+
+        var chosen = new List<LastToDiePerkDefinition>(choiceCount);
+        for (var index = 0; index < choiceCount; index += 1)
+        {
+            var tier = ResolveAvailableTier(desiredTiers[index], eligible, chosen);
+            if (tier is null)
+            {
+                continue;
+            }
+
+            var candidates = eligible
+                .Where(definition => definition.Tier == tier && chosen.All(choice => choice.Id != definition.Id))
+                .ToList();
+            var choice = candidates[random.NextInt32(candidates.Count)];
+            chosen.Add(choice);
+        }
+
+        if (chosen.Count == 0)
+        {
+            return null;
+        }
+
+        var selectedIds = chosen.Select(definition => definition.Id).ToHashSet();
+        var slots = chosen.Select(definition => new LastToDieRewardOfferSlot(
+            definition.Id,
+            definition.Tier,
+            (byte)(eligible.Any(candidate => candidate.Tier == definition.Tier
+                && candidate.Id != definition.Id
+                && !selectedIds.Contains(candidate.Id)) ? 1 : 0),
+            eligible.Any(candidate => candidate.Tier == definition.Tier
+                && candidate.Id != definition.Id
+                && !selectedIds.Contains(candidate.Id)))).ToArray();
+        return new LastToDieRewardOffer(
+            _nextOfferId++,
+            player.DraftOrdinal,
+            slots,
+            player.CurrentRewardTargetStage,
+            player.CurrentRewardSelectionNumber,
+            player.CurrentRewardSelectionsRequired,
+            guaranteedTier);
+    }
+
+    internal static LastToDiePerkTier GetDesiredRewardTierForSlot(
+        int targetStage,
+        bool luckyDrawActive,
+        bool guaranteedUltra,
+        bool rareSlotRoll)
+    {
+        if (guaranteedUltra)
+        {
+            return LastToDiePerkTier.Ultra;
+        }
+
+        if (luckyDrawActive || targetStage == 3 || targetStage >= 4 && rareSlotRoll)
+        {
+            return LastToDiePerkTier.Rare;
+        }
+
+        return LastToDiePerkTier.Standard;
+    }
+
+    internal static bool ShouldRollRareRewardSlot(
+        int targetStage,
+        bool luckyDrawActive,
+        bool guaranteedUltra,
+        bool hasEligibleRarePerk,
+        int percentileRoll)
+    {
+        return targetStage >= 4
+            && !luckyDrawActive
+            && !guaranteedUltra
+            && hasEligibleRarePerk
+            && percentileRoll is >= 0 and < 5;
+    }
+
+    private void GrantBattleMasterPerks(PlayerState player)
+    {
+        var random = CreatePlayerDraftRandom(player, 0x424D4153544552UL);
+        for (var index = 0; index < 3; index += 1)
+        {
+            var eligible = _perks.GetEligible(player.SurvivorId!.Value, player.OwnedPerkSet)
+                .Where(definition => definition.Tier is LastToDiePerkTier.Standard or LastToDiePerkTier.Rare)
+                .ToList();
+            if (eligible.Count == 0)
+            {
+                break;
+            }
+
+            var perk = eligible[random.NextInt32(eligible.Count)];
+            player.OwnedPerkSet.Add(perk.Id);
+            player.OwnedPerks.Add(perk.Id);
+        }
+    }
+
+    private LastToDieRandom CreatePlayerDraftRandom(PlayerState player, ulong domain)
+    {
         Span<byte> playerBytes = stackalloc byte[16];
         player.PlayerId.TryWriteBytes(playerBytes);
         var playerKey = BinaryPrimitives.ReadUInt64LittleEndian(playerBytes)
             ^ BinaryPrimitives.ReadUInt64LittleEndian(playerBytes[8..]);
-        var streamKey = playerKey ^ ((ulong)player.DraftOrdinal << 32);
-        var random = new LastToDieRandom(
+        var streamKey = playerKey
+            ^ ((ulong)player.DraftOrdinal << 32)
+            ^ ((ulong)player.CurrentRewardTargetStage << 16)
+            ^ (uint)player.CurrentRewardSelectionNumber;
+        return new LastToDieRandom(
             LastToDieRandom.DeriveSeed(Seed, streamKey),
-            LastToDieRandom.DeriveSeed(streamKey, 0x4F46464552UL));
-        random.Shuffle(eligible);
+            LastToDieRandom.DeriveSeed(streamKey, domain));
+    }
 
-        var choiceCount = Math.Min(_ruleset.RewardChoiceCount, eligible.Count);
-        return Array.AsReadOnly(eligible.Take(choiceCount).ToArray());
+    private static LastToDiePerkTier? ResolveAvailableTier(
+        LastToDiePerkTier requested,
+        IReadOnlyList<LastToDiePerkDefinition> eligible,
+        IReadOnlyList<LastToDiePerkDefinition> alreadyChosen)
+    {
+        var chosen = alreadyChosen.Select(definition => definition.Id).ToHashSet();
+        LastToDiePerkTier[] fallbacks = requested switch
+        {
+            LastToDiePerkTier.Ultra => [LastToDiePerkTier.Ultra, LastToDiePerkTier.Rare, LastToDiePerkTier.Standard],
+            LastToDiePerkTier.Rare => [LastToDiePerkTier.Rare, LastToDiePerkTier.Standard],
+            _ => [LastToDiePerkTier.Standard],
+        };
+        foreach (var tier in fallbacks)
+        {
+            if (eligible.Any(definition => definition.Tier == tier && !chosen.Contains(definition.Id)))
+            {
+                return tier;
+            }
+        }
+
+        return null;
     }
 
     private void PrepareStage(int stageNumber)

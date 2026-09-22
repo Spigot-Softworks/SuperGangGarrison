@@ -3,6 +3,7 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using OpenGarrison.Core;
+using System;
 using System.Collections.Generic;
 
 namespace OpenGarrison.Client;
@@ -383,6 +384,71 @@ public partial class Game1
         {
             _practiceSetupState.SelectAvailableMap(mapIndex);
         }
+    }
+
+    private bool TryUpdatePracticeMapSelectionControllerInput(PracticeMapsMenuLayout layout)
+    {
+        if (!IsControllerMenuInputActive()
+            || _hostMapPreviewState is not null
+            || _practiceMapContextMenu is not null
+            || _practiceEditField != PracticeEditField.None
+            || _practiceSetupState.ModeFilterDropdownOpen
+            || _practiceSetupState.FiltersPopupOpen)
+        {
+            return false;
+        }
+
+        var availableMaps = _practiceSetupState.GetAvailableMapsForDisplay();
+        _practiceSetupState.ClampAvailableMapScroll(availableMaps.Count, layout.AvailableVisibleRowCapacity);
+
+        if (!TryConsumeControllerMenuNavigation(out var horizontalStep, out var verticalStep))
+        {
+            if (IsControllerMenuConfirmPressed())
+            {
+                ConfirmPracticeMapBrowserSelection();
+                return true;
+            }
+
+            return false;
+        }
+
+        if (verticalStep != 0)
+        {
+            if (availableMaps.Count == 0)
+            {
+                return true;
+            }
+
+            var nextIndex = _practiceSetupState.AvailableMapIndex < 0
+                ? verticalStep > 0 ? 0 : availableMaps.Count - 1
+                : Math.Clamp(_practiceSetupState.AvailableMapIndex + verticalStep, 0, availableMaps.Count - 1);
+            _practiceSetupState.SelectAvailableMap(nextIndex);
+            _practiceSetupState.EnsureAvailableMapSelectionVisible(layout.AvailableVisibleRowCapacity);
+            return true;
+        }
+
+        if (horizontalStep != 0)
+        {
+            var sections = ClientDistribution.IsRestricted
+                ? new[]
+                {
+                    PracticeSetupState.PracticeMapBrowserSection.Classic,
+                    PracticeSetupState.PracticeMapBrowserSection.Custom,
+                }
+                : new[]
+                {
+                    PracticeSetupState.PracticeMapBrowserSection.SuperGangGarrison,
+                    PracticeSetupState.PracticeMapBrowserSection.Classic,
+                    PracticeSetupState.PracticeMapBrowserSection.Custom,
+                };
+            var sectionIndex = Array.IndexOf(sections, _practiceSetupState.MapBrowserSection);
+            sectionIndex = sectionIndex < 0 ? 0 : sectionIndex;
+            sectionIndex = (sectionIndex + horizontalStep + sections.Length) % sections.Length;
+            SelectPracticeMapBrowserSection(sections[sectionIndex]);
+            return true;
+        }
+
+        return false;
     }
 
     private void SelectPracticeMapBrowserSection(PracticeSetupState.PracticeMapBrowserSection section)

@@ -25,7 +25,6 @@ public partial class Game1
 
     private void BeginGameplayAccountAttach()
     {
-        if (IsRestrictedBrowserEdition) return;
         _gameplayAccountSessionTask = null;
         _pendingGameplayAccountAttachRequestId = 0;
         if (_networkClient.IsReplayConnection)
@@ -40,7 +39,6 @@ public partial class Game1
 
     private void UpdateGameplayAccountAttach()
     {
-        if (IsRestrictedBrowserEdition) return;
         var task = _gameplayAccountSessionTask;
         if (task is null)
         {

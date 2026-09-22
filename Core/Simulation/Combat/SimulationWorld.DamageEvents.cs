@@ -2,7 +2,7 @@ namespace OpenGarrison.Core;
 
 public sealed partial class SimulationWorld
 {
-    private const float AssistTrackingSourceTicks = 120f;
+    private const float AssistTrackingSourceTicks = 210f;
 
     private void RegisterDamageEvent(
         PlayerEntity? attacker,
@@ -285,7 +285,8 @@ public sealed partial class SimulationWorld
         }
 
         if (target.IsLastToDieSpyAfterlifeIncomingDamageImmune
-            || target.IsLastToDieMedicHailMaryInvulnerable)
+            || target.IsLastToDieMedicHailMaryInvulnerable
+            || target.IsLastToDieSecondChanceInvulnerable)
         {
             return Finish(PlayerDamageDisposition.Invulnerable);
         }
@@ -592,7 +593,8 @@ public sealed partial class SimulationWorld
         }
 
         if (target.IsLastToDieSpyAfterlifeIncomingDamageImmune
-            || target.IsLastToDieMedicHailMaryInvulnerable)
+            || target.IsLastToDieMedicHailMaryInvulnerable
+            || target.IsLastToDieSecondChanceInvulnerable)
         {
             return Finish(PlayerDamageDisposition.Invulnerable);
         }
@@ -782,6 +784,7 @@ public sealed partial class SimulationWorld
                 ? PlayerDamageDisposition.Applied
                 : target.IsUbered
                     || target.IsLastToDieMedicHailMaryInvulnerable
+                    || target.IsLastToDieSecondChanceInvulnerable
                     || target.IsExperimentalGhostDashing
                     ? PlayerDamageDisposition.Invulnerable
                     : PlayerDamageDisposition.Accumulated;
@@ -1065,6 +1068,9 @@ public sealed partial class SimulationWorld
             return -1;
         }
 
+        if (targetKind == DamageTargetKind.Player && wasFatal && playerTarget is not null)
+            return ResolveAssistPlayerId(playerTarget, attacker);
+
         if (assistPlayerIdOverride > 0)
         {
             return playerTarget is not null
@@ -1072,13 +1078,6 @@ public sealed partial class SimulationWorld
                 && assistPlayerIdOverride != playerTarget.Id
                     ? assistPlayerIdOverride
                     : -1;
-        }
-
-        if (targetKind == DamageTargetKind.Player
-            && wasFatal
-            && playerTarget is not null)
-        {
-            return ResolveAssistPlayerId(playerTarget, attacker);
         }
 
         return FindHealingMedicPlayerId(attacker.Id);
@@ -1097,25 +1096,13 @@ public sealed partial class SimulationWorld
             return null;
         }
 
-        var healingMedic = FindHealingMedicPlayer(killer.Id);
-        if (healingMedic is not null
-            && healingMedic.Id != killer.Id
-            && healingMedic.Id != victim.Id
-            && healingMedic.Team == killer.Team)
-        {
-            return healingMedic;
-        }
-
-        if (!victim.SecondToLastDamageDealerPlayerId.HasValue)
-        {
-            return null;
-        }
-
-        var assistant = FindPlayerById(victim.SecondToLastDamageDealerPlayerId.Value);
-        if (assistant is null
-            || assistant.Id == killer.Id
-            || assistant.Id == victim.Id
-            || !assistant.IsAlive
+        var assistantId = victim.LastDamageDealerPlayerId != killer.Id
+            ? victim.LastDamageDealerPlayerId : victim.SecondToLastDamageDealerPlayerId;
+        var remainingTicks = victim.LastDamageDealerPlayerId != killer.Id
+            ? victim.LastDamageDealerAssistTicksRemaining : victim.SecondToLastDamageDealerAssistTicksRemaining;
+        var assistant = assistantId.HasValue ? FindPlayerById(assistantId.Value) : null;
+        if (remainingTicks <= 0 || assistant is null
+            || assistant.Id == killer.Id || assistant.Id == victim.Id
             || assistant.Team != killer.Team)
         {
             return null;

@@ -7,9 +7,10 @@ public sealed record LastToDieStageDefinition(
 
 public sealed record LastToDieRuleset
 {
-    public const int CurrentVersion = 2;
+    public const int CurrentVersion = 4;
     public const int SoloStartingEnemyCount = 2;
     public const int CoopStartingEnemyCount = 3;
+    public const int MaximumEnemyCount = 16;
     public const int SniperStartingStage = 9;
     public const int EnemyScalingStartingStage = 10;
     public const float EnemyScalingPerStage = 0.05f;
@@ -28,7 +29,7 @@ public sealed record LastToDieRuleset
 
     public int EnemyCountIncrement { get; init; } = 1;
 
-    public int StartingStageMinutes { get; init; } = 3;
+    public int StartingStageMinutes { get; init; } = 1;
 
     public int StageMinuteIncrement { get; init; } = 1;
 
@@ -82,11 +83,14 @@ public sealed record LastToDieRuleset
             throw new ArgumentOutOfRangeException(nameof(stageNumber));
         }
 
-        // Endless rounds retain the former final-stage enemy count and timer;
-        // post-nine difficulty comes from stat scaling rather than unbounded bots.
-        var offset = Math.Min(stageNumber - 1, StageCount - 1);
-        var enemyCount = checked(StartingEnemyCount + (offset * EnemyCountIncrement));
-        var durationMinutes = checked(StartingStageMinutes + (offset * StageMinuteIncrement));
+        // Endless rounds continue increasing the enemy wave until the fixed
+        // population cap. Stage time retains its former final-stage duration.
+        var enemyCount = (int)Math.Clamp(
+            (long)StartingEnemyCount + ((long)(stageNumber - 1) * EnemyCountIncrement),
+            1,
+            MaximumEnemyCount);
+        var durationOffset = Math.Min(stageNumber - 1, StageCount - 1);
+        var durationMinutes = checked(StartingStageMinutes + (durationOffset * StageMinuteIncrement));
         var durationTicks = checked(durationMinutes * 60 * TicksPerSecond);
         return new LastToDieStageDefinition(stageNumber, enemyCount, durationTicks);
     }
@@ -98,6 +102,12 @@ public sealed record LastToDieRuleset
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(stageNumber, 1);
         return 1f + (Math.Max(0, stageNumber - (EnemyScalingStartingStage - 1)) * EnemyScalingPerStage);
+    }
+
+    public static float GetEnemyDamageMultiplier(int stageNumber)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(stageNumber, 1);
+        return 1f + (Math.Max(0, stageNumber - EnemyScalingStartingStage) * EnemyScalingPerStage);
     }
 
     public int RunTimeLimitTicks

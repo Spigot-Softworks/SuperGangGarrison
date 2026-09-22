@@ -7,6 +7,15 @@ using System.Reflection;
 using OpenGarrison.Core;
 
 args = RuntimePaths.ApplyUserDataRootArgument(args);
+if (args.Contains("--verify-atlas-uploads", StringComparer.Ordinal))
+{
+    Environment.SetEnvironmentVariable("OPENGARRISON_VERIFY_ATLAS_UPLOADS", "1");
+}
+if (args.Contains("--force-highdef", StringComparer.Ordinal))
+{
+    Environment.SetEnvironmentVariable("OPENGARRISON_FORCE_HIGHDEF", "1");
+}
+
 Directory.SetCurrentDirectory(AppContext.BaseDirectory);
 var roomMetadata = System.Reflection.Assembly.GetExecutingAssembly().GetCustomAttributes<System.Reflection.AssemblyMetadataAttribute>();
 OpenGarrison.ClientShared.ClientDistribution.Initialize("Full",

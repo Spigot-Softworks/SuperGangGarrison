@@ -15,11 +15,43 @@ public sealed class OpenGarrisonPresenceClient
         Timeout = TimeSpan.FromSeconds(8),
     };
 
+    private static readonly HttpClient RunUploadHttpClient = new() { Timeout = TimeSpan.FromMinutes(2) };
+
     private readonly Uri _baseUri;
 
     public OpenGarrisonPresenceClient(string? baseUrl = null)
     {
         _baseUri = new Uri(string.IsNullOrWhiteSpace(baseUrl) ? DefaultApiBaseUrl : baseUrl.Trim(), UriKind.Absolute);
+    }
+
+    public async Task<RunUploadStatus> ClaimVerifiedRunAsync(string token, string attemptId)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, BuildUri("/api/last-to-die/recordings/claims/" + Uri.EscapeDataString(attemptId)));
+        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        using var response = await (GetHttpClient() ?? throw new HttpRequestException("HTTP unavailable")).SendAsync(request);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync(RunUploadJsonContext.Default.RunUploadStatus) ?? throw new HttpRequestException("Empty run response");
+    }
+
+    public async Task<RunUploadStatus> UploadRunAsync(string token, string ruleset, byte[] recording)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, BuildUri("/api/last-to-die/recordings"));
+        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        request.Headers.Add("X-Run-Ruleset", ruleset);
+        request.Content = new ByteArrayContent(recording);
+        request.Content.Headers.ContentType = new("application/gzip");
+        using var response = await (OperatingSystem.IsBrowser() ? GetHttpClient() ?? throw new HttpRequestException("HTTP unavailable") : RunUploadHttpClient).SendAsync(request);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync(RunUploadJsonContext.Default.RunUploadStatus) ?? throw new HttpRequestException("Empty run response");
+    }
+
+    public async Task<RunUploadStatus> GetRunUploadStatusAsync(string token, string id)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, BuildUri("/api/last-to-die/recordings/" + Uri.EscapeDataString(id)));
+        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        using var response = await (GetHttpClient() ?? throw new HttpRequestException("HTTP unavailable")).SendAsync(request);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync(RunUploadJsonContext.Default.RunUploadStatus) ?? throw new HttpRequestException("Empty run response");
     }
 
     public async Task SendHeartbeatAsync(PresenceHeartbeatRequest request)
@@ -141,6 +173,7 @@ public sealed class OpenGarrisonPresenceClient
 
     public async Task<LastToDieLeaderboardResponse> GetLastToDieLeaderboardAsync(
         string sort,
+        string survivorId = "",
         int limit = 50,
         int offset = 0)
     {
@@ -150,6 +183,10 @@ public sealed class OpenGarrisonPresenceClient
             : "score";
         var path = $"/api/last-to-die/leaderboard?sort={normalizedSort}" +
             $"&limit={Math.Clamp(limit, 1, 50)}&offset={Math.Max(0, offset)}";
+        if (!string.IsNullOrWhiteSpace(survivorId))
+        {
+            path += $"&survivor={Uri.EscapeDataString(survivorId.Trim().ToLowerInvariant())}";
+        }
         using var response = await httpClient.GetAsync(BuildUri(path)).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadFromJsonAsync<LastToDieLeaderboardResponse>().ConfigureAwait(false)
@@ -619,6 +656,9 @@ public sealed class LastToDieLeaderboardEntry
     [JsonPropertyName("displayName")]
     public string DisplayName { get; set; } = string.Empty;
 
+    [JsonPropertyName("survivorId")]
+    public string SurvivorId { get; set; } = string.Empty;
+
     [JsonPropertyName("runsPlayed")]
     public int RunsPlayed { get; set; }
 
@@ -645,6 +685,9 @@ public sealed class LastToDieLeaderboardResponse
 {
     [JsonPropertyName("sort")]
     public string Sort { get; set; } = "score";
+
+    [JsonPropertyName("survivorId")]
+    public string SurvivorId { get; set; } = string.Empty;
 
     [JsonPropertyName("entries")]
     public List<LastToDieLeaderboardEntry> Entries { get; set; } = [];

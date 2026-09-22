@@ -501,8 +501,10 @@ public sealed partial class PlayerEntity
 
         if (profile.LightMarksmanEnabled)
         {
-            IsSniperScoped = false;
+            // Light Marksman keeps the rifle's scope available, but it never
+            // allows a scoped rifle charge to accumulate.
             SniperChargeTicks = 0;
+            SniperRifleFullyChargedHitStreak = 0;
         }
         else
         {

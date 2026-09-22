@@ -17,6 +17,11 @@ public partial class Game1
 
         public MainMenuOverlayKind GetActiveOverlay()
         {
+            if (_game._namePromptOpen)
+            {
+                return MainMenuOverlayKind.NamePrompt;
+            }
+
             if (_game._hostSetupOpen)
             {
                 return MainMenuOverlayKind.HostSetup;
@@ -89,6 +94,9 @@ public partial class Game1
         {
             switch (GetActiveOverlay())
             {
+                case MainMenuOverlayKind.NamePrompt:
+                    _game.UpdatePlayerNamePrompt(keyboard);
+                    return true;
                 case MainMenuOverlayKind.HostSetup:
                     if ((keyboard.IsKeyDown(Keys.Escape) && !_game._previousKeyboard.IsKeyDown(Keys.Escape))
                         || _game.IsControllerMenuBackPressed())
@@ -155,6 +163,9 @@ public partial class Game1
         {
             switch (GetActiveOverlay())
             {
+                case MainMenuOverlayKind.NamePrompt:
+                    _game.DrawPlayerNamePrompt();
+                    return true;
                 case MainMenuOverlayKind.OptionsMenu:
                     _game.DrawOptionsMenu();
                     return true;

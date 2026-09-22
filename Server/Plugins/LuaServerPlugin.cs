@@ -2345,6 +2345,8 @@ internal sealed class LuaServerPlugin(
             ReloadOverlayOffsetX: ReadOptionalFloatField(presentationTable, 0f, "reloadOverlayOffsetX", "ReloadOverlayOffsetX", "reload_overlay_offset_x"),
             ReloadOverlayOffsetY: ReadOptionalFloatField(presentationTable, 0f, "reloadOverlayOffsetY", "ReloadOverlayOffsetY", "reload_overlay_offset_y"),
             ReloadOverlayRotationDegrees: ReadOptionalFloatField(presentationTable, 0f, "reloadOverlayRotationDegrees", "ReloadOverlayRotationDegrees", "reload_overlay_rotation_degrees"),
+            ReloadSpriteOffsetX: ReadOptionalFloatField(presentationTable, 0f, "reloadSpriteOffsetX", "ReloadSpriteOffsetX", "reload_sprite_offset_x"),
+            ReloadSpriteOffsetY: ReadOptionalFloatField(presentationTable, 0f, "reloadSpriteOffsetY", "ReloadSpriteOffsetY", "reload_sprite_offset_y"),
             HudSpriteName: ReadOptionalStringField(presentationTable, "hudSpriteName", "HudSpriteName", "hud_sprite_name"),
             WeaponOffsetX: ReadOptionalFloatField(presentationTable, 0f, "weaponOffsetX", "WeaponOffsetX", "weapon_offset_x"),
             WeaponOffsetY: ReadOptionalFloatField(presentationTable, 0f, "weaponOffsetY", "WeaponOffsetY", "weapon_offset_y"),

@@ -155,6 +155,7 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
+            ResolveDragonRageProjectileOutcome(flare, hitTarget: false);
             flare.Reflect(player.Id, player.Team, aimRadians);
         }
     }
@@ -260,7 +261,6 @@ public sealed partial class SimulationWorld
 
             if (!targetIsTeammate)
             {
-                target.RegisterDamageDealer(player.Id, GetSimulationTicksFromSourceTicks(AssistTrackingSourceTicks));
             }
 
             if (targetIsTeammate && carryTeammatesWithPlayerVelocity)
@@ -381,7 +381,6 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            target.RegisterDamageDealer(player.Id, GetSimulationTicksFromSourceTicks(AssistTrackingSourceTicks));
             target.AddImpulse(
                 MathF.Cos(targetDirectionRadians) * SoldierThundergunnerPlayerImpulse * scale,
                 MathF.Sin(targetDirectionRadians) * SoldierThundergunnerPlayerImpulse * scale + SoldierThundergunnerPlayerLift * forceScale);

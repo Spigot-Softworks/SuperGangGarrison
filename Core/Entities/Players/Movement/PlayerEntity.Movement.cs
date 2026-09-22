@@ -124,6 +124,9 @@ public sealed partial class PlayerEntity
             return;
         }
 
+        var knockbackScale = Math.Clamp(LastToDieUniversalModifiers.KnockbackReceivedMultiplier, 0f, 1f);
+        velocityX *= knockbackScale;
+        velocityY *= knockbackScale;
         HorizontalSpeed += velocityX;
         VerticalSpeed += velocityY;
         // Any explosive vertical impulse invalidates the grounded state. The

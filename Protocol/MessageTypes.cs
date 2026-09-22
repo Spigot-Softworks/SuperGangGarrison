@@ -618,7 +618,14 @@ public sealed record SnapshotPlayerState(
     // Authoritative roster identity. This is deliberately metadata rather
     // than a name heuristic so practice, hosted, and dedicated bots render
     // consistently on every client.
-    bool IsBot = false);
+    bool IsBot = false,
+    int CurrentCombo = 0,
+    int ComboTicksRemaining = 0,
+    int ExperimentalCryoSlowTicksRemaining = 0,
+    int ExperimentalCryoFreezeTicksRemaining = 0,
+    float ExperimentalCryoExposureFraction = 0f,
+    int ExperimentalGhostVisibilityTicksRemaining = 0,
+    float ExperimentalGhostTrailAlpha = 0f);
 
 public sealed record SnapshotPlayerMovementState(
     byte Slot,
@@ -654,7 +661,9 @@ public sealed record SnapshotPlayerStatusState(
     float IntelRechargeTicks,
     // Compact runtime replicated states that must not wait for a full-player update
     // (secondary ammo, ability cooldowns, and short-lived presentation toggles).
-    IReadOnlyList<SnapshotReplicatedStateEntry>? SecondaryAmmoStates = null);
+    IReadOnlyList<SnapshotReplicatedStateEntry>? SecondaryAmmoStates = null,
+    int CurrentCombo = 0,
+    int ComboTicksRemaining = 0);
 
 public sealed record SnapshotPlayerChatBubbleState(
     byte Slot,
@@ -704,7 +713,12 @@ public sealed record SnapshotPlayerExtendedStatusState(
     float DispenserAttackReloadSpeedMultiplier = 1f,
     float RageCharge = 0f,
     bool IsRageReady = false,
-    int RageTicksRemaining = 0);
+    int RageTicksRemaining = 0,
+    int ExperimentalCryoSlowTicksRemaining = 0,
+    int ExperimentalCryoFreezeTicksRemaining = 0,
+    float ExperimentalCryoExposureFraction = 0f,
+    int ExperimentalGhostVisibilityTicksRemaining = 0,
+    float ExperimentalGhostTrailAlpha = 0f);
 
 public sealed record SnapshotIntelState(
     byte Team,
@@ -891,7 +905,8 @@ public sealed record SnapshotControlPointState(
     ushort CappingTicks,
     ushort CapTimeTicks,
     byte Cappers,
-    bool IsLocked);
+    bool IsLocked,
+    bool HasHealingAura = false);
 
 public sealed record SnapshotGeneratorState(
     byte Team,
@@ -942,7 +957,8 @@ public sealed record SnapshotJumpPadState(
 public sealed record SnapshotCivilDefenseTurretState(
     int Id, int OwnerPlayerId, byte Team, float X, float Y, int Health,
     bool HasLanded, bool IsBuilt, float FacingDirectionX, float AimDirectionDegrees,
-    int ReloadTicksRemaining, int ShotTraceTicksRemaining, float LastShotTargetX, float LastShotTargetY);
+    int ReloadTicksRemaining, int ShotTraceTicksRemaining, float LastShotTargetX, float LastShotTargetY,
+    int LifetimeTicksRemaining = -1);
 
 public sealed record SnapshotPlayerGibState(
     int Id,
@@ -1081,6 +1097,9 @@ public sealed record SnapshotKillFeedEntry(
     KillFeedSpecialType SpecialType = KillFeedSpecialType.None,
     ulong EventId = 0)
 {
+    public string AssistName { get; init; } = "";
+    public byte AssistTeam { get; init; }
+    public int AssistPlayerId { get; init; } = -1;
     public IReadOnlyList<int> InvolvedPlayerIds { get; init; } = Array.Empty<int>();
 }
 
@@ -1210,4 +1229,3 @@ public sealed record SnapshotMessage(
 
     public MessageType Type => MessageType.Snapshot;
 }
-

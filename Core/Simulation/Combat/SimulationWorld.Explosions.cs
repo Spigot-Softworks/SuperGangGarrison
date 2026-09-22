@@ -79,7 +79,9 @@ public sealed partial class SimulationWorld
     private void ExplodeMine(MineProjectileEntity mine, bool triggerNearbyMines = true)
     {
         var owner = FindPlayerById(mine.OwnerId);
-        var blastRadius = ResolveExplosiveSplashRadius(MineProjectileEntity.BlastRadius);
+        var blastRadius = ResolveExplosiveSplashRadius(
+            MineProjectileEntity.BlastRadius
+                * MathF.Max(0.1f, owner?.LastToDieUniversalModifiers.ExplosionScale ?? 1f));
         for (var mineIndex = _mines.Count - 1; mineIndex >= 0; mineIndex -= 1)
         {
             if (_mines[mineIndex].Id == mine.Id)
@@ -266,7 +268,10 @@ public sealed partial class SimulationWorld
 
     private IEnumerable<MineProjectileEntity> GetTriggeredMines(MineProjectileEntity sourceMine)
     {
-        var blastRadius = ResolveExplosiveSplashRadius(MineProjectileEntity.BlastRadius);
+        var sourceOwner = FindPlayerById(sourceMine.OwnerId);
+        var blastRadius = ResolveExplosiveSplashRadius(
+            MineProjectileEntity.BlastRadius
+                * MathF.Max(0.1f, sourceOwner?.LastToDieUniversalModifiers.ExplosionScale ?? 1f));
         foreach (var mine in _mines)
         {
             if (mine.Id == sourceMine.Id)
@@ -698,7 +703,10 @@ public sealed partial class SimulationWorld
 
     private void DestroyBubblesInMineBlast(MineProjectileEntity mine)
     {
-        var blastRadius = ResolveExplosiveSplashRadius(MineProjectileEntity.BlastRadius);
+        var owner = FindPlayerById(mine.OwnerId);
+        var blastRadius = ResolveExplosiveSplashRadius(
+            MineProjectileEntity.BlastRadius
+                * MathF.Max(0.1f, owner?.LastToDieUniversalModifiers.ExplosionScale ?? 1f));
         for (var bubbleIndex = _bubbles.Count - 1; bubbleIndex >= 0; bubbleIndex -= 1)
         {
             if (DistanceBetween(mine.X, mine.Y, _bubbles[bubbleIndex].X, _bubbles[bubbleIndex].Y) < blastRadius + BubbleProjectileEntity.SelfPopRadius)

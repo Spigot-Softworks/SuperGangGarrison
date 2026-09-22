@@ -65,7 +65,6 @@ public sealed class BotBrainPracticeBotController : IPracticeBotController
             var activeControllerCount = 0;
             var navigationLoadedCount = 0;
             var navigationMissingCount = 0;
-            var objectiveTapeLoadedCount = 0;
             var activePathCount = 0;
             foreach (var slot in _configuredSlots.Keys)
             {
@@ -84,11 +83,6 @@ public sealed class BotBrainPracticeBotController : IPracticeBotController
                     navigationMissingCount += 1;
                 }
 
-                if (controller.HasObjectiveTapeAsset)
-                {
-                    objectiveTapeLoadedCount += 1;
-                }
-
                 if (controller.HasActivePath)
                 {
                     activePathCount += 1;
@@ -99,7 +93,6 @@ public sealed class BotBrainPracticeBotController : IPracticeBotController
                 ActiveControllerCount: activeControllerCount,
                 NavigationLoadedCount: navigationLoadedCount,
                 NavigationMissingCount: navigationMissingCount,
-                ObjectiveTapeLoadedCount: objectiveTapeLoadedCount,
                 ActivePathCount: activePathCount);
         }
     }
@@ -495,7 +488,7 @@ public sealed class BotBrainPracticeBotController : IPracticeBotController
             $"{DateTime.Now:O} slot={workItem.Slot} team={workItem.ControlledSlot.Team} class={workItem.ControlledSlot.ClassId} " +
             $"elapsedMs={elapsedMilliseconds:F1} pos=({player.X:F1},{player.Y:F1}) grounded={player.IsGrounded} " +
             $"pathNode={controller.CurrentPathNode} pathIndex={controller.CurrentPathIndex} pathCount={controller.CurrentPathCount} " +
-            $"goalNode={controller.CurrentGoalNode} direct=\"{controller.LastDirectDriveTrace}\" objective=\"{controller.LastObjectiveTapeTrace}\" proof=\"{controller.LastProofGraphTrace}\" " +
+            $"goalNode={controller.CurrentGoalNode} direct=\"{controller.LastDirectDriveTrace}\" " +
             $"timing=\"{controller.LastThinkTimingTrace}\"{Environment.NewLine}");
         lock (BotThinkTraceSync)
         {
@@ -508,5 +501,4 @@ public readonly record struct BotBrainPracticeBotRuntimeSnapshot(
     int ActiveControllerCount,
     int NavigationLoadedCount,
     int NavigationMissingCount,
-    int ObjectiveTapeLoadedCount,
     int ActivePathCount);

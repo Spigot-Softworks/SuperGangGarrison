@@ -291,10 +291,16 @@ public partial class Game1
         };
 
         GraphicsDevice.ScissorRectangle = clipBounds;
-        _spriteBatch.Begin(samplerState: SamplerState.PointClamp, rasterizerState: scissorRasterizer);
+        _spriteBatch.Begin(
+            samplerState: SamplerState.PointClamp,
+            rasterizerState: scissorRasterizer,
+            transformMatrix: GetActiveGameplayWorldSpriteBatchTransform());
         draw();
         _spriteBatch.End();
         GraphicsDevice.ScissorRectangle = previousScissor;
-        _spriteBatch.Begin(samplerState: SamplerState.PointClamp, rasterizerState: RasterizerState.CullNone);
+        _spriteBatch.Begin(
+            samplerState: SamplerState.PointClamp,
+            rasterizerState: RasterizerState.CullNone,
+            transformMatrix: GetActiveGameplayWorldSpriteBatchTransform());
     }
 }

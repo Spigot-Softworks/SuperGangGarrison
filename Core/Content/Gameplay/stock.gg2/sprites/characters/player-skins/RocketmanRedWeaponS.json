@@ -1,0 +1,24 @@
+{
+  "id": "RocketmanRedWeaponS",
+  "framePaths": [
+    "assets/characters/player-skins/RocketmanRedWeaponS/0.png",
+    "assets/characters/player-skins/RocketmanRedWeaponS/1.png",
+    "assets/characters/player-skins/RocketmanRedWeaponS/2.png",
+    "assets/characters/player-skins/RocketmanRedWeaponS/3.png",
+    "assets/characters/player-skins/RocketmanRedWeaponS/4.png",
+    "assets/characters/player-skins/RocketmanRedWeaponS/5.png",
+    "assets/characters/player-skins/RocketmanRedWeaponS/6.png",
+    "assets/characters/player-skins/RocketmanRedWeaponS/7.png",
+    "assets/characters/player-skins/RocketmanRedWeaponS/8.png",
+    "assets/characters/player-skins/RocketmanRedWeaponS/9.png",
+    "assets/characters/player-skins/RocketmanRedWeaponS/10.png",
+    "assets/characters/player-skins/RocketmanRedWeaponS/11.png",
+    "assets/characters/player-skins/RocketmanRedWeaponS/12.png",
+    "assets/characters/player-skins/RocketmanRedWeaponS/13.png",
+    "assets/characters/player-skins/RocketmanRedWeaponS/14.png",
+    "assets/characters/player-skins/RocketmanRedWeaponS/15.png",
+    "assets/characters/player-skins/RocketmanRedWeaponS/16.png"
+  ],
+  "originX": 28,
+  "originY": 42
+}

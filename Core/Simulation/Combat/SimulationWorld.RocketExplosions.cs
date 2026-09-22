@@ -35,7 +35,9 @@ public sealed partial class SimulationWorld
 
             var owner = world.FindPlayerById(rocket.OwnerId);
             var blastRadius = SimulationWorld.ResolveExplosiveSplashRadius(
-                rocket.BlastRadiusValue * rocket.ExperimentalStingerBlastRadiusMultiplier);
+                rocket.BlastRadiusValue
+                    * rocket.ExperimentalStingerBlastRadiusMultiplier
+                    * MathF.Max(0.1f, owner?.LastToDieUniversalModifiers.ExplosionScale ?? 1f));
             RemoveAt(world, rocket.Id);
             if (world.ClientPredictionMode)
             {

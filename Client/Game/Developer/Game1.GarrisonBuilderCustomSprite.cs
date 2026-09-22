@@ -573,7 +573,6 @@ public partial class Game1
             return;
         }
 
-        world = SnapGarrisonBuilderPoint(world);
         var entity = _builderEntities[_builderSelectedEntityIndex];
         var configuration = CustomMapCustomSpriteMetadata.ParseConfiguration(entity.Properties);
         if (configuration.Tile)

@@ -424,6 +424,12 @@ public partial class Game1
         out float width,
         out float height)
     {
+        if (!SpritesheetMetadata.IsSpritesheetEntityType(entity.Type))
+        {
+            centerX = centerY = width = height = 0f;
+            return false;
+        }
+
         centerX = entity.X;
         centerY = entity.Y;
         width = 42f;
@@ -684,7 +690,6 @@ public partial class Game1
             return;
         }
 
-        world = SnapGarrisonBuilderPoint(world);
         var entity = _builderEntities[_builderSelectedEntityIndex];
         if (!TryGetGarrisonBuilderSpritesheetWorldBounds(entity, out var left, out var top, out var width, out var height)
             || !TryGetGarrisonBuilderSpritesheetImageDimensions(

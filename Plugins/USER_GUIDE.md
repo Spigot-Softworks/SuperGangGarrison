@@ -17,10 +17,15 @@ There are two plugin types:
 A client plugin only affects your local game unless it talks to a matching
 server plugin. A server plugin affects everyone playing on that server.
 
+Paths below are relative to the application directory, which is `app/` inside
+a release archive. Saved configuration paths are relative to the user-data root,
+not the install folder. On Windows the default user-data root is
+`%LOCALAPPDATA%\OpenGarrison`; `--user-data-root <directory>` selects another.
+
 ## Installing Client Plugins
 
 1. Close OpenGarrison.
-2. Open the game install folder.
+2. Open the application directory (`app/` in a release archive).
 3. Put the plugin folder under:
 
    ```text
@@ -41,7 +46,7 @@ config/plugins/client/<pluginId>/
 ## Installing Server Plugins
 
 1. Stop the server.
-2. Open the server install folder.
+2. Open the server application directory (`app/` in a release archive).
 3. Put the plugin folder under:
 
    ```text

@@ -1,0 +1,16 @@
+{
+  "id": "HealerRedWeaponS",
+  "framePaths": [
+    "assets/characters/player-skins/HealerRedWeaponS/0.png",
+    "assets/characters/player-skins/HealerRedWeaponS/1.png",
+    "assets/characters/player-skins/HealerRedWeaponS/2.png",
+    "assets/characters/player-skins/HealerRedWeaponS/3.png",
+    "assets/characters/player-skins/HealerRedWeaponS/4.png",
+    "assets/characters/player-skins/HealerRedWeaponS/5.png",
+    "assets/characters/player-skins/HealerRedWeaponS/6.png",
+    "assets/characters/player-skins/HealerRedWeaponS/7.png",
+    "assets/characters/player-skins/HealerRedWeaponS/8.png"
+  ],
+  "originX": 34,
+  "originY": 48
+}

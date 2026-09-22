@@ -124,14 +124,13 @@ public partial class Game1
             return;
         }
 
-        if (player.LastToDieSniperProfile.LightMarksmanEnabled)
+        if (!player.HasScopedSniperWeaponEquipped || !_predictedLocalActionState.IsSniperScoped || _predictedLocalActionState.PrimaryCooldownTicks > 0)
         {
-            _predictedLocalActionState.IsSniperScoped = false;
             _predictedLocalActionState.SniperChargeTicks = 0;
             return;
         }
 
-        if (!player.HasScopedSniperWeaponEquipped || !_predictedLocalActionState.IsSniperScoped || _predictedLocalActionState.PrimaryCooldownTicks > 0)
+        if (player.LastToDieSniperProfile.LightMarksmanEnabled)
         {
             _predictedLocalActionState.SniperChargeTicks = 0;
             return;

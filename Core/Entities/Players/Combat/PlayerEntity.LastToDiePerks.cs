@@ -34,6 +34,12 @@ public sealed partial class PlayerEntity
 
     private float LastToDieCloakedDamageTakenMultiplierValue { get; set; } = 1f;
 
+    private LastToDieUniversalModifiers LastToDieUniversalModifiersValue { get; set; } = new();
+
+    private int LastToDieRunKillsValue { get; set; }
+
+    private bool LastToDieRunKillProgressionOwnerValue { get; set; }
+
     private bool LastToDieRogueCommanderEnabledValue { get; set; }
 
     private bool LastToDieProfessionalEnabledValue { get; set; }
@@ -142,6 +148,96 @@ public sealed partial class PlayerEntity
             ? LastToDieDerivedModifiers.MedicAgilityDriveMovementSpeedMultiplier
             : 1f;
 
+    internal LastToDieUniversalModifiers LastToDieUniversalModifiers =>
+        LastToDieUniversalModifiersValue;
+
+    internal int LastToDieRunKills => LastToDieRunKillsValue;
+
+    internal bool LastToDieRunKillProgressionOwner => LastToDieRunKillProgressionOwnerValue;
+
+    internal float LastToDieUniversalMovementSpeedMultiplier =>
+        LastToDieUniversalModifiersValue.MovementSpeedMultiplier
+        * (LastToDieUniversalModifiersValue.FightOrFlight
+            && MaxHealth > 0
+            && Health * 2L < MaxHealth
+                ? 1.3f
+                : 1f);
+
+    internal float LastToDieUniversalFireSpeedMultiplier =>
+        LastToDieUniversalModifiersValue.FireSpeedMultiplier
+        * (LastToDieUniversalModifiersValue.FightOrFlight
+            && MaxHealth > 0
+            && Health * 2L < MaxHealth
+                ? 1.3f
+                : 1f);
+
+    internal float LastToDieUniversalReloadSpeedMultiplier =>
+        LastToDieUniversalModifiersValue.ReloadSpeedMultiplier;
+
+    internal float GetLastToDieUniversalOutgoingDamageMultiplier()
+    {
+        if (!IsAlive)
+        {
+            return 1f;
+        }
+
+        var multiplier = LastToDieUniversalModifiersValue.OutgoingDamageMultiplier;
+        if (LastToDieUniversalModifiersValue.Ragnarok && MaxHealth > 0)
+        {
+            var missingHealthFraction = Math.Clamp((MaxHealth - Health) / (float)MaxHealth, 0f, 1f);
+            multiplier *= 1f + (2f * missingHealthFraction);
+        }
+
+        if (LastToDieUniversalModifiersValue.Sinister)
+        {
+            multiplier *= 1f + (LastToDieRunKillsValue * 0.005f);
+        }
+
+        if (LastToDieUniversalModifiersValue.FightOrFlight
+            && MaxHealth > 0
+            && Health * 2L < MaxHealth)
+        {
+            multiplier *= 1.3f;
+        }
+
+        if (LastToDieUniversalModifiersValue.LethalTango)
+        {
+            multiplier *= MaxHealth > 0 && Health * 2L < MaxHealth ? 2f : 0.6f;
+        }
+
+        return MathF.Max(0.05f, multiplier);
+    }
+
+    internal void ConfigureLastToDieUniversalModifiers(
+        LastToDieUniversalModifiers modifiers,
+        int runKills,
+        bool secondChanceConsumed,
+        bool runKillProgressionOwner = true)
+    {
+        LastToDieUniversalModifiersValue = modifiers ?? new LastToDieUniversalModifiers();
+        if (LastToDieUniversalModifiersValue.RageDisabled)
+        {
+            var wasRaging = IsRaging;
+            RageCharge = 0f;
+            IsRageReady = false;
+            RageTicksRemaining = 0;
+            if (wasRaging)
+            {
+                IsTaunting = false;
+                TauntFrameIndex = 0f;
+            }
+        }
+
+        LastToDieRunKillsValue = Math.Max(0, runKills);
+        LastToDieRunKillProgressionOwnerValue = runKillProgressionOwner;
+        SetLastToDieSecondChanceConsumed(secondChanceConsumed);
+    }
+
+    internal void SetLastToDieRunKills(int runKills)
+    {
+        LastToDieRunKillsValue = Math.Max(0, runKills);
+    }
+
     internal float LastToDieMedicLinkEvasionChance =>
         LastToDieMedicAgilityDriveLinkActive
             ? LastToDieDerivedModifiers.MedicAgilityDriveEvasionChance
@@ -234,6 +330,19 @@ public sealed partial class PlayerEntity
                 if (LastToDieMedicSpikedVestEnabledValue)
                 {
                     multiplier *= LastToDieDerivedModifiers.MedicSpikedVestDamageTakenMultiplier;
+                }
+            }
+
+            if (ClassId == PlayerClass.Sniper && IsSniperScoped)
+            {
+                if (LastToDieSniperProfile.DugInEnabled)
+                {
+                    multiplier *= LastToDieSniperProfile.DugInDamageTakenMultiplier;
+                }
+
+                if (LastToDieSniperProfile.AsceticEnabled)
+                {
+                    multiplier *= LastToDieSniperProfile.AsceticDamageTakenMultiplier;
                 }
             }
 
@@ -957,5 +1066,10 @@ public sealed partial class PlayerEntity
             martyrProtectedActive: false,
             martyrProtectorActive: false);
         SetLastToDieSniperProfile(null);
+        ConfigureLastToDieUniversalModifiers(
+            new LastToDieUniversalModifiers(),
+            runKills: 0,
+            secondChanceConsumed: false,
+            runKillProgressionOwner: false);
     }
 }

@@ -491,6 +491,13 @@ public static partial class ProtocolCodec
             writer.Write((ushort)Math.Clamp(player.RageTicksRemaining, 0, ushort.MaxValue));
             writer.Write(player.IsRageReady);
             writer.Write(player.IsBot);
+            writer.Write(player.CurrentCombo);
+            writer.Write(player.ComboTicksRemaining);
+            writer.Write((ushort)Math.Clamp(player.ExperimentalCryoSlowTicksRemaining, 0, ushort.MaxValue));
+            writer.Write((ushort)Math.Clamp(player.ExperimentalCryoFreezeTicksRemaining, 0, ushort.MaxValue));
+            writer.Write((byte)Math.Clamp((int)MathF.Round(Math.Clamp(player.ExperimentalCryoExposureFraction, 0f, 1f) * QuantizedSpyCloakAlphaScale), 0, byte.MaxValue));
+            writer.Write((ushort)Math.Clamp(player.ExperimentalGhostVisibilityTicksRemaining, 0, ushort.MaxValue));
+            writer.Write((byte)Math.Clamp((int)MathF.Round(Math.Clamp(player.ExperimentalGhostTrailAlpha, 0f, 1f) * QuantizedSpyCloakAlphaScale), 0, byte.MaxValue));
         }
     }
 
@@ -622,6 +629,13 @@ public static partial class ProtocolCodec
             var rageTicksRemaining = reader.ReadUInt16();
             var isRageReady = reader.ReadBoolean();
             var isBot = reader.ReadBoolean();
+            var currentCombo = reader.ReadInt32();
+            var comboTicksRemaining = reader.ReadInt32();
+            var experimentalCryoSlowTicksRemaining = reader.ReadUInt16();
+            var experimentalCryoFreezeTicksRemaining = reader.ReadUInt16();
+            var experimentalCryoExposureFraction = reader.ReadByte() / QuantizedSpyCloakAlphaScale;
+            var experimentalGhostVisibilityTicksRemaining = reader.ReadUInt16();
+            var experimentalGhostTrailAlpha = reader.ReadByte() / QuantizedSpyCloakAlphaScale;
 
             players.Add(new SnapshotPlayerState(
                 slot, playerId, name, team, classId, isAlive, isAwaitingJoin, isSpectator,
@@ -659,7 +673,10 @@ public static partial class ProtocolCodec
                 kritzCritBoostProviderPlayerId, kritzCritBoostProviderSlot,
                 kritzCritBoostDamageMultiplier, isDispenserBuffed,
                 dispenserAttackReloadSpeedMultiplier, rageCharge, isRageReady,
-                rageTicksRemaining, isBot));
+                rageTicksRemaining, isBot, currentCombo, comboTicksRemaining,
+                experimentalCryoSlowTicksRemaining, experimentalCryoFreezeTicksRemaining,
+                experimentalCryoExposureFraction, experimentalGhostVisibilityTicksRemaining,
+                experimentalGhostTrailAlpha));
         }
 
         return players;
@@ -761,6 +778,8 @@ public static partial class ProtocolCodec
             writer.Write(GetStatusFlags(state.IsCarryingIntel));
             writer.Write(QuantizeScaledUInt16(state.IntelRechargeTicks, QuantizedIntelRechargeScale));
             WriteReplicatedStateEntries(writer, state.SecondaryAmmoStates);
+            writer.Write(state.CurrentCombo);
+            writer.Write(state.ComboTicksRemaining);
         }
     }
 
@@ -779,7 +798,9 @@ public static partial class ProtocolCodec
                 ReadScaledUInt16(reader, QuantizedMetalScale),
                 IsCarryingIntelFromFlags(reader.ReadByte()),
                 ReadScaledUInt16(reader, QuantizedIntelRechargeScale),
-                ReadReplicatedStateEntries(reader)));
+                ReadReplicatedStateEntries(reader),
+                reader.ReadInt32(),
+                reader.ReadInt32()));
         }
 
         return states;
@@ -860,6 +881,11 @@ public static partial class ProtocolCodec
             writer.Write(state.DispenserAttackReloadSpeedMultiplier);
             writer.Write(QuantizeScaledUInt16(state.RageCharge, QuantizedRageChargeScale));
             writer.Write((ushort)Math.Clamp(state.RageTicksRemaining, 0, ushort.MaxValue));
+            writer.Write((ushort)Math.Clamp(state.ExperimentalCryoSlowTicksRemaining, 0, ushort.MaxValue));
+            writer.Write((ushort)Math.Clamp(state.ExperimentalCryoFreezeTicksRemaining, 0, ushort.MaxValue));
+            writer.Write((byte)Math.Clamp((int)MathF.Round(Math.Clamp(state.ExperimentalCryoExposureFraction, 0f, 1f) * QuantizedSpyCloakAlphaScale), 0, byte.MaxValue));
+            writer.Write((ushort)Math.Clamp(state.ExperimentalGhostVisibilityTicksRemaining, 0, ushort.MaxValue));
+            writer.Write((byte)Math.Clamp((int)MathF.Round(Math.Clamp(state.ExperimentalGhostTrailAlpha, 0f, 1f) * QuantizedSpyCloakAlphaScale), 0, byte.MaxValue));
         }
     }
 
@@ -913,7 +939,12 @@ public static partial class ProtocolCodec
                 reader.ReadSingle(),
                 ReadScaledUInt16(reader, QuantizedRageChargeScale),
                 IsPlayerExtendedRageReady(flags1),
-                reader.ReadUInt16()));
+                reader.ReadUInt16(),
+                reader.ReadUInt16(),
+                reader.ReadUInt16(),
+                reader.ReadByte() / QuantizedSpyCloakAlphaScale,
+                reader.ReadUInt16(),
+                reader.ReadByte() / QuantizedSpyCloakAlphaScale));
         }
 
         return states;

@@ -89,6 +89,45 @@ public sealed class PlayerEntityExperimentalWeaponTimingTests
     }
 
     [Fact]
+    public void MortarReloadsWhileSoldierHasAnotherWeaponEquipped()
+    {
+        var player = CreateSpawnedSoldier(1f);
+        Assert.True(player.TrySelectGameplayPrimaryItem("weapon.mortar-launcher"));
+        player.SetExperimentalOffhandWeapon(CharacterClassCatalog.SoldierShotgun);
+        player.ForceSetAmmo(0);
+        player.EquipExperimentalOffhandWeapon();
+
+        for (var tick = 0; tick < player.PrimaryWeapon.AmmoReloadTicks + 1; tick += 1)
+        {
+            player.AdvanceTickState(default, 1d / 30d);
+        }
+
+        Assert.Equal(player.PrimaryWeapon.MaxAmmo, player.CurrentShells);
+    }
+
+    [Fact]
+    public void FlaregunReloadsWhilePyroHasAnotherWeaponEquipped()
+    {
+        var player = new PlayerEntity(1, CharacterClassCatalog.Pyro, "Pyro");
+        player.Spawn(PlayerTeam.Red, 0f, 0f);
+        var registry = CharacterClassCatalog.RuntimeRegistry;
+        player.SetExperimentalOffhandWeapon(
+            registry.CreatePrimaryWeaponDefinition(
+                registry.GetRequiredItem("weapon.pyro-flaregun")));
+
+        Assert.True(player.TryFireExperimentalOffhandWeapon());
+        player.StowExperimentalOffhandWeapon();
+        var flare = player.ExperimentalOffhandWeapon!;
+        var ticksToReload = flare.ReloadDelayTicks + flare.AmmoReloadTicks + 1;
+        for (var tick = 0; tick < ticksToReload; tick += 1)
+        {
+            player.AdvanceTickState(default, 1d / 30d);
+        }
+
+        Assert.Equal(flare.MaxAmmo, player.ExperimentalOffhandCurrentShells);
+    }
+
+    [Fact]
     public void PredictionRestorePreservesAcquiredWeaponSelectionAndAmmoState()
     {
         var player = CreateSpawnedSoldier(1f);

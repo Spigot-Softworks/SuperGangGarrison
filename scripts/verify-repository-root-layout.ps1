@@ -37,13 +37,17 @@ foreach ($name in @(
     "artifacts", "bin", "dist", "obj",
     "Bootstrap", "Client", "Client.Browser", "Client.Shared", "Core", "docs",
     "Maps", "Modern", "Networking", "packaging", "Plugins", "Protocol", "scripts", "Server", "ServerLauncher",
-    "services", "SourceAssets", "Tests", "Tools", "Updater"
+    "services", "SessionRuntime", "SourceAssets", "Tests", "Tools", "Updater"
 )) {
     [void]$allowedDirectories.Add($name)
 }
 
 $violations = [System.Collections.Generic.List[string]]::new()
 foreach ($file in Get-ChildItem -LiteralPath $rootPath -Force -File) {
+    git -C $rootPath check-ignore -q -- $file.Name
+    if ($LASTEXITCODE -eq 0) {
+        continue
+    }
     if (-not $allowedFiles.Contains($file.Name)) {
         $violations.Add("unowned root file: $($file.Name)")
     }

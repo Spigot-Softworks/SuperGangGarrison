@@ -408,16 +408,10 @@ public sealed partial class SimulationWorld
         var ownedSentryCount = GetExperimentalOwnedSentryCount(player.Id);
         if (maxOwnedSentries > 1 && ownedSentryCount < maxOwnedSentries)
         {
-            if (TryBuildSentry(player))
-            {
-                return;
-            }
-
-            if (ownedSentryCount > 0)
-            {
-                TryDestroySentryForOwnerCommand(player);
-            }
-
+            // A failed second placement must never turn into a destroy command.
+            // This is especially important when the engineer is still standing
+            // near the first sentry, or does not have enough metal yet.
+            _ = TryBuildSentry(player);
             return;
         }
 
@@ -470,6 +464,14 @@ public sealed partial class SimulationWorld
             return false;
         }
 
+        if (player.ClassId == PlayerClass.Sniper
+            && TryGetPlayerNetworkSlot(player, out var sniperSlot)
+            && (_lastToDiePerkRuntimesBySlot.ContainsKey(sniperSlot)
+                || _lastToDieLegacyGameplaySettingsBySlot.ContainsKey(sniperSlot)))
+        {
+            return TryCycleLastToDieSniperWeapon(player);
+        }
+
         if (player.HasAlternatePrimaryWeapons)
         {
             if (IsNearPrimaryWeaponSwapStation(player))
@@ -479,6 +481,31 @@ public sealed partial class SimulationWorld
         }
 
         return TryHandleSecondaryWeaponToggle(player);
+    }
+
+    private static bool TryCycleLastToDieSniperWeapon(PlayerEntity player)
+    {
+        if (!player.HasExperimentalOffhandWeapon)
+        {
+            return false;
+        }
+
+        if (player.IsExperimentalOffhandSelected)
+        {
+            player.StowExperimentalOffhandWeapon();
+            return player.TrySelectGameplayPrimaryItem("weapon.rifle");
+        }
+
+        if (string.Equals(
+                player.SelectedGameplayPrimaryItemId,
+                "weapon.rifle",
+                StringComparison.Ordinal))
+        {
+            return player.TrySelectGameplayPrimaryItem("weapon.bow");
+        }
+
+        player.EquipExperimentalOffhandWeapon();
+        return player.IsExperimentalOffhandSelected;
     }
 
     private bool TryHandleExperimentalSoldierStingerDetonation(PlayerEntity player)

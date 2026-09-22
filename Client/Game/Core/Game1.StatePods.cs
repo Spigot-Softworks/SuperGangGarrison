@@ -675,6 +675,18 @@ public partial class Game1
         set => _uiShellState.EditingPlayerName = value;
     }
 
+    private bool _namePromptOpen
+    {
+        get => _uiShellState.NamePromptOpen;
+        set => _uiShellState.NamePromptOpen = value;
+    }
+
+    private bool _namePromptPresented
+    {
+        get => _uiShellState.NamePromptPresented;
+        set => _uiShellState.NamePromptPresented = value;
+    }
+
     private bool _editingConnectHost
     {
         get => _uiShellState.EditingConnectHost;
@@ -959,6 +971,8 @@ public partial class Game1
         public float StartupSplashFrame;
         public bool MainMenuOpen = true;
         public bool MainMenuChromeHidden;
+        public bool NamePromptOpen;
+        public bool NamePromptPresented;
         public bool OptionsMenuOpen;
         public bool OptionsMenuOpenedFromGameplay;
         public bool PluginOptionsMenuOpen;

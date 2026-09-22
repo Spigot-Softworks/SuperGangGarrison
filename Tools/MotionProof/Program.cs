@@ -347,63 +347,6 @@ internal static class MotionProofRunner
             }
         }
 
-        if (!string.IsNullOrWhiteSpace(options.OutputProofTracePath)
-            || !string.IsNullOrWhiteSpace(options.OutputProofGraphPath))
-        {
-            var postReplayHoldTicks = Math.Max(
-                options.ProofTraceHoldTicks,
-                options.RequireObjectiveCompletion ? GetObjectiveProofTraceHoldTicks(world, options) : 0);
-            var samples = ReplayPrimitivePathSamples(
-                world.Level,
-                options.Team,
-                CharacterClassCatalog.GetDefinition(options.ClassId),
-                bot.IsCarryingIntel,
-                start,
-                path,
-                postReplayHoldTicks);
-            var candidateGraph = VerifiedNavCandidateBuilder.Build(world.Level, new VerifiedNavBuildOptions
-            {
-                Team = options.Team,
-                ClassId = options.ClassId,
-                DropHorizontalReach = options.VerifiedNavDropHorizontalReach,
-                JumpHorizontalReach = options.VerifiedNavJumpHorizontalReach,
-            });
-            var proofTrace = VerifiedNavProofTraceExtractor.Extract(
-                candidateGraph,
-                samples,
-                $"MotionProofPrimitive:{world.Level.Name}:a{world.Level.MapAreaIndex}:{options.Team}:{options.ClassId}:{goal.Label}");
-
-            if (!string.IsNullOrWhiteSpace(options.OutputProofTracePath))
-            {
-                WriteJsonArtifact(options.OutputProofTracePath, proofTrace);
-                Console.WriteLine($"motion-proof primitive proofTrace={Path.GetFullPath(options.OutputProofTracePath)} samples={proofTrace.SampleCount} surfaces={proofTrace.SurfaceTouchCount} edges={proofTrace.Edges.Count}");
-            }
-
-            if (!string.IsNullOrWhiteSpace(options.OutputProofGraphPath))
-            {
-                var routeActionOnlyKinds = new HashSet<VerifiedNavProofRouteKind>();
-                if (options.OutputProofGraphRouteActionOnlyPickup)
-                {
-                    routeActionOnlyKinds.Add(VerifiedNavProofRouteKind.Pickup);
-                }
-
-                if (options.OutputProofGraphRouteActionOnlyReturn)
-                {
-                    routeActionOnlyKinds.Add(VerifiedNavProofRouteKind.Return);
-                }
-
-                var proofGraph = VerifiedNavProofGraphBuilder.Build(
-                    candidateGraph,
-                    [(VerifiedNavProofRouteKind.Pickup, proofTrace)],
-                    new VerifiedNavProofGraphBuildOptions
-                    {
-                        RouteActionOnlyKinds = routeActionOnlyKinds,
-                    });
-                WriteJsonArtifact(options.OutputProofGraphPath, proofGraph);
-                Console.WriteLine($"motion-proof primitive proofGraph={Path.GetFullPath(options.OutputProofGraphPath)} routes={proofGraph.Routes.Count} edges={proofGraph.Edges.Count} lanes={proofGraph.LaneSegments.Count}");
-            }
-        }
-
         return 0;
     }
 
@@ -495,95 +438,6 @@ internal static class MotionProofRunner
         var final = MotionState.FromPlayer(player);
         var distance = DistanceToGoal(final, goal);
         return new PrimitiveReplayResult(distance <= MathF.Max(goal.Width, goal.Height), final, distance, "missed_goal");
-    }
-
-    private static List<TraversalLabTickSample> ReplayPrimitivePathSamples(
-        SimpleLevel level,
-        PlayerTeam team,
-        CharacterClassDefinition classDefinition,
-        bool carryingIntel,
-        MotionState start,
-        MotionPath path,
-        int postReplayHoldTicks = 0)
-    {
-        var samples = new List<TraversalLabTickSample>(path.TotalTicks + Math.Max(0, postReplayHoldTicks) + 1);
-        var player = CreatePlayerFromState(classDefinition, team, carryingIntel, start);
-        var previousInput = default(PlayerInputSnapshot);
-        AddSample(tick: 0, player, previousInput, "start");
-        var absoluteTick = 0;
-        foreach (var action in path.Actions)
-        {
-            for (var actionTick = 0; actionTick < action.Ticks; actionTick += 1)
-            {
-                var input = action.GetInput(actionTick, player);
-                var jumpPressed = input.Up && !previousInput.Up;
-                player.Advance(input, jumpPressed, level, team, TickSeconds);
-                previousInput = input;
-                absoluteTick += 1;
-                AddSample(absoluteTick, player, input, action.Kind.ToString());
-                if (!player.IsAlive)
-                {
-                    return samples;
-                }
-            }
-        }
-
-        if (postReplayHoldTicks > 0 && player.IsAlive)
-        {
-            var holdInput = default(PlayerInputSnapshot);
-            for (var holdTick = 0; holdTick < postReplayHoldTicks; holdTick += 1)
-            {
-                player.Advance(holdInput, jumpPressed: false, level, team, TickSeconds);
-                previousInput = holdInput;
-                absoluteTick += 1;
-                AddSample(absoluteTick, player, holdInput, "objective_hold");
-                if (!player.IsAlive)
-                {
-                    return samples;
-                }
-            }
-        }
-
-        return samples;
-
-        void AddSample(int tick, PlayerEntity player, PlayerInputSnapshot input, string label)
-        {
-            samples.Add(new TraversalLabTickSample(
-                tick,
-                player.X,
-                player.Y,
-                player.Bottom,
-                player.HorizontalSpeed,
-                player.VerticalSpeed,
-                player.IsGrounded,
-                player.FacingDirectionX,
-                SupportedBelow: false,
-                BlockedLeft: false,
-                BlockedRight: false,
-                input.Left,
-                input.Right,
-                input.Up,
-                input.Down,
-                input.FirePrimary,
-                input.FireSecondary,
-                input.UseAbility,
-                InputDropIntel: false,
-                player.IsCarryingIntel,
-                OverlapsEnemyIntelMarker: false,
-                OverlapsOwnIntelMarker: false,
-                IsInsideBlockingTeamGate: player.IsInsideBlockingTeamGate(level, team),
-                label));
-        }
-    }
-
-    private static int GetObjectiveProofTraceHoldTicks(SimulationWorld world, MotionProofOptions options)
-    {
-        var targetPoint = SelectObjectiveCompletionTargetPoint(world, options);
-        var captureTicks = options.ObjectiveHoldTicks > 0
-            ? options.ObjectiveHoldTicks
-            : Math.Max(0, world.KothUnlockTicksRemaining) + Math.Max(1, targetPoint?.CapTimeTicks ?? 0) + 90;
-
-        return Math.Clamp(captureTicks + 90, 1, 2400);
     }
 
     private static int RunGraphBake(
@@ -2833,6 +2687,7 @@ internal static class MotionProofRunner
             .ToArray();
     }
 
+
     private static bool TryBuildGraphPathFromPositions(
         MotionGraphArtifact graph,
         float startX,
@@ -4592,10 +4447,6 @@ internal sealed class MotionProofOptions
     public int SearchBudgetMilliseconds { get; private set; } = 20_000;
     public int PreTicks { get; private set; }
     public string? OutputPath { get; private set; }
-    public string? OutputProofTracePath { get; private set; }
-    public string? OutputProofGraphPath { get; private set; }
-    public bool OutputProofGraphRouteActionOnlyPickup { get; private set; }
-    public bool OutputProofGraphRouteActionOnlyReturn { get; private set; }
     public string? MirrorArtifactPath { get; private set; }
     public bool BakeGraph { get; private set; }
     public bool RepairGraph { get; private set; }
@@ -4606,7 +4457,6 @@ internal sealed class MotionProofOptions
     public bool RequirePrimitiveValidation { get; private set; }
     public bool RequireObjectiveCompletion { get; private set; }
     public int ObjectiveHoldTicks { get; private set; }
-    public int ProofTraceHoldTicks { get; private set; }
     public bool CombatSmoke { get; private set; }
     public string? GraphPath { get; private set; }
     public float? GoalX { get; private set; }
@@ -4648,8 +4498,6 @@ internal sealed class MotionProofOptions
     public float CoverageAnchorWeldRadius { get; private set; } = 144f;
     public int CoverageAnchorWeldSearchBudgetMilliseconds { get; private set; } = 250;
     public bool UseMultiGoalSeedSearch { get; private set; }
-    public float VerifiedNavDropHorizontalReach { get; private set; } = 360f;
-    public float VerifiedNavJumpHorizontalReach { get; private set; } = 360f;
     public List<MotionSeedStart> ExtraSeedStarts { get; } = new();
     public List<MotionSeedGoal> ExtraSeedGoals { get; } = new();
     public List<MotionSeedPath> ExplicitSeedPaths { get; } = new();
@@ -4734,30 +4582,6 @@ internal sealed class MotionProofOptions
                 continue;
             }
 
-            if (arg.Equals("--output-proof-trace", StringComparison.OrdinalIgnoreCase) && index + 1 < args.Count)
-            {
-                options.OutputProofTracePath = args[++index];
-                continue;
-            }
-
-            if (arg.Equals("--output-proof-graph", StringComparison.OrdinalIgnoreCase) && index + 1 < args.Count)
-            {
-                options.OutputProofGraphPath = args[++index];
-                continue;
-            }
-
-            if (arg.Equals("--route-action-only-pickup", StringComparison.OrdinalIgnoreCase))
-            {
-                options.OutputProofGraphRouteActionOnlyPickup = true;
-                continue;
-            }
-
-            if (arg.Equals("--route-action-only-return", StringComparison.OrdinalIgnoreCase))
-            {
-                options.OutputProofGraphRouteActionOnlyReturn = true;
-                continue;
-            }
-
             if (arg.Equals("--mirror-artifact", StringComparison.OrdinalIgnoreCase) && index + 1 < args.Count)
             {
                 options.MirrorArtifactPath = args[++index];
@@ -4820,11 +4644,6 @@ internal sealed class MotionProofOptions
                 continue;
             }
 
-            if (arg.Equals("--proof-trace-hold-ticks", StringComparison.OrdinalIgnoreCase) && index + 1 < args.Count)
-            {
-                options.ProofTraceHoldTicks = Math.Max(0, int.Parse(args[++index], CultureInfo.InvariantCulture));
-                continue;
-            }
 
             if (arg.Equals("--combat-smoke", StringComparison.OrdinalIgnoreCase))
             {
@@ -5096,17 +4915,7 @@ internal sealed class MotionProofOptions
                 continue;
             }
 
-            if (arg.Equals("--verified-nav-drop-horizontal-reach", StringComparison.OrdinalIgnoreCase) && index + 1 < args.Count)
-            {
-                options.VerifiedNavDropHorizontalReach = float.Parse(args[++index], CultureInfo.InvariantCulture);
-                continue;
-            }
 
-            if (arg.Equals("--verified-nav-jump-horizontal-reach", StringComparison.OrdinalIgnoreCase) && index + 1 < args.Count)
-            {
-                options.VerifiedNavJumpHorizontalReach = float.Parse(args[++index], CultureInfo.InvariantCulture);
-                continue;
-            }
 
             if (arg.Equals("--seed-start", StringComparison.OrdinalIgnoreCase) && index + 1 < args.Count)
             {
