@@ -79,7 +79,7 @@ public partial class Game1
 
     private void DrawPlayerGib(PlayerGibEntity gib, Vector2 cameraPosition)
     {
-        if (_gibLevel == 0 || (_gibLevel == 1) || (_gibLevel == 2 && (gib.FrameIndex % 2 != 0)))
+        if (!ShouldDrawPlayerGib(gib.Id))
         {
             return;
         }
@@ -117,12 +117,12 @@ public partial class Game1
 
     private static float GetPlayerGibRenderScale(PlayerGibEntity gib)
     {
-        return IsExperimentalDemoknightDecapHeadSprite(gib.SpriteName)
+        return IsClassHeadGibSprite(gib.SpriteName)
             ? 1f
             : PlayerGibEntity.Scale;
     }
 
-    private static bool IsExperimentalDemoknightDecapHeadSprite(string spriteName)
+    private static bool IsClassHeadGibSprite(string spriteName)
     {
         return !string.Equals(spriteName, "HeadS", StringComparison.Ordinal)
             && spriteName.EndsWith("HeadS", StringComparison.Ordinal);
@@ -130,7 +130,7 @@ public partial class Game1
 
     private void DrawBloodDrop(BloodDropEntity bloodDrop, Vector2 cameraPosition)
     {
-        if (_gibLevel == 0)
+        if (!AreBloodVisualsEnabled || _bloodRenderMode == 0)
         {
             return;
         }

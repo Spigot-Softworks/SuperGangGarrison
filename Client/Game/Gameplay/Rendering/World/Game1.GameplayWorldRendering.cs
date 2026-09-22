@@ -317,7 +317,7 @@ public partial class Game1
 
         foreach (var playerGib in _world.PlayerGibs)
         {
-            if (_gibLevel == 0 || (_gibLevel == 1) || (_gibLevel == 2 && (playerGib.FrameIndex % 2 != 0)))
+            if (!ShouldDrawPlayerGib(playerGib.Id))
             {
                 continue;
             }
@@ -327,12 +327,17 @@ public partial class Game1
 
         foreach (var bloodDrop in _world.BloodDrops)
         {
-            if (_gibLevel == 0)
+            if (!AreBloodVisualsEnabled)
             {
                 continue;
             }
 
             DrawBloodDrop(bloodDrop, cameraPosition);
+        }
+
+        if (AreBloodVisualsEnabled && _bloodRenderMode == 0)
+        {
+            _gameplayGoreEffectsController.DrawBloodSquibRemains(cameraPosition);
         }
 
         foreach (var deadBody in _world.DeadBodies)

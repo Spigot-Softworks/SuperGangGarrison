@@ -79,9 +79,15 @@ public sealed class ClientSettings
 
     public int FlameRenderMode { get; set; }
 
+    public int BloodRenderMode { get; set; }
+
     public MenuBackgroundMode MenuBackgroundMode { get; set; } = MenuBackgroundMode.DefaultMaps;
 
     public int GibLevel { get; set; } = 3;
+
+    public int BloodAmountLevel { get; set; } = 5;
+
+    public int GibAmountLevel { get; set; } = 5;
 
     public int CorpseDurationMode { get; set; }
 
@@ -284,8 +290,11 @@ public sealed class ClientSettings
             DisplayScaleMode = OpenGarrisonPreferencesDocument.NormalizeDisplayScaleMode(document.DisplayScaleMode),
             ParticleMode = document.ParticleMode,
             FlameRenderMode = document.FlameRenderMode,
+            BloodRenderMode = document.BloodRenderMode,
             MenuBackgroundMode = document.MenuBackgroundMode,
             GibLevel = document.GibLevel,
+            BloodAmountLevel = Math.Clamp(document.BloodAmountLevel <= 0 ? 5 : document.BloodAmountLevel, 1, 5),
+            GibAmountLevel = Math.Clamp(document.GibAmountLevel <= 0 ? 5 : document.GibAmountLevel, 1, 5),
             CorpseDurationMode = document.CorpseDurationMode,
             KillCamEnabled = document.KillCamEnabled,
             AlwaysRecordGames = document.AlwaysRecordGames,
@@ -371,8 +380,11 @@ public sealed class ClientSettings
         preferences.AlwaysRecordGames = AlwaysRecordGames;
         preferences.ParticleMode = ParticleMode;
         preferences.FlameRenderMode = FlameRenderMode;
+        preferences.BloodRenderMode = BloodRenderMode;
         preferences.MenuBackgroundMode = MenuBackgroundMode;
         preferences.GibLevel = GibLevel;
+        preferences.BloodAmountLevel = Math.Clamp(BloodAmountLevel <= 0 ? 5 : BloodAmountLevel, 1, 5);
+        preferences.GibAmountLevel = Math.Clamp(GibAmountLevel <= 0 ? 5 : GibAmountLevel, 1, 5);
         preferences.CorpseDurationMode = CorpseDurationMode;
         preferences.HealerRadarEnabled = HealerRadarEnabled;
         preferences.ShowHealerEnabled = ShowHealerEnabled;

@@ -388,7 +388,7 @@ public partial class Game1
                     return true;
                 }
 
-                var presentationPlayer = CreateSnapshotGibPresentationPlayer(snapshotPlayer, targetPlayer);
+                var presentationPlayer = CreateSnapshotGibPresentationPlayer(snapshotPlayer);
                 _game._world.SpawnClientPlayerGibsFromNetworkDeath(presentationPlayer, damageEvent.X, damageEvent.Y);
                 _game.PlayPredictedGibSound(damageEvent.X, damageEvent.Y);
                 return true;
@@ -397,16 +397,18 @@ public partial class Game1
             return false;
         }
 
-        private static PlayerEntity CreateSnapshotGibPresentationPlayer(SnapshotPlayerState snapshotPlayer, PlayerEntity? targetPlayer)
+        private static PlayerEntity CreateSnapshotGibPresentationPlayer(SnapshotPlayerState snapshotPlayer)
         {
             var classId = (PlayerClass)snapshotPlayer.ClassId;
+            var classDefinition = CharacterClassCatalog.GetDefinition(classId);
             var player = new PlayerEntity(
                 snapshotPlayer.PlayerId,
-                CharacterClassCatalog.GetDefinition(classId),
+                classDefinition,
                 snapshotPlayer.Name);
             player.ApplyNetworkState(
                 (PlayerTeam)snapshotPlayer.Team,
-                targetPlayer?.ClassDefinition ?? CharacterClassCatalog.GetDefinition(classId),
+                // Always use the snapshot class so gib heads/parts match the victim.
+                classDefinition,
                 snapshotPlayer.IsAlive,
                 snapshotPlayer.X,
                 snapshotPlayer.Y,
