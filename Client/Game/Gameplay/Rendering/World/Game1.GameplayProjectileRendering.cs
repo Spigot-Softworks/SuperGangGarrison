@@ -916,7 +916,7 @@ public partial class Game1
         DrawStuckArrowVisuals(cameraPosition);
         WriteGameplayRenderTrace("effects before loose-sheets");
         DrawLooseSheetVisuals(cameraPosition);
-        if (_gibLevel > 0)
+        if (AreBloodVisualsEnabled)
         {
             WriteGameplayRenderTrace("effects before blood");
             DrawBloodVisuals(cameraPosition);
