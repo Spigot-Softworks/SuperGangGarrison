@@ -9,9 +9,13 @@ public enum FlareProjectileStyle : byte
 public sealed class FlareProjectileEntity : SimulationEntity
 {
     public const int LifetimeTicks = 40;
-    public const int DragonRageLifetimeTicks = 16;
-    public const float DragonRageVisualWidth = 21f;
-    public const float DragonRageCoreVisualWidth = 16f;
+    public const int DragonRageLifetimeTicks = 8;
+    public const float DragonRageVisualWidth = 16.8f;
+    public const float DragonRageVisualHeight = 9.6f;
+    private readonly System.Collections.Generic.HashSet<int> _hitPlayers = new();
+    public bool HasHitPlayer(int id) => _hitPlayers.Contains(id);
+    public void RecordPlayerHit(int id) => _hitPlayers.Add(id);
+    public const float DragonRageCoreVisualWidth = 12.8f;
     public const int DefaultDamagePerHit = 30;
     public const float BurnIntensityIncrease = 8f;
     public const float BurnDurationIncreaseSourceTicks = 35f;
@@ -28,7 +32,8 @@ public sealed class FlareProjectileEntity : SimulationEntity
         int ticksRemaining = LifetimeTicks,
         float damagePerHit = DefaultDamagePerHit,
         string? killFeedWeaponSpriteName = null,
-        FlareProjectileStyle style = FlareProjectileStyle.Standard) : base(id)
+        FlareProjectileStyle style = FlareProjectileStyle.Standard,
+        int dragonRageShotSequence = 0) : base(id)
     {
         Team = team;
         OwnerId = ownerId;
@@ -39,6 +44,9 @@ public sealed class FlareProjectileEntity : SimulationEntity
         TicksRemaining = ticksRemaining;
         DamagePerHit = Math.Max(0f, damagePerHit);
         Style = style;
+        DragonRageShotSequence = style == FlareProjectileStyle.DragonRageSlug
+            ? Math.Max(0, dragonRageShotSequence)
+            : 0;
         KillFeedWeaponSpriteName = string.IsNullOrWhiteSpace(killFeedWeaponSpriteName)
             ? style == FlareProjectileStyle.DragonRageSlug ? "DragonRageKL" : "FlareKL"
             : killFeedWeaponSpriteName.Trim();
@@ -67,6 +75,8 @@ public sealed class FlareProjectileEntity : SimulationEntity
     public FlareProjectileStyle Style { get; }
 
     public bool IsDragonRageSlug => Style == FlareProjectileStyle.DragonRageSlug;
+
+    public int DragonRageShotSequence { get; private set; }
 
     public int InitialLifetimeTicks => IsDragonRageSlug ? DragonRageLifetimeTicks : LifetimeTicks;
 
@@ -134,6 +144,8 @@ public sealed class FlareProjectileEntity : SimulationEntity
         VelocityX = MathF.Cos(directionRadians) * speed;
         VelocityY = MathF.Sin(directionRadians) * speed;
         TicksRemaining = InitialLifetimeTicks;
+        DragonRageShotSequence = 0;
+        _hitPlayers.Clear();
     }
 
     public void ApplyNetworkState(float x, float y, float velocityX, float velocityY, int ticksRemaining)

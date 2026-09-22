@@ -39,10 +39,10 @@ public sealed partial class SimulationWorld
 
         public void FireExperimentalDemoknightSword(PlayerEntity attacker, float aimWorldX, float aimWorldY)
         {
-            const float swordOffsetDistance = 12f;
-
             RegisterSoundEvent(attacker, ExperimentalDemoknightCatalog.EyelanderSwingSoundName);
-            var swordRange = attacker.GetExperimentalDemoknightSwordRange();
+            var geometryScale = MathF.Max(0.1f, attacker.LastToDieUniversalModifiers.MeleeScale);
+            var swordOffsetDistance = 12f * geometryScale;
+            var swordRange = attacker.GetExperimentalDemoknightSwordRange() * geometryScale;
             var weaponOrigin = GetSourceWeaponOrigin(attacker);
             var originX = weaponOrigin.BaseX;
             var originY = weaponOrigin.BaseY + weaponOrigin.WeaponYOffset + weaponOrigin.EquipmentOffset;
@@ -226,6 +226,7 @@ public sealed partial class SimulationWorld
                     continue;
                 }
 
+                _world.ResolveDragonRageProjectileOutcome(flare, hitTarget: false);
                 flare.Reflect(attacker.Id, attacker.Team, directionRadians);
             }
 

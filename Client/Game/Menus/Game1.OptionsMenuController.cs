@@ -581,6 +581,8 @@ public partial class Game1
                 // Graphics: display, rendering, and client-side visual presentation.
                 new("Display Mode", OperatingSystem.IsBrowser() ? "Browser" : Game1.GetDisplayModeLabel(_game._displayMode), _game.CycleDisplayModeSetting, OptionsMenuTab.Graphics),
                 new("Aspect Ratio", Game1.GetIngameResolutionLabel(_game._ingameResolution), _game.CycleIngameResolutionSetting, OptionsMenuTab.Graphics),
+                new("Camera panning", _game._cameraPanningEnabled ? "Enabled" : "Disabled", _game.ToggleCameraPanningSetting, OptionsMenuTab.Graphics),
+                new("Sprites:", _game._spriteStyle.ToString(), _game.CycleSpriteStyleSetting, OptionsMenuTab.Graphics),
                 new("Window Size", OperatingSystem.IsBrowser() ? "Browser" : Game1.GetWindowSizeLabel(_game._windowSize), _game.CycleWindowSizeSetting, OptionsMenuTab.Graphics),
                 new("Cursor Size", Game1.GetCursorSizeLabel(_game._cursorSizePercent), _game.CycleCursorSizeSetting, OptionsMenuTab.Graphics, _game.AdjustCursorSizeSetting),
                 new("Menu Background", GetMenuBackgroundModeLabel(_game._menuBackgroundMode), _game.CycleMenuBackgroundModeSetting, OptionsMenuTab.Graphics),
@@ -623,6 +625,7 @@ public partial class Game1
                 new("Health Bar", _game._showHealthBarEnabled ? "Enabled" : "Disabled", _game.ToggleShowHealthBarSetting, OptionsMenuTab.Hud),
                 new("Shield Bar", _game._showShieldBarEnabled ? "Enabled" : "Disabled", _game.ToggleShowShieldBarSetting, OptionsMenuTab.Hud),
                 new("Weapon HUD", Game1.GetHudWeaponDisplayModeLabel(_game._hudShowOnlyActiveWeapon), _game.ToggleHudWeaponDisplayModeSetting, OptionsMenuTab.Hud),
+                new("Build Menu Style", Game1.GetBuildMenuStyleLabel(_game._clientSettings.BuildMenuStyle), _game.CycleBuildMenuStyleSetting, OptionsMenuTab.Hud),
                 new("Overhead Chat", _game._overheadChatEnabled ? "Enabled" : "Disabled", _game.ToggleOverheadChatSetting, OptionsMenuTab.Hud),
                 new("Low HP Color", Game1.GetLowHealthColorModeLabel(_game._lowHealthColorMode), _game.CycleLowHealthColorModeSetting, OptionsMenuTab.Hud),
                 new("Playercard Size", Game1.GetPlayerCardSizeLabel(_game._playerCardSizeMode), _game.CyclePlayerCardSizeSetting, OptionsMenuTab.Hud),

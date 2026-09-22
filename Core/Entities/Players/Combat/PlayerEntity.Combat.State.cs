@@ -11,6 +11,7 @@ public sealed partial class PlayerEntity
         if (!IsAlive
             || IsUbered
             || IsLastToDieMedicHailMaryInvulnerable
+            || IsLastToDieSecondChanceInvulnerable
             || IsExperimentalGhostDashing
             || IsLastToDieSpyAfterlifeIncomingDamageImmune
             || damage <= 0)
@@ -29,6 +30,7 @@ public sealed partial class PlayerEntity
         if (!IsAlive
             || IsUbered
             || IsLastToDieMedicHailMaryInvulnerable
+            || IsLastToDieSecondChanceInvulnerable
             || IsExperimentalGhostDashing
             || IsLastToDieSpyAfterlifeIncomingDamageImmune
             || damage <= 0f)
@@ -55,6 +57,7 @@ public sealed partial class PlayerEntity
         if (!IsAlive
             || IsUbered
             || IsLastToDieMedicHailMaryInvulnerable
+            || IsLastToDieSecondChanceInvulnerable
             || IsExperimentalGhostDashing
             || IsLastToDieSpyAfterlifeIncomingDamageImmune
             || damage <= 0f
@@ -129,6 +132,7 @@ public sealed partial class PlayerEntity
 
         IsSniperScoped = false;
         SniperChargeTicks = 0;
+        SniperRifleFullyChargedHitStreak = 0;
     }
 
     public void ForceSetHealth(int health)
@@ -167,6 +171,7 @@ public sealed partial class PlayerEntity
         IsSniperScoped = false;
         SniperChargeTicks = 0;
         SniperRifleFullyChargedHitStreak = 0;
+        ResetDragonRageCadence();
         CancelLastToDieSniperVolley();
         UberTicksRemaining = 0;
         KritzCritBoostTicksRemaining = 0;

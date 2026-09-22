@@ -116,6 +116,12 @@ public sealed class EmbeddedSessionHostTests
                 return history.Any(line => line.Contains("stage victory triggered"))
                     && clients.All(client => client.LastToDieState.Snapshot?.Phase != LastToDieWirePhase.Playing);
             });
+            Assert.All(clients, client =>
+            {
+                var snapshot = Assert.IsType<LastToDieRunSnapshotMessage>(client.LastToDieState.Snapshot);
+                Assert.Equal(Guid.Empty, snapshot.AttemptId);
+                Assert.All(snapshot.Players, player => Assert.Equal(0, player.ScoreUnits));
+            });
         }
         finally { foreach (var client in clients) client.Dispose(); }
     }

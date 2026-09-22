@@ -37,6 +37,13 @@ public partial class Game1
             var bodySelection = _game.GetPlayerBodySpriteSelection(player);
             _game.DrawExperimentalDemoknightChargeBlur(player, cameraPosition, spriteTint, visibilityAlpha, bodySelection);
             _game.DrawCapturedPointHealingGhosting(player, renderPosition, cameraPosition, visibilityAlpha, bodySelection);
+            _game.DrawLastToDieSniperAsceticGhosting(player, renderPosition, cameraPosition, visibilityAlpha, bodySelection);
+            if (player.ClassId == PlayerClass.Sniper
+                && player.IsSniperScoped
+                && player.LastToDieSniperProfile.AsceticEnabled)
+            {
+                spriteTint *= 0.72f;
+            }
             _game.TryDrawWeaponSpriteBackdrop(player, cameraPosition, spriteTint, visibilityAlpha, bodySelection);
 
             if (!_game.TryDrawPlayerSprite(player, cameraPosition, spriteTint, bodySelection))

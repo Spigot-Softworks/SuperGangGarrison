@@ -37,6 +37,19 @@ public partial class Game1
         Rounds,
     }
 
+    private readonly record struct LastToDieClassFilterOption(string SurvivorId, string Label);
+
+    private static readonly LastToDieClassFilterOption[] LastToDieClassFilterOptions =
+    [
+        new("", "All classes"),
+        new(OpenGarrison.Core.LastToDie.LastToDieSurvivorCatalog.SoldierId.Value, "Soldier"),
+        new(OpenGarrison.Core.LastToDie.LastToDieSurvivorCatalog.DemoknightId.Value, "Demoknight"),
+        new(OpenGarrison.Core.LastToDie.LastToDieSurvivorCatalog.EngineerId.Value, "Engineer"),
+        new(OpenGarrison.Core.LastToDie.LastToDieSurvivorCatalog.MedicId.Value, "Medic"),
+        new(OpenGarrison.Core.LastToDie.LastToDieSurvivorCatalog.SniperId.Value, "Sniper"),
+        new(OpenGarrison.Core.LastToDie.LastToDieSurvivorCatalog.SpyId.Value, "Spy"),
+    ];
+
     private readonly record struct LastToDieMenuLayout(
         Rectangle PlaqueBounds,
         Rectangle ContentBounds,
@@ -58,6 +71,8 @@ public partial class Game1
     private LastToDieRankingsTab _lastToDieRankingsTab;
     private LastToDieRankingsSort _lastToDieRankingsSort;
     private int _lastToDieRankingsScrollOffset;
+    private string _lastToDieRankingsSurvivorId = string.Empty;
+    private bool _lastToDieClassFilterOpen;
 
     private bool IsLastToDieMenuActive()
     {
@@ -302,6 +317,8 @@ public partial class Game1
             _lastToDieRankingsTab = LastToDieRankingsTab.Personal;
             _lastToDieRankingsSort = LastToDieRankingsSort.Score;
             _lastToDieRankingsScrollOffset = 0;
+            _lastToDieRankingsSurvivorId = string.Empty;
+            _lastToDieClassFilterOpen = false;
             _lastToDieRankingsTask = _presenceClient.GetLastToDieRankingsAsync(_clientIdentity);
         }
         else
@@ -318,6 +335,7 @@ public partial class Game1
     {
         var (personalTab, globalTab) = GetLastToDieRankingsTabBounds(layout);
         var (scoreSort, roundsSort) = GetLastToDieRankingsSortBounds(layout);
+        var classFilter = GetLastToDieRankingsClassFilterBounds(layout);
         var listBounds = GetLastToDieRankingsListBounds(layout);
         var visibleRows = GetLastToDieRankingsVisibleRowCount(layout);
         var clickPressed = mouse.LeftButton == ButtonState.Pressed
@@ -347,6 +365,26 @@ public partial class Game1
         if (_lastToDieRankingsTab != LastToDieRankingsTab.Global)
         {
             return false;
+        }
+
+        if (clickPressed && classFilter.Contains(mouse.Position))
+        {
+            _lastToDieClassFilterOpen = !_lastToDieClassFilterOpen;
+            return true;
+        }
+
+        if (_lastToDieClassFilterOpen && clickPressed)
+        {
+            for (var index = 0; index < LastToDieClassFilterOptions.Length; index += 1)
+            {
+                if (GetLastToDieRankingsClassOptionBounds(classFilter, index).Contains(mouse.Position))
+                {
+                    SetLastToDieRankingsClassFilter(LastToDieClassFilterOptions[index].SurvivorId);
+                    return true;
+                }
+            }
+
+            _lastToDieClassFilterOpen = false;
         }
 
         if (clickPressed && scoreSort.Contains(mouse.Position))
@@ -435,6 +473,7 @@ public partial class Game1
         }
 
         _lastToDieRankingsTab = tab;
+        _lastToDieClassFilterOpen = false;
         _lastToDieRankingsScrollOffset = 0;
         if (tab == LastToDieRankingsTab.Global && _lastToDieLeaderboardTask is null)
         {
@@ -450,6 +489,19 @@ public partial class Game1
         }
 
         _lastToDieRankingsSort = sort;
+        _lastToDieRankingsScrollOffset = 0;
+        RequestLastToDieLeaderboard(0);
+    }
+
+    private void SetLastToDieRankingsClassFilter(string survivorId)
+    {
+        _lastToDieClassFilterOpen = false;
+        if (string.Equals(_lastToDieRankingsSurvivorId, survivorId, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        _lastToDieRankingsSurvivorId = survivorId;
         _lastToDieRankingsScrollOffset = 0;
         RequestLastToDieLeaderboard(0);
     }
@@ -515,6 +567,7 @@ public partial class Game1
         _lastToDieLeaderboardError = string.Empty;
         _lastToDieLeaderboardTask = _presenceClient.GetLastToDieLeaderboardAsync(
             _lastToDieRankingsSort == LastToDieRankingsSort.Score ? "score" : "round",
+            _lastToDieRankingsSurvivorId,
             limit: 25,
             offset: Math.Max(0, offset));
     }
@@ -593,11 +646,14 @@ public partial class Game1
         {
             if (statsPage)
             {
+                var compactButtonScale = scale * 0.58f;
+                var compactButtonWidth = Math.Max(1, (int)MathF.Round(buttonTexture.Width * compactButtonScale));
+                var compactButtonHeight = Math.Max(1, (int)MathF.Round(buttonTexture.Height * compactButtonScale));
                 buttonBounds[0] = new Rectangle(
-                    buttonX,
-                    plaqueBounds.Bottom - buttonHeight - (int)MathF.Round(18f * scale),
-                    buttonWidth,
-                    buttonHeight);
+                    contentBounds.Right - compactButtonWidth,
+                    contentBounds.Y,
+                    compactButtonWidth,
+                    compactButtonHeight);
             }
             else
             {
@@ -670,13 +726,31 @@ public partial class Game1
             new Rectangle(layout.ContentBounds.X + width + gap, y, width, height));
     }
 
+    private static Rectangle GetLastToDieRankingsClassFilterBounds(LastToDieMenuLayout layout)
+    {
+        var (_, globalTab) = GetLastToDieRankingsTabBounds(layout);
+        var left = globalTab.Right + Math.Max(8, (int)MathF.Round(10f * layout.Scale));
+        return new Rectangle(
+            left,
+            globalTab.Y,
+            Math.Max(120, layout.ContentBounds.Right - left),
+            globalTab.Height);
+    }
+
+    private static Rectangle GetLastToDieRankingsClassOptionBounds(Rectangle selector, int index)
+        => new(selector.X, selector.Bottom + (index * selector.Height), selector.Width, selector.Height);
+
     private static Rectangle GetLastToDieRankingsListBounds(LastToDieMenuLayout layout)
     {
         var (_, roundsSort) = GetLastToDieRankingsSortBounds(layout);
         var top = roundsSort.Bottom + Math.Max(8, (int)MathF.Round(12f * layout.Scale));
-        var bottom = layout.ButtonBounds.Length > 0
-            ? layout.ButtonBounds[0].Y - Math.Max(8, (int)MathF.Round(12f * layout.Scale))
-            : layout.ContentBounds.Bottom;
+        var bottom = layout.ContentBounds.Bottom;
+        if (layout.ButtonBounds.Length > 0 && layout.ButtonBounds[0].Y > top)
+        {
+            bottom = Math.Min(
+                bottom,
+                layout.ButtonBounds[0].Y - Math.Max(8, (int)MathF.Round(12f * layout.Scale)));
+        }
         return new Rectangle(
             layout.ContentBounds.X,
             top,
@@ -781,7 +855,7 @@ public partial class Game1
         };
         if (_lastToDieMenuPage == LastToDieMenuPage.Rankings)
         {
-            var scale = Math.Clamp(1.25f * layout.Scale, 0.95f, 1.25f);
+            const float scale = 1f;
             var position = new Vector2(layout.ContentBounds.X, layout.ContentBounds.Y);
             DrawBitmapFontText(title, position + Vector2.One, Color.Black * 0.65f, scale);
             DrawBitmapFontText(title, position, Color.White, scale);
@@ -819,14 +893,14 @@ public partial class Game1
 
     private void DrawLastToDiePersonalRankings(LastToDieMenuLayout layout, int tabsBottom)
     {
-        var scale = Math.Clamp(layout.Scale * 1.05f, 0.82f, 1.05f);
+        const float scale = 1f;
         var lineHeight = Math.Max(22f, MeasureBitmapFontHeight(scale) + 8f);
         var x = layout.ContentBounds.X + 3f;
         var y = tabsBottom + Math.Max(16f, 20f * layout.Scale);
 
         void DrawLine(string text, Color color, float lineScale = 1f)
         {
-            var actualScale = scale * lineScale;
+            const float actualScale = 1f;
             var visible = TrimBitmapMenuText(text, layout.ContentBounds.Width - 12f, actualScale);
             var position = new Vector2(x, y);
             DrawBitmapFontText(visible, position + Vector2.One, Color.Black * 0.58f, actualScale);
@@ -862,6 +936,11 @@ public partial class Game1
         DrawLine($"Best score       {FormatLastToDieScore(_lastToDieStats.BestScoreUnits)}", Color.White);
         DrawLine($"Rounds completed {_lastToDieStats.HighestRoundCompleted}", Color.White);
         DrawLine($"Runs played      {_lastToDieStats.RunsPlayed}", Color.White);
+        var recordingError = (_embeddedSessionHost ?? _peerRoomSession?.Host)?.RecordingError;
+        if (!string.IsNullOrWhiteSpace(recordingError))
+            DrawLine(recordingError, new Color(240, 130, 130));
+        else if (!string.IsNullOrWhiteSpace(_runUploads?.StatusText))
+            DrawLine(_runUploads.StatusText, new Color(241, 210, 120));
     }
 
     private void DrawLastToDieGlobalRankings(LastToDieMenuLayout layout)
@@ -871,14 +950,15 @@ public partial class Game1
         DrawLastToDieRankingsChoice(roundsSort, "Rounds completed", _lastToDieRankingsSort == LastToDieRankingsSort.Rounds);
 
         var list = GetLastToDieRankingsListBounds(layout);
-        var scale = Math.Clamp(layout.Scale, 0.78f, 1f);
+        const float scale = 1f;
         var headerHeight = Math.Max(22, (int)MathF.Round(25f * layout.Scale));
         var rowHeight = Math.Max(22, (int)MathF.Round(27f * layout.Scale));
         var rightPadding = 15f;
         var roundsRight = list.Right - rightPadding;
         var scoreRight = roundsRight - Math.Max(72f, 86f * layout.Scale);
         var nameX = list.X + Math.Max(42f, 49f * layout.Scale);
-        var nameWidth = Math.Max(50f, scoreRight - nameX - 14f);
+        var classX = scoreRight - Math.Max(116f, 128f * layout.Scale);
+        var nameWidth = Math.Max(50f, classX - nameX - 14f);
 
         void DrawText(string text, Vector2 position, Color color, float textScale = -1f)
         {
@@ -889,6 +969,7 @@ public partial class Game1
 
         DrawText("#", new Vector2(list.X + 3f, list.Y), new Color(220, 205, 170));
         DrawText("Player", new Vector2(nameX, list.Y), new Color(220, 205, 170));
+        DrawText("Class", new Vector2(classX, list.Y), new Color(220, 205, 170));
         DrawBitmapFontTextRightAligned("Score", new Vector2(scoreRight, list.Y), new Color(220, 205, 170), scale);
         DrawBitmapFontTextRightAligned("Rounds", new Vector2(roundsRight, list.Y), new Color(220, 205, 170), scale);
         _spriteBatch.Draw(_pixel, new Rectangle(list.X, list.Y + headerHeight - 4, list.Width, 1), new Color(178, 172, 157));
@@ -896,6 +977,7 @@ public partial class Game1
         if (_lastToDieLeaderboardTask is not null && _lastToDieLeaderboard is null)
         {
             DrawText("Loading global rankings...", new Vector2(list.X + 3f, list.Y + headerHeight + 5f), Color.White);
+            DrawLastToDieClassFilter(layout);
             return;
         }
 
@@ -908,6 +990,7 @@ public partial class Game1
                 TrimBitmapMenuText(error, list.Width - 12f, scale),
                 new Vector2(list.X + 3f, list.Y + headerHeight + 5f),
                 new Color(240, 130, 130));
+            DrawLastToDieClassFilter(layout);
             return;
         }
 
@@ -915,6 +998,7 @@ public partial class Game1
         if (page.Total <= 0)
         {
             DrawText("No recorded runs yet.", new Vector2(list.X + 3f, list.Y + headerHeight + 5f), Color.White);
+            DrawLastToDieClassFilter(layout);
             return;
         }
 
@@ -935,6 +1019,7 @@ public partial class Game1
             DrawText($"{entry.Rank}", new Vector2(list.X + 3f, y), Color.White);
             var name = TrimBitmapMenuText(entry.DisplayName, nameWidth, scale);
             DrawText(name, new Vector2(nameX, y), Color.White);
+            DrawText(GetLastToDieSurvivorLabel(entry.SurvivorId), new Vector2(classX, y), Color.White);
             DrawBitmapFontTextRightAligned(
                 FormatLastToDieScore(entry.BestScoreUnits),
                 new Vector2(scoreRight, y),
@@ -948,18 +1033,47 @@ public partial class Game1
         }
 
         DrawLastToDieRankingsScrollbar(layout, list, visibleRows, page.Total);
+        DrawLastToDieClassFilter(layout);
     }
+
+    private void DrawLastToDieClassFilter(LastToDieMenuLayout layout)
+    {
+        var bounds = GetLastToDieRankingsClassFilterBounds(layout);
+        var selected = LastToDieClassFilterOptions.FirstOrDefault(option =>
+            string.Equals(option.SurvivorId, _lastToDieRankingsSurvivorId, StringComparison.Ordinal));
+        DrawLastToDieRankingsChoice(bounds, $"{selected.Label} v", active: _lastToDieClassFilterOpen);
+        if (!_lastToDieClassFilterOpen)
+        {
+            return;
+        }
+
+        for (var index = 0; index < LastToDieClassFilterOptions.Length; index += 1)
+        {
+            var option = LastToDieClassFilterOptions[index];
+            var optionBounds = GetLastToDieRankingsClassOptionBounds(bounds, index);
+            DrawLastToDieRankingsChoice(
+                optionBounds,
+                option.Label,
+                string.Equals(option.SurvivorId, _lastToDieRankingsSurvivorId, StringComparison.Ordinal));
+        }
+    }
+
+    private static string GetLastToDieSurvivorLabel(string survivorId)
+        => LastToDieClassFilterOptions.FirstOrDefault(option =>
+            string.Equals(option.SurvivorId, survivorId, StringComparison.Ordinal)).Label is { Length: > 0 } label
+                ? label
+                : "Unknown";
 
     private void DrawLastToDieRankingsChoice(Rectangle bounds, string label, bool active)
     {
         var fill = active ? new Color(126, 33, 31) : new Color(38, 38, 39);
         var outline = active ? new Color(245, 213, 135) : new Color(157, 154, 147);
         DrawRoundedRectangleOutline(bounds, fill, outline, outlineThickness: 1, radius: 3);
-        var scale = Math.Clamp(bounds.Height / 34f, 0.72f, 0.94f);
+        const float scale = 1f;
         var visible = TrimBitmapMenuText(label, bounds.Width - 14f, scale);
         var position = new Vector2(
-            bounds.X + ((bounds.Width - MeasureBitmapFontWidth(visible, scale)) * 0.5f),
-            bounds.Y + MathF.Max(3f, ((bounds.Height - MeasureBitmapFontHeight(scale)) * 0.5f) - 1f));
+            MathF.Round(bounds.X + ((bounds.Width - MeasureBitmapFontWidth(visible, scale)) * 0.5f)),
+            MathF.Round(bounds.Y + MathF.Max(3f, ((bounds.Height - MeasureBitmapFontHeight(scale)) * 0.5f) - 1f)));
         DrawBitmapFontText(visible, position + Vector2.One, Color.Black * 0.55f, scale);
         DrawBitmapFontText(visible, position, Color.White, scale);
     }

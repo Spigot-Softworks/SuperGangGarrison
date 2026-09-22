@@ -453,10 +453,15 @@ internal static class BrowserAssetBuildPipeline
             foreach (var page in pages.OrderBy(static page => page.PageIndex))
             {
                 var atlasId = BuildAtlasId(atlasPrefix, groupId, page.PageIndex);
-                var outputPath = Path.Combine(context.BrowserAtlasesRoot, $"{atlasId}.png");
-                AtlasImageWriter.WritePng(outputPath, page);
+                var temporaryPath = Path.Combine(context.BrowserAtlasesRoot, $"{atlasId}.tmp.png");
+                AtlasImageWriter.WritePng(temporaryPath, page);
+                var imageHash = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(temporaryPath)))
+                    .ToLowerInvariant();
+                var fileName = $"{atlasId}-{imageHash}.png";
+                var outputPath = Path.Combine(context.BrowserAtlasesRoot, fileName);
+                File.Move(temporaryPath, outputPath, overwrite: true);
                 generatedFiles.Add(outputPath);
-                atlasPages.Add(new BrowserAtlasPageManifest(atlasId, $"Content/Browser/Atlases/{atlasId}.png", page.OutputWidth, page.OutputHeight, groupId));
+                atlasPages.Add(new BrowserAtlasPageManifest(atlasId, $"Content/Browser/Atlases/{fileName}", page.OutputWidth, page.OutputHeight, groupId));
             }
         }
 
@@ -721,7 +726,7 @@ internal static class BrowserAssetBuildPipeline
             yield return path;
         }
 
-        foreach (var directory in new[] { "BotBrainNav", "BotBrainTapes", "BotBrainProofGraphs", "BotBrainCorridors" })
+        foreach (var directory in new[] { "BotBrainNav", "BotBrainCorridors" })
         {
             foreach (var path in EnumerateDirectoryFiles(context, directory, "*.json.gz", SearchOption.TopDirectoryOnly))
             {
@@ -751,16 +756,6 @@ internal static class BrowserAssetBuildPipeline
         }
 
         foreach (var path in EnumerateDirectoryFiles(context, "BotBrainNav", "*.json", SearchOption.TopDirectoryOnly))
-        {
-            yield return path;
-        }
-
-        foreach (var path in EnumerateDirectoryFiles(context, "BotBrainTapes", "*.json", SearchOption.TopDirectoryOnly))
-        {
-            yield return path;
-        }
-
-        foreach (var path in EnumerateDirectoryFiles(context, "BotBrainProofGraphs", "*.json", SearchOption.TopDirectoryOnly))
         {
             yield return path;
         }

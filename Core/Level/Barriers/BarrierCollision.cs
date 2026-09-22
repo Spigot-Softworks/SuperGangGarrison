@@ -75,23 +75,12 @@ public static class BarrierCollision
         float targetX,
         float targetY)
     {
-        const float span = 1f;
-        if (!Intersects(
-                marker,
-                MathF.Min(originX, targetX),
-                MathF.Min(originY, targetY),
-                MathF.Max(originX, targetX) + span,
-                MathF.Max(originY, targetY) + span))
-        {
-            return false;
-        }
-
-        if (MatchesPlayerTarget(configuration.Targets, shooterTeam, isCarryingIntel))
-        {
-            return true;
-        }
-
-        return BlocksProjectilePath(configuration, shooterTeam, marker, originX, originY, targetX, targetY);
+        var dx = targetX - originX;
+        var dy = targetY - originY;
+        var distance = MathF.Sqrt(dx * dx + dy * dy);
+        return distance > 0f && BarrierProjectileRaycast.TryRaycastMarker(
+            configuration, shooterTeam, marker, originX, originY,
+            dx / distance, dy / distance, distance, out _);
     }
 
     public static bool BlocksPlayerWithoutDirection(

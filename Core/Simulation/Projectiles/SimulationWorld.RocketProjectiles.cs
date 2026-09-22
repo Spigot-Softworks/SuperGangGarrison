@@ -240,7 +240,17 @@ public sealed partial class SimulationWorld
 
             var directionX = movementX / movementDistance;
             var directionY = movementY / movementDistance;
-            var hit = ResolveRocketCollisionAlongPath(world, rocket, directionX, directionY, movementDistance);
+            var universalProjectileScale = world.FindPlayerById(rocket.OwnerId)?.LastToDieUniversalModifiers.ProjectileScale ?? 1f;
+            var projectileGeometryScale = MathF.Max(
+                0.1f,
+                universalProjectileScale * (rocket.IsBallistic ? 1.3f : 1f));
+            var hit = ResolveRocketCollisionAlongPath(
+                world,
+                rocket,
+                directionX,
+                directionY,
+                movementDistance,
+                projectileGeometryScale);
             if (world.TryInterceptWithCivilDefenseTurret(rocket.Team, rocket.PreviousX, rocket.PreviousY,
                     directionX, directionY, MathF.Min(movementDistance, hit?.Distance ?? movementDistance)))
             {
@@ -334,7 +344,8 @@ public sealed partial class SimulationWorld
             RocketProjectileEntity rocket,
             float directionX,
             float directionY,
-            float movementDistance)
+            float movementDistance,
+            float projectileGeometryScale)
         {
             const float maxCollisionStepDistance = 1f;
             if (movementDistance <= 0.0001f)
@@ -350,7 +361,15 @@ public sealed partial class SimulationWorld
                 sampledDistance = MathF.Min(movementDistance, sampledDistance + stepDistance);
                 var sampleX = rocket.PreviousX + (directionX * sampledDistance);
                 var sampleY = rocket.PreviousY + (directionY * sampledDistance);
-                var hit = ResolveRocketCollisionAtSamplePosition(world, rocket, directionX, directionY, sampledDistance, sampleX, sampleY);
+                var hit = ResolveRocketCollisionAtSamplePosition(
+                    world,
+                    rocket,
+                    directionX,
+                    directionY,
+                    sampledDistance,
+                    sampleX,
+                    sampleY,
+                    projectileGeometryScale);
                 if (hit.HasValue)
                 {
                     return hit;
@@ -367,7 +386,8 @@ public sealed partial class SimulationWorld
             float directionY,
             float movementDistance,
             float rocketX,
-            float rocketY)
+            float rocketY,
+            float projectileGeometryScale)
         {
             if (movementDistance <= 0.0001f)
             {
@@ -384,7 +404,7 @@ public sealed partial class SimulationWorld
                 }
 
                 GetRocketPlayerCollisionBounds(world, player, out var left, out var top, out var right, out var bottom);
-                if (!IntersectsRocketMaskRectangle(rocketX, rocketY, directionX, directionY, left, top, right, bottom))
+                if (!IntersectsRocketMaskRectangle(rocketX, rocketY, directionX, directionY, left, top, right, bottom, projectileGeometryScale))
                 {
                     continue;
                 }
@@ -399,7 +419,16 @@ public sealed partial class SimulationWorld
                     continue;
                 }
 
-                var directHitDistance = FindRocketDirectHitDistance(rocket, directionX, directionY, movementDistance, left, top, right, bottom);
+                var directHitDistance = FindRocketDirectHitDistance(
+                    rocket,
+                    directionX,
+                    directionY,
+                    movementDistance,
+                    left,
+                    top,
+                    right,
+                    bottom,
+                    projectileGeometryScale);
                 if (bestDirectHitPlayer is null || directHitDistance < bestDirectHitDistance)
                 {
                     bestDirectHitPlayer = player;
@@ -433,7 +462,8 @@ public sealed partial class SimulationWorld
                     sentry.X - (SentryEntity.Width / 2f),
                     sentry.Y - (SentryEntity.Height / 2f),
                     sentry.X + (SentryEntity.Width / 2f),
-                    sentry.Y + (SentryEntity.Height / 2f)))
+                    sentry.Y + (SentryEntity.Height / 2f),
+                    projectileGeometryScale))
                 {
                     return new RocketHitResult(movementDistance, rocketX, rocketY, null, sentry, null);
                 }
@@ -455,13 +485,14 @@ public sealed partial class SimulationWorld
                     generator.Marker.Left,
                     generator.Marker.Top,
                     generator.Marker.Right,
-                    generator.Marker.Bottom))
+                    generator.Marker.Bottom,
+                    projectileGeometryScale))
                 {
                     return new RocketHitResult(movementDistance, rocketX, rocketY, null, null, generator);
                 }
             }
 
-            var rocketBounds = GetRocketMaskBounds(rocketX, rocketY, directionX, directionY);
+            var rocketBounds = GetRocketMaskBounds(rocketX, rocketY, directionX, directionY, projectileGeometryScale);
             foreach (var solid in world.Level.Solids)
             {
                 if (!RectanglesOverlap(rocketBounds.Left, rocketBounds.Top, rocketBounds.Right, rocketBounds.Bottom, solid.Left, solid.Top, solid.Right, solid.Bottom))
@@ -469,7 +500,7 @@ public sealed partial class SimulationWorld
                     continue;
                 }
 
-                if (IntersectsRocketMaskRectangle(rocketX, rocketY, directionX, directionY, solid.Left, solid.Top, solid.Right, solid.Bottom))
+                if (IntersectsRocketMaskRectangle(rocketX, rocketY, directionX, directionY, solid.Left, solid.Top, solid.Right, solid.Bottom, projectileGeometryScale))
                 {
                     return new RocketHitResult(movementDistance, rocketX, rocketY, null, null, null);
                 }
@@ -550,7 +581,7 @@ public sealed partial class SimulationWorld
                     continue;
                 }
 
-                if (IntersectsRocketMaskRectangle(rocketX, rocketY, directionX, directionY, roomObject.Left, roomObject.Top, roomObject.Right, roomObject.Bottom))
+                if (IntersectsRocketMaskRectangle(rocketX, rocketY, directionX, directionY, roomObject.Left, roomObject.Top, roomObject.Right, roomObject.Bottom, projectileGeometryScale))
                 {
                     return new RocketHitResult(movementDistance, rocketX, rocketY, null, null, null);
                 }
@@ -859,9 +890,10 @@ public sealed partial class SimulationWorld
             float targetLeft,
             float targetTop,
             float targetRight,
-            float targetBottom)
+            float targetBottom,
+            float projectileGeometryScale)
         {
-            if (IntersectsRocketMaskRectangle(rocket.PreviousX, rocket.PreviousY, directionX, directionY, targetLeft, targetTop, targetRight, targetBottom))
+            if (IntersectsRocketMaskRectangle(rocket.PreviousX, rocket.PreviousY, directionX, directionY, targetLeft, targetTop, targetRight, targetBottom, projectileGeometryScale))
             {
                 return 0f;
             }
@@ -873,7 +905,7 @@ public sealed partial class SimulationWorld
                 var candidateDistance = (clearDistance + overlapDistance) * 0.5f;
                 var candidateX = rocket.PreviousX + (directionX * candidateDistance);
                 var candidateY = rocket.PreviousY + (directionY * candidateDistance);
-                if (IntersectsRocketMaskRectangle(candidateX, candidateY, directionX, directionY, targetLeft, targetTop, targetRight, targetBottom))
+                if (IntersectsRocketMaskRectangle(candidateX, candidateY, directionX, directionY, targetLeft, targetTop, targetRight, targetBottom, projectileGeometryScale))
                 {
                     overlapDistance = candidateDistance;
                 }
@@ -907,12 +939,14 @@ public sealed partial class SimulationWorld
             float left,
             float top,
             float right,
-            float bottom)
+            float bottom,
+            float geometryScale = 1f)
         {
-            var segmentStartX = rocketX + (directionX * RocketProjectileEntity.MaskRearOffset);
-            var segmentStartY = rocketY + (directionY * RocketProjectileEntity.MaskRearOffset);
-            var segmentEndX = rocketX + (directionX * RocketProjectileEntity.MaskFrontOffset);
-            var segmentEndY = rocketY + (directionY * RocketProjectileEntity.MaskFrontOffset);
+            geometryScale = float.IsFinite(geometryScale) ? MathF.Max(0.1f, geometryScale) : 1f;
+            var segmentStartX = rocketX + (directionX * RocketProjectileEntity.MaskRearOffset * geometryScale);
+            var segmentStartY = rocketY + (directionY * RocketProjectileEntity.MaskRearOffset * geometryScale);
+            var segmentEndX = rocketX + (directionX * RocketProjectileEntity.MaskFrontOffset * geometryScale);
+            var segmentEndY = rocketY + (directionY * RocketProjectileEntity.MaskFrontOffset * geometryScale);
             return GetThickLineIntersectionDistanceToRectangle(
                 segmentStartX,
                 segmentStartY,
@@ -922,20 +956,27 @@ public sealed partial class SimulationWorld
                 top,
                 right,
                 bottom,
-                RocketProjectileEntity.MaskHalfThickness).HasValue;
+                RocketProjectileEntity.MaskHalfThickness * geometryScale).HasValue;
         }
 
-        private static RectangleHitbox GetRocketMaskBounds(float rocketX, float rocketY, float directionX, float directionY)
+        private static RectangleHitbox GetRocketMaskBounds(
+            float rocketX,
+            float rocketY,
+            float directionX,
+            float directionY,
+            float geometryScale = 1f)
         {
-            var segmentStartX = rocketX + (directionX * RocketProjectileEntity.MaskRearOffset);
-            var segmentStartY = rocketY + (directionY * RocketProjectileEntity.MaskRearOffset);
-            var segmentEndX = rocketX + (directionX * RocketProjectileEntity.MaskFrontOffset);
-            var segmentEndY = rocketY + (directionY * RocketProjectileEntity.MaskFrontOffset);
+            geometryScale = float.IsFinite(geometryScale) ? MathF.Max(0.1f, geometryScale) : 1f;
+            var segmentStartX = rocketX + (directionX * RocketProjectileEntity.MaskRearOffset * geometryScale);
+            var segmentStartY = rocketY + (directionY * RocketProjectileEntity.MaskRearOffset * geometryScale);
+            var segmentEndX = rocketX + (directionX * RocketProjectileEntity.MaskFrontOffset * geometryScale);
+            var segmentEndY = rocketY + (directionY * RocketProjectileEntity.MaskFrontOffset * geometryScale);
+            var halfThickness = RocketProjectileEntity.MaskHalfThickness * geometryScale;
             return new RectangleHitbox(
-                MathF.Min(segmentStartX, segmentEndX) - RocketProjectileEntity.MaskHalfThickness,
-                MathF.Min(segmentStartY, segmentEndY) - RocketProjectileEntity.MaskHalfThickness,
-                MathF.Max(segmentStartX, segmentEndX) + RocketProjectileEntity.MaskHalfThickness,
-                MathF.Max(segmentStartY, segmentEndY) + RocketProjectileEntity.MaskHalfThickness);
+                MathF.Min(segmentStartX, segmentEndX) - halfThickness,
+                MathF.Min(segmentStartY, segmentEndY) - halfThickness,
+                MathF.Max(segmentStartX, segmentEndX) + halfThickness,
+                MathF.Max(segmentStartY, segmentEndY) + halfThickness);
         }
 
         private static float? GetThickLineIntersectionDistanceToRectangle(

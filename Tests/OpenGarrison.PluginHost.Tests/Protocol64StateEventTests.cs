@@ -130,7 +130,9 @@ public sealed class Protocol64StateEventTests
                     RageTicksRemaining: 0,
                     PrimaryCooldownTicks: 13,
                     PrimaryReloadTicks: 27,
-                    IsBot: true),
+                    IsBot: true,
+                    CurrentCombo: 4,
+                    ComboTicksRemaining: 87),
             ]);
 
         var decoded = RoundTrip(registry, value, 1);
@@ -188,7 +190,9 @@ public sealed class Protocol64StateEventTests
         Assert.Equal(13, player.PrimaryCooldownTicks);
         Assert.Equal(27, player.PrimaryReloadTicks);
         Assert.True(player.IsBot);
-        Assert.Equal((ushort)28, registry.Get<Protocol64PlayerStateBatch>().Descriptor.Key.Revision);
+        Assert.Equal(4, player.CurrentCombo);
+        Assert.Equal(87, player.ComboTicksRemaining);
+        Assert.Equal((ushort)29, registry.Get<Protocol64PlayerStateBatch>().Descriptor.Key.Revision);
     }
 
     [Fact]
@@ -519,7 +523,10 @@ public sealed class Protocol64StateEventTests
             RequestId: 71,
             StateSequence: 18,
             StateTick: 500,
-            Players: [new Protocol64PlayerState(1, 9, 2, "class.medic", 100, 150, 2, true, 0, 0, 0, 0, 1, 3, 500)],
+            Players: [new Protocol64PlayerState(
+                1, 9, 2, "class.medic", 100, 150, 2, true, 0, 0, 0, 0, 1, 3, 500,
+                CurrentCombo: 3,
+                ComboTicksRemaining: 72)],
             RemovedPlayers: [new Protocol64PlayerIdentity(3, 11, 4)],
             Projectiles:
             [
@@ -547,6 +554,8 @@ public sealed class Protocol64StateEventTests
         Assert.Equal(value.StateSequence, decoded.StateSequence);
         Assert.Equal("class.medic", Assert.Single(decoded.Players).GameplayClassId);
         Assert.Equal(0U, Assert.Single(decoded.Players).LastProcessedInputSequence);
+        Assert.Equal(3, Assert.Single(decoded.Players).CurrentCombo);
+        Assert.Equal(72, Assert.Single(decoded.Players).ComboTicksRemaining);
         Assert.Equal(6U, Assert.Single(decoded.Projectiles).Generation);
         Assert.Equal((byte)0b111, Assert.Single(decoded.Projectiles).LastToDieMedicKritzM2Payload);
         Assert.Equal(Protocol64DeliveryKind.ReliableOrdered, registry.Get<Protocol64StateResyncResponse>().Descriptor.Delivery.Kind);
@@ -626,7 +635,7 @@ public sealed class Protocol64StateEventTests
         Assert.Equal(Protocol64DeliveryKind.LastWins, schemas[2].Descriptor.Delivery.Kind);
         Assert.Equal(ChannelType.Control, schemas[4].Descriptor.Delivery.Channel);
         Assert.Equal(
-            new ushort[] { 28, 1, 13, 13, 1, 32 },
+            new ushort[] { 29, 1, 13, 13, 1, 33 },
             schemas.Select(schema => schema.Descriptor.Key.Revision).ToArray());
     }
 

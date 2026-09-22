@@ -60,8 +60,24 @@ Tests/BrowserSmoke/node_modules/
 /Docking (VIP)/
 
 # Local loose projects, investigation notes, and exported media
+/Resprite/
 /LittleDesktop/
-/docs/
+/little-desktop/
+/.codex/
+# Local screenshot crops, animation contact sheets, and release notes
+/*-crop.png
+/*-sheet.png
+/*-logo.png
+/ltd-update.txt
+# Keep local notes private; shared guides are explicitly included below.
+/docs/*
+!/docs/README.md
+!/docs/CODEBASE_ORIENTATION.md
+!/docs/SERVER_MANAGEMENT.md
+!/docs/server-registry/
+!/docs/design/
+/docs/design/*
+!/docs/design/VOICE_CHAT_JUKEBOX.md
 /tmp/
 /%SystemDrive%/
 /.audit_ltd_refs.txt
@@ -73,7 +89,6 @@ Tests/BrowserSmoke/node_modules/
 /ctf_oldfort/
 /Core/Content/StockMaps/Classic/README.md
 /Tests/OpenGarrison.PluginHost.Tests/AudioFixtures/README.md
-/services/opengarrison-api/deploy/browser-edition/README.md
 
 # Generated bot navigation and canary artifacts
 /Tools/BotBrain/canaries/
@@ -106,4 +121,3 @@ __pycache__/
 
 # Reproducible historical source extraction
 /Tools/NavAuthoringLegacy/extracted/
-

@@ -24,17 +24,15 @@ internal static class SnapshotContributionPlanner
     private const int RemovedPlayerEstimatedBytes = 6;
     // Byte budget estimates per player contribution type. These must stay at or above the
     // true serialized size so the budgeter does not over-admit contributions.
-    // SnapshotPlayerFixedBytes accounts for the full WriteSnapshotPlayers entry:
-    //   ~278 fixed bytes (all strings cache-hit, empty owned-item / replicated-state lists)
-    //   + ~18 bytes for a typical player name (16 chars + 2-byte length prefix)
-    //   = ~286 bytes. Keep a small margin above the true value.
-    private const int SnapshotPlayerFixedBytes = 295;
+    // The fixed WriteSnapshotPlayers payload gained eight bytes for replicated
+    // cryo and ghost presentation state; dynamic strings and lists are added below.
+    private const int SnapshotPlayerFixedBytes = 303;
     private const int SnapshotPlayerMovementBytes = 28;
-    private const int SnapshotPlayerStatusBytes = 20;
+    private const int SnapshotPlayerStatusBytes = 28;
     private const string CoreReplicatedOwnerId = "core.player";
     // Matches the encoded compact status payload, including authoritative Kritz
     // source state and normal gameplay dispenser state.
-    private const int SnapshotPlayerExtendedStatusBytes = 63;
+    private const int SnapshotPlayerExtendedStatusBytes = 71;
     private const int SnapshotPlayerChatBubbleBytes = 10;
     private const int PlayerMovementHeartbeatIntervalTicks = 1;
     private const int ProjectileSnapshotUpdateIntervalTicks = 1;
@@ -688,7 +686,9 @@ internal static class SnapshotContributionPlanner
             player.Metal,
             player.IsCarryingIntel,
             player.IntelRechargeTicks,
-            ExtractRuntimeReplicatedStates(player.ReplicatedStates));
+            ExtractRuntimeReplicatedStates(player.ReplicatedStates),
+            player.CurrentCombo,
+            player.ComboTicksRemaining);
     }
 
     private static SnapshotPlayerChatBubbleState ToPlayerChatBubbleState(SnapshotPlayerState player)
@@ -744,7 +744,12 @@ internal static class SnapshotContributionPlanner
             player.DispenserAttackReloadSpeedMultiplier,
             player.RageCharge,
             player.IsRageReady,
-            player.RageTicksRemaining);
+            player.RageTicksRemaining,
+            player.ExperimentalCryoSlowTicksRemaining,
+            player.ExperimentalCryoFreezeTicksRemaining,
+            player.ExperimentalCryoExposureFraction,
+            player.ExperimentalGhostVisibilityTicksRemaining,
+            player.ExperimentalGhostTrailAlpha);
     }
 
     private static bool HasPlayerMovementChanged(SnapshotPlayerState player, SnapshotPlayerState baselinePlayer)
@@ -809,6 +814,8 @@ internal static class SnapshotContributionPlanner
             Metal = baselinePlayer.Metal,
             IsCarryingIntel = baselinePlayer.IsCarryingIntel,
             IntelRechargeTicks = baselinePlayer.IntelRechargeTicks,
+            CurrentCombo = baselinePlayer.CurrentCombo,
+            ComboTicksRemaining = baselinePlayer.ComboTicksRemaining,
             IsSpyCloaked = baselinePlayer.IsSpyCloaked,
             SpyCloakAlpha = baselinePlayer.SpyCloakAlpha,
             IsSpySuperjumping = baselinePlayer.IsSpySuperjumping,
@@ -887,6 +894,11 @@ internal static class SnapshotContributionPlanner
             GameplayClassId = baselinePlayer.GameplayClassId,
             GameplayClassCacheId = baselinePlayer.GameplayClassCacheId,
             PingMilliseconds = baselinePlayer.PingMilliseconds,
+            ExperimentalCryoSlowTicksRemaining = baselinePlayer.ExperimentalCryoSlowTicksRemaining,
+            ExperimentalCryoFreezeTicksRemaining = baselinePlayer.ExperimentalCryoFreezeTicksRemaining,
+            ExperimentalCryoExposureFraction = baselinePlayer.ExperimentalCryoExposureFraction,
+            ExperimentalGhostVisibilityTicksRemaining = baselinePlayer.ExperimentalGhostVisibilityTicksRemaining,
+            ExperimentalGhostTrailAlpha = baselinePlayer.ExperimentalGhostTrailAlpha,
         };
     }
 
@@ -989,7 +1001,12 @@ internal static class SnapshotContributionPlanner
             || player.DispenserAttackReloadSpeedMultiplier != baselinePlayer.DispenserAttackReloadSpeedMultiplier
             || player.RageCharge != baselinePlayer.RageCharge
             || player.IsRageReady != baselinePlayer.IsRageReady
-            || player.RageTicksRemaining != baselinePlayer.RageTicksRemaining;
+            || player.RageTicksRemaining != baselinePlayer.RageTicksRemaining
+            || player.ExperimentalCryoSlowTicksRemaining != baselinePlayer.ExperimentalCryoSlowTicksRemaining
+            || player.ExperimentalCryoFreezeTicksRemaining != baselinePlayer.ExperimentalCryoFreezeTicksRemaining
+            || player.ExperimentalCryoExposureFraction != baselinePlayer.ExperimentalCryoExposureFraction
+            || player.ExperimentalGhostVisibilityTicksRemaining != baselinePlayer.ExperimentalGhostVisibilityTicksRemaining
+            || player.ExperimentalGhostTrailAlpha != baselinePlayer.ExperimentalGhostTrailAlpha;
     }
 
     private static bool ShouldSendLowFrequencyPlayerDetail(long frame, byte slot)
@@ -1061,6 +1078,8 @@ internal static class SnapshotContributionPlanner
             || player.Metal != baselinePlayer.Metal
             || player.IsCarryingIntel != baselinePlayer.IsCarryingIntel
             || player.IntelRechargeTicks != baselinePlayer.IntelRechargeTicks
+            || player.CurrentCombo != baselinePlayer.CurrentCombo
+            || player.ComboTicksRemaining != baselinePlayer.ComboTicksRemaining
             || HasRuntimeReplicatedStatesChanged(player.ReplicatedStates, baselinePlayer.ReplicatedStates);
     }
 
@@ -1661,7 +1680,8 @@ internal static class SnapshotContributionPlanner
 
     private static int EstimateKillFeedBytes(SnapshotKillFeedEntry entry)
     {
-        return 35
+        return 42
+            + entry.AssistName.Length
             + entry.KillerName.Length
             + entry.WeaponSpriteName.Length
             + entry.VictimName.Length

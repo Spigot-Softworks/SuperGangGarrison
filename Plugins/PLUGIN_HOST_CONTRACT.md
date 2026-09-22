@@ -2,7 +2,7 @@
 
 This document defines the rules the OpenGarrison plugin hosts are expected to enforce.
 
-It is written for engine contributors who are adding new seams, extending existing ones, or reviewing whether a plugin capability belongs in Lua, CLR, or the engine itself.
+It is written for engine contributors who are adding new APIs, extending existing ones, or reviewing whether a plugin capability belongs in Lua, CLR, or the engine itself.
 
 ## Goals
 
@@ -15,7 +15,7 @@ It is written for engine contributors who are adding new seams, extending existi
 
 - Plugins are not trusted engine peers.
 - Lua is not a license to expose arbitrary internal objects.
-- The host does not promise that every engine feature can or should become a plugin seam.
+- The host does not promise that every engine feature can or should become a plugin API.
 
 ## Core Rules
 
@@ -36,7 +36,7 @@ It is written for engine contributors who are adding new seams, extending existi
 
 - Prefer callbacks, DTOs, validated commands, and narrow helper services.
 - Do not expose raw engine object graphs, renderer internals, simulation internals, or mutable state containers directly to Lua.
-- If a seam would require Lua to understand unstable engine ownership rules, the seam is not ready.
+- If an API would require Lua to understand unstable engine ownership rules, the API is not ready.
 
 ### 4. File access stays inside declared plugin roots
 
@@ -50,11 +50,11 @@ It is written for engine contributors who are adding new seams, extending existi
 - If an API creates textures, sounds, atlases, or similar assets, the host must define who owns them and when they are cleaned up.
 - Replacement registration must not leak the old resource.
 
-### 6. New seams should be reusable and engine-shaped
+### 6. New APIs should be reusable and expressed in game concepts
 
-- Add a seam when the capability is likely to serve more than one plugin.
-- Add a seam when the host can describe the capability in stable gameplay, rendering, UI, audio, state, or messaging terms.
-- Do not add a seam that only mirrors one internal call site or one plugin's private workaround.
+- Add an API when the capability is likely to serve more than one plugin.
+- Add an API when the host can describe the capability in stable gameplay, rendering, UI, audio, state, or messaging terms.
+- Do not add an API that only mirrors one internal call site or one plugin's private workaround.
 
 Gameplay ability authoring has its own narrower public contract in
 [GAMEPLAY_ABILITIES.md](GAMEPLAY_ABILITIES.md).
@@ -73,7 +73,7 @@ When adding a new callback:
 - Define what happens if it throws or times out.
 - Add a test that exercises both the intended path and the forbidden path.
 
-Recommended bias:
+Callback responsibilities:
 
 - Lifecycle callbacks: setup and teardown only.
 - Update callbacks: incremental work and lightweight state changes.
@@ -86,7 +86,7 @@ Recommended bias:
 - Plugin asset registration should go through host-managed registries.
 - GPU resource creation must not be legal from arbitrary draw callbacks.
 - If a plugin needs preload behavior, add a preload-safe host path instead of telling plugin authors to load lazily during rendering.
-- Legacy compatibility seams should be held to the same safety rules as newer seams.
+- Legacy compatibility APIs should be held to the same safety rules as newer APIs.
 
 ## Error Handling Rules
 
@@ -109,27 +109,27 @@ Recommended bias:
 ## Lua-Specific Rules
 
 - Lua is the default plugin language.
-- Lua seams should be bounded enough that plugin authors do not need engine-source knowledge just to use them safely.
+- Lua APIs should be bounded enough that plugin authors do not need engine-source knowledge just to use them safely.
 - Do not solve missing Lua capability by reflexively approving a CLR plugin.
 - If Lua needs a new power, prefer a reusable host API over direct raw exposure.
 
 ## CLR Exception Path
 
-A CLR seam or CLR-only plugin is justified only when one of the following is true:
+A CLR API or CLR-only plugin is justified only when one of the following is true:
 
 - The capability depends on engine-private ownership that should not be surfaced to Lua.
 - The capability requires platform or native interop.
-- The capability is performance-critical in a way that a bounded Lua seam cannot satisfy.
+- The capability is performance-critical in a way that a bounded Lua API cannot satisfy.
 - The capability would materially damage the clarity or safety of the Lua host if exposed there.
 
 "Lua cannot do it yet" is not enough by itself.
 
-## Checklist For New Seams
+## Checklist For New APIs
 
-Before merging a new seam, confirm all of the following:
+Before merging a new API, confirm all of the following:
 
-- The seam has a clear owner in the engine code.
-- The seam has a defined callback phase or service boundary.
+- The API has a clear owner in the engine code.
+- The API has a defined callback phase or service boundary.
 - Illegal call timing is rejected by the host.
 - File and asset paths are contained.
 - Resource lifetime is defined.
@@ -138,18 +138,15 @@ Before merging a new seam, confirm all of the following:
 - At least one regression test covers the intended use.
 - At least one regression test covers the forbidden or failure case.
 
-## Current Practical Limit
+## Execution limits
 
 The current Lua hosts are in-process hosts, not out-of-process sandboxes.
 
-That means the host can budget and quarantine Lua execution, but it still cannot preempt arbitrary long-running native or CLR work once a callback has entered it. New seams should be designed with that limit in mind.
+The host can limit Lua execution, but it cannot interrupt native or CLR code
+once a callback enters it. Host APIs must account for that limit.
 
-There are two different kinds of “bad plugin behavior”:
-
-Bad pure Lua behavior
-Example: an infinite Lua loop, or a Lua callback doing way too much work.
-We now have decent protection here, because MoonSharp can be forced to yield and the host can time-budget/quarantine it.
-
-Bad CLR/native behavior reached from Lua
-Example: Lua calls into a host API, and that host API blocks in file I/O, GPU upload, texture creation, a driver call, a native library call, or some future heavy engine routine.
-Once execution has crossed into that CLR/native code, MoonSharp’s coroutine budget cannot interrupt it. The engine thread is just stuck there until that call returns.
+Pure Lua loops can yield through MoonSharp's coroutine budget, allowing the host
+to stop or disable the callback. A blocking host call cannot be interrupted that
+way: file I/O, texture uploads, drivers, and native libraries must return before
+the engine thread can continue. Budget checks do not make blocking APIs safe for
+frame or tick callbacks.

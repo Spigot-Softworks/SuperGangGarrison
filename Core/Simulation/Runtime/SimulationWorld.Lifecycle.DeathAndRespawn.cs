@@ -55,14 +55,14 @@ public sealed partial class SimulationWorld
             && TryResolveAfterburnDeathCredit(player, out var afterburnKiller))
         {
             killer = afterburnKiller;
-            weaponSpriteName = "FlameKL";
+            weaponSpriteName = player.AfterburnKillFeedWeaponSpriteName;
             if (originalKillerWasSelf && string.IsNullOrEmpty(killFeedMessage))
             {
                 killFeedMessage = " finished off ";
             }
         }
 
-        var hasPinnedAssistingPlayer = assistingPlayerIdOverride > 0;
+        var hasPinnedAssistingPlayer = completingLastToDieSpyAfterlifeDeath && assistingPlayerIdOverride > 0;
         PlayerEntity? assistingPlayer;
         if (hasPinnedAssistingPlayer)
         {
@@ -83,6 +83,12 @@ public sealed partial class SimulationWorld
         else
         {
             assistingPlayer = null;
+        }
+
+        if (!completingLastToDieSpyAfterlifeDeath
+            && TryActivateLastToDieSecondChance(player))
+        {
+            return;
         }
 
         if (!completingLastToDieSpyAfterlifeDeath
@@ -116,6 +122,7 @@ public sealed partial class SimulationWorld
         if (killer is not null && !ReferenceEquals(killer, player))
         {
             killer.AddKill();
+            ApplyLastToDieKillRewards(killer);
             TryCompleteLastToDieSpyAfterlifeSuccess(killer, player);
             TryRegisterLastToDieSniperConquistadorKill(killer, player);
             TryRegisterKillStreakKill(killer, player);
@@ -171,7 +178,7 @@ public sealed partial class SimulationWorld
 
         if (recordKillFeed)
         {
-            RecordKillFeedEntry(player, killer, weaponSpriteName ?? "DeadKL", killFeedMessage);
+            RecordKillFeedEntry(player, killer, weaponSpriteName ?? "DeadKL", killFeedMessage, assistingPlayer: assistingPlayer);
         }
 
         if (killer is not null && !ReferenceEquals(killer, player))

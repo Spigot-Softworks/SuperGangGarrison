@@ -14,18 +14,62 @@ public sealed partial class SimulationWorld
             return false;
         }
 
-        var x = explosionX ?? arrow.X;
-        var y = explosionY ?? arrow.Y;
+        var owner = FindPlayerById(arrow.OwnerId);
+        return TryExplodeLastToDieSniperImpact(
+            arrow.OwnerId,
+            arrow.Team,
+            owner,
+            explosionX ?? arrow.X,
+            explosionY ?? arrow.Y,
+            arrow.Id,
+            unchecked((ulong)(uint)arrow.Id),
+            arrow.IsCritical,
+            arrow.CriticalDamageMultiplier,
+            "BowKL");
+    }
+
+    private bool TryExplodeLastToDieSniperRifleImpact(
+        PlayerEntity owner,
+        float x,
+        float y,
+        bool isCritical,
+        float criticalDamageMultiplier)
+    {
+        return TryExplodeLastToDieSniperImpact(
+            owner.Id,
+            owner.Team,
+            owner,
+            x,
+            y,
+            owner.Id,
+            unchecked((ulong)(uint)owner.Id),
+            isCritical,
+            criticalDamageMultiplier,
+            "RifleKL");
+    }
+
+    private bool TryExplodeLastToDieSniperImpact(
+        int ownerId,
+        PlayerTeam ownerTeam,
+        PlayerEntity? owner,
+        float x,
+        float y,
+        int sourceEntityId,
+        ulong attackId,
+        bool isCritical,
+        float criticalDamageMultiplier,
+        string fatalWeaponSpriteName)
+    {
         var blastRadius = ResolveExplosiveSplashRadius(
-            LastToDieSniperProfile.ExplosiveTipBlastRadius);
-        RegisterWorldSoundEvent("ExplosionSnd", x, y, arrow.OwnerId);
+            LastToDieSniperProfile.ExplosiveTipBlastRadius
+                * MathF.Max(0.1f, owner?.LastToDieUniversalModifiers.ExplosionScale ?? 1f));
+        RegisterWorldSoundEvent("ExplosionSnd", x, y, ownerId);
         RegisterVisualEffect("Explosion", x, y);
         if (ClientPredictionMode)
         {
             return true;
         }
 
-        var owner = FindPlayerById(arrow.OwnerId);
         var players = EnumerateSimulatedPlayers().ToArray();
         var hitPlayerIds = new HashSet<int>();
         foreach (var target in players)
@@ -35,8 +79,8 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            var isSelf = target.Id == arrow.OwnerId && target.Team == arrow.Team;
-            if (!isSelf && target.Team == arrow.Team)
+            var isSelf = target.Id == ownerId && target.Team == ownerTeam;
+            if (!isSelf && target.Team == ownerTeam)
             {
                 continue;
             }
@@ -68,9 +112,9 @@ public sealed partial class SimulationWorld
                 | PlayerDamageTraits.EstablishLastToDieSpotted
                 | PlayerDamageTraits.BenefitFromLastToDieSpotted
                 | PlayerDamageTraits.LastToDieOverkillerEligible;
-            if (arrow.IsCritical)
+            if (isCritical)
             {
-                damage *= arrow.CriticalDamageMultiplier;
+                damage *= criticalDamageMultiplier;
                 traits |= PlayerDamageTraits.Critical;
             }
 
@@ -90,17 +134,17 @@ public sealed partial class SimulationWorld
                         AllowBlock: true,
                         ThreatSourceX: x,
                         ThreatSourceY: y,
-                        CriticalBoost: arrow.IsCritical,
+                        CriticalBoost: isCritical,
                         UseLiveAttackerCriticalBoost: false),
-                    SourceEntityId: arrow.Id,
-                    AttackId: unchecked((ulong)(uint)arrow.Id),
+                    SourceEntityId: sourceEntityId,
+                    AttackId: attackId,
                     AttackerWasGrounded: owner?.IsGrounded,
                     TargetWasGrounded: target.IsGrounded,
                     GibOnFatal: true,
-                    FatalWeaponSpriteName: "BowKL"));
+                    FatalWeaponSpriteName: fatalWeaponSpriteName));
             if (resolution.WasFatal)
             {
-                KillPlayer(target, gibbed: true, killer: owner, weaponSpriteName: "BowKL");
+                KillPlayer(target, gibbed: true, killer: owner, weaponSpriteName: fatalWeaponSpriteName);
             }
         }
 

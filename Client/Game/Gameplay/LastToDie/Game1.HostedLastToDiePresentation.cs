@@ -30,6 +30,8 @@ public partial class Game1
     private int _hostedLastToDieRewardHoverIndex = -1;
     private float _hostedLastToDieRoomCodeFeedbackSeconds;
     private bool _hostedLastToDieRoomCodeCopyFailed;
+    private int _hostedLastToDieObservedStageNumber;
+    private float _hostedLastToDieStageIntroSecondsRemaining;
     private bool _hostedLastToDieLobbyMousePressArmed = true;
     private bool? _hostedLastToDieOptimisticReadyState;
     private ulong _hostedLastToDieReadyCommandId;
@@ -40,6 +42,10 @@ public partial class Game1
     private bool IsHostedLastToDieActive()
         => _networkClient.IsConnected
             && _networkClient.LastToDieState.Snapshot is not null;
+
+    private bool IsCoopLastToDieActive()
+        => IsHostedLastToDieActive()
+            && _networkClient.LastToDieState.Snapshot is { MaximumPlayers: > 1 };
 
     private bool IsHostedLastToDieBlockingGameplay()
         => _networkClient.LastToDieState.Snapshot?.Phase is
@@ -189,7 +195,16 @@ public partial class Game1
                     rewardLayout);
                 if (localPlayer.ActiveOfferId != 0
                     && UpdateLastToDieRewardInput(_hostedRewardInput, rewardLayout, keyboard, mouse,
-                        index => index < localPlayer.ActiveOfferChoices.Count))
+                        index => index < localPlayer.ActiveOfferChoices.Count,
+                        index => _networkClient.SendLastToDieCommand(
+                            LastToDieCommandKind.RerollReward,
+                            localPlayer.ActiveOfferChoices[index],
+                            localPlayer.ActiveOfferId),
+                        index => index >= 0
+                            && localPlayer.ActiveOfferSlots is { } activeOfferSlots
+                            && index < activeOfferSlots.Count
+                            && activeOfferSlots[index].RerollsRemaining > 0
+                            && activeOfferSlots[index].HasEligibleReplacement))
                 {
                     _rewardInputCommandId = _networkClient.SendLastToDieCommand(
                         LastToDieCommandKind.SelectReward,
@@ -307,6 +322,8 @@ public partial class Game1
             _hostedLastToDieObservedRunId = snapshot.RunId;
             _hostedLastToDieObservedAliveBySlot.Clear();
             _hostedLastToDieObservedPhase = null;
+            _hostedLastToDieObservedStageNumber = 0;
+            _hostedLastToDieStageIntroSecondsRemaining = 0f;
         }
 
         PersistHostedLastToDieRunStats(snapshot);
@@ -320,6 +337,27 @@ public partial class Game1
                 snapshot.Phase))
         {
             _lastToDieConnectionPresentationPending = false;
+        }
+
+        if (snapshot.Phase == LastToDieWirePhase.Playing)
+        {
+            if (_hostedLastToDieObservedPhase != LastToDieWirePhase.Playing
+                || _hostedLastToDieObservedStageNumber != snapshot.StageNumber)
+            {
+                _hostedLastToDieStageIntroSecondsRemaining = LastToDieStageIntroDurationSeconds;
+            }
+            else
+            {
+                _hostedLastToDieStageIntroSecondsRemaining = Math.Max(
+                    0f,
+                    _hostedLastToDieStageIntroSecondsRemaining - Math.Max(0f, _gameplayPresentationDeltaSeconds));
+            }
+
+            _hostedLastToDieObservedStageNumber = snapshot.StageNumber;
+        }
+        else
+        {
+            _hostedLastToDieStageIntroSecondsRemaining = 0f;
         }
 
         var enteredLostPhase = _hostedLastToDieObservedPhase != LastToDieWirePhase.Lost
@@ -421,6 +459,7 @@ public partial class Game1
         {
             _lastToDieStats.Save();
         }
+        if (_peerRoomSession is { IsOwner: false }) _pendingRunClaims.Enqueue(snapshot.AttemptId);
         _hostedLastToDieRecordedStatsAttemptId = snapshot.AttemptId;
     }
 
@@ -504,7 +543,7 @@ public partial class Game1
             return;
         }
 
-        if (clicked && GetHostedLastToDieVoiceButtonBounds().Contains(mouse.Position))
+        if (IsCoopLastToDieActive() && clicked && GetHostedLastToDieVoiceButtonBounds().Contains(mouse.Position))
         {
             ToggleVoiceChannelMembership();
             return;
@@ -712,12 +751,12 @@ public partial class Game1
             $"Stage {snapshot.StageNumber}",
             new Vector2(ViewportWidth - 18f, 46f),
             new Color(232, 232, 232),
-            0.92f);
+            1f);
         DrawBitmapFontTextRightAligned(
             $"{snapshot.EnemyCount} Enemies",
             new Vector2(ViewportWidth - 18f, 66f),
             new Color(210, 196, 160),
-            0.92f);
+            1f);
         var reconnectingPlayer = snapshot.Players.FirstOrDefault(player =>
             !player.IsConnected
             && player.ReconnectGraceEndServerTick > snapshot.ServerTick);
@@ -730,8 +769,28 @@ public partial class Game1
                 $"Teammate reconnect: {remainingSeconds}s",
                 new Vector2(ViewportWidth - 18f, 86f),
                 new Color(255, 196, 96),
-                0.82f);
+                1f);
         }
+
+        if (ShouldShowHostedLastToDieStageIntro(snapshot.Phase, _hostedLastToDieStageIntroSecondsRemaining))
+        {
+            var introProgress = 1f - (_hostedLastToDieStageIntroSecondsRemaining / LastToDieStageIntroDurationSeconds);
+            var fadeAlpha = introProgress < 0.32f
+                ? Math.Clamp(introProgress / 0.32f, 0f, 1f)
+                : Math.Clamp(1f - ((introProgress - 0.32f) / 0.68f), 0f, 1f);
+            DrawHudTextCentered(
+                "SURVIVE!",
+                new Vector2(ViewportWidth / 2f, ViewportHeight * 0.2f),
+                new Color(241, 232, 203) * (fadeAlpha * 0.96f),
+                2.4f);
+        }
+    }
+
+    internal static bool ShouldShowHostedLastToDieStageIntro(
+        LastToDieWirePhase phase,
+        float secondsRemaining)
+    {
+        return phase == LastToDieWirePhase.Playing && secondsRemaining > 0f;
     }
 
     internal static int ResolveHostedLastToDieRemainingTicks(
@@ -916,10 +975,13 @@ public partial class Game1
                 enabled: true);
         }
 
-        DrawHostedLastToDieLobbyButton(
-            GetHostedLastToDieVoiceButtonBounds(),
-            GetVoiceChannelActionLabel(),
-            enabled: _voiceChat?.ServerState?.VoiceChannelRequiresJoin == true);
+        if (IsCoopLastToDieActive())
+        {
+            DrawHostedLastToDieLobbyButton(
+                GetHostedLastToDieVoiceButtonBounds(),
+                GetVoiceChannelActionLabel(),
+                enabled: _voiceChat?.ServerState?.VoiceChannelRequiresJoin == true);
+        }
 
         DrawHostedLastToDieLobbyButton(
             GetHostedLastToDieExitButtonBounds(),
@@ -988,36 +1050,35 @@ public partial class Game1
             new Rectangle(layout.Panel.X, layout.Panel.Bottom - 3, layout.Panel.Width, 3),
             new Color(76, 76, 76));
 
+        var targetStage = localPlayer.ActiveOfferTargetStage > 0
+            ? localPlayer.ActiveOfferTargetStage
+            : snapshot.StageNumber + 1;
+        var selectionNumber = Math.Max(1, localPlayer.ActiveOfferSelectionNumber);
+        var selectionsRequired = Math.Max(selectionNumber, localPlayer.ActiveOfferSelectionsRequired);
         DrawBitmapFontText(
-            "Perks",
+            $"Stage {targetStage} Perks",
             new Vector2(layout.Panel.X + 28f, layout.Panel.Y + 24f),
             Color.White,
-            1.22f);
+            1f);
         DrawBitmapFontText(
-            "Select a perk, then Confirm or Enter.",
+            $"Pick {selectionNumber} of {selectionsRequired}. Select a perk, then Confirm or Enter.",
             new Vector2(layout.Panel.X + 28f, layout.Panel.Y + 58f),
             new Color(212, 212, 212),
-            0.94f);
+            1f);
 
         for (var index = 0; index < localPlayer.ActiveOfferChoices.Count; index += 1)
         {
             var perkId = localPlayer.ActiveOfferChoices[index];
             var hasDefinition = HostedLastToDiePerks.TryGetValue(perkId, out var definition);
             var bounds = layout.CardBounds[index];
+            var offerSlot = localPlayer.ActiveOfferSlots is { } offerSlots
+                && index < offerSlots.Count
+                    ? offerSlots[index]
+                    : null;
+            var tier = offerSlot?.Tier ?? LastToDieWirePerkTier.Standard;
             var isSelected = index == _hostedRewardInput.SelectedIndex;
             var isHovered = index == _hostedLastToDieRewardHoverIndex || isSelected;
-            _spriteBatch.Draw(
-                _pixel,
-                bounds,
-                isHovered ? new Color(70, 38, 38, 240) : new Color(34, 37, 43, 232));
-            _spriteBatch.Draw(
-                _pixel,
-                new Rectangle(bounds.X, bounds.Y, bounds.Width, 3),
-                isSelected ? new Color(255, 214, 82) : isHovered ? new Color(210, 78, 78) : new Color(118, 126, 140));
-            _spriteBatch.Draw(
-                _pixel,
-                new Rectangle(bounds.X, bounds.Bottom - 3, bounds.Width, 3),
-                new Color(14, 16, 19));
+            DrawHostedLastToDieTierCard(bounds, tier, perkId, index, isHovered, isSelected);
 
             DrawBitmapFontText(
                 $"{index + 1}",
@@ -1028,7 +1089,7 @@ public partial class Game1
                 hasDefinition ? definition!.DisplayName : perkId,
                 new Vector2(bounds.X + 14f, bounds.Y + 44f),
                 Color.White,
-                0.98f);
+                1f);
 
             var descriptionLines = WrapMenuParagraph(
                 hasDefinition
@@ -1044,17 +1105,131 @@ public partial class Game1
                     descriptionLines[lineIndex],
                     new Vector2(bounds.X + 14f, lineY),
                     new Color(214, 214, 214),
-                    0.88f);
+                    1f);
                 lineY += 20f;
+            }
+
+            var rerollEnabled = !_hostedRewardInput.Submitted
+                && offerSlot is { RerollsRemaining: > 0, HasEligibleReplacement: true };
+            DrawLastToDieRewardReroll(layout, index, enabled: rerollEnabled);
+
+            if (isHovered && tier != LastToDieWirePerkTier.Standard)
+            {
+                var tierLabel = tier == LastToDieWirePerkTier.Ultra ? "Ultra" : "Rare";
+                var tierColor = tier == LastToDieWirePerkTier.Ultra
+                    ? new Color(255, 106, 106)
+                    : new Color(235, 150, 255);
+                DrawBitmapFontText(
+                    tierLabel,
+                    new Vector2(bounds.Right - MeasureBitmapFontWidth(tierLabel, 1f) - 14f, bounds.Y + 12f),
+                    tierColor,
+                    1f);
             }
         }
 
         DrawBitmapFontText(
-            $"Offer {localPlayer.ActiveOfferOrdinal} - Stage {snapshot.StageNumber + 1}",
+            $"Offer {localPlayer.ActiveOfferOrdinal} - Selection {selectionNumber}/{selectionsRequired}",
             new Vector2(layout.Panel.X + 28f, layout.Panel.Bottom - 42f),
             new Color(188, 188, 188),
-            0.88f);
+            1f);
         DrawLastToDieRewardConfirm(_hostedRewardInput, layout);
+    }
+
+    private void DrawHostedLastToDieTierCard(
+        Rectangle bounds,
+        LastToDieWirePerkTier tier,
+        string perkId,
+        int cardIndex,
+        bool hovered,
+        bool selected)
+    {
+        if (tier == LastToDieWirePerkTier.Standard)
+        {
+            _spriteBatch.Draw(_pixel, bounds, hovered ? new Color(70, 38, 38, 240) : new Color(34, 37, 43, 232));
+            _spriteBatch.Draw(_pixel, new Rectangle(bounds.X, bounds.Y, bounds.Width, 3),
+                selected ? new Color(255, 214, 82) : hovered ? new Color(210, 78, 78) : new Color(118, 126, 140));
+            _spriteBatch.Draw(_pixel, new Rectangle(bounds.X, bounds.Bottom - 3, bounds.Width, 3), new Color(14, 16, 19));
+            return;
+        }
+
+        var ultra = tier == LastToDieWirePerkTier.Ultra;
+        var top = ultra ? new Color(35, 7, 12) : new Color(39, 20, 57);
+        var bottom = ultra ? new Color(8, 8, 12) : new Color(17, 11, 31);
+        const int strips = 8;
+        for (var strip = 0; strip < strips; strip += 1)
+        {
+            var y = bounds.Y + (bounds.Height * strip / strips);
+            var nextY = bounds.Y + (bounds.Height * (strip + 1) / strips);
+            var tint = Color.Lerp(top, bottom, strip / (float)(strips - 1));
+            if (hovered)
+            {
+                tint = Color.Lerp(tint, ultra ? new Color(112, 17, 26) : new Color(86, 39, 113), 0.25f);
+            }
+            _spriteBatch.Draw(_pixel, new Rectangle(bounds.X, y, bounds.Width, Math.Max(1, nextY - y)), tint);
+        }
+
+        var seed = StableLastToDieCardSeed(perkId, cardIndex, tier);
+        var now = Environment.TickCount64;
+        var borderA = ultra ? new Color(105, 19, 25) : new Color(91, 50, 137);
+        var borderB = ultra ? new Color(246, 61, 67) : new Color(224, 102, 222);
+        DrawLastToDieSegmentedBorder(bounds, seed, borderA, borderB, selected);
+
+        var sparkleCount = ultra ? 3 : 4;
+        for (var sparkle = 0; sparkle < sparkleCount; sparkle += 1)
+        {
+            var positionSeed = seed + (uint)(sparkle * 0x9E3779B9u);
+            var x = bounds.X + 10 + (int)(positionSeed % (uint)Math.Max(1, bounds.Width - 20));
+            var y = bounds.Y + 8 + (int)((positionSeed >> 12) % (uint)Math.Max(1, bounds.Height - 16));
+            var oscillation = 0.5f + (0.5f * MathF.Sin((float)(now / 260d + sparkle + (seed % 19))));
+            var alpha = (byte)(10 + (oscillation * (ultra ? 28 : 24)));
+            var glint = ultra
+                ? new Color((byte)255, (byte)96, (byte)96, alpha)
+                : new Color((byte)255, (byte)183, (byte)252, alpha);
+            _spriteBatch.Draw(_pixel, new Rectangle(x, y, 2, 2), glint);
+        }
+
+        if (selected)
+        {
+            _spriteBatch.Draw(_pixel, new Rectangle(bounds.X + 4, bounds.Y + 4, bounds.Width - 8, 2), new Color(255, 214, 82));
+        }
+    }
+
+    private void DrawLastToDieSegmentedBorder(
+        Rectangle bounds,
+        uint seed,
+        Color start,
+        Color end,
+        bool selected)
+    {
+        const int segments = 10;
+        const int thickness = 4;
+        for (var index = 0; index < segments; index += 1)
+        {
+            var color = selected
+                ? new Color(255, 214, 82)
+                : Color.Lerp(start, end, index / (float)(segments - 1));
+            var x = bounds.X + (bounds.Width * index / segments);
+            var nextX = bounds.X + (bounds.Width * (index + 1) / segments);
+            var width = Math.Max(1, nextX - x);
+            _spriteBatch.Draw(_pixel, new Rectangle(x, bounds.Y, width, thickness), color);
+            _spriteBatch.Draw(_pixel, new Rectangle(x, bounds.Bottom - thickness, width, thickness), color);
+        }
+
+        var leftColor = selected ? new Color(255, 214, 82) : Color.Lerp(start, end, (seed & 1u) == 0 ? 0.25f : 0.65f);
+        var rightColor = selected ? new Color(255, 214, 82) : Color.Lerp(start, end, (seed & 1u) == 0 ? 0.65f : 0.25f);
+        _spriteBatch.Draw(_pixel, new Rectangle(bounds.X, bounds.Y, thickness, bounds.Height), leftColor);
+        _spriteBatch.Draw(_pixel, new Rectangle(bounds.Right - thickness, bounds.Y, thickness, bounds.Height), rightColor);
+    }
+
+    private static uint StableLastToDieCardSeed(string perkId, int cardIndex, LastToDieWirePerkTier tier)
+    {
+        var hash = 2166136261u;
+        foreach (var character in perkId)
+        {
+            hash = (hash ^ character) * 16777619u;
+        }
+        hash = (hash ^ (uint)cardIndex) * 16777619u;
+        return (hash ^ (uint)tier) * 16777619u;
     }
 
     private void DrawHostedLastToDieLoading(LastToDieRunSnapshotMessage snapshot)

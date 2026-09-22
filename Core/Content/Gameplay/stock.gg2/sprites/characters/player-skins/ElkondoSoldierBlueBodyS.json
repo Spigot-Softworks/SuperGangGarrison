@@ -1,0 +1,20 @@
+{
+  "id": "ElkondoSoldierBlueBodyS",
+  "framePaths": [
+    "assets/characters/player-skins/ElkondoSoldierBlueBodyS/0.png",
+    "assets/characters/player-skins/ElkondoSoldierBlueBodyS/1.png",
+    "assets/characters/player-skins/ElkondoSoldierBlueBodyS/2.png",
+    "assets/characters/player-skins/ElkondoSoldierBlueBodyS/3.png",
+    "assets/characters/player-skins/ElkondoSoldierBlueBodyS/4.png",
+    "assets/characters/player-skins/ElkondoSoldierBlueBodyS/5.png",
+    "assets/characters/player-skins/ElkondoSoldierBlueBodyS/6.png",
+    "assets/characters/player-skins/ElkondoSoldierBlueBodyS/7.png",
+    "assets/characters/player-skins/ElkondoSoldierBlueBodyS/8.png",
+    "assets/characters/player-skins/ElkondoSoldierBlueBodyS/9.png",
+    "assets/characters/player-skins/ElkondoSoldierBlueBodyS/10.png",
+    "assets/characters/player-skins/ElkondoSoldierBlueBodyS/11.png",
+    "assets/characters/player-skins/ElkondoSoldierBlueBodyS/12.png"
+  ],
+  "originX": 32,
+  "originY": 40
+}

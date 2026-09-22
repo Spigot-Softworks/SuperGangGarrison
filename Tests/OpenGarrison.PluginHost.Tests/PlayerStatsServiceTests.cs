@@ -218,6 +218,11 @@ public sealed class PlayerStatsServiceTests
             runId,
             roundNumber: 12,
             new Dictionary<byte, int> { [1] = 450, [2] = 700 },
+            new Dictionary<byte, string>
+            {
+                [1] = OpenGarrison.Core.LastToDie.LastToDieSurvivorCatalog.SoldierId.Value,
+                [2] = OpenGarrison.Core.LastToDie.LastToDieSurvivorCatalog.EngineerId.Value,
+            },
             OpenGarrison.Core.LastToDie.LastToDieDifficulty.Hardcore);
 
         var request = Assert.Single(api.LastToDieRuns);
@@ -225,6 +230,7 @@ public sealed class PlayerStatsServiceTests
         Assert.Equal(700, request.ScoreUnits);
         Assert.Equal(12, request.RoundNumber);
         Assert.Equal("hardcore", request.Difficulty);
+        Assert.Equal(OpenGarrison.Core.LastToDie.LastToDieSurvivorCatalog.EngineerId.Value, request.SurvivorId);
         Assert.Equal(OpenGarrison.Core.LastToDie.LastToDieRuleset.CurrentVersion, request.PolicyVersion);
         Assert.Equal($"{runId:N}:shared-account", request.SubmissionId);
     }

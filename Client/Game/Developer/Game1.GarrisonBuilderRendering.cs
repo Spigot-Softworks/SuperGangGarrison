@@ -33,7 +33,7 @@ public partial class Game1
 
     private float GetGarrisonBuilderRelativeBitmapFontScale(float relativeScale = 1f)
     {
-        return GarrisonBuilderChatFontScale * relativeScale;
+        return GarrisonBuilderChatFontScale * MathF.Max(1f, relativeScale);
     }
 
     private float GetGarrisonBuilderMinimumButtonHeight(float relativeTextScale = 1f)

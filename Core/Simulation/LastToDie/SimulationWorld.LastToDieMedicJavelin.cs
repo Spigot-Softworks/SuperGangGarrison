@@ -14,8 +14,10 @@ public sealed partial class SimulationWorld
 
         var explosionX = needle.X;
         var explosionY = needle.Y;
+        var owner = FindPlayerById(needle.OwnerId);
         var blastRadius = ResolveExplosiveSplashRadius(
-            LastToDieDerivedModifiers.MedicJavelinBlastRadius);
+            LastToDieDerivedModifiers.MedicJavelinBlastRadius
+                * MathF.Max(0.1f, owner?.LastToDieUniversalModifiers.ExplosionScale ?? 1f));
         RegisterWorldSoundEvent("ExplosionSnd", explosionX, explosionY, needle.OwnerId);
         RegisterVisualEffect("Explosion", explosionX, explosionY);
         if (ClientPredictionMode)
@@ -23,7 +25,6 @@ public sealed partial class SimulationWorld
             return true;
         }
 
-        var owner = FindPlayerById(needle.OwnerId);
         foreach (var target in EnumerateSimulatedPlayers().ToArray())
         {
             if (!target.IsAlive || target.Id == needle.OwnerId)

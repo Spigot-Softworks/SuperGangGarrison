@@ -151,30 +151,67 @@ public sealed class HealthPackEntity : SimulationEntity
 
     private void MoveVertically(SimpleLevel level, WorldBounds bounds)
     {
+        var previousY = Y;
         var wasFalling = VerticalSpeed >= 0f;
         var landedThisTick = false;
         VerticalSpeed = MathF.Min(MaxFallSpeed, VerticalSpeed + GravityPerTick);
-        Y += VerticalSpeed;
+        var nextY = Y + VerticalSpeed;
+        var halfHeight = Height / 2f;
 
         foreach (var solid in level.Solids)
         {
-            if (!IntersectsSolid(solid))
+            var left = X - (Width / 2f);
+            var right = X + (Width / 2f);
+            if (left >= solid.Right || right <= solid.Left)
             {
                 continue;
             }
 
-            if (wasFalling)
+            var previousTop = previousY - halfHeight;
+            var previousBottom = previousY + halfHeight;
+            var nextTop = nextY - halfHeight;
+            var nextBottom = nextY + halfHeight;
+            var crossedFromAbove = wasFalling
+                && previousBottom <= solid.Top
+                && nextBottom >= solid.Top;
+            var crossedFromBelow = !wasFalling
+                && previousTop >= solid.Bottom
+                && nextTop <= solid.Bottom;
+            var overlapsAtNextPosition = nextTop < solid.Bottom
+                && nextBottom > solid.Top;
+            if (!crossedFromAbove && !crossedFromBelow && !overlapsAtNextPosition)
             {
-                Y = solid.Top - (Height / 2f);
+                continue;
+            }
+
+            var resolveAbove = crossedFromAbove;
+            if (!crossedFromAbove && !crossedFromBelow)
+            {
+                // A network correction or a map-authored spawn can place a
+                // pack inside a solid. Move it to the nearest valid side
+                // instead of leaving it embedded in the floor.
+                var distanceAbove = MathF.Abs(previousY - (solid.Top - halfHeight));
+                var distanceBelow = MathF.Abs(previousY - (solid.Bottom + halfHeight));
+                resolveAbove = distanceAbove <= distanceBelow;
+            }
+
+            if (resolveAbove)
+            {
+                Y = solid.Top - halfHeight;
                 landedThisTick = true;
             }
             else
             {
-                Y = solid.Bottom + (Height / 2f);
+                Y = solid.Bottom + halfHeight;
             }
 
             VerticalSpeed = 0f;
             break;
+        }
+
+        if (VerticalSpeed != 0f)
+        {
+            Y = nextY;
         }
 
         var clampedY = bounds.ClampY(Y, Height);

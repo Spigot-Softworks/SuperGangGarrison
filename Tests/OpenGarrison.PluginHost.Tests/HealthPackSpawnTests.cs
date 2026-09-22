@@ -92,6 +92,87 @@ public sealed class HealthPackSpawnTests
         Assert.True(respawnedPack.IsMapSpawned);
     }
 
+    [Fact]
+    public void MapHealthPackEmbeddedInFloorIsMovedToSurfaceAndHeals()
+    {
+        const float floorTop = 320f;
+        var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
+        var spawn = new SpawnPoint(128f, 128f);
+        world.CombatTestSetLevel(new SimpleLevel(
+            "embedded-health-pack-test",
+            GameModeKind.TeamDeathmatch,
+            new WorldBounds(512f, 512f),
+            1f,
+            null,
+            0,
+            1,
+            spawn,
+            [spawn],
+            [],
+            [],
+            [],
+            floorY: floorTop,
+            [new LevelSolid(0f, floorTop, 512f, 192f)],
+            importedFromSource: false,
+            healthPackSpawns:
+            [
+                new HealthPackSpawnMarker(128f, floorTop + 10f, HealthPackSize.Small, RespawnTicks: 2),
+            ]));
+
+        world.PrepareLocalPlayerJoin();
+        world.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.CompleteLocalPlayerJoin(PlayerClass.Scout);
+        world.TeleportLocalPlayer(128f, floorTop - world.LocalPlayer.CollisionBottomOffset);
+
+        var maxHealth = world.LocalPlayer.MaxHealth;
+        var healthBeforePickup = Math.Max(1, maxHealth - 60);
+        world.LocalPlayer.ForceSetHealth(healthBeforePickup);
+
+        var healthPack = Assert.Single(world.HealthPacks);
+        Assert.Equal(floorTop - (HealthPackEntity.Height / 2f), healthPack.Y);
+
+        world.AdvanceOneTick();
+
+        Assert.Equal(
+            healthBeforePickup + (int)MathF.Round(maxHealth * HealthPackEntity.SmallHealFraction),
+            world.LocalPlayer.Health);
+        Assert.Empty(world.HealthPacks);
+    }
+
+    [Fact]
+    public void DroppedHealthPackEmbeddedInFloorResolvesToNearestValidSide()
+    {
+        const float floorTop = 320f;
+        var level = new SimpleLevel(
+            "embedded-dropped-health-pack-test",
+            GameModeKind.TeamDeathmatch,
+            new WorldBounds(512f, 512f),
+            1f,
+            null,
+            0,
+            1,
+            new SpawnPoint(128f, 128f),
+            [new SpawnPoint(128f, 128f)],
+            [],
+            [],
+            [],
+            floorY: floorTop,
+            [new LevelSolid(0f, floorTop, 512f, 192f)],
+            importedFromSource: false);
+        var healthPack = new HealthPackEntity(
+            1,
+            128f,
+            floorTop + 2f,
+            HealthPackSize.Small,
+            horizontalSpeed: 0f,
+            verticalSpeed: -2f);
+
+        healthPack.Advance(level, new WorldBounds(512f, 512f));
+
+        Assert.Equal(floorTop - (HealthPackEntity.Height / 2f), healthPack.Y);
+        Assert.True(healthPack.HasLanded);
+    }
+
     [Theory]
     [InlineData(PlayerClass.Soldier)]
     [InlineData(PlayerClass.Scout)]

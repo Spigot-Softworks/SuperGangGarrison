@@ -62,6 +62,9 @@ public sealed class BrowserGameHostService : IDisposable, IAsyncDisposable
         try
         {
             ClientRuntimeBootstrap.InitializeBrowserHttpClient(_httpClient);
+            BrowserRunUploadStore.LoadJson = () => _jsRuntime.InvokeAsync<string>("OpenGarrisonRunRecordings.load").AsTask();
+            BrowserRunUploadStore.SaveJson = (id, json) => _jsRuntime.InvokeVoidAsync("OpenGarrisonRunRecordings.save", id, json).AsTask();
+            BrowserRunUploadStore.Delete = id => _jsRuntime.InvokeVoidAsync("OpenGarrisonRunRecordings.remove", id).AsTask();
             BrowserLoadingProgress.Show = (left, top, width, height) =>
                 ((IJSInProcessRuntime)_jsRuntime).InvokeVoid("OpenGarrisonLoadingProgress.show", left, top, width, height);
             BrowserLoadingProgress.Hide = () =>

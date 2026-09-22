@@ -1,4 +1,5 @@
 using Microsoft.Xna.Framework;
+using System;
 using OpenGarrison.Core;
 
 namespace OpenGarrison.Client;
@@ -38,9 +39,24 @@ internal sealed class BrowserGameMakerAtlasSpriteResolver(
                 return null;
             }
 
-            frames.Add(_atlasTextureCache.CreateFrame(
-                page,
-                new Rectangle(frameManifest.X, frameManifest.Y, frameManifest.Width, frameManifest.Height)));
+            var sourceRectangle = new Rectangle(
+                frameManifest.X,
+                frameManifest.Y,
+                frameManifest.Width,
+                frameManifest.Height);
+
+            // The corner logo is also used by the startup/menu composition and has
+            // historically been the first visible casualty when a driver samples
+            // outside an atlas frame. Keep it on its own texture even though the
+            // rest of the GameMaker sprites remain atlas-backed.
+            if (string.Equals(spriteId, "OpenGarrisonLogoS", StringComparison.Ordinal))
+            {
+                frames.Add(new LoadedSpriteFrame(_atlasTextureCache.CreateFrameTexture(page, sourceRectangle)));
+            }
+            else
+            {
+                frames.Add(_atlasTextureCache.CreateFrame(page, sourceRectangle));
+            }
         }
 
         return new LoadedGameMakerSprite(frames, new Point(spriteManifest.OriginX, spriteManifest.OriginY));

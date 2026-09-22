@@ -12,7 +12,14 @@ public sealed class CivilDefenseTurretEntity : SimulationEntity
     public const int ReloadTicks = SentryEntity.ReloadTicks;
     public const int ShotTraceTicks = 2;
 
-    public CivilDefenseTurretEntity(int id, int ownerPlayerId, PlayerTeam team, float x, float y, float startDirectionX) : base(id)
+    public CivilDefenseTurretEntity(
+        int id,
+        int ownerPlayerId,
+        PlayerTeam team,
+        float x,
+        float y,
+        float startDirectionX,
+        int lifetimeTicks = -1) : base(id)
     {
         OwnerPlayerId = ownerPlayerId;
         Team = team;
@@ -21,6 +28,7 @@ public sealed class CivilDefenseTurretEntity : SimulationEntity
         FacingDirectionX = startDirectionX >= 0f ? 1f : -1f;
         AimDirectionDegrees = FacingDirectionX < 0f ? 180f : 0f;
         Health = InitialHealth;
+        LifetimeTicksRemaining = lifetimeTicks < 0 ? -1 : lifetimeTicks;
     }
 
     public int OwnerPlayerId { get; }
@@ -43,6 +51,8 @@ public sealed class CivilDefenseTurretEntity : SimulationEntity
 
     public int ShotTraceTicksRemaining { get; private set; }
 
+    public int LifetimeTicksRemaining { get; private set; }
+
     public bool HasLanded { get; private set; }
 
     public bool IsBuilt { get; private set; }
@@ -54,6 +64,8 @@ public sealed class CivilDefenseTurretEntity : SimulationEntity
     public bool IsShotTraceVisible => ShotTraceTicksRemaining > 0;
 
     public bool IsDead => Health <= 0;
+
+    public bool IsExpired => LifetimeTicksRemaining == 0;
 
     public void Advance(SimpleLevel level, WorldBounds bounds)
     {
@@ -99,11 +111,17 @@ public sealed class CivilDefenseTurretEntity : SimulationEntity
         {
             ShotTraceTicksRemaining -= 1;
         }
+
+        if (LifetimeTicksRemaining > 0)
+        {
+            LifetimeTicksRemaining -= 1;
+        }
     }
 
     public void ApplyNetworkState(float x, float y, int health, bool hasLanded, bool isBuilt,
         float facingDirectionX, float aimDirectionDegrees, int reloadTicksRemaining,
-        int shotTraceTicksRemaining, float lastShotTargetX, float lastShotTargetY)
+        int shotTraceTicksRemaining, float lastShotTargetX, float lastShotTargetY,
+        int lifetimeTicksRemaining = -1)
     {
         X = x;
         Y = y;
@@ -114,6 +132,7 @@ public sealed class CivilDefenseTurretEntity : SimulationEntity
         AimDirectionDegrees = aimDirectionDegrees;
         ReloadTicksRemaining = Math.Max(0, reloadTicksRemaining);
         ShotTraceTicksRemaining = Math.Max(0, shotTraceTicksRemaining);
+        LifetimeTicksRemaining = lifetimeTicksRemaining < 0 ? -1 : lifetimeTicksRemaining;
         LastShotTargetX = lastShotTargetX;
         LastShotTargetY = lastShotTargetY;
     }

@@ -51,6 +51,42 @@ public sealed class HostedLastToDieModalRegressionTests
     }
 
     [Fact]
+    public void EscapePauseMenuSuspendsSoloLastToDieSimulation()
+    {
+        var game = CreateGame(LastToDieWirePhase.Playing, selected: true);
+        var canOpenPauseMenu = InvokeBool(game, "CanOpenInGamePauseMenu");
+        Assert.True(Game1.ShouldOpenInGamePauseMenu(
+            escapePressed: true,
+            controllerPausePressed: false,
+            canOpenInGamePauseMenu: canOpenPauseMenu));
+        Assert.False(Game1.ShouldOpenInGamePauseMenu(
+            escapePressed: true,
+            controllerPausePressed: false,
+            canOpenInGamePauseMenu: false));
+        Set(game, "_inGameMenuOpen", true);
+        Assert.True(InvokeBool(game, "HasOpenGameplayOverlay"));
+        Assert.True(Game1.ShouldSuspendOfflineLastToDieSimulation(
+            isLastToDieSessionActive: true,
+            hasOpenGameplayOverlay: true,
+            survivorMenuOpen: false,
+            perkMenuOpen: false,
+            stageClearOverlayOpen: false,
+            failurePresentationActive: false));
+        Assert.True(Game1.ShouldPauseHostedLastToDieSoloSimulation(
+            isHostedServerRunning: true,
+            isConnected: true,
+            maximumPlayers: 1,
+            phase: LastToDieWirePhase.Playing,
+            hasOpenGameplayOverlay: true));
+        Assert.False(Game1.ShouldPauseHostedLastToDieSoloSimulation(
+            isHostedServerRunning: true,
+            isConnected: true,
+            maximumPlayers: 2,
+            phase: LastToDieWirePhase.Playing,
+            hasOpenGameplayOverlay: true));
+    }
+
+    [Fact]
     public void ClosingAnOverlayCannotPassTheSameInputToTheChoiceUnderneath()
     {
         var game = CreateGame(LastToDieWirePhase.SurvivorChoice, true);

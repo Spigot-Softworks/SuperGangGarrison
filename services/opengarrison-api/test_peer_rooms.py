@@ -96,6 +96,17 @@ class PeerRoomTests(unittest.TestCase):
         self.assertEqual(1, room["slot"])
         self.assertEqual(self.owner["clientId"], api.peer_rooms[room["code"]].owner)
 
+    def test_rankings_and_room_auth_accept_both_uuid_spellings(self):
+        identity = self.identity("F")
+        identity["clientId"] = str(uuid.UUID(identity["clientId"]))
+
+        rankings = self.client.post("/api/last-to-die/rankings", json=identity)
+        self.assertEqual(200, rankings.status_code, rankings.text)
+
+        room = self.post("create", identity)
+        self.assertEqual(200, room.status_code, room.text)
+        self.assertEqual(uuid.UUID(identity["clientId"]).hex, api.peer_rooms[room.json()["code"]].owner)
+
     def test_rooms_do_not_consume_the_managed_game_process_limit(self):
         for letter in "ABCD":
             self.assertEqual(200, self.post("create", self.identity(letter)).status_code)

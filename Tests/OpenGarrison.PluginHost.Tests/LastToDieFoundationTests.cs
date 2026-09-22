@@ -17,14 +17,20 @@ public sealed class LastToDieFoundationTests
         var survivors = LastToDieSurvivorCatalog.CreateStock();
         var catalog = LastToDieExpansionPerkCatalog.Create(survivors);
 
-        Assert.Equal(127, catalog.Definitions.Count);
+        Assert.Equal(158, catalog.Definitions.Count);
         Assert.Equal(25, catalog.Definitions.Count(perk => perk.SurvivorId == LastToDieSurvivorCatalog.SoldierId));
         Assert.Equal(13, catalog.Definitions.Count(perk => perk.SurvivorId == LastToDieSurvivorCatalog.DemoknightId));
         Assert.Equal(26, catalog.Definitions.Count(perk => perk.SurvivorId == LastToDieSurvivorCatalog.EngineerId));
         Assert.Equal(25, catalog.Definitions.Count(perk => perk.SurvivorId == LastToDieSurvivorCatalog.SpyId));
         Assert.Equal(20, catalog.Definitions.Count(perk => perk.SurvivorId == LastToDieSurvivorCatalog.MedicId));
-        Assert.Equal(18, catalog.Definitions.Count(perk => perk.SurvivorId == LastToDieSurvivorCatalog.SniperId));
-        Assert.Equal(127, catalog.Definitions.Select(perk => perk.Id).Distinct().Count());
+        Assert.Equal(21, catalog.Definitions.Count(perk => perk.SurvivorId == LastToDieSurvivorCatalog.SniperId));
+        Assert.Equal(158, catalog.Definitions.Select(perk => perk.Id).Distinct().Count());
+        Assert.Equal(28, catalog.Definitions.Count(perk => perk.Scope == LastToDiePerkScope.AllClass));
+        Assert.Equal(15, catalog.Definitions.Count(perk => perk.Tier == LastToDiePerkTier.Rare));
+        Assert.Equal(13, catalog.Definitions.Count(perk => perk.Tier == LastToDiePerkTier.Ultra));
+        Assert.All(
+            catalog.Definitions.Where(perk => perk.Scope == LastToDiePerkScope.AllClass),
+            perk => Assert.Null(perk.SurvivorId));
 
         var essenceExtractor = catalog.GetRequired(LastToDiePerkIds.Engineer.EssenceExtractor);
         var freezeRay = catalog.GetRequired(LastToDiePerkIds.Engineer.FreezeRay);
@@ -73,6 +79,192 @@ public sealed class LastToDieFoundationTests
             var snapshot = director.CreateSnapshot();
             Assert.Equal(LastToDiePhase.LoadingStage, snapshot.Phase);
         }
+    }
+
+    [Fact]
+    public void RewardOffersKeepTierGuaranteesAnchoredToTheirTargetStage()
+    {
+        var director = CreateDirector(seed: 0x5A6E);
+        var stageOneOffers = AdvanceDirectorToRewardStage(director, targetStage: 1);
+        Assert.Single(stageOneOffers);
+        Assert.Equal(1, stageOneOffers[0].TargetStage);
+        Assert.All(stageOneOffers[0].Slots, slot => Assert.Equal(LastToDiePerkTier.Standard, slot.Tier));
+
+        var stageThreeOffers = AdvanceDirectorToRewardStage(director, targetStage: 3);
+        Assert.All(stageThreeOffers, offer => Assert.Equal(3, offer.TargetStage));
+        Assert.All(stageThreeOffers, offer => Assert.Equal(3, offer.Slots.Count(slot => slot.Tier == LastToDiePerkTier.Rare)));
+        Assert.DoesNotContain(stageThreeOffers.SelectMany(offer => offer.Slots), slot => slot.Tier == LastToDiePerkTier.Ultra);
+
+        var stageFourOffers = AdvanceDirectorToRewardStage(director, targetStage: 4);
+        Assert.DoesNotContain(stageFourOffers.SelectMany(offer => offer.Slots), slot => slot.Tier == LastToDiePerkTier.Ultra);
+
+        var stageFiveOffers = AdvanceDirectorToRewardStage(director, targetStage: 5);
+        Assert.All(stageFiveOffers, offer => Assert.Equal(5, offer.TargetStage));
+        Assert.DoesNotContain(stageFiveOffers.SelectMany(offer => offer.Slots), slot => slot.Tier == LastToDiePerkTier.Ultra);
+
+        var stageTenOffers = AdvanceDirectorToRewardStage(director, targetStage: 10);
+        Assert.All(stageTenOffers, offer => Assert.Equal(10, offer.TargetStage));
+        Assert.Equal(3, stageTenOffers.SelectMany(offer => offer.Slots).Count(slot => slot.Tier == LastToDiePerkTier.Ultra));
+
+        var stageTwentyOffers = AdvanceDirectorToRewardStage(director, targetStage: 20);
+        Assert.All(stageTwentyOffers, offer => Assert.Equal(20, offer.TargetStage));
+        Assert.Equal(3, stageTwentyOffers.SelectMany(offer => offer.Slots).Count(slot => slot.Tier == LastToDiePerkTier.Ultra));
+    }
+
+    [Theory]
+    [InlineData(2, false, false, false, LastToDiePerkTier.Standard)]
+    [InlineData(3, false, false, false, LastToDiePerkTier.Rare)]
+    [InlineData(4, false, false, false, LastToDiePerkTier.Standard)]
+    [InlineData(4, false, false, true, LastToDiePerkTier.Rare)]
+    [InlineData(4, true, false, true, LastToDiePerkTier.Rare)]
+    [InlineData(10, false, true, true, LastToDiePerkTier.Ultra)]
+    public void RewardTierSelectionAppliesStageThreeRareAndLaterPerSlotOdds(
+        int targetStage,
+        bool luckyDrawActive,
+        bool guaranteedUltra,
+        bool rareSlotRoll,
+        LastToDiePerkTier expected)
+    {
+        Assert.Equal(
+            expected,
+            LastToDieDirector.GetDesiredRewardTierForSlot(
+                targetStage,
+                luckyDrawActive,
+                guaranteedUltra,
+                rareSlotRoll));
+    }
+
+    [Theory]
+    [InlineData(3, false, false, true, 0, false)]
+    [InlineData(4, false, false, true, 4, true)]
+    [InlineData(4, false, false, true, 5, false)]
+    [InlineData(4, false, false, true, 99, false)]
+    [InlineData(10, false, true, true, 0, false)]
+    [InlineData(4, true, false, true, 0, false)]
+    [InlineData(4, false, false, false, 0, false)]
+    public void RareRewardSlotChanceIsFivePercentAfterRoundThree(
+        int targetStage,
+        bool luckyDrawActive,
+        bool guaranteedUltra,
+        bool hasEligibleRarePerk,
+        int percentileRoll,
+        bool expected)
+    {
+        Assert.Equal(
+            expected,
+            LastToDieDirector.ShouldRollRareRewardSlot(
+                targetStage,
+                luckyDrawActive,
+                guaranteedUltra,
+                hasEligibleRarePerk,
+                percentileRoll));
+    }
+
+    [Fact]
+    public void RewardRerollKeepsItsTierAndCanOnlyBeUsedOnce()
+    {
+        var director = CreateDirector(seed: 4711);
+        AdvanceToOpeningOffer(director);
+        var offer = GetSolo(director).ActiveOffer!;
+        var slot = offer.Slots.First(candidate => candidate.RerollsRemaining > 0);
+
+        Assert.True(director.TryRerollReward(SoloPlayerId, offer.OfferId, slot.PerkId, out var rerollError), rerollError);
+        var rerolledOffer = GetSolo(director).ActiveOffer!;
+        var replacement = Assert.Single(rerolledOffer.Slots.Where(candidate => candidate.Tier == slot.Tier && candidate.RerollsRemaining == 0));
+        Assert.NotEqual(slot.PerkId, replacement.PerkId);
+        Assert.False(director.TrySelectReward(SoloPlayerId, offer.OfferId, replacement.PerkId, out var staleError));
+        Assert.Contains("stale", staleError, StringComparison.OrdinalIgnoreCase);
+        Assert.False(director.TryRerollReward(SoloPlayerId, rerolledOffer.OfferId, replacement.PerkId, out var secondRerollError));
+        Assert.Contains("already", secondRerollError, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void LuckyDrawForcesRareOffersForExactlyTheNextTwoRounds()
+    {
+        var director = CreateDirectorWithUniversalPool(LastToDiePerkIds.Ultra.LuckyDraw);
+        var milestoneOffers = AdvanceDirectorToRewardStage(
+            director,
+            targetStage: 10,
+            selectTargetOffers: false);
+        var milestoneOffer = Assert.Single(milestoneOffers);
+        var luckyDrawSlot = Assert.Single(milestoneOffer.Slots.Where(slot => slot.Tier == LastToDiePerkTier.Ultra));
+        Assert.Equal(LastToDiePerkIds.Ultra.LuckyDraw, luckyDrawSlot.PerkId);
+        Assert.True(director.TrySelectReward(SoloPlayerId, milestoneOffer.OfferId, luckyDrawSlot.PerkId, out var luckyDrawError), luckyDrawError);
+        Assert.Equal(2, GetSolo(director).LuckyDrawRoundsRemaining);
+
+        var stageElevenOffer = CompleteCurrentStageAndGetNextOffer(director);
+        Assert.Equal(11, stageElevenOffer.TargetStage);
+        Assert.All(stageElevenOffer.Slots, slot => Assert.Equal(LastToDiePerkTier.Rare, slot.Tier));
+        Assert.Equal(1, GetSolo(director).LuckyDrawRoundsRemaining);
+        Assert.True(director.TrySelectReward(SoloPlayerId, stageElevenOffer.OfferId, stageElevenOffer.Choices[0], out var stageElevenError), stageElevenError);
+
+        var stageTwelveOffer = CompleteCurrentStageAndGetNextOffer(director);
+        Assert.Equal(12, stageTwelveOffer.TargetStage);
+        Assert.All(stageTwelveOffer.Slots, slot => Assert.Equal(LastToDiePerkTier.Rare, slot.Tier));
+        Assert.Equal(0, GetSolo(director).LuckyDrawRoundsRemaining);
+    }
+
+    [Fact]
+    public void SecondChanceCanBeConsumedOnlyOnceAfterItIsSelected()
+    {
+        var director = CreateDirectorWithUniversalPool(LastToDiePerkIds.Ultra.SecondChance);
+        var milestoneOffers = AdvanceDirectorToRewardStage(
+            director,
+            targetStage: 10,
+            selectTargetOffers: false);
+        var milestoneOffer = Assert.Single(milestoneOffers);
+        var secondChanceSlot = Assert.Single(milestoneOffer.Slots.Where(slot => slot.Tier == LastToDiePerkTier.Ultra));
+        Assert.Equal(LastToDiePerkIds.Ultra.SecondChance, secondChanceSlot.PerkId);
+        Assert.True(director.TrySelectReward(SoloPlayerId, milestoneOffer.OfferId, secondChanceSlot.PerkId, out var selectionError), selectionError);
+
+        Assert.True(director.TryConsumeSecondChance(SoloPlayerId, out var consumeError), consumeError);
+        Assert.True(GetSolo(director).SecondChanceConsumed);
+        Assert.False(director.TryConsumeSecondChance(SoloPlayerId, out var secondConsumeError));
+        Assert.Contains("already been consumed", secondConsumeError, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void UniversalPerkModifiersFollowTheDocumentedStackingRules()
+    {
+        var modifiers = LastToDieUniversalModifiers.FromPerks(
+        [
+            LastToDiePerkIds.Rare.Colossus,
+            LastToDiePerkIds.Rare.HealthBooster,
+            LastToDiePerkIds.Rare.TroopersBlessing,
+            LastToDiePerkIds.Rare.SpeedBooster,
+            LastToDiePerkIds.Rare.SleightOfHand,
+            LastToDiePerkIds.Rare.PowerBooster,
+            LastToDiePerkIds.Rare.SpikedArmor,
+            LastToDiePerkIds.Ultra.GutsAndGlory,
+            LastToDiePerkIds.Ultra.ZergRush,
+            LastToDiePerkIds.Ultra.FatalBravado,
+            LastToDiePerkIds.Ultra.FightOrFlight,
+            LastToDiePerkIds.Ultra.ImmovableObject,
+            LastToDiePerkIds.Ultra.HeartOfBravery,
+            LastToDiePerkIds.Ultra.InfiniteSlayWorks,
+            LastToDiePerkIds.Ultra.SecondChance,
+        ]);
+
+        Assert.Equal(210, modifiers.MaximumHealthBonus);
+        Assert.Equal(50, modifiers.BaseMaximumHealthOverride);
+        Assert.Equal(0.39f, modifiers.PlayerScale, precision: 3);
+        Assert.Equal(1.3f, modifiers.MeleeScale);
+        Assert.Equal(1.3f, modifiers.ProjectileScale);
+        Assert.Equal(1.3f, modifiers.ExplosionScale);
+        Assert.Equal(1.15f * 1.15f * 1.25f * 2f, modifiers.FireSpeedMultiplier, precision: 3);
+        Assert.Equal(modifiers.FireSpeedMultiplier, modifiers.ReloadSpeedMultiplier);
+        Assert.Equal(1.15f * 1.15f, modifiers.MovementSpeedMultiplier, precision: 3);
+        Assert.Equal(1.15f, modifiers.OutgoingDamageMultiplier, precision: 3);
+        Assert.Equal(0.8f, modifiers.BulletDamageTakenMultiplier);
+        Assert.Equal(0.8f, modifiers.ExplosionDamageTakenMultiplier);
+        Assert.Equal(0.4f, modifiers.KnockbackReceivedMultiplier);
+        Assert.Equal(5f, modifiers.RegenerationPerSecond);
+        Assert.Equal(0.2f, modifiers.ReflectionFraction);
+        Assert.Equal(3, modifiers.MaximumHealthPerRunKill);
+        Assert.Equal(10, modifiers.HealPerKill);
+        Assert.True(modifiers.RageDisabled);
+        Assert.True(modifiers.FatalBravado);
+        Assert.True(modifiers.SecondChance);
     }
 
     [Fact]
@@ -163,6 +355,27 @@ public sealed class LastToDieFoundationTests
 
         Assert.Equal(baseRunPower * 1.3f, boosted.RunPower, precision: 3);
         Assert.Equal(baseRunPower, stock.RunPower, precision: 3);
+    }
+
+    [Fact]
+    public void HostedServerTracksCombosForActualSurvivors()
+    {
+        var world = new SimulationWorld();
+        Assert.True(world.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.TryPrepareNetworkPlayerJoin(3));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(3, PlayerClass.Heavy));
+        Assert.True(world.TrySetNetworkPlayerTeam(2, PlayerTeam.Red, respawnLivePlayerImmediately: true));
+        Assert.True(world.TrySetNetworkPlayerTeam(3, PlayerTeam.Blue, respawnLivePlayerImmediately: true));
+        Assert.True(world.TryGetNetworkPlayer(2, out var attacker));
+        Assert.True(world.TryGetNetworkPlayer(3, out var target));
+        Assert.True(world.TryConfigureLastToDiePlayerBuild(2, [], refillHealth: true));
+
+        Assert.True(world.TryApplyGameplayDamage(target.Id, 20f, attacker.Id, null));
+
+        Assert.Equal(1, attacker.CurrentCombo);
+        Assert.True(attacker.ComboTicksRemaining > 0);
+        Assert.Equal(0, target.CurrentCombo);
     }
 
     [Fact]
@@ -336,15 +549,20 @@ public sealed class LastToDieFoundationTests
     {
         var ruleset = LastToDieRuleset.CreateDefault(ticksPerSecond: 30);
 
-        Assert.Equal(new LastToDieStageDefinition(1, 2, 5_400), ruleset.GetStage(1));
-        Assert.Equal(new LastToDieStageDefinition(9, 10, 19_800), ruleset.GetStage(9));
-        Assert.Equal(new LastToDieStageDefinition(10, 10, 19_800), ruleset.GetStage(10));
+        Assert.Equal(new LastToDieStageDefinition(1, 2, 1_800), ruleset.GetStage(1));
+        Assert.Equal(new LastToDieStageDefinition(9, 10, 16_200), ruleset.GetStage(9));
+        Assert.Equal(new LastToDieStageDefinition(10, 11, 16_200), ruleset.GetStage(10));
+        Assert.Equal(new LastToDieStageDefinition(15, 16, 16_200), ruleset.GetStage(15));
+        Assert.Equal(new LastToDieStageDefinition(16, 16, 16_200), ruleset.GetStage(16));
         Assert.True(ruleset.Endless);
         Assert.False(LastToDieRuleset.CanSpawnSniper(8));
         Assert.True(LastToDieRuleset.CanSpawnSniper(9));
         Assert.Equal(1f, LastToDieRuleset.GetEnemyStatMultiplier(9));
         Assert.Equal(1.05f, LastToDieRuleset.GetEnemyStatMultiplier(10));
         Assert.Equal(1.2f, LastToDieRuleset.GetEnemyStatMultiplier(13));
+        Assert.Equal(1f, LastToDieRuleset.GetEnemyDamageMultiplier(10));
+        Assert.Equal(1.05f, LastToDieRuleset.GetEnemyDamageMultiplier(11));
+        Assert.Equal(1.1f, LastToDieRuleset.GetEnemyDamageMultiplier(12));
         Assert.Equal(54_000, ruleset.RunTimeLimitTicks);
         Assert.Equal(90, ruleset.KillTimerReductionTicks);
     }
@@ -474,18 +692,18 @@ public sealed class LastToDieFoundationTests
         Assert.True(director.TryBeginStage(serverTick: 100, out var beginError), beginError);
         var playing = director.CreateSnapshot();
         Assert.Equal(LastToDiePhase.Playing, playing.Phase);
-        Assert.Equal(5_500, playing.StageEndServerTick);
+        Assert.Equal(1_900, playing.StageEndServerTick);
         Assert.Equal(0, playing.RunEndServerTick);
 
         var structuralRevision = playing.StructuralRevision;
         Assert.True(director.TryRecordKills(SoloPlayerId, killCount: 2, serverTick: 200, out var killError), killError);
         var afterKills = director.CreateSnapshot();
-        Assert.Equal(5_320, afterKills.StageEndServerTick);
-        Assert.Equal(structuralRevision, afterKills.StructuralRevision);
+        Assert.Equal(1_720, afterKills.StageEndServerTick);
+        Assert.Equal(structuralRevision + 1, afterKills.StructuralRevision);
         Assert.Equal(2, GetSolo(director).Kills);
 
         Assert.True(director.TryAdvancePlayingState(
-            serverTick: 5_320,
+            serverTick: afterKills.StageEndServerTick,
             redObjectiveWon: false,
             blueObjectiveWon: false,
             anyAfterlifeWindowActive: false,
@@ -745,6 +963,38 @@ public sealed class LastToDieFoundationTests
         Assert.Equal(LastToDiePhase.Lost, director.Phase);
     }
 
+    [Fact]
+    public void OwnedControlPointConsumesLastToDieStageTimerTwiceAsFast()
+    {
+        var withoutOwnership = CreatePlayingDirector();
+        var withOwnership = CreatePlayingDirector();
+        var initialDeadline = withoutOwnership.CreateSnapshot().StageEndServerTick;
+        Assert.Equal(initialDeadline, withOwnership.CreateSnapshot().StageEndServerTick);
+
+        for (var serverTick = 101; serverTick <= 200; serverTick++)
+        {
+            Assert.True(withoutOwnership.TryAdvancePlayingState(
+                serverTick,
+                redObjectiveWon: false,
+                blueObjectiveWon: false,
+                anyAfterlifeWindowActive: false,
+                out var unownedError,
+                redControlPointOwned: false), unownedError);
+            Assert.True(withOwnership.TryAdvancePlayingState(
+                serverTick,
+                redObjectiveWon: false,
+                blueObjectiveWon: false,
+                anyAfterlifeWindowActive: false,
+                out var ownedError,
+                redControlPointOwned: true), ownedError);
+        }
+
+        var unownedDeadline = withoutOwnership.CreateSnapshot().StageEndServerTick;
+        var ownedDeadline = withOwnership.CreateSnapshot().StageEndServerTick;
+        Assert.Equal(initialDeadline, unownedDeadline);
+        Assert.Equal(initialDeadline - 100, ownedDeadline);
+    }
+
     private static LastToDieDirector CreateDirector(ulong seed)
     {
         var survivors = LastToDieSurvivorCatalog.CreateStock();
@@ -758,6 +1008,54 @@ public sealed class LastToDieFoundationTests
             RunId);
     }
 
+    private static LastToDieDirector CreateDirectorWithUniversalPool(LastToDiePerkId universalPerk)
+    {
+        var survivors = LastToDieSurvivorCatalog.CreateStock();
+        var definitions = Enumerable.Range(0, 12)
+            .Select(index => new LastToDiePerkDefinition(
+                new LastToDiePerkId($"ltd.perk.spy.test-standard-{index:D2}"),
+                LastToDieSurvivorCatalog.SpyId,
+                $"Test Standard {index}",
+                string.Empty))
+            .Concat(Enumerable.Range(0, 16).Select(index => new LastToDiePerkDefinition(
+                new LastToDiePerkId($"ltd.perk.allclass.test-rare-{index:D2}"),
+                null,
+                $"Test Rare {index}",
+                string.Empty,
+                tier: LastToDiePerkTier.Rare,
+                scope: LastToDiePerkScope.AllClass)))
+            .Append(new LastToDiePerkDefinition(
+                universalPerk,
+                null,
+                "Test Ultra",
+                string.Empty,
+                tier: LastToDiePerkTier.Ultra,
+                scope: LastToDiePerkScope.AllClass));
+
+        return new LastToDieDirector(
+            LastToDieRuleset.CreateDefault(),
+            survivors,
+            new LastToDiePerkCatalog(survivors, definitions),
+            ["Truefort", "Conflict", "Harvest"],
+            LastToDieDifficulty.Standard,
+            seed: 0x71D2,
+            RunId);
+    }
+
+    private static LastToDieRewardOffer CompleteCurrentStageAndGetNextOffer(LastToDieDirector director)
+    {
+        Assert.Equal(LastToDiePhase.LoadingStage, director.Phase);
+        Assert.True(director.TrySetStageReady(SoloPlayerId, out var readyError), readyError);
+        Assert.True(director.TryBeginStage(serverTick: 100, out var beginError), beginError);
+        Assert.True(director.TryAdvancePlayingState(
+            serverTick: 101,
+            redObjectiveWon: true,
+            blueObjectiveWon: false,
+            anyAfterlifeWindowActive: false,
+            out var advanceError), advanceError);
+        return Assert.IsType<LastToDieRewardOffer>(GetSolo(director).ActiveOffer);
+    }
+
     private static LastToDieDirector CreatePlayingDirector()
     {
         var director = CreateDirector(seed: 99);
@@ -767,6 +1065,75 @@ public sealed class LastToDieFoundationTests
         Assert.True(director.TrySetStageReady(SoloPlayerId, out var readyError), readyError);
         Assert.True(director.TryBeginStage(100, out var beginError), beginError);
         return director;
+    }
+
+    private static IReadOnlyList<LastToDieRewardOffer> AdvanceDirectorToRewardStage(
+        LastToDieDirector director,
+        int targetStage,
+        bool selectTargetOffers = true)
+    {
+        if (director.Phase == LastToDiePhase.Lobby)
+        {
+            AdvanceToOpeningOffer(director);
+        }
+
+        while (true)
+        {
+            var snapshot = director.CreateSnapshot();
+            if (snapshot.Phase == LastToDiePhase.RewardChoice)
+            {
+                var activeOffer = GetSolo(director).ActiveOffer;
+                if (activeOffer is null)
+                {
+                    throw new InvalidOperationException("The director entered reward choice without an active offer.");
+                }
+
+                var captureTargetOffers = activeOffer.TargetStage == targetStage;
+                var capturedOffers = new List<LastToDieRewardOffer>();
+                while ((activeOffer = GetSolo(director).ActiveOffer) is not null)
+                {
+                    if (captureTargetOffers)
+                    {
+                        capturedOffers.Add(activeOffer);
+                        if (!selectTargetOffers)
+                        {
+                            return capturedOffers;
+                        }
+                    }
+
+                    Assert.True(
+                        director.TrySelectReward(
+                            SoloPlayerId,
+                            activeOffer.OfferId,
+                            activeOffer.Choices[0],
+                            out var rewardError),
+                        rewardError);
+                }
+
+                if (captureTargetOffers)
+                {
+                    return capturedOffers;
+                }
+
+                continue;
+            }
+
+            if (snapshot.Phase != LastToDiePhase.LoadingStage)
+            {
+                throw new InvalidOperationException($"Cannot advance to a reward from phase {snapshot.Phase}.");
+            }
+
+            Assert.True(director.TrySetStageReady(SoloPlayerId, out var readyError), readyError);
+            Assert.True(director.TryBeginStage(serverTick: 100, out var beginError), beginError);
+            Assert.True(
+                director.TryAdvancePlayingState(
+                    serverTick: 101,
+                    redObjectiveWon: true,
+                    blueObjectiveWon: false,
+                    anyAfterlifeWindowActive: false,
+                    out var stageError),
+                stageError);
+        }
     }
 
     private static LastToDieRunSnapshot AdvanceHostedDirectorToOpeningStage(

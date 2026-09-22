@@ -153,7 +153,7 @@ public partial class Game1
 
         public void PlayRoundEndSoundIfNeeded()
         {
-            if (!_game._audioAvailable)
+            if (!_game._audioAvailable || _game.IsAnyLastToDieSessionActive)
             {
                 return;
             }

@@ -24,6 +24,9 @@ public static partial class ProtocolCodec
             writer.Write(entry.VictimPlayerId);
             writer.Write((byte)entry.SpecialType);
             writer.Write(entry.EventId);
+            WriteString(writer, entry.AssistName, MaxPlayerNameBytes, nameof(entry.AssistName));
+            writer.Write(entry.AssistTeam);
+            writer.Write(entry.AssistPlayerId);
             var involvedPlayerIds = entry.InvolvedPlayerIds;
             var involvedCount = Math.Min(involvedPlayerIds.Count, byte.MaxValue);
             writer.Write((byte)involvedCount);
@@ -52,7 +55,12 @@ public static partial class ProtocolCodec
                 reader.ReadInt32(),
                 reader.ReadInt32(),
                 (KillFeedSpecialType)reader.ReadByte(),
-                reader.ReadUInt64());
+                reader.ReadUInt64())
+            {
+                AssistName = ReadString(reader, MaxPlayerNameBytes),
+                AssistTeam = reader.ReadByte(),
+                AssistPlayerId = reader.ReadInt32(),
+            };
             var involvedCount = reader.ReadByte();
             var involvedPlayerIds = new int[involvedCount];
             for (var involvedIndex = 0; involvedIndex < involvedPlayerIds.Length; involvedIndex += 1)
@@ -100,6 +108,7 @@ public static partial class ProtocolCodec
             writer.Write(point.CapTimeTicks);
             writer.Write(point.Cappers);
             writer.Write(point.IsLocked);
+            writer.Write(point.HasHealingAura);
         }
     }
 
@@ -116,6 +125,7 @@ public static partial class ProtocolCodec
                 reader.ReadUInt16(),
                 reader.ReadUInt16(),
                 reader.ReadByte(),
+                reader.ReadBoolean(),
                 reader.ReadBoolean()));
         }
 

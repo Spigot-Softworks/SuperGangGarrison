@@ -164,8 +164,6 @@ public partial class Game1
         var alphaGraph = Og2NavigationGraphStore.GetOrBuild(_world.Level, out var resolution);
         var warmedAlphaPaths = alphaGraph.WarmAlphaObjectiveRoutes(_world.Level, GetEligiblePracticeBotClassCycle());
         _world.WarmCombatSpatialIndices();
-        var tapeLoaded = BotBrainObjectiveTapeStore.TryLoad(_world.Level, out _);
-        var proofGraphCount = WarmPracticeBotBrainProofGraphsForCurrentLevel();
         stopwatch.Stop();
 
         if (warmTrace)
@@ -178,7 +176,7 @@ public partial class Game1
 
         return
             $" botbrain-warmup alphaNodes={alphaGraph.NodeCount} alphaPaths={warmedAlphaPaths} " +
-            $"tape={tapeLoaded} proofgraphs={proofGraphCount} elapsed={stopwatch.Elapsed.TotalMilliseconds:0.0}ms " +
+            $"elapsed={stopwatch.Elapsed.TotalMilliseconds:0.0}ms " +
             $"source={resolution.Source} sourcePath=\"{resolution.Path}\"";
     }
 
@@ -197,8 +195,6 @@ public partial class Game1
             var stopwatch = Stopwatch.StartNew();
             var alphaGraph = Og2NavigationGraphStore.GetOrBuild(level, out var resolution);
             var warmedAlphaPaths = alphaGraph.WarmAlphaObjectiveRoutes(level, eligibleClasses);
-            var tapeLoaded = BotBrainObjectiveTapeStore.TryLoad(level, out _);
-            var proofGraphCount = WarmPracticeBotBrainProofGraphs(level, eligibleClasses);
             stopwatch.Stop();
 
             if (warmTrace)
@@ -213,7 +209,7 @@ public partial class Game1
                 Success: true,
                 Diagnostics:
                     $" botbrain-warmup alphaNodes={alphaGraph.NodeCount} alphaPaths={warmedAlphaPaths} " +
-                    $"tape={tapeLoaded} proofgraphs={proofGraphCount} elapsed={stopwatch.Elapsed.TotalMilliseconds:0.0}ms " +
+                    $"elapsed={stopwatch.Elapsed.TotalMilliseconds:0.0}ms " +
                     $"source={resolution.Source} sourcePath=\"{resolution.Path}\"");
         }
         catch (Exception exception)
@@ -222,35 +218,5 @@ public partial class Game1
                 Success: false,
                 Diagnostics: $" botbrain-warmup failed={exception.GetType().Name}: {exception.Message}");
         }
-    }
-
-    private int WarmPracticeBotBrainProofGraphsForCurrentLevel()
-    {
-        if (_world.Level is null)
-        {
-            return 0;
-        }
-
-        return WarmPracticeBotBrainProofGraphs(_world.Level, GetEligiblePracticeBotClassCycle());
-    }
-
-    private static int WarmPracticeBotBrainProofGraphs(
-        SimpleLevel level,
-        IReadOnlyList<PlayerClass> eligibleClasses)
-    {
-        var loadedCount = 0;
-        Span<PlayerTeam> teams = [PlayerTeam.Red, PlayerTeam.Blue];
-        foreach (var team in teams)
-        {
-            foreach (var classId in eligibleClasses)
-            {
-                if (VerifiedNavProofGraphAssetStore.TryLoad(level, team, classId, out _))
-                {
-                    loadedCount += 1;
-                }
-            }
-        }
-
-        return loadedCount;
     }
 }

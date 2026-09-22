@@ -230,8 +230,15 @@ public partial class Game1
                 }
                 case '\r':
                 case '\n':
-                    _game.SetLocalPlayerNameFromSettings(_game._playerNameEditBuffer);
-                    _game._editingPlayerName = false;
+                    if (_game._namePromptOpen)
+                    {
+                        _game.CommitPlayerNamePrompt();
+                    }
+                    else
+                    {
+                        _game.SetLocalPlayerNameFromSettings(_game._playerNameEditBuffer);
+                        _game._editingPlayerName = false;
+                    }
                     break;
                 default:
                     if (!char.IsControl(character) && character != '#' && _game._playerNameEditBuffer.Length < 20)

@@ -222,7 +222,6 @@ public sealed partial class PlayerEntity
         if (!IsAlive
             || !HasScopedSniperWeaponEquipped
             || IsSniperBowEquipped
-            || LastToDieSniperProfile.LightMarksmanEnabled
             || IsTaunting
             || IsUsingBinoculars)
         {
@@ -234,6 +233,7 @@ public sealed partial class PlayerEntity
         if (!IsSniperScoped)
         {
             SniperChargeTicks = 0;
+            SniperRifleFullyChargedHitStreak = 0;
         }
 
         return true;
@@ -684,7 +684,10 @@ public sealed partial class PlayerEntity
 
     private void AdvanceSniperState()
     {
-        if (!HasScopedSniperWeaponEquipped || !IsSniperScoped || PrimaryCooldownTicks > 0)
+        if (!HasScopedSniperWeaponEquipped
+            || !IsSniperScoped
+            || PrimaryCooldownTicks > 0
+            || LastToDieSniperProfile.LightMarksmanEnabled)
         {
             SniperChargeTicks = 0;
             return;

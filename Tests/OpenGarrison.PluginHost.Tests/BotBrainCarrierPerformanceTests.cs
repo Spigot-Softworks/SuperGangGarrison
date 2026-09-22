@@ -27,8 +27,7 @@ public sealed class BotBrainCarrierPerformanceTests
         // explicit route fixture instead of coupling the behavior assertion
         // to whichever maps happen to ship a graph.
         var controller = new BotBrainController(
-            CreateEscortRouteGraph(escort.X, escort.Y, world.LocalPlayer.X, world.LocalPlayer.Y),
-            forceAlphaNavigation: true);
+            CreateEscortRouteGraph(escort.X, escort.Y, world.LocalPlayer.X, world.LocalPlayer.Y));
 
         _ = controller.Think(escort, world, PlayerTeam.Red);
 

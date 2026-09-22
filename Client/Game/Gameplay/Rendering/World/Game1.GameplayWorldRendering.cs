@@ -41,7 +41,7 @@ public partial class Game1
         var hasLevelBackground = DrawLevelBackground(cameraPosition);
         DrawCustomMapGameplaySprites(cameraPosition, CustomMapSpriteLayerKind.Bg);
         DrawSpritesheets(cameraPosition, CustomMapSpriteLayerKind.Bg);
-        DrawFallbackLevelSolids(cameraPosition, hasLevelBackground);
+        DrawFallbackLevelSolids(cameraPosition, hasLevelBackground, viewportWidth, viewportHeight);
         DrawMovingPlatforms(cameraPosition);
         DrawGameplayEffectsAndProjectiles(cameraPosition);
         DrawGameplayStructures(cameraPosition);
@@ -83,7 +83,7 @@ public partial class Game1
         DrawCustomMapGameplaySprites(cameraPosition, CustomMapSpriteLayerKind.Fg);
         DrawSpritesheets(cameraPosition, CustomMapSpriteLayerKind.Fg);
         DrawForegroundSprites(cameraPosition, ForegroundSpriteLayerKind.Bg);
-        DrawCustomMapForegroundAndVoid(cameraPosition, worldRectangle);
+        DrawCustomMapForegroundAndVoid(cameraPosition, worldRectangle, viewportWidth, viewportHeight);
         DrawForegroundSprites(cameraPosition, ForegroundSpriteLayerKind.Fg);
         DrawRocketCollisionDebug(cameraPosition);
         DrawProjectileSpawnBlockedDebug(cameraPosition);
@@ -133,7 +133,11 @@ public partial class Game1
         _spriteBatch.DrawString(_consoleFont, label, textPosition, new Color(255, 100, 100, 245));
     }
 
-    private void DrawFallbackLevelSolids(Vector2 cameraPosition, bool hasLevelBackground)
+    private void DrawFallbackLevelSolids(
+        Vector2 cameraPosition,
+        bool hasLevelBackground,
+        int viewportWidth,
+        int viewportHeight)
     {
         if (hasLevelBackground)
         {
@@ -142,8 +146,8 @@ public partial class Game1
 
         var visibleLeft = cameraPosition.X - 1f;
         var visibleTop = cameraPosition.Y - 1f;
-        var visibleRight = cameraPosition.X + ViewportWidth + 1f;
-        var visibleBottom = cameraPosition.Y + ViewportHeight + 1f;
+        var visibleRight = cameraPosition.X + viewportWidth + 1f;
+        var visibleBottom = cameraPosition.Y + viewportHeight + 1f;
         foreach (var solid in _world.Level.Solids)
         {
             if (solid.Right <= visibleLeft

@@ -1,0 +1,16 @@
+{
+  "id": "ElkondoSniperRedBodyS",
+  "framePaths": [
+    "assets/characters/player-skins/ElkondoSniperRedBodyS/0.png",
+    "assets/characters/player-skins/ElkondoSniperRedBodyS/1.png",
+    "assets/characters/player-skins/ElkondoSniperRedBodyS/2.png",
+    "assets/characters/player-skins/ElkondoSniperRedBodyS/3.png",
+    "assets/characters/player-skins/ElkondoSniperRedBodyS/4.png",
+    "assets/characters/player-skins/ElkondoSniperRedBodyS/5.png",
+    "assets/characters/player-skins/ElkondoSniperRedBodyS/6.png",
+    "assets/characters/player-skins/ElkondoSniperRedBodyS/7.png",
+    "assets/characters/player-skins/ElkondoSniperRedBodyS/8.png"
+  ],
+  "originX": 32,
+  "originY": 40
+}

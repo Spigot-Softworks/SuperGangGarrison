@@ -882,6 +882,13 @@ public partial class Game1
         var drawX = roundedOrigin.X + ((weaponDefinition.XOffset + anchorOrigin.X) * facingScale * playerScale);
         var drawY = roundedOrigin.Y + ((weaponDefinition.YOffset + bodySelection.EquipmentOffset + anchorOrigin.Y) * playerScale);
 
+        if (weaponDefinition.MuzzleOffset is { } muzzle)
+        {
+            var forward = new Vector2(aimDirectionX, aimDirectionY);
+            var down = new Vector2(-aimDirectionY, aimDirectionX) * facingScale;
+            return new Vector2(drawX, drawY) + (forward * muzzle.X + down * muzzle.Y) * playerScale;
+        }
+
         var tipDistance = Math.Max(0f, (sprite.Frames[0].Width - anchorOrigin.X) * playerScale);
         return new Vector2(
             drawX + aimDirectionX * tipDistance,
@@ -1047,10 +1054,14 @@ public partial class Game1
                     SpriteSortMode.Deferred,
                     BlendState.Additive,
                     samplerState: SamplerState.PointClamp,
-                    rasterizerState: RasterizerState.CullNone);
+                    rasterizerState: RasterizerState.CullNone,
+                    transformMatrix: GetActiveGameplayWorldSpriteBatchTransform());
                 _spriteBatch.Draw(_pixel, shotRectangle, overlayColor);
                 _spriteBatch.End();
-                _spriteBatch.Begin(samplerState: SamplerState.PointClamp, rasterizerState: RasterizerState.CullNone);
+                _spriteBatch.Begin(
+                    samplerState: SamplerState.PointClamp,
+                    rasterizerState: RasterizerState.CullNone,
+                    transformMatrix: GetActiveGameplayWorldSpriteBatchTransform());
             }
         }
         else if (shot.IsCritical)
@@ -1089,10 +1100,14 @@ public partial class Game1
                     SpriteSortMode.Deferred,
                     BlendState.Additive,
                     samplerState: SamplerState.PointClamp,
-                    rasterizerState: RasterizerState.CullNone);
+                    rasterizerState: RasterizerState.CullNone,
+                    transformMatrix: GetActiveGameplayWorldSpriteBatchTransform());
                 _spriteBatch.Draw(_pixel, shotRectangle, overlayColor);
                 _spriteBatch.End();
-                _spriteBatch.Begin(samplerState: SamplerState.PointClamp, rasterizerState: RasterizerState.CullNone);
+                _spriteBatch.Begin(
+                    samplerState: SamplerState.PointClamp,
+                    rasterizerState: RasterizerState.CullNone,
+                    transformMatrix: GetActiveGameplayWorldSpriteBatchTransform());
             }
         }
         else if (shot.IsCritical)
@@ -1166,10 +1181,14 @@ public partial class Game1
                     SpriteSortMode.Deferred,
                     BlendState.Additive,
                     samplerState: SamplerState.PointClamp,
-                    rasterizerState: RasterizerState.CullNone);
+                    rasterizerState: RasterizerState.CullNone,
+                    transformMatrix: GetActiveGameplayWorldSpriteBatchTransform());
                 _spriteBatch.Draw(_pixel, needleRectangle, overlayColor);
                 _spriteBatch.End();
-                _spriteBatch.Begin(samplerState: SamplerState.PointClamp, rasterizerState: RasterizerState.CullNone);
+                _spriteBatch.Begin(
+                    samplerState: SamplerState.PointClamp,
+                    rasterizerState: RasterizerState.CullNone,
+                    transformMatrix: GetActiveGameplayWorldSpriteBatchTransform());
             }
         }
         else if (needle.IsCritical)
@@ -1270,10 +1289,14 @@ public partial class Game1
                     SpriteSortMode.Deferred,
                     BlendState.Additive,
                     samplerState: SamplerState.PointClamp,
-                    rasterizerState: RasterizerState.CullNone);
+                    rasterizerState: RasterizerState.CullNone,
+                    transformMatrix: GetActiveGameplayWorldSpriteBatchTransform());
                 _spriteBatch.Draw(_pixel, bladeRectangle, overlayColor);
                 _spriteBatch.End();
-                _spriteBatch.Begin(samplerState: SamplerState.PointClamp, rasterizerState: RasterizerState.CullNone);
+                _spriteBatch.Begin(
+                    samplerState: SamplerState.PointClamp,
+                    rasterizerState: RasterizerState.CullNone,
+                    transformMatrix: GetActiveGameplayWorldSpriteBatchTransform());
             }
         }
         else if (blade.IsCritical)
@@ -1782,10 +1805,14 @@ public partial class Game1
                 SpriteSortMode.Deferred,
                 BlendState.Additive,
                 samplerState: SamplerState.PointClamp,
-                rasterizerState: RasterizerState.CullNone);
+                    rasterizerState: RasterizerState.CullNone,
+                    transformMatrix: GetActiveGameplayWorldSpriteBatchTransform());
             _spriteBatch.Draw(_pixel, flameRectangle, overlayColor);
             _spriteBatch.End();
-            _spriteBatch.Begin(samplerState: SamplerState.PointClamp, rasterizerState: RasterizerState.CullNone);
+                _spriteBatch.Begin(
+                    samplerState: SamplerState.PointClamp,
+                    rasterizerState: RasterizerState.CullNone,
+                    transformMatrix: GetActiveGameplayWorldSpriteBatchTransform());
         }
     }
 
@@ -1932,10 +1959,14 @@ public partial class Game1
                     SpriteSortMode.Deferred,
                     BlendState.Additive,
                     samplerState: SamplerState.PointClamp,
-                    rasterizerState: RasterizerState.CullNone);
+                    rasterizerState: RasterizerState.CullNone,
+                    transformMatrix: GetActiveGameplayWorldSpriteBatchTransform());
                 _spriteBatch.Draw(_pixel, flareRectangle, overlayColor);
                 _spriteBatch.End();
-                _spriteBatch.Begin(samplerState: SamplerState.PointClamp, rasterizerState: RasterizerState.CullNone);
+                _spriteBatch.Begin(
+                    samplerState: SamplerState.PointClamp,
+                    rasterizerState: RasterizerState.CullNone,
+                    transformMatrix: GetActiveGameplayWorldSpriteBatchTransform());
             }
         }
         else if (flare.IsCritical)
@@ -1967,7 +1998,7 @@ public partial class Game1
             outerColor,
             rotation,
             pixelOrigin,
-            new Vector2(FlareProjectileEntity.DragonRageVisualWidth, 6f),
+            new Vector2(FlareProjectileEntity.DragonRageVisualWidth, FlareProjectileEntity.DragonRageVisualHeight),
             SpriteEffects.None,
             layerDepth: 0f);
         _spriteBatch.Draw(
@@ -1977,7 +2008,7 @@ public partial class Game1
             coreColor,
             rotation,
             pixelOrigin,
-            new Vector2(FlareProjectileEntity.DragonRageCoreVisualWidth, 2f),
+            new Vector2(FlareProjectileEntity.DragonRageCoreVisualWidth, 3.2f),
             SpriteEffects.None,
             layerDepth: 0f);
     }
@@ -2031,7 +2062,7 @@ public partial class Game1
             new Color(255, 110, 90),
             new Color(230, 220, 210));
         var rocketFrame = GetRocketSpriteFrame(rocket.Team);
-        var rocketScale = rocket.ExperimentalVisualScale;
+        var rocketScale = rocket.ExperimentalVisualScale * (rocket.IsBallistic ? 1.3f : 1f);
 
         // Draw outline first (behind sprite) if critical
         if (rocket.IsCritical)
@@ -2058,10 +2089,14 @@ public partial class Game1
                     SpriteSortMode.Deferred,
                     BlendState.Additive,
                     samplerState: SamplerState.PointClamp,
-                    rasterizerState: RasterizerState.CullNone);
+                    rasterizerState: RasterizerState.CullNone,
+                    transformMatrix: GetActiveGameplayWorldSpriteBatchTransform());
                 _spriteBatch.Draw(_pixel, rocketRectangle, overlayColor);
                 _spriteBatch.End();
-                _spriteBatch.Begin(samplerState: SamplerState.PointClamp, rasterizerState: RasterizerState.CullNone);
+                _spriteBatch.Begin(
+                    samplerState: SamplerState.PointClamp,
+                    rasterizerState: RasterizerState.CullNone,
+                    transformMatrix: GetActiveGameplayWorldSpriteBatchTransform());
             }
         }
         else if (rocket.IsCritical)
@@ -2120,10 +2155,14 @@ public partial class Game1
                     SpriteSortMode.Deferred,
                     BlendState.Additive,
                     samplerState: SamplerState.PointClamp,
-                    rasterizerState: RasterizerState.CullNone);
+                    rasterizerState: RasterizerState.CullNone,
+                    transformMatrix: GetActiveGameplayWorldSpriteBatchTransform());
                 _spriteBatch.Draw(_pixel, mineRectangle, overlayColor);
                 _spriteBatch.End();
-                _spriteBatch.Begin(samplerState: SamplerState.PointClamp, rasterizerState: RasterizerState.CullNone);
+                _spriteBatch.Begin(
+                    samplerState: SamplerState.PointClamp,
+                    rasterizerState: RasterizerState.CullNone,
+                    transformMatrix: GetActiveGameplayWorldSpriteBatchTransform());
             }
         }
         else if (mine.IsCritical)
@@ -2162,10 +2201,14 @@ public partial class Game1
                     SpriteSortMode.Deferred,
                     BlendState.Additive,
                     samplerState: SamplerState.PointClamp,
-                    rasterizerState: RasterizerState.CullNone);
+                    rasterizerState: RasterizerState.CullNone,
+                    transformMatrix: GetActiveGameplayWorldSpriteBatchTransform());
                 _spriteBatch.Draw(_pixel, grenadeRectangle, overlayColor);
                 _spriteBatch.End();
-                _spriteBatch.Begin(samplerState: SamplerState.PointClamp, rasterizerState: RasterizerState.CullNone);
+                _spriteBatch.Begin(
+                    samplerState: SamplerState.PointClamp,
+                    rasterizerState: RasterizerState.CullNone,
+                    transformMatrix: GetActiveGameplayWorldSpriteBatchTransform());
             }
 
             return;

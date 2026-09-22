@@ -20,17 +20,17 @@ public sealed class AlternatePrimaryWeaponBalanceTests
         Assert.Equal("weapon.flamethrower", loadout.Primary.DefaultItemId);
         Assert.Equal(BuiltInGameplayBehaviorIds.DragonRage, item.BehaviorId);
         Assert.Equal(PrimaryWeaponKind.Custom, weapon.Kind);
-        Assert.Equal(4, weapon.MaxAmmo);
+        Assert.Equal(6, weapon.MaxAmmo);
         Assert.Equal(1, weapon.AmmoPerShot);
         Assert.Equal(16, weapon.ReloadDelayTicks);
         Assert.Equal(18, weapon.AmmoReloadTicks);
         Assert.Equal(22f, weapon.MinShotSpeed);
-        Assert.Equal(45f, weapon.DirectHitDamage);
+        Assert.Equal(35f, weapon.DirectHitDamage);
         Assert.Equal("DragonRageS", item.Presentation.WorldSpriteName);
         Assert.Null(item.Presentation.RecoilSpriteName);
         Assert.Equal("DragonRageFRS", item.Presentation.ReloadSpriteName);
-        Assert.Equal(21f, FlareProjectileEntity.DragonRageVisualWidth);
-        Assert.Equal(16f, FlareProjectileEntity.DragonRageCoreVisualWidth);
+        Assert.Equal(16.8f, FlareProjectileEntity.DragonRageVisualWidth);
+        Assert.Equal(12.8f, FlareProjectileEntity.DragonRageCoreVisualWidth);
     }
 
     [Fact]
@@ -51,14 +51,14 @@ public sealed class AlternatePrimaryWeaponBalanceTests
 
         var slug = Assert.Single(world.Flares);
         Assert.True(slug.IsDragonRageSlug);
-        Assert.Equal(45f, slug.DamagePerHit);
+        Assert.Equal(35f, slug.DamagePerHit);
         Assert.Equal("DragonRageKL", slug.KillFeedWeaponSpriteName);
         Assert.Equal(FlareProjectileEntity.DragonRageLifetimeTicks, slug.TicksRemaining);
         Assert.InRange(
             MathF.Sqrt((slug.VelocityX * slug.VelocityX) + (slug.VelocityY * slug.VelocityY)),
             21.99f,
             22.01f);
-        Assert.Equal(3, pyro.CurrentShells);
+        Assert.Equal(5, pyro.CurrentShells);
         Assert.False(pyro.HasPyroWeaponEquipped);
 
         var networkState = Assert.Single(new Protocol64StatePublisher(world).BuildProjectileStates(1));
@@ -69,11 +69,11 @@ public sealed class AlternatePrimaryWeaponBalanceTests
             SimulationWorld.LocalPlayerSlot));
         var replicatedSlug = Assert.Single(receiver.Flares);
         Assert.True(replicatedSlug.IsDragonRageSlug);
-        Assert.Equal(45f, replicatedSlug.DamagePerHit);
+        Assert.Equal(35f, replicatedSlug.DamagePerHit);
     }
 
     [Fact]
-    public void DragonRageDirectHitDealsFortyFiveAndIgnites()
+    public void DragonRageDirectHitDealsThirtyFiveAndIgnites()
     {
         var world = CreateJoinedWorld(PlayerClass.Pyro);
         var owner = world.LocalPlayer;
@@ -88,15 +88,68 @@ public sealed class AlternatePrimaryWeaponBalanceTests
             target.Left - 8f,
             target.Y,
             velocityX: 16f,
-            damagePerHit: 45f,
+            damagePerHit: 35f,
             style: FlareProjectileStyle.DragonRageSlug,
             lifetimeTicks: FlareProjectileEntity.DragonRageLifetimeTicks);
 
         world.AdvanceOneTick();
 
-        Assert.Equal(healthBefore - 45, target.Health);
+        Assert.Equal(healthBefore - 35, target.Health);
         Assert.True(target.IsBurning);
+        Assert.Single(world.Flares);
+        world.AdvanceOneTick();
+        Assert.Equal(healthBefore - 35, target.Health);
+    }
+
+    [Fact]
+    public void DragonRagePiercesTwoEnemiesInOneTickWithoutHittingEitherTwice()
+    {
+        var world = CreateJoinedWorld(PlayerClass.Pyro);
+        var owner = world.LocalPlayer;
+        owner.TeleportTo(200f, 500f);
+        var first = AddEnemy(world, 2, 300f, 500f);
+        var second = AddEnemy(world, 3, 320f, 500f);
+        var firstHealth = first.Health;
+        var secondHealth = second.Health;
+        world.CombatTestSpawnFlare(owner, 270f, 500f, velocityX: 80f,
+            damagePerHit: 35f, style: FlareProjectileStyle.DragonRageSlug);
+        world.AdvanceOneTick();
+        Assert.Equal(firstHealth - 35, first.Health);
+        Assert.Equal(secondHealth - 35, second.Health);
+        Assert.Single(world.Flares);
+        world.AdvanceOneTick();
+        Assert.Equal(firstHealth - 35, first.Health);
+        Assert.Equal(secondHealth - 35, second.Health);
+    }
+
+    [Fact]
+    public void PiercingSlugStillStopsAtFloor()
+    {
+        var world = CreateJoinedWorld(PlayerClass.Pyro);
+        world.CombatTestSpawnFlare(world.LocalPlayer, 700f, 1010f, velocityY: 30f,
+            style: FlareProjectileStyle.DragonRageSlug);
+        world.AdvanceOneTick();
         Assert.Empty(world.Flares);
+    }
+
+    [Fact]
+    public void SuccessfulHitDoublesDragonRageFireRateAndExpiryCannotUndoIt()
+    {
+        var world = CreateJoinedWorld(PlayerClass.Pyro);
+        var pyro = world.LocalPlayer;
+        Assert.True(pyro.TrySelectGameplayPrimaryItem("weapon.dragon-rage"));
+        world.SetLocalInput(default(PlayerInputSnapshot) with
+        {
+            FirePrimary = true, AimWorldX = pyro.X + 300f, AimWorldY = pyro.Y,
+        });
+        world.AdvanceOneTick();
+        var shot = pyro.DragonRageCurrentShotSequence;
+        Assert.Equal(23, pyro.PrimaryCooldownTicks);
+        pyro.ResolveDragonRageShot(shot, true, 0);
+        Assert.Equal(11, pyro.PrimaryCooldownTicks);
+        pyro.ResolveDragonRageShot(shot, false, FlareProjectileEntity.DragonRageLifetimeTicks);
+        Assert.True(pyro.IsDragonRageRapidFireActive);
+        Assert.Equal(11, pyro.PrimaryCooldownTicks);
     }
 
     [Fact]
@@ -111,7 +164,7 @@ public sealed class AlternatePrimaryWeaponBalanceTests
             22f,
             0f,
             ticksRemaining: FlareProjectileEntity.DragonRageLifetimeTicks,
-            damagePerHit: 45f,
+            damagePerHit: 35f,
             style: FlareProjectileStyle.DragonRageSlug);
 
         for (var tick = 0; tick < FlareProjectileEntity.DragonRageLifetimeTicks / 2; tick += 1)
@@ -121,13 +174,13 @@ public sealed class AlternatePrimaryWeaponBalanceTests
 
         Assert.Equal(1f, slug.PresentationAlpha);
         slug.AdvanceOneTick();
-        Assert.InRange(slug.PresentationAlpha, 0.76f, 0.77f);
-        for (var tick = 0; tick < 7; tick += 1)
+        Assert.InRange(slug.PresentationAlpha, 0.56f, 0.57f);
+        for (var tick = 0; tick < 3; tick += 1)
         {
             slug.AdvanceOneTick();
         }
         Assert.True(slug.IsExpired);
-        Assert.Equal(352f, slug.X);
+        Assert.Equal(176f, slug.X);
 
         slug.Reflect(3, PlayerTeam.Blue, MathF.PI);
         Assert.Equal(FlareProjectileEntity.DragonRageLifetimeTicks, slug.TicksRemaining);
@@ -281,13 +334,14 @@ public sealed class AlternatePrimaryWeaponBalanceTests
             registry.GetRequiredItem("weapon.tommy-gun").BehaviorId);
         Assert.Equal(PrimaryWeaponKind.PelletGun, tommy.Kind);
         Assert.Equal(40, tommy.MaxAmmo);
-        Assert.Equal(12f, tommy.DirectHitDamage);
+        Assert.Equal(9f, tommy.DirectHitDamage);
         Assert.Equal(54, tommy.AmmoReloadTicks);
         Assert.True(tommy.RefillsAllAtOnce);
         Assert.Equal(0, tommy.AmmoRegenPerTick);
         Assert.Null(tommy.PlayerSlowMovementMultiplier);
         Assert.Equal(-5f, tommyItem.Presentation.WeaponOffsetX);
         Assert.Equal(-5f, tommyItem.Presentation.WeaponOffsetY);
+        Assert.Equal(8f, tommyItem.Presentation.ReloadSpriteOffsetX);
     }
 
     [Fact]

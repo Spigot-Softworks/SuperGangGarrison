@@ -70,28 +70,13 @@ public sealed class BotBrainChatBubbleController
             self,
             team,
             new BotBrainChatBubbleContext(
-                BuildControllerTraversalTrace(controller),
+                controller.LastDirectDriveTrace,
                 controller.LastSemanticRecoveryTrace,
                 controller.LastCombatTarget,
                 controller.LastMedicHealTargetId,
                 controller.LastMedicHealTargetIsPocket),
             input,
             controlledTeamsBySlot);
-    }
-
-    private static string BuildControllerTraversalTrace(BotBrainController controller)
-    {
-        if (string.IsNullOrWhiteSpace(controller.LastDirectDriveTrace))
-        {
-            return controller.LastTraversalTrace;
-        }
-
-        if (string.IsNullOrWhiteSpace(controller.LastTraversalTrace))
-        {
-            return controller.LastDirectDriveTrace;
-        }
-
-        return $"{controller.LastDirectDriveTrace} {controller.LastTraversalTrace}";
     }
 
     public PlayerInputSnapshot Update(

@@ -68,7 +68,8 @@ public sealed partial class SimulationWorld
                     IgnoreOrdinaryGeometry: sniperProfile.FmjEnabled,
                     AllowFriendlySupport: sniperProfile.GuardianEnabled,
                     MaximumEnemyPlayerHits: maximumEnemyPlayerHits,
-                    DetectLastToDieHeadshots: sniperProfile.DecapitatorEnabled));
+                    DetectLastToDieHeadshots: sniperProfile.DecapitatorEnabled,
+                    PierceFriendlyPlayers: sniperProfile.MechanicaEnabled && isFullyCharged));
             RegisterCombatTrace(
                 weaponOrigin.BaseX,
                 weaponOrigin.BaseY,
@@ -103,7 +104,21 @@ public sealed partial class SimulationWorld
                 if (playerHit.IsFriendlySupport)
                 {
                     _world.TryApplyLastToDieSniperGuardian(attacker, playerHit.Player);
-                    break;
+                    if (sniperProfile.ExplosiveTipEnabled)
+                    {
+                        _world.TryExplodeLastToDieSniperRifleImpact(
+                            attacker,
+                            weaponOrigin.BaseX + (directionX * playerHit.Distance),
+                            weaponOrigin.BaseY + (directionY * playerHit.Distance),
+                            isCritical,
+                            capturedCriticalDamageMultiplier);
+                    }
+                    if (!sniperProfile.MechanicaEnabled || !isFullyCharged)
+                    {
+                        break;
+                    }
+
+                    continue;
                 }
 
                 var executesFromFiftyCal = sniperProfile.FiftyCalEnabled && enemyHitOrdinal == 0;
@@ -146,31 +161,56 @@ public sealed partial class SimulationWorld
                         poisonTipDamagePerSecond: 0f);
                 }
 
-                if (!resolution.WasFatal)
+                if (resolution.WasFatal)
                 {
-                    continue;
+                    var deadBodyAnimationKind = executesFromDecapitator && !executesFromFiftyCal
+                        ? DeadBodyAnimationKind.Decapitated
+                        : damage > PlayerEntity.SniperBaseDamage
+                            ? DeadBodyAnimationKind.Severe
+                            : DeadBodyAnimationKind.Rifle;
+                    KillPlayer(
+                        playerHit.Player,
+                        gibbed: executesFromFiftyCal,
+                        killer: attacker,
+                        weaponSpriteName: killFeedWeaponSpriteNameOverride,
+                        deadBodyAnimationKind: deadBodyAnimationKind);
+                    if (executesFromDecapitator
+                        && !executesFromFiftyCal
+                        && !playerHit.Player.IsAlive)
+                    {
+                        _world.TrySpawnExperimentalDemoknightDecapitationRemains(
+                            playerHit.Player,
+                            directionX,
+                            directionY);
+                    }
                 }
 
-                var deadBodyAnimationKind = executesFromDecapitator && !executesFromFiftyCal
-                    ? DeadBodyAnimationKind.Decapitated
-                    : damage > PlayerEntity.SniperBaseDamage
-                        ? DeadBodyAnimationKind.Severe
-                        : DeadBodyAnimationKind.Rifle;
-                KillPlayer(
-                    playerHit.Player,
-                    gibbed: executesFromFiftyCal,
-                    killer: attacker,
-                    weaponSpriteName: killFeedWeaponSpriteNameOverride,
-                    deadBodyAnimationKind: deadBodyAnimationKind);
-                if (executesFromDecapitator
-                    && !executesFromFiftyCal
-                    && !playerHit.Player.IsAlive)
+                if (sniperProfile.ExplosiveTipEnabled)
                 {
-                    _world.TrySpawnExperimentalDemoknightDecapitationRemains(
-                        playerHit.Player,
-                        directionX,
-                        directionY);
+                    _world.TryExplodeLastToDieSniperRifleImpact(
+                        attacker,
+                        weaponOrigin.BaseX + (directionX * playerHit.Distance),
+                        weaponOrigin.BaseY + (directionY * playerHit.Distance),
+                        isCritical,
+                        capturedCriticalDamageMultiplier);
                 }
+            }
+
+            var hasTerminalCollision = result.HitSentry is not null
+                || result.HitGenerator is not null
+                || result.HitJumpPad is not null
+                || (result.Distance < rifleDistance
+                    && (result.PlayerHits.Count == 0
+                        || result.Distance > result.PlayerHits[^1].Distance + 0.01f));
+            if (sniperProfile.ExplosiveTipEnabled
+                && hasTerminalCollision)
+            {
+                _world.TryExplodeLastToDieSniperRifleImpact(
+                    attacker,
+                    weaponOrigin.BaseX + (directionX * result.Distance),
+                    weaponOrigin.BaseY + (directionY * result.Distance),
+                    isCritical,
+                    capturedCriticalDamageMultiplier);
             }
 
             if (result.HitSentry is not null && ApplySentryDamage(result.HitSentry, damage, attacker))

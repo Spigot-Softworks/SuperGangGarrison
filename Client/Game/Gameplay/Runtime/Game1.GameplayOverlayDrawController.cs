@@ -66,6 +66,7 @@ public partial class Game1
             var viewportWidth = _game.ViewportWidth;
             var viewportHeight = _game.ViewportHeight;
             var gameplayViewportHeight = _game.GetGameplayCameraViewportHeight(viewportHeight);
+            var worldViewport = _game.GetGameplayWorldViewport(viewportWidth, gameplayViewportHeight);
             var rawMouse = _game.GetFrameRawMouseState();
             var mouse = _game.GetFrameMouseState();
             var cameraPosition = _game.GetCameraTopLeft(viewportWidth, gameplayViewportHeight, mouse.X, mouse.Y);
@@ -81,7 +82,13 @@ public partial class Game1
             if (!_game.DrawLastToDieDeathFocusOverlay(viewportWidth, viewportHeight)
                 && !_game.DrawDeathCamCaptureOverlay(viewportWidth, viewportHeight))
             {
-                DrawGameplayWorldForViewport(cameraPosition, viewportWidth, gameplayViewportHeight, viewportHeight);
+                DrawGameplayWorldForViewport(
+                    cameraPosition,
+                    worldViewport.X,
+                    worldViewport.Y,
+                    viewportWidth,
+                    gameplayViewportHeight,
+                    viewportHeight);
             }
 
             _game.DrawGameplayHudLayersOrComposite(mouse, cameraPosition);
@@ -100,15 +107,22 @@ public partial class Game1
             Game1.WriteGameplayRenderTrace("frame after naveditorpresentation");
         }
 
-        private void DrawGameplayWorldForViewport(Vector2 cameraPosition, int viewportWidth, int gameplayViewportHeight, int viewportHeight)
+        private void DrawGameplayWorldForViewport(
+            Vector2 cameraPosition,
+            int worldViewportWidth,
+            int worldViewportHeight,
+            int viewportWidth,
+            int gameplayViewportHeight,
+            int viewportHeight)
         {
             if (!_game.IsLocalSpectatorPresentationActive() || gameplayViewportHeight >= viewportHeight)
             {
-                _worldDrawController.DrawGameplayWorldForCamera(cameraPosition, viewportWidth, gameplayViewportHeight);
+                _game.BeginGameplayWorldSpriteBatch(RasterizerState.CullNone);
+                _worldDrawController.DrawGameplayWorldForCamera(cameraPosition, worldViewportWidth, worldViewportHeight);
+                _game.EndGameplayWorldSpriteBatch();
                 return;
             }
 
-            _game._spriteBatch.End();
             var previousScissor = _game.GraphicsDevice.ScissorRectangle;
             using var scissorRasterizer = new RasterizerState
             {
@@ -117,11 +131,10 @@ public partial class Game1
             };
 
             _game.GraphicsDevice.ScissorRectangle = new Rectangle(0, 0, viewportWidth, gameplayViewportHeight);
-            _game._spriteBatch.Begin(samplerState: SamplerState.PointClamp, rasterizerState: scissorRasterizer);
-            _worldDrawController.DrawGameplayWorldForCamera(cameraPosition, viewportWidth, gameplayViewportHeight);
-            _game._spriteBatch.End();
+            _game.BeginGameplayWorldSpriteBatch(scissorRasterizer);
+            _worldDrawController.DrawGameplayWorldForCamera(cameraPosition, worldViewportWidth, worldViewportHeight);
+            _game.EndGameplayWorldSpriteBatch();
             _game.GraphicsDevice.ScissorRectangle = previousScissor;
-            _game._spriteBatch.Begin(samplerState: SamplerState.PointClamp, rasterizerState: RasterizerState.CullNone);
         }
     }
 }

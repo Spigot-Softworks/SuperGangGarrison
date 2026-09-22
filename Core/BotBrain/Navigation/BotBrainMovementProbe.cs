@@ -539,7 +539,7 @@ internal static class BotBrainMovementProbe
         var budgetMilliseconds = GetPrimitiveSearchBudgetMilliseconds();
         while (queue.Count > 0
             && expanded < maxExpanded
-            && stopwatch.ElapsedMilliseconds < budgetMilliseconds)
+            && (DeterministicSimulationScope.IsActive || stopwatch.ElapsedMilliseconds < budgetMilliseconds))
         {
             var current = queue.Dequeue();
             if (current.Index >= nodes.Count || nodes[current.Index].CostTicks != current.CostTicks)

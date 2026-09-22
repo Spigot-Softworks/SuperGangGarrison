@@ -35,6 +35,10 @@ public partial class Game1
 
     private sealed class PlayerRenderState
     {
+        public PlayerSkinAnimator SkinAnimation { get; } = new();
+
+        public bool FiredThisUpdate { get; set; }
+
         public float BodyAnimationImage { get; set; }
 
         public float RenderHorizontalSpeed { get; set; }
@@ -210,7 +214,20 @@ public partial class Game1
         renderState.RenderHorizontalSpeed = renderHorizontalSpeed;
         renderState.AnimationHorizontalSpeed = animationHorizontalSpeed;
         renderState.AppearsAirborne = appearsAirborne;
+        renderState.FiredThisUpdate = false;
         UpdatePlayerWeaponAnimationState(player, renderState, animationElapsedSeconds);
+        var skin = GetPlayerSkin(player);
+        if (skin is not null)
+        {
+            // Interpolated Y movement over an incline or stair step can briefly
+            // look airborne even though the simulation still has support. Keep
+            // the authored run cycle alive across that presentation-only motion.
+            var skinAppearsAirborne = appearsAirborne && !player.IsGrounded;
+            renderState.SkinAnimation.Update(skin, animationElapsedSeconds, skinAppearsAirborne,
+                GetPlayerPhysicsVerticalSpeedForPresentation(player), animationHorizontalSpeed, GetPlayerFacingScale(player),
+                player.MovementState is LegacyMovementState.ExplosionRecovery or LegacyMovementState.RocketJuggle,
+                renderState.FiredThisUpdate, player.IsGrounded);
+        }
     }
 
     private void UpdatePlayerWeaponAnimationState(PlayerEntity player, PlayerRenderState renderState, float elapsedSeconds)
@@ -276,6 +293,12 @@ public partial class Game1
             currentAmmoCount,
             renderState.PreviousCooldownTicks,
             currentCooldownTicks);
+        if (presentationPlayer.IsExperimentalDemoknightEnabled)
+        {
+            shotStarted = IsDemoknightSwordAnimationStart(
+                renderState.PreviousCooldownTicks,
+                currentCooldownTicks);
+        }
         if (presentationPlayer.ClassId == PlayerClass.Quote)
         {
             // Quote's bubble and blade actions share cooldown/ammo state. Only
@@ -298,6 +321,7 @@ public partial class Game1
             elapsedSeconds,
             ref pendingImmediateShotConfirmationSeconds);
         renderState.PendingImmediateShotConfirmationSeconds = pendingImmediateShotConfirmationSeconds;
+        renderState.FiredThisUpdate = shotStarted;
         var ammoIncreased = currentAmmoCount > renderState.PreviousAmmoCount;
         var shellReloaded = ammoIncreased && currentAmmoCount < maxAmmoCount;
         var preserveRecoilLoop = weaponRenderDefinition.LoopRecoilWhileActive
@@ -454,6 +478,14 @@ public partial class Game1
 
         return currentAmmoCount < previousAmmoCount
             || previousCooldownTicks <= 0;
+    }
+
+    internal static bool IsDemoknightSwordAnimationStart(
+        int previousCooldownTicks,
+        int currentCooldownTicks)
+    {
+        return currentCooldownTicks > 0
+            && (previousCooldownTicks <= 0 || currentCooldownTicks > previousCooldownTicks);
     }
 
     internal static bool IsWeaponReloadAnimationRestart(

@@ -105,6 +105,7 @@ public sealed partial class SimulationWorld
             target.CapTimeTicks = pointState.CapTimeTicks;
             target.Cappers = pointState.Cappers;
             target.IsLocked = pointState.IsLocked;
+            target.HasHealingAura = pointState.HasHealingAura;
         }
 
         var enteredSetupPhase = ControlPointSetupDurationTicks > 0

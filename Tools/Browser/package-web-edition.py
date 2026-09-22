@@ -81,7 +81,7 @@ def main():
     backend.mkdir(parents=True, exist_ok=True)
     api = backend / "api"
     api.mkdir(exist_ok=True)
-    for name in ("app.py", "private_rooms.py", "peer_rooms.py", "private_room_store.py", "room_worker.py", "requirements.txt"):
+    for name in ("app.py", "reward_authority.py", "run_verification.py", "run_verification_worker.py", "private_rooms.py", "peer_rooms.py", "private_room_store.py", "room_worker.py", "requirements.txt"):
         shutil.copy2(REPO / "services/opengarrison-api" / name, api / name)
     shutil.copytree(REPO / "services/opengarrison-api/deploy/browser-edition", backend / "deploy", dirs_exist_ok=True)
     shutil.copy2(REPO / "LICENSE", backend / "LICENSE")

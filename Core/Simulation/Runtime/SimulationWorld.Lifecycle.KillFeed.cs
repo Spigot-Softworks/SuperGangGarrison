@@ -26,7 +26,8 @@ public sealed partial class SimulationWorld
         string? messageText = null,
         int messageHighlightStart = 0,
         int messageHighlightLength = 0,
-        KillFeedSpecialType specialType = KillFeedSpecialType.None)
+        KillFeedSpecialType specialType = KillFeedSpecialType.None,
+        PlayerEntity? assistingPlayer = null)
     {
         var isSelfKill = killer is not null && ReferenceEquals(killer, victim);
         var resolvedMessageText = messageText ?? string.Empty;
@@ -61,6 +62,8 @@ public sealed partial class SimulationWorld
                 VictimPlayerId: victim.Id,
                 SpecialType: specialType,
                 EventId: _nextKillFeedEventId++);
+        if (assistingPlayer is not null && killer is not null && !isSelfKill)
+            entry = entry with { AssistName = assistingPlayer.DisplayName, AssistTeam = assistingPlayer.Team, AssistPlayerId = assistingPlayer.Id };
         AppendKillFeedEntry(entry);
     }
 
@@ -72,7 +75,10 @@ public sealed partial class SimulationWorld
         }
 
         var previousEntry = _killFeed[^1];
-        return previousEntry.KillerName == entry.KillerName
+        return previousEntry.AssistName == entry.AssistName
+            && previousEntry.AssistTeam == entry.AssistTeam
+            && previousEntry.AssistPlayerId == entry.AssistPlayerId
+            && previousEntry.KillerName == entry.KillerName
             && previousEntry.KillerTeam == entry.KillerTeam
             && previousEntry.WeaponSpriteName == entry.WeaponSpriteName
             && previousEntry.VictimName == entry.VictimName

@@ -71,10 +71,10 @@ public sealed class HarvestBelowPointRecoveryTests(ITestOutputHelper output)
                 world.TrySetNetworkPlayerInput(SimulationWorld.LocalPlayerSlot, input);
                 world.AdvanceOneTick();
                 if (tick % 30 == 0)
-                    output.WriteLine($"{tick}: ({player.X:0},{player.Y:0}) point=({point.HealingAuraCenterX},{point.HealingAuraCenterY}) graph={controller.LastNavigationGraphSource} direct={controller.LastDirectDriveTrace} path={controller.CurrentPathIndex}/{controller.CurrentPathCount} traversal={controller.LastTraversalTrace}");
+                    output.WriteLine($"{tick}: ({player.X:0},{player.Y:0}) point=({point.HealingAuraCenterX},{point.HealingAuraCenterY}) graph={controller.LastNavigationGraphSource} direct={controller.LastDirectDriveTrace} path={controller.CurrentPathIndex}/{controller.CurrentPathCount} recovery={controller.LastSemanticRecoveryTrace}");
                 if (world.IsPlayerInControlPointCaptureZone(player, point.Index)) { captured = true; break; }
             }
-            Assert.True(captured, $"Never reached point from ({x},{y}); ended ({player.X},{player.Y}) {controller.LastDirectDriveTrace} {controller.LastTraversalTrace}");
+            Assert.True(captured, $"Never reached point from ({x},{y}); ended ({player.X},{player.Y}) {controller.LastDirectDriveTrace} {controller.LastSemanticRecoveryTrace}");
         }
         finally { ContentRoot.Initialize(oldRoot); }
     }

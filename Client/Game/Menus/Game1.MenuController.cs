@@ -55,6 +55,8 @@ public partial class Game1
                 return;
             }
 
+            _game.EnsurePlayerNamePrompt();
+
             if (_game.UpdateDevMessagePopup(keyboard, mouse))
             {
                 return;

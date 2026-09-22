@@ -449,6 +449,7 @@ public static partial class ProtocolCodec
             writer.Write(turret.ShotTraceTicksRemaining);
             writer.Write(turret.LastShotTargetX);
             writer.Write(turret.LastShotTargetY);
+            writer.Write(turret.LifetimeTicksRemaining);
         }
     }
 
@@ -459,7 +460,8 @@ public static partial class ProtocolCodec
         for (var index = 0; index < count; index++)
             turrets.Add(new(reader.ReadInt32(), reader.ReadInt32(), reader.ReadByte(),
                 reader.ReadSingle(), reader.ReadSingle(), reader.ReadInt32(), reader.ReadBoolean(), reader.ReadBoolean(),
-                reader.ReadSingle(), reader.ReadSingle(), reader.ReadInt32(), reader.ReadInt32(), reader.ReadSingle(), reader.ReadSingle()));
+                reader.ReadSingle(), reader.ReadSingle(), reader.ReadInt32(), reader.ReadInt32(), reader.ReadSingle(), reader.ReadSingle(),
+                reader.ReadInt32()));
         return turrets;
     }
 

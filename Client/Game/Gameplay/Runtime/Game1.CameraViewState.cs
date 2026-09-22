@@ -7,6 +7,12 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
+    private enum CameraPanningMode
+    {
+        Disabled,
+        NormalGameplay,
+    }
+
     private const float SmoothCameraSnapDeltaPixels = 160f;
     private const float SmoothCameraFastCatchUpRate = 28f;
     private const float SmoothCameraSlowCatchUpRate = 10f;
@@ -18,27 +24,68 @@ public partial class Game1
     private const float SmoothCameraMaxVerticalLookaheadPixels = 18f;
     private const float SmoothCameraMinVerticalWindowPixels = 0.15f;
     private const float SmoothCameraMaxVerticalWindowPixels = 2.25f;
+    private static readonly float[] GameplayCameraZoomLevels = [1f, 1.25f, 1.5f];
     private bool _smoothCameraRenderingActive;
     private double _lastSmoothCameraUpdateClockSeconds = -1d;
     private Vector2 _lastSmoothCameraRawTarget;
     private bool _hasLastSmoothCameraRawTarget;
     private Vector2 _smoothCameraLookaheadOffset;
+    private Vector2 _gameplayCameraPlayerPosition;
+    private readonly CameraPanningState _cameraPanningState = new();
+    private CameraPanningMode _cameraPanningMode;
+    private string? _cameraPanningLevelName;
+    private int _cameraPanningMapAreaIndex = -1;
+    private int _cameraPanningPlayerId = int.MinValue;
+    private int _cameraPanningViewportWidth;
+    private int _cameraPanningViewportHeight;
+
+    private float GameplayCameraZoom => GameplayCameraZoomLevels[
+        Math.Clamp(_gameplayCameraZoomIndex, 0, GameplayCameraZoomLevels.Length - 1)];
+
+    private Point GetGameplayWorldViewport(int viewportWidth, int viewportHeight)
+    {
+        var zoom = GameplayCameraZoom;
+        return new Point(
+            Math.Max(1, (int)MathF.Floor(viewportWidth / zoom)),
+            Math.Max(1, (int)MathF.Floor(viewportHeight / zoom)));
+    }
+
+    private void CycleGameplayCameraZoom()
+    {
+        _gameplayCameraZoomIndex = (_gameplayCameraZoomIndex + 1) % GameplayCameraZoomLevels.Length;
+        ResetSmoothCameraState();
+        _hasGameplayCameraTopLeft = false;
+    }
 
     private Vector2 GetCameraTopLeft(int viewportWidth, int viewportHeight, int mouseX, int mouseY)
     {
-        var cameraTopLeft = CalculateBaseCameraTopLeft(viewportWidth, viewportHeight, mouseX, mouseY, trackLiveCamera: false);
+        var worldViewport = GetGameplayWorldViewport(viewportWidth, viewportHeight);
+        UpdateCameraPanningState(viewportWidth, viewportHeight, mouseX, mouseY, advance: true);
+        var cameraTopLeft = CalculateBaseCameraTopLeft(worldViewport.X, worldViewport.Y, mouseX, mouseY,
+            trackLiveCamera: false, panningOffsetOverride: Vector2.Zero);
         cameraTopLeft = ApplySmoothCamera(cameraTopLeft);
-        cameraTopLeft += GetClientPluginCameraOffset() + GetLastToDieCameraShakeOffset();
-        if (!_smoothCameraRenderingActive)
-        {
-            cameraTopLeft = RoundToSourcePixels(cameraTopLeft);
-        }
+        var panOffset = GetCameraPanningOffset();
+        cameraTopLeft += panOffset;
+        var effectsOffset = GetClientPluginCameraOffset() + GetLastToDieCameraShakeOffset();
+        var unclampedCameraTopLeft = cameraTopLeft + effectsOffset;
+        cameraTopLeft = FinalizeGameplayCameraTopLeft(
+            unclampedCameraTopLeft,
+            worldViewport.X,
+            worldViewport.Y,
+            roundToSourcePixels: !_smoothCameraRenderingActive);
+        SynchronizeSmoothCameraAtMapBoundary(cameraTopLeft, effectsOffset + panOffset, unclampedCameraTopLeft);
 
         TrackLiveCamera(cameraTopLeft);
+        _gameplayCameraPlayerPosition = GetRenderPosition(_world.LocalPlayer, allowInterpolation: true);
         _gameplayCameraTopLeft = cameraTopLeft;
         _hasGameplayCameraTopLeft = true;
         return cameraTopLeft;
     }
+
+    private Vector2 GetGameplayInputAimOrigin()
+        => _hasGameplayCameraTopLeft
+            ? _gameplayCameraPlayerPosition
+            : GetRenderPosition(_world.LocalPlayer, allowInterpolation: true);
 
     private Vector2 GetGameplayInputCameraTopLeft(int viewportWidth, int viewportHeight, int mouseX, int mouseY)
     {
@@ -52,11 +99,28 @@ public partial class Game1
 
     private Vector2 GetUntrackedCameraTopLeft(int viewportWidth, int viewportHeight, int mouseX, int mouseY)
     {
-        var cameraTopLeft = CalculateBaseCameraTopLeft(viewportWidth, viewportHeight, mouseX, mouseY, trackLiveCamera: false);
-        return RoundToSourcePixels(cameraTopLeft + GetClientPluginCameraOffset() + GetLastToDieCameraShakeOffset());
+        var worldViewport = GetGameplayWorldViewport(viewportWidth, viewportHeight);
+        var cameraTopLeft = CalculateBaseCameraTopLeft(
+            worldViewport.X,
+            worldViewport.Y,
+            mouseX,
+            mouseY,
+            trackLiveCamera: false,
+            panningOffsetOverride: GetCameraPanningPreviewOffset(viewportWidth, viewportHeight, mouseX, mouseY));
+        return FinalizeGameplayCameraTopLeft(
+            cameraTopLeft + GetClientPluginCameraOffset() + GetLastToDieCameraShakeOffset(),
+            worldViewport.X,
+            worldViewport.Y,
+            roundToSourcePixels: true);
     }
 
-    private Vector2 CalculateBaseCameraTopLeft(int viewportWidth, int viewportHeight, int mouseX, int mouseY, bool trackLiveCamera)
+    private Vector2 CalculateBaseCameraTopLeft(
+        int viewportWidth,
+        int viewportHeight,
+        int mouseX,
+        int mouseY,
+        bool trackLiveCamera,
+        Vector2? panningOffsetOverride = null)
     {
         Vector2 cameraTopLeft;
         if (IsDeathCamPresentationActive())
@@ -100,6 +164,7 @@ public partial class Game1
             cameraTopLeft = new Vector2(
                 localViewPosition.X - halfViewportWidth,
                 localViewPosition.Y - halfViewportHeight);
+            cameraTopLeft += panningOffsetOverride ?? GetCameraPanningOffset();
         }
 
         if (trackLiveCamera)
@@ -108,6 +173,179 @@ public partial class Game1
         }
 
         return cameraTopLeft;
+    }
+
+    private void UpdateCameraPanningState(int viewportWidth, int viewportHeight, int mouseX, int mouseY, bool advance)
+    {
+        var mode = ResolveCameraPanningMode();
+        var levelName = _world.Level.Name;
+        var mapAreaIndex = _world.Level.MapAreaIndex;
+        var playerId = _world.LocalPlayer.Id;
+        if (mode != _cameraPanningMode
+            || (mode == CameraPanningMode.NormalGameplay
+                && (_cameraPanningLevelName != levelName
+                    || _cameraPanningMapAreaIndex != mapAreaIndex
+                    || _cameraPanningPlayerId != playerId
+                    || _cameraPanningViewportWidth != viewportWidth
+                    || _cameraPanningViewportHeight != viewportHeight)))
+        {
+            ResetCameraPanningState();
+            _cameraPanningMode = mode;
+            _cameraPanningLevelName = levelName;
+            _cameraPanningMapAreaIndex = mapAreaIndex;
+            _cameraPanningPlayerId = playerId;
+            _cameraPanningViewportWidth = viewportWidth;
+            _cameraPanningViewportHeight = viewportHeight;
+        }
+
+        if (mode != CameraPanningMode.NormalGameplay)
+        {
+            return;
+        }
+
+        var canAdvance = advance && IsWindowInputActive && !IsGameplayInputBlocked();
+        var direction = canAdvance
+            ? GetCameraPanningInputDirection(viewportWidth, viewportHeight, mouseX, mouseY)
+            : Vector2.Zero;
+        _cameraPanningState.Update(
+            direction,
+            Math.Clamp(_gameplayPresentationDeltaSeconds, 0f, 1f / 20f),
+            _networkInterpolationClockSeconds,
+            canAdvance);
+    }
+
+    private CameraPanningMode ResolveCameraPanningMode()
+    {
+        return IsCameraPanningEligible()
+            ? CameraPanningMode.NormalGameplay
+            : CameraPanningMode.Disabled;
+    }
+
+    private bool IsCameraPanningEligible()
+    {
+        return _cameraPanningEnabled
+            && _world.LocalPlayer.IsAlive
+            && !IsDeathCamPresentationActive()
+            && !IsLocalSpectatorPresentationActive()
+            && !IsRespawnFreeCameraActive()
+            && !GetPlayerIsUsingBinoculars(_world.LocalPlayer)
+            && !GetPlayerIsSniperScoped(_world.LocalPlayer)
+            && !ShouldBlockGameplayForGarrisonBuilder();
+    }
+
+    private Vector2 GetCameraPanningInputDirection(int viewportWidth, int viewportHeight, int mouseX, int mouseY)
+    {
+        if (IsControllerGameplayInputActive()
+            && _controllerAimDirectionInitialized
+            && IsFinite(_controllerAimDirection)
+            && _controllerAimDirection.LengthSquared() > 0.000001f)
+        {
+            var controllerDirection = _controllerAimDirection;
+            controllerDirection.Normalize();
+            return controllerDirection;
+        }
+
+        var playerPosition = _hasGameplayCameraTopLeft
+            ? _gameplayCameraPlayerPosition
+            : GetRenderPosition(_world.LocalPlayer, allowInterpolation: true);
+        var worldViewport = GetGameplayWorldViewport(viewportWidth, viewportHeight);
+        var cameraPosition = _hasGameplayCameraTopLeft
+            ? _gameplayCameraTopLeft
+            : FinalizeGameplayCameraTopLeft(
+                playerPosition - new Vector2(worldViewport.X, worldViewport.Y) * 0.5f,
+                worldViewport.X, worldViewport.Y, roundToSourcePixels: true);
+        var playerScreen = (playerPosition - cameraPosition) * GameplayCameraZoom;
+        return CameraPanningState.GetMouseDirectionFromPlayer(viewportWidth, viewportHeight,
+            new Vector2(mouseX, mouseY), playerScreen);
+    }
+
+    private Vector2 GetCameraPanningOffset()
+    {
+        return _cameraPanningMode == CameraPanningMode.NormalGameplay
+            ? _cameraPanningState.Update(Vector2.Zero, 0f, double.NaN, advance: false)
+            : Vector2.Zero;
+    }
+
+    private Vector2 GetCameraPanningPreviewOffset(int viewportWidth, int viewportHeight, int mouseX, int mouseY)
+    {
+        if (!IsCameraPanningEligible())
+        {
+            return Vector2.Zero;
+        }
+
+        var direction = IsWindowInputActive && !IsGameplayInputBlocked()
+            ? GetCameraPanningInputDirection(viewportWidth, viewportHeight, mouseX, mouseY)
+            : Vector2.Zero;
+        return _cameraPanningState.Update(
+            direction,
+            0f,
+            double.NaN,
+            advance: false);
+    }
+
+    private void ResetCameraPanningState()
+    {
+        _cameraPanningState.Reset();
+        _cameraPanningMode = CameraPanningMode.Disabled;
+        _cameraPanningLevelName = null;
+        _cameraPanningMapAreaIndex = -1;
+        _cameraPanningPlayerId = int.MinValue;
+        _cameraPanningViewportWidth = 0;
+        _cameraPanningViewportHeight = 0;
+        _hasGameplayCameraTopLeft = false;
+    }
+
+    private Vector2 FinalizeGameplayCameraTopLeft(
+        Vector2 cameraTopLeft,
+        int viewportWidth,
+        int viewportHeight,
+        bool roundToSourcePixels)
+    {
+        if (!IsFinite(cameraTopLeft))
+        {
+            cameraTopLeft = Vector2.Zero;
+        }
+
+        if (roundToSourcePixels)
+        {
+            cameraTopLeft = RoundToSourcePixels(cameraTopLeft);
+        }
+
+        return ShouldClampGameplayCamera()
+            ? CameraPanningState.ClampToMap(cameraTopLeft, viewportWidth, viewportHeight, _world.Level.Bounds)
+            : cameraTopLeft;
+    }
+
+    private bool ShouldClampGameplayCamera()
+    {
+        return !_builderEditorEnabled;
+    }
+
+    private void SynchronizeSmoothCameraAtMapBoundary(
+        Vector2 cameraTopLeft,
+        Vector2 effectsOffset,
+        Vector2 unclampedCameraTopLeft)
+    {
+        if (!_smoothCameraRenderingActive
+            || !_hasSmoothCamera
+            || !ShouldClampGameplayCamera()
+            || !IsFinite(cameraTopLeft)
+            || !IsFinite(effectsOffset)
+            || !IsFinite(unclampedCameraTopLeft)
+            || Vector2.DistanceSquared(cameraTopLeft, unclampedCameraTopLeft) <= 0.000001f)
+        {
+            return;
+        }
+
+        var synchronizedPosition = cameraTopLeft - effectsOffset;
+        if (!IsFinite(synchronizedPosition))
+        {
+            return;
+        }
+
+        _smoothCamera = synchronizedPosition;
+        _smoothCameraPixel = RoundToSourcePixels(synchronizedPosition);
+        _smoothCameraLookaheadOffset = Vector2.Zero;
     }
 
     private Vector2 GetLocalViewPosition()

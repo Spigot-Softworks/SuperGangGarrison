@@ -70,7 +70,7 @@ public partial class Game1
         }
     }
 
-    private string GetVoiceChannelActionLabel() => _voiceChat?.IsVoiceChannelJoined == true ? "Leave voice channel" : "Join voice channel";
+    private string GetVoiceChannelActionLabel() => _voiceChat?.IsVoiceChannelJoined == true ? "Leave voice" : "Join voice";
     private string GetVoiceMuteActionLabel() => _voiceSettings.VoiceMuted ? "Unmute all voice" : "Mute all voice";
     private void ToggleVoiceMute()
     {

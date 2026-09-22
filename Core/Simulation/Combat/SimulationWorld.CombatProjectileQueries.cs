@@ -200,7 +200,7 @@ public sealed partial class SimulationWorld
             return nearestHit;
         }
 
-        public ShotHitResult? GetNearestFlareHit(FlareProjectileEntity flare, float directionX, float directionY, float maxDistance)
+        public ShotHitResult? GetNearestFlareHit(FlareProjectileEntity flare, float directionX, float directionY, float maxDistance, bool includePlayers = true)
         {
             ShotHitResult? nearestHit = null;
             UpdateNearestEnvironmentProjectileHitFromSolids(ref nearestHit, flare, flare.PreviousX, flare.PreviousY, directionX, directionY, maxDistance, destroyOnHit: false, UpdateNearestFlareEnvironmentHit);
@@ -208,7 +208,28 @@ public sealed partial class SimulationWorld
             UpdateNearestTargetProjectileHitFromSentries(ref nearestHit, flare, flare.Team, flare.PreviousX, flare.PreviousY, directionX, directionY, maxDistance, UpdateNearestFlareHit);
             UpdateNearestTargetProjectileHitFromGenerators(ref nearestHit, flare, flare.Team, flare.PreviousX, flare.PreviousY, directionX, directionY, maxDistance, UpdateNearestFlareHit);
             UpdateNearestFlareHitFromJumpPads(ref nearestHit, flare, flare.Team, flare.PreviousX, flare.PreviousY, directionX, directionY, maxDistance);
-            UpdateNearestTargetProjectileHitFromPlayers(ref nearestHit, flare, flare.Team, flare.OwnerId, flare.PreviousX, flare.PreviousY, directionX, directionY, maxDistance, UpdateNearestFlareHit);
+            return includePlayers ? GetNearestFlarePlayerHit(flare, directionX, directionY, maxDistance, nearestHit) : nearestHit;
+        }
+
+        public ShotHitResult? GetNearestFlarePlayerHit(FlareProjectileEntity flare, float directionX, float directionY, float maxDistance, ShotHitResult? nearestHit)
+        {
+            if (!flare.IsDragonRageSlug)
+            {
+                UpdateNearestTargetProjectileHitFromPlayers(ref nearestHit, flare, flare.Team, flare.OwnerId, flare.PreviousX, flare.PreviousY, directionX, directionY, maxDistance, UpdateNearestFlareHit);
+                return nearestHit;
+            }
+
+            var radius = FlareProjectileEntity.DragonRageVisualHeight * 0.5f;
+            foreach (var player in EnumerateSimulatedPlayers())
+            {
+                if (!player.IsAlive || player.Id == flare.OwnerId || flare.HasHitPlayer(player.Id)
+                    || !_world.CanTeamDamagePlayer(flare.Team, flare.OwnerId, player)) continue;
+                _world.GetCachedPlayerPresentationHitBounds(player, out var left, out var top, out var right, out var bottom);
+                var distance = GetRayIntersectionDistanceWithRectangle(flare.PreviousX, flare.PreviousY,
+                    directionX, directionY, left - radius, top - radius, right + radius, bottom + radius, maxDistance);
+                if (distance.HasValue)
+                    UpdateNearestFlareHit(ref nearestHit, flare, directionX, directionY, distance.Value, player);
+            }
             return nearestHit;
         }
 

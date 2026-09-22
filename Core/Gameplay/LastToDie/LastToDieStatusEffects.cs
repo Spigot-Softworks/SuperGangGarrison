@@ -27,6 +27,7 @@ public static class LastToDieStatusEffectIds
     public static readonly LastToDieStatusEffectId MedicExsanguinationBleed = Id("medic.exsanguination.bleed");
     public static readonly LastToDieStatusEffectId MedicExsanguinationSlow = Id("medic.exsanguination.slow");
     public static readonly LastToDieStatusEffectId MedicNeurotoxinStun = Id("medic.neurotoxin.stun");
+    public static readonly LastToDieStatusEffectId RareFreezingArmor = Id("rare.freezing-armor");
     public static readonly LastToDieStatusEffectId SniperTranqPoison = Id("sniper.tranq.poison");
     public static readonly LastToDieStatusEffectId SniperTranqSlow = Id("sniper.tranq.slow");
     public static readonly LastToDieStatusEffectId SniperPoisonTip = Id("sniper.poison-tip.poison");
@@ -48,7 +49,9 @@ public readonly record struct LastToDieStatusEffectSpec(
     float HealingPerSecond = 0f,
     float EvasionChance = 0f,
     float OutgoingDamageMultiplier = 1f,
-    int StackCount = 1)
+    int StackCount = 1,
+    float FireSpeedMultiplier = 1f,
+    float ReloadSpeedMultiplier = 1f)
 {
     public static LastToDieStatusEffectSpec Bleed(
         LastToDieStatusEffectId id,
@@ -67,14 +70,18 @@ public readonly record struct LastToDieStatusEffectSpec(
         int durationTicks,
         float movementSpeedMultiplier,
         float outgoingDamageMultiplier = 1f,
-        int stackCount = 1)
+        int stackCount = 1,
+        float fireSpeedMultiplier = 1f,
+        float reloadSpeedMultiplier = 1f)
         => new(
             id,
             LastToDieStatusEffectKind.Slow,
             durationTicks,
             MovementSpeedMultiplier: movementSpeedMultiplier,
             OutgoingDamageMultiplier: outgoingDamageMultiplier,
-            StackCount: stackCount);
+            StackCount: stackCount,
+            FireSpeedMultiplier: fireSpeedMultiplier,
+            ReloadSpeedMultiplier: reloadSpeedMultiplier);
 
     public static LastToDieStatusEffectSpec Stun(
         LastToDieStatusEffectId id,
@@ -105,4 +112,6 @@ public sealed record LastToDieActiveStatusEffectSnapshot(
     float HealingPerSecond = 0f,
     float EvasionChance = 0f,
     float OutgoingDamageMultiplier = 1f,
-    int StackCount = 1);
+    int StackCount = 1,
+    float FireSpeedMultiplier = 1f,
+    float ReloadSpeedMultiplier = 1f);

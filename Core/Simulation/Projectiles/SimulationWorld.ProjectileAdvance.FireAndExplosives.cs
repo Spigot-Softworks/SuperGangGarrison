@@ -127,6 +127,7 @@ public sealed partial class SimulationWorld
             {
                 if (flare.IsExpired)
                 {
+                    ResolveDragonRageProjectileOutcome(flare, hitTarget: false);
                     RemoveFlareAt(flareIndex);
                 }
 
@@ -135,92 +136,130 @@ public sealed partial class SimulationWorld
 
             var directionX = movementX / movementDistance;
             var directionY = movementY / movementDistance;
-            var hit = GetNearestFlareHit(flare, directionX, directionY, movementDistance);
+            var endX = flare.X;
+            var endY = flare.Y;
+            // Compute world contacts once: piercing must not repeatedly damage room objects.
+            var blockingHit = Combat.GetNearestFlareHit(flare, directionX, directionY, movementDistance, includePlayers: false);
             var bubbleHit = GetNearestEnemyBubbleHit(flare.PreviousX, flare.PreviousY, directionX, directionY, movementDistance, flare.Team);
-            var bubbleDistance = bubbleHit?.Distance ?? float.MaxValue;
-            var hitDistance = hit?.Distance ?? float.MaxValue;
-            if (bubbleHit is not null && bubbleDistance <= hitDistance)
+            while (true)
             {
-                flare.MoveTo(bubbleHit.Value.HitX, bubbleHit.Value.HitY);
-                RegisterCombatTrace(flare.PreviousX, flare.PreviousY, directionX, directionY, bubbleHit.Value.Distance, false);
-                RemoveBubbleAt(bubbleHit.Value.BubbleIndex);
-                flare.Destroy();
-            }
-            else if (hit.HasValue)
-            {
-                var hitResult = hit.Value;
-                var owner = FindPlayerById(flare.OwnerId);
-                flare.MoveTo(hitResult.HitX, hitResult.HitY);
-                RegisterCombatTrace(flare.PreviousX, flare.PreviousY, directionX, directionY, hitResult.Distance, hitResult.HitPlayer is not null);
-                RegisterWorldSoundEvent("FlareImpactSnd", hitResult.HitX, hitResult.HitY, flare.OwnerId);
-                if (hitResult.HitPlayer is not null)
+                var hit = Combat.GetNearestFlarePlayerHit(flare, directionX, directionY, movementDistance, blockingHit);
+                var bubbleDistance = bubbleHit?.Distance ?? float.MaxValue;
+                var hitDistance = hit?.Distance ?? float.MaxValue;
+                if (bubbleHit is not null && bubbleDistance <= hitDistance)
                 {
-                    var infiltrateBlockedFlare =
-                        hitResult.HitPlayer.IsLastToDieSpyInfiltrateProjectileImmune;
-                    if (infiltrateBlockedFlare
-                        || !TryAbsorbCivvieUmbrellaProjectileContact(
-                            hitResult.HitPlayer,
-                            flare.OwnerId,
-                            hitResult.HitX,
-                            hitResult.HitY,
-                            criticalBoost: PlayerEntity.IsCriticalDamageMultiplierBoosted(flare.CriticalDamageMultiplier)))
+                    flare.MoveTo(bubbleHit.Value.HitX, bubbleHit.Value.HitY);
+                    RegisterCombatTrace(flare.PreviousX, flare.PreviousY, directionX, directionY, bubbleHit.Value.Distance, false);
+                    RemoveBubbleAt(bubbleHit.Value.BubbleIndex);
+                    ResolveDragonRageProjectileOutcome(flare, hitTarget: false);
+                    flare.Destroy();
+                }
+                else if (hit.HasValue)
+                {
+                    var hitResult = hit.Value;
+                    var owner = FindPlayerById(flare.OwnerId);
+                    var hitTarget = hitResult.HitSentry is not null
+                        || hitResult.HitGenerator is not null
+                        || hitResult.HitJumpPad is not null;
+                    flare.MoveTo(hitResult.HitX, hitResult.HitY);
+                    RegisterCombatTrace(flare.PreviousX, flare.PreviousY, directionX, directionY, hitResult.Distance, hitResult.HitPlayer is not null);
+                    RegisterWorldSoundEvent("FlareImpactSnd", hitResult.HitX, hitResult.HitY, flare.OwnerId);
+                    if (hitResult.HitPlayer is not null)
                     {
-                        if (!infiltrateBlockedFlare)
-                        {
-                            RegisterBloodEffect(hitResult.HitPlayer.X, hitResult.HitPlayer.Y, MathF.Atan2(directionY, directionX) * (180f / MathF.PI) - 180f);
-                        }
-
-                        var hitDamage = ApplyExperimentalAirshotDamageMultiplier(owner, hitResult.HitPlayer, (int)MathF.Round(flare.DamagePerHit * flare.CriticalDamageMultiplier), out var damageFlags);
-                        var playerDied = ApplyPlayerDamageWithContext(
-                            hitResult.HitPlayer,
-                            hitDamage,
-                            owner,
-                            PlayerEntity.SpyDamageRevealAlpha,
-                            damageFlags,
-                            allowCivvieUmbrellaShield: false,
-                            civvieUmbrellaCriticalBoost: PlayerEntity.IsCriticalDamageMultiplierBoosted(flare.CriticalDamageMultiplier),
-                            civvieUmbrellaUseLiveAttackerCriticalBoost: false,
-                            additionalTraits: PlayerDamageTraits.DirectProjectile);
-                        if (playerDied)
-                        {
-                            KillPlayer(hitResult.HitPlayer, killer: owner, weaponSpriteName: flare.KillFeedWeaponSpriteName);
-                        }
-                        else if (!infiltrateBlockedFlare)
-                        {
-                            hitResult.HitPlayer.IgniteAfterburn(
+                        var infiltrateBlockedFlare =
+                            hitResult.HitPlayer.IsLastToDieSpyInfiltrateProjectileImmune;
+                        if (infiltrateBlockedFlare
+                            || !TryAbsorbCivvieUmbrellaProjectileContact(
+                                hitResult.HitPlayer,
                                 flare.OwnerId,
-                                FlareProjectileEntity.BurnDurationIncreaseSourceTicks,
-                                FlareProjectileEntity.BurnIntensityIncrease,
-                                FlareProjectileEntity.AfterburnFalloff,
-                                burnFalloffAmount: 0f);
+                                hitResult.HitX,
+                                hitResult.HitY,
+                                criticalBoost: PlayerEntity.IsCriticalDamageMultiplierBoosted(flare.CriticalDamageMultiplier)))
+                        {
+                            if (!infiltrateBlockedFlare)
+                            {
+                                hitTarget = true;
+                                RegisterBloodEffect(hitResult.HitPlayer.X, hitResult.HitPlayer.Y, MathF.Atan2(directionY, directionX) * (180f / MathF.PI) - 180f);
+                            }
+
+                            var hitDamage = ApplyExperimentalAirshotDamageMultiplier(owner, hitResult.HitPlayer, (int)MathF.Round(flare.DamagePerHit * flare.CriticalDamageMultiplier), out var damageFlags);
+                            var playerDied = ApplyPlayerDamageWithContext(
+                                hitResult.HitPlayer,
+                                hitDamage,
+                                owner,
+                                PlayerEntity.SpyDamageRevealAlpha,
+                                damageFlags,
+                                allowCivvieUmbrellaShield: false,
+                                civvieUmbrellaCriticalBoost: PlayerEntity.IsCriticalDamageMultiplierBoosted(flare.CriticalDamageMultiplier),
+                                civvieUmbrellaUseLiveAttackerCriticalBoost: false,
+                                additionalTraits: PlayerDamageTraits.DirectProjectile);
+                            if (playerDied)
+                            {
+                                KillPlayer(hitResult.HitPlayer, killer: owner, weaponSpriteName: flare.KillFeedWeaponSpriteName);
+                            }
+                            else if (!infiltrateBlockedFlare)
+                            {
+                                hitResult.HitPlayer.IgniteAfterburn(
+                                    flare.OwnerId,
+                                    FlareProjectileEntity.BurnDurationIncreaseSourceTicks,
+                                    FlareProjectileEntity.BurnIntensityIncrease,
+                                    FlareProjectileEntity.AfterburnFalloff,
+                                    burnFalloffAmount: 0f,
+                                    killFeedWeaponSpriteName: flare.KillFeedWeaponSpriteName);
+                            }
                         }
                     }
-                }
-                else if (hitResult.HitSentry is not null && ApplySentryDamage(hitResult.HitSentry, (int)MathF.Round(flare.DamagePerHit * flare.CriticalDamageMultiplier), owner))
-                {
-                    DestroySentry(hitResult.HitSentry, owner);
-                }
-                else if (hitResult.HitGenerator is not null)
-                {
-                    TryDamageGenerator(hitResult.HitGenerator.Team, flare.DamagePerHit * flare.CriticalDamageMultiplier, owner);
-                }
-                else if (hitResult.HitJumpPad is not null)
-                {
-                    hitResult.HitJumpPad.TakeDamage((int)MathF.Round(flare.DamagePerHit * flare.CriticalDamageMultiplier));
-                }
+                    else if (hitResult.HitSentry is not null && ApplySentryDamage(hitResult.HitSentry, (int)MathF.Round(flare.DamagePerHit * flare.CriticalDamageMultiplier), owner))
+                    {
+                        DestroySentry(hitResult.HitSentry, owner);
+                    }
+                    else if (hitResult.HitGenerator is not null)
+                    {
+                        TryDamageGenerator(hitResult.HitGenerator.Team, flare.DamagePerHit * flare.CriticalDamageMultiplier, owner);
+                    }
+                    else if (hitResult.HitJumpPad is not null)
+                    {
+                        hitResult.HitJumpPad.TakeDamage((int)MathF.Round(flare.DamagePerHit * flare.CriticalDamageMultiplier));
+                    }
 
-                flare.Destroy();
-            }
-            else
-            {
-                RegisterCombatTrace(flare.PreviousX, flare.PreviousY, directionX, directionY, movementDistance, false);
+                    if (flare.IsDragonRageSlug && hitResult.HitPlayer is { } piercedPlayer && hitTarget)
+                    {
+                        flare.RecordPlayerHit(piercedPlayer.Id);
+                        ResolveDragonRageProjectileOutcome(flare, hitTarget: true);
+                        flare.MoveTo(endX, endY);
+                        continue;
+                    }
+                    ResolveDragonRageProjectileOutcome(flare, hitTarget);
+                    flare.Destroy();
+                }
+                else
+                {
+                    RegisterCombatTrace(flare.PreviousX, flare.PreviousY, directionX, directionY, movementDistance, false);
+                }
+                break;
             }
 
             if (flare.IsExpired)
             {
+                ResolveDragonRageProjectileOutcome(flare, hitTarget: false);
                 RemoveFlareAt(flareIndex);
             }
         }
+    }
+
+    private void ResolveDragonRageProjectileOutcome(FlareProjectileEntity flare, bool hitTarget)
+    {
+        if (!flare.IsDragonRageSlug
+            || flare.DragonRageShotSequence <= 0
+            || FindPlayerById(flare.OwnerId) is not { } owner)
+        {
+            return;
+        }
+
+        owner.ResolveDragonRageShot(
+            flare.DragonRageShotSequence,
+            hitTarget,
+            flare.InitialLifetimeTicks - Math.Max(0, flare.TicksRemaining));
     }
 
     private void AdvanceMines()
@@ -359,7 +398,7 @@ public sealed partial class SimulationWorld
                     // Visual-only random spin after bounce; magnitude scales with impact speed so slow-rolling grenades don't spin
                     const float rotationImpulseReferenceSpeed = 12f;
                     var speedFactor = float.Min(1f, movementDistance / rotationImpulseReferenceSpeed);
-                    var impulse = (Random.Shared.NextSingle() - 0.5f) * 0.9f * speedFactor;
+                    var impulse = (_random.NextSingle() - 0.5f) * 0.9f * speedFactor;
                     grenade.ApplyRotationImpulse(impulse);
                 }
             }
@@ -448,7 +487,9 @@ public sealed partial class SimulationWorld
         }
 
         var owner = FindPlayerById(grenade.OwnerId);
-        var blastRadius = ResolveExplosiveSplashRadius(GrenadeProjectileEntity.BlastRadius);
+        var blastRadius = ResolveExplosiveSplashRadius(
+            GrenadeProjectileEntity.BlastRadius
+                * MathF.Max(0.1f, owner?.LastToDieUniversalModifiers.ExplosionScale ?? 1f));
 
         RegisterWorldSoundEvent("ExplosionSnd", grenade.X, grenade.Y);
         RegisterVisualEffect("Explosion", grenade.X, grenade.Y);
