@@ -64,6 +64,7 @@ public partial class Game1
     private Vector2 _builderMapPanAnchorCamera;
     private GarrisonBuilderResizeHandle _builderActiveResizeHandle = GarrisonBuilderResizeHandle.None;
     private Vector2 _builderResizeAnchorWorld;
+    private Vector2 _builderResizeHandleWorld;
     private float _builderResizeStartXScale = 1f;
     private float _builderResizeStartYScale = 1f;
     private float _builderResizeStartWidth;
@@ -480,6 +481,12 @@ public partial class Game1
     private void UpdateModernGarrisonBuilderZoom(MouseState mouse, KeyboardState keyboard)
     {
         var wheelDelta = mouse.ScrollWheelValue - _previousMouse.ScrollWheelValue;
+        if (_builderValidationTooltipVisible && _builderValidationHoverBounds.Contains(mouse.Position))
+        {
+            if (wheelDelta != 0)
+                _builderValidationScroll = Math.Clamp(_builderValidationScroll - Math.Sign(wheelDelta) * 3, 0, _builderValidationMaximumScroll);
+            return;
+        }
         if (wheelDelta == 0)
         {
             return;
@@ -1319,6 +1326,8 @@ public partial class Game1
             _builderMenuBarOpenMenu = GarrisonBuilderMenuBarMenu.None;
             return false;
         }
+
+        if (_builderValidationTooltipVisible && _builderValidationHoverBounds.Contains(position)) return true;
 
         if (!leftClick)
         {
@@ -2535,6 +2544,8 @@ public partial class Game1
             return;
         }
 
+        if (_builderValidationTooltipVisible && _builderValidationHoverBounds.Contains(mouse.Position)) return;
+
         var wheelDelta = mouse.ScrollWheelValue - _previousMouse.ScrollWheelValue;
         if (wheelDelta == 0)
         {
@@ -2710,7 +2721,8 @@ public partial class Game1
             }
 
             var spriteHandles = GetGarrisonBuilderResizeHandlePoints(spriteLeft, spriteTop, spriteWidth, spriteHeight);
-            foreach (var pair in spriteHandles)
+            foreach (var pair in spriteHandles.OrderBy(handle =>
+                Vector2.DistanceSquared(BuilderWorldToScreen(handle.Value), screenPosition.ToVector2())))
             {
                 var screen = BuilderWorldToScreen(pair.Value);
                 var handleBounds = new Rectangle((int)screen.X - 5, (int)screen.Y - 5, 10, 10);
@@ -2722,6 +2734,7 @@ public partial class Game1
                 RecordGarrisonBuilderHistory();
                 _builderActiveResizeHandle = pair.Key;
                 _builderResizeAnchorWorld = world;
+                _builderResizeHandleWorld = pair.Value;
                 _builderResizeStartLeft = spriteLeft;
                 _builderResizeStartTop = spriteTop;
                 _builderResizeStartWidth = spriteWidth;
@@ -2740,7 +2753,8 @@ public partial class Game1
             }
 
             var spriteHandles = GetGarrisonBuilderResizeHandlePoints(spriteLeft, spriteTop, spriteWidth, spriteHeight);
-            foreach (var pair in spriteHandles)
+            foreach (var pair in spriteHandles.OrderBy(handle =>
+                Vector2.DistanceSquared(BuilderWorldToScreen(handle.Value), screenPosition.ToVector2())))
             {
                 var screen = BuilderWorldToScreen(pair.Value);
                 var handleBounds = new Rectangle((int)screen.X - 5, (int)screen.Y - 5, 10, 10);
@@ -2752,6 +2766,7 @@ public partial class Game1
                 RecordGarrisonBuilderHistory();
                 _builderActiveResizeHandle = pair.Key;
                 _builderResizeAnchorWorld = world;
+                _builderResizeHandleWorld = pair.Value;
                 _builderResizeStartLeft = spriteLeft;
                 _builderResizeStartTop = spriteTop;
                 _builderResizeStartWidth = spriteWidth;
@@ -2770,7 +2785,8 @@ public partial class Game1
             }
 
             var sheetHandles = GetGarrisonBuilderResizeHandlePoints(sheetLeft, sheetTop, sheetWidth, sheetHeight);
-            foreach (var pair in sheetHandles)
+            foreach (var pair in sheetHandles.OrderBy(handle =>
+                Vector2.DistanceSquared(BuilderWorldToScreen(handle.Value), screenPosition.ToVector2())))
             {
                 var screen = BuilderWorldToScreen(pair.Value);
                 var handleBounds = new Rectangle((int)screen.X - 5, (int)screen.Y - 5, 10, 10);
@@ -2782,6 +2798,7 @@ public partial class Game1
                 RecordGarrisonBuilderHistory();
                 _builderActiveResizeHandle = pair.Key;
                 _builderResizeAnchorWorld = world;
+                _builderResizeHandleWorld = pair.Value;
                 _builderResizeStartLeft = sheetLeft;
                 _builderResizeStartTop = sheetTop;
                 _builderResizeStartWidth = sheetWidth;
@@ -2806,7 +2823,8 @@ public partial class Game1
         var handles = IsGarrisonBuilderGameplayMessageFullWidthStyle(entity)
             ? GetGarrisonBuilderVerticalResizeHandlePoints(left, top, width, height)
             : GetGarrisonBuilderResizeHandlePoints(left, top, width, height);
-        foreach (var pair in handles)
+        foreach (var pair in handles.OrderBy(handle =>
+                Vector2.DistanceSquared(BuilderWorldToScreen(handle.Value), screenPosition.ToVector2())))
         {
             var screen = BuilderWorldToScreen(pair.Value);
             var handleBounds = new Rectangle((int)screen.X - 5, (int)screen.Y - 5, 10, 10);
@@ -2815,7 +2833,12 @@ public partial class Game1
                 continue;
             }
 
-            if (TryGetGarrisonBuilderEntityFrame(definition, entity, out _, out var origin))
+            if (TryGetGarrisonBuilderAnchorSizedEntityMetrics(entity.Type, entity.Properties, 1f, 1f, out var sizedMetrics))
+            {
+                _builderResizeOriginX = UsesGarrisonBuilderCenterPlacementAnchor(entity.Type) ? sizedMetrics.CenterX : 0f;
+                _builderResizeOriginY = UsesGarrisonBuilderCenterPlacementAnchor(entity.Type) ? sizedMetrics.CenterY : 0f;
+            }
+            else if (TryGetGarrisonBuilderEntityFrame(definition, entity, out _, out var origin))
             {
                 _builderResizeOriginX = origin.X;
                 _builderResizeOriginY = origin.Y;
@@ -2838,6 +2861,7 @@ public partial class Game1
             RecordGarrisonBuilderHistory();
             _builderActiveResizeHandle = pair.Key;
             _builderResizeAnchorWorld = world;
+            _builderResizeHandleWorld = pair.Value;
             _builderResizeStartXScale = entity.XScale;
             _builderResizeStartYScale = entity.YScale;
             _builderResizeStartWidth = width;
@@ -2857,7 +2881,9 @@ public partial class Game1
             return;
         }
 
-        world = SnapGarrisonBuilderPoint(world);
+        // Preserve where the handle was grabbed, including clicks near its edge.
+        // Snap the movement, so an off-grid entity does not jump on mouse-down.
+        world = _builderResizeHandleWorld + SnapGarrisonBuilderPoint(world - _builderResizeAnchorWorld);
         var entity = _builderEntities[_builderSelectedEntityIndex];
         if (IsGarrisonBuilderForegroundSpriteResizable(entity))
         {
@@ -3392,6 +3418,7 @@ public partial class Game1
         DrawModernGarrisonBuilderSidebar(mouse);
         DrawModernGarrisonBuilderToolbar(mouse);
         DrawModernGarrisonBuilderLayerStrip(mouse);
+        DrawGarrisonBuilderValidationTooltip(mouse);
         DrawGarrisonBuilderGameModeMenu(mouse);
         DrawLegacyGarrisonBuilderPathPrompt();
         DrawGarrisonBuilderLayerOffsetOverlay(mouse);
@@ -3607,8 +3634,10 @@ public partial class Game1
         DrawBuilderMenuButton(modeBounds, "Mode " + GetGarrisonBuilderModeLabel(_builderSelectedGameMode), modeBounds.Contains(mouse.Position));
 
         var validation = GetGarrisonBuilderValidation();
-        var validationColor = validation.IsValid ? new Color(150, 224, 160) : new Color(255, 214, 118);
-        var validationText = validation.IsValid ? "Validation OK" : $"{validation.Issues.Count} issue(s)";
+        var validationColor = validation.Issues.Count == 0 ? new Color(150, 224, 160) : new Color(255, 214, 118);
+        var validationText = validation.Issues.Count == 0 ? "Validation OK"
+            : validation.Issues[0].Code == "validation_pending" ? "Checking map..."
+            : $"{validation.Issues.Count} issue(s)";
         var validationScale = GetModernBuilderTextScale(0.82f);
         var validationBounds = new Rectangle(
             10,

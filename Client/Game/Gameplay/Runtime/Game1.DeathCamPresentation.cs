@@ -94,15 +94,13 @@ public partial class Game1
         var deathCam = _world.LocalDeathCam!;
         var halfViewportWidth = viewportWidth / 2f;
         var halfViewportHeight = viewportHeight / 2f;
-        var x = Math.Clamp(
-            deathCam.FocusX - halfViewportWidth,
-            0f,
-            Math.Max(0f, _world.Bounds.Width - viewportWidth));
-        var y = Math.Clamp(
-            deathCam.FocusY - halfViewportHeight,
-            0f,
-            Math.Max(0f, _world.Bounds.Height - viewportHeight));
-        return new Vector2(x, y);
+        return CameraPanningState.ClampToMap(
+            new Vector2(
+                deathCam.FocusX - halfViewportWidth,
+                deathCam.FocusY - halfViewportHeight),
+            viewportWidth,
+            viewportHeight,
+            _world.Level.Bounds);
     }
 
     private Vector2 GetDeathCamCameraTopLeft(int viewportWidth, int viewportHeight)

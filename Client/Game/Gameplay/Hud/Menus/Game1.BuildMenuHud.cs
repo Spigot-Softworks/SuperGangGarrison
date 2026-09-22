@@ -25,6 +25,9 @@ public partial class Game1
     private float _buildMenuGameplayAimOffsetX;
     private float _buildMenuGameplayAimOffsetY;
 
+    private bool IsBuildMenuWheelEnabled
+        => OpenGarrisonPreferencesDocument.NormalizeBuildMenuStyle(_clientSettings.BuildMenuStyle) == BuildMenuStyle.Wheel;
+
     private void ResetBuildMenuInputSelection()
     {
         _buildMenuNumericInputConsumed = false;
@@ -37,6 +40,22 @@ public partial class Game1
 
     private PlayerInputSnapshot ApplyBuildMenuInputSelection(PlayerInputSnapshot input)
     {
+        if (!IsBuildMenuWheelEnabled)
+        {
+            if (!_buildMenuNumericInputConsumed)
+            {
+                return input;
+            }
+
+            return input with
+            {
+                BuildSentry = _buildMenuSentrySelectionPressed,
+                BuildDispenser = _buildMenuDispenserSelectionPressed,
+                DestroySentry = _buildMenuDestroySentrySelectionPressed,
+                DestroyDispenser = _buildMenuDestroyDispenserSelectionPressed,
+            };
+        }
+
         // Constructor's utility binding opens the wheel. Only an explicit jump-pad
         // selection may send UseAbility to the simulation, even after the wheel closes.
         if (_world.LocalPlayer.ClassId == PlayerClass.Engineer)
@@ -71,6 +90,12 @@ public partial class Game1
         if ((!_buildMenuOpen && !_hudEditorOpen) || _world.LocalPlayer.ClassId != PlayerClass.Engineer
             || !CanDrawGameplayBuildHud()
             || !TryResolveHudElement(HudElementId.ClassEngineerBuildMenu, out var resolved)) return;
+        if (!IsBuildMenuWheelEnabled)
+        {
+            DrawBuildMenuListHud(resolved);
+            return;
+        }
+
         var sprite = GetResolvedSprite("BuildWheelS");
         if (sprite is null || sprite.Frames.Count < 42) return;
         var center = resolved.Origin;
@@ -84,7 +109,7 @@ public partial class Game1
         var selected = _buildMenuOpen ? _buildWheelSelectedSlot : 0;
         for (var slot = 0; slot <= 4; slot++)
         {
-            var frame = slot switch { 1 => 3, 2 => 4, 3 => 5, 4 => 2, _ => 1 };
+            var frame = slot switch { 1 => 3, 2 => 2, 3 => 5, 4 => 4, _ => 1 };
             DrawFrame(frame + (selected == slot ? 5 : 0));
         }
         DrawFrame(0);
@@ -105,6 +130,35 @@ public partial class Game1
         DrawBitmapFontText(label, center + new Vector2(-MeasureBitmapFontWidth(label, 1f) / 2f, 110f * scale), Color.White, 1f);
         UpdateHudElementBounds(HudElementId.ClassEngineerBuildMenu,
             new Rectangle((int)(center.X - 100f * scale), (int)(center.Y - 100f * scale), (int)(201f * scale), (int)(201f * scale)));
+    }
+
+    private void DrawBuildMenuListHud(HudResolvedElement resolved)
+    {
+        var frameIndex = _world.LocalPlayer.Team == PlayerTeam.Blue ? 1 : 0;
+        const float defaultBuildMenuX = 37f;
+        var scale = MathF.Max(0.01f, resolved.Layout.Scale);
+        var origin = resolved.Origin;
+        if (!_hudLayoutProfile.Overrides.ContainsKey(HudElementId.ClassEngineerBuildMenu))
+        {
+            origin = HudLayoutResolver.ResolveOrigin(
+                HudAnchor.CenterLeft,
+                new Vector2(defaultBuildMenuX, 0f),
+                ViewportWidth,
+                ViewportHeight);
+        }
+
+        var animatedOrigin = _hudEditorOpen && !_buildMenuOpen
+            ? origin
+            : origin + new Vector2(_buildMenuX - defaultBuildMenuX, 0f);
+        var alpha = _hudEditorOpen && !_buildMenuOpen ? 1f : _buildMenuAlpha;
+        TryDrawScreenSprite("BuildMenuS", frameIndex, animatedOrigin, Color.White * alpha, new Vector2(scale));
+        UpdateHudElementBounds(
+            HudElementId.ClassEngineerBuildMenu,
+            new Rectangle(
+                (int)MathF.Round(animatedOrigin.X),
+                (int)MathF.Round(animatedOrigin.Y - (20f * scale)),
+                Math.Max(1, (int)MathF.Round(74f * scale)),
+                Math.Max(1, (int)MathF.Round(244f * scale))));
     }
 
     private bool HasBuildWheelStructure(int slot) => slot switch
@@ -158,6 +212,12 @@ public partial class Game1
     private void UpdateBuildMenuState(KeyboardState keyboard, MouseState mouse, PlayerInputSnapshot input)
     {
         ResetBuildMenuInputSelection();
+        if (!IsBuildMenuWheelEnabled)
+        {
+            UpdateBuildMenuListState(keyboard, mouse, input);
+            return;
+        }
+
         var abilityPressed = input.UseAbility && !_buildMenuAbilityWasDown;
         _buildMenuAbilityWasDown = input.UseAbility;
         var secondaryPressed = input.FireSecondary && !_buildMenuSecondaryWasDown;
@@ -205,6 +265,79 @@ public partial class Game1
             SuppressPrimaryFireUntilMouseRelease();
             CommitBuildWheelSelection(_buildWheelSelectedSlot);
         }
+    }
+
+    private void UpdateBuildMenuListState(KeyboardState keyboard, MouseState mouse, PlayerInputSnapshot input)
+    {
+        _buildMenuAbilityWasDown = input.UseAbility;
+        _buildMenuSecondaryWasDown = input.FireSecondary;
+        if (ShouldCloseBuildMenuForGameplayState())
+        {
+            BeginClosingBuildMenu();
+            AdvanceBuildMenuAnimation();
+            return;
+        }
+
+        if (_scoreboardOpen || _scoreboardAlpha > 0.02f)
+        {
+            AdvanceBuildMenuAnimation();
+            return;
+        }
+
+        var player = _world.LocalPlayer;
+        if (player.ClassId == PlayerClass.Engineer)
+        {
+            var onePressed = IsKeyPressed(keyboard, Keys.D1) || IsKeyPressed(keyboard, Keys.NumPad1);
+            var twoPressed = IsKeyPressed(keyboard, Keys.D2) || IsKeyPressed(keyboard, Keys.NumPad2);
+            var threePressed = IsKeyPressed(keyboard, Keys.D3) || IsKeyPressed(keyboard, Keys.NumPad3);
+            var fourPressed = IsKeyPressed(keyboard, Keys.D4) || IsKeyPressed(keyboard, Keys.NumPad4);
+            var zeroPressed = IsKeyPressed(keyboard, Keys.D0) || IsKeyPressed(keyboard, Keys.NumPad0);
+
+            if (onePressed)
+            {
+                _buildMenuNumericInputConsumed = true;
+                if (_buildMenuOpen && !_buildMenuClosing)
+                {
+                    _buildMenuSentrySelectionPressed = true;
+                    BeginClosingBuildMenu();
+                }
+                else
+                {
+                    ToggleBuildMenu(input);
+                }
+            }
+            else if (_buildMenuOpen && twoPressed)
+            {
+                _buildMenuNumericInputConsumed = true;
+                _buildMenuDestroySentrySelectionPressed = true;
+                BeginClosingBuildMenu();
+            }
+            else if (_buildMenuOpen && threePressed)
+            {
+                _buildMenuNumericInputConsumed = true;
+                _buildMenuDispenserSelectionPressed = true;
+                BeginClosingBuildMenu();
+                TryShowEngineerBuildResourceNotice(player, DispenserBuildNoticeCost);
+            }
+            else if (_buildMenuOpen && fourPressed)
+            {
+                _buildMenuNumericInputConsumed = true;
+                _buildMenuDestroyDispenserSelectionPressed = true;
+                BeginClosingBuildMenu();
+            }
+            else if (_buildMenuOpen && zeroPressed)
+            {
+                _buildMenuNumericInputConsumed = true;
+                BeginClosingBuildMenu();
+            }
+        }
+
+        if (mouse.RightButton == ButtonState.Pressed && _previousMouse.RightButton == ButtonState.Released)
+        {
+            BeginClosingBuildMenu();
+        }
+
+        AdvanceBuildMenuAnimation();
     }
 
     private bool TryShowEngineerBuildResourceNotice(PlayerEntity player, float requiredMetal)
@@ -264,12 +397,39 @@ public partial class Game1
 
     private void ToggleBuildMenu(PlayerInputSnapshot input)
     {
+        if (!IsBuildMenuWheelEnabled)
+        {
+            ToggleBuildMenuList();
+            return;
+        }
+
         if (_buildMenuOpen) { BeginClosingBuildMenu(); return; }
         CaptureBuildMenuGameplayAim(input);
         _buildMenuOpen = true;
         _buildMenuClosing = false;
         _buildMenuAlpha = 1f;
         _buildWheelSelectedSlot = 0;
+    }
+
+    private void ToggleBuildMenuList()
+    {
+        if (_buildMenuOpen && !_buildMenuClosing)
+        {
+            BeginClosingBuildMenu();
+            return;
+        }
+
+        if (_buildMenuOpen && _buildMenuClosing)
+        {
+            _buildMenuClosing = false;
+            _buildMenuAlpha = MathF.Max(_buildMenuAlpha, 0.01f);
+            return;
+        }
+
+        _buildMenuOpen = true;
+        _buildMenuClosing = false;
+        _buildMenuAlpha = 0.01f;
+        _buildMenuX = -37f;
     }
 
     private void CaptureBuildMenuGameplayAim(PlayerInputSnapshot input)
@@ -313,7 +473,52 @@ public partial class Game1
 
     private void BeginClosingBuildMenu()
     {
+        if (!IsBuildMenuWheelEnabled)
+        {
+            if (_buildMenuOpen)
+            {
+                _buildMenuClosing = true;
+            }
+
+            return;
+        }
+
         _buildMenuOpen = false;
         _buildMenuClosing = false;
+    }
+
+    private void AdvanceBuildMenuAnimation()
+    {
+        if (!_buildMenuOpen)
+        {
+            return;
+        }
+
+        if (!_buildMenuClosing)
+        {
+            if (_buildMenuAlpha < 0.99f)
+            {
+                _buildMenuAlpha = AdvanceOpeningAlpha(_buildMenuAlpha, 0.01f, 0.99f);
+            }
+
+            if (_buildMenuX < 37f)
+            {
+                _buildMenuX = MathF.Min(37f, _buildMenuX + ScaleLegacyUiDistance(15f));
+            }
+
+            return;
+        }
+
+        if (_buildMenuAlpha > 0.01f)
+        {
+            _buildMenuAlpha = AdvanceClosingAlpha(_buildMenuAlpha, 0.01f);
+        }
+
+        _buildMenuX -= ScaleLegacyUiDistance(15f);
+        if (_buildMenuX < -37f)
+        {
+            _buildMenuOpen = false;
+            _buildMenuClosing = false;
+        }
     }
 }

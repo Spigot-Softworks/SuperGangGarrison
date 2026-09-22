@@ -38,7 +38,11 @@ public partial class Game1
         }
     }
 
-    private void DrawCustomMapForegroundAndVoid(Vector2 cameraPosition, Rectangle worldRectangle)
+    private void DrawCustomMapForegroundAndVoid(
+        Vector2 cameraPosition,
+        Rectangle worldRectangle,
+        int viewportWidth,
+        int viewportHeight)
     {
         var visuals = GetRuntimeCustomMapVisuals();
         if (visuals is null)
@@ -64,7 +68,7 @@ public partial class Game1
 
         if (visuals.VoidColor is not null)
         {
-            DrawCustomMapVoidBorders(worldRectangle, visuals.VoidColor.Value);
+            DrawCustomMapVoidBorders(worldRectangle, visuals.VoidColor.Value, viewportWidth, viewportHeight);
         }
     }
 
@@ -110,27 +114,30 @@ public partial class Game1
         }
     }
 
-    private void DrawCustomMapVoidBorders(Rectangle worldRectangle, Color color)
+    private void DrawCustomMapVoidBorders(
+        Rectangle worldRectangle,
+        Color color,
+        int viewportWidth,
+        int viewportHeight)
     {
-        var viewport = GraphicsDevice.Viewport;
         if (worldRectangle.Top > 0)
         {
-            _spriteBatch.Draw(_pixel, new Rectangle(0, 0, viewport.Width, worldRectangle.Top), color);
+            _spriteBatch.Draw(_pixel, new Rectangle(0, 0, viewportWidth, worldRectangle.Top), color);
         }
 
-        if (worldRectangle.Bottom < viewport.Height)
+        if (worldRectangle.Bottom < viewportHeight)
         {
-            _spriteBatch.Draw(_pixel, new Rectangle(0, worldRectangle.Bottom, viewport.Width, viewport.Height - worldRectangle.Bottom), color);
+            _spriteBatch.Draw(_pixel, new Rectangle(0, worldRectangle.Bottom, viewportWidth, viewportHeight - worldRectangle.Bottom), color);
         }
 
         if (worldRectangle.Left > 0)
         {
-            _spriteBatch.Draw(_pixel, new Rectangle(0, Math.Max(0, worldRectangle.Top), worldRectangle.Left, Math.Min(viewport.Height, worldRectangle.Height)), color);
+            _spriteBatch.Draw(_pixel, new Rectangle(0, Math.Max(0, worldRectangle.Top), worldRectangle.Left, Math.Min(viewportHeight, worldRectangle.Height)), color);
         }
 
-        if (worldRectangle.Right < viewport.Width)
+        if (worldRectangle.Right < viewportWidth)
         {
-            _spriteBatch.Draw(_pixel, new Rectangle(worldRectangle.Right, Math.Max(0, worldRectangle.Top), viewport.Width - worldRectangle.Right, Math.Min(viewport.Height, worldRectangle.Height)), color);
+            _spriteBatch.Draw(_pixel, new Rectangle(worldRectangle.Right, Math.Max(0, worldRectangle.Top), viewportWidth - worldRectangle.Right, Math.Min(viewportHeight, worldRectangle.Height)), color);
         }
     }
 

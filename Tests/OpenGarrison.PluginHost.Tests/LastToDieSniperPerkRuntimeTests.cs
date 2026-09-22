@@ -26,6 +26,9 @@ public sealed class LastToDieSniperPerkRuntimeTests
             LastToDiePerkIds.Sniper.Conquistador,
             LastToDiePerkIds.Sniper.TranqDarts,
             LastToDiePerkIds.Sniper.PoisonTip,
+            LastToDiePerkIds.Sniper.Avarice,
+            LastToDiePerkIds.Sniper.DugIn,
+            LastToDiePerkIds.Sniper.Ascetic,
         ]);
 
         var profile = Assert.IsType<LastToDieSniperProfile>(modifiers.SniperProfile);
@@ -41,6 +44,9 @@ public sealed class LastToDieSniperPerkRuntimeTests
         Assert.True(profile.ConquistadorEnabled);
         Assert.True(profile.TranqDartsEnabled);
         Assert.True(profile.PoisonTipEnabled);
+        Assert.True(profile.AvariceEnabled);
+        Assert.True(profile.DugInEnabled);
+        Assert.True(profile.AsceticEnabled);
         Assert.Equal(profile, LastToDieSniperProfile.Decode(profile.Encode()));
         Assert.Equal(42, profile.ScaleRifleCycleTicks(40));
         Assert.Equal(PlayerEntity.SniperChargeMaxTicks, profile.RifleFullChargeTicks);
@@ -377,7 +383,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
     }
 
     [Fact]
-    public void LightMarksmanClearsChargeDisablesScopeAndDealsSixtyDamage()
+    public void LightMarksmanClearsChargeAllowsScopeAndPreventsScopedCharge()
     {
         var world = CreateSniperWorld();
         var player = world.LocalPlayer;
@@ -389,9 +395,12 @@ public sealed class LastToDieSniperPerkRuntimeTests
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Sniper.LightMarksman]));
 
-        Assert.False(player.IsSniperScoped);
+        Assert.True(player.IsSniperScoped);
         Assert.Equal(0, player.SniperChargeTicks);
-        Assert.False(player.TryToggleSniperScope());
+        AdvanceSourceTicks(player, 20);
+        Assert.Equal(0, player.SniperChargeTicks);
+        Assert.True(player.TryToggleSniperScope());
+        Assert.False(player.IsSniperScoped);
         Assert.Equal(60, player.GetSniperRifleDamageForCharge(120, isScoped: true));
     }
 
@@ -458,6 +467,9 @@ public sealed class LastToDieSniperPerkRuntimeTests
             LastToDiePerkIds.Sniper.Decapitator,
             LastToDiePerkIds.Sniper.MenageATrois,
             LastToDiePerkIds.Sniper.ExplosiveTip,
+            LastToDiePerkIds.Sniper.Avarice,
+            LastToDiePerkIds.Sniper.DugIn,
+            LastToDiePerkIds.Sniper.Ascetic,
         };
         Assert.True(source.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
@@ -507,6 +519,9 @@ public sealed class LastToDieSniperPerkRuntimeTests
         Assert.True(receiver.LocalPlayer.LastToDieSniperProfile.DecapitatorEnabled);
         Assert.True(receiver.LocalPlayer.LastToDieSniperProfile.MenageATroisEnabled);
         Assert.True(receiver.LocalPlayer.LastToDieSniperProfile.ExplosiveTipEnabled);
+        Assert.True(receiver.LocalPlayer.LastToDieSniperProfile.AvariceEnabled);
+        Assert.True(receiver.LocalPlayer.LastToDieSniperProfile.DugInEnabled);
+        Assert.True(receiver.LocalPlayer.LastToDieSniperProfile.AsceticEnabled);
         Assert.Equal(source.LocalPlayer.LastToDieSniperVolleyState, receiver.LocalPlayer.LastToDieSniperVolleyState);
         Assert.Equal(45, receiver.LocalPlayer.LastToDieSniperRifleFullChargeTicks);
     }

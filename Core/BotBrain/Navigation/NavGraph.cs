@@ -1560,6 +1560,7 @@ public sealed class NavGraph
         {
             var current = openSet.Dequeue();
             if (searchDeadline > 0L
+                && !DeterministicSimulationScope.IsActive
                 && System.Diagnostics.Stopwatch.GetTimestamp() >= searchDeadline)
             {
                 TracePathSearch(
@@ -1612,6 +1613,7 @@ public sealed class NavGraph
             // bound rather than a best-effort hint.
             if (searchDeadline > 0L
                 && (expandedNodes & 7) == 0
+                && !DeterministicSimulationScope.IsActive
                 && System.Diagnostics.Stopwatch.GetTimestamp() >= searchDeadline)
             {
                 TracePathSearch(
@@ -1668,7 +1670,8 @@ public sealed class NavGraph
                 consideredEdges += 1;
                 if (searchDeadline > 0L
                     && (consideredEdges & 31) == 0
-                    && System.Diagnostics.Stopwatch.GetTimestamp() >= searchDeadline)
+                    && !DeterministicSimulationScope.IsActive
+                && System.Diagnostics.Stopwatch.GetTimestamp() >= searchDeadline)
                 {
                     TracePathSearch(
                         null,
@@ -1760,6 +1763,7 @@ public sealed class NavGraph
         {
             if (searchDeadline > 0L
                 && (edgeIndex & 31) == 0
+                && !DeterministicSimulationScope.IsActive
                 && System.Diagnostics.Stopwatch.GetTimestamp() >= searchDeadline)
             {
                 searchAborted = true;

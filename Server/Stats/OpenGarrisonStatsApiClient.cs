@@ -77,7 +77,16 @@ internal sealed class OpenGarrisonStatsApiClient : IOpenGarrisonStatsApiClient
         object request,
         CancellationToken cancellationToken)
     {
-        using var response = await Http.PostAsJsonAsync(new Uri(_baseUri, relativePath), request, cancellationToken).ConfigureAwait(false);
+        using var message = new HttpRequestMessage(HttpMethod.Post, new Uri(_baseUri, relativePath))
+        { Content = JsonContent.Create(request) };
+        if (relativePath is "api/stats/award" or "api/last-to-die/run")
+        {
+            var authorityKey = Environment.GetEnvironmentVariable("OPENGARRISON_REWARD_AUTHORITY_KEY");
+            if (string.IsNullOrWhiteSpace(authorityKey))
+                throw new InvalidOperationException("Persistent awards require a trusted reward authority.");
+            message.Headers.Add("X-OpenGarrison-Reward-Key", authorityKey);
+        }
+        using var response = await Http.SendAsync(message, cancellationToken).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadFromJsonAsync<TResponse>(cancellationToken: cancellationToken).ConfigureAwait(false)
             ?? throw new InvalidOperationException($"{typeof(TResponse).Name} response was empty.");
@@ -229,6 +238,9 @@ internal sealed class LastToDieRunRequest
 
     [JsonPropertyName("difficulty")]
     public string Difficulty { get; set; } = "standard";
+
+    [JsonPropertyName("survivorId")]
+    public string SurvivorId { get; set; } = string.Empty;
 
     [JsonPropertyName("policyVersion")]
     public int PolicyVersion { get; set; } = 1;

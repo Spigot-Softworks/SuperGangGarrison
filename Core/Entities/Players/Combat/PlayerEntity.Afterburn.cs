@@ -23,6 +23,8 @@ public sealed partial class PlayerEntity
 
     public int? BurnedByPlayerId { get; private set; }
 
+    public string AfterburnKillFeedWeaponSpriteName { get; private set; } = "FlameKL";
+
     public float NapalmCoveredSourceTicks { get; private set; }
 
     public bool IsBurning => BurnIntensity > 0f || BurnDurationSourceTicks > 0f;
@@ -103,7 +105,8 @@ public sealed partial class PlayerEntity
         float intensityIncrease,
         bool afterburnFalloff,
         float burnFalloffAmount,
-        bool applyNapalm = false)
+        bool applyNapalm = false,
+        string? killFeedWeaponSpriteName = null)
     {
         if (!IsAlive || IsUbered || durationIncreaseSourceTicks <= 0f || intensityIncrease <= 0f)
         {
@@ -132,6 +135,9 @@ public sealed partial class PlayerEntity
         BurnDurationSourceTicks = float.Min(BurnDurationSourceTicks, GetBurnMaxDurationSourceTicks());
         BurnIntensity = float.Min(BurnIntensity, BurnMaxIntensity);
         BurnedByPlayerId = ownerPlayerId > 0 ? ownerPlayerId : null;
+        AfterburnKillFeedWeaponSpriteName = string.IsNullOrWhiteSpace(killFeedWeaponSpriteName)
+            ? "FlameKL"
+            : killFeedWeaponSpriteName.Trim();
         BurnDecayDelaySourceTicksRemaining = BurnDecayDelaySourceTicks;
         BurnIntensityDecayPerSourceTick = 0f;
         if (applyNapalm)
@@ -287,6 +293,7 @@ public sealed partial class PlayerEntity
         BurnDecayDelaySourceTicksRemaining = 0f;
         BurnIntensityDecayPerSourceTick = 0f;
         BurnedByPlayerId = null;
+        AfterburnKillFeedWeaponSpriteName = "FlameKL";
         NapalmCoveredSourceTicks = 0f;
     }
 

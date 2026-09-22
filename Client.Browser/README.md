@@ -1,10 +1,10 @@
 # OpenGarrison Browser
 
-This project is the thin browser-specific host for OpenGarrison.
+This project hosts OpenGarrison in a browser. Commands below run from the repository root.
 
 ## Status
 
-- Blazor WebAssembly and KNI browser host runs offline practice in-browser.
+- Blazor WebAssembly and KNI run local Practice and multiplayer in the browser.
 - Browser release output is AOT-only. Non-AOT browser publish paths are unsupported and intentionally fail.
 - Shared `Core`, `Protocol`, gameplay content, and client runtime are reused from the main repo.
 - `Core/Content` is mirrored into `wwwroot/Content` during build/publish for browser-hosted asset access.
@@ -59,9 +59,11 @@ Only `artifacts/browser-publish-aot/wwwroot` is deployable. `dotnet build` alone
 
 ## Smoke Test
 
-For the AOT smoke path:
+Install the smoke-test dependencies and Chromium once, then run the test:
 
 ```powershell
+npm ci --prefix .\Tests\BrowserSmoke
+npm exec --prefix .\Tests\BrowserSmoke -- playwright install chromium
 node .\Tests\BrowserSmoke\smoke.mjs
 ```
 
@@ -75,4 +77,10 @@ node .\Tests\BrowserSmoke\smoke.mjs
 
 ## Networking Status
 
-Offline practice and browser multiplayer share the same protocol codec as desktop. Browser multiplayer uses a binary WebSocket transport, while desktop multiplayer keeps the UDP transport.
+Dedicated-server connections use binary WebSocket transport in the browser.
+Player-hosted Practice and Last to Die rooms use WebRTC with an authenticated
+WebSocket relay fallback. See [room deployment](../services/opengarrison-api/deploy/browser-edition/README.md).
+
+Completed Last to Die runs are saved in IndexedDB and uploaded for replay verification
+when the account service is available. Verified solo and co-op results share the same
+leaderboard. Clearing site data deletes any recordings still waiting to upload.

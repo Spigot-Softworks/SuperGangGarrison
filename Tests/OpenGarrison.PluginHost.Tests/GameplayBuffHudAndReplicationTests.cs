@@ -1,5 +1,7 @@
+using System.Linq;
 using OpenGarrison.Client;
 using OpenGarrison.Core;
+using OpenGarrison.Core.LastToDie;
 using OpenGarrison.Protocol;
 using OpenGarrison.Server;
 using Xunit;
@@ -25,6 +27,66 @@ public sealed class GameplayBuffHudAndReplicationTests
                 playing ? LastToDieWirePhase.Playing : LastToDieWirePhase.Lobby,
                 alive,
                 awaitingJoin));
+    }
+
+    [Fact]
+    public void CombatPerformanceFeedbackIsEnabledForHostedLastToDie()
+    {
+        Assert.True(Game1.ShouldEnableCombatPerformanceFeedback(
+            isPracticeSessionActive: false,
+            isOfflineLastToDieSessionActive: false,
+            isHostedLastToDieSessionActive: true));
+        Assert.False(Game1.ShouldEnableCombatPerformanceFeedback(
+            isPracticeSessionActive: false,
+            isOfflineLastToDieSessionActive: false,
+            isHostedLastToDieSessionActive: false));
+    }
+
+    [Fact]
+    public void HostedLastToDieCombatAnnouncementsBelongToTheLocalPlayer()
+    {
+        Assert.True(Game1.IsLocalLastToDieCombatAnnouncement(
+            isAnyLastToDieSessionActive: true,
+            killerPlayerId: 42,
+            localPlayerId: 42));
+        Assert.False(Game1.IsLocalLastToDieCombatAnnouncement(
+            isAnyLastToDieSessionActive: true,
+            killerPlayerId: 43,
+            localPlayerId: 42));
+    }
+
+    [Theory]
+    [InlineData(LastToDieWirePhase.Playing, 0.1f, true)]
+    [InlineData(LastToDieWirePhase.Playing, 0f, false)]
+    [InlineData(LastToDieWirePhase.RewardChoice, 1f, false)]
+    public void HostedLastToDieStageIntroOnlyAppearsDuringActivePlay(
+        LastToDieWirePhase phase,
+        float secondsRemaining,
+        bool expected)
+    {
+        Assert.Equal(
+            expected,
+            Game1.ShouldShowHostedLastToDieStageIntro(phase, secondsRemaining));
+    }
+
+    [Fact]
+    public void PerkTooltipIncludesEffectsForEveryOwnedHostedPerk()
+    {
+        var definitions = LastToDieExpansionPerkCatalog.CreateDefinitions()
+            .ToDictionary(definition => definition.Id.Value, StringComparer.Ordinal);
+        var ownedPerks = new[]
+        {
+            LastToDiePerkIds.Rare.Mimic.Value,
+            LastToDiePerkIds.Rare.Triage.Value,
+            "future.perk.without.a.current.definition",
+        };
+
+        var lines = Game1.BuildHostedLastToDieBuffTooltipLines(ownedPerks, definitions, "F");
+
+        Assert.Equal(ownedPerks.Length, lines.Count);
+        Assert.Contains($"{definitions[ownedPerks[0]].DisplayName}: {definitions[ownedPerks[0]].Description}", lines);
+        Assert.Contains($"{definitions[ownedPerks[1]].DisplayName}: {definitions[ownedPerks[1]].Description}", lines);
+        Assert.Contains(ownedPerks[2], lines);
     }
 
     [Fact]
@@ -103,12 +165,20 @@ public sealed class GameplayBuffHudAndReplicationTests
     {
         var source = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
         source.LocalPlayer.SetDispenserBuffed(true, 1.25f);
+        source.LocalPlayer.RegisterCombatComboHit(120);
         var player = ServerHelpers.ToSnapshotPlayerState(
             source,
             SimulationWorld.LocalPlayerSlot,
             source.LocalPlayer,
             source.LocalPlayer,
-            new SnapshotStringCache());
+            new SnapshotStringCache()) with
+        {
+            ExperimentalCryoSlowTicksRemaining = 42,
+            ExperimentalCryoFreezeTicksRemaining = 21,
+            ExperimentalCryoExposureFraction = 0.5f,
+            ExperimentalGhostVisibilityTicksRemaining = 33,
+            ExperimentalGhostTrailAlpha = 0.75f,
+        };
         var snapshot = CreateSnapshot(player);
 
         var payload = ProtocolCodec.Serialize(snapshot, ProtocolCompressionSettings.Disabled);
@@ -117,11 +187,25 @@ public sealed class GameplayBuffHudAndReplicationTests
         var decodedPlayer = Assert.Single(decoded.Players);
         Assert.True(decodedPlayer.IsDispenserBuffed);
         Assert.Equal(1.25f, decodedPlayer.DispenserAttackReloadSpeedMultiplier);
+        Assert.Equal(1, decodedPlayer.CurrentCombo);
+        Assert.Equal(120, decodedPlayer.ComboTicksRemaining);
+        Assert.Equal(42, decodedPlayer.ExperimentalCryoSlowTicksRemaining);
+        Assert.Equal(21, decodedPlayer.ExperimentalCryoFreezeTicksRemaining);
+        Assert.InRange(decodedPlayer.ExperimentalCryoExposureFraction, 0.5f, 0.51f);
+        Assert.Equal(33, decodedPlayer.ExperimentalGhostVisibilityTicksRemaining);
+        Assert.Equal(191f / byte.MaxValue, decodedPlayer.ExperimentalGhostTrailAlpha);
 
         var receiver = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
         Assert.True(receiver.ApplySnapshot(decoded));
         Assert.True(receiver.LocalPlayer.IsDispenserBuffed);
         Assert.Equal(1.25f, receiver.LocalPlayer.DispenserAttackReloadSpeedMultiplier);
+        Assert.Equal(1, receiver.LocalPlayer.CurrentCombo);
+        Assert.Equal(120, receiver.LocalPlayer.ComboTicksRemaining);
+        Assert.True(receiver.LocalPlayer.IsExperimentalCryoSlowed);
+        Assert.True(receiver.LocalPlayer.IsExperimentalCryoFrozen);
+        Assert.InRange(receiver.LocalPlayer.ExperimentalCryoExposureFraction, 0.5f, 0.51f);
+        Assert.True(receiver.LocalPlayer.IsExperimentalGhostDashVisible);
+        Assert.Equal(191f / byte.MaxValue, receiver.LocalPlayer.ExperimentalGhostDashTrailAlpha);
 
         var baseline = CreateSnapshot(player with
         {
@@ -134,6 +218,20 @@ public sealed class GameplayBuffHudAndReplicationTests
             BaselineFrame = 20,
             IsDelta = true,
             Players = [],
+            PlayerStatusStates =
+            [
+                new SnapshotPlayerStatusState(
+                    SimulationWorld.LocalPlayerSlot,
+                    player.Health,
+                    player.MaxHealth,
+                    player.Ammo,
+                    player.MaxAmmo,
+                    player.Metal,
+                    player.IsCarryingIntel,
+                    player.IntelRechargeTicks,
+                    CurrentCombo: 4,
+                    ComboTicksRemaining: 75),
+            ],
             PlayerExtendedStatusStates =
             [
                 new SnapshotPlayerExtendedStatusState(
@@ -150,14 +248,35 @@ public sealed class GameplayBuffHudAndReplicationTests
                     HeavyEatTicksRemaining: 0,
                     IsSniperScoped: false,
                     IsDispenserBuffed: true,
-                    DispenserAttackReloadSpeedMultiplier: 1.25f),
+                    DispenserAttackReloadSpeedMultiplier: 1.25f,
+                    ExperimentalCryoSlowTicksRemaining: 55,
+                    ExperimentalCryoFreezeTicksRemaining: 28,
+                    ExperimentalCryoExposureFraction: 0.25f,
+                    ExperimentalGhostVisibilityTicksRemaining: 18,
+                    ExperimentalGhostTrailAlpha: 0.25f),
             ],
         };
 
-        var merged = SnapshotDelta.ToFullSnapshot(delta, baseline);
+        var deltaPayload = ProtocolCodec.Serialize(delta, ProtocolCompressionSettings.Disabled);
+        Assert.True(ProtocolCodec.TryDeserialize(deltaPayload, out var decodedDeltaMessage));
+        var decodedDelta = Assert.IsType<SnapshotMessage>(decodedDeltaMessage);
+        var merged = SnapshotDelta.ToFullSnapshot(decodedDelta, baseline);
         var mergedPlayer = Assert.Single(merged.Players);
         Assert.True(mergedPlayer.IsDispenserBuffed);
         Assert.Equal(1.25f, mergedPlayer.DispenserAttackReloadSpeedMultiplier);
+        Assert.Equal(4, mergedPlayer.CurrentCombo);
+        Assert.Equal(75, mergedPlayer.ComboTicksRemaining);
+        Assert.Equal(55, mergedPlayer.ExperimentalCryoSlowTicksRemaining);
+        Assert.Equal(28, mergedPlayer.ExperimentalCryoFreezeTicksRemaining);
+        Assert.InRange(mergedPlayer.ExperimentalCryoExposureFraction, 0.25f, 0.26f);
+        Assert.Equal(18, mergedPlayer.ExperimentalGhostVisibilityTicksRemaining);
+        Assert.InRange(mergedPlayer.ExperimentalGhostTrailAlpha, 0.25f, 0.26f);
+        Assert.True(receiver.ApplySnapshot(merged));
+        Assert.Equal(4, receiver.LocalPlayer.CurrentCombo);
+        Assert.Equal(75, receiver.LocalPlayer.ComboTicksRemaining);
+        Assert.True(receiver.LocalPlayer.IsExperimentalCryoFrozen);
+        Assert.InRange(receiver.LocalPlayer.ExperimentalCryoExposureFraction, 0.25f, 0.26f);
+        Assert.InRange(receiver.LocalPlayer.ExperimentalGhostDashTrailAlpha, 0.25f, 0.26f);
     }
 
     [Fact]
@@ -165,6 +284,7 @@ public sealed class GameplayBuffHudAndReplicationTests
     {
         var source = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
         source.LocalPlayer.SetDispenserBuffed(true, 1.25f);
+        source.LocalPlayer.RegisterCombatComboHit(120);
         var published = Assert.Single(
             new Protocol64StatePublisher(source).BuildPlayerStateBatch(12).Players);
         var registry = new Protocol64SchemaRegistry();
@@ -181,11 +301,15 @@ public sealed class GameplayBuffHudAndReplicationTests
         var decodedPlayer = Assert.Single(decoded.Event!.Players);
         Assert.True(decodedPlayer.IsDispenserBuffed);
         Assert.Equal(1.25f, decodedPlayer.DispenserAttackReloadSpeedMultiplier);
+        Assert.Equal(1, decodedPlayer.CurrentCombo);
+        Assert.Equal(120, decodedPlayer.ComboTicksRemaining);
 
         var receiver = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
         Assert.True(receiver.ApplyProtocol64PlayerState(decodedPlayer));
         Assert.True(receiver.LocalPlayer.IsDispenserBuffed);
         Assert.Equal(1.25f, receiver.LocalPlayer.DispenserAttackReloadSpeedMultiplier);
+        Assert.Equal(1, receiver.LocalPlayer.CurrentCombo);
+        Assert.Equal(120, receiver.LocalPlayer.ComboTicksRemaining);
     }
 
     [Fact]

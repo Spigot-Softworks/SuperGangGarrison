@@ -10,12 +10,10 @@ public sealed partial class SimulationWorld
     private const float StructurePlacementHorizontalAssistStep = 1f;
     private const float SentryDestroyBlastRadius = 65f;
     private const float SentryDestroyKnockbackPerTick = 4f;
-    private const int SentryOwnerDestroySetupGuardSeconds = 2;
     private enum OwnedSentryDestroyResult
     {
         NoOwnedSentry,
         Destroyed,
-        BlockedBySetupGuard,
     }
 
     private readonly record struct SentryTarget(
@@ -82,11 +80,6 @@ public sealed partial class SimulationWorld
             if (sentry.OwnerPlayerId != LocalPlayer.Id || sentry.IsDispenser)
             {
                 continue;
-            }
-
-            if (IsOwnerManualSentryDestroyBlockedBySetupGuard(sentry))
-            {
-                return false;
             }
 
             DestroySentry(sentry, attacker: null);
@@ -866,7 +859,6 @@ public sealed partial class SimulationWorld
         }
 
         var destroyedSentry = false;
-        var blockedBySetupGuard = false;
         for (var index = _sentries.Count - 1; index >= 0; index -= 1)
         {
             var sentry = _sentries[index];
@@ -880,12 +872,6 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            if (IsOwnerManualSentryDestroyBlockedBySetupGuard(sentry))
-            {
-                blockedBySetupGuard = true;
-                continue;
-            }
-
             DestroySentry(sentry, attacker: null);
             destroyedSentry = true;
         }
@@ -895,20 +881,6 @@ public sealed partial class SimulationWorld
             return OwnedSentryDestroyResult.Destroyed;
         }
 
-        return blockedBySetupGuard
-            ? OwnedSentryDestroyResult.BlockedBySetupGuard
-            : OwnedSentryDestroyResult.NoOwnedSentry;
-    }
-
-    private bool IsOwnerManualSentryDestroyBlockedBySetupGuard(SentryEntity sentry)
-    {
-        return !sentry.IsBuilt
-            && sentry.LifetimeTicks < GetSentryOwnerDestroySetupGuardTicks();
-    }
-
-    private int GetSentryOwnerDestroySetupGuardTicks()
-    {
-        return Math.Max(1, Config.TicksPerSecond * SentryOwnerDestroySetupGuardSeconds);
+        return OwnedSentryDestroyResult.NoOwnedSentry;
     }
 }
-

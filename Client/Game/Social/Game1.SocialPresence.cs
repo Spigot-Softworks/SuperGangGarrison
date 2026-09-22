@@ -16,6 +16,7 @@ public partial class Game1
     private const double FriendsPresenceRefreshIntervalSeconds = 20d;
     private const double FriendRequestsRefreshIntervalSeconds = 10d;
     private const double DirectMessagesPollIntervalSeconds = 5d;
+    private const int DirectMessagesPollPageSize = 50;
 
     private NetworkEndpoint? _socialPresenceNetworkEndpoint;
     private Task? _socialPresenceHeartbeatTask;
@@ -243,19 +244,29 @@ public partial class Game1
         {
             if (_directMessagesPollTask.IsCompletedSuccessfully)
             {
-                var playNotification = _directMessagesInitialPollCompleted;
+                var appendIncomingToChat = _directMessagesInitialPollCompleted;
                 var addedIncomingMessage = false;
-                foreach (var message in _directMessagesPollTask.Result)
+                var messages = _directMessagesPollTask.Result;
+                foreach (var message in messages)
                 {
-                    addedIncomingMessage |= AddDirectMessageEntry(message, appendChatLine: true);
+                    addedIncomingMessage |= AddDirectMessageEntry(message, appendChatLine: appendIncomingToChat);
                 }
 
-                if (playNotification && addedIncomingMessage)
+                if (appendIncomingToChat && addedIncomingMessage)
                 {
                     PlayDirectMessageNotificationSound();
                 }
 
-                _directMessagesInitialPollCompleted = true;
+                if (!_directMessagesInitialPollCompleted && messages.Count < DirectMessagesPollPageSize)
+                {
+                    _directMessagesInitialPollCompleted = true;
+                }
+
+                PersistDirectMessageCursor();
+                if (!_directMessagesInitialPollCompleted)
+                {
+                    _directMessagesSecondsUntilPoll = 0d;
+                }
             }
             else if (_friendsMenuOpen && _friendsMenuTab == FriendsMenuTab.Messages)
             {
@@ -560,6 +571,30 @@ public partial class Game1
         }
 
         return true;
+    }
+
+    private void PersistDirectMessageCursor()
+    {
+        if (_clientIdentity.LastDirectMessageId == _lastDirectMessageId
+            && _clientIdentity.DirectMessageCursorInitialized == _directMessagesInitialPollCompleted)
+        {
+            return;
+        }
+
+        var previousMessageId = _clientIdentity.LastDirectMessageId;
+        var previousInitialized = _clientIdentity.DirectMessageCursorInitialized;
+        _clientIdentity.LastDirectMessageId = Math.Max(0L, _lastDirectMessageId);
+        _clientIdentity.DirectMessageCursorInitialized = _directMessagesInitialPollCompleted;
+        try
+        {
+            _clientIdentity.Save();
+        }
+        catch (Exception exception)
+        {
+            _clientIdentity.LastDirectMessageId = previousMessageId;
+            _clientIdentity.DirectMessageCursorInitialized = previousInitialized;
+            AddConsoleLine($"could not save direct-message cursor: {exception.Message}");
+        }
     }
 
     private string GetFriendDisplayName(string friendCode, string fallbackName = "")

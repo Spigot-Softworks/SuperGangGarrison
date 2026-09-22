@@ -372,7 +372,14 @@ internal static partial class ServerHelpers
             RageCharge: player.RageCharge,
             IsRageReady: player.IsRageReady,
             RageTicksRemaining: Math.Max(0, player.RageTicksRemaining),
-            IsBot: isBot);
+            IsBot: isBot,
+            CurrentCombo: player.CurrentCombo,
+            ComboTicksRemaining: player.ComboTicksRemaining,
+            ExperimentalCryoSlowTicksRemaining: player.ExperimentalCryoSlowTicksRemaining,
+            ExperimentalCryoFreezeTicksRemaining: player.ExperimentalCryoFreezeTicksRemaining,
+            ExperimentalCryoExposureFraction: player.ExperimentalCryoExposureFraction,
+            ExperimentalGhostVisibilityTicksRemaining: player.ExperimentalGhostVisibilityTicksRemaining,
+            ExperimentalGhostTrailAlpha: player.ExperimentalGhostDashTrailAlpha);
     }
 
     internal static SnapshotIntelState ToSnapshotIntelState(TeamIntelligenceState intel)
@@ -410,7 +417,8 @@ internal static partial class ServerHelpers
     internal static SnapshotCivilDefenseTurretState ToSnapshotCivilDefenseTurretState(CivilDefenseTurretEntity turret)
         => new(turret.Id, turret.OwnerPlayerId, (byte)turret.Team, turret.X, turret.Y,
             turret.Health, turret.HasLanded, turret.IsBuilt, turret.FacingDirectionX, turret.AimDirectionDegrees,
-            turret.ReloadTicksRemaining, turret.ShotTraceTicksRemaining, turret.LastShotTargetX, turret.LastShotTargetY);
+            turret.ReloadTicksRemaining, turret.ShotTraceTicksRemaining, turret.LastShotTargetX, turret.LastShotTargetY,
+            turret.LifetimeTicksRemaining);
 
     internal static SnapshotJumpPadState ToSnapshotJumpPadState(JumpPadEntity pad)
     {
@@ -736,7 +744,8 @@ internal static partial class ServerHelpers
             (ushort)Math.Clamp((int)MathF.Round(point.CappingTicks), 0, ushort.MaxValue),
             (ushort)Math.Clamp(point.CapTimeTicks, 0, ushort.MaxValue),
             (byte)Math.Clamp(point.Cappers, 0, byte.MaxValue),
-            point.IsLocked);
+            point.IsLocked,
+            point.HasHealingAura);
     }
 
     internal static SnapshotGeneratorState ToSnapshotGeneratorState(GeneratorState generator)
@@ -859,7 +868,10 @@ internal static partial class ServerHelpers
             (OpenGarrison.Protocol.KillFeedSpecialType)entry.SpecialType,
             entry.EventId)
         {
-            InvolvedPlayerIds = entry.InvolvedPlayerIds.ToArray(),
+            AssistName = entry.AssistName,
+                AssistTeam = (byte)entry.AssistTeam,
+                AssistPlayerId = entry.AssistPlayerId,
+                InvolvedPlayerIds = entry.InvolvedPlayerIds.ToArray(),
         };
     }
 

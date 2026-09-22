@@ -56,11 +56,16 @@ public partial class Game1
         WeaponAnimationOverlayDefinition ReloadOverlay,
         float XOffset,
         float YOffset,
+        float ReloadSpriteXOffset,
+        float ReloadSpriteYOffset,
         float RecoilDurationSeconds,
         float ReloadDurationSeconds,
         float ScopedRecoilDurationSeconds = 0f,
         bool LoopRecoilWhileActive = false,
-        bool LoopReloadAnimation = false);
+        bool LoopReloadAnimation = false,
+        bool SingleTeamFrames = false,
+        int PoseFrameIndex = 0,
+        Vector2? MuzzleOffset = null);
 
     private readonly record struct WeaponAnimationOverlayDefinition(
         string? CarrierSpriteName,
@@ -519,6 +524,21 @@ public partial class Game1
     private void DrawDominationIndicator(PlayerEntity player, Vector2 cameraPosition, float visibilityAlpha)
     {
         _gameplayPlayerStatusEffectRenderController.DrawDominationIndicator(player, cameraPosition, visibilityAlpha);
+    }
+
+    private void DrawLastToDieSniperAsceticGhosting(
+        PlayerEntity player,
+        Vector2 renderPosition,
+        Vector2 cameraPosition,
+        float visibilityAlpha,
+        PlayerBodySpriteSelection bodySelection)
+    {
+        _gameplayPlayerStatusEffectRenderController.DrawLastToDieSniperAsceticGhosting(
+            player,
+            renderPosition,
+            cameraPosition,
+            visibilityAlpha,
+            bodySelection);
     }
 
     private IEnumerable<PlayerEntity> EnumerateRenderablePlayers()

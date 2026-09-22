@@ -2,5 +2,5 @@ namespace OpenGarrison.Protocol;
 
 public static class ProtocolVersion
 {
-    public const int Current = 99;
+    public const int Current = 103;
 }

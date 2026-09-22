@@ -39,6 +39,14 @@ public sealed partial class PlayerEntity
         }
         LastPrimaryShotIgnoredAmmoCost = ignoreAmmoCost;
         PrimaryCooldownTicks = GetPrimaryCooldownAfterShot();
+        if (HasPrimaryBehavior(BuiltInGameplayBehaviorIds.DragonRage))
+        {
+            BeginDragonRageShot();
+        }
+        else
+        {
+            ResetDragonRageCadence();
+        }
         if (PrimaryWeapon.AutoReloads && !ignoreAmmoCost && CurrentShells < PrimaryWeapon.MaxAmmo)
         {
             ReloadTicksUntilNextShell = ApplyExperimentalReloadMultiplier(PrimaryWeapon.AmmoReloadTicks);
@@ -470,6 +478,54 @@ public sealed partial class PlayerEntity
             : 0;
     }
 
+    internal void ResolveDragonRageShot(int shotSequence, bool hitTarget, int elapsedTicks)
+    {
+        if (!DragonRageShotPending
+            || shotSequence <= 0
+            || shotSequence != DragonRageCurrentShotSequence)
+        {
+            return;
+        }
+
+        DragonRageShotPending = false;
+        if (!HasPrimaryBehavior(BuiltInGameplayBehaviorIds.DragonRage))
+        {
+            ResetDragonRageCadence();
+            return;
+        }
+
+        IsDragonRageRapidFireActive = hitTarget;
+        var desiredCooldownTicks = GetDragonRageCooldownAfterShot(hitTarget);
+        var desiredRemainingTicks = Math.Max(0, desiredCooldownTicks - Math.Max(0, elapsedTicks));
+        PrimaryCooldownTicks = hitTarget
+            ? Math.Min(PrimaryCooldownTicks, desiredRemainingTicks)
+            : Math.Max(PrimaryCooldownTicks, desiredRemainingTicks);
+    }
+
+    internal void ResetDragonRageCadence()
+    {
+        IsDragonRageRapidFireActive = false;
+        DragonRageShotPending = false;
+    }
+
+    private void BeginDragonRageShot()
+    {
+        DragonRageCurrentShotSequence = DragonRageCurrentShotSequence == int.MaxValue
+            ? 1
+            : DragonRageCurrentShotSequence + 1;
+        DragonRageShotPending = true;
+    }
+
+    private int GetDragonRageCooldownAfterShot(bool successfulHitBonusActive)
+    {
+        var rateMultiplier = DragonRageBaseFireRateMultiplier
+            * (successfulHitBonusActive ? 1f + DragonRageSuccessfulHitFireRateBonus : 1f);
+        var cooldownTicks = Math.Max(
+            1,
+            (int)MathF.Round(PrimaryWeapon.ReloadDelayTicks / rateMultiplier));
+        return ApplyExperimentalPrimaryCooldownMultiplier(cooldownTicks);
+    }
+
     private int GetPrimaryCooldownAfterShot()
     {
         if (HasPrimaryBehavior(BuiltInGameplayBehaviorIds.TommyGun))
@@ -480,6 +536,11 @@ public sealed partial class PlayerEntity
             var shotsFired = Math.Max(1, PrimaryWeapon.MaxAmmo - CurrentShells);
             var shotInCadence = ((shotsFired - 1) % 13) + 1;
             return shotInCadence is 3 or 6 or 9 or 13 ? 3 : 2;
+        }
+
+        if (HasPrimaryBehavior(BuiltInGameplayBehaviorIds.DragonRage))
+        {
+            return GetDragonRageCooldownAfterShot(IsDragonRageRapidFireActive);
         }
 
         var cooldownTicks = HasScopedSniperWeaponEquipped

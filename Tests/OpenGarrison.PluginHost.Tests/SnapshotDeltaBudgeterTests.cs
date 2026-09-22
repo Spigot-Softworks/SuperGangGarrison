@@ -2057,10 +2057,10 @@ public sealed class SnapshotDeltaBudgeterTests
         var world = new SimulationWorld();
         var contributions = SnapshotContributionPlanner.BuildContributions(client, current, baseline, world);
 
-        var result = SnapshotDeltaBudgeter.BuildBudgetedSnapshot(current, baseline, contributions, targetPayloadBytes: 324);
+        var result = SnapshotDeltaBudgeter.BuildBudgetedSnapshot(current, baseline, contributions, targetPayloadBytes: 332);
         var merged = SnapshotDelta.ToFullSnapshot(result.Message, baseline);
 
-        Assert.True(result.Payload.Length <= 324);
+        Assert.True(result.Payload.Length <= 332);
         Assert.Empty(result.Message.Players);
         var statusState = Assert.Single(result.Message.PlayerStatusStates, status => status.Slot == 2);
         Assert.Equal(58, statusState.Health);

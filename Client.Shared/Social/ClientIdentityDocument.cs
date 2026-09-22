@@ -31,6 +31,10 @@ public sealed class ClientIdentityDocument
 
     public PlayerCardProfile PlayerCard { get; set; } = PlayerCardProfile.CreateDefault();
 
+    public long LastDirectMessageId { get; set; }
+
+    public bool DirectMessageCursorInitialized { get; set; }
+
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
 
     [JsonIgnore]
@@ -50,6 +54,7 @@ public sealed class ClientIdentityDocument
                     {
                         stored.FriendCode = NormalizeFriendCodeForStorage(stored.FriendCode);
                         stored.PlayerCard = PlayerCardProfile.Sanitize(stored.PlayerCard);
+                        stored.LastDirectMessageId = Math.Max(0L, stored.LastDirectMessageId);
                         stored.IsPersistent = true;
                         stored.Save();
                         return stored;
@@ -75,6 +80,7 @@ public sealed class ClientIdentityDocument
                 {
                     document.FriendCode = NormalizeFriendCodeForStorage(document.FriendCode);
                     document.PlayerCard = PlayerCardProfile.Sanitize(document.PlayerCard);
+                    document.LastDirectMessageId = Math.Max(0L, document.LastDirectMessageId);
                     document.IsPersistent = true;
                     document.Save(resolvedPath);
                     return document;
@@ -171,6 +177,7 @@ public sealed class ClientIdentityDocument
             ClientSecret = CreateSecret(),
             FriendCode = CreateFriendCode(),
             PlayerCard = PlayerCardProfile.CreateDefault(),
+            DirectMessageCursorInitialized = true,
             CreatedAtUtc = DateTimeOffset.UtcNow,
             IsPersistent = isPersistent,
         };

@@ -1,0 +1,16 @@
+{
+  "id": "ElkondoSpyBlueBodyS",
+  "framePaths": [
+    "assets/characters/player-skins/ElkondoSpyBlueBodyS/0.png",
+    "assets/characters/player-skins/ElkondoSpyBlueBodyS/1.png",
+    "assets/characters/player-skins/ElkondoSpyBlueBodyS/2.png",
+    "assets/characters/player-skins/ElkondoSpyBlueBodyS/3.png",
+    "assets/characters/player-skins/ElkondoSpyBlueBodyS/4.png",
+    "assets/characters/player-skins/ElkondoSpyBlueBodyS/5.png",
+    "assets/characters/player-skins/ElkondoSpyBlueBodyS/6.png",
+    "assets/characters/player-skins/ElkondoSpyBlueBodyS/7.png",
+    "assets/characters/player-skins/ElkondoSpyBlueBodyS/8.png"
+  ],
+  "originX": 32,
+  "originY": 40
+}

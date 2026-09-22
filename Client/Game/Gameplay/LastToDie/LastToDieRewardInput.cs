@@ -53,6 +53,11 @@ internal sealed class LastToDieRewardInput
         if (Ready && index >= 0) SelectedIndex = index;
     }
 
+    public void ClearSelection()
+    {
+        if (!Submitted) SelectedIndex = -1;
+    }
+
     public bool TrySubmit()
     {
         if (!Ready || SelectedIndex < 0) return false;

@@ -20,6 +20,7 @@ public sealed record EmbeddedSessionOptions
     public bool SpecialAbilities { get; init; } = true;
     public LastToDieDifficulty Difficulty { get; init; }
     public ulong? Seed { get; init; }
+    public Guid RunIdentity { get; init; }
 
     public void Validate()
     {

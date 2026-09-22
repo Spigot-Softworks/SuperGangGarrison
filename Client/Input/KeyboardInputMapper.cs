@@ -17,10 +17,12 @@ internal static class KeyboardInputMapper
         float binocularsFocusX = 0f,
         float binocularsFocusY = 0f,
         bool useMultiplayerExclusivePrimarySwapBinding = false,
-        MouseState? previousMouse = null)
+        MouseState? previousMouse = null,
+        float cameraZoom = 1f)
     {
-        var mouseWorldX = cameraX + mouse.X;
-        var mouseWorldY = cameraY + mouse.Y;
+        var safeCameraZoom = cameraZoom > 0f ? cameraZoom : 1f;
+        var mouseWorldX = cameraX + (mouse.X / safeCameraZoom);
+        var mouseWorldY = cameraY + (mouse.Y / safeCameraZoom);
         var swapWeaponsBinding = InputBindingsSettings.NormalizeSwapWeaponsBinding(bindings.SwapWeaponsBinding);
         var qIsExclusivePrimarySwap = useMultiplayerExclusivePrimarySwapBinding
             && keyboard.IsKeyDown(Keys.Q);

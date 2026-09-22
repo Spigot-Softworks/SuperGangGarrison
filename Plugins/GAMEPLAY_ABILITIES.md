@@ -8,12 +8,12 @@ Stock/default gameplay content should be authored as JSON gameplay data plus
 registered C# executors. Lua is for plugin and mod content, not for base game
 stock content.
 
-## Current Contract
+## Data and execution
 
 Stock gameplay content is data-backed:
 
 - Stock classes live in `Core/Content/Gameplay/stock.gg2/classes/*.json`.
-- Stock items and weapons live in `Core/Content/Gameplay/stock.gg2/items/*.json`.
+- Stock items and weapons live in `Core/Content/Gameplay/stock.gg2/items/weapons/` and `items/abilities/`.
 - Stock class runtime slot metadata lives in class JSON under `runtime`.
 - Stock ability metadata lives on item JSON under `ability`.
 - Stock primary weapon metadata lives on item JSON under `ammo`, `combat`, and
@@ -41,52 +41,19 @@ Use this flow for base game content:
 6. Update client prediction, bot logic, replay support, or HUD code only if the
    new behavior needs first-class support there.
 
-## Stock Class Template
+## Stock class definitions
 
-Class JSON owns the stock class data and the runtime slot binding:
+Use [scout.json](../Core/Content/Gameplay/stock.gg2/classes/scout.json) as a complete
+stock class example. Its `runtime.playerClass` binds it to the network/runtime
+enum; its `movement` and `presentation` sections define class properties.
 
-```json
-{
-  "id": "scout",
-  "displayName": "Scout",
-  "runtime": {
-    "playerClass": "Scout",
-    "supportsExperimentalAcquiredWeapon": true,
-    "primaryWeaponKillFeedSprite": "ScatterKL"
-  },
-  "movement": {
-    "maxHealth": 100,
-    "collisionLeft": -6.0,
-    "collisionTop": -10.0,
-    "collisionRight": 7.0,
-    "collisionBottom": 24.0,
-    "runPower": 1.4,
-    "jumpStrength": 8.3,
-    "maxAirJumps": 1,
-    "tauntLengthFrames": 8
-  },
-  "presentation": {
-    "spritePrefix": "Scout",
-    "standSuffix": "StandS",
-    "runSuffix": "RunS",
-    "jumpSuffix": "JumpS"
-  },
-  "loadouts": {
-    "scout.stock": {
-      "id": "scout.stock",
-      "displayName": "Stock",
-      "primaryItemId": "weapon.scattergun",
-      "utilityItemId": "ability.scout-utility",
-      "abilityItemIds": [ "ability.experimental-ltd-passive" ]
-    }
-  },
-  "defaultLoadoutId": "scout.stock"
-}
-```
+Loadouts use `primary.defaultItemId`, `primary.itemIds`, `secondary.itemId`, and
+`abilities`. Primary choices also declare their switch and persistence policies.
+The current Scout loadout offers Scattergun and Nailgun as primary choices and
+uses the Scout Pistol as its secondary weapon.
 
-`runtime.playerClass` maps the data class onto the current network/runtime enum
-slot. True new class slots beyond the current enum still require protocol,
-class-select, server command, bot, replay, and UI work.
+Adding a class outside the existing enum requires protocol, class selection,
+server commands, bots, replay, and UI changes as well as a data definition.
 
 ## Stock Ability Item Template
 
@@ -97,10 +64,11 @@ taunt interception, or a passive tick:
 {
   "id": "ability.example-dash",
   "displayName": "Example Dash",
-  "slot": "Utility",
+  "kind": "Ability",
   "behaviorId": "builtin.utility.example_dash",
   "ability": {
     "category": "utility",
+    "channel": "utility",
     "activation": "pressed",
     "executorId": "builtin.ability.example_dash",
     "tags": [ "movement", "dash", "cooldown" ],
@@ -145,15 +113,15 @@ referencing it from item JSON, not hardcoding a class-specific HUD branch.
 
 ## Stock Weapon Item Template
 
-Use a weapon item when the player fires through the primary weapon path. A
-secondary or utility slot can still be a weapon if the loadout equips and toggles
-it:
+Use a weapon item for an equipped primary or secondary weapon. The following
+example illustrates the schema; its values are not the stock Nailgun balance:
 
 ```json
 {
   "id": "weapon.example-nailgun",
   "displayName": "Nailgun",
-  "slot": "Secondary",
+  "kind": "Weapon",
+  "weaponSlot": "Secondary",
   "behaviorId": "builtin.weapon.scout_nailgun",
   "ammo": {
     "maxAmmo": 30,
@@ -195,135 +163,23 @@ it:
 behavior IDs include pellet guns, flamethrower, rockets, mines, grenades,
 minigun, rifle, medigun, revolver, and blade.
 
-## Stock Example: Scout Nailgun Spacebar Ability
+## Stock example: Scout Nailgun
 
-This uses Scout and the Nailgun only as an example of the stock-content flow.
-The same sequence applies to any class and any stock ability/weapon pair.
+The current Nailgun is a primary swap, not a Spacebar-equipped secondary.
+Follow these files together when changing it:
 
-1. First choose the class that receives the new option. Here that is Scout, so
-   the loadout edit happens in
-   `Core/Content/Gameplay/stock.gg2/classes/scout.json`.
-2. Add each new item as stock gameplay JSON under
-   `Core/Content/Gameplay/stock.gg2/items/`. A weapon that fires through the
-   weapon path is a weapon item. A Spacebar action is an ability item.
-3. Decide whether the new action reuses an existing executor or needs a new
-   built-in C# executor. Lua is not required or desired for stock gameplay.
-4. Attach the items to a loadout. The loadout is what makes the class able to
-   equip the weapon and trigger the Spacebar ability.
-5. Register any new built-in behavior IDs and executors in the stock registry.
-6. Add loader, registry, and simulation tests that prove the data and behavior
-   are both wired.
+- [Scout class/loadout](../Core/Content/Gameplay/stock.gg2/classes/scout.json)
+- [Nailgun item](../Core/Content/Gameplay/stock.gg2/items/weapons/weapon.scout-nailgun.json)
+- [Built-in behavior IDs](GameplayModding.Abstractions/BuiltInGameplayBehaviorIds.cs)
+- [Stock runtime registration](../Core/Gameplay/GameplayRuntimeRegistry.Stock.cs)
 
-For Scout's Nailgun, the stock implementation would look like this.
+The item identifies `builtin.weapon.scout_nailgun`; the stock registry connects
+that behavior to `SimulationWorld.ExecuteScoutNailgunPrimaryWeapon`. Ammo,
+timing, projectile properties, and presentation come from the item definition.
 
-Add `Core/Content/Gameplay/stock.gg2/items/weapon.scout-nailgun.json`:
-
-```json
-{
-  "id": "weapon.scout-nailgun",
-  "displayName": "Nailgun",
-  "slot": "Secondary",
-  "behaviorId": "builtin.weapon.scout_nailgun",
-  "ammo": {
-    "maxAmmo": 30,
-    "ammoPerUse": 1,
-    "projectilesPerUse": 1,
-    "useDelaySourceTicks": 4,
-    "reloadSourceTicks": 2,
-    "spreadDegrees": 2.0,
-    "minProjectileSpeed": 9.0,
-    "additionalProjectileSpeed": 0.0,
-    "autoReloads": true,
-    "ammoRegenPerTick": 0,
-    "refillsAllAtOnce": false
-  },
-  "combat": {
-    "fireSoundName": "NeedleSnd",
-    "directHitDamage": 6.0
-  },
-  "presentation": {
-    "worldSpriteName": "NeedlegunS",
-    "recoilSpriteName": "NeedlegunFS",
-    "hudSpriteName": "NeedleAmmoS",
-    "weaponOffsetX": -7.0,
-    "weaponOffsetY": 0.0,
-    "recoilDurationSourceTicks": 4,
-    "reloadDurationSourceTicks": 2,
-    "hud": {
-      "displayKind": "ammoPanel",
-      "stackGroup": "weapon",
-      "order": 60,
-      "stateProvider": "secondaryAmmo",
-      "hideWhenUnavailable": true
-    }
-  }
-}
-```
-
-Add `Core/Content/Gameplay/stock.gg2/items/ability.scout-nailgun-toggle.json`:
-
-```json
-{
-  "id": "ability.scout-nailgun-toggle",
-  "displayName": "Nailgun",
-  "slot": "Utility",
-  "behaviorId": "builtin.utility.scout_nailgun_toggle",
-  "ability": {
-    "category": "utility",
-    "activation": "pressed",
-    "executorId": "builtin.ability.soldier_secondary_toggle",
-    "tags": [ "weapon_swap" ]
-  },
-  "ammo": {},
-  "presentation": {}
-}
-```
-
-Add a Scout loadout variant in
-`Core/Content/Gameplay/stock.gg2/classes/scout.json`:
-
-```json
-"scout.nailgun": {
-  "id": "scout.nailgun",
-  "displayName": "Nailgun",
-  "primaryItemId": "weapon.scattergun",
-  "secondaryItemId": "weapon.scout-nailgun",
-  "utilityItemId": "ability.scout-nailgun-toggle",
-  "abilityItemIds": [ "ability.experimental-ltd-passive" ]
-}
-```
-
-Add built-in behavior IDs in
-`Plugins/GameplayModding.Abstractions/BuiltInGameplayBehaviorIds.cs`:
-
-```csharp
-public const string ScoutNailgun = "builtin.weapon.scout_nailgun";
-public const string ScoutNailgunToggle = "builtin.utility.scout_nailgun_toggle";
-```
-
-Register the weapon behavior in
-`Core/Gameplay/GameplayRuntimeRegistry.Stock.cs`:
-
-```csharp
-RegisterPrimaryWeaponBehavior(new GameplayPrimaryWeaponRuntimeBinding(
-    BuiltInGameplayBehaviorIds.ScoutNailgun,
-    PrimaryWeaponKind.Custom,
-    Executor: new DelegateGameplayPrimaryWeaponExecutor(static context =>
-        context.World.ExecuteScoutNailgunPrimaryWeapon(context))));
-```
-
-Then implement the C# executor on `SimulationWorld`. The executor should read
-`context.Weapon`, spawn the intended projectile, and return handled. If the
-weapon needs prediction, replay, bot, or first-class HUD behavior beyond generic
-ammo HUD, prefer adding a first-class `PrimaryWeaponKind.NeedleGun` and routing
-case instead of a custom executor.
-
-Add tests that prove:
-
-- the stock pack loads the Nailgun item and Scout loadout,
-- the runtime registry resolves `builtin.weapon.scout_nailgun`,
-- firing the equipped Nailgun spawns the expected projectile,
-- the Spacebar toggle equips and stows the secondary weapon.
+When adding a weapon, register its executor, attach it to an appropriate loadout,
+and test loading, firing, and switching. Extend prediction, replay, bots, and the
+HUD where the new behavior requires support.
 
 ## Categories And Inputs
 
@@ -363,7 +219,7 @@ the other weapon is held.
 | `released` | Release-only action |
 | `passive_tick` | Tick-only action from the passive dispatcher |
 
-## Current Stock Examples
+## Stock examples
 
 - Spacebar action with cooldown HUD:
   `Core/Content/Gameplay/stock.gg2/items/abilities/ability.heavy-utility.json`
@@ -382,8 +238,7 @@ the other weapon is held.
 - Class runtime binding:
   `Core/Content/Gameplay/stock.gg2/classes/soldier.json`
 - Data-backed blade limits and cost:
-  `Core/Content/Gameplay/stock.gg2/items/weapon.blade.json` and
-  `Core/Content/Gameplay/stock.gg2/items/ability.quote-blade-throw.json`
+  `Core/Content/Gameplay/stock.gg2/items/weapons/weapon.blade.json`
 
 ## Lua Ability Flow
 

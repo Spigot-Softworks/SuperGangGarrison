@@ -15,6 +15,7 @@ public enum LastToDieCommandKind : byte
     ReturnToLobby = 9,
     PauseSolo = 10,
     ResumeSolo = 11,
+    RerollReward = 12,
 }
 
 public enum LastToDieCommandResultKind : byte
@@ -40,6 +41,19 @@ public enum LastToDieWirePhase : byte
     Won = 5,
     Lost = 6,
 }
+
+public enum LastToDieWirePerkTier : byte
+{
+    Standard = 0,
+    Rare = 1,
+    Ultra = 2,
+}
+
+public sealed record LastToDieOfferSlotMessage(
+    string PerkId,
+    LastToDieWirePerkTier Tier,
+    byte RerollsRemaining,
+    bool HasEligibleReplacement);
 
 public sealed record LastToDieCommandMessage(
     ulong CommandId,
@@ -77,7 +91,16 @@ public sealed record LastToDiePlayerSnapshotMessage(
     bool IsHost = false,
     int ConquistadorStacks = 0,
     long ReconnectGraceEndServerTick = 0,
-    int ScoreUnits = 0);
+    int ScoreUnits = 0,
+    IReadOnlyList<LastToDieOfferSlotMessage>? ActiveOfferSlots = null,
+    int ActiveOfferTargetStage = 0,
+    int ActiveOfferSelectionNumber = 0,
+    int ActiveOfferSelectionsRequired = 0,
+    bool ActiveOfferGuaranteedTierConsumed = false,
+    int PendingBonusSelections = 0,
+    int LuckyDrawRoundsRemaining = 0,
+    int SelectionsRemaining = 0,
+    bool SecondChanceConsumed = false);
 
 public sealed record LastToDieRunSnapshotMessage(
     Guid RunId,
@@ -160,7 +183,7 @@ public sealed class LastToDieRunSnapshotSchema : Protocol64EventSchema<LastToDie
     public const int MaxBodyBytes = 32 * 1024;
 
     public LastToDieRunSnapshotSchema()
-        : base(LastToDieProtocolSchemaIds.RunSnapshot, 5, Protocol64Direction.ServerToClient, MaxBodyBytes)
+        : base(LastToDieProtocolSchemaIds.RunSnapshot, 6, Protocol64Direction.ServerToClient, MaxBodyBytes)
     {
     }
 
@@ -287,7 +310,13 @@ internal static class LastToDieProtocolValidation
                 || player.ConquistadorStacks < 0
                 || player.ConquistadorStacks > 100
                 || player.ReconnectGraceEndServerTick < 0
-                || player.ScoreUnits < 0)
+                || player.ScoreUnits < 0
+                || player.ActiveOfferTargetStage < 0
+                || player.ActiveOfferSelectionNumber < 0
+                || player.ActiveOfferSelectionsRequired < 0
+                || player.PendingBonusSelections < 0
+                || player.LuckyDrawRoundsRemaining < 0
+                || player.SelectionsRemaining < 0)
             {
                 throw new Protocol64SchemaValidationException(
                     "Last to Die player identity or counters are invalid.");
@@ -296,8 +325,39 @@ internal static class LastToDieProtocolValidation
             ValidateString(player.SurvivorId, MaximumStableIdBytes, "survivor ID");
             ValidateStableIdCollection(player.OwnedPerkIds, MaximumOwnedPerks, "owned perks");
             ValidateStableIdCollection(player.ActiveOfferChoices, MaximumOfferChoices, "offer choices");
-            if ((player.ActiveOfferId == 0 && player.ActiveOfferChoices.Count != 0)
-                || (player.ActiveOfferId != 0 && player.ActiveOfferChoices.Count == 0)
+            var offerSlots = player.ActiveOfferSlots;
+            if (offerSlots is not null)
+            {
+                if (offerSlots.Count > MaximumOfferChoices)
+                {
+                    throw new Protocol64SchemaValidationException("Last to Die offer slots exceed their protocol limit.");
+                }
+
+                var slotIds = new HashSet<string>(StringComparer.Ordinal);
+                foreach (var slot in offerSlots)
+                {
+                    if (slot is null
+                        || string.IsNullOrWhiteSpace(slot.PerkId)
+                        || !slotIds.Add(slot.PerkId)
+                        || !Enum.IsDefined(slot.Tier)
+                        || slot.RerollsRemaining > 1
+                        || (slot.HasEligibleReplacement && slot.RerollsRemaining == 0))
+                    {
+                        throw new Protocol64SchemaValidationException("Last to Die offer slot metadata is invalid.");
+                    }
+                    ValidateString(slot.PerkId, MaximumStableIdBytes, "offer perk ID");
+                }
+
+                if (player.ActiveOfferChoices.Count != 0
+                    && !player.ActiveOfferChoices.SequenceEqual(offerSlots.Select(slot => slot.PerkId), StringComparer.Ordinal))
+                {
+                    throw new Protocol64SchemaValidationException("Last to Die offer IDs do not match their structured slots.");
+                }
+            }
+
+            var offerCount = offerSlots?.Count ?? player.ActiveOfferChoices.Count;
+            if ((player.ActiveOfferId == 0 && offerCount != 0)
+                || (player.ActiveOfferId != 0 && offerCount == 0)
                 || player.ActiveOfferOrdinal < 0)
             {
                 throw new Protocol64SchemaValidationException("Last to Die reward offer is invalid.");
@@ -414,7 +474,18 @@ internal static class LastToDieProtocolBinary
             WriteStrings(writer, player.OwnedPerkIds, LastToDieProtocolValidation.MaximumOwnedPerks);
             writer.Write(player.ActiveOfferId);
             writer.Write(player.ActiveOfferOrdinal);
-            WriteStrings(writer, player.ActiveOfferChoices, LastToDieProtocolValidation.MaximumOfferChoices);
+            var slots = player.ActiveOfferSlots ?? player.ActiveOfferChoices
+                .Select(perkId => new LastToDieOfferSlotMessage(
+                    perkId,
+                    LastToDieWirePerkTier.Standard,
+                    0,
+                    false))
+                .ToArray();
+            WriteOfferSlots(writer, slots);
+            writer.Write(player.ActiveOfferTargetStage);
+            writer.Write(player.ActiveOfferSelectionNumber);
+            writer.Write(player.ActiveOfferSelectionsRequired);
+            writer.Write(player.ActiveOfferGuaranteedTierConsumed);
             writer.Write(player.IsReady);
             writer.Write(player.IsAlive);
             writer.Write(player.Kills);
@@ -422,6 +493,10 @@ internal static class LastToDieProtocolBinary
             writer.Write((byte)player.ConquistadorStacks);
             writer.Write(player.ReconnectGraceEndServerTick);
             writer.Write(player.ScoreUnits);
+            writer.Write(player.PendingBonusSelections);
+            writer.Write(player.LuckyDrawRoundsRemaining);
+            writer.Write(player.SelectionsRemaining);
+            writer.Write(player.SecondChanceConsumed);
         }
 
         WriteString(writer, value.TerminalReason, LastToDieProtocolValidation.MaximumReasonBytes);
@@ -455,22 +530,54 @@ internal static class LastToDieProtocolBinary
         var players = new LastToDiePlayerSnapshotMessage[playerCount];
         for (var index = 0; index < players.Length; index += 1)
         {
+            var slot = reader.ReadByte();
+            var playerId = ReadGuid(reader);
+            var isConnected = reader.ReadBoolean();
+            var survivorId = ReadString(reader, LastToDieProtocolValidation.MaximumStableIdBytes);
+            var ownedPerks = ReadStrings(reader, LastToDieProtocolValidation.MaximumOwnedPerks);
+            var activeOfferId = reader.ReadUInt64();
+            var activeOfferOrdinal = reader.ReadInt32();
+            var activeOfferSlots = ReadOfferSlots(reader);
+            var activeOfferTargetStage = reader.ReadInt32();
+            var activeOfferSelectionNumber = reader.ReadInt32();
+            var activeOfferSelectionsRequired = reader.ReadInt32();
+            var activeOfferGuaranteedTierConsumed = reader.ReadBoolean();
+            var isReady = reader.ReadBoolean();
+            var isAlive = reader.ReadBoolean();
+            var kills = reader.ReadInt32();
+            var isHost = reader.ReadBoolean();
+            var conquistadorStacks = reader.ReadByte();
+            var reconnectGraceEndServerTick = reader.ReadInt64();
+            var scoreUnits = reader.ReadInt32();
+            var pendingBonusSelections = reader.ReadInt32();
+            var luckyDrawRoundsRemaining = reader.ReadInt32();
+            var selectionsRemaining = reader.ReadInt32();
+            var secondChanceConsumed = reader.ReadBoolean();
             players[index] = new LastToDiePlayerSnapshotMessage(
-                reader.ReadByte(),
-                ReadGuid(reader),
-                reader.ReadBoolean(),
-                ReadString(reader, LastToDieProtocolValidation.MaximumStableIdBytes),
-                ReadStrings(reader, LastToDieProtocolValidation.MaximumOwnedPerks),
-                reader.ReadUInt64(),
-                reader.ReadInt32(),
-                ReadStrings(reader, LastToDieProtocolValidation.MaximumOfferChoices),
-                reader.ReadBoolean(),
-                reader.ReadBoolean(),
-                reader.ReadInt32(),
-                reader.ReadBoolean(),
-                reader.ReadByte(),
-                reader.ReadInt64(),
-                reader.ReadInt32());
+                slot,
+                playerId,
+                isConnected,
+                survivorId,
+                ownedPerks,
+                activeOfferId,
+                activeOfferOrdinal,
+                activeOfferSlots.Select(offerSlot => offerSlot.PerkId).ToArray(),
+                isReady,
+                isAlive,
+                kills,
+                isHost,
+                conquistadorStacks,
+                reconnectGraceEndServerTick,
+                scoreUnits,
+                activeOfferSlots,
+                activeOfferTargetStage,
+                activeOfferSelectionNumber,
+                activeOfferSelectionsRequired,
+                activeOfferGuaranteedTierConsumed,
+                pendingBonusSelections,
+                luckyDrawRoundsRemaining,
+                selectionsRemaining,
+                secondChanceConsumed);
         }
 
         var terminalReason = ReadString(reader, LastToDieProtocolValidation.MaximumReasonBytes);
@@ -539,6 +646,43 @@ internal static class LastToDieProtocolBinary
         }
 
         return values;
+    }
+
+    private static void WriteOfferSlots(BinaryWriter writer, IReadOnlyList<LastToDieOfferSlotMessage> slots)
+    {
+        if (slots.Count > LastToDieProtocolValidation.MaximumOfferChoices)
+        {
+            throw new Protocol64SchemaValidationException("Last to Die offer slots exceed their protocol limit.");
+        }
+
+        writer.Write((byte)slots.Count);
+        foreach (var slot in slots)
+        {
+            WriteString(writer, slot.PerkId, LastToDieProtocolValidation.MaximumStableIdBytes);
+            writer.Write((byte)slot.Tier);
+            writer.Write(slot.RerollsRemaining);
+            writer.Write(slot.HasEligibleReplacement);
+        }
+    }
+
+    private static IReadOnlyList<LastToDieOfferSlotMessage> ReadOfferSlots(BinaryReader reader)
+    {
+        var count = reader.ReadByte();
+        if (count > LastToDieProtocolValidation.MaximumOfferChoices)
+        {
+            throw new IOException("Last to Die offer slots exceed their protocol limit.");
+        }
+
+        var slots = new LastToDieOfferSlotMessage[count];
+        for (var index = 0; index < slots.Length; index += 1)
+        {
+            slots[index] = new LastToDieOfferSlotMessage(
+                ReadString(reader, LastToDieProtocolValidation.MaximumStableIdBytes),
+                (LastToDieWirePerkTier)reader.ReadByte(),
+                reader.ReadByte(),
+                reader.ReadBoolean());
+        }
+        return slots;
     }
 
     private static void WriteString(BinaryWriter writer, string value, int maximumBytes)

@@ -11,5 +11,5 @@ by `scripts/package.ps1`.
 
 These examples are intentionally separate from `Plugins/Templates/`:
 
-- `Templates/` are authoring starting points.
-- `Packaged/` are the runnable distribution plugins.
+- [Templates](../Templates/README.md) are authoring starting points.
+- This directory contains the distribution plugins.

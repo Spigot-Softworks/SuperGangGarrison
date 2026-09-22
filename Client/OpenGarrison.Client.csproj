@@ -23,6 +23,7 @@
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Configuration\FirstPlayMessages.json" LogicalName="OpenGarrison.FirstPlayMessages.json" />
+    <EmbeddedResource Include="..\Core\Content\PlayerSkins.json" LogicalName="OpenGarrison.PlayerSkins.json" />
     <EmbeddedResource Include="Properties\Icon.ico">
       <LogicalName>Icon.ico</LogicalName>
     </EmbeddedResource>
@@ -34,6 +35,9 @@
     <PackageReference Include="SixLabors.ImageSharp" Version="3.1.*" />
     <PackageReference Include="MoonSharp.Interpreter.netcore" Version="2.0.14" />
     <PackageReference Include="NVorbis" Version="0.10.5" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(OpenGarrisonClientAsLibrary)' != 'true'">
+    <None Update="alsoft.ini;alsoft.conf" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup Condition="'$(OpenGarrisonClientAsLibrary)' != 'true'">
     <AssemblyMetadata Include="OpenGarrisonRoomContentId" Value="$(OpenGarrisonRoomContentId)" />

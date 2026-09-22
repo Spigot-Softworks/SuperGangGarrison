@@ -1,0 +1,16 @@
+{
+  "id": "HealerBlueWeaponS",
+  "framePaths": [
+    "assets/characters/player-skins/HealerBlueWeaponS/0.png",
+    "assets/characters/player-skins/HealerBlueWeaponS/1.png",
+    "assets/characters/player-skins/HealerBlueWeaponS/2.png",
+    "assets/characters/player-skins/HealerBlueWeaponS/3.png",
+    "assets/characters/player-skins/HealerBlueWeaponS/4.png",
+    "assets/characters/player-skins/HealerBlueWeaponS/5.png",
+    "assets/characters/player-skins/HealerBlueWeaponS/6.png",
+    "assets/characters/player-skins/HealerBlueWeaponS/7.png",
+    "assets/characters/player-skins/HealerBlueWeaponS/8.png"
+  ],
+  "originX": 34,
+  "originY": 48
+}

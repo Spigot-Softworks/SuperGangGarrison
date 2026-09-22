@@ -156,9 +156,16 @@ public partial class Game1
             return;
         }
 
-        ObserveLastToDieCombatAnnouncementPopup();
+        if (IsAnyLastToDieSessionActive)
+        {
+            ObserveLastToDieCombatAnnouncementPopup();
+        }
+        else
+        {
+            _lastToDieObservedCombatAnnouncementEventId = 0;
+        }
 
-        if (!IsLastToDieSessionActive || _lastToDieRun is null)
+        if (!IsAnyLastToDieSessionActive || (!IsHostedLastToDieActive() && _lastToDieRun is null))
         {
             ObserveLastToDieCombatFeedbackState();
             return;
@@ -200,13 +207,16 @@ public partial class Game1
             return;
         }
 
-        if (IsLastToDieSessionActive)
+        if (IsAnyLastToDieSessionActive)
         {
             DrawLastToDieComboOverlay();
             DrawLastToDieRageOverlay();
         }
 
-        DrawLastToDieCombatAnnouncementPopup();
+        if (IsAnyLastToDieSessionActive)
+        {
+            DrawLastToDieCombatAnnouncementPopup();
+        }
     }
 
     private bool ShouldDrawLastToDieCombatFeedbackHud()
@@ -219,7 +229,7 @@ public partial class Game1
                 _world.LocalPlayerAwaitingJoin);
         }
 
-        return IsLastToDieSessionActive
+        return IsAnyLastToDieSessionActive
             && _lastToDieRun is not null
             && !_lastToDiePerkMenuOpen
             && !IsLastToDieFailurePresentationActive()
@@ -236,14 +246,41 @@ public partial class Game1
             && !localPlayerAwaitingJoin;
     }
 
+    internal static bool ShouldEnableCombatPerformanceFeedback(
+        bool isPracticeSessionActive,
+        bool isOfflineLastToDieSessionActive,
+        bool isHostedLastToDieSessionActive)
+    {
+        return isPracticeSessionActive
+            || isOfflineLastToDieSessionActive
+            || isHostedLastToDieSessionActive;
+    }
+
     private bool IsCombatPerformanceFeedbackSessionActive =>
-        IsPracticeSessionActive || IsLastToDieSessionActive;
+        ShouldEnableCombatPerformanceFeedback(
+            IsPracticeSessionActive,
+            IsLastToDieSessionActive,
+            IsHostedLastToDieCombatFeedbackActive);
+
+    private bool IsHostedLastToDieCombatFeedbackActive =>
+        IsHostedLastToDieActive()
+        && _networkClient.LastToDieState.Snapshot?.Phase == LastToDieWirePhase.Playing;
 
     private bool ShouldDrawCombatPerformanceFeedbackHud()
     {
         return IsCombatPerformanceFeedbackSessionActive
             && !_world.LocalPlayerAwaitingJoin
-            && (!IsLastToDieSessionActive || ShouldDrawLastToDieCombatFeedbackHud());
+            && (!IsAnyLastToDieSessionActive || ShouldDrawLastToDieCombatFeedbackHud());
+    }
+
+    internal static bool IsLocalLastToDieCombatAnnouncement(
+        bool isAnyLastToDieSessionActive,
+        long killerPlayerId,
+        long localPlayerId)
+    {
+        return isAnyLastToDieSessionActive
+            ? killerPlayerId == localPlayerId
+            : killerPlayerId < 0;
     }
 
     private void DrawLastToDieComboOverlay()
@@ -547,9 +584,10 @@ public partial class Game1
             }
 
             latestObservedEventId = Math.Max(latestObservedEventId, entry.EventId);
-            if ((IsLastToDieSessionActive
-                    ? entry.KillerPlayerId != localPlayerId
-                    : entry.KillerPlayerId < 0)
+            if (!IsLocalLastToDieCombatAnnouncement(
+                    IsAnyLastToDieSessionActive,
+                    entry.KillerPlayerId,
+                    localPlayerId)
                 || entry.VictimPlayerId >= 0
                 || entry.MessageHighlightLength <= 0
                 || string.IsNullOrWhiteSpace(entry.MessageText))
@@ -584,9 +622,10 @@ public partial class Game1
         var localPlayerId = _world.LocalPlayer.Id;
         foreach (var entry in _world.KillFeed)
         {
-            if ((IsLastToDieSessionActive
-                    ? entry.KillerPlayerId == localPlayerId
-                    : entry.KillerPlayerId >= 0)
+            if (IsLocalLastToDieCombatAnnouncement(
+                    IsAnyLastToDieSessionActive,
+                    entry.KillerPlayerId,
+                    localPlayerId)
                 && entry.VictimPlayerId < 0
                 && entry.MessageHighlightLength > 0)
             {

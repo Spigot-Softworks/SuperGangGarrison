@@ -449,8 +449,9 @@ public sealed partial class SimulationWorld
                     }
 
                     if (needle is ArrowProjectileEntity piercingArrow
-                        && (piercingArrow.PiercesPlayers || attachedDecapitatedHeadThisHit)
-                        && hitResult.HitPlayer.Team != piercingArrow.Team)
+                        && (piercingArrow.PiercesPlayers
+                            || (attachedDecapitatedHeadThisHit
+                                && hitResult.HitPlayer.Team != piercingArrow.Team)))
                     {
                         piercingArrow.MarkPlayerPierced(hitResult.HitPlayer.Id);
                         continuePiercingArrow = true;

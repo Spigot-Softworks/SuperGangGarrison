@@ -6,6 +6,35 @@ namespace OpenGarrison.PluginHost.Tests;
 public sealed class BarrierCollisionTests
 {
     [Fact]
+    public void UnconfiguredBarrierUsesDefaultsButExplicitAllowIsRespected()
+    {
+        Assert.Equal(BarrierTargetFilters.SolidWall, BarrierConfiguration.FromProperties(null).Targets);
+        Assert.Equal(BarrierTargetFilters.Default, BarrierConfiguration.FromProperties(BarrierTargetFilters.Default.ToProperties()).Targets);
+    }
+
+    [Fact]
+    public void FloorOrientationSurvivesMigrationWithoutMutatingInput()
+    {
+        var properties = BarrierTargetFilters.SolidWall.ToProperties();
+        properties["orientation"] = "floor";
+        var normalized = BarrierLegacyPropertyMigration.EnsureModernBarrierProperties(properties);
+        Assert.Equal("floor", normalized["axis"]);
+        Assert.True(properties.ContainsKey("orientation"));
+        Assert.False(properties.ContainsKey("axis"));
+    }
+
+    [Fact]
+    public void HitscanUsesShotTeamSettingsAndActualRayIntersection()
+    {
+        var filters = BarrierTargetFilters.SolidWall with { BlueShots = BarrierTargetFilter.Block };
+        var marker = BarrierConfiguration.CreateMarker(20, 20, 1, 1, new BarrierConfiguration(filters));
+        Assert.False(BarrierCollision.BlocksHitscan(marker.Barrier, PlayerTeam.Red, true, marker, 0, 30, 60, 30));
+        Assert.True(BarrierCollision.BlocksHitscan(marker.Barrier, PlayerTeam.Blue, false, marker, 0, 30, 60, 30));
+        // The segment's bounding box overlaps the barrier, but the diagonal misses above it.
+        Assert.False(BarrierCollision.BlocksHitscan(marker.Barrier, PlayerTeam.Blue, false, marker, 0, 30, 30, 0));
+    }
+
+    [Fact]
     public void BlockTargetBlocksMatchingEntities()
     {
         var configuration = new BarrierConfiguration(new BarrierTargetFilters(

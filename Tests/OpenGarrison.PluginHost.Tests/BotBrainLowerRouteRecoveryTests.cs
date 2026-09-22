@@ -61,10 +61,10 @@ public sealed class BotBrainLowerRouteRecoveryTests
         Assert.True(controller.HasNavigationGraph);
         Assert.True(
             activeTicks >= 30,
-            $"activeTicks:{activeTicks} displacement:{displacement:0.0} path:{controller.CurrentPathIndex}/{controller.CurrentPathCount} direct:{controller.LastDirectDriveTrace} traversal:{controller.LastTraversalTrace}");
+            $"activeTicks:{activeTicks} displacement:{displacement:0.0} path:{controller.CurrentPathIndex}/{controller.CurrentPathCount} direct:{controller.LastDirectDriveTrace} recovery:{controller.LastSemanticRecoveryTrace}");
         Assert.True(
             displacement > 24f,
-            $"activeTicks:{activeTicks} displacement:{displacement:0.0} path:{controller.CurrentPathIndex}/{controller.CurrentPathCount} direct:{controller.LastDirectDriveTrace} traversal:{controller.LastTraversalTrace}");
+            $"activeTicks:{activeTicks} displacement:{displacement:0.0} path:{controller.CurrentPathIndex}/{controller.CurrentPathCount} direct:{controller.LastDirectDriveTrace} recovery:{controller.LastSemanticRecoveryTrace}");
     }
 
     private sealed class CoreContentRootScope : IDisposable
