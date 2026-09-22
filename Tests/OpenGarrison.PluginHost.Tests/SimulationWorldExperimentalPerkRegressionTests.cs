@@ -874,7 +874,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     }
 
     [Fact]
-    public void OutputInducerEngineerPdaDestroysOwnedSentryWhenSecondPlacementIsBlocked()
+    public void OutputInducerEngineerPdaKeepsOwnedSentryWhenSecondPlacementIsBlocked()
     {
         var world = CreatePrototypeEngineerWorld(new ExperimentalGameplaySettings(EnableEngineerOutputInducer: true));
 
@@ -886,8 +886,8 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         world.LocalPlayer.AddMetal(world.LocalPlayer.MaxMetal);
         InvokeEngineerPda(world);
 
-        Assert.DoesNotContain(sentry, world.Sentries);
-        Assert.Empty(world.Sentries);
+        Assert.Contains(sentry, world.Sentries);
+        Assert.Single(world.Sentries);
     }
 
     [Fact]
@@ -2597,6 +2597,28 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
 
         Assert.False(world.LocalPlayer.IsExperimentalOffhandEquipped);
         Assert.False(world.LocalPlayer.IsSniperBowEquipped);
+        Assert.Equal("weapon.rifle", world.LocalPlayer.GameplayLoadoutState.PrimaryItemId);
+        Assert.Equal(GameplayEquipmentSlot.Primary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
+    }
+
+    [Fact]
+    public void HostedLastToDieSniperSwapCyclesRifleHuntsmanAndSmgWithoutCabinet()
+    {
+        var world = CreateJoinedSniperWorld(new ExperimentalGameplaySettings());
+        AdvanceTicks(world, 1);
+        Assert.True(world.TryConfigureLastToDiePlayerBuild(SimulationWorld.LocalPlayerSlot, []));
+
+        PressSwapWeaponSpace(world);
+        Assert.Equal("weapon.bow", world.LocalPlayer.GameplayLoadoutState.PrimaryItemId);
+        Assert.Equal(GameplayEquipmentSlot.Primary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
+
+        ReleaseAllInput(world);
+        PressSwapWeaponSpace(world);
+        Assert.True(world.LocalPlayer.IsExperimentalOffhandEquipped);
+        Assert.Equal(GameplayEquipmentSlot.Secondary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
+
+        ReleaseAllInput(world);
+        PressSwapWeaponSpace(world);
         Assert.Equal("weapon.rifle", world.LocalPlayer.GameplayLoadoutState.PrimaryItemId);
         Assert.Equal(GameplayEquipmentSlot.Primary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
     }

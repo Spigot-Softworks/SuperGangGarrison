@@ -15,7 +15,6 @@ public sealed partial class SimulationWorld
     public bool IsPlayerInsideCapturedPointHealingAuraForVisuals(PlayerEntity? player)
     {
         return player is not null
-            && IsLastToDieGameplaySettingEnabled(settings => settings.EnableCapturedPointHealingAura)
             && player.IsAlive
             && IsPlayerInsideCapturedPointHealingAura(player);
     }

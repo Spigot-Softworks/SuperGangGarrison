@@ -1,0 +1,16 @@
+{
+  "id": "HealerBlueBodyS",
+  "framePaths": [
+    "assets/characters/player-skins/HealerBlueBodyS/0.png",
+    "assets/characters/player-skins/HealerBlueBodyS/1.png",
+    "assets/characters/player-skins/HealerBlueBodyS/2.png",
+    "assets/characters/player-skins/HealerBlueBodyS/3.png",
+    "assets/characters/player-skins/HealerBlueBodyS/4.png",
+    "assets/characters/player-skins/HealerBlueBodyS/5.png",
+    "assets/characters/player-skins/HealerBlueBodyS/6.png",
+    "assets/characters/player-skins/HealerBlueBodyS/7.png",
+    "assets/characters/player-skins/HealerBlueBodyS/8.png"
+  ],
+  "originX": 32,
+  "originY": 40
+}

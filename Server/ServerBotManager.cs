@@ -25,6 +25,8 @@ internal sealed class ServerBotManager
         Manual,
         Autofill,
         MapSpawn,
+        LastToDieEnemy,
+        LastToDieCompanion,
     }
 
     private static readonly PlayerClass[] DefaultFillClassCycle =
@@ -101,6 +103,8 @@ internal sealed class ServerBotManager
 
     public IReadOnlyDictionary<byte, ServerBotSlotState> BotSlots => _botSlots;
 
+    public int LastToDieReservedPlayerSlots { get; set; } = 1;
+
     public bool SeekEnemyPlayersAfterOwningControlPoint { get; set; }
 
     public ServerBotRuntimeMetrics Metrics
@@ -120,7 +124,6 @@ internal sealed class ServerBotManager
                 BotBrainActiveControllerCount: botBrainSnapshot.ActiveControllerCount,
                 BotBrainNavigationLoadedCount: botBrainSnapshot.NavigationLoadedCount,
                 BotBrainNavigationMissingCount: botBrainSnapshot.NavigationMissingCount,
-                BotBrainObjectiveTapeLoadedCount: botBrainSnapshot.ObjectiveTapeLoadedCount,
                 BotBrainActivePathCount: botBrainSnapshot.ActivePathCount,
                 SampleCount: _perfSamples,
                 LastBuildInputMilliseconds: _perfBuildInputLastMs,
@@ -159,6 +162,118 @@ internal sealed class ServerBotManager
         return TryAddBot(botSlot, team, classId, displayName, ServerBotSource.Manual, mimicSourceSlot: sourceSlot);
     }
 
+    public bool TryAddLastToDieMimicBot(byte sourceSlot, out byte botSlot)
+    {
+        botSlot = 0;
+        if (!SimulationWorld.IsPlayableNetworkPlayerSlot(sourceSlot)
+            || !_world.TryGetNetworkPlayer(sourceSlot, out var source))
+        {
+            return false;
+        }
+
+        var availableSlot = FindNextAvailableSlot(LastToDieReservedPlayerSlots + 1);
+        if (!availableSlot.HasValue)
+        {
+            return false;
+        }
+
+        botSlot = availableSlot.Value;
+        var cloneDisplayName = BuildLastToDieCloneDisplayName(source.DisplayName);
+        return TryAddBot(
+            botSlot,
+            source.Team,
+            source.ClassId,
+            cloneDisplayName,
+            ServerBotSource.LastToDieCompanion,
+            respawn: false,
+            forceHealthBar: true,
+            mimicSourceSlot: sourceSlot,
+            ltdSpawnX: source.X + (source.FacingDirectionX * 44f),
+            ltdSpawnY: source.Y - 8f);
+    }
+
+    public bool TryAddLastToDieFollowHealerBot(byte targetSlot, string displayName, out byte botSlot)
+    {
+        botSlot = 0;
+        if (!SimulationWorld.IsPlayableNetworkPlayerSlot(targetSlot)
+            || !_world.TryGetNetworkPlayer(targetSlot, out var target))
+        {
+            return false;
+        }
+
+        var availableSlot = FindNextAvailableSlot(LastToDieReservedPlayerSlots + 1);
+        if (!availableSlot.HasValue)
+        {
+            return false;
+        }
+
+        botSlot = availableSlot.Value;
+        return TryAddBot(
+            botSlot,
+            target.Team,
+            PlayerClass.Medic,
+            displayName,
+            ServerBotSource.LastToDieCompanion,
+            respawn: false,
+            forceHealthBar: true,
+            followTargetSlot: targetSlot,
+            ltdSpawnX: target.X - (target.FacingDirectionX * 52f),
+            ltdSpawnY: target.Y - 8f);
+    }
+
+    public bool TryAddLastToDieCompanionBot(
+        byte ownerSlot,
+        PlayerClass classId,
+        string displayName,
+        out byte botSlot)
+    {
+        botSlot = 0;
+        if (!SimulationWorld.IsPlayableNetworkPlayerSlot(ownerSlot)
+            || !_world.TryGetNetworkPlayer(ownerSlot, out var owner))
+        {
+            return false;
+        }
+
+        var availableSlot = FindNextAvailableSlot(LastToDieReservedPlayerSlots + 1);
+        if (!availableSlot.HasValue)
+        {
+            return false;
+        }
+
+        botSlot = availableSlot.Value;
+        var facing = owner.FacingDirectionX >= 0f ? 1f : -1f;
+        return TryAddBot(
+            botSlot,
+            owner.Team,
+            classId,
+            displayName,
+            ServerBotSource.LastToDieCompanion,
+            respawn: false,
+            forceHealthBar: true,
+            ltdSpawnX: owner.X - (facing * 46f),
+            ltdSpawnY: owner.Y - 8f);
+    }
+
+    public bool TryAddLastToDieEnemyBot(byte slot, PlayerTeam team, PlayerClass classId, string displayName)
+        => TryAddBot(slot, team, classId, displayName, ServerBotSource.LastToDieEnemy);
+
+    public bool TryAddLastToDieEnemyBot(
+        PlayerTeam team,
+        PlayerClass classId,
+        string displayName,
+        out byte botSlot)
+    {
+        var availableSlot = FindNextAvailableSlot(LastToDieReservedPlayerSlots + 1);
+        if (!availableSlot.HasValue)
+        {
+            botSlot = 0;
+            return false;
+        }
+
+        botSlot = availableSlot.Value;
+        return TryAddLastToDieEnemyBot(botSlot, team, classId, displayName);
+    }
+
     public bool TryAddFollowHealerBot(byte targetSlot, string displayName, out byte botSlot)
     {
         botSlot = 0;
@@ -193,7 +308,9 @@ internal sealed class ServerBotManager
         float mapSpawnY = 0f,
         int deathTriggerNodeIndex = -1,
         byte? mimicSourceSlot = null,
-        byte? followTargetSlot = null)
+        byte? followTargetSlot = null,
+        float? ltdSpawnX = null,
+        float? ltdSpawnY = null)
     {
         if (!IsValidServerBotSlot(slot) || !_isSlotAvailableForBot(slot))
         {
@@ -212,9 +329,15 @@ internal sealed class ServerBotManager
             || !_world.TrySetNetworkPlayerTeam(slot, team))
         {
             _world.TryReleaseNetworkPlayerSlot(slot);
+            _world.TryClearNetworkPlayerSpawnOverride(slot);
             _world.SetNetworkPlayerMapSpawnClassBehaviorBypass(slot, false);
             _botDisplayNamePool.ReleaseSlot(slot);
             return false;
+        }
+
+        if (ltdSpawnX.HasValue && ltdSpawnY.HasValue)
+        {
+            _world.TrySetNetworkPlayerSpawnOverride(slot, ltdSpawnX.Value, ltdSpawnY.Value);
         }
 
         if (!isDummy)
@@ -225,6 +348,7 @@ internal sealed class ServerBotManager
         if (!_world.TryApplyNetworkPlayerClassSelection(slot, classId))
         {
             _world.TryReleaseNetworkPlayerSlot(slot);
+            _world.TryClearNetworkPlayerSpawnOverride(slot);
             _world.SetNetworkPlayerMapSpawnClassBehaviorBypass(slot, false);
             _botDisplayNamePool.ReleaseSlot(slot);
             ConfigureBotControllerSpawnOverrides();
@@ -274,6 +398,7 @@ internal sealed class ServerBotManager
         }
 
         _world.TryReleaseNetworkPlayerSlot(slot);
+        _world.TryClearNetworkPlayerSpawnOverride(slot);
         _botDisplayNamePool.ReleaseSlot(slot);
         _inputCache.Remove(slot);
         _inputCacheAgeTicks.Remove(slot);
@@ -695,7 +820,7 @@ internal sealed class ServerBotManager
         foreach (var entry in _botSlots)
         {
             var state = entry.Value;
-            if (state.Source != ServerBotSource.MapSpawn
+            if (state.Source is not (ServerBotSource.MapSpawn or ServerBotSource.LastToDieCompanion)
                 || state.Respawn
                 || !_world.TryGetNetworkPlayer(entry.Key, out var player)
                 || player.IsAlive)
@@ -998,8 +1123,8 @@ internal sealed class ServerBotManager
             BuildSentry: false,
             DestroySentry: false,
             Taunt: false,
-            FirePrimary: false,
-            FireSecondary: true,
+            FirePrimary: true,
+            FireSecondary: false,
             AimWorldX: target.X,
             AimWorldY: target.Y,
             DebugKill: false);
@@ -1246,9 +1371,9 @@ internal sealed class ServerBotManager
         _perfApplyInputMaxMs = Math.Max(_perfApplyInputMaxMs, milliseconds);
     }
 
-    private byte? FindNextAvailableSlot()
+    private byte? FindNextAvailableSlot(int minimumSlot = 2)
     {
-        for (var slotNumber = SimulationWorld.LocalPlayerSlot + 1; slotNumber <= SimulationWorld.MaxPlayableNetworkPlayers; slotNumber++)
+        for (var slotNumber = Math.Max(SimulationWorld.LocalPlayerSlot + 1, minimumSlot); slotNumber <= SimulationWorld.MaxPlayableNetworkPlayers; slotNumber++)
         {
             var slot = (byte)slotNumber;
             if (!_botSlots.ContainsKey(slot) && _isSlotAvailableForBot(slot))
@@ -1325,6 +1450,24 @@ internal sealed class ServerBotManager
 
         var teamBotNumber = _botSlots.Values.Count(state => state.Team == team) + 1;
         return _botDisplayNamePool.GetOrAssign(slot, team, teamBotNumber);
+    }
+
+    private static string BuildLastToDieCloneDisplayName(string ownerDisplayName)
+    {
+        const string suffix = "'s Clone";
+        var ownerName = PlayerEntity.NormalizeDisplayName(ownerDisplayName);
+        while (true)
+        {
+            var cloneName = PlayerEntity.NormalizeDisplayName($"{ownerName}{suffix}");
+            if (cloneName.EndsWith(suffix, StringComparison.Ordinal))
+            {
+                return cloneName;
+            }
+
+            ownerName = ownerName.Length == 0
+                ? string.Empty
+                : ownerName[..^1].TrimEnd();
+        }
     }
 
     private static void ApplyMapBotReplicatedStates(

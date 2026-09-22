@@ -28,16 +28,24 @@ public partial class Game1
             _game.UpdateGameplayMenuState(keyboard, mouse);
             _game.UpdateReplayPlaybackControls(keyboard, mouse);
             _game.SuppressMouseFireAfterGameplayInputUnblocks(wasGameplayInputBlocked, mouse);
+            if (mouse.MiddleButton == ButtonState.Pressed
+                && _game._previousMouse.MiddleButton != ButtonState.Pressed
+                && !_game.IsGameplayInputBlocked())
+            {
+                _game.CycleGameplayCameraZoom();
+            }
+
             _game.UpdateRespawnCameraState((float)gameTime.ElapsedGameTime.TotalSeconds, keyboard, mouse);
             _game.UpdateBotBrainCorridorRecorderHotkeys(keyboard);
+            var gameplayCameraViewportHeight = _game.GetGameplayCameraViewportHeight(_game.ViewportHeight);
             var cameraPosition = _game.GetGameplayInputCameraTopLeft(
                 _game.ViewportWidth,
-                _game.GetGameplayCameraViewportHeight(_game.ViewportHeight),
+                gameplayCameraViewportHeight,
                 mouse.X,
                 mouse.Y);
-            var gameplayCameraViewportHeight = _game.GetGameplayCameraViewportHeight(_game.ViewportHeight);
-            _game._latestNetworkInputAimOriginX = cameraPosition.X + (_game.ViewportWidth / 2f);
-            _game._latestNetworkInputAimOriginY = cameraPosition.Y + (gameplayCameraViewportHeight / 2f);
+            var aimOrigin = _game.GetGameplayInputAimOrigin();
+            _game._latestNetworkInputAimOriginX = aimOrigin.X;
+            _game._latestNetworkInputAimOriginY = aimOrigin.Y;
             _game._hasLatestNetworkInputAimOrigin = true;
             _game.UpdateGarrisonBuilderEditor(keyboard, mouse, (float)gameTime.ElapsedGameTime.TotalSeconds);
             _game.UpdateNavEditor(keyboard, mouse, rawMouse, cameraPosition, (float)gameTime.ElapsedGameTime.TotalSeconds);

@@ -289,12 +289,16 @@ public partial class Game1 : Game
     private bool _killCamEnabled = true;
     private bool _positionSmoothingEnabled = false;
     private bool _enablePrediction = true;
+    private bool _cameraPanningEnabled = OpenGarrisonPreferencesDocument.DefaultCameraPanningEnabled;
+    private PlayerSpriteStyle _spriteStyle = PlayerSpriteStyle.Elkondo;
     private float _smoothCameraMultiplier = ClientSettings.DefaultSmoothCameraMultiplier;
     private bool _hasSmoothCamera;
     private Vector2 _smoothCamera;
     private Vector2 _smoothCameraPixel;
     private bool _hasGameplayCameraTopLeft;
     private Vector2 _gameplayCameraTopLeft;
+    private int _gameplayCameraZoomIndex;
+    private bool _gameplayWorldSpriteBatchActive;
     private string _lastGameplayWindowTitle = string.Empty;
     private DisplayModeKind _displayMode = OpenGarrisonPreferencesDocument.DefaultDisplayMode;
     private IngameResolutionKind _ingameResolution = OpenGarrisonPreferencesDocument.DefaultIngameResolution;
@@ -342,6 +346,7 @@ public partial class Game1 : Game
     private bool _projectileTeamTintEnabled = true;
     private bool _wasWindowActive = true;
     private bool _windowInputActive = true;
+    private readonly WindowInputFilter _windowInputFilter = new();
     private bool _suppressFullscreenToggleUntilRelease;
     private int _menuImageFrame;
     private readonly List<ChatLine> _chatLines = new();
@@ -425,13 +430,18 @@ public partial class Game1 : Game
             _hostedServerRuntime,
             _graphics) = CreateRuntimeServices(this, _hostedServerConsole);
         _clientIdentity = ClientIdentityDocument.LoadOrCreate();
+        _lastDirectMessageId = Math.Max(0L, _clientIdentity.LastDirectMessageId);
+        _directMessagesInitialPollCompleted = _clientIdentity.DirectMessageCursorInitialized;
         _friendList = FriendListDocument.Load();
         _presenceClient = new OpenGarrisonPresenceClient();
         _graphics.HardwareModeSwitch = false;
-        if (OperatingSystem.IsBrowser())
+        if (OperatingSystem.IsBrowser()
+            || string.Equals(Environment.GetEnvironmentVariable("OPENGARRISON_FORCE_HIGHDEF"), "1", StringComparison.Ordinal))
         {
-            // Stock map layers exceed Reach's 2048-pixel texture limit.
-            // KNI's HiDef browser profile uses WebGL2 and supports these layers.
+            // Stock map layers exceed Reach's 2048-pixel texture limit, and the
+            // packaged shared runtime atlases are intentionally close to that
+            // boundary. A diagnostic launch switch can exercise the same path
+            // on desktop without changing the normal low-end default.
             _graphics.GraphicsProfile = GraphicsProfile.HiDef;
         }
         Content.RootDirectory = "Content";
@@ -484,6 +494,7 @@ public partial class Game1 : Game
     private void OnGameActivated(object? sender, EventArgs e)
     {
         _windowInputActive = true;
+        _windowInputFilter.LoseFocus();
         // Rebase the edge detector on the first active frame. A button held while
         // another window was focused must not become a new click on refocus.
         _wasWindowActive = false;
@@ -670,7 +681,7 @@ public partial class Game1 : Game
 
     internal bool IsWindowInputActive => OperatingSystem.IsBrowser()
         ? BrowserInputBridge.IsFocused
-        : _windowInputActive && IsActive;
+        : _windowInputActive && IsActive && DesktopInputFocus.IsCurrentProcessForeground();
 
     internal static bool ShouldDeferFullscreenToggle(
         bool startupSplashOpen,

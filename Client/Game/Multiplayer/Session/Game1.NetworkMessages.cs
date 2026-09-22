@@ -202,12 +202,16 @@ public partial class Game1
         }
 
         var perksBySlot = new Dictionary<byte, IReadOnlyList<string>>();
+        var killsBySlot = new Dictionary<byte, int>();
+        var secondChanceConsumedBySlot = new Dictionary<byte, bool>();
         var demoknightServerSlots = new HashSet<byte>();
         if (_networkClient.LastToDieState.Snapshot is { } snapshot)
         {
             foreach (var player in snapshot.Players)
             {
                 perksBySlot[player.Slot] = player.OwnedPerkIds;
+                killsBySlot[player.Slot] = player.Kills;
+                secondChanceConsumedBySlot[player.Slot] = player.SecondChanceConsumed;
                 if (string.Equals(
                         player.SurvivorId,
                         global::OpenGarrison.Core.LastToDie.LastToDieSurvivorCatalog.DemoknightId.Value,
@@ -230,7 +234,10 @@ public partial class Game1
         if (hasLocalProfile)
         {
             _world.TryApplyLastToDiePlayerPredictionProfile(
-                SimulationWorld.LocalPlayerSlot, perksBySlot[_networkClient.LocalPlayerSlot]);
+                SimulationWorld.LocalPlayerSlot,
+                perksBySlot[_networkClient.LocalPlayerSlot],
+                killsBySlot.GetValueOrDefault(_networkClient.LocalPlayerSlot),
+                secondChanceConsumedBySlot.GetValueOrDefault(_networkClient.LocalPlayerSlot));
         }
         else
         {

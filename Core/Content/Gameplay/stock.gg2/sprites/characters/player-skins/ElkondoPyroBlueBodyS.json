@@ -1,0 +1,16 @@
+{
+  "id": "ElkondoPyroBlueBodyS",
+  "framePaths": [
+    "assets/characters/player-skins/ElkondoPyroBlueBodyS/0.png",
+    "assets/characters/player-skins/ElkondoPyroBlueBodyS/1.png",
+    "assets/characters/player-skins/ElkondoPyroBlueBodyS/2.png",
+    "assets/characters/player-skins/ElkondoPyroBlueBodyS/3.png",
+    "assets/characters/player-skins/ElkondoPyroBlueBodyS/4.png",
+    "assets/characters/player-skins/ElkondoPyroBlueBodyS/5.png",
+    "assets/characters/player-skins/ElkondoPyroBlueBodyS/6.png",
+    "assets/characters/player-skins/ElkondoPyroBlueBodyS/7.png",
+    "assets/characters/player-skins/ElkondoPyroBlueBodyS/8.png"
+  ],
+  "originX": 32,
+  "originY": 40
+}

@@ -20,7 +20,7 @@
   "combat": {
     "fireSoundName": "ChaingunSnd",
     "killFeedSpriteName": "SmgKL",
-    "directHitDamage": 12,
+    "directHitDamage": 9,
     "playerKnockback": {
       "impulsePerUse": 1.25,
       "airborneVerticalScale": 0.5,
@@ -34,6 +34,7 @@
     "hudSpriteName": "SmgS",
     "weaponOffsetX": -5.0,
     "weaponOffsetY": -5.0,
+    "reloadSpriteOffsetX": 8.0,
     "recoilDurationSourceTicks": 2,
     "reloadDurationSourceTicks": 54,
     "blueTeamHudFrameOffset": 1,

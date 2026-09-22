@@ -1,0 +1,16 @@
+{
+  "id": "ElkondoDemomanRedBodyS",
+  "framePaths": [
+    "assets/characters/player-skins/ElkondoDemomanRedBodyS/0.png",
+    "assets/characters/player-skins/ElkondoDemomanRedBodyS/1.png",
+    "assets/characters/player-skins/ElkondoDemomanRedBodyS/2.png",
+    "assets/characters/player-skins/ElkondoDemomanRedBodyS/3.png",
+    "assets/characters/player-skins/ElkondoDemomanRedBodyS/4.png",
+    "assets/characters/player-skins/ElkondoDemomanRedBodyS/5.png",
+    "assets/characters/player-skins/ElkondoDemomanRedBodyS/6.png",
+    "assets/characters/player-skins/ElkondoDemomanRedBodyS/7.png",
+    "assets/characters/player-skins/ElkondoDemomanRedBodyS/8.png"
+  ],
+  "originX": 32,
+  "originY": 40
+}

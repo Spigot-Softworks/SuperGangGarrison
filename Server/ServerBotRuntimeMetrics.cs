@@ -10,7 +10,6 @@ internal readonly record struct ServerBotRuntimeMetrics(
     int BotBrainActiveControllerCount,
     int BotBrainNavigationLoadedCount,
     int BotBrainNavigationMissingCount,
-    int BotBrainObjectiveTapeLoadedCount,
     int BotBrainActivePathCount,
     int SampleCount,
     double LastBuildInputMilliseconds,

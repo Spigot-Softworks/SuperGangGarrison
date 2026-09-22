@@ -98,9 +98,20 @@ public sealed class LastToDiePerkCatalog
         {
             ArgumentNullException.ThrowIfNull(definition);
             LastToDieSurvivorCatalog.ValidateCanonicalId(definition.Id.Value, "perk");
-            if (!_survivors.Contains(definition.SurvivorId))
+            if (!Enum.IsDefined(definition.Tier) || !Enum.IsDefined(definition.Scope))
+            {
+                throw new InvalidOperationException($"Perk {definition.Id} has invalid tier or scope metadata.");
+            }
+
+            if (definition.Scope == LastToDiePerkScope.Survivor
+                && (!definition.SurvivorId.HasValue || !_survivors.Contains(definition.SurvivorId.Value)))
             {
                 throw new InvalidOperationException($"Perk {definition.Id} references unknown survivor {definition.SurvivorId}.");
+            }
+
+            if (definition.Scope == LastToDiePerkScope.AllClass && definition.SurvivorId.HasValue)
+            {
+                throw new InvalidOperationException($"All-class perk {definition.Id} cannot claim survivor ownership.");
             }
 
             if (string.IsNullOrWhiteSpace(definition.DisplayName) || definition.Rank <= 0)
@@ -136,7 +147,7 @@ public sealed class LastToDiePerkCatalog
         _ = _survivors.GetRequired(survivorId);
         return _definitions.Values
             .Where(definition =>
-                definition.SurvivorId == survivorId
+                (definition.Scope == LastToDiePerkScope.AllClass || definition.SurvivorId == survivorId)
                 && !ownedPerks.Contains(definition.Id)
                 && definition.Requires.All(ownedPerks.Contains)
                 && definition.Excludes.All(excluded => !ownedPerks.Contains(excluded)))
@@ -151,7 +162,7 @@ public sealed class LastToDiePerkCatalog
             foreach (var requiredId in definition.Requires)
             {
                 var required = GetReferencedDefinition(definition, requiredId, "requires");
-                if (required.SurvivorId != definition.SurvivorId)
+                if (!CanShareRelationships(definition, required))
                 {
                     throw new InvalidOperationException($"Perk {definition.Id} cannot require a perk from another survivor.");
                 }
@@ -160,7 +171,7 @@ public sealed class LastToDiePerkCatalog
             foreach (var excludedId in definition.Excludes)
             {
                 var excluded = GetReferencedDefinition(definition, excludedId, "excludes");
-                if (excluded.SurvivorId != definition.SurvivorId)
+                if (!CanShareRelationships(definition, excluded))
                 {
                     throw new InvalidOperationException($"Perk {definition.Id} cannot exclude a perk from another survivor.");
                 }
@@ -172,6 +183,12 @@ public sealed class LastToDiePerkCatalog
             }
         }
     }
+
+    private static bool CanShareRelationships(
+        LastToDiePerkDefinition first,
+        LastToDiePerkDefinition second)
+        => first.Scope == second.Scope
+            && (first.Scope == LastToDiePerkScope.AllClass || first.SurvivorId == second.SurvivorId);
 
     private LastToDiePerkDefinition GetReferencedDefinition(
         LastToDiePerkDefinition owner,

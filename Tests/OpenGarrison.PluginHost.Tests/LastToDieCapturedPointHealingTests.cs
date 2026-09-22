@@ -1,4 +1,5 @@
 using OpenGarrison.Core;
+using OpenGarrison.Protocol;
 using System.Reflection;
 using Xunit;
 
@@ -46,6 +47,68 @@ public sealed class LastToDieCapturedPointHealingTests
         }
 
         Assert.True(remotePlayer.Health > healthBefore);
+    }
+
+    [Fact]
+    public void SnapshotReplicatesCapturedPointHealingAuraForClientVisuals()
+    {
+        var world = CreateKothWorld();
+        var point = Assert.Single(world.ControlPoints);
+        point.Team = PlayerTeam.Red;
+        point.HasHealingAura = true;
+        world.LocalPlayer.TeleportTo(point.HealingAuraCenterX, point.HealingAuraCenterY);
+        var player = ServerHelpers.ToSnapshotPlayerState(
+            world,
+            SimulationWorld.LocalPlayerSlot,
+            world.LocalPlayer,
+            world.LocalPlayer,
+            new SnapshotStringCache());
+        var snapshot = new SnapshotMessage(
+            Frame: 1,
+            TickRate: world.Config.TicksPerSecond,
+            LevelName: world.Level.Name,
+            MapAreaIndex: (byte)world.Level.MapAreaIndex,
+            MapAreaCount: (byte)world.Level.MapAreaCount,
+            GameMode: (byte)GameModeKind.KingOfTheHill,
+            MatchPhase: 1,
+            WinnerTeam: 0,
+            TimeRemainingTicks: 0,
+            RedCaps: 0,
+            BlueCaps: 0,
+            SpectatorCount: 0,
+            LastProcessedInputSequence: 0,
+            RedIntel: new SnapshotIntelState((byte)PlayerTeam.Red, 0f, 0f, true, false, 0),
+            BlueIntel: new SnapshotIntelState((byte)PlayerTeam.Blue, 0f, 0f, true, false, 0),
+            Players: [player],
+            CombatTraces: [],
+            SniperAimIndicators: [],
+            Sentries: [],
+            Shots: [],
+            Bubbles: [],
+            Blades: [],
+            Needles: [],
+            RevolverShots: [],
+            Rockets: [],
+            Flames: [],
+            Flares: [],
+            Mines: [],
+            DeadBodies: [],
+            ControlPointSetupTicksRemaining: 0,
+            KothUnlockTicksRemaining: 0,
+            KothRedTimerTicksRemaining: 0,
+            KothBlueTimerTicksRemaining: 0,
+            ControlPoints: [new SnapshotControlPointState((byte)point.Index, (byte)PlayerTeam.Red, 0, 0, 120, 1, false, true)],
+            Generators: [],
+            LocalDeathCam: null,
+            KillFeed: [],
+            VisualEvents: [],
+            DamageEvents: [],
+            SoundEvents: []);
+
+        Assert.True(world.ApplySnapshot(snapshot));
+
+        Assert.True(Assert.Single(world.ControlPoints).HasHealingAura);
+        Assert.True(world.IsPlayerInsideCapturedPointHealingAuraForVisuals(world.LocalPlayer));
     }
 
     private static SimulationWorld CreateKothWorld()

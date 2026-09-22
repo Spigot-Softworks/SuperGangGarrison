@@ -5,7 +5,7 @@
   "displayName": "Dragon's Rage",
   "behaviorId": "builtin.weapon.dragon_rage",
   "ammo": {
-    "maxAmmo": 4,
+    "maxAmmo": 6,
     "ammoPerUse": 1,
     "projectilesPerUse": 1,
     "useDelaySourceTicks": 16,
@@ -20,7 +20,7 @@
   "combat": {
     "fireSoundName": "ShotgunSnd",
     "killFeedSpriteName": "DragonRageKL",
-    "directHitDamage": 45
+    "directHitDamage": 35
   },
   "presentation": {
     "worldSpriteName": "DragonRageS",
@@ -39,16 +39,17 @@
     }
   },
   "description": {
-    "summary": "Fires a fast incendiary slug that burns out at medium range.",
+    "summary": "Fires a fast incendiary slug that burns out at short range.",
     "positiveAttributes": [
-      "45 damage on direct hit",
+      "35 damage on direct hit",
       "ignites enemies",
-      "large, fast-moving slug"
+      "large, fast-moving slug that pierces enemies",
+      "100% faster firing after a successful hit"
     ],
     "negativeAttributes": [
-      "4-shell clip",
+      "6-shell clip",
       "20% slower reload than the RM Pyro Shotgun",
-      "projectile fades at medium range"
+      "projectile fades at short range"
     ]
   }
 }

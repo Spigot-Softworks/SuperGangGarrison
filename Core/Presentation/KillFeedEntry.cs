@@ -24,5 +24,8 @@ public sealed record KillFeedEntry(
     KillFeedSpecialType SpecialType = KillFeedSpecialType.None,
     ulong EventId = 0)
 {
+    public string AssistName { get; init; } = "";
+    public PlayerTeam AssistTeam { get; init; }
+    public int AssistPlayerId { get; init; } = -1;
     public IReadOnlyList<int> InvolvedPlayerIds { get; init; } = Array.Empty<int>();
 }

@@ -14,6 +14,8 @@ public sealed record GameplayItemPresentationDefinition(
     float ReloadOverlayOffsetX = 0f,
     float ReloadOverlayOffsetY = 0f,
     float ReloadOverlayRotationDegrees = 0f,
+    float ReloadSpriteOffsetX = 0f,
+    float ReloadSpriteOffsetY = 0f,
     string? HudSpriteName = null,
     float WeaponOffsetX = 0f,
     float WeaponOffsetY = 0f,

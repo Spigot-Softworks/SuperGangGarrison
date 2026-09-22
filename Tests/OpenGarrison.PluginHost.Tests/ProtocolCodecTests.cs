@@ -467,13 +467,14 @@ public sealed class ProtocolCodecTests
             KothUnlockTicksRemaining: 0,
             KothRedTimerTicksRemaining: 0,
             KothBlueTimerTicksRemaining: 0,
-            ControlPoints: [new SnapshotControlPointState(0, 1, 0, 0, 120, 1, false)],
+            ControlPoints: [new SnapshotControlPointState(0, 1, 0, 0, 120, 1, false, HasHealingAura: true)],
             Generators: [new SnapshotGeneratorState(1, 75, 100)],
             LocalDeathCam: null,
             KillFeed:
             [
                 new SnapshotKillFeedEntry("Scout", 1, "scattergun", "Pyro", 2, "Scout fragged Pyro", 0, 5, 5, 6)
                 {
+                    AssistName = "Medic", AssistTeam = 1, AssistPlayerId = 8,
                     InvolvedPlayerIds = SnapshotRoundTripKillFeedInvolvedPlayerIds,
                 },
             ],
@@ -640,6 +641,7 @@ public sealed class ProtocolCodecTests
         Assert.Equal(2, player.KritzCritBoostProviderSlot);
         Assert.Equal(3.5f, player.KritzCritBoostDamageMultiplier);
         Assert.True(player.IsBot);
+        Assert.True(Assert.Single(roundTrippedSnapshot.ControlPoints).HasHealingAura);
         Assert.Equal("plugin.example.ranger", player.GameplayClassId);
         var deadBody = Assert.Single(roundTrippedSnapshot.DeadBodies);
         Assert.Equal("plugin.quote-curly.quote", deadBody.GameplayClassId);
@@ -701,6 +703,9 @@ public sealed class ProtocolCodecTests
         Assert.Equal(SnapshotRoundTripRocketPassedFriendlyPlayerIds, rocketSpawn.PassedFriendlyPlayerIds);
         var killFeedEntry = Assert.Single(roundTrippedSnapshot.KillFeed);
         Assert.Equal(SnapshotRoundTripKillFeedInvolvedPlayerIds, killFeedEntry.InvolvedPlayerIds);
+        Assert.Equal("Medic", killFeedEntry.AssistName);
+        Assert.Equal(1, killFeedEntry.AssistTeam);
+        Assert.Equal(8, killFeedEntry.AssistPlayerId);
         var healthPack = Assert.Single(roundTrippedSnapshot.HealthPacks);
         Assert.Equal(-1, healthPack.Id);
         Assert.Equal(1, healthPack.Size);

@@ -123,6 +123,7 @@ internal sealed class BrowserAtlasTextureCache(GraphicsDevice graphicsDevice) : 
 
         var texture = new Texture2D(_graphicsDevice, image.Width, image.Height);
         texture.SetData(textureData);
+        AtlasUploadDiagnostics.VerifyUploadedPage(_graphicsDevice, relativePath, bytes, textureData, texture);
         var page = new BrowserLoadedAtlasPage(relativePath, texture, textureData, image.Width, image.Height);
         _pages[relativePath] = page;
         _pendingPages.Remove(relativePath);

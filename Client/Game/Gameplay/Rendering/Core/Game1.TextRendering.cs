@@ -21,6 +21,13 @@ public partial class Game1
     private static readonly SpriteFontDefinition CountFontDefinition = new("countFontS", '0', false, 2);
     private static readonly SpriteFontDefinition TimerFontDefinition = new("timerFontS", '0', true, 5);
 
+    private float NormalizeUiTextScale(float scale)
+    {
+        var minimumSizeRequired = _builderEditorEnabled || _lastToDieMenuOpen || IsLastToDieSessionActive
+            || _networkClient?.LastToDieState.Snapshot is not null;
+        return minimumSizeRequired ? MathF.Max(1f, scale) : scale;
+    }
+
     private void DrawBitmapFontText(string text, Vector2 position, Color color, float scale = 1f)
     {
         DrawBitmapFontText(text, position, color, scale, 0f);
@@ -110,6 +117,7 @@ public partial class Game1
         float rotation,
         Vector2? rotationCenter = null)
     {
+        scale = NormalizeUiTextScale(scale);
         if (string.IsNullOrEmpty(text))
         {
             return;
@@ -179,6 +187,7 @@ public partial class Game1
 
     private float MeasureSpriteFontWidth(SpriteFontDefinition definition, string text, float scale)
     {
+        scale = NormalizeUiTextScale(scale);
         if (string.IsNullOrEmpty(text))
         {
             return 0f;
@@ -222,6 +231,7 @@ public partial class Game1
 
     private float MeasureSpriteFontHeight(SpriteFontDefinition definition, float scale)
     {
+        scale = NormalizeUiTextScale(scale);
         if (!float.IsFinite(scale) || scale <= 0f)
         {
             return 0f;

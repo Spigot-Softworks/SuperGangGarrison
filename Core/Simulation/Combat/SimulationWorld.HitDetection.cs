@@ -43,7 +43,8 @@ public sealed partial class SimulationWorld
         bool IgnoreOrdinaryGeometry,
         bool AllowFriendlySupport,
         int MaximumEnemyPlayerHits,
-        bool DetectLastToDieHeadshots = false);
+        bool DetectLastToDieHeadshots = false,
+        bool PierceFriendlyPlayers = false);
     private readonly record struct RectangleHitbox(float Left, float Top, float Right, float Bottom);
 
     internal void CombatTestSetLevel(SimpleLevel level)

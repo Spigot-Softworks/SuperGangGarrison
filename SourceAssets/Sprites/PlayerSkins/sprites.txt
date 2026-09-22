@@ -1,0 +1,87 @@
+0-idle
+1-8-run
+
+ROCKETMAN:
+9-jumpstart
+10-jump
+11-fall
+12-land
+13-rocketjump start
+14-rocketjump rise/jump after shooting
+15-rocketjump fall/fall after shooting
+16-rocketjump land/land after shooting
+INFILTRATOR:
+1-jumpstart
+2-jump
+3,4-fall
+5-land
+9-16-backwards run
+HEALER:
+1-jumpstart
+2-jump
+3-fall
+4-land
+9-16-notused
+
+WEAPONS: (TOPLEFT is topleft of the 32x32 box, rotationpoint is offset from topleft of the weapon sprite itself
+HEALER: from topleft 9,20, rotationpoint 8,4
+0: 0,0
+1-2: 0,0
+3-4: 0,-1
+5-6: 0,0
+7-8: 0,-1
+ROCKETMAN: from topleft 7,16, rotationpoint 7,5
+0: 0,0
+1: 0,0
+2: 1,-1
+3: 2,-2
+4: 1,1
+5: 0,0
+6: -1,-1 (frame1)
+7: -2,-2 (frame2)
+8: -1,-1 (frame1)
+9: 0,1
+10: 1,0
+11: 2,-2
+12: 2,-1
+13: 0,1
+14: -1,0 (frame1)
+15: -1,1 (frame2)
+16: -1,0 (frame1)
+INFILTRATOR: from topleft 15,16, rotationpoint 3,2
+0: 0,0
+1-2: 1,0
+3-4: 2,-1
+5-6: 1,0
+7-8: 0,-1
+9-10: 1,0
+11-12: 2,-1
+13-14: 1,0
+15-16: 0,-1
+
+BODY:
+HEALER:
+ROCKETMAN: from topleft 11,12
+0: 0,0
+1: 0,1
+2: 0,0
+3: 0,-1
+4: 0,0
+5: 0,1
+6: 0,0
+7: 0,-1
+8: 0,0
+9: 0,1
+10: 0,0
+11: 0,-1
+12: 0,0
+13: 0,1
+14: 0,0
+15: 0,-1
+16: 0,0
+INFILTRATOR:
+
+DEFAULT HAT:
+HEALER: n/a
+ROCKETMAN: from topleft 13,11
+INFILTRATOR: n/a
