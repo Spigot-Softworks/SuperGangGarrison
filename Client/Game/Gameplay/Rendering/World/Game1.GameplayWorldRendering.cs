@@ -360,7 +360,7 @@ public partial class Game1
         {
             var index = playerGibIndex;
             playerGibIndex += 1;
-            if (!ShouldDrawPlayerGib(playerGib.Id))
+            if (_gibLevel == 0 || _gibLevel == 1 || (_gibLevel == 2 && (playerGib.FrameIndex % 2 != 0)))
             {
                 continue;
             }

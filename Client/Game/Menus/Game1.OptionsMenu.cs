@@ -937,12 +937,6 @@ public partial class Game1
         PersistClientSettings();
     }
 
-    private void CycleGibRenderModeSetting()
-    {
-        _gibRenderMode = (_gibRenderMode + 1) % 2;
-        PersistClientSettings();
-    }
-
     private void ToggleDynamicRagdollSetting()
     {
         _dynamicRagdollEnabled = !_dynamicRagdollEnabled;
@@ -954,24 +948,16 @@ public partial class Game1
         PersistClientSettings();
     }
 
-    private void AdjustGibPersistenceSeconds(int step)
-    {
-        _gibPersistenceSeconds = Math.Clamp(_gibPersistenceSeconds + step, 1, 120);
-        ApplyGibPresentationSettingsToWorld();
-        PersistClientSettings();
-    }
-
     private void AdjustBloodPersistenceSeconds(int step)
     {
         _bloodPersistenceSeconds = Math.Clamp(_bloodPersistenceSeconds + step, 1, 120);
-        ApplyGibPresentationSettingsToWorld();
+        ApplyBloodPresentationSettingsToWorld();
         PersistClientSettings();
     }
 
-    private void CycleGibFadeModeSetting()
+    private void CycleCorpseFadeModeSetting()
     {
-        _gibFadeMode = (_gibFadeMode + 1) % 2;
-        ApplyGibPresentationSettingsToWorld();
+        _corpseFadeMode = (_corpseFadeMode + 1) % 2;
         PersistClientSettings();
     }
 
@@ -1018,12 +1004,6 @@ public partial class Game1
     private void CycleBloodAmountSetting()
     {
         _bloodAmountLevel = _bloodAmountLevel >= 5 ? 1 : _bloodAmountLevel + 1;
-        PersistClientSettings();
-    }
-
-    private void CycleGibAmountSetting()
-    {
-        _gibAmountLevel = _gibAmountLevel >= 5 ? 1 : _gibAmountLevel + 1;
         PersistClientSettings();
     }
 
