@@ -18,7 +18,9 @@ internal readonly record struct ImmediateNetworkDeadBodyPresentationState(
     float Height,
     bool FacingLeft,
     int TicksRemaining,
-    string GameplayClassId = "");
+    string GameplayClassId = "",
+    float? AuthoritativeHorizontalSpeed = null,
+    float? AuthoritativeVerticalSpeed = null);
 
 internal static class ImmediateNetworkDeathPresentationPlanner
 {
@@ -55,7 +57,9 @@ internal static class ImmediateNetworkDeathPresentationPlanner
                 authoritativeDeadBody.Height,
                 authoritativeDeadBody.FacingLeft,
                 lifetimeTicks,
-                authoritativeDeadBody.GameplayClassId);
+                authoritativeDeadBody.GameplayClassId,
+                AuthoritativeHorizontalSpeed: authoritativeDeadBody.HorizontalSpeed,
+                AuthoritativeVerticalSpeed: authoritativeDeadBody.VerticalSpeed);
         }
 
         if (targetPlayer is null)
@@ -332,6 +336,17 @@ public partial class Game1
             }
 
             var deadBody = plannedDeadBody.Value;
+            _game.NoteRemainsSortCeiling(deadBody.SourcePlayerId);
+            foreach (var playerGib in _game._world.PlayerGibs)
+            {
+                _game.NoteRemainsSortCeiling(playerGib.Id);
+            }
+
+            foreach (var existingDeadBody in _game._world.DeadBodies)
+            {
+                _game.NoteRemainsSortCeiling(existingDeadBody.Id);
+            }
+
             _game._immediateNetworkDeadBodies[deadBody.SourcePlayerId] = new ImmediateNetworkDeadBodyVisual(
                 deadBody.SourcePlayerId,
                 deadBody.ClassId,
@@ -343,7 +358,49 @@ public partial class Game1
                 deadBody.Height,
                 deadBody.FacingLeft,
                 deadBody.TicksRemaining,
-                deadBody.GameplayClassId);
+                deadBody.GameplayClassId,
+                RemainsSortKey: _game.AllocateRemainsSortKey());
+
+            if (_game._dynamicRagdollEnabled)
+            {
+                var syntheticId = -Math.Abs(deadBody.SourcePlayerId);
+                float knockbackX;
+                float knockbackY;
+                // Prefer server corpse velocities when the same snapshot already carries them
+                // (sniper/sentry magnitudes stay consistent online).
+                if (deadBody.AuthoritativeHorizontalSpeed is { } authHx
+                    && deadBody.AuthoritativeVerticalSpeed is { } authVy
+                    && ((authHx * authHx) + (authVy * authVy)) >= 0.25f)
+                {
+                    knockbackX = authHx;
+                    knockbackY = authVy;
+                }
+                else
+                {
+                    _game.ResolveCorpseDeathKnockback(
+                        deadBody.X,
+                        deadBody.Y,
+                        deadBody.FacingLeft,
+                        damageEvent.AttackerPlayerId,
+                        damageEvent.X,
+                        damageEvent.Y,
+                        out knockbackX,
+                        out knockbackY);
+                }
+
+                _game.SpawnDynamicRagdoll(
+                    syntheticId,
+                    deadBody.SourcePlayerId,
+                    deadBody.ClassId,
+                    deadBody.Team,
+                    deadBody.AnimationKind,
+                    deadBody.GameplayClassId,
+                    deadBody.FacingLeft,
+                    deadBody.X,
+                    deadBody.Y,
+                    knockbackX,
+                    knockbackY);
+            }
         }
 
         private bool TryQueueImmediateNetworkGibPresentation(SnapshotMessage resolvedSnapshot, SnapshotDamageEvent damageEvent, PlayerEntity targetPlayer)
@@ -526,6 +583,48 @@ public partial class Game1
                 return;
             }
 
+            if (_game.TryDrawDynamicRagdoll(
+                    id,
+                    sourcePlayerId,
+                    classId,
+                    team,
+                    animationKind,
+                    x,
+                    y,
+                    width,
+                    height,
+                    facingLeft,
+                    gameplayClassId,
+                    ticksRemaining,
+                    cameraPosition))
+            {
+                return;
+            }
+
+            if (_game.TryDrawCorpseAcidDissolve(
+                    id,
+                    gameplayClassId,
+                    classId,
+                    team,
+                    animationKind,
+                    x,
+                    y,
+                    height,
+                    facingLeft,
+                    rotationDegrees: 0f,
+                    ticksRemaining,
+                    cameraPosition))
+            {
+                return;
+            }
+
+            var fadeAlpha = _game.GetCorpseFadeAlpha(ticksRemaining);
+            if (fadeAlpha <= 0.001f)
+            {
+                return;
+            }
+
+            var tint = Color.White * fadeAlpha;
             var spriteName = Game1.GetDeadBodySpriteName(gameplayClassId, classId, team, animationKind);
             if (spriteName is not null)
             {
@@ -537,13 +636,13 @@ public partial class Game1
                     var corpseOrigin = new Vector2(frame.Width * 0.5f, frame.Height - (height * 0.5f));
                     var drawPosition = new Vector2(roundedOrigin.X - cameraPosition.X, roundedOrigin.Y - cameraPosition.Y);
 
-                    _game.DrawSpriteFrameWithOptionalShadow(frame, drawPosition, Color.White, 0f, corpseOrigin, new Vector2(facingLeft ? -1f : 1f, 1f));
+                    _game.DrawSpriteFrameWithOptionalShadow(frame, drawPosition, tint, 0f, corpseOrigin, new Vector2(facingLeft ? -1f : 1f, 1f));
                     return;
                 }
             }
 
             var rectangle = new Rectangle((int)(renderPosition.X - (width / 2f) - cameraPosition.X), (int)(renderPosition.Y - (height / 2f) - cameraPosition.Y), (int)width, (int)height);
-            _game._spriteBatch.Draw(_game._pixel, rectangle, team == PlayerTeam.Blue ? new Color(24, 45, 80) : new Color(90, 30, 30));
+            _game._spriteBatch.Draw(_game._pixel, rectangle, (team == PlayerTeam.Blue ? new Color(24, 45, 80) : new Color(90, 30, 30)) * fadeAlpha);
         }
 
         private bool TryGetForcedLastToDieDeadBodyAnimationKindCore(int sourcePlayerId, PlayerClass classId, PlayerTeam team, DeadBodyAnimationKind deadBodyAnimationKind, out ClientDeadBodyAnimationKind forcedAnimationKind)

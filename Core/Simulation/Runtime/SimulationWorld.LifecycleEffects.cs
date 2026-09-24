@@ -387,7 +387,8 @@ public sealed partial class SimulationWorld
             gib.Y - 1f,
             MathF.Cos(angle) * gib.Speed * 0.9f + (_random.NextSingle() * 3f) - 1f,
             MathF.Sin(angle) * gib.Speed * 0.9f + (_random.NextSingle() * 3f) - 1f,
-            experimentalCryoTinted: gib.ExperimentalCryoTinted);
+            experimentalCryoTinted: gib.ExperimentalCryoTinted,
+            lifetimeTicks: ScaleBloodDropLifetimeTicks());
         _bloodDrops.Add(bloodDrop);
         _entities.Add(bloodDrop.Id, bloodDrop);
     }
@@ -399,13 +400,21 @@ public sealed partial class SimulationWorld
             return;
         }
 
+        var lifetimeTicks = ScaleBloodDropLifetimeTicks();
         for (var index = 0; index < count; index += 1)
         {
             var offsetX = spreadRadius <= 0f ? 0f : (_random.NextSingle() * ((spreadRadius * 2f) + 1f)) - spreadRadius;
             var offsetY = spreadRadius <= 0f ? 0f : (_random.NextSingle() * ((spreadRadius * 2f) + 1f)) - spreadRadius;
             var velocityX = (_random.NextSingle() * ((velocityRangeX * 2f) + 1f)) - velocityRangeX;
             var velocityY = (_random.NextSingle() * ((velocityRangeY * 2f) + 1f)) - velocityRangeY;
-            var bloodDrop = new BloodDropEntity(AllocateEntityId(), x + offsetX, y + offsetY, velocityX, velocityY, experimentalCryoTinted: experimentalCryoTinted);
+            var bloodDrop = new BloodDropEntity(
+                AllocateEntityId(),
+                x + offsetX,
+                y + offsetY,
+                velocityX,
+                velocityY,
+                experimentalCryoTinted: experimentalCryoTinted,
+                lifetimeTicks: lifetimeTicks);
             _bloodDrops.Add(bloodDrop);
             _entities.Add(bloodDrop.Id, bloodDrop);
         }
