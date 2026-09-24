@@ -28,10 +28,18 @@ public partial class Game1
             _game._processedStickyGibBloodDropIds.Clear();
             _game._staleStickyGibBloodDropIds.Clear();
             ResetBloodSquibEffects();
+            _game.ResetDynamicGibEffects();
+            _game.ResetDynamicRagdollEffects();
+            _game.ResetGibAcidDissolves();
         }
 
         public void AdvanceBloodVisuals()
         {
+            _game.AdvanceDynamicGibVisualCleanup();
+            _game.AdvanceDynamicRagdolls();
+            _game.SyncDynamicRagdollsWithDeadBodies();
+            _game.AdvanceGibAcidDissolves();
+
             if (!_game.AreBloodVisualsEnabled)
             {
                 _game._bloodVisuals.Clear();
@@ -174,7 +182,7 @@ public partial class Game1
         {
             if (!_game.AreBloodVisualsEnabled || _game._bloodRenderMode == 0)
             {
-                // Squib blood is drawn with remains so stains sit on top of walkmasks/structures.
+                // Squib flight particles are drawn with gameplay effects; settled pools with the map.
                 return;
             }
 
@@ -231,14 +239,24 @@ public partial class Game1
             }
         }
 
-        public void DrawBloodSquibRemains(Vector2 cameraPosition)
+        public void DrawBloodSquibPools(Vector2 cameraPosition)
         {
             if (!_game.AreBloodVisualsEnabled || _game._bloodRenderMode != 0)
             {
                 return;
             }
 
-            DrawBloodSquibEffects(cameraPosition);
+            DrawSettledBloodSquibPools(cameraPosition);
+        }
+
+        public void DrawBloodSquibFlight(Vector2 cameraPosition)
+        {
+            if (!_game.AreBloodVisualsEnabled || _game._bloodRenderMode != 0)
+            {
+                return;
+            }
+
+            DrawFlyingBloodSquibParticles(cameraPosition);
         }
 
         public bool TryPlayVisualEvent(string effectName, float x, float y, float directionDegrees, int count)
@@ -376,9 +394,12 @@ public partial class Game1
                 return;
             }
 
-            var fadeAlpha = coating.TicksRemaining > StickyGibBloodCoating.FadeTicks
+            var fadeTicks = Math.Max(
+                1,
+                (int)MathF.Round(StickyGibBloodCoating.FadeTicks * _game.GetBloodPersistenceScale()));
+            var fadeAlpha = coating.TicksRemaining > fadeTicks
                 ? 1f
-                : coating.TicksRemaining / (float)StickyGibBloodCoating.FadeTicks;
+                : coating.TicksRemaining / (float)fadeTicks;
             var alpha = Math.Clamp(coating.Intensity * fadeAlpha * visibilityAlpha, 0f, 1f);
             if (alpha <= 0f)
             {
@@ -632,7 +653,9 @@ public partial class Game1
                 _game._stickyGibBloodCoatings[player.Id] = coating;
             }
 
-            coating.TicksRemaining = StickyGibBloodCoating.LifetimeTicks;
+            coating.TicksRemaining = Math.Max(
+                1,
+                (int)MathF.Round(StickyGibBloodCoating.LifetimeTicks * _game.GetBloodPersistenceScale()));
             coating.Intensity = Math.Clamp(
                 Math.Max(coating.Intensity, 0.42f) + (Math.Min(4, Math.Max(1, intensity)) * 0.08f),
                 0.42f,

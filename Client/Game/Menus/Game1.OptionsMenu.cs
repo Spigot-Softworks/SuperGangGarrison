@@ -937,6 +937,44 @@ public partial class Game1
         PersistClientSettings();
     }
 
+    private void CycleGibRenderModeSetting()
+    {
+        _gibRenderMode = (_gibRenderMode + 1) % 2;
+        PersistClientSettings();
+    }
+
+    private void ToggleDynamicRagdollSetting()
+    {
+        _dynamicRagdollEnabled = !_dynamicRagdollEnabled;
+        if (!_dynamicRagdollEnabled)
+        {
+            ResetDynamicRagdollEffects();
+        }
+
+        PersistClientSettings();
+    }
+
+    private void AdjustGibPersistenceSeconds(int step)
+    {
+        _gibPersistenceSeconds = Math.Clamp(_gibPersistenceSeconds + step, 1, 120);
+        ApplyGibPresentationSettingsToWorld();
+        PersistClientSettings();
+    }
+
+    private void AdjustBloodPersistenceSeconds(int step)
+    {
+        _bloodPersistenceSeconds = Math.Clamp(_bloodPersistenceSeconds + step, 1, 120);
+        ApplyGibPresentationSettingsToWorld();
+        PersistClientSettings();
+    }
+
+    private void CycleGibFadeModeSetting()
+    {
+        _gibFadeMode = (_gibFadeMode + 1) % 2;
+        ApplyGibPresentationSettingsToWorld();
+        PersistClientSettings();
+    }
+
     private void CycleMenuBackgroundModeSetting()
     {
         _menuBackgroundMode = _menuBackgroundMode switch

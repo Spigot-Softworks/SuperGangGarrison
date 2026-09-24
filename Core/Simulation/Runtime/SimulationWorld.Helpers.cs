@@ -188,6 +188,7 @@ public sealed partial class SimulationWorld
     {
         var dropCount = int.Clamp(4 + Math.Max(0, count - 1), 4, 7);
         var directionRadians = DegreesToRadians(directionDegrees);
+        var lifetimeTicks = ScaleBloodDropLifetimeTicks();
         for (var index = 0; index < dropCount; index += 1)
         {
             var speed = _random.NextSingle() * 12f;
@@ -198,7 +199,8 @@ public sealed partial class SimulationWorld
                 x,
                 y,
                 MathF.Cos(velocityRadians) * speed,
-                MathF.Sin(velocityRadians) * speed);
+                MathF.Sin(velocityRadians) * speed,
+                lifetimeTicks: lifetimeTicks);
             _bloodDrops.Add(bloodDrop);
             _entities.Add(bloodDrop.Id, bloodDrop);
         }

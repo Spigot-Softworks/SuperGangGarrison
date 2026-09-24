@@ -116,6 +116,21 @@ public sealed class OpenGarrisonPreferencesDocument
 
     public int BloodRenderMode { get; set; }
 
+    /// <summary>0 = Classic piece gibs, 1 = Dynamic sprite-cut gibs.</summary>
+    public int GibRenderMode { get; set; }
+
+    /// <summary>Client-only floppy corpse ragdoll for non-gib deaths.</summary>
+    public bool DynamicRagdollEnabled { get; set; } = true;
+
+    /// <summary>Gib lifetime in whole seconds (default 8 ≈ stock ~220 ticks at 30Hz, rounded up).</summary>
+    public int GibPersistenceSeconds { get; set; } = 8;
+
+    /// <summary>Blood lifetime in whole seconds (default 9 ≈ stock 250 ticks at 30Hz, rounded up).</summary>
+    public int BloodPersistenceSeconds { get; set; } = 9;
+
+    /// <summary>0 = Regular alpha fade, 1 = Acid top-down dissolve (default).</summary>
+    public int GibFadeMode { get; set; } = DefaultGibFadeMode;
+
     public MenuBackgroundMode MenuBackgroundMode { get; set; } = MenuBackgroundMode.DefaultMaps;
 
     public int GibLevel { get; set; } = 3;
@@ -293,6 +308,11 @@ public sealed class OpenGarrisonPreferencesDocument
             ParticleMode = ini.GetInt(SettingsSection, "Particles", 0),
             FlameRenderMode = ini.GetInt(SettingsSection, "Flame Render Mode", 0),
             BloodRenderMode = ini.GetInt(SettingsSection, "Blood Render Mode", 0),
+            GibRenderMode = Math.Clamp(ini.GetInt(SettingsSection, "Gib Render Mode", 0), 0, 1),
+            DynamicRagdollEnabled = ini.GetBool(SettingsSection, "Dynamic Ragdoll", true),
+            GibPersistenceSeconds = ReadGibPersistenceSeconds(ini),
+            BloodPersistenceSeconds = ReadBloodPersistenceSeconds(ini),
+            GibFadeMode = Math.Clamp(ini.GetInt(SettingsSection, "Gib Fade Mode", DefaultGibFadeMode), 0, 1),
             MenuBackgroundMode = (MenuBackgroundMode)ini.GetInt(SettingsSection, "Menu Background Mode", (int)MenuBackgroundMode.DefaultMaps),
             GibLevel = ReadGoreMode(ini),
             BloodAmountLevel = ReadBloodAmountLevel(ini),
@@ -408,6 +428,11 @@ public sealed class OpenGarrisonPreferencesDocument
         ini.SetInt(SettingsSection, "Particles", ParticleMode);
         ini.SetInt(SettingsSection, "Flame Render Mode", FlameRenderMode);
         ini.SetInt(SettingsSection, "Blood Render Mode", BloodRenderMode);
+        ini.SetInt(SettingsSection, "Gib Render Mode", Math.Clamp(GibRenderMode, 0, 1));
+        ini.SetBool(SettingsSection, "Dynamic Ragdoll", DynamicRagdollEnabled);
+        ini.SetInt(SettingsSection, "Gib Persistence Seconds", Math.Clamp(GibPersistenceSeconds, 1, 120));
+        ini.SetInt(SettingsSection, "Blood Persistence Seconds", Math.Clamp(BloodPersistenceSeconds, 1, 120));
+        ini.SetInt(SettingsSection, "Gib Fade Mode", Math.Clamp(GibFadeMode, 0, 1));
         ini.SetInt(SettingsSection, "Menu Background Mode", (int)MenuBackgroundMode);
         ini.SetInt(SettingsSection, "Gib Level", GibLevel);
         ini.SetInt(SettingsSection, "Blood Amount", Math.Clamp(BloodAmountLevel, 1, 5));
@@ -555,6 +580,47 @@ public sealed class OpenGarrisonPreferencesDocument
         return ini.GetBool(SettingsSection, "IngameMusic", true)
             ? MusicMode.MenuAndInGame
             : MusicMode.MenuOnly;
+    }
+
+    private static int ReadGibPersistenceSeconds(IniConfigurationFile ini)
+    {
+        if (ini.ContainsKey(SettingsSection, "Gib Persistence Seconds"))
+        {
+            return Math.Clamp(ini.GetInt(SettingsSection, "Gib Persistence Seconds", DefaultGibPersistenceSeconds), 1, 120);
+        }
+
+        // Migrate brief 1–5 lifetime levels used by an earlier build.
+        if (ini.ContainsKey(SettingsSection, "Gib Persistence"))
+        {
+            return Math.Clamp(ini.GetInt(SettingsSection, "Gib Persistence", 3), 1, 5) switch
+            {
+                1 => 3,
+                2 => 5,
+                3 => DefaultGibPersistenceSeconds,
+                4 => 12,
+                _ => 18,
+            };
+        }
+
+        return DefaultGibPersistenceSeconds;
+    }
+
+    public const int DefaultGibPersistenceSeconds = 8;
+
+    /// <summary>Stock blood-drop lifetime is 250 ticks at 30Hz (~8.33s); round up to a full second.</summary>
+    public const int DefaultBloodPersistenceSeconds = 9;
+
+    /// <summary>0 = Regular, 1 = Acid (default).</summary>
+    public const int DefaultGibFadeMode = 1;
+
+    private static int ReadBloodPersistenceSeconds(IniConfigurationFile ini)
+    {
+        if (ini.ContainsKey(SettingsSection, "Blood Persistence Seconds"))
+        {
+            return Math.Clamp(ini.GetInt(SettingsSection, "Blood Persistence Seconds", DefaultBloodPersistenceSeconds), 1, 120);
+        }
+
+        return DefaultBloodPersistenceSeconds;
     }
 
     private static int ReadGoreMode(IniConfigurationFile ini)

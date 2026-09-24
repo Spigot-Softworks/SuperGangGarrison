@@ -589,9 +589,14 @@ public partial class Game1
                 new("Particles", GetParticleModeLabel(_game._particleMode), _game.CycleParticleModeSetting, OptionsMenuTab.Graphics),
                 new("Flame Style", GetFlameRenderModeLabel(_game._flameRenderMode), _game.CycleFlameRenderModeSetting, OptionsMenuTab.Graphics),
                 new("Blood Style", GetBloodRenderModeLabel(_game._bloodRenderMode), _game.CycleBloodRenderModeSetting, OptionsMenuTab.Graphics),
+                new("Gib Style", GetGibRenderModeLabel(_game._gibRenderMode), _game.CycleGibRenderModeSetting, OptionsMenuTab.Graphics),
+                new("Dynamic Ragdoll", _game._dynamicRagdollEnabled ? "Enabled" : "Disabled", _game.ToggleDynamicRagdollSetting, OptionsMenuTab.Graphics),
                 new("Gore", GetGoreModeLabel(_game._gibLevel), _game.CycleGibLevelSetting, OptionsMenuTab.Graphics),
                 new("Blood Amount", GetBloodAmountLabel(_game._bloodAmountLevel), _game.CycleBloodAmountSetting, OptionsMenuTab.Graphics),
                 new("Gib Amount", GetGibAmountLabel(_game._gibAmountLevel), _game.CycleGibAmountSetting, OptionsMenuTab.Graphics),
+                new("Gib Persistence", $"{_game._gibPersistenceSeconds}s", () => _game.AdjustGibPersistenceSeconds(1), OptionsMenuTab.Graphics, _game.AdjustGibPersistenceSeconds),
+                new("Blood Persistence", $"{_game._bloodPersistenceSeconds}s", () => _game.AdjustBloodPersistenceSeconds(1), OptionsMenuTab.Graphics, _game.AdjustBloodPersistenceSeconds),
+                new("Remains Fade", GetGibFadeModeLabel(_game._gibFadeMode), _game.CycleGibFadeModeSetting, OptionsMenuTab.Graphics),
                 new("Stuck Arrows", _game._stuckArrowsEnabled ? "Enabled" : "Disabled", _game.ToggleStuckArrowsSetting, OptionsMenuTab.Graphics),
                 new("Corpses", GetCorpseDurationLabel(_game._corpseDurationMode), _game.CycleCorpseDurationSetting, OptionsMenuTab.Graphics),
                 new("Sprite Shadow", _game._spriteDropShadowEnabled ? "Enabled" : "Disabled", _game.ToggleSpriteDropShadowSetting, OptionsMenuTab.Graphics),
@@ -1000,6 +1005,16 @@ public partial class Game1
         private static string GetBloodRenderModeLabel(int bloodRenderMode)
         {
             return bloodRenderMode == 0 ? "Squib" : "Classic";
+        }
+
+        private static string GetGibRenderModeLabel(int gibRenderMode)
+        {
+            return gibRenderMode == 0 ? "Classic" : "Dynamic";
+        }
+
+        private static string GetGibFadeModeLabel(int gibFadeMode)
+        {
+            return gibFadeMode == 0 ? "Regular" : "Acid";
         }
 
         private static string GetMenuBackgroundModeLabel(MenuBackgroundMode menuBackgroundMode)

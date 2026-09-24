@@ -18,6 +18,14 @@ public sealed partial class SimulationWorld
 
         var inheritedVelocityX = player.HorizontalSpeed * (float)Config.FixedDeltaSeconds;
         var inheritedVelocityY = player.VerticalSpeed * (float)Config.FixedDeltaSeconds;
+
+        if (TryHandleDynamicPlayerGibSpawn?.Invoke(player, player.X, player.Y) == true)
+        {
+            RegisterVisualEffect("GibBlood", player.X, player.Y, count: DefaultGibLevel);
+            SpawnBloodDrops(player.X, player.Y, DefaultGibLevel * 14, 10f, 13f, spreadRadius: 11f, experimentalCryoTinted: experimentalCryoTinted);
+            return;
+        }
+
         SpawnPlayerGibSet(player, "GibS", DefaultGibLevel, randomFrameCount: 7, velocityRangeX: 8f, velocityRangeY: 9f, rotationRange: 72f, lifetimeTicks: 210, horizontalFriction: 0.4f, rotationFriction: 0.6f, bloodChance: 1.8f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY, experimentalCryoTinted: experimentalCryoTinted, emitNetworkEvents: false);
         SpawnPlayerGibSet(player, player.Team == PlayerTeam.Blue ? "BlueClumpS" : "RedClumpS", DefaultGibLevel - 1, randomFrameCount: 4, velocityRangeX: 8f, velocityRangeY: 9f, rotationRange: 72f, lifetimeTicks: 250, horizontalFriction: 0.3f, rotationFriction: 0.4f, bloodChance: 2f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY, experimentalCryoTinted: experimentalCryoTinted, emitNetworkEvents: false);
 
@@ -48,6 +56,13 @@ public sealed partial class SimulationWorld
     private void SpawnPlayerGibsForNetworkDeath(PlayerEntity player, float? spawnX = null, float? spawnY = null)
     {
         if (!LocalGoreEffectsEnabled)
+        {
+            return;
+        }
+
+        var resolvedSpawnX = spawnX ?? player.X;
+        var resolvedSpawnY = spawnY ?? player.Y;
+        if (TryHandleDynamicPlayerGibSpawn?.Invoke(player, resolvedSpawnX, resolvedSpawnY) == true)
         {
             return;
         }
@@ -88,9 +103,67 @@ public sealed partial class SimulationWorld
 
         var resolvedSpawnX = spawnX ?? player.X;
         var resolvedSpawnY = spawnY ?? player.Y;
+        if (TryHandleDynamicPlayerGibSpawn?.Invoke(player, resolvedSpawnX, resolvedSpawnY) == true)
+        {
+            RegisterVisualEffect("GibBlood", resolvedSpawnX, resolvedSpawnY, count: DefaultGibLevel);
+            SpawnBloodDrops(resolvedSpawnX, resolvedSpawnY, DefaultGibLevel * 14, 10f, 13f, spreadRadius: 11f, experimentalCryoTinted: player.IsExperimentalCryoFrozen);
+            return;
+        }
+
         SpawnPlayerGibsForNetworkDeath(player, resolvedSpawnX, resolvedSpawnY);
         RegisterVisualEffect("GibBlood", resolvedSpawnX, resolvedSpawnY, count: DefaultGibLevel);
         SpawnBloodDrops(resolvedSpawnX, resolvedSpawnY, DefaultGibLevel * 14, 10f, 13f, spreadRadius: 11f, experimentalCryoTinted: player.IsExperimentalCryoFrozen);
+    }
+
+    public PlayerGibEntity SpawnCustomPlayerGib(
+        float x,
+        float y,
+        float velocityX,
+        float velocityY,
+        float rotationSpeedDegrees,
+        float horizontalFriction,
+        float rotationFriction,
+        int lifetimeTicks,
+        float bloodChance,
+        bool experimentalCryoTinted,
+        int customVisualId,
+        float visualOriginX,
+        float visualOriginY,
+        float visualScale,
+        float initialRotationDegrees = 0f,
+        bool enableDeferredSpin = false,
+        float deferredSpinSpeedDegrees = 0f,
+        int deferredSpinAirborneTicks = 0,
+        float boundingSize = PlayerGibEntity.DynamicBoundingSize)
+    {
+        var scaledLifetime = ScalePlayerGibLifetimeTicks(lifetimeTicks);
+        var gib = new PlayerGibEntity(
+            AllocateEntityId(),
+            spriteName: string.Empty,
+            frameIndex: 0,
+            x,
+            y,
+            velocityX,
+            velocityY,
+            rotationSpeedDegrees,
+            horizontalFriction,
+            rotationFriction,
+            scaledLifetime,
+            bloodChance,
+            experimentalCryoTinted,
+            customVisualId,
+            visualOriginX,
+            visualOriginY,
+            visualScale,
+            initialRotationDegrees,
+            enableDeferredSpin,
+            deferredSpinSpeedDegrees,
+            deferredSpinAirborneTicks,
+            boundingSize,
+            fadeMode: LocalGibFadeMode);
+        _playerGibs.Add(gib);
+        _entities.Add(gib.Id, gib);
+        return gib;
     }
 
     private void SpawnPlayerGibSet(
@@ -133,6 +206,7 @@ public sealed partial class SimulationWorld
                 velocityY = inheritedVelocityY + (MathF.Sin(angle) * radialSpeed);
             }
             var rotationSpeed = (_random.NextSingle() * ((rotationRange * 2f) + 1f)) - rotationRange;
+            var scaledLifetime = ScalePlayerGibLifetimeTicks(lifetimeTicks);
 
             // Create gib entity locally (for offline mode and server-side simulation)
             var gib = new PlayerGibEntity(
@@ -146,9 +220,10 @@ public sealed partial class SimulationWorld
                 rotationSpeed,
                 horizontalFriction,
                 rotationFriction,
-                lifetimeTicks,
+                scaledLifetime,
                 bloodChance,
-                experimentalCryoTinted);
+                experimentalCryoTinted,
+                fadeMode: LocalGibFadeMode);
             _playerGibs.Add(gib);
             _entities.Add(gib.Id, gib);
 
@@ -165,7 +240,7 @@ public sealed partial class SimulationWorld
                     rotationSpeed,
                     horizontalFriction,
                     rotationFriction,
-                    lifetimeTicks,
+                    scaledLifetime,
                     bloodChance));
             }
         }
@@ -194,6 +269,7 @@ public sealed partial class SimulationWorld
         var rotationSpeed = (_random.NextSingle() * 160f) - 80f;
 
         // Create gib entity locally (for offline mode and server-side simulation)
+        var headLifetime = ScalePlayerGibLifetimeTicks(250);
         var headGib = new PlayerGibEntity(
             AllocateEntityId(),
             headSpriteName,
@@ -205,8 +281,9 @@ public sealed partial class SimulationWorld
             rotationSpeed,
             horizontalFriction: 0.55f,
             rotationFriction: 0.55f,
-            lifetimeTicks: 250,
-            bloodChance: 1.3f);
+            lifetimeTicks: headLifetime,
+            bloodChance: 1.3f,
+            fadeMode: LocalGibFadeMode);
         _playerGibs.Add(headGib);
         _entities.Add(headGib.Id, headGib);
 
@@ -221,7 +298,7 @@ public sealed partial class SimulationWorld
             rotationSpeed,
             0.55f,
             0.55f,
-            250,
+            headLifetime,
             1.3f));
 
         RegisterVisualEffect("GibBlood", spawnX, spawnY, count: 1);
@@ -399,7 +476,8 @@ public sealed partial class SimulationWorld
             gib.Y - 1f,
             MathF.Cos(angle) * gib.Speed * 0.9f + (_random.NextSingle() * 3f) - 1f,
             MathF.Sin(angle) * gib.Speed * 0.9f + (_random.NextSingle() * 3f) - 1f,
-            experimentalCryoTinted: gib.ExperimentalCryoTinted);
+            experimentalCryoTinted: gib.ExperimentalCryoTinted,
+            lifetimeTicks: ScaleBloodDropLifetimeTicks());
         _bloodDrops.Add(bloodDrop);
         _entities.Add(bloodDrop.Id, bloodDrop);
     }
@@ -411,13 +489,21 @@ public sealed partial class SimulationWorld
             return;
         }
 
+        var lifetimeTicks = ScaleBloodDropLifetimeTicks();
         for (var index = 0; index < count; index += 1)
         {
             var offsetX = spreadRadius <= 0f ? 0f : (_random.NextSingle() * ((spreadRadius * 2f) + 1f)) - spreadRadius;
             var offsetY = spreadRadius <= 0f ? 0f : (_random.NextSingle() * ((spreadRadius * 2f) + 1f)) - spreadRadius;
             var velocityX = (_random.NextSingle() * ((velocityRangeX * 2f) + 1f)) - velocityRangeX;
             var velocityY = (_random.NextSingle() * ((velocityRangeY * 2f) + 1f)) - velocityRangeY;
-            var bloodDrop = new BloodDropEntity(AllocateEntityId(), x + offsetX, y + offsetY, velocityX, velocityY, experimentalCryoTinted: experimentalCryoTinted);
+            var bloodDrop = new BloodDropEntity(
+                AllocateEntityId(),
+                x + offsetX,
+                y + offsetY,
+                velocityX,
+                velocityY,
+                experimentalCryoTinted: experimentalCryoTinted,
+                lifetimeTicks: lifetimeTicks);
             _bloodDrops.Add(bloodDrop);
             _entities.Add(bloodDrop.Id, bloodDrop);
         }

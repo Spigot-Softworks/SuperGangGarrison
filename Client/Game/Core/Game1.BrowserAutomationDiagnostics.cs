@@ -114,6 +114,7 @@ public partial class Game1
         public int ParticleMode { get; init; }
         public int FlameRenderMode { get; init; }
         public int BloodRenderMode { get; init; }
+        public int GibRenderMode { get; init; }
         public bool ReducedBrowserEffects { get; init; }
         public string LoadingTitle { get; init; } = "";
         public int HostedLobbyDrawCount { get; init; }
@@ -278,6 +279,7 @@ public partial class Game1
             ParticleMode = _particleMode,
             FlameRenderMode = _flameRenderMode,
             BloodRenderMode = _bloodRenderMode,
+            GibRenderMode = _gibRenderMode,
             ReducedBrowserEffects = UseReducedBrowserEffects,
             LoadingTitle = GetLoadingOverlayTitle(IsRestrictedBrowserEdition),
             HostedLobbyDrawCount = _browserHostedLobbyDrawCount,
@@ -624,6 +626,10 @@ public partial class Game1
                     _gameplayGoreEffectsController.ResetBloodSquibEffects();
                 }
 
+                return true;
+            case "gib_render_mode":
+                if (!int.TryParse(value, out var gibMode) || gibMode is < 0 or > 1) return false;
+                _gibRenderMode = gibMode;
                 return true;
             case "practice_map":
                 return _practiceSetupOpen && SelectPracticeMapEntry(value);

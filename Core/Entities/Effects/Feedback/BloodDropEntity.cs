@@ -11,13 +11,26 @@ public sealed class BloodDropEntity : SimulationEntity
     public const float MaxScale = 2f;
     private const float TopDownFriction = 0.82f;
 
-    public BloodDropEntity(int id, float x, float y, float velocityX, float velocityY, float scale = DefaultScale, bool experimentalCryoTinted = false) : base(id)
+    private readonly int _lifetimeTicks;
+    private readonly int _maxMergedLifetimeTicks;
+
+    public BloodDropEntity(
+        int id,
+        float x,
+        float y,
+        float velocityX,
+        float velocityY,
+        float scale = DefaultScale,
+        bool experimentalCryoTinted = false,
+        int? lifetimeTicks = null) : base(id)
     {
         X = x;
         Y = y;
         VelocityX = velocityX;
         VelocityY = velocityY;
-        TicksRemaining = LifetimeTicks;
+        _lifetimeTicks = Math.Max(1, lifetimeTicks ?? LifetimeTicks);
+        _maxMergedLifetimeTicks = _lifetimeTicks * 2;
+        TicksRemaining = _lifetimeTicks;
         Scale = float.Clamp(scale, DefaultScale, MaxScale);
         ExperimentalCryoTinted = experimentalCryoTinted;
     }
@@ -40,7 +53,7 @@ public sealed class BloodDropEntity : SimulationEntity
 
     public bool ExperimentalCryoTinted { get; }
 
-    public float Alpha => float.Clamp(TicksRemaining / (float)LifetimeTicks, 0f, 1f);
+    public float Alpha => float.Clamp(TicksRemaining / (float)_lifetimeTicks, 0f, 1f);
 
     public bool IsMergeable => IsStuck && !IsExpired;
 
@@ -240,7 +253,7 @@ public sealed class BloodDropEntity : SimulationEntity
     public void Absorb(BloodDropEntity other)
     {
         Scale = float.Clamp(Scale + (other.Scale * 0.4f), DefaultScale, MaxScale);
-        TicksRemaining = int.Clamp(TicksRemaining + Math.Max(1, other.TicksRemaining / 3), 0, MaxMergedLifetimeTicks);
+        TicksRemaining = int.Clamp(TicksRemaining + Math.Max(1, other.TicksRemaining / 3), 0, _maxMergedLifetimeTicks);
     }
 
     private void StickToSolid(LevelSolid solid)
