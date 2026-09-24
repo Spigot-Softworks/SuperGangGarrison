@@ -2,13 +2,17 @@ namespace OpenGarrison.Core;
 
 public sealed class PlayerGibEntity : SimulationEntity
 {
-    private const float BoundingSize = 6f;
+    private const float DefaultBoundingSize = 6f;
     public const float GravityPerTick = 0.7f;
     public const float MaxFallSpeed = 11f;
-    public const int FadeTicks = 10;
     public const int SplatCooldownTicks = 18;
     public const float Scale = 2f;
     public const float DefaultBloodChance = 1.8f;
+    public const float DynamicBoundingSize = 3f;
+    public const int RegularFadeTicks = 20;
+    public const int AcidFadeTicks = 52;
+    public const int FadeModeRegular = 0;
+    public const int FadeModeAcid = 1;
     private const float TopDownFriction = 0.88f;
     private const float TopDownCollisionBounce = 0.35f;
 
@@ -25,7 +29,18 @@ public sealed class PlayerGibEntity : SimulationEntity
         float rotationFriction,
         int lifetimeTicks,
         float bloodChance = DefaultBloodChance,
-        bool experimentalCryoTinted = false) : base(id)
+        bool experimentalCryoTinted = false,
+        int? customVisualId = null,
+        float visualOriginX = 0f,
+        float visualOriginY = 0f,
+        float visualScale = Scale,
+        float initialRotationDegrees = 0f,
+        bool enableDeferredSpin = false,
+        float deferredSpinSpeedDegrees = 0f,
+        int deferredSpinAirborneTicks = 0,
+        float boundingSize = DefaultBoundingSize,
+        int fadeMode = FadeModeAcid,
+        int? fadeTicks = null) : base(id)
     {
         SpriteName = spriteName;
         FrameIndex = frameIndex;
@@ -33,12 +48,23 @@ public sealed class PlayerGibEntity : SimulationEntity
         Y = y;
         VelocityX = velocityX;
         VelocityY = velocityY;
+        RotationDegrees = initialRotationDegrees;
         RotationSpeedDegrees = rotationSpeedDegrees;
         HorizontalFriction = horizontalFriction;
         RotationFriction = rotationFriction;
         TicksRemaining = lifetimeTicks;
         BloodChance = bloodChance;
         ExperimentalCryoTinted = experimentalCryoTinted;
+        CustomVisualId = customVisualId;
+        VisualOriginX = visualOriginX;
+        VisualOriginY = visualOriginY;
+        VisualScale = visualScale;
+        EnableDeferredSpin = enableDeferredSpin;
+        DeferredSpinSpeedDegrees = deferredSpinSpeedDegrees;
+        DeferredSpinAirborneTicks = deferredSpinAirborneTicks;
+        BoundingSize = MathF.Max(1f, boundingSize);
+        FadeMode = fadeMode == FadeModeAcid ? FadeModeAcid : FadeModeRegular;
+        FadeTicks = Math.Max(1, fadeTicks ?? (FadeMode == FadeModeAcid ? AcidFadeTicks : RegularFadeTicks));
     }
 
     public string SpriteName { get; }
@@ -67,15 +93,59 @@ public sealed class PlayerGibEntity : SimulationEntity
 
     public bool ExperimentalCryoTinted { get; }
 
+    public int? CustomVisualId { get; }
+
+    public float VisualOriginX { get; }
+
+    public float VisualOriginY { get; }
+
+    public float VisualScale { get; }
+
+    public bool UsesCustomVisual => CustomVisualId.HasValue;
+
+    public bool EnableDeferredSpin { get; }
+
+    public float DeferredSpinSpeedDegrees { get; }
+
+    public int DeferredSpinAirborneTicks { get; }
+
+    public float BoundingSize { get; }
+
+    public int FadeMode { get; }
+
+    public int FadeTicks { get; }
+
+    private int _airborneTicks;
+
+    private bool _deferredSpinApplied;
+
     public int SplatCooldownTicksRemaining { get; private set; }
 
     public bool IsExpired => TicksRemaining <= 0;
 
     public bool CanSplat => SplatCooldownTicksRemaining <= 0;
 
-    public float Alpha => TicksRemaining >= FadeTicks
-        ? 1f
-        : float.Max(0f, TicksRemaining / (float)FadeTicks);
+    public bool IsFading => TicksRemaining > 0 && TicksRemaining < FadeTicks;
+
+    public float FadeProgress => !IsFading
+        ? 0f
+        : 1f - (TicksRemaining / (float)FadeTicks);
+
+    public float Alpha
+    {
+        get
+        {
+            if (FadeMode == FadeModeAcid)
+            {
+                // Acid dissolve owns the disappearance — keep full opacity while melting.
+                return TicksRemaining > 0 ? 1f : 0f;
+            }
+
+            return TicksRemaining >= FadeTicks
+                ? 1f
+                : float.Max(0f, TicksRemaining / (float)FadeTicks);
+        }
+    }
 
     public void Advance(
         SimpleLevel level,
@@ -115,6 +185,7 @@ public sealed class PlayerGibEntity : SimulationEntity
 
         MoveHorizontally(level, bounds);
         MoveVertically(level, bounds);
+        TryApplyDeferredSpinFromAirborne();
 
         if (float.Abs(VelocityY) < 0.2f)
         {
@@ -282,6 +353,7 @@ public sealed class PlayerGibEntity : SimulationEntity
 
     private void MoveVertically(SimpleLevel level, WorldBounds bounds)
     {
+        var velocityYBeforeMove = VelocityY;
         Y += VelocityY;
         var hitSolid = false;
         foreach (var solid in level.Solids)
@@ -317,7 +389,46 @@ public sealed class PlayerGibEntity : SimulationEntity
         {
             VelocityX *= HorizontalFriction;
             RotationSpeedDegrees *= RotationFriction;
+            if (velocityYBeforeMove > 0.15f)
+            {
+                TryApplyDeferredSpin();
+            }
         }
+    }
+
+    private void TryApplyDeferredSpinFromAirborne()
+    {
+        if (!EnableDeferredSpin || _deferredSpinApplied || DeferredSpinAirborneTicks <= 0)
+        {
+            return;
+        }
+
+        _airborneTicks += 1;
+        if (_airborneTicks >= DeferredSpinAirborneTicks)
+        {
+            TryApplyDeferredSpin();
+        }
+    }
+
+    private void TryApplyDeferredSpin()
+    {
+        if (!EnableDeferredSpin || _deferredSpinApplied || DeferredSpinSpeedDegrees <= 0.01f)
+        {
+            return;
+        }
+
+        _deferredSpinApplied = true;
+        var spinSign = VelocityX >= 0f ? 1f : -1f;
+        if (MathF.Abs(VelocityX) < 0.05f)
+        {
+            spinSign = RotationSpeedDegrees >= 0f ? 1f : -1f;
+            if (MathF.Abs(RotationSpeedDegrees) < 0.05f)
+            {
+                spinSign = 1f;
+            }
+        }
+
+        RotationSpeedDegrees = DeferredSpinSpeedDegrees * spinSign;
     }
 
     private bool Intersects(LevelSolid solid)

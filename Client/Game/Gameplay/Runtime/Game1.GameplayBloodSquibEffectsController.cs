@@ -21,6 +21,16 @@ public partial class Game1
         private const float SettledBloodDripRate = 0.004f;
         private const int SettledBloodFadeStartTicks = 700;
         private const int SettledBloodMaxAgeTicks = 1100;
+
+        private int GetSettledBloodFadeStartTicks()
+            => Math.Max(1, (int)MathF.Round(SettledBloodFadeStartTicks * _game.GetBloodPersistenceScale()));
+
+        private int GetSettledBloodMaxAgeTicks()
+        {
+            var fadeStart = GetSettledBloodFadeStartTicks();
+            var maxAge = Math.Max(1, (int)MathF.Round(SettledBloodMaxAgeTicks * _game.GetBloodPersistenceScale()));
+            return Math.Max(maxAge, fadeStart + 1);
+        }
         private const float SquibGravity = 0.27f;
         private const float SquibHeavyGravity = 0.34f;
         private const float SquibMaxSpeed = 12f;
@@ -488,7 +498,7 @@ public partial class Game1
                     continue;
                 }
 
-                if (cell.Age < SettledBloodFadeStartTicks)
+                if (cell.Age < GetSettledBloodFadeStartTicks())
                 {
                     continue;
                 }
@@ -499,16 +509,18 @@ public partial class Game1
                     continue;
                 }
 
+                var fadeStart = GetSettledBloodFadeStartTicks();
+                var maxAge = GetSettledBloodMaxAgeTicks();
                 var fadeT = Math.Clamp(
-                    (cell.Age - SettledBloodFadeStartTicks)
-                    / (float)Math.Max(1, SettledBloodMaxAgeTicks - SettledBloodFadeStartTicks),
+                    (cell.Age - fadeStart)
+                    / (float)Math.Max(1, maxAge - fadeStart),
                     0f,
                     1f);
                 // Edge cells dissolve; later ages dissolve faster so the front marches inward.
                 var fadeFactor = MathHelper.Lerp(0.985f, 0.92f, fadeT);
                 cell.Amount *= fadeFactor;
 
-                if (cell.Amount <= 0.08f || cell.Age >= SettledBloodMaxAgeTicks)
+                if (cell.Amount <= 0.08f || cell.Age >= maxAge)
                 {
                     _game._staleSettledBloodCellKeys.Add(entry.Key);
                 }
@@ -942,7 +954,7 @@ public partial class Game1
             _game._staleSettledBloodCellKeys.Clear();
             foreach (var entry in _game._settledBloodCells)
             {
-                if (entry.Value.Amount < 0.4f || entry.Value.Age > SettledBloodFadeStartTicks)
+                if (entry.Value.Amount < 0.4f || entry.Value.Age > GetSettledBloodFadeStartTicks())
                 {
                     _game._staleSettledBloodCellKeys.Add(entry.Key);
                     if (_game._staleSettledBloodCellKeys.Count >= overflow)
@@ -960,12 +972,11 @@ public partial class Game1
             _game._staleSettledBloodCellKeys.Clear();
         }
 
-        private void DrawBloodSquibEffects(Vector2 cameraPosition)
+        private void DrawFlyingBloodSquibParticles(Vector2 cameraPosition)
         {
             var normalCells = _game._bloodDrawCellsScratch;
             var cryoCells = _game._bloodCryoDrawCellsScratch;
 
-            // Flight squibs — slightly brighter than ground pools.
             normalCells.Clear();
             cryoCells.Clear();
             for (var index = 0; index < _game._bloodSquibParticles.Count; index += 1)
@@ -983,8 +994,13 @@ public partial class Game1
 
             DrawProceduralBloodCells(normalCells, cameraPosition, useCryoColors: false, useFlightColors: true);
             DrawProceduralBloodCells(cryoCells, cameraPosition, useCryoColors: true, useFlightColors: true);
+        }
 
-            // Settled pools — previous ground palette; merge overlapping blobs into one silhouette.
+        private void DrawSettledBloodSquibPools(Vector2 cameraPosition)
+        {
+            var normalCells = _game._bloodDrawCellsScratch;
+            var cryoCells = _game._bloodCryoDrawCellsScratch;
+
             normalCells.Clear();
             cryoCells.Clear();
             foreach (var entry in _game._settledBloodCells)
@@ -1487,7 +1503,7 @@ public partial class Game1
                 {
                     pixelColor = isOutline
                         ? new Color(140, 195, 220)
-                        : new Color(185, 230, 245);
+                        : ResolveSettledBloodFillColor(cells, gx, gy, cryo: true, flight: useFlightColors);
                 }
                 else if (useFlightColors)
                 {
@@ -1499,7 +1515,7 @@ public partial class Game1
                 {
                     pixelColor = isOutline
                         ? new Color(145, 8, 14)
-                        : new Color(198, 16, 24);
+                        : ResolveSettledBloodFillColor(cells, gx, gy, cryo: false, flight: false);
                 }
 
                 var rect = new Rectangle(
@@ -1510,6 +1526,129 @@ public partial class Game1
                 _game._spriteBatch.Draw(_game._pixel, rect, pixelColor);
             }
         }
+
+        // Multi-scale blotches of blood shades. Continuous field is neighbour-softened, then
+        // quantized so bands sit next to midtones (no harsh dark↔bright jumps).
+        private static Color ResolveSettledBloodFillColor(
+            Dictionary<(int, int), float> cells,
+            int gx,
+            int gy,
+            bool cryo,
+            bool flight)
+        {
+            if (flight)
+            {
+                return cryo ? new Color(185, 230, 245) : new Color(218, 22, 28);
+            }
+
+            var field = SampleBloodShadeField(gx, gy);
+            var soft = field;
+            var weight = 1f;
+            AccumulateNeighbourShade(cells, gx - 1, gy, ref soft, ref weight);
+            AccumulateNeighbourShade(cells, gx + 1, gy, ref soft, ref weight);
+            AccumulateNeighbourShade(cells, gx, gy - 1, ref soft, ref weight);
+            AccumulateNeighbourShade(cells, gx, gy + 1, ref soft, ref weight);
+            // Light diagonal mix so blotch corners get mid bands too.
+            AccumulateNeighbourShade(cells, gx - 1, gy - 1, ref soft, ref weight, 0.35f);
+            AccumulateNeighbourShade(cells, gx + 1, gy - 1, ref soft, ref weight, 0.35f);
+            AccumulateNeighbourShade(cells, gx - 1, gy + 1, ref soft, ref weight, 0.35f);
+            AccumulateNeighbourShade(cells, gx + 1, gy + 1, ref soft, ref weight, 0.35f);
+            soft /= weight;
+
+            var level = QuantizeBloodShadeLevel(soft);
+            return cryo ? GetCryoBloodFillByLevel(level) : GetBloodFillByLevel(level);
+        }
+
+        private static void AccumulateNeighbourShade(
+            Dictionary<(int, int), float> cells,
+            int gx,
+            int gy,
+            ref float soft,
+            ref float weight,
+            float scale = 1f)
+        {
+            if (!cells.ContainsKey((gx, gy)))
+            {
+                return;
+            }
+
+            soft += SampleBloodShadeField(gx, gy) * scale;
+            weight += scale;
+        }
+
+        private static float SampleBloodShadeField(int gx, int gy)
+        {
+            // Large regions (~5–8 cells), medium patches (~3 cells), small clumps (~2 cells).
+            var large = ValueNoise2D(gx * 0.17f, gy * 0.19f, unchecked((int)0xA11CEu));
+            var medium = ValueNoise2D(gx * 0.33f, gy * 0.31f, unchecked((int)0xB100Du));
+            var small = ValueNoise2D(gx * 0.55f, gy * 0.52f, unchecked((int)0xC0FFEEu));
+            // Bias toward mid so extreme bright/dark stay as islands, not noisy salt.
+            var mixed = (large * 0.52f) + (medium * 0.32f) + (small * 0.16f);
+            return Math.Clamp((mixed - 0.5f) * 1.15f + 0.5f, 0f, 1f);
+        }
+
+        private static float ValueNoise2D(float x, float y, int seed)
+        {
+            var x0 = (int)MathF.Floor(x);
+            var y0 = (int)MathF.Floor(y);
+            var tx = x - x0;
+            var ty = y - y0;
+            // Smoothstep for soft band edges.
+            tx = tx * tx * (3f - (2f * tx));
+            ty = ty * ty * (3f - (2f * ty));
+
+            var n00 = GetBloodEdgeNoiseSample(x0, y0, seed);
+            var n10 = GetBloodEdgeNoiseSample(x0 + 1, y0, seed);
+            var n01 = GetBloodEdgeNoiseSample(x0, y0 + 1, seed);
+            var n11 = GetBloodEdgeNoiseSample(x0 + 1, y0 + 1, seed);
+            var nx0 = MathHelper.Lerp(n00, n10, tx);
+            var nx1 = MathHelper.Lerp(n01, n11, tx);
+            return MathHelper.Lerp(nx0, nx1, ty);
+        }
+
+        private static int QuantizeBloodShadeLevel(float shade)
+        {
+            // 5 fill bands — enough for midtones between dark and bright blotches.
+            if (shade < 0.18f)
+            {
+                return 0;
+            }
+
+            if (shade < 0.36f)
+            {
+                return 1;
+            }
+
+            if (shade < 0.55f)
+            {
+                return 2;
+            }
+
+            if (shade < 0.74f)
+            {
+                return 3;
+            }
+
+            return 4;
+        }
+
+        private static Color GetBloodFillByLevel(int level) => level switch
+        {
+            0 => new Color(168, 8, 14),   // deep / dried
+            1 => new Color(186, 12, 18),  // dark mid
+            2 => new Color(198, 16, 24),  // base
+            3 => new Color(212, 24, 28),  // fresher
+            _ => new Color(226, 36, 34),  // bright / saturated
+        };
+
+        private static Color GetCryoBloodFillByLevel(int level) => level switch
+        {
+            0 => new Color(155, 200, 220),
+            1 => new Color(165, 210, 230),
+            2 => new Color(175, 220, 238),
+            3 => new Color(185, 230, 245),
+            _ => new Color(198, 240, 252),
+        };
 
         private static float GetBloodEdgeNoiseSample(int gx, int gy, int seed)
         {

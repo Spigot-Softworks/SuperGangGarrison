@@ -8,91 +8,160 @@ namespace OpenGarrison.PluginHost.Tests;
 public sealed class CameraPanningRuntimeTests
 {
     [Theory]
-    [InlineData(960, 540, 720f, 405f)]
-    [InlineData(800, 600, 600f, 450f)]
-    [InlineData(780, 624, 585f, 468f)]
-    public void MouseDirectionCorrectsAspectRatioBeforeNormalizing(
-        int viewportWidth,
-        int viewportHeight,
-        float mouseX,
-        float mouseY)
-    {
-        var direction = CameraPanningState.GetMouseDirection(
-            viewportWidth,
-            viewportHeight,
-            mouseX,
-            mouseY);
-
-        var diagonal = 1f / MathF.Sqrt(2f);
-        Assert.InRange(direction.X, diagonal - 0.0001f, diagonal + 0.0001f);
-        Assert.InRange(direction.Y, diagonal - 0.0001f, diagonal + 0.0001f);
-        Assert.InRange(direction.Length(), 0.9999f, 1.0001f);
-    }
-
-    [Theory]
     [InlineData(960, 540)]
     [InlineData(800, 600)]
     [InlineData(780, 624)]
-    public void EqualNormalizedCardinalAndDiagonalDisplacementsHaveExpectedDirections(int viewportWidth, int viewportHeight)
+    public void DeadZoneUsesWidthBasedEllipse(int viewportWidth, int viewportHeight)
     {
         var centerX = viewportWidth / 2f;
         var centerY = viewportHeight / 2f;
-        var cardinal = CameraPanningState.GetMouseDirection(
+        var (deadZoneRadiusX, deadZoneRadiusY) = CameraPanningState.ResolveDeadZoneRadii(
+            viewportWidth,
+            viewportHeight);
+
+        var inside = CameraPanningState.GetMouseDirection(
             viewportWidth,
             viewportHeight,
-            centerX + viewportWidth * 0.25f,
+            centerX + deadZoneRadiusX * 0.99f,
             centerY);
-        var diagonal = CameraPanningState.GetMouseDirection(
+        var justOutside = CameraPanningState.GetMouseDirection(
             viewportWidth,
             viewportHeight,
-            centerX + viewportWidth * 0.25f,
-            centerY + viewportHeight * 0.25f);
+            centerX + deadZoneRadiusX * 1.01f,
+            centerY);
+        var diagonalInside = CameraPanningState.GetMouseDirection(
+            viewportWidth,
+            viewportHeight,
+            centerX + deadZoneRadiusX * 0.7f,
+            centerY + deadZoneRadiusY * 0.7f);
 
-        Assert.Equal(Vector2.UnitX, cardinal);
-        var diagonalComponent = 1f / MathF.Sqrt(2f);
-        Assert.InRange(diagonal.X, diagonalComponent - 0.0001f, diagonalComponent + 0.0001f);
-        Assert.InRange(diagonal.Y, diagonalComponent - 0.0001f, diagonalComponent + 0.0001f);
+        Assert.Equal(Vector2.Zero, inside);
+        Assert.Equal(Vector2.Zero, diagonalInside);
+        Assert.True(justOutside.X > 0f);
+        Assert.Equal(0f, justOutside.Y);
+        Assert.True(justOutside.Length() < 0.05f);
+    }
+
+    [Fact]
+    public void WideAspectRatiosClampVerticalDeadZoneToSixtyPercentOfHeight()
+    {
+        const int viewportWidth = 1920;
+        const int viewportHeight = 400;
+        var (radiusX, radiusY) = CameraPanningState.ResolveDeadZoneRadii(viewportWidth, viewportHeight);
+
+        Assert.Equal(viewportWidth * CameraPanningState.DeadZoneRadiusScreenWidthFraction, radiusX);
+        Assert.Equal(viewportHeight * CameraPanningState.DeadZoneMaxHeightScreenFraction * 0.5f, radiusY);
+        Assert.True(radiusY < radiusX);
+
+        var centerX = viewportWidth / 2f;
+        var centerY = viewportHeight / 2f;
+        var insideVertically = CameraPanningState.GetMouseDirection(
+            viewportWidth,
+            viewportHeight,
+            centerX,
+            centerY + radiusY * 0.99f);
+        var outsideVertically = CameraPanningState.GetMouseDirection(
+            viewportWidth,
+            viewportHeight,
+            centerX,
+            centerY + radiusY * 1.01f);
+
+        Assert.Equal(Vector2.Zero, insideVertically);
+        Assert.True(outsideVertically.Y > 0f);
+        Assert.Equal(0f, outsideVertically.X);
     }
 
     [Theory]
     [InlineData(960, 540)]
     [InlineData(800, 600)]
     [InlineData(780, 624)]
-    public void MouseDistanceChangesPanDirectionOnlyAfterNormalization(int viewportWidth, int viewportHeight)
+    public void PanStrengthRampsFromDeadZoneEdgeToNinetyPercentOfScreenEdge(int viewportWidth, int viewportHeight)
     {
         var centerX = viewportWidth / 2f;
         var centerY = viewportHeight / 2f;
+        var (deadZoneRadiusX, _) = CameraPanningState.ResolveDeadZoneRadii(viewportWidth, viewportHeight);
+        var halfWidth = viewportWidth * 0.5f;
+        var fullPanDistance = halfWidth * CameraPanningState.FullPanScreenFraction;
+        var midDistance = (deadZoneRadiusX + fullPanDistance) * 0.5f;
+
+        var mid = CameraPanningState.GetMouseDirection(
+            viewportWidth,
+            viewportHeight,
+            centerX + midDistance,
+            centerY);
+        var atFullPan = CameraPanningState.GetMouseDirection(
+            viewportWidth,
+            viewportHeight,
+            centerX + fullPanDistance,
+            centerY);
+        var pastFullPan = CameraPanningState.GetMouseDirection(
+            viewportWidth,
+            viewportHeight,
+            centerX + halfWidth * 0.98f,
+            centerY);
+
+        Assert.InRange(mid.X, 0.5f - 0.0001f, 0.5f + 0.0001f);
+        Assert.Equal(0f, mid.Y);
+        Assert.InRange(atFullPan.X, 1f - 0.0001f, 1f + 0.0001f);
+        Assert.InRange(pastFullPan.X, 1f - 0.0001f, 1f + 0.0001f);
+
+        var state = new CameraPanningState();
+        var pan = state.Update(atFullPan, 0f, 1d, advance: true);
+        Assert.InRange(pan.X, CameraPanningState.OffsetPixels - 0.0001f, CameraPanningState.OffsetPixels + 0.0001f);
+        Assert.Equal(0f, pan.Y);
+    }
+
+    [Theory]
+    [InlineData(960, 540)]
+    [InlineData(800, 600)]
+    [InlineData(780, 624)]
+    public void FartherMouseProducesStrongerPanOnBothAxes(int viewportWidth, int viewportHeight)
+    {
+        var centerX = viewportWidth / 2f;
+        var centerY = viewportHeight / 2f;
+        var (deadZoneRadiusX, deadZoneRadiusY) = CameraPanningState.ResolveDeadZoneRadii(
+            viewportWidth,
+            viewportHeight);
         var near = CameraPanningState.GetMouseDirection(
             viewportWidth,
             viewportHeight,
-            centerX + viewportWidth * 0.20f,
-            centerY + viewportHeight * 0.10f);
+            centerX + deadZoneRadiusX + 20f,
+            centerY + deadZoneRadiusY + 20f);
         var far = CameraPanningState.GetMouseDirection(
             viewportWidth,
             viewportHeight,
-            centerX + viewportWidth * 0.40f,
-            centerY + viewportHeight * 0.20f);
+            centerX + deadZoneRadiusX + 120f,
+            centerY + deadZoneRadiusY + 120f);
 
         var nearState = new CameraPanningState();
         var farState = new CameraPanningState();
         var nearPan = nearState.Update(near, 0f, 1d, advance: true);
         var farPan = farState.Update(far, 0f, 1d, advance: true);
 
-        Assert.InRange(Vector2.Distance(near, far), 0f, 0.0001f);
-        Assert.InRange(nearPan.Length(), CameraPanningState.OffsetPixels - 0.0001f, CameraPanningState.OffsetPixels + 0.0001f);
-        Assert.InRange(farPan.Length(), CameraPanningState.OffsetPixels - 0.0001f, CameraPanningState.OffsetPixels + 0.0001f);
-        Assert.InRange(Vector2.Distance(nearPan, farPan), 0f, 0.01f);
+        Assert.True(far.Length() > near.Length());
+        Assert.True(MathF.Abs(farPan.X) > MathF.Abs(nearPan.X));
+        Assert.True(MathF.Abs(farPan.Y) > MathF.Abs(nearPan.Y));
     }
 
     [Fact]
-    public void PanOffsetUsesTheFixedWorldPixelRadius()
+    public void PanOffsetUsesBothAxesOfAim()
     {
         var state = new CameraPanningState();
-        var pan = state.Update(new Vector2(3f, 4f), 0f, 1d, advance: true);
+        var pan = state.Update(new Vector2(0.6f, 0.8f), 0f, 1d, advance: true);
 
         Assert.InRange(pan.Length(), CameraPanningState.OffsetPixels - 0.0001f, CameraPanningState.OffsetPixels + 0.0001f);
         Assert.InRange(pan.X, 38.4f - 0.0001f, 38.4f + 0.0001f);
         Assert.InRange(pan.Y, 51.2f - 0.0001f, 51.2f + 0.0001f);
+    }
+
+    [Fact]
+    public void VerticalAimPansTheCameraVertically()
+    {
+        var state = new CameraPanningState();
+        var pan = state.Update(Vector2.UnitY, 0f, 1d, advance: true);
+
+        Assert.Equal(0f, pan.X);
+        Assert.InRange(pan.Y, CameraPanningState.OffsetPixels - 0.0001f, CameraPanningState.OffsetPixels + 0.0001f);
     }
 
     [Theory]
@@ -153,7 +222,13 @@ public sealed class CameraPanningRuntimeTests
             (int)(960 / zoom), (int)(540 / zoom), new WorldBounds(1024,768));
         var screen = (player-camera)*zoom;
         Assert.Equal(Vector2.Zero, CameraPanningState.GetMouseDirectionFromPlayer(960,540,screen,screen));
-        Assert.Equal(Vector2.UnitX, CameraPanningState.GetMouseDirectionFromPlayer(960,540,screen+new Vector2(100,0),screen));
+        // 100px is inside the 20%-width dead zone on a 960-wide viewport.
+        Assert.Equal(Vector2.Zero, CameraPanningState.GetMouseDirectionFromPlayer(960,540,screen+new Vector2(100,0),screen));
+        var outsideDeadZone = CameraPanningState.GetMouseDirectionFromPlayer(
+            960, 540, screen + new Vector2(250f, 0f), screen);
+        Assert.True(outsideDeadZone.X > 0f);
+        Assert.Equal(0f, outsideDeadZone.Y);
+        Assert.True(outsideDeadZone.X < 1f);
     }
 
     [Theory]
@@ -186,21 +261,22 @@ public sealed class CameraPanningRuntimeTests
     {
         var state = new CameraPanningState();
         var initial = state.Update(Vector2.UnitX, 0f, 6d, advance: true);
-        var preview = state.Update(Vector2.UnitY, 1f / 60f, 7d, advance: false);
-        var committed = state.Update(Vector2.UnitY, 1f / 60f, 7d, advance: true);
-        var repeated = state.Update(Vector2.UnitY, 1f / 60f, 7d, advance: true);
+        var preview = state.Update(-Vector2.UnitX, 1f / 60f, 7d, advance: false);
+        var committed = state.Update(-Vector2.UnitX, 1f / 60f, 7d, advance: true);
+        var repeated = state.Update(-Vector2.UnitX, 1f / 60f, 7d, advance: true);
 
         Assert.Equal(initial, preview);
         Assert.NotEqual(initial, committed);
         Assert.Equal(committed, repeated);
+        Assert.Equal(0f, committed.Y);
     }
 
     [Fact]
     public void PreviewBeforeFirstCommitMatchesTheFirstCommittedDirectionWithoutMutatingState()
     {
         var state = new CameraPanningState();
-        var preview = state.Update(Vector2.UnitY, 1f / 60f, 8d, advance: false);
-        var committed = state.Update(Vector2.UnitY, 1f / 60f, 8d, advance: true);
+        var preview = state.Update(Vector2.UnitX, 1f / 60f, 8d, advance: false);
+        var committed = state.Update(Vector2.UnitX, 1f / 60f, 8d, advance: true);
 
         Assert.InRange(Vector2.Distance(preview, committed), 0f, 0.0001f);
     }
@@ -209,10 +285,11 @@ public sealed class CameraPanningRuntimeTests
     public void CenterDeadZoneRetainsTheLastPanAngle()
     {
         var state = new CameraPanningState();
-        var initial = state.Update(Vector2.UnitY, 0f, 1d, advance: true);
+        var initial = state.Update(Vector2.UnitX, 0f, 1d, advance: true);
         var afterCenter = state.Update(Vector2.Zero, 1f / 60f, 2d, advance: true);
 
         Assert.Equal(initial, afterCenter);
+        Assert.Equal(0f, initial.Y);
     }
 
     [Fact]

@@ -24,7 +24,8 @@ public partial class Game1
     private const float SmoothCameraMaxVerticalLookaheadPixels = 18f;
     private const float SmoothCameraMinVerticalWindowPixels = 0.15f;
     private const float SmoothCameraMaxVerticalWindowPixels = 2.25f;
-    private static readonly float[] GameplayCameraZoomLevels = [1f, 1.25f, 1.5f];
+    // Mild default zoom sits between classic 1x and the previous 1.25x step.
+    private static readonly float[] GameplayCameraZoomLevels = [1.125f, 1.25f, 1.5f, 1f];
     private bool _smoothCameraRenderingActive;
     private double _lastSmoothCameraUpdateClockSeconds = -1d;
     private Vector2 _lastSmoothCameraRawTarget;

@@ -169,13 +169,22 @@ public sealed class DeadBodyEntity : SimulationEntity
             {
                 Y = solid.Top - (Height / 2f);
                 hitGround = true;
+                if (impactSpeed > 1.2f)
+                {
+                    VerticalSpeed = -impactSpeed * 0.28f;
+                    HorizontalSpeed *= 0.72f;
+                }
+                else
+                {
+                    VerticalSpeed = 0f;
+                }
             }
             else
             {
                 Y = solid.Bottom + (Height / 2f);
+                VerticalSpeed = 0f;
             }
 
-            VerticalSpeed = 0f;
             break;
         }
 

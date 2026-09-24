@@ -84,10 +84,34 @@ public partial class Game1
             return;
         }
 
-        var sprite = GetResolvedSprite(gib.SpriteName);
         var gibTint = gib.ExperimentalCryoTinted
             ? new Color(170, 228, 255)
             : Color.White;
+
+        if (TryDrawGibAcidDissolve(gib, cameraPosition, gibTint))
+        {
+            return;
+        }
+
+        if (gib.CustomVisualId is int customVisualId
+            && TryGetDynamicGibVisual(customVisualId, out var dynamicVisual))
+        {
+            var origin = new Vector2(gib.VisualOriginX, gib.VisualOriginY);
+            var scale = new Vector2(gib.VisualScale, gib.VisualScale);
+            _spriteBatch.Draw(
+                dynamicVisual.Texture,
+                new Vector2(gib.X - cameraPosition.X, gib.Y - cameraPosition.Y),
+                null,
+                gibTint * gib.Alpha,
+                gib.RotationDegrees * (MathF.PI / 180f),
+                origin,
+                scale,
+                SpriteEffects.None,
+                0f);
+            return;
+        }
+
+        var sprite = GetResolvedSprite(gib.SpriteName);
         if (sprite is null || sprite.Frames.Count == 0)
         {
             var gibScale = GetPlayerGibRenderScale(gib);
