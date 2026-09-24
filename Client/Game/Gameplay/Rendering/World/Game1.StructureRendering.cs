@@ -79,39 +79,15 @@ public partial class Game1
 
     private void DrawPlayerGib(PlayerGibEntity gib, Vector2 cameraPosition)
     {
-        if (!ShouldDrawPlayerGib(gib.Id))
+        if (_gibLevel == 0 || (_gibLevel == 1) || (_gibLevel == 2 && (gib.FrameIndex % 2 != 0)))
         {
-            return;
-        }
-
-        var gibTint = gib.ExperimentalCryoTinted
-            ? new Color(170, 228, 255)
-            : Color.White;
-
-        if (TryDrawGibAcidDissolve(gib, cameraPosition, gibTint))
-        {
-            return;
-        }
-
-        if (gib.CustomVisualId is int customVisualId
-            && TryGetDynamicGibVisual(customVisualId, out var dynamicVisual))
-        {
-            var origin = new Vector2(gib.VisualOriginX, gib.VisualOriginY);
-            var scale = new Vector2(gib.VisualScale, gib.VisualScale);
-            _spriteBatch.Draw(
-                dynamicVisual.Texture,
-                new Vector2(gib.X - cameraPosition.X, gib.Y - cameraPosition.Y),
-                null,
-                gibTint * gib.Alpha,
-                gib.RotationDegrees * (MathF.PI / 180f),
-                origin,
-                scale,
-                SpriteEffects.None,
-                0f);
             return;
         }
 
         var sprite = GetResolvedSprite(gib.SpriteName);
+        var gibTint = gib.ExperimentalCryoTinted
+            ? new Color(170, 228, 255)
+            : Color.White;
         if (sprite is null || sprite.Frames.Count == 0)
         {
             var gibScale = GetPlayerGibRenderScale(gib);
@@ -141,12 +117,12 @@ public partial class Game1
 
     private static float GetPlayerGibRenderScale(PlayerGibEntity gib)
     {
-        return IsClassHeadGibSprite(gib.SpriteName)
+        return IsExperimentalDemoknightDecapHeadSprite(gib.SpriteName)
             ? 1f
             : PlayerGibEntity.Scale;
     }
 
-    private static bool IsClassHeadGibSprite(string spriteName)
+    private static bool IsExperimentalDemoknightDecapHeadSprite(string spriteName)
     {
         return !string.Equals(spriteName, "HeadS", StringComparison.Ordinal)
             && spriteName.EndsWith("HeadS", StringComparison.Ordinal);

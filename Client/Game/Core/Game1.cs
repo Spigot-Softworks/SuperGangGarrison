@@ -308,15 +308,12 @@ public partial class Game1 : Game
     private int _particleMode;
     private int _flameRenderMode;
     private int _bloodRenderMode;
-    private int _gibRenderMode;
     private bool _dynamicRagdollEnabled = true;
-    private int _gibPersistenceSeconds = OpenGarrisonPreferencesDocument.DefaultGibPersistenceSeconds;
     private int _bloodPersistenceSeconds = OpenGarrisonPreferencesDocument.DefaultBloodPersistenceSeconds;
-    private int _gibFadeMode = OpenGarrisonPreferencesDocument.DefaultGibFadeMode;
+    private int _corpseFadeMode = OpenGarrisonPreferencesDocument.DefaultCorpseFadeMode;
     private MenuBackgroundMode _menuBackgroundMode = MenuBackgroundMode.DefaultMaps;
     private int _gibLevel = 3;
     private int _bloodAmountLevel = 5;
-    private int _gibAmountLevel = 5;
     private int _corpseDurationMode;
     private int _frameRateLimit;
     private long _lastDrawTimestamp;
