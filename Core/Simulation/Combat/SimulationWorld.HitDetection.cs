@@ -108,8 +108,9 @@ public sealed partial class SimulationWorld
             rotationSpeedDegrees,
             horizontalFriction: 0.4f,
             rotationFriction: 0.6f,
-            lifetimeTicks,
-            bloodChance);
+            ScalePlayerGibLifetimeTicks(lifetimeTicks),
+            bloodChance,
+            fadeMode: LocalGibFadeMode);
         _playerGibs.Add(gib);
         _entities[gib.Id] = gib;
         return gib;

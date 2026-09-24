@@ -927,6 +927,10 @@ public partial class Game1
         {
             WriteGameplayRenderTrace("effects before blood");
             DrawBloodVisuals(cameraPosition);
+            if (_bloodRenderMode == 0)
+            {
+                _gameplayGoreEffectsController.DrawBloodSquibFlight(cameraPosition);
+            }
         }
 
         WriteGameplayRenderTrace("effects before shells");

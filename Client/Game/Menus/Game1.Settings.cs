@@ -25,6 +25,21 @@ public partial class Game1
         _particleMode = Math.Clamp(_clientSettings.ParticleMode, 0, 2);
         _flameRenderMode = Math.Clamp(_clientSettings.FlameRenderMode, 0, 1);
         _bloodRenderMode = Math.Clamp(_clientSettings.BloodRenderMode, 0, 1);
+        _gibRenderMode = Math.Clamp(_clientSettings.GibRenderMode, 0, 1);
+        _dynamicRagdollEnabled = _clientSettings.DynamicRagdollEnabled;
+        _gibPersistenceSeconds = Math.Clamp(
+            _clientSettings.GibPersistenceSeconds <= 0
+                ? OpenGarrisonPreferencesDocument.DefaultGibPersistenceSeconds
+                : _clientSettings.GibPersistenceSeconds,
+            1,
+            120);
+        _bloodPersistenceSeconds = Math.Clamp(
+            _clientSettings.BloodPersistenceSeconds <= 0
+                ? OpenGarrisonPreferencesDocument.DefaultBloodPersistenceSeconds
+                : _clientSettings.BloodPersistenceSeconds,
+            1,
+            120);
+        _gibFadeMode = Math.Clamp(_clientSettings.GibFadeMode, 0, 1);
         _menuBackgroundMode = _clientSettings.MenuBackgroundMode;
         _gibLevel = Math.Clamp(_clientSettings.GibLevel, 0, 3);
         _bloodAmountLevel = Math.Clamp(_clientSettings.BloodAmountLevel, 1, 5);
@@ -81,6 +96,7 @@ public partial class Game1
         ApplyBrowserPreferredManualConnectDefaults();
 
         _hostSetupState.LoadFrom(_clientSettings.HostDefaults);
+        ApplyGibPresentationSettingsToWorld();
     }
 
     private void PersistClientSettings()
@@ -99,6 +115,11 @@ public partial class Game1
         _clientSettings.ParticleMode = Math.Clamp(_particleMode, 0, 2);
         _clientSettings.FlameRenderMode = Math.Clamp(_flameRenderMode, 0, 1);
         _clientSettings.BloodRenderMode = Math.Clamp(_bloodRenderMode, 0, 1);
+        _clientSettings.GibRenderMode = Math.Clamp(_gibRenderMode, 0, 1);
+        _clientSettings.DynamicRagdollEnabled = _dynamicRagdollEnabled;
+        _clientSettings.GibPersistenceSeconds = Math.Clamp(_gibPersistenceSeconds, 1, 120);
+        _clientSettings.BloodPersistenceSeconds = Math.Clamp(_bloodPersistenceSeconds, 1, 120);
+        _clientSettings.GibFadeMode = Math.Clamp(_gibFadeMode, 0, 1);
         _clientSettings.MenuBackgroundMode = _menuBackgroundMode;
         _clientSettings.GibLevel = Math.Clamp(_gibLevel, 0, 3);
         _clientSettings.BloodAmountLevel = Math.Clamp(_bloodAmountLevel, 1, 5);
@@ -288,6 +309,78 @@ public partial class Game1
     internal float GetBloodAmountScale() => Math.Clamp(_bloodAmountLevel, 1, 5) / 5f;
 
     internal float GetGibAmountScale() => Math.Clamp(_gibAmountLevel, 1, 5) / 5f;
+
+    internal void ApplyGibPresentationSettingsToWorld()
+    {
+        _world.LocalGibLifetimeSeconds = Math.Clamp(_gibPersistenceSeconds, 1, 120);
+        _world.LocalBloodLifetimeSeconds = Math.Clamp(_bloodPersistenceSeconds, 1, 120);
+        _world.LocalGibFadeMode = Math.Clamp(_gibFadeMode, 0, 1);
+    }
+
+    internal int GetCorpseFadeTicks()
+        => _gibFadeMode == PlayerGibEntity.FadeModeAcid
+            ? PlayerGibEntity.AcidFadeTicks
+            : PlayerGibEntity.RegularFadeTicks;
+
+    /// <summary>
+    /// Infinite corpses never fade. Default corpses use the same Regular/Acid end-fade as gibs.
+    /// </summary>
+    internal bool IsCorpseFading(int ticksRemaining)
+    {
+        if (_corpseDurationMode == ClientSettings.CorpseDurationInfinite || ticksRemaining <= 0)
+        {
+            return false;
+        }
+
+        return ticksRemaining < GetCorpseFadeTicks();
+    }
+
+    internal bool IsCorpseAcidFading(int ticksRemaining)
+        => _gibFadeMode == PlayerGibEntity.FadeModeAcid && IsCorpseFading(ticksRemaining);
+
+    internal float GetCorpseFadeAlpha(int ticksRemaining)
+    {
+        if (_corpseDurationMode == ClientSettings.CorpseDurationInfinite || ticksRemaining <= 0)
+        {
+            return _corpseDurationMode == ClientSettings.CorpseDurationInfinite ? 1f : 0f;
+        }
+
+        if (_gibFadeMode == PlayerGibEntity.FadeModeAcid)
+        {
+            // Acid dissolve owns disappearance — keep full opacity while melting.
+            return 1f;
+        }
+
+        var fadeTicks = GetCorpseFadeTicks();
+        return ticksRemaining >= fadeTicks
+            ? 1f
+            : MathF.Max(0f, ticksRemaining / (float)fadeTicks);
+    }
+
+    internal float GetCorpseFadeProgress(int ticksRemaining)
+    {
+        if (_corpseDurationMode == ClientSettings.CorpseDurationInfinite)
+        {
+            return 0f;
+        }
+
+        var fadeTicks = GetCorpseFadeTicks();
+        if (ticksRemaining <= 0)
+        {
+            return 1f;
+        }
+
+        if (ticksRemaining >= fadeTicks)
+        {
+            return 0f;
+        }
+
+        return 1f - (ticksRemaining / (float)fadeTicks);
+    }
+
+    internal float GetBloodPersistenceScale()
+        => Math.Clamp(_bloodPersistenceSeconds, 1, 120)
+            / (float)OpenGarrisonPreferencesDocument.DefaultBloodPersistenceSeconds;
 
     internal int ScaleBloodVisualCount(int maximumCount)
     {

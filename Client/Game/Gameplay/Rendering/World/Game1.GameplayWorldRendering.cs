@@ -2,6 +2,7 @@
 
 using OpenGarrison.Core;
 using Microsoft.Xna.Framework;
+using System;
 using System.Diagnostics;
 
 namespace OpenGarrison.Client;
@@ -43,6 +44,12 @@ public partial class Game1
         DrawSpritesheets(cameraPosition, CustomMapSpriteLayerKind.Bg);
         DrawFallbackLevelSolids(cameraPosition, hasLevelBackground, viewportWidth, viewportHeight);
         DrawMovingPlatforms(cameraPosition);
+        // Settled blood sits on the map layer; gameplay FX / characters draw above it.
+        if (AreBloodVisualsEnabled && _bloodRenderMode == 0)
+        {
+            _gameplayGoreEffectsController.DrawBloodSquibPools(cameraPosition);
+        }
+
         DrawGameplayEffectsAndProjectiles(cameraPosition);
         DrawGameplayStructures(cameraPosition);
         DrawDispenserBeams(cameraPosition);
@@ -316,17 +323,129 @@ public partial class Game1
     {
         SyncRetainedDeadBodies();
         SyncImmediateNetworkDeadBodies();
-        DrawRetainedDeadBodies(cameraPosition, skippedDeadBodySourcePlayerId);
-        DrawImmediateNetworkDeadBodies(cameraPosition, skippedDeadBodySourcePlayerId);
 
+        _remainsDrawOrder.Clear();
+
+        for (var index = 0; index < _retainedDeadBodies.Count; index += 1)
+        {
+            var deadBody = _retainedDeadBodies[index];
+            if (skippedDeadBodySourcePlayerId.HasValue
+                && deadBody.SourcePlayerId == skippedDeadBodySourcePlayerId.Value)
+            {
+                continue;
+            }
+
+            NoteRemainsSortCeiling(deadBody.Id);
+            _remainsDrawOrder.Add(new RemainsDrawEntry(deadBody.Id, RemainsDrawKind.RetainedDeadBody, index));
+        }
+
+        foreach (var entry in _immediateNetworkDeadBodies)
+        {
+            var deadBody = entry.Value;
+            if (skippedDeadBodySourcePlayerId.HasValue
+                && deadBody.SourcePlayerId == skippedDeadBodySourcePlayerId.Value)
+            {
+                continue;
+            }
+
+            NoteRemainsSortCeiling(deadBody.RemainsSortKey);
+            _remainsDrawOrder.Add(new RemainsDrawEntry(
+                deadBody.RemainsSortKey,
+                RemainsDrawKind.ImmediateNetworkDeadBody,
+                deadBody.SourcePlayerId));
+        }
+
+        var playerGibIndex = 0;
         foreach (var playerGib in _world.PlayerGibs)
         {
+            var index = playerGibIndex;
+            playerGibIndex += 1;
             if (!ShouldDrawPlayerGib(playerGib.Id))
             {
                 continue;
             }
 
-            DrawPlayerGib(playerGib, cameraPosition);
+            NoteRemainsSortCeiling(playerGib.Id);
+            _remainsDrawOrder.Add(new RemainsDrawEntry(playerGib.Id, RemainsDrawKind.PlayerGib, index));
+        }
+
+        var worldDeadBodyIndex = 0;
+        foreach (var deadBody in _world.DeadBodies)
+        {
+            var index = worldDeadBodyIndex;
+            worldDeadBodyIndex += 1;
+            if (skippedDeadBodySourcePlayerId.HasValue
+                && deadBody.SourcePlayerId == skippedDeadBodySourcePlayerId.Value)
+            {
+                continue;
+            }
+
+            NoteRemainsSortCeiling(deadBody.Id);
+            _remainsDrawOrder.Add(new RemainsDrawEntry(deadBody.Id, RemainsDrawKind.WorldDeadBody, index));
+        }
+
+        _remainsDrawOrder.Sort(static (left, right) =>
+        {
+            var keyComparison = left.SortKey.CompareTo(right.SortKey);
+            return keyComparison != 0
+                ? keyComparison
+                : ((int)left.Kind).CompareTo((int)right.Kind);
+        });
+
+        for (var orderIndex = 0; orderIndex < _remainsDrawOrder.Count; orderIndex += 1)
+        {
+            var entry = _remainsDrawOrder[orderIndex];
+            switch (entry.Kind)
+            {
+                case RemainsDrawKind.RetainedDeadBody:
+                {
+                    var deadBody = _retainedDeadBodies[entry.Index];
+                    DrawDeadBodyVisual(
+                        deadBody.Id,
+                        deadBody.SourcePlayerId,
+                        deadBody.ClassId,
+                        deadBody.Team,
+                        deadBody.AnimationKind,
+                        deadBody.X,
+                        deadBody.Y,
+                        deadBody.Width,
+                        deadBody.Height,
+                        deadBody.FacingLeft,
+                        deadBody.TicksRemaining,
+                        cameraPosition,
+                        deadBody.GameplayClassId);
+                    break;
+                }
+                case RemainsDrawKind.ImmediateNetworkDeadBody:
+                {
+                    if (!_immediateNetworkDeadBodies.TryGetValue(entry.Index, out var deadBody))
+                    {
+                        break;
+                    }
+
+                    DrawDeadBodyVisual(
+                        id: -Math.Abs(deadBody.SourcePlayerId),
+                        deadBody.SourcePlayerId,
+                        deadBody.ClassId,
+                        deadBody.Team,
+                        deadBody.AnimationKind,
+                        deadBody.X,
+                        deadBody.Y,
+                        deadBody.Width,
+                        deadBody.Height,
+                        deadBody.FacingLeft,
+                        deadBody.TicksRemaining,
+                        cameraPosition,
+                        deadBody.GameplayClassId);
+                    break;
+                }
+                case RemainsDrawKind.PlayerGib:
+                    DrawPlayerGib(_world.PlayerGibs[entry.Index], cameraPosition);
+                    break;
+                case RemainsDrawKind.WorldDeadBody:
+                    DrawDeadBody(_world.DeadBodies[entry.Index], cameraPosition);
+                    break;
+            }
         }
 
         foreach (var bloodDrop in _world.BloodDrops)
@@ -338,22 +457,20 @@ public partial class Game1
 
             DrawBloodDrop(bloodDrop, cameraPosition);
         }
+    }
 
-        if (AreBloodVisualsEnabled && _bloodRenderMode == 0)
+    private void NoteRemainsSortCeiling(int sortKey)
+    {
+        if (sortKey > _remainsSortCeiling)
         {
-            _gameplayGoreEffectsController.DrawBloodSquibRemains(cameraPosition);
+            _remainsSortCeiling = sortKey;
         }
+    }
 
-        foreach (var deadBody in _world.DeadBodies)
-        {
-            if (skippedDeadBodySourcePlayerId.HasValue
-                && deadBody.SourcePlayerId == skippedDeadBodySourcePlayerId.Value)
-            {
-                continue;
-            }
-
-            DrawDeadBody(deadBody, cameraPosition);
-        }
+    private int AllocateRemainsSortKey()
+    {
+        _remainsSortCeiling += 1;
+        return _remainsSortCeiling;
     }
 
     private System.Collections.Generic.HashSet<int> GetUberedPlayerIds()

@@ -206,6 +206,21 @@ public partial class Game1
                 scale = new Vector2(facingScale * playerScale, playerScale);
             }
 
+            if (weaponDefinition.NormalSpriteName is not null)
+            {
+                var idleWeaponSprite = _game.GetResolvedSprite(weaponDefinition.NormalSpriteName);
+                _game.RecordDynamicGibWeaponFrame(
+                    player,
+                    weaponDefinition.NormalSpriteName,
+                    frameIndex: 0,
+                    worldDrawX,
+                    worldDrawY,
+                    rotation,
+                    facingScale,
+                    playerScale,
+                    idleWeaponSprite?.Origin.ToVector2() ?? sprite.Origin.ToVector2());
+            }
+
             // The Mortar's loaded rocket sits inside the launcher, so it must be
             // rendered after the body but before the launcher and its overlays.
             DrawMortarLoadedRocket(
@@ -755,6 +770,64 @@ public partial class Game1
 
             aimWorldX = _game._latestLocalAimWorldX;
             aimWorldY = _game._latestLocalAimWorldY;
+            return true;
+        }
+
+        public bool TryCaptureWeaponGibFrame(PlayerEntity player, out CachedDynamicGibWeaponFrame weaponFrame)
+        {
+            weaponFrame = default;
+            if (_game.GetPlayerIsBuffBannerDeploying(player)
+                || _game.GetPlayerIsCivviePogoActive(player)
+                || _game.ShouldHideLastToDieWeaponForPlayer(player)
+                || _game.GetPlayerIsHeavyEating(player)
+                || player.IsTaunting
+                || _game._world.IsPlayerHumiliated(player))
+            {
+                return false;
+            }
+
+            var renderPosition = _game.GetRenderPosition(player);
+            var bodySelection = _game.GetPlayerBodySpriteSelection(player);
+            var weaponAnimationMode = GetPlayerWeaponAnimationMode(player);
+            var weaponDefinition = GetWeaponRenderDefinition(player, IsCivvieUmbrellaAnimationMode(weaponAnimationMode));
+            if (weaponDefinition.NormalSpriteName is null)
+            {
+                return false;
+            }
+
+            // Dynamic weapon gibs always use the default idle weapon sprite.
+            var spriteName = weaponDefinition.NormalSpriteName;
+            var sprite = _game.GetResolvedSprite(spriteName);
+            if (sprite is null || sprite.Frames.Count == 0)
+            {
+                return false;
+            }
+
+            if (!TryGetWeaponDrawTransform(
+                    player,
+                    renderPosition,
+                    bodySelection,
+                    weaponAnimationMode,
+                    weaponDefinition,
+                    sprite,
+                    out var worldDrawX,
+                    out var worldDrawY,
+                    out var rotation,
+                    out var facingScale,
+                    out var playerScale))
+            {
+                return false;
+            }
+
+            weaponFrame = new CachedDynamicGibWeaponFrame(
+                spriteName,
+                FrameIndex: 0,
+                worldDrawX,
+                worldDrawY,
+                rotation,
+                facingScale,
+                playerScale,
+                sprite.Origin.ToVector2());
             return true;
         }
 
