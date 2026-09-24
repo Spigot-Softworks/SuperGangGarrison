@@ -43,13 +43,6 @@ public static class ExperimentalDemoknightCatalog
     }
 
     public static string? GetDecapitatedHeadSpriteName(PlayerClass classId, PlayerTeam team)
-        => GetClassHeadGibSpriteName(classId, team);
-
-    /// <summary>
-    /// Class- and team-colored head gib sprite (e.g. ScoutRedHeadS). Used for
-    /// normal gib deaths and demoknight / Last to Die decapitation remains.
-    /// </summary>
-    public static string? GetClassHeadGibSpriteName(PlayerClass classId, PlayerTeam team)
     {
         var teamName = GetTeamName(team);
         if (teamName is null)

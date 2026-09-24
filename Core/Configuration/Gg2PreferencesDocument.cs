@@ -116,28 +116,20 @@ public sealed class OpenGarrisonPreferencesDocument
 
     public int BloodRenderMode { get; set; }
 
-    /// <summary>0 = Classic piece gibs, 1 = Dynamic sprite-cut gibs.</summary>
-    public int GibRenderMode { get; set; }
-
     /// <summary>Client-only floppy corpse ragdoll for non-gib deaths.</summary>
     public bool DynamicRagdollEnabled { get; set; } = true;
-
-    /// <summary>Gib lifetime in whole seconds (default 8 ≈ stock ~220 ticks at 30Hz, rounded up).</summary>
-    public int GibPersistenceSeconds { get; set; } = 8;
 
     /// <summary>Blood lifetime in whole seconds (default 9 ≈ stock 250 ticks at 30Hz, rounded up).</summary>
     public int BloodPersistenceSeconds { get; set; } = 9;
 
-    /// <summary>0 = Regular alpha fade, 1 = Acid top-down dissolve (default).</summary>
-    public int GibFadeMode { get; set; } = DefaultGibFadeMode;
+    /// <summary>0 = Regular alpha fade, 1 = Acid top-down corpse dissolve (default).</summary>
+    public int CorpseFadeMode { get; set; } = DefaultCorpseFadeMode;
 
     public MenuBackgroundMode MenuBackgroundMode { get; set; } = MenuBackgroundMode.DefaultMaps;
 
     public int GibLevel { get; set; } = 3;
 
     public int BloodAmountLevel { get; set; } = 5;
-
-    public int GibAmountLevel { get; set; } = 5;
 
     public int CorpseDurationMode { get; set; }
 
@@ -308,15 +300,12 @@ public sealed class OpenGarrisonPreferencesDocument
             ParticleMode = ini.GetInt(SettingsSection, "Particles", 0),
             FlameRenderMode = ini.GetInt(SettingsSection, "Flame Render Mode", 0),
             BloodRenderMode = ini.GetInt(SettingsSection, "Blood Render Mode", 0),
-            GibRenderMode = Math.Clamp(ini.GetInt(SettingsSection, "Gib Render Mode", 0), 0, 1),
             DynamicRagdollEnabled = ini.GetBool(SettingsSection, "Dynamic Ragdoll", true),
-            GibPersistenceSeconds = ReadGibPersistenceSeconds(ini),
             BloodPersistenceSeconds = ReadBloodPersistenceSeconds(ini),
-            GibFadeMode = Math.Clamp(ini.GetInt(SettingsSection, "Gib Fade Mode", DefaultGibFadeMode), 0, 1),
+            CorpseFadeMode = ReadCorpseFadeMode(ini),
             MenuBackgroundMode = (MenuBackgroundMode)ini.GetInt(SettingsSection, "Menu Background Mode", (int)MenuBackgroundMode.DefaultMaps),
-            GibLevel = ReadGoreMode(ini),
+            GibLevel = ini.GetInt(SettingsSection, "Gib Level", 3),
             BloodAmountLevel = ReadBloodAmountLevel(ini),
-            GibAmountLevel = ReadGibAmountLevel(ini),
             CorpseDurationMode = ini.GetInt(SettingsSection, "Corpse Duration", 0),
             HealerRadarEnabled = ini.GetBool(SettingsSection, "Healer Radar", true),
             ShowHealerEnabled = ini.GetBool(SettingsSection, "Show Healer", true),
@@ -428,15 +417,12 @@ public sealed class OpenGarrisonPreferencesDocument
         ini.SetInt(SettingsSection, "Particles", ParticleMode);
         ini.SetInt(SettingsSection, "Flame Render Mode", FlameRenderMode);
         ini.SetInt(SettingsSection, "Blood Render Mode", BloodRenderMode);
-        ini.SetInt(SettingsSection, "Gib Render Mode", Math.Clamp(GibRenderMode, 0, 1));
         ini.SetBool(SettingsSection, "Dynamic Ragdoll", DynamicRagdollEnabled);
-        ini.SetInt(SettingsSection, "Gib Persistence Seconds", Math.Clamp(GibPersistenceSeconds, 1, 120));
         ini.SetInt(SettingsSection, "Blood Persistence Seconds", Math.Clamp(BloodPersistenceSeconds, 1, 120));
-        ini.SetInt(SettingsSection, "Gib Fade Mode", Math.Clamp(GibFadeMode, 0, 1));
+        ini.SetInt(SettingsSection, "Corpse Fade Mode", NormalizeCorpseFadeMode(CorpseFadeMode));
         ini.SetInt(SettingsSection, "Menu Background Mode", (int)MenuBackgroundMode);
         ini.SetInt(SettingsSection, "Gib Level", GibLevel);
         ini.SetInt(SettingsSection, "Blood Amount", Math.Clamp(BloodAmountLevel, 1, 5));
-        ini.SetInt(SettingsSection, "Gib Amount", Math.Clamp(GibAmountLevel, 1, 5));
         ini.SetInt(SettingsSection, "Corpse Duration", CorpseDurationMode);
         ini.SetBool(SettingsSection, "Kill Cam", KillCamEnabled);
         ini.SetBool(SettingsSection, "Always Record Games", AlwaysRecordGames);
@@ -582,36 +568,11 @@ public sealed class OpenGarrisonPreferencesDocument
             : MusicMode.MenuOnly;
     }
 
-    private static int ReadGibPersistenceSeconds(IniConfigurationFile ini)
-    {
-        if (ini.ContainsKey(SettingsSection, "Gib Persistence Seconds"))
-        {
-            return Math.Clamp(ini.GetInt(SettingsSection, "Gib Persistence Seconds", DefaultGibPersistenceSeconds), 1, 120);
-        }
-
-        // Migrate brief 1–5 lifetime levels used by an earlier build.
-        if (ini.ContainsKey(SettingsSection, "Gib Persistence"))
-        {
-            return Math.Clamp(ini.GetInt(SettingsSection, "Gib Persistence", 3), 1, 5) switch
-            {
-                1 => 3,
-                2 => 5,
-                3 => DefaultGibPersistenceSeconds,
-                4 => 12,
-                _ => 18,
-            };
-        }
-
-        return DefaultGibPersistenceSeconds;
-    }
-
-    public const int DefaultGibPersistenceSeconds = 8;
-
     /// <summary>Stock blood-drop lifetime is 250 ticks at 30Hz (~8.33s); round up to a full second.</summary>
     public const int DefaultBloodPersistenceSeconds = 9;
 
-    /// <summary>0 = Regular, 1 = Acid (default).</summary>
-    public const int DefaultGibFadeMode = 1;
+    /// <summary>0 = Regular alpha fade, 1 = Acid top-down corpse dissolve (default).</summary>
+    public const int DefaultCorpseFadeMode = 1;
 
     private static int ReadBloodPersistenceSeconds(IniConfigurationFile ini)
     {
@@ -623,17 +584,15 @@ public sealed class OpenGarrisonPreferencesDocument
         return DefaultBloodPersistenceSeconds;
     }
 
-    private static int ReadGoreMode(IniConfigurationFile ini)
+    private static int ReadCorpseFadeMode(IniConfigurationFile ini)
     {
-        var goreMode = Math.Clamp(ini.GetInt(SettingsSection, "Gib Level", 3), 0, 3);
-        // Pre-split prefs used Gib Level 2 for blood + medium gibs.
-        if (!HasSplitGoreAmountKeys(ini) && goreMode == 2)
-        {
-            goreMode = 3;
-        }
-
-        return goreMode;
+        var value = ini.ContainsKey(SettingsSection, "Corpse Fade Mode")
+            ? ini.GetInt(SettingsSection, "Corpse Fade Mode", DefaultCorpseFadeMode)
+            : ini.GetInt(SettingsSection, "Gib Fade Mode", DefaultCorpseFadeMode);
+        return NormalizeCorpseFadeMode(value);
     }
+
+    public static int NormalizeCorpseFadeMode(int mode) => Math.Clamp(mode, 0, 1);
 
     private static int ReadBloodAmountLevel(IniConfigurationFile ini)
     {
@@ -643,29 +602,6 @@ public sealed class OpenGarrisonPreferencesDocument
         }
 
         return Math.Clamp(ini.GetInt(SettingsSection, "Blood Amount", 5), 1, 5);
-    }
-
-    private static int ReadGibAmountLevel(IniConfigurationFile ini)
-    {
-        if (ini.ContainsKey(SettingsSection, "Gib Amount"))
-        {
-            return Math.Clamp(ini.GetInt(SettingsSection, "Gib Amount", 5), 1, 5);
-        }
-
-        // Old Gib Level 2 was "blood and medium gibs" (~60%).
-        if (!HasSplitGoreAmountKeys(ini)
-            && Math.Clamp(ini.GetInt(SettingsSection, "Gib Level", 3), 0, 3) == 2)
-        {
-            return 3;
-        }
-
-        return 5;
-    }
-
-    private static bool HasSplitGoreAmountKeys(IniConfigurationFile ini)
-    {
-        return ini.ContainsKey(SettingsSection, "Blood Amount")
-            || ini.ContainsKey(SettingsSection, "Gib Amount");
     }
 
     private static MusicMode NormalizeMusicMode(MusicMode musicMode)

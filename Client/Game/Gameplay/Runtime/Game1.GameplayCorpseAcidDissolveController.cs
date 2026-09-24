@@ -10,12 +10,10 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private readonly Dictionary<int, GibAcidDissolveState> _gibAcidDissolveStates = new();
-    private readonly List<int> _staleGibAcidDissolveIds = new();
-    private readonly Dictionary<int, GibAcidDissolveState> _corpseAcidDissolveStates = new();
+    private readonly Dictionary<int, CorpseAcidDissolveState> _corpseAcidDissolveStates = new();
     private readonly List<int> _staleCorpseAcidDissolveIds = new();
 
-    private sealed class GibAcidDissolveState
+    private sealed class CorpseAcidDissolveState
     {
         public required Texture2D Texture { get; init; }
         public required Color[] SourcePixels { get; init; }
@@ -29,70 +27,9 @@ public partial class Game1
         public float LastAppliedProgress { get; set; } = -1f;
     }
 
-    private void AdvanceGibAcidDissolves()
+    private void AdvanceCorpseAcidDissolves()
     {
-        if (_gibFadeMode != PlayerGibEntity.FadeModeAcid)
-        {
-            if (_gibAcidDissolveStates.Count > 0)
-            {
-                ResetGibAcidDissolves();
-            }
-
-            if (_corpseAcidDissolveStates.Count > 0)
-            {
-                ResetCorpseAcidDissolves();
-            }
-
-            return;
-        }
-
-        AdvanceGibAcidDissolveStates();
         AdvanceCorpseAcidDissolveStates();
-    }
-
-    private void AdvanceGibAcidDissolveStates()
-    {
-        _staleGibAcidDissolveIds.Clear();
-        foreach (var gibId in _gibAcidDissolveStates.Keys)
-        {
-            var stillAlive = false;
-            for (var index = 0; index < _world.PlayerGibs.Count; index += 1)
-            {
-                if (_world.PlayerGibs[index].Id == gibId && !_world.PlayerGibs[index].IsExpired)
-                {
-                    stillAlive = true;
-                    break;
-                }
-            }
-
-            if (!stillAlive)
-            {
-                _staleGibAcidDissolveIds.Add(gibId);
-            }
-        }
-
-        for (var index = 0; index < _staleGibAcidDissolveIds.Count; index += 1)
-        {
-            DisposeGibAcidDissolve(_staleGibAcidDissolveIds[index]);
-        }
-
-        _staleGibAcidDissolveIds.Clear();
-
-        for (var index = 0; index < _world.PlayerGibs.Count; index += 1)
-        {
-            var gib = _world.PlayerGibs[index];
-            if (gib.FadeMode != PlayerGibEntity.FadeModeAcid || !gib.IsFading || gib.IsExpired)
-            {
-                continue;
-            }
-
-            if (!TryGetOrCreateGibAcidDissolveState(gib, out var state))
-            {
-                continue;
-            }
-
-            ApplyGibAcidDissolveProgress(state, gib.FadeProgress);
-        }
     }
 
     private void AdvanceCorpseAcidDissolveStates()
@@ -142,7 +79,7 @@ public partial class Game1
                 continue;
             }
 
-            ApplyGibAcidDissolveProgress(state, GetCorpseFadeProgress(deadBody.TicksRemaining));
+            ApplyCorpseAcidDissolveProgress(state, GetCorpseFadeProgress(deadBody.TicksRemaining));
         }
 
         foreach (var entry in _immediateNetworkDeadBodies)
@@ -166,7 +103,7 @@ public partial class Game1
                 continue;
             }
 
-            ApplyGibAcidDissolveProgress(state, GetCorpseFadeProgress(deadBody.TicksRemaining));
+            ApplyCorpseAcidDissolveProgress(state, GetCorpseFadeProgress(deadBody.TicksRemaining));
         }
     }
 
@@ -192,22 +129,6 @@ public partial class Game1
         return false;
     }
 
-    private void ResetGibAcidDissolves()
-    {
-        foreach (var gibId in _gibAcidDissolveStates.Keys)
-        {
-            _staleGibAcidDissolveIds.Add(gibId);
-        }
-
-        for (var index = 0; index < _staleGibAcidDissolveIds.Count; index += 1)
-        {
-            DisposeGibAcidDissolve(_staleGibAcidDissolveIds[index]);
-        }
-
-        _staleGibAcidDissolveIds.Clear();
-        ResetCorpseAcidDissolves();
-    }
-
     private void ResetCorpseAcidDissolves()
     {
         foreach (var corpseId in _corpseAcidDissolveStates.Keys)
@@ -223,19 +144,6 @@ public partial class Game1
         _staleCorpseAcidDissolveIds.Clear();
     }
 
-    private void DisposeGibAcidDissolve(int gibId)
-    {
-        if (!_gibAcidDissolveStates.Remove(gibId, out var state))
-        {
-            return;
-        }
-
-        if (state.OwnsTexture)
-        {
-            state.Texture.Dispose();
-        }
-    }
-
     private void DisposeCorpseAcidDissolve(int corpseId)
     {
         if (!_corpseAcidDissolveStates.Remove(corpseId, out var state))
@@ -249,28 +157,6 @@ public partial class Game1
         }
     }
 
-    private bool TryGetOrCreateGibAcidDissolveState(PlayerGibEntity gib, out GibAcidDissolveState state)
-    {
-        if (_gibAcidDissolveStates.TryGetValue(gib.Id, out state!))
-        {
-            return true;
-        }
-
-        if (!TryCaptureGibAcidSourcePixels(gib, out var pixels, out var width, out var height, out var origin, out var scale))
-        {
-            state = null!;
-            return false;
-        }
-
-        if (!TryCreateAcidDissolveState(pixels, width, height, origin, scale, out state))
-        {
-            return false;
-        }
-
-        _gibAcidDissolveStates[gib.Id] = state;
-        return true;
-    }
-
     private bool TryGetOrCreateCorpseAcidDissolveState(
         int corpseId,
         string gameplayClassId,
@@ -278,7 +164,7 @@ public partial class Game1
         PlayerTeam team,
         DeadBodyAnimationKind animationKind,
         float corpseHeight,
-        out GibAcidDissolveState state)
+        out CorpseAcidDissolveState state)
     {
         if (_corpseAcidDissolveStates.TryGetValue(corpseId, out state!))
         {
@@ -301,7 +187,7 @@ public partial class Game1
             return false;
         }
 
-        if (!TryCreateAcidDissolveState(pixels, width, height, origin, scale, out state))
+        if (!TryCreateCorpseAcidDissolveState(pixels, width, height, origin, scale, out state))
         {
             return false;
         }
@@ -310,22 +196,22 @@ public partial class Game1
         return true;
     }
 
-    private bool TryCreateAcidDissolveState(
+    private bool TryCreateCorpseAcidDissolveState(
         Color[] pixels,
         int width,
         int height,
         Vector2 origin,
         float scale,
-        out GibAcidDissolveState state)
+        out CorpseAcidDissolveState state)
     {
         var columnSpeeds = new float[width];
         for (var x = 0; x < width; x += 1)
         {
-            // Per-column melt rate so the acid front looks uneven and organic.
-            columnSpeeds[x] = 0.55f + (_dynamicGibRandom.NextSingle() * 0.9f);
+            // Per-column melt rate makes the corpse fade front uneven and organic.
+            columnSpeeds[x] = 0.55f + (_visualRandom.NextSingle() * 0.9f);
         }
 
-        Texture2D texture;
+        Texture2D? texture = null;
         try
         {
             texture = new Texture2D(GraphicsDevice, width, height, false, SurfaceFormat.Color);
@@ -333,13 +219,14 @@ public partial class Game1
         }
         catch
         {
+            texture?.Dispose();
             state = null!;
             return false;
         }
 
-        state = new GibAcidDissolveState
+        state = new CorpseAcidDissolveState
         {
-            Texture = texture,
+            Texture = texture!,
             SourcePixels = pixels,
             WorkingPixels = (Color[])pixels.Clone(),
             ColumnSpeeds = columnSpeeds,
@@ -349,58 +236,6 @@ public partial class Game1
             Scale = scale,
             OwnsTexture = true,
         };
-        return true;
-    }
-
-    private bool TryCaptureGibAcidSourcePixels(
-        PlayerGibEntity gib,
-        out Color[] pixels,
-        out int width,
-        out int height,
-        out Vector2 origin,
-        out float scale)
-    {
-        pixels = Array.Empty<Color>();
-        width = 0;
-        height = 0;
-        origin = Vector2.Zero;
-        scale = 1f;
-
-        if (gib.CustomVisualId is int customVisualId
-            && TryGetDynamicGibVisual(customVisualId, out var dynamicVisual))
-        {
-            width = dynamicVisual.Texture.Width;
-            height = dynamicVisual.Texture.Height;
-            pixels = new Color[width * height];
-            try
-            {
-                dynamicVisual.Texture.GetData(pixels);
-            }
-            catch
-            {
-                return false;
-            }
-
-            origin = new Vector2(gib.VisualOriginX, gib.VisualOriginY);
-            scale = gib.VisualScale;
-            return true;
-        }
-
-        var sprite = GetResolvedSprite(gib.SpriteName);
-        if (sprite is null || sprite.Frames.Count == 0)
-        {
-            return false;
-        }
-
-        var frameIndex = Math.Clamp(gib.FrameIndex, 0, sprite.Frames.Count - 1);
-        var frame = sprite.Frames[frameIndex];
-        if (!TryGetSpriteFramePixels(frame, out pixels, out width, out height))
-        {
-            return false;
-        }
-
-        origin = sprite.Origin.ToVector2();
-        scale = GetPlayerGibRenderScale(gib);
         return true;
     }
 
@@ -445,7 +280,7 @@ public partial class Game1
         return true;
     }
 
-    private static void ApplyGibAcidDissolveProgress(GibAcidDissolveState state, float progress)
+    private static void ApplyCorpseAcidDissolveProgress(CorpseAcidDissolveState state, float progress)
     {
         progress = Math.Clamp(progress, 0f, 1f);
         if (MathF.Abs(progress - state.LastAppliedProgress) < 0.001f)
@@ -468,32 +303,6 @@ public partial class Game1
         }
 
         state.Texture.SetData(state.WorkingPixels);
-    }
-
-    private bool TryDrawGibAcidDissolve(PlayerGibEntity gib, Vector2 cameraPosition, Color gibTint)
-    {
-        if (gib.FadeMode != PlayerGibEntity.FadeModeAcid || !gib.IsFading)
-        {
-            return false;
-        }
-
-        if (!TryGetOrCreateGibAcidDissolveState(gib, out var state))
-        {
-            return false;
-        }
-
-        ApplyGibAcidDissolveProgress(state, gib.FadeProgress);
-        _spriteBatch.Draw(
-            state.Texture,
-            new Vector2(gib.X - cameraPosition.X, gib.Y - cameraPosition.Y),
-            null,
-            gibTint,
-            gib.RotationDegrees * (MathF.PI / 180f),
-            state.Origin,
-            new Vector2(state.Scale, state.Scale),
-            SpriteEffects.None,
-            0f);
-        return true;
     }
 
     private bool TryDrawCorpseAcidDissolve(
@@ -527,7 +336,7 @@ public partial class Game1
             return false;
         }
 
-        ApplyGibAcidDissolveProgress(state, GetCorpseFadeProgress(ticksRemaining));
+        ApplyCorpseAcidDissolveProgress(state, GetCorpseFadeProgress(ticksRemaining));
         var roundedOrigin = GetRoundedPlayerSpriteOrigin(new Vector2(worldX, worldY));
         var facingScaleX = facingLeft ? -1f : 1f;
         _spriteBatch.Draw(

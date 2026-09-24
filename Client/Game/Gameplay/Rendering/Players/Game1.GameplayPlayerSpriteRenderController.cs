@@ -139,15 +139,6 @@ public partial class Game1
                     drawIntelOverlay);
             }
 
-            _game.RecordDynamicGibBodyFrame(
-                player,
-                spriteName,
-                frameIndex,
-                renderPosition,
-                sprite.Origin.ToVector2(),
-                scale,
-                bodyYOffset);
-
             if (player.ClassId == PlayerClass.Heavy && _game.GetPlayerIsExperimentalGhostDashing(player))
             {
                 _game.RecordHeavyDashFrameState(

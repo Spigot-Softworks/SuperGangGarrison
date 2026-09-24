@@ -589,14 +589,11 @@ public partial class Game1
                 new("Particles", GetParticleModeLabel(_game._particleMode), _game.CycleParticleModeSetting, OptionsMenuTab.Graphics),
                 new("Flame Style", GetFlameRenderModeLabel(_game._flameRenderMode), _game.CycleFlameRenderModeSetting, OptionsMenuTab.Graphics),
                 new("Blood Style", GetBloodRenderModeLabel(_game._bloodRenderMode), _game.CycleBloodRenderModeSetting, OptionsMenuTab.Graphics),
-                new("Gib Style", GetGibRenderModeLabel(_game._gibRenderMode), _game.CycleGibRenderModeSetting, OptionsMenuTab.Graphics),
                 new("Dynamic Ragdoll", _game._dynamicRagdollEnabled ? "Enabled" : "Disabled", _game.ToggleDynamicRagdollSetting, OptionsMenuTab.Graphics),
-                new("Gore", GetGoreModeLabel(_game._gibLevel), _game.CycleGibLevelSetting, OptionsMenuTab.Graphics),
+                new("Gibs", GetGibLevelLabel(_game._gibLevel), _game.CycleGibLevelSetting, OptionsMenuTab.Graphics),
                 new("Blood Amount", GetBloodAmountLabel(_game._bloodAmountLevel), _game.CycleBloodAmountSetting, OptionsMenuTab.Graphics),
-                new("Gib Amount", GetGibAmountLabel(_game._gibAmountLevel), _game.CycleGibAmountSetting, OptionsMenuTab.Graphics),
-                new("Gib Persistence", $"{_game._gibPersistenceSeconds}s", () => _game.AdjustGibPersistenceSeconds(1), OptionsMenuTab.Graphics, _game.AdjustGibPersistenceSeconds),
                 new("Blood Persistence", $"{_game._bloodPersistenceSeconds}s", () => _game.AdjustBloodPersistenceSeconds(1), OptionsMenuTab.Graphics, _game.AdjustBloodPersistenceSeconds),
-                new("Remains Fade", GetGibFadeModeLabel(_game._gibFadeMode), _game.CycleGibFadeModeSetting, OptionsMenuTab.Graphics),
+                new("Corpse Fade", GetCorpseFadeModeLabel(_game._corpseFadeMode), _game.CycleCorpseFadeModeSetting, OptionsMenuTab.Graphics),
                 new("Stuck Arrows", _game._stuckArrowsEnabled ? "Enabled" : "Disabled", _game.ToggleStuckArrowsSetting, OptionsMenuTab.Graphics),
                 new("Corpses", GetCorpseDurationLabel(_game._corpseDurationMode), _game.CycleCorpseDurationSetting, OptionsMenuTab.Graphics),
                 new("Sprite Shadow", _game._spriteDropShadowEnabled ? "Enabled" : "Disabled", _game.ToggleSpriteDropShadowSetting, OptionsMenuTab.Graphics),
@@ -1007,14 +1004,9 @@ public partial class Game1
             return bloodRenderMode == 0 ? "Squib" : "Classic";
         }
 
-        private static string GetGibRenderModeLabel(int gibRenderMode)
+        private static string GetCorpseFadeModeLabel(int corpseFadeMode)
         {
-            return gibRenderMode == 0 ? "Classic" : "Dynamic";
-        }
-
-        private static string GetGibFadeModeLabel(int gibFadeMode)
-        {
-            return gibFadeMode == 0 ? "Regular" : "Acid";
+            return corpseFadeMode == 0 ? "Regular" : "Acid";
         }
 
         private static string GetMenuBackgroundModeLabel(MenuBackgroundMode menuBackgroundMode)
@@ -1038,25 +1030,20 @@ public partial class Game1
             };
         }
 
-        private static string GetGoreModeLabel(int goreMode)
+        private static string GetGibLevelLabel(int gibLevel)
         {
-            return goreMode switch
+            return gibLevel switch
             {
-                0 => "None",
-                1 => "Blood only",
-                2 => "Gibs only",
-                _ => "Blood and gibs",
+                0 => "0, No blood or gibs",
+                1 => "1, Blood only",
+                2 => "2, Blood and medium gibs",
+                _ => $"{gibLevel}, Full blood and gibs",
             };
         }
 
         private static string GetBloodAmountLabel(int bloodAmountLevel)
         {
             return GetAmountLevelLabel(bloodAmountLevel);
-        }
-
-        private static string GetGibAmountLabel(int gibAmountLevel)
-        {
-            return GetAmountLevelLabel(gibAmountLevel);
         }
 
         private static string GetAmountLevelLabel(int amountLevel)
