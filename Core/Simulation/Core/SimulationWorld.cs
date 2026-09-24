@@ -223,6 +223,12 @@ public sealed partial class SimulationWorld
 
     public bool LocalGoreEffectsEnabled { get; set; } = true;
 
+    /// <summary>Client blood-drop lifetime in whole seconds.</summary>
+    public int LocalBloodLifetimeSeconds { get; set; } = 9;
+
+    public int ScaleBloodDropLifetimeTicks()
+        => Math.Max(1, (int)MathF.Round(Math.Clamp(LocalBloodLifetimeSeconds, 1, 120) * Config.TicksPerSecond));
+
     public int GetDeterministicSpreadShotIndex(int attackerId)
     {
         var index = _deterministicSpreadShotIndexByPlayerId.TryGetValue(attackerId, out var currentIndex)

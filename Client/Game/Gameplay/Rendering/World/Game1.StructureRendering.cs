@@ -130,7 +130,7 @@ public partial class Game1
 
     private void DrawBloodDrop(BloodDropEntity bloodDrop, Vector2 cameraPosition)
     {
-        if (_gibLevel == 0)
+        if (!AreBloodVisualsEnabled || _bloodRenderMode == 0)
         {
             return;
         }

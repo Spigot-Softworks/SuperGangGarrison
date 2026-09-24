@@ -13,7 +13,20 @@ namespace OpenGarrison.Client;
 internal sealed class CameraPanningState
 {
     internal const float OffsetPixels = 64f;
-    internal const float CenterDeadZoneRadius = 0.06f;
+    /// <summary>
+    /// Dead-zone horizontal radius as a fraction of screen width (diameter = 40% wide).
+    /// </summary>
+    internal const float DeadZoneRadiusScreenWidthFraction = 0.2f;
+    /// <summary>
+    /// Max dead-zone height as a fraction of screen height (diameter ≤ 60% tall).
+    /// On wide aspect ratios this clamps the vertical radius below the width-based value.
+    /// </summary>
+    internal const float DeadZoneMaxHeightScreenFraction = 0.6f;
+    /// <summary>
+    /// Fraction of the centre-to-edge distance along the cursor ray at which pan
+    /// reaches full strength.
+    /// </summary>
+    internal const float FullPanScreenFraction = 0.9f;
     private const float OffsetCatchUpRate = 18f;
     private const float DirectionEpsilonSquared = 0.000001f;
 
@@ -31,9 +44,7 @@ internal sealed class CameraPanningState
                 return _offset;
             }
 
-            return direction.LengthSquared() > DirectionEpsilonSquared && IsFinite(direction)
-                ? Vector2.Normalize(direction) * OffsetPixels
-                : Vector2.Zero;
+            return ToPanOffset(direction);
         }
 
         if (IsFiniteClock(frameClockSeconds)
@@ -48,10 +59,10 @@ internal sealed class CameraPanningState
             _lastUpdateClockSeconds = frameClockSeconds;
         }
 
-        if (direction.LengthSquared() > DirectionEpsilonSquared && IsFinite(direction))
+        var panTarget = ToPanOffset(direction);
+        if (panTarget.LengthSquared() > DirectionEpsilonSquared)
         {
-            direction.Normalize();
-            _targetOffset = direction * OffsetPixels;
+            _targetOffset = panTarget;
             if (!_hasDirection)
             {
                 _offset = _targetOffset;
@@ -64,9 +75,8 @@ internal sealed class CameraPanningState
         }
         else if (_hasDirection)
         {
-            // A zero direction is the aspect-correct mouse center dead zone.
-            // Keep the last target offset until a valid direction
-            // arrives again.
+            // Inside the centre dead zone: keep the last target until a valid
+            // direction arrives again.
             _offset = AdvanceOffset(_offset, _targetOffset, elapsedSeconds);
         }
 
@@ -81,6 +91,12 @@ internal sealed class CameraPanningState
         _hasDirection = false;
     }
 
+    /// <summary>
+    /// Returns a screen-space aim vector whose length is pan strength in [0, 1].
+    /// Inside the centre dead-zone ellipse, strength is 0. Outside it ramps smoothly
+    /// and reaches 1 when the cursor is <see cref="FullPanScreenFraction"/> of the
+    /// way from centre to the viewport edge along the cursor ray.
+    /// </summary>
     internal static Vector2 GetMouseDirection(int viewportWidth, int viewportHeight, float mouseX, float mouseY)
     {
         if (viewportWidth <= 0 || viewportHeight <= 0 || !float.IsFinite(mouseX) || !float.IsFinite(mouseY))
@@ -95,20 +111,54 @@ internal sealed class CameraPanningState
             return Vector2.Zero;
         }
 
-        // Normalize each axis before calculating the angle.  This turns the
-        // viewport ellipse into a circle, so equal screen fractions pan equally
-        // at 16:9, 4:3, and other aspect ratios.
-        var direction = new Vector2(
-            (mouseX - halfWidth) / halfWidth,
-            (mouseY - halfHeight) / halfHeight);
-        var lengthSquared = direction.LengthSquared();
-        if (!float.IsFinite(lengthSquared) || lengthSquared <= CenterDeadZoneRadius * CenterDeadZoneRadius)
+        var offset = new Vector2(mouseX - halfWidth, mouseY - halfHeight);
+        if (!IsFinite(offset))
         {
             return Vector2.Zero;
         }
 
-        direction /= MathF.Sqrt(lengthSquared);
+        var (deadZoneRadiusX, deadZoneRadiusY) = ResolveDeadZoneRadii(viewportWidth, viewportHeight);
+        if (IsInsideDeadZoneEllipse(offset, deadZoneRadiusX, deadZoneRadiusY))
+        {
+            return Vector2.Zero;
+        }
+
+        var distanceSquared = offset.LengthSquared();
+        if (distanceSquared <= DirectionEpsilonSquared)
+        {
+            return Vector2.Zero;
+        }
+
+        var distance = MathF.Sqrt(distanceSquared);
+        var direction = offset / distance;
+        var deadZoneDistance = GetRayDistanceToDeadZoneEdge(
+            direction.X,
+            direction.Y,
+            deadZoneRadiusX,
+            deadZoneRadiusY);
+        var edgeDistance = GetRayDistanceToViewportEdge(direction.X, direction.Y, halfWidth, halfHeight);
+        var fullPanDistance = edgeDistance * FullPanScreenFraction;
+        if (!float.IsFinite(deadZoneDistance)
+            || !float.IsFinite(fullPanDistance)
+            || fullPanDistance <= deadZoneDistance)
+        {
+            return direction;
+        }
+
+        var strength = Math.Clamp(
+            (distance - deadZoneDistance) / (fullPanDistance - deadZoneDistance),
+            0f,
+            1f);
+        direction *= strength;
         return IsFinite(direction) ? direction : Vector2.Zero;
+    }
+
+    internal static (float RadiusX, float RadiusY) ResolveDeadZoneRadii(int viewportWidth, int viewportHeight)
+    {
+        var radiusX = MathF.Max(0f, viewportWidth * DeadZoneRadiusScreenWidthFraction);
+        var maxRadiusY = MathF.Max(0f, viewportHeight * DeadZoneMaxHeightScreenFraction * 0.5f);
+        var radiusY = MathF.Min(radiusX, maxRadiusY);
+        return (radiusX, radiusY);
     }
 
     internal static Vector2 AdvanceOffset(Vector2 current, Vector2 target, float elapsedSeconds)
@@ -119,6 +169,31 @@ internal sealed class CameraPanningState
             return current;
         var catchUp = 1f - MathF.Exp(-OffsetCatchUpRate * MathF.Min(elapsedSeconds, 1f));
         return Vector2.Lerp(current, target, catchUp);
+    }
+
+    /// <summary>
+    /// Maps a strength-scaled aim vector (length in [0, 1]) to a world-pixel pan offset.
+    /// </summary>
+    internal static Vector2 ToPanOffset(Vector2 direction)
+    {
+        if (!IsFinite(direction))
+        {
+            return Vector2.Zero;
+        }
+
+        var lengthSquared = direction.LengthSquared();
+        if (lengthSquared <= DirectionEpsilonSquared)
+        {
+            return Vector2.Zero;
+        }
+
+        var length = MathF.Sqrt(lengthSquared);
+        if (length > 1f)
+        {
+            direction /= length;
+        }
+
+        return direction * OffsetPixels;
     }
 
     internal static Vector2 GetMouseDirectionFromPlayer(int width, int height, Vector2 mouse, Vector2 playerScreen)
@@ -137,6 +212,50 @@ internal sealed class CameraPanningState
         return new Vector2(
             ClampCameraAxis(topLeft.X, viewportWidth, bounds.Width),
             ClampCameraAxis(topLeft.Y, viewportHeight, bounds.Height));
+    }
+
+    private static float GetRayDistanceToViewportEdge(float dirX, float dirY, float halfWidth, float halfHeight)
+    {
+        var distanceX = MathF.Abs(dirX) > 0.000001f
+            ? halfWidth / MathF.Abs(dirX)
+            : float.PositiveInfinity;
+        var distanceY = MathF.Abs(dirY) > 0.000001f
+            ? halfHeight / MathF.Abs(dirY)
+            : float.PositiveInfinity;
+        return MathF.Min(distanceX, distanceY);
+    }
+
+    private static float GetRayDistanceToDeadZoneEdge(
+        float dirX,
+        float dirY,
+        float deadZoneRadiusX,
+        float deadZoneRadiusY)
+    {
+        if (deadZoneRadiusX <= 0f || deadZoneRadiusY <= 0f)
+        {
+            return 0f;
+        }
+
+        var scaleSquared = (dirX * dirX) / (deadZoneRadiusX * deadZoneRadiusX)
+            + (dirY * dirY) / (deadZoneRadiusY * deadZoneRadiusY);
+        if (!float.IsFinite(scaleSquared) || scaleSquared <= 0f)
+        {
+            return 0f;
+        }
+
+        return 1f / MathF.Sqrt(scaleSquared);
+    }
+
+    private static bool IsInsideDeadZoneEllipse(Vector2 offset, float deadZoneRadiusX, float deadZoneRadiusY)
+    {
+        if (deadZoneRadiusX <= 0f || deadZoneRadiusY <= 0f)
+        {
+            return false;
+        }
+
+        var normalized = (offset.X * offset.X) / (deadZoneRadiusX * deadZoneRadiusX)
+            + (offset.Y * offset.Y) / (deadZoneRadiusY * deadZoneRadiusY);
+        return float.IsFinite(normalized) && normalized <= 1f;
     }
 
     private static float ClampCameraAxis(float value, int viewportSize, float worldSize)

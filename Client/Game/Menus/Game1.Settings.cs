@@ -24,8 +24,18 @@ public partial class Game1
         _killCamEnabled = _clientSettings.KillCamEnabled;
         _particleMode = Math.Clamp(_clientSettings.ParticleMode, 0, 2);
         _flameRenderMode = Math.Clamp(_clientSettings.FlameRenderMode, 0, 1);
+        _bloodRenderMode = Math.Clamp(_clientSettings.BloodRenderMode, 0, 1);
+        _dynamicRagdollEnabled = _clientSettings.DynamicRagdollEnabled;
+        _bloodPersistenceSeconds = Math.Clamp(
+            _clientSettings.BloodPersistenceSeconds <= 0
+                ? OpenGarrisonPreferencesDocument.DefaultBloodPersistenceSeconds
+                : _clientSettings.BloodPersistenceSeconds,
+            1,
+            120);
+        _corpseFadeMode = OpenGarrisonPreferencesDocument.NormalizeCorpseFadeMode(_clientSettings.CorpseFadeMode);
         _menuBackgroundMode = _clientSettings.MenuBackgroundMode;
         _gibLevel = Math.Clamp(_clientSettings.GibLevel, 0, 3);
+        _bloodAmountLevel = Math.Clamp(_clientSettings.BloodAmountLevel, 1, 5);
         _corpseDurationMode = Math.Clamp(_clientSettings.CorpseDurationMode, ClientSettings.CorpseDurationDefault, ClientSettings.CorpseDurationInfinite);
         _healerRadarEnabled = _clientSettings.HealerRadarEnabled;
         _showHealerEnabled = _clientSettings.ShowHealerEnabled;
@@ -78,6 +88,7 @@ public partial class Game1
         ApplyBrowserPreferredManualConnectDefaults();
 
         _hostSetupState.LoadFrom(_clientSettings.HostDefaults);
+        ApplyBloodPresentationSettingsToWorld();
     }
 
     private void PersistClientSettings()
@@ -95,8 +106,13 @@ public partial class Game1
         _clientSettings.KillCamEnabled = _killCamEnabled;
         _clientSettings.ParticleMode = Math.Clamp(_particleMode, 0, 2);
         _clientSettings.FlameRenderMode = Math.Clamp(_flameRenderMode, 0, 1);
+        _clientSettings.BloodRenderMode = Math.Clamp(_bloodRenderMode, 0, 1);
+        _clientSettings.DynamicRagdollEnabled = _dynamicRagdollEnabled;
+        _clientSettings.BloodPersistenceSeconds = Math.Clamp(_bloodPersistenceSeconds, 1, 120);
+        _clientSettings.CorpseFadeMode = OpenGarrisonPreferencesDocument.NormalizeCorpseFadeMode(_corpseFadeMode);
         _clientSettings.MenuBackgroundMode = _menuBackgroundMode;
         _clientSettings.GibLevel = Math.Clamp(_gibLevel, 0, 3);
+        _clientSettings.BloodAmountLevel = Math.Clamp(_bloodAmountLevel, 1, 5);
         _clientSettings.CorpseDurationMode = Math.Clamp(_corpseDurationMode, ClientSettings.CorpseDurationDefault, ClientSettings.CorpseDurationInfinite);
         _clientSettings.HealerRadarEnabled = _healerRadarEnabled;
         _clientSettings.ShowHealerEnabled = _showHealerEnabled;
@@ -273,4 +289,93 @@ public partial class Game1
             ? Math.Clamp(parsed, min, max)
             : fallback;
     }
+
+    private const int RegularCorpseFadeTicks = 20;
+    private const int AcidCorpseFadeTicks = 52;
+    private const int CorpseFadeModeAcid = 1;
+
+    internal bool AreBloodVisualsEnabled => _gibLevel > 0;
+
+    internal float GetBloodAmountScale() => Math.Clamp(_bloodAmountLevel, 1, 5) / 5f;
+
+    internal void ApplyBloodPresentationSettingsToWorld()
+    {
+        _world.LocalBloodLifetimeSeconds = Math.Clamp(_bloodPersistenceSeconds, 1, 120);
+    }
+
+    internal int GetCorpseFadeTicks()
+        => _corpseFadeMode == CorpseFadeModeAcid ? AcidCorpseFadeTicks : RegularCorpseFadeTicks;
+
+    /// <summary>
+    /// Infinite corpses never fade. Default corpses use the selected Regular/Acid corpse fade.
+    /// </summary>
+    internal bool IsCorpseFading(int ticksRemaining)
+    {
+        if (_corpseDurationMode == ClientSettings.CorpseDurationInfinite || ticksRemaining <= 0)
+        {
+            return false;
+        }
+
+        return ticksRemaining < GetCorpseFadeTicks();
+    }
+
+    internal bool IsCorpseAcidFading(int ticksRemaining)
+        => _corpseFadeMode == CorpseFadeModeAcid && IsCorpseFading(ticksRemaining);
+
+    internal float GetCorpseFadeAlpha(int ticksRemaining)
+    {
+        if (_corpseDurationMode == ClientSettings.CorpseDurationInfinite || ticksRemaining <= 0)
+        {
+            return _corpseDurationMode == ClientSettings.CorpseDurationInfinite ? 1f : 0f;
+        }
+
+        if (_corpseFadeMode == CorpseFadeModeAcid)
+        {
+            // Acid dissolve owns disappearance — keep full opacity while melting.
+            return 1f;
+        }
+
+        var fadeTicks = GetCorpseFadeTicks();
+        return ticksRemaining >= fadeTicks
+            ? 1f
+            : MathF.Max(0f, ticksRemaining / (float)fadeTicks);
+    }
+
+    internal float GetCorpseFadeProgress(int ticksRemaining)
+    {
+        if (_corpseDurationMode == ClientSettings.CorpseDurationInfinite)
+        {
+            return 0f;
+        }
+
+        var fadeTicks = GetCorpseFadeTicks();
+        if (ticksRemaining <= 0)
+        {
+            return 1f;
+        }
+
+        if (ticksRemaining >= fadeTicks)
+        {
+            return 0f;
+        }
+
+        return 1f - (ticksRemaining / (float)fadeTicks);
+    }
+
+    internal float GetBloodPersistenceScale()
+        => Math.Clamp(_bloodPersistenceSeconds, 1, 120)
+            / (float)OpenGarrisonPreferencesDocument.DefaultBloodPersistenceSeconds;
+
+    internal int ScaleBloodVisualCount(int maximumCount)
+    {
+        if (!AreBloodVisualsEnabled || maximumCount <= 0)
+        {
+            return 0;
+        }
+
+        // Squib mode uses 2x the amount curve so 100% is twice as dense.
+        var amountScale = GetBloodAmountScale() * (_bloodRenderMode == 0 ? 2f : 1f);
+        return Math.Max(0, (int)MathF.Round(maximumCount * amountScale));
+    }
+
 }

@@ -46,7 +46,26 @@ public partial class Game1
         float Height,
         bool FacingLeft,
         int TicksRemaining,
-        string GameplayClassId = "");
+        string GameplayClassId = "",
+        int RemainsSortKey = 0);
+
+    private enum RemainsDrawKind : byte
+    {
+        RetainedDeadBody = 0,
+        ImmediateNetworkDeadBody = 1,
+        PlayerGib = 2,
+        WorldDeadBody = 3,
+    }
+
+    private readonly record struct RemainsDrawEntry(int SortKey, RemainsDrawKind Kind, int Index);
+
+    private readonly Dictionary<int, RetainedDeadBodyVisual> _trackedDeadBodyVisuals = new();
+    private readonly List<RetainedDeadBodyVisual> _retainedDeadBodies = new();
+    private readonly List<int> _staleTrackedDeadBodyIds = new();
+    private readonly Dictionary<int, ImmediateNetworkDeadBodyVisual> _immediateNetworkDeadBodies = new();
+    private readonly List<int> _staleImmediateNetworkDeadBodyPlayerIds = new();
+    private readonly List<RemainsDrawEntry> _remainsDrawOrder = new();
+    private int _remainsSortCeiling;
 
     private readonly record struct WeaponRenderDefinition(
         string? NormalSpriteName,
@@ -80,12 +99,6 @@ public partial class Game1
         Left,
         Right,
     }
-
-    private readonly Dictionary<int, RetainedDeadBodyVisual> _trackedDeadBodyVisuals = new();
-    private readonly List<RetainedDeadBodyVisual> _retainedDeadBodies = new();
-    private readonly List<int> _staleTrackedDeadBodyIds = new();
-    private readonly Dictionary<int, ImmediateNetworkDeadBodyVisual> _immediateNetworkDeadBodies = new();
-    private readonly List<int> _staleImmediateNetworkDeadBodyPlayerIds = new();
 
     private Rectangle GetPlayerScreenBounds(PlayerEntity player, Vector2 renderPosition, Vector2 cameraPosition)
     {

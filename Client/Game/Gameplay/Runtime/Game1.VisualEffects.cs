@@ -24,6 +24,16 @@ public partial class Game1
     private readonly List<BackstabVisual> _backstabVisuals = new();
     private readonly List<BloodVisual> _bloodVisuals = new();
     private readonly List<BloodSprayVisual> _bloodSprayVisuals = new();
+    private readonly List<BloodSquibParticle> _bloodSquibParticles = new();
+    private readonly Dictionary<(int X, int Y), SettledBloodCell> _settledBloodCells = new();
+    private readonly Dictionary<(int, int), float> _bloodDrawCellsScratch = new();
+    private readonly Dictionary<(int, int), float> _bloodCryoDrawCellsScratch = new();
+    private readonly Dictionary<(int, int), float> _bloodBridgeScratch = new();
+    private readonly HashSet<int> _processedSettledBloodDropIds = new();
+    private readonly List<int> _staleSettledBloodDropIds = new();
+    private readonly List<(int X, int Y)> _staleSettledBloodCellKeys = new();
+    private readonly List<(int X, int Y, float Amount, bool Cryo)> _pendingSettledBloodTransfers = new();
+    private int _nextBloodSquibSeed = 1;
     private readonly Dictionary<int, StickyGibBloodCoating> _stickyGibBloodCoatings = new();
     private readonly List<int> _staleStickyGibBloodPlayerIds = new();
     private readonly HashSet<int> _processedStickyGibBloodDropIds = new();
@@ -1811,6 +1821,57 @@ public partial class Game1
         public int InitialTicks { get; }
 
         public int TicksRemaining { get; set; }
+    }
+
+    private sealed class BloodSquibParticle
+    {
+        public BloodSquibParticle(
+            float x,
+            float y,
+            float velocityX,
+            float velocityY,
+            float scale,
+            int seed,
+            int lifetimeTicks,
+            bool experimentalCryoTinted,
+            bool heavy)
+        {
+            X = x;
+            Y = y;
+            VelocityX = velocityX;
+            VelocityY = velocityY;
+            Scale = Math.Clamp(scale, 0.18f, 0.7f);
+            Seed = seed;
+            TicksRemaining = Math.Max(1, lifetimeTicks);
+            ExperimentalCryoTinted = experimentalCryoTinted;
+            Heavy = heavy;
+        }
+
+        public float X { get; set; }
+
+        public float Y { get; set; }
+
+        public float VelocityX { get; set; }
+
+        public float VelocityY { get; set; }
+
+        public float Scale { get; }
+
+        public int Seed { get; }
+
+        public int TicksRemaining { get; set; }
+
+        public bool ExperimentalCryoTinted { get; }
+
+        public bool Heavy { get; }
+    }
+
+    private sealed class SettledBloodCell
+    {
+        public float Amount;
+        public float DripProgress;
+        public int Age;
+        public bool ExperimentalCryoTinted;
     }
 
     private sealed class PendingWeaponShellVisual
