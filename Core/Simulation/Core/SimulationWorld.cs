@@ -223,30 +223,8 @@ public sealed partial class SimulationWorld
 
     public bool LocalGoreEffectsEnabled { get; set; } = true;
 
-    /// <summary>Client gib lifetime in whole seconds.</summary>
-    public int LocalGibLifetimeSeconds { get; set; } = 8;
-
     /// <summary>Client blood-drop lifetime in whole seconds.</summary>
     public int LocalBloodLifetimeSeconds { get; set; } = 9;
-
-    /// <summary>0 = Regular alpha fade, 1 = Acid top-down dissolve (default).</summary>
-    public int LocalGibFadeMode { get; set; } = 1;
-
-    /// <summary>
-    /// When set and returning true, player gib deaths skip Classic piece spawns and let the
-    /// caller create Dynamic sprite-cut gibs instead. Blood burst visuals are still spawned.
-    /// </summary>
-    public Func<PlayerEntity, float, float, bool>? TryHandleDynamicPlayerGibSpawn { get; set; }
-
-    public int ScalePlayerGibLifetimeTicks(int baseLifetimeTicks)
-    {
-        _ = baseLifetimeTicks;
-        var fadeTicks = LocalGibFadeMode == 1
-            ? PlayerGibEntity.AcidFadeTicks
-            : PlayerGibEntity.RegularFadeTicks;
-        var lifetime = Math.Max(1, (int)MathF.Round(Math.Clamp(LocalGibLifetimeSeconds, 1, 120) * Config.TicksPerSecond));
-        return Math.Max(lifetime, fadeTicks + 45);
-    }
 
     public int ScaleBloodDropLifetimeTicks()
         => Math.Max(1, (int)MathF.Round(Math.Clamp(LocalBloodLifetimeSeconds, 1, 120) * Config.TicksPerSecond));
