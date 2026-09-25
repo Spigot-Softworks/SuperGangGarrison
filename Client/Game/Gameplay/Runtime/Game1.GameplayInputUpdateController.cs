@@ -36,6 +36,7 @@ public partial class Game1
             }
 
             _game.UpdateRespawnCameraState((float)gameTime.ElapsedGameTime.TotalSeconds, keyboard, mouse);
+            _game.UpdateHitboxDebugHotkey(keyboard);
             _game.UpdateBotBrainCorridorRecorderHotkeys(keyboard);
             var gameplayCameraViewportHeight = _game.GetGameplayCameraViewportHeight(_game.ViewportHeight);
             var cameraPosition = _game.GetGameplayInputCameraTopLeft(

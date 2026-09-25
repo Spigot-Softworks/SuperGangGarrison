@@ -27,6 +27,17 @@ public sealed record GameplayItemPresentationDefinition(
     int BlueTeamHudFrameOffset = 1,
     bool UseAmmoCountForHudFrame = false,
     int BlueTeamAmmoHudFrameOffset = 0,
+    /// <summary>
+    /// When true, <see cref="WorldSpriteName"/> / <see cref="RecoilSpriteName"/> are full
+    /// torso replacements layered on legs instead of a separate rotating weapon sprite.
+    /// </summary>
+    bool UseTorsoReplacement = false,
+    /// <summary>
+    /// Optional pack sprite whose opaque pixels define a melee swing area (alpha mask),
+    /// anchored at the wielder with the sprite origin — same idea as a stab mask, but
+    /// authored as art. Used for hit detection; aim still drives facing and reflect angle.
+    /// </summary>
+    string? MeleeHitboxSpriteName = null,
     GameplayItemHudPresentationDefinition? Hud = null);
 
 public sealed record GameplayItemHudPresentationDefinition(

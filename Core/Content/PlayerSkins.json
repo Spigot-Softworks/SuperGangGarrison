@@ -1547,7 +1547,8 @@
           ],
           "equipmentOffset": 0
         }
-      ]
+      ],
+      "legsBodySprite": "ElkondoScout{team}LegsS"
     },
     "elkondo-soldier": {
       "source": "Elkondo/Soldier",
@@ -1872,7 +1873,8 @@
           "weaponSkin": "rocketman",
           "weaponSkinPose": 16
         }
-      ]
+      ],
+      "legsBodySprite": "ElkondoSoldier{team}LegsS"
     },
     "elkondo-pyro": {
       "source": "Elkondo/Pyro",
@@ -2049,7 +2051,8 @@
           ],
           "equipmentOffset": 1
         }
-      ]
+      ],
+      "legsBodySprite": "ElkondoPyro{team}LegsS"
     },
     "elkondo-demoman": {
       "source": "Elkondo/Demoman",
@@ -2284,7 +2287,8 @@
           ],
           "equipmentOffset": 1
         }
-      ]
+      ],
+      "legsBodySprite": "ElkondoDemoman{team}LegsS"
     },
     "elkondo-heavy": {
       "source": "Elkondo/Heavy",
@@ -2461,7 +2465,8 @@
           ],
           "equipmentOffset": 0
         }
-      ]
+      ],
+      "legsBodySprite": "ElkondoHeavy{team}LegsS"
     },
     "elkondo-medic": {
       "source": "Elkondo/Medic",
@@ -2638,7 +2643,8 @@
           ],
           "equipmentOffset": 1
         }
-      ]
+      ],
+      "legsBodySprite": "ElkondoMedic{team}LegsS"
     },
     "elkondo-engineer": {
       "source": "Elkondo/Engineer",
@@ -2815,7 +2821,8 @@
           ],
           "equipmentOffset": 0
         }
-      ]
+      ],
+      "legsBodySprite": "ElkondoEngineer{team}LegsS"
     },
     "elkondo-sniper": {
       "source": "Elkondo/Sniper",
@@ -2992,7 +2999,8 @@
           ],
           "equipmentOffset": 0
         }
-      ]
+      ],
+      "legsBodySprite": "ElkondoSniper{team}LegsS"
     },
     "elkondo-spy": {
       "source": "Elkondo/Spy",
@@ -3269,7 +3277,8 @@
           ]
         }
       ],
-      "cloakedBodySprite": "ElkondoSpy{team}CloakedBodyS"
+      "cloakedBodySprite": "ElkondoSpy{team}CloakedBodyS",
+      "legsBodySprite": "ElkondoSpy{team}LegsS"
     }
   }
 }

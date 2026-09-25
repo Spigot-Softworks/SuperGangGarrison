@@ -1,14 +1,24 @@
 namespace OpenGarrison.Core;
 
+using System;
+
 public static class ExperimentalDemoknightCatalog
 {
     public const string EyelanderItemId = "weapon.experimental-demoknight-eyelander";
     public const string PaintrainItemId = "weapon.experimental-demoknight-paintrain";
 
-    public const string EyelanderWorldSpriteName = "EyeLanderS";
-    public const string EyelanderRecoilSpriteName = "EyeLanderFS";
+    public const string EyelanderWorldSpriteName = "EyeLanderTorsoS";
+    public const string EyelanderRecoilSpriteName = "EyeLanderTorsoFS";
+    public const string EyelanderBlueWorldSpriteName = "EyeLanderTorsoBlueS";
+    public const string EyelanderBlueRecoilSpriteName = "EyeLanderTorsoBlueFS";
+    public const string EyelanderMeleeHitboxSpriteName = "EyeLanderMeleeHitboxS";
     public const string EyelanderKillFeedSpriteName = "EyelanderKL";
     public const string EyelanderSwingSoundName = "EyelanderSnd";
+
+    /// <summary>
+    /// Share of recoil duration spent on the first attack frame (and the active damage window).
+    /// </summary>
+    public const float EyelanderFirstFrameProgress = 0.15f;
 
     public const string PaintrainWorldSpriteName = "PaintrainS";
     public const string PaintrainRecoilSpriteName = "PaintrainFS";
@@ -19,6 +29,32 @@ public static class ExperimentalDemoknightCatalog
     public const string ChargeStartSoundName = "ChargeSnd";
     public const string ChargeReadySoundName = "rechargeSnd";
 
+    public static string ResolveTorsoReplacementTeamSpriteName(string? spriteName, PlayerTeam team)
+    {
+        if (string.IsNullOrWhiteSpace(spriteName) || team != PlayerTeam.Blue)
+        {
+            return spriteName ?? string.Empty;
+        }
+
+        // Convention: FooS → FooBlueS, FooFS → FooBlueFS.
+        if (spriteName.EndsWith("BlueS", StringComparison.Ordinal)
+            || spriteName.EndsWith("BlueFS", StringComparison.Ordinal))
+        {
+            return spriteName;
+        }
+
+        if (spriteName.EndsWith("FS", StringComparison.Ordinal))
+        {
+            return spriteName[..^2] + "BlueFS";
+        }
+
+        if (spriteName.EndsWith("S", StringComparison.Ordinal))
+        {
+            return spriteName[..^1] + "BlueS";
+        }
+
+        return spriteName;
+    }
     public static string? GetDecapitatedDeadBodySpriteName(PlayerClass classId, PlayerTeam team)
     {
         var teamName = GetTeamName(team);
