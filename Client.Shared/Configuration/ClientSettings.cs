@@ -81,28 +81,20 @@ public sealed class ClientSettings
 
     public int BloodRenderMode { get; set; }
 
-    /// <summary>0 = Classic piece gibs, 1 = Dynamic sprite-cut gibs.</summary>
-    public int GibRenderMode { get; set; }
-
     /// <summary>Client-only floppy corpse ragdoll for non-gib deaths.</summary>
     public bool DynamicRagdollEnabled { get; set; } = true;
-
-    /// <summary>Gib lifetime in whole seconds (default 8 ≈ stock duration rounded up).</summary>
-    public int GibPersistenceSeconds { get; set; } = OpenGarrisonPreferencesDocument.DefaultGibPersistenceSeconds;
 
     /// <summary>Blood lifetime in whole seconds (default 9 ≈ stock duration rounded up).</summary>
     public int BloodPersistenceSeconds { get; set; } = OpenGarrisonPreferencesDocument.DefaultBloodPersistenceSeconds;
 
-    /// <summary>0 = Regular alpha fade, 1 = Acid top-down dissolve (default).</summary>
-    public int GibFadeMode { get; set; } = OpenGarrisonPreferencesDocument.DefaultGibFadeMode;
+    /// <summary>0 = Regular alpha fade, 1 = Acid top-down corpse dissolve (default).</summary>
+    public int CorpseFadeMode { get; set; } = OpenGarrisonPreferencesDocument.DefaultCorpseFadeMode;
 
     public MenuBackgroundMode MenuBackgroundMode { get; set; } = MenuBackgroundMode.DefaultMaps;
 
     public int GibLevel { get; set; } = 3;
 
     public int BloodAmountLevel { get; set; } = 5;
-
-    public int GibAmountLevel { get; set; } = 5;
 
     public int CorpseDurationMode { get; set; }
 
@@ -312,25 +304,17 @@ public sealed class ClientSettings
             ParticleMode = document.ParticleMode,
             FlameRenderMode = document.FlameRenderMode,
             BloodRenderMode = document.BloodRenderMode,
-            GibRenderMode = Math.Clamp(document.GibRenderMode, 0, 1),
             DynamicRagdollEnabled = document.DynamicRagdollEnabled,
-            GibPersistenceSeconds = Math.Clamp(
-                document.GibPersistenceSeconds <= 0
-                    ? OpenGarrisonPreferencesDocument.DefaultGibPersistenceSeconds
-                    : document.GibPersistenceSeconds,
-                1,
-                120),
             BloodPersistenceSeconds = Math.Clamp(
                 document.BloodPersistenceSeconds <= 0
                     ? OpenGarrisonPreferencesDocument.DefaultBloodPersistenceSeconds
                     : document.BloodPersistenceSeconds,
                 1,
                 120),
-            GibFadeMode = Math.Clamp(document.GibFadeMode, 0, 1),
+            CorpseFadeMode = OpenGarrisonPreferencesDocument.NormalizeCorpseFadeMode(document.CorpseFadeMode),
             MenuBackgroundMode = document.MenuBackgroundMode,
             GibLevel = document.GibLevel,
             BloodAmountLevel = Math.Clamp(document.BloodAmountLevel <= 0 ? 5 : document.BloodAmountLevel, 1, 5),
-            GibAmountLevel = Math.Clamp(document.GibAmountLevel <= 0 ? 5 : document.GibAmountLevel, 1, 5),
             CorpseDurationMode = document.CorpseDurationMode,
             KillCamEnabled = document.KillCamEnabled,
             AlwaysRecordGames = document.AlwaysRecordGames,
@@ -420,25 +404,17 @@ public sealed class ClientSettings
         preferences.ParticleMode = ParticleMode;
         preferences.FlameRenderMode = FlameRenderMode;
         preferences.BloodRenderMode = BloodRenderMode;
-        preferences.GibRenderMode = Math.Clamp(GibRenderMode, 0, 1);
         preferences.DynamicRagdollEnabled = DynamicRagdollEnabled;
-        preferences.GibPersistenceSeconds = Math.Clamp(
-            GibPersistenceSeconds <= 0
-                ? OpenGarrisonPreferencesDocument.DefaultGibPersistenceSeconds
-                : GibPersistenceSeconds,
-            1,
-            120);
         preferences.BloodPersistenceSeconds = Math.Clamp(
             BloodPersistenceSeconds <= 0
                 ? OpenGarrisonPreferencesDocument.DefaultBloodPersistenceSeconds
                 : BloodPersistenceSeconds,
             1,
             120);
-        preferences.GibFadeMode = Math.Clamp(GibFadeMode, 0, 1);
+        preferences.CorpseFadeMode = OpenGarrisonPreferencesDocument.NormalizeCorpseFadeMode(CorpseFadeMode);
         preferences.MenuBackgroundMode = MenuBackgroundMode;
         preferences.GibLevel = GibLevel;
         preferences.BloodAmountLevel = Math.Clamp(BloodAmountLevel <= 0 ? 5 : BloodAmountLevel, 1, 5);
-        preferences.GibAmountLevel = Math.Clamp(GibAmountLevel <= 0 ? 5 : GibAmountLevel, 1, 5);
         preferences.CorpseDurationMode = CorpseDurationMode;
         preferences.HealerRadarEnabled = HealerRadarEnabled;
         preferences.ShowHealerEnabled = ShowHealerEnabled;

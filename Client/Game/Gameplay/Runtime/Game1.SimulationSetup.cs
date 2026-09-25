@@ -25,17 +25,11 @@ public partial class Game1
             TicksPerSecond = normalizedTickRate,
         };
         _world = new SimulationWorld(_config);
+        ApplyBloodPresentationSettingsToWorld();
         _simulator = new FixedStepSimulator(_world);
-        BindWorldPresentationHooks();
         _world.SetLocalPlayerName(localPlayerName);
         _world.SetLocalPlayerBadgeMask(localPlayerBadgeMask);
         _observedGameplayLevelName = string.Empty;
         _observedGameplayMapAreaIndex = -1;
-    }
-
-    private void BindWorldPresentationHooks()
-    {
-        _world.TryHandleDynamicPlayerGibSpawn = TryHandleDynamicPlayerGibSpawn;
-        ApplyGibPresentationSettingsToWorld();
     }
 }

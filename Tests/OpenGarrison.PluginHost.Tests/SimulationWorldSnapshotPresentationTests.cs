@@ -261,74 +261,10 @@ public sealed class SimulationWorldSnapshotPresentationTests
 
         Assert.Contains(world.PlayerGibs, gib => gib.SpriteName == "GibS");
         Assert.Contains(world.PlayerGibs, gib => gib.SpriteName == "BlueClumpS");
-        Assert.Contains(world.PlayerGibs, gib => gib.SpriteName == "SoldierBlueHeadS");
-        Assert.DoesNotContain(world.PlayerGibs, gib => gib.SpriteName == "HeadS");
-        Assert.DoesNotContain(world.PlayerGibs, gib => gib.SpriteName.Contains("Heavy", StringComparison.Ordinal));
+        Assert.Contains(world.PlayerGibs, gib => gib.SpriteName == "HeadS");
         Assert.Contains(world.PlayerGibs, gib => gib.SpriteName == "FeetS");
         Assert.Contains(world.PlayerGibs, gib => gib.SpriteName == "HandS");
         Assert.Contains(world.PendingVisualEvents, visualEvent => visualEvent.EffectName == "GibBlood");
-    }
-
-    [Fact]
-    public void SpawnClientPlayerGibsFromNetworkDeathUsesMatchingClassHeadSprite()
-    {
-        var world = new SimulationWorld();
-        var player = new PlayerEntity(203, CharacterClassCatalog.GetDefinition(PlayerClass.Scout), "ScoutVictim");
-        player.ApplyNetworkState(
-            PlayerTeam.Red,
-            CharacterClassCatalog.GetDefinition(PlayerClass.Scout),
-            isAlive: false,
-            x: 512f,
-            y: 384f,
-            horizontalSpeed: 0f,
-            verticalSpeed: 0f,
-            health: 0,
-            currentShells: 4,
-            kills: 0,
-            deaths: 1,
-            caps: 0,
-            points: 0f,
-            healPoints: 0,
-            activeDominationCount: 0,
-            isDominatingLocalViewer: false,
-            isDominatedByLocalViewer: false,
-            metal: 0f,
-            isGrounded: true,
-            remainingAirJumps: 0,
-            isCarryingIntel: false,
-            intelRechargeTicks: 0f,
-            isSpyCloaked: false,
-            spyCloakAlpha: 1f,
-            isSpySuperjumping: false,
-            spySuperjumpHorizontalVelocity: 0f,
-            spySuperjumpCooldownTicksRemaining: 0,
-            spyBackstabVisualTicksRemaining: 0,
-            isUbered: false,
-            isKritzCritBoosted: false,
-            isHeavyEating: false,
-            heavyEatTicksRemaining: 0,
-            isSniperScoped: false,
-            sniperChargeTicks: 0,
-            isUsingBinoculars: false,
-            binocularsFocusX: 512f,
-            binocularsFocusY: 384f,
-            facingDirectionX: 1f,
-            aimDirectionDegrees: 0f,
-            aimWorldX: 513f,
-            aimWorldY: 384f,
-            isTaunting: false,
-            tauntFrameIndex: 0f,
-            isChatBubbleVisible: false,
-            chatBubbleFrameIndex: 0,
-            chatBubbleAlpha: 0f,
-            gibDeaths: 1);
-
-        world.SpawnClientPlayerGibsFromNetworkDeath(player, 512f, 384f);
-
-        Assert.Contains(world.PlayerGibs, gib => gib.SpriteName == "ScoutRedHeadS");
-        Assert.DoesNotContain(world.PlayerGibs, gib => gib.SpriteName == "HeavyRedHeadS");
-        Assert.DoesNotContain(world.PlayerGibs, gib => gib.SpriteName == "HeavyBlueHeadS");
-        Assert.DoesNotContain(world.PlayerGibs, gib => gib.SpriteName == "HeadS");
     }
 
     [Fact]

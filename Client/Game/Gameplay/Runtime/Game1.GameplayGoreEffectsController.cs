@@ -28,35 +28,25 @@ public partial class Game1
             _game._processedStickyGibBloodDropIds.Clear();
             _game._staleStickyGibBloodDropIds.Clear();
             ResetBloodSquibEffects();
-            _game.ResetDynamicGibEffects();
             _game.ResetDynamicRagdollEffects();
-            _game.ResetGibAcidDissolves();
+            _game.ResetCorpseAcidDissolves();
         }
 
         public void AdvanceBloodVisuals()
         {
-            _game.AdvanceDynamicGibVisualCleanup();
             _game.AdvanceDynamicRagdolls();
             _game.SyncDynamicRagdollsWithDeadBodies();
-            _game.AdvanceGibAcidDissolves();
+            _game.AdvanceCorpseAcidDissolves();
 
             if (!_game.AreBloodVisualsEnabled)
             {
                 _game._bloodVisuals.Clear();
                 _game._bloodSprayVisuals.Clear();
                 ResetBloodSquibEffects();
-                if (!_game.AreGibVisualsEnabled)
-                {
-                    _game._stickyGibBloodCoatings.Clear();
-                    _game._staleStickyGibBloodPlayerIds.Clear();
-                    _game._processedStickyGibBloodDropIds.Clear();
-                    _game._staleStickyGibBloodDropIds.Clear();
-                }
-                else
-                {
-                    AdvanceStickyGibBloodCoatings();
-                }
-
+                _game._stickyGibBloodCoatings.Clear();
+                _game._staleStickyGibBloodPlayerIds.Clear();
+                _game._processedStickyGibBloodDropIds.Clear();
+                _game._staleStickyGibBloodDropIds.Clear();
                 return;
             }
 
@@ -275,15 +265,12 @@ public partial class Game1
 
             if (string.Equals(effectName, "GibBlood", StringComparison.OrdinalIgnoreCase))
             {
-                if (!_game.AreBloodVisualsEnabled && !_game.AreGibVisualsEnabled)
+                if (!_game.AreBloodVisualsEnabled)
                 {
                     return true;
                 }
 
-                var gibIntensity = Math.Max(
-                    1,
-                    (int)MathF.Round(Math.Max(1, count) * _game.GetGibAmountScale()));
-                SpawnGibBloodImpactVisuals(x, y, gibIntensity);
+                SpawnGibBloodImpactVisuals(x, y, Math.Max(1, count));
                 return true;
             }
 
