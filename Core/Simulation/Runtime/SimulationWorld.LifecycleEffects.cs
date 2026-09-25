@@ -18,14 +18,6 @@ public sealed partial class SimulationWorld
 
         var inheritedVelocityX = player.HorizontalSpeed * (float)Config.FixedDeltaSeconds;
         var inheritedVelocityY = player.VerticalSpeed * (float)Config.FixedDeltaSeconds;
-
-        if (TryHandleDynamicPlayerGibSpawn?.Invoke(player, player.X, player.Y) == true)
-        {
-            RegisterVisualEffect("GibBlood", player.X, player.Y, count: DefaultGibLevel);
-            SpawnBloodDrops(player.X, player.Y, DefaultGibLevel * 14, 10f, 13f, spreadRadius: 11f, experimentalCryoTinted: experimentalCryoTinted);
-            return;
-        }
-
         SpawnPlayerGibSet(player, "GibS", DefaultGibLevel, randomFrameCount: 7, velocityRangeX: 8f, velocityRangeY: 9f, rotationRange: 72f, lifetimeTicks: 210, horizontalFriction: 0.4f, rotationFriction: 0.6f, bloodChance: 1.8f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY, experimentalCryoTinted: experimentalCryoTinted, emitNetworkEvents: false);
         SpawnPlayerGibSet(player, player.Team == PlayerTeam.Blue ? "BlueClumpS" : "RedClumpS", DefaultGibLevel - 1, randomFrameCount: 4, velocityRangeX: 8f, velocityRangeY: 9f, rotationRange: 72f, lifetimeTicks: 250, horizontalFriction: 0.3f, rotationFriction: 0.4f, bloodChance: 2f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY, experimentalCryoTinted: experimentalCryoTinted, emitNetworkEvents: false);
 
@@ -56,13 +48,6 @@ public sealed partial class SimulationWorld
     private void SpawnPlayerGibsForNetworkDeath(PlayerEntity player, float? spawnX = null, float? spawnY = null)
     {
         if (!LocalGoreEffectsEnabled)
-        {
-            return;
-        }
-
-        var resolvedSpawnX = spawnX ?? player.X;
-        var resolvedSpawnY = spawnY ?? player.Y;
-        if (TryHandleDynamicPlayerGibSpawn?.Invoke(player, resolvedSpawnX, resolvedSpawnY) == true)
         {
             return;
         }
@@ -103,67 +88,9 @@ public sealed partial class SimulationWorld
 
         var resolvedSpawnX = spawnX ?? player.X;
         var resolvedSpawnY = spawnY ?? player.Y;
-        if (TryHandleDynamicPlayerGibSpawn?.Invoke(player, resolvedSpawnX, resolvedSpawnY) == true)
-        {
-            RegisterVisualEffect("GibBlood", resolvedSpawnX, resolvedSpawnY, count: DefaultGibLevel);
-            SpawnBloodDrops(resolvedSpawnX, resolvedSpawnY, DefaultGibLevel * 14, 10f, 13f, spreadRadius: 11f, experimentalCryoTinted: player.IsExperimentalCryoFrozen);
-            return;
-        }
-
         SpawnPlayerGibsForNetworkDeath(player, resolvedSpawnX, resolvedSpawnY);
         RegisterVisualEffect("GibBlood", resolvedSpawnX, resolvedSpawnY, count: DefaultGibLevel);
         SpawnBloodDrops(resolvedSpawnX, resolvedSpawnY, DefaultGibLevel * 14, 10f, 13f, spreadRadius: 11f, experimentalCryoTinted: player.IsExperimentalCryoFrozen);
-    }
-
-    public PlayerGibEntity SpawnCustomPlayerGib(
-        float x,
-        float y,
-        float velocityX,
-        float velocityY,
-        float rotationSpeedDegrees,
-        float horizontalFriction,
-        float rotationFriction,
-        int lifetimeTicks,
-        float bloodChance,
-        bool experimentalCryoTinted,
-        int customVisualId,
-        float visualOriginX,
-        float visualOriginY,
-        float visualScale,
-        float initialRotationDegrees = 0f,
-        bool enableDeferredSpin = false,
-        float deferredSpinSpeedDegrees = 0f,
-        int deferredSpinAirborneTicks = 0,
-        float boundingSize = PlayerGibEntity.DynamicBoundingSize)
-    {
-        var scaledLifetime = ScalePlayerGibLifetimeTicks(lifetimeTicks);
-        var gib = new PlayerGibEntity(
-            AllocateEntityId(),
-            spriteName: string.Empty,
-            frameIndex: 0,
-            x,
-            y,
-            velocityX,
-            velocityY,
-            rotationSpeedDegrees,
-            horizontalFriction,
-            rotationFriction,
-            scaledLifetime,
-            bloodChance,
-            experimentalCryoTinted,
-            customVisualId,
-            visualOriginX,
-            visualOriginY,
-            visualScale,
-            initialRotationDegrees,
-            enableDeferredSpin,
-            deferredSpinSpeedDegrees,
-            deferredSpinAirborneTicks,
-            boundingSize,
-            fadeMode: LocalGibFadeMode);
-        _playerGibs.Add(gib);
-        _entities.Add(gib.Id, gib);
-        return gib;
     }
 
     private void SpawnPlayerGibSet(
@@ -206,7 +133,6 @@ public sealed partial class SimulationWorld
                 velocityY = inheritedVelocityY + (MathF.Sin(angle) * radialSpeed);
             }
             var rotationSpeed = (_random.NextSingle() * ((rotationRange * 2f) + 1f)) - rotationRange;
-            var scaledLifetime = ScalePlayerGibLifetimeTicks(lifetimeTicks);
 
             // Create gib entity locally (for offline mode and server-side simulation)
             var gib = new PlayerGibEntity(
@@ -220,10 +146,9 @@ public sealed partial class SimulationWorld
                 rotationSpeed,
                 horizontalFriction,
                 rotationFriction,
-                scaledLifetime,
+                lifetimeTicks,
                 bloodChance,
-                experimentalCryoTinted,
-                fadeMode: LocalGibFadeMode);
+                experimentalCryoTinted);
             _playerGibs.Add(gib);
             _entities.Add(gib.Id, gib);
 
@@ -240,7 +165,7 @@ public sealed partial class SimulationWorld
                     rotationSpeed,
                     horizontalFriction,
                     rotationFriction,
-                    scaledLifetime,
+                    lifetimeTicks,
                     bloodChance));
             }
         }
@@ -253,7 +178,7 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        var headSpriteName = ExperimentalDemoknightCatalog.GetClassHeadGibSpriteName(victim.ClassId, victim.Team);
+        var headSpriteName = ExperimentalDemoknightCatalog.GetDecapitatedHeadSpriteName(victim.ClassId, victim.Team);
         if (string.IsNullOrWhiteSpace(headSpriteName))
         {
             return;
@@ -269,7 +194,6 @@ public sealed partial class SimulationWorld
         var rotationSpeed = (_random.NextSingle() * 160f) - 80f;
 
         // Create gib entity locally (for offline mode and server-side simulation)
-        var headLifetime = ScalePlayerGibLifetimeTicks(250);
         var headGib = new PlayerGibEntity(
             AllocateEntityId(),
             headSpriteName,
@@ -281,9 +205,8 @@ public sealed partial class SimulationWorld
             rotationSpeed,
             horizontalFriction: 0.55f,
             rotationFriction: 0.55f,
-            lifetimeTicks: headLifetime,
-            bloodChance: 1.3f,
-            fadeMode: LocalGibFadeMode);
+            lifetimeTicks: 250,
+            bloodChance: 1.3f);
         _playerGibs.Add(headGib);
         _entities.Add(headGib.Id, headGib);
 
@@ -298,7 +221,7 @@ public sealed partial class SimulationWorld
             rotationSpeed,
             0.55f,
             0.55f,
-            headLifetime,
+            250,
             1.3f));
 
         RegisterVisualEffect("GibBlood", spawnX, spawnY, count: 1);
@@ -310,67 +233,55 @@ public sealed partial class SimulationWorld
         switch (player.ClassId)
         {
             case PlayerClass.Scout:
-                yield return CreateClassHeadGibPart(player, legacyHeadSFrame: 6);
+                yield return new PlayerGibPartDefinition("HeadS", 6, 1, 8f, 9f, 52f, 250, 0.5f, 0.5f, BloodChance: 1.4f);
                 yield return new PlayerGibPartDefinition("FeetS", 0, DefaultGibLevel - 1, 2f, 0f, 6f, 250, 0.3f, 0.4f, BloodChance: 7f);
                 yield return new PlayerGibPartDefinition("HandS", 1, DefaultGibLevel - 1, 8f, 9f, 52f, 250, 0.4f, 0.5f, InheritPlayerVelocity: true, BloodChance: 5f);
                 break;
             case PlayerClass.Pyro:
-                yield return CreateClassHeadGibPart(player, legacyHeadSFrame: 7);
+                yield return new PlayerGibPartDefinition("HeadS", 7, 1, 8f, 9f, 52f, 250, 0.5f, 0.5f, BloodChance: 1.4f);
                 yield return new PlayerGibPartDefinition("AccesoryS", 4, 1, 8f, 9f, 52f, 250, 0.4f, 0.2f, InheritPlayerVelocity: true, BloodChance: 28f);
                 yield return new PlayerGibPartDefinition("FeetS", 1, DefaultGibLevel - 1, 2f, 0f, 6f, 250, 0.3f, 0.4f, BloodChance: 7f);
                 yield return new PlayerGibPartDefinition("HandS", 0, DefaultGibLevel - 1, 8f, 9f, 52f, 250, 0.4f, 0.5f, InheritPlayerVelocity: true, BloodChance: 5f);
                 break;
             case PlayerClass.Soldier:
-                yield return CreateClassHeadGibPart(player, legacyHeadSFrame: 1);
+                yield return new PlayerGibPartDefinition("HeadS", 1, 1, 8f, 9f, 52f, 250, 0.5f, 0.5f, BloodChance: 1.4f);
                 yield return new PlayerGibPartDefinition("FeetS", 2, DefaultGibLevel - 1, 2f, 0f, 6f, 250, 0.3f, 0.4f, BloodChance: 7f);
                 yield return new PlayerGibPartDefinition("HandS", 1, DefaultGibLevel - 1, 8f, 9f, 52f, 250, 0.4f, 0.5f, InheritPlayerVelocity: true, BloodChance: 5f);
                 yield return new PlayerGibPartDefinition("AccesoryS", player.Team == PlayerTeam.Blue ? 2 : 1, 1, 8f, 9f, 52f, 250, 0.4f, 0.2f, InheritPlayerVelocity: true, BloodChance: 28f);
                 break;
             case PlayerClass.Heavy:
-                yield return CreateClassHeadGibPart(player, legacyHeadSFrame: 2);
+                yield return new PlayerGibPartDefinition("HeadS", 2, 1, 8f, 9f, 52f, 250, 0.5f, 0.5f, BloodChance: 1.4f);
                 yield return new PlayerGibPartDefinition("FeetS", 3, DefaultGibLevel - 1, 2f, 0f, 6f, 250, 0.3f, 0.4f, BloodChance: 7f);
                 yield return new PlayerGibPartDefinition("HandS", 1, DefaultGibLevel - 1, 8f, 9f, 52f, 250, 0.4f, 0.5f, InheritPlayerVelocity: true, BloodChance: 5f);
                 break;
             case PlayerClass.Demoman:
-                yield return CreateClassHeadGibPart(player, legacyHeadSFrame: 4);
+                yield return new PlayerGibPartDefinition("HeadS", 4, 1, 8f, 9f, 52f, 250, 0.5f, 0.5f, BloodChance: 1.4f);
                 yield return new PlayerGibPartDefinition("FeetS", 4, DefaultGibLevel - 1, 2f, 0f, 6f, 250, 0.3f, 0.4f, BloodChance: 7f);
                 yield return new PlayerGibPartDefinition("HandS", 0, DefaultGibLevel - 1, 8f, 9f, 52f, 250, 0.4f, 0.5f, InheritPlayerVelocity: true, BloodChance: 5f);
                 break;
             case PlayerClass.Medic:
-                yield return CreateClassHeadGibPart(player, legacyHeadSFrame: 5);
+                yield return new PlayerGibPartDefinition("HeadS", 5, 1, 8f, 9f, 52f, 250, 0.5f, 0.5f, BloodChance: 1.4f);
                 yield return new PlayerGibPartDefinition("FeetS", 4, DefaultGibLevel - 1, 2f, 0f, 6f, 250, 0.3f, 0.4f, BloodChance: 7f);
                 yield return new PlayerGibPartDefinition("HandS", player.Team == PlayerTeam.Blue ? 3 : 2, 1, 8f, 9f, 52f, 250, 0.4f, 0.5f, InheritPlayerVelocity: true, BloodChance: 5f);
                 break;
             case PlayerClass.Engineer:
-                yield return CreateClassHeadGibPart(player, legacyHeadSFrame: 8);
+                yield return new PlayerGibPartDefinition("HeadS", 8, 1, 8f, 9f, 52f, 250, 0.5f, 0.5f, BloodChance: 1.4f);
                 yield return new PlayerGibPartDefinition("AccesoryS", 3, 1, 8f, 9f, 52f, 250, 0.4f, 0.2f, InheritPlayerVelocity: true, BloodChance: 28f);
                 yield return new PlayerGibPartDefinition("FeetS", 5, DefaultGibLevel - 1, 2f, 0f, 6f, 250, 0.3f, 0.4f, BloodChance: 7f);
                 yield return new PlayerGibPartDefinition("HandS", 0, DefaultGibLevel - 1, 8f, 9f, 52f, 250, 0.4f, 0.5f, InheritPlayerVelocity: true, BloodChance: 5f);
                 break;
             case PlayerClass.Spy:
-                yield return CreateClassHeadGibPart(player, legacyHeadSFrame: 3);
+                yield return new PlayerGibPartDefinition("HeadS", 3, 1, 8f, 9f, 52f, 250, 0.5f, 0.5f, BloodChance: 1.4f);
                 yield return new PlayerGibPartDefinition("FeetS", 6, DefaultGibLevel - 1, 2f, 0f, 6f, 250, 0.3f, 0.4f, BloodChance: 7f);
                 yield return new PlayerGibPartDefinition("HandS", 0, DefaultGibLevel - 1, 8f, 9f, 52f, 250, 0.4f, 0.5f, InheritPlayerVelocity: true, BloodChance: 5f);
                 break;
             case PlayerClass.Sniper:
-                yield return CreateClassHeadGibPart(player, legacyHeadSFrame: 0);
+                yield return new PlayerGibPartDefinition("HeadS", 0, 1, 8f, 9f, 52f, 250, 0.5f, 0.5f, BloodChance: 1.4f);
                 yield return new PlayerGibPartDefinition("AccesoryS", 0, 1, 8f, 9f, 52f, 250, 0.4f, 0.2f, InheritPlayerVelocity: true, BloodChance: 28f);
                 yield return new PlayerGibPartDefinition("FeetS", 6, DefaultGibLevel - 1, 2f, 0f, 6f, 250, 0.3f, 0.4f, BloodChance: 7f);
                 yield return new PlayerGibPartDefinition("HandS", 0, DefaultGibLevel - 1, 8f, 9f, 52f, 250, 0.4f, 0.5f, InheritPlayerVelocity: true, BloodChance: 5f);
                 break;
         }
-    }
-
-    private static PlayerGibPartDefinition CreateClassHeadGibPart(PlayerEntity player, int legacyHeadSFrame)
-    {
-        var headSpriteName = ExperimentalDemoknightCatalog.GetClassHeadGibSpriteName(player.ClassId, player.Team);
-        if (!string.IsNullOrWhiteSpace(headSpriteName))
-        {
-            return new PlayerGibPartDefinition(headSpriteName, 0, 1, 8f, 9f, 52f, 250, 0.5f, 0.5f, BloodChance: 1.4f);
-        }
-
-        // Fallback for Quote / unknown class+team: legacy shared HeadS atlas frame.
-        return new PlayerGibPartDefinition("HeadS", legacyHeadSFrame, 1, 8f, 9f, 52f, 250, 0.5f, 0.5f, BloodChance: 1.4f);
     }
 
     private void AdvancePlayerGibs()

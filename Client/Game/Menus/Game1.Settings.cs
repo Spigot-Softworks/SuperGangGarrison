@@ -25,25 +25,17 @@ public partial class Game1
         _particleMode = Math.Clamp(_clientSettings.ParticleMode, 0, 2);
         _flameRenderMode = Math.Clamp(_clientSettings.FlameRenderMode, 0, 1);
         _bloodRenderMode = Math.Clamp(_clientSettings.BloodRenderMode, 0, 1);
-        _gibRenderMode = Math.Clamp(_clientSettings.GibRenderMode, 0, 1);
         _dynamicRagdollEnabled = _clientSettings.DynamicRagdollEnabled;
-        _gibPersistenceSeconds = Math.Clamp(
-            _clientSettings.GibPersistenceSeconds <= 0
-                ? OpenGarrisonPreferencesDocument.DefaultGibPersistenceSeconds
-                : _clientSettings.GibPersistenceSeconds,
-            1,
-            120);
         _bloodPersistenceSeconds = Math.Clamp(
             _clientSettings.BloodPersistenceSeconds <= 0
                 ? OpenGarrisonPreferencesDocument.DefaultBloodPersistenceSeconds
                 : _clientSettings.BloodPersistenceSeconds,
             1,
             120);
-        _gibFadeMode = Math.Clamp(_clientSettings.GibFadeMode, 0, 1);
+        _corpseFadeMode = OpenGarrisonPreferencesDocument.NormalizeCorpseFadeMode(_clientSettings.CorpseFadeMode);
         _menuBackgroundMode = _clientSettings.MenuBackgroundMode;
         _gibLevel = Math.Clamp(_clientSettings.GibLevel, 0, 3);
         _bloodAmountLevel = Math.Clamp(_clientSettings.BloodAmountLevel, 1, 5);
-        _gibAmountLevel = Math.Clamp(_clientSettings.GibAmountLevel, 1, 5);
         _corpseDurationMode = Math.Clamp(_clientSettings.CorpseDurationMode, ClientSettings.CorpseDurationDefault, ClientSettings.CorpseDurationInfinite);
         _healerRadarEnabled = _clientSettings.HealerRadarEnabled;
         _showHealerEnabled = _clientSettings.ShowHealerEnabled;
@@ -96,7 +88,7 @@ public partial class Game1
         ApplyBrowserPreferredManualConnectDefaults();
 
         _hostSetupState.LoadFrom(_clientSettings.HostDefaults);
-        ApplyGibPresentationSettingsToWorld();
+        ApplyBloodPresentationSettingsToWorld();
     }
 
     private void PersistClientSettings()
@@ -115,15 +107,12 @@ public partial class Game1
         _clientSettings.ParticleMode = Math.Clamp(_particleMode, 0, 2);
         _clientSettings.FlameRenderMode = Math.Clamp(_flameRenderMode, 0, 1);
         _clientSettings.BloodRenderMode = Math.Clamp(_bloodRenderMode, 0, 1);
-        _clientSettings.GibRenderMode = Math.Clamp(_gibRenderMode, 0, 1);
         _clientSettings.DynamicRagdollEnabled = _dynamicRagdollEnabled;
-        _clientSettings.GibPersistenceSeconds = Math.Clamp(_gibPersistenceSeconds, 1, 120);
         _clientSettings.BloodPersistenceSeconds = Math.Clamp(_bloodPersistenceSeconds, 1, 120);
-        _clientSettings.GibFadeMode = Math.Clamp(_gibFadeMode, 0, 1);
+        _clientSettings.CorpseFadeMode = OpenGarrisonPreferencesDocument.NormalizeCorpseFadeMode(_corpseFadeMode);
         _clientSettings.MenuBackgroundMode = _menuBackgroundMode;
         _clientSettings.GibLevel = Math.Clamp(_gibLevel, 0, 3);
         _clientSettings.BloodAmountLevel = Math.Clamp(_bloodAmountLevel, 1, 5);
-        _clientSettings.GibAmountLevel = Math.Clamp(_gibAmountLevel, 1, 5);
         _clientSettings.CorpseDurationMode = Math.Clamp(_corpseDurationMode, ClientSettings.CorpseDurationDefault, ClientSettings.CorpseDurationInfinite);
         _clientSettings.HealerRadarEnabled = _healerRadarEnabled;
         _clientSettings.ShowHealerEnabled = _showHealerEnabled;
@@ -301,29 +290,24 @@ public partial class Game1
             : fallback;
     }
 
-    // Gore mode: 0 none, 1 blood only, 2 gibs only, 3 blood + gibs.
-    internal bool AreBloodVisualsEnabled => _gibLevel is 1 or 3;
+    private const int RegularCorpseFadeTicks = 20;
+    private const int AcidCorpseFadeTicks = 52;
+    private const int CorpseFadeModeAcid = 1;
 
-    internal bool AreGibVisualsEnabled => _gibLevel is 2 or 3;
+    internal bool AreBloodVisualsEnabled => _gibLevel > 0;
 
     internal float GetBloodAmountScale() => Math.Clamp(_bloodAmountLevel, 1, 5) / 5f;
 
-    internal float GetGibAmountScale() => Math.Clamp(_gibAmountLevel, 1, 5) / 5f;
-
-    internal void ApplyGibPresentationSettingsToWorld()
+    internal void ApplyBloodPresentationSettingsToWorld()
     {
-        _world.LocalGibLifetimeSeconds = Math.Clamp(_gibPersistenceSeconds, 1, 120);
         _world.LocalBloodLifetimeSeconds = Math.Clamp(_bloodPersistenceSeconds, 1, 120);
-        _world.LocalGibFadeMode = Math.Clamp(_gibFadeMode, 0, 1);
     }
 
     internal int GetCorpseFadeTicks()
-        => _gibFadeMode == PlayerGibEntity.FadeModeAcid
-            ? PlayerGibEntity.AcidFadeTicks
-            : PlayerGibEntity.RegularFadeTicks;
+        => _corpseFadeMode == CorpseFadeModeAcid ? AcidCorpseFadeTicks : RegularCorpseFadeTicks;
 
     /// <summary>
-    /// Infinite corpses never fade. Default corpses use the same Regular/Acid end-fade as gibs.
+    /// Infinite corpses never fade. Default corpses use the selected Regular/Acid corpse fade.
     /// </summary>
     internal bool IsCorpseFading(int ticksRemaining)
     {
@@ -336,7 +320,7 @@ public partial class Game1
     }
 
     internal bool IsCorpseAcidFading(int ticksRemaining)
-        => _gibFadeMode == PlayerGibEntity.FadeModeAcid && IsCorpseFading(ticksRemaining);
+        => _corpseFadeMode == CorpseFadeModeAcid && IsCorpseFading(ticksRemaining);
 
     internal float GetCorpseFadeAlpha(int ticksRemaining)
     {
@@ -345,7 +329,7 @@ public partial class Game1
             return _corpseDurationMode == ClientSettings.CorpseDurationInfinite ? 1f : 0f;
         }
 
-        if (_gibFadeMode == PlayerGibEntity.FadeModeAcid)
+        if (_corpseFadeMode == CorpseFadeModeAcid)
         {
             // Acid dissolve owns disappearance — keep full opacity while melting.
             return 1f;
@@ -394,34 +378,4 @@ public partial class Game1
         return Math.Max(0, (int)MathF.Round(maximumCount * amountScale));
     }
 
-    internal int ScaleGibVisualCount(int maximumCount)
-    {
-        if (!AreGibVisualsEnabled || maximumCount <= 0)
-        {
-            return 0;
-        }
-
-        return Math.Max(1, (int)MathF.Round(maximumCount * GetGibAmountScale()));
-    }
-
-    internal bool ShouldDrawPlayerGib(int gibId)
-    {
-        if (!AreGibVisualsEnabled)
-        {
-            return false;
-        }
-
-        var scale = GetGibAmountScale();
-        if (scale >= 0.999f)
-        {
-            return true;
-        }
-
-        // Stable per-gib fraction so amount changes don't reshuffle every frame.
-        unchecked
-        {
-            var hash = (uint)gibId * 2654435761u;
-            return (hash % 1000u) < (uint)MathF.Round(scale * 1000f);
-        }
-    }
 }
