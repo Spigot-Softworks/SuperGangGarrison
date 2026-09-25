@@ -37,17 +37,32 @@ public sealed partial class SimulationWorld
                 lifetimeTicks);
         }
 
-        public void FireExperimentalDemoknightSword(PlayerEntity attacker, float aimWorldX, float aimWorldY)
+        public void StartExperimentalDemoknightSwordSwing(PlayerEntity attacker, float aimWorldX, float aimWorldY)
         {
             RegisterSoundEvent(attacker, ExperimentalDemoknightCatalog.EyelanderSwingSoundName);
+            var swingTicks = ResolveExperimentalDemoknightSwordSwingTicks(attacker);
+            attacker.BeginExperimentalDemoknightSwordSwing(swingTicks);
+            AdvanceExperimentalDemoknightSwordSwing(attacker, aimWorldX, aimWorldY);
+        }
+
+        public void AdvanceExperimentalDemoknightSwordSwing(PlayerEntity attacker, float aimWorldX, float aimWorldY)
+        {
+            if (!attacker.IsExperimentalDemoknightSwordSwingActive)
+            {
+                return;
+            }
+
+            ProcessExperimentalDemoknightSwordSwingTick(attacker, aimWorldX, aimWorldY);
+            attacker.AdvanceExperimentalDemoknightSwordSwingTimer();
+        }
+
+        private void ProcessExperimentalDemoknightSwordSwingTick(PlayerEntity attacker, float aimWorldX, float aimWorldY)
+        {
             var geometryScale = MathF.Max(0.1f, attacker.LastToDieUniversalModifiers.MeleeScale);
-            var swordOffsetDistance = 12f * geometryScale;
-            var swordRange = attacker.GetExperimentalDemoknightSwordRange() * geometryScale;
-            var weaponOrigin = GetSourceWeaponOrigin(attacker);
-            var originX = weaponOrigin.BaseX;
-            var originY = weaponOrigin.BaseY + weaponOrigin.WeaponYOffset + weaponOrigin.EquipmentOffset;
-            var aimDeltaX = aimWorldX - originX;
-            var aimDeltaY = aimWorldY - originY;
+            var rangeScale = attacker.GetExperimentalDemoknightSwordRange() / PlayerEntity.ExperimentalDemoknightSwordBaseRange;
+            var maskScale = geometryScale * MathF.Max(0.1f, rangeScale);
+            var aimDeltaX = aimWorldX - attacker.X;
+            var aimDeltaY = aimWorldY - attacker.Y;
             if (aimDeltaX == 0f && aimDeltaY == 0f)
             {
                 aimDeltaX = attacker.FacingDirectionX;
@@ -61,50 +76,41 @@ public sealed partial class SimulationWorld
 
             var directionX = aimDeltaX / distance;
             var directionY = aimDeltaY / distance;
-            var perpendicularX = -directionY;
-            var perpendicularY = directionX;
+            var facingLeft = MathF.Cos(attacker.AimDirectionDegrees * (MathF.PI / 180f)) < 0f;
+            var hitboxSpriteName = ResolveExperimentalDemoknightMeleeHitboxSpriteName(attacker);
+            var hitboxMask = MeleeHitboxMaskCatalog.GetOrLoad(hitboxSpriteName);
+            if (hitboxMask is null)
+            {
+                return;
+            }
+
+            var anchorX = attacker.X;
+            var anchorY = attacker.Y + MeleeHitboxMask.TorsoSitDownWorldOffset;
             ReflectExperimentalDemoknightProjectiles(
                 attacker,
-                originX,
-                originY,
+                hitboxMask,
+                anchorX,
+                anchorY,
+                facingLeft,
+                maskScale,
                 directionX,
-                directionY,
-                perpendicularX,
-                perpendicularY,
-                swordRange,
-                swordOffsetDistance);
+                directionY);
 
-            var centerResult = ResolveRifleHit(attacker, originX, originY, directionX, directionY, swordRange);
-            var leftResult = ResolveRifleHit(
+            var result = ResolveMeleeAreaHit(
                 attacker,
-                originX + perpendicularX * swordOffsetDistance,
-                originY + perpendicularY * swordOffsetDistance,
+                hitboxMask,
+                anchorX,
+                anchorY,
+                facingLeft,
+                maskScale);
+            RegisterCombatTrace(
+                anchorX,
+                anchorY,
                 directionX,
                 directionY,
-                swordRange);
-            var rightResult = ResolveRifleHit(
-                attacker,
-                originX - perpendicularX * swordOffsetDistance,
-                originY - perpendicularY * swordOffsetDistance,
-                directionX,
-                directionY,
-                swordRange);
-            var wideLeftResult = ResolveRifleHit(
-                attacker,
-                originX + perpendicularX * swordOffsetDistance * 2f,
-                originY + perpendicularY * swordOffsetDistance * 2f,
-                directionX,
-                directionY,
-                swordRange);
-            var wideRightResult = ResolveRifleHit(
-                attacker,
-                originX - perpendicularX * swordOffsetDistance * 2f,
-                originY - perpendicularY * swordOffsetDistance * 2f,
-                directionX,
-                directionY,
-                swordRange);
-            var result = GetNearestSwordHit(centerResult, leftResult, rightResult, wideLeftResult, wideRightResult);
-            RegisterCombatTrace(originX, originY, directionX, directionY, result.Distance, result.HitPlayer is not null, attacker.Team);
+                result.Distance,
+                result.HitPlayer is not null,
+                attacker.Team);
 
             var damage = attacker.GetExperimentalDemoknightSwordDamage();
             if (damage <= 0)
@@ -118,7 +124,7 @@ public sealed partial class SimulationWorld
                 RegisterBloodEffect(
                     result.HitPlayer.X,
                     result.HitPlayer.Y,
-                    PointDirectionDegrees(originX, originY, result.HitPlayer.X, result.HitPlayer.Y) - 180f,
+                    PointDirectionDegrees(anchorX, anchorY, result.HitPlayer.X, result.HitPlayer.Y) - 180f,
                     count: attacker.IsExperimentalDemoknightCharging ? 2 : 1);
                 if (!result.HitPlayer.IsUbered)
                 {
@@ -161,25 +167,180 @@ public sealed partial class SimulationWorld
                 return;
             }
 
-            if (result.Distance < swordRange)
+            if (!attacker.TryMarkExperimentalDemoknightSwordSwingImpact())
+            {
+                return;
+            }
+
+            var wallHit = ResolveRifleHit(attacker, anchorX, anchorY, directionX, directionY, hitboxMask.MaxReachFromOrigin * maskScale);
+            if (wallHit.HitPlayer is null
+                && wallHit.HitSentry is null
+                && wallHit.HitGenerator is null
+                && wallHit.Distance < hitboxMask.MaxReachFromOrigin * maskScale)
             {
                 RegisterImpactEffect(
-                    originX + directionX * result.Distance,
-                    originY + directionY * result.Distance,
+                    anchorX + directionX * wallHit.Distance,
+                    anchorY + directionY * wallHit.Distance,
                     PointDirectionDegrees(0f, 0f, directionX, directionY));
             }
         }
 
+        private static int ResolveExperimentalDemoknightSwordSwingTicks(PlayerEntity attacker)
+        {
+            var recoilTicks = 0;
+            var itemId = attacker.GameplayLoadoutState.PrimaryItemId;
+            if (!string.IsNullOrWhiteSpace(itemId)
+                && CharacterClassCatalog.RuntimeRegistry.TryGetItem(itemId, out var item))
+            {
+                recoilTicks = item.Presentation.RecoilDurationSourceTicks;
+            }
+
+            return attacker.ResolveExperimentalDemoknightSwordSwingTicks(recoilTicks);
+        }
+
+        private static string ResolveExperimentalDemoknightMeleeHitboxSpriteName(PlayerEntity attacker)
+        {
+            var itemId = attacker.GameplayLoadoutState.PrimaryItemId;
+            if (!string.IsNullOrWhiteSpace(itemId)
+                && CharacterClassCatalog.RuntimeRegistry.TryGetItem(itemId, out var item)
+                && !string.IsNullOrWhiteSpace(item.Presentation.MeleeHitboxSpriteName))
+            {
+                return item.Presentation.MeleeHitboxSpriteName!;
+            }
+
+            return ExperimentalDemoknightCatalog.EyelanderMeleeHitboxSpriteName;
+        }
+
+        private RifleHitResult ResolveMeleeAreaHit(
+            PlayerEntity attacker,
+            MeleeHitboxMask mask,
+            float anchorX,
+            float anchorY,
+            bool facingLeft,
+            float maskScale)
+        {
+            var maxDistance = mask.MaxReachFromOrigin * maskScale;
+            PlayerEntity? nearestPlayer = null;
+            var nearestPlayerDistance = maxDistance;
+            foreach (var player in _world.EnumerateSimulatedPlayers())
+            {
+                if (!player.IsAlive
+                    || player.Id == attacker.Id
+                    || attacker.HasExperimentalDemoknightSwordHitPlayer(player.Id)
+                    || !_world.CanTeamDamagePlayer(attacker.Team, attacker.Id, player))
+                {
+                    continue;
+                }
+
+                _world.GetCachedPlayerPresentationHitBounds(player, out var left, out var top, out var right, out var bottom);
+                if (!mask.OverlapsRectangle(left, top, right, bottom, anchorX, anchorY, facingLeft, maskScale))
+                {
+                    continue;
+                }
+
+                var hitDistance = DistanceBetween(anchorX, anchorY, player.X, player.Y);
+                if (hitDistance < nearestPlayerDistance)
+                {
+                    nearestPlayerDistance = hitDistance;
+                    nearestPlayer = player;
+                }
+            }
+
+            if (nearestPlayer is not null)
+            {
+                _ = attacker.TryMarkExperimentalDemoknightSwordHitPlayer(nearestPlayer.Id);
+                return new RifleHitResult(nearestPlayerDistance, nearestPlayer, HitSentry: null, HitGenerator: null);
+            }
+
+            SentryEntity? nearestSentry = null;
+            var nearestSentryDistance = maxDistance;
+            for (var sentryIndex = 0; sentryIndex < _world._sentries.Count; sentryIndex += 1)
+            {
+                var sentry = _world._sentries[sentryIndex];
+                if (sentry.Team == attacker.Team
+                    || attacker.HasExperimentalDemoknightSwordHitSentry(sentry.Id))
+                {
+                    continue;
+                }
+
+                var left = sentry.X - (SentryEntity.Width / 2f);
+                var top = sentry.Y - (SentryEntity.Height / 2f);
+                var right = sentry.X + (SentryEntity.Width / 2f);
+                var bottom = sentry.Y + (SentryEntity.Height / 2f);
+                if (!mask.OverlapsRectangle(left, top, right, bottom, anchorX, anchorY, facingLeft, maskScale))
+                {
+                    continue;
+                }
+
+                var hitDistance = DistanceBetween(anchorX, anchorY, sentry.X, sentry.Y);
+                if (hitDistance < nearestSentryDistance)
+                {
+                    nearestSentryDistance = hitDistance;
+                    nearestSentry = sentry;
+                }
+            }
+
+            if (nearestSentry is not null)
+            {
+                _ = attacker.TryMarkExperimentalDemoknightSwordHitSentry(nearestSentry.Id);
+                return new RifleHitResult(nearestSentryDistance, HitPlayer: null, nearestSentry, HitGenerator: null);
+            }
+
+            GeneratorState? nearestGenerator = null;
+            var nearestGeneratorDistance = maxDistance;
+            for (var generatorIndex = 0; generatorIndex < _world._generators.Count; generatorIndex += 1)
+            {
+                var generator = _world._generators[generatorIndex];
+                if (generator.Team == attacker.Team
+                    || generator.IsDestroyed
+                    || attacker.HasExperimentalDemoknightSwordHitGenerator(generator.Team))
+                {
+                    continue;
+                }
+
+                if (!mask.OverlapsRectangle(
+                        generator.Marker.Left,
+                        generator.Marker.Top,
+                        generator.Marker.Right,
+                        generator.Marker.Bottom,
+                        anchorX,
+                        anchorY,
+                        facingLeft,
+                        maskScale))
+                {
+                    continue;
+                }
+
+                var hitDistance = DistanceBetween(
+                    anchorX,
+                    anchorY,
+                    (generator.Marker.Left + generator.Marker.Right) * 0.5f,
+                    (generator.Marker.Top + generator.Marker.Bottom) * 0.5f);
+                if (hitDistance < nearestGeneratorDistance)
+                {
+                    nearestGeneratorDistance = hitDistance;
+                    nearestGenerator = generator;
+                }
+            }
+
+            if (nearestGenerator is not null)
+            {
+                _ = attacker.TryMarkExperimentalDemoknightSwordHitGenerator(nearestGenerator.Team);
+                return new RifleHitResult(nearestGeneratorDistance, HitPlayer: null, HitSentry: null, nearestGenerator);
+            }
+
+            return new RifleHitResult(maxDistance, HitPlayer: null, HitSentry: null, HitGenerator: null);
+        }
+
         private void ReflectExperimentalDemoknightProjectiles(
             PlayerEntity attacker,
-            float originX,
-            float originY,
+            MeleeHitboxMask mask,
+            float anchorX,
+            float anchorY,
+            bool facingLeft,
+            float maskScale,
             float directionX,
-            float directionY,
-            float perpendicularX,
-            float perpendicularY,
-            float swordRange,
-            float swordOffsetDistance)
+            float directionY)
         {
             var directionRadians = MathF.Atan2(directionY, directionX);
 
@@ -187,18 +348,7 @@ public sealed partial class SimulationWorld
             {
                 var rocket = _world._rockets[rocketIndex];
                 if (rocket.Team == attacker.Team
-                    || !IsProjectileInsideSwordSwing(
-                        rocket.X,
-                        rocket.Y,
-                        5f,
-                        originX,
-                        originY,
-                        directionX,
-                        directionY,
-                        perpendicularX,
-                        perpendicularY,
-                        swordRange,
-                        swordOffsetDistance))
+                    || !mask.OverlapsCircle(rocket.X, rocket.Y, 5f, anchorX, anchorY, facingLeft, maskScale))
                 {
                     continue;
                 }
@@ -210,18 +360,7 @@ public sealed partial class SimulationWorld
             {
                 var flare = _world._flares[flareIndex];
                 if (flare.Team == attacker.Team
-                    || !IsProjectileInsideSwordSwing(
-                        flare.X,
-                        flare.Y,
-                        5f,
-                        originX,
-                        originY,
-                        directionX,
-                        directionY,
-                        perpendicularX,
-                        perpendicularY,
-                        swordRange,
-                        swordOffsetDistance))
+                    || !mask.OverlapsCircle(flare.X, flare.Y, 5f, anchorX, anchorY, facingLeft, maskScale))
                 {
                     continue;
                 }
@@ -234,117 +373,13 @@ public sealed partial class SimulationWorld
             {
                 var mine = _world._mines[mineIndex];
                 if (mine.Team == attacker.Team
-                    || !IsProjectileInsideSwordSwing(
-                        mine.X,
-                        mine.Y,
-                        5f,
-                        originX,
-                        originY,
-                        directionX,
-                        directionY,
-                        perpendicularX,
-                        perpendicularY,
-                        swordRange,
-                        swordOffsetDistance))
+                    || !mask.OverlapsCircle(mine.X, mine.Y, 5f, anchorX, anchorY, facingLeft, maskScale))
                 {
                     continue;
                 }
 
                 mine.Reflect(attacker.Id, attacker.Team, directionRadians, PyroAirblastMineSpeedFloor);
             }
-        }
-
-        private static RifleHitResult GetNearestSwordHit(params RifleHitResult[] candidates)
-        {
-            var best = candidates[0];
-            for (var index = 1; index < candidates.Length; index += 1)
-            {
-                if (candidates[index].Distance < best.Distance)
-                {
-                    best = candidates[index];
-                }
-            }
-
-            return best;
-        }
-
-        private static bool IsProjectileInsideSwordSwing(
-            float targetX,
-            float targetY,
-            float radius,
-            float originX,
-            float originY,
-            float directionX,
-            float directionY,
-            float perpendicularX,
-            float perpendicularY,
-            float swordRange,
-            float swordOffsetDistance)
-        {
-            return IsPointNearSwordSwingSegment(targetX, targetY, radius, originX, originY, directionX, directionY, swordRange)
-                || IsPointNearSwordSwingSegment(
-                    targetX,
-                    targetY,
-                    radius,
-                    originX + perpendicularX * swordOffsetDistance,
-                    originY + perpendicularY * swordOffsetDistance,
-                    directionX,
-                    directionY,
-                    swordRange)
-                || IsPointNearSwordSwingSegment(
-                    targetX,
-                    targetY,
-                    radius,
-                    originX - perpendicularX * swordOffsetDistance,
-                    originY - perpendicularY * swordOffsetDistance,
-                    directionX,
-                    directionY,
-                    swordRange)
-                || IsPointNearSwordSwingSegment(
-                    targetX,
-                    targetY,
-                    radius,
-                    originX + perpendicularX * swordOffsetDistance * 2f,
-                    originY + perpendicularY * swordOffsetDistance * 2f,
-                    directionX,
-                    directionY,
-                    swordRange)
-                || IsPointNearSwordSwingSegment(
-                    targetX,
-                    targetY,
-                    radius,
-                    originX - perpendicularX * swordOffsetDistance * 2f,
-                    originY - perpendicularY * swordOffsetDistance * 2f,
-                    directionX,
-                    directionY,
-                    swordRange);
-        }
-
-        private static bool IsPointNearSwordSwingSegment(
-            float targetX,
-            float targetY,
-            float radius,
-            float startX,
-            float startY,
-            float directionX,
-            float directionY,
-            float distance)
-        {
-            var endX = startX + directionX * distance;
-            var endY = startY + directionY * distance;
-            var segmentX = endX - startX;
-            var segmentY = endY - startY;
-            var segmentLengthSquared = (segmentX * segmentX) + (segmentY * segmentY);
-            if (segmentLengthSquared <= 0.0001f)
-            {
-                return DistanceBetween(startX, startY, targetX, targetY) <= radius;
-            }
-
-            var projection = ((targetX - startX) * segmentX + (targetY - startY) * segmentY) / segmentLengthSquared;
-            projection = Math.Clamp(projection, 0f, 1f);
-            var closestX = startX + segmentX * projection;
-            var closestY = startY + segmentY * projection;
-            return DistanceBetween(closestX, closestY, targetX, targetY) <= radius;
         }
     }
 }

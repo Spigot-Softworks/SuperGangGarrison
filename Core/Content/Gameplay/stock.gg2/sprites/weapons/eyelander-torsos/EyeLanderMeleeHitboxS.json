@@ -1,0 +1,8 @@
+{
+  "id": "EyeLanderMeleeHitboxS",
+  "framePaths": [
+    "assets/weapons/eyelander-torsos/EyeLanderMeleeHitboxS/0.png"
+  ],
+  "originX": 64,
+  "originY": 40
+}

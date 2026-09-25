@@ -2358,6 +2358,8 @@ internal sealed class LuaServerPlugin(
             BlueTeamHudFrameOffset: ReadOptionalIntField(presentationTable, 1, "blueTeamHudFrameOffset", "BlueTeamHudFrameOffset", "blue_team_hud_frame_offset"),
             UseAmmoCountForHudFrame: ReadOptionalBoolField(presentationTable, false, "useAmmoCountForHudFrame", "UseAmmoCountForHudFrame", "use_ammo_count_for_hud_frame"),
             BlueTeamAmmoHudFrameOffset: ReadOptionalIntField(presentationTable, 0, "blueTeamAmmoHudFrameOffset", "BlueTeamAmmoHudFrameOffset", "blue_team_ammo_hud_frame_offset"),
+            UseTorsoReplacement: ReadOptionalBoolField(presentationTable, false, "useTorsoReplacement", "UseTorsoReplacement", "use_torso_replacement"),
+            MeleeHitboxSpriteName: ReadOptionalStringField(presentationTable, "meleeHitboxSpriteName", "MeleeHitboxSpriteName", "melee_hitbox_sprite_name"),
             Hud: ReadOptionalGameplayItemHudPresentationDefinition(presentationTable));
     }
 
