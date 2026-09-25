@@ -284,12 +284,15 @@ public sealed partial class SimulationWorld
 
         if (player.IsExperimentalDemoknightEnabled)
         {
-            if (!input.FirePrimary || !player.TryFireExperimentalDemoknightSword())
+            if (input.FirePrimary && player.TryFireExperimentalDemoknightSword())
             {
-                return true;
+                WeaponHandler.StartExperimentalDemoknightSwordSwing(player, input.AimWorldX, input.AimWorldY);
+            }
+            else
+            {
+                WeaponHandler.AdvanceExperimentalDemoknightSwordSwing(player, input.AimWorldX, input.AimWorldY);
             }
 
-            WeaponHandler.FireExperimentalDemoknightSword(player, input.AimWorldX, input.AimWorldY);
             return true;
         }
 

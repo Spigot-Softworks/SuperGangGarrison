@@ -114,6 +114,21 @@ public sealed class ClientInputEdgeLatchTests
     }
 
     [Fact]
+    public void DemoknightSwordAnimationOnlyStartsOnCooldownEdge()
+    {
+        // Holding primary while cooldown reconciles upward must not machine-gun the swing art.
+        Assert.False(Game1.IsDemoknightSwordAnimationStart(
+            previousCooldownTicks: 4,
+            currentCooldownTicks: 9));
+        Assert.True(Game1.IsDemoknightSwordAnimationStart(
+            previousCooldownTicks: 0,
+            currentCooldownTicks: 5));
+        Assert.False(Game1.IsDemoknightSwordAnimationStart(
+            previousCooldownTicks: 5,
+            currentCooldownTicks: 4));
+    }
+
+    [Fact]
     public void WeaponAnimationStillDetectsAutomaticShotAmmoConsumption()
     {
         Assert.True(Game1.IsWeaponFireAnimationStart(

@@ -84,7 +84,8 @@ public partial class Game1
         bool LoopReloadAnimation = false,
         bool SingleTeamFrames = false,
         int PoseFrameIndex = 0,
-        Vector2? MuzzleOffset = null);
+        Vector2? MuzzleOffset = null,
+        bool UseTorsoReplacement = false);
 
     private readonly record struct WeaponAnimationOverlayDefinition(
         string? CarrierSpriteName,

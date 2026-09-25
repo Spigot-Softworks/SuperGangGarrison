@@ -122,7 +122,7 @@ public sealed partial class PlayerEntity : SimulationEntity
     public const float CivviePogoMaxFallBounceBonus = 1.3f;
     public const float CivviePogoFallBounceFalloffRatio = 0.7f;
     public const string CivvieTauntAbilityItemId = "ability.civilian-taunt";
-    public const float ExperimentalDemoknightSwordBaseRange = 48f;
+    public const float ExperimentalDemoknightSwordBaseRange = 52f;
     public const int ExperimentalDemoknightSwordCooldownTicks = 18;
     public const int ExperimentalDemoknightChargeMaxTicks = 100;
     public const float ExperimentalDemoknightGroundChargeDrivePerTick = 3f;
@@ -573,6 +573,10 @@ public sealed partial class PlayerEntity : SimulationEntity
     public int ExperimentalDemoknightChargeTicksRemaining { get; private set; }
 
     public float ExperimentalDemoknightChargeFraction => ExperimentalDemoknightChargeTicksRemaining / (float)ExperimentalDemoknightChargeMaxTicks;
+
+    public bool IsExperimentalDemoknightSwordSwingActive => ExperimentalDemoknightSwordSwingTicksRemaining > 0;
+
+    public int ExperimentalDemoknightSwordSwingTicksRemaining { get; private set; }
 
     public bool IsExperimentalDemoknightChargeDashActive { get; private set; }
 

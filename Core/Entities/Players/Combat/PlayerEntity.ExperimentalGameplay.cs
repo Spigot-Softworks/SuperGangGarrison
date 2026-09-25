@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using OpenGarrison.Core.LastToDie;
 
 namespace OpenGarrison.Core;
@@ -57,6 +58,14 @@ public sealed partial class PlayerEntity
     private float ExperimentalDemoknightChargeRechargeAccumulator { get; set; }
 
     private bool ExperimentalDemoknightChargeWantsLift { get; set; }
+
+    private readonly HashSet<int> ExperimentalDemoknightSwordHitPlayerIds = new();
+
+    private readonly HashSet<int> ExperimentalDemoknightSwordHitSentryIds = new();
+
+    private readonly HashSet<int> ExperimentalDemoknightSwordHitGeneratorTeams = new();
+
+    private bool ExperimentalDemoknightSwordSwingImpactEmitted { get; set; }
 
     private int ExperimentalLuckyBastardTicksRemaining { get; set; }
 
@@ -253,6 +262,7 @@ public sealed partial class PlayerEntity
                 IsExperimentalDemoknightCharging = false;
                 ExperimentalDemoknightChargeTicksRemaining = 0;
                 ResetExperimentalDemoknightChargeMovementState();
+                ClearExperimentalDemoknightSwordSwing();
             }
 
             return;
@@ -263,6 +273,7 @@ public sealed partial class PlayerEntity
         ExperimentalDemoknightChargeTicksRemaining = nextEnabled ? ExperimentalDemoknightChargeMaxTicks : 0;
         ExperimentalDemoknightChargeRechargeAccumulator = 0f;
         ResetExperimentalDemoknightChargeMovementState();
+        ClearExperimentalDemoknightSwordSwing();
     }
 
     public bool TryFireExperimentalDemoknightSword()
@@ -277,11 +288,74 @@ public sealed partial class PlayerEntity
             return false;
         }
 
-        var swordCooldownTicks = Math.Max(
-            1,
-            (int)MathF.Round(ExperimentalDemoknightSwordCooldownTicks * ExperimentalDemoknightSwordCooldownMultiplierValue));
-        PrimaryCooldownTicks = ApplyExperimentalPrimaryCooldownMultiplier(swordCooldownTicks);
+        PrimaryCooldownTicks = ResolveExperimentalDemoknightSwordCooldownTicks();
         return true;
+    }
+
+    public void BeginExperimentalDemoknightSwordSwing(int durationTicks)
+    {
+        ExperimentalDemoknightSwordSwingTicksRemaining = Math.Max(1, durationTicks);
+        ExperimentalDemoknightSwordSwingImpactEmitted = false;
+        ExperimentalDemoknightSwordHitPlayerIds.Clear();
+        ExperimentalDemoknightSwordHitSentryIds.Clear();
+        ExperimentalDemoknightSwordHitGeneratorTeams.Clear();
+    }
+
+    public void AdvanceExperimentalDemoknightSwordSwingTimer()
+    {
+        if (ExperimentalDemoknightSwordSwingTicksRemaining <= 0)
+        {
+            return;
+        }
+
+        ExperimentalDemoknightSwordSwingTicksRemaining -= 1;
+        if (ExperimentalDemoknightSwordSwingTicksRemaining <= 0)
+        {
+            ClearExperimentalDemoknightSwordSwingHits();
+        }
+    }
+
+    public void ClearExperimentalDemoknightSwordSwing()
+    {
+        ExperimentalDemoknightSwordSwingTicksRemaining = 0;
+        ExperimentalDemoknightSwordSwingImpactEmitted = false;
+        ClearExperimentalDemoknightSwordSwingHits();
+    }
+
+    public bool TryMarkExperimentalDemoknightSwordHitPlayer(int playerId)
+        => ExperimentalDemoknightSwordHitPlayerIds.Add(playerId);
+
+    public bool TryMarkExperimentalDemoknightSwordHitSentry(int sentryId)
+        => ExperimentalDemoknightSwordHitSentryIds.Add(sentryId);
+
+    public bool TryMarkExperimentalDemoknightSwordHitGenerator(PlayerTeam team)
+        => ExperimentalDemoknightSwordHitGeneratorTeams.Add((int)team);
+
+    public bool HasExperimentalDemoknightSwordHitPlayer(int playerId)
+        => ExperimentalDemoknightSwordHitPlayerIds.Contains(playerId);
+
+    public bool HasExperimentalDemoknightSwordHitSentry(int sentryId)
+        => ExperimentalDemoknightSwordHitSentryIds.Contains(sentryId);
+
+    public bool HasExperimentalDemoknightSwordHitGenerator(PlayerTeam team)
+        => ExperimentalDemoknightSwordHitGeneratorTeams.Contains((int)team);
+
+    public bool TryMarkExperimentalDemoknightSwordSwingImpact()
+    {
+        if (ExperimentalDemoknightSwordSwingImpactEmitted)
+        {
+            return false;
+        }
+
+        ExperimentalDemoknightSwordSwingImpactEmitted = true;
+        return true;
+    }
+
+    private void ClearExperimentalDemoknightSwordSwingHits()
+    {
+        ExperimentalDemoknightSwordHitPlayerIds.Clear();
+        ExperimentalDemoknightSwordHitSentryIds.Clear();
+        ExperimentalDemoknightSwordHitGeneratorTeams.Clear();
     }
 
     public bool TryStartExperimentalDemoknightCharge()
@@ -942,6 +1016,31 @@ public sealed partial class PlayerEntity
             (int)MathF.Round(ExperimentalDemoknightSwordBaseDamageValue * ExperimentalDemoknightSwordDamageMultiplierValue));
     }
 
+    public int ResolveExperimentalDemoknightSwordCooldownTicks()
+    {
+        var swordCooldownTicks = Math.Max(
+            1,
+            (int)MathF.Round(ExperimentalDemoknightSwordCooldownTicks * ExperimentalDemoknightSwordCooldownMultiplierValue));
+        return ApplyExperimentalPrimaryCooldownMultiplier(swordCooldownTicks);
+    }
+
+    public int ResolveExperimentalDemoknightSwordRecoilTicks(int recoilDurationSourceTicks)
+    {
+        var baseTicks = Math.Max(1, recoilDurationSourceTicks > 0 ? recoilDurationSourceTicks : 9);
+        return Math.Max(
+            1,
+            (int)MathF.Round(baseTicks * ExperimentalDemoknightSwordCooldownMultiplierValue));
+    }
+
+    public int ResolveExperimentalDemoknightSwordSwingTicks(int recoilDurationSourceTicks)
+    {
+        var scaledRecoilTicks = ResolveExperimentalDemoknightSwordRecoilTicks(recoilDurationSourceTicks);
+        // Damage only while the first attack frame is showing.
+        return Math.Max(
+            1,
+            (int)MathF.Ceiling(scaledRecoilTicks * ExperimentalDemoknightCatalog.EyelanderFirstFrameProgress));
+    }
+
     public void ConsumeExperimentalDemoknightChargeOnHit()
     {
         if (!IsExperimentalDemoknightCharging)
@@ -1172,6 +1271,7 @@ public sealed partial class PlayerEntity
             ExperimentalDemoknightChargeTicksRemaining = 0;
             ExperimentalDemoknightChargeRechargeAccumulator = 0f;
             ResetExperimentalDemoknightChargeMovementState();
+            ClearExperimentalDemoknightSwordSwing();
         }
         else if (IsExperimentalDemoknightCharging)
         {
@@ -1362,6 +1462,7 @@ public sealed partial class PlayerEntity
             ? ExperimentalDemoknightChargeMaxTicks
             : 0;
         ResetExperimentalDemoknightChargeMovementState();
+        ClearExperimentalDemoknightSwordSwing();
         ResetRageState();
     }
 

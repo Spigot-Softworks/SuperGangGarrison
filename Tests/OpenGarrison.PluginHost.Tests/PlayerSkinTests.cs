@@ -66,7 +66,14 @@ public sealed class PlayerSkinTests
                 Assert.Equal(body.OriginX, cloaked.OriginX);
                 Assert.Equal(body.OriginY, cloaked.OriginY);
             }
-            foreach (var name in new[] { skin.BodySprite, skin.CloakedBodySprite, skin.Weapon?.Sprite, skin.Weapon?.FireSprite, skin.Weapon?.ReloadSprite }.OfType<string>())
+            if (skin.LegsBodySprite is { } legsName)
+            {
+                var legs = pack.Assets.Sprites[skin.SpriteForTeam(legsName, team)];
+                Assert.Equal(body.FramePaths.Count, legs.FramePaths.Count);
+                Assert.Equal(body.OriginX, legs.OriginX);
+                Assert.Equal(body.OriginY, legs.OriginY);
+            }
+            foreach (var name in new[] { skin.BodySprite, skin.CloakedBodySprite, skin.LegsBodySprite, skin.Weapon?.Sprite, skin.Weapon?.FireSprite, skin.Weapon?.ReloadSprite }.OfType<string>())
             {
                 var sprite = pack.Assets.Sprites[skin.SpriteForTeam(name, team)];
                 Assert.All(sprite.FramePaths, path => Assert.True(File.Exists(Path.Combine(root, path)), path));

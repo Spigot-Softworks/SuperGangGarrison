@@ -709,6 +709,28 @@ public sealed class GameplayModPackLoaderTests
         Assert.False(eyelander.Ownership.DefaultGranted);
         Assert.True(eyelander.Ownership.GrantOnAcquire);
         Assert.Equal(ExperimentalDemoknightCatalog.EyelanderItemId, eyelander.Id);
+        Assert.True(eyelander.Presentation.UseTorsoReplacement);
+        Assert.Equal(ExperimentalDemoknightCatalog.EyelanderWorldSpriteName, eyelander.Presentation.WorldSpriteName);
+        Assert.Equal(ExperimentalDemoknightCatalog.EyelanderRecoilSpriteName, eyelander.Presentation.RecoilSpriteName);
+        Assert.Equal(ExperimentalDemoknightCatalog.EyelanderMeleeHitboxSpriteName, eyelander.Presentation.MeleeHitboxSpriteName);
+        Assert.True(StockGameplayModCatalog.Definition.Assets.Sprites.ContainsKey(ExperimentalDemoknightCatalog.EyelanderMeleeHitboxSpriteName));
+        Assert.True(StockGameplayModCatalog.Definition.Assets.Sprites.ContainsKey(ExperimentalDemoknightCatalog.EyelanderBlueWorldSpriteName));
+        Assert.True(StockGameplayModCatalog.Definition.Assets.Sprites.ContainsKey(ExperimentalDemoknightCatalog.EyelanderBlueRecoilSpriteName));
+        Assert.Equal(
+            ExperimentalDemoknightCatalog.EyelanderBlueWorldSpriteName,
+            ExperimentalDemoknightCatalog.ResolveTorsoReplacementTeamSpriteName(
+                ExperimentalDemoknightCatalog.EyelanderWorldSpriteName,
+                PlayerTeam.Blue));
+        Assert.Equal(
+            ExperimentalDemoknightCatalog.EyelanderBlueRecoilSpriteName,
+            ExperimentalDemoknightCatalog.ResolveTorsoReplacementTeamSpriteName(
+                ExperimentalDemoknightCatalog.EyelanderRecoilSpriteName,
+                PlayerTeam.Blue));
+        Assert.Equal(
+            ExperimentalDemoknightCatalog.EyelanderWorldSpriteName,
+            ExperimentalDemoknightCatalog.ResolveTorsoReplacementTeamSpriteName(
+                ExperimentalDemoknightCatalog.EyelanderWorldSpriteName,
+                PlayerTeam.Red));
 
         Assert.NotNull(paintrain.Ownership);
         Assert.True(paintrain.Ownership!.TrackOwnership);
