@@ -53,7 +53,7 @@ public partial class Game1
             var renderPosition = _game.GetRenderPosition(player);
             var weaponAnimationMode = GetPlayerWeaponAnimationMode(player);
             var weaponDefinition = GetWeaponRenderDefinition(player, IsCivvieUmbrellaAnimationMode(weaponAnimationMode));
-            if (weaponDefinition.NormalSpriteName is null)
+            if (weaponDefinition.UseTorsoReplacement || weaponDefinition.NormalSpriteName is null)
             {
                 return false;
             }
@@ -138,6 +138,17 @@ public partial class Game1
 
             var weaponAnimationMode = GetPlayerWeaponAnimationMode(player);
             var weaponDefinition = GetWeaponRenderDefinition(player, IsCivvieUmbrellaAnimationMode(weaponAnimationMode));
+            if (weaponDefinition.UseTorsoReplacement)
+            {
+                return TryDrawTorsoReplacementAtPosition(
+                    player,
+                    renderPosition,
+                    cameraPosition,
+                    tint,
+                    weaponAnimationMode,
+                    weaponDefinition);
+            }
+
             if (weaponDefinition.NormalSpriteName is null)
             {
                 return false;
@@ -947,6 +958,16 @@ public partial class Game1
                 var progress = _game._playerRenderStates.TryGetValue(_game.GetPlayerStateKey(player), out var skinState)
                     ? skinState.WeaponAnimationElapsedSeconds / System.MathF.Max(skinState.WeaponAnimationDurationSeconds, 0.0001f)
                     : 0;
+                if (weaponDefinition.UseTorsoReplacement
+                    && weaponAnimationMode == WeaponAnimationMode.Recoil
+                    && frameCount >= 2)
+                {
+                    // Short first strike frame, then hold the second for most of the swing.
+                    return progress < ExperimentalDemoknightCatalog.EyelanderFirstFrameProgress
+                        ? 0
+                        : System.Math.Min(frameCount - 1, 1);
+                }
+
                 return System.Math.Clamp((int)(progress * frameCount), 0, frameCount - 1);
             }
 
@@ -981,6 +1002,76 @@ public partial class Game1
             return System.Math.Clamp(teamOffset + animationFrame, 0, frameCount - 1);
         }
 
+        private bool TryDrawTorsoReplacementAtPosition(
+            PlayerEntity player,
+            Vector2 renderPosition,
+            Vector2 cameraPosition,
+            Color tint,
+            WeaponAnimationMode weaponAnimationMode,
+            WeaponRenderDefinition weaponDefinition)
+        {
+            if (weaponDefinition.NormalSpriteName is null)
+            {
+                return false;
+            }
+
+            var spriteName = weaponAnimationMode == WeaponAnimationMode.Recoil
+                    && weaponDefinition.RecoilSpriteName is not null
+                ? weaponDefinition.RecoilSpriteName
+                : weaponDefinition.NormalSpriteName;
+            var sprite = _game.GetResolvedSprite(spriteName);
+            if (sprite is null || sprite.Frames.Count == 0)
+            {
+                return false;
+            }
+
+            var facingScale = GetRenderFacingScale(player);
+            var playerScale = player.PlayerScale;
+            var frameIndex = GetWeaponSpriteFrameIndex(player, weaponAnimationMode, weaponDefinition, sprite.Frames.Count);
+            var bobOffset = _game.GetTorsoReplacementBobOffset(player) * playerScale;
+            var roundedOrigin = _game.GetPlayerSpriteOrigin(renderPosition);
+            var drawX = roundedOrigin.X;
+            var drawY = roundedOrigin.Y + bobOffset;
+            var position = _game.GetPlayerAnchoredScreenPosition(renderPosition, cameraPosition, drawX, drawY);
+            var scale = new Vector2(facingScale * playerScale, playerScale);
+            var origin = sprite.Origin.ToVector2();
+
+            if (weaponDefinition.NormalSpriteName is not null)
+            {
+                var idleTorso = _game.GetResolvedSprite(weaponDefinition.NormalSpriteName);
+                _game.RecordDynamicGibWeaponFrame(
+                    player,
+                    weaponDefinition.NormalSpriteName,
+                    frameIndex: 0,
+                    drawX,
+                    drawY,
+                    rotationRadians: 0f,
+                    facingScale,
+                    playerScale,
+                    idleTorso?.Origin.ToVector2() ?? origin);
+            }
+
+            if (_game.IsKritzUberWeaponOnlyVisual(player) && _game._uberOutlineEnabled)
+            {
+                var teamColor = GameplayPlayerStatusEffectRenderController.GetUberOverlayColor(player.Team);
+                var outlineTint = Color.Lerp(teamColor, Color.White, 0.75f);
+                _game.DrawSpriteFrameOutline(sprite.Frames[frameIndex], position, outlineTint, 0f, origin, scale);
+            }
+
+            if (player.IsUbered && !_game.IsKritzUberWeaponOnlyVisual(player))
+            {
+                var teamColor = GameplayPlayerStatusEffectRenderController.GetUberOverlayColor(player.Team);
+                _game.DrawSpriteFrameWithOptionalShadow(sprite.Frames[frameIndex], position, tint, 0f, origin, scale);
+                _game.DrawSpriteFrameMultiplyColor(sprite.Frames[frameIndex], position, teamColor, 0f, origin, scale);
+            }
+            else
+            {
+                _game.DrawSpriteFrameWithOptionalShadow(sprite.Frames[frameIndex], position, tint, 0f, origin, scale);
+            }
+
+            return true;
+        }
+
         private WeaponRenderDefinition GetWeaponRenderDefinition(PlayerEntity player, bool forceCivvieUmbrellaPresentation = false, bool standing = false)
         {
             var renderPlayer = player;
@@ -990,6 +1081,13 @@ public partial class Game1
                     && player.PrimaryWeapon.Kind == PrimaryWeaponKind.Rifle
                 ? player.LastToDieSniperProfile.RifleCycleSpeedMultiplier
                 : 1f;
+            var recoilDurationTicks = presentation.RecoilDurationSourceTicks;
+            if (player.IsExperimentalDemoknightEnabled)
+            {
+                recoilDurationTicks = player.ResolveExperimentalDemoknightSwordRecoilTicks(
+                    presentation.RecoilDurationSourceTicks);
+            }
+
             var definition = new WeaponRenderDefinition(
                 presentation.WorldSpriteName,
                 presentation.RecoilSpriteName,
@@ -1010,10 +1108,11 @@ public partial class Game1
                 presentation.WeaponOffsetY,
                 presentation.ReloadSpriteOffsetX,
                 presentation.ReloadSpriteOffsetY,
-                GetSourceTicksAsSeconds(presentation.RecoilDurationSourceTicks) / rifleCycleSpeed,
+                GetSourceTicksAsSeconds(recoilDurationTicks) / rifleCycleSpeed,
                 GetSourceTicksAsSeconds(presentation.ReloadDurationSourceTicks),
                 GetSourceTicksAsSeconds(presentation.ScopedRecoilDurationSourceTicks) / rifleCycleSpeed,
-                presentation.LoopRecoilWhileActive);
+                presentation.LoopRecoilWhileActive,
+                UseTorsoReplacement: presentation.UseTorsoReplacement);
             return _game.ApplyPlayerSkinWeapon(renderPlayer, presentation, definition, standing);
         }
 

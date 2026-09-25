@@ -82,6 +82,21 @@ def build(catalog: Path, check: bool) -> None:
             if "cloakedBodySprite" in skin:
                 cloaked = [compose(source, pose["cloakedLayers"], team, skin["canvas"]) for pose in skin["poses"]]
                 write(skin["cloakedBodySprite"], cloaked, skin["origin"])
+            legs_sprite = skin.get("legsBodySprite")
+            if legs_sprite:
+                def legs_layers(pose: dict) -> list[dict]:
+                    return [
+                        layer
+                        for layer in pose["layers"]
+                        if str(layer.get("file", "")).replace("\\", "/").startswith("legs/")
+                    ]
+
+                if any(legs_layers(pose) for pose in skin["poses"]):
+                    legs = [
+                        compose(source, legs_layers(pose), team, skin["canvas"])
+                        for pose in skin["poses"]
+                    ]
+                    write(legs_sprite, legs, skin["origin"])
             weapon = skin.get("weapon")
             if weapon is None:
                 continue

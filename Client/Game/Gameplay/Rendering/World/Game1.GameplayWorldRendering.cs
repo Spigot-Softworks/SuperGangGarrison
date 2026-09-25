@@ -94,6 +94,7 @@ public partial class Game1
         DrawForegroundSprites(cameraPosition, ForegroundSpriteLayerKind.Fg);
         DrawRocketCollisionDebug(cameraPosition);
         DrawProjectileSpawnBlockedDebug(cameraPosition);
+        DrawHitboxDebugOverlay(cameraPosition);
         RecordBrowserWorldDrawDuration(browserWorldDrawStartTimestamp);
     }
 

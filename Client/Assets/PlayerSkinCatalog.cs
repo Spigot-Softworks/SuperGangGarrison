@@ -55,6 +55,10 @@ internal sealed class PlayerSkinCatalog
             }
             Require(skin.Poses.Length > 0, "at least one pose is required.");
             Require(!string.IsNullOrWhiteSpace(skin.BodySprite), "bodySprite is required.");
+            if (skin.LegsBodySprite is { } legsBody)
+            {
+                Require(!string.IsNullOrWhiteSpace(legsBody), "legsBodySprite must not be blank when supplied.");
+            }
             Require(skin.Origin.Length == 2, "origin must have two coordinates.");
             Require(skin.PixelScale is >= 1 and <= 8, "pixelScale must be an integer from 1 to 8.");
             Require(float.IsFinite(skin.PixelsPerRunFrame) && skin.PixelsPerRunFrame > 0, "pixelsPerRunFrame must be positive.");
@@ -93,6 +97,10 @@ internal sealed class PlayerSkinCatalog
 internal sealed class PlayerSkinDefinition
 {
     public string BodySprite { get; set; } = "";
+    /// <summary>
+    /// Optional legs-only body strip for weapons that replace the torso layer.
+    /// </summary>
+    public string? LegsBodySprite { get; set; }
     public string? CloakedBodySprite { get; set; }
     public int[] Origin { get; set; } = [];
     public int PixelScale { get; set; } = 1;
