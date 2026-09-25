@@ -1,0 +1,16 @@
+{
+  "id": "ElkondoScoutBlueLegsS",
+  "framePaths": [
+    "assets/characters/player-skins/ElkondoScoutBlueLegsS/0.png",
+    "assets/characters/player-skins/ElkondoScoutBlueLegsS/1.png",
+    "assets/characters/player-skins/ElkondoScoutBlueLegsS/2.png",
+    "assets/characters/player-skins/ElkondoScoutBlueLegsS/3.png",
+    "assets/characters/player-skins/ElkondoScoutBlueLegsS/4.png",
+    "assets/characters/player-skins/ElkondoScoutBlueLegsS/5.png",
+    "assets/characters/player-skins/ElkondoScoutBlueLegsS/6.png",
+    "assets/characters/player-skins/ElkondoScoutBlueLegsS/7.png",
+    "assets/characters/player-skins/ElkondoScoutBlueLegsS/8.png"
+  ],
+  "originX": 32,
+  "originY": 40
+}

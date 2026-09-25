@@ -314,6 +314,28 @@ public partial class Game1
         {
             _pendingImmediateWeaponFirePresentation = false;
         }
+
+        // Demoknight swing art is derived from cooldown progress so prediction and
+        // authoritative fire stay on the same pose timeline (avoids whiffing anims
+        // with late damage, and silent hits with no anim under latency).
+        if (presentationPlayer.IsExperimentalDemoknightEnabled)
+        {
+            UpdateDemoknightSwordWeaponAnimationState(
+                presentationPlayer,
+                renderState,
+                weaponRenderDefinition,
+                currentCooldownTicks,
+                immediateLocalPrimaryPress);
+            renderState.FiredThisUpdate = immediateLocalPrimaryPress
+                || IsDemoknightSwordAnimationStart(renderState.PreviousCooldownTicks, currentCooldownTicks);
+            renderState.PreviousAmmoCount = currentAmmoCount;
+            renderState.PreviousCooldownTicks = currentCooldownTicks;
+            renderState.PreviousReloadTicks = currentReloadTicks;
+            renderState.PreviousQuoteBladesOut = currentQuoteBladesOut;
+            renderState.PreviousQuoteBubbleCount = currentQuoteBubbleCount;
+            return;
+        }
+
         var pendingImmediateShotConfirmationSeconds = renderState.PendingImmediateShotConfirmationSeconds;
         shotStarted = ResolvePredictedWeaponAnimationStart(
             shotStarted,
@@ -484,8 +506,64 @@ public partial class Game1
         int previousCooldownTicks,
         int currentCooldownTicks)
     {
-        return currentCooldownTicks > 0
-            && (previousCooldownTicks <= 0 || currentCooldownTicks > previousCooldownTicks);
+        // Only the zero-to-positive cooldown edge is a real swing. Treating any
+        // upward reconciliation bump as a new shot restarts recoil every render
+        // frame while the mouse is held (machine-gun visuals with correct damage).
+        return currentCooldownTicks > 0 && previousCooldownTicks <= 0;
+    }
+
+    private void UpdateDemoknightSwordWeaponAnimationState(
+        PlayerEntity player,
+        PlayerRenderState renderState,
+        WeaponRenderDefinition weaponDefinition,
+        int currentCooldownTicks,
+        bool immediatePress)
+    {
+        if (weaponDefinition.RecoilSpriteName is null)
+        {
+            StopWeaponAnimation(renderState);
+            return;
+        }
+
+        var recoilSeconds = MathF.Max(weaponDefinition.RecoilDurationSeconds, 0.0001f);
+        var recoilTicks = Math.Max(
+            1,
+            (int)MathF.Round(recoilSeconds * LegacyMovementModel.SourceTicksPerSecond));
+        var maxCooldownTicks = Math.Max(1, player.ResolveExperimentalDemoknightSwordCooldownTicks());
+
+        // Same render frame as the press, before prediction/sim sets cooldown.
+        if (immediatePress && currentCooldownTicks <= 0)
+        {
+            StartWeaponAnimation(renderState, WeaponAnimationMode.Recoil, recoilSeconds);
+            return;
+        }
+
+        if (currentCooldownTicks <= 0)
+        {
+            StopWeaponAnimation(renderState);
+            return;
+        }
+
+        // Map cooldown countdown onto the recoil strip so late auth corrections
+        // retarget the pose instead of leaving a finished anim with a fresh hit.
+        var elapsedTicks = maxCooldownTicks - currentCooldownTicks;
+        if (elapsedTicks < 0)
+        {
+            elapsedTicks = 0;
+        }
+
+        if (elapsedTicks >= recoilTicks)
+        {
+            StopWeaponAnimation(renderState);
+            return;
+        }
+
+        renderState.WeaponAnimationMode = WeaponAnimationMode.Recoil;
+        renderState.WeaponAnimationDurationSeconds = recoilSeconds;
+        renderState.WeaponAnimationElapsedSeconds = elapsedTicks / LegacyMovementModel.SourceTicksPerSecond;
+        renderState.WeaponAnimationTimeRemainingSeconds = MathF.Max(
+            0f,
+            recoilSeconds - renderState.WeaponAnimationElapsedSeconds);
     }
 
     internal static bool IsWeaponReloadAnimationRestart(

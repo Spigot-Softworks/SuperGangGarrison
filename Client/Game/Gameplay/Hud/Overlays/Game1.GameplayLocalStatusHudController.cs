@@ -281,10 +281,20 @@ public partial class Game1
             var crossPosition = basePosition + new Vector2(crossOffsetX - 4f, -2f);
             
             // Draw character sprite centered on background health sprite (always use basic standing sprite)
-            var portraitSkin = _game.GetPlayerSkin(_game._world.LocalPlayer);
+            var localPlayer = _game._world.LocalPlayer;
+            var portraitSkin = _game.GetPlayerSkin(localPlayer);
+            var portraitWeaponDefinition = _game._gameplayWeaponRenderController.GetWeaponRenderDefinitionProxy(
+                localPlayer,
+                forceCivvieUmbrellaPresentation: false,
+                standing: true);
+            var useTorsoReplacementPortrait = portraitWeaponDefinition.UseTorsoReplacement
+                && portraitSkin?.LegsBodySprite is not null
+                && portraitWeaponDefinition.NormalSpriteName is not null;
             var characterSpriteName = portraitSkin is null
-                ? GameplayPlayerSpriteRenderController.GetHudStandingSpriteName(_game._world.LocalPlayer)
-                : portraitSkin.SpriteForTeam(portraitSkin.BodySprite, _game._world.LocalPlayer.Team);
+                ? GameplayPlayerSpriteRenderController.GetHudStandingSpriteName(localPlayer)
+                : portraitSkin.SpriteForTeam(
+                    useTorsoReplacementPortrait ? portraitSkin.LegsBodySprite! : portraitSkin.BodySprite,
+                    localPlayer.Team);
             var portraitFrameIndex = portraitSkin?.Clips["idle"].Frames[0] ?? 0;
             if (characterSpriteName is not null && backgroundHealthSprite is not null && backgroundHealthSprite.Frames.Count > 0)
             {
@@ -331,32 +341,49 @@ public partial class Game1
                         MathF.Round((backgroundCenterY - characterCenterOffsetY - upwardOffset + 11f) / scale.Y) * scale.Y
                     );
                     
-                    // Calculate masking - mask from bottom up to 1 sprite pixel into background sprite from its bottom
-                    // Align to sprite pixel grid
+                    // Mask from bottom up to 1 sprite pixel into the background sprite from its bottom.
                     var maskLineY = portraitPosition.Y + MathF.Round((backgroundHealthSprite.Frames[0].Height - 2f) * scale.Y);
-                    var spriteBottomY = characterPosition.Y + (characterHeight - spriteOrigin.Y) * characterScale.Y;
-                    var amountToMaskFromBottom = spriteBottomY - maskLineY;
-                    
-                    if (amountToMaskFromBottom > 0)
+
+                    void DrawPortraitCharacterLayer(string spriteName, int frameIndex, Vector2 position)
                     {
-                        // Mask the bottom portion
-                        var maskHeightUnscaled = amountToMaskFromBottom / characterScale.Y;
-                        var visibleHeight = (int)(characterHeight - maskHeightUnscaled);
-                        
-                        if (visibleHeight > 0)
+                        var layerSprite = _game.GetResolvedSprite(spriteName);
+                        if (layerSprite is null || layerSprite.Frames.Count == 0)
                         {
-                            var sourceRect = new Rectangle(0, 0, characterWidth, visibleHeight);
-                            _game.TryDrawScreenSpritePart(characterSpriteName, portraitFrameIndex, sourceRect, characterPosition, portraitColor, characterScale);
+                            return;
                         }
+
+                        var frame = layerSprite.Frames[Math.Clamp(frameIndex, 0, layerSprite.Frames.Count - 1)];
+                        var layerBottomY = position.Y + (frame.Height - layerSprite.Origin.Y) * characterScale.Y;
+                        var layerMaskFromBottom = layerBottomY - maskLineY;
+                        if (layerMaskFromBottom > 0)
+                        {
+                            var maskHeightUnscaled = layerMaskFromBottom / characterScale.Y;
+                            var visibleHeight = (int)(frame.Height - maskHeightUnscaled);
+                            if (visibleHeight > 0)
+                            {
+                                var sourceRect = new Rectangle(0, 0, frame.Width, visibleHeight);
+                                _game.TryDrawScreenSpritePart(spriteName, frameIndex, sourceRect, position, portraitColor, characterScale);
+                            }
+                        }
+                        else
+                        {
+                            _game.TryDrawScreenSprite(spriteName, frameIndex, position, portraitColor, characterScale);
+                        }
+                    }
+                    
+                    DrawPortraitCharacterLayer(characterSpriteName, portraitFrameIndex, characterPosition);
+
+                    if (useTorsoReplacementPortrait)
+                    {
+                        // Portrait is always the idle stance — same origin as legs, no sit-down.
+                        DrawPortraitCharacterLayer(
+                            portraitWeaponDefinition.NormalSpriteName!,
+                            frameIndex: 0,
+                            characterPosition);
                     }
                     else
                     {
-                        // No masking needed
-                        _game.TryDrawScreenSprite(characterSpriteName, portraitFrameIndex, characterPosition, portraitColor, characterScale);
-                    }
-                    
                     // Draw weapon sprite for the character (static, always facing right like HUD sprite)
-                    var localPlayer = _game._world.LocalPlayer;
                     var weaponAnimationMode = _game._gameplayWeaponRenderController.GetPlayerWeaponAnimationMode(localPlayer);
                     var forceCivvieUmbrellaPresentation = weaponAnimationMode is WeaponAnimationMode.CivvieUmbrellaOpening
                         or WeaponAnimationMode.CivvieUmbrellaHold
@@ -371,10 +398,12 @@ public partial class Game1
                         forceCivvieUmbrellaPresentation = true;
                     }
 
-                    var weaponDefinition = _game._gameplayWeaponRenderController.GetWeaponRenderDefinitionProxy(
-                        localPlayer,
-                        forceCivvieUmbrellaPresentation,
-                        standing: true);
+                    var weaponDefinition = forceCivvieUmbrellaPresentation
+                        ? _game._gameplayWeaponRenderController.GetWeaponRenderDefinitionProxy(
+                            localPlayer,
+                            forceCivvieUmbrellaPresentation: true,
+                            standing: true)
+                        : portraitWeaponDefinition;
                     if (weaponDefinition.NormalSpriteName is not null)
                     {
                         var weaponSprite = _game.GetResolvedSprite(weaponDefinition.NormalSpriteName);
@@ -404,6 +433,7 @@ public partial class Game1
 
                             _game.TryDrawScreenSprite(weaponDefinition.NormalSpriteName, weaponFrameIndex, weaponPosition, portraitColor, weaponScale);
                         }
+                    }
                     }
                 }
             }

@@ -1,0 +1,9 @@
+{
+  "id": "EyeLanderTorsoBlueFS",
+  "framePaths": [
+    "assets/weapons/eyelander-torsos/EyeLanderTorsoBlueFS/0.png",
+    "assets/weapons/eyelander-torsos/EyeLanderTorsoBlueFS/1.png"
+  ],
+  "originX": 64,
+  "originY": 40
+}
