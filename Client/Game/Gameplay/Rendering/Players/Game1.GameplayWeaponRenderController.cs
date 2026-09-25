@@ -963,21 +963,6 @@ public partial class Game1
             var scale = new Vector2(facingScale * playerScale, playerScale);
             var origin = sprite.Origin.ToVector2();
 
-            if (weaponDefinition.NormalSpriteName is not null)
-            {
-                var idleTorso = _game.GetResolvedSprite(weaponDefinition.NormalSpriteName);
-                _game.RecordDynamicGibWeaponFrame(
-                    player,
-                    weaponDefinition.NormalSpriteName,
-                    frameIndex: 0,
-                    drawX,
-                    drawY,
-                    rotationRadians: 0f,
-                    facingScale,
-                    playerScale,
-                    idleTorso?.Origin.ToVector2() ?? origin);
-            }
-
             if (_game.IsKritzUberWeaponOnlyVisual(player) && _game._uberOutlineEnabled)
             {
                 var teamColor = GameplayPlayerStatusEffectRenderController.GetUberOverlayColor(player.Team);
