@@ -67,7 +67,9 @@ internal sealed class NetworkGameClient : IDisposable
         | InputButtons.SwapWeapon
         | InputButtons.ToggleSecondaryWeapon
         | InputButtons.ReadyUp
-        | InputButtons.BuildDispenser;
+        | InputButtons.BuildDispenser
+        | InputButtons.BuildJumpPad
+        | InputButtons.DestroyJumpPad;
 
     [SuppressMessage("Performance", "CA1859:Use concrete types when possible for improved performance", Justification = "The client transport seam must support browser WebSocket adapters.")]
     private INetworkClientMessageTransport? _transport;
@@ -842,6 +844,8 @@ internal sealed class NetworkGameClient : IDisposable
         if (input.BuildDispenser) buttons |= InputButtons.BuildDispenser;
         if (input.DestroySentry) buttons |= InputButtons.DestroySentry;
         if (input.DestroyDispenser) buttons |= InputButtons.DestroyDispenser;
+        if (input.BuildJumpPad) buttons |= InputButtons.BuildJumpPad;
+        if (input.DestroyJumpPad) buttons |= InputButtons.DestroyJumpPad;
         if (input.Taunt) buttons |= InputButtons.Taunt;
         if (input.FirePrimary) buttons |= InputButtons.FirePrimary;
         if (input.FireSecondary) buttons |= InputButtons.FireSecondary;
@@ -1270,6 +1274,8 @@ internal sealed class NetworkGameClient : IDisposable
         allSent &= SendProtocol64Edge(input.BuildDispenser && !previous.BuildDispenser, Protocol64InputCommandKind.BuildDispenser, inputSequence, heldButtons, aimRelX, aimRelY);
         allSent &= SendProtocol64Edge(input.DestroySentry && !previous.DestroySentry, Protocol64InputCommandKind.DestroySentry, inputSequence, heldButtons, aimRelX, aimRelY);
         allSent &= SendProtocol64Edge(input.DestroyDispenser && !previous.DestroyDispenser, Protocol64InputCommandKind.DestroyDispenser, inputSequence, heldButtons, aimRelX, aimRelY);
+        allSent &= SendProtocol64Edge(input.BuildJumpPad && !previous.BuildJumpPad, Protocol64InputCommandKind.BuildJumpPad, inputSequence, heldButtons, aimRelX, aimRelY);
+        allSent &= SendProtocol64Edge(input.DestroyJumpPad && !previous.DestroyJumpPad, Protocol64InputCommandKind.DestroyJumpPad, inputSequence, heldButtons, aimRelX, aimRelY);
         allSent &= SendProtocol64Edge(input.Taunt && !previous.Taunt, Protocol64InputCommandKind.Taunt, inputSequence, heldButtons, aimRelX, aimRelY);
         allSent &= SendProtocol64Edge(input.FirePrimary && !previous.FirePrimary, Protocol64InputCommandKind.FirePrimary, inputSequence, heldButtons, aimRelX, aimRelY);
         allSent &= SendProtocol64Edge(input.FireSecondary && !previous.FireSecondary, Protocol64InputCommandKind.FireSecondary, inputSequence, heldButtons, aimRelX, aimRelY);

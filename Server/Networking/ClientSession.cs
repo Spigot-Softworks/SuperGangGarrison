@@ -255,6 +255,8 @@ sealed class ClientSession(
             BuildDispenser: current.BuildDispenser && !previous.BuildDispenser,
             DestroySentry: current.DestroySentry && !previous.DestroySentry,
             DestroyDispenser: current.DestroyDispenser && !previous.DestroyDispenser,
+            BuildJumpPad: current.BuildJumpPad && !previous.BuildJumpPad,
+            DestroyJumpPad: current.DestroyJumpPad && !previous.DestroyJumpPad,
             Taunt: current.Taunt && !previous.Taunt,
             FirePrimary: current.FirePrimary && !previous.FirePrimary,
             FireSecondary: current.FireSecondary && !previous.FireSecondary,
@@ -276,6 +278,8 @@ sealed class ClientSession(
             BuildDispenser = input.BuildDispenser || edge.BuildDispenser,
             DestroySentry = input.DestroySentry || edge.DestroySentry,
             DestroyDispenser = input.DestroyDispenser || edge.DestroyDispenser,
+            BuildJumpPad = input.BuildJumpPad || edge.BuildJumpPad,
+            DestroyJumpPad = input.DestroyJumpPad || edge.DestroyJumpPad,
             Taunt = input.Taunt || edge.Taunt,
             FirePrimary = input.FirePrimary || edge.FirePrimary,
             FireSecondary = input.FireSecondary || edge.FireSecondary,
@@ -509,6 +513,8 @@ sealed class ClientSession(
         bool BuildDispenser,
         bool DestroySentry,
         bool DestroyDispenser,
+        bool BuildJumpPad,
+        bool DestroyJumpPad,
         bool Taunt,
         bool FirePrimary,
         bool FireSecondary,
@@ -526,6 +532,8 @@ sealed class ClientSession(
             || BuildDispenser
             || DestroySentry
             || DestroyDispenser
+            || BuildJumpPad
+            || DestroyJumpPad
             || Taunt
             || FirePrimary
             || FireSecondary
@@ -545,6 +553,8 @@ sealed class ClientSession(
                 BuildDispenser || other.BuildDispenser,
                 DestroySentry || other.DestroySentry,
                 DestroyDispenser || other.DestroyDispenser,
+                BuildJumpPad || other.BuildJumpPad,
+                DestroyJumpPad || other.DestroyJumpPad,
                 Taunt || other.Taunt,
                 FirePrimary || other.FirePrimary,
                 FireSecondary || other.FireSecondary,

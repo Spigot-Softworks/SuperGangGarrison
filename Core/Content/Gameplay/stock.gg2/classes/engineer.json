@@ -35,7 +35,7 @@
       "displayName": "Stock",
       "primary": {
         "defaultItemId": "weapon.shotgun",
-        "itemIds": [ "weapon.shotgun" ],
+        "itemIds": [ "weapon.shotgun", "weapon.whipping-cord" ],
         "switchPolicy": "primary_swap_station",
         "selectionPersistence": "same_class_loadout"
       },

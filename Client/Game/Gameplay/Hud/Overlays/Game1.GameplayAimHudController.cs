@@ -316,7 +316,9 @@ public partial class Game1
                 return;
             }
 
-            var playerScreenPosition = _game.GetRenderPosition(_game._world.LocalPlayer) - cameraPosition;
+            var playerScreenPosition = _game.GetWorldHudScreenPosition(
+                _game.GetRenderPosition(_game._world.LocalPlayer),
+                cameraPosition);
             var delta = screenAimPosition - playerScreenPosition;
             var length = delta.Length();
             if (length <= 1f)

@@ -1077,6 +1077,9 @@ public sealed partial class SimulationWorld
 
     internal GameplayAbilityResult ExecuteEngineerJumpPadAbility(GameplayAbilityContext context)
     {
+        // Retained ability path for future loadouts / non-menu callers.
+        // The Constructor build menu now uses BuildJumpPad / DestroyJumpPad
+        // structure commands instead of routing through UseAbility.
         if (!TryDestroyJumpPad(context.Player))
         {
             TryBuildJumpPad(context.Player);

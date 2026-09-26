@@ -211,12 +211,12 @@ public partial class Game1
         {
             if (!player.IsAlive
                 || !IsHitboxDebugPlayerLegallyVisible(player)
-                || !TryGetActiveMeleeHitboxDebug(player, out var mask, out var anchorX, out var anchorY, out var facingLeft, out var maskScale))
+                || !TryGetActiveMeleeHitboxDebug(player, out var mask, out var anchorX, out var anchorY, out var facingLeft, out var maskScale, out var rotationRadians))
             {
                 continue;
             }
 
-            DrawHitboxDebugMeleeMask(mask, anchorX, anchorY, facingLeft, maskScale, cameraPosition, color);
+            DrawHitboxDebugMeleeMask(mask, anchorX, anchorY, facingLeft, maskScale, rotationRadians, cameraPosition, color);
         }
     }
 
@@ -226,13 +226,15 @@ public partial class Game1
         out float anchorX,
         out float anchorY,
         out bool facingLeft,
-        out float maskScale)
+        out float maskScale,
+        out float? rotationRadians)
     {
         mask = null!;
         anchorX = 0f;
         anchorY = 0f;
         facingLeft = false;
         maskScale = 1f;
+        rotationRadians = null;
 
         if (GetPlayerWeaponAnimationMode(player) != WeaponAnimationMode.Recoil)
         {
@@ -250,7 +252,14 @@ public partial class Game1
         {
             var duration = MathF.Max(renderState.WeaponAnimationDurationSeconds, 0.0001f);
             var progress = renderState.WeaponAnimationElapsedSeconds / duration;
-            if (progress >= ExperimentalDemoknightCatalog.EyelanderFirstFrameProgress)
+            if (presentation.TorsoSpriteName is not null || presentation.RotateMeleeHitboxWithAim)
+            {
+                if (!WhippingCordCatalog.IsDamageFrame(progress))
+                {
+                    return false;
+                }
+            }
+            else if (progress >= ExperimentalDemoknightCatalog.EyelanderFirstFrameProgress)
             {
                 return false;
             }
@@ -264,9 +273,21 @@ public partial class Game1
 
         mask = loaded;
         var renderPosition = GetRenderPosition(player);
-        anchorX = renderPosition.X;
-        anchorY = renderPosition.Y + MeleeHitboxMask.TorsoSitDownWorldOffset;
-        facingLeft = MathF.Cos(player.AimDirectionDegrees * (MathF.PI / 180f)) < 0f;
+        var aimRadians = player.AimDirectionDegrees * (MathF.PI / 180f);
+        facingLeft = MathF.Cos(aimRadians) < 0f;
+        var facingScale = facingLeft ? -1f : 1f;
+        anchorX = renderPosition.X + (presentation.WeaponOffsetX * facingScale);
+        // Companion-offset / aim-rotated weapons match live draw (body + offset).
+        // Full torso replacements keep the sit-down nudge used by Eyelander.
+        var sitDown = presentation.TorsoSpriteName is not null || presentation.RotateMeleeHitboxWithAim
+            ? 0f
+            : MeleeHitboxMask.TorsoSitDownWorldOffset;
+        anchorY = renderPosition.Y + sitDown + presentation.WeaponOffsetY;
+        if (presentation.RotateMeleeHitboxWithAim)
+        {
+            rotationRadians = aimRadians;
+        }
+
         var geometryScale = MathF.Max(0.1f, player.LastToDieUniversalModifiers.MeleeScale);
         var rangeScale = player.IsExperimentalDemoknightEnabled
             ? player.GetExperimentalDemoknightSwordRange() / PlayerEntity.ExperimentalDemoknightSwordBaseRange
@@ -309,6 +330,7 @@ public partial class Game1
         float anchorY,
         bool facingLeft,
         float maskScale,
+        float? rotationRadians,
         Vector2 cameraPosition,
         Color color)
     {
@@ -328,14 +350,17 @@ public partial class Game1
                     continue;
                 }
 
-                var localX = (pixelX + 0.5f) - mask.OriginX;
-                if (facingLeft)
-                {
-                    localX = -localX;
-                }
+                mask.PixelToWorld(
+                    pixelX,
+                    pixelY,
+                    anchorX,
+                    anchorY,
+                    facingLeft,
+                    scale,
+                    out var worldX,
+                    out var worldY,
+                    rotationRadians);
 
-                var worldX = anchorX + (localX * scale);
-                var worldY = anchorY + (((pixelY + 0.5f) - mask.OriginY) * scale);
                 var screen = GetWorldScreenPosition(worldX, worldY, cameraPosition);
                 var size = MathF.Max(1f, scale);
                 DrawScreenPixelRectangle(screen - new Vector2(size * 0.5f, size * 0.5f), size, size, color);

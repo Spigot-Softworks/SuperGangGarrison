@@ -48,6 +48,8 @@ public sealed partial class SimulationWorld
                 BuildDispenser = false,
                 DestroySentry = false,
                 DestroyDispenser = false,
+                BuildJumpPad = false,
+                DestroyJumpPad = false,
                 Taunt = false,
                 FirePrimary = false,
                 FireSecondary = false,
@@ -76,6 +78,8 @@ public sealed partial class SimulationWorld
                 BuildDispenser = false,
                 DestroySentry = false,
                 DestroyDispenser = false,
+                BuildJumpPad = false,
+                DestroyJumpPad = false,
             };
 
             // Force exit binoculars at the start of humiliation
@@ -122,6 +126,8 @@ public sealed partial class SimulationWorld
         var buildDispenserPressed = input.BuildDispenser && !previousInput.BuildDispenser;
         var destroyPressed = input.DestroySentry && !previousInput.DestroySentry;
         var destroyDispenserPressed = input.DestroyDispenser && !previousInput.DestroyDispenser;
+        var buildJumpPadPressed = input.BuildJumpPad && !previousInput.BuildJumpPad;
+        var destroyJumpPadPressed = input.DestroyJumpPad && !previousInput.DestroyJumpPad;
         var tauntPressed = input.Taunt && !previousInput.Taunt;
         var killPressed = input.DebugKill && !previousInput.DebugKill;
         var primaryPressed = input.FirePrimary && !previousInput.FirePrimary;
@@ -433,9 +439,17 @@ public sealed partial class SimulationWorld
         {
             TryDestroyDispenser(player);
         }
+        else if (destroyJumpPadPressed)
+        {
+            TryDestroyJumpPad(player);
+        }
         else if (buildDispenserPressed)
         {
             TryBuildDispenser(player);
+        }
+        else if (buildJumpPadPressed)
+        {
+            TryBuildJumpPad(player);
         }
         else if (buildPressed)
         {

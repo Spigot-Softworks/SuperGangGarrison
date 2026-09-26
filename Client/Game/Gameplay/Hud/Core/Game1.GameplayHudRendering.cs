@@ -156,7 +156,7 @@ public partial class Game1
                 continue;
             }
 
-            var playerBounds = GetPlayerScreenBounds(player, GetRenderPosition(player), cameraPosition);
+            var playerBounds = GetPlayerHudScreenBounds(player, GetRenderPosition(player), cameraPosition);
             if (elementBounds.Intersects(playerBounds))
             {
                 return true;
@@ -289,7 +289,7 @@ public partial class Game1
                 if (trackedPlayer is not null && GetPlayerIsSniperScoped(trackedPlayer))
                 {
                     var aimWorldPosition = GetRenderAimWorldPosition(trackedPlayer);
-                    var screenAimPosition = new Vector2(aimWorldPosition.X - cameraPosition.X, aimWorldPosition.Y - cameraPosition.Y);
+                    var screenAimPosition = GetWorldHudScreenPosition(aimWorldPosition, cameraPosition);
                     _gameplayAimHudController.DrawSpectatorSniperHud(trackedPlayer, screenAimPosition);
                 }
             }
@@ -354,7 +354,7 @@ public partial class Game1
         }
 
         var aimWorldPosition = GetRenderAimWorldPosition(trackedPlayer);
-        var screenPosition = new Vector2(aimWorldPosition.X - cameraPosition.X, aimWorldPosition.Y - cameraPosition.Y);
+        var screenPosition = GetWorldHudScreenPosition(aimWorldPosition, cameraPosition);
         var frameIndex = trackedPlayer.Team == PlayerTeam.Blue ? 1 : 0;
         frameIndex = Math.Clamp(frameIndex, 0, crosshairSprite.Frames.Count - 1);
         var cursorScale = ClientSettings.GetCursorScale(_cursorSizePercent);

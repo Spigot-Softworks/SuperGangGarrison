@@ -601,7 +601,7 @@ public partial class Game1
                 continue;
             }
 
-            var screen = GetRenderPosition(player) - cameraPosition;
+            var screen = GetWorldHudScreenPosition(GetRenderPosition(player), cameraPosition);
             if (viewBounds.Contains((int)screen.X, (int)screen.Y))
             {
                 continue;

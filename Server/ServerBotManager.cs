@@ -1287,6 +1287,8 @@ internal sealed class ServerBotManager
             BuildDispenser = false,
             DestroySentry = false,
             DestroyDispenser = false,
+            BuildJumpPad = false,
+            DestroyJumpPad = false,
             Taunt = false,
             DebugKill = false,
             DropIntel = false,
@@ -1339,6 +1341,8 @@ internal sealed class ServerBotManager
             || input.BuildDispenser
             || input.DestroySentry
             || input.DestroyDispenser
+            || input.BuildJumpPad
+            || input.DestroyJumpPad
             || input.Taunt
             || input.FirePrimary
             || input.FireSecondary

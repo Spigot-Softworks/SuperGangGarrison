@@ -1,0 +1,10 @@
+{
+  "id": "WhippingCordWhipFS",
+  "framePaths": [
+    "assets/weapons/whipping-cord/WhippingCordWhipFS/0.png",
+    "assets/weapons/whipping-cord/WhippingCordWhipFS/1.png",
+    "assets/weapons/whipping-cord/WhippingCordWhipFS/2.png"
+  ],
+  "originX": 60,
+  "originY": 36
+}

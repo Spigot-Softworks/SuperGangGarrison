@@ -26,9 +26,8 @@ public partial class Game1
 
         var prompt = $"Press {GetSwapWeaponsBindingLabel()} to swap to {alternateWeapon}";
         var renderPosition = GetRenderPosition(player);
-        var screenPosition = new Vector2(
-            renderPosition.X - cameraPosition.X,
-            renderPosition.Y - cameraPosition.Y - 42f);
+        var screenPosition = GetWorldHudScreenPosition(renderPosition, cameraPosition);
+        screenPosition.Y -= 42f * GameplayCameraZoom;
         var textWidth = MeasureBitmapFontWidth(prompt, 1f);
         var centeredPosition = new Vector2(screenPosition.X - (textWidth / 2f), screenPosition.Y);
 
