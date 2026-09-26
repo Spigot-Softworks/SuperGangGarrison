@@ -172,17 +172,18 @@ public partial class Game1
             var iconPos = center
                 + BuildWheelPresentation.GetIconOffset(slot) * scale
                 - BuildWheelPresentation.IconTopLeftOrigin * scale;
-            DrawBuildMenuWheelBuildingIconPlate(
+            DrawBuildMenuWheelSprite(
                 BuildWheelPresentation.GetIconSpriteName(slot),
-                iconPos,
                 GetBuildMenuListIconFrame(blue, exists, canBuild),
+                iconPos,
                 scale);
         }
 
+        // Destroy overlay has transparent padding; NonPremultiplied keeps its red fully solid.
         _spriteBatch.End();
         _spriteBatch.Begin(
             samplerState: SamplerState.PointClamp,
-            blendState: BlendState.AlphaBlend,
+            blendState: BlendState.NonPremultiplied,
             rasterizerState: RasterizerState.CullNone);
         for (var slot = 1; slot <= BuildWheelPresentation.SlotCount; slot++)
         {
@@ -194,8 +195,14 @@ public partial class Game1
             var iconPos = center
                 + BuildWheelPresentation.GetIconOffset(slot) * scale
                 - BuildWheelPresentation.IconTopLeftOrigin * scale;
-            TryDrawScreenSprite("BuildMenuDestroyOverlayS", 0, iconPos, Color.White, new Vector2(scale));
+            DrawBuildMenuWheelSprite("BuildMenuDestroyOverlayS", 0, iconPos, scale);
         }
+
+        _spriteBatch.End();
+        _spriteBatch.Begin(
+            samplerState: SamplerState.PointClamp,
+            blendState: BlendState.AlphaBlend,
+            rasterizerState: RasterizerState.CullNone);
 
         var label = BuildWheelPresentation.GetSlotLabel(selected);
         if (selected != 0) label = (HasBuildWheelStructure(selected) ? "Destroy " : "Build ") + label;
@@ -204,7 +211,7 @@ public partial class Game1
             new Rectangle((int)(center.X - 100f * scale), (int)(center.Y - 100f * scale), (int)(201f * scale), (int)(201f * scale)));
     }
 
-    private void DrawBuildMenuWheelBuildingIconPlate(string spriteName, Vector2 position, int frameIndex, float scale)
+    private void DrawBuildMenuWheelSprite(string spriteName, int frameIndex, Vector2 position, float scale)
     {
         var iconSprite = GetResolvedSprite(spriteName);
         if (iconSprite is null || iconSprite.Frames.Count == 0)
