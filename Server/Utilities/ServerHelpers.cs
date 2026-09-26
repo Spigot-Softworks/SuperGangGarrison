@@ -153,7 +153,9 @@ internal static partial class ServerHelpers
             ReadyUp: buttons.HasFlag(InputButtons.ReadyUp),
             IsTypingChatMessage: buttons.HasFlag(InputButtons.IsTypingChatMessage),
             BuildDispenser: buttons.HasFlag(InputButtons.BuildDispenser),
-            DestroyDispenser: buttons.HasFlag(InputButtons.DestroyDispenser));
+            DestroyDispenser: buttons.HasFlag(InputButtons.DestroyDispenser),
+            BuildJumpPad: buttons.HasFlag(InputButtons.BuildJumpPad),
+            DestroyJumpPad: buttons.HasFlag(InputButtons.DestroyJumpPad));
     }
 
     internal static PlayerInputSnapshot ConvertRelativeAimToWorld(PlayerInputSnapshot input, float playerX, float playerY)

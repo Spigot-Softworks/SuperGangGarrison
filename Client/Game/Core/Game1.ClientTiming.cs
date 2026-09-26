@@ -43,6 +43,12 @@ public partial class Game1
     private bool _pendingOfflineBuildDispenser;
     private bool _pendingOfflineDestroySentry;
     private bool _pendingOfflineDestroyDispenser;
+    private bool _pendingOfflineBuildJumpPad;
+    private bool _pendingOfflineDestroyJumpPad;
+    private bool _pendingOfflineUseAbility;
+    private int _pendingPredictedUseAbilityTicksRemaining;
+    private int _pendingPredictedBuildJumpPadTicksRemaining;
+    private int _pendingPredictedDestroyJumpPadTicksRemaining;
     private bool _hasPendingBuildSentryAimOffset;
     private float _pendingBuildSentryAimOffsetX;
     private float _pendingBuildSentryAimOffsetY;
@@ -117,10 +123,16 @@ public partial class Game1
         _pendingPredictedBuildDispenserTicksRemaining = 0;
         _pendingPredictedDestroySentryTicksRemaining = 0;
         _pendingPredictedDestroyDispenserTicksRemaining = 0;
+        _pendingPredictedUseAbilityTicksRemaining = 0;
+        _pendingPredictedBuildJumpPadTicksRemaining = 0;
+        _pendingPredictedDestroyJumpPadTicksRemaining = 0;
         _pendingOfflineBuildSentry = false;
         _pendingOfflineBuildDispenser = false;
         _pendingOfflineDestroySentry = false;
         _pendingOfflineDestroyDispenser = false;
+        _pendingOfflineBuildJumpPad = false;
+        _pendingOfflineDestroyJumpPad = false;
+        _pendingOfflineUseAbility = false;
         _hasPendingBuildSentryAimOffset = false;
         _pendingBuildSentryAimOffsetX = 0f;
         _pendingBuildSentryAimOffsetY = 0f;
@@ -168,6 +180,23 @@ public partial class Game1
                 _pendingPredictedDestroyDispenserTicksRemaining = GetBuildMenuCommandRetryInputTicks();
                 _pendingPredictedBuildDispenserTicksRemaining = 0;
             }
+
+            if (networkInput.BuildJumpPad && !previousPredictedInput.BuildJumpPad)
+            {
+                _pendingPredictedBuildJumpPadTicksRemaining = GetBuildMenuCommandRetryInputTicks();
+                _pendingPredictedDestroyJumpPadTicksRemaining = 0;
+            }
+
+            if (networkInput.DestroyJumpPad && !previousPredictedInput.DestroyJumpPad)
+            {
+                _pendingPredictedDestroyJumpPadTicksRemaining = GetBuildMenuCommandRetryInputTicks();
+                _pendingPredictedBuildJumpPadTicksRemaining = 0;
+            }
+
+            if (networkInput.UseAbility && !previousPredictedInput.UseAbility)
+            {
+                _pendingPredictedUseAbilityTicksRemaining = GetBuildMenuCommandRetryInputTicks();
+            }
         }
         else
         {
@@ -193,6 +222,21 @@ public partial class Game1
             {
                 _pendingOfflineDestroyDispenser = true;
             }
+
+            if (networkInput.BuildJumpPad && !previousPredictedInput.BuildJumpPad)
+            {
+                _pendingOfflineBuildJumpPad = true;
+            }
+
+            if (networkInput.DestroyJumpPad && !previousPredictedInput.DestroyJumpPad)
+            {
+                _pendingOfflineDestroyJumpPad = true;
+            }
+
+            if (networkInput.UseAbility && !previousPredictedInput.UseAbility)
+            {
+                _pendingOfflineUseAbility = true;
+            }
         }
 
         var abilityReleased = !networkInput.UseAbility && previousPredictedInput.UseAbility;
@@ -217,6 +261,8 @@ public partial class Game1
             && !networkInput.BuildDispenser
             && !networkInput.DestroySentry
             && !networkInput.DestroyDispenser
+            && !networkInput.BuildJumpPad
+            && !networkInput.DestroyJumpPad
             && !abilityReleased
             && !secondaryAbilityReleased)
         {
@@ -274,10 +320,9 @@ public partial class Game1
             _pendingPredictedSecondaryAbilityPress = true;
         }
 
-        var abilityPressed = networkInput.UseAbility
-            && (InputBindingInput.IsPressed(_inputBindings.UseAbility, keyboard, _previousKeyboard, mouse, _previousMouse)
-                || _latestAimUsesController
-                && !previousPredictedInput.UseAbility);
+        // Latch any UseAbility rising edge, including build-menu jump-pad selections
+        // that inject UseAbility without a physical utility-key press.
+        var abilityPressed = networkInput.UseAbility && !previousPredictedInput.UseAbility;
         if (abilityPressed)
         {
             _pendingPredictedAbilityPress = true;
@@ -330,6 +375,21 @@ public partial class Game1
                 input = input with { DestroyDispenser = true };
             }
 
+            if (_pendingOfflineBuildJumpPad && !input.BuildJumpPad)
+            {
+                input = input with { BuildJumpPad = true };
+            }
+
+            if (_pendingOfflineDestroyJumpPad && !input.DestroyJumpPad)
+            {
+                input = input with { DestroyJumpPad = true };
+            }
+
+            if (_pendingOfflineUseAbility && !input.UseAbility)
+            {
+                input = input with { UseAbility = true };
+            }
+
             return ApplyPendingBuildSentryAim(input);
         }
 
@@ -351,6 +411,21 @@ public partial class Game1
         if (_pendingPredictedDestroyDispenserTicksRemaining > 0 && !input.DestroyDispenser)
         {
             input = input with { DestroyDispenser = true };
+        }
+
+        if (_pendingPredictedBuildJumpPadTicksRemaining > 0 && !input.BuildJumpPad)
+        {
+            input = input with { BuildJumpPad = true };
+        }
+
+        if (_pendingPredictedDestroyJumpPadTicksRemaining > 0 && !input.DestroyJumpPad)
+        {
+            input = input with { DestroyJumpPad = true };
+        }
+
+        if (_pendingPredictedUseAbilityTicksRemaining > 0 && !input.UseAbility)
+        {
+            input = input with { UseAbility = true };
         }
 
         return ApplyPendingBuildSentryAim(input);
@@ -438,6 +513,11 @@ public partial class Game1
             return player.PrimaryCooldownTicks <= 0;
         }
 
+        if (player.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.WhippingCord))
+        {
+            return player.PrimaryCooldownTicks <= 0 && !player.IsWhippingCordAttackActive;
+        }
+
         if (player.IsSniperBowEquipped
             || player.IsMortarLauncherEquipped
             || player.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.Medigun)
@@ -518,6 +598,9 @@ public partial class Game1
         _pendingOfflineBuildDispenser = false;
         _pendingOfflineDestroySentry = false;
         _pendingOfflineDestroyDispenser = false;
+        _pendingOfflineBuildJumpPad = false;
+        _pendingOfflineDestroyJumpPad = false;
+        _pendingOfflineUseAbility = false;
         _hasPendingBuildSentryAimOffset = false;
         _pendingBuildSentryAimOffsetX = 0f;
         _pendingBuildSentryAimOffsetY = 0f;
@@ -547,10 +630,20 @@ public partial class Game1
                 _latchedJumpPressSequence = sentInputSequence;
             }
 
-            var buildSentryCommandSent = _pendingPredictedBuildSentryTicksRemaining > 0 && outboundNetworkInput.BuildSentry;
-            var buildDispenserCommandSent = _pendingPredictedBuildDispenserTicksRemaining > 0 && outboundNetworkInput.BuildDispenser;
-            var destroySentryCommandSent = _pendingPredictedDestroySentryTicksRemaining > 0 && outboundNetworkInput.DestroySentry;
-            var destroyDispenserCommandSent = _pendingPredictedDestroyDispenserTicksRemaining > 0 && outboundNetworkInput.DestroyDispenser;
+            var buildSentryTicksRemaining = _pendingPredictedBuildSentryTicksRemaining;
+            var buildDispenserTicksRemaining = _pendingPredictedBuildDispenserTicksRemaining;
+            var destroySentryTicksRemaining = _pendingPredictedDestroySentryTicksRemaining;
+            var destroyDispenserTicksRemaining = _pendingPredictedDestroyDispenserTicksRemaining;
+            var buildJumpPadTicksRemaining = _pendingPredictedBuildJumpPadTicksRemaining;
+            var destroyJumpPadTicksRemaining = _pendingPredictedDestroyJumpPadTicksRemaining;
+            var useAbilityTicksRemaining = _pendingPredictedUseAbilityTicksRemaining;
+            var buildSentryCommandSent = buildSentryTicksRemaining > 0 && outboundNetworkInput.BuildSentry;
+            var buildDispenserCommandSent = buildDispenserTicksRemaining > 0 && outboundNetworkInput.BuildDispenser;
+            var destroySentryCommandSent = destroySentryTicksRemaining > 0 && outboundNetworkInput.DestroySentry;
+            var destroyDispenserCommandSent = destroyDispenserTicksRemaining > 0 && outboundNetworkInput.DestroyDispenser;
+            var buildJumpPadCommandSent = buildJumpPadTicksRemaining > 0 && outboundNetworkInput.BuildJumpPad;
+            var destroyJumpPadCommandSent = destroyJumpPadTicksRemaining > 0 && outboundNetworkInput.DestroyJumpPad;
+            var useAbilityCommandSent = useAbilityTicksRemaining > 0 && outboundNetworkInput.UseAbility;
 
             RecordPredictedInput(
                 sentInputSequence,
@@ -572,30 +665,37 @@ public partial class Game1
             networkInput = _latestPredictedLocalInput;
             if (buildSentryCommandSent)
             {
-                _pendingPredictedBuildSentryTicksRemaining = Math.Max(
-                    0,
-                    _pendingPredictedBuildSentryTicksRemaining - 1);
+                _pendingPredictedBuildSentryTicksRemaining = Math.Max(0, buildSentryTicksRemaining - 1);
             }
 
             if (buildDispenserCommandSent)
             {
-                _pendingPredictedBuildDispenserTicksRemaining = Math.Max(
-                    0,
-                    _pendingPredictedBuildDispenserTicksRemaining - 1);
+                _pendingPredictedBuildDispenserTicksRemaining = Math.Max(0, buildDispenserTicksRemaining - 1);
             }
 
             if (destroySentryCommandSent)
             {
-                _pendingPredictedDestroySentryTicksRemaining = Math.Max(
-                    0,
-                    _pendingPredictedDestroySentryTicksRemaining - 1);
+                _pendingPredictedDestroySentryTicksRemaining = Math.Max(0, destroySentryTicksRemaining - 1);
             }
 
             if (destroyDispenserCommandSent)
             {
-                _pendingPredictedDestroyDispenserTicksRemaining = Math.Max(
-                    0,
-                    _pendingPredictedDestroyDispenserTicksRemaining - 1);
+                _pendingPredictedDestroyDispenserTicksRemaining = Math.Max(0, destroyDispenserTicksRemaining - 1);
+            }
+
+            if (buildJumpPadCommandSent)
+            {
+                _pendingPredictedBuildJumpPadTicksRemaining = Math.Max(0, buildJumpPadTicksRemaining - 1);
+            }
+
+            if (destroyJumpPadCommandSent)
+            {
+                _pendingPredictedDestroyJumpPadTicksRemaining = Math.Max(0, destroyJumpPadTicksRemaining - 1);
+            }
+
+            if (useAbilityCommandSent)
+            {
+                _pendingPredictedUseAbilityTicksRemaining = Math.Max(0, useAbilityTicksRemaining - 1);
             }
         }
     }

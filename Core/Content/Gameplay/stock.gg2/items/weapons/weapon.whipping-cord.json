@@ -1,0 +1,58 @@
+{
+  "id": "weapon.whipping-cord",
+  "kind": "Weapon",
+  "weaponSlot": "Primary",
+  "displayName": "Whipping Cord",
+  "behaviorId": "builtin.weapon.whipping_cord",
+  "ammo": {
+    "maxAmmo": 1,
+    "ammoPerUse": 0,
+    "projectilesPerUse": 1,
+    "useDelaySourceTicks": 18,
+    "reloadSourceTicks": 0,
+    "spreadDegrees": 0.0,
+    "minProjectileSpeed": 0.0,
+    "additionalProjectileSpeed": 0.0,
+    "autoReloads": false,
+    "ammoRegenPerTick": 0,
+    "refillsAllAtOnce": false
+  },
+  "combat": {
+    "fireSoundName": "WhippingCordCrackSnd",
+    "killFeedSpriteName": "WhipKL",
+    "directHitDamage": 45.0
+  },
+  "presentation": {
+    "useTorsoReplacement": true,
+    "torsoSpriteName": "WhippingCordTorsoS",
+    "torsoRecoilSpriteName": "WhippingCordTorsoFS",
+    "worldSpriteName": "WhippingCordWhipS",
+    "recoilSpriteName": "WhippingCordWhipFS",
+    "reloadSpriteName": "WhippingCordWhipS",
+    "meleeHitboxSpriteName": "WhippingCordHitboxS",
+    "rotateMeleeHitboxWithAim": true,
+    "weaponOffsetX": -4.0,
+    "weaponOffsetY": -4.0,
+    "recoilDurationSourceTicks": 9,
+    "reloadDurationSourceTicks": 0,
+    "scopedRecoilDurationSourceTicks": 0,
+    "loopRecoilWhileActive": false,
+    "blueTeamHudFrameOffset": 1,
+    "useAmmoCountForHudFrame": false,
+    "blueTeamAmmoHudFrameOffset": 0,
+    "hud": {
+      "displayKind": "none",
+      "stackGroup": "weapon",
+      "order": 60
+    }
+  },
+  "description": {
+    "summary": "Aimable engineer whip. Builds, repairs, and overdrives friendly autoguns.",
+    "positiveAttributes": [
+      "aimable melee",
+      "speeds friendly construction",
+      "repairs friendly buildings",
+      "overdrives full-health friendly autoguns"
+    ]
+  }
+}

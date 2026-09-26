@@ -24,4 +24,6 @@ public readonly record struct PlayerInputSnapshot(
     bool IsTypingChatMessage = false,
     bool BuildDispenser = false,
     bool DestroyDispenser = false,
-    bool ToggleSecondaryWeapon = false);
+    bool ToggleSecondaryWeapon = false,
+    bool BuildJumpPad = false,
+    bool DestroyJumpPad = false);

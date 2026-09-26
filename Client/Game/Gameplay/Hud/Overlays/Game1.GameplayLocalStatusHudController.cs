@@ -288,8 +288,12 @@ public partial class Game1
                 forceCivvieUmbrellaPresentation: false,
                 standing: true);
             var useTorsoReplacementPortrait = portraitWeaponDefinition.UseTorsoReplacement
-                && portraitSkin?.LegsBodySprite is not null
-                && portraitWeaponDefinition.NormalSpriteName is not null;
+                && portraitSkin?.LegsBodySprite is not null;
+            var portraitTorsoSpriteName = portraitWeaponDefinition.HasCompanionTorso
+                ? portraitWeaponDefinition.TorsoSpriteName
+                : portraitWeaponDefinition.NormalSpriteName;
+            useTorsoReplacementPortrait = useTorsoReplacementPortrait
+                && !string.IsNullOrWhiteSpace(portraitTorsoSpriteName);
             var characterSpriteName = portraitSkin is null
                 ? GameplayPlayerSpriteRenderController.GetHudStandingSpriteName(localPlayer)
                 : portraitSkin.SpriteForTeam(
@@ -375,11 +379,29 @@ public partial class Game1
 
                     if (useTorsoReplacementPortrait)
                     {
-                        // Portrait is always the idle stance — same origin as legs, no sit-down.
+                        // Portrait is idle stance: legs + idle torso, and for companion-torso
+                        // weapons the idle whip layered on top (no attack animation in HUD).
+                        var portraitTorsoDrawPosition = characterPosition;
+                        if (portraitWeaponDefinition.HasCompanionTorso)
+                        {
+                            portraitTorsoDrawPosition = new Vector2(
+                                characterPosition.X + (portraitWeaponDefinition.XOffset * characterScale.X),
+                                characterPosition.Y + (portraitWeaponDefinition.YOffset * characterScale.Y));
+                        }
+
                         DrawPortraitCharacterLayer(
-                            portraitWeaponDefinition.NormalSpriteName!,
+                            portraitTorsoSpriteName!,
                             frameIndex: 0,
-                            characterPosition);
+                            portraitTorsoDrawPosition);
+
+                        if (portraitWeaponDefinition.HasCompanionTorso
+                            && !string.IsNullOrWhiteSpace(portraitWeaponDefinition.NormalSpriteName))
+                        {
+                            DrawPortraitCharacterLayer(
+                                portraitWeaponDefinition.NormalSpriteName!,
+                                frameIndex: 0,
+                                portraitTorsoDrawPosition);
+                        }
                     }
                     else
                     {

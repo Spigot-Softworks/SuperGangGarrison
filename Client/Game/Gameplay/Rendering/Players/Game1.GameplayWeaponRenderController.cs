@@ -53,7 +53,11 @@ public partial class Game1
             var renderPosition = _game.GetRenderPosition(player);
             var weaponAnimationMode = GetPlayerWeaponAnimationMode(player);
             var weaponDefinition = GetWeaponRenderDefinition(player, IsCivvieUmbrellaAnimationMode(weaponAnimationMode));
-            if (weaponDefinition.UseTorsoReplacement || weaponDefinition.NormalSpriteName is null)
+            // Companion-torso weapons (e.g. Whipping Cord) own their aimable draw + uber/kritz
+            // outline. Stock backdrop math adds sprite origin to the pivot and misplaces the glow.
+            if (weaponDefinition.HasCompanionTorso
+                || weaponDefinition.UseTorsoReplacement
+                || weaponDefinition.NormalSpriteName is null)
             {
                 return false;
             }
@@ -146,7 +150,8 @@ public partial class Game1
                     cameraPosition,
                     tint,
                     weaponAnimationMode,
-                    weaponDefinition);
+                    weaponDefinition,
+                    bodySelection);
             }
 
             if (weaponDefinition.NormalSpriteName is null)
@@ -630,6 +635,22 @@ public partial class Game1
             facingScale = GetRenderFacingScale(player);
             playerScale = player.PlayerScale;
             var roundedOrigin = _game.GetPlayerSpriteOrigin(renderPosition);
+            // Companion-torso overlays pin at body+weaponOffset (sprite origin is draw origin).
+            // Stock weapons pin at body+(offset+spriteOrigin).
+            if (weaponDefinition.HasCompanionTorso)
+            {
+                var companionOffsetX = weaponDefinition.XOffset;
+                worldDrawX = roundedOrigin.X + (companionOffsetX * facingScale * playerScale);
+                worldDrawY = roundedOrigin.Y + ((weaponDefinition.YOffset + _game.GetTorsoReplacementBobOffset(player)) * playerScale);
+                rotation = GetRenderWeaponRotation(player);
+                if (TryApplyLocalWeaponAim(player, roundedOrigin, companionOffsetX, playerScale, ref facingScale, ref worldDrawX, worldDrawY, out var companionAimRotation))
+                {
+                    rotation = companionAimRotation;
+                }
+
+                return true;
+            }
+
             var anchorOrigin = GetWeaponAnchorOrigin(weaponDefinition, sprite);
             var usesReloadSprite = weaponAnimationMode is WeaponAnimationMode.Reload or WeaponAnimationMode.ScopedRecoil;
             var reloadSpriteXOffset = usesReloadSprite ? weaponDefinition.ReloadSpriteXOffset : 0f;
@@ -889,6 +910,11 @@ public partial class Game1
                     && weaponAnimationMode == WeaponAnimationMode.Recoil
                     && frameCount >= 2)
                 {
+                    if (weaponDefinition.HasCompanionTorso || frameCount >= 3)
+                    {
+                        return WhippingCordCatalog.ResolveRecoilFrameIndex(progress, frameCount);
+                    }
+
                     // Short first strike frame, then hold the second for most of the swing.
                     return progress < ExperimentalDemoknightCatalog.EyelanderFirstFrameProgress
                         ? 0
@@ -935,8 +961,21 @@ public partial class Game1
             Vector2 cameraPosition,
             Color tint,
             WeaponAnimationMode weaponAnimationMode,
-            WeaponRenderDefinition weaponDefinition)
+            WeaponRenderDefinition weaponDefinition,
+            PlayerBodySpriteSelection bodySelection)
         {
+            if (weaponDefinition.HasCompanionTorso)
+            {
+                return TryDrawCompanionTorsoAndWeaponAtPosition(
+                    player,
+                    renderPosition,
+                    cameraPosition,
+                    tint,
+                    weaponAnimationMode,
+                    weaponDefinition,
+                    bodySelection);
+            }
+
             if (weaponDefinition.NormalSpriteName is null)
             {
                 return false;
@@ -963,21 +1002,6 @@ public partial class Game1
             var scale = new Vector2(facingScale * playerScale, playerScale);
             var origin = sprite.Origin.ToVector2();
 
-            if (weaponDefinition.NormalSpriteName is not null)
-            {
-                var idleTorso = _game.GetResolvedSprite(weaponDefinition.NormalSpriteName);
-                _game.RecordDynamicGibWeaponFrame(
-                    player,
-                    weaponDefinition.NormalSpriteName,
-                    frameIndex: 0,
-                    drawX,
-                    drawY,
-                    rotationRadians: 0f,
-                    facingScale,
-                    playerScale,
-                    idleTorso?.Origin.ToVector2() ?? origin);
-            }
-
             if (_game.IsKritzUberWeaponOnlyVisual(player) && _game._uberOutlineEnabled)
             {
                 var teamColor = GameplayPlayerStatusEffectRenderController.GetUberOverlayColor(player.Team);
@@ -994,6 +1018,121 @@ public partial class Game1
             else
             {
                 _game.DrawSpriteFrameWithOptionalShadow(sprite.Frames[frameIndex], position, tint, 0f, origin, scale);
+            }
+
+            return true;
+        }
+
+        private bool TryDrawCompanionTorsoAndWeaponAtPosition(
+            PlayerEntity player,
+            Vector2 renderPosition,
+            Vector2 cameraPosition,
+            Color tint,
+            WeaponAnimationMode weaponAnimationMode,
+            WeaponRenderDefinition weaponDefinition,
+            PlayerBodySpriteSelection bodySelection)
+        {
+            _ = bodySelection;
+            var torsoSpriteName = weaponAnimationMode == WeaponAnimationMode.Recoil
+                    && weaponDefinition.TorsoRecoilSpriteName is not null
+                ? weaponDefinition.TorsoRecoilSpriteName
+                : weaponDefinition.TorsoSpriteName;
+            if (torsoSpriteName is null || weaponDefinition.NormalSpriteName is null)
+            {
+                return false;
+            }
+
+            var torsoSprite = _game.GetResolvedSprite(torsoSpriteName);
+            if (torsoSprite is null || torsoSprite.Frames.Count == 0)
+            {
+                return false;
+            }
+
+            var weaponSpriteName = weaponAnimationMode == WeaponAnimationMode.Recoil
+                    && weaponDefinition.RecoilSpriteName is not null
+                ? weaponDefinition.RecoilSpriteName
+                : weaponDefinition.NormalSpriteName;
+            var weaponSprite = _game.GetResolvedSprite(weaponSpriteName);
+            if (weaponSprite is null || weaponSprite.Frames.Count == 0)
+            {
+                return false;
+            }
+
+            var facingScale = GetRenderFacingScale(player);
+            var playerScale = player.PlayerScale;
+            var frameIndex = GetWeaponSpriteFrameIndex(
+                player,
+                weaponAnimationMode,
+                weaponDefinition,
+                System.Math.Max(torsoSprite.Frames.Count, weaponSprite.Frames.Count));
+            var torsoFrameIndex = System.Math.Clamp(frameIndex, 0, torsoSprite.Frames.Count - 1);
+            var weaponFrameIndex = System.Math.Clamp(frameIndex, 0, weaponSprite.Frames.Count - 1);
+            var bobOffsetSource = _game.GetTorsoReplacementBobOffset(player);
+            var roundedOrigin = _game.GetPlayerSpriteOrigin(renderPosition);
+            // Offsets nudge the authored whip canvas onto the engineer body/legs origin
+            // (Elkondo body is centered at origin; whip art sits forward/low on its canvas).
+            var torsoDrawX = roundedOrigin.X + (weaponDefinition.XOffset * facingScale * playerScale);
+            var torsoDrawY = roundedOrigin.Y + ((weaponDefinition.YOffset + bobOffsetSource) * playerScale);
+            var torsoPosition = _game.GetPlayerAnchoredScreenPosition(renderPosition, cameraPosition, torsoDrawX, torsoDrawY);
+            var torsoScale = new Vector2(facingScale * playerScale, playerScale);
+            var torsoOrigin = torsoSprite.Origin.ToVector2();
+
+            _game.DrawSpriteFrameWithOptionalShadow(
+                torsoSprite.Frames[torsoFrameIndex],
+                torsoPosition,
+                tint,
+                0f,
+                torsoOrigin,
+                torsoScale);
+
+            var rotation = GetRenderWeaponRotation(player);
+            var aimAnchorX = torsoDrawX;
+            if (TryApplyLocalWeaponAim(
+                    player,
+                    roundedOrigin,
+                    anchorOffsetX: weaponDefinition.XOffset,
+                    playerScale,
+                    ref facingScale,
+                    ref aimAnchorX,
+                    torsoDrawY,
+                    out var localAimRotation))
+            {
+                rotation = localAimRotation;
+                torsoDrawX = aimAnchorX;
+                torsoPosition = _game.GetPlayerAnchoredScreenPosition(renderPosition, cameraPosition, torsoDrawX, torsoDrawY);
+            }
+
+            ResolveBakedFrame(
+                player,
+                weaponSpriteName,
+                weaponFrameIndex,
+                rotation,
+                weaponSprite,
+                facingScale,
+                playerScale,
+                out var drawFrame,
+                out var drawOrigin,
+                out var drawRotation,
+                out var scale);
+
+            var isKritzWeaponOnly = _game.IsKritzUberWeaponOnlyVisual(player);
+            if (_game._uberOutlineEnabled
+                && (isKritzWeaponOnly || player.IsUbered))
+            {
+                var teamColor = GameplayPlayerStatusEffectRenderController.GetUberOverlayColor(player.Team);
+                var outlineTint = Color.Lerp(teamColor, Color.White, 0.75f);
+                _game.DrawSpriteFrameOutline(drawFrame, torsoPosition, outlineTint, drawRotation, drawOrigin, scale);
+            }
+
+            if (player.IsUbered && !isKritzWeaponOnly)
+            {
+                _game.DrawSpriteFrameWithOptionalShadow(drawFrame, torsoPosition, tint, drawRotation, drawOrigin, scale);
+                var teamColor = GameplayPlayerStatusEffectRenderController.GetUberOverlayColor(player.Team);
+                _game.DrawSpriteFrameFlatColor(drawFrame, torsoPosition, teamColor * 0.45f, drawRotation, drawOrigin, scale);
+            }
+            else
+            {
+                _game.DrawSpriteFrameWithOptionalShadow(drawFrame, torsoPosition, tint, drawRotation, drawOrigin, scale);
             }
 
             return true;
@@ -1039,7 +1178,10 @@ public partial class Game1
                 GetSourceTicksAsSeconds(presentation.ReloadDurationSourceTicks),
                 GetSourceTicksAsSeconds(presentation.ScopedRecoilDurationSourceTicks) / rifleCycleSpeed,
                 presentation.LoopRecoilWhileActive,
-                UseTorsoReplacement: presentation.UseTorsoReplacement);
+                UseTorsoReplacement: presentation.UseTorsoReplacement,
+                TorsoSpriteName: presentation.TorsoSpriteName,
+                TorsoRecoilSpriteName: presentation.TorsoRecoilSpriteName,
+                RotateMeleeHitboxWithAim: presentation.RotateMeleeHitboxWithAim);
             return _game.ApplyPlayerSkinWeapon(renderPlayer, presentation, definition, standing);
         }
 

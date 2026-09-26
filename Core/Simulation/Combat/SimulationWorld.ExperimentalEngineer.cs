@@ -920,23 +920,48 @@ public sealed partial class SimulationWorld
                 hit.HitPlayer,
                 global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerPrecisionInstantiatorDamage);
         }
-        else if (hit.HitSentry is not null && ApplySentryDamage(hit.HitSentry, global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerPrecisionInstantiatorDamage, owner))
+        else if (hit.HitSentry is not null
+            && ApplySentryDamage(
+                hit.HitSentry,
+                ResolveExperimentalSentryOverdriveDamage(
+                    sentry,
+                    global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerPrecisionInstantiatorDamage),
+                owner))
         {
             DestroySentry(hit.HitSentry, owner);
         }
         else if (hit.HitGenerator is not null)
         {
-            TryDamageGenerator(hit.HitGenerator.Team, global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerPrecisionInstantiatorDamage, owner);
+            TryDamageGenerator(
+                hit.HitGenerator.Team,
+                ResolveExperimentalSentryOverdriveDamage(
+                    sentry,
+                    global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerPrecisionInstantiatorDamage),
+                owner);
         }
         else if (hit.HitJumpPad is not null)
         {
-            hit.HitJumpPad.TakeDamage(global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerPrecisionInstantiatorDamage);
+            hit.HitJumpPad.TakeDamage(
+                ResolveExperimentalSentryOverdriveDamage(
+                    sentry,
+                    global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerPrecisionInstantiatorDamage));
         }
+    }
+
+    private static int ResolveExperimentalSentryOverdriveDamage(SentryEntity sentry, int baseDamage)
+    {
+        var multiplier = sentry.IsOverdriveActive
+            ? WhippingCordCatalog.AutogunOverdriveDamageMultiplier
+            : 1f;
+        return Math.Max(1, (int)MathF.Round(baseDamage * multiplier));
     }
 
     private void ApplyExperimentalSentryStructuralTargetDamage(SentryEntity sentry, SentryTarget target, PlayerEntity owner, float damage)
     {
-        var appliedDamage = Math.Max(1, (int)MathF.Round(damage));
+        var appliedDamage = Math.Max(
+            1,
+            (int)MathF.Round(
+                damage * (sentry.IsOverdriveActive ? WhippingCordCatalog.AutogunOverdriveDamageMultiplier : 1f)));
         if (target.Generator is not null)
         {
             TryDamageGenerator(target.Generator.Team, appliedDamage, owner);
@@ -982,7 +1007,9 @@ public sealed partial class SimulationWorld
         var appliedBaseDamage = Math.Max(
             1,
             (int)MathF.Round(
-                baseDamage * GetExperimentalOutgoingSentryDamageMultiplier(owner, target)));
+                baseDamage
+                    * GetExperimentalOutgoingSentryDamageMultiplier(owner, target)
+                    * (sentry.IsOverdriveActive ? WhippingCordCatalog.AutogunOverdriveDamageMultiplier : 1f)));
         RegisterBloodEffect(target.X, target.Y, sentry.AimDirectionDegrees - 180f, 2);
         var healthBefore = target.Health;
         var resolution = ResolvePlayerDamageWithContext(

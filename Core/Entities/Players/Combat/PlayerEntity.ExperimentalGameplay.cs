@@ -1463,6 +1463,7 @@ public sealed partial class PlayerEntity
             : 0;
         ResetExperimentalDemoknightChargeMovementState();
         ClearExperimentalDemoknightSwordSwing();
+        ClearWhippingCordSwing();
         ResetRageState();
     }
 

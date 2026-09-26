@@ -296,6 +296,20 @@ public sealed partial class SimulationWorld
             return true;
         }
 
+        if (player.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.WhippingCord))
+        {
+            if (input.FirePrimary && player.TryFireWhippingCord())
+            {
+                WeaponHandler.StartWhippingCordSwing(player, input.AimWorldX, input.AimWorldY);
+            }
+            else
+            {
+                WeaponHandler.AdvanceWhippingCordSwing(player, input.AimWorldX, input.AimWorldY);
+            }
+
+            return true;
+        }
+
         if (input.FirePrimary
             && player.ClassId == PlayerClass.Spy
             && player.IsSpyCloaked)

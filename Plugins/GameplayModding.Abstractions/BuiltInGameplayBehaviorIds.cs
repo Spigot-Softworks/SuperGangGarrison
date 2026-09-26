@@ -15,6 +15,7 @@ public static class BuiltInGameplayBehaviorIds
     public const string MedigunCrit = "builtin.weapon.medigun.crit";
     public const string Revolver = "builtin.weapon.revolver";
     public const string Blade = "builtin.weapon.blade";
+    public const string WhippingCord = "builtin.weapon.whipping_cord";
     public const string Flaregun = "builtin.weapon.flaregun";
     public const string DragonRage = "builtin.weapon.dragon_rage";
     public const string Needlegun = "builtin.weapon.needlegun";
