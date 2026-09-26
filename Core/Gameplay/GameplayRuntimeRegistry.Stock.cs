@@ -53,6 +53,11 @@ public sealed partial class GameplayRuntimeRegistry
         RegisterPrimaryWeaponBehavior(new GameplayPrimaryWeaponRuntimeBinding(BuiltInGameplayBehaviorIds.Revolver, PrimaryWeaponKind.Revolver));
         RegisterPrimaryWeaponBehavior(new GameplayPrimaryWeaponRuntimeBinding(BuiltInGameplayBehaviorIds.Blade, PrimaryWeaponKind.Blade));
         RegisterPrimaryWeaponBehavior(new GameplayPrimaryWeaponRuntimeBinding(
+            BuiltInGameplayBehaviorIds.WhippingCord,
+            PrimaryWeaponKind.Custom,
+            Executor: new DelegateGameplayPrimaryWeaponExecutor(static context =>
+                context.World.ExecuteWhippingCordPrimaryWeapon(context))));
+        RegisterPrimaryWeaponBehavior(new GameplayPrimaryWeaponRuntimeBinding(
             BuiltInGameplayBehaviorIds.Flaregun,
             PrimaryWeaponKind.Custom,
             Executor: new DelegateGameplayPrimaryWeaponExecutor(static context =>

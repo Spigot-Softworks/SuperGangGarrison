@@ -58,6 +58,16 @@ public partial class Game1
         return GetWorldScreenPosition(worldPosition.X, worldPosition.Y, cameraPosition);
     }
 
+    /// <summary>
+    /// World → screen for HUD-layer draws. World sprite batches already apply
+    /// <see cref="GameplayCameraZoom"/> via transform; HUD batches do not.
+    /// </summary>
+    private Vector2 GetWorldHudScreenPosition(float worldX, float worldY, Vector2 cameraPosition)
+        => GetWorldScreenPosition(worldX, worldY, cameraPosition) * GameplayCameraZoom;
+
+    private Vector2 GetWorldHudScreenPosition(Vector2 worldPosition, Vector2 cameraPosition)
+        => GetWorldHudScreenPosition(worldPosition.X, worldPosition.Y, cameraPosition);
+
     private void DrawScreenPixelRectangle(Vector2 position, float width, float height, Color color)
     {
         if (width <= 0f || height <= 0f)

@@ -233,14 +233,29 @@ public partial class Game1
         var turretRotation = MathF.PI * turretAngleDegrees / 180f;
         var drawX = renderPosition.X + (turretSprite.Origin.X - 17f) * facingScale;
         var drawY = renderPosition.Y + turretSprite.Origin.Y - 10f;
+        var turretScreenPosition = new Vector2(drawX - cameraPosition.X, drawY - cameraPosition.Y);
+        var turretScale = new Vector2(facingScale, 1f);
+        if (sentry.IsOverdriveActive && _uberOutlineEnabled)
+        {
+            var teamColor = GameplayPlayerStatusEffectRenderController.GetUberOverlayColor(sentry.Team);
+            var outlineTint = Color.Lerp(teamColor, Color.White, 0.75f);
+            DrawSpriteFrameOutline(
+                turretSprite.Frames[turretFrameIndex],
+                turretScreenPosition,
+                outlineTint,
+                turretRotation,
+                turretSprite.Origin.ToVector2(),
+                turretScale);
+        }
+
         DrawLoadedSpriteFrame(
             turretSprite.Frames[turretFrameIndex],
-            new Vector2(drawX - cameraPosition.X, drawY - cameraPosition.Y),
+            turretScreenPosition,
             null,
             Color.White,
             turretRotation,
             turretSprite.Origin.ToVector2(),
-            new Vector2(facingScale, 1f),
+            turretScale,
             SpriteEffects.None,
             0f);
         return true;

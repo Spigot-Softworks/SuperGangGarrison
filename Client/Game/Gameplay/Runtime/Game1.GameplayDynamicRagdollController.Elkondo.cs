@@ -405,7 +405,8 @@ public partial class Game1
         var frameIndex = Math.Clamp(ragdoll.WeaponFrameIndex, 0, sprite.Frames.Count - 1);
         var frame = sprite.Frames[frameIndex];
         var torsoRadians = torsoRotationDegrees * (MathF.PI / 180f);
-        // Same pivot placement as live players: body origin + (XOffset+spriteOrigin, YOffset+spriteOrigin).
+        // Companion-torso overlays (e.g. Whipping Cord) pin at body+weaponOffset with
+        // the sprite origin as draw origin. Stock weapons pin at body+(offset+origin).
         var attachLocal = new Vector2(ragdoll.WeaponAttachLocalX, ragdoll.WeaponAttachLocalY);
         var attachWorld = bodyRootScreen + TransformRagdollLocal(attachLocal, scaleX, torsoRadians);
         DrawSpriteFrameWithOptionalShadow(
@@ -438,6 +439,12 @@ public partial class Game1
             return;
         }
 
+        // Full torso replacements are the body upper half, not a detachable overlay.
+        if (weaponDefinition.IsFullTorsoReplacement)
+        {
+            return;
+        }
+
         var sprite = GetResolvedSprite(weaponDefinition.NormalSpriteName);
         if (sprite is null || sprite.Frames.Count == 0)
         {
@@ -453,9 +460,20 @@ public partial class Game1
             sprite.Frames.Count);
         var anchorOrigin = GetWeaponAnchorOrigin(weaponDefinition, sprite);
         ragdoll.WeaponOrigin = anchorOrigin;
-        // Match TryGetWeaponDrawTransform: world pivot = bodyOrigin + (XOffset+origin.X, YOffset+origin.Y).
-        ragdoll.WeaponAttachLocalX = weaponDefinition.XOffset + anchorOrigin.X;
-        ragdoll.WeaponAttachLocalY = weaponDefinition.YOffset + anchorOrigin.Y;
+        if (weaponDefinition.HasCompanionTorso)
+        {
+            // Companion whip/torso layers draw at body origin + weaponOffset with the
+            // sprite origin as the MonoGame draw origin (same as live companion draw).
+            ragdoll.WeaponAttachLocalX = weaponDefinition.XOffset;
+            ragdoll.WeaponAttachLocalY = weaponDefinition.YOffset;
+        }
+        else
+        {
+            // Match TryGetWeaponDrawTransform: world pivot = bodyOrigin + (XOffset+origin.X, YOffset+origin.Y).
+            ragdoll.WeaponAttachLocalX = weaponDefinition.XOffset + anchorOrigin.X;
+            ragdoll.WeaponAttachLocalY = weaponDefinition.YOffset + anchorOrigin.Y;
+        }
+
         ragdoll.WeaponFlapDegrees = 0f;
         ragdoll.WeaponFlapVelocityDegrees = 0f;
     }

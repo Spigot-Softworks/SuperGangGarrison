@@ -85,7 +85,15 @@ public partial class Game1
         bool SingleTeamFrames = false,
         int PoseFrameIndex = 0,
         Vector2? MuzzleOffset = null,
-        bool UseTorsoReplacement = false);
+        bool UseTorsoReplacement = false,
+        string? TorsoSpriteName = null,
+        string? TorsoRecoilSpriteName = null,
+        bool RotateMeleeHitboxWithAim = false)
+    {
+        public bool HasCompanionTorso => !string.IsNullOrWhiteSpace(TorsoSpriteName);
+
+        public bool IsFullTorsoReplacement => UseTorsoReplacement && !HasCompanionTorso;
+    }
 
     private readonly record struct WeaponAnimationOverlayDefinition(
         string? CarrierSpriteName,
@@ -105,6 +113,7 @@ public partial class Game1
     {
         // Round the final screen-space anchor instead of rounding world position and camera independently.
         // With smooth camera, independent rounding can make moving players oscillate by a pixel.
+        // Pre-zoom camera space — correct inside BeginGameplayWorldSpriteBatch (zoom via transform).
         var spriteScreenOrigin = GetPlayerSpriteScreenOrigin(renderPosition, cameraPosition);
         var spriteScreenX = spriteScreenOrigin.X;
         var spriteScreenY = spriteScreenOrigin.Y;
@@ -112,6 +121,25 @@ public partial class Game1
         var screenTop = (int)MathF.Floor(spriteScreenY + player.CollisionTopOffset);
         var screenRight = (int)MathF.Ceiling(spriteScreenX + player.CollisionRightOffset);
         var screenBottom = (int)MathF.Ceiling(spriteScreenY + player.CollisionBottomOffset);
+        return new Rectangle(
+            screenLeft,
+            screenTop,
+            Math.Max(1, screenRight - screenLeft),
+            Math.Max(1, screenBottom - screenTop));
+    }
+
+    /// <summary>
+    /// Player bounds in HUD/screen space (accounts for gameplay camera zoom).
+    /// Use for overlays drawn outside the zoomed world sprite batch.
+    /// </summary>
+    private Rectangle GetPlayerHudScreenBounds(PlayerEntity player, Vector2 renderPosition, Vector2 cameraPosition)
+    {
+        var zoom = GameplayCameraZoom;
+        var spriteScreenOrigin = GetWorldHudScreenPosition(renderPosition, cameraPosition);
+        var screenLeft = (int)MathF.Floor(spriteScreenOrigin.X + (player.CollisionLeftOffset * zoom));
+        var screenTop = (int)MathF.Floor(spriteScreenOrigin.Y + (player.CollisionTopOffset * zoom));
+        var screenRight = (int)MathF.Ceiling(spriteScreenOrigin.X + (player.CollisionRightOffset * zoom));
+        var screenBottom = (int)MathF.Ceiling(spriteScreenOrigin.Y + (player.CollisionBottomOffset * zoom));
         return new Rectangle(
             screenLeft,
             screenTop,

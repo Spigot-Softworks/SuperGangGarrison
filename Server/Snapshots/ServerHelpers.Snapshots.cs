@@ -411,7 +411,7 @@ internal static partial class ServerHelpers
             sentry.LastShotTargetX,
             sentry.LastShotTargetY,
             sentry.IsDispenser,
-            sentry.DispenserRampTicks);
+            sentry.IsDispenser ? sentry.DispenserRampTicks : sentry.OverdriveTicksRemaining);
     }
 
     internal static SnapshotCivilDefenseTurretState ToSnapshotCivilDefenseTurretState(CivilDefenseTurretEntity turret)

@@ -12,8 +12,19 @@ public partial class Game1
 {
     private const float JumpPadBuildNoticeCost = 50f;
     private const float DispenserBuildNoticeCost = 100f;
+    private const float SentryBuildNoticeCost = 100f;
+    private const float BuildMenuListDefaultX = 37f;
+    private const float BuildMenuListSpriteOriginY = 68f;
+    private const float BuildMenuListWidth = 62f;
+    private const float BuildMenuListHeight = 137f;
+    // Hole top-lefts in build_menu.png (icon tiles are 32x36).
+    private static readonly Vector2 BuildMenuSentryIconOffset = new(26f, 12f - BuildMenuListSpriteOriginY);
+    private static readonly Vector2 BuildMenuDispenserIconOffset = new(26f, 50f - BuildMenuListSpriteOriginY);
+    private static readonly Vector2 BuildMenuJumpPadIconOffset = new(26f, 88f - BuildMenuListSpriteOriginY);
+
     private bool _buildMenuNumericInputConsumed;
     private bool _buildMenuJumpPadSelectionPressed;
+    private bool _buildMenuDestroyJumpPadSelectionPressed;
     private bool _buildMenuAbilityWasDown;
     private bool _buildMenuSecondaryWasDown;
     private int _buildWheelSelectedSlot;
@@ -32,6 +43,7 @@ public partial class Game1
     {
         _buildMenuNumericInputConsumed = false;
         _buildMenuJumpPadSelectionPressed = false;
+        _buildMenuDestroyJumpPadSelectionPressed = false;
         _buildMenuSentrySelectionPressed = false;
         _buildMenuDispenserSelectionPressed = false;
         _buildMenuDestroySentrySelectionPressed = false;
@@ -42,6 +54,32 @@ public partial class Game1
     {
         if (!IsBuildMenuWheelEnabled)
         {
+            // Constructor M2/skill open the side build menu; only menu selections
+            // may reach the simulation as build/destroy commands.
+            if (_world.LocalPlayer.ClassId == PlayerClass.Engineer)
+            {
+                input = input with { FireSecondary = false, UseAbility = false };
+            }
+
+            if (_buildMenuOpen || _buildMenuNumericInputConsumed)
+            {
+                input = input with
+                {
+                    FirePrimary = false,
+                    FireSecondary = false,
+                    UseAbility = false,
+                    SwapWeapon = false,
+                    ToggleSecondaryWeapon = false,
+                    InteractWeapon = false,
+                    BuildSentry = false,
+                    DestroySentry = false,
+                    BuildDispenser = false,
+                    DestroyDispenser = false,
+                    BuildJumpPad = false,
+                    DestroyJumpPad = false,
+                };
+            }
+
             if (!_buildMenuNumericInputConsumed)
             {
                 return input;
@@ -53,19 +91,22 @@ public partial class Game1
                 BuildDispenser = _buildMenuDispenserSelectionPressed,
                 DestroySentry = _buildMenuDestroySentrySelectionPressed,
                 DestroyDispenser = _buildMenuDestroyDispenserSelectionPressed,
+                BuildJumpPad = _buildMenuJumpPadSelectionPressed,
+                DestroyJumpPad = _buildMenuDestroyJumpPadSelectionPressed,
             };
         }
 
-        // Constructor's utility binding opens the wheel. Only an explicit jump-pad
-        // selection may send UseAbility to the simulation, even after the wheel closes.
+        // Constructor's utility binding opens the wheel. Building commands come
+        // only from explicit menu selections — not raw UseAbility / M2.
         if (_world.LocalPlayer.ClassId == PlayerClass.Engineer)
-            input = input with { UseAbility = false };
+            input = input with { UseAbility = false, FireSecondary = false };
 
         if (_buildMenuOpen || _buildMenuNumericInputConsumed)
         {
             input = input with { FirePrimary = false, FireSecondary = false, UseAbility = false,
                 SwapWeapon = false, ToggleSecondaryWeapon = false, InteractWeapon = false,
-                BuildSentry = false, DestroySentry = false, BuildDispenser = false, DestroyDispenser = false };
+                BuildSentry = false, DestroySentry = false, BuildDispenser = false, DestroyDispenser = false,
+                BuildJumpPad = false, DestroyJumpPad = false };
         }
         if (!_buildMenuNumericInputConsumed) return input;
         var selectedInput = input with
@@ -74,7 +115,8 @@ public partial class Game1
             BuildDispenser = _buildMenuDispenserSelectionPressed,
             DestroySentry = _buildMenuDestroySentrySelectionPressed,
             DestroyDispenser = _buildMenuDestroyDispenserSelectionPressed,
-            UseAbility = _buildMenuJumpPadSelectionPressed,
+            BuildJumpPad = _buildMenuJumpPadSelectionPressed,
+            DestroyJumpPad = _buildMenuDestroyJumpPadSelectionPressed,
         };
         return ApplyBuildWheelSentryAim(
             selectedInput,
@@ -97,7 +139,7 @@ public partial class Game1
         }
 
         var sprite = GetResolvedSprite("BuildWheelS");
-        if (sprite is null || sprite.Frames.Count < 42) return;
+        if (sprite is null || sprite.Frames.Count < 14) return;
         var center = resolved.Origin;
         var scale = resolved.Layout.Scale;
         void DrawFrame(int index)
@@ -106,74 +148,192 @@ public partial class Game1
             _spriteBatch.Draw(frame.Texture, center, frame.SourceRectangle, Color.White,
                 0f, new Vector2(BuildWheelPresentation.SpriteCenter), scale, SpriteEffects.None, 0f);
         }
+
+        // Chrome first: sectors, highlight, outline, then cancel.
         var selected = _buildMenuOpen ? _buildWheelSelectedSlot : 0;
-        for (var slot = 0; slot <= 4; slot++)
+        for (var slot = 0; slot <= BuildWheelPresentation.SlotCount; slot++)
         {
-            var frame = slot switch { 1 => 3, 2 => 2, 3 => 5, 4 => 4, _ => 1 };
-            DrawFrame(frame + (selected == slot ? 5 : 0));
+            DrawFrame(BuildWheelPresentation.GetChromeFrame(slot, selected == slot));
         }
         DrawFrame(0);
         DrawFrame(13);
+
+        // Building icons last, in an opaque pass so translucent sector fills cannot show through.
         var blue = _world.LocalPlayer.Team == PlayerTeam.Blue;
-        for (var slot = 1; slot <= 4; slot++)
+        _spriteBatch.End();
+        _spriteBatch.Begin(
+            samplerState: SamplerState.PointClamp,
+            blendState: BlendState.Opaque,
+            rasterizerState: RasterizerState.CullNone);
+        for (var slot = 1; slot <= BuildWheelPresentation.SlotCount; slot++)
         {
             var exists = HasBuildWheelStructure(slot);
-            var canBuild = !_world.LocalPlayer.IsInSpawnRoom
-                && GetPlayerMetal(_world.LocalPlayer) >= GetBuildWheelCost(slot);
-            var iconFrame = BuildWheelPresentation.GetIconFrame(slot, blue, exists, canBuild);
-            var icon = sprite.Frames[iconFrame];
-            _spriteBatch.Draw(icon.Texture, center + BuildWheelPresentation.GetIconOffset(slot) * scale,
-                icon.SourceRectangle, Color.White, 0f, BuildWheelPresentation.GetIconOrigin(iconFrame), scale, SpriteEffects.None, 0f);
+            var canBuild = CanAffordBuildMenuSlot(slot);
+            var iconPos = center
+                + BuildWheelPresentation.GetIconOffset(slot) * scale
+                - BuildWheelPresentation.IconTopLeftOrigin * scale;
+            DrawBuildMenuWheelBuildingIconPlate(
+                BuildWheelPresentation.GetIconSpriteName(slot),
+                iconPos,
+                GetBuildMenuListIconFrame(blue, exists, canBuild),
+                scale);
         }
-        var label = selected switch { 1 => "Sentry", 3 => "Dispenser", 2 or 4 => "Jump pad", _ => "Cancel" };
+
+        _spriteBatch.End();
+        _spriteBatch.Begin(
+            samplerState: SamplerState.PointClamp,
+            blendState: BlendState.AlphaBlend,
+            rasterizerState: RasterizerState.CullNone);
+        for (var slot = 1; slot <= BuildWheelPresentation.SlotCount; slot++)
+        {
+            if (!HasBuildWheelStructure(slot))
+            {
+                continue;
+            }
+
+            var iconPos = center
+                + BuildWheelPresentation.GetIconOffset(slot) * scale
+                - BuildWheelPresentation.IconTopLeftOrigin * scale;
+            TryDrawScreenSprite("BuildMenuDestroyOverlayS", 0, iconPos, Color.White, new Vector2(scale));
+        }
+
+        var label = BuildWheelPresentation.GetSlotLabel(selected);
         if (selected != 0) label = (HasBuildWheelStructure(selected) ? "Destroy " : "Build ") + label;
         DrawBitmapFontText(label, center + new Vector2(-MeasureBitmapFontWidth(label, 1f) / 2f, 110f * scale), Color.White, 1f);
         UpdateHudElementBounds(HudElementId.ClassEngineerBuildMenu,
             new Rectangle((int)(center.X - 100f * scale), (int)(center.Y - 100f * scale), (int)(201f * scale), (int)(201f * scale)));
     }
 
+    private void DrawBuildMenuWheelBuildingIconPlate(string spriteName, Vector2 position, int frameIndex, float scale)
+    {
+        var iconSprite = GetResolvedSprite(spriteName);
+        if (iconSprite is null || iconSprite.Frames.Count == 0)
+        {
+            return;
+        }
+
+        var frame = iconSprite.Frames[Math.Clamp(frameIndex, 0, iconSprite.Frames.Count - 1)];
+        _spriteBatch.Draw(
+            frame.Texture,
+            position,
+            frame.SourceRectangle,
+            Color.White,
+            0f,
+            iconSprite.Origin.ToVector2(),
+            new Vector2(scale),
+            SpriteEffects.None,
+            0f);
+    }
+
     private void DrawBuildMenuListHud(HudResolvedElement resolved)
     {
-        var frameIndex = _world.LocalPlayer.Team == PlayerTeam.Blue ? 1 : 0;
-        const float defaultBuildMenuX = 37f;
         var scale = MathF.Max(0.01f, resolved.Layout.Scale);
         var origin = resolved.Origin;
         if (!_hudLayoutProfile.Overrides.ContainsKey(HudElementId.ClassEngineerBuildMenu))
         {
             origin = HudLayoutResolver.ResolveOrigin(
                 HudAnchor.CenterLeft,
-                new Vector2(defaultBuildMenuX, 0f),
+                new Vector2(BuildMenuListDefaultX, 0f),
                 ViewportWidth,
                 ViewportHeight);
         }
 
         var animatedOrigin = _hudEditorOpen && !_buildMenuOpen
             ? origin
-            : origin + new Vector2(_buildMenuX - defaultBuildMenuX, 0f);
+            : origin + new Vector2(_buildMenuX - BuildMenuListDefaultX, 0f);
         var alpha = _hudEditorOpen && !_buildMenuOpen ? 1f : _buildMenuAlpha;
-        TryDrawScreenSprite("BuildMenuS", frameIndex, animatedOrigin, Color.White * alpha, new Vector2(scale));
+        var tint = Color.White * alpha;
+        TryDrawScreenSprite("BuildMenuS", 0, animatedOrigin, tint, new Vector2(scale));
+
+        var player = _world.LocalPlayer;
+        var blue = player.Team == PlayerTeam.Blue;
+        DrawBuildMenuBuildingIcon(
+            "BuildMenuSentryIconS",
+            animatedOrigin + BuildMenuSentryIconOffset * scale,
+            blue,
+            GetLocalOwnedSentry() is not null,
+            CanAffordBuildMenuSlot(1),
+            tint,
+            scale);
+        DrawBuildMenuBuildingIcon(
+            "BuildMenuDispenserIconS",
+            animatedOrigin + BuildMenuDispenserIconOffset * scale,
+            blue,
+            _gameplayEngineerHudController.GetLocalOwnedDispenser() is not null,
+            CanAffordBuildMenuSlot(2),
+            tint,
+            scale);
+        DrawBuildMenuBuildingIcon(
+            "BuildMenuJumpPadIconS",
+            animatedOrigin + BuildMenuJumpPadIconOffset * scale,
+            blue,
+            HasLocalOwnedJumpPad(),
+            CanAffordBuildMenuSlot(3),
+            tint,
+            scale);
+
         UpdateHudElementBounds(
             HudElementId.ClassEngineerBuildMenu,
             new Rectangle(
                 (int)MathF.Round(animatedOrigin.X),
-                (int)MathF.Round(animatedOrigin.Y - (20f * scale)),
-                Math.Max(1, (int)MathF.Round(74f * scale)),
-                Math.Max(1, (int)MathF.Round(244f * scale))));
+                (int)MathF.Round(animatedOrigin.Y - (BuildMenuListSpriteOriginY * scale)),
+                Math.Max(1, (int)MathF.Round(BuildMenuListWidth * scale)),
+                Math.Max(1, (int)MathF.Round(BuildMenuListHeight * scale))));
     }
+
+    private void DrawBuildMenuBuildingIcon(
+        string spriteName,
+        Vector2 position,
+        bool blue,
+        bool exists,
+        bool canBuild,
+        Color tint,
+        float scale)
+    {
+        var frameIndex = GetBuildMenuListIconFrame(blue, exists, canBuild);
+        TryDrawScreenSprite(spriteName, frameIndex, position, tint, new Vector2(scale));
+        if (exists)
+        {
+            TryDrawScreenSprite("BuildMenuDestroyOverlayS", 0, position, tint, new Vector2(scale));
+        }
+    }
+
+    private static int GetBuildMenuListIconFrame(bool blue, bool exists, bool canBuild)
+    {
+        // Per team: ready, nonuts. Destroy uses BuildMenuDestroyOverlayS.
+        var teamBase = blue ? 2 : 0;
+        if (exists || canBuild)
+        {
+            return teamBase;
+        }
+
+        return teamBase + 1;
+    }
+
+    private bool CanAffordBuildMenuSlot(int slot)
+    {
+        var player = _world.LocalPlayer;
+        if (player.IsInSpawnRoom)
+        {
+            return false;
+        }
+
+        return GetPlayerMetal(player) >= GetBuildMenuListCost(slot);
+    }
+
+    private float GetBuildMenuListCost(int slot) => slot switch
+    {
+        1 => SentryBuildNoticeCost,
+        2 => DispenserBuildNoticeCost,
+        _ => JumpPadBuildNoticeCost,
+    };
 
     private bool HasBuildWheelStructure(int slot) => slot switch
     {
         1 => GetLocalOwnedSentry() is not null,
-        3 => _gameplayEngineerHudController.GetLocalOwnedDispenser() is not null,
-        2 or 4 => HasLocalOwnedJumpPad(),
+        2 => _gameplayEngineerHudController.GetLocalOwnedDispenser() is not null,
+        3 => HasLocalOwnedJumpPad(),
         _ => false,
-    };
-
-    private float GetBuildWheelCost(int slot) => slot switch
-    {
-        1 => _world.LocalPlayer.MaxMetal,
-        3 => DispenserBuildNoticeCost,
-        _ => JumpPadBuildNoticeCost,
     };
 
     private int GetBuildWheelSelectedSlot(MouseState mouse)
@@ -186,26 +346,61 @@ public partial class Game1
             scale = MathF.Max(0.01f, resolved.Layout.Scale);
         }
         var delta = (new Vector2(mouse.X, mouse.Y) - center) / scale;
-        return RadialWheelSelection.GetSlot(MathF.Atan2(delta.Y, delta.X) * (180f / MathF.PI) + 90f,
-            delta.Length(), 4, 45f);
+        return BuildWheelPresentation.GetSlotFromPointer(
+            MathF.Atan2(delta.Y, delta.X) * (180f / MathF.PI) + 90f,
+            delta.Length());
     }
 
     private void CommitBuildWheelSelection(int slot)
     {
+        if (slot is < 1 or > BuildWheelPresentation.SlotCount)
+        {
+            _buildMenuNumericInputConsumed = true;
+            BeginClosingBuildMenu();
+            return;
+        }
+
+        // Match list-menu rules: destroy if owned, otherwise require metal / not in spawn.
+        CommitBuildMenuListSlot(slot);
+    }
+
+    private void CommitBuildMenuListSlot(int slot)
+    {
+        var exists = slot switch
+        {
+            1 => GetLocalOwnedSentry() is not null,
+            2 => _gameplayEngineerHudController.GetLocalOwnedDispenser() is not null,
+            3 => HasLocalOwnedJumpPad(),
+            _ => false,
+        };
+
+        if (exists)
+        {
+            _buildMenuNumericInputConsumed = true;
+            if (slot == 1) _buildMenuDestroySentrySelectionPressed = true;
+            else if (slot == 2) _buildMenuDestroyDispenserSelectionPressed = true;
+            else if (slot == 3) _buildMenuDestroyJumpPadSelectionPressed = true;
+            BeginClosingBuildMenu();
+            return;
+        }
+
+        var cost = GetBuildMenuListCost(slot);
+        if (IsEngineerBuildResourceInsufficient(GetPlayerMetal(_world.LocalPlayer), cost))
+        {
+            ShowNotice(NoticeKind.NutsNBolts);
+            return;
+        }
+
+        if (!CanAffordBuildMenuSlot(slot))
+        {
+            // Enough metal but otherwise blocked (e.g. spawn room) — keep the menu open.
+            return;
+        }
+
         _buildMenuNumericInputConsumed = true;
-        var exists = HasBuildWheelStructure(slot);
-        if (slot == 1)
-        {
-            _buildMenuSentrySelectionPressed = !exists;
-            _buildMenuDestroySentrySelectionPressed = exists;
-        }
-        else if (slot == 3)
-        {
-            _buildMenuDispenserSelectionPressed = !exists;
-            _buildMenuDestroyDispenserSelectionPressed = exists;
-        }
-        else if (slot is 2 or 4) _buildMenuJumpPadSelectionPressed = true;
-        if (slot != 0 && !exists) TryShowEngineerBuildResourceNotice(_world.LocalPlayer, GetBuildWheelCost(slot));
+        if (slot == 1) _buildMenuSentrySelectionPressed = true;
+        else if (slot == 2) _buildMenuDispenserSelectionPressed = true;
+        else if (slot == 3) _buildMenuJumpPadSelectionPressed = true;
         BeginClosingBuildMenu();
     }
 
@@ -229,13 +424,7 @@ public partial class Game1
             return;
         }
         var leftPressed = mouse.LeftButton == ButtonState.Pressed && _previousMouse.LeftButton == ButtonState.Released;
-        if (secondaryPressed)
-        {
-            // M2 keeps its direct sentry build/destroy command, including while the wheel is open.
-            BeginClosingBuildMenu();
-            return;
-        }
-        if (abilityPressed)
+        if (abilityPressed || secondaryPressed)
         {
             _buildMenuNumericInputConsumed = true;
             ToggleBuildMenu(input);
@@ -251,13 +440,13 @@ public partial class Game1
         if (!_buildMenuOpen) return;
         _buildWheelSelectedSlot = GetBuildWheelSelectedSlot(mouse);
         var digit = GetPressedDigit(keyboard);
-        if (digit is >= 0 and <= 4)
+        if (digit is >= 1 and <= BuildWheelPresentation.SlotCount)
+        {
+            CommitBuildWheelSelection(digit.Value);
+        }
+        else if (digit is 0 or 4)
         {
             _buildMenuNumericInputConsumed = true;
-            _buildMenuSentrySelectionPressed = digit == 1;
-            _buildMenuDestroySentrySelectionPressed = digit == 2;
-            _buildMenuDispenserSelectionPressed = digit == 3;
-            _buildMenuDestroyDispenserSelectionPressed = digit == 4;
             BeginClosingBuildMenu();
         }
         else if (leftPressed)
@@ -269,8 +458,11 @@ public partial class Game1
 
     private void UpdateBuildMenuListState(KeyboardState keyboard, MouseState mouse, PlayerInputSnapshot input)
     {
+        var abilityPressed = input.UseAbility && !_buildMenuAbilityWasDown;
         _buildMenuAbilityWasDown = input.UseAbility;
+        var secondaryPressed = input.FireSecondary && !_buildMenuSecondaryWasDown;
         _buildMenuSecondaryWasDown = input.FireSecondary;
+
         if (ShouldCloseBuildMenuForGameplayState())
         {
             BeginClosingBuildMenu();
@@ -278,8 +470,9 @@ public partial class Game1
             return;
         }
 
-        if (_scoreboardOpen || _scoreboardAlpha > 0.02f)
+        if (_scoreboardOpen || _bubbleMenuKind != BubbleMenuKind.None)
         {
+            BeginClosingBuildMenu();
             AdvanceBuildMenuAnimation();
             return;
         }
@@ -287,54 +480,23 @@ public partial class Game1
         var player = _world.LocalPlayer;
         if (player.ClassId == PlayerClass.Engineer)
         {
-            var onePressed = IsKeyPressed(keyboard, Keys.D1) || IsKeyPressed(keyboard, Keys.NumPad1);
-            var twoPressed = IsKeyPressed(keyboard, Keys.D2) || IsKeyPressed(keyboard, Keys.NumPad2);
-            var threePressed = IsKeyPressed(keyboard, Keys.D3) || IsKeyPressed(keyboard, Keys.NumPad3);
-            var fourPressed = IsKeyPressed(keyboard, Keys.D4) || IsKeyPressed(keyboard, Keys.NumPad4);
-            var zeroPressed = IsKeyPressed(keyboard, Keys.D0) || IsKeyPressed(keyboard, Keys.NumPad0);
+            if (abilityPressed || secondaryPressed)
+            {
+                _buildMenuNumericInputConsumed = true;
+                ToggleBuildMenuList();
+            }
+            else if (_buildMenuOpen && !_buildMenuClosing)
+            {
+                var onePressed = IsKeyPressed(keyboard, Keys.D1) || IsKeyPressed(keyboard, Keys.NumPad1);
+                var twoPressed = IsKeyPressed(keyboard, Keys.D2) || IsKeyPressed(keyboard, Keys.NumPad2);
+                var threePressed = IsKeyPressed(keyboard, Keys.D3) || IsKeyPressed(keyboard, Keys.NumPad3);
+                var fourPressed = IsKeyPressed(keyboard, Keys.D4) || IsKeyPressed(keyboard, Keys.NumPad4);
 
-            if (onePressed)
-            {
-                _buildMenuNumericInputConsumed = true;
-                if (_buildMenuOpen && !_buildMenuClosing)
-                {
-                    _buildMenuSentrySelectionPressed = true;
-                    BeginClosingBuildMenu();
-                }
-                else
-                {
-                    ToggleBuildMenu(input);
-                }
+                if (onePressed) CommitBuildMenuListSlot(1);
+                else if (twoPressed) CommitBuildMenuListSlot(2);
+                else if (threePressed) CommitBuildMenuListSlot(3);
+                else if (fourPressed) BeginClosingBuildMenu();
             }
-            else if (_buildMenuOpen && twoPressed)
-            {
-                _buildMenuNumericInputConsumed = true;
-                _buildMenuDestroySentrySelectionPressed = true;
-                BeginClosingBuildMenu();
-            }
-            else if (_buildMenuOpen && threePressed)
-            {
-                _buildMenuNumericInputConsumed = true;
-                _buildMenuDispenserSelectionPressed = true;
-                BeginClosingBuildMenu();
-                TryShowEngineerBuildResourceNotice(player, DispenserBuildNoticeCost);
-            }
-            else if (_buildMenuOpen && fourPressed)
-            {
-                _buildMenuNumericInputConsumed = true;
-                _buildMenuDestroyDispenserSelectionPressed = true;
-                BeginClosingBuildMenu();
-            }
-            else if (_buildMenuOpen && zeroPressed)
-            {
-                _buildMenuNumericInputConsumed = true;
-                BeginClosingBuildMenu();
-            }
-        }
-
-        if (mouse.RightButton == ButtonState.Pressed && _previousMouse.RightButton == ButtonState.Released)
-        {
-            BeginClosingBuildMenu();
         }
 
         AdvanceBuildMenuAnimation();
@@ -358,7 +520,9 @@ public partial class Game1
 
     private bool HasLocalOwnedJumpPad()
     {
-        var localPlayerId = GetPlayerStateKey(_world.LocalPlayer);
+        // Match SimulationWorld jump-pad ownership (player.Id), not the client
+        // snapshot presentation key which can differ in multiplayer.
+        var localPlayerId = _world.LocalPlayer.Id;
         foreach (var jumpPad in _world.JumpPads)
         {
             if (jumpPad.OwnerPlayerId == localPlayerId)
@@ -421,15 +585,16 @@ public partial class Game1
 
         if (_buildMenuOpen && _buildMenuClosing)
         {
+            // Cancel close at full opacity so the menu never "breathes" translucent.
             _buildMenuClosing = false;
-            _buildMenuAlpha = MathF.Max(_buildMenuAlpha, 0.01f);
+            _buildMenuAlpha = 0.99f;
             return;
         }
 
         _buildMenuOpen = true;
         _buildMenuClosing = false;
-        _buildMenuAlpha = 0.01f;
-        _buildMenuX = -37f;
+        _buildMenuAlpha = 0.99f;
+        _buildMenuX = -BuildMenuListDefaultX;
     }
 
     private void CaptureBuildMenuGameplayAim(PlayerInputSnapshot input)
@@ -501,9 +666,9 @@ public partial class Game1
                 _buildMenuAlpha = AdvanceOpeningAlpha(_buildMenuAlpha, 0.01f, 0.99f);
             }
 
-            if (_buildMenuX < 37f)
+            if (_buildMenuX < BuildMenuListDefaultX)
             {
-                _buildMenuX = MathF.Min(37f, _buildMenuX + ScaleLegacyUiDistance(15f));
+                _buildMenuX = MathF.Min(BuildMenuListDefaultX, _buildMenuX + ScaleLegacyUiDistance(15f));
             }
 
             return;
@@ -515,7 +680,7 @@ public partial class Game1
         }
 
         _buildMenuX -= ScaleLegacyUiDistance(15f);
-        if (_buildMenuX < -37f)
+        if (_buildMenuX < -BuildMenuListDefaultX)
         {
             _buildMenuOpen = false;
             _buildMenuClosing = false;
