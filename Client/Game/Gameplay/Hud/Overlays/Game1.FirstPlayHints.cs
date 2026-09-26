@@ -44,7 +44,7 @@ public partial class Game1
         // For introductory tips the authored end fade applies to the box itself.
         if (marker.OnEndEffects.HasFlag(GameplayMessageOnEndEffects.FadeOut))
             alpha *= 1f - Math.Clamp((elapsed - marker.DurationSeconds) / marker.OnEndSeconds, 0f, 1f);
-        var playerBounds = GetPlayerScreenBounds(_world.LocalPlayer, GetRenderPosition(_world.LocalPlayer), cameraPosition);
+        var playerBounds = GetPlayerHudScreenBounds(_world.LocalPlayer, GetRenderPosition(_world.LocalPlayer), cameraPosition);
         var bounds = FirstPlayHintPlacement.AbovePlayer(marker, playerBounds, viewport);
         bounds = ResolveGameplayMessageAnimatedBounds(bounds, marker, elapsed, viewport, out var rotation);
         DrawGameplayMessageStyle(bounds, viewport, marker, marker.Text, alpha, rotation, 1f, elapsed);

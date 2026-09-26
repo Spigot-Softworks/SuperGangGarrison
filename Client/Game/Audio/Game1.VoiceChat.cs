@@ -193,7 +193,7 @@ public partial class Game1
         }
 
         var camera = _hasGameplayCameraTopLeft ? _gameplayCameraTopLeft : Vector2.Zero;
-        position = GetWorldScreenPosition(player.X, player.Y, camera);
+        position = GetWorldHudScreenPosition(player.X, player.Y, camera);
         return position.X >= 8f && position.X <= ViewportWidth - 8f
             && position.Y >= 8f && position.Y <= ViewportHeight - 8f;
     }

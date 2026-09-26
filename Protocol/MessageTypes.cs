@@ -92,6 +92,8 @@ public enum InputButtons : uint
     BuildDispenser = 1 << 16,
     DestroyDispenser = 1 << 17,
     ToggleSecondaryWeapon = 1 << 18,
+    BuildJumpPad = 1 << 19,
+    DestroyJumpPad = 1 << 20,
 }
 
 public interface IProtocolMessage

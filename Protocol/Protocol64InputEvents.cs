@@ -20,6 +20,8 @@ public enum Protocol64InputCommandKind : byte
     BuildDispenser = 13,
     DestroyDispenser = 14,
     ToggleSecondaryWeapon = 15,
+    BuildJumpPad = 16,
+    DestroyJumpPad = 17,
 }
 
 public enum Protocol64InputCommandResultKind : byte

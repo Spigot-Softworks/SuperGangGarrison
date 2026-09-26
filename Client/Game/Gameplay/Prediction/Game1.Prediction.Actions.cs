@@ -350,6 +350,17 @@ public partial class Game1
             return;
         }
 
+        if (player.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.WhippingCord))
+        {
+            if (predictedInput.Input.FirePrimary
+                && player.TryFireWhippingCord())
+            {
+                SyncPredictedLocalPlayerState(player);
+            }
+
+            return;
+        }
+
         if (player.IsAcquiredWeaponEquipped)
         {
             // Acquired weapons use their own cooldown/ammo state. Predict the

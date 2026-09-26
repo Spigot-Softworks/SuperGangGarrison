@@ -10,6 +10,8 @@ public sealed class MeleeHitboxMask
 
     /// <summary>
     /// Matches client torso-replacement sit-down (2 source pixels × typical 2× pixel scale).
+    /// Used by full torso replacements (e.g. Eyelander). Companion-offset weapons apply
+    /// <c>WeaponOffsetY</c> against the body origin instead and should omit this.
     /// </summary>
     public const float TorsoSitDownWorldOffset = 4f;
 
@@ -65,21 +67,26 @@ public sealed class MeleeHitboxMask
         return AlphaSamples[(pixelY * Width) + pixelX] > AlphaThreshold;
     }
 
+    /// <summary>
+    /// Same facing-aware aim rotation as weapon sprites: mirror when aiming left, then
+    /// rotate by aim (+π when left) so left aim is a horizontal mirror, not an upside-down flip.
+    /// </summary>
+    public static float ResolveAimDrawRotation(float aimRadians, bool facingLeft)
+        => facingLeft ? aimRadians + MathF.PI : aimRadians;
+
     public bool ContainsWorldPoint(
         float worldX,
         float worldY,
         float anchorX,
         float anchorY,
         bool facingLeft,
-        float geometryScale)
+        float geometryScale,
+        float? rotationRadians = null)
     {
         var scale = MathF.Max(0.1f, geometryScale);
         var localX = (worldX - anchorX) / scale;
         var localY = (worldY - anchorY) / scale;
-        if (facingLeft)
-        {
-            localX = -localX;
-        }
+        WorldDeltaToMaskLocal(ref localX, ref localY, facingLeft, rotationRadians);
 
         var pixelX = (int)MathF.Floor(OriginX + localX);
         var pixelY = (int)MathF.Floor(OriginY + localY);
@@ -94,7 +101,8 @@ public sealed class MeleeHitboxMask
         float anchorX,
         float anchorY,
         bool facingLeft,
-        float geometryScale)
+        float geometryScale,
+        float? rotationRadians = null)
     {
         if (right <= left || bottom <= top)
         {
@@ -102,7 +110,16 @@ public sealed class MeleeHitboxMask
         }
 
         var scale = MathF.Max(0.1f, geometryScale);
-        GetWorldBounds(anchorX, anchorY, facingLeft, scale, out var maskLeft, out var maskTop, out var maskRight, out var maskBottom);
+        GetWorldBounds(
+            anchorX,
+            anchorY,
+            facingLeft,
+            scale,
+            out var maskLeft,
+            out var maskTop,
+            out var maskRight,
+            out var maskBottom,
+            rotationRadians);
         if (right <= maskLeft || left >= maskRight || bottom <= maskTop || top >= maskBottom)
         {
             return false;
@@ -117,7 +134,7 @@ public sealed class MeleeHitboxMask
                     continue;
                 }
 
-                PixelToWorld(pixelX, pixelY, anchorX, anchorY, facingLeft, scale, out var worldX, out var worldY);
+                PixelToWorld(pixelX, pixelY, anchorX, anchorY, facingLeft, scale, out var worldX, out var worldY, rotationRadians);
                 if (worldX >= left && worldX < right && worldY >= top && worldY < bottom)
                 {
                     return true;
@@ -135,7 +152,8 @@ public sealed class MeleeHitboxMask
         float anchorX,
         float anchorY,
         bool facingLeft,
-        float geometryScale)
+        float geometryScale,
+        float? rotationRadians = null)
     {
         var safeRadius = MathF.Max(0f, radius);
         return OverlapsRectangle(
@@ -146,7 +164,8 @@ public sealed class MeleeHitboxMask
             anchorX,
             anchorY,
             facingLeft,
-            geometryScale);
+            geometryScale,
+            rotationRadians);
     }
 
     public void GetWorldBounds(
@@ -157,9 +176,21 @@ public sealed class MeleeHitboxMask
         out float left,
         out float top,
         out float right,
-        out float bottom)
+        out float bottom,
+        float? rotationRadians = null)
     {
         var scale = MathF.Max(0.1f, geometryScale);
+        if (rotationRadians is float)
+        {
+            var reach = MaxReachFromOrigin * scale;
+            left = anchorX - reach;
+            right = anchorX + reach;
+            top = anchorY - reach;
+            bottom = anchorY + reach;
+            _ = facingLeft;
+            return;
+        }
+
         var leftOffset = -OriginX * scale;
         var rightOffset = (Width - OriginX) * scale;
         if (facingLeft)
@@ -177,7 +208,7 @@ public sealed class MeleeHitboxMask
         bottom = anchorY + ((Height - OriginY) * scale);
     }
 
-    private void PixelToWorld(
+    public void PixelToWorld(
         int pixelX,
         int pixelY,
         float anchorX,
@@ -185,16 +216,66 @@ public sealed class MeleeHitboxMask
         bool facingLeft,
         float scale,
         out float worldX,
-        out float worldY)
+        out float worldY,
+        float? rotationRadians = null)
     {
         var localX = (pixelX + 0.5f) - OriginX;
+        var localY = (pixelY + 0.5f) - OriginY;
+        MaskLocalToWorldDelta(ref localX, ref localY, facingLeft, rotationRadians);
+        worldX = anchorX + (localX * scale);
+        worldY = anchorY + (localY * scale);
+    }
+
+    private static void MaskLocalToWorldDelta(
+        ref float localX,
+        ref float localY,
+        bool facingLeft,
+        float? rotationRadians)
+    {
+        if (rotationRadians is float aimRadians)
+        {
+            // Match weapon sprites: scaleX = facing, rotation = aim (+π when left).
+            var facingScale = facingLeft ? -1f : 1f;
+            localX *= facingScale;
+            var rotation = ResolveAimDrawRotation(aimRadians, facingLeft);
+            var cos = MathF.Cos(rotation);
+            var sin = MathF.Sin(rotation);
+            var rotatedX = (localX * cos) - (localY * sin);
+            var rotatedY = (localX * sin) + (localY * cos);
+            localX = rotatedX;
+            localY = rotatedY;
+            return;
+        }
+
         if (facingLeft)
         {
             localX = -localX;
         }
+    }
 
-        worldX = anchorX + (localX * scale);
-        worldY = anchorY + (((pixelY + 0.5f) - OriginY) * scale);
+    private static void WorldDeltaToMaskLocal(
+        ref float localX,
+        ref float localY,
+        bool facingLeft,
+        float? rotationRadians)
+    {
+        if (rotationRadians is float aimRadians)
+        {
+            var facingScale = facingLeft ? -1f : 1f;
+            var rotation = ResolveAimDrawRotation(aimRadians, facingLeft);
+            var cos = MathF.Cos(-rotation);
+            var sin = MathF.Sin(-rotation);
+            var unrotatedX = (localX * cos) - (localY * sin);
+            var unrotatedY = (localX * sin) + (localY * cos);
+            localX = unrotatedX * facingScale;
+            localY = unrotatedY;
+            return;
+        }
+
+        if (facingLeft)
+        {
+            localX = -localX;
+        }
     }
 
     private static float ComputeMaxReach(

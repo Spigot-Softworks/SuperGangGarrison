@@ -299,6 +299,12 @@ public partial class Game1
                 renderState.PreviousCooldownTicks,
                 currentCooldownTicks);
         }
+        else if (presentationPlayer.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.WhippingCord))
+        {
+            shotStarted = IsDemoknightSwordAnimationStart(
+                renderState.PreviousCooldownTicks,
+                currentCooldownTicks);
+        }
         if (presentationPlayer.ClassId == PlayerClass.Quote)
         {
             // Quote's bubble and blade actions share cooldown/ammo state. Only
@@ -321,6 +327,24 @@ public partial class Game1
         if (presentationPlayer.IsExperimentalDemoknightEnabled)
         {
             UpdateDemoknightSwordWeaponAnimationState(
+                presentationPlayer,
+                renderState,
+                weaponRenderDefinition,
+                currentCooldownTicks,
+                immediateLocalPrimaryPress);
+            renderState.FiredThisUpdate = immediateLocalPrimaryPress
+                || IsDemoknightSwordAnimationStart(renderState.PreviousCooldownTicks, currentCooldownTicks);
+            renderState.PreviousAmmoCount = currentAmmoCount;
+            renderState.PreviousCooldownTicks = currentCooldownTicks;
+            renderState.PreviousReloadTicks = currentReloadTicks;
+            renderState.PreviousQuoteBladesOut = currentQuoteBladesOut;
+            renderState.PreviousQuoteBubbleCount = currentQuoteBubbleCount;
+            return;
+        }
+
+        if (presentationPlayer.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.WhippingCord))
+        {
+            UpdateWhippingCordWeaponAnimationState(
                 presentationPlayer,
                 renderState,
                 weaponRenderDefinition,
@@ -546,6 +570,57 @@ public partial class Game1
 
         // Map cooldown countdown onto the recoil strip so late auth corrections
         // retarget the pose instead of leaving a finished anim with a fresh hit.
+        var elapsedTicks = maxCooldownTicks - currentCooldownTicks;
+        if (elapsedTicks < 0)
+        {
+            elapsedTicks = 0;
+        }
+
+        if (elapsedTicks >= recoilTicks)
+        {
+            StopWeaponAnimation(renderState);
+            return;
+        }
+
+        renderState.WeaponAnimationMode = WeaponAnimationMode.Recoil;
+        renderState.WeaponAnimationDurationSeconds = recoilSeconds;
+        renderState.WeaponAnimationElapsedSeconds = elapsedTicks / LegacyMovementModel.SourceTicksPerSecond;
+        renderState.WeaponAnimationTimeRemainingSeconds = MathF.Max(
+            0f,
+            recoilSeconds - renderState.WeaponAnimationElapsedSeconds);
+    }
+
+    private void UpdateWhippingCordWeaponAnimationState(
+        PlayerEntity player,
+        PlayerRenderState renderState,
+        WeaponRenderDefinition weaponDefinition,
+        int currentCooldownTicks,
+        bool immediatePress)
+    {
+        if (weaponDefinition.RecoilSpriteName is null)
+        {
+            StopWeaponAnimation(renderState);
+            return;
+        }
+
+        var recoilSeconds = MathF.Max(weaponDefinition.RecoilDurationSeconds, 0.0001f);
+        var recoilTicks = Math.Max(
+            1,
+            (int)MathF.Round(recoilSeconds * LegacyMovementModel.SourceTicksPerSecond));
+        var maxCooldownTicks = Math.Max(1, player.ResolveWhippingCordCooldownTicks());
+
+        if (immediatePress && currentCooldownTicks <= 0)
+        {
+            StartWeaponAnimation(renderState, WeaponAnimationMode.Recoil, recoilSeconds);
+            return;
+        }
+
+        if (currentCooldownTicks <= 0)
+        {
+            StopWeaponAnimation(renderState);
+            return;
+        }
+
         var elapsedTicks = maxCooldownTicks - currentCooldownTicks;
         if (elapsedTicks < 0)
         {

@@ -31,6 +31,8 @@
   <resource name="CompressionBlastSnd" type="RESOURCE"/>
   <resource name="BladeSnd" type="RESOURCE"/>
   <resource name="EyelanderSnd" type="RESOURCE"/>
+  <resource name="WhippingCordSwingSnd" type="RESOURCE"/>
+  <resource name="WhippingCordCrackSnd" type="RESOURCE"/>
   <resource name="ChargeSnd" type="RESOURCE"/>
   <resource name="rechargeSnd" type="RESOURCE"/>
   <resource name="NoticeSnd" type="RESOURCE"/>

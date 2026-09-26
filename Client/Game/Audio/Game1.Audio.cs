@@ -382,10 +382,12 @@ public partial class Game1
         var player = GetImmediatePrimaryPresentationPlayer();
         var soundName = ResolvePredictedPrimaryFireSoundName(player);
         if (string.IsNullOrWhiteSpace(soundName)
-            || IsManagedRapidFirePresentation(player, soundName))
+            || IsManagedRapidFirePresentation(player, soundName)
+            || player.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.WhippingCord))
         {
             // Looped minigun/flamethrower audio is started by the rapid-fire
             // controller, which also keeps it alive while the trigger is held.
+            // Whipping Cord plays its hit cue after wind-up from the sim event.
             return;
         }
 
@@ -1151,6 +1153,7 @@ public partial class Game1
             || string.Equals(soundName, "MedigunSnd", StringComparison.OrdinalIgnoreCase)
             || string.Equals(soundName, "BladeSnd", StringComparison.OrdinalIgnoreCase)
             || string.Equals(soundName, "EyelanderSnd", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(soundName, WhippingCordCatalog.AttackSoundName, StringComparison.OrdinalIgnoreCase)
             || string.Equals(soundName, "KnifeSnd", StringComparison.OrdinalIgnoreCase);
     }
 

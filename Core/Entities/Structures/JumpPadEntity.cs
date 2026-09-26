@@ -53,11 +53,17 @@ public sealed class JumpPadEntity : SimulationEntity
 
     public int LifetimeTicks { get; private set; }
 
+    public int ConstructionBoostTicksRemaining { get; private set; }
+
     public bool IsDead => Health <= 0;
 
     public void Advance(SimpleLevel level, WorldBounds bounds)
     {
         LifetimeTicks += 1;
+        if (ConstructionBoostTicksRemaining > 0)
+        {
+            ConstructionBoostTicksRemaining -= 1;
+        }
         if (!HasLanded)
         {
             VerticalSpeed = float.Min(MaxFallSpeed, VerticalSpeed + GravityPerTick);
@@ -87,9 +93,10 @@ public sealed class JumpPadEntity : SimulationEntity
 
         if (HasLanded && !IsBuilt)
         {
+            var buildGain = ConstructionBoostTicksRemaining > 0 ? 4 : 2;
             if (Health < MaxHealth)
             {
-                Health = int.Min(MaxHealth, Health + 2);
+                Health = int.Min(MaxHealth, Health + buildGain);
             }
 
             if (Health >= MaxHealth)
@@ -109,6 +116,26 @@ public sealed class JumpPadEntity : SimulationEntity
     public void TakeDamage(int amount)
     {
         Health = int.Max(0, Health - amount);
+    }
+
+    public void Heal(int amount)
+    {
+        if (amount <= 0)
+        {
+            return;
+        }
+
+        Health = int.Min(MaxHealth, Health + amount);
+    }
+
+    public void GrantConstructionBoost(float speedMultiplier)
+    {
+        if (IsBuilt || speedMultiplier <= 1f)
+        {
+            return;
+        }
+
+        ConstructionBoostTicksRemaining = Math.Max(ConstructionBoostTicksRemaining, 45);
     }
 
     public void ApplyNetworkState(float x, float y, int health, bool hasLanded, bool isBuilt)

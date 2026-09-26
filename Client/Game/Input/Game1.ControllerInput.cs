@@ -872,7 +872,7 @@ public partial class Game1
             var renderAnchor = localPlayer.IsAlive
                 ? GetRenderPosition(localPlayer)
                 : new Vector2(localPlayer.X, localPlayer.Y);
-            var targetScreenPosition = RoundToSourcePixels(renderAnchor + aimOffset - cameraPosition);
+            var targetScreenPosition = GetWorldHudScreenPosition(renderAnchor + aimOffset, cameraPosition);
             return GetSmoothedControllerVisualAimScreenPosition(targetScreenPosition);
         }
 

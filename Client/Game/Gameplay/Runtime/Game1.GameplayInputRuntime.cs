@@ -93,13 +93,11 @@ public partial class Game1
             gameplayInput = gameplayInput with
             {
                 FirePrimary = false,
-                UseAbility = gameplayInput.UseAbility && _buildMenuJumpPadSelectionPressed,
                 SwapWeapon = false,
             };
             networkInput = networkInput with
             {
                 FirePrimary = false,
-                UseAbility = networkInput.UseAbility && _buildMenuJumpPadSelectionPressed,
                 SwapWeapon = false,
             };
         }
@@ -132,6 +130,8 @@ public partial class Game1
                 BuildDispenser = false,
                 DestroySentry = false,
                 DestroyDispenser = false,
+                BuildJumpPad = false,
+                DestroyJumpPad = false,
             };
             networkInput = networkInput with
             {
@@ -145,6 +145,8 @@ public partial class Game1
                 BuildDispenser = false,
                 DestroySentry = false,
                 DestroyDispenser = false,
+                BuildJumpPad = false,
+                DestroyJumpPad = false,
             };
         }
 
