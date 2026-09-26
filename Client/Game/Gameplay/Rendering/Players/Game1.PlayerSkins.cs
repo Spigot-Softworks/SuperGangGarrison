@@ -131,6 +131,8 @@ public partial class Game1
                 NormalSpriteName = ResolveTorsoReplacementSpriteForTeam(definition.NormalSpriteName, player.Team),
                 RecoilSpriteName = ResolveTorsoReplacementSpriteForTeam(definition.RecoilSpriteName, player.Team),
                 ReloadSpriteName = ResolveTorsoReplacementSpriteForTeam(definition.ReloadSpriteName, player.Team),
+                TorsoSpriteName = ResolveTorsoReplacementSpriteForTeam(definition.TorsoSpriteName, player.Team),
+                TorsoRecoilSpriteName = ResolveTorsoReplacementSpriteForTeam(definition.TorsoRecoilSpriteName, player.Team),
                 SingleTeamFrames = true,
             };
         }

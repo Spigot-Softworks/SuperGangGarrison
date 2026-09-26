@@ -1872,7 +1872,8 @@ internal static class SnapshotContributionPlanner
                     priority,
                     DistanceSquared(focus.X, focus.Y, current.X, current.Y),
                     48, // Full state includes the 4-byte dispenser ramp counter.
-                    builder => builder.Sentries.Add(current)));
+                    builder => builder.Sentries.Add(current),
+                    SnapshotDeltaBudgeter.ContributionKind.EntityFirstAppearance));
             }
             else
             {
@@ -1890,11 +1891,14 @@ internal static class SnapshotContributionPlanner
                         priority,
                         DistanceSquared(focus.X, focus.Y, current.X, current.Y),
                         48,
-                        builder => builder.Sentries.Add(current)));
+                        builder => builder.Sentries.Add(current),
+                        SnapshotDeltaBudgeter.ContributionKind.EntityStateUpdate));
                 }
                 else
                 {
-                    // Only dynamic fields changed - send lightweight update (43 bytes)
+                    // Only dynamic fields changed - send lightweight update (43 bytes).
+                    // EntityStateUpdate so overdrive/health/ramp ticks are not starved
+                    // under MTU pressure (needed for Whipping Cord autogun overdrive).
                     var update = new SnapshotSentryUpdateState(
                         current.Id,
                         current.X,
@@ -1912,7 +1916,8 @@ internal static class SnapshotContributionPlanner
                         priority,
                         DistanceSquared(focus.X, focus.Y, current.X, current.Y),
                         43, // Lightweight update includes the 4-byte dispenser ramp counter.
-                        builder => builder.SentryUpdateStates.Add(update)));
+                        builder => builder.SentryUpdateStates.Add(update),
+                        SnapshotDeltaBudgeter.ContributionKind.EntityStateUpdate));
                 }
             }
         }

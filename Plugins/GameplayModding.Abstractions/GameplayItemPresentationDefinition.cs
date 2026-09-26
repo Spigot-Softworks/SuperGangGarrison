@@ -28,16 +28,34 @@ public sealed record GameplayItemPresentationDefinition(
     bool UseAmmoCountForHudFrame = false,
     int BlueTeamAmmoHudFrameOffset = 0,
     /// <summary>
-    /// When true, <see cref="WorldSpriteName"/> / <see cref="RecoilSpriteName"/> are full
-    /// torso replacements layered on legs instead of a separate rotating weapon sprite.
+    /// When true, legs-only body drawing is used and a torso layer is drawn on top.
+    /// Without <see cref="TorsoSpriteName"/>, <see cref="WorldSpriteName"/> /
+    /// <see cref="RecoilSpriteName"/> are the full torso replacement (Eyelander-style).
+    /// With <see cref="TorsoSpriteName"/>, those world/recoil sprites remain the aimable
+    /// weapon layers and the torso strips animate in sync underneath.
     /// </summary>
     bool UseTorsoReplacement = false,
+    /// <summary>
+    /// Idle torso companion strip. When set with <see cref="UseTorsoReplacement"/>,
+    /// world/recoil sprites are treated as the rotating weapon rather than the torso.
+    /// </summary>
+    string? TorsoSpriteName = null,
+    /// <summary>
+    /// Attack torso companion strip. Frame indices should match the weapon recoil strip
+    /// when both are present (e.g. idle/idle/atk2 torso for a 3-frame whip).
+    /// </summary>
+    string? TorsoRecoilSpriteName = null,
     /// <summary>
     /// Optional pack sprite whose opaque pixels define a melee swing area (alpha mask),
     /// anchored at the wielder with the sprite origin — same idea as a stab mask, but
     /// authored as art. Used for hit detection; aim still drives facing and reflect angle.
     /// </summary>
     string? MeleeHitboxSpriteName = null,
+    /// <summary>
+    /// When true, the melee hitbox rotates with aim angle. When false, the mask only
+    /// flips horizontally with facing (Eyelander-style).
+    /// </summary>
+    bool RotateMeleeHitboxWithAim = false,
     GameplayItemHudPresentationDefinition? Hud = null);
 
 public sealed record GameplayItemHudPresentationDefinition(

@@ -82,6 +82,7 @@ public sealed partial class PlayerEntity
             : int.Clamp(CurrentShells, 0, PrimaryWeapon.MaxAmmo);
         PrimaryCooldownTicks = 0;
         ReloadTicksUntilNextShell = 0;
+        ClearWhippingCordSwing();
         CancelSniperBowCharge();
         CancelMortarLauncherCharge();
         SniperRifleFullyChargedHitStreak = 0;

@@ -109,6 +109,16 @@ public sealed class SentryEntity : SimulationEntity
 
     public int DispenserRampTicks { get; private set; }
 
+    /// <summary>
+    /// Autogun overdrive (Whipping Cord). Piggybacks on the snapshot's
+    /// <c>DispenserRampTicks</c> field when <see cref="IsDispenser"/> is false.
+    /// </summary>
+    public int OverdriveTicksRemaining { get; private set; }
+
+    public bool IsOverdriveActive => !IsDispenser && OverdriveTicksRemaining > 0;
+
+    public int ConstructionBoostTicksRemaining { get; private set; }
+
     private readonly Dictionary<int, int> _pendingDispenserHealingFeedback = new();
 
     public float GetDispenserRampProgress(int ticksPerSecond)
@@ -194,9 +204,10 @@ public sealed class SentryEntity : SimulationEntity
 
         if (HasLanded && !IsBuilt)
         {
+            var buildGain = ConstructionBoostTicksRemaining > 0 ? 2 : 1;
             if (Health < MaxHealth)
             {
-                Health = int.Min(MaxHealth, Health + 1);
+                Health = int.Min(MaxHealth, Health + buildGain);
             }
 
             if (Health >= MaxHealth)
@@ -284,6 +295,27 @@ public sealed class SentryEntity : SimulationEntity
         Health = int.Min(MaxHealth, Health + amount);
     }
 
+    public void GrantConstructionBoost(float speedMultiplier)
+    {
+        if (IsBuilt || speedMultiplier <= 1f)
+        {
+            return;
+        }
+
+        // Keep the boost refreshed while the engineer keeps whipping.
+        ConstructionBoostTicksRemaining = Math.Max(ConstructionBoostTicksRemaining, 45);
+    }
+
+    public void GrantOverdrive(int durationTicks)
+    {
+        if (IsDispenser || durationTicks <= 0)
+        {
+            return;
+        }
+
+        OverdriveTicksRemaining = Math.Max(OverdriveTicksRemaining, durationTicks);
+    }
+
     public void MoveTo(float x, float y)
     {
         X = x;
@@ -322,6 +354,16 @@ public sealed class SentryEntity : SimulationEntity
     private void AdvanceRuntimeTimers()
     {
         LifetimeTicks += 1;
+
+        if (ConstructionBoostTicksRemaining > 0)
+        {
+            ConstructionBoostTicksRemaining -= 1;
+        }
+
+        if (OverdriveTicksRemaining > 0)
+        {
+            OverdriveTicksRemaining -= 1;
+        }
 
         if (ReloadTicksRemaining > 0)
         {
@@ -379,6 +421,11 @@ public sealed class SentryEntity : SimulationEntity
         if (IsDispenser && dispenserRampTicks >= 0)
         {
             DispenserRampTicks = Math.Max(0, dispenserRampTicks);
+        }
+        else if (!IsDispenser && dispenserRampTicks >= 0)
+        {
+            // Non-dispenser ramp ticks carry autogun overdrive remaining.
+            OverdriveTicksRemaining = Math.Max(0, dispenserRampTicks);
         }
         // Reset client-side animation state
         RotationTicksRemaining = 0;
