@@ -1275,7 +1275,7 @@ public sealed class PluginContractValidationTests
     {
         public IReadOnlyList<OpenGarrisonServerCvarInfo> GetAll(bool includeProtectedValues) => [];
 
-        public bool TryGet(string name, bool includeProtectedValue, out OpenGarrisonServerCvarInfo cvar)
+        public bool TryGet(string name, bool includeProtectedValues, out OpenGarrisonServerCvarInfo cvar)
         {
             cvar = default;
             return false;

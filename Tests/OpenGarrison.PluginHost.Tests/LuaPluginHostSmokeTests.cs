@@ -3283,7 +3283,7 @@ public sealed class LuaPluginHostSmokeTests
         Assert.True(loadedPlugin.Context.CvarImpl.TryGet("sv_caplimit", out var maskedProtectedCaplimit));
         Assert.True(maskedProtectedCaplimit.IsProtected);
         Assert.Equal("<protected>", maskedProtectedCaplimit.CurrentValue);
-        Assert.True(loadedPlugin.Context.CvarImpl.TryGet("sv_caplimit", includeProtectedValue: true, out var revealedProtectedCaplimit));
+        Assert.True(loadedPlugin.Context.CvarImpl.TryGet("sv_caplimit", includeProtectedValues: true, out var revealedProtectedCaplimit));
         Assert.True(revealedProtectedCaplimit.IsProtected);
         Assert.Equal("5", revealedProtectedCaplimit.CurrentValue);
         Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("sv_caplimit is now protected", StringComparison.Ordinal));
@@ -3299,7 +3299,7 @@ public sealed class LuaPluginHostSmokeTests
         Assert.True(chatHooks.TryHandleChatMessage(
             context,
             new ChatReceivedEvent(1, "Admin", "!gt_cvar sv_caplimit 6", Team: null, TeamOnly: false)));
-        Assert.True(loadedPlugin.Context.CvarImpl.TryGet("sv_caplimit", includeProtectedValue: true, out var updatedProtectedCaplimitCvar));
+        Assert.True(loadedPlugin.Context.CvarImpl.TryGet("sv_caplimit", includeProtectedValues: true, out var updatedProtectedCaplimitCvar));
         Assert.Equal("6", updatedProtectedCaplimitCvar.CurrentValue);
         Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("cvar sv_caplimit updated.", StringComparison.Ordinal));
     }
@@ -5227,20 +5227,20 @@ public sealed class LuaPluginHostSmokeTests
             return GetAll(includeProtectedValues: false);
         }
 
-        public bool TryGet(string name, bool includeProtectedValue, out OpenGarrisonServerCvarInfo cvar)
+        public bool TryGet(string name, bool includeProtectedValues, out OpenGarrisonServerCvarInfo cvar)
         {
             if (!_entries.TryGetValue(name, out cvar))
             {
                 return false;
             }
 
-            cvar = includeProtectedValue ? MarkProtected(cvar) : MaskProtectedValue(cvar);
+            cvar = includeProtectedValues ? MarkProtected(cvar) : MaskProtectedValue(cvar);
             return true;
         }
 
         public bool TryGet(string name, out OpenGarrisonServerCvarInfo cvar)
         {
-            return TryGet(name, includeProtectedValue: false, out cvar);
+            return TryGet(name, includeProtectedValues: false, out cvar);
         }
 
         public bool TrySet(string name, string value, bool allowProtectedMutation, out OpenGarrisonServerCvarInfo cvar, out string errorMessage)
