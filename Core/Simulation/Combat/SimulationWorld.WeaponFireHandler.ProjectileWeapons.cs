@@ -203,7 +203,6 @@ public sealed partial class SimulationWorld
                 weaponClassId,
                 weaponOrigin,
                 baseAngle,
-                weaponDefinition,
                 killFeedWeaponSpriteNameOverride);
         }
 
@@ -212,7 +211,6 @@ public sealed partial class SimulationWorld
             PlayerClass weaponClassId,
             SourceWeaponOrigin weaponOrigin,
             float baseAngle,
-            PrimaryWeaponDefinition weaponDefinition,
             string? killFeedWeaponSpriteNameOverride)
         {
             var settings = _world.GetLastToDieGameplaySettings(attacker);

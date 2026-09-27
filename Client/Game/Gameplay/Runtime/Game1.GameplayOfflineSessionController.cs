@@ -152,7 +152,7 @@ public partial class Game1
             var stepStartTimestamp = sessionStartTimestamp;
             void LogBrowserPracticeStartupStep(string label)
             {
-                if (!OperatingSystem.IsBrowser() && !_game.IsClientPerformanceDiagnosticsEnabled())
+                if (!OperatingSystem.IsBrowser() && !Game1.IsClientPerformanceDiagnosticsEnabled())
                 {
                     return;
                 }
@@ -188,7 +188,6 @@ public partial class Game1
 
             _game.ClearManualPracticeBotRequests();
             _game.ResetPracticeBotManagerState(releaseWorldSlots: true);
-            Game1.ResetPracticeNavigationState();
             _game._botDiagnosticLatestSnapshot = BotControllerDiagnosticsSnapshot.Empty;
             _game.ResetBotDiagnosticSample();
             _game._networkClient.Disconnect();

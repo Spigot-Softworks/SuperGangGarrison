@@ -1095,7 +1095,7 @@ public sealed class TopologyLocalMotionController
         }
 
         var nonTerminalTopologyAlternative = evaluations
-            .Where(evaluation => IsNonTerminalTopologyAlternative(evaluation, startObstruction))
+            .Where(evaluation => IsNonTerminalTopologyAlternative(evaluation))
             .OrderByDescending(evaluation => evaluation.Score)
             .FirstOrDefault();
         if (nonTerminalTopologyAlternative is not null
@@ -1718,8 +1718,7 @@ public sealed class TopologyLocalMotionController
         || evaluation.Reasons.Contains("overlap_lower_drop_handoff", StringComparer.Ordinal);
 
     private static bool IsNonTerminalTopologyAlternative(
-        TopologyLocalMotionMacroReport evaluation,
-        TopologyLocalMotionObstruction startObstruction) =>
+        TopologyLocalMotionMacroReport evaluation) =>
         evaluation.Accepted
         && !HasTerminalWallRisk(evaluation)
         && !evaluation.Reasons.Contains("persistent_obstructed_lower_rollout_penalty", StringComparer.Ordinal)

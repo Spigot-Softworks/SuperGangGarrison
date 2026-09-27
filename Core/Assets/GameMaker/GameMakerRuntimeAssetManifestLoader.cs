@@ -34,19 +34,6 @@ public static class GameMakerRuntimeAssetManifestLoader
             attemptedPaths[0]);
     }
 
-    public static bool TryLoadFromContentRoot(out GameMakerAssetManifest manifest)
-    {
-        foreach (var manifestPath in GetManifestCandidatePaths())
-        {
-            if (TryLoadFromFile(manifestPath, out manifest))
-            {
-                return true;
-            }
-        }
-
-        manifest = null!;
-        return false;
-    }
 
     public static bool TryLoadFromFile(string manifestPath, out GameMakerAssetManifest manifest)
     {

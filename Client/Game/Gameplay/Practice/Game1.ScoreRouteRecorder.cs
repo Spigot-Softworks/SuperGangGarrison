@@ -35,7 +35,7 @@ public partial class Game1
     private bool _botBrainCorridorRecorderLastCarryingIntel;
     private float _botBrainCorridorRecorderLastMoveDirection;
 
-    private bool HandleScoreRouteRecorderConsoleCommand(string commandText, string[] parts)
+    private bool HandleScoreRouteRecorderConsoleCommand()
     {
         AddConsoleLine("BotBrain recorder uses function keys: F6 start/stop, F7 lane mark, F8 objective mark, F9 branch mark, F10 cancel.");
         return true;

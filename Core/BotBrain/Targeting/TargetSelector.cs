@@ -18,16 +18,6 @@ public static class TargetSelector
     // between two points on the 2D playfield.
     private const float MaxEngagementRange = 1100f;
 
-    /// <summary>
-    /// Find the best target to engage, or null if no valid target exists.
-    /// </summary>
-    public static PlayerEntity? SelectTarget(
-        PlayerEntity self,
-        SimulationWorld world,
-        PlayerTeam ownTeam)
-    {
-        return SelectCombatTarget(self, world, ownTeam)?.Player;
-    }
 
     public static BotBrainCombatTarget? SelectCombatTarget(
         PlayerEntity self,

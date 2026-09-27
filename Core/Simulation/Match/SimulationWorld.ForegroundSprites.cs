@@ -35,7 +35,7 @@ public sealed partial class SimulationWorld
             ?? new Dictionary<int, ForegroundSpriteHitMask>();
         foreach (var player in EnumerateForegroundSpriteJunglePlayers())
         {
-            if (player is null || !player.IsAlive)
+            if (!player.IsAlive)
             {
                 ClearForegroundSpriteJungleState(player);
                 continue;

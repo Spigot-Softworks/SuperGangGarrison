@@ -713,13 +713,6 @@ internal sealed class ServerBotManager
         _botDisplayNamePool.Reset();
     }
 
-    /// <summary>
-    /// Resets reaction state when a new session starts.
-    /// </summary>
-    public void ResetReactions()
-    {
-        _reactionController.Reset();
-    }
 
     /// <summary>
     /// Reapplies remembered bot join state after a dedicated map change pushed playable slots back to awaiting-join.
@@ -1566,5 +1559,4 @@ internal readonly struct ServerBotSlotState
 
     public ServerBotSlotState WithTeam(PlayerTeam newTeam) => new(Slot, newTeam, ClassId, DisplayName, Source, IsDummy, Respawn, RespawnMode, ForceNameplate, ForceHealthBar, MapSpawnX, MapSpawnY, DeathTriggerNodeIndex, MimicSourceSlot, FollowTargetSlot);
     public ServerBotSlotState WithClassId(PlayerClass newClassId) => new(Slot, Team, newClassId, DisplayName, Source, IsDummy, Respawn, RespawnMode, ForceNameplate, ForceHealthBar, MapSpawnX, MapSpawnY, DeathTriggerNodeIndex, MimicSourceSlot, FollowTargetSlot);
-    public ServerBotSlotState WithDisplayName(string newDisplayName) => new(Slot, Team, ClassId, newDisplayName, Source, IsDummy, Respawn, RespawnMode, ForceNameplate, ForceHealthBar, MapSpawnX, MapSpawnY, DeathTriggerNodeIndex, MimicSourceSlot, FollowTargetSlot);
 }

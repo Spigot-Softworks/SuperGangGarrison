@@ -249,7 +249,7 @@ public sealed partial class SimulationWorld
         };
     }
 
-    private IEnumerable<GameplayItemDefinition> ResolveGameplayAbilityItems(PlayerEntity player, string channel)
+    private static IEnumerable<GameplayItemDefinition> ResolveGameplayAbilityItems(PlayerEntity player, string channel)
     {
         foreach (var item in ResolveAllPlayerGameplayAbilityItems(player))
         {
@@ -478,12 +478,12 @@ public sealed partial class SimulationWorld
         return new GameplayAbilityResult(context.Player.TryStartHeavySelfHeal(durationTicks, cooldownTicks, totalHeal), ConsumedInput: true);
     }
 
-    internal GameplayAbilityResult ExecuteSniperScopeAbility(GameplayAbilityContext context)
+    internal static GameplayAbilityResult ExecuteSniperScopeAbility(GameplayAbilityContext context)
     {
         return new GameplayAbilityResult(context.Player.TryToggleSniperScope(), ConsumedInput: true);
     }
 
-    internal GameplayAbilityResult ExecuteSniperBinocularsAbility(GameplayAbilityContext context)
+    internal static GameplayAbilityResult ExecuteSniperBinocularsAbility(GameplayAbilityContext context)
     {
         return new GameplayAbilityResult(context.Player.TryToggleBinoculars(), ConsumedInput: true);
     }
@@ -630,7 +630,7 @@ public sealed partial class SimulationWorld
         return GameplayAbilityResult.HandledAndConsumed;
     }
 
-    internal GameplayAbilityResult ExecuteSpyCloakAbility(GameplayAbilityContext context)
+    internal static GameplayAbilityResult ExecuteSpyCloakAbility(GameplayAbilityContext context)
     {
         if (context.Player.TryBeginLastToDieProfessionalFireChord())
         {
@@ -772,7 +772,7 @@ public sealed partial class SimulationWorld
         return GameplayAbilityResult.HandledAndConsumed;
     }
 
-    internal GameplayAbilityResult ExecuteCivvieTauntAbility(GameplayAbilityContext context)
+    internal static GameplayAbilityResult ExecuteCivvieTauntAbility(GameplayAbilityContext context)
     {
         if (context.Player.IsCivviePogoActive)
         {
@@ -794,10 +794,10 @@ public sealed partial class SimulationWorld
                 ConsumedInput: true);
         }
 
-        return new GameplayAbilityResult(TryStartTauntWithCivvieHeal(context.Player, context.Ability), ConsumedInput: true);
+        return new GameplayAbilityResult(TryStartTauntWithCivvieHeal(context.Player), ConsumedInput: true);
     }
 
-    internal GameplayAbilityResult ExecuteCivviePogoAbility(GameplayAbilityContext context)
+    internal static GameplayAbilityResult ExecuteCivviePogoAbility(GameplayAbilityContext context)
     {
         if (context.Phase != GameplayAbilityInputPhase.Pressed)
         {
@@ -824,12 +824,12 @@ public sealed partial class SimulationWorld
             ConsumedInput: true);
     }
 
-    internal GameplayAbilityResult ExecuteScoutTauntAbility(GameplayAbilityContext context)
+    internal static GameplayAbilityResult ExecuteScoutTauntAbility(GameplayAbilityContext context)
     {
         return new GameplayAbilityResult(context.Player.TryStartTaunt(), ConsumedInput: true);
     }
 
-    private bool TryStartTauntWithCivvieHeal(PlayerEntity player, GameplayAbilityDefinition? ability = null)
+    private static bool TryStartTauntWithCivvieHeal(PlayerEntity player)
     {
         if (!player.TryStartTaunt())
         {
@@ -922,7 +922,7 @@ public sealed partial class SimulationWorld
         }
     }
 
-    internal GameplayAbilityResult ExecuteSoldierSecondaryToggleAbility(GameplayAbilityContext context)
+    internal static GameplayAbilityResult ExecuteSoldierSecondaryToggleAbility(GameplayAbilityContext context)
     {
         // Legacy compatibility definition only. Weapon selection is exclusively driven by
         // PlayerInputSnapshot.SwapWeapon and must never be reached through a utility ability.
@@ -979,7 +979,7 @@ public sealed partial class SimulationWorld
         return new GameplayAbilityResult(Handled: started, ConsumedInput: true);
     }
 
-    internal GameplayAbilityResult ExecuteScoutNailgunToggleAbility(GameplayAbilityContext context)
+    internal static GameplayAbilityResult ExecuteScoutNailgunToggleAbility(GameplayAbilityContext context)
     {
         // Legacy compatibility definition only. Alternate primaries are selected at a swap
         // station and secondary weapons are selected through the dedicated swap input.
@@ -987,7 +987,7 @@ public sealed partial class SimulationWorld
         return GameplayAbilityResult.Ignored;
     }
 
-    internal GameplayAbilityResult ExecuteSniperBowToggleAbility(GameplayAbilityContext context)
+    internal static GameplayAbilityResult ExecuteSniperBowToggleAbility(GameplayAbilityContext context)
     {
         // Legacy compatibility definition only. Weapon swaps perform their own scope and bow
         // cleanup through the dedicated swap path.

@@ -425,17 +425,7 @@ public sealed partial class GameplayRuntimeRegistry
         return GetRequiredItem(GetDefaultLoadout(gameplayClassId).PrimaryItemId);
     }
 
-    public GameplayItemDefinition? GetSecondaryItem(PlayerClass playerClass)
-    {
-        var itemId = GetDefaultLoadout(playerClass).SecondaryItemId;
-        return itemId is null ? null : GetRequiredItem(itemId);
-    }
 
-    public GameplayItemDefinition? GetUtilityItem(PlayerClass playerClass)
-    {
-        var itemId = GetDefaultLoadout(playerClass).UtilityItemId;
-        return itemId is null ? null : GetRequiredItem(itemId);
-    }
 
     public bool SupportsExperimentalAcquiredWeapon(PlayerClass playerClass)
     {
@@ -1436,4 +1426,3 @@ public readonly record struct GameplayPrimaryWeaponRuntimeBinding(
     PrimaryWeaponKind WeaponKind,
     string? FireSoundName = null,
     IGameplayPrimaryWeaponExecutor? Executor = null);
-

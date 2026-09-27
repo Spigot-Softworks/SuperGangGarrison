@@ -502,14 +502,8 @@ public sealed partial class PlayerEntity
         ResolveDropdownPlatformContact(level, allowDropdownFallThrough, previousBottom);
         ApplyExperimentalGhostDashMovement(level, team, dt, allowDropdownFallThrough);
         ConstrainWhippingCordMovement(level, team);
-        if (TryApplySourceStepDown(level, team))
-        {
-            RefreshGroundSupport(level, team, allowDropdownFallThrough);
-        }
-        else
-        {
-            RefreshGroundSupport(level, team, allowDropdownFallThrough);
-        }
+        TryApplySourceStepDown(level, team);
+        RefreshGroundSupport(level, team, allowDropdownFallThrough);
 
         ConstrainWhippingCordMovement(level, team);
         if (IsWhippingCordLatched)

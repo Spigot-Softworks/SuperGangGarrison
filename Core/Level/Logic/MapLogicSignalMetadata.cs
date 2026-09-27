@@ -156,12 +156,6 @@ public static class MapLogicSignalMetadata
             : MapLogicPlayerDetectMode.PlayerEnter;
     }
 
-    public static string ToPlayerDetectPropertyValue(MapLogicPlayerDetectMode mode)
-    {
-        return mode == MapLogicPlayerDetectMode.PlayerExit
-            ? PlayerExitPropertyValue
-            : PlayerEnterPropertyValue;
-    }
 
     public static string CyclePlayerDetectPropertyValue(string? current)
     {
@@ -200,18 +194,6 @@ public static class MapLogicSignalMetadata
         return MapLogicMetadata.ToCountdownSecondsPropertyValue(Math.Max(0f, seconds));
     }
 
-    public static bool IsDamageTriggerModeAvailable(
-        IReadOnlyDictionary<string, string>? properties,
-        string modeKey)
-    {
-        if (ParseSignalMode(properties) == MapLogicSignalMode.Impulse)
-        {
-            return true;
-        }
-
-        return modeKey.Equals(DamageTriggerMetadata.TriggerBelowThresholdPropertyKey, StringComparison.OrdinalIgnoreCase)
-            || modeKey.Equals(DamageTriggerMetadata.TriggerWhenDestroyedPropertyKey, StringComparison.OrdinalIgnoreCase);
-    }
 
     public static void ApplySignalModeSelection(
         Dictionary<string, string> properties,

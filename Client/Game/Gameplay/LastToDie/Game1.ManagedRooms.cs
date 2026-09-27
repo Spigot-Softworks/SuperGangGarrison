@@ -1,5 +1,6 @@
 #nullable enable
 using System;
+using System.Globalization;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -199,7 +200,7 @@ public partial class Game1
         }
         _managedRoom = room;
         _managedRoomRequest = _managedRoomRequest! with { RoomId = room.RoomId };
-        ClientDistribution.AuthorizeRoomEndpoint(endpoint!, DateTimeOffset.Parse(room.ExpiresAtIso));
+        ClientDistribution.AuthorizeRoomEndpoint(endpoint!, DateTimeOffset.Parse(room.ExpiresAtIso, CultureInfo.InvariantCulture));
         _hostedLastToDieRoomCode = room.RoomCode;
         _lastToDieConnectionPresentationPending = true;
         if (!TryConnectToServer(new NetworkEndpoint(endpoint!.Host, 0, 0, endpoint.AbsoluteUri), false))

@@ -139,8 +139,6 @@ public readonly record struct GameplayMessageMarker(
     public GameplayMessageMarker WithTriggerNodeIndex(int triggerNodeIndex) =>
         this with { TriggerNodeIndex = triggerNodeIndex };
 
-    public GameplayMessageMarker WithOnEndTriggerNodeIndex(int triggerNodeIndex) =>
-        this with { OnEndTriggerNodeIndex = triggerNodeIndex };
 
     public GameplayMessageMarker WithOnEndTeleportPosition(float x, float y) =>
         this with { OnEndTeleportX = x, OnEndTeleportY = y };
@@ -524,11 +522,7 @@ public static class GameplayMessageMetadata
     public static string CycleEndModePropertyValue(string? value) =>
         ToEndModePropertyValue(Next(ParseEndMode(ToDictionary(EndModePropertyKey, value)), GetEndModeCycle()));
 
-    public static string CycleMusicCrossfadePropertyValue(string? value) =>
-        ParseBool(ToDictionary(MusicCrossfadePropertyKey, value), MusicCrossfadePropertyKey, true) ? "false" : "true";
 
-    public static string CycleMusicLoopPropertyValue(string? value) =>
-        ParseBool(ToDictionary(MusicLoopPropertyKey, value), MusicLoopPropertyKey, true) ? "false" : "true";
 
     public static string CycleOnEndActionPropertyValue(string? value) =>
         ToOnEndActionPropertyValue(Next(ParseOnEndAction(ToDictionary(OnEndActionPropertyKey, value)), GetOnEndActionCycle()));

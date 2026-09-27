@@ -5,6 +5,7 @@ using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using OpenGarrison.Core;
 using System;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -1036,13 +1037,13 @@ public partial class Game1
                 Color.White,
                 scale);
             DrawBitmapFontTextRightAligned(
-                entry.HighestRound.ToString(),
+                entry.HighestRound.ToString(CultureInfo.InvariantCulture),
                 new Vector2(roundsRight, y),
                 Color.White,
                 scale);
         }
 
-        DrawLastToDieRankingsScrollbar(layout, list, visibleRows, page.Total);
+        DrawLastToDieRankingsScrollbar(list, visibleRows, page.Total);
         DrawLastToDieClassFilter(layout);
     }
 
@@ -1089,7 +1090,6 @@ public partial class Game1
     }
 
     private void DrawLastToDieRankingsScrollbar(
-        LastToDieMenuLayout layout,
         Rectangle listBounds,
         int visibleRows,
         int totalRows)
@@ -1115,7 +1115,7 @@ public partial class Game1
         var fraction = normalized % 100;
         return fraction switch
         {
-            0 => whole.ToString(),
+            0 => whole.ToString(CultureInfo.InvariantCulture),
             _ when fraction % 10 == 0 => $"{whole}.{fraction / 10}",
             _ => $"{whole}.{fraction:00}",
         };

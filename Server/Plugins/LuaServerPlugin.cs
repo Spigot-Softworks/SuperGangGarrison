@@ -396,7 +396,7 @@ internal sealed class LuaServerPlugin(
         });
     }
 
-    private object CreateLuaGameplayAbilityExecutionEvent(GameplayAbilityContext context)
+    private static object CreateLuaGameplayAbilityExecutionEvent(GameplayAbilityContext context)
     {
         return new
         {

@@ -113,7 +113,7 @@ internal static class MotionProofRunner
 
         Console.WriteLine($"motion-proof attack status=found actions={attackPath.Actions.Count} ticks={attackPath.TotalTicks} {attackStats}");
         Console.WriteLine($"motion-proof attack tape={FormatActionSequence(attackPath)}");
-        ReplayPath(world, bot, options.Team, attackPath, "attack");
+        ReplayPath(world, bot, attackPath, "attack");
         if (!bot.IsCarryingIntel)
         {
             Console.WriteLine(
@@ -141,7 +141,7 @@ internal static class MotionProofRunner
 
         Console.WriteLine($"motion-proof return status=found actions={returnPath.Actions.Count} ticks={returnPath.TotalTicks} {returnStats}");
         Console.WriteLine($"motion-proof return tape={FormatActionSequence(returnPath)}");
-        ReplayPath(world, bot, options.Team, returnPath, "return");
+        ReplayPath(world, bot, returnPath, "return");
         var completed = options.Team == PlayerTeam.Blue
             ? world.BlueCaps > initialBlueCaps
             : world.RedCaps > initialRedCaps;
@@ -204,7 +204,7 @@ internal static class MotionProofRunner
             return 2;
         }
 
-        ReplayPath(world, bot, options.Team, attackPath, "mirror_attack");
+        ReplayPath(world, bot, attackPath, "mirror_attack");
         if (!bot.IsCarryingIntel)
         {
             Console.WriteLine(
@@ -212,7 +212,7 @@ internal static class MotionProofRunner
             return 3;
         }
 
-        ReplayPath(world, bot, options.Team, returnPath, "mirror_return");
+        ReplayPath(world, bot, returnPath, "mirror_return");
         var completed = options.Team == PlayerTeam.Blue
             ? world.BlueCaps > initialBlueCaps
             : world.RedCaps > initialRedCaps;
@@ -243,7 +243,7 @@ internal static class MotionProofRunner
 
         var initialRedTimer = world.KothRedTimerTicksRemaining;
         var initialBlueTimer = world.KothBlueTimerTicksRemaining;
-        ReplayPath(world, bot, options.Team, attackPath, "mirror_koth");
+        ReplayPath(world, bot, attackPath, "mirror_koth");
         if (!world.IsPlayerInControlPointCaptureZone(bot, targetPoint.Index))
         {
             HoldInput(world, 90);
@@ -310,7 +310,7 @@ internal static class MotionProofRunner
         Console.WriteLine(
             "motion-proof primitive actions-json="
             + JsonSerializer.Serialize(path.Actions.Select(MotionProofAction.From).ToArray(), ArtifactJsonOptions));
-        ReplayPath(world, bot, options.Team, path, "primitive");
+        ReplayPath(world, bot, path, "primitive");
         var distance = Distance(bot.X, bot.Bottom, options.GoalX.Value, options.GoalY.Value);
         var completed = distance <= options.GoalRadius;
         Console.WriteLine(
@@ -2418,7 +2418,7 @@ internal static class MotionProofRunner
         var goalNode = graph.Nodes[goalIndex];
         Console.WriteLine(
             $"motion-proof graph-proof status=found start={startIndex} startNode=({startNode.X:0.0},{startNode.Bottom:0.0}) goal={goalIndex} goalNode=({goalNode.X:0.0},{goalNode.Bottom:0.0}) actions={path.Actions.Count} ticks={path.TotalTicks}");
-        ReplayPath(world, bot, options.Team, path, "graph");
+        ReplayPath(world, bot, path, "graph");
         var distance = Distance(bot.X, bot.Bottom, options.GoalX.Value, options.GoalY.Value);
         var completed = distance <= options.GoalRadius;
         Console.WriteLine(
@@ -2647,7 +2647,7 @@ internal static class MotionProofRunner
             }
 
             TeleportGrounded(enemy, target.X, target.Y, enemyDefinition);
-            ReplayPath(world, bot, options.Team, path, $"combat-trial-{trial}-approach");
+            ReplayPath(world, bot, path, $"combat-trial-{trial}-approach");
             var approachDistance = Distance(bot.X, bot.Bottom, enemy.X, enemy.Bottom);
             var killed = RunDirectCombat(world, bot, enemy, options.SmokeCombatTicks);
             Console.WriteLine(
@@ -3038,7 +3038,7 @@ internal static class MotionProofRunner
 
         Console.WriteLine($"motion-proof koth status=found point={targetPoint.Index} actions={path.Actions.Count} ticks={path.TotalTicks} {stats}");
         Console.WriteLine($"motion-proof koth tape={FormatActionSequence(path)}");
-        ReplayPath(world, bot, options.Team, path, "koth");
+        ReplayPath(world, bot, path, "koth");
         if (!world.IsPlayerInControlPointCaptureZone(bot, targetPoint.Index))
         {
             HoldInput(world, 90);
@@ -4140,7 +4140,7 @@ internal static class MotionProofRunner
         return JsonSerializer.Deserialize<T>(stream, ArtifactJsonOptions);
     }
 
-    private static void ReplayPath(SimulationWorld world, PlayerEntity bot, PlayerTeam team, MotionPath path, string phase)
+    private static void ReplayPath(SimulationWorld world, PlayerEntity bot, MotionPath path, string phase)
     {
         var previousInput = default(PlayerInputSnapshot);
         var tick = 0;

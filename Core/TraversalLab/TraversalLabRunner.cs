@@ -217,11 +217,8 @@ public static class TraversalLabRunner
             if (!runTick(input))
             {
                 return FinalizeResult(
-                    scenario,
                     variant,
                     player,
-                    level,
-                    team,
                     samples,
                     executedTicks,
                     startX,
@@ -287,11 +284,8 @@ public static class TraversalLabRunner
             firstCarryIntelTick,
             everOverlapOwnIntelMarker);
         return FinalizeResult(
-            scenario,
             variant,
             player,
-            level,
-            team,
             samples,
             executedTicks,
             startX,
@@ -308,11 +302,8 @@ public static class TraversalLabRunner
     }
 
     private static TraversalLabCaseResult FinalizeResult(
-        TraversalLabScenario scenario,
         TraversalLabVariant variant,
         PlayerEntity player,
-        SimpleLevel level,
-        PlayerTeam team,
         List<TraversalLabTickSample> samples,
         int executedTicks,
         float startX,

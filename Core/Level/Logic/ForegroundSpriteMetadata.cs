@@ -240,12 +240,6 @@ public static class ForegroundSpriteMetadata
             : ForegroundSpriteBoundaryKind.Box;
     }
 
-    public static string ToBoundaryPropertyValue(ForegroundSpriteBoundaryKind boundary)
-    {
-        return boundary == ForegroundSpriteBoundaryKind.Pixel
-            ? BoundaryPixelPropertyValue
-            : BoundaryBoxPropertyValue;
-    }
 
     public static string CycleBoundaryPropertyValue(string? current)
     {

@@ -89,7 +89,7 @@ public partial class Game1
                 break;
         }
 
-        DrawHostSetupFooter(layout, compactLayout, buttonScale, infoScale);
+        DrawHostSetupFooter(layout, buttonScale, infoScale);
 
         if (!compactLayout && !string.IsNullOrWhiteSpace(_menuStatusMessage))
         {
@@ -167,7 +167,7 @@ public partial class Game1
         DrawHostSetupContentScrollbar(layout);
     }
 
-    private void DrawHostSetupFooter(HostSetupMenuLayout layout, bool compactLayout, float buttonScale, float infoScale)
+    private void DrawHostSetupFooter(HostSetupMenuLayout layout, float buttonScale, float infoScale)
     {
         var panel = layout.Panel;
         if (_hostSetupScreen == HostSetupScreen.Main)

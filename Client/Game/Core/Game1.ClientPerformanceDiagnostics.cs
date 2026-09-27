@@ -108,13 +108,13 @@ public partial class Game1
         BotApply,
     }
 
-    private bool IsClientPerformanceDiagnosticsEnabled()
+    private static bool IsClientPerformanceDiagnosticsEnabled()
     {
         return !OperatingSystem.IsBrowser()
             && (ClientPerformanceLoggingEnabled || ClientPerformanceTestEnabled);
     }
 
-    private bool ShouldMeasureClientPerformanceDurations()
+    private static bool ShouldMeasureClientPerformanceDurations()
     {
         return OperatingSystem.IsBrowser() || IsClientPerformanceDiagnosticsEnabled();
     }

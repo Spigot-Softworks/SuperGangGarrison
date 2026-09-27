@@ -14,6 +14,7 @@ internal sealed class HostedServerAdminPipeHost : IDisposable
     private readonly string _pipeName;
     private readonly Func<string, bool, CancellationToken, Task<IReadOnlyList<string>>> _executeCommandAsync;
     private readonly Action _requestShutdown;
+    private readonly Action<string>? _log;
     private readonly CancellationToken _shutdownToken;
     private readonly Task _listenTask;
 
@@ -21,12 +22,14 @@ internal sealed class HostedServerAdminPipeHost : IDisposable
         string pipeName,
         Func<string, bool, CancellationToken, Task<IReadOnlyList<string>>> executeCommandAsync,
         Action requestShutdown,
-        CancellationToken shutdownToken)
+        CancellationToken shutdownToken,
+        Action<string>? log = null)
     {
         _pipeName = pipeName;
         _executeCommandAsync = executeCommandAsync;
         _requestShutdown = requestShutdown;
         _shutdownToken = shutdownToken;
+        _log = log;
         _listenTask = Task.Run(ListenAsync, CancellationToken.None);
     }
 
@@ -61,8 +64,9 @@ internal sealed class HostedServerAdminPipeHost : IDisposable
             {
                 break;
             }
-            catch
+            catch (Exception ex)
             {
+                _log?.Invoke($"Hosted admin pipe client error: {ex}");
             }
             finally
             {

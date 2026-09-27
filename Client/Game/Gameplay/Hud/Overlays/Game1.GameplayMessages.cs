@@ -659,7 +659,7 @@ public partial class Game1
 
         if (marker.Style == GameplayMessageStyle.Ltd)
         {
-            DrawGameplayMessageLtd(bounds, viewportBounds, marker, text, alpha, rotation, renderScale);
+            DrawGameplayMessageLtd(bounds, marker, text, alpha, rotation, renderScale);
             return;
         }
 
@@ -977,7 +977,6 @@ public partial class Game1
 
     private void DrawGameplayMessageLtd(
         Rectangle bounds,
-        Rectangle viewportBounds,
         GameplayMessageMarker marker,
         string text,
         float alpha,
@@ -1120,7 +1119,7 @@ public partial class Game1
         return new Rectangle(viewportBounds.X, y, viewportBounds.Width, barHeight);
     }
 
-    private Rectangle ResolveGameplayMessageNotification2Bounds(
+    private static Rectangle ResolveGameplayMessageNotification2Bounds(
         Rectangle bounds,
         Rectangle viewportBounds,
         float renderScale)

@@ -214,7 +214,7 @@ public partial class Game1
         DrawHostSetupContextMenuRow(menu.PreviewBounds, "Preview", false);
     }
 
-    private void UpdatePracticeMapSelectionMenu(KeyboardState keyboard, MouseState mouse, PracticeMapsMenuLayout layout)
+    private void UpdatePracticeMapSelectionMenu(MouseState mouse, PracticeMapsMenuLayout layout)
     {
         if (_hostMapPreviewState is not null)
         {

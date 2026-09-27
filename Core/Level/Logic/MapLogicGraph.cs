@@ -467,15 +467,6 @@ public sealed class MapLogicGraph
         return true;
     }
 
-    public int GetNodePriority(int nodeIndex)
-    {
-        if (nodeIndex < 0 || nodeIndex >= _nodes.Length)
-        {
-            return 0;
-        }
-
-        return _nodes[nodeIndex].NodePriority;
-    }
 
     public void Evaluate(IReadOnlyList<ControlPointState> controlPoints)
     {

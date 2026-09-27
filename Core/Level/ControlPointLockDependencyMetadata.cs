@@ -141,15 +141,6 @@ public static class ControlPointLockDependencyMetadata
             : "Red";
     }
 
-    public static string FormatLinkDisplayLabel(string? linkValue, Func<string, string>? describeLink = null)
-    {
-        if (string.IsNullOrWhiteSpace(linkValue))
-        {
-            return "none (click to pick on map)";
-        }
-
-        return describeLink is null ? linkValue : describeLink(linkValue);
-    }
 
     public static bool HasConflictingRules(in ControlPointLockRules rules)
     {

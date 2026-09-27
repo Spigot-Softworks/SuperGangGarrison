@@ -173,15 +173,6 @@ public static class CustomMapPackageImporter
             .ToArray();
     }
 
-    public static IReadOnlyList<string> GetReferencedImagePaths(CustomMapPackageManifest manifest)
-    {
-        return manifest.EnumerateContentReferences()
-            .Where(static path => !string.IsNullOrWhiteSpace(path)
-                && Path.GetExtension(path).Equals(".png", StringComparison.OrdinalIgnoreCase))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .OrderBy(static path => path, StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-    }
 
     public static bool TryResolvePackageImagePath(
         string packageDirectory,

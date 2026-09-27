@@ -89,7 +89,6 @@ public static class BotNavigationMovementValidator
         return TryBuildJumpTapeInternal(
             level,
             classDefinition,
-            profile,
             sourceX,
             sourceY,
             targetX,
@@ -291,7 +290,6 @@ public static class BotNavigationMovementValidator
         return TryBuildJumpTapeInternal(
             level,
             classDefinition,
-            profile,
             sourceX,
             sourceY,
             targetX,
@@ -487,18 +485,6 @@ public static class BotNavigationMovementValidator
             out _);
     }
 
-    public static bool IsWithinTraversalLandingWindow(
-        float currentX,
-        float currentY,
-        bool isGrounded,
-        float targetX,
-        float targetY,
-        bool requireGroundedArrival)
-    {
-        return (!requireGroundedArrival || isGrounded)
-            && MathF.Abs(currentX - targetX) <= HintLandingToleranceX
-            && MathF.Abs(currentY - targetY) <= HintLandingToleranceY;
-    }
 
     public static bool TryValidateRecordedTraversalTape(
         SimpleLevel level,
@@ -659,7 +645,6 @@ public static class BotNavigationMovementValidator
     private static bool TryBuildJumpTapeInternal(
         SimpleLevel level,
         CharacterClassDefinition classDefinition,
-        BotNavigationProfile profile,
         float sourceX,
         float sourceY,
         float targetX,
