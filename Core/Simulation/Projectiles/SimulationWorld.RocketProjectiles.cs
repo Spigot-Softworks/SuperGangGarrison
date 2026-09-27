@@ -601,42 +601,6 @@ public sealed partial class SimulationWorld
             world.GetCachedPlayerPresentationHitBounds(player, out left, out top, out right, out bottom);
         }
 
-        private static bool TryGetRocketPlayerSpriteMaskBounds(
-            SimulationWorld world,
-            PlayerEntity player,
-            out float left,
-            out float top,
-            out float right,
-            out float bottom)
-        {
-            left = 0f;
-            top = 0f;
-            right = 0f;
-            bottom = 0f;
-            var spriteName = GetRocketPlayerBodySpriteName(world, player);
-            if (string.IsNullOrWhiteSpace(spriteName))
-            {
-                return false;
-            }
-
-            if (!s_gameMakerAssets.Value.Sprites.TryGetValue(spriteName, out var sprite))
-            {
-                return false;
-            }
-
-            var mask = sprite.Mask;
-            if (!mask.Left.HasValue || !mask.Top.HasValue || !mask.Right.HasValue || !mask.Bottom.HasValue)
-            {
-                return false;
-            }
-
-            var playerScale = player.PlayerScale;
-            left = player.X + ((mask.Left.Value - sprite.OriginX) * playerScale);
-            top = player.Y + ((mask.Top.Value - sprite.OriginY) * playerScale);
-            right = player.X + (((mask.Right.Value - sprite.OriginX) + 1f) * playerScale);
-            bottom = player.Y + (((mask.Bottom.Value - sprite.OriginY) + 1f) * playerScale);
-            return true;
-        }
 
         private static string? GetRocketPlayerBodySpriteName(SimulationWorld world, PlayerEntity player)
         {

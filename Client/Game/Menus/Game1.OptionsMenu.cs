@@ -26,10 +26,6 @@ public partial class Game1
         return OfflineBotControllerMode.BotBrain;
     }
 
-    private static string GetBotModeLabel(OfflineBotControllerMode botMode)
-    {
-        return "BotBrain";
-    }
 
     private static MusicMode GetNextMusicMode(MusicMode musicMode)
     {
@@ -65,13 +61,6 @@ public partial class Game1
         return Math.Clamp(multiplier, 0f, 1f);
     }
 
-    private static string GetSmoothCameraMultiplierLabel(float multiplier)
-    {
-        var normalized = NormalizeSmoothCameraMultiplier(multiplier);
-        return normalized <= 0.01f
-            ? "Off"
-            : $"{MathF.Round(normalized * 100f)}%";
-    }
 
     private static string GetPlayerCardSizeLabel(int sizeMode)
     {
@@ -491,12 +480,6 @@ public partial class Game1
         PersistClientSettings();
     }
 
-    private void CycleBotModeSetting()
-    {
-        _clientSettings.BotMode = GetNextBotMode(_clientSettings.BotMode);
-        PersistClientSettings();
-        ApplyConfiguredPracticeBotController(respawnActiveBots: true);
-    }
 
     private void TogglePositionSmoothingSetting()
     {
@@ -735,60 +718,16 @@ public partial class Game1
         PersistClientSettings();
     }
 
-    private void AdjustControllerJumpButtonSetting(int step)
-    {
-        AdjustControllerButtonBindingSetting(_clientSettings.ControllerJumpButton, value => _clientSettings.ControllerJumpButton = value, step);
-    }
 
-    private void AdjustControllerPrimaryFireButtonSetting(int step)
-    {
-        AdjustControllerButtonBindingSetting(_clientSettings.ControllerPrimaryFireButton, value => _clientSettings.ControllerPrimaryFireButton = value, step);
-    }
 
-    private void AdjustControllerSecondaryFireButtonSetting(int step)
-    {
-        AdjustControllerButtonBindingSetting(_clientSettings.ControllerSecondaryFireButton, value => _clientSettings.ControllerSecondaryFireButton = value, step);
-    }
 
-    private void AdjustControllerUseAbilityButtonSetting(int step)
-    {
-        AdjustControllerButtonBindingSetting(_clientSettings.ControllerUseAbilityButton, value => _clientSettings.ControllerUseAbilityButton = value, step);
-    }
 
-    private void AdjustControllerInteractButtonSetting(int step)
-    {
-        AdjustControllerButtonBindingSetting(_clientSettings.ControllerInteractButton, value => _clientSettings.ControllerInteractButton = value, step);
-    }
 
-    private void AdjustControllerSwapWeaponButtonSetting(int step)
-    {
-        AdjustControllerButtonBindingSetting(_clientSettings.ControllerSwapWeaponButton, value => _clientSettings.ControllerSwapWeaponButton = value, step);
-    }
 
-    private void AdjustControllerScoreboardButtonSetting(int step)
-    {
-        AdjustControllerButtonBindingSetting(_clientSettings.ControllerScoreboardButton, value => _clientSettings.ControllerScoreboardButton = value, step);
-    }
 
-    private void AdjustControllerPauseButtonSetting(int step)
-    {
-        AdjustControllerButtonBindingSetting(_clientSettings.ControllerPauseButton, value => _clientSettings.ControllerPauseButton = value, step);
-    }
 
-    private void AdjustControllerAimDistanceButtonSetting(int step)
-    {
-        AdjustControllerButtonBindingSetting(_clientSettings.ControllerAimDistanceButton, value => _clientSettings.ControllerAimDistanceButton = value, step);
-    }
 
-    private void AdjustControllerChangeTeamButtonSetting(int step)
-    {
-        AdjustControllerButtonBindingSetting(_clientSettings.ControllerChangeTeamButton, value => _clientSettings.ControllerChangeTeamButton = value, step);
-    }
 
-    private void AdjustControllerChangeClassButtonSetting(int step)
-    {
-        AdjustControllerButtonBindingSetting(_clientSettings.ControllerChangeClassButton, value => _clientSettings.ControllerChangeClassButton = value, step);
-    }
 
     private string GetSwapWeaponsBindingLabel()
     {
@@ -819,11 +758,6 @@ public partial class Game1
         ApplyGraphicsSettings();
     }
 
-    private void CycleDisplayScaleModeSetting()
-    {
-        _clientSettings.DisplayScaleMode = GetNextDisplayScaleMode(_clientSettings.DisplayScaleMode);
-        ApplyGraphicsSettings();
-    }
 
     private void CycleFrameRateLimitSetting()
     {
@@ -847,25 +781,6 @@ public partial class Game1
         PersistClientSettings();
     }
 
-    private void CycleSmoothCameraMultiplierSetting()
-    {
-        var current = NormalizeSmoothCameraMultiplier(_smoothCameraMultiplier);
-        _smoothCameraMultiplier = current switch
-        {
-            <= 0.01f => ClientSettings.DefaultSmoothCameraMultiplier,
-            < 0.5f => 0.6f,
-            < 0.8f => 0.85f,
-            < 0.95f => 1f,
-            _ => 0f,
-        };
-        if (_smoothCameraMultiplier <= 0f)
-        {
-            _hasSmoothCamera = false;
-            _hasGameplayCameraTopLeft = false;
-        }
-
-        PersistClientSettings();
-    }
 
     private void CyclePlayerCardSizeSetting()
     {
@@ -1213,30 +1128,6 @@ public partial class Game1
         ApplyGraphicsSettings();
     }
 
-    private void GetOptionsMenuLayout(int rowCount, out float xbegin, out float ybegin, out float spacing, out float width, out float valueX)
-    {
-        xbegin = 40f;
-        valueX = 240f;
-        width = 320f;
-        if (ViewportHeight < 540)
-        {
-            spacing = 26f;
-            width = 340f;
-            valueX = 232f;
-        }
-        else
-        {
-            spacing = 30f;
-        }
-
-        var compactLayout = ViewportHeight < 540;
-        var defaultY = compactLayout ? 104f : 170f;
-        var minY = compactLayout ? 24f : 40f;
-        var bottomPadding = compactLayout ? 18f : 40f;
-        var estimatedTextHeight = compactLayout ? 18f : 22f;
-        var totalHeight = Math.Max(0, rowCount - 1) * spacing + estimatedTextHeight;
-        ybegin = MathF.Min(defaultY, MathF.Max(minY, ViewportHeight - bottomPadding - totalHeight));
-    }
 
     private void DrawMenuPanelBackdrop(Rectangle rectangle, float alpha)
     {
@@ -1251,13 +1142,6 @@ public partial class Game1
             new Color(24, 27, 32) * (alpha * 0.85f));
     }
 
-    private void DrawMenuPlaqueRows(Vector2 position, int rowCount, float spacing, float width, float alpha)
-    {
-        for (var index = 0; index < rowCount; index += 1)
-        {
-            DrawMenuPlaque(position.X - 6f, position.Y + (index * spacing) - 4f, width, alpha);
-        }
-    }
 
     private void DrawMenuPlaque(float x, float y, float width, float alpha)
     {

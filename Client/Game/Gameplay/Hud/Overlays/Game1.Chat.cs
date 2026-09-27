@@ -674,33 +674,6 @@ public partial class Game1
             1f);
     }
 
-    private void DrawChatLine(ChatLine line, Vector2 position, float alpha, float maxPanelWidth)
-    {
-        var directMessageColor = new Color(138, 218, 255);
-        var speakerPrefix = GetChatLineSpeakerPrefix(line);
-        var speakerWidth = MeasureBitmapFontWidth(speakerPrefix, 1f);
-        var maxContentWidth = Math.Max(48f, maxPanelWidth - (ChatHudPanelHorizontalPadding * 2f));
-        var wrappedMessageLines = WrapBitmapFontText(
-            line.Text,
-            Math.Max(24f, maxContentWidth - speakerWidth),
-            maxContentWidth);
-        var lineHeight = GetChatHudLineHeight();
-
-        for (var lineIndex = 0; lineIndex < wrappedMessageLines.Count; lineIndex += 1)
-        {
-            var textPosition = new Vector2(position.X, position.Y + lineIndex * lineHeight);
-            if (lineIndex == 0 && speakerPrefix.Length > 0)
-            {
-                DrawChatSpeakerPrefix(line, textPosition, alpha, directMessageColor);
-            }
-
-            DrawBitmapFontText(
-                wrappedMessageLines[lineIndex],
-                new Vector2(textPosition.X + (lineIndex == 0 ? speakerWidth : 0f), textPosition.Y),
-                (line.DirectMessage ? directMessageColor : new Color(235, 235, 235)) * alpha,
-                1f);
-        }
-    }
 
     private void DrawChatPrompt(Rectangle promptRectangle, string promptPrefix, List<string> promptLines)
     {
@@ -745,30 +718,6 @@ public partial class Game1
         }
     }
 
-    private void DrawChatScrollStatus(Rectangle promptRectangle)
-    {
-        if (_chatLines.Count <= ClosedChatVisibleLineLimit)
-        {
-            return;
-        }
-
-        var statusText = _chatScrollOffset > 0
-            ? $"Scroll: {_chatScrollOffset} older | PgUp/PgDn, Home/End, Wheel"
-            : $"History: {_chatLines.Count} lines | PgUp/PgDn, Home/End, Wheel";
-        var lineHeight = GetChatHudLineHeight();
-        var statusRectangle = new Rectangle(
-            promptRectangle.X,
-            promptRectangle.Bottom + 6,
-            promptRectangle.Width,
-            (int)MathF.Ceiling(lineHeight + 10f));
-        DrawInsetHudPanel(statusRectangle, new Color(0, 0, 0, 220), new Color(49, 45, 26, 220));
-
-        var textWidth = MeasureBitmapFontWidth(statusText, 1f);
-        var textPosition = new Vector2(
-            Math.Max(statusRectangle.X + 8f, statusRectangle.Right - textWidth - 10f),
-            statusRectangle.Y + 5f);
-        DrawBitmapFontText(statusText, textPosition, new Color(235, 235, 235), 1f);
-    }
 
     private float MeasureChatLineHeight(ChatLine line, float maxPanelWidth)
     {
@@ -959,63 +908,6 @@ public partial class Game1
         DrawBitmapFontText($"{line.PlayerName}: ", new Vector2(cursorX, position.Y), teamColor * alpha, 1f);
     }
 
-    private List<ChatLine> GetVisibleChatLines(float maxPanelWidth, float maxChatHeight, bool includeHistory)
-    {
-        if (_chatLines.Count == 0)
-        {
-            return [];
-        }
-
-        var sourceLines = new List<ChatLine>(_chatLines.Count);
-        if (includeHistory)
-        {
-            sourceLines.AddRange(_chatLines);
-        }
-        else
-        {
-            for (var index = 0; index < _chatLines.Count; index += 1)
-            {
-                if (_chatLines[index].TicksRemaining > 0)
-                {
-                    sourceLines.Add(_chatLines[index]);
-                }
-            }
-
-            if (sourceLines.Count > ClosedChatVisibleLineLimit)
-            {
-                sourceLines.RemoveRange(0, sourceLines.Count - ClosedChatVisibleLineLimit);
-            }
-        }
-
-        if (sourceLines.Count == 0)
-        {
-            return [];
-        }
-
-        var newestVisibleIndex = Math.Max(0, sourceLines.Count - 1 - (includeHistory ? _chatScrollOffset : 0));
-        var startIndex = newestVisibleIndex;
-        var totalHeight = 0f;
-        while (startIndex >= 0)
-        {
-            var lineHeight = MeasureChatLineHeight(sourceLines[startIndex], maxPanelWidth);
-            if (startIndex < newestVisibleIndex && totalHeight + lineHeight > maxChatHeight)
-            {
-                break;
-            }
-
-            totalHeight += lineHeight;
-            startIndex -= 1;
-        }
-
-        startIndex += 1;
-        var resultCount = newestVisibleIndex - startIndex + 1;
-        if (resultCount <= 0)
-        {
-            return [];
-        }
-
-        return sourceLines.GetRange(startIndex, resultCount);
-    }
 
     private List<string> WrapBitmapFontText(string text, float firstLineWidth, float continuationLineWidth)
     {
@@ -1100,27 +992,6 @@ public partial class Game1
         return bestLength;
     }
 
-    private string GetTrailingBitmapFontTextThatFits(string text, float maxWidth)
-    {
-        if (string.IsNullOrEmpty(text) || MeasureBitmapFontWidth(text, 1f) <= maxWidth)
-        {
-            return text;
-        }
-
-        var startIndex = text.Length - 1;
-        while (startIndex > 0)
-        {
-            var candidate = text[startIndex..];
-            if (MeasureBitmapFontWidth(candidate, 1f) <= maxWidth)
-            {
-                return candidate;
-            }
-
-            startIndex -= 1;
-        }
-
-        return text[^1].ToString();
-    }
 
     private (string Text, int StartIndex) GetTrailingBitmapFontTextThatFitsWithOffset(string text, float maxWidth)
     {

@@ -1861,53 +1861,6 @@ public partial class Game1
         return new Vector2(renderPosition.X, renderPosition.Y - 3.4f * scale);
     }
 
-    private Vector2 GetSpriteFrameCenterOfMass(LoadedSpriteFrame frame)
-    {
-        if (_spriteFrameCenterOfMassCache.TryGetValue(frame, out var cachedCenterOfMass))
-        {
-            return cachedCenterOfMass;
-        }
-
-        var sourceRectangle = frame.SourceRectangle ?? new Rectangle(0, 0, frame.Texture.Width, frame.Texture.Height);
-        if (sourceRectangle.Width <= 0 || sourceRectangle.Height <= 0)
-        {
-            var emptyCenter = Vector2.Zero;
-            _spriteFrameCenterOfMassCache[frame] = emptyCenter;
-            return emptyCenter;
-        }
-
-        var pixels = new Color[sourceRectangle.Width * sourceRectangle.Height];
-        if (!frame.TryCopyPixelData(pixels))
-        {
-            frame.Texture.GetData(0, sourceRectangle, pixels, 0, pixels.Length);
-        }
-
-        double weightedX = 0d;
-        double weightedY = 0d;
-        double totalWeight = 0d;
-        for (var y = 0; y < sourceRectangle.Height; y += 1)
-        {
-            for (var x = 0; x < sourceRectangle.Width; x += 1)
-            {
-                var alpha = pixels[(y * sourceRectangle.Width) + x].A;
-                if (alpha <= 0)
-                {
-                    continue;
-                }
-
-                var weight = alpha / 255d;
-                weightedX += (x + 0.5d) * weight;
-                weightedY += (y + 0.5d) * weight;
-                totalWeight += weight;
-            }
-        }
-
-        var centerOfMass = totalWeight > 0d
-            ? new Vector2((float)(weightedX / totalWeight), (float)(weightedY / totalWeight))
-            : new Vector2(sourceRectangle.Width * 0.5f, sourceRectangle.Height * 0.5f);
-        _spriteFrameCenterOfMassCache[frame] = centerOfMass;
-        return centerOfMass;
-    }
 
     private static float GetDeterministicUnitFloat(int seed, int salt)
     {

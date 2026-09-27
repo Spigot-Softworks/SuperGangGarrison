@@ -634,41 +634,7 @@ public partial class Game1
             }
         }
 
-        private void UpdateHostSetupHoverIndex(MouseState mouse, HostSetupMenuLayout layout)
-        {
-            _game._hostSetupHoverIndex = -1;
-            var listRowsBounds = _game.GetHostSetupScrolledContentBounds(layout.ListRowsBounds);
-            if (!HostSetupContentContains(layout, listRowsBounds, mouse.Position))
-            {
-                return;
-            }
 
-            var row = (mouse.Y - listRowsBounds.Y) / layout.RowHeight;
-            var mapIndex = _game._hostMapScrollOffset + row;
-            if (mapIndex >= 0 && mapIndex < _game._hostMapEntries.Count)
-            {
-                _game._hostSetupHoverIndex = mapIndex;
-            }
-        }
-
-        private void HandleHostSetupListScroll(MouseState mouse, HostSetupMenuLayout layout)
-        {
-            var wheelDelta = mouse.ScrollWheelValue - _game._previousMouse.ScrollWheelValue;
-            if (wheelDelta == 0)
-            {
-                return;
-            }
-
-            var stepCount = Math.Max(1, Math.Abs(wheelDelta) / 120);
-            var listRowsBounds = _game.GetHostSetupScrolledContentBounds(layout.ListRowsBounds);
-            if (HostSetupContentContains(layout, listRowsBounds, mouse.Position))
-            {
-                _game._hostSetupState.ScrollMapList(wheelDelta > 0 ? -stepCount : stepCount, layout.VisibleRowCapacity);
-                return;
-            }
-
-            HandleHostSetupContentScroll(mouse, layout, wheelDelta, stepCount);
-        }
 
         private void HandleHostSetupContentScroll(MouseState mouse, HostSetupMenuLayout layout, int wheelDelta = 0, int stepCount = 0)
         {

@@ -7,10 +7,6 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private void DrawMenuInputBox(Rectangle bounds, string text, bool active)
-    {
-        DrawMenuInputBoxScaled(bounds, text, active, 1f);
-    }
 
     private void DrawMenuInputBoxScaled(
         Rectangle bounds,
@@ -151,10 +147,6 @@ public partial class Game1
         return MathF.Max(uniformScale, fitted);
     }
 
-    private float GetMinimumLegibleBitmapFontScale()
-    {
-        return GetUniformBitmapFontScale();
-    }
 
     private void DrawRoundedRectangleOutline(Rectangle bounds, Color fillColor, Color outlineColor, int outlineThickness, int radius)
     {

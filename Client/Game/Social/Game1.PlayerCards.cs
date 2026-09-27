@@ -821,42 +821,6 @@ public partial class Game1
         }
     }
 
-    private void DrawRoundedPlayerCardGradient(Rectangle bounds, Color left, Color right, int radius)
-    {
-        if (bounds.Width <= 0 || bounds.Height <= 0)
-        {
-            return;
-        }
-
-        radius = Math.Clamp(radius, 0, Math.Min(bounds.Width, bounds.Height) / 2);
-        var radiusSquared = radius * radius;
-        for (var x = 0; x < bounds.Width; x += 1)
-        {
-            float inset;
-            if (x < radius)
-            {
-                var dx = radius - x - 0.5f;
-                inset = MathF.Round(radius - MathF.Sqrt(MathF.Max(0f, radiusSquared - (dx * dx))));
-            }
-            else if (x >= bounds.Width - radius)
-            {
-                var dx = x - (bounds.Width - radius) + 0.5f;
-                inset = MathF.Round(radius - MathF.Sqrt(MathF.Max(0f, radiusSquared - (dx * dx))));
-            }
-            else
-            {
-                inset = 0f;
-            }
-
-            var drawY = bounds.Y + (int)inset;
-            var drawHeight = bounds.Height - ((int)inset * 2);
-            if (drawHeight > 0)
-            {
-                var amount = bounds.Width <= 1 ? 0f : x / (float)(bounds.Width - 1);
-                _spriteBatch.Draw(_pixel, new Rectangle(bounds.X + x, drawY, 1, drawHeight), Color.Lerp(left, right, amount));
-            }
-        }
-    }
 
     private void DrawPlayerCardColorSwatch(Rectangle bounds, Color color, bool selected)
     {

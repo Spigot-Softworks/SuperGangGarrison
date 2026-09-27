@@ -963,13 +963,6 @@ public partial class Game1
         return sanitized[..maximumLength];
     }
 
-    private void DrawScoreboardBorder(Rectangle rectangle, Color color)
-    {
-        _spriteBatch.Draw(_pixel, new Rectangle(rectangle.X, rectangle.Y, rectangle.Width, 2), color);
-        _spriteBatch.Draw(_pixel, new Rectangle(rectangle.X, rectangle.Bottom - 2, rectangle.Width, 2), color);
-        _spriteBatch.Draw(_pixel, new Rectangle(rectangle.X, rectangle.Y, 2, rectangle.Height), color);
-        _spriteBatch.Draw(_pixel, new Rectangle(rectangle.Right - 2, rectangle.Y, 2, rectangle.Height), color);
-    }
 
     private static int GetScoreboardIconFrame(PlayerClass playerClass)
     {

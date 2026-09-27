@@ -1138,18 +1138,6 @@ public partial class Game1
         DrawShadowedMenuBitmapFontText(suffix, position, Color.White, scale);
     }
 
-    private static string FormatLastToDieMenuDuration(int ticks)
-    {
-        if (ticks <= 0)
-        {
-            return "0:00";
-        }
-
-        var totalSeconds = Math.Max(0, (int)MathF.Round(ticks / (float)SimulationConfig.DefaultTicksPerSecond));
-        var minutes = totalSeconds / 60;
-        var seconds = totalSeconds % 60;
-        return $"{minutes}:{seconds:00}";
-    }
 
     private void DrawLastToDieMenuButton(LoadedSpriteFrame? texture, Rectangle bounds, string label, bool hovered, float plaqueScale)
     {

@@ -603,8 +603,6 @@ internal sealed class ServerRuntimeEventReporter(
     private static bool IsZeroBoundaryChange(float previous, float current) =>
         (previous <= 0.0001f) != (current <= 0.0001f);
 
-    private static bool IsOneBoundaryChange(float previous, float current) =>
-        (previous >= 0.9999f) != (current >= 0.9999f);
 
     private void PublishDamageEvents(SnapshotTransientEvents transientEvents)
     {

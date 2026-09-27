@@ -1138,37 +1138,6 @@ public sealed class NavGraph
         return -1;
     }
 
-    private HashSet<int> GetAlphaBlockedReachableNodesToGoal(
-        int goalNode,
-        PlayerClass? playerClass,
-        IReadOnlySet<NavEdgeBlock> blockedEdges,
-        PlayerTeam? team,
-        bool carryingIntel)
-    {
-        var cacheKey = new AlphaBlockedObjectiveReachabilityCacheKey(
-            goalNode,
-            playerClass,
-            team,
-            carryingIntel,
-            ComputeBlockedEdgesFingerprint(blockedEdges));
-        if (_alphaBlockedObjectiveReachabilityCache.TryGetValue(cacheKey, out var cachedReachableNodes))
-        {
-            return cachedReachableNodes;
-        }
-
-        var reachableNodes = FindAllReachableNodesFromGoal(
-            goalNode,
-            playerClass,
-            blockedEdges,
-            team,
-            carryingIntel);
-        if (_alphaBlockedObjectiveReachabilityCache.Count < 1_024)
-        {
-            _alphaBlockedObjectiveReachabilityCache.TryAdd(cacheKey, reachableNodes);
-        }
-
-        return reachableNodes;
-    }
 
     private HashSet<int> FindAllReachableNodesFromGoal(
         int goalNode,

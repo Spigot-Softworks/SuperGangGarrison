@@ -790,21 +790,6 @@ public partial class Game1 : Game
         _inGameMenuController.DrawInGameMenu();
     }
 
-    private void OpenGameplayLoadoutMenu()
-    {
-        if (!CanOpenGameplayLoadoutMenu())
-        {
-            return;
-        }
-
-        _inGameMenuOpen = false;
-        _inGameMenuAwaitingEscapeRelease = false;
-        _inGameMenuHoverIndex = -1;
-        _gameplayLoadoutMenuOpen = true;
-        _gameplayLoadoutMenuAwaitingEscapeRelease = true;
-        _gameplayLoadoutMenuHoverIndex = -1;
-        _gameplayLoadoutMenuViewedClass = _world.LocalPlayer.ClassId;
-    }
 
     private void CloseGameplayLoadoutMenu()
     {

@@ -25,10 +25,6 @@ public sealed partial class SimulationWorld
         ControlPointStateSystem.Update(this);
     }
 
-    private void AdvanceControlPointMatchState()
-    {
-        _runtimeController.AdvanceLegacyControlPointMatchState();
-    }
 
     public bool IsPlayerInControlPointCaptureZone(PlayerEntity player, int controlPointIndex)
     {

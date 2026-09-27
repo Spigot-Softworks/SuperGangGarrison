@@ -405,28 +405,6 @@ public sealed partial class SimulationWorld
         }
     }
 
-    private bool CheckGrenadePlayerCollision(GrenadeProjectileEntity grenade, out PlayerEntity? hitPlayer)
-    {
-        hitPlayer = null;
-        foreach (var player in EnumerateSimulatedPlayers())
-        {
-            if (!player.IsAlive || player.Team == grenade.Team)
-            {
-                continue;
-            }
-
-            var deltaX = grenade.X - player.X;
-            var deltaY = grenade.Y - player.Y;
-            var distanceSquared = (deltaX * deltaX) + (deltaY * deltaY);
-
-            if (distanceSquared < 100f) // ~10 pixel collision radius
-            {
-                hitPlayer = player;
-                return true;
-            }
-        }
-        return false;
-    }
 
     private bool CheckGrenadeBuildingCollision(GrenadeProjectileEntity grenade, out SimulationEntity? hitBuilding)
     {

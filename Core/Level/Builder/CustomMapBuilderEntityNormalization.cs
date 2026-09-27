@@ -648,30 +648,7 @@ public static class CustomMapBuilderEntityNormalization
         }
     }
 
-    private static string ResolveTeamGateLegacyType(string team, bool floor)
-    {
-        if (team.Equals("blue", StringComparison.OrdinalIgnoreCase))
-        {
-            return floor ? "blueteamgate2" : "blueteamgate";
-        }
 
-        return floor ? "redteamgate2" : "redteamgate";
-    }
-
-    private static string ResolveIntelGateLegacyType(string team, bool floor)
-    {
-        if (team.Equals("blue", StringComparison.OrdinalIgnoreCase))
-        {
-            return floor ? "blueintelgate2" : "blueintelgate";
-        }
-
-        if (team.Equals("red", StringComparison.OrdinalIgnoreCase))
-        {
-            return floor ? "redintelgate2" : "redintelgate";
-        }
-
-        return floor ? "intelgatehorizontal" : "intelgatevertical";
-    }
 
     private static Dictionary<string, string> CopyEditableProperties(CustomMapBuilderEntity entity)
     {
@@ -727,27 +704,6 @@ public static class CustomMapBuilderEntityNormalization
         return int.TryParse(suffix, NumberStyles.Integer, CultureInfo.InvariantCulture, out var index) ? index : 0;
     }
 
-    private static int ParseControlPointIndex(string linkObjective)
-    {
-        if (string.IsNullOrWhiteSpace(linkObjective))
-        {
-            return 0;
-        }
-
-        if (linkObjective.StartsWith("controlPoint", StringComparison.OrdinalIgnoreCase))
-        {
-            return ParseTrailingIndex(linkObjective, "controlPoint");
-        }
-
-        if (linkObjective.Equals("KothControlPoint", StringComparison.OrdinalIgnoreCase)
-            || linkObjective.Equals("KothRedControlPoint", StringComparison.OrdinalIgnoreCase)
-            || linkObjective.Equals("KothBlueControlPoint", StringComparison.OrdinalIgnoreCase))
-        {
-            return 1;
-        }
-
-        return 0;
-    }
 
     private readonly record struct LegacyBarrierDescription(
         string Team,

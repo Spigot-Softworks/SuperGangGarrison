@@ -67,22 +67,6 @@ public partial class Game1
         new(ClientPowerToggleKind.FriendlyAirburstKnockback, "Friendly airburst boost", "Pyro airburst can carry nearby teammates."),
     ];
 
-    private void OpenClientPowersMenu(bool fromGameplay)
-    {
-        if (!IsPracticeSessionActive && !_practiceSetupOpen)
-        {
-            return;
-        }
-
-        _clientPowersOpen = true;
-        _clientPowersOpenedFromGameplay = fromGameplay;
-        _clientPowersScrollOffset = 0;
-        _clientPowersControllerIndex = 0;
-        if (fromGameplay)
-        {
-            CloseInGameMenu();
-        }
-    }
 
     private void CloseClientPowersMenu(bool reopenPreviousMenu = true)
     {

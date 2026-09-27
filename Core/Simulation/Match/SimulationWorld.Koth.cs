@@ -96,10 +96,6 @@ public sealed partial class SimulationWorld
         }
     }
 
-    private void AdvanceKothMatchState()
-    {
-        _runtimeController.AdvanceLegacyKothMatchState();
-    }
 
     private void AdvanceKothMatchStateCore()
     {
@@ -238,20 +234,6 @@ public sealed partial class SimulationWorld
         return null;
     }
 
-    private static PlayerTeam? GetInitialDualKothOwner(RoomObjectMarker marker)
-    {
-        if (marker.IsRedKothControlPoint())
-        {
-            return PlayerTeam.Red;
-        }
-
-        if (marker.IsBlueKothControlPoint())
-        {
-            return PlayerTeam.Blue;
-        }
-
-        return null;
-    }
 
     private int GetDefaultKothTeamTimerTicks()
     {

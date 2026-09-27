@@ -836,16 +836,6 @@ internal static class Og2NavigationGraphCache
             : throw new InvalidDataException($"Invalid graph cache count: {count}.");
     }
 
-    private static string FormatToken(string value)
-    {
-        var builder = new StringBuilder(value.Length);
-        foreach (var character in value)
-        {
-            builder.Append(char.IsLetterOrDigit(character) || character is '-' or '_' ? character : '_');
-        }
-
-        return builder.Length == 0 ? "map" : builder.ToString();
-    }
 
     private static void TryDeleteTemporary(string path)
     {

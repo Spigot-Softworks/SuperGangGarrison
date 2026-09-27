@@ -738,23 +738,6 @@ public partial class Game1
         _spriteBatch.Draw(_pixel, new Rectangle(bounds.Right - thickness, bounds.Y, thickness, bounds.Height), color);
     }
 
-    private void DrawFriendMessageRow(FriendDirectMessageEntry message, Rectangle bounds, Rectangle listBounds)
-    {
-        var outgoing = string.Equals(message.Direction, "outgoing", StringComparison.OrdinalIgnoreCase);
-        var friendName = outgoing
-            ? GetFriendDisplayName(message.FriendCode)
-            : GetFriendDisplayName(message.FriendCode, message.DisplayName);
-        var label = outgoing
-            ? $"To {friendName}"
-            : friendName;
-        var prefix = $"[{label}]: ";
-        var prefixWidth = MeasureBitmapFontWidth(prefix, 1f);
-        var textY = bounds.Y + 5f;
-        var textMaxWidth = listBounds.Width - 20f - prefixWidth;
-        var color = new Color(138, 218, 255);
-        DrawBitmapFontText(TrimBitmapMenuText(prefix, listBounds.Width - 20f, 1f), new Vector2(listBounds.X + 10f, textY), color, 1f);
-        DrawBitmapFontText(TrimBitmapMenuText(message.Text, textMaxWidth, 1f), new Vector2(listBounds.X + 10f + prefixWidth, textY), color, 1f);
-    }
 
     private void DrawSelectedFriendMessages(Rectangle bounds)
     {
@@ -1409,11 +1392,6 @@ public partial class Game1
         return connected;
     }
 
-    private bool CanJoinSelectedFriend()
-    {
-        return TryGetSelectedFriendPresence(out var presence)
-            && FriendPresenceSessionResolver.TryCreateJoinEndpoint(presence, out _);
-    }
 
     private bool CanRemoveSelectedFriend()
     {

@@ -61,12 +61,6 @@ public partial class Game1
         return false;
     }
 
-    private int GetGarrisonBuilderMultiEntityRefEditingEntityIndex()
-    {
-        return _builderPropertyTarget == GarrisonBuilderPropertyTarget.SelectedMapEntity
-            ? _builderSelectedEntityIndex
-            : -1;
-    }
 
     private bool CanPickGarrisonBuilderMultiEntityRefTarget(string propertyKey, int entityIndex)
     {
