@@ -25,11 +25,6 @@ public sealed partial class SimulationWorld
             _entityPhaseController.AdvanceRemoteSnapshotPlayerTauntStates();
         }
 
-        public void AdvanceProjectilePhaseOnly()
-        {
-            // Only advance projectiles and transient entities
-            _entityPhaseController.AdvanceProjectileAndTransientEntityPhase();
-        }
 
         public void AdvancePrePlayerSimulationPhase()
         {

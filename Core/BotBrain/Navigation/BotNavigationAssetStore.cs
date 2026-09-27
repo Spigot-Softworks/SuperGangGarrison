@@ -32,25 +32,6 @@ public static class BotNavigationAssetStore
         SerializerOptions.Converters.Add(new JsonStringEnumConverter());
     }
 
-    public static NavGraph LoadGraphOrBuild(SimpleLevel level)
-    {
-        ArgumentNullException.ThrowIfNull(level);
-
-        lock (GraphCacheSync)
-        {
-            if (GraphCache.TryGetValue(level, out var cachedGraph)
-                && string.Equals(cachedGraph.LevelFingerprint, ComputeLevelFingerprint(level), StringComparison.OrdinalIgnoreCase)
-                && cachedGraph.FormatVersion == CurrentFormatVersion)
-            {
-                return cachedGraph.Graph;
-            }
-
-            return TryLoadShipped(level, out var asset)
-                || TryLoadRuntimeCache(level, out asset)
-                ? CacheGraph(level, asset, BotNavigationAssetBuilder.ToGraph(asset, level))
-                : CacheGraph(level, BuildAndSaveRuntimeCache(level));
-        }
-    }
 
     public static bool TryLoadCachedGraph(SimpleLevel level, out NavGraph graph)
     {
@@ -83,24 +64,7 @@ public static class BotNavigationAssetStore
         return false;
     }
 
-    public static BotNavigationAsset LoadOrBuild(SimpleLevel level)
-    {
-        ArgumentNullException.ThrowIfNull(level);
 
-        return TryLoadShipped(level, out var asset)
-            || TryLoadRuntimeCache(level, out asset)
-            ? asset
-            : BuildAndSaveRuntimeCache(level);
-    }
-
-    public static BotNavigationAsset BuildAndSaveShippedSource(SimpleLevel level)
-    {
-        ArgumentNullException.ThrowIfNull(level);
-
-        var asset = BotNavigationAssetBuilder.BuildAsset(level);
-        SaveShippedSource(asset);
-        return asset;
-    }
 
     public static BotNavigationAsset BuildAndSaveRuntimeCache(SimpleLevel level)
     {

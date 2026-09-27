@@ -655,7 +655,7 @@ public partial class Game1
             return paletteIndex >= 0 && paletteIndex < CustomBubbleDocument.PaletteColorCount;
         }
 
-        private bool TryGetGridPixel(Rectangle gridBounds, Point mousePosition, out int pixelIndex)
+        private static bool TryGetGridPixel(Rectangle gridBounds, Point mousePosition, out int pixelIndex)
         {
             pixelIndex = -1;
             if (!gridBounds.Contains(mousePosition))

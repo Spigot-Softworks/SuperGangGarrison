@@ -27,37 +27,6 @@ public static class OpenGarrisonPluginPathContainment
         return combinedPath;
     }
 
-    /// <summary>
-    /// Tries to resolve a relative path inside a root directory.
-    /// </summary>
-    /// <param name="rootDirectory">The root directory.</param>
-    /// <param name="relativePath">The relative path.</param>
-    /// <param name="containedPath">When this method returns true, the resolved contained path.</param>
-    /// <param name="error">When this method returns false, a description of the failure.</param>
-    /// <returns>True when the path resolves inside the root directory; otherwise false.</returns>
-    public static bool TryResolveContainedPath(
-        string rootDirectory,
-        string relativePath,
-        out string containedPath,
-        out string error)
-    {
-        containedPath = string.Empty;
-        error = string.Empty;
-
-        try
-        {
-            containedPath = ResolveContainedPath(
-                rootDirectory,
-                relativePath,
-                $"Path escapes root directory: {relativePath}");
-            return true;
-        }
-        catch (Exception ex)
-        {
-            error = ex.Message;
-            return false;
-        }
-    }
 
     /// <summary>
     /// Checks whether a candidate path is contained within a root directory.

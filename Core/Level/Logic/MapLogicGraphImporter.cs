@@ -228,51 +228,7 @@ public static class MapLogicGraphImporter
         return nodeIndex;
     }
 
-    public static ControlPointLockRules ApplyLogicToLockRules(
-        ControlPointLockRules rules,
-        MapLogicGraph graph,
-        IReadOnlyDictionary<string, string>? properties)
-    {
-        if (properties is null || !graph.HasNodes)
-        {
-            return rules;
-        }
 
-        var lockedWhenLogic = ResolveLogicSignalNodeIndex(
-            graph,
-            ReadProperty(properties, MapLogicMetadata.LockedWhenLogicPropertyKey));
-        var unlockedWhenLogic = ResolveLogicSignalNodeIndex(
-            graph,
-            ReadProperty(properties, MapLogicMetadata.UnlockedWhenLogicPropertyKey));
-        if (lockedWhenLogic < 0 && unlockedWhenLogic < 0)
-        {
-            return rules;
-        }
-
-        return rules with
-        {
-            LockedWhenLogicNodeIndex = lockedWhenLogic,
-            UnlockedWhenLogicNodeIndex = unlockedWhenLogic,
-        };
-    }
-
-    public static SpawnPoint ApplyLogicSignal(SpawnPoint spawn, MapLogicGraph graph, IReadOnlyDictionary<string, string>? properties)
-    {
-        if (properties is null || !graph.HasNodes)
-        {
-            return spawn;
-        }
-
-        var logicNodeIndex = ResolveLogicSignalNodeIndex(
-            graph,
-            ReadProperty(properties, MapLogicMetadata.LogicSignalPropertyKey));
-        if (logicNodeIndex < 0)
-        {
-            return spawn;
-        }
-
-        return spawn with { LogicSignalNodeIndex = logicNodeIndex };
-    }
 
     private static string ReadProperty(IReadOnlyDictionary<string, string> properties, string key)
     {

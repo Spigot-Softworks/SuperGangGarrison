@@ -418,7 +418,7 @@ public partial class Game1
             new Vector2(scaleX, 1f));
     }
 
-    private void AdvanceElkondoRagdollWeapon(DynamicRagdollState ragdoll)
+    private static void AdvanceElkondoRagdollWeapon(DynamicRagdollState ragdoll)
     {
         // Weapon is rigidly stuck to the torso pivot — no free flap.
         ragdoll.WeaponFlapDegrees = 0f;

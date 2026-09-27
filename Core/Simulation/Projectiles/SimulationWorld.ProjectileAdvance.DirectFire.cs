@@ -771,7 +771,7 @@ public sealed partial class SimulationWorld
                 MathF.Atan2(directionY, directionX) * (180f / MathF.PI) - 180f);
             if (!resolution.WasFatal)
             {
-                ApplyLastToDieRevolverOnHitEffects(shot, target, directionX, directionY);
+                ApplyLastToDieRevolverOnHitEffects(shot, target);
             }
         }
 
@@ -881,9 +881,7 @@ public sealed partial class SimulationWorld
 
     private void ApplyLastToDieRevolverOnHitEffects(
         RevolverProjectileEntity shot,
-        PlayerEntity target,
-        float directionX,
-        float directionY)
+        PlayerEntity target)
     {
         var profile = shot.LastToDieProfile;
         if (profile.BleedDamagePerSecond > 0f)

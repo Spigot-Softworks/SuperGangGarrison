@@ -269,7 +269,7 @@ public partial class Game1
         _smoothedLocalPlayerRenderPosition = _predictedLocalPlayerPosition + _predictedLocalPlayerRenderCorrectionOffset;
     }
 
-    private void SeedPredictedSniperRifleCharge(
+    private static void SeedPredictedSniperRifleCharge(
         PlayerEntity predictedPlayer,
         PlayerEntity authorityPlayer,
         int previousPredictedCharge,
@@ -307,7 +307,7 @@ public partial class Game1
         predictedPlayer.ApplyPredictionSniperChargeTicks(seeded);
     }
 
-    private void SeedPredictedSniperBowCharge(
+    private static void SeedPredictedSniperBowCharge(
         PlayerEntity predictedPlayer,
         PlayerEntity authorityPlayer,
         int previousPredictedCharge,

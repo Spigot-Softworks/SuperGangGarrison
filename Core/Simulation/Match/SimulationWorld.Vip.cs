@@ -114,10 +114,6 @@ public sealed partial class SimulationWorld
         return true;
     }
 
-    public void ClearPreferredVipSlots()
-    {
-        _preferredVipSlotsByTeam.Clear();
-    }
 
     private void ResetVipStateForNewRound()
     {
@@ -202,7 +198,7 @@ public sealed partial class SimulationWorld
             || (!VipWarmupActive && player.ClassId == PlayerClass.Quote && IsVipPlayer(player));
     }
 
-    private bool CanPlayerAffectControlPointInVipMode(PlayerEntity player)
+    private bool CanPlayerAffectControlPointInVipMode()
     {
         return !IsVipModeActive || !VipWarmupActive;
     }

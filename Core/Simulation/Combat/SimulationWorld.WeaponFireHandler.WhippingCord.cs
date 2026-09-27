@@ -263,7 +263,7 @@ public sealed partial class SimulationWorld
             return false;
         }
 
-        private void ApplyWhippingCordBuildingSupport(PlayerEntity attacker, SentryEntity sentry)
+        private static void ApplyWhippingCordBuildingSupport(PlayerEntity attacker, SentryEntity sentry)
         {
             if (!sentry.IsBuilt)
             {
@@ -290,7 +290,7 @@ public sealed partial class SimulationWorld
             }
         }
 
-        private void ApplyWhippingCordJumpPadSupport(PlayerEntity attacker, JumpPadEntity pad)
+        private static void ApplyWhippingCordJumpPadSupport(PlayerEntity attacker, JumpPadEntity pad)
         {
             if (!pad.IsBuilt)
             {
@@ -309,7 +309,7 @@ public sealed partial class SimulationWorld
             }
         }
 
-        private void TryRepairWhippingCordStructure(
+        private static void TryRepairWhippingCordStructure(
             PlayerEntity attacker,
             int maxHealth,
             int currentHealth,
@@ -347,7 +347,7 @@ public sealed partial class SimulationWorld
             heal(affordableMissing);
         }
 
-        private void TryGrantWhippingCordAutogunOverdrive(PlayerEntity attacker, SentryEntity sentry)
+        private static void TryGrantWhippingCordAutogunOverdrive(PlayerEntity attacker, SentryEntity sentry)
         {
             if (sentry.IsOverdriveActive)
             {

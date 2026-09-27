@@ -61,18 +61,6 @@ public static class CustomMapEntityRuntimeRegistry
         return false;
     }
 
-    public static bool ContainsModernEntities(IReadOnlyList<CustomMapBuilderEntity> entities)
-    {
-        foreach (var entity in entities)
-        {
-            if (IsModernEntityType(entity.Type))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
 
     public static bool TryImport(
         string type,

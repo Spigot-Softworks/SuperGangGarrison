@@ -380,7 +380,7 @@ public partial class Game1
         return new Rectangle(x, y, width, height);
     }
 
-    private Rectangle GetGarrisonBuilderMultiEntityMapPickConfirmBounds(Rectangle promptBounds)
+    private static Rectangle GetGarrisonBuilderMultiEntityMapPickConfirmBounds(Rectangle promptBounds)
     {
         var buttonWidth = BuilderUi(96);
         var buttonHeight = promptBounds.Height - BuilderUi(8);
@@ -519,7 +519,7 @@ public partial class Game1
         return entityRefs.Count + 1;
     }
 
-    private int GetGarrisonBuilderEntityRefListDropdownVisibleItemCount(Rectangle menuBounds, bool hasScrollbar)
+    private int GetGarrisonBuilderEntityRefListDropdownVisibleItemCount(Rectangle menuBounds)
     {
         const int padding = 4;
         const int rowGap = 2;
@@ -539,7 +539,7 @@ public partial class Game1
             + padding;
     }
 
-    private int GetGarrisonBuilderEntityRefListDropdownScrollbarWidth()
+    private static int GetGarrisonBuilderEntityRefListDropdownScrollbarWidth()
     {
         return 8;
     }
@@ -571,17 +571,16 @@ public partial class Game1
         entityRefs = MapLogicEntityReferenceList.Parse(value);
         menuBounds = GetGarrisonBuilderEntityRefListDropdownBounds(
             _builderEntityRefListDropdownPropertyKey,
-            _builderEntityRefListDropdownAnchorBounds,
             entityRefs);
         itemCount = GetGarrisonBuilderEntityRefListDropdownItemCount(entityRefs);
-        hasScrollbar = itemCount > GetGarrisonBuilderEntityRefListDropdownVisibleItemCount(menuBounds, hasScrollbar: false);
-        visibleItems = GetGarrisonBuilderEntityRefListDropdownVisibleItemCount(menuBounds, hasScrollbar);
+        hasScrollbar = itemCount > GetGarrisonBuilderEntityRefListDropdownVisibleItemCount(menuBounds);
+        visibleItems = GetGarrisonBuilderEntityRefListDropdownVisibleItemCount(menuBounds);
         ClampGarrisonBuilderEntityRefListDropdownScrollIndex(entityRefs, menuBounds);
         trackBounds = GetGarrisonBuilderEntityRefListDropdownScrollbarTrackBounds(menuBounds);
         return true;
     }
 
-    private Rectangle GetGarrisonBuilderEntityRefListDropdownScrollbarTrackBounds(Rectangle menuBounds)
+    private static Rectangle GetGarrisonBuilderEntityRefListDropdownScrollbarTrackBounds(Rectangle menuBounds)
     {
         const int padding = 4;
         var trackWidth = GetGarrisonBuilderEntityRefListDropdownScrollbarWidth() - 2;
@@ -638,8 +637,8 @@ public partial class Game1
     private void ClampGarrisonBuilderEntityRefListDropdownScrollIndex(IReadOnlyList<string> entityRefs, Rectangle menuBounds)
     {
         var itemCount = GetGarrisonBuilderEntityRefListDropdownItemCount(entityRefs);
-        var hasScrollbar = itemCount > GetGarrisonBuilderEntityRefListDropdownVisibleItemCount(menuBounds, hasScrollbar: false);
-        var visibleItems = GetGarrisonBuilderEntityRefListDropdownVisibleItemCount(menuBounds, hasScrollbar);
+        var hasScrollbar = itemCount > GetGarrisonBuilderEntityRefListDropdownVisibleItemCount(menuBounds);
+        var visibleItems = GetGarrisonBuilderEntityRefListDropdownVisibleItemCount(menuBounds);
         _builderEntityRefListDropdownScrollIndex = Math.Clamp(
             _builderEntityRefListDropdownScrollIndex,
             0,
@@ -648,7 +647,6 @@ public partial class Game1
 
     private Rectangle GetGarrisonBuilderEntityRefListDropdownBounds(
         string propertyKey,
-        Rectangle anchorBounds,
         IReadOnlyList<string> entityRefs)
     {
         _ = propertyKey;
@@ -656,7 +654,7 @@ public partial class Game1
         var itemCount = GetGarrisonBuilderEntityRefListDropdownItemCount(entityRefs);
         var idealHeight = GetGarrisonBuilderEntityRefListDropdownIdealHeight(itemCount);
         var provisionalBounds = new Rectangle(clipBounds.X, clipBounds.Y, clipBounds.Width, Math.Min(idealHeight, clipBounds.Height));
-        var hasScrollbar = itemCount > GetGarrisonBuilderEntityRefListDropdownVisibleItemCount(provisionalBounds, hasScrollbar: false);
+        var hasScrollbar = itemCount > GetGarrisonBuilderEntityRefListDropdownVisibleItemCount(provisionalBounds);
         var height = hasScrollbar
             ? clipBounds.Height
             : Math.Min(idealHeight, clipBounds.Height);
@@ -733,7 +731,6 @@ public partial class Game1
         Rectangle rowBounds,
         string key,
         string value,
-        MouseState mouse,
         float textScale,
         bool hovered)
     {
@@ -781,11 +778,10 @@ public partial class Game1
         var entityRefs = MapLogicEntityReferenceList.Parse(value);
         var menuBounds = GetGarrisonBuilderEntityRefListDropdownBounds(
             _builderEntityRefListDropdownPropertyKey,
-            _builderEntityRefListDropdownAnchorBounds,
             entityRefs);
         var itemCount = GetGarrisonBuilderEntityRefListDropdownItemCount(entityRefs);
-        var hasScrollbar = itemCount > GetGarrisonBuilderEntityRefListDropdownVisibleItemCount(menuBounds, hasScrollbar: false);
-        var visibleItems = GetGarrisonBuilderEntityRefListDropdownVisibleItemCount(menuBounds, hasScrollbar);
+        var hasScrollbar = itemCount > GetGarrisonBuilderEntityRefListDropdownVisibleItemCount(menuBounds);
+        var visibleItems = GetGarrisonBuilderEntityRefListDropdownVisibleItemCount(menuBounds);
         ClampGarrisonBuilderEntityRefListDropdownScrollIndex(entityRefs, menuBounds);
         DrawGarrisonBuilderBrownPanel(menuBounds);
         var textScale = GetGarrisonBuilderBitmapFontScale();
@@ -960,12 +956,11 @@ public partial class Game1
         var entityRefs = MapLogicEntityReferenceList.Parse(value);
         var menuBounds = GetGarrisonBuilderEntityRefListDropdownBounds(
             _builderEntityRefListDropdownPropertyKey,
-            _builderEntityRefListDropdownAnchorBounds,
             entityRefs);
         return menuBounds.Contains(position);
     }
 
-    private bool TryRefreshGarrisonBuilderMultiEntityRefValue(
+    private static bool TryRefreshGarrisonBuilderMultiEntityRefValue(
         string propertyKey,
         string value,
         IReadOnlyList<(string OldRef, string NewRef, string MapEntityId)> movedUpdates,

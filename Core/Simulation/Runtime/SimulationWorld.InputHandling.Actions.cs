@@ -749,7 +749,7 @@ public sealed partial class SimulationWorld
                 && player.IsExperimentalDemoknightEnabled);
     }
 
-    private bool ShouldUseHeldUtilityAbility(PlayerEntity player)
+    private static bool ShouldUseHeldUtilityAbility(PlayerEntity player)
     {
         foreach (var item in ResolveGameplayAbilityItems(player, GameplayAbilityConstants.UtilityChannel))
         {

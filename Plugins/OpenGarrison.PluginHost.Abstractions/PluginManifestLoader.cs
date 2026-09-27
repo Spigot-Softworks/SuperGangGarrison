@@ -18,18 +18,6 @@ public static class OpenGarrisonPluginManifestLoader
         WriteIndented = true,
     };
 
-    /// <summary>
-    /// Loads the manifest from the default manifest file in a plugin directory.
-    /// </summary>
-    /// <param name="pluginDirectory">The plugin directory.</param>
-    /// <param name="manifest">When this method returns true, the loaded manifest.</param>
-    /// <param name="error">When this method returns false, a description of the failure.</param>
-    /// <returns>True when the manifest was loaded and validated; otherwise false.</returns>
-    public static bool TryLoadFromDirectory(string pluginDirectory, out OpenGarrisonPluginManifest manifest, out string error)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(pluginDirectory);
-        return TryLoadFromPath(Path.Combine(pluginDirectory, DefaultManifestFileName), out manifest, out error);
-    }
 
     /// <summary>
     /// Loads the manifest from a manifest file path, validating referenced files.

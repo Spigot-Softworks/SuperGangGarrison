@@ -328,7 +328,7 @@ public partial class Game1
         return GetPlayerMetal(player) >= GetBuildMenuListCost(slot);
     }
 
-    private float GetBuildMenuListCost(int slot) => slot switch
+    private static float GetBuildMenuListCost(int slot) => slot switch
     {
         1 => SentryBuildNoticeCost,
         2 => DispenserBuildNoticeCost,
@@ -416,7 +416,7 @@ public partial class Game1
         ResetBuildMenuInputSelection();
         if (!IsBuildMenuWheelEnabled)
         {
-            UpdateBuildMenuListState(keyboard, mouse, input);
+            UpdateBuildMenuListState(keyboard, input);
             return;
         }
 
@@ -463,7 +463,7 @@ public partial class Game1
         }
     }
 
-    private void UpdateBuildMenuListState(KeyboardState keyboard, MouseState mouse, PlayerInputSnapshot input)
+    private void UpdateBuildMenuListState(KeyboardState keyboard, PlayerInputSnapshot input)
     {
         var abilityPressed = input.UseAbility && !_buildMenuAbilityWasDown;
         _buildMenuAbilityWasDown = input.UseAbility;

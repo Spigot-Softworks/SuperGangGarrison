@@ -87,7 +87,7 @@ public partial class Game1
                     : (blurIndex == 0 ? 0.18f : 0.1f));
                 var tint = blurTint * blurAlpha;
                 _game.TryDrawPlayerSpriteAtPosition(player, blurPosition, cameraPosition, tint, bodySelection, drawIntelOverlay: false);
-                if (ShouldDrawStatusWeaponSprite(player, bodySelection))
+                if (ShouldDrawStatusWeaponSprite(player))
                 {
                     _game.TryDrawWeaponSpriteAtPosition(player, blurPosition, cameraPosition, tint, 1f, bodySelection);
                 }
@@ -116,7 +116,7 @@ public partial class Game1
                 var blurAlpha = visibilityAlpha * ((blurIndex == 0 ? 0.12f : 0.07f) + (pulse * 0.05f));
                 var tint = blurTint * blurAlpha;
                 _game.TryDrawPlayerSpriteAtPosition(player, blurPosition, cameraPosition, tint, bodySelection, drawIntelOverlay: false);
-                if (ShouldDrawStatusWeaponSprite(player, bodySelection))
+                if (ShouldDrawStatusWeaponSprite(player))
                 {
                     _game.TryDrawWeaponSpriteAtPosition(player, blurPosition, cameraPosition, tint, 1f, bodySelection);
                 }
@@ -158,7 +158,7 @@ public partial class Game1
                     tint,
                     bodySelection,
                     drawIntelOverlay: false);
-                if (ShouldDrawStatusWeaponSprite(player, bodySelection))
+                if (ShouldDrawStatusWeaponSprite(player))
                 {
                     _game.TryDrawWeaponSpriteAtPosition(
                         player,
@@ -189,7 +189,7 @@ public partial class Game1
             var overlayTint = Color.Lerp(new Color(142, 212, 255), new Color(186, 234, 255), cryoProgress)
                 * (visibilityAlpha * overlayAlpha);
             _game.TryDrawPlayerSpriteAtPosition(player, renderPosition, cameraPosition, overlayTint, bodySelection, drawIntelOverlay: false);
-            if (ShouldDrawStatusWeaponSprite(player, bodySelection))
+            if (ShouldDrawStatusWeaponSprite(player))
             {
                 _game.TryDrawWeaponSpriteAtPosition(player, renderPosition, cameraPosition, overlayTint, 1f, bodySelection);
             }
@@ -199,7 +199,7 @@ public partial class Game1
                 return;
             }
 
-            var frozenBounds = _game.GetPlayerScreenBounds(player, renderPosition, cameraPosition);
+            var frozenBounds = Game1.GetPlayerScreenBounds(player, renderPosition, cameraPosition);
             frozenBounds.Inflate(4, 6);
             _game._spriteBatch.Draw(_game._pixel, frozenBounds, new Color(118, 198, 255, 184) * visibilityAlpha);
         }
@@ -240,13 +240,13 @@ public partial class Game1
             PlayerBodySpriteSelection bodySelection)
         {
             _game.TryDrawPlayerSpriteAtPosition(player, renderPosition, cameraPosition, overlayTint, bodySelection, drawIntelOverlay: false);
-            if (ShouldDrawStatusWeaponSprite(player, bodySelection))
+            if (ShouldDrawStatusWeaponSprite(player))
             {
                 _game.TryDrawWeaponSpriteAtPosition(player, renderPosition, cameraPosition, overlayTint, 1f, bodySelection);
             }
         }
 
-        private bool ShouldDrawStatusWeaponSprite(PlayerEntity player, PlayerBodySpriteSelection bodySelection)
+        private bool ShouldDrawStatusWeaponSprite(PlayerEntity player)
         {
             return !_game.GetPlayerIsHeavyEating(player)
                 && !player.IsTaunting

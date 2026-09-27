@@ -3430,15 +3430,15 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                 CharacterClassDefinition classDefinition)
             {
                 var bottom = player.Y + classDefinition.CollisionBottom + 2f;
-                var openRight = !IsPointBlockedForReplayPlayer(player, currentClass, classDefinition, player.X + 6f, bottom)
-                    && !IsPointBlockedForReplayPlayer(player, currentClass, classDefinition, player.X + 2f, bottom);
-                var openLeft = !IsPointBlockedForReplayPlayer(player, currentClass, classDefinition, player.X - 7f, bottom)
-                    && !IsPointBlockedForReplayPlayer(player, currentClass, classDefinition, player.X - 3f, bottom);
+                var openRight = !IsPointBlockedForReplayPlayer(player, player.X + 6f, bottom)
+                    && !IsPointBlockedForReplayPlayer(player, player.X + 2f, bottom);
+                var openLeft = !IsPointBlockedForReplayPlayer(player, player.X - 7f, bottom)
+                    && !IsPointBlockedForReplayPlayer(player, player.X - 3f, bottom);
 
                 if (openRight && openLeft)
                 {
-                    openRight = !IsPointBlockedForReplayPlayer(player, currentClass, classDefinition, player.X + classDefinition.CollisionRight - 1f, bottom);
-                    openLeft = !IsPointBlockedForReplayPlayer(player, currentClass, classDefinition, player.X + classDefinition.CollisionLeft, bottom);
+                    openRight = !IsPointBlockedForReplayPlayer(player, player.X + classDefinition.CollisionRight - 1f, bottom);
+                    openLeft = !IsPointBlockedForReplayPlayer(player, player.X + classDefinition.CollisionLeft, bottom);
                 }
 
                 return openRight ^ openLeft ? 6f : 0f;
@@ -3446,8 +3446,6 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
 
             private bool IsPointBlockedForReplayPlayer(
                 LegacyReplayPlayer player,
-                PlayerClass currentClass,
-                CharacterClassDefinition classDefinition,
                 float x,
                 float y)
             {
@@ -3668,7 +3666,7 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
 
             private void SpawnReplayDeathRemains(LegacyReplayPlayer victim, int killerIndex, byte deathSource)
             {
-                if (ShouldSpawnReplayGibs(victim, killerIndex, deathSource))
+                if (ShouldSpawnReplayGibs(killerIndex, deathSource))
                 {
                     SpawnReplayPlayerGibs(victim);
                     QueueSoundEvent("Gibbing", victim.X, victim.Y);
@@ -3678,7 +3676,7 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
 
                 var classId = MapLegacyClassToCurrent(victim.ClassId);
                 var classDefinition = CharacterClassCatalog.GetDefinition(classId);
-                var animationKind = ResolveReplayDeathAnimationKind(victim, killerIndex, deathSource);
+                var animationKind = ResolveReplayDeathAnimationKind(killerIndex, deathSource);
                 _deadBodies.Add(new DeadBodyEntity(
                     NextTransientEntityId(),
                     victim.StablePlayerId,
@@ -3711,7 +3709,7 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                 }
             }
 
-            private bool ShouldSpawnReplayGibs(LegacyReplayPlayer victim, int killerIndex, byte deathSource)
+            private bool ShouldSpawnReplayGibs(int killerIndex, byte deathSource)
             {
                 if (ReplayDefaultGibLevel <= 1 || deathSource == 0)
                 {
@@ -3727,7 +3725,7 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                 return killerClass is not (PlayerClass.Spy or PlayerClass.Quote or PlayerClass.Sniper);
             }
 
-            private DeadBodyAnimationKind ResolveReplayDeathAnimationKind(LegacyReplayPlayer victim, int killerIndex, byte deathSource)
+            private DeadBodyAnimationKind ResolveReplayDeathAnimationKind(int killerIndex, byte deathSource)
             {
                 if (killerIndex >= 0 && killerIndex < _players.Count)
                 {

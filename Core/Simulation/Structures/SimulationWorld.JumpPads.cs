@@ -12,22 +12,6 @@ public sealed partial class SimulationWorld
         return TryBuildJumpPad(LocalPlayer);
     }
 
-    public bool TryDestroyLocalJumpPad()
-    {
-        for (var index = _jumpPads.Count - 1; index >= 0; index -= 1)
-        {
-            var pad = _jumpPads[index];
-            if (pad.OwnerPlayerId != LocalPlayer.Id)
-            {
-                continue;
-            }
-
-            DestroyJumpPad(pad);
-            return true;
-        }
-
-        return false;
-    }
 
     internal void AdvanceJumpPads()
     {

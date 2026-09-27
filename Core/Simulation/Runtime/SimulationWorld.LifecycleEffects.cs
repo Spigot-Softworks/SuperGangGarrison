@@ -440,10 +440,6 @@ public sealed partial class SimulationWorld
         SpawnBloodDrops(x, y, bloodCount, velocityRangeX: 6f, velocityRangeY: 8f, spreadRadius: 3f);
     }
 
-    public void ClearBloodDrops()
-    {
-        RemoveEntities(_bloodDrops);
-    }
 
     private void MergeBloodDrops()
     {

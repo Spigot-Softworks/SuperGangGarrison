@@ -170,11 +170,6 @@ public sealed partial class SimulationWorld
             }
         }
 
-        public void AdvanceLocalPlayerOnly()
-        {
-            // Only advance the local player for client-side prediction
-            _world.AdvancePlayableNetworkPlayer(SimulationWorld.LocalPlayerSlot);
-        }
 
         public void AdvanceRemoteSnapshotPlayerTauntStates()
         {

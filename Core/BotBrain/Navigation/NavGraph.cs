@@ -799,8 +799,9 @@ public sealed class NavGraph
         {
             var i = candidateIndices[candidateIndex];
 
+            var surfaceId = _nodes[i].SurfaceId;
             if (acceptedSurfaceIds is not null
-                && !acceptedSurfaceIds.Contains(_nodes[i].SurfaceId.Value))
+                && (!surfaceId.HasValue || !acceptedSurfaceIds.Contains(surfaceId.Value)))
             {
                 continue;
             }
@@ -2012,7 +2013,7 @@ public sealed class NavGraph
             return true;
         }
 
-        return ShouldUseRawTraversalCost(playerClass, carryingIntel, team)
+        return ShouldUseRawTraversalCost(carryingIntel)
             && !isSuspiciousVerticalRelay;
     }
 
@@ -2131,7 +2132,7 @@ public sealed class NavGraph
     private static PlayerTeam GetOpposingTeam(PlayerTeam team) =>
         team == PlayerTeam.Red ? PlayerTeam.Blue : PlayerTeam.Red;
 
-    private bool ShouldUseRawTraversalCost(PlayerClass? playerClass, bool carryingIntel, PlayerTeam? team)
+    private bool ShouldUseRawTraversalCost(bool carryingIntel)
     {
         return _mode == GameModeKind.CaptureTheFlag
             && string.Equals(_levelName, "Orange", StringComparison.OrdinalIgnoreCase)

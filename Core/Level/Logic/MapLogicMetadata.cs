@@ -173,10 +173,6 @@ public static class MapLogicMetadata
                 || value.Trim().Equals("1", StringComparison.OrdinalIgnoreCase));
     }
 
-    public static string ToInitialValuePropertyValue(bool initialValue)
-    {
-        return initialValue ? "true" : "false";
-    }
 
     public static string CycleInitialValuePropertyValue(string current)
     {

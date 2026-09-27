@@ -152,7 +152,7 @@ public partial class Game1
             var stepStartTimestamp = sessionStartTimestamp;
             void LogBrowserPracticeStartupStep(string label)
             {
-                if (!OperatingSystem.IsBrowser() && !_game.IsClientPerformanceDiagnosticsEnabled())
+                if (!OperatingSystem.IsBrowser() && !Game1.IsClientPerformanceDiagnosticsEnabled())
                 {
                     return;
                 }

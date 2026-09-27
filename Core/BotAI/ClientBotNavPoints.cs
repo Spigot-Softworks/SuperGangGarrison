@@ -97,25 +97,6 @@ public sealed class ClientBotNavPoints
         return _pointsById.TryGetValue(pointId, out point!);
     }
 
-    public bool TryFindNearestPoint(float x, float y, out BotNavigationNode point)
-    {
-        point = default!;
-        var bestDistanceSquared = float.PositiveInfinity;
-        for (var index = 0; index < _points.Length; index += 1)
-        {
-            var candidate = _points[index];
-            var distanceSquared = DistanceSquared(candidate.X, candidate.Y, x, y);
-            if (distanceSquared >= bestDistanceSquared)
-            {
-                continue;
-            }
-
-            bestDistanceSquared = distanceSquared;
-            point = candidate;
-        }
-
-        return bestDistanceSquared < float.PositiveInfinity;
-    }
 
     public bool TryGetOutgoingConnections(int pointId, out IReadOnlyList<BotNavigationEdge> outgoing)
     {
