@@ -28,20 +28,20 @@ internal sealed class ServerCvarRegistry : IOpenGarrisonServerCvarRegistry
         PersistRuntimeProtectionOverrides();
     }
 
-    public IReadOnlyList<OpenGarrisonServerCvarInfo> GetAll(bool includeProtectedValues)
+    public IReadOnlyList<OpenGarrisonServerCvarInfo> GetAll(bool includeProtectedValuess)
     {
         return _cvarsByName.Values
             .OrderBy(entry => entry.Name, StringComparer.OrdinalIgnoreCase)
-            .Select(entry => ToInfo(entry, includeProtectedValues))
+            .Select(entry => ToInfo(entry, includeProtectedValuess))
             .ToArray();
     }
 
     public IReadOnlyList<OpenGarrisonServerCvarInfo> GetAll()
     {
-        return GetAll(includeProtectedValues: false);
+        return GetAll(includeProtectedValuess: false);
     }
 
-    public bool TryGet(string name, bool includeProtectedValue, out OpenGarrisonServerCvarInfo cvar)
+    public bool TryGet(string name, bool includeProtectedValues, out OpenGarrisonServerCvarInfo cvar)
     {
         cvar = default;
         if (!TryGetRegistration(name, out var registration))
@@ -49,13 +49,13 @@ internal sealed class ServerCvarRegistry : IOpenGarrisonServerCvarRegistry
             return false;
         }
 
-        cvar = ToInfo(registration, includeProtectedValue);
+        cvar = ToInfo(registration, includeProtectedValues);
         return true;
     }
 
     public bool TryGet(string name, out OpenGarrisonServerCvarInfo cvar)
     {
-        return TryGet(name, includeProtectedValue: false, out cvar);
+        return TryGet(name, includeProtectedValues: false, out cvar);
     }
 
     public bool TrySet(string name, string value, bool allowProtectedMutation, out OpenGarrisonServerCvarInfo cvar, out string error)
@@ -71,20 +71,20 @@ internal sealed class ServerCvarRegistry : IOpenGarrisonServerCvarRegistry
         if (registration.IsReadOnly)
         {
             error = "Cvar is read-only.";
-            cvar = ToInfo(registration, includeProtectedValue: false);
+            cvar = ToInfo(registration, includeProtectedValues: false);
             return false;
         }
 
         if (IsProtected(registration.Name) && !allowProtectedMutation)
         {
             error = "Cvar is protected.";
-            cvar = ToInfo(registration, includeProtectedValue: false);
+            cvar = ToInfo(registration, includeProtectedValues: false);
             return false;
         }
 
         if (!registration.TrySet(value?.Trim() ?? string.Empty, out error))
         {
-            cvar = ToInfo(registration, includeProtectedValue: false);
+            cvar = ToInfo(registration, includeProtectedValues: false);
             return false;
         }
 
@@ -113,7 +113,7 @@ internal sealed class ServerCvarRegistry : IOpenGarrisonServerCvarRegistry
             PersistRuntimeProtectionOverrides();
         }
 
-        cvar = ToInfo(registration, includeProtectedValue: false);
+        cvar = ToInfo(registration, includeProtectedValues: false);
         return true;
     }
 
@@ -361,7 +361,7 @@ internal sealed class ServerCvarRegistry : IOpenGarrisonServerCvarRegistry
             });
     }
 
-    private OpenGarrisonServerCvarInfo ToInfo(CvarRegistration registration, bool includeProtectedValue)
+    private OpenGarrisonServerCvarInfo ToInfo(CvarRegistration registration, bool includeProtectedValues)
     {
         var isProtected = IsProtected(registration.Name);
         return new OpenGarrisonServerCvarInfo(
@@ -369,7 +369,7 @@ internal sealed class ServerCvarRegistry : IOpenGarrisonServerCvarRegistry
             registration.Description,
             registration.ValueType,
             registration.DefaultValue,
-            isProtected && !includeProtectedValue ? ProtectedValueMask : registration.GetCurrentValue(),
+            isProtected && !includeProtectedValues ? ProtectedValueMask : registration.GetCurrentValue(),
             isProtected,
             registration.IsReadOnly,
             registration.MinimumNumericValue,

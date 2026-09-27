@@ -16,7 +16,6 @@ public partial class Game1
     private const string ClientOnlineSmokeDurationSecondsEnvironmentVariable = "OG_CLIENT_ONLINE_SMOKE_DURATION_SECONDS";
     private const string ClientOnlineSmokeAutoExitEnvironmentVariable = "OG_CLIENT_ONLINE_SMOKE_AUTO_EXIT";
     private const string ClientOnlineSmokeLogFilePrefix = "client-online-smoke";
-    private const int ClientOnlineSmokeDefaultPort = 8190;
     private const int ClientOnlineSmokeDefaultDurationSeconds = 20;
     private const string ClientOnlineSmokeDefaultHost = "127.0.0.1";
 
@@ -61,7 +60,7 @@ public partial class Game1
                 host = ClientOnlineSmokeDefaultHost;
             }
 
-            var port = GetClientPerformanceEnvironmentInt(ClientOnlineSmokePortEnvironmentVariable, ClientOnlineSmokeDefaultPort);
+            var port = GetClientPerformanceEnvironmentInt(ClientOnlineSmokePortEnvironmentVariable, OpenGarrisonPreferencesDocument.DefaultServerPort);
             var connected = TryConnectToServer(host.Trim(), port, addConsoleFeedback: true);
             _clientOnlineSmokeStage = ClientOnlineSmokeStage.Connecting;
             _clientOnlineSmokeStartedAtUtc = DateTimeOffset.UtcNow;
@@ -152,7 +151,7 @@ public partial class Game1
             EnableNetworkDiagnostics();
         }
 
-        var directory = Path.Combine(AppContext.BaseDirectory, "network-diags");
+        var directory = Path.Combine(RuntimePaths.ApplicationRoot, "network-diags");
         Directory.CreateDirectory(directory);
         _clientOnlineSmokeLogPath = Path.Combine(
             directory,

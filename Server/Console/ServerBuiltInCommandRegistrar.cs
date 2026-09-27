@@ -772,7 +772,7 @@ internal sealed class ServerBuiltInCommandRegistrar(
         var name = parts[0];
         if (parts.Length == 1)
         {
-            return cvarRegistry.TryGet(name, includeProtectedValue: true, out var existing)
+            return cvarRegistry.TryGet(name, includeProtectedValues: true, out var existing)
                 ? [$"[server] cvar | name={existing.Name} | value={existing.CurrentValue} | default={existing.DefaultValue} | type={existing.ValueType} | protected={(existing.IsProtected ? "yes" : "no")} | readonly={(existing.IsReadOnly ? "yes" : "no")}"]
                 : [$"[server] unknown cvar \"{name}\"."];
         }
@@ -819,7 +819,7 @@ internal sealed class ServerBuiltInCommandRegistrar(
             return ["[server] usage: frameinfo [on|off|toggle|status]"];
         }
 
-        if (!cvarRegistry.TryGet("sv_frame_info", includeProtectedValue: true, out var cvar))
+        if (!cvarRegistry.TryGet("sv_frame_info", includeProtectedValues: true, out var cvar))
         {
             return ["[server] frame info cvar is unavailable."];
         }
@@ -855,7 +855,7 @@ internal sealed class ServerBuiltInCommandRegistrar(
 
     private static bool TryRequireCheats(OpenGarrisonServerCommandContext context, string commandName)
     {
-        if (!context.Cvars.TryGet("sv_cheats", includeProtectedValue: true, out var cvar))
+        if (!context.Cvars.TryGet("sv_cheats", includeProtectedValues: true, out var cvar))
         {
             return false;
         }

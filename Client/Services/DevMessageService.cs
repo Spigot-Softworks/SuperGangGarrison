@@ -78,7 +78,7 @@ internal static class DevMessageService
     {
         var candidates = new[]
         {
-            Path.Combine(AppContext.BaseDirectory, "OpenGarrisonupdater.exe"),
+            Path.Combine(RuntimePaths.ApplicationRoot, "OpenGarrisonupdater.exe"),
             Path.Combine(Directory.GetCurrentDirectory(), "OpenGarrisonupdater.exe"),
         };
 
@@ -210,7 +210,7 @@ internal static class DevMessageService
     {
         var candidates = new[]
         {
-            Path.Combine(AppContext.BaseDirectory, "devmessages.txt"),
+            Path.Combine(RuntimePaths.ApplicationRoot, "devmessages.txt"),
             Path.Combine(Directory.GetCurrentDirectory(), "devmessages.txt"),
         };
         for (var index = 0; index < candidates.Length; index += 1)

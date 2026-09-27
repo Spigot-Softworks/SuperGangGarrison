@@ -109,7 +109,7 @@ public partial class Game1
                 if (parts.Length >= 2)
                 {
                     var host = parts[1];
-                    var port = 8190;
+                    var port = OpenGarrisonPreferencesDocument.DefaultServerPort;
                     if (parts.Length >= 3 && !int.TryParse(parts[2], out port))
                     {
                         AddConsoleLine("usage: connect <host> [port]");

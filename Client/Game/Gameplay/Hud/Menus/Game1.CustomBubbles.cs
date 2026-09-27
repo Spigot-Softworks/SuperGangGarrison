@@ -257,7 +257,7 @@ public partial class Game1
 
         var candidates = new[]
         {
-            Path.Combine(AppContext.BaseDirectory, "Content", "Sprites", "InGameElements", "CustomBubble", "big_bubble.png"),
+            Path.Combine(RuntimePaths.ApplicationRoot, "Content", "Sprites", "InGameElements", "CustomBubble", "big_bubble.png"),
             Path.Combine(Environment.CurrentDirectory, "Content", "Sprites", "InGameElements", "CustomBubble", "big_bubble.png"),
             Path.Combine(Environment.CurrentDirectory, "Core", "Content", "Sprites", "InGameElements", "CustomBubble", "big_bubble.png"),
             ProjectSourceLocator.FindFile(Path.Combine("Core", "Content", "Sprites", "InGameElements", "CustomBubble", "big_bubble.png")) ?? string.Empty,

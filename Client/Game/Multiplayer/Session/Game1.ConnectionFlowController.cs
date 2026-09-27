@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using OpenGarrison.Core;
 
 namespace OpenGarrison.Client;
 
@@ -376,7 +377,7 @@ public partial class Game1
 
         private IEnumerable<LobbyBrowserTarget> BuildDefaultLobbyTargets()
         {
-            if (TryCreateManualConnectEndpoint("127.0.0.1", 8190, out var localhostEndpoint))
+            if (TryCreateManualConnectEndpoint("127.0.0.1", OpenGarrisonPreferencesDocument.DefaultServerPort, out var localhostEndpoint))
             {
                 yield return new LobbyBrowserTarget("Localhost", localhostEndpoint);
             }

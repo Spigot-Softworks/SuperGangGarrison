@@ -1051,7 +1051,7 @@ public partial class Game1
         public string ConnectHostBuffer = "127.0.0.1";
         public int ConnectHostCursorIndex;
         public int ConnectHostSelectionStart;
-        public string ConnectPortBuffer = "8190";
+        public string ConnectPortBuffer = OpenGarrisonPreferencesDocument.DefaultServerPort.ToString();
         public int ConnectPortCursorIndex;
         public int ConnectPortSelectionStart;
         public int PasswordEditCursorIndex;
@@ -1082,7 +1082,7 @@ public partial class Game1
         public string AutoBalanceNoticeText = string.Empty;
         public int AutoBalanceNoticeTicks;
         public int PendingHostedConnectTicks = -1;
-        public int PendingHostedConnectPort = 8190;
+        public int PendingHostedConnectPort = OpenGarrisonPreferencesDocument.DefaultServerPort;
         public string? RecentConnectHost;
         public int RecentConnectPort;
     }

@@ -29,6 +29,7 @@ public sealed class OpenGarrisonPreferencesDocument
             : value;
     }
     public const int DefaultLobbyPort = 443;
+    public const int DefaultServerPort = 8190;
     public const DisplayModeKind DefaultDisplayMode = DisplayModeKind.Windowed;
     public const IngameResolutionKind DefaultIngameResolution = IngameResolutionKind.Aspect16x9;
     public const WindowSizeKind DefaultWindowSize = WindowSizeKind.Scale100;
@@ -251,7 +252,7 @@ public sealed class OpenGarrisonPreferencesDocument
 
     public string RecentConnectionHost { get; set; } = "127.0.0.1";
 
-    public int RecentConnectionPort { get; set; } = 8190;
+    public int RecentConnectionPort { get; set; } = DefaultServerPort;
 
     public OpenGarrisonHostSettings HostSettings { get; set; } = new();
 
@@ -367,7 +368,7 @@ public sealed class OpenGarrisonPreferencesDocument
             ControllerChangeTeamButton = ReadControllerButtonBinding(ini, "Controller Change Team Button", DefaultControllerChangeTeamButton),
             ControllerChangeClassButton = ReadControllerButtonBinding(ini, "Controller Change Class Button", DefaultControllerChangeClassButton),
             RecentConnectionHost = ini.GetString(ConnectionSection, "Host", "127.0.0.1"),
-            RecentConnectionPort = ini.GetInt(ConnectionSection, "Port", 8190),
+            RecentConnectionPort = ini.GetInt(ConnectionSection, "Port", DefaultServerPort),
             HostSettings = OpenGarrisonHostSettings.LoadFrom(ini, legacySelectedMap),
             LobbyHost = MigrateLegacyApiHost(ini.GetString(ServerAdvancedSection, "LobbyHost", DefaultLobbyHost)),
             LobbyPort = ini.GetInt(ServerAdvancedSection, "LobbyPort", DefaultLobbyPort),
@@ -894,7 +895,7 @@ public sealed class OpenGarrisonHostSettings
 {
     public string ServerName { get; set; } = "My Server";
 
-    public int Port { get; set; } = 8190;
+    public int Port { get; set; } = OpenGarrisonPreferencesDocument.DefaultServerPort;
 
     public int Slots { get; set; } = 10;
 
@@ -1108,7 +1109,7 @@ public sealed class OpenGarrisonHostSettings
         return new OpenGarrisonHostSettings
         {
             ServerName = ini.GetString("Server", "ServerName", "My Server"),
-            Port = ini.GetInt("Settings", "HostingPort", 8190),
+            Port = ini.GetInt("Settings", "HostingPort", OpenGarrisonPreferencesDocument.DefaultServerPort),
             Slots = ini.GetInt("Settings", "PlayerLimit", 10),
             Password = ini.GetString("Server", "Password", string.Empty),
             TimeLimitMinutes = ini.GetInt("Server", "Time Limit", 15),

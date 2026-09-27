@@ -394,7 +394,7 @@ partial class GameServer
             Console.WriteLine(line);
         }
 
-        Console.WriteLine("Waiting for a UDP hello packet. Pass a different port as the first CLI argument to override 8190.");
+        Console.WriteLine($"Waiting for a UDP hello packet. Pass a different port as the first CLI argument to override {OpenGarrisonPreferencesDocument.DefaultServerPort}.");
         _eventReporter.WriteEvent(
             "server_started",
             ("server_name", _serverName),

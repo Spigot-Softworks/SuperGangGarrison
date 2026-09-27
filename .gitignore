@@ -121,3 +121,8 @@ __pycache__/
 
 # Reproducible historical source extraction
 /Tools/NavAuthoringLegacy/extracted/
+.vs/
+*.userprefs
+*.pdb
+*.dll
+*.exe

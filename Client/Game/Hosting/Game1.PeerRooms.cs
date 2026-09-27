@@ -205,7 +205,7 @@ public partial class Game1
     private static async Task ReleasePendingPeerRoom(Task<PeerRoomConnection> pending)
     {
         try { var room = await pending; await room.LeaveAsync(); }
-        catch (Exception) { }
+        catch (Exception ex) { Console.WriteLine($"Peer room cleanup failed: {ex.Message}"); }
     }
     private void LeavePeerRoom()
     {
