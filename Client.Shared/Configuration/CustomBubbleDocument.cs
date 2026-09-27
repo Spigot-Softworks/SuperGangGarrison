@@ -126,14 +126,6 @@ public sealed class CustomBubbleDocument
         slot.Revision = slot.Revision == uint.MaxValue ? 1u : slot.Revision + 1u;
     }
 
-    public void ClearSlot(int slotIndex)
-    {
-        Normalize();
-        var normalizedSlot = NormalizeSlotIndex(slotIndex);
-        var slot = Slots[normalizedSlot];
-        slot.Rgba64Base64 = string.Empty;
-        slot.Revision = slot.Revision == uint.MaxValue ? 1u : slot.Revision + 1u;
-    }
 
     public bool TryGetCustomPaletteColorHex(int colorIndex, out string colorHex)
     {

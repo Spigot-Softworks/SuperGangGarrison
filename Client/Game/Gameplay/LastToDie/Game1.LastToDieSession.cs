@@ -433,7 +433,6 @@ public partial class Game1
     }
 
     private void DrawLastToDieAccessoryLoadoutColumn(
-        GameplayLoadoutMenuLayout layout,
         Rectangle columnBounds,
         List<GameplayLoadoutMenuButton> buttons)
     {

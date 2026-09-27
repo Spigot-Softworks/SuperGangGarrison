@@ -39,7 +39,7 @@ public partial class Game1
 
         public void DispatchClientSemanticGameplayEvents()
         {
-            var dispatchStartTimestamp = _game.IsClientPerformanceDiagnosticsEnabled() ? Stopwatch.GetTimestamp() : 0L;
+            var dispatchStartTimestamp = Game1.IsClientPerformanceDiagnosticsEnabled() ? Stopwatch.GetTimestamp() : 0L;
             DispatchPendingDamageEventsToPlugins();
             DispatchPendingHealingEventsToPlugins();
             DispatchClientRoundPhaseEvents();

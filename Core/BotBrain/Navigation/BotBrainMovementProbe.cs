@@ -438,7 +438,7 @@ internal static class BotBrainMovementProbe
         BotBrainMovementLaunchRecipe? launchRecipe = null;
         for (var tick = 0; tick < MaxProbeTicks; tick += 1)
         {
-            var input = CreateInput(player, to, kind, direction, tick == jumpTick);
+            var input = CreateInput(to, kind, direction, tick == jumpTick);
             var jumpPressed = input.Up && !previousInput.Up;
             if (kind == NavEdgeKind.Jump && jumpPressed)
             {
@@ -887,7 +887,7 @@ internal static class BotBrainMovementProbe
         BotBrainMovementLaunchRecipe? launchRecipe = null;
         for (var tick = 0; tick < MaxProbeTicks; tick += 1)
         {
-            var input = CreateInput(player, to, kind, direction, tick == jumpTick);
+            var input = CreateInput(to, kind, direction, tick == jumpTick);
             var jumpPressed = input.Up && !previousInput.Up;
             if (kind == NavEdgeKind.Jump && jumpPressed)
             {
@@ -967,7 +967,6 @@ internal static class BotBrainMovementProbe
     }
 
     private static PlayerInputSnapshot CreateInput(
-        PlayerEntity player,
         BotBrainProbeNode to,
         NavEdgeKind kind,
         float direction,

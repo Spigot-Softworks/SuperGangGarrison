@@ -107,23 +107,7 @@ public static class BotNavigationScoreRouteStore
         File.WriteAllText(path, json);
     }
 
-    public static void SetRuntimeOverride(string levelName, int mapAreaIndex, BotNavigationScoreRouteAsset? asset)
-    {
-        var levelKey = BuildLevelKey(levelName, mapAreaIndex);
-        lock (OverrideLock)
-        {
-            RuntimeOverridesByLevelKey[levelKey] = asset;
-        }
-    }
 
-    public static void ClearRuntimeOverride(string levelName, int mapAreaIndex)
-    {
-        var levelKey = BuildLevelKey(levelName, mapAreaIndex);
-        lock (OverrideLock)
-        {
-            RuntimeOverridesByLevelKey.Remove(levelKey);
-        }
-    }
 
     private static string BuildLevelKey(string levelName, int mapAreaIndex)
     {

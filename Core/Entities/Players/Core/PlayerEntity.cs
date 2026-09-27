@@ -633,10 +633,6 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     private bool ExperimentalSelfDamageHealingEnabled { get; set; }
 
-    private bool ExperimentalSoldierInfiniteAmmoDuringRageEnabled { get; set; }
-
-    private float ExperimentalSoldierSwappedOutAmmoRegenAccumulator { get; set; }
-
     private float ExperimentalReloadSpeedMultiplierValue { get; set; } = 1f;
 
     private bool ExperimentalDemoknightChargeFullControlEnabled { get; set; }
@@ -1081,7 +1077,7 @@ public sealed partial class PlayerEntity : SimulationEntity
         IsMedicHealing = false;
         if (resetMedicUberCharge)
         {
-            MedicUberCharge = ClassId == PlayerClass.Medic ? 0f : 0f;
+            MedicUberCharge = 0f;
             IsMedicUberReady = false;
             MedicUberReadyPresentationPending = false;
         }
@@ -1213,10 +1209,6 @@ public sealed partial class PlayerEntity : SimulationEntity
         }
     }
 
-    public void ScaleVerticalSpeed(float scale)
-    {
-        VerticalSpeed *= scale;
-    }
 
     internal bool CanOccupy(SimpleLevel level, PlayerTeam team, float x, float y)
     {
@@ -1495,13 +1487,6 @@ public sealed partial class PlayerEntity : SimulationEntity
         return string.Equals(AcquiredBehaviorId, behaviorId, StringComparison.Ordinal);
     }
 
-    public bool HasAnyBehavior(string behaviorId)
-    {
-        return HasPrimaryBehavior(behaviorId)
-            || HasSecondaryBehavior(behaviorId)
-            || HasUtilityBehavior(behaviorId)
-            || HasAcquiredBehavior(behaviorId);
-    }
 
     public bool HasGameplayAbilityBehavior(string channel, string behaviorId)
     {

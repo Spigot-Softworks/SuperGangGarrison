@@ -315,15 +315,6 @@ public partial class Game1
             ? Math.Max(1, surfaceWidth - GetNavEditorWindowGutterWidth())
             : surfaceWidth;
         var scale = MathF.Min(availableWidth / (float)ViewportWidth, surfaceHeight / (float)ViewportHeight);
-        if (ShouldUsePixelPerfectDisplayScale())
-        {
-            var integerScale = MathF.Floor(scale);
-            if (integerScale >= 1f)
-            {
-                scale = integerScale;
-            }
-        }
-
         var destinationWidth = Math.Max(1, (int)MathF.Floor(ViewportWidth * scale));
         var destinationHeight = Math.Max(1, (int)MathF.Floor(ViewportHeight * scale));
         return new Rectangle(
@@ -333,7 +324,7 @@ public partial class Game1
             destinationHeight);
     }
 
-    private bool ShouldUsePixelPerfectDisplayScale()
+    private static bool ShouldUsePixelPerfectDisplayScale()
     {
         // The pixel-perfect screen-scale option has been retired from the UI; Fill is the only
         // supported behavior. Force Fill here so any preferences file that still has a stored

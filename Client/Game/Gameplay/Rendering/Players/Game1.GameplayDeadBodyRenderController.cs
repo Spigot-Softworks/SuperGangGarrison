@@ -592,7 +592,6 @@ public partial class Game1
                     animationKind,
                     x,
                     y,
-                    width,
                     height,
                     facingLeft,
                     gameplayClassId,

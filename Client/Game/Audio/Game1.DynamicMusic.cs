@@ -304,7 +304,7 @@ public partial class Game1
             : DynamicCombatMusicStage.None;
         _dynamicMusicTargetState = targetState;
 
-        if (_gameplayAudioMusicController.CanStartMusicPlayback())
+        if (GameplayAudioMusicController.CanStartMusicPlayback())
         {
             EnsureDynamicMusicPlaybackStarted(targetState);
         }

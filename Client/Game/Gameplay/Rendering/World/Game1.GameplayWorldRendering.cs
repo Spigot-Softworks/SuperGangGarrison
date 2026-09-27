@@ -66,20 +66,20 @@ public partial class Game1
 
         if (localPlayerInActiveMedicBeam)
         {
-            DrawGameplayPlayers(cameraPosition, playerRectangle, skipPlayerIds: skipBelowUber);
-            DrawGameplayPlayers(cameraPosition, playerRectangle, skipPlayerIds: uberedPlayerIds, onlyPlayerIds: medicBeamMedicIds);
+            DrawGameplayPlayers(cameraPosition, skipPlayerIds: skipBelowUber);
+            DrawGameplayPlayers(cameraPosition, skipPlayerIds: uberedPlayerIds, onlyPlayerIds: medicBeamMedicIds);
             DrawMedicBeams(cameraPosition);
-            DrawGameplayPlayers(cameraPosition, playerRectangle, skipPlayerIds: uberedPlayerIds, onlyPlayerIds: medicBeamTargetIds);
-            DrawGameplayPlayers(cameraPosition, playerRectangle, onlyPlayerIds: uberedPlayerIds);
+            DrawGameplayPlayers(cameraPosition, skipPlayerIds: uberedPlayerIds, onlyPlayerIds: medicBeamTargetIds);
+            DrawGameplayPlayers(cameraPosition, onlyPlayerIds: uberedPlayerIds);
             DrawLocalPlayer(cameraPosition, playerRectangle);
         }
         else
         {
             DrawMedicBeams(cameraPosition);
-            DrawGameplayPlayers(cameraPosition, playerRectangle, skipPlayerIds: skipBelowUber);
-            DrawGameplayPlayers(cameraPosition, playerRectangle, skipPlayerIds: uberedPlayerIds, onlyPlayerIds: medicBeamMedicIds);
-            DrawGameplayPlayers(cameraPosition, playerRectangle, skipPlayerIds: uberedPlayerIds, onlyPlayerIds: medicBeamTargetIds);
-            DrawGameplayPlayers(cameraPosition, playerRectangle, onlyPlayerIds: uberedPlayerIds);
+            DrawGameplayPlayers(cameraPosition, skipPlayerIds: skipBelowUber);
+            DrawGameplayPlayers(cameraPosition, skipPlayerIds: uberedPlayerIds, onlyPlayerIds: medicBeamMedicIds);
+            DrawGameplayPlayers(cameraPosition, skipPlayerIds: uberedPlayerIds, onlyPlayerIds: medicBeamTargetIds);
+            DrawGameplayPlayers(cameraPosition, onlyPlayerIds: uberedPlayerIds);
             DrawLocalPlayer(cameraPosition, playerRectangle);
         }
         DrawFrozenSpyVisuals(cameraPosition);
@@ -564,7 +564,6 @@ public partial class Game1
 
     private void DrawGameplayPlayers(
         Vector2 cameraPosition,
-        Rectangle playerRectangle,
         System.Collections.Generic.HashSet<int>? skipPlayerIds = null,
         System.Collections.Generic.HashSet<int>? onlyPlayerIds = null)
     {

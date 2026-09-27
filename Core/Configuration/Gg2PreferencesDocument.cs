@@ -1624,14 +1624,6 @@ public static class OpenGarrisonStockMapCatalog
             .ToArray();
     }
 
-    public static IReadOnlyList<string> GetDefaultPlaylistIniKeys()
-    {
-        return Definitions
-            .Where(definition => definition.DefaultOrder > 0)
-            .OrderBy(definition => definition.DefaultOrder)
-            .Select(definition => definition.IniKey)
-            .ToArray();
-    }
 
     public static bool TryGetDefinition(string mapName, out OpenGarrisonStockMapDefinition definition)
     {

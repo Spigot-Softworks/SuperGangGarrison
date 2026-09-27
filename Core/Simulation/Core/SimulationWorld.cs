@@ -563,30 +563,6 @@ public sealed partial class SimulationWorld
         return TryApplyNetworkPlayerClassChange(LocalPlayerSlot, definition);
     }
 
-    public bool TrySetEnemyClass(PlayerClass playerClass)
-    {
-        if (!CharacterClassCatalog.RuntimeRegistry.TryGetClassBinding(playerClass, out var binding))
-        {
-            return false;
-        }
-
-        var definition = CharacterClassCatalog.GetDefinition(binding.ClassId);
-        var wasPracticeCombatDummy = _practiceCombatDummyMode != PracticeCombatDummyMode.None;
-        if (definition.Id == _enemyDummyClassDefinition.Id && !wasPracticeCombatDummy)
-        {
-            return false;
-        }
-
-        DisablePracticeCombatDummyMode(resetStats: true);
-        _enemyDummyClassDefinition = definition;
-        EnemyPlayer.SetClassDefinition(definition);
-        if (EnemyPlayerEnabled)
-        {
-            var spawn = ReserveSpawn(EnemyPlayer, _enemyDummyTeam);
-            SpawnPlayerResolved(EnemyPlayer, _enemyDummyTeam, spawn);
-        }
-        return true;
-    }
 
     public IReadOnlyList<WorldSoundEvent> DrainPendingSoundEvents()
     {
@@ -700,7 +676,6 @@ public sealed partial class SimulationWorld
             player.SetExperimentalDemoknightChargeRechargeMultiplier(global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultDemoknightChargeRechargeMultiplier);
             player.SetExperimentalSoldierAmmoRegeneratesWhileSwappedOut(false);
             player.SetExperimentalSelfDamageHealing(false);
-            player.SetExperimentalSoldierInfiniteAmmoDuringRage(false);
             player.SetExperimentalReloadSpeedMultiplier(global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultReloadSpeedMultiplier);
             player.SetExperimentalDemoknightChargeFullControlEnabled(false);
             player.ConfigureExperimentalDemoknightPostRageRegeneration(0f);
@@ -731,9 +706,6 @@ public sealed partial class SimulationWorld
             && player.ClassId == PlayerClass.Soldier);
         player.SetExperimentalSelfDamageHealing(
             settings.EnableSelfDamageHealing
-            && player.ClassId == PlayerClass.Soldier);
-        player.SetExperimentalSoldierInfiniteAmmoDuringRage(
-            settings.EnableSoldierInfiniteAmmoDuringRage
             && player.ClassId == PlayerClass.Soldier);
         player.SetExperimentalReloadSpeedMultiplier(
             player.ClassId == PlayerClass.Soldier

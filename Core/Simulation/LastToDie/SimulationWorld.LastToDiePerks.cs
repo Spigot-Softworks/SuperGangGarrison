@@ -901,7 +901,7 @@ public sealed partial class SimulationWorld
         return MathF.Max(1f, runtime.Modifiers.MedicUberChargeGainMultiplier);
     }
 
-    private float GetLastToDieMedicKritzCriticalDamageMultiplier(PlayerEntity medic)
+    private static float GetLastToDieMedicKritzCriticalDamageMultiplier(PlayerEntity medic)
     {
         if (!medic.LastToDieMedicKritPowerEnabled)
         {
@@ -1389,11 +1389,10 @@ public sealed partial class SimulationWorld
         SyncLastToDieSpyCloakState(player, runtime, advanceGraceTimer: true);
         AdvanceLastToDieCloakedHealing(player, runtime);
         AdvanceLastToDieScopedHealing(player, runtime);
-        AdvanceLastToDieUniversalPassives(slot, player, runtime);
+        AdvanceLastToDieUniversalPassives(player, runtime);
     }
 
     private void AdvanceLastToDieUniversalPassives(
-        byte slot,
         PlayerEntity player,
         LastToDiePlayerPerkRuntime runtime)
     {

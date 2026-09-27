@@ -87,7 +87,11 @@ partial class GameServer
         }
     }
 
+#if EMBEDDED_SESSION
+    private static void InitializeWebSocketHost()
+#else
     private void InitializeWebSocketHost()
+#endif
     {
 #if !EMBEDDED_SESSION
         var enableWebSocket = _webSocketPort > 0;
@@ -246,7 +250,11 @@ partial class GameServer
             .RunOutboundProtocol64RelayAsync(_relayHostUrl, Console.WriteLine, _relayHostCts.Token);
     }
 
+#if EMBEDDED_SESSION
+    private static void InitializeQuicHost()
+#else
     private void InitializeQuicHost()
+#endif
     {
 #if !EMBEDDED_SESSION
         if (OpenGarrison.Server.ManagedRoomRuntime.Enabled) return;

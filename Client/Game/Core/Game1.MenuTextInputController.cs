@@ -28,7 +28,7 @@ public partial class Game1
                 {
                     if (_game._editingConnectPort)
                     {
-                        var result = _game.DeleteTextSelectionOrBackspace(
+                        var result = Game1.DeleteTextSelectionOrBackspace(
                             _game._connectPortBuffer,
                             _game._connectPortCursorIndex,
                             _game._connectPortSelectionStart);
@@ -38,7 +38,7 @@ public partial class Game1
                     }
                     else
                     {
-                        var result = _game.DeleteTextSelectionOrBackspace(
+                        var result = Game1.DeleteTextSelectionOrBackspace(
                             _game._connectHostBuffer,
                             _game._connectHostCursorIndex,
                             _game._connectHostSelectionStart);
@@ -65,7 +65,7 @@ public partial class Game1
                     {
                         if (char.IsDigit(character))
                         {
-                            var result = _game.InsertTextCharacterAtCursor(
+                            var result = Game1.InsertTextCharacterAtCursor(
                                 _game._connectPortBuffer,
                                 character,
                                 _game._connectPortCursorIndex,
@@ -78,7 +78,7 @@ public partial class Game1
                     }
                     else
                     {
-                        var result = _game.InsertTextCharacterAtCursor(
+                        var result = Game1.InsertTextCharacterAtCursor(
                             _game._connectHostBuffer,
                             character,
                             _game._connectHostCursorIndex,
@@ -105,7 +105,7 @@ public partial class Game1
             {
                 case '\b':
                 {
-                    var result = _game.DeleteTextSelectionOrBackspace(
+                    var result = Game1.DeleteTextSelectionOrBackspace(
                         _game._friendCodeInputBuffer,
                         _game._friendCodeCursorIndex,
                         _game._friendCodeSelectionStart);
@@ -121,7 +121,7 @@ public partial class Game1
                 default:
                     if (char.IsAsciiLetterOrDigit(character) || character == '-')
                     {
-                        var result = _game.InsertTextCharacterAtCursor(
+                        var result = Game1.InsertTextCharacterAtCursor(
                             _game._friendCodeInputBuffer,
                             char.ToUpperInvariant(character),
                             _game._friendCodeCursorIndex,
@@ -143,7 +143,7 @@ public partial class Game1
             {
                 case '\b':
                 {
-                    var result = _game.DeleteTextSelectionOrBackspace(
+                    var result = Game1.DeleteTextSelectionOrBackspace(
                         _game._friendNicknameInputBuffer,
                         _game._friendNicknameCursorIndex,
                         _game._friendNicknameSelectionStart);
@@ -159,7 +159,7 @@ public partial class Game1
                 default:
                     if (!char.IsControl(character) && character != '#')
                     {
-                        var result = _game.InsertTextCharacterAtCursor(
+                        var result = Game1.InsertTextCharacterAtCursor(
                             _game._friendNicknameInputBuffer,
                             character,
                             _game._friendNicknameCursorIndex,
@@ -181,7 +181,7 @@ public partial class Game1
             {
                 case '\b':
                 {
-                    var result = _game.DeleteTextSelectionOrBackspace(
+                    var result = Game1.DeleteTextSelectionOrBackspace(
                         _game._friendMessageInputBuffer,
                         _game._friendMessageCursorIndex,
                         _game._friendMessageSelectionStart);
@@ -197,7 +197,7 @@ public partial class Game1
                 default:
                     if (!char.IsControl(character))
                     {
-                        var result = _game.InsertTextCharacterAtCursor(
+                        var result = Game1.InsertTextCharacterAtCursor(
                             _game._friendMessageInputBuffer,
                             character,
                             _game._friendMessageCursorIndex,
@@ -219,7 +219,7 @@ public partial class Game1
             {
                 case '\b':
                 {
-                    var result = _game.DeleteTextSelectionOrBackspace(
+                    var result = Game1.DeleteTextSelectionOrBackspace(
                         _game._playerNameEditBuffer,
                         _game._playerNameEditCursorIndex,
                         _game._playerNameEditSelectionStart);
@@ -243,7 +243,7 @@ public partial class Game1
                 default:
                     if (!char.IsControl(character) && character != '#' && _game._playerNameEditBuffer.Length < 20)
                     {
-                        var result = _game.InsertTextCharacterAtCursor(
+                        var result = Game1.InsertTextCharacterAtCursor(
                             _game._playerNameEditBuffer,
                             character,
                             _game._playerNameEditCursorIndex,

@@ -105,12 +105,6 @@ public static class MapLogicScoreTriggerMetadata
         return MapLogicScoreChangeMode.Add;
     }
 
-    public static string ToChangePropertyValue(MapLogicScoreChangeMode mode)
-    {
-        return mode == MapLogicScoreChangeMode.Subtract
-            ? ChangeSubtractPropertyValue
-            : ChangeAddPropertyValue;
-    }
 
     public static string CycleChangePropertyValue(string? current)
     {

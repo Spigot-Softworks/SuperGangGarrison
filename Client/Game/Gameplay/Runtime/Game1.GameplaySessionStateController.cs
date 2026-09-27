@@ -79,7 +79,6 @@ public partial class Game1
             _game.StopLocalJukebox();
             _game._offlinePracticeNextMap = null;
             _game.ResetPracticeBotManagerState(releaseWorldSlots: true);
-            Game1.ResetPracticeNavigationState();
             _game._networkClient.SendLastToDieLeave();
             _game._networkClient.Disconnect();
             _game.StopEmbeddedSession();

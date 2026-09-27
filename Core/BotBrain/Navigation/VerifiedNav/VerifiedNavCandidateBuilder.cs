@@ -70,7 +70,7 @@ public static class VerifiedNavCandidateBuilder
             AppendEdgeLaunchWindows(level, options, probe, rawSurface, surfaces);
         }
 
-        return MergeAdjacentSurfaces(surfaces, options.MinSurfaceWidth)
+        return MergeAdjacentSurfaces(surfaces)
             .OrderBy(static surface => surface.Top)
             .ThenBy(static surface => surface.Left)
             .Select(static (surface, index) => surface with { Id = index })
@@ -301,8 +301,7 @@ public static class VerifiedNavCandidateBuilder
     }
 
     private static List<VerifiedNavSurface> MergeAdjacentSurfaces(
-        List<VerifiedNavSurface> surfaces,
-        float minSurfaceWidth)
+        List<VerifiedNavSurface> surfaces)
     {
         var ordered = surfaces
             .OrderBy(static surface => surface.Kind)

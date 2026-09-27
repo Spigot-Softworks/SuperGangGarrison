@@ -36,16 +36,6 @@ internal sealed class SnapshotStringCache
         return newId;
     }
 
-    public bool TryGetCacheId(string value, out ushort id)
-    {
-        if (string.IsNullOrEmpty(value))
-        {
-            id = 0;
-            return false;
-        }
-
-        return _stringToId.TryGetValue(value, out id);
-    }
 
     public bool TryGetString(ushort id, out string value)
     {

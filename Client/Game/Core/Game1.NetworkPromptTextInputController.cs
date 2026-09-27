@@ -31,7 +31,7 @@ public partial class Game1
             {
                 case '\b':
                 {
-                    var result = _game.DeleteTextSelectionOrBackspace(
+                    var result = Game1.DeleteTextSelectionOrBackspace(
                         _game._passwordEditBuffer,
                         _game._passwordEditCursorIndex,
                         _game._passwordEditSelectionStart);
@@ -55,7 +55,7 @@ public partial class Game1
                 default:
                     if (!char.IsControl(character) && _game._passwordEditBuffer.Length < 32)
                     {
-                        var result = _game.InsertTextCharacterAtCursor(
+                        var result = Game1.InsertTextCharacterAtCursor(
                             _game._passwordEditBuffer,
                             character,
                             _game._passwordEditCursorIndex,

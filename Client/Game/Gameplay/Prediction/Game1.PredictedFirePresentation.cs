@@ -118,7 +118,7 @@ public partial class Game1
         }
     }
 
-    private (PrimaryWeaponKind WeaponKind, string? BehaviorId) GetImmediateWeaponPresentationSelection(PlayerEntity player)
+    private static (PrimaryWeaponKind WeaponKind, string? BehaviorId) GetImmediateWeaponPresentationSelection(PlayerEntity player)
     {
         if (player.IsAcquiredWeaponEquipped && player.AcquiredWeapon is { } acquiredWeapon)
         {
@@ -136,7 +136,7 @@ public partial class Game1
         return (player.PrimaryWeapon.Kind, player.PrimaryBehaviorId);
     }
 
-    private bool IsCustomPrimaryWeaponExecutor(string? behaviorId)
+    private static bool IsCustomPrimaryWeaponExecutor(string? behaviorId)
     {
         return !string.IsNullOrWhiteSpace(behaviorId)
             && CharacterClassCatalog.RuntimeRegistry.TryGetPrimaryWeaponBinding(behaviorId, out var binding)

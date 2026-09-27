@@ -4856,7 +4856,7 @@ internal static class BotBrainToolCommandHelpers
         var startTeam = ResolveCorridorStartTeam(level, segments, team);
         var supportedClassMask = ResolveCorridorSupportedClassMask(level, playerClass, team, startTeam);
         var corridorCostMultiplier = ResolveCorridorPreferredCostMultiplier(level, playerClass, team, startTeam);
-        var supportedTeamMask = ResolveCorridorSupportedTeamMask(level, segments, team, startTeam);
+        var supportedTeamMask = ResolveCorridorSupportedTeamMask(level, team, startTeam);
         var existingEdges = new Dictionary<(int FromNode, int ToNode, NavEdgeKind Kind, int TeamMask), BotNavigationEdgeAssetEntry>();
         foreach (var edge in asset.Edges)
         {
@@ -4933,7 +4933,7 @@ internal static class BotBrainToolCommandHelpers
         var originalNodeCount = asset.Nodes.Count;
         var startTeam = ResolveCorridorStartTeam(level, segments, team);
         var supportedClassMask = ResolveCorridorSupportedClassMask(level, playerClass, team, startTeam);
-        var supportedTeamMask = ResolveCorridorSupportedTeamMask(level, segments, team, startTeam);
+        var supportedTeamMask = ResolveCorridorSupportedTeamMask(level, team, startTeam);
         var existingEdges = new Dictionary<(int FromNode, int ToNode, NavEdgeKind Kind, int TeamMask), BotNavigationEdgeAssetEntry>();
         foreach (var edge in asset.Edges)
         {
@@ -5131,7 +5131,6 @@ internal static class BotBrainToolCommandHelpers
 
     private static int ResolveCorridorSupportedTeamMask(
         SimpleLevel level,
-        List<List<BotBrainCorridorRecordingSample>> segments,
         PlayerTeam team,
         PlayerTeam startTeam)
     {

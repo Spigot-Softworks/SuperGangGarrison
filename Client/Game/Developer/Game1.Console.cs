@@ -443,7 +443,7 @@ public partial class Game1
                 TryHandleGarrisonBuilderConsoleCommand(commandText, parts);
                 break;
             case "score_route_rec":
-                if (HandleScoreRouteRecorderConsoleCommand(commandText, parts))
+                if (HandleScoreRouteRecorderConsoleCommand())
                 {
                     break;
                 }

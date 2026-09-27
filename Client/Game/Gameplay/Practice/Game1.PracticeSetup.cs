@@ -101,7 +101,7 @@ public partial class Game1
                 return;
             }
 
-            UpdatePracticeMapSelectionMenu(keyboard, mouse, mapLayout);
+            UpdatePracticeMapSelectionMenu(mouse, mapLayout);
             return;
         }
 

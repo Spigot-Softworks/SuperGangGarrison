@@ -1203,7 +1203,7 @@ internal static class SnapshotContributionPlanner
     private static bool IsSecondaryWeaponRuntimeReplicatedState(SnapshotReplicatedStateEntry entry)
     {
         return string.Equals(entry.OwnerId, CoreReplicatedOwnerId, StringComparison.Ordinal)
-            && (entry.Key.IndexOf("_ammo", StringComparison.Ordinal) >= 0
+            && (entry.Key.Contains("_ammo", StringComparison.Ordinal)
                 || entry.Key.EndsWith("_cooldown_ticks", StringComparison.Ordinal)
                 || entry.Key.EndsWith("_reload_ticks", StringComparison.Ordinal)
                 || entry.Key.EndsWith("_equipped", StringComparison.Ordinal)

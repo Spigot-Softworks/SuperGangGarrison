@@ -1,6 +1,7 @@
 #nullable enable
 
 using System.Collections.Generic;
+using System.Globalization;
 using OpenGarrison.Client.Plugins;
 using OpenGarrison.Core;
 
@@ -1051,7 +1052,7 @@ public partial class Game1
         public string ConnectHostBuffer = "127.0.0.1";
         public int ConnectHostCursorIndex;
         public int ConnectHostSelectionStart;
-        public string ConnectPortBuffer = OpenGarrisonPreferencesDocument.DefaultServerPort.ToString();
+        public string ConnectPortBuffer = OpenGarrisonPreferencesDocument.DefaultServerPort.ToString(CultureInfo.InvariantCulture);
         public int ConnectPortCursorIndex;
         public int ConnectPortSelectionStart;
         public int PasswordEditCursorIndex;

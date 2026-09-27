@@ -21,10 +21,6 @@ public partial class Game1
         bool Success,
         string Diagnostics);
 
-    private static void ResetPracticeNavigationState()
-    {
-    }
-
     private void QueuePracticeNavigationWarmupForCurrentLevel()
     {
         if (_world.Level is null)

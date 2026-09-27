@@ -102,7 +102,7 @@ internal static class Og2NavigationGraphCache
         return RuntimePaths.GetConfigPath(Path.Combine(CacheDirectoryName, fileName));
     }
 
-    private static string GetShippedPath(SimpleLevel level, string key)
+    private static string GetShippedPath(string key)
     {
         var digest = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(key))).ToLowerInvariant();
         var fileName = $"og2nav.{digest[..20]}.og2nav.bin";
@@ -127,7 +127,7 @@ internal static class Og2NavigationGraphCache
 
     public static bool TryLoadShipped(SimpleLevel level, string key, out NavGraph graph, out string path)
     {
-        path = GetShippedPath(level, key);
+        path = GetShippedPath(key);
         graph = null!;
         if (Exists(path) && TryLoadFile(level, key, path, out graph))
         {
@@ -147,14 +147,14 @@ internal static class Og2NavigationGraphCache
         foreach (var generatorFingerprint in CompatibleShippedGeneratorFingerprints)
         {
             var compatibleKey = BuildCompatibleShippedKey(level, generatorFingerprint);
-            path = GetShippedPath(level, compatibleKey);
+            path = GetShippedPath(compatibleKey);
             if (Exists(path) && TryLoadFile(level, compatibleKey, path, out graph))
             {
                 return true;
             }
         }
 
-        path = GetShippedPath(level, key);
+        path = GetShippedPath(key);
         return false;
     }
 
@@ -171,7 +171,7 @@ internal static class Og2NavigationGraphCache
 
     internal static void SaveShipped(SimpleLevel level, string key, NavGraph graph, out string path)
     {
-        path = GetShippedPath(level, key);
+        path = GetShippedPath(key);
         var directory = Path.GetDirectoryName(path)!;
         Directory.CreateDirectory(directory);
         var temporaryPath = $"{path}.{Environment.ProcessId}.tmp";

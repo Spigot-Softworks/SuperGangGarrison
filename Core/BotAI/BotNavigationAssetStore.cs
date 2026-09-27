@@ -24,39 +24,6 @@ public static class BotNavigationAssetStore
         SerializerOptions.Converters.Add(new JsonStringEnumConverter());
     }
 
-    public static BotNavigationLoadResult LoadForLevel(
-        SimpleLevel level,
-        IReadOnlyList<PlayerClass>? classes = null,
-        bool useModernRuntimeGeneration = true,
-        bool allowSynchronousGeneration = true,
-        bool preferFreshModernGeneration = true)
-    {
-        ArgumentNullException.ThrowIfNull(level);
-
-        var requestedClasses = (classes ?? BotNavigationClasses.All)
-            .Distinct()
-            .ToArray();
-        var fingerprint = BotNavigationLevelFingerprint.Compute(level);
-        if (useModernRuntimeGeneration)
-        {
-            return LoadModernAssets(level, requestedClasses, fingerprint, allowSynchronousGeneration, preferFreshModernGeneration);
-        }
-
-        var assets = new Dictionary<PlayerClass, BotNavigationAsset>();
-        var statuses = new List<BotNavigationAssetStatus>(requestedClasses.Length);
-
-        foreach (var classId in requestedClasses)
-        {
-            if (TryLoadAsset(level, classId, fingerprint, preferRuntimeCache: false, out var asset, out var status))
-            {
-                assets[classId] = asset!;
-            }
-
-            statuses.Add(status);
-        }
-
-        return new BotNavigationLoadResult(level.Name, level.MapAreaIndex, fingerprint, assets, statuses);
-    }
 
     public static void SaveShipped(BotNavigationAsset asset, string outputDirectory)
     {
@@ -150,29 +117,7 @@ public static class BotNavigationAssetStore
         return null;
     }
 
-    public static IReadOnlyList<string> EnumerateModernShippedRelativePaths(string levelName, int mapAreaIndex)
-    {
-        return EnumerateShippedLevelNameCandidates(levelName)
-            .Select(candidateLevelName => $"Content/BotNav/{GetModernAssetFileName(candidateLevelName, mapAreaIndex)}")
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-    }
 
-    public static bool TryLoadModernShippedAsset(
-        SimpleLevel level,
-        out BotNavigationAsset? asset,
-        out string path,
-        out string message,
-        out BotNavigationValidationResult validation)
-    {
-        ArgumentNullException.ThrowIfNull(level);
-        var cacheEntry = ModernShippedAssetCache.GetValue(level, static currentLevel => LoadModernShippedAssetCacheEntry(currentLevel));
-        asset = cacheEntry.Asset;
-        path = cacheEntry.Path;
-        message = cacheEntry.Message;
-        validation = cacheEntry.Validation;
-        return cacheEntry.Success;
-    }
 
     public static bool TryLoadModernShippedAssetForEditing(
         SimpleLevel level,

@@ -8,14 +8,14 @@ namespace OpenGarrison.Client;
 public partial class Game1
 {
     private void BeginNetworkWorldWarmup(string levelName)
-        => StartNetworkWorldWarmup(levelName, acceptNextAppliedSnapshotAsBaseline: false);
+        => StartNetworkWorldWarmup(acceptNextAppliedSnapshotAsBaseline: false);
 
     private void BeginNetworkWorldWarmupFromAppliedSnapshot(string levelName)
-        => StartNetworkWorldWarmup(levelName, acceptNextAppliedSnapshotAsBaseline: false);
+        => StartNetworkWorldWarmup(acceptNextAppliedSnapshotAsBaseline: false);
 
     private void BeginNetworkWorldWarmupFromNextAppliedSnapshot(string levelName)
     {
-        StartNetworkWorldWarmup(levelName, acceptNextAppliedSnapshotAsBaseline: true);
+        StartNetworkWorldWarmup(acceptNextAppliedSnapshotAsBaseline: true);
         while (_queuedAuthoritativeSnapshots.Count > 0)
         {
             _queuedAuthoritativeSnapshots.Dequeue();
@@ -26,7 +26,7 @@ public partial class Game1
         ResetSnapshotPresentationHistories();
     }
 
-    private void StartNetworkWorldWarmup(string levelName, bool acceptNextAppliedSnapshotAsBaseline)
+    private void StartNetworkWorldWarmup(bool acceptNextAppliedSnapshotAsBaseline)
     {
         if (!_networkClient.IsConnected || _networkClient.IsReplayConnection)
         {
@@ -112,7 +112,6 @@ public partial class Game1
     }
 
     private void ObserveAppliedNetworkWorldSnapshot(
-        SnapshotMessage snapshot,
         bool isServerFullSnapshot,
         bool isPresentationEpochBaselineSnapshot = false)
     {
