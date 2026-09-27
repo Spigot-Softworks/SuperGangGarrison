@@ -65,56 +65,6 @@ public sealed partial class SimulationWorld
         _entities[sentry.Id] = sentry;
     }
 
-    internal DeadBodyEntity CombatTestSpawnDeadBody(PlayerEntity sourcePlayer, float x, float y, float horizontalSpeed = 0f, float verticalSpeed = 0f, bool? facingLeft = null)
-    {
-        var deadBody = new DeadBodyEntity(
-            AllocateEntityId(),
-            sourcePlayer.Id,
-            sourcePlayer.ClassId,
-            sourcePlayer.Team,
-            DeadBodyAnimationKind.Default,
-            x,
-            y,
-            sourcePlayer.Width,
-            sourcePlayer.Height,
-            horizontalSpeed,
-            verticalSpeed,
-            facingLeft ?? sourcePlayer.FacingDirectionX < 0f,
-            sourcePlayer.GameplayClassId);
-        _deadBodies.Add(deadBody);
-        _entities[deadBody.Id] = deadBody;
-        return deadBody;
-    }
-
-    internal PlayerGibEntity CombatTestSpawnPlayerGib(
-        string spriteName,
-        int frameIndex,
-        float x,
-        float y,
-        float velocityX = 0f,
-        float velocityY = 0f,
-        float rotationSpeedDegrees = 0f,
-        int lifetimeTicks = 250,
-        float bloodChance = PlayerGibEntity.DefaultBloodChance)
-    {
-        var gib = new PlayerGibEntity(
-            AllocateEntityId(),
-            spriteName,
-            frameIndex,
-            x,
-            y,
-            velocityX,
-            velocityY,
-            rotationSpeedDegrees,
-            horizontalFriction: 0.4f,
-            rotationFriction: 0.6f,
-            lifetimeTicks,
-            bloodChance);
-        _playerGibs.Add(gib);
-        _entities[gib.Id] = gib;
-        return gib;
-    }
-
     internal void CombatTestExplodeRocket(PlayerEntity owner, float x, float y)
     {
         var rocket = new RocketProjectileEntity(
@@ -182,26 +132,6 @@ public sealed partial class SimulationWorld
         ExplodeGrenade(grenade);
     }
 
-    internal BubbleProjectileEntity CombatTestSpawnBubble(PlayerEntity owner, float x, float y, float velocityX = 0f, float velocityY = 0f)
-    {
-        var bubble = new BubbleProjectileEntity(
-            AllocateEntityId(),
-            owner.Team,
-            owner.Id,
-            x,
-            y,
-            velocityX,
-            velocityY,
-            GetSimulationTicksFromSourceTicks(BubbleProjectileEntity.LifetimeTicks));
-        if (owner.IsKritzCritBoosted)
-        {
-            bubble.SetCritical(owner.ActiveKritzCritDamageMultiplier);
-        }
-        _bubbles.Add(bubble);
-        _entities[bubble.Id] = bubble;
-        return bubble;
-    }
-
     internal FlameProjectileEntity CombatTestSpawnFlame(PlayerEntity owner, float x, float y, float velocityX = 0f, float velocityY = 0f)
     {
         var flame = new FlameProjectileEntity(
@@ -250,42 +180,14 @@ public sealed partial class SimulationWorld
         ExplodeMine(mine);
     }
 
-    internal void CombatTestRecordKillFeedEntry(
-        PlayerEntity victim,
-        PlayerEntity? killer,
-        string weaponSpriteName,
-        string? messageText = null,
-        KillFeedSpecialType specialType = KillFeedSpecialType.None)
-    {
-        RecordKillFeedEntry(victim, killer, weaponSpriteName, messageText, specialType: specialType);
-    }
-
     internal bool CombatTestHasLineOfSight(PlayerEntity attacker, PlayerEntity target)
         => Combat.HasLineOfSight(attacker, target);
-
-    internal bool CombatTestHasSentryLineOfSight(SentryEntity sentry, PlayerEntity target)
-        => Combat.HasSentryLineOfSight(sentry, target);
-
-    internal bool CombatTestHasDirectLineOfSight(float originX, float originY, float targetX, float targetY, PlayerTeam targetTeam)
-        => Combat.HasDirectLineOfSight(originX, originY, targetX, targetY, targetTeam);
 
     internal bool CombatTestHasObstacleLineOfSight(float originX, float originY, float targetX, float targetY)
         => Combat.HasObstacleLineOfSight(originX, originY, targetX, targetY);
 
-    internal bool CombatTestIsFlameSpawnBlocked(float originX, float originY, float spawnX, float spawnY, PlayerTeam team)
-        => Combat.IsFlameSpawnBlocked(originX, originY, spawnX, spawnY, team);
-
     internal bool CombatTestIsProjectileSpawnBlocked(float originX, float originY, float targetX, float targetY, PlayerTeam shotTeam)
         => Combat.IsProjectileSpawnBlocked(originX, originY, targetX, targetY, shotTeam);
-
-    internal float? CombatTestGetLineIntersectionDistanceToPlayer(
-        float originX,
-        float originY,
-        float endX,
-        float endY,
-        PlayerEntity player,
-        float maxDistance)
-        => Combat.GetLineIntersectionDistanceToPlayer(originX, originY, endX, endY, player, maxDistance);
 
     internal (float Distance, float HitX, float HitY, PlayerEntity? HitPlayer, SentryEntity? HitSentry, GeneratorState? HitGenerator)? CombatTestGetNearestShotHit(
         ShotProjectileEntity shot,
@@ -305,42 +207,6 @@ public sealed partial class SimulationWorld
         return (left, top, right, bottom);
     }
 
-    internal (float Distance, float HitX, float HitY, PlayerEntity? HitPlayer, SentryEntity? HitSentry, GeneratorState? HitGenerator)? CombatTestGetNearestNeedleHit(
-        NeedleProjectileEntity needle,
-        float directionX,
-        float directionY,
-        float maxDistance)
-    {
-        var hit = Combat.GetNearestNeedleHit(needle, directionX, directionY, maxDistance);
-        return hit.HasValue
-            ? (hit.Value.Distance, hit.Value.HitX, hit.Value.HitY, hit.Value.HitPlayer, hit.Value.HitSentry, hit.Value.HitGenerator)
-            : null;
-    }
-
-    internal (float Distance, float HitX, float HitY, PlayerEntity? HitPlayer, SentryEntity? HitSentry, GeneratorState? HitGenerator)? CombatTestGetNearestRevolverHit(
-        RevolverProjectileEntity shot,
-        float directionX,
-        float directionY,
-        float maxDistance)
-    {
-        var hit = Combat.GetNearestRevolverHit(shot, directionX, directionY, maxDistance);
-        return hit.HasValue
-            ? (hit.Value.Distance, hit.Value.HitX, hit.Value.HitY, hit.Value.HitPlayer, hit.Value.HitSentry, hit.Value.HitGenerator)
-            : null;
-    }
-
-    internal (float Distance, float HitX, float HitY, PlayerEntity? HitPlayer, SentryEntity? HitSentry, GeneratorState? HitGenerator)? CombatTestGetNearestBladeHit(
-        BladeProjectileEntity blade,
-        float directionX,
-        float directionY,
-        float maxDistance)
-    {
-        var hit = Combat.GetNearestBladeHit(blade, directionX, directionY, maxDistance);
-        return hit.HasValue
-            ? (hit.Value.Distance, hit.Value.HitX, hit.Value.HitY, hit.Value.HitPlayer, hit.Value.HitSentry, hit.Value.HitGenerator)
-            : null;
-    }
-
     internal (float Distance, float HitX, float HitY, PlayerEntity? HitPlayer, SentryEntity? HitSentry, int HitDamageableZoneRoomObjectIndex)? CombatTestGetNearestStabHit(
         StabMaskEntity mask,
         float directionX,
@@ -349,42 +215,6 @@ public sealed partial class SimulationWorld
         var hit = Combat.GetNearestStabHit(mask, directionX, directionY);
         return hit.HasValue
             ? (hit.Value.Distance, hit.Value.HitX, hit.Value.HitY, hit.Value.HitPlayer, hit.Value.HitSentry, hit.Value.HitDamageableZoneRoomObjectIndex)
-            : null;
-    }
-
-    internal (float Distance, float HitX, float HitY, PlayerEntity? HitPlayer, SentryEntity? HitSentry, GeneratorState? HitGenerator)? CombatTestGetNearestRocketHit(
-        RocketProjectileEntity rocket,
-        float directionX,
-        float directionY,
-        float maxDistance)
-    {
-        var hit = Combat.GetNearestRocketHit(rocket, directionX, directionY, maxDistance);
-        return hit.HasValue
-            ? (hit.Value.Distance, hit.Value.HitX, hit.Value.HitY, hit.Value.HitPlayer, hit.Value.HitSentry, hit.Value.HitGenerator)
-            : null;
-    }
-
-    internal (float Distance, float HitX, float HitY, bool DestroyOnHit)? CombatTestGetNearestMineHit(
-        MineProjectileEntity mine,
-        float directionX,
-        float directionY,
-        float maxDistance)
-    {
-        var hit = Combat.GetNearestMineHit(mine, directionX, directionY, maxDistance);
-        return hit.HasValue
-            ? (hit.Value.Distance, hit.Value.HitX, hit.Value.HitY, hit.Value.DestroyOnHit)
-            : null;
-    }
-
-    internal (float Distance, float HitX, float HitY, PlayerEntity? HitPlayer, SentryEntity? HitSentry, GeneratorState? HitGenerator)? CombatTestGetNearestFlameHit(
-        FlameProjectileEntity flame,
-        float directionX,
-        float directionY,
-        float maxDistance)
-    {
-        var hit = Combat.GetNearestFlameHit(flame, directionX, directionY, maxDistance);
-        return hit.HasValue
-            ? (hit.Value.Distance, hit.Value.HitX, hit.Value.HitY, hit.Value.HitPlayer, hit.Value.HitSentry, hit.Value.HitGenerator)
             : null;
     }
 

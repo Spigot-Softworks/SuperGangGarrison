@@ -725,6 +725,60 @@ public sealed class PluginContractValidationTests
     }
 
     [Fact]
+    public void ManifestPlannerSkipsPluginWhenDependencyVersionMismatches()
+    {
+        var plugins = new[]
+        {
+            CreatePlannedPlugin("versioned.plugin", dependencies: [new OpenGarrisonPluginManifestDependency { Id = "base.plugin", Version = "2.0.0" }]),
+            CreatePlannedPlugin("base.plugin"),
+        };
+
+        var result = OpenGarrisonPluginManifestPlanner.PlanLoadOrder(plugins, static plugin => plugin.Manifest);
+
+        Assert.Equal(
+            ["base.plugin"],
+            result.Plugins.Select(static plugin => plugin.Manifest.Id).ToArray());
+        Assert.Contains(result.Warnings, warning => warning.Contains("versioned.plugin", StringComparison.Ordinal)
+            && warning.Contains("2.0.0", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ManifestPlannerCascadesRemovalThroughMissingDependencyChain()
+    {
+        var plugins = new[]
+        {
+            CreatePlannedPlugin("top.plugin", dependencies: [new OpenGarrisonPluginManifestDependency { Id = "middle.plugin" }]),
+            CreatePlannedPlugin("middle.plugin", dependencies: [new OpenGarrisonPluginManifestDependency { Id = "missing.plugin" }]),
+            CreatePlannedPlugin("unrelated.plugin"),
+        };
+
+        var result = OpenGarrisonPluginManifestPlanner.PlanLoadOrder(plugins, static plugin => plugin.Manifest);
+
+        Assert.Equal(
+            ["unrelated.plugin"],
+            result.Plugins.Select(static plugin => plugin.Manifest.Id).ToArray());
+        Assert.Contains(result.Warnings, warning => warning.Contains("middle.plugin", StringComparison.Ordinal));
+        Assert.Contains(result.Warnings, warning => warning.Contains("top.plugin", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ManifestPlannerPreservesDiscoveryOrderWhenLoadOrderCycles()
+    {
+        var plugins = new[]
+        {
+            CreatePlannedPlugin("first.plugin", before: ["second.plugin"]),
+            CreatePlannedPlugin("second.plugin", before: ["first.plugin"]),
+        };
+
+        var result = OpenGarrisonPluginManifestPlanner.PlanLoadOrder(plugins, static plugin => plugin.Manifest);
+
+        Assert.Equal(
+            ["first.plugin", "second.plugin"],
+            result.Plugins.Select(static plugin => plugin.Manifest.Id).ToArray());
+        Assert.Contains(result.Warnings, warning => warning.Contains("cycle detected", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void ClientLuaHostApiAdvertisesCurrentRuntimeSurface()
     {
         var hostApi = OpenGarrisonPluginHostApi.CreateClientDefault();

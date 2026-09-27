@@ -15,11 +15,12 @@ public static class BrowserRunUploadStore
 }
 
 /// <summary>Persists recordings before sending them and keeps rejected/failed proofs for recovery.</summary>
-public sealed class RunUploadQueue
+public sealed class RunUploadQueue : IDisposable
 {
     private readonly SemaphoreSlim _gate = new(1);
     private readonly List<PendingRunUpload> _entries = new();
     private bool _loaded;
+    private bool _disposed;
     private int _synchronizing;
     public string StatusText { get; private set; } = "";
     private readonly string _directoryPath;
@@ -146,6 +147,27 @@ public sealed class RunUploadQueue
             StatusText = "Run upload pending. It will retry when the service is available.";
         }
         finally { Volatile.Write(ref _synchronizing, 0); }
+    }
+
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    private void Dispose(bool disposing)
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        if (disposing)
+        {
+            _gate.Dispose();
+        }
+
+        _disposed = true;
     }
 
 }

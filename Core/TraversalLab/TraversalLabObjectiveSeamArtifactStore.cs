@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 
 namespace OpenGarrison.Core;
@@ -19,9 +20,9 @@ public static class TraversalLabObjectiveSeamArtifactStore
         AllowTrailingCommas = true,
     };
 
-    public static bool TryGetCertification(string label, out TraversalLabObjectiveSeamCertification certification)
+    public static bool TryGetCertification(string label, [NotNullWhen(true)] out TraversalLabObjectiveSeamCertification? certification)
     {
-        certification = default!;
+        certification = null;
         if (string.IsNullOrWhiteSpace(label))
         {
             return false;

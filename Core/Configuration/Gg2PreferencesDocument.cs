@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -1606,9 +1607,9 @@ public static class OpenGarrisonStockMapCatalog
     private static bool TryResolveMapRotationEntry(
         string token,
         IReadOnlyList<OpenGarrisonMapRotationEntry> catalog,
-        out OpenGarrisonMapRotationEntry entry)
+        [NotNullWhen(true)] out OpenGarrisonMapRotationEntry? entry)
     {
-        entry = null!;
+        entry = null;
         if (string.IsNullOrWhiteSpace(token))
         {
             return false;

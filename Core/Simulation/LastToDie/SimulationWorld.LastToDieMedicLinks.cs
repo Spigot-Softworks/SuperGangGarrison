@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using OpenGarrison.Core.LastToDie;
 using OpenGarrison.GameplayModding;
 
@@ -17,11 +18,11 @@ public sealed partial class SimulationWorld
 
     private bool TryResolveLastToDieMedicLink(
         PlayerEntity medic,
-        out PlayerEntity target,
-        out LastToDiePlayerPerkRuntime perkRuntime)
+        [NotNullWhen(true)] out PlayerEntity? target,
+        [NotNullWhen(true)] out LastToDiePlayerPerkRuntime? perkRuntime)
     {
-        target = null!;
-        perkRuntime = null!;
+        target = null;
+        perkRuntime = null;
         if (!medic.IsAlive
             || medic.ClassId != PlayerClass.Medic
             || !medic.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.Medigun)
@@ -37,8 +38,8 @@ public sealed partial class SimulationWorld
         if (resolvedTarget is null
             || !CanMedicHealTarget(medic, resolvedTarget))
         {
-            target = null!;
-            perkRuntime = null!;
+            target = null;
+            perkRuntime = null;
             return false;
         }
 

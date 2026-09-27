@@ -1,7 +1,17 @@
 namespace OpenGarrison.PluginHost;
 
+/// <summary>
+/// Helpers for keeping plugin file paths contained within a root directory.
+/// </summary>
 public static class OpenGarrisonPluginPathContainment
 {
+    /// <summary>
+    /// Resolves a relative path inside a root directory, throwing when it escapes the root.
+    /// </summary>
+    /// <param name="rootDirectory">The root directory.</param>
+    /// <param name="relativePath">The relative path.</param>
+    /// <param name="errorMessage">The exception message when the path escapes the root.</param>
+    /// <returns>The fully resolved contained path.</returns>
     public static string ResolveContainedPath(string rootDirectory, string relativePath, string errorMessage)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(rootDirectory);
@@ -17,6 +27,14 @@ public static class OpenGarrisonPluginPathContainment
         return combinedPath;
     }
 
+    /// <summary>
+    /// Tries to resolve a relative path inside a root directory.
+    /// </summary>
+    /// <param name="rootDirectory">The root directory.</param>
+    /// <param name="relativePath">The relative path.</param>
+    /// <param name="containedPath">When this method returns true, the resolved contained path.</param>
+    /// <param name="error">When this method returns false, a description of the failure.</param>
+    /// <returns>True when the path resolves inside the root directory; otherwise false.</returns>
     public static bool TryResolveContainedPath(
         string rootDirectory,
         string relativePath,
@@ -41,6 +59,12 @@ public static class OpenGarrisonPluginPathContainment
         }
     }
 
+    /// <summary>
+    /// Checks whether a candidate path is contained within a root directory.
+    /// </summary>
+    /// <param name="rootDirectory">The root directory.</param>
+    /// <param name="candidatePath">The candidate path.</param>
+    /// <returns>True when the candidate path is inside the root directory; otherwise false.</returns>
     public static bool IsPathContained(string rootDirectory, string candidatePath)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(rootDirectory);

@@ -52,4 +52,23 @@ public sealed class RunUploadQueueTests
             if (Directory.Exists(directory)) Directory.Delete(directory, recursive: true);
         }
     }
+
+    [Fact]
+    public async Task DisposeAfterUseReleasesResourcesWithoutThrowing()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "og2-pending-runs-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var queue = new RunUploadQueue(directory);
+            await queue.AddAsync("client", "friend", "ruleset", [1, 2, 3]);
+            queue.Dispose();
+            // Dispose must be idempotent.
+            queue.Dispose();
+            Assert.Single(Directory.GetFiles(directory, "*.json"));
+        }
+        finally
+        {
+            if (Directory.Exists(directory)) Directory.Delete(directory, recursive: true);
+        }
+    }
 }

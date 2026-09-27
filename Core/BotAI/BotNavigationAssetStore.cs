@@ -203,8 +203,9 @@ public static class BotNavigationAssetStore
 
         if (asset.FormatVersion != CurrentFormatVersion)
         {
+            var formatVersion = asset.FormatVersion;
             asset = null;
-            message = $"modern nav asset format mismatch {asset.FormatVersion}";
+            message = $"modern nav asset format mismatch {formatVersion}";
             return false;
         }
 
@@ -225,8 +226,9 @@ public static class BotNavigationAssetStore
 
         if (asset.BuildStrategy != BotNavigationBuildStrategy.ModernClientBotPointGraph)
         {
+            var buildStrategy = asset.BuildStrategy;
             asset = null;
-            message = $"modern nav asset strategy mismatch {asset.BuildStrategy}";
+            message = $"modern nav asset strategy mismatch {buildStrategy}";
             return false;
         }
 
