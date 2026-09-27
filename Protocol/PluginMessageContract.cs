@@ -2,8 +2,20 @@ using System.Text;
 
 namespace OpenGarrison.Protocol;
 
+/// <summary>
+/// Creates, normalizes, and validates plugin message compatibility headers and contracts.
+/// </summary>
 public static class PluginMessageContract
 {
+    /// <summary>
+    /// Creates a compatibility header for a plugin message.
+    /// </summary>
+    /// <param name="sourcePluginId">The source plugin id.</param>
+    /// <param name="targetPluginId">The target plugin id.</param>
+    /// <param name="messageType">The message type.</param>
+    /// <param name="payloadFormat">The payload format.</param>
+    /// <param name="schemaVersion">The schema version.</param>
+    /// <returns>The new compatibility header.</returns>
     public static PluginMessageCompatibilityHeader CreateCompatibilityHeader(
         string sourcePluginId,
         string targetPluginId,
@@ -19,6 +31,19 @@ public static class PluginMessageContract
             schemaVersion);
     }
 
+    /// <summary>
+    /// Normalizes an outgoing plugin message, trimming ids and enforcing protocol limits.
+    /// </summary>
+    /// <param name="targetPluginId">The target plugin id.</param>
+    /// <param name="messageType">The message type.</param>
+    /// <param name="payload">The payload.</param>
+    /// <param name="payloadFormat">The payload format.</param>
+    /// <param name="schemaVersion">The schema version.</param>
+    /// <param name="normalizedTargetPluginId">When this method returns true, the normalized target plugin id.</param>
+    /// <param name="normalizedMessageType">When this method returns true, the normalized message type.</param>
+    /// <param name="normalizedPayload">When this method returns true, the normalized payload.</param>
+    /// <param name="error">When this method returns false, a description of the failure.</param>
+    /// <returns>True when the message was normalized; otherwise false.</returns>
     public static bool TryNormalizeOutgoing(
         string? targetPluginId,
         string? messageType,
@@ -45,6 +70,21 @@ public static class PluginMessageContract
             out error);
     }
 
+    /// <summary>
+    /// Normalizes an incoming plugin message, trimming ids and enforcing protocol limits.
+    /// </summary>
+    /// <param name="sourcePluginId">The source plugin id.</param>
+    /// <param name="targetPluginId">The target plugin id.</param>
+    /// <param name="messageType">The message type.</param>
+    /// <param name="payload">The payload.</param>
+    /// <param name="payloadFormat">The payload format.</param>
+    /// <param name="schemaVersion">The schema version.</param>
+    /// <param name="normalizedSourcePluginId">When this method returns true, the normalized source plugin id.</param>
+    /// <param name="normalizedTargetPluginId">When this method returns true, the normalized target plugin id.</param>
+    /// <param name="normalizedMessageType">When this method returns true, the normalized message type.</param>
+    /// <param name="normalizedPayload">When this method returns true, the normalized payload.</param>
+    /// <param name="error">When this method returns false, a description of the failure.</param>
+    /// <returns>True when the message was normalized; otherwise false.</returns>
     public static bool TryNormalizeIncoming(
         string? sourcePluginId,
         string? targetPluginId,
@@ -73,6 +113,13 @@ public static class PluginMessageContract
             out error);
     }
 
+    /// <summary>
+    /// Validates a compatibility header against a compatibility contract.
+    /// </summary>
+    /// <param name="header">The compatibility header.</param>
+    /// <param name="contract">The compatibility contract.</param>
+    /// <param name="error">When this method returns false, a description of the mismatch.</param>
+    /// <returns>True when the header satisfies the contract; otherwise false.</returns>
     public static bool TryValidateAgainstCompatibilityContract(
         PluginMessageCompatibilityHeader header,
         PluginMessageCompatibilityContract contract,

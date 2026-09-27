@@ -2,59 +2,118 @@ using System.Text;
 
 namespace OpenGarrison.Protocol;
 
+/// <summary>
+/// The kind of a Last to Die command sent from client to server.
+/// </summary>
 public enum LastToDieCommandKind : byte
 {
+    /// <summary>Requests starting a run.</summary>
     RequestStart = 1,
+    /// <summary>Chooses a survivor.</summary>
     ChooseSurvivor = 2,
+    /// <summary>Selects a reward.</summary>
     SelectReward = 3,
+    /// <summary>Marks the player ready.</summary>
     Ready = 4,
+    /// <summary>Marks the player not ready.</summary>
     Unready = 5,
+    /// <summary>Signals stage content is ready.</summary>
     StageContentReady = 6,
+    /// <summary>Leaves the run.</summary>
     Leave = 7,
+    /// <summary>Retries the run.</summary>
     Retry = 8,
+    /// <summary>Returns to the lobby.</summary>
     ReturnToLobby = 9,
+    /// <summary>Pauses a solo run.</summary>
     PauseSolo = 10,
+    /// <summary>Resumes a solo run.</summary>
     ResumeSolo = 11,
+    /// <summary>Rerolls a reward.</summary>
     RerollReward = 12,
 }
 
+/// <summary>
+/// The result of a Last to Die command.
+/// </summary>
 public enum LastToDieCommandResultKind : byte
 {
+    /// <summary>The command was accepted.</summary>
     Accepted = 1,
+    /// <summary>The command was rejected.</summary>
     Rejected = 2,
+    /// <summary>The command was a duplicate.</summary>
     Duplicate = 3,
 }
 
+/// <summary>
+/// The difficulty of a Last to Die run on the wire.
+/// </summary>
 public enum LastToDieWireDifficulty : byte
 {
+    /// <summary>Standard difficulty.</summary>
     Standard = 0,
+    /// <summary>Hardcore difficulty.</summary>
     Hardcore = 1,
 }
 
+/// <summary>
+/// The phase of a Last to Die run on the wire.
+/// </summary>
 public enum LastToDieWirePhase : byte
 {
+    /// <summary>The lobby phase.</summary>
     Lobby = 0,
+    /// <summary>The survivor choice phase.</summary>
     SurvivorChoice = 1,
+    /// <summary>The reward choice phase.</summary>
     RewardChoice = 2,
+    /// <summary>The stage loading phase.</summary>
     LoadingStage = 3,
+    /// <summary>The playing phase.</summary>
     Playing = 4,
+    /// <summary>The run was won.</summary>
     Won = 5,
+    /// <summary>The run was lost.</summary>
     Lost = 6,
 }
 
+/// <summary>
+/// The perk tier of a Last to Die offer slot on the wire.
+/// </summary>
 public enum LastToDieWirePerkTier : byte
 {
+    /// <summary>Standard tier.</summary>
     Standard = 0,
+    /// <summary>Rare tier.</summary>
     Rare = 1,
+    /// <summary>Ultra tier.</summary>
     Ultra = 2,
 }
 
+/// <summary>
+/// One perk offer slot in a Last to Die reward offer.
+/// </summary>
+/// <param name="PerkId">The perk id.</param>
+/// <param name="Tier">The perk tier.</param>
+/// <param name="RerollsRemaining">The rerolls remaining.</param>
+/// <param name="HasEligibleReplacement">Whether an eligible replacement exists.</param>
 public sealed record LastToDieOfferSlotMessage(
     string PerkId,
     LastToDieWirePerkTier Tier,
     byte RerollsRemaining,
     bool HasEligibleReplacement);
 
+/// <summary>
+/// A Last to Die command sent from the client to the server.
+/// </summary>
+/// <param name="CommandId">The command id.</param>
+/// <param name="RunId">The run id.</param>
+/// <param name="ExpectedStructuralRevision">The expected structural revision.</param>
+/// <param name="Kind">The command kind.</param>
+/// <param name="StageInstanceId">The stage instance id.</param>
+/// <param name="OfferId">The offer id.</param>
+/// <param name="SelectedId">The selected id.</param>
 public sealed record LastToDieCommandMessage(
     ulong CommandId,
     Guid RunId,
@@ -64,18 +123,58 @@ public sealed record LastToDieCommandMessage(
     ulong OfferId = 0,
     string SelectedId = "") : IProtocolMessage
 {
+    /// <summary>
+    /// Gets the message type.
+    /// </summary>
     public MessageType Type => MessageType.LastToDieCommand;
 }
 
+/// <summary>
+/// The server's result for a Last to Die command.
+/// </summary>
+/// <param name="CommandId">The command id.</param>
+/// <param name="Result">The result kind.</param>
+/// <param name="AuthoritativeStructuralRevision">The authoritative structural revision.</param>
+/// <param name="Reason">The reason, when rejected.</param>
 public sealed record LastToDieCommandResultMessage(
     ulong CommandId,
     LastToDieCommandResultKind Result,
     ulong AuthoritativeStructuralRevision,
     string Reason = "") : IProtocolMessage
 {
+    /// <summary>
+    /// Gets the message type.
+    /// </summary>
     public MessageType Type => MessageType.LastToDieCommandResult;
 }
 
+/// <summary>
+/// A snapshot of one player's Last to Die state.
+/// </summary>
+/// <param name="Slot">The player slot.</param>
+/// <param name="PlayerId">The player id.</param>
+/// <param name="IsConnected">Whether the player is connected.</param>
+/// <param name="SurvivorId">The survivor id.</param>
+/// <param name="OwnedPerkIds">The owned perk ids.</param>
+/// <param name="ActiveOfferId">The active offer id.</param>
+/// <param name="ActiveOfferOrdinal">The active offer ordinal.</param>
+/// <param name="ActiveOfferChoices">The active offer choices.</param>
+/// <param name="IsReady">Whether the player is ready.</param>
+/// <param name="IsAlive">Whether the player is alive.</param>
+/// <param name="Kills">The kill count.</param>
+/// <param name="IsHost">Whether the player is the host.</param>
+/// <param name="ConquistadorStacks">The conquistador stacks.</param>
+/// <param name="ReconnectGraceEndServerTick">The reconnect grace end server tick.</param>
+/// <param name="ScoreUnits">The score units.</param>
+/// <param name="ActiveOfferSlots">The active offer slots, if any.</param>
+/// <param name="ActiveOfferTargetStage">The active offer target stage.</param>
+/// <param name="ActiveOfferSelectionNumber">The active offer selection number.</param>
+/// <param name="ActiveOfferSelectionsRequired">The active offer selections required.</param>
+/// <param name="ActiveOfferGuaranteedTierConsumed">Whether the guaranteed tier was consumed.</param>
+/// <param name="PendingBonusSelections">The pending bonus selections.</param>
+/// <param name="LuckyDrawRoundsRemaining">The lucky draw rounds remaining.</param>
+/// <param name="SelectionsRemaining">The selections remaining.</param>
+/// <param name="SecondChanceConsumed">Whether the second chance was consumed.</param>
 public sealed record LastToDiePlayerSnapshotMessage(
     byte Slot,
     Guid PlayerId,
@@ -102,6 +201,28 @@ public sealed record LastToDiePlayerSnapshotMessage(
     int SelectionsRemaining = 0,
     bool SecondChanceConsumed = false);
 
+/// <summary>
+/// A snapshot of a Last to Die run.
+/// </summary>
+/// <param name="RunId">The run id.</param>
+/// <param name="StructuralRevision">The structural revision.</param>
+/// <param name="Seed">The seed.</param>
+/// <param name="RulesetVersion">The ruleset version.</param>
+/// <param name="Difficulty">The difficulty.</param>
+/// <param name="Phase">The phase.</param>
+/// <param name="ServerTick">The server tick.</param>
+/// <param name="StageNumber">The stage number.</param>
+/// <param name="StageInstanceId">The stage instance id.</param>
+/// <param name="CurrentMap">The current map.</param>
+/// <param name="EnemyCount">The enemy count.</param>
+/// <param name="StageEndServerTick">The stage end server tick.</param>
+/// <param name="RunEndServerTick">The run end server tick.</param>
+/// <param name="Players">The player snapshots.</param>
+/// <param name="TerminalReason">The terminal reason.</param>
+/// <param name="BaselineStartFrame">The baseline start frame.</param>
+/// <param name="MaximumPlayers">The maximum players.</param>
+/// <param name="AttemptId">The attempt id.</param>
+/// <param name="CompletedRounds">The completed rounds.</param>
 public sealed record LastToDieRunSnapshotMessage(
     Guid RunId,
     ulong StructuralRevision,
@@ -123,111 +244,202 @@ public sealed record LastToDieRunSnapshotMessage(
     Guid AttemptId = default,
     int CompletedRounds = 0) : IProtocolMessage
 {
+    /// <summary>
+    /// Gets the message type.
+    /// </summary>
     public MessageType Type => MessageType.LastToDieRunSnapshot;
 }
 
+/// <summary>
+/// Acknowledges receipt of a Last to Die run snapshot.
+/// </summary>
+/// <param name="RunId">The run id.</param>
+/// <param name="StructuralRevision">The structural revision.</param>
 public sealed record LastToDieRunSnapshotAckMessage(
     Guid RunId,
     ulong StructuralRevision) : IProtocolMessage
 {
+    /// <summary>
+    /// Gets the message type.
+    /// </summary>
     public MessageType Type => MessageType.LastToDieRunSnapshotAck;
 }
 
+/// <summary>
+/// Schema ids for the Last to Die protocol messages.
+/// </summary>
 public static class LastToDieProtocolSchemaIds
 {
+    /// <summary>The schema id for Last to Die command messages.</summary>
     public const ushort Command = 40;
+    /// <summary>The schema id for Last to Die command result messages.</summary>
     public const ushort CommandResult = 41;
+    /// <summary>The schema id for Last to Die run snapshot messages.</summary>
     public const ushort RunSnapshot = 42;
+    /// <summary>The schema id for Last to Die run snapshot acknowledgement messages.</summary>
     public const ushort RunSnapshotAck = 43;
 }
 
+/// <summary>
+/// The event schema for Last to Die command messages.
+/// </summary>
 [ReliableOrdered(ChannelType.Control)]
 public sealed class LastToDieCommandSchema : Protocol64EventSchema<LastToDieCommandMessage>
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="LastToDieCommandSchema"/> class.
+    /// </summary>
     public LastToDieCommandSchema()
         : base(LastToDieProtocolSchemaIds.Command, 1, Protocol64Direction.ClientToServer, 512)
     {
     }
 
+    /// <summary>
+    /// Writes the message body.
+    /// </summary>
     public override void WriteBody(LastToDieCommandMessage eventValue, BinaryWriter writer)
         => LastToDieProtocolBinary.WriteCommand(writer, eventValue);
 
+    /// <summary>
+    /// Reads the message body.
+    /// </summary>
     public override LastToDieCommandMessage ReadBody(BinaryReader reader)
         => LastToDieProtocolBinary.ReadCommand(reader);
 
+    /// <summary>
+    /// Validates the message.
+    /// </summary>
     public override void Validate(LastToDieCommandMessage eventValue)
         => LastToDieProtocolValidation.Validate(eventValue);
 }
 
+/// <summary>
+/// The event schema for Last to Die command result messages.
+/// </summary>
 [ReliableOrdered(ChannelType.Control)]
 public sealed class LastToDieCommandResultSchema : Protocol64EventSchema<LastToDieCommandResultMessage>
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="LastToDieCommandResultSchema"/> class.
+    /// </summary>
     public LastToDieCommandResultSchema()
         : base(LastToDieProtocolSchemaIds.CommandResult, 1, Protocol64Direction.ServerToClient, 512)
     {
     }
 
+    /// <summary>
+    /// Writes the message body.
+    /// </summary>
     public override void WriteBody(LastToDieCommandResultMessage eventValue, BinaryWriter writer)
         => LastToDieProtocolBinary.WriteCommandResult(writer, eventValue);
 
+    /// <summary>
+    /// Reads the message body.
+    /// </summary>
     public override LastToDieCommandResultMessage ReadBody(BinaryReader reader)
         => LastToDieProtocolBinary.ReadCommandResult(reader);
 
+    /// <summary>
+    /// Validates the message.
+    /// </summary>
     public override void Validate(LastToDieCommandResultMessage eventValue)
         => LastToDieProtocolValidation.Validate(eventValue);
 }
 
+/// <summary>
+/// The event schema for Last to Die run snapshot messages.
+/// </summary>
 [ReliableOrdered(ChannelType.GameplayEvents)]
 public sealed class LastToDieRunSnapshotSchema : Protocol64EventSchema<LastToDieRunSnapshotMessage>
 {
+    /// <summary>The maximum body size in bytes (32 KiB).</summary>
     public const int MaxBodyBytes = 32 * 1024;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="LastToDieRunSnapshotSchema"/> class.
+    /// </summary>
     public LastToDieRunSnapshotSchema()
         : base(LastToDieProtocolSchemaIds.RunSnapshot, 6, Protocol64Direction.ServerToClient, MaxBodyBytes)
     {
     }
 
+    /// <summary>
+    /// Writes the message body.
+    /// </summary>
     public override void WriteBody(LastToDieRunSnapshotMessage eventValue, BinaryWriter writer)
         => LastToDieProtocolBinary.WriteRunSnapshot(writer, eventValue);
 
+    /// <summary>
+    /// Reads the message body.
+    /// </summary>
     public override LastToDieRunSnapshotMessage ReadBody(BinaryReader reader)
         => LastToDieProtocolBinary.ReadRunSnapshot(reader);
 
+    /// <summary>
+    /// Validates the message.
+    /// </summary>
     public override void Validate(LastToDieRunSnapshotMessage eventValue)
         => LastToDieProtocolValidation.Validate(eventValue);
 }
 
+/// <summary>
+/// The event schema for Last to Die run snapshot acknowledgement messages.
+/// </summary>
 [ReliableOrdered(ChannelType.Control)]
 public sealed class LastToDieRunSnapshotAckSchema : Protocol64EventSchema<LastToDieRunSnapshotAckMessage>
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="LastToDieRunSnapshotAckSchema"/> class.
+    /// </summary>
     public LastToDieRunSnapshotAckSchema()
         : base(LastToDieProtocolSchemaIds.RunSnapshotAck, 1, Protocol64Direction.ClientToServer, 32)
     {
     }
 
+    /// <summary>
+    /// Writes the message body.
+    /// </summary>
     public override void WriteBody(LastToDieRunSnapshotAckMessage eventValue, BinaryWriter writer)
         => LastToDieProtocolBinary.WriteRunSnapshotAck(writer, eventValue);
 
+    /// <summary>
+    /// Reads the message body.
+    /// </summary>
     public override LastToDieRunSnapshotAckMessage ReadBody(BinaryReader reader)
         => LastToDieProtocolBinary.ReadRunSnapshotAck(reader);
 
+    /// <summary>
+    /// Validates the message.
+    /// </summary>
     public override void Validate(LastToDieRunSnapshotAckMessage eventValue)
         => LastToDieProtocolValidation.Validate(eventValue);
 }
 
+/// <summary>
+/// Validates Last to Die protocol messages against their wire limits.
+/// </summary>
 internal static class LastToDieProtocolValidation
 {
     private static readonly UTF8Encoding StrictUtf8 = new(
         encoderShouldEmitUTF8Identifier: false,
         throwOnInvalidBytes: true);
 
+    /// <summary>The maximum number of players in a run snapshot.</summary>
     public const int MaximumPlayers = 4;
+    /// <summary>The maximum number of owned perks per player.</summary>
     public const int MaximumOwnedPerks = 128;
+    /// <summary>The maximum number of offer choices.</summary>
     public const int MaximumOfferChoices = 3;
+    /// <summary>The maximum byte length of a stable id.</summary>
     public const int MaximumStableIdBytes = 96;
+    /// <summary>The maximum byte length of a map name.</summary>
     public const int MaximumMapNameBytes = 64;
+    /// <summary>The maximum byte length of a reason string.</summary>
     public const int MaximumReasonBytes = 128;
 
+    /// <summary>
+    /// Validates a Last to Die command message.
+    /// </summary>
     public static void Validate(LastToDieCommandMessage value)
     {
         if (value.CommandId == 0 || value.RunId == Guid.Empty || value.ExpectedStructuralRevision == 0)
@@ -245,6 +457,9 @@ internal static class LastToDieProtocolValidation
         ValidateString(value.SelectedId, MaximumStableIdBytes, "selected ID");
     }
 
+    /// <summary>
+    /// Validates a Last to Die command result message.
+    /// </summary>
     public static void Validate(LastToDieCommandResultMessage value)
     {
         if (value.CommandId == 0 || value.AuthoritativeStructuralRevision == 0)
@@ -262,6 +477,9 @@ internal static class LastToDieProtocolValidation
         ValidateString(value.Reason, MaximumReasonBytes, "command result reason");
     }
 
+    /// <summary>
+    /// Validates a Last to Die run snapshot message.
+    /// </summary>
     public static void Validate(LastToDieRunSnapshotMessage value)
     {
         if (value.RunId == Guid.Empty || value.StructuralRevision == 0 || value.RulesetVersion <= 0)
@@ -365,6 +583,9 @@ internal static class LastToDieProtocolValidation
         }
     }
 
+    /// <summary>
+    /// Validates a Last to Die run snapshot acknowledgement message.
+    /// </summary>
     public static void Validate(LastToDieRunSnapshotAckMessage value)
     {
         if (value.RunId == Guid.Empty || value.StructuralRevision == 0)
@@ -407,12 +628,18 @@ internal static class LastToDieProtocolValidation
     }
 }
 
+/// <summary>
+/// Binary encode/decode for Last to Die protocol messages.
+/// </summary>
 internal static class LastToDieProtocolBinary
 {
     private static readonly UTF8Encoding StrictUtf8 = new(
         encoderShouldEmitUTF8Identifier: false,
         throwOnInvalidBytes: true);
 
+    /// <summary>
+    /// Writes a Last to Die command message.
+    /// </summary>
     public static void WriteCommand(BinaryWriter writer, LastToDieCommandMessage value)
     {
         writer.Write(value.CommandId);
@@ -424,6 +651,9 @@ internal static class LastToDieProtocolBinary
         WriteString(writer, value.SelectedId, LastToDieProtocolValidation.MaximumStableIdBytes);
     }
 
+    /// <summary>
+    /// Reads a Last to Die command message.
+    /// </summary>
     public static LastToDieCommandMessage ReadCommand(BinaryReader reader)
         => new(
             reader.ReadUInt64(),
@@ -434,6 +664,9 @@ internal static class LastToDieProtocolBinary
             reader.ReadUInt64(),
             ReadString(reader, LastToDieProtocolValidation.MaximumStableIdBytes));
 
+    /// <summary>
+    /// Writes a Last to Die command result message.
+    /// </summary>
     public static void WriteCommandResult(BinaryWriter writer, LastToDieCommandResultMessage value)
     {
         writer.Write(value.CommandId);
@@ -442,6 +675,9 @@ internal static class LastToDieProtocolBinary
         WriteString(writer, value.Reason, LastToDieProtocolValidation.MaximumReasonBytes);
     }
 
+    /// <summary>
+    /// Reads a Last to Die command result message.
+    /// </summary>
     public static LastToDieCommandResultMessage ReadCommandResult(BinaryReader reader)
         => new(
             reader.ReadUInt64(),
@@ -449,6 +685,9 @@ internal static class LastToDieProtocolBinary
             reader.ReadUInt64(),
             ReadString(reader, LastToDieProtocolValidation.MaximumReasonBytes));
 
+    /// <summary>
+    /// Writes a Last to Die run snapshot message.
+    /// </summary>
     public static void WriteRunSnapshot(BinaryWriter writer, LastToDieRunSnapshotMessage value)
     {
         writer.Write(value.RunId.ToByteArray());
@@ -506,6 +745,9 @@ internal static class LastToDieProtocolBinary
         writer.Write(value.CompletedRounds);
     }
 
+    /// <summary>
+    /// Reads a Last to Die run snapshot message.
+    /// </summary>
     public static LastToDieRunSnapshotMessage ReadRunSnapshot(BinaryReader reader)
     {
         var runId = ReadGuid(reader);
@@ -607,12 +849,18 @@ internal static class LastToDieProtocolBinary
             completedRounds);
     }
 
+    /// <summary>
+    /// Writes a Last to Die run snapshot acknowledgement message.
+    /// </summary>
     public static void WriteRunSnapshotAck(BinaryWriter writer, LastToDieRunSnapshotAckMessage value)
     {
         writer.Write(value.RunId.ToByteArray());
         writer.Write(value.StructuralRevision);
     }
 
+    /// <summary>
+    /// Reads a Last to Die run snapshot acknowledgement message.
+    /// </summary>
     public static LastToDieRunSnapshotAckMessage ReadRunSnapshotAck(BinaryReader reader)
         => new(ReadGuid(reader), reader.ReadUInt64());
 

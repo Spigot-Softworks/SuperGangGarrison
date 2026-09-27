@@ -4,10 +4,9 @@ using System.IO;
 using System.Net.WebSockets;
 using System.Threading;
 using System.Threading.Channels;
-using OpenGarrison.Networking;
 using OpenGarrison.Protocol;
 
-namespace OpenGarrison.Server;
+namespace OpenGarrison.Networking;
 
 public enum Protocol64WebSocketRecoveryState : byte
 {

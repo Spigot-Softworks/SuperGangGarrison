@@ -26,16 +26,12 @@ public static class TeleportMetadata
 
     public static bool IsTeleportEntityType(string? type)
     {
-        return type.Equals(TeleportEntityType, StringComparison.OrdinalIgnoreCase)
-            || type.Equals(TeleportExitEntityType, StringComparison.OrdinalIgnoreCase);
+        return string.Equals(type, TeleportEntityType, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(type, TeleportExitEntityType, StringComparison.OrdinalIgnoreCase);
     }
 
     public static (float Width, float Height) ResolveZoneDimensions(float xScale, float yScale)
-    {
-        var width = DefaultZoneWidth * MathF.Abs(xScale <= 0f ? 1f : xScale);
-        var height = DefaultZoneHeight * MathF.Abs(yScale <= 0f ? 1f : yScale);
-        return (MathF.Max(MinZoneExtent, width), MathF.Max(MinZoneExtent, height));
-    }
+        => ZoneDimensionResolver.Resolve(DefaultZoneWidth, DefaultZoneHeight, MinZoneExtent, xScale, yScale);
 
     public static bool TryParseTeamFilter(string? value, out TeleportTeamFilter filter)
     {

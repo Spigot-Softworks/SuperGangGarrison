@@ -548,6 +548,8 @@ public partial class Game1 : Game
     {
         _voiceChat?.Dispose();
         _voiceChat = null;
+        _runUploads?.Dispose();
+        _runUploads = null;
         ShutdownDiscordRichPresence();
         _bootstrapController.UnloadContent();
         base.UnloadContent();

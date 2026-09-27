@@ -4,6 +4,8 @@ using System.IO.Compression;
 using System.Text;
 using System.Text.Json;
 using Xunit;
+using BotAiNavAsset = OpenGarrison.BotAI.BotNavigationAsset;
+using BotAiNavStore = OpenGarrison.BotAI.BotNavigationAssetStore;
 
 namespace OpenGarrison.PluginHost.Tests;
 
@@ -60,6 +62,55 @@ public sealed class BotBrainCompressedAssetTests
 
         Assert.True(loaded);
         Assert.Equal(asset.LevelFingerprint, loadedAsset.LevelFingerprint);
+    }
+
+    [Fact]
+    public void BotAiModernNavAssetFormatMismatchReturnsMessageWithoutThrowing()
+    {
+        using var workspace = TempContentWorkspace.Create();
+        var level = TraversalLabFixtures.Create(TraversalLabFixtureKind.FlatGround);
+        WriteBotAiShippedModernAsset(level, new BotAiNavAsset
+        {
+            FormatVersion = BotAiNavStore.CurrentFormatVersion + 1,
+            LevelName = level.Name,
+            MapAreaIndex = level.MapAreaIndex,
+        });
+
+        var loaded = BotAiNavStore.TryLoadModernShippedAssetForEditing(
+            level, out var loadedAsset, out _, out var message, out _);
+
+        Assert.False(loaded);
+        Assert.Null(loadedAsset);
+        Assert.Contains("format mismatch", message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void BotAiModernNavAssetStrategyMismatchReturnsMessageWithoutThrowing()
+    {
+        using var workspace = TempContentWorkspace.Create();
+        var level = TraversalLabFixtures.Create(TraversalLabFixtureKind.FlatGround);
+        WriteBotAiShippedModernAsset(level, new BotAiNavAsset
+        {
+            FormatVersion = BotAiNavStore.CurrentFormatVersion,
+            LevelName = level.Name,
+            MapAreaIndex = level.MapAreaIndex,
+            BuildStrategy = OpenGarrison.BotAI.BotNavigationBuildStrategy.GeometrySampled,
+        });
+
+        var loaded = BotAiNavStore.TryLoadModernShippedAssetForEditing(
+            level, out var loadedAsset, out _, out var message, out _);
+
+        Assert.False(loaded);
+        Assert.Null(loadedAsset);
+        Assert.Contains("strategy mismatch", message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static void WriteBotAiShippedModernAsset(SimpleLevel level, BotAiNavAsset asset)
+    {
+        var fileName = BotAiNavStore.GetModernAssetFileName(level.Name, level.MapAreaIndex);
+        var path = Path.Combine(ContentRoot.Path, "BotNav", fileName);
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(path, JsonSerializer.Serialize(asset));
     }
 
     [Fact]

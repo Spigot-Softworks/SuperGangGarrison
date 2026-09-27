@@ -36,6 +36,18 @@ public sealed class TeleportMetadataTests
         Assert.Equal(expected, TeleportMetadata.AllowsTeam(filter, team));
     }
 
+    [Theory]
+    [InlineData(null, false)]
+    [InlineData("", false)]
+    [InlineData("teleport", true)]
+    [InlineData("teleportExit", true)]
+    [InlineData("TELEPORT", true)]
+    [InlineData("logicPlayerTrigger", false)]
+    public void IsTeleportEntityTypeHandlesNullAndUnknownTypes(string? type, bool expected)
+    {
+        Assert.Equal(expected, TeleportMetadata.IsTeleportEntityType(type));
+    }
+
     [Fact]
     public void ParseZoneConfigurationRequiresLinkedExit()
     {
