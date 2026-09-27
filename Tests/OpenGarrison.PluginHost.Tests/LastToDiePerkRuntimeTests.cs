@@ -205,7 +205,8 @@ public sealed class LastToDiePerkRuntimeTests
         Assert.Same(profile, shot.LastToDieProfile);
         Assert.True(shot.AppliesLuckyStrikeStun);
 
-        var snapshot = global::ServerHelpers.ToSnapshotRevolverState(shot);
+        var snapshotStore = new EntityStore();
+        var snapshot = new SnapshotSystem(snapshotStore, new CombatSystem(snapshotStore)).ToSnapshotRevolverState(shot);
         Assert.Equal(11.2f, snapshot.DamageValue);
         Assert.Equal(profile.Encode(), snapshot.LastToDieRevolverProfile);
         Assert.True(snapshot.AppliesLuckyStrikeStun);

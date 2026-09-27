@@ -308,13 +308,13 @@ public sealed class LastToDieMedicKritPowerRuntimeTests
         InvokePrivate(source, "SpawnRocket", medic, 150f, 100f, 1f, 0f);
         var rocket = source.Rockets[^1];
 
-        var legacyPlayer = ServerHelpers.ToSnapshotPlayerState(
-            source,
+        var stringCache = new SnapshotStringCache();
+        var legacyPlayer = source.Snapshots.ToSnapshotPlayerState(
             SimulationWorld.LocalPlayerSlot,
             medic,
             medic,
-            new SnapshotStringCache());
-        var legacyRocket = ServerHelpers.ToSnapshotRocketState(rocket);
+            value => stringCache.GetOrAddCacheId(value));
+        var legacyRocket = source.Snapshots.ToSnapshotRocketState(rocket);
         var legacySnapshot = CreateSnapshot(legacyPlayer) with { Rockets = [legacyRocket] };
         var legacyPayload = ProtocolCodec.Serialize(legacySnapshot, ProtocolCompressionSettings.Disabled);
         Assert.True(ProtocolCodec.TryDeserialize(legacyPayload, out var decodedMessage));

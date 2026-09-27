@@ -57,12 +57,12 @@ public sealed class LastToDieCapturedPointHealingTests
         point.Team = PlayerTeam.Red;
         point.HasHealingAura = true;
         world.LocalPlayer.TeleportTo(point.HealingAuraCenterX, point.HealingAuraCenterY);
-        var player = ServerHelpers.ToSnapshotPlayerState(
-            world,
+        var stringCache = new SnapshotStringCache();
+        var player = world.Snapshots.ToSnapshotPlayerState(
             SimulationWorld.LocalPlayerSlot,
             world.LocalPlayer,
             world.LocalPlayer,
-            new SnapshotStringCache());
+            value => stringCache.GetOrAddCacheId(value));
         var snapshot = new SnapshotMessage(
             Frame: 1,
             TickRate: world.Config.TicksPerSecond,

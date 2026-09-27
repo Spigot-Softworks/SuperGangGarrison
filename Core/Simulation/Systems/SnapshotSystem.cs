@@ -1,11 +1,45 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using OpenGarrison.Core;
 using OpenGarrison.Protocol;
 
-internal static partial class ServerHelpers
+namespace OpenGarrison.Core;
+
+public sealed class SnapshotSystem
 {
+    private readonly EntityStore _entities;
+    private readonly CombatSystem _combat;
+    private readonly SnapshotSystemDependencies _dependencies;
+
+    public SnapshotSystem(EntityStore entities, CombatSystem combat)
+        : this(entities, combat, new SnapshotSystemDependencies())
+    {
+    }
+
+    internal SnapshotSystem(EntityStore entities, CombatSystem combat, SnapshotSystemDependencies dependencies)
+    {
+        _entities = entities ?? throw new ArgumentNullException(nameof(entities));
+        _combat = combat ?? throw new ArgumentNullException(nameof(combat));
+        _dependencies = dependencies ?? throw new ArgumentNullException(nameof(dependencies));
+    }
+
+    public SnapshotDamageEvent[] DrainSnapshotDamageEvents(ref ulong nextFallbackEventId)
+    {
+        var damageEvents = _combat.DrainPendingDamageEvents();
+        if (damageEvents.Count == 0)
+        {
+            return [];
+        }
+
+        var snapshotEvents = new SnapshotDamageEvent[damageEvents.Count];
+        for (var index = 0; index < damageEvents.Count; index += 1)
+        {
+            snapshotEvents[index] = ToSnapshotDamageEvent(damageEvents[index], nextFallbackEventId++);
+        }
+
+        return snapshotEvents;
+    }
+
     private const string CoreReplicatedOwnerId = "core.player";
     private const string SecondaryWeaponAvailableKey = "secondary_weapon_available";
     private const string SecondaryWeaponAmmoKey = "secondary_weapon_ammo";
@@ -27,19 +61,18 @@ internal static partial class ServerHelpers
     private const string MedicKritzMaxAmmoKey = "medic_kritz_max_ammo";
     private const string MedicKritzAvailableKey = "medic_kritz_available";
 
-    internal static SnapshotPlayerState ToSnapshotPlayerState(
-        SimulationWorld world,
+    public SnapshotPlayerState ToSnapshotPlayerState(
         byte slot,
         PlayerEntity player,
         PlayerEntity? viewer,
-        SnapshotStringCache stringCache,
+        Func<string, ushort> getStringCacheId,
         int pingMilliseconds = -1,
         bool isBot = false)
     {
-        var isPlayableSlot = SimulationWorld.IsPlayableNetworkPlayerSlot(slot);
-        var isAwaitingJoin = isPlayableSlot && world.IsNetworkPlayerAwaitingJoin(slot);
+        var isPlayableSlot = _dependencies.IsPlayableNetworkPlayerSlot(slot);
+        var isAwaitingJoin = isPlayableSlot && _dependencies.IsNetworkPlayerAwaitingJoin(slot);
         var snapshotTeam = isAwaitingJoin
-            ? world.GetNetworkPlayerConfiguredTeam(slot)
+            ? _dependencies.GetNetworkPlayerConfiguredTeam(slot)
             : player.Team;
         var isDominatingLocalViewer = viewer is not null
             && !ReferenceEquals(player, viewer)
@@ -276,8 +309,8 @@ internal static partial class ServerHelpers
             (byte)player.ClassId,
             player.IsAlive,
             isAwaitingJoin,
-            slot >= SimulationWorld.FirstSpectatorSlot,
-            isPlayableSlot ? world.GetNetworkPlayerRespawnTicks(slot) : 0,
+            slot >= _dependencies.FirstSpectatorSlot,
+            isPlayableSlot ? _dependencies.GetNetworkPlayerRespawnTicks(slot) : 0,
             player.X,
             player.Y,
             player.HorizontalSpeed,
@@ -351,13 +384,13 @@ internal static partial class ServerHelpers
             (byte)player.GameplayLoadoutState.EquippedSlot,
             player.GameplayLoadoutState.EquippedItemId,
             player.GameplayLoadoutState.AcquiredItemId ?? string.Empty,
-            GameplayModPackCacheId: stringCache.GetOrAddCacheId(player.GameplayLoadoutState.ModPackId),
-            GameplayLoadoutCacheId: stringCache.GetOrAddCacheId(player.GameplayLoadoutState.LoadoutId),
-            GameplayPrimaryItemCacheId: stringCache.GetOrAddCacheId(player.GameplayLoadoutState.PrimaryItemId),
-            GameplaySecondaryItemCacheId: stringCache.GetOrAddCacheId(player.GameplayLoadoutState.SecondaryItemId ?? string.Empty),
-            GameplayUtilityItemCacheId: stringCache.GetOrAddCacheId(player.GameplayLoadoutState.UtilityItemId ?? string.Empty),
-            GameplayEquippedItemCacheId: stringCache.GetOrAddCacheId(player.GameplayLoadoutState.EquippedItemId),
-            GameplayAcquiredItemCacheId: stringCache.GetOrAddCacheId(player.GameplayLoadoutState.AcquiredItemId ?? string.Empty),
+            GameplayModPackCacheId: getStringCacheId(player.GameplayLoadoutState.ModPackId),
+            GameplayLoadoutCacheId: getStringCacheId(player.GameplayLoadoutState.LoadoutId),
+            GameplayPrimaryItemCacheId: getStringCacheId(player.GameplayLoadoutState.PrimaryItemId),
+            GameplaySecondaryItemCacheId: getStringCacheId(player.GameplayLoadoutState.SecondaryItemId ?? string.Empty),
+            GameplayUtilityItemCacheId: getStringCacheId(player.GameplayLoadoutState.UtilityItemId ?? string.Empty),
+            GameplayEquippedItemCacheId: getStringCacheId(player.GameplayLoadoutState.EquippedItemId),
+            GameplayAcquiredItemCacheId: getStringCacheId(player.GameplayLoadoutState.AcquiredItemId ?? string.Empty),
             ReferenceEquals(player, viewer) ? player.GetTrackedOwnedGameplayItemIds() : Array.Empty<string>(),
             replicatedStates.ToArray(),
             player.PlayerScale,
@@ -366,9 +399,9 @@ internal static partial class ServerHelpers
             OffhandCooldownTicks: player.ExperimentalOffhandCooldownTicks,
             OffhandReloadTicks: player.ExperimentalOffhandReloadTicksUntilNextShell,
             GibDeaths: (short)Math.Clamp(player.GibDeaths, 0, short.MaxValue),
-            IsReady: world.IsNetworkPlayerReady(slot),
+            IsReady: _dependencies.IsNetworkPlayerReady(slot),
             GameplayClassId: player.GameplayClassId,
-            GameplayClassCacheId: stringCache.GetOrAddCacheId(player.GameplayClassId),
+            GameplayClassCacheId: getStringCacheId(player.GameplayClassId),
             PingMilliseconds: pingMilliseconds,
             LastToDieSpyCloakMeterUnits: checked((ushort)player.LastToDieSpyCloakMeterUnits),
             LastToDieSpyRogueRampStacks: checked((byte)player.LastToDieSpyRogueRampStacks),
@@ -400,7 +433,7 @@ internal static partial class ServerHelpers
             ExperimentalGhostTrailAlpha: player.ExperimentalGhostDashTrailAlpha);
     }
 
-    internal static SnapshotIntelState ToSnapshotIntelState(TeamIntelligenceState intel)
+    public SnapshotIntelState ToSnapshotIntelState(TeamIntelligenceState intel)
     {
         return new SnapshotIntelState(
             (byte)intel.Team,
@@ -411,7 +444,7 @@ internal static partial class ServerHelpers
             intel.ReturnTicksRemaining);
     }
 
-    internal static SnapshotSentryState ToSnapshotSentryState(SentryEntity sentry)
+    public SnapshotSentryState ToSnapshotSentryState(SentryEntity sentry)
     {
         return new SnapshotSentryState(
             sentry.Id,
@@ -432,13 +465,13 @@ internal static partial class ServerHelpers
             sentry.IsDispenser ? sentry.DispenserRampTicks : sentry.OverdriveTicksRemaining);
     }
 
-    internal static SnapshotCivilDefenseTurretState ToSnapshotCivilDefenseTurretState(CivilDefenseTurretEntity turret)
+    public SnapshotCivilDefenseTurretState ToSnapshotCivilDefenseTurretState(CivilDefenseTurretEntity turret)
         => new(turret.Id, turret.OwnerPlayerId, (byte)turret.Team, turret.X, turret.Y,
             turret.Health, turret.HasLanded, turret.IsBuilt, turret.FacingDirectionX, turret.AimDirectionDegrees,
             turret.ReloadTicksRemaining, turret.ShotTraceTicksRemaining, turret.LastShotTargetX, turret.LastShotTargetY,
             turret.LifetimeTicksRemaining);
 
-    internal static SnapshotJumpPadState ToSnapshotJumpPadState(JumpPadEntity pad)
+    public SnapshotJumpPadState ToSnapshotJumpPadState(JumpPadEntity pad)
     {
         return new SnapshotJumpPadState(
             pad.Id,
@@ -451,7 +484,7 @@ internal static partial class ServerHelpers
             pad.IsBuilt);
     }
 
-    internal static SnapshotJumpPadGibState ToSnapshotJumpPadGibState(JumpPadGibEntity jumpPadGib)
+    public SnapshotJumpPadGibState ToSnapshotJumpPadGibState(JumpPadGibEntity jumpPadGib)
     {
         return new SnapshotJumpPadGibState(
             jumpPadGib.Id,
@@ -461,7 +494,7 @@ internal static partial class ServerHelpers
             jumpPadGib.TicksRemaining);
     }
 
-    internal static SnapshotHealthPackState ToSnapshotHealthPackState(HealthPackEntity healthPack, int respawnTicksRemaining = 0)
+    public SnapshotHealthPackState ToSnapshotHealthPackState(HealthPackEntity healthPack, int respawnTicksRemaining = 0)
     {
         return new SnapshotHealthPackState(
             healthPack.NetworkSnapshotId,
@@ -476,18 +509,21 @@ internal static partial class ServerHelpers
             Active: true);
     }
 
-    internal static SnapshotHealthPackState[] ToSnapshotHealthPackStates(SimulationWorld world)
+    public SnapshotHealthPackState[] ToSnapshotHealthPackStates(
+        IReadOnlyList<HealthPackEntity> healthPacks,
+        IReadOnlyList<HealthPackSpawnMarker> healthPackSpawns,
+        Func<int, int> getHealthPackSpawnRespawnTicksRemaining)
     {
-        if (world.HealthPacks.Count == 0 && world.Level.HealthPackSpawns.Count == 0)
+        if (healthPacks.Count == 0 && healthPackSpawns.Count == 0)
         {
             return [];
         }
 
-        var states = new List<SnapshotHealthPackState>(world.HealthPacks.Count + world.Level.HealthPackSpawns.Count);
+        var states = new List<SnapshotHealthPackState>(healthPacks.Count + healthPackSpawns.Count);
         var activeMapSpawns = new HashSet<int>();
-        for (var index = 0; index < world.HealthPacks.Count; index += 1)
+        for (var index = 0; index < healthPacks.Count; index += 1)
         {
-            var healthPack = world.HealthPacks[index];
+            var healthPack = healthPacks[index];
             if (healthPack.SourceSpawnIndex >= 0)
             {
                 activeMapSpawns.Add(healthPack.SourceSpawnIndex);
@@ -496,18 +532,18 @@ internal static partial class ServerHelpers
             states.Add(ToSnapshotHealthPackState(
                 healthPack,
                 healthPack.SourceSpawnIndex >= 0
-                    ? world.GetHealthPackSpawnRespawnTicksRemaining(healthPack.SourceSpawnIndex)
+                    ? getHealthPackSpawnRespawnTicksRemaining(healthPack.SourceSpawnIndex)
                     : 0));
         }
 
-        for (var spawnIndex = 0; spawnIndex < world.Level.HealthPackSpawns.Count; spawnIndex += 1)
+        for (var spawnIndex = 0; spawnIndex < healthPackSpawns.Count; spawnIndex += 1)
         {
             if (activeMapSpawns.Contains(spawnIndex))
             {
                 continue;
             }
 
-            var marker = world.Level.HealthPackSpawns[spawnIndex];
+            var marker = healthPackSpawns[spawnIndex];
             states.Add(new SnapshotHealthPackState(
                 HealthPackEntity.GetNetworkSnapshotId(spawnIndex, entityId: 0),
                 (byte)marker.Size,
@@ -517,7 +553,7 @@ internal static partial class ServerHelpers
                 VelocityY: 0f,
                 TicksRemaining: 0,
                 SourceSpawnIndex: spawnIndex,
-                world.GetHealthPackSpawnRespawnTicksRemaining(spawnIndex),
+                getHealthPackSpawnRespawnTicksRemaining(spawnIndex),
                 Active: false));
         }
 
@@ -525,7 +561,7 @@ internal static partial class ServerHelpers
         return states.ToArray();
     }
 
-    internal static SnapshotShotState ToSnapshotBulletState(ShotProjectileEntity shot)
+    public SnapshotShotState ToSnapshotBulletState(ShotProjectileEntity shot)
     {
         return new SnapshotShotState(
             shot.Id,
@@ -545,7 +581,7 @@ internal static partial class ServerHelpers
             IsBoomstickPellet: shot.IsBoomstickPellet);
     }
 
-    internal static SnapshotShotState ToSnapshotNeedleState(NeedleProjectileEntity shot)
+    public SnapshotShotState ToSnapshotNeedleState(NeedleProjectileEntity shot)
     {
         var isArrow = shot is ArrowProjectileEntity;
         var medicHealNeedle = shot as MedicHealNeedleProjectileEntity;
@@ -589,17 +625,17 @@ internal static partial class ServerHelpers
             CriticalDamageMultiplier: shot.CriticalDamageMultiplier);
     }
 
-    internal static SnapshotShotState ToSnapshotBubbleState(BubbleProjectileEntity bubble)
+    public SnapshotShotState ToSnapshotBubbleState(BubbleProjectileEntity bubble)
     {
         return new SnapshotShotState(bubble.Id, (byte)bubble.Team, bubble.OwnerId, bubble.X, bubble.Y, bubble.VelocityX, bubble.VelocityY, bubble.TicksRemaining, bubble.IsCritical, CriticalDamageMultiplier: bubble.CriticalDamageMultiplier);
     }
 
-    internal static SnapshotShotState ToSnapshotBladeState(BladeProjectileEntity blade)
+    public SnapshotShotState ToSnapshotBladeState(BladeProjectileEntity blade)
     {
         return new SnapshotShotState(blade.Id, (byte)blade.Team, blade.OwnerId, blade.X, blade.Y, blade.VelocityX, blade.VelocityY, blade.TicksRemaining, blade.IsCritical, CriticalDamageMultiplier: blade.CriticalDamageMultiplier);
     }
 
-    internal static SnapshotShotState ToSnapshotRevolverState(RevolverProjectileEntity shot)
+    public SnapshotShotState ToSnapshotRevolverState(RevolverProjectileEntity shot)
     {
         return new SnapshotShotState(
             shot.Id,
@@ -620,7 +656,7 @@ internal static partial class ServerHelpers
             PlayerKnockbackGroundedVerticalScale: shot.PlayerKnockbackGroundedVerticalScale);
     }
 
-    internal static SnapshotRocketState ToSnapshotRocketState(RocketProjectileEntity rocket)
+    public SnapshotRocketState ToSnapshotRocketState(RocketProjectileEntity rocket)
     {
         var passedFriendlyPlayerIds = rocket.PassedFriendlyPlayerIds.Count == 0
             ? Array.Empty<int>()
@@ -653,7 +689,7 @@ internal static partial class ServerHelpers
             rocket.SuppressSmokeTrail);
     }
 
-    internal static SnapshotFlameState ToSnapshotFlameState(FlameProjectileEntity flame)
+    public SnapshotFlameState ToSnapshotFlameState(FlameProjectileEntity flame)
     {
         return new SnapshotFlameState(
             flame.Id,
@@ -673,7 +709,7 @@ internal static partial class ServerHelpers
             flame.CriticalDamageMultiplier);
     }
 
-    internal static SnapshotShotState ToSnapshotFlareState(FlareProjectileEntity flare)
+    public SnapshotShotState ToSnapshotFlareState(FlareProjectileEntity flare)
     {
         return new SnapshotShotState(
             flare.Id,
@@ -690,7 +726,7 @@ internal static partial class ServerHelpers
             FlareStyle: (byte)flare.Style);
     }
 
-    internal static SnapshotMineState ToSnapshotMineState(MineProjectileEntity mine)
+    public SnapshotMineState ToSnapshotMineState(MineProjectileEntity mine)
     {
         return new SnapshotMineState(
             mine.Id,
@@ -707,7 +743,7 @@ internal static partial class ServerHelpers
             mine.CriticalDamageMultiplier);
     }
 
-    internal static SnapshotGrenadeState ToSnapshotGrenadeState(GrenadeProjectileEntity grenade)
+    public SnapshotGrenadeState ToSnapshotGrenadeState(GrenadeProjectileEntity grenade)
     {
         return new SnapshotGrenadeState(
             grenade.Id,
@@ -724,7 +760,7 @@ internal static partial class ServerHelpers
             grenade.CriticalDamageMultiplier);
     }
 
-    internal static SnapshotDeadBodyState ToSnapshotDeadBodyState(DeadBodyEntity deadBody)
+    public SnapshotDeadBodyState ToSnapshotDeadBodyState(DeadBodyEntity deadBody)
     {
         return new SnapshotDeadBodyState(
             deadBody.Id,
@@ -743,7 +779,7 @@ internal static partial class ServerHelpers
             deadBody.GameplayClassId);
     }
 
-    internal static SnapshotSentryGibState ToSnapshotSentryGibState(SentryGibEntity sentryGib)
+    public SnapshotSentryGibState ToSnapshotSentryGibState(SentryGibEntity sentryGib)
     {
         return new SnapshotSentryGibState(
             sentryGib.Id,
@@ -754,7 +790,7 @@ internal static partial class ServerHelpers
             sentryGib.IsDispenser);
     }
 
-    internal static SnapshotControlPointState ToSnapshotControlPointState(ControlPointState point)
+    public SnapshotControlPointState ToSnapshotControlPointState(ControlPointState point)
     {
         return new SnapshotControlPointState(
             (byte)point.Index,
@@ -767,7 +803,7 @@ internal static partial class ServerHelpers
             point.HasHealingAura);
     }
 
-    internal static SnapshotGeneratorState ToSnapshotGeneratorState(GeneratorState generator)
+    public SnapshotGeneratorState ToSnapshotGeneratorState(GeneratorState generator)
     {
         return new SnapshotGeneratorState(
             (byte)generator.Team,
@@ -775,7 +811,7 @@ internal static partial class ServerHelpers
             (short)generator.MaxHealth);
     }
 
-    internal static SnapshotPlayerGibState ToSnapshotPlayerGibState(PlayerGibEntity gib)
+    public SnapshotPlayerGibState ToSnapshotPlayerGibState(PlayerGibEntity gib)
     {
         return new SnapshotPlayerGibState(
             gib.Id,
@@ -791,7 +827,7 @@ internal static partial class ServerHelpers
             gib.BloodChance);
     }
 
-    internal static SnapshotBloodDropState ToSnapshotBloodDropState(BloodDropEntity bloodDrop)
+    public SnapshotBloodDropState ToSnapshotBloodDropState(BloodDropEntity bloodDrop)
     {
         return new SnapshotBloodDropState(
             bloodDrop.Id,
@@ -804,7 +840,7 @@ internal static partial class ServerHelpers
             bloodDrop.Scale);
     }
 
-    internal static SnapshotCombatTraceState ToSnapshotCombatTraceState(CombatTrace trace)
+    public SnapshotCombatTraceState ToSnapshotCombatTraceState(CombatTrace trace)
     {
         return new SnapshotCombatTraceState(
             trace.StartX,
@@ -818,7 +854,7 @@ internal static partial class ServerHelpers
             trace.IsCritical);
     }
 
-    internal static SnapshotSniperAimIndicatorState ToSnapshotSniperAimIndicatorState(SniperAimIndicator indicator)
+    public SnapshotSniperAimIndicatorState ToSnapshotSniperAimIndicatorState(SniperAimIndicator indicator)
     {
         return new SnapshotSniperAimIndicatorState(
             indicator.SniperPlayerId,
@@ -828,7 +864,7 @@ internal static partial class ServerHelpers
             indicator.Transparency);
     }
 
-    internal static SnapshotSoundEvent ToSnapshotSoundEvent(WorldSoundEvent soundEvent, ulong fallbackEventId)
+    public SnapshotSoundEvent ToSnapshotSoundEvent(WorldSoundEvent soundEvent, ulong fallbackEventId)
     {
         return new SnapshotSoundEvent(
             soundEvent.SoundName,
@@ -839,7 +875,7 @@ internal static partial class ServerHelpers
             soundEvent.SourcePlayerId);
     }
 
-    internal static SnapshotVisualEvent ToSnapshotVisualEvent(WorldVisualEvent visualEvent, ulong fallbackEventId)
+    public SnapshotVisualEvent ToSnapshotVisualEvent(WorldVisualEvent visualEvent, ulong fallbackEventId)
     {
         return new SnapshotVisualEvent(
             visualEvent.EffectName,
@@ -851,7 +887,7 @@ internal static partial class ServerHelpers
             visualEvent.SourceFrame);
     }
 
-    internal static SnapshotDamageEvent ToSnapshotDamageEvent(WorldDamageEvent damageEvent, ulong fallbackEventId)
+    public SnapshotDamageEvent ToSnapshotDamageEvent(WorldDamageEvent damageEvent, ulong fallbackEventId)
     {
         return new SnapshotDamageEvent(
             damageEvent.Amount,
@@ -867,7 +903,7 @@ internal static partial class ServerHelpers
             (byte)damageEvent.Flags);
     }
 
-    internal static SnapshotKillFeedEntry ToSnapshotKillFeedEntry(KillFeedEntry entry)
+    public SnapshotKillFeedEntry ToSnapshotKillFeedEntry(KillFeedEntry entry)
     {
         var messageText = TruncateSnapshotString(entry.MessageText, ProtocolCodec.MaxKillMessageBytes);
         var messageHighlightStart = Math.Clamp(entry.MessageHighlightStart, 0, messageText.Length);
@@ -894,7 +930,7 @@ internal static partial class ServerHelpers
         };
     }
 
-    internal static SnapshotDeathCamState? ToSnapshotDeathCamState(LocalDeathCamState? deathCam)
+    public SnapshotDeathCamState? ToSnapshotDeathCamState(LocalDeathCamState? deathCam)
     {
         if (deathCam is null)
         {
@@ -917,4 +953,14 @@ internal static partial class ServerHelpers
     {
         return ProtocolCodec.TruncateUtf8(value ?? string.Empty, maxBytes);
     }
+}
+
+internal sealed class SnapshotSystemDependencies
+{
+    public Func<byte, bool> IsPlayableNetworkPlayerSlot { get; init; } = static slot => slot >= 1 && slot <= 40;
+    public byte FirstSpectatorSlot { get; init; } = 128;
+    public Func<byte, bool> IsNetworkPlayerAwaitingJoin { get; init; } = static _ => false;
+    public Func<byte, PlayerTeam> GetNetworkPlayerConfiguredTeam { get; init; } = static _ => PlayerTeam.Red;
+    public Func<byte, int> GetNetworkPlayerRespawnTicks { get; init; } = static _ => 0;
+    public Func<byte, bool> IsNetworkPlayerReady { get; init; } = static _ => false;
 }

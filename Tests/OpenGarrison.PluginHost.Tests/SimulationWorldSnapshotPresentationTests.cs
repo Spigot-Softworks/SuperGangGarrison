@@ -30,7 +30,7 @@ public sealed class SimulationWorldSnapshotPresentationTests
         source.AdvanceOneTick();
         var snapshot = CreateSnapshot(world, frame: 79, localPlayer: local, remotePlayer: owner) with
         {
-            Shots = [ServerHelpers.ToSnapshotBulletState(source)],
+            Shots = [world.Snapshots.ToSnapshotBulletState(source)],
         };
 
         Assert.True(world.ApplySnapshot(snapshot, localPlayerSlot: 1));
