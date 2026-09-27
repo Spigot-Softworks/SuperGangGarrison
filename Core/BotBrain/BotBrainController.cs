@@ -36,8 +36,7 @@ public sealed class BotBrainController
     private readonly CombatDecisionMemory _combatMemory = new();
     private readonly LocalMotionController _localMotionController = new();
     private readonly StochasticLocalMotionPlanner _stochasticLocalMotionPlanner = new();
-    private readonly NavGraph? _graphOverride;
-    private readonly bool _disableShippedNavigationGraph;
+    private readonly INavigationGraphProvider _navigationGraphProvider;
 
     private NavGraph? _navGraph;
     private NavPath? _currentPath;
@@ -302,6 +301,7 @@ public sealed class BotBrainController
     private bool _wasAliveLastThink;
 
     public BotBrainController()
+        : this(new NavigationGraphProvider())
     {
     }
 
@@ -310,13 +310,19 @@ public sealed class BotBrainController
     /// even when the current level has a shipped OG2 navigation graph.
     /// </summary>
     public BotBrainController(bool disableShippedNavigationGraph)
+        : this(new NavigationGraphProvider(disableShippedNavigationGraph))
     {
-        _disableShippedNavigationGraph = disableShippedNavigationGraph;
     }
 
     public BotBrainController(NavGraph graphOverride)
+        : this(new NavigationGraphProvider(graphOverride))
     {
-        _graphOverride = graphOverride ?? throw new ArgumentNullException(nameof(graphOverride));
+    }
+
+    public BotBrainController(INavigationGraphProvider navigationGraphProvider)
+    {
+        _navigationGraphProvider = navigationGraphProvider
+            ?? throw new ArgumentNullException(nameof(navigationGraphProvider));
     }
 
     public int CurrentPathNode => _currentPath?.CurrentNode ?? -1;
@@ -466,15 +472,10 @@ public sealed class BotBrainController
             // available to explicit tooling and diagnostics, but invoking it
             // here made the first server tick block for seconds on maps that
             // intentionally exercise graphless navigation.
-            if (_graphOverride is not null)
-            {
-                LastNavigationGraphSource = "override";
-                _navGraph = _graphOverride;
-            }
-            else
-            {
-                _navGraph = TryLoadWarmedOrShippedAlphaGraph(world.Level, _disableShippedNavigationGraph);
-            }
+            _navGraph = _navigationGraphProvider.GetGraph(world.Level);
+            LastNavigationGraphSource = _navigationGraphProvider is NavigationGraphProvider provider
+                ? provider.LastSource
+                : _navGraph is null ? "none" : "override";
             _lastLevel = world.Level;
             _currentPath = null;
             _hasDynamicRouteTarget = false;
@@ -2568,37 +2569,6 @@ public sealed class BotBrainController
         _topDownGraphlessDetourGoalX = 0f;
         _topDownGraphlessDetourGoalY = 0f;
         _topDownGraphlessDetourTicks = 0;
-    }
-
-    private NavGraph? TryLoadWarmedOrShippedAlphaGraph(
-        SimpleLevel level,
-        bool disableShippedNavigationGraph)
-    {
-        if (disableShippedNavigationGraph)
-        {
-            LastNavigationGraphSource = "disabled";
-            return null;
-        }
-
-        // Server/practice warmup resolves the graph off the live tick and
-        // leaves it in Og2NavigationGraphStore's in-memory cache. Prefer that
-        // graph so a generated or extended warm result is not discarded just
-        // because it is not also present as a shipped file. Both lookups are
-        // non-building; an unwarmed controller must remain graphless here.
-        if (Og2NavigationGraphStore.TryGetCached(level, out var warmedGraph))
-        {
-            LastNavigationGraphSource = "memory";
-            return warmedGraph;
-        }
-
-        if (Og2NavigationGraphStore.TryLoadShipped(level, out var shippedGraph))
-        {
-            LastNavigationGraphSource = "shipped";
-            return shippedGraph;
-        }
-
-        LastNavigationGraphSource = "none";
-        return null;
     }
 
     private static int ResolveRouteVariant(PlayerEntity self)
