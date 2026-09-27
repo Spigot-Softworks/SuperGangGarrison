@@ -832,7 +832,7 @@ public sealed class LastToDieFoundationTests
             seed: 1,
             runId: RunId);
 
-        Assert.Equal(GameplayVariantKind.LastToDie, serverDirector.Variant);
+        Assert.Equal(GameplayVariantKind.LastToDie, LastToDieServerDirector.Variant);
         Assert.Equal(LastToDiePhase.Lobby, serverDirector.Director.Phase);
         Assert.Throws<InvalidOperationException>(() => LastToDieServerDirector.CreateFirstSlice(
             ["definitely_not_a_stock_map"],
