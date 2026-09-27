@@ -62,7 +62,7 @@ public sealed partial class SimulationWorld
     internal void CombatTestAddSentry(SentryEntity sentry)
     {
         _sentries.Add(sentry);
-        _entities[sentry.Id] = sentry;
+        EntityStore.Set(sentry.Id, sentry);
     }
 
     internal void CombatTestExplodeRocket(PlayerEntity owner, float x, float y)
@@ -79,7 +79,7 @@ public sealed partial class SimulationWorld
             lastKnownRangeOriginX: owner.X,
             lastKnownRangeOriginY: owner.Y);
         _rockets.Add(rocket);
-        _entities[rocket.Id] = rocket;
+        EntityStore.Set(rocket.Id, rocket);
         ExplodeRocket(rocket, directHitPlayer: null, directHitSentry: null, directHitGenerator: null);
     }
 
@@ -102,7 +102,7 @@ public sealed partial class SimulationWorld
             lastKnownRangeOriginX: owner.X,
             lastKnownRangeOriginY: owner.Y);
         _rockets.Add(rocket);
-        _entities[rocket.Id] = rocket;
+        EntityStore.Set(rocket.Id, rocket);
         return rocket;
     }
 
@@ -115,7 +115,7 @@ public sealed partial class SimulationWorld
         }
 
         _mines.Add(mine);
-        _entities[mine.Id] = mine;
+        EntityStore.Set(mine.Id, mine);
         return mine;
     }
 
@@ -123,7 +123,7 @@ public sealed partial class SimulationWorld
     {
         var grenade = new GrenadeProjectileEntity(AllocateEntityId(), owner.Team, owner.Id, x, y, velocityX, velocityY);
         _grenades.Add(grenade);
-        _entities[grenade.Id] = grenade;
+        EntityStore.Set(grenade.Id, grenade);
         return grenade;
     }
 
@@ -145,7 +145,7 @@ public sealed partial class SimulationWorld
             GetSimulationTicksFromSourceTicks(FlameProjectileEntity.AirLifetimeTicks),
             isPerseverant: false);
         _flames.Add(flame);
-        _entities[flame.Id] = flame;
+        EntityStore.Set(flame.Id, flame);
         return flame;
     }
 
@@ -171,7 +171,7 @@ public sealed partial class SimulationWorld
             damagePerHit: damagePerHit,
             style: style);
         _flares.Add(flare);
-        _entities[flare.Id] = flare;
+        EntityStore.Set(flare.Id, flare);
         return flare;
     }
 

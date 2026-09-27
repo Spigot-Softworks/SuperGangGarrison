@@ -182,7 +182,7 @@ public sealed partial class SimulationWorld
         removed |= RemoveEntity(_rockets, entityId);
         removed |= RemoveEntity(_mines, entityId);
         removed |= RemoveEntity(_grenades, entityId);
-        removed |= _entities.Remove(entityId);
+        removed |= EntityStore.Remove(entityId);
         return removed;
     }
 
@@ -429,7 +429,7 @@ public sealed partial class SimulationWorld
             default: throw new ArgumentOutOfRangeException(nameof(entity));
         }
 
-        _entities[entity.Id] = entity;
+        EntityStore.Set(entity.Id, entity);
         ReserveEntityId(entity.Id);
     }
 

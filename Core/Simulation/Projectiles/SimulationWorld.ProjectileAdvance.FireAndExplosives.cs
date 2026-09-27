@@ -720,7 +720,7 @@ public sealed partial class SimulationWorld
     private void RemoveGrenadeAt(int grenadeIndex)
     {
         var grenade = _grenades[grenadeIndex];
-        _entities.Remove(grenade.Id);
+        EntityStore.Remove(grenade.Id);
         MarkProjectileTerminated(grenade.Id);
         _grenades.RemoveAt(grenadeIndex);
     }
@@ -728,7 +728,7 @@ public sealed partial class SimulationWorld
     private void RemoveFlameAt(int flameIndex)
     {
         var flame = _flames[flameIndex];
-        _entities.Remove(flame.Id);
+        EntityStore.Remove(flame.Id);
         MarkProjectileTerminated(flame.Id);
         _flames.RemoveAt(flameIndex);
     }
@@ -736,7 +736,7 @@ public sealed partial class SimulationWorld
     private void RemoveFlareAt(int flareIndex)
     {
         var flare = _flares[flareIndex];
-        _entities.Remove(flare.Id);
+        EntityStore.Remove(flare.Id);
         MarkProjectileTerminated(flare.Id);
         _flares.RemoveAt(flareIndex);
     }
@@ -744,7 +744,7 @@ public sealed partial class SimulationWorld
     private void RemoveMineAt(int mineIndex)
     {
         var mine = _mines[mineIndex];
-        _entities.Remove(mine.Id);
+        EntityStore.Remove(mine.Id);
         MarkProjectileTerminated(mine.Id);
         _mines.RemoveAt(mineIndex);
     }

@@ -408,7 +408,7 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            _entities.Remove(pad.Id);
+            EntityStore.Remove(pad.Id);
             _jumpPads.RemoveAt(index);
             RegisterWorldSoundEvent("ExplosionSnd", pad.X, pad.Y);
             RegisterVisualEffect("Explosion", pad.X, pad.Y);
@@ -421,7 +421,7 @@ public sealed partial class SimulationWorld
     {
         var gib = new JumpPadGibEntity(AllocateEntityId(), team, x, y);
         _jumpPadGibs.Add(gib);
-        _entities.Add(gib.Id, gib);
+        EntityStore.Add(gib);
     }
 
     private void AdvanceJumpPadGibs()
@@ -453,7 +453,7 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            _entities.Remove(gib.Id);
+            EntityStore.Remove(gib.Id);
             _jumpPadGibs.RemoveAt(gibIndex);
         }
     }
@@ -492,7 +492,7 @@ public sealed partial class SimulationWorld
 
         var entity = new JumpPadEntity(AllocateEntityId(), player.Id, player.Team, placementX, placementY);
         _jumpPads.Add(entity);
-        _entities.Add(entity.Id, entity);
+        EntityStore.Add(entity);
         return true;
     }
 
@@ -514,7 +514,7 @@ public sealed partial class SimulationWorld
                 marker.X,
                 marker.Y);
             _jumpPads.Add(pad);
-            _entities.Add(pad.Id, pad);
+            EntityStore.Add(pad);
         }
     }
 

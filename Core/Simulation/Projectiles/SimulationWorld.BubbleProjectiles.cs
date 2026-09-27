@@ -94,7 +94,7 @@ public sealed partial class SimulationWorld
             }
 
             world.RegisterVisualEffect("Pop", bubble.X, bubble.Y);
-            world._entities.Remove(bubble.Id);
+            world.EntityStore.Remove(bubble.Id);
             world._bubbles.RemoveAt(bubbleIndex);
         }
 

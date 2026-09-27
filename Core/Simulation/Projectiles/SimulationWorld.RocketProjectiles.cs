@@ -86,7 +86,7 @@ public sealed partial class SimulationWorld
     private void RemoveRocketAt(int rocketIndex)
     {
         var rocket = _rockets[rocketIndex];
-        _entities.Remove(rocket.Id);
+        EntityStore.Remove(rocket.Id);
         MarkProjectileTerminated(rocket.Id);
         _rockets.RemoveAt(rocketIndex);
     }

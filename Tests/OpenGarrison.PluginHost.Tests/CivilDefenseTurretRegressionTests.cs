@@ -24,7 +24,7 @@ public sealed class CivilDefenseTurretRegressionTests
         world.AdvanceOneTick();
 
         Assert.Equal(health, world.LocalPlayer.Health);
-        Assert.False(Entities(world).ContainsKey(projectile.Id));
+        Assert.False(world.EntityStore.Contains(projectile.Id));
         Assert.Equal(CivilDefenseTurretEntity.ReloadTicks, turret.ReloadTicksRemaining);
         Assert.InRange(turret.LastShotTargetX, 600f, 610f);
     }
@@ -53,8 +53,8 @@ public sealed class CivilDefenseTurretRegressionTests
         var friendly = AddProjectile(world, "shot", PlayerTeam.Red, 440f, 510f, 0f, 90001);
         var enemy = AddProjectile(world, "shot", PlayerTeam.Blue, 560f, 510f, 0f, 90002);
         world.AdvanceOneTick();
-        Assert.True(Entities(world).ContainsKey(friendly.Id));
-        Assert.True(Entities(world).ContainsKey(enemy.Id));
+        Assert.True(world.EntityStore.Contains(friendly.Id));
+        Assert.True(world.EntityStore.Contains(enemy.Id));
         Assert.True(turret.CanFire());
     }
 
@@ -100,7 +100,7 @@ public sealed class CivilDefenseTurretRegressionTests
         var shot = AddProjectile(world, "shot", PlayerTeam.Blue, 550f, 500f, 0f);
         typeof(SimulationWorld).GetMethod("AdvanceCivilDefenseTurrets", BindingFlags.NonPublic | BindingFlags.Instance)!.Invoke(world, null);
         Assert.True(turret.CanFire());
-        Assert.True(Entities(world).ContainsKey(shot.Id));
+        Assert.True(world.EntityStore.Contains(shot.Id));
     }
 
     internal static SimulationWorld CreateWorld(bool wall = false)
@@ -129,9 +129,6 @@ public sealed class CivilDefenseTurretRegressionTests
         return turret;
     }
 
-    private static Dictionary<int, SimulationEntity> Entities(SimulationWorld world) =>
-        (Dictionary<int, SimulationEntity>)typeof(SimulationWorld).GetField("_entities", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(world)!;
-
     private static SimulationEntity AddProjectile(SimulationWorld world, string kind, PlayerTeam team, float x, float y, float velocityX, int id = 90000)
     {
         (SimulationEntity Entity, string Collection) projectile = kind switch
@@ -143,7 +140,7 @@ public sealed class CivilDefenseTurretRegressionTests
             _ => (new ShotProjectileEntity(id, team, 9999, x, y, velocityX, 0), "_shots"),
         };
         ((IList)typeof(SimulationWorld).GetField(projectile.Collection, BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(world)!).Add(projectile.Entity);
-        Entities(world).Add(id, projectile.Entity);
+        world.EntityStore.Add(projectile.Entity);
         return projectile.Entity;
     }
 }

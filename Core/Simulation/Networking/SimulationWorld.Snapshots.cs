@@ -580,7 +580,7 @@ public sealed partial class SimulationWorld
                 || !_snapshotSeenEntityIds.Contains(snapshotId)
                 || SnapshotMarksHealthPackInactive(healthPacks, snapshotId))
             {
-                _entities.Remove(healthPack.Id);
+                EntityStore.Remove(healthPack.Id);
                 _healthPacks.RemoveAt(index);
             }
         }
@@ -602,7 +602,7 @@ public sealed partial class SimulationWorld
             {
                 if (healthPack is not null)
                 {
-                    _entities.Remove(healthPack.Id);
+                    EntityStore.Remove(healthPack.Id);
                     _healthPacks.Remove(healthPack);
                 }
 
@@ -615,7 +615,7 @@ public sealed partial class SimulationWorld
                     state.VelocityY,
                     state.SourceSpawnIndex);
                 _healthPacks.Add(healthPack);
-                _entities[healthPack.Id] = healthPack;
+                EntityStore.Set(healthPack.Id, healthPack);
             }
 
             healthPack.ApplyNetworkState(
@@ -1116,7 +1116,7 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            if (_entities.ContainsKey(e.Id))
+            if (EntityStore.Contains(e.Id))
             {
                 continue;
             }
@@ -1177,7 +1177,7 @@ public sealed partial class SimulationWorld
             }
 
             _rockets.Add(rocket);
-            _entities.Add(rocket.Id, rocket);
+            EntityStore.Add(rocket);
             if (ShouldTrackSnapshotProjectileForClientPrediction(e.OwnerId))
             {
                 _clientPredictedProjectileIds.Add(rocket.Id);
@@ -1473,7 +1473,7 @@ public sealed partial class SimulationWorld
                 e.LifetimeTicks,
                 e.BloodChance);
             _playerGibs.Add(gib);
-            _entities.Add(gib.Id, gib);
+            EntityStore.Add(gib);
         }
     }
 
@@ -1914,7 +1914,8 @@ public sealed partial class SimulationWorld
 
             TEntity entity;
             var isNewEntity = false;
-            if (_entities.TryGetValue(entityId, out var existingEntity)
+            var existingEntity = EntityStore.Get(entityId);
+            if (existingEntity is not null
                 && existingEntity is TEntity typedEntity
                 && canReuse(typedEntity, state))
             {
@@ -1924,7 +1925,7 @@ public sealed partial class SimulationWorld
             {
                 if (existingEntity is not null)
                 {
-                    _entities.Remove(entityId);
+                    EntityStore.Remove(entityId);
                 }
 
                 entity = factory(state);
@@ -1941,13 +1942,13 @@ public sealed partial class SimulationWorld
             }
 
             target.Add(entity);
-            _entities[entityId] = entity;
+            EntityStore.Set(entityId, entity);
         }
 
         for (var index = 0; index < _snapshotStaleEntityIds.Count; index += 1)
         {
             var staleId = _snapshotStaleEntityIds[index];
-            _entities.Remove(staleId);
+            EntityStore.Remove(staleId);
             if (suppressProjectileRespawnOnRemoval)
             {
                 SuppressProjectileRespawn(staleId, NetworkProjectileRemovalSuppressionTicks);
