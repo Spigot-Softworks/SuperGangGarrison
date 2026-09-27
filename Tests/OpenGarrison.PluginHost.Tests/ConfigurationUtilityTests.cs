@@ -208,4 +208,118 @@ public sealed class ConfigurationUtilityTests
 
         return path + Path.DirectorySeparatorChar;
     }
+
+    [Fact]
+    public void LegacyPreferencesMigrationMigratesClientSettings()
+    {
+        var previous = Environment.GetEnvironmentVariable("OPENGARRISON_USER_DATA_ROOT");
+        var root = Path.Combine(Path.GetTempPath(), "opengarrison-migration-tests", Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Environment.SetEnvironmentVariable("OPENGARRISON_USER_DATA_ROOT", root);
+
+            var legacyPath = RuntimePaths.GetConfigPath("client.settings.json");
+            Directory.CreateDirectory(Path.GetDirectoryName(legacyPath)!);
+            File.WriteAllText(legacyPath, """{"PlayerName": "MigratedPlayer", "Fullscreen": true}""");
+
+            var destinationPath = Path.Combine(root, "migrated.ini");
+            Assert.True(OpenGarrisonLegacyPreferencesMigration.TryMigrate(destinationPath));
+
+            var migrated = OpenGarrisonPreferencesDocument.Load(destinationPath);
+            Assert.Equal("MigratedPlayer", migrated.PlayerName);
+            Assert.True(migrated.Fullscreen);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("OPENGARRISON_USER_DATA_ROOT", previous);
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public void LegacyPreferencesMigrationReturnsFalseForMalformedJson()
+    {
+        var previous = Environment.GetEnvironmentVariable("OPENGARRISON_USER_DATA_ROOT");
+        var root = Path.Combine(Path.GetTempPath(), "opengarrison-migration-tests", Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Environment.SetEnvironmentVariable("OPENGARRISON_USER_DATA_ROOT", root);
+
+            var legacyPath = RuntimePaths.GetConfigPath("client.settings.json");
+            Directory.CreateDirectory(Path.GetDirectoryName(legacyPath)!);
+            File.WriteAllText(legacyPath, "{ not valid json");
+
+            var destinationPath = Path.Combine(root, "migrated.ini");
+            Assert.False(OpenGarrisonLegacyPreferencesMigration.TryMigrate(destinationPath));
+            Assert.False(File.Exists(destinationPath));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("OPENGARRISON_USER_DATA_ROOT", previous);
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public void LegacyPreferencesMigrationDoesNotOverwriteExistingDestination()
+    {
+        var previous = Environment.GetEnvironmentVariable("OPENGARRISON_USER_DATA_ROOT");
+        var root = Path.Combine(Path.GetTempPath(), "opengarrison-migration-tests", Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Environment.SetEnvironmentVariable("OPENGARRISON_USER_DATA_ROOT", root);
+
+            var legacyPath = RuntimePaths.GetConfigPath("client.settings.json");
+            Directory.CreateDirectory(Path.GetDirectoryName(legacyPath)!);
+            File.WriteAllText(legacyPath, """{"PlayerName": "MigratedPlayer"}""");
+
+            var destinationPath = Path.Combine(root, "existing.ini");
+            Directory.CreateDirectory(root);
+            File.WriteAllText(destinationPath, "existing");
+
+            Assert.False(OpenGarrisonLegacyPreferencesMigration.TryMigrate(destinationPath));
+            Assert.Equal("existing", File.ReadAllText(destinationPath));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("OPENGARRISON_USER_DATA_ROOT", previous);
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public void LegacyPreferencesMigrationReturnsFalseWhenNothingToMigrate()
+    {
+        var previous = Environment.GetEnvironmentVariable("OPENGARRISON_USER_DATA_ROOT");
+        var root = Path.Combine(Path.GetTempPath(), "opengarrison-migration-tests", Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Environment.SetEnvironmentVariable("OPENGARRISON_USER_DATA_ROOT", root);
+
+            var destinationPath = Path.Combine(root, "migrated.ini");
+            Assert.False(OpenGarrisonLegacyPreferencesMigration.TryMigrate(destinationPath));
+            Assert.False(File.Exists(destinationPath));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("OPENGARRISON_USER_DATA_ROOT", previous);
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
 }
