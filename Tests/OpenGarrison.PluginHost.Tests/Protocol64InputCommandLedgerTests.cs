@@ -61,6 +61,43 @@ public sealed class Protocol64InputCommandLedgerTests
         Assert.False(ledger.TryGetCompleted(1, out _));
     }
 
+    [Fact]
+    public void WrappedSequenceAfterUintMaxValueIsAcceptedAsNewer()
+    {
+        var ledger = new Protocol64InputCommandLedger();
+
+        Assert.True(ledger.TryEnqueue(Command(1, uint.MaxValue - 5), 100, out _));
+        Assert.True(ledger.TryEnqueue(Command(2, 3), 101, out var immediate));
+
+        Assert.Null(immediate);
+        Assert.Equal(2, ledger.PendingCount);
+    }
+
+    [Fact]
+    public void PreWraparoundSequenceIsRejectedAsStale()
+    {
+        var ledger = new Protocol64InputCommandLedger();
+
+        Assert.True(ledger.TryEnqueue(Command(1, uint.MaxValue - 5), 100, out _));
+        Assert.True(ledger.TryEnqueue(Command(2, 3), 101, out _));
+        Assert.False(ledger.TryEnqueue(Command(3, uint.MaxValue - 10), 102, out var result));
+
+        Assert.Equal(Protocol64InputCommandResultKind.Rejected, result!.Result);
+        Assert.Equal(2, ledger.PendingCount);
+    }
+
+    [Fact]
+    public void ExactHalfRangeSequenceIsRejectedAsStale()
+    {
+        var ledger = new Protocol64InputCommandLedger();
+
+        Assert.True(ledger.TryEnqueue(Command(1, 100), 100, out _));
+        Assert.False(ledger.TryEnqueue(Command(2, 100 + 0x80000000u), 101, out var result));
+
+        Assert.Equal(Protocol64InputCommandResultKind.Rejected, result!.Result);
+        Assert.Equal(1, ledger.PendingCount);
+    }
+
     private static Protocol64InputCommand Command(ulong id, uint sequence)
         => new(
             id,
