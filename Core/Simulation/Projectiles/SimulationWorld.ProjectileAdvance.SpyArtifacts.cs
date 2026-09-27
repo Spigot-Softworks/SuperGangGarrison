@@ -225,14 +225,14 @@ public sealed partial class SimulationWorld
     private void RemoveStabAnimationAt(int animationIndex)
     {
         var animation = _stabAnimations[animationIndex];
-        _entities.Remove(animation.Id);
+        EntityStore.Remove(animation.Id);
         _stabAnimations.RemoveAt(animationIndex);
     }
 
     private void RemoveStabMaskAt(int maskIndex)
     {
         var mask = _stabMasks[maskIndex];
-        _entities.Remove(mask.Id);
+        EntityStore.Remove(mask.Id);
         _stabMasks.RemoveAt(maskIndex);
     }
 

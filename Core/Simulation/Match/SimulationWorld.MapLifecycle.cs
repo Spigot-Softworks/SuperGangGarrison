@@ -331,7 +331,7 @@ public sealed partial class SimulationWorld
     {
         for (var index = 0; index < entities.Count; index += 1)
         {
-            _entities.Remove(entities[index].Id);
+            EntityStore.Remove(entities[index].Id);
         }
 
         entities.Clear();

@@ -520,6 +520,6 @@ public sealed partial class SimulationWorld
             MathF.Cos(player.AimDirectionDegrees * (MathF.PI / 180f)) < 0f,
             player.GameplayClassId);
         _deadBodies.Add(deadBody);
-        _entities.Add(deadBody.Id, deadBody);
+        EntityStore.Add(deadBody);
     }
 }

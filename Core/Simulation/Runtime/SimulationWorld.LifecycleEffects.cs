@@ -220,7 +220,7 @@ public sealed partial class SimulationWorld
                 flipHorizontally,
                 authoredRenderScale);
             _playerGibs.Add(gib);
-            _entities.Add(gib.Id, gib);
+            EntityStore.Add(gib);
 
             if (emitNetworkEvents)
             {
@@ -278,7 +278,7 @@ public sealed partial class SimulationWorld
             lifetimeTicks: 250,
             bloodChance: 1.3f);
         _playerGibs.Add(headGib);
-        _entities.Add(headGib.Id, headGib);
+        EntityStore.Add(headGib);
 
         // Emit event for network replication to clients
         _pendingGibSpawnEvents.Add(new WorldGibSpawnEvent(
@@ -373,7 +373,7 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            _entities.Remove(gib.Id);
+            EntityStore.Remove(gib.Id);
             _playerGibs.RemoveAt(gibIndex);
         }
     }
@@ -425,7 +425,7 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            _entities.Remove(bloodDrop.Id);
+            EntityStore.Remove(bloodDrop.Id);
             _bloodDrops.RemoveAt(dropIndex);
         }
 
@@ -460,7 +460,7 @@ public sealed partial class SimulationWorld
             experimentalCryoTinted: gib.ExperimentalCryoTinted,
             lifetimeTicks: ScaleBloodDropLifetimeTicks());
         _bloodDrops.Add(bloodDrop);
-        _entities.Add(bloodDrop.Id, bloodDrop);
+        EntityStore.Add(bloodDrop);
     }
 
     private void SpawnBloodDrops(float x, float y, int count, float velocityRangeX, float velocityRangeY, float spreadRadius = 0f, bool experimentalCryoTinted = false)
@@ -486,7 +486,7 @@ public sealed partial class SimulationWorld
                 experimentalCryoTinted: experimentalCryoTinted,
                 lifetimeTicks: lifetimeTicks);
             _bloodDrops.Add(bloodDrop);
-            _entities.Add(bloodDrop.Id, bloodDrop);
+            EntityStore.Add(bloodDrop);
         }
     }
 
@@ -557,7 +557,7 @@ public sealed partial class SimulationWorld
                         }
 
                         target.Absorb(source);
-                        _entities.Remove(source.Id);
+                        EntityStore.Remove(source.Id);
                         absorbedDrops ??= new bool[_bloodDrops.Count];
                         absorbedDrops[sourceIndex] = true;
                         absorbed = true;
@@ -629,7 +629,7 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            _entities.Remove(deadBody.Id);
+            EntityStore.Remove(deadBody.Id);
             _deadBodies.RemoveAt(deadBodyIndex);
         }
     }

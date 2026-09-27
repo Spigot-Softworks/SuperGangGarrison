@@ -64,7 +64,7 @@ public sealed partial class SimulationWorld
         }
 
         _shots.Add(shot);
-        _entities.Add(shot.Id, shot);
+        EntityStore.Add(shot);
     }
 
     private void SpawnBubble(PlayerEntity owner, float x, float y, float velocityX, float velocityY)
@@ -85,7 +85,7 @@ public sealed partial class SimulationWorld
 
         owner.IncrementQuoteBubbleCount();
         _bubbles.Add(bubble);
-        _entities.Add(bubble.Id, bubble);
+        EntityStore.Add(bubble);
     }
 
     private void SpawnBlade(PlayerEntity owner, float x, float y, float velocityX, float velocityY, int hitDamage, int lifetimeTicks = PlayerEntity.QuoteBladeLifetimeTicks)
@@ -107,7 +107,7 @@ public sealed partial class SimulationWorld
 
         owner.IncrementQuoteBladeCount();
         _blades.Add(blade);
-        _entities.Add(blade.Id, blade);
+        EntityStore.Add(blade);
     }
 
     private void SpawnNail(PlayerEntity owner, float x, float y, float velocityX, float velocityY)
@@ -126,7 +126,7 @@ public sealed partial class SimulationWorld
         }
 
         _needles.Add(nail);
-        _entities.Add(nail.Id, nail);
+        EntityStore.Add(nail);
     }
 
     private void SpawnArrow(PlayerEntity owner, float x, float y, float velocityX, float velocityY, int damage, float fakeSpeedMultiplier)
@@ -209,7 +209,7 @@ public sealed partial class SimulationWorld
         }
 
         _needles.Add(arrow);
-        _entities.Add(arrow.Id, arrow);
+        EntityStore.Add(arrow);
     }
 
     private void SpawnQueuedLastToDieSniperArrow(
@@ -252,7 +252,7 @@ public sealed partial class SimulationWorld
         }
 
         _needles.Add(needle);
-        _entities.Add(needle.Id, needle);
+        EntityStore.Add(needle);
     }
 
     private void SpawnMedicHealNeedle(
@@ -290,7 +290,7 @@ public sealed partial class SimulationWorld
         }
 
         _needles.Add(needle);
-        _entities.Add(needle.Id, needle);
+        EntityStore.Add(needle);
     }
 
     private void SpawnRevolverShot(
@@ -333,7 +333,7 @@ public sealed partial class SimulationWorld
         }
 
         _revolverShots.Add(shot);
-        _entities.Add(shot.Id, shot);
+        EntityStore.Add(shot);
     }
 
     private void SpawnStabAnimation(PlayerEntity owner, float directionDegrees)
@@ -349,7 +349,7 @@ public sealed partial class SimulationWorld
                 ? LastToDieDerivedModifiers.SpyInstastabSpeedMultiplier
                 : 1);
         _stabAnimations.Add(stabAnimation);
-        _entities.Add(stabAnimation.Id, stabAnimation);
+        EntityStore.Add(stabAnimation);
         RegisterVisualEffect(
             owner.Team == PlayerTeam.Blue ? "BackstabBlue" : "BackstabRed",
             owner.X,
@@ -369,7 +369,7 @@ public sealed partial class SimulationWorld
             directionDegrees,
             owner.LastToDieUniversalModifiers.MeleeScale);
         _stabMasks.Add(stabMask);
-        _entities.Add(stabMask.Id, stabMask);
+        EntityStore.Add(stabMask);
         RegisterWorldSoundEvent("KnifeSnd", stabMask.X, stabMask.Y);
     }
 
@@ -400,7 +400,7 @@ public sealed partial class SimulationWorld
         }
 
         _flames.Add(flame);
-        _entities.Add(flame.Id, flame);
+        EntityStore.Add(flame);
     }
 
     private void SpawnFlare(
@@ -435,7 +435,7 @@ public sealed partial class SimulationWorld
         }
 
         _flares.Add(flare);
-        _entities.Add(flare.Id, flare);
+        EntityStore.Add(flare);
     }
 
     private void SpawnRocket(
@@ -494,7 +494,7 @@ public sealed partial class SimulationWorld
         }
 
         _rockets.Add(rocket);
-        _entities.Add(rocket.Id, rocket);
+        EntityStore.Add(rocket);
         _pendingNewRocketIds.Add(rocket.Id);
         _pendingRocketSpawnEvents.Add(new WorldRocketSpawnEvent(
             rocket.Id,
@@ -546,7 +546,7 @@ public sealed partial class SimulationWorld
         }
 
         _mines.Add(mine);
-        _entities.Add(mine.Id, mine);
+        EntityStore.Add(mine);
     }
 
     private void SpawnGrenade(PlayerEntity owner, float x, float y, float velocityX, float velocityY, string? killFeedWeaponSpriteNameOverride = null)
@@ -566,7 +566,7 @@ public sealed partial class SimulationWorld
         }
 
         _grenades.Add(grenade);
-        _entities.Add(grenade.Id, grenade);
+        EntityStore.Add(grenade);
     }
 
     private int GetSimulationTicksFromSourceTicks(float sourceTicks)

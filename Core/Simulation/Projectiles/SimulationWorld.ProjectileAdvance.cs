@@ -14,7 +14,7 @@ public sealed partial class SimulationWorld
     private void RemoveShotAt(int shotIndex)
     {
         var shot = _shots[shotIndex];
-        _entities.Remove(shot.Id);
+        EntityStore.Remove(shot.Id);
         MarkProjectileTerminated(shot.Id);
         _shots.RemoveAt(shotIndex);
     }
@@ -27,7 +27,7 @@ public sealed partial class SimulationWorld
             owner.DecrementQuoteBladeCount();
         }
 
-        _entities.Remove(blade.Id);
+        EntityStore.Remove(blade.Id);
         MarkProjectileTerminated(blade.Id);
         _blades.RemoveAt(bladeIndex);
     }
@@ -49,7 +49,7 @@ public sealed partial class SimulationWorld
         {
             _ = TryExplodeLastToDieSniperArrow(explosiveArrow);
         }
-        _entities.Remove(needle.Id);
+        EntityStore.Remove(needle.Id);
         MarkProjectileTerminated(needle.Id);
         _needles.RemoveAt(needleIndex);
     }
@@ -57,7 +57,7 @@ public sealed partial class SimulationWorld
     private void RemoveRevolverShotAt(int shotIndex)
     {
         var shot = _revolverShots[shotIndex];
-        _entities.Remove(shot.Id);
+        EntityStore.Remove(shot.Id);
         MarkProjectileTerminated(shot.Id);
         _revolverShots.RemoveAt(shotIndex);
     }

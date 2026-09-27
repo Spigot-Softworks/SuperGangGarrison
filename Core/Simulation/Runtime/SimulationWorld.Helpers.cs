@@ -202,7 +202,7 @@ public sealed partial class SimulationWorld
                 MathF.Sin(velocityRadians) * speed,
                 lifetimeTicks: lifetimeTicks);
             _bloodDrops.Add(bloodDrop);
-            _entities.Add(bloodDrop.Id, bloodDrop);
+            EntityStore.Add(bloodDrop);
         }
     }
 

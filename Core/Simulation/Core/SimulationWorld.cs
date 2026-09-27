@@ -29,7 +29,7 @@ public sealed partial class SimulationWorld
     private const int DefaultGibLevel = 3;
     private const int LocalProjectileTerminationSuppressionTicks = 12;
     private const int NetworkProjectileRemovalSuppressionTicks = 180;
-    private readonly Dictionary<int, SimulationEntity> _entities = new();
+    public EntityStore EntityStore { get; } = new();
     private readonly List<CombatTrace> _combatTraces = new();
     private readonly List<SniperAimIndicator> _sniperAimIndicators = new();
     private readonly List<KillFeedEntry> _killFeed = new();
@@ -182,7 +182,7 @@ public sealed partial class SimulationWorld
 
     public SimulationConfig Config { get; }
 
-    public IReadOnlyDictionary<int, SimulationEntity> Entities => _entities;
+    public IReadOnlyDictionary<int, SimulationEntity> Entities => EntityStore.AsReadOnly();
 
     public SimpleLevel Level { get; private set; }
 
@@ -438,7 +438,7 @@ public sealed partial class SimulationWorld
         ApplyServerGameplayTuning(LocalPlayerSlot, LocalPlayer);
         var initialSpawn = ReserveSpawn(LocalPlayer, LocalPlayerTeam);
         SpawnPlayerResolved(LocalPlayer, LocalPlayerTeam, initialSpawn);
-        _entities.Add(LocalPlayer.Id, LocalPlayer);
+        EntityStore.Add(LocalPlayer);
         _activeNetworkPlayersById[LocalPlayer.Id] = LocalPlayer;
         _networkPlayerSlotsByPlayerId[LocalPlayer.Id] = LocalPlayerSlot;
         EnemyPlayer = new PlayerEntity(AllocateEntityId(), _enemyDummyClassDefinition, DefaultEnemyPlayerName);
@@ -455,12 +455,12 @@ public sealed partial class SimulationWorld
             EnemyPlayerEnabled = false;
             EnemyPlayer.Kill();
         }
-        _entities.Add(EnemyPlayer.Id, EnemyPlayer);
+        EntityStore.Add(EnemyPlayer);
         FriendlyDummy = new PlayerEntity(AllocateEntityId(), _friendlyDummyClassDefinition, DefaultFriendlyDummyName);
         FriendlyDummy.SetPlayerScale(_configuredPlayerScale);
         ApplyServerGameplayTuning(slot: 0, FriendlyDummy);
         FriendlyDummy.Kill();
-        _entities.Add(FriendlyDummy.Id, FriendlyDummy);
+        EntityStore.Add(FriendlyDummy);
         ResetHealthPackSpawnsForLevel();
         ResetJumpPadSpawnsForLevel();
     }
