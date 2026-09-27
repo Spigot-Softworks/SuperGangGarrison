@@ -60,7 +60,6 @@ public sealed partial class SimulationWorld
     private readonly List<DeadBodyEntity> _deadBodies = new();
     private readonly List<SentryGibEntity> _sentryGibs = new();
     private readonly List<JumpPadGibEntity> _jumpPadGibs = new();
-    private readonly List<MovingPlatformRuntimeState> _movingPlatforms = new();
     private readonly List<GeneratorState> _generators = new();
     private readonly List<WorldSoundEvent> _pendingSoundEvents = new();
     private readonly List<WorldVisualEvent> _pendingVisualEvents = new();
@@ -95,9 +94,6 @@ public sealed partial class SimulationWorld
     private readonly Dictionary<byte, bool> _additionalNetworkPlayerAwaitingJoin = new();
     private readonly Dictionary<byte, int> _additionalNetworkPlayerRespawnTicks = new();
     private readonly HashSet<byte> _automaticRespawnSuppressedNetworkSlots = new();
-    private readonly Dictionary<int, int> _jumpInputBufferTicksByPlayerId = new();
-    private readonly Dictionary<(int PlayerId, int RoomObjectIndex), bool> _catapultContacts = new();
-    private SimpleLevel? _catapultContactLevel;
     private readonly Dictionary<byte, int> _networkPlayerPingMillisecondsBySlot = new();
     private readonly HashSet<byte> _networkBotSlots = new();
     private readonly Dictionary<byte, PlayerTeam> _additionalNetworkPlayerTeams = new();
@@ -317,7 +313,6 @@ public sealed partial class SimulationWorld
 
     public IReadOnlyList<CivilDefenseTurretEntity> CivilDefenseTurrets => _civilDefenseTurrets;
 
-    public IReadOnlyList<MovingPlatformRuntimeState> MovingPlatforms => _movingPlatforms;
 
     public IReadOnlyList<PlayerGibEntity> PlayerGibs => _playerGibs;
 
@@ -446,6 +441,7 @@ public sealed partial class SimulationWorld
         _grenades = Projectiles.GrenadesInternal;
         _pendingRocketSpawnEvents = Projectiles.PendingRocketSpawnEventsInternal;
         Level = SimpleLevelFactory.CreateScoutPrototypeLevel(_configuredMapScale);
+        Movement = new MovementSystem(CreateMovementSystemDependencies());
         RedIntel = CreateIntelState(PlayerTeam.Red);
         BlueIntel = CreateIntelState(PlayerTeam.Blue);
         MatchRules = CreateDefaultMatchRules(Level.Mode);

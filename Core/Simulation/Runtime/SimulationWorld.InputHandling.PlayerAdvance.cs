@@ -8,7 +8,6 @@ namespace OpenGarrison.Core;
 
 public sealed partial class SimulationWorld
 {
-    private const int JumpInputBufferTicks = 4;
     private static readonly bool SlowPlayerPhaseTracingEnabled =
         Environment.GetEnvironmentVariable("OG_CLIENT_PERF_SIM_TRACE") is "1" or "true" or "TRUE";
     private static readonly double SlowPlayerPhaseThresholdMilliseconds = ResolveSlowPlayerPhaseThresholdMilliseconds();
@@ -140,11 +139,11 @@ public sealed partial class SimulationWorld
         var interactWeaponPressed = input.InteractWeapon && !previousInput.InteractWeapon;
         if (jumpPressed)
         {
-            StartJumpInputBuffer(player);
+            Movement.StartJumpInputBuffer(player);
         }
         else if (!input.Up)
         {
-            ClearJumpInputBuffer(player);
+            Movement.ClearJumpInputBuffer(player);
         }
 
         var allowHeldSecondaryAbility = ShouldUseHeldSecondaryAbility(player)
@@ -262,7 +261,7 @@ public sealed partial class SimulationWorld
         {
             input = ResetMovementInput(input);
             jumpPressed = false;
-            ClearJumpInputBuffer(player);
+            Movement.ClearJumpInputBuffer(player);
         }
 
         if (tauntPressed)
@@ -281,40 +280,34 @@ public sealed partial class SimulationWorld
             }
         }
 
-        if (ApplyRoomForces(player, jumpPressed))
+        if (Movement.ApplyRoomForces(player, jumpPressed))
         {
             jumpPressed = false;
             input = input with { Up = false };
-            ClearJumpInputBuffer(player);
+            Movement.ClearJumpInputBuffer(player);
         }
 
-        var cancelledSpySuperjumpChargeWithJump = TryCancelSpySuperjumpChargeFromJumpInput(player, jumpPressed, input.UseAbility);
+        var cancelledSpySuperjumpChargeWithJump = Movement.TryCancelSpySuperjumpChargeFromJumpInput(player, jumpPressed, input.UseAbility);
         if (cancelledSpySuperjumpChargeWithJump)
         {
             jumpPressed = false;
             input = input with { Up = false };
-            ClearJumpInputBuffer(player);
+            Movement.ClearJumpInputBuffer(player);
         }
 
         subphaseStartTimestamp = SlowPlayerPhaseTracingEnabled ? Stopwatch.GetTimestamp() : 0L;
-        var startedGrounded = player.PrepareMovement(
+        var movementPreparation = Movement.PreparePlayerMovement(
+            player,
             input,
-            Level,
+            jumpPressed,
             team,
-            Config.FixedDeltaSeconds,
-            out var canMove,
-            isHumiliated,
-            HasLandedArrowGroundSupport(player, input.Down));
+            isHumiliated);
+        input = movementPreparation.Input;
+        jumpPressed = movementPreparation.JumpPressed;
+        var startedGrounded = movementPreparation.StartedGrounded;
+        var jumped = movementPreparation.Jumped;
+        var emitWallspinDust = movementPreparation.EmitWallspinDust;
         prepareMovementMilliseconds = ElapsedMilliseconds(subphaseStartTimestamp);
-        var effectiveJumpPressed = jumpPressed || HasBufferedJumpInput(player);
-        var jumped = player.TryJumpIfPossible(canMove, effectiveJumpPressed);
-        AdvanceJumpInputBufferAfterAttempt(player, input.Up, jumped);
-        var emitWallspinDust = player.IsAlive && player.IsPerformingSourceSpinjump(Level);
-        if (jumped)
-        {
-            RegisterWorldSoundEvent("JumpSnd", player.X, player.Y, player.Id);
-            TryApplyJumpPadJumpBoostFromPlayerJump(player, jumped);
-        }
 
         var secondaryAbilityConsumedInput = false;
         if (secondaryAbilityReleased
@@ -418,7 +411,7 @@ public sealed partial class SimulationWorld
         subphaseStartTimestamp = SlowPlayerPhaseTracingEnabled ? Stopwatch.GetTimestamp() : 0L;
         AdvancePendingRocketsForOwner(player.Id);
         var previousBottom = preAdvanceY + player.CollisionBottomOffset;
-        player.CompleteMovement(Level, team, Config.FixedDeltaSeconds, startedGrounded, jumped, input.Down);
+        Movement.CompletePlayerMovement(player, team, startedGrounded, jumped, input.Down);
         completeMovementMilliseconds = ElapsedMilliseconds(subphaseStartTimestamp);
         if (player.TryConsumeCivviePogoSuperJumpSoundRequest(out var pogoJumpSoundX, out var pogoJumpSoundY))
         {
@@ -426,9 +419,9 @@ public sealed partial class SimulationWorld
         }
 
         var postMovementSubphaseStartTimestamp = SlowPlayerPhaseTracingEnabled ? Stopwatch.GetTimestamp() : 0L;
-        ResolveMovingPlatformLanding(player, previousBottom, input.Down);
-        ResolveLandedArrowLanding(player, previousBottom, input.Down);
-        HandleJumpPadTriggerContactEffects(player);
+        Movement.ResolveMovingPlatformLanding(player, previousBottom, input.Down);
+        Movement.ResolveLandedArrowLanding(player, previousBottom, input.Down);
+        Movement.HandleJumpPadTriggerContactEffects(player);
         TryRegisterIntelTrailEffect(player);
         TryRegisterCivvieMoneyTrail(player);
         postMovementContactEffectsMilliseconds = ElapsedMilliseconds(postMovementSubphaseStartTimestamp);
@@ -471,7 +464,7 @@ public sealed partial class SimulationWorld
 
         ApplyHealingCabinets(player);
         ApplyRoomHazards(player);
-        ApplyTeleportZones(player);
+        Movement.ApplyTeleportZones(player);
         postMovementInventoryEffectsMilliseconds = ElapsedMilliseconds(postMovementSubphaseStartTimestamp);
         if (!player.IsAlive)
         {
@@ -574,59 +567,6 @@ public sealed partial class SimulationWorld
         }
 
         return byte.MaxValue;
-    }
-
-    private static bool TryCancelSpySuperjumpChargeFromJumpInput(PlayerEntity player, bool jumpPressed, bool useAbilityHeld)
-    {
-        if (!jumpPressed
-            || !useAbilityHeld
-            || player.ClassId != PlayerClass.Spy
-            || player.SpySuperjumpChargeTicks <= 0)
-        {
-            return false;
-        }
-
-        player.CancelSpySuperjumpCharge(blockRestartUntilAbilityRelease: true);
-        return true;
-    }
-
-    private void StartJumpInputBuffer(PlayerEntity player)
-    {
-        _jumpInputBufferTicksByPlayerId[player.Id] = JumpInputBufferTicks;
-    }
-
-    private bool HasBufferedJumpInput(PlayerEntity player)
-    {
-        return _jumpInputBufferTicksByPlayerId.TryGetValue(player.Id, out var ticksRemaining)
-            && ticksRemaining > 0;
-    }
-
-    private void AdvanceJumpInputBufferAfterAttempt(PlayerEntity player, bool jumpHeld, bool jumped)
-    {
-        if (jumped || !jumpHeld)
-        {
-            ClearJumpInputBuffer(player);
-            return;
-        }
-
-        if (!_jumpInputBufferTicksByPlayerId.TryGetValue(player.Id, out var ticksRemaining))
-        {
-            return;
-        }
-
-        ticksRemaining -= 1;
-        if (ticksRemaining <= 0)
-        {
-            ClearJumpInputBuffer(player);
-            return;
-        }
-
-        _jumpInputBufferTicksByPlayerId[player.Id] = ticksRemaining;
-    }
-
-    private void ClearJumpInputBuffer(PlayerEntity player)
-    {
-        _jumpInputBufferTicksByPlayerId.Remove(player.Id);
     }
 
     private static PlayerInputSnapshot ResetMovementInput(PlayerInputSnapshot input)
