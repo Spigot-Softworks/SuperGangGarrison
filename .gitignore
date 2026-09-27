@@ -75,6 +75,7 @@ Tests/BrowserSmoke/node_modules/
 !/docs/CODEBASE_ORIENTATION.md
 !/docs/SERVER_MANAGEMENT.md
 !/docs/server-registry/
+!/docs/architecture/
 !/docs/design/
 /docs/design/*
 !/docs/design/VOICE_CHAT_JUKEBOX.md
