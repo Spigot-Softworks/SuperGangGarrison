@@ -161,7 +161,8 @@ public partial class Game1
         }
 
         var stopwatch = Stopwatch.StartNew();
-        var alphaGraph = Og2NavigationGraphStore.GetOrBuild(_world.Level, out var resolution);
+        var provider = new NavigationGraphProvider();
+        var alphaGraph = provider.PreloadGraph(_world.Level);
         var warmedAlphaPaths = alphaGraph.WarmAlphaObjectiveRoutes(_world.Level, GetEligiblePracticeBotClassCycle());
         _world.WarmCombatSpatialIndices();
         stopwatch.Stop();
@@ -171,13 +172,13 @@ public partial class Game1
             Console.WriteLine(
                 $"[botbrain] practice-warm-result paths={warmedAlphaPaths} " +
                 $"cache={alphaGraph.AlphaPathCacheCount} elapsedMs={stopwatch.Elapsed.TotalMilliseconds:0.0} " +
-                $"source={resolution.Source} sourcePath=\"{resolution.Path}\"");
+                $"source={provider.LastPreloadSource} sourcePath=\"{provider.LastSourcePath}\"");
         }
 
         return
             $" botbrain-warmup alphaNodes={alphaGraph.NodeCount} alphaPaths={warmedAlphaPaths} " +
             $"elapsed={stopwatch.Elapsed.TotalMilliseconds:0.0}ms " +
-            $"source={resolution.Source} sourcePath=\"{resolution.Path}\"";
+            $"source={provider.LastPreloadSource} sourcePath=\"{provider.LastSourcePath}\"";
     }
 
     private static PracticeNavigationWarmupResult BuildPracticeNavigationWarmup(
@@ -193,7 +194,8 @@ public partial class Game1
             }
 
             var stopwatch = Stopwatch.StartNew();
-            var alphaGraph = Og2NavigationGraphStore.GetOrBuild(level, out var resolution);
+            var provider = new NavigationGraphProvider();
+            var alphaGraph = provider.PreloadGraph(level);
             var warmedAlphaPaths = alphaGraph.WarmAlphaObjectiveRoutes(level, eligibleClasses);
             stopwatch.Stop();
 
@@ -202,7 +204,7 @@ public partial class Game1
                 Console.WriteLine(
                     $"[botbrain] practice-warm-result paths={warmedAlphaPaths} " +
                     $"cache={alphaGraph.AlphaPathCacheCount} elapsedMs={stopwatch.Elapsed.TotalMilliseconds:0.0} " +
-                    $"source={resolution.Source} sourcePath=\"{resolution.Path}\"");
+                    $"source={provider.LastPreloadSource} sourcePath=\"{provider.LastSourcePath}\"");
             }
 
             return new PracticeNavigationWarmupResult(
@@ -210,7 +212,7 @@ public partial class Game1
                 Diagnostics:
                     $" botbrain-warmup alphaNodes={alphaGraph.NodeCount} alphaPaths={warmedAlphaPaths} " +
                     $"elapsed={stopwatch.Elapsed.TotalMilliseconds:0.0}ms " +
-                    $"source={resolution.Source} sourcePath=\"{resolution.Path}\"");
+                    $"source={provider.LastPreloadSource} sourcePath=\"{provider.LastSourcePath}\"");
         }
         catch (Exception exception)
         {

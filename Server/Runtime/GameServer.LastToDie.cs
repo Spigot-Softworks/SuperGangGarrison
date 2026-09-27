@@ -373,7 +373,8 @@ partial class GameServer
             directorSnapshot.Seed);
         var botNavigationPreloaded = PreloadBotNavigationForCurrentLevel(
             out var botNavigationPreloadMs,
-            out var botNavigationWarmup);
+            out var botNavigationWarmupSource,
+            out var botNavigationWarmupPath);
         _mapBotSpawnController.Reset();
 
         var transition = new MapChangeTransition(
@@ -409,7 +410,7 @@ partial class GameServer
             $"[ltd] committed stage={directorSnapshot.StageInstanceId} map={_world.Level.Name} " +
             $"baseline={baselineFrame} navPreloaded={botNavigationPreloaded} " +
             $"navPreloadMs={botNavigationPreloadMs:0.###} " +
-            $"navSource={botNavigationWarmup.Source} navSourcePath=\"{botNavigationWarmup.Path}\"");
+            $"navSource={botNavigationWarmupSource} navSourcePath=\"{botNavigationWarmupPath}\"");
         return true;
     }
 
