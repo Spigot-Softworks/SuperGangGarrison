@@ -69,9 +69,19 @@ Authenticated players can read their points, rank, and accumulated stat counters
 Last to Die results use their own immutable run ledger. Authoritative game hosts submit one
 result per account and run through `POST /api/last-to-die/run`; exact retries are idempotent
 and conflicting reuse is rejected. `POST /api/last-to-die/rankings` returns the authenticated
-player's best score, highest round, and both global record lists for the in-game Rankings
-screen. External clients can page the public records with
-`GET /api/last-to-die/leaderboard?sort=score|round&limit=10&offset=0`.
+player's overall and per-class records, plus both global record lists for the in-game Rankings
+screen. Each global list includes one best run per account and survivor class for its chosen
+sort; filtering by `survivor` ranks only that class. External clients can page the public
+records with `GET /api/last-to-die/leaderboard?sort=score|round&limit=10&offset=0`.
+To start fresh rankings without deleting the audit ledger, deploy the updated API and worker,
+restart both processes, verify `/healthz`, then run this on the API host:
+
+```bash
+python reset_last_to_die_rankings.py --db /var/lib/opengarrison-api/opengarrison.db --backup /var/lib/opengarrison-api/opengarrison-before-ranking-reset.db --apply
+```
+
+The script creates the backup before advancing the ranking epoch. Existing queued
+recordings and late claims retain their original epoch and cannot restore old rankings.
 
 ## Environment
 

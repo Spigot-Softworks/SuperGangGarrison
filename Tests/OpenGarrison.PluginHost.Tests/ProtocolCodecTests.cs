@@ -364,7 +364,8 @@ public sealed class ProtocolCodecTests
                     CriticalDamageMultiplier: 3.5f,
                     PlayerKnockbackImpulse: 1.25f,
                     PlayerKnockbackAirborneVerticalScale: 0.5f,
-                    PlayerKnockbackGroundedVerticalScale: 0.25f),
+                    PlayerKnockbackGroundedVerticalScale: 0.25f,
+                    IsBoomstickPellet: true),
             ],
             Bubbles: Array.Empty<SnapshotShotState>(),
             Blades: Array.Empty<SnapshotShotState>(),
@@ -480,7 +481,7 @@ public sealed class ProtocolCodecTests
             ],
             VisualEvents: [new SnapshotVisualEvent("spark", 10f, 20f, 45f, 1, EventId: 55, SourceFrame: 101)],
             DamageEvents: [new SnapshotDamageEvent(45, 5, -1, 1, 6, 10f, 20f, false, EventId: 66, SourceFrame: 101, Flags: 6)],
-            SoundEvents: [new SnapshotSoundEvent("rocket_fire", 11f, 21f, 77, 101)],
+            SoundEvents: [new SnapshotSoundEvent("rocket_fire", 11f, 21f, 77, 101, SourcePlayerId: 5)],
             IsCustomMap: true,
             MapDownloadUrl: "https://example.invalid/map.zip",
             MapContentHash: "deadbeef",
@@ -617,6 +618,7 @@ public sealed class ProtocolCodecTests
         Assert.Equal(defaultPayload, measuredDefaultPayload);
         Assert.True(ProtocolCodec.TryDeserialize(payload, out var roundTripped));
         var roundTrippedSnapshot = Assert.IsType<SnapshotMessage>(roundTripped);
+        Assert.Equal(5, Assert.Single(roundTrippedSnapshot.SoundEvents).SourcePlayerId);
         var playerMovement = Assert.Single(roundTrippedSnapshot.PlayerMovementStates);
         var playerStatus = Assert.Single(roundTrippedSnapshot.PlayerStatusStates);
         var chatBubbleState = Assert.Single(roundTrippedSnapshot.PlayerChatBubbleStates);

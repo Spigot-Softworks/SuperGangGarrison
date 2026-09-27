@@ -20,7 +20,8 @@ public sealed partial class SimulationWorld
         int playerSlowRefreshTicks = 0,
         float? playerKnockbackImpulse = null,
         float playerKnockbackAirborneVerticalScale = 1f,
-        float playerKnockbackGroundedVerticalScale = 1f)
+        float playerKnockbackGroundedVerticalScale = 1f,
+        bool isBoomstickPellet = false)
     {
         var shotTeam = owner.Team;
         if (sourceSentryId is int sentryId)
@@ -55,7 +56,8 @@ public sealed partial class SimulationWorld
             playerSlowRefreshTicks,
             playerKnockbackImpulse,
             playerKnockbackAirborneVerticalScale,
-            playerKnockbackGroundedVerticalScale);
+            playerKnockbackGroundedVerticalScale,
+            isBoomstickPellet);
         if (owner.IsKritzCritBoosted)
         {
             shot.SetCritical(owner.ActiveKritzCritDamageMultiplier);

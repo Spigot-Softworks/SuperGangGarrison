@@ -18,11 +18,21 @@ public sealed partial class SimulationWorld
 
         var inheritedVelocityX = player.HorizontalSpeed * (float)Config.FixedDeltaSeconds;
         var inheritedVelocityY = player.VerticalSpeed * (float)Config.FixedDeltaSeconds;
-        SpawnPlayerGibSet(player, "GibS", DefaultGibLevel, randomFrameCount: 7, velocityRangeX: 8f, velocityRangeY: 9f, rotationRange: 72f, lifetimeTicks: 210, horizontalFriction: 0.4f, rotationFriction: 0.6f, bloodChance: 1.8f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY, experimentalCryoTinted: experimentalCryoTinted, emitNetworkEvents: false);
-        SpawnPlayerGibSet(player, player.Team == PlayerTeam.Blue ? "BlueClumpS" : "RedClumpS", DefaultGibLevel - 1, randomFrameCount: 4, velocityRangeX: 8f, velocityRangeY: 9f, rotationRange: 72f, lifetimeTicks: 250, horizontalFriction: 0.3f, rotationFriction: 0.4f, bloodChance: 2f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY, experimentalCryoTinted: experimentalCryoTinted, emitNetworkEvents: false);
+        var hasAuthoredParts = AuthoredPlayerGibCatalog.TryGetParts(player.GameplayClassId, player.Team, out var authoredParts);
+        if (!hasAuthoredParts)
+        {
+            SpawnPlayerGibSet(player, "GibS", DefaultGibLevel, randomFrameCount: 7, velocityRangeX: 8f, velocityRangeY: 9f, rotationRange: 72f, lifetimeTicks: 210, horizontalFriction: 0.4f, rotationFriction: 0.6f, bloodChance: 1.8f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY, experimentalCryoTinted: experimentalCryoTinted, emitNetworkEvents: false);
+            SpawnPlayerGibSet(player, player.Team == PlayerTeam.Blue ? "BlueClumpS" : "RedClumpS", DefaultGibLevel - 1, randomFrameCount: 4, velocityRangeX: 8f, velocityRangeY: 9f, rotationRange: 72f, lifetimeTicks: 250, horizontalFriction: 0.3f, rotationFriction: 0.4f, bloodChance: 2f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY, experimentalCryoTinted: experimentalCryoTinted, emitNetworkEvents: false);
+        }
 
         RegisterVisualEffect("GibBlood", player.X, player.Y, count: DefaultGibLevel);
         SpawnBloodDrops(player.X, player.Y, DefaultGibLevel * 14, 10f, 13f, spreadRadius: 11f, experimentalCryoTinted: experimentalCryoTinted);
+
+        if (hasAuthoredParts)
+        {
+            SpawnAuthoredPlayerGibs(player, authoredParts, inheritedVelocityX, inheritedVelocityY, experimentalCryoTinted, emitNetworkEvents: false);
+            return;
+        }
 
         foreach (var gibPart in GetPlayerGibParts(player))
         {
@@ -54,8 +64,26 @@ public sealed partial class SimulationWorld
 
         var inheritedVelocityX = player.HorizontalSpeed * (float)Config.FixedDeltaSeconds;
         var inheritedVelocityY = player.VerticalSpeed * (float)Config.FixedDeltaSeconds;
-        SpawnPlayerGibSet(player, "GibS", DefaultGibLevel, randomFrameCount: 7, velocityRangeX: 8f, velocityRangeY: 9f, rotationRange: 72f, lifetimeTicks: 210, horizontalFriction: 0.4f, rotationFriction: 0.6f, bloodChance: 1.8f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY, emitNetworkEvents: false, spawnX: spawnX, spawnY: spawnY);
-        SpawnPlayerGibSet(player, player.Team == PlayerTeam.Blue ? "BlueClumpS" : "RedClumpS", DefaultGibLevel - 1, randomFrameCount: 4, velocityRangeX: 8f, velocityRangeY: 9f, rotationRange: 72f, lifetimeTicks: 250, horizontalFriction: 0.3f, rotationFriction: 0.4f, bloodChance: 2f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY, emitNetworkEvents: false, spawnX: spawnX, spawnY: spawnY);
+        var hasAuthoredParts = AuthoredPlayerGibCatalog.TryGetParts(player.GameplayClassId, player.Team, out var authoredParts);
+        if (!hasAuthoredParts)
+        {
+            SpawnPlayerGibSet(player, "GibS", DefaultGibLevel, randomFrameCount: 7, velocityRangeX: 8f, velocityRangeY: 9f, rotationRange: 72f, lifetimeTicks: 210, horizontalFriction: 0.4f, rotationFriction: 0.6f, bloodChance: 1.8f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY, emitNetworkEvents: false, spawnX: spawnX, spawnY: spawnY);
+            SpawnPlayerGibSet(player, player.Team == PlayerTeam.Blue ? "BlueClumpS" : "RedClumpS", DefaultGibLevel - 1, randomFrameCount: 4, velocityRangeX: 8f, velocityRangeY: 9f, rotationRange: 72f, lifetimeTicks: 250, horizontalFriction: 0.3f, rotationFriction: 0.4f, bloodChance: 2f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY, emitNetworkEvents: false, spawnX: spawnX, spawnY: spawnY);
+        }
+
+        if (hasAuthoredParts)
+        {
+            SpawnAuthoredPlayerGibs(
+                player,
+                authoredParts,
+                inheritedVelocityX,
+                inheritedVelocityY,
+                player.IsExperimentalCryoFrozen,
+                emitNetworkEvents: false,
+                spawnX: spawnX,
+                spawnY: spawnY);
+            return;
+        }
 
         foreach (var gibPart in GetPlayerGibParts(player))
         {
@@ -93,6 +121,44 @@ public sealed partial class SimulationWorld
         SpawnBloodDrops(resolvedSpawnX, resolvedSpawnY, DefaultGibLevel * 14, 10f, 13f, spreadRadius: 11f, experimentalCryoTinted: player.IsExperimentalCryoFrozen);
     }
 
+    private void SpawnAuthoredPlayerGibs(
+        PlayerEntity player,
+        IReadOnlyList<AuthoredPlayerGibPart> parts,
+        float inheritedVelocityX,
+        float inheritedVelocityY,
+        bool experimentalCryoTinted,
+        bool emitNetworkEvents,
+        float? spawnX = null,
+        float? spawnY = null)
+    {
+        var originX = spawnX ?? player.X;
+        var originY = spawnY ?? player.Y;
+        var facingLeft = player.FacingDirectionX < 0f;
+        foreach (var part in parts)
+        {
+            SpawnPlayerGibSet(
+                player,
+                part.SpriteName,
+                count: 1,
+                frameIndex: 0,
+                velocityRangeX: part.VelocityRangeX,
+                velocityRangeY: part.VelocityRangeY,
+                rotationRange: part.RotationRange,
+                lifetimeTicks: 250,
+                horizontalFriction: part.HorizontalFriction,
+                rotationFriction: part.RotationFriction,
+                bloodChance: part.BloodChance,
+                inheritedVelocityX: part.InheritPlayerVelocity ? inheritedVelocityX : 0f,
+                inheritedVelocityY: part.InheritPlayerVelocity ? inheritedVelocityY : 0f,
+                experimentalCryoTinted: experimentalCryoTinted,
+                emitNetworkEvents: emitNetworkEvents,
+                spawnX: originX + (part.SpawnOffsetX * player.PlayerScale * (facingLeft ? -1f : 1f)),
+                spawnY: originY + (part.SpawnOffsetY * player.PlayerScale),
+                flipHorizontally: facingLeft,
+                authoredRenderScale: 2f * player.PlayerScale);
+        }
+    }
+
     private void SpawnPlayerGibSet(
         PlayerEntity player,
         string spriteName,
@@ -111,7 +177,9 @@ public sealed partial class SimulationWorld
         bool experimentalCryoTinted = false,
         bool emitNetworkEvents = true,
         float? spawnX = null,
-        float? spawnY = null)
+        float? spawnY = null,
+        bool flipHorizontally = false,
+        float authoredRenderScale = 2f)
     {
         if (!LocalGoreEffectsEnabled)
         {
@@ -148,7 +216,9 @@ public sealed partial class SimulationWorld
                 rotationFriction,
                 lifetimeTicks,
                 bloodChance,
-                experimentalCryoTinted);
+                experimentalCryoTinted,
+                flipHorizontally,
+                authoredRenderScale);
             _playerGibs.Add(gib);
             _entities.Add(gib.Id, gib);
 

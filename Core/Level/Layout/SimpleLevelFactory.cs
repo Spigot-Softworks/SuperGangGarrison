@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -8,7 +9,18 @@ namespace OpenGarrison.Core;
 public static class SimpleLevelFactory
 {
     private static readonly StringComparer NameComparer = StringComparer.OrdinalIgnoreCase;
+    private static readonly ConcurrentDictionary<string, ExternalLegacyPngSource> ExternalLegacyPngLevels = new(NameComparer);
     private static IReadOnlyList<LevelCatalogEntry>? _cachedCatalog;
+
+    private readonly record struct ExternalLegacyPngSource(string Path, string MapName);
+
+    public static void RegisterExternalLegacyPngLevel(string levelName, string pngPath, string? sourceMapName = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(levelName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(pngPath);
+        ExternalLegacyPngLevels[levelName] = new ExternalLegacyPngSource(
+            Path.GetFullPath(pngPath), sourceMapName ?? Path.GetFileNameWithoutExtension(pngPath));
+    }
 
     public readonly record struct LevelCatalogEntry(
         string Name,
@@ -25,14 +37,24 @@ public static class SimpleLevelFactory
 
     public static SimpleLevel? CreateImportedLevel(string levelName, int mapAreaIndex = 1, float mapScale = 1f)
     {
-        var catalog = GetAvailableSourceLevels();
-        if (!TryFindCatalogEntry(catalog, levelName, out var levelSpec))
+        LevelCatalogEntry levelSpec;
+        var externalMap = ExternalLegacyPngLevels.TryGetValue(levelName, out var externalSource);
+        if (externalMap)
         {
-            ClearCachedCatalog();
-            catalog = GetAvailableSourceLevels();
+            levelSpec = new LevelCatalogEntry(levelName, GameModeKind.CaptureTheFlag,
+                externalSource.Path, null, CustomMapSourceKind.LegacyPng, IsCustomMap: true);
+        }
+        else
+        {
+            var catalog = GetAvailableSourceLevels();
             if (!TryFindCatalogEntry(catalog, levelName, out levelSpec))
             {
-                return null;
+                ClearCachedCatalog();
+                catalog = GetAvailableSourceLevels();
+                if (!TryFindCatalogEntry(catalog, levelName, out levelSpec))
+                {
+                    return null;
+                }
             }
         }
 
@@ -52,7 +74,9 @@ public static class SimpleLevelFactory
         }
         else if (levelSpec.SourceKind == CustomMapSourceKind.LegacyPng)
         {
-            var customMap = CustomMapPngImporter.Import(levelSpec.RoomSourcePath);
+            var customMap = externalMap
+                ? CustomMapPngImporter.Import(levelSpec.RoomSourcePath, externalSource.MapName)
+                : CustomMapPngImporter.Import(levelSpec.RoomSourcePath);
             if (customMap is null)
             {
                 return null;
@@ -139,7 +163,7 @@ public static class SimpleLevelFactory
 
         var level = new SimpleLevel(
             name: levelSpec.Name,
-            mode: levelSpec.Mode,
+            mode: externalMap ? DetectMode(importedRoom) : levelSpec.Mode,
             bounds: bounds,
             mapScale: 1f,
             backgroundAssetName: importedRoom.PrimaryBackgroundAssetName,

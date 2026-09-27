@@ -129,7 +129,7 @@ internal sealed class Protocol64StatePublisher
 
         projectiles.AddRange(_world.Shots.Select(shot => ToProjectile(
             shot.Id,
-            Protocol64ProjectileKind.Bullet,
+            shot.IsBoomstickPellet ? Protocol64ProjectileKind.BoomstickPellet : Protocol64ProjectileKind.Bullet,
             shot.OwnerId,
             shot.X,
             shot.Y,

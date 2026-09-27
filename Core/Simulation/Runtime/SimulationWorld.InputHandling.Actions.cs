@@ -304,7 +304,7 @@ public sealed partial class SimulationWorld
             }
             else
             {
-                WeaponHandler.AdvanceWhippingCordSwing(player, input.AimWorldX, input.AimWorldY);
+                WeaponHandler.AdvanceWhippingCordSwing(player, input.AimWorldX, input.AimWorldY, input.FirePrimary);
             }
 
             return true;

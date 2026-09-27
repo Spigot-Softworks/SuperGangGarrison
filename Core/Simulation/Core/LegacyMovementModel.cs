@@ -14,14 +14,14 @@ public enum LegacyMovementState : byte
 public static class LegacyMovementModel
 {
     public const float SourceTicksPerSecond = 30f;
-    public const float MaxStepSpeedPerTick = 15f;
+    public const float MaxStepSpeedPerTick = 24f;
     public const float BaseControlFactor = 0.85f;
     public const float BaseFrictionFactor = 1.15f;
     public const float JumpStrengthToJumpSpeed = SourceTicksPerSecond;
     public const float DefaultJumpStrength = 8f + (GravityPerTick / 2f);
     public const float GravityPerTick = 0.6f;
     public const float BlastGravityPerTick = 0.54f;
-    public const float MaxFallSpeedPerTick = 10f;
+    public const float MaxFallSpeedPerTick = 24f;
     public const float StopSpeedThresholdPerTick = 0.195f;
 
     private const float HalfSourceTick = 0.5f;

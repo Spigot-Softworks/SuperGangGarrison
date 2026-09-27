@@ -3,6 +3,12 @@
 # Use a current Caddy version supporting log_skip and validate before reloading.
 log_skip /api/private-rooms/ws/*
 log_skip /api/peer-rooms/ws/*
+log_skip /api/gg2/ws/*
+
+@gg2Gateway path /api/gg2/ws/* /api/gg2/maps/*
+handle @gg2Gateway {
+    reverse_proxy 127.0.0.1:8768
+}
 
 # The API also redacts admission tokens in Uvicorn's WebSocket messages.
 # --no-access-log alone suppresses HTTP request logs but not WebSocket logs.

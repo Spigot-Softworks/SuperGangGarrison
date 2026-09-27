@@ -47,6 +47,13 @@ public sealed class OpenGarrisonPreferencesDocument
     public const int CursorSizeStepPercent = 10;
     public const int DefaultCursorSizePercent = 100;
     public const int MaxCombatMusicVolumePercent = 300;
+    public const CrtPresetKind DefaultCrtPreset = CrtPresetKind.Off;
+    public const CrtQualityKind DefaultCrtQuality = CrtQualityKind.Auto;
+    public const CrtSignalModeKind DefaultCrtSignalMode = CrtSignalModeKind.Preset;
+    public const bool DefaultCrtCurvatureEnabled = false;
+    public const int DefaultCrtBrightnessPercent = 100;
+    public const int MinCrtBrightnessPercent = 75;
+    public const int MaxCrtBrightnessPercent = 125;
     public const float DefaultControllerAimAssistStrength = 0.6f;
     public const float DefaultControllerAimDeadzone = 0.22f;
     public const float DefaultControllerScopedPrecisionSpeed = 180f;
@@ -69,6 +76,11 @@ public sealed class OpenGarrisonPreferencesDocument
     private const string ServerSection = "Server";
     private const string ConnectionSection = "Connection";
     private const string ServerAdvancedSection = "Server.Advanced";
+    private const string CrtPresetIniKey = "CRT Preset";
+    private const string CrtQualityIniKey = "CRT Quality";
+    private const string CrtSignalModeIniKey = "CRT Signal";
+    private const string CrtCurvatureIniKey = "CRT Curvature";
+    private const string CrtBrightnessIniKey = "CRT Brightness Percent";
 
     public string PlayerName { get; set; } = "Player";
 
@@ -97,6 +109,40 @@ public sealed class OpenGarrisonPreferencesDocument
     public WindowSizeKind WindowSize { get; set; } = DefaultWindowSize;
 
     public DisplayScaleModeKind DisplayScaleMode { get; set; } = DefaultDisplayScaleMode;
+
+    private CrtPresetKind _crtPreset = DefaultCrtPreset;
+
+    public CrtPresetKind CrtPreset
+    {
+        get => _crtPreset;
+        set => _crtPreset = NormalizeCrtPreset(value);
+    }
+
+    private CrtQualityKind _crtQuality = DefaultCrtQuality;
+
+    public CrtQualityKind CrtQuality
+    {
+        get => _crtQuality;
+        set => _crtQuality = NormalizeCrtQuality(value);
+    }
+
+    private CrtSignalModeKind _crtSignalMode = DefaultCrtSignalMode;
+
+    public CrtSignalModeKind CrtSignalMode
+    {
+        get => _crtSignalMode;
+        set => _crtSignalMode = NormalizeCrtSignalMode(value);
+    }
+
+    public bool CrtCurvatureEnabled { get; set; } = DefaultCrtCurvatureEnabled;
+
+    private int _crtBrightnessPercent = DefaultCrtBrightnessPercent;
+
+    public int CrtBrightnessPercent
+    {
+        get => _crtBrightnessPercent;
+        set => _crtBrightnessPercent = NormalizeCrtBrightnessPercent(value);
+    }
 
     public MusicMode MusicMode { get; set; } = MusicMode.MenuAndInGame;
 
@@ -154,8 +200,6 @@ public sealed class OpenGarrisonPreferencesDocument
     public BuildMenuStyle BuildMenuStyle { get; set; } = DefaultBuildMenuStyle;
 
     public bool CameraPanningEnabled { get; set; } = DefaultCameraPanningEnabled;
-
-    public PlayerSpriteStyle SpriteStyle { get; set; } = PlayerSpriteStyle.Elkondo;
 
     public bool PortraitRumbleEnabled { get; set; } = true;
 
@@ -295,6 +339,11 @@ public sealed class OpenGarrisonPreferencesDocument
             IngameResolution = ReadIngameResolution(ini),
             WindowSize = NormalizeWindowSize((WindowSizeKind)ini.GetInt(SettingsSection, "Window Size", (int)DefaultWindowSize)),
             DisplayScaleMode = NormalizeDisplayScaleMode((DisplayScaleModeKind)ini.GetInt(SettingsSection, "Display Scale", (int)DefaultDisplayScaleMode)),
+            CrtPreset = NormalizeCrtPreset((CrtPresetKind)ini.GetInt(SettingsSection, CrtPresetIniKey, (int)DefaultCrtPreset)),
+            CrtQuality = NormalizeCrtQuality((CrtQualityKind)ini.GetInt(SettingsSection, CrtQualityIniKey, (int)DefaultCrtQuality)),
+            CrtSignalMode = NormalizeCrtSignalMode((CrtSignalModeKind)ini.GetInt(SettingsSection, CrtSignalModeIniKey, (int)DefaultCrtSignalMode)),
+            CrtCurvatureEnabled = ini.GetBool(SettingsSection, CrtCurvatureIniKey, DefaultCrtCurvatureEnabled),
+            CrtBrightnessPercent = NormalizeCrtBrightnessPercent(ini.GetInt(SettingsSection, CrtBrightnessIniKey, DefaultCrtBrightnessPercent)),
             MusicMode = LoadMusicMode(ini),
             BotMode = ParseBotMode(ini.GetString(SettingsSection, "Bot Mode", OfflineBotControllerMode.BotBrain.ToString())),
             KillCamEnabled = ini.GetBool(SettingsSection, "Kill Cam", true),
@@ -319,8 +368,6 @@ public sealed class OpenGarrisonPreferencesDocument
             BubbleWheelBehavior = ParseBubbleWheelBehavior(ini.GetString(SettingsSection, "Bubble Wheel Behavior", DefaultBubbleWheelBehavior.ToString())),
             BuildMenuStyle = ParseBuildMenuStyle(ini.GetString(SettingsSection, "Build Menu Style", DefaultBuildMenuStyle.ToString())),
             CameraPanningEnabled = ini.GetBool(SettingsSection, "Camera Panning", DefaultCameraPanningEnabled),
-            SpriteStyle = Enum.TryParse<PlayerSpriteStyle>(ini.GetString(SettingsSection, "Sprites", "Elkondo"), true, out var spriteStyle)
-                ? NormalizeSpriteStyle(spriteStyle) : PlayerSpriteStyle.Kelly,
             PortraitRumbleEnabled = ini.GetBool(SettingsSection, "Portrait Rumble", true),
             PostGameMvpArtEnabled = ini.GetBool(SettingsSection, "MVP Art", DefaultPostGameMvpArtEnabled),
             DamageVignetteEnabled = ini.GetBool(SettingsSection, "Damage Vignette", true),
@@ -413,6 +460,11 @@ public sealed class OpenGarrisonPreferencesDocument
         ini.SetInt(SettingsSection, "Resolution", (int)NormalizeIngameResolution(IngameResolution));
         ini.SetInt(SettingsSection, "Window Size", (int)NormalizeWindowSize(WindowSize));
         ini.SetInt(SettingsSection, "Display Scale", (int)NormalizeDisplayScaleMode(DisplayScaleMode));
+        ini.SetInt(SettingsSection, CrtPresetIniKey, (int)NormalizeCrtPreset(CrtPreset));
+        ini.SetInt(SettingsSection, CrtQualityIniKey, (int)NormalizeCrtQuality(CrtQuality));
+        ini.SetInt(SettingsSection, CrtSignalModeIniKey, (int)NormalizeCrtSignalMode(CrtSignalMode));
+        ini.SetBool(SettingsSection, CrtCurvatureIniKey, CrtCurvatureEnabled);
+        ini.SetInt(SettingsSection, CrtBrightnessIniKey, NormalizeCrtBrightnessPercent(CrtBrightnessPercent));
         ini.SetInt(SettingsSection, "Music", (int)NormalizeMusicMode(MusicMode));
         ini.SetString(SettingsSection, "Bot Mode", NormalizeBotMode(BotMode).ToString());
         ini.SetInt(SettingsSection, "PlayerLimit", HostSettings.Slots);
@@ -440,7 +492,6 @@ public sealed class OpenGarrisonPreferencesDocument
         ini.SetString(SettingsSection, "Bubble Wheel Behavior", NormalizeBubbleWheelBehavior(BubbleWheelBehavior).ToString());
         ini.SetString(SettingsSection, "Build Menu Style", NormalizeBuildMenuStyle(BuildMenuStyle).ToString());
         ini.SetBool(SettingsSection, "Camera Panning", CameraPanningEnabled);
-        ini.SetString(SettingsSection, "Sprites", NormalizeSpriteStyle(SpriteStyle).ToString());
         ini.SetBool(SettingsSection, "Portrait Rumble", PortraitRumbleEnabled);
         ini.SetBool(SettingsSection, "MVP Art", PostGameMvpArtEnabled);
         ini.SetBool(SettingsSection, "Damage Vignette", DamageVignetteEnabled);
@@ -646,6 +697,46 @@ public sealed class OpenGarrisonPreferencesDocument
         };
     }
 
+    public static CrtPresetKind NormalizeCrtPreset(CrtPresetKind preset)
+    {
+        return preset switch
+        {
+            CrtPresetKind.Off => CrtPresetKind.Off,
+            CrtPresetKind.PcMonitor => CrtPresetKind.PcMonitor,
+            CrtPresetKind.StudioRgb => CrtPresetKind.StudioRgb,
+            CrtPresetKind.ArcadeRgb => CrtPresetKind.ArcadeRgb,
+            CrtPresetKind.HomeTvRgb => CrtPresetKind.HomeTvRgb,
+            _ => DefaultCrtPreset,
+        };
+    }
+
+    public static CrtQualityKind NormalizeCrtQuality(CrtQualityKind quality)
+    {
+        return quality switch
+        {
+            CrtQualityKind.Auto => CrtQualityKind.Auto,
+            CrtQualityKind.Balanced => CrtQualityKind.Balanced,
+            CrtQualityKind.High => CrtQualityKind.High,
+            _ => DefaultCrtQuality,
+        };
+    }
+
+    public static CrtSignalModeKind NormalizeCrtSignalMode(CrtSignalModeKind signalMode)
+    {
+        return signalMode switch
+        {
+            CrtSignalModeKind.Preset => CrtSignalModeKind.Preset,
+            CrtSignalModeKind.Native => CrtSignalModeKind.Native,
+            CrtSignalModeKind.Classic => CrtSignalModeKind.Classic,
+            _ => DefaultCrtSignalMode,
+        };
+    }
+
+    public static int NormalizeCrtBrightnessPercent(int percent)
+    {
+        return Math.Clamp(percent, MinCrtBrightnessPercent, MaxCrtBrightnessPercent);
+    }
+
     private static ControllerReticleMode ParseControllerReticleMode(string value)
     {
         return Enum.TryParse<ControllerReticleMode>(value, ignoreCase: true, out var mode)
@@ -682,9 +773,6 @@ public sealed class OpenGarrisonPreferencesDocument
             _ => DefaultBubbleWheelBehavior,
         };
     }
-
-    public static PlayerSpriteStyle NormalizeSpriteStyle(PlayerSpriteStyle style) =>
-        style == PlayerSpriteStyle.Elkondo ? PlayerSpriteStyle.Elkondo : PlayerSpriteStyle.Kelly;
 
     private static BuildMenuStyle ParseBuildMenuStyle(string value)
     {

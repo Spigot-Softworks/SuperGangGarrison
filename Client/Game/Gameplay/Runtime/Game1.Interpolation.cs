@@ -317,6 +317,16 @@ public partial class Game1
 
     private Vector2 GetRenderPosition(PlayerEntity player, bool allowInterpolation = true)
     {
+        if (_networkClient.IsLegacyGg2Connection
+            && player.IsAlive
+            && MathF.Abs(player.HorizontalSpeed) < 1f
+            && MathF.Abs(player.VerticalSpeed) < 1f)
+        {
+            // GG2 sends the resting position directly. Extrapolating the
+            // previous falling sample can draw an idle character in the floor.
+            return new Vector2(player.X, player.Y);
+        }
+
         if (!_networkClient.IsConnected)
         {
             // Offline practice already advances the authoritative local player

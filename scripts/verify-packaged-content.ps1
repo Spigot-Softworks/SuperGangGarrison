@@ -318,6 +318,34 @@ function Test-PackagedContentPolicy {
         }
     }
 
+    if (Test-Path -LiteralPath $runtimeMetadataPath -PathType Leaf) {
+        try {
+            $runtimeDocument = Get-Content -LiteralPath $runtimeMetadataPath -Raw | ConvertFrom-Json
+            $itemDirectory = Join-Path $contentFullPath "Gameplay/stock.gg2/items"
+            foreach ($itemFile in Get-ChildItem -LiteralPath $itemDirectory -File -Recurse -Filter "*.json") {
+                $item = Get-Content -LiteralPath $itemFile.FullName -Raw | ConvertFrom-Json
+                if ($item.kind -ne "Weapon" -or [string]::IsNullOrWhiteSpace([string]$item.id)) {
+                    continue
+                }
+
+                $runtimeItemProperty = $runtimeDocument.items.PSObject.Properties[[string]$item.id]
+                if ($null -eq $runtimeItemProperty) {
+                    $violations.Add("stock runtime is missing weapon: $($item.id)")
+                    continue
+                }
+
+                $runtimeItem = $runtimeItemProperty.Value
+
+                if ([int]$item.ammo.maxAmmo -ne [int]$runtimeItem.ammo.maxAmmo) {
+                    $violations.Add("stock runtime ammo mismatch for $($item.id): item maxAmmo=$($item.ammo.maxAmmo), runtime maxAmmo=$($runtimeItem.ammo.maxAmmo)")
+                }
+            }
+        }
+        catch {
+            $violations.Add("could not compare stock runtime weapon ammo with item definitions: $($_.Exception.Message)")
+        }
+    }
+
     if ($violations.Count -gt 0) {
         $details = ($violations | Sort-Object -Unique | ForEach-Object { "  - $_" }) -join [Environment]::NewLine
         throw "Packaged content policy failed for '$contentFullPath':$([Environment]::NewLine)$details"
@@ -347,9 +375,9 @@ function New-PolicyTestFixture {
 
     Set-Content -LiteralPath (Join-Path $contentRoot "Gameplay/stock.gg2/pack.json") -Value '{"id":"stock.gg2"}' -Encoding UTF8
     Set-Content -LiteralPath (Join-Path $contentRoot "_gamemaker-asset-manifest.json") -Value '{"sprites":{}}' -Encoding UTF8
-    Set-Content -LiteralPath (Join-Path $contentRoot "Gameplay/stock.gg2/runtime.json") -Value '{"assets":{"sprites":{"test":{}}}}' -Encoding UTF8
+    Set-Content -LiteralPath (Join-Path $contentRoot "Gameplay/stock.gg2/runtime.json") -Value '{"assets":{"sprites":{"test":{}}},"items":{"test.weapon":{"ammo":{"maxAmmo":1}}}}' -Encoding UTF8
     Set-Content -LiteralPath (Join-Path $contentRoot "Gameplay/stock.gg2/classes/test.json") -Value '{}' -Encoding UTF8
-    Set-Content -LiteralPath (Join-Path $contentRoot "Gameplay/stock.gg2/items/test.json") -Value '{}' -Encoding UTF8
+    Set-Content -LiteralPath (Join-Path $contentRoot "Gameplay/stock.gg2/items/test.json") -Value '{"id":"test.weapon","kind":"Weapon","ammo":{"maxAmmo":1}}' -Encoding UTF8
     Set-Content -LiteralPath (Join-Path $contentRoot "Sprites/Collision Maps/TestMapS.images/image 0.png") -Value 'collision-runtime-data' -Encoding ASCII
     Set-Content -LiteralPath (Join-Path $contentRoot "Browser/Atlases/test.png") -Value 'generated-atlas-data' -Encoding ASCII
 
@@ -372,6 +400,20 @@ function Invoke-PolicySelfTest {
         $resolvedCleanContent = Resolve-PackagedContentRoot -InputPath $cleanRoot
         Test-PackagedContentPolicy -ContentRoot $resolvedCleanContent -Quiet
         Write-Host "[verify-packaged-content:self-test] PASS clean distribution (including collision-map .images exception)"
+
+        $staleContent = New-PolicyTestFixture -TestRoot (Join-Path $testRoot "stale-runtime")
+        Set-Content -LiteralPath (Join-Path $staleContent "Gameplay/stock.gg2/items/test.json") -Value '{"id":"test.weapon","kind":"Weapon","ammo":{"maxAmmo":2}}' -Encoding UTF8
+        $staleFailure = ""
+        try {
+            Test-PackagedContentPolicy -ContentRoot $staleContent -Quiet
+        }
+        catch {
+            $staleFailure = $_.Exception.Message
+        }
+        if ($staleFailure -notmatch "stock runtime ammo mismatch for test.weapon") {
+            throw "Self-test did not reject stale gameplay runtime metadata: $staleFailure"
+        }
+        Write-Host "[verify-packaged-content:self-test] PASS stale gameplay runtime rejection"
 
         $testCases = @(
             [pscustomobject]@{

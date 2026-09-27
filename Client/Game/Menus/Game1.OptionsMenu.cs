@@ -180,6 +180,11 @@ public partial class Game1
 
     private static string GetApplicationVersionLabel()
     {
+        if (OperatingSystem.IsBrowser() && IsRestrictedBrowserEdition)
+        {
+            return "v0.8.4";
+        }
+
         return _cachedApplicationVersionLabel ??= FormatApplicationVersionDisplayLabel(LoadApplicationVersionLabel());
     }
 
@@ -477,12 +482,6 @@ public partial class Game1
     private void TogglePositionSmoothingSetting()
     {
         _positionSmoothingEnabled = !_positionSmoothingEnabled;
-        PersistClientSettings();
-    }
-
-    private void CycleSpriteStyleSetting()
-    {
-        _spriteStyle = _spriteStyle == PlayerSpriteStyle.Kelly ? PlayerSpriteStyle.Elkondo : PlayerSpriteStyle.Kelly;
         PersistClientSettings();
     }
 

@@ -121,10 +121,12 @@ public partial class Game1
             return;
         }
 
-        var establishesPresentationBaseline = isServerFullSnapshot
-            || isPresentationEpochBaselineSnapshot
-            || (_networkWorldWarmupAcceptNextAppliedSnapshotAsBaseline
-                && !_networkWorldWarmupFullSnapshotApplied);
+        var establishesPresentationBaseline = ShouldEstablishNetworkWorldWarmupBaseline(
+            _networkClient.IsLegacyGg2Connection,
+            _networkWorldWarmupFullSnapshotApplied,
+            isServerFullSnapshot,
+            isPresentationEpochBaselineSnapshot,
+            _networkWorldWarmupAcceptNextAppliedSnapshotAsBaseline);
         if (establishesPresentationBaseline)
         {
             _networkWorldWarmupFullSnapshotApplied = true;
@@ -154,6 +156,16 @@ public partial class Game1
         HideLoadingOverlay();
         CancelNetworkWorldWarmup();
     }
+
+    internal static bool ShouldEstablishNetworkWorldWarmupBaseline(
+        bool isLegacyGg2,
+        bool hasBaseline,
+        bool isServerFullSnapshot,
+        bool isPresentationEpochBaselineSnapshot,
+        bool acceptNextAppliedSnapshotAsBaseline)
+        => isPresentationEpochBaselineSnapshot
+            || (isServerFullSnapshot && (!isLegacyGg2 || !hasBaseline))
+            || (acceptNextAppliedSnapshotAsBaseline && !hasBaseline);
 
     private bool HasAuthoritativeLocalPlayerForNetworkWorldWarmup()
     {

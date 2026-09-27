@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Net.Http;
 using OpenGarrison.ClientShared;
@@ -163,16 +164,74 @@ public sealed class GameMakerRuntimeAssetCache : IDisposable
             return cached;
         }
 
-        if (!_manifest.Backgrounds.TryGetValue(backgroundName, out var backgroundAsset)
-            || !File.Exists(backgroundAsset.ImagePath))
+        if (!_manifest.Backgrounds.TryGetValue(backgroundName, out var backgroundAsset))
         {
             return null;
         }
 
-        using var stream = File.OpenRead(backgroundAsset.ImagePath);
-        cached = Texture2D.FromStream(_graphicsDevice, stream);
+        if (File.Exists(backgroundAsset.ImagePath))
+        {
+            using var stream = File.OpenRead(backgroundAsset.ImagePath);
+            cached = Texture2D.FromStream(_graphicsDevice, stream);
+        }
+        else if (TryReadPackagedBackgroundBytes(backgroundAsset.ImagePath, out var packagedBytes))
+        {
+            using var stream = new MemoryStream(packagedBytes, writable: false);
+            cached = Texture2D.FromStream(_graphicsDevice, stream);
+        }
+        else
+        {
+            return null;
+        }
+
         _backgrounds[backgroundName] = cached;
         return cached;
+    }
+
+    internal static bool TryReadPackagedBackgroundBytes(
+        string imagePath,
+        out byte[] bytes,
+        string? bundlePath = null)
+    {
+        bytes = [];
+        if (string.IsNullOrWhiteSpace(imagePath))
+        {
+            return false;
+        }
+
+        var entryPath = BrowserAssetBundleLoader.NormalizeRelativePath(imagePath);
+        if (!entryPath.StartsWith("Content/Backgrounds/", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        bundlePath ??= Path.Combine(AppContext.BaseDirectory,
+            BrowserDistributionPaths.RuntimeAssetBundlePath.Replace('/', Path.DirectorySeparatorChar));
+        if (!File.Exists(bundlePath))
+        {
+            return false;
+        }
+
+        try
+        {
+            using var archive = ZipFile.OpenRead(bundlePath);
+            var entry = archive.Entries.FirstOrDefault(candidate =>
+                string.Equals(candidate.FullName, entryPath, StringComparison.OrdinalIgnoreCase));
+            if (entry is null || entry.Length is <= 0 or > 64 * 1024 * 1024)
+            {
+                return false;
+            }
+
+            using var entryStream = entry.Open();
+            using var buffer = new MemoryStream(checked((int)entry.Length));
+            entryStream.CopyTo(buffer);
+            bytes = buffer.ToArray();
+            return bytes.Length == entry.Length;
+        }
+        catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException)
+        {
+            return false;
+        }
     }
 
     public SoundEffect? GetSound(string soundName)

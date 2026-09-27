@@ -9,7 +9,11 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
+#if GG2_ONLY
+    private const string DesktopLoadingOverlayTitle = "OpenGarrison";
+#else
     private const string DesktopLoadingOverlayTitle = "Super Gang Garrison";
+#endif
     private const string RestrictedBrowserLoadingOverlayTitle = "Gang Garrison";
     private const int LoadingOverlayWidth = 340;
     private const int LoadingOverlayHeight = 84;

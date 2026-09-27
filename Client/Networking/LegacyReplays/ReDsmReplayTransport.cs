@@ -14,6 +14,9 @@ namespace OpenGarrison.Client;
 
 public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
 {
+    private const float LegacyGg2MaxStepSpeedPerTick = 15f;
+    private const float LegacyGg2MaxFallSpeedPerTick = 10f;
+
     private readonly List<ScheduledReplayPayload> _payloads;
     private readonly long _ticksPerSecond;
     private readonly string _remoteDescription;
@@ -418,12 +421,13 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
         int RedCaps,
         int BlueCaps);
 
-    private readonly record struct ScheduledReplayPayload(int DueMilliseconds, byte[] Payload);
+    internal readonly record struct ScheduledReplayPayload(int DueMilliseconds, byte[] Payload);
 
-    private static class ReDsmReplayTranslator
+    internal static class ReDsmReplayTranslator
     {
         private const byte LegacyTeamRed = 0;
         private const byte LegacyTeamBlue = 1;
+        private const byte LegacyTeamSpectator = 2;
         private const byte SnapshotTeamRed = (byte)PlayerTeam.Red;
         private const byte SnapshotTeamBlue = (byte)PlayerTeam.Blue;
         private const byte LegacyClassScout = 0;
@@ -476,6 +480,7 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
         private const byte LegacyPing = 57;
         private const byte LegacyClientSettings = 58;
         private const byte LegacyKeyRightClick = 0x08;
+        private const byte LegacyKeyLeftClick = 0x10;
         private const byte LegacyKeyRight = 0x20;
         private const byte LegacyKeyLeft = 0x40;
         private const byte LegacyKeyJump = 0x80;
@@ -484,6 +489,8 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
         private const int CombatTraceLifetimeTicks = 2;
         private const int DefaultLegacyTickRate = 30;
         private const int ReplayDefaultGibLevel = 3;
+        private const int LegacyHeavyEatDurationTicks = 128;
+        private const int LegacySpyStabCooldownTicks = 50;
         private const float ReplayMineCollisionHalfExtent = 3f;
         private static readonly Encoding Latin1 = Encoding.Latin1;
 
@@ -521,13 +528,15 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
             return new ReplayTranslationTimeline(payloads);
         }
 
-        private sealed class LegacyReplaySession
+        internal sealed class LegacyReplaySession
         {
             private readonly string _replayPath;
-            private readonly SimpleLevel _level;
+            private SimpleLevel _level;
+            private readonly bool _liveStream;
             private readonly List<LegacyReplayPlayer> _players = new();
             private readonly Dictionary<int, float> _lastFacingByPlayerId = new();
             private readonly List<LegacyReplayKillFeedEntry> _killFeed = new();
+            private SnapshotDeathCamState? _localDeathCam;
             private readonly List<LegacyReplayCombatTrace> _combatTraces = new();
             private readonly List<LegacyReplayProjectileState> _shots = new();
             private readonly List<LegacyReplayProjectileState> _bubbles = new();
@@ -541,32 +550,38 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
             private readonly List<BloodDropEntity> _bloodDrops = new();
             private readonly List<SnapshotVisualEvent> _pendingVisualEvents = new();
             private readonly List<SnapshotSoundEvent> _pendingSoundEvents = new();
+            private readonly List<SnapshotGibSpawnEvent> _pendingGibSpawnEvents = new();
             private int _expectedJoinPlayerCount = -1;
 
             private LegacyReplaySession(
                 string replayPath,
                 ReDsmReplayFile replay,
-                OpenGarrisonStockMapDefinition stockMap)
+                OpenGarrisonStockMapDefinition? stockMap,
+                bool liveStream = false,
+                string? externalLevelName = null)
             {
                 _replayPath = replayPath;
+                _liveStream = liveStream;
                 ReplayHeader = replay.Header;
                 StockMap = stockMap;
                 TickRate = replay.Header.FramesPerSecond > 0 ? replay.Header.FramesPerSecond : DefaultLegacyTickRate;
                 LegacyMapName = replay.Header.MapName;
-                LevelName = stockMap.LevelName;
-                GameMode = stockMap.Mode;
-                _level = SimpleLevelFactory.CreateImportedLevel(stockMap.LevelName)
+                LevelName = externalLevelName ?? stockMap?.LevelName
+                    ?? throw new ArgumentException("A stock or external level is required.", nameof(stockMap));
+                _level = SimpleLevelFactory.CreateImportedLevel(LevelName)
                     ?? throw new NotSupportedException(
-                        $"Replay map '{stockMap.LevelName}' could not be imported into a stock collision level.");
+                        $"GG2 map '{LevelName}' could not be imported into a collision level.");
+                GameMode = stockMap?.Mode ?? _level.Mode;
                 InitializeLegacyObjectiveState();
             }
 
             public ReDsmReplayHeader ReplayHeader { get; }
-            public OpenGarrisonStockMapDefinition StockMap { get; }
+            public OpenGarrisonStockMapDefinition? StockMap { get; private set; }
             public int TickRate { get; }
             public string LegacyMapName { get; private set; } = string.Empty;
             public string LevelName { get; private set; } = string.Empty;
-            public GameModeKind GameMode { get; }
+            public GameModeKind GameMode { get; private set; }
+            public string LegacyMapHash { get; private set; } = string.Empty;
             public byte MapAreaIndex { get; private set; } = 1;
             public byte MapAreaCount { get; private set; } = 1;
             public int TimeLimitTicks { get; private set; }
@@ -581,8 +596,8 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
             public ulong SnapshotFrame { get; private set; } = 1;
             public byte WinnerTeam { get; private set; }
             public MatchPhase MatchPhase { get; private set; } = MatchPhase.Running;
-            public LegacyReplayIntelState RedIntel { get; } = new(SnapshotTeamRed);
-            public LegacyReplayIntelState BlueIntel { get; } = new(SnapshotTeamBlue);
+            private LegacyReplayIntelState RedIntel { get; } = new(SnapshotTeamRed);
+            private LegacyReplayIntelState BlueIntel { get; } = new(SnapshotTeamBlue);
             private readonly List<LegacyReplayControlPointState> _controlPoints = [];
             private int _arenaUnlockTicksRemaining;
             private byte _arenaPointTeamLegacy = byte.MaxValue;
@@ -592,6 +607,37 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
             private int _nextStablePlayerId = 1;
             private int _nextTransientEntityId = 1_000_000;
             private ulong _nextReplayEventId = 1;
+            public int LocalPlayerIndex { get; private set; } = -1;
+            public int PlayerCount => _players.Count;
+
+            public string GetPlayerName(int index)
+                => index >= 0 && index < _players.Count ? _players[index].Name : string.Empty;
+
+            public byte GetLocalPlayerSlot()
+            {
+                if (LocalPlayerIndex < 0 || LocalPlayerIndex >= _players.Count)
+                {
+                    throw new InvalidOperationException("The local GG2 player has not joined yet.");
+                }
+
+                var team = _players[LocalPlayerIndex].Team;
+                return team is LegacyTeamRed or LegacyTeamBlue
+                    ? checked((byte)(LocalPlayerIndex + 1))
+                    : checked((byte)(SimulationWorld.FirstSpectatorSlot + LocalPlayerIndex));
+            }
+
+            public PlayerClass GetLocalPlayerClass()
+                => LocalPlayerIndex >= 0 && LocalPlayerIndex < _players.Count
+                    ? MapLegacyClassToCurrent(_players[LocalPlayerIndex].ClassId)
+                    : PlayerClass.Scout;
+
+            public bool LocalPlayerHasCharacter
+                => LocalPlayerIndex >= 0 && LocalPlayerIndex < _players.Count
+                    && _players[LocalPlayerIndex].HasCharacter;
+
+            public bool LocalPlayerHasSentry
+                => LocalPlayerIndex >= 0 && LocalPlayerIndex < _players.Count
+                    && _players[LocalPlayerIndex].HasSentry;
 
             public static LegacyReplaySession Create(string replayPath, ReDsmReplayFile replay)
             {
@@ -605,14 +651,44 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                 return new LegacyReplaySession(replayPath, replay, stockMap);
             }
 
-            public WelcomeMessage CreateWelcomeMessage()
+            public static LegacyReplaySession CreateLive(LegacyGg2ServerHello hello, string? externalLevelName = null)
+            {
+                var header = new ReDsmReplayHeader(
+                    ReplayVersion: 0,
+                    GameVersion: 29200,
+                    FrameRateKind: 0,
+                    ServerName: hello.ServerName,
+                    MapName: hello.MapName,
+                    MapContentHash: hello.MapMd5,
+                    PluginsRequired: hello.PluginsRequired,
+                    PluginList: hello.PluginList,
+                    JoinStatePayload: []);
+                var replay = new ReDsmReplayFile(header, [], HasEndMarker: false);
+                if (externalLevelName is not null)
+                {
+                    return new LegacyReplaySession("live GG2 server", replay, null,
+                        liveStream: true, externalLevelName: externalLevelName);
+                }
+
+                if (!LegacyGg2BundledStockMaps.TryRegister(hello.MapName, out var stockLevelName))
+                {
+                    throw new NotSupportedException($"GG2 stock map '{hello.MapName}' is not bundled.");
+                }
+
+                OpenGarrisonStockMapDefinition? stockMap = OpenGarrisonStockMapCatalog.TryGetDefinition(hello.MapName, out var definition)
+                    ? definition : null;
+                return new LegacyReplaySession("live GG2 server", replay, stockMap,
+                    liveStream: true, externalLevelName: stockLevelName);
+            }
+
+            public WelcomeMessage CreateWelcomeMessage(byte? localPlayerSlot = null)
             {
                 return new WelcomeMessage(
                     ReplayHeader.ServerName,
                     ProtocolVersion.Current,
                     TickRate,
                     LevelName,
-                    SpectatorSlot,
+                    localPlayerSlot ?? SpectatorSlot,
                     Math.Max(16, _players.Count),
                     IsCustomMap: false,
                     MapDownloadUrl: string.Empty,
@@ -674,7 +750,7 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                     KothBlueTimerTicksRemaining: Math.Max(0, KothBlueTimerTicksRemaining),
                     ControlPoints: CreateSnapshotControlPoints(),
                     Generators: Array.Empty<SnapshotGeneratorState>(),
-                    LocalDeathCam: null,
+                    LocalDeathCam: _localDeathCam,
                     KillFeed: CreateSnapshotKillFeed(),
                     VisualEvents: CreateSnapshotVisualEvents(),
                     DamageEvents: Array.Empty<SnapshotDamageEvent>(),
@@ -690,11 +766,13 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                     ArenaBlueConsecutiveWins = GameMode == GameModeKind.Arena ? BlueCaps : 0,
                     IsDelta = false,
                     BaselineFrame = 0,
-                    PlayerGibs = CreateSnapshotPlayerGibs()
+                    PlayerGibs = CreateSnapshotPlayerGibs(),
+                    GibSpawnEvents = _pendingGibSpawnEvents.ToArray()
                 };
 
                 _pendingVisualEvents.Clear();
                 _pendingSoundEvents.Clear();
+                _pendingGibSpawnEvents.Clear();
 
                 return snapshot;
             }
@@ -703,6 +781,21 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
             {
                 using var stream = new MemoryStream(payload, writable: false);
                 using var reader = new BinaryReader(stream, Latin1, leaveOpen: true);
+                ReadJoinState(reader);
+            }
+
+            public void ReadLiveJoinState(BinaryReader reader)
+            {
+                if (!_liveStream)
+                {
+                    throw new InvalidOperationException("This is a replay translation session.");
+                }
+
+                ReadJoinState(reader);
+            }
+
+            private void ReadJoinState(BinaryReader reader)
+            {
 
                 ReadExpectedJoinMessageType(reader, LegacyJoinUpdate, "JOIN_UPDATE");
                 ReadJoinUpdate(reader);
@@ -730,6 +823,33 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                 ReadExpectedJoinMessageType(reader, LegacyFullUpdate, "FULL_UPDATE");
                 ReadStateUpdate(reader, fullUpdate: true);
             }
+
+            public void ApplyLiveMessage(BinaryReader reader, byte messageType)
+            {
+                if (!_liveStream)
+                {
+                    throw new InvalidOperationException("This is a replay translation session.");
+                }
+
+                if (messageType is LegacyInputState or LegacyQuickUpdate or LegacyFullUpdate)
+                {
+                    TickTransientState();
+                }
+
+                ApplyLegacyMessagePayload(reader, messageType, allowQuickState: true, messageStart: -1);
+            }
+
+            public static bool IsLiveSnapshotBoundary(byte messageType)
+                => messageType is LegacyInputState
+                    or LegacyQuickUpdate
+                    or LegacyFullUpdate
+                    or LegacyChangeMap
+                    or LegacyPlayerJoin
+                    or LegacyPlayerLeave
+                    or LegacyPlayerChangeTeam
+                    or LegacyPlayerChangeClass
+                    or LegacyPlayerSpawn
+                    or LegacyPlayerDeath;
 
             public void AdvanceLegacyFrame(byte[] payload)
             {
@@ -895,6 +1015,10 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
             {
                 var playerCount = reader.ReadByte();
                 _expectedJoinPlayerCount = playerCount;
+                if (_liveStream)
+                {
+                    LocalPlayerIndex = playerCount;
+                }
                 MapAreaIndex = reader.ReadByte();
                 MapAreaCount = Math.Max(MapAreaCount, MapAreaIndex);
                 if (playerCount < _players.Count)
@@ -908,6 +1032,13 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                 var mapName = ReadByteLengthPrefixedString(reader);
                 var mapHash = ReadByteLengthPrefixedString(reader);
                 LegacyMapName = mapName;
+                LegacyMapHash = mapHash;
+                if (_liveStream)
+                {
+                    _localDeathCam = null;
+                    return;
+                }
+
                 if (!string.Equals(mapName, ReplayHeader.MapName, StringComparison.OrdinalIgnoreCase))
                 {
                     throw new NotSupportedException(
@@ -918,6 +1049,83 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                     !string.Equals(mapHash, ReplayHeader.MapContentHash, StringComparison.OrdinalIgnoreCase))
                 {
                     throw new InvalidDataException("Replay map hash does not match the replay header map hash.");
+                }
+            }
+
+            public void ActivateLiveMapChange(string? externalLevelName)
+            {
+                if (!_liveStream)
+                {
+                    throw new InvalidOperationException("Only a live GG2 session can change maps.");
+                }
+
+                OpenGarrisonStockMapDefinition? stockMap = null;
+                string levelName;
+                if (!string.IsNullOrEmpty(LegacyMapHash))
+                {
+                    levelName = externalLevelName
+                        ?? throw new InvalidDataException($"GG2 map '{LegacyMapName}' has no downloaded PNG.");
+                }
+                else if (LegacyGg2BundledStockMaps.TryRegister(LegacyMapName, out var stockLevelName))
+                {
+                    levelName = stockLevelName;
+                    if (OpenGarrisonStockMapCatalog.TryGetDefinition(LegacyMapName, out var resolvedStockMap))
+                    {
+                        stockMap = resolvedStockMap;
+                    }
+                }
+                else
+                {
+                    throw new NotSupportedException($"GG2 stock map '{LegacyMapName}' is not bundled and has no downloadable MD5.");
+                }
+
+                var level = SimpleLevelFactory.CreateImportedLevel(levelName, MapAreaIndex)
+                    ?? throw new InvalidDataException($"GG2 map '{LegacyMapName}' could not be imported.");
+                var mapNameChanged = !string.Equals(LevelName, levelName, StringComparison.OrdinalIgnoreCase);
+                StockMap = stockMap;
+                LevelName = levelName;
+                _level = level;
+                GameMode = stockMap?.Mode ?? level.Mode;
+                MatchPhase = MatchPhase.Running;
+                WinnerTeam = 0;
+                TimeRemainingTicks = 0;
+                TimeLimitTicks = 0;
+                ControlPointSetupTicksRemaining = 0;
+                KothUnlockTicksRemaining = 0;
+                KothRedTimerTicksRemaining = 0;
+                KothBlueTimerTicksRemaining = 0;
+                _controlPoints.Clear();
+                RedIntel.MarkMissing();
+                BlueIntel.MarkMissing();
+                ClearTransientPresentationState();
+                InitializeLegacyObjectiveState();
+                if (mapNameChanged && MapAreaIndex == 1)
+                {
+                    RedCaps = 0;
+                    BlueCaps = 0;
+                }
+
+                  foreach (var player in _players)
+                  {
+                      // GG2 resets every player to spectator at the start of a
+                      // new map area. Its client applies this locally on
+                      // CHANGE_MAP; the server does not send a team packet.
+                      if (MapAreaIndex == 1)
+                      {
+                          player.Team = LegacyTeamSpectator;
+                      }
+
+                      player.HasCharacter = false;
+                    player.WaitingForSpawnPosition = false;
+                    player.HasSentry = false;
+                    player.Mines.Clear();
+                    player.HasAuthoritativePosition = false;
+                    player.IsAuthoritativelyStationary = false;
+                    player.InputFireCooldownTicks = 0;
+                    player.PyroFlameLoopTicksRemaining = 0;
+                    player.HeavyEatTicksRemaining = 0;
+                    player.SpyStabCooldownTicks = 0;
+                    player.SpyStabVisualTicksRemaining = 0;
                 }
             }
 
@@ -935,24 +1143,40 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
             private void ReadPlayerChangeTeam(BinaryReader reader)
             {
                 var player = GetPlayerAtIndex(reader.ReadByte());
+                if (_liveStream && LocalPlayerIndex >= 0 && LocalPlayerIndex < _players.Count
+                    && ReferenceEquals(player, _players[LocalPlayerIndex])) _localDeathCam = null;
                 player.Team = reader.ReadByte();
                 player.HasCharacter = false;
+                player.WaitingForSpawnPosition = false;
                 player.HasSentry = false;
                 player.Intel = false;
                 player.IsScoped = false;
                 player.AirJumpsUsed = 0;
                 player.WasJumpHeldLastTick = false;
+                player.HasAuthoritativePosition = false;
+                player.IsAuthoritativelyStationary = false;
+                player.HeavyEatTicksRemaining = 0;
+                player.SpyStabCooldownTicks = 0;
+                player.SpyStabVisualTicksRemaining = 0;
             }
 
             private void ReadPlayerChangeClass(BinaryReader reader)
             {
                 var player = GetPlayerAtIndex(reader.ReadByte());
+                if (_liveStream && LocalPlayerIndex >= 0 && LocalPlayerIndex < _players.Count
+                    && ReferenceEquals(player, _players[LocalPlayerIndex])) _localDeathCam = null;
                 player.ClassId = reader.ReadByte();
                 player.HasCharacter = false;
+                player.WaitingForSpawnPosition = false;
                 player.HasSentry = false;
                 player.IsScoped = false;
                 player.AirJumpsUsed = 0;
                 player.WasJumpHeldLastTick = false;
+                player.HasAuthoritativePosition = false;
+                player.IsAuthoritativelyStationary = false;
+                player.HeavyEatTicksRemaining = 0;
+                player.SpyStabCooldownTicks = 0;
+                player.SpyStabVisualTicksRemaining = 0;
             }
 
             private void ReadPlayerChangeName(BinaryReader reader)
@@ -964,11 +1188,22 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
             private void ReadPlayerSpawn(BinaryReader reader)
             {
                 var player = GetPlayerAtIndex(reader.ReadByte());
+                if (_liveStream && LocalPlayerIndex >= 0 && LocalPlayerIndex < _players.Count
+                    && ReferenceEquals(player, _players[LocalPlayerIndex])) _localDeathCam = null;
                 reader.ReadByte();
                 reader.ReadByte();
-                player.HasCharacter = true;
+                // PLAYER_SPAWN only contains an index into GG2's spawn list.
+                // Wait for the next position-bearing update before drawing a
+                // new character; otherwise the old corpse location is reused.
+                player.HasCharacter = false;
+                player.WaitingForSpawnPosition = true;
                 player.AirJumpsUsed = 0;
                 player.WasJumpHeldLastTick = false;
+                player.HasAuthoritativePosition = false;
+                player.IsAuthoritativelyStationary = false;
+                player.HeavyEatTicksRemaining = 0;
+                player.SpyStabCooldownTicks = 0;
+                player.SpyStabVisualTicksRemaining = 0;
             }
 
             private void ReadPlayerDeath(BinaryReader reader)
@@ -978,12 +1213,35 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                 var assistantIndex = reader.ReadByte();
                 var deathSource = reader.ReadByte();
 
+                if (_liveStream && LocalPlayerIndex >= 0 && LocalPlayerIndex < _players.Count
+                    && ReferenceEquals(victim, _players[LocalPlayerIndex]))
+                {
+                    var killer = killerIndex < _players.Count ? _players[killerIndex] : null;
+                    if (killer is not null && !ReferenceEquals(killer, victim)
+                        && killer.Team is LegacyTeamRed or LegacyTeamBlue)
+                    {
+                        var killerClass = CharacterClassCatalog.GetDefinition(MapLegacyClassToCurrent(killer.ClassId));
+                        var duration = Math.Clamp(RespawnSeconds > 0 ? RespawnSeconds * TickRate : 150, 1, 150);
+                        _localDeathCam = new SnapshotDeathCamState(
+                            killer.X, killer.Y, "KILLED BY", killer.Name, ToSnapshotTeam(killer.Team),
+                            Math.Max(0, killer.Health), killerClass.MaxHealth, duration, duration);
+                    }
+                    else
+                    {
+                        _localDeathCam = null;
+                    }
+                }
+
                 if (victim.HasCharacter && victim.Team is LegacyTeamRed or LegacyTeamBlue)
                 {
+                    ResolveReplayRocketDeathImpact(victim, killerIndex, deathSource);
                     SpawnReplayDeathRemains(victim, killerIndex, deathSource);
                 }
 
                 victim.HasCharacter = false;
+                victim.HeavyEatTicksRemaining = 0;
+                victim.SpyStabVisualTicksRemaining = 0;
+                victim.WaitingForSpawnPosition = false;
                 victim.Intel = false;
                 victim.ChatBubbleTicksRemaining = 0;
                 victim.IsScoped = false;
@@ -1026,7 +1284,8 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                 player.SentryBuilt = false;
                 player.SentryHealth = 127;
                 player.SentryVerticalSpeed = 0f;
-                QueueSoundEvent("BuildingSentrySnd", player.SentryX, player.SentryY);
+                QueueSoundEvent("SentryFloorSnd", player.SentryX, player.SentryY);
+                QueueSoundEvent("SentryBuildSnd", player.SentryX, player.SentryY);
             }
 
             private void ReadDestroySentry(BinaryReader reader)
@@ -1039,8 +1298,8 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                 owner.HasSentry = false;
                 owner.SentryBuilt = false;
                 owner.SentryHealth = 0;
-                QueueSoundEvent("DestroyBuildingSnd", owner.SentryX, owner.SentryY);
-                QueueVisualEvent("Explosion", owner.SentryX, owner.SentryY, 0f, 1);
+                QueueSoundEvent("ExplosionSnd", owner.SentryX, owner.SentryY);
+                QueueVisualEvent("ExplosionSmall", owner.SentryX, owner.SentryY, 0f, 1);
 
                 if (killerIndex != byte.MaxValue && killerIndex < _players.Count)
                 {
@@ -1179,6 +1438,10 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
             private void ReadOmnomnomnom(BinaryReader reader)
             {
                 var player = GetPlayerAtIndex(reader.ReadByte());
+                if (player.HasCharacter && player.ClassId == LegacyClassHeavy)
+                {
+                    player.HeavyEatTicksRemaining = LegacyHeavyEatDurationTicks;
+                }
                 QueueSoundEvent("HeavyEatSnd", player.X, player.Y);
             }
 
@@ -1289,9 +1552,14 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                 var player = GetPlayerAtIndex(reader.ReadByte());
                 player.X = reader.ReadUInt16() / 5f;
                 player.Y = reader.ReadUInt16() / 5f;
-                player.HorizontalSpeed = reader.ReadSByte() / 5f;
-                player.VerticalSpeed = reader.ReadSByte() / 5f;
-                player.AimDirectionDegrees = reader.ReadUInt16() * 360f / 65536f;
+                player.HorizontalSpeed = reader.ReadSByte() / 8.5f;
+                player.VerticalSpeed = reader.ReadSByte() / 8.5f;
+                // The final ushort is the weapon's random seed, not its aim.
+                // Aim comes from GG2's INPUTSTATE/QUICK_UPDATE state packets.
+                _ = reader.ReadUInt16();
+                // WEAPON_FIRE arrives between state ticks. Preserve its recoil
+                // edge through the next tick's transient-state update.
+                player.InputFireCooldownTicks = Math.Max(player.InputFireCooldownTicks, 2);
                 SpawnWeaponPresentation(player);
             }
 
@@ -1326,9 +1594,93 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                 {
                     var player = _players[index];
                     ReadPlayerState(reader, player, fullUpdate: false, includeQuickState: false, playerCount);
+                    if ((player.KeyState & (LegacyKeyLeft | LegacyKeyRight | LegacyKeyJump)) != 0)
+                    {
+                        player.IsAuthoritativelyStationary = false;
+                    }
                 }
 
                 AdvancePlayersFromInputTick();
+                AdvanceMatchClockTick();
+                StartInputDrivenSpyStabs();
+                SpawnInputDrivenWeaponPresentation();
+            }
+
+            private void AdvanceMatchClockTick()
+            {
+                if (MatchPhase != MatchPhase.Running)
+                {
+                    return;
+                }
+
+                if (TimeRemainingTicks > 0)
+                {
+                    TimeRemainingTicks -= 1;
+                }
+
+                if (ControlPointSetupTicksRemaining > 0)
+                {
+                    ControlPointSetupTicksRemaining -= 1;
+                }
+
+                if (_arenaUnlockTicksRemaining > 0)
+                {
+                    _arenaUnlockTicksRemaining -= 1;
+                }
+
+                if (KothUnlockTicksRemaining > 0)
+                {
+                    KothUnlockTicksRemaining -= 1;
+                    return;
+                }
+
+                foreach (var point in _controlPoints)
+                {
+                    if (point.IsLocked)
+                    {
+                        continue;
+                    }
+
+                    var countsForRed = GameMode == GameModeKind.KingOfTheHill
+                        ? point.Index == 1
+                        : point.Marker.IsBlueKothControlPoint();
+                    var countsForBlue = GameMode == GameModeKind.KingOfTheHill
+                        ? point.Index == 1
+                        : point.Marker.IsRedKothControlPoint();
+                    if (countsForRed && point.TeamLegacy == LegacyTeamRed && KothRedTimerTicksRemaining > 0)
+                    {
+                        KothRedTimerTicksRemaining -= 1;
+                    }
+                    if (countsForBlue && point.TeamLegacy == LegacyTeamBlue && KothBlueTimerTicksRemaining > 0)
+                    {
+                        KothBlueTimerTicksRemaining -= 1;
+                    }
+                }
+            }
+
+            private void StartInputDrivenSpyStabs()
+            {
+                foreach (var player in _players)
+                {
+                    if (!player.HasCharacter || player.ClassId != LegacyClassSpy
+                        || player.SpyStabCooldownTicks > 0
+                        || player.HeavyEatTicksRemaining > 0
+                        || !player.IsSpyCloaked
+                        || (player.KeyState & LegacyKeyLeftClick) == 0
+                        || (player.KeyState & LegacyKeyRightClick) != 0)
+                    {
+                        continue;
+                    }
+
+                    player.SpyStabCooldownTicks = LegacySpyStabCooldownTicks;
+                    player.SpyStabVisualTicksRemaining = StabAnimEntity.TotalLifetimeTicks;
+                    QueueVisualEvent(
+                        player.Team == LegacyTeamBlue ? "BackstabBlue" : "BackstabRed",
+                        player.X,
+                        player.Y,
+                        ToSnapshotAimDirectionDegrees(player.AimDirectionDegrees),
+                        player.StablePlayerId);
+                }
             }
 
             private void ReadStateUpdate(BinaryReader reader, bool fullUpdate)
@@ -1353,10 +1705,27 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                 {
                     ReadFullUpdateTail(reader);
                 }
+
+                SpawnInputDrivenWeaponPresentation();
             }
 
             private void ReadFullUpdateTail(BinaryReader reader)
             {
+                if (_liveStream)
+                {
+                    // Unlike a .dsm frame, TCP has no enclosing record boundary.
+                    // Consume the complete GG2 serializeState(FULL_UPDATE) tail.
+                    ReadIntelSet(reader, RedIntel);
+                    ReadIntelSet(reader, BlueIntel);
+                    reader.ReadByte(); // cap limit
+                    RedCaps = reader.ReadByte();
+                    BlueCaps = reader.ReadByte();
+                    RespawnSeconds = reader.ReadByte();
+                    ReadModeSpecificScoreState(reader);
+                    SkipBytes(reader, 10); // class limits
+                    return;
+                }
+
                 if (GameMode == GameModeKind.CaptureTheFlag)
                 {
                     ReadIntelSet(reader, RedIntel);
@@ -1535,7 +1904,7 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                 var subobjects = reader.ReadByte();
                 var hasCharacter = (subobjects & 0x01) != 0;
                 var hasSentry = (subobjects & 0x02) != 0;
-                player.HasCharacter = hasCharacter;
+                player.HasCharacter = hasCharacter && (!player.WaitingForSpawnPosition || includeQuickState);
                 player.HasSentry = hasSentry;
 
                 if (hasCharacter)
@@ -1546,10 +1915,38 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
 
                     if (includeQuickState)
                     {
-                        player.X = reader.ReadUInt16() / 5f;
-                        player.Y = reader.ReadUInt16() / 5f;
+                        var authoritativeX = reader.ReadUInt16() / 5f;
+                        var authoritativeY = reader.ReadUInt16() / 5f;
                         player.HorizontalSpeed = reader.ReadSByte() / 8.5f;
                         player.VerticalSpeed = reader.ReadSByte() / 8.5f;
+                        player.IsAuthoritativelyStationary = player.HasAuthoritativePosition
+                            && (player.KeyState & (LegacyKeyLeft | LegacyKeyRight | LegacyKeyJump)) == 0
+                            && MathF.Abs(authoritativeX - player.LastAuthoritativeX) <= 1f
+                            && MathF.Abs(authoritativeY - player.LastAuthoritativeY) <= 1f;
+                        player.HasAuthoritativePosition = true;
+                        if (player.IsAuthoritativelyStationary)
+                        {
+                            // Repeated GG2 positions are a stronger rest signal
+                            // than the coarsely quantized velocity bytes. Keep
+                            // the last stable position for rendering and camera.
+                            player.X = player.LastAuthoritativeX;
+                            player.Y = player.LastAuthoritativeY;
+                            player.HorizontalSpeed = 0f;
+                            player.VerticalSpeed = 0f;
+                        }
+                        else
+                        {
+                            player.LastAuthoritativeX = authoritativeX;
+                            player.LastAuthoritativeY = authoritativeY;
+                            player.X = authoritativeX;
+                            player.Y = authoritativeY;
+                        }
+                        if (player.WaitingForSpawnPosition)
+                        {
+                            player.WaitingForSpawnPosition = false;
+                            player.HasCharacter = true;
+                            QueueSoundEvent("RespawnSnd", player.X, player.Y, player.StablePlayerId);
+                        }
                         player.Health = reader.ReadByte();
                         player.Ammo = reader.ReadByte();
                         var flags = reader.ReadByte();
@@ -1615,8 +2012,19 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                         TicksRemaining = mine.TicksRemaining
                     })
                     .ToList();
-                player.WeaponReadyToShoot = reader.ReadByte() != 0;
-                player.WeaponCooldownTicks = reader.ReadByte();
+                // Medigun overrides the base Weapon serialization and sends
+                // only its heal target. Other weapons send ready/cooldown;
+                // Minegun adds lobbed count and its mines after those bytes.
+                if (player.ClassId == LegacyClassMedic)
+                {
+                    player.WeaponReadyToShoot = false;
+                    player.WeaponCooldownTicks = 0;
+                }
+                else
+                {
+                    player.WeaponReadyToShoot = reader.ReadByte() != 0;
+                    player.WeaponCooldownTicks = reader.ReadByte();
+                }
                 player.WeaponAuxTicks = 0;
                 player.PyroGas = 0;
                 player.HeavyBullets = 0;
@@ -1627,29 +2035,11 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
 
                 switch (player.ClassId)
                 {
-                    case LegacyClassScout:
-                    case LegacyClassSoldier:
-                    case LegacyClassEngineer:
-                    case LegacyClassSpy:
-                        player.WeaponAuxTicks = reader.ReadByte();
-                        break;
-                    case LegacyClassPyro:
-                        player.PyroGas = reader.ReadByte();
-                        break;
-                    case LegacyClassHeavy:
-                        player.HeavyBullets = reader.ReadByte();
-                        break;
                     case LegacyClassMedic:
                     {
-                        player.WeaponAuxTicks = reader.ReadByte();
-                        player.MedicIsHealing = reader.ReadByte() != 0;
-                        if (!player.MedicIsHealing)
-                        {
-                            break;
-                        }
-
                         var healTargetIndex = reader.ReadByte();
-                        player.MedicHealTargetPlayerId = healTargetIndex == 200 || healTargetIndex >= _players.Count
+                        player.MedicIsHealing = healTargetIndex != byte.MaxValue;
+                        player.MedicHealTargetPlayerId = healTargetIndex == byte.MaxValue || healTargetIndex >= _players.Count
                             ? -1
                             : _players[healTargetIndex].StablePlayerId;
                         break;
@@ -1657,7 +2047,6 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                     case LegacyClassDemoman:
                     {
                         var lobbedMineCount = reader.ReadByte();
-                        player.WeaponAuxTicks = reader.ReadByte();
                         for (var index = 0; index < lobbedMineCount; index += 1)
                         {
                             var mine = new LegacyReplayMineState
@@ -1677,9 +2066,6 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
 
                         break;
                     }
-                    case LegacyClassQuote:
-                        player.BladePower = reader.ReadByte();
-                        break;
                 }
             }
 
@@ -1727,6 +2113,29 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
             private void AdvancePlayerFromInputState(LegacyReplayPlayer player)
             {
                 var classDefinition = CharacterClassCatalog.GetDefinition(MapLegacyClassToCurrent(player.ClassId));
+                // The original server supplies the resting position on quick
+                // updates. Re-running an approximate collision model at rest
+                // introduces subpixel floor corrections that flicker sprites.
+                if ((player.KeyState & (LegacyKeyLeft | LegacyKeyRight | LegacyKeyJump)) == 0
+                    && (player.IsAuthoritativelyStationary
+                        || (MathF.Abs(player.HorizontalSpeed) < 0.125f
+                            && MathF.Abs(player.VerticalSpeed) < 0.125f)
+                        || (player.HasAuthoritativePosition
+                            && MathF.Abs(player.HorizontalSpeed) < 1f
+                            && MathF.Abs(player.VerticalSpeed) < 1f
+                            && IsPlayerGrounded(player, classDefinition))))
+                {
+                    if (player.IsAuthoritativelyStationary)
+                    {
+                        player.X = player.LastAuthoritativeX;
+                        player.Y = player.LastAuthoritativeY;
+                    }
+                    player.HorizontalSpeed = 0f;
+                    player.VerticalSpeed = 0f;
+                    player.WasJumpHeldLastTick = false;
+                    return;
+                }
+
                 ResolveEmbeddedPlayerCollision(player, classDefinition);
 
                 var movementState = ToLegacyMovementState(player.MovementState);
@@ -1749,6 +2158,7 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                     {
                         player.VerticalSpeed = -classDefinition.JumpStrength;
                         wasGrounded = false;
+                        QueueSoundEvent("JumpSnd", player.X, player.Y, player.StablePlayerId);
                     }
                     else if (classDefinition.MaxAirJumps > 0 && player.AirJumpsUsed < classDefinition.MaxAirJumps)
                     {
@@ -1757,6 +2167,7 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                         player.MovementState = 0;
                         movementState = LegacyMovementState.None;
                         wasGrounded = false;
+                        QueueSoundEvent("JumpSnd", player.X, player.Y, player.StablePlayerId);
                     }
                 }
 
@@ -1781,18 +2192,18 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                 player.HorizontalSpeed = nextHorizontalSpeedPerSecond / TickRate;
                 player.HorizontalSpeed = Math.Clamp(
                     player.HorizontalSpeed,
-                    -LegacyMovementModel.MaxStepSpeedPerTick,
-                    LegacyMovementModel.MaxStepSpeedPerTick);
+                    -LegacyGg2MaxStepSpeedPerTick,
+                    LegacyGg2MaxStepSpeedPerTick);
                 player.VerticalSpeed = Math.Clamp(
                     player.VerticalSpeed,
-                    -LegacyMovementModel.MaxStepSpeedPerTick,
-                    LegacyMovementModel.MaxStepSpeedPerTick);
+                    -LegacyGg2MaxStepSpeedPerTick,
+                    LegacyGg2MaxStepSpeedPerTick);
 
                 var applyGravity = !wasGrounded && !IntersectsPlayerSolid(classDefinition, player.X, player.Y);
                 if (applyGravity)
                 {
                     player.VerticalSpeed = MathF.Min(
-                        LegacyMovementModel.MaxFallSpeedPerTick,
+                        LegacyGg2MaxFallSpeedPerTick,
                         player.VerticalSpeed + (LegacyMovementModel.GetAirborneGravityPerTick(movementState) * 0.5f));
                 }
 
@@ -1803,7 +2214,7 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                     if (applyGravity || !IntersectsPlayerSolid(classDefinition, player.X, player.Y))
                     {
                         player.VerticalSpeed = MathF.Min(
-                            LegacyMovementModel.MaxFallSpeedPerTick,
+                            LegacyGg2MaxFallSpeedPerTick,
                             player.VerticalSpeed + (LegacyMovementModel.GetAirborneGravityPerTick(movementState) * 0.5f));
                     }
                 }
@@ -2117,6 +2528,7 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
 
             private void ClearTransientPresentationState()
             {
+                _localDeathCam = null;
                 _shots.Clear();
                 _bubbles.Clear();
                 _blades.Clear();
@@ -2130,6 +2542,7 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                 _combatTraces.Clear();
                 _pendingVisualEvents.Clear();
                 _pendingSoundEvents.Clear();
+                _pendingGibSpawnEvents.Clear();
                 _killFeed.Clear();
             }
 
@@ -2156,14 +2569,51 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
 
             private void TickTransientState()
             {
+                if (_localDeathCam is { } deathCam)
+                {
+                    _localDeathCam = deathCam.RemainingTicks > 1
+                        ? deathCam with { RemainingTicks = deathCam.RemainingTicks - 1 }
+                        : null;
+                }
                 foreach (var player in _players)
                 {
+                    if (player.WeaponCooldownTicks > 0)
+                    {
+                        player.WeaponCooldownTicks -= 1;
+                    }
+
+                    if (player.InputFireCooldownTicks > 0)
+                    {
+                        player.InputFireCooldownTicks -= 1;
+                    }
+
+                    if (player.PyroFlameLoopTicksRemaining > 0)
+                    {
+                        player.PyroFlameLoopTicksRemaining -= 1;
+                    }
+
+                    if (player.HeavyEatTicksRemaining > 0)
+                    {
+                        player.HeavyEatTicksRemaining -= 1;
+                    }
+
+                    if (player.SpyStabCooldownTicks > 0)
+                    {
+                        player.SpyStabCooldownTicks -= 1;
+                    }
+
+                    if (player.SpyStabVisualTicksRemaining > 0)
+                    {
+                        player.SpyStabVisualTicksRemaining -= 1;
+                    }
+
                     if (player.ChatBubbleTicksRemaining > 0)
                     {
                         player.ChatBubbleTicksRemaining -= 1;
                     }
 
                     TickMines(player);
+                    TickSentryPresentation(player);
                 }
 
                 TickKillFeed();
@@ -2180,11 +2630,92 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                 TickFlames();
             }
 
+            private void TickSentryPresentation(LegacyReplayPlayer owner)
+            {
+                if (!owner.HasSentry || !owner.SentryBuilt || owner.Team is not (LegacyTeamRed or LegacyTeamBlue))
+                {
+                    owner.SentryTargetPlayerId = -1;
+                    owner.SentryFireCooldownTicks = 0;
+                    owner.SentryShotTraceTicks = 0;
+                    owner.SentryIdleTicks = 0;
+                    return;
+                }
+
+                if (owner.SentryShotTraceTicks > 0)
+                {
+                    owner.SentryShotTraceTicks -= 1;
+                }
+
+                if (owner.SentryFireCooldownTicks > 0)
+                {
+                    owner.SentryFireCooldownTicks -= 1;
+                }
+
+                LegacyReplayPlayer? target = null;
+                var bestDistanceSquared = 375f * 375f;
+                foreach (var candidate in _players)
+                {
+                    if (!candidate.HasCharacter || candidate.Team == owner.Team || candidate.IsSpyCloaked
+                        || candidate.Team is not (LegacyTeamRed or LegacyTeamBlue))
+                    {
+                        continue;
+                    }
+
+                    var deltaX = candidate.X - owner.SentryX;
+                    var deltaY = candidate.Y - owner.SentryY;
+                    var distanceSquared = deltaX * deltaX + deltaY * deltaY;
+                    if (distanceSquared >= bestDistanceSquared || MathF.Abs(deltaY) > MathF.Abs(deltaX) + 16f
+                        || IsReplayProjectileSpawnBlocked(owner.SentryX, owner.SentryY, candidate.X, candidate.Y))
+                    {
+                        continue;
+                    }
+
+                    bestDistanceSquared = distanceSquared;
+                    target = candidate;
+                }
+
+                if (target is null)
+                {
+                    owner.SentryTargetPlayerId = -1;
+                    owner.SentryIdleTicks -= 1;
+                    if (owner.SentryIdleTicks <= 0)
+                    {
+                        QueueSoundEvent("SentryIdle", owner.SentryX, owner.SentryY);
+                        owner.SentryIdleTicks = 90;
+                    }
+                    return;
+                }
+
+                owner.SentryIdleTicks = 90;
+                if (owner.SentryTargetPlayerId != target.StablePlayerId)
+                {
+                    QueueSoundEvent("SentryAlert", owner.SentryX, owner.SentryY);
+                    owner.SentryFireCooldownTicks = Math.Max(owner.SentryFireCooldownTicks, 10);
+                }
+
+                owner.SentryTargetPlayerId = target.StablePlayerId;
+                if (MathF.Abs(target.X - owner.SentryX) > 0.01f)
+                {
+                    owner.SentryFacingDirectionX = MathF.Sign(target.X - owner.SentryX);
+                }
+                if (owner.SentryFireCooldownTicks > 0)
+                {
+                    return;
+                }
+
+                QueueSoundEvent("ShotgunSnd", owner.SentryX, owner.SentryY);
+                owner.SentryShotTraceTicks = 2;
+                owner.SentryLastShotTargetX = target.X;
+                owner.SentryLastShotTargetY = target.Y;
+                owner.SentryFireCooldownTicks = 5;
+            }
+
             private SnapshotPlayerState CreateSnapshotPlayerState(LegacyReplayPlayer player, int listIndex)
             {
                 var isPlayableTeam = player.Team == LegacyTeamRed || player.Team == LegacyTeamBlue;
                 var classId = MapLegacyClassToCurrent(player.ClassId);
                 var classDefinition = CharacterClassCatalog.GetDefinition(classId);
+                var stockLoadout = CharacterClassCatalog.RuntimeRegistry.CreatePlayerLoadoutState(classId);
                 var snapshotTeam = ToSnapshotTeam(player.Team);
                 var maxAmmo = classDefinition.PrimaryWeapon.MaxAmmo;
                 var ammo = ResolveSnapshotAmmo(player, classDefinition);
@@ -2194,6 +2725,7 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                 var isSpectator = !isPlayableTeam;
                 var slot = isSpectator ? (byte)(SimulationWorld.FirstSpectatorSlot + Math.Min(126, listIndex)) : (byte)(listIndex + 1);
                 var (aimWorldX, aimWorldY) = ResolveReplayAimWorldTarget(player);
+                var medicHealTargetId = classId == PlayerClass.Medic ? ResolveMedicHealTargetPlayerId(player) : -1;
 
                 return new SnapshotPlayerState(
                     Slot: slot,
@@ -2202,7 +2734,7 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                     Team: snapshotTeam,
                     ClassId: (byte)classId,
                     IsAlive: isAlive,
-                    IsAwaitingJoin: isPlayableTeam && !player.HasCharacter,
+                    IsAwaitingJoin: isPlayableTeam && !player.HasCharacter && !player.WaitingForSpawnPosition,
                     IsSpectator: isSpectator,
                     RespawnTicks: 0,
                     X: player.X,
@@ -2231,17 +2763,19 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                     IsSpySuperjumping: false,
                     SpySuperjumpHorizontalVelocity: 0f,
                     SpySuperjumpCooldownTicksRemaining: 0,
-                    SpyBackstabVisualTicksRemaining: 0,
+                    SpyBackstabVisualTicksRemaining: player.SpyStabVisualTicksRemaining,
                     IsUbered: false,
                     IsKritzCritBoosted: false,
-                    IsHeavyEating: false,
-                    HeavyEatTicksRemaining: 0,
+                    IsHeavyEating: player.HeavyEatTicksRemaining > 0,
+                    HeavyEatTicksRemaining: player.HeavyEatTicksRemaining,
                     IsSniperScoped: classId == PlayerClass.Sniper && player.IsScoped,
                     IsUsingBinoculars: false,
                     BinocularsFocusX: aimWorldX,
                     BinocularsFocusY: aimWorldY,
                     FacingDirectionX: facingDirectionX,
-                    AimDirectionDegrees: player.AimDirectionDegrees,
+                    // GG2 angles increase upward; SGG presentation angles
+                    // increase downward in screen coordinates.
+                    AimDirectionDegrees: ToSnapshotAimDirectionDegrees(player.AimDirectionDegrees),
                     IsTaunting: false,
                     IsChatBubbleVisible: player.ChatBubbleTicksRemaining > 0,
                     ChatBubbleFrameIndex: player.ChatBubbleFrameIndex,
@@ -2254,26 +2788,36 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                     BurnIntensityDecayPerSourceTick: 0f,
                     BurnedByPlayerId: -1,
                     MovementState: player.MovementState,
-                    PrimaryCooldownTicks: player.WeaponReadyToShoot ? 0 : player.WeaponCooldownTicks,
+                    PrimaryCooldownTicks: classId == PlayerClass.Heavy
+                        ? player.InputFireCooldownTicks
+                        : Math.Max(player.InputFireCooldownTicks, player.WeaponReadyToShoot ? 0 : player.WeaponCooldownTicks),
                     ReloadTicksUntilNextShell: 0,
-                    MedicNeedleCooldownTicks: 0,
+                    MedicNeedleCooldownTicks: classId == PlayerClass.Medic
+                        ? player.InputFireCooldownTicks : 0,
                     MedicNeedleRefillTicks: 0,
                     PyroAirblastCooldownTicks: 0,
                     PyroFlareCooldownTicks: 0,
                     PyroPrimaryFuelScaled: classId == PlayerClass.Pyro ? player.PyroGas * PlayerEntity.PyroPrimaryFuelScale : 0,
                     IsPyroPrimaryRefilling: false,
-                    PyroFlameLoopTicksRemaining: 0,
+                    PyroFlameLoopTicksRemaining: classId == PlayerClass.Pyro
+                        ? player.PyroFlameLoopTicksRemaining : 0,
                     PyroPrimaryRequiresReleaseAfterEmpty: false,
                     HeavyEatCooldownTicksRemaining: 0,
                     Assists: player.Assists,
                     BadgeMask: 0,
-                    GameplayModPackId: string.Empty,
-                    GameplayLoadoutId: string.Empty,
-                    GameplayPrimaryItemId: string.Empty,
-                    GameplaySecondaryItemId: string.Empty,
-                    GameplayUtilityItemId: string.Empty,
+                    IsMedicHealing: medicHealTargetId >= 0,
+                    MedicHealTargetId: medicHealTargetId,
+                    MedicUberCharge: classId == PlayerClass.Medic
+                        ? Math.Clamp(player.MedicUberScaled / 255f, 0f, 1f)
+                        : 0f,
+                    IsMedicUberReady: classId == PlayerClass.Medic && player.MedicUberScaled >= byte.MaxValue,
+                    GameplayModPackId: stockLoadout.ModPackId,
+                    GameplayLoadoutId: stockLoadout.LoadoutId,
+                    GameplayPrimaryItemId: stockLoadout.PrimaryItemId,
+                    GameplaySecondaryItemId: stockLoadout.SecondaryItemId ?? string.Empty,
+                    GameplayUtilityItemId: stockLoadout.UtilityItemId ?? string.Empty,
                     GameplayEquippedSlot: 0,
-                    GameplayEquippedItemId: string.Empty,
+                    GameplayEquippedItemId: stockLoadout.PrimaryItemId,
                     GameplayAcquiredItemId: string.Empty,
                     OwnedGameplayItemIds: Array.Empty<string>(),
                     ReplicatedStates: Array.Empty<SnapshotReplicatedStateEntry>(),
@@ -2291,6 +2835,71 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                 return (
                     player.X + aimDirectionX * aimDistance,
                     player.Y + aimDirectionY * aimDistance);
+            }
+
+            private int ResolveMedicHealTargetPlayerId(LegacyReplayPlayer medic)
+            {
+                if (!medic.HasCharacter || (medic.KeyState & LegacyKeyLeftClick) == 0)
+                {
+                    return -1;
+                }
+
+                if (medic.MedicIsHealing && _players.Any(candidate =>
+                    candidate.StablePlayerId == medic.MedicHealTargetPlayerId
+                    && candidate.HasCharacter && candidate.Team == medic.Team))
+                {
+                    return medic.MedicHealTargetPlayerId;
+                }
+
+                // GG2's normal updates omit the Medigun target. Its client
+                // acquires one locally from the replicated aim and key state.
+                GetAimDirection(medic.AimDirectionDegrees, out var aimX, out var aimY);
+                var mouseX = medic.X + aimX * medic.AimDistance;
+                var mouseY = medic.Y + aimY * medic.AimDistance;
+                var bestScore = float.NegativeInfinity;
+                var bestTargetId = -1;
+                foreach (var candidate in _players)
+                {
+                    if (ReferenceEquals(candidate, medic) || !candidate.HasCharacter || candidate.Team != medic.Team)
+                    {
+                        continue;
+                    }
+
+                    var deltaX = candidate.X - medic.X;
+                    var deltaY = candidate.Y - medic.Y;
+                    var distanceSquared = deltaX * deltaX + deltaY * deltaY;
+                    if (distanceSquared > 300f * 300f || distanceSquared < 1f)
+                    {
+                        continue;
+                    }
+
+                    var distanceAlongAim = deltaX * aimX + deltaY * aimY;
+                    var distanceAcrossAim = MathF.Abs(deltaX * aimY - deltaY * aimX);
+                    var targetDefinition = CharacterClassCatalog.GetDefinition(MapLegacyClassToCurrent(candidate.ClassId));
+                    var targetHalfWidth = MathF.Max(10f, (targetDefinition.CollisionRight - targetDefinition.CollisionLeft) * 0.5f);
+                    if (distanceAlongAim < 0f || distanceAlongAim > 300f
+                        || distanceAcrossAim > targetHalfWidth
+                        || IsReplayProjectileSpawnBlocked(medic.X, medic.Y, candidate.X, candidate.Y))
+                    {
+                        continue;
+                    }
+
+                    var mouseDeltaX = candidate.X - mouseX;
+                    var mouseDeltaY = candidate.Y - mouseY;
+                    var mouseDistance = MathF.Sqrt(mouseDeltaX * mouseDeltaX + mouseDeltaY * mouseDeltaY);
+                    var score = mouseDistance <= 150f
+                        ? 3f - mouseDistance / 150f
+                        : 1f - MathF.Sqrt(distanceSquared) / 300f;
+                    if (score <= bestScore)
+                    {
+                        continue;
+                    }
+
+                    bestScore = score;
+                    bestTargetId = candidate.StablePlayerId;
+                }
+
+                return bestTargetId;
             }
 
             private List<SnapshotSentryState> CreateSnapshotSentries()
@@ -2313,11 +2922,11 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                         IsBuilt: player.SentryBuilt,
                         FacingDirectionX: player.SentryFacingDirectionX,
                         AimDirectionDegrees: 0f,
-                        ShotTraceTicksRemaining: 0,
+                        ShotTraceTicksRemaining: player.SentryShotTraceTicks,
                         HasLanded: true,
-                        HasActiveTarget: false,
-                        LastShotTargetX: player.SentryX,
-                        LastShotTargetY: player.SentryY));
+                        HasActiveTarget: player.SentryTargetPlayerId >= 0,
+                        LastShotTargetX: player.SentryLastShotTargetX,
+                        LastShotTargetY: player.SentryLastShotTargetY));
                 }
 
                 return sentries;
@@ -2630,7 +3239,7 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
 
                 if (!string.IsNullOrWhiteSpace(soundName))
                 {
-                    QueueSoundEvent(soundName, player.X, player.Y);
+                    QueueSoundEvent(soundName, player.X, player.Y, player.StablePlayerId);
                 }
             }
 
@@ -2639,6 +3248,11 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                 if (currentClass == PlayerClass.Quote && (player.KeyState & LegacyKeyRightClick) != 0)
                 {
                     return "BladeSnd";
+                }
+
+                if (currentClass == PlayerClass.Quote)
+                {
+                    return string.Empty;
                 }
 
                 if (currentClass == PlayerClass.Medic && (player.KeyState & LegacyKeyRightClick) != 0)
@@ -2659,7 +3273,7 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                 };
             }
 
-            private void QueueSoundEvent(string soundName, float x, float y)
+            private void QueueSoundEvent(string soundName, float x, float y, int sourcePlayerId = -1)
             {
                 if (string.IsNullOrWhiteSpace(soundName))
                 {
@@ -2671,7 +3285,8 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                     x,
                     y,
                     EventId: _nextReplayEventId++,
-                    SourceFrame: SnapshotFrame));
+                    SourceFrame: SnapshotFrame,
+                    SourcePlayerId: sourcePlayerId));
             }
 
             private void QueueVisualEvent(string effectName, float x, float y, float directionDegrees, int count)
@@ -2691,6 +3306,68 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                     SourceFrame: SnapshotFrame));
             }
 
+            private void SpawnInputDrivenWeaponPresentation()
+            {
+                // Stock GG2 sends WEAPON_FIRE only for the six weapons whose
+                // spread needs a shared seed. These weapons fire directly from
+                // the replicated key state in the original client instead.
+                foreach (var player in _players)
+                {
+                    if (!player.HasCharacter || player.Team is not (LegacyTeamRed or LegacyTeamBlue)
+                        || player.HeavyEatTicksRemaining > 0
+                        || player.InputFireCooldownTicks > 0)
+                    {
+                        continue;
+                    }
+
+                    var primaryHeld = (player.KeyState & LegacyKeyLeftClick) != 0;
+                    var secondaryHeld = (player.KeyState & LegacyKeyRightClick) != 0;
+                    switch (MapLegacyClassToCurrent(player.ClassId))
+                    {
+                        case PlayerClass.Pyro when primaryHeld && player.Ammo >= 2:
+                            player.InputFireCooldownTicks = 1;
+                            SpawnWeaponPresentation(player);
+                            break;
+                        case PlayerClass.Heavy when primaryHeld && player.Ammo >= 2:
+                            player.InputFireCooldownTicks = 2;
+                            SpawnWeaponPresentation(player);
+                            break;
+                        case PlayerClass.Medic when secondaryHeld && player.Ammo > 0 && !player.MedicIsHealing:
+                            player.InputFireCooldownTicks = 3;
+                            SpawnMedicNeedlePresentation(player);
+                            break;
+                        case PlayerClass.Quote when secondaryHeld
+                            && !_blades.Any(blade => blade.OwnerId == player.StablePlayerId):
+                            player.InputFireCooldownTicks = 5;
+                            SpawnWeaponPresentation(player);
+                            break;
+                        case PlayerClass.Quote when primaryHeld
+                            && _bubbles.Count(bubble => bubble.OwnerId == player.StablePlayerId) < 25:
+                            player.InputFireCooldownTicks = 4;
+                            SpawnWeaponPresentation(player);
+                            break;
+                    }
+                }
+            }
+
+            private void SpawnMedicNeedlePresentation(LegacyReplayPlayer player)
+            {
+                var weaponOrigin = GetReplaySourceWeaponOrigin(
+                    player, PlayerClass.Medic,
+                    CharacterClassCatalog.GetDefinition(PlayerClass.Medic));
+                GetAimDirection(player.AimDirectionDegrees, out var directionX, out var directionY);
+                _needles.Add(new LegacyReplayProjectileState(
+                    NextTransientEntityId(),
+                    ToSnapshotTeam(player.Team),
+                    player.StablePlayerId,
+                    weaponOrigin.BaseX,
+                    weaponOrigin.BaseY + weaponOrigin.WeaponYOffset + 1f,
+                    directionX * 8.5f + player.HorizontalSpeed,
+                    directionY * 8.5f,
+                    NeedleProjectileEntity.LifetimeTicks));
+                QueueSoundEvent("MedichaingunSnd", player.X, player.Y, player.StablePlayerId);
+            }
+
             private void SpawnWeaponPresentation(LegacyReplayPlayer player)
             {
                 if (!player.HasCharacter || player.Team is not (LegacyTeamRed or LegacyTeamBlue))
@@ -2705,7 +3382,10 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                 var team = ToSnapshotTeam(player.Team);
                 var weaponOrigin = GetReplaySourceWeaponOrigin(player, currentClass, classDefinition);
                 var weaponKind = ResolveReplayWeaponKind(player, currentClass, classDefinition.PrimaryWeapon.Kind);
-                QueueWeaponSound(player, classDefinition);
+                if (weaponKind != PrimaryWeaponKind.FlameThrower)
+                {
+                    QueueWeaponSound(player, classDefinition);
+                }
 
                 switch (weaponKind)
                 {
@@ -2715,6 +3395,7 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                         var spawnY = weaponOrigin.BaseY + directionY * 20f;
                         if (IsReplayProjectileSpawnBlocked(weaponOrigin.BaseX, weaponOrigin.BaseY, spawnX, spawnY))
                         {
+                            QueueVisualEvent("Explosion", spawnX, spawnY, 0f, 1);
                             QueueSoundEvent("ExplosionSnd", spawnX, spawnY);
                             break;
                         }
@@ -2790,6 +3471,8 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                             break;
                         }
 
+                        player.PyroFlameLoopTicksRemaining = 2;
+                        QueueWeaponSound(player, classDefinition);
                         _flames.Add(new LegacyReplayFlameState(
                             NextTransientEntityId(),
                             team,
@@ -3106,6 +3789,17 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                 for (var index = projectiles.Count - 1; index >= 0; index -= 1)
                 {
                     var projectile = projectiles[index];
+                    if (projectile.ImpactPresentationTicks > 0)
+                    {
+                        projectile.ImpactPresentationTicks -= 1;
+                        if (projectile.ImpactPresentationTicks == 0)
+                        {
+                            projectiles.RemoveAt(index);
+                        }
+
+                        continue;
+                    }
+
                     var previousX = projectile.X;
                     var previousY = projectile.Y;
                     projectile.X += projectile.VelocityX;
@@ -3147,7 +3841,13 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                                 QueueVisualEvent("Blood", hit.HitPlayer.X, hit.HitPlayer.Y, PointDirectionDegrees(previousX, previousY, hit.HitPlayer.X, hit.HitPlayer.Y) - 180f, bloodEffectCount);
                             }
 
-                            projectiles.RemoveAt(index);
+                            // A shot can be created and hit before the next GG2
+                            // state packet. Keep its last position in two output
+                            // snapshots so the hit is visible at render cadence.
+                            projectile.VelocityX = 0f;
+                            projectile.VelocityY = 0f;
+                            projectile.TicksRemaining = 2;
+                            projectile.ImpactPresentationTicks = 2;
                             continue;
                         }
                     }
@@ -3191,6 +3891,7 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                         {
                             rocket.X = hit.HitX;
                             rocket.Y = hit.HitY;
+                            QueueVisualEvent("Explosion", hit.HitX, hit.HitY, 0f, 1);
                             QueueSoundEvent("ExplosionSnd", hit.HitX, hit.HitY);
                             _combatTraces.Add(new LegacyReplayCombatTrace(
                                 rocket.PreviousX,
@@ -3217,6 +3918,47 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                         _rockets.RemoveAt(index);
                     }
                 }
+            }
+
+            private void ResolveReplayRocketDeathImpact(LegacyReplayPlayer victim, int killerIndex, byte deathSource)
+            {
+                if (deathSource is not (9 or 14) || _rockets.Count == 0)
+                {
+                    return;
+                }
+
+                var killerId = killerIndex >= 0 && killerIndex < _players.Count
+                    ? _players[killerIndex].StablePlayerId : -1;
+                var bestIndex = -1;
+                var bestDistanceSquared = 96f * 96f;
+                for (var index = 0; index < _rockets.Count; index += 1)
+                {
+                    var rocket = _rockets[index];
+                    if (killerId >= 0 && rocket.OwnerId != killerId)
+                    {
+                        continue;
+                    }
+
+                    var deltaX = rocket.X - victim.X;
+                    var deltaY = rocket.Y - victim.Y;
+                    var distanceSquared = deltaX * deltaX + deltaY * deltaY;
+                    if (distanceSquared >= bestDistanceSquared)
+                    {
+                        continue;
+                    }
+
+                    bestIndex = index;
+                    bestDistanceSquared = distanceSquared;
+                }
+
+                if (bestIndex < 0)
+                {
+                    return;
+                }
+
+                _rockets.RemoveAt(bestIndex);
+                QueueVisualEvent("Explosion", victim.X, victim.Y, 0f, 1);
+                QueueSoundEvent("ExplosionSnd", victim.X, victim.Y);
             }
 
             private void TickFlames()
@@ -3364,11 +4106,19 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                     }
                 }
 
-                return Math.Abs(player.VerticalSpeed) < 0.2f;
+                return false;
             }
 
             private static PrimaryWeaponKind ResolveReplayWeaponKind(LegacyReplayPlayer player, PlayerClass currentClass, PrimaryWeaponKind primaryWeaponKind)
             {
+                // SGG's class in this slot is Civvie with an umbrella. Stock
+                // GG2's class in the same protocol slot is Quote with bubbles
+                // and blades, so its projectiles need the legacy weapon kind.
+                if (currentClass == PlayerClass.Quote)
+                {
+                    return PrimaryWeaponKind.Blade;
+                }
+
                 if (currentClass == PlayerClass.Medic && (player.KeyState & LegacyKeyRightClick) != 0)
                 {
                     return PrimaryWeaponKind.PelletGun;
@@ -3429,19 +4179,26 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                 PlayerClass currentClass,
                 CharacterClassDefinition classDefinition)
             {
-                var bottom = player.Y + classDefinition.CollisionBottom + 2f;
-                var openRight = !IsPointBlockedForReplayPlayer(player, currentClass, classDefinition, player.X + 6f, bottom)
-                    && !IsPointBlockedForReplayPlayer(player, currentClass, classDefinition, player.X + 2f, bottom);
-                var openLeft = !IsPointBlockedForReplayPlayer(player, currentClass, classDefinition, player.X - 7f, bottom)
-                    && !IsPointBlockedForReplayPlayer(player, currentClass, classDefinition, player.X - 3f, bottom);
+                var nearLeftSupported = IsReplayFloorSupported(player, currentClass, classDefinition, player.X - 3f);
+                var farLeftSupported = IsReplayFloorSupported(player, currentClass, classDefinition, player.X - 7f);
+                var nearRightSupported = IsReplayFloorSupported(player, currentClass, classDefinition, player.X + 2f);
+                var farRightSupported = IsReplayFloorSupported(player, currentClass, classDefinition, player.X + 6f);
+                return LegacyGg2LeanPose.Resolve(
+                    nearLeftSupported,
+                    farLeftSupported,
+                    nearRightSupported,
+                    farRightSupported) != LegacyGg2LeanPose.Direction.None ? 6f : 0f;
+            }
 
-                if (openRight && openLeft)
-                {
-                    openRight = !IsPointBlockedForReplayPlayer(player, currentClass, classDefinition, player.X + classDefinition.CollisionRight - 1f, bottom);
-                    openLeft = !IsPointBlockedForReplayPlayer(player, currentClass, classDefinition, player.X + classDefinition.CollisionLeft, bottom);
-                }
-
-                return openRight ^ openLeft ? 6f : 0f;
+            private bool IsReplayFloorSupported(
+                LegacyReplayPlayer player,
+                PlayerClass currentClass,
+                CharacterClassDefinition classDefinition,
+                float x)
+            {
+                var bottom = player.Y + classDefinition.CollisionBottom;
+                return IsPointBlockedForReplayPlayer(player, currentClass, classDefinition, x, bottom + 1f)
+                    || IsPointBlockedForReplayPlayer(player, currentClass, classDefinition, x, bottom + 2f);
             }
 
             private bool IsPointBlockedForReplayPlayer(
@@ -3639,6 +4396,12 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                 directionY = -MathF.Sin(aimRadians);
             }
 
+            internal static float ToSnapshotAimDirectionDegrees(float legacyDegrees)
+            {
+                var converted = (360f - legacyDegrees) % 360f;
+                return converted < 0f ? converted + 360f : converted;
+            }
+
             private static float PointDirectionDegrees(float x1, float y1, float x2, float y2)
             {
                 var degrees = MathF.Atan2(y2 - y1, x2 - x1) * (180f / MathF.PI);
@@ -3668,7 +4431,7 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
 
             private void SpawnReplayDeathRemains(LegacyReplayPlayer victim, int killerIndex, byte deathSource)
             {
-                if (ShouldSpawnReplayGibs(victim, killerIndex, deathSource))
+                if (ShouldSpawnReplayGibs(victim, deathSource))
                 {
                     SpawnReplayPlayerGibs(victim);
                     QueueSoundEvent("Gibbing", victim.X, victim.Y);
@@ -3693,16 +4456,24 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                     victim.VerticalSpeed,
                     ResolveFacingDirection(victim) < 0f));
 
-                if (killerIndex >= 0 && killerIndex < _players.Count && MapLegacyClassToCurrent(_players[killerIndex].ClassId) == PlayerClass.Spy)
+                if (deathSource is >= 1 and <= 19)
+                {
+                    QueueVisualEvent("Blood", victim.X, victim.Y, 0f, 2);
+                }
+
+                if (deathSource is (16 or 17) && killerIndex >= 0 && killerIndex < _players.Count
+                    && MapLegacyClassToCurrent(_players[killerIndex].ClassId) == PlayerClass.Spy)
                 {
                     var killer = _players[killerIndex];
-                    var directionDegrees = PointDirectionDegrees(killer.X, killer.Y, victim.X, victim.Y);
-                    QueueVisualEvent(
-                        killer.Team == LegacyTeamBlue ? "BackstabBlue" : "BackstabRed",
-                        killer.X,
-                        killer.Y,
-                        directionDegrees,
-                        killer.StablePlayerId);
+                    if (killer.SpyStabVisualTicksRemaining <= 0)
+                    {
+                        QueueVisualEvent(
+                            killer.Team == LegacyTeamBlue ? "BackstabBlue" : "BackstabRed",
+                            killer.X,
+                            killer.Y,
+                            PointDirectionDegrees(killer.X, killer.Y, victim.X, victim.Y),
+                            killer.StablePlayerId);
+                    }
                     QueueSoundEvent("KnifeSnd", killer.X, killer.Y);
                 }
                 else
@@ -3711,20 +4482,11 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                 }
             }
 
-            private bool ShouldSpawnReplayGibs(LegacyReplayPlayer victim, int killerIndex, byte deathSource)
+            private bool ShouldSpawnReplayGibs(LegacyReplayPlayer victim, byte deathSource)
             {
-                if (ReplayDefaultGibLevel <= 1 || deathSource == 0)
-                {
-                    return false;
-                }
-
-                if (killerIndex < 0 || killerIndex >= _players.Count)
-                {
-                    return true;
-                }
-
-                var killerClass = MapLegacyClassToCurrent(_players[killerIndex].ClassId);
-                return killerClass is not (PlayerClass.Spy or PlayerClass.Quote or PlayerClass.Sniper);
+                return ReplayDefaultGibLevel > 1
+                    && MapLegacyClassToCurrent(victim.ClassId) != PlayerClass.Quote
+                    && deathSource is 4 or 9 or 14 or 15 or 21 or 24 or 26;
             }
 
             private DeadBodyAnimationKind ResolveReplayDeathAnimationKind(LegacyReplayPlayer victim, int killerIndex, byte deathSource)
@@ -3769,9 +4531,46 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
             private void SpawnReplayPlayerGibs(LegacyReplayPlayer victim)
             {
                 var classId = MapLegacyClassToCurrent(victim.ClassId);
-                var fixedDeltaSeconds = 1f / Math.Max(1, TickRate);
-                var inheritedVelocityX = victim.HorizontalSpeed * fixedDeltaSeconds;
-                var inheritedVelocityY = victim.VerticalSpeed * fixedDeltaSeconds;
+                var inheritedVelocityX = victim.HorizontalSpeed;
+                var inheritedVelocityY = victim.VerticalSpeed;
+
+                // Legacy Quote/Curly players are not the stock Civilian/Employer class.
+                var authoredGameplayClassId = classId switch
+                {
+                    PlayerClass.Scout => "scout",
+                    PlayerClass.Soldier => "soldier",
+                    PlayerClass.Pyro => "pyro",
+                    PlayerClass.Demoman => "demoman",
+                    _ => null,
+                };
+                var authoredTeam = victim.Team switch
+                {
+                    LegacyTeamRed => PlayerTeam.Red,
+                    LegacyTeamBlue => PlayerTeam.Blue,
+                    _ => PlayerTeam.Neutral,
+                };
+                if (AuthoredPlayerGibCatalog.TryGetParts(authoredGameplayClassId, authoredTeam, out var authoredParts))
+                {
+                    foreach (var part in authoredParts)
+                    {
+                        SpawnReplayPlayerGibSet(
+                            victim,
+                            part.SpriteName,
+                            count: 1,
+                            frameIndex: 0,
+                            velocityRangeX: part.VelocityRangeX,
+                            velocityRangeY: part.VelocityRangeY,
+                            rotationRange: part.RotationRange,
+                            horizontalFriction: part.HorizontalFriction,
+                            rotationFriction: part.RotationFriction,
+                            bloodChance: part.BloodChance,
+                            inheritedVelocityX: part.InheritPlayerVelocity ? inheritedVelocityX : 0f,
+                            inheritedVelocityY: part.InheritPlayerVelocity ? inheritedVelocityY : 0f);
+                    }
+
+                    return;
+                }
+
                 SpawnReplayPlayerGibSet(victim, "GibS", ReplayDefaultGibLevel, randomFrameCount: 7, velocityRangeX: 8f, velocityRangeY: 9f, rotationRange: 72f, lifetimeTicks: 210, horizontalFriction: 0.4f, rotationFriction: 0.6f, bloodChance: 1.8f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY);
                 SpawnReplayPlayerGibSet(victim, ToSnapshotTeam(victim.Team) == SnapshotTeamBlue ? "BlueClumpS" : "RedClumpS", ReplayDefaultGibLevel - 1, randomFrameCount: 4, velocityRangeX: 8f, velocityRangeY: 9f, rotationRange: 72f, lifetimeTicks: 250, horizontalFriction: 0.3f, rotationFriction: 0.4f, bloodChance: 2f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY);
 
@@ -3851,7 +4650,7 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                     var spreadX = count <= 1 ? 0f : ((index / (float)Math.Max(1, count - 1)) * 2f - 1f) * velocityRangeX;
                     var spreadY = ((index % 3) - 1) * (velocityRangeY * 0.6f);
                     var rotationSpeed = ((index % 5) - 2) * (rotationRange / 3f);
-                    _playerGibs.Add(new PlayerGibEntity(
+                    var gib = new PlayerGibEntity(
                         NextTransientEntityId(),
                         spriteName,
                         resolvedFrameIndex,
@@ -3863,7 +4662,21 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                         horizontalFriction,
                         rotationFriction,
                         lifetimeTicks,
-                        bloodChance));
+                        bloodChance);
+                    _playerGibs.Add(gib);
+                    _pendingGibSpawnEvents.Add(new SnapshotGibSpawnEvent(
+                        spriteName,
+                        resolvedFrameIndex,
+                        gib.X,
+                        gib.Y,
+                        gib.VelocityX,
+                        gib.VelocityY,
+                        rotationSpeed,
+                        horizontalFriction,
+                        rotationFriction,
+                        lifetimeTicks,
+                        bloodChance,
+                        _nextReplayEventId++));
                 }
             }
 
@@ -3874,9 +4687,47 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                     return;
                 }
 
-                for (var index = currentMineStates.Count; index < previousMineStates.Count; index += 1)
+                // GG2 resends the whole mine list without stable mine IDs. Match
+                // surviving mines by position before choosing explosion sites;
+                // the removed mine is not necessarily at the end of the list.
+                var matchedPrevious = new bool[previousMineStates.Count];
+                foreach (var currentMine in currentMineStates)
                 {
+                    var closestIndex = -1;
+                    var closestDistanceSquared = float.PositiveInfinity;
+                    for (var index = 0; index < previousMineStates.Count; index += 1)
+                    {
+                        if (matchedPrevious[index])
+                        {
+                            continue;
+                        }
+
+                        var previousMine = previousMineStates[index];
+                        var deltaX = previousMine.X - currentMine.X;
+                        var deltaY = previousMine.Y - currentMine.Y;
+                        var distanceSquared = deltaX * deltaX + deltaY * deltaY;
+                        if (distanceSquared < closestDistanceSquared)
+                        {
+                            closestDistanceSquared = distanceSquared;
+                            closestIndex = index;
+                        }
+                    }
+
+                    if (closestIndex >= 0)
+                    {
+                        matchedPrevious[closestIndex] = true;
+                    }
+                }
+
+                for (var index = 0; index < previousMineStates.Count; index += 1)
+                {
+                    if (matchedPrevious[index])
+                    {
+                        continue;
+                    }
+
                     var removedMine = previousMineStates[index];
+                    QueueVisualEvent("ExplosionSmall", removedMine.X, removedMine.Y, 0f, 1);
                     QueueSoundEvent("ExplosionSnd", removedMine.X, removedMine.Y);
                 }
             }
@@ -4146,6 +4997,18 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                 }
 
                 _players.RemoveAt(index);
+                if (_liveStream)
+                {
+                    if (index == LocalPlayerIndex)
+                    {
+                        LocalPlayerIndex = -1;
+                        _localDeathCam = null;
+                    }
+                    else if (index < LocalPlayerIndex)
+                    {
+                        LocalPlayerIndex -= 1;
+                    }
+                }
             }
 
             private static string ReadByteLengthPrefixedString(BinaryReader reader)
@@ -4156,7 +5019,7 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
 
             private static void ReadExpectedJoinMessageType(BinaryReader reader, byte expectedMessageType, string label)
             {
-                var messageStart = reader.BaseStream.Position;
+                var messageStart = reader.BaseStream.CanSeek ? reader.BaseStream.Position : -1;
                 var actualMessageType = reader.ReadByte();
                 if (actualMessageType != expectedMessageType)
                 {
@@ -4239,12 +5102,17 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
 
             public int StablePlayerId { get; }
             public string Name { get; set; }
-            public byte Team { get; set; }
-            public byte ClassId { get; set; } = (byte)PlayerClass.Scout;
+            public byte Team { get; set; } = LegacyTeamSpectator;
+            public byte ClassId { get; set; } = LegacyClassScout;
             public bool HasCharacter { get; set; }
+            public bool WaitingForSpawnPosition { get; set; }
             public bool HasSentry { get; set; }
             public float X { get; set; }
             public float Y { get; set; }
+            public bool HasAuthoritativePosition { get; set; }
+            public float LastAuthoritativeX { get; set; }
+            public float LastAuthoritativeY { get; set; }
+            public bool IsAuthoritativelyStationary { get; set; }
             public float HorizontalSpeed { get; set; }
             public float VerticalSpeed { get; set; }
             public int Health { get; set; }
@@ -4269,6 +5137,11 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
             public int SniperChargeTicks { get; set; }
             public bool WeaponReadyToShoot { get; set; }
             public int WeaponCooldownTicks { get; set; }
+            public int InputFireCooldownTicks { get; set; }
+            public int HeavyEatTicksRemaining { get; set; }
+            public int SpyStabCooldownTicks { get; set; }
+            public int SpyStabVisualTicksRemaining { get; set; }
+            public int PyroFlameLoopTicksRemaining { get; set; }
             public int WeaponAuxTicks { get; set; }
             public int PyroGas { get; set; }
             public int HeavyBullets { get; set; }
@@ -4285,6 +5158,12 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
             public float SentryVerticalSpeed { get; set; }
             public bool SentryBuilt { get; set; }
             public int SentryHealth { get; set; }
+            public int SentryTargetPlayerId { get; set; } = -1;
+            public int SentryFireCooldownTicks { get; set; }
+            public int SentryShotTraceTicks { get; set; }
+            public int SentryIdleTicks { get; set; }
+            public float SentryLastShotTargetX { get; set; }
+            public float SentryLastShotTargetY { get; set; }
             public int AirJumpsUsed { get; set; }
             public bool WasJumpHeldLastTick { get; set; }
             public List<LegacyReplayMineState> Mines { get; } = new();
@@ -4382,6 +5261,7 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
             public float VelocityX { get; set; }
             public float VelocityY { get; set; }
             public int TicksRemaining { get; set; }
+            public int ImpactPresentationTicks { get; set; }
         }
 
         private sealed class LegacyReplayRocketState

@@ -1,0 +1,19 @@
+[Unit]
+Description=OpenGarrison GG2 browser gateway
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=opengarrison
+WorkingDirectory=/opt/opengarrison/gg2-gateway
+ExecStart=/opt/opengarrison/gg2-gateway/OpenGarrison.Gg2Gateway
+Environment=OPENGARRISON_GG2_GATEWAY_URLS=http://127.0.0.1:8768
+Environment=OPENGARRISON_GG2_PUBLIC_ORIGIN=https://api.superganggarrison.com
+Environment=OPENGARRISON_GG2_MAP_CACHE=/var/lib/opengarrison-gg2/maps
+StateDirectory=opengarrison-gg2
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

@@ -156,6 +156,7 @@ public partial class Game1
         ResetRecentProjectileSoundEvents();
         ResetLowPriorityWorldSoundThrottle();
         _pendingNetworkSoundEvents.Clear();
+        _pendingLegacyGg2FireAnimationPlayerIds.Clear();
         ResetExperimentalHealingHudIndicators();
         _portraitRumbleRemainingSeconds = 0f;
         _portraitRumbleIntensity = 0f;
@@ -253,7 +254,8 @@ public partial class Game1
 
     private void RecordPresentedExplosionVisual(string effectName, float x, float y)
     {
-        if (string.Equals(effectName, "Explosion", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(effectName, "Explosion", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(effectName, "ExplosionSmall", StringComparison.OrdinalIgnoreCase))
         {
             _presentedExplosionVisualsThisFrame.Add(new PresentedExplosionVisual(x, y));
         }
@@ -543,7 +545,7 @@ public partial class Game1
         var velocityX = MathF.Cos(radians) * velocity;
         var velocityY = MathF.Sin(radians) * velocity;
 
-        // Apply velocity clamping to match game behavior (MaxStepSpeedPerTick = 15, SourceTicksPerSecond = 30)
+        // Apply velocity clamping to match the current movement defaults.
         var maxSpeed = LegacyMovementModel.MaxStepSpeedPerTick * LegacyMovementModel.SourceTicksPerSecond;
         velocityX = float.Clamp(velocityX, -maxSpeed, maxSpeed);
         velocityY = float.Clamp(velocityY, -maxSpeed, maxSpeed);
@@ -821,7 +823,8 @@ public partial class Game1
 
     private bool ShouldPresentAuthoritativeExplosionVisual(SnapshotVisualEvent visualEvent)
     {
-        return !string.Equals(visualEvent.EffectName, "Explosion", StringComparison.OrdinalIgnoreCase)
+        return (!string.Equals(visualEvent.EffectName, "Explosion", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(visualEvent.EffectName, "ExplosionSmall", StringComparison.OrdinalIgnoreCase))
             || _authoritativeExplosionPresentations.ShouldPresent(
                 visualEvent.SourceFrame,
                 visualEvent.X,
@@ -1452,6 +1455,7 @@ public partial class Game1
         public float LargeScaleMultiplier { get; set; } = 1f;
 
         public float SmallScaleMultiplier { get; set; } = 1f;
+        public bool SmallOnly { get; set; }
     }
 
     private sealed class BubblePopVisual

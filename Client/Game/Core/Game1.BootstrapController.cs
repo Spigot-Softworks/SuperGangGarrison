@@ -340,6 +340,7 @@ public partial class Game1
             _game.DisposeLastToDieBuffIconFrame();
             _game.DisposeGameplayMissPopupFrame();
             _game.DisposeGarrisonBuilderEditorAssets();
+            _game.UnloadCrtPresentation();
             _game._gameRenderTarget?.Dispose();
             _game._gameRenderTarget = null;
             _game._hudRenderTarget?.Dispose();

@@ -119,6 +119,24 @@ public sealed partial class SimulationWorld
             return DegreesToRadians((step / 4f) * spreadDegrees);
         }
 
+        public void FireBoomstick(
+            PlayerEntity attacker,
+            PrimaryWeaponDefinition weaponDefinition,
+            PlayerClass weaponClassId,
+            float aimWorldX,
+            float aimWorldY,
+            string killFeedWeaponSpriteName)
+        {
+            FirePelletWeapon(
+                attacker,
+                weaponDefinition,
+                aimWorldX,
+                aimWorldY,
+                weaponClassId,
+                killFeedWeaponSpriteName,
+                isBoomstickPellet: true);
+        }
+
         private void FirePelletWeapon(
             PlayerEntity attacker,
             PrimaryWeaponDefinition weaponDefinition,
@@ -129,7 +147,8 @@ public sealed partial class SimulationWorld
             float pelletSpawnDistance = 15f,
             int pelletCountMultiplier = 1,
             float spreadMultiplier = 1f,
-            bool forceGibOnKill = false)
+            bool forceGibOnKill = false,
+            bool isBoomstickPellet = false)
         {
             var weaponOrigin = GetSourceWeaponOrigin(attacker, weaponClassId);
             var aimDeltaX = aimWorldX - weaponOrigin.BaseX;
@@ -175,7 +194,8 @@ public sealed partial class SimulationWorld
                         : 0,
                     playerKnockbackImpulse: knockbackPayload.Impulse,
                     playerKnockbackAirborneVerticalScale: knockbackPayload.AirborneVerticalScale,
-                    playerKnockbackGroundedVerticalScale: knockbackPayload.GroundedVerticalScale);
+                    playerKnockbackGroundedVerticalScale: knockbackPayload.GroundedVerticalScale,
+                    isBoomstickPellet: isBoomstickPellet);
             }
 
             TryFireExperimentalEngineerOverkillAugment(

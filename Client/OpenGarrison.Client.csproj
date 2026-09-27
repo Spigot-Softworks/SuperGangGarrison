@@ -8,6 +8,11 @@
     <PublishReadyToRun>false</PublishReadyToRun>
     <TieredCompilation>false</TieredCompilation>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(OpenGarrisonGg2Only)' == 'true'">
+    <AssemblyName>OpenGarrison</AssemblyName>
+    <AssemblyTitle>OpenGarrison</AssemblyTitle>
+    <DefineConstants>$(DefineConstants);GG2_ONLY</DefineConstants>
+  </PropertyGroup>
   <PropertyGroup Condition="'$(OpenGarrisonClientAsLibrary)' == 'true'">
     <OutputType>Library</OutputType>
     <DefineConstants>$(DefineConstants);BROWSER_KNI</DefineConstants>

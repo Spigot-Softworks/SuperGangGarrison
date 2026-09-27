@@ -216,7 +216,18 @@ public sealed partial class PlayerEntity
         float BuffBannerRadiusValue = BuffBannerDefaultRadius,
         float BuffBannerDamageMultiplierValue = BuffBannerDefaultDamageMultiplier,
         float BuffBannerHealthRegenPerSecondValue = BuffBannerDefaultHealthRegenPerSecond,
-        int MedicHealDartCooldownTicksValue = 0);
+        int MedicHealDartCooldownTicksValue = 0,
+        bool WhippingCordLatchedValue = false,
+        float WhippingCordAnchorXValue = 0f,
+        float WhippingCordAnchorYValue = 0f,
+        float WhippingCordRopeLengthValue = 0f,
+        int WhippingCordWindupTicksValue = 0,
+        int WhippingCordSwingTicksValue = 0,
+        int WhippingCordPendingSwingTicksValue = 0,
+        int WhippingCordBackswingTicksValue = 0,
+        int WhippingCordBackswingDurationTicksValue = 0,
+        int WhippingCordPendingBackswingTargetIdValue = -1,
+        bool WhippingCordBackswingTargetClaimedValue = false);
 
     internal PredictionState CapturePredictionState()
     {
@@ -432,7 +443,18 @@ public sealed partial class PlayerEntity
             BuffBannerRadius,
             BuffBannerDamageMultiplier,
             BuffBannerHealthRegenPerSecond,
-            MedicHealDartCooldownTicks);
+            MedicHealDartCooldownTicks,
+            IsWhippingCordLatched,
+            WhippingCordAnchorX,
+            WhippingCordAnchorY,
+            WhippingCordRopeLength,
+            WhippingCordWindupTicksRemaining,
+            WhippingCordSwingTicksRemaining,
+            WhippingCordPendingSwingTicks,
+            WhippingCordBackswingTicksRemaining,
+            WhippingCordBackswingDurationTicks,
+            WhippingCordPendingBackswingTargetId,
+            WhippingCordBackswingTargetClaimed);
     }
 
     internal void RestorePredictionState(in PredictionState state)
@@ -737,6 +759,18 @@ public sealed partial class PlayerEntity
             state.LastToDieMedicKritPowerEnabledValue;
         CurrentShells = int.Clamp(state.CurrentShells, 0, MaxShells);
         RefreshGameplayLoadoutState();
+        HydrateWhippingCordLatch(
+            state.WhippingCordLatchedValue,
+            state.WhippingCordAnchorXValue,
+            state.WhippingCordAnchorYValue,
+            state.WhippingCordRopeLengthValue);
+        WhippingCordWindupTicksRemaining = Math.Max(0, state.WhippingCordWindupTicksValue);
+        WhippingCordSwingTicksRemaining = Math.Max(0, state.WhippingCordSwingTicksValue);
+        WhippingCordPendingSwingTicks = Math.Max(0, state.WhippingCordPendingSwingTicksValue);
+        WhippingCordBackswingTicksRemaining = Math.Max(0, state.WhippingCordBackswingTicksValue);
+        WhippingCordBackswingDurationTicks = Math.Max(0, state.WhippingCordBackswingDurationTicksValue);
+        WhippingCordPendingBackswingTargetId = state.WhippingCordPendingBackswingTargetIdValue;
+        WhippingCordBackswingTargetClaimed = state.WhippingCordBackswingTargetClaimedValue;
     }
 
 }

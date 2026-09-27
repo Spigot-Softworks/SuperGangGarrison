@@ -43,6 +43,11 @@ public partial class Game1
         return _gameplaySessionController.TryConnectToServer(host, port, addConsoleFeedback);
     }
 
+    private bool TryConnectLegacyGg2Server(string host, int port, bool addConsoleFeedback)
+    {
+        return _gameplaySessionController.TryConnectLegacyGg2Server(host, port, addConsoleFeedback);
+    }
+
     private bool TryConnectToServer(NetworkEndpoint endpoint, bool addConsoleFeedback)
     {
         return _gameplaySessionController.TryConnectToServer(endpoint, addConsoleFeedback);

@@ -42,6 +42,7 @@ public enum Protocol64ProjectileKind : byte
     Grenade = 9,
     Custom = 10,
     Arrow = 11,
+    BoomstickPellet = 12,
 }
 
 public enum Protocol64ProjectileLifecycleKind : byte

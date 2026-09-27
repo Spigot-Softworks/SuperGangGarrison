@@ -190,7 +190,9 @@ public partial class Game1
             return false;
         }
 
-        relativePath = normalizedPath.Substring(markerIndex).TrimStart('/');
+        // Atlas manifests use paths rooted at "Content/", even when the
+        // desktop content directory is resolved to an absolute path.
+        relativePath = "Content/" + normalizedPath[(markerIndex + marker.Length)..].TrimStart('/');
         return relativePath.Length > 0;
     }
 

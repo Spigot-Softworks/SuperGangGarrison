@@ -25,7 +25,9 @@ public sealed class PlayerGibEntity : SimulationEntity
         float rotationFriction,
         int lifetimeTicks,
         float bloodChance = DefaultBloodChance,
-        bool experimentalCryoTinted = false) : base(id)
+        bool experimentalCryoTinted = false,
+        bool flipHorizontally = false,
+        float authoredRenderScale = 2f) : base(id)
     {
         SpriteName = spriteName;
         FrameIndex = frameIndex;
@@ -39,6 +41,8 @@ public sealed class PlayerGibEntity : SimulationEntity
         TicksRemaining = lifetimeTicks;
         BloodChance = bloodChance;
         ExperimentalCryoTinted = experimentalCryoTinted;
+        FlipHorizontally = flipHorizontally;
+        AuthoredRenderScale = authoredRenderScale;
     }
 
     public string SpriteName { get; }
@@ -66,6 +70,10 @@ public sealed class PlayerGibEntity : SimulationEntity
     public float BloodChance { get; }
 
     public bool ExperimentalCryoTinted { get; }
+
+    public bool FlipHorizontally { get; }
+
+    public float AuthoredRenderScale { get; }
 
     public int SplatCooldownTicksRemaining { get; private set; }
 

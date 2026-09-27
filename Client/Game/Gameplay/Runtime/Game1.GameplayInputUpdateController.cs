@@ -45,11 +45,21 @@ public partial class Game1
                 mouse.X,
                 mouse.Y);
             var aimOrigin = _game.GetGameplayInputAimOrigin();
+            if (_game._networkClient.IsLegacyGg2Connection)
+            {
+                // GG2 encodes mouse angle and distance from the center of the
+                // current view, including the camera offset near map edges.
+                var worldViewport = _game.GetGameplayWorldViewport(
+                    _game.ViewportWidth, gameplayCameraViewportHeight);
+                aimOrigin = cameraPosition + new Vector2(
+                    worldViewport.X / 2f, worldViewport.Y / 2f);
+            }
             _game._latestNetworkInputAimOriginX = aimOrigin.X;
             _game._latestNetworkInputAimOriginY = aimOrigin.Y;
             _game._hasLatestNetworkInputAimOrigin = true;
             _game.UpdateGarrisonBuilderEditor(keyboard, mouse, (float)gameTime.ElapsedGameTime.TotalSeconds);
-            _game.UpdateNavEditor(keyboard, mouse, rawMouse, cameraPosition, (float)gameTime.ElapsedGameTime.TotalSeconds);
+            var navEditorPanelMouse = _game.ShouldUseNavEditorWindowGutter() ? rawMouse : mouse;
+            _game.UpdateNavEditor(keyboard, mouse, navEditorPanelMouse, cameraPosition, (float)gameTime.ElapsedGameTime.TotalSeconds);
             _game.UpdateScoreboardState(keyboard, mouse);
             var (gameplayInput, networkInput) = _game.BuildGameplayInputs(keyboard, mouse, cameraPosition, (float)gameTime.ElapsedGameTime.TotalSeconds);
             _game.SetNavEditorTraversalCaptureInput(gameplayInput);

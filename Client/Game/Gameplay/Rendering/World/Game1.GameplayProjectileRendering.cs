@@ -916,6 +916,7 @@ public partial class Game1
     {
         WriteGameplayRenderTrace("effects before explosions");
         DrawExplosionVisuals(cameraPosition);
+        _gameplayGoreEffectsController.DrawGibBloodExplosions(cameraPosition);
         WriteGameplayRenderTrace("effects before impacts");
         DrawImpactVisuals(cameraPosition);
         WriteGameplayRenderTrace("effects before stuck-arrows");
@@ -1031,7 +1032,9 @@ public partial class Game1
     private void DrawShotProjectile(ShotProjectileEntity shot, Vector2 cameraPosition, Color blueColor, Color redColor)
     {
         var renderPosition = GetRenderPosition(shot.Id, shot.X, shot.Y);
-        var shotColor = ResolveProjectileTint(shot.Team, blueColor, redColor, new Color(235, 228, 210));
+        var shotColor = shot.IsBoomstickPellet
+            ? shot.Team == PlayerTeam.Blue ? new Color(35, 125, 255) : new Color(255, 40, 40)
+            : ResolveProjectileTint(shot.Team, blueColor, redColor, new Color(235, 228, 210));
         var rotation = GetVelocityRotation(shot.VelocityX, shot.VelocityY);
 
         // Draw outline first (behind sprite) if critical
@@ -1040,8 +1043,30 @@ public partial class Game1
             DrawCriticalProjectileOutline("ShotS", 0, renderPosition.X, renderPosition.Y, cameraPosition, shot.Team, rotation);
         }
 
-        // Draw main sprite
-        if (!TryDrawSprite("ShotS", 0, renderPosition.X, renderPosition.Y, cameraPosition, shotColor, rotation))
+        // The Boomstick uses the same ShotS silhouette, rotation, and origin.
+        // Its white alpha mask lets the team tint replace ShotS's green pixels.
+        var drewShot = false;
+        if (shot.IsBoomstickPellet)
+        {
+            var sprite = GetResolvedSprite("ShotS");
+            if (sprite is not null && sprite.Frames.Count > 0)
+            {
+                DrawSpriteFrameFlatColor(
+                    sprite.Frames[0],
+                    new Vector2(renderPosition.X - cameraPosition.X, renderPosition.Y - cameraPosition.Y),
+                    shotColor,
+                    rotation,
+                    sprite.Origin.ToVector2(),
+                    Vector2.One);
+                drewShot = true;
+            }
+        }
+        else
+        {
+            drewShot = TryDrawSprite("ShotS", 0, renderPosition.X, renderPosition.Y, cameraPosition, shotColor, rotation);
+        }
+
+        if (!drewShot)
         {
             var shotRectangle = new Rectangle(
                 (int)(renderPosition.X - 2f - cameraPosition.X),
