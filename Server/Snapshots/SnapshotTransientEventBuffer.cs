@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using OpenGarrison.Core;
 using OpenGarrison.Protocol;
-using static ServerHelpers;
 
 namespace OpenGarrison.Server;
 
@@ -40,9 +39,9 @@ internal sealed class SnapshotTransientEventBuffer(ulong transientEventReplayTic
     public SnapshotTransientEvents CaptureCurrentEvents(SimulationWorld world)
     {
         var currentFrame = (ulong)world.Frame;
-        AppendRetainedVisualEvents(world.DrainPendingVisualEvents(), currentFrame);
+        AppendRetainedVisualEvents(world.Snapshots, world.DrainPendingVisualEvents(), currentFrame);
         AppendRetainedSoundEvents(world, world.DrainPendingSoundEvents(), currentFrame);
-        AppendRetainedDamageEvents(world.DrainPendingDamageEvents(), currentFrame);
+        AppendRetainedDamageEvents(world.Snapshots.DrainSnapshotDamageEvents(ref _nextTransientEventId), currentFrame);
         AppendRetainedGibSpawnEvents(world.DrainPendingGibSpawnEvents(), currentFrame);
         AppendRetainedRocketSpawnEvents(world.DrainPendingRocketSpawnEvents(), currentFrame);
         _recentVisualEvents.RemoveAll(visualEvent => visualEvent.ExpiresAfterFrame < currentFrame);
@@ -68,12 +67,15 @@ internal sealed class SnapshotTransientEventBuffer(ulong transientEventReplayTic
             }
 
             _recentSoundEvents.Add(new RetainedSnapshotSoundEvent(
-                ToSnapshotSoundEvent(soundEvents[index], _nextTransientEventId++),
+                world.Snapshots.ToSnapshotSoundEvent(soundEvents[index], _nextTransientEventId++),
                 currentFrame + transientEventReplayTicks));
         }
     }
 
-    private void AppendRetainedVisualEvents(IReadOnlyList<WorldVisualEvent> visualEvents, ulong currentFrame)
+    private void AppendRetainedVisualEvents(
+        SnapshotSystem snapshots,
+        IReadOnlyList<WorldVisualEvent> visualEvents,
+        ulong currentFrame)
     {
         for (var index = 0; index < visualEvents.Count; index += 1)
         {
@@ -82,7 +84,7 @@ internal sealed class SnapshotTransientEventBuffer(ulong transientEventReplayTic
                 continue;
             }
 
-            var snapshotVisualEvent = ToSnapshotVisualEvent(visualEvents[index], _nextTransientEventId++);
+            var snapshotVisualEvent = snapshots.ToSnapshotVisualEvent(visualEvents[index], _nextTransientEventId++);
             if (snapshotVisualEvent.SourceFrame == 0)
             {
                 snapshotVisualEvent = snapshotVisualEvent with { SourceFrame = currentFrame };
@@ -94,12 +96,12 @@ internal sealed class SnapshotTransientEventBuffer(ulong transientEventReplayTic
         }
     }
 
-    private void AppendRetainedDamageEvents(IReadOnlyList<WorldDamageEvent> damageEvents, ulong currentFrame)
+    private void AppendRetainedDamageEvents(IReadOnlyList<SnapshotDamageEvent> damageEvents, ulong currentFrame)
     {
         for (var index = 0; index < damageEvents.Count; index += 1)
         {
             _recentDamageEvents.Add(new RetainedSnapshotDamageEvent(
-                ToSnapshotDamageEvent(damageEvents[index], _nextTransientEventId++),
+                damageEvents[index],
                 currentFrame + transientEventReplayTicks));
         }
     }

@@ -166,12 +166,12 @@ public sealed class GameplayBuffHudAndReplicationTests
         var source = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
         source.LocalPlayer.SetDispenserBuffed(true, 1.25f);
         source.LocalPlayer.RegisterCombatComboHit(120);
-        var player = ServerHelpers.ToSnapshotPlayerState(
-            source,
+        var stringCache = new SnapshotStringCache();
+        var player = source.Snapshots.ToSnapshotPlayerState(
             SimulationWorld.LocalPlayerSlot,
             source.LocalPlayer,
             source.LocalPlayer,
-            new SnapshotStringCache()) with
+            value => stringCache.GetOrAddCacheId(value)) with
         {
             ExperimentalCryoSlowTicksRemaining = 42,
             ExperimentalCryoFreezeTicksRemaining = 21,
@@ -358,12 +358,12 @@ public sealed class GameplayBuffHudAndReplicationTests
     {
         var source = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
         source.LocalPlayer.AddRageCharge(250f, ExperimentalGameplaySettings.RageMaxCharge);
-        var player = ServerHelpers.ToSnapshotPlayerState(
-            source,
+        var stringCache = new SnapshotStringCache();
+        var player = source.Snapshots.ToSnapshotPlayerState(
             SimulationWorld.LocalPlayerSlot,
             source.LocalPlayer,
             source.LocalPlayer,
-            new SnapshotStringCache());
+            value => stringCache.GetOrAddCacheId(value));
         var fullSnapshot = CreateSnapshot(player);
 
         var payload = ProtocolCodec.Serialize(fullSnapshot, ProtocolCompressionSettings.Disabled);

@@ -3213,7 +3213,7 @@ public sealed class SnapshotDeltaBudgeterTests
         var world = CivilDefenseTurretRegressionTests.CreateWorld();
         var turret = CivilDefenseTurretRegressionTests.DeployBuilt(world);
         turret.FireAt(510f, 450f);
-        var state = ServerHelpers.ToSnapshotCivilDefenseTurretState(turret);
+        var state = world.Snapshots.ToSnapshotCivilDefenseTurretState(turret);
         var empty = CreateSnapshot(500);
         var full = CreateSnapshot(501) with { CivilDefenseTurrets = [state] };
         var context = new OpenGarrison.Server.SnapshotContributionPlanningContext(1, 400f, 500f, 501, null);
@@ -3228,7 +3228,7 @@ public sealed class SnapshotDeltaBudgeterTests
         clientWorld.ClientPredictionMode = true;
         var apply = typeof(SimulationWorld).GetMethod("ApplySnapshotCivilDefenseTurrets", BindingFlags.NonPublic | BindingFlags.Instance)!;
         apply.Invoke(clientWorld, [merged.CivilDefenseTurrets]);
-        Assert.Equal(state, ServerHelpers.ToSnapshotCivilDefenseTurretState(Assert.Single(clientWorld.CivilDefenseTurrets)));
+        Assert.Equal(state, clientWorld.Snapshots.ToSnapshotCivilDefenseTurretState(Assert.Single(clientWorld.CivilDefenseTurrets)));
 
         var baseline = SnapshotBaselineState.FromSnapshot(merged);
         var removed = CreateSnapshot(502);

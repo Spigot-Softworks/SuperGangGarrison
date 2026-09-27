@@ -31,6 +31,7 @@ public sealed partial class SimulationWorld
     private const int NetworkProjectileRemovalSuppressionTicks = 180;
     public EntityStore EntityStore { get; } = new();
     public CombatSystem Combat { get; }
+    public SnapshotSystem Snapshots { get; }
     public ProjectileSystem Projectiles { get; }
     private readonly List<CombatTrace> _combatTraces = new();
     private readonly List<SniperAimIndicator> _sniperAimIndicators = new();
@@ -425,6 +426,7 @@ public sealed partial class SimulationWorld
         _runtimeQueryController = new RuntimeQueryController(this);
         Config = config ?? new SimulationConfig();
         Combat = new CombatSystem(EntityStore, CreateCombatSystemDependencies());
+        Snapshots = new SnapshotSystem(EntityStore, Combat, CreateSnapshotSystemDependencies());
         Projectiles = new ProjectileSystem(EntityStore, Combat, CreateProjectileSystemDependencies());
         _shots = Projectiles.ShotsInternal;
         _bubbles = Projectiles.BubblesInternal;
