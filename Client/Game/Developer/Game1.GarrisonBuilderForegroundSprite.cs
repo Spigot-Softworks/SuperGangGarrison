@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Globalization;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using OpenGarrison.Core;
@@ -267,7 +268,7 @@ public partial class Game1
         return true;
     }
 
-    private bool IsGarrisonBuilderForegroundSpriteResizable(CustomMapBuilderEntity entity)
+    private static bool IsGarrisonBuilderForegroundSpriteResizable(CustomMapBuilderEntity entity)
     {
         if (!ForegroundSpriteMetadata.IsForegroundSpriteEntityType(entity.Type))
         {
@@ -434,7 +435,7 @@ public partial class Game1
         });
     }
 
-    private string GetGarrisonBuilderForegroundSpritePropertyDisplayLabel(string key, string value)
+    private static string GetGarrisonBuilderForegroundSpritePropertyDisplayLabel(string key, string value)
     {
         if (key.Equals(ForegroundSpriteMetadata.ImagePropertyKey, StringComparison.OrdinalIgnoreCase))
         {
@@ -524,7 +525,7 @@ public partial class Game1
             (int)MathF.Floor(textY),
             (int)MathF.Ceiling(sliderWidth),
             (int)MathF.Ceiling(textHeight));
-        var digitText = relativeZ.ToString();
+        var digitText = relativeZ.ToString(CultureInfo.InvariantCulture);
         var digitWidth = MeasureBitmapFontWidth(digitText, textScale);
         var digitX = sliderBounds.X + ((sliderBounds.Width - digitWidth) * 0.5f);
         digitBounds = new Rectangle(
@@ -537,9 +538,7 @@ public partial class Game1
     private void DrawGarrisonBuilderForegroundSpriteRelativeZPropertyRow(
         Rectangle rowBounds,
         string value,
-        MouseState mouse,
-        float textScale,
-        bool hovered)
+        float textScale)
     {
         GetGarrisonBuilderForegroundSpriteRelativeZSliderLayout(
             rowBounds,
@@ -758,8 +757,7 @@ public partial class Game1
                 _builderResizeStartLeft,
                 _builderResizeStartTop,
                 startRight,
-                startBottom,
-                aspectRatio);
+                startBottom);
         }
 
         newWidth = MathF.Max(minSize, newWidth);

@@ -332,7 +332,7 @@ public sealed class PlayerGibEntity : SimulationEntity
             && bottom > solid.Top;
     }
 
-    private bool IntersectsAt(float x, float y, LevelSolid solid)
+    private static bool IntersectsAt(float x, float y, LevelSolid solid)
     {
         var left = x - (BoundingSize / 2f);
         var right = x + (BoundingSize / 2f);

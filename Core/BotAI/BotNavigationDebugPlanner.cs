@@ -200,77 +200,7 @@ public static class BotNavigationDebugPlanner
         return false;
     }
 
-    public static bool TryPlanRoute(
-        SimpleLevel level,
-        BotNavigationAsset asset,
-        PlayerClass classId,
-        float startX,
-        float startY,
-        string goalLabel,
-        out BotNavigationDebugRoutePlan plan,
-        out string failureMessage)
-    {
-        plan = default!;
-        failureMessage = string.Empty;
 
-        if (string.IsNullOrWhiteSpace(goalLabel))
-        {
-            failureMessage = "route target label is missing";
-            return false;
-        }
-
-        var graph = new BotNavigationRuntimeGraph(asset);
-        if (!graph.TryFindNearestNode(startX, startY, StartNodeSearchDistance, requireGroundSupport: true, out var startNode))
-        {
-            failureMessage = $"no {BotNavigationClasses.GetShortLabel(classId)} nav node is close enough to the current position";
-            return false;
-        }
-
-        var goalNode = asset.Nodes.FirstOrDefault(node => string.Equals(node.Label, goalLabel, StringComparison.OrdinalIgnoreCase));
-        if (goalNode is null)
-        {
-            failureMessage = $"could not find a {BotNavigationClasses.GetShortLabel(classId)} route-test node labeled {goalLabel}; make sure that anchor/link applies to the selected class";
-            return false;
-        }
-
-        return TryBuildRoutePlan(level, asset, classId, graph, startNode, goalNode, out plan, out failureMessage);
-    }
-
-    public static bool TryPlanRouteBetweenLabels(
-        SimpleLevel level,
-        BotNavigationAsset asset,
-        PlayerClass classId,
-        string startLabel,
-        string goalLabel,
-        out BotNavigationDebugRoutePlan plan,
-        out string failureMessage)
-    {
-        plan = default!;
-        failureMessage = string.Empty;
-
-        if (string.IsNullOrWhiteSpace(startLabel) || string.IsNullOrWhiteSpace(goalLabel))
-        {
-            failureMessage = "route test needs both a start label and a goal label";
-            return false;
-        }
-
-        var graph = new BotNavigationRuntimeGraph(asset);
-        var startNode = asset.Nodes.FirstOrDefault(node => string.Equals(node.Label, startLabel, StringComparison.OrdinalIgnoreCase));
-        if (startNode is null)
-        {
-            failureMessage = $"could not find a {BotNavigationClasses.GetShortLabel(classId)} route-test start node labeled {startLabel}; make sure that anchor/link applies to the selected class";
-            return false;
-        }
-
-        var goalNode = asset.Nodes.FirstOrDefault(node => string.Equals(node.Label, goalLabel, StringComparison.OrdinalIgnoreCase));
-        if (goalNode is null)
-        {
-            failureMessage = $"could not find a {BotNavigationClasses.GetShortLabel(classId)} route-test node labeled {goalLabel}; make sure that anchor/link applies to the selected class";
-            return false;
-        }
-
-        return TryBuildRoutePlan(level, asset, classId, graph, startNode, goalNode, out plan, out failureMessage);
-    }
 
     private static bool TryBuildRoutePlan(
         SimpleLevel level,

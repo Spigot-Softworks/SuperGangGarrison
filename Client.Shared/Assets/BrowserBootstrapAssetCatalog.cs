@@ -24,7 +24,6 @@ public sealed class BrowserBootstrapAssetCatalog(
 
     public IReadOnlyDictionary<string, byte[]> GetBinaryAssets() => _binaryAssets;
 
-    public IReadOnlyDictionary<string, string> GetTextAssets() => _textAssets;
 
     public static IReadOnlyList<string> DefaultBinaryAssetPaths => DefaultBinaryPaths;
 

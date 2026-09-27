@@ -353,7 +353,7 @@ internal sealed class ServerBuiltInCommandRegistrar(
                     return Task.FromResult<IReadOnlyList<string>>(["[server] usage: kill [self|slot|name]"]);
                 }
 
-                if (!isSelf && !TryRequireCheats(context, "kill"))
+                if (!isSelf && !TryRequireCheats(context))
                 {
                     return Task.FromResult<IReadOnlyList<string>>(["[server] kill on another player requires sv_cheats 1."]);
                 }
@@ -515,7 +515,7 @@ internal sealed class ServerBuiltInCommandRegistrar(
                     return Task.FromResult<IReadOnlyList<string>>(["[server] usage: explode [self|slot|name]"]);
                 }
 
-                if (!isSelf && !TryRequireCheats(context, "explode"))
+                if (!isSelf && !TryRequireCheats(context))
                 {
                     return Task.FromResult<IReadOnlyList<string>>(["[server] explode on another player requires sv_cheats 1."]);
                 }
@@ -530,7 +530,7 @@ internal sealed class ServerBuiltInCommandRegistrar(
             "Build a jump pad at your current position.",
             "build_jump_pad",
             (context, _, _) => Task.FromResult<IReadOnlyList<string>>(TryRequireSourceSlot(context, out var slot)
-                && TryRequireCheats(context, "build_jump_pad")
+                && TryRequireCheats(context)
                 && context.AdminOperations.TryBuildJumpPad(slot)
                     ? ["[server] jump pad built."]
                     : ["[server] unable to build a jump pad."]),
@@ -541,7 +541,7 @@ internal sealed class ServerBuiltInCommandRegistrar(
             "spawn_mimic <enemy|friendly> <class>",
             (context, arguments, _) =>
             {
-                if (!TryRequireCheats(context, "spawn_mimic")
+                if (!TryRequireCheats(context)
                     || !TryRequireSourceSlot(context, out var sourceSlot)
                     || !TryParseMimicArguments(context, arguments, sourceSlot, out var team, out var playerClass))
                 {
@@ -558,7 +558,7 @@ internal sealed class ServerBuiltInCommandRegistrar(
             "Spawn a Medic bot that follows and heals you.",
             "spawn_followhealer",
             (context, _, _) => Task.FromResult<IReadOnlyList<string>>(TryRequireSourceSlot(context, out var targetSlot)
-                && TryRequireCheats(context, "spawn_followhealer")
+                && TryRequireCheats(context)
                 && context.AdminOperations.TryAddFollowHealerBot(targetSlot, "", out var botSlot)
                     ? [$"[server] follow healer spawned at slot {botSlot}."]
                     : ["[server] unable to spawn follow healer."]),
@@ -568,7 +568,7 @@ internal sealed class ServerBuiltInCommandRegistrar(
             "Toggle noclip for yourself or a player.",
             "noclip [slot|name]",
             (context, arguments, _) => Task.FromResult<IReadOnlyList<string>>(TryResolveTargetSlot(context, arguments, allowSelf: true, out var slot, out var ignoredIsSelf)
-                && TryRequireCheats(context, "noclip")
+                && TryRequireCheats(context)
                 && context.AdminOperations.TryTogglePlayerNoclip(slot, out var enabled)
                     ? [$"[server] noclip {(enabled ? "enabled" : "disabled")} for slot {slot}."]
                     : ["[server] unable to toggle noclip."]),
@@ -580,7 +580,7 @@ internal sealed class ServerBuiltInCommandRegistrar(
             (context, arguments, _) =>
             {
                 if (!TryParseTargetAndScale(context, arguments, out var slot, out var scale)
-                    || !TryRequireCheats(context, "set_speed"))
+                    || !TryRequireCheats(context))
                 {
                     return Task.FromResult<IReadOnlyList<string>>(["[server] usage: set_speed [slot|name] [scale]"]);
                 }
@@ -598,7 +598,7 @@ internal sealed class ServerBuiltInCommandRegistrar(
             {
                 if (!TryRequireSourceSlot(context, out var slot)
                     || !TryParsePosition(arguments, out var x, out var y)
-                    || !TryRequireCheats(context, "set_respawnpos"))
+                    || !TryRequireCheats(context))
                 {
                     return Task.FromResult<IReadOnlyList<string>>(["[server] usage: set_respawnpos <x> <y>"]);
                 }
@@ -616,7 +616,7 @@ internal sealed class ServerBuiltInCommandRegistrar(
             {
                 if (!TryRequireSourceSlot(context, out var sourceSlot)
                     || !TryResolveTargetSlot(context, arguments, allowSelf: false, out var targetSlot, out var ignoredIsSelf)
-                    || !TryRequireCheats(context, "tpme"))
+                    || !TryRequireCheats(context))
                 {
                     return Task.FromResult<IReadOnlyList<string>>(["[server] usage: tpme <slot|name>"]);
                 }
@@ -631,7 +631,7 @@ internal sealed class ServerBuiltInCommandRegistrar(
             "Toggle a player's movement and actions.",
             "freeze [slot|name]",
             (context, arguments, _) => Task.FromResult<IReadOnlyList<string>>(TryResolveTargetSlot(context, arguments, allowSelf: true, out var slot, out var ignoredIsSelf)
-                && TryRequireCheats(context, "freeze")
+                && TryRequireCheats(context)
                 && context.AdminOperations.TryTogglePlayerFrozen(slot, out var frozen)
                     ? [$"[server] freeze {(frozen ? "enabled" : "disabled")} for slot {slot}."]
                     : ["[server] unable to toggle freeze."]),
@@ -641,7 +641,7 @@ internal sealed class ServerBuiltInCommandRegistrar(
             "Make a player tiny.",
             "resize [slot|name]",
             (context, arguments, _) => Task.FromResult<IReadOnlyList<string>>(TryResolveTargetSlot(context, arguments, allowSelf: true, out var slot, out var ignoredIsSelf)
-                && TryRequireCheats(context, "resize")
+                && TryRequireCheats(context)
                 && context.AdminOperations.TrySetPlayerScale(slot, 0.5f)
                     ? [$"[server] resized slot {slot}."]
                     : ["[server] unable to resize player."]),
@@ -653,7 +653,7 @@ internal sealed class ServerBuiltInCommandRegistrar(
             (context, arguments, _) =>
             {
                 if (!TryParseTargetAndDuration(context, arguments, out var slot, out var seconds)
-                    || !TryRequireCheats(context, "stun"))
+                    || !TryRequireCheats(context))
                 {
                     return Task.FromResult<IReadOnlyList<string>>(["[server] usage: stun [slot|name] [seconds]"]);
                 }
@@ -853,7 +853,7 @@ internal sealed class ServerBuiltInCommandRegistrar(
             || value.Equals("yes", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static bool TryRequireCheats(OpenGarrisonServerCommandContext context, string commandName)
+    private static bool TryRequireCheats(OpenGarrisonServerCommandContext context)
     {
         if (!context.Cvars.TryGet("sv_cheats", includeProtectedValues: true, out var cvar))
         {

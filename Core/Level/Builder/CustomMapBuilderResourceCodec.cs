@@ -109,25 +109,6 @@ public static class CustomMapBuilderResourceCodec
         return [];
     }
 
-    public static string WriteDecompiledFile(CustomMapBuilderResource resource, string outputDirectory)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(outputDirectory);
-
-        var bytes = GetResourceBytes(resource);
-        if (!IsSupportedForKind(bytes, resource.Kind))
-        {
-            var required = resource.Kind == CustomMapBuilderResourceKind.MessageSound
-                ? "an OGG sound"
-                : "a PNG or GIF image";
-            throw new InvalidOperationException($"Resource \"{resource.Name}\" is not {required}.");
-        }
-
-        Directory.CreateDirectory(outputDirectory);
-        var extension = IsOgg(bytes) ? ".OGG" : IsGif(bytes) ? ".GIF" : ".PNG";
-        var outputPath = Path.Combine(outputDirectory, $"{SanitizeFileName(resource.Name)}{extension}");
-        File.WriteAllBytes(outputPath, bytes);
-        return outputPath;
-    }
 
     public static bool IsSupportedImage(byte[] bytes) => IsPng(bytes) || IsGif(bytes);
 
@@ -141,8 +122,6 @@ public static class CustomMapBuilderResourceCodec
     public static bool IsImageResourceKind(CustomMapBuilderResourceKind kind) =>
         kind != CustomMapBuilderResourceKind.MessageSound;
 
-    public static bool IsSoundResourceKind(CustomMapBuilderResourceKind kind) =>
-        kind == CustomMapBuilderResourceKind.MessageSound;
 
     public static IReadOnlyDictionary<string, CustomMapBuilderResource> DecodeResourcesFromMetadata(
         IReadOnlyDictionary<string, string> metadata)

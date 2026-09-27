@@ -6143,7 +6143,7 @@ public partial class Game1
         }
 
         var forceApproximateJump = step.Kind == BotNavigationTraversalKind.Jump
-            && ShouldForceApproximateNavEditorJump(step, horizontalDirection);
+            && ShouldForceApproximateNavEditorJump(step);
         return CreateNavEditorDirectionalInput(horizontalDirection, jump: forceApproximateJump);
     }
 
@@ -6417,7 +6417,7 @@ public partial class Game1
             $"{prefix} {step.ToLabel} (dx={dx:0.#}, dy={dy:0.#}, grounded={_world.LocalPlayer.IsGrounded}, tape={step.InputTape.Length})");
     }
 
-    private bool ShouldForceApproximateNavEditorJump(NavEditorPlaybackStep step, int horizontalDirection)
+    private bool ShouldForceApproximateNavEditorJump(NavEditorPlaybackStep step)
     {
         if (!_world.LocalPlayer.IsGrounded || _navEditorPlaybackFrameIndex > 0)
         {

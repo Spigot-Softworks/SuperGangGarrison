@@ -15,7 +15,7 @@ internal sealed class LastToDieServerDirector
         Director = director;
     }
 
-    public GameplayVariantKind Variant => GameplayVariantKind.LastToDie;
+    public static GameplayVariantKind Variant => GameplayVariantKind.LastToDie;
 
     public LastToDieDirector Director { get; }
 

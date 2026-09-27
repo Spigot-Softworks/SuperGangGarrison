@@ -30,7 +30,7 @@ public partial class Game1
 
     private readonly Dictionary<long, List<Vector2>> _builderLogicConnectionAnchorScratch = new();
 
-    private Color GetGarrisonBuilderLogicFillColor(CustomMapBuilderEntity entity)
+    private static Color GetGarrisonBuilderLogicFillColor(CustomMapBuilderEntity entity)
     {
         if (MapLogicNodeColorMetadata.TryResolveFillColor(entity.Properties, out var red, out var green, out var blue))
         {
@@ -310,7 +310,7 @@ public partial class Game1
         }
     }
 
-    private CustomMapBuilderEntity ApplyGarrisonBuilderLogicDefaults(CustomMapBuilderEntity entity)
+    private static CustomMapBuilderEntity ApplyGarrisonBuilderLogicDefaults(CustomMapBuilderEntity entity)
     {
         if (!MapLogicMetadata.IsLogicEntityType(entity.Type))
         {
@@ -324,7 +324,7 @@ public partial class Game1
         return entity with { Properties = properties };
     }
 
-    private bool IsGarrisonBuilderLogicOutputEntity(CustomMapBuilderEntity entity)
+    private static bool IsGarrisonBuilderLogicOutputEntity(CustomMapBuilderEntity entity)
     {
         return MapLogicMetadata.IsLogicOutputEntityType(entity.Type)
             && !string.IsNullOrWhiteSpace(GetEntityProperty(entity.Properties, MapLogicMetadata.LogicKeyPropertyKey, string.Empty));
@@ -2909,7 +2909,7 @@ public partial class Game1
 
         if (digitBounds.Contains(position))
         {
-            BeginGarrisonBuilderNodePriorityTextEdit(key, value);
+            BeginGarrisonBuilderNodePriorityTextEdit(value);
             return true;
         }
 
@@ -2924,7 +2924,7 @@ public partial class Game1
         return true;
     }
 
-    private void BeginGarrisonBuilderNodePriorityTextEdit(string key, string value)
+    private void BeginGarrisonBuilderNodePriorityTextEdit(string value)
     {
         BeginGarrisonBuilderPropertyTextEdit(
             MapLogicMetadata.NodePriorityPropertyKey,
@@ -3225,7 +3225,7 @@ public partial class Game1
         return new Rectangle((BuilderViewportWidth - width) / 2, (BuilderViewportHeight - height) / 2, width, height);
     }
 
-    private Rectangle GetGarrisonBuilderLogicRecolorSwatchBounds(Rectangle dialogBounds, int paletteIndex)
+    private static Rectangle GetGarrisonBuilderLogicRecolorSwatchBounds(Rectangle dialogBounds, int paletteIndex)
     {
         const int columns = 4;
         var swatchSize = BuilderUi(34);

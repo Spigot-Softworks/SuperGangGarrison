@@ -289,7 +289,7 @@ public partial class Game1
             destinationHeight);
     }
 
-    private bool ShouldUsePixelPerfectDisplayScale()
+    private static bool ShouldUsePixelPerfectDisplayScale()
     {
         // The pixel-perfect screen-scale option has been retired from the UI; Fill is the only
         // supported behavior. Force Fill here so any preferences file that still has a stored

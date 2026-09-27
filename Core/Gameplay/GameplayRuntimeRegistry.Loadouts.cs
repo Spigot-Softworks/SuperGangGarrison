@@ -116,7 +116,6 @@ public sealed partial class GameplayRuntimeRegistry
         var validatedAcquiredItemId = ResolveValidatedAcquiredItemId(gameplayClassId, acquiredItemId);
         var validatedEquippedSlot = ResolveValidatedEquippedSlot(
             equippedSlot,
-            primaryItemId,
             secondaryItemId,
             validatedAcquiredItemId);
 
@@ -221,7 +220,6 @@ public sealed partial class GameplayRuntimeRegistry
         var validatedAcquiredItemId = ResolveValidatedAcquiredItemId(gameplayClassId, acquiredItemId);
         return ResolveValidatedEquippedSlot(
             equippedSlot,
-            loadout.Primary?.DefaultItemId ?? loadout.PrimaryItemId,
             secondaryItemId,
             validatedAcquiredItemId) == equippedSlot;
     }
@@ -322,7 +320,6 @@ public sealed partial class GameplayRuntimeRegistry
 
     private static GameplayEquipmentSlot ResolveValidatedEquippedSlot(
         GameplayEquipmentSlot requestedSlot,
-        string primaryItemId,
         string? secondaryItemId,
         string? acquiredItemId)
     {

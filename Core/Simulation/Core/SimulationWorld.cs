@@ -563,30 +563,6 @@ public sealed partial class SimulationWorld
         return TryApplyNetworkPlayerClassChange(LocalPlayerSlot, definition);
     }
 
-    public bool TrySetEnemyClass(PlayerClass playerClass)
-    {
-        if (!CharacterClassCatalog.RuntimeRegistry.TryGetClassBinding(playerClass, out var binding))
-        {
-            return false;
-        }
-
-        var definition = CharacterClassCatalog.GetDefinition(binding.ClassId);
-        var wasPracticeCombatDummy = _practiceCombatDummyMode != PracticeCombatDummyMode.None;
-        if (definition.Id == _enemyDummyClassDefinition.Id && !wasPracticeCombatDummy)
-        {
-            return false;
-        }
-
-        DisablePracticeCombatDummyMode(resetStats: true);
-        _enemyDummyClassDefinition = definition;
-        EnemyPlayer.SetClassDefinition(definition);
-        if (EnemyPlayerEnabled)
-        {
-            var spawn = ReserveSpawn(EnemyPlayer, _enemyDummyTeam);
-            SpawnPlayerResolved(EnemyPlayer, _enemyDummyTeam, spawn);
-        }
-        return true;
-    }
 
     public IReadOnlyList<WorldSoundEvent> DrainPendingSoundEvents()
     {

@@ -615,39 +615,7 @@ public partial class Game1
             NotifyLinkedBasicHostSettingsChanged();
         }
 
-        public bool TryAppendAdvancedCvarCharacter(char character)
-        {
-            if (string.IsNullOrWhiteSpace(ActiveAdvancedCvarName)
-                || !HostSetupServerCvarCatalog.TryGetDefinition(ActiveAdvancedCvarName, out var definition))
-            {
-                return false;
-            }
 
-            if (!HostSetupServerCvarCatalog.IsValidInputCharacter(definition, character))
-            {
-                return false;
-            }
-
-            var buffer = GetActiveAdvancedCvarEditBuffer();
-            if (buffer.Length >= 24)
-            {
-                return false;
-            }
-
-            SetActiveAdvancedCvarEditBuffer(buffer + character);
-            return true;
-        }
-
-        public void BackspaceActiveAdvancedCvar()
-        {
-            var buffer = GetActiveAdvancedCvarEditBuffer();
-            if (buffer.Length == 0)
-            {
-                return;
-            }
-
-            SetActiveAdvancedCvarEditBuffer(buffer[..^1]);
-        }
 
         private static bool ParseBool(string value)
         {

@@ -31,7 +31,7 @@ public partial class Game1
             {
                 case '\b':
                 {
-                    var result = _game.DeleteTextSelectionOrBackspace(
+                    var result = Game1.DeleteTextSelectionOrBackspace(
                         _game._chatInput,
                         _game._chatInputCursorIndex,
                         _game._chatInputSelectionStart);
@@ -47,7 +47,7 @@ public partial class Game1
                 default:
                     if (!char.IsControl(character) && _game._chatInput.Length < 120)
                     {
-                        var result = _game.InsertTextCharacterAtCursor(
+                        var result = Game1.InsertTextCharacterAtCursor(
                             _game._chatInput,
                             character,
                             _game._chatInputCursorIndex,

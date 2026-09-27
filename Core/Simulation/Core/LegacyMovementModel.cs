@@ -149,21 +149,6 @@ public static class LegacyMovementModel
         return MathF.Min(nextSpeed, MaxFallSpeedPerTick * SourceTicksPerSecond);
     }
 
-    public static float AdvanceVerticalSpeed(
-        float currentSpeed,
-        bool isAirborne,
-        float deltaSeconds,
-        ref LegacyMovementState state)
-    {
-        if (!isAirborne || deltaSeconds <= 0f)
-        {
-            return currentSpeed;
-        }
-
-        var gravityPerTick = GetAirborneGravityPerTick(state);
-        var nextSpeed = AdvanceVerticalSpeedHalfStep(currentSpeed, gravityPerTick, deltaSeconds);
-        return AdvanceVerticalSpeedHalfStep(nextSpeed, gravityPerTick, deltaSeconds);
-    }
 
     public static float GetAirborneGravityPerTick(LegacyMovementState state)
     {

@@ -70,11 +70,11 @@ public partial class Game1
         var blueBounds = new Rectangle(ViewportWidth * 3 / 4, panelY, boardWidth, panelHeight);
         _spriteBatch.Draw(_pixel, redBounds, Color.Black);
         _spriteBatch.Draw(_pixel, blueBounds, Color.Black);
-        DrawSpectatorTeamBoard(redBounds.X, redBounds.Y, redBounds.Width, redBounds.Height, PlayerTeam.Red);
-        DrawSpectatorTeamBoard(blueBounds.X, blueBounds.Y, blueBounds.Width, blueBounds.Height, PlayerTeam.Blue);
+        DrawSpectatorTeamBoard(redBounds.X, redBounds.Y, redBounds.Height, PlayerTeam.Red);
+        DrawSpectatorTeamBoard(blueBounds.X, blueBounds.Y, blueBounds.Height, PlayerTeam.Blue);
     }
 
-    private void DrawSpectatorTeamBoard(int boardX, int boardY, int boardWidth, int boardHeight, PlayerTeam team)
+    private void DrawSpectatorTeamBoard(int boardX, int boardY, int boardHeight, PlayerTeam team)
     {
         var players = GetSpectatorTeamPlayers(team);
         var maxRows = Math.Max(0, boardHeight / SpectatorBoardRowHeight);

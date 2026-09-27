@@ -22,17 +22,6 @@ public static class CustomMapBuilderEntityNormalization
         "controlPoint1", "controlPoint2", "controlPoint3", "controlPoint4", "controlPoint5",
     };
 
-    public static IReadOnlyList<CustomMapBuilderEntity> NormalizeForEditor(IReadOnlyList<CustomMapBuilderEntity> entities)
-    {
-        var totalControlPoints = ForwardSpawnMetadata.CountMapControlPointsFromEditorEntities(entities);
-        var result = new List<CustomMapBuilderEntity>(entities.Count);
-        foreach (var entity in entities)
-        {
-            result.Add(NormalizeEntityForEditor(entity, totalControlPoints));
-        }
-
-        return result;
-    }
 
     public static IReadOnlyList<CustomMapBuilderEntity> ResolveForExport(IReadOnlyList<CustomMapBuilderEntity> entities)
     {
@@ -102,27 +91,7 @@ public static class CustomMapBuilderEntityNormalization
         return entity;
     }
 
-    public static bool IsEditorOnlyType(string type)
-    {
-        return CustomMapEntityRuntimeRegistry.IsModernEntityType(type)
-            || HealthPackMetadata.IsHealthPackEntityType(type);
-    }
 
-    /// <summary>
-    /// Optional upgrade path: convert legacy entities to modern editor types (does not run automatically on open).
-    /// </summary>
-    public static bool TryUpgradeLegacyToModern(CustomMapBuilderEntity entity, out CustomMapBuilderEntity upgraded)
-    {
-        var normalized = NormalizeEntityForEditor(entity);
-        if (!entity.Type.Equals(normalized.Type, StringComparison.OrdinalIgnoreCase))
-        {
-            upgraded = normalized;
-            return true;
-        }
-
-        upgraded = entity;
-        return false;
-    }
 
     public static bool CountsAsTeamSpawn(CustomMapBuilderEntity entity, string team)
     {

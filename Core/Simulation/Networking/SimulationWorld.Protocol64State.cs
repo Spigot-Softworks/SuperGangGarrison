@@ -203,7 +203,7 @@ public sealed partial class SimulationWorld
         return false;
     }
 
-    private SimulationEntity? CreateProtocol64Projectile(
+    private static SimulationEntity? CreateProtocol64Projectile(
         Protocol64ProjectileState state,
         int id,
         PlayerTeam team,

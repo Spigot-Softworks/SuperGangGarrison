@@ -124,7 +124,6 @@ public partial class Game1
             Span<bool> poseGrounded = stackalloc bool[DynamicRagdollCollisionNodeCount];
             var poseNodeCount = BuildRagdollCollisionNodes(ragdoll, poseNodes);
             var hangingCount = CountRagdollHangingNodes(
-                ragdoll,
                 level,
                 poseNodes,
                 poseGrounded,
@@ -161,7 +160,6 @@ public partial class Game1
             // Refresh pose after collision for draping / waist support checks.
             poseNodeCount = BuildRagdollCollisionNodes(ragdoll, poseNodes);
             hangingCount = CountRagdollHangingNodes(
-                ragdoll,
                 level,
                 poseNodes,
                 poseGrounded,
@@ -207,7 +205,7 @@ public partial class Game1
                 }
 
                 AdaptRagdollRestPivotsToContacts(ragdoll, level);
-                ApplyRagdollLedgeGravityDroop(ragdoll, poseNodes, poseGrounded, poseNodeCount);
+                ApplyRagdollLedgeGravityDroop(ragdoll, poseGrounded, poseNodeCount);
                 // Flatten secondary pivots toward a laid-out corpse once waist is planted.
                 if (waistGrounded && !isHangingOffLedge)
                 {
@@ -599,7 +597,7 @@ public partial class Game1
     /// <summary>
     /// Kill-shot knockback is applied at the waist; chest and knee are flung as the chain reacts.
     /// </summary>
-    private void ApplyDeathShotImpulseThroughWaist(
+    private static void ApplyDeathShotImpulseThroughWaist(
         DynamicRagdollState ragdoll,
         float launchX,
         float launchY,
@@ -999,7 +997,6 @@ public partial class Game1
     /// Returns how many meat circles hang over empty space while others rest on ground.
     /// </summary>
     private static int CountRagdollHangingNodes(
-        DynamicRagdollState ragdoll,
         SimpleLevel level,
         Span<Vector2> nodes,
         Span<bool> grounded,
@@ -1069,7 +1066,6 @@ public partial class Game1
     /// </summary>
     private static void ApplyRagdollLedgeGravityDroop(
         DynamicRagdollState ragdoll,
-        Span<Vector2> nodes,
         Span<bool> grounded,
         int nodeCount)
     {
@@ -1841,7 +1837,6 @@ public partial class Game1
         DeadBodyAnimationKind animationKind,
         float x,
         float y,
-        float width,
         float height,
         bool facingLeft,
         string gameplayClassId,
@@ -2035,7 +2030,6 @@ public partial class Game1
                     spineMidY,
                     nextCursor,
                     previousRotationDegrees,
-                    segmentRotationDegrees + pivotDegrees,
                     pivotDegrees,
                     scaleX,
                     tint);
@@ -2057,7 +2051,6 @@ public partial class Game1
         float spineMidY,
         Vector2 jointPosition,
         float previousRotationDegrees,
-        float nextRotationDegrees,
         float pivotDegrees,
         float scaleX,
         Color tint)

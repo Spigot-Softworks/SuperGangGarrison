@@ -107,8 +107,6 @@ public static class PlayerTriggerMetadata
         return Math.Max(0, parsed);
     }
 
-    public static string ToMaxFiresPropertyValue(int maxFires) =>
-        Math.Max(0, maxFires).ToString(System.Globalization.CultureInfo.InvariantCulture);
 
     public static PlayerTriggerZoneConfiguration ParseZoneConfiguration(IReadOnlyDictionary<string, string>? properties)
     {

@@ -23,7 +23,7 @@ public partial class Game1
         return team == PlayerTeam.Blue ? blueColor : redColor;
     }
 
-    private Color GetCriticalProjectileOverlayColor(PlayerTeam team)
+    private static Color GetCriticalProjectileOverlayColor(PlayerTeam team)
     {
         return GameplayPlayerStatusEffectRenderController.GetUberOverlayColor(team);
     }
@@ -1995,7 +1995,7 @@ public partial class Game1
             includeHornAccent: true);
     }
 
-    private float GetFlareProjectileScale(FlareProjectileEntity flare)
+    private static float GetFlareProjectileScale(FlareProjectileEntity flare)
     {
         var lifeProgress = Math.Clamp(
             (FlareProjectileEntity.LifetimeTicks - flare.TicksRemaining) / (float)Math.Max(1, FlareProjectileEntity.LifetimeTicks),

@@ -37,7 +37,7 @@ public static class Og2NavigationGraphValidator
             return new Og2NavigationGraphValidationReport(issues, routes);
         }
 
-        var targets = ResolveObjectiveTargets(level, graph, issues);
+        var targets = ResolveObjectiveTargets(level, graph);
         if (targets.Count == 0)
         {
             AddIssue(issues, "no_objectives", "The level has no objective anchor that can be checked.");
@@ -60,7 +60,6 @@ public static class Og2NavigationGraphValidator
                     if (level.Mode == GameModeKind.CaptureTheFlag)
                     {
                         ValidateCaptureTheFlagRoutes(
-                            level,
                             graph,
                             team,
                             playerClass,
@@ -231,7 +230,6 @@ public static class Og2NavigationGraphValidator
     }
 
     private static void ValidateCaptureTheFlagRoutes(
-        SimpleLevel level,
         NavGraph graph,
         PlayerTeam team,
         PlayerClass playerClass,
@@ -562,8 +560,7 @@ public static class Og2NavigationGraphValidator
 
     private static List<Og2NavigationObjectiveTarget> ResolveObjectiveTargets(
         SimpleLevel level,
-        NavGraph graph,
-        List<Og2NavigationGraphValidationIssue> issues)
+        NavGraph graph)
     {
         var targets = new List<Og2NavigationObjectiveTarget>();
         if (level.Mode == GameModeKind.CaptureTheFlag)

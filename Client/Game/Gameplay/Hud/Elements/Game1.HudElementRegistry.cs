@@ -49,7 +49,7 @@ public partial class Game1
 
     private HudElementRegistry GameplayHudElementRegistry => _gameplayHudElementRegistry ??= CreateGameplayHudElementRegistry();
 
-    private HudElementRegistry CreateGameplayHudElementRegistry()
+    private static HudElementRegistry CreateGameplayHudElementRegistry()
     {
         var registry = new HudElementRegistry();
         registry.RegisterDefinition(new HudElementDefinition(HudElementId.LocalHealth, HudElementRendererId.LocalHealth, HudElementLayerLocalHealth));

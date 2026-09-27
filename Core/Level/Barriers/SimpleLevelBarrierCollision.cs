@@ -156,24 +156,4 @@ public static class SimpleLevelBarrierCollision
         return false;
     }
 
-    public static bool BlocksProjectileMovement(
-        SimpleLevel level,
-        PlayerTeam shotTeam,
-        float originX,
-        float originY,
-        float directionX,
-        float directionY,
-        float maxDistance,
-        out float hitDistance)
-    {
-        return BarrierProjectileRaycast.TryRaycastLevelBarriers(
-            level,
-            shotTeam,
-            originX,
-            originY,
-            directionX,
-            directionY,
-            maxDistance,
-            out hitDistance);
-    }
 }

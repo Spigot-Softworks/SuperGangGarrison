@@ -257,7 +257,7 @@ sealed class ServerSessionManager
         }
     }
 
-    public void HandleProtocol64InputResultAck(
+    public static void HandleProtocol64InputResultAck(
         ClientSession client,
         Protocol64InputCommandResultAck acknowledgement)
     {

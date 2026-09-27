@@ -241,11 +241,11 @@ public sealed partial class SimulationWorld
                 if (ReferenceEquals(player, directHitPlayer)
                     && ShouldRedirectDescendingMortarDirectHitTowardOwner(player, owner, rocket))
                 {
-                    ApplyDescendingMortarDirectHitImpulse(world, player, owner!, rocket, distanceFactor);
+                    ApplyDescendingMortarDirectHitImpulse(player, owner!, rocket, distanceFactor);
                 }
                 else
                 {
-                    ApplyPlayerImpulse(world, player, rocket, distanceFactor);
+                    ApplyPlayerImpulse(player, rocket, distanceFactor);
                 }
                 ApplyMovementState(player, rocket);
                 var receivedBlastLiftBonus = player.Id != rocket.OwnerId && ShouldApplyBlastLiftBonus(player, rocket.X, rocket.Y);
@@ -314,7 +314,7 @@ public sealed partial class SimulationWorld
             return hitEnemyPlayer;
         }
 
-        private static void ApplyPlayerImpulse(SimulationWorld world, PlayerEntity player, RocketProjectileEntity rocket, float distanceFactor)
+        private static void ApplyPlayerImpulse(PlayerEntity player, RocketProjectileEntity rocket, float distanceFactor)
         {
             var impulse = SimulationWorld.GetExplosionImpulseMagnitude(
                 player,
@@ -356,7 +356,6 @@ public sealed partial class SimulationWorld
         }
 
         private static void ApplyDescendingMortarDirectHitImpulse(
-            SimulationWorld world,
             PlayerEntity player,
             PlayerEntity owner,
             RocketProjectileEntity rocket,

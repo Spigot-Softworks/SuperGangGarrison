@@ -296,7 +296,7 @@ public partial class Game1
         return true;
     }
 
-    private bool TryGetEquippedWeaponPresentation(PlayerEntity player, out GameplayItemPresentationDefinition presentation)
+    private static bool TryGetEquippedWeaponPresentation(PlayerEntity player, out GameplayItemPresentationDefinition presentation)
     {
         presentation = null!;
         var itemId = player.GameplayLoadoutState.EquippedItemId;

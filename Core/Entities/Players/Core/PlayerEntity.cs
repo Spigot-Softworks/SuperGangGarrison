@@ -1209,10 +1209,6 @@ public sealed partial class PlayerEntity : SimulationEntity
         }
     }
 
-    public void ScaleVerticalSpeed(float scale)
-    {
-        VerticalSpeed *= scale;
-    }
 
     internal bool CanOccupy(SimpleLevel level, PlayerTeam team, float x, float y)
     {
@@ -1491,13 +1487,6 @@ public sealed partial class PlayerEntity : SimulationEntity
         return string.Equals(AcquiredBehaviorId, behaviorId, StringComparison.Ordinal);
     }
 
-    public bool HasAnyBehavior(string behaviorId)
-    {
-        return HasPrimaryBehavior(behaviorId)
-            || HasSecondaryBehavior(behaviorId)
-            || HasUtilityBehavior(behaviorId)
-            || HasAcquiredBehavior(behaviorId);
-    }
 
     public bool HasGameplayAbilityBehavior(string channel, string behaviorId)
     {
