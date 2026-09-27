@@ -19,6 +19,8 @@ public interface IOpenGarrisonClientPluginUi
 
     void ShowOverlayPanel(ClientPluginOverlayPanel panel);
 
+    void HideOverlayPanel() => HideOverlayMenu();
+
     void HideOverlayMenu();
 }
 

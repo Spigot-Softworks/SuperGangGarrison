@@ -339,10 +339,6 @@ public sealed class NavGraph
             }
         }
 
-        if (Environment.GetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_WARM_TRACE") is "1" or "true" or "TRUE")
-        {
-            Console.WriteLine($"[botbrain] alpha-warm team={team} paths={warmPathCount} cache={_alphaPathCache.Count}");
-        }
     }
 
     /// <summary>

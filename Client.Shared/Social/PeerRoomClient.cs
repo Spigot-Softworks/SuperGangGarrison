@@ -67,7 +67,7 @@ public sealed class PeerRoomConnection : IDisposable
                 if (json.RootElement.TryGetProperty("detail", out var detail) && detail.ValueKind == JsonValueKind.String)
                     reason = detail.GetString() ?? reason;
             }
-            catch (JsonException) { }
+            catch (JsonException ex) { Console.WriteLine($"Peer room error details were not valid JSON: {ex.Message}"); }
             throw new HttpRequestException(reason, null, response.StatusCode);
         }
         var grant = await response.Content.ReadFromJsonAsync(PeerRoomJsonContext.Default.PeerRoomGrant, cancellationToken).ConfigureAwait(false)

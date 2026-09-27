@@ -95,6 +95,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Protocol", "Protocol", "{47
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Networking", "Networking", "{19AD2802-206A-0847-21B4-CD27F1CD0279}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenGarrison.Updater.Tests", "Tests\OpenGarrison.Updater.Tests\OpenGarrison.Updater.Tests.csproj", "{7F941488-9716-4162-A893-89003ED9781C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -437,6 +439,18 @@ Global
 		{97D6F8CE-EFEF-41C2-8620-C53303AB7144}.Release|x64.Build.0 = Release|Any CPU
 		{97D6F8CE-EFEF-41C2-8620-C53303AB7144}.Release|x86.ActiveCfg = Release|Any CPU
 		{97D6F8CE-EFEF-41C2-8620-C53303AB7144}.Release|x86.Build.0 = Release|Any CPU
+		{7F941488-9716-4162-A893-89003ED9781C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7F941488-9716-4162-A893-89003ED9781C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7F941488-9716-4162-A893-89003ED9781C}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{7F941488-9716-4162-A893-89003ED9781C}.Debug|x64.Build.0 = Debug|Any CPU
+		{7F941488-9716-4162-A893-89003ED9781C}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{7F941488-9716-4162-A893-89003ED9781C}.Debug|x86.Build.0 = Debug|Any CPU
+		{7F941488-9716-4162-A893-89003ED9781C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7F941488-9716-4162-A893-89003ED9781C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7F941488-9716-4162-A893-89003ED9781C}.Release|x64.ActiveCfg = Release|Any CPU
+		{7F941488-9716-4162-A893-89003ED9781C}.Release|x64.Build.0 = Release|Any CPU
+		{7F941488-9716-4162-A893-89003ED9781C}.Release|x86.ActiveCfg = Release|Any CPU
+		{7F941488-9716-4162-A893-89003ED9781C}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -475,6 +489,7 @@ Global
 		{81AD060C-DA0D-7079-1FE2-2D723D1F3B50} = {07C2787E-EAC7-C090-1BA3-A61EC2A24D84}
 		{4D9E8E05-4F22-4596-873C-9D794BAD327A} = {81AD060C-DA0D-7079-1FE2-2D723D1F3B50}
 		{97D6F8CE-EFEF-41C2-8620-C53303AB7144} = {DCDE9E71-D721-72F4-4EE7-3B55E53F7493}
+		{7F941488-9716-4162-A893-89003ED9781C} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {51ECE597-0299-4753-B7F5-4E8EDECD7BB4}

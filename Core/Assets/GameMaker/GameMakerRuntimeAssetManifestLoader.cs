@@ -110,7 +110,7 @@ public static class GameMakerRuntimeAssetManifestLoader
         var paths = new List<string>(capacity: 2);
 
         AddCandidate(ContentRoot.GetPath(ManifestRelativePath));
-        AddCandidate(Path.Combine(AppContext.BaseDirectory, "Content", ManifestRelativePath));
+        AddCandidate(Path.Combine(RuntimePaths.ApplicationRoot, "Content", ManifestRelativePath));
         return paths.ToArray();
 
         void AddCandidate(string path)

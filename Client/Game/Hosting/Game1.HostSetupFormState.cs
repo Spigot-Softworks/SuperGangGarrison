@@ -40,7 +40,7 @@ public partial class Game1
         public string ServerNameBuffer { get; set; } = "My Server";
         public int ServerNameCursorIndex { get; set; }
         public int ServerNameSelectionStart { get; set; }
-        public string PortBuffer { get; set; } = "8190";
+        public string PortBuffer { get; set; } = OpenGarrisonPreferencesDocument.DefaultServerPort.ToString();
         public int PortCursorIndex { get; set; }
         public int PortSelectionStart { get; set; }
         public string SlotsBuffer { get; set; } = "10";
@@ -232,7 +232,7 @@ public partial class Game1
 
             if (string.IsNullOrWhiteSpace(PortBuffer))
             {
-                PortBuffer = "8190";
+                PortBuffer = OpenGarrisonPreferencesDocument.DefaultServerPort.ToString();
             }
 
             if (string.IsNullOrWhiteSpace(SlotsBuffer))
@@ -276,7 +276,7 @@ public partial class Game1
             ArgumentNullException.ThrowIfNull(settings);
 
             settings.HostDefaults.ServerName = SanitizeServerName(ServerNameBuffer);
-            settings.HostDefaults.Port = ParsePortOrDefault(PortBuffer, 8190);
+            settings.HostDefaults.Port = ParsePortOrDefault(PortBuffer, OpenGarrisonPreferencesDocument.DefaultServerPort);
             settings.HostDefaults.Slots = ParseClampedInt(SlotsBuffer, 10, 1, SimulationWorld.MaxPlayableNetworkPlayers);
             settings.HostDefaults.Password = PasswordBuffer.Trim();
             settings.HostDefaults.RconPassword = RconPasswordBuffer.Trim();

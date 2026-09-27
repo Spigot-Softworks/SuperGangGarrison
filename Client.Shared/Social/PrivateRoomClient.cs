@@ -161,7 +161,7 @@ public sealed class PrivateRoomClient(HttpClient httpClient, Uri serviceOrigin)
                     if (error.Detail.TryGetProperty("roomId", out value) && value.ValueKind == JsonValueKind.String) roomId = value.GetString() ?? "";
                 }
             }
-            catch (JsonException) { } // Older services and proxies can return plain text/HTML.
+            catch (JsonException ex) { Console.WriteLine($"Private room error details could not be parsed: {ex.Message}"); } // Older services and proxies can return plain text/HTML.
             var reason = (int)response.StatusCode switch
             {
                 404 => "Room not found or expired.",

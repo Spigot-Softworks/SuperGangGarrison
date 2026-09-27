@@ -27,7 +27,7 @@ public sealed class FirstPlayHintsDocument
             if (BrowserPreferenceStore.Read(BrowserKey) is { } json)
                 return JsonSerializer.Deserialize(json, BrowserPreferencesJsonContext.Default.FirstPlayHintsDocument) ?? new();
         }
-        catch (JsonException) { }
+        catch (JsonException) { Console.WriteLine("First-play hints were invalid; using defaults."); }
         return new();
     }
 

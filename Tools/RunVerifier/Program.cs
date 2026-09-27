@@ -18,7 +18,7 @@ Console.SetOut(Console.Error);
 try
 {
     // Workers run from a temporary directory; content belongs to this installation.
-    var contentDirectory = Path.Combine(AppContext.BaseDirectory, "Content");
+    var contentDirectory = Path.Combine(RuntimePaths.ApplicationRoot, "Content");
     if (!File.Exists(Path.Combine(contentDirectory, "_gamemaker-asset-manifest.json")))
         throw new InvalidDataException("The verifier's installed game content is missing.");
     ContentRoot.Initialize(contentDirectory);

@@ -109,7 +109,7 @@ internal sealed class NativePeerDataConnection : IPeerDataConnection
     {
         if (!IsOpen || _channel!.bufferedAmount + (ulong)packet.Length > 8UL * 1024 * 1024) return false;
         try { lock (_framing) _framing.Send(packet, bytes => _channel!.send(bytes)); return true; }
-        catch (Exception) { Dispose(); return false; }
+        catch (Exception ex) { Console.WriteLine($"Native peer send failed: {ex.Message}"); Dispose(); return false; }
     }
     public void Dispose()
     {

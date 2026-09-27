@@ -4,10 +4,10 @@ namespace OpenGarrison.Core;
 
 public sealed partial class SimulationWorld
 {
-    private static readonly Lazy<GameMakerAssetManifest> s_gameMakerAssets = new(GameMakerRuntimeAssetManifestLoader.LoadPackagedOrProjectAssets);
-    private static readonly object s_presentationSpriteAssetCacheSync = new();
-    private static readonly Dictionary<string, GameMakerSpriteAsset> s_resolvedPresentationSpriteAssets = new(StringComparer.OrdinalIgnoreCase);
-    private static readonly HashSet<string> s_missingPresentationSpriteAssets = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly Lazy<GameMakerAssetManifest> _gameMakerAssets = new(GameMakerRuntimeAssetManifestLoader.LoadPackagedOrProjectAssets);
+    private static readonly object _presentationSpriteAssetCacheSync = new();
+    private static readonly Dictionary<string, GameMakerSpriteAsset> _resolvedPresentationSpriteAssets = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly HashSet<string> _missingPresentationSpriteAssets = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<int, PresentationHitBoundsCacheEntry> _presentationHitBoundsCache = new();
     private long _presentationHitBoundsCacheFrame = long.MinValue;
 
@@ -139,19 +139,19 @@ public sealed partial class SimulationWorld
     private static bool TryGetPresentationSpriteAsset(string spriteName, out GameMakerSpriteAsset sprite)
     {
         var normalizedSpriteName = spriteName.Trim();
-        if (s_gameMakerAssets.Value.Sprites.TryGetValue(normalizedSpriteName, out sprite!))
+        if (_gameMakerAssets.Value.Sprites.TryGetValue(normalizedSpriteName, out sprite!))
         {
             return true;
         }
 
-        lock (s_presentationSpriteAssetCacheSync)
+        lock (_presentationSpriteAssetCacheSync)
         {
-            if (s_resolvedPresentationSpriteAssets.TryGetValue(normalizedSpriteName, out sprite!))
+            if (_resolvedPresentationSpriteAssets.TryGetValue(normalizedSpriteName, out sprite!))
             {
                 return true;
             }
 
-            if (s_missingPresentationSpriteAssets.Contains(normalizedSpriteName))
+            if (_missingPresentationSpriteAssets.Contains(normalizedSpriteName))
             {
                 sprite = null!;
                 return false;
@@ -161,18 +161,18 @@ public sealed partial class SimulationWorld
         if (TryCreateGameplayPresentationSpriteAsset(normalizedSpriteName, out sprite!)
             || TryLoadFreshPresentationSpriteAsset(normalizedSpriteName, out sprite!))
         {
-            lock (s_presentationSpriteAssetCacheSync)
+            lock (_presentationSpriteAssetCacheSync)
             {
-                s_resolvedPresentationSpriteAssets[normalizedSpriteName] = sprite;
-                s_missingPresentationSpriteAssets.Remove(normalizedSpriteName);
+                _resolvedPresentationSpriteAssets[normalizedSpriteName] = sprite;
+                _missingPresentationSpriteAssets.Remove(normalizedSpriteName);
             }
 
             return true;
         }
 
-        lock (s_presentationSpriteAssetCacheSync)
+        lock (_presentationSpriteAssetCacheSync)
         {
-            s_missingPresentationSpriteAssets.Add(normalizedSpriteName);
+            _missingPresentationSpriteAssets.Add(normalizedSpriteName);
         }
 
         sprite = null!;

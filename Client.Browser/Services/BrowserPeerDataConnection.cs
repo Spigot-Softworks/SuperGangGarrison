@@ -28,7 +28,7 @@ internal sealed class BrowserPeerDataConnection : IPeerDataConnection
     {
         if (!IsOpen || !_js.Invoke<bool>("OpenGarrisonPeers.canSend", _id, packet.Length)) return false;
         try { _framing.Send(packet, bytes => _js.InvokeVoid("OpenGarrisonPeers.send", _id, bytes)); return true; }
-        catch (JSException) { Dispose(); return false; }
+        catch (JSException ex) { Console.WriteLine($"Browser peer send failed: {ex.Message}"); Dispose(); return false; }
     }
     public void Dispose()
     {

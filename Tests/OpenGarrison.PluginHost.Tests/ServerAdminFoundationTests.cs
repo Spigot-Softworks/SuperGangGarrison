@@ -92,7 +92,7 @@ public sealed class ServerAdminFoundationTests
 
         Assert.True(registry.TryGet("sv_rcon_password", out var protectedCvar));
         Assert.Equal("<protected>", protectedCvar.CurrentValue);
-        Assert.True(registry.TryGet("sv_rcon_password", includeProtectedValue: true, out var revealedProtectedCvar));
+        Assert.True(registry.TryGet("sv_rcon_password", includeProtectedValues: true, out var revealedProtectedCvar));
         Assert.Equal("secret", revealedProtectedCvar.CurrentValue);
 
         Assert.True(registry.TrySet("sv_autobalance", "on", out var updatedCvar, out var errorMessage));
@@ -126,7 +126,7 @@ public sealed class ServerAdminFoundationTests
         Assert.True(maskedCvar.IsProtected);
         Assert.Equal("<protected>", maskedCvar.CurrentValue);
 
-        Assert.True(registry.TryGet("sv_autobalance", includeProtectedValue: true, out var unmaskedCvar));
+        Assert.True(registry.TryGet("sv_autobalance", includeProtectedValues: true, out var unmaskedCvar));
         Assert.True(unmaskedCvar.IsProtected);
         Assert.Equal("true", unmaskedCvar.CurrentValue);
 
@@ -153,7 +153,7 @@ public sealed class ServerAdminFoundationTests
         Assert.True(reloadedRegistry.TryGet("sv_autobalance", out var reloadedMaskedCvar));
         Assert.True(reloadedMaskedCvar.IsProtected);
         Assert.Equal("<protected>", reloadedMaskedCvar.CurrentValue);
-        Assert.True(reloadedRegistry.TryGet("sv_autobalance", includeProtectedValue: true, out var reloadedUnmaskedCvar));
+        Assert.True(reloadedRegistry.TryGet("sv_autobalance", includeProtectedValues: true, out var reloadedUnmaskedCvar));
         Assert.True(reloadedUnmaskedCvar.IsProtected);
         Assert.Equal("false", reloadedUnmaskedCvar.CurrentValue);
     }
@@ -2565,20 +2565,20 @@ public sealed class ServerAdminFoundationTests
             return GetAll(includeProtectedValues: false);
         }
 
-        public bool TryGet(string name, bool includeProtectedValue, out OpenGarrisonServerCvarInfo cvar)
+        public bool TryGet(string name, bool includeProtectedValues, out OpenGarrisonServerCvarInfo cvar)
         {
             if (!_entries.TryGetValue(name, out cvar))
             {
                 return false;
             }
 
-            cvar = includeProtectedValue ? MarkProtected(cvar) : MaskProtectedValue(cvar);
+            cvar = includeProtectedValues ? MarkProtected(cvar) : MaskProtectedValue(cvar);
             return true;
         }
 
         public bool TryGet(string name, out OpenGarrisonServerCvarInfo cvar)
         {
-            return TryGet(name, includeProtectedValue: false, out cvar);
+            return TryGet(name, includeProtectedValues: false, out cvar);
         }
 
         public bool TrySet(string name, string value, bool allowProtectedMutation, out OpenGarrisonServerCvarInfo cvar, out string errorMessage)

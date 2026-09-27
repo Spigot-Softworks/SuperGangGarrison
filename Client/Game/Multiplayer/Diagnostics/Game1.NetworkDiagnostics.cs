@@ -628,7 +628,7 @@ public partial class Game1
     {
         try
         {
-            var directory = Path.Combine(AppContext.BaseDirectory, "network-diags");
+            var directory = Path.Combine(RuntimePaths.ApplicationRoot, "network-diags");
             Directory.CreateDirectory(directory);
             var filename = $"netdiag-{DateTime.Now:yyyyMMdd-HHmmss}.log";
             var path = Path.Combine(directory, filename);

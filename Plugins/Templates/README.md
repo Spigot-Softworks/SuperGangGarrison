@@ -26,9 +26,10 @@ so release packages can ship examples alongside the game.
 Supported APIs include:
 
 - Client Lua supports lifecycle, menu integration, main-menu overrides,
-  HUD/scoreboard drawing, lightweight audio playback, and options/config-backed
-  presentation plugins.
+  `register_hud_widget`, `show_prompt`, `show_overlay_panel`, HUD/scoreboard
+  drawing, lightweight audio playback, and options/config-backed presentation
+  plugins.
 - Server Lua supports lifecycle, gameplay/map/chat/client events,
-  semantic server events, bounded admin actions, replicated state, plugin
-  messaging, registered gameplay abilities, and registered primary weapon
-  behaviors.
+  semantic server events, voting, cvar access, bounded admin actions,
+  replicated state, plugin messaging, registered gameplay abilities, and
+  registered primary weapon behaviors.
