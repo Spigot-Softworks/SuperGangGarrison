@@ -509,16 +509,6 @@ public partial class Game1
         AdvanceBuildMenuAnimation();
     }
 
-    private bool TryShowEngineerBuildResourceNotice(PlayerEntity player, float requiredMetal)
-    {
-        if (!IsEngineerBuildResourceInsufficient(GetPlayerMetal(player), requiredMetal))
-        {
-            return false;
-        }
-
-        ShowNotice(NoticeKind.NutsNBolts);
-        return true;
-    }
 
     internal static bool IsEngineerBuildResourceInsufficient(float metal, float requiredMetal)
     {

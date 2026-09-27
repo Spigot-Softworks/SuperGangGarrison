@@ -1110,15 +1110,6 @@ public sealed partial class GameplayRuntimeRegistry
         return definition;
     }
 
-    private PrimaryWeaponKind ResolvePrimaryWeaponKind(string behaviorId)
-    {
-        if (_primaryWeaponBindingsByBehaviorId.TryGetValue(behaviorId, out var binding))
-        {
-            return binding.WeaponKind;
-        }
-
-        throw new InvalidOperationException($"Gameplay behavior id \"{behaviorId}\" is not registered as a primary weapon behavior.");
-    }
 
     public bool TryResolvePrimaryWeaponItemId(PrimaryWeaponDefinition weaponDefinition, out string itemId)
     {

@@ -239,11 +239,6 @@ public partial class Game1
             && !_previousGamePad.IsButtonDown(button);
     }
 
-    private bool IsControllerButtonDown(Buttons button)
-    {
-        return IsControllerGameplayInputActive()
-            && _currentGamePad.IsButtonDown(button);
-    }
 
     private bool IsControllerTauntChordHeld()
     {

@@ -24,8 +24,6 @@ public partial class Game1
         OpenGarrison.Core.LastToDie.LastToDieDifficulty difficulty)
         => TryStartEmbeddedSolo(difficulty);
 
-    private void TryStartHostedLastToDieRun(OpenGarrison.Core.LastToDie.LastToDieDifficulty difficulty)
-        => BeginPeerRoom(true, new PeerPracticeSettings(BlueBots: 0, Difficulty: difficulty == OpenGarrison.Core.LastToDie.LastToDieDifficulty.Hardcore ? "hardcore" : "standard"));
 
     private void CompleteHostedLastToDieRelayLaunch()
     {

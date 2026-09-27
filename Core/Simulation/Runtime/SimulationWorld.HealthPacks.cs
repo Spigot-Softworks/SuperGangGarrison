@@ -225,11 +225,6 @@ public sealed partial class SimulationWorld
         SpawnHealthPack(victim.X, victim.Bottom - 16f, size);
     }
 
-    private void ClearHealthPacks()
-    {
-        RemoveEntities(_healthPacks);
-        _healthPackSpawnRespawnTicks.Clear();
-    }
 
     private void ClearTemporaryHealthPacks()
     {

@@ -916,22 +916,7 @@ public partial class Game1
         _builderStatus = $"linked {source.Type}";
     }
 
-    private float GetGarrisonBuilderLogicNodeHalfHeight(CustomMapBuilderEntity entity)
-    {
-        if (entity.Type.Equals(MapLogicMetadata.ActivatorEntityType, StringComparison.OrdinalIgnoreCase)
-            || entity.Type.Equals(MapLogicMetadata.TimerEntityType, StringComparison.OrdinalIgnoreCase)
-            || entity.Type.Equals(MapLogicMetadata.OscillatorEntityType, StringComparison.OrdinalIgnoreCase))
-        {
-            return GarrisonBuilderLogicActivatorWorldHeight * 0.5f;
-        }
 
-        return GarrisonBuilderLogicNodeWorldHeight * 0.5f;
-    }
-
-    private Vector2 GetGarrisonBuilderLogicConsumerInputAnchor(CustomMapBuilderEntity entity)
-    {
-        return GetGarrisonBuilderEntityLinkAnchor(entity);
-    }
 
     private static bool UsesGarrisonBuilderLogicConnectionMarker(CustomMapBuilderEntity entity)
     {

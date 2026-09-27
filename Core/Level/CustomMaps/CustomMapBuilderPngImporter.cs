@@ -154,10 +154,6 @@ public static class CustomMapBuilderPngImporter
         return true;
     }
 
-    private static float GetLegacyDefaultParallaxFactor(int index)
-    {
-        return 10f - index;
-    }
 
     private static Dictionary<string, string> DecodeScalarMap(GgonValue.Map map)
     {

@@ -23,15 +23,6 @@ public partial class Game1
         return (start, Math.Abs(cursorIndex - selectionStart));
     }
 
-    private static string GetMenuInputDisplayText(string text, int cursorIndex, int selectionStart)
-    {
-        if (cursorIndex < 0 || cursorIndex > text.Length)
-        {
-            return text + "_";
-        }
-
-        return GetTextWithCursor(text, cursorIndex);
-    }
 
     private static string GetTextWithCursor(string text, int cursorIndex)
     {

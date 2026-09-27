@@ -3318,63 +3318,7 @@ public partial class Game1
         return true;
     }
 
-    private void CycleNavEditorAnchorKind()
-    {
-        if (_navEditorSelectedAnchorIndex >= 0 && _navEditorSelectedAnchorIndex < _navEditorAnchors.Count)
-        {
-            var anchor = _navEditorAnchors[_navEditorSelectedAnchorIndex];
-            anchor.Kind = GetNextNavEditorAnchorKind(anchor.Kind);
-            anchor.Team = NormalizeNavEditorAnchorTeam(anchor.Kind, anchor.Team);
-            RefreshNavEditorAnchorAutoLabel(anchor);
-            _navEditorDirty = true;
-            SetNavEditorStatus($"anchor role: {DescribeNavEditorAnchorRole(anchor.Kind, anchor.Team)}");
-            return;
-        }
 
-        if (_navEditorSelectedLinkIndex >= 0)
-        {
-            SetNavEditorStatus("anchor role only applies to anchors or new anchor defaults");
-            return;
-        }
-
-        _navEditorDefaultAnchorKind = GetNextNavEditorAnchorKind(_navEditorDefaultAnchorKind);
-        _navEditorDefaultAnchorTeam = NormalizeNavEditorAnchorTeam(_navEditorDefaultAnchorKind, _navEditorDefaultAnchorTeam);
-        SetNavEditorStatus($"new anchors use role: {DescribeNavEditorAnchorRole(_navEditorDefaultAnchorKind, _navEditorDefaultAnchorTeam)}");
-    }
-
-    private void CycleNavEditorAnchorTeam()
-    {
-        if (_navEditorSelectedAnchorIndex >= 0 && _navEditorSelectedAnchorIndex < _navEditorAnchors.Count)
-        {
-            var anchor = _navEditorAnchors[_navEditorSelectedAnchorIndex];
-            if (!CanNavEditorAnchorKindUseTeam(anchor.Kind))
-            {
-                SetNavEditorStatus($"{DescribeNavEditorAnchorKind(anchor.Kind)} anchors do not use team metadata");
-                return;
-            }
-
-            anchor.Team = GetNextNavEditorAnchorTeam(anchor.Team);
-            RefreshNavEditorAnchorAutoLabel(anchor);
-            _navEditorDirty = true;
-            SetNavEditorStatus($"anchor team: {DescribeNavEditorAnchorTeam(anchor.Team)}");
-            return;
-        }
-
-        if (_navEditorSelectedLinkIndex >= 0)
-        {
-            SetNavEditorStatus("anchor team only applies to anchors or new anchor defaults");
-            return;
-        }
-
-        if (!CanNavEditorAnchorKindUseTeam(_navEditorDefaultAnchorKind))
-        {
-            SetNavEditorStatus($"{DescribeNavEditorAnchorKind(_navEditorDefaultAnchorKind)} anchors do not use team metadata");
-            return;
-        }
-
-        _navEditorDefaultAnchorTeam = GetNextNavEditorAnchorTeam(_navEditorDefaultAnchorTeam);
-        SetNavEditorStatus($"new anchor team: {DescribeNavEditorAnchorTeam(_navEditorDefaultAnchorTeam)}");
-    }
 
     private void CycleNavEditorViewClass()
     {
@@ -3463,89 +3407,9 @@ public partial class Game1
         SetNavEditorStatus($"new link cost multiplier: {_navEditorDefaultCostMultiplier:F1}");
     }
 
-    private void CycleNavEditorClassScope()
-    {
-        if (_navEditorSelectedAnchorIndex >= 0 && _navEditorSelectedAnchorIndex < _navEditorAnchors.Count)
-        {
-            var anchor = _navEditorAnchors[_navEditorSelectedAnchorIndex];
-            anchor.Classes = GetNextNavEditorClassSelection(anchor.Classes);
-            _navEditorDirty = true;
-            if (!AppliesToNavEditorViewClass(anchor.Classes))
-            {
-                ClearNavEditorSelection();
-            }
 
-            SetNavEditorStatus($"anchor classes: {DescribeNavEditorClasses(anchor.Classes)}");
-            return;
-        }
 
-        if (_navEditorSelectedLinkIndex >= 0 && _navEditorSelectedLinkIndex < _navEditorLinks.Count)
-        {
-            var link = _navEditorLinks[_navEditorSelectedLinkIndex];
-            link.Classes = GetNextNavEditorClassSelection(link.Classes);
-            _navEditorDirty = true;
-            if (!AppliesToNavEditorViewClass(link.Classes))
-            {
-                ClearNavEditorSelection();
-            }
 
-            SetNavEditorStatus($"link classes: {DescribeNavEditorClasses(link.Classes)}");
-            return;
-        }
-
-        _navEditorDefaultClasses = GetNextNavEditorClassSelection(_navEditorDefaultClasses);
-        SetNavEditorStatus($"new items apply to: {DescribeNavEditorClasses(_navEditorDefaultClasses)}");
-    }
-
-    private void CycleNavEditorTraversal()
-    {
-        if (_navEditorSelectedLinkIndex >= 0 && _navEditorSelectedLinkIndex < _navEditorLinks.Count)
-        {
-            var link = _navEditorLinks[_navEditorSelectedLinkIndex];
-            link.Traversal = GetNextNavEditorTraversal(link.Traversal);
-            if (link.Traversal != BotNavigationHintTraversalKind.Jump)
-            {
-                link.StartJumpImmediately = false;
-            }
-
-            _navEditorDirty = true;
-            SetNavEditorStatus($"link traversal: {link.Traversal}");
-            return;
-        }
-
-        _navEditorDefaultTraversal = GetNextNavEditorTraversal(_navEditorDefaultTraversal);
-        SetNavEditorStatus($"new links use traversal: {_navEditorDefaultTraversal}");
-    }
-
-    private void ToggleNavEditorBidirectional()
-    {
-        if (_navEditorSelectedLinkIndex >= 0 && _navEditorSelectedLinkIndex < _navEditorLinks.Count)
-        {
-            var link = _navEditorLinks[_navEditorSelectedLinkIndex];
-            link.Bidirectional = !link.Bidirectional;
-            _navEditorDirty = true;
-            SetNavEditorStatus(link.Bidirectional ? "link is now bidirectional" : "link is now one-way");
-            return;
-        }
-
-        _navEditorDefaultBidirectional = !_navEditorDefaultBidirectional;
-        SetNavEditorStatus(_navEditorDefaultBidirectional ? "new links are bidirectional" : "new links are one-way");
-    }
-
-    private void AdjustNavEditorCostMultiplier(float delta)
-    {
-        if (_navEditorSelectedLinkIndex >= 0 && _navEditorSelectedLinkIndex < _navEditorLinks.Count)
-        {
-            var link = _navEditorLinks[_navEditorSelectedLinkIndex];
-            link.CostMultiplier = ClampNavEditorCostMultiplier(link.CostMultiplier + delta);
-            _navEditorDirty = true;
-            SetNavEditorStatus($"link cost multiplier: {link.CostMultiplier:F1}");
-            return;
-        }
-
-        _navEditorDefaultCostMultiplier = ClampNavEditorCostMultiplier(_navEditorDefaultCostMultiplier + delta);
-        SetNavEditorStatus($"new link cost multiplier: {_navEditorDefaultCostMultiplier:F1}");
-    }
 
     private void CycleNavEditorFallbackRole()
     {
@@ -4356,30 +4220,6 @@ public partial class Game1
         return true;
     }
 
-    private bool TryBuildNavEditorRouteTestAsset(
-        PlayerClass classId,
-        out BotNavigationAsset asset,
-        out BotNavigationValidationResult validation,
-        out string failureMessage)
-    {
-        asset = default!;
-        validation = BotNavigationValidationResult.Valid;
-        failureMessage = string.Empty;
-
-        try
-        {
-            var hintAsset = BuildNavEditorHintAssetSnapshot();
-            var fingerprint = BotNavigationLevelFingerprint.Compute(_world.Level);
-            asset = BotNavigationAssetBuilder.Build(_world.Level, classId, fingerprint, hintAsset);
-            validation = BotNavigationAssetValidator.Validate(_world.Level, asset);
-            return true;
-        }
-        catch (Exception ex)
-        {
-            failureMessage = $"route test could not build a {BotNavigationClasses.GetShortLabel(classId)} nav graph: {ex.Message}";
-            return false;
-        }
-    }
 
     private void BeginNavEditorTraversalPlayback(
         IReadOnlyList<NavEditorPlaybackStep> steps,
@@ -5715,40 +5555,10 @@ public partial class Game1
         return classes.Length == 1 ? classes[0] : PlayerClass.Soldier;
     }
 
-    private BotNavigationNodeKind GetNavEditorSelectedAnchorKindOrDefault()
-    {
-        return _navEditorSelectedAnchorIndex >= 0 && _navEditorSelectedAnchorIndex < _navEditorAnchors.Count
-            ? _navEditorAnchors[_navEditorSelectedAnchorIndex].Kind
-            : _navEditorDefaultAnchorKind;
-    }
 
-    private PlayerTeam? GetNavEditorSelectedAnchorTeamOrDefault()
-    {
-        return _navEditorSelectedAnchorIndex >= 0 && _navEditorSelectedAnchorIndex < _navEditorAnchors.Count
-            ? NormalizeNavEditorAnchorTeam(_navEditorAnchors[_navEditorSelectedAnchorIndex].Kind, _navEditorAnchors[_navEditorSelectedAnchorIndex].Team)
-            : NormalizeNavEditorAnchorTeam(_navEditorDefaultAnchorKind, _navEditorDefaultAnchorTeam);
-    }
 
-    private BotNavigationHintTraversalKind GetNavEditorSelectedTraversalOrDefault()
-    {
-        return _navEditorSelectedLinkIndex >= 0 && _navEditorSelectedLinkIndex < _navEditorLinks.Count
-            ? _navEditorLinks[_navEditorSelectedLinkIndex].Traversal
-            : _navEditorDefaultTraversal;
-    }
 
-    private bool GetNavEditorSelectedBidirectionalOrDefault()
-    {
-        return _navEditorSelectedLinkIndex >= 0 && _navEditorSelectedLinkIndex < _navEditorLinks.Count
-            ? _navEditorLinks[_navEditorSelectedLinkIndex].Bidirectional
-            : _navEditorDefaultBidirectional;
-    }
 
-    private float GetNavEditorSelectedCostMultiplierOrDefault()
-    {
-        return _navEditorSelectedLinkIndex >= 0 && _navEditorSelectedLinkIndex < _navEditorLinks.Count
-            ? _navEditorLinks[_navEditorSelectedLinkIndex].CostMultiplier
-            : _navEditorDefaultCostMultiplier;
-    }
 
     private BotNavigationHintFallbackRole GetNavEditorSelectedFallbackRoleOrDefault()
     {
@@ -6818,14 +6628,6 @@ public partial class Game1
         return link.RecordedTraversals.Any(recording => recording.ClassId == classId && recording.InputTape.Length > 0);
     }
 
-    private static string DescribeRecordedTraversalClasses(IReadOnlyList<NavEditorRecordedTraversal> recordedTraversals)
-    {
-        return recordedTraversals.Count == 0
-            ? "none"
-            : string.Join("/", recordedTraversals
-                .OrderBy(recording => recording.ClassId)
-                .Select(recording => BotNavigationClasses.GetShortLabel(recording.ClassId)));
-    }
 
     private static List<NavEditorRecordedTraversal> ExpandNavEditorRecordedTraversals(IReadOnlyList<BotNavigationHintRecordedTraversal> recordedTraversals)
     {

@@ -354,13 +354,6 @@ internal static class SnapshotDeltaBudgeter
         return null;
     }
 
-    private static SerializedSnapshot SerializeBuilderSnapshot(Builder builder, ref int serializePassCount)
-    {
-        var snapshot = builder.Build();
-        var payloadSize = Measure(snapshot);
-        var payload = Serialize(snapshot, payloadSize, ref serializePassCount);
-        return new SerializedSnapshot(snapshot, payload, payloadSize);
-    }
 
     private static SerializedSnapshot? TryReduceSnapshotForBudget(SnapshotMessage snapshot, int targetPayloadBytes, ref int serializePassCount)
     {

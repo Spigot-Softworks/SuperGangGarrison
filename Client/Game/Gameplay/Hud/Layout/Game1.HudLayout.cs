@@ -55,17 +55,6 @@ public partial class Game1
         return true;
     }
 
-    private bool TryResolveHudElementOrigin(string id, out Vector2 origin)
-    {
-        if (TryResolveHudElement(id, out var resolved))
-        {
-            origin = resolved.Origin;
-            return true;
-        }
-
-        origin = Vector2.Zero;
-        return false;
-    }
 
     private bool TryResolveHudElementEvenIfHidden(string id, out HudResolvedElement resolved)
     {

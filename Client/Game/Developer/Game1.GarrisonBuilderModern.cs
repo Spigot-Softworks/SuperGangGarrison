@@ -2316,18 +2316,6 @@ public partial class Game1
         CloneGarrisonBuilderSelectedEntities();
     }
 
-    private bool TryDuplicateGarrisonBuilderEntity(int sourceIndex, bool placeAtSourcePosition, out int duplicateIndex)
-    {
-        duplicateIndex = -1;
-        if (!TryDuplicateGarrisonBuilderEntities([sourceIndex], placeAtSourcePosition, out var duplicates)
-            || duplicates.Count == 0)
-        {
-            return false;
-        }
-
-        duplicateIndex = duplicates[0];
-        return true;
-    }
 
     private void RemoveGarrisonBuilderSelectedEntity()
     {
@@ -3904,32 +3892,6 @@ public partial class Game1
             GetGarrisonBuilderBitmapFontScale());
     }
 
-    private void DrawGarrisonBuilderBarrierEdgeIndicators(
-        float worldStartX,
-        float worldStartY,
-        float span,
-        float step,
-        bool vertical,
-        string symbol,
-        float textScale)
-    {
-        var symbolWidth = MeasureBitmapFontWidth(symbol, textScale);
-        var symbolHeight = MeasureBitmapFontHeight(textScale);
-        for (var offset = step * 0.5f; offset < span; offset += step)
-        {
-            var world = vertical
-                ? new Vector2(worldStartX, worldStartY + offset)
-                : new Vector2(worldStartX + offset, worldStartY);
-            var screen = BuilderWorldToScreen(world);
-            var drawX = vertical
-                ? symbol.Equals(">", StringComparison.Ordinal) ? screen.X : screen.X - symbolWidth
-                : screen.X - (symbolWidth * 0.5f);
-            var drawY = vertical
-                ? screen.Y - (symbolHeight * 0.5f)
-                : symbol.Equals("v", StringComparison.Ordinal) ? screen.Y : screen.Y - symbolHeight;
-            DrawBitmapFontText(symbol, new Vector2(drawX, drawY), Color.White, textScale);
-        }
-    }
 
     private void DrawGarrisonBuilderEntityPropertyBadgeOverlay(CustomMapBuilderEntity entity, Color? teamColor, string flags)
     {

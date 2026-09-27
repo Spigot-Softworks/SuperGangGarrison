@@ -4040,35 +4040,6 @@ public sealed class LuaPluginHostSmokeTests
             OpenGarrisonServerCommandSource.PrivateChat);
     }
 
-    private static OpenGarrisonServerPlayerInfo CreateServerPlayer(
-        byte slot,
-        int userId,
-        string name,
-        bool isSpectator = false,
-        bool isAuthorized = true,
-        bool isAlive = true,
-        PlayerTeam? team = PlayerTeam.Red,
-        PlayerClass? playerClass = PlayerClass.Soldier)
-    {
-        return new OpenGarrisonServerPlayerInfo(
-            slot,
-            userId,
-            name,
-            IsSpectator: isSpectator,
-            IsAuthorized: isAuthorized,
-            IsGagged: false,
-            IsAlive: isAlive,
-            PlayerId: isSpectator ? null : slot,
-            Team: isSpectator ? null : team,
-            PlayerClass: isSpectator ? null : playerClass,
-            PlayerScale: 1f,
-            EndPoint: $"127.0.0.1:{8190 + slot}",
-            GameplayLoadoutId: "stock",
-            GameplaySecondaryItemId: string.Empty,
-            GameplayAcquiredItemId: string.Empty,
-            GameplayEquippedSlot: GameplayEquipmentSlot.Primary,
-            GameplayEquippedItemId: "weapon.rocketlauncher");
-    }
 
     private static List<GarrisonToolsCommandSpec> ExtractGarrisonToolsCommandSpecs(string mainLua)
     {

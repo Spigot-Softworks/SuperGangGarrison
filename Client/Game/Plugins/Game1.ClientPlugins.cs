@@ -198,11 +198,6 @@ public partial class Game1
                 blueCenterText));
     }
 
-    private IReadOnlyList<ClientScoreboardPlayerAction> GetClientPluginScoreboardPlayerActions(ScoreboardPlayerRow row)
-    {
-        return _clientPluginHost?.GetScoreboardPlayerActions(CreateClientPluginScoreboardPlayerActionContext(row))
-            ?? Array.Empty<ClientScoreboardPlayerAction>();
-    }
 
     private ClientScoreboardPlayerActionContext CreateClientPluginScoreboardPlayerActionContext(ScoreboardPlayerRow row)
     {

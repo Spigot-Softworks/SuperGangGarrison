@@ -783,10 +783,6 @@ public partial class Game1
         };
     }
 
-    private bool IsGarrisonBuilderSelectedLayerHidden()
-    {
-        return IsGarrisonBuilderLayerHidden(_builderLayerIndex);
-    }
 
     private void ToggleGarrisonBuilderLayerHide(int layerIndex)
     {
@@ -819,10 +815,6 @@ public partial class Game1
             : $"layer {layerIndex + 1} hidden";
     }
 
-    private void ToggleGarrisonBuilderSelectedLayerHide()
-    {
-        ToggleGarrisonBuilderLayerHide(_builderLayerIndex);
-    }
 
     private void SetGarrisonBuilderLayerVisible(int index, bool visible)
     {
@@ -1320,16 +1312,6 @@ public partial class Game1
         DrawGarrisonBuilderText(GetTextWithCursor(text, _builderPropertyCursorIndex), bounds.Location.ToVector2() + new Vector2(4f, 3f), Color.Black, 0.95f);
     }
 
-    private void DrawLegacyGarrisonBuilderStatus()
-    {
-        var validation = GetGarrisonBuilderValidation();
-        var text = $"{GetGarrisonBuilderModeLabel(validation.Mode)} | {(_builderDirty ? "dirty" : "saved")} | {_builderStatus}";
-        var width = Math.Min(BuilderViewportWidth - BuilderUi(8), (int)MathF.Ceiling(MeasureGarrisonBuilderText(text, 1f).X) + BuilderUi(12));
-        var bounds = new Rectangle(4, 4, width, 18);
-        _spriteBatch.Draw(_pixel, bounds, new Color(159, 159, 159));
-        _spriteBatch.Draw(_pixel, new Rectangle(bounds.X, bounds.Y, bounds.Width, 1), new Color(63, 63, 63));
-        DrawGarrisonBuilderText(text, bounds.Location.ToVector2() + new Vector2(4f, 2f), Color.Black, 0.95f);
-    }
 
     private void DrawLegacyGarrisonBuilderTooltip(Point mousePosition, string text)
     {
@@ -1419,91 +1401,6 @@ public partial class Game1
         DrawGarrisonBuilderText(label, bounds.Location.ToVector2() + new Vector2(4f, 2f), Color.Black, textScale);
     }
 
-    private void DrawGarrisonBuilderPanel(MouseState mouse)
-    {
-        var panel = GetGarrisonBuilderPanelBounds();
-        _spriteBatch.Draw(_pixel, panel, new Color(18, 20, 24, 242));
-        _spriteBatch.Draw(_pixel, new Rectangle(panel.X, panel.Y, 3, panel.Height), new Color(80, 180, 210));
-        var x = panel.X + BuilderPanelPadding;
-        var y = panel.Y + BuilderPanelPadding;
-        DrawGarrisonBuilderText("Garrison Builder", x, y, Color.White, 1f);
-        y += 28;
-        DrawGarrisonBuilderText(_builderDirty ? "dirty" : "saved", x, y, _builderDirty ? new Color(255, 214, 118) : new Color(150, 224, 160), 0.86f);
-        y += 24;
-
-        var buttons = CreateGarrisonBuilderButtonRow(x, y, panel.Width - (BuilderPanelPadding * 2), 4);
-        DrawGarrisonBuilderButton(buttons[0], _builderShowBackground ? "BG On" : "BG Off", _builderShowBackground, true, mouse);
-        DrawGarrisonBuilderButton(buttons[1], _builderShowWalkmask ? "WM On" : "WM Off", _builderShowWalkmask, true, mouse);
-        DrawGarrisonBuilderButton(buttons[2], _builderShowGrid ? "Grid On" : "Grid Off", _builderShowGrid, true, mouse);
-        DrawGarrisonBuilderButton(buttons[3], "Save Ctrl+S", false, CanSaveGarrisonBuilderDocument(), mouse);
-        y += buttons[0].Height + 14;
-
-        DrawGarrisonBuilderText("File", x, y, new Color(180, 214, 230), 0.9f);
-        y += 22;
-        DrawGarrisonBuilderPathRow(GarrisonBuilderPathField.OpenMap, "Open", x, y, panel.Width - (BuilderPanelPadding * 2), mouse);
-        y += 32;
-        DrawGarrisonBuilderPathRow(GarrisonBuilderPathField.Background, "BG", x, y, panel.Width - (BuilderPanelPadding * 2), mouse);
-        y += 32;
-        DrawGarrisonBuilderPathRow(GarrisonBuilderPathField.Walkmask, "WM", x, y, panel.Width - (BuilderPanelPadding * 2), mouse);
-        y += 32;
-        DrawGarrisonBuilderPathRow(GarrisonBuilderPathField.Save, "Save", x, y, panel.Width - (BuilderPanelPadding * 2), mouse);
-        y += 42;
-
-        DrawGarrisonBuilderText("Entities", x, y, new Color(180, 214, 230), 0.9f);
-        y += 22;
-        var columns = Math.Max(1, (panel.Width - (BuilderPanelPadding * 2)) / BuilderEntityButtonSize);
-        for (var index = 0; index < _builderEntityDefinitions.Count; index += 1)
-        {
-            var column = index % columns;
-            var row = index / columns;
-            var bounds = new Rectangle(x + (column * BuilderEntityButtonSize), y + (row * BuilderEntityButtonSize), BuilderEntityButtonSize - 2, BuilderEntityButtonSize - 2);
-            var definition = _builderEntityDefinitions[index];
-            var selected = string.Equals(_builderSelectedEntityType, definition.Type, StringComparison.OrdinalIgnoreCase);
-            _spriteBatch.Draw(_pixel, bounds, selected ? new Color(84, 176, 216, 220) : new Color(42, 46, 52, 220));
-            DrawGarrisonBuilderEntityIcon(definition, bounds);
-        }
-
-        y += ((int)MathF.Ceiling(_builderEntityDefinitions.Count / (float)columns) * BuilderEntityButtonSize) + 14;
-        DrawGarrisonBuilderText("Properties", x, y, new Color(180, 214, 230), 0.9f);
-        y += 22;
-        DrawGarrisonBuilderText($"Selected: {_builderSelectedEntityType}", x, y, Color.White, 0.8f);
-        y += 18;
-        DrawGarrisonBuilderText($"Placed: {_builderEntities.Count}", x, y, Color.White, 0.8f);
-        y += 18;
-        var validation = GetGarrisonBuilderValidation();
-        DrawGarrisonBuilderText($"Mode: {GetGarrisonBuilderModeLabel(validation.Mode)}", x, y, validation.IsValid ? new Color(150, 224, 160) : new Color(255, 214, 118), 0.8f);
-        y += 18;
-        DrawGarrisonBuilderText(validation.IsValid ? "Validation: OK" : $"Validation: {validation.Issues.Count} issue(s)", x, y, validation.IsValid ? new Color(150, 224, 160) : new Color(255, 214, 118), 0.8f);
-        foreach (var issue in validation.Issues.Take(2))
-        {
-            y += 16;
-            DrawGarrisonBuilderWrapped(issue.Message, x, y, panel.Width - 22, new Color(255, 190, 150));
-        }
-
-        y += 28;
-        DrawGarrisonBuilderText("Layers", x, y, new Color(180, 214, 230), 0.9f);
-        y += 22;
-        DrawGarrisonBuilderText($"Visual scale: {_builderDocument.VisualScale:0.##}", x, y, Color.White, 0.8f);
-        y += 18;
-        DrawGarrisonBuilderText($"Walkmask scale: {_builderDocument.Scale:0.##}", x, y, Color.White, 0.8f);
-        y += 18;
-        DrawGarrisonBuilderText($"Parallax layers: {_builderDocument.ParallaxLayers.Count}", x, y, Color.White, 0.8f);
-        y += 28;
-        DrawGarrisonBuilderText("Metadata", x, y, new Color(180, 214, 230), 0.9f);
-        y += 22;
-        foreach (var pair in _builderDocument.Metadata)
-        {
-            if (y > panel.Bottom - 72)
-            {
-                break;
-            }
-
-            DrawGarrisonBuilderText($"{pair.Key}: {pair.Value}", x, y, new Color(216, 216, 216), 0.74f);
-            y += 16;
-        }
-
-        DrawGarrisonBuilderWrapped(_builderStatus, x, panel.Bottom - 48, panel.Width - 22, new Color(255, 226, 140));
-    }
 
     private int GetGarrisonBuilderEntityIconFrameIndex(CustomMapBuilderEntityDefinition definition, bool selected)
     {
@@ -1827,23 +1724,6 @@ public partial class Game1
         return false;
     }
 
-    private bool TryPickGarrisonBuilderEntityAtWorld(Vector2 world, out int entityIndex)
-    {
-        entityIndex = -1;
-        if (TryPickGarrisonBuilderSelectedEntityAtWorld(world, out entityIndex))
-        {
-            return true;
-        }
-
-        CollectGarrisonBuilderEntitiesAtWorld(world, _builderEntityOverlapPickScratch);
-        if (_builderEntityOverlapPickScratch.Count == 0)
-        {
-            return false;
-        }
-
-        entityIndex = _builderEntityOverlapPickScratch[0];
-        return true;
-    }
 
     private enum GarrisonBuilderEntityPickResult
     {
@@ -1898,55 +1778,6 @@ public partial class Game1
         DrawGarrisonBuilderButton(actionBounds, field == GarrisonBuilderPathField.Save ? "Write" : "Apply", false, true, mouse);
     }
 
-    private void HandleGarrisonBuilderPanelClick(Point position)
-    {
-        var panel = GetGarrisonBuilderPanelBounds();
-        var x = panel.X + BuilderPanelPadding;
-        var y = panel.Y + BuilderPanelPadding + 52;
-        var buttons = CreateGarrisonBuilderButtonRow(x, y, panel.Width - (BuilderPanelPadding * 2), 4);
-        if (buttons[0].Contains(position))
-        {
-            _builderShowBackground = !_builderShowBackground;
-            return;
-        }
-
-        if (buttons[1].Contains(position))
-        {
-            _builderShowWalkmask = !_builderShowWalkmask;
-            return;
-        }
-
-        if (buttons[2].Contains(position))
-        {
-            _builderShowGrid = !_builderShowGrid;
-            return;
-        }
-
-        if (buttons[3].Contains(position))
-        {
-            SaveGarrisonBuilderDocument();
-            return;
-        }
-
-        if (TryHandleGarrisonBuilderPathClick(position, panel))
-        {
-            return;
-        }
-
-        var paletteY = panel.Y + BuilderPanelPadding + 52 + BuilderButtonHeight + 14 + 22 + (32 * 4) + 42 + 22;
-        var columns = Math.Max(1, (panel.Width - (BuilderPanelPadding * 2)) / BuilderEntityButtonSize);
-        for (var index = 0; index < _builderEntityDefinitions.Count; index += 1)
-        {
-            var column = index % columns;
-            var row = index / columns;
-            var bounds = new Rectangle(x + (column * BuilderEntityButtonSize), paletteY + (row * BuilderEntityButtonSize), BuilderEntityButtonSize - 2, BuilderEntityButtonSize - 2);
-            if (bounds.Contains(position))
-            {
-                SelectGarrisonBuilderEntity(_builderEntityDefinitions[index], updateStatus: true);
-                return;
-            }
-        }
-    }
 
     private void UpdateLegacyGarrisonBuilderScroll(MouseState mouse)
     {
@@ -2466,27 +2297,6 @@ public partial class Game1
         }
     }
 
-    private bool TryAssignSelectedGarrisonBuilderResourceToLayer(int index)
-    {
-        if (string.IsNullOrWhiteSpace(_builderSelectedResourceName)
-            || !_builderDocument.Resources.TryGetValue(_builderSelectedResourceName, out var resource))
-        {
-            return false;
-        }
-
-        if (resource.Kind == CustomMapBuilderResourceKind.Foreground)
-        {
-            resource = resource with { Kind = CustomMapBuilderResourceKind.ParallaxLayer };
-            var resources = new Dictionary<string, CustomMapBuilderResource>(_builderDocument.Resources, StringComparer.OrdinalIgnoreCase)
-            {
-                [resource.Name] = resource,
-            };
-            _builderDocument = _builderDocument with { Resources = resources };
-        }
-
-        AssignGarrisonBuilderResourceToLayer(index, resource.Name);
-        return true;
-    }
 
     private void AssignGarrisonBuilderResourceToLayer(int index, string resourceName)
     {
@@ -2500,17 +2310,6 @@ public partial class Game1
         _builderStatus = $"assigned {resourceName} to layer {index + 1}";
     }
 
-    private bool TryAssignSelectedGarrisonBuilderResourceToForeground()
-    {
-        if (string.IsNullOrWhiteSpace(_builderSelectedResourceName)
-            || !_builderDocument.Resources.ContainsKey(_builderSelectedResourceName))
-        {
-            return false;
-        }
-
-        AssignGarrisonBuilderResourceToForeground(_builderSelectedResourceName);
-        return true;
-    }
 
     private void AssignGarrisonBuilderResourceToForeground(string resourceName)
     {
@@ -3096,42 +2895,6 @@ public partial class Game1
         }
     }
 
-    private static void WriteGarrisonBuilderWalkmaskPng(string embeddedWalkmaskSection, string outputPath)
-    {
-        var lines = embeddedWalkmaskSection
-            .Trim()
-            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
-        if (lines.Length < 3
-            || !int.TryParse(lines[0], System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var width)
-            || !int.TryParse(lines[1], System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var height)
-            || width <= 0
-            || height <= 0)
-        {
-            throw new InvalidOperationException("Embedded walkmask section is invalid.");
-        }
-
-        var packed = string.Concat(lines.Skip(2));
-        using var image = new SixLabors.ImageSharp.Image<Rgba32>(width, height);
-        var pixelIndex = 0;
-        foreach (var character in packed)
-        {
-            var value = character - 32;
-            for (var bit = 5; bit >= 0 && pixelIndex < width * height; bit -= 1)
-            {
-                if (((value >> bit) & 1) != 0)
-                {
-                    var x = pixelIndex % width;
-                    var y = pixelIndex / width;
-                    image[x, y] = new Rgba32(255, 255, 255, 255);
-                }
-
-                pixelIndex += 1;
-            }
-        }
-
-        using var output = File.Create(outputPath);
-        image.Save(output, new PngEncoder());
-    }
 
     private Rectangle GetLegacyGarrisonBuilderActionBounds()
     {
@@ -3238,19 +3001,6 @@ public partial class Game1
         };
     }
 
-    private void PlaceGarrisonBuilderEntity(Vector2 worldPosition)
-    {
-        var snapped = SnapGarrisonBuilderPoint(worldPosition);
-        var snappedX = snapped.X;
-        var snappedY = snapped.Y;
-        var entity = CustomMapBuilderEntityCatalog.TryGetDefinition(_builderSelectedEntityType, out var definition)
-            ? CreateGarrisonBuilderEntityFromDefinition(definition, snappedX, snappedY)
-            : CustomMapBuilderEntity.Create(_builderSelectedEntityType, snappedX, snappedY).NormalizeForEditing();
-        _builderEntities.Add(entity);
-        UpdateGarrisonBuilderDocumentEntities();
-        _builderDirty = true;
-        _builderStatus = $"placed {_builderSelectedEntityType} at {snappedX:0}, {snappedY:0}";
-    }
 
     private void BeginGarrisonBuilderPlacement(Vector2 worldPosition)
     {
@@ -3458,20 +3208,12 @@ public partial class Game1
         return GetGarrisonBuilderVisualWorldWidth() * 0.5f;
     }
 
-    private float GetGarrisonBuilderMapSymmetryCenterY()
-    {
-        return GetGarrisonBuilderVisualWorldHeight() * 0.5f;
-    }
 
     private float GetGarrisonBuilderMapSymmetryWidth()
     {
         return GetGarrisonBuilderVisualWorldWidth();
     }
 
-    private float GetGarrisonBuilderMapSymmetryHeight()
-    {
-        return GetGarrisonBuilderVisualWorldHeight();
-    }
 
     private void AddGarrisonBuilderPlacementEntity(
         List<CustomMapBuilderEntity> entities,
@@ -5503,11 +5245,6 @@ public partial class Game1
             ? ("Load message sound", "OGG sound files (*.ogg)|*.ogg|All files (*.*)|*.*")
             : ("Load builder resource", "Image files (*.png;*.gif)|*.png;*.gif|PNG files (*.png)|*.png|GIF files (*.gif)|*.gif|All files (*.*)|*.*");
 
-    private bool ApplyChosenGarrisonBuilderPath(GarrisonBuilderPathField field)
-    {
-        ApplyGarrisonBuilderPathField(field);
-        return true;
-    }
 
     private void BeginChooseGarrisonBuilderFile(string title, string filter, string initialPath, Action<string> accepted) =>
         BeginGarrisonBuilderFileDialog(title, filter, initialPath, false, false, accepted);
@@ -7267,34 +7004,6 @@ public partial class Game1
         ForwardSpawnMetadata.UseWhenPropertyKey,
     ];
 
-    private List<string> BuildGarrisonBuilderControlPointPropertyRows(List<string> rows)
-    {
-        var ordered = new List<string>();
-        if (!IsGarrisonBuilderExplicitControlPointType())
-        {
-            ordered.Add(ControlPointIndexMetadata.PropertyKey);
-        }
-
-        ordered.Add(ControlPointCapTimeMultiplierMetadata.PropertyKey);
-        if (!IsGarrisonBuilderControlPointOverrideEnabled())
-        {
-            return ordered;
-        }
-
-        if (rows.Any(static key => key.Equals(ControlPointInitialOwnershipMetadata.PropertyKey, StringComparison.OrdinalIgnoreCase)))
-        {
-            ordered.Add(ControlPointInitialOwnershipMetadata.PropertyKey);
-        }
-
-        ordered.Add(ControlPointLockDependencyMetadata.LockedWhenSectionKey);
-        ordered.Add(ControlPointLockDependencyMetadata.LockedWhenCpPropertyKey);
-        ordered.Add(ControlPointLockDependencyMetadata.LockedWhenTeamPropertyKey);
-        ordered.Add(ControlPointLockDependencyMetadata.UnlockedWhenSectionKey);
-        ordered.Add(ControlPointLockDependencyMetadata.UnlockedWhenCpPropertyKey);
-        ordered.Add(ControlPointLockDependencyMetadata.UnlockedWhenTeamPropertyKey);
-        ordered.Add(ControlPointInitialLockStateMetadata.PropertyKey);
-        return ordered;
-    }
 
     private bool IsGarrisonBuilderControlPointOverrideEnabled()
     {
@@ -7361,28 +7070,6 @@ public partial class Game1
         properties.Remove(GameplayMessageMetadata.HeightPropertyKey);
     }
 
-    private static List<string> OrderGarrisonBuilderSpawnPropertyRows(List<string> rows)
-    {
-        var ordered = new List<string>(rows.Count);
-        foreach (var key in GarrisonBuilderSpawnPropertyRowOrder)
-        {
-            var match = rows.FirstOrDefault(existing => existing.Equals(key, StringComparison.OrdinalIgnoreCase));
-            if (match is not null)
-            {
-                ordered.Add(match);
-            }
-        }
-
-        foreach (var key in rows)
-        {
-            if (!ordered.Any(existing => existing.Equals(key, StringComparison.OrdinalIgnoreCase)))
-            {
-                ordered.Add(key);
-            }
-        }
-
-        return ordered;
-    }
 
     private static readonly string[] GarrisonBuilderBarrierPropertyRowOrder = BarrierTargetFilterMetadata.TargetPropertyKeys;
 
@@ -10071,35 +9758,6 @@ public partial class Game1
         return new Rectangle(editorBounds.X + 8, editorBounds.Bottom - 48, editorBounds.Width - 16, buttonHeight);
     }
 
-    private void RemoveNearestGarrisonBuilderEntity(Vector2 worldPosition)
-    {
-        RecordGarrisonBuilderHistory();
-        var bestIndex = -1;
-        var bestDistanceSquared = 20f * 20f;
-        for (var index = 0; index < _builderEntities.Count; index += 1)
-        {
-            var entity = _builderEntities[index];
-            var distanceSquared = Vector2.DistanceSquared(new Vector2(entity.X, entity.Y), worldPosition);
-            if (distanceSquared < bestDistanceSquared)
-            {
-                bestDistanceSquared = distanceSquared;
-                bestIndex = index;
-            }
-        }
-
-        if (bestIndex < 0)
-        {
-            _builderStatus = "no nearby entity to remove";
-            return;
-        }
-
-        var removed = _builderEntities[bestIndex].Type;
-        NotifyGarrisonBuilderEntityRemoved(bestIndex);
-        _builderEntities.RemoveAt(bestIndex);
-        UpdateGarrisonBuilderDocumentEntities();
-        _builderDirty = true;
-        _builderStatus = $"removed {removed}";
-    }
 
     private void UpdateGarrisonBuilderDocumentEntities()
     {
@@ -11658,21 +11316,6 @@ public partial class Game1
         }
     }
 
-    private static CustomMapBuilderGameMode[] GetGarrisonBuilderModeMenuModes()
-    {
-        return
-        [
-            CustomMapBuilderGameMode.Free,
-            CustomMapBuilderGameMode.Scr,
-            CustomMapBuilderGameMode.CaptureTheFlag,
-            CustomMapBuilderGameMode.ControlPoint,
-            CustomMapBuilderGameMode.AttackDefenseControlPoint,
-            CustomMapBuilderGameMode.KingOfTheHill,
-            CustomMapBuilderGameMode.DualKingOfTheHill,
-            CustomMapBuilderGameMode.Arena,
-            CustomMapBuilderGameMode.Generator,
-        ];
-    }
 
     private static GarrisonBuilderModeMenuItem[] GetGarrisonBuilderModeMenuItems()
     {

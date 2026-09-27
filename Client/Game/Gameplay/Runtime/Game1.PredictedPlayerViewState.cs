@@ -283,47 +283,11 @@ public partial class Game1
             : player.Metal;
     }
 
-    private int GetPlayerCurrentShells(PlayerEntity player)
-    {
-        return IsUsingPredictedLocalState(player)
-            ? _predictedLocalActionState.CurrentShells
-            : player.CurrentShells;
-    }
 
-    private int GetPlayerPrimaryCooldownTicks(PlayerEntity player)
-    {
-        return IsUsingPredictedLocalState(player)
-            ? _predictedLocalActionState.PrimaryCooldownTicks
-            : player.PrimaryCooldownTicks;
-    }
 
-    private int GetPlayerReloadTicksUntilNextShell(PlayerEntity player)
-    {
-        return IsUsingPredictedLocalState(player)
-            ? _predictedLocalActionState.ReloadTicksUntilNextShell
-            : player.ReloadTicksUntilNextShell;
-    }
 
-    private int GetPlayerExperimentalOffhandCurrentShells(PlayerEntity player)
-    {
-        return IsUsingPredictedLocalState(player)
-            ? _predictedLocalActionState.ExperimentalOffhandCurrentShells
-            : player.ExperimentalOffhandCurrentShells;
-    }
 
-    private int GetPlayerExperimentalOffhandCooldownTicks(PlayerEntity player)
-    {
-        return IsUsingPredictedLocalState(player)
-            ? _predictedLocalActionState.ExperimentalOffhandCooldownTicks
-            : player.ExperimentalOffhandCooldownTicks;
-    }
 
-    private int GetPlayerExperimentalOffhandReloadTicksUntilNextShell(PlayerEntity player)
-    {
-        return IsUsingPredictedLocalState(player)
-            ? _predictedLocalActionState.ExperimentalOffhandReloadTicksUntilNextShell
-            : player.ExperimentalOffhandReloadTicksUntilNextShell;
-    }
 
     private int GetPlayerBuffBannerChargeDamage(PlayerEntity player)
     {
@@ -460,12 +424,6 @@ public partial class Game1
             : player.MedicUberPresentationMode;
     }
 
-    private bool GetPlayerIsMedicUbering(PlayerEntity player)
-    {
-        return IsUsingPredictedLocalState(player)
-            ? _predictedLocalActionState.IsMedicUbering
-            : player.IsMedicUberDeliveryActive;
-    }
 
     private PlayerEntity GetPlayerCivviePresentationSource(PlayerEntity player)
     {
