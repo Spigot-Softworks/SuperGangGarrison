@@ -65,8 +65,6 @@ public partial class Game1
     private GarrisonBuilderResizeHandle _builderActiveResizeHandle = GarrisonBuilderResizeHandle.None;
     private Vector2 _builderResizeAnchorWorld;
     private Vector2 _builderResizeHandleWorld;
-    private float _builderResizeStartXScale = 1f;
-    private float _builderResizeStartYScale = 1f;
     private float _builderResizeStartWidth;
     private float _builderResizeStartHeight;
     private float _builderResizeStartLeft;
@@ -2850,8 +2848,6 @@ public partial class Game1
             _builderActiveResizeHandle = pair.Key;
             _builderResizeAnchorWorld = world;
             _builderResizeHandleWorld = pair.Value;
-            _builderResizeStartXScale = entity.XScale;
-            _builderResizeStartYScale = entity.YScale;
             _builderResizeStartWidth = width;
             _builderResizeStartHeight = height;
             _builderResizeStartLeft = left;
@@ -3626,7 +3622,6 @@ public partial class Game1
         var validationText = validation.Issues.Count == 0 ? "Validation OK"
             : validation.Issues[0].Code == "validation_pending" ? "Checking map..."
             : $"{validation.Issues.Count} issue(s)";
-        var validationScale = GetModernBuilderTextScale(0.82f);
         var validationBounds = new Rectangle(
             10,
             modeBounds.Bottom + 6,

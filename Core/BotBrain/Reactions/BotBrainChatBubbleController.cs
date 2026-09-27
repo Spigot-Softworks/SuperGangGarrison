@@ -11,7 +11,6 @@ public readonly record struct BotBrainChatBubbleContext(
 
 public sealed class BotBrainChatBubbleController
 {
-    private const int FrameAlert = ChatBubbleFrameCatalog.Alert;
     private const int FrameQuestion = ChatBubbleFrameCatalog.Question;
     private const int FrameHappy = ChatBubbleFrameCatalog.Happy;
     private const int FrameObjectiveAlert = ChatBubbleFrameCatalog.ObjectiveAlert;

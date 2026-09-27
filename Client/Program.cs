@@ -99,8 +99,8 @@ static void WriteStartupDiagnostics()
         builder.AppendLine("[package-files]");
         foreach (var fileName in new[]
                  {
-                     "version.txt",
-                     "release-channel.txt",
+                     ApplicationBuildInfo.VersionFileName,
+                     ApplicationBuildInfo.ReleaseChannelFileName,
                      "OG2.dll",
                      "OG2.deps.json",
                      "OG2.runtimeconfig.json",

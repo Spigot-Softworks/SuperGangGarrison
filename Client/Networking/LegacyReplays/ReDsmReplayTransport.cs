@@ -424,7 +424,6 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
     {
         private const byte LegacyTeamRed = 0;
         private const byte LegacyTeamBlue = 1;
-        private const byte LegacyTeamSpectator = 2;
         private const byte SnapshotTeamRed = (byte)PlayerTeam.Red;
         private const byte SnapshotTeamBlue = (byte)PlayerTeam.Blue;
         private const byte LegacyClassScout = 0;
@@ -476,9 +475,7 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
         private const byte LegacyPluginPacket = 55;
         private const byte LegacyPing = 57;
         private const byte LegacyClientSettings = 58;
-        private const byte LegacyKeyDown = 0x02;
         private const byte LegacyKeyRightClick = 0x08;
-        private const byte LegacyKeyLeftClick = 0x10;
         private const byte LegacyKeyRight = 0x20;
         private const byte LegacyKeyLeft = 0x40;
         private const byte LegacyKeyJump = 0x80;

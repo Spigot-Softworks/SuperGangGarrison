@@ -12,7 +12,6 @@ public partial class Game1
 {
     private const float MedicBeamPresentationMaxDistance = 300f;
     private const float DispenserBeamPresentationMaxDistance = 75f;
-    private readonly System.Collections.Generic.Dictionary<LoadedSpriteFrame, Vector2> _spriteFrameCenterOfMassCache = new();
 
     private Color ResolveProjectileTint(PlayerTeam team, Color blueColor, Color redColor, Color neutralColor)
     {

@@ -70,7 +70,6 @@ public partial class Game1
             _game._networkWorldWarmupActive = false;
             _game._networkWorldWarmupFullSnapshotApplied = false;
             _game._networkWorldWarmupAppliedSnapshotsAfterFull = 0;
-            _game._networkWorldWarmupStartedClockSeconds = -1d;
             _game._networkWorldWarmupAcceptNextAppliedSnapshotAsBaseline = false;
             _game._networkPresentationObservedLastToDiePhase = null;
             _game.ResetSnapshotPresentationHistories();

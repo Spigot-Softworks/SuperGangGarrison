@@ -32,8 +32,9 @@ public sealed class FriendListDocument
             document.Save(resolvedPath);
             return document;
         }
-        catch
+        catch (Exception ex)
         {
+            Console.WriteLine($"Friend list was invalid; using an empty list: {ex.Message}");
             return new FriendListDocument();
         }
     }

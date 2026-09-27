@@ -557,7 +557,7 @@ public sealed class MapLogicActivatorTests
             },
         ]);
 
-        var sprite = new RoomObjectMarker(
+        _ = new RoomObjectMarker(
             RoomObjectType.CustomMapSprite,
             10f,
             10f,

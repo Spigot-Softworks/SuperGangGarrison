@@ -9,17 +9,6 @@ namespace OpenGarrison.Client;
 public partial class Game1
 {
 
-    private bool IsSwapWeaponsKeyboardBindingKey(Keys key)
-    {
-        return InputBindingsSettings.NormalizeSwapWeaponsBinding(_inputBindings.SwapWeaponsBinding) switch
-        {
-            WeaponSwapBindingMode.Space => key == Keys.Space,
-            WeaponSwapBindingMode.Q => key == Keys.Q,
-            WeaponSwapBindingMode.Custom => _inputBindings.SwapWeaponsCustomKey.IsKeyboardKey(key),
-            _ => false,
-        };
-    }
-
     private static bool IsChatShortcutHeld(KeyboardState keyboard)
     {
         return keyboard.IsKeyDown(Keys.Y)
@@ -40,7 +29,6 @@ public partial class Game1
     {
         _previousKeyboard = keyboard;
         _previousMouse = mouse;
-        _wasLocalPlayerAlive = _world.LocalPlayer.IsAlive;
         _wasDeathCamActive = _killCamEnabled
             && !_world.LocalPlayer.IsAlive
             && _world.LocalDeathCam is not null

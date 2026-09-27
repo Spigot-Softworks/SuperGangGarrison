@@ -686,7 +686,6 @@ public sealed partial class SimulationWorld
             return false;
         }
 
-        var essenceAvailable = HasExperimentalEngineerEssenceExtractorAvailable(player);
         var freezeAvailable = HasExperimentalEngineerFreezeRayAvailable(player);
         if (!HasExperimentalEngineerAlternateWeaponAvailable(player))
         {

@@ -395,7 +395,6 @@ public sealed class PlayerEntityMovementRegressionTests
         var liftSpeed = PlayerEntity.CivvieUmbrellaAirLiftSpeedPerTick
             * LegacyMovementModel.SourceTicksPerSecond;
 
-        var firstSpeedBefore = player.VerticalSpeed;
         Assert.True(player.TryActivateCivvieUmbrella());
 
         var expectedFirstSpeed = -liftSpeed;

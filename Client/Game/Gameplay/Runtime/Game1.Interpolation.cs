@@ -98,7 +98,6 @@ public partial class Game1
     private bool _networkWorldWarmupActive;
     private bool _networkWorldWarmupFullSnapshotApplied;
     private int _networkWorldWarmupAppliedSnapshotsAfterFull;
-    private double _networkWorldWarmupStartedClockSeconds = -1d;
     private bool _networkWorldWarmupAcceptNextAppliedSnapshotAsBaseline;
     private LastToDieWirePhase? _networkPresentationObservedLastToDiePhase;
 

@@ -12,9 +12,6 @@ public static class Og2NavigationGraphValidator
 {
     private const float SpawnMaxAboveDistance = 64f;
     private const float SpawnMaxBelowDistance = 96f;
-    private const float ObjectiveApproachMaxAboveDistance = 256f;
-    private const float ObjectiveApproachMaxBelowDistance = 256f;
-    private const float ObjectiveApproachMaxHorizontalDistance = 256f;
     private const float CarrierMaxAboveDistance = 96f;
     private const float CarrierMaxBelowDistance = 128f;
     private const float ObjectiveAnchorMatchTolerance = 4f;

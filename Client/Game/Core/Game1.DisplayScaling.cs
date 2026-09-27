@@ -493,15 +493,6 @@ public partial class Game1
         };
     }
 
-    private static DisplayScaleModeKind GetNextDisplayScaleMode(DisplayScaleModeKind displayScaleMode)
-    {
-        return OpenGarrisonPreferencesDocument.NormalizeDisplayScaleMode(displayScaleMode) switch
-        {
-            DisplayScaleModeKind.Fill => DisplayScaleModeKind.PixelPerfect,
-            _ => DisplayScaleModeKind.Fill,
-        };
-    }
-
     private static bool IsScreenFillingDisplayMode(DisplayModeKind displayMode)
     {
         return OpenGarrisonPreferencesDocument.NormalizeDisplayMode(displayMode) is DisplayModeKind.Borderless or DisplayModeKind.Fullscreen;

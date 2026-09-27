@@ -61,7 +61,6 @@ public partial class Game1
         {
             _game._clientPluginPreviousMatchPhase = ToClientRoundPhase(_game._world.MatchState.Phase);
             _game._clientPluginPreviousLocalAlive = _game._world.LocalPlayer.IsAlive;
-            _game._clientPluginPreviousLocalHealth = _game._world.LocalPlayer.Health;
             _game._clientPluginPreviousLocalAmmo = _game._world.LocalPlayer.CurrentShells;
             _game._clientPluginPreviousLocalPrimaryCooldownTicks = _game._world.LocalPlayer.PrimaryCooldownTicks;
             _game._clientPluginPreviousLocalCarryingIntel = _game._world.LocalPlayer.IsCarryingIntel;
@@ -384,7 +383,6 @@ public partial class Game1
             if (pluginHost is null || _game.IsLocalSpectatorPresentationActive())
             {
                 _game._clientPluginPreviousLocalAlive = localPlayer.IsAlive;
-                _game._clientPluginPreviousLocalHealth = localPlayer.Health;
                 _game._clientPluginPreviousLocalAmmo = localPlayer.CurrentShells;
                 _game._clientPluginPreviousLocalPrimaryCooldownTicks = localPlayer.PrimaryCooldownTicks;
                 _game._clientPluginPreviousLocalCarryingIntel = localPlayer.IsCarryingIntel;
@@ -436,7 +434,6 @@ public partial class Game1
             }
 
             _game._clientPluginPreviousLocalAlive = localPlayer.IsAlive;
-            _game._clientPluginPreviousLocalHealth = localPlayer.Health;
             _game._clientPluginPreviousLocalAmmo = localPlayer.CurrentShells;
             _game._clientPluginPreviousLocalPrimaryCooldownTicks = localPlayer.PrimaryCooldownTicks;
             _game._clientPluginPreviousLocalCarryingIntel = localPlayer.IsCarryingIntel;

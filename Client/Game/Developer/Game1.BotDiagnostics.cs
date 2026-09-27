@@ -202,7 +202,6 @@ public partial class Game1
 
     private void PublishBotDiagnosticSummary()
     {
-        var intervalSeconds = Math.Max(_botDiagnosticSummaryElapsedSeconds, 0.0001d);
         var averageUpdateMilliseconds = _botDiagnosticSummaryFrames == 0
             ? 0d
             : _botDiagnosticUpdateTotalMilliseconds / _botDiagnosticSummaryFrames;

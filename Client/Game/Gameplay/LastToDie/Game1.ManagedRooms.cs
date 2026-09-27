@@ -18,8 +18,6 @@ public partial class Game1
     private Task _managedRoomCleanup = Task.CompletedTask;
     private LastToDieMenuPage _managedRoomReturnPage = LastToDieMenuPage.CoOp;
     private OpenGarrison.Core.LastToDie.LastToDieDifficulty _managedRoomRetryDifficulty;
-    private int _managedRoomRetryMaximumPlayers = 2;
-    private bool _managedRoomRetryIsJoin;
     private string _managedRoomCodeBuffer = string.Empty;
     private string _managedRoomFailureMessage = string.Empty;
     private bool IsManagedRoomOwner => _managedRoom?.IsOwner == true;
@@ -124,37 +122,6 @@ public partial class Game1
         foreach (var character in text) HandleManagedRoomText(character);
     }
 
-    private void StartManagedLastToDie(OpenGarrison.Core.LastToDie.LastToDieDifficulty difficulty, int maximumPlayers)
-    {
-        if (!_bootstrapController.CanEnterGameplaySession(out var reason))
-        {
-            _menuStatusMessage = reason ?? "Game assets are still loading.";
-            return;
-        }
-        if (_managedRoomOperation is not null) return;
-        _managedRoomReturnPage = maximumPlayers == 1 ? LastToDieMenuPage.Difficulty : LastToDieMenuPage.CoOp;
-        _managedRoomRetryDifficulty = difficulty;
-        _managedRoomRetryMaximumPlayers = maximumPlayers;
-        _managedRoomRetryIsJoin = false;
-        _managedRoomRequest = CreatePrivateRoomRequest() with
-        {
-            MaximumPlayers = maximumPlayers,
-            Difficulty = difficulty == OpenGarrison.Core.LastToDie.LastToDieDifficulty.Hardcore ? "hardcore" : "standard",
-        };
-        _managedRoomCancellation = new CancellationTokenSource(TimeSpan.FromMinutes(3));
-        var requestId = _managedRoomRequest.RequestId;
-        var progress = new Progress<string>(message =>
-        {
-            if (_managedRoomOperation is not null && _managedRoomRequest?.RequestId == requestId)
-                _menuStatusMessage = message;
-        });
-        _managedRoomOperation = CreateManagedRoomAfterCleanupAsync(_managedRoomRequest, _managedRoomCancellation.Token, progress);
-        _lastToDieMenuPage = LastToDieMenuPage.RoomLoading;
-        _lastToDieMenuHoverIndex = 0;
-        _menuStatusMessage = !_managedRoomCleanup.IsCompleted ? "Closing your previous run..."
-            : maximumPlayers == 1 ? "Starting Last to Die solo..." : "Creating Last to Die room...";
-    }
-
     private async Task<PrivateRoomResponse> CreateManagedRoomAfterCleanupAsync(PrivateRoomRequest request,
         CancellationToken token, IProgress<string> progress)
     {
@@ -191,30 +158,6 @@ public partial class Game1
 
     private string GetLastToDieMenuStatusMessage() => _lastToDieMenuPage == LastToDieMenuPage.RoomError
         ? _managedRoomFailureMessage : _menuStatusMessage;
-
-    private void JoinManagedRoom()
-    {
-        if (_managedRoomOperation is not null) return;
-        if (!_bootstrapController.CanEnterGameplaySession(out var reason))
-        {
-            _menuStatusMessage = reason ?? "Game assets are still loading.";
-            return;
-        }
-        if (!RelayRoomCode.TryNormalize(_managedRoomCodeBuffer, out _)
-            && !ClientIdentityDocument.TryNormalizeFriendCode(_managedRoomCodeBuffer, out _))
-        {
-            _menuStatusMessage = "Enter a room code or OG2 friend code.";
-            return;
-        }
-        _managedRoomRequest = CreatePrivateRoomRequest() with { Code = _managedRoomCodeBuffer };
-        _managedRoomReturnPage = LastToDieMenuPage.RoomJoin;
-        _managedRoomRetryIsJoin = true;
-        _managedRoomCancellation = new CancellationTokenSource(TimeSpan.FromMinutes(3));
-        _managedRoomOperation = GetPrivateRoomClient().JoinAsync(_managedRoomRequest, _managedRoomCancellation.Token);
-        _lastToDieMenuPage = LastToDieMenuPage.RoomLoading;
-        _lastToDieMenuHoverIndex = 0;
-        _menuStatusMessage = "Finding Last to Die room...";
-    }
 
     private void PumpManagedRoomOperation()
     {

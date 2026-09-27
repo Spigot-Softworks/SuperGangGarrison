@@ -241,7 +241,6 @@ public partial class Game1
         {
             var takenSlots = GetDiscordOnlineTakenSlots();
             var maxSlots = Math.Max(0, _networkClient.ServerMaxPlayerCount);
-            var openSlots = Math.Max(0, maxSlots - takenSlots);
             var state = maxSlots > 0
                 ? $"{_world.Level.Name} | {takenSlots}/{maxSlots}"
                 : $"{_world.Level.Name} | {takenSlots} players";

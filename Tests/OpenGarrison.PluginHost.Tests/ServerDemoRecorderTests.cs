@@ -13,7 +13,7 @@ public sealed class ServerDemoRecorderTests
     [Fact]
     public void ServerDemoRecorderWritesPlayableSegment()
     {
-        var root = CreateTempRoot();
+        var root = TestFileSystem.CreateTempRoot();
         var requestedPath = Path.Combine(root, "session.ogdemo");
         const string levelName = "ClassicWell";
         var currentFrame = 1UL;
@@ -53,7 +53,7 @@ public sealed class ServerDemoRecorderTests
     [Fact]
     public void ServerDemoRecorderRollsOverAcrossMapChanges()
     {
-        var root = CreateTempRoot();
+        var root = TestFileSystem.CreateTempRoot();
         var requestedPath = Path.Combine(root, "session.ogdemo");
         var currentLevelName = "ClassicWell";
         var currentFrame = 1UL;
@@ -144,12 +144,5 @@ public sealed class ServerDemoRecorderTests
             TimeLimitTicks = 18000,
             PlayerGibs = Array.Empty<SnapshotPlayerGibState>(),
         };
-    }
-
-    private static string CreateTempRoot()
-    {
-        var path = Path.Combine(Path.GetTempPath(), "OpenGarrison.PluginHost.Tests", Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(path);
-        return path;
     }
 }

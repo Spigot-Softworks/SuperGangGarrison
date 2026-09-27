@@ -498,7 +498,6 @@ internal sealed class ServerReadOnlyStateView(
         }
 
         var gameplayClass = CharacterClassCatalog.RuntimeRegistry.GetClassDefinition(player.GameplayClassId);
-        var runtimeRegistry = CharacterClassCatalog.RuntimeRegistry;
         return gameplayClass.Loadouts
             .Values
             .OrderBy(loadout => loadout.DisplayName, StringComparer.OrdinalIgnoreCase)

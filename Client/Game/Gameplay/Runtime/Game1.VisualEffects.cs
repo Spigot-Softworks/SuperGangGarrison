@@ -577,8 +577,6 @@ public partial class Game1
 
         for (var tick = 0; tick < maxTicks && !collisionDetected; tick++)
         {
-            var previousX = simX;
-            var previousY = simY;
 
             // Skip gravity on tick 0 to match game behavior (gravity not applied on jump release frame when grounded)
             if (tick > 0)

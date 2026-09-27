@@ -102,7 +102,6 @@ public static class CombatDecisionResolver
     private const int HeavyIdleEatHealth = 100;
     private const int HeavyCombatEatHealth = 30;
     private const float MaxPracticalFireRange = 500f;
-    private const float CloseCombatDistance = 170f;
     private const float SniperDangerDistance = 300f;
     private const float SoldierShotgunDistance = 260f;
     private const float MineThreatDistance = 400f;

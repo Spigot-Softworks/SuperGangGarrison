@@ -437,7 +437,6 @@ public partial class Game1
             return;
         }
 
-        var timerHudFrame = timerHudSprite.Frames[0];
         var timerCircleFrame = timerCircleSprite.Frames[0];
         var timerHudLeft = centerX - (timerHudSprite.Origin.X * HudTimerHudScale);
         var innerLeft = timerHudLeft + (HudTimerHudScale * 1.5f) + HudTimerLeftPadding;

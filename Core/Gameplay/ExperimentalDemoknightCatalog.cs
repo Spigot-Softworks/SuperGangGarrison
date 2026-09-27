@@ -20,10 +20,6 @@ public static class ExperimentalDemoknightCatalog
     /// </summary>
     public const float EyelanderFirstFrameProgress = 0.15f;
 
-    public const string PaintrainWorldSpriteName = "PaintrainS";
-    public const string PaintrainRecoilSpriteName = "PaintrainFS";
-    public const string PaintrainKillFeedSpriteName = "PaintrainKL";
-
     public const string HudSpriteName = "BladeAmmoS";
     public const string FullChargeHudSpriteName = "FullChargeS";
     public const string ChargeStartSoundName = "ChargeSnd";
