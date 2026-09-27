@@ -700,7 +700,6 @@ public sealed partial class SimulationWorld
             player.SetExperimentalDemoknightChargeRechargeMultiplier(global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultDemoknightChargeRechargeMultiplier);
             player.SetExperimentalSoldierAmmoRegeneratesWhileSwappedOut(false);
             player.SetExperimentalSelfDamageHealing(false);
-            player.SetExperimentalSoldierInfiniteAmmoDuringRage(false);
             player.SetExperimentalReloadSpeedMultiplier(global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultReloadSpeedMultiplier);
             player.SetExperimentalDemoknightChargeFullControlEnabled(false);
             player.ConfigureExperimentalDemoknightPostRageRegeneration(0f);
@@ -731,9 +730,6 @@ public sealed partial class SimulationWorld
             && player.ClassId == PlayerClass.Soldier);
         player.SetExperimentalSelfDamageHealing(
             settings.EnableSelfDamageHealing
-            && player.ClassId == PlayerClass.Soldier);
-        player.SetExperimentalSoldierInfiniteAmmoDuringRage(
-            settings.EnableSoldierInfiniteAmmoDuringRage
             && player.ClassId == PlayerClass.Soldier);
         player.SetExperimentalReloadSpeedMultiplier(
             player.ClassId == PlayerClass.Soldier

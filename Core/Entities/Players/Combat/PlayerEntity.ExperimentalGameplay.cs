@@ -524,20 +524,11 @@ public sealed partial class PlayerEntity
     public void SetExperimentalSoldierAmmoRegeneratesWhileSwappedOut(bool enabled)
     {
         ExperimentalSoldierAmmoRegeneratesWhileSwappedOutEnabled = enabled;
-        if (!enabled)
-        {
-            ExperimentalSoldierSwappedOutAmmoRegenAccumulator = 0f;
-        }
     }
 
     public void SetExperimentalSelfDamageHealing(bool enabled)
     {
         ExperimentalSelfDamageHealingEnabled = enabled;
-    }
-
-    public void SetExperimentalSoldierInfiniteAmmoDuringRage(bool enabled)
-    {
-        ExperimentalSoldierInfiniteAmmoDuringRageEnabled = enabled;
     }
 
     public void SetExperimentalReloadSpeedMultiplier(float multiplier)
@@ -1395,7 +1386,6 @@ public sealed partial class PlayerEntity
         ExperimentalJumpHeightMultiplierValue = 1f;
         ExperimentalBonusAirJumpsValue = 0;
         ExperimentalPrimaryCooldownMultiplierValue = 1f;
-        ExperimentalSoldierSwappedOutAmmoRegenAccumulator = 0f;
         ExperimentalDemoknightPostRageRegenTicksRemaining = 0;
         ExperimentalGhostDashTicksRemaining = 0;
         ExperimentalGhostDashCooldownTicksRemaining = 0;

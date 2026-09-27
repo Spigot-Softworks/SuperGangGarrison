@@ -115,6 +115,7 @@ internal sealed class NativePeerDataConnection : IPeerDataConnection
     {
         if (_disposed) return;
         _disposed = true;
+        _signalGate.Dispose();
         _connection.Close("Room connection closed.");
         _connection.Dispose();
     }

@@ -309,7 +309,7 @@ public partial class Game1
             DrawPaletteTabs(presetPaletteTabBounds, customPaletteTabBounds, mousePosition);
             DrawPaletteGrid(paletteGridBounds, mousePosition);
             DrawBrushSizeBar(brushSizeBar);
-            DrawToolButton(saveBounds, _dirty ? "Save" : "Save", false, saveBounds.Contains(mousePosition));
+            DrawToolButton(saveBounds, "Save", false, saveBounds.Contains(mousePosition));
             DrawToolButton(cancelBounds, "Cancel", false, cancelBounds.Contains(mousePosition));
             DrawCurrentColorSwatch(panel);
             if (_customPaletteTab)

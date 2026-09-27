@@ -188,7 +188,6 @@ public partial class Game1
 
             _game.ClearManualPracticeBotRequests();
             _game.ResetPracticeBotManagerState(releaseWorldSlots: true);
-            Game1.ResetPracticeNavigationState();
             _game._botDiagnosticLatestSnapshot = BotControllerDiagnosticsSnapshot.Empty;
             _game.ResetBotDiagnosticSample();
             _game._networkClient.Disconnect();
