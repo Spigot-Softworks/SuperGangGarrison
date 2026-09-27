@@ -5,16 +5,7 @@ namespace OpenGarrison.Core;
 public sealed partial class SimulationWorld
 {
     public bool TryApplyGameplayImpulse(int playerId, float velocityX, float velocityY)
-    {
-        var player = FindPlayerById(playerId);
-        if (player is null || !player.IsAlive)
-        {
-            return false;
-        }
-
-        player.ApplyVelocityImpulse(velocityX, velocityY);
-        return true;
-    }
+        => Movement.TryApplyGameplayImpulse(playerId, velocityX, velocityY);
 
     public bool TrySetGameplayAbilityCooldown(int playerId, string ownerId, string cooldownKey, int ticks)
     {
