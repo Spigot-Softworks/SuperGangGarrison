@@ -397,8 +397,9 @@ public sealed partial class SimulationWorld
         byte slot,
         out ExperimentalGameplaySettings settings)
     {
-        if (_lastToDieLegacyGameplaySettingsBySlot.TryGetValue(slot, out settings))
+        if (_lastToDieLegacyGameplaySettingsBySlot.TryGetValue(slot, out var slotSettings))
         {
+            settings = slotSettings;
             return true;
         }
 

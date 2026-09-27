@@ -1,11 +1,28 @@
 namespace OpenGarrison.PluginHost;
 
+/// <summary>
+/// The result of planning a plugin load order.
+/// </summary>
+/// <param name="Plugins">The plugins in load order.</param>
+/// <param name="Warnings">The warnings produced while planning (skipped plugins, cycles).</param>
 public sealed record OpenGarrisonPluginManifestPlanResult<TPlugin>(
     IReadOnlyList<TPlugin> Plugins,
     IReadOnlyList<string> Warnings);
 
+/// <summary>
+/// Plans the plugin load order from manifests, resolving dependencies, conflicts, and load-order hints.
+/// </summary>
 public static class OpenGarrisonPluginManifestPlanner
 {
+    /// <summary>
+    /// Orders plugins so dependencies load first, honoring load-order hints. Plugins with
+    /// missing dependencies or conflicts are skipped, and load-order cycles fall back to
+    /// discovery order; both are reported as warnings.
+    /// </summary>
+    /// <typeparam name="TPlugin">The plugin type.</typeparam>
+    /// <param name="plugins">The candidate plugins.</param>
+    /// <param name="manifestSelector">Selects the manifest for a plugin.</param>
+    /// <returns>The load-order plan result.</returns>
     public static OpenGarrisonPluginManifestPlanResult<TPlugin> PlanLoadOrder<TPlugin>(
         IEnumerable<TPlugin> plugins,
         Func<TPlugin, OpenGarrisonPluginManifest> manifestSelector)

@@ -6,7 +6,7 @@ using System.Net.WebSockets;
 using System.Threading;
 using System.Threading.Tasks;
 using OpenGarrison.Protocol;
-using OpenGarrison.Server;
+using OpenGarrison.Networking;
 using Xunit;
 
 namespace OpenGarrison.PluginHost.Tests;

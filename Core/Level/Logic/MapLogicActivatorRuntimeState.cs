@@ -195,14 +195,6 @@ public sealed class MapLogicActivatorRuntimeState
         return hadRisingEdge;
     }
 
-    internal bool HadRisingEdgeThisTick(int activatorIndex)
-    {
-        return activatorIndex >= 0
-            && activatorIndex < _lastRisingEdgeOrders.Length
-            && _currentTickRisingEdgeOrder >= 0L
-            && _lastRisingEdgeOrders[activatorIndex] == _currentTickRisingEdgeOrder;
-    }
-
     internal bool TryGetLastRisingEdgeOrder(int activatorIndex, out long risingEdgeOrder)
     {
         risingEdgeOrder = -1L;

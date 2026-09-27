@@ -8,7 +8,7 @@
     <!-- Compile the same authority as the dedicated server, without native
          listener/entry-point dependencies. There is no second gameplay copy. -->
     <Compile Include="..\Server\**\*.cs"
-             Exclude="..\Server\bin\**;..\Server\obj\**;..\Server\artifacts\**;..\Server\Properties\**;..\Server\Program.cs;..\Server\Networking\WebSocketServerHost.cs;..\Server\Networking\Protocol64QuicServerHost.cs;..\Server\Networking\Protocol64WebSocketConnection.cs;..\Server\Maps\ServerMapDownloadEndpoint.cs"
+             Exclude="..\Server\bin\**;..\Server\obj\**;..\Server\artifacts\**;..\Server\Properties\**;..\Server\Program.cs;..\Server\Networking\WebSocketServerHost.cs;..\Server\Networking\Protocol64QuicServerHost.cs;..\Server\Maps\ServerMapDownloadEndpoint.cs"
              LinkBase="Authority" />
     <ProjectReference Include="..\Core\OpenGarrison.Core.csproj" />
     <ProjectReference Include="..\Protocol\OpenGarrison.Protocol.csproj" />

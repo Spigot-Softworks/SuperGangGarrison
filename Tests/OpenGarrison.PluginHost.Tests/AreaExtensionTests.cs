@@ -180,4 +180,16 @@ public sealed class AreaExtensionTests
         player.Spawn(team, x, y);
         return player;
     }
+
+    [Theory]
+    [InlineData(null, false)]
+    [InlineData("", false)]
+    [InlineData("logicArea", true)]
+    [InlineData("logicPlayerTrigger", true)]
+    [InlineData("teleport", true)]
+    [InlineData("unknown", false)]
+    public void IsExtendableAreaEntityTypeHandlesNullAndUnknownTypes(string? type, bool expected)
+    {
+        Assert.Equal(expected, AreaExtensionMetadata.IsExtendableAreaEntityType(type));
+    }
 }

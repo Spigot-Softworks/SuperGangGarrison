@@ -2,8 +2,12 @@ using System.Text.Json;
 
 namespace OpenGarrison.PluginHost;
 
+/// <summary>
+/// Loads and validates plugin manifests from disk or JSON.
+/// </summary>
 public static class OpenGarrisonPluginManifestLoader
 {
+    /// <summary>The default manifest file name.</summary>
     public const string DefaultManifestFileName = "plugin.json";
 
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -14,12 +18,26 @@ public static class OpenGarrisonPluginManifestLoader
         WriteIndented = true,
     };
 
+    /// <summary>
+    /// Loads the manifest from the default manifest file in a plugin directory.
+    /// </summary>
+    /// <param name="pluginDirectory">The plugin directory.</param>
+    /// <param name="manifest">When this method returns true, the loaded manifest.</param>
+    /// <param name="error">When this method returns false, a description of the failure.</param>
+    /// <returns>True when the manifest was loaded and validated; otherwise false.</returns>
     public static bool TryLoadFromDirectory(string pluginDirectory, out OpenGarrisonPluginManifest manifest, out string error)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(pluginDirectory);
         return TryLoadFromPath(Path.Combine(pluginDirectory, DefaultManifestFileName), out manifest, out error);
     }
 
+    /// <summary>
+    /// Loads the manifest from a manifest file path, validating referenced files.
+    /// </summary>
+    /// <param name="manifestPath">The manifest file path.</param>
+    /// <param name="manifest">When this method returns true, the loaded manifest.</param>
+    /// <param name="error">When this method returns false, a description of the failure.</param>
+    /// <returns>True when the manifest was loaded and validated; otherwise false.</returns>
     public static bool TryLoadFromPath(string manifestPath, out OpenGarrisonPluginManifest manifest, out string error)
     {
         manifest = default!;
@@ -49,6 +67,13 @@ public static class OpenGarrisonPluginManifestLoader
         }
     }
 
+    /// <summary>
+    /// Parses and validates a manifest from JSON text.
+    /// </summary>
+    /// <param name="json">The manifest JSON.</param>
+    /// <param name="manifest">When this method returns true, the parsed manifest.</param>
+    /// <param name="error">When this method returns false, a description of the failure.</param>
+    /// <returns>True when the manifest was parsed and validated; otherwise false.</returns>
     public static bool TryLoadFromJson(string json, out OpenGarrisonPluginManifest manifest, out string error)
     {
         manifest = default!;
@@ -347,12 +372,25 @@ public static class OpenGarrisonPluginManifestLoader
             || string.Equals(value, "ServerToClient", StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// Gets the manifest file path for a plugin directory.
+    /// </summary>
+    /// <param name="pluginDirectory">The plugin directory.</param>
+    /// <returns>The manifest file path.</returns>
     public static string GetManifestPath(string pluginDirectory)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(pluginDirectory);
         return Path.Combine(pluginDirectory, DefaultManifestFileName);
     }
 
+    /// <summary>
+    /// Resolves the manifest's entry point to a path contained in the plugin directory.
+    /// </summary>
+    /// <param name="manifest">The manifest.</param>
+    /// <param name="pluginDirectory">The plugin directory.</param>
+    /// <param name="entryPointPath">When this method returns true, the resolved entry point path.</param>
+    /// <param name="error">When this method returns false, a description of the failure.</param>
+    /// <returns>True when the entry point resolved inside the plugin directory; otherwise false.</returns>
     public static bool TryResolveEntryPointPath(OpenGarrisonPluginManifest manifest, string pluginDirectory, out string entryPointPath, out string error)
     {
         entryPointPath = string.Empty;
@@ -385,6 +423,13 @@ public static class OpenGarrisonPluginManifestLoader
         }
     }
 
+    /// <summary>
+    /// Validates that a manifest is compatible with the host API.
+    /// </summary>
+    /// <param name="manifest">The manifest.</param>
+    /// <param name="hostApi">The host API description.</param>
+    /// <param name="error">When this method returns false, a description of the incompatibility.</param>
+    /// <returns>True when the manifest is compatible with the host; otherwise false.</returns>
     public static bool TryValidateHostApiCompatibility(
         OpenGarrisonPluginManifest manifest,
         OpenGarrisonPluginHostApi hostApi,
@@ -426,6 +471,11 @@ public static class OpenGarrisonPluginManifestLoader
         return true;
     }
 
+    /// <summary>
+    /// Serializes a manifest to JSON.
+    /// </summary>
+    /// <param name="manifest">The manifest.</param>
+    /// <returns>The manifest JSON.</returns>
     public static string Serialize(OpenGarrisonPluginManifest manifest)
     {
         ArgumentNullException.ThrowIfNull(manifest);
