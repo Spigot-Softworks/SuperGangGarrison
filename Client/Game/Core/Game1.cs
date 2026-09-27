@@ -550,6 +550,8 @@ public partial class Game1 : Game
         _voiceChat = null;
         _runUploads?.Dispose();
         _runUploads = null;
+        _lobbyBrowserClient?.Dispose();
+        _lobbyBrowserClient = null;
         ShutdownDiscordRichPresence();
         _bootstrapController.UnloadContent();
         base.UnloadContent();

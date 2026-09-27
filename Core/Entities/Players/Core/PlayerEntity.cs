@@ -633,10 +633,6 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     private bool ExperimentalSelfDamageHealingEnabled { get; set; }
 
-    private bool ExperimentalSoldierInfiniteAmmoDuringRageEnabled { get; set; }
-
-    private float ExperimentalSoldierSwappedOutAmmoRegenAccumulator { get; set; }
-
     private float ExperimentalReloadSpeedMultiplierValue { get; set; } = 1f;
 
     private bool ExperimentalDemoknightChargeFullControlEnabled { get; set; }
@@ -1081,7 +1077,7 @@ public sealed partial class PlayerEntity : SimulationEntity
         IsMedicHealing = false;
         if (resetMedicUberCharge)
         {
-            MedicUberCharge = ClassId == PlayerClass.Medic ? 0f : 0f;
+            MedicUberCharge = 0f;
             IsMedicUberReady = false;
             MedicUberReadyPresentationPending = false;
         }

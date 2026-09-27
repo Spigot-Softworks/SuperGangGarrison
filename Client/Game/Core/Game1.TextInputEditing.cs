@@ -275,7 +275,6 @@ public partial class Game1
                 _hostedServerConsole.CommandInputSelectionStart = 0;
                 break;
             case TextFieldClickTarget.None:
-            default:
                 break;
         }
     }

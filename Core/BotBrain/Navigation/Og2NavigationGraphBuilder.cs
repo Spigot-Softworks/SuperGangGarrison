@@ -1642,7 +1642,7 @@ public static class Og2NavigationGraphBuilder
             kind,
             MathF.Max(1f, cost),
             completion,
-            JumpTriggerTick: kind == NavEdgeKind.Jump ? 0 : 0,
+            JumpTriggerTick: 0,
             ProbeTicks: 0,
             ProbeMoveDirectionX: MathF.Sign(to.X - from.X),
             ProbeVariantAttempts: 0,
