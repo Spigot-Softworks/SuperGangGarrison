@@ -1,8 +1,9 @@
 using OpenGarrison.GameplayModding;
+using SimulationWorld = OpenGarrison.Core.ProjectileSystem;
 
 namespace OpenGarrison.Core;
 
-public sealed partial class SimulationWorld
+public sealed partial class ProjectileSystem
 {
     public bool DebugHasLastRocketCollision { get; private set; }
     public float DebugLastRocketCollisionX { get; private set; }
@@ -17,7 +18,7 @@ public sealed partial class SimulationWorld
     public float DebugProjectileSpawnBlockedHeight { get; private set; }
     public string DebugProjectileSpawnBlockedObjectName { get; private set; } = string.Empty;
 
-    private void SetLastRocketCollisionDebug(float x, float y, string objectName, string reason)
+    internal void SetLastRocketCollisionDebug(float x, float y, string objectName, string reason)
     {
         DebugHasLastRocketCollision = true;
         DebugLastRocketCollisionX = x;
@@ -26,7 +27,7 @@ public sealed partial class SimulationWorld
         DebugLastRocketCollisionReason = reason;
     }
 
-    private void SetProjectileSpawnBlockedDebug(float x, float y, float width, float height, string objectName)
+    internal void SetProjectileSpawnBlockedDebug(float x, float y, float width, float height, string objectName)
     {
         DebugHasProjectileSpawnBlocked = true;
         DebugProjectileSpawnBlockedX = x;
@@ -78,12 +79,12 @@ public sealed partial class SimulationWorld
         return "Environment";
     }
 
-    private void AdvanceRockets()
+    public void AdvanceRockets()
     {
         RocketProjectileSystem.Advance(this);
     }
 
-    private void RemoveRocketAt(int rocketIndex)
+    internal void RemoveRocketAt(int rocketIndex)
     {
         var rocket = _rockets[rocketIndex];
         EntityStore.Remove(rocket.Id);
@@ -95,7 +96,7 @@ public sealed partial class SimulationWorld
     {
         private static readonly Lazy<GameMakerAssetManifest> _gameMakerAssets = new(GameMakerRuntimeAssetManifestLoader.LoadPackagedOrProjectAssets);
 
-        public static void Advance(SimulationWorld world)
+        public static void Advance(ProjectileSystem world)
         {
             var deltaSeconds = (float)world.Config.FixedDeltaSeconds;
             for (var rocketIndex = world._rockets.Count - 1; rocketIndex >= 0; rocketIndex -= 1)
@@ -104,7 +105,7 @@ public sealed partial class SimulationWorld
             }
         }
 
-        public static void AdvancePendingForOwner(SimulationWorld world, int ownerId)
+        public static void AdvancePendingForOwner(ProjectileSystem world, int ownerId)
         {
             var deltaSeconds = (float)world.Config.FixedDeltaSeconds;
             for (var pendingIndex = world._pendingNewRocketIds.Count - 1; pendingIndex >= 0; pendingIndex -= 1)
@@ -157,7 +158,7 @@ public sealed partial class SimulationWorld
             }
         }
 
-        private static void AdvanceRocket(SimulationWorld world, int rocketIndex, float deltaSeconds)
+        private static void AdvanceRocket(ProjectileSystem world, int rocketIndex, float deltaSeconds)
         {
             if (rocketIndex < 0 || rocketIndex >= world._rockets.Count)
             {
@@ -180,14 +181,14 @@ public sealed partial class SimulationWorld
                 {
                     rocket.TrackExperimentalStingerTarget(
                         rangeAnchorPlayer.AimDirectionDegrees * (MathF.PI / 180f),
-                        SimulationWorld.GetExperimentalSoldierStingerTurnRateRadians());
+                        ProjectileSystem.GetExperimentalSoldierStingerTurnRateRadians());
                 }
                 else if (rocket.EnableExperimentalCaveatTracking
                     && world.TryResolveExperimentalEngineerRocketTrackingDirection(rocket, rangeAnchorPlayer, out var engineerTrackingDirection))
                 {
                     rocket.TrackExperimentalStingerTarget(
                         engineerTrackingDirection,
-                        SimulationWorld.GetExperimentalEngineerCaveatTurnRateRadians());
+                        ProjectileSystem.GetExperimentalEngineerCaveatTurnRateRadians());
                 }
             }
 
@@ -218,7 +219,7 @@ public sealed partial class SimulationWorld
                 }
                 else
                 {
-                    world.ExplodeRocket(rocket, directHitPlayer: null, directHitSentry: null, directHitGenerator: null);
+                    world.ExplodeRocket(rocket, null, null, null);
                 }
 
                 return;
@@ -326,7 +327,7 @@ public sealed partial class SimulationWorld
             }
         }
 
-        private static int FindRocketIndex(SimulationWorld world, int rocketId)
+        private static int FindRocketIndex(ProjectileSystem world, int rocketId)
         {
             for (var rocketIndex = world._rockets.Count - 1; rocketIndex >= 0; rocketIndex -= 1)
             {
@@ -340,7 +341,7 @@ public sealed partial class SimulationWorld
         }
 
         private static RocketHitResult? ResolveRocketCollisionAlongPath(
-            SimulationWorld world,
+            ProjectileSystem world,
             RocketProjectileEntity rocket,
             float directionX,
             float directionY,
@@ -380,7 +381,7 @@ public sealed partial class SimulationWorld
         }
 
         private static RocketHitResult? ResolveRocketCollisionAtSamplePosition(
-            SimulationWorld world,
+            ProjectileSystem world,
             RocketProjectileEntity rocket,
             float directionX,
             float directionY,
@@ -591,7 +592,7 @@ public sealed partial class SimulationWorld
         }
 
         private static void GetRocketPlayerCollisionBounds(
-            SimulationWorld world,
+            ProjectileSystem world,
             PlayerEntity player,
             out float left,
             out float top,
@@ -601,7 +602,7 @@ public sealed partial class SimulationWorld
             world.GetCachedPlayerPresentationHitBounds(player, out left, out top, out right, out bottom);
         }
 
-        private static string? GetStandingSpriteName(SimulationWorld world, PlayerEntity player)
+        private static string? GetStandingSpriteName(ProjectileSystem world, PlayerEntity player)
         {
             var leanDirection = GetPlayerLeanDirection(world, player);
             if (leanDirection == 0)
@@ -629,7 +630,7 @@ public sealed partial class SimulationWorld
                     "LeanRS");
         }
 
-        private static int GetPlayerLeanDirection(SimulationWorld world, PlayerEntity player)
+        private static int GetPlayerLeanDirection(ProjectileSystem world, PlayerEntity player)
         {
             var playerScale = player.PlayerScale;
             var bottom = player.Bottom + (2f * playerScale);
@@ -667,7 +668,7 @@ public sealed partial class SimulationWorld
             return leanDirection;
         }
 
-        private static bool HasGroundSupportForRocketPresentation(SimulationWorld world, PlayerEntity player)
+        private static bool HasGroundSupportForRocketPresentation(ProjectileSystem world, PlayerEntity player)
         {
             if (player.VerticalSpeed < 0f)
             {
@@ -684,7 +685,7 @@ public sealed partial class SimulationWorld
                 || IsPointBlockedForRocketPresentation(world, player, rightProbeX, probeY);
         }
 
-        private static bool IsPointBlockedForRocketPresentation(SimulationWorld world, PlayerEntity player, float x, float y)
+        private static bool IsPointBlockedForRocketPresentation(ProjectileSystem world, PlayerEntity player, float x, float y)
         {
             foreach (var solid in world.Level.Solids)
             {
@@ -823,7 +824,7 @@ public sealed partial class SimulationWorld
             return clearDistance;
         }
 
-        private static bool IsRocketBlockingRoomObject(SimulationWorld world, RocketProjectileEntity rocket, RoomObjectMarker roomObject)
+        private static bool IsRocketBlockingRoomObject(ProjectileSystem world, RocketProjectileEntity rocket, RoomObjectMarker roomObject)
         {
             return roomObject.Type switch
             {

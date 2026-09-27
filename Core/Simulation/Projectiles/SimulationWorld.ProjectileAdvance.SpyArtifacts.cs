@@ -2,7 +2,7 @@ using OpenGarrison.Core.LastToDie;
 
 namespace OpenGarrison.Core;
 
-public sealed partial class SimulationWorld
+public sealed partial class ProjectileSystem
 {
     private enum SpyStabTargetKind : byte
     {
@@ -18,7 +18,7 @@ public sealed partial class SimulationWorld
         SpyStabTargetKind Kind,
         ShotHitResult Hit);
 
-    private void AdvanceStabAnimations()
+    public void AdvanceStabAnimations()
     {
         for (var animationIndex = _stabAnimations.Count - 1; animationIndex >= 0; animationIndex -= 1)
         {
@@ -38,7 +38,7 @@ public sealed partial class SimulationWorld
         }
     }
 
-    private void AdvanceStabMasks()
+    public void AdvanceStabMasks()
     {
         for (var maskIndex = _stabMasks.Count - 1; maskIndex >= 0; maskIndex -= 1)
         {
@@ -236,7 +236,7 @@ public sealed partial class SimulationWorld
         _stabMasks.RemoveAt(maskIndex);
     }
 
-    private void RemoveOwnedSpyArtifacts(int ownerId)
+    internal void RemoveOwnedSpyArtifacts(int ownerId)
     {
         for (var animationIndex = _stabAnimations.Count - 1; animationIndex >= 0; animationIndex -= 1)
         {

@@ -1,15 +1,17 @@
+using SimulationWorld = OpenGarrison.Core.ProjectileSystem;
+
 namespace OpenGarrison.Core;
 
-public sealed partial class SimulationWorld
+public sealed partial class ProjectileSystem
 {
     private readonly record struct BubbleHitResult(int BubbleIndex, float Distance, float HitX, float HitY);
 
-    private void AdvanceBubbles()
+    public void AdvanceBubbles()
     {
         BubbleProjectileSystem.Advance(this);
     }
 
-    private void RemoveBubbleAt(int bubbleIndex)
+    internal void RemoveBubbleAt(int bubbleIndex)
     {
         MarkProjectileTerminated(_bubbles[bubbleIndex].Id);
         BubbleProjectileSystem.RemoveAt(this, bubbleIndex);
@@ -27,7 +29,7 @@ public sealed partial class SimulationWorld
 
     private static class BubbleProjectileSystem
     {
-        public static void Advance(SimulationWorld world)
+        public static void Advance(ProjectileSystem world)
         {
             var deltaSeconds = (float)world.Config.FixedDeltaSeconds;
             for (var bubbleIndex = world._bubbles.Count - 1; bubbleIndex >= 0; bubbleIndex -= 1)
@@ -45,14 +47,14 @@ public sealed partial class SimulationWorld
                     continue;
                 }
 
-                if (SimulationWorld.DistanceBetween(bubble.X, bubble.Y, owner.X, owner.Y) > BubbleProjectileEntity.MaxDistanceFromOwner)
+                if (ProjectileSystem.DistanceBetween(bubble.X, bubble.Y, owner.X, owner.Y) > BubbleProjectileEntity.MaxDistanceFromOwner)
                 {
                     RemoveAt(world, bubbleIndex);
                     continue;
                 }
 
                 bubble.AdvanceOneTick(owner.X, owner.Y, owner.HorizontalSpeed, owner.VerticalSpeed, owner.AimDirectionDegrees, deltaSeconds);
-                if (bubble.IsExpired || SimulationWorld.DistanceBetween(bubble.X, bubble.Y, owner.X, owner.Y) > BubbleProjectileEntity.MaxDistanceFromOwner)
+                if (bubble.IsExpired || ProjectileSystem.DistanceBetween(bubble.X, bubble.Y, owner.X, owner.Y) > BubbleProjectileEntity.MaxDistanceFromOwner)
                 {
                     RemoveAt(world, bubbleIndex);
                     continue;
@@ -85,7 +87,7 @@ public sealed partial class SimulationWorld
             }
         }
 
-        public static void RemoveAt(SimulationWorld world, int bubbleIndex)
+        public static void RemoveAt(ProjectileSystem world, int bubbleIndex)
         {
             var bubble = world._bubbles[bubbleIndex];
             if (world.FindPlayerById(bubble.OwnerId) is { } owner)
@@ -98,7 +100,7 @@ public sealed partial class SimulationWorld
             world._bubbles.RemoveAt(bubbleIndex);
         }
 
-        public static bool TryCutWithBlade(SimulationWorld world, BladeProjectileEntity blade)
+        public static bool TryCutWithBlade(ProjectileSystem world, BladeProjectileEntity blade)
         {
             for (var bubbleIndex = world._bubbles.Count - 1; bubbleIndex >= 0; bubbleIndex -= 1)
             {
@@ -108,7 +110,7 @@ public sealed partial class SimulationWorld
                     continue;
                 }
 
-                if (SimulationWorld.DistanceBetween(blade.X, blade.Y, bubble.X, bubble.Y) > 10f)
+                if (ProjectileSystem.DistanceBetween(blade.X, blade.Y, bubble.X, bubble.Y) > 10f)
                 {
                     continue;
                 }
@@ -121,7 +123,7 @@ public sealed partial class SimulationWorld
         }
 
         public static BubbleHitResult? GetNearestEnemyHit(
-            SimulationWorld world,
+            ProjectileSystem world,
             float originX,
             float originY,
             float directionX,
@@ -159,12 +161,12 @@ public sealed partial class SimulationWorld
             return nearestHit;
         }
 
-        private static bool IsTouchingEnvironment(SimulationWorld world, BubbleProjectileEntity bubble)
+        private static bool IsTouchingEnvironment(ProjectileSystem world, BubbleProjectileEntity bubble)
         {
             return IsTouchingEnvironmentAt(world, bubble.X, bubble.Y);
         }
 
-        private static bool IsTouchingEnvironmentAt(SimulationWorld world, float x, float y)
+        private static bool IsTouchingEnvironmentAt(ProjectileSystem world, float x, float y)
         {
             foreach (var solid in world.Level.Solids)
             {
@@ -190,7 +192,7 @@ public sealed partial class SimulationWorld
             return false;
         }
 
-        private static bool TryResolveEnvironmentCollision(SimulationWorld world, BubbleProjectileEntity bubble)
+        private static bool TryResolveEnvironmentCollision(ProjectileSystem world, BubbleProjectileEntity bubble)
         {
             if (!IsTouchingEnvironment(world, bubble))
             {
@@ -229,7 +231,7 @@ public sealed partial class SimulationWorld
             return true;
         }
 
-        private static bool IsBlockingRoomObject(SimulationWorld world, RoomObjectMarker roomObject)
+        private static bool IsBlockingRoomObject(ProjectileSystem world, RoomObjectMarker roomObject)
         {
             return roomObject.Type switch
             {
@@ -240,7 +242,7 @@ public sealed partial class SimulationWorld
             };
         }
 
-        private static bool TryDamageEnemyPlayer(SimulationWorld world, BubbleProjectileEntity bubble, PlayerEntity owner)
+        private static bool TryDamageEnemyPlayer(ProjectileSystem world, BubbleProjectileEntity bubble, PlayerEntity owner)
         {
             foreach (var player in world.EnumerateSimulatedPlayers())
             {
@@ -267,7 +269,7 @@ public sealed partial class SimulationWorld
             return false;
         }
 
-        private static void ApplySameTeamRepulsion(SimulationWorld world, BubbleProjectileEntity bubble)
+        private static void ApplySameTeamRepulsion(ProjectileSystem world, BubbleProjectileEntity bubble)
         {
             for (var bubbleIndex = 0; bubbleIndex < world._bubbles.Count; bubbleIndex += 1)
             {
@@ -277,7 +279,7 @@ public sealed partial class SimulationWorld
                     continue;
                 }
 
-                if (SimulationWorld.DistanceBetween(bubble.X, bubble.Y, otherBubble.X, otherBubble.Y) > BubbleProjectileEntity.Radius * 2f)
+                if (ProjectileSystem.DistanceBetween(bubble.X, bubble.Y, otherBubble.X, otherBubble.Y) > BubbleProjectileEntity.Radius * 2f)
                 {
                     continue;
                 }
@@ -286,7 +288,7 @@ public sealed partial class SimulationWorld
             }
         }
 
-        private static bool TryDamageStructureTarget(SimulationWorld world, BubbleProjectileEntity bubble, PlayerEntity owner)
+        private static bool TryDamageStructureTarget(ProjectileSystem world, BubbleProjectileEntity bubble, PlayerEntity owner)
         {
             foreach (var sentry in world._sentries)
             {
@@ -327,12 +329,12 @@ public sealed partial class SimulationWorld
             return false;
         }
 
-        private static bool TryHandleProjectileCollision(SimulationWorld world, BubbleProjectileEntity bubble)
+        private static bool TryHandleProjectileCollision(ProjectileSystem world, BubbleProjectileEntity bubble)
         {
             for (var rocketIndex = world._rockets.Count - 1; rocketIndex >= 0; rocketIndex -= 1)
             {
                 var rocket = world._rockets[rocketIndex];
-                if (rocket.Team != bubble.Team && SimulationWorld.DistanceBetween(bubble.X, bubble.Y, rocket.X, rocket.Y) <= 10f)
+                if (rocket.Team != bubble.Team && ProjectileSystem.DistanceBetween(bubble.X, bubble.Y, rocket.X, rocket.Y) <= 10f)
                 {
                     return true;
                 }
@@ -341,7 +343,7 @@ public sealed partial class SimulationWorld
             for (var mineIndex = world._mines.Count - 1; mineIndex >= 0; mineIndex -= 1)
             {
                 var mine = world._mines[mineIndex];
-                if (mine.Team != bubble.Team && SimulationWorld.DistanceBetween(bubble.X, bubble.Y, mine.X, mine.Y) <= 10f)
+                if (mine.Team != bubble.Team && ProjectileSystem.DistanceBetween(bubble.X, bubble.Y, mine.X, mine.Y) <= 10f)
                 {
                     if (!mine.IsStickied)
                     {
@@ -356,7 +358,7 @@ public sealed partial class SimulationWorld
             for (var flameIndex = world._flames.Count - 1; flameIndex >= 0; flameIndex -= 1)
             {
                 var flame = world._flames[flameIndex];
-                if (flame.Team != bubble.Team && SimulationWorld.DistanceBetween(bubble.X, bubble.Y, flame.X, flame.Y) <= 8f)
+                if (flame.Team != bubble.Team && ProjectileSystem.DistanceBetween(bubble.X, bubble.Y, flame.X, flame.Y) <= 8f)
                 {
                     return true;
                 }
@@ -365,7 +367,7 @@ public sealed partial class SimulationWorld
             for (var flareIndex = world._flares.Count - 1; flareIndex >= 0; flareIndex -= 1)
             {
                 var flare = world._flares[flareIndex];
-                if (flare.Team != bubble.Team && SimulationWorld.DistanceBetween(bubble.X, bubble.Y, flare.X, flare.Y) <= 8f)
+                if (flare.Team != bubble.Team && ProjectileSystem.DistanceBetween(bubble.X, bubble.Y, flare.X, flare.Y) <= 8f)
                 {
                     world.RemoveFlareAt(flareIndex);
                     return true;
@@ -374,7 +376,7 @@ public sealed partial class SimulationWorld
 
             for (var shotIndex = world._shots.Count - 1; shotIndex >= 0; shotIndex -= 1)
             {
-                if (world._shots[shotIndex].Team != bubble.Team && SimulationWorld.DistanceBetween(bubble.X, bubble.Y, world._shots[shotIndex].X, world._shots[shotIndex].Y) <= 8f)
+                if (world._shots[shotIndex].Team != bubble.Team && ProjectileSystem.DistanceBetween(bubble.X, bubble.Y, world._shots[shotIndex].X, world._shots[shotIndex].Y) <= 8f)
                 {
                     return true;
                 }
@@ -382,7 +384,7 @@ public sealed partial class SimulationWorld
 
             for (var needleIndex = world._needles.Count - 1; needleIndex >= 0; needleIndex -= 1)
             {
-                if (world._needles[needleIndex].Team != bubble.Team && SimulationWorld.DistanceBetween(bubble.X, bubble.Y, world._needles[needleIndex].X, world._needles[needleIndex].Y) <= 8f)
+                if (world._needles[needleIndex].Team != bubble.Team && ProjectileSystem.DistanceBetween(bubble.X, bubble.Y, world._needles[needleIndex].X, world._needles[needleIndex].Y) <= 8f)
                 {
                     return true;
                 }
@@ -390,7 +392,7 @@ public sealed partial class SimulationWorld
 
             for (var revolverIndex = world._revolverShots.Count - 1; revolverIndex >= 0; revolverIndex -= 1)
             {
-                if (world._revolverShots[revolverIndex].Team != bubble.Team && SimulationWorld.DistanceBetween(bubble.X, bubble.Y, world._revolverShots[revolverIndex].X, world._revolverShots[revolverIndex].Y) <= 8f)
+                if (world._revolverShots[revolverIndex].Team != bubble.Team && ProjectileSystem.DistanceBetween(bubble.X, bubble.Y, world._revolverShots[revolverIndex].X, world._revolverShots[revolverIndex].Y) <= 8f)
                 {
                     return true;
                 }
@@ -400,7 +402,7 @@ public sealed partial class SimulationWorld
             {
                 var blade = world._blades[bladeIndex];
                 if ((blade.Team != bubble.Team || blade.OwnerId == bubble.OwnerId)
-                    && SimulationWorld.DistanceBetween(bubble.X, bubble.Y, blade.X, blade.Y) <= 10f)
+                    && ProjectileSystem.DistanceBetween(bubble.X, bubble.Y, blade.X, blade.Y) <= 10f)
                 {
                     return true;
                 }
@@ -414,7 +416,7 @@ public sealed partial class SimulationWorld
                     continue;
                 }
 
-                if (SimulationWorld.DistanceBetween(bubble.X, bubble.Y, otherBubble.X, otherBubble.Y) <= BubbleProjectileEntity.Radius * 2f)
+                if (ProjectileSystem.DistanceBetween(bubble.X, bubble.Y, otherBubble.X, otherBubble.Y) <= BubbleProjectileEntity.Radius * 2f)
                 {
                     return true;
                 }

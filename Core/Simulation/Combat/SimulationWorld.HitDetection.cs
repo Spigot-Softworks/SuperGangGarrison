@@ -2,51 +2,6 @@
 
 public sealed partial class SimulationWorld
 {
-    private readonly record struct ShotHitResult(float Distance, float HitX, float HitY, PlayerEntity? HitPlayer, SentryEntity? HitSentry, GeneratorState? HitGenerator)
-    {
-        public JumpPadEntity? HitJumpPad { get; init; }
-
-        public int HitDamageableZoneRoomObjectIndex { get; init; } = -1;
-
-        public bool IsLastToDieHeadshot { get; init; }
-    }
-    private readonly record struct FlameHitResult(float Distance, float HitX, float HitY, PlayerEntity? HitPlayer, SentryEntity? HitSentry, GeneratorState? HitGenerator)
-    {
-        public JumpPadEntity? HitJumpPad { get; init; }
-    }
-    private readonly record struct RocketHitResult(float Distance, float HitX, float HitY, PlayerEntity? HitPlayer, SentryEntity? HitSentry, GeneratorState? HitGenerator)
-    {
-        public JumpPadEntity? HitJumpPad { get; init; }
-
-        public int HitDamageableZoneRoomObjectIndex { get; init; } = -1;
-    }
-    private readonly record struct MineHitResult(float Distance, float HitX, float HitY, bool DestroyOnHit);
-    private readonly record struct GrenadeEnvironmentHit(float Distance, float HitX, float HitY, float NormalX, float NormalY);
-    private readonly record struct RifleHitResult(float Distance, PlayerEntity? HitPlayer, SentryEntity? HitSentry, GeneratorState? HitGenerator)
-    {
-        public JumpPadEntity? HitJumpPad { get; init; }
-    }
-    private readonly record struct OrderedRiflePlayerHit(
-        float Distance,
-        PlayerEntity Player,
-        bool IsFriendlySupport,
-        bool IsLastToDieHeadshot = false);
-    private readonly record struct OrderedRifleHitResult(
-        float Distance,
-        IReadOnlyList<OrderedRiflePlayerHit> PlayerHits,
-        SentryEntity? HitSentry,
-        GeneratorState? HitGenerator)
-    {
-        public JumpPadEntity? HitJumpPad { get; init; }
-    }
-    private readonly record struct RifleTracePolicy(
-        bool IgnoreOrdinaryGeometry,
-        bool AllowFriendlySupport,
-        int MaximumEnemyPlayerHits,
-        bool DetectLastToDieHeadshots = false,
-        bool PierceFriendlyPlayers = false);
-    private readonly record struct RectangleHitbox(float Left, float Top, float Right, float Bottom);
-
     internal void CombatTestSetLevel(SimpleLevel level)
     {
         Level = level;

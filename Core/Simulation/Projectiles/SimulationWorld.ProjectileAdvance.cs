@@ -1,6 +1,8 @@
+using SimulationWorld = OpenGarrison.Core.ProjectileSystem;
+
 namespace OpenGarrison.Core;
 
-public sealed partial class SimulationWorld
+public sealed partial class ProjectileSystem
 {
     /// <summary>
     /// Ballistic gravity belongs to the platformer movement model. In a
@@ -11,7 +13,7 @@ public sealed partial class SimulationWorld
     private float ResolveProjectileGravityScale() =>
         Level.IsTopDown ? 0f : _configuredGravityScale;
 
-    private void RemoveShotAt(int shotIndex)
+    internal void RemoveShotAt(int shotIndex)
     {
         var shot = _shots[shotIndex];
         EntityStore.Remove(shot.Id);
@@ -19,7 +21,7 @@ public sealed partial class SimulationWorld
         _shots.RemoveAt(shotIndex);
     }
 
-    private void RemoveBladeAt(int bladeIndex)
+    internal void RemoveBladeAt(int bladeIndex)
     {
         var blade = _blades[bladeIndex];
         if (FindPlayerById(blade.OwnerId) is { } owner)
@@ -32,7 +34,7 @@ public sealed partial class SimulationWorld
         _blades.RemoveAt(bladeIndex);
     }
 
-    private void RemoveNeedleAt(int needleIndex)
+    internal void RemoveNeedleAt(int needleIndex)
     {
         var needle = _needles[needleIndex];
         if (needle is MedicHealNeedleProjectileEntity
@@ -54,7 +56,7 @@ public sealed partial class SimulationWorld
         _needles.RemoveAt(needleIndex);
     }
 
-    private void RemoveRevolverShotAt(int shotIndex)
+    internal void RemoveRevolverShotAt(int shotIndex)
     {
         var shot = _revolverShots[shotIndex];
         EntityStore.Remove(shot.Id);
@@ -62,18 +64,18 @@ public sealed partial class SimulationWorld
         _revolverShots.RemoveAt(shotIndex);
     }
 
-    private void RemoveOwnedSentries(int ownerId)
+    internal void RemoveOwnedSentries(int ownerId)
     {
         for (var sentryIndex = _sentries.Count - 1; sentryIndex >= 0; sentryIndex -= 1)
         {
             if (_sentries[sentryIndex].OwnerPlayerId == ownerId)
             {
-                DestroySentry(_sentries[sentryIndex], attacker: null);
+                DestroySentry(_sentries[sentryIndex], null);
             }
         }
     }
 
-    private void RemoveOwnedMines(int ownerId)
+    internal void RemoveOwnedMines(int ownerId)
     {
         for (var mineIndex = _mines.Count - 1; mineIndex >= 0; mineIndex -= 1)
         {
@@ -84,7 +86,7 @@ public sealed partial class SimulationWorld
         }
     }
 
-    private void RemoveOwnedProjectiles(int ownerId)
+    internal void RemoveOwnedProjectiles(int ownerId)
     {
         for (var shotIndex = _shots.Count - 1; shotIndex >= 0; shotIndex -= 1)
         {
@@ -162,11 +164,11 @@ public sealed partial class SimulationWorld
 
     private void MarkProjectileTerminated(int projectileId)
     {
-        if (_clientPredictedProjectileIds.Remove(projectileId))
+        if (_dependencies.ClientPredictedProjectileIds.Remove(projectileId))
         {
-            SuppressProjectileRespawn(
+            _dependencies.SuppressProjectileRespawn(
                 projectileId,
-                ClientPredictionMode ? LocalProjectileTerminationSuppressionTicks : 0);
+                ClientPredictionMode ? _dependencies.LocalProjectileTerminationSuppressionTicks : 0);
         }
     }
 
@@ -175,19 +177,20 @@ public sealed partial class SimulationWorld
         return !ClientPredictionMode || IsAuthoritativeLocalPlayerId(ownerId);
     }
 
-    private bool ShouldTrackSnapshotProjectileForClientPrediction(int ownerId)
+    internal bool ShouldTrackSnapshotProjectileForClientPrediction(int ownerId)
     {
         return ClientPredictionMode && IsAuthoritativeLocalPlayerId(ownerId);
     }
 
     private bool IsAuthoritativeLocalPlayerId(int playerId)
     {
-        return _authoritativeLocalPlayerId.HasValue
-            ? playerId == _authoritativeLocalPlayerId.Value
-            : playerId == LocalPlayer.Id;
+        var authoritativeId = _dependencies.GetAuthoritativeLocalPlayerId();
+        return authoritativeId.HasValue
+            ? playerId == authoritativeId.Value
+            : playerId == _dependencies.GetLocalPlayerId();
     }
 
-    private int CountOwnedMines(int ownerId)
+    internal int CountOwnedMines(int ownerId)
     {
         var count = 0;
         foreach (var mine in _mines)
@@ -201,9 +204,9 @@ public sealed partial class SimulationWorld
         return count;
     }
 
-    private static bool CircleIntersectsPlayer(SimulationWorld world, float circleX, float circleY, float radius, PlayerEntity player)
+    private static bool CircleIntersectsPlayer(ProjectileSystem world, float circleX, float circleY, float radius, PlayerEntity player)
     {
-        GetPlayerPresentationHitBounds(world, player, out var left, out var top, out var right, out var bottom);
+        world.GetCachedPlayerPresentationHitBounds(player, out var left, out var top, out var right, out var bottom);
         return CircleIntersectsRectangle(
             circleX,
             circleY,
@@ -214,7 +217,7 @@ public sealed partial class SimulationWorld
             bottom);
     }
 
-    private static bool CircleIntersectsRectangle(float circleX, float circleY, float radius, float left, float top, float right, float bottom)
+    internal static bool CircleIntersectsRectangle(float circleX, float circleY, float radius, float left, float top, float right, float bottom)
     {
         var closestX = float.Clamp(circleX, left, right);
         var closestY = float.Clamp(circleY, top, bottom);
