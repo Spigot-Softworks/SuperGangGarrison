@@ -49,6 +49,40 @@ public sealed class ClientSettings
 
     public DisplayScaleModeKind DisplayScaleMode { get; set; } = OpenGarrisonPreferencesDocument.DefaultDisplayScaleMode;
 
+    private CrtPresetKind _crtPreset = OpenGarrisonPreferencesDocument.DefaultCrtPreset;
+
+    public CrtPresetKind CrtPreset
+    {
+        get => _crtPreset;
+        set => _crtPreset = OpenGarrisonPreferencesDocument.NormalizeCrtPreset(value);
+    }
+
+    private CrtQualityKind _crtQuality = OpenGarrisonPreferencesDocument.DefaultCrtQuality;
+
+    public CrtQualityKind CrtQuality
+    {
+        get => _crtQuality;
+        set => _crtQuality = OpenGarrisonPreferencesDocument.NormalizeCrtQuality(value);
+    }
+
+    private CrtSignalModeKind _crtSignalMode = OpenGarrisonPreferencesDocument.DefaultCrtSignalMode;
+
+    public CrtSignalModeKind CrtSignalMode
+    {
+        get => _crtSignalMode;
+        set => _crtSignalMode = OpenGarrisonPreferencesDocument.NormalizeCrtSignalMode(value);
+    }
+
+    public bool CrtCurvatureEnabled { get; set; } = OpenGarrisonPreferencesDocument.DefaultCrtCurvatureEnabled;
+
+    private int _crtBrightnessPercent = OpenGarrisonPreferencesDocument.DefaultCrtBrightnessPercent;
+
+    public int CrtBrightnessPercent
+    {
+        get => _crtBrightnessPercent;
+        set => _crtBrightnessPercent = OpenGarrisonPreferencesDocument.NormalizeCrtBrightnessPercent(value);
+    }
+
     public MusicMode MusicMode { get; set; } = MusicMode.MenuAndInGame;
 
     public OfflineBotControllerMode BotMode { get; set; } = OfflineBotControllerMode.BotBrain;
@@ -117,8 +151,6 @@ public sealed class ClientSettings
     public BuildMenuStyle BuildMenuStyle { get; set; } = OpenGarrisonPreferencesDocument.DefaultBuildMenuStyle;
 
     public bool CameraPanningEnabled { get; set; } = OpenGarrisonPreferencesDocument.DefaultCameraPanningEnabled;
-
-    public PlayerSpriteStyle SpriteStyle { get; set; } = PlayerSpriteStyle.Elkondo;
 
     public bool PortraitRumbleEnabled { get; set; } = true;
 
@@ -301,6 +333,11 @@ public sealed class ClientSettings
             IngameResolution = document.IngameResolution,
             WindowSize = OpenGarrisonPreferencesDocument.NormalizeWindowSize(document.WindowSize),
             DisplayScaleMode = OpenGarrisonPreferencesDocument.NormalizeDisplayScaleMode(document.DisplayScaleMode),
+            CrtPreset = OpenGarrisonPreferencesDocument.NormalizeCrtPreset(document.CrtPreset),
+            CrtQuality = OpenGarrisonPreferencesDocument.NormalizeCrtQuality(document.CrtQuality),
+            CrtSignalMode = OpenGarrisonPreferencesDocument.NormalizeCrtSignalMode(document.CrtSignalMode),
+            CrtCurvatureEnabled = document.CrtCurvatureEnabled,
+            CrtBrightnessPercent = OpenGarrisonPreferencesDocument.NormalizeCrtBrightnessPercent(document.CrtBrightnessPercent),
             ParticleMode = document.ParticleMode,
             FlameRenderMode = document.FlameRenderMode,
             BloodRenderMode = document.BloodRenderMode,
@@ -328,7 +365,6 @@ public sealed class ClientSettings
             BubbleWheelBehavior = OpenGarrisonPreferencesDocument.NormalizeBubbleWheelBehavior(document.BubbleWheelBehavior),
             BuildMenuStyle = OpenGarrisonPreferencesDocument.NormalizeBuildMenuStyle(document.BuildMenuStyle),
             CameraPanningEnabled = document.CameraPanningEnabled,
-            SpriteStyle = OpenGarrisonPreferencesDocument.NormalizeSpriteStyle(document.SpriteStyle),
             PortraitRumbleEnabled = document.PortraitRumbleEnabled,
             PostGameMvpArtEnabled = document.PostGameMvpArtEnabled,
             DamageVignetteEnabled = document.DamageVignetteEnabled,
@@ -397,6 +433,11 @@ public sealed class ClientSettings
         preferences.IngameResolution = IngameResolution;
         preferences.WindowSize = OpenGarrisonPreferencesDocument.NormalizeWindowSize(WindowSize);
         preferences.DisplayScaleMode = OpenGarrisonPreferencesDocument.NormalizeDisplayScaleMode(DisplayScaleMode);
+        preferences.CrtPreset = OpenGarrisonPreferencesDocument.NormalizeCrtPreset(CrtPreset);
+        preferences.CrtQuality = OpenGarrisonPreferencesDocument.NormalizeCrtQuality(CrtQuality);
+        preferences.CrtSignalMode = OpenGarrisonPreferencesDocument.NormalizeCrtSignalMode(CrtSignalMode);
+        preferences.CrtCurvatureEnabled = CrtCurvatureEnabled;
+        preferences.CrtBrightnessPercent = OpenGarrisonPreferencesDocument.NormalizeCrtBrightnessPercent(CrtBrightnessPercent);
         preferences.MusicMode = MusicMode;
         preferences.BotMode = BotMode;
         preferences.KillCamEnabled = KillCamEnabled;
@@ -426,7 +467,6 @@ public sealed class ClientSettings
         preferences.BubbleWheelBehavior = OpenGarrisonPreferencesDocument.NormalizeBubbleWheelBehavior(BubbleWheelBehavior);
         preferences.BuildMenuStyle = OpenGarrisonPreferencesDocument.NormalizeBuildMenuStyle(BuildMenuStyle);
         preferences.CameraPanningEnabled = CameraPanningEnabled;
-        preferences.SpriteStyle = OpenGarrisonPreferencesDocument.NormalizeSpriteStyle(SpriteStyle);
         preferences.PortraitRumbleEnabled = PortraitRumbleEnabled;
         preferences.PostGameMvpArtEnabled = PostGameMvpArtEnabled;
         preferences.DamageVignetteEnabled = DamageVignetteEnabled;

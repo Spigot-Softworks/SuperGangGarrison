@@ -218,6 +218,13 @@ public sealed partial class SimulationWorld
                 team,
                 ownerId,
                 lifetime),
+            Protocol64ProjectileKind.BoomstickPellet => CreateProtocol64BulletProjectile(
+                state,
+                id,
+                team,
+                ownerId,
+                lifetime,
+                isBoomstickPellet: true),
             Protocol64ProjectileKind.Blade => new BladeProjectileEntity(id, team, ownerId, state.X, state.Y, state.VelocityX, state.VelocityY, Math.Max(0, (int)MathF.Round(state.Damage)), lifetime),
             Protocol64ProjectileKind.Needle when state.LastToDieMedicKritzM2Payload != 0
                 => new MedicHealNeedleProjectileEntity(
@@ -299,7 +306,8 @@ public sealed partial class SimulationWorld
         int id,
         PlayerTeam team,
         int ownerId,
-        int lifetime)
+        int lifetime,
+        bool isBoomstickPellet = false)
     {
         var damage = Math.Max(0f, state.Damage);
         var shot = new ShotProjectileEntity(
@@ -313,7 +321,8 @@ public sealed partial class SimulationWorld
             damagePerHit: damage,
             playerKnockbackImpulse: state.PlayerKnockbackImpulse,
             playerKnockbackAirborneVerticalScale: state.PlayerKnockbackAirborneVerticalScale,
-            playerKnockbackGroundedVerticalScale: state.PlayerKnockbackGroundedVerticalScale);
+            playerKnockbackGroundedVerticalScale: state.PlayerKnockbackGroundedVerticalScale,
+            isBoomstickPellet: isBoomstickPellet);
         shot.ApplyNetworkState(
             state.X,
             state.Y,

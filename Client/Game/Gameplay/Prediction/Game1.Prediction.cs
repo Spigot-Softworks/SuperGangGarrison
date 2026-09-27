@@ -4,6 +4,7 @@ using Microsoft.Xna.Framework;
 using System;
 using System.Collections.Generic;
 using OpenGarrison.Core;
+using OpenGarrison.GameplayModding;
 
 namespace OpenGarrison.Client;
 
@@ -91,6 +92,7 @@ public partial class Game1
             && _networkClient.IsConnected
             && !_networkClient.IsAwaitingWelcome
             && !_networkClient.IsReplayConnection
+            && !_networkClient.IsLegacyGg2Connection
             && !_networkClient.IsSpectator
             && _localPlayerSnapshotEntityId.HasValue
             && _world.LocalPlayer.IsAlive
@@ -473,6 +475,14 @@ public partial class Game1
         var movementInput = predictedInput.Input;
         var jumpPressed = predictedInput.JumpPressed;
         var wasSpyBackstabAnimating = player.IsSpyBackstabAnimating;
+        if (!player.HasEquippedBehavior(BuiltInGameplayBehaviorIds.WhippingCord))
+        {
+            player.ReleaseWhippingCord();
+        }
+        else if (!movementInput.FirePrimary)
+        {
+            _ = player.ReleaseWhippingCordWithPull();
+        }
         ApplyPredictedPrimaryFire(player, predictedInput);
         if (!wasSpyBackstabAnimating && player.IsSpyBackstabAnimating)
         {
@@ -506,6 +516,10 @@ public partial class Game1
         }
         ApplyPredictedSecondaryFire(player, predictedInput);
         ApplyPredictedUtilityAbility(player, predictedInput);
+        if (!player.HasEquippedBehavior(BuiltInGameplayBehaviorIds.WhippingCord))
+        {
+            player.ReleaseWhippingCord();
+        }
         player.CompleteMovement(_world.Level, player.Team, _config.FixedDeltaSeconds, startedGrounded, jumped, movementInput.Down);
         _world.ResolveLandedArrowLanding(player, previousBottom, movementInput.Down);
         player.AdvanceLastToDieSpyCloakMeter(_config.TicksPerSecond);

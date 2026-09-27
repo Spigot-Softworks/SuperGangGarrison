@@ -922,6 +922,16 @@ public partial class Game1
             DrawLine($"Best score       {FormatLastToDieScore(player.BestScoreUnits)}{scoreRank}", Color.White);
             DrawLine($"Rounds completed {player.HighestRound}{roundRank}", Color.White);
             DrawLine($"Runs played      {player.RunsPlayed}", Color.White);
+            y += Math.Max(6f, 8f * layout.Scale);
+            DrawLine("Class records", new Color(241, 210, 120));
+            foreach (var option in LastToDieClassFilterOptions.Skip(1))
+            {
+                var record = player.ClassRecords.FirstOrDefault(candidate =>
+                    string.Equals(candidate.SurvivorId, option.SurvivorId, StringComparison.Ordinal));
+                var score = record is null ? "--" : FormatLastToDieScore(record.BestScoreUnits);
+                var rounds = record is null ? "--" : record.HighestRound.ToString();
+                DrawLine($"{option.Label,-11} {score}  Rounds {rounds}", Color.White);
+            }
         }
         else
         {

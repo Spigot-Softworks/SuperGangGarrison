@@ -14,6 +14,26 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
+    private bool CanOpenGameplayLoadoutMenu()
+    {
+        if (_networkClient.IsLegacyGg2Connection)
+        {
+            return false;
+        }
+
+        if (IsLocalSpectatorPresentationActive() || _world.LocalPlayerAwaitingJoin)
+        {
+            return false;
+        }
+
+        if (_networkClient.IsConnected && !IsLastToDieSessionActive)
+        {
+            return false;
+        }
+
+        return IsLastToDieSessionActive
+            || GameplayLoadoutSelectionResolver.GetOrderedLoadouts(_world.LocalPlayer.ClassId).Count > 1;
+    }
 
     private void LoadGameplayLoadoutMenuTextures()
     {

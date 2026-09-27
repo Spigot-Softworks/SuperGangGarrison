@@ -15,10 +15,22 @@ if (args.Contains("--force-highdef", StringComparer.Ordinal))
 {
     Environment.SetEnvironmentVariable("OPENGARRISON_FORCE_HIGHDEF", "1");
 }
+if (args.Contains("--force-reach", StringComparer.Ordinal))
+{
+    Environment.SetEnvironmentVariable("OPENGARRISON_FORCE_REACH", "1");
+}
+if (args.Contains("--crt=off", StringComparer.OrdinalIgnoreCase))
+{
+    Environment.SetEnvironmentVariable("OPENGARRISON_CRT", "off");
+}
 
 Directory.SetCurrentDirectory(AppContext.BaseDirectory);
 var roomMetadata = System.Reflection.Assembly.GetExecutingAssembly().GetCustomAttributes<System.Reflection.AssemblyMetadataAttribute>();
+#if GG2_ONLY
+OpenGarrison.ClientShared.ClientDistribution.Initialize(OpenGarrison.ClientShared.ClientDistribution.Gg2OnlyEdition,
+#else
 OpenGarrison.ClientShared.ClientDistribution.Initialize("Full",
+#endif
     roomMetadata.FirstOrDefault(attribute => attribute.Key == "OpenGarrisonRoomContentId")?.Value,
     ApplicationBuildInfo.BuildVersion,
     roomMetadata.FirstOrDefault(attribute => attribute.Key == "OpenGarrisonRoomServiceOrigin")?.Value);
@@ -26,7 +38,12 @@ OpenGarrison.ClientShared.ClientDistribution.Initialize("Full",
 // Put a splash on screen the instant the process starts so the player sees "Launching..." during
 // the several seconds of cold start before the game window appears. Closed on the first rendered
 // frame (Game1.Draw). No-op on non-Windows.
-OpenGarrison.Client.PreLaunchSplash.Show("Launching Super Gang Garrison...");
+OpenGarrison.Client.PreLaunchSplash.Show(
+#if GG2_ONLY
+    "Launching OpenGarrison...");
+#else
+    "Launching Super Gang Garrison...");
+#endif
 
 WriteStartupDiagnostics();
 

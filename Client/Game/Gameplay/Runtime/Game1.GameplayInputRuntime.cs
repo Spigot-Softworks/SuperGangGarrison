@@ -26,7 +26,7 @@ public partial class Game1
         UpdateBinocularsFocusPosition(keyboard, mouse, deltaSeconds);
 
         var useMultiplayerExclusivePrimarySwapBinding = KeyboardInputMapper.UsesMultiplayerExclusivePrimarySwapBinding(
-            _networkClient.IsConnected && !_networkClient.IsReplayConnection && _gameplaySessionKind == GameplaySessionKind.Online,
+            _networkClient.IsConnected && !_networkClient.IsReplayConnection && !_networkClient.IsLegacyGg2Connection && _gameplaySessionKind == GameplaySessionKind.Online,
             IsLastToDieSessionActive,
             _world.LocalPlayer.HasAlternatePrimaryWeapons);
 
@@ -160,6 +160,11 @@ public partial class Game1
         networkInput = ApplyClientOnlineSmokeInputPattern(networkInput);
         gameplayInput = ApplyClientPerformanceForcedInput(gameplayInput);
         networkInput = ApplyClientPerformanceForcedInput(networkInput);
+
+        if (_networkClient.IsLegacyGg2Connection)
+        {
+            networkInput = LegacyGg2Wire.KeepStockInput(networkInput);
+        }
 
         networkInput = networkInput with { IsTypingChatMessage = _chatOpen };
 

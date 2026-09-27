@@ -313,6 +313,45 @@ public sealed class Protocol64StateEventTests
     }
 
     [Fact]
+    public void BoomstickPelletKindRoundTripsInStateAndLifecycle()
+    {
+        var state = new Protocol64ProjectileState(
+            EntityId: 47,
+            Generation: 3,
+            EntityKind: Protocol64ProjectileKind.BoomstickPellet,
+            StateTick: 122,
+            OwnerSlot: 2,
+            OwnerGeneration: 7,
+            X: 10f,
+            Y: 20f,
+            VelocityX: 11f,
+            VelocityY: 0f,
+            Rotation: 0f,
+            IsActive: true,
+            RemainingLifetimeTicks: 39,
+            Damage: 5f);
+        var lifecycle = new Protocol64ProjectileLifecycle(
+            Protocol64ProjectileLifecycleKind.Spawn,
+            state.EntityId,
+            state.Generation,
+            state.EntityKind,
+            state.StateTick,
+            state.OwnerSlot,
+            state.OwnerGeneration,
+            state.X,
+            state.Y,
+            state.VelocityX,
+            state.VelocityY,
+            state.Rotation,
+            state.IsActive,
+            state.RemainingLifetimeTicks,
+            state.Damage);
+
+        Assert.Equal(state, RoundTrip(CreateRegistry(new Protocol64ProjectileStateSchema()), state, 2));
+        Assert.Equal(lifecycle, RoundTrip(CreateRegistry(new Protocol64ProjectileLifecycleSchema()), lifecycle, 3));
+    }
+
+    [Fact]
     public void MedicKritzM2PayloadRoundTripsStateAndLifecycle()
     {
         var stateRegistry = CreateRegistry(new Protocol64ProjectileStateSchema());

@@ -14,16 +14,17 @@ public sealed partial class SimulationWorld
     {
         public void StartWhippingCordSwing(PlayerEntity attacker, float aimWorldX, float aimWorldY)
         {
-            var recoilTicks = ResolveWhippingCordRecoilTicks(attacker);
+            var recoilTicks = WhippingCordCatalog.ResolveRecoilTicks(attacker);
             var windupTicks = WhippingCordCatalog.ResolveWindupTicks(recoilTicks);
             var swingTicks = WhippingCordCatalog.ResolveSwingTicks(recoilTicks);
-            attacker.BeginWhippingCordWindup(windupTicks, swingTicks);
-            AdvanceWhippingCordSwing(attacker, aimWorldX, aimWorldY);
+            var backswingTicks = WhippingCordCatalog.ResolveBackswingTicks(recoilTicks);
+            attacker.BeginWhippingCordWindup(windupTicks, swingTicks, backswingTicks);
+            AdvanceWhippingCordSwing(attacker, aimWorldX, aimWorldY, fireHeld: true);
         }
 
-        public void AdvanceWhippingCordSwing(PlayerEntity attacker, float aimWorldX, float aimWorldY)
+        public void AdvanceWhippingCordSwing(PlayerEntity attacker, float aimWorldX, float aimWorldY, bool fireHeld)
         {
-            if (!attacker.IsWhippingCordAttackActive)
+            if (attacker.IsWhippingCordLatched || !attacker.IsWhippingCordAttackActive)
             {
                 return;
             }
@@ -36,15 +37,20 @@ public sealed partial class SimulationWorld
                     RegisterSoundEvent(attacker, WhippingCordCatalog.AttackSoundName);
                 }
 
-                ProcessWhippingCordSwingTick(attacker, aimWorldX, aimWorldY);
+                ProcessWhippingCordSwingTick(attacker, aimWorldX, aimWorldY, fireHeld);
                 attacker.AdvanceWhippingCordSwingTimer();
+            }
+            else if (attacker.IsWhippingCordBackswingActive)
+            {
+                ProcessWhippingCordBackswingTick(attacker);
+                attacker.AdvanceWhippingCordBackswingTimer();
             }
         }
 
-        private void ProcessWhippingCordSwingTick(PlayerEntity attacker, float aimWorldX, float aimWorldY)
+        private void ProcessWhippingCordSwingTick(PlayerEntity attacker, float aimWorldX, float aimWorldY, bool fireHeld)
         {
             var geometryScale = MathF.Max(0.1f, attacker.LastToDieUniversalModifiers.MeleeScale);
-            var maskScale = geometryScale;
+            var maskScale = geometryScale * attacker.PlayerScale;
             var aimDeltaX = aimWorldX - attacker.X;
             var aimDeltaY = aimWorldY - attacker.Y;
             if (aimDeltaX == 0f && aimDeltaY == 0f)
@@ -63,7 +69,8 @@ public sealed partial class SimulationWorld
             var aimRadians = attacker.AimDirectionDegrees * (MathF.PI / 180f);
             var facingLeft = MathF.Cos(aimRadians) < 0f;
             var hitboxSpriteName = ResolveWhippingCordMeleeHitboxSpriteName(attacker);
-            var hitboxMask = MeleeHitboxMaskCatalog.GetOrLoad(hitboxSpriteName);
+            var hitboxMask = MeleeHitboxMaskCatalog.GetOrLoad(
+                hitboxSpriteName, WhippingCordCatalog.ExtendedWhipFrameIndex);
             if (hitboxMask is null)
             {
                 return;
@@ -161,28 +168,137 @@ public sealed partial class SimulationWorld
                 return;
             }
 
-            if (!attacker.TryMarkWhippingCordSwingImpact())
+            float terrainX;
+            float terrainY;
+            if (fireHeld)
+            {
+                if (!_world.TryLatchWhippingCordToTerrain(attacker, aimWorldX, aimWorldY))
+                {
+                    return;
+                }
+
+                terrainX = attacker.WhippingCordAnchorX;
+                terrainY = attacker.WhippingCordAnchorY;
+            }
+            else if (!_world.TryFindWhippingCordTerrainContact(
+                         attacker, aimWorldX, aimWorldY, out terrainX, out terrainY))
             {
                 return;
             }
 
-            var wallHit = ResolveRifleHit(
-                attacker,
-                anchorX,
-                anchorY,
-                directionX,
-                directionY,
-                hitboxMask.MaxReachFromOrigin * maskScale);
-            if (wallHit.HitPlayer is null
-                && wallHit.HitSentry is null
-                && wallHit.HitGenerator is null
-                && wallHit.Distance < hitboxMask.MaxReachFromOrigin * maskScale)
+            if (attacker.TryMarkWhippingCordSwingImpact())
             {
                 RegisterImpactEffect(
-                    anchorX + directionX * wallHit.Distance,
-                    anchorY + directionY * wallHit.Distance,
+                    terrainX,
+                    terrainY,
                     PointDirectionDegrees(0f, 0f, directionX, directionY));
             }
+        }
+
+        private void ProcessWhippingCordBackswingTick(PlayerEntity attacker)
+        {
+            if (attacker.PendingWhippingCordBackswingTargetId < 0)
+            {
+                var firstTouched = FindWhippingCordBackswingTarget(attacker);
+                if (firstTouched is not null)
+                {
+                    _ = attacker.TryQueueWhippingCordBackswingTarget(firstTouched.Id);
+                }
+            }
+
+            // Hold the first touched enemy until the whip has visibly begun its
+            // return. Applying the impulse on the very first backswing tick
+            // moved players while the extended strike frame was still shown.
+            if (attacker.WhippingCordBackswingProgress < WhippingCordCatalog.BackswingPullStartProgress)
+            {
+                return;
+            }
+
+            PlayerEntity? target = null;
+            foreach (var player in _world.EnumerateSimulatedPlayers())
+            {
+                if (player.Id == attacker.PendingWhippingCordBackswingTargetId)
+                {
+                    target = player;
+                    break;
+                }
+            }
+
+            if (target is null || !target.IsAlive
+                || !_world.CanTeamDamagePlayer(attacker.Team, attacker.Id, target))
+            {
+                attacker.ClearPendingWhippingCordBackswingTarget();
+                return;
+            }
+
+            if (!attacker.TryClaimWhippingCordBackswingTarget())
+            {
+                return;
+            }
+
+            var pullX = attacker.X - target.X;
+            var pullY = attacker.Y - target.Y;
+            var pullDistance = MathF.Sqrt(pullX * pullX + pullY * pullY);
+            if (pullDistance > 0.0001f)
+            {
+                var pullSpeed = WhippingCordCatalog.BackswingPullSpeedPerTick
+                    * LegacyMovementModel.SourceTicksPerSecond;
+                target.AddImpulse(pullX / pullDistance * pullSpeed, pullY / pullDistance * pullSpeed);
+            }
+        }
+
+        private PlayerEntity? FindWhippingCordBackswingTarget(PlayerEntity attacker)
+        {
+            var hitboxMask = MeleeHitboxMaskCatalog.GetOrLoad(
+                ResolveWhippingCordMeleeHitboxSpriteName(attacker),
+                WhippingCordCatalog.ExtendedWhipFrameIndex);
+            if (hitboxMask is null)
+            {
+                return null;
+            }
+
+            var aimRadians = attacker.AimDirectionDegrees * MathF.PI / 180f;
+            var facingLeft = MathF.Cos(aimRadians) < 0f;
+            ResolveWhippingCordDrawOffset(attacker, facingLeft, out var offsetX, out var offsetY);
+            var originX = attacker.X + offsetX;
+            var originY = attacker.Y + offsetY;
+            var scale = MathF.Max(0.1f, attacker.LastToDieUniversalModifiers.MeleeScale)
+                * attacker.WhippingCordBackswingReachScale * attacker.PlayerScale;
+            var rotateWithAim = ResolveWhippingCordRotateHitbox(attacker);
+            var maxDistance = hitboxMask.MaxReachFromOrigin * scale;
+            PlayerEntity? nearest = null;
+            var nearestDistance = maxDistance;
+            foreach (var target in _world.EnumerateSimulatedPlayers())
+            {
+                if (!target.IsAlive || target.Id == attacker.Id
+                    || !_world.CanTeamDamagePlayer(attacker.Team, attacker.Id, target))
+                {
+                    continue;
+                }
+
+                _world.GetCachedPlayerPresentationHitBounds(target, out var left, out var top, out var right, out var bottom);
+                if (!hitboxMask.OverlapsRectangle(
+                        left, top, right, bottom, originX, originY, facingLeft, scale,
+                        rotateWithAim ? aimRadians : null))
+                {
+                    continue;
+                }
+
+                var distance = DistanceBetween(originX, originY, target.X, target.Y);
+                if (distance < nearestDistance)
+                {
+                    var rayX = (target.X - originX) / MathF.Max(distance, 0.0001f);
+                    var rayY = (target.Y - originY) / MathF.Max(distance, 0.0001f);
+                    var firstHit = ResolveRifleHit(attacker, originX, originY, rayX, rayY, distance);
+                    if (ReferenceEquals(firstHit.HitPlayer, target))
+                    {
+                        nearest = target;
+                        nearestDistance = distance;
+                    }
+                }
+            }
+
+            return nearest;
         }
 
         private bool TryProcessWhippingCordFriendlyBuildingHit(
@@ -487,29 +603,17 @@ public sealed partial class SimulationWorld
             return new RifleHitResult(maxDistance, HitPlayer: null, HitSentry: null, HitGenerator: null);
         }
 
-        private static int ResolveWhippingCordRecoilTicks(PlayerEntity attacker)
-        {
-            var itemId = attacker.GameplayLoadoutState.PrimaryItemId;
-            if (!string.IsNullOrWhiteSpace(itemId)
-                && CharacterClassCatalog.RuntimeRegistry.TryGetItem(itemId, out var item))
-            {
-                return item.Presentation.RecoilDurationSourceTicks;
-            }
-
-            return WhippingCordCatalog.RecoilDurationSourceTicks;
-        }
-
         private static string ResolveWhippingCordMeleeHitboxSpriteName(PlayerEntity attacker)
         {
             var itemId = attacker.GameplayLoadoutState.PrimaryItemId;
             if (!string.IsNullOrWhiteSpace(itemId)
                 && CharacterClassCatalog.RuntimeRegistry.TryGetItem(itemId, out var item)
-                && !string.IsNullOrWhiteSpace(item.Presentation.MeleeHitboxSpriteName))
+                && !string.IsNullOrWhiteSpace(item.Presentation.RecoilSpriteName))
             {
-                return item.Presentation.MeleeHitboxSpriteName!;
+                return item.Presentation.RecoilSpriteName!;
             }
 
-            return WhippingCordCatalog.MeleeHitboxSpriteName;
+            return WhippingCordCatalog.WhipRecoilSpriteName;
         }
 
         private static bool ResolveWhippingCordRotateHitbox(PlayerEntity attacker)
@@ -539,9 +643,9 @@ public sealed partial class SimulationWorld
                 return;
             }
 
-            var facingScale = facingLeft ? -1f : 1f;
+            var facingScale = (facingLeft ? -1f : 1f) * attacker.PlayerScale;
             offsetX = item.Presentation.WeaponOffsetX * facingScale;
-            offsetY = item.Presentation.WeaponOffsetY;
+            offsetY = item.Presentation.WeaponOffsetY * attacker.PlayerScale;
         }
     }
 }

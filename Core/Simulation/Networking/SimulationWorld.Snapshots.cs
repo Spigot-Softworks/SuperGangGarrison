@@ -158,6 +158,17 @@ public sealed partial class SimulationWorld
             isDispenserBuffed: snapshotPlayer.IsDispenserBuffed,
             dispenserAttackReloadSpeedMultiplier: snapshotPlayer.DispenserAttackReloadSpeedMultiplier);
         player.HydrateReplicatedEngineerAlternateWeaponMode();
+        var whippingCordLatched = player.TryGetReplicatedStateBool(
+            "core.player", WhippingCordCatalog.ReplicatedLatchKey, out var replicatedWhippingCordLatch)
+            && replicatedWhippingCordLatch;
+        _ = player.TryGetReplicatedStateFloat(
+            "core.player", WhippingCordCatalog.ReplicatedAnchorXKey, out var whippingCordAnchorX);
+        _ = player.TryGetReplicatedStateFloat(
+            "core.player", WhippingCordCatalog.ReplicatedAnchorYKey, out var whippingCordAnchorY);
+        _ = player.TryGetReplicatedStateFloat(
+            "core.player", WhippingCordCatalog.ReplicatedRopeLengthKey, out var whippingCordRopeLength);
+        player.HydrateWhippingCordLatch(
+            whippingCordLatched, whippingCordAnchorX, whippingCordAnchorY, whippingCordRopeLength);
         player.HydrateNetworkRageState(
             snapshotPlayer.RageCharge,
             snapshotPlayer.IsRageReady,
@@ -257,7 +268,8 @@ public sealed partial class SimulationWorld
                     damagePerHit: Math.Max(0f, state.DamageValue),
                     playerKnockbackImpulse: state.PlayerKnockbackImpulse,
                     playerKnockbackAirborneVerticalScale: state.PlayerKnockbackAirborneVerticalScale,
-                    playerKnockbackGroundedVerticalScale: state.PlayerKnockbackGroundedVerticalScale);
+                    playerKnockbackGroundedVerticalScale: state.PlayerKnockbackGroundedVerticalScale,
+                    isBoomstickPellet: state.IsBoomstickPellet);
                 shot.HydrateCritical(state.IsCritical, state.CriticalDamageMultiplier);
                 return shot;
             },
@@ -272,7 +284,8 @@ public sealed partial class SimulationWorld
                     Math.Max(0f, state.DamageValue),
                     state.PlayerKnockbackImpulse,
                     state.PlayerKnockbackAirborneVerticalScale,
-                    state.PlayerKnockbackGroundedVerticalScale);
+                    state.PlayerKnockbackGroundedVerticalScale,
+                    state.IsBoomstickPellet);
                 entity.HydrateCritical(state.IsCritical, state.CriticalDamageMultiplier);
             },
             entity => TryRegisterServerTerminatedProjectilePlayerHitEffect(
@@ -283,7 +296,8 @@ public sealed partial class SimulationWorld
                 || entity.DamageValue != Math.Max(0f, state.DamageValue)
                 || entity.PlayerKnockbackImpulse != state.PlayerKnockbackImpulse
                 || entity.PlayerKnockbackAirborneVerticalScale != state.PlayerKnockbackAirborneVerticalScale
-                || entity.PlayerKnockbackGroundedVerticalScale != state.PlayerKnockbackGroundedVerticalScale);
+                || entity.PlayerKnockbackGroundedVerticalScale != state.PlayerKnockbackGroundedVerticalScale
+                || entity.IsBoomstickPellet != state.IsBoomstickPellet);
         ApplySnapshotShots(
             snapshot.Bubbles,
             snapshot.RemovedBubbleIds,

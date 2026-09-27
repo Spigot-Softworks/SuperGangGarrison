@@ -1435,7 +1435,8 @@ public sealed record SnapshotShotState(
     float PlayerKnockbackImpulse = 0f,
     float PlayerKnockbackAirborneVerticalScale = 1f,
     float PlayerKnockbackGroundedVerticalScale = 1f,
-    byte FlareStyle = 0);
+    byte FlareStyle = 0,
+    bool IsBoomstickPellet = false);
 
 /// <summary>The snapshot grenade state.</summary>
 /// <param name="Id">The id.</param>

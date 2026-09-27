@@ -12,7 +12,9 @@ public partial class Game1
     private readonly Lazy<PlayerSkinCatalog> _playerSkins = new(PlayerSkinCatalog.Load);
 
     private PlayerSkinDefinition? GetPlayerSkin(PlayerEntity player) =>
-        _playerSkins.Value.Find(player.GameplayClassId, player.Team, _spriteStyle.ToString());
+        _networkClient.IsLegacyGg2Connection
+            ? null
+            : _playerSkins.Value.Find(player.GameplayClassId, player.Team);
 
     private BrowserPlayerSkinSnapshot? GetBrowserPlayerSkinSnapshot()
     {

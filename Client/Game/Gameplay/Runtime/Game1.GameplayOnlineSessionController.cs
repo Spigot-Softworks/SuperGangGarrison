@@ -79,6 +79,70 @@ public partial class Game1
             return TryConnectToServer(NetworkEndpoint.ForCurrentRuntimeSinglePort(host, port), addConsoleFeedback);
         }
 
+        public bool TryConnectLegacyGg2Server(string host, int port, bool addConsoleFeedback)
+        {
+            if (!_game._bootstrapController.CanEnterGameplaySession(out var bootstrapReason))
+            {
+                _game.SetNetworkStatus(bootstrapReason ?? "Client assets are still loading.");
+                return false;
+            }
+
+            _game.ClearReplayQueue(clearActiveReplayPath: true);
+            _game.ClearPendingNetworkMapSync();
+            _game._onlineConnectionIntent = OnlineConnectionIntent.Join;
+            _pendingConnectionCandidates = null;
+            var connected = OperatingSystem.IsBrowser()
+                ? TryConnectBrowserGg2Gateway(host, port, out var transport, out var error)
+                : LegacyGg2NetworkClientTransport.TryConnect(host, port, out transport, out error);
+            if (!connected
+                || transport is null)
+            {
+                _game.SetNetworkStatus($"GG2 connection failed: {error}");
+                if (addConsoleFeedback) _game.AddNetworkConsoleLine($"GG2 connection failed: {error}");
+                return false;
+            }
+
+            if (!_game._networkClient.Connect(
+                    transport,
+                    _game._world.LocalPlayer.DisplayName,
+                    _game._world.LocalPlayer.BadgeMask,
+                    out error))
+            {
+                _game.SetNetworkStatus($"GG2 connection failed: {error}");
+                if (addConsoleFeedback) _game.AddNetworkConsoleLine($"GG2 connection failed: {error}");
+                return false;
+            }
+
+            _game.ClearOnlinePlayerSocialProfiles();
+            _game.ResetGameplayRuntimeState();
+            _game._world.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings());
+            _game.CloseLobbyBrowser(clearStatus: false);
+            _game.SetJoiningServerLoadingLabel($"GG2 {host}:{port}");
+            _game.ShowJoiningServerLoadingOverlay();
+            _game.SetNetworkStatus($"Connecting to GG2 {host}:{port}...");
+            if (addConsoleFeedback) _game.AddNetworkConsoleLine($"connecting to GG2 {host}:{port}");
+            return true;
+        }
+
+        private static bool TryConnectBrowserGg2Gateway(
+            string host, int port, out INetworkClientMessageTransport? transport, out string error)
+        {
+            transport = null;
+            error = string.Empty;
+            if (string.IsNullOrWhiteSpace(host) || port is < 1 or > 65535)
+            {
+                error = "A GG2 server address and port are required.";
+                return false;
+            }
+
+            var gateway = OpenGarrison.ClientShared.ClientDistribution.CreateGg2GatewayEndpoint(host, port);
+            if (!NetworkClientMessageTransportRegistry.TryConnect(gateway.AbsoluteUri, 0, out var websocket, out error)
+                || websocket is null)
+                return false;
+            transport = new LegacyGg2BrowserMessageTransport(websocket, host, port);
+            return true;
+        }
+
         public bool TryConnectToServer(NetworkEndpoint endpoint, bool addConsoleFeedback)
         {
             return TryConnectToServer(endpoint, addConsoleFeedback, OnlineConnectionIntent.Join);
@@ -86,6 +150,11 @@ public partial class Game1
 
         public bool TryConnectToServer(NetworkEndpoint endpoint, bool addConsoleFeedback, OnlineConnectionIntent intent)
         {
+            if (OpenGarrison.ClientShared.ClientDistribution.IsGg2Only)
+            {
+                _game.SetNetworkStatus("This edition connects through the GG2 server browser.");
+                return false;
+            }
             if (IsRestrictedBrowserEdition
                 && (intent != OnlineConnectionIntent.Join
                     || !OpenGarrison.ClientShared.ClientDistribution.AllowsEndpoint(endpoint.WebSocketUrl)))
@@ -464,8 +533,10 @@ public partial class Game1
                 GameplaySessionKind.Online,
                 openJoinMenus: !_game._networkClient.IsReplayConnection
                     && _game._onlineConnectionIntent != OnlineConnectionIntent.Watch
-                    && !_game._networkClient.IsSpectator,
-                statusMessage: _game._networkClient.IsSpectator ? "Connected as spectator." : string.Empty);
+                    && (!_game._networkClient.IsSpectator || _game._networkClient.IsLegacyGg2Connection),
+                statusMessage: _game._networkClient.IsSpectator && !_game._networkClient.IsLegacyGg2Connection
+                    ? "Connected as spectator."
+                    : string.Empty);
             _game.StopMenuMusic();
             if (_game._peerRoomSession?.State is { Kind: "Practice", Players: { } roomPlayers })
             {
@@ -478,8 +549,11 @@ public partial class Game1
                 _game._networkClient.IsSpectator
                     ? $"connected to {welcome.ServerName} ({welcome.LevelName}) as spectator tickrate={welcome.TickRate}"
                     : $"connected to {welcome.ServerName} ({welcome.LevelName}) tickrate={welcome.TickRate}");
-            _game.BeginGameplayAccountAttach();
-            _game.UploadSelectedCustomBubbleState();
+            if (!_game._networkClient.IsLegacyGg2Connection)
+            {
+                _game.BeginGameplayAccountAttach();
+                _game.UploadSelectedCustomBubbleState();
+            }
         }
 
         private static ConnectionIntent ToProtocolConnectionIntent(OnlineConnectionIntent intent)

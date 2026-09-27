@@ -63,7 +63,7 @@ public partial class Game1
 
     private void TriggerLocalHudPortraitDamageFeedback(int damageAmount)
     {
-        if (!_portraitRumbleEnabled || damageAmount <= 0)
+        if (!_portraitRumbleEnabled || _networkClient.IsLegacyGg2Connection || damageAmount <= 0)
         {
             return;
         }
@@ -294,11 +294,14 @@ public partial class Game1
                 : portraitWeaponDefinition.NormalSpriteName;
             useTorsoReplacementPortrait = useTorsoReplacementPortrait
                 && !string.IsNullOrWhiteSpace(portraitTorsoSpriteName);
-            var characterSpriteName = portraitSkin is null
-                ? GameplayPlayerSpriteRenderController.GetHudStandingSpriteName(localPlayer)
-                : portraitSkin.SpriteForTeam(
-                    useTorsoReplacementPortrait ? portraitSkin.LegsBodySprite! : portraitSkin.BodySprite,
-                    localPlayer.Team);
+            var characterSpriteName = _game._networkClient.IsLegacyGg2Connection
+                && localPlayer.ClassId == PlayerClass.Quote
+                    ? $"Querly{(localPlayer.Team == PlayerTeam.Blue ? "Blue" : "Red")}S"
+                    : portraitSkin is null
+                        ? GameplayPlayerSpriteRenderController.GetHudStandingSpriteName(localPlayer)
+                        : portraitSkin.SpriteForTeam(
+                            useTorsoReplacementPortrait ? portraitSkin.LegsBodySprite! : portraitSkin.BodySprite,
+                            localPlayer.Team);
             var portraitFrameIndex = portraitSkin?.Clips["idle"].Frames[0] ?? 0;
             if (characterSpriteName is not null && backgroundHealthSprite is not null && backgroundHealthSprite.Frames.Count > 0)
             {
@@ -798,9 +801,10 @@ public partial class Game1
 
             var presentationPlayer = GetLocalWeaponPresentationPlayer();
             var displayedWeaponStats = GetLocalDisplayedMainWeaponStats();
-            var hasGrenadeLauncher = HasLocalDemomanGrenadeLauncher();
-            var showOnlyActiveWeapon = _game._hudShowOnlyActiveWeapon;
-            var selectedOffhandItemId = IsLocalDisplayedOffhandWeaponSelected()
+            var isLegacyGg2 = _game._networkClient.IsLegacyGg2Connection;
+            var hasGrenadeLauncher = !isLegacyGg2 && HasLocalDemomanGrenadeLauncher();
+            var showOnlyActiveWeapon = _game._hudShowOnlyActiveWeapon || isLegacyGg2;
+            var selectedOffhandItemId = !isLegacyGg2 && IsLocalDisplayedOffhandWeaponSelected()
                 ? GetLocalDisplayedOffhandPresentationItemId()
                 : null;
             var selectedUtilityItem = selectedOffhandItemId is not null
@@ -892,7 +896,8 @@ public partial class Game1
         private List<WeaponHudRow> BuildAbilityHudRows()
         {
             var rows = new List<WeaponHudRow>();
-            var hasGrenadeLauncher = HasLocalDemomanGrenadeLauncher();
+            var hasGrenadeLauncher = !_game._networkClient.IsLegacyGg2Connection
+                && HasLocalDemomanGrenadeLauncher();
 
             if (_game._world.LocalPlayer.ClassId == PlayerClass.Demoman)
             {
@@ -913,7 +918,10 @@ public partial class Game1
                         new Vector2(66f, 42f))));
             }
 
-            AddConfiguredAbilityHudRows(rows);
+            if (!_game._networkClient.IsLegacyGg2Connection)
+            {
+                AddConfiguredAbilityHudRows(rows);
+            }
             return rows;
         }
 
@@ -2154,6 +2162,11 @@ public partial class Game1
         private bool ShouldDrawSecondaryWeaponHudRow(out GameplayItemDefinition item)
         {
             item = null!;
+            if (_game._networkClient.IsLegacyGg2Connection)
+            {
+                return false;
+            }
+
             var player = GetLocalWeaponPresentationPlayer();
             if (player.IsExperimentalOffhandSelected)
             {
@@ -2169,6 +2182,13 @@ public partial class Game1
             }
 
             item = CharacterClassCatalog.RuntimeRegistry.GetRequiredItem(secondaryItemId);
+            // Detonator's grenade launcher already has a dedicated utility panel.
+            if (player.ClassId == PlayerClass.Demoman
+                && string.Equals(item.BehaviorId, BuiltInGameplayBehaviorIds.GrenadeLauncher, StringComparison.Ordinal))
+            {
+                return false;
+            }
+
             // Mediguns intentionally have no ammo panel. Keep Medic's needlegun
             // panel tied to the equipped weapon instead of showing it as a
             // stowed row beside an empty medigun slot.

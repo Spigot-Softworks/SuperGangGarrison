@@ -328,6 +328,14 @@ public sealed partial class PlayerEntity
             }
             HorizontalSpeed = SpySuperjumpHorizontalVelocity;
         }
+        else if (IsWhippingCordLatched && !IsGrounded)
+        {
+            // The rope preserves horizontal momentum while airborne. Normal
+            // ground friction would kill a pendulum before its first arc.
+            HorizontalSpeed += horizontalDirection * RunPower * GetMovementScale(input)
+                * 0.6f * LegacyMovementModel.SourceTicksPerSecond
+                * (LegacyMovementModel.SourceTicksPerSecond * dt);
+        }
         else if (IsCivvieUmbrellaSlowFallAirMovementActive())
         {
             HorizontalSpeed = LegacyMovementModel.AdvanceHorizontalSpeed(
@@ -493,8 +501,15 @@ public sealed partial class PlayerEntity
 
         ResolveDropdownPlatformContact(level, allowDropdownFallThrough, previousBottom);
         ApplyExperimentalGhostDashMovement(level, team, dt, allowDropdownFallThrough);
+        ConstrainWhippingCordMovement(level, team);
         TryApplySourceStepDown(level, team);
         RefreshGroundSupport(level, team, allowDropdownFallThrough);
+
+        ConstrainWhippingCordMovement(level, team);
+        if (IsWhippingCordLatched)
+        {
+            RefreshGroundSupport(level, team, allowDropdownFallThrough);
+        }
 
         ClampTo(level.Bounds);
         AdvanceSourceFacingDirectionForNextStep();

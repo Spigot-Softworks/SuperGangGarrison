@@ -489,6 +489,11 @@ public partial class Game1
 
     private bool CanStartImmediatePrimaryFirePresentation(PlayerInputSnapshot input)
     {
+        if (_networkClient.IsLegacyGg2Connection)
+        {
+            return false;
+        }
+
         var player = GetImmediatePrimaryPresentationPlayer();
         if (!player.IsAlive
             || player.IsTaunting
@@ -599,7 +604,9 @@ public partial class Game1
             _networkClient.AdvanceNetworkInputTick();
             _networkInputAccumulatorSeconds -= _config.FixedDeltaSeconds;
             var outboundNetworkInput = ApplyPendingInputEdges(networkInput);
-            if (_latchedJumpPressSequence != 0 && !outboundNetworkInput.Up)
+            if (ShouldRetainJumpPressUntilAcknowledged(
+                    _networkClient.IsLegacyGg2Connection, _latchedJumpPressSequence)
+                && !outboundNetworkInput.Up)
             {
                 // Keep jump held in the outbound stream until authority confirms it
                 // processed one matching input, so brief tap timing can't lose the edge.
@@ -610,7 +617,14 @@ public partial class Game1
                 ? new Vector2(_latestNetworkInputAimOriginX, _latestNetworkInputAimOriginY)
                 : GetLocalViewPosition();
             var sentInputSequence = _networkClient.SendInput(outboundNetworkInput, aimOrigin.X, aimOrigin.Y);
-            if (_pendingPredictedJumpPress && sentInputSequence != 0)
+            if (_networkClient.IsLegacyGg2Connection)
+            {
+                // GG2 has no input-sequence acknowledgement. Its input stream
+                // carries the current key state, so a jump must release with
+                // the physical key instead of remaining latched forever.
+                _latchedJumpPressSequence = 0;
+            }
+            else if (_pendingPredictedJumpPress && sentInputSequence != 0)
             {
                 _latchedJumpPressSequence = sentInputSequence;
             }
@@ -684,6 +698,9 @@ public partial class Game1
             }
         }
     }
+
+    internal static bool ShouldRetainJumpPressUntilAcknowledged(bool isLegacyGg2, uint latchedSequence)
+        => !isLegacyGg2 && latchedSequence != 0;
 
     private int GetBuildMenuCommandRetryInputTicks()
     {
@@ -972,6 +989,7 @@ public partial class Game1
 
     private void AdvanceGoreSourceTicks()
     {
+        _gameplayGoreEffectsController.AdvanceGibBloodExplosions();
         _goreSourceTickAccumulator += (float)(ClientUpdateStepSeconds * LegacyMovementModel.SourceTicksPerSecond);
         while (_goreSourceTickAccumulator >= 1f)
         {

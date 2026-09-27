@@ -9,6 +9,8 @@ public partial class Game1
 
     private bool CanPresentFirstPlayHints() =>
         _gameplaySessionKind is GameplaySessionKind.Online or GameplaySessionKind.Practice or GameplaySessionKind.LastToDie
+        && !_networkClient.IsLegacyGg2Connection
+        && !OpenGarrison.ClientShared.ClientDistribution.IsGg2Only
         && !_mainMenuOpen && !_startupSplashOpen && !_loadingOverlayVisible
         && !_inGameMenuOpen && !_teamSelectOpen && !_classSelectOpen && !_consoleOpen && !_hudEditorOpen
         && !_builderEditorEnabled && !_garrisonBuilderQuickTestActive && !_networkClient.IsReplayConnection

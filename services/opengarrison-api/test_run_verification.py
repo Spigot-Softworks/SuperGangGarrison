@@ -108,6 +108,37 @@ class RunVerificationTests(unittest.TestCase):
             self.assertEqual([1250, 750], [row[0] for row in scores])
             self.assertIsNone(db.execute("SELECT recording FROM run_verification_jobs").fetchone()[0])
 
+    def test_queued_run_and_late_guest_claim_do_not_repopulate_reset_rankings(self):
+        owner, token = self.identity()
+        guest, guest_token = self.identity("OG2-MNPQ-RSTU")
+        self.assertEqual(202, self.submit(token).status_code)
+        with patch.dict(os.environ, {"OPENGARRISON_REPLAY_RULESET": "test-ruleset"}):
+            old_job = worker.claim()
+        with app.connect_db() as db:
+            db.execute("UPDATE last_to_die_rankings_state SET epoch=epoch+1 WHERE id=1")
+
+        attempt = str(uuid.uuid4())
+        result = {"AttemptId": attempt, "CompletedRounds": 12, "Difficulty": 0,
+                  "Participants": [
+                      {"ClientId": owner, "SurvivorId": "ltd.survivor.soldier", "ScoreUnits": 1000},
+                      {"ClientId": guest, "SurvivorId": "ltd.survivor.sniper", "ScoreUnits": 800}]}
+        worker.publish(old_job, result)
+        claim = self.client.post("/api/last-to-die/recordings/claims/" + attempt,
+                                 headers={"Authorization": "Bearer " + guest_token})
+        self.assertEqual(200, claim.status_code, claim.text)
+        self.assertEqual(0, self.client.get("/api/last-to-die/leaderboard").json()["total"])
+
+        self.assertEqual(202, self.submit(token, b"new run").status_code)
+        with patch.dict(os.environ, {"OPENGARRISON_REPLAY_RULESET": "test-ruleset"}):
+            new_job = worker.claim()
+        new_result = {"AttemptId": str(uuid.uuid4()), "CompletedRounds": 5, "Difficulty": 0,
+                      "Participants": [
+                          {"ClientId": owner, "SurvivorId": "ltd.survivor.engineer", "ScoreUnits": 300}]}
+        worker.publish(new_job, new_result)
+        leaderboard = self.client.get("/api/last-to-die/leaderboard").json()
+        self.assertEqual(1, leaderboard["total"])
+        self.assertEqual("ltd.survivor.engineer", leaderboard["entries"][0]["survivorId"])
+
     def test_failed_replay_does_not_publish_and_stale_worker_cannot_complete(self):
         _, token = self.identity()
         self.submit(token)

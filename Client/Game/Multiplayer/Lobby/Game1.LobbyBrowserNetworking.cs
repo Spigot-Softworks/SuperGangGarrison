@@ -67,6 +67,12 @@ public partial class Game1
 
     private void UpdateLobbyBrowserResponses()
     {
+        UpdateLegacyGg2LobbyRequest();
+        if (_lobbyBrowserSource == LobbyBrowserSource.Gg2 && _lobbyBrowserMode == LobbyBrowserMode.Join)
+        {
+            return;
+        }
+
         UpdateLobbyBrowserRegistryState();
         UpdateLobbyBrowserLobbyState();
 

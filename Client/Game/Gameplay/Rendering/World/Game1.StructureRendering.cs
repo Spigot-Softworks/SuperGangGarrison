@@ -79,7 +79,7 @@ public partial class Game1
 
     private void DrawPlayerGib(PlayerGibEntity gib, Vector2 cameraPosition)
     {
-        if (_gibLevel == 0 || (_gibLevel == 1) || (_gibLevel == 2 && (gib.FrameIndex % 2 != 0)))
+        if (!ShouldDrawPlayerGib(gib))
         {
             return;
         }
@@ -110,16 +110,38 @@ public partial class Game1
             gibTint * gib.Alpha,
             gib.RotationDegrees * (MathF.PI / 180f),
             sprite.Origin.ToVector2(),
-            new Vector2(renderScale, renderScale),
+            new Vector2(gib.FlipHorizontally ? -renderScale : renderScale, renderScale),
             SpriteEffects.None,
             0f);
     }
 
     private static float GetPlayerGibRenderScale(PlayerGibEntity gib)
     {
+        if (AuthoredPlayerGibCatalog.IsAuthoredSprite(gib.SpriteName))
+        {
+            return gib.AuthoredRenderScale;
+        }
+
         return IsExperimentalDemoknightDecapHeadSprite(gib.SpriteName)
             ? 1f
             : PlayerGibEntity.Scale;
+    }
+
+    private bool ShouldDrawPlayerGib(PlayerGibEntity gib)
+    {
+        if (_gibLevel == 0 || _gibLevel == 1)
+        {
+            return false;
+        }
+
+        // Authored parts form one complete character. Hiding alternate parts at
+        // medium detail leaves the body visibly incomplete.
+        if (_gibLevel != 2 || AuthoredPlayerGibCatalog.IsAuthoredSprite(gib.SpriteName))
+        {
+            return true;
+        }
+
+        return gib.FrameIndex % 2 == 0;
     }
 
     private static bool IsExperimentalDemoknightDecapHeadSprite(string spriteName)

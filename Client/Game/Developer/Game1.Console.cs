@@ -126,6 +126,27 @@ public partial class Game1
                     AddConsoleLine("usage: connect <host> [port]");
                 }
                 break;
+            case "connectgg2":
+                if (parts.Length >= 2)
+                {
+                    var host = parts[1];
+                    var port = 8190;
+                    if (parts.Length >= 3 && !int.TryParse(parts[2], out port))
+                    {
+                        AddConsoleLine("usage: connectgg2 <host> [port]");
+                        break;
+                    }
+
+                    if (TryConnectLegacyGg2Server(host, port, addConsoleFeedback: true))
+                    {
+                        _menuStatusMessage = string.Empty;
+                    }
+                }
+                else
+                {
+                    AddConsoleLine("usage: connectgg2 <host> [port]");
+                }
+                break;
             case "replay_play":
                 if (parts.Length >= 2)
                 {

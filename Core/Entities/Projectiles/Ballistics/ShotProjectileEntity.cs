@@ -24,7 +24,8 @@ public sealed class ShotProjectileEntity : SimulationEntity
         int playerSlowRefreshTicks = 0,
         float? playerKnockbackImpulse = null,
         float playerKnockbackAirborneVerticalScale = 1f,
-        float playerKnockbackGroundedVerticalScale = 1f) : base(id)
+        float playerKnockbackGroundedVerticalScale = 1f,
+        bool isBoomstickPellet = false) : base(id)
     {
         Team = team;
         OwnerId = ownerId;
@@ -48,6 +49,7 @@ public sealed class ShotProjectileEntity : SimulationEntity
             ? Math.Clamp(playerSlowMovementMultiplier.Value, 0.05f, 1f)
             : null;
         PlayerSlowRefreshTicks = Math.Max(0, playerSlowRefreshTicks);
+        IsBoomstickPellet = isBoomstickPellet;
         TicksRemaining = LifetimeTicks;
     }
 
@@ -68,6 +70,8 @@ public sealed class ShotProjectileEntity : SimulationEntity
     public float VelocityY { get; private set; }
 
     public float DamageValue { get; private set; }
+
+    public bool IsBoomstickPellet { get; private set; }
 
     public bool ForceGibOnKill { get; }
 
@@ -155,7 +159,8 @@ public sealed class ShotProjectileEntity : SimulationEntity
         float? damageValue = null,
         float? playerKnockbackImpulse = null,
         float? playerKnockbackAirborneVerticalScale = null,
-        float? playerKnockbackGroundedVerticalScale = null)
+        float? playerKnockbackGroundedVerticalScale = null,
+        bool? isBoomstickPellet = null)
     {
         PreviousX = X;
         PreviousY = Y;
@@ -182,6 +187,10 @@ public sealed class ShotProjectileEntity : SimulationEntity
         if (playerKnockbackGroundedVerticalScale.HasValue)
         {
             PlayerKnockbackGroundedVerticalScale = Math.Clamp(playerKnockbackGroundedVerticalScale.Value, 0f, 1f);
+        }
+        if (isBoomstickPellet.HasValue)
+        {
+            IsBoomstickPellet = isBoomstickPellet.Value;
         }
     }
 }

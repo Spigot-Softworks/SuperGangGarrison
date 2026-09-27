@@ -20,6 +20,7 @@ from fastapi.openapi.utils import get_openapi
 from pydantic import BaseModel
 from reward_authority import require_reward_authority
 from run_verification import install_routes as install_run_verification_routes
+from gg2_lobby import fetch_servers as fetch_gg2_servers
 
 
 DEFAULT_DB_PATH = "/var/lib/opengarrison-api/opengarrison.db"
@@ -302,8 +303,15 @@ def initialize_db() -> None:
                 difficulty TEXT NOT NULL DEFAULT 'standard',
                 survivor_id TEXT NOT NULL DEFAULT '',
                 policy_version INTEGER NOT NULL DEFAULT 1,
+                ranking_epoch INTEGER NOT NULL DEFAULT 0,
                 created_at INTEGER NOT NULL,
                 UNIQUE(run_id, account_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS last_to_die_rankings_state (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                epoch INTEGER NOT NULL DEFAULT 0,
+                reset_at INTEGER NOT NULL DEFAULT 0
             );
 
             CREATE INDEX IF NOT EXISTS idx_last_to_die_runs_account
@@ -395,9 +403,15 @@ def initialize_db() -> None:
         ensure_column(db, "servers", "quic_port", "INTEGER NOT NULL DEFAULT 0")
         ensure_column(db, "servers", "quic_url", "TEXT NOT NULL DEFAULT ''")
         ensure_column(db, "last_to_die_runs", "survivor_id", "TEXT NOT NULL DEFAULT ''")
+        ensure_column(db, "last_to_die_runs", "ranking_epoch", "INTEGER NOT NULL DEFAULT 0")
+        db.execute("INSERT OR IGNORE INTO last_to_die_rankings_state (id) VALUES (1)")
         db.execute(
             "CREATE INDEX IF NOT EXISTS idx_last_to_die_runs_survivor "
             "ON last_to_die_runs(survivor_id, score_units DESC, round_number DESC)"
+        )
+        db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_last_to_die_runs_epoch_class "
+            "ON last_to_die_runs(ranking_epoch, account_id, survivor_id)"
         )
         migrate_legacy_clients(db)
         migrate_client_id_aliases(db)
@@ -1263,6 +1277,14 @@ def healthz() -> dict[str, str]:
     return {"status": "ok"}
 
 
+@app.get("/api/gg2/servers")
+async def get_gg2_servers() -> dict[str, Any]:
+    try:
+        return {"servers": await fetch_gg2_servers()}
+    except (OSError, asyncio.TimeoutError, asyncio.IncompleteReadError, ValueError):
+        raise HTTPException(status_code=503, detail="GG2 lobby is temporarily unavailable") from None
+
+
 @app.get("/api/servers")
 @app.get("/API/og2servers.php")
 @app.get("/servers.json")
@@ -1889,17 +1911,35 @@ def get_points_leaderboard(limit: int = 10, offset: int = 0) -> dict[str, Any]:
         }
 
 
+def get_last_to_die_rankings_epoch(db: sqlite3.Connection) -> int:
+    row = db.execute("SELECT epoch FROM last_to_die_rankings_state WHERE id = 1").fetchone()
+    return int(row["epoch"]) if row is not None else 0
+
+
 def get_last_to_die_player_stats(db: sqlite3.Connection, account_id: str) -> dict[str, Any]:
+    epoch = get_last_to_die_rankings_epoch(db)
     aggregate = db.execute(
         """
         SELECT COUNT(*) AS runs_played,
                COALESCE(MAX(score_units), 0) AS best_score_units,
                COALESCE(MAX(round_number), 0) AS highest_round
         FROM last_to_die_runs
-        WHERE account_id = ?
+        WHERE account_id = ? AND ranking_epoch = ?
         """,
-        (account_id,),
+        (account_id, epoch),
     ).fetchone()
+    class_rows = db.execute(
+        """
+        SELECT survivor_id, COUNT(*) AS runs_played,
+               MAX(score_units) AS best_score_units,
+               MAX(round_number) AS highest_round
+        FROM last_to_die_runs
+        WHERE account_id = ? AND ranking_epoch = ? AND survivor_id <> ''
+        GROUP BY survivor_id
+        ORDER BY survivor_id
+        """,
+        (account_id, epoch),
+    ).fetchall()
     best_score_units = max(0, int(aggregate["best_score_units"]))
     highest_round = max(0, int(aggregate["highest_round"]))
     score_rank = 0
@@ -1907,25 +1947,29 @@ def get_last_to_die_player_stats(db: sqlite3.Connection, account_id: str) -> dic
     if best_score_units > 0 or highest_round > 0:
         score_rank_row = db.execute(
             """
-            WITH account_records AS (
-                SELECT account_id, MAX(score_units) AS best_score_units
-                FROM last_to_die_runs GROUP BY account_id
+            WITH class_records AS (
+                SELECT account_id, survivor_id, MAX(score_units) AS best_score_units
+                FROM last_to_die_runs
+                WHERE ranking_epoch = ? AND survivor_id <> ''
+                GROUP BY account_id, survivor_id
             )
             SELECT 1 + COUNT(*) AS rank
-            FROM account_records WHERE best_score_units > ?
+            FROM class_records WHERE best_score_units > ?
             """,
-            (best_score_units,),
+            (epoch, best_score_units),
         ).fetchone()
         round_rank_row = db.execute(
             """
-            WITH account_records AS (
-                SELECT account_id, MAX(round_number) AS highest_round
-                FROM last_to_die_runs GROUP BY account_id
+            WITH class_records AS (
+                SELECT account_id, survivor_id, MAX(round_number) AS highest_round
+                FROM last_to_die_runs
+                WHERE ranking_epoch = ? AND survivor_id <> ''
+                GROUP BY account_id, survivor_id
             )
             SELECT 1 + COUNT(*) AS rank
-            FROM account_records WHERE highest_round > ?
+            FROM class_records WHERE highest_round > ?
             """,
-            (highest_round,),
+            (epoch, highest_round),
         ).fetchone()
         score_rank = max(1, int(score_rank_row["rank"]))
         round_rank = max(1, int(round_rank_row["rank"]))
@@ -1939,6 +1983,15 @@ def get_last_to_die_player_stats(db: sqlite3.Connection, account_id: str) -> dic
         "highestRound": highest_round,
         "scoreRank": score_rank,
         "roundRank": round_rank,
+        "classRecords": [
+            {
+                "survivorId": str(row["survivor_id"]),
+                "runsPlayed": max(0, int(row["runs_played"])),
+                "bestScoreUnits": max(0, int(row["best_score_units"])),
+                "highestRound": max(0, int(row["highest_round"])),
+            }
+            for row in class_rows
+        ],
     }
 
 
@@ -1957,28 +2010,30 @@ def get_last_to_die_leaderboard(
     normalized_survivor_id = clean_text(survivor_id, 96).lower()
     if normalized_survivor_id and normalized_survivor_id not in LAST_TO_DIE_SURVIVOR_IDS:
         raise HTTPException(status_code=400, detail="invalid Last to Die survivor")
+    epoch = get_last_to_die_rankings_epoch(db)
     rank_column = "score_units" if normalized_sort == "score" else "round_number"
     secondary_column = "round_number" if normalized_sort == "score" else "score_units"
     rows = db.execute(
         f"""
         WITH candidate_runs AS (
             SELECT account_id, score_units, round_number, survivor_id,
-                   COUNT(*) OVER (PARTITION BY account_id) AS runs_played,
+                   COUNT(*) OVER (PARTITION BY account_id, survivor_id) AS runs_played,
                    ROW_NUMBER() OVER (
-                       PARTITION BY account_id
+                       PARTITION BY account_id, survivor_id
                        ORDER BY {rank_column} DESC, {secondary_column} DESC,
                                 created_at ASC, submission_id ASC
-                   ) AS account_record
+                   ) AS class_record
             FROM last_to_die_runs
-            WHERE (? = '' OR survivor_id = ?)
-        ), account_records AS (
+            WHERE ranking_epoch = ? AND survivor_id <> ''
+              AND (? = '' OR survivor_id = ?)
+        ), class_records AS (
             SELECT account_id, score_units, round_number, survivor_id, runs_played
             FROM candidate_runs
-            WHERE account_record = 1
+            WHERE class_record = 1
         ), ranked AS (
             SELECT account_id, score_units, round_number, survivor_id, runs_played,
                    RANK() OVER (ORDER BY {rank_column} DESC) AS global_rank
-            FROM account_records
+            FROM class_records
         )
         SELECT ranked.*, accounts.primary_friend_code, accounts.display_name
         FROM ranked
@@ -1987,12 +2042,18 @@ def get_last_to_die_leaderboard(
                  accounts.updated_at ASC, ranked.account_id ASC
         LIMIT ? OFFSET ?
         """,
-        (normalized_survivor_id, normalized_survivor_id, page_limit, page_offset),
+        (epoch, normalized_survivor_id, normalized_survivor_id, page_limit, page_offset),
     ).fetchall()
     total_row = db.execute(
-        "SELECT COUNT(DISTINCT account_id) AS total FROM last_to_die_runs "
-        "WHERE (? = '' OR survivor_id = ?)",
-        (normalized_survivor_id, normalized_survivor_id),
+        """
+        SELECT COUNT(*) AS total FROM (
+            SELECT 1 FROM last_to_die_runs
+            WHERE ranking_epoch = ? AND survivor_id <> ''
+              AND (? = '' OR survivor_id = ?)
+            GROUP BY account_id, survivor_id
+        )
+        """,
+        (epoch, normalized_survivor_id, normalized_survivor_id),
     ).fetchone()
     entries = [
         {
@@ -2032,10 +2093,11 @@ def record_last_to_die_run(payload: LastToDieRunRequest) -> dict[str, Any]:
         raise HTTPException(status_code=400, detail="Last to Die result is outside allowed bounds")
     if difficulty not in ("standard", "hardcore"):
         raise HTTPException(status_code=400, detail="invalid Last to Die difficulty")
-    if survivor_id and survivor_id not in LAST_TO_DIE_SURVIVOR_IDS:
+    if survivor_id not in LAST_TO_DIE_SURVIVOR_IDS:
         raise HTTPException(status_code=400, detail="invalid Last to Die survivor")
 
     with connect_db() as db:
+        db.execute("BEGIN IMMEDIATE")
         session = validate_gameplay_session(db, token)
         account_id = str(session["account_id"])
         existing = db.execute(
@@ -2073,8 +2135,8 @@ def record_last_to_die_run(payload: LastToDieRunRequest) -> dict[str, Any]:
             """
             INSERT INTO last_to_die_runs (
                 submission_id, run_id, account_id, score_units, round_number,
-                difficulty, survivor_id, policy_version, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                difficulty, survivor_id, policy_version, ranking_epoch, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 submission_id,
@@ -2085,6 +2147,7 @@ def record_last_to_die_run(payload: LastToDieRunRequest) -> dict[str, Any]:
                 difficulty,
                 survivor_id,
                 policy_version,
+                get_last_to_die_rankings_epoch(db),
                 now_seconds(),
             ),
         )

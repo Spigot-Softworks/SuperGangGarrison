@@ -3,6 +3,7 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using System;
+using System.Collections.Generic;
 using OpenGarrison.Core;
 
 namespace OpenGarrison.Client;
@@ -11,7 +12,18 @@ public partial class Game1
 {
     private sealed partial class GameplayGoreEffectsController
     {
+        private const int GibBloodExplosionClientTicksPerFrame = 3;
+        private const int GibBloodExplosionLifetimeClientTicks = 3 * GibBloodExplosionClientTicksPerFrame;
+        private const float GibBloodExplosionDrawScale = 1.4f;
+        private readonly List<GibBloodExplosionVisual> _gibBloodExplosionVisuals = new();
         private readonly Game1 _game;
+
+        private sealed class GibBloodExplosionVisual(float x, float y)
+        {
+            public float X { get; } = x;
+            public float Y { get; } = y;
+            public int AgeClientTicks { get; set; }
+        }
 
         public GameplayGoreEffectsController(Game1 game)
         {
@@ -23,6 +35,7 @@ public partial class Game1
             ResetBackstabVisuals();
             _game._bloodVisuals.Clear();
             _game._bloodSprayVisuals.Clear();
+            _gibBloodExplosionVisuals.Clear();
             _game._stickyGibBloodCoatings.Clear();
             _game._staleStickyGibBloodPlayerIds.Clear();
             _game._processedStickyGibBloodDropIds.Clear();
@@ -42,6 +55,7 @@ public partial class Game1
             {
                 _game._bloodVisuals.Clear();
                 _game._bloodSprayVisuals.Clear();
+                _gibBloodExplosionVisuals.Clear();
                 ResetBloodSquibEffects();
                 _game._stickyGibBloodCoatings.Clear();
                 _game._staleStickyGibBloodPlayerIds.Clear();
@@ -87,6 +101,25 @@ public partial class Game1
             }
 
             AdvanceStickyGibBloodCoatings();
+        }
+
+        public void AdvanceGibBloodExplosions()
+        {
+            if (!_game.AreBloodVisualsEnabled)
+            {
+                _gibBloodExplosionVisuals.Clear();
+                return;
+            }
+
+            for (var index = _gibBloodExplosionVisuals.Count - 1; index >= 0; index -= 1)
+            {
+                var visual = _gibBloodExplosionVisuals[index];
+                visual.AgeClientTicks += 1;
+                if (visual.AgeClientTicks >= GibBloodExplosionLifetimeClientTicks)
+                {
+                    _gibBloodExplosionVisuals.RemoveAt(index);
+                }
+            }
         }
 
         public void AdvanceBackstabVisuals()
@@ -229,6 +262,35 @@ public partial class Game1
             }
         }
 
+        public void DrawGibBloodExplosions(Vector2 cameraPosition)
+        {
+            if (!_game.AreBloodVisualsEnabled || _gibBloodExplosionVisuals.Count == 0)
+            {
+                return;
+            }
+
+            var sprite = _game.GetResolvedSprite("GibBloodExplosionS");
+            if (sprite is null || sprite.Frames.Count == 0)
+            {
+                return;
+            }
+
+            foreach (var visual in _gibBloodExplosionVisuals)
+            {
+                var frameIndex = Math.Min(visual.AgeClientTicks / GibBloodExplosionClientTicksPerFrame, sprite.Frames.Count - 1);
+                _game.DrawLoadedSpriteFrame(
+                    sprite.Frames[frameIndex],
+                    new Vector2(visual.X - cameraPosition.X, visual.Y - cameraPosition.Y),
+                    null,
+                    Color.White,
+                    0f,
+                    sprite.Origin.ToVector2(),
+                    new Vector2(GibBloodExplosionDrawScale, GibBloodExplosionDrawScale),
+                    SpriteEffects.None,
+                    0f);
+            }
+        }
+
         public void DrawBloodSquibPools(Vector2 cameraPosition)
         {
             if (!_game.AreBloodVisualsEnabled || _game._bloodRenderMode != 0)
@@ -270,6 +332,7 @@ public partial class Game1
                     return true;
                 }
 
+                _gibBloodExplosionVisuals.Add(new GibBloodExplosionVisual(x, y));
                 SpawnGibBloodImpactVisuals(x, y, Math.Max(1, count));
                 return true;
             }

@@ -1,0 +1,189 @@
+using OpenGarrison.GameplayModding;
+
+namespace OpenGarrison.Core;
+
+public sealed partial class SimulationWorld
+{
+    /// <summary>Shared by the server and local prediction at the whip's extended frame.</summary>
+    public bool TryLatchWhippingCordToTerrain(PlayerEntity player, float aimWorldX, float aimWorldY)
+    {
+        if (!player.IsAlive || Level.IsTopDown || player.IsServerNoclip
+            || !player.HasEquippedBehavior(BuiltInGameplayBehaviorIds.WhippingCord)
+            || !player.IsWhippingCordSwingActive || player.IsWhippingCordLatched)
+        {
+            return false;
+        }
+
+        var itemId = player.GameplayLoadoutState.PrimaryItemId;
+        if (string.IsNullOrWhiteSpace(itemId)
+            || !CharacterClassCatalog.RuntimeRegistry.TryGetItem(itemId, out var item))
+        {
+            return false;
+        }
+
+        if (!TryFindWhippingCordTerrainContact(
+                player, item, aimWorldX, aimWorldY, out var anchorX, out var anchorY))
+        {
+            return false;
+        }
+
+        var contactX = anchorX - player.X;
+        var contactY = anchorY - player.Y;
+        var ropeLength = MathF.Sqrt(contactX * contactX + contactY * contactY);
+        var originX = player.X + item.Presentation.WeaponOffsetX
+            * (aimWorldX < player.X ? -1f : 1f) * player.PlayerScale;
+        var originY = player.Y + item.Presentation.WeaponOffsetY * player.PlayerScale;
+        var rayX = anchorX - originX;
+        var rayY = anchorY - originY;
+        var rayDistance = MathF.Sqrt(rayX * rayX + rayY * rayY);
+        if (ropeLength < WhippingCordCatalog.MinimumRopeLength || rayDistance <= 0.0001f)
+        {
+            return false;
+        }
+
+        // A player or structure between the hand and the contact pixel blocks
+        // the latch. Terrain itself is resolved by the opaque whip pixels below.
+        var firstHit = Combat.ResolveRifleHit(
+            player, originX, originY, rayX / rayDistance, rayY / rayDistance, rayDistance);
+        if (firstHit.HitPlayer is not null || firstHit.HitSentry is not null
+            || firstHit.HitGenerator is not null || firstHit.HitJumpPad is not null)
+        {
+            return false;
+        }
+
+        player.LatchWhippingCord(anchorX, anchorY, ropeLength);
+        return player.IsWhippingCordLatched;
+    }
+
+    private bool TryFindWhippingCordTerrainContact(
+        PlayerEntity player,
+        float aimWorldX,
+        float aimWorldY,
+        out float contactX,
+        out float contactY)
+    {
+        contactX = 0f;
+        contactY = 0f;
+        var itemId = player.GameplayLoadoutState.PrimaryItemId;
+        return !string.IsNullOrWhiteSpace(itemId)
+            && CharacterClassCatalog.RuntimeRegistry.TryGetItem(itemId, out var item)
+            && TryFindWhippingCordTerrainContact(
+                player, item, aimWorldX, aimWorldY, out contactX, out contactY);
+    }
+
+    private bool TryFindWhippingCordTerrainContact(
+        PlayerEntity player,
+        GameplayItemDefinition item,
+        float aimWorldX,
+        float aimWorldY,
+        out float contactX,
+        out float contactY)
+    {
+        contactX = 0f;
+        contactY = 0f;
+        var spriteName = string.IsNullOrWhiteSpace(item.Presentation.RecoilSpriteName)
+            ? WhippingCordCatalog.WhipRecoilSpriteName
+            : item.Presentation.RecoilSpriteName;
+        var mask = MeleeHitboxMaskCatalog.GetOrLoad(
+            spriteName, WhippingCordCatalog.ExtendedWhipFrameIndex);
+        if (mask is null)
+        {
+            return false;
+        }
+
+        var facingLeft = aimWorldX < player.X;
+        var originX = player.X + item.Presentation.WeaponOffsetX
+            * (facingLeft ? -1f : 1f) * player.PlayerScale;
+        var originY = player.Y + item.Presentation.WeaponOffsetY * player.PlayerScale;
+        var aimX = aimWorldX - originX;
+        var aimY = aimWorldY - originY;
+        if (aimX * aimX + aimY * aimY <= 0.00000001f)
+        {
+            return false;
+        }
+
+        return Combat.TryFindWhippingCordTerrainHit(
+            mask,
+            originX,
+            originY,
+            player.X,
+            player.Y,
+            MathF.Atan2(aimY, aimX),
+            facingLeft,
+            player.PlayerScale,
+            out contactX,
+            out contactY);
+    }
+
+    private sealed partial class CombatResolver
+    {
+        public bool TryFindWhippingCordTerrainHit(
+            MeleeHitboxMask mask,
+            float originX,
+            float originY,
+            float playerX,
+            float playerY,
+            float aimRadians,
+            bool facingLeft,
+            float scale,
+            out float contactX,
+            out float contactY)
+        {
+            contactX = 0f;
+            contactY = 0f;
+            var found = false;
+            var nearestDistanceSquared = float.PositiveInfinity;
+            mask.GetWorldBounds(
+                originX, originY, facingLeft, scale,
+                out var left, out var top, out var right, out var bottom, aimRadians);
+            var candidates = GetPotentialSolidRaycastCandidates(
+                new RectangleHitbox(left, top, right, bottom));
+            for (var pixelY = 0; pixelY < mask.Height; pixelY += 1)
+            {
+                for (var pixelX = 0; pixelX < mask.Width; pixelX += 1)
+                {
+                    if (!mask.IsOpaqueAtPixel(pixelX, pixelY))
+                    {
+                        continue;
+                    }
+
+                    mask.PixelToWorld(
+                        pixelX, pixelY, originX, originY, facingLeft, scale,
+                        out var worldX, out var worldY, aimRadians);
+                    var playerDeltaX = worldX - playerX;
+                    var playerDeltaY = worldY - playerY;
+                    if (playerDeltaX * playerDeltaX + playerDeltaY * playerDeltaY
+                        < WhippingCordCatalog.MinimumRopeLength * WhippingCordCatalog.MinimumRopeLength)
+                    {
+                        continue;
+                    }
+
+                    var originDeltaX = worldX - originX;
+                    var originDeltaY = worldY - originY;
+                    var distanceSquared = originDeltaX * originDeltaX + originDeltaY * originDeltaY;
+                    if (distanceSquared >= nearestDistanceSquared)
+                    {
+                        continue;
+                    }
+
+                    foreach (var solid in candidates)
+                    {
+                        if (worldX < solid.Left || worldX >= solid.Right
+                            || worldY < solid.Top || worldY >= solid.Bottom)
+                        {
+                            continue;
+                        }
+
+                        nearestDistanceSquared = distanceSquared;
+                        contactX = worldX;
+                        contactY = worldY;
+                        found = true;
+                        break;
+                    }
+                }
+            }
+
+            return found;
+        }
+    }
+}

@@ -54,11 +54,17 @@ def publish(job, result):
                             (job["id"], job["lease_id"])).fetchone()
         if active is None:
             return
-        existing = db.execute("SELECT result_json FROM verified_run_results WHERE attempt_id=?", (attempt_id,)).fetchone()
+        existing = db.execute(
+            "SELECT result_json, ranking_epoch FROM verified_run_results WHERE attempt_id=?",
+            (attempt_id,),
+        ).fetchone()
         if existing is not None and existing["result_json"] != result_json:
             raise ValueError("Run identity conflicts with a verified result")
-        db.execute("INSERT OR IGNORE INTO verified_run_results VALUES (?, ?, ?)", (attempt_id, result_json, int(time.time())))
-        publish_participant(db, job["account_id"], job["client_id"], result)
+        ranking_epoch = int(existing["ranking_epoch"]) if existing is not None else int(job["ranking_epoch"])
+        db.execute("""INSERT OR IGNORE INTO verified_run_results
+            (attempt_id, result_json, created_at, ranking_epoch) VALUES (?, ?, ?, ?)""",
+            (attempt_id, result_json, int(time.time()), ranking_epoch))
+        publish_participant(db, job["account_id"], job["client_id"], result, ranking_epoch)
         db.execute("UPDATE run_verification_jobs SET status='verified', reason='', recording=NULL, updated_at=? WHERE id=?",
                    (int(time.time()), job["id"]))
 

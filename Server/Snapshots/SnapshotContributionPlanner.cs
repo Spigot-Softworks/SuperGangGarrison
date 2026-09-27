@@ -1170,6 +1170,8 @@ internal static class SnapshotContributionPlanner
     private static bool IsRuntimeReplicatedState(SnapshotReplicatedStateEntry entry)
     {
         return IsSecondaryWeaponRuntimeReplicatedState(entry)
+            || (string.Equals(entry.OwnerId, CoreReplicatedOwnerId, StringComparison.Ordinal)
+                && entry.Key.StartsWith("whipping_cord_", StringComparison.Ordinal))
             || IsCoreAbilityRuntimeReplicatedState(entry)
             || IsLastToDieStatusRuntimeReplicatedState(entry)
             || string.Equals(

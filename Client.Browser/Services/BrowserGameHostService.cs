@@ -131,6 +131,7 @@ public sealed class BrowserGameHostService : IDisposable, IAsyncDisposable
             var gameMakerAtlasManifest = gameMakerAtlasManifestTask.Result;
             ClientRuntimeBootstrap.SetBrowserBootstrapAtlasManifest(bootstrapAtlasManifest);
             ClientRuntimeBootstrap.SetBrowserStockGameplayAtlasManifest(stockGameplayAtlasManifest);
+            MeleeHitboxMaskCatalog.SetBrowserStockAtlasManifest(stockGameplayAtlasManifest.Manifest);
             ClientRuntimeBootstrap.SetBrowserGameMakerAtlasManifest(gameMakerAtlasManifest);
             BrowserContentCatalog.SetBinaryAssets(browserBootstrapAssets.GetBinaryAssets());
             BrowserContentCatalog.AddOrUpdateBinaryAssets(runtimeBundleTask.Result);

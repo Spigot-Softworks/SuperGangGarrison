@@ -21,9 +21,6 @@ public partial class Game1
     private const float ElkondoWaistMaxPivotDegrees = 75f;
     private const float ElkondoKneeMaxPivotDegrees = 120f;
 
-    private bool UsesElkondoRagdollVisual()
-        => _spriteStyle == PlayerSpriteStyle.Elkondo;
-
     private static void GetElkondoPivotLimits(DynamicRagdollState ragdoll, int pivotIndex, out float minDegrees, out float maxDegrees)
     {
         switch (pivotIndex)
@@ -76,12 +73,11 @@ public partial class Game1
         frameIndex = 0;
         skin = _playerSkins.Value.Find(
             string.IsNullOrWhiteSpace(gameplayClassId) ? classId.ToString().ToLowerInvariant() : gameplayClassId,
-            team,
-            PlayerSpriteStyle.Elkondo.ToString());
+            team);
         if (skin is null
             && !string.IsNullOrWhiteSpace(gameplayClassId))
         {
-            skin = _playerSkins.Value.Find(classId.ToString().ToLowerInvariant(), team, PlayerSpriteStyle.Elkondo.ToString());
+            skin = _playerSkins.Value.Find(classId.ToString().ToLowerInvariant(), team);
         }
 
         if (skin is null || !skin.Clips.TryGetValue("run", out var runClip) || runClip.Frames.Length == 0)
@@ -114,7 +110,11 @@ public partial class Game1
             _ => 0.56f,
         };
 
-    private bool DrawElkondoRagdollVisual(DynamicRagdollState ragdoll, int ticksRemaining, Vector2 cameraPosition)
+    private bool DrawElkondoRagdollVisual(
+        DynamicRagdollState ragdoll,
+        int ticksRemaining,
+        Vector2 cameraPosition,
+        LoadedSpriteFrame? dissolvedFrame = null)
     {
         var fadeAlpha = GetCorpseFadeAlpha(ticksRemaining);
         if (fadeAlpha <= 0.001f)
@@ -134,13 +134,12 @@ public partial class Game1
         }
 
         var sprite = GetResolvedSprite(spriteName);
-        if (sprite is null || sprite.Frames.Count == 0)
+        if (dissolvedFrame is null && (sprite is null || sprite.Frames.Count == 0))
         {
             return false;
         }
 
-        frameIndex = Math.Clamp(frameIndex, 0, sprite.Frames.Count - 1);
-        var frame = sprite.Frames[frameIndex];
+        var frame = dissolvedFrame ?? sprite!.Frames[Math.Clamp(frameIndex, 0, sprite.Frames.Count - 1)];
         var opaque = ragdoll.OpaqueBounds;
         if (opaque.Width <= 1 || opaque.Height <= 1)
         {
@@ -288,7 +287,9 @@ public partial class Game1
             // Follow the torso strip (after chest pivot) so the grip stays on the body meat.
             segmentRotations[Math.Min(1, segmentRotations.Length - 1)],
             scaleX,
-            tint);
+            dissolvedFrame is null
+                ? tint
+                : Color.White * MathF.Max(0f, 1f - GetCorpseFadeProgress(ticksRemaining)));
         return true;
     }
 

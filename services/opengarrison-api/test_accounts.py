@@ -1,12 +1,18 @@
 import os
+import sqlite3
+import subprocess
+import sys
 import tempfile
 import unittest
 import uuid
+from contextlib import closing
+from pathlib import Path
 from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
 import app as opengarrison_api
+import run_verification
 
 
 class AccountPersistenceTests(unittest.TestCase):
@@ -482,6 +488,125 @@ class AccountPersistenceTests(unittest.TestCase):
         self.assertEqual(200, soldier_scores.status_code, soldier_scores.text)
         self.assertEqual(1, soldier_scores.json()["total"])
         self.assertEqual(score_leader["friendCode"], soldier_scores.json()["entries"][0]["friendCode"])
+
+    def test_last_to_die_leaderboard_keeps_one_record_per_account_and_class(self) -> None:
+        player = self._register("multi-class-device", "secret", "OG2-ABCD-EFGH")
+        rival = self._register("rival-device", "secret", "OG2-MNPQ-RSTU")
+        token = self._create_gameplay_session("multi-class-device", "secret", player["friendCode"])
+        rival_token = self._create_gameplay_session("rival-device", "secret", rival["friendCode"])
+
+        for run_id, run_token, survivor, score, rounds in (
+            ("soldier-score", token, "soldier", 800, 10),
+            ("soldier-round", token, "soldier", 600, 25),
+            ("sniper-score", token, "sniper", 500, 12),
+            ("rival-soldier", rival_token, "soldier", 700, 11),
+        ):
+            response = self.client.post("/api/last-to-die/run", json={
+                "gameplayToken": run_token,
+                "submissionId": run_id,
+                "runId": run_id,
+                "scoreUnits": score,
+                "roundNumber": rounds,
+                "difficulty": "standard",
+                "survivorId": f"ltd.survivor.{survivor}",
+            })
+            self.assertEqual(200, response.status_code, response.text)
+
+        scores = self.client.get("/api/last-to-die/leaderboard?sort=score&limit=2")
+        self.assertEqual(3, scores.json()["total"])
+        self.assertEqual([800, 700], [row["bestScoreUnits"] for row in scores.json()["entries"]])
+        second_page = self.client.get("/api/last-to-die/leaderboard?sort=score&limit=2&offset=2")
+        self.assertEqual(500, second_page.json()["entries"][0]["bestScoreUnits"])
+        self.assertEqual("ltd.survivor.sniper", second_page.json()["entries"][0]["survivorId"])
+
+        rounds = self.client.get("/api/last-to-die/leaderboard?sort=round")
+        self.assertEqual(3, rounds.json()["total"])
+        self.assertEqual([25, 12, 11], [row["highestRound"] for row in rounds.json()["entries"]])
+        self.assertEqual(2, rounds.json()["entries"][0]["runsPlayed"])
+        soldier = self.client.get("/api/last-to-die/leaderboard?sort=score&survivor=ltd.survivor.soldier")
+        self.assertEqual(2, soldier.json()["total"])
+
+        rankings = self.client.post("/api/last-to-die/rankings", json={
+            **self._auth("multi-class-device", "secret", player["friendCode"]), "limit": 10,
+        })
+        self.assertEqual(3, len(rankings.json()["scoreRecords"]))
+        personal = rankings.json()["player"]
+        self.assertEqual([1, 2], sorted(row["runsPlayed"] for row in personal["classRecords"]))
+        self.assertEqual(2, len(personal["classRecords"]))
+        self.assertEqual(3, personal["runsPlayed"])
+
+    def test_last_to_die_reset_starts_new_rankings_without_erasing_old_runs(self) -> None:
+        player = self._register("reset-device", "secret", "OG2-ABCD-EFGH")
+        token = self._create_gameplay_session("reset-device", "secret", player["friendCode"])
+
+        def submit(run_id: str, survivor: str) -> dict:
+            response = self.client.post("/api/last-to-die/run", json={
+                "gameplayToken": token,
+                "submissionId": run_id,
+                "runId": run_id,
+                "scoreUnits": 250,
+                "roundNumber": 5,
+                "difficulty": "standard",
+                "survivorId": f"ltd.survivor.{survivor}",
+            })
+            self.assertEqual(200, response.status_code, response.text)
+            return response.json()
+
+        self.assertTrue(submit("before-reset", "soldier")["applied"])
+        database = os.environ["OPENGARRISON_API_DB"]
+        backup = str(Path(self._temporary_directory.name) / "rankings-backup.db")
+        command = [sys.executable, str(Path(__file__).with_name("reset_last_to_die_rankings.py")),
+                   "--db", database, "--backup", backup]
+        dry_run = subprocess.run(command, capture_output=True, text=True, check=True)
+        self.assertIn("Dry run only", dry_run.stdout)
+        self.assertEqual(1, self.client.get("/api/last-to-die/leaderboard").json()["total"])
+        subprocess.run([*command, "--apply"], capture_output=True, text=True, check=True)
+        self.assertTrue(Path(backup).exists())
+        with closing(sqlite3.connect(backup)) as archived:
+            self.assertEqual(1, archived.execute("SELECT COUNT(*) FROM last_to_die_runs").fetchone()[0])
+        self.assertEqual(0, self.client.get("/api/last-to-die/leaderboard").json()["total"])
+        self.assertEqual(0, submit("before-reset", "soldier")["player"]["runsPlayed"])
+        self.assertTrue(submit("after-reset", "sniper")["applied"])
+        leaderboard = self.client.get("/api/last-to-die/leaderboard").json()
+        self.assertEqual(1, leaderboard["total"])
+        self.assertEqual("ltd.survivor.sniper", leaderboard["entries"][0]["survivorId"])
+        with opengarrison_api.connect_db() as db:
+            self.assertEqual(2, db.execute("SELECT COUNT(*) FROM last_to_die_runs").fetchone()[0])
+
+    def test_last_to_die_epoch_columns_migrate_existing_database(self) -> None:
+        legacy_path = str(Path(self._temporary_directory.name) / "legacy.db")
+        with closing(sqlite3.connect(legacy_path)) as db:
+            db.execute("""CREATE TABLE last_to_die_runs (
+                submission_id TEXT PRIMARY KEY, run_id TEXT NOT NULL, account_id TEXT NOT NULL,
+                score_units INTEGER NOT NULL, round_number INTEGER NOT NULL,
+                difficulty TEXT NOT NULL, survivor_id TEXT NOT NULL,
+                policy_version INTEGER NOT NULL, created_at INTEGER NOT NULL,
+                UNIQUE(run_id, account_id))""")
+            db.execute("""CREATE TABLE run_verification_jobs (
+                id TEXT PRIMARY KEY, account_id TEXT NOT NULL, client_id TEXT NOT NULL,
+                ruleset TEXT NOT NULL, digest TEXT NOT NULL, recording BLOB,
+                status TEXT NOT NULL DEFAULT 'pending', reason TEXT NOT NULL DEFAULT '',
+                created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+                lease_id TEXT NOT NULL DEFAULT '', attempts INTEGER NOT NULL DEFAULT 0,
+                UNIQUE(account_id, digest))""")
+            db.execute("""CREATE TABLE verified_run_results (
+                attempt_id TEXT PRIMARY KEY, result_json TEXT NOT NULL,
+                created_at INTEGER NOT NULL)""")
+            db.execute("""INSERT INTO last_to_die_runs VALUES
+                ('old-run', 'old-run', 'old-account', 100, 2, 'standard',
+                 'ltd.survivor.soldier', 1, 1)""")
+            db.commit()
+        with patch.dict(os.environ, {"OPENGARRISON_API_DB": legacy_path}):
+            opengarrison_api.initialize_db()
+            with opengarrison_api.connect_db() as db:
+                run_verification.initialize(db)
+                for table in ("last_to_die_runs", "run_verification_jobs", "verified_run_results"):
+                    columns = {row["name"] for row in db.execute(f"PRAGMA table_info({table})")}
+                    self.assertIn("ranking_epoch", columns)
+                self.assertEqual(0, db.execute(
+                    "SELECT ranking_epoch FROM last_to_die_runs WHERE submission_id='old-run'"
+                ).fetchone()[0])
+                self.assertEqual(0, opengarrison_api.get_last_to_die_rankings_epoch(db))
 
     def test_last_to_die_first_round_loss_keeps_score_and_zero_completed_rounds(self) -> None:
         player = self._register("first-round-device", "first-round-secret", "OG2-ZYXW-VUTS")
