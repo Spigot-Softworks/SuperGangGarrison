@@ -8,7 +8,7 @@ sealed class ServerSettings
     public const string DefaultFileName = OpenGarrisonPreferencesDocument.DefaultFileName;
     private const string LegacyFileName = "server.settings.json";
 
-    public int Port { get; set; } = 8190;
+    public int Port { get; set; } = OpenGarrisonPreferencesDocument.DefaultServerPort;
 
     public string ServerName { get; set; } = "My Server";
 

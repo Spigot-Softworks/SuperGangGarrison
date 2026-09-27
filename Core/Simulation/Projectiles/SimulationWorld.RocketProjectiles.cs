@@ -93,7 +93,7 @@ public sealed partial class SimulationWorld
 
     private static class RocketProjectileSystem
     {
-        private static readonly Lazy<GameMakerAssetManifest> s_gameMakerAssets = new(GameMakerRuntimeAssetManifestLoader.LoadPackagedOrProjectAssets);
+        private static readonly Lazy<GameMakerAssetManifest> _gameMakerAssets = new(GameMakerRuntimeAssetManifestLoader.LoadPackagedOrProjectAssets);
 
         public static void Advance(SimulationWorld world)
         {
@@ -600,7 +600,6 @@ public sealed partial class SimulationWorld
         {
             world.GetCachedPlayerPresentationHitBounds(player, out left, out top, out right, out bottom);
         }
-
 
         private static string? GetRocketPlayerBodySpriteName(SimulationWorld world, PlayerEntity player)
         {

@@ -111,7 +111,7 @@ static void WriteStartupDiagnostics()
                      "MonoGame.Framework.dll",
                  })
         {
-            var filePath = Path.Combine(AppContext.BaseDirectory, fileName);
+            var filePath = Path.Combine(RuntimePaths.ApplicationRoot, fileName);
             builder.AppendLine(FormattableString.Invariant(
                 $"{fileName}: exists={File.Exists(filePath)} bytes={(File.Exists(filePath) ? new FileInfo(filePath).Length : 0)}"));
         }

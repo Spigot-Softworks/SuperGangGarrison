@@ -150,7 +150,7 @@ public partial class Game1
         _clientSettings.SoundEffectsVolumePercent = _soundEffectsVolumePercent;
         _clientSettings.FrameRateLimit = _frameRateLimit;
         _clientSettings.RecentConnection.Host = SanitizeHost(_connectHostBuffer);
-        _clientSettings.RecentConnection.Port = ParsePortOrDefault(_connectPortBuffer, 8190);
+        _clientSettings.RecentConnection.Port = ParsePortOrDefault(_connectPortBuffer, OpenGarrisonPreferencesDocument.DefaultServerPort);
         _hostSetupState.ApplyTo(_clientSettings);
 
         _clientSettings.Save();

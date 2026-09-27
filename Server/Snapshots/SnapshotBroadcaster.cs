@@ -540,7 +540,7 @@ sealed class SnapshotBroadcaster
             visualEvents,
             damageEvents,
             soundEvents,
-            StringCacheUpdates: null, // TODO: Implement string cache
+            StringCacheUpdates: null,
             mapMetadata.IsCustomMap,
             mapMetadata.MapDownloadUrl,
             mapMetadata.MapContentHash,

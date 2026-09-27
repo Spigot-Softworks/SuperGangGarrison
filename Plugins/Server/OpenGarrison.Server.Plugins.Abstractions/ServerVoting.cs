@@ -38,9 +38,13 @@ public sealed record OpenGarrisonServerVoteValidationResult(
     string Subject,
     string ErrorMessage)
 {
+    /// <summary>Creates an accepted vote validation result.</summary>
+    /// <param name="subject">The concise text shown to voters.</param>
     public static OpenGarrisonServerVoteValidationResult Accept(string subject)
         => new(true, subject, string.Empty);
 
+    /// <summary>Creates a rejected vote validation result.</summary>
+    /// <param name="errorMessage">The reason the vote request was rejected.</param>
     public static OpenGarrisonServerVoteValidationResult Reject(string errorMessage)
         => new(false, string.Empty, errorMessage);
 }

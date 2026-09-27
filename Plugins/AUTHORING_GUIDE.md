@@ -32,7 +32,7 @@ my.plugin.id/
   Assets/
 ```
 
-For development, place client plugins under the runtime client plugin folder and server plugins under the runtime server plugin folder. In a normal checkout, templates live in `Plugins/Templates`; packaged server plugins live in `Plugins/Server`.
+For development, place client plugins under the runtime client plugin folder and server plugins under the runtime server plugin folder. In a normal checkout, templates live in `Plugins/Templates`; packaged server plugins live in `Plugins/Packaged/Server/`.
 
 ## Manifest
 
@@ -204,6 +204,12 @@ Useful client host APIs include:
 - Chat: `register_chat_filter`, `register_chat_command`.
 - Messaging: `send_message_to_server`.
 
+CLR parity notes: Lua `capture_hotkey_input` and `clear_hotkey_capture` correspond to
+`IOpenGarrisonClientPluginHotkeys.SetHotkeyCaptureEnabled(true)` and
+`SetHotkeyCaptureEnabled(false)`. Lua `register_legacy_animation_asset` corresponds to
+the CLR texture-atlas pair `IOpenGarrisonClientPluginAssets.RegisterTextureAtlasAsset`
+and `TryGetTextureAtlasAsset`.
+
 ### HUD Drawing
 
 `on_gameplay_hud_draw(canvas)` is the simplest way to draw client UI:
@@ -373,7 +379,7 @@ or registered command to provide a friendly alias. Registrations and active owne
 removed automatically on unload/reload. Lua registration is initialization-only; validation
 runs in the read-only query phase, while apply runs in the bounded command-interaction phase.
 
-CLR server plugins use `IGg2ServerPluginContext.TryRegisterVoteKind` and
+CLR server plugins use `IOpenGarrisonServerPluginContext.TryRegisterVoteKind` and
 `TryStartVote` with `OpenGarrisonServerVoteRegistration`. The same ownership, target resolution,
 callback, and lifecycle rules apply.
 
@@ -395,7 +401,7 @@ Available decision hooks include:
 - `before_round_end(e)`
 - `before_map_change(e)`
 
-Return the result shape expected by the hook. Typical decisions are "allow", "cancel", or "replace/modify selected fields" depending on the event. Keep decision hooks fast and deterministic. Do not do slow file I/O or long-running work inside them.
+Return the result shape expected by the hook. Decisions support "allow" or "cancel" (optionally with a reason); they do not replace or modify selected fields. Keep decision hooks fast and deterministic. Do not do slow file I/O or long-running work inside them.
 
 ### Safe Mutation
 
@@ -486,6 +492,10 @@ Client asset APIs include:
 - `register_legacy_animation_asset`
 - `register_sound_asset`
 - `play_sound`
+
+The CLR counterpart to `register_legacy_animation_asset` is
+`IOpenGarrisonClientPluginAssets.RegisterTextureAtlasAsset`, followed by
+`TryGetTextureAtlasAsset` when the frames are needed.
 
 Do not assume assets can be loaded from outside the plugin folder.
 

@@ -30,10 +30,10 @@ public interface IOpenGarrisonServerCvarRegistry
 
     bool TryGet(string name, out OpenGarrisonServerCvarInfo cvar)
     {
-        return TryGet(name, includeProtectedValue: false, out cvar);
+        return TryGet(name, includeProtectedValues: false, out cvar);
     }
 
-    bool TryGet(string name, bool includeProtectedValue, out OpenGarrisonServerCvarInfo cvar);
+    bool TryGet(string name, bool includeProtectedValues, out OpenGarrisonServerCvarInfo cvar);
 
     bool TrySet(string name, string value, out OpenGarrisonServerCvarInfo cvar, out string error)
     {

@@ -26,7 +26,7 @@ public partial class Game1
             _game._offlinePracticeSpectatorMode = false;
             _game._practiceSessionElapsedTicks = 0;
             _game._pendingHostedConnectTicks = -1;
-            _game._pendingHostedConnectPort = 8190;
+            _game._pendingHostedConnectPort = OpenGarrisonPreferencesDocument.DefaultServerPort;
             _game._mainMenuOpen = false;
             _game.CloseMainMenuOverlayState();
             _game.CloseGameplayOverlayState();
@@ -45,7 +45,7 @@ public partial class Game1
             _game.SetJoiningServerLoadingLabel(null);
             _game._lastToDieConnectionPresentationPending = false;
             _game._pendingHostedConnectTicks = -1;
-            _game._pendingHostedConnectPort = 8190;
+            _game._pendingHostedConnectPort = OpenGarrisonPreferencesDocument.DefaultServerPort;
             _game._mainMenuOpen = true;
             _game._mainMenuPage = MainMenuPage.Root;
             _game._mainMenuHoverIndex = -1;

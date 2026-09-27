@@ -11,7 +11,6 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private const int HostedLastToDieDefaultPort = 8190;
     private Task<RelaySessionCreateResponse>? _hostedLastToDieRelayCreateTask;
     private bool _hostedLastToDieRelayLaunchRequested;
     private bool _lastToDieConnectionPresentationPending;

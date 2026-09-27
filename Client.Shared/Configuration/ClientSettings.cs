@@ -518,5 +518,5 @@ public sealed class ClientRecentConnectionSettings
 {
     public string Host { get; set; } = "127.0.0.1";
 
-    public int Port { get; set; } = 8190;
+    public int Port { get; set; } = OpenGarrisonPreferencesDocument.DefaultServerPort;
 }
