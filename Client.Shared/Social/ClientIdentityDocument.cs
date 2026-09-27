@@ -61,8 +61,9 @@ public sealed class ClientIdentityDocument
                     }
                 }
             }
-            catch (JsonException)
+            catch (JsonException ex)
             {
+                Console.WriteLine($"Stored client identity was invalid; creating a new one: {ex.Message}");
             }
 
             var browserIdentity = CreateNew(isPersistent: true);
@@ -86,8 +87,9 @@ public sealed class ClientIdentityDocument
                     return document;
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                Console.WriteLine($"Stored client identity could not be loaded; creating a new one: {ex.Message}");
             }
         }
 

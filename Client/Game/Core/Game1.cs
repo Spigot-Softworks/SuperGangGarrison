@@ -254,7 +254,6 @@ public partial class Game1 : Game
     private readonly Dictionary<int, Vector2> _playerPreviousRenderPositions = new();
     private readonly Dictionary<int, double> _playerPreviousRenderSampleTimes = new();
     private readonly Random _visualRandom = new(1337);
-    private bool _wasLocalPlayerAlive = true;
     private bool _wasDeathCamActive;
     private bool _wasMatchEnded;
     private int _previousLocalDemoknightChargeTicks = PlayerEntity.ExperimentalDemoknightChargeMaxTicks;
@@ -294,7 +293,6 @@ public partial class Game1 : Game
     private float _smoothCameraMultiplier = ClientSettings.DefaultSmoothCameraMultiplier;
     private bool _hasSmoothCamera;
     private Vector2 _smoothCamera;
-    private Vector2 _smoothCameraPixel;
     private bool _hasGameplayCameraTopLeft;
     private Vector2 _gameplayCameraTopLeft;
     private int _gameplayCameraZoomIndex;

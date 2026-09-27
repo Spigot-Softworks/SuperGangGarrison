@@ -2299,7 +2299,6 @@ public sealed class GameplayModPackLoaderTests
     [Fact]
     public void GameplayLoadoutOwnershipValidationRejectsUnownedTrackedItems()
     {
-        var registry = GameplayRuntimeRegistry.CreateStock();
         var trackedLoadout = new GameplayClassLoadoutDefinition(
             "test.experimental",
             "Experimental",

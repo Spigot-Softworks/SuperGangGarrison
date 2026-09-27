@@ -524,7 +524,6 @@ public partial class Game1
         const int padding = 4;
         const int rowGap = 2;
         var rowHeight = GetGarrisonBuilderMenuRowHeight();
-        var scrollbarWidth = hasScrollbar ? GetGarrisonBuilderEntityRefListDropdownScrollbarWidth() : 0;
         var available = menuBounds.Height - (padding * 2);
         return Math.Max(1, (available + rowGap) / (rowHeight + rowGap));
     }

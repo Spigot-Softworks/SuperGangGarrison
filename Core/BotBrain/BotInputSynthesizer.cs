@@ -10,7 +10,6 @@ public static class BotInputSynthesizer
     /// <summary>
     /// Minimum engagement range (don't fire point-blank with explosives).
     /// </summary>
-    private const float MinExplosiveFireRange = 60f;
 
     public static PlayerInputSnapshot Synthesize(
         PlayerEntity self,

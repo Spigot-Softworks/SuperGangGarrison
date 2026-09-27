@@ -53,7 +53,6 @@ public static class Og2NavigationGraphBuilder
     private const float MaximumSurfaceCandidateHorizontalDistance = 240f;
     private const float CollisionSampleSpacing = 24f;
     private const int JumpClearanceSamples = 18;
-    private const int FallClearanceSamples = 12;
     private const float ObjectiveAnchorCost = 12f;
     private const float SpawnAnchorCost = 8f;
     private const float VerticalAscentPenalty = 220f;
@@ -465,7 +464,6 @@ public static class Og2NavigationGraphBuilder
                 var sourceNode = nodes[sourceNodes[sourceNodeIndex]];
                 var sourceX = sourceNode.X;
 
-                var minimumTargetX = sourceX - MaximumStairHorizontalDistance;
                 var maximumTargetX = sourceX + MaximumStairHorizontalDistance;
                 foreach (var targetSurfaceIndex in surfacesByLeft)
                 {

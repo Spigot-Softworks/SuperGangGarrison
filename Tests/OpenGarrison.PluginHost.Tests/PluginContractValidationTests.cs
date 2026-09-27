@@ -23,7 +23,7 @@ public sealed class PluginContractValidationTests
     {
         var logLines = new List<string>();
         var state = new FakeClientPluginHostState();
-        var rootPath = CreateTempRoot();
+        var rootPath = TestFileSystem.CreateTempRoot();
         var host = new ClientPluginHost(
             state,
             null!,
@@ -58,7 +58,7 @@ public sealed class PluginContractValidationTests
         var logLines = new List<string>();
         var sentMessages = new List<(byte Slot, string SourcePluginId, string TargetPluginId, string MessageType, string Payload, PluginMessagePayloadFormat PayloadFormat, ushort SchemaVersion)>();
         var broadcastMessages = new List<(string SourcePluginId, string TargetPluginId, string MessageType, string Payload, PluginMessagePayloadFormat PayloadFormat, ushort SchemaVersion)>();
-        var rootPath = CreateTempRoot();
+        var rootPath = TestFileSystem.CreateTempRoot();
         var host = new OpenGarrison.Server.PluginHost(
             static () => throw new InvalidOperationException("Unexpected world access during message validation test."),
             new PluginCommandRegistry(),
@@ -111,7 +111,7 @@ public sealed class PluginContractValidationTests
     {
         var logLines = new List<string>();
         var state = new FakeClientPluginHostState();
-        var rootPath = CreateTempRoot();
+        var rootPath = TestFileSystem.CreateTempRoot();
         var host = new ClientPluginHost(
             state,
             null!,
@@ -144,7 +144,7 @@ public sealed class PluginContractValidationTests
     {
         var logLines = new List<string>();
         var sentMessages = new List<(byte Slot, string SourcePluginId, string TargetPluginId, string MessageType, string Payload, PluginMessagePayloadFormat PayloadFormat, ushort SchemaVersion)>();
-        var rootPath = CreateTempRoot();
+        var rootPath = TestFileSystem.CreateTempRoot();
         var host = new OpenGarrison.Server.PluginHost(
             static () => throw new InvalidOperationException("Unexpected world access during message validation test."),
             new PluginCommandRegistry(),
@@ -193,7 +193,7 @@ public sealed class PluginContractValidationTests
 
         var logLines = new List<string>();
         var state = new FakeClientPluginHostState();
-        var rootPath = CreateTempRoot();
+        var rootPath = TestFileSystem.CreateTempRoot();
         var host = new ClientPluginHost(
             state,
             null!,
@@ -238,7 +238,7 @@ public sealed class PluginContractValidationTests
     public void ClientPluginHostDoesNotKeepBubbleMenuOverrideAfterDisablingLuaBubblePlugin()
     {
         var logLines = new List<string>();
-        var rootPath = CreateTempRoot();
+        var rootPath = TestFileSystem.CreateTempRoot();
         var pluginsDirectory = Path.Combine(rootPath, "plugins");
         WriteClientLuaPlugin(
             pluginsDirectory,
@@ -290,7 +290,7 @@ public sealed class PluginContractValidationTests
         InboundServerObserverPlugin.Reset();
 
         var logLines = new List<string>();
-        var rootPath = CreateTempRoot();
+        var rootPath = TestFileSystem.CreateTempRoot();
         var host = new OpenGarrison.Server.PluginHost(
             static () => throw new InvalidOperationException("Unexpected world access during inbound message routing test."),
             new PluginCommandRegistry(),
@@ -351,7 +351,7 @@ public sealed class PluginContractValidationTests
     public void ServerPluginHostRoutesChatThroughRegisteredCommandsBeforeLegacyHooks()
     {
         var logLines = new List<string>();
-        var rootPath = CreateTempRoot();
+        var rootPath = TestFileSystem.CreateTempRoot();
         var adminOperations = new FakeServerAdminOperations();
         var host = new OpenGarrison.Server.PluginHost(
             static () => throw new InvalidOperationException("Unexpected world access during chat command routing test."),
@@ -456,7 +456,7 @@ public sealed class PluginContractValidationTests
     [Fact]
     public void PackagedClientPluginBootstrapperMirrorsPackagedPluginsWithoutDeletingCustomRuntimePlugins()
     {
-        var rootPath = CreateTempRoot();
+        var rootPath = TestFileSystem.CreateTempRoot();
         var packagedSource = Path.Combine(rootPath, "Packaged");
         var runtimeDestination = Path.Combine(rootPath, "Runtime");
 
@@ -490,7 +490,7 @@ public sealed class PluginContractValidationTests
     [Fact]
     public void ClientPluginStateDefaultsQuoteCurlyEnabled()
     {
-        var rootPath = CreateTempRoot();
+        var rootPath = TestFileSystem.CreateTempRoot();
         var stateStore = new ClientPluginStateStore(
             Path.Combine(rootPath, "plugins.json"),
             _ => { });
@@ -501,7 +501,7 @@ public sealed class PluginContractValidationTests
     [Fact]
     public void PluginPathContainmentRejectsSiblingPrefixEscapes()
     {
-        var rootPath = CreateTempRoot();
+        var rootPath = TestFileSystem.CreateTempRoot();
         var pluginDirectory = Path.Combine(rootPath, "Plugin");
         var siblingDirectory = Path.Combine(rootPath, "PluginSibling");
         Directory.CreateDirectory(pluginDirectory);
@@ -521,7 +521,7 @@ public sealed class PluginContractValidationTests
     [Fact]
     public void ManifestLoaderRejectsEntryPointOutsidePluginDirectory()
     {
-        var rootPath = CreateTempRoot();
+        var rootPath = TestFileSystem.CreateTempRoot();
         var pluginDirectory = Path.Combine(rootPath, "Plugin");
         var siblingDirectory = Path.Combine(rootPath, "PluginSibling");
         Directory.CreateDirectory(pluginDirectory);
@@ -540,7 +540,7 @@ public sealed class PluginContractValidationTests
     [Fact]
     public void ManifestLoaderReadsEcosystemMetadataAndValidatesConfigSchema()
     {
-        var rootPath = CreateTempRoot();
+        var rootPath = TestFileSystem.CreateTempRoot();
         var pluginDirectory = Path.Combine(rootPath, "Plugin");
         Directory.CreateDirectory(pluginDirectory);
         Directory.CreateDirectory(Path.Combine(pluginDirectory, "Gameplay", "example.gg2"));
@@ -634,7 +634,7 @@ public sealed class PluginContractValidationTests
     [Fact]
     public void ManifestLoaderRejectsEscapingConfigSchemaPath()
     {
-        var rootPath = CreateTempRoot();
+        var rootPath = TestFileSystem.CreateTempRoot();
         var pluginDirectory = Path.Combine(rootPath, "Plugin");
         Directory.CreateDirectory(pluginDirectory);
         File.WriteAllText(Path.Combine(pluginDirectory, "plugin.json"), """
@@ -661,7 +661,7 @@ public sealed class PluginContractValidationTests
     [Fact]
     public void ManifestLoaderRejectsEscapingGameplayPackPath()
     {
-        var rootPath = CreateTempRoot();
+        var rootPath = TestFileSystem.CreateTempRoot();
         var pluginDirectory = Path.Combine(rootPath, "Plugin");
         Directory.CreateDirectory(pluginDirectory);
         File.WriteAllText(Path.Combine(pluginDirectory, "plugin.json"), """
@@ -846,13 +846,6 @@ public sealed class PluginContractValidationTests
             manifest,
             pluginDirectory,
         ]));
-    }
-
-    private static string CreateTempRoot()
-    {
-        var path = Path.Combine(Path.GetTempPath(), "OpenGarrison.PluginHost.Tests", Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(path);
-        return path;
     }
 
     private static void WriteClientLuaPlugin(string pluginsDirectory, string pluginId, string displayName, string mainLua)

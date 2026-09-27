@@ -104,7 +104,7 @@ public sealed class ServerAdminFoundationTests
     [Fact]
     public void ServerCvarRegistrySupportsRuntimeProtectionOverrides()
     {
-        var root = CreateTempRoot();
+        var root = TestFileSystem.CreateTempRoot();
         var policyPath = Path.Combine(root, "config", "server-cvar-policy.json");
         var autoBalance = true;
 
@@ -655,7 +655,7 @@ public sealed class ServerAdminFoundationTests
         var sessionManager = new ServerAdminSessionManager("secret", () => now);
         var client = new ClientSession(1, 101, new IPEndPoint(IPAddress.Loopback, 8190), "Tester", now);
         var messages = new List<(byte Slot, string Text)>();
-        var rootPath = CreateTempRoot();
+        var rootPath = TestFileSystem.CreateTempRoot();
         var host = new OpenGarrison.Server.PluginHost(
             static () => throw new InvalidOperationException("Unexpected world access."),
             new PluginCommandRegistry(),
@@ -705,7 +705,7 @@ public sealed class ServerAdminFoundationTests
         var routerMessages = new List<(byte Slot, string Text)>();
         var logs = new List<string>();
         var repoRoot = FindRepositoryRoot();
-        var configRoot = CreateTempRoot();
+        var configRoot = TestFileSystem.CreateTempRoot();
         var cvars = new FakeServerCvarRegistry();
         cvars.Add(new OpenGarrisonServerCvarInfo(
             "sv_autobalance",
@@ -980,7 +980,7 @@ public sealed class ServerAdminFoundationTests
     [Fact]
     public void ServerBanServicePersistsRejectsAndExpiresBans()
     {
-        var root = CreateTempRoot();
+        var root = TestFileSystem.CreateTempRoot();
         try
         {
             var now = new DateTimeOffset(2026, 4, 8, 12, 0, 0, TimeSpan.Zero);
@@ -1009,7 +1009,7 @@ public sealed class ServerAdminFoundationTests
     [Fact]
     public void ServerAdminOperationsBanPlayerDisconnectsClientAndSupportsUnban()
     {
-        var root = CreateTempRoot();
+        var root = TestFileSystem.CreateTempRoot();
         try
         {
             var world = new SimulationWorld();
@@ -1053,7 +1053,7 @@ public sealed class ServerAdminFoundationTests
     [Fact]
     public void ServerIncomingMessageDispatcherRejectsHelloFromBannedIp()
     {
-        var root = CreateTempRoot();
+        var root = TestFileSystem.CreateTempRoot();
         try
         {
             var world = new SimulationWorld();
@@ -2201,13 +2201,6 @@ public sealed class ServerAdminFoundationTests
             new FakeServerScheduler(),
             identity,
             OpenGarrisonServerCommandSource.PrivateChat);
-    }
-
-    private static string CreateTempRoot()
-    {
-        var path = Path.Combine(Path.GetTempPath(), "OpenGarrison.PluginHost.Tests", Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(path);
-        return path;
     }
 
     private static string FindRepositoryRoot()

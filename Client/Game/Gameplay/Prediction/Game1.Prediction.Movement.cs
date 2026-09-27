@@ -20,43 +20,6 @@ public partial class Game1
     private const float PredictedRenderMaxLeadTicks = 1.25f;
     private const float PredictedRenderIdleCatchUpRate = 28f;
 
-    private float GetPredictedMovementScale(PlayerEntity player, PlayerInputSnapshot input)
-    {
-        if (_predictedLocalActionState.IsHeavyEating || player.IsTaunting)
-        {
-            return 0f;
-        }
-
-        if (player.ClassId == PlayerClass.Spy && IsPredictedSpyBackstabAnimating())
-        {
-            return 0f;
-        }
-
-        if (player.HasScopedSniperWeaponEquipped
-            && _predictedLocalActionState.IsSniperScoped
-            && !player.IsSniperBowEquipped)
-        {
-            return player.LastToDieSniperExtremeConditioningEnabled
-                ? 1f
-                : PlayerEntity.SniperScopedMoveScale;
-        }
-
-        if (player.ClassId == PlayerClass.Heavy
-            && player.PrimaryWeapon.Kind == PrimaryWeaponKind.Minigun
-            && input.FirePrimary)
-        {
-            return PlayerEntity.HeavyPrimaryMoveScale;
-        }
-
-        if (player.IsMortarLauncherEquipped
-            && _predictedLocalActionState.SniperBowChargeTicks > 0)
-        {
-            return PlayerEntity.MortarLauncherMoveScale;
-        }
-
-        return 1f;
-    }
-
     private float GetPredictedJumpScale(PlayerEntity player)
     {
         if (player.IsExperimentalDemoknightCharging)
@@ -205,89 +168,6 @@ public partial class Game1
         return new Vector2(nextX, nextY);
     }
 
-
-    private void TryPredictedJump(PlayerEntity player)
-    {
-        var jumpScale = GetPredictedJumpScale(player);
-        if (jumpScale <= 0f)
-        {
-            return;
-        }
-
-        if (_predictedLocalPlayerGrounded)
-        {
-            _predictedLocalPlayerVelocity.Y = -player.JumpSpeed * jumpScale;
-            _predictedLocalPlayerGrounded = false;
-            return;
-        }
-
-        if (_predictedLocalPlayerRemainingAirJumps <= 0)
-        {
-            return;
-        }
-
-        _predictedLocalPlayerVelocity.Y = -player.JumpSpeed * jumpScale;
-        _predictedLocalPlayerRemainingAirJumps -= 1;
-    }
-
-    private void MovePredictedWithCollisions(PlayerEntity player, float moveX, float moveY)
-    {
-        if (!float.IsFinite(moveX) || !float.IsFinite(moveY))
-        {
-            _predictedLocalPlayerVelocity = Vector2.Zero;
-            return;
-        }
-
-        NudgePredictedOutsideBlockingGeometry(player);
-        var remainingX = moveX;
-        var remainingY = moveY;
-        _predictedLocalPlayerGrounded = false;
-
-        for (var iteration = 0; iteration < MaxPredictedCollisionResolutionIterations && (MathF.Abs(remainingX) >= 1f || MathF.Abs(remainingY) >= 1f); iteration += 1)
-        {
-            var previousPosition = _predictedLocalPlayerPosition;
-            MovePredictedContact(player, remainingX, remainingY);
-            remainingX -= _predictedLocalPlayerPosition.X - previousPosition.X;
-            remainingY -= _predictedLocalPlayerPosition.Y - previousPosition.Y;
-
-            var collisionRectified = false;
-            if (remainingY != 0f && !CanOccupyPredicted(player, _predictedLocalPlayerPosition.X, _predictedLocalPlayerPosition.Y + MathF.Sign(remainingY)))
-            {
-                if (remainingY > 0f)
-                {
-                    _predictedLocalPlayerGrounded = true;
-                    _predictedLocalPlayerRemainingAirJumps = player.MaxAirJumps;
-                }
-
-                _predictedLocalPlayerVelocity.Y = 0f;
-                remainingY = 0f;
-                collisionRectified = true;
-            }
-
-            if (remainingX != 0f && !CanOccupyPredicted(player, _predictedLocalPlayerPosition.X + MathF.Sign(remainingX), _predictedLocalPlayerPosition.Y))
-            {
-                if (TryStepUpPredicted(player, MathF.Sign(remainingX)))
-                {
-                    collisionRectified = true;
-                }
-                else
-                {
-                    _predictedLocalPlayerVelocity.X = 0f;
-                    remainingX = 0f;
-                    collisionRectified = true;
-                }
-            }
-
-            if (!collisionRectified && (MathF.Abs(remainingX) >= 1f || MathF.Abs(remainingY) >= 1f))
-            {
-                _predictedLocalPlayerVelocity.Y = 0f;
-                remainingY = 0f;
-            }
-        }
-
-        TryApplyPredictedResidualMovement(player, remainingX, remainingY);
-        RefreshPredictedGroundSupport(player);
-    }
 
     private void TryApplyPredictedResidualMovement(PlayerEntity player, float remainingX, float remainingY)
     {

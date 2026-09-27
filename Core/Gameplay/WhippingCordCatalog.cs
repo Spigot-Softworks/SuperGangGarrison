@@ -14,15 +14,12 @@ public static class WhippingCordCatalog
 
     public const string TorsoSpriteName = "WhippingCordTorsoS";
     public const string TorsoRecoilSpriteName = "WhippingCordTorsoFS";
-    public const string WhipSpriteName = "WhippingCordWhipS";
-    public const string WhipRecoilSpriteName = "WhippingCordWhipFS";
     public const string MeleeHitboxSpriteName = "WhippingCordHitboxS";
     public const string KillFeedSpriteName = "WhipKL";
     public const string AttackSoundName = "WhippingCordCrackSnd";
 
     public const int BaseDamage = 45;
     public const int RecoilDurationSourceTicks = 9;
-    public const int CooldownSourceTicks = 18;
 
     /// <summary>Share of recoil spent on wind-up (atk1 / frame 0).</summary>
     public const float WindupProgress = 0.15f;

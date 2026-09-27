@@ -2,7 +2,7 @@
 
 ## Player controls
 
-Voice defaults to **Push to Talk**, with **Shift** as the default key. Either Shift key works with the default binding. `Options > Audio` has expandable **Game** and **Chat** groups, with Game open initially. Game contains global volume/mute, sound effects, game music and Jukebox controls. Chat contains incoming voice mute/volume, microphone mode/device/gain, the push-to-talk key, team/all-player channel and voice status. The key can be rebound under `Options > Controls > Keyboard & Mouse`. Existing explicit bindings are preserved; old control files without a scoreboard binding fall back to Tab.
+Voice defaults to **Push to Talk**, with **V** as the default key. `Options > Audio` has expandable **Game** and **Chat** groups, with Game open initially. Game contains global volume/mute, sound effects, game music and Jukebox controls. Chat contains incoming voice mute/volume, microphone mode/device/gain, the push-to-talk key, team/all-player channel and voice status. The key can be rebound under `Options > Controls > Keyboard & Mouse`. Existing explicit bindings are preserved; old control files without a scoreboard binding fall back to Tab.
 
 Push to Talk captures only while held during connected, focused gameplay. Open Microphone is an explicit alternative. Disabled turns off microphone transmission. Options, text entry, the console, loading, replay playback, disconnection and loss of focus stop capture. Incoming voice remains available when microphone transmission is disabled. A server gag blocks transmission while preserving listening.
 

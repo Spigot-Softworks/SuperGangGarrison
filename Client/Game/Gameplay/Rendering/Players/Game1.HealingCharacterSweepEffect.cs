@@ -107,51 +107,6 @@ public partial class Game1
 
 
 
-    private void DrawHealingCharacterSweepEffectsCore(
-        PlayerEntity player,
-        Vector2 renderPosition,
-        Vector2 cameraPosition,
-        float visibilityAlpha,
-        PlayerBodySpriteSelection bodySelection,
-        bool drawBody,
-        bool drawWeapon)
-    {
-        if (!HealingCharacterSweepEffectEnabled
-            || _activeHealingCharacterSweeps.Count == 0
-            || visibilityAlpha <= 0f
-            || !player.IsAlive)
-        {
-            return;
-        }
-
-        var bounds = GetHealingCharacterSweepBounds(player, renderPosition, cameraPosition);
-        var outlineTint = Color.Lerp(HealingCharacterSweepBaseColor, Color.White, 0.55f);
-
-        for (var effectIndex = 0; effectIndex < _activeHealingCharacterSweeps.Count; effectIndex += 1)
-        {
-            var sweep = _activeHealingCharacterSweeps[effectIndex];
-            if (!DoesHealingCharacterEffectMatchPlayer(sweep.PlayerId, player))
-            {
-                continue;
-            }
-
-            var progress = Math.Clamp(sweep.ElapsedSeconds / HealingCharacterSweepDurationSeconds, 0f, 1f);
-            var bandBottom = MathHelper.Lerp(bounds.Bottom, bounds.Top, progress);
-            var bandTop = bandBottom - HealingCharacterSweepBandHeightPixels;
-            DrawHealingCharacterSweepBand(
-                player,
-                renderPosition,
-                cameraPosition,
-                visibilityAlpha,
-                bodySelection,
-                bounds,
-                bandTop,
-                outlineTint,
-                drawBody,
-                drawWeapon);
-        }
-    }
-
     private void DrawHealingCharacterSweepBand(
         PlayerEntity player,
         Vector2 renderPosition,

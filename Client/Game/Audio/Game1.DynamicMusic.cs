@@ -18,7 +18,6 @@ public partial class Game1
     // window; quick drops make brief contact breaks sound like repeated track
     // changes. Escalation still uses the faster fade-in below.
     private const float DynamicMusicFadeOutPerSecond = 0.45f;
-    private const float DynamicMusicCombatRiserDelaySeconds = 0.83f;
     private const float DynamicMusicCombatLowHealthThreshold = 0.35f;
     private const float DynamicMusicCombatLeadVolumeScale = 1.60f;
     private const float DynamicMusicCombatBackingWithLeadScale = 0.76f;
@@ -73,7 +72,6 @@ public partial class Game1
     private SoundEffectInstance? _dynamicUberMusicInstance;
     private readonly Dictionary<int, int> _dynamicCombatParticipantTicks = new();
     private int _dynamicMusicCombatTicksRemaining;
-    private DynamicCombatMusicStage _dynamicCombatMusicStage;
     private DynamicCombatMusicStage _dynamicCombatPeakStage;
     private DynamicCombatMusicLeadStem _dynamicCombatLeadStem;
     private bool _dynamicCombatRiserPending;
@@ -277,7 +275,6 @@ public partial class Game1
     private void EndDynamicCombatMusicSession()
     {
         _dynamicCombatParticipantTicks.Clear();
-        _dynamicCombatMusicStage = DynamicCombatMusicStage.None;
         _dynamicCombatPeakStage = DynamicCombatMusicStage.None;
         _dynamicCombatLeadStem = DynamicCombatMusicLeadStem.None;
         _dynamicCombatRiserPending = false;
@@ -306,7 +303,6 @@ public partial class Game1
             ? requestedCombatStage
             : DynamicCombatMusicStage.None;
         _dynamicMusicTargetState = targetState;
-        _dynamicCombatMusicStage = targetCombatStage;
 
         if (_gameplayAudioMusicController.CanStartMusicPlayback())
         {
@@ -780,7 +776,6 @@ public partial class Game1
         _dynamicMusicTargetState = DynamicMusicEventState.Normal;
         _dynamicMusicCombatTicksRemaining = 0;
         _dynamicCombatParticipantTicks.Clear();
-        _dynamicCombatMusicStage = DynamicCombatMusicStage.None;
         _dynamicCombatPeakStage = DynamicCombatMusicStage.None;
         _dynamicCombatLeadStem = DynamicCombatMusicLeadStem.None;
         _dynamicCombatRiserPending = false;
@@ -879,7 +874,6 @@ public partial class Game1
         DisposeDynamicMusicTrack(ref _dynamicUberMusic, ref _dynamicUberMusicInstance);
         _dynamicMusicLoadAttempted = false;
         _dynamicCombatParticipantTicks.Clear();
-        _dynamicCombatMusicStage = DynamicCombatMusicStage.None;
         _dynamicCombatPeakStage = DynamicCombatMusicStage.None;
         _dynamicCombatLeadStem = DynamicCombatMusicLeadStem.None;
         _dynamicCombatRiserPending = false;

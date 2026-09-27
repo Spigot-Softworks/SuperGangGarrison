@@ -18,7 +18,6 @@ public partial class Game1
     private readonly Queue<ulong> _processedNetworkDamageEventOrder = new();
     private ClientRoundPhase _clientPluginPreviousMatchPhase;
     private bool _clientPluginPreviousLocalAlive;
-    private int _clientPluginPreviousLocalHealth;
     private int _clientPluginPreviousLocalAmmo;
     private int _clientPluginPreviousLocalPrimaryCooldownTicks;
     private bool _clientPluginPreviousLocalCarryingIntel;
@@ -198,17 +197,6 @@ public partial class Game1
                 blueCenterText));
     }
 
-
-    private ClientScoreboardPlayerActionContext CreateClientPluginScoreboardPlayerActionContext(ScoreboardPlayerRow row)
-    {
-        return new ClientScoreboardPlayerActionContext(
-            row.Slot,
-            row.Player.Id,
-            row.Player.DisplayName,
-            ToClientPluginTeam(row.Player.Team),
-            ToClientPluginClass(row.Player.ClassId),
-            row.IsLocal);
-    }
 
     private void ResetClientPluginGameplayEventState()
     {

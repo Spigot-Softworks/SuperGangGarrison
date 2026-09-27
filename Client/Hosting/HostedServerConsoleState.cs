@@ -177,28 +177,6 @@ internal sealed class HostedServerConsoleState
         }
     }
 
-    public void BackspaceCommandInput()
-    {
-        lock (_sync)
-        {
-            if (_commandInput.Length > 0)
-            {
-                _commandInput = _commandInput[..^1];
-            }
-        }
-    }
-
-    public void AppendCommandInput(char character, int maxLength)
-    {
-        lock (_sync)
-        {
-            if (!char.IsControl(character) && _commandInput.Length < maxLength)
-            {
-                _commandInput += character;
-            }
-        }
-    }
-
     public void ClearCommandInput()
     {
         lock (_sync)

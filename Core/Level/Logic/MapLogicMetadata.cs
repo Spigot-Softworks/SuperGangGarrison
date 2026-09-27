@@ -45,9 +45,6 @@ public static class MapLogicMetadata
     public const string TriggerOnStartPropertyKey = "triggerOnStart";
     public const string DelayedTruePropertyKey = "delayedTrue";
     public const string DelayedFalsePropertyKey = "delayedFalse";
-    public const string DelayedTrueDefaultPropertyValue = "true";
-    public const string DelayedFalseDefaultPropertyValue = "true";
-    public const string CountdownSecondsDefaultPropertyValue = "1";
     public const string NodePriorityPropertyKey = "nodePriority";
     public const string NodePriorityDefaultPropertyValue = "0";
     public const string SignalPriorityPropertyKey = "signalPriority";
@@ -69,10 +66,6 @@ public static class MapLogicMetadata
     public const string AutostartPropertyKey = "autostart";
     public const string StartWhenPropertyKey = "startWhen";
     public const string EndWhenPropertyKey = "endWhen";
-    public const string TrueTimeDefaultPropertyValue = "1";
-    public const string FalseTimeDefaultPropertyValue = "1";
-    public const string InitialValueDefaultPropertyValue = "true";
-    public const string AutostartDefaultPropertyValue = "false";
     public const string PlayerTriggerEntityType = PlayerTriggerMetadata.PlayerTriggerEntityType;
 
     public const string IntelTriggerEntityType = IntelTriggerMetadata.IntelTriggerEntityType;

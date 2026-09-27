@@ -8,8 +8,6 @@ namespace OpenGarrison.ClientShared;
 
 public static class BrowserStockGameplayModCatalogLoader
 {
-    private const string StockPackId = "stock.gg2";
-    private const string StockPackRoot = "Content/Gameplay/stock.gg2";
     private static readonly JsonSerializerOptions JsonOptions = CreateJsonOptions();
     private static readonly string[] ItemFileNames =
     [
@@ -76,7 +74,6 @@ public static class BrowserStockGameplayModCatalogLoader
         var definition = document.ToDefinition();
         var itemsById = definition.Items;
         var classesById = definition.Classes;
-        var spritesById = definition.Assets.Sprites;
 
         foreach (var gameplayClass in classesById.Values)
         {

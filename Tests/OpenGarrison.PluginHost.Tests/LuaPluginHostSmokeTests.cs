@@ -228,7 +228,7 @@ public sealed class LuaPluginHostSmokeTests
 
         var updateHooks = Assert.IsAssignableFrom<IOpenGarrisonClientUpdateHooks>(loadedPlugin.Plugin);
         var messageHooks = Assert.IsAssignableFrom<IOpenGarrisonClientPluginMessageHooks>(loadedPlugin.Plugin);
-        var hudHooks = Assert.IsAssignableFrom<IOpenGarrisonClientHudHooks>(loadedPlugin.Plugin);
+        Assert.IsAssignableFrom<IOpenGarrisonClientHudHooks>(loadedPlugin.Plugin);
 
         Assert.Contains(loadedPlugin.Context.HotkeysImpl.RegisteredHotkeys, entry => entry.HotkeyId == "adminmenu-slot-1" && entry.DefaultKey == Keys.D1);
         Assert.Contains(loadedPlugin.Context.HotkeysImpl.RegisteredHotkeys, entry => entry.HotkeyId == "adminmenu-slot-6" && entry.DefaultKey == Keys.D6);

@@ -6,7 +6,6 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Text.Json;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
@@ -93,7 +92,6 @@ public partial class Game1
     private const int BuilderPanelPadding = 10;
     private const int BuilderButtonHeight = 26;
     private const int BuilderButtonGap = 6;
-    private const int BuilderEntityButtonSize = 30;
     private const int LegacyBuilderEntityButtonSize = 28;
     private const int LegacyBuilderButtonWidth = 115;
     private const int LegacyBuilderHeaderWidth = 122;
@@ -105,8 +103,6 @@ public partial class Game1
     private const int LegacyBuilderVisibleActionRows = 5;
     private const int LegacyBuilderResourceWidth = 160;
     private const int LegacyBuilderResourceVisibleRows = 6;
-    private const float BuilderTextScaleMultiplier = 1.22f;
-    private static readonly JsonSerializerOptions BuilderMetadataJsonOptions = new() { WriteIndented = true };
     private bool _builderEditorEnabled;
     private bool _builderPendingCameraCenter = true;
     private readonly Dictionary<string, LoadedGameMakerSprite> _builderCatalogSpriteCache = new(StringComparer.OrdinalIgnoreCase);
@@ -178,7 +174,6 @@ public partial class Game1
     private int _builderLayerParallaxDialogLayerIndex = -1;
     private bool _builderMapNameCollisionDialogOpen;
     private string _builderMapNameCollisionDialogMessage = string.Empty;
-    private GarrisonBuilderMapNameCollisionPendingAction _builderMapNameCollisionPendingAction;
     private GarrisonBuilderLayerParallaxEditField _builderLayerParallaxEditField;
     private string _builderLayerParallaxXBuffer = "1";
     private string _builderLayerParallaxYBuffer = "1";
@@ -1425,39 +1420,6 @@ public partial class Game1
         return definition.IconFrame;
     }
 
-    private void DrawGarrisonBuilderEntityIcon(CustomMapBuilderEntityDefinition definition, Rectangle bounds, bool selected = false)
-    {
-        var frameIndex = GetGarrisonBuilderEntityIconFrameIndex(definition, selected);
-        if (_builderEntityButtonSprite is not null
-            && frameIndex >= 0
-            && frameIndex < _builderEntityButtonSprite.Frames.Count)
-        {
-            var frame = _builderEntityButtonSprite.Frames[frameIndex];
-            if (definition.Type.Equals(JumpPadMetadata.EntityType, StringComparison.OrdinalIgnoreCase))
-            {
-                frame = GetNeutralSpriteFrame(frame);
-            }
-            var source = frame.SourceRectangle ?? new Rectangle(0, 0, frame.Texture.Width, frame.Texture.Height);
-            var scale = MathF.Min(bounds.Width / (float)source.Width, bounds.Height / (float)source.Height);
-            var drawWidth = MathF.Max(1f, source.Width * scale);
-            var drawHeight = MathF.Max(1f, source.Height * scale);
-            var drawBounds = new Rectangle(
-                bounds.X + (int)MathF.Round((bounds.Width - drawWidth) * 0.5f),
-                bounds.Y + (int)MathF.Round((bounds.Height - drawHeight) * 0.5f),
-                (int)MathF.Round(drawWidth),
-                (int)MathF.Round(drawHeight));
-            DrawLoadedSpriteFrame(frame, drawBounds, Color.White);
-            return;
-        }
-
-        DrawGarrisonBuilderText(
-            definition.Type[..Math.Min(2, definition.Type.Length)].ToUpperInvariant(),
-            bounds.X + BuilderUi(4),
-            bounds.Y + BuilderUi(4),
-            Color.White,
-            0.65f);
-    }
-
     private bool TryGetGarrisonBuilderEntityWorldBounds(
         CustomMapBuilderEntity entity,
         out float left,
@@ -1760,24 +1722,6 @@ public partial class Game1
         entityIndex = _builderEntityOverlapPickScratch[0];
         return GarrisonBuilderEntityPickResult.Picked;
     }
-
-    private void DrawGarrisonBuilderPathRow(GarrisonBuilderPathField field, string label, int x, int y, int width, MouseState mouse)
-    {
-        const int labelWidth = 44;
-        const int actionWidth = 58;
-        var rowHeight = GetGarrisonBuilderMenuRowHeight();
-        var fieldBounds = new Rectangle(x + labelWidth, y, Math.Max(1, width - labelWidth - actionWidth - BuilderButtonGap), rowHeight);
-        var actionBounds = new Rectangle(fieldBounds.Right + BuilderButtonGap, y, actionWidth, rowHeight);
-        DrawGarrisonBuilderText(label, x, y + 5, new Color(216, 216, 216), 0.72f);
-        var active = _builderActivePathField == field;
-        _spriteBatch.Draw(_pixel, fieldBounds, active ? new Color(54, 68, 78, 235) : new Color(28, 31, 36, 230));
-        _spriteBatch.Draw(_pixel, new Rectangle(fieldBounds.X, fieldBounds.Bottom - 1, fieldBounds.Width, 1), active ? new Color(116, 210, 230) : new Color(86, 92, 98));
-        var text = GetGarrisonBuilderPathFieldBuffer(field);
-        var displayText = active ? GetTextWithCursor(text, _builderPathCursorIndex) : ShortenBuilderPath(text);
-        DrawGarrisonBuilderText(displayText, fieldBounds.Location.ToVector2() + new Vector2(6f, 4f), Color.White, 0.95f);
-        DrawGarrisonBuilderButton(actionBounds, field == GarrisonBuilderPathField.Save ? "Write" : "Apply", false, true, mouse);
-    }
-
 
     private void UpdateLegacyGarrisonBuilderScroll(MouseState mouse)
     {
@@ -4589,7 +4533,6 @@ public partial class Game1
 
         const float tileSize = 10f;
         var visualScale = _builderUseModernUi ? GetGarrisonBuilderMapVisualScale() : 1f;
-        var worldTile = tileSize * visualScale;
         for (var cellY = top; cellY < top + height - 0.01f; cellY += tileSize)
         {
             for (var cellX = left; cellX < left + width - 0.01f; cellX += tileSize)
@@ -4810,54 +4753,6 @@ public partial class Game1
             "rightdoor" => "leftdoor",
             _ => type,
         };
-    }
-
-    private CustomMapBuilderEntity CreateGarrisonBuilderEntityFromDefinition(CustomMapBuilderEntityDefinition definition, float x, float y)
-    {
-        var properties = new Dictionary<string, string>(definition.DefaultProperties, StringComparer.OrdinalIgnoreCase);
-        foreach (var pair in _builderPlacementPropertyOverrides)
-        {
-            if (string.IsNullOrWhiteSpace(pair.Value))
-            {
-                properties.Remove(pair.Key);
-            }
-            else
-            {
-                properties[pair.Key] = pair.Value;
-            }
-        }
-
-        return ApplyGarrisonBuilderLogicDefaults(
-            CustomMapBuilderEntity.Create(definition.Type, x, y, properties).NormalizeForEditing());
-    }
-
-    private bool TryHandleGarrisonBuilderPathClick(Point position, Rectangle panel)
-    {
-        var x = panel.X + BuilderPanelPadding;
-        var y = panel.Y + BuilderPanelPadding + 52 + BuilderButtonHeight + 14 + 22;
-        var width = panel.Width - (BuilderPanelPadding * 2);
-        foreach (var field in new[] { GarrisonBuilderPathField.OpenMap, GarrisonBuilderPathField.Background, GarrisonBuilderPathField.Walkmask, GarrisonBuilderPathField.Save })
-        {
-            const int labelWidth = 44;
-            const int actionWidth = 58;
-            var fieldBounds = new Rectangle(x + labelWidth, y, Math.Max(1, width - labelWidth - actionWidth - BuilderButtonGap), 24);
-            var actionBounds = new Rectangle(fieldBounds.Right + BuilderButtonGap, y, actionWidth, 24);
-            if (fieldBounds.Contains(position))
-            {
-                BeginEditingGarrisonBuilderPath(field);
-                return true;
-            }
-
-            if (actionBounds.Contains(position))
-            {
-                ApplyGarrisonBuilderPathField(field);
-                return true;
-            }
-
-            y += 32;
-        }
-
-        return false;
     }
 
     private bool UpdateGarrisonBuilderPathKeyboard(KeyboardState keyboard)
@@ -9789,7 +9684,6 @@ public partial class Game1
         _builderEditorEnabled = false;
         _builderLayerParallaxDialogOpen = false;
         _builderMapNameCollisionDialogOpen = false;
-        _builderMapNameCollisionPendingAction = GarrisonBuilderMapNameCollisionPendingAction.None;
         _builderMapNameCollisionDialogMessage = string.Empty;
         _builderEditingLayerOffsets = false;
         _builderStatus = reason;
@@ -9859,7 +9753,6 @@ public partial class Game1
             return false;
         }
 
-        _builderMapNameCollisionPendingAction = pendingAction;
         _builderMapNameCollisionDialogMessage = message;
         _builderMapNameCollisionDialogOpen = true;
         return true;
@@ -9868,7 +9761,6 @@ public partial class Game1
     private void CloseGarrisonBuilderMapNameCollisionDialog(bool saveAs)
     {
         _builderMapNameCollisionDialogOpen = false;
-        _builderMapNameCollisionPendingAction = GarrisonBuilderMapNameCollisionPendingAction.None;
         _builderMapNameCollisionDialogMessage = string.Empty;
         if (saveAs)
         {
@@ -10724,11 +10616,6 @@ public partial class Game1
         }
     }
 
-    private Rectangle GetGarrisonBuilderPanelBounds()
-    {
-        return new Rectangle(Math.Max(0, BuilderViewportWidth - BuilderPanelWidth), 0, BuilderPanelWidth, BuilderViewportHeight);
-    }
-
     private Rectangle[] CreateGarrisonBuilderButtonRow(int x, int y, int width, int count)
     {
         var buttons = new Rectangle[count];
@@ -11158,12 +11045,6 @@ public partial class Game1
         return new Vector2(
             MeasureBitmapFontWidth(text, adjustedScale),
             MeasureBitmapFontHeight(adjustedScale));
-    }
-
-    private void DrawGarrisonBuilderWrapped(string text, int x, int y, int maxWidth, Color color)
-    {
-        var line = TrimGarrisonBuilderTextToWidth(text, maxWidth, 1f);
-        DrawGarrisonBuilderText(line, x, y, color, 0.95f);
     }
 
     private string TrimGarrisonBuilderTextToWidth(string text, float maxWidth, float scale)

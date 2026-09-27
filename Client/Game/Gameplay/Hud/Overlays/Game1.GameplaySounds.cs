@@ -11,7 +11,6 @@ public partial class Game1
 {
     private SimpleLevel? _gameplaySoundLevel;
     private bool[] _gameplaySoundPreviousOutputs = [];
-    private SoundEffect? _gameplaySoundMusicOverride;
     private SoundEffectInstance? _gameplaySoundMusicOverrideInstance;
     private string _gameplaySoundMusicOverrideName = string.Empty;
     private float _gameplaySoundMusicOverrideFade;
@@ -121,7 +120,6 @@ public partial class Game1
         StopGameplaySoundMusicOverride();
         try
         {
-            _gameplaySoundMusicOverride = sound;
             _gameplaySoundMusicOverrideInstance = sound.CreateInstance();
             _gameplaySoundMusicOverrideInstance.IsLooped = request.Loop;
             _gameplaySoundMusicOverrideInstance.Volume = request.Crossfade ? 0f : GetGameplaySoundMusicOverrideVolume();
@@ -222,7 +220,6 @@ public partial class Game1
         try { _gameplaySoundMusicOverrideInstance?.Stop(); } catch { }
         try { _gameplaySoundMusicOverrideInstance?.Dispose(); } catch { }
         _gameplaySoundMusicOverrideInstance = null;
-        _gameplaySoundMusicOverride = null;
         _gameplaySoundMusicOverrideName = string.Empty;
         _gameplaySoundMusicOverrideFade = 0f;
         _gameplaySoundMusicOverrideFadeSeconds = 0f;

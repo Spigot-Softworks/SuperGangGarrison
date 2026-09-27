@@ -345,7 +345,6 @@ public partial class Game1
         }
 
         _smoothCamera = synchronizedPosition;
-        _smoothCameraPixel = RoundToSourcePixels(synchronizedPosition);
         _smoothCameraLookaheadOffset = Vector2.Zero;
     }
 
@@ -505,10 +504,6 @@ public partial class Game1
         {
             ResetSmoothCameraState(cameraTopLeft);
         }
-        else
-        {
-            _smoothCameraPixel = RoundToSourcePixels(_smoothCamera);
-        }
 
         _smoothCameraRenderingActive = true;
         return _smoothCamera;
@@ -527,7 +522,6 @@ public partial class Game1
     private void ResetSmoothCameraState(Vector2 position)
     {
         _smoothCamera = position;
-        _smoothCameraPixel = RoundToSourcePixels(position);
         _lastSmoothCameraUpdateClockSeconds = -1d;
         _lastSmoothCameraRawTarget = position;
         _hasLastSmoothCameraRawTarget = true;

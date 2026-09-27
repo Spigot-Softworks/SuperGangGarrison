@@ -9,7 +9,7 @@ public sealed class ClientIdentityDocumentTests
     [Fact]
     public void NewPersistentIdentityUsesEightCharacterFriendCode()
     {
-        var directory = CreateTemporaryDirectory();
+        var directory = TestFileSystem.CreateTempRoot("opengarrison-identity");
         try
         {
             var path = Path.Combine(directory, "client-identity.json");
@@ -33,7 +33,7 @@ public sealed class ClientIdentityDocumentTests
     [Fact]
     public void ExistingLongFriendCodeRemainsValidAndUnchanged()
     {
-        var directory = CreateTemporaryDirectory();
+        var directory = TestFileSystem.CreateTempRoot("opengarrison-identity");
         try
         {
             var path = Path.Combine(directory, "client-identity.json");
@@ -72,7 +72,7 @@ public sealed class ClientIdentityDocumentTests
     [Fact]
     public void ApplyingAccountProfileUpdatesPortableFieldsButPreservesDeviceCredentials()
     {
-        var directory = CreateTemporaryDirectory();
+        var directory = TestFileSystem.CreateTempRoot("opengarrison-identity");
         try
         {
             var path = Path.Combine(directory, "client-identity.json");
@@ -101,12 +101,5 @@ public sealed class ClientIdentityDocumentTests
         {
             Directory.Delete(directory, recursive: true);
         }
-    }
-
-    private static string CreateTemporaryDirectory()
-    {
-        var path = Path.Combine(Path.GetTempPath(), $"opengarrison-identity-{Guid.NewGuid():N}");
-        Directory.CreateDirectory(path);
-        return path;
     }
 }

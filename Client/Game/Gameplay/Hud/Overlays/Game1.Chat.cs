@@ -719,18 +719,6 @@ public partial class Game1
     }
 
 
-    private float MeasureChatLineHeight(ChatLine line, float maxPanelWidth)
-    {
-        var speakerPrefix = GetChatLineSpeakerPrefix(line);
-        var maxContentWidth = Math.Max(48f, maxPanelWidth - (ChatHudPanelHorizontalPadding * 2f));
-        var wrappedMessageLines = WrapBitmapFontText(
-            line.Text,
-            Math.Max(24f, maxContentWidth - MeasureBitmapFontWidth(speakerPrefix, 1f)),
-            maxContentWidth);
-        var lineHeight = GetChatHudLineHeight();
-        return Math.Max(lineHeight, wrappedMessageLines.Count * lineHeight);
-    }
-
     private float GetWrappedChatPanelWidth(List<string> wrappedLines, float firstLinePrefixWidth)
     {
         var width = 0f;

@@ -16,16 +16,9 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private const string ApplicationVersionFileName = "version.txt";
     private const string DevelopmentVersionLabel = "dev";
 
     private static string? _cachedApplicationVersionLabel;
-
-    private static OfflineBotControllerMode GetNextBotMode(OfflineBotControllerMode botMode)
-    {
-        return OfflineBotControllerMode.BotBrain;
-    }
-
 
     private static MusicMode GetNextMusicMode(MusicMode musicMode)
     {
@@ -252,7 +245,7 @@ public partial class Game1
 
     private static IEnumerable<string> EnumerateBrowserApplicationVersionCandidates()
     {
-        foreach (var relativePath in new[] { ApplicationVersionFileName, $"Content/{ApplicationVersionFileName}" })
+        foreach (var relativePath in new[] { ApplicationBuildInfo.VersionFileName, $"Content/{ApplicationBuildInfo.VersionFileName}" })
         {
             if (BrowserContentCatalog.TryGetText(relativePath, out var version))
             {
@@ -274,7 +267,7 @@ public partial class Game1
             var current = directory;
             for (var depth = 0; depth < 4 && !string.IsNullOrWhiteSpace(current); depth += 1)
             {
-                yield return Path.Combine(current, ApplicationVersionFileName);
+                yield return Path.Combine(current, ApplicationBuildInfo.VersionFileName);
                 current = Directory.GetParent(current)?.FullName ?? string.Empty;
             }
         }
@@ -691,44 +684,6 @@ public partial class Game1
         return OpenGarrisonPreferencesDocument.NormalizeControllerAimDistance(next, fallback);
     }
 
-    private void AdjustControllerButtonBindingSetting(
-        ControllerButtonBinding current,
-        Action<ControllerButtonBinding> apply,
-        int step)
-    {
-        if (step == 0)
-        {
-            return;
-        }
-
-        var normalized = OpenGarrisonPreferencesDocument.NormalizeControllerButtonBinding(current);
-        var currentIndex = Array.IndexOf(ControllerButtonBindingCycle, normalized);
-        if (currentIndex < 0)
-        {
-            currentIndex = 0;
-        }
-
-        var nextIndex = (currentIndex + step) % ControllerButtonBindingCycle.Length;
-        if (nextIndex < 0)
-        {
-            nextIndex += ControllerButtonBindingCycle.Length;
-        }
-
-        apply(ControllerButtonBindingCycle[nextIndex]);
-        PersistClientSettings();
-    }
-
-
-
-
-
-
-
-
-
-
-
-
     private string GetSwapWeaponsBindingLabel()
     {
         return InputBindingsSettings.NormalizeSwapWeaponsBinding(_inputBindings.SwapWeaponsBinding) switch
@@ -1143,26 +1098,4 @@ public partial class Game1
     }
 
 
-    private void DrawMenuPlaque(float x, float y, float width, float alpha)
-    {
-        if (width <= 0f)
-        {
-            return;
-        }
-
-        var tint = Color.White * alpha;
-        const float plaqueSpriteWidth = 17f;
-        if (!TryDrawScreenSprite("gbMenuLayoutS", 0, new Vector2(x, y), tint, Vector2.One))
-        {
-            _spriteBatch.Draw(
-                _pixel,
-                new Rectangle((int)MathF.Round(x), (int)MathF.Round(y), Math.Max(1, (int)MathF.Round(width)), 17),
-                new Color(70, 74, 82) * (alpha * 0.55f));
-            return;
-        }
-
-        var middleScaleX = Math.Max(1f, (width / (plaqueSpriteWidth - 1f)) - 2f);
-        TryDrawScreenSprite("gbMenuLayoutS", 1, new Vector2(x + plaqueSpriteWidth, y), tint, new Vector2(middleScaleX, 1f));
-        TryDrawScreenSprite("gbMenuLayoutS", 2, new Vector2(x - plaqueSpriteWidth + width + 1f, y), tint, Vector2.One);
-    }
 }

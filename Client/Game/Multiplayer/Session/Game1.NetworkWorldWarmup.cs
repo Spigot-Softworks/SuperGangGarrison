@@ -37,7 +37,6 @@ public partial class Game1
         _networkWorldWarmupActive = true;
         _networkWorldWarmupFullSnapshotApplied = false;
         _networkWorldWarmupAppliedSnapshotsAfterFull = 0;
-        _networkWorldWarmupStartedClockSeconds = _networkInterpolationClockSeconds;
         _networkWorldWarmupAcceptNextAppliedSnapshotAsBaseline = acceptNextAppliedSnapshotAsBaseline;
         _networkInterpolationWarmupSnapshotsRemaining = Math.Max(
             _networkInterpolationWarmupSnapshotsRemaining,
@@ -58,7 +57,6 @@ public partial class Game1
         _networkWorldWarmupActive = false;
         _networkWorldWarmupFullSnapshotApplied = false;
         _networkWorldWarmupAppliedSnapshotsAfterFull = 0;
-        _networkWorldWarmupStartedClockSeconds = -1d;
         _networkWorldWarmupAcceptNextAppliedSnapshotAsBaseline = false;
     }
 
