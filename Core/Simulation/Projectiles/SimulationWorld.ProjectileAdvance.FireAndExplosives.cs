@@ -1,8 +1,8 @@
 namespace OpenGarrison.Core;
 
-public sealed partial class SimulationWorld
+public sealed partial class ProjectileSystem
 {
-    private void AdvanceFlames()
+    public void AdvanceFlames()
     {
         var deltaSeconds = (float)Config.FixedDeltaSeconds;
         var flameAirLifetimeTicks = GetSimulationTicksFromSourceTicks(FlameProjectileEntity.AirLifetimeTicks);
@@ -109,7 +109,7 @@ public sealed partial class SimulationWorld
         }
     }
 
-    private void AdvanceFlares()
+    public void AdvanceFlares()
     {
         for (var flareIndex = _flares.Count - 1; flareIndex >= 0; flareIndex -= 1)
         {
@@ -139,11 +139,11 @@ public sealed partial class SimulationWorld
             var endX = flare.X;
             var endY = flare.Y;
             // Compute world contacts once: piercing must not repeatedly damage room objects.
-            var blockingHit = GeometryResolver.GetNearestFlareHit(flare, directionX, directionY, movementDistance, includePlayers: false);
+            var blockingHit = GetNearestFlareHit(flare, directionX, directionY, movementDistance, includePlayers: false);
             var bubbleHit = GetNearestEnemyBubbleHit(flare.PreviousX, flare.PreviousY, directionX, directionY, movementDistance, flare.Team);
             while (true)
             {
-                var hit = GeometryResolver.GetNearestFlarePlayerHit(flare, directionX, directionY, movementDistance, blockingHit);
+                var hit = GetNearestFlarePlayerHit(flare, directionX, directionY, movementDistance, blockingHit);
                 var bubbleDistance = bubbleHit?.Distance ?? float.MaxValue;
                 var hitDistance = hit?.Distance ?? float.MaxValue;
                 if (bubbleHit is not null && bubbleDistance <= hitDistance)
@@ -247,7 +247,7 @@ public sealed partial class SimulationWorld
         }
     }
 
-    private void ResolveDragonRageProjectileOutcome(FlareProjectileEntity flare, bool hitTarget)
+    internal void ResolveDragonRageProjectileOutcome(FlareProjectileEntity flare, bool hitTarget)
     {
         if (!flare.IsDragonRageSlug
             || flare.DragonRageShotSequence <= 0
@@ -262,7 +262,7 @@ public sealed partial class SimulationWorld
             flare.InitialLifetimeTicks - Math.Max(0, flare.TicksRemaining));
     }
 
-    private void AdvanceMines()
+    public void AdvanceMines()
     {
         for (var mineIndex = _mines.Count - 1; mineIndex >= 0; mineIndex -= 1)
         {
@@ -323,7 +323,7 @@ public sealed partial class SimulationWorld
         }
     }
 
-    private void AdvanceGrenades()
+    public void AdvanceGrenades()
     {
         for (var grenadeIndex = _grenades.Count - 1; grenadeIndex >= 0; grenadeIndex -= 1)
         {
@@ -451,7 +451,7 @@ public sealed partial class SimulationWorld
         return false;
     }
 
-    private void ExplodeGrenade(
+    internal void ExplodeGrenade(
         GrenadeProjectileEntity grenade,
         PlayerEntity? directHitPlayer = null,
         SimulationEntity? directHitBuilding = null,
@@ -717,7 +717,7 @@ public sealed partial class SimulationWorld
         }
     }
 
-    private void RemoveGrenadeAt(int grenadeIndex)
+    internal void RemoveGrenadeAt(int grenadeIndex)
     {
         var grenade = _grenades[grenadeIndex];
         EntityStore.Remove(grenade.Id);
@@ -725,7 +725,7 @@ public sealed partial class SimulationWorld
         _grenades.RemoveAt(grenadeIndex);
     }
 
-    private void RemoveFlameAt(int flameIndex)
+    internal void RemoveFlameAt(int flameIndex)
     {
         var flame = _flames[flameIndex];
         EntityStore.Remove(flame.Id);
@@ -733,7 +733,7 @@ public sealed partial class SimulationWorld
         _flames.RemoveAt(flameIndex);
     }
 
-    private void RemoveFlareAt(int flareIndex)
+    internal void RemoveFlareAt(int flareIndex)
     {
         var flare = _flares[flareIndex];
         EntityStore.Remove(flare.Id);
@@ -741,7 +741,7 @@ public sealed partial class SimulationWorld
         _flares.RemoveAt(flareIndex);
     }
 
-    private void RemoveMineAt(int mineIndex)
+    internal void RemoveMineAt(int mineIndex)
     {
         var mine = _mines[mineIndex];
         EntityStore.Remove(mine.Id);

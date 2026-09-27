@@ -2,9 +2,9 @@ using OpenGarrison.Core.LastToDie;
 
 namespace OpenGarrison.Core;
 
-public sealed partial class SimulationWorld
+public sealed partial class ProjectileSystem
 {
-    private void AdvanceShots()
+    public void AdvanceShots()
     {
         for (var shotIndex = _shots.Count - 1; shotIndex >= 0; shotIndex -= 1)
         {
@@ -175,7 +175,7 @@ public sealed partial class SimulationWorld
         return null;
     }
 
-    private void AdvanceBlades()
+    public void AdvanceBlades()
     {
         for (var bladeIndex = _blades.Count - 1; bladeIndex >= 0; bladeIndex -= 1)
         {
@@ -262,7 +262,7 @@ public sealed partial class SimulationWorld
         }
     }
 
-    private void AdvanceNeedles()
+    public void AdvanceNeedles()
     {
         for (var needleIndex = _needles.Count - 1; needleIndex >= 0; needleIndex -= 1)
         {
@@ -581,7 +581,7 @@ public sealed partial class SimulationWorld
         RegisterImpactEffect(hitX, hitY, MathF.Atan2(directionY, directionX) * (180f / MathF.PI));
     }
 
-    private void AdvanceRevolverShots()
+    public void AdvanceRevolverShots()
     {
         for (var shotIndex = _revolverShots.Count - 1; shotIndex >= 0; shotIndex -= 1)
         {

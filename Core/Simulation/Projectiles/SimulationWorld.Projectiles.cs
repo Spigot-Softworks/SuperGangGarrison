@@ -2,9 +2,9 @@ using OpenGarrison.Core.LastToDie;
 
 namespace OpenGarrison.Core;
 
-public sealed partial class SimulationWorld
+public sealed partial class ProjectileSystem
 {
-    private void SpawnShot(
+    public void SpawnShot(
         PlayerEntity owner,
         float x,
         float y,
@@ -67,7 +67,7 @@ public sealed partial class SimulationWorld
         EntityStore.Add(shot);
     }
 
-    private void SpawnBubble(PlayerEntity owner, float x, float y, float velocityX, float velocityY)
+    public void SpawnBubble(PlayerEntity owner, float x, float y, float velocityX, float velocityY)
     {
         var bubble = new BubbleProjectileEntity(
             AllocateEntityId(),
@@ -88,7 +88,7 @@ public sealed partial class SimulationWorld
         EntityStore.Add(bubble);
     }
 
-    private void SpawnBlade(PlayerEntity owner, float x, float y, float velocityX, float velocityY, int hitDamage, int lifetimeTicks = PlayerEntity.QuoteBladeLifetimeTicks)
+    public void SpawnBlade(PlayerEntity owner, float x, float y, float velocityX, float velocityY, int hitDamage, int lifetimeTicks = PlayerEntity.QuoteBladeLifetimeTicks)
     {
         var blade = new BladeProjectileEntity(
             AllocateEntityId(),
@@ -110,7 +110,7 @@ public sealed partial class SimulationWorld
         EntityStore.Add(blade);
     }
 
-    private void SpawnNail(PlayerEntity owner, float x, float y, float velocityX, float velocityY)
+    public void SpawnNail(PlayerEntity owner, float x, float y, float velocityX, float velocityY)
     {
         var nail = new NailProjectileEntity(
             AllocateEntityId(),
@@ -129,7 +129,7 @@ public sealed partial class SimulationWorld
         EntityStore.Add(nail);
     }
 
-    private void SpawnArrow(PlayerEntity owner, float x, float y, float velocityX, float velocityY, int damage, float fakeSpeedMultiplier)
+    public void SpawnArrow(PlayerEntity owner, float x, float y, float velocityX, float velocityY, int damage, float fakeSpeedMultiplier)
     {
         var sniperProfile = owner.LastToDieSniperProfile;
         var ghostDamageMultiplier = owner.CaptureLastToDieSniperGhostShot(Config.TicksPerSecond);
@@ -212,7 +212,7 @@ public sealed partial class SimulationWorld
         EntityStore.Add(arrow);
     }
 
-    private void SpawnQueuedLastToDieSniperArrow(
+    internal void SpawnQueuedLastToDieSniperArrow(
         PlayerEntity owner,
         float x,
         float y,
@@ -227,7 +227,7 @@ public sealed partial class SimulationWorld
             volley.FakeSpeedMultiplier,
             volley.Payload);
 
-    private void SpawnNeedle(
+    public void SpawnNeedle(
         PlayerEntity owner,
         float x,
         float y,
@@ -255,7 +255,7 @@ public sealed partial class SimulationWorld
         EntityStore.Add(needle);
     }
 
-    private void SpawnMedicHealNeedle(
+    public void SpawnMedicHealNeedle(
         PlayerEntity owner,
         float x,
         float y,
@@ -293,7 +293,7 @@ public sealed partial class SimulationWorld
         EntityStore.Add(needle);
     }
 
-    private void SpawnRevolverShot(
+    public void SpawnRevolverShot(
         PlayerEntity owner,
         float x,
         float y,
@@ -336,7 +336,7 @@ public sealed partial class SimulationWorld
         EntityStore.Add(shot);
     }
 
-    private void SpawnStabAnimation(PlayerEntity owner, float directionDegrees)
+    public void SpawnStabAnimation(PlayerEntity owner, float directionDegrees)
     {
         var stabAnimation = new StabAnimEntity(
             AllocateEntityId(),
@@ -358,7 +358,7 @@ public sealed partial class SimulationWorld
             owner.Id);
     }
 
-    private void SpawnStabMask(PlayerEntity owner, float directionDegrees)
+    public void SpawnStabMask(PlayerEntity owner, float directionDegrees)
     {
         var stabMask = new StabMaskEntity(
             AllocateEntityId(),
@@ -373,7 +373,7 @@ public sealed partial class SimulationWorld
         RegisterWorldSoundEvent("KnifeSnd", stabMask.X, stabMask.Y);
     }
 
-    private void SpawnFlame(
+    public void SpawnFlame(
         PlayerEntity owner,
         float x,
         float y,
@@ -403,7 +403,7 @@ public sealed partial class SimulationWorld
         EntityStore.Add(flame);
     }
 
-    private void SpawnFlare(
+    public void SpawnFlare(
         PlayerEntity owner,
         float x,
         float y,
@@ -438,7 +438,7 @@ public sealed partial class SimulationWorld
         EntityStore.Add(flare);
     }
 
-    private void SpawnRocket(
+    public void SpawnRocket(
         PlayerEntity owner,
         float x,
         float y,
@@ -523,12 +523,12 @@ public sealed partial class SimulationWorld
             SuppressSmokeTrail: rocket.SuppressSmokeTrail));
     }
 
-    private void AdvancePendingRocketsForOwner(int ownerId)
+    public void AdvancePendingRocketsForOwner(int ownerId)
     {
         RocketProjectileSystem.AdvancePendingForOwner(this, ownerId);
     }
 
-    private void SpawnMine(PlayerEntity owner, float x, float y, float velocityX, float velocityY, string? killFeedWeaponSpriteNameOverride = null)
+    public void SpawnMine(PlayerEntity owner, float x, float y, float velocityX, float velocityY, string? killFeedWeaponSpriteNameOverride = null)
     {
         var mine = new MineProjectileEntity(
             AllocateEntityId(),
@@ -549,7 +549,7 @@ public sealed partial class SimulationWorld
         EntityStore.Add(mine);
     }
 
-    private void SpawnGrenade(PlayerEntity owner, float x, float y, float velocityX, float velocityY, string? killFeedWeaponSpriteNameOverride = null)
+    public void SpawnGrenade(PlayerEntity owner, float x, float y, float velocityX, float velocityY, string? killFeedWeaponSpriteNameOverride = null)
     {
         var grenade = new GrenadeProjectileEntity(
             AllocateEntityId(),
@@ -569,7 +569,7 @@ public sealed partial class SimulationWorld
         EntityStore.Add(grenade);
     }
 
-    private int GetSimulationTicksFromSourceTicks(float sourceTicks)
+    internal int GetSimulationTicksFromSourceTicks(float sourceTicks)
     {
         return Math.Max(1, (int)MathF.Ceiling(sourceTicks * Config.TicksPerSecond / LegacyMovementModel.SourceTicksPerSecond));
     }
