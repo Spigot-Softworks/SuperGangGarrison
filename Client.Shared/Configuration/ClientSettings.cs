@@ -231,7 +231,7 @@ public sealed class ClientSettings
                     return saved;
                 }
             }
-            catch (System.Text.Json.JsonException) { }
+            catch (System.Text.Json.JsonException ex) { Console.WriteLine($"Client settings were invalid; using defaults: {ex.Message}"); }
             return new ClientSettings
             {
                 VSync = false,

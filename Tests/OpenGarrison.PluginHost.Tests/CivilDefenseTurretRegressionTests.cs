@@ -34,8 +34,8 @@ public sealed class CivilDefenseTurretRegressionTests
     {
         var world = CreateWorld();
         var turret = DeployBuilt(world);
-        var first = AddProjectile(world, "shot", PlayerTeam.Blue, 550f, 500f, 0f, 90001);
-        var second = AddProjectile(world, "shot", PlayerTeam.Blue, 560f, 500f, 0f, 90002);
+        _ = AddProjectile(world, "shot", PlayerTeam.Blue, 550f, 500f, 0f, 90001);
+        _ = AddProjectile(world, "shot", PlayerTeam.Blue, 560f, 500f, 0f, 90002);
         world.AdvanceOneTick();
         Assert.Equal(1, world.Shots.Count);
         for (var tick = 1; tick < CivilDefenseTurretEntity.ReloadTicks; tick++) world.AdvanceOneTick();

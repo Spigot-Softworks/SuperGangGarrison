@@ -72,38 +72,6 @@ internal static class HostedServerBootstrapper
     private const string HostedServerStdOutLogFileName = "hosted-server-stdout.log";
     private const string HostedServerStdErrLogFileName = "hosted-server-stderr.log";
 
-    public static bool IsUdpPortAvailable(int port)
-    {
-        try
-        {
-            using var probe = new UdpClient(port);
-            return true;
-        }
-        catch (SocketException)
-        {
-            return false;
-        }
-    }
-
-    public static bool IsTcpPortAvailable(int port)
-    {
-        TcpListener? probe = null;
-        try
-        {
-            probe = new TcpListener(System.Net.IPAddress.Loopback, port);
-            probe.Start();
-            return true;
-        }
-        catch (SocketException)
-        {
-            return false;
-        }
-        finally
-        {
-            probe?.Stop();
-        }
-    }
-
     public static HostedServerLaunchTarget? FindLaunchTarget()
     {
         foreach (var candidate in EnumerateDirectAppHostCandidates())

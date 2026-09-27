@@ -569,7 +569,6 @@ public partial class Game1
 
             // Calculate map center
             var mapCenterX = level.Bounds.Width / 2f;
-            var mapCenterY = level.Bounds.Height / 2f;
 
             // Create horizontal vector towards map center
             var currentCenterX = mapState.CameraPosition.X + (viewportWidth / 2f);

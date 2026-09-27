@@ -1633,7 +1633,6 @@ public partial class Game1
                 : player.MaxHealth / LowHealthHudThresholdMaxHealthDivisor;
         }
 
-        public void DrawSpySuperjumpHud() => DrawSpySuperjumpHudCore();
         public void DrawQuoteAmmoHud() => DrawQuoteAmmoHudCore();
         public void DrawDemomanStickyHud() => DrawDemomanStickyHudCore();
         public void DrawExperimentalOffhandHud() => DrawExperimentalOffhandHudCore();
@@ -1733,19 +1732,6 @@ public partial class Game1
             var cooldownFraction = float.Clamp(Math.Max(GetLocalDisplayedMainWeaponCooldownTicks(), GetLocalDisplayedMainWeaponReloadTicks()) / 25f, 0f, 1f);
             barColor = Color.Lerp(barColor, HeavyCooldownHudColor, cooldownFraction);
             DrawSourceAmmoHudBar(689f, sourceY + 4f, 34f, currentShells, maxShells, barColor);
-        }
-
-        private void DrawSpySuperjumpHudCore()
-        {
-            if (!_game._world.LocalPlayer.TryGetGameplayAbilityItem(
-                    GameplayAbilityConstants.UtilityChannel,
-                    BuiltInGameplayBehaviorIds.SpyUtility,
-                    out var utilityItem))
-            {
-                return;
-            }
-
-            DrawConfiguredAbilityCooldownHud(utilityItem, 515f);
         }
 
         private void DrawConfiguredAbilityCooldownHud(GameplayItemDefinition item, float sourceY)

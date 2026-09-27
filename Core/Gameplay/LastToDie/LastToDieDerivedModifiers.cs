@@ -114,17 +114,11 @@ public sealed record LastToDieDerivedModifiers(
 
     public const float MedicCombatMedicDamageTakenMultiplier = 0.7f;
 
-    public const float MedicCombatMedicHealthThreshold = 0.5f;
-
     public const float MedicStoicMaximumEvasionChance = 0.5f;
 
     public const float MedicSpikedVestDamageTakenMultiplier = 0.85f;
 
-    public const float MedicSpikedVestReflectionFraction = 0.3f;
-
     public const int MedicSpikedVestReflectionNumerator = 3;
-
-    public const int MedicSpikedVestReflectionDenominator = 10;
 
     public const float MedicIronWillHealthThreshold = 0.3f;
 

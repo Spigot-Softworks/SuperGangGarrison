@@ -38,7 +38,6 @@ public sealed class NavGraph
     private readonly ConcurrentDictionary<AlphaBlockedPathCacheKey, NavPath> _alphaBlockedPathCache = new();
     private readonly ConcurrentDictionary<AlphaBlockedPathCacheKey, byte> _alphaFailedBlockedPathCache = new();
     private readonly ConcurrentDictionary<AlphaObjectiveResolutionCacheKey, int> _alphaObjectiveResolutionCache = new();
-    private readonly ConcurrentDictionary<AlphaBlockedObjectiveReachabilityCacheKey, HashSet<int>> _alphaBlockedObjectiveReachabilityCache = new();
     private readonly ConcurrentDictionary<AlphaObjectiveReachabilityCacheKey, HashSet<int>> _alphaObjectiveReachabilityCache = new();
     private readonly ConcurrentDictionary<AlphaSearchProfileKey, ConcurrentDictionary<int, NavEdge[]>> _alphaSearchEdgesCache = new();
     private readonly ThreadLocal<NavPathSearchWorkspace> _pathSearchWorkspaces = new();

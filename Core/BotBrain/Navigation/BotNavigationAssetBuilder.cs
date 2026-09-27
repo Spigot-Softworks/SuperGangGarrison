@@ -18,12 +18,10 @@ public static class BotNavigationAssetBuilder
     private const float StepRelayVerticalReach = 14f;
     private const float StairRampRelayHorizontalReach = 160f;
     private const float StairRampRelayVerticalReach = 112f;
-    private const float StairRampRelayJumpVerticalReach = 74f;
     private const float StairRampRelayMinimumHorizontal = 8f;
     private const float StairRampRelayCostMultiplier = 0.18f;
     private const float ReverseFallJumpVerticalReach = 120f;
     private const float MinimumPortalSpacing = 36f;
-    private const float LongSurfacePortalSpacing = 320f;
     private const float InteriorCornerSurfaceTolerance = 18f;
     private const float AnchorPortalHorizontalRange = 192f;
     private const float AnchorPortalVerticalRange = 512f;

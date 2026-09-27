@@ -681,11 +681,6 @@ internal sealed class NetworkGameClient : IDisposable
         _pendingControlCommands.Remove(ControlCommandKind.SelectClass);
     }
 
-    public void ClearPendingGameplayLoadoutSelection()
-    {
-        _pendingControlCommands.Remove(ControlCommandKind.SelectGameplayLoadout);
-    }
-
     public void SendPassword(string password)
     {
         if (!IsConnected)
@@ -1158,11 +1153,6 @@ internal sealed class NetworkGameClient : IDisposable
         _lastDisconnectReason = null;
         return true;
     }
-
-    public bool TryGetProtocol64InputResult(
-        ulong commandId,
-        out Protocol64InputCommandResult result)
-        => _protocol64InputResults.TryGetValue(commandId, out result!);
 
     public ulong SendLastToDieCommand(
         LastToDieCommandKind kind,

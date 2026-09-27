@@ -352,16 +352,6 @@ public partial class Game1
         PlaylistMapIndex = Math.Clamp(PlaylistMapIndex, -1, Math.Max(0, mapCount - 1));
     }
 
-    public void EnsureAvailableMapVisible(int visibleRowCount)
-    {
-        EnsureListIndexVisible(
-            AvailableMapIndex,
-            visibleRowCount,
-            GetAvailableMapsForDisplay().Count,
-            offset => AvailableMapScrollOffset = offset,
-            () => AvailableMapScrollOffset);
-    }
-
     public void EnsurePlaylistMapVisible(int visibleRowCount)
     {
         EnsureListIndexVisible(

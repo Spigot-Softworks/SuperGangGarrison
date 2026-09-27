@@ -202,7 +202,6 @@ public sealed class BotReactionController : IBotReactionController
         foreach (var entry in controlledBotSlots)
         {
             var slot = entry.Key;
-            var botSlot = entry.Value;
 
             if (!world.TryGetNetworkPlayer(slot, out var bot) || bot is null)
             {

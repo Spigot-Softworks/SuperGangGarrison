@@ -48,7 +48,6 @@ public sealed partial class SimulationWorld
         float sourceX,
         float sourceY)
     {
-        var runtimeRegistry = CharacterClassCatalog.RuntimeRegistry;
         var channel = ToGameplayAbilityChannel(category);
         foreach (var item in ResolveGameplayAbilityItems(player, channel))
         {

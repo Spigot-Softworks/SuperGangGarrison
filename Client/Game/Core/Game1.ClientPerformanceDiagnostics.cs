@@ -45,7 +45,6 @@ public partial class Game1
     private const int ClientPerformanceBotMovementMaxTicks = 120;
     private const int ClientPerformanceBotRouteMaxTicks = 900;
     private const string ClientPerformanceDefaultMap = "Valley";
-    private const string ClientPerformanceDefaultMode = "practice";
     private const string ClientPerformanceDefaultLastToDieSurvivor = "soldier";
 
     private static readonly bool ClientPerformanceLoggingEnabled = GetClientPerformanceEnvironmentFlag(ClientPerformanceLogEnvironmentVariable);

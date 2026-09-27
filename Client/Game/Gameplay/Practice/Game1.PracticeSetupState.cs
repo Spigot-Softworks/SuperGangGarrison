@@ -165,14 +165,6 @@ public partial class Game1
             NotifyAvailableMapFiltersChanged();
         }
 
-        public void SetMapBrowserSource(bool showCustomMaps)
-        {
-            MapBrowserSection = showCustomMaps
-                ? PracticeMapBrowserSection.Custom
-                : PracticeMapBrowserSection.AllBuiltIn;
-            ResetAvailableMapFilters();
-        }
-
         public void SetMapBrowserSection(PracticeMapBrowserSection section)
         {
             MapBrowserSection = ClientDistribution.IsRestricted && section == PracticeMapBrowserSection.SuperGangGarrison
