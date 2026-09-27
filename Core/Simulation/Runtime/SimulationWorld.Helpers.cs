@@ -71,7 +71,7 @@ public sealed partial class SimulationWorld
             var directionY = aimDeltaY / distance;
             var maxDistance = 2000f; // Maximum raycast distance (same as rifle shot)
 
-            var hitResult = Combat.ResolveRifleHit(player, originX, originY, directionX, directionY, maxDistance);
+            var hitResult = GeometryResolver.ResolveRifleHit(player, originX, originY, directionX, directionY, maxDistance);
 
             // If we hit any cloaked spy (friendly or enemy) that's not visible, ignore them and use max distance
             // This prevents revealing spy positions through the aim indicator

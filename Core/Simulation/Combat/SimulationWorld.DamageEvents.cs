@@ -2,7 +2,57 @@ namespace OpenGarrison.Core;
 
 public sealed partial class SimulationWorld
 {
-    private const float AssistTrackingSourceTicks = 210f;
+    private CombatSystemDependencies CreateCombatSystemDependencies()
+    {
+        return new CombatSystemDependencies
+        {
+            CurrentFrame = () => Frame,
+            NextSharedRandomDouble = () => _random.NextDouble(),
+            EnumerateSimulatedPlayers = EnumerateSimulatedPlayers,
+            FindPlayerById = FindPlayerById,
+            CanDamagePlayer = CanTeamDamagePlayer,
+            ScaleConfiguredDamage = ScaleConfiguredDamage,
+            ScaleConfiguredFloatDamage = ScaleConfiguredDamage,
+            ScaleConfiguredContinuousDamage = ScaleConfiguredDamage,
+            GetSimulationTicksFromSourceTicks = GetSimulationTicksFromSourceTicks,
+            ApplyExperimentalOutgoingDamageMultiplier = ApplyExperimentalOutgoingDamageMultiplier,
+            ApplyExperimentalOutgoingDamageMultiplierContinuous = ApplyExperimentalOutgoingDamageMultiplier,
+            ApplyExperimentalIncomingDamageMultiplier = ApplyExperimentalIncomingDamageMultiplier,
+            ApplyExperimentalIncomingDamageMultiplierContinuous = ApplyExperimentalIncomingDamageMultiplier,
+            ApplyLastToDieOutgoingDamageMultiplier = ApplyLastToDieOutgoingDamageMultiplier,
+            ApplyLastToDieOutgoingDamageMultiplierContinuous = ApplyLastToDieOutgoingDamageMultiplier,
+            ApplyLastToDieIncomingDamageMultiplier = ApplyLastToDieIncomingDamageMultiplier,
+            ApplyLastToDieIncomingDamageMultiplierContinuous = ApplyLastToDieIncomingDamageMultiplier,
+            ApplyExperimentalIncomingSentryDamageMultiplier = ApplyExperimentalIncomingSentryDamageMultiplier,
+            TryPreventExperimentalFatalDamage = TryPreventExperimentalFatalDamage,
+            TryConvertExperimentalSelfDamageToHealing = TryConvertExperimentalSelfDamageToHealing,
+            TryAbsorbPracticeCombatDummyDamage = TryAbsorbPracticeCombatDummyDamage,
+            TryAbsorbPracticeCombatDummyContinuousDamage = TryAbsorbPracticeCombatDummyContinuousDamage,
+            GetExperimentalTotalEvasionChance = GetExperimentalTotalEvasionChance,
+            GetLastToDieEvasionChance = GetLastToDieEvasionChance,
+            RollLastToDieEvasion = RollLastToDieEvasion,
+            ApplyExperimentalDamageRewards = ApplyExperimentalDamageRewards,
+            ApplyExperimentalDamageTakenRewards = ApplyExperimentalDamageTakenRewards,
+            ApplyLastToDieDamageRewards = ApplyLastToDieDamageRewards,
+            ApplyLastToDieDamageTakenEffects = ApplyLastToDieDamageTakenEffects,
+            ResolveLastToDieMedicLinkedOnHit = ResolveLastToDieMedicLinkedOnHit,
+            ResolveLastToDieMedicLinkedAssistPlayerId = ResolveLastToDieMedicLinkedAssistPlayerId,
+            ApplyLastToDieMedicLinkedOnHitEffects = ApplyLastToDieMedicLinkedOnHitEffects,
+            ApplyExperimentalEngineerFriendlyFireRetaliation = ApplyExperimentalEngineerFriendlyFireRetaliation,
+            TryRegisterCombatComboHit = TryRegisterCombatComboHit,
+            TryRegisterBuffBannerDamage = TryRegisterBuffBannerDamage,
+            RegisterImpactEffect = RegisterImpactEffect,
+            GetCivvieUmbrellaTip = (target, x, y) =>
+            {
+                var tip = WeaponHandler.GetCivvieUmbrellaTip(target, x, y);
+                return (tip.X, tip.Y);
+            },
+            ShouldCancelDamage = (frame, targetKind, targetEntityId, targetPlayerId, targetTeam, attacker, amount, wouldBeFatal, x, y) =>
+                ShouldCancelDamage(targetKind, targetEntityId, targetPlayerId, targetTeam, attacker, amount, wouldBeFatal, x, y),
+            ShouldCancelDeath = (frame, player, gibbed, killer, weaponSpriteName) =>
+                ShouldCancelDeath(player, gibbed, killer, weaponSpriteName),
+        };
+    }
 
     private void RegisterDamageEvent(
         PlayerEntity? attacker,
@@ -16,97 +66,18 @@ public sealed partial class SimulationWorld
         DamageEventFlags flags = DamageEventFlags.None,
         int assistPlayerIdOverride = -1,
         int attackerPlayerIdOverride = -1)
-    {
-        if (amount <= 0 && !flags.HasFlag(DamageEventFlags.Evaded))
-        {
-            return;
-        }
-
-        var attackerPlayerId = attackerPlayerIdOverride > 0
-            ? attackerPlayerIdOverride
-            : attacker?.Id ?? -1;
-        var assistedByPlayerId = ResolveDamageEventAssistPlayerId(
-            attacker,
-            playerTarget,
-            targetKind,
-            wasFatal,
-            assistPlayerIdOverride);
-        _pendingDamageEvents.Add(new WorldDamageEvent(
-            amount,
-            attackerPlayerId,
-            assistedByPlayerId,
-            targetKind,
-            targetEntityId,
-            x,
-            y,
-            wasFatal,
-            flags,
-            SourceFrame: (ulong)Frame));
-        if (targetKind == DamageTargetKind.Player
-            && attacker is not null
-            && playerTarget is not null)
-        {
-            TryRegisterBuffBannerDamage(attacker, playerTarget, amount);
-        }
-    }
-
-    private int FindHealingMedicPlayerId(int targetPlayerId)
-    {
-        foreach (var player in EnumerateSimulatedPlayers())
-        {
-            if (player.ClassId == PlayerClass.Medic
-                && player.IsAlive
-                && player.MedicHealTargetId == targetPlayerId)
-            {
-                return player.Id;
-            }
-        }
-
-        return -1;
-    }
+        => Combat.RegisterDamageEvent(
+            attacker, targetKind, targetEntityId, x, y, amount, wasFatal, playerTarget,
+            flags, assistPlayerIdOverride, attackerPlayerIdOverride);
 
     private void MarkPendingFatalPlayerDamageEventGibbed(int playerId)
-    {
-        for (var index = _pendingDamageEvents.Count - 1; index >= 0; index -= 1)
-        {
-            var damageEvent = _pendingDamageEvents[index];
-            if (!damageEvent.WasFatal
-                || damageEvent.TargetKind != DamageTargetKind.Player
-                || damageEvent.TargetEntityId != playerId)
-            {
-                continue;
-            }
-
-            _pendingDamageEvents[index] = damageEvent with
-            {
-                Flags = damageEvent.Flags | DamageEventFlags.Gibbed,
-            };
-            return;
-        }
-    }
+        => Combat.MarkPendingFatalPlayerDamageEventGibbed(playerId);
 
     private void MarkPendingFatalPlayerDamageEventPrevented(int playerId)
-    {
-        for (var index = _pendingDamageEvents.Count - 1; index >= 0; index -= 1)
-        {
-            var damageEvent = _pendingDamageEvents[index];
-            if (!damageEvent.WasFatal
-                || damageEvent.TargetKind != DamageTargetKind.Player
-                || damageEvent.TargetEntityId != playerId)
-            {
-                continue;
-            }
-
-            _pendingDamageEvents[index] = damageEvent with { WasFatal = false };
-            return;
-        }
-    }
+        => Combat.MarkPendingFatalPlayerDamageEventPrevented(playerId);
 
     private bool ApplyPlayerDamage(
-        PlayerEntity target,
-        int damage,
-        PlayerEntity? attacker,
-        float spyRevealAlpha = 0f,
+        PlayerEntity target, int damage, PlayerEntity? attacker, float spyRevealAlpha = 0f,
         DamageEventFlags damageFlags = DamageEventFlags.None,
         bool allowOsmosisHealOwnedSentries = true,
         bool allowCivvieUmbrellaShield = true,
@@ -114,28 +85,13 @@ public sealed partial class SimulationWorld
         float? civvieUmbrellaThreatSourceY = null,
         int? civvieUmbrellaDrainTicks = null,
         bool civvieUmbrellaCriticalBoost = false)
-    {
-        return ApplyPlayerDamageWithContext(
-            target,
-            damage,
-            attacker,
-            spyRevealAlpha,
-            damageFlags,
-            allowOsmosisHealOwnedSentries,
-            allowCivvieUmbrellaShield,
-            civvieUmbrellaThreatSourceX,
-            civvieUmbrellaThreatSourceY,
-            civvieUmbrellaDrainTicks,
-            civvieUmbrellaCriticalBoost,
-            attackerWasGrounded: attacker?.IsGrounded,
-            targetWasGrounded: target.IsGrounded);
-    }
+        => Combat.ApplyPlayerDamage(
+            target, damage, attacker, spyRevealAlpha, damageFlags, allowOsmosisHealOwnedSentries,
+            allowCivvieUmbrellaShield, civvieUmbrellaThreatSourceX, civvieUmbrellaThreatSourceY,
+            civvieUmbrellaDrainTicks, civvieUmbrellaCriticalBoost);
 
     private bool ApplyPlayerDamageWithContext(
-        PlayerEntity target,
-        int damage,
-        PlayerEntity? attacker,
-        float spyRevealAlpha = 0f,
+        PlayerEntity target, int damage, PlayerEntity? attacker, float spyRevealAlpha = 0f,
         DamageEventFlags damageFlags = DamageEventFlags.None,
         bool allowOsmosisHealOwnedSentries = true,
         bool allowCivvieUmbrellaShield = true,
@@ -150,25 +106,15 @@ public sealed partial class SimulationWorld
         int sourceEntityId = 0,
         ulong attackId = 0,
         int attackerPlayerIdOverride = -1)
-        => ResolvePlayerDamageWithContext(
-            target,
-            damage,
-            attacker,
-            spyRevealAlpha,
-            damageFlags,
-            allowOsmosisHealOwnedSentries,
-            allowCivvieUmbrellaShield,
-            civvieUmbrellaThreatSourceX,
-            civvieUmbrellaThreatSourceY,
-            civvieUmbrellaDrainTicks,
-            civvieUmbrellaCriticalBoost,
-            civvieUmbrellaUseLiveAttackerCriticalBoost,
-            additionalTraits,
-            attackerWasGrounded,
-            targetWasGrounded,
-            sourceEntityId,
-            attackId,
-            attackerPlayerIdOverride).WasFatal;
+        => Combat.ApplyPlayerDamageWithContext(
+            target, damage, attacker, spyRevealAlpha, damageFlags, allowOsmosisHealOwnedSentries,
+            allowCivvieUmbrellaShield, civvieUmbrellaThreatSourceX, civvieUmbrellaThreatSourceY,
+            civvieUmbrellaDrainTicks, civvieUmbrellaCriticalBoost,
+            civvieUmbrellaUseLiveAttackerCriticalBoost, additionalTraits, attackerWasGrounded,
+            targetWasGrounded, sourceEntityId, attackId, attackerPlayerIdOverride);
+
+    internal PlayerDamageResolution ResolvePlayerDamage(PlayerEntity target, in PlayerDamageRequest request)
+        => Combat.ResolvePlayerDamage(target, request);
 
     private PlayerDamageResolution ResolvePlayerDamageWithContext(
         PlayerEntity target,
@@ -189,310 +135,7 @@ public sealed partial class SimulationWorld
         int sourceEntityId = 0,
         ulong attackId = 0,
         int attackerPlayerIdOverride = -1)
-    {
-        var traits = PlayerDamageTraits.CanEvade
-            | PlayerDamageTraits.CanApplyOnHitEffects
-            | PlayerDamageTraits.CanReflect
-            | additionalTraits;
-        if (civvieUmbrellaCriticalBoost)
-        {
-            traits |= PlayerDamageTraits.Critical;
-        }
-
-        return ResolvePlayerDamage(
-            target,
-            new PlayerDamageRequest(
-                PlayerDamageApplicationKind.Instant,
-                damage,
-                attacker,
-                spyRevealAlpha,
-                damageFlags,
-                traits,
-                allowOsmosisHealOwnedSentries,
-                new PlayerDamageUmbrellaOptions(
-                    allowCivvieUmbrellaShield,
-                    civvieUmbrellaThreatSourceX,
-                    civvieUmbrellaThreatSourceY,
-                    civvieUmbrellaDrainTicks,
-                    civvieUmbrellaCriticalBoost,
-                    civvieUmbrellaUseLiveAttackerCriticalBoost),
-                SourceEntityId: sourceEntityId,
-                AttackId: attackId,
-                AttackerWasGrounded: attackerWasGrounded ?? attacker?.IsGrounded,
-                TargetWasGrounded: targetWasGrounded ?? target.IsGrounded,
-                AttackerPlayerIdOverride: attackerPlayerIdOverride));
-    }
-
-    internal PlayerDamageResolution ResolvePlayerDamage(
-        PlayerEntity target,
-        in PlayerDamageRequest request)
-    {
-        return request.ApplicationKind switch
-        {
-            PlayerDamageApplicationKind.Instant => ResolveInstantPlayerDamage(target, request),
-            PlayerDamageApplicationKind.Continuous => ResolveContinuousPlayerDamage(target, request),
-            _ => new PlayerDamageResolution(
-                PlayerDamageDisposition.Rejected,
-                request.Amount,
-                request.Amount,
-                request.Amount,
-                request.Amount,
-                request.Amount,
-                target.Health,
-                target.Health,
-                0,
-                WasFatal: false,
-                request.EventFlags,
-                request.Traits),
-        };
-    }
-
-    private PlayerDamageResolution ResolveInstantPlayerDamage(
-        PlayerEntity target,
-        in PlayerDamageRequest request)
-    {
-        var requestedDamage = request.Amount;
-        var damageAfterOutgoingModifiers = requestedDamage;
-        var damageAfterIncomingModifiers = requestedDamage;
-        var damageAfterServerScaling = requestedDamage;
-        var damageAfterShield = requestedDamage;
-        var healthBefore = target.Health;
-        var damageFlags = ResolvePlayerDamageEventFlags(request);
-        var damageTraits = request.Traits;
-
-        PlayerDamageResolution Finish(
-            PlayerDamageDisposition disposition,
-            int appliedHealthDamage = 0,
-            bool wasFatal = false)
-            => new(
-                disposition,
-                requestedDamage,
-                damageAfterOutgoingModifiers,
-                damageAfterIncomingModifiers,
-                damageAfterServerScaling,
-                damageAfterShield,
-                healthBefore,
-                target.Health,
-                appliedHealthDamage,
-                wasFatal,
-                damageFlags,
-                damageTraits);
-
-        var damage = (int)request.Amount;
-        if (damage <= 0 || !target.IsAlive)
-        {
-            return Finish(PlayerDamageDisposition.Rejected);
-        }
-
-        if (target.IsLastToDieSpyAfterlifeIncomingDamageImmune
-            || target.IsLastToDieMedicHailMaryInvulnerable
-            || target.IsLastToDieSecondChanceInvulnerable)
-        {
-            return Finish(PlayerDamageDisposition.Invulnerable);
-        }
-
-        if (request.Traits.HasFlag(PlayerDamageTraits.DirectProjectile)
-            && target.IsLastToDieSpyInfiltrateProjectileImmune)
-        {
-            return Finish(PlayerDamageDisposition.Invulnerable);
-        }
-
-        if (request.Umbrella.AllowBlock
-            && TryAbsorbCivvieUmbrellaDamage(
-                target,
-                request.Attacker,
-                damageFlags,
-                request.Umbrella.ThreatSourceX,
-                request.Umbrella.ThreatSourceY,
-                request.Umbrella.DrainTicks,
-                request.Umbrella.CriticalBoost,
-                request.Umbrella.UseLiveAttackerCriticalBoost))
-        {
-            return Finish(PlayerDamageDisposition.UmbrellaBlocked);
-        }
-
-        damage = ApplyExperimentalOutgoingDamageMultiplier(request.Attacker, target, damage);
-        damage = ApplyLastToDieOutgoingDamageMultiplier(
-            request.Attacker,
-            target,
-            damage,
-            request.Traits,
-            request.AttackerWasGrounded,
-            request.TargetWasGrounded);
-        damageAfterOutgoingModifiers = damage;
-        if (request.Traits.HasFlag(PlayerDamageTraits.CanEvade)
-            && TryRegisterExperimentalGhostDashEvade(target, request.Attacker, damageFlags))
-        {
-            return Finish(PlayerDamageDisposition.GhostEvaded);
-        }
-
-        if (request.Traits.HasFlag(PlayerDamageTraits.CanEvade)
-            && TryEvadePlayerDamage(target, request.Attacker, damage, damageFlags))
-        {
-            return Finish(PlayerDamageDisposition.Evaded);
-        }
-
-        damage = ApplyExperimentalIncomingDamageMultiplier(target, request.Attacker, damage);
-        damage = ApplyLastToDieIncomingDamageMultiplier(target, damage, damageTraits);
-        damageAfterIncomingModifiers = damage;
-        damage = ScaleConfiguredDamage(damage);
-        damageAfterServerScaling = damage;
-        damage = target.AbsorbExperimentalShieldDamage(damage);
-        damageAfterShield = damage;
-        if (damage <= 0)
-        {
-            return Finish(PlayerDamageDisposition.FullyShielded);
-        }
-
-        if (request.Traits.HasFlag(PlayerDamageTraits.ExecuteAfterDefenses))
-        {
-            damage = target.Health;
-        }
-
-        if (TryConvertExperimentalSelfDamageToHealing(target, request.Attacker, damage))
-        {
-            return Finish(PlayerDamageDisposition.ConvertedToHealing);
-        }
-
-        if (TryPreventExperimentalFatalDamage(target, damage))
-        {
-            var fatalPreventedDamage = Math.Max(0, healthBefore - target.Health);
-            var fatalPreventedLinkedMedic = ResolveLastToDieMedicLinkedOnHit(
-                request.Attacker,
-                target,
-                fatalPreventedDamage,
-                request.Traits);
-            var fatalPreventedAssistPlayerIdOverride = request.AssistPlayerIdOverride > 0
-                ? request.AssistPlayerIdOverride
-                : ResolveLastToDieMedicLinkedAssistPlayerId(request.Attacker, fatalPreventedLinkedMedic);
-            RegisterDamageEvent(
-                request.Attacker,
-                DamageTargetKind.Player,
-                target.Id,
-                target.X,
-                target.Y,
-                fatalPreventedDamage,
-                wasFatal: false,
-                target,
-                damageFlags,
-                fatalPreventedAssistPlayerIdOverride,
-                request.AttackerPlayerIdOverride);
-            ApplyLastToDieDamageRewards(request.Attacker, target, fatalPreventedDamage, request.Traits);
-            ApplyLastToDieMedicLinkedOnHitEffects(
-                request.Attacker,
-                target,
-                fatalPreventedLinkedMedic);
-            ApplyLastToDieDamageTakenEffects(target, request.Attacker, fatalPreventedDamage, request.Traits);
-            return Finish(PlayerDamageDisposition.FatalPrevented, fatalPreventedDamage);
-        }
-
-        var martyrFatalPrevented = target.LastToDieMedicMartyrProtectedLinkActive
-            && damage >= target.Health;
-        if (martyrFatalPrevented)
-        {
-            damage = Math.Max(0, target.Health - 1);
-            if (damage == 0)
-            {
-                return Finish(PlayerDamageDisposition.FatalPrevented);
-            }
-        }
-
-        var wouldBeFatal = damage >= target.Health;
-        if (ShouldCancelDamage(
-                DamageTargetKind.Player,
-                target.Id,
-                target.Id,
-                target.Team,
-                request.Attacker,
-                damage,
-                wouldBeFatal,
-                target.X,
-                target.Y))
-        {
-            return Finish(PlayerDamageDisposition.DamageCancelled);
-        }
-
-        if (TryAbsorbPracticeCombatDummyDamage(target, damage, request.Attacker, damageFlags))
-        {
-            return Finish(PlayerDamageDisposition.PracticeDummyRecorded);
-        }
-
-        if (wouldBeFatal && ShouldCancelDeath(
-                target,
-                request.GibOnFatal,
-                request.Attacker,
-                request.FatalWeaponSpriteName))
-        {
-            return Finish(PlayerDamageDisposition.DeathCancelled);
-        }
-
-        var died = target.ApplyDamage(damage, request.SpyRevealAlpha);
-        var appliedDamage = Math.Max(0, healthBefore - target.Health);
-        RegisterPlayerDamageDealer(target, request.Attacker, appliedDamage);
-        var linkedMedic = ResolveLastToDieMedicLinkedOnHit(
-            request.Attacker,
-            target,
-            appliedDamage,
-            request.Traits);
-        var assistPlayerIdOverride = request.AssistPlayerIdOverride > 0
-            ? request.AssistPlayerIdOverride
-            : ResolveLastToDieMedicLinkedAssistPlayerId(request.Attacker, linkedMedic);
-        RegisterDamageEvent(
-            request.Attacker,
-            DamageTargetKind.Player,
-            target.Id,
-            target.X,
-            target.Y,
-            appliedDamage,
-            died,
-            target,
-            damageFlags,
-            assistPlayerIdOverride,
-            request.AttackerPlayerIdOverride);
-        ApplyExperimentalDamageRewards(
-            request.Attacker,
-            target,
-            appliedDamage,
-            request.AllowOsmosisHealOwnedSentries);
-        ApplyLastToDieDamageRewards(request.Attacker, target, appliedDamage, request.Traits);
-        ApplyLastToDieMedicLinkedOnHitEffects(
-            request.Attacker,
-            target,
-            linkedMedic);
-        ApplyLastToDieDamageTakenEffects(target, request.Attacker, appliedDamage, request.Traits);
-        if (!request.Traits.HasFlag(PlayerDamageTraits.Reflected))
-        {
-            ApplyExperimentalDamageTakenRewards(target, request.Attacker, appliedDamage);
-        }
-        if (request.Attacker is not null)
-        {
-            ApplyExperimentalEngineerFriendlyFireRetaliation(request.Attacker, target, appliedDamage);
-        }
-        TryRegisterCombatComboHit(request.Attacker, target, appliedDamage);
-        return Finish(
-            martyrFatalPrevented
-                ? PlayerDamageDisposition.FatalPrevented
-                : appliedDamage > 0
-                    ? PlayerDamageDisposition.Applied
-                    : PlayerDamageDisposition.Invulnerable,
-            appliedDamage,
-            died);
-    }
-
-    private bool ApplyPlayerContinuousDamage(
-        PlayerEntity target,
-        float damage,
-        PlayerEntity? attacker,
-        float spyRevealAlpha = 0f,
-        DamageEventFlags damageFlags = DamageEventFlags.None,
-        bool allowOsmosisHealOwnedSentries = true,
-        bool allowCivvieUmbrellaShield = true,
-        float? civvieUmbrellaThreatSourceX = null,
-        float? civvieUmbrellaThreatSourceY = null,
-        int? civvieUmbrellaDrainTicks = null,
-        bool civvieUmbrellaCriticalBoost = false)
-    {
-        return ApplyPlayerContinuousDamageWithContext(
+        => Combat.ResolvePlayerDamageWithContext(
             target,
             damage,
             attacker,
@@ -504,15 +147,30 @@ public sealed partial class SimulationWorld
             civvieUmbrellaThreatSourceY,
             civvieUmbrellaDrainTicks,
             civvieUmbrellaCriticalBoost,
-            attackerWasGrounded: attacker?.IsGrounded,
-            targetWasGrounded: target.IsGrounded);
-    }
+            civvieUmbrellaUseLiveAttackerCriticalBoost,
+            additionalTraits,
+            attackerWasGrounded,
+            targetWasGrounded,
+            sourceEntityId,
+            attackId,
+            attackerPlayerIdOverride);
+
+    private bool ApplyPlayerContinuousDamage(
+        PlayerEntity target, float damage, PlayerEntity? attacker, float spyRevealAlpha = 0f,
+        DamageEventFlags damageFlags = DamageEventFlags.None,
+        bool allowOsmosisHealOwnedSentries = true,
+        bool allowCivvieUmbrellaShield = true,
+        float? civvieUmbrellaThreatSourceX = null,
+        float? civvieUmbrellaThreatSourceY = null,
+        int? civvieUmbrellaDrainTicks = null,
+        bool civvieUmbrellaCriticalBoost = false)
+        => Combat.ApplyPlayerContinuousDamage(
+            target, damage, attacker, spyRevealAlpha, damageFlags, allowOsmosisHealOwnedSentries,
+            allowCivvieUmbrellaShield, civvieUmbrellaThreatSourceX, civvieUmbrellaThreatSourceY,
+            civvieUmbrellaDrainTicks, civvieUmbrellaCriticalBoost);
 
     private bool ApplyPlayerContinuousDamageWithContext(
-        PlayerEntity target,
-        float damage,
-        PlayerEntity? attacker,
-        float spyRevealAlpha = 0f,
+        PlayerEntity target, float damage, PlayerEntity? attacker, float spyRevealAlpha = 0f,
         DamageEventFlags damageFlags = DamageEventFlags.None,
         bool allowOsmosisHealOwnedSentries = true,
         bool allowCivvieUmbrellaShield = true,
@@ -524,590 +182,43 @@ public sealed partial class SimulationWorld
         PlayerDamageTraits additionalTraits = PlayerDamageTraits.None,
         bool? attackerWasGrounded = null,
         bool? targetWasGrounded = null)
-    {
-        var traits = PlayerDamageTraits.CanEvade
-            | PlayerDamageTraits.CanApplyOnHitEffects
-            | PlayerDamageTraits.CanReflect
-            | additionalTraits;
-        if (civvieUmbrellaCriticalBoost)
-        {
-            traits |= PlayerDamageTraits.Critical;
-        }
-
-        return ResolvePlayerDamage(
-            target,
-            new PlayerDamageRequest(
-                PlayerDamageApplicationKind.Continuous,
-                damage,
-                attacker,
-                spyRevealAlpha,
-                damageFlags,
-                traits,
-                allowOsmosisHealOwnedSentries,
-                new PlayerDamageUmbrellaOptions(
-                    allowCivvieUmbrellaShield,
-                    civvieUmbrellaThreatSourceX,
-                    civvieUmbrellaThreatSourceY,
-                    civvieUmbrellaDrainTicks,
-                    civvieUmbrellaCriticalBoost,
-                    civvieUmbrellaUseLiveAttackerCriticalBoost),
-                AttackerWasGrounded: attackerWasGrounded ?? attacker?.IsGrounded,
-                TargetWasGrounded: targetWasGrounded ?? target.IsGrounded)).WasFatal;
-    }
-
-    private PlayerDamageResolution ResolveContinuousPlayerDamage(
-        PlayerEntity target,
-        in PlayerDamageRequest request)
-    {
-        var requestedDamage = request.Amount;
-        var damageAfterOutgoingModifiers = requestedDamage;
-        var damageAfterIncomingModifiers = requestedDamage;
-        var damageAfterServerScaling = requestedDamage;
-        var damageAfterShield = requestedDamage;
-        var healthBefore = target.Health;
-        var damageFlags = ResolvePlayerDamageEventFlags(request);
-        var damageTraits = request.Traits;
-
-        PlayerDamageResolution Finish(
-            PlayerDamageDisposition disposition,
-            int appliedHealthDamage = 0,
-            bool wasFatal = false)
-            => new(
-                disposition,
-                requestedDamage,
-                damageAfterOutgoingModifiers,
-                damageAfterIncomingModifiers,
-                damageAfterServerScaling,
-                damageAfterShield,
-                healthBefore,
-                target.Health,
-                appliedHealthDamage,
-                wasFatal,
-                damageFlags,
-                damageTraits);
-
-        var damage = request.Amount;
-        if (damage <= 0f || !target.IsAlive)
-        {
-            return Finish(PlayerDamageDisposition.Rejected);
-        }
-
-        if (target.IsLastToDieSpyAfterlifeIncomingDamageImmune
-            || target.IsLastToDieMedicHailMaryInvulnerable
-            || target.IsLastToDieSecondChanceInvulnerable)
-        {
-            return Finish(PlayerDamageDisposition.Invulnerable);
-        }
-
-        if (request.Traits.HasFlag(PlayerDamageTraits.DirectProjectile)
-            && target.IsLastToDieSpyInfiltrateProjectileImmune)
-        {
-            return Finish(PlayerDamageDisposition.Invulnerable);
-        }
-
-        if (request.Umbrella.AllowBlock
-            && TryAbsorbCivvieUmbrellaDamage(
-                target,
-                request.Attacker,
-                damageFlags,
-                request.Umbrella.ThreatSourceX,
-                request.Umbrella.ThreatSourceY,
-                request.Umbrella.DrainTicks,
-                request.Umbrella.CriticalBoost,
-                request.Umbrella.UseLiveAttackerCriticalBoost))
-        {
-            return Finish(PlayerDamageDisposition.UmbrellaBlocked);
-        }
-
-        damage = ApplyExperimentalOutgoingDamageMultiplier(request.Attacker, target, damage);
-        damage = ApplyLastToDieOutgoingDamageMultiplier(
-            request.Attacker,
-            target,
-            damage,
-            request.Traits,
-            request.AttackerWasGrounded,
-            request.TargetWasGrounded);
-        damageAfterOutgoingModifiers = damage;
-        if (request.Traits.HasFlag(PlayerDamageTraits.CanEvade)
-            && TryRegisterExperimentalGhostDashEvade(target, request.Attacker, damageFlags))
-        {
-            return Finish(PlayerDamageDisposition.GhostEvaded);
-        }
-
-        if (request.Traits.HasFlag(PlayerDamageTraits.CanEvade)
-            && TryEvadePlayerDamage(target, request.Attacker, damage, damageFlags))
-        {
-            return Finish(PlayerDamageDisposition.Evaded);
-        }
-
-        damage = ApplyExperimentalIncomingDamageMultiplier(target, request.Attacker, damage);
-        damage = ApplyLastToDieIncomingDamageMultiplier(target, damage, damageTraits);
-        damageAfterIncomingModifiers = damage;
-        damage = ScaleConfiguredDamage(damage);
-        damageAfterServerScaling = damage;
-        damage = target.AbsorbExperimentalShieldDamage(damage);
-        damageAfterShield = damage;
-        if (damage <= 0f)
-        {
-            return Finish(PlayerDamageDisposition.FullyShielded);
-        }
-
-        if (request.Traits.HasFlag(PlayerDamageTraits.ExecuteAfterDefenses))
-        {
-            damage = target.Health;
-        }
-
-        if (TryConvertExperimentalSelfDamageToHealing(target, request.Attacker, damage))
-        {
-            return Finish(PlayerDamageDisposition.ConvertedToHealing);
-        }
-
-        if (TryPreventExperimentalFatalDamage(target, (int)MathF.Ceiling(damage)))
-        {
-            var fatalPreventedDamage = Math.Max(0, healthBefore - target.Health);
-            var fatalPreventedLinkedMedic = ResolveLastToDieMedicLinkedOnHit(
-                request.Attacker,
-                target,
-                fatalPreventedDamage,
-                request.Traits);
-            var fatalPreventedAssistPlayerIdOverride = request.AssistPlayerIdOverride > 0
-                ? request.AssistPlayerIdOverride
-                : ResolveLastToDieMedicLinkedAssistPlayerId(request.Attacker, fatalPreventedLinkedMedic);
-            RegisterDamageEvent(
-                request.Attacker,
-                DamageTargetKind.Player,
-                target.Id,
-                target.X,
-                target.Y,
-                fatalPreventedDamage,
-                wasFatal: false,
-                target,
-                damageFlags,
-                fatalPreventedAssistPlayerIdOverride,
-                request.AttackerPlayerIdOverride);
-            ApplyLastToDieDamageRewards(request.Attacker, target, fatalPreventedDamage, request.Traits);
-            ApplyLastToDieMedicLinkedOnHitEffects(
-                request.Attacker,
-                target,
-                fatalPreventedLinkedMedic);
-            ApplyLastToDieDamageTakenEffects(target, request.Attacker, fatalPreventedDamage, request.Traits);
-            return Finish(PlayerDamageDisposition.FatalPrevented, fatalPreventedDamage);
-        }
-
-        var projectedWholeDamage = (int)(target.ContinuousDamageAccumulator + damage);
-        var martyrFatalPrevented = target.LastToDieMedicMartyrProtectedLinkActive
-            && projectedWholeDamage >= target.Health;
-        if (martyrFatalPrevented && target.Health <= 1)
-        {
-            return Finish(PlayerDamageDisposition.FatalPrevented);
-        }
-
-        var roundedDamage = martyrFatalPrevented
-            ? target.Health - 1
-            : Math.Max(1, (int)MathF.Ceiling(damage));
-        var wouldBeFatal = !martyrFatalPrevented && damage >= target.Health;
-        if (ShouldCancelDamage(
-                DamageTargetKind.Player,
-                target.Id,
-                target.Id,
-                target.Team,
-                request.Attacker,
-                roundedDamage,
-                wouldBeFatal,
-                target.X,
-                target.Y))
-        {
-            return Finish(PlayerDamageDisposition.DamageCancelled);
-        }
-
-        if (TryAbsorbPracticeCombatDummyContinuousDamage(target, damage, request.Attacker, damageFlags))
-        {
-            return Finish(PlayerDamageDisposition.PracticeDummyRecorded);
-        }
-
-        if (wouldBeFatal && ShouldCancelDeath(target, gibbed: false, request.Attacker, weaponSpriteName: null))
-        {
-            return Finish(PlayerDamageDisposition.DeathCancelled);
-        }
-
-        var died = martyrFatalPrevented
-            ? target.ApplyContinuousDamageCapped(
-                damage,
-                maximumHealthDamage: target.Health - 1,
-                request.SpyRevealAlpha)
-            : target.ApplyContinuousDamage(damage, request.SpyRevealAlpha);
-        var appliedDamage = Math.Max(0, healthBefore - target.Health);
-        RegisterPlayerDamageDealer(target, request.Attacker, appliedDamage);
-        var linkedMedic = ResolveLastToDieMedicLinkedOnHit(
-            request.Attacker,
-            target,
-            appliedDamage,
-            request.Traits);
-        var assistPlayerIdOverride = request.AssistPlayerIdOverride > 0
-            ? request.AssistPlayerIdOverride
-            : ResolveLastToDieMedicLinkedAssistPlayerId(request.Attacker, linkedMedic);
-        RegisterDamageEvent(
-            request.Attacker,
-            DamageTargetKind.Player,
-            target.Id,
-            target.X,
-            target.Y,
-            appliedDamage,
-            died,
-            target,
-            damageFlags,
-            assistPlayerIdOverride,
-            request.AttackerPlayerIdOverride);
-        ApplyExperimentalDamageRewards(
-            request.Attacker,
-            target,
-            appliedDamage,
-            request.AllowOsmosisHealOwnedSentries);
-        ApplyLastToDieDamageRewards(request.Attacker, target, appliedDamage, request.Traits);
-        ApplyLastToDieMedicLinkedOnHitEffects(
-            request.Attacker,
-            target,
-            linkedMedic);
-        ApplyLastToDieDamageTakenEffects(target, request.Attacker, appliedDamage, request.Traits);
-        if (!request.Traits.HasFlag(PlayerDamageTraits.Reflected))
-        {
-            ApplyExperimentalDamageTakenRewards(target, request.Attacker, appliedDamage);
-        }
-        if (request.Attacker is not null)
-        {
-            ApplyExperimentalEngineerFriendlyFireRetaliation(request.Attacker, target, appliedDamage);
-        }
-        TryRegisterCombatComboHit(request.Attacker, target, appliedDamage);
-        var disposition = martyrFatalPrevented
-            ? PlayerDamageDisposition.FatalPrevented
-            : appliedDamage > 0
-                ? PlayerDamageDisposition.Applied
-                : target.IsUbered
-                    || target.IsLastToDieMedicHailMaryInvulnerable
-                    || target.IsLastToDieSecondChanceInvulnerable
-                    || target.IsExperimentalGhostDashing
-                    ? PlayerDamageDisposition.Invulnerable
-                    : PlayerDamageDisposition.Accumulated;
-        return Finish(disposition, appliedDamage, died);
-    }
-
-    private static DamageEventFlags ResolvePlayerDamageEventFlags(
-        in PlayerDamageRequest request)
-    {
-        var flags = request.EventFlags;
-        if (request.Traits.HasFlag(PlayerDamageTraits.Periodic))
-        {
-            flags |= DamageEventFlags.StatusTick;
-        }
-        if (request.Traits.HasFlag(PlayerDamageTraits.Critical))
-        {
-            flags |= DamageEventFlags.Critical;
-        }
-
-        return flags;
-    }
-
-    private bool TryAbsorbCivvieUmbrellaDamage(
-        PlayerEntity target,
-        PlayerEntity? attacker,
-        DamageEventFlags damageFlags,
-        float? threatSourceX = null,
-        float? threatSourceY = null,
-        int? drainTicks = null,
-        bool criticalBoost = false,
-        bool useLiveAttackerCriticalBoost = true)
-    {
-        if (attacker is null
-            || ReferenceEquals(attacker, target)
-            || attacker.Team == target.Team
-            || !target.IsCivvieUmbrellaActive
-            || target.IsCivvieUmbrellaBroken
-            || target.CivvieUmbrellaChargeTicks <= 0)
-        {
-            return false;
-        }
-
-        var resolvedThreatSourceX = threatSourceX ?? attacker.X;
-        var resolvedThreatSourceY = threatSourceY ?? attacker.Y;
-        var resolvedDrainTicks = drainTicks ?? PlayerEntity.CivvieUmbrellaImpactDrain;
-        var isCriticalBoosted = criticalBoost
-            || (useLiveAttackerCriticalBoost && attacker.IsKritzCritBoosted);
-        resolvedDrainTicks = PlayerEntity.ScaleCivvieUmbrellaDrainForCriticalBoost(resolvedDrainTicks, isCriticalBoosted);
-        if (!IsCivvieUmbrellaFrontThreat(target, resolvedThreatSourceX, resolvedThreatSourceY)
-            || !target.TryAbsorbCivvieUmbrellaHit(resolvedDrainTicks))
-        {
-            return false;
-        }
-
-        var (effectX, effectY) = GetCivvieUmbrellaBlockEffectPosition(target);
-        RegisterDamageEvent(
-            attacker,
-            DamageTargetKind.Player,
-            target.Id,
-            effectX,
-            effectY,
-            amount: 0,
-            wasFatal: false,
-            target,
-            damageFlags | DamageEventFlags.Evaded | DamageEventFlags.CivvieUmbrellaBlock);
-        return true;
-    }
-
-    private bool TryAbsorbCivvieUmbrellaProjectileContact(
-        PlayerEntity target,
-        int ownerId,
-        float hitX,
-        float hitY,
-        DamageEventFlags damageFlags = DamageEventFlags.None,
-        bool criticalBoost = false)
-    {
-        var attacker = FindPlayerById(ownerId);
-        if (attacker is null
-            || ReferenceEquals(attacker, target)
-            || attacker.Team == target.Team
-            || !target.IsCivvieUmbrellaActive
-            || target.IsCivvieUmbrellaBroken
-            || target.CivvieUmbrellaChargeTicks <= 0)
-        {
-            return false;
-        }
-
-        if (!IsCivvieUmbrellaFrontThreat(target, hitX, hitY))
-        {
-            return false;
-        }
-
-        var resolvedDrainTicks = PlayerEntity.ScaleCivvieUmbrellaDrainForCriticalBoost(
-            PlayerEntity.CivvieUmbrellaImpactDrain,
-            criticalBoost);
-        if (!target.TryAbsorbCivvieUmbrellaHit(resolvedDrainTicks))
-        {
-            return false;
-        }
-
-        RegisterImpactEffect(hitX, hitY, 0f);
-        RegisterDamageEvent(
-            attacker,
-            DamageTargetKind.Player,
-            target.Id,
-            hitX,
-            hitY,
-            amount: 0,
-            wasFatal: false,
-            target,
-            damageFlags | DamageEventFlags.Evaded | DamageEventFlags.CivvieUmbrellaBlock);
-        return true;
-    }
-
-    private (float X, float Y) GetCivvieUmbrellaBlockEffectPosition(PlayerEntity target)
-    {
-        var aimRadians = DegreesToRadians(target.AimDirectionDegrees);
-        var aimWorldX = target.X + MathF.Cos(aimRadians) * 128f;
-        var aimWorldY = target.Y + MathF.Sin(aimRadians) * 128f;
-        var tip = WeaponHandler.GetCivvieUmbrellaTip(target, aimWorldX, aimWorldY);
-        return (tip.X, tip.Y);
-    }
-
-    private static bool IsCivvieUmbrellaFrontThreat(PlayerEntity target, float threatSourceX, float threatSourceY)
-    {
-        var deltaX = threatSourceX - target.X;
-        var deltaY = threatSourceY - target.Y;
-        if ((deltaX * deltaX) + (deltaY * deltaY) < 0.0001f)
-        {
-            return true;
-        }
-
-        var aimRadians = DegreesToRadians(target.AimDirectionDegrees);
-        var forwardX = MathF.Cos(aimRadians);
-        var forwardY = MathF.Sin(aimRadians);
-        var length = MathF.Sqrt((deltaX * deltaX) + (deltaY * deltaY));
-        var threatDirX = deltaX / length;
-        var threatDirY = deltaY / length;
-        return ((threatDirX * forwardX) + (threatDirY * forwardY)) > 0f;
-    }
-
-    private bool TryRegisterExperimentalGhostDashEvade(
-        PlayerEntity target,
-        PlayerEntity? attacker,
-        DamageEventFlags damageFlags)
-    {
-        if (!target.IsExperimentalGhostDashing
-            || attacker is null
-            || ReferenceEquals(attacker, target)
-            || attacker.Team == target.Team)
-        {
-            return false;
-        }
-
-        RegisterDamageEvent(
-            attacker,
-            DamageTargetKind.Player,
-            target.Id,
-            target.X,
-            target.Y,
-            amount: 0,
-            wasFatal: false,
-            target,
-            damageFlags | DamageEventFlags.Evaded | DamageEventFlags.GhostDash);
-        return true;
-    }
+        => Combat.ApplyPlayerContinuousDamageWithContext(
+            target, damage, attacker, spyRevealAlpha, damageFlags, allowOsmosisHealOwnedSentries,
+            allowCivvieUmbrellaShield, civvieUmbrellaThreatSourceX, civvieUmbrellaThreatSourceY,
+            civvieUmbrellaDrainTicks, civvieUmbrellaCriticalBoost,
+            civvieUmbrellaUseLiveAttackerCriticalBoost, additionalTraits, attackerWasGrounded,
+            targetWasGrounded);
 
     private bool ApplySentryDamage(SentryEntity target, int damage, PlayerEntity? attacker)
-    {
-        if (damage <= 0)
-        {
-            return false;
-        }
-
-        damage = ApplyExperimentalIncomingSentryDamageMultiplier(target, damage);
-        damage = ScaleConfiguredDamage(damage);
-        if (damage <= 0)
-        {
-            return false;
-        }
-
-        var wouldBeFatal = damage >= target.Health;
-        if (ShouldCancelDamage(
-                DamageTargetKind.Sentry,
-                target.Id,
-                -1,
-                target.Team,
-                attacker,
-                damage,
-                wouldBeFatal,
-                target.X,
-                target.Y))
-        {
-            return false;
-        }
-
-        var healthBefore = target.Health;
-        var destroyed = target.ApplyDamage(damage);
-        RegisterDamageEvent(
-            attacker,
-            DamageTargetKind.Sentry,
-            target.Id,
-            target.X,
-            target.Y,
-            Math.Max(0, healthBefore - target.Health),
-            destroyed);
-        return destroyed;
-    }
+        => Combat.ApplySentryDamage(target, damage, attacker);
 
     private bool ApplyGeneratorDamage(GeneratorState target, float damage, PlayerEntity? attacker)
-    {
-        if (damage <= 0f || target.IsDestroyed)
-        {
-            return false;
-        }
+        => Combat.ApplyGeneratorDamage(target, damage, attacker);
 
-        damage = ScaleConfiguredDamage(damage);
-        if (damage <= 0f)
-        {
-            return false;
-        }
+    private bool TryAbsorbCivvieUmbrellaDamage(
+        PlayerEntity target, PlayerEntity? attacker, DamageEventFlags damageFlags,
+        float? threatSourceX = null, float? threatSourceY = null, int? drainTicks = null,
+        bool criticalBoost = false, bool useLiveAttackerCriticalBoost = true)
+        => Combat.TryAbsorbCivvieUmbrellaDamage(
+            target, attacker, damageFlags, threatSourceX, threatSourceY, drainTicks,
+            criticalBoost, useLiveAttackerCriticalBoost);
 
-        var roundedDamage = Math.Max(1, (int)MathF.Ceiling(damage));
-        var wouldBeFatal = damage >= target.Health;
-        if (ShouldCancelDamage(
-                DamageTargetKind.Generator,
-                (int)target.Team,
-                -1,
-                target.Team,
-                attacker,
-                roundedDamage,
-                wouldBeFatal,
-                target.Marker.CenterX,
-                target.Marker.CenterY))
-        {
-            return false;
-        }
-
-        var healthBefore = target.Health;
-        var destroyed = target.ApplyDamage(damage);
-        RegisterDamageEvent(
-            attacker,
-            DamageTargetKind.Generator,
-            (int)target.Team,
-            target.Marker.CenterX,
-            target.Marker.CenterY,
-            Math.Max(0, healthBefore - target.Health),
-            destroyed);
-        return destroyed;
-    }
-
-    private void RegisterPlayerDamageDealer(PlayerEntity target, PlayerEntity? attacker, int appliedDamage)
-    {
-        if (appliedDamage <= 0
-            || attacker is null
-            || ReferenceEquals(attacker, target)
-            || attacker.Team == target.Team)
-        {
-            return;
-        }
-
-        target.RegisterDamageDealer(attacker.Id, GetSimulationTicksFromSourceTicks(AssistTrackingSourceTicks));
-    }
-
-    private int ResolveDamageEventAssistPlayerId(
-        PlayerEntity? attacker,
-        PlayerEntity? playerTarget,
-        DamageTargetKind targetKind,
-        bool wasFatal,
-        int assistPlayerIdOverride = -1)
-    {
-        if (attacker is null)
-        {
-            return -1;
-        }
-
-        if (targetKind == DamageTargetKind.Player
-            && playerTarget is not null
-            && (ReferenceEquals(attacker, playerTarget) || attacker.Team == playerTarget.Team))
-        {
-            return -1;
-        }
-
-        if (targetKind == DamageTargetKind.Player && wasFatal && playerTarget is not null)
-            return ResolveAssistPlayerId(playerTarget, attacker);
-
-        if (assistPlayerIdOverride > 0)
-        {
-            return playerTarget is not null
-                && assistPlayerIdOverride != attacker.Id
-                && assistPlayerIdOverride != playerTarget.Id
-                    ? assistPlayerIdOverride
-                    : -1;
-        }
-
-        return FindHealingMedicPlayerId(attacker.Id);
-    }
-
-    private int ResolveAssistPlayerId(PlayerEntity victim, PlayerEntity killer)
-    {
-        var assistingPlayer = ResolveAssistPlayer(victim, killer);
-        return assistingPlayer?.Id ?? -1;
-    }
+    private bool TryAbsorbCivvieUmbrellaProjectileContact(
+        PlayerEntity target, int ownerId, float hitX, float hitY,
+        DamageEventFlags damageFlags = DamageEventFlags.None, bool criticalBoost = false)
+        => Combat.TryAbsorbCivvieUmbrellaProjectileContact(
+            target, ownerId, hitX, hitY, damageFlags, criticalBoost);
 
     private PlayerEntity? ResolveAssistPlayer(PlayerEntity victim, PlayerEntity killer)
-    {
-        if (ReferenceEquals(victim, killer) || killer.Team == victim.Team)
-        {
-            return null;
-        }
+        => Combat.ResolveAssistPlayer(victim, killer);
 
-        var assistantId = victim.LastDamageDealerPlayerId != killer.Id
-            ? victim.LastDamageDealerPlayerId : victim.SecondToLastDamageDealerPlayerId;
-        var remainingTicks = victim.LastDamageDealerPlayerId != killer.Id
-            ? victim.LastDamageDealerAssistTicksRemaining : victim.SecondToLastDamageDealerAssistTicksRemaining;
-        var assistant = assistantId.HasValue ? FindPlayerById(assistantId.Value) : null;
-        if (remainingTicks <= 0 || assistant is null
-            || assistant.Id == killer.Id || assistant.Id == victim.Id
-            || assistant.Team != killer.Team)
-        {
-            return null;
-        }
+    private int ResolveAssistPlayerId(PlayerEntity victim, PlayerEntity killer)
+        => Combat.ResolveAssistPlayerId(victim, killer);
 
-        return assistant;
-    }
+    private bool TryBeginPlayerDeath(
+        PlayerEntity player,
+        bool gibbed,
+        PlayerEntity? killer,
+        string? weaponSpriteName)
+        => Combat.TryBeginPlayerDeath(player, gibbed, killer, weaponSpriteName);
 }

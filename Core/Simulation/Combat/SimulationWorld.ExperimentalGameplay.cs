@@ -392,43 +392,6 @@ public sealed partial class SimulationWorld
             && attacker.CurrentCombo > 0;
     }
 
-    private bool TryEvadePlayerDamage(
-        PlayerEntity target,
-        PlayerEntity? attacker,
-        float damage,
-        DamageEventFlags damageFlags)
-    {
-        var experimentalEvasionChance = GetExperimentalTotalEvasionChance(target);
-        var lastToDieEvasionChance = GetLastToDieEvasionChance(target);
-        var totalEvasionChance = Math.Clamp(
-            1f - ((1f - experimentalEvasionChance) * (1f - lastToDieEvasionChance)),
-            0f,
-            0.95f);
-        if (damage <= 0f
-            || attacker is null
-            || ReferenceEquals(attacker, target)
-            || attacker.Team == target.Team
-            || totalEvasionChance <= 0f
-            || (lastToDieEvasionChance > 0f
-                ? !RollLastToDieEvasion(target, totalEvasionChance)
-                : _random.NextDouble() >= totalEvasionChance))
-        {
-            return false;
-        }
-
-        RegisterDamageEvent(
-            attacker,
-            DamageTargetKind.Player,
-            target.Id,
-            target.X,
-            target.Y,
-            amount: 0,
-            wasFatal: false,
-            target,
-            damageFlags | DamageEventFlags.Evaded);
-        return true;
-    }
-
     private float GetExperimentalTotalEvasionChance(PlayerEntity target)
     {
         if (!IsExperimentalPracticePowerOwner(target))

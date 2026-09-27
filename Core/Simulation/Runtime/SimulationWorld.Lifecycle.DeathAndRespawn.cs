@@ -43,7 +43,7 @@ public sealed partial class SimulationWorld
         }
 
         if (!completingLastToDieSpyAfterlifeDeath
-            && ShouldCancelDeath(player, gibbed, killer, weaponSpriteName))
+            && !TryBeginPlayerDeath(player, gibbed, killer, weaponSpriteName))
         {
             return;
         }

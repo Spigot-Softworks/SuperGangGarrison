@@ -139,11 +139,11 @@ public sealed partial class SimulationWorld
             var endX = flare.X;
             var endY = flare.Y;
             // Compute world contacts once: piercing must not repeatedly damage room objects.
-            var blockingHit = Combat.GetNearestFlareHit(flare, directionX, directionY, movementDistance, includePlayers: false);
+            var blockingHit = GeometryResolver.GetNearestFlareHit(flare, directionX, directionY, movementDistance, includePlayers: false);
             var bubbleHit = GetNearestEnemyBubbleHit(flare.PreviousX, flare.PreviousY, directionX, directionY, movementDistance, flare.Team);
             while (true)
             {
-                var hit = Combat.GetNearestFlarePlayerHit(flare, directionX, directionY, movementDistance, blockingHit);
+                var hit = GeometryResolver.GetNearestFlarePlayerHit(flare, directionX, directionY, movementDistance, blockingHit);
                 var bubbleDistance = bubbleHit?.Distance ?? float.MaxValue;
                 var hitDistance = hit?.Distance ?? float.MaxValue;
                 if (bubbleHit is not null && bubbleDistance <= hitDistance)
