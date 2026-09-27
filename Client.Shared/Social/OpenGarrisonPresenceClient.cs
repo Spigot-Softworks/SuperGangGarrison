@@ -628,6 +628,24 @@ public sealed class LastToDiePlayerRanking
 
     [JsonPropertyName("roundRank")]
     public int RoundRank { get; set; }
+
+    [JsonPropertyName("classRecords")]
+    public List<LastToDiePlayerClassRecord> ClassRecords { get; set; } = [];
+}
+
+public sealed class LastToDiePlayerClassRecord
+{
+    [JsonPropertyName("survivorId")]
+    public string SurvivorId { get; set; } = string.Empty;
+
+    [JsonPropertyName("runsPlayed")]
+    public int RunsPlayed { get; set; }
+
+    [JsonPropertyName("bestScoreUnits")]
+    public int BestScoreUnits { get; set; }
+
+    [JsonPropertyName("highestRound")]
+    public int HighestRound { get; set; }
 }
 
 public sealed class LastToDieLeaderboardEntry

@@ -80,6 +80,10 @@ node .\Tests\BrowserSmoke\smoke.mjs
 Dedicated-server connections use binary WebSocket transport in the browser.
 Player-hosted Practice and Last to Die rooms use WebRTC with an authenticated
 WebSocket relay fallback. See [room deployment](../services/opengarrison-api/deploy/browser-edition/README.md).
+The limited browser edition lists advertised GG2 servers through the API's
+`/api/gg2/servers` endpoint. Play GG2 connects through the
+[GG2 browser gateway](../Gg2Gateway/README.md), which translates the GG2 TCP
+session to the browser's WebSocket transport and serves custom GG2 maps.
 
 Completed Last to Die runs are saved in IndexedDB and uploaded for replay verification
 when the account service is available. Verified solo and co-op results share the same

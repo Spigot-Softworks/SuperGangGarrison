@@ -103,7 +103,14 @@ public partial class Game1
 
     private void ApplyIngameResolution(IngameResolutionKind ingameResolution)
     {
+        var previousWidth = ViewportWidth;
+        var previousHeight = ViewportHeight;
         _ingameResolution = NormalizeIngameResolution(ingameResolution);
+        if (previousWidth != ViewportWidth || previousHeight != ViewportHeight)
+        {
+            InvalidateCrtPresentationMapping();
+        }
+
         if (_gameRenderTarget is not null
             && (_gameRenderTarget.Width != ViewportWidth || _gameRenderTarget.Height != ViewportHeight))
         {
@@ -147,6 +154,23 @@ public partial class Game1
     private void BeginLogicalFrame(Color clearColor)
     {
         _logicalFrameRendersDirectlyToBackBuffer = ShouldRenderDirectlyToBackBuffer();
+        if (!_logicalFrameRendersDirectlyToBackBuffer)
+        {
+            try
+            {
+                EnsureGameRenderTarget();
+            }
+            catch (Exception ex) when (ShouldUseCrtPresentation && IsRecoverableCrtResourceFailure(ex))
+            {
+                DisableCrtPresentationForSession($"logical source target unavailable: {ex.Message}");
+                _logicalFrameRendersDirectlyToBackBuffer = ShouldRenderDirectlyToBackBuffer();
+                if (!_logicalFrameRendersDirectlyToBackBuffer)
+                {
+                    throw;
+                }
+            }
+        }
+
         if (_logicalFrameRendersDirectlyToBackBuffer)
         {
             WriteGameplayRenderTrace("frame beginlogical clear-backbuffer-direct");
@@ -157,7 +181,6 @@ public partial class Game1
             return;
         }
 
-        EnsureGameRenderTarget();
         WriteGameplayRenderTrace("frame beginlogical setrendertarget");
         GraphicsDevice.SetRenderTarget(_gameRenderTarget);
         WriteGameplayRenderTrace("frame beginlogical clear");
@@ -209,6 +232,13 @@ public partial class Game1
         WriteGameplayRenderTrace("frame endlogical clear-backbuffer");
         GraphicsDevice.Clear(Color.Black);
         var presentationDestination = GetPresentationDestinationRectangle();
+        if (ShouldUseCrtPresentation && TryPresentCrtFrame(_gameRenderTarget!, presentationDestination))
+        {
+            _logicalFrameRendersDirectlyToBackBuffer = false;
+            WriteGameplayRenderTrace("frame endlogical crt-presented");
+            return;
+        }
+
         WriteGameplayRenderTrace("frame endlogical spritebatchbegin-2");
         _spriteBatch.Begin(samplerState: SamplerState.PointClamp, rasterizerState: RasterizerState.CullNone);
         WriteGameplayRenderTrace("frame endlogical draw-rendertarget");
@@ -234,6 +264,11 @@ public partial class Game1
 
     private bool ShouldRenderDirectlyToBackBuffer()
     {
+        if (ShouldUseCrtPresentation)
+        {
+            return false;
+        }
+
         if (ShouldUseNavEditorWindowGutter())
         {
             return false;
@@ -303,6 +338,23 @@ public partial class Game1
         if (destination.Width <= 0 || destination.Height <= 0)
         {
             return rawMouse;
+        }
+
+        var nativeNavEditorPointer = ShouldUseNavEditorWindowGutter()
+            && GetNavEditorPanelHostBounds().Contains(rawMouse.Position);
+        if (!nativeNavEditorPointer && TryMapCurvedCrtPointer(rawMouse, destination, out var mappedMouse))
+        {
+            return mappedMouse;
+        }
+
+        if (_crtInputScrollInitialized
+            || _crtSuppressLeftButtonUntilRelease
+            || _crtSuppressMiddleButtonUntilRelease
+            || _crtSuppressRightButtonUntilRelease
+            || _crtSuppressXButton1UntilRelease
+            || _crtSuppressXButton2UntilRelease)
+        {
+            rawMouse = GetCrtInputMouseStateWhenUnwarped(rawMouse);
         }
 
         var logicalX = ((rawMouse.X - destination.X) * ViewportWidth) / (float)destination.Width;

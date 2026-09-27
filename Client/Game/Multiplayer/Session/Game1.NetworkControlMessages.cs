@@ -58,15 +58,26 @@ public partial class Game1
     {
         var wasSpectator = _networkClient.IsSpectator;
         _networkClient.SetLocalPlayerSlot(slotChanged.PlayerSlot);
+        if (_networkClient.IsLegacyGg2Connection && !_networkClient.IsSpectator)
+        {
+            _legacyGg2TeamRequestStartedAtMilliseconds = -1;
+        }
         if (IsWatchOnlySession() && !_networkClient.IsSpectator)
         {
             ReturnToMainMenuWithNetworkStatus("Watch session was moved to a playable slot.");
             return;
         }
 
-        if (_networkClient.IsSpectator)
-        {
-            EnterOnlineSpectatorState("Connected as spectator.");
+          if (_networkClient.IsSpectator)
+          {
+              if (_networkClient.IsLegacyGg2Connection && !wasSpectator && !IsWatchOnlySession())
+              {
+                  OpenOnlineTeamSelection(clearPendingSelections: true, statusMessage: string.Empty);
+              }
+              else
+              {
+                  EnterOnlineSpectatorState("Connected as spectator.");
+              }
         }
         else if (wasSpectator && !IsWatchOnlySession())
         {

@@ -216,7 +216,8 @@ public partial class Game1
 
     private bool ApplyPreferredPluginClassSelection()
     {
-        return TryGetPreferredPluginGameplayClass(out var gameplayClassId, out _)
+        return !_networkClient.IsLegacyGg2Connection
+            && TryGetPreferredPluginGameplayClass(out var gameplayClassId, out _)
             && ApplyDirectGameplayClassSelection(gameplayClassId);
     }
 
@@ -248,6 +249,12 @@ public partial class Game1
         if (!CharacterClassCatalog.RuntimeRegistry.TryGetClassBinding(gameplayClassId, out var binding))
         {
             _menuStatusMessage = "Class is not available.";
+            return false;
+        }
+
+        if (_networkClient.IsLegacyGg2Connection && !binding.BindsLegacyPlayerClass)
+        {
+            _menuStatusMessage = "This class is unavailable on a GG2 server.";
             return false;
         }
 
@@ -326,7 +333,8 @@ public partial class Game1
 
         if (pressedDigit.Value == 0)
         {
-            if (TryGetPreferredPluginGameplayClass(out gameplayClassId, out _))
+            if (!_networkClient.IsLegacyGg2Connection
+                && TryGetPreferredPluginGameplayClass(out gameplayClassId, out _))
             {
                 return true;
             }
@@ -366,6 +374,11 @@ public partial class Game1
     {
         gameplayClassId = string.Empty;
         playerClass = default;
+        if (_networkClient.IsLegacyGg2Connection)
+        {
+            return false;
+        }
+
         GameplayClassRuntimeBinding? selectedBinding = null;
         foreach (var binding in CharacterClassCatalog.RuntimeRegistry.RuntimeClassBindings)
         {
@@ -404,6 +417,19 @@ public partial class Game1
 
     private string[] GetClassSelectDescription(int hoverIndex)
     {
+        if (_networkClient.IsLegacyGg2Connection)
+        {
+            if (hoverIndex == 4)
+            {
+                return ["Detonator", "Weapon: Mine Launcher", "Places explosive mines and", "can use them to jump to", "new positions."];
+            }
+
+            if (hoverIndex == 6)
+            {
+                return ["Constructor", "Weapon: Shotgun", "Builds sentries to defend", "his team and objectives.", string.Empty];
+            }
+        }
+
         if (hoverIndex == 9 && TryGetPreferredPluginGameplayClass(out var gameplayClassId, out _))
         {
             var gameplayClass = CharacterClassCatalog.RuntimeRegistry.GetClassDefinition(gameplayClassId);

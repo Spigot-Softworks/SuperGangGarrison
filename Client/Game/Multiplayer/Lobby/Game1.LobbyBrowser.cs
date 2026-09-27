@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
+using System.Threading;
 using System.Threading.Tasks;
 using OpenGarrison.Core;
 using OpenGarrison.Protocol;
@@ -26,6 +27,8 @@ public partial class Game1
     private TcpClient? _lobbyBrowserLobbyClient;
     private Task? _lobbyBrowserLobbyConnectTask;
     private Task<List<LobbyRegistryServerEntry>>? _lobbyBrowserRegistryRequestTask;
+    private Task<IReadOnlyList<LegacyGg2LobbyServer>>? _legacyGg2LobbyRequestTask;
+    private CancellationTokenSource? _legacyGg2LobbyRequestCancellation;
     private readonly List<byte> _lobbyBrowserLobbyPending = new();
     private readonly byte[] _lobbyBrowserLobbyScratch = new byte[4096];
     private int _lobbyBrowserLobbyExpectedServers = -1;
@@ -33,8 +36,10 @@ public partial class Game1
     private long _lobbyBrowserLobbyStartedAtMilliseconds;
     private bool _lobbyBrowserLobbyHandshakeSent;
     private LobbyBrowserMode _lobbyBrowserMode = LobbyBrowserMode.Join;
+    private LobbyBrowserSource _lobbyBrowserSource = LobbyBrowserSource.Sgg;
     private LobbyBrowserPage _lobbyBrowserPage = LobbyBrowserPage.List;
     private LobbyBrowserEntry? _lobbyBrowserDetailsEntry;
+    private int _lobbyBrowserScrollOffset;
     private ServerDetailsResponseMessage? _lobbyBrowserDetailsResponse;
     private string _lobbyBrowserDetailsStatus = string.Empty;
     private bool _lobbyBrowserDetailsRequestInFlight;
@@ -101,6 +106,9 @@ public partial class Game1
         public int SpectatorCount { get; set; }
         public int PingMilliseconds { get; set; } = -1;
         public string PingLabel => PingMilliseconds >= 0 ? $"{PingMilliseconds} ms" : "-";
+        public bool IsLegacyGg2 { get; set; }
+        public string VersionLabel { get; set; } = "-";
+        public int BotCount { get; set; }
         public bool IsPrivate { get; set; }
         public bool IsLobbyEntry { get; set; }
     }
@@ -109,6 +117,12 @@ public partial class Game1
     {
         Join,
         Watch,
+    }
+
+    private enum LobbyBrowserSource
+    {
+        Sgg,
+        Gg2,
     }
 
     private enum LobbyBrowserPage

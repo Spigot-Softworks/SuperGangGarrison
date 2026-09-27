@@ -152,6 +152,7 @@ public static partial class ProtocolCodec
                 writer.Write(shot.PlayerKnockbackImpulse);
                 writer.Write(shot.PlayerKnockbackAirborneVerticalScale);
                 writer.Write(shot.PlayerKnockbackGroundedVerticalScale);
+                writer.Write(shot.IsBoomstickPellet);
             }
             if (includeRevolverPayload)
             {
@@ -216,6 +217,7 @@ public static partial class ProtocolCodec
             var playerKnockbackImpulse = includeBulletPayload ? reader.ReadSingle() : 0f;
             var playerKnockbackAirborneVerticalScale = includeBulletPayload ? reader.ReadSingle() : 1f;
             var playerKnockbackGroundedVerticalScale = includeBulletPayload ? reader.ReadSingle() : 1f;
+            var isBoomstickPellet = includeBulletPayload && reader.ReadBoolean();
             var lastToDieRevolverProfile = includeRevolverPayload ? reader.ReadInt32() : 0;
             var appliesLuckyStrikeStun = includeRevolverPayload && reader.ReadBoolean();
             if (includeFlarePayload)
@@ -259,7 +261,8 @@ public static partial class ProtocolCodec
                 playerKnockbackImpulse,
                 playerKnockbackAirborneVerticalScale,
                 playerKnockbackGroundedVerticalScale,
-                flareStyle));
+                flareStyle,
+                isBoomstickPellet));
         }
 
         return shots;

@@ -124,6 +124,7 @@ public partial class Game1
             _game.HandleActiveTextFieldKeyboardShortcuts(keyboard, gameTime.ElapsedGameTime.TotalSeconds);
             _game.UpdateMenuStatusMessageExpiry();
             _game.UpdateAccountOperation();
+            _game.UpdateCrtUnlockSequence(keyboard, gameTime.TotalGameTime);
 
             if (TryUpdateNonGameplayFrame(gameTime, keyboard, mouse, clientTicks))
             {
@@ -243,6 +244,7 @@ public partial class Game1
     private void HandleWindowFocusLost(MouseState releasedMouse)
     {
         _windowInputFilter.LoseFocus();
+        _crtUnlockSequenceProgress = 0;
         ReleaseGameplayInputForFocusLoss();
         _previousKeyboard = default;
         _previousMouse = releasedMouse;

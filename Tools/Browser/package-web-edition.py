@@ -46,7 +46,7 @@ def source_fingerprint():
         path = REPO / name
         if path.is_file():
             digest.update(name.encode() + b"\0" + hashlib.sha256(path.read_bytes()).digest())
-    for directory in ("Client", "Client.Shared", "Client.Browser", "Core", "Protocol", "Networking", "Server", "SessionRuntime", "Plugins", "Tools/Browser", "Tools/BrowserAssetBuilder", "services/opengarrison-api"):
+    for directory in ("Client", "Client.Shared", "Client.Browser", "Core", "Protocol", "Networking", "Server", "SessionRuntime", "Plugins", "Gg2Gateway", "Tools/Browser", "Tools/BrowserAssetBuilder", "services/opengarrison-api"):
         for path in source_files(REPO / directory, {"bin", "obj", "Content", "Packaged", ".venv", "__pycache__", "updates", "deploy"}):
             relative = path.relative_to(REPO)
             if relative.as_posix().startswith("Client.Browser/wwwroot/Plugins/"):
@@ -81,11 +81,17 @@ def main():
     backend.mkdir(parents=True, exist_ok=True)
     api = backend / "api"
     api.mkdir(exist_ok=True)
-    for name in ("app.py", "reward_authority.py", "run_verification.py", "run_verification_worker.py", "private_rooms.py", "peer_rooms.py", "private_room_store.py", "room_worker.py", "requirements.txt"):
+    for name in ("app.py", "gg2_lobby.py", "reward_authority.py", "run_verification.py", "run_verification_worker.py", "reset_last_to_die_rankings.py", "private_rooms.py", "peer_rooms.py", "private_room_store.py", "room_worker.py", "requirements.txt"):
         shutil.copy2(REPO / "services/opengarrison-api" / name, api / name)
     shutil.copytree(REPO / "services/opengarrison-api/deploy/browser-edition", backend / "deploy", dirs_exist_ok=True)
     shutil.copy2(REPO / "LICENSE", backend / "LICENSE")
     write_json(backend / "room-release.json", release)
+    run("dotnet", "publish", REPO / "Gg2Gateway/OpenGarrison.Gg2Gateway.csproj",
+        "-c", "Release", "-r", "linux-x64", "--self-contained", "true",
+        "-maxcpucount:1", "-nodeReuse:false",
+        "-p:PublishSingleFile=true", "-p:PublishTrimmed=false",
+        "-p:RunAnalyzers=false", "-p:UseSharedCompilation=false",
+        "-o", backend / "gg2-gateway")
     browser = root / "browser-publish"
     if not args.skip_browser:
         run("pwsh", "-NoProfile", "-File", REPO / "Tools/Browser/publish-browser.ps1",
@@ -109,7 +115,7 @@ def main():
     cached_archive(browser / "wwwroot", root / "superganggarrison-browser-aot.zip",
                    archive_cache / "website.json", create_website_archive)
     def unix_mode(info):
-        info.mode = 0o755 if info.isdir() or info.name.endswith("/server/OG2.Server") or info.name.endswith(".sh") else 0o644
+        info.mode = 0o755 if info.isdir() or info.name.endswith("/server/OG2.Server") or info.name.endswith("/gg2-gateway/OpenGarrison.Gg2Gateway") or info.name.endswith(".sh") else 0o644
         info.uid = info.gid = 0
         info.uname = info.gname = "root"
         return info

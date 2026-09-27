@@ -52,6 +52,11 @@ public partial class Game1
 
     private PlayerInputSnapshot ApplyBuildMenuInputSelection(PlayerInputSnapshot input)
     {
+        if (_networkClient.IsLegacyGg2Connection)
+        {
+            return input;
+        }
+
         if (!IsBuildMenuWheelEnabled)
         {
             // Constructor M2/skill open the side build menu; only menu selections
@@ -129,6 +134,8 @@ public partial class Game1
 
     private void DrawBuildMenuHud()
     {
+        if (_networkClient.IsLegacyGg2Connection) return;
+
         if ((!_buildMenuOpen && !_hudEditorOpen) || _world.LocalPlayer.ClassId != PlayerClass.Engineer
             || !CanDrawGameplayBuildHud()
             || !TryResolveHudElement(HudElementId.ClassEngineerBuildMenu, out var resolved)) return;
@@ -414,6 +421,12 @@ public partial class Game1
     private void UpdateBuildMenuState(KeyboardState keyboard, MouseState mouse, PlayerInputSnapshot input)
     {
         ResetBuildMenuInputSelection();
+        if (_networkClient.IsLegacyGg2Connection)
+        {
+            if (_buildMenuOpen) BeginClosingBuildMenu();
+            return;
+        }
+
         if (!IsBuildMenuWheelEnabled)
         {
             UpdateBuildMenuListState(keyboard, input);

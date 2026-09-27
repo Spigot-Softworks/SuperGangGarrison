@@ -68,6 +68,11 @@ public sealed partial class GameplayRuntimeRegistry
             Executor: new DelegateGameplayPrimaryWeaponExecutor(static context =>
                 context.World.ExecuteDragonRagePrimaryWeapon(context))));
         RegisterPrimaryWeaponBehavior(new GameplayPrimaryWeaponRuntimeBinding(
+            BuiltInGameplayBehaviorIds.Boomstick,
+            PrimaryWeaponKind.Custom,
+            Executor: new DelegateGameplayPrimaryWeaponExecutor(static context =>
+                context.World.ExecuteBoomstickPrimaryWeapon(context))));
+        RegisterPrimaryWeaponBehavior(new GameplayPrimaryWeaponRuntimeBinding(
             BuiltInGameplayBehaviorIds.Needlegun,
             PrimaryWeaponKind.Custom,
             Executor: new DelegateGameplayPrimaryWeaponExecutor(static context =>

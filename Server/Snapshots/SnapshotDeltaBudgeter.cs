@@ -631,7 +631,7 @@ internal static class SnapshotDeltaBudgeter
 
     private static int EstimateSoundEventBytes(SnapshotSoundEvent soundEvent)
     {
-        return EstimateStringBytes(soundEvent.SoundName) + 24;
+        return EstimateStringBytes(soundEvent.SoundName) + 28;
     }
 
     private static int EstimateVisualEventBytes(SnapshotVisualEvent visualEvent)

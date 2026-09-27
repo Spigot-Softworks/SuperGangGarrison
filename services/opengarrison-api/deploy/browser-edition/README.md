@@ -4,8 +4,8 @@ Last to Die Solo runs locally. In Last to Die and Practice co-op,
 the creator's game runs the match for up to four humans. The existing API handles
 room codes, admission and WebRTC signaling. It relays packets when a direct
 connection is unavailable; it never launches a game process for these rooms.
-Practice Singleplayer remains local. Only Practice, Last to Die and Settings
-appear in the browser's main menu.
+Practice Singleplayer remains local. The limited browser menu also offers
+Play GG2, which joins compatible public GG2 servers through the gateway service.
 
 ## Build the deployment artifacts
 
@@ -20,19 +20,20 @@ Choose the release version you intend to publish; `1.0.2` is an example. The too
 generates `superganggarrison-browser-aot.zip`,
 `superganggarrison-room-api-update.tar.gz`, and `release.json` under
 `artifacts/browser-practice-ltd/`. These are generated outputs, not repository
-files. Keep the website and API artifacts from the same build together.
+files. The backend archive includes the Linux GG2 gateway. Keep the website and
+backend artifacts from the same build together.
 
 ## Update the API
 
 1. Preserve the existing API database, environment, secrets, update manifests and
    account data. Keep a copy of the current API source and website for rollback.
 2. Copy the Python files and requirements from the API update archive into the
-   existing API installation. **Include `peer_rooms.py`** alongside `app.py`,
+   existing API installation. **Include `peer_rooms.py` and `gg2_lobby.py`** alongside `app.py`,
    `private_rooms.py`, `private_room_store.py` and `room_worker.py`; the latter
    files preserve compatibility with older clients.
 3. Install requirements in the existing virtual environment and restart the
-   existing API service. There is no new service, database migration, game-server
-   executable or room worker required for the new room path.
+   existing API service. There is no database migration or room worker required
+   for the new room path.
 4. Keep one API worker: room admission and signaling state live in that process.
    Keep the public origin set to `https://api.superganggarrison.com` and include
    the website's origin in the existing CORS setting. Merge the optional values
@@ -40,6 +41,30 @@ files. Keep the website and API artifacts from the same build together.
 5. Forward `/api/peer-rooms/` to the existing API, including WebSocket upgrades.
    Merge the supplied Nginx location, then validate and reload Nginx. For Caddy,
    retain the existing API reverse proxy and merge the admission-log exclusion.
+6. Make sure the existing `/api/` proxy also forwards `/api/gg2/servers` and the
+   API host can reach `ganggarrison.com:29944` over TCP. The browser reads this
+   HTTPS endpoint to display the public GG2 directory.
+
+## Start the GG2 gateway
+
+1. Copy `gg2-gateway/` from the backend archive to
+   `/opt/opengarrison/gg2-gateway/`. Keep its `Content/` directory next to the
+   executable. The self-contained Linux build does not need a separate .NET
+   installation.
+2. Install `opengarrison-gg2-gateway.service` from `deploy/`, adjusting the
+   service user and paths if needed. Give that user write access to
+   `/var/lib/opengarrison-gg2/maps`. Enable and start the service, then check
+   `http://127.0.0.1:8768/healthz` locally.
+3. Merge the `/api/gg2/ws/` and `/api/gg2/maps/` locations from
+   `nginx-locations.conf` into the HTTPS API server block. The WebSocket route
+   must forward upgrade headers. Keep `/api/gg2/servers` on the Python API.
+4. The gateway needs outbound TCP to the advertised GG2 servers and the GG2
+   lobby. Its default browser origin allowlist covers the production website;
+   set `OPENGARRISON_GG2_ALLOWED_ORIGINS` in the service when using another
+   website origin. Never set `OPENGARRISON_GG2_ALLOW_LOOPBACK` in production.
+
+The website's `roomServiceOrigin` must point to the HTTPS API origin that
+routes those gateway paths. A browser cannot open GG2's native TCP port directly.
 
 The managed room worker is not used by player-hosted rooms. It may remain running to
 serve old clients. Once those rooms have drained, it can be stopped independently.
@@ -103,6 +128,8 @@ room, survivor/reward selection, and all four entering the same stage. Verify
 Practice teams, host settings Apply/Cancel, late joins, map voting, Return to Lobby,
 and native/browser jukebox playback. Check guest reconnection and host departure.
 Test a blocked direct connection so the WebSocket fallback is exercised too.
+For Play GG2, verify the server list, stock and custom map loading, team and
+class selection, movement, firing, chat and reconnecting after a map change.
 
 The API keeps a disconnected owner's room for 45 seconds; clients try to reconnect
 for 30 seconds. Disconnected lobby guests retain their seat for 30 seconds. An API

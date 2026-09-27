@@ -10,7 +10,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    // Kelly: classic horizontal DeadS ragdolls (below).
+    // Stock DeadS: classic horizontal ragdolls (below).
     // Elkondo: temporary corpse uses the 5th run-cycle pose — see GameplayDynamicRagdollController.Elkondo.cs
     // TODO(dynamic-ragdoll): replace that temporary run-frame with unique Elkondo Dead sprites when authored.
 
@@ -520,10 +520,9 @@ public partial class Game1
             collisionHalfHeight = 6f;
         }
 
-        var useElkondoVisual = UsesElkondoRagdollVisual()
-            && TryResolveElkondoCorpseSprite(gameplayClassId, classId, team, out _, out _, out _);
+        var useElkondoVisual = TryResolveElkondoCorpseSprite(gameplayClassId, classId, team, out _, out _, out _);
 
-        // Elkondo starts from the living upright pose; Kelly DeadS stands head-up then tips over.
+        // Elkondo starts from the living upright pose; stock DeadS art starts head-up then tips over.
         var spawnRotation = useElkondoVisual
             ? 0f
             : facingLeft ? -90f : 90f;
@@ -647,7 +646,7 @@ public partial class Game1
         }
         else
         {
-            // Kelly DeadS: treat middle pivot as the waist hit point.
+            // Stock DeadS: treat middle pivot as the waist hit point.
             ragdoll.PivotVelocities[1] = waistVelocity;
             ragdoll.PivotVelocities[0] = chestVelocity;
             ragdoll.PivotVelocities[2] = -waistVelocity * 0.65f;
@@ -679,8 +678,7 @@ public partial class Game1
 
         string? spriteName;
         var frameIndex = 0;
-        if (UsesElkondoRagdollVisual()
-            && TryResolveElkondoCorpseSprite(gameplayClassId, classId, team, out var elkondoSprite, out frameIndex, out _))
+        if (TryResolveElkondoCorpseSprite(gameplayClassId, classId, team, out var elkondoSprite, out frameIndex, out _))
         {
             spriteName = elkondoSprite;
         }
@@ -1602,7 +1600,7 @@ public partial class Game1
             return cursor; // waist joint
         }
 
-        // Kelly: middle of opaque span (waist-ish along DeadS).
+        // Stock DeadS: middle of opaque span (waist-ish along DeadS).
         var midFraction = DynamicRagdollPivotFractions[1];
         var cursorH = root + TransformRagdollLocal(
             new Vector2(-opaque.Width * 0.5f, 0f),
@@ -1722,7 +1720,7 @@ public partial class Game1
             return nodeCount;
         }
 
-        // Kelly DeadS: horizontal opaque spine.
+        // Stock DeadS: horizontal opaque spine.
         var cutCount = DynamicRagdollPivotCount + 2;
         Span<float> cutXs = stackalloc float[cutCount];
         cutXs[0] = 0f;
@@ -1780,7 +1778,7 @@ public partial class Game1
             return NormalizeRagdollRotationDegrees(ragdoll.RotationDegrees) >= 0f ? 90f : -90f;
         }
 
-        // Kelly already spawns near ±90; settle toward the nearer flat pose.
+        // Stock DeadS ragdolls start near ±90; settle toward the nearer flat pose.
         return MathF.Abs(NormalizeRagdollRotationDegrees(ragdoll.RotationDegrees - 90f))
             <= MathF.Abs(NormalizeRagdollRotationDegrees(ragdoll.RotationDegrees + 90f))
             ? 90f
@@ -1882,31 +1880,30 @@ public partial class Game1
             }
         }
 
-        if (TryDrawCorpseAcidDissolve(
-                deadBodyId,
-                ragdoll.GameplayClassId,
-                ragdoll.ClassId,
-                ragdoll.Team,
-                ragdoll.AnimationKind,
-                ragdoll.X,
-                ragdoll.Y,
-                MathF.Max(ragdoll.OpaqueBounds.Height, height),
-                ragdoll.FacingLeft,
-                ragdoll.RotationDegrees,
-                ticksRemaining,
-                cameraPosition))
+        if (IsCorpseAcidFading(ticksRemaining)
+            && TryGetOrCreateRagdollAcidDissolveState(
+                deadBodyId, ragdoll, out var dissolve))
         {
-            return true;
+            ApplyCorpseAcidDissolveProgress(dissolve, GetCorpseFadeProgress(ticksRemaining));
+            var dissolvedFrame = new LoadedSpriteFrame(
+                dissolve.Texture,
+                OpaqueBounds: ragdoll.OpaqueBounds);
+            return DrawDynamicRagdollVisual(
+                ragdoll, ticksRemaining, cameraPosition, dissolvedFrame);
         }
 
         return DrawDynamicRagdollVisual(ragdoll, ticksRemaining, cameraPosition);
     }
 
-    private bool DrawDynamicRagdollVisual(DynamicRagdollState ragdoll, int ticksRemaining, Vector2 cameraPosition)
+    private bool DrawDynamicRagdollVisual(
+        DynamicRagdollState ragdoll,
+        int ticksRemaining,
+        Vector2 cameraPosition,
+        LoadedSpriteFrame? dissolvedFrame = null)
     {
         if (ragdoll.UseElkondoVerticalVisual)
         {
-            return DrawElkondoRagdollVisual(ragdoll, ticksRemaining, cameraPosition);
+            return DrawElkondoRagdollVisual(ragdoll, ticksRemaining, cameraPosition, dissolvedFrame);
         }
 
         var fadeAlpha = GetCorpseFadeAlpha(ticksRemaining);
@@ -1922,18 +1919,13 @@ public partial class Game1
             ragdoll.ClassId,
             ragdoll.Team,
             ragdoll.AnimationKind);
-        if (spriteName is null)
+        var sprite = spriteName is null ? null : GetResolvedSprite(spriteName);
+        if (dissolvedFrame is null && (sprite is null || sprite.Frames.Count == 0))
         {
             return false;
         }
 
-        var sprite = GetResolvedSprite(spriteName);
-        if (sprite is null || sprite.Frames.Count == 0)
-        {
-            return false;
-        }
-
-        var frame = sprite.Frames[0];
+        var frame = dissolvedFrame ?? sprite!.Frames[0];
         var opaque = ragdoll.OpaqueBounds;
         if (opaque.Width <= 1 || opaque.Height <= 1)
         {

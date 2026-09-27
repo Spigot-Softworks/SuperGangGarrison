@@ -1,5 +1,6 @@
 using OpenGarrison.Core;
 using OpenGarrison.GameplayModding;
+using OpenGarrison.Protocol;
 using OpenGarrison.Server;
 using System.Reflection;
 using Xunit;
@@ -8,6 +9,147 @@ namespace OpenGarrison.PluginHost.Tests;
 
 public sealed class AlternatePrimaryWeaponBalanceTests
 {
+    [Fact]
+    public void DetonatorCanEquipBoomstickAndFireThreeFiveDamagePellets()
+    {
+        var registry = GameplayRuntimeRegistry.CreateStock();
+        var loadout = registry.GetRequiredLoadout("demoman", "demoman.stock");
+        var item = registry.GetRequiredItem("weapon.boomstick");
+        var weapon = registry.CreatePrimaryWeaponDefinition(item);
+
+        Assert.Equal("weapon.minelauncher", loadout.Primary!.DefaultItemId);
+        Assert.Contains("weapon.boomstick", loadout.Primary.ItemIds);
+        Assert.Equal(BuiltInGameplayBehaviorIds.Boomstick, item.BehaviorId);
+        Assert.Equal(PrimaryWeaponKind.Custom, weapon.Kind);
+        Assert.Equal(1, weapon.MaxAmmo);
+        Assert.Equal(3, weapon.ProjectilesPerShot);
+        Assert.Equal(5f, weapon.DirectHitDamage);
+        Assert.Equal("DragonRageS", item.Presentation.WorldSpriteName);
+        Assert.Equal("DragonRageFRS", item.Presentation.ReloadSpriteName);
+        Assert.Equal("DragonRageS", item.Presentation.HudSpriteName);
+        Assert.Equal(RocketProjectileEntity.BlastRadius * 0.25f, SimulationWorld.BoomstickBlastRadius);
+
+        var world = CreateJoinedWorld(PlayerClass.Demoman);
+        var detonator = world.LocalPlayer;
+        Assert.True(detonator.TrySelectGameplayPrimaryItem("weapon.boomstick"));
+        world.SetLocalInput(default(PlayerInputSnapshot) with
+        {
+            FirePrimary = true,
+            AimWorldX = detonator.X + 300f,
+            AimWorldY = detonator.Y,
+        });
+        world.AdvanceOneTick();
+
+        Assert.Equal(3, world.Shots.Count);
+        Assert.All(world.Shots, shot =>
+        {
+            Assert.True(shot.IsBoomstickPellet);
+            Assert.Equal(5f, shot.DamageValue);
+        });
+        Assert.Equal(0, detonator.CurrentShells);
+        var networkStates = new Protocol64StatePublisher(world).BuildProjectileStates(1);
+        Assert.Equal(3, networkStates.Count);
+        Assert.All(networkStates, state => Assert.Equal(Protocol64ProjectileKind.BoomstickPellet, state.EntityKind));
+
+        var receiver = CreateJoinedWorld(PlayerClass.Demoman);
+        foreach (var state in networkStates)
+        {
+            Assert.True(receiver.ApplyProtocol64ProjectileState(state, SimulationWorld.LocalPlayerSlot));
+        }
+        Assert.Equal(3, receiver.Shots.Count);
+        Assert.All(receiver.Shots, shot => Assert.True(shot.IsBoomstickPellet));
+    }
+
+    [Fact]
+    public void BoomstickExplosionDealsAtMostTwentyFiveWithinQuarterRocketRadius()
+    {
+        var world = CreateJoinedWorld(PlayerClass.Demoman);
+        var owner = world.LocalPlayer;
+        owner.TeleportTo(300f, 500f);
+        var nearby = AddEnemy(world, id: 2, x: 100f, y: 500f);
+        var outside = AddEnemy(world, id: 3, x: 155f, y: 500f);
+        var betweenOldAndNewRadius = AddEnemy(world, id: 4, x: 132f, y: 500f);
+        var nearbyHealth = nearby.Health;
+        var outsideHealth = outside.Health;
+        var betweenHealth = betweenOldAndNewRadius.Health;
+        var pellet = new ShotProjectileEntity(
+            999,
+            owner.Team,
+            owner.Id,
+            nearby.X,
+            nearby.Y,
+            0f,
+            0f,
+            damagePerHit: 5f,
+            isBoomstickPellet: true);
+
+        var explode = typeof(SimulationWorld).GetMethod(
+            "ExplodeBoomstickPellet",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(explode);
+        _ = explode!.Invoke(world, [pellet]);
+
+        Assert.Equal(nearbyHealth - 25, nearby.Health);
+        Assert.Equal(outsideHealth, outside.Health);
+        Assert.Equal(betweenHealth, betweenOldAndNewRadius.Health);
+        Assert.Contains(world.DrainPendingVisualEvents(), effect => effect.EffectName == "Explosion");
+    }
+
+    [Fact]
+    public void BoomstickPelletsExplodeWhenTheyStrikeAWall()
+    {
+        var world = CreateJoinedWorld(PlayerClass.Demoman, new LevelSolid(380f, 450f, 20f, 100f));
+        var owner = world.LocalPlayer;
+        Assert.True(owner.TrySelectGameplayPrimaryItem("weapon.boomstick"));
+        world.SetLocalInput(default(PlayerInputSnapshot) with
+        {
+            FirePrimary = true,
+            AimWorldX = owner.X + 300f,
+            AimWorldY = owner.Y,
+        });
+        world.AdvanceOneTick();
+        Assert.Equal(3, world.Shots.Count);
+        var explosionCount = 0;
+
+        world.SetLocalInput(default);
+        for (var tick = 0; tick < 12; tick += 1)
+        {
+            world.AdvanceOneTick();
+            explosionCount += world.DrainPendingVisualEvents().Count(effect => effect.EffectName == "Explosion");
+        }
+
+        Assert.Empty(world.Shots);
+        Assert.Equal(3, explosionCount);
+    }
+
+    [Fact]
+    public void BoomstickPelletExplodesWhenItStrikesAPlayer()
+    {
+        var world = CreateJoinedWorld(PlayerClass.Demoman);
+        var owner = world.LocalPlayer;
+        Assert.True(owner.TrySelectGameplayPrimaryItem("weapon.boomstick"));
+        var target = AddEnemy(world, id: 2, x: owner.X + 50f, y: owner.Y);
+        var initialHealth = target.Health;
+        world.SetLocalInput(default(PlayerInputSnapshot) with
+        {
+            FirePrimary = true,
+            AimWorldX = target.X,
+            AimWorldY = target.Y,
+        });
+        world.AdvanceOneTick();
+
+        world.SetLocalInput(default);
+        var explosionCount = 0;
+        for (var tick = 0; tick < 8; tick += 1)
+        {
+            world.AdvanceOneTick();
+            explosionCount += world.DrainPendingVisualEvents().Count(effect => effect.EffectName == "Explosion");
+        }
+
+        Assert.True(target.Health < initialHealth);
+        Assert.True(explosionCount > 0);
+    }
+
     [Fact]
     public void PyroStockLoadoutIncludesConfiguredDragonRage()
     {
@@ -410,7 +552,7 @@ public sealed class AlternatePrimaryWeaponBalanceTests
         return enemy;
     }
 
-    private static SimulationWorld CreateJoinedWorld(PlayerClass playerClass)
+    private static SimulationWorld CreateJoinedWorld(PlayerClass playerClass, params LevelSolid[] additionalSolids)
     {
         var world = new SimulationWorld();
         var redSpawn = new SpawnPoint(300f, 500f);
@@ -429,7 +571,7 @@ public sealed class AlternatePrimaryWeaponBalanceTests
             [],
             [],
             floorY: 1024f,
-            [new LevelSolid(0f, 1024f, 2048f, 1024f)],
+            [new LevelSolid(0f, 1024f, 2048f, 1024f), .. additionalSolids],
             importedFromSource: false));
         world.PrepareLocalPlayerJoin();
         world.SetLocalPlayerTeam(PlayerTeam.Red);

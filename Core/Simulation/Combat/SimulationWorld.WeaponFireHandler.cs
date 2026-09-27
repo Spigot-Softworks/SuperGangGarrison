@@ -144,7 +144,8 @@ public sealed partial class SimulationWorld
             int playerSlowRefreshTicks = 0,
             float? playerKnockbackImpulse = null,
             float playerKnockbackAirborneVerticalScale = 1f,
-            float playerKnockbackGroundedVerticalScale = 1f)
+            float playerKnockbackGroundedVerticalScale = 1f,
+            bool isBoomstickPellet = false)
         {
             _world.SpawnShot(
                 owner,
@@ -160,7 +161,8 @@ public sealed partial class SimulationWorld
                 playerSlowRefreshTicks: playerSlowRefreshTicks,
                 playerKnockbackImpulse: playerKnockbackImpulse,
                 playerKnockbackAirborneVerticalScale: playerKnockbackAirborneVerticalScale,
-                playerKnockbackGroundedVerticalScale: playerKnockbackGroundedVerticalScale);
+                playerKnockbackGroundedVerticalScale: playerKnockbackGroundedVerticalScale,
+                isBoomstickPellet: isBoomstickPellet);
         }
 
         private void SpawnBubble(PlayerEntity owner, float x, float y, float velocityX, float velocityY)
@@ -559,4 +561,3 @@ public sealed partial class SimulationWorld
 
     }
 }
-

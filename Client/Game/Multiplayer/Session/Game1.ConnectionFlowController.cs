@@ -24,14 +24,20 @@ public partial class Game1
 
         public void OpenWatchBrowser()
         {
+            if (OpenGarrison.ClientShared.ClientDistribution.IsGg2Only) return;
             OpenLobbyBrowser(LobbyBrowserMode.Watch);
         }
 
         private void OpenLobbyBrowser(LobbyBrowserMode mode)
         {
-            if (IsRestrictedBrowserEdition) return;
+            if (IsRestrictedBrowserEdition
+                && !(OperatingSystem.IsBrowser() && mode == LobbyBrowserMode.Join
+                    && _game._lobbyBrowserSource == LobbyBrowserSource.Gg2)) return;
             _game._lobbyBrowserOpen = true;
             _game._lobbyBrowserMode = mode;
+            if (OpenGarrison.ClientShared.ClientDistribution.IsGg2Only)
+                _game._lobbyBrowserSource = LobbyBrowserSource.Gg2;
+            if (mode == LobbyBrowserMode.Watch) _game._lobbyBrowserSource = LobbyBrowserSource.Sgg;
             _game._lobbyBrowserPage = LobbyBrowserPage.List;
             _game.ClearLobbyBrowserDetails();
             _game._manualConnectOpen = false;
@@ -45,6 +51,7 @@ public partial class Game1
             DisableManualConnectEditing();
             _game._lobbyBrowserSelectedIndex = -1;
             _game._lobbyBrowserHoverIndex = -1;
+            _game._lobbyBrowserScrollOffset = 0;
             RefreshLobbyBrowser();
         }
 
@@ -54,6 +61,7 @@ public partial class Game1
             _game._lobbyBrowserPage = LobbyBrowserPage.List;
             _game._lobbyBrowserHoverIndex = -1;
             _game._lobbyBrowserRegistryRequestTask = null;
+            _game.CancelLegacyGg2LobbyRequest();
             _game.CloseLobbyBrowserLobbyClient();
             _game.ClearLobbyBrowserDetails();
             if (clearStatus)
@@ -64,17 +72,31 @@ public partial class Game1
 
         public void RefreshLobbyBrowser()
         {
-            if (IsRestrictedBrowserEdition) return;
+            if (IsRestrictedBrowserEdition
+                && !(OperatingSystem.IsBrowser() && _game._lobbyBrowserSource == LobbyBrowserSource.Gg2)) return;
+            if (OpenGarrison.ClientShared.ClientDistribution.IsGg2Only)
+                _game._lobbyBrowserSource = LobbyBrowserSource.Gg2;
             _game._lobbyBrowserRegistryRequestTask = null;
+            _game.CancelLegacyGg2LobbyRequest();
             _game.CloseLobbyBrowserLobbyClient();
             _game.ClearLobbyBrowserDetails();
             _game._lobbyBrowserPage = LobbyBrowserPage.List;
+            _game._lobbyBrowserEntries.Clear();
+            _game._lobbyBrowserSelectedIndex = -1;
+            _game._lobbyBrowserScrollOffset = 0;
+            if (_game._lobbyBrowserMode == LobbyBrowserMode.Join
+                && _game._lobbyBrowserSource == LobbyBrowserSource.Gg2)
+            {
+                _game.StartLegacyGg2LobbyRequest();
+                _game._menuStatusMessage = "Contacting GG2 lobby...";
+                return;
+            }
+
             if (!OperatingSystem.IsBrowser())
             {
                 _game.EnsureLobbyBrowserClient();
             }
 
-            _game._lobbyBrowserEntries.Clear();
             _game.StartLobbyBrowserRegistryRequest();
 
             foreach (var target in BuildLobbyBrowserTargets())
@@ -90,7 +112,7 @@ public partial class Game1
 
         public void OpenManualConnectMenuFromLobbyBrowser()
         {
-            if (IsRestrictedBrowserEdition) return;
+            if (IsRestrictedBrowserEdition || OpenGarrison.ClientShared.ClientDistribution.IsGg2Only) return;
             _game._lastToDieRoomCodeJoinOpen = false;
             _game._lastToDieConnectionPresentationPending = false;
             CloseLobbyBrowser(clearStatus: false);
@@ -231,12 +253,26 @@ public partial class Game1
         {
             if (!CanJoinSelectedLobbyEntry())
             {
-                _game._menuStatusMessage = "Select an online server first.";
+                _game._menuStatusMessage = _game._lobbyBrowserSource == LobbyBrowserSource.Gg2
+                    ? "Select a compatible public GG2 server."
+                    : "Select an online server first.";
                 return;
             }
 
             var entry = _game._lobbyBrowserEntries[_game._lobbyBrowserSelectedIndex];
-            _game.TryConnectToServer(entry.Endpoint, addConsoleFeedback: false);
+            if (OpenGarrison.ClientShared.ClientDistribution.IsGg2Only && !entry.IsLegacyGg2)
+            {
+                _game._menuStatusMessage = "Select a GG2 server.";
+                return;
+            }
+            if (entry.IsLegacyGg2)
+            {
+                _game.TryConnectLegacyGg2Server(entry.Host, entry.Port, addConsoleFeedback: false);
+            }
+            else
+            {
+                _game.TryConnectToServer(entry.Endpoint, addConsoleFeedback: false);
+            }
         }
 
         public void OpenSelectedLobbyEntryDetails()
@@ -274,8 +310,10 @@ public partial class Game1
         {
             return _game._lobbyBrowserSelectedIndex >= 0
                 && _game._lobbyBrowserSelectedIndex < _game._lobbyBrowserEntries.Count
-                && (_game._lobbyBrowserEntries[_game._lobbyBrowserSelectedIndex].HasResponse
-                    || _game._lobbyBrowserEntries[_game._lobbyBrowserSelectedIndex].CanJoinDirectly);
+                && (_game._lobbyBrowserEntries[_game._lobbyBrowserSelectedIndex].IsLegacyGg2
+                    ? _game._lobbyBrowserEntries[_game._lobbyBrowserSelectedIndex].CanJoinDirectly
+                    : _game._lobbyBrowserEntries[_game._lobbyBrowserSelectedIndex].HasResponse
+                        || _game._lobbyBrowserEntries[_game._lobbyBrowserSelectedIndex].CanJoinDirectly);
         }
 
         public IEnumerable<LobbyBrowserTarget> BuildLobbyBrowserTargets()

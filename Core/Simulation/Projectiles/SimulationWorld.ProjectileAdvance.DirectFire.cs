@@ -138,6 +138,11 @@ public sealed partial class SimulationWorld
                     RegisterImpactEffect(hitResult.HitX, hitResult.HitY, MathF.Atan2(directionY, directionX) * (180f / MathF.PI));
                 }
 
+                if (shot.IsBoomstickPellet)
+                {
+                    ExplodeBoomstickPellet(shot);
+                }
+
                 shot.Destroy();
             }
             else

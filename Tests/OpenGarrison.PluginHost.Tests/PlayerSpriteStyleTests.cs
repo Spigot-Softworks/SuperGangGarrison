@@ -1,7 +1,6 @@
 using System.Collections;
 using System.Reflection;
 using System.Runtime.CompilerServices;
-using System.Text.Json;
 using OpenGarrison.Client;
 using OpenGarrison.ClientShared;
 using OpenGarrison.Core;
@@ -12,7 +11,7 @@ using Xunit;
 
 namespace OpenGarrison.PluginHost.Tests;
 
-public sealed class PlayerSpriteStyleTests
+public sealed class PlayerSkinRenderingTests
 {
     private const BindingFlags PrivateInstance = BindingFlags.Instance | BindingFlags.NonPublic;
 
@@ -42,35 +41,6 @@ public sealed class PlayerSpriteStyleTests
             Assert.Null(catalog.Find(classId, team, set));
     }
 
-    [Fact]
-    public void SwitchingSetsResetsPosesAndKeepsTheSelectedSetThroughJumps()
-    {
-        var catalog = ReadCatalog();
-        var kelly = catalog.Skins["infiltrator"];
-        var elkondo = catalog.Skins["elkondo-spy"];
-        var animation = new PlayerSkinAnimator();
-        animation.Update(kelly, 0.25f, false, 0, -360, 1, false, false);
-        Assert.InRange(animation.Pose, 9, 16);
-        Assert.True(animation.TryGetPose(elkondo, out var newPose));
-        Assert.Equal(0, newPose); // Never reuse Kelly's larger pose index for Elkondo.
-
-        animation.Update(elkondo, 0.1f, false, 0, 180, 1, false, false);
-        Assert.True(animation.TryGetPose(elkondo, out newPose));
-        Assert.InRange(newPose, 1, 8);
-        foreach (var velocity in new[] { -180f, 180f })
-        {
-            animation.Update(elkondo, 0.1f, true, velocity, 180, 1, false, false);
-            Assert.True(animation.TryGetPose(elkondo, out newPose));
-            Assert.Equal(2, newPose);
-        }
-        animation.Update(elkondo, 0.1f, false, 0, 180, 1, false, false);
-        Assert.True(animation.TryGetPose(elkondo, out newPose));
-        Assert.InRange(newPose, 1, 8);
-        animation.Update(kelly, 0.1f, true, 180, 180, 1, false, false);
-        Assert.True(animation.TryGetPose(kelly, out newPose));
-        Assert.Equal(3, newPose);
-    }
-
     [Theory]
     [InlineData(PlayerTeam.Red)]
     [InlineData(PlayerTeam.Blue)]
@@ -80,7 +50,6 @@ public sealed class PlayerSpriteStyleTests
         var world = new SimulationWorld();
         typeof(Game1).GetField("_world", PrivateInstance)!.SetValue(game, world);
         typeof(Game1).GetField("_playerSkins", PrivateInstance)!.SetValue(game, new Lazy<PlayerSkinCatalog>(ReadCatalog));
-        typeof(Game1).GetField("_spriteStyle", PrivateInstance)!.SetValue(game, PlayerSpriteStyle.Elkondo);
         var statesField = typeof(Game1).GetField("_playerRenderStates", PrivateInstance)!;
         statesField.SetValue(game, Activator.CreateInstance(statesField.FieldType));
         var player = new PlayerEntity(12, CharacterClassCatalog.Spy, "Spy");
@@ -112,45 +81,6 @@ public sealed class PlayerSpriteStyleTests
         Assert.Equal($"ElkondoSpy{team}CloakedBodyS", airborneBody.GetType().GetProperty("SpriteName")!.GetValue(airborneBody));
         Assert.Equal(2f, airborneBody.GetType().GetProperty("AnimationImage")!.GetValue(airborneBody));
         Assert.True((bool)includesWeapon.Invoke(game, [player, airborneBody])!);
-        typeof(Game1).GetField("_spriteStyle", PrivateInstance)!.SetValue(game, PlayerSpriteStyle.Kelly);
-        Assert.False((bool)includesWeapon.Invoke(game, [player, cloakedBody])!);
-    }
-
-    [Theory]
-    [InlineData("Kelly", PlayerSpriteStyle.Kelly)]
-    [InlineData("Elkondo", PlayerSpriteStyle.Elkondo)]
-    [InlineData("elkondo", PlayerSpriteStyle.Elkondo)]
-    [InlineData("unknown", PlayerSpriteStyle.Kelly)]
-    [InlineData("99", PlayerSpriteStyle.Kelly)]
-    [InlineData("", PlayerSpriteStyle.Kelly)]
-    public void DesktopPreferenceLoadsAndRoundTrips(string value, PlayerSpriteStyle expected)
-    {
-        var directory = Path.Combine(Path.GetTempPath(), "og-sprite-style-tests", Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(directory);
-        try
-        {
-            var path = Path.Combine(directory, ClientSettings.DefaultFileName);
-            File.WriteAllText(path, "[Settings]\nSprites=" + value + "\n");
-            var settings = ClientSettings.Load(path);
-            Assert.Equal(expected, settings.SpriteStyle);
-            settings.Save(path);
-            Assert.Equal(expected, ClientSettings.Load(path).SpriteStyle);
-            Assert.Contains("Sprites=" + expected, File.ReadAllText(path));
-        }
-        finally
-        {
-            Directory.Delete(directory, recursive: true);
-        }
-    }
-
-    [Fact]
-    public void BrowserPayloadPreservesSelectionAndPreferencesDefaultToElkondo()
-    {
-        Assert.Equal(PlayerSpriteStyle.Elkondo, new OpenGarrisonPreferencesDocument().SpriteStyle);
-        Assert.Equal(PlayerSpriteStyle.Elkondo, JsonSerializer.Deserialize<ClientSettings>("{}")!.SpriteStyle);
-        var json = JsonSerializer.Serialize(new ClientSettings { SpriteStyle = PlayerSpriteStyle.Elkondo });
-        Assert.Equal(PlayerSpriteStyle.Elkondo, JsonSerializer.Deserialize<ClientSettings>(json)!.SpriteStyle);
-        Assert.Equal(PlayerSpriteStyle.Kelly, OpenGarrisonPreferencesDocument.NormalizeSpriteStyle((PlayerSpriteStyle)99));
     }
 
     [Theory]

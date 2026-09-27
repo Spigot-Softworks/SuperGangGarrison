@@ -16,6 +16,12 @@ public partial class Game1
         _connectionFlowController.OpenLobbyBrowser();
     }
 
+    private void OpenGg2LobbyBrowser()
+    {
+        _lobbyBrowserSource = LobbyBrowserSource.Gg2;
+        _connectionFlowController.OpenLobbyBrowser();
+    }
+
     private void OpenWatchBrowser()
     {
         _connectionFlowController.OpenWatchBrowser();
@@ -42,14 +48,30 @@ public partial class Game1
         }
 
         GetLobbyBrowserLayout(
-            out _,
-            out _,
+            out var panel,
+            out var listBounds,
             out var rowBounds,
             out var refreshBounds,
             out var joinBounds,
             out var manualBounds,
             out var backBounds,
             out _);
+        var wheelDelta = mouse.ScrollWheelValue - _previousMouse.ScrollWheelValue;
+        if (wheelDelta != 0 && listBounds.Contains(mouse.Position))
+        {
+            _lobbyBrowserScrollOffset = Math.Clamp(
+                _lobbyBrowserScrollOffset - Math.Sign(wheelDelta) * 3,
+                0,
+                Math.Max(0, _lobbyBrowserEntries.Count - rowBounds.Length));
+        }
+        var showSourceTabs = _lobbyBrowserMode == LobbyBrowserMode.Join
+            && !IsRestrictedBrowserEdition && !OpenGarrison.ClientShared.ClientDistribution.IsGg2Only;
+        if (showSourceTabs && keyboard.IsKeyDown(Keys.Tab) && !_previousKeyboard.IsKeyDown(Keys.Tab))
+        {
+            SelectLobbyBrowserSource(_lobbyBrowserSource == LobbyBrowserSource.Sgg
+                ? LobbyBrowserSource.Gg2 : LobbyBrowserSource.Sgg);
+            return;
+        }
 
         if ((keyboard.IsKeyDown(Keys.Escape) && !_previousKeyboard.IsKeyDown(Keys.Escape))
             || IsControllerMenuBackPressed())
@@ -58,12 +80,27 @@ public partial class Game1
             return;
         }
 
-        if (TryConsumeControllerMenuNavigation(out _, out var verticalStep) && verticalStep != 0)
+        if (TryConsumeControllerMenuNavigation(out var horizontalStep, out var verticalStep)
+            && showSourceTabs && horizontalStep != 0)
+        {
+            SelectLobbyBrowserSource(horizontalStep > 0 ? LobbyBrowserSource.Gg2 : LobbyBrowserSource.Sgg);
+            return;
+        }
+        else if (verticalStep != 0)
         {
             _lobbyBrowserSelectedIndex = MoveControllerMenuSelectionClamped(
                 _lobbyBrowserSelectedIndex,
                 _lobbyBrowserEntries.Count,
                 verticalStep);
+            if (_lobbyBrowserSelectedIndex >= 0
+                && _lobbyBrowserSelectedIndex < _lobbyBrowserScrollOffset)
+            {
+                _lobbyBrowserScrollOffset = _lobbyBrowserSelectedIndex;
+            }
+            else if (_lobbyBrowserSelectedIndex >= _lobbyBrowserScrollOffset + rowBounds.Length)
+            {
+                _lobbyBrowserScrollOffset = _lobbyBrowserSelectedIndex - rowBounds.Length + 1;
+            }
             _lobbyBrowserHoverIndex = _lobbyBrowserSelectedIndex;
         }
         else if (ShouldUseMouseMenuHover(mouse))
@@ -71,14 +108,14 @@ public partial class Game1
             _lobbyBrowserHoverIndex = -1;
             for (var index = 0; index < rowBounds.Length; index += 1)
             {
-                if (index >= _lobbyBrowserEntries.Count)
+                if (_lobbyBrowserScrollOffset + index >= _lobbyBrowserEntries.Count)
                 {
                     break;
                 }
 
                 if (rowBounds[index].Contains(mouse.Position))
                 {
-                    _lobbyBrowserHoverIndex = index;
+                    _lobbyBrowserHoverIndex = _lobbyBrowserScrollOffset + index;
                     break;
                 }
             }
@@ -119,6 +156,22 @@ public partial class Game1
         }
 
         var point = mouse.Position;
+        if (showSourceTabs)
+        {
+            GetLobbyBrowserSourceTabs(panel, out var sggTab, out var gg2Tab);
+            if (sggTab.Contains(point))
+            {
+                SelectLobbyBrowserSource(LobbyBrowserSource.Sgg);
+                return;
+            }
+
+            if (gg2Tab.Contains(point))
+            {
+                SelectLobbyBrowserSource(LobbyBrowserSource.Gg2);
+                return;
+            }
+        }
+
         if (refreshBounds.Contains(point))
         {
             RefreshLobbyBrowser();
@@ -134,7 +187,7 @@ public partial class Game1
                 JoinSelectedLobbyEntry();
             }
         }
-        else if (_lobbyBrowserMode == LobbyBrowserMode.Join && manualBounds.Contains(point))
+        else if (_lobbyBrowserMode == LobbyBrowserMode.Join && !OpenGarrison.ClientShared.ClientDistribution.IsGg2Only && manualBounds.Contains(point))
         {
             _connectionFlowController.OpenManualConnectMenuFromLobbyBrowser();
         }
@@ -236,15 +289,25 @@ public partial class Game1
         DrawBitmapFontText("PLAYERS", new Vector2(playersColumnX, headerY), Color.White, headerScale);
         DrawBitmapFontText("MAP", new Vector2(mapColumnX, headerY), Color.White, headerScale);
         DrawBitmapFontText("MODE", new Vector2(modeColumnX, headerY), Color.White, headerScale);
-        DrawBitmapFontText("PING", new Vector2(pingColumnX, headerY), Color.White, headerScale);
+        DrawBitmapFontText(_lobbyBrowserSource == LobbyBrowserSource.Gg2 ? "VERSION" : "PING", new Vector2(pingColumnX, headerY), Color.White, headerScale);
 
         _spriteBatch.Draw(_pixel, new Rectangle(listBounds.X, listBounds.Y - 4, listBounds.Width, 2), new Color(120, 120, 120));
-        var title = _lobbyBrowserMode == LobbyBrowserMode.Watch ? "Watch Servers" : "Join Servers";
+        var title = _lobbyBrowserMode == LobbyBrowserMode.Watch ? "Watch Servers"
+            : _lobbyBrowserSource == LobbyBrowserSource.Gg2 ? "GG2 Servers" : "Join Servers";
         DrawBitmapFontText(title, new Vector2(panel.X + 24f, panel.Y + 22f), Color.White, 1.18f);
-        for (var index = 0; index < rows.Length && index < _lobbyBrowserEntries.Count; index += 1)
+        if (_lobbyBrowserMode == LobbyBrowserMode.Join && !IsRestrictedBrowserEdition
+            && !OpenGarrison.ClientShared.ClientDistribution.IsGg2Only)
         {
+            GetLobbyBrowserSourceTabs(panel, out var sggTab, out var gg2Tab);
+            DrawLobbyBrowserSourceTab(sggTab, "SGG", _lobbyBrowserSource == LobbyBrowserSource.Sgg, mouse.Position);
+            DrawLobbyBrowserSourceTab(gg2Tab, "GG2", _lobbyBrowserSource == LobbyBrowserSource.Gg2, mouse.Position);
+        }
+        for (var rowIndex = 0; rowIndex < rows.Length
+            && _lobbyBrowserScrollOffset + rowIndex < _lobbyBrowserEntries.Count; rowIndex += 1)
+        {
+            var index = _lobbyBrowserScrollOffset + rowIndex;
             var entry = _lobbyBrowserEntries[index];
-            var bounds = rows[index];
+            var bounds = rows[rowIndex];
             var highlighted = index == _lobbyBrowserSelectedIndex;
             var hovered = index == _lobbyBrowserHoverIndex;
             var background = highlighted
@@ -254,26 +317,33 @@ public partial class Game1
                     : new Color(54, 47, 41);
             _spriteBatch.Draw(_pixel, bounds, background);
 
-            var statusColor = entry.HasResponse || entry.CanJoinDirectly
+            var statusColor = entry.IsLegacyGg2 && !entry.CanJoinDirectly
+                ? new Color(220, 160, 120)
+                : entry.HasResponse || entry.CanJoinDirectly
                 ? Color.White
                 : entry.HasTimedOut
                     ? new Color(220, 160, 120)
                     : new Color(190, 190, 140);
             var playerText = entry.HasResponse
-                ? $"{entry.PlayerCount}/{entry.MaxPlayerCount} (+{entry.SpectatorCount})"
+                ? entry.IsLegacyGg2
+                    ? $"{entry.PlayerCount}{(entry.BotCount > 0 ? $"+{entry.BotCount}" : string.Empty)}/{entry.MaxPlayerCount}"
+                    : $"{entry.PlayerCount}/{entry.MaxPlayerCount} (+{entry.SpectatorCount})"
                 : entry.StatusText;
             var rowTextY = bounds.Y + (compactLayout ? 8f : 9f);
-            DrawBitmapFontText(TrimBitmapMenuText(entry.DisplayName, nameColumnWidth, rowScale), new Vector2(nameColumnX, rowTextY), Color.White, rowScale);
+            var displayName = entry.IsLegacyGg2 && !entry.CanJoinDirectly
+                ? $"{entry.DisplayName} ({entry.StatusText})" : entry.DisplayName;
+            DrawBitmapFontText(TrimBitmapMenuText(displayName, nameColumnWidth, rowScale), new Vector2(nameColumnX, rowTextY), statusColor, rowScale);
             DrawBitmapFontText(TrimBitmapMenuText(entry.AddressLabel, addressColumnWidth, rowScale), new Vector2(addressColumnX, rowTextY), new Color(210, 210, 210), rowScale);
             DrawBitmapFontText(TrimBitmapMenuText(playerText, playersColumnWidth, rowScale), new Vector2(playersColumnX, rowTextY), statusColor, rowScale);
             DrawBitmapFontText(TrimBitmapMenuText(entry.LevelName, mapColumnWidth, rowScale), new Vector2(mapColumnX, rowTextY), statusColor, rowScale);
             DrawBitmapFontText(TrimBitmapMenuText(entry.ModeLabel, modeColumnWidth, rowScale), new Vector2(modeColumnX, rowTextY), statusColor, rowScale);
-            DrawBitmapFontText(TrimBitmapMenuText(entry.PingLabel, pingColumnWidth, rowScale), new Vector2(pingColumnX, rowTextY), statusColor, rowScale);
+            DrawBitmapFontText(TrimBitmapMenuText(entry.IsLegacyGg2 ? entry.VersionLabel : entry.PingLabel, pingColumnWidth, rowScale), new Vector2(pingColumnX, rowTextY), statusColor, rowScale);
         }
 
         DrawMenuButtonScaled(refreshBounds, "Refresh", refreshBounds.Contains(mouse.Position), buttonScale);
         DrawMenuButtonScaled(joinBounds, _lobbyBrowserMode == LobbyBrowserMode.Watch ? "View" : "Join", joinBounds.Contains(mouse.Position), buttonScale);
-        if (_lobbyBrowserMode == LobbyBrowserMode.Join)
+        if (_lobbyBrowserMode == LobbyBrowserMode.Join && !IsRestrictedBrowserEdition
+            && !OpenGarrison.ClientShared.ClientDistribution.IsGg2Only)
         {
             DrawMenuButtonScaled(manualBounds, "Manual", manualBounds.Contains(mouse.Position), buttonScale);
         }
@@ -283,6 +353,21 @@ public partial class Game1
         {
             DrawBitmapFontText(_menuStatusMessage, new Vector2(panel.X + 24f, refreshBounds.Y - (compactLayout ? 26f : 30f)), new Color(230, 220, 180), 1f);
         }
+    }
+
+    private static void GetLobbyBrowserSourceTabs(Rectangle panel, out Rectangle sgg, out Rectangle gg2)
+    {
+        var y = panel.Y + 18;
+        gg2 = new Rectangle(panel.Right - 108, y, 76, 28);
+        sgg = new Rectangle(gg2.X - 84, y, 76, 28);
+    }
+
+    private void DrawLobbyBrowserSourceTab(Rectangle bounds, string label, bool selected, Point pointer)
+    {
+        var color = selected ? new Color(112, 76, 58)
+            : bounds.Contains(pointer) ? new Color(76, 63, 54) : new Color(54, 47, 41);
+        DrawRoundedRectangleOutline(bounds, color, new Color(213, 205, 188), outlineThickness: 1, radius: 4);
+        DrawBitmapFontText(label, new Vector2(bounds.X + 19f, bounds.Y + 7f), Color.White, 1f);
     }
 
     private void DrawLobbyBrowserDetailsMenu(

@@ -123,6 +123,24 @@ internal static partial class ServerHelpers
                 (int)player.ExperimentalEngineerAlternateWeaponMode,
                 0f,
                 false));
+            if (player.HasPrimaryBehavior(OpenGarrison.GameplayModding.BuiltInGameplayBehaviorIds.WhippingCord))
+            {
+                replicatedStates.Add(new SnapshotReplicatedStateEntry(
+                    CoreReplicatedOwnerId, WhippingCordCatalog.ReplicatedLatchKey,
+                    SnapshotReplicatedStateValueKind.Toggle, 0, 0f, player.IsWhippingCordLatched));
+                if (player.IsWhippingCordLatched)
+                {
+                    replicatedStates.Add(new SnapshotReplicatedStateEntry(
+                        CoreReplicatedOwnerId, WhippingCordCatalog.ReplicatedAnchorXKey,
+                        SnapshotReplicatedStateValueKind.Scalar, 0, player.WhippingCordAnchorX, false));
+                    replicatedStates.Add(new SnapshotReplicatedStateEntry(
+                        CoreReplicatedOwnerId, WhippingCordCatalog.ReplicatedAnchorYKey,
+                        SnapshotReplicatedStateValueKind.Scalar, 0, player.WhippingCordAnchorY, false));
+                    replicatedStates.Add(new SnapshotReplicatedStateEntry(
+                        CoreReplicatedOwnerId, WhippingCordCatalog.ReplicatedRopeLengthKey,
+                        SnapshotReplicatedStateValueKind.Scalar, 0, player.WhippingCordRopeLength, false));
+                }
+            }
         }
 
         if (player.ClassId == PlayerClass.Soldier)
@@ -523,7 +541,8 @@ internal static partial class ServerHelpers
             CriticalDamageMultiplier: shot.CriticalDamageMultiplier,
             PlayerKnockbackImpulse: shot.PlayerKnockbackImpulse,
             PlayerKnockbackAirborneVerticalScale: shot.PlayerKnockbackAirborneVerticalScale,
-            PlayerKnockbackGroundedVerticalScale: shot.PlayerKnockbackGroundedVerticalScale);
+            PlayerKnockbackGroundedVerticalScale: shot.PlayerKnockbackGroundedVerticalScale,
+            IsBoomstickPellet: shot.IsBoomstickPellet);
     }
 
     internal static SnapshotShotState ToSnapshotNeedleState(NeedleProjectileEntity shot)

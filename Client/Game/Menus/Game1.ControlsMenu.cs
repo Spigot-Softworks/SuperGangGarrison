@@ -12,6 +12,22 @@ public partial class Game1
 {
     private List<(ControlsMenuBinding Binding, string Label, InputBinding Input)> GetControlsMenuBindings()
     {
+        if (OpenGarrison.ClientShared.ClientDistribution.IsGg2Only)
+            return
+            [
+                (ControlsMenuBinding.MoveUp, "Jump:", _inputBindings.MoveUp),
+                (ControlsMenuBinding.MoveLeft, "Move Left:", _inputBindings.MoveLeft),
+                (ControlsMenuBinding.MoveRight, "Move Right:", _inputBindings.MoveRight),
+                (ControlsMenuBinding.MoveDown, "Move Down:", _inputBindings.MoveDown),
+                (ControlsMenuBinding.Taunt, "Taunt:", _inputBindings.Taunt),
+                (ControlsMenuBinding.CallMedic, "Call Medic:", _inputBindings.CallMedic),
+                (ControlsMenuBinding.ChangeTeam, "Change Team:", _inputBindings.ChangeTeam),
+                (ControlsMenuBinding.ChangeClass, "Change Class:", _inputBindings.ChangeClass),
+                (ControlsMenuBinding.ShowScoreboard, "Show Scores:", _inputBindings.ShowScoreboard),
+                (ControlsMenuBinding.OpenBubbleMenuZ, "Bubble Z:", _inputBindings.OpenBubbleMenuZ),
+                (ControlsMenuBinding.OpenBubbleMenuX, "Bubble X:", _inputBindings.OpenBubbleMenuX),
+                (ControlsMenuBinding.OpenBubbleMenuC, "Bubble C:", _inputBindings.OpenBubbleMenuC),
+            ];
         var bubbleMenuBindingPrefix = GetBubbleMenuBindingPrefix();
         return
         [
@@ -41,6 +57,17 @@ public partial class Game1
 
     private List<(ControllerControlsMenuBinding Binding, string Label, ControllerButtonBinding Input)> GetControllerControlsMenuBindings()
     {
+        if (OpenGarrison.ClientShared.ClientDistribution.IsGg2Only)
+            return
+            [
+                (ControllerControlsMenuBinding.Jump, "Jump:", _clientSettings.ControllerJumpButton),
+                (ControllerControlsMenuBinding.PrimaryFire, "Primary Fire:", _clientSettings.ControllerPrimaryFireButton),
+                (ControllerControlsMenuBinding.SecondaryFire, "Secondary Fire:", _clientSettings.ControllerSecondaryFireButton),
+                (ControllerControlsMenuBinding.Scoreboard, "Show Scores:", _clientSettings.ControllerScoreboardButton),
+                (ControllerControlsMenuBinding.Pause, "Pause/Menu:", _clientSettings.ControllerPauseButton),
+                (ControllerControlsMenuBinding.ChangeTeam, "Change Team:", _clientSettings.ControllerChangeTeamButton),
+                (ControllerControlsMenuBinding.ChangeClass, "Change Class:", _clientSettings.ControllerChangeClassButton),
+            ];
         return
         [
             (ControllerControlsMenuBinding.Jump, "Jump:", _clientSettings.ControllerJumpButton),

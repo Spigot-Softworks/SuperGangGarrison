@@ -74,7 +74,7 @@ public partial class Game1
 
     private void BeginBrandIntro()
     {
-        if (ClientDistribution.IsRestricted)
+        if (ClientDistribution.IsRestricted || ClientDistribution.IsGg2Only)
         {
             CompleteStartupIntro();
             return;

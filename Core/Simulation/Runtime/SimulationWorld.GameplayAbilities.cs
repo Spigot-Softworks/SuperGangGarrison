@@ -1023,6 +1023,18 @@ public sealed partial class SimulationWorld
         return GameplayPrimaryWeaponResult.HandledResult;
     }
 
+    internal GameplayPrimaryWeaponResult ExecuteBoomstickPrimaryWeapon(GameplayPrimaryWeaponContext context)
+    {
+        WeaponHandler.FireBoomstick(
+            context.Player,
+            context.Weapon,
+            context.WeaponClassId,
+            context.AimWorldX,
+            context.AimWorldY,
+            context.KillFeedWeaponSpriteName);
+        return GameplayPrimaryWeaponResult.HandledResult;
+    }
+
     internal GameplayPrimaryWeaponResult ExecuteNeedlegunPrimaryWeapon(GameplayPrimaryWeaponContext context)
     {
         WeaponHandler.FireMedicNeedlegun(context.Player, context.Weapon, context.AimWorldX, context.AimWorldY);

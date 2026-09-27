@@ -78,6 +78,15 @@ internal static class BrowserAssetBuildPipeline
         return outputPath;
     }
 
+    public static string WriteStockGameplayRuntimeOnly(BrowserAssetBuildContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ContentRoot.Initialize(context.ContentRoot);
+        var outputPath = Path.Combine(context.OutputContentRoot, "Gameplay", "stock.gg2", "runtime.json");
+        BuildLegacyStockPackDefinition(context, []);
+        return outputPath;
+    }
+
     public static string WriteRuntimeBundleOnly(BrowserAssetBuildContext context)
     {
         ArgumentNullException.ThrowIfNull(context);

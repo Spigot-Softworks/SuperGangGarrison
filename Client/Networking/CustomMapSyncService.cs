@@ -81,6 +81,10 @@ internal static class CustomMapSyncService
             return CustomMapSyncResult.Ok;
         }
 
+        if (OperatingSystem.IsBrowser() && LegacyGg2BrowserMapCache.IsGg2LevelName(levelName))
+            return await LegacyGg2BrowserMapCache.EnsureMapAvailableAsync(
+                levelName, mapDownloadUrl, httpClient, cancellationToken);
+
         ReportProgress(progress, "Checking custom map...", null);
 
         if (!CustomMapLocatorStore.TryNormalizeLevelName(levelName, out var normalizedLevelName))

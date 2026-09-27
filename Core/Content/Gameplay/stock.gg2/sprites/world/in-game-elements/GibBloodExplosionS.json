@@ -1,0 +1,10 @@
+{
+  "id": "GibBloodExplosionS",
+  "framePaths": [
+    "assets/world/in-game-elements/GibBloodExplosionS/0.png",
+    "assets/world/in-game-elements/GibBloodExplosionS/1.png",
+    "assets/world/in-game-elements/GibBloodExplosionS/2.png"
+  ],
+  "originX": 16,
+  "originY": 16
+}
