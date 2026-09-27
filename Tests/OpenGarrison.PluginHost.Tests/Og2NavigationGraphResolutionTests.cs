@@ -19,13 +19,17 @@ public sealed class Og2NavigationGraphResolutionTests
             var level = SimpleLevelFactory.CreateImportedLevel("Conflict");
             Assert.NotNull(level);
 
-            _ = Og2NavigationGraphStore.GetOrBuild(level, out var firstResolution);
-            var graph = Og2NavigationGraphStore.GetOrBuild(level, out var secondResolution);
+            var provider = new NavigationGraphProvider();
+            _ = provider.PreloadGraph(level);
+            var firstSource = provider.LastPreloadSource;
+            var firstPath = provider.LastSourcePath;
+            var graph = provider.PreloadGraph(level);
+            var secondSource = provider.LastPreloadSource;
 
-            Assert.Equal(Og2NavigationGraphResolutionSource.Shipped, firstResolution.Source);
-            Assert.False(string.IsNullOrWhiteSpace(firstResolution.Path));
-            Assert.True(File.Exists(firstResolution.Path), firstResolution.Path);
-            Assert.Equal(Og2NavigationGraphResolutionSource.InMemory, secondResolution.Source);
+            Assert.Equal("Shipped", firstSource);
+            Assert.False(string.IsNullOrWhiteSpace(firstPath));
+            Assert.True(File.Exists(firstPath), firstPath);
+            Assert.Equal("InMemory", secondSource);
             Assert.True(graph.NodeCount > 0);
         }
         finally

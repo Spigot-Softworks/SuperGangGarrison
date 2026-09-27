@@ -11,7 +11,8 @@ public sealed class NavigationGraphProviderTests
     public void WarmedCacheHitReturnsWarmedGraph()
     {
         var level = CreateTopDownLevel($"provider_warmed_{Guid.NewGuid():N}");
-        var warmedGraph = Og2NavigationGraphStore.GetOrBuild(level);
+        var warmingProvider = new NavigationGraphProvider();
+        var warmedGraph = warmingProvider.PreloadGraph(level);
         var provider = new NavigationGraphProvider();
 
         var graph = provider.GetGraph(level);
@@ -33,7 +34,7 @@ public sealed class NavigationGraphProviderTests
             Assert.NotNull(level);
             var provider = new NavigationGraphProvider();
 
-            Assert.False(Og2NavigationGraphStore.TryGetCached(level!, out _));
+            Assert.False(NavigationGraphProvider.TryGetWarmedGraph(level!, out _));
             var graph = provider.GetGraph(level!);
 
             Assert.NotNull(graph);
@@ -43,6 +44,37 @@ public sealed class NavigationGraphProviderTests
         {
             ContentRoot.Initialize(originalContentRoot);
         }
+    }
+
+    [Fact]
+    public void PreloadBuildsWhenGraphIsMissing()
+    {
+        var level = CreateTopDownLevel($"provider_preload_build_{Guid.NewGuid():N}");
+        Assert.False(NavigationGraphProvider.TryGetWarmedGraph(level, out _));
+        var provider = new NavigationGraphProvider();
+
+        var graph = provider.PreloadGraph(level);
+
+        Assert.NotNull(graph);
+        Assert.Equal("built", provider.LastSource);
+        Assert.Equal("Built", provider.LastPreloadSource);
+        Assert.NotEmpty(provider.LastSourcePath);
+    }
+
+    [Fact]
+    public void PreloadHitsWarmedCache()
+    {
+        var level = CreateTopDownLevel($"provider_preload_warmed_{Guid.NewGuid():N}");
+        var warmingProvider = new NavigationGraphProvider();
+        var warmedGraph = warmingProvider.PreloadGraph(level);
+        var provider = new NavigationGraphProvider();
+
+        var graph = provider.PreloadGraph(level);
+
+        Assert.Same(warmedGraph, graph);
+        Assert.Equal("memory", provider.LastSource);
+        Assert.Equal("InMemory", provider.LastPreloadSource);
+        Assert.Empty(provider.LastSourcePath);
     }
 
     [Fact]

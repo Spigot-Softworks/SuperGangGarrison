@@ -473,9 +473,7 @@ public sealed class BotBrainController
             // here made the first server tick block for seconds on maps that
             // intentionally exercise graphless navigation.
             _navGraph = _navigationGraphProvider.GetGraph(world.Level);
-            LastNavigationGraphSource = _navigationGraphProvider is NavigationGraphProvider provider
-                ? provider.LastSource
-                : _navGraph is null ? "none" : "override";
+            LastNavigationGraphSource = _navigationGraphProvider.LastSource;
             _lastLevel = world.Level;
             _currentPath = null;
             _hasDynamicRouteTarget = false;

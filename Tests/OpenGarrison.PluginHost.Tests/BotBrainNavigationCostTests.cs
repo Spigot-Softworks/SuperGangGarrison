@@ -84,7 +84,7 @@ public sealed class BotBrainNavigationCostTests
         // Runtime alpha navigation uses immutable OG2 binaries. Conflict does
         // not currently ship a compatible snapshot, so the graphless policy
         // must remain valid rather than demanding the retired JSON asset.
-        if (Og2NavigationGraphStore.TryLoadShipped(level!, out var graph))
+        if (NavigationGraphProvider.TryLoadShippedGraph(level!, out var graph))
         {
             Assert.True(graph.NodeCount > 0);
             return;

@@ -359,18 +359,20 @@ partial class GameServer
         // stage commit preloads the graph after the client is registered.
         var botNavigationPreloadMs = 0d;
         var botNavigationPreloaded = false;
-        var botNavigationWarmup = default(Og2NavigationGraphResolution);
+        var botNavigationWarmupSource = "None";
+        var botNavigationWarmupPath = string.Empty;
         if (!IsLastToDieHosted)
         {
             botNavigationPreloaded = PreloadBotNavigationForCurrentLevel(
                 out botNavigationPreloadMs,
-                out botNavigationWarmup);
+                out botNavigationWarmupSource,
+                out botNavigationWarmupPath);
         }
         Console.WriteLine(
             "[botbrain] startup-nav " +
             $"level={_world.Level.Name} area={_world.Level.MapAreaIndex} " +
             $"preloaded={botNavigationPreloaded} preloadMs={botNavigationPreloadMs:0.###} " +
-            $"source={botNavigationWarmup.Source} sourcePath=\"{botNavigationWarmup.Path}\"");
+            $"source={botNavigationWarmupSource} sourcePath=\"{botNavigationWarmupPath}\"");
         Console.WriteLine($"Event log: {eventLog.FilePath}");
         Console.WriteLine(_passwordRequired ? "[server] password required" : "[server] no password set");
         if (_useLobbyServer)
@@ -435,7 +437,8 @@ partial class GameServer
 
     private bool PreloadBotNavigationForCurrentLevel(
         out double elapsedMilliseconds,
-        out Og2NavigationGraphResolution diagnostic)
+        out string source,
+        out string sourcePath)
     {
         var startTimestamp = Stopwatch.GetTimestamp();
         // The live bot brain is OG2-first. The previous preload only queried
@@ -443,7 +446,10 @@ partial class GameServer
         // the first bot Think on the simulation thread. Resolve the shared OG2
         // graph at startup/map transition instead; every controller then sees a
         // warmed immutable graph and cannot block a running simulation tick.
-        _ = Og2NavigationGraphStore.GetOrBuild(_world.Level, out diagnostic);
+        var provider = new NavigationGraphProvider();
+        _ = provider.PreloadGraph(_world.Level);
+        source = provider.LastPreloadSource;
+        sourcePath = provider.LastSourcePath;
         var loaded = true;
         elapsedMilliseconds = Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds;
         return loaded;
@@ -757,12 +763,13 @@ partial class GameServer
                     LogMapTransitionPhase("navigation");
                     var botNavigationPreloaded = PreloadBotNavigationForCurrentLevel(
                         out var botNavigationPreloadMs,
-                        out var botNavigationWarmup);
+                        out var botNavigationWarmupSource,
+                        out var botNavigationWarmupPath);
                     Console.WriteLine(
                         "[botbrain] map-nav " +
                         $"level={_world.Level.Name} area={_world.Level.MapAreaIndex} " +
                         $"preloaded={botNavigationPreloaded} preloadMs={botNavigationPreloadMs:0.###} " +
-                        $"source={botNavigationWarmup.Source} sourcePath=\"{botNavigationWarmup.Path}\"");
+                        $"source={botNavigationWarmupSource} sourcePath=\"{botNavigationWarmupPath}\"");
                     LogMapTransitionPhase("team-rules");
                     ApplyRoundEndTeamRules(transition);
                     LogMapTransitionPhase("bots");

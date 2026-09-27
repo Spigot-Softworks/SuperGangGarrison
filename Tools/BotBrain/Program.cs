@@ -18,7 +18,7 @@ var artifactJsonOptions = new JsonSerializerOptions
 var rawOptions = BotBrainToolCommandHelpers.ParseRawOptions(args);
 if (rawOptions.ContainsKey("compact-alpha-cache"))
 {
-    var compactionResult = Og2NavigationGraphCache.CompactPersistentCache();
+    var compactionResult = NavigationGraphProvider.CompactPersistentCache();
     Console.WriteLine(
         $"alphaCacheCompaction scanned={compactionResult.Scanned} compressed={compactionResult.Compressed} " +
         $"skipped={compactionResult.Skipped} failed={compactionResult.Failed} " +
@@ -2215,7 +2215,7 @@ static void RunPracticeRosterSimulation(
     // Passing the deprecated asset graph as a controller override silently
     // selects legacy proof/tape navigation, so obtain the same immutable OG2
     // graph that the live client resolves and force alpha mode explicitly.
-    graph = Og2NavigationGraphStore.GetOrBuild(level);
+    graph = new NavigationGraphProvider().PreloadGraph(level);
 
     var ticks = GetRosterInt(rawOptions, "ticks", options.Ticks);
     var reportEvery = GetRosterInt(rawOptions, "report-every", Math.Max(30, options.ReportEveryTicks));
