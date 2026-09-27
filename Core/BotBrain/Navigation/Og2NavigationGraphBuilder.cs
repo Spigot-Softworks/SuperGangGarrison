@@ -11,7 +11,7 @@ namespace OpenGarrison.Core.BotBrain;
 /// The resulting graph is compact enough to build once per SimpleLevel and share
 /// between every bot in the match.
 /// </summary>
-public static class Og2NavigationGraphBuilder
+internal static class Og2NavigationGraphBuilder
 {
     // Bump whenever graph-generation behavior changes. Runtime steering
     // changes intentionally do not invalidate the graph cache.
@@ -1928,7 +1928,7 @@ public static class Og2NavigationGraphBuilder
 /// the lifetime boundary for a match area, so the weak-key cache avoids rebuilding
 /// the same graph once per bot controller.
 /// </summary>
-public static class Og2NavigationGraphStore
+internal static class Og2NavigationGraphStore
 {
     private const string ExtendedSweepTicks = "96";
     private static readonly ConditionalWeakTable<SimpleLevel, CachedGraph> Cache = new();
