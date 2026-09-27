@@ -41,7 +41,7 @@ public static class CustomMapBuilderPngImporter
         {
             if (resources.ContainsKey(key) || key.Equals("bg_foreground", StringComparison.OrdinalIgnoreCase)
                 || key.StartsWith("bg_layer", StringComparison.OrdinalIgnoreCase)
-                || (key.StartsWith("layer", StringComparison.OrdinalIgnoreCase) && (key.EndsWith("xfactor") || key.EndsWith("yfactor"))))
+                || (key.StartsWith("layer", StringComparison.OrdinalIgnoreCase) && (key.EndsWith("xfactor", StringComparison.OrdinalIgnoreCase) || key.EndsWith("yfactor", StringComparison.OrdinalIgnoreCase))))
                 metadata.Remove(key);
         }
         return new CustomMapBuilderDocument(

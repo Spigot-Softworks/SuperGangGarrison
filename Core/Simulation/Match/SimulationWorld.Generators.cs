@@ -222,16 +222,4 @@ public sealed partial class SimulationWorld
             target?.SetHealth(generatorState.Health);
         }
     }
-
-    internal GeneratorState? CombatTestGetGenerator(PlayerTeam team)
-        => GetGenerator(team);
-
-    internal void CombatTestSetGeneratorHealth(PlayerTeam team, int health)
-    {
-        var generator = GetGenerator(team);
-        generator?.SetHealth(health);
-    }
-
-    internal bool CombatTestDamageGenerator(PlayerTeam team, float damage)
-        => TryDamageGenerator(team, damage);
 }

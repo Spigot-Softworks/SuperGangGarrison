@@ -24,7 +24,7 @@ public static class MapLogicGraphImporter
             var logicKey = MapLogicMetadata.EnsureLogicKey(properties);
             if (entity.Type.Equals(MapLogicMetadata.CpTriggerEntityType, StringComparison.OrdinalIgnoreCase))
             {
-                MapLogicMetadata.TryParseCpTriggerOwnerRequirement(
+                _ = MapLogicMetadata.TryParseCpTriggerOwnerRequirement(
                     ReadProperty(properties, MapLogicMetadata.RequiredOwnerPropertyKey),
                     out var ownerRequirement);
                 definitions.Add(new MapLogicNodeDefinition
@@ -42,7 +42,7 @@ public static class MapLogicGraphImporter
 
             if (entity.Type.Equals(MapLogicMetadata.GateEntityType, StringComparison.OrdinalIgnoreCase))
             {
-                MapLogicMetadata.TryParseGateType(
+                _ = MapLogicMetadata.TryParseGateType(
                     ReadProperty(properties, MapLogicMetadata.GateTypePropertyKey),
                     out var gateType);
                 definitions.Add(new MapLogicNodeDefinition
@@ -132,7 +132,7 @@ public static class MapLogicGraphImporter
 
             if (entity.Type.Equals(MapLogicMetadata.PlayerTriggerEntityType, StringComparison.OrdinalIgnoreCase))
             {
-                PlayerTriggerMetadata.TryParseTeamFilter(
+                _ = PlayerTriggerMetadata.TryParseTeamFilter(
                     ReadProperty(properties, PlayerTriggerMetadata.TeamPropertyKey),
                     out var teamFilter);
                 var roomObjectIndex = roomObjects is null

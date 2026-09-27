@@ -26,11 +26,7 @@ public static class PlayerTriggerMetadata
     public const float MinZoneExtent = 12f;
 
     public static (float Width, float Height) ResolveZoneDimensions(float xScale, float yScale)
-    {
-        var width = DefaultZoneWidth * MathF.Abs(xScale <= 0f ? 1f : xScale);
-        var height = DefaultZoneHeight * MathF.Abs(yScale <= 0f ? 1f : yScale);
-        return (MathF.Max(MinZoneExtent, width), MathF.Max(MinZoneExtent, height));
-    }
+        => ZoneDimensionResolver.Resolve(DefaultZoneWidth, DefaultZoneHeight, MinZoneExtent, xScale, yScale);
 
     public static bool TryParseTeamFilter(string? value, out PlayerTriggerTeamFilter filter)
     {

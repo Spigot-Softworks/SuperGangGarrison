@@ -1133,62 +1133,6 @@ public sealed class NavGraph
         return -1;
     }
 
-
-    private HashSet<int> FindAllReachableNodesFromGoal(
-        int goalNode,
-        PlayerClass? playerClass,
-        IReadOnlySet<NavEdgeBlock> blockedEdges,
-        PlayerTeam? team,
-        bool carryingIntel)
-    {
-        var reachableNodes = new HashSet<int>();
-        var distance = new float[_nodes.Length];
-        Array.Fill(distance, float.MaxValue);
-        var openSet = new PriorityQueue<int, float>();
-        distance[goalNode] = 0f;
-        openSet.Enqueue(goalNode, 0f);
-
-        while (openSet.Count > 0)
-        {
-            var current = openSet.Dequeue();
-            if (!reachableNodes.Add(current))
-            {
-                continue;
-            }
-
-            var predecessors = _reverseAdjacency[current];
-            for (var index = 0; index < predecessors.Count; index += 1)
-            {
-                var predecessor = predecessors[index];
-                var fromNode = predecessor.FromNode;
-                var edge = predecessor.Edge;
-                if (playerClass.HasValue
-                    && (!SupportsEdge(edge, playerClass.Value, team, carryingIntel)
-                        || ShouldPreferCertifiedJump(fromNode, edge, playerClass.Value, team, carryingIntel)))
-                {
-                    continue;
-                }
-
-                if (blockedEdges.Contains(new NavEdgeBlock(fromNode, current, edge.Kind)))
-                {
-                    continue;
-                }
-
-                var tentativeDistance = distance[current]
-                    + ResolveTraversalCost(edge, fromNode, current, playerClass, carryingIntel, team);
-                if (tentativeDistance >= distance[fromNode])
-                {
-                    continue;
-                }
-
-                distance[fromNode] = tentativeDistance;
-                openSet.Enqueue(fromNode, tentativeDistance);
-            }
-        }
-
-        return reachableNodes;
-    }
-
     private HashSet<int> GetAlphaReachableNodesToObjective(
         int goalNode,
         PlayerClass? playerClass,

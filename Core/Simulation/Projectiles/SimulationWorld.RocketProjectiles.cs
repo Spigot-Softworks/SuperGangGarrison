@@ -601,64 +601,6 @@ public sealed partial class SimulationWorld
             world.GetCachedPlayerPresentationHitBounds(player, out left, out top, out right, out bottom);
         }
 
-        private static string? GetRocketPlayerBodySpriteName(SimulationWorld world, PlayerEntity player)
-        {
-            if (world.IsPlayerHumiliated(player))
-            {
-                return GetPresentationSpriteName(
-                    player.ClassId,
-                    player.Team,
-                    static presentation => presentation.HumiliationSuffix ?? presentation.BaseSuffix,
-                    "HS");
-            }
-
-            if (player.ClassId == PlayerClass.Quote)
-            {
-                return GetPlayerSpriteName(player.ClassId, player.Team);
-            }
-
-            if (player.IsHeavyEating)
-            {
-                return player.ClassId == PlayerClass.Heavy
-                    ? GetPresentationSpriteName(player.ClassId, player.Team, static presentation => presentation.HeavyEatSuffix ?? presentation.BaseSuffix, "OmnomnomnomS")
-                    : GetPlayerSpriteName(player.ClassId, player.Team);
-            }
-
-            if (player.IsTaunting)
-            {
-                return GetPresentationSpriteName(player.ClassId, player.Team, static presentation => presentation.TauntSuffix ?? presentation.BaseSuffix, "TauntS");
-            }
-
-            if (player.ClassId == PlayerClass.Sniper && player.IsSniperScoped)
-            {
-                return GetPresentationSpriteName(player.ClassId, player.Team, static presentation => presentation.ScopedSuffix ?? presentation.BaseSuffix, "CrouchS");
-            }
-
-            var horizontalSourceStepSpeed = MathF.Abs(player.HorizontalSpeed) / LegacyMovementModel.SourceTicksPerSecond;
-            var appearsAirborne = !player.IsGrounded;
-            if (appearsAirborne && HasGroundSupportForRocketPresentation(world, player))
-            {
-                appearsAirborne = false;
-            }
-
-            if (appearsAirborne)
-            {
-                return GetPresentationSpriteName(player.ClassId, player.Team, static presentation => presentation.JumpSuffix ?? presentation.BaseSuffix, "JumpS");
-            }
-
-            if (horizontalSourceStepSpeed < 0.2f)
-            {
-                return GetStandingSpriteName(world, player);
-            }
-
-            if (player.ClassId == PlayerClass.Heavy && horizontalSourceStepSpeed < 3f)
-            {
-                return GetPresentationSpriteName(player.ClassId, player.Team, static presentation => presentation.WalkSuffix ?? presentation.RunSuffix ?? presentation.BaseSuffix, "WalkS");
-            }
-
-            return GetPresentationSpriteName(player.ClassId, player.Team, static presentation => presentation.RunSuffix ?? presentation.BaseSuffix, "RunS");
-        }
-
         private static string? GetStandingSpriteName(SimulationWorld world, PlayerEntity player)
         {
             var leanDirection = GetPlayerLeanDirection(world, player);
