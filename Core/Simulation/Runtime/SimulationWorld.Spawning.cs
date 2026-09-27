@@ -631,23 +631,6 @@ public sealed partial class SimulationWorld
         return ReserveSpawn(player, team);
     }
 
-    private static bool IsForwardSpawnSelectionPool(IReadOnlyList<SpawnPoint> spawnPool)
-    {
-        if (spawnPool.Count == 0)
-        {
-            return false;
-        }
-
-        for (var index = 0; index < spawnPool.Count; index += 1)
-        {
-            if (!spawnPool[index].IsForwardSpawn)
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
 
     internal void CombatTestSetControlPointOwner(int controlPointIndex, PlayerTeam? team)
     {

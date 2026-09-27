@@ -840,17 +840,6 @@ public static class CustomMapPngImporter
         return false;
     }
 
-    private static float ResolveMetadataScale(IReadOnlyDictionary<string, string> metadata)
-    {
-        if (metadata.TryGetValue("scale", out var scaleText)
-            && float.TryParse(scaleText, NumberStyles.Float, CultureInfo.InvariantCulture, out var scale)
-            && scale > 0f)
-        {
-            return scale;
-        }
-
-        return DefaultCustomMapScale;
-    }
 
     private static float ResolveMapScale(
         float resolvedScale,

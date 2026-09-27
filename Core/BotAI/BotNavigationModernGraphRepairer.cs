@@ -270,60 +270,6 @@ public static class BotNavigationModernGraphRepairer
         return new BotNavigationModernGraphRepairResult(repairedAsset, addedEdges);
     }
 
-    private static int AddReachabilityBridgeEdges(
-        SimpleLevel level,
-        IReadOnlyList<BotNavigationNode> nodes,
-        List<BotNavigationEdge> edges,
-        HashSet<long> edgeKeys)
-    {
-        if (!SupportsAttackReachabilityAudit(level.Mode))
-        {
-            return 0;
-        }
-
-        var addedEdges = 0;
-        for (var teamIndex = 0; teamIndex < 2; teamIndex += 1)
-        {
-            var team = teamIndex == 0 ? PlayerTeam.Red : PlayerTeam.Blue;
-            var spawns = GetTeamSpawns(level, nodes, team);
-            var objectives = GetAttackObjectives(level, nodes, team);
-            for (var spawnIndex = 0; spawnIndex < spawns.Count; spawnIndex += 1)
-            {
-                var spawn = spawns[spawnIndex];
-                var nearestStartCandidates = FindNearestNodes(nodes, spawn.X, spawn.Y, StartNodeSearchDistance);
-                if (nearestStartCandidates.Count == 0)
-                {
-                    continue;
-                }
-
-                var startCandidates = nearestStartCandidates.Take(1).ToArray();
-                for (var bridgeAttempt = 0; bridgeAttempt < 8; bridgeAttempt += 1)
-                {
-                    var adjacency = BuildAdjacency(edges);
-                    if (CanReachAnyObjective(nodes, adjacency, startCandidates, objectives))
-                    {
-                        break;
-                    }
-
-                    if (!TryAddShortestBridgeToAnyObjective(
-                            level,
-                            nodes,
-                            edges,
-                            edgeKeys,
-                            adjacency,
-                            startCandidates,
-                            objectives))
-                    {
-                        break;
-                    }
-
-                    addedEdges += 1;
-                }
-            }
-        }
-
-        return addedEdges;
-    }
 
     private static bool CanReachAnyObjective(
         IReadOnlyList<BotNavigationNode> nodes,

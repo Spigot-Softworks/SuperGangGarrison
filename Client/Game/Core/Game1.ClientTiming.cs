@@ -592,19 +592,6 @@ public partial class Game1
             && (ammoPerShot <= 0 || availableAmmo >= ammoPerShot);
     }
 
-    private void ClearPendingOfflineBuildMenuCommands()
-    {
-        _pendingOfflineBuildSentry = false;
-        _pendingOfflineBuildDispenser = false;
-        _pendingOfflineDestroySentry = false;
-        _pendingOfflineDestroyDispenser = false;
-        _pendingOfflineBuildJumpPad = false;
-        _pendingOfflineDestroyJumpPad = false;
-        _pendingOfflineUseAbility = false;
-        _hasPendingBuildSentryAimOffset = false;
-        _pendingBuildSentryAimOffsetX = 0f;
-        _pendingBuildSentryAimOffsetY = 0f;
-    }
 
     private void AdvanceNetworkInputLane(PlayerInputSnapshot networkInput)
     {

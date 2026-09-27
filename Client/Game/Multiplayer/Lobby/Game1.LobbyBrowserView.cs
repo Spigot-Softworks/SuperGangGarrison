@@ -489,18 +489,6 @@ public partial class Game1
         return _connectionFlowController.CanJoinSelectedLobbyEntry();
     }
 
-    private bool CanWatchLobbyBrowserDetails()
-    {
-        var entry = _lobbyBrowserDetailsEntry;
-        if (entry is null
-            && _lobbyBrowserSelectedIndex >= 0
-            && _lobbyBrowserSelectedIndex < _lobbyBrowserEntries.Count)
-        {
-            entry = _lobbyBrowserEntries[_lobbyBrowserSelectedIndex];
-        }
-
-        return entry is not null && (entry.HasResponse || entry.CanJoinDirectly);
-    }
 
     private IEnumerable<LobbyBrowserTarget> BuildLobbyBrowserTargets()
     {

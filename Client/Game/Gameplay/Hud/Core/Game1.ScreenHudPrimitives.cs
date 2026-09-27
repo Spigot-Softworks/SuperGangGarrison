@@ -60,30 +60,6 @@ public partial class Game1
         DrawBitmapFontText(text, new Vector2(position.X - (width / 2f), position.Y - (height / 2f)), color, scale);
     }
 
-    private void DrawMenuTextCentered(string text, Vector2 position, Color color, float scale)
-    {
-        if (string.IsNullOrWhiteSpace(text))
-        {
-            return;
-        }
-
-        if (_menuBitmapFontTexture is not null && _menuBitmapFontGlyphs.Count > 0)
-        {
-            var width = MeasureMenuBitmapFontWidth(text, scale);
-            var height = MeasureMenuBitmapFontHeight(scale);
-            var drawPosition = new Vector2(
-                MathF.Round(position.X - (width / 2f)),
-                MathF.Round(position.Y - (height / 2f)));
-            DrawMenuBitmapFontText(text, drawPosition, color, scale);
-            return;
-        }
-
-        var scaledSize = _menuFont.MeasureString(text) * scale;
-        var fallbackPosition = new Vector2(
-            MathF.Round(position.X - (scaledSize.X / 2f)),
-            MathF.Round(position.Y - (scaledSize.Y / 2f)));
-        _spriteBatch.DrawString(_menuFont, text, fallbackPosition, ApplyCurrentHudElementOpacity(color), 0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
-    }
 
     private void DrawHudTextLeftAligned(string text, Vector2 position, Color color, float scale)
     {
@@ -96,36 +72,14 @@ public partial class Game1
         DrawBitmapFontText(text, new Vector2(position.X - width, position.Y), color, scale);
     }
 
-    private void DrawHudTextRightAlignedCenteredY(string text, Vector2 position, Color color, float scale)
-    {
-        var width = MeasureBitmapFontWidth(text, scale);
-        var height = MeasureBitmapFontHeight(scale);
-        DrawBitmapFontText(text, new Vector2(position.X - width, position.Y - (height / 2f)), color, scale);
-    }
 
-    private void DrawConsoleTextCentered(string text, Vector2 position, Color color, float scale)
-    {
-        var origin = _consoleFont.MeasureString(text) / 2f;
-        _spriteBatch.DrawString(_consoleFont, text, position, ApplyCurrentHudElementOpacity(color), 0f, origin, scale, SpriteEffects.None, 0f);
-    }
 
     private void DrawConsoleTextLeftAligned(string text, Vector2 position, Color color, float scale)
     {
         _spriteBatch.DrawString(_consoleFont, text, position, ApplyCurrentHudElementOpacity(color), 0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
     }
 
-    private void DrawConsoleTextRightAligned(string text, Vector2 position, Color color, float scale)
-    {
-        var size = _consoleFont.MeasureString(text);
-        _spriteBatch.DrawString(_consoleFont, text, position, ApplyCurrentHudElementOpacity(color), 0f, size, scale, SpriteEffects.None, 0f);
-    }
 
-    private void DrawConsoleTextRightAlignedCenteredY(string text, Vector2 position, Color color, float scale)
-    {
-        var size = _consoleFont.MeasureString(text);
-        var origin = new Vector2(size.X, size.Y / 2f);
-        _spriteBatch.DrawString(_consoleFont, text, position, ApplyCurrentHudElementOpacity(color), 0f, origin, scale, SpriteEffects.None, 0f);
-    }
 
     private void DrawCenteredHudSprite(string spriteName, int frameIndex, Vector2 visualCenter, Color tint, Vector2 scale)
     {

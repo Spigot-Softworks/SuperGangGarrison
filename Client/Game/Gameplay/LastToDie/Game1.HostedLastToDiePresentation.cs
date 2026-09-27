@@ -699,37 +699,6 @@ public partial class Game1
         LastToDieWirePhase? phase)
         => isConnected && phase.HasValue;
 
-    private int GetHostedLastToDieDigitChoice(KeyboardState keyboard, int count)
-    {
-        Keys[] digits =
-        [
-            Keys.D1,
-            Keys.D2,
-            Keys.D3,
-            Keys.D4,
-            Keys.D5,
-            Keys.D6,
-        ];
-        Keys[] numpad =
-        [
-            Keys.NumPad1,
-            Keys.NumPad2,
-            Keys.NumPad3,
-            Keys.NumPad4,
-            Keys.NumPad5,
-            Keys.NumPad6,
-        ];
-        for (var index = 0; index < Math.Min(count, digits.Length); index += 1)
-        {
-            if (IsKeyPressed(keyboard, digits[index])
-                || IsKeyPressed(keyboard, numpad[index]))
-            {
-                return index;
-            }
-        }
-
-        return -1;
-    }
 
     private void DrawHostedLastToDieHud()
     {

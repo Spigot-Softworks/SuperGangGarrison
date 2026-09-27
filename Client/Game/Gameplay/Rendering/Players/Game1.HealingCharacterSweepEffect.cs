@@ -105,39 +105,7 @@ public partial class Game1
         }
     }
 
-    private void DrawHealingCharacterBodySweepEffects(
-        PlayerEntity player,
-        Vector2 renderPosition,
-        Vector2 cameraPosition,
-        float visibilityAlpha,
-        PlayerBodySpriteSelection bodySelection)
-    {
-        DrawHealingCharacterSweepEffectsCore(
-            player,
-            renderPosition,
-            cameraPosition,
-            visibilityAlpha,
-            bodySelection,
-            drawBody: true,
-            drawWeapon: false);
-    }
 
-    private void DrawHealingCharacterWeaponSweepEffects(
-        PlayerEntity player,
-        Vector2 renderPosition,
-        Vector2 cameraPosition,
-        float visibilityAlpha,
-        PlayerBodySpriteSelection bodySelection)
-    {
-        DrawHealingCharacterSweepEffectsCore(
-            player,
-            renderPosition,
-            cameraPosition,
-            visibilityAlpha,
-            bodySelection,
-            drawBody: false,
-            drawWeapon: true);
-    }
 
     private void DrawHealingCharacterSweepEffectsCore(
         PlayerEntity player,

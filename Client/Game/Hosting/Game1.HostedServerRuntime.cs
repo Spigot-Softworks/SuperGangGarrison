@@ -39,39 +39,6 @@ public partial class Game1
             mapRotationFile);
     }
 
-    private bool TryStartHostedServer(
-        string serverName,
-        int port,
-        int maxPlayers,
-        string password,
-        string rconPassword,
-        int timeLimitMinutes,
-        int capLimit,
-        int respawnSeconds,
-        bool lobbyAnnounce,
-        bool autoBalance,
-        bool secondaryAbilitiesEnabled,
-        string? requestedMap,
-        string? mapRotationFile,
-        out string error)
-    {
-        return TryStartHostedServerBackground(
-            serverName,
-            port,
-            maxPlayers,
-            password,
-            rconPassword,
-            timeLimitMinutes,
-            capLimit,
-            respawnSeconds,
-            lobbyAnnounce,
-            autoBalance,
-            secondaryAbilitiesEnabled,
-            requestedMap,
-            mapRotationFile,
-            resetConsole: false,
-            out error);
-    }
 
     private bool TryStartHostedServerInTerminal(
         string serverName,

@@ -56,21 +56,6 @@ public sealed partial class SimulationWorld
             };
         }
 
-        private bool IsBlockingProjectileRoomObjectForAnyTeam(RoomObjectMarker roomObject)
-        {
-            if (roomObject.Type == RoomObjectType.Barrier)
-            {
-                return BarrierCollision.BlocksProjectile(roomObject.Barrier, PlayerTeam.Red)
-                    || BarrierCollision.BlocksProjectile(roomObject.Barrier, PlayerTeam.Blue);
-            }
-
-            if (roomObject.Type == RoomObjectType.DirectionalWall)
-            {
-                return roomObject.DirectionalWall.AffectsProjectiles;
-            }
-
-            return IsBlockingProjectileRoomObject(roomObject, PlayerTeam.Red);
-        }
 
         private bool IsBlockingHitscanRoomObjectForAnyTeam(RoomObjectMarker roomObject)
         {

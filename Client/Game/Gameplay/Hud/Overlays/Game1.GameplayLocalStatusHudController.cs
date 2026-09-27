@@ -2497,18 +2497,6 @@ public partial class Game1
                 : fallbackHeight;
         }
 
-        private float GetHudSpriteFrameWidth(string? spriteName, float scale, float fallbackWidth)
-        {
-            if (string.IsNullOrWhiteSpace(spriteName))
-            {
-                return fallbackWidth;
-            }
-
-            var sprite = _game.GetResolvedSprite(spriteName);
-            return sprite is not null && sprite.Frames.Count > 0
-                ? sprite.Frames[0].Width * scale
-                : fallbackWidth;
-        }
 
         private float GetWeaponHudPanelHeight(GameplayItemDefinition item)
         {
@@ -2899,76 +2887,7 @@ public partial class Game1
                 ?? player.GameplayLoadoutState.PrimaryItemId;
         }
 
-        private int GetLocalDisplayedOffhandCurrentShells()
-        {
-            var player = GetLocalWeaponPresentationPlayer();
-            if (!ReferenceEquals(player, _game._world.LocalPlayer))
-            {
-                return player.ExperimentalOffhandCurrentShells;
-            }
-            if (string.Equals(player.EquippedBehaviorId, BuiltInGameplayBehaviorIds.GrenadeLauncher, StringComparison.Ordinal)
-                && player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, DemomanGrenadeLauncherAmmoKey, out var replicatedGrenadeAmmo))
-            {
-                return replicatedGrenadeAmmo;
-            }
 
-            if (player.ClassId == PlayerClass.Scout
-                && player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, ScoutNailgunAmmoKey, out var replicatedNailgunAmmo))
-            {
-                return replicatedNailgunAmmo;
-            }
-
-            if (player.ClassId == PlayerClass.Sniper
-                && player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, SniperBowAmmoKey, out var replicatedBowAmmo))
-            {
-                return replicatedBowAmmo;
-            }
-
-            if (player.ClassId == PlayerClass.Medic
-                && player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, MedicKritzAmmoKey, out var replicatedKritzAmmo))
-            {
-                return replicatedKritzAmmo;
-            }
-
-            return player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, SoldierShotgunAmmoKey, out var replicatedShotgunAmmo)
-                ? replicatedShotgunAmmo
-                : player.ExperimentalOffhandCurrentShells;
-        }
-
-        private int GetLocalDisplayedOffhandMaxShells()
-        {
-            var player = GetLocalWeaponPresentationPlayer();
-            if (string.Equals(player.EquippedBehaviorId, BuiltInGameplayBehaviorIds.GrenadeLauncher, StringComparison.Ordinal))
-            {
-                return GetLocalGrenadeLauncherMaxAmmo();
-            }
-
-            if (ReferenceEquals(player, _game._world.LocalPlayer)
-                && player.ClassId == PlayerClass.Scout
-                && player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, ScoutNailgunMaxAmmoKey, out var replicatedNailgunMaxAmmo))
-            {
-                return Math.Max(1, replicatedNailgunMaxAmmo);
-            }
-
-            if (ReferenceEquals(player, _game._world.LocalPlayer)
-                && player.ClassId == PlayerClass.Sniper
-                && player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, SniperBowMaxAmmoKey, out var replicatedBowMaxAmmo))
-            {
-                return Math.Max(1, replicatedBowMaxAmmo);
-            }
-
-            if (ReferenceEquals(player, _game._world.LocalPlayer)
-                && player.ClassId == PlayerClass.Medic
-                && player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, MedicKritzMaxAmmoKey, out var replicatedKritzMaxAmmo))
-            {
-                return Math.Max(1, replicatedKritzMaxAmmo);
-            }
-
-            return ReferenceEquals(player, _game._world.LocalPlayer)
-                && player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, SoldierShotgunMaxAmmoKey, out var replicatedShotgunMaxAmmo)
-                ? Math.Max(1, replicatedShotgunMaxAmmo)
-                : Math.Max(1, player.ExperimentalOffhandMaxShells);
-        }
 
         private int GetLocalMedicKritzCurrentShells()
         {

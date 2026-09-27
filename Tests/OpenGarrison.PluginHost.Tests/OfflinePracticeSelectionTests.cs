@@ -473,13 +473,6 @@ public sealed class OfflinePracticeSelectionTests
             .ToArray();
     }
 
-    private static GameModeKind GetPracticeMapMode(object entry)
-    {
-        var property = entry.GetType().GetProperty("Mode", BindingFlags.Instance | BindingFlags.Public);
-
-        Assert.NotNull(property);
-        return (GameModeKind)property.GetValue(entry)!;
-    }
 
     private static void SetPracticeMapBrowserProperty(Type setupStateType, object state, string propertyName, object? value)
     {

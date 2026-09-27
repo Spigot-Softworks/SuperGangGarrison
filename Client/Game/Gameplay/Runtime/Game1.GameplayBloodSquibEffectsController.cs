@@ -172,66 +172,6 @@ public partial class Game1
                 heavy));
         }
 
-        private void SyncStuckBloodDropsIntoSettledCover()
-        {
-            var bloodDrops = _game._world.BloodDrops;
-            for (var index = 0; index < bloodDrops.Count; index += 1)
-            {
-                var bloodDrop = bloodDrops[index];
-                if (!bloodDrop.IsStuck || bloodDrop.IsExpired)
-                {
-                    continue;
-                }
-
-                if (!_game._processedSettledBloodDropIds.Add(bloodDrop.Id))
-                {
-                    continue;
-                }
-
-                DepositSettledBlood(
-                    bloodDrop.X,
-                    bloodDrop.Y,
-                    SettledBloodDepositAmount * MathF.Min(1.2f, bloodDrop.Scale),
-                    bloodDrop.ExperimentalCryoTinted);
-            }
-
-            if (_game._processedSettledBloodDropIds.Count == 0)
-            {
-                return;
-            }
-
-            // Cheap stale cleanup: rebuild only when the processed set grows large.
-            if (_game._processedSettledBloodDropIds.Count < 64)
-            {
-                return;
-            }
-
-            _game._staleSettledBloodDropIds.Clear();
-            foreach (var processedDropId in _game._processedSettledBloodDropIds)
-            {
-                var isActive = false;
-                for (var bloodDropIndex = 0; bloodDropIndex < bloodDrops.Count; bloodDropIndex += 1)
-                {
-                    if (bloodDrops[bloodDropIndex].Id == processedDropId)
-                    {
-                        isActive = true;
-                        break;
-                    }
-                }
-
-                if (!isActive)
-                {
-                    _game._staleSettledBloodDropIds.Add(processedDropId);
-                }
-            }
-
-            for (var index = 0; index < _game._staleSettledBloodDropIds.Count; index += 1)
-            {
-                _game._processedSettledBloodDropIds.Remove(_game._staleSettledBloodDropIds[index]);
-            }
-
-            _game._staleSettledBloodDropIds.Clear();
-        }
 
         private void AdvanceBloodSquibParticles()
         {
@@ -1291,40 +1231,6 @@ public partial class Game1
             }
         }
 
-        private static void StampCheapBloodDropTrail(
-            Dictionary<(int, int), float> cells,
-            float x,
-            float y,
-            float velocityX,
-            float velocityY,
-            float amount)
-        {
-            if (amount <= 0.05f)
-            {
-                return;
-            }
-
-            var gx = (int)MathF.Floor(x / BloodCellSize);
-            var gy = (int)MathF.Floor(y / BloodCellSize);
-            AddCellAmount(cells, gx, gy, amount);
-
-            var speedSquared = (velocityX * velocityX) + (velocityY * velocityY);
-            if (speedSquared <= 0.25f)
-            {
-                return;
-            }
-
-            var invLength = 1f / MathF.Sqrt(speedSquared);
-            var backX = -(int)MathF.Round(velocityX * invLength);
-            var backY = -(int)MathF.Round(velocityY * invLength);
-            if (backX == 0 && backY == 0)
-            {
-                return;
-            }
-
-            AddCellAmount(cells, gx + backX, gy + backY, amount * 0.5f);
-            AddCellAmount(cells, gx + (backX * 2), gy + (backY * 2), amount * 0.25f);
-        }
 
         private static void AddCellAmount(Dictionary<(int, int), float> cells, int gx, int gy, float amount)
         {

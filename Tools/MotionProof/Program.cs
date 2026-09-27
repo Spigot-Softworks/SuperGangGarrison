@@ -2688,62 +2688,6 @@ internal static class MotionProofRunner
     }
 
 
-    private static bool TryBuildGraphPathFromPositions(
-        MotionGraphArtifact graph,
-        float startX,
-        float startBottom,
-        float goalX,
-        float goalBottom,
-        out MotionPath path,
-        out int startIndex,
-        out int goalIndex)
-    {
-        path = MotionPath.Empty;
-        startIndex = -1;
-        goalIndex = -1;
-        var graphIndex = BuildGraphSearchIndex(graph);
-        var startCandidates = FindNearestGraphNodes(graph.Nodes, startX, startBottom, 1);
-        var goalCandidates = FindGraphNodesWithinRadius(graph.Nodes, goalX, goalBottom, 160f, 16);
-        if (goalCandidates.Length == 0)
-        {
-            goalCandidates = FindNearestGraphNodes(graph.Nodes, goalX, goalBottom, 4);
-        }
-        var bestDistance = float.MaxValue;
-        var bestTicks = int.MaxValue;
-        foreach (var candidateStart in startCandidates)
-        {
-            if (!TryFindGraphPathToAnyGoal(
-                    graph,
-                    graphIndex,
-                    candidateStart,
-                    goalCandidates,
-                    goalX,
-                    goalBottom,
-                    PlayerTeam.Blue,
-                    carryingIntel: false,
-                    out var candidatePath,
-                    out var candidateGoal))
-            {
-                continue;
-            }
-
-            var candidateNode = graph.Nodes[candidateGoal];
-            var candidateDistance = Distance(candidateNode.X, candidateNode.Bottom, goalX, goalBottom);
-            if (candidateDistance > bestDistance
-                || (MathF.Abs(candidateDistance - bestDistance) <= 0.1f && candidatePath.TotalTicks >= bestTicks))
-            {
-                continue;
-            }
-
-            bestDistance = candidateDistance;
-            bestTicks = candidatePath.TotalTicks;
-            path = candidatePath;
-            startIndex = candidateStart;
-            goalIndex = candidateGoal;
-        }
-
-        return startIndex >= 0;
-    }
 
     private static bool TryBuildReachableCombatPath(
         SimulationWorld world,
@@ -3985,68 +3929,6 @@ internal static class MotionProofRunner
         return path.Actions.Count > 0;
     }
 
-    private static bool TryFindGraphPath(
-        MotionGraphArtifact graph,
-        int startIndex,
-        int goalIndex,
-        float goalX,
-        float goalBottom,
-        out MotionPath path)
-    {
-        path = MotionPath.Empty;
-        var graphIndex = BuildGraphSearchIndex(graph);
-        var queue = new PriorityQueue<int, float>();
-        var costByNode = new Dictionary<int, int> { [startIndex] = 0 };
-        var previousEdgeByNode = new Dictionary<int, MotionGraphEdge>();
-        var settled = new HashSet<int>();
-        queue.Enqueue(startIndex, 0f);
-
-        while (queue.Count > 0)
-        {
-            var current = queue.Dequeue();
-            if (!settled.Add(current))
-            {
-                continue;
-            }
-
-            if (current == goalIndex)
-            {
-                var actions = new List<MotionAction>();
-                var node = goalIndex;
-                while (node != startIndex && previousEdgeByNode.TryGetValue(node, out var edge))
-                {
-                    actions.Add(edge.Action.ToMotionAction());
-                    node = edge.From;
-                }
-
-                actions.Reverse();
-                path = new MotionPath(actions);
-                return true;
-            }
-
-            if (!graphIndex.EdgesByNode.TryGetValue(current, out var edges))
-            {
-                continue;
-            }
-
-            var currentCost = costByNode[current];
-            foreach (var edge in edges)
-            {
-                var nextCost = currentCost + edge.CostTicks;
-                if (costByNode.TryGetValue(edge.To, out var previousCost) && previousCost <= nextCost)
-                {
-                    continue;
-                }
-
-                costByNode[edge.To] = nextCost;
-                previousEdgeByNode[edge.To] = edge;
-                var node = graph.Nodes[edge.To];
-                queue.Enqueue(edge.To, nextCost + Distance(node.X, node.Bottom, goalX, goalBottom) * 0.18f);
-            }
-        }
-
-        return false;
-    }
 
     private static MotionPath BuildPathFromPreviousEdges(
         IReadOnlyDictionary<int, MotionGraphEdge> previousEdgeByNode,

@@ -1026,38 +1026,6 @@ public partial class Game1
         return ((int)MathF.Floor(worldX / 2f), (int)MathF.Floor(worldY / 2f));
     }
 
-    private static void AddTwoByTwoPixelGridLine(int startGridX, int startGridY, int endGridX, int endGridY, HashSet<(int GridX, int GridY)> cells)
-    {
-        var deltaX = Math.Abs(endGridX - startGridX);
-        var deltaY = Math.Abs(endGridY - startGridY);
-        var stepX = startGridX < endGridX ? 1 : -1;
-        var stepY = startGridY < endGridY ? 1 : -1;
-        var error = deltaX - deltaY;
-        var gridX = startGridX;
-        var gridY = startGridY;
-
-        while (true)
-        {
-            cells.Add((gridX, gridY));
-            if (gridX == endGridX && gridY == endGridY)
-            {
-                break;
-            }
-
-            var error2 = error * 2;
-            if (error2 > -deltaY)
-            {
-                error -= deltaY;
-                gridX += stepX;
-            }
-
-            if (error2 < deltaX)
-            {
-                error += deltaX;
-                gridY += stepY;
-            }
-        }
-    }
 
     private static void AddFadedTwoByTwoPixelGridLine(
         int startGridX,
@@ -1127,18 +1095,6 @@ public partial class Game1
         }
     }
 
-    private void DrawTwoByTwoPixelGridCells(HashSet<(int GridX, int GridY)> cells, Vector2 cameraPosition, Color color)
-    {
-        foreach (var (gridX, gridY) in cells)
-        {
-            var pixelRect = new Rectangle(
-                (int)MathF.Round((gridX * 2f) - cameraPosition.X),
-                (int)MathF.Round((gridY * 2f) - cameraPosition.Y),
-                2,
-                2);
-            _spriteBatch.Draw(_pixel, pixelRect, color);
-        }
-    }
 
     private void DrawFadedTwoByTwoPixelGridCells(
         Dictionary<(int GridX, int GridY), float> cellAlphas,

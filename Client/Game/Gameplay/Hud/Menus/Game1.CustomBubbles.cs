@@ -51,13 +51,6 @@ public partial class Game1
         PersistCustomBubbleDocument();
     }
 
-    private void CycleCustomBubbleSlotSetting()
-    {
-        _selectedCustomBubbleSlot = (_selectedCustomBubbleSlot + 1) % CustomBubbleDocument.SlotCount;
-        PersistCustomBubbleDocument();
-        InvalidateLocalCustomBubbleRenderState();
-        UploadSelectedCustomBubbleState();
-    }
 
     private void SelectCustomBubbleSlotSetting(int slotIndex)
     {
@@ -74,10 +67,6 @@ public partial class Game1
         _customBubbleDocument.Save();
     }
 
-    private string GetSelectedCustomBubbleSlotLabel()
-    {
-        return GetCustomBubbleSlotLabel(_selectedCustomBubbleSlot);
-    }
 
     private static string GetCustomBubbleSlotLabel(int slotIndex)
     {

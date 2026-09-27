@@ -512,23 +512,6 @@ public partial class Game1
         }
     }
 
-    private void TryRestartDynamicMusicInstance(SoundEffectInstance? instance, string operation)
-    {
-        if (instance is null)
-        {
-            return;
-        }
-
-        try
-        {
-            instance.Stop();
-            instance.Play();
-        }
-        catch (Exception ex)
-        {
-            DisableAudio(operation, ex);
-        }
-    }
 
     private void AdvanceDynamicMusicFades(DynamicMusicEventState targetState, GameTime gameTime)
     {

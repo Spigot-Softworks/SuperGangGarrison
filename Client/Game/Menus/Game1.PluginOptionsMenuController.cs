@@ -515,10 +515,6 @@ public partial class Game1
             _game._pluginOptionsScrollOffset = 0;
         }
 
-        private int GetPluginOptionsVisibleRowCapacity()
-        {
-            return _game.ViewportHeight < 540 ? 14 : 16;
-        }
 
         private void ClampPluginOptionsScrollOffset(int rowCount, int visibleRowCount)
         {

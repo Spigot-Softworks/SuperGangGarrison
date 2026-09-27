@@ -256,21 +256,6 @@ public sealed class BloodDropEntity : SimulationEntity
         TicksRemaining = int.Clamp(TicksRemaining + Math.Max(1, other.TicksRemaining / 3), 0, _maxMergedLifetimeTicks);
     }
 
-    private void StickToSolid(LevelSolid solid)
-    {
-        if (VelocityY >= 0f)
-        {
-            Y = solid.Top - (BoundingSize / 2f);
-        }
-        else
-        {
-            Y = solid.Bottom + (BoundingSize / 2f);
-        }
-
-        VelocityX = 0f;
-        VelocityY = 0f;
-        IsStuck = true;
-    }
 
     private bool Intersects(LevelSolid solid)
     {

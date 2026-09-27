@@ -368,12 +368,6 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
         return fullPath;
     }
 
-    private static long GetDueStopwatchTicks(int dueMilliseconds)
-    {
-        return dueMilliseconds <= 0
-            ? 0L
-            : (long)Math.Round((dueMilliseconds / 1000d) * Stopwatch.Frequency, MidpointRounding.AwayFromZero);
-    }
 
     private double GetCurrentPlaybackMilliseconds()
     {
