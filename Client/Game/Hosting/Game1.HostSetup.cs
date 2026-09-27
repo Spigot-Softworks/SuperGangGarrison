@@ -110,30 +110,14 @@ public partial class Game1
         _menuStatusMessage = string.Empty;
     }
 
-    private void SortHostMapEntries(string? selectedLevelName = null)
-    {
-        _hostSetupState.SortMapEntries(selectedLevelName);
-    }
 
-    private bool SelectHostMapEntry(string? levelName)
-    {
-        return _hostSetupState.SelectMapEntry(levelName);
-    }
 
-    private int FindDefaultHostMapIndex()
-    {
-        return _hostSetupState.FindDefaultMapIndex();
-    }
 
     private OpenGarrisonMapRotationEntry? GetSelectedHostMapEntry()
     {
         return _hostSetupState.GetSelectedMapEntry();
     }
 
-    private string GetHostStockRotationSummary(int previewCount = 4)
-    {
-        return _hostSetupState.GetStockRotationSummary(previewCount);
-    }
 
     private void EnsureSelectedHostMapVisible()
     {

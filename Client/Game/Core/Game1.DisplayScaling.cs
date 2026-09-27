@@ -470,14 +470,6 @@ public partial class Game1
         };
     }
 
-    private static string GetDisplayScaleModeLabel(DisplayScaleModeKind displayScaleMode)
-    {
-        return OpenGarrisonPreferencesDocument.NormalizeDisplayScaleMode(displayScaleMode) switch
-        {
-            DisplayScaleModeKind.PixelPerfect => "Pixel-Perfect",
-            _ => "Fill",
-        };
-    }
 
     private static string GetDisplayModeLabel(DisplayModeKind displayMode)
     {

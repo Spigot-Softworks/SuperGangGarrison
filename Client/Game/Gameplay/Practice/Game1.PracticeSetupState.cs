@@ -703,10 +703,6 @@ public partial class Game1
         return _practiceSetupState.SelectMapEntry(levelName);
     }
 
-    private int FindDefaultPracticeMapIndex()
-    {
-        return _practiceSetupState.FindDefaultMapIndex();
-    }
 
     private PracticeMapEntry? GetSelectedPracticeMapEntry()
     {

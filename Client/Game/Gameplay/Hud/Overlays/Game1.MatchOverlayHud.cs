@@ -457,16 +457,6 @@ public partial class Game1
         DrawTimerFontText(timeText, new Vector2(textX, textY), HudTimerTextColor, scale);
     }
 
-    private float GetHudTimerCircleHeight()
-    {
-        var timerSprite = GetResolvedSprite("TimerS");
-        if (timerSprite is null || timerSprite.Frames.Count == 0)
-        {
-            return 30f;
-        }
-
-        return timerSprite.Frames[0].Height * HudTimerCircleScale;
-    }
 
     private float GetHudTimerHudHeight()
     {

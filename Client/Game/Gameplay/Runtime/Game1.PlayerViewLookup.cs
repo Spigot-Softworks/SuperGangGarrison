@@ -6,20 +6,6 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private static string GetIntelStateLabel(TeamIntelligenceState intelState)
-    {
-        if (intelState.IsAtBase)
-        {
-            return "home";
-        }
-
-        if (intelState.IsDropped)
-        {
-            return $"dropped:{intelState.ReturnTicksRemaining}";
-        }
-
-        return "carried";
-    }
 
     private PlayerEntity? FindPlayerById(int playerId)
     {

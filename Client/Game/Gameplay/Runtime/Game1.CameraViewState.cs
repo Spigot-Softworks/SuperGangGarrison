@@ -399,15 +399,6 @@ public partial class Game1
             : new Vector2(_world.LocalPlayer.X, _world.LocalPlayer.Y);
     }
 
-    private Vector2 GetSpectatorScopedSniperCameraTopLeft(PlayerEntity trackedPlayer, int viewportWidth, int viewportHeight)
-    {
-        var trackedPlayerPosition = GetRenderPosition(trackedPlayer);
-        var aimWorldPosition = GetRenderAimWorldPosition(trackedPlayer);
-        var scopedCameraCenter = (trackedPlayerPosition + aimWorldPosition) / 2f;
-        return new Vector2(
-            scopedCameraCenter.X - (viewportWidth / 2f),
-            scopedCameraCenter.Y - (viewportHeight / 2f));
-    }
 
     private Vector2 GetBinocularsCameraTopLeft(PlayerEntity player, int viewportWidth, int viewportHeight)
     {

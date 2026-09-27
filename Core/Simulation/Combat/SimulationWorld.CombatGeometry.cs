@@ -347,27 +347,6 @@ public sealed partial class SimulationWorld
                 maxDistance);
         }
 
-        private static float? GetThickRayIntersectionDistanceWithSentry(
-            float originX,
-            float originY,
-            float directionX,
-            float directionY,
-            SentryEntity sentry,
-            float maxDistance,
-            float thicknessRadius)
-        {
-            return GetThickRayIntersectionDistanceWithRectangle(
-                originX,
-                originY,
-                directionX,
-                directionY,
-                sentry.X - (SentryEntity.Width / 2f),
-                sentry.Y - (SentryEntity.Height / 2f),
-                sentry.X + (SentryEntity.Width / 2f),
-                sentry.Y + (SentryEntity.Height / 2f),
-                maxDistance,
-                thicknessRadius);
-        }
 
         public float? GetLineIntersectionDistanceToPlayer(
             float originX,

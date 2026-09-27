@@ -506,25 +506,6 @@ public partial class Game1
         return ids;
     }
 
-    private bool HasActiveMedicBeamPlayers()
-    {
-        if (_world.LocalPlayer.IsMedicHealing && _world.LocalPlayer.MedicHealTargetId.HasValue)
-        {
-            return true;
-        }
-
-        foreach (var player in EnumerateRenderablePlayers())
-        {
-            if (!ReferenceEquals(player, _world.LocalPlayer)
-                && player.IsMedicHealing
-                && player.MedicHealTargetId.HasValue)
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
 
     private System.Collections.Generic.HashSet<int> GetActiveMedicBeamMedicIds()
     {

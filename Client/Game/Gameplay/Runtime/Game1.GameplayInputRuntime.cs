@@ -168,20 +168,6 @@ public partial class Game1
         return (gameplayInput, networkInput);
     }
 
-    private bool ShouldPreserveHealingPrimaryFireWhileBubbleMenuOpen(PlayerInputSnapshot input)
-    {
-        if (!input.FirePrimary)
-        {
-            return false;
-        }
-
-        var player = _world.LocalPlayer;
-        return player.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.Medigun)
-            || player.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.MedigunCrit)
-            || (player.IsExperimentalOffhandSelected
-                && (player.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.Medigun)
-                    || player.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.MedigunCrit)));
-    }
 
     internal static PlayerInputSnapshot ApplyBubbleMenuGameplaySuppression(PlayerInputSnapshot input)
     {

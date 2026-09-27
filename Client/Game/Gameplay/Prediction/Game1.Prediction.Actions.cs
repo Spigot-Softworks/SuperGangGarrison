@@ -15,15 +15,6 @@ public partial class Game1
     private const float PredictedPyroSelfAirblastImpulse = PredictedPyroSelfAirblastBaseImpulse * PredictedPyroSelfAirblastHorizontalStrengthScale;
     private const float PredictedPyroSelfAirblastLift = PredictedPyroSelfAirblastBaseLift * PredictedPyroSelfAirblastVerticalStrengthScale;
 
-    private void AdvancePredictedActionState(PlayerEntity player)
-    {
-        AdvancePredictedWeaponState(player);
-        AdvancePredictedEngineerState(player);
-        AdvancePredictedHeavyState(player);
-        AdvancePredictedSniperState(player);
-        AdvancePredictedMedicState(player);
-        AdvancePredictedSpyState(player);
-    }
 
     private void AdvancePredictedEngineerState(PlayerEntity player)
     {

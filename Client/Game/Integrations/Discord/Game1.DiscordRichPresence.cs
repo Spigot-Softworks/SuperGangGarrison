@@ -324,18 +324,6 @@ public partial class Game1
         return string.Empty;
     }
 
-    private static string FormatDiscordDuration(int elapsedTicks, int ticksPerSecond)
-    {
-        if (ticksPerSecond <= 0)
-        {
-            return "00:00";
-        }
-
-        var elapsedSeconds = Math.Max(0, elapsedTicks / ticksPerSecond);
-        var minutes = elapsedSeconds / 60;
-        var seconds = elapsedSeconds % 60;
-        return $"{minutes:00}:{seconds:00}";
-    }
 
     private sealed class DiscordRichPresenceController : IDisposable
     {

@@ -1734,16 +1734,6 @@ public static class BotNavigationAssetBuilder
         }
     }
 
-    private static BotBrainMovementProbeResult? FindCertifiedTraversalTemplate(
-        IReadOnlyList<BuildEdge> edges,
-        int fromNode,
-        int toNode,
-        NavEdgeKind kind,
-        int supportedTeamMask,
-        int supportedClassMask)
-    {
-        return FindCertifiedTraversalTemplateEdge(edges, fromNode, toNode, kind, supportedTeamMask, supportedClassMask)?.ProbeResult;
-    }
 
     private static BuildEdge? FindCertifiedTraversalTemplateEdge(
         IReadOnlyList<BuildEdge> edges,
@@ -2533,39 +2523,6 @@ public static class BotNavigationAssetBuilder
         return false;
     }
 
-    private static bool IsFirstFallLandingCandidate(
-        IReadOnlyList<BuildSurface> surfaces,
-        BuildNode from,
-        BuildSurface fromSurface,
-        BuildSurface targetSurface)
-    {
-        if (targetSurface.TopY <= fromSurface.TopY)
-        {
-            return false;
-        }
-
-        var corridorLeft = MathF.Min(from.X, targetSurface.LeftX) - ProbeHalfWidth;
-        var corridorRight = MathF.Max(from.X, targetSurface.RightX) + ProbeHalfWidth;
-        foreach (var surface in surfaces)
-        {
-            if (surface.Id == fromSurface.Id || surface.Id == targetSurface.Id)
-            {
-                continue;
-            }
-
-            if (surface.TopY <= fromSurface.TopY + SurfaceMergeVerticalTolerance
-                || surface.TopY >= targetSurface.TopY - SurfaceMergeVerticalTolerance
-                || surface.RightX < corridorLeft
-                || surface.LeftX > corridorRight)
-            {
-                continue;
-            }
-
-            return false;
-        }
-
-        return true;
-    }
 
     private static void AddTraversalEdgePair(
         SimpleLevel level,

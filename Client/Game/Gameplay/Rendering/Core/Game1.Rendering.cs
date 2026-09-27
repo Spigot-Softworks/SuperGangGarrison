@@ -268,16 +268,6 @@ public partial class Game1
         return false;
     }
 
-    private bool TryDrawLevelBackgroundFile(string? backgroundName, Rectangle worldRectangle)
-    {
-        if (!TryGetLevelBackgroundFileTexture(backgroundName, out var texture))
-        {
-            return false;
-        }
-
-        _spriteBatch.Draw(texture, worldRectangle, Color.White);
-        return true;
-    }
 
     private bool TryGetLevelBackgroundFileTexture(string? backgroundName, out Texture2D texture)
     {
@@ -1084,8 +1074,4 @@ public partial class Game1
         return MathF.Atan2(velocityY, velocityX);
     }
 
-    private static float GetTravelRotation(float previousX, float previousY, float x, float y)
-    {
-        return MathF.Atan2(y - previousY, x - previousX);
-    }
 }

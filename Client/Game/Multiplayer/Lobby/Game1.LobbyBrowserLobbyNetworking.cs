@@ -9,30 +9,6 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private void StartLobbyBrowserLobbyRequest()
-    {
-        CloseLobbyBrowserLobbyClient();
-        _lobbyBrowserLobbyExpectedServers = -1;
-        _lobbyBrowserLobbyServersRead = 0;
-        _lobbyBrowserLobbyPending.Clear();
-        _lobbyBrowserLobbyHandshakeSent = false;
-        _lobbyBrowserLobbyStartedAtMilliseconds = Environment.TickCount64;
-
-        if (LobbyProtocolUuidBytes.Length != 16)
-        {
-            return;
-        }
-
-        _lobbyBrowserLobbyClient = new TcpClient();
-        try
-        {
-            _lobbyBrowserLobbyConnectTask = _lobbyBrowserLobbyClient.ConnectAsync(LobbyServerHost, LobbyServerPort);
-        }
-        catch
-        {
-            CloseLobbyBrowserLobbyClient();
-        }
-    }
 
     private void UpdateLobbyBrowserLobbyState()
     {

@@ -168,11 +168,6 @@ public partial class Game1
         return await GetPrivateRoomClient().CreateAndJoinAsync(request, token, progress);
     }
 
-    private void RetryManagedRoom()
-    {
-        if (_managedRoomRetryIsJoin) JoinManagedRoom();
-        else StartManagedLastToDie(_managedRoomRetryDifficulty, _managedRoomRetryMaximumPlayers);
-    }
 
     private void RestoreManagedRoomOrigin()
     {
