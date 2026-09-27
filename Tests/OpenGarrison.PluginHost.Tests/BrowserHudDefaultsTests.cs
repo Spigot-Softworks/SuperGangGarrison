@@ -90,12 +90,18 @@ public sealed class BrowserHudDefaultsTests
         Assert.NotSame(abilities, Invoke("GetAbilityHudWidgets"));
     }
 
-    [Fact]
-    public void SelectingDemomanGrenadeLauncherReplacesItsStowedHudRowInsteadOfDuplicatingIt()
+    [Theory]
+    [InlineData("weapon.minelauncher")]
+    [InlineData("weapon.boomstick")]
+    public void SelectingDemomanGrenadeLauncherReplacesItsStowedHudRowInsteadOfDuplicatingIt(string primaryItemId)
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
         world.PrepareLocalPlayerJoin();
         world.CompleteLocalPlayerJoin(PlayerClass.Demoman);
+        if (primaryItemId == "weapon.boomstick")
+        {
+            Assert.True(world.LocalPlayer.TrySelectGameplayPrimaryItem(primaryItemId));
+        }
         var game = (Game1)RuntimeHelpers.GetUninitializedObject(typeof(Game1));
         typeof(Game1).GetField("_world", Instance)!.SetValue(game, world);
         typeof(Game1).GetField("_menuBitmapFontLineHeight", Instance)!.SetValue(game, 11);
@@ -116,8 +122,9 @@ public sealed class BrowserHudDefaultsTests
         }
 
         var stowedIds = BuildRowIds();
-        Assert.Contains(HudElementId.LocalWeaponUtility, stowedIds);
+        Assert.Single(stowedIds, id => id == HudElementId.LocalWeaponUtility);
         Assert.Contains(HudElementId.LocalWeaponPrimary, stowedIds);
+        Assert.DoesNotContain(HudElementId.LocalWeaponSecondary, stowedIds);
 
         Assert.True(world.TrySetNetworkPlayerGameplayEquippedSlot(
             SimulationWorld.LocalPlayerSlot,

@@ -78,6 +78,7 @@ Tests/BrowserSmoke/node_modules/
 !/docs/design/
 /docs/design/*
 !/docs/design/VOICE_CHAT_JUKEBOX.md
+!/docs/design/CRT_FILTER.md
 /tmp/
 /%SystemDrive%/
 /.audit_ltd_refs.txt

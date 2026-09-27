@@ -59,7 +59,9 @@ public partial class Game1
             var playerScale = player.PlayerScale;
             var scale = new Vector2(facingScale * playerScale, playerScale);
             var frameIndex = isHeavyEating
-                ? GetHeavyEatSpriteFrameIndex(_game.GetPlayerHeavyEatTicksRemaining(player), sprite.Frames.Count, player.Team)
+                ? GetHeavyEatSpriteFrameIndex(
+                    _game.GetPlayerHeavyEatTicksRemaining(player), sprite.Frames.Count, player.Team,
+                    _game._networkClient.IsLegacyGg2Connection ? 128 : PlayerEntity.HeavyEatDurationTicks)
                 : isPogoTrick
                     ? _game.GetCivviePogoTrickPresentationFrameIndex(player, sprite.Frames.Count)
                     : isPogo
@@ -196,7 +198,9 @@ public partial class Game1
             var playerScale = player.PlayerScale;
             var scale = new Vector2(facingScale * playerScale, playerScale);
             var frameIndex = isHeavyEating
-                ? GetHeavyEatSpriteFrameIndex(_game.GetPlayerHeavyEatTicksRemaining(player), sprite.Frames.Count, player.Team)
+                ? GetHeavyEatSpriteFrameIndex(
+                    _game.GetPlayerHeavyEatTicksRemaining(player), sprite.Frames.Count, player.Team,
+                    _game._networkClient.IsLegacyGg2Connection ? 128 : PlayerEntity.HeavyEatDurationTicks)
                 : isPogoTrick
                     ? _game.GetCivviePogoTrickPresentationFrameIndex(player, sprite.Frames.Count)
                     : isPogo
@@ -217,6 +221,17 @@ public partial class Game1
 
         public PlayerBodySpriteSelection GetPlayerBodySpriteSelection(PlayerEntity player)
         {
+            if (_game._networkClient.IsLegacyGg2Connection && player.ClassId == PlayerClass.Quote)
+            {
+                var teamName = player.Team == PlayerTeam.Blue ? "Blue" : "Red";
+                var suffix = _game._world.IsPlayerHumiliated(player) ? "HS"
+                    : player.IsTaunting ? "TauntS" : "S";
+                var querlyAnimationImage = _game._playerRenderStates.GetValueOrDefault(_game.GetPlayerStateKey(player))?.BodyAnimationImage ?? 0f;
+                return new PlayerBodySpriteSelection(
+                    $"Querly{teamName}{suffix}", querlyAnimationImage, 0f, 0f, false,
+                    _game._world.IsPlayerHumiliated(player));
+            }
+
             if (_game.IsBackstabReplacementRenderActive(player))
             {
                 return new PlayerBodySpriteSelection(
@@ -410,6 +425,18 @@ public partial class Game1
 
         private float GetRenderFacingScale(PlayerEntity player)
         {
+            var presentationPlayer = _game.GetPlayerPredictedPresentationState(player);
+            if (presentationPlayer.IsWhippingCordLatched
+                && presentationPlayer.HasEquippedBehavior(BuiltInGameplayBehaviorIds.WhippingCord))
+            {
+                var renderPosition = _game.GetRenderPosition(player);
+                var anchorDeltaX = presentationPlayer.WhippingCordAnchorX - renderPosition.X;
+                if (System.MathF.Abs(anchorDeltaX) > 0.001f)
+                {
+                    return anchorDeltaX < 0f ? -1f : 1f;
+                }
+            }
+
             if (_game.IsBackstabReplacementRenderActive(player))
             {
                 var radians = System.MathF.PI * _game.GetBackstabReplacementDirectionDegrees(player) / 180f;
@@ -537,17 +564,17 @@ public partial class Game1
 
         private static int GetTauntSpriteFrameIndex(PlayerEntity player, int frameCount) => frameCount <= 0 ? 0 : System.Math.Clamp((int)System.MathF.Floor(player.TauntFrameIndex), 0, frameCount - 1);
 
-        private static int GetHeavyEatSpriteFrameIndex(int heavyEatTicksRemaining, int frameCount, PlayerTeam team)
+        private static int GetHeavyEatSpriteFrameIndex(int heavyEatTicksRemaining, int frameCount, PlayerTeam team, int durationTicks = PlayerEntity.HeavyEatDurationTicks)
         {
             if (frameCount <= 0)
             {
                 return 0;
             }
 
-            var expectedFrames = System.Math.Max(1, (int)System.MathF.Ceiling(PlayerEntity.HeavyEatDurationTicks * 0.25f) + 1);
+            var expectedFrames = System.Math.Max(1, (int)System.MathF.Ceiling(durationTicks * 0.25f) + 1);
             var hasTeamVariants = frameCount >= expectedFrames * 2;
             var perTeamFrames = hasTeamVariants ? frameCount / 2 : frameCount;
-            var elapsedTicks = System.Math.Clamp(PlayerEntity.HeavyEatDurationTicks - heavyEatTicksRemaining, 0, PlayerEntity.HeavyEatDurationTicks);
+            var elapsedTicks = System.Math.Clamp(durationTicks - heavyEatTicksRemaining, 0, durationTicks);
             var animationIndex = System.Math.Clamp((int)System.MathF.Floor(elapsedTicks * 0.25f), 0, perTeamFrames - 1);
             var teamOffset = team == PlayerTeam.Blue && hasTeamVariants ? perTeamFrames : 0;
             return System.Math.Clamp(animationIndex + teamOffset, 0, frameCount - 1);
@@ -594,6 +621,35 @@ public partial class Game1
         private LeanDirection GetPlayerLeanDirectionCore(PlayerEntity player)
         {
             var playerScale = player.PlayerScale;
+            if (_game._networkClient.IsLegacyGg2Connection)
+            {
+                // The animation deliberately holds a standing frame through a
+                // brief loss of ground contact. Do not infer a ledge from that
+                // frame: an unsupported floor probe would drop the body 6px.
+                if (!player.IsGrounded)
+                {
+                    return LeanDirection.None;
+                }
+
+                // The GG2 walkmask and the replicated position may differ by
+                // a fraction of a pixel. Sample both GG2's +2 draw probe and
+                // the +1 grounded probe, including single-pixel floors.
+                var nearLeftSupported = IsLegacyGg2FloorSupported(player, player.X - (3f * playerScale));
+                var farLeftSupported = IsLegacyGg2FloorSupported(player, player.X - (7f * playerScale));
+                var nearRightSupported = IsLegacyGg2FloorSupported(player, player.X + (2f * playerScale));
+                var farRightSupported = IsLegacyGg2FloorSupported(player, player.X + (6f * playerScale));
+                return LegacyGg2LeanPose.Resolve(
+                    nearLeftSupported,
+                    farLeftSupported,
+                    nearRightSupported,
+                    farRightSupported) switch
+                {
+                    LegacyGg2LeanPose.Direction.Left => LeanDirection.Left,
+                    LegacyGg2LeanPose.Direction.Right => LeanDirection.Right,
+                    _ => LeanDirection.None,
+                };
+            }
+
             var bottom = player.Bottom + (2f * playerScale);
             var openRight = !IsPointBlockedForPlayer(player, player.X + (6f * playerScale), bottom) && !IsPointBlockedForPlayer(player, player.X + (2f * playerScale), bottom);
             var openLeft = !IsPointBlockedForPlayer(player, player.X - (7f * playerScale), bottom) && !IsPointBlockedForPlayer(player, player.X - (3f * playerScale), bottom);
@@ -625,6 +681,13 @@ public partial class Game1
             }
 
             return leanDirection;
+        }
+
+        private bool IsLegacyGg2FloorSupported(PlayerEntity player, float x)
+        {
+            var scale = player.PlayerScale;
+            return IsPointBlockedForPlayer(player, x, player.Bottom + scale)
+                || IsPointBlockedForPlayer(player, x, player.Bottom + (2f * scale));
         }
 
         private bool IsPointBlockedForPlayerCore(PlayerEntity player, float x, float y)

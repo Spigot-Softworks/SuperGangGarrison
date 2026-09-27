@@ -47,7 +47,10 @@ public partial class Game1
         };
 
         private static readonly string[] BrowserOptionsMenuTabLabels = ["Graphics", "Audio", "Controls", "HUD", "Gameplay", "About"];
-        private static string[] OptionsMenuTabLabels => IsRestrictedBrowserEdition ? BrowserOptionsMenuTabLabels : FullOptionsMenuTabLabels;
+        private static readonly string[] Gg2OnlyOptionsMenuTabLabels = ["Graphics", "Audio", "Controls", "HUD", "Gameplay"];
+        private static string[] OptionsMenuTabLabels => OpenGarrison.ClientShared.ClientDistribution.IsGg2Only
+            ? Gg2OnlyOptionsMenuTabLabels
+            : IsRestrictedBrowserEdition ? BrowserOptionsMenuTabLabels : FullOptionsMenuTabLabels;
 
         private const string MasterVolumeLabel = "Global Volume";
         private const string MenuMusicVolumeLabel = "Menu Music Volume";
@@ -64,6 +67,7 @@ public partial class Game1
         private readonly Game1 _game;
         private enum AudioOptionsGroup { Game, Chat }
         private AudioOptionsGroup? _expandedAudioGroup = AudioOptionsGroup.Game;
+        private bool _crtOptionsExpanded;
 
         public OptionsMenuController(Game1 game)
         {
@@ -73,6 +77,7 @@ public partial class Game1
         public void OpenOptionsMenu(bool fromGameplay)
         {
             _game._optionsMenuOpen = true;
+            _crtOptionsExpanded = false;
             _game._optionsMenuOpenedFromGameplay = fromGameplay;
             _game._optionsPageIndex = 0;
             _game._optionsScrollOffset = 0;
@@ -575,14 +580,19 @@ public partial class Game1
         private List<OptionsMenuAction> BuildOptionsMenuActions()
         {
             var currentTab = GetOptionsMenuTab(_game._optionsPageIndex);
-            if (currentTab == OptionsMenuTab.Audio) return BuildAudioOptionsActions();
+            if (currentTab == OptionsMenuTab.Audio)
+            {
+                var audioActions = BuildAudioOptionsActions();
+                if (OpenGarrison.ClientShared.ClientDistribution.IsGg2Only)
+                    audioActions.RemoveAll(action => action.Label is not (MasterVolumeLabel or "Mute All Audio (F12)" or SoundEffectsVolumeLabel or "Music" or MenuMusicVolumeLabel or InGameMusicVolumeLabel));
+                return audioActions;
+            }
             var allActions = new List<OptionsMenuAction>
             {
                 // Graphics: display, rendering, and client-side visual presentation.
                 new("Display Mode", OperatingSystem.IsBrowser() ? "Browser" : Game1.GetDisplayModeLabel(_game._displayMode), _game.CycleDisplayModeSetting, OptionsMenuTab.Graphics),
                 new("Aspect Ratio", Game1.GetIngameResolutionLabel(_game._ingameResolution), _game.CycleIngameResolutionSetting, OptionsMenuTab.Graphics),
                 new("Camera panning", _game._cameraPanningEnabled ? "Enabled" : "Disabled", _game.ToggleCameraPanningSetting, OptionsMenuTab.Graphics),
-                new("Sprites:", _game._spriteStyle.ToString(), _game.CycleSpriteStyleSetting, OptionsMenuTab.Graphics),
                 new("Window Size", OperatingSystem.IsBrowser() ? "Browser" : Game1.GetWindowSizeLabel(_game._windowSize), _game.CycleWindowSizeSetting, OptionsMenuTab.Graphics),
                 new("Cursor Size", Game1.GetCursorSizeLabel(_game._cursorSizePercent), _game.CycleCursorSizeSetting, OptionsMenuTab.Graphics, _game.AdjustCursorSizeSetting),
                 new("Menu Background", GetMenuBackgroundModeLabel(_game._menuBackgroundMode), _game.CycleMenuBackgroundModeSetting, OptionsMenuTab.Graphics),
@@ -665,6 +675,28 @@ public partial class Game1
                 new("Account Status", _game.GetAccountStatusDisplay(), NoOp, OptionsMenuTab.Account),
             };
 
+            if (_game.IsCrtSettingsUnlockedForSession)
+            {
+                var crtActions = new List<OptionsMenuAction>
+                {
+                    new("CRT", _crtOptionsExpanded ? "[-]" : "[+]", ToggleCrtOptionsGroup, OptionsMenuTab.Graphics, IsGroupHeader: true),
+                };
+                if (_crtOptionsExpanded)
+                {
+                    crtActions.AddRange(new OptionsMenuAction[]
+                    {
+                        new("CRT Filter", _game.GetCrtPresetLabel(), _game.CycleCrtPresetSetting, OptionsMenuTab.Graphics),
+                        new("CRT Quality", _game.GetCrtQualityStatusLabel(), _game.CycleCrtQualitySetting, OptionsMenuTab.Graphics),
+                        new("CRT Signal", _game.GetCrtSignalModeLabel(), _game.CycleCrtSignalModeSetting, OptionsMenuTab.Graphics),
+                        new("CRT Curvature", _game._clientSettings.CrtCurvatureEnabled ? "Enabled" : "Disabled", _game.ToggleCrtCurvatureSetting, OptionsMenuTab.Graphics),
+                        new("CRT Brightness", $"{_game._clientSettings.CrtBrightnessPercent}%", _game.CycleCrtBrightnessSetting, OptionsMenuTab.Graphics, step => _game.AdjustCrtBrightnessSetting(step * 5)),
+                        new("Reset CRT Settings", string.Empty, _game.ResetCrtSettings, OptionsMenuTab.Graphics),
+                    });
+                }
+
+                allActions.InsertRange(2, crtActions);
+            }
+
             if (!IsRestrictedBrowserEdition && _game.HasClientPluginOptions())
             {
                 allActions.Add(new OptionsMenuAction("Plugin Options", string.Empty, OpenPluginOptionsMenuFromOptions, OptionsMenuTab.Plugins));
@@ -683,7 +715,10 @@ public partial class Game1
 
             foreach (var action in allActions)
             {
-                if (OperatingSystem.IsBrowser() && action.Label is "Display Mode" or "Window Size" or "Reset Window Size")
+                if (OperatingSystem.IsBrowser() && action.Label is ("Display Mode" or "Window Size" or "Reset Window Size"
+                    or "CRT" or "CRT Filter" or "CRT Quality" or "CRT Signal" or "CRT Curvature" or "CRT Brightness" or "Reset CRT Settings"))
+                    continue;
+                if (OpenGarrison.ClientShared.ClientDistribution.IsGg2Only && !IsGg2OnlyOption(action))
                     continue;
                 if (action.Tab == currentTab)
                 {
@@ -693,6 +728,22 @@ public partial class Game1
 
             return filteredActions;
         }
+
+        private static bool IsGg2OnlyOption(OptionsMenuAction action) => action.Tab switch
+        {
+            OptionsMenuTab.Graphics => action.Label is "Display Mode" or "Aspect Ratio"
+                or "CRT" or "CRT Filter" or "CRT Quality" or "CRT Signal" or "CRT Curvature" or "CRT Brightness" or "Reset CRT Settings"
+                or "Window Size" or "Cursor Size" or "Particles" or "Flame Style" or "Blood Style" or "Blood Amount" or "Blood Persistence"
+                or "Dynamic Ragdoll" or "Corpse Fade" or "Gibs"
+                or "Stuck Arrows" or "Corpses" or "Sprite Shadow" or "Weapon Rotation"
+                or "Frame Limit" or "V Sync" or "Reset Window Size",
+            OptionsMenuTab.Controls => action.Label is "Keyboard & Mouse" or "Controller Input"
+                or "Controller Reticle" or "Stick Deadzone" or "Scoped Aim Speed",
+            OptionsMenuTab.Hud => action.Label is "Healer Radar" or "Show Healer" or "Show Healing"
+                or "Health Bar" or "Overhead Chat" or "Player Names",
+            OptionsMenuTab.Gameplay => action.Label is "Player Name" or "Network Smoothing",
+            _ => false,
+        };
 
         private List<OptionsMenuAction> BuildAudioOptionsActions()
         {
@@ -745,8 +796,18 @@ public partial class Game1
             _game._optionsHoverIndex = group == AudioOptionsGroup.Game ? 0 : 1;
         }
 
+        private void ToggleCrtOptionsGroup()
+        {
+            _crtOptionsExpanded = !_crtOptionsExpanded;
+            _game._optionsScrollOffset = 0;
+            var actions = BuildOptionsMenuActions();
+            _game._optionsHoverIndex = Math.Max(0, actions.FindIndex(action => action.Label == "CRT"));
+        }
+
         private static OptionsMenuTab GetOptionsMenuTab(int pageIndex)
         {
+            if (OpenGarrison.ClientShared.ClientDistribution.IsGg2Only)
+                return pageIndex is >= 0 and < 5 ? (OptionsMenuTab)pageIndex : OptionsMenuTab.Graphics;
             if (IsRestrictedBrowserEdition)
                 return pageIndex is >= 0 and < 5 ? (OptionsMenuTab)pageIndex : OptionsMenuTab.Plugins;
             return pageIndex switch

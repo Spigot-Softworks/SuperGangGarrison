@@ -293,6 +293,11 @@ public partial class Game1
             currentAmmoCount,
             renderState.PreviousCooldownTicks,
             currentCooldownTicks);
+        if (_networkClient.IsLegacyGg2Connection
+            && _pendingLegacyGg2FireAnimationPlayerIds.Remove(player.Id))
+        {
+            shotStarted = true;
+        }
         if (presentationPlayer.IsExperimentalDemoknightEnabled)
         {
             shotStarted = IsDemoknightSwordAnimationStart(
@@ -305,7 +310,7 @@ public partial class Game1
                 renderState.PreviousCooldownTicks,
                 currentCooldownTicks);
         }
-        if (presentationPlayer.ClassId == PlayerClass.Quote)
+        if (presentationPlayer.ClassId == PlayerClass.Quote && !_networkClient.IsLegacyGg2Connection)
         {
             // Quote's bubble and blade actions share cooldown/ammo state. Only
             // a new bubble may start the primary recoil presentation; blade
@@ -370,6 +375,9 @@ public partial class Game1
         renderState.FiredThisUpdate = shotStarted;
         var ammoIncreased = currentAmmoCount > renderState.PreviousAmmoCount;
         var shellReloaded = ammoIncreased && currentAmmoCount < maxAmmoCount;
+        var legacyShellInserted = _networkClient.IsLegacyGg2Connection
+            && ammoIncreased && weaponStats.AutoReloads && !weaponStats.RefillsAllAtOnce
+            && maxAmmoCount > 1;
         var preserveRecoilLoop = weaponRenderDefinition.LoopRecoilWhileActive
             && renderState.WeaponAnimationMode == WeaponAnimationMode.Recoil;
         var useScopedRecoilSprite = player.ClassId == PlayerClass.Sniper
@@ -432,7 +440,15 @@ public partial class Game1
                     StopWeaponAnimation(renderState);
                     break;
                 case WeaponAnimationMode.Reload:
-                    if (!ShouldShowReloadAnimation(player, weaponStats, weaponRenderDefinition, currentAmmoCount, maxAmmoCount, currentReloadTicks, currentCooldownTicks))
+                    if (legacyShellInserted)
+                    {
+                        StartWeaponAnimation(renderState, WeaponAnimationMode.Reload, weaponRenderDefinition.ReloadDurationSeconds);
+                    }
+                    else if (!ShouldShowReloadAnimation(player, weaponStats, weaponRenderDefinition, currentAmmoCount, maxAmmoCount, currentReloadTicks, currentCooldownTicks)
+                        && !(_networkClient.IsLegacyGg2Connection
+                            && weaponStats.AutoReloads && !weaponStats.RefillsAllAtOnce
+                            && currentAmmoCount >= maxAmmoCount
+                            && renderState.WeaponAnimationTimeRemainingSeconds > 0f))
                     {
                         StopWeaponAnimation(renderState);
                     }
@@ -450,8 +466,9 @@ public partial class Game1
                     }
                     break;
                 case WeaponAnimationMode.Idle:
-                    if (!renderState.ReloadAnimationCompleted
-                        && ShouldShowReloadAnimation(player, weaponStats, weaponRenderDefinition, currentAmmoCount, maxAmmoCount, currentReloadTicks, currentCooldownTicks))
+                    if (legacyShellInserted
+                        || (!renderState.ReloadAnimationCompleted
+                            && ShouldShowReloadAnimation(player, weaponStats, weaponRenderDefinition, currentAmmoCount, maxAmmoCount, currentReloadTicks, currentCooldownTicks)))
                     {
                         StartWeaponAnimation(renderState, WeaponAnimationMode.Reload, weaponRenderDefinition.ReloadDurationSeconds);
                     }
@@ -604,6 +621,27 @@ public partial class Game1
         }
 
         var recoilSeconds = MathF.Max(weaponDefinition.RecoilDurationSeconds, 0.0001f);
+        if (player.IsWhippingCordLatched)
+        {
+            renderState.WeaponAnimationMode = WeaponAnimationMode.Recoil;
+            renderState.WeaponAnimationDurationSeconds = recoilSeconds;
+            renderState.WeaponAnimationElapsedSeconds = recoilSeconds
+                * WhippingCordCatalog.FollowThroughProgress;
+            renderState.WeaponAnimationTimeRemainingSeconds = recoilSeconds;
+            return;
+        }
+        if (player.IsWhippingCordBackswingActive)
+        {
+            renderState.WeaponAnimationMode = WeaponAnimationMode.Recoil;
+            renderState.WeaponAnimationDurationSeconds = recoilSeconds;
+            renderState.WeaponAnimationElapsedSeconds = recoilSeconds
+                * (WhippingCordCatalog.FollowThroughProgress
+                    + player.WhippingCordBackswingProgress * (1f - WhippingCordCatalog.FollowThroughProgress));
+            renderState.WeaponAnimationTimeRemainingSeconds = recoilSeconds
+                * (1f - WhippingCordCatalog.FollowThroughProgress)
+                * (1f - player.WhippingCordBackswingProgress);
+            return;
+        }
         var recoilTicks = Math.Max(
             1,
             (int)MathF.Round(recoilSeconds * LegacyMovementModel.SourceTicksPerSecond));

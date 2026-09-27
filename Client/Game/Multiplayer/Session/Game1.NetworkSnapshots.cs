@@ -14,6 +14,7 @@ public partial class Game1
 {
     private readonly HashSet<int> _lastVisibleEnemySpyIds = new();
     private readonly Dictionary<int, byte> _lastVisibleEnemySpySlots = new();
+    private readonly HashSet<int> _pendingLegacyGg2FireAnimationPlayerIds = new();
 
     private readonly record struct ResolvedSnapshotEntry(
         SnapshotMessage RawSnapshot,
@@ -144,6 +145,12 @@ public partial class Game1
                 soundEvent.EventId,
                 ResolveNetworkEventSourceFrame(soundEvent.SourceFrame, resolvedSnapshot.Frame),
                 soundEvent.SourcePlayerId));
+            if (_networkClient.IsLegacyGg2Connection
+                && soundEvent.SourcePlayerId >= 0
+                && IsWeaponFireSoundName(soundEvent.SoundName))
+            {
+                _pendingLegacyGg2FireAnimationPlayerIds.Add(soundEvent.SourcePlayerId);
+            }
         }
     }
 
@@ -261,7 +268,7 @@ public partial class Game1
         var localPlayerJoined = wasAwaitingJoin && !_world.LocalPlayerAwaitingJoin;
         var presentationEpochChanged = mapChanged
             || localPlayerIdentityChanged
-            || localPlayerJoined;
+            || (localPlayerJoined && !_networkClient.IsLegacyGg2Connection);
         var localPlayerAuthorityChanged = mapChanged
             || localPlayerIdentityChanged
             || previousLocalClassId != _world.LocalPlayer.ClassId
@@ -490,6 +497,15 @@ public partial class Game1
 
     private void ReopenJoinMenusAfterMapTransition(string previousLevelName, int previousMapAreaIndex, bool wasAwaitingJoin)
     {
+        // GG2 reports team changes through its player roster. A playable slot
+        // without a spawned character is the class-selection phase, not a new
+        // request to select a team. The generic SGG map-transition recovery
+        // would otherwise replace the class menu with team selection again.
+        if (_networkClient.IsLegacyGg2Connection)
+        {
+            return;
+        }
+
         if (_networkClient.IsSpectator)
         {
             return;

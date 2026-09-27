@@ -1,5 +1,6 @@
 #nullable enable
 
+using System;
 using OpenGarrison.Core;
 
 namespace OpenGarrison.Client;
@@ -172,6 +173,18 @@ public partial class Game1
 
         ResetLocalPredictionForAuthorityTransition();
         _networkClient.QueueTeamSelection(selectedTeam);
+        if (_networkClient.IsLegacyGg2Connection && _networkClient.IsSpectator)
+        {
+            // GG2 can silently reject an unbalanced team. Wait for its roster
+            // update to move our spectator slot before offering class selection.
+            _legacyGg2TeamRequestStartedAtMilliseconds = Environment.TickCount64;
+            CloseGameplaySelectionMenus();
+            _menuStatusMessage = selectedTeam == PlayerTeam.Red
+                ? "Joining RED team..."
+                : "Joining BLU team...";
+            return;
+        }
+
         _menuStatusMessage = selectedTeam switch
         {
             PlayerTeam.Red => "Joining RED team. Select a class.",

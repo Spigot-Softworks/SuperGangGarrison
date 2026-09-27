@@ -37,6 +37,8 @@ public static class BuiltInGameplayBehaviorIds
     public const string Flaregun = "builtin.weapon.flaregun";
     /// <summary>The built-in dragon rage behavior id (<c>builtin.weapon.dragon_rage</c>).</summary>
     public const string DragonRage = "builtin.weapon.dragon_rage";
+    /// <summary>The built-in boomstick behavior id (<c>builtin.weapon.boomstick</c>).</summary>
+    public const string Boomstick = "builtin.weapon.boomstick";
     /// <summary>The built-in needlegun behavior id (<c>builtin.weapon.needlegun</c>).</summary>
     public const string Needlegun = "builtin.weapon.needlegun";
 

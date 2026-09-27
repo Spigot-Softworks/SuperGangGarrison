@@ -1001,11 +1001,6 @@ function Resolve-PackagedBrowserAtlasDirectory {
         }
     }
 
-    $runtimeManifest = Join-Path (Split-Path -Parent $resolvedSourceDirectory) "Gameplay/stock.gg2/runtime.json"
-    if (-not (Test-Path -LiteralPath $runtimeManifest -PathType Leaf)) {
-        throw "Reusable packaged browser atlas directory '$resolvedSourceDirectory' is missing its generated gameplay runtime manifest '$runtimeManifest'."
-    }
-
     return $resolvedSourceDirectory
 }
 
@@ -1024,12 +1019,23 @@ function Copy-PackagedBrowserAtlas {
 
     Copy-DirectoryContents -SourceDirectory $SourceDirectory -DestinationDirectory $destinationDirectory
 
-    $sourceContentDirectory = Split-Path -Parent $SourceDirectory
-    $sourceRuntimeManifest = Join-Path $sourceContentDirectory "Gameplay/stock.gg2/runtime.json"
-    $destinationRuntimeManifest = Join-Path $ContentDirectory "Gameplay/stock.gg2/runtime.json"
-    New-Item -ItemType Directory -Path (Split-Path -Parent $destinationRuntimeManifest) -Force | Out-Null
-    Copy-Item -LiteralPath $sourceRuntimeManifest -Destination $destinationRuntimeManifest -Force
     Write-Host "[package] reused packaged browser atlas from $SourceDirectory"
+}
+
+function Invoke-GeneratePackagedStockRuntimeDefinition {
+    param(
+        [Parameter(Mandatory = $true)][string]$RepoRoot,
+        [Parameter(Mandatory = $true)][string]$ContentDirectory
+    )
+
+    Invoke-DotNet -Arguments @(
+        "run",
+        "--project",
+        (Join-Path $RepoRoot "Tools\BrowserAssetBuilder\OpenGarrison.Tools.BrowserAssetBuilder.csproj"),
+        "--",
+        $ContentDirectory,
+        "--stock-runtime-only"
+    )
 }
 
 function Invoke-GenerateDistributionRuntimeAtlases {
@@ -2370,6 +2376,9 @@ foreach ($runtimeIdentifier in $Platforms) {
     else {
         Copy-PackagedBrowserAtlas `
             -SourceDirectory $resolvedReusablePackagedAtlasDirectory `
+            -ContentDirectory (Join-Path $payloadDirectory "Content")
+        Invoke-GeneratePackagedStockRuntimeDefinition `
+            -RepoRoot $repoRoot `
             -ContentDirectory (Join-Path $payloadDirectory "Content")
     }
     Invoke-GeneratePackagedRuntimeAssetManifest `

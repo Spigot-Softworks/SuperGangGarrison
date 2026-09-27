@@ -1033,6 +1033,14 @@ public partial class Game1
             PlayerBodySpriteSelection bodySelection)
         {
             _ = bodySelection;
+            var presentationPlayer = _game.GetPlayerPredictedPresentationState(player);
+            var isTerrainLatched = presentationPlayer.IsWhippingCordLatched
+                && presentationPlayer.HasEquippedBehavior(BuiltInGameplayBehaviorIds.WhippingCord);
+            if (isTerrainLatched)
+            {
+                weaponAnimationMode = WeaponAnimationMode.Recoil;
+            }
+
             var torsoSpriteName = weaponAnimationMode == WeaponAnimationMode.Recoil
                     && weaponDefinition.TorsoRecoilSpriteName is not null
                 ? weaponDefinition.TorsoRecoilSpriteName
@@ -1058,16 +1066,29 @@ public partial class Game1
                 return false;
             }
 
-            var facingScale = GetRenderFacingScale(player);
+            var facingScale = isTerrainLatched
+                && System.MathF.Abs(presentationPlayer.WhippingCordAnchorX - renderPosition.X) > 0.001f
+                ? (presentationPlayer.WhippingCordAnchorX < renderPosition.X ? -1f : 1f)
+                : GetRenderFacingScale(player);
             var playerScale = player.PlayerScale;
             var frameIndex = GetWeaponSpriteFrameIndex(
                 player,
                 weaponAnimationMode,
                 weaponDefinition,
                 System.Math.Max(torsoSprite.Frames.Count, weaponSprite.Frames.Count));
+            if (isTerrainLatched)
+            {
+                // The held strike is the whip's fully extended authored frame.
+                // Do not let cooldown interpolation or the live cursor advance it.
+                frameIndex = WhippingCordCatalog.ExtendedWhipFrameIndex;
+            }
             var torsoFrameIndex = System.Math.Clamp(frameIndex, 0, torsoSprite.Frames.Count - 1);
             var weaponFrameIndex = System.Math.Clamp(frameIndex, 0, weaponSprite.Frames.Count - 1);
-            var bobOffsetSource = _game.GetTorsoReplacementBobOffset(player);
+            // Tether collision is tested at body origin + weapon offset. Keep
+            // the whip sprite on that same origin even in an up-bob run pose.
+            var bobOffsetSource = presentationPlayer.HasEquippedBehavior(BuiltInGameplayBehaviorIds.WhippingCord)
+                ? 0f
+                : _game.GetTorsoReplacementBobOffset(player);
             var roundedOrigin = _game.GetPlayerSpriteOrigin(renderPosition);
             // Offsets nudge the authored whip canvas onto the engineer body/legs origin
             // (Elkondo body is centered at origin; whip art sits forward/low on its canvas).
@@ -1084,6 +1105,21 @@ public partial class Game1
                 0f,
                 torsoOrigin,
                 torsoScale);
+
+            if (isTerrainLatched)
+            {
+                DrawAnchoredWhippingCord(
+                    player,
+                    presentationPlayer,
+                    weaponSprite,
+                    weaponFrameIndex,
+                    torsoPosition,
+                    cameraPosition,
+                    facingScale,
+                    playerScale,
+                    tint);
+                return true;
+            }
 
             var rotation = GetRenderWeaponRotation(player);
             var aimAnchorX = torsoDrawX;
@@ -1138,11 +1174,58 @@ public partial class Game1
             return true;
         }
 
+        private void DrawAnchoredWhippingCord(
+            PlayerEntity player,
+            PlayerEntity presentationPlayer,
+            LoadedGameMakerSprite whipSprite,
+            int frameIndex,
+            Vector2 handleScreenPosition,
+            Vector2 cameraPosition,
+            float facingScale,
+            float playerScale,
+            Color tint)
+        {
+            // The terrain point is the tip of WhippingCordWhipFS frame 2.
+            // Drawing the authored frame between handle and anchor replaces the
+            // separate rope, and keeps the tip fixed when the cursor moves.
+            var anchorScreenPosition = Game1.RoundToSourcePixels(new Vector2(
+                presentationPlayer.WhippingCordAnchorX - cameraPosition.X,
+                presentationPlayer.WhippingCordAnchorY - cameraPosition.Y));
+            var delta = anchorScreenPosition - handleScreenPosition;
+            var pose = WhippingCordCatalog.ResolveAnchoredWhipPose(
+                delta.X,
+                delta.Y,
+                playerScale,
+                facingScale < 0f);
+            var drawFrame = whipSprite.Frames[frameIndex];
+            var drawOrigin = whipSprite.Origin.ToVector2();
+            var drawScale = new Vector2(pose.ScaleX, pose.ScaleY);
+            var isKritzWeaponOnly = _game.IsKritzUberWeaponOnlyVisual(player);
+            if (_game._uberOutlineEnabled && (isKritzWeaponOnly || player.IsUbered))
+            {
+                var teamColor = GameplayPlayerStatusEffectRenderController.GetUberOverlayColor(player.Team);
+                var outlineTint = Color.Lerp(teamColor, Color.White, 0.75f);
+                _game.DrawSpriteFrameOutline(
+                    drawFrame, handleScreenPosition, outlineTint, pose.Rotation, drawOrigin, drawScale);
+            }
+
+            _game.DrawSpriteFrameWithOptionalShadow(
+                drawFrame, handleScreenPosition, tint, pose.Rotation, drawOrigin, drawScale);
+            if (player.IsUbered && !isKritzWeaponOnly)
+            {
+                var teamColor = GameplayPlayerStatusEffectRenderController.GetUberOverlayColor(player.Team);
+                _game.DrawSpriteFrameFlatColor(
+                    drawFrame, handleScreenPosition, teamColor * 0.45f, pose.Rotation, drawOrigin, drawScale);
+            }
+        }
+
         private WeaponRenderDefinition GetWeaponRenderDefinition(PlayerEntity player, bool forceCivvieUmbrellaPresentation = false, bool standing = false)
         {
             var renderPlayer = player;
             player = _game.GetPlayerPredictedPresentationState(player);
-            var presentation = ResolveRenderPresentation(player, forceCivvieUmbrellaPresentation);
+            var presentation = _game._networkClient.IsLegacyGg2Connection && player.ClassId == PlayerClass.Quote
+                ? CharacterClassCatalog.RuntimeRegistry.GetRequiredItem("weapon.blade").Presentation
+                : ResolveRenderPresentation(player, forceCivvieUmbrellaPresentation);
             var rifleCycleSpeed = player.ClassId == PlayerClass.Sniper
                     && player.PrimaryWeapon.Kind == PrimaryWeaponKind.Rifle
                 ? player.LastToDieSniperProfile.RifleCycleSpeedMultiplier

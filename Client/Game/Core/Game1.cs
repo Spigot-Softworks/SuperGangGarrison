@@ -23,7 +23,11 @@ namespace OpenGarrison.Client;
 
 public partial class Game1 : Game
 {
+#if GG2_ONLY
+    private const string WindowTitle = "OpenGarrison";
+#else
     private const string WindowTitle = "Super Gang Garrison";
+#endif
 
     private enum BubbleMenuKind
     {
@@ -193,6 +197,7 @@ public partial class Game1 : Game
     private readonly FriendListDocument _friendList;
     private readonly OpenGarrisonPresenceClient _presenceClient;
     private readonly GraphicsDeviceManager _graphics;
+    private readonly bool _crtStartupForcedOff;
     private RenderTarget2D? _gameRenderTarget;
     private RenderTarget2D? _hudRenderTarget;
     private bool _hudOpacityCompositePending;
@@ -289,7 +294,6 @@ public partial class Game1 : Game
     private bool _positionSmoothingEnabled = false;
     private bool _enablePrediction = true;
     private bool _cameraPanningEnabled = OpenGarrisonPreferencesDocument.DefaultCameraPanningEnabled;
-    private PlayerSpriteStyle _spriteStyle = PlayerSpriteStyle.Elkondo;
     private float _smoothCameraMultiplier = ClientSettings.DefaultSmoothCameraMultiplier;
     private bool _hasSmoothCamera;
     private Vector2 _smoothCamera;
@@ -438,17 +442,25 @@ public partial class Game1 : Game
         _friendList = FriendListDocument.Load();
         _presenceClient = new OpenGarrisonPresenceClient();
         _graphics.HardwareModeSwitch = false;
-        if (OperatingSystem.IsBrowser()
-            || string.Equals(Environment.GetEnvironmentVariable("OPENGARRISON_FORCE_HIGHDEF"), "1", StringComparison.Ordinal))
-        {
-            // Stock map layers exceed Reach's 2048-pixel texture limit, and the
-            // packaged shared runtime atlases are intentionally close to that
-            // boundary. A diagnostic launch switch can exercise the same path
-            // on desktop without changing the normal low-end default.
-            _graphics.GraphicsProfile = GraphicsProfile.HiDef;
-        }
+        _crtStartupForcedOff = !OperatingSystem.IsBrowser()
+            && string.Equals(Environment.GetEnvironmentVariable("OPENGARRISON_CRT"), "off", StringComparison.OrdinalIgnoreCase);
+        var forceReach = !OperatingSystem.IsBrowser()
+            && string.Equals(Environment.GetEnvironmentVariable("OPENGARRISON_FORCE_REACH"), "1", StringComparison.Ordinal);
+        var forceHighDef = OperatingSystem.IsBrowser()
+            || string.Equals(Environment.GetEnvironmentVariable("OPENGARRISON_FORCE_HIGHDEF"), "1", StringComparison.Ordinal);
+        // Desktop HiDef is the intended profile for the optional presentation
+        // resources. OPENGARRISON_FORCE_REACH remains available as a startup
+        // recovery switch for machines where HiDef device creation fails;
+        // OPENGARRISON_FORCE_HIGHDEF remains a supported diagnostic override.
+        _graphics.GraphicsProfile = forceReach ? GraphicsProfile.Reach : GraphicsProfile.HiDef;
+        Console.WriteLine($"Graphics profile selected: {_graphics.GraphicsProfile} (forceReach={forceReach}, forceHighDef={forceHighDef})");
         Content.RootDirectory = "Content";
-        ClientRuntimeBootstrap.InitializeContentRoot(Content.RootDirectory);
+        // ContentRoot also drives stock-map source selection. Resolve it from
+        // the executable, because launching OG2 from a different working
+        // directory otherwise selects the sparse source PNG over packaged art.
+        ClientRuntimeBootstrap.InitializeContentRoot(OperatingSystem.IsBrowser()
+            ? Content.RootDirectory
+            : Path.Combine(AppContext.BaseDirectory, Content.RootDirectory));
         InitializeLocalDistributionAtlasManifestsIfPresent();
         IsMouseVisible = false;
         ApplyDisplayMode(_clientSettings.DisplayMode);

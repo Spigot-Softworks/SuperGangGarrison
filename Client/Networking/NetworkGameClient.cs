@@ -8,6 +8,7 @@ using System.Globalization;
 using System.IO;
 using System.Net.Sockets;
 using OpenGarrison.Core;
+using OpenGarrison.ClientShared;
 using OpenGarrison.Protocol;
 
 namespace OpenGarrison.Client;
@@ -158,6 +159,7 @@ internal sealed class NetworkGameClient : IDisposable
     public bool IsAwaitingWelcome => IsConnected && !_welcomeReceived;
     public bool IsSpectator => IsConnected && LocalPlayerSlot >= SimulationWorld.FirstSpectatorSlot;
     public bool IsReplayConnection { get; private set; }
+    public bool IsLegacyGg2Connection { get; private set; }
     public bool IsDemoRecordingActive => _demoRecorder is not null || !string.IsNullOrWhiteSpace(_armedDemoRecordingPath);
     public bool IsAutomaticDemoRecordingActive => IsDemoRecordingActive && _demoRecordingIsAutomatic;
 
@@ -188,6 +190,11 @@ internal sealed class NetworkGameClient : IDisposable
         Guid clientInstanceId = default)
     {
         error = string.Empty;
+        if (ClientDistribution.IsGg2Only)
+        {
+            error = "This edition only connects to GG2 servers.";
+            return false;
+        }
         var armedDemoRecordingPath = _demoRecorder is null ? _armedDemoRecordingPath : null;
         var armedDemoRecordingIsAutomatic = _demoRecorder is null && _demoRecordingIsAutomatic;
         Disconnect();
@@ -243,6 +250,13 @@ internal sealed class NetworkGameClient : IDisposable
     {
         error = string.Empty;
         ArgumentNullException.ThrowIfNull(transport);
+        if (ClientDistribution.IsGg2Only && transport is not LegacyGg2NetworkClientTransport
+            && transport is not LegacyGg2BrowserMessageTransport)
+        {
+            transport.Dispose();
+            error = "This edition only connects to GG2 servers.";
+            return false;
+        }
         var armedDemoRecordingPath = _demoRecorder is null ? _armedDemoRecordingPath : null;
         var armedDemoRecordingIsAutomatic = _demoRecorder is null && _demoRecordingIsAutomatic;
         Disconnect();
@@ -253,6 +267,11 @@ internal sealed class NetworkGameClient : IDisposable
         }
 
         _transport = transport;
+        IsLegacyGg2Connection = transport is LegacyGg2NetworkClientTransport or LegacyGg2BrowserMessageTransport;
+        if (IsLegacyGg2Connection)
+        {
+            Protocol64ModeEnabled = false;
+        }
         if (IsProtocol64Endpoint(transport.RemoteDescription))
         {
             Protocol64ModeEnabled = true;
@@ -339,6 +358,7 @@ internal sealed class NetworkGameClient : IDisposable
         _networkInputTick = 0;
         _nextPingSequence = 1;
         IsReplayConnection = false;
+        IsLegacyGg2Connection = false;
         LocalPlayerSlot = 0;
         _welcomeReceived = false;
         ServerDescription = null;
@@ -2090,6 +2110,3 @@ internal sealed class NetworkGameClient : IDisposable
         public long LastSentAtMilliseconds { get; set; } = lastSentAtMilliseconds;
     }
 }
-
-
-

@@ -319,7 +319,7 @@ public partial class Game1
 
         private void DrawAnimatedMenuLogo(int viewportWidth)
         {
-            if (ClientDistribution.IsRestricted)
+            if (ClientDistribution.IsRestricted || ClientDistribution.IsGg2Only)
             {
                 var sprite = _game.GetResolvedSprite("OpenGarrisonLogoS");
                 if (sprite is null || sprite.Frames.Count == 0)

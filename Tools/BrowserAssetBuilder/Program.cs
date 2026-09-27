@@ -2,7 +2,7 @@ using OpenGarrison.Tools.BrowserAssetBuilder;
 
 if (args.Length is < 1 or > 5)
 {
-    Console.Error.WriteLine("Usage: OpenGarrison.Tools.BrowserAssetBuilder <output-content-root> [packaged-client-plugin-source-root] [--repo-root=<path>] [--prune-deprecated-gamemaker-metadata] [--manifest-only|--runtime-bundle-only]");
+    Console.Error.WriteLine("Usage: OpenGarrison.Tools.BrowserAssetBuilder <output-content-root> [packaged-client-plugin-source-root] [--repo-root=<path>] [--prune-deprecated-gamemaker-metadata] [--manifest-only|--stock-runtime-only|--runtime-bundle-only]");
     return 1;
 }
 
@@ -27,6 +27,12 @@ if (manifestOnly)
 {
     var manifestPath = BrowserAssetBuildPipeline.WriteGameMakerManifestOnly(context);
     Console.WriteLine($"GameMaker asset manifest generated: {manifestPath}");
+    return 0;
+}
+if (args.Any(static arg => string.Equals(arg, "--stock-runtime-only", StringComparison.OrdinalIgnoreCase)))
+{
+    var runtimePath = BrowserAssetBuildPipeline.WriteStockGameplayRuntimeOnly(context);
+    Console.WriteLine($"Stock gameplay runtime generated from current source: {runtimePath}");
     return 0;
 }
 

@@ -1,0 +1,46 @@
+{
+  "id": "weapon.boomstick",
+  "kind": "Weapon",
+  "weaponSlot": "Primary",
+  "displayName": "Boomstick",
+  "behaviorId": "builtin.weapon.boomstick",
+  "ammo": {
+    "maxAmmo": 1,
+    "ammoPerUse": 1,
+    "projectilesPerUse": 3,
+    "useDelaySourceTicks": 20,
+    "reloadSourceTicks": 15,
+    "spreadDegrees": 7.0,
+    "minProjectileSpeed": 11.0,
+    "additionalProjectileSpeed": 4.0,
+    "autoReloads": true,
+    "ammoRegenPerTick": 0,
+    "refillsAllAtOnce": false
+  },
+  "combat": {
+    "fireSoundName": "ShotgunSnd",
+    "killFeedSpriteName": "DragonRageKL",
+    "directHitDamage": 5
+  },
+  "presentation": {
+    "worldSpriteName": "DragonRageS",
+    "reloadSpriteName": "DragonRageFRS",
+    "hudSpriteName": "DragonRageS",
+    "weaponOffsetX": -5.0,
+    "weaponOffsetY": -2.0,
+    "reloadDurationSourceTicks": 15,
+    "blueTeamHudFrameOffset": 1,
+    "hud": {
+      "displayKind": "ammoPanel",
+      "stackGroup": "weapon",
+      "order": 100,
+      "stateProvider": "primaryAmmo",
+      "hideWhenUnavailable": true
+    }
+  },
+  "description": {
+    "summary": "Fires three pellets that explode when they strike a player or surface.",
+    "positiveAttributes": [ "Each pellet creates a quarter-radius explosion dealing up to 25 damage" ],
+    "negativeAttributes": [ "1-shell clip", "5 direct damage per pellet" ]
+  }
+}

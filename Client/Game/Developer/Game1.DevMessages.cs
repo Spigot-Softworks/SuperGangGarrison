@@ -11,7 +11,7 @@ public partial class Game1
 {
     private void EnsureDevMessageCheckStarted()
     {
-        if (IsRestrictedBrowserEdition) return;
+        if (IsRestrictedBrowserEdition || OpenGarrison.ClientShared.ClientDistribution.IsGg2Only) return;
         if (_devMessageCheckStarted || IsServerLauncherMode || OperatingSystem.IsBrowser())
         {
             return;

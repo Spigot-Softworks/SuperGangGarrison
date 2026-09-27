@@ -184,8 +184,11 @@ public partial class Game1
 
             foreach (var explosion in _game._explosions)
             {
-                DrawExplosionSprite(explosion, cameraPosition, largeSprite, 2.64f * explosion.LargeScaleMultiplier, 0.92f, explosion.LargeSpriteColor, startingFrameBias: 3);
-                DrawExplosionSprite(explosion, cameraPosition, smallSprite, 1.74f * explosion.SmallScaleMultiplier, 0.78f, explosion.SmallSpriteColor, startingFrameBias: 2);
+                if (!explosion.SmallOnly)
+                {
+                    DrawExplosionSprite(explosion, cameraPosition, largeSprite, 2.64f * explosion.LargeScaleMultiplier, 0.92f, explosion.LargeSpriteColor, startingFrameBias: 3);
+                }
+                DrawExplosionSprite(explosion, cameraPosition, smallSprite, (explosion.SmallOnly ? 1f : 1.74f) * explosion.SmallScaleMultiplier, 0.78f, explosion.SmallSpriteColor, startingFrameBias: 2);
             }
         }
 
@@ -255,6 +258,14 @@ public partial class Game1
             if (string.Equals(effectName, "Explosion", StringComparison.OrdinalIgnoreCase))
             {
                 _game._explosions.Add(CreateExplosionVisual(x, y));
+                return true;
+            }
+
+            if (string.Equals(effectName, "ExplosionSmall", StringComparison.OrdinalIgnoreCase))
+            {
+                var explosion = CreateExplosionVisual(x, y);
+                explosion.SmallOnly = true;
+                _game._explosions.Add(explosion);
                 return true;
             }
 
@@ -442,7 +453,7 @@ public partial class Game1
             foreach (var explosion in _game._explosions)
             {
                 var progress = GetExplosionProgress(explosion);
-                var radius = (12f + (progress * 18f)) * 1.2f;
+                var radius = (12f + (progress * 18f)) * (explosion.SmallOnly ? 0.6f : 1.2f);
                 var innerRadius = radius * 0.5f;
                 var alpha = MathHelper.Clamp(1f - progress, 0f, 1f);
                 var outerRectangle = new Rectangle(

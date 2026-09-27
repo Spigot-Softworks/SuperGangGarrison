@@ -193,6 +193,22 @@ public partial class Game1
 
         public List<MenuPageAction> GetInGameMenuActions()
         {
+            if (OpenGarrison.ClientShared.ClientDistribution.IsGg2Only)
+            {
+                var gg2Actions = new List<MenuPageAction>
+                {
+                    new("Resume", CloseInGameMenu),
+                    new("Settings", () =>
+                    {
+                        _game.OpenOptionsMenu(fromGameplay: true);
+                        CloseInGameMenu();
+                    }),
+                    new("Disconnect", () => _game.ReturnToMainMenu(_game.GetGameplayExitStatusMessage())),
+                    new("Quit Game", _game.OpenQuitPrompt),
+                };
+                AddGameplaySelectionActions(gg2Actions);
+                return gg2Actions;
+            }
             if (_game._jukeboxMenuOpen) return _game.GetSessionJukeboxActions();
             if (_game.IsLastToDieSessionActive)
             {

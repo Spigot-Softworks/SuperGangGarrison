@@ -19,6 +19,7 @@ public partial class Game1
         UpdatePendingNetworkMapSync();
         var processStartTimestamp = _networkDiagnosticsEnabled ? Stopwatch.GetTimestamp() : 0L;
         var messages = _networkClient.ReceiveMessages();
+        UpdateLegacyGg2TeamRequest();
         CaptureProtocol64RemovedProjectilePresentationEntities(
             _networkClient.Protocol64State.RemovedProjectileLifecycles,
             (ulong)Math.Max(0L, _world.Frame));
@@ -195,6 +196,14 @@ public partial class Game1
 
     private void ApplyHostedLastToDiePredictionProfiles()
     {
+        if (_networkClient.IsLegacyGg2Connection)
+        {
+            // GG2 owns the player's size and position. Clearing an unrelated
+            // Last to Die profile resets scale and shifts both coordinates
+            // between authoritative GG2 snapshots.
+            return;
+        }
+
         if (!_networkClient.IsConnected)
         {
             _world.ReconcileRemoteLastToDieDemoknightPresentation(new HashSet<byte>());

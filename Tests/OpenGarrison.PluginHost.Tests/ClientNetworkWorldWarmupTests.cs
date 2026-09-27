@@ -67,6 +67,27 @@ public sealed class ClientNetworkWorldWarmupTests
             interpolationWarmupActive: false));
     }
 
+    [Fact]
+    public void LegacyFullSnapshotsAdvanceWarmupAfterFirstBaseline()
+    {
+        Assert.True(Game1.ShouldEstablishNetworkWorldWarmupBaseline(
+            isLegacyGg2: true, hasBaseline: false,
+            isServerFullSnapshot: true, isPresentationEpochBaselineSnapshot: false,
+            acceptNextAppliedSnapshotAsBaseline: false));
+        Assert.False(Game1.ShouldEstablishNetworkWorldWarmupBaseline(
+            isLegacyGg2: true, hasBaseline: true,
+            isServerFullSnapshot: true, isPresentationEpochBaselineSnapshot: false,
+            acceptNextAppliedSnapshotAsBaseline: false));
+        Assert.True(Game1.ShouldEstablishNetworkWorldWarmupBaseline(
+            isLegacyGg2: true, hasBaseline: true,
+            isServerFullSnapshot: true, isPresentationEpochBaselineSnapshot: true,
+            acceptNextAppliedSnapshotAsBaseline: false));
+        Assert.True(Game1.ShouldEstablishNetworkWorldWarmupBaseline(
+            isLegacyGg2: false, hasBaseline: true,
+            isServerFullSnapshot: true, isPresentationEpochBaselineSnapshot: false,
+            acceptNextAppliedSnapshotAsBaseline: false));
+    }
+
     [Theory]
     [InlineData(LastToDieWirePhase.Lobby)]
     [InlineData(LastToDieWirePhase.SurvivorChoice)]

@@ -111,8 +111,29 @@ public partial class Game1
             if (predictedInput.Input.FirePrimary
                 && player.TryFireWhippingCord())
             {
-                SyncPredictedLocalPlayerState(player);
+                var recoilTicks = WhippingCordCatalog.ResolveRecoilTicks(player);
+                player.BeginWhippingCordWindup(
+                    WhippingCordCatalog.ResolveWindupTicks(recoilTicks),
+                    WhippingCordCatalog.ResolveSwingTicks(recoilTicks),
+                    WhippingCordCatalog.ResolveBackswingTicks(recoilTicks));
             }
+
+            if (player.TryEnterWhippingCordDamageWindow())
+            {
+                if (predictedInput.Input.FirePrimary)
+                {
+                    _ = _world.TryLatchWhippingCordToTerrain(
+                        player, predictedInput.Input.AimWorldX, predictedInput.Input.AimWorldY);
+                }
+
+                player.AdvanceWhippingCordSwingTimer();
+            }
+            else if (player.IsWhippingCordBackswingActive)
+            {
+                player.AdvanceWhippingCordBackswingTimer();
+            }
+
+            SyncPredictedLocalPlayerState(player);
 
             return;
         }

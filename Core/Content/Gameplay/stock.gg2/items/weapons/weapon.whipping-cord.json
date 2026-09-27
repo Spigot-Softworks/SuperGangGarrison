@@ -29,7 +29,7 @@
     "worldSpriteName": "WhippingCordWhipS",
     "recoilSpriteName": "WhippingCordWhipFS",
     "reloadSpriteName": "WhippingCordWhipS",
-    "meleeHitboxSpriteName": "WhippingCordHitboxS",
+    "meleeHitboxSpriteName": "WhippingCordWhipFS",
     "rotateMeleeHitboxWithAim": true,
     "weaponOffsetX": -4.0,
     "weaponOffsetY": -4.0,
@@ -47,9 +47,11 @@
     }
   },
   "description": {
-    "summary": "Aimable engineer whip. Builds, repairs, and overdrives friendly autoguns.",
+    "summary": "Aimable engineer whip. Latches to terrain while held, then pulls you toward the anchor on release.",
     "positiveAttributes": [
       "aimable melee",
+      "swing from terrain while holding fire",
+      "pulls the first enemy touched on the backswing",
       "speeds friendly construction",
       "repairs friendly buildings",
       "overdrives full-health friendly autoguns"

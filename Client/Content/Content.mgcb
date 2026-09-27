@@ -33,3 +33,13 @@
 /processor:EffectProcessor
 /build:FlamingLogo.fx
 
+#begin CrtBalanced.fx
+/importer:EffectImporter
+/processor:EffectProcessor
+/build:CrtBalanced.fx
+
+#begin CrtHigh.fx
+/importer:EffectImporter
+/processor:EffectProcessor
+/build:CrtHigh.fx
+

@@ -31,17 +31,23 @@ public static class CustomMapPngImporter
 
     public static Result? Import(string pngPath)
     {
-        try { return ImportCore(pngPath); }
+        try { return ImportCore(pngPath, Path.GetFileNameWithoutExtension(pngPath)); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException or SixLabors.ImageSharp.UnknownImageFormatException or SixLabors.ImageSharp.InvalidImageContentException) { return null; }
     }
 
-    private static Result? ImportCore(string pngPath)
+    public static Result? Import(string pngPath, string mapName)
+    {
+        try { return ImportCore(pngPath, mapName); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException or SixLabors.ImageSharp.UnknownImageFormatException or SixLabors.ImageSharp.InvalidImageContentException) { return null; }
+    }
+
+    private static Result? ImportCore(string pngPath, string mapName)
     {
         if (!TryExtractLevelData(pngPath, out var levelData))
         {
             return null;
         }
-        return ImportLevelData(Path.GetFileNameWithoutExtension(pngPath), pngPath, levelData);
+        return ImportLevelData(mapName, pngPath, levelData);
     }
 
     public static Result? ImportLevelData(

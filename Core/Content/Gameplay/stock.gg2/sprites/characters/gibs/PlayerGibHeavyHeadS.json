@@ -1,0 +1,8 @@
+{
+  "id": "PlayerGibHeavyHeadS",
+  "framePaths": [
+    "assets/characters/gibs/PlayerGibHeavyHeadS/0.png"
+  ],
+  "originX": 2,
+  "originY": 3
+}

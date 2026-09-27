@@ -23,27 +23,34 @@ def initialize(db: sqlite3.Connection) -> None:
             ruleset TEXT NOT NULL, digest TEXT NOT NULL, recording BLOB,
             status TEXT NOT NULL DEFAULT 'pending', reason TEXT NOT NULL DEFAULT '',
             created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+            ranking_epoch INTEGER NOT NULL DEFAULT 0,
             lease_id TEXT NOT NULL DEFAULT '', attempts INTEGER NOT NULL DEFAULT 0,
             UNIQUE(account_id, digest)
         )
     """)
+    if "ranking_epoch" not in {row["name"] for row in db.execute("PRAGMA table_info(run_verification_jobs)")}:
+        db.execute("ALTER TABLE run_verification_jobs ADD COLUMN ranking_epoch INTEGER NOT NULL DEFAULT 0")
     db.execute("CREATE INDEX IF NOT EXISTS idx_run_verification_queue ON run_verification_jobs(status, created_at)")
     db.execute("""CREATE TABLE IF NOT EXISTS verified_run_results (
-        attempt_id TEXT PRIMARY KEY, result_json TEXT NOT NULL, created_at INTEGER NOT NULL)""")
+        attempt_id TEXT PRIMARY KEY, result_json TEXT NOT NULL, created_at INTEGER NOT NULL,
+        ranking_epoch INTEGER NOT NULL DEFAULT 0)""")
+    if "ranking_epoch" not in {row["name"] for row in db.execute("PRAGMA table_info(verified_run_results)")}:
+        db.execute("ALTER TABLE verified_run_results ADD COLUMN ranking_epoch INTEGER NOT NULL DEFAULT 0")
 
 
-def publish_participant(db, account_id, client_id, result):
+def publish_participant(db, account_id, client_id, result, ranking_epoch):
     actor = next((p for p in result["Participants"] if str(p["ClientId"]).replace("-", "").lower()
                   == client_id.replace("-", "").lower()), None)
     if actor is None:
         raise HTTPException(status_code=403, detail="This device did not participate in the verified run")
     attempt = str(uuid.UUID(result["AttemptId"]))
     db.execute("""INSERT OR IGNORE INTO last_to_die_runs
-        (submission_id, run_id, account_id, score_units, round_number, difficulty, survivor_id, policy_version, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)""",
+        (submission_id, run_id, account_id, score_units, round_number, difficulty, survivor_id,
+         policy_version, ranking_epoch, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)""",
         ("verified:" + attempt + ":" + account_id, "verified:" + attempt, account_id,
          actor["ScoreUnits"], result["CompletedRounds"], "standard" if result["Difficulty"] == 0 else "hardcore",
-         actor["SurvivorId"], int(time.time())))
+         actor["SurvivorId"], ranking_epoch, int(time.time())))
 
 
 def install_routes(api: Any, connect_db: Any, validate_session: Any) -> None:
@@ -64,10 +71,13 @@ def install_routes(api: Any, connect_db: Any, validate_session: Any) -> None:
             raise HTTPException(status_code=400, detail="Invalid run identity")
         with connect_db() as db:
             initialize(db)
-            row = db.execute("SELECT result_json FROM verified_run_results WHERE attempt_id=?", (attempt_id,)).fetchone()
+            row = db.execute(
+                "SELECT result_json, ranking_epoch FROM verified_run_results WHERE attempt_id=?",
+                (attempt_id,),
+            ).fetchone()
             if row is None:
                 return {"id": attempt_id, "status": "pending", "reason": "Waiting for the host's run verification"}
-            publish_participant(db, account_id, client_id, json.loads(row["result_json"]))
+            publish_participant(db, account_id, client_id, json.loads(row["result_json"]), row["ranking_epoch"])
         return {"id": attempt_id, "status": "verified", "reason": ""}
 
     @api.post("/api/last-to-die/recordings", status_code=202)
@@ -103,10 +113,11 @@ def install_routes(api: Any, connect_db: Any, validate_session: Any) -> None:
             if counts["own"] >= MAX_PENDING_PER_ACCOUNT or counts["total"] >= MAX_PENDING_GLOBAL:
                 raise HTTPException(status_code=429, detail="Verification queue is full; retry later")
             job_id = uuid.uuid4().hex
+            ranking_epoch = db.execute("SELECT epoch FROM last_to_die_rankings_state WHERE id=1").fetchone()[0]
             db.execute("""INSERT INTO run_verification_jobs
-                (id, account_id, client_id, ruleset, digest, recording, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-                (job_id, account_id, client_id, ruleset, digest, bytes(body), now, now))
+                (id, account_id, client_id, ruleset, digest, recording, created_at, updated_at, ranking_epoch)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (job_id, account_id, client_id, ruleset, digest, bytes(body), now, now, ranking_epoch))
         return {"id": job_id, "status": "pending", "reason": ""}
 
     @api.get("/api/last-to-die/recordings/{job_id}")

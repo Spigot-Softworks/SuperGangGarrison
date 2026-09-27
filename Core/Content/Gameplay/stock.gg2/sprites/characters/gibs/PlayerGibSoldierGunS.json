@@ -1,0 +1,8 @@
+{
+  "id": "PlayerGibSoldierGunS",
+  "framePaths": [
+    "assets/characters/gibs/PlayerGibSoldierGunS/0.png"
+  ],
+  "originX": 10,
+  "originY": 4
+}

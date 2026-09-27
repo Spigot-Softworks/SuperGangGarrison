@@ -189,7 +189,8 @@ public partial class Game1
 
         public void SyncRetainedDeadBodies()
         {
-            if (_game._corpseDurationMode != ClientSettings.CorpseDurationInfinite)
+            if (_game._networkClient.IsLegacyGg2Connection
+                || _game._corpseDurationMode != ClientSettings.CorpseDurationInfinite)
             {
                 ResetRetainedDeadBodies();
                 return;
@@ -625,7 +626,9 @@ public partial class Game1
             }
 
             var tint = Color.White * fadeAlpha;
-            var spriteName = Game1.GetDeadBodySpriteName(gameplayClassId, classId, team, animationKind);
+            var spriteName = _game._networkClient.IsLegacyGg2Connection && classId == PlayerClass.Quote
+                ? $"Querly{(team == PlayerTeam.Blue ? "Blue" : "Red")}DeadS"
+                : Game1.GetDeadBodySpriteName(gameplayClassId, classId, team, animationKind);
             if (spriteName is not null)
             {
                 var sprite = _game.GetResolvedSprite(spriteName);

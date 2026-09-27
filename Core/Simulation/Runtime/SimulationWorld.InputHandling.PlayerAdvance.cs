@@ -248,6 +248,14 @@ public sealed partial class SimulationWorld
 
         var wasSpyBackstabAnimating = player.IsSpyBackstabAnimating;
         subphaseStartTimestamp = SlowPlayerPhaseTracingEnabled ? Stopwatch.GetTimestamp() : 0L;
+        if (!player.HasEquippedBehavior(BuiltInGameplayBehaviorIds.WhippingCord))
+        {
+            player.ReleaseWhippingCord();
+        }
+        else if (!input.FirePrimary)
+        {
+            _ = player.ReleaseWhippingCordWithPull();
+        }
         TryHandleNetworkPrimaryFire(player, input, previousInput, primaryPressed, suppressPyroPrimaryThisTick);
         primaryFireMilliseconds = ElapsedMilliseconds(subphaseStartTimestamp);
         if (!wasSpyBackstabAnimating && player.IsSpyBackstabAnimating)
@@ -365,6 +373,11 @@ public sealed partial class SimulationWorld
         else if (swapWeaponPressed && !secondaryAbilityConsumedInput)
         {
             _ = TryHandleNetworkWeaponSwap(player);
+        }
+
+        if (!player.HasEquippedBehavior(BuiltInGameplayBehaviorIds.WhippingCord))
+        {
+            player.ReleaseWhippingCord();
         }
 
         var utilityInputActive = abilityPressed

@@ -24,6 +24,7 @@ public partial class Game1
         public Vector2 Origin { get; init; }
         public float Scale { get; init; }
         public bool OwnsTexture { get; init; }
+        public bool SourceIsDynamicRagdoll { get; init; }
         public float LastAppliedProgress { get; set; } = -1f;
     }
 
@@ -67,14 +68,7 @@ public partial class Game1
                 continue;
             }
 
-            if (!TryGetOrCreateCorpseAcidDissolveState(
-                    deadBody.Id,
-                    deadBody.GameplayClassId,
-                    deadBody.ClassId,
-                    deadBody.Team,
-                    deadBody.AnimationKind,
-                    deadBody.Height,
-                    out var state))
+            if (!_corpseAcidDissolveStates.TryGetValue(deadBody.Id, out var state))
             {
                 continue;
             }
@@ -91,14 +85,7 @@ public partial class Game1
             }
 
             var syntheticId = -Math.Abs(deadBody.SourcePlayerId);
-            if (!TryGetOrCreateCorpseAcidDissolveState(
-                    syntheticId,
-                    deadBody.GameplayClassId,
-                    deadBody.ClassId,
-                    deadBody.Team,
-                    deadBody.AnimationKind,
-                    deadBody.Height,
-                    out var state))
+            if (!_corpseAcidDissolveStates.TryGetValue(syntheticId, out var state))
             {
                 continue;
             }
@@ -168,7 +155,12 @@ public partial class Game1
     {
         if (_corpseAcidDissolveStates.TryGetValue(corpseId, out state!))
         {
-            return true;
+            if (!state.SourceIsDynamicRagdoll)
+            {
+                return true;
+            }
+
+            DisposeCorpseAcidDissolve(corpseId);
         }
 
         if (!TryCaptureCorpseAcidSourcePixels(
@@ -187,8 +179,71 @@ public partial class Game1
             return false;
         }
 
-        if (!TryCreateCorpseAcidDissolveState(pixels, width, height, origin, scale, out state))
+        if (!TryCreateCorpseAcidDissolveState(
+                pixels, width, height, origin, scale, sourceIsDynamicRagdoll: false, out state))
         {
+            return false;
+        }
+
+        _corpseAcidDissolveStates[corpseId] = state;
+        return true;
+    }
+
+    private bool TryGetOrCreateRagdollAcidDissolveState(
+        int corpseId,
+        DynamicRagdollState ragdoll,
+        out CorpseAcidDissolveState state)
+    {
+        if (_corpseAcidDissolveStates.TryGetValue(corpseId, out state!))
+        {
+            if (state.SourceIsDynamicRagdoll)
+            {
+                return true;
+            }
+
+            DisposeCorpseAcidDissolve(corpseId);
+        }
+
+        string? spriteName;
+        var frameIndex = 0;
+        if (ragdoll.UseElkondoVerticalVisual)
+        {
+            if (!TryResolveElkondoCorpseSprite(
+                    ragdoll.GameplayClassId,
+                    ragdoll.ClassId,
+                    ragdoll.Team,
+                    out var resolvedName,
+                    out frameIndex,
+                    out _))
+            {
+                state = null!;
+                return false;
+            }
+
+            spriteName = resolvedName;
+        }
+        else
+        {
+            spriteName = GetDeadBodySpriteName(
+                ragdoll.GameplayClassId,
+                ragdoll.ClassId,
+                ragdoll.Team,
+                ragdoll.AnimationKind);
+        }
+
+        var sprite = spriteName is null ? null : GetResolvedSprite(spriteName);
+        if (sprite is null || sprite.Frames.Count == 0)
+        {
+            state = null!;
+            return false;
+        }
+
+        var frame = sprite.Frames[Math.Clamp(frameIndex, 0, sprite.Frames.Count - 1)];
+        if (!TryGetSpriteFramePixels(frame, out var pixels, out var width, out var height)
+            || !TryCreateCorpseAcidDissolveState(
+                pixels, width, height, Vector2.Zero, 1f, sourceIsDynamicRagdoll: true, out state))
+        {
+            state = null!;
             return false;
         }
 
@@ -202,6 +257,7 @@ public partial class Game1
         int height,
         Vector2 origin,
         float scale,
+        bool sourceIsDynamicRagdoll,
         out CorpseAcidDissolveState state)
     {
         var columnSpeeds = new float[width];
@@ -235,6 +291,7 @@ public partial class Game1
             Origin = origin,
             Scale = scale,
             OwnsTexture = true,
+            SourceIsDynamicRagdoll = sourceIsDynamicRagdoll,
         };
         return true;
     }

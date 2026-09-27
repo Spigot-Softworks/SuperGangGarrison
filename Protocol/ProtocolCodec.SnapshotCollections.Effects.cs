@@ -295,6 +295,7 @@ public static partial class ProtocolCodec
             writer.Write(soundEvent.Y);
             writer.Write(soundEvent.EventId);
             writer.Write(soundEvent.SourceFrame);
+            writer.Write(soundEvent.SourcePlayerId);
         }
     }
 
@@ -309,7 +310,8 @@ public static partial class ProtocolCodec
                 reader.ReadSingle(),
                 reader.ReadSingle(),
                 reader.ReadUInt64(),
-                reader.ReadUInt64()));
+                reader.ReadUInt64(),
+                reader.ReadInt32()));
         }
 
         return soundEvents;
