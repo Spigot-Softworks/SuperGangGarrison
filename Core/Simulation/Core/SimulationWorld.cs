@@ -30,6 +30,7 @@ public sealed partial class SimulationWorld
     private const int LocalProjectileTerminationSuppressionTicks = 12;
     private const int NetworkProjectileRemovalSuppressionTicks = 180;
     public EntityStore EntityStore { get; } = new();
+    public CombatSystem Combat { get; }
     private readonly List<CombatTrace> _combatTraces = new();
     private readonly List<SniperAimIndicator> _sniperAimIndicators = new();
     private readonly List<KillFeedEntry> _killFeed = new();
@@ -62,7 +63,6 @@ public sealed partial class SimulationWorld
     private readonly List<GeneratorState> _generators = new();
     private readonly List<WorldSoundEvent> _pendingSoundEvents = new();
     private readonly List<WorldVisualEvent> _pendingVisualEvents = new();
-    private readonly List<WorldDamageEvent> _pendingDamageEvents = new();
     private readonly List<WorldGibSpawnEvent> _pendingGibSpawnEvents = new();
     private readonly List<WorldRocketSpawnEvent> _pendingRocketSpawnEvents = new();
     private readonly List<WorldHealingEvent> _pendingHealingEvents = new();
@@ -336,7 +336,7 @@ public sealed partial class SimulationWorld
 
     public IReadOnlyList<WorldVisualEvent> PendingVisualEvents => _pendingVisualEvents;
 
-    public IReadOnlyList<WorldDamageEvent> PendingDamageEvents => _pendingDamageEvents;
+    public IReadOnlyList<WorldDamageEvent> PendingDamageEvents => Combat.PendingDamageEvents;
 
     public IReadOnlyList<WorldRocketSpawnEvent> PendingRocketSpawnEvents => _pendingRocketSpawnEvents;
 
@@ -427,6 +427,7 @@ public sealed partial class SimulationWorld
     {
         _runtimeController = new RuntimeController(this);
         _runtimeQueryController = new RuntimeQueryController(this);
+        Combat = new CombatSystem(EntityStore, CreateCombatSystemDependencies());
         Config = config ?? new SimulationConfig();
         Level = SimpleLevelFactory.CreateScoutPrototypeLevel(_configuredMapScale);
         RedIntel = CreateIntelState(PlayerTeam.Red);
@@ -613,16 +614,7 @@ public sealed partial class SimulationWorld
     }
 
     public IReadOnlyList<WorldDamageEvent> DrainPendingDamageEvents()
-    {
-        if (_pendingDamageEvents.Count == 0)
-        {
-            return [];
-        }
-
-        var damageEvents = _pendingDamageEvents.ToArray();
-        _pendingDamageEvents.Clear();
-        return damageEvents;
-    }
+        => Combat.DrainPendingDamageEvents();
 
     public IReadOnlyList<WorldGibSpawnEvent> DrainPendingGibSpawnEvents()
     {

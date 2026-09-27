@@ -205,7 +205,7 @@ public sealed partial class SimulationWorld
         _killFeed.Clear();
         _pendingSoundEvents.Clear();
         _pendingVisualEvents.Clear();
-        _pendingDamageEvents.Clear();
+        Combat.ClearPendingDamageEvents();
         _pendingRocketSpawnEvents.Clear();
         _pendingHealingEvents.Clear();
         _civvieMoneyTrailTracker.Clear();

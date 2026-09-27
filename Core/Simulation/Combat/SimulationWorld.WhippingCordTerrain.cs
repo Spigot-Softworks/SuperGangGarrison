@@ -43,7 +43,7 @@ public sealed partial class SimulationWorld
 
         // A player or structure between the hand and the contact pixel blocks
         // the latch. Terrain itself is resolved by the opaque whip pixels below.
-        var firstHit = Combat.ResolveRifleHit(
+        var firstHit = GeometryResolver.ResolveRifleHit(
             player, originX, originY, rayX / rayDistance, rayY / rayDistance, rayDistance);
         if (firstHit.HitPlayer is not null || firstHit.HitSentry is not null
             || firstHit.HitGenerator is not null || firstHit.HitJumpPad is not null)
@@ -102,7 +102,7 @@ public sealed partial class SimulationWorld
             return false;
         }
 
-        return Combat.TryFindWhippingCordTerrainHit(
+        return GeometryResolver.TryFindWhippingCordTerrainHit(
             mask,
             originX,
             originY,

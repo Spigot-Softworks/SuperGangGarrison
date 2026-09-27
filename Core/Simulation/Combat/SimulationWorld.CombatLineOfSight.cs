@@ -4,7 +4,7 @@ public sealed partial class SimulationWorld
 {
     public void WarmCombatSpatialIndices()
     {
-        Combat.WarmSpatialIndices();
+        GeometryResolver.WarmSpatialIndices();
     }
 
     private sealed partial class CombatResolver
