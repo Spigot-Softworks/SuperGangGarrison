@@ -9,41 +9,40 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private HudLayoutProfile _hudLayoutProfile = new();
-    private readonly Dictionary<string, HudResolvedElement> _hudResolvedElements = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, Rectangle> _hudElementLastBounds = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, float> _hudElementAutoFadeOpacities = new(StringComparer.Ordinal);
-    private HudEditorController? _hudEditorController;
-    private bool _hudEditorOpen;
-    private bool _hudEditorOpenedFromOptions;
-    private int _hudEditorDummyAbilitySlotCount;
+    public HudLayoutProfile _hudLayoutProfile = new();
+    public readonly Dictionary<string, HudResolvedElement> _hudResolvedElements = new(StringComparer.Ordinal);
+    public readonly Dictionary<string, Rectangle> _hudElementLastBounds = new(StringComparer.Ordinal);
+    public readonly Dictionary<string, float> _hudElementAutoFadeOpacities = new(StringComparer.Ordinal);
+    public bool _hudEditorOpen;
+    public bool _hudEditorOpenedFromOptions;
+    public int _hudEditorDummyAbilitySlotCount;
 
-    private HudEditorController HudEditor => _hudEditorController ??= new HudEditorController(this);
+    public HudEditorController HudEditor => _hudManager.Editor;
 
-    private void LoadHudLayout()
+    public void LoadHudLayout()
     {
         _hudLayoutProfile = HudLayoutStore.Load();
     }
 
-    private void SaveHudLayout()
+    public void SaveHudLayout()
     {
         HudLayoutStore.Save(_hudLayoutProfile);
     }
 
-    private void ResetHudLayoutElements()
+    public void ResetHudLayoutElements()
     {
         _hudLayoutProfile.ResetElements();
         SaveHudLayout();
     }
 
-    private void BeginHudElementFrame()
+    public void BeginHudElementFrame()
     {
-        _gameplayLocalStatusHudController.BeginHudFrame();
+        _hudManager.LocalStatus.BeginHudFrame();
         _hudResolvedElements.Clear();
         _hudLayoutProfile.ClearRuntimeDefaults();
     }
 
-    private bool TryResolveHudElement(string id, out HudResolvedElement resolved)
+    public bool TryResolveHudElement(string id, out HudResolvedElement resolved)
     {
         if (!_hudLayoutProfile.TryResolve(id, ViewportWidth, ViewportHeight, out resolved))
         {
@@ -56,12 +55,12 @@ public partial class Game1
     }
 
 
-    private bool TryResolveHudElementEvenIfHidden(string id, out HudResolvedElement resolved)
+    public bool TryResolveHudElementEvenIfHidden(string id, out HudResolvedElement resolved)
     {
         return _hudLayoutProfile.TryResolveEvenIfHidden(id, ViewportWidth, ViewportHeight, out resolved);
     }
 
-    private void UpdateHudElementBounds(string id, Rectangle bounds)
+    public void UpdateHudElementBounds(string id, Rectangle bounds)
     {
         if (!_hudResolvedElements.TryGetValue(id, out var resolved))
         {
@@ -80,12 +79,12 @@ public partial class Game1
         }
     }
 
-    private void SetHudElementRuntimeDefault(HudElementLayout layout)
+    public void SetHudElementRuntimeDefault(HudElementLayout layout)
     {
         _hudLayoutProfile.SetRuntimeDefault(layout);
     }
 
-    private Dictionary<string, HudResolvedElement> GetHudEditorElements()
+    public Dictionary<string, HudResolvedElement> GetHudEditorElements()
     {
         var elements = new Dictionary<string, HudResolvedElement>(_hudResolvedElements, StringComparer.Ordinal);
         foreach (var id in _hudLayoutProfile.Overrides.Keys)
@@ -100,22 +99,22 @@ public partial class Game1
         return elements;
     }
 
-    private void SetHudElementOrigin(string id, Vector2 origin)
+    public void SetHudElementOrigin(string id, Vector2 origin)
     {
         _hudLayoutProfile.SetElementOrigin(id, origin, ViewportWidth, ViewportHeight);
     }
 
-    private bool SetHudElementScale(string id, float scale)
+    public bool SetHudElementScale(string id, float scale)
     {
         return _hudLayoutProfile.SetElementScale(id, scale);
     }
 
-    private bool SetHudElementVisibility(string id, bool visible)
+    public bool SetHudElementVisibility(string id, bool visible)
     {
         return _hudLayoutProfile.SetElementVisibility(id, visible);
     }
 
-    private void OpenHudEditor(bool openedFromOptions)
+    public void OpenHudEditor(bool openedFromOptions)
     {
         if (_mainMenuOpen)
         {
@@ -138,7 +137,7 @@ public partial class Game1
         HudEditor.Open();
     }
 
-    private void CloseHudEditor()
+    public void CloseHudEditor()
     {
         _hudEditorOpen = false;
         SaveHudLayout();
@@ -157,7 +156,7 @@ public partial class Game1
         }
     }
 
-    private void UpdateHudEditor(KeyboardState keyboard, MouseState mouse)
+    public void UpdateHudEditor(KeyboardState keyboard, MouseState mouse)
     {
         HudEditor.Update(keyboard, mouse);
     }
@@ -167,12 +166,12 @@ public partial class Game1
         HudEditor.Draw();
     }
 
-    private int GetHudEditorDummyAbilitySlotCount()
+    public int GetHudEditorDummyAbilitySlotCount()
     {
         return _hudEditorOpen ? _hudEditorDummyAbilitySlotCount : 0;
     }
 
-    private void AddHudEditorDummyAbilitySlot()
+    public void AddHudEditorDummyAbilitySlot()
     {
         if (!_hudEditorOpen)
         {

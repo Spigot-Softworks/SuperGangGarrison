@@ -6,7 +6,7 @@ using XnaRectangle = Microsoft.Xna.Framework.Rectangle;
 
 namespace OpenGarrison.Client;
 
-internal sealed class BrowserAtlasTextureCache(GraphicsDevice graphicsDevice) : IDisposable
+public sealed class BrowserAtlasTextureCache(GraphicsDevice graphicsDevice) : IDisposable
 {
     private readonly GraphicsDevice _graphicsDevice = graphicsDevice;
     private readonly Dictionary<string, BrowserLoadedAtlasPage> _pages = new(StringComparer.OrdinalIgnoreCase);
@@ -159,7 +159,7 @@ internal sealed class BrowserAtlasTextureCache(GraphicsDevice graphicsDevice) : 
     }
 }
 
-internal sealed record BrowserLoadedAtlasPage(
+public sealed record BrowserLoadedAtlasPage(
     string RelativePath,
     Texture2D Texture,
     XnaColor[] PixelData,

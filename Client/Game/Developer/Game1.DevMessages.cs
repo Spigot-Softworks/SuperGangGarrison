@@ -9,7 +9,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private void EnsureDevMessageCheckStarted()
+    public void EnsureDevMessageCheckStarted()
     {
         if (IsRestrictedBrowserEdition || OpenGarrison.ClientShared.ClientDistribution.IsGg2Only) return;
         if (_devMessageCheckStarted || IsServerLauncherMode || OperatingSystem.IsBrowser())
@@ -22,7 +22,7 @@ public partial class Game1
         AddConsoleLine($"devmessages: checking against source parity v{DevMessageService.SourceParityVersionLabel}");
     }
 
-    private void UpdateDevMessageState()
+    public void UpdateDevMessageState()
     {
         EnsureDevMessageCheckStarted();
         if (_devMessageFetchTask is null || !_devMessageFetchTask.IsCompleted)
@@ -87,7 +87,7 @@ public partial class Game1
         ActivateNextDevMessagePopup();
     }
 
-    private bool UpdateDevMessagePopup(KeyboardState keyboard, MouseState mouse)
+    public bool UpdateDevMessagePopup(KeyboardState keyboard, MouseState mouse)
     {
         ActivateNextDevMessagePopup();
         if (_activeDevMessagePopup is null)
@@ -132,7 +132,7 @@ public partial class Game1
         return true;
     }
 
-    private void DrawDevMessagePopup()
+    public void DrawDevMessagePopup()
     {
         if (_activeDevMessagePopup is null)
         {

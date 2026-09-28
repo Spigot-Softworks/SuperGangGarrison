@@ -6,7 +6,7 @@ using Microsoft.Xna.Framework;
 
 namespace OpenGarrison.Client;
 
-internal sealed class HudLayoutProfile
+public sealed class HudLayoutProfile
 {
     public const float MinElementScale = 0.5f;
     public const float MaxElementScale = 3f;

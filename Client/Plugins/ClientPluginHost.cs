@@ -13,7 +13,7 @@ using OpenGarrison.Protocol;
 
 namespace OpenGarrison.Client;
 
-internal sealed class ClientPluginHost
+public sealed class ClientPluginHost
 {
     private const string GameplayHudTraceFileName = "client-plugin-gameplay-hud-trace.log";
     private const string GameplayProfileFileName = "client-plugin-profile.log";
@@ -1331,14 +1331,14 @@ internal interface ClientPluginUiSink
     void HidePluginOverlayMenu(string pluginId);
 }
 
-internal sealed record ClientPluginMenuEntry(
+public sealed record ClientPluginMenuEntry(
     string PluginId,
     string MenuEntryId,
     string Label,
     Action Activate,
     int Order);
 
-internal sealed record ClientPluginOptionsEntry(
+public sealed record ClientPluginOptionsEntry(
     string PluginId,
     string DisplayName,
     Version Version,

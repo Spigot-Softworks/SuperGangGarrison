@@ -13,10 +13,10 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private const double NetworkDiagnosticSummaryIntervalSeconds = 1d;
+    public const double NetworkDiagnosticSummaryIntervalSeconds = 1d;
     private const int NetworkDiagnosticHistoryLimit = 180;
     private const string NetworkDiagnosticLogFilePrefix = "client-netdiag";
-    private enum NetworkDiagnosticEntityInterpolationKind
+    public enum NetworkDiagnosticEntityInterpolationKind
     {
         Other,
         Projectile,
@@ -988,7 +988,7 @@ public partial class Game1
         return (targetRenderTimeSeconds - _remotePlayerRenderTimeSeconds) * 1000d;
     }
 
-    private static double GetDiagnosticsElapsedMilliseconds(long startTimestamp)
+    public static double GetDiagnosticsElapsedMilliseconds(long startTimestamp)
     {
         return (Stopwatch.GetTimestamp() - startTimestamp) * 1000d / Stopwatch.Frequency;
     }

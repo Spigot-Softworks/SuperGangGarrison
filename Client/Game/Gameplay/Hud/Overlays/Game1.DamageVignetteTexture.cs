@@ -8,10 +8,10 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private const int DamageVignetteIntensityBuckets = 32;
-    private const int DamageVignetteMaskMaxDimension = 512;
+    public const int DamageVignetteIntensityBuckets = 32;
+    public const int DamageVignetteMaskMaxDimension = 512;
 
-    private bool TryEnsureDamageVignetteTexture(float intensity, out Texture2D texture)
+    public bool TryEnsureDamageVignetteTexture(float intensity, out Texture2D texture)
     {
         GetDamageVignetteMaskDimensions(out var width, out var height);
         if (_damageVignetteTextureWidth != width || _damageVignetteTextureHeight != height)
@@ -39,7 +39,7 @@ public partial class Game1
         return true;
     }
 
-    private void DisposeDamageVignetteTextures()
+    public void DisposeDamageVignetteTextures()
     {
         foreach (var texture in _damageVignetteTexturesByBucket.Values)
         {

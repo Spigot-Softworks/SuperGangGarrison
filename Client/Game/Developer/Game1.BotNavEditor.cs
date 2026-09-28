@@ -17,28 +17,28 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private enum NavEditorTool
+    public enum NavEditorTool
     {
         Select = 0,
         AddAnchor = 1,
         AddLink = 2,
     }
 
-    private enum NavEditorLayerMode
+    public enum NavEditorLayerMode
     {
         HintLayer = 0,
         GeneratedGraph = 1,
         Both = 2,
     }
 
-    private enum NavEditorTraversalCaptureMode
+    public enum NavEditorTraversalCaptureMode
     {
         None = 0,
         Armed = 1,
         Recording = 2,
     }
 
-    private enum NavEditorContextMenuTargetKind
+    public enum NavEditorContextMenuTargetKind
     {
         Empty = 0,
         Anchor = 1,
@@ -47,15 +47,15 @@ public partial class Game1
         GeneratedGraphEdge = 4,
     }
 
-    private enum NavEditorGraphEdgeDisplayMode
+    public enum NavEditorGraphEdgeDisplayMode
     {
         Soft = 0,
         Cyan = 1,
         Red = 2,
     }
 
-    private const int NavEditorPanelWidth = 440;
-    private const int NavEditorPanelPadding = 12;
+    public const int NavEditorPanelWidth = 440;
+    public const int NavEditorPanelPadding = 12;
     private const int NavEditorPanelExpandedHeight = 656;
     private const int NavEditorPanelCollapsedHeight = 92;
     private const int NavEditorPanelHeaderHeight = 78;
@@ -85,7 +85,7 @@ public partial class Game1
     private const int NavEditorPlaybackPostTapeMaximumTicks = 90;
     private const int NavEditorClearAllPromptHeight = 84;
     private const float NavEditorMinimumActivationZoneSize = 16f;
-    private bool _navEditorEnabled;
+    public bool _navEditorEnabled;
     private bool _navEditorDirty;
     private NavEditorTool _navEditorTool = NavEditorTool.Select;
     private readonly List<NavEditorAnchor> _navEditorAnchors = new();
@@ -165,7 +165,7 @@ public partial class Game1
     private int _navEditorDraggingGeneratedGraphNodeId = -1;
     private Vector2 _navEditorDraggingGeneratedGraphNodeOffset;
 
-    private void UpdateNavEditor(KeyboardState keyboard, MouseState mouse, MouseState panelMouse, Vector2 cameraPosition, float deltaSeconds)
+    public void UpdateNavEditor(KeyboardState keyboard, MouseState mouse, MouseState panelMouse, Vector2 cameraPosition, float deltaSeconds)
     {
         UpdateNavEditorRebuildTask();
         if (_navEditorStatusSecondsRemaining > 0f)
@@ -424,7 +424,7 @@ public partial class Game1
         }
     }
 
-    private void DrawNavEditorPresentationOverlay(MouseState mouse)
+    public void DrawNavEditorPresentationOverlay(MouseState mouse)
     {
         if (!_navEditorEnabled || !ShouldUseNavEditorWindowGutter())
         {
@@ -444,12 +444,12 @@ public partial class Game1
         _spriteBatch.End();
     }
 
-    private bool HandleNavEditorTextInput(TextInputEventArgs e)
+    public bool HandleNavEditorTextInput(TextInputEventArgs e)
     {
         return HandleNavEditorTextInput(e.Character);
     }
 
-    private bool HandleNavEditorTextInput(char character)
+    public bool HandleNavEditorTextInput(char character)
     {
         if (!_navEditorEnabled || !_navEditorRenamingAnchor)
         {
@@ -516,7 +516,7 @@ public partial class Game1
         AddConsoleLine("nav editor live bots: Run Trio respawns Scout/Heavy/Pyro on the local team from spawn in the current match state; Clear Trio restores the normal practice roster.");
     }
 
-    private void DisableNavEditor(string reason)
+    public void DisableNavEditor(string reason)
     {
         StopNavEditorScoreTrioPracticeBots(silent: true);
         ClearNavEditorTraversalCaptureState();
@@ -6103,7 +6103,7 @@ public partial class Game1
         return _navEditorEnabled && !IsNavEditorTraversalCaptureActive();
     }
 
-    private PlayerInputSnapshot ResolveNavEditorGameplayInput(PlayerInputSnapshot gameplayInput)
+    public PlayerInputSnapshot ResolveNavEditorGameplayInput(PlayerInputSnapshot gameplayInput)
     {
         if (!IsNavEditorTraversalPlaybackActive())
         {
@@ -6147,7 +6147,7 @@ public partial class Game1
         return CreateNavEditorDirectionalInput(horizontalDirection, jump: forceApproximateJump);
     }
 
-    private void SetNavEditorTraversalCaptureInput(PlayerInputSnapshot gameplayInput)
+    public void SetNavEditorTraversalCaptureInput(PlayerInputSnapshot gameplayInput)
     {
         _navEditorTraversalCaptureInput = gameplayInput;
     }

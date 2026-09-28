@@ -12,15 +12,15 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private static readonly IReadOnlyList<OpenGarrison.Core.LastToDie.LastToDieSurvivorDefinition>
+    public static readonly IReadOnlyList<OpenGarrison.Core.LastToDie.LastToDieSurvivorDefinition>
         HostedLastToDieSurvivors = OpenGarrison.Core.LastToDie.LastToDieSurvivorCatalog
             .CreateStock()
             .Definitions;
-    private static readonly IReadOnlyDictionary<string, OpenGarrison.Core.LastToDie.LastToDiePerkDefinition>
+    public static readonly IReadOnlyDictionary<string, OpenGarrison.Core.LastToDie.LastToDiePerkDefinition>
         HostedLastToDiePerks = OpenGarrison.Core.LastToDie.LastToDieExpansionPerkCatalog
             .CreateDefinitions()
              .ToDictionary(definition => definition.Id.Value, StringComparer.Ordinal);
-    private readonly Dictionary<byte, bool> _hostedLastToDieObservedAliveBySlot = [];
+    public readonly Dictionary<byte, bool> _hostedLastToDieObservedAliveBySlot = [];
     private Guid _hostedLastToDieObservedRunId;
     private Guid _hostedLastToDieRecordedStatsAttemptId;
     private LastToDieWirePhase? _hostedLastToDieObservedPhase;
@@ -39,11 +39,11 @@ public partial class Game1
     private bool? _hostedLastToDieSoloSimulationPauseState;
     private long _hostedLastToDieSoloSimulationPauseRetryAtMilliseconds;
 
-    private bool IsHostedLastToDieActive()
+    public bool IsHostedLastToDieActive()
         => _networkClient.IsConnected
             && _networkClient.LastToDieState.Snapshot is not null;
 
-    private bool IsCoopLastToDieActive()
+    public bool IsCoopLastToDieActive()
         => IsHostedLastToDieActive()
             && _networkClient.LastToDieState.Snapshot is { MaximumPlayers: > 1 };
 
@@ -131,10 +131,10 @@ public partial class Game1
             // Gameplay entry deliberately disposes the animated menu scene.
             // Recreate and advance that independent scene for hosted LTD menus;
             // otherwise the old gameplay frame remains visible underneath.
-            _animatedMenuBackgroundController.Initialize(_menuBackgroundMode);
+            _menuManager.AnimatedMenuBackground.Initialize(_menuBackgroundMode);
             var presentationDeltaSeconds = Math.Max(0f, _gameplayPresentationDeltaSeconds);
-            _animatedMenuBackgroundController.Update(presentationDeltaSeconds);
-            _menuBottomBarRunners.Update(presentationDeltaSeconds);
+            _menuManager.AnimatedMenuBackground.Update(presentationDeltaSeconds);
+            _menuManager.MenuBottomBarRunners.Update(presentationDeltaSeconds);
         }
 
         if (!CanUpdateHostedLastToDieMenuInput())
@@ -377,7 +377,7 @@ public partial class Game1
             {
                 // A future lobby/choice screen should start with a fresh menu
                 // scene, not retain the one that preceded this match.
-                _animatedMenuBackgroundController.Reset();
+                _menuManager.AnimatedMenuBackground.Reset();
             }
             if (snapshot.Phase == LastToDieWirePhase.SurvivorChoice)
             {
@@ -655,7 +655,7 @@ public partial class Game1
             height);
     }
 
-    private bool IsHostedLastToDieMenuMusicPhase()
+    public bool IsHostedLastToDieMenuMusicPhase()
         => ShouldPlayHostedLastToDieMenuMusicDuringTransition(
             _networkClient.IsConnected,
             _networkClient.LastToDieState.Snapshot?.Phase,
@@ -794,7 +794,7 @@ public partial class Game1
             _pixel,
             new Rectangle(0, 0, ViewportWidth, ViewportHeight),
             new Color(24, 32, 48));
-        _menuController.DrawBackground(ViewportWidth, ViewportHeight);
+        _menuManager.Menu.DrawBackground(ViewportWidth, ViewportHeight);
         DrawMainMenuBottomBar();
         _spriteBatch.Draw(
             _pixel,

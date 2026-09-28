@@ -14,7 +14,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private sealed record LastToDieSurvivorCard(
+    public sealed record LastToDieSurvivorCard(
         LastToDieSurvivorId Id,
         string Label,
         string AssetName);
@@ -362,7 +362,7 @@ public partial class Game1
         }
     }
 
-    private void DisposeLastToDieSurvivorCarouselAssets()
+    public void DisposeLastToDieSurvivorCarouselAssets()
     {
         foreach (var frame in _lastToDieSurvivorCardFrames)
         {

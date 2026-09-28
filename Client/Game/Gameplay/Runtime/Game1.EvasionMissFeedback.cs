@@ -10,14 +10,14 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private const int EvasionMissPopupTicks = 72;
+    public const int EvasionMissPopupTicks = 72;
     private const float EvasionMissPopupFadeTicks = 24f;
     private const float EvasionMissPopupRisePerTick = 0.32f;
     private const float EvasionMissPopupImageScale = 1.6f;
     private const float EvasionMissPopupTextScale = 1.35f;
     private readonly Dictionary<int, EvasionMissPopupState> _evasionMissPopupsByPlayerId = new();
 
-    private void ObserveEvasionMissDamageEvent(WorldDamageEvent damageEvent)
+    public void ObserveEvasionMissDamageEvent(WorldDamageEvent damageEvent)
     {
         if (!IsEvasionMissEvent(damageEvent.Flags, damageEvent.TargetKind))
         {
@@ -27,7 +27,7 @@ public partial class Game1
         TryTriggerEvasionMissPopup(damageEvent.TargetEntityId);
     }
 
-    private void ObserveEvasionMissDamageEvent(SnapshotDamageEvent damageEvent)
+    public void ObserveEvasionMissDamageEvent(SnapshotDamageEvent damageEvent)
     {
         if (!IsEvasionMissEvent((DamageEventFlags)damageEvent.Flags, (DamageTargetKind)damageEvent.TargetKind))
         {

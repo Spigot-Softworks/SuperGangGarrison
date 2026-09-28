@@ -10,7 +10,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private void UpdateStartupSplash(KeyboardState keyboard, MouseState mouse)
+    public void UpdateStartupSplash(KeyboardState keyboard, MouseState mouse)
     {
         var skipRequested = keyboard.GetPressedKeys().Any(key => !_previousKeyboard.IsKeyDown(key))
             || IsAnyStartupMouseButtonPressed(mouse)
@@ -38,7 +38,7 @@ public partial class Game1
         var requiredSplashTicks = OperatingSystem.IsBrowser()
             ? 30
             : (int)Math.Round(240f * ClientUpdateTicksPerSecond / LegacyMovementModel.SourceTicksPerSecond);
-        if (!_bootstrapController.IsMenuBootstrapComplete)
+        if (!_gameplayManager.Bootstrap.IsMenuBootstrapComplete)
         {
             return;
         }
@@ -68,7 +68,7 @@ public partial class Game1
         _brandIntroMenuBackgroundInitialized = true;
         if (_menuBackgroundMode != MenuBackgroundMode.Static)
         {
-            _animatedMenuBackgroundController.Initialize(_menuBackgroundMode);
+            _menuManager.AnimatedMenuBackground.Initialize(_menuBackgroundMode);
         }
     }
 
@@ -99,7 +99,7 @@ public partial class Game1
     {
         StopFaucetMusic();
         StopIngameMusic();
-        if (skipRequested && _bootstrapController.IsMenuBootstrapComplete)
+        if (skipRequested && _gameplayManager.Bootstrap.IsMenuBootstrapComplete)
         {
             BeginBrandIntroExit();
         }
@@ -122,10 +122,10 @@ public partial class Game1
         AdvanceBrandLogoFlame(deltaSeconds);
         if (_menuBackgroundMode != MenuBackgroundMode.Static)
         {
-            _animatedMenuBackgroundController.Update(deltaSeconds);
+            _menuManager.AnimatedMenuBackground.Update(deltaSeconds);
         }
         _brandIntroMapBackgroundController?.Update(deltaSeconds);
-        _menuBottomBarRunners.Update(deltaSeconds);
+        _menuManager.MenuBottomBarRunners.Update(deltaSeconds);
 
         var frame = BrandIntroTimeline.Evaluate(
             _brandIntroElapsedSeconds,
@@ -196,7 +196,7 @@ public partial class Game1
         EnsureMenuMusicPlaying();
     }
 
-    private void DrawStartupSplash()
+    public void DrawStartupSplash()
     {
         var viewportWidth = ViewportWidth;
         var viewportHeight = ViewportHeight;
@@ -213,7 +213,7 @@ public partial class Game1
         if (sprite is null || sprite.Frames.Count == 0)
         {
             DrawBitmapFontText("Faucet Software", new Vector2(viewportWidth / 2f - 120f, viewportHeight / 2f), Color.White, 2f);
-            if (!_bootstrapController.IsMenuBootstrapComplete)
+            if (!_gameplayManager.Bootstrap.IsMenuBootstrapComplete)
             {
                 DrawBitmapFontText("Loading client assets...", new Vector2(viewportWidth / 2f - 150f, viewportHeight / 2f + 72f), Color.White * 0.85f, 1.2f);
             }
@@ -233,7 +233,7 @@ public partial class Game1
             SpriteEffects.None,
             0f);
 
-        if (!_bootstrapController.IsMenuBootstrapComplete)
+        if (!_gameplayManager.Bootstrap.IsMenuBootstrapComplete)
         {
             DrawBitmapFontText("Loading client assets...", new Vector2(viewportWidth / 2f - 150f, viewportHeight - 96f), Color.White * 0.85f, 1.2f);
         }
@@ -249,7 +249,7 @@ public partial class Game1
         // Render the destination menu first, then reveal it through the black
         // cover. Menu input remains blocked while StartupSplashOpen owns the
         // frame, and MenuController suppresses its own copy of the logo.
-        _menuController.Draw();
+        _menuManager.Menu.Draw();
         var showcaseAvailable = _brandIntroMapBackgroundController?.IsInitialized == true;
         var blackOpacity = frame.IsExiting
             ? showcaseAvailable ? 0f : 1f - frame.MenuReveal

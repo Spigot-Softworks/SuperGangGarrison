@@ -8,7 +8,7 @@ namespace OpenGarrison.Client;
 
 // Discard background input and require controls held during activation to be
 // released before they can act. Rebasing edge detectors alone cannot stop held fire.
-internal sealed class WindowInputFilter
+public sealed class WindowInputFilter
 {
     private bool _active;
     private bool _controllerReady;

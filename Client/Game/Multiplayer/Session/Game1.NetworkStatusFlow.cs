@@ -4,25 +4,25 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private void SetNetworkStatus(string statusMessage)
+    public void SetNetworkStatus(string statusMessage)
     {
         _menuStatusMessage = statusMessage;
     }
 
-    private void AddNetworkConsoleLine(string message)
+    public void AddNetworkConsoleLine(string message)
     {
         AddConsoleLine(message);
     }
 
-    private void SetNetworkStatusAndConsole(string statusMessage, string consoleMessage)
+    public void SetNetworkStatusAndConsole(string statusMessage, string consoleMessage)
     {
         SetNetworkStatus(statusMessage);
         AddNetworkConsoleLine(consoleMessage);
     }
 
-    private void ReturnToMainMenuWithNetworkStatus(string statusMessage, string consoleMessage)
+    public void ReturnToMainMenuWithNetworkStatus(string statusMessage, string consoleMessage)
     {
-        _gameplaySessionController.ClearPendingConnectionCandidates();
+        _gameplayManager.Session.ClearPendingConnectionCandidates();
         CancelNetworkWorldWarmup();
         HideLoadingOverlay();
         ClearPendingNetworkMapSync();
@@ -30,9 +30,9 @@ public partial class Game1
         AddNetworkConsoleLine(consoleMessage);
     }
 
-    private void ReturnToMainMenuWithNetworkStatus(string statusMessage)
+    public void ReturnToMainMenuWithNetworkStatus(string statusMessage)
     {
-        _gameplaySessionController.ClearPendingConnectionCandidates();
+        _gameplayManager.Session.ClearPendingConnectionCandidates();
         CancelNetworkWorldWarmup();
         HideLoadingOverlay();
         ClearPendingNetworkMapSync();

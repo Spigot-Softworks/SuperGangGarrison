@@ -4,17 +4,17 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private readonly Queue<BrowserGameplayAtlasWarmupItem> _browserGameplayAtlasWarmupQueue = new();
-    private Task<bool>? _browserGameplayAtlasWarmupTask;
-    private BrowserGameplayAtlasWarmupItem? _browserGameplayAtlasWarmupCurrentItem;
-    private int _browserGameplayAtlasWarmupCompletedCount;
+    public readonly Queue<BrowserGameplayAtlasWarmupItem> _browserGameplayAtlasWarmupQueue = new();
+    public Task<bool>? _browserGameplayAtlasWarmupTask;
+    public BrowserGameplayAtlasWarmupItem? _browserGameplayAtlasWarmupCurrentItem;
+    public int _browserGameplayAtlasWarmupCompletedCount;
     private int _browserGameplayAtlasWarmupTotalCount;
     private bool _browserGameplayAtlasWarmupStarted;
     private bool _browserGameplayAtlasWarmupComplete;
 
-    private readonly record struct BrowserGameplayAtlasWarmupItem(string RelativePath, string Label);
+    public readonly record struct BrowserGameplayAtlasWarmupItem(string RelativePath, string Label);
 
-    private void BeginBrowserGameplayWarmup()
+    public void BeginBrowserGameplayWarmup()
     {
         if (!OperatingSystem.IsBrowser() || _browserGameplayAtlasWarmupStarted)
         {
@@ -53,7 +53,7 @@ public partial class Game1
         }
     }
 
-    private bool AdvanceBrowserGameplayWarmup()
+    public bool AdvanceBrowserGameplayWarmup()
     {
         if (!OperatingSystem.IsBrowser())
         {
@@ -120,12 +120,12 @@ public partial class Game1
         return false;
     }
 
-    private bool IsBrowserGameplayWarmupComplete()
+    public bool IsBrowserGameplayWarmupComplete()
     {
         return !OperatingSystem.IsBrowser() || _browserGameplayAtlasWarmupComplete;
     }
 
-    private string GetBrowserGameplayWarmupStatusMessage()
+    public string GetBrowserGameplayWarmupStatusMessage()
     {
         if (!OperatingSystem.IsBrowser())
         {

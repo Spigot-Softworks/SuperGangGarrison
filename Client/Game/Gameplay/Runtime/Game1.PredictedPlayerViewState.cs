@@ -7,49 +7,49 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private bool IsUsingPredictedLocalState(PlayerEntity player)
+    public bool IsUsingPredictedLocalState(PlayerEntity player)
     {
         return CanUseLocalPrediction()
             && ReferenceEquals(player, _world.LocalPlayer)
             && _hasPredictedLocalActionState;
     }
 
-    private PlayerEntity GetPlayerPredictedPresentationState(PlayerEntity player)
+    public PlayerEntity GetPlayerPredictedPresentationState(PlayerEntity player)
     {
         return IsUsingPredictedLocalState(player) && _predictedLocalPlayerShadow is not null
             ? _predictedLocalPlayerShadow
             : player;
     }
 
-    private bool GetPlayerIsHeavyEating(PlayerEntity player)
+    public bool GetPlayerIsHeavyEating(PlayerEntity player)
     {
         return IsUsingPredictedLocalState(player)
             ? _predictedLocalActionState.IsHeavyEating
             : player.IsHeavyEating;
     }
 
-    private int GetPlayerHeavyEatTicksRemaining(PlayerEntity player)
+    public int GetPlayerHeavyEatTicksRemaining(PlayerEntity player)
     {
         return IsUsingPredictedLocalState(player)
             ? _predictedLocalActionState.HeavyEatTicksRemaining
             : player.HeavyEatTicksRemaining;
     }
 
-    private int GetPlayerHeavyEatCooldownTicksRemaining(PlayerEntity player)
+    public int GetPlayerHeavyEatCooldownTicksRemaining(PlayerEntity player)
     {
         return IsUsingPredictedLocalState(player)
             ? _predictedLocalActionState.HeavyEatCooldownTicksRemaining
             : player.HeavyEatCooldownTicksRemaining;
     }
 
-    private int GetPlayerHeavyEatCooldownDurationTicks(PlayerEntity player)
+    public int GetPlayerHeavyEatCooldownDurationTicks(PlayerEntity player)
     {
         return IsUsingPredictedLocalState(player)
             ? Math.Max(1, _predictedLocalActionState.HeavyEatCooldownDurationTicks)
             : Math.Max(1, player.HeavyEatCooldownDurationTicks);
     }
 
-    private bool GetPlayerIsExperimentalGhostDashing(PlayerEntity player)
+    public bool GetPlayerIsExperimentalGhostDashing(PlayerEntity player)
     {
         if (player.ClassId != PlayerClass.Heavy)
         {
@@ -69,70 +69,70 @@ public partial class Game1
             out var isDashing) && isDashing;
     }
 
-    private bool GetPlayerExperimentalGhostDashEnablesTrail(PlayerEntity player)
+    public bool GetPlayerExperimentalGhostDashEnablesTrail(PlayerEntity player)
     {
         return IsUsingPredictedLocalState(player)
             ? _predictedLocalActionState.ExperimentalGhostDashEnablesTrail
             : player.ExperimentalGhostDashEnablesTrail;
     }
 
-    private int GetPlayerExperimentalGhostDashCooldownTicksRemaining(PlayerEntity player)
+    public int GetPlayerExperimentalGhostDashCooldownTicksRemaining(PlayerEntity player)
     {
         return IsUsingPredictedLocalState(player)
             ? _predictedLocalActionState.ExperimentalGhostDashCooldownTicksRemaining
             : player.ExperimentalGhostDashCooldownTicksRemaining;
     }
 
-    private int GetPlayerSpySuperjumpCooldownTicksRemaining(PlayerEntity player)
+    public int GetPlayerSpySuperjumpCooldownTicksRemaining(PlayerEntity player)
     {
         return IsUsingPredictedLocalState(player)
             ? _predictedLocalActionState.SpySuperjumpCooldownTicksRemaining
             : player.SpySuperjumpCooldownTicksRemaining;
     }
 
-    private int GetPlayerSpySuperjumpAvailableCharges(PlayerEntity player)
+    public int GetPlayerSpySuperjumpAvailableCharges(PlayerEntity player)
     {
         return IsUsingPredictedLocalState(player)
             ? _predictedLocalActionState.SpySuperjumpAvailableCharges
             : player.SpySuperjumpAvailableCharges;
     }
 
-    private int GetPlayerSpySuperjumpMaximumCharges(PlayerEntity player)
+    public int GetPlayerSpySuperjumpMaximumCharges(PlayerEntity player)
     {
         return IsUsingPredictedLocalState(player)
             ? Math.Max(1, _predictedLocalActionState.SpySuperjumpMaximumCharges)
             : player.SpySuperjumpMaximumCharges;
     }
 
-    private int GetPlayerSpySuperjumpChargeTicks(PlayerEntity player)
+    public int GetPlayerSpySuperjumpChargeTicks(PlayerEntity player)
     {
         return IsUsingPredictedLocalState(player)
             ? _predictedLocalActionState.SpySuperjumpChargeTicks
             : player.SpySuperjumpChargeTicks;
     }
 
-    private float GetPlayerSpySuperjumpChargeDirectionDegrees(PlayerEntity player)
+    public float GetPlayerSpySuperjumpChargeDirectionDegrees(PlayerEntity player)
     {
         return IsUsingPredictedLocalState(player)
             ? _predictedLocalActionState.SpySuperjumpChargeDirectionDegrees
             : player.SpySuperjumpChargeDirectionDegrees;
     }
 
-    private bool GetPlayerIsSpySuperjumpActive(PlayerEntity player)
+    public bool GetPlayerIsSpySuperjumpActive(PlayerEntity player)
     {
         return IsUsingPredictedLocalState(player)
             ? _predictedLocalActionState.SpySuperjumpChargeTicks > 0 || _predictedLocalActionState.IsSpySuperjumping
             : player.SpySuperjumpChargeTicks > 0 || player.IsSpySuperjumping;
     }
 
-    private bool GetPlayerIsCarryingIntel(PlayerEntity player)
+    public bool GetPlayerIsCarryingIntel(PlayerEntity player)
     {
         return IsUsingPredictedLocalState(player)
             ? _predictedLocalActionState.IsCarryingIntel
             : player.IsCarryingIntel;
     }
 
-    private bool GetPlayerIsSniperScoped(PlayerEntity player)
+    public bool GetPlayerIsSniperScoped(PlayerEntity player)
     {
         if (!player.HasScopedSniperWeaponEquipped
             || GetPlayerIsSniperBowEquipped(player))
@@ -145,28 +145,28 @@ public partial class Game1
             : player.IsSniperScoped;
     }
 
-    private bool GetPlayerIsUsingBinoculars(PlayerEntity player)
+    public bool GetPlayerIsUsingBinoculars(PlayerEntity player)
     {
         return IsUsingPredictedLocalState(player)
             ? _predictedLocalActionState.IsUsingBinoculars
             : player.IsUsingBinoculars;
     }
 
-    private int GetPlayerSniperChargeTicks(PlayerEntity player)
+    public int GetPlayerSniperChargeTicks(PlayerEntity player)
     {
         return IsUsingPredictedLocalState(player)
             ? _predictedLocalActionState.SniperChargeTicks
             : player.SniperChargeTicks;
     }
 
-    private int GetPlayerSniperBowChargeTicks(PlayerEntity player)
+    public int GetPlayerSniperBowChargeTicks(PlayerEntity player)
     {
         return IsUsingPredictedLocalState(player)
             ? _predictedLocalActionState.SniperBowChargeTicks
             : player.SniperBowChargeTicks;
     }
 
-    private bool GetPlayerIsSniperBowEquipped(PlayerEntity player)
+    public bool GetPlayerIsSniperBowEquipped(PlayerEntity player)
     {
         if (IsUsingPredictedLocalState(player)
             && _predictedLocalPlayerShadow is not null
@@ -178,7 +178,7 @@ public partial class Game1
         return player.IsSniperBowEquipped;
     }
 
-    private bool GetPlayerIsMortarLauncherEquipped(PlayerEntity player)
+    public bool GetPlayerIsMortarLauncherEquipped(PlayerEntity player)
     {
         if (IsUsingPredictedLocalState(player)
             && _predictedLocalPlayerShadow is not null
@@ -190,7 +190,7 @@ public partial class Game1
         return player.IsMortarLauncherEquipped;
     }
 
-    private int GetPlayerSniperRifleDamage(PlayerEntity player)
+    public int GetPlayerSniperRifleDamage(PlayerEntity player)
     {
         return player.GetSniperRifleDamageForCharge(
             GetPlayerSniperChargeTicks(player),
@@ -269,14 +269,14 @@ public partial class Game1
         return _predictedLocalActionState.SpyBackstabVisualTicksRemaining;
     }
 
-    private float GetPlayerMedicUberCharge(PlayerEntity player)
+    public float GetPlayerMedicUberCharge(PlayerEntity player)
     {
         return IsUsingPredictedLocalState(player)
             ? _predictedLocalActionState.MedicUberCharge
             : player.MedicUberCharge;
     }
 
-    private float GetPlayerMetal(PlayerEntity player)
+    public float GetPlayerMetal(PlayerEntity player)
     {
         return IsUsingPredictedLocalState(player)
             ? _predictedLocalActionState.Metal
@@ -289,28 +289,28 @@ public partial class Game1
 
 
 
-    private int GetPlayerBuffBannerChargeDamage(PlayerEntity player)
+    public int GetPlayerBuffBannerChargeDamage(PlayerEntity player)
     {
         return IsUsingPredictedLocalState(player)
             ? _predictedLocalActionState.BuffBannerChargeDamage
             : player.BuffBannerChargeDamage;
     }
 
-    private int GetPlayerMedicHealDartCooldownTicks(PlayerEntity player)
+    public int GetPlayerMedicHealDartCooldownTicks(PlayerEntity player)
     {
         return IsUsingPredictedLocalState(player)
             ? _predictedLocalActionState.MedicHealDartCooldownTicks
             : player.MedicHealDartCooldownTicks;
     }
 
-    private int GetPlayerBuffBannerMaxChargeDamage(PlayerEntity player)
+    public int GetPlayerBuffBannerMaxChargeDamage(PlayerEntity player)
     {
         return IsUsingPredictedLocalState(player)
             ? Math.Max(1, _predictedLocalActionState.BuffBannerMaxChargeDamage)
             : Math.Max(1, player.BuffBannerMaxChargeDamage);
     }
 
-    private int GetPlayerBuffBannerMissingChargeDamage(PlayerEntity player)
+    public int GetPlayerBuffBannerMissingChargeDamage(PlayerEntity player)
     {
         return Math.Max(0, GetPlayerBuffBannerMaxChargeDamage(player) - GetPlayerBuffBannerChargeDamage(player));
     }
@@ -329,19 +329,19 @@ public partial class Game1
             : Math.Max(1, player.BuffBannerDeployDurationTicks);
     }
 
-    private bool GetPlayerIsBuffBannerDeploying(PlayerEntity player)
+    public bool GetPlayerIsBuffBannerDeploying(PlayerEntity player)
     {
         return GetPlayerBuffBannerDeployTicksRemaining(player) > 0;
     }
 
-    private bool GetPlayerIsBuffBannerActive(PlayerEntity player)
+    public bool GetPlayerIsBuffBannerActive(PlayerEntity player)
     {
         return IsUsingPredictedLocalState(player)
             ? _predictedLocalActionState.BuffBannerActiveTicksRemaining > 0
             : player.IsBuffBannerActive;
     }
 
-    private int GetPlayerPyroFlareCooldownTicks(PlayerEntity player)
+    public int GetPlayerPyroFlareCooldownTicks(PlayerEntity player)
     {
         return IsUsingPredictedLocalState(player)
             ? _predictedLocalActionState.PyroFlareCooldownTicks
@@ -355,14 +355,14 @@ public partial class Game1
             : player.IntelRechargeTicks;
     }
 
-    private int GetPlayerMedicNeedleRefillTicks(PlayerEntity player)
+    public int GetPlayerMedicNeedleRefillTicks(PlayerEntity player)
     {
         return IsUsingPredictedLocalState(player)
             ? _predictedLocalActionState.MedicNeedleRefillTicks
             : player.MedicNeedleRefillTicks;
     }
 
-    private bool GetPlayerIsCivvieUmbrellaActive(PlayerEntity player)
+    public bool GetPlayerIsCivvieUmbrellaActive(PlayerEntity player)
     {
         return IsUsingPredictedLocalState(player)
             ? _predictedLocalActionState.IsCivvieUmbrellaActive
@@ -417,7 +417,7 @@ public partial class Game1
             || _civviePogoTrickPresentationTicksByPlayerId.ContainsKey(player.Id);
     }
 
-    private MedicUberDeliveryMode GetPlayerMedicUberDeliveryMode(PlayerEntity player)
+    public MedicUberDeliveryMode GetPlayerMedicUberDeliveryMode(PlayerEntity player)
     {
         return IsUsingPredictedLocalState(player)
             ? _predictedLocalActionState.MedicUberDeliveryMode

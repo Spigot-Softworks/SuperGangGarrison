@@ -12,12 +12,12 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private static readonly JsonSerializerOptions MenuBitmapFontJsonOptions = new()
+    public static readonly JsonSerializerOptions MenuBitmapFontJsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,
     };
 
-    private sealed class MenuBitmapFontData
+    public sealed class MenuBitmapFontData
     {
         public int LineHeight { get; set; }
 
@@ -26,7 +26,7 @@ public partial class Game1
         public List<MenuBitmapGlyphData> Glyphs { get; set; } = [];
     }
 
-    private sealed class MenuBitmapGlyphData
+    public sealed class MenuBitmapGlyphData
     {
         public int Character { get; set; }
 
@@ -41,11 +41,11 @@ public partial class Game1
         public int Advance { get; set; }
     }
 
-    private readonly record struct MenuBitmapGlyph(Rectangle SourceRect, int Advance);
+    public readonly record struct MenuBitmapGlyph(Rectangle SourceRect, int Advance);
 
-    private readonly record struct MenuPageAction(string Label, Action Activate);
+    public readonly record struct MenuPageAction(string Label, Action Activate);
 
-    private readonly record struct MenuPageButton(
+    public readonly record struct MenuPageButton(
         string Label,
         Rectangle Bounds,
         Action Activate,
@@ -53,7 +53,7 @@ public partial class Game1
         bool IsBottomBarCenterButton = false,
         bool IsBottomBarRightButton = false);
 
-    private readonly record struct PlaqueMenuLayout(
+    public readonly record struct PlaqueMenuLayout(
         Rectangle PlaqueBounds,
         Rectangle[] StackedButtonBounds,
         Rectangle SoloButtonBounds,
@@ -61,7 +61,7 @@ public partial class Game1
         Rectangle? BottomBarButtonBounds,
         float Scale);
 
-    private void LoadMenuPlaqueTextures()
+    public void LoadMenuPlaqueTextures()
     {
         _menuPlaqueTexture = LoadMenuTexture("Sprites", "Menu", "Plaques", "MenuPlaque.png");
         _menuPlaqueTallTexture = LoadMenuTexture("Sprites", "Menu", "Plaques", "MenuPlaqueTall.png");
@@ -73,7 +73,7 @@ public partial class Game1
         _lastToDieMenuTextBoxSoloTexture = LoadMenuTexture("Sprites", "Menu", "Plaques", "LTD_MenuTextBoxSolo.png");
     }
 
-    private void LoadMenuBitmapFont()
+    public void LoadMenuBitmapFont()
     {
         _menuBitmapFontTexture?.Dispose();
         _menuBitmapFontTexture = null;
@@ -87,7 +87,7 @@ public partial class Game1
         }
     }
 
-    private bool TryLoadMenuBitmapFont(string textureFileName, string metadataFileName)
+    public bool TryLoadMenuBitmapFont(string textureFileName, string metadataFileName)
     {
         var texturePath = ContentRoot.GetPath("Sprites", "Menu", "Fonts", textureFileName);
         var metadataPath = ContentRoot.GetPath("Sprites", "Menu", "Fonts", metadataFileName);
@@ -138,7 +138,7 @@ public partial class Game1
         return _menuBitmapFontTexture is not null && _menuBitmapFontGlyphs.Count > 0;
     }
 
-    private static string NormalizeMenuBitmapFontMetadataJson(string metadataJson)
+    public static string NormalizeMenuBitmapFontMetadataJson(string metadataJson)
     {
         if (string.IsNullOrEmpty(metadataJson))
         {
@@ -150,7 +150,7 @@ public partial class Game1
             : metadataJson;
     }
 
-    private LoadedSpriteFrame? LoadMenuTexture(params string[] pathParts)
+    public LoadedSpriteFrame? LoadMenuTexture(params string[] pathParts)
     {
         var path = ContentRoot.GetPath(pathParts);
         if (string.IsNullOrWhiteSpace(path))
@@ -166,7 +166,7 @@ public partial class Game1
         return LoadSpriteFrameFromPath(path);
     }
 
-    private PlaqueMenuLayout GetCenteredPlaqueMenuLayout(bool tall, int stackedButtonCount, bool includeSoloButton, bool includeBottomBarButton)
+    public PlaqueMenuLayout GetCenteredPlaqueMenuLayout(bool tall, int stackedButtonCount, bool includeSoloButton, bool includeBottomBarButton)
     {
         var backgroundTexture = tall ? _menuPlaqueTallTexture : _menuPlaqueTexture;
         var soloTexture = _menuTextBoxSoloTexture;
@@ -248,7 +248,7 @@ public partial class Game1
         return new PlaqueMenuLayout(plaqueBounds, stackedBounds, soloBounds, bottomBarBounds, bottomBarButtonBounds, scale);
     }
 
-    private Rectangle GetBottomRightPlaqueButtonBounds(PlaqueMenuLayout layout)
+    public Rectangle GetBottomRightPlaqueButtonBounds(PlaqueMenuLayout layout)
     {
         if (!layout.BottomBarBounds.HasValue || _menuTextBoxSoloTexture is null)
         {
@@ -265,7 +265,7 @@ public partial class Game1
             buttonHeight);
     }
 
-    private Rectangle GetBottomCenterPlaqueButtonBounds(PlaqueMenuLayout layout)
+    public Rectangle GetBottomCenterPlaqueButtonBounds(PlaqueMenuLayout layout)
     {
         if (!layout.BottomBarBounds.HasValue || _menuTextBoxSoloTexture is null)
         {
@@ -282,7 +282,7 @@ public partial class Game1
             buttonHeight);
     }
 
-    private void DrawBottomCenterPlaqueButton(PlaqueMenuLayout layout, string label, bool hovered, float textScaleMultiplier)
+    public void DrawBottomCenterPlaqueButton(PlaqueMenuLayout layout, string label, bool hovered, float textScaleMultiplier)
     {
         var bounds = GetBottomCenterPlaqueButtonBounds(layout);
         if (bounds == Rectangle.Empty)
@@ -293,7 +293,7 @@ public partial class Game1
         DrawPlaqueMenuButton(_menuTextBoxSoloTexture, bounds, label, hovered, layout.Scale, textScaleMultiplier);
     }
 
-    private void DrawBottomRightPlaqueButton(PlaqueMenuLayout layout, string label, bool hovered, float textScaleMultiplier)
+    public void DrawBottomRightPlaqueButton(PlaqueMenuLayout layout, string label, bool hovered, float textScaleMultiplier)
     {
         var bounds = GetBottomRightPlaqueButtonBounds(layout);
         if (bounds == Rectangle.Empty)
@@ -304,7 +304,7 @@ public partial class Game1
         DrawPlaqueMenuButton(_menuTextBoxSoloTexture, bounds, label, hovered, layout.Scale, textScaleMultiplier);
     }
 
-    private LoadedSpriteFrame? GetMenuStackedButtonTexture(int index, int count)
+    public LoadedSpriteFrame? GetMenuStackedButtonTexture(int index, int count)
     {
         return count switch
         {
@@ -315,7 +315,7 @@ public partial class Game1
         };
     }
 
-    private void DrawPlaqueMenuLayout(
+    public void DrawPlaqueMenuLayout(
         PlaqueMenuLayout layout,
         IReadOnlyList<MenuPageAction> stackedActions,
         MenuPageAction? soloAction,
@@ -356,7 +356,7 @@ public partial class Game1
             _spriteBatch.Draw(_pixel, layout.BottomBarBounds.Value, new Color(0x57, 0x4f, 0x47));
             
             // Draw running character silhouettes on the bottom bar
-            _menuBottomBarRunners.Draw(layout.BottomBarBounds.Value);
+            _menuManager.MenuBottomBarRunners.Draw(layout.BottomBarBounds.Value);
         }
 
         // Draw bottom bar button only if explicitly requested
@@ -366,7 +366,7 @@ public partial class Game1
         }
     }
 
-    private void DrawPlaqueMenuButton(LoadedSpriteFrame? texture, Rectangle bounds, string label, bool hovered, float plaqueScale, float textScaleMultiplier)
+    public void DrawPlaqueMenuButton(LoadedSpriteFrame? texture, Rectangle bounds, string label, bool hovered, float plaqueScale, float textScaleMultiplier)
     {
         if (bounds.Width <= 0 || bounds.Height <= 0)
         {
@@ -422,7 +422,7 @@ public partial class Game1
         return NormalizeUiTextScale(MathF.Max(0.4f, MathF.Min(baseScale, MathF.Min(widthScale, heightScale))));
     }
 
-    private void DrawMenuBitmapFontText(string text, Vector2 position, Color color, float scale)
+    public void DrawMenuBitmapFontText(string text, Vector2 position, Color color, float scale)
     {
         scale = NormalizeUiTextScale(scale);
         if (string.IsNullOrEmpty(text))
@@ -467,7 +467,7 @@ public partial class Game1
         }
     }
 
-    private float MeasureMenuBitmapFontWidth(string text, float scale)
+    public float MeasureMenuBitmapFontWidth(string text, float scale)
     {
         scale = NormalizeUiTextScale(scale);
         if (string.IsNullOrEmpty(text))
@@ -499,7 +499,7 @@ public partial class Game1
         return Math.Max(0f, width - (_menuBitmapFontSpacing * scale));
     }
 
-    private float MeasureMenuBitmapFontHeight(float scale)
+    public float MeasureMenuBitmapFontHeight(float scale)
     {
         scale = NormalizeUiTextScale(scale);
         if (_menuBitmapFontLineHeight <= 0)

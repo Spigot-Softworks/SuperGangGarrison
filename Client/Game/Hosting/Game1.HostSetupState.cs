@@ -7,55 +7,55 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private int _hostSetupHoverIndex
+    public int _hostSetupHoverIndex
     {
         get => _hostSetupState.HoverIndex;
         set => _hostSetupState.HoverIndex = value;
     }
 
-    private int _hostSetupPlaylistHoverIndex
+    public int _hostSetupPlaylistHoverIndex
     {
         get => _hostSetupState.PlaylistHoverIndex;
         set => _hostSetupState.PlaylistHoverIndex = value;
     }
 
-    private int _hostMapIndex
+    public int _hostMapIndex
     {
         get => _hostSetupState.MapIndex;
         set => _hostSetupState.MapIndex = value;
     }
 
-    private int _hostMapScrollOffset
+    public int _hostMapScrollOffset
     {
         get => _hostSetupState.MapScrollOffset;
         set => _hostSetupState.MapScrollOffset = value;
     }
 
-    private int _hostSetupContentScrollOffset
+    public int _hostSetupContentScrollOffset
     {
         get => _hostSetupState.ContentScrollOffset;
         set => _hostSetupState.ContentScrollOffset = value;
     }
 
-    private List<OpenGarrisonMapRotationEntry> _hostMapEntries
+    public List<OpenGarrisonMapRotationEntry> _hostMapEntries
     {
         get => _hostSetupState.MapEntries;
         set => _hostSetupState.MapEntries = value ?? new List<OpenGarrisonMapRotationEntry>();
     }
 
-    private HostSetupEditField _hostSetupEditField
+    public HostSetupEditField _hostSetupEditField
     {
         get => _hostSetupState.EditField;
         set => _hostSetupState.EditField = value;
     }
 
-    private HostSetupTab _hostSetupTab
+    public HostSetupTab _hostSetupTab
     {
         get => _hostSetupState.Tab;
         set => _hostSetupState.Tab = value;
     }
 
-    private HostSetupScreen _hostSetupScreen
+    public HostSetupScreen _hostSetupScreen
     {
         get => _hostSetupState.Screen;
         set => _hostSetupState.Screen = value;
@@ -109,7 +109,7 @@ public partial class Game1
         set => _hostSetupState.MapRotationFileBuffer = value;
     }
 
-    private bool _hostUsePlaylistFile
+    public bool _hostUsePlaylistFile
     {
         get => _hostSetupState.UsePlaylistFile;
         set => _hostSetupState.UsePlaylistFile = value;
@@ -253,7 +253,7 @@ public partial class Game1
         set => _hostSetupState.RespawnSecondsSelectionStart = value;
     }
 
-    private bool _hostLobbyAnnounceEnabled
+    public bool _hostLobbyAnnounceEnabled
     {
         get => _hostSetupState.LobbyAnnounceEnabled;
         set => _hostSetupState.LobbyAnnounceEnabled = value;

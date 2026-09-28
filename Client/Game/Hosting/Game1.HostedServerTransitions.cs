@@ -6,7 +6,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private void PrepareHostedServerLaunchUi(bool closeHostSetup, bool disconnectNetworkClient)
+    public void PrepareHostedServerLaunchUi(bool closeHostSetup, bool disconnectNetworkClient)
     {
         CloseManualConnectMenu(clearStatus: true);
         CloseLobbyBrowser(clearStatus: true);
@@ -30,7 +30,7 @@ public partial class Game1
         }
     }
 
-    private void PrepareHostedServerConsoleLaunchState(
+    public void PrepareHostedServerConsoleLaunchState(
         string serverName,
         int port,
         int maxPlayers,
@@ -61,7 +61,7 @@ public partial class Game1
         }
     }
 
-    private bool TryStartHostedServerBackground(
+    public bool TryStartHostedServerBackground(
         string serverName,
         int port,
         int maxPlayers,
@@ -98,14 +98,14 @@ public partial class Game1
         return _hostedServerRuntime.TryStartBackground(launchOptions, out error);
     }
 
-    private void BeginPendingHostedLocalConnect(int port, int delayTicks, string statusMessage)
+    public void BeginPendingHostedLocalConnect(int port, int delayTicks, string statusMessage)
     {
         _pendingHostedConnectPort = port;
         _pendingHostedConnectTicks = delayTicks;
         _menuStatusMessage = statusMessage;
     }
 
-    private void CancelPendingHostedLocalConnect(string? statusMessage = null)
+    public void CancelPendingHostedLocalConnect(string? statusMessage = null)
     {
         _pendingHostedConnectTicks = -1;
         if (statusMessage is not null)

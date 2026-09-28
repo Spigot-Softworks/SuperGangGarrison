@@ -8,7 +8,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private LoadedSpriteFrame? _gameplayMissPopupFrame;
+    public LoadedSpriteFrame? _gameplayMissPopupFrame;
     private string? _gameplayMissPopupFramePath;
 
     private bool DrawGameplayMissPopupImage(Vector2 centerPosition, float alpha, float scale = 1f)
@@ -48,7 +48,7 @@ public partial class Game1
         return _gameplayMissPopupFrame;
     }
 
-    private void DisposeGameplayMissPopupFrame()
+    public void DisposeGameplayMissPopupFrame()
     {
         _gameplayMissPopupFrame?.Dispose();
         _gameplayMissPopupFrame = null;

@@ -5,7 +5,7 @@ using OpenGarrison.Core;
 
 namespace OpenGarrison.Client;
 
-internal readonly record struct HostedServerConsoleSnapshot(
+public readonly record struct HostedServerConsoleSnapshot(
     string CommandInput,
     int CommandInputCursorIndex,
     int CommandInputSelectionStart,
@@ -19,7 +19,7 @@ internal readonly record struct HostedServerConsoleSnapshot(
     string StatusRuntime,
     string StatusWorld);
 
-internal sealed class HostedServerConsoleState
+public sealed class HostedServerConsoleState
 {
     private const int ConsoleLineLimit = 240;
 

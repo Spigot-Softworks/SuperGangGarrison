@@ -11,152 +11,152 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private void DrawLocalHealthHud()
+    public void DrawLocalHealthHud()
     {
-        _gameplayLocalStatusHudController.DrawLocalHealthHud();
+        _hudManager.LocalStatus.DrawLocalHealthHud();
     }
 
-    private void DrawDamageVignette()
+    public void DrawDamageVignette()
     {
-        _gameplayLocalStatusHudController.DrawDamageVignette();
+        _hudManager.LocalStatus.DrawDamageVignette();
     }
 
-    private SentryEntity? GetLocalOwnedSentry()
+    public SentryEntity? GetLocalOwnedSentry()
     {
-        return _gameplayEngineerHudController.GetLocalOwnedSentry();
+        return _hudManager.Engineer.GetLocalOwnedSentry();
     }
 
-    private int GetLocalOwnedSentryCount()
+    public int GetLocalOwnedSentryCount()
     {
-        return _gameplayEngineerHudController.GetLocalOwnedSentryCount();
+        return _hudManager.Engineer.GetLocalOwnedSentryCount();
     }
 
-    private static int GetCharacterHudFrameIndex(PlayerEntity player)
+    public static int GetCharacterHudFrameIndex(PlayerEntity player)
     {
         return GameplayLocalStatusHudController.GetCharacterHudFrameIndex(player);
     }
 
-    private void DrawDemoknightHud()
+    public void DrawDemoknightHud()
     {
-        _gameplayLocalStatusHudController.DrawDemoknightHud();
+        _hudManager.LocalStatus.DrawDemoknightHud();
     }
 
     private void DrawPyroAmmoHud()
     {
-        _gameplayLocalStatusHudController.DrawPyroAmmoHud();
+        _hudManager.LocalStatus.DrawPyroAmmoHud();
     }
 
     private void DrawHeavyAmmoHud()
     {
-        _gameplayLocalStatusHudController.DrawHeavyAmmoHud();
+        _hudManager.LocalStatus.DrawHeavyAmmoHud();
     }
 
     private void DrawQuoteAmmoHud()
     {
-        _gameplayLocalStatusHudController.DrawQuoteAmmoHud();
+        _hudManager.LocalStatus.DrawQuoteAmmoHud();
     }
 
     private void DrawDemomanStickyHud()
     {
-        _gameplayLocalStatusHudController.DrawDemomanStickyHud();
+        _hudManager.LocalStatus.DrawDemomanStickyHud();
     }
 
     private void DrawExperimentalOffhandHud()
     {
-        _gameplayLocalStatusHudController.DrawExperimentalOffhandHud();
+        _hudManager.LocalStatus.DrawExperimentalOffhandHud();
     }
 
     private void DrawAcquiredMedigunPrompt()
     {
-        _gameplayLocalStatusHudController.DrawAcquiredMedigunPrompt();
+        _hudManager.LocalStatus.DrawAcquiredMedigunPrompt();
     }
 
     private void DrawAcquiredWeaponHud()
     {
-        _gameplayLocalStatusHudController.DrawAcquiredWeaponHud();
+        _hudManager.LocalStatus.DrawAcquiredWeaponHud();
     }
 
     private void DrawPyroFlareHud(int frameIndex)
     {
-        _gameplayLocalStatusHudController.DrawPyroFlareHud(frameIndex);
+        _hudManager.LocalStatus.DrawPyroFlareHud(frameIndex);
     }
 
     private bool TryDrawSourceAmmoHudSprite(string spriteName, int frameIndex)
     {
-        return _gameplayLocalStatusHudController.TryDrawSourceAmmoHudSprite(spriteName, frameIndex);
+        return _hudManager.LocalStatus.TryDrawSourceAmmoHudSprite(spriteName, frameIndex);
     }
 
     private void DrawSourceAmmoHudBar(float left, float width, float value, float maxValue, Color fillColor)
     {
-        _gameplayLocalStatusHudController.DrawSourceAmmoHudBar(left, width, value, maxValue, fillColor);
+        _hudManager.LocalStatus.DrawSourceAmmoHudBar(left, width, value, maxValue, fillColor);
     }
 
     private Rectangle GetReloadAmmoHudBarRectangle()
     {
-        return _gameplayLocalStatusHudController.GetReloadAmmoHudBarRectangle();
+        return _hudManager.LocalStatus.GetReloadAmmoHudBarRectangle();
     }
 
     private Vector2 GetSourceHudPoint(float sourceX, float sourceY)
     {
-        return _gameplayLocalStatusHudController.GetSourceHudPoint(sourceX, sourceY);
+        return _hudManager.LocalStatus.GetSourceHudPoint(sourceX, sourceY);
     }
 
     private Rectangle GetSourceHudRectangle(float sourceX, float sourceY, float width, float height)
     {
-        return _gameplayLocalStatusHudController.GetSourceHudRectangle(sourceX, sourceY, width, height);
+        return _hudManager.LocalStatus.GetSourceHudRectangle(sourceX, sourceY, width, height);
     }
 
     private void DrawMedicHud()
     {
-        _gameplayMedicHudController.DrawMedicHud();
+        _hudManager.Medic.DrawMedicHud();
     }
 
     private void DrawEngineerHud()
     {
-        _gameplayEngineerHudController.DrawEngineerHud();
+        _hudManager.Engineer.DrawEngineerHud();
     }
 
     private PlayerEntity? FindMedicHealingPlayer(int playerId)
     {
-        return _gameplayMedicHudController.FindMedicHealingPlayer(playerId);
+        return _hudManager.Medic.FindMedicHealingPlayer(playerId);
     }
 
     private void DrawHealerRadarHud(Vector2 cameraPosition, MouseState mouse)
     {
-        _gameplayMedicHudController.DrawHealerRadarHud(cameraPosition, mouse);
+        _hudManager.Medic.DrawHealerRadarHud(cameraPosition, mouse);
     }
 
     private void DrawSniperHud(Vector2 screenAimPosition)
     {
-        _gameplayAimHudController.DrawSniperHud(screenAimPosition);
+        _hudManager.Aim.DrawSniperHud(screenAimPosition);
     }
 
     private void DrawPersistentSelfNameHud(Vector2 cameraPosition)
     {
-        _gameplayPlayerNameHudController.DrawPersistentSelfNameHud(cameraPosition);
+        _hudManager.PlayerName.DrawPersistentSelfNameHud(cameraPosition);
     }
 
     private void DrawForcedPlayerNameHuds(Vector2 cameraPosition)
     {
-        _gameplayPlayerNameHudController.DrawForcedPlayerNameHuds(cameraPosition);
+        _hudManager.PlayerName.DrawForcedPlayerNameHuds(cameraPosition);
     }
 
     private void DrawHoveredPlayerNameHud(MouseState mouse, Vector2 cameraPosition)
     {
-        _gameplayPlayerNameHudController.DrawHoveredPlayerNameHud(mouse, cameraPosition);
+        _hudManager.PlayerName.DrawHoveredPlayerNameHud(mouse, cameraPosition);
     }
 
     private void DrawPlayerNameHud(PlayerEntity player, Vector2 cameraPosition)
     {
-        _gameplayPlayerNameHudController.DrawPlayerNameHud(player, cameraPosition);
+        _hudManager.PlayerName.DrawPlayerNameHud(player, cameraPosition);
     }
 
     private PlayerEntity? GetHoveredPlayerForNameHud(MouseState mouse, Vector2 cameraPosition)
     {
-        return _gameplayPlayerNameHudController.GetHoveredPlayerForNameHud(mouse, cameraPosition);
+        return _hudManager.PlayerName.GetHoveredPlayerForNameHud(mouse, cameraPosition);
     }
 
-    private static bool ShouldForceMapBotNameplate(PlayerEntity player) =>
+    public static bool ShouldForceMapBotNameplate(PlayerEntity player) =>
         player.TryGetReplicatedStateBool(
             BotSpawnMetadata.VisualReplicatedStateOwnerId,
             BotSpawnMetadata.ForceNameplateReplicatedStateKey,
@@ -172,97 +172,97 @@ public partial class Game1
 
     private void DrawCrosshair(Vector2 screenPosition)
     {
-        _gameplayAimHudController.DrawCrosshair(screenPosition);
+        _hudManager.Aim.DrawCrosshair(screenPosition);
     }
 
     private void DrawControllerAimLine(Vector2 cameraPosition, Vector2 screenAimPosition)
     {
-        _gameplayAimHudController.DrawControllerAimLine(cameraPosition, screenAimPosition);
+        _hudManager.Aim.DrawControllerAimLine(cameraPosition, screenAimPosition);
     }
 
     private int CountLocalOwnedStickyMines()
     {
-        return _gameplayLocalStatusHudController.CountLocalOwnedStickyMines();
+        return _hudManager.LocalStatus.CountLocalOwnedStickyMines();
     }
 
     private string? GetAmmoHudSpriteName()
     {
-        return _gameplayLocalStatusHudController.GetAmmoHudSpriteName();
+        return _hudManager.LocalStatus.GetAmmoHudSpriteName();
     }
 
     private int GetAmmoHudFrameIndex()
     {
-        return _gameplayLocalStatusHudController.GetAmmoHudFrameIndex();
+        return _hudManager.LocalStatus.GetAmmoHudFrameIndex();
     }
 
     private void DrawAmmoReloadBar(Rectangle barRectangle)
     {
-        _gameplayLocalStatusHudController.DrawAmmoReloadBar(barRectangle);
+        _hudManager.LocalStatus.DrawAmmoReloadBar(barRectangle);
     }
 
     private float GetAmmoReloadBarProgress(PlayerEntity player)
     {
-        return _gameplayLocalStatusHudController.GetAmmoReloadBarProgress(player);
+        return _hudManager.LocalStatus.GetAmmoReloadBarProgress(player);
     }
 
     private bool IsLocalDisplayedMainWeaponAcquired()
     {
-        return _gameplayLocalStatusHudController.IsLocalDisplayedMainWeaponAcquired();
+        return _hudManager.LocalStatus.IsLocalDisplayedMainWeaponAcquired();
     }
 
     private string GetLocalDisplayedMainWeaponPresentationItemId()
     {
-        return _gameplayLocalStatusHudController.GetLocalDisplayedMainWeaponPresentationItemId();
+        return _hudManager.LocalStatus.GetLocalDisplayedMainWeaponPresentationItemId();
     }
 
-    private PrimaryWeaponDefinition GetLocalDisplayedMainWeaponStats()
+    public PrimaryWeaponDefinition GetLocalDisplayedMainWeaponStats()
     {
-        return _gameplayLocalStatusHudController.GetLocalDisplayedMainWeaponStats();
+        return _hudManager.LocalStatus.GetLocalDisplayedMainWeaponStats();
     }
 
-    private int GetLocalDisplayedMainWeaponCurrentShells()
+    public int GetLocalDisplayedMainWeaponCurrentShells()
     {
-        return _gameplayLocalStatusHudController.GetLocalDisplayedMainWeaponCurrentShells();
+        return _hudManager.LocalStatus.GetLocalDisplayedMainWeaponCurrentShells();
     }
 
-    private int GetLocalDisplayedMainWeaponMaxShells()
+    public int GetLocalDisplayedMainWeaponMaxShells()
     {
-        return _gameplayLocalStatusHudController.GetLocalDisplayedMainWeaponMaxShells();
+        return _hudManager.LocalStatus.GetLocalDisplayedMainWeaponMaxShells();
     }
 
-    private int GetLocalDisplayedMainWeaponCooldownTicks()
+    public int GetLocalDisplayedMainWeaponCooldownTicks()
     {
-        return _gameplayLocalStatusHudController.GetLocalDisplayedMainWeaponCooldownTicks();
+        return _hudManager.LocalStatus.GetLocalDisplayedMainWeaponCooldownTicks();
     }
 
-    private int GetLocalDisplayedMainWeaponReloadTicks()
+    public int GetLocalDisplayedMainWeaponReloadTicks()
     {
-        return _gameplayLocalStatusHudController.GetLocalDisplayedMainWeaponReloadTicks();
+        return _hudManager.LocalStatus.GetLocalDisplayedMainWeaponReloadTicks();
     }
 
     private string GetLocalAlternatePrimaryWeaponPresentationItemId()
     {
-        return _gameplayLocalStatusHudController.GetLocalAlternatePrimaryWeaponPresentationItemId();
+        return _hudManager.LocalStatus.GetLocalAlternatePrimaryWeaponPresentationItemId();
     }
 
     private PrimaryWeaponDefinition GetLocalAlternatePrimaryWeaponStats()
     {
-        return _gameplayLocalStatusHudController.GetLocalAlternatePrimaryWeaponStats();
+        return _hudManager.LocalStatus.GetLocalAlternatePrimaryWeaponStats();
     }
 
     private int GetLocalAlternatePrimaryWeaponCurrentShells()
     {
-        return _gameplayLocalStatusHudController.GetLocalAlternatePrimaryWeaponCurrentShells();
+        return _hudManager.LocalStatus.GetLocalAlternatePrimaryWeaponCurrentShells();
     }
 
     private int GetLocalAlternatePrimaryWeaponMaxShells()
     {
-        return _gameplayLocalStatusHudController.GetLocalAlternatePrimaryWeaponMaxShells();
+        return _hudManager.LocalStatus.GetLocalAlternatePrimaryWeaponMaxShells();
     }
 
     private float GetLocalAlternatePrimaryWeaponReloadProgress()
     {
-        return _gameplayLocalStatusHudController.GetLocalAlternatePrimaryWeaponReloadProgress();
+        return _hudManager.LocalStatus.GetLocalAlternatePrimaryWeaponReloadProgress();
     }
 
     private static float GetMedicNeedleReloadProgress(int currentShells, int maxShells, int refillTicks)

@@ -15,15 +15,15 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private PlayerHostedRoomSession? _peerRoomSession;
-    private Task<PeerRoomConnection>? _peerRoomOperation;
-    private Task _peerRoomCleanup = Task.CompletedTask;
-    private CancellationTokenSource? _peerRoomCancellation;
+    public PlayerHostedRoomSession? _peerRoomSession;
+    public Task<PeerRoomConnection>? _peerRoomOperation;
+    public Task _peerRoomCleanup = Task.CompletedTask;
+    public CancellationTokenSource? _peerRoomCancellation;
     private PeerRoomRequest? _peerRoomRequest;
     private bool _practiceCoOpMenu, _editingPeerPractice, _peerRoomRejoining;
     private int _editingPeerRevision;
     private long _peerReconnectDeadline, _peerReconnectAt, _peerLtdCommandAt;
-    private bool IsPeerRoomOwner => _peerRoomSession?.IsOwner == true;
+    public bool IsPeerRoomOwner => _peerRoomSession?.IsOwner == true;
     private static readonly HttpClient PeerRoomHttp = new();
 
     private PeerPracticeSettings CapturePeerPracticeSettings() => new(
@@ -52,7 +52,7 @@ public partial class Game1
     private void BeginPeerRoom(bool create, PeerPracticeSettings? settings = null)
     {
         if (_peerRoomOperation is not null) return;
-        if (!_bootstrapController.CanEnterGameplaySession(out var reason))
+        if (!_gameplayManager.Bootstrap.CanEnterGameplaySession(out var reason))
         { _menuStatusMessage = reason ?? "Game assets are still loading."; return; }
         if (!create && !RelayRoomCode.TryNormalize(_managedRoomCodeBuffer, out _))
         { _menuStatusMessage = "Enter the four-character room code."; return; }
@@ -76,7 +76,7 @@ public partial class Game1
             ClientDistribution.RoomServiceOrigin, request, create, cancellation);
     }
 
-    private void PumpPeerRoom(double elapsed)
+    public void PumpPeerRoom(double elapsed)
     {
         if (_peerRoomOperation is { IsCompleted: true } operation)
         {
@@ -207,7 +207,7 @@ public partial class Game1
         try { var room = await pending; await room.LeaveAsync(); }
         catch (Exception ex) { Console.WriteLine($"Peer room cleanup failed: {ex.Message}"); }
     }
-    private void LeavePeerRoom()
+    public void LeavePeerRoom()
     {
         CancelPeerRoomRequest();
         var session = _peerRoomSession; _peerRoomSession = null;

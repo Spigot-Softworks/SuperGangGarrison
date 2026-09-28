@@ -10,25 +10,25 @@ namespace OpenGarrison.Client;
 public partial class Game1
 {
 #if GG2_ONLY
-    private const string DesktopLoadingOverlayTitle = "OpenGarrison";
+    public const string DesktopLoadingOverlayTitle = "OpenGarrison";
 #else
-    private const string DesktopLoadingOverlayTitle = "Super Gang Garrison";
+    public const string DesktopLoadingOverlayTitle = "Super Gang Garrison";
 #endif
-    private const string RestrictedBrowserLoadingOverlayTitle = "Gang Garrison";
-    private const int LoadingOverlayWidth = 340;
-    private const int LoadingOverlayHeight = 84;
-    private const int LoadingOverlayMargin = 12;
+    public const string RestrictedBrowserLoadingOverlayTitle = "Gang Garrison";
+    public const int LoadingOverlayWidth = 340;
+    public const int LoadingOverlayHeight = 84;
+    public const int LoadingOverlayMargin = 12;
     private const int LoadingOverlayProgressSegments = 20;
     private const float LoadingOverlayTextScale = 1f;
 
-    private bool _loadingOverlayVisible;
+    public bool _loadingOverlayVisible;
     private bool _loadingOverlayIsJoining;
     private string _loadingOverlayMessage = string.Empty;
     private string _joiningServerLoadingLabel = string.Empty;
     private double? _loadingOverlayProgress;
     private bool _browserLoadingProgressVisible;
 
-    private void ShowLoadingOverlay(string message, double? progress = null)
+    public void ShowLoadingOverlay(string message, double? progress = null)
     {
         _loadingOverlayVisible = true;
         _loadingOverlayIsJoining = false;
@@ -36,7 +36,7 @@ public partial class Game1
         _loadingOverlayProgress = NormalizeLoadingOverlayProgress(progress);
     }
 
-    private void HideLoadingOverlay()
+    public void HideLoadingOverlay()
     {
         HideBrowserLoadingProgress();
         _loadingOverlayVisible = false;
@@ -45,7 +45,7 @@ public partial class Game1
         _loadingOverlayProgress = null;
     }
 
-    private void DrawLoadingOverlay()
+    public void DrawLoadingOverlay()
     {
         if (HasLastToDieLoadingPresentation) HideJoiningServerLoadingOverlay();
         if (!_loadingOverlayVisible)
@@ -73,7 +73,7 @@ public partial class Game1
         _practiceNavigationWarmupPresentationPending = false;
     }
 
-    private void ShowJoiningServerLoadingOverlay(string? serverLabel = null)
+    public void ShowJoiningServerLoadingOverlay(string? serverLabel = null)
     {
         if (HasLastToDieLoadingPresentation)
         {
@@ -101,7 +101,7 @@ public partial class Game1
         bool hasManagedRoom = false, bool hasLastToDieSnapshot = false)
         => !(isLastToDie || hasManagedRoom || hasLastToDieSnapshot);
 
-    private void SetJoiningServerLoadingLabel(string? serverLabel)
+    public void SetJoiningServerLoadingLabel(string? serverLabel)
     {
         _joiningServerLoadingLabel = NormalizeLoadingOverlayServerLabel(serverLabel);
     }

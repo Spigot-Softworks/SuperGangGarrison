@@ -4,40 +4,40 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private void EnableDebugMenu()
+    public void EnableDebugMenu()
     {
         _debugMenuEnabled = true;
     }
 
-    private void DisableDebugMenu()
+    public void DisableDebugMenu()
     {
         _debugMenuEnabled = false;
-        _debugMenuController.CloseDebugMenu();
+        _menuManager.DebugMenu.CloseDebugMenu();
     }
 
-    private void OpenDebugMenu()
+    public void OpenDebugMenu()
     {
         if (!_debugMenuEnabled)
         {
             return;
         }
 
-        _debugMenuController.OpenDebugMenu();
+        _menuManager.DebugMenu.OpenDebugMenu();
     }
 
     private void CloseDebugMenu()
     {
-        _debugMenuController.CloseDebugMenu();
+        _menuManager.DebugMenu.CloseDebugMenu();
     }
 
-    private void UpdateDebugMenu(Microsoft.Xna.Framework.Input.KeyboardState keyboard, Microsoft.Xna.Framework.Input.MouseState mouse)
+    public void UpdateDebugMenu(Microsoft.Xna.Framework.Input.KeyboardState keyboard, Microsoft.Xna.Framework.Input.MouseState mouse)
     {
         if (!_debugMenuEnabled || !_debugMenuOpen)
         {
             return;
         }
 
-        _debugMenuController.UpdateDebugMenu(keyboard, mouse);
+        _menuManager.DebugMenu.UpdateDebugMenu(keyboard, mouse);
     }
 
     private void DrawDebugMenu()
@@ -47,6 +47,6 @@ public partial class Game1
             return;
         }
 
-        _debugMenuController.DrawDebugMenu();
+        _menuManager.DebugMenu.DrawDebugMenu();
     }
 }

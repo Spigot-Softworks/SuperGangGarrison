@@ -13,29 +13,29 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private const int BrowserPendingSoundEventLifetimeTicks = 30;
-    private const int BrowserPendingSoundEventLimit = 96;
-    private const int RecentGibSoundEchoLifetimeTicks = 18;
-    private const int RecentGibSoundEchoLimit = 16;
-    private const float RecentGibSoundEchoDistanceSquared = 64f * 64f;
-    private const int RecentProjectileSoundEchoLifetimeTicks = 18;
-    private const int RecentProjectileSoundEchoLimit = 32;
-    private const float RecentProjectileExplosionSoundEchoDistanceSquared = 64f * 64f;
-    private const float RecentProjectileFireSoundEchoDistanceSquared = 24f * 24f;
-    private const int LowPriorityWorldSoundThrottleLifetimeTicks = 8;
-    private const int LowPriorityWorldSoundThrottleLimit = 24;
-    private const int LowPriorityWorldSoundFrameLimit = 4;
-    private const float JumpSoundThrottleDistanceSquared = 96f * 96f;
-    private const float LocalWeaponSoundVolumeMultiplier = 2.1f;
-    private const float LocalWeaponSoundMinimumVolume = 0.9f;
-    private const float RemoteWeaponSoundVolumeMultiplier = 0.52f;
-    private const float LocalWeaponSoundPanMultiplier = 0.35f;
-    private const float LocalWeaponSoundFocusDurationSeconds = 0.16f;
-    private const float FocusedRemoteWeaponSoundVolumeMultiplier = 0.58f;
-    private const float FocusedOtherWorldSoundVolumeMultiplier = 0.76f;
-    private const float RemoteHealingCabinetSoundVolumeMultiplier = 0.62f;
+    public const int BrowserPendingSoundEventLifetimeTicks = 30;
+    public const int BrowserPendingSoundEventLimit = 96;
+    public const int RecentGibSoundEchoLifetimeTicks = 18;
+    public const int RecentGibSoundEchoLimit = 16;
+    public const float RecentGibSoundEchoDistanceSquared = 64f * 64f;
+    public const int RecentProjectileSoundEchoLifetimeTicks = 18;
+    public const int RecentProjectileSoundEchoLimit = 32;
+    public const float RecentProjectileExplosionSoundEchoDistanceSquared = 64f * 64f;
+    public const float RecentProjectileFireSoundEchoDistanceSquared = 24f * 24f;
+    public const int LowPriorityWorldSoundThrottleLifetimeTicks = 8;
+    public const int LowPriorityWorldSoundThrottleLimit = 24;
+    public const int LowPriorityWorldSoundFrameLimit = 4;
+    public const float JumpSoundThrottleDistanceSquared = 96f * 96f;
+    public const float LocalWeaponSoundVolumeMultiplier = 2.1f;
+    public const float LocalWeaponSoundMinimumVolume = 0.9f;
+    public const float RemoteWeaponSoundVolumeMultiplier = 0.52f;
+    public const float LocalWeaponSoundPanMultiplier = 0.35f;
+    public const float LocalWeaponSoundFocusDurationSeconds = 0.16f;
+    public const float FocusedRemoteWeaponSoundVolumeMultiplier = 0.58f;
+    public const float FocusedOtherWorldSoundVolumeMultiplier = 0.76f;
+    public const float RemoteHealingCabinetSoundVolumeMultiplier = 0.62f;
 
-    private sealed class PendingBrowserSoundEvent
+    public sealed class PendingBrowserSoundEvent
     {
         public PendingBrowserSoundEvent(string soundName, float x, float y, int ticksRemaining)
         {
@@ -54,7 +54,7 @@ public partial class Game1
         public int TicksRemaining { get; set; }
     }
 
-    private sealed class RecentGibSoundEvent
+    public sealed class RecentGibSoundEvent
     {
         public RecentGibSoundEvent(float x, float y, bool isNetworkEvent, int ticksRemaining)
         {
@@ -73,7 +73,7 @@ public partial class Game1
         public int TicksRemaining { get; set; }
     }
 
-    private sealed class RecentProjectileSoundEvent
+    public sealed class RecentProjectileSoundEvent
     {
         public RecentProjectileSoundEvent(
             string soundName,
@@ -104,7 +104,7 @@ public partial class Game1
         public int TicksRemaining { get; set; }
     }
 
-    private sealed class RecentLowPriorityWorldSoundEvent
+    public sealed class RecentLowPriorityWorldSoundEvent
     {
         public RecentLowPriorityWorldSoundEvent(string soundName, float x, float y, int ticksRemaining)
         {
@@ -123,77 +123,77 @@ public partial class Game1
         public int TicksRemaining { get; set; }
     }
 
-    private SoundEffect? _menuMusic;
-    private SoundEffectInstance? _menuMusicInstance;
-    private SoundEffect? _lastToDieMenuMusic;
-    private SoundEffectInstance? _lastToDieMenuMusicInstance;
-    private SoundEffect? _faucetMusic;
-    private SoundEffectInstance? _faucetMusicInstance;
-    private SoundEffect? _ingameMusic;
-    private SoundEffectInstance? _ingameMusicInstance;
-    private SoundEffect? _ingameCombatMusic;
-    private SoundEffectInstance? _ingameCombatMusicInstance;
-    private SoundEffect? _lastToDieIngameMusic;
-    private SoundEffectInstance? _lastToDieIngameMusicInstance;
-    private SoundEffect? _lastToDieGameOverSound;
-    private SoundEffectInstance? _lastToDieGameOverSoundInstance;
-    private SoundEffectInstance? _localChaingunSoundInstance;
-    private SoundEffectInstance? _localFlamethrowerSoundInstance;
-    private SoundEffectInstance? _localMedigunSoundInstance;
-    private SoundEffectInstance? _localUberIdleSoundInstance;
-    private bool _audioAvailable = true;
-    private bool _audioMuted;
-    private int _masterVolumePercent = 100;
-    private int _menuMusicVolumePercent = 70;
-    private int _ingameMusicVolumePercent = 70;
-    private int _combatMusicVolumePercent = OpenGarrisonPreferencesDocument.DefaultCombatMusicVolumePercent;
-    private int _soundEffectsVolumePercent = 70;
-    private MusicMode _musicMode = MusicMode.MenuAndInGame;
-    private bool _menuMusicLoadAttempted;
-    private bool _lastToDieMenuMusicLoadAttempted;
-    private bool _faucetMusicLoadAttempted;
-    private bool _ingameMusicLoadAttempted;
-    private bool _lastToDieIngameMusicLoadAttempted;
-    private bool _lastToDieGameOverSoundLoadAttempted;
-    private readonly HashSet<ulong> _processedNetworkSoundEventIds = new();
-    private readonly Queue<ulong> _processedNetworkSoundEventOrder = new();
-    private readonly HashSet<ulong> _processedKillFeedEventIds = new();
-    private readonly Queue<ulong> _processedKillFeedEventOrder = new();
-    private readonly List<PendingBrowserSoundEvent> _pendingBrowserSoundEvents = new();
-    private readonly List<WorldSoundEvent> _pendingNetworkSoundEvents = new();
-    private readonly List<RecentGibSoundEvent> _recentGibSoundEvents = new();
-    private readonly List<RecentProjectileSoundEvent> _recentProjectileSoundEvents = new();
-    private readonly List<RecentLowPriorityWorldSoundEvent> _recentLowPriorityWorldSoundEvents = new();
-    private int _lowPriorityWorldSoundsPlayedThisFrame;
-    private float _localWeaponSoundFocusRemainingSeconds;
+    public SoundEffect? _menuMusic;
+    public SoundEffectInstance? _menuMusicInstance;
+    public SoundEffect? _lastToDieMenuMusic;
+    public SoundEffectInstance? _lastToDieMenuMusicInstance;
+    public SoundEffect? _faucetMusic;
+    public SoundEffectInstance? _faucetMusicInstance;
+    public SoundEffect? _ingameMusic;
+    public SoundEffectInstance? _ingameMusicInstance;
+    public SoundEffect? _ingameCombatMusic;
+    public SoundEffectInstance? _ingameCombatMusicInstance;
+    public SoundEffect? _lastToDieIngameMusic;
+    public SoundEffectInstance? _lastToDieIngameMusicInstance;
+    public SoundEffect? _lastToDieGameOverSound;
+    public SoundEffectInstance? _lastToDieGameOverSoundInstance;
+    public SoundEffectInstance? _localChaingunSoundInstance;
+    public SoundEffectInstance? _localFlamethrowerSoundInstance;
+    public SoundEffectInstance? _localMedigunSoundInstance;
+    public SoundEffectInstance? _localUberIdleSoundInstance;
+    public bool _audioAvailable = true;
+    public bool _audioMuted;
+    public int _masterVolumePercent = 100;
+    public int _menuMusicVolumePercent = 70;
+    public int _ingameMusicVolumePercent = 70;
+    public int _combatMusicVolumePercent = OpenGarrisonPreferencesDocument.DefaultCombatMusicVolumePercent;
+    public int _soundEffectsVolumePercent = 70;
+    public MusicMode _musicMode = MusicMode.MenuAndInGame;
+    public bool _menuMusicLoadAttempted;
+    public bool _lastToDieMenuMusicLoadAttempted;
+    public bool _faucetMusicLoadAttempted;
+    public bool _ingameMusicLoadAttempted;
+    public bool _lastToDieIngameMusicLoadAttempted;
+    public bool _lastToDieGameOverSoundLoadAttempted;
+    public readonly HashSet<ulong> _processedNetworkSoundEventIds = new();
+    public readonly Queue<ulong> _processedNetworkSoundEventOrder = new();
+    public readonly HashSet<ulong> _processedKillFeedEventIds = new();
+    public readonly Queue<ulong> _processedKillFeedEventOrder = new();
+    public readonly List<PendingBrowserSoundEvent> _pendingBrowserSoundEvents = new();
+    public readonly List<WorldSoundEvent> _pendingNetworkSoundEvents = new();
+    public readonly List<RecentGibSoundEvent> _recentGibSoundEvents = new();
+    public readonly List<RecentProjectileSoundEvent> _recentProjectileSoundEvents = new();
+    public readonly List<RecentLowPriorityWorldSoundEvent> _recentLowPriorityWorldSoundEvents = new();
+    public int _lowPriorityWorldSoundsPlayedThisFrame;
+    public float _localWeaponSoundFocusRemainingSeconds;
     private readonly List<PlayedExplosionSoundThisFrame> _playedExplosionSoundsThisFrame = new();
     private string _lastOneShotSoundFailureMessage = string.Empty;
 
     private readonly record struct PlayedExplosionSoundThisFrame(float X, float Y);
 
-    private void LoadMenuMusic()
+    public void LoadMenuMusic()
     {
-        _gameplayAudioMusicController.LoadMenuMusic();
+        _audioManager.Music.LoadMenuMusic();
     }
 
-    private void LoadFaucetMusic()
+    public void LoadFaucetMusic()
     {
-        _gameplayAudioMusicController.LoadFaucetMusic();
+        _audioManager.Music.LoadFaucetMusic();
     }
 
-    private void LoadIngameMusic()
+    public void LoadIngameMusic()
     {
-        _gameplayAudioMusicController.LoadIngameMusic();
+        _audioManager.Music.LoadIngameMusic();
     }
 
-    private void LoadLastToDieMenuMusic()
+    public void LoadLastToDieMenuMusic()
     {
-        _gameplayAudioMusicController.LoadLastToDieMenuMusic();
+        _audioManager.Music.LoadLastToDieMenuMusic();
     }
 
-    private void LoadLastToDieIngameMusic()
+    public void LoadLastToDieIngameMusic()
     {
-        _gameplayAudioMusicController.LoadLastToDieIngameMusic();
+        _audioManager.Music.LoadLastToDieIngameMusic();
     }
 
     private void TryLoadLoopedMusic(
@@ -251,91 +251,91 @@ public partial class Game1
         }
     }
 
-    private void EnsureMenuMusicPlaying()
+    public void EnsureMenuMusicPlaying()
     {
-        _gameplayAudioMusicController.EnsureMenuMusicPlaying();
+        _audioManager.Music.EnsureMenuMusicPlaying();
     }
 
     private void EnsureFaucetMusicPlaying()
     {
-        _gameplayAudioMusicController.EnsureFaucetMusicPlaying();
+        _audioManager.Music.EnsureFaucetMusicPlaying();
     }
 
-    private void StopMenuMusic()
+    public void StopMenuMusic()
     {
-        _gameplayAudioMusicController.StopMenuMusic();
+        _audioManager.Music.StopMenuMusic();
     }
 
-    private void StopLastToDieMenuMusic()
+    public void StopLastToDieMenuMusic()
     {
-        _gameplayAudioMusicController.StopLastToDieMenuMusic();
+        _audioManager.Music.StopLastToDieMenuMusic();
     }
 
-    private void StopFaucetMusic()
+    public void StopFaucetMusic()
     {
-        _gameplayAudioMusicController.StopFaucetMusic();
+        _audioManager.Music.StopFaucetMusic();
     }
 
     private void EnsureIngameMusicPlaying()
     {
-        _gameplayAudioMusicController.EnsureIngameMusicPlaying();
+        _audioManager.Music.EnsureIngameMusicPlaying();
     }
 
-    private void StopIngameMusic()
+    public void StopIngameMusic()
     {
         StopGameplaySoundMusicOverride();
-        _gameplayAudioMusicController.StopIngameMusic();
+        _audioManager.Music.StopIngameMusic();
         ResetDynamicMusicPlayback();
     }
 
-    private void StopLastToDieIngameMusic()
+    public void StopLastToDieIngameMusic()
     {
-        _gameplayAudioMusicController.StopLastToDieIngameMusic();
+        _audioManager.Music.StopLastToDieIngameMusic();
     }
 
     private void PlayDeathCamSoundIfNeeded()
     {
-        _gameplayAudioEventController.PlayDeathCamSoundIfNeeded();
+        _audioManager.Events.PlayDeathCamSoundIfNeeded();
     }
 
     private void PlayDemoknightChargeReadySoundIfNeeded()
     {
-        _gameplayAudioEventController.PlayDemoknightChargeReadySoundIfNeeded();
+        _audioManager.Events.PlayDemoknightChargeReadySoundIfNeeded();
     }
 
     private void PlayBuffBannerReadySoundIfNeeded()
     {
-        _gameplayAudioEventController.PlayBuffBannerReadySoundIfNeeded();
+        _audioManager.Events.PlayBuffBannerReadySoundIfNeeded();
     }
 
-    private void ResetBuffBannerReadySoundObservation()
+    public void ResetBuffBannerReadySoundObservation()
     {
-        _gameplayAudioEventController.ResetBuffBannerReadySoundObservation();
+        _audioManager.Events.ResetBuffBannerReadySoundObservation();
     }
 
     private void PlayRoundEndSoundIfNeeded()
     {
-        _gameplayAudioEventController.PlayRoundEndSoundIfNeeded();
+        _audioManager.Events.PlayRoundEndSoundIfNeeded();
     }
 
     private void PlayKillFeedAnnouncementSounds()
     {
-        _gameplayAudioEventController.PlayKillFeedAnnouncementSounds();
+        _audioManager.Events.PlayKillFeedAnnouncementSounds();
     }
 
     private void PlayLastToDieGameOverSound()
     {
-        _gameplayAudioMusicController.PlayLastToDieGameOverSound();
+        _audioManager.Music.PlayLastToDieGameOverSound();
     }
 
-    private void StopLastToDieGameOverSound()
+    public void StopLastToDieGameOverSound()
     {
-        _gameplayAudioMusicController.StopLastToDieGameOverSound();
+        _audioManager.Music.StopLastToDieGameOverSound();
     }
 
     private void PlayPendingSoundEvents()
     {
-        _gameplayAudioEventController.PlayPendingSoundEvents();
+        _audioManager.Events.PlayPendingSoundEvents();
     }
 
     private void PlayPredictedGibSound(float worldX, float worldY)
@@ -476,12 +476,12 @@ public partial class Game1
         };
     }
 
-    private void BeginExplosionSoundDeduplicationFrame()
+    public void BeginExplosionSoundDeduplicationFrame()
     {
         _playedExplosionSoundsThisFrame.Clear();
     }
 
-    private bool HasPlayedExplosionSoundThisFrame(float x, float y)
+    public bool HasPlayedExplosionSoundThisFrame(float x, float y)
     {
         const float epsilon = 0.01f;
         for (var index = 0; index < _playedExplosionSoundsThisFrame.Count; index += 1)
@@ -497,12 +497,12 @@ public partial class Game1
         return false;
     }
 
-    private void RecordPlayedExplosionSoundThisFrame(float x, float y)
+    public void RecordPlayedExplosionSoundThisFrame(float x, float y)
     {
         _playedExplosionSoundsThisFrame.Add(new PlayedExplosionSoundThisFrame(x, y));
     }
 
-    private void EnqueuePendingBrowserSoundEvent(string soundName, float x, float y)
+    public void EnqueuePendingBrowserSoundEvent(string soundName, float x, float y)
     {
         if (!OperatingSystem.IsBrowser() || string.IsNullOrWhiteSpace(soundName))
         {
@@ -527,7 +527,7 @@ public partial class Game1
         return string.Equals(soundEvent.SoundName, "Gibbing", StringComparison.OrdinalIgnoreCase);
     }
 
-    private void AdvanceRecentGibSoundEvents()
+    public void AdvanceRecentGibSoundEvents()
     {
         for (var index = _recentGibSoundEvents.Count - 1; index >= 0; index -= 1)
         {
@@ -539,7 +539,7 @@ public partial class Game1
         }
     }
 
-    private bool ShouldSuppressPredictedGibSoundEcho(WorldSoundEvent soundEvent)
+    public bool ShouldSuppressPredictedGibSoundEcho(WorldSoundEvent soundEvent)
     {
         if (!IsGibSoundEvent(soundEvent))
         {
@@ -566,7 +566,7 @@ public partial class Game1
         return false;
     }
 
-    private void RememberPlayedGibSound(WorldSoundEvent soundEvent)
+    public void RememberPlayedGibSound(WorldSoundEvent soundEvent)
     {
         if (!IsGibSoundEvent(soundEvent))
         {
@@ -675,7 +675,7 @@ public partial class Game1
             && recentSourcePlayerId == currentSourcePlayerId;
     }
 
-    private void AdvanceRecentProjectileSoundEvents()
+    public void AdvanceRecentProjectileSoundEvents()
     {
         for (var index = _recentProjectileSoundEvents.Count - 1; index >= 0; index -= 1)
         {
@@ -687,7 +687,7 @@ public partial class Game1
         }
     }
 
-    private void AdvanceLowPriorityWorldSoundThrottle()
+    public void AdvanceLowPriorityWorldSoundThrottle()
     {
         _lowPriorityWorldSoundsPlayedThisFrame = 0;
         for (var index = _recentLowPriorityWorldSoundEvents.Count - 1; index >= 0; index -= 1)
@@ -700,7 +700,7 @@ public partial class Game1
         }
     }
 
-    private void AdvanceLocalWeaponSoundFocus()
+    public void AdvanceLocalWeaponSoundFocus()
     {
         if (_localWeaponSoundFocusRemainingSeconds <= 0f)
         {
@@ -720,7 +720,7 @@ public partial class Game1
             LocalWeaponSoundFocusDurationSeconds);
     }
 
-    private void TriggerLocalConfirmedWeaponFireFeedback(string soundName, WorldSoundEvent soundEvent)
+    public void TriggerLocalConfirmedWeaponFireFeedback(string soundName, WorldSoundEvent soundEvent)
     {
         if (!IsLocalPlayerSoundSource(soundEvent.SourcePlayerId) || !IsWeaponFireSoundName(soundName))
         {
@@ -742,7 +742,7 @@ public partial class Game1
             : 0f;
     }
 
-    private bool ShouldThrottleLowPriorityWorldSound(string resolvedSoundName, WorldSoundEvent soundEvent)
+    public bool ShouldThrottleLowPriorityWorldSound(string resolvedSoundName, WorldSoundEvent soundEvent)
     {
         if (!IsLowPriorityWorldSoundName(resolvedSoundName) || IsLocalPlayerSoundSource(soundEvent.SourcePlayerId))
         {
@@ -774,7 +774,7 @@ public partial class Game1
         return false;
     }
 
-    private void RememberPlayedLowPriorityWorldSound(string resolvedSoundName, WorldSoundEvent soundEvent)
+    public void RememberPlayedLowPriorityWorldSound(string resolvedSoundName, WorldSoundEvent soundEvent)
     {
         if (!IsLowPriorityWorldSoundName(resolvedSoundName) || IsLocalPlayerSoundSource(soundEvent.SourcePlayerId))
         {
@@ -794,7 +794,7 @@ public partial class Game1
             LowPriorityWorldSoundThrottleLifetimeTicks));
     }
 
-    private bool ShouldSuppressPredictedProjectileSoundEcho(string resolvedSoundName, WorldSoundEvent soundEvent)
+    public bool ShouldSuppressPredictedProjectileSoundEcho(string resolvedSoundName, WorldSoundEvent soundEvent)
     {
         if (!IsProjectileSoundEchoCandidate(resolvedSoundName))
         {
@@ -835,7 +835,7 @@ public partial class Game1
         return false;
     }
 
-    private void RememberPlayedProjectileSound(string resolvedSoundName, WorldSoundEvent soundEvent)
+    public void RememberPlayedProjectileSound(string resolvedSoundName, WorldSoundEvent soundEvent)
     {
         if (!IsProjectileSoundEchoCandidate(resolvedSoundName))
         {
@@ -867,7 +867,7 @@ public partial class Game1
         _lowPriorityWorldSoundsPlayedThisFrame = 0;
     }
 
-    private bool TryPlaySound(SoundEffect? sound, float volume, float pitch, float pan)
+    public bool TryPlaySound(SoundEffect? sound, float volume, float pitch, float pan)
     {
         if (!_audioAvailable || sound is null)
         {
@@ -896,7 +896,7 @@ public partial class Game1
         TryPlaySound(_runtimeAssets.GetSound("MessageSnd"), 0.88f, 0f, 0f);
     }
 
-    private void DisableAudio(string reason, Exception ex)
+    public void DisableAudio(string reason, Exception ex)
     {
         if (!_audioAvailable)
         {
@@ -904,7 +904,7 @@ public partial class Game1
         }
 
         _audioAvailable = false;
-        _gameplayRapidFireAudioController.StopAndDisposeRapidFireWeaponAudio();
+        _audioManager.RapidFire.StopAndDisposeRapidFireWeaponAudio();
         StopMenuMusic();
         StopLastToDieMenuMusic();
         StopFaucetMusic();
@@ -949,35 +949,35 @@ public partial class Game1
         return GameplayAudioMusicController.FindLoopedMusicPath(relativePath);
     }
 
-    private bool AllowsMenuMusic()
+    public bool AllowsMenuMusic()
     {
         return _musicMode is MusicMode.MenuOnly or MusicMode.MenuAndInGame;
     }
 
-    private bool AllowsIngameMusic()
+    public bool AllowsIngameMusic()
     {
         return _musicMode is MusicMode.InGameOnly or MusicMode.MenuAndInGame;
     }
 
     private void UpdateLocalRapidFireWeaponAudio()
     {
-        _gameplayRapidFireAudioController.UpdateLocalRapidFireWeaponAudio();
+        _audioManager.RapidFire.UpdateLocalRapidFireWeaponAudio();
     }
 
-    private void ToggleAudioMute()
+    public void ToggleAudioMute()
     {
         _audioMuted = !_audioMuted;
         ApplyAudioVolumeState();
         AddConsoleLine(_audioMuted ? "audio muted (F12)" : "audio unmuted (F12)");
     }
 
-    private void ApplyAudioVolumeState()
+    public void ApplyAudioVolumeState()
     {
         ApplyAudioMuteState();
         UpdateCurrentMusicInstanceVolumes();
     }
 
-    private void ApplyAudioMuteState()
+    public void ApplyAudioMuteState()
     {
         try
         {
@@ -1024,22 +1024,22 @@ public partial class Game1
         }
     }
 
-    private float GetSoundEffectsVolumeScale()
+    public float GetSoundEffectsVolumeScale()
     {
         return _audioMuted ? 0f : GetNonLinearVolumeScale(_soundEffectsVolumePercent);
     }
 
     private bool IsLocalRapidFireWeaponSoundActive(PrimaryWeaponKind weaponKind)
     {
-        return _gameplayRapidFireAudioController.IsLocalRapidFireWeaponSoundActive(weaponKind);
+        return _audioManager.RapidFire.IsLocalRapidFireWeaponSoundActive(weaponKind);
     }
 
-    private bool ShouldSuppressManagedRapidFireSound(WorldSoundEvent soundEvent)
+    public bool ShouldSuppressManagedRapidFireSound(WorldSoundEvent soundEvent)
     {
-        return _gameplayRapidFireAudioController.ShouldSuppressManagedRapidFireSound(soundEvent);
+        return _audioManager.RapidFire.ShouldSuppressManagedRapidFireSound(soundEvent);
     }
 
-    private Vector2 GetWorldSoundListenerPosition()
+    public Vector2 GetWorldSoundListenerPosition()
     {
         if (_hasGameplayCameraTopLeft)
         {
@@ -1049,9 +1049,9 @@ public partial class Game1
         return new Vector2(_world.LocalPlayer.X, _world.LocalPlayer.Y);
     }
 
-    private (float Volume, float Pan) GetWorldSoundMix(float worldX, float worldY)
+    public (float Volume, float Pan) GetWorldSoundMix(float worldX, float worldY)
     {
-        return _gameplayRapidFireAudioController.GetWorldSoundMix(worldX, worldY);
+        return _audioManager.RapidFire.GetWorldSoundMix(worldX, worldY);
     }
 
     internal static (float Volume, float Pan) GetBannerSoundMix(float worldX, float worldY, Vector2 listenerPosition)
@@ -1063,7 +1063,7 @@ public partial class Game1
         return (mix.Volume * 0.5f, mix.Pan);
     }
 
-    private (float Volume, float Pan) GetWorldSoundMix(WorldSoundEvent soundEvent)
+    public (float Volume, float Pan) GetWorldSoundMix(WorldSoundEvent soundEvent)
     {
         if (string.Equals(soundEvent.SoundName, "FlareImpactSnd", StringComparison.OrdinalIgnoreCase))
         {
@@ -1107,7 +1107,7 @@ public partial class Game1
         return (volume * remoteMultiplier, pan);
     }
 
-    private (float Volume, float Pan) GetLoopedWorldSoundMix(string soundName, float worldX, float worldY, bool isLocalSource)
+    public (float Volume, float Pan) GetLoopedWorldSoundMix(string soundName, float worldX, float worldY, bool isLocalSource)
     {
         var (volume, pan) = GetWorldSoundMix(worldX, worldY);
         if (!IsWeaponFireSoundName(soundName))
@@ -1125,7 +1125,7 @@ public partial class Game1
         return (volume * RemoteWeaponSoundVolumeMultiplier, pan);
     }
 
-    private bool IsLocalPlayerSoundSource(int sourcePlayerId)
+    public bool IsLocalPlayerSoundSource(int sourcePlayerId)
     {
         return sourcePlayerId >= 0 && sourcePlayerId == GetResolvedLocalPlayerId();
     }
@@ -1135,7 +1135,7 @@ public partial class Game1
         return string.Equals(soundName, "CbntHealSnd", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static bool IsWeaponFireSoundName(string soundName)
+    public static bool IsWeaponFireSoundName(string soundName)
     {
         return string.Equals(soundName, "PistolSnd", StringComparison.OrdinalIgnoreCase)
             || string.Equals(soundName, "ShotgunSnd", StringComparison.OrdinalIgnoreCase)
@@ -1157,8 +1157,8 @@ public partial class Game1
             || string.Equals(soundName, "KnifeSnd", StringComparison.OrdinalIgnoreCase);
     }
 
-    private void StopLocalRapidFireWeaponAudio()
+    public void StopLocalRapidFireWeaponAudio()
     {
-        _gameplayRapidFireAudioController.StopRapidFireWeaponAudio();
+        _audioManager.RapidFire.StopRapidFireWeaponAudio();
     }
 }

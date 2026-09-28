@@ -10,8 +10,8 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private const int LastToDieComboBounceTicks = 16;
-    private const int LastToDieComboMilestonePopupTicks = 120;
+    public const int LastToDieComboBounceTicks = 16;
+    public const int LastToDieComboMilestonePopupTicks = 120;
     private const int LastToDieRageAnnouncementTicks = 28;
     private const int LastToDieRageShakeTicks = 18;
     private const float LastToDieComboScaleBonusDecayPerTick = 0.035f;
@@ -66,7 +66,7 @@ public partial class Game1
     private int _lastToDieRageShakeTicksRemaining;
     private Vector2 _lastToDieRageCurrentShakeOffset;
 
-    private void ResetLastToDieCombatFeedbackPresentation()
+    public void ResetLastToDieCombatFeedbackPresentation()
     {
         _lastToDieObservedCombo = 0;
         _lastToDieObservedRageActive = false;
@@ -81,7 +81,7 @@ public partial class Game1
         _lastToDieRageCurrentShakeOffset = Vector2.Zero;
     }
 
-    private void ObserveLastToDieCombatFeedbackState()
+    public void ObserveLastToDieCombatFeedbackState()
     {
         if (!IsCombatPerformanceFeedbackSessionActive || _world.LocalPlayerAwaitingJoin)
         {

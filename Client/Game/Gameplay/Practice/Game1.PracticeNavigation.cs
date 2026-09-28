@@ -9,23 +9,23 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private const string PracticeNavigationWarmupMessage = "Loading...";
+    public const string PracticeNavigationWarmupMessage = "Loading...";
 
-    private bool _practiceNavigationWarmupPending;
-    private bool _practiceNavigationWarmupPresentationPending;
-    private Task<PracticeNavigationWarmupResult>? _practiceNavigationWarmupTask;
-    private SimpleLevel? _practiceNavigationWarmupLevel;
+    public bool _practiceNavigationWarmupPending;
+    public bool _practiceNavigationWarmupPresentationPending;
+    public Task<PracticeNavigationWarmupResult>? _practiceNavigationWarmupTask;
+    public SimpleLevel? _practiceNavigationWarmupLevel;
     private PlayerClass[] _practiceNavigationWarmupClasses = [];
 
-    private sealed record PracticeNavigationWarmupResult(
+    public sealed record PracticeNavigationWarmupResult(
         bool Success,
         string Diagnostics);
 
-    private static void ResetPracticeNavigationState()
+    public static void ResetPracticeNavigationState()
     {
     }
 
-    private void QueuePracticeNavigationWarmupForCurrentLevel()
+    public void QueuePracticeNavigationWarmupForCurrentLevel()
     {
         if (_world.Level is null)
         {
@@ -40,13 +40,13 @@ public partial class Game1
         ShowLoadingOverlay(PracticeNavigationWarmupMessage);
     }
 
-    private bool IsPracticeNavigationWarmupBlockingGameplay()
+    public bool IsPracticeNavigationWarmupBlockingGameplay()
     {
         return _practiceNavigationWarmupPending
             || _practiceNavigationWarmupTask is not null;
     }
 
-    private bool UpdatePracticeNavigationWarmup()
+    public bool UpdatePracticeNavigationWarmup()
     {
         if (!_practiceNavigationWarmupPending && _practiceNavigationWarmupTask is null)
         {
@@ -114,7 +114,7 @@ public partial class Game1
         return false;
     }
 
-    private void CancelPracticeNavigationWarmup()
+    public void CancelPracticeNavigationWarmup()
     {
         var task = _practiceNavigationWarmupTask;
         _practiceNavigationWarmupTask = null;

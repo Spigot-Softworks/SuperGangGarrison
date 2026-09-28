@@ -8,10 +8,10 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private const int BrandLogoSourceWidth = 526;
-    private const int BrandLogoSourceHeight = 166;
-    private const float BrandLogoLegacyMenuWidth = 507f;
-    private const float BrandLogoMenuPadding = 20f;
+    public const int BrandLogoSourceWidth = 526;
+    public const int BrandLogoSourceHeight = 166;
+    public const float BrandLogoLegacyMenuWidth = 507f;
+    public const float BrandLogoMenuPadding = 20f;
 
     private LoadedSpriteFrame? _brandLogoStaticFrame;
     private LoadedSpriteFrame? _brandLogoFlameRegionsFrame;
@@ -20,7 +20,7 @@ public partial class Game1
     private bool _brandLogoEffectLoadAttempted;
     private string _brandLogoAssetError = string.Empty;
     private float _brandLogoFlameTimeSeconds;
-    private bool _brandIntroActive;
+    public bool _brandIntroActive;
     private float _brandIntroElapsedSeconds;
     private float _brandIntroExitElapsedSeconds = -1f;
     private bool _brandIntroBurstSoundPlayed;
@@ -82,7 +82,7 @@ public partial class Game1
             height);
     }
 
-    private void AdvanceBrandLogoFlame(float elapsedSeconds)
+    public void AdvanceBrandLogoFlame(float elapsedSeconds)
     {
         if (float.IsFinite(elapsedSeconds) && elapsedSeconds > 0f)
         {
@@ -90,7 +90,7 @@ public partial class Game1
         }
     }
 
-    private bool DrawFlamingBrandLogo(Rectangle destination, float flameBlend = 1f, float opacity = 1f, float flashAmount = 0f)
+    public bool DrawFlamingBrandLogo(Rectangle destination, float flameBlend = 1f, float opacity = 1f, float flashAmount = 0f)
     {
         EnsureBrandLogoAssets();
         if (_brandLogoStaticFrame is null || destination.Width <= 0 || destination.Height <= 0 || opacity <= 0f)
@@ -241,7 +241,7 @@ public partial class Game1
         AddConsoleLine($"brand logo fallback: {message}");
     }
 
-    private void DisposeBrandLogoAssets()
+    public void DisposeBrandLogoAssets()
     {
         _brandLogoStaticFrame?.Dispose();
         _brandLogoFlameRegionsFrame?.Dispose();

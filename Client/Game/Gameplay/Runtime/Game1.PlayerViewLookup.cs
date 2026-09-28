@@ -7,7 +7,7 @@ namespace OpenGarrison.Client;
 public partial class Game1
 {
 
-    private PlayerEntity? FindPlayerById(int playerId)
+    public PlayerEntity? FindPlayerById(int playerId)
     {
         if (GetResolvedLocalPlayerId() == playerId)
         {
@@ -25,7 +25,7 @@ public partial class Game1
         return null;
     }
 
-    private int GetResolvedLocalPlayerId()
+    public int GetResolvedLocalPlayerId()
     {
         if (_networkClient is { Protocol64ModeEnabled: true, IsSpectator: false }
             && _networkClient.TryGetProtocol64PlayerState(_networkClient.LocalPlayerSlot, out var state)

@@ -4,9 +4,9 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private bool IsServerLauncherMode => _startupMode == GameStartupMode.ServerLauncher;
+    public bool IsServerLauncherMode => _startupMode == GameStartupMode.ServerLauncher;
 
-    private bool IsHostedServerRunning
+    public bool IsHostedServerRunning
     {
         get
         {
@@ -14,39 +14,39 @@ public partial class Game1
         }
     }
 
-    private void InitializeServerLauncherMode()
+    public void InitializeServerLauncherMode()
     {
-        _hostSetupFlowController.InitializeServerLauncherMode();
+        _hostingManager.HostSetup.InitializeServerLauncherMode();
     }
 
     private void UpdateServerLauncherState()
     {
-        _hostSetupFlowController.UpdateServerLauncherState();
+        _hostingManager.HostSetup.UpdateServerLauncherState();
     }
 
     private string GetHostSetupTitle()
     {
-        return _hostSetupFlowController.GetHostSetupTitle();
+        return _hostingManager.HostSetup.GetHostSetupTitle();
     }
 
     private string GetHostSetupSubtitle()
     {
-        return _hostSetupFlowController.GetHostSetupSubtitle();
+        return _hostingManager.HostSetup.GetHostSetupSubtitle();
     }
 
     private string GetHostSetupPrimaryButtonLabel()
     {
-        return _hostSetupFlowController.GetHostSetupPrimaryButtonLabel();
+        return _hostingManager.HostSetup.GetHostSetupPrimaryButtonLabel();
     }
 
     private string GetHostSetupSecondaryButtonLabel()
     {
-        return _hostSetupFlowController.GetHostSetupSecondaryButtonLabel();
+        return _hostingManager.HostSetup.GetHostSetupSecondaryButtonLabel();
     }
 
-    private bool TryHandleServerLauncherBackAction()
+    public bool TryHandleServerLauncherBackAction()
     {
-        return _hostSetupFlowController.TryHandleServerLauncherBackAction();
+        return _hostingManager.HostSetup.TryHandleServerLauncherBackAction();
     }
 
     private void BeginDedicatedServerLaunch(
@@ -64,7 +64,7 @@ public partial class Game1
         string? requestedMap,
         string? mapRotationFile)
     {
-        _hostSetupFlowController.BeginDedicatedServerLaunch(
+        _hostingManager.HostSetup.BeginDedicatedServerLaunch(
             serverName,
             port,
             maxPlayers,
@@ -95,7 +95,7 @@ public partial class Game1
         string? requestedMap,
         string? mapRotationFile)
     {
-        _hostSetupFlowController.BeginDedicatedServerTerminalLaunch(
+        _hostingManager.HostSetup.BeginDedicatedServerTerminalLaunch(
             serverName,
             port,
             maxPlayers,

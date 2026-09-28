@@ -2,7 +2,7 @@
 
 namespace OpenGarrison.Client;
 
-internal enum HudAnchor
+public enum HudAnchor
 {
     TopLeft,
     TopCenter,

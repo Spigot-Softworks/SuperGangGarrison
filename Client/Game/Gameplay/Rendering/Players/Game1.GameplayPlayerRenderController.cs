@@ -8,7 +8,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private sealed class GameplayPlayerRenderController
+    public sealed class GameplayPlayerRenderController
     {
         private readonly Game1 _game;
 

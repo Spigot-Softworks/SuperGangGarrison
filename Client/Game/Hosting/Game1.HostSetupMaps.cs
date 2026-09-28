@@ -12,7 +12,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private HostSetupMapPreviewState? _hostMapPreviewState;
+    public HostSetupMapPreviewState? _hostMapPreviewState;
     private HostSetupMapPreviewState? _hostSetupInlineMapPreview;
     private string? _hostSetupInlineMapPreviewLevelName;
 
@@ -695,7 +695,7 @@ public partial class Game1
         return true;
     }
 
-    private void UpdateHostSetupMapsMenu(MouseState mouse, bool clickPressed, bool rightClickPressed, HostSetupMapsMenuLayout layout)
+    public void UpdateHostSetupMapsMenu(MouseState mouse, bool clickPressed, bool rightClickPressed, HostSetupMapsMenuLayout layout)
     {
         _hostSetupContentScrollOffset = 0;
         if (_hostMapPreviewState is not null)

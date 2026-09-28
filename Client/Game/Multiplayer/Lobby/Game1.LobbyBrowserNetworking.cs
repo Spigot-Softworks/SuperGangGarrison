@@ -13,7 +13,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private void EnsureLobbyBrowserClient()
+    public void EnsureLobbyBrowserClient()
     {
         if (_lobbyBrowserClient is not null)
         {
@@ -24,7 +24,7 @@ public partial class Game1
         _lobbyBrowserClient.Client.Blocking = false;
     }
 
-    private void QueryLobbyBrowserEntry(LobbyBrowserEntry entry)
+    public void QueryLobbyBrowserEntry(LobbyBrowserEntry entry)
     {
         if (!entry.Endpoint.HasUdpEndpoint)
         {
@@ -65,7 +65,7 @@ public partial class Game1
         }
     }
 
-    private void UpdateLobbyBrowserResponses()
+    public void UpdateLobbyBrowserResponses()
     {
         UpdateLegacyGg2LobbyRequest();
         if (_lobbyBrowserSource == LobbyBrowserSource.Gg2 && _lobbyBrowserMode == LobbyBrowserMode.Join)
@@ -163,7 +163,7 @@ public partial class Game1
         }
     }
 
-    private void OpenLobbyBrowserDetails(LobbyBrowserEntry entry)
+    public void OpenLobbyBrowserDetails(LobbyBrowserEntry entry)
     {
         _lobbyBrowserDetailsEntry = entry;
         _lobbyBrowserDetailsResponse = null;
@@ -291,7 +291,7 @@ public partial class Game1
         }
     }
 
-    private void ClearLobbyBrowserDetails()
+    public void ClearLobbyBrowserDetails()
     {
         _lobbyBrowserDetailsTransport?.Dispose();
         _lobbyBrowserDetailsTransport = null;

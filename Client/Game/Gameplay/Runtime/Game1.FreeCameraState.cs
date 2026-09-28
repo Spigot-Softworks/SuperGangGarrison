@@ -9,7 +9,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private bool IsRespawnFreeCameraActive()
+    public bool IsRespawnFreeCameraActive()
     {
         return ShouldBlockGameplayForNavEditor()
             || IsLocalSpectatorPresentationActive()
@@ -18,7 +18,7 @@ public partial class Game1
                 && _world.LocalDeathCam is null);
     }
 
-    private void UpdateRespawnCameraState(float deltaSeconds, KeyboardState keyboard, MouseState mouse)
+    public void UpdateRespawnCameraState(float deltaSeconds, KeyboardState keyboard, MouseState mouse)
     {
         if (!IsRespawnFreeCameraActive())
         {

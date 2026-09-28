@@ -9,9 +9,9 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private int _clientPowersControllerIndex;
+    public int _clientPowersControllerIndex;
 
-    private enum ClientPowerToggleKind
+    public enum ClientPowerToggleKind
     {
         StickyGibBlood,
         HealOnDamage,
@@ -33,7 +33,7 @@ public partial class Game1
         FriendlyAirburstKnockback,
     }
 
-    private readonly record struct ClientPowerToggleEntry(
+    public readonly record struct ClientPowerToggleEntry(
         ClientPowerToggleKind Kind,
         string Label,
         string Description);
@@ -84,7 +84,7 @@ public partial class Game1
         }
     }
 
-    private void UpdateClientPowersMenu(KeyboardState keyboard, MouseState mouse)
+    public void UpdateClientPowersMenu(KeyboardState keyboard, MouseState mouse)
     {
         var layout = GetClientPowersLayout();
         ClampClientPowersScrollOffset(layout.VisibleRowCount);
@@ -241,7 +241,7 @@ public partial class Game1
         ClampClientPowersScrollOffset(visibleRowCount);
     }
 
-    private void DrawClientPowersMenu()
+    public void DrawClientPowersMenu()
     {
         var viewportWidth = ViewportWidth;
         var viewportHeight = ViewportHeight;
@@ -254,7 +254,7 @@ public partial class Game1
             var barY = viewportHeight - bottomBarHeight;
             var bottomBarBounds = new Rectangle(0, barY, viewportWidth, bottomBarHeight);
             _spriteBatch.Draw(_pixel, bottomBarBounds, new Color(0x57, 0x4f, 0x47));
-            _menuBottomBarRunners.Draw(bottomBarBounds);
+            _menuManager.MenuBottomBarRunners.Draw(bottomBarBounds);
         }
 
         var layout = GetClientPowersLayout();
@@ -549,7 +549,7 @@ public partial class Game1
         ApplyPracticeExperimentalGameplaySettings();
     }
 
-    private ExperimentalGameplaySettings GetPracticeExperimentalGameplaySettings()
+    public ExperimentalGameplaySettings GetPracticeExperimentalGameplaySettings()
     {
         var specialAbilities = _practiceSpecialAbilitiesEnabled;
         return _practiceExperimentalGameplaySettings with

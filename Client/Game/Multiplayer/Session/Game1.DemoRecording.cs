@@ -33,7 +33,7 @@ public partial class Game1
         return _networkClient.TryStartDemoRecording(resolvedPath, remoteDescription, initialWelcomePayload, out status, out error);
     }
 
-    private void ToggleAlwaysRecordGames()
+    public void ToggleAlwaysRecordGames()
     {
         if (OperatingSystem.IsBrowser())
         {
@@ -91,7 +91,7 @@ public partial class Game1
         PersistClientSettings();
     }
 
-    private void EnsureAutomaticDemoRecordingForConnection(string serverLabel)
+    public void EnsureAutomaticDemoRecordingForConnection(string serverLabel)
     {
         if (!_clientSettings.AlwaysRecordGames
             || OperatingSystem.IsBrowser()

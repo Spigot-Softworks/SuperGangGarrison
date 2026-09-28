@@ -9,12 +9,12 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private EmbeddedSessionHost? _embeddedSessionHost;
-    private bool IsEmbeddedSessionOwner => _embeddedSessionHost is not null;
+    public EmbeddedSessionHost? _embeddedSessionHost;
+    public bool IsEmbeddedSessionOwner => _embeddedSessionHost is not null;
 
-    private void TryStartEmbeddedSolo(OpenGarrison.Core.LastToDie.LastToDieDifficulty difficulty)
+    public void TryStartEmbeddedSolo(OpenGarrison.Core.LastToDie.LastToDieDifficulty difficulty)
     {
-        if (!_bootstrapController.CanEnterGameplaySession(out var reason))
+        if (!_gameplayManager.Bootstrap.CanEnterGameplaySession(out var reason))
         { _menuStatusMessage = reason ?? "Game assets are still loading."; return; }
         try
         {
@@ -53,7 +53,7 @@ public partial class Game1
         }
     }
 
-    private void PumpEmbeddedSession(double elapsedSeconds)
+    public void PumpEmbeddedSession(double elapsedSeconds)
     {
         if (_peerRoomSession is not null) return;
         if (_embeddedSessionHost is null) return;
@@ -67,7 +67,7 @@ public partial class Game1
         }
     }
 
-    private void StopEmbeddedSession()
+    public void StopEmbeddedSession()
     {
         var host = _embeddedSessionHost;
         _embeddedSessionHost = null;

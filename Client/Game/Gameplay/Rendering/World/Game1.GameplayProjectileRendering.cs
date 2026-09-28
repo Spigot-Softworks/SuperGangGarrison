@@ -10,10 +10,10 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private const float MedicBeamPresentationMaxDistance = 300f;
-    private const float DispenserBeamPresentationMaxDistance = 75f;
+    public const float MedicBeamPresentationMaxDistance = 300f;
+    public const float DispenserBeamPresentationMaxDistance = 75f;
 
-    private Color ResolveProjectileTint(PlayerTeam team, Color blueColor, Color redColor, Color neutralColor)
+    public Color ResolveProjectileTint(PlayerTeam team, Color blueColor, Color redColor, Color neutralColor)
     {
         if (!_projectileTeamTintEnabled)
         {
@@ -916,7 +916,7 @@ public partial class Game1
     {
         WriteGameplayRenderTrace("effects before explosions");
         DrawExplosionVisuals(cameraPosition);
-        _gameplayGoreEffectsController.DrawGibBloodExplosions(cameraPosition);
+        _gameplayManager.GoreEffects.DrawGibBloodExplosions(cameraPosition);
         WriteGameplayRenderTrace("effects before impacts");
         DrawImpactVisuals(cameraPosition);
         WriteGameplayRenderTrace("effects before stuck-arrows");
@@ -929,7 +929,7 @@ public partial class Game1
             DrawBloodVisuals(cameraPosition);
             if (_bloodRenderMode == 0)
             {
-                _gameplayGoreEffectsController.DrawBloodSquibFlight(cameraPosition);
+                _gameplayManager.GoreEffects.DrawBloodSquibFlight(cameraPosition);
             }
         }
 
@@ -1481,7 +1481,7 @@ public partial class Game1
         }
     }
 
-    private void DrawProceduralFlameParticles(
+    public void DrawProceduralFlameParticles(
         System.Collections.Generic.Dictionary<(int, int), float> cells,
         Vector2 cameraPosition,
         bool topOutlineOnly = false,
@@ -1508,7 +1508,7 @@ public partial class Game1
             trajectoryStretch: 1.5f);
     }
 
-    private void AccumulateProceduralFlameParticle(
+    public void AccumulateProceduralFlameParticle(
         System.Collections.Generic.Dictionary<(int, int), float> cells,
         int seed,
         float centerX,
@@ -1874,7 +1874,7 @@ public partial class Game1
         return Math.Clamp(Math.Abs(flameAgeTicks) % frameCount, 0, frameCount - 1);
     }
 
-    private Vector2 GetFlameScaledCenterOfMassWorldPosition(FlameProjectileEntity flame)
+    public Vector2 GetFlameScaledCenterOfMassWorldPosition(FlameProjectileEntity flame)
     {
         // Geometric centre-of-mass of the compound particle (base + 2 large horn + 2 small tip circles).
         // Weighted by circle area (∝ r²): base r=6, horn large r=4 ×2, horn small r=2.5 ×2.

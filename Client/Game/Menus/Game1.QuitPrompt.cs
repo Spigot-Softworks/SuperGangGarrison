@@ -7,19 +7,19 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private void OpenQuitPrompt()
+    public void OpenQuitPrompt()
     {
         _quitPromptOpen = true;
         _quitPromptHoverIndex = IsControllerMenuInputActive() ? 1 : -1;
     }
 
-    private void CloseQuitPrompt()
+    public void CloseQuitPrompt()
     {
         _quitPromptOpen = false;
         _quitPromptHoverIndex = -1;
     }
 
-    private bool UpdateQuitPrompt(KeyboardState keyboard, MouseState mouse)
+    public bool UpdateQuitPrompt(KeyboardState keyboard, MouseState mouse)
     {
         if (!_quitPromptOpen)
         {
@@ -91,7 +91,7 @@ public partial class Game1
         return true;
     }
 
-    private void DrawQuitPrompt()
+    public void DrawQuitPrompt()
     {
         if (!_quitPromptOpen)
         {

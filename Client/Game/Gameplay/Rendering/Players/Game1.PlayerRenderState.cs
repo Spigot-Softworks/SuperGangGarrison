@@ -10,8 +10,8 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private const string CoreReplicatedOwnerId = "core.player";
-    private const string SoldierShotgunAmmoKey = "soldier_shotgun_ammo";
+    public const string CoreReplicatedOwnerId = "core.player";
+    public const string SoldierShotgunAmmoKey = "soldier_shotgun_ammo";
     private const string SoldierShotgunMaxAmmoKey = "soldier_shotgun_max_ammo";
     private const string DemomanGrenadeLauncherAmmoKey = "demoman_gl_ammo";
     private const string DemomanGrenadeLauncherMaxAmmoKey = "demoman_gl_max_ammo";
@@ -22,7 +22,7 @@ public partial class Game1
     private const string MedicKritzAmmoKey = "medic_kritz_ammo";
     private const string MedicKritzMaxAmmoKey = "medic_kritz_max_ammo";
 
-    private enum WeaponAnimationMode
+    public enum WeaponAnimationMode
     {
         Idle,
         Recoil,
@@ -33,7 +33,7 @@ public partial class Game1
         CivvieUmbrellaClosing,
     }
 
-    private sealed class PlayerRenderState
+    public sealed class PlayerRenderState
     {
         public PlayerSkinAnimator SkinAnimation { get; } = new();
 
@@ -1434,7 +1434,7 @@ public partial class Game1
                 || player.IsExperimentalEngineerFreezeRayPresented);
     }
 
-    private static bool IsMedigunPresentationUser(PlayerEntity player)
+    public static bool IsMedigunPresentationUser(PlayerEntity player)
     {
         return ShouldPresentExperimentalEngineerEssenceExtractor(player)
             || (player.ClassId == PlayerClass.Medic && player.PrimaryWeapon.Kind == PrimaryWeaponKind.Medigun)
@@ -1642,7 +1642,7 @@ public partial class Game1
         QueueWeaponShellVisual(player, delaySeconds, count, player.ClassId, spriteName);
     }
 
-    private static void StartWeaponAnimation(PlayerRenderState renderState, WeaponAnimationMode mode, float durationSeconds, bool preserveElapsed = false)
+    public static void StartWeaponAnimation(PlayerRenderState renderState, WeaponAnimationMode mode, float durationSeconds, bool preserveElapsed = false)
     {
         var resetElapsed = !preserveElapsed || renderState.WeaponAnimationMode != mode;
         renderState.WeaponAnimationMode = mode;

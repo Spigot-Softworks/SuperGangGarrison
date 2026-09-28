@@ -130,7 +130,7 @@ internal static class ImmediateNetworkDeathPresentationPlanner
 
 public partial class Game1
 {
-    private sealed class GameplayDeadBodyRenderController
+    public sealed class GameplayDeadBodyRenderController
     {
         private const int ImmediateNetworkDeadBodyLifetimeTicks = 90;
         private readonly Game1 _game;
@@ -311,7 +311,7 @@ public partial class Game1
                 return;
             }
 
-            _game._gameplayGoreEffectsController.SpawnImmediateFatalDamageVisuals(damageEvent.X, damageEvent.Y, damageEvent.Amount);
+            _game._gameplayManager.GoreEffects.SpawnImmediateFatalDamageVisuals(damageEvent.X, damageEvent.Y, damageEvent.Amount);
 
             var targetPlayer = _game.FindPlayerById(damageEvent.TargetEntityId);
             if (targetPlayer is not null

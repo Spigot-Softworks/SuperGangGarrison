@@ -11,7 +11,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private readonly record struct HostSetupLaunchRequest(
+    public readonly record struct HostSetupLaunchRequest(
         string ServerName,
         int Port,
         int MaxPlayers,
@@ -26,7 +26,7 @@ public partial class Game1
         string? RequestedMap,
         string? MapRotationFile);
 
-    private sealed partial class HostSetupFormState
+    public sealed partial class HostSetupFormState
     {
         public int HoverIndex { get; set; } = -1;
         public int MapIndex { get; set; }

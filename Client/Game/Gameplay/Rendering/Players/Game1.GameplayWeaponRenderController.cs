@@ -10,9 +10,9 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private sealed class GameplayWeaponRenderController
+    public sealed class GameplayWeaponRenderController
     {
-        private const string StockMedigunWorldSpriteName = "MedigunS";
+        public const string StockMedigunWorldSpriteName = "MedigunS";
         private static readonly Color OffensiveKritzBeamYellowBright = new(225, 255, 107, 255);
         private static readonly Color OffensiveKritzBeamYellowDeep = new(231, 218, 10, 255);
 
@@ -885,12 +885,12 @@ public partial class Game1
             return currentSprite.Origin.ToVector2();
         }
 
-        private WeaponAnimationMode GetPlayerWeaponAnimationModeCore(PlayerEntity player)
+        public WeaponAnimationMode GetPlayerWeaponAnimationModeCore(PlayerEntity player)
         {
             return _game._playerRenderStates.TryGetValue(_game.GetPlayerStateKey(player), out var renderState) ? renderState.WeaponAnimationMode : WeaponAnimationMode.Idle;
         }
 
-        private int GetWeaponSpriteFrameIndexCore(PlayerEntity player, WeaponAnimationMode weaponAnimationMode, WeaponRenderDefinition weaponDefinition, int frameCount)
+        public int GetWeaponSpriteFrameIndexCore(PlayerEntity player, WeaponAnimationMode weaponAnimationMode, WeaponRenderDefinition weaponDefinition, int frameCount)
         {
             if (frameCount <= 0)
             {
@@ -1339,14 +1339,14 @@ public partial class Game1
             return CharacterClassCatalog.RuntimeRegistry.GetPrimaryItem(GetRenderWeaponPresentationClassId(player)).Presentation;
         }
 
-        private static bool IsCivvieUmbrellaAnimationMode(WeaponAnimationMode mode)
+        public static bool IsCivvieUmbrellaAnimationMode(WeaponAnimationMode mode)
         {
             return mode is WeaponAnimationMode.CivvieUmbrellaOpening
                 or WeaponAnimationMode.CivvieUmbrellaHold
                 or WeaponAnimationMode.CivvieUmbrellaClosing;
         }
 
-        private int GetCivvieUmbrellaFrameIndex(PlayerEntity player, WeaponAnimationMode mode, int frameCount)
+        public int GetCivvieUmbrellaFrameIndex(PlayerEntity player, WeaponAnimationMode mode, int frameCount)
         {
             if (frameCount <= 0)
             {
@@ -1392,7 +1392,7 @@ public partial class Game1
             return startFrame + System.Math.Clamp((int)System.MathF.Floor(progress * frameCount), 0, frameCount - 1);
         }
 
-        private static float GetSourceTicksAsSeconds(float ticks)
+        public static float GetSourceTicksAsSeconds(float ticks)
         {
             return ticks / (float)LegacyMovementModel.SourceTicksPerSecond;
         }

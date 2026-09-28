@@ -12,11 +12,11 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private const int ConsoleHistoryLimit = 256;
-    private const int ConsoleScrollStep = 4;
-    private bool _consoleOpen;
-    private bool _gameplayHudHidden;
-    private string _consoleInput = string.Empty;
+    public const int ConsoleHistoryLimit = 256;
+    public const int ConsoleScrollStep = 4;
+    public bool _consoleOpen;
+    public bool _gameplayHudHidden;
+    public string _consoleInput = string.Empty;
     private int _consoleScrollOffset;
     private readonly List<string> _consoleHistory = new();
     private (OpenGarrison.SessionRuntime.EmbeddedSessionHost Host, System.Threading.Tasks.Task<IReadOnlyList<string>> Result)? _embeddedConsoleCommand;
@@ -65,14 +65,14 @@ public partial class Game1
         return true;
     }
 
-    private void ExecuteConsoleCommand()
+    public void ExecuteConsoleCommand()
     {
         var commandText = _consoleInput.Trim();
         _consoleInput = string.Empty;
         ExecuteConsoleCommand(commandText);
     }
 
-    private void ExecuteConsoleCommand(string commandText)
+    public void ExecuteConsoleCommand(string commandText)
     {
         commandText = commandText.Trim();
         AddConsoleLine($"> {commandText}");
@@ -801,7 +801,7 @@ public partial class Game1
             ? (_peerRoomSession.IsOwner ? _peerRoomSession.Host : null)
             : _embeddedSessionHost;
 
-    private void UpdateEmbeddedConsoleCommand()
+    public void UpdateEmbeddedConsoleCommand()
     {
         if (_embeddedConsoleCommand is not { } pending) return;
         if (!ReferenceEquals(pending.Host, GetOwnedEmbeddedConsoleHost()))
@@ -1062,7 +1062,7 @@ public partial class Game1
         AddConsoleLine(hidden ? "hud hidden" : "hud visible");
     }
 
-    private void UpdateConsoleScrollState(KeyboardState keyboard, MouseState mouse)
+    public void UpdateConsoleScrollState(KeyboardState keyboard, MouseState mouse)
     {
         if (!_consoleOpen)
         {
@@ -1260,7 +1260,7 @@ public partial class Game1
         }
     }
 
-    private void AddConsoleLine(string line)
+    public void AddConsoleLine(string line)
     {
         if (string.IsNullOrWhiteSpace(line))
         {

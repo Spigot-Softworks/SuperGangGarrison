@@ -13,7 +13,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private sealed class ActiveGameplayMessage
+    public sealed class ActiveGameplayMessage
     {
         public ActiveGameplayMessage(GameplayMessageMarker marker)
         {
@@ -1416,7 +1416,7 @@ public partial class Game1
         DrawGameplayMessageFont(marker, text, new Vector2(position.X - (width * 0.5f), position.Y - (height * 0.5f)), color, rotation);
     }
 
-    private void DrawMenuBitmapFontText(
+    public void DrawMenuBitmapFontText(
         string text,
         Vector2 position,
         Color color,

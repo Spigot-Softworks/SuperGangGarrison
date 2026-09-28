@@ -15,10 +15,10 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private static string _browserLastGameplayRenderTrace = "not-started";
-    private static readonly Queue<string> _browserRecentGameplayRenderTraces = new();
-    private const float GameplayHudCoveredPlayerOpacity = 0.45f;
-    private const float GameplayHudAutoFadeSpeedPerSecond = 4f;
+    public static string _browserLastGameplayRenderTrace = "not-started";
+    public static readonly Queue<string> _browserRecentGameplayRenderTraces = new();
+    public const float GameplayHudCoveredPlayerOpacity = 0.45f;
+    public const float GameplayHudAutoFadeSpeedPerSecond = 4f;
 
     public static string GetBrowserLastGameplayRenderTrace()
     {
@@ -32,13 +32,13 @@ public partial class Game1
             : string.Join(" -> ", _browserRecentGameplayRenderTraces);
     }
 
-    private const string GameplayRenderTraceFileName = "client-gameplay-render-trace.log";
+    public const string GameplayRenderTraceFileName = "client-gameplay-render-trace.log";
     private static readonly bool GameplayRenderTraceEnabled = GetGameplayRenderTraceEnabled();
 
     // Renders the whole HUD layer into a dedicated target before the world pass so a single alpha
     // multiply at composite time can dim the entire HUD uniformly. Only runs when the user lowered
     // HUD opacity below max; otherwise the default direct-draw path is taken with no behavior change.
-    private void PrepareGameplayHudOpacityComposite(MouseState mouse, Vector2 cameraPosition)
+    public void PrepareGameplayHudOpacityComposite(MouseState mouse, Vector2 cameraPosition)
     {
         _hudOpacityCompositePending = false;
         _deferDamageVignetteForHudOpacityComposite = false;
@@ -77,7 +77,7 @@ public partial class Game1
 
     // Called at the HUD draw point inside the logical frame: either blits the pre-rendered, dimmed
     // HUD target onto the active batch, or falls through to the normal direct HUD draw.
-    private void DrawGameplayHudLayersOrComposite(MouseState mouse, Vector2 cameraPosition)
+    public void DrawGameplayHudLayersOrComposite(MouseState mouse, Vector2 cameraPosition)
     {
         if (!_hudOpacityCompositePending || _hudRenderTarget is null)
         {
@@ -101,7 +101,7 @@ public partial class Game1
         return HudLayoutProfile.NormalizeHudOpacity(_hudLayoutProfile.HudOpacity);
     }
 
-    private Color ApplyCurrentHudElementOpacity(Color color)
+    public Color ApplyCurrentHudElementOpacity(Color color)
     {
         var opacity = Math.Clamp(_activeHudElementOpacity, 0f, HudLayoutProfile.MaxHudOpacity);
         return opacity >= HudLayoutProfile.MaxHudOpacity - 0.001f
@@ -290,7 +290,7 @@ public partial class Game1
                 {
                     var aimWorldPosition = GetRenderAimWorldPosition(trackedPlayer);
                     var screenAimPosition = GetWorldHudScreenPosition(aimWorldPosition, cameraPosition);
-                    _gameplayAimHudController.DrawSpectatorSniperHud(trackedPlayer, screenAimPosition);
+                    _hudManager.Aim.DrawSpectatorSniperHud(trackedPlayer, screenAimPosition);
                 }
             }
             DrawDroppedWeaponInteractionHud(cameraPosition);
@@ -370,7 +370,7 @@ public partial class Game1
             0f);
     }
 
-    private void DrawGameplayModalOverlays(MouseState mouse, Vector2 cameraPosition)
+    public void DrawGameplayModalOverlays(MouseState mouse, Vector2 cameraPosition)
     {
         var browserModalDrawStartTimestamp = ShouldMeasureClientPerformanceDurations() ? Stopwatch.GetTimestamp() : 0L;
         if (_gameplayHudHidden)
@@ -533,7 +533,7 @@ public partial class Game1
         RecordBrowserModalDrawDuration(browserModalDrawStartTimestamp);
     }
 
-    private static void WriteGameplayRenderTrace(string message)
+    public static void WriteGameplayRenderTrace(string message)
     {
         if (OperatingSystem.IsBrowser())
         {

@@ -9,14 +9,14 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private const int HeavyDashDodgePopupTicks = 72;
+    public const int HeavyDashDodgePopupTicks = 72;
     private const float HeavyDashDodgePopupFadeTicks = 24f;
     private const float HeavyDashDodgePopupRisePerTick = 0.32f;
     private const float HeavyDashDodgePopupImageScale = 1.6f;
     private const float HeavyDashDodgePopupTextScale = 1.35f;
     private readonly Dictionary<int, HeavyDashDodgePopupState> _heavyDashDodgePopupsByPlayerId = new();
 
-    private void ObserveHeavyDashDodgeDamageEvent(WorldDamageEvent damageEvent)
+    public void ObserveHeavyDashDodgeDamageEvent(WorldDamageEvent damageEvent)
     {
         if (!IsHeavyDashDodgeEvent(damageEvent.Flags))
         {
@@ -26,7 +26,7 @@ public partial class Game1
         TryTriggerHeavyDashDodgePopup(damageEvent.TargetKind, damageEvent.TargetEntityId);
     }
 
-    private void ObserveHeavyDashDodgeDamageEvent(SnapshotDamageEvent damageEvent)
+    public void ObserveHeavyDashDodgeDamageEvent(SnapshotDamageEvent damageEvent)
     {
         if (!IsHeavyDashDodgeEvent((DamageEventFlags)damageEvent.Flags))
         {
