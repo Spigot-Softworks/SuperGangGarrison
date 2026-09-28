@@ -398,6 +398,8 @@ public partial class Game1
             IsSniperScoped = player.IsSniperScoped,
             SniperChargeTicks = player.SniperChargeTicks,
             SniperBowChargeTicks = player.SniperBowChargeTicks,
+            StrongDrinkChargeTicks = player.StrongDrinkChargeTicks,
+            StrongDrinkChargeDirectionDegrees = player.StrongDrinkChargeDirectionDegrees,
             IsUsingBinoculars = player.IsUsingBinoculars,
             IsSpyCloaked = player.IsSpyCloaked,
             SpyCloakAlpha = player.SpyCloakAlpha,
@@ -578,6 +580,8 @@ public partial class Game1
         public bool IsSniperScoped;
         public int SniperChargeTicks;
         public int SniperBowChargeTicks;
+        public int StrongDrinkChargeTicks;
+        public float StrongDrinkChargeDirectionDegrees;
         public bool IsUsingBinoculars;
         public bool IsSpyCloaked;
         public float SpyCloakAlpha;

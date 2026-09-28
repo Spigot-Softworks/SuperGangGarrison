@@ -54,6 +54,7 @@ public static class BuiltInGameplayBehaviorIds
     public const string SniperScope = "builtin.ability.sniper_scope";
     /// <summary>The built-in sniper binoculars behavior id (<c>builtin.ability.sniper_binoculars</c>).</summary>
     public const string SniperBinoculars = "builtin.ability.sniper_binoculars";
+    public const string SniperStrongDrink = "builtin.ability.sniper_strong_drink";
     /// <summary>The built-in medic needlegun behavior id (<c>builtin.ability.medic_needlegun</c>).</summary>
     public const string MedicNeedlegun = "builtin.ability.medic_needlegun";
     /// <summary>The built-in medic kritz beam behavior id (<c>builtin.ability.medic_kritz_beam</c>).</summary>

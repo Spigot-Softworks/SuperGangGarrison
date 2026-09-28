@@ -102,6 +102,7 @@ public static class DeathCamPhraseCatalog
         "FlameKL",
         "FlareKL",
         "FlareReflectKL",
+        "SniperBottleFireKL",
     };
 
     private static readonly HashSet<string> SniperWeapons = new(StringComparer.OrdinalIgnoreCase)
@@ -109,7 +110,11 @@ public static class DeathCamPhraseCatalog
         "RifleKL",
         "RifleChargedKL",
         "BowKL",
+        "SniperBottleKL",
     };
+
+    public static bool IsFireWeapon(string? weaponSpriteName)
+        => !string.IsNullOrWhiteSpace(weaponSpriteName) && FireWeapons.Contains(weaponSpriteName);
 
     public static DeathCamPhraseCategory ResolveCategory(string? weaponSpriteName, bool isSentry = false)
     {
@@ -128,7 +133,7 @@ public static class DeathCamPhraseCatalog
             return DeathCamPhraseCategory.Backstab;
         }
 
-        if (FireWeapons.Contains(weaponSpriteName))
+        if (IsFireWeapon(weaponSpriteName))
         {
             return DeathCamPhraseCategory.Fire;
         }

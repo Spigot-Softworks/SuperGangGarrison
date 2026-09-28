@@ -291,7 +291,7 @@ public sealed partial class SimulationWorld
                 state.Damage > 0f ? state.Damage : FlareProjectileEntity.DefaultDamagePerHit,
                 style: (FlareProjectileStyle)state.FlareStyle),
             Protocol64ProjectileKind.Mine => new MineProjectileEntity(id, team, ownerId, state.X, state.Y, state.VelocityX, state.VelocityY),
-            Protocol64ProjectileKind.Grenade => new GrenadeProjectileEntity(id, team, ownerId, state.X, state.Y, state.VelocityX, state.VelocityY),
+            Protocol64ProjectileKind.Grenade => CreateProtocol64GrenadeProjectile(state, id, team, ownerId, lifetime),
             // Bubble is intentionally represented as Custom on the wire so
             // plugins can extend the projectile-kind space without claiming a
             // core enum value.  The stock client still has a concrete entity
@@ -299,6 +299,24 @@ public sealed partial class SimulationWorld
             Protocol64ProjectileKind.Custom => new BubbleProjectileEntity(id, team, ownerId, state.X, state.Y, state.VelocityX, state.VelocityY),
             _ => null,
         };
+    }
+
+    private static GrenadeProjectileEntity CreateProtocol64GrenadeProjectile(
+        Protocol64ProjectileState state,
+        int id,
+        PlayerTeam team,
+        int ownerId,
+        int lifetime)
+    {
+        var grenade = new GrenadeProjectileEntity(id, team, ownerId, state.X, state.Y, state.VelocityX, state.VelocityY);
+        if (state.Damage >= GrenadeProjectileEntity.StrongDrinkDirectHitDamage - 0.01f)
+        {
+            grenade.ConfigureAsStrongDrink(
+                Math.Max(1, lifetime),
+                GrenadeProjectileEntity.StrongDrinkDefaultSpinSpeed);
+        }
+
+        return grenade;
     }
 
     private static ShotProjectileEntity CreateProtocol64BulletProjectile(

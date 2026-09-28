@@ -9,7 +9,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    // Temporary Elkondo corpse art: 5th run-cycle pose (run.Frames[4] → usually pose 5).
+    // Temporary Elkondo corpse art: 5th run-cycle pose (run.Frames[4] â†’ usually pose 5).
     // TODO(dynamic-ragdoll): replace this temporary run-frame corpse with unique Elkondo Dead sprites
     // once those are authored. Keep the vertical legs/body joint topology, torso-over-legs draw order,
     // per-class waist pivots, and flapping attached weapon.
@@ -114,9 +114,9 @@ public partial class Game1
         DynamicRagdollState ragdoll,
         int ticksRemaining,
         Vector2 cameraPosition,
-        LoadedSpriteFrame? dissolvedFrame = null)
+        Color? tintOverride = null)
     {
-        var fadeAlpha = GetCorpseFadeAlpha(ticksRemaining);
+        var fadeAlpha = tintOverride.HasValue ? 1f : GetCorpseFadeAlpha(ticksRemaining);
         if (fadeAlpha <= 0.001f)
         {
             return ticksRemaining <= 0;
@@ -134,12 +134,12 @@ public partial class Game1
         }
 
         var sprite = GetResolvedSprite(spriteName);
-        if (dissolvedFrame is null && (sprite is null || sprite.Frames.Count == 0))
+        if (sprite is null || sprite.Frames.Count == 0)
         {
             return false;
         }
 
-        var frame = dissolvedFrame ?? sprite!.Frames[Math.Clamp(frameIndex, 0, sprite.Frames.Count - 1)];
+        var frame = sprite.Frames[Math.Clamp(frameIndex, 0, sprite.Frames.Count - 1)];
         var opaque = ragdoll.OpaqueBounds;
         if (opaque.Width <= 1 || opaque.Height <= 1)
         {
@@ -147,14 +147,14 @@ public partial class Game1
         }
 
         var scaleX = ragdoll.FacingLeft ? -1f : 1f;
-        var tint = Color.White * fadeAlpha;
+        var tint = (tintOverride ?? Color.White) * fadeAlpha;
         var roundedOrigin = GetRoundedPlayerSpriteOrigin(new Vector2(ragdoll.X, ragdoll.Y));
         var rootPosition = new Vector2(roundedOrigin.X - cameraPosition.X, roundedOrigin.Y - cameraPosition.Y);
         var baseSource = frame.SourceRectangle ?? new Rectangle(0, 0, frame.Width, frame.Height);
         var bodyRotationRadians = ragdoll.RotationDegrees * (MathF.PI / 180f);
 
-        // Vertical spine: head → chest mid → waist (legs/body overlap) → knee mid → feet.
-        // Pivot[0]=chest (±30°), Pivot[1]=waist (±75°), Pivot[2]=knee (0..120° backward only).
+        // Vertical spine: head â†’ chest mid â†’ waist (legs/body overlap) â†’ knee mid â†’ feet.
+        // Pivot[0]=chest (Â±30Â°), Pivot[1]=waist (Â±75Â°), Pivot[2]=knee (0..120Â° backward only).
         var waistFraction = GetElkondoWaistFraction(ragdoll.ClassId);
         var chestFraction = Math.Clamp(waistFraction * 0.48f, 0.16f, waistFraction - 0.10f);
         var kneeFraction = Math.Clamp(waistFraction + ((1f - waistFraction) * 0.50f), waistFraction + 0.10f, 0.90f);
@@ -184,7 +184,7 @@ public partial class Game1
             }
         }
 
-        // Walk head→feet to resolve joint world positions, then draw legs first so torso stays on top.
+        // Walk headâ†’feet to resolve joint world positions, then draw legs first so torso stays on top.
         Span<Vector2> jointPositions = stackalloc Vector2[cutYs.Length];
         Span<float> segmentRotations = stackalloc float[cutYs.Length - 1];
         // Place head tip relative to entity center along the unbent spine.
@@ -248,7 +248,7 @@ public partial class Game1
             scaleX,
             tint);
 
-        // Lower torso (chest→waist), chest seam, then head chunk on top.
+        // Lower torso (chestâ†’waist), chest seam, then head chunk on top.
         DrawElkondoRagdollSegment(
             frame,
             baseSource,
@@ -287,9 +287,7 @@ public partial class Game1
             // Follow the torso strip (after chest pivot) so the grip stays on the body meat.
             segmentRotations[Math.Min(1, segmentRotations.Length - 1)],
             scaleX,
-            dissolvedFrame is null
-                ? tint
-                : Color.White * MathF.Max(0f, 1f - GetCorpseFadeProgress(ticksRemaining)));
+            tint);
         return true;
     }
 
@@ -333,7 +331,7 @@ public partial class Game1
     }
 
     /// <summary>
-    /// Stretch a 1–2px seam row into the open wedge at a pivot. Segments stay rigid.
+    /// Stretch a 1â€“2px seam row into the open wedge at a pivot. Segments stay rigid.
     /// </summary>
     private void DrawElkondoPivotSeamFill(
         LoadedSpriteFrame frame,
@@ -421,7 +419,7 @@ public partial class Game1
 
     private static void AdvanceElkondoRagdollWeapon(DynamicRagdollState ragdoll)
     {
-        // Weapon is rigidly stuck to the torso pivot — no free flap.
+        // Weapon is rigidly stuck to the torso pivot â€” no free flap.
         ragdoll.WeaponFlapDegrees = 0f;
         ragdoll.WeaponFlapVelocityDegrees = 0f;
     }
@@ -453,7 +451,7 @@ public partial class Game1
         }
 
         ragdoll.WeaponSpriteName = weaponDefinition.NormalSpriteName;
-        // Idle team frame (Blue = offset half) — PoseFrameIndex alone is always the red/skin pose.
+        // Idle team frame (Blue = offset half) â€” PoseFrameIndex alone is always the red/skin pose.
         ragdoll.WeaponFrameIndex = GetWeaponSpriteFrameIndex(
             player,
             WeaponAnimationMode.Idle,

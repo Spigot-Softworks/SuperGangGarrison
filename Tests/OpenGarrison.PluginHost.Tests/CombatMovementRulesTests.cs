@@ -102,4 +102,45 @@ public sealed class CombatMovementRulesTests
         Assert.Equal(0f, target.HorizontalSpeed);
         Assert.Equal(0f, target.VerticalSpeed);
     }
+
+    [Fact]
+    public void CorpseDirectedLaunchCancelsMomentumTowardTheAttacker()
+    {
+        // Victim at x=100 charging a sniper at x=200 — pre-death speed toward the rifle.
+        var horizontalSpeed = 8f;
+        var verticalSpeed = 0f;
+
+        CorpseKnockbackRules.ApplyDirectedLaunch(
+            ref horizontalSpeed,
+            ref verticalSpeed,
+            corpseX: 100f,
+            corpseY: 0f,
+            originX: 200f,
+            originY: 0f,
+            knockbackSpeed: CorpseKnockbackRules.SniperSpeed,
+            facingFallbackSign: -1f);
+
+        Assert.True(horizontalSpeed < 0f, $"expected launch away from sniper, got {horizontalSpeed}");
+        Assert.Equal(-CorpseKnockbackRules.SniperSpeed, horizontalSpeed, precision: 3);
+        Assert.Equal(-2f, verticalSpeed, precision: 3);
+    }
+
+    [Fact]
+    public void CorpseDirectedLaunchKeepsMomentumAlreadyAwayFromTheAttacker()
+    {
+        var horizontalSpeed = -3f;
+        var verticalSpeed = 0f;
+
+        CorpseKnockbackRules.ApplyDirectedLaunch(
+            ref horizontalSpeed,
+            ref verticalSpeed,
+            corpseX: 100f,
+            corpseY: 0f,
+            originX: 200f,
+            originY: 0f,
+            knockbackSpeed: CorpseKnockbackRules.SniperSpeed,
+            facingFallbackSign: -1f);
+
+        Assert.Equal(-3f - CorpseKnockbackRules.SniperSpeed, horizontalSpeed, precision: 3);
+    }
 }

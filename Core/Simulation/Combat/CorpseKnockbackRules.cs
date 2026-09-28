@@ -41,6 +41,48 @@ public static class CorpseKnockbackRules
     public static float EnforceMinimum(float speed)
         => MathF.Max(MinimumSpeed, speed);
 
+    /// <summary>
+    /// Launch remains away from the shot origin. Any pre-death momentum toward the
+    /// attacker is stripped first so charging into a sniper (or similar) can't yank
+    /// the ragdoll back at them.
+    /// </summary>
+    public static void ApplyDirectedLaunch(
+        ref float horizontalSpeed,
+        ref float verticalSpeed,
+        float corpseX,
+        float corpseY,
+        float originX,
+        float originY,
+        float knockbackSpeed,
+        float facingFallbackSign)
+    {
+        knockbackSpeed = EnforceMinimum(knockbackSpeed);
+        var deltaX = corpseX - originX;
+        var deltaY = corpseY - originY;
+        var distance = MathF.Sqrt((deltaX * deltaX) + (deltaY * deltaY));
+        if (distance <= 0.001f)
+        {
+            var fallbackSign = facingFallbackSign >= 0f ? 1f : -1f;
+            horizontalSpeed = fallbackSign * knockbackSpeed;
+            verticalSpeed = -2.0f;
+            return;
+        }
+
+        var awayX = deltaX / distance;
+        var awayY = deltaY / distance;
+
+        // Drop only the component aimed at the killer; keep sideways / already-away motion.
+        var alongAway = (horizontalSpeed * awayX) + (verticalSpeed * awayY);
+        if (alongAway < 0f)
+        {
+            horizontalSpeed -= awayX * alongAway;
+            verticalSpeed -= awayY * alongAway;
+        }
+
+        horizontalSpeed += awayX * knockbackSpeed;
+        verticalSpeed += (awayY * knockbackSpeed * 0.45f) - 2.0f;
+    }
+
     public static bool IsSniperKillIcon(string weaponSpriteName)
         => ContainsKillIcon(weaponSpriteName, "RifleKL")
            || ContainsKillIcon(weaponSpriteName, "RifleChargedKL");

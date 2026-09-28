@@ -26,7 +26,7 @@
         20
       ],
       "bodySprite": "Rocketman{team}BodyS",
-      "pixelsPerRunFrame": 15,
+      "pixelsPerRunFrame": 12,
       "teams": {
         "Red": {
           "directory": "RED",
@@ -738,7 +738,7 @@
       ],
       "pixelScale": 2,
       "equipmentOffset": -1,
-      "pixelsPerRunFrame": 15,
+      "pixelsPerRunFrame": 12,
       "teams": {
         "Red": {
           "directory": "Red",
@@ -901,7 +901,8 @@
           "equipmentOffset": 0
         }
       ],
-      "legsBodySprite": "ElkondoScout{team}LegsS"
+      "legsBodySprite": "ElkondoScout{team}LegsS",
+      "tauntSprite": "ElkondoScout{team}TauntS"
     },
     "elkondo-soldier": {
       "source": "Elkondo/Soldier",
@@ -916,7 +917,7 @@
       ],
       "pixelScale": 2,
       "equipmentOffset": -1,
-      "pixelsPerRunFrame": 15,
+      "pixelsPerRunFrame": 12,
       "teams": {
         "Red": {
           "directory": "Red",
@@ -1242,7 +1243,7 @@
       ],
       "pixelScale": 2,
       "equipmentOffset": -1,
-      "pixelsPerRunFrame": 15,
+      "pixelsPerRunFrame": 12,
       "teams": {
         "Red": {
           "directory": "Red",
@@ -1420,7 +1421,7 @@
       ],
       "pixelScale": 2,
       "equipmentOffset": -1,
-      "pixelsPerRunFrame": 15,
+      "pixelsPerRunFrame": 12,
       "teams": {
         "Red": {
           "directory": "Red",
@@ -1656,7 +1657,7 @@
       ],
       "pixelScale": 2,
       "equipmentOffset": -1,
-      "pixelsPerRunFrame": 15,
+      "pixelsPerRunFrame": 12,
       "teams": {
         "Red": {
           "directory": "Red",
@@ -1834,7 +1835,7 @@
       ],
       "pixelScale": 2,
       "equipmentOffset": -1,
-      "pixelsPerRunFrame": 15,
+      "pixelsPerRunFrame": 12,
       "teams": {
         "Red": {
           "directory": "Red",
@@ -2012,7 +2013,7 @@
       ],
       "pixelScale": 2,
       "equipmentOffset": -1,
-      "pixelsPerRunFrame": 15,
+      "pixelsPerRunFrame": 12,
       "teams": {
         "Red": {
           "directory": "Red",
@@ -2190,7 +2191,7 @@
       ],
       "pixelScale": 2,
       "equipmentOffset": -1,
-      "pixelsPerRunFrame": 15,
+      "pixelsPerRunFrame": 12,
       "teams": {
         "Red": {
           "directory": "Red",
@@ -2368,7 +2369,7 @@
       ],
       "pixelScale": 2,
       "equipmentOffset": -1,
-      "pixelsPerRunFrame": 15,
+      "pixelsPerRunFrame": 12,
       "teams": {
         "Red": {
           "directory": "Red",

@@ -1309,6 +1309,179 @@ public sealed partial class PlayerEntity
             + ((SniperBowMaxFakeSpeedMultiplier - SniperBowMinFakeSpeedMultiplier) * chargeFraction);
     }
 
+    public bool TryStartStrongDrinkCharge(float aimDirectionDegrees)
+    {
+        if (!IsAlive
+            || ClassId != PlayerClass.Sniper
+            || IsTaunting
+            || IsHeavyEating
+            || StrongDrinkChargeTicks > 0)
+        {
+            return false;
+        }
+
+        StrongDrinkChargeTicks = 1;
+        StrongDrinkChargeDirectionDegrees = aimDirectionDegrees;
+        return true;
+    }
+
+    public void IncrementStrongDrinkCharge(float aimDirectionDegrees, int maxChargeTicks = StrongDrinkMaxChargeTicks)
+    {
+        maxChargeTicks = Math.Max(1, maxChargeTicks);
+        if (StrongDrinkChargeTicks > 0 && StrongDrinkChargeTicks < maxChargeTicks)
+        {
+            StrongDrinkChargeTicks += 1;
+        }
+
+        StrongDrinkChargeDirectionDegrees = aimDirectionDegrees;
+    }
+
+    public bool TryReleaseStrongDrinkCharge(
+        out float chargeFraction,
+        out float directionRadians,
+        int maxChargeTicks = StrongDrinkMaxChargeTicks)
+    {
+        _ = maxChargeTicks;
+        chargeFraction = 0f;
+        directionRadians = 0f;
+        if (!IsAlive || ClassId != PlayerClass.Sniper || StrongDrinkChargeTicks <= 0)
+        {
+            return false;
+        }
+
+        // Holding only previews the arc; release always throws at full strength.
+        chargeFraction = 1f;
+        directionRadians = StrongDrinkChargeDirectionDegrees * (MathF.PI / 180f);
+        CancelStrongDrinkCharge();
+        return true;
+    }
+
+    public void CancelStrongDrinkCharge()
+    {
+        StrongDrinkChargeTicks = 0;
+        StrongDrinkChargeDirectionDegrees = 0f;
+    }
+
+    /// <summary>
+    /// Bias aim upward for a lobbing Strong Drink arc. Positive lobBiasDegrees blends
+    /// toward straight up (screen -Y / -90°) with t = clamp(bias / 90, 0, 1).
+    /// </summary>
+    public static float ApplyStrongDrinkLobBias(float aimRadians, float lobBiasDegrees)
+    {
+        var t = float.Clamp(lobBiasDegrees / 90f, 0f, 1f);
+        if (t <= 0f)
+        {
+            return aimRadians;
+        }
+
+        var ax = MathF.Cos(aimRadians);
+        var ay = MathF.Sin(aimRadians);
+        const float ux = 0f;
+        const float uy = -1f;
+        var x = ax + (ux - ax) * t;
+        var y = ay + (uy - ay) * t;
+        if (x == 0f && y == 0f)
+        {
+            return -MathF.PI / 2f;
+        }
+
+        return MathF.Atan2(y, x);
+    }
+
+    /// <summary>
+    /// Solve a launch direction so the bottle's arc tries to pass through the crosshair.
+    /// When two solutions exist, higher charge prefers the flatter arc and lower charge
+    /// prefers the loftier one. Out-of-range aims fall back to a lofted toss toward the point.
+    /// </summary>
+    public static float ResolveStrongDrinkThrowDirection(
+        float originX,
+        float originY,
+        float targetX,
+        float targetY,
+        float throwSpeed,
+        float gravityPerTick,
+        float chargeFraction,
+        float unreachableLobBiasDegrees = StrongDrinkLobBiasDegrees)
+    {
+        var dx = targetX - originX;
+        var dy = targetY - originY;
+        var directAim = MathF.Atan2(dy, dx);
+        var speed = MathF.Max(0.1f, throwSpeed);
+        var g = MathF.Max(0.0001f, gravityPerTick);
+        var charge = float.Clamp(chargeFraction, 0f, 1f);
+
+        if ((dx * dx) + (dy * dy) < 1f)
+        {
+            return directAim;
+        }
+
+        // Nearly vertical: just toss toward the crosshair.
+        if (MathF.Abs(dx) < 0.75f)
+        {
+            return directAim;
+        }
+
+        // Continuous Y-down ballistic: dy = dx*tanθ + K*(1 + tan²θ), K = g*dx²/(2v²).
+        var k = (g * dx * dx) / (2f * speed * speed);
+        var discriminant = (dx * dx) - (4f * k * (k - dy));
+        if (discriminant < 0f)
+        {
+            // Unreachable at this speed: loft toward the crosshair (more loft when weakly charged).
+            var fallbackLob = unreachableLobBiasDegrees * (1f - (charge * 0.65f));
+            return ApplyStrongDrinkLobBias(directAim, fallbackLob);
+        }
+
+        var sqrtDiscriminant = MathF.Sqrt(discriminant);
+        var tanLow = (-dx + sqrtDiscriminant) / (2f * k);
+        var tanHigh = (-dx - sqrtDiscriminant) / (2f * k);
+        // MathF.Atan only yields (-π/2, π/2) where cos ≥ 0 (rightward). Rebuild θ so
+        // cos matches sign(dx) while preserving tanθ = sin/cos — required for left aims.
+        var angleA = LaunchAngleFromTan(tanLow, dx);
+        var angleB = LaunchAngleFromTan(tanHigh, dx);
+
+        // The "higher" arc is the one closer to straight up (-90°).
+        const float straightUp = -MathF.PI / 2f;
+        var aIsHigher = MathF.Abs(NormalizeAngleDelta(angleA - straightUp))
+            <= MathF.Abs(NormalizeAngleDelta(angleB - straightUp));
+        var highArc = aIsHigher ? angleA : angleB;
+        var lowArc = aIsHigher ? angleB : angleA;
+
+        // Both arcs pass through the crosshair; charge picks flat vs lofted.
+        return LerpAngleRadians(highArc, lowArc, charge);
+    }
+
+    private static float LaunchAngleFromTan(float tanTheta, float horizontalDx)
+    {
+        var horizontalSign = horizontalDx < 0f ? -1f : 1f;
+        var denom = MathF.Sqrt(1f + (tanTheta * tanTheta));
+        var cos = horizontalSign / denom;
+        var sin = (tanTheta * horizontalSign) / denom;
+        return MathF.Atan2(sin, cos);
+    }
+
+    private static float LerpAngleRadians(float fromRadians, float toRadians, float t)
+    {
+        var delta = NormalizeAngleDelta(toRadians - fromRadians);
+        return fromRadians + (delta * float.Clamp(t, 0f, 1f));
+    }
+
+    private static float NormalizeAngleDelta(float radians)
+    {
+        const float pi = MathF.PI;
+        const float twoPi = pi * 2f;
+        while (radians > pi)
+        {
+            radians -= twoPi;
+        }
+
+        while (radians < -pi)
+        {
+            radians += twoPi;
+        }
+
+        return radians;
+    }
+
     private void AdvanceSniperBowState()
     {
         if (!IsSniperBowEquipped && !IsMortarLauncherEquipped)
@@ -1316,6 +1489,18 @@ public sealed partial class PlayerEntity
             SniperBowChargeTicks = 0;
             SniperBowChargeDirectionDegrees = 0f;
             CancelLastToDieSniperVolley();
+        }
+    }
+
+    private void AdvanceStrongDrinkState()
+    {
+        if (ClassId != PlayerClass.Sniper
+            || !IsAlive
+            || IsTaunting
+            || IsHeavyEating
+            || !HasUtilityBehavior(BuiltInGameplayBehaviorIds.SniperStrongDrink))
+        {
+            CancelStrongDrinkCharge();
         }
     }
 }
