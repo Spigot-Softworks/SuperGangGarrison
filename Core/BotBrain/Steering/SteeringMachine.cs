@@ -233,7 +233,7 @@ public sealed class SteeringMachine
         }
         if (hasCurrentEdge)
         {
-            UpdateCurrentEdgePhase(player, currentEdge, currentEdgeCompletionSatisfied);
+            UpdateCurrentEdgePhase(player, currentEdgeCompletionSatisfied);
             UpdateCurrentEdgeExecutionPhase(player, graph, path, currentEdge, currentEdgeCompletionSatisfied);
             var awaitingRuntimeContactResolution = ShouldAwaitRuntimeContactResolution(
                 player,
@@ -324,7 +324,7 @@ public sealed class SteeringMachine
         }
 
         var useAirborneSteeringDx = hasCurrentEdge
-            && ShouldCounterSteerForNextContact(player, graph, path, currentEdge, currentEdgeCompletionSatisfied);
+            && ShouldCounterSteerForNextContact(player, path, currentEdge, currentEdgeCompletionSatisfied);
         output.State = _state;
         output.EdgeKind = edgeKind;
 
@@ -1012,7 +1012,6 @@ public sealed class SteeringMachine
             && edge.Completion.HasWindow
             && !ShouldDeferContactHandoff(
                 player,
-                graph,
                 path,
                 edge,
                 distSq,
@@ -1028,7 +1027,6 @@ public sealed class SteeringMachine
 
     private static bool ShouldDeferContactHandoff(
         PlayerEntity player,
-        NavGraph graph,
         NavPath path,
         NavEdge edge,
         float distanceSquared,
@@ -1234,7 +1232,7 @@ public sealed class SteeringMachine
         return _currentEdgeTicks;
     }
 
-    private void UpdateCurrentEdgePhase(PlayerEntity player, NavEdge edge, bool completionSatisfied)
+    private void UpdateCurrentEdgePhase(PlayerEntity player, bool completionSatisfied)
     {
         if (!player.IsGrounded)
         {
@@ -1399,7 +1397,7 @@ public sealed class SteeringMachine
         if (_edgePhase != EdgeExecutionPhase.None)
         {
             _edgePhaseTicks += 1;
-            if (ShouldExitEdgeExecutionPhase(player, graph, edge, completionSatisfied))
+            if (ShouldExitEdgeExecutionPhase(edge, completionSatisfied))
             {
                 _edgePhase = EdgeExecutionPhase.None;
                 _edgePhaseTicks = 0;
@@ -1408,7 +1406,7 @@ public sealed class SteeringMachine
             return;
         }
 
-        if (ShouldEnterLandedBelowCompletionPhase(player, graph, path, edge, completionSatisfied))
+        if (ShouldEnterLandedBelowCompletionPhase(player, path, edge, completionSatisfied))
         {
             _edgePhase = EdgeExecutionPhase.LandedBelowCompletion;
             _edgePhaseTicks = 0;
@@ -1677,7 +1675,7 @@ public sealed class SteeringMachine
             && player.Y >= edge.Completion.MinY - 48f
             && player.Y <= edge.Completion.MaxY + 24f)
         {
-            if (ShouldCounterSteerForNextContact(player, graph, path, edge, currentEdgeCompletionSatisfied))
+            if (ShouldCounterSteerForNextContact(player, path, edge, currentEdgeCompletionSatisfied))
             {
                 var nextDirection = MathF.Sign(nextEdge.LaunchRecipe.ExpectedMoveDirectionX);
                 return -nextDirection * MathF.Max(JumpTriggerDistance, MathF.Abs(waypointDx));
@@ -1834,7 +1832,6 @@ public sealed class SteeringMachine
 
     private bool ShouldEnterLandedBelowCompletionPhase(
         PlayerEntity player,
-        NavGraph graph,
         NavPath path,
         NavEdge edge,
         bool completionSatisfied)
@@ -1865,8 +1862,6 @@ public sealed class SteeringMachine
     }
 
     private bool ShouldExitEdgeExecutionPhase(
-        PlayerEntity player,
-        NavGraph graph,
         NavEdge edge,
         bool completionSatisfied)
     {
@@ -2509,7 +2504,6 @@ public sealed class SteeringMachine
 
     private bool ShouldCounterSteerForNextContact(
         PlayerEntity player,
-        NavGraph graph,
         NavPath path,
         NavEdge edge,
         bool currentEdgeCompletionSatisfied)

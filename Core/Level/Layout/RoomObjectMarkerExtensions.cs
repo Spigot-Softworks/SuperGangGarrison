@@ -8,10 +8,6 @@ public static class RoomObjectMarkerExtensions
             && marker.SourceName.Equals("KothControlPoint", StringComparison.OrdinalIgnoreCase);
     }
 
-    public static bool IsDualKothControlPoint(this RoomObjectMarker marker)
-    {
-        return marker.IsRedKothControlPoint() || marker.IsBlueKothControlPoint();
-    }
 
     public static bool IsRedKothControlPoint(this RoomObjectMarker marker)
     {
@@ -42,10 +38,6 @@ public static class RoomObjectMarkerExtensions
         return marker.IsLeftDoor() || marker.IsRightDoor();
     }
 
-    public static bool IsDropdownPlatform(this RoomObjectMarker marker)
-    {
-        return marker.Type == RoomObjectType.DropdownPlatform;
-    }
 
     public static bool ResetsMovementState(this RoomObjectMarker marker)
     {
@@ -77,10 +69,6 @@ public static class RoomObjectMarkerExtensions
         };
     }
 
-    public static bool IsCatapult(this RoomObjectMarker marker)
-    {
-        return marker.Type == RoomObjectType.Catapult;
-    }
 
     public static bool BlocksDirectionalMovement(
         this RoomObjectMarker marker,

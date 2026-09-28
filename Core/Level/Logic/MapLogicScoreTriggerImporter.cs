@@ -45,18 +45,6 @@ public static class MapLogicScoreTriggerImporter
             : new MapLogicScoreTriggerSet(triggers);
     }
 
-    public static bool ContainsScoreTriggerEntities(IReadOnlyList<MapImportedEntity> entities)
-    {
-        for (var index = 0; index < entities.Count; index += 1)
-        {
-            if (MapLogicScoreTriggerMetadata.IsScoreTriggerEntityType(entities[index].Type))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
 
     private static string ReadProperty(IReadOnlyDictionary<string, string> properties, string key)
     {

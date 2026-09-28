@@ -177,10 +177,6 @@ sealed class ClientSession(
         string reason = "")
         => _protocol64InputCommands.Complete(command, serverTick, consumed, reason);
 
-    public bool TryGetProtocol64InputCommandResult(
-        ulong commandId,
-        out Protocol64InputCommandResult result)
-        => _protocol64InputCommands.TryGetCompleted(commandId, out result);
 
     public bool AcknowledgeProtocol64InputCommand(ulong commandId)
         => _protocol64InputCommands.Acknowledge(commandId);

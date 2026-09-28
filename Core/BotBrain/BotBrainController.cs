@@ -764,7 +764,7 @@ public sealed class BotBrainController
         if (!dynamicCtfResolved
             && !directResolved
             && (!ForceObjectiveNavigationForDiagnostics
-                && (TryResolveSpyRetreat(world, self, team, combatTarget, steeringOutput, out var directSteering, out var directTrace)
+                && (TryResolveSpyRetreat(world, self, combatTarget, steeringOutput, out var directSteering, out var directTrace)
                     || TryResolveSpyBackstabDrive(world, self, combatTarget, steeringOutput, out directSteering, out directTrace)
                     || TryResolveSniperCombatDrive(world, self, combatTarget, steeringOutput, out directSteering, out directTrace)
                     || TryResolveMedicSupportDrive(world, self, team, healTarget, healTargetSelection.Kind, steeringOutput, out directSteering, out directTrace)
@@ -1300,7 +1300,7 @@ public sealed class BotBrainController
 
         if (!directResolved
             && (!ForceObjectiveNavigationForDiagnostics
-                && (TryResolveSpyRetreat(world, self, team, combatTarget, steeringOutput, out var directSteering, out var directTrace)
+                && (TryResolveSpyRetreat(world, self, combatTarget, steeringOutput, out var directSteering, out var directTrace)
                     || TryResolveSpyBackstabDrive(world, self, combatTarget, steeringOutput, out directSteering, out directTrace)
                     || TryResolveSniperCombatDrive(world, self, combatTarget, steeringOutput, out directSteering, out directTrace)
                     || TryResolveMedicSupportDrive(world, self, team, healTarget, healTargetSelection.Kind, steeringOutput, out directSteering, out directTrace)
@@ -2269,7 +2269,7 @@ public sealed class BotBrainController
                 self,
                 team,
                 $"event=path_assigned start=({self.X:0.0},{self.Y:0.0}) startNode={startNode} goalNode={goalNode} " +
-                $"waypoints={_currentPath.Count} path={FormatPath(_currentPath, _navGraph)} " +
+                $"waypoints={_currentPath.Count} path={FormatPath(_currentPath)} " +
                 $"goalPos=({_currentGoalPosition.X:0.0},{_currentGoalPosition.Y:0.0}) " +
                 $"objectiveArrival={(IsAtAlphaObjectiveArrival(world, self) ? 1 : 0)}");
         }
@@ -2975,7 +2975,7 @@ public sealed class BotBrainController
         _alphaRecoveryNextAttemptThinkTick = 0;
     }
 
-    private static string FormatPath(NavPath path, NavGraph graph)
+    private static string FormatPath(NavPath path)
     {
         var parts = new string[Math.Max(0, path.Count - 1)];
         for (var index = 1; index < path.Count; index += 1)
@@ -4494,7 +4494,6 @@ public sealed class BotBrainController
     private static bool TryResolveSpyRetreat(
         SimulationWorld world,
         PlayerEntity self,
-        PlayerTeam team,
         BotBrainCombatTarget? combatTarget,
         SteeringOutput steeringOutput,
         out SteeringOutput directSteering,

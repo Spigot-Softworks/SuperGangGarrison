@@ -235,16 +235,6 @@ public sealed class CivvieMoneyTrailTracker
             Math.Max(1, ticksRemaining)));
     }
 
-    public static CivvieMoneyPickupParticipant CreateParticipant(PlayerEntity player)
-    {
-        return new CivvieMoneyPickupParticipant(
-            player.Id,
-            player.Team,
-            player.IsAlive,
-            player.Health,
-            player.MaxHealth,
-            player.IntersectsMarker);
-    }
 
     private bool HasNearbyPickup(int ownerPlayerId, float x, float y)
     {

@@ -109,7 +109,7 @@ public partial class Game1
         Right,
     }
 
-    private Rectangle GetPlayerScreenBounds(PlayerEntity player, Vector2 renderPosition, Vector2 cameraPosition)
+    public static Rectangle GetPlayerScreenBounds(PlayerEntity player, Vector2 renderPosition, Vector2 cameraPosition)
     {
         // Round the final screen-space anchor instead of rounding world position and camera independently.
         // With smooth camera, independent rounding can make moving players oscillate by a pixel.
@@ -152,18 +152,18 @@ public partial class Game1
         return RoundToSourcePixels(renderPosition);
     }
 
-    private Vector2 GetPlayerSpriteOrigin(Vector2 renderPosition)
+    public static Vector2 GetPlayerSpriteOrigin(Vector2 renderPosition)
     {
         return GetRoundedPlayerSpriteOrigin(renderPosition);
     }
 
-    private Vector2 GetPlayerSpriteScreenOrigin(Vector2 renderPosition, Vector2 cameraPosition)
+    public static Vector2 GetPlayerSpriteScreenOrigin(Vector2 renderPosition, Vector2 cameraPosition)
     {
         var screenOrigin = renderPosition - cameraPosition;
         return RoundToSourcePixels(screenOrigin);
     }
 
-    private Vector2 GetPlayerAnchoredScreenPosition(
+    public static Vector2 GetPlayerAnchoredScreenPosition(
         Vector2 renderPosition,
         Vector2 cameraPosition,
         float anchoredWorldX,

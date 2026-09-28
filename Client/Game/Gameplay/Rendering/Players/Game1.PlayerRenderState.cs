@@ -391,7 +391,7 @@ public partial class Game1
         if (player.ClassId == PlayerClass.Sniper && !ShouldPresentGameplayOffhandWeapon(player))
         {
             UpdateSniperWeaponAnimationState(player, renderState, weaponRenderDefinition, shotStarted, elapsedSeconds, currentCooldownTicks);
-            QueueWeaponShellVisuals(player, shotStarted, ammoIncreased, reloadRestarted);
+            QueueWeaponShellVisuals(player, shotStarted, ammoIncreased);
             renderState.PreviousAmmoCount = currentAmmoCount;
             renderState.PreviousCooldownTicks = currentCooldownTicks;
             renderState.PreviousReloadTicks = currentReloadTicks;
@@ -476,7 +476,7 @@ public partial class Game1
             }
         }
 
-        QueueWeaponShellVisuals(player, shotStarted, ammoIncreased, reloadRestarted);
+        QueueWeaponShellVisuals(player, shotStarted, ammoIncreased);
         renderState.PreviousAmmoCount = currentAmmoCount;
         renderState.PreviousCooldownTicks = currentCooldownTicks;
         renderState.PreviousReloadTicks = currentReloadTicks;
@@ -553,7 +553,7 @@ public partial class Game1
         return currentCooldownTicks > 0 && previousCooldownTicks <= 0;
     }
 
-    private void UpdateDemoknightSwordWeaponAnimationState(
+    private static void UpdateDemoknightSwordWeaponAnimationState(
         PlayerEntity player,
         PlayerRenderState renderState,
         WeaponRenderDefinition weaponDefinition,
@@ -607,7 +607,7 @@ public partial class Game1
             recoilSeconds - renderState.WeaponAnimationElapsedSeconds);
     }
 
-    private void UpdateWhippingCordWeaponAnimationState(
+    private static void UpdateWhippingCordWeaponAnimationState(
         PlayerEntity player,
         PlayerRenderState renderState,
         WeaponRenderDefinition weaponDefinition,
@@ -1562,7 +1562,7 @@ public partial class Game1
         return 4f;
     }
 
-    private void QueueWeaponShellVisuals(PlayerEntity player, bool shotStarted, bool shellInserted, bool reloadRestarted = false)
+    private void QueueWeaponShellVisuals(PlayerEntity player, bool shotStarted, bool shellInserted)
     {
         if (_particleMode != 0)
         {

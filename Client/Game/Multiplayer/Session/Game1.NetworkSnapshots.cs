@@ -313,7 +313,6 @@ public partial class Game1
 
         _lastAppliedSnapshotLocalPlayerId = currentLocalPlayerId;
         ObserveAppliedNetworkWorldSnapshot(
-            snapshot,
             isServerFullSnapshot,
             presentationEpochChanged);
 

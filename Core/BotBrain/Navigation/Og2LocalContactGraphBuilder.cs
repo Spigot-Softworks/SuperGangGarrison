@@ -116,9 +116,6 @@ public static class Og2LocalContactGraphBuilder
         var contacts = DiscoverContacts(
             level,
             geometry,
-            nodes,
-            nodeBySample,
-            minimumCollisionBottom,
             maximumCollisionBottom);
         if (traceBuild)
         {
@@ -259,9 +256,6 @@ public static class Og2LocalContactGraphBuilder
     private static Dictionary<ContactKey, ContactRecord> DiscoverContacts(
         SimpleLevel level,
         VerifiedNavCandidateGraph geometry,
-        List<NavNode> nodes,
-        Dictionary<SampleKey, int> nodeBySample,
-        float minimumCollisionBottom,
         float maximumCollisionBottom)
     {
         var contacts = new Dictionary<ContactKey, ContactRecord>();
@@ -405,7 +399,6 @@ public static class Og2LocalContactGraphBuilder
                 foreach (var direction in new[] { -1, 1 })
                 {
                     if (HasPotentialTransition(
-                            geometry.Surfaces,
                             surfaceIndex,
                             level,
                             definition,
@@ -442,7 +435,6 @@ public static class Og2LocalContactGraphBuilder
                         }
 
                         if (!HasPotentialTransition(
-                                geometry.Surfaces,
                                 surfaceIndex,
                                 level,
                                 definition,
@@ -605,7 +597,6 @@ public static class Og2LocalContactGraphBuilder
     }
 
     private static bool HasPotentialTransition(
-        IReadOnlyList<VerifiedNavSurface> surfaces,
         SurfaceSpatialIndex surfaceIndex,
         SimpleLevel level,
         CharacterClassDefinition definition,
@@ -776,7 +767,7 @@ public static class Og2LocalContactGraphBuilder
                 launchCaptured ? launchY : startY,
                 launchCaptured ? launchHorizontalSpeed : probe.HorizontalSpeed,
                 launchCaptured && jumpStartsGrounded);
-            if (ShouldTraceContact(currentSurfaceId, detectedSurfaceId, carryingIntel))
+            if (ShouldTraceContact(currentSurfaceId, detectedSurfaceId))
             {
                 Console.WriteLine(
                     $"[botbrain] contact-trace from={currentSurfaceId} to={detectedSurfaceId} " +
@@ -2327,7 +2318,7 @@ public static class Og2LocalContactGraphBuilder
 
     private static int Quantize(float x) => (int)MathF.Round(x / ContactBucket);
 
-    private static bool ShouldTraceContact(int fromSurfaceId, int toSurfaceId, bool carryingIntel)
+    private static bool ShouldTraceContact(int fromSurfaceId, int toSurfaceId)
     {
         var configured = Environment.GetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_TRACE_CONTACTS");
         return !string.IsNullOrWhiteSpace(configured)

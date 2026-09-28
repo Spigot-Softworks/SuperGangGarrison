@@ -737,12 +737,12 @@ internal static class SnapshotDeltaBudgeter
     private static bool IsBudgetCriticalReplicatedState(SnapshotReplicatedStateEntry entry)
     {
         return (string.Equals(entry.OwnerId, "core.player", StringComparison.Ordinal)
-                && entry.Key.IndexOf("_ammo", StringComparison.Ordinal) >= 0)
+                && entry.Key.Contains("_ammo", StringComparison.Ordinal))
             || (string.Equals(entry.OwnerId, "core.player", StringComparison.Ordinal)
                 && string.Equals(entry.Key, "engineer_alternate_weapon_mode", StringComparison.Ordinal))
             || (!string.Equals(entry.OwnerId, "core.player", StringComparison.Ordinal)
                 && entry.Kind == SnapshotReplicatedStateValueKind.Whole
-                && entry.Key.IndexOf("cooldown", StringComparison.OrdinalIgnoreCase) >= 0)
+                && entry.Key.Contains("cooldown", StringComparison.OrdinalIgnoreCase))
             || (string.Equals(entry.OwnerId, "core.ability", StringComparison.Ordinal)
                 && entry.Key is "sniper_charge_ticks" or "sniper_bow_charge_ticks")
             || string.Equals(entry.OwnerId, "ltd.status", StringComparison.Ordinal)
@@ -1331,12 +1331,6 @@ internal static class SnapshotDeltaBudgeter
             _cachedArray = null;
         }
 
-        public void ReplaceWith(IEnumerable<T> items)
-        {
-            _items.Clear();
-            _items.AddRange(items);
-            _cachedArray = null;
-        }
 
         public void RemoveLast()
         {

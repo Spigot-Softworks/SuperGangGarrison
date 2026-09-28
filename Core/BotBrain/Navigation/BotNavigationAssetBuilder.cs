@@ -256,7 +256,7 @@ public static class BotNavigationAssetBuilder
                 ? BotBrainClassMask.All
                 : BotBrainClassMask.For(corridor.PlayerClass);
             var supportedTeamMask = BotBrainTeamMask.For(corridor.Team);
-            var allowInsertedCorridorEdges = ShouldInsertAuthoredCorridorRuntimeEdges(level);
+            var allowInsertedCorridorEdges = ShouldInsertAuthoredCorridorRuntimeEdges();
             if (allowInsertedCorridorEdges)
             {
                 AddAuthoredCorridorGraphLane(
@@ -284,7 +284,7 @@ public static class BotNavigationAssetBuilder
         }
     }
 
-    private static bool ShouldInsertAuthoredCorridorRuntimeEdges(SimpleLevel level) =>
+    private static bool ShouldInsertAuthoredCorridorRuntimeEdges() =>
         false;
 
     private static void AddAuthoredCorridorGraphLane(
@@ -1427,8 +1427,6 @@ public static class BotNavigationAssetBuilder
             stats.NodePairChecks += 1;
             AddTraversalEdgePair(
                 level,
-                surfaces,
-                portals,
                 probeSurfaces,
                 nodes,
                 candidate.FromPortal.NodeIndex,
@@ -1515,10 +1513,9 @@ public static class BotNavigationAssetBuilder
             }
 
             var fromPortalId = FindPortalForNode(portals, fromNode, BuildPortalKind.Ledge);
-            var cost = GetJumpCost(nodes[fromNode], nodes[toNode], Distance(nodes[fromNode], nodes[toNode]));
+            var cost = GetJumpCost(Distance(nodes[fromNode], nodes[toNode]));
             TryAddCertifiedTraversalEdge(
                 level,
-                probeSurfaces,
                 nodes,
                 fromNode,
                 toNode,
@@ -1649,7 +1646,7 @@ public static class BotNavigationAssetBuilder
                     var directKind = ResolveAuthoredCorridorEdgeKind(nodes[previousNode], nodes[nextNode]);
                     var directCost = directKind == NavEdgeKind.Fall
                         ? distance * 0.8f
-                        : GetJumpCost(nodes[previousNode], nodes[nextNode], distance);
+                        : GetJumpCost(distance);
                     var directTemplate = FindCertifiedTraversalTemplateEdge(
                         edges,
                         previousNode,
@@ -1685,10 +1682,9 @@ public static class BotNavigationAssetBuilder
                 var kind = ResolveAuthoredCorridorEdgeKind(nodes[previousNode], nodes[nextNode]);
                 var cost = kind == NavEdgeKind.Fall
                     ? distance * 0.8f
-                    : GetJumpCost(nodes[previousNode], nodes[nextNode], distance);
+                    : GetJumpCost(distance);
                 TryAddCertifiedTraversalEdge(
                     level,
-                    probeSurfaces,
                     nodes,
                     previousNode,
                     nextNode,
@@ -2330,7 +2326,7 @@ public static class BotNavigationAssetBuilder
                     candidate.ToPortal.NodeIndex,
                     candidate.FromPortal.Id,
                     NavEdgeKind.Jump,
-                    GetJumpCost(nodes[candidate.FromPortal.NodeIndex], nodes[candidate.ToPortal.NodeIndex], Distance(nodes[candidate.FromPortal.NodeIndex], nodes[candidate.ToPortal.NodeIndex])),
+                    GetJumpCost(Distance(nodes[candidate.FromPortal.NodeIndex], nodes[candidate.ToPortal.NodeIndex])),
                     edges,
                     edgeSet,
                     stats);
@@ -2524,8 +2520,6 @@ public static class BotNavigationAssetBuilder
 
     private static void AddTraversalEdgePair(
         SimpleLevel level,
-        IReadOnlyList<BuildSurface> surfaces,
-        IReadOnlyList<BuildPortal> portals,
         IReadOnlyList<BotBrainProbeSurface> probeSurfaces,
         IReadOnlyList<BuildNode> nodes,
         int nodeA,
@@ -2550,50 +2544,50 @@ public static class BotNavigationAssetBuilder
 
         if (dy <= StepDownTolerance && dist <= MaxJumpReach && CanJumpBetween(level, a, b))
         {
-            TryAddCertifiedTraversalEdge(level, probeSurfaces, nodes, nodeA, nodeB, portalAId, portalBId, surfaceB, NavEdgeKind.Jump, GetJumpCost(a, b, dist), edges, edgeSet, stats);
+            TryAddCertifiedTraversalEdge(level, nodes, nodeA, nodeB, portalAId, portalBId, surfaceB, NavEdgeKind.Jump, GetJumpCost(dist), edges, edgeSet, stats);
         }
 
         if (dy >= -StepDownTolerance && dist <= MaxJumpReach && CanJumpBetween(level, b, a))
         {
-            TryAddCertifiedTraversalEdge(level, probeSurfaces, nodes, nodeB, nodeA, portalBId, portalAId, surfaceA, NavEdgeKind.Jump, GetJumpCost(b, a, dist), edges, edgeSet, stats);
+            TryAddCertifiedTraversalEdge(level, nodes, nodeB, nodeA, portalBId, portalAId, surfaceA, NavEdgeKind.Jump, GetJumpCost(dist), edges, edgeSet, stats);
         }
 
         if (dy > StepDownTolerance && dy <= MaxFallDistance && dx < MaxJumpReach * 0.6f && CanFallBetween(level, a, b))
         {
             var kind = surfaceA.IsDropdown && dx < ProbeHalfWidth * 3f ? NavEdgeKind.Dropdown : NavEdgeKind.Fall;
-            TryAddCertifiedTraversalEdge(level, probeSurfaces, nodes, nodeA, nodeB, portalAId, portalBId, surfaceB, kind, dist * 0.8f, edges, edgeSet, stats);
+            TryAddCertifiedTraversalEdge(level, nodes, nodeA, nodeB, portalAId, portalBId, surfaceB, kind, dist * 0.8f, edges, edgeSet, stats);
             if (dy <= ReverseFallJumpVerticalReach && dist <= MaxJumpReach)
             {
-                TryAddCertifiedTraversalEdge(level, probeSurfaces, nodes, nodeB, nodeA, portalBId, portalAId, surfaceA, NavEdgeKind.Jump, GetJumpCost(b, a, dist), edges, edgeSet, stats);
+                TryAddCertifiedTraversalEdge(level, nodes, nodeB, nodeA, portalBId, portalAId, surfaceA, NavEdgeKind.Jump, GetJumpCost(dist), edges, edgeSet, stats);
             }
         }
         else if (ShouldUseCtfMicroStepRepairs(level) && dy <= ReverseFallJumpVerticalReach && dist <= MaxJumpReach && CanAttemptJumpBetween(level, b, a))
         {
-            TryAddCertifiedTraversalEdge(level, probeSurfaces, nodes, nodeB, nodeA, portalBId, portalAId, surfaceA, NavEdgeKind.Jump, GetJumpCost(b, a, dist), edges, edgeSet, stats);
+            TryAddCertifiedTraversalEdge(level, nodes, nodeB, nodeA, portalBId, portalAId, surfaceA, NavEdgeKind.Jump, GetJumpCost(dist), edges, edgeSet, stats);
         }
 
         if (dy > StepDownTolerance && dy <= MaxFallDistance && dx <= MaxJumpReach && CanJumpBetween(level, a, b))
         {
-            TryAddCertifiedTraversalEdge(level, probeSurfaces, nodes, nodeA, nodeB, portalAId, portalBId, surfaceB, NavEdgeKind.Jump, GetJumpCost(a, b, dist), edges, edgeSet, stats);
+            TryAddCertifiedTraversalEdge(level, nodes, nodeA, nodeB, portalAId, portalBId, surfaceB, NavEdgeKind.Jump, GetJumpCost(dist), edges, edgeSet, stats);
         }
 
         if (dy < -StepDownTolerance && -dy <= MaxFallDistance && dx < MaxJumpReach * 0.6f && CanFallBetween(level, b, a))
         {
             var kind = surfaceB.IsDropdown && dx < ProbeHalfWidth * 3f ? NavEdgeKind.Dropdown : NavEdgeKind.Fall;
-            TryAddCertifiedTraversalEdge(level, probeSurfaces, nodes, nodeB, nodeA, portalBId, portalAId, surfaceA, kind, dist * 0.8f, edges, edgeSet, stats);
+            TryAddCertifiedTraversalEdge(level, nodes, nodeB, nodeA, portalBId, portalAId, surfaceA, kind, dist * 0.8f, edges, edgeSet, stats);
             if (-dy <= ReverseFallJumpVerticalReach && dist <= MaxJumpReach)
             {
-                TryAddCertifiedTraversalEdge(level, probeSurfaces, nodes, nodeA, nodeB, portalAId, portalBId, surfaceB, NavEdgeKind.Jump, GetJumpCost(a, b, dist), edges, edgeSet, stats);
+                TryAddCertifiedTraversalEdge(level, nodes, nodeA, nodeB, portalAId, portalBId, surfaceB, NavEdgeKind.Jump, GetJumpCost(dist), edges, edgeSet, stats);
             }
         }
         else if (ShouldUseCtfMicroStepRepairs(level) && -dy <= ReverseFallJumpVerticalReach && dist <= MaxJumpReach && CanAttemptJumpBetween(level, a, b))
         {
-            TryAddCertifiedTraversalEdge(level, probeSurfaces, nodes, nodeA, nodeB, portalAId, portalBId, surfaceB, NavEdgeKind.Jump, GetJumpCost(a, b, dist), edges, edgeSet, stats);
+            TryAddCertifiedTraversalEdge(level, nodes, nodeA, nodeB, portalAId, portalBId, surfaceB, NavEdgeKind.Jump, GetJumpCost(dist), edges, edgeSet, stats);
         }
 
         if (dy < -StepDownTolerance && -dy <= MaxFallDistance && dx <= MaxJumpReach && CanJumpBetween(level, b, a))
         {
-            TryAddCertifiedTraversalEdge(level, probeSurfaces, nodes, nodeB, nodeA, portalBId, portalAId, surfaceA, NavEdgeKind.Jump, GetJumpCost(b, a, dist), edges, edgeSet, stats);
+            TryAddCertifiedTraversalEdge(level, nodes, nodeB, nodeA, portalBId, portalAId, surfaceA, NavEdgeKind.Jump, GetJumpCost(dist), edges, edgeSet, stats);
         }
     }
 
@@ -2640,10 +2634,10 @@ public static class BotNavigationAssetBuilder
                 else if (candidate.Kind == NavEdgeKind.Jump && CanJumpBetween(level, anchor, surface))
                 {
                     var targetSurface = FindSurface(surfaces, surface.SurfaceId);
-                    var added = TryAddCertifiedTraversalEdge(level, probeSurfaces, nodes, i, candidate.NodeIndex, anchorPortalId, candidate.PortalId, targetSurface, NavEdgeKind.Jump, GetJumpCost(anchor, surface, dist), edges, edgeSet, stats);
+                    var added = TryAddCertifiedTraversalEdge(level, nodes, i, candidate.NodeIndex, anchorPortalId, candidate.PortalId, targetSurface, NavEdgeKind.Jump, GetJumpCost(dist), edges, edgeSet, stats);
                     if (CanFallBetween(level, surface, anchor))
                     {
-                        TryAddCertifiedTraversalEdge(level, probeSurfaces, nodes, candidate.NodeIndex, i, candidate.PortalId, anchorPortalId, targetSurface: null, NavEdgeKind.Fall, dist, edges, edgeSet, stats);
+                        TryAddCertifiedTraversalEdge(level, nodes, candidate.NodeIndex, i, candidate.PortalId, anchorPortalId, targetSurface: null, NavEdgeKind.Fall, dist, edges, edgeSet, stats);
                     }
 
                     attached += added ? 1 : 0;
@@ -2651,10 +2645,10 @@ public static class BotNavigationAssetBuilder
                 else if (candidate.Kind == NavEdgeKind.Fall && CanFallBetween(level, anchor, surface))
                 {
                     var targetSurface = FindSurface(surfaces, surface.SurfaceId);
-                    var added = TryAddCertifiedTraversalEdge(level, probeSurfaces, nodes, i, candidate.NodeIndex, anchorPortalId, candidate.PortalId, targetSurface, NavEdgeKind.Fall, dist, edges, edgeSet, stats);
+                    var added = TryAddCertifiedTraversalEdge(level, nodes, i, candidate.NodeIndex, anchorPortalId, candidate.PortalId, targetSurface, NavEdgeKind.Fall, dist, edges, edgeSet, stats);
                     if (CanJumpBetween(level, surface, anchor))
                     {
-                        TryAddCertifiedTraversalEdge(level, probeSurfaces, nodes, candidate.NodeIndex, i, candidate.PortalId, anchorPortalId, targetSurface: null, NavEdgeKind.Jump, GetJumpCost(surface, anchor, dist), edges, edgeSet, stats);
+                        TryAddCertifiedTraversalEdge(level, nodes, candidate.NodeIndex, i, candidate.PortalId, anchorPortalId, targetSurface: null, NavEdgeKind.Jump, GetJumpCost(dist), edges, edgeSet, stats);
                     }
 
                     attached += added ? 1 : 0;
@@ -2703,13 +2697,13 @@ public static class BotNavigationAssetBuilder
         if (dy < 0f && CanJumpBetween(level, anchor, surface))
         {
             var targetSurface = FindSurface(surfaces, surface.SurfaceId);
-            return TryAddCertifiedTraversalEdge(level, probeSurfaces, nodes, anchorNodeIndex, portal.NodeIndex, anchorPortalId, portal.Id, targetSurface, NavEdgeKind.Jump, GetJumpCost(anchor, surface, dist), edges, edgeSet, stats);
+            return TryAddCertifiedTraversalEdge(level, nodes, anchorNodeIndex, portal.NodeIndex, anchorPortalId, portal.Id, targetSurface, NavEdgeKind.Jump, GetJumpCost(dist), edges, edgeSet, stats);
         }
 
         if (dy > 0f && CanFallBetween(level, anchor, surface))
         {
             var targetSurface = FindSurface(surfaces, surface.SurfaceId);
-            return TryAddCertifiedTraversalEdge(level, probeSurfaces, nodes, anchorNodeIndex, portal.NodeIndex, anchorPortalId, portal.Id, targetSurface, NavEdgeKind.Fall, dist, edges, edgeSet, stats);
+            return TryAddCertifiedTraversalEdge(level, nodes, anchorNodeIndex, portal.NodeIndex, anchorPortalId, portal.Id, targetSurface, NavEdgeKind.Fall, dist, edges, edgeSet, stats);
         }
 
         return false;
@@ -2823,7 +2817,6 @@ public static class BotNavigationAssetBuilder
 
     private static bool TryAddCertifiedTraversalEdge(
         SimpleLevel level,
-        IReadOnlyList<BotBrainProbeSurface> probeSurfaces,
         IReadOnlyList<BuildNode> nodes,
         int fromNode,
         int toNode,
@@ -3332,7 +3325,7 @@ public static class BotNavigationAssetBuilder
             && !HasBlockingSolidAt(level, from.X + dx * 0.75f, from.Y + dy * 0.75f - jumpHeight * 0.3f);
     }
 
-    private static float GetJumpCost(BuildNode from, BuildNode to, float distance)
+    private static float GetJumpCost(float distance)
     {
         return distance * 1.5f;
     }

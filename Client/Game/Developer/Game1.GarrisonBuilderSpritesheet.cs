@@ -206,7 +206,7 @@ public partial class Game1
         return true;
     }
 
-    private bool IsGarrisonBuilderSpritesheetResizable(CustomMapBuilderEntity entity)
+    private static bool IsGarrisonBuilderSpritesheetResizable(CustomMapBuilderEntity entity)
     {
         return SpritesheetMetadata.IsSpritesheetEntityType(entity.Type)
             && SpritesheetMetadata.ParseConfiguration(entity.Properties).HasImage;
@@ -619,15 +619,13 @@ public partial class Game1
         float textScale,
         bool hovered)
     {
-        DrawGarrisonBuilderCustomSpriteZOrderPropertyRow(rowBounds, value, mouse, textScale, hovered);
+        DrawGarrisonBuilderCustomSpriteZOrderPropertyRow(rowBounds, value, textScale);
     }
 
     private void DrawGarrisonBuilderSpritesheetFrameratePropertyRow(
         Rectangle rowBounds,
         string value,
-        MouseState mouse,
-        float textScale,
-        bool hovered)
+        float textScale)
     {
         DrawGarrisonBuilderSpritesheetNumericSliderPropertyRow(
             rowBounds,
@@ -640,9 +638,7 @@ public partial class Game1
         Rectangle rowBounds,
         string key,
         string value,
-        MouseState mouse,
-        float textScale,
-        bool hovered)
+        float textScale)
     {
         var label = key.Equals(SpritesheetMetadata.ColumnsPropertyKey, StringComparison.OrdinalIgnoreCase)
             ? "Columns"
@@ -766,8 +762,7 @@ public partial class Game1
                 _builderResizeStartLeft,
                 _builderResizeStartTop,
                 startRight,
-                startBottom,
-                aspectRatio);
+                startBottom);
         }
 
         newWidth = MathF.Max(minSize, newWidth);

@@ -776,11 +776,11 @@ public sealed partial class SimulationWorld
             return true;
         }
 
-        FireExperimentalDefaultSentryShot(sentry, owner, target, reloadTicks);
+        FireExperimentalDefaultSentryShot(sentry, owner, target);
         return true;
     }
 
-    private void FireExperimentalDefaultSentryShot(SentryEntity sentry, PlayerEntity owner, SentryTarget target, int reloadTicks)
+    private void FireExperimentalDefaultSentryShot(SentryEntity sentry, PlayerEntity owner, SentryTarget target)
     {
         var distance = DistanceBetween(sentry.X, sentry.Y, target.X, target.Y);
         if (distance > 0f)

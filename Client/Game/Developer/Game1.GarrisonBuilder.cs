@@ -307,7 +307,7 @@ public partial class Game1
         {
             SyncGarrisonBuilderActiveTool();
             UpdateModernGarrisonBuilderCamera(keyboard, mouse, deltaSeconds);
-            UpdateModernGarrisonBuilderZoom(mouse, keyboard);
+            UpdateModernGarrisonBuilderZoom(mouse);
             if (TryHandleGarrisonBuilderHistoryShortcuts(keyboard)) return;
         }
 
@@ -325,7 +325,7 @@ public partial class Game1
 
         if (_builderUseModernUi)
         {
-            UpdateModernGarrisonBuilderEditor(keyboard, mouse, deltaSeconds);
+            UpdateModernGarrisonBuilderEditor(keyboard, mouse);
             return;
         }
 
@@ -965,7 +965,7 @@ public partial class Game1
             var action = _builderActionDefinitions[actionIndex];
             var y = bounds.Bottom - ((row + 1) * LegacyBuilderButtonHeight);
             var toggled = IsLegacyBuilderActionToggled(action.Label);
-            DrawLegacyBuilderButton(new Rectangle(bounds.X, y, LegacyBuilderButtonWidth, LegacyBuilderButtonHeight), action.Label, toggled, mouse);
+            DrawLegacyBuilderButton(new Rectangle(bounds.X, y, LegacyBuilderButtonWidth, LegacyBuilderButtonHeight), action.Label, toggled);
         }
 
         DrawLegacyBuilderScrollbar(bounds, visibleRows);
@@ -1233,7 +1233,7 @@ public partial class Game1
 
             if (IsGarrisonBuilderMultiEntityRefProperty(key) && ShouldUseGarrisonBuilderEntityRefListDropdown(value))
             {
-                DrawGarrisonBuilderEntityRefListPropertyRow(rowBounds, key, value, mouse, popupScale, rowBounds.Contains(mouse.Position));
+                DrawGarrisonBuilderEntityRefListPropertyRow(rowBounds, key, value, popupScale, rowBounds.Contains(mouse.Position));
             }
             else
             {
@@ -1346,7 +1346,7 @@ public partial class Game1
         _spriteBatch.Draw(_pixel, new Rectangle(bounds.Right - 1, bounds.Y, 1, bounds.Height), new Color(63, 63, 63));
     }
 
-    private void DrawLegacyBuilderButton(Rectangle bounds, string label, bool toggled, MouseState mouse)
+    private void DrawLegacyBuilderButton(Rectangle bounds, string label, bool toggled)
     {
         if (_builderButtonSprite is not null && _builderButtonSprite.Frames.Count >= 6)
         {
@@ -4090,7 +4090,7 @@ public partial class Game1
 
     private bool TryGetGarrisonBuilderEntityFrame(CustomMapBuilderEntityDefinition definition, CustomMapBuilderEntity entity, out LoadedSpriteFrame frame, out Vector2 origin)
     {
-        if (TryGetGarrisonBuilderEntityResourceFrame(definition, entity.Properties, out frame, out origin))
+        if (TryGetGarrisonBuilderEntityResourceFrame(entity.Properties, out frame, out origin))
         {
             return true;
         }
@@ -4152,7 +4152,7 @@ public partial class Game1
         out LoadedSpriteFrame frame,
         out Vector2 origin)
     {
-        if (TryGetGarrisonBuilderEntityResourceFrame(definition, properties, out frame, out origin))
+        if (TryGetGarrisonBuilderEntityResourceFrame(properties, out frame, out origin))
         {
             return true;
         }
@@ -4382,7 +4382,7 @@ public partial class Game1
             : frameOffset;
     }
 
-    private bool TryGetGarrisonBuilderEntityResourceFrame(CustomMapBuilderEntityDefinition definition, IReadOnlyDictionary<string, string> properties, out LoadedSpriteFrame frame, out Vector2 origin)
+    private bool TryGetGarrisonBuilderEntityResourceFrame(IReadOnlyDictionary<string, string> properties, out LoadedSpriteFrame frame, out Vector2 origin)
     {
         frame = default!;
         origin = Vector2.Zero;
@@ -4543,8 +4543,7 @@ public partial class Game1
                     cellY,
                     MathF.Min(tileSize, left + width - cellX),
                     MathF.Min(tileSize, top + height - cellY),
-                    arrowColor,
-                    visualScale);
+                    arrowColor);
             }
         }
     }
@@ -4555,8 +4554,7 @@ public partial class Game1
         float worldY,
         float cellWidth,
         float cellHeight,
-        Color arrowColor,
-        float visualScale)
+        Color arrowColor)
     {
         var inset = MathF.Max(1f, MathF.Min(cellWidth, cellHeight) * 0.15f);
         var left = worldX + inset;
@@ -6975,12 +6973,12 @@ public partial class Game1
         DirectionalWallConfiguration.ProjectilesPropertyKey,
     ];
 
-    private List<string> OrderGarrisonBuilderBarrierPropertyRows(List<string> rows)
+    private static List<string> OrderGarrisonBuilderBarrierPropertyRows(List<string> rows)
     {
         return OrderGarrisonBuilderPropertyRows(rows, GarrisonBuilderBarrierPropertyRowOrder, []);
     }
 
-    private List<string> OrderGarrisonBuilderDirectionalWallPropertyRows(List<string> rows)
+    private static List<string> OrderGarrisonBuilderDirectionalWallPropertyRows(List<string> rows)
     {
         return OrderGarrisonBuilderPropertyRows(rows, GarrisonBuilderDirectionalWallPropertyRowOrder, []);
     }
@@ -7562,7 +7560,7 @@ public partial class Game1
         return 1f;
     }
 
-    private float GetGarrisonBuilderPropertyRowTextScale()
+    private static float GetGarrisonBuilderPropertyRowTextScale()
     {
         return GetGarrisonBuilderRelativeBitmapFontScale(GetGarrisonBuilderPropertyRowRelativeTextScale());
     }
@@ -7625,7 +7623,7 @@ public partial class Game1
 
             if (isCustomSpriteZOrder)
             {
-                DrawGarrisonBuilderCustomSpriteZOrderPropertyRow(rowBounds, value, mouse, textScale, hovered);
+                DrawGarrisonBuilderCustomSpriteZOrderPropertyRow(rowBounds, value, textScale);
                 return;
             }
 
@@ -7637,19 +7635,19 @@ public partial class Game1
 
             if (isSpritesheetFramerate)
             {
-                DrawGarrisonBuilderSpritesheetFrameratePropertyRow(rowBounds, value, mouse, textScale, hovered);
+                DrawGarrisonBuilderSpritesheetFrameratePropertyRow(rowBounds, value, textScale);
                 return;
             }
 
             if (isSpritesheetGrid)
             {
-                DrawGarrisonBuilderSpritesheetGridPropertyRow(rowBounds, key, value, mouse, textScale, hovered);
+                DrawGarrisonBuilderSpritesheetGridPropertyRow(rowBounds, key, value, textScale);
                 return;
             }
 
             if (isForegroundSpriteRelativeZ)
             {
-                DrawGarrisonBuilderForegroundSpriteRelativeZPropertyRow(rowBounds, value, mouse, textScale, hovered);
+                DrawGarrisonBuilderForegroundSpriteRelativeZPropertyRow(rowBounds, value, textScale);
                 return;
             }
 
@@ -7743,7 +7741,7 @@ public partial class Game1
 
         if (isCustomSpriteZOrder)
         {
-            DrawGarrisonBuilderCustomSpriteZOrderPropertyRow(rowBounds, value, mouse, textScale, hovered);
+            DrawGarrisonBuilderCustomSpriteZOrderPropertyRow(rowBounds, value, textScale);
             return;
         }
 
@@ -7755,19 +7753,19 @@ public partial class Game1
 
         if (isSpritesheetFramerate)
         {
-            DrawGarrisonBuilderSpritesheetFrameratePropertyRow(rowBounds, value, mouse, textScale, hovered);
+            DrawGarrisonBuilderSpritesheetFrameratePropertyRow(rowBounds, value, textScale);
             return;
         }
 
         if (isSpritesheetGrid)
         {
-            DrawGarrisonBuilderSpritesheetGridPropertyRow(rowBounds, key, value, mouse, textScale, hovered);
+            DrawGarrisonBuilderSpritesheetGridPropertyRow(rowBounds, key, value, textScale);
             return;
         }
 
         if (isForegroundSpriteRelativeZ)
         {
-            DrawGarrisonBuilderForegroundSpriteRelativeZPropertyRow(rowBounds, value, mouse, textScale, hovered);
+            DrawGarrisonBuilderForegroundSpriteRelativeZPropertyRow(rowBounds, value, textScale);
             return;
         }
 
@@ -9549,7 +9547,7 @@ public partial class Game1
         return GetGarrisonBuilderMenuRowHeight(GetGarrisonBuilderPropertyRowRelativeTextScale());
     }
 
-    private int GetGarrisonBuilderPropertyListTop(Rectangle editorBounds)
+    private static int GetGarrisonBuilderPropertyListTop(Rectangle editorBounds)
     {
         return editorBounds.Y + 34;
     }
@@ -9623,11 +9621,11 @@ public partial class Game1
     private Rectangle GetGarrisonBuilderPropertyEditorBounds()
     {
         var width = Math.Min(BuilderUi(420), Math.Max(BuilderUi(280), BuilderViewportWidth - BuilderUi(80)));
-        var height = GetGarrisonBuilderPropertyEditorHeight(width);
+        var height = GetGarrisonBuilderPropertyEditorHeight();
         return new Rectangle((BuilderViewportWidth - width) / 2, (BuilderViewportHeight - height) / 2, width, height);
     }
 
-    private int GetGarrisonBuilderPropertyEditorHeight(int width)
+    private int GetGarrisonBuilderPropertyEditorHeight()
     {
         const int editModeHeight = 118;
         if (_builderPropertyEditMode != GarrisonBuilderPropertyEditMode.List)

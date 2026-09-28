@@ -72,9 +72,9 @@ public sealed class GameplayPlayerSpriteRenderController
                             : bodySelection.IsHumiliated
                                 ? GetHumiliationSpriteFrameIndex(player, bodySelection.AnimationImage, sprite.Frames.Count)
                                 : GetPlayerBodySpriteFrameIndex(bodySelection.AnimationImage, sprite.Frames.Count);
-            var screenOrigin = _game.GetPlayerSpriteScreenOrigin(renderPosition, cameraPosition);
+            var screenOrigin = Game1.GetPlayerSpriteScreenOrigin(renderPosition, cameraPosition);
             var bodyYOffset = isHeavyEating || player.IsTaunting || isPogo ? 0f : bodySelection.BodyYOffset * playerScale;
-            var position = _game.GetPlayerSpriteScreenOrigin(new Vector2(renderPosition.X, renderPosition.Y + bodyYOffset), cameraPosition);
+            var position = Game1.GetPlayerSpriteScreenOrigin(new Vector2(renderPosition.X, renderPosition.Y + bodyYOffset), cameraPosition);
 
             if (drawTopDownShadow)
             {
@@ -211,9 +211,9 @@ public sealed class GameplayPlayerSpriteRenderController
                             : bodySelection.IsHumiliated
                                 ? GetHumiliationSpriteFrameIndex(player, bodySelection.AnimationImage, sprite.Frames.Count)
                                 : GetPlayerBodySpriteFrameIndex(bodySelection.AnimationImage, sprite.Frames.Count);
-            var screenOrigin = _game.GetPlayerSpriteScreenOrigin(renderPosition, cameraPosition);
+            var screenOrigin = Game1.GetPlayerSpriteScreenOrigin(renderPosition, cameraPosition);
             var bodyYOffset = isHeavyEating || player.IsTaunting || isPogo ? 0f : bodySelection.BodyYOffset * playerScale;
-            var position = _game.GetPlayerSpriteScreenOrigin(new Vector2(renderPosition.X, renderPosition.Y + bodyYOffset), cameraPosition);
+            var position = Game1.GetPlayerSpriteScreenOrigin(new Vector2(renderPosition.X, renderPosition.Y + bodyYOffset), cameraPosition);
             _game.DrawSpriteFrameOutline(sprite.Frames[frameIndex], position, outlineTint, 0f, sprite.Origin.ToVector2(), scale, outlineOffsets: outlineOffsets);
             return true;
         }

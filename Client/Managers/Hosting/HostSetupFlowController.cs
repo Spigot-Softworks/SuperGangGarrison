@@ -255,7 +255,7 @@ public sealed class HostSetupFlowController
                     _context.HandleHostSetupOptionsMenu(mouse, clickPressed);
                     return;
                 case HostSetupScreen.Maps:
-                    HandleHostSetupMapsMenu(mouse, clickPressed, layout);
+                    HandleHostSetupMapsMenu(mouse, clickPressed);
                     return;
                 default:
                     HandleHostSetupMainMenu(mouse, clickPressed, layout);
@@ -318,7 +318,7 @@ public sealed class HostSetupFlowController
             return false;
         }
 
-        private void HandleHostSetupMapsMenu(MouseState mouse, bool clickPressed, HostSetupMenuLayout layout)
+        private void HandleHostSetupMapsMenu(MouseState mouse, bool clickPressed)
         {
             var mapsLayout = HostSetupMapsMenuLayoutCalculator.Create(
                 _context.ViewportWidth,

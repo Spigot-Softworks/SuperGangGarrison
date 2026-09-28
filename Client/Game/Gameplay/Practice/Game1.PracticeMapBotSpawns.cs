@@ -279,22 +279,22 @@ public partial class Game1
         {
             if (!_world.TryPrepareNetworkPlayerJoin(slot))
             {
-                return FailPracticeMapBotSpawn(slot, displayName, "prepare join failed");
+                return FailPracticeMapBotSpawn(slot, "prepare join failed");
             }
 
             if (!_world.TrySetNetworkPlayerName(slot, displayName))
             {
-                return FailPracticeMapBotSpawn(slot, displayName, "set name failed");
+                return FailPracticeMapBotSpawn(slot, "set name failed");
             }
 
             if (!_world.TrySetNetworkPlayerTeam(slot, marker.Team))
             {
-                return FailPracticeMapBotSpawn(slot, displayName, "set team failed");
+                return FailPracticeMapBotSpawn(slot, "set team failed");
             }
 
             if (!_world.TryApplyNetworkPlayerClassSelection(slot, playerClass))
             {
-                return FailPracticeMapBotSpawn(slot, displayName, $"class selection failed class={playerClass}");
+                return FailPracticeMapBotSpawn(slot, $"class selection failed class={playerClass}");
             }
 
             if (_world.TryGetNetworkPlayer(slot, out var spawnedBot))
@@ -424,7 +424,7 @@ public partial class Game1
         }
     }
 
-    private bool FailPracticeMapBotSpawn(byte slot, string displayName, string reason)
+    private bool FailPracticeMapBotSpawn(byte slot, string reason)
     {
         _world.TryReleaseNetworkPlayerSlot(slot);
         _practiceBotDisplayNamePool.ReleaseSlot(slot);

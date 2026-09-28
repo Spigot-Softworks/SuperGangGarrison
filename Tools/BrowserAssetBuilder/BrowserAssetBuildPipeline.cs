@@ -281,13 +281,11 @@ internal static class BrowserAssetBuildPipeline
         var pagesByGroup = new Dictionary<string, List<AtlasPageBuilder>>(StringComparer.OrdinalIgnoreCase);
         var placementsByKey = new Dictionary<AtlasFramePlacementKey, SharedAtlasFramePlacement>();
         var stockEntries = BuildSharedAtlasSpriteEntries(
-            context,
             sharedAtlasPrefix,
             stockGameplaySprites,
             pagesByGroup,
             placementsByKey);
         var gameMakerEntries = BuildSharedAtlasSpriteEntries(
-            context,
             sharedAtlasPrefix,
             gameMakerSprites,
             pagesByGroup,
@@ -310,7 +308,6 @@ internal static class BrowserAssetBuildPipeline
     }
 
     private static SharedAtlasSpriteEntries BuildSharedAtlasSpriteEntries(
-        BrowserAssetBuildContext context,
         string atlasPrefix,
         IReadOnlyList<AtlasSpriteInput> sprites,
         Dictionary<string, List<AtlasPageBuilder>> pagesByGroup,

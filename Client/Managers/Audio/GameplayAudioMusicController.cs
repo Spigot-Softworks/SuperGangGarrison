@@ -333,7 +333,7 @@ public sealed class GameplayAudioMusicController
             TryLoadLoopedMusic(relativePath, out music, out musicInstance, volume, disableAudioOnFailure: false, isLooped: isLooped);
         }
 
-        public bool CanStartMusicPlayback()
+        public static bool CanStartMusicPlayback()
         {
             return CanStartAudioPlayback();
         }

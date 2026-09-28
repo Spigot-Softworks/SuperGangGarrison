@@ -4179,10 +4179,10 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                 PlayerClass currentClass,
                 CharacterClassDefinition classDefinition)
             {
-                var nearLeftSupported = IsReplayFloorSupported(player, currentClass, classDefinition, player.X - 3f);
-                var farLeftSupported = IsReplayFloorSupported(player, currentClass, classDefinition, player.X - 7f);
-                var nearRightSupported = IsReplayFloorSupported(player, currentClass, classDefinition, player.X + 2f);
-                var farRightSupported = IsReplayFloorSupported(player, currentClass, classDefinition, player.X + 6f);
+                var nearLeftSupported = IsReplayFloorSupported(player, classDefinition, player.X - 3f);
+                var farLeftSupported = IsReplayFloorSupported(player, classDefinition, player.X - 7f);
+                var nearRightSupported = IsReplayFloorSupported(player, classDefinition, player.X + 2f);
+                var farRightSupported = IsReplayFloorSupported(player, classDefinition, player.X + 6f);
                 return LegacyGg2LeanPose.Resolve(
                     nearLeftSupported,
                     farLeftSupported,
@@ -4192,19 +4192,16 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
 
             private bool IsReplayFloorSupported(
                 LegacyReplayPlayer player,
-                PlayerClass currentClass,
                 CharacterClassDefinition classDefinition,
                 float x)
             {
                 var bottom = player.Y + classDefinition.CollisionBottom;
-                return IsPointBlockedForReplayPlayer(player, currentClass, classDefinition, x, bottom + 1f)
-                    || IsPointBlockedForReplayPlayer(player, currentClass, classDefinition, x, bottom + 2f);
+                return IsPointBlockedForReplayPlayer(player, x, bottom + 1f)
+                    || IsPointBlockedForReplayPlayer(player, x, bottom + 2f);
             }
 
             private bool IsPointBlockedForReplayPlayer(
                 LegacyReplayPlayer player,
-                PlayerClass currentClass,
-                CharacterClassDefinition classDefinition,
                 float x,
                 float y)
             {
@@ -4441,7 +4438,7 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
 
                 var classId = MapLegacyClassToCurrent(victim.ClassId);
                 var classDefinition = CharacterClassCatalog.GetDefinition(classId);
-                var animationKind = ResolveReplayDeathAnimationKind(victim, killerIndex, deathSource);
+                var animationKind = ResolveReplayDeathAnimationKind(killerIndex, deathSource);
                 _deadBodies.Add(new DeadBodyEntity(
                     NextTransientEntityId(),
                     victim.StablePlayerId,
@@ -4489,7 +4486,7 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                     && deathSource is 4 or 9 or 14 or 15 or 21 or 24 or 26;
             }
 
-            private DeadBodyAnimationKind ResolveReplayDeathAnimationKind(LegacyReplayPlayer victim, int killerIndex, byte deathSource)
+            private DeadBodyAnimationKind ResolveReplayDeathAnimationKind(int killerIndex, byte deathSource)
             {
                 if (killerIndex >= 0 && killerIndex < _players.Count)
                 {

@@ -49,7 +49,6 @@ sealed partial class GameServer
     private readonly string _compatibilityKey;
     private readonly string _lobbyHost;
     private readonly int _lobbyPort;
-    private readonly string _protocolUuidString;
     private readonly int _lobbyHeartbeatSeconds;
     private readonly int _lobbyResolveSeconds;
     private readonly string? _requestedMap;
@@ -230,7 +229,6 @@ sealed partial class GameServer
             : compatibilityKey.Trim();
         _lobbyHost = lobbyHost;
         _lobbyPort = lobbyPort;
-        _protocolUuidString = protocolUuidString;
         _lobbyHeartbeatSeconds = lobbyHeartbeatSeconds;
         _lobbyResolveSeconds = lobbyResolveSeconds;
         _requestedMap = requestedMap;

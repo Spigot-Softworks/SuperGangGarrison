@@ -43,7 +43,7 @@ public sealed partial class SimulationWorld
                 if (!player.IsAlive
                     || !world.CanPlayerContributeToControlPoint(player)
                     || IsIgnoringPlayerForCapture(world, player)
-                    || !world.CanPlayerAffectControlPointInVipMode(player))
+                    || !world.CanPlayerAffectControlPointInVipMode())
                 {
                     continue;
                 }

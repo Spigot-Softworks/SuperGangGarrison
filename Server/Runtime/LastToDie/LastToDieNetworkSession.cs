@@ -44,6 +44,7 @@ internal sealed class LastToDieNetworkSession(
         consumeAfterlifeDisconnectFailure ?? (_ => false);
     private readonly int _commandWindowTicks = Math.Max(1, ticksPerSecond);
     private readonly int _snapshotHeartbeatTicks = Math.Max(1, ticksPerSecond);
+    private readonly int _snapshotRetransmissionIntervalTicks = Math.Max(1, ticksPerSecond / 2);
     private readonly int _reconnectGraceTicks = Math.Max(1, ticksPerSecond * ReconnectGraceSeconds);
     private readonly int _loadingTimeoutTicks = Math.Max(1, ticksPerSecond * LoadingTimeoutSeconds);
     private readonly Action<ClientSession, string>? _disconnectClient = disconnectClient;
@@ -51,6 +52,7 @@ internal sealed class LastToDieNetworkSession(
     private readonly Func<int> _completedRounds = completedRounds ?? (() => 0);
     private readonly Func<byte, int> _scoreUnits = scoreUnits ?? (_ => 0);
     private long _lastSnapshotHeartbeatTick = -1;
+    private long _lastSnapshotRetransmissionTick = -1;
     private ulong _loadingStageInstanceId;
     private long _loadingDeadlineTick;
 
@@ -461,6 +463,13 @@ internal sealed class LastToDieNetworkSession(
             // timers after the current structural revision has been ACKed.
             BroadcastSnapshots();
             _lastSnapshotHeartbeatTick = tick;
+        }
+
+        if (_lastSnapshotRetransmissionTick < 0
+            || tick - _lastSnapshotRetransmissionTick >= _snapshotRetransmissionIntervalTicks)
+        {
+            ResendUnacknowledgedSnapshots();
+            _lastSnapshotRetransmissionTick = tick;
         }
 
         return stateChanged;

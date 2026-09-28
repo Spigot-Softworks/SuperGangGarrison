@@ -503,17 +503,16 @@ public partial class Game1
             _world.LocalPlayer.OwnsGameplayItem);
         if (ShouldUseLastToDieAccessoryLoadoutColumn(viewedClass))
         {
-            DrawLastToDieAccessoryLoadoutColumn(layout, layout.LeftColumnBounds, buttons);
+            DrawLastToDieAccessoryLoadoutColumn(layout.LeftColumnBounds, buttons);
             return;
         }
 
         var (leftOptions, rightOptions) = GameplayLoadoutMenuModel.GetVisualColumns(selectedLoadout, loadouts);
-        DrawGameplayLoadoutMenuOptionColumn(layout, layout.LeftColumnBounds, leftOptions, buttons, viewedClass == _world.LocalPlayer.ClassId);
-        DrawGameplayLoadoutMenuOptionColumn(layout, layout.RightColumnBounds, rightOptions, buttons, viewedClass == _world.LocalPlayer.ClassId);
+        DrawGameplayLoadoutMenuOptionColumn(layout.LeftColumnBounds, leftOptions, buttons, viewedClass == _world.LocalPlayer.ClassId);
+        DrawGameplayLoadoutMenuOptionColumn(layout.RightColumnBounds, rightOptions, buttons, viewedClass == _world.LocalPlayer.ClassId);
     }
 
     private void DrawGameplayLoadoutMenuOptionColumn(
-        GameplayLoadoutMenuLayout layout,
         Rectangle columnBounds,
         IReadOnlyList<GameplayLoadoutMenuSlotOption> options,
         List<GameplayLoadoutMenuButton> buttons,
@@ -560,7 +559,7 @@ public partial class Game1
                     && hoveredButton.Bounds == bounds;
             }
 
-            DrawGameplayLoadoutMenuOption(bounds, option, hovered, canEquipClass);
+            DrawGameplayLoadoutMenuOption(bounds, option, hovered);
         }
     }
 
@@ -578,7 +577,7 @@ public partial class Game1
             ? runtimeRegistry.GetRequiredItem(detailItemId)
             : runtimeRegistry.GetRequiredItem(selectedLoadout.Loadout.PrimaryItemId);
 
-        DrawGameplayLoadoutMenuPreview(layout, viewedClass, detailItem);
+        DrawGameplayLoadoutMenuPreview(layout, viewedClass);
 
         if (_gameplayLoadoutDescriptionBoardTexture is not null)
         {
@@ -626,13 +625,13 @@ public partial class Game1
         }
     }
 
-    private void DrawGameplayLoadoutMenuPreview(GameplayLoadoutMenuLayout layout, PlayerClass viewedClass, GameplayItemDefinition detailItem)
+    private void DrawGameplayLoadoutMenuPreview(GameplayLoadoutMenuLayout layout, PlayerClass viewedClass)
     {
         var portraitPosition = new Vector2(layout.PanelBounds.X + 300f * layout.Scale, layout.PanelBounds.Y + 242f * layout.Scale);
         TryDrawGameplayLoadoutMenuPortraitAnimation(viewedClass, portraitPosition, Color.White, 4f * layout.Scale);
     }
 
-    private void DrawGameplayLoadoutMenuOption(Rectangle bounds, GameplayLoadoutMenuSlotOption option, bool hovered, bool canEquipClass)
+    private void DrawGameplayLoadoutMenuOption(Rectangle bounds, GameplayLoadoutMenuSlotOption option, bool hovered)
     {
         var usedSelectionAtlas = false;
         if (GameplayLoadoutMenuPresentation.TryGetSelectionFrame(option.Item.Id, out var frameIndex))

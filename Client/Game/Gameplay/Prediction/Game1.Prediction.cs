@@ -20,7 +20,6 @@ public partial class Game1
     public bool _hasPredictedLocalPlayerPosition;
     public bool _hasSmoothedLocalPlayerRenderPosition;
     private bool _predictedLocalPlayerGrounded;
-    private int _predictedLocalPlayerRemainingAirJumps;
     public PlayerEntity? _predictedLocalPlayerShadow;
     private PredictedLocalActionState _predictedLocalActionState;
     public bool _hasPredictedLocalActionState;
@@ -125,7 +124,6 @@ public partial class Game1
         _predictedLocalPlayerRenderCorrectionOffset = Vector2.Zero;
         _predictedLocalPlayerVelocity = Vector2.Zero;
         _predictedLocalPlayerGrounded = false;
-        _predictedLocalPlayerRemainingAirJumps = 0;
         _predictedSniperRifleChargePendingCount = 0;
         _predictedSniperBowChargePendingCount = 0;
         _lastPredictedRenderSmoothingTimeSeconds = -1d;
@@ -273,7 +271,7 @@ public partial class Game1
         _smoothedLocalPlayerRenderPosition = _predictedLocalPlayerPosition + _predictedLocalPlayerRenderCorrectionOffset;
     }
 
-    private void SeedPredictedSniperRifleCharge(
+    private static void SeedPredictedSniperRifleCharge(
         PlayerEntity predictedPlayer,
         PlayerEntity authorityPlayer,
         int previousPredictedCharge,
@@ -311,7 +309,7 @@ public partial class Game1
         predictedPlayer.ApplyPredictionSniperChargeTicks(seeded);
     }
 
-    private void SeedPredictedSniperBowCharge(
+    private static void SeedPredictedSniperBowCharge(
         PlayerEntity predictedPlayer,
         PlayerEntity authorityPlayer,
         int previousPredictedCharge,
@@ -387,7 +385,6 @@ public partial class Game1
         _predictedLocalPlayerPosition = new Vector2(player.X, player.Y);
         _predictedLocalPlayerVelocity = new Vector2(player.HorizontalSpeed, player.VerticalSpeed);
         _predictedLocalPlayerGrounded = player.IsGrounded;
-        _predictedLocalPlayerRemainingAirJumps = player.RemainingAirJumps;
         _hasPredictedLocalPlayerPosition = true;
         _predictedLocalActionState = new PredictedLocalActionState
         {
