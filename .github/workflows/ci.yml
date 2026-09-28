@@ -41,6 +41,7 @@ jobs:
           --configuration Debug
           --no-restore
           -p:EnableMGCBItems=false
+          -p:OpenGarrisonSkipBrowserAssetSync=true
 
       - name: Run networking tests
         run: >
@@ -83,3 +84,4 @@ jobs:
           --configuration Debug
           --no-restore
           -p:EnableMGCBItems=false
+          -p:OpenGarrisonSkipBrowserAssetSync=true
