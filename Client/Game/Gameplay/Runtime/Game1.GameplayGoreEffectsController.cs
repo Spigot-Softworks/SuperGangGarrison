@@ -43,12 +43,14 @@ public partial class Game1
             ResetBloodSquibEffects();
             _game.ResetDynamicRagdollEffects();
             _game.ResetCorpseAcidDissolves();
+            _game.ResetBurnCharredCorpses();
         }
 
         public void AdvanceBloodVisuals()
         {
             _game.AdvanceDynamicRagdolls();
             _game.SyncDynamicRagdollsWithDeadBodies();
+            _game.AdvanceBurnCharredCorpses();
             _game.AdvanceCorpseAcidDissolves();
 
             if (!_game.AreBloodVisualsEnabled)

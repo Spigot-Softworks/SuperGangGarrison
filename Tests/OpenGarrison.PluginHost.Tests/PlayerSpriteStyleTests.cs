@@ -117,9 +117,11 @@ public sealed class PlayerSkinRenderingTests
         animation.Update(skin, 1f / 60, false, 0, 180, 1, false, false);
         Assert.Equal("land", animation.ClipName);
         Assert.Equal(4, animation.Pose);
-        animation.Update(skin, 0.1f, false, 0, 180, 1, false, false);
+        // Land duration is one frame at 15fps; finishing it while still moving should
+        // resume the shared run strip on pose 5 (not restart at pose 1).
+        animation.Update(skin, 1f / 15, false, 0, 180, 1, false, false);
         Assert.Equal("run", animation.ClipName);
-        Assert.InRange(animation.Pose, 1, 8);
+        Assert.Equal(5, animation.Pose);
     }
 
     [Fact]

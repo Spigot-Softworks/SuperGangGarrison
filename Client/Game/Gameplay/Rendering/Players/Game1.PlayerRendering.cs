@@ -47,7 +47,8 @@ public partial class Game1
         bool FacingLeft,
         int TicksRemaining,
         string GameplayClassId = "",
-        int RemainsSortKey = 0);
+        int RemainsSortKey = 0,
+        bool DiedToFire = false);
 
     private enum RemainsDrawKind : byte
     {
@@ -475,9 +476,9 @@ public partial class Game1
         return GameplayWeaponRenderController.GetWeaponRotation(player);
     }
 
-    private static string? GetTauntSpriteName(PlayerEntity player)
+    private string? GetTauntSpriteName(PlayerEntity player)
     {
-        return GameplayPlayerSpriteRenderController.GetTauntSpriteName(player);
+        return _gameplayPlayerSpriteRenderController.GetTauntSpriteName(player);
     }
 
     private static string? GetHeavyEatSpriteName(PlayerEntity player)

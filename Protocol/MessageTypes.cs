@@ -1463,7 +1463,8 @@ public sealed record SnapshotGrenadeState(
     float VelocityY,
     int FuseTicksLeft,
     bool IsCritical = false,
-    float CriticalDamageMultiplier = 1f);
+    float CriticalDamageMultiplier = 1f,
+    bool IsStrongDrink = false);
 
 /// <summary>The snapshot rocket state.</summary>
 /// <param name="Id">The id.</param>
@@ -1602,7 +1603,9 @@ public sealed record SnapshotFlameState(
     float AttachedOffsetX,
     float AttachedOffsetY,
     bool IsCritical = false,
-    float CriticalDamageMultiplier = 1f);
+    float CriticalDamageMultiplier = 1f,
+    bool SettlesOnGround = false,
+    bool IsGrounded = false);
 
 /// <summary>The snapshot mine state.</summary>
 /// <param name="Id">The id.</param>
@@ -1688,7 +1691,8 @@ public sealed record SnapshotDeadBodyState(
     float VerticalSpeed,
     bool FacingLeft,
     int TicksRemaining,
-    string GameplayClassId = "");
+    string GameplayClassId = "",
+    bool DiedToFire = false);
 
 /// <summary>The snapshot sentry gib state.</summary>
 /// <param name="Id">The id.</param>

@@ -121,6 +121,7 @@ public sealed partial class PlayerEntity
         SpySuperjumpHorizontalVelocity = 0f;
         SniperBowChargeTicks = 0;
         SniperBowChargeDirectionDegrees = 0f;
+        CancelStrongDrinkCharge();
     }
 
     public void ForceEndSniperScopeForHumiliation()
@@ -133,6 +134,7 @@ public sealed partial class PlayerEntity
         IsSniperScoped = false;
         SniperChargeTicks = 0;
         SniperRifleFullyChargedHitStreak = 0;
+        CancelStrongDrinkCharge();
     }
 
     public void ForceSetHealth(int health)
@@ -211,6 +213,7 @@ public sealed partial class PlayerEntity
         SpySuperjumpHorizontalVelocity = 0f;
         SpySuperjumpCooldownTicksRemaining = 0;
         SpySuperjumpAvailableCharges = SpySuperjumpMaximumCharges;
+        CancelStrongDrinkCharge();
         LegacyStateTickAccumulator = 0f;
         MovementState = LegacyMovementState.None;
         ClearChatBubble();

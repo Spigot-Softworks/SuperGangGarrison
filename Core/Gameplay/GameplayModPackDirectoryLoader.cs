@@ -1052,6 +1052,23 @@ public static class GameplayModPackDirectoryLoader
             case BuiltInGameplayBehaviorIds.HeavySandvich:
                 ValidateNumberParameters(itemId, ability, filePath, "durationTicks", "durationSeconds", "cooldownTicks", "cooldownSeconds", "totalHeal");
                 return;
+            case BuiltInGameplayBehaviorIds.SniperStrongDrink:
+                ValidateNumberParameters(
+                    itemId,
+                    ability,
+                    filePath,
+                    "cooldownTicks",
+                    "cooldownSeconds",
+                    "maxChargeTicks",
+                    "minThrowSpeed",
+                    "maxThrowSpeed",
+                    "throwSpeed",
+                    "lobBiasDegrees",
+                    "gravityPerTick",
+                    "spinSpeed",
+                    "fireParticleCount",
+                    "fuseTicks");
+                return;
             case BuiltInGameplayBehaviorIds.MedicNeedlegun:
                 ValidateNumberParameters(itemId, ability, filePath, "fireCooldownTicks", "fireCooldownSeconds", "refillTicks", "refillSeconds");
                 return;

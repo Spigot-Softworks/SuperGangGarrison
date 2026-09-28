@@ -320,10 +320,10 @@ internal sealed class Protocol64StatePublisher
             grenade.Y,
             grenade.VelocityX,
             grenade.VelocityY,
-            0f,
+            grenade.RotationAngle,
             grenade.FuseTicksLeft,
             active: true,
-            damage: 0,
+            damage: grenade.IsStrongDrink ? GrenadeProjectileEntity.StrongDrinkDirectHitDamage : 0f,
             stateTick,
             isCritical: grenade.IsCritical,
             criticalDamageMultiplier: grenade.CriticalDamageMultiplier)));

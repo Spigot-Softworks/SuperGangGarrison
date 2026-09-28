@@ -167,10 +167,13 @@ public sealed class OpenGarrisonPreferencesDocument
     /// <summary>Client-only floppy corpse ragdoll for non-gib deaths.</summary>
     public bool DynamicRagdollEnabled { get; set; } = true;
 
+    /// <summary>Soot + burning dissolve presentation for fire deaths.</summary>
+    public bool BurnCharredCorpsesEnabled { get; set; } = true;
+
     /// <summary>Blood lifetime in whole seconds (default 9 ≈ stock 250 ticks at 30Hz, rounded up).</summary>
     public int BloodPersistenceSeconds { get; set; } = 9;
 
-    /// <summary>0 = Regular alpha fade, 1 = Acid top-down corpse dissolve (default).</summary>
+    /// <summary>0 = Regular alpha fade, 1 = Dissolve top-down corpse melt (default).</summary>
     public int CorpseFadeMode { get; set; } = DefaultCorpseFadeMode;
 
     public MenuBackgroundMode MenuBackgroundMode { get; set; } = MenuBackgroundMode.DefaultMaps;
@@ -216,6 +219,11 @@ public sealed class OpenGarrisonPreferencesDocument
     public bool ProjectileTeamTintEnabled { get; set; } = true;
 
     public bool StuckArrowsEnabled { get; set; } = true;
+
+    /// <summary>
+    /// When enabled, run-cycle weapon/equipment bob lags the body by one run frame.
+    /// </summary>
+    public WeaponBobMode WeaponBobMode { get; set; } = WeaponBobMode.Enabled;
 
     public bool AudioMuted { get; set; }
 
@@ -352,6 +360,7 @@ public sealed class OpenGarrisonPreferencesDocument
             FlameRenderMode = ini.GetInt(SettingsSection, "Flame Render Mode", 0),
             BloodRenderMode = ini.GetInt(SettingsSection, "Blood Render Mode", 0),
             DynamicRagdollEnabled = ini.GetBool(SettingsSection, "Dynamic Ragdoll", true),
+            BurnCharredCorpsesEnabled = ini.GetBool(SettingsSection, "Burn Charred Corpses", true),
             BloodPersistenceSeconds = ReadBloodPersistenceSeconds(ini),
             CorpseFadeMode = ReadCorpseFadeMode(ini),
             MenuBackgroundMode = (MenuBackgroundMode)ini.GetInt(SettingsSection, "Menu Background Mode", (int)MenuBackgroundMode.DefaultMaps),
@@ -376,6 +385,7 @@ public sealed class OpenGarrisonPreferencesDocument
             ShowUberOutlinesEnabled = ini.GetBool(SettingsSection, "Show Uber Outlines", true),
             ProjectileTeamTintEnabled = ini.GetBool(SettingsSection, "Projectile Team Tint", true),
             StuckArrowsEnabled = ini.GetBool(SettingsSection, "Stuck Arrows", true),
+            WeaponBobMode = ParseWeaponBobMode(ini.GetString(SettingsSection, "Weapon Bob", WeaponBobMode.Enabled.ToString())),
             AudioMuted = ini.GetBool(SettingsSection, "Audio Muted", false),
             MasterVolumePercent = Math.Clamp(ini.GetInt(SettingsSection, "Master Volume", 100), 0, 100),
             MenuMusicVolumePercent = Math.Clamp(ini.GetInt(SettingsSection, "Menu Music Volume", 100), 0, 100),
@@ -472,6 +482,7 @@ public sealed class OpenGarrisonPreferencesDocument
         ini.SetInt(SettingsSection, "Flame Render Mode", FlameRenderMode);
         ini.SetInt(SettingsSection, "Blood Render Mode", BloodRenderMode);
         ini.SetBool(SettingsSection, "Dynamic Ragdoll", DynamicRagdollEnabled);
+        ini.SetBool(SettingsSection, "Burn Charred Corpses", BurnCharredCorpsesEnabled);
         ini.SetInt(SettingsSection, "Blood Persistence Seconds", Math.Clamp(BloodPersistenceSeconds, 1, 120));
         ini.SetInt(SettingsSection, "Corpse Fade Mode", NormalizeCorpseFadeMode(CorpseFadeMode));
         ini.SetInt(SettingsSection, "Menu Background Mode", (int)MenuBackgroundMode);
@@ -500,6 +511,7 @@ public sealed class OpenGarrisonPreferencesDocument
         ini.SetBool(SettingsSection, "Show Uber Outlines", ShowUberOutlinesEnabled);
         ini.SetBool(SettingsSection, "Projectile Team Tint", ProjectileTeamTintEnabled);
         ini.SetBool(SettingsSection, "Stuck Arrows", StuckArrowsEnabled);
+        ini.SetString(SettingsSection, "Weapon Bob", NormalizeWeaponBobMode(WeaponBobMode).ToString());
         ini.SetBool(SettingsSection, "Audio Muted", AudioMuted);
         ini.SetInt(SettingsSection, "Master Volume", Math.Clamp(MasterVolumePercent, 0, 100));
         ini.SetInt(SettingsSection, "Menu Music Volume", MenuMusicVolumePercent);
@@ -624,7 +636,7 @@ public sealed class OpenGarrisonPreferencesDocument
     /// <summary>Stock blood-drop lifetime is 250 ticks at 30Hz (~8.33s); round up to a full second.</summary>
     public const int DefaultBloodPersistenceSeconds = 9;
 
-    /// <summary>0 = Regular alpha fade, 1 = Acid top-down corpse dissolve (default).</summary>
+    /// <summary>0 = Regular alpha fade, 1 = Dissolve top-down corpse melt (default).</summary>
     public const int DefaultCorpseFadeMode = 1;
 
     private static int ReadBloodPersistenceSeconds(IniConfigurationFile ini)
@@ -970,6 +982,37 @@ public sealed class OpenGarrisonPreferencesDocument
             LowHealthColorMode.None => LowHealthColorMode.None,
             LowHealthColorMode.Red => LowHealthColorMode.Red,
             _ => LowHealthColorMode.Red,
+        };
+    }
+
+    private static WeaponBobMode ParseWeaponBobMode(string value)
+    {
+        if (string.Equals(value, "1", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, "true", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, "Smooth", StringComparison.OrdinalIgnoreCase))
+        {
+            // Legacy Smooth maps to Enabled (one-frame lag without lerp).
+            return WeaponBobMode.Enabled;
+        }
+
+        if (string.Equals(value, "0", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, "false", StringComparison.OrdinalIgnoreCase))
+        {
+            return WeaponBobMode.Disabled;
+        }
+
+        return Enum.TryParse<WeaponBobMode>(value, ignoreCase: true, out var mode)
+            ? NormalizeWeaponBobMode(mode)
+            : WeaponBobMode.Enabled;
+    }
+
+    public static WeaponBobMode NormalizeWeaponBobMode(WeaponBobMode mode)
+    {
+        return mode switch
+        {
+            WeaponBobMode.Disabled => WeaponBobMode.Disabled,
+            WeaponBobMode.Enabled => WeaponBobMode.Enabled,
+            _ => WeaponBobMode.Enabled,
         };
     }
 

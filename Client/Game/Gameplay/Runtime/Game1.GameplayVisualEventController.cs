@@ -87,6 +87,12 @@ public partial class Game1
                 return;
             }
 
+            if (string.Equals(effectName, "BottleShards", StringComparison.OrdinalIgnoreCase))
+            {
+                _game._gameplayMaterialEffectsController.SpawnBottleShardBurst(x, y, count, directionDegrees);
+                return;
+            }
+
             if (string.Equals(effectName, "CivvieMoney", StringComparison.OrdinalIgnoreCase))
             {
                 _game.SpawnCivvieMoneyVisual(x, y, directionDegrees);
