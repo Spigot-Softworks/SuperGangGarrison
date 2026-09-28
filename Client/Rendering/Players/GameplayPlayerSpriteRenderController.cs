@@ -3,16 +3,15 @@
 using Microsoft.Xna.Framework;
 using OpenGarrison.Core;
 using OpenGarrison.GameplayModding;
+using static OpenGarrison.Client.Game1;
 
 namespace OpenGarrison.Client;
 
-public partial class Game1
+public sealed class GameplayPlayerSpriteRenderController
 {
-    public sealed class GameplayPlayerSpriteRenderController
-    {
-        private readonly Game1 _game;
+    private readonly IRenderContext _game;
 
-        public GameplayPlayerSpriteRenderController(Game1 game)
+    public GameplayPlayerSpriteRenderController(IRenderContext game)
         {
             _game = game;
         }
@@ -245,8 +244,8 @@ public partial class Game1
 
             var renderState = _game._playerRenderStates.GetValueOrDefault(_game.GetPlayerStateKey(player));
             var animationHorizontalSpeed = renderState?.AnimationHorizontalSpeed ?? player.HorizontalSpeed;
-            var horizontalSourceStepSpeed = GetPlayerAnimationSourceStepSpeed(animationHorizontalSpeed);
-            var animationImage = WrapAnimationImage(renderState?.BodyAnimationImage ?? 0f, _game.GetPlayerBodyAnimationLength(player, horizontalSourceStepSpeed));
+            var horizontalSourceStepSpeed = _game.GetPlayerAnimationSourceStepSpeed(animationHorizontalSpeed);
+            var animationImage = _game.WrapAnimationImage(renderState?.BodyAnimationImage ?? 0f, _game.GetPlayerBodyAnimationLength(player, horizontalSourceStepSpeed));
             var appearsAirborne = renderState?.AppearsAirborne ?? !player.IsGrounded;
 
             if (_game.TryGetLastToDieHaxtonSpriteName(player, out var haxtonSpriteName))
@@ -280,7 +279,7 @@ public partial class Game1
 
             if (player.ClassId == PlayerClass.Sniper && player.IsSniperScoped && !player.IsSniperBowEquipped)
             {
-                return new PlayerBodySpriteSelection(GetPresentationSpriteName(player, static presentation => presentation.ScopedSuffix ?? presentation.BaseSuffix, "CrouchS"), WrapAnimationImage(animationImage, 2f), 0f, 0f, false, false);
+                return new PlayerBodySpriteSelection(GetPresentationSpriteName(player, static presentation => presentation.ScopedSuffix ?? presentation.BaseSuffix, "CrouchS"), _game.WrapAnimationImage(animationImage, 2f), 0f, 0f, false, false);
             }
 
             if (_game.TryGetPlayerSkinBody(player, out var skinSelection))
@@ -413,7 +412,6 @@ public partial class Game1
         }
 
         public static PlayerTeam GetCarriedIntelTeamProxy(PlayerEntity player) => GetCarriedIntelTeam(player);
-        public static int GetPlayerBodySpriteFrameIndexProxy(float animationImage, int frameCount) => GetPlayerBodySpriteFrameIndex(animationImage, frameCount);
         public int GetHumiliationSpriteFrameIndex(PlayerEntity player, float animationImage, int frameCount) => GetHumiliationSpriteFrameIndexCore(player, animationImage, frameCount);
         public static int GetTauntSpriteFrameIndexProxy(PlayerEntity player, int frameCount) => GetTauntSpriteFrameIndex(player, frameCount);
         public static int GetHeavyEatSpriteFrameIndexProxy(int heavyEatTicksRemaining, int frameCount, PlayerTeam team) => GetHeavyEatSpriteFrameIndex(heavyEatTicksRemaining, frameCount, team);
@@ -541,7 +539,7 @@ public partial class Game1
         }
 
         private static PlayerTeam GetCarriedIntelTeam(PlayerEntity player) => player.Team == PlayerTeam.Blue ? PlayerTeam.Red : PlayerTeam.Blue;
-        private static int GetPlayerBodySpriteFrameIndex(float animationImage, int frameCount) => frameCount <= 0 ? 0 : System.Math.Clamp((int)System.MathF.Floor(WrapAnimationImage(animationImage, frameCount)), 0, frameCount - 1);
+        private int GetPlayerBodySpriteFrameIndex(float animationImage, int frameCount) => frameCount <= 0 ? 0 : System.Math.Clamp((int)System.MathF.Floor(_game.WrapAnimationImage(animationImage, frameCount)), 0, frameCount - 1);
 
         private int GetHumiliationSpriteFrameIndexCore(PlayerEntity player, float animationImage, int frameCount)
         {
@@ -868,5 +866,4 @@ public partial class Game1
         {
             return GetClassPresentation(gameplayClassId)?.SpritePrefix;
         }
-    }
 }

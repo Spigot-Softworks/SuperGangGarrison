@@ -3,16 +3,15 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using OpenGarrison.Core;
+using static OpenGarrison.Client.Game1;
 
 namespace OpenGarrison.Client;
 
-public partial class Game1
+public sealed class GameplayPlayerStatusEffectRenderController
 {
-    public sealed class GameplayPlayerStatusEffectRenderController
-    {
-        private readonly Game1 _game;
+    private readonly IRenderContext _game;
 
-        public GameplayPlayerStatusEffectRenderController(Game1 game)
+    public GameplayPlayerStatusEffectRenderController(IRenderContext game)
         {
             _game = game;
         }
@@ -23,7 +22,7 @@ public partial class Game1
         {
             var forceSpecialEnemyHealthBar = _game.ShouldForceLastToDieSpecialEnemyHealthBar(player);
             var forcePracticeCombatDummyHealthBar = _game._world.IsPracticeCombatDummy(player);
-            var forceMapBotHealthBar = Game1.ShouldForceMapBotHealthBar(player);
+            var forceMapBotHealthBar = _game.ShouldForceMapBotHealthBar(player);
             if ((!_game._showHealthBarEnabled && !forceSpecialEnemyHealthBar && !forcePracticeCombatDummyHealthBar && !forceMapBotHealthBar)
                 || visibilityAlpha <= 0f
                 || (!ReferenceEquals(player, _game._world.LocalPlayer)
@@ -507,5 +506,4 @@ public partial class Game1
             var result = value % modulus;
             return result < 0 ? result + modulus : result;
         }
-    }
 }

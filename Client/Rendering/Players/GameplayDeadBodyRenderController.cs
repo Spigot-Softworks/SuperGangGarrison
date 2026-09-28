@@ -4,6 +4,7 @@ using Microsoft.Xna.Framework;
 using OpenGarrison.Client.Plugins;
 using OpenGarrison.Core;
 using OpenGarrison.Protocol;
+using static OpenGarrison.Client.Game1;
 
 namespace OpenGarrison.Client;
 
@@ -128,14 +129,12 @@ internal static class ImmediateNetworkDeathPresentationPlanner
     }
 }
 
-public partial class Game1
+public sealed class GameplayDeadBodyRenderController
 {
-    public sealed class GameplayDeadBodyRenderController
-    {
-        private const int ImmediateNetworkDeadBodyLifetimeTicks = 90;
-        private readonly Game1 _game;
+    private const int ImmediateNetworkDeadBodyLifetimeTicks = 90;
+    private readonly IRenderContext _game;
 
-        public GameplayDeadBodyRenderController(Game1 game)
+    public GameplayDeadBodyRenderController(IRenderContext game)
         {
             _game = game;
         }
@@ -311,7 +310,7 @@ public partial class Game1
                 return;
             }
 
-            _game._gameplayManager.GoreEffects.SpawnImmediateFatalDamageVisuals(damageEvent.X, damageEvent.Y, damageEvent.Amount);
+            _game.GameplayManager.GoreEffects.SpawnImmediateFatalDamageVisuals(damageEvent.X, damageEvent.Y, damageEvent.Amount);
 
             var targetPlayer = _game.FindPlayerById(damageEvent.TargetEntityId);
             if (targetPlayer is not null
@@ -557,7 +556,7 @@ public partial class Game1
                 return forcedAnimationKind;
             }
 
-            return ToClientDeadBodyAnimationKind(animationKind);
+            return _game.ToClientDeadBodyAnimationKind(animationKind);
         }
 
         public void DrawDeadBodyVisual(int id, int sourcePlayerId, PlayerClass classId, PlayerTeam team, DeadBodyAnimationKind animationKind, float x, float y, float width, float height, bool facingLeft, int ticksRemaining, Vector2 cameraPosition)
@@ -628,7 +627,7 @@ public partial class Game1
             var tint = Color.White * fadeAlpha;
             var spriteName = _game._networkClient.IsLegacyGg2Connection && classId == PlayerClass.Quote
                 ? $"Querly{(team == PlayerTeam.Blue ? "Blue" : "Red")}DeadS"
-                : Game1.GetDeadBodySpriteName(gameplayClassId, classId, team, animationKind);
+                : _game.GetDeadBodySpriteName(gameplayClassId, classId, team, animationKind);
             if (spriteName is not null)
             {
                 var sprite = _game.GetResolvedSprite(spriteName);
@@ -664,5 +663,4 @@ public partial class Game1
             };
             return forcedAnimationKind != default;
         }
-    }
 }

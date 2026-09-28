@@ -152,6 +152,7 @@ public partial class Game1 : Game
     private GameplayPlayerSpriteRenderController _gameplayPlayerSpriteRenderController => _services.Get<GameplayPlayerSpriteRenderController>();
     private GameplayWeaponRenderController _gameplayWeaponRenderController => _services.Get<GameplayWeaponRenderController>();
     private GameplayPlayerStatusEffectRenderController _gameplayPlayerStatusEffectRenderController => _services.Get<GameplayPlayerStatusEffectRenderController>();
+    private RenderPipeline _renderPipeline => _services.Get<RenderPipeline>();
     public bool _debugMenuEnabled;
     public bool _debugMenuOpen;
     public bool _debugMenuAwaitingEscapeRelease;
@@ -355,6 +356,7 @@ public partial class Game1 : Game
         _services.Register(new GameplayPlayerSpriteRenderController(this));
         _services.Register(new GameplayWeaponRenderController(this));
         _services.Register(new GameplayPlayerStatusEffectRenderController(this));
+        _services.Register(new RenderPipeline(this));
         _services.Register(new SessionManager(this));
         _services.Register(new PluginManager(this));
         _services.Register(new MenuManager(this));
@@ -527,21 +529,7 @@ public partial class Game1 : Game
 
     protected override void Draw(GameTime gameTime)
     {
-        var browserDrawStartTimestamp = ShouldMeasureClientPerformanceDurations() ? Stopwatch.GetTimestamp() : 0L;
-        LogBrowserFrameState("draw", ref _browserDebugDrawCount, gameTime);
-        // Use interpolation clock value from Update() - don't re-sample during Draw()
-        ApplyFrameRateLimit();
-        GraphicsDevice.Clear(new Color(24, 32, 48));
-        _gameplayManager.Frame.Draw(gameTime);
-
-        base.Draw(gameTime);
-        RecordBrowserDrawDuration(browserDrawStartTimestamp);
-
-        if (!_preLaunchSplashDismissed)
-        {
-            _preLaunchSplashDismissed = true;
-            PreLaunchSplash.Close();
-        }
+        _renderPipeline.Draw(gameTime);
     }
 
     private void LogBrowserFrameState(string phase, ref int counter, GameTime gameTime)

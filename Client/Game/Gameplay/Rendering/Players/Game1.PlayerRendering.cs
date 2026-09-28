@@ -326,7 +326,7 @@ public partial class Game1
 
     private static int GetPlayerBodySpriteFrameIndex(float animationImage, int frameCount)
     {
-        return GameplayPlayerSpriteRenderController.GetPlayerBodySpriteFrameIndexProxy(animationImage, frameCount);
+        return frameCount <= 0 ? 0 : Math.Clamp((int)MathF.Floor(WrapAnimationImage(animationImage, frameCount)), 0, frameCount - 1);
     }
 
     private int GetHumiliationSpriteFrameIndex(PlayerEntity player, float animationImage, int frameCount)
