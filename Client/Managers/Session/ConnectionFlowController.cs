@@ -323,13 +323,12 @@ public sealed class ConnectionFlowController
             {
                 if (string.IsNullOrWhiteSpace(target.Endpoint.Host)
                     || (!target.Endpoint.HasUdpEndpoint
-                        && !target.Endpoint.HasWebSocketEndpoint
-                        && !target.Endpoint.HasQuicEndpoint))
+                        && !target.Endpoint.HasWebSocketEndpoint))
                 {
                     continue;
                 }
 
-                var key = $"{target.Endpoint.Host}:{target.Endpoint.UdpPort}:{target.Endpoint.WebSocketPort}:{target.Endpoint.WebSocketUrl}:{target.Endpoint.QuicPort}:{target.Endpoint.QuicUrl}";
+                var key = $"{target.Endpoint.Host}:{target.Endpoint.UdpPort}:{target.Endpoint.WebSocketPort}:{target.Endpoint.WebSocketUrl}";
                 if (seen.Add(key))
                 {
                     yield return target;
@@ -447,11 +446,6 @@ public sealed class ConnectionFlowController
 
             if (TryParseExplicitNetworkUri(host, out var explicitUri))
             {
-                if (string.Equals(explicitUri.Scheme, "quic64", StringComparison.OrdinalIgnoreCase))
-                {
-                    return false;
-                }
-
                 if (OperatingSystem.IsBrowser())
                 {
                     endpoint = new NetworkEndpoint(explicitUri.Host, 0, 0, explicitUri.ToString());
@@ -477,8 +471,7 @@ public sealed class ConnectionFlowController
                 && (uri.Scheme == "ws"
                     || uri.Scheme == "wss"
                     || uri.Scheme == "ws64"
-                    || uri.Scheme == "wss64"
-                    || uri.Scheme == "quic64")
+                    || uri.Scheme == "wss64")
                 && !string.IsNullOrWhiteSpace(uri.Host))
             {
                 return true;

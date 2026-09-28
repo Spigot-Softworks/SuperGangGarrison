@@ -223,7 +223,6 @@ public partial class Game1
     private static string FormatLobbyBrowserTransport(NetworkEndpointTransport transport)
         => transport switch
         {
-            NetworkEndpointTransport.Quic => "QUIC64",
             NetworkEndpointTransport.WebSocket => "WebSocket",
             _ => "UDP",
         };

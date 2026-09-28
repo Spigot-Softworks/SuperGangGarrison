@@ -38,9 +38,8 @@ public interface IConnectionContainer : IDisposable
 /// </summary>
 public sealed class Protocol64ConnectionContainer : IConnectionContainer
 {
-    // EnqueueSend is called by the simulation thread while the QUIC runtime
-    // dequeues on its I/O thread. Keep the container's lifecycle and recovery
-    // state under the same ownership boundary as the schedulers.
+    // Keep the container's lifecycle and recovery state under the same
+    // ownership boundary as the schedulers when backend I/O is concurrent.
     private readonly object _gate = new();
     private readonly Protocol64ChannelScheduler _sendScheduler;
     private readonly Protocol64ReceiveScheduler _receiveScheduler;

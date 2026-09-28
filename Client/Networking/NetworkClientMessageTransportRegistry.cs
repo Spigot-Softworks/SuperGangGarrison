@@ -27,13 +27,6 @@ public static class NetworkClientMessageTransportRegistry
             error = "This browser edition connects through Last to Die rooms only.";
             return false;
         }
-        if (QuicNetworkClientMessageTransport.IsQuicEndpoint(host))
-        {
-            transport = null;
-            error = "QUIC is currently disabled; use the server's UDP endpoint.";
-            return false;
-        }
-
         if (WebSocketNetworkClientMessageTransport.IsWebSocketEndpoint(host)
             && !OperatingSystem.IsBrowser())
         {

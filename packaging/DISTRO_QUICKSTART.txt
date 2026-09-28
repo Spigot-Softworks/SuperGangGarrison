@@ -15,7 +15,6 @@ powershell -ExecutionPolicy Bypass -File .\scripts\package.ps1 -Platforms win-x6
 linux only with release version:
 pwsh ./scripts/package.ps1 -Platforms linux-x64 -Version 1.0.2
 
-- Linux packaging bundles libmsquic from the build host. Install it before packaging with `sudo apt-get install libmsquic`; cross-builds can pass `-LinuxMsQuicLibraryPath` with a compatible Linux library file.
 - To rebuild a Linux package while reusing an existing packaged browser atlas, pass `-ReusePackagedAtlasFrom`, for example: `pwsh ./scripts/package.ps1 -Platforms linux-x64 -Version 1.0.2 -ReusePackagedAtlasFrom ./dist/linux-x64/app/Content/Browser`.
 
 macOS only:

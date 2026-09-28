@@ -30,7 +30,7 @@ public sealed record Protocol64RetransmitRequest(
 
 /// <summary>
 /// Transport metadata sent as the first frame on a dedicated retransmit
-/// stream. QUIC streams are independent, so the receiver needs the original
+/// streams are independent, so the receiver needs the original
 /// logical lane and sequence range before it can feed the replacement into its
 /// backend-neutral ordering scheduler. It is consumed by the backend and is
 /// never exposed as gameplay.
