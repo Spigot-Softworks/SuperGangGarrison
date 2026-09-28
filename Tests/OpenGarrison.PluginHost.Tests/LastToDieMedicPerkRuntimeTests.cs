@@ -593,7 +593,8 @@ public sealed class LastToDieMedicPerkRuntimeTests
         Assert.True(world.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.VitalityTrinket]));
-        Assert.Equal(CharacterClassCatalog.Medic.MaxHealth + 75, medic.MaxHealth);
+        // +40 is the LastToDie class bonus for Medic (see GetLastToDieBaseMaximumHealth).
+        Assert.Equal(CharacterClassCatalog.Medic.MaxHealth + 40 + 75, medic.MaxHealth);
         Assert.Equal(medic.MaxHealth - 50, medic.Health);
 
         var healthAfterAcquisition = medic.Health;
