@@ -8,9 +8,9 @@ namespace OpenGarrison.Client;
 
 public interface IDiscordContext
 {
-    string ResolveDiscordApplicationId();
 #if !BROWSER_KNI
+    string ResolveDiscordApplicationId();
     DiscordRPC.RichPresence BuildDiscordRichPresencePayload(System.DateTime startTimestampUtc);
-#endif
     string BuildDiscordRichPresenceState();
+#endif
 }

@@ -133,7 +133,9 @@ public partial class Game1 : IAudioContext, IInputContext, IMenuContext, ISessio
     string? IRenderContext.GetDeadBodySpriteName(string gameplayClassId, PlayerClass classId, PlayerTeam team, DeadBodyAnimationKind animationKind) => GetDeadBodySpriteName(gameplayClassId, classId, team, animationKind);
     Vector2 IRenderContext.RoundToSourcePixels(Vector2 value) => RoundToSourcePixels(value);
 
+#if !BROWSER_KNI
     string IDiscordContext.ResolveDiscordApplicationId() => ResolveDiscordApplicationId();
+#endif
     Game1.GameplayHudCanvas IPluginContext.CreateGameplayHudCanvas(Microsoft.Xna.Framework.Vector2 cameraTopLeft)
         => new(this, cameraTopLeft);
 
@@ -1574,5 +1576,7 @@ public partial class Game1 : IAudioContext, IInputContext, IMenuContext, ISessio
 #if !BROWSER_KNI
     DiscordRPC.RichPresence IDiscordContext.BuildDiscordRichPresencePayload(System.DateTime startTimestampUtc) => BuildDiscordRichPresencePayload(startTimestampUtc);
 #endif
+#if !BROWSER_KNI
     string IDiscordContext.BuildDiscordRichPresenceState() => BuildDiscordRichPresenceState();
+#endif
 }
