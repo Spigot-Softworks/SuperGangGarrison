@@ -140,7 +140,7 @@ public sealed class SimulationWorldRocketExplosionRegressionTests
     {
         var method = typeof(SimulationWorld).GetMethod(
             "CombatTestSpawnRocket",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         var result = method!.Invoke(world, [owner, x, y, speed, directionRadians]);
         return Assert.IsType<RocketProjectileEntity>(result);
@@ -150,7 +150,7 @@ public sealed class SimulationWorldRocketExplosionRegressionTests
     {
         var method = typeof(SimulationWorld).GetMethod(
             "CombatTestExplodeRocket",
-            BindingFlags.Instance | BindingFlags.NonPublic,
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
             binder: null,
             types: [typeof(RocketProjectileEntity)],
             modifiers: null);
@@ -162,7 +162,7 @@ public sealed class SimulationWorldRocketExplosionRegressionTests
     {
         var method = typeof(SimulationWorld).GetMethod(
             "AdvanceRockets",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         _ = method!.Invoke(world, []);
     }
@@ -182,7 +182,7 @@ public sealed class SimulationWorldRocketExplosionRegressionTests
     {
         var field = typeof(SimulationWorld).GetField(
             "_authoritativeLocalPlayerId",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(field);
         field!.SetValue(world, playerId);
     }

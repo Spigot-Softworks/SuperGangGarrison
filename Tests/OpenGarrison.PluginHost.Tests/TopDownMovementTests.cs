@@ -253,7 +253,7 @@ public sealed class TopDownMovementTests
                 _ = controller.BuildInputsForSlots(world, controlledSlots, Array.Empty<byte>());
                 var controllersField = typeof(BotBrainPracticeBotController).GetField(
                     "_controllersBySlot",
-                    BindingFlags.Instance | BindingFlags.NonPublic);
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
                 Assert.NotNull(controllersField);
                 var controllers = (Dictionary<byte, BotBrainController>)controllersField!.GetValue(controller)!;
                 controllers[botSlot] = new BotBrainController(graph)
@@ -348,7 +348,7 @@ public sealed class TopDownMovementTests
         var world = new SimulationWorld();
         var setLevel = typeof(SimulationWorld).GetMethod(
             "CombatTestSetLevel",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(setLevel);
         _ = setLevel!.Invoke(world, [level]);
         Assert.True(world.TrySetLocalClass(PlayerClass.Soldier));
@@ -402,7 +402,7 @@ public sealed class TopDownMovementTests
         });
         var setLevel = typeof(SimulationWorld).GetMethod(
             "CombatTestSetLevel",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(setLevel);
         _ = setLevel!.Invoke(world, [level]);
         Assert.True(world.TrySetLocalClass(PlayerClass.Soldier));
@@ -452,7 +452,7 @@ public sealed class TopDownMovementTests
         });
         var setLevel = typeof(SimulationWorld).GetMethod(
             "CombatTestSetLevel",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(setLevel);
         _ = setLevel!.Invoke(world, [level]);
         Assert.True(world.TrySetLocalClass(PlayerClass.Soldier));
@@ -496,7 +496,7 @@ public sealed class TopDownMovementTests
         });
         var setLevel = typeof(SimulationWorld).GetMethod(
             "CombatTestSetLevel",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(setLevel);
         _ = setLevel!.Invoke(world, [level]);
 
@@ -520,7 +520,7 @@ public sealed class TopDownMovementTests
         _ = practiceController.BuildInputsForSlots(world, controlledSlots, Array.Empty<byte>());
         var controllersField = typeof(BotBrainPracticeBotController).GetField(
             "_controllersBySlot",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(controllersField);
         var controllers = (Dictionary<byte, BotBrainController>)controllersField!.GetValue(practiceController)!;
         controllers[botSlot] = new BotBrainController(graph);
@@ -868,7 +868,7 @@ public sealed class TopDownMovementTests
         });
         var setLevel = typeof(SimulationWorld).GetMethod(
             "CombatTestSetLevel",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(setLevel);
         _ = setLevel!.Invoke(world, [level]);
         Assert.True(world.TrySetLocalClass(PlayerClass.Soldier));

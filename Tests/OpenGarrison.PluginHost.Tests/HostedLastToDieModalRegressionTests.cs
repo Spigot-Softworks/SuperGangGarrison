@@ -9,7 +9,7 @@ namespace OpenGarrison.PluginHost.Tests;
 
 public sealed class HostedLastToDieModalRegressionTests
 {
-    private const BindingFlags Private = BindingFlags.Instance | BindingFlags.NonPublic;
+    private const BindingFlags Private = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
 
     [Theory]
     [InlineData(LastToDieWirePhase.Lobby, false, false)]

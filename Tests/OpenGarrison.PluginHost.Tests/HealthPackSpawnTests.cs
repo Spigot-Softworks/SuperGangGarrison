@@ -8,7 +8,7 @@ namespace OpenGarrison.PluginHost.Tests;
 public sealed class HealthPackSpawnTests
 {
     private static readonly MethodInfo KillPlayerMethod = typeof(SimulationWorld)
-        .GetMethods(BindingFlags.Instance | BindingFlags.NonPublic)
+        .GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
         .Single(method => method.Name == "KillPlayer" && method.GetParameters().Length == 14);
 
     [Fact]

@@ -275,7 +275,7 @@ public sealed class LastToDieMedicKritzM2RuntimeTests
     {
         var method = typeof(SimulationWorld).GetMethod(
             "SpawnMedicHealNeedle",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         _ = method!.Invoke(
             world,
@@ -299,7 +299,7 @@ public sealed class LastToDieMedicKritzM2RuntimeTests
     {
         var method = typeof(SimulationWorld).GetMethod(
             "ApplyMedicHealNeedleTeammateHit",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         _ = method!.Invoke(world, [medic, target, needle]);
     }

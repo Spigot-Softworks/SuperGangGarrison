@@ -156,7 +156,7 @@ public sealed class SimulationWorldGrenadeDamageTests
 
     private static void SetCombatLevel(SimulationWorld world, SimpleLevel level)
     {
-        var method = typeof(SimulationWorld).GetMethod("CombatTestSetLevel", BindingFlags.Instance | BindingFlags.NonPublic);
+        var method = typeof(SimulationWorld).GetMethod("CombatTestSetLevel", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         _ = method!.Invoke(world, [level]);
     }
@@ -169,7 +169,7 @@ public sealed class SimulationWorldGrenadeDamageTests
         float velocityX = 0f,
         float velocityY = 0f)
     {
-        var method = typeof(SimulationWorld).GetMethod("CombatTestSpawnGrenade", BindingFlags.Instance | BindingFlags.NonPublic);
+        var method = typeof(SimulationWorld).GetMethod("CombatTestSpawnGrenade", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         var result = method!.Invoke(world, [owner, x, y, velocityX, velocityY]);
         Assert.IsType<GrenadeProjectileEntity>(result);
@@ -178,21 +178,21 @@ public sealed class SimulationWorldGrenadeDamageTests
 
     private static void ExplodeGrenade(SimulationWorld world, GrenadeProjectileEntity grenade)
     {
-        var method = typeof(SimulationWorld).GetMethod("CombatTestExplodeGrenade", BindingFlags.Instance | BindingFlags.NonPublic);
+        var method = typeof(SimulationWorld).GetMethod("CombatTestExplodeGrenade", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         _ = method!.Invoke(world, [grenade]);
     }
 
     private static void AdvanceGrenades(SimulationWorld world)
     {
-        var method = typeof(SimulationWorld).GetMethod("AdvanceGrenades", BindingFlags.Instance | BindingFlags.NonPublic);
+        var method = typeof(SimulationWorld).GetMethod("AdvanceGrenades", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         _ = method!.Invoke(world, []);
     }
 
     private static int GetGrenadeCount(SimulationWorld world)
     {
-        var field = typeof(SimulationWorld).GetField("_grenades", BindingFlags.Instance | BindingFlags.NonPublic);
+        var field = typeof(SimulationWorld).GetField("_grenades", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(field);
         var grenades = field!.GetValue(world) as ICollection;
         Assert.NotNull(grenades);

@@ -8,7 +8,7 @@ namespace OpenGarrison.PluginHost.Tests;
 
 public sealed class JukeboxMenuRegressionTests
 {
-    private const BindingFlags Private = BindingFlags.Instance | BindingFlags.NonPublic;
+    private const BindingFlags Private = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
 
     [Fact]
     public void EmptyTrackPromptAndMusicLibraryButtonBothOpenThePlatformLibrary()

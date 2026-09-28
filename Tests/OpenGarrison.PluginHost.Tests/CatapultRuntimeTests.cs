@@ -8,7 +8,7 @@ public sealed class CatapultRuntimeTests
 {
     private static readonly MethodInfo ApplyRoomForcesMethod = typeof(SimulationWorld).GetMethod(
         "ApplyRoomForces",
-        BindingFlags.Instance | BindingFlags.NonPublic,
+        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
         null,
         [typeof(PlayerEntity), typeof(bool)],
         null)

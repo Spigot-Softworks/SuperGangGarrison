@@ -254,12 +254,12 @@ public sealed class ClientInputEdgeLatchTests
     public void PredictedAndAuthoritativeShotMatcherConsumesEachEchoOnce(string soundName)
     {
         var game = (Game1)RuntimeHelpers.GetUninitializedObject(typeof(Game1));
-        var eventField = typeof(Game1).GetField("_recentProjectileSoundEvents", BindingFlags.Instance | BindingFlags.NonPublic);
+        var eventField = typeof(Game1).GetField("_recentProjectileSoundEvents", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(eventField);
         eventField!.SetValue(game, Activator.CreateInstance(eventField.FieldType));
 
-        var remember = typeof(Game1).GetMethod("RememberPlayedProjectileSound", BindingFlags.Instance | BindingFlags.NonPublic);
-        var suppress = typeof(Game1).GetMethod("ShouldSuppressPredictedProjectileSoundEcho", BindingFlags.Instance | BindingFlags.NonPublic);
+        var remember = typeof(Game1).GetMethod("RememberPlayedProjectileSound", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+        var suppress = typeof(Game1).GetMethod("ShouldSuppressPredictedProjectileSoundEcho", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(remember);
         Assert.NotNull(suppress);
 
@@ -273,10 +273,10 @@ public sealed class ClientInputEdgeLatchTests
     public void ShotMatcherLeavesPistolEchoForTheCorrectSourceAfterRejectingAnother()
     {
         var game = (Game1)RuntimeHelpers.GetUninitializedObject(typeof(Game1));
-        var eventField = typeof(Game1).GetField("_recentProjectileSoundEvents", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        var eventField = typeof(Game1).GetField("_recentProjectileSoundEvents", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!;
         eventField.SetValue(game, Activator.CreateInstance(eventField.FieldType));
-        var remember = typeof(Game1).GetMethod("RememberPlayedProjectileSound", BindingFlags.Instance | BindingFlags.NonPublic)!;
-        var suppress = typeof(Game1).GetMethod("ShouldSuppressPredictedProjectileSoundEcho", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        var remember = typeof(Game1).GetMethod("RememberPlayedProjectileSound", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!;
+        var suppress = typeof(Game1).GetMethod("ShouldSuppressPredictedProjectileSoundEcho", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!;
         remember.Invoke(game, ["PistolSnd", new WorldSoundEvent("PistolSnd", 0f, 0f, SourcePlayerId: 22)]);
 
         Assert.False((bool)suppress.Invoke(game, ["PistolSnd", new WorldSoundEvent("PistolSnd", 0f, 0f, EventId: 1, SourcePlayerId: 23)])!);

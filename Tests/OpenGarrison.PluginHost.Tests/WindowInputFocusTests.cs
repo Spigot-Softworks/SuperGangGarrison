@@ -89,7 +89,7 @@ public sealed class WindowInputFocusTests
     [Fact]
     public void FocusLossClearsQueuedGameplayActionsBeforeNextTick()
     {
-        const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
+        const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
         var game = (Game1)RuntimeHelpers.GetUninitializedObject(typeof(Game1));
         void Set(string field, object value) => typeof(Game1).GetField(field, flags)!.SetValue(game, value);
         object Get(string field) => typeof(Game1).GetField(field, flags)!.GetValue(game)!;

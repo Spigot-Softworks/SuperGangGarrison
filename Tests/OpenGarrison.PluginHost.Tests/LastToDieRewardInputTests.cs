@@ -65,7 +65,7 @@ public sealed class LastToDieRewardInputTests
 
     private static bool MenuFrame(Game1 game, LastToDieRewardInput input, KeyboardState keyboard, MouseState mouse)
     {
-        const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
+        const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
         var type = typeof(Game1).GetNestedType("LastToDieChoiceMenuLayout", BindingFlags.NonPublic)!;
         var layout = Activator.CreateInstance(type, new object[]
         {

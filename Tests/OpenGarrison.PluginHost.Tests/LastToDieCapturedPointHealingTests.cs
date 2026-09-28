@@ -10,7 +10,7 @@ public sealed class LastToDieCapturedPointHealingTests
     private static readonly MethodInfo ApplyPassiveEffectsMethod =
         typeof(SimulationWorld).GetMethod(
             "ApplyExperimentalPassivePlayerEffects",
-            BindingFlags.Instance | BindingFlags.NonPublic)
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
         ?? throw new InvalidOperationException("Could not find LTD passive effect method.");
 
     [Theory]
@@ -121,7 +121,7 @@ public sealed class LastToDieCapturedPointHealingTests
         });
         var setLevelMethod = typeof(SimulationWorld).GetMethod(
             "CombatTestSetLevel",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(setLevelMethod);
         _ = setLevelMethod!.Invoke(
             world,

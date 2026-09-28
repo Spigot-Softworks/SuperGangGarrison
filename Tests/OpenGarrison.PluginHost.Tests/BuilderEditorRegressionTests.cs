@@ -11,7 +11,7 @@ namespace OpenGarrison.PluginHost.Tests;
 
 public sealed class BuilderEditorRegressionTests
 {
-    private const BindingFlags Private = BindingFlags.Instance | BindingFlags.NonPublic;
+    private const BindingFlags Private = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
     private static Game1 Session(params CustomMapBuilderEntity[] entities)
     {
         var game = (Game1)RuntimeHelpers.GetUninitializedObject(typeof(Game1));

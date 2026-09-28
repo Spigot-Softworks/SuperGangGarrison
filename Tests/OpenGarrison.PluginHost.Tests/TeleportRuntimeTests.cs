@@ -280,7 +280,7 @@ public sealed class TeleportRuntimeTests
         var world = new SimulationWorld();
         var setLevel = typeof(SimulationWorld).GetMethod(
             "CombatTestSetLevel",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(setLevel);
         setLevel.Invoke(
             world,
@@ -317,7 +317,7 @@ public sealed class TeleportRuntimeTests
     {
         var method = typeof(SimulationWorld).GetMethod(
             "ApplyTeleportZones",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         method.Invoke(world, [player]);
     }

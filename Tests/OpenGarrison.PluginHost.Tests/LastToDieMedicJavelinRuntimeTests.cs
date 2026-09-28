@@ -394,7 +394,7 @@ public sealed class LastToDieMedicJavelinRuntimeTests
     {
         var method = typeof(SimulationWorld).GetMethod(
             "SpawnMedicHealNeedle",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         _ = method!.Invoke(
             world,
@@ -416,7 +416,7 @@ public sealed class LastToDieMedicJavelinRuntimeTests
     {
         var method = typeof(SimulationWorld).GetMethod(
             "TryExplodeLastToDieMedicJavelin",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         return Assert.IsType<bool>(method!.Invoke(world, [javelin]));
     }

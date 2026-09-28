@@ -404,7 +404,7 @@ public sealed class LastToDieNetworkingSliceTests
 
         var pendingField = typeof(NetworkGameClient).GetField(
             "_pendingLastToDieCommands",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         var pendingCommands = Assert.IsAssignableFrom<IDictionary>(pendingField!.GetValue(client));
         var pending = pendingCommands[commandId];
         Assert.NotNull(pending);
@@ -413,7 +413,7 @@ public sealed class LastToDieNetworkingSliceTests
 
         typeof(NetworkGameClient).GetMethod(
                 "FlushLastToDieCommands",
-                BindingFlags.Instance | BindingFlags.NonPublic)!
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!
             .Invoke(client, null);
 
         Assert.Equal(sentBeforeRetry + 1, transport.SentPayloads.Count);
@@ -448,7 +448,7 @@ public sealed class LastToDieNetworkingSliceTests
 
         var pendingField = typeof(NetworkGameClient).GetField(
             "_pendingLastToDieCommands",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         var pendingCommands = Assert.IsAssignableFrom<IDictionary>(pendingField!.GetValue(client));
         Assert.True(pendingCommands.Contains(commandId));
 
@@ -503,7 +503,7 @@ public sealed class LastToDieNetworkingSliceTests
 
         var pendingField = typeof(NetworkGameClient).GetField(
             "_pendingLastToDieCommands",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         var pendingCommands = Assert.IsAssignableFrom<IDictionary>(pendingField!.GetValue(client));
         Assert.False(pendingCommands.Contains(commandId));
     }

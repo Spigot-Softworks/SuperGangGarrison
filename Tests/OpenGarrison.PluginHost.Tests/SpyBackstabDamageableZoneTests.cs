@@ -91,7 +91,7 @@ public sealed class SpyBackstabDamageableZoneTests
         var world = new SimulationWorld();
         var setLevel = typeof(SimulationWorld).GetMethod(
             "CombatTestSetLevel",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(setLevel);
         setLevel.Invoke(
             world,

@@ -10,7 +10,7 @@ namespace OpenGarrison.PluginHost.Tests;
 
 public sealed class ConstructorControlsRegressionTests
 {
-    private const BindingFlags Private = BindingFlags.Instance | BindingFlags.NonPublic;
+    private const BindingFlags Private = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
 
     [Fact]
     public void SkillAndMouse2ToggleBuildMenuWithoutUsingAbilityOrSecondary()

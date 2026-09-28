@@ -118,7 +118,7 @@ public sealed class CivilDefenseTurretRegressionTests
     }
 
     private static bool Deploy(SimulationWorld world) => (bool)typeof(SimulationWorld)
-        .GetMethod("TryDeployCivilDefenseTurret", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(world, [world.LocalPlayer])!;
+        .GetMethod("TryDeployCivilDefenseTurret", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!.Invoke(world, [world.LocalPlayer])!;
 
     internal static CivilDefenseTurretEntity DeployBuilt(SimulationWorld world)
     {

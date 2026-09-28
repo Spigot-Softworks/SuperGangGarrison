@@ -86,7 +86,7 @@ public sealed class EmbeddedSessionHostTests
                 p => Assert.True(p.Slot > host.Options.MaximumPlayers, "Enemies must not occupy human room seats."));
 
             // Exercise the client console route, including authority checks, without a graphics device.
-            const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
+            const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
             var game = (Game1)RuntimeHelpers.GetUninitializedObject(typeof(Game1));
             var history = new List<string>();
             typeof(Game1).GetField("_consoleHistory", flags)!.SetValue(game, history);
