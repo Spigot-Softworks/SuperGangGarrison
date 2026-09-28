@@ -55,3 +55,31 @@ jobs:
           --configuration Debug
           --no-build
           --no-restore
+
+  browser-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore .NET workloads for browser build
+        run: dotnet workload restore Client.Browser/OpenGarrison.Client.Browser.csproj
+
+      - name: Restore browser build graph
+        run: >
+          dotnet restore Client.Browser/OpenGarrison.Client.Browser.csproj
+          -p:OpenGarrisonClientAsLibrary=true
+
+      # Known runner issue: some .NET WASM workload installations fail with an
+      # empty MonoTargetsTasksAssemblyPath/MSB4022. Keep this job's failure
+      # visible instead of masking it with continue-on-error.
+      - name: Build browser client
+        run: >
+          dotnet build Client.Browser/OpenGarrison.Client.Browser.csproj
+          --configuration Debug
+          --no-restore
+          -p:EnableMGCBItems=false
