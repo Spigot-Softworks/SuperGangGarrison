@@ -8,7 +8,7 @@ public sealed class PlayerEntityMovementRegressionTests
 {
     private static readonly FieldInfo AimDirectionDegreesBackingField = typeof(PlayerEntity).GetField(
         "<AimDirectionDegrees>k__BackingField",
-        BindingFlags.Instance | BindingFlags.NonPublic)!;
+        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!;
     [Fact]
     public void AirborneSubpixelMovementStillAdvancesInOpenSpace()
     {
@@ -644,7 +644,7 @@ public sealed class PlayerEntityMovementRegressionTests
     {
         var field = typeof(PlayerEntity).GetField(
             "<CivviePogoNeedsGroundBounce>k__BackingField",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(field);
         field!.SetValue(player, false);
     }

@@ -440,7 +440,7 @@ public sealed class LastToDieMedicKritPowerRuntimeTests
     {
         var field = typeof(PlayerEntity).GetField(
             "<AimDirectionDegrees>k__BackingField",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(field);
         field!.SetValue(player, degrees);
     }
@@ -556,7 +556,7 @@ public sealed class LastToDieMedicKritPowerRuntimeTests
     {
         var method = target.GetType().GetMethod(
             methodName,
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         var parameters = method!.GetParameters();
         Assert.True(suppliedArguments.Length <= parameters.Length);

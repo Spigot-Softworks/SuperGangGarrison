@@ -3309,21 +3309,21 @@ public sealed class SnapshotDeltaBudgeterTests
 
     private static List<WorldGibSpawnEvent> GetPendingGibSpawnEvents(SimulationWorld world)
     {
-        var field = typeof(SimulationWorld).GetField("_pendingGibSpawnEvents", BindingFlags.Instance | BindingFlags.NonPublic);
+        var field = typeof(SimulationWorld).GetField("_pendingGibSpawnEvents", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(field);
         return Assert.IsType<List<WorldGibSpawnEvent>>(field!.GetValue(world));
     }
 
     private static List<WorldVisualEvent> GetPendingVisualEvents(SimulationWorld world)
     {
-        var field = typeof(SimulationWorld).GetField("_pendingVisualEvents", BindingFlags.Instance | BindingFlags.NonPublic);
+        var field = typeof(SimulationWorld).GetField("_pendingVisualEvents", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(field);
         return Assert.IsType<List<WorldVisualEvent>>(field!.GetValue(world));
     }
 
     private static List<WorldSoundEvent> GetPendingSoundEvents(SimulationWorld world)
     {
-        var field = typeof(SimulationWorld).GetField("_pendingSoundEvents", BindingFlags.Instance | BindingFlags.NonPublic);
+        var field = typeof(SimulationWorld).GetField("_pendingSoundEvents", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(field);
         return Assert.IsType<List<WorldSoundEvent>>(field!.GetValue(world));
     }

@@ -203,7 +203,7 @@ public sealed class CombatPlaytestFixesTests
 
         var hitMethod = typeof(SimulationWorld).GetMethod(
             "CombatTestGetNearestStabHit",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(hitMethod);
         var result = hitMethod!.Invoke(world, [mask, 1f, 0f]);
         Assert.NotNull(result);
@@ -237,7 +237,7 @@ public sealed class CombatPlaytestFixesTests
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
         var spawn = new SpawnPoint(256f, 256f);
-        var setLevel = typeof(SimulationWorld).GetMethod("CombatTestSetLevel", BindingFlags.Instance | BindingFlags.NonPublic);
+        var setLevel = typeof(SimulationWorld).GetMethod("CombatTestSetLevel", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(setLevel);
         setLevel!.Invoke(world,
         [
@@ -274,7 +274,7 @@ public sealed class CombatPlaytestFixesTests
         });
         if (openLevel)
         {
-            var setLevel = typeof(SimulationWorld).GetMethod("CombatTestSetLevel", BindingFlags.Instance | BindingFlags.NonPublic);
+            var setLevel = typeof(SimulationWorld).GetMethod("CombatTestSetLevel", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
             Assert.NotNull(setLevel);
             setLevel!.Invoke(world,
             [

@@ -142,7 +142,7 @@ public sealed class BuildWheelTests
     [Fact]
     public void WheelConsumesCombatInputButKeepsMovementAndOneSelectedBuildCommand()
     {
-        const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
+        const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
         var game = (Game1)RuntimeHelpers.GetUninitializedObject(typeof(Game1));
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
         world.PrepareLocalPlayerJoin();

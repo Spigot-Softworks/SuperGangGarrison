@@ -13,7 +13,7 @@ namespace OpenGarrison.PluginHost.Tests;
 
 public sealed class PlayerSkinRenderingTests
 {
-    private const BindingFlags PrivateInstance = BindingFlags.Instance | BindingFlags.NonPublic;
+    private const BindingFlags PrivateInstance = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
 
     private static PlayerSkinCatalog ReadCatalog()
     {

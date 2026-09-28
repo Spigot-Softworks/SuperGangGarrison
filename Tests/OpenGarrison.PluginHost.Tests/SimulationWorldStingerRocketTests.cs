@@ -221,7 +221,7 @@ public sealed class SimulationWorldStingerRocketTests
         firstVictim.ForceSetHealth(1);
         secondVictim.ForceSetHealth(1);
 
-        var killMethod = typeof(SimulationWorld).GetMethod("KillPlayer", BindingFlags.Instance | BindingFlags.NonPublic);
+        var killMethod = typeof(SimulationWorld).GetMethod("KillPlayer", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(killMethod);
 
         _ = killMethod!.Invoke(
@@ -246,11 +246,11 @@ public sealed class SimulationWorldStingerRocketTests
         Assert.False(firstVictim.IsAlive);
         Assert.False(secondVictim.IsAlive);
 
-        var processingField = typeof(SimulationWorld).GetField("_processingDangerCloseExplosions", BindingFlags.Instance | BindingFlags.NonPublic);
+        var processingField = typeof(SimulationWorld).GetField("_processingDangerCloseExplosions", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(processingField);
         Assert.False((bool)processingField!.GetValue(world)!);
 
-        var queueField = typeof(SimulationWorld).GetField("_pendingDangerCloseExplosions", BindingFlags.Instance | BindingFlags.NonPublic);
+        var queueField = typeof(SimulationWorld).GetField("_pendingDangerCloseExplosions", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(queueField);
         var queue = queueField!.GetValue(world);
         var countProperty = queue?.GetType().GetProperty("Count");
@@ -270,7 +270,7 @@ public sealed class SimulationWorldStingerRocketTests
     {
         var method = typeof(SimulationWorld).GetMethod(
             "ApplyExperimentalSoldierRocketCombat",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         var result = method!.Invoke(world, [attacker, combat]);
         Assert.IsType<RocketCombatDefinition>(result);
@@ -281,7 +281,7 @@ public sealed class SimulationWorldStingerRocketTests
     {
         var method = typeof(SimulationWorld).GetMethod(
             "ApplyExperimentalSoldierRocketLaunchSpeed",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         var result = method!.Invoke(world, [attacker, launchSpeed]);
         Assert.IsType<float>(result);
@@ -297,7 +297,7 @@ public sealed class SimulationWorldStingerRocketTests
     {
         var method = typeof(SimulationWorld).GetMethod(
             "ExplodeRocket",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         _ = method!.Invoke(world, [rocket, null, null, null, -1]);
     }

@@ -180,7 +180,7 @@ public sealed class FirePredictionRegressionTests
         var game = CreatePredictionHarness(world);
         var method = typeof(Game1).GetMethod(
             "CanStartImmediatePrimaryFirePresentation",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
 
         var canPresent = method!.Invoke(
@@ -471,7 +471,7 @@ public sealed class FirePredictionRegressionTests
             BindingFlags.NonPublic)
             ?? throw new MissingMemberException(typeof(Game1).FullName, "PredictedLocalInput");
         var constructor = inputType.GetConstructor(
-            BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public,
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Public,
             binder: null,
             [
                 typeof(uint),
@@ -513,7 +513,7 @@ public sealed class FirePredictionRegressionTests
     {
         var method = declaringType.GetMethod(
             methodName,
-            BindingFlags.Instance | BindingFlags.NonPublic)
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
             ?? throw new MissingMethodException(declaringType.FullName, methodName);
         method.Invoke(target, arguments);
     }
@@ -522,7 +522,7 @@ public sealed class FirePredictionRegressionTests
     {
         var field = target.GetType().GetField(
             fieldName,
-            BindingFlags.Instance | BindingFlags.NonPublic)
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
             ?? throw new MissingFieldException(target.GetType().FullName, fieldName);
         field.SetValue(target, value);
     }
@@ -531,7 +531,7 @@ public sealed class FirePredictionRegressionTests
     {
         var field = target.GetType().GetField(
             fieldName,
-            BindingFlags.Instance | BindingFlags.NonPublic)
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
             ?? throw new MissingFieldException(target.GetType().FullName, fieldName);
         return (T)field.GetValue(target)!;
     }
@@ -544,7 +544,7 @@ public sealed class FirePredictionRegressionTests
     {
         var method = declaringType.GetMethod(
             methodName,
-            BindingFlags.Instance | BindingFlags.NonPublic)
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
             ?? throw new MissingMethodException(declaringType.FullName, methodName);
         return (T)method.Invoke(target, arguments)!;
     }

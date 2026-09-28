@@ -856,7 +856,7 @@ public sealed class PluginContractValidationTests
         ushort schemaVersion)
     {
         var method = typeof(ClientPluginHost)
-            .GetMethods(BindingFlags.Instance | BindingFlags.NonPublic)
+            .GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
             .Single(method => method.Name == "SendMessageToServer" && method.GetParameters().Length == 6);
         method.Invoke(host, [sourcePluginId, targetPluginId, messageType, payload, payloadFormat, schemaVersion]);
     }
@@ -872,7 +872,7 @@ public sealed class PluginContractValidationTests
         ushort schemaVersion)
     {
         var method = typeof(ClientPluginHost)
-            .GetMethods(BindingFlags.Instance | BindingFlags.NonPublic)
+            .GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
             .Single(method => method.Name == "SendMessageToServer" && method.GetParameters().Length == 7);
         method.Invoke(host, [sourcePluginId, sourceManifest, targetPluginId, messageType, payload, payloadFormat, schemaVersion]);
     }
@@ -892,7 +892,7 @@ public sealed class PluginContractValidationTests
         string pluginDirectory,
         OpenGarrisonPluginManifest manifest)
     {
-        var method = typeof(OpenGarrison.Server.PluginHost).GetMethod("CreateContext", BindingFlags.Instance | BindingFlags.NonPublic);
+        var method = typeof(OpenGarrison.Server.PluginHost).GetMethod("CreateContext", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         return Assert.IsAssignableFrom<IOpenGarrisonServerPluginContext>(method!.Invoke(host,
         [

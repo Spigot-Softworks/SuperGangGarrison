@@ -85,7 +85,7 @@ public sealed class AlternatePrimaryWeaponBalanceTests
 
         var explode = typeof(SimulationWorld).GetMethod(
             "ExplodeBoomstickPellet",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(explode);
         _ = explode!.Invoke(world, [pellet]);
 
@@ -590,7 +590,7 @@ public sealed class AlternatePrimaryWeaponBalanceTests
     {
         var method = typeof(SimulationWorld).GetMethod(
             "ExplodeRocket",
-            BindingFlags.Instance | BindingFlags.NonPublic,
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
             binder: null,
             types:
             [

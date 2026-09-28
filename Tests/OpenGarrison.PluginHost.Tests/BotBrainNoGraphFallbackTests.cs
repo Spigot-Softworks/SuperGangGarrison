@@ -374,7 +374,7 @@ public sealed class BotBrainNoGraphFallbackTests
 
     private static void SetNoGraphCaptureTheFlagLevel(SimulationWorld world)
     {
-        var method = typeof(SimulationWorld).GetMethod("CombatTestSetLevel", BindingFlags.Instance | BindingFlags.NonPublic);
+        var method = typeof(SimulationWorld).GetMethod("CombatTestSetLevel", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         _ = method!.Invoke(
             world,
@@ -404,7 +404,7 @@ public sealed class BotBrainNoGraphFallbackTests
 
     private static void SetNoGraphControlPointObstacleLevel(SimulationWorld world, PlayerEntity player)
     {
-        var method = typeof(SimulationWorld).GetMethod("CombatTestSetLevel", BindingFlags.Instance | BindingFlags.NonPublic);
+        var method = typeof(SimulationWorld).GetMethod("CombatTestSetLevel", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         var obstacleLeft = player.Right + 2f;
         var obstacleTop = player.Bottom - 24f;
@@ -445,7 +445,7 @@ public sealed class BotBrainNoGraphFallbackTests
 
     private static void SetNoGraphControlPointDeadZoneObstacleLevel(SimulationWorld world, PlayerEntity player)
     {
-        var method = typeof(SimulationWorld).GetMethod("CombatTestSetLevel", BindingFlags.Instance | BindingFlags.NonPublic);
+        var method = typeof(SimulationWorld).GetMethod("CombatTestSetLevel", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         var captureZoneLeft = player.X + 16f;
         var obstacleLeft = player.Right + 8f;
@@ -495,7 +495,7 @@ public sealed class BotBrainNoGraphFallbackTests
 
     private static void SetNoGraphControlPointEnemyClearBlockedLevel(SimulationWorld world, PlayerEntity player, PlayerEntity enemy)
     {
-        var method = typeof(SimulationWorld).GetMethod("CombatTestSetLevel", BindingFlags.Instance | BindingFlags.NonPublic);
+        var method = typeof(SimulationWorld).GetMethod("CombatTestSetLevel", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         var obstacleLeft = player.Right + 2f;
         var obstacleTop = player.Bottom - 8f;
@@ -545,7 +545,7 @@ public sealed class BotBrainNoGraphFallbackTests
 
     private static void SetNoGraphUnjumpableObstacleLevel(SimulationWorld world, PlayerEntity player)
     {
-        var method = typeof(SimulationWorld).GetMethod("CombatTestSetLevel", BindingFlags.Instance | BindingFlags.NonPublic);
+        var method = typeof(SimulationWorld).GetMethod("CombatTestSetLevel", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         var obstacleLeft = player.Right + 2f;
         var pointX = player.X + 284f;

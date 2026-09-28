@@ -149,7 +149,7 @@ public sealed class ProjectilePresentationCollisionTests
         var level = new SimpleLevel("presentation-sweep", GameModeKind.TeamDeathmatch,
             new WorldBounds(1024f, 512f), 1f, null, 1, 1, spawn, [spawn], [spawn], [], markers,
             512f, solids, false);
-        typeof(SimulationWorld).GetMethod("CombatTestSetLevel", BindingFlags.Instance | BindingFlags.NonPublic)!
+        typeof(SimulationWorld).GetMethod("CombatTestSetLevel", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!
             .Invoke(world, [level]);
         _ = world.DrainPendingVisualEvents();
         _ = world.DrainPendingDamageEvents();
@@ -176,28 +176,28 @@ public sealed class ProjectilePresentationCollisionTests
 
     private static void InvokePrivate(object target, string methodName, params object[] arguments)
     {
-        var method = typeof(Game1).GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic)
+        var method = typeof(Game1).GetMethod(methodName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
             ?? throw new MissingMethodException(typeof(Game1).FullName, methodName);
         method.Invoke(target, arguments);
     }
 
     private static T GetPrivateField<T>(object target, string fieldName)
     {
-        var field = typeof(Game1).GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic)
+        var field = typeof(Game1).GetField(fieldName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
             ?? throw new MissingFieldException(typeof(Game1).FullName, fieldName);
         return (T)(field.GetValue(target) ?? throw new InvalidOperationException(fieldName));
     }
 
     private static void SetPrivateField(object target, string fieldName, object value)
     {
-        var field = typeof(Game1).GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic)
+        var field = typeof(Game1).GetField(fieldName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
             ?? throw new MissingFieldException(typeof(Game1).FullName, fieldName);
         field.SetValue(target, value);
     }
 
     private static void SetPrivateFieldToNewCollection(object target, string fieldName)
     {
-        var field = typeof(Game1).GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic)
+        var field = typeof(Game1).GetField(fieldName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
             ?? throw new MissingFieldException(typeof(Game1).FullName, fieldName);
         field.SetValue(target, Activator.CreateInstance(field.FieldType));
     }

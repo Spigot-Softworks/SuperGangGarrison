@@ -88,7 +88,7 @@ public sealed class DirtbowlStageTransitionTests
 
     private static void SetPrivateField(SimulationWorld world, string fieldName, object value)
     {
-        var field = typeof(SimulationWorld).GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic)
+        var field = typeof(SimulationWorld).GetField(fieldName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
             ?? throw new InvalidOperationException($"{fieldName} was not found.");
         field.SetValue(world, value);
     }

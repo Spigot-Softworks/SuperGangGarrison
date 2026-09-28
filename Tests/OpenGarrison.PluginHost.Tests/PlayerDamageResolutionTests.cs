@@ -92,7 +92,7 @@ public sealed class PlayerDamageResolutionTests
     public void LegacyDamageReflectionContractStillHasOneElevenParameterMethod()
     {
         var methods = typeof(SimulationWorld)
-            .GetMethods(BindingFlags.Instance | BindingFlags.NonPublic)
+            .GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
             .Where(static method => method.Name == "ApplyPlayerDamage")
             .ToArray();
 

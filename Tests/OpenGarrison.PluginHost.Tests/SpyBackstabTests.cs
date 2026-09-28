@@ -430,7 +430,7 @@ public sealed class SpyBackstabTests
 
     private static void SetCombatLevel(SimulationWorld world, SimpleLevel level)
     {
-        var method = typeof(SimulationWorld).GetMethod("CombatTestSetLevel", BindingFlags.Instance | BindingFlags.NonPublic);
+        var method = typeof(SimulationWorld).GetMethod("CombatTestSetLevel", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         _ = method!.Invoke(world, [level]);
     }
@@ -439,7 +439,7 @@ public sealed class SpyBackstabTests
         SimulationWorld world,
         StabMaskEntity mask)
     {
-        var method = typeof(SimulationWorld).GetMethod("CombatTestGetNearestStabHit", BindingFlags.Instance | BindingFlags.NonPublic);
+        var method = typeof(SimulationWorld).GetMethod("CombatTestGetNearestStabHit", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         var result = method!.Invoke(world, [mask, mask.FacingLeft ? -1f : 1f, 0f]);
         Assert.NotNull(result);
@@ -448,7 +448,7 @@ public sealed class SpyBackstabTests
 
     private static void InvokeFirePrimaryWeapon(SimulationWorld world, PlayerEntity player, float aimWorldX, float aimWorldY)
     {
-        var method = typeof(SimulationWorld).GetMethod("FirePrimaryWeapon", BindingFlags.Instance | BindingFlags.NonPublic);
+        var method = typeof(SimulationWorld).GetMethod("FirePrimaryWeapon", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         _ = method!.Invoke(world, [player, aimWorldX, aimWorldY]);
     }

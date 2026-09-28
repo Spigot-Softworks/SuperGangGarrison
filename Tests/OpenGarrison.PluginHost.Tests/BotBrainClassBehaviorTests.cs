@@ -1148,7 +1148,7 @@ public sealed class BotBrainClassBehaviorTests
     {
         var method = typeof(BotBrainController).GetMethod(
             "ApplyCarrierReturnDirectEscape",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
 
         object?[] args = [player, targetX, steering, trace];
@@ -1159,14 +1159,14 @@ public sealed class BotBrainClassBehaviorTests
 
     private static void SetControllerField<T>(BotBrainController controller, string fieldName, T value)
     {
-        var field = typeof(BotBrainController).GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+        var field = typeof(BotBrainController).GetField(fieldName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(field);
         field!.SetValue(controller, value);
     }
 
     private static T GetControllerField<T>(BotBrainController controller, string fieldName)
     {
-        var field = typeof(BotBrainController).GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+        var field = typeof(BotBrainController).GetField(fieldName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(field);
         return Assert.IsType<T>(field!.GetValue(controller));
     }
@@ -1189,7 +1189,7 @@ public sealed class BotBrainClassBehaviorTests
             target.Y,
             speed,
             directionRadians: MathF.PI);
-        var field = typeof(SimulationWorld).GetField("_rockets", BindingFlags.Instance | BindingFlags.NonPublic);
+        var field = typeof(SimulationWorld).GetField("_rockets", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(field);
         var rockets = Assert.IsType<List<RocketProjectileEntity>>(field!.GetValue(world));
         rockets.Add(rocket);
@@ -1240,7 +1240,7 @@ public sealed class BotBrainClassBehaviorTests
 
     private static void SetCombatLevel(SimulationWorld world)
     {
-        var method = typeof(SimulationWorld).GetMethod("CombatTestSetLevel", BindingFlags.Instance | BindingFlags.NonPublic);
+        var method = typeof(SimulationWorld).GetMethod("CombatTestSetLevel", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         _ = method!.Invoke(
             world,
@@ -1270,7 +1270,7 @@ public sealed class BotBrainClassBehaviorTests
 
     private static void SetControlPointLevel(SimulationWorld world)
     {
-        var method = typeof(SimulationWorld).GetMethod("CombatTestSetLevel", BindingFlags.Instance | BindingFlags.NonPublic);
+        var method = typeof(SimulationWorld).GetMethod("CombatTestSetLevel", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         _ = method!.Invoke(
             world,
@@ -1322,7 +1322,7 @@ public sealed class BotBrainClassBehaviorTests
 
     private static void SetKothLevel(SimulationWorld world)
     {
-        var method = typeof(SimulationWorld).GetMethod("CombatTestSetLevel", BindingFlags.Instance | BindingFlags.NonPublic);
+        var method = typeof(SimulationWorld).GetMethod("CombatTestSetLevel", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         _ = method!.Invoke(
             world,
@@ -1358,7 +1358,7 @@ public sealed class BotBrainClassBehaviorTests
 
     private static void SetDoubleKothLevel(SimulationWorld world)
     {
-        var method = typeof(SimulationWorld).GetMethod("CombatTestSetLevel", BindingFlags.Instance | BindingFlags.NonPublic);
+        var method = typeof(SimulationWorld).GetMethod("CombatTestSetLevel", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         _ = method!.Invoke(
             world,
@@ -1402,7 +1402,7 @@ public sealed class BotBrainClassBehaviorTests
 
     private static void SetDirectDriveLevel(SimulationWorld world, bool hasBlockedHeadroom)
     {
-        var method = typeof(SimulationWorld).GetMethod("CombatTestSetLevel", BindingFlags.Instance | BindingFlags.NonPublic);
+        var method = typeof(SimulationWorld).GetMethod("CombatTestSetLevel", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         _ = method!.Invoke(
             world,

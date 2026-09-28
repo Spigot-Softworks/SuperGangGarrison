@@ -151,7 +151,7 @@ public sealed class BotBrainMartyrTargetingTests
     {
         var method = typeof(SimulationWorld).GetMethod(
             "RefreshLastToDieMedicLinkProjections",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         _ = method!.Invoke(world, null);
     }

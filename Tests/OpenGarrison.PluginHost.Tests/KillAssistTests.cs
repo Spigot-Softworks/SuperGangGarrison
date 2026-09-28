@@ -8,7 +8,7 @@ public sealed class KillAssistTests
 {
     private static object? Invoke(SimulationWorld world, string name, params object?[] provided)
     {
-        var method = typeof(SimulationWorld).GetMethod(name, BindingFlags.Instance | BindingFlags.NonPublic)!;
+        var method = typeof(SimulationWorld).GetMethod(name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!;
         var arguments = method.GetParameters().Select(p => p.DefaultValue).ToArray();
         Array.Copy(provided, arguments, provided.Length);
         return method.Invoke(world, arguments);

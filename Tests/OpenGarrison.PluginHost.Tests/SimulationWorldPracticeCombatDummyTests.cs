@@ -246,7 +246,7 @@ public sealed class SimulationWorldPracticeCombatDummyTests
     {
         return typeof(SimulationWorld).GetMethod(
                 name,
-                BindingFlags.Instance | BindingFlags.NonPublic,
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
                 binder: null,
                 parameterTypes,
                 modifiers: null)

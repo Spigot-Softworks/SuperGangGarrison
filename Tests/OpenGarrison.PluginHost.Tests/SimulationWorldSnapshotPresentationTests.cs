@@ -635,7 +635,7 @@ public sealed class SimulationWorldSnapshotPresentationTests
         Assert.True(world.TryGetNetworkPlayer(2, out var killer));
         killer.TeleportTo(128f, 96f);
 
-        var killMethod = typeof(SimulationWorld).GetMethod("KillPlayer", BindingFlags.Instance | BindingFlags.NonPublic);
+        var killMethod = typeof(SimulationWorld).GetMethod("KillPlayer", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(killMethod);
         _ = killMethod!.Invoke(
             world,
@@ -675,7 +675,7 @@ public sealed class SimulationWorldSnapshotPresentationTests
         Assert.True(world.TryGetNetworkPlayer(2, out var killer));
         killer.ForceSetHealth(137);
 
-        var killMethod = typeof(SimulationWorld).GetMethod("KillPlayer", BindingFlags.Instance | BindingFlags.NonPublic);
+        var killMethod = typeof(SimulationWorld).GetMethod("KillPlayer", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(killMethod);
         _ = killMethod!.Invoke(
             world,
@@ -716,7 +716,7 @@ public sealed class SimulationWorldSnapshotPresentationTests
         Assert.True(world.TryGetNetworkPlayer(2, out var killer));
         killer.TeleportTo(128f, 96f);
 
-        var killMethod = typeof(SimulationWorld).GetMethod("KillPlayer", BindingFlags.Instance | BindingFlags.NonPublic);
+        var killMethod = typeof(SimulationWorld).GetMethod("KillPlayer", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(killMethod);
         _ = killMethod!.Invoke(
             world,
@@ -880,14 +880,14 @@ public sealed class SimulationWorldSnapshotPresentationTests
 
     private static void InvokeRegisterBloodEffect(SimulationWorld world, float x, float y, float directionDegrees, int count)
     {
-        var method = typeof(SimulationWorld).GetMethod("RegisterBloodEffect", BindingFlags.Instance | BindingFlags.NonPublic);
+        var method = typeof(SimulationWorld).GetMethod("RegisterBloodEffect", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         _ = method!.Invoke(world, [x, y, directionDegrees, count]);
     }
 
     private static void InvokeKillPlayer(SimulationWorld world, PlayerEntity player, bool gibbed)
     {
-        var method = typeof(SimulationWorld).GetMethod("KillPlayer", BindingFlags.Instance | BindingFlags.NonPublic);
+        var method = typeof(SimulationWorld).GetMethod("KillPlayer", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         _ = method!.Invoke(
             world,

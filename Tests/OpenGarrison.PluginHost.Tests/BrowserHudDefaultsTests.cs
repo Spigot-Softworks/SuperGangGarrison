@@ -12,7 +12,7 @@ namespace OpenGarrison.PluginHost.Tests;
 
 public sealed class BrowserHudDefaultsTests
 {
-    private const BindingFlags Instance = BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public;
+    private const BindingFlags Instance = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Public;
 
     [Theory]
     [InlineData(800, 600)]

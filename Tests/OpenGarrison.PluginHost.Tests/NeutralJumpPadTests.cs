@@ -8,7 +8,7 @@ namespace OpenGarrison.PluginHost.Tests;
 public sealed class NeutralJumpPadTests
 {
     private static readonly MethodInfo RestartCurrentRoundMethod = typeof(SimulationWorld)
-        .GetMethods(BindingFlags.Instance | BindingFlags.NonPublic)
+        .GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
         .Single(method => method.Name == "RestartCurrentRound" && method.GetParameters().Length == 2);
 
     [Fact]

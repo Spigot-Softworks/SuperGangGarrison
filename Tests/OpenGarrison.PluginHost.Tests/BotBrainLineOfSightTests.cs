@@ -196,7 +196,7 @@ public sealed class BotBrainLineOfSightTests
             EnableEnemyTrainingDummy = false,
             EnableFriendlySupportDummy = false,
         });
-        var method = typeof(SimulationWorld).GetMethod("CombatTestSetLevel", BindingFlags.Instance | BindingFlags.NonPublic);
+        var method = typeof(SimulationWorld).GetMethod("CombatTestSetLevel", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         _ = method!.Invoke(
             world,

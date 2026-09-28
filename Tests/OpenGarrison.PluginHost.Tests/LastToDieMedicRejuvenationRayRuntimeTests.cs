@@ -234,7 +234,7 @@ public sealed class LastToDieMedicRejuvenationRayRuntimeTests
     {
         var method = typeof(SimulationWorld).GetMethod(
             "ApplyMedicHealing",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         _ = method!.Invoke(world, [medic, target]);
     }
@@ -243,7 +243,7 @@ public sealed class LastToDieMedicRejuvenationRayRuntimeTests
     {
         var method = typeof(SimulationWorld).GetMethod(
             "AdvanceMedicUberEffects",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         _ = method!.Invoke(world, null);
     }

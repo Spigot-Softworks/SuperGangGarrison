@@ -202,7 +202,7 @@ public sealed class SpritesheetTests
         var world = new SimulationWorld { ClientPredictionMode = false };
         var setLevel = typeof(SimulationWorld).GetMethod(
             "CombatTestSetLevel",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(setLevel);
         setLevel.Invoke(
             world,
@@ -271,7 +271,7 @@ public sealed class SpritesheetTests
         var world = new SimulationWorld { ClientPredictionMode = true };
         var setLevel = typeof(SimulationWorld).GetMethod(
             "CombatTestSetLevel",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(setLevel);
         setLevel.Invoke(
             world,
