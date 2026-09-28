@@ -1,0 +1,45 @@
+{
+  "id": "ability.sniper-strong-drink",
+  "kind": "Ability",
+  "displayName": "Strong Drink",
+  "behaviorId": "builtin.ability.sniper_strong_drink",
+  "ability": {
+    "category": "utility",
+    "channel": "utility",
+    "activation": "held",
+    "executorId": "builtin.ability.sniper_strong_drink",
+    "tags": [ "utility", "projectile", "cooldown", "fire" ],
+    "parameters": {
+      "cooldownTicks": 450,
+      "throwSpeed": 11.5,
+      "lobBiasDegrees": 40,
+      "gravityPerTick": 0.18,
+      "spinSpeed": 0.28,
+      "fireParticleCount": 20,
+      "fuseTicks": 180
+    }
+  },
+  "ammo": {},
+  "presentation": {
+    "useTorsoReplacement": true,
+    "torsoSpriteName": "BottleTorsoS",
+    "torsoRecoilSpriteName": "BottleTorsoS",
+    "worldSpriteName": "BottleArm1S",
+    "recoilSpriteName": "BottleArmThrowS",
+    "reloadSpriteName": "BottleArm1S",
+    "weaponOffsetX": 4.0,
+    "weaponOffsetY": -5.0,
+    "recoilDurationSourceTicks": 5,
+    "reloadDurationSourceTicks": 0,
+    "hud": {
+      "displayKind": "meter",
+      "stackGroup": "ability",
+      "order": 85,
+      "stateProvider": "abilityCooldown",
+      "stateOwner": "core.ability",
+      "cooldownKey": "sniper_strong_drink_cooldown_ticks",
+      "maxCooldown": 450,
+      "hideWhenUnavailable": true
+    }
+  }
+}

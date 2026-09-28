@@ -549,6 +549,30 @@ public sealed partial class SimulationWorld
 
     private void SpawnGrenade(PlayerEntity owner, float x, float y, float velocityX, float velocityY, string? killFeedWeaponSpriteNameOverride = null)
     {
+        SpawnGrenade(
+            owner,
+            x,
+            y,
+            velocityX,
+            velocityY,
+            killFeedWeaponSpriteNameOverride,
+            isStrongDrink: false,
+            fuseTicks: GrenadeProjectileEntity.FuseTicksRemaining,
+            initialSpinSpeed: 0f);
+    }
+
+    private void SpawnGrenade(
+        PlayerEntity owner,
+        float x,
+        float y,
+        float velocityX,
+        float velocityY,
+        string? killFeedWeaponSpriteNameOverride,
+        bool isStrongDrink,
+        int fuseTicks,
+        float initialSpinSpeed,
+        float gravityPerTick = GrenadeProjectileEntity.StrongDrinkGravityPerTick)
+    {
         var grenade = new GrenadeProjectileEntity(
             AllocateEntityId(),
             owner.Team,
@@ -558,6 +582,11 @@ public sealed partial class SimulationWorld
             velocityX,
             velocityY,
             killFeedWeaponSpriteNameOverride);
+        if (isStrongDrink)
+        {
+            grenade.ConfigureAsStrongDrink(fuseTicks, initialSpinSpeed, gravityPerTick);
+        }
+
         if (owner.IsKritzCritBoosted)
         {
             grenade.SetCritical(owner.ActiveKritzCritDamageMultiplier);
@@ -565,6 +594,35 @@ public sealed partial class SimulationWorld
 
         _grenades.Add(grenade);
         _entities.Add(grenade.Id, grenade);
+    }
+
+    private void SpawnStrongDrinkSettlingFlame(
+        PlayerEntity owner,
+        float x,
+        float y,
+        float velocityX,
+        float velocityY,
+        int airLifetimeTicks,
+        int groundedLifetimeTicks)
+    {
+        var flame = new FlameProjectileEntity(
+            AllocateEntityId(),
+            owner.Team,
+            owner.Id,
+            x,
+            y,
+            velocityX,
+            velocityY,
+            Math.Max(1, airLifetimeTicks),
+            isPerseverant: true,
+            directHitDamage: 0f,
+            burnDamagePerTick: FlameProjectileEntity.BurnDamagePerTick);
+        flame.ConfigureSettlingFlame(
+            groundedLifetimeTicks,
+            GrenadeProjectileEntity.StrongDrinkFireGravityScale);
+        flame.SetCritical();
+        _flames.Add(flame);
+        _entities.Add(flame.Id, flame);
     }
 
     private int GetSimulationTicksFromSourceTicks(float sourceTicks)

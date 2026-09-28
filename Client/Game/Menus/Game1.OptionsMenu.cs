@@ -948,6 +948,17 @@ public partial class Game1
         PersistClientSettings();
     }
 
+    private void ToggleBurnCharredCorpsesSetting()
+    {
+        _burnCharredCorpsesEnabled = !_burnCharredCorpsesEnabled;
+        if (!_burnCharredCorpsesEnabled)
+        {
+            ResetBurnCharredCorpses();
+        }
+
+        PersistClientSettings();
+    }
+
     private void AdjustBloodPersistenceSeconds(int step)
     {
         _bloodPersistenceSeconds = Math.Clamp(_bloodPersistenceSeconds + step, 1, 120);
@@ -1130,6 +1141,14 @@ public partial class Game1
             _stuckArrowVisuals.Clear();
         }
 
+        PersistClientSettings();
+    }
+
+    private void CycleWeaponBobSetting()
+    {
+        _weaponBobMode = OpenGarrisonPreferencesDocument.NormalizeWeaponBobMode(_weaponBobMode) == WeaponBobMode.Enabled
+            ? WeaponBobMode.Disabled
+            : WeaponBobMode.Enabled;
         PersistClientSettings();
     }
 

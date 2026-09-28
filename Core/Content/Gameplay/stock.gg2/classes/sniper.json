@@ -41,7 +41,7 @@
         "selectionPersistence": "same_class_loadout"
       },
       "secondary": { "itemId": "weapon.sniper-smg" },
-      "abilities": [ "ability.experimental-ltd-passive", "ability.experimental-ltd-rage" ]
+      "abilities": [ "ability.experimental-ltd-passive", "ability.experimental-ltd-rage", "ability.sniper-strong-drink" ]
     }
   },
   "defaultLoadoutId": "sniper.stock"

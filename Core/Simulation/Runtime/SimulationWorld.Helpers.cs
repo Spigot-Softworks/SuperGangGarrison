@@ -225,6 +225,16 @@ public sealed partial class SimulationWorld
             SourceFrame: Frame < 0 ? 0UL : (ulong)Frame));
     }
 
+    private void RegisterStrongDrinkShatterEffect(
+        float x,
+        float y,
+        PlayerTeam team,
+        float burstDirectionDegrees = 270f)
+    {
+        // Direction is the preferred burst axis (surface outward normal). Default 270° = straight up.
+        RegisterVisualEffect("BottleShards", x, y, burstDirectionDegrees, count: (int)team);
+    }
+
     private void RegisterImpactEffect(float x, float y, float directionDegrees)
     {
         RegisterVisualEffect("Impact", x, y, directionDegrees);

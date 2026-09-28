@@ -393,6 +393,8 @@ public static partial class ProtocolCodec
             writer.Write(flame.AttachedOffsetY);
             writer.Write(flame.IsCritical);
             writer.Write(flame.CriticalDamageMultiplier);
+            writer.Write(flame.SettlesOnGround);
+            writer.Write(flame.IsGrounded);
         }
     }
 
@@ -417,7 +419,9 @@ public static partial class ProtocolCodec
                 reader.ReadSingle(),
                 reader.ReadSingle(),
                 reader.ReadBoolean(),
-                reader.ReadSingle()));
+                reader.ReadSingle(),
+                reader.ReadBoolean(),
+                reader.ReadBoolean()));
         }
 
         return flames;
@@ -486,6 +490,7 @@ public static partial class ProtocolCodec
             writer.Write(grenade.FuseTicksLeft);
             writer.Write(grenade.IsCritical);
             writer.Write(grenade.CriticalDamageMultiplier);
+            writer.Write(grenade.IsStrongDrink);
         }
     }
 
@@ -507,7 +512,8 @@ public static partial class ProtocolCodec
                 reader.ReadSingle(),
                 reader.ReadInt32(),
                 reader.ReadBoolean(),
-                reader.ReadSingle()));
+                reader.ReadSingle(),
+                reader.ReadBoolean()));
         }
 
         return grenades;

@@ -301,13 +301,11 @@ public partial class Game1
             }
 
             var equipmentOffset = bodyYOffset;
-            if (isRunSprite && !appearsAirborne)
+            var weaponBobMode = OpenGarrisonPreferencesDocument.NormalizeWeaponBobMode(_game._weaponBobMode);
+            if (isRunSprite && !appearsAirborne && weaponBobMode != WeaponBobMode.Disabled)
             {
-                var frame = (int)System.MathF.Floor(animationImage) % 8;
-                if (IsRunEquipmentLowerFrame(frame))
-                {
-                    equipmentOffset -= 2f;
-                }
+                var frame = GetRunEquipmentBobFrame((int)System.MathF.Floor(animationImage), delayByOneFrame: true);
+                equipmentOffset += IsRunEquipmentLowerFrame(frame) ? -2f : 0f;
             }
 
             if (isHeavySlowWalk)
@@ -334,7 +332,16 @@ public partial class Game1
             return System.MathF.Cos(radians) < 0f;
         }
 
-        public static string? GetTauntSpriteName(PlayerEntity player) => GetPresentationSpriteName(player, static presentation => presentation.TauntSuffix ?? presentation.BaseSuffix, "TauntS");
+        public string? GetTauntSpriteName(PlayerEntity player)
+        {
+            var skin = _game.GetPlayerSkin(player);
+            if (skin?.TauntSprite is { } tauntSprite)
+            {
+                return skin.SpriteForTeam(tauntSprite, player.Team);
+            }
+
+            return GetPresentationSpriteName(player, static presentation => presentation.TauntSuffix ?? presentation.BaseSuffix, "TauntS");
+        }
         public static string? GetPogoSpriteName(PlayerEntity player) => GetPresentationSpriteName(player, static presentation => presentation.PogoSuffix ?? presentation.BaseSuffix, "PogoS");
         public static string? GetPogoTrickSpriteName(PlayerEntity player) => GetPresentationSpriteName(player, static presentation => presentation.PogoTrickSuffix ?? presentation.PogoSuffix ?? presentation.BaseSuffix, "PogoTrickS");
 
@@ -347,11 +354,26 @@ public partial class Game1
         /// <summary>
         /// Run equipment is drawn 2px lower on the down-bob frames of the run cycle.
         /// Run sprites were realigned so frame 0 matches the intended cycle start; down-bob is on {0,1,4,5}.
+        /// When weapon bob is enabled, callers should pass the prior run frame so equipment lags the body.
         /// </summary>
         public static bool IsRunEquipmentLowerFrame(int frameIndex)
         {
             var frame = ((frameIndex % 8) + 8) % 8;
             return frame is 0 or 1 or 4 or 5;
+        }
+
+        /// <summary>
+        /// Resolves the run-cycle equipment bob frame, optionally delayed by one frame for inertia.
+        /// </summary>
+        public static int GetRunEquipmentBobFrame(int runFrameIndex, bool delayByOneFrame)
+        {
+            var frame = ((runFrameIndex % 8) + 8) % 8;
+            if (delayByOneFrame)
+            {
+                frame = ((frame - 1) % 8 + 8) % 8;
+            }
+
+            return frame;
         }
         public static string? GetWalkSpriteName(PlayerEntity player) => GetPresentationSpriteName(player, static presentation => presentation.WalkSuffix ?? presentation.RunSuffix ?? presentation.BaseSuffix, "WalkS");
         public static string? GetHudStandingSpriteName(PlayerEntity player) => GetPresentationSpriteName(player, static presentation => presentation.StandSuffix ?? presentation.BaseSuffix, "StandS");
@@ -535,7 +557,19 @@ public partial class Game1
             return System.Math.Clamp((poseOffset * framesPerPose) + poseFrame, 0, frameCount - 1);
         }
 
-        private static int GetTauntSpriteFrameIndex(PlayerEntity player, int frameCount) => frameCount <= 0 ? 0 : System.Math.Clamp((int)System.MathF.Floor(player.TauntFrameIndex), 0, frameCount - 1);
+        private static int GetTauntSpriteFrameIndex(PlayerEntity player, int frameCount)
+        {
+            if (frameCount <= 0)
+            {
+                return 0;
+            }
+
+            // TauntLengthFrames is the fixed duration unit. Stretch whatever art
+            // strip we have across that window so more frames still finish on time.
+            var length = System.Math.Max(1, player.ClassDefinition.TauntLengthFrames);
+            var index = (int)System.MathF.Floor(player.TauntFrameIndex * frameCount / length);
+            return System.Math.Clamp(index, 0, frameCount - 1);
+        }
 
         private static int GetHeavyEatSpriteFrameIndex(int heavyEatTicksRemaining, int frameCount, PlayerTeam team)
         {

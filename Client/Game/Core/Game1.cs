@@ -309,6 +309,7 @@ public partial class Game1 : Game
     private int _flameRenderMode;
     private int _bloodRenderMode;
     private bool _dynamicRagdollEnabled = true;
+    private bool _burnCharredCorpsesEnabled = true;
     private int _bloodPersistenceSeconds = OpenGarrisonPreferencesDocument.DefaultBloodPersistenceSeconds;
     private int _corpseFadeMode = OpenGarrisonPreferencesDocument.DefaultCorpseFadeMode;
     private MenuBackgroundMode _menuBackgroundMode = MenuBackgroundMode.DefaultMaps;
@@ -343,6 +344,7 @@ public partial class Game1 : Game
     private bool _showPlayerNamesEnabled = true;
     private bool _spriteDropShadowEnabled;
     private bool _stuckArrowsEnabled = true;
+    private WeaponBobMode _weaponBobMode = WeaponBobMode.Enabled;
     private bool _pixelPerfectWeaponRotation = true;
     private bool _useLocalWeaponRotation = false;
     private int _playerCardSizeMode = ClientSettings.PlayerCardSizeSmall;

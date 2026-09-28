@@ -948,9 +948,24 @@ public partial class Game1
 
     private void ApplyPredictedSecondaryWeaponFire(PlayerEntity player, PredictedLocalInput predictedInput, bool swappedWeaponThisTick)
     {
-        if (player.IsTaunting
-            || !predictedInput.AbilityPressed
-            || swappedWeaponThisTick)
+        if (player.IsTaunting || swappedWeaponThisTick)
+        {
+            if (player.StrongDrinkChargeTicks > 0)
+            {
+                player.CancelStrongDrinkCharge();
+                SyncPredictedLocalPlayerState(player);
+            }
+
+            return;
+        }
+
+        if (player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.SniperStrongDrink))
+        {
+            TryPredictedChargeSniperStrongDrink(player, predictedInput);
+            return;
+        }
+
+        if (!predictedInput.AbilityPressed)
         {
             return;
         }
@@ -981,6 +996,95 @@ public partial class Game1
         {
             TryPredictedToggleBinoculars(player);
         }
+    }
+
+    private bool TryPredictedChargeSniperStrongDrink(PlayerEntity player, PredictedLocalInput predictedInput)
+    {
+        if (player.ClassId != PlayerClass.Sniper || !player.IsAlive)
+        {
+            if (player.StrongDrinkChargeTicks > 0)
+            {
+                player.CancelStrongDrinkCharge();
+                SyncPredictedLocalPlayerState(player);
+            }
+
+            return false;
+        }
+
+        if (player.TryGetReplicatedStateInt(
+                GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId,
+                GameplayAbilityReplicatedState.SniperStrongDrinkCooldownTicksKey,
+                out var remainingCooldown)
+            && remainingCooldown > 0)
+        {
+            if (player.StrongDrinkChargeTicks > 0)
+            {
+                player.CancelStrongDrinkCharge();
+                SyncPredictedLocalPlayerState(player);
+            }
+
+            return false;
+        }
+
+        var ability = GetPredictedSniperStrongDrinkAbility(player);
+        var cooldownTicks = ability is null
+            ? 450
+            : GameplayAbilityParameterReader.GetTicks(
+                ability,
+                "cooldownTicks",
+                "cooldownSeconds",
+                450,
+                _config.TicksPerSecond);
+        var directionDegrees = GetPredictedAimDirectionDegrees(player, predictedInput.Input);
+
+        if (predictedInput.AbilityReleased)
+        {
+            if (player.TryReleaseStrongDrinkCharge(out _, out _))
+            {
+                // Match server release: clear local aim preview and arm cooldown; the
+                // authoritative bottle comes from the snapshot.
+                player.SetGameplayAbilityCooldownReplicatedState(
+                    GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId,
+                    GameplayAbilityReplicatedState.SniperStrongDrinkCooldownTicksKey,
+                    cooldownTicks);
+            }
+
+            SyncPredictedLocalPlayerState(player);
+            return true;
+        }
+
+        if (!predictedInput.AbilityPressed && !predictedInput.Input.UseAbility)
+        {
+            return false;
+        }
+
+        if (player.IsHeavyEating)
+        {
+            player.CancelStrongDrinkCharge();
+            SyncPredictedLocalPlayerState(player);
+            return false;
+        }
+
+        if (player.StrongDrinkChargeTicks == 0)
+        {
+            player.TryStartStrongDrinkCharge(directionDegrees);
+            SyncPredictedLocalPlayerState(player);
+            return true;
+        }
+
+        player.IncrementStrongDrinkCharge(directionDegrees, maxChargeTicks: 1);
+        SyncPredictedLocalPlayerState(player);
+        return true;
+    }
+
+    private static GameplayAbilityDefinition? GetPredictedSniperStrongDrinkAbility(PlayerEntity player)
+    {
+        return player.TryGetGameplayAbilityItem(
+                GameplayAbilityConstants.UtilityChannel,
+                BuiltInGameplayBehaviorIds.SniperStrongDrink,
+                out var abilityItem)
+            ? abilityItem.Ability
+            : null;
     }
 
     private bool TryPredictedFirePrimaryWeapon(PlayerEntity player)

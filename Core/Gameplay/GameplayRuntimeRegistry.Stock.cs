@@ -88,6 +88,7 @@ public sealed partial class GameplayRuntimeRegistry
         RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.HeavySandvich, static context => context.World.ExecuteHeavySandvichAbility(context));
         RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.SniperScope, static context => context.World.ExecuteSniperScopeAbility(context));
         RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.SniperBinoculars, static context => context.World.ExecuteSniperBinocularsAbility(context));
+        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.SniperStrongDrink, static context => context.World.ExecuteSniperStrongDrinkAbility(context));
         RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.MedicNeedlegun, static context => context.World.ExecuteMedicNeedlegunAbility(context));
         RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.MedicKritzBeam, static context => context.World.ExecuteMedicKritzBeamAbility(context));
         RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.MedicKritzHealNeedles, static context => context.World.ExecuteMedicKritzHealNeedlesAbility(context));

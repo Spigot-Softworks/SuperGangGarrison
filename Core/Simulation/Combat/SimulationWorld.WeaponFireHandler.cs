@@ -283,6 +283,31 @@ public sealed partial class SimulationWorld
             _world.SpawnGrenade(owner, x, y, velocityX, velocityY, killFeedWeaponSpriteNameOverride);
         }
 
+        private void SpawnGrenade(
+            PlayerEntity owner,
+            float x,
+            float y,
+            float velocityX,
+            float velocityY,
+            string? killFeedWeaponSpriteNameOverride,
+            bool isStrongDrink,
+            int fuseTicks,
+            float initialSpinSpeed,
+            float gravityPerTick = GrenadeProjectileEntity.StrongDrinkGravityPerTick)
+        {
+            _world.SpawnGrenade(
+                owner,
+                x,
+                y,
+                velocityX,
+                velocityY,
+                killFeedWeaponSpriteNameOverride,
+                isStrongDrink,
+                fuseTicks,
+                initialSpinSpeed,
+                gravityPerTick);
+        }
+
         private void SpawnNeedle(
             PlayerEntity owner,
             float x,

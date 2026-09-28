@@ -174,6 +174,7 @@ public sealed partial class PlayerEntity
             AdvanceLastToDieSpyAfterlifeState();
             AdvanceLastToDieSniperGhostState();
             AdvanceSniperBowState();
+            AdvanceStrongDrinkState();
             AdvanceLastToDieSniperVolleyState();
             AdvanceIntelCarryState();
         }

@@ -26,6 +26,7 @@ public static class BuiltInGameplayBehaviorIds
     public const string HeavySandvich = "builtin.ability.heavy_sandvich";
     public const string SniperScope = "builtin.ability.sniper_scope";
     public const string SniperBinoculars = "builtin.ability.sniper_binoculars";
+    public const string SniperStrongDrink = "builtin.ability.sniper_strong_drink";
     public const string MedicNeedlegun = "builtin.ability.medic_needlegun";
     public const string MedicKritzBeam = "builtin.ability.medic_kritz_beam";
     public const string MedicKritzHealNeedles = "builtin.ability.medic_kritz_heal_needles";

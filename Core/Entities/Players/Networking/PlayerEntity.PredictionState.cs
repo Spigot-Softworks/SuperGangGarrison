@@ -216,7 +216,9 @@ public sealed partial class PlayerEntity
         float BuffBannerRadiusValue = BuffBannerDefaultRadius,
         float BuffBannerDamageMultiplierValue = BuffBannerDefaultDamageMultiplier,
         float BuffBannerHealthRegenPerSecondValue = BuffBannerDefaultHealthRegenPerSecond,
-        int MedicHealDartCooldownTicksValue = 0);
+        int MedicHealDartCooldownTicksValue = 0,
+        int StrongDrinkChargeTicks = 0,
+        float StrongDrinkChargeDirectionDegrees = 0f);
 
     internal PredictionState CapturePredictionState()
     {
@@ -432,7 +434,9 @@ public sealed partial class PlayerEntity
             BuffBannerRadius,
             BuffBannerDamageMultiplier,
             BuffBannerHealthRegenPerSecond,
-            MedicHealDartCooldownTicks);
+            MedicHealDartCooldownTicks,
+            StrongDrinkChargeTicks,
+            StrongDrinkChargeDirectionDegrees);
     }
 
     internal void RestorePredictionState(in PredictionState state)
@@ -559,6 +563,8 @@ public sealed partial class PlayerEntity
             state.SniperBowChargeTicks,
             0,
             IsMortarLauncherEquipped ? MortarLauncherMaxChargeTicks : LastToDieSniperBowFullChargeTicks);
+        StrongDrinkChargeTicks = Math.Clamp(state.StrongDrinkChargeTicks, 0, StrongDrinkMaxChargeTicks);
+        StrongDrinkChargeDirectionDegrees = state.StrongDrinkChargeDirectionDegrees;
         IsUsingBinoculars = state.IsUsingBinoculars;
         BinocularsFocusX = state.BinocularsFocusX;
         BinocularsFocusY = state.BinocularsFocusY;

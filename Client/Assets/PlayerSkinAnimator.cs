@@ -80,6 +80,7 @@ internal sealed class PlayerSkinAnimator
         }
 
         _clipSeconds = next == ClipName ? _clipSeconds + elapsed : 0;
+        var previousClip = ClipName;
         ClipName = next;
         if (!skin.Clips.TryGetValue(next, out var clip))
         {
@@ -95,9 +96,19 @@ internal sealed class PlayerSkinAnimator
             var runDirection = reverseFallback ? -1f : 1f;
             var directionChanged = _runDirection != runDirection;
             _runDirection = runDirection;
-            if (!directionChanged)
+            // After a shared-strip landing pose (Elkondo 4 → 5…), keep cycling forward
+            // instead of restarting the run loop at the first frame.
+            var landingRunPosition = 0f;
+            var resumedFromLanding = previousClip is "land" or "blastLand"
+                && TryContinueRunAfterLanding(skin, previousClip, clip, out landingRunPosition);
+            if (resumedFromLanding)
             {
-                _runPosition += runDirection * MathF.Abs(horizontalSpeed) * elapsed / skin.PixelsPerRunFrame;
+                _runPosition = landingRunPosition;
+            }
+            else if (!directionChanged)
+            {
+                var pixelsPerFrame = GetEffectivePixelsPerRunFrame(skin.PixelsPerRunFrame, horizontalSpeed);
+                _runPosition += runDirection * MathF.Abs(horizontalSpeed) * elapsed / pixelsPerFrame;
             }
 
             _runPosition %= clip.Frames.Length;
@@ -114,5 +125,40 @@ internal sealed class PlayerSkinAnimator
             Pose = clip.Sample(_clipSeconds * clip.FramesPerSecond);
         }
         _airborne = animationAirborne;
+    }
+
+    private static bool TryContinueRunAfterLanding(
+        PlayerSkinDefinition skin,
+        string landingClipName,
+        PlayerSkinClip runClip,
+        out float runPosition)
+    {
+        runPosition = 0;
+        if (!skin.Clips.TryGetValue(landingClipName, out var landClip) || landClip.Frames.Length == 0
+            || runClip.Frames.Length == 0)
+        {
+            return false;
+        }
+
+        var landPose = landClip.Frames[^1];
+        var index = Array.IndexOf(runClip.Frames, landPose);
+        if (index < 0)
+        {
+            return false;
+        }
+
+        runPosition = (index + 1) % runClip.Frames.Length;
+        return true;
+    }
+
+    // At low speeds, spend slightly more distance per frame so the cycle does not
+    // look rushed. Full-speed running keeps the skin's configured value.
+    private static float GetEffectivePixelsPerRunFrame(float pixelsPerRunFrame, float horizontalSpeed)
+    {
+        const float referenceRunSpeed = 180f;
+        const float lowSpeedScale = 1.15f;
+        var t = Math.Clamp(MathF.Abs(horizontalSpeed) / referenceRunSpeed, 0f, 1f);
+        var fullSpeedBlend = t * t;
+        return pixelsPerRunFrame * (lowSpeedScale + (1f - lowSpeedScale) * fullSpeedBlend);
     }
 }
