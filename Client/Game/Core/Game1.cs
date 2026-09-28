@@ -138,65 +138,66 @@ public partial class Game1 : Game
 
     private const int ProcessedNetworkEventHistoryLimit = 4096;
     private readonly GameStartupMode _startupMode;
-    private readonly FrameController _frameController;
-    private readonly GameplayController _gameplayController;
-    private readonly GameplayScreenStateController _gameplayScreenStateController;
-    private readonly GameplayPresentationStateController _gameplayPresentationStateController;
-    private readonly GameplayImpactEffectsController _gameplayImpactEffectsController;
-    private readonly GameplayGoreEffectsController _gameplayGoreEffectsController;
-    private readonly GameplaySmokeEffectsController _gameplaySmokeEffectsController;
-    private readonly GameplayMaterialEffectsController _gameplayMaterialEffectsController;
-    private readonly GameplayVisualEventController _gameplayVisualEventController;
-    private readonly GameplayAudioMusicController _gameplayAudioMusicController;
-    private readonly GameplayAudioEventController _gameplayAudioEventController;
-    private readonly GameplayRapidFireAudioController _gameplayRapidFireAudioController;
-    private readonly GameplayLocalStatusHudController _gameplayLocalStatusHudController;
-    private readonly GameplayMedicHudController _gameplayMedicHudController;
-    private readonly GameplayEngineerHudController _gameplayEngineerHudController;
-    private readonly GameplayAimHudController _gameplayAimHudController;
-    private readonly GameplayPlayerNameHudController _gameplayPlayerNameHudController;
-    private readonly GameplayPlayerRenderController _gameplayPlayerRenderController;
-    private readonly GameplayDeadBodyRenderController _gameplayDeadBodyRenderController;
-    private readonly GameplayPlayerSpriteRenderController _gameplayPlayerSpriteRenderController;
-    private readonly GameplayWeaponRenderController _gameplayWeaponRenderController;
-    private readonly GameplayPlayerStatusEffectRenderController _gameplayPlayerStatusEffectRenderController;
-    private readonly GameplaySessionController _gameplaySessionController;
-    private readonly GameplayOverlayStateController _gameplayOverlayStateController;
-    private readonly GameplayResetController _gameplayResetController;
-    private readonly ClientPluginRuntimeController _clientPluginRuntimeController;
-    private readonly ClientPluginEventController _clientPluginEventController;
-    private readonly ClientPluginUiBridgeController _clientPluginUiBridgeController;
-    private readonly ClientPluginMarkerController _clientPluginMarkerController;
-    private readonly MenuController _menuController;
-    private readonly AnimatedMenuBackgroundController _animatedMenuBackgroundController;
-    private readonly MenuBottomBarRunners _menuBottomBarRunners;
-    private readonly ConnectionFlowController _connectionFlowController;
-    private readonly MainMenuOverlayController _mainMenuOverlayController;
-    private readonly MainMenuOverlayStateController _mainMenuOverlayStateController;
-    private readonly HostSetupFlowController _hostSetupFlowController;
-    private readonly WindowTextInputController _windowTextInputController;
-    private readonly MenuTextInputController _menuTextInputController;
-    private readonly NetworkPromptTextInputController _networkPromptTextInputController;
-    private readonly ChatTextInputController _chatTextInputController;
-    private readonly ConsoleTextInputController _consoleTextInputController;
-    private readonly BootstrapController _bootstrapController;
-    private readonly OptionsMenuController _optionsMenuController;
-    private readonly MainMenuPageController _mainMenuPageController;
-    private readonly PluginOptionsMenuController _pluginOptionsMenuController;
-    private readonly ControlsMenuController _controlsMenuController;
-    private readonly InGameMenuController _inGameMenuController;
-    private readonly DebugMenuController _debugMenuController;
+    private readonly ClientServiceContainer _services = new();
+    private FrameController _frameController => _services.Get<FrameController>();
+    private GameplayController _gameplayController => _services.Get<GameplayController>();
+    private GameplayScreenStateController _gameplayScreenStateController => _services.Get<GameplayScreenStateController>();
+    private GameplayPresentationStateController _gameplayPresentationStateController => _services.Get<GameplayPresentationStateController>();
+    private GameplayImpactEffectsController _gameplayImpactEffectsController => _services.Get<GameplayImpactEffectsController>();
+    private GameplayGoreEffectsController _gameplayGoreEffectsController => _services.Get<GameplayGoreEffectsController>();
+    private GameplaySmokeEffectsController _gameplaySmokeEffectsController => _services.Get<GameplaySmokeEffectsController>();
+    private GameplayMaterialEffectsController _gameplayMaterialEffectsController => _services.Get<GameplayMaterialEffectsController>();
+    private GameplayVisualEventController _gameplayVisualEventController => _services.Get<GameplayVisualEventController>();
+    private GameplayAudioMusicController _gameplayAudioMusicController => _services.Get<GameplayAudioMusicController>();
+    private GameplayAudioEventController _gameplayAudioEventController => _services.Get<GameplayAudioEventController>();
+    private GameplayRapidFireAudioController _gameplayRapidFireAudioController => _services.Get<GameplayRapidFireAudioController>();
+    private GameplayLocalStatusHudController _gameplayLocalStatusHudController => _services.Get<GameplayLocalStatusHudController>();
+    private GameplayMedicHudController _gameplayMedicHudController => _services.Get<GameplayMedicHudController>();
+    private GameplayEngineerHudController _gameplayEngineerHudController => _services.Get<GameplayEngineerHudController>();
+    private GameplayAimHudController _gameplayAimHudController => _services.Get<GameplayAimHudController>();
+    private GameplayPlayerNameHudController _gameplayPlayerNameHudController => _services.Get<GameplayPlayerNameHudController>();
+    private GameplayPlayerRenderController _gameplayPlayerRenderController => _services.Get<GameplayPlayerRenderController>();
+    private GameplayDeadBodyRenderController _gameplayDeadBodyRenderController => _services.Get<GameplayDeadBodyRenderController>();
+    private GameplayPlayerSpriteRenderController _gameplayPlayerSpriteRenderController => _services.Get<GameplayPlayerSpriteRenderController>();
+    private GameplayWeaponRenderController _gameplayWeaponRenderController => _services.Get<GameplayWeaponRenderController>();
+    private GameplayPlayerStatusEffectRenderController _gameplayPlayerStatusEffectRenderController => _services.Get<GameplayPlayerStatusEffectRenderController>();
+    private GameplaySessionController _gameplaySessionController => _services.Get<GameplaySessionController>();
+    private GameplayOverlayStateController _gameplayOverlayStateController => _services.Get<GameplayOverlayStateController>();
+    private GameplayResetController _gameplayResetController => _services.Get<GameplayResetController>();
+    private ClientPluginRuntimeController _clientPluginRuntimeController => _services.Get<ClientPluginRuntimeController>();
+    private ClientPluginEventController _clientPluginEventController => _services.Get<ClientPluginEventController>();
+    private ClientPluginUiBridgeController _clientPluginUiBridgeController => _services.Get<ClientPluginUiBridgeController>();
+    private ClientPluginMarkerController _clientPluginMarkerController => _services.Get<ClientPluginMarkerController>();
+    private MenuController _menuController => _services.Get<MenuController>();
+    private AnimatedMenuBackgroundController _animatedMenuBackgroundController => _services.Get<AnimatedMenuBackgroundController>();
+    private MenuBottomBarRunners _menuBottomBarRunners => _services.Get<MenuBottomBarRunners>();
+    private ConnectionFlowController _connectionFlowController => _services.Get<ConnectionFlowController>();
+    private MainMenuOverlayController _mainMenuOverlayController => _services.Get<MainMenuOverlayController>();
+    private MainMenuOverlayStateController _mainMenuOverlayStateController => _services.Get<MainMenuOverlayStateController>();
+    private HostSetupFlowController _hostSetupFlowController => _services.Get<HostSetupFlowController>();
+    private WindowTextInputController _windowTextInputController => _services.Get<WindowTextInputController>();
+    private MenuTextInputController _menuTextInputController => _services.Get<MenuTextInputController>();
+    private NetworkPromptTextInputController _networkPromptTextInputController => _services.Get<NetworkPromptTextInputController>();
+    private ChatTextInputController _chatTextInputController => _services.Get<ChatTextInputController>();
+    private ConsoleTextInputController _consoleTextInputController => _services.Get<ConsoleTextInputController>();
+    private BootstrapController _bootstrapController => _services.Get<BootstrapController>();
+    private OptionsMenuController _optionsMenuController => _services.Get<OptionsMenuController>();
+    private MainMenuPageController _mainMenuPageController => _services.Get<MainMenuPageController>();
+    private PluginOptionsMenuController _pluginOptionsMenuController => _services.Get<PluginOptionsMenuController>();
+    private ControlsMenuController _controlsMenuController => _services.Get<ControlsMenuController>();
+    private InGameMenuController _inGameMenuController => _services.Get<InGameMenuController>();
+    private DebugMenuController _debugMenuController => _services.Get<DebugMenuController>();
     private bool _debugMenuEnabled;
     private bool _debugMenuOpen;
     private bool _debugMenuAwaitingEscapeRelease;
     private int _debugMenuHoverIndex;
     private bool _debugRocketCollisionsEnabled;
-    private readonly GameplayOverlayController _gameplayOverlayController;
-    private readonly LastToDieStatsDocument _lastToDieStats;
+    private GameplayOverlayController _gameplayOverlayController => _services.Get<GameplayOverlayController>();
+    private LastToDieStatsDocument _lastToDieStats => _services.Get<LastToDieStatsDocument>();
     private readonly ClientIdentityDocument _clientIdentity;
     private readonly FriendListDocument _friendList;
     private readonly OpenGarrisonPresenceClient _presenceClient;
-    private readonly GraphicsDeviceManager _graphics;
+    private GraphicsDeviceManager _graphics => _services.Get<GraphicsDeviceManager>();
     private readonly bool _crtStartupForcedOff;
     private RenderTarget2D? _gameRenderTarget;
     private RenderTarget2D? _hudRenderTarget;
@@ -282,7 +283,7 @@ public partial class Game1 : Game
     private readonly HostSetupFormState _hostSetupState = new();
     private readonly PracticeSetupState _practiceSetupState = new();
     private readonly HostedServerConsoleState _hostedServerConsole = new();
-    private readonly HostedServerRuntimeController _hostedServerRuntime;
+    private HostedServerRuntimeController _hostedServerRuntime => _services.Get<HostedServerRuntimeController>();
     private bool _devMessageCheckStarted;
     private bool _devMessageCheckFinished;
     private Task<DevMessageFetchResult>? _devMessageFetchTask;
@@ -382,60 +383,116 @@ public partial class Game1 : Game
     public Game1(GameStartupMode startupMode = GameStartupMode.Client)
     {
         _startupMode = startupMode;
-        (_frameController,
-            _gameplayController,
-            _gameplayScreenStateController,
-            _gameplayPresentationStateController,
-            _gameplayImpactEffectsController,
-            _gameplayGoreEffectsController,
-            _gameplaySmokeEffectsController,
-            _gameplayMaterialEffectsController,
-            _gameplayVisualEventController,
-            _gameplayAudioMusicController,
-            _gameplayAudioEventController,
-            _gameplayRapidFireAudioController,
-            _gameplayLocalStatusHudController,
-            _gameplayMedicHudController,
-            _gameplayEngineerHudController,
-            _gameplayAimHudController,
-            _gameplayPlayerNameHudController,
-            _gameplayPlayerRenderController,
-            _gameplayDeadBodyRenderController,
-            _gameplayPlayerSpriteRenderController,
-            _gameplayWeaponRenderController,
-            _gameplayPlayerStatusEffectRenderController,
-            _gameplaySessionController,
-            _gameplayOverlayStateController,
-            _gameplayResetController) = CreateGameplayControllerBundle(this);
-        (_clientPluginRuntimeController,
-            _clientPluginEventController,
-            _clientPluginUiBridgeController,
-            _clientPluginMarkerController,
-            _menuController,
-            _connectionFlowController,
-            _mainMenuOverlayController,
-            _mainMenuOverlayStateController,
-            _hostSetupFlowController,
-            _windowTextInputController,
-            _menuTextInputController,
-            _networkPromptTextInputController,
-            _chatTextInputController,
-            _consoleTextInputController,
-            _bootstrapController,
-            _optionsMenuController,
-            _mainMenuPageController,
-            _pluginOptionsMenuController,
-            _controlsMenuController,
-            _inGameMenuController,
-            _debugMenuController,
-            _gameplayOverlayController,
-            _animatedMenuBackgroundController,
-            _menuBottomBarRunners) = CreateShellControllerBundle(this);
-        (_clientSettings,
-            _inputBindings,
-            _lastToDieStats,
-            _hostedServerRuntime,
-            _graphics) = CreateRuntimeServices(this, _hostedServerConsole);
+        var (frameController,
+            gameplayController,
+            gameplayScreenStateController,
+            gameplayPresentationStateController,
+            gameplayImpactEffectsController,
+            gameplayGoreEffectsController,
+            gameplaySmokeEffectsController,
+            gameplayMaterialEffectsController,
+            gameplayVisualEventController,
+            gameplayAudioMusicController,
+            gameplayAudioEventController,
+            gameplayRapidFireAudioController,
+            gameplayLocalStatusHudController,
+            gameplayMedicHudController,
+            gameplayEngineerHudController,
+            gameplayAimHudController,
+            gameplayPlayerNameHudController,
+            gameplayPlayerRenderController,
+            gameplayDeadBodyRenderController,
+            gameplayPlayerSpriteRenderController,
+            gameplayWeaponRenderController,
+            gameplayPlayerStatusEffectRenderController,
+            gameplaySessionController,
+            gameplayOverlayStateController,
+            gameplayResetController) = CreateGameplayControllerBundle(this);
+        _services.Register(frameController);
+        _services.Register(gameplayController);
+        _services.Register(gameplayScreenStateController);
+        _services.Register(gameplayPresentationStateController);
+        _services.Register(gameplayImpactEffectsController);
+        _services.Register(gameplayGoreEffectsController);
+        _services.Register(gameplaySmokeEffectsController);
+        _services.Register(gameplayMaterialEffectsController);
+        _services.Register(gameplayVisualEventController);
+        _services.Register(gameplayAudioMusicController);
+        _services.Register(gameplayAudioEventController);
+        _services.Register(gameplayRapidFireAudioController);
+        _services.Register(gameplayLocalStatusHudController);
+        _services.Register(gameplayMedicHudController);
+        _services.Register(gameplayEngineerHudController);
+        _services.Register(gameplayAimHudController);
+        _services.Register(gameplayPlayerNameHudController);
+        _services.Register(gameplayPlayerRenderController);
+        _services.Register(gameplayDeadBodyRenderController);
+        _services.Register(gameplayPlayerSpriteRenderController);
+        _services.Register(gameplayWeaponRenderController);
+        _services.Register(gameplayPlayerStatusEffectRenderController);
+        _services.Register(gameplaySessionController);
+        _services.Register(gameplayOverlayStateController);
+        _services.Register(gameplayResetController);
+
+        var (clientPluginRuntimeController,
+            clientPluginEventController,
+            clientPluginUiBridgeController,
+            clientPluginMarkerController,
+            menuController,
+            connectionFlowController,
+            mainMenuOverlayController,
+            mainMenuOverlayStateController,
+            hostSetupFlowController,
+            windowTextInputController,
+            menuTextInputController,
+            networkPromptTextInputController,
+            chatTextInputController,
+            consoleTextInputController,
+            bootstrapController,
+            optionsMenuController,
+            mainMenuPageController,
+            pluginOptionsMenuController,
+            controlsMenuController,
+            inGameMenuController,
+            debugMenuController,
+            gameplayOverlayController,
+            animatedMenuBackgroundController,
+            menuBottomBarRunners) = CreateShellControllerBundle(this);
+        _services.Register(clientPluginRuntimeController);
+        _services.Register(clientPluginEventController);
+        _services.Register(clientPluginUiBridgeController);
+        _services.Register(clientPluginMarkerController);
+        _services.Register(menuController);
+        _services.Register(connectionFlowController);
+        _services.Register(mainMenuOverlayController);
+        _services.Register(mainMenuOverlayStateController);
+        _services.Register(hostSetupFlowController);
+        _services.Register(windowTextInputController);
+        _services.Register(menuTextInputController);
+        _services.Register(networkPromptTextInputController);
+        _services.Register(chatTextInputController);
+        _services.Register(consoleTextInputController);
+        _services.Register(bootstrapController);
+        _services.Register(optionsMenuController);
+        _services.Register(mainMenuPageController);
+        _services.Register(pluginOptionsMenuController);
+        _services.Register(controlsMenuController);
+        _services.Register(inGameMenuController);
+        _services.Register(debugMenuController);
+        _services.Register(gameplayOverlayController);
+        _services.Register(animatedMenuBackgroundController);
+        _services.Register(menuBottomBarRunners);
+
+        var (clientSettings,
+            inputBindings,
+            lastToDieStats,
+            hostedServerRuntime,
+            graphics) = CreateRuntimeServices(this, _hostedServerConsole);
+        _services.Register(clientSettings);
+        _services.Register(inputBindings);
+        _services.Register(lastToDieStats);
+        _services.Register(hostedServerRuntime);
+        _services.Register(graphics);
         _clientIdentity = ClientIdentityDocument.LoadOrCreate();
         _lastDirectMessageId = Math.Max(0L, _clientIdentity.LastDirectMessageId);
         _directMessagesInitialPollCompleted = _clientIdentity.DirectMessageCursorInitialized;

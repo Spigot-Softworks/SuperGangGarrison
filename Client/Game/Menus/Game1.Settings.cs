@@ -8,8 +8,8 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private readonly ClientSettings _clientSettings;
-    private readonly InputBindingsSettings _inputBindings;
+    private ClientSettings _clientSettings => _services.Get<ClientSettings>();
+    private InputBindingsSettings _inputBindings => _services.Get<InputBindingsSettings>();
     private const string DefaultBrowserSecureManualConnectHost = "wss://45-61-52-208.sslip.io/opengarrison/ws";
     private const int DefaultBrowserSecureManualConnectPort = 443;
 
