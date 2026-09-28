@@ -107,8 +107,10 @@ public sealed class HostedLastToDieModalRegressionTests
             var field = typeof(Game1).GetField(name, Private)!;
             field.SetValue(game, Activator.CreateInstance(field.FieldType, true));
         }
-        var controller = typeof(Game1).GetField("_gameplayOverlayController", Private)!;
-        controller.SetValue(game, Activator.CreateInstance(controller.FieldType, Private | BindingFlags.Public, null, [game], null));
+        var controller = new GameplayManager((IGameplayContext)game);
+        var services = new ClientServiceContainer();
+        services.Register(controller);
+        typeof(Game1).GetField("_services", Private)!.SetValue(game, services);
         var client = (NetworkGameClient)typeof(Game1).GetField("_networkClient", Private)!.GetValue(game)!;
         typeof(NetworkGameClient).GetField("_transport", Private)!.SetValue(client, new EmptyTransport());
         client.SetLocalPlayerSlot(1);
