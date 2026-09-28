@@ -86,8 +86,6 @@ sealed class HttpServerRegistryHeartbeat : IDisposable
                 UdpPort = snapshot.UdpPort,
                 WebSocketPort = snapshot.WebSocketPort,
                 WebSocketUrl = snapshot.WebSocketUrl ?? string.Empty,
-                QuicPort = snapshot.QuicPort,
-                QuicUrl = snapshot.QuicUrl ?? string.Empty,
                 IsPrivate = snapshot.IsPrivate,
                 BuildVersion = snapshot.BuildVersion,
                 ReleaseChannel = snapshot.ReleaseChannel,
@@ -153,7 +151,7 @@ sealed class HttpServerRegistryHeartbeat : IDisposable
         }
 
         var host = snapshot.PublicHost.Trim().ToLowerInvariant();
-        return $"og2:{host}:{snapshot.UdpPort}:{snapshot.WebSocketPort}:{snapshot.WebSocketUrl}:{snapshot.QuicPort}:{snapshot.QuicUrl}";
+        return $"og2:{host}:{snapshot.UdpPort}:{snapshot.WebSocketPort}:{snapshot.WebSocketUrl}";
     }
 
     private sealed class ServerRegistryHeartbeatResponse
@@ -187,12 +185,6 @@ sealed class HttpServerRegistryHeartbeat : IDisposable
 
         [JsonPropertyName("webSocketUrl")]
         public string WebSocketUrl { get; set; } = string.Empty;
-
-        [JsonPropertyName("quicPort")]
-        public int QuicPort { get; set; }
-
-        [JsonPropertyName("quicUrl")]
-        public string QuicUrl { get; set; } = string.Empty;
 
         [JsonPropertyName("private")]
         public bool IsPrivate { get; set; }
@@ -244,8 +236,6 @@ readonly record struct ServerRegistrySnapshot(
     int UdpPort,
     int WebSocketPort,
     string? WebSocketUrl,
-    int QuicPort,
-    string? QuicUrl,
     bool IsPrivate,
     string BuildVersion,
     string ReleaseChannel,

@@ -37,7 +37,7 @@ partial class GameServer
         timeLimitMinutesOverride: options.TimeLimitMinutes, capLimitOverride: options.CaptureLimit,
         respawnSecondsOverride: options.RespawnSeconds, botAutofillEnabled: false, botAutofillMinPlayers: 0, botAutofillPerTeam: 0,
         webSocketPort: 0, webSocketCertificatePath: null, webSocketCertificatePassword: null,
-        publicWebSocketUrl: null, quicPort: 0, publicQuicUrl: null, relayHostUrl: null,
+        publicWebSocketUrl: null, relayHostUrl: null,
         clientTimeoutSeconds: 30, passwordTimeoutSeconds: 30, passwordRetrySeconds: 2,
         transientEventReplayTicks: (ulong)options.TickRate * 2,
         persistentGameplayOwnershipEnabled: false, persistentGameplayOwnershipIdentityMode: PersistentGameplayOwnershipIdentityMode.Disabled,

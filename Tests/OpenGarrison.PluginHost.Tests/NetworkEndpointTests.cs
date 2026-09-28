@@ -18,9 +18,9 @@ public sealed class NetworkEndpointTests
     }
 
     [Fact]
-    public void NativeAdvertisedEndpointsTryUdpThenWebSocketAndSkipQuic()
+    public void NativeAdvertisedEndpointsTryUdpThenWebSocket()
     {
-        var endpoint = new NetworkEndpoint("127.0.0.1", 8190, 8191, QuicPort: 8192);
+        var endpoint = new NetworkEndpoint("127.0.0.1", 8190, 8191);
         var candidates = endpoint.GetConnectionCandidates();
 
         Assert.Equal(
@@ -29,7 +29,6 @@ public sealed class NetworkEndpointTests
                 NetworkEndpointTransport.WebSocket,
             ],
             candidates.Select(candidate => candidate.Transport));
-        Assert.DoesNotContain(candidates, candidate => candidate.Transport == NetworkEndpointTransport.Quic);
     }
 
     [Fact]

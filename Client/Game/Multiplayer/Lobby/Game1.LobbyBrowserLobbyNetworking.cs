@@ -215,8 +215,7 @@ public partial class Game1
     {
         if (string.IsNullOrWhiteSpace(endpoint.Host)
             || (!endpoint.HasUdpEndpoint
-                && !endpoint.HasWebSocketEndpoint
-                && !endpoint.HasQuicEndpoint))
+                && !endpoint.HasWebSocketEndpoint))
         {
             return null;
         }
@@ -278,22 +277,6 @@ public partial class Game1
             return true;
         }
 
-        if (existing.HasQuicEndpoint && incoming.HasQuicEndpoint)
-        {
-            if (!string.IsNullOrWhiteSpace(existing.QuicUrl)
-                && !string.IsNullOrWhiteSpace(incoming.QuicUrl))
-            {
-                return existing.QuicUrl.Equals(incoming.QuicUrl, StringComparison.OrdinalIgnoreCase);
-            }
-
-            if (existing.QuicPort is > 0
-                && incoming.QuicPort is > 0
-                && existing.QuicPort == incoming.QuicPort)
-            {
-                return true;
-            }
-        }
-
         if (!existing.HasWebSocketEndpoint || !incoming.HasWebSocketEndpoint)
         {
             return false;
@@ -318,12 +301,8 @@ public partial class Game1
         var webSocketUrl = !string.IsNullOrWhiteSpace(incoming.WebSocketUrl)
             ? incoming.WebSocketUrl.Trim()
             : existing.WebSocketUrl;
-        var quicPort = incoming.QuicPort is > 0 and <= 65535 ? incoming.QuicPort : existing.QuicPort;
-        var quicUrl = !string.IsNullOrWhiteSpace(incoming.QuicUrl)
-            ? incoming.QuicUrl.Trim()
-            : existing.QuicUrl;
 
-        return new NetworkEndpoint(host, udpPort, webSocketPort, webSocketUrl, quicPort, quicUrl);
+        return new NetworkEndpoint(host, udpPort, webSocketPort, webSocketUrl);
     }
 
     private static string FormatLobbyDisplayName(string name, bool isPrivate)

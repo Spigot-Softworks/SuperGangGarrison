@@ -317,7 +317,6 @@ public sealed class OnlineSessionController
         private static string FormatNetworkEndpointTransport(NetworkEndpointTransport transport)
             => transport switch
             {
-                NetworkEndpointTransport.Quic => "QUIC64",
                 NetworkEndpointTransport.WebSocket => "WebSocket",
                 _ => "UDP",
             };

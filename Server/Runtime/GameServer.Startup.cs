@@ -38,7 +38,6 @@ partial class GameServer
         if (reservation is not null && !_mapDownloadEndpointAvailable)
             throw new IOException($"Reserved HTTP/WebSocket listener on port {reservation.HttpPort} could not start. See the preceding listener error.");
 #endif
-        InitializeQuicHost();
         InitializeGameplayOwnershipService();
         InitializePluginRuntime();
         InitializeHttpRegistryHeartbeat();
@@ -246,39 +245,6 @@ partial class GameServer
             .RunOutboundProtocol64RelayAsync(_relayHostUrl, Console.WriteLine, _relayHostCts.Token);
     }
 
-    private void InitializeQuicHost()
-    {
-#if !EMBEDDED_SESSION
-        if (OpenGarrison.Server.ManagedRoomRuntime.Enabled) return;
-        if (_quicPort <= 0)
-        {
-            return;
-        }
-
-        if (string.IsNullOrWhiteSpace(_webSocketCertificatePath))
-        {
-            Console.WriteLine("[server] protocol-64 QUIC disabled: OPENGARRISON_QUIC_PORT requires the WebSocket PKCS#12 certificate.");
-            return;
-        }
-
-        try
-        {
-            _quicHost = OpenGarrison.Server.Protocol64QuicServerHost.Start(
-                _quicPort,
-                _webSocketCertificatePath,
-                _webSocketCertificatePassword,
-                (OpenGarrison.Server.CompositeServerMessageTransport)_messageTransport,
-                Console.WriteLine);
-            Console.WriteLine($"[server] protocol-64 QUIC listener enabled on quic://0.0.0.0:{_quicPort}");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[server] failed to start protocol-64 QUIC listener: {ex.Message}");
-            _quicHost = null;
-        }
-#endif
-    }
-
     private void ApplyRuntimeBootstrap(OpenGarrison.Server.ServerRuntimeBootstrap runtime)
     {
         _lobbyRegistrar = runtime.LobbyRegistrar;
@@ -311,9 +277,6 @@ partial class GameServer
         Console.WriteLine(_webSocketPort <= 0 || _webSocketHost is null
             ? "[server] WebSocket: disabled"
             : $"[server] WebSocket: {(_webSocketCertificatePath is null ? "ws" : "wss")}://0.0.0.0:{_webSocketPort}/opengarrison/ws");
-        Console.WriteLine(_quicHost is null
-            ? "[server] protocol-64 QUIC: disabled"
-            : "[server] protocol-64 QUIC: enabled");
         Console.WriteLine(_mapDownloadEndpointAvailable
             ? $"[server] custom map downloads: enabled on TCP port {ResolveMapDownloadPort()} (forward and allow TCP as well as gameplay UDP)"
             : "[server] custom map downloads: unavailable");
@@ -699,11 +662,6 @@ partial class GameServer
             _httpRegistryHeartbeat = null;
             _webSocketHost?.Dispose();
             _webSocketHost = null;
-            if (_quicHost is not null)
-            {
-                _quicHost.DisposeAsync().AsTask().GetAwaiter().GetResult();
-                _quicHost = null;
-            }
             if (_relayHostTask is not null)
             {
                 _relayHostCts?.Cancel();
@@ -1093,8 +1051,6 @@ partial class GameServer
             _port,
             _webSocketHost is null ? 0 : _webSocketPort,
             _publicWebSocketUrl,
-            _quicHost is null ? 0 : _quicPort,
-            _quicHost is null ? null : _publicQuicUrl,
             _passwordRequired,
             _buildVersion,
             _releaseChannel,

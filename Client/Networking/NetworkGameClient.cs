@@ -130,7 +130,7 @@ public sealed class NetworkGameClient : IDisposable
 
     /// <summary>
     /// Canary switch for the protocol-64 event path. Legacy transports remain
-    /// available until a WebSocket/QUIC container is selected explicitly.
+    /// available until a WebSocket container is selected explicitly.
     /// </summary>
     public bool Protocol64ModeEnabled { get; set; }
 
@@ -876,8 +876,8 @@ public sealed class NetworkGameClient : IDisposable
         {
             // Team/class selections are reliable control commands queued by
             // the gameplay menus. Flush them on the protocol-64 path too;
-            // otherwise QUIC sends input and receives snapshots but never
-            // tells the server that this client selected a playable roster.
+            // Protocol-64 sends input and receives snapshots, so flush the
+            // reliable roster commands on that path as well.
             SendPendingControlCommands();
 
             var protocol64Sequence = _nextInputSequence++;
@@ -1439,8 +1439,7 @@ public sealed class NetworkGameClient : IDisposable
 
     private static bool IsProtocol64Endpoint(string? endpoint)
         => endpoint?.StartsWith("ws64://", StringComparison.OrdinalIgnoreCase) == true
-            || endpoint?.StartsWith("wss64://", StringComparison.OrdinalIgnoreCase) == true
-            || endpoint?.StartsWith("quic64://", StringComparison.OrdinalIgnoreCase) == true;
+            || endpoint?.StartsWith("wss64://", StringComparison.OrdinalIgnoreCase) == true;
 
     private void CaptureInboundDemoMessage(INetworkClientMessageTransport transport, IProtocolMessage message, byte[] payload)
     {
