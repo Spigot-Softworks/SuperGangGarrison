@@ -259,11 +259,8 @@ public sealed class SimulationWorldSnapshotPresentationTests
 
         world.SpawnClientPlayerGibsFromNetworkDeath(player, 512f, 384f);
 
-        Assert.Contains(world.PlayerGibs, gib => gib.SpriteName == "GibS");
-        Assert.Contains(world.PlayerGibs, gib => gib.SpriteName == "BlueClumpS");
-        Assert.Contains(world.PlayerGibs, gib => gib.SpriteName == "HeadS");
-        Assert.Contains(world.PlayerGibs, gib => gib.SpriteName == "FeetS");
-        Assert.Contains(world.PlayerGibs, gib => gib.SpriteName == "HandS");
+        Assert.True(AuthoredPlayerGibCatalog.TryGetParts(player.GameplayClassId, player.Team, out var parts));
+        Assert.Equal(parts.Select(part => part.SpriteName), world.PlayerGibs.Select(gib => gib.SpriteName));
         Assert.Contains(world.PendingVisualEvents, visualEvent => visualEvent.EffectName == "GibBlood");
     }
 
@@ -335,11 +332,16 @@ public sealed class SimulationWorldSnapshotPresentationTests
         var immediateGibCount = world.PlayerGibs.Count;
 
         Assert.NotEqual(0, immediateGibCount);
-        Assert.All(world.PlayerGibs, gib =>
+        var remote = Assert.Single(world.RemoteSnapshotPlayers);
+        Assert.True(AuthoredPlayerGibCatalog.TryGetParts(remote.GameplayClassId, remote.Team, out var parts));
+        Assert.Equal(parts.Count, world.PlayerGibs.Count);
+        foreach (var part in parts)
         {
-            Assert.Equal(512f, gib.X);
-            Assert.Equal(384f, gib.Y);
-        });
+            var gib = Assert.Single(world.PlayerGibs, gib => gib.SpriteName == part.SpriteName);
+            var facing = remote.FacingDirectionX < 0f ? -1f : 1f;
+            Assert.Equal(512f + part.SpawnOffsetX * remote.PlayerScale * facing, gib.X);
+            Assert.Equal(384f + part.SpawnOffsetY * remote.PlayerScale, gib.Y);
+        }
 
         Assert.True(world.ApplySnapshot(deathSnapshot, localPlayerSlot: 1));
         Assert.Equal(immediateGibCount, world.PlayerGibs.Count);
