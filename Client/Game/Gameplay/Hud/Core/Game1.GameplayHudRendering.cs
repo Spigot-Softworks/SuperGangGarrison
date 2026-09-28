@@ -316,8 +316,6 @@ public partial class Game1
         WriteGameplayRenderTrace("hud after clientpluginhud");
         DrawGarrisonBuilderEditorOverlay(mouse);
         WriteGameplayRenderTrace("hud after garrisonbuilder");
-        DrawNavEditorOverlay(mouse, cameraPosition);
-        WriteGameplayRenderTrace("hud after naveditor");
         // Draw binocular overlay before chat so chat renders on top
         if (!IsLocalSpectatorPresentationActive() && localPlayerAlive && !deathCamActive)
         {

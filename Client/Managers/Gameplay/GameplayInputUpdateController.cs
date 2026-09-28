@@ -58,13 +58,9 @@ public sealed class GameplayInputUpdateController
             _context._latestNetworkInputAimOriginY = aimOrigin.Y;
             _context._hasLatestNetworkInputAimOrigin = true;
             _context.UpdateGarrisonBuilderEditor(keyboard, mouse, (float)gameTime.ElapsedGameTime.TotalSeconds);
-            var navEditorPanelMouse = _context.ShouldUseNavEditorWindowGutter() ? rawMouse : mouse;
-            _context.UpdateNavEditor(keyboard, mouse, navEditorPanelMouse, cameraPosition, (float)gameTime.ElapsedGameTime.TotalSeconds);
             _context.UpdateScoreboardState(keyboard, mouse);
             var (gameplayInput, networkInput) = _context.BuildGameplayInputs(keyboard, mouse, cameraPosition, (float)gameTime.ElapsedGameTime.TotalSeconds);
-            _context.SetNavEditorTraversalCaptureInput(gameplayInput);
             _context.SetScoreRouteRecorderCaptureInput(gameplayInput);
-            networkInput = _context.ResolveNavEditorGameplayInput(networkInput);
             _context._latestLocalAimWorldX = networkInput.AimWorldX;
             _context._latestLocalAimWorldY = networkInput.AimWorldY;
             _context._hasLatestLocalAimWorldPosition = true;

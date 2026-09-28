@@ -34,11 +34,6 @@ public sealed class WindowTextInputController
                 return;
             }
 
-            if (_context.HandleNavEditorTextInput(character))
-            {
-                return;
-            }
-
             if (_context.Input.NetworkPromptTextInput.TryHandle(character))
             {
                 return;

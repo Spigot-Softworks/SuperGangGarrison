@@ -17,11 +17,6 @@ public partial class Game1
 
     public int ViewportHeight => GetViewportDimensions(_ingameResolution).Y;
 
-    public bool ShouldUseNavEditorWindowGutter()
-    {
-        return _navEditorEnabled && !IsScreenFillingDisplayMode(_displayMode);
-    }
-
     public void ApplyGraphicsSettings()
     {
         ApplyGraphicsSettings(persist: true);
@@ -269,11 +264,6 @@ public partial class Game1
             return false;
         }
 
-        if (ShouldUseNavEditorWindowGutter())
-        {
-            return false;
-        }
-
         var viewport = GraphicsDevice.Viewport;
         return viewport.Width == ViewportWidth
             && viewport.Height == ViewportHeight;
@@ -311,9 +301,7 @@ public partial class Game1
 
     private Rectangle GetGameplayDestinationRectangle(int surfaceWidth, int surfaceHeight)
     {
-        var availableWidth = ShouldUseNavEditorWindowGutter()
-            ? Math.Max(1, surfaceWidth - GetNavEditorWindowGutterWidth())
-            : surfaceWidth;
+        var availableWidth = surfaceWidth;
         var scale = MathF.Min(availableWidth / (float)ViewportWidth, surfaceHeight / (float)ViewportHeight);
         if (ShouldUsePixelPerfectDisplayScale())
         {
@@ -349,9 +337,7 @@ public partial class Game1
             return rawMouse;
         }
 
-        var nativeNavEditorPointer = ShouldUseNavEditorWindowGutter()
-            && GetNavEditorPanelHostBounds().Contains(rawMouse.Position);
-        if (!nativeNavEditorPointer && TryMapCurvedCrtPointer(rawMouse, destination, out var mappedMouse))
+        if (TryMapCurvedCrtPointer(rawMouse, destination, out var mappedMouse))
         {
             return mappedMouse;
         }
@@ -420,38 +406,7 @@ public partial class Game1
     private Point GetWindowDimensions(DisplayModeKind displayMode, IngameResolutionKind ingameResolution, WindowSizeKind windowSize)
     {
         var gameplayDimensions = GetPreferredBackBufferDimensions(displayMode, ingameResolution, windowSize);
-        if (IsScreenFillingDisplayMode(displayMode) || !_navEditorEnabled)
-        {
-            return gameplayDimensions;
-        }
-
-        return new Point(
-            gameplayDimensions.X + GetNavEditorWindowGutterWidth(),
-            Math.Max(gameplayDimensions.Y, GetNavEditorExpandedWindowHeight()));
-    }
-
-    private void RefreshNavEditorWindowGutter()
-    {
-        var preferredDimensions = GetWindowDimensions(_displayMode, _ingameResolution, _windowSize);
-        if (_graphics.PreferredBackBufferWidth == preferredDimensions.X
-            && _graphics.PreferredBackBufferHeight == preferredDimensions.Y)
-        {
-            return;
-        }
-
-        _graphics.PreferredBackBufferWidth = preferredDimensions.X;
-        _graphics.PreferredBackBufferHeight = preferredDimensions.Y;
-        _graphics.ApplyChanges();
-    }
-
-    private static int GetNavEditorWindowGutterWidth()
-    {
-        return NavEditorPanelWidth + (NavEditorPanelMargin * 2);
-    }
-
-    private static int GetNavEditorExpandedWindowHeight()
-    {
-        return NavEditorPanelExpandedHeight + (NavEditorPanelMargin * 2);
+        return gameplayDimensions;
     }
 
     private static Point GetPreferredBackBufferDimensions(DisplayModeKind displayMode, IngameResolutionKind ingameResolution, WindowSizeKind windowSize)

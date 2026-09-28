@@ -35,11 +35,6 @@ public sealed class GameplayPresentationStateController
             _context.ResetGameplayTransitionEffects();
             _context._wasDeathCamActive = false;
             _context._wasMatchEnded = false;
-            if (_context._navEditorEnabled)
-            {
-                _context.DisableNavEditor("nav editor closed after map change");
-            }
-
             _context._observedGameplayLevelName = currentLevelName;
             _context._observedGameplayMapAreaIndex = currentMapAreaIndex;
         }

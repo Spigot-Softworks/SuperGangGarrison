@@ -169,7 +169,6 @@ public interface IGameplayContext
     OpenGarrison.Client.LoadedSpriteFrame _menuTextBoxTopTexture { get; set; }
     List<OpenGarrison.Client.Game1.MineTrailVisual> _mineTrailVisuals { get; }
     bool _namePromptPresented { get; set; }
-    bool _navEditorEnabled { get; set; }
     OpenGarrison.Client.NetworkGameClient _networkClient { get; }
     int _networkInterpolationWarmupSnapshotsRemaining { get; set; }
     double _networkInterpolationWarmupUntilClockSeconds { get; set; }
@@ -324,7 +323,6 @@ public interface IGameplayContext
     void CloseMainMenuOverlayState();
     int ConsumeClientTickCount(Microsoft.Xna.Framework.GameTime gameTime);
     void CycleGameplayCameraZoom();
-    void DisableNavEditor(string reason);
     void DismissCustomBubbleEditor();
     void DispatchClientSemanticGameplayEvents();
     void DisposeBrandLogoAssets();
@@ -343,7 +341,6 @@ public interface IGameplayContext
     void DrawLoadedSpriteFrame(OpenGarrison.Client.LoadedSpriteFrame frame, Microsoft.Xna.Framework.Rectangle destinationRectangle, Microsoft.Xna.Framework.Color tint);
     void DrawLoadedSpriteFrame(OpenGarrison.Client.LoadedSpriteFrame frame, Microsoft.Xna.Framework.Vector2 position, Nullable<Microsoft.Xna.Framework.Rectangle> sourceRectangle, Microsoft.Xna.Framework.Color tint, float rotation, Microsoft.Xna.Framework.Vector2 origin, Microsoft.Xna.Framework.Vector2 scale, Microsoft.Xna.Framework.Graphics.SpriteEffects effects, float layerDepth);
     void DrawLoadingOverlay();
-    void DrawNavEditorPresentationOverlay(Microsoft.Xna.Framework.Input.MouseState mouse);
     void DrawProceduralFlameParticles(Dictionary<ValueTuple<int, int>, float> cells, Microsoft.Xna.Framework.Vector2 cameraPosition, bool topOutlineOnly = false, float drawAlpha = 1f);
     void DrawSoftwareMenuCursor(Microsoft.Xna.Framework.Input.MouseState mouse);
     void DrawStabAnimation(OpenGarrison.Core.StabAnimEntity stabAnimation, Microsoft.Xna.Framework.Vector2 cameraPosition);
@@ -476,14 +473,12 @@ public interface IGameplayContext
     void ResetTransientPresentationEffects();
     void ResetVoiceChat();
     void ResetVotePresentation();
-    OpenGarrison.Core.PlayerInputSnapshot ResolveNavEditorGameplayInput(OpenGarrison.Core.PlayerInputSnapshot gameplayInput);
     void ReturnToMainMenu(string statusMessage = default);
     void ReturnToMainMenuWithNetworkStatus(string statusMessage, string consoleMessage);
     void ReturnToMainMenuWithNetworkStatus(string statusMessage);
     int ScaleBloodVisualCount(int maximumCount);
     bool SelectPracticeMapEntry(string levelName);
     void SetJoiningServerLoadingLabel(string serverLabel);
-    void SetNavEditorTraversalCaptureInput(OpenGarrison.Core.PlayerInputSnapshot gameplayInput);
     void SetNetworkStatus(string statusMessage);
     void SetNetworkStatusAndConsole(string statusMessage, string consoleMessage);
     void SetPersistedMenuStatusMessage(string message);
@@ -494,7 +489,6 @@ public interface IGameplayContext
     bool ShouldShowGameplayMouseCursor();
     bool ShouldSuppressPredictedAirBlastVisualEcho(OpenGarrison.Protocol.SnapshotVisualEvent visualEvent);
     bool ShouldSuppressPredictedExplosionVisualEcho(OpenGarrison.Protocol.SnapshotVisualEvent visualEvent);
-    bool ShouldUseNavEditorWindowGutter();
     bool ShouldUseSoftwareMenuCursor();
     void ShowJoiningServerLoadingOverlay(string serverLabel = default);
     void ShowLoadingOverlay(string message, Nullable<double> progress = default);
@@ -556,7 +550,6 @@ public interface IGameplayContext
     void UpdateLastToDieStageClearOverlay(Microsoft.Xna.Framework.Input.KeyboardState keyboard, Microsoft.Xna.Framework.Input.MouseState mouse);
     void UpdateLastToDieSurvivorMenu(Microsoft.Xna.Framework.Input.KeyboardState keyboard, Microsoft.Xna.Framework.Input.MouseState mouse);
     void UpdateMenuStatusMessageExpiry();
-    void UpdateNavEditor(Microsoft.Xna.Framework.Input.KeyboardState keyboard, Microsoft.Xna.Framework.Input.MouseState mouse, Microsoft.Xna.Framework.Input.MouseState panelMouse, Microsoft.Xna.Framework.Vector2 cameraPosition, float deltaSeconds);
     void UpdateOfflinePracticeMapVote();
     void UpdateOptionsMenu(Microsoft.Xna.Framework.Input.KeyboardState keyboard, Microsoft.Xna.Framework.Input.MouseState mouse);
     void UpdatePluginOptionsMenu(Microsoft.Xna.Framework.Input.KeyboardState keyboard, Microsoft.Xna.Framework.Input.MouseState mouse);
