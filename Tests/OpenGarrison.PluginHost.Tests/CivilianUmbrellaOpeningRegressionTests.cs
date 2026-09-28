@@ -13,8 +13,8 @@ public sealed class CivilianUmbrellaOpeningRegressionTests
     {
         var player = CreateWorld(30).LocalPlayer;
         Assert.True(string.IsNullOrEmpty(player.GameplayLoadoutState.SecondaryItemId));
-        var controller = typeof(Game1).GetNestedType("GameplayWeaponRenderController", BindingFlags.NonPublic)!;
-        var resolve = controller.GetMethod("ResolveRenderPresentation", BindingFlags.NonPublic | BindingFlags.Static)!;
+        var controller = typeof(GameplayWeaponRenderController);
+        var resolve = controller.GetMethod("ResolveRenderPresentation", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static)!;
         GameplayItemPresentationDefinition Presentation(bool force = false)
             => (GameplayItemPresentationDefinition)resolve.Invoke(null, [player, force])!;
 
@@ -101,9 +101,9 @@ public sealed class CivilianUmbrellaOpeningRegressionTests
     public void ReopeningBetweenRenderUpdatesRestartsTheOpeningAnimation()
     {
         var player = CreateWorld(30).LocalPlayer;
-        var type = typeof(Game1).GetNestedType("PlayerRenderState", BindingFlags.NonPublic)!;
+        var type = typeof(Game1).GetNestedType("PlayerRenderState", BindingFlags.Public | BindingFlags.NonPublic)!;
         var state = Activator.CreateInstance(type, nonPublic: true)!;
-        var update = typeof(Game1).GetMethod("UpdateCivvieUmbrellaWeaponAnimationState", BindingFlags.Static | BindingFlags.NonPublic)!;
+        var update = typeof(Game1).GetMethod("UpdateCivvieUmbrellaWeaponAnimationState", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)!;
         player.TryActivateCivvieUmbrella();
         update.Invoke(null, [player, state, true]);
         type.GetProperty("WeaponAnimationTimeRemainingSeconds")!.SetValue(state, 0f);

@@ -70,7 +70,7 @@ public sealed class PlayerSkinRenderingTests
         Assert.False((bool)includesWeapon.Invoke(game, [player, normalBody])!);
 
         // The knife stays part of the held airborne body, including cloak opacity.
-        var stateType = typeof(Game1).GetNestedType("PlayerRenderState", BindingFlags.NonPublic)!;
+        var stateType = typeof(Game1).GetNestedType("PlayerRenderState", BindingFlags.Public | BindingFlags.NonPublic)!;
         var state = Activator.CreateInstance(stateType)!;
         var animation = (PlayerSkinAnimator)stateType.GetProperty("SkinAnimation")!.GetValue(state)!;
         var catalog = ((Lazy<PlayerSkinCatalog>)typeof(Game1).GetField("_playerSkins", PrivateInstance)!.GetValue(game)!).Value;

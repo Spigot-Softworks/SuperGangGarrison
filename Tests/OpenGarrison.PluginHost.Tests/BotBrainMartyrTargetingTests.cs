@@ -27,7 +27,7 @@ public sealed class BotBrainMartyrTargetingTests
 
         var refreshMethod = typeof(BotBrainController).GetMethod(
             "TryRefreshReusableGraphlessCombatTarget",
-            BindingFlags.Static | BindingFlags.NonPublic);
+            BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(refreshMethod);
         object?[] arguments =
         [

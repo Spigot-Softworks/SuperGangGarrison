@@ -935,7 +935,7 @@ public sealed class SnapshotDeltaBudgeterTests
 
         var method = typeof(SnapshotDeltaBudgeter).GetMethod(
             "ReducePlayerStateAggressivelyForBudget",
-            BindingFlags.NonPublic | BindingFlags.Static);
+            BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static);
         Assert.NotNull(method);
 
         var reduced = (SnapshotPlayerState)method.Invoke(null, new object[] { spy })!;
@@ -2844,7 +2844,7 @@ public sealed class SnapshotDeltaBudgeterTests
         };
         var method = typeof(SnapshotDeltaBudgeter).GetMethod(
             "ReducePlayerStateForBudget",
-            BindingFlags.NonPublic | BindingFlags.Static);
+            BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static);
         Assert.NotNull(method);
 
         var deltaPlayer = (SnapshotPlayerState)method.Invoke(null, new object[] { currentHeavy })!;
@@ -3226,7 +3226,7 @@ public sealed class SnapshotDeltaBudgeterTests
 
         var clientWorld = CivilDefenseTurretRegressionTests.CreateWorld();
         clientWorld.ClientPredictionMode = true;
-        var apply = typeof(SimulationWorld).GetMethod("ApplySnapshotCivilDefenseTurrets", BindingFlags.NonPublic | BindingFlags.Instance)!;
+        var apply = typeof(SimulationWorld).GetMethod("ApplySnapshotCivilDefenseTurrets", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance)!;
         apply.Invoke(clientWorld, [merged.CivilDefenseTurrets]);
         Assert.Equal(state, clientWorld.Snapshots.ToSnapshotCivilDefenseTurretState(Assert.Single(clientWorld.CivilDefenseTurrets)));
 

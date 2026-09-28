@@ -70,7 +70,7 @@ public sealed class BrowserHudDefaultsTests
             var field = typeof(Game1).GetField(name, Instance)!;
             field.SetValue(game, Activator.CreateInstance(field.FieldType, true));
         }
-        var controllerType = typeof(Game1).GetNestedType("GameplayLocalStatusHudController", BindingFlags.NonPublic)!;
+        var controllerType = typeof(GameplayLocalStatusHudController);
         var controller = Activator.CreateInstance(controllerType, Instance, null, [game], null)!;
         object Invoke(string name, params object[] args) => controllerType.GetMethod(name, Instance | BindingFlags.Static)!.Invoke(controller, args)!;
         var weapons = Invoke("GetWeaponHudWidgets");
@@ -111,7 +111,7 @@ public sealed class BrowserHudDefaultsTests
             field.SetValue(game, Activator.CreateInstance(field.FieldType, true));
         }
 
-        var controllerType = typeof(Game1).GetNestedType("GameplayLocalStatusHudController", BindingFlags.NonPublic)!;
+        var controllerType = typeof(GameplayLocalStatusHudController);
         var controller = Activator.CreateInstance(controllerType, Instance, null, [game], null)!;
         string[] BuildRowIds()
         {

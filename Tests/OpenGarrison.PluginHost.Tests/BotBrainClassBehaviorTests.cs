@@ -35,7 +35,7 @@ public sealed class BotBrainClassBehaviorTests
         var graph = new NavGraph(nodes, adjacency);
         var path = graph.FindPath(0, 3, PlayerClass.Scout, team: PlayerTeam.Red)!;
         path.Advance();
-        typeof(SteeringMachine).GetMethod("TryAdvanceToReachedFutureWaypoint", BindingFlags.NonPublic | BindingFlags.Static)!
+        typeof(SteeringMachine).GetMethod("TryAdvanceToReachedFutureWaypoint", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)!
             .Invoke(null, [player, graph, path]);
         Assert.Equal(1, path.CurrentIndex);
     }
@@ -1097,7 +1097,7 @@ public sealed class BotBrainClassBehaviorTests
 
     private static int FindProjectileIdForPyroReflect(PlayerEntity pyro, bool accurate)
     {
-        var method = typeof(CombatDecisionResolver).GetMethod("ShouldPyroReflectAccurately", BindingFlags.Static | BindingFlags.NonPublic);
+        var method = typeof(CombatDecisionResolver).GetMethod("ShouldPyroReflectAccurately", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         for (var id = 1; id < 512; id += 1)
         {
@@ -1113,7 +1113,7 @@ public sealed class BotBrainClassBehaviorTests
 
     private static int FindProjectileIdForHeavyDash(PlayerEntity heavy)
     {
-        var method = typeof(CombatDecisionResolver).GetMethod("ShouldHeavyDashIncomingProjectile", BindingFlags.Static | BindingFlags.NonPublic);
+        var method = typeof(CombatDecisionResolver).GetMethod("ShouldHeavyDashIncomingProjectile", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         for (var id = 1; id < 512; id += 1)
         {
@@ -1131,7 +1131,7 @@ public sealed class BotBrainClassBehaviorTests
     {
         var method = typeof(BotBrainController).GetMethod(
             "ShouldPreferCarrierReturnGraph",
-            BindingFlags.Static | BindingFlags.NonPublic,
+            BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic,
             binder: null,
             [typeof(SimpleLevel), typeof(PlayerEntity)],
             modifiers: null);

@@ -28,7 +28,7 @@ public sealed class OfflinePracticeSelectionTests
     {
         var method = typeof(Game1).GetMethod(
             "GetPredictedHeavyGhostDashUseMomentum",
-            BindingFlags.NonPublic | BindingFlags.Static,
+            BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static,
             binder: null,
             [typeof(GameplayAbilityDefinition)],
             modifiers: null);
@@ -204,7 +204,7 @@ public sealed class OfflinePracticeSelectionTests
     [Fact]
     public void DefaultPracticeMapSelectionUsesHarvest()
     {
-        var setupStateType = typeof(Game1).GetNestedType("PracticeSetupState", BindingFlags.NonPublic);
+        var setupStateType = typeof(Game1).GetNestedType("PracticeSetupState", BindingFlags.Public | BindingFlags.NonPublic);
         var state = Activator.CreateInstance(setupStateType!, nonPublic: true)!;
         var mapEntriesProperty = setupStateType!.GetProperty("MapEntries", BindingFlags.Instance | BindingFlags.Public);
         var buildMapEntriesMethod = setupStateType.GetMethod("BuildMapEntries", BindingFlags.Public | BindingFlags.Static);
@@ -227,8 +227,8 @@ public sealed class OfflinePracticeSelectionTests
     [Fact]
     public void PracticeMapBrowserFiltersBySearchModeAndMapType()
     {
-        var setupStateType = typeof(Game1).GetNestedType("PracticeSetupState", BindingFlags.NonPublic);
-        var entryType = typeof(Game1).GetNestedType("PracticeMapEntry", BindingFlags.NonPublic);
+        var setupStateType = typeof(Game1).GetNestedType("PracticeSetupState", BindingFlags.Public | BindingFlags.NonPublic);
+        var entryType = typeof(Game1).GetNestedType("PracticeMapEntry", BindingFlags.Public | BindingFlags.NonPublic);
         var state = Activator.CreateInstance(setupStateType!, nonPublic: true)!;
         var mapEntriesProperty = setupStateType!.GetProperty("MapEntries", BindingFlags.Instance | BindingFlags.Public);
         var listType = typeof(List<>).MakeGenericType(entryType!);
@@ -258,8 +258,8 @@ public sealed class OfflinePracticeSelectionTests
     [Fact]
     public void PracticeMapBrowserKeepsCustomMapsBehindTheCustomMapsSourceButton()
     {
-        var setupStateType = typeof(Game1).GetNestedType("PracticeSetupState", BindingFlags.NonPublic);
-        var entryType = typeof(Game1).GetNestedType("PracticeMapEntry", BindingFlags.NonPublic);
+        var setupStateType = typeof(Game1).GetNestedType("PracticeSetupState", BindingFlags.Public | BindingFlags.NonPublic);
+        var entryType = typeof(Game1).GetNestedType("PracticeMapEntry", BindingFlags.Public | BindingFlags.NonPublic);
         var state = Activator.CreateInstance(setupStateType!, nonPublic: true)!;
         var mapEntriesProperty = setupStateType!.GetProperty("MapEntries", BindingFlags.Instance | BindingFlags.Public);
         var listType = typeof(List<>).MakeGenericType(entryType!);
@@ -277,7 +277,7 @@ public sealed class OfflinePracticeSelectionTests
     [Fact]
     public void PracticeMapBrowserSectionsUseRequestedMapGroups()
     {
-        var setupStateType = typeof(Game1).GetNestedType("PracticeSetupState", BindingFlags.NonPublic);
+        var setupStateType = typeof(Game1).GetNestedType("PracticeSetupState", BindingFlags.Public | BindingFlags.NonPublic);
         var state = Activator.CreateInstance(setupStateType!, nonPublic: true)!;
         var mapEntriesProperty = setupStateType!.GetProperty("MapEntries", BindingFlags.Instance | BindingFlags.Public);
         var buildMapEntriesMethod = setupStateType.GetMethod("BuildMapEntries", BindingFlags.Public | BindingFlags.Static);
@@ -373,10 +373,10 @@ public sealed class OfflinePracticeSelectionTests
         var harvestEntry = CreatePracticeMapEntry("Harvest", GameModeKind.KingOfTheHill);
         var conflictEntry = CreatePracticeMapEntry("Conflict", GameModeKind.CaptureTheFlag);
         var customKothEntry = CreatePracticeMapEntry("downloaded_koth", GameModeKind.KingOfTheHill, isCustomMap: true);
-        var practiceMapEntryType = typeof(Game1).GetNestedType("PracticeMapEntry", BindingFlags.NonPublic);
+        var practiceMapEntryType = typeof(Game1).GetNestedType("PracticeMapEntry", BindingFlags.Public | BindingFlags.NonPublic);
         var method = typeof(Game1).GetMethod(
             "IsEligibleLastToDieRotationMap",
-            BindingFlags.NonPublic | BindingFlags.Static,
+            BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static,
             binder: null,
             types: [practiceMapEntryType!],
             modifiers: null);
@@ -392,10 +392,10 @@ public sealed class OfflinePracticeSelectionTests
     public void EngineerLastToDieRotationUsesTheSameKothAndCtfEligibility()
     {
         var engineerKind = GetLastToDieSurvivorKind("Engineer");
-        var practiceMapEntryType = typeof(Game1).GetNestedType("PracticeMapEntry", BindingFlags.NonPublic);
+        var practiceMapEntryType = typeof(Game1).GetNestedType("PracticeMapEntry", BindingFlags.Public | BindingFlags.NonPublic);
         var eligibilityMethod = typeof(Game1).GetMethod(
             "IsEligibleLastToDieRotationMap",
-            BindingFlags.NonPublic | BindingFlags.Static,
+            BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static,
             binder: null,
             types:
             [
@@ -418,7 +418,7 @@ public sealed class OfflinePracticeSelectionTests
 
     private static IEnumerable<object> BuildPracticeMapEntries()
     {
-        var setupStateType = typeof(Game1).GetNestedType("PracticeSetupState", BindingFlags.NonPublic);
+        var setupStateType = typeof(Game1).GetNestedType("PracticeSetupState", BindingFlags.Public | BindingFlags.NonPublic);
         var method = setupStateType?.GetMethod("BuildMapEntries", BindingFlags.Public | BindingFlags.Static);
 
         Assert.NotNull(method);
@@ -427,7 +427,7 @@ public sealed class OfflinePracticeSelectionTests
 
     private static object CreatePracticeMapEntry(string levelName, GameModeKind mode, bool isCustomMap = false)
     {
-        var entryType = typeof(Game1).GetNestedType("PracticeMapEntry", BindingFlags.NonPublic);
+        var entryType = typeof(Game1).GetNestedType("PracticeMapEntry", BindingFlags.Public | BindingFlags.NonPublic);
         var constructor = entryType?.GetConstructor(
             BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
             binder: null,
@@ -484,7 +484,7 @@ public sealed class OfflinePracticeSelectionTests
 
     private static object GetLastToDieSurvivorKind(string name)
     {
-        var enumType = typeof(Game1).GetNestedType("LastToDieSurvivorKind", BindingFlags.NonPublic);
+        var enumType = typeof(Game1).GetNestedType("LastToDieSurvivorKind", BindingFlags.Public | BindingFlags.NonPublic);
 
         Assert.NotNull(enumType);
         return Enum.Parse(enumType, name);

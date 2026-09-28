@@ -495,7 +495,7 @@ public sealed class CoopHeldFireRegressionTests
             // LtD deliberately reserves its participant slots during a run.
             // Reconnect the teammate while the turret owner stays in the match.
             observerId = (Guid)typeof(NetworkGameClient).GetField("_pendingHelloClientInstanceId",
-                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(session.Owner)!;
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic)!.GetValue(session.Owner)!;
             session.Owner.Disconnect();
         }
         using var observer = new NetworkGameClient();
@@ -518,7 +518,7 @@ public sealed class CoopHeldFireRegressionTests
                 state.LastShotTargetX == 750f && state.ShotTraceTicksRemaining > 0);
         }
         Assert.True(observedFire);
-        typeof(SimulationWorld).GetMethod("DestroyCivilDefenseTurret", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+        typeof(SimulationWorld).GetMethod("DestroyCivilDefenseTurret", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic)!
             .Invoke(session.Host.World, [turret]);
         for (var tick = 0; tick < tickRate; tick++)
         {
