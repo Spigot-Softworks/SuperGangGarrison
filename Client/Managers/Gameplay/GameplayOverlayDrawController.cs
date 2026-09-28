@@ -101,8 +101,6 @@ public sealed class GameplayOverlayDrawController
             Game1.WriteGameplayRenderTrace("frame before endlogical");
             _context.EndLogicalFrame();
             Game1.WriteGameplayRenderTrace("frame after endlogical");
-            _context.DrawNavEditorPresentationOverlay(rawMouse);
-            Game1.WriteGameplayRenderTrace("frame after naveditorpresentation");
         }
 
         private void DrawGameplayWorldForViewport(

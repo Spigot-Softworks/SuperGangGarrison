@@ -55,7 +55,7 @@ public partial class Game1
 
     private bool HasOpenGameplayBlockingMenu()
     {
-        return HasOpenGameplayOverlay() || ShouldBlockGameplayForNavEditor() || ShouldBlockGameplayForGarrisonBuilder();
+        return HasOpenGameplayOverlay() || ShouldBlockGameplayForGarrisonBuilder();
     }
 
     private bool IsGameplayDeathCamActive()
@@ -153,7 +153,6 @@ public partial class Game1
             && !IsLocalSpectatorPresentationActive()
             && _world.LocalPlayer.IsAlive
             && !IsGameplayDeathCamActive()
-            && !ShouldBlockGameplayForNavEditor()
             && !ShouldBlockGameplayForGarrisonBuilder()
             && !_consoleOpen
             && !_hudEditorOpen

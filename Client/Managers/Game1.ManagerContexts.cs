@@ -294,8 +294,6 @@ public partial class Game1 : IAudioContext, IInputContext, IMenuContext, ISessio
     void IInputContext.ExecuteConsoleCommand(string commandText) { ExecuteConsoleCommand(commandText); }
     bool IInputContext.HandleGarrisonBuilderTextInput(char character) => HandleGarrisonBuilderTextInput(character);
     bool IInputContext.HandleManagedRoomText(char character) => HandleManagedRoomText(character);
-    bool IInputContext.HandleNavEditorTextInput(char character) => HandleNavEditorTextInput(character);
-    bool IInputContext.HandleNavEditorTextInput(Microsoft.Xna.Framework.TextInputEventArgs e) => HandleNavEditorTextInput(e);
     ValueTuple<string, int, int> IInputContext.InsertTextCharacterAtCursor(string text, char character, int cursorIndex, int selectionStart, int maxLength) => InsertTextCharacterAtCursor(text, character, cursorIndex, selectionStart, maxLength);
     void IInputContext.SaveFriendNicknameFromInput() { SaveFriendNicknameFromInput(); }
     void IInputContext.SetLocalPlayerNameFromSettings(string playerName) { SetLocalPlayerNameFromSettings(playerName); }
@@ -1044,7 +1042,6 @@ public partial class Game1 : IAudioContext, IInputContext, IMenuContext, ISessio
     OpenGarrison.Client.LoadedSpriteFrame IGameplayContext._menuTextBoxTopTexture { get => _menuTextBoxTopTexture; set => _menuTextBoxTopTexture = value; }
     List<OpenGarrison.Client.Game1.MineTrailVisual> IGameplayContext._mineTrailVisuals { get => _mineTrailVisuals; }
     bool IGameplayContext._namePromptPresented { get => _namePromptPresented; set => _namePromptPresented = value; }
-    bool IGameplayContext._navEditorEnabled { get => _navEditorEnabled; set => _navEditorEnabled = value; }
     OpenGarrison.Client.NetworkGameClient IGameplayContext._networkClient { get => _networkClient; }
     int IGameplayContext._networkInterpolationWarmupSnapshotsRemaining { get => _networkInterpolationWarmupSnapshotsRemaining; set => _networkInterpolationWarmupSnapshotsRemaining = value; }
     double IGameplayContext._networkInterpolationWarmupUntilClockSeconds { get => _networkInterpolationWarmupUntilClockSeconds; set => _networkInterpolationWarmupUntilClockSeconds = value; }
@@ -1202,7 +1199,6 @@ public partial class Game1 : IAudioContext, IInputContext, IMenuContext, ISessio
     void IGameplayContext.CloseMainMenuOverlayState() { CloseMainMenuOverlayState(); }
     int IGameplayContext.ConsumeClientTickCount(Microsoft.Xna.Framework.GameTime gameTime) => ConsumeClientTickCount(gameTime);
     void IGameplayContext.CycleGameplayCameraZoom() { CycleGameplayCameraZoom(); }
-    void IGameplayContext.DisableNavEditor(string reason) { DisableNavEditor(reason); }
     void IGameplayContext.DismissCustomBubbleEditor() { DismissCustomBubbleEditor(); }
     void IGameplayContext.DispatchClientSemanticGameplayEvents() { DispatchClientSemanticGameplayEvents(); }
     void IGameplayContext.DisposeBrandLogoAssets() { DisposeBrandLogoAssets(); }
@@ -1221,7 +1217,6 @@ public partial class Game1 : IAudioContext, IInputContext, IMenuContext, ISessio
     void IGameplayContext.DrawLoadedSpriteFrame(OpenGarrison.Client.LoadedSpriteFrame frame, Microsoft.Xna.Framework.Rectangle destinationRectangle, Microsoft.Xna.Framework.Color tint) { DrawLoadedSpriteFrame(frame, destinationRectangle, tint); }
     void IGameplayContext.DrawLoadedSpriteFrame(OpenGarrison.Client.LoadedSpriteFrame frame, Microsoft.Xna.Framework.Vector2 position, Nullable<Microsoft.Xna.Framework.Rectangle> sourceRectangle, Microsoft.Xna.Framework.Color tint, float rotation, Microsoft.Xna.Framework.Vector2 origin, Microsoft.Xna.Framework.Vector2 scale, Microsoft.Xna.Framework.Graphics.SpriteEffects effects, float layerDepth) { DrawLoadedSpriteFrame(frame, position, sourceRectangle, tint, rotation, origin, scale, effects, layerDepth); }
     void IGameplayContext.DrawLoadingOverlay() { DrawLoadingOverlay(); }
-    void IGameplayContext.DrawNavEditorPresentationOverlay(Microsoft.Xna.Framework.Input.MouseState mouse) { DrawNavEditorPresentationOverlay(mouse); }
     void IGameplayContext.DrawProceduralFlameParticles(Dictionary<ValueTuple<int, int>, float> cells, Microsoft.Xna.Framework.Vector2 cameraPosition, bool topOutlineOnly = false, float drawAlpha = 1f) { DrawProceduralFlameParticles(cells, cameraPosition, topOutlineOnly, drawAlpha); }
     void IGameplayContext.DrawSoftwareMenuCursor(Microsoft.Xna.Framework.Input.MouseState mouse) { DrawSoftwareMenuCursor(mouse); }
     void IGameplayContext.DrawStabAnimation(OpenGarrison.Core.StabAnimEntity stabAnimation, Microsoft.Xna.Framework.Vector2 cameraPosition) { DrawStabAnimation(stabAnimation, cameraPosition); }
@@ -1354,14 +1349,12 @@ public partial class Game1 : IAudioContext, IInputContext, IMenuContext, ISessio
     void IGameplayContext.ResetTransientPresentationEffects() { ResetTransientPresentationEffects(); }
     void IGameplayContext.ResetVoiceChat() { ResetVoiceChat(); }
     void IGameplayContext.ResetVotePresentation() { ResetVotePresentation(); }
-    OpenGarrison.Core.PlayerInputSnapshot IGameplayContext.ResolveNavEditorGameplayInput(OpenGarrison.Core.PlayerInputSnapshot gameplayInput) => ResolveNavEditorGameplayInput(gameplayInput);
     void IGameplayContext.ReturnToMainMenu(string statusMessage = default) { ReturnToMainMenu(statusMessage); }
     void IGameplayContext.ReturnToMainMenuWithNetworkStatus(string statusMessage, string consoleMessage) { ReturnToMainMenuWithNetworkStatus(statusMessage, consoleMessage); }
     void IGameplayContext.ReturnToMainMenuWithNetworkStatus(string statusMessage) { ReturnToMainMenuWithNetworkStatus(statusMessage); }
     int IGameplayContext.ScaleBloodVisualCount(int maximumCount) => ScaleBloodVisualCount(maximumCount);
     bool IGameplayContext.SelectPracticeMapEntry(string levelName) => SelectPracticeMapEntry(levelName);
     void IGameplayContext.SetJoiningServerLoadingLabel(string serverLabel) { SetJoiningServerLoadingLabel(serverLabel); }
-    void IGameplayContext.SetNavEditorTraversalCaptureInput(OpenGarrison.Core.PlayerInputSnapshot gameplayInput) { SetNavEditorTraversalCaptureInput(gameplayInput); }
     void IGameplayContext.SetNetworkStatus(string statusMessage) { SetNetworkStatus(statusMessage); }
     void IGameplayContext.SetNetworkStatusAndConsole(string statusMessage, string consoleMessage) { SetNetworkStatusAndConsole(statusMessage, consoleMessage); }
     void IGameplayContext.SetPersistedMenuStatusMessage(string message) { SetPersistedMenuStatusMessage(message); }
@@ -1372,7 +1365,6 @@ public partial class Game1 : IAudioContext, IInputContext, IMenuContext, ISessio
     bool IGameplayContext.ShouldShowGameplayMouseCursor() => ShouldShowGameplayMouseCursor();
     bool IGameplayContext.ShouldSuppressPredictedAirBlastVisualEcho(OpenGarrison.Protocol.SnapshotVisualEvent visualEvent) => ShouldSuppressPredictedAirBlastVisualEcho(visualEvent);
     bool IGameplayContext.ShouldSuppressPredictedExplosionVisualEcho(OpenGarrison.Protocol.SnapshotVisualEvent visualEvent) => ShouldSuppressPredictedExplosionVisualEcho(visualEvent);
-    bool IGameplayContext.ShouldUseNavEditorWindowGutter() => ShouldUseNavEditorWindowGutter();
     bool IGameplayContext.ShouldUseSoftwareMenuCursor() => ShouldUseSoftwareMenuCursor();
     void IGameplayContext.ShowJoiningServerLoadingOverlay(string serverLabel = default) { ShowJoiningServerLoadingOverlay(serverLabel); }
     void IGameplayContext.ShowLoadingOverlay(string message, Nullable<double> progress = default) { ShowLoadingOverlay(message, progress); }
@@ -1434,7 +1426,6 @@ public partial class Game1 : IAudioContext, IInputContext, IMenuContext, ISessio
     void IGameplayContext.UpdateLastToDieStageClearOverlay(Microsoft.Xna.Framework.Input.KeyboardState keyboard, Microsoft.Xna.Framework.Input.MouseState mouse) { UpdateLastToDieStageClearOverlay(keyboard, mouse); }
     void IGameplayContext.UpdateLastToDieSurvivorMenu(Microsoft.Xna.Framework.Input.KeyboardState keyboard, Microsoft.Xna.Framework.Input.MouseState mouse) { UpdateLastToDieSurvivorMenu(keyboard, mouse); }
     void IGameplayContext.UpdateMenuStatusMessageExpiry() { UpdateMenuStatusMessageExpiry(); }
-    void IGameplayContext.UpdateNavEditor(Microsoft.Xna.Framework.Input.KeyboardState keyboard, Microsoft.Xna.Framework.Input.MouseState mouse, Microsoft.Xna.Framework.Input.MouseState panelMouse, Microsoft.Xna.Framework.Vector2 cameraPosition, float deltaSeconds) { UpdateNavEditor(keyboard, mouse, panelMouse, cameraPosition, deltaSeconds); }
     void IGameplayContext.UpdateOfflinePracticeMapVote() { UpdateOfflinePracticeMapVote(); }
     void IGameplayContext.UpdateOptionsMenu(Microsoft.Xna.Framework.Input.KeyboardState keyboard, Microsoft.Xna.Framework.Input.MouseState mouse) { UpdateOptionsMenu(keyboard, mouse); }
     void IGameplayContext.UpdatePluginOptionsMenu(Microsoft.Xna.Framework.Input.KeyboardState keyboard, Microsoft.Xna.Framework.Input.MouseState mouse) { UpdatePluginOptionsMenu(keyboard, mouse); }

@@ -63,8 +63,6 @@ public interface IInputContext
     void ExecuteConsoleCommand(string commandText);
     bool HandleGarrisonBuilderTextInput(char character);
     bool HandleManagedRoomText(char character);
-    bool HandleNavEditorTextInput(char character);
-    bool HandleNavEditorTextInput(Microsoft.Xna.Framework.TextInputEventArgs e);
     (string Text, int CursorIndex, int SelectionStart) InsertTextCharacterAtCursor(string text, char character, int cursorIndex, int selectionStart, int maxLength);
     void SaveFriendNicknameFromInput();
     void SetLocalPlayerNameFromSettings(string playerName);

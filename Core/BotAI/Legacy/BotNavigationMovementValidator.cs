@@ -3,6 +3,11 @@ using System.Linq;
 
 namespace OpenGarrison.BotAI;
 
+/// <summary>
+/// Legacy movement-tape validation retained by the OG2 graph builder and
+/// BotBrain navigation diagnostics. This is a compatibility boundary, not a
+/// place for new navigation authoring behavior.
+/// </summary>
 public static class BotNavigationMovementValidator
 {
     private const double FixedDeltaSeconds = 1d / SimulationConfig.DefaultTicksPerSecond;

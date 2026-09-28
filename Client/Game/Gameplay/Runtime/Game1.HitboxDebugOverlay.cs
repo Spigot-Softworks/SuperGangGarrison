@@ -26,7 +26,7 @@ public partial class Game1
 
     public void UpdateHitboxDebugHotkey(KeyboardState keyboard)
     {
-        if (_consoleOpen || _mainMenuOpen || IsGameplayInputBlocked() || _navEditorEnabled)
+        if (_consoleOpen || _mainMenuOpen || IsGameplayInputBlocked())
         {
             return;
         }

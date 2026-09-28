@@ -2,6 +2,11 @@ using OpenGarrison.Core;
 
 namespace OpenGarrison.BotAI;
 
+/// <summary>
+/// Legacy profile mapping retained because the OG2 graph builder and navigation
+/// diagnostics still use it as a shared class-profile compatibility helper.
+/// Do not add new authoring behavior here.
+/// </summary>
 public enum BotNavigationProfile
 {
     Light = 0,

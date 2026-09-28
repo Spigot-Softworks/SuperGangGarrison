@@ -102,13 +102,11 @@ public partial class Game1
     private void OnPracticeSimulationBeforeTick()
     {
         UpdatePracticeBots();
-        OnNavEditorTraversalCaptureBeforeTick();
         OnScoreRouteRecorderBeforeTick();
     }
 
     private void OnPracticeSimulationAfterTick()
     {
-        OnNavEditorTraversalCaptureAfterTick();
         OnScoreRouteRecorderAfterTick();
         AdvancePracticeMapBotSpawns();
         AdvancePracticeMapBotRespawnPolicies();
