@@ -390,7 +390,7 @@ public sealed class FirePredictionRegressionTests
     {
         var method = typeof(Game1).GetMethod(
             "IsInputSequenceAcknowledged",
-            BindingFlags.Static | BindingFlags.NonPublic)
+            BindingFlags.Static | BindingFlags.Public | BindingFlags.Public | BindingFlags.NonPublic)
             ?? throw new MissingMethodException(typeof(Game1).FullName, "IsInputSequenceAcknowledged");
 
         var acknowledged = method.Invoke(null, [sequence, lastProcessedInputSequence]);
@@ -468,7 +468,7 @@ public sealed class FirePredictionRegressionTests
     {
         var inputType = typeof(Game1).GetNestedType(
             "PredictedLocalInput",
-            BindingFlags.NonPublic)
+            BindingFlags.Public | BindingFlags.NonPublic)
             ?? throw new MissingMemberException(typeof(Game1).FullName, "PredictedLocalInput");
         var constructor = inputType.GetConstructor(
             BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Public,
@@ -513,7 +513,7 @@ public sealed class FirePredictionRegressionTests
     {
         var method = declaringType.GetMethod(
             methodName,
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.Public | BindingFlags.NonPublic)
             ?? throw new MissingMethodException(declaringType.FullName, methodName);
         method.Invoke(target, arguments);
     }
@@ -522,7 +522,7 @@ public sealed class FirePredictionRegressionTests
     {
         var field = target.GetType().GetField(
             fieldName,
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.Public | BindingFlags.NonPublic)
             ?? throw new MissingFieldException(target.GetType().FullName, fieldName);
         field.SetValue(target, value);
     }
@@ -531,7 +531,7 @@ public sealed class FirePredictionRegressionTests
     {
         var field = target.GetType().GetField(
             fieldName,
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.Public | BindingFlags.NonPublic)
             ?? throw new MissingFieldException(target.GetType().FullName, fieldName);
         return (T)field.GetValue(target)!;
     }
@@ -544,7 +544,7 @@ public sealed class FirePredictionRegressionTests
     {
         var method = declaringType.GetMethod(
             methodName,
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.Public | BindingFlags.NonPublic)
             ?? throw new MissingMethodException(declaringType.FullName, methodName);
         return (T)method.Invoke(target, arguments)!;
     }

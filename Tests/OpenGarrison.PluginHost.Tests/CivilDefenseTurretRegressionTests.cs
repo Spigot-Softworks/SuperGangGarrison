@@ -77,7 +77,7 @@ public sealed class CivilDefenseTurretRegressionTests
         var world = CreateWorld();
         Assert.True(world.TryConfigureLastToDiePlayerBuild(SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Soldier.CivilDefenseTurret]));
-        var deploy = typeof(SimulationWorld).GetMethod("TryHandleExperimentalSoldierCivilDefenseTurret", BindingFlags.NonPublic | BindingFlags.Instance)!;
+        var deploy = typeof(SimulationWorld).GetMethod("TryHandleExperimentalSoldierCivilDefenseTurret", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance)!;
         Assert.True((bool)deploy.Invoke(world, [world.LocalPlayer])!);
         for (var tick = 0; tick < 120; tick++) world.AdvanceOneTick();
         Assert.Equal(0, world.LocalPlayer.PrimaryCooldownTicks);
@@ -98,7 +98,7 @@ public sealed class CivilDefenseTurretRegressionTests
         world.ClientPredictionMode = true;
         Assert.False(Deploy(world));
         var shot = AddProjectile(world, "shot", PlayerTeam.Blue, 550f, 500f, 0f);
-        typeof(SimulationWorld).GetMethod("AdvanceCivilDefenseTurrets", BindingFlags.NonPublic | BindingFlags.Instance)!.Invoke(world, null);
+        typeof(SimulationWorld).GetMethod("AdvanceCivilDefenseTurrets", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance)!.Invoke(world, null);
         Assert.True(turret.CanFire());
         Assert.True(world.EntityStore.Contains(shot.Id));
     }
@@ -139,7 +139,7 @@ public sealed class CivilDefenseTurretRegressionTests
             "mine" => (new MineProjectileEntity(id, team, 9999, x, y, velocityX, 0), "_mines"),
             _ => (new ShotProjectileEntity(id, team, 9999, x, y, velocityX, 0), "_shots"),
         };
-        ((IList)typeof(SimulationWorld).GetField(projectile.Collection, BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(world)!).Add(projectile.Entity);
+        ((IList)typeof(SimulationWorld).GetField(projectile.Collection, BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance)!.GetValue(world)!).Add(projectile.Entity);
         world.EntityStore.Add(projectile.Entity);
         return projectile.Entity;
     }

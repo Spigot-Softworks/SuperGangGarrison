@@ -17,7 +17,7 @@ public sealed class VerticalSpeedClampRegressionTests
     [InlineData(60f)]
     public void AdvancedHostEditPreservesHighVerticalClampThroughWorldTuning(float requestedClamp)
     {
-        var formType = typeof(Game1).GetNestedType("HostSetupFormState", BindingFlags.NonPublic)!;
+        var formType = typeof(Game1).GetNestedType("HostSetupFormState", BindingFlags.Public | BindingFlags.NonPublic)!;
         var form = Activator.CreateInstance(formType, nonPublic: true)!;
         var initialSettings = new OpenGarrisonHostSettings();
 

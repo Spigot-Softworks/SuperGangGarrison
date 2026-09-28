@@ -229,7 +229,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         var method = typeof(SimulationWorld).GetMethod(
             "IsWithinAirblastPlayerMask",
-            BindingFlags.Static | BindingFlags.NonPublic);
+            BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
 
         object[] sharedArguments =

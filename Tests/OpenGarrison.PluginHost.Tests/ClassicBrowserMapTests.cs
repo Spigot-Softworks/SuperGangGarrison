@@ -12,7 +12,7 @@ public sealed class ClassicBrowserMapTests
     [Fact]
     public void RestrictedPracticeRosterUsesOriginalsInClassicSectionAndDesktopKeepsItsRoster()
     {
-        var type = typeof(Game1).GetNestedType("PracticeSetupState", BindingFlags.NonPublic)!;
+        var type = typeof(Game1).GetNestedType("PracticeSetupState", BindingFlags.Public | BindingFlags.NonPublic)!;
         var method = type.GetMethod("BuildMapEntriesForEdition", BindingFlags.Public | BindingFlags.Static)!;
         var entries = (IList)method.Invoke(null, [true])!;
         var desktop = ((IEnumerable)method.Invoke(null, [false])!).Cast<object>().ToArray();

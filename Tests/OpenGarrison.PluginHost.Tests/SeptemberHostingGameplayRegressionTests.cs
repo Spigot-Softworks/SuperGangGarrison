@@ -13,7 +13,7 @@ namespace OpenGarrison.PluginHost.Tests;
 
 public sealed class SeptemberHostingGameplayRegressionTests
 {
-    private const BindingFlags Private = BindingFlags.NonPublic | BindingFlags.Instance;
+    private const BindingFlags Private = BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance;
 
     [Theory]
     [InlineData("redintelgate")]

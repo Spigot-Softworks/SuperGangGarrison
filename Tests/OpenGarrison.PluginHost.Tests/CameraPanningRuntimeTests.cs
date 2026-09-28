@@ -245,7 +245,7 @@ public sealed class CameraPanningRuntimeTests
         SetPrivateField(game,"_gameplayCameraTopLeft",camera);
         SetPrivateField(game,"_gameplayCameraPlayerPosition",player);
         var origin = (Vector2)typeof(Game1).GetMethod("GetGameplayInputAimOrigin",
-            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.Invoke(game,null)!;
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic)!.Invoke(game,null)!;
         var mouse = (player-camera)*zoom + new Vector2(100,0);
         var aimWorld = camera + mouse/zoom;
         var relative = aimWorld-origin;
@@ -311,7 +311,7 @@ public sealed class CameraPanningRuntimeTests
 
         var method = typeof(Game1).GetMethod(
             "GetGameplayInputCameraTopLeft",
-            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic)!;
         var cached = (Vector2)method.Invoke(game, [960, 540, 0, 0])!;
         var withDifferentMouse = (Vector2)method.Invoke(game, [780, 624, 779, 623])!;
 
@@ -328,7 +328,7 @@ public sealed class CameraPanningRuntimeTests
         SetPrivateField(game, "_builderEditorEnabled", false);
         var finalize = typeof(Game1).GetMethod(
             "FinalizeGameplayCameraTopLeft",
-            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic)!;
 
         var belowLeft = (Vector2)finalize.Invoke(game, [new Vector2(-10.6f, -20.6f), 960, 540, true])!;
         var aboveRight = (Vector2)finalize.Invoke(game, [new Vector2(63.6f, 227.6f), 960, 540, true])!;
@@ -356,7 +356,7 @@ public sealed class CameraPanningRuntimeTests
 
     private static void SetPrivateField(Game1 game, string name, object value)
     {
-        typeof(Game1).GetField(name, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+        typeof(Game1).GetField(name, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic)!
             .SetValue(game, value);
     }
 
@@ -383,7 +383,7 @@ public sealed class CameraPanningRuntimeTests
             false);
         typeof(SimulationWorld).GetMethod(
             "CombatTestSetLevel",
-            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic)!
             .Invoke(world, [level]);
         world.TeleportLocalPlayer(bounds.Width * 0.5f, bounds.Height * 0.5f);
         world.LocalPlayer.SetSpawnRoomState(false);

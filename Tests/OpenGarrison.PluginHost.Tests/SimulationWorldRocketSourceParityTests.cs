@@ -247,7 +247,7 @@ public sealed class SimulationWorldRocketSourceParityTests
 
     private static string? GetPlayerPresentationBodySpriteName(SimulationWorld world, PlayerEntity player)
     {
-        var method = typeof(SimulationWorld).GetMethod("GetPlayerPresentationBodySpriteName", BindingFlags.Static | BindingFlags.NonPublic);
+        var method = typeof(SimulationWorld).GetMethod("GetPlayerPresentationBodySpriteName", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         return (string?)method!.Invoke(null, [world, player]);
     }
