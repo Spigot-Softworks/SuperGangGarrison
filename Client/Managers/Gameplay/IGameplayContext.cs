@@ -426,7 +426,7 @@ public interface IGameplayContext
     void ObserveLastToDieBotReactionState();
     void ObserveLastToDieCombatFeedbackState();
     void ObservePendingWorldHealingEventsForHealingCharacterEffects();
-    void OnWindowTextInput(System.Object sender, Microsoft.Xna.Framework.TextInputEventArgs e);
+    void OnWindowTextInput(System.Object sender, TextInputEventArgs e);
     void OpenChat(bool teamOnly);
     void OpenGameplayClassSelection();
     void OpenInGameMenu();

@@ -1302,7 +1302,7 @@ public partial class Game1 : IAudioContext, IInputContext, IMenuContext, ISessio
     void IGameplayContext.ObserveLastToDieBotReactionState() { ObserveLastToDieBotReactionState(); }
     void IGameplayContext.ObserveLastToDieCombatFeedbackState() { ObserveLastToDieCombatFeedbackState(); }
     void IGameplayContext.ObservePendingWorldHealingEventsForHealingCharacterEffects() { ObservePendingWorldHealingEventsForHealingCharacterEffects(); }
-    void IGameplayContext.OnWindowTextInput(System.Object sender, Microsoft.Xna.Framework.TextInputEventArgs e) { OnWindowTextInput(sender, e); }
+    void IGameplayContext.OnWindowTextInput(System.Object sender, TextInputEventArgs e) { OnWindowTextInput(sender, e); }
     void IGameplayContext.OpenChat(bool teamOnly) { OpenChat(teamOnly); }
     void IGameplayContext.OpenGameplayClassSelection() { OpenGameplayClassSelection(); }
     void IGameplayContext.OpenInGameMenu() { OpenInGameMenu(); }
@@ -1571,6 +1571,8 @@ public partial class Game1 : IAudioContext, IInputContext, IMenuContext, ISessio
     bool IHudContext.TryResolveHudElement(string id, out OpenGarrison.Client.HudResolvedElement resolved) => TryResolveHudElement(id, out resolved);
     bool IHudContext.TryResolveHudElementEvenIfHidden(string id, out OpenGarrison.Client.HudResolvedElement resolved) => TryResolveHudElementEvenIfHidden(id, out resolved);
     void IHudContext.UpdateHudElementBounds(string id, Microsoft.Xna.Framework.Rectangle bounds) { UpdateHudElementBounds(id, bounds); }
+#if !BROWSER_KNI
     DiscordRPC.RichPresence IDiscordContext.BuildDiscordRichPresencePayload(System.DateTime startTimestampUtc) => BuildDiscordRichPresencePayload(startTimestampUtc);
+#endif
     string IDiscordContext.BuildDiscordRichPresenceState() => BuildDiscordRichPresenceState();
 }
