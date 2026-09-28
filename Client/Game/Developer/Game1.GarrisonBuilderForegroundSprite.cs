@@ -12,7 +12,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private static readonly Color GarrisonBuilderForegroundSpritePlaceholderColor = new(180, 120, 220, 220);
+    public static readonly Color GarrisonBuilderForegroundSpritePlaceholderColor = new(180, 120, 220, 220);
 
     private void SyncGarrisonBuilderForegroundSpriteResources()
     {
@@ -504,7 +504,7 @@ public partial class Game1
             && ForegroundSpriteMetadata.IsForegroundSpriteEntityType(entityType);
     }
 
-    private void GetGarrisonBuilderForegroundSpriteRelativeZSliderLayout(
+    public void GetGarrisonBuilderForegroundSpriteRelativeZSliderLayout(
         Rectangle rowBounds,
         string value,
         float textScale,

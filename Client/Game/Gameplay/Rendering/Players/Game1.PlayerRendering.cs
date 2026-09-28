@@ -13,7 +13,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private readonly record struct PlayerBodySpriteSelection(
+    public readonly record struct PlayerBodySpriteSelection(
         string? SpriteName,
         float AnimationImage,
         float BodyYOffset,
@@ -21,7 +21,7 @@ public partial class Game1
         bool DrawIntelUnderlay,
         bool IsHumiliated);
 
-    private readonly record struct RetainedDeadBodyVisual(
+    public readonly record struct RetainedDeadBodyVisual(
         int Id,
         int SourcePlayerId,
         PlayerClass ClassId,
@@ -35,7 +35,7 @@ public partial class Game1
         int TicksRemaining,
         string GameplayClassId = "");
 
-    private readonly record struct ImmediateNetworkDeadBodyVisual(
+    public readonly record struct ImmediateNetworkDeadBodyVisual(
         int SourcePlayerId,
         PlayerClass ClassId,
         PlayerTeam Team,
@@ -49,7 +49,7 @@ public partial class Game1
         string GameplayClassId = "",
         int RemainsSortKey = 0);
 
-    private enum RemainsDrawKind : byte
+    public enum RemainsDrawKind : byte
     {
         RetainedDeadBody = 0,
         ImmediateNetworkDeadBody = 1,
@@ -57,17 +57,17 @@ public partial class Game1
         WorldDeadBody = 3,
     }
 
-    private readonly record struct RemainsDrawEntry(int SortKey, RemainsDrawKind Kind, int Index);
+    public readonly record struct RemainsDrawEntry(int SortKey, RemainsDrawKind Kind, int Index);
 
-    private readonly Dictionary<int, RetainedDeadBodyVisual> _trackedDeadBodyVisuals = new();
-    private readonly List<RetainedDeadBodyVisual> _retainedDeadBodies = new();
-    private readonly List<int> _staleTrackedDeadBodyIds = new();
-    private readonly Dictionary<int, ImmediateNetworkDeadBodyVisual> _immediateNetworkDeadBodies = new();
-    private readonly List<int> _staleImmediateNetworkDeadBodyPlayerIds = new();
+    public readonly Dictionary<int, RetainedDeadBodyVisual> _trackedDeadBodyVisuals = new();
+    public readonly List<RetainedDeadBodyVisual> _retainedDeadBodies = new();
+    public readonly List<int> _staleTrackedDeadBodyIds = new();
+    public readonly Dictionary<int, ImmediateNetworkDeadBodyVisual> _immediateNetworkDeadBodies = new();
+    public readonly List<int> _staleImmediateNetworkDeadBodyPlayerIds = new();
     private readonly List<RemainsDrawEntry> _remainsDrawOrder = new();
     private int _remainsSortCeiling;
 
-    private readonly record struct WeaponRenderDefinition(
+    public readonly record struct WeaponRenderDefinition(
         string? NormalSpriteName,
         string? RecoilSpriteName,
         string? ReloadSpriteName,
@@ -95,14 +95,14 @@ public partial class Game1
         public bool IsFullTorsoReplacement => UseTorsoReplacement && !HasCompanionTorso;
     }
 
-    private readonly record struct WeaponAnimationOverlayDefinition(
+    public readonly record struct WeaponAnimationOverlayDefinition(
         string? CarrierSpriteName,
         string? OverlaySpriteName,
         float OffsetX = 0f,
         float OffsetY = 0f,
         float RotationDegrees = 0f);
 
-    private enum LeanDirection
+    public enum LeanDirection
     {
         None,
         Left,
@@ -132,7 +132,7 @@ public partial class Game1
     /// Player bounds in HUD/screen space (accounts for gameplay camera zoom).
     /// Use for overlays drawn outside the zoomed world sprite batch.
     /// </summary>
-    private Rectangle GetPlayerHudScreenBounds(PlayerEntity player, Vector2 renderPosition, Vector2 cameraPosition)
+    public Rectangle GetPlayerHudScreenBounds(PlayerEntity player, Vector2 renderPosition, Vector2 cameraPosition)
     {
         var zoom = GameplayCameraZoom;
         var spriteScreenOrigin = GetWorldHudScreenPosition(renderPosition, cameraPosition);
@@ -147,7 +147,7 @@ public partial class Game1
             Math.Max(1, screenBottom - screenTop));
     }
 
-    private static Vector2 GetRoundedPlayerSpriteOrigin(Vector2 renderPosition)
+    public static Vector2 GetRoundedPlayerSpriteOrigin(Vector2 renderPosition)
     {
         return RoundToSourcePixels(renderPosition);
     }
@@ -232,7 +232,7 @@ public partial class Game1
         _gameplayDeadBodyRenderController.AdvanceImmediateNetworkDeadBodies();
     }
 
-    private void QueueImmediateNetworkDeathPresentation(SnapshotMessage resolvedSnapshot, SnapshotDamageEvent damageEvent)
+    public void QueueImmediateNetworkDeathPresentation(SnapshotMessage resolvedSnapshot, SnapshotDamageEvent damageEvent)
     {
         _gameplayDeadBodyRenderController.QueueImmediateNetworkDeathPresentation(resolvedSnapshot, damageEvent);
     }
@@ -415,7 +415,7 @@ public partial class Game1
         return _gameplayWeaponRenderController.GetWeaponAnchorOrigin(weaponDefinition, currentSprite);
     }
 
-    private Vector2 GetWeaponShellSpawnOrigin(PlayerEntity player)
+    public Vector2 GetWeaponShellSpawnOrigin(PlayerEntity player)
     {
         return _gameplayWeaponRenderController.GetWeaponShellSpawnOrigin(player);
     }
@@ -440,12 +440,12 @@ public partial class Game1
         return _gameplayPlayerSpriteRenderController.IsPointBlockedForPlayer(player, x, y);
     }
 
-    private WeaponAnimationMode GetPlayerWeaponAnimationMode(PlayerEntity player)
+    public WeaponAnimationMode GetPlayerWeaponAnimationMode(PlayerEntity player)
     {
         return _gameplayWeaponRenderController.GetPlayerWeaponAnimationMode(player);
     }
 
-    private int GetWeaponSpriteFrameIndex(PlayerEntity player, WeaponAnimationMode weaponAnimationMode, WeaponRenderDefinition weaponDefinition, int frameCount)
+    public int GetWeaponSpriteFrameIndex(PlayerEntity player, WeaponAnimationMode weaponAnimationMode, WeaponRenderDefinition weaponDefinition, int frameCount)
     {
         return _gameplayWeaponRenderController.GetWeaponSpriteFrameIndex(player, weaponAnimationMode, weaponDefinition, frameCount);
     }
@@ -455,17 +455,17 @@ public partial class Game1
         return _gameplayWeaponRenderController.GetWeaponRenderDefinitionProxy(player);
     }
 
-    private static float GetSourceTicksAsSeconds(float ticks)
+    public static float GetSourceTicksAsSeconds(float ticks)
     {
         return GameplayWeaponRenderController.GetSourceTicksAsSecondsProxy(ticks);
     }
 
-    private static float GetPlayerFacingScale(PlayerEntity player)
+    public static float GetPlayerFacingScale(PlayerEntity player)
     {
         return GameplayPlayerSpriteRenderController.GetPlayerFacingScale(player);
     }
 
-    private static bool IsFacingLeftByAim(PlayerEntity player)
+    public static bool IsFacingLeftByAim(PlayerEntity player)
     {
         return GameplayPlayerSpriteRenderController.IsFacingLeftByAim(player);
     }
@@ -583,12 +583,12 @@ public partial class Game1
             bodySelection);
     }
 
-    private IEnumerable<PlayerEntity> EnumerateRenderablePlayers()
+    public IEnumerable<PlayerEntity> EnumerateRenderablePlayers()
     {
         return _gameplayPlayerRenderController.EnumerateRenderablePlayers();
     }
 
-    private static string GetHudPlayerLabel(PlayerEntity player)
+    public static string GetHudPlayerLabel(PlayerEntity player)
     {
         return GameplayPlayerRenderController.GetHudPlayerLabel(player);
     }

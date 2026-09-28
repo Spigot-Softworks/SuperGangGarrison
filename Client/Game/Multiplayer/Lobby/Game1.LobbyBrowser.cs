@@ -22,39 +22,39 @@ public partial class Game1
 
     private static readonly byte[] LobbyProtocolUuidBytes = ParseProtocolUuid(LobbyProtocolUuidString);
 
-    private readonly List<LobbyBrowserEntry> _lobbyBrowserEntries = new();
+    public readonly List<LobbyBrowserEntry> _lobbyBrowserEntries = new();
     private UdpClient? _lobbyBrowserClient;
     private TcpClient? _lobbyBrowserLobbyClient;
     private Task? _lobbyBrowserLobbyConnectTask;
-    private Task<List<LobbyRegistryServerEntry>>? _lobbyBrowserRegistryRequestTask;
+    public Task<List<LobbyRegistryServerEntry>>? _lobbyBrowserRegistryRequestTask;
     private Task<IReadOnlyList<LegacyGg2LobbyServer>>? _legacyGg2LobbyRequestTask;
     private CancellationTokenSource? _legacyGg2LobbyRequestCancellation;
     private readonly List<byte> _lobbyBrowserLobbyPending = new();
     private readonly byte[] _lobbyBrowserLobbyScratch = new byte[4096];
     private int _lobbyBrowserLobbyExpectedServers = -1;
     private int _lobbyBrowserLobbyServersRead;
-    private long _lobbyBrowserLobbyStartedAtMilliseconds;
+    public long _lobbyBrowserLobbyStartedAtMilliseconds;
     private bool _lobbyBrowserLobbyHandshakeSent;
-    private LobbyBrowserMode _lobbyBrowserMode = LobbyBrowserMode.Join;
-    private LobbyBrowserSource _lobbyBrowserSource = LobbyBrowserSource.Sgg;
-    private LobbyBrowserPage _lobbyBrowserPage = LobbyBrowserPage.List;
-    private LobbyBrowserEntry? _lobbyBrowserDetailsEntry;
-    private int _lobbyBrowserScrollOffset;
+    public LobbyBrowserMode _lobbyBrowserMode = LobbyBrowserMode.Join;
+    public LobbyBrowserSource _lobbyBrowserSource = LobbyBrowserSource.Sgg;
+    public LobbyBrowserPage _lobbyBrowserPage = LobbyBrowserPage.List;
+    public LobbyBrowserEntry? _lobbyBrowserDetailsEntry;
+    public int _lobbyBrowserScrollOffset;
     private ServerDetailsResponseMessage? _lobbyBrowserDetailsResponse;
-    private string _lobbyBrowserDetailsStatus = string.Empty;
+    public string _lobbyBrowserDetailsStatus = string.Empty;
     private bool _lobbyBrowserDetailsRequestInFlight;
     private long _lobbyBrowserDetailsRequestStartedAtMilliseconds;
     private INetworkClientMessageTransport? _lobbyBrowserDetailsTransport;
 
-    private string LobbyServerHost => string.IsNullOrWhiteSpace(_clientSettings.LobbyHost)
+    public string LobbyServerHost => string.IsNullOrWhiteSpace(_clientSettings.LobbyHost)
         ? OpenGarrisonPreferencesDocument.DefaultLobbyHost
         : _clientSettings.LobbyHost.Trim();
 
-    private int LobbyServerPort => _clientSettings.LobbyPort > 0
+    public int LobbyServerPort => _clientSettings.LobbyPort > 0
         ? _clientSettings.LobbyPort
         : OpenGarrisonPreferencesDocument.DefaultLobbyPort;
 
-    private string LobbyRegistryEndpoint => ResolveLobbyRegistryEndpoint(_clientSettings.LobbyHost, _clientSettings.LobbyPort);
+    public string LobbyRegistryEndpoint => ResolveLobbyRegistryEndpoint(_clientSettings.LobbyHost, _clientSettings.LobbyPort);
 
     private static byte[] ParseProtocolUuid(string uuid)
     {
@@ -85,7 +85,7 @@ public partial class Game1
         return bytes;
     }
 
-    private sealed class LobbyBrowserEntry(string displayName, NetworkEndpoint endpoint)
+    public sealed class LobbyBrowserEntry(string displayName, NetworkEndpoint endpoint)
     {
         public string DisplayName { get; set; } = displayName;
         public NetworkEndpoint Endpoint { get; set; } = endpoint;
@@ -113,23 +113,23 @@ public partial class Game1
         public bool IsLobbyEntry { get; set; }
     }
 
-    private enum LobbyBrowserMode
+    public enum LobbyBrowserMode
     {
         Join,
         Watch,
     }
 
-    private enum LobbyBrowserSource
+    public enum LobbyBrowserSource
     {
         Sgg,
         Gg2,
     }
 
-    private enum LobbyBrowserPage
+    public enum LobbyBrowserPage
     {
         List,
         Details,
     }
 
-    private readonly record struct LobbyBrowserTarget(string DisplayName, NetworkEndpoint Endpoint);
+    public readonly record struct LobbyBrowserTarget(string DisplayName, NetworkEndpoint Endpoint);
 }

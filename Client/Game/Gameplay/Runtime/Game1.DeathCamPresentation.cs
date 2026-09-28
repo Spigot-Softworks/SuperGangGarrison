@@ -6,12 +6,12 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private const int DeathCamFocusDelayTicks = 60;
-    private const float DeathCamZoomStart = 1f;
-    private const float DeathCamZoomEnd = 2f;
-    private const float DeathCamZoomTicks = 10f;
+    public const int DeathCamFocusDelayTicks = 60;
+    public const float DeathCamZoomStart = 1f;
+    public const float DeathCamZoomEnd = 2f;
+    public const float DeathCamZoomTicks = 10f;
 
-    private RenderTarget2D? _deathCamCaptureTarget;
+    public RenderTarget2D? _deathCamCaptureTarget;
     private bool _deathCamCaptureValid;
     private Vector2 _lastLiveCameraTopLeft;
     private Vector2 _deathCamEntryCameraTopLeft;
@@ -32,7 +32,7 @@ public partial class Game1
         return deathCam.InitialTicks > 0 ? deathCam.InitialTicks : deathCam.RemainingTicks;
     }
 
-    private static int GetDeathCamElapsedTicks(LocalDeathCamState deathCam)
+    public static int GetDeathCamElapsedTicks(LocalDeathCamState deathCam)
     {
         return Math.Max(0, GetDeathCamInitialTicks(deathCam) - deathCam.RemainingTicks);
     }
@@ -137,7 +137,7 @@ public partial class Game1
         _deathCamCaptureValid = false;
     }
 
-    private void PrepareDeathCamCaptureIfNeeded(int viewportWidth, int viewportHeight)
+    public void PrepareDeathCamCaptureIfNeeded(int viewportWidth, int viewportHeight)
     {
         if (!IsDeathCamPresentationActive())
         {
@@ -167,7 +167,7 @@ public partial class Game1
         _deathCamCaptureValid = true;
     }
 
-    private bool DrawDeathCamCaptureOverlay(int viewportWidth, int viewportHeight)
+    public bool DrawDeathCamCaptureOverlay(int viewportWidth, int viewportHeight)
     {
         if (!IsDeathCamPresentationActive() || !_deathCamCaptureValid || _deathCamCaptureTarget is null)
         {

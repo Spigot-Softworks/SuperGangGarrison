@@ -7,9 +7,9 @@ using OpenGarrison.Protocol;
 
 namespace OpenGarrison.Client;
 
-internal sealed class VoiceChatClient : IDisposable
+public sealed class VoiceChatClient : IDisposable
 {
-    internal sealed class Speaker(AudioRelayMessage message) : IDisposable
+    public sealed class Speaker(AudioRelayMessage message) : IDisposable
     {
         public byte Slot { get; } = message.SpeakerSlot;
         public uint StreamId { get; } = message.StreamId;

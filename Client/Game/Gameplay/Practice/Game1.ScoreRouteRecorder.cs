@@ -13,8 +13,8 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private const int BotBrainCorridorRecorderSampleStrideTicks = 6;
-    private const float BotBrainCorridorRecorderSampleDistance = 48f;
+    public const int BotBrainCorridorRecorderSampleStrideTicks = 6;
+    public const float BotBrainCorridorRecorderSampleDistance = 48f;
 
     private static readonly JsonSerializerOptions BotBrainCorridorRecorderJsonOptions = new()
     {
@@ -41,7 +41,7 @@ public partial class Game1
         return true;
     }
 
-    private void UpdateBotBrainCorridorRecorderHotkeys(KeyboardState keyboard)
+    public void UpdateBotBrainCorridorRecorderHotkeys(KeyboardState keyboard)
     {
         if (_consoleOpen || _mainMenuOpen)
         {
@@ -81,7 +81,7 @@ public partial class Game1
         }
     }
 
-    private void SetScoreRouteRecorderCaptureInput(PlayerInputSnapshot gameplayInput)
+    public void SetScoreRouteRecorderCaptureInput(PlayerInputSnapshot gameplayInput)
     {
         _scoreRouteRecorderLastInput = gameplayInput;
     }

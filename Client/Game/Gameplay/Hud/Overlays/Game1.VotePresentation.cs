@@ -11,9 +11,9 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private const string VotePresentationSourcePluginId = "chat.voting";
-    private const string VotePresentationTargetPluginId = "open.garrison.client";
-    private const string VotePresentationMessageType = "vote-event";
+    public const string VotePresentationSourcePluginId = "chat.voting";
+    public const string VotePresentationTargetPluginId = "open.garrison.client";
+    public const string VotePresentationMessageType = "vote-event";
     private const int VotePresentationResultTicks = 180;
     private const int VotePresentationFlashTicks = 24;
 
@@ -219,7 +219,7 @@ public partial class Game1
         }
     }
 
-    private void ResetVotePresentation()
+    public void ResetVotePresentation()
     {
         _votePresentationState = null;
         _lastVotePresentationVoteId = 0;
@@ -227,7 +227,7 @@ public partial class Game1
         CloseVoteMenu();
     }
 
-    private void TryHandleVoteShortcut(KeyboardState keyboard, MouseState mouse)
+    public void TryHandleVoteShortcut(KeyboardState keyboard, MouseState mouse)
     {
         var blocked = _networkClient.IsReplayConnection
             || (!_networkClient.IsConnected && !IsPracticeSessionActive)
@@ -312,7 +312,7 @@ public partial class Game1
         }
     }
 
-    private void DrawVotePresentationOverlay()
+    public void DrawVotePresentationOverlay()
     {
         var state = _votePresentationState;
         if (state is null)

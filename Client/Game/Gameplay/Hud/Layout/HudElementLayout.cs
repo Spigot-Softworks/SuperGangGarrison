@@ -5,7 +5,7 @@ using Microsoft.Xna.Framework;
 
 namespace OpenGarrison.Client;
 
-internal sealed record HudElementLayout(
+public sealed record HudElementLayout(
     string Id,
     HudAnchor Anchor,
     Vector2 Offset,
@@ -27,7 +27,7 @@ internal sealed record HudElementLayout(
     }
 }
 
-internal sealed class HudElementLayoutOverride
+public sealed class HudElementLayoutOverride
 {
     public HudAnchor? Anchor { get; set; }
 
@@ -40,7 +40,7 @@ internal sealed class HudElementLayoutOverride
     public bool? Visible { get; set; }
 }
 
-internal readonly record struct HudResolvedElement(
+public readonly record struct HudResolvedElement(
     HudElementLayout Layout,
     Vector2 Origin,
     Rectangle Bounds);

@@ -5,5 +5,5 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private static bool IsRestrictedBrowserEdition => ClientDistribution.IsRestricted;
+    public static bool IsRestrictedBrowserEdition => ClientDistribution.IsRestricted;
 }

@@ -7,7 +7,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private static HostedServerLaunchOptions CreateHostedServerLaunchOptions(
+    public static HostedServerLaunchOptions CreateHostedServerLaunchOptions(
         string serverName,
         int port,
         int maxPlayers,
@@ -40,7 +40,7 @@ public partial class Game1
     }
 
 
-    private bool TryStartHostedServerInTerminal(
+    public bool TryStartHostedServerInTerminal(
         string serverName,
         int port,
         int maxPlayers,
@@ -73,7 +73,7 @@ public partial class Game1
         return _hostedServerRuntime.TryStartInTerminal(launchOptions, out error);
     }
 
-    private void StopHostedServer()
+    public void StopHostedServer()
     {
         _hostedServerRuntime.Stop();
         _hostedLastToDieSoloSimulationPauseState = null;
@@ -81,12 +81,12 @@ public partial class Game1
         ClearHostedSocialPresenceEndpoint();
     }
 
-    private void AppendHostedServerLog(string source, string message)
+    public void AppendHostedServerLog(string source, string message)
     {
         _hostedServerConsole.AppendLog(source, message);
     }
 
-    private void InitializeHostedServerConsole(bool reset)
+    public void InitializeHostedServerConsole(bool reset)
     {
         if (reset)
         {
@@ -94,7 +94,7 @@ public partial class Game1
         }
     }
 
-    private string BuildHostedServerExitMessage()
+    public string BuildHostedServerExitMessage()
     {
         return _hostedServerConsole.BuildExitMessage();
     }
@@ -149,7 +149,7 @@ public partial class Game1
         return true;
     }
 
-    private void ClearHostedServerConsoleView()
+    public void ClearHostedServerConsoleView()
     {
         _hostedServerConsole.ClearView();
     }
@@ -159,7 +159,7 @@ public partial class Game1
         return _hostedServerConsole.CreateSnapshot();
     }
 
-    private bool TryResumeHostedServerSession(bool loadExistingLog, int? expectedProcessId = null)
+    public bool TryResumeHostedServerSession(bool loadExistingLog, int? expectedProcessId = null)
     {
         return _hostedServerRuntime.TryResumeSession(loadExistingLog, expectedProcessId);
     }

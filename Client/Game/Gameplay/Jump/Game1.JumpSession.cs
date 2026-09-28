@@ -12,10 +12,10 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private static readonly string[] JumpMapPrefixes = ["dj_", "rr_", "jt_", "rj_"];
-    private static readonly PlayerClass[] JumpAllowedClasses = [PlayerClass.Soldier, PlayerClass.Demoman];
+    public static readonly string[] JumpMapPrefixes = ["dj_", "rr_", "jt_", "rj_"];
+    public static readonly PlayerClass[] JumpAllowedClasses = [PlayerClass.Soldier, PlayerClass.Demoman];
 
-    private sealed class JumpRunState
+    public sealed class JumpRunState
     {
         public JumpRunState(string levelName, string displayName, PlayerClass classId)
         {
@@ -33,31 +33,31 @@ public partial class Game1
         public int ElapsedTicks { get; set; }
     }
 
-    private bool _jumpMenuOpen;
-    private int _jumpMenuHoverIndex = -1;
-    private List<PracticeMapEntry> _jumpMapEntries = new();
-    private int _jumpMapIndex;
+    public bool _jumpMenuOpen;
+    public int _jumpMenuHoverIndex = -1;
+    public List<PracticeMapEntry> _jumpMapEntries = new();
+    public int _jumpMapIndex;
     private PlayerClass _jumpSelectedClass = PlayerClass.Soldier;
     private JumpRunState? _jumpRun;
 
-    private bool IsJumpSessionActive => _gameplaySessionKind == GameplaySessionKind.Jump;
+    public bool IsJumpSessionActive => _gameplaySessionKind == GameplaySessionKind.Jump;
 
     private void OpenJumpMenu(string? statusMessage = null)
     {
-        _mainMenuOverlayStateController.OpenJumpMenu(statusMessage);
+        _menuManager.MainMenuOverlayState.OpenJumpMenu(statusMessage);
     }
 
     private void CloseJumpMenu(bool clearStatus = false)
     {
-        _mainMenuOverlayStateController.CloseJumpMenu(clearStatus);
+        _menuManager.MainMenuOverlayState.CloseJumpMenu(clearStatus);
     }
 
-    private void ResetJumpState()
+    public void ResetJumpState()
     {
         _jumpRun = null;
     }
 
-    private void PrepareJumpMenuMapEntries()
+    public void PrepareJumpMenuMapEntries()
     {
         var previousLevelName = _jumpMapIndex >= 0 && _jumpMapIndex < _jumpMapEntries.Count
             ? _jumpMapEntries[_jumpMapIndex].LevelName
@@ -92,7 +92,7 @@ public partial class Game1
         return JumpMapPrefixes.Any(prefix => levelName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
     }
 
-    private void UpdateJumpMenu(KeyboardState keyboard, MouseState mouse)
+    public void UpdateJumpMenu(KeyboardState keyboard, MouseState mouse)
     {
         var buttonLabels = GetJumpMenuButtonLabels();
         if (buttonLabels.Length == 0)
@@ -280,7 +280,7 @@ public partial class Game1
             DisableSelfDamage = true,
             EnableSelfDamageHealing = false,
         };
-        if (!_gameplaySessionController.TryBeginOfflineBotSession(
+        if (!_gameplayManager.Session.TryBeginOfflineBotSession(
                 mapEntry.LevelName,
                 GameplaySessionKind.Jump,
                 SimulationConfig.DefaultTicksPerSecond,
@@ -312,7 +312,7 @@ public partial class Game1
         _world.CompleteLocalPlayerJoin(playerClass);
     }
 
-    private void DrawJumpMenu()
+    public void DrawJumpMenu()
     {
         var viewportWidth = ViewportWidth;
         var viewportHeight = ViewportHeight;
@@ -324,7 +324,7 @@ public partial class Game1
             var barY = viewportHeight - bottomBarHeight;
             var bottomBarBounds = new Rectangle(0, barY, viewportWidth, bottomBarHeight);
             _spriteBatch.Draw(_pixel, bottomBarBounds, new Color(0x57, 0x4f, 0x47));
-            _menuBottomBarRunners.Draw(bottomBarBounds);
+            _menuManager.MenuBottomBarRunners.Draw(bottomBarBounds);
         }
 
         var buttonLabels = GetJumpMenuButtonLabels();

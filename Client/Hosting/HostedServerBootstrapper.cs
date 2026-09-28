@@ -12,7 +12,7 @@ namespace OpenGarrison.Client;
 internal sealed record HostedServerLaunchTarget(string FileName, string ArgumentsPrefix, string WorkingDirectory);
 internal sealed record HostedServerProcessLogPaths(string StdOutPath, string StdErrPath);
 
-internal sealed record HostedServerLaunchOptions(
+public sealed record HostedServerLaunchOptions(
     string ConfigPath,
     string ServerName,
     int Port,

@@ -13,10 +13,10 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private const int PracticeBotThinkBatchSizeSmallRoster = 1;
-    private const int PracticeBotThinkBatchSizeMediumRoster = 2;
-    private const int PracticeBotThinkBatchSizeLargeRoster = 3;
-    private const int BrowserPracticeBotThinkBatchSizeSmallRoster = 1;
+    public const int PracticeBotThinkBatchSizeSmallRoster = 1;
+    public const int PracticeBotThinkBatchSizeMediumRoster = 2;
+    public const int PracticeBotThinkBatchSizeLargeRoster = 3;
+    public const int BrowserPracticeBotThinkBatchSizeSmallRoster = 1;
     private const int BrowserPracticeBotThinkBatchSizeMediumRoster = 1;
     private const int BrowserPracticeBotThinkBatchSizeLargeRoster = 2;
     private const int PracticeBotHeldCombatInputReuseTicks = 6;
@@ -148,7 +148,7 @@ public partial class Game1
         public string DisplayName { get; }
     }
 
-    private void ResetPracticeBotManagerState(bool releaseWorldSlots)
+    public void ResetPracticeBotManagerState(bool releaseWorldSlots)
     {
         ClearPracticeBotSpawnOverrides(_practiceBotSlots.Keys);
         if (releaseWorldSlots)
@@ -164,7 +164,7 @@ public partial class Game1
         ResetPracticeBotControllerState();
     }
 
-    private void SyncPracticeBotRoster(PlayerTeam localTeam)
+    public void SyncPracticeBotRoster(PlayerTeam localTeam)
     {
         if (!IsOfflineBotSessionActive)
         {
@@ -541,12 +541,12 @@ public partial class Game1
                 || levelName.Contains(restrictedMapName, StringComparison.OrdinalIgnoreCase));
     }
 
-    private void InitializePracticeBotNamePoolForMatch()
+    public void InitializePracticeBotNamePoolForMatch()
     {
         _practiceBotDisplayNamePool.Reset();
     }
 
-    private void ClearManualPracticeBotRequests()
+    public void ClearManualPracticeBotRequests()
     {
         _manualPracticeBotRequests.Clear();
     }

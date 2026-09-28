@@ -18,7 +18,7 @@ public partial class Game1
 {
     private const string LegacyLobbyHost = "OpenGarrison.game-host.org";
 
-    private void StartLobbyBrowserRegistryRequest()
+    public void StartLobbyBrowserRegistryRequest()
     {
         _lobbyBrowserRegistryRequestTask = LoadLobbyRegistryEntriesAsync(LobbyRegistryEndpoint);
     }
@@ -111,7 +111,7 @@ public partial class Game1
         return string.Equals(entryBuildVersion, currentBuildVersion, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static void ApplyLobbyRegistryMetadata(LobbyBrowserEntry lobbyEntry, LobbyRegistryServerEntry registryEntry)
+    public static void ApplyLobbyRegistryMetadata(LobbyBrowserEntry lobbyEntry, LobbyRegistryServerEntry registryEntry)
     {
         lobbyEntry.CanJoinDirectly = lobbyEntry.Endpoint.TryResolveForCurrentRuntime(out _, out _, out _);
         lobbyEntry.HasTimedOut = false;
@@ -292,7 +292,7 @@ public partial class Game1
         public List<LobbyRegistryServerEntry> Servers { get; set; } = [];
     }
 
-    private sealed class LobbyRegistryServerEntry
+    public sealed class LobbyRegistryServerEntry
     {
         [JsonPropertyName("name")]
         public string Name { get; set; } = string.Empty;

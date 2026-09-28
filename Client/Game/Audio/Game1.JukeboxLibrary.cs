@@ -14,16 +14,16 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private bool _jukeboxMenuOpen;
-    private SessionJukeboxPlayer? _localJukebox;
-    private Task? _jukeboxLibraryLoad;
-    private bool _jukeboxLibraryDirty = true;
-    private string[] _jukeboxTracks = [];
-    private int _jukeboxTrackIndex;
-    private static string JukeboxDirectory => Path.Combine(RuntimePaths.ConfigDirectory, "jukebox");
-    private bool CanControlSessionJukebox => IsEmbeddedSessionOwner || IsPracticeSessionActive && !_networkClient.IsConnected;
+    public bool _jukeboxMenuOpen;
+    public SessionJukeboxPlayer? _localJukebox;
+    public Task? _jukeboxLibraryLoad;
+    public bool _jukeboxLibraryDirty = true;
+    public string[] _jukeboxTracks = [];
+    public int _jukeboxTrackIndex;
+    public static string JukeboxDirectory => Path.Combine(RuntimePaths.ConfigDirectory, "jukebox");
+    public bool CanControlSessionJukebox => IsEmbeddedSessionOwner || IsPracticeSessionActive && !_networkClient.IsConnected;
 
-    private void ManageJukeboxLibrary()
+    public void ManageJukeboxLibrary()
     {
         if (OperatingSystem.IsBrowser()) { _jukeboxLibraryDirty = true; BrowserJukeboxStore.ManageLibrary?.Invoke(); return; }
         try
@@ -33,7 +33,7 @@ public partial class Game1
         }
         catch (Exception ex) { _menuStatusMessage = "Could not open your music folder: " + ex.Message; }
     }
-    private void OpenSessionJukebox()
+    public void OpenSessionJukebox()
     {
         _jukeboxMenuOpen = true; _inGameMenuHoverIndex = 0;
         if (OperatingSystem.IsBrowser() && CanControlSessionJukebox && _jukeboxLibraryDirty
@@ -73,7 +73,7 @@ public partial class Game1
         _jukeboxTracks = ExecuteSessionJukebox("list").Where(line => line.Length > 0 && char.IsAsciiDigit(line[0])).ToArray();
         _jukeboxTrackIndex = Math.Clamp(_jukeboxTrackIndex, 0, Math.Max(0, _jukeboxTracks.Length - 1));
     }
-    private List<MenuPageAction> GetSessionJukeboxActions()
+    public List<MenuPageAction> GetSessionJukeboxActions()
     {
         if (_jukeboxLibraryLoad is { IsCompleted: true } load)
         {
@@ -109,7 +109,7 @@ public partial class Game1
         actions.Add(new("Back", () => { _jukeboxMenuOpen = false; _inGameMenuHoverIndex = 0; }));
         return actions;
     }
-    private void StopLocalJukebox()
+    public void StopLocalJukebox()
     {
         _localJukebox?.Dispose(); _localJukebox = null;
         _jukeboxMenuOpen = false;

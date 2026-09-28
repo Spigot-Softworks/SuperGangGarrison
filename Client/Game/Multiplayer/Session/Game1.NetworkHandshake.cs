@@ -8,7 +8,7 @@ public partial class Game1
 {
     private void HandleWelcomeMessage(WelcomeMessage welcome)
     {
-        _gameplaySessionController.HandleWelcomeMessage(welcome);
+        _gameplayManager.Session.HandleWelcomeMessage(welcome);
     }
 
     private void HandleConnectionDeniedMessage(ConnectionDeniedMessage denied)

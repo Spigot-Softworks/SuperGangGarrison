@@ -12,7 +12,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private void ProcessNetworkMessages()
+    public void ProcessNetworkMessages()
     {
         UpdateGameplayAccountAttach();
         var suppressReplayCatchUpEvents = _replaySeekCatchUpActive;
@@ -155,7 +155,7 @@ public partial class Game1
                 return;
             }
 
-            if (_gameplaySessionController.TryAdvancePendingConnectionCandidate(disconnectReason))
+            if (_gameplayManager.Session.TryAdvancePendingConnectionCandidate(disconnectReason))
             {
                 return;
             }

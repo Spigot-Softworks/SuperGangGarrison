@@ -12,7 +12,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private void DrawBubbleMenuHud()
+    public void DrawBubbleMenuHud()
     {
         if (_bubbleMenuKind == BubbleMenuKind.None)
         {
@@ -57,7 +57,7 @@ public partial class Game1
         TryDrawScreenSprite(spriteName, frameIndex, new Vector2(_bubbleMenuX, viewportHeight / 2f), Color.White * _bubbleMenuAlpha, Vector2.One);
     }
 
-    private void DrawCustomBubbleMenuHud(int viewportHeight)
+    public void DrawCustomBubbleMenuHud(int viewportHeight)
     {
         var center = new Vector2(_bubbleMenuX + 76f, viewportHeight / 2f);
         for (var slotIndex = 0; slotIndex < CustomBubbleDocument.SlotCount; slotIndex += 1)
@@ -135,7 +135,7 @@ public partial class Game1
         DrawHudTextCentered((slotIndex + 1).ToString(CultureInfo.InvariantCulture), new Vector2(outlineBounds.X + 9f, outlineBounds.Y + 9f), Color.White * alpha, 1f);
     }
 
-    private void UpdateBubbleMenuState(KeyboardState keyboard, MouseState mouse)
+    public void UpdateBubbleMenuState(KeyboardState keyboard, MouseState mouse)
     {
         TryHandleBinocularsPlayerPing(mouse);
 
@@ -300,7 +300,7 @@ public partial class Game1
         }
     }
 
-    private void OpenBubbleMenu(BubbleMenuKind kind)
+    public void OpenBubbleMenu(BubbleMenuKind kind)
     {
         if (_bubbleMenuKind == kind && !_bubbleMenuClosing)
         {
@@ -576,7 +576,7 @@ public partial class Game1
         return null;
     }
 
-    private void ApplyBubbleMenuFrame(BubbleMenuKind kind, int bubbleFrame, bool keepMenuOpen)
+    public void ApplyBubbleMenuFrame(BubbleMenuKind kind, int bubbleFrame, bool keepMenuOpen)
     {
         if (bubbleFrame < 0)
         {
@@ -592,7 +592,7 @@ public partial class Game1
         }
     }
 
-    private void ApplyRecentBubbleFrame(BubbleMenuKind kind)
+    public void ApplyRecentBubbleFrame(BubbleMenuKind kind)
     {
         var recentBubbleFrame = GetRecentBubbleFrame(kind);
         if (recentBubbleFrame >= 0)
@@ -601,7 +601,7 @@ public partial class Game1
         }
     }
 
-    private int GetRecentBubbleFrame(BubbleMenuKind kind)
+    public int GetRecentBubbleFrame(BubbleMenuKind kind)
     {
         return kind switch
         {
@@ -613,7 +613,7 @@ public partial class Game1
         };
     }
 
-    private void SetRecentBubbleFrame(BubbleMenuKind kind, int bubbleFrame)
+    public void SetRecentBubbleFrame(BubbleMenuKind kind, int bubbleFrame)
     {
         switch (kind)
         {
@@ -666,7 +666,7 @@ public partial class Game1
         return RadialWheelSelection.GetSlot(GetBubbleWheelPointerDirectionDegrees(mouse), GetBubbleMenuPointerDistanceFromCenter(mouse), 9);
     }
 
-    private static ClientBubbleMenuKind ToClientBubbleMenuKind(BubbleMenuKind kind)
+    public static ClientBubbleMenuKind ToClientBubbleMenuKind(BubbleMenuKind kind)
     {
         return kind switch
         {

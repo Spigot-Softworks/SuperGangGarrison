@@ -13,7 +13,7 @@ using OpenGarrison.Protocol;
 
 namespace OpenGarrison.Client;
 
-internal sealed class NetworkGameClient : IDisposable
+public sealed class NetworkGameClient : IDisposable
 {
     public readonly record struct ReplayPlaybackState(
         bool IsPaused,
@@ -25,7 +25,7 @@ internal sealed class NetworkGameClient : IDisposable
         int DurationMilliseconds,
         bool IsSeekCatchUpPending);
 
-    internal readonly record struct ReceiveDiagnostics(
+    public readonly record struct ReceiveDiagnostics(
         int PacketsRead,
         int BytesRead,
         int ReleasedMessages,

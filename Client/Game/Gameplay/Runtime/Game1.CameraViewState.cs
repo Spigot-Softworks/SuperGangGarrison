@@ -7,19 +7,19 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private enum CameraPanningMode
+    public enum CameraPanningMode
     {
         Disabled,
         NormalGameplay,
     }
 
-    private const float SmoothCameraSnapDeltaPixels = 160f;
-    private const float SmoothCameraFastCatchUpRate = 28f;
-    private const float SmoothCameraSlowCatchUpRate = 10f;
-    private const float SmoothCameraFastMaxStepPixelsPerSecond = 16000f;
-    private const float SmoothCameraSlowMaxStepPixelsPerSecond = 7200f;
-    private const float SmoothCameraMinLookaheadSeconds = 0.035f;
-    private const float SmoothCameraMaxLookaheadSeconds = 0.12f;
+    public const float SmoothCameraSnapDeltaPixels = 160f;
+    public const float SmoothCameraFastCatchUpRate = 28f;
+    public const float SmoothCameraSlowCatchUpRate = 10f;
+    public const float SmoothCameraFastMaxStepPixelsPerSecond = 16000f;
+    public const float SmoothCameraSlowMaxStepPixelsPerSecond = 7200f;
+    public const float SmoothCameraMinLookaheadSeconds = 0.035f;
+    public const float SmoothCameraMaxLookaheadSeconds = 0.12f;
     private const float SmoothCameraMaxHorizontalLookaheadPixels = 36f;
     private const float SmoothCameraMaxVerticalLookaheadPixels = 18f;
     private const float SmoothCameraMinVerticalWindowPixels = 0.15f;
@@ -43,7 +43,7 @@ public partial class Game1
     private float GameplayCameraZoom => GameplayCameraZoomLevels[
         Math.Clamp(_gameplayCameraZoomIndex, 0, GameplayCameraZoomLevels.Length - 1)];
 
-    private Point GetGameplayWorldViewport(int viewportWidth, int viewportHeight)
+    public Point GetGameplayWorldViewport(int viewportWidth, int viewportHeight)
     {
         var zoom = GameplayCameraZoom;
         return new Point(
@@ -51,14 +51,14 @@ public partial class Game1
             Math.Max(1, (int)MathF.Floor(viewportHeight / zoom)));
     }
 
-    private void CycleGameplayCameraZoom()
+    public void CycleGameplayCameraZoom()
     {
         _gameplayCameraZoomIndex = (_gameplayCameraZoomIndex + 1) % GameplayCameraZoomLevels.Length;
         ResetSmoothCameraState();
         _hasGameplayCameraTopLeft = false;
     }
 
-    private Vector2 GetCameraTopLeft(int viewportWidth, int viewportHeight, int mouseX, int mouseY)
+    public Vector2 GetCameraTopLeft(int viewportWidth, int viewportHeight, int mouseX, int mouseY)
     {
         var worldViewport = GetGameplayWorldViewport(viewportWidth, viewportHeight);
         UpdateCameraPanningState(viewportWidth, viewportHeight, mouseX, mouseY, advance: true);
@@ -83,12 +83,12 @@ public partial class Game1
         return cameraTopLeft;
     }
 
-    private Vector2 GetGameplayInputAimOrigin()
+    public Vector2 GetGameplayInputAimOrigin()
         => _hasGameplayCameraTopLeft
             ? _gameplayCameraPlayerPosition
             : GetRenderPosition(_world.LocalPlayer, allowInterpolation: true);
 
-    private Vector2 GetGameplayInputCameraTopLeft(int viewportWidth, int viewportHeight, int mouseX, int mouseY)
+    public Vector2 GetGameplayInputCameraTopLeft(int viewportWidth, int viewportHeight, int mouseX, int mouseY)
     {
         if (_hasGameplayCameraTopLeft)
         {
@@ -98,7 +98,7 @@ public partial class Game1
         return GetUntrackedCameraTopLeft(viewportWidth, viewportHeight, mouseX, mouseY);
     }
 
-    private Vector2 GetUntrackedCameraTopLeft(int viewportWidth, int viewportHeight, int mouseX, int mouseY)
+    public Vector2 GetUntrackedCameraTopLeft(int viewportWidth, int viewportHeight, int mouseX, int mouseY)
     {
         var worldViewport = GetGameplayWorldViewport(viewportWidth, viewportHeight);
         var cameraTopLeft = CalculateBaseCameraTopLeft(
@@ -286,7 +286,7 @@ public partial class Game1
             advance: false);
     }
 
-    private void ResetCameraPanningState()
+    public void ResetCameraPanningState()
     {
         _cameraPanningState.Reset();
         _cameraPanningMode = CameraPanningMode.Disabled;
@@ -511,7 +511,7 @@ public partial class Game1
         return _smoothCamera;
     }
 
-    private void ResetSmoothCameraState()
+    public void ResetSmoothCameraState()
     {
         _hasSmoothCamera = false;
         _lastSmoothCameraUpdateClockSeconds = -1d;
@@ -521,7 +521,7 @@ public partial class Game1
         _smoothCameraRenderingActive = false;
     }
 
-    private void ResetSmoothCameraState(Vector2 position)
+    public void ResetSmoothCameraState(Vector2 position)
     {
         _smoothCamera = position;
         _lastSmoothCameraUpdateClockSeconds = -1d;

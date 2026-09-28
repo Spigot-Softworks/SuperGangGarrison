@@ -6,7 +6,7 @@ using System;
 
 namespace OpenGarrison.Client;
 
-internal readonly struct ScrollbarMetrics
+public readonly struct ScrollbarMetrics
 {
     public Rectangle TrackBounds { get; init; }
     public Rectangle ThumbBounds { get; init; }
@@ -91,7 +91,7 @@ internal static class ScrollbarLayout
     }
 }
 
-internal sealed class ScrollbarDragController
+public sealed class ScrollbarDragController
 {
     private object? _owner;
     private Rectangle _trackBounds;

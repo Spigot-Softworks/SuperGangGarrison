@@ -11,13 +11,13 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private Task<RelaySessionCreateResponse>? _hostedLastToDieRelayCreateTask;
-    private bool _hostedLastToDieRelayLaunchRequested;
-    private bool _lastToDieConnectionPresentationPending;
-    private bool _lastToDieRoomCodeJoinOpen;
+    public Task<RelaySessionCreateResponse>? _hostedLastToDieRelayCreateTask;
+    public bool _hostedLastToDieRelayLaunchRequested;
+    public bool _lastToDieConnectionPresentationPending;
+    public bool _lastToDieRoomCodeJoinOpen;
     private string _hostedLastToDieRoomCode = string.Empty;
-    private OpenGarrison.Core.LastToDie.LastToDieDifficulty _pendingHostedLastToDieDifficulty;
-    private int _pendingHostedLastToDiePort;
+    public OpenGarrison.Core.LastToDie.LastToDieDifficulty _pendingHostedLastToDieDifficulty;
+    public int _pendingHostedLastToDiePort;
 
     private void TryStartSoloLastToDieRun(
         OpenGarrison.Core.LastToDie.LastToDieDifficulty difficulty)
@@ -67,7 +67,7 @@ public partial class Game1
             relay);
     }
 
-    private void CancelPendingHostedLastToDieRelayLaunch()
+    public void CancelPendingHostedLastToDieRelayLaunch()
     {
         _hostedLastToDieRelayLaunchRequested = false;
     }

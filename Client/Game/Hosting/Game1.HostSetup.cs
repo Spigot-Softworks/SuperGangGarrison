@@ -6,7 +6,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private void OpenHostSetupMenu()
+    public void OpenHostSetupMenu()
     {
         if (OperatingSystem.IsBrowser())
         {
@@ -14,15 +14,15 @@ public partial class Game1
             return;
         }
 
-        _mainMenuOverlayStateController.OpenHostSetupMenu();
+        _menuManager.MainMenuOverlayState.OpenHostSetupMenu();
     }
 
-    private void CloseHostSetupMenu(bool clearStatus = false)
+    public void CloseHostSetupMenu(bool clearStatus = false)
     {
-        _mainMenuOverlayStateController.CloseHostSetupMenu(clearStatus);
+        _menuManager.MainMenuOverlayState.CloseHostSetupMenu(clearStatus);
     }
 
-    private void TryHostFromSetup(bool runInTerminal = false)
+    public void TryHostFromSetup(bool runInTerminal = false)
     {
         if (OperatingSystem.IsBrowser())
         {
@@ -119,7 +119,7 @@ public partial class Game1
     }
 
 
-    private void EnsureSelectedHostMapVisible()
+    public void EnsureSelectedHostMapVisible()
     {
         var layout = HostSetupMenuLayoutCalculator.CreateMenuLayout(
             ViewportWidth,

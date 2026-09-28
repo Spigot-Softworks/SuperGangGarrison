@@ -13,7 +13,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private void UpdateCreditsMenu(KeyboardState keyboard, MouseState mouse)
+    public void UpdateCreditsMenu(KeyboardState keyboard, MouseState mouse)
     {
         EnsureCreditsViewState();
         if ((keyboard.IsKeyDown(Keys.Escape) && !_previousKeyboard.IsKeyDown(Keys.Escape))
@@ -56,7 +56,7 @@ public partial class Game1
         }
     }
 
-    private void DrawCreditsMenu()
+    public void DrawCreditsMenu()
     {
         var viewportWidth = ViewportWidth;
         var viewportHeight = ViewportHeight;
@@ -109,7 +109,7 @@ public partial class Game1
         }
     }
 
-    private void DrawMainMenuBottomBar()
+    public void DrawMainMenuBottomBar()
     {
         if (_menuBackgroundMode == MenuBackgroundMode.Static)
         {
@@ -119,18 +119,18 @@ public partial class Game1
         const int bottomBarHeight = 76;
         var bottomBarBounds = new Rectangle(0, ViewportHeight - bottomBarHeight, ViewportWidth, bottomBarHeight);
         _spriteBatch.Draw(_pixel, bottomBarBounds, new Color(0x57, 0x4f, 0x47));
-        _menuBottomBarRunners.Draw(bottomBarBounds);
+        _menuManager.MenuBottomBarRunners.Draw(bottomBarBounds);
     }
 
-    private void OpenManualConnectMenu()
+    public void OpenManualConnectMenu()
     {
         _lastToDieConnectionPresentationPending = false;
-        _mainMenuOverlayStateController.OpenManualConnectMenu();
+        _menuManager.MainMenuOverlayState.OpenManualConnectMenu();
     }
 
-    private void OpenFriendsMenu()
+    public void OpenFriendsMenu()
     {
-        _mainMenuOverlayStateController.OpenFriendsMenu();
+        _menuManager.MainMenuOverlayState.OpenFriendsMenu();
     }
 
     private Rectangle GetCreditsPanelBounds()
@@ -138,14 +138,14 @@ public partial class Game1
         return new Rectangle(0, 0, ViewportWidth, ViewportHeight);
     }
 
-    private void OpenCreditsMenu()
+    public void OpenCreditsMenu()
     {
-        _mainMenuOverlayStateController.OpenCreditsMenu();
+        _menuManager.MainMenuOverlayState.OpenCreditsMenu();
     }
 
-    private void CloseCreditsMenu()
+    public void CloseCreditsMenu()
     {
-        _mainMenuOverlayStateController.CloseCreditsMenu();
+        _menuManager.MainMenuOverlayState.CloseCreditsMenu();
     }
 
     private void EnsureCreditsViewState()

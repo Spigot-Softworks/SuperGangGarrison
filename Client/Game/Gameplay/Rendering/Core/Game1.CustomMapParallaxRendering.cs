@@ -9,7 +9,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private CustomMapVisualMetadata? _loadedCustomMapVisualsSource;
+    public CustomMapVisualMetadata? _loadedCustomMapVisualsSource;
     private RuntimeCustomMapVisuals? _loadedCustomMapVisuals;
     private SimpleLevel? _loadedCustomMapVisualsLevel;
 
@@ -264,7 +264,7 @@ public partial class Game1
         return false;
     }
 
-    private static bool TryParseGmlColor(string? rawValue, out Color color)
+    public static bool TryParseGmlColor(string? rawValue, out Color color)
     {
         color = Color.Transparent;
         if (string.IsNullOrWhiteSpace(rawValue))

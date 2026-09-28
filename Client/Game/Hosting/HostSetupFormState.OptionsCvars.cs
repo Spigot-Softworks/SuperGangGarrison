@@ -9,7 +9,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private sealed partial class HostSetupFormState
+    public sealed partial class HostSetupFormState
     {
         public int OptionsTabIndex { get; set; }
 

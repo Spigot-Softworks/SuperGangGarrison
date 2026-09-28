@@ -6,16 +6,16 @@ using System.Globalization;
 
 namespace OpenGarrison.Client;
 
-internal enum NetworkEndpointTransport
+public enum NetworkEndpointTransport
 {
     Udp,
     WebSocket,
     Quic,
 }
 
-internal readonly record struct NetworkEndpointCandidate(string Host, int Port, NetworkEndpointTransport Transport);
+public readonly record struct NetworkEndpointCandidate(string Host, int Port, NetworkEndpointTransport Transport);
 
-internal readonly record struct NetworkEndpoint(string Host, int UdpPort, int WebSocketPort, string WebSocketUrl = "", int QuicPort = 0, string QuicUrl = "")
+public readonly record struct NetworkEndpoint(string Host, int UdpPort, int WebSocketPort, string WebSocketUrl = "", int QuicPort = 0, string QuicUrl = "")
 {
     public bool HasUdpEndpoint => UdpPort is > 0 and <= 65535;
     public bool HasWebSocketEndpoint => !string.IsNullOrWhiteSpace(WebSocketUrl) || WebSocketPort is > 0 and <= 65535;

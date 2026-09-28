@@ -2,7 +2,7 @@ using OpenGarrison.Protocol;
 
 namespace OpenGarrison.Client;
 
-internal enum LastToDieSnapshotApplyKind : byte
+public enum LastToDieSnapshotApplyKind : byte
 {
     Applied = 1,
     Duplicate = 2,
@@ -10,7 +10,7 @@ internal enum LastToDieSnapshotApplyKind : byte
     Rejected = 4,
 }
 
-internal sealed record LastToDieSnapshotApplyResult(
+public sealed record LastToDieSnapshotApplyResult(
     LastToDieSnapshotApplyKind Kind,
     string Reason = "")
 {
@@ -21,7 +21,7 @@ internal sealed record LastToDieSnapshotApplyResult(
 /// Client-side read model for semantic LTD state. It never advances phases or
 /// generates offers; it only accepts monotonic server snapshots and results.
 /// </summary>
-internal sealed class LastToDieReplicatedState
+public sealed class LastToDieReplicatedState
 {
     private const int MaximumCommandResults = 128;
     private readonly Dictionary<ulong, LastToDieCommandResultMessage> _commandResults = [];

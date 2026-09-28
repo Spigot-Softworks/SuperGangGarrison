@@ -10,7 +10,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private const float JumpPadBuildNoticeCost = 50f;
+    public const float JumpPadBuildNoticeCost = 50f;
     private const float DispenserBuildNoticeCost = 100f;
     private const float SentryBuildNoticeCost = 100f;
     private const float BuildMenuListDefaultX = 37f;
@@ -273,7 +273,7 @@ public partial class Game1
             "BuildMenuDispenserIconS",
             animatedOrigin + BuildMenuDispenserIconOffset * scale,
             blue,
-            _gameplayEngineerHudController.GetLocalOwnedDispenser() is not null,
+            _hudManager.Engineer.GetLocalOwnedDispenser() is not null,
             CanAffordBuildMenuSlot(2),
             tint,
             scale);
@@ -345,7 +345,7 @@ public partial class Game1
     private bool HasBuildWheelStructure(int slot) => slot switch
     {
         1 => GetLocalOwnedSentry() is not null,
-        2 => _gameplayEngineerHudController.GetLocalOwnedDispenser() is not null,
+        2 => _hudManager.Engineer.GetLocalOwnedDispenser() is not null,
         3 => HasLocalOwnedJumpPad(),
         _ => false,
     };
@@ -383,7 +383,7 @@ public partial class Game1
         var exists = slot switch
         {
             1 => GetLocalOwnedSentry() is not null,
-            2 => _gameplayEngineerHudController.GetLocalOwnedDispenser() is not null,
+            2 => _hudManager.Engineer.GetLocalOwnedDispenser() is not null,
             3 => HasLocalOwnedJumpPad(),
             _ => false,
         };
@@ -646,7 +646,7 @@ public partial class Game1
         };
     }
 
-    private void BeginClosingBuildMenu()
+    public void BeginClosingBuildMenu()
     {
         if (!IsBuildMenuWheelEnabled)
         {

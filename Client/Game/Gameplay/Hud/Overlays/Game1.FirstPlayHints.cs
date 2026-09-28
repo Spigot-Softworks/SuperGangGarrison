@@ -5,7 +5,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private FirstPlayHintSequence? _firstPlayHints;
+    public FirstPlayHintSequence? _firstPlayHints;
 
     private bool CanPresentFirstPlayHints() =>
         _gameplaySessionKind is GameplaySessionKind.Online or GameplaySessionKind.Practice or GameplaySessionKind.LastToDie

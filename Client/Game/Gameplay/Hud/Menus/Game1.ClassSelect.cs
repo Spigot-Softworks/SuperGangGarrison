@@ -9,7 +9,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private void UpdateClassSelect(KeyboardState keyboard, MouseState mouse, bool acceptSelectionInput = true)
+    public void UpdateClassSelect(KeyboardState keyboard, MouseState mouse, bool acceptSelectionInput = true)
     {
         if (!_classSelectOpen)
         {
@@ -112,7 +112,7 @@ public partial class Game1
         return CharacterClassCatalog.RuntimeRegistry.GetRequiredClassBinding(PlayerClass.Quote).ClassId;
     }
 
-    private void DrawClassSelectHud()
+    public void DrawClassSelectHud()
     {
         var viewportWidth = ViewportWidth;
         var viewportHeight = ViewportHeight;

@@ -8,7 +8,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private float GetPlayerVisibilityAlpha(PlayerEntity player)
+    public float GetPlayerVisibilityAlpha(PlayerEntity player)
     {
         if (!player.IsAlive)
         {
@@ -183,7 +183,7 @@ public partial class Game1
         return Math.Clamp(1f - StabAnimEntity.ResolveAlpha(elapsedTicks, speedMultiplier), 0f, 1f);
     }
 
-    private bool IsSpyHiddenFromLocalViewer(PlayerEntity player)
+    public bool IsSpyHiddenFromLocalViewer(PlayerEntity player)
     {
         if (IsLocalSpectatorPresentationActive()
             || ReferenceEquals(player, _world.LocalPlayer)
@@ -197,7 +197,7 @@ public partial class Game1
         return IsSpyHiddenFromLocalViewer(player.Id, player.Team, player.X);
     }
 
-    private bool IsSpyHiddenFromLocalViewer(int ownerId, PlayerTeam ownerTeam, float spyX)
+    public bool IsSpyHiddenFromLocalViewer(int ownerId, PlayerTeam ownerTeam, float spyX)
     {
         if (IsLocalSpectatorPresentationActive()
             || !_world.LocalPlayer.IsAlive

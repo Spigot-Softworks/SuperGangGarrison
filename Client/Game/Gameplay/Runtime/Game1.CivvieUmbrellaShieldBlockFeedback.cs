@@ -9,9 +9,9 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private readonly Dictionary<int, CivvieUmbrellaShieldBlockObservationState> _civvieUmbrellaShieldBlockObservationByPlayerId = new();
+    public readonly Dictionary<int, CivvieUmbrellaShieldBlockObservationState> _civvieUmbrellaShieldBlockObservationByPlayerId = new();
 
-    private readonly record struct CivvieUmbrellaShieldBlockObservationState(
+    public readonly record struct CivvieUmbrellaShieldBlockObservationState(
         int ChargeTicks,
         bool IsUmbrellaActive,
         bool IsUmbrellaBroken);
@@ -21,7 +21,7 @@ public partial class Game1
         _civvieUmbrellaShieldBlockObservationByPlayerId.Clear();
     }
 
-    private void ObserveCivvieUmbrellaShieldBlockDamageEvent(WorldDamageEvent damageEvent)
+    public void ObserveCivvieUmbrellaShieldBlockDamageEvent(WorldDamageEvent damageEvent)
     {
         if (!IsCivvieUmbrellaShieldBlockEvent(damageEvent.Flags, damageEvent.TargetKind))
         {
@@ -31,7 +31,7 @@ public partial class Game1
         TryTriggerCivvieUmbrellaShieldBlockVisual(damageEvent.TargetEntityId);
     }
 
-    private void ObserveCivvieUmbrellaShieldBlockDamageEvent(SnapshotDamageEvent damageEvent)
+    public void ObserveCivvieUmbrellaShieldBlockDamageEvent(SnapshotDamageEvent damageEvent)
     {
         if (!IsCivvieUmbrellaShieldBlockEvent((DamageEventFlags)damageEvent.Flags, (DamageTargetKind)damageEvent.TargetKind))
         {

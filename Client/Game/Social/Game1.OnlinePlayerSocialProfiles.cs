@@ -33,7 +33,7 @@ public partial class Game1
         }
     }
 
-    private void ClearOnlinePlayerSocialProfiles()
+    public void ClearOnlinePlayerSocialProfiles()
     {
         _onlinePlayerSocialProfilesBySlot.Clear();
         _onlinePlayerServerTitlesBySlot.Clear();
@@ -44,7 +44,7 @@ public partial class Game1
         return _onlinePlayerSocialProfilesBySlot.TryGetValue(slot, out profile!);
     }
 
-    private bool TryGetOnlinePlayerServerTitle(byte slot, out PlayerServerTitleState title)
+    public bool TryGetOnlinePlayerServerTitle(byte slot, out PlayerServerTitleState title)
     {
         return _onlinePlayerServerTitlesBySlot.TryGetValue(slot, out title!);
     }

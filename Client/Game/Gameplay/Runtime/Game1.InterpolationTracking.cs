@@ -10,7 +10,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private void UpdateInterpolatedWorldState()
+    public void UpdateInterpolatedWorldState()
     {
         if (!_networkClient.IsConnected)
         {
@@ -158,7 +158,7 @@ public partial class Game1
         UpdateInterpolatedIntelPosition(_world.BlueIntel, entityRenderTimeSeconds);
     }
 
-    private void UpdateOfflineInterpolatedWorldState()
+    public void UpdateOfflineInterpolatedWorldState()
     {
         ResetNetworkInterpolationStateForOfflineFrame();
         _activeInterpolatedEntityIds.Clear();
@@ -275,7 +275,7 @@ public partial class Game1
         _pendingPredictedInputs.Clear();
     }
 
-    private void ResetSnapshotPresentationHistories(bool preserveRetainedProjectilePresentation = false)
+    public void ResetSnapshotPresentationHistories(bool preserveRetainedProjectilePresentation = false)
     {
         Dictionary<int, List<EntitySnapshotSample>>? retainedEntityHistories = null;
         Dictionary<int, NetworkDiagnosticEntityInterpolationKind>? retainedHistoryKinds = null;
@@ -2319,7 +2319,7 @@ public partial class Game1
         return GetSnapshotRenderTimeSeconds(entityBackTimeSeconds);
     }
 
-    private double GetProjectileRenderTimeSeconds()
+    public double GetProjectileRenderTimeSeconds()
     {
         return GetRemotePlayerRenderTimeSeconds();
     }

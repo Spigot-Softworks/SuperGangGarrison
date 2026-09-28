@@ -12,7 +12,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private sealed class PracticeSetupState
+    public sealed class PracticeSetupState
     {
         public enum PracticeMapBrowserSection
         {
@@ -22,12 +22,12 @@ public partial class Game1
             Custom,
         }
 
-        private static readonly int[] TickRateOptions = [30, 60, 120];
-        private static readonly int[] TimeLimitOptions = [5, 10, 15, 20, 30, 45, 60];
-        private static readonly int[] CapLimitOptions = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-        private static readonly int[] RespawnOptions = [0, 3, 5, 10, 15];
-        private static readonly int[] BotCountOptions = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
-        private static readonly (string LevelName, string DisplayName)[] OrderedPracticeMapOptions =
+        public static readonly int[] TickRateOptions = [30, 60, 120];
+        public static readonly int[] TimeLimitOptions = [5, 10, 15, 20, 30, 45, 60];
+        public static readonly int[] CapLimitOptions = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+        public static readonly int[] RespawnOptions = [0, 3, 5, 10, 15];
+        public static readonly int[] BotCountOptions = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+        public static readonly (string LevelName, string DisplayName)[] OrderedPracticeMapOptions =
         [
             ("cp_coldfront_js", "Coldfront"),
             ("Kulay", "Kulay"),
@@ -362,7 +362,7 @@ public partial class Game1
                 : null;
         }
 
-        private void SyncAvailableMapSelectionToSelectedMap()
+        public void SyncAvailableMapSelectionToSelectedMap()
         {
             var selectedEntry = GetSelectedMapEntry();
             if (selectedEntry is null)
@@ -377,7 +377,7 @@ public partial class Game1
                 .FindIndex(entry => string.Equals(entry.LevelName, selectedEntry.LevelName, StringComparison.OrdinalIgnoreCase));
         }
 
-        private static OpenGarrisonMapRotationEntry ToRotationEntry(PracticeMapEntry entry)
+        public static OpenGarrisonMapRotationEntry ToRotationEntry(PracticeMapEntry entry)
         {
             return new OpenGarrisonMapRotationEntry
             {
@@ -580,31 +580,31 @@ public partial class Game1
         set => _practiceSetupState.MapIndex = value;
     }
 
-    private List<PracticeMapEntry> _practiceMapEntries
+    public List<PracticeMapEntry> _practiceMapEntries
     {
         get => _practiceSetupState.MapEntries;
         set => _practiceSetupState.MapEntries = value ?? new List<PracticeMapEntry>();
     }
 
-    private int _practiceTickRate
+    public int _practiceTickRate
     {
         get => _practiceSetupState.TickRate;
         set => _practiceSetupState.TickRate = value;
     }
 
-    private int _practiceTimeLimitMinutes
+    public int _practiceTimeLimitMinutes
     {
         get => _practiceSetupState.TimeLimitMinutes;
         set => _practiceSetupState.TimeLimitMinutes = value;
     }
 
-    private int _practiceCapLimit
+    public int _practiceCapLimit
     {
         get => _practiceSetupState.CapLimit;
         set => _practiceSetupState.CapLimit = value;
     }
 
-    private int _practiceRespawnSeconds
+    public int _practiceRespawnSeconds
     {
         get => _practiceSetupState.RespawnSeconds;
         set => _practiceSetupState.RespawnSeconds = value;
@@ -622,22 +622,22 @@ public partial class Game1
         set => _practiceSetupState.FriendlyBotCount = value;
     }
 
-    private void NormalizePracticeSetupState()
+    public void NormalizePracticeSetupState()
     {
         _practiceSetupState.Normalize();
     }
 
-    private static List<PracticeMapEntry> BuildPracticeMapEntries()
+    public static List<PracticeMapEntry> BuildPracticeMapEntries()
     {
         return PracticeSetupState.BuildMapEntries();
     }
 
-    private static List<PracticeMapEntry> BuildAllPracticeMapEntries()
+    public static List<PracticeMapEntry> BuildAllPracticeMapEntries()
     {
         return PracticeSetupState.BuildAllPracticeMapEntries();
     }
 
-    private static List<PracticeMapEntry> BuildAllLocalMapEntries()
+    public static List<PracticeMapEntry> BuildAllLocalMapEntries()
     {
         return PracticeSetupState.BuildAllLocalMapEntries();
     }
@@ -690,13 +690,13 @@ public partial class Game1
         _menuStatusMessage = string.Empty;
     }
 
-    private bool SelectPracticeMapEntry(string? levelName)
+    public bool SelectPracticeMapEntry(string? levelName)
     {
         return _practiceSetupState.SelectMapEntry(levelName);
     }
 
 
-    private PracticeMapEntry? GetSelectedPracticeMapEntry()
+    public PracticeMapEntry? GetSelectedPracticeMapEntry()
     {
         return _practiceSetupState.GetSelectedMapEntry();
     }

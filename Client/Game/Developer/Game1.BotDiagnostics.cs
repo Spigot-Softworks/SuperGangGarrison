@@ -11,8 +11,8 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private const double BotDiagnosticSummaryIntervalSeconds = 1d;
-    private const int BotDiagnosticHistoryLimit = 120;
+    public const double BotDiagnosticSummaryIntervalSeconds = 1d;
+    public const int BotDiagnosticHistoryLimit = 120;
     private const int BotDiagnosticOverlayMaxEntries = 8;
     private bool _botDiagnosticsEnabled;
     private readonly List<string> _botDiagnosticSummaryHistory = new();
@@ -30,7 +30,7 @@ public partial class Game1
     private int _botDiagnosticCabinetSeekBots;
     private int _botDiagnosticUnstickBots;
     private int _botDiagnosticObservedMaxBots;
-    private BotControllerDiagnosticsSnapshot _botDiagnosticLatestSnapshot = BotControllerDiagnosticsSnapshot.Empty;
+    public BotControllerDiagnosticsSnapshot _botDiagnosticLatestSnapshot = BotControllerDiagnosticsSnapshot.Empty;
     private string _botDiagnosticLastConsoleSummary = "botdiag disabled";
 
     private void BeginBotDiagnosticsFrame(GameTime gameTime)
@@ -236,7 +236,7 @@ public partial class Game1
         ResetBotDiagnosticSample();
     }
 
-    private void ResetBotDiagnosticSample()
+    public void ResetBotDiagnosticSample()
     {
         _botDiagnosticSummaryElapsedSeconds = 0d;
         _botDiagnosticSummaryFrames = 0;

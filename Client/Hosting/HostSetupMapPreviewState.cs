@@ -10,7 +10,7 @@ using System.Linq;
 
 namespace OpenGarrison.Client;
 
-internal sealed class HostSetupMapPreviewState : IDisposable
+public sealed class HostSetupMapPreviewState : IDisposable
 {
     public const float PixelPerfectDisplayScale = 1f;
     public const float GameSizeDisplayScale = 6f;

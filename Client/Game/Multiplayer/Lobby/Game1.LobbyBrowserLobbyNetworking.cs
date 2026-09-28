@@ -179,7 +179,7 @@ public partial class Game1
         }
     }
 
-    private void CloseLobbyBrowserLobbyClient()
+    public void CloseLobbyBrowserLobbyClient()
     {
         _lobbyBrowserLobbyConnectTask = null;
         if (_lobbyBrowserLobbyClient is not null)
@@ -211,7 +211,7 @@ public partial class Game1
         }
     }
 
-    private LobbyBrowserEntry? AddLobbyBrowserEntry(string displayName, NetworkEndpoint endpoint, bool isPrivate, bool isLobbyEntry)
+    public LobbyBrowserEntry? AddLobbyBrowserEntry(string displayName, NetworkEndpoint endpoint, bool isPrivate, bool isLobbyEntry)
     {
         if (string.IsNullOrWhiteSpace(endpoint.Host)
             || (!endpoint.HasUdpEndpoint

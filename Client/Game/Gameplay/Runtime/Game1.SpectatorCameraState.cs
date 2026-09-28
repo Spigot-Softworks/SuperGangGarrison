@@ -9,7 +9,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private PlayerEntity? GetSpectatorFocusPlayer()
+    public PlayerEntity? GetSpectatorFocusPlayer()
     {
         if (IsLocalSpectatorPresentationActive() && !_spectatorTrackingEnabled)
         {
@@ -45,7 +45,7 @@ public partial class Game1
         return fallback;
     }
 
-    private void ResetSpectatorTracking(bool enableTracking)
+    public void ResetSpectatorTracking(bool enableTracking)
     {
         _spectatorTrackedPlayerId = null;
         _spectatorTrackingEnabled = enableTracking;
@@ -139,7 +139,7 @@ public partial class Game1
             : fallbackPlayers;
     }
 
-    private IEnumerable<PlayerEntity> EnumerateRemotePlayersForView()
+    public IEnumerable<PlayerEntity> EnumerateRemotePlayersForView()
     {
         if (_networkClient.IsConnected)
         {

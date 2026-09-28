@@ -9,8 +9,8 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private const int VoteMenuVisibleRows = 8;
-    private static readonly Keys[] VoteMenuDigitKeys =
+    public const int VoteMenuVisibleRows = 8;
+    public static readonly Keys[] VoteMenuDigitKeys =
         [Keys.D1, Keys.D2, Keys.D3, Keys.D4, Keys.D5, Keys.D6, Keys.D7, Keys.D8];
     private static readonly Keys[] VoteMenuNumpadKeys =
         [Keys.NumPad1, Keys.NumPad2, Keys.NumPad3, Keys.NumPad4, Keys.NumPad5, Keys.NumPad6, Keys.NumPad7, Keys.NumPad8];
@@ -31,7 +31,7 @@ public partial class Game1
     private readonly record struct VoteMenuAction(string Label, string Value, Action Activate);
 
     private VoteMenuMessage? _voteMenuCatalog;
-    private bool _voteMenuOpen;
+    public bool _voteMenuOpen;
     private VoteMenuPage _voteMenuPage;
     private int _voteMenuSelectedIndex;
     private int _voteMenuScrollOffset;
@@ -64,7 +64,7 @@ public partial class Game1
         _voteMenuSelectedCustomId = string.Empty;
     }
 
-    private void UpdateVoteMenu(KeyboardState keyboard, MouseState mouse)
+    public void UpdateVoteMenu(KeyboardState keyboard, MouseState mouse)
     {
         if (!_voteMenuOpen || (!_networkClient.IsConnected && !IsOfflinePracticeVote) || _networkClient.IsReplayConnection)
         {

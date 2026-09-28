@@ -10,7 +10,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private List<(ControlsMenuBinding Binding, string Label, InputBinding Input)> GetControlsMenuBindings()
+    public List<(ControlsMenuBinding Binding, string Label, InputBinding Input)> GetControlsMenuBindings()
     {
         if (OpenGarrison.ClientShared.ClientDistribution.IsGg2Only)
             return
@@ -55,7 +55,7 @@ public partial class Game1
         ];
     }
 
-    private List<(ControllerControlsMenuBinding Binding, string Label, ControllerButtonBinding Input)> GetControllerControlsMenuBindings()
+    public List<(ControllerControlsMenuBinding Binding, string Label, ControllerButtonBinding Input)> GetControllerControlsMenuBindings()
     {
         if (OpenGarrison.ClientShared.ClientDistribution.IsGg2Only)
             return
@@ -84,7 +84,7 @@ public partial class Game1
         ];
     }
 
-    private void ApplyControlsBinding(ControlsMenuBinding binding, InputBinding input)
+    public void ApplyControlsBinding(ControlsMenuBinding binding, InputBinding input)
     {
         switch (binding)
         {
@@ -155,7 +155,7 @@ public partial class Game1
         }
     }
 
-    private void ApplyControllerControlsBinding(ControllerControlsMenuBinding binding, ControllerButtonBinding input)
+    public void ApplyControllerControlsBinding(ControllerControlsMenuBinding binding, ControllerButtonBinding input)
     {
         input = OpenGarrisonPreferencesDocument.NormalizeControllerButtonBinding(input);
         switch (binding)
@@ -198,7 +198,7 @@ public partial class Game1
         PersistClientSettings();
     }
 
-    private string GetControlsBindingLabel(ControlsMenuBinding binding)
+    public string GetControlsBindingLabel(ControlsMenuBinding binding)
     {
         var bubbleMenuBindingPrefix = GetBubbleMenuBindingPrefix();
         return binding switch
@@ -228,7 +228,7 @@ public partial class Game1
         };
     }
 
-    private static string GetControllerControlsBindingLabel(ControllerControlsMenuBinding binding)
+    public static string GetControllerControlsBindingLabel(ControllerControlsMenuBinding binding)
     {
         return binding switch
         {
@@ -254,7 +254,7 @@ public partial class Game1
             : "Bubble Menu";
     }
 
-    private static string GetBindingDisplayName(InputBinding input)
+    public static string GetBindingDisplayName(InputBinding input)
     {
         return input.Kind switch
         {

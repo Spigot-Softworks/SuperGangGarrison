@@ -9,7 +9,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private void DrawStabAnimation(StabAnimEntity stabAnimation, Vector2 cameraPosition)
+    public void DrawStabAnimation(StabAnimEntity stabAnimation, Vector2 cameraPosition)
     {
         var owner = FindPlayerById(stabAnimation.OwnerId);
         var renderPosition = owner is null

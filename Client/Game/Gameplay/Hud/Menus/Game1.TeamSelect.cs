@@ -10,7 +10,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private void UpdateTeamSelect(KeyboardState keyboard, MouseState mouse)
+    public void UpdateTeamSelect(KeyboardState keyboard, MouseState mouse)
     {
         if (!_teamSelectOpen)
         {
@@ -87,7 +87,7 @@ public partial class Game1
         }
     }
 
-    private void DrawTeamSelectHud()
+    public void DrawTeamSelectHud()
     {
         var viewportWidth = ViewportWidth;
         var viewportHeight = ViewportHeight;

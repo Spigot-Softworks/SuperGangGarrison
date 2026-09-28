@@ -13,7 +13,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private enum LastToDieMenuPage
+    public enum LastToDieMenuPage
     {
         Root,
         Difficulty,
@@ -25,21 +25,21 @@ public partial class Game1
         PeerLobby,
     }
 
-    private enum LastToDieRankingsTab
+    public enum LastToDieRankingsTab
     {
         Personal,
         Global,
     }
 
-    private enum LastToDieRankingsSort
+    public enum LastToDieRankingsSort
     {
         Score,
         Rounds,
     }
 
-    private readonly record struct LastToDieClassFilterOption(string SurvivorId, string Label);
+    public readonly record struct LastToDieClassFilterOption(string SurvivorId, string Label);
 
-    private static readonly LastToDieClassFilterOption[] LastToDieClassFilterOptions =
+    public static readonly LastToDieClassFilterOption[] LastToDieClassFilterOptions =
     [
         new("", "All classes"),
         new(OpenGarrison.Core.LastToDie.LastToDieSurvivorCatalog.SoldierId.Value, "Soldier"),
@@ -50,17 +50,17 @@ public partial class Game1
         new(OpenGarrison.Core.LastToDie.LastToDieSurvivorCatalog.SpyId.Value, "Spy"),
     ];
 
-    private readonly record struct LastToDieMenuLayout(
+    public readonly record struct LastToDieMenuLayout(
         Rectangle PlaqueBounds,
         Rectangle ContentBounds,
         Rectangle[] ButtonBounds,
         float Scale);
 
-    private bool _lastToDieMenuOpen;
-    private LastToDieMenuPage _lastToDieMenuPage;
-    private int _lastToDieMenuHoverIndex = -1;
-    private bool _lastToDieFriendsHover;
-    private LoadedSpriteFrame? _lastToDieLogoTexture;
+    public bool _lastToDieMenuOpen;
+    public LastToDieMenuPage _lastToDieMenuPage;
+    public int _lastToDieMenuHoverIndex = -1;
+    public bool _lastToDieFriendsHover;
+    public LoadedSpriteFrame? _lastToDieLogoTexture;
     private string? _lastToDieLogoTexturePath;
     private Task<OpenGarrison.ClientShared.LastToDieRankingsResponse>? _lastToDieRankingsTask;
     private OpenGarrison.ClientShared.LastToDieRankingsResponse? _lastToDieRankings;
@@ -74,7 +74,7 @@ public partial class Game1
     private string _lastToDieRankingsSurvivorId = string.Empty;
     private bool _lastToDieClassFilterOpen;
 
-    private bool IsLastToDieMenuActive()
+    public bool IsLastToDieMenuActive()
     {
         return _mainMenuOpen
             && (_lastToDieMenuOpen
@@ -82,25 +82,25 @@ public partial class Game1
                 || _lastToDieConnectionPresentationPending);
     }
 
-    private void OpenLastToDieMenu(string? statusMessage = null)
+    public void OpenLastToDieMenu(string? statusMessage = null)
     {
         _practiceCoOpMenu = false;
-        _mainMenuOverlayStateController.OpenLastToDieMenu(statusMessage);
+        _menuManager.MainMenuOverlayState.OpenLastToDieMenu(statusMessage);
     }
 
     private void CloseLastToDieMenu(bool clearStatus = false)
     {
-        _mainMenuOverlayStateController.CloseLastToDieMenu(clearStatus);
+        _menuManager.MainMenuOverlayState.CloseLastToDieMenu(clearStatus);
     }
 
-    private void ReturnToLastToDieMenu(string? statusMessage = null)
+    public void ReturnToLastToDieMenu(string? statusMessage = null)
     {
         StopLastToDieGameOverSound();
         ReturnToMainMenu(statusMessage);
         OpenLastToDieMenu(statusMessage);
     }
 
-    private void UpdateLastToDieMenu(KeyboardState keyboard, MouseState mouse)
+    public void UpdateLastToDieMenu(KeyboardState keyboard, MouseState mouse)
     {
         UpdateLastToDieRankingsRequest();
         if (_lastToDieMenuPage == LastToDieMenuPage.PeerLobby) { UpdatePeerLobby(keyboard, mouse); return; }
@@ -766,7 +766,7 @@ public partial class Game1
         return Math.Max(1, (list.Height - headerHeight) / rowHeight);
     }
 
-    private void DrawLastToDieMenu()
+    public void DrawLastToDieMenu()
     {
         if (_lastToDieMenuPage == LastToDieMenuPage.PeerLobby) { DrawPeerLobby(); return; }
         var viewportWidth = ViewportWidth;
@@ -781,7 +781,7 @@ public partial class Game1
         _spriteBatch.Draw(_pixel, bottomBarBounds, new Color(0x4b, 0x4d, 0x50));
         if (_menuBackgroundMode != MenuBackgroundMode.Static)
         {
-            _menuBottomBarRunners.Draw(bottomBarBounds);
+            _menuManager.MenuBottomBarRunners.Draw(bottomBarBounds);
         }
 
         DrawLastToDieMenuLogo(viewportWidth);
@@ -891,7 +891,7 @@ public partial class Game1
         }
     }
 
-    private void DrawLastToDiePersonalRankings(LastToDieMenuLayout layout, int tabsBottom)
+    public void DrawLastToDiePersonalRankings(LastToDieMenuLayout layout, int tabsBottom)
     {
         const float scale = 1f;
         var lineHeight = Math.Max(22f, MeasureBitmapFontHeight(scale) + 8f);
@@ -953,7 +953,7 @@ public partial class Game1
             DrawLine(_runUploads.StatusText, new Color(241, 210, 120));
     }
 
-    private void DrawLastToDieGlobalRankings(LastToDieMenuLayout layout)
+    public void DrawLastToDieGlobalRankings(LastToDieMenuLayout layout)
     {
         var (scoreSort, roundsSort) = GetLastToDieRankingsSortBounds(layout);
         DrawLastToDieRankingsChoice(scoreSort, "Highest score", _lastToDieRankingsSort == LastToDieRankingsSort.Score);
@@ -1108,7 +1108,7 @@ public partial class Game1
         _spriteBatch.Draw(_pixel, new Rectangle(track.X, thumbY, track.Width, thumbHeight), new Color(235, 211, 150));
     }
 
-    private static string FormatLastToDieScore(int scoreUnits)
+    public static string FormatLastToDieScore(int scoreUnits)
     {
         var normalized = Math.Max(0, scoreUnits);
         var whole = normalized / 100;

@@ -14,8 +14,8 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private readonly record struct ScoreboardSpectatorToken(string Text, ulong BadgeMask);
-    private sealed record ScoreboardSpectatorLine(string Prefix, List<ScoreboardSpectatorToken> Tokens);
+    public readonly record struct ScoreboardSpectatorToken(string Text, ulong BadgeMask);
+    public sealed record ScoreboardSpectatorLine(string Prefix, List<ScoreboardSpectatorToken> Tokens);
     private readonly record struct ScoreboardLayout(float XOffset, float YOffset, float XSize, float XCenter, Rectangle Bounds);
     private readonly record struct ScoreboardPlayerRow(PlayerEntity Player, byte Slot, bool IsLocal, Rectangle Bounds);
     private enum ScoreboardContextMenuAction
@@ -354,7 +354,7 @@ public partial class Game1
         return false;
     }
 
-    private bool TryGetScoreboardPlayerNetworkSlot(PlayerEntity player, out byte slot)
+    public bool TryGetScoreboardPlayerNetworkSlot(PlayerEntity player, out byte slot)
     {
         if (ReferenceEquals(player, _world.LocalPlayer))
         {
@@ -505,7 +505,7 @@ public partial class Game1
         return slot != 0 && _scoreboardMutedSlots.Contains(slot);
     }
 
-    private bool IsPlayerMutedByScoreboardSlot(PlayerEntity player)
+    public bool IsPlayerMutedByScoreboardSlot(PlayerEntity player)
     {
         return !ReferenceEquals(player, _world.LocalPlayer)
             && TryGetScoreboardPlayerNetworkSlot(player, out var slot)

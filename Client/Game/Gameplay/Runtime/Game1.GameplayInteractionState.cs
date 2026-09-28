@@ -4,9 +4,9 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private bool _gameplayModalOwnedInputThisFrame;
+    public bool _gameplayModalOwnedInputThisFrame;
 
-    internal static bool ShouldOpenInGamePauseMenu(
+    public static bool ShouldOpenInGamePauseMenu(
         bool escapePressed,
         bool controllerPausePressed,
         bool canOpenInGamePauseMenu)
@@ -14,18 +14,18 @@ public partial class Game1
         return canOpenInGamePauseMenu && (escapePressed || controllerPausePressed);
     }
 
-    private bool HasGameplayModalInputOwner()
+    public bool HasGameplayModalInputOwner()
         => _consoleOpen || _chatOpen || _passwordPromptOpen || HasOpenGameplayOverlay();
 
-    private bool CanUpdateHostedLastToDieMenuInput()
+    public bool CanUpdateHostedLastToDieMenuInput()
         => !_gameplayModalOwnedInputThisFrame && !HasGameplayModalInputOwner();
 
-    private bool IsGameplayMenuOpen()
+    public bool IsGameplayMenuOpen()
     {
         return HasOpenGameplayBlockingMenu();
     }
 
-    private bool IsGameplayInputBlocked()
+    public bool IsGameplayInputBlocked()
     {
         return !IsGameplayWindowInputActive()
             || IsHostedLastToDieBlockingGameplay()
@@ -38,12 +38,12 @@ public partial class Game1
             || _passwordPromptOpen;
     }
 
-    private bool IsGameplayWindowInputActive()
+    public bool IsGameplayWindowInputActive()
     {
         return IsWindowInputActive;
     }
 
-    private bool CanOpenGameplayChat()
+    public bool CanOpenGameplayChat()
     {
         return !_passwordPromptOpen
             && !ShouldBlockGameplayForGarrisonBuilder()
@@ -53,14 +53,14 @@ public partial class Game1
             && !_chatOpen;
     }
 
-    private bool CanUseGameplayChatShortcut()
+    public bool CanUseGameplayChatShortcut()
     {
         return !_chatSubmitAwaitingOpenKeyRelease
             && !ShouldBlockGameplayForGarrisonBuilder()
             && !IsGameplayMenuOpen();
     }
 
-    private bool ShouldPreserveAimWhileBlocked()
+    public bool ShouldPreserveAimWhileBlocked()
     {
         return !IsGameplayWindowInputActive()
             || (_chatOpen
@@ -83,18 +83,18 @@ public partial class Game1
             && !IsGameplayMenuOpen();
     }
 
-    private bool IsLocalSpectatorPresentationActive()
+    public bool IsLocalSpectatorPresentationActive()
     {
         return _networkClient.IsSpectator || _offlinePracticeSpectatorMode;
     }
 
-    private bool IsWatchOnlySession()
+    public bool IsWatchOnlySession()
     {
         return _networkClient.IsConnected
             && _onlineConnectionIntent == OnlineConnectionIntent.Watch;
     }
 
-    private bool CanToggleGameplaySelectionMenus()
+    public bool CanToggleGameplaySelectionMenus()
     {
         return !_passwordPromptOpen
             && !IsWatchOnlySession()
@@ -107,7 +107,7 @@ public partial class Game1
             && !IsGameplayDeathCamActive();
     }
 
-    private bool CanOfferGameplaySelectionMenusFromInGameMenu()
+    public bool CanOfferGameplaySelectionMenusFromInGameMenu()
     {
         return !_passwordPromptOpen
             && !IsWatchOnlySession()
@@ -119,7 +119,7 @@ public partial class Game1
             && !IsGameplayDeathCamActive();
     }
 
-    private bool CanOpenInGamePauseMenu()
+    public bool CanOpenInGamePauseMenu()
     {
         return !_consoleOpen
             && !IsGameplayLoadingForMenuInput()
@@ -131,7 +131,7 @@ public partial class Game1
     }
 
     // Pausing before warmup finishes prevents the next required snapshots arriving.
-    private bool IsGameplayLoadingForMenuInput()
+    public bool IsGameplayLoadingForMenuInput()
         => IsNetworkWorldWarmupBlockingPresentation()
             || IsPracticeNavigationWarmupBlockingGameplay()
             || _loadingOverlayVisible
