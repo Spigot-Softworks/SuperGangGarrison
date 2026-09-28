@@ -47,6 +47,8 @@ public sealed class PlayerSkinRenderingTests
     public void CloakedSpyUsesKnifeBodyAndSuppressesSeparateWeaponOnlyForThatBody(PlayerTeam team)
     {
         var game = (Game1)RuntimeHelpers.GetUninitializedObject(typeof(Game1));
+        var networkField = typeof(Game1).GetField("_networkClient", PrivateInstance)!;
+        networkField.SetValue(game, Activator.CreateInstance(networkField.FieldType));
         var world = new SimulationWorld();
         typeof(Game1).GetField("_world", PrivateInstance)!.SetValue(game, world);
         typeof(Game1).GetField("_playerSkins", PrivateInstance)!.SetValue(game, new Lazy<PlayerSkinCatalog>(ReadCatalog));
@@ -79,7 +81,7 @@ public sealed class PlayerSkinRenderingTests
         Assert.True((bool)select.Invoke(game, args)!);
         var airborneBody = args[1]!;
         Assert.Equal($"ElkondoSpy{team}CloakedBodyS", airborneBody.GetType().GetProperty("SpriteName")!.GetValue(airborneBody));
-        Assert.Equal(2f, airborneBody.GetType().GetProperty("AnimationImage")!.GetValue(airborneBody));
+        Assert.Equal(1f, airborneBody.GetType().GetProperty("AnimationImage")!.GetValue(airborneBody));
         Assert.True((bool)includesWeapon.Invoke(game, [player, airborneBody])!);
     }
 

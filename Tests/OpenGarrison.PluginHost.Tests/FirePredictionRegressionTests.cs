@@ -455,6 +455,8 @@ public sealed class FirePredictionRegressionTests
     private static object CreatePredictionHarness(SimulationWorld world)
     {
         var game = RuntimeHelpers.GetUninitializedObject(typeof(Game1));
+        var networkField = typeof(Game1).GetField("_networkClient", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        networkField.SetValue(game, Activator.CreateInstance(networkField.FieldType));
         SetPrivateField(game, "_config", world.Config);
         SetPrivateField(game, "_world", world);
         return game;
