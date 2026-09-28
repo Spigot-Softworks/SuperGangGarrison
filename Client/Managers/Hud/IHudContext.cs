@@ -10,7 +10,7 @@ public interface IHudContext
 {
     GameplayManager Gameplay { get; }
     HudManager Hud { get; }
-    Game1.GameplayWeaponRenderController GameplayWeaponRenderer { get; }
+    GameplayWeaponRenderController GameplayWeaponRenderer { get; }
     float _clientUpdateElapsedSeconds { get; set; }
     OpenGarrison.Core.SimulationConfig _config { get; set; }
     int _cursorSizePercent { get; set; }

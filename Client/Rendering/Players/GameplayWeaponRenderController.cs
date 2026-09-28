@@ -5,24 +5,23 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using OpenGarrison.Core;
 using OpenGarrison.GameplayModding;
+using static OpenGarrison.Client.Game1;
 
 namespace OpenGarrison.Client;
 
-public partial class Game1
+public sealed class GameplayWeaponRenderController
 {
-    public sealed class GameplayWeaponRenderController
+    public const string StockMedigunWorldSpriteName = "MedigunS";
+    private static readonly Color OffensiveKritzBeamYellowBright = new(225, 255, 107, 255);
+    private static readonly Color OffensiveKritzBeamYellowDeep = new(231, 218, 10, 255);
+
+    private readonly IRenderContext _game;
+    private readonly Dictionary<int, LoadedSpriteFrame> _offensiveKritzMedigunAttackFrameCache = new();
+
+    public GameplayWeaponRenderController(IRenderContext game)
     {
-        public const string StockMedigunWorldSpriteName = "MedigunS";
-        private static readonly Color OffensiveKritzBeamYellowBright = new(225, 255, 107, 255);
-        private static readonly Color OffensiveKritzBeamYellowDeep = new(231, 218, 10, 255);
-
-        private readonly Game1 _game;
-        private readonly Dictionary<int, LoadedSpriteFrame> _offensiveKritzMedigunAttackFrameCache = new();
-
-        public GameplayWeaponRenderController(Game1 game)
-        {
-            _game = game;
-        }
+        _game = game;
+    }
 
         public bool TryDrawWeaponSprite(PlayerEntity player, Vector2 cameraPosition, Color tint, float visibilityAlpha, PlayerBodySpriteSelection bodySelection)
         {
@@ -432,7 +431,7 @@ public partial class Game1
             pivotY = 0f;
 
             var renderPosition = _game.GetRenderPosition(player);
-            var bodySelection = _game._gameplayPlayerSpriteRenderController.GetPlayerBodySpriteSelection(player);
+            var bodySelection = _game.GameplayPlayerSpriteRenderer.GetPlayerBodySpriteSelection(player);
             var weaponAnimationMode = GetPlayerWeaponAnimationMode(player);
             var weaponDefinition = GetWeaponRenderDefinition(player);
             if (weaponDefinition.NormalSpriteName is null)
@@ -949,7 +948,7 @@ public partial class Game1
             var durationSeconds = System.MathF.Max(renderState.WeaponAnimationDurationSeconds, 0.0001f);
             var animationPosition = (renderState.WeaponAnimationElapsedSeconds / durationSeconds) * perTeamFrames;
             var animationFrame = weaponAnimationMode == WeaponAnimationMode.Recoil && weaponDefinition.LoopRecoilWhileActive
-                ? System.Math.Clamp((int)System.MathF.Floor(WrapAnimationImage(animationPosition, perTeamFrames)), 0, perTeamFrames - 1)
+                ? System.Math.Clamp((int)System.MathF.Floor(_game.WrapAnimationImage(animationPosition, perTeamFrames)), 0, perTeamFrames - 1)
                 : System.Math.Clamp((int)System.MathF.Floor(animationPosition), 0, perTeamFrames - 1);
             var teamOffset = ShouldUseBlueTeamMedigunFrames(player) ? perTeamFrames : 0;
             return System.Math.Clamp(teamOffset + animationFrame, 0, frameCount - 1);
@@ -1188,7 +1187,7 @@ public partial class Game1
             // The terrain point is the tip of WhippingCordWhipFS frame 2.
             // Drawing the authored frame between handle and anchor replaces the
             // separate rope, and keeps the tip fixed when the cursor moves.
-            var anchorScreenPosition = Game1.RoundToSourcePixels(new Vector2(
+        var anchorScreenPosition = _game.RoundToSourcePixels(new Vector2(
                 presentationPlayer.WhippingCordAnchorX - cameraPosition.X,
                 presentationPlayer.WhippingCordAnchorY - cameraPosition.Y));
             var delta = anchorScreenPosition - handleScreenPosition;
@@ -1268,7 +1267,7 @@ public partial class Game1
             return _game.ApplyPlayerSkinWeapon(renderPlayer, presentation, definition, standing);
         }
 
-        private static GameplayItemPresentationDefinition ResolveRenderPresentation(PlayerEntity player, bool forceCivvieUmbrellaPresentation = false)
+        private GameplayItemPresentationDefinition ResolveRenderPresentation(PlayerEntity player, bool forceCivvieUmbrellaPresentation = false)
         {
             // Stock umbrella shielding is granted by the primary weapon. Its
             // opening/hold/closing strip belongs to that ability, while the
@@ -1297,12 +1296,12 @@ public partial class Game1
                 return StockGameplayModCatalog.GetExperimentalDemoknightEyelanderItem().Presentation;
             }
 
-            if (ShouldPresentExperimentalEngineerEssenceExtractor(player))
+            if (_game.ShouldPresentExperimentalEngineerEssenceExtractor(player))
             {
                 return CharacterClassCatalog.RuntimeRegistry.GetPrimaryItem(PlayerClass.Medic).Presentation;
             }
 
-            if (ShouldPresentExperimentalMedicKritzHealNeedles(player)
+            if (_game.ShouldPresentExperimentalMedicKritzHealNeedles(player)
                 && !string.IsNullOrWhiteSpace(player.GameplayLoadoutState.SecondaryItemId))
             {
                 var kritzItem = CharacterClassCatalog.RuntimeRegistry.GetRequiredItem(player.GameplayLoadoutState.SecondaryItemId);
@@ -1336,7 +1335,7 @@ public partial class Game1
                 return CharacterClassCatalog.RuntimeRegistry.GetRequiredItem(equippedItemId).Presentation;
             }
 
-            return CharacterClassCatalog.RuntimeRegistry.GetPrimaryItem(GetRenderWeaponPresentationClassId(player)).Presentation;
+            return CharacterClassCatalog.RuntimeRegistry.GetPrimaryItem(_game.GetRenderWeaponPresentationClassId(player)).Presentation;
         }
 
         public static bool IsCivvieUmbrellaAnimationMode(WeaponAnimationMode mode)
@@ -1558,5 +1557,4 @@ public partial class Game1
                     : OffensiveKritzBeamYellowDeep,
             };
         }
-    }
 }

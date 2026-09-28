@@ -1709,7 +1709,7 @@ public partial class Game1
         public int FadeTicksRemaining { get; }
     }
 
-    private sealed class CivvieUmbrellaShieldBlockVisual
+    public sealed class CivvieUmbrellaShieldBlockVisual
     {
         public const int LifetimeTicks = 18;
         public const int FadeTicks = 8;

@@ -3,16 +3,15 @@
 using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 using OpenGarrison.Core;
+using static OpenGarrison.Client.Game1;
 
 namespace OpenGarrison.Client;
 
-public partial class Game1
+public sealed class GameplayPlayerRenderController
 {
-    public sealed class GameplayPlayerRenderController
-    {
-        private readonly Game1 _game;
+    private readonly IRenderContext _game;
 
-        public GameplayPlayerRenderController(Game1 game)
+    public GameplayPlayerRenderController(IRenderContext game)
         {
             _game = game;
         }
@@ -58,7 +57,7 @@ public partial class Game1
             }
 
             _game.DrawHealingCrossParticles(player, renderPosition, cameraPosition, visibilityAlpha);
-            _game._gameplayWeaponRenderController.DrawCivvieUmbrellaShieldBlockVisuals(player, cameraPosition, visibilityAlpha, bodySelection);
+            _game.GameplayWeaponRenderer.DrawCivvieUmbrellaShieldBlockVisuals(player, cameraPosition, visibilityAlpha, bodySelection);
 
             _game.DrawExperimentalEssenceExtractorOverlay(player, renderPosition, cameraPosition, visibilityAlpha, bodySelection);
             _game.DrawExperimentalCryoOverlays(player, renderPosition, cameraPosition, visibilityAlpha, bodySelection);
@@ -94,5 +93,4 @@ public partial class Game1
         {
             return player.DisplayName;
         }
-    }
 }
