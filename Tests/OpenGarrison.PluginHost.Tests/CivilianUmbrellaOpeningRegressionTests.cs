@@ -14,9 +14,10 @@ public sealed class CivilianUmbrellaOpeningRegressionTests
         var player = CreateWorld(30).LocalPlayer;
         Assert.True(string.IsNullOrEmpty(player.GameplayLoadoutState.SecondaryItemId));
         var controller = typeof(GameplayWeaponRenderController);
-        var resolve = controller.GetMethod("ResolveRenderPresentation", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static)!;
+        var resolve = controller.GetMethod("ResolveRenderPresentation", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance)!;
+        var controllerInstance = System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(controller);
         GameplayItemPresentationDefinition Presentation(bool force = false)
-            => (GameplayItemPresentationDefinition)resolve.Invoke(null, [player, force])!;
+            => (GameplayItemPresentationDefinition)resolve.Invoke(controllerInstance, [player, force])!;
 
         Assert.Equal("CivvieUmbrellaS", Presentation().WorldSpriteName);
         Assert.True(player.TryActivateCivvieUmbrella());
