@@ -71,7 +71,7 @@ public sealed class BrowserHudDefaultsTests
             field.SetValue(game, Activator.CreateInstance(field.FieldType, true));
         }
         var controllerType = typeof(GameplayLocalStatusHudController);
-        var controller = Activator.CreateInstance(controllerType, Instance, null, [game], null)!;
+        var controller = new GameplayLocalStatusHudController((IHudContext)game)!;
         object Invoke(string name, params object[] args) => controllerType.GetMethod(name, Instance | BindingFlags.Static)!.Invoke(controller, args)!;
         var weapons = Invoke("GetWeaponHudWidgets");
         var abilities = Invoke("GetAbilityHudWidgets");
@@ -112,7 +112,7 @@ public sealed class BrowserHudDefaultsTests
         }
 
         var controllerType = typeof(GameplayLocalStatusHudController);
-        var controller = Activator.CreateInstance(controllerType, Instance, null, [game], null)!;
+        var controller = new GameplayLocalStatusHudController((IHudContext)game)!;
         string[] BuildRowIds()
         {
             var rows = (IEnumerable)controllerType.GetMethod("BuildWeaponHudRows", Instance)!.Invoke(controller, null)!;
