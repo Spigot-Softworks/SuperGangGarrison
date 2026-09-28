@@ -478,29 +478,26 @@ public sealed partial class SimulationWorld
 
         var horizontalSpeed = player.HorizontalSpeed * (float)Config.FixedDeltaSeconds;
         var verticalSpeed = player.VerticalSpeed * (float)Config.FixedDeltaSeconds;
-        if (killer is not null && !ReferenceEquals(killer, player))
+        var diedToFire = player.IsBurning || DeathCamPhraseCatalog.IsFireWeapon(weaponSpriteName);
+        if (!diedToFire && killer is not null && !ReferenceEquals(killer, player))
         {
             // Prefer shot origin (sentry barrel / killer) so remains fly away from the shot, not a distant owner.
             var originX = knockbackOriginSentry?.X ?? killer.X;
             var originY = knockbackOriginSentry?.Y ?? killer.Y;
-            var deltaX = player.X - originX;
-            var deltaY = player.Y - originY;
-            var distance = MathF.Sqrt((deltaX * deltaX) + (deltaY * deltaY));
-            var knockbackSpeed = CorpseKnockbackRules.EnforceMinimum(
-                CorpseKnockbackRules.ResolveSpeed(weaponSpriteName, killer.ClassId));
-            if (distance > 0.001f)
-            {
-                horizontalSpeed += (deltaX / distance) * knockbackSpeed;
-                verticalSpeed += ((deltaY / distance) * knockbackSpeed * 0.45f) - 2.0f;
-            }
-            else
-            {
-                // Opposite of facing — away from whoever they were aiming at.
-                horizontalSpeed += player.FacingDirectionX >= 0f ? -knockbackSpeed : knockbackSpeed;
-                verticalSpeed -= 2.0f;
-            }
+            var knockbackSpeed = CorpseKnockbackRules.ResolveSpeed(weaponSpriteName, killer.ClassId);
+            // Opposite of facing — used only when origin coincides with the corpse.
+            var facingFallbackSign = player.FacingDirectionX >= 0f ? -1f : 1f;
+            CorpseKnockbackRules.ApplyDirectedLaunch(
+                ref horizontalSpeed,
+                ref verticalSpeed,
+                player.X,
+                player.Y,
+                originX,
+                originY,
+                knockbackSpeed,
+                facingFallbackSign);
         }
-        else
+        else if (!diedToFire)
         {
             verticalSpeed -= 1.2f;
         }
@@ -518,7 +515,8 @@ public sealed partial class SimulationWorld
             horizontalSpeed,
             verticalSpeed,
             MathF.Cos(player.AimDirectionDegrees * (MathF.PI / 180f)) < 0f,
-            player.GameplayClassId);
+            player.GameplayClassId,
+            diedToFire);
         _deadBodies.Add(deadBody);
         _entities.Add(deadBody.Id, deadBody);
     }

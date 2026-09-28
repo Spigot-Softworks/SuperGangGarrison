@@ -114,9 +114,13 @@ public partial class Game1
             _ => 0.56f,
         };
 
-    private bool DrawElkondoRagdollVisual(DynamicRagdollState ragdoll, int ticksRemaining, Vector2 cameraPosition)
+    private bool DrawElkondoRagdollVisual(
+        DynamicRagdollState ragdoll,
+        int ticksRemaining,
+        Vector2 cameraPosition,
+        Color? tintOverride = null)
     {
-        var fadeAlpha = GetCorpseFadeAlpha(ticksRemaining);
+        var fadeAlpha = tintOverride.HasValue ? 1f : GetCorpseFadeAlpha(ticksRemaining);
         if (fadeAlpha <= 0.001f)
         {
             return ticksRemaining <= 0;
@@ -148,7 +152,7 @@ public partial class Game1
         }
 
         var scaleX = ragdoll.FacingLeft ? -1f : 1f;
-        var tint = Color.White * fadeAlpha;
+        var tint = (tintOverride ?? Color.White) * fadeAlpha;
         var roundedOrigin = GetRoundedPlayerSpriteOrigin(new Vector2(ragdoll.X, ragdoll.Y));
         var rootPosition = new Vector2(roundedOrigin.X - cameraPosition.X, roundedOrigin.Y - cameraPosition.Y);
         var baseSource = frame.SourceRectangle ?? new Rectangle(0, 0, frame.Width, frame.Height);

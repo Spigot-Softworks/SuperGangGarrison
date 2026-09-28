@@ -63,6 +63,7 @@ public partial class Game1
         public required DeadBodyAnimationKind AnimationKind { get; init; }
         public required string GameplayClassId { get; init; }
         public required bool FacingLeft { get; init; }
+        public bool DiedToFire;
 
         public float X;
         public float Y;
@@ -72,6 +73,8 @@ public partial class Game1
         public float AngularVelocityDegrees;
         public bool Grounded;
         public bool Settled;
+        /// <summary>Pose frozen for acid dissolve — physics and live draw stop; snapshot owns the visual.</summary>
+        public bool AcidFrozen;
         public int AgeTicks;
         public int GroundedTicks;
         public Rectangle OpaqueBounds;
@@ -119,6 +122,14 @@ public partial class Game1
         {
             var ragdoll = pair.Value;
             ragdoll.AgeTicks += 1;
+            if (ragdoll.AcidFrozen
+                || IsBurnCharredRagdollHeld(ragdoll)
+                || (TryGetRagdollCorpseTicksRemaining(ragdoll, out var corpseTicks)
+                    && IsCorpseAcidFading(corpseTicks)))
+            {
+                // Hold still once acid/burn dissolve starts so the snapshot matches the last posed frame.
+                continue;
+            }
 
             Span<Vector2> poseNodes = stackalloc Vector2[DynamicRagdollCollisionNodeCount];
             Span<bool> poseGrounded = stackalloc bool[DynamicRagdollCollisionNodeCount];
@@ -279,23 +290,38 @@ public partial class Game1
                 && _dynamicRagdolls.Remove(syntheticId, out var transferred))
             {
                 _staleDynamicRagdollIds.Remove(syntheticId);
-                // If the immediate launch was a weak facing fallback, prefer server corpse speeds.
-                var authSpeedSq = (deadBody.HorizontalSpeed * deadBody.HorizontalSpeed)
-                    + (deadBody.VerticalSpeed * deadBody.VerticalSpeed);
-                var currentSpeedSq = (transferred.VelocityX * transferred.VelocityX)
-                    + (transferred.VelocityY * transferred.VelocityY);
-                if (authSpeedSq > 1f
-                    && authSpeedSq > currentSpeedSq * 1.35f
-                    && transferred.AgeTicks <= 8)
+                // Prefer server corpse speeds when the immediate launch was weak or aimed the wrong way.
+                // Fire deaths keep original motion — never re-apply the shot launch scale.
+                if (!deadBody.DiedToFire && !transferred.DiedToFire)
                 {
-                    transferred.VelocityX = deadBody.HorizontalSpeed * DynamicRagdollLaunchSpeedScale;
-                    transferred.VelocityY = MathF.Min(
-                        deadBody.VerticalSpeed * DynamicRagdollLaunchSpeedScale,
-                        -2.0f);
-                    transferred.Settled = false;
-                    transferred.GroundedTicks = 0;
+                    var authSpeedSq = (deadBody.HorizontalSpeed * deadBody.HorizontalSpeed)
+                        + (deadBody.VerticalSpeed * deadBody.VerticalSpeed);
+                    var currentSpeedSq = (transferred.VelocityX * transferred.VelocityX)
+                        + (transferred.VelocityY * transferred.VelocityY);
+                    var authLaunchX = deadBody.HorizontalSpeed * DynamicRagdollLaunchSpeedScale;
+                    var directionDisagrees = transferred.AgeTicks <= 8
+                        && MathF.Abs(authLaunchX) > 0.5f
+                        && MathF.Abs(transferred.VelocityX) > 0.5f
+                        && MathF.Sign(authLaunchX) != MathF.Sign(transferred.VelocityX);
+                    if (authSpeedSq > 1f
+                        && transferred.AgeTicks <= 8
+                        && (directionDisagrees || authSpeedSq > currentSpeedSq * 1.35f))
+                    {
+                        transferred.VelocityX = authLaunchX;
+                        transferred.VelocityY = MathF.Min(
+                            deadBody.VerticalSpeed * DynamicRagdollLaunchSpeedScale,
+                            -2.0f);
+                        transferred.Settled = false;
+                        transferred.GroundedTicks = 0;
+                    }
+                }
+                else if (transferred.AgeTicks <= 8)
+                {
+                    transferred.VelocityX = deadBody.HorizontalSpeed;
+                    transferred.VelocityY = deadBody.VerticalSpeed;
                 }
 
+                transferred.DiedToFire |= deadBody.DiedToFire;
                 _dynamicRagdolls[deadBody.Id] = transferred;
                 continue;
             }
@@ -384,24 +410,25 @@ public partial class Game1
             hasOrigin = true;
         }
 
-        knockbackSpeed = CorpseKnockbackRules.EnforceMinimum(knockbackSpeed);
-
+        // Opposite of facing ≈ away from whoever they were aiming at (origin coincidence only).
+        var facingFallbackSign = facingLeft ? 1f : -1f;
         if (hasOrigin)
         {
-            var deltaX = corpseX - originX;
-            var deltaY = corpseY - originY;
-            var distance = MathF.Sqrt((deltaX * deltaX) + (deltaY * deltaY));
-            if (distance > 0.001f)
-            {
-                // Match server SpawnDeadBody arc (not projectile-speed based).
-                knockbackX = (deltaX / distance) * knockbackSpeed;
-                knockbackY = ((deltaY / distance) * knockbackSpeed * 0.45f) - 2.0f;
-                return;
-            }
+            knockbackX = 0f;
+            knockbackY = 0f;
+            CorpseKnockbackRules.ApplyDirectedLaunch(
+                ref knockbackX,
+                ref knockbackY,
+                corpseX,
+                corpseY,
+                originX,
+                originY,
+                knockbackSpeed,
+                facingFallbackSign);
+            return;
         }
 
-        // Opposite of facing ≈ away from whoever they were aiming at.
-        knockbackX = (facingLeft ? 1f : -1f) * knockbackSpeed * 0.7f;
+        knockbackX = facingFallbackSign * CorpseKnockbackRules.EnforceMinimum(knockbackSpeed) * 0.7f;
         knockbackY = -2.4f;
     }
 
@@ -458,7 +485,8 @@ public partial class Game1
             deadBody.X,
             deadBody.Y,
             deadBody.HorizontalSpeed,
-            deadBody.VerticalSpeed);
+            deadBody.VerticalSpeed,
+            deadBody.DiedToFire);
     }
 
     private void EnsureDynamicRagdollFromImmediate(ImmediateNetworkDeadBodyVisual deadBody, int syntheticId)
@@ -469,8 +497,28 @@ public partial class Game1
         }
 
         // Knock opposite of facing — facing the killer is typical, so this reads as away from the shot.
-        var facingSign = deadBody.FacingLeft ? 1f : -1f;
-        var knockbackSpeed = CorpseKnockbackRules.EnforceMinimum(CorpseKnockbackRules.StandardSpeed);
+        // Fire deaths keep original motion only (no death shove).
+        float knockbackX;
+        float knockbackY;
+        if (deadBody.DiedToFire)
+        {
+            knockbackX = 0f;
+            knockbackY = 0f;
+            var sourcePlayer = FindPlayerById(deadBody.SourcePlayerId);
+            if (sourcePlayer is not null)
+            {
+                knockbackX = sourcePlayer.HorizontalSpeed * (float)_config.FixedDeltaSeconds;
+                knockbackY = sourcePlayer.VerticalSpeed * (float)_config.FixedDeltaSeconds;
+            }
+        }
+        else
+        {
+            var facingSign = deadBody.FacingLeft ? 1f : -1f;
+            var knockbackSpeed = CorpseKnockbackRules.EnforceMinimum(CorpseKnockbackRules.StandardSpeed);
+            knockbackX = facingSign * knockbackSpeed * 0.7f;
+            knockbackY = -2.4f;
+        }
+
         SpawnDynamicRagdoll(
             syntheticId,
             deadBody.SourcePlayerId,
@@ -481,8 +529,9 @@ public partial class Game1
             deadBody.FacingLeft,
             deadBody.X,
             deadBody.Y,
-            knockbackX: facingSign * knockbackSpeed * 0.7f,
-            knockbackY: -2.4f);
+            knockbackX,
+            knockbackY,
+            diedToFire: deadBody.DiedToFire);
     }
 
     private void SpawnDynamicRagdoll(
@@ -496,7 +545,8 @@ public partial class Game1
         float x,
         float y,
         float knockbackX,
-        float knockbackY)
+        float knockbackY,
+        bool diedToFire = false)
     {
         if (_dynamicRagdolls.ContainsKey(deadBodyId))
         {
@@ -529,39 +579,55 @@ public partial class Game1
         var spawnRotation = useElkondoVisual
             ? 0f
             : facingLeft ? -90f : 90f;
-        var launchX = knockbackX * DynamicRagdollLaunchSpeedScale;
-        var launchY = knockbackY * DynamicRagdollLaunchSpeedScale;
-        var launchSpeed = MathF.Sqrt((launchX * launchX) + (launchY * launchY));
-        if (launchSpeed < DynamicRagdollMinLaunchSpeed)
+
+        float launchX;
+        float launchY;
+        float angularVelocityDegrees;
+        var tipSign = 1f;
+        if (diedToFire)
         {
-            // Opposite of facing so the fallback still reads as shot-away, not into the aim.
-            var awaySign = facingLeft ? 1f : -1f;
-            launchX = awaySign * (CorpseKnockbackRules.MinimumSpeed * DynamicRagdollLaunchSpeedScale);
-            launchY = -2.8f - (_dynamicRagdollRandom.NextSingle() * 2.0f);
-            launchSpeed = MathF.Sqrt((launchX * launchX) + (launchY * launchY));
+            // Flames: keep the character's existing motion — no death shove / tip impulse.
+            launchX = knockbackX;
+            launchY = knockbackY;
+            angularVelocityDegrees = 0f;
         }
         else
         {
-            // Bias a meaty upward burst so it doesn't just crumple in place.
-            launchY -= 1.6f + (_dynamicRagdollRandom.NextSingle() * 1.2f);
+            launchX = knockbackX * DynamicRagdollLaunchSpeedScale;
+            launchY = knockbackY * DynamicRagdollLaunchSpeedScale;
+            var launchSpeed = MathF.Sqrt((launchX * launchX) + (launchY * launchY));
+            if (launchSpeed < DynamicRagdollMinLaunchSpeed)
+            {
+                // Opposite of facing so the fallback still reads as shot-away, not into the aim.
+                var awaySign = facingLeft ? 1f : -1f;
+                launchX = awaySign * (CorpseKnockbackRules.MinimumSpeed * DynamicRagdollLaunchSpeedScale);
+                launchY = -2.8f - (_dynamicRagdollRandom.NextSingle() * 2.0f);
+                launchSpeed = MathF.Sqrt((launchX * launchX) + (launchY * launchY));
+            }
+            else
+            {
+                // Bias a meaty upward burst so it doesn't just crumple in place.
+                launchY -= 1.6f + (_dynamicRagdollRandom.NextSingle() * 1.2f);
+            }
+
+            // Keep a noticeable horizontal shove even when the supplied knockback was weak/slow.
+            var minHorizontal = CorpseKnockbackRules.MinimumSpeed * DynamicRagdollLaunchSpeedScale * 0.85f;
+            if (MathF.Abs(launchX) < minHorizontal)
+            {
+                var awaySign = launchX != 0f
+                    ? MathF.Sign(launchX)
+                    : (facingLeft ? 1f : -1f);
+                launchX = awaySign * minHorizontal;
+                launchSpeed = MathF.Sqrt((launchX * launchX) + (launchY * launchY));
+            }
+
+            // Never spawn with net downward launch — overlapping floors + down velocity looks like a slam under the map.
+            launchY = MathF.Min(launchY, -2.0f);
+
+            // Tip/fold WITH the knockback so the corpse leans away from the bullet, not into it.
+            tipSign = launchX >= 0f ? 1f : -1f;
+            angularVelocityDegrees = tipSign * (2.2f + (launchSpeed * 0.28f));
         }
-
-        // Keep a noticeable horizontal shove even when the supplied knockback was weak/slow.
-        var minHorizontal = CorpseKnockbackRules.MinimumSpeed * DynamicRagdollLaunchSpeedScale * 0.85f;
-        if (MathF.Abs(launchX) < minHorizontal)
-        {
-            var awaySign = launchX != 0f
-                ? MathF.Sign(launchX)
-                : (facingLeft ? 1f : -1f);
-            launchX = awaySign * minHorizontal;
-            launchSpeed = MathF.Sqrt((launchX * launchX) + (launchY * launchY));
-        }
-
-        // Never spawn with net downward launch — overlapping floors + down velocity looks like a slam under the map.
-        launchY = MathF.Min(launchY, -2.0f);
-
-        // Tip/fold WITH the knockback so the corpse leans away from the bullet, not into it.
-        var tipSign = launchX >= 0f ? 1f : -1f;
 
         var ragdoll = new DynamicRagdollState
         {
@@ -572,20 +638,24 @@ public partial class Game1
             AnimationKind = animationKind,
             GameplayClassId = gameplayClassId ?? string.Empty,
             FacingLeft = facingLeft,
+            DiedToFire = diedToFire,
             X = x,
             Y = y,
             VelocityX = launchX,
             VelocityY = launchY,
             RotationDegrees = spawnRotation,
             // Light tip from the kill shot — enough to flop, not enough to keep rolling on the ground.
-            AngularVelocityDegrees = tipSign * (2.2f + (launchSpeed * 0.28f)),
+            AngularVelocityDegrees = angularVelocityDegrees,
             OpaqueBounds = opaqueBounds,
             CollisionHalfWidth = collisionHalfWidth,
             CollisionHalfHeight = collisionHalfHeight,
             UseElkondoVerticalVisual = useElkondoVisual,
         };
 
-        ApplyDeathShotImpulseThroughWaist(ragdoll, launchX, launchY, tipSign, useElkondoVisual);
+        if (!diedToFire)
+        {
+            ApplyDeathShotImpulseThroughWaist(ragdoll, launchX, launchY, tipSign, useElkondoVisual);
+        }
 
         var sourcePlayer = FindPlayerById(sourcePlayerId);
         if (useElkondoVisual)
@@ -1860,11 +1930,47 @@ public partial class Game1
             if (deadBodyId > 0
                 && _dynamicRagdolls.Remove(syntheticId, out var transferred))
             {
+                transferred.DiedToFire |= ResolveDeadBodyDiedToFire(deadBodyId, sourcePlayerId);
                 _dynamicRagdolls[deadBodyId] = transferred;
                 ragdoll = transferred;
             }
             else
             {
+                var diedToFire = ResolveDeadBodyDiedToFire(deadBodyId, sourcePlayerId);
+                float knockbackX;
+                float knockbackY;
+                if (diedToFire)
+                {
+                    knockbackX = 0f;
+                    knockbackY = 0f;
+                    var sourcePlayer = FindPlayerById(sourcePlayerId);
+                    if (sourcePlayer is not null)
+                    {
+                        knockbackX = sourcePlayer.HorizontalSpeed * (float)_config.FixedDeltaSeconds;
+                        knockbackY = sourcePlayer.VerticalSpeed * (float)_config.FixedDeltaSeconds;
+                    }
+                    else
+                    {
+                        foreach (var deadBody in _world.DeadBodies)
+                        {
+                            if (deadBody.Id == deadBodyId || deadBody.SourcePlayerId == sourcePlayerId)
+                            {
+                                knockbackX = deadBody.HorizontalSpeed;
+                                knockbackY = deadBody.VerticalSpeed;
+                                break;
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    // Opposite of facing ≈ away from whoever they were aiming at.
+                    knockbackX = facingLeft
+                        ? CorpseKnockbackRules.MinimumSpeed * 0.75f
+                        : -CorpseKnockbackRules.MinimumSpeed * 0.75f;
+                    knockbackY = -2.2f;
+                }
+
                 SpawnDynamicRagdoll(
                     deadBodyId,
                     sourcePlayerId,
@@ -1875,11 +1981,9 @@ public partial class Game1
                     facingLeft,
                     x,
                     y,
-                    // Opposite of facing ≈ away from whoever they were aiming at.
-                    knockbackX: facingLeft
-                        ? CorpseKnockbackRules.MinimumSpeed * 0.75f
-                        : -CorpseKnockbackRules.MinimumSpeed * 0.75f,
-                    knockbackY: -2.2f);
+                    knockbackX,
+                    knockbackY,
+                    diedToFire);
                 if (!_dynamicRagdolls.TryGetValue(deadBodyId, out ragdoll))
                 {
                     return false;
@@ -1887,17 +1991,28 @@ public partial class Game1
             }
         }
 
-        if (TryDrawCorpseAcidDissolve(
+        if (TryDrawBurnCharredCorpse(
                 deadBodyId,
-                ragdoll.GameplayClassId,
-                ragdoll.ClassId,
-                ragdoll.Team,
-                ragdoll.AnimationKind,
+                sourcePlayerId,
+                ragdoll.DiedToFire,
                 ragdoll.X,
                 ragdoll.Y,
                 MathF.Max(ragdoll.OpaqueBounds.Height, height),
                 ragdoll.FacingLeft,
-                ragdoll.RotationDegrees,
+                ragdoll.GameplayClassId,
+                ragdoll.ClassId,
+                ragdoll.Team,
+                ragdoll.AnimationKind,
+                ticksRemaining,
+                cameraPosition))
+        {
+            return true;
+        }
+
+        // Acid owns a frozen pose snapshot — never swap to the static corpse sprite mid-ragdoll.
+        if (TryDrawExistingCorpseAcidDissolve(
+                deadBodyId,
+                sourcePlayerId,
                 ticksRemaining,
                 cameraPosition))
         {
@@ -1907,14 +2022,53 @@ public partial class Game1
         return DrawDynamicRagdollVisual(ragdoll, ticksRemaining, cameraPosition);
     }
 
-    private bool DrawDynamicRagdollVisual(DynamicRagdollState ragdoll, int ticksRemaining, Vector2 cameraPosition)
+    private bool ResolveDeadBodyDiedToFire(int deadBodyId, int sourcePlayerId)
+    {
+        foreach (var deadBody in _world.DeadBodies)
+        {
+            if (deadBody.Id == deadBodyId || deadBody.SourcePlayerId == sourcePlayerId)
+            {
+                return deadBody.DiedToFire;
+            }
+        }
+
+        return _immediateNetworkDeadBodies.TryGetValue(sourcePlayerId, out var immediate) && immediate.DiedToFire;
+    }
+
+    private bool TryGetRagdollCorpseTicksRemaining(DynamicRagdollState ragdoll, out int ticksRemaining)
+    {
+        foreach (var deadBody in _world.DeadBodies)
+        {
+            if (deadBody.Id == ragdoll.DeadBodyId
+                || (ragdoll.DeadBodyId <= 0 && deadBody.SourcePlayerId == ragdoll.SourcePlayerId))
+            {
+                ticksRemaining = deadBody.TicksRemaining;
+                return true;
+            }
+        }
+
+        if (_immediateNetworkDeadBodies.TryGetValue(ragdoll.SourcePlayerId, out var immediate))
+        {
+            ticksRemaining = immediate.TicksRemaining;
+            return true;
+        }
+
+        ticksRemaining = 0;
+        return false;
+    }
+
+    private bool DrawDynamicRagdollVisual(
+        DynamicRagdollState ragdoll,
+        int ticksRemaining,
+        Vector2 cameraPosition,
+        Color? tintOverride = null)
     {
         if (ragdoll.UseElkondoVerticalVisual)
         {
-            return DrawElkondoRagdollVisual(ragdoll, ticksRemaining, cameraPosition);
+            return DrawElkondoRagdollVisual(ragdoll, ticksRemaining, cameraPosition, tintOverride);
         }
 
-        var fadeAlpha = GetCorpseFadeAlpha(ticksRemaining);
+        var fadeAlpha = tintOverride.HasValue ? 1f : GetCorpseFadeAlpha(ticksRemaining);
         // Only end-of-life fade (last Regular/Acid ticks) can zero alpha — never treat that as "drawn"
         // when we somehow got a non-positive lifetime mid-flight; fall through to the static corpse.
         if (fadeAlpha <= 0.001f)
@@ -1946,7 +2100,7 @@ public partial class Game1
         }
 
         var scaleX = ragdoll.FacingLeft ? -1f : 1f;
-        var tint = Color.White * fadeAlpha;
+        var tint = (tintOverride ?? Color.White) * fadeAlpha;
         var roundedOrigin = GetRoundedPlayerSpriteOrigin(new Vector2(ragdoll.X, ragdoll.Y));
         var rootPosition = new Vector2(roundedOrigin.X - cameraPosition.X, roundedOrigin.Y - cameraPosition.Y);
         var baseSource = frame.SourceRectangle ?? new Rectangle(0, 0, frame.Width, frame.Height);

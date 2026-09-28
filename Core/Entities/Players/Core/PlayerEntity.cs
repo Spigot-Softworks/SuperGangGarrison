@@ -752,6 +752,18 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     public float SniperBowChargeDirectionDegrees { get; private set; }
 
+    public int StrongDrinkChargeTicks { get; private set; }
+
+    public float StrongDrinkChargeDirectionDegrees { get; private set; }
+
+    public const int StrongDrinkMaxChargeTicks = 45;
+
+    public const float StrongDrinkMinThrowSpeed = GrenadeProjectileEntity.StrongDrinkDefaultMinThrowSpeed;
+
+    public const float StrongDrinkMaxThrowSpeed = GrenadeProjectileEntity.StrongDrinkDefaultMaxThrowSpeed;
+
+    public const float StrongDrinkLobBiasDegrees = 40f;
+
     public const int SniperBowMaxChargeTicks = 45;
 
     public const int MortarLauncherMaxChargeTicks = SniperBowMaxChargeTicks;

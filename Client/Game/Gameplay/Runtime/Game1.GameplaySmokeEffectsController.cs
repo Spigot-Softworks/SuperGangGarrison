@@ -315,6 +315,10 @@ public partial class Game1
                     continue;
                 }
 
+                // Strong Drink leaves a beer-amber splash trail instead of gray smoke.
+                Color? trailTint = grenade.IsStrongDrink
+                    ? (Color?)new Color(232, 186, 58)
+                    : null;
                 var renderPosition = _game.GetRenderPosition(grenade.Id, grenade.X, grenade.Y);
                 _game._flameSmokeVisuals.Add(new FlameSmokeVisual(
                     renderPosition.X - (velocityX * 1.3f),
@@ -326,11 +330,15 @@ public partial class Game1
                     (3f + (_game._visualRandom.NextSingle() * 2.8f)) * FlareSmokeSizeScale,
                     (8f + (_game._visualRandom.NextSingle() * 8f)) * FlareSmokeSizeScale,
                     0.75f + (_game._visualRandom.NextSingle() * 0.15f),
-                    22 + _game._visualRandom.Next(12)));
+                    22 + _game._visualRandom.Next(12),
+                    trailTint));
 
                 if (_game._particleMode == 0
                     && CanEmitBrowserVisual(_game._flameSmokeVisuals.Count, BrowserFlameSmokeVisualLimit))
                 {
+                    var secondaryTint = grenade.IsStrongDrink
+                        ? (Color?)new Color(210, 155, 42)
+                        : null;
                     _game._flameSmokeVisuals.Add(new FlameSmokeVisual(
                         renderPosition.X - (velocityX * 0.75f),
                         renderPosition.Y - (velocityY * 0.75f),
@@ -341,7 +349,8 @@ public partial class Game1
                         (3f + (_game._visualRandom.NextSingle() * 2.8f)) * FlareSmokeSizeScale,
                         (8f + (_game._visualRandom.NextSingle() * 8f)) * FlareSmokeSizeScale,
                         0.75f + (_game._visualRandom.NextSingle() * 0.15f),
-                        22 + _game._visualRandom.Next(12)));
+                        22 + _game._visualRandom.Next(12),
+                        secondaryTint));
                 }
             }
 
@@ -636,7 +645,7 @@ public partial class Game1
             Vector2 cameraPosition,
             float brightnessScale)
         {
-            var cells = new System.Collections.Generic.Dictionary<(int, int), (float alpha, float shade)>();
+            var cells = new System.Collections.Generic.Dictionary<(int, int), (float alpha, float shade, Color? tint)>();
             var driftTicks = MathF.Max(1f, 0.2f / (float)_game._config.FixedDeltaSeconds);
             for (var index = 0; index < smokeVisuals.Count; index += 1)
             {
@@ -656,15 +665,72 @@ public partial class Game1
                 var worldX = smoke.X + smoke.OffsetX + (smoke.DriftX * driftProgress);
                 var worldY = smoke.Y + smoke.OffsetY + (smoke.DriftY * driftProgress);
                 var smokeSeed = (int)(smoke.X * 29f) ^ (int)(smoke.Y * 13f) ^ smoke.LifetimeTicks;
-                AccumulateSmokeCircle(cells, worldX, worldY, radius, alpha, shade, progress, smokeSeed);
+                AccumulateSmokeCircle(cells, worldX, worldY, radius, alpha, shade, progress, smokeSeed, smoke.Tint);
             }
 
-            DrawSmokeCells(cells, cameraPosition, brightnessScale);
+            DrawTintedSmokeCells(cells, cameraPosition, brightnessScale);
+        }
+
+        private void DrawTintedSmokeCells(
+            System.Collections.Generic.Dictionary<(int, int), (float alpha, float shade, Color? tint)> cells,
+            Vector2 cameraPosition,
+            float brightnessScale)
+        {
+            const float cellSize = 2f;
+            var clampedBrightnessScale = Math.Clamp(brightnessScale, 0f, 1f);
+            foreach (var ((gx, gy), (_, shade, tint)) in cells)
+            {
+                var intensity = (102f + (shade * 153f)) * clampedBrightnessScale;
+                var intensity01 = Math.Clamp(intensity / 255f, 0f, 1f);
+                Color color;
+                if (tint.HasValue)
+                {
+                    var beer = tint.Value;
+                    color = new Color(
+                        (byte)Math.Clamp((int)MathF.Round(beer.R * intensity01), 0, 255),
+                        (byte)Math.Clamp((int)MathF.Round(beer.G * intensity01), 0, 255),
+                        (byte)Math.Clamp((int)MathF.Round(beer.B * intensity01), 0, 255));
+                }
+                else
+                {
+                    var gray = (byte)Math.Clamp((int)MathF.Round(intensity), 0, 255);
+                    color = new Color(gray, gray, gray);
+                }
+
+                var rect = new Rectangle(
+                    (int)MathF.Round((gx * cellSize) - cameraPosition.X),
+                    (int)MathF.Round((gy * cellSize) - cameraPosition.Y),
+                    (int)cellSize,
+                    (int)cellSize);
+                _game._spriteBatch.Draw(_game._pixel, rect, color);
+            }
         }
 
         private static void AccumulateSmokeCircle(
             System.Collections.Generic.Dictionary<(int, int), (float alpha, float shade)> cells,
             float worldCX, float worldCY, float radius, float alpha, float shade, float progress, int seed)
+        {
+            var tintedCells = new System.Collections.Generic.Dictionary<(int, int), (float alpha, float shade, Color? tint)>();
+            AccumulateSmokeCircle(tintedCells, worldCX, worldCY, radius, alpha, shade, progress, seed, tint: null);
+            foreach (var pair in tintedCells)
+            {
+                if (cells.TryGetValue(pair.Key, out var existing))
+                {
+                    var combined = MathF.Min(0.85f, existing.alpha + pair.Value.alpha);
+                    var blendedShade = ((existing.shade * existing.alpha) + (pair.Value.shade * pair.Value.alpha))
+                        / MathF.Max(0.0001f, existing.alpha + pair.Value.alpha);
+                    cells[pair.Key] = (combined, blendedShade);
+                }
+                else
+                {
+                    cells[pair.Key] = (pair.Value.alpha, pair.Value.shade);
+                }
+            }
+        }
+
+        private static void AccumulateSmokeCircle(
+            System.Collections.Generic.Dictionary<(int, int), (float alpha, float shade, Color? tint)> cells,
+            float worldCX, float worldCY, float radius, float alpha, float shade, float progress, int seed, Color? tint)
         {
             const float cellSize = 2f;
             var minGX = (int)MathF.Floor((worldCX - radius) / cellSize);
@@ -712,11 +778,17 @@ public partial class Game1
                     {
                         var combined = MathF.Min(0.85f, existing.alpha + cellAlpha);
                         var blendedShade = ((existing.shade * existing.alpha) + (shade * cellAlpha)) / MathF.Max(0.0001f, existing.alpha + cellAlpha);
-                        cells[key] = (combined, blendedShade);
+                        var blendedTint = existing.tint ?? tint;
+                        if (existing.tint.HasValue && tint.HasValue && cellAlpha >= existing.alpha)
+                        {
+                            blendedTint = tint;
+                        }
+
+                        cells[key] = (combined, blendedShade, blendedTint);
                     }
                     else
                     {
-                        cells[key] = (cellAlpha, shade);
+                        cells[key] = (cellAlpha, shade, tint);
                     }
                 }
             }

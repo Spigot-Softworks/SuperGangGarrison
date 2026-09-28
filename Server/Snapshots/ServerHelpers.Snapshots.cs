@@ -651,7 +651,9 @@ internal static partial class ServerHelpers
             flame.AttachedOffsetX,
             flame.AttachedOffsetY,
             flame.IsCritical,
-            flame.CriticalDamageMultiplier);
+            flame.CriticalDamageMultiplier,
+            flame.SettlesOnGround,
+            flame.IsGrounded);
     }
 
     internal static SnapshotShotState ToSnapshotFlareState(FlareProjectileEntity flare)
@@ -702,7 +704,8 @@ internal static partial class ServerHelpers
             grenade.VelocityY,
             grenade.FuseTicksLeft,
             grenade.IsCritical,
-            grenade.CriticalDamageMultiplier);
+            grenade.CriticalDamageMultiplier,
+            grenade.IsStrongDrink);
     }
 
     internal static SnapshotDeadBodyState ToSnapshotDeadBodyState(DeadBodyEntity deadBody)
@@ -721,7 +724,8 @@ internal static partial class ServerHelpers
             deadBody.VerticalSpeed,
             deadBody.FacingLeft,
             deadBody.TicksRemaining,
-            deadBody.GameplayClassId);
+            deadBody.GameplayClassId,
+            deadBody.DiedToFire);
     }
 
     internal static SnapshotSentryGibState ToSnapshotSentryGibState(SentryGibEntity sentryGib)

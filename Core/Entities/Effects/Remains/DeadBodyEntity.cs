@@ -21,7 +21,8 @@ public sealed class DeadBodyEntity : SimulationEntity
         float horizontalSpeed,
         float verticalSpeed,
         bool facingLeft,
-        string gameplayClassId = "") : base(id)
+        string gameplayClassId = "",
+        bool diedToFire = false) : base(id)
     {
         SourcePlayerId = sourcePlayerId;
         ClassId = classId;
@@ -35,6 +36,7 @@ public sealed class DeadBodyEntity : SimulationEntity
         VerticalSpeed = verticalSpeed;
         FacingLeft = facingLeft;
         GameplayClassId = gameplayClassId ?? string.Empty;
+        DiedToFire = diedToFire;
         TicksRemaining = LifetimeTicks;
     }
 
@@ -62,6 +64,9 @@ public sealed class DeadBodyEntity : SimulationEntity
 
     /// <summary>Gameplay class identity frozen at death; empty means legacy enum-only state.</summary>
     public string GameplayClassId { get; }
+
+    /// <summary>True when this corpse came from a fire / afterburn death (for charred burn presentation).</summary>
+    public bool DiedToFire { get; }
 
     public int TicksRemaining { get; private set; }
 

@@ -648,7 +648,7 @@ internal static class SnapshotDeltaBudgeter
 
     private static int EstimateDeadBodyBytes(SnapshotDeadBodyState deadBody)
     {
-        return EstimateStringBytes(deadBody.GameplayClassId) + 40;
+        return EstimateStringBytes(deadBody.GameplayClassId) + 41;
     }
 
     private static int EstimateGibSpawnEventBytes(SnapshotGibSpawnEvent gibEvent)

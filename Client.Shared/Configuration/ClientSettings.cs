@@ -84,10 +84,13 @@ public sealed class ClientSettings
     /// <summary>Client-only floppy corpse ragdoll for non-gib deaths.</summary>
     public bool DynamicRagdollEnabled { get; set; } = true;
 
+    /// <summary>Soot + burning dissolve presentation for fire deaths.</summary>
+    public bool BurnCharredCorpsesEnabled { get; set; } = true;
+
     /// <summary>Blood lifetime in whole seconds (default 9 ≈ stock duration rounded up).</summary>
     public int BloodPersistenceSeconds { get; set; } = OpenGarrisonPreferencesDocument.DefaultBloodPersistenceSeconds;
 
-    /// <summary>0 = Regular alpha fade, 1 = Acid top-down corpse dissolve (default).</summary>
+    /// <summary>0 = Regular alpha fade, 1 = Dissolve top-down corpse melt (default).</summary>
     public int CorpseFadeMode { get; set; } = OpenGarrisonPreferencesDocument.DefaultCorpseFadeMode;
 
     public MenuBackgroundMode MenuBackgroundMode { get; set; } = MenuBackgroundMode.DefaultMaps;
@@ -135,6 +138,8 @@ public sealed class ClientSettings
     public bool ProjectileTeamTintEnabled { get; set; } = true;
 
     public bool StuckArrowsEnabled { get; set; } = true;
+
+    public WeaponBobMode WeaponBobMode { get; set; } = WeaponBobMode.Enabled;
 
     public bool AudioMuted { get; set; }
 
@@ -305,6 +310,7 @@ public sealed class ClientSettings
             FlameRenderMode = document.FlameRenderMode,
             BloodRenderMode = document.BloodRenderMode,
             DynamicRagdollEnabled = document.DynamicRagdollEnabled,
+            BurnCharredCorpsesEnabled = document.BurnCharredCorpsesEnabled,
             BloodPersistenceSeconds = Math.Clamp(
                 document.BloodPersistenceSeconds <= 0
                     ? OpenGarrisonPreferencesDocument.DefaultBloodPersistenceSeconds
@@ -337,6 +343,7 @@ public sealed class ClientSettings
             ShowUberOutlinesEnabled = document.ShowUberOutlinesEnabled,
             ProjectileTeamTintEnabled = document.ProjectileTeamTintEnabled,
             StuckArrowsEnabled = document.StuckArrowsEnabled,
+            WeaponBobMode = OpenGarrisonPreferencesDocument.NormalizeWeaponBobMode(document.WeaponBobMode),
             AudioMuted = document.AudioMuted,
             MasterVolumePercent = Math.Clamp(document.MasterVolumePercent, 0, 100),
             MenuMusicVolumePercent = Math.Clamp(document.MenuMusicVolumePercent, 0, 100),
@@ -405,6 +412,7 @@ public sealed class ClientSettings
         preferences.FlameRenderMode = FlameRenderMode;
         preferences.BloodRenderMode = BloodRenderMode;
         preferences.DynamicRagdollEnabled = DynamicRagdollEnabled;
+        preferences.BurnCharredCorpsesEnabled = BurnCharredCorpsesEnabled;
         preferences.BloodPersistenceSeconds = Math.Clamp(
             BloodPersistenceSeconds <= 0
                 ? OpenGarrisonPreferencesDocument.DefaultBloodPersistenceSeconds
@@ -435,6 +443,7 @@ public sealed class ClientSettings
         preferences.ShowUberOutlinesEnabled = ShowUberOutlinesEnabled;
         preferences.ProjectileTeamTintEnabled = ProjectileTeamTintEnabled;
         preferences.StuckArrowsEnabled = StuckArrowsEnabled;
+        preferences.WeaponBobMode = OpenGarrisonPreferencesDocument.NormalizeWeaponBobMode(WeaponBobMode);
         preferences.AudioMuted = AudioMuted;
         preferences.MasterVolumePercent = Math.Clamp(MasterVolumePercent, 0, 100);
         preferences.MenuMusicVolumePercent = MenuMusicVolumePercent;

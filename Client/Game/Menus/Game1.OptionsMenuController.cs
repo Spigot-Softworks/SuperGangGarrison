@@ -590,11 +590,13 @@ public partial class Game1
                 new("Flame Style", GetFlameRenderModeLabel(_game._flameRenderMode), _game.CycleFlameRenderModeSetting, OptionsMenuTab.Graphics),
                 new("Blood Style", GetBloodRenderModeLabel(_game._bloodRenderMode), _game.CycleBloodRenderModeSetting, OptionsMenuTab.Graphics),
                 new("Dynamic Ragdoll", _game._dynamicRagdollEnabled ? "Enabled" : "Disabled", _game.ToggleDynamicRagdollSetting, OptionsMenuTab.Graphics),
+                new("Burn Charred Corpses", _game._burnCharredCorpsesEnabled ? "Enabled" : "Disabled", _game.ToggleBurnCharredCorpsesSetting, OptionsMenuTab.Graphics),
                 new("Gibs", GetGibLevelLabel(_game._gibLevel), _game.CycleGibLevelSetting, OptionsMenuTab.Graphics),
                 new("Blood Amount", GetBloodAmountLabel(_game._bloodAmountLevel), _game.CycleBloodAmountSetting, OptionsMenuTab.Graphics),
                 new("Blood Persistence", $"{_game._bloodPersistenceSeconds}s", () => _game.AdjustBloodPersistenceSeconds(1), OptionsMenuTab.Graphics, _game.AdjustBloodPersistenceSeconds),
                 new("Corpse Fade", GetCorpseFadeModeLabel(_game._corpseFadeMode), _game.CycleCorpseFadeModeSetting, OptionsMenuTab.Graphics),
                 new("Stuck Arrows", _game._stuckArrowsEnabled ? "Enabled" : "Disabled", _game.ToggleStuckArrowsSetting, OptionsMenuTab.Graphics),
+                new("Weapon Bob", GetWeaponBobModeLabel(_game._weaponBobMode), _game.CycleWeaponBobSetting, OptionsMenuTab.Graphics),
                 new("Corpses", GetCorpseDurationLabel(_game._corpseDurationMode), _game.CycleCorpseDurationSetting, OptionsMenuTab.Graphics),
                 new("Sprite Shadow", _game._spriteDropShadowEnabled ? "Enabled" : "Disabled", _game.ToggleSpriteDropShadowSetting, OptionsMenuTab.Graphics),
                 new("Weapon Rotation", _game._pixelPerfectWeaponRotation ? "Pixel-Perfect" : "High-Res", _game.ToggleWeaponRotationStyleSetting, OptionsMenuTab.Graphics),
@@ -994,6 +996,13 @@ public partial class Game1
             };
         }
 
+        private static string GetWeaponBobModeLabel(WeaponBobMode mode)
+        {
+            return OpenGarrisonPreferencesDocument.NormalizeWeaponBobMode(mode) == WeaponBobMode.Disabled
+                ? "Disabled"
+                : "Enabled";
+        }
+
         private static string GetFlameRenderModeLabel(int flameRenderMode)
         {
             return flameRenderMode == 0 ? "Particle" : "Sprite";
@@ -1006,7 +1015,7 @@ public partial class Game1
 
         private static string GetCorpseFadeModeLabel(int corpseFadeMode)
         {
-            return corpseFadeMode == 0 ? "Regular" : "Acid";
+            return corpseFadeMode == 0 ? "Regular" : "Dissolve";
         }
 
         private static string GetMenuBackgroundModeLabel(MenuBackgroundMode menuBackgroundMode)

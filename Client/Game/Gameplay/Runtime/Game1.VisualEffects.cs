@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using OpenGarrison.Core;
 using OpenGarrison.Core.LastToDie;
+using OpenGarrison.GameplayModding;
 using OpenGarrison.Protocol;
 
 namespace OpenGarrison.Client;
@@ -986,6 +987,199 @@ public partial class Game1
         DrawFadedTwoByTwoPixelGridCells(cellAlphas, cameraPosition, baseColor);
     }
 
+    private void DrawStrongDrinkAimArc(Vector2 cameraPosition)
+    {
+        var localPlayer = _world.LocalPlayer;
+        if (localPlayer is null
+            || !localPlayer.IsAlive
+            || localPlayer.ClassId != PlayerClass.Sniper
+            || !localPlayer.HasUtilityBehavior(BuiltInGameplayBehaviorIds.SniperStrongDrink))
+        {
+            return;
+        }
+
+        var chargeTicks = GetPlayerStrongDrinkChargeTicks(localPlayer);
+        if (chargeTicks <= 0 || localPlayer.IsTaunting || localPlayer.IsHeavyEating)
+        {
+            return;
+        }
+
+        var maxThrowSpeed = PlayerEntity.StrongDrinkMaxThrowSpeed;
+        var lobBiasDegrees = PlayerEntity.StrongDrinkLobBiasDegrees;
+        var gravityPerTick = GrenadeProjectileEntity.StrongDrinkGravityPerTick;
+        if (localPlayer.TryGetGameplayAbilityItem(
+                GameplayAbilityConstants.UtilityChannel,
+                BuiltInGameplayBehaviorIds.SniperStrongDrink,
+                out var abilityItem)
+            && abilityItem.Ability is { } ability)
+        {
+            maxThrowSpeed = GameplayAbilityParameterReader.GetFloat(
+                ability,
+                "throwSpeed",
+                PlayerEntity.StrongDrinkMaxThrowSpeed,
+                minValue: 0.1f);
+            if (ability.Parameters.ContainsKey("maxThrowSpeed"))
+            {
+                maxThrowSpeed = GameplayAbilityParameterReader.GetFloat(
+                    ability,
+                    "maxThrowSpeed",
+                    maxThrowSpeed,
+                    minValue: 0.1f);
+            }
+
+            lobBiasDegrees = GameplayAbilityParameterReader.GetFloat(
+                ability,
+                "lobBiasDegrees",
+                PlayerEntity.StrongDrinkLobBiasDegrees,
+                minValue: 0f);
+            gravityPerTick = GameplayAbilityParameterReader.GetFloat(
+                ability,
+                "gravityPerTick",
+                GrenadeProjectileEntity.StrongDrinkGravityPerTick,
+                minValue: 0f);
+        }
+
+        float aimWorldX;
+        float aimWorldY;
+        if (_hasLatestLocalAimWorldPosition)
+        {
+            aimWorldX = _latestLocalAimWorldX;
+            aimWorldY = _latestLocalAimWorldY;
+        }
+        else
+        {
+            var fallbackDegrees = GetPlayerStrongDrinkChargeDirectionDegrees(localPlayer);
+            var fallbackRadians = fallbackDegrees * (MathF.PI / 180f);
+            aimWorldX = localPlayer.X + MathF.Cos(fallbackRadians) * 200f;
+            aimWorldY = localPlayer.Y + MathF.Sin(fallbackRadians) * 200f;
+        }
+
+        // Preview always matches the full-strength throw.
+        const float chargeFraction = 1f;
+        var throwSpeed = maxThrowSpeed;
+
+        float spawnBaseX;
+        float spawnBaseY;
+        if (CanUseLocalPrediction() && _hasPredictedLocalPlayerPosition)
+        {
+            spawnBaseX = MathF.Round(_predictedLocalPlayerPosition.X + _predictedLocalPlayerRenderCorrectionOffset.X);
+            spawnBaseY = MathF.Round(_predictedLocalPlayerPosition.Y + _predictedLocalPlayerRenderCorrectionOffset.Y);
+        }
+        else
+        {
+            spawnBaseX = MathF.Round(localPlayer.X);
+            spawnBaseY = MathF.Round(localPlayer.Y);
+        }
+
+        // Prefer weapon pivot when available so the arc starts where the bottle spawns.
+        if (_gameplayWeaponRenderController.TryGetWeaponRotationPivot(localPlayer, out var pivotX, out var pivotY))
+        {
+            spawnBaseX = pivotX;
+            spawnBaseY = pivotY;
+        }
+
+        var seedAim = MathF.Atan2(aimWorldY - spawnBaseY, aimWorldX - spawnBaseX);
+        var spawnX = spawnBaseX + MathF.Cos(seedAim) * 10f;
+        var spawnY = spawnBaseY + MathF.Sin(seedAim) * 10f;
+        var throwRadians = PlayerEntity.ResolveStrongDrinkThrowDirection(
+            spawnX,
+            spawnY,
+            aimWorldX,
+            aimWorldY,
+            throwSpeed,
+            gravityPerTick,
+            chargeFraction,
+            lobBiasDegrees);
+        var velocityX = MathF.Cos(throwRadians) * throwSpeed;
+        var velocityY = MathF.Sin(throwRadians) * throwSpeed;
+
+        const int maxTicks = TrajectoryPreviewMaxTicks;
+        const float collisionRadius = 1f;
+        var trajectoryPoints = new List<(float X, float Y)>(maxTicks + 1)
+        {
+            (spawnX, spawnY),
+        };
+
+        var simX = spawnX;
+        var simY = spawnY;
+        var simVelX = velocityX;
+        var simVelY = velocityY;
+        var level = _world.Level;
+        var collisionDetected = false;
+        for (var tick = 0; tick < maxTicks && !collisionDetected; tick++)
+        {
+            // Match GrenadeProjectileEntity.AdvanceOneTick so the lob preview tracks the bottle.
+            simVelX *= GrenadeProjectileEntity.HorizontalAirFriction;
+            simVelY = float.Min(GrenadeProjectileEntity.MaxFallSpeed, simVelY + gravityPerTick);
+            simVelY *= GrenadeProjectileEntity.AirFriction;
+            simX += simVelX;
+            simY += simVelY;
+            trajectoryPoints.Add((simX, simY));
+
+            foreach (var solid in level.Solids)
+            {
+                if (simX + collisionRadius <= solid.Left
+                    || simX - collisionRadius >= solid.Right
+                    || simY + collisionRadius <= solid.Top
+                    || simY - collisionRadius >= solid.Bottom)
+                {
+                    continue;
+                }
+
+                collisionDetected = true;
+                break;
+            }
+        }
+
+        var trajectoryPathLength = 0f;
+        for (var index = 1; index < trajectoryPoints.Count; index += 1)
+        {
+            var previous = trajectoryPoints[index - 1];
+            var current = trajectoryPoints[index];
+            var deltaX = current.X - previous.X;
+            var deltaY = current.Y - previous.Y;
+            trajectoryPathLength += MathF.Sqrt((deltaX * deltaX) + (deltaY * deltaY));
+        }
+
+        var visiblePathLength = MathF.Min(trajectoryPathLength, SniperBowAimArcPreviewLength);
+        var fadeLength = MathF.Max(1f, visiblePathLength * 0.5f);
+        var peakAlpha = 0.55f + (chargeFraction * 0.25f);
+        var baseColor = GameplayPlayerStatusEffectRenderController.GetUberOverlayColor(localPlayer.Team);
+        var cellAlphas = new Dictionary<(int GridX, int GridY), float>();
+        var distanceAlongPath = 0f;
+        var previousGrid = WorldToTwoByTwoPixelGrid(trajectoryPoints[0].X, trajectoryPoints[0].Y);
+        AddFadedTwoByTwoPixelGridCell(cellAlphas, previousGrid.GridX, previousGrid.GridY, peakAlpha);
+
+        for (var index = 1; index < trajectoryPoints.Count; index += 1)
+        {
+            if (distanceAlongPath >= SniperBowAimArcPreviewLength)
+            {
+                break;
+            }
+
+            var previous = trajectoryPoints[index - 1];
+            var current = trajectoryPoints[index];
+            var segmentDeltaX = current.X - previous.X;
+            var segmentDeltaY = current.Y - previous.Y;
+            var segmentLength = MathF.Sqrt((segmentDeltaX * segmentDeltaX) + (segmentDeltaY * segmentDeltaY));
+            var currentGrid = WorldToTwoByTwoPixelGrid(current.X, current.Y);
+            AddFadedTwoByTwoPixelGridLine(
+                previousGrid.GridX,
+                previousGrid.GridY,
+                currentGrid.GridX,
+                currentGrid.GridY,
+                distanceAlongPath,
+                segmentLength,
+                fadeLength,
+                peakAlpha,
+                cellAlphas);
+            distanceAlongPath += segmentLength;
+            previousGrid = currentGrid;
+        }
+
+        DrawFadedTwoByTwoPixelGridCells(cellAlphas, cameraPosition, baseColor);
+    }
+
     private float GetLocalSniperBowAimDirectionDegrees(PlayerEntity localPlayer)
     {
         if (_hasLatestLocalAimWorldPosition)
@@ -1650,7 +1844,18 @@ public partial class Game1
 
     private sealed class FlameSmokeVisual
     {
-        public FlameSmokeVisual(float x, float y, float offsetX, float offsetY, float driftX, float driftY, float initialRadius, float finalRadius, float initialAlpha, int lifetimeTicks)
+        public FlameSmokeVisual(
+            float x,
+            float y,
+            float offsetX,
+            float offsetY,
+            float driftX,
+            float driftY,
+            float initialRadius,
+            float finalRadius,
+            float initialAlpha,
+            int lifetimeTicks,
+            Color? tint = null)
         {
             X = x;
             Y = y;
@@ -1663,6 +1868,7 @@ public partial class Game1
             InitialAlpha = initialAlpha;
             LifetimeTicks = Math.Max(1, lifetimeTicks);
             TicksRemaining = LifetimeTicks;
+            Tint = tint;
         }
 
         public float X { get; }
@@ -1682,6 +1888,8 @@ public partial class Game1
         public float FinalRadius { get; }
 
         public float InitialAlpha { get; }
+
+        public Color? Tint { get; }
 
         public int LifetimeTicks { get; }
 
@@ -1901,7 +2109,22 @@ public partial class Game1
 
     private sealed class ShellVisual
     {
-        public ShellVisual(float x, float y, float velocityX, float velocityY, int frameIndex, float rotationDegrees, float rotationSpeedDegrees, int fadeDelayTicks, string? spriteName = null)
+        public ShellVisual(
+            float x,
+            float y,
+            float velocityX,
+            float velocityY,
+            int frameIndex,
+            float rotationDegrees,
+            float rotationSpeedDegrees,
+            int fadeDelayTicks,
+            string? spriteName = null,
+            Color? tint = null,
+            int pixelWidth = 4,
+            int pixelHeight = 4,
+            float gravityScale = 1f,
+            float floorBounceFactor = 0.7f,
+            bool drawAsPixel = false)
         {
             X = x;
             Y = y;
@@ -1912,6 +2135,12 @@ public partial class Game1
             RotationSpeedDegrees = rotationSpeedDegrees;
             TicksUntilFade = fadeDelayTicks;
             SpriteName = spriteName;
+            Tint = tint ?? new Color(230, 210, 160);
+            PixelWidth = Math.Max(1, pixelWidth);
+            PixelHeight = Math.Max(1, pixelHeight);
+            GravityScale = Math.Max(0.01f, gravityScale);
+            FloorBounceFactor = Math.Clamp(floorBounceFactor, 0f, 1f);
+            DrawAsPixel = drawAsPixel;
         }
 
         public float X { get; set; }
@@ -1937,6 +2166,18 @@ public partial class Game1
         public bool Stuck { get; set; }
 
         public float Alpha { get; set; } = 1f;
+
+        public Color Tint { get; }
+
+        public int PixelWidth { get; }
+
+        public int PixelHeight { get; }
+
+        public float GravityScale { get; }
+
+        public float FloorBounceFactor { get; }
+
+        public bool DrawAsPixel { get; }
     }
 
     private sealed class BlastJumpFlameVisual

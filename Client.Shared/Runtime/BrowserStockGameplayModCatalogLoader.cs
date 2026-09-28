@@ -21,6 +21,7 @@ public static class BrowserStockGameplayModCatalogLoader
         "ability.pyro-airblast.json",
         "ability.quote-blade-throw.json",
         "ability.sniper-scope.json",
+        "ability.sniper-strong-drink.json",
         "ability.spy-cloak.json",
         "experimental.demoknight.eyelander.json",
         "experimental.demoknight.paintrain.json",

@@ -813,7 +813,8 @@ public sealed record SnapshotGrenadeState(
     float VelocityY,
     int FuseTicksLeft,
     bool IsCritical = false,
-    float CriticalDamageMultiplier = 1f);
+    float CriticalDamageMultiplier = 1f,
+    bool IsStrongDrink = false);
 
 public sealed record SnapshotRocketState(
     int Id,
@@ -884,7 +885,9 @@ public sealed record SnapshotFlameState(
     float AttachedOffsetX,
     float AttachedOffsetY,
     bool IsCritical = false,
-    float CriticalDamageMultiplier = 1f);
+    float CriticalDamageMultiplier = 1f,
+    bool SettlesOnGround = false,
+    bool IsGrounded = false);
 
 public sealed record SnapshotMineState(
     int Id,
@@ -929,7 +932,8 @@ public sealed record SnapshotDeadBodyState(
     float VerticalSpeed,
     bool FacingLeft,
     int TicksRemaining,
-    string GameplayClassId = "");
+    string GameplayClassId = "",
+    bool DiedToFire = false);
 
 public sealed record SnapshotSentryGibState(
     int Id,

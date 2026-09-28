@@ -553,5 +553,56 @@ public sealed partial class SimulationWorld
                     killFeedWeaponSpriteNameOverride);
             }
         }
+
+        public void FireStrongDrink(
+            PlayerEntity attacker,
+            float aimWorldX,
+            float aimWorldY,
+            float throwSpeed,
+            float chargeFraction,
+            float spinSpeed,
+            int fuseTicks,
+            float unreachableLobBiasDegrees = PlayerEntity.StrongDrinkLobBiasDegrees,
+            float gravityPerTick = GrenadeProjectileEntity.StrongDrinkGravityPerTick)
+        {
+            RegisterSoundEvent(attacker, "WhippingCordSwingSnd");
+            var weaponOrigin = GetSourceWeaponOrigin(attacker, PlayerClass.Sniper);
+            var speed = MathF.Max(0.1f, throwSpeed);
+            // Seed spawn slightly toward the crosshair, then solve a through-point lob from there.
+            var seedAim = MathF.Atan2(aimWorldY - weaponOrigin.BaseY, aimWorldX - weaponOrigin.BaseX);
+            var spawnX = weaponOrigin.BaseX + MathF.Cos(seedAim) * 10f;
+            var spawnY = weaponOrigin.BaseY + MathF.Sin(seedAim) * 10f;
+            var throwRadians = PlayerEntity.ResolveStrongDrinkThrowDirection(
+                spawnX,
+                spawnY,
+                aimWorldX,
+                aimWorldY,
+                speed,
+                gravityPerTick,
+                chargeFraction,
+                unreachableLobBiasDegrees);
+            var (finalVelocityX, finalVelocityY) = _world.ApplyExperimentalProjectileSpeedMultiplier(
+                attacker,
+                MathF.Cos(throwRadians) * speed,
+                MathF.Sin(throwRadians) * speed);
+            var spinMagnitude = GrenadeProjectileEntity.StrongDrinkSpinSpeedMin
+                + (_random.NextSingle()
+                    * (GrenadeProjectileEntity.StrongDrinkSpinSpeedMax - GrenadeProjectileEntity.StrongDrinkSpinSpeedMin));
+            var spinScale = spinSpeed > 0.0001f
+                ? spinSpeed / GrenadeProjectileEntity.StrongDrinkDefaultSpinSpeed
+                : 1f;
+            var randomizedSpin = spinMagnitude * spinScale * (_random.NextSingle() < 0.5f ? -1f : 1f);
+            SpawnGrenade(
+                attacker,
+                spawnX,
+                spawnY,
+                finalVelocityX,
+                finalVelocityY,
+                killFeedWeaponSpriteNameOverride: GrenadeProjectileEntity.StrongDrinkKillFeedSpriteName,
+                isStrongDrink: true,
+                fuseTicks: fuseTicks,
+                initialSpinSpeed: randomizedSpin,
+                gravityPerTick: gravityPerTick);
+        }
     }
 }

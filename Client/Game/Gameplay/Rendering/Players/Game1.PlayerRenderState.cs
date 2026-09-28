@@ -31,6 +31,7 @@ public partial class Game1
         CivvieUmbrellaOpening,
         CivvieUmbrellaHold,
         CivvieUmbrellaClosing,
+        StrongDrinkThrow,
     }
 
     private sealed class PlayerRenderState
@@ -74,11 +75,23 @@ public partial class Game1
         public bool PreviousCivvieUmbrellaActive { get; set; }
         public int PreviousCivvieUmbrellaOpeningSequence { get; set; }
 
+        public bool PreviousStrongDrinkCharging { get; set; }
+
         // Identifies the weapon slot currently being animated (null = primary, "offhand:soldier" = soldier shotgun, "acquired" = acquired weapon).
         // When this changes, animation state is reset to avoid stale comparisons from the previous weapon.
         public string? ActiveWeaponTag { get; set; }
 
         public float BowAnimationPauseRemainingSeconds { get; set; }
+
+        /// <summary>
+        /// Stock run bob delta (0 or -2), or skin equipment Y offset when a skin is active.
+        /// </summary>
+        public float SmoothedWeaponBobOffset { get; set; }
+
+        /// <summary>
+        /// Torso-replacement bob Y offset (one run frame behind the body when weapon bob is on).
+        /// </summary>
+        public float SmoothedTorsoBobOffset { get; set; }
     }
 
     private readonly HashSet<int> _activePlayerRenderStateIds = new();
@@ -215,6 +228,7 @@ public partial class Game1
         renderState.AnimationHorizontalSpeed = animationHorizontalSpeed;
         renderState.AppearsAirborne = appearsAirborne;
         renderState.FiredThisUpdate = false;
+        UpdatePlayerWeaponBobOffset(player, renderState, horizontalSourceStepSpeed);
         UpdatePlayerWeaponAnimationState(player, renderState, animationElapsedSeconds);
         var skin = GetPlayerSkin(player);
         if (skin is not null)
@@ -227,6 +241,81 @@ public partial class Game1
                 GetPlayerPhysicsVerticalSpeedForPresentation(player), animationHorizontalSpeed, GetPlayerFacingScale(player),
                 player.MovementState is LegacyMovementState.ExplosionRecovery or LegacyMovementState.RocketJuggle,
                 renderState.FiredThisUpdate, player.IsGrounded);
+        }
+    }
+
+    private void UpdatePlayerWeaponBobOffset(
+        PlayerEntity player,
+        PlayerRenderState renderState,
+        float horizontalSourceStepSpeed)
+    {
+        var mode = OpenGarrisonPreferencesDocument.NormalizeWeaponBobMode(_weaponBobMode);
+        if (mode == WeaponBobMode.Disabled)
+        {
+            renderState.SmoothedTorsoBobOffset = 0f;
+            var skin = GetPlayerSkin(player);
+            if (skin is not null && !player.IsTaunting)
+            {
+                var pose = GetPlayerSkinPose(player, skin);
+                renderState.SmoothedWeaponBobOffset =
+                    (skin.EquipmentOffset + skin.Poses[pose].EquipmentOffset) * skin.PixelScale;
+            }
+            else
+            {
+                renderState.SmoothedWeaponBobOffset = 0f;
+            }
+
+            return;
+        }
+
+        GetWeaponBobTargets(
+            player,
+            renderState,
+            horizontalSourceStepSpeed,
+            out var targetWeaponOffset,
+            out var targetTorsoOffset);
+        renderState.SmoothedWeaponBobOffset = targetWeaponOffset;
+        renderState.SmoothedTorsoBobOffset = targetTorsoOffset;
+    }
+
+    private void GetWeaponBobTargets(
+        PlayerEntity player,
+        PlayerRenderState renderState,
+        float horizontalSourceStepSpeed,
+        out float weaponOffset,
+        out float torsoOffset)
+    {
+        weaponOffset = 0f;
+        torsoOffset = 0f;
+
+        var skin = GetPlayerSkin(player);
+        if (skin is not null && !player.IsTaunting)
+        {
+            var pose = GetPlayerSkinPose(player, skin);
+            var equipmentPose = GetDelayedRunSkinPose(skin, pose);
+            weaponOffset = (skin.EquipmentOffset + skin.Poses[equipmentPose].EquipmentOffset) * skin.PixelScale;
+
+            if (IsTorsoReplacementUpBobPose(skin, equipmentPose))
+            {
+                torsoOffset = -1f * skin.PixelScale;
+            }
+
+            return;
+        }
+
+        if (renderState.AppearsAirborne
+            || horizontalSourceStepSpeed < 0.2f
+            || (player.ClassId == PlayerClass.Heavy && horizontalSourceStepSpeed < 3f))
+        {
+            return;
+        }
+
+        var frame = GameplayPlayerSpriteRenderController.GetRunEquipmentBobFrame(
+            (int)MathF.Floor(renderState.BodyAnimationImage),
+            delayByOneFrame: true);
+        if (GameplayPlayerSpriteRenderController.IsRunEquipmentLowerFrame(frame))
+        {
+            weaponOffset = -2f;
         }
     }
 
@@ -260,6 +349,21 @@ public partial class Game1
         }
 
         if (UpdateCivvieUmbrellaWeaponAnimationState(GetPlayerPredictedPresentationState(player), renderState, GetPlayerIsCivvieUmbrellaActive(player)))
+        {
+            renderState.PreviousAmmoCount = GetRenderWeaponAmmoCount(player);
+            renderState.PreviousCooldownTicks = GetRenderWeaponCooldownTicks(player);
+            renderState.PreviousReloadTicks = GetRenderWeaponReloadTicks(player);
+            renderState.PreviousQuoteBladesOut = GetPlayerPredictedPresentationState(player).QuoteBladesOut;
+            renderState.PreviousQuoteBubbleCount = GetPlayerPredictedPresentationState(player).QuoteBubbleCount;
+            return;
+        }
+
+        var strongDrinkFirePress = ReferenceEquals(player, _world.LocalPlayer)
+            && _pendingImmediateWeaponFirePresentation;
+        if (UpdateStrongDrinkWeaponAnimationState(
+                GetPlayerPredictedPresentationState(player),
+                renderState,
+                strongDrinkFirePress))
         {
             renderState.PreviousAmmoCount = GetRenderWeaponAmmoCount(player);
             renderState.PreviousCooldownTicks = GetRenderWeaponCooldownTicks(player);
@@ -646,6 +750,77 @@ public partial class Game1
         int currentReloadTicks)
     {
         return currentReloadTicks > 0 && previousReloadTicks <= 0;
+    }
+
+    /// <summary>
+    /// Bottle hold pose while charging Strong Drink; on release play arm2→arm3 quickly,
+    /// then restore the equipped weapon. Primary fire cancels the release frames.
+    /// </summary>
+    private bool UpdateStrongDrinkWeaponAnimationState(
+        PlayerEntity player,
+        PlayerRenderState renderState,
+        bool immediateLocalPrimaryPress)
+    {
+        if (player.ClassId != PlayerClass.Sniper
+            || !player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.SniperStrongDrink))
+        {
+            renderState.PreviousStrongDrinkCharging = false;
+            if (renderState.WeaponAnimationMode == WeaponAnimationMode.StrongDrinkThrow)
+            {
+                StopWeaponAnimation(renderState);
+            }
+
+            return false;
+        }
+
+        var charging = GetPlayerStrongDrinkChargeTicks(player) > 0;
+        if (charging)
+        {
+            renderState.PreviousStrongDrinkCharging = true;
+            if (renderState.WeaponAnimationMode == WeaponAnimationMode.StrongDrinkThrow)
+            {
+                StopWeaponAnimation(renderState);
+            }
+
+            return true;
+        }
+
+        if (renderState.PreviousStrongDrinkCharging)
+        {
+            renderState.PreviousStrongDrinkCharging = false;
+            var throwDurationSeconds = GetSourceTicksAsSeconds(5);
+            if (player.TryGetGameplayAbilityItem(
+                    GameplayAbilityConstants.UtilityChannel,
+                    BuiltInGameplayBehaviorIds.SniperStrongDrink,
+                    out var ability)
+                && ability.Presentation.RecoilDurationSourceTicks > 0)
+            {
+                throwDurationSeconds = GetSourceTicksAsSeconds(ability.Presentation.RecoilDurationSourceTicks);
+            }
+
+            StartWeaponAnimation(renderState, WeaponAnimationMode.StrongDrinkThrow, throwDurationSeconds);
+            return true;
+        }
+
+        if (renderState.WeaponAnimationMode != WeaponAnimationMode.StrongDrinkThrow)
+        {
+            return false;
+        }
+
+        if (immediateLocalPrimaryPress)
+        {
+            // Cancel cosmetic throw frames so the rifle can fire this frame.
+            StopWeaponAnimation(renderState);
+            return false;
+        }
+
+        if (renderState.WeaponAnimationTimeRemainingSeconds <= 0f)
+        {
+            StopWeaponAnimation(renderState);
+            return false;
+        }
+
+        return true;
     }
 
     private static bool UpdateCivvieUmbrellaWeaponAnimationState(PlayerEntity player, PlayerRenderState renderState, bool isCivvieUmbrellaActive)

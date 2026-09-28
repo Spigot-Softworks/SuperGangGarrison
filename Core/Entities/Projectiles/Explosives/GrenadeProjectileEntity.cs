@@ -21,6 +21,43 @@ public sealed class GrenadeProjectileEntity : SimulationEntity
     public const int FuseTicksRemaining = 60; // 2 seconds at 30 ticks/second
     public const float ReflectedSpeedFloor = 10f; // Minimum speed applied to a reflected grenade
 
+    // Strong Drink (Sniper utility bottle) — no bounce / fuse explode; shootable by friendlies.
+    public const string StrongDrinkKillFeedSpriteName = "SniperBottleKL";
+    public const string StrongDrinkFireKillFeedSpriteName = "SniperBottleFireKL";
+    public const string StrongDrinkCrashSoundName = "BottleCrashSnd";
+    public const float StrongDrinkDirectHitDamage = 30f;
+    // Bottle sprite is 8x22; gameplay hitbox is a square on the longer edge.
+    public const float StrongDrinkHitboxSize = 22f;
+    public const float StrongDrinkHitboxHalfExtent = StrongDrinkHitboxSize * 0.5f;
+    // Grounded flame puddle touch radius (separate from the bottle hitbox).
+    public const float StrongDrinkCollisionRadius = StrongDrinkHitboxHalfExtent;
+    public const int StrongDrinkDefaultFuseTicks = 180;
+    public const float StrongDrinkDefaultMinThrowSpeed = 6f;
+    public const float StrongDrinkDefaultMaxThrowSpeed = 11.5f;
+    // Legacy alias for the charged max throw speed (was an uncharged flat 19).
+    public const float StrongDrinkDefaultThrowSpeed = StrongDrinkDefaultMaxThrowSpeed;
+    // Low gravity: slow flight with long lob range (stock grenades use 0.8).
+    public const float StrongDrinkGravityPerTick = 0.18f;
+    public const float StrongDrinkDefaultSpinSpeed = 0.28f;
+    public const float StrongDrinkSpinSpeedMin = 0.18f;
+    public const float StrongDrinkSpinSpeedMax = 0.42f;
+    // Keep tumble visible through the slow lob (stock grenades use 0.88).
+    public const float StrongDrinkRotationFriction = 0.985f;
+    public const int StrongDrinkDefaultFireParticleCount = 20;
+    // Flames erupt from the bottle blast (slight vertical jitter), then fall and settle.
+    public const float StrongDrinkFireSpawnJitterY = 12f;
+    public const float StrongDrinkFireHorizontalSpread = 100f;
+    // 1.5x fall speed vs stock flames; horizontal burst is scaled up so spread stays similar.
+    public const float StrongDrinkFireGravityScale = 1.5f;
+    public const float StrongDrinkFireBurstSpeedMin = 1.8f;
+    public const float StrongDrinkFireBurstSpeedMax = 5.1f;
+    public const float StrongDrinkFireUpwardBurstMin = -4.5f;
+    public const float StrongDrinkFireUpwardBurstMax = -1.5f;
+    public const float StrongDrinkFireDriftSpeed = 1.2f;
+    public const int StrongDrinkGroundedFlameLifetimeTicks = 90;
+    // Airborne rain uses this as a pit/void failsafe only; puddle lifetime starts on ground hit.
+    public const int StrongDrinkAirFailsafeLifetimeTicks = 450;
+
     public GrenadeProjectileEntity(
         int id,
         PlayerTeam team,
@@ -74,7 +111,35 @@ public sealed class GrenadeProjectileEntity : SimulationEntity
 
     public bool HasBounced { get; private set; }
 
+    public bool IsStrongDrink { get; private set; }
+
+    public float AppliedGravityPerTick { get; private set; } = GravityPerTick;
+
     public float CriticalDamageMultiplier { get; private set; } = 1f;
+
+    public void ConfigureAsStrongDrink(int fuseTicks, float initialSpinSpeed, float gravityPerTick = StrongDrinkGravityPerTick)
+    {
+        IsStrongDrink = true;
+        FuseTicksLeft = Math.Max(1, fuseTicks);
+        RotationSpeed = initialSpinSpeed;
+        AppliedGravityPerTick = MathF.Max(0f, gravityPerTick);
+        ExplosionDamage = RocketProjectileEntity.ExplosionDamage;
+        KillFeedWeaponSpriteNameOverride ??= StrongDrinkKillFeedSpriteName;
+    }
+
+    public void HydrateStrongDrink(bool isStrongDrink, float gravityPerTick = StrongDrinkGravityPerTick)
+    {
+        IsStrongDrink = isStrongDrink;
+        if (isStrongDrink)
+        {
+            AppliedGravityPerTick = MathF.Max(0f, gravityPerTick);
+            ExplosionDamage = RocketProjectileEntity.ExplosionDamage;
+        }
+        else
+        {
+            AppliedGravityPerTick = GravityPerTick;
+        }
+    }
 
     public void SetCritical(float damageMultiplier = ExperimentalGameplaySettings.KritzCriticalDamageMultiplier)
         => HydrateCritical(true, damageMultiplier);
@@ -93,13 +158,13 @@ public sealed class GrenadeProjectileEntity : SimulationEntity
         PreviousY = Y;
 
         VelocityX *= HorizontalAirFriction;
-        VelocityY = float.Min(MaxFallSpeed, VelocityY + GravityPerTick * gravityScale);
+        VelocityY = float.Min(MaxFallSpeed, VelocityY + AppliedGravityPerTick * gravityScale);
         VelocityY *= AirFriction;
         X += VelocityX;
         Y += VelocityY;
 
         RotationAngle += RotationSpeed;
-        RotationSpeed *= RotationFriction;
+        RotationSpeed *= IsStrongDrink ? StrongDrinkRotationFriction : RotationFriction;
 
         FuseTicksLeft -= 1;
     }
@@ -147,6 +212,16 @@ public sealed class GrenadeProjectileEntity : SimulationEntity
         PreviousY = Y;
         FuseTicksLeft = FuseTicksRemaining;
         KillFeedWeaponSpriteNameOverride = "ReflectedGrenadeKL";
+    }
+
+    public void PushByAirblast(float directionRadians, float speedFloor)
+    {
+        var currentSpeed = MathF.Sqrt((VelocityX * VelocityX) + (VelocityY * VelocityY));
+        var pushedSpeed = MathF.Max(currentSpeed, MathF.Max(0f, speedFloor));
+        VelocityX = MathF.Cos(directionRadians) * pushedSpeed;
+        VelocityY = MathF.Sin(directionRadians) * pushedSpeed;
+        PreviousX = X;
+        PreviousY = Y;
     }
 
     public void ApplyNetworkState(
