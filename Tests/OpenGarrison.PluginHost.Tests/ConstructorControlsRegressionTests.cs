@@ -167,24 +167,17 @@ public sealed class ConstructorControlsRegressionTests
             field.SetValue(game, Activator.CreateInstance(field.FieldType, true));
         }
 
-        var settings = new ClientSettings { BuildMenuStyle = style };
-        typeof(Game1).GetField("_clientSettings", Private)!.SetValue(game, settings);
         typeof(Game1).GetField("_clientUpdateElapsedSeconds", Private)!.SetValue(game, 1f / 30f);
 
-        var engineerHud = typeof(Game1).GetNestedType("GameplayEngineerHudController", Private)!;
-        typeof(Game1).GetField("_gameplayEngineerHudController", Private)!
-            .SetValue(
-                game,
-                Activator.CreateInstance(
-                    engineerHud,
-                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
-                    binder: null,
-                    args: [game],
-                    culture: null));
+        // _clientSettings is now a computed property backed by the service
+        // container, and UpdateBuildMenuState consults the gameplay overlay
+        // state through GameplayManager. Wire both via _services since the
+        // build-menu methods under test do not use the HUD controllers.
+        var services = new ClientServiceContainer();
+        services.Register(new ClientSettings { BuildMenuStyle = style });
+        services.Register(new GameplayManager((IGameplayContext)game));
+        typeof(Game1).GetField("_services", Private)!.SetValue(game, services);
 
-        var controller = typeof(Game1).GetField("_gameplayOverlayController", Private)!;
-        controller.SetValue(game, Activator.CreateInstance(controller.FieldType,
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, [game], null));
         Set(game, "_mainMenuOpen", false);
         Set(game, "_teamSelectOpen", false);
         Set(game, "_classSelectOpen", false);
