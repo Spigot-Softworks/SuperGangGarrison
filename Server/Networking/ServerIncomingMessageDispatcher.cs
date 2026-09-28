@@ -253,7 +253,7 @@ internal sealed class ServerIncomingMessageDispatcher(
                 {
                     acknowledgementClient.Protocol64Enabled = true;
                     acknowledgementClient.LastSeen = elapsedGetter();
-                    sessionManager.HandleProtocol64InputResultAck(acknowledgementClient, acknowledgement);
+                    ServerSessionManager.HandleProtocol64InputResultAck(acknowledgementClient, acknowledgement);
                 }
                 break;
             case Protocol64StateResyncRequest request:

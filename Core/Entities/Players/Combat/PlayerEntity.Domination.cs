@@ -57,10 +57,4 @@ public sealed partial class PlayerEntity
         IsDominatedByLocalViewer = false;
     }
 
-    public void ApplyDominationViewState(int activeDominationCount, bool isDominatingLocalViewer, bool isDominatedByLocalViewer)
-    {
-        ActiveDominationCount = int.Max(0, activeDominationCount);
-        IsDominatingLocalViewer = isDominatingLocalViewer;
-        IsDominatedByLocalViewer = isDominatedByLocalViewer;
-    }
 }

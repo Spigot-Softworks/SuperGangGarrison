@@ -40,7 +40,7 @@ public partial class Game1
         public string ServerNameBuffer { get; set; } = "My Server";
         public int ServerNameCursorIndex { get; set; }
         public int ServerNameSelectionStart { get; set; }
-        public string PortBuffer { get; set; } = OpenGarrisonPreferencesDocument.DefaultServerPort.ToString();
+        public string PortBuffer { get; set; } = OpenGarrisonPreferencesDocument.DefaultServerPort.ToString(CultureInfo.InvariantCulture);
         public int PortCursorIndex { get; set; }
         public int PortSelectionStart { get; set; }
         public string SlotsBuffer { get; set; } = "10";
@@ -232,7 +232,7 @@ public partial class Game1
 
             if (string.IsNullOrWhiteSpace(PortBuffer))
             {
-                PortBuffer = OpenGarrisonPreferencesDocument.DefaultServerPort.ToString();
+                PortBuffer = OpenGarrisonPreferencesDocument.DefaultServerPort.ToString(CultureInfo.InvariantCulture);
             }
 
             if (string.IsNullOrWhiteSpace(SlotsBuffer))

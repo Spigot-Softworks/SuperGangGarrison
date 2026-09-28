@@ -271,7 +271,7 @@ public partial class Game1
         const float barWidth = 52f;
         const float barHeight = 7f;
         var barColor = new Color(217, 217, 183);
-        var barX = alignLeft ? position.X - 27f : position.X - 27f;
+        var barX = position.X - 27f;
         var barRectangle = new Rectangle((int)barX, (int)(position.Y - 20f), (int)barWidth, (int)barHeight);
         DrawScreenHealthBar(barRectangle, generator?.Health ?? 0, generator?.MaxHealth ?? 1, useTeamColors: false, fillColor: barColor, backColor: Color.Black);
 

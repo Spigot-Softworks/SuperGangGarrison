@@ -7,14 +7,6 @@ public static class VerifiedNavSurfaceExplorer
     private const float LandingBottomTolerance = 8f;
     private const float IntelMarkerSize = 24f;
 
-    public static VerifiedNavExplorationReport Explore(
-        SimpleLevel level,
-        VerifiedNavCandidateGraph graph,
-        int startSurfaceId,
-        VerifiedNavExplorationOptions options)
-    {
-        return ExploreMany(level, graph, [startSurfaceId], options);
-    }
 
     public static VerifiedNavExplorationReport ExploreMany(
         SimpleLevel level,

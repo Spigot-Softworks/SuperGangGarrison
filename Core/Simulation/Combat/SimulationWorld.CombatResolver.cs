@@ -57,7 +57,12 @@ public sealed partial class SimulationWorld
                 _solidRaycastCandidateStamp = 1;
             }
 
-            _solidRaycastIndex.AddCandidates(
+            if (_solidRaycastIndex is not { } solidRaycastIndex)
+            {
+                return _solidRaycastCandidates;
+            }
+
+            solidRaycastIndex.AddCandidates(
                 rayBounds,
                 _solidRaycastCandidateMarks,
                 _solidRaycastCandidateStamp,

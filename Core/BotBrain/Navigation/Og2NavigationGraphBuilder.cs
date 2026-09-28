@@ -1124,7 +1124,7 @@ internal static class Og2NavigationGraphBuilder
 
         if (kind is NavEdgeKind.Fall or NavEdgeKind.Dropdown)
         {
-            return CanTraverseFallPath(level, source, target, envelope, bendCandidates, out fallBendX);
+            return CanTraverseFallPath(level, source, target, envelope, out fallBendX);
         }
 
         return CanTraverseArc(level, source, target, kind, envelope);
@@ -1279,7 +1279,7 @@ internal static class Og2NavigationGraphBuilder
 
         if (kind is NavEdgeKind.Fall or NavEdgeKind.Dropdown)
         {
-            return CanTraverseFallPath(level, source, target, envelope, [], out _);
+            return CanTraverseFallPath(level, source, target, envelope, out _);
         }
 
         if (kind == NavEdgeKind.Jump)
@@ -1305,7 +1305,7 @@ internal static class Og2NavigationGraphBuilder
             return arcClear;
         }
 
-        return CanTraverseFallPath(level, source, target, envelope, [], out _);
+        return CanTraverseFallPath(level, source, target, envelope, out _);
     }
 
     private static bool CanTraverseJumpArc(
@@ -1389,7 +1389,6 @@ internal static class Og2NavigationGraphBuilder
         NavNode source,
         NavNode target,
         NavigationEnvelope envelope,
-        IReadOnlyList<float> bendCandidates,
         out float bendX)
     {
         // A falling player normally walks off the source edge before dropping,
@@ -1642,7 +1641,7 @@ internal static class Og2NavigationGraphBuilder
             kind,
             MathF.Max(1f, cost),
             completion,
-            JumpTriggerTick: kind == NavEdgeKind.Jump ? 0 : 0,
+            JumpTriggerTick: 0,
             ProbeTicks: 0,
             ProbeMoveDirectionX: MathF.Sign(to.X - from.X),
             ProbeVariantAttempts: 0,

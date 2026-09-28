@@ -94,7 +94,7 @@ public sealed class GameplayWeaponRenderController
             var facingScale = GetRenderFacingScale(player);
             var playerScale = player.PlayerScale;
             var frameIndex = GetWeaponSpriteFrameIndex(player, weaponAnimationMode, weaponDefinition, sprite.Frames.Count);
-            var roundedOrigin = _game.GetPlayerSpriteOrigin(renderPosition);
+            var roundedOrigin = Game1.GetPlayerSpriteOrigin(renderPosition);
             var anchorOrigin = GetWeaponAnchorOrigin(weaponDefinition, sprite);
             var weaponAnchorOffsetX = weaponDefinition.XOffset + anchorOrigin.X;
             var drawX = roundedOrigin.X + (weaponAnchorOffsetX * facingScale * playerScale);
@@ -110,7 +110,7 @@ public sealed class GameplayWeaponRenderController
                 return false;
             }
 
-            var position = _game.GetPlayerAnchoredScreenPosition(renderPosition, cameraPosition, drawX, drawY);
+            var position = Game1.GetPlayerAnchoredScreenPosition(renderPosition, cameraPosition, drawX, drawY);
             ResolveBakedFrame(player, spriteName, frameIndex, rotation,
                 sprite, facingScale, playerScale,
                 out var drawFrame, out var drawOrigin, out var drawRotation, out var scale);
@@ -208,8 +208,8 @@ public sealed class GameplayWeaponRenderController
             var frameIndex = useOffensiveKritzAttackSprite
                 ? GetOffensiveKritzMedigunAttackFrameIndex(player, sprite.Frames.Count)
                 : GetWeaponSpriteFrameIndex(player, weaponAnimationMode, weaponDefinition, sprite.Frames.Count);
-            var roundedOrigin = _game.GetPlayerSpriteOrigin(renderPosition);
-            var position = _game.GetPlayerAnchoredScreenPosition(renderPosition, cameraPosition, worldDrawX, worldDrawY);
+            var roundedOrigin = Game1.GetPlayerSpriteOrigin(renderPosition);
+            var position = Game1.GetPlayerAnchoredScreenPosition(renderPosition, cameraPosition, worldDrawX, worldDrawY);
             ResolveBakedFrame(player, spriteName, frameIndex, rotation,
                 sprite, facingScale, playerScale,
                 out var drawFrame, out var drawOrigin, out var drawRotation, out var scale);
@@ -374,7 +374,7 @@ public sealed class GameplayWeaponRenderController
             }
 
             var frameIndex = GetWeaponSpriteFrameIndex(player, weaponAnimationMode, weaponDefinition, sprite.Frames.Count);
-            var position = _game.GetPlayerAnchoredScreenPosition(renderPosition, cameraPosition, worldDrawX, worldDrawY);
+            var position = Game1.GetPlayerAnchoredScreenPosition(renderPosition, cameraPosition, worldDrawX, worldDrawY);
             ResolveBakedFrame(player, spriteName, frameIndex, rotation,
                 sprite, facingScale, playerScale,
                 out var drawFrame, out var drawOrigin, out var drawRotation, out var scale);
@@ -407,7 +407,7 @@ public sealed class GameplayWeaponRenderController
                 0,
                 sprite.Frames.Count - 1);
             var renderPosition = _game.GetRenderPosition(player);
-            var position = _game.GetPlayerSpriteScreenOrigin(renderPosition, cameraPosition);
+            var position = Game1.GetPlayerSpriteScreenOrigin(renderPosition, cameraPosition);
             var playerScale = player.PlayerScale;
             var scale = new Vector2(GetRenderFacingScale(player) * playerScale, playerScale);
             _game.DrawSpriteFrameWithOptionalShadow(
@@ -422,7 +422,7 @@ public sealed class GameplayWeaponRenderController
         public Vector2 GetWeaponShellSpawnOrigin(PlayerEntity player)
         {
             var renderPosition = _game.GetRenderPosition(player);
-            return _game.GetPlayerSpriteOrigin(renderPosition);
+            return Game1.GetPlayerSpriteOrigin(renderPosition);
         }
 
         public bool TryGetWeaponRotationPivot(PlayerEntity player, out float pivotX, out float pivotY)
@@ -548,7 +548,7 @@ public sealed class GameplayWeaponRenderController
                 out var drawOrigin,
                 out var drawRotation,
                 out var scale);
-            var screenPosition = _game.GetPlayerAnchoredScreenPosition(renderPosition, cameraPosition, worldDrawX, worldDrawY);
+            var screenPosition = Game1.GetPlayerAnchoredScreenPosition(renderPosition, cameraPosition, worldDrawX, worldDrawY);
             for (var index = 0; index < _game._civvieUmbrellaShieldBlockVisuals.Count; index += 1)
             {
                 var visual = _game._civvieUmbrellaShieldBlockVisuals[index];
@@ -633,7 +633,7 @@ public sealed class GameplayWeaponRenderController
 
             facingScale = GetRenderFacingScale(player);
             playerScale = player.PlayerScale;
-            var roundedOrigin = _game.GetPlayerSpriteOrigin(renderPosition);
+            var roundedOrigin = Game1.GetPlayerSpriteOrigin(renderPosition);
             // Companion-torso overlays pin at body+weaponOffset (sprite origin is draw origin).
             // Stock weapons pin at body+(offset+spriteOrigin).
             if (weaponDefinition.HasCompanionTorso)
@@ -994,10 +994,10 @@ public sealed class GameplayWeaponRenderController
             var playerScale = player.PlayerScale;
             var frameIndex = GetWeaponSpriteFrameIndex(player, weaponAnimationMode, weaponDefinition, sprite.Frames.Count);
             var bobOffset = _game.GetTorsoReplacementBobOffset(player) * playerScale;
-            var roundedOrigin = _game.GetPlayerSpriteOrigin(renderPosition);
+            var roundedOrigin = Game1.GetPlayerSpriteOrigin(renderPosition);
             var drawX = roundedOrigin.X;
             var drawY = roundedOrigin.Y + bobOffset;
-            var position = _game.GetPlayerAnchoredScreenPosition(renderPosition, cameraPosition, drawX, drawY);
+            var position = Game1.GetPlayerAnchoredScreenPosition(renderPosition, cameraPosition, drawX, drawY);
             var scale = new Vector2(facingScale * playerScale, playerScale);
             var origin = sprite.Origin.ToVector2();
 
@@ -1088,12 +1088,12 @@ public sealed class GameplayWeaponRenderController
             var bobOffsetSource = presentationPlayer.HasEquippedBehavior(BuiltInGameplayBehaviorIds.WhippingCord)
                 ? 0f
                 : _game.GetTorsoReplacementBobOffset(player);
-            var roundedOrigin = _game.GetPlayerSpriteOrigin(renderPosition);
+            var roundedOrigin = Game1.GetPlayerSpriteOrigin(renderPosition);
             // Offsets nudge the authored whip canvas onto the engineer body/legs origin
             // (Elkondo body is centered at origin; whip art sits forward/low on its canvas).
             var torsoDrawX = roundedOrigin.X + (weaponDefinition.XOffset * facingScale * playerScale);
             var torsoDrawY = roundedOrigin.Y + ((weaponDefinition.YOffset + bobOffsetSource) * playerScale);
-            var torsoPosition = _game.GetPlayerAnchoredScreenPosition(renderPosition, cameraPosition, torsoDrawX, torsoDrawY);
+            var torsoPosition = Game1.GetPlayerAnchoredScreenPosition(renderPosition, cameraPosition, torsoDrawX, torsoDrawY);
             var torsoScale = new Vector2(facingScale * playerScale, playerScale);
             var torsoOrigin = torsoSprite.Origin.ToVector2();
 
@@ -1134,7 +1134,7 @@ public sealed class GameplayWeaponRenderController
             {
                 rotation = localAimRotation;
                 torsoDrawX = aimAnchorX;
-                torsoPosition = _game.GetPlayerAnchoredScreenPosition(renderPosition, cameraPosition, torsoDrawX, torsoDrawY);
+                torsoPosition = Game1.GetPlayerAnchoredScreenPosition(renderPosition, cameraPosition, torsoDrawX, torsoDrawY);
             }
 
             ResolveBakedFrame(

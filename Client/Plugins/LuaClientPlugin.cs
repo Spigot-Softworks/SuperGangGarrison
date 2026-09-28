@@ -1455,7 +1455,7 @@ internal sealed partial class LuaClientPlugin(
         return string.Equals(owner?.Trim(), manifest.Id, StringComparison.Ordinal);
     }
 
-    private object CreateAbilityHudWidgetContext(LuaAbilityHudWidgetRegistration widget, IOpenGarrisonClientReadOnlyState state)
+    private static object CreateAbilityHudWidgetContext(LuaAbilityHudWidgetRegistration widget, IOpenGarrisonClientReadOnlyState state)
     {
         return new
         {
@@ -1467,7 +1467,7 @@ internal sealed partial class LuaClientPlugin(
         };
     }
 
-    private object CreateAbilityHudWidgetContext(GameplayItemDefinition item, IOpenGarrisonClientReadOnlyState state)
+    private static object CreateAbilityHudWidgetContext(GameplayItemDefinition item, IOpenGarrisonClientReadOnlyState state)
     {
         var hud = item.Presentation.Hud!;
         var ability = item.Ability!;
@@ -1535,7 +1535,7 @@ internal sealed partial class LuaClientPlugin(
         }
     }
 
-    private ClientChatSubmitResult ReadChatSubmitResult(DynValue value, ClientChatSubmitResult current)
+    private static ClientChatSubmitResult ReadChatSubmitResult(DynValue value, ClientChatSubmitResult current)
     {
         if (value.IsNil() || value.Type == DataType.Void)
         {
@@ -1605,7 +1605,7 @@ internal sealed partial class LuaClientPlugin(
             : arguments.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
     }
 
-    private void ShowPrompt(IOpenGarrisonClientPluginUi ui, CallbackArguments args)
+    private static void ShowPrompt(IOpenGarrisonClientPluginUi ui, CallbackArguments args)
     {
         var firstArgument = ReadArgument(args, 0);
         if (firstArgument.Type == DataType.Table)
@@ -1626,7 +1626,7 @@ internal sealed partial class LuaClientPlugin(
             ReadOverlayMenuEntriesArgument(args, 2, ClientPluginOverlayMenuLimit));
     }
 
-    private void ShowOverlayPanel(IOpenGarrisonClientPluginUi ui, CallbackArguments args)
+    private static void ShowOverlayPanel(IOpenGarrisonClientPluginUi ui, CallbackArguments args)
     {
         var table = ReadRequiredTableArgument(args, 0);
         ui.ShowOverlayPanel(new ClientPluginOverlayPanel(

@@ -524,20 +524,11 @@ public sealed partial class PlayerEntity
     public void SetExperimentalSoldierAmmoRegeneratesWhileSwappedOut(bool enabled)
     {
         ExperimentalSoldierAmmoRegeneratesWhileSwappedOutEnabled = enabled;
-        if (!enabled)
-        {
-            ExperimentalSoldierSwappedOutAmmoRegenAccumulator = 0f;
-        }
     }
 
     public void SetExperimentalSelfDamageHealing(bool enabled)
     {
         ExperimentalSelfDamageHealingEnabled = enabled;
-    }
-
-    public void SetExperimentalSoldierInfiniteAmmoDuringRage(bool enabled)
-    {
-        ExperimentalSoldierInfiniteAmmoDuringRageEnabled = enabled;
     }
 
     public void SetExperimentalReloadSpeedMultiplier(float multiplier)
@@ -848,10 +839,6 @@ public sealed partial class PlayerEntity
         ExperimentalConfusionRetaliationTicksRemaining = Math.Max(ExperimentalConfusionRetaliationTicksRemaining, ticks);
     }
 
-    public void ClearExperimentalConfusionRetaliation()
-    {
-        ExperimentalConfusionRetaliationTicksRemaining = 0;
-    }
 
     public int AbsorbExperimentalShieldDamage(int damage)
     {
@@ -877,10 +864,6 @@ public sealed partial class PlayerEntity
         return MathF.Max(0f, damage - blockedDamage);
     }
 
-    public int GetExperimentalReloadDurationTicks(int ticks)
-    {
-        return ApplyExperimentalReloadMultiplier(ticks);
-    }
 
     public bool CanConvertExperimentalSelfDamageToHealing()
     {
@@ -992,12 +975,6 @@ public sealed partial class PlayerEntity
         ExperimentalFogOfWarTicksRemaining = durationTicks;
     }
 
-    public float ConsumeExperimentalNextAttackDamageMultiplier()
-    {
-        var multiplier = ExperimentalGhostDashNextAttackDamageMultiplierValue;
-        ExperimentalGhostDashNextAttackDamageMultiplierValue = 1f;
-        return multiplier;
-    }
 
     public float GetExperimentalDemoknightSwordRange()
     {
@@ -1065,16 +1042,6 @@ public sealed partial class PlayerEntity
         ExperimentalMovementSpeedMultiplierValue = Math.Max(ExperimentalMovementSpeedMultiplierValue, speedMultiplier);
     }
 
-    public void GrantExperimentalPrimaryCooldownBuff(int ticks, float cooldownMultiplier)
-    {
-        if (!IsAlive || ticks <= 0 || cooldownMultiplier <= 0f || cooldownMultiplier >= 1f)
-        {
-            return;
-        }
-
-        ExperimentalPrimaryCooldownBuffTicksRemaining = Math.Max(ExperimentalPrimaryCooldownBuffTicksRemaining, ticks);
-        ExperimentalPrimaryCooldownMultiplierValue = Math.Min(ExperimentalPrimaryCooldownMultiplierValue, cooldownMultiplier);
-    }
 
     public bool TryInstantlyRefillPrimaryAmmo(int amount = 1)
     {
@@ -1395,7 +1362,6 @@ public sealed partial class PlayerEntity
         ExperimentalJumpHeightMultiplierValue = 1f;
         ExperimentalBonusAirJumpsValue = 0;
         ExperimentalPrimaryCooldownMultiplierValue = 1f;
-        ExperimentalSoldierSwappedOutAmmoRegenAccumulator = 0f;
         ExperimentalDemoknightPostRageRegenTicksRemaining = 0;
         ExperimentalGhostDashTicksRemaining = 0;
         ExperimentalGhostDashCooldownTicksRemaining = 0;

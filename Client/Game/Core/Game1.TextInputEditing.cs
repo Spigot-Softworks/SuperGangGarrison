@@ -275,7 +275,6 @@ public partial class Game1
                 _hostedServerConsole.CommandInputSelectionStart = 0;
                 break;
             case TextFieldClickTarget.None:
-            default:
                 break;
         }
     }
@@ -1484,7 +1483,7 @@ public partial class Game1
         return text.Substring(start, length);
     }
 
-    private bool CutSelectionFromField(string fieldText, int cursorIndex, int selectionStart, out string newText, out int newCursorIndex, out int newSelectionStart)
+    private static bool CutSelectionFromField(string fieldText, int cursorIndex, int selectionStart, out string newText, out int newCursorIndex, out int newSelectionStart)
     {
         newText = fieldText;
         newCursorIndex = cursorIndex;
@@ -2161,7 +2160,7 @@ public partial class Game1
         return false;
     }
 
-    public (string Text, int CursorIndex, int SelectionStart) DeleteTextSelectionOrBackspace(string text, int cursorIndex, int selectionStart)
+    public static (string Text, int CursorIndex, int SelectionStart) DeleteTextSelectionOrBackspace(string text, int cursorIndex, int selectionStart)
     {
         if (HasTextSelection(cursorIndex, selectionStart))
         {
@@ -2181,7 +2180,7 @@ public partial class Game1
         return (text, cursorIndex, selectionStart);
     }
 
-    private (string Text, int CursorIndex, int SelectionStart) DeleteTextSelection(string text, int cursorIndex, int selectionStart)
+    private static (string Text, int CursorIndex, int SelectionStart) DeleteTextSelection(string text, int cursorIndex, int selectionStart)
     {
         var (start, length) = GetTextSelectionRange(cursorIndex, selectionStart);
         if (length == 0)
@@ -2195,12 +2194,12 @@ public partial class Game1
         return (text, cursorIndex, selectionStart);
     }
 
-    public (string Text, int CursorIndex, int SelectionStart) InsertTextCharacterAtCursor(string text, char character, int cursorIndex, int selectionStart, int maxLength)
+    public static (string Text, int CursorIndex, int SelectionStart) InsertTextCharacterAtCursor(string text, char character, int cursorIndex, int selectionStart, int maxLength)
     {
         return InsertTextAtCursor(text, character.ToString(), cursorIndex, selectionStart, maxLength, c => !char.IsControl(c));
     }
 
-    private (string Text, int CursorIndex, int SelectionStart) InsertTextAtCursor(
+    private static (string Text, int CursorIndex, int SelectionStart) InsertTextAtCursor(
         string text,
         string insertText,
         int cursorIndex,

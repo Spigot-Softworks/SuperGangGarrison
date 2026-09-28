@@ -71,32 +71,6 @@ public static class BotNavigationAssetValidator
             : new BotNavigationValidationResult(issues);
     }
 
-    public static BotNavigationValidationResult AuditAttackReachability(SimpleLevel level, BotNavigationAsset asset)
-    {
-        ArgumentNullException.ThrowIfNull(level);
-        ArgumentNullException.ThrowIfNull(asset);
-
-        if (!SupportsAttackReachabilityAudit(level.Mode))
-        {
-            return BotNavigationValidationResult.Valid;
-        }
-
-        if (asset.Nodes.Count == 0)
-        {
-            return new BotNavigationValidationResult(
-            [
-                new BotNavigationValidationIssue("empty-graph", "graph contains no navigation nodes"),
-            ]);
-        }
-
-        var issues = new List<BotNavigationValidationIssue>();
-        var graph = new BotNavigationRuntimeGraph(asset);
-        ValidateAttackReachability(level, asset, graph, PlayerTeam.Red, issues, useModernGoalSelection: asset.BuildStrategy == BotNavigationBuildStrategy.ModernClientBotPointGraph);
-        ValidateAttackReachability(level, asset, graph, PlayerTeam.Blue, issues, useModernGoalSelection: asset.BuildStrategy == BotNavigationBuildStrategy.ModernClientBotPointGraph);
-        return issues.Count == 0
-            ? BotNavigationValidationResult.Valid
-            : new BotNavigationValidationResult(issues);
-    }
 
     private static void ValidateTraversalExecutability(
         BotNavigationAsset asset,

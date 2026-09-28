@@ -83,21 +83,6 @@ public sealed class OpenGarrisonPresenceClient
         response.EnsureSuccessStatusCode();
     }
 
-    public async Task<RelaySessionCreateResponse> CreateRelaySessionAsync(ClientIdentityDocument identity)
-    {
-        var httpClient = GetHttpClient() ?? throw new InvalidOperationException("HTTP client is unavailable.");
-        var request = new RelaySessionCreateRequest
-        {
-            ClientId = identity.ClientId,
-            ClientSecret = identity.ClientSecret,
-            FriendCode = identity.FriendCode,
-            DisplayName = identity.DisplayName,
-        };
-        using var response = await httpClient.PostAsJsonAsync(BuildUri("/api/relay/session"), request).ConfigureAwait(false);
-        response.EnsureSuccessStatusCode();
-        return await response.Content.ReadFromJsonAsync<RelaySessionCreateResponse>().ConfigureAwait(false)
-            ?? throw new InvalidOperationException("Relay session response was empty.");
-    }
 
     public async Task<AccountProfileResponse> GetAccountProfileAsync(ClientIdentityDocument identity)
     {

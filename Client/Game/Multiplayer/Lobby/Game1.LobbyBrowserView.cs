@@ -271,7 +271,7 @@ public partial class Game1
             out var compactLayout);
         if (_lobbyBrowserPage == LobbyBrowserPage.Details)
         {
-            DrawLobbyBrowserDetailsMenu(panel, refreshBounds, joinBounds, manualBounds, backBounds, compactLayout);
+            DrawLobbyBrowserDetailsMenu(panel, refreshBounds, joinBounds, backBounds, compactLayout);
             return;
         }
 
@@ -374,7 +374,6 @@ public partial class Game1
         Rectangle panel,
         Rectangle refreshBounds,
         Rectangle watchBounds,
-        Rectangle manualBounds,
         Rectangle backBounds,
         bool compactLayout)
     {

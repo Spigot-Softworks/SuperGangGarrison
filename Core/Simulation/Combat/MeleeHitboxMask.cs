@@ -74,24 +74,6 @@ public sealed class MeleeHitboxMask
     public static float ResolveAimDrawRotation(float aimRadians, bool facingLeft)
         => facingLeft ? aimRadians + MathF.PI : aimRadians;
 
-    public bool ContainsWorldPoint(
-        float worldX,
-        float worldY,
-        float anchorX,
-        float anchorY,
-        bool facingLeft,
-        float geometryScale,
-        float? rotationRadians = null)
-    {
-        var scale = MathF.Max(0.1f, geometryScale);
-        var localX = (worldX - anchorX) / scale;
-        var localY = (worldY - anchorY) / scale;
-        WorldDeltaToMaskLocal(ref localX, ref localY, facingLeft, rotationRadians);
-
-        var pixelX = (int)MathF.Floor(OriginX + localX);
-        var pixelY = (int)MathF.Floor(OriginY + localY);
-        return IsOpaqueAtPixel(pixelX, pixelY);
-    }
 
     public bool OverlapsRectangle(
         float left,

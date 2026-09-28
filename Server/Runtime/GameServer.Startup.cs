@@ -86,7 +86,11 @@ partial class GameServer
         }
     }
 
+#if EMBEDDED_SESSION
+    private static void InitializeWebSocketHost()
+#else
     private void InitializeWebSocketHost()
+#endif
     {
 #if !EMBEDDED_SESSION
         var enableWebSocket = _webSocketPort > 0;

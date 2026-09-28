@@ -309,7 +309,7 @@ public sealed class CustomBubbleEditorController
             DrawPaletteTabs(presetPaletteTabBounds, customPaletteTabBounds, mousePosition);
             DrawPaletteGrid(paletteGridBounds, mousePosition);
             DrawBrushSizeBar(brushSizeBar);
-            DrawToolButton(saveBounds, _dirty ? "Save" : "Save", false, saveBounds.Contains(mousePosition));
+            DrawToolButton(saveBounds, "Save", false, saveBounds.Contains(mousePosition));
             DrawToolButton(cancelBounds, "Cancel", false, cancelBounds.Contains(mousePosition));
             DrawCurrentColorSwatch(panel);
             if (_customPaletteTab)
@@ -655,7 +655,7 @@ public sealed class CustomBubbleEditorController
             return paletteIndex >= 0 && paletteIndex < CustomBubbleDocument.PaletteColorCount;
         }
 
-        private bool TryGetGridPixel(Rectangle gridBounds, Point mousePosition, out int pixelIndex)
+        private static bool TryGetGridPixel(Rectangle gridBounds, Point mousePosition, out int pixelIndex)
         {
             pixelIndex = -1;
             if (!gridBounds.Contains(mousePosition))

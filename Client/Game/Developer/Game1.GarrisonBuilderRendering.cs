@@ -29,9 +29,9 @@ public partial class Game1
 
     private static float BuilderUi(float pixels) => pixels;
 
-    private float GetGarrisonBuilderBitmapFontScale() => GarrisonBuilderChatFontScale;
+    private static float GetGarrisonBuilderBitmapFontScale() => GarrisonBuilderChatFontScale;
 
-    private float GetGarrisonBuilderRelativeBitmapFontScale(float relativeScale = 1f)
+    private static float GetGarrisonBuilderRelativeBitmapFontScale(float relativeScale = 1f)
     {
         return GarrisonBuilderChatFontScale * MathF.Max(1f, relativeScale);
     }

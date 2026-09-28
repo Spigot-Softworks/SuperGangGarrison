@@ -20,39 +20,7 @@ public static class TraversalLabObjectiveSeamArtifactStore
         AllowTrailingCommas = true,
     };
 
-    public static bool TryGetCertification(string label, [NotNullWhen(true)] out TraversalLabObjectiveSeamCertification? certification)
-    {
-        certification = null;
-        if (string.IsNullOrWhiteSpace(label))
-        {
-            return false;
-        }
 
-        var path = ContentRoot.GetPath("TraversalLab", "objective-seams.json");
-        EnsureLoaded(path);
-        return _certificationsByLabel is not null
-            && _certificationsByLabel.TryGetValue(label, out certification);
-    }
-
-    public static bool TryGetCertifiedSuccessorLabels(string label, out IReadOnlyList<string> successorLabels)
-    {
-        successorLabels = Array.Empty<string>();
-        if (string.IsNullOrWhiteSpace(label))
-        {
-            return false;
-        }
-
-        var path = ContentRoot.GetPath("TraversalLab", "objective-seams.json");
-        EnsureLoaded(path);
-        if (_successorLabelsByLabel is null
-            || !_successorLabelsByLabel.TryGetValue(label, out var labels))
-        {
-            return false;
-        }
-
-        successorLabels = labels;
-        return true;
-    }
 
     public static void Reset()
     {

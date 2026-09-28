@@ -58,4 +58,40 @@ public sealed class FixedStepSimulatorTests
         Assert.Equal(1, simulator.Step(world.Config.FixedDeltaSeconds * 0.6d));
         Assert.InRange(simulator.InterpolationAlpha, 0.09f, 0.11f);
     }
+
+    [Fact]
+    public void StepWithNegativeElapsedSecondsAdvancesNoTicks()
+    {
+        var world = new SimulationWorld();
+        var simulator = new FixedStepSimulator(world);
+
+        Assert.Equal(0, simulator.Step(-1.0d));
+        Assert.False(simulator.DroppedSimulationBacklogOnLastAdvance);
+    }
+
+    [Fact]
+    public void StepWithNaNElapsedSecondsAdvancesNoTicks()
+    {
+        var world = new SimulationWorld();
+        var simulator = new FixedStepSimulator(world);
+
+        Assert.Equal(0, simulator.Step(double.NaN));
+        Assert.False(simulator.DroppedSimulationBacklogOnLastAdvance);
+    }
+
+    [Fact]
+    public void StepWithZeroMaxTicksPerAdvanceDropsBacklog()
+    {
+        var world = new SimulationWorld();
+        var simulator = new FixedStepSimulator(world);
+
+        var ticks = simulator.Step(
+            world.Config.FixedDeltaSeconds,
+            beforeTickAdvanced: null,
+            onTickAdvanced: null,
+            maxTicksPerAdvance: 0);
+
+        Assert.Equal(0, ticks);
+        Assert.True(simulator.DroppedSimulationBacklogOnLastAdvance);
+    }
 }

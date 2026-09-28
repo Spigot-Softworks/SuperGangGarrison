@@ -433,7 +433,6 @@ public sealed class LastToDieStageSpecialRoundState
     }
 
     private void DrawLastToDieAccessoryLoadoutColumn(
-        GameplayLoadoutMenuLayout layout,
         Rectangle columnBounds,
         List<GameplayLoadoutMenuButton> buttons)
     {

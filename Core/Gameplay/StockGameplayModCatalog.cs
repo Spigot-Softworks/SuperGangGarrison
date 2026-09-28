@@ -46,21 +46,7 @@ public static class StockGameplayModCatalog
         return Definition.Items[loadout.PrimaryItemId];
     }
 
-    public static GameplayItemDefinition? GetSecondaryItem(PlayerClass playerClass)
-    {
-        var loadout = GetDefaultLoadout(playerClass);
-        return loadout.SecondaryItemId is null
-            ? null
-            : Definition.Items[loadout.SecondaryItemId];
-    }
 
-    public static GameplayItemDefinition? GetUtilityItem(PlayerClass playerClass)
-    {
-        var loadout = GetDefaultLoadout(playerClass);
-        return loadout.UtilityItemId is null
-            ? null
-            : Definition.Items[loadout.UtilityItemId];
-    }
 
     public static GameplayItemDefinition GetExperimentalDemoknightEyelanderItem()
     {

@@ -2262,8 +2262,7 @@ public sealed class GameplayLocalStatusHudController
             if (localPlayer.ClassId == PlayerClass.Medic
                 && string.Equals(item.BehaviorId, BuiltInGameplayBehaviorIds.MedigunCrit, StringComparison.Ordinal))
             {
-                return !IsLocalMedicKritzHealNeedlesPresented()
-                    && (hasReplicatedSecondaryAvailability || localPlayer.HasExperimentalOffhandWeapon);
+                return hasReplicatedSecondaryAvailability || localPlayer.HasExperimentalOffhandWeapon;
             }
 
             if (!IsSecondaryAmmoHudItem(item))
@@ -2740,14 +2739,6 @@ public sealed class GameplayLocalStatusHudController
             }
 
             var displayedShells = player.CurrentShells;
-            if (IsLocalMedicKritzHealNeedlesPresented())
-            {
-                return GetMedicNeedleReloadProgress(
-                    GetLocalMedicKritzCurrentShells(),
-                    GetLocalMedicKritzMaxShells(),
-                    player.ExperimentalOffhandReloadTicksUntilNextShell);
-            }
-
             if (displayedShells >= player.MaxShells)
             {
                 return 1f;
@@ -2777,11 +2768,6 @@ public sealed class GameplayLocalStatusHudController
         private string GetLocalDisplayedMainWeaponPresentationItemIdCore()
         {
             var player = GetLocalWeaponPresentationPlayer();
-            if (IsLocalMedicKritzHealNeedlesPresented())
-            {
-                return player.GameplayLoadoutState.SecondaryItemId ?? "weapon.medigun.crit";
-            }
-
             return player.IsAcquiredWeaponPresented
                 ? player.GameplayLoadoutState.AcquiredItemId ?? player.GameplayLoadoutState.PrimaryItemId
                 : IsLocalDisplayedOffhandWeaponSelected()
@@ -2792,11 +2778,6 @@ public sealed class GameplayLocalStatusHudController
         private PrimaryWeaponDefinition GetLocalDisplayedMainWeaponStatsCore()
         {
             var player = GetLocalWeaponPresentationPlayer();
-            if (IsLocalMedicKritzHealNeedlesPresented())
-            {
-                return player.ExperimentalOffhandWeapon ?? player.PrimaryWeapon;
-            }
-
             return player.IsAcquiredWeaponPresented
                 ? player.AcquiredWeapon ?? player.PrimaryWeapon
                 : IsLocalDisplayedOffhandWeaponSelected()
@@ -2807,11 +2788,6 @@ public sealed class GameplayLocalStatusHudController
         private int GetLocalDisplayedMainWeaponCurrentShellsCore()
         {
             var player = GetLocalWeaponPresentationPlayer();
-            if (IsLocalMedicKritzHealNeedlesPresented())
-            {
-                return GetLocalMedicKritzCurrentShells();
-            }
-
             if (player.IsAcquiredWeaponPresented)
             {
                 return player.AcquiredWeaponCurrentShells;
@@ -2823,11 +2799,6 @@ public sealed class GameplayLocalStatusHudController
         private int GetLocalDisplayedMainWeaponMaxShellsCore()
         {
             var player = GetLocalWeaponPresentationPlayer();
-            if (IsLocalMedicKritzHealNeedlesPresented())
-            {
-                return GetLocalMedicKritzMaxShells();
-            }
-
             if (player.IsAcquiredWeaponPresented)
             {
                 return player.AcquiredWeaponMaxShells;
@@ -2839,11 +2810,6 @@ public sealed class GameplayLocalStatusHudController
         private int GetLocalDisplayedMainWeaponCooldownTicksCore()
         {
             var player = GetLocalWeaponPresentationPlayer();
-            if (IsLocalMedicKritzHealNeedlesPresented())
-            {
-                return player.ExperimentalOffhandCooldownTicks;
-            }
-
             return player.IsAcquiredWeaponPresented
                 ? player.AcquiredWeaponCooldownTicks
                 : IsLocalDisplayedOffhandWeaponSelected()
@@ -2854,11 +2820,6 @@ public sealed class GameplayLocalStatusHudController
         private int GetLocalDisplayedMainWeaponReloadTicksCore()
         {
             var player = GetLocalWeaponPresentationPlayer();
-            if (IsLocalMedicKritzHealNeedlesPresented())
-            {
-                return player.ExperimentalOffhandReloadTicksUntilNextShell;
-            }
-
             return player.IsAcquiredWeaponPresented
                 ? player.AcquiredWeaponReloadTicksUntilNextShell
                 : IsLocalDisplayedOffhandWeaponSelected()

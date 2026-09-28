@@ -194,7 +194,7 @@ public partial class Game1
                 return;
             }
 
-            if (!_audioManager.Music.CanStartMusicPlayback())
+            if (!GameplayAudioMusicController.CanStartMusicPlayback())
             {
                 ApplyAudioVolumeState();
                 return;

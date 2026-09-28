@@ -178,7 +178,7 @@ public partial class Game1
                 UpdateFriendsTabClick(point, layout);
                 break;
             case FriendsMenuTab.Requests:
-                UpdateFriendRequestsTabClick(point, layout);
+                UpdateFriendRequestsTabClick();
                 break;
             case FriendsMenuTab.Messages:
                 UpdateFriendMessagesTabClick(point, layout);
@@ -444,7 +444,7 @@ public partial class Game1
         }
     }
 
-    private void UpdateFriendRequestsTabClick(Point point, FriendsMenuLayout layout)
+    private void UpdateFriendRequestsTabClick()
     {
         ResetTextFieldClickTarget();
         _editingFriendNickname = false;

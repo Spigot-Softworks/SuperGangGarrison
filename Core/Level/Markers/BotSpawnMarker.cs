@@ -187,17 +187,11 @@ public static class BotSpawnMetadata
     public static string ToClassPropertyValue(PlayerClass? playerClass) =>
         playerClass.HasValue ? playerClass.Value.ToString().ToLowerInvariant() : RandomClassValue;
 
-    public static string ToKindPropertyValue(BotSpawnKind kind) =>
-        kind == BotSpawnKind.Dummy ? DummyKindValue : BotKindValue;
 
     public static string ToRespawnPropertyValue(bool respawn) =>
         respawn ? "true" : "false";
 
-    public static string ToRespawnModePropertyValue(BotSpawnRespawnMode mode) =>
-        mode == BotSpawnRespawnMode.Node ? RespawnAtNodeValue : RespawnAtSpawnValue;
 
-    public static string ToNameModePropertyValue(BotSpawnNameMode mode) =>
-        mode == BotSpawnNameMode.Manual ? ManualNameModeValue : RandomNameModeValue;
 
     public static string ToForceNameplatePropertyValue(bool force) =>
         force ? "true" : "false";

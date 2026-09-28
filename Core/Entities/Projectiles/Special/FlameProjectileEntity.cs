@@ -116,36 +116,7 @@ public sealed class FlameProjectileEntity : SimulationEntity
         return 1f - float.Clamp(TicksRemaining / (float)airLifetimeSimulationTicks, 0f, 1f);
     }
 
-    public void AttachToPlayer(PlayerEntity player, int attachedLifetimeTicks)
-    {
-        AttachedPlayerId = player.Id;
-        AttachedOffsetX = X - player.X;
-        AttachedOffsetY = Y - player.Y;
-        VelocityX = 0f;
-        VelocityY = 0f;
-        TicksRemaining = attachedLifetimeTicks;
-        _burnDamageAccumulator = 0f;
-    }
 
-    public bool ApplyAttachedBurn(PlayerEntity player)
-    {
-        if (!IsAttached || AttachedPlayerId != player.Id || !player.IsAlive)
-        {
-            return false;
-        }
-
-        X = player.X + AttachedOffsetX;
-        Y = player.Y + AttachedOffsetY;
-        _burnDamageAccumulator += BurnDamagePerTickValue;
-        var wholeDamage = (int)_burnDamageAccumulator;
-        if (wholeDamage <= 0)
-        {
-            return false;
-        }
-
-        _burnDamageAccumulator -= wholeDamage;
-        return player.ApplyDamage(wholeDamage);
-    }
 
     public void MoveTo(float x, float y)
     {

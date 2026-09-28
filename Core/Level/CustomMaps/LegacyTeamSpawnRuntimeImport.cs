@@ -55,14 +55,6 @@ public static class LegacyTeamSpawnRuntimeImport
         return false;
     }
 
-    public static bool IsLegacyTeamSpawnType(string entityType)
-    {
-        var type = entityType.Trim();
-        return type.Equals("redspawn", StringComparison.OrdinalIgnoreCase)
-            || type.Equals("bluespawn", StringComparison.OrdinalIgnoreCase)
-            || (type.StartsWith("redspawn", StringComparison.OrdinalIgnoreCase) && type.Length > "redspawn".Length)
-            || (type.StartsWith("bluespawn", StringComparison.OrdinalIgnoreCase) && type.Length > "bluespawn".Length);
-    }
 
     private static SpawnPoint CreateForwardSpawnPoint(float x, float y, int linkedControlPointIndex, int priority)
     {

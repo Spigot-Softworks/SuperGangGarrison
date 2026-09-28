@@ -741,7 +741,6 @@ public static class BotNavigationAssetBuilder
         edge = default!;
         var costMultiplier = Math.Clamp(hintLink.CostMultiplier, 0.1f, 4f);
         if (TryBuildRecordedHintEdge(
-                level,
                 classDefinition,
                 profile,
                 fromNode,
@@ -860,7 +859,6 @@ public static class BotNavigationAssetBuilder
     }
 
     private static bool TryBuildRecordedHintEdge(
-        SimpleLevel level,
         CharacterClassDefinition classDefinition,
         BotNavigationProfile profile,
         MutableNode fromNode,

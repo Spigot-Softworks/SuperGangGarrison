@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -235,7 +236,7 @@ public partial class Game1
         _builderGameplayMessageImageResizeEntityIndex = -1;
     }
 
-    private void UpdateModernGarrisonBuilderEditor(KeyboardState keyboard, MouseState mouse, float deltaSeconds)
+    private void UpdateModernGarrisonBuilderEditor(KeyboardState keyboard, MouseState mouse)
     {
         if (IsKeyPressed(keyboard, Keys.V))
         {
@@ -476,7 +477,7 @@ public partial class Game1
 
     }
 
-    private void UpdateModernGarrisonBuilderZoom(MouseState mouse, KeyboardState keyboard)
+    private void UpdateModernGarrisonBuilderZoom(MouseState mouse)
     {
         var wheelDelta = mouse.ScrollWheelValue - _previousMouse.ScrollWheelValue;
         if (_builderValidationTooltipVisible && _builderValidationHoverBounds.Contains(mouse.Position))
@@ -966,8 +967,7 @@ public partial class Game1
                 _builderGameplayMessageImageResizeStartLeft,
                 _builderGameplayMessageImageResizeStartTop,
                 startRight,
-                startBottom,
-                aspectRatio);
+                startBottom);
         }
 
         ClampGarrisonBuilderImageResizeBounds(
@@ -1785,7 +1785,7 @@ public partial class Game1
         }
 
         var definitions = GetActiveGarrisonBuilderEntityDefinitions();
-        var layout = GetModernGarrisonBuilderPaletteLayout(sidebar, definitions);
+        var layout = GetModernGarrisonBuilderPaletteLayout(sidebar);
         if (!layout.ContentBounds.Contains(position))
         {
             var hideBounds = new Rectangle(sidebar.Right - 30, sidebar.Y + 6, 24, 20);
@@ -1954,7 +1954,7 @@ public partial class Game1
         _builderLayerContextMenuLayerIndex = -1;
     }
 
-    private IReadOnlyList<GarrisonBuilderLayerContextAction> GetGarrisonBuilderLayerContextMenuActions(int layerIndex)
+    private static IReadOnlyList<GarrisonBuilderLayerContextAction> GetGarrisonBuilderLayerContextMenuActions(int layerIndex)
     {
         if (layerIndex is >= 0 and <= 6)
         {
@@ -2219,7 +2219,7 @@ public partial class Game1
         return true;
     }
 
-    private string GetGarrisonBuilderEntityContextMenuLabel(GarrisonBuilderEntityContextAction action)
+    private static string GetGarrisonBuilderEntityContextMenuLabel(GarrisonBuilderEntityContextAction action)
     {
         return action switch
         {
@@ -2346,8 +2346,7 @@ public partial class Game1
     }
 
     private ModernGarrisonBuilderPaletteLayout GetModernGarrisonBuilderPaletteLayout(
-        Rectangle sidebar,
-        IReadOnlyList<CustomMapBuilderEntityDefinition> definitions)
+        Rectangle sidebar)
     {
         const int statusReserve = 28;
         var paletteTop = GetModernGarrisonBuilderSidebarPaletteTop(sidebar.Y);
@@ -2434,7 +2433,7 @@ public partial class Game1
 
     private void ClampEntityPaletteScrollOffset(Rectangle sidebar, IReadOnlyList<CustomMapBuilderEntityDefinition> definitions)
     {
-        var layout = GetModernGarrisonBuilderPaletteLayout(sidebar, definitions);
+        var layout = GetModernGarrisonBuilderPaletteLayout(sidebar);
         var contentHeight = GetEntityPaletteContentHeight( layout.HeaderHeight, layout.ItemHeight);
         var maxScroll = Math.Max(0, contentHeight - layout.ContentBounds.Height);
         _builderEntityPaletteScrollOffset = Math.Clamp(_builderEntityPaletteScrollOffset, 0, maxScroll);
@@ -2447,7 +2446,7 @@ public partial class Game1
         out EntityPaletteHit hit)
     {
         hit = default;
-        var layout = GetModernGarrisonBuilderPaletteLayout(sidebar, definitions);
+        var layout = GetModernGarrisonBuilderPaletteLayout(sidebar);
         if (!layout.ContentBounds.Contains(position))
         {
             return false;
@@ -2507,7 +2506,7 @@ public partial class Game1
             BuilderViewportHeight - GetModernBuilderMenuBarHeight() - GetModernGarrisonBuilderLayerStripHeight());
         var definitions = GetActiveGarrisonBuilderEntityDefinitions();
         ClampEntityPaletteScrollOffset(sidebar, definitions);
-        var layout = GetModernGarrisonBuilderPaletteLayout(sidebar, definitions);
+        var layout = GetModernGarrisonBuilderPaletteLayout(sidebar);
         if (!layout.HasScrollbar)
         {
             return;
@@ -2629,8 +2628,7 @@ public partial class Game1
     }
 
     private void DrawEntityPaletteScrollbar(
-        ModernGarrisonBuilderPaletteLayout layout,
-        IReadOnlyList<CustomMapBuilderEntityDefinition> definitions)
+        ModernGarrisonBuilderPaletteLayout layout)
     {
         if (!layout.HasScrollbar)
         {
@@ -2653,7 +2651,7 @@ public partial class Game1
     private void DrawModernGarrisonBuilderEntityPalette(Rectangle sidebar, MouseState mouse)
     {
         var definitions = GetActiveGarrisonBuilderEntityDefinitions();
-        var layout = GetModernGarrisonBuilderPaletteLayout(sidebar, definitions);
+        var layout = GetModernGarrisonBuilderPaletteLayout(sidebar);
         var listWidth = GetEntityPaletteListWidth(layout);
         var y = layout.ContentBounds.Y - _builderEntityPaletteScrollOffset;
         foreach (var (category, label) in EntityPaletteCategories)
@@ -2688,7 +2686,7 @@ public partial class Game1
             }
         }
 
-        DrawEntityPaletteScrollbar(layout, definitions);
+        DrawEntityPaletteScrollbar(layout);
     }
 
     private bool TryBeginGarrisonBuilderResize(Point screenPosition, Vector2 world)
@@ -2948,8 +2946,7 @@ public partial class Game1
                     _builderResizeStartLeft,
                     _builderResizeStartTop,
                     startRight,
-                    startBottom,
-                    aspectRatio);
+                    startBottom);
             }
         }
 
@@ -3165,8 +3162,7 @@ public partial class Game1
         float startLeft,
         float startTop,
         float startRight,
-        float startBottom,
-        float aspectRatio)
+        float startBottom)
     {
         var startWidth = startRight - startLeft;
         var startHeight = startBottom - startTop;
@@ -3482,7 +3478,7 @@ public partial class Game1
         }
     }
 
-    private float GetModernBuilderTextScale(float relativeScale)
+    private static float GetModernBuilderTextScale(float relativeScale)
     {
         return GetGarrisonBuilderRelativeBitmapFontScale(relativeScale);
     }
@@ -4059,7 +4055,7 @@ public partial class Game1
 
         return selected.Type.Equals(link, StringComparison.OrdinalIgnoreCase)
             || (selected.Type.Equals("controlPoint", StringComparison.OrdinalIgnoreCase)
-                && GetEntityInt(selected, "index", 0).ToString() == GetEntityProperty(spawn, "objectiveIndex", string.Empty));
+                && GetEntityInt(selected, "index", 0).ToString(CultureInfo.InvariantCulture) == GetEntityProperty(spawn, "objectiveIndex", string.Empty));
     }
 
     private void DrawGarrisonBuilderEntityLink(CustomMapBuilderEntity source, CustomMapBuilderEntity target, Color color)

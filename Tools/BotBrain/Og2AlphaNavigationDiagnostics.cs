@@ -479,7 +479,7 @@ internal static class Og2AlphaNavigationDiagnostics
 
             var edges = string.Join(',', edgeLabels);
             Console.WriteLine(
-                $"alphaNavNode index={nodeIndex} kind={node.Kind} surface={node.SurfaceId?.ToString() ?? "none"} " +
+                $"alphaNavNode index={nodeIndex} kind={node.Kind} surface={(node.SurfaceId is { } surfaceId ? surfaceId.ToString(CultureInfo.InvariantCulture) : "none")} " +
                 $"pos=({node.X:0.0},{node.Y:0.0}) edges={edges}");
         }
     }
@@ -1046,7 +1046,7 @@ internal static class Og2AlphaNavigationDiagnostics
                 return CaptureTrialResult.Failed(world.MatchRules.Mode, "bot_removed", startX, startY);
             }
 
-            if (HasCapturedObjective(world, bot, team, initialRedCaps, initialBlueCaps, initialControlPointTeams))
+            if (HasCapturedObjective(world, team, initialRedCaps, initialBlueCaps, initialControlPointTeams))
             {
                 return CaptureTrialResult.Succeeded(world.MatchRules.Mode, tick, "objective_captured", startX, startY, bot.X, bot.Y);
             }
@@ -1160,7 +1160,7 @@ internal static class Og2AlphaNavigationDiagnostics
             }.Where(static trace => !string.IsNullOrWhiteSpace(trace)));
         var reason = world.MatchRules.Mode == GameModeKind.CaptureTheFlag
             ? $"timeout_caps:{GetTeamCaps(world, team) - GetTeamCaps(initialRedCaps, initialBlueCaps, team)}"
-            : $"timeout_point:{DescribeControlPointState(world, team, initialControlPointTeams)}";
+            : $"timeout_point:{DescribeControlPointState(world, initialControlPointTeams)}";
         if (!string.IsNullOrWhiteSpace(controllerTrace))
         {
             reason += $" trace:{controllerTrace}";
@@ -1170,7 +1170,6 @@ internal static class Og2AlphaNavigationDiagnostics
 
     private static bool HasCapturedObjective(
         SimulationWorld world,
-        PlayerEntity bot,
         PlayerTeam team,
         int initialRedCaps,
         int initialBlueCaps,
@@ -1221,7 +1220,6 @@ internal static class Og2AlphaNavigationDiagnostics
 
     private static string DescribeControlPointState(
         SimulationWorld world,
-        PlayerTeam team,
         IReadOnlyDictionary<int, PlayerTeam?> initialControlPointTeams)
     {
         return string.Join(
