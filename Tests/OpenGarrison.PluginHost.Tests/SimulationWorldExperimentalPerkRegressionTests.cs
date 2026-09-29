@@ -2235,6 +2235,11 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         AdvanceTicks(world, 1);
 
         Assert.Equal(PlayerClass.Quote, world.LocalPlayer.ClassId);
+        // Class change suicides by design, so the stale-loadout scenario
+        // continues after a respawn.
+        Assert.False(world.LocalPlayer.IsAlive);
+        world.ForceRespawnLocalPlayer();
+
         Assert.True(world.LocalPlayer.IsAlive);
         Assert.False(world.LocalPlayer.HasExperimentalOffhandWeapon);
         Assert.False(world.LocalPlayer.IsExperimentalOffhandEquipped);
