@@ -18,6 +18,5 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Core\OpenGarrison.Core.csproj" />
     <ProjectReference Include="..\..\Protocol\OpenGarrison.Protocol.csproj" />
-    <ProjectReference Include="..\..\Server\OpenGarrison.Server.csproj" />
   </ItemGroup>
 </Project>
