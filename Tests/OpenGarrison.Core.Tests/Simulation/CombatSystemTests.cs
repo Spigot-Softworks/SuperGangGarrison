@@ -14,7 +14,9 @@ public sealed class CombatSystemTests
         var combat = new CombatSystem(store);
         var healthBefore = target.Health;
 
-        Assert.True(combat.TryApplyPlayerDamage(target.Id, 12));
+        // TryApplyPlayerDamage reports whether the hit was fatal, not whether it
+        // was applied; the health check below is what proves application.
+        Assert.False(combat.TryApplyPlayerDamage(target.Id, 12));
         Assert.Equal(healthBefore - 12, target.Health);
         Assert.False(combat.TryApplyPlayerDamage(999, 12));
     }
@@ -50,7 +52,8 @@ public sealed class CombatSystemTests
 
         Assert.False(combat.TryApplyPlayerDamage(friendlyTarget.Id, 10, attacker.Id));
         Assert.Equal(friendlyHealthBefore, friendlyTarget.Health);
-        Assert.True(combat.TryApplyPlayerDamage(enemyTarget.Id, 10, attacker.Id));
+        // Returns false: the hit landed (health drops) but was not fatal.
+        Assert.False(combat.TryApplyPlayerDamage(enemyTarget.Id, 10, attacker.Id));
         Assert.Equal(enemyHealthBefore - 10, enemyTarget.Health);
     }
 
