@@ -90,7 +90,9 @@ public sealed class PlayerSkinRenderingTests
         Assert.True((bool)select.Invoke(game, args)!);
         var airborneBody = args[1]!;
         Assert.Equal($"ElkondoSpy{team}CloakedBodyS", airborneBody.GetType().GetProperty("SpriteName")!.GetValue(airborneBody));
-        Assert.Equal(2f, airborneBody.GetType().GetProperty("AnimationImage")!.GetValue(airborneBody));
+        // 110948e6 added the authored jumpStart clip: an airborne update plays
+        // jumpStart's single frame (pose 1) before the rise frame (pose 2).
+        Assert.Equal(1f, airborneBody.GetType().GetProperty("AnimationImage")!.GetValue(airborneBody));
         Assert.True((bool)includesWeapon.Invoke(game, [player, airborneBody])!);
     }
 
