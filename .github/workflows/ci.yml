@@ -28,6 +28,7 @@ jobs:
           ./scripts/verify-repository-root-layout.ps1
           ./scripts/verify-gameplay-pack-layout.ps1
           ./scripts/verify-packaged-content.ps1 -SelfTest
+          ./scripts/verify-architecture-boundaries.ps1
           dotnet run --project Tools/OpenGarrison.PluginHost.ApiGenerator/OpenGarrison.PluginHost.ApiGenerator.csproj -- --check
 
       - name: Restore browser build graph
@@ -53,6 +54,13 @@ jobs:
       - name: Run gameplay and plugin-host tests
         run: >
           dotnet test Tests/OpenGarrison.PluginHost.Tests/OpenGarrison.PluginHost.Tests.csproj
+          --configuration Debug
+          --no-build
+          --no-restore
+
+      - name: Run core tests
+        run: >
+          dotnet test Tests/OpenGarrison.Core.Tests/OpenGarrison.Core.Tests.csproj
           --configuration Debug
           --no-build
           --no-restore
