@@ -55,6 +55,11 @@ public sealed class PlayerSkinRenderingTests
         // The GG2-interop guards read _networkClient; the ctor never ran on this
         // uninitialized instance, so provide the production default explicitly.
         typeof(Game1).GetField("_networkClient", PrivateInstance)!.SetValue(game, new NetworkGameClient());
+        // ShouldDrawLegsOnlyBody reads the weapon render controller through the
+        // service container; register it explicitly since the ctor never ran.
+        var services = new ClientServiceContainer();
+        services.Register(new GameplayWeaponRenderController((IRenderContext)game));
+        typeof(Game1).GetField("_services", PrivateInstance)!.SetValue(game, services);
         var player = new PlayerEntity(12, CharacterClassCatalog.Spy, "Spy");
         player.Spawn(team, 0, 0);
         var select = typeof(Game1).GetMethod("TryGetPlayerSkinBody", PrivateInstance)!;
