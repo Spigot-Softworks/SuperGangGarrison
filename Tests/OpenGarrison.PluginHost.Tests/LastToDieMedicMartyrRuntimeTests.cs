@@ -17,11 +17,13 @@ public sealed class LastToDieMedicMartyrRuntimeTests
         var target = world.LocalPlayer;
         var lowerSlotMedic = AddPlayer(world, 2, PlayerClass.Medic, PlayerTeam.Red);
         var higherSlotMedic = AddPlayer(world, 3, PlayerClass.Medic, PlayerTeam.Red);
+        Assert.True(world.TryConfigureLastToDiePlayerBuild(2, [LastToDiePerkIds.Medic.Martyr]));
+        Assert.True(world.TryConfigureLastToDiePlayerBuild(3, [LastToDiePerkIds.Medic.Martyr]));
+        // Configure first: its live-scale fallback relocates players whose test
+        // coordinates are not occupiable, which would break the medic link.
         target.TeleportTo(10f, 0f);
         lowerSlotMedic.TeleportTo(0f, 0f);
         higherSlotMedic.TeleportTo(20f, 0f);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(2, [LastToDiePerkIds.Medic.Martyr]));
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(3, [LastToDiePerkIds.Medic.Martyr]));
         lowerSlotMedic.SetMedicHealingTarget(target);
         higherSlotMedic.SetMedicHealingTarget(target);
 
@@ -129,12 +131,14 @@ public sealed class LastToDieMedicMartyrRuntimeTests
         var protector = world.LocalPlayer;
         var target = AddPlayer(world, 2, PlayerClass.Heavy, PlayerTeam.Red);
         var attacker = AddPlayer(world, 3, PlayerClass.Sniper, PlayerTeam.Blue);
-        protector.TeleportTo(0f, 0f);
-        target.TeleportTo(10f, 0f);
-        attacker.TeleportTo(20f, 0f);
         Assert.True(world.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.Martyr]));
+        // Configure first: its live-scale fallback relocates players whose test
+        // coordinates are not occupiable, which would break the medic link.
+        protector.TeleportTo(0f, 0f);
+        target.TeleportTo(10f, 0f);
+        attacker.TeleportTo(20f, 0f);
         protector.SetMedicHealingTarget(target);
         RefreshMedicLinks(world);
         target.ForceSetHealth(5);
@@ -195,13 +199,15 @@ public sealed class LastToDieMedicMartyrRuntimeTests
         var protector = world.LocalPlayer;
         var target = AddPlayer(world, 2, PlayerClass.Heavy, PlayerTeam.Red);
         var attacker = AddPlayer(world, 3, PlayerClass.Spy, PlayerTeam.Blue);
-        protector.TeleportTo(0f, 0f);
-        target.TeleportTo(10f, 0f);
-        attacker.TeleportTo(20f, 0f);
         Assert.True(world.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.Martyr]));
         Assert.True(world.TryConfigureLastToDiePlayerBuild(3, [LastToDiePerkIds.Spy.Vampire]));
+        // Configure first: its live-scale fallback relocates players whose test
+        // coordinates are not occupiable, which would break the medic link.
+        protector.TeleportTo(0f, 0f);
+        target.TeleportTo(10f, 0f);
+        attacker.TeleportTo(20f, 0f);
         protector.SetMedicHealingTarget(target);
         RefreshMedicLinks(world);
         target.ForceSetHealth(100);

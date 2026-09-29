@@ -148,7 +148,13 @@ public sealed class BuildWheelTests
         world.PrepareLocalPlayerJoin();
         world.CompleteLocalPlayerJoin(PlayerClass.Engineer);
         typeof(Game1).GetField("_world", flags)!.SetValue(game, world);
-        typeof(Game1).GetField("_clientSettings", flags)!.SetValue(game, new ClientSettings { BuildMenuStyle = BuildMenuStyle.Wheel });
+        // _clientSettings is now a computed property backed by the service container.
+        var services = new ClientServiceContainer();
+        services.Register(new ClientSettings { BuildMenuStyle = BuildMenuStyle.Wheel });
+        typeof(Game1).GetField("_services", flags)!.SetValue(game, services);
+        // The GG2-interop guards read _networkClient; the ctor never ran on this
+        // uninitialized instance, so provide the production default explicitly.
+        typeof(Game1).GetField("_networkClient", flags)!.SetValue(game, new NetworkGameClient());
         var state = typeof(Game1).GetField("_uiShellState", flags)!;
         state.SetValue(game, Activator.CreateInstance(state.FieldType, true));
         typeof(Game1).GetProperty("_buildMenuOpen", flags)!.SetValue(game, true);

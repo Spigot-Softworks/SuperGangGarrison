@@ -271,9 +271,6 @@ public sealed class LastToDieMedicPerkRuntimeTests
         var medic = world.LocalPlayer;
         var firstTarget = AddHeavyTeammate(world, slot: 2);
         var secondTarget = AddHeavyTeammate(world, slot: 3);
-        medic.TeleportTo(0f, 0f);
-        firstTarget.TeleportTo(10f, 0f);
-        secondTarget.TeleportTo(20f, 0f);
         firstTarget.ForceSetAmmo(firstTarget.MaxShells - 9);
         secondTarget.ForceSetAmmo(secondTarget.MaxShells - 4);
         SetPlayerTimer(firstTarget, nameof(PlayerEntity.PrimaryCooldownTicks), 7);
@@ -281,6 +278,11 @@ public sealed class LastToDieMedicPerkRuntimeTests
         Assert.True(world.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.SupportRelay]));
+        // Configure first: its live-scale fallback relocates players whose test
+        // coordinates are not occupiable, which would break the medic link.
+        medic.TeleportTo(0f, 0f);
+        firstTarget.TeleportTo(10f, 0f);
+        secondTarget.TeleportTo(20f, 0f);
 
         medic.SetMedicHealingTarget(firstTarget);
         InvokeRefreshMedicLinkProjections(world);
@@ -320,11 +322,13 @@ public sealed class LastToDieMedicPerkRuntimeTests
         var world = CreateMedicWorld();
         var medic = world.LocalPlayer;
         var target = AddHeavyTeammate(world, slot: 2);
-        medic.TeleportTo(0f, 0f);
-        target.TeleportTo(10f, 0f);
         Assert.True(world.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.SupportRelay]));
+        // Configure first: its live-scale fallback relocates players whose test
+        // coordinates are not occupiable, which would break the medic link.
+        medic.TeleportTo(0f, 0f);
+        target.TeleportTo(10f, 0f);
 
         medic.SetMedicHealingTarget(target);
         InvokeRefreshMedicLinkProjections(world);
@@ -555,10 +559,12 @@ public sealed class LastToDieMedicPerkRuntimeTests
     {
         var world = CreateMedicWorld();
         var medic = world.LocalPlayer;
-        medic.ForceSetHealth(10);
         Assert.True(world.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.IronWill]));
+        // Configure first: the Medic +40 LastToDie class bonus raises max health,
+        // so setting health afterwards keeps IronWill below its 30% gate.
+        medic.ForceSetHealth(10);
 
         AdvanceSourceTicks(medic, PlayerEntity.MedicPassiveRegenIntervalSourceTicks);
         Assert.Equal(17, medic.Health);
@@ -671,13 +677,15 @@ public sealed class LastToDieMedicPerkRuntimeTests
         var teammate = AddHeavyTeammate(world, slot: 2);
         var linkedEnemy = AddHeavyPlayer(world, slot: 3, PlayerTeam.Blue);
         var unlinkedEnemy = AddHeavyPlayer(world, slot: 4, PlayerTeam.Blue);
+        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+            SimulationWorld.LocalPlayerSlot,
+            [LastToDiePerkIds.Medic.Exsanguination]));
+        // Configure first: its live-scale fallback relocates players whose test
+        // coordinates are not occupiable, which would break the medic link.
         medic.TeleportTo(0f, 0f);
         teammate.TeleportTo(10f, 0f);
         linkedEnemy.TeleportTo(20f, 0f);
         unlinkedEnemy.TeleportTo(30f, 0f);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
-            SimulationWorld.LocalPlayerSlot,
-            [LastToDiePerkIds.Medic.Exsanguination]));
         medic.SetMedicHealingTarget(teammate);
 
         _ = ResolveDamage(
@@ -782,12 +790,14 @@ public sealed class LastToDieMedicPerkRuntimeTests
         var medic = world.LocalPlayer;
         var teammate = AddHeavyTeammate(world, slot: 2);
         var enemy = AddHeavyPlayer(world, slot: 3, PlayerTeam.Blue);
-        medic.TeleportTo(0f, 0f);
-        teammate.TeleportTo(10f, 0f);
-        enemy.TeleportTo(20f, 0f);
         Assert.True(world.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.Exsanguination]));
+        // Configure first: its live-scale fallback relocates players whose test
+        // coordinates are not occupiable, which would break the medic link.
+        medic.TeleportTo(0f, 0f);
+        teammate.TeleportTo(10f, 0f);
+        enemy.TeleportTo(20f, 0f);
         medic.SetMedicHealingTarget(teammate);
 
         _ = ResolveDamage(
@@ -811,13 +821,15 @@ public sealed class LastToDieMedicPerkRuntimeTests
         var lowerSlotMedic = AddNetworkPlayer(world, slot: 2, PlayerClass.Medic, PlayerTeam.Red);
         var higherSlotMedic = AddNetworkPlayer(world, slot: 3, PlayerClass.Medic, PlayerTeam.Red);
         var enemy = AddHeavyPlayer(world, slot: 4, PlayerTeam.Blue);
+        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+            3,
+            [LastToDiePerkIds.Medic.Exsanguination]));
+        // Configure first: its live-scale fallback relocates players whose test
+        // coordinates are not occupiable, which would break the medic link.
         attacker.TeleportTo(10f, 0f);
         lowerSlotMedic.TeleportTo(0f, 0f);
         higherSlotMedic.TeleportTo(20f, 0f);
         enemy.TeleportTo(30f, 0f);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
-            3,
-            [LastToDiePerkIds.Medic.Exsanguination]));
         lowerSlotMedic.SetMedicHealingTarget(attacker);
         higherSlotMedic.SetMedicHealingTarget(attacker);
 
@@ -884,13 +896,15 @@ public sealed class LastToDieMedicPerkRuntimeTests
         var medic = world.LocalPlayer;
         var teammate = AddHeavyTeammate(world, slot: 2);
         var enemy = AddHeavyPlayer(world, slot: 3, PlayerTeam.Blue);
-        medic.TeleportTo(0f, 0f);
-        teammate.TeleportTo(10f, 0f);
-        enemy.TeleportTo(20f, 0f);
         enemy.ForceSetHealth(6);
         Assert.True(world.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.Exsanguination]));
+        // Configure first: its live-scale fallback relocates players whose test
+        // coordinates are not occupiable, which would break the medic link.
+        medic.TeleportTo(0f, 0f);
+        teammate.TeleportTo(10f, 0f);
+        enemy.TeleportTo(20f, 0f);
         medic.SetMedicHealingTarget(teammate);
 
         _ = ResolveDamage(
@@ -927,13 +941,15 @@ public sealed class LastToDieMedicPerkRuntimeTests
         var medic = world.LocalPlayer;
         var teammate = AddHeavyTeammate(world, slot: 2);
         var enemy = AddHeavyPlayer(world, slot: 3, PlayerTeam.Blue);
-        medic.TeleportTo(0f, 0f);
-        teammate.TeleportTo(10f, 0f);
-        enemy.TeleportTo(20f, 0f);
         enemy.ForceSetHealth(3);
         Assert.True(world.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.Exsanguination]));
+        // Configure first: its live-scale fallback relocates players whose test
+        // coordinates are not occupiable, which would break the medic link.
+        medic.TeleportTo(0f, 0f);
+        teammate.TeleportTo(10f, 0f);
+        enemy.TeleportTo(20f, 0f);
         medic.SetMedicHealingTarget(teammate);
 
         _ = ResolveDamage(

@@ -176,6 +176,7 @@ public sealed class ConstructorControlsRegressionTests
         var services = new ClientServiceContainer();
         services.Register(new ClientSettings { BuildMenuStyle = style });
         services.Register(new GameplayManager((IGameplayContext)game));
+        services.Register(new HudManager((IHudContext)game));
         typeof(Game1).GetField("_services", Private)!.SetValue(game, services);
 
         Set(game, "_mainMenuOpen", false);

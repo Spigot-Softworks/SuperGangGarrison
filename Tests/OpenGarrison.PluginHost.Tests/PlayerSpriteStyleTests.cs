@@ -52,6 +52,9 @@ public sealed class PlayerSkinRenderingTests
         typeof(Game1).GetField("_playerSkins", PrivateInstance)!.SetValue(game, new Lazy<PlayerSkinCatalog>(ReadCatalog));
         var statesField = typeof(Game1).GetField("_playerRenderStates", PrivateInstance)!;
         statesField.SetValue(game, Activator.CreateInstance(statesField.FieldType));
+        // The GG2-interop guards read _networkClient; the ctor never ran on this
+        // uninitialized instance, so provide the production default explicitly.
+        typeof(Game1).GetField("_networkClient", PrivateInstance)!.SetValue(game, new NetworkGameClient());
         var player = new PlayerEntity(12, CharacterClassCatalog.Spy, "Spy");
         player.Spawn(team, 0, 0);
         var select = typeof(Game1).GetMethod("TryGetPlayerSkinBody", PrivateInstance)!;

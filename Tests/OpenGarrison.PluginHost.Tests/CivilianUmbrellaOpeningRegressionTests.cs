@@ -15,7 +15,8 @@ public sealed class CivilianUmbrellaOpeningRegressionTests
         Assert.True(string.IsNullOrEmpty(player.GameplayLoadoutState.SecondaryItemId));
         var controller = typeof(GameplayWeaponRenderController);
         var resolve = controller.GetMethod("ResolveRenderPresentation", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance)!;
-        var controllerInstance = System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(controller);
+        var controllerInstance = new GameplayWeaponRenderController(
+            (IRenderContext)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(Game1)));
         GameplayItemPresentationDefinition Presentation(bool force = false)
             => (GameplayItemPresentationDefinition)resolve.Invoke(controllerInstance, [player, force])!;
 

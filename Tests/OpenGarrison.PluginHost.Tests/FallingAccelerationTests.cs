@@ -13,6 +13,8 @@ public sealed class FallingAccelerationTests
         for (var i = 0; i < 10; i++)
             smallSteps = LegacyMovementModel.AdvanceVerticalSpeedHalfStep(smallSteps, 0.6f, 1f / 300f);
         Assert.Equal(largeStep, smallSteps, 3);
-        Assert.Equal(300f, LegacyMovementModel.AdvanceVerticalSpeedHalfStep(299f, 0.6f, 1f / 30f));
+        // MaxFallSpeedPerTick is 24 (GG2 interop tuning), so the 720 clamp no
+        // longer bites here; the old 300 expectation assumed the former 10.
+        Assert.Equal(310.25f, LegacyMovementModel.AdvanceVerticalSpeedHalfStep(299f, 0.6f, 1f / 30f));
     }
 }

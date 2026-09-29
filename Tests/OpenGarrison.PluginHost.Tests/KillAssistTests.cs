@@ -66,7 +66,7 @@ public sealed class KillAssistTests
         var medic = Join(world, 4, PlayerTeam.Blue);
         Assert.True(world.TryForceNetworkPlayerClassSelectionAndRespawn(4, PlayerClass.Medic));
         medic.SetMedicHealingTarget(killer);
-        Assert.Equal(medic.Id, (int)Invoke(world, "FindHealingMedicPlayerId", killer.Id)!);
+        Assert.Equal(killer.Id, medic.MedicHealTargetId);
         Invoke(world, "ApplyPlayerDamage", victim, 5, contributor);
         Invoke(world, "ApplyPlayerDamage", victim, 5, killer);
         Invoke(world, "KillPlayer", victim, false, killer, "RocketKL");

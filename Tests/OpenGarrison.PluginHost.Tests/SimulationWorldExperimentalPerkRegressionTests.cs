@@ -144,7 +144,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     }
 
     [Fact]
-    public void StockEngineerFreshSentryIgnoresStrayImmediateRightClickDestroy()
+    public void StockEngineerFreshSentryCanBeDestroyedImmediatelyByRightClick()
     {
         var world = CreateJoinedEngineerWorld(new ExperimentalGameplaySettings());
 
@@ -153,13 +153,9 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         var sentry = Assert.Single(world.Sentries);
         Assert.False(sentry.IsBuilt);
 
+        // The old 2-second owner-destroy setup guard was removed: right-click
+        // destroys the fresh sentry immediately.
         ReleaseAllInput(world);
-        PressFireSecondary(world);
-
-        Assert.Same(sentry, Assert.Single(world.Sentries));
-
-        ReleaseAllInput(world);
-        AdvanceTicks(world, world.Config.TicksPerSecond * 2);
         PressFireSecondary(world);
 
         Assert.Empty(world.Sentries);
@@ -4524,6 +4520,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
                 playerKnockbackImpulse.HasValue ? playerKnockbackImpulse.Value : Type.Missing,
                 playerKnockbackAirborneVerticalScale,
                 playerKnockbackGroundedVerticalScale,
+                false, // isBoomstickPellet
             ]);
     }
 
