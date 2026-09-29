@@ -40,7 +40,8 @@ public sealed class SnapshotSystemTests
         var combat = new CombatSystem(store);
         var snapshots = new SnapshotSystem(store, combat);
 
-        Assert.True(combat.TryApplyPlayerDamage(target.Id, 10, attacker.Id));
+        // Non-fatal hit: the damage event is still queued for capture.
+        Assert.False(combat.TryApplyPlayerDamage(target.Id, 10, attacker.Id));
 
         ulong nextEventId = 41;
         var captured = snapshots.DrainSnapshotDamageEvents(ref nextEventId);
