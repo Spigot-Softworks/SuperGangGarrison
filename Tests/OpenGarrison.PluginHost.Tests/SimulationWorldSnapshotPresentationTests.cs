@@ -259,11 +259,14 @@ public sealed class SimulationWorldSnapshotPresentationTests
 
         world.SpawnClientPlayerGibsFromNetworkDeath(player, 512f, 384f);
 
-        Assert.Contains(world.PlayerGibs, gib => gib.SpriteName == "GibS");
-        Assert.Contains(world.PlayerGibs, gib => gib.SpriteName == "BlueClumpS");
-        Assert.Contains(world.PlayerGibs, gib => gib.SpriteName == "HeadS");
-        Assert.Contains(world.PlayerGibs, gib => gib.SpriteName == "FeetS");
-        Assert.Contains(world.PlayerGibs, gib => gib.SpriteName == "HandS");
+        // Soldier/Blue has a complete authored gib set, so the legacy fallback
+        // sprites are skipped and each catalog part spawns exactly once.
+        Assert.True(AuthoredPlayerGibCatalog.TryGetParts(player.GameplayClassId, player.Team, out var parts));
+        Assert.Equal(parts.Count, world.PlayerGibs.Count);
+        foreach (var part in parts)
+        {
+            Assert.Contains(world.PlayerGibs, gib => gib.SpriteName == part.SpriteName);
+        }
         Assert.Contains(world.PendingVisualEvents, visualEvent => visualEvent.EffectName == "GibBlood");
     }
 
@@ -335,11 +338,16 @@ public sealed class SimulationWorldSnapshotPresentationTests
         var immediateGibCount = world.PlayerGibs.Count;
 
         Assert.NotEqual(0, immediateGibCount);
-        Assert.All(world.PlayerGibs, gib =>
+        // Authored gib parts spawn at the provided origin plus their per-part
+        // placement offset (the snapshot player faces right at default scale).
+        Assert.True(AuthoredPlayerGibCatalog.TryGetParts("soldier", PlayerTeam.Blue, out var parts));
+        Assert.Equal(parts.Count, world.PlayerGibs.Count);
+        foreach (var part in parts)
         {
-            Assert.Equal(512f, gib.X);
-            Assert.Equal(384f, gib.Y);
-        });
+            var gib = Assert.Single(world.PlayerGibs, g => g.SpriteName == part.SpriteName);
+            Assert.Equal(512f + part.SpawnOffsetX, gib.X);
+            Assert.Equal(384f + part.SpawnOffsetY, gib.Y);
+        }
 
         Assert.True(world.ApplySnapshot(deathSnapshot, localPlayerSlot: 1));
         Assert.Equal(immediateGibCount, world.PlayerGibs.Count);

@@ -457,6 +457,9 @@ public sealed class FirePredictionRegressionTests
         var game = RuntimeHelpers.GetUninitializedObject(typeof(Game1));
         SetPrivateField(game, "_config", world.Config);
         SetPrivateField(game, "_world", world);
+        // The GG2-interop guards read _networkClient; the ctor never ran on this
+        // uninitialized instance, so provide the production default explicitly.
+        SetPrivateField(game, "_networkClient", new NetworkGameClient());
         return game;
     }
 

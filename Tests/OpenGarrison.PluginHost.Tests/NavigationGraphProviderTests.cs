@@ -49,16 +49,28 @@ public sealed class NavigationGraphProviderTests
     [Fact]
     public void PreloadBuildsWhenGraphIsMissing()
     {
-        var level = CreateTopDownLevel($"provider_preload_build_{Guid.NewGuid():N}");
-        Assert.False(NavigationGraphProvider.TryGetWarmedGraph(level, out _));
-        var provider = new NavigationGraphProvider();
+        // The persistent runtime cache is keyed by level geometry, not name, so
+        // an identical-geometry build from another test could satisfy this
+        // lookup. Disable it to force the build path.
+        var originalCacheSetting = Environment.GetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_PERSISTENT_CACHE");
+        Environment.SetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_PERSISTENT_CACHE", "0");
+        try
+        {
+            var level = CreateTopDownLevel($"provider_preload_build_{Guid.NewGuid():N}");
+            Assert.False(NavigationGraphProvider.TryGetWarmedGraph(level, out _));
+            var provider = new NavigationGraphProvider();
 
-        var graph = provider.PreloadGraph(level);
+            var graph = provider.PreloadGraph(level);
 
-        Assert.NotNull(graph);
-        Assert.Equal("built", provider.LastSource);
-        Assert.Equal("Built", provider.LastPreloadSource);
-        Assert.NotEmpty(provider.LastSourcePath);
+            Assert.NotNull(graph);
+            Assert.Equal("built", provider.LastSource);
+            Assert.Equal("Built", provider.LastPreloadSource);
+            Assert.NotEmpty(provider.LastSourcePath);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_PERSISTENT_CACHE", originalCacheSetting);
+        }
     }
 
     [Fact]

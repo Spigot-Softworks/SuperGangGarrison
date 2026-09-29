@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using OpenGarrison.Client;
+using OpenGarrison.ClientShared;
 using OpenGarrison.Core;
 using OpenGarrison.GameplayModding;
 using Xunit;
@@ -65,11 +66,15 @@ public sealed class BrowserHudDefaultsTests
         var game = (Game1)RuntimeHelpers.GetUninitializedObject(typeof(Game1));
         typeof(Game1).GetField("_world", Instance)!.SetValue(game, world);
         typeof(Game1).GetField("_menuBitmapFontLineHeight", Instance)!.SetValue(game, 11);
-        foreach (var name in new[] { "_networkClient", "_clientSettings", "_gameplaySessionState", "_uiShellState" })
+        foreach (var name in new[] { "_networkClient", "_gameplaySessionState", "_uiShellState" })
         {
             var field = typeof(Game1).GetField(name, Instance)!;
             field.SetValue(game, Activator.CreateInstance(field.FieldType, true));
         }
+        // _clientSettings is now a computed property backed by the service container.
+        var services = new ClientServiceContainer();
+        services.Register(new ClientSettings());
+        typeof(Game1).GetField("_services", Instance)!.SetValue(game, services);
         var controllerType = typeof(GameplayLocalStatusHudController);
         var controller = new GameplayLocalStatusHudController((IHudContext)game)!;
         object Invoke(string name, params object[] args) => controllerType.GetMethod(name, Instance | BindingFlags.Static)!.Invoke(controller, args)!;
@@ -105,11 +110,15 @@ public sealed class BrowserHudDefaultsTests
         var game = (Game1)RuntimeHelpers.GetUninitializedObject(typeof(Game1));
         typeof(Game1).GetField("_world", Instance)!.SetValue(game, world);
         typeof(Game1).GetField("_menuBitmapFontLineHeight", Instance)!.SetValue(game, 11);
-        foreach (var name in new[] { "_networkClient", "_clientSettings", "_gameplaySessionState", "_uiShellState" })
+        foreach (var name in new[] { "_networkClient", "_gameplaySessionState", "_uiShellState" })
         {
             var field = typeof(Game1).GetField(name, Instance)!;
             field.SetValue(game, Activator.CreateInstance(field.FieldType, true));
         }
+        // _clientSettings is now a computed property backed by the service container.
+        var demomanServices = new ClientServiceContainer();
+        demomanServices.Register(new ClientSettings());
+        typeof(Game1).GetField("_services", Instance)!.SetValue(game, demomanServices);
 
         var controllerType = typeof(GameplayLocalStatusHudController);
         var controller = new GameplayLocalStatusHudController((IHudContext)game)!;
