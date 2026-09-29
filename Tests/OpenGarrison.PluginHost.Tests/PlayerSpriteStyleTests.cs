@@ -60,6 +60,9 @@ public sealed class PlayerSkinRenderingTests
         var services = new ClientServiceContainer();
         services.Register(new GameplayWeaponRenderController((IRenderContext)game));
         typeof(Game1).GetField("_services", PrivateInstance)!.SetValue(game, services);
+        // IsBackstabReplacementRenderActive enumerates _backstabVisuals; the field
+        // initializer never ran on this uninitialized instance.
+        typeof(Game1).GetField("_backstabVisuals", PrivateInstance)!.SetValue(game, new List<Game1.BackstabVisual>());
         var player = new PlayerEntity(12, CharacterClassCatalog.Spy, "Spy");
         player.Spawn(team, 0, 0);
         var select = typeof(Game1).GetMethod("TryGetPlayerSkinBody", PrivateInstance)!;
