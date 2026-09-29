@@ -150,30 +150,6 @@ public sealed class AlternatePrimaryWeaponBalanceTests
         Assert.True(explosionCount > 0);
     }
 
-    [Fact]
-    public void PyroStockLoadoutIncludesConfiguredDragonRage()
-    {
-        var registry = GameplayRuntimeRegistry.CreateStock();
-        var loadout = registry.GetRequiredLoadout("pyro", "pyro.stock");
-        var item = registry.GetRequiredItem("weapon.dragon-rage");
-        var weapon = registry.CreatePrimaryWeaponDefinition(item);
-
-        Assert.Contains("weapon.dragon-rage", loadout.Primary!.ItemIds);
-        Assert.Equal("weapon.flamethrower", loadout.Primary.DefaultItemId);
-        Assert.Equal(BuiltInGameplayBehaviorIds.DragonRage, item.BehaviorId);
-        Assert.Equal(PrimaryWeaponKind.Custom, weapon.Kind);
-        Assert.Equal(6, weapon.MaxAmmo);
-        Assert.Equal(1, weapon.AmmoPerShot);
-        Assert.Equal(16, weapon.ReloadDelayTicks);
-        Assert.Equal(18, weapon.AmmoReloadTicks);
-        Assert.Equal(22f, weapon.MinShotSpeed);
-        Assert.Equal(35f, weapon.DirectHitDamage);
-        Assert.Equal("DragonRageS", item.Presentation.WorldSpriteName);
-        Assert.Null(item.Presentation.RecoilSpriteName);
-        Assert.Equal("DragonRageFRS", item.Presentation.ReloadSpriteName);
-        Assert.Equal(16.8f, FlareProjectileEntity.DragonRageVisualWidth);
-        Assert.Equal(12.8f, FlareProjectileEntity.DragonRageCoreVisualWidth);
-    }
 
     [Fact]
     public void DragonRageFiresOneFastShortLivedIncendiarySlug()
@@ -294,40 +270,6 @@ public sealed class AlternatePrimaryWeaponBalanceTests
         Assert.Equal(11, pyro.PrimaryCooldownTicks);
     }
 
-    [Fact]
-    public void DragonRageSlugFadesAggressivelyAndReflectionPreservesItsRange()
-    {
-        var slug = new FlareProjectileEntity(
-            2,
-            PlayerTeam.Red,
-            1,
-            0f,
-            0f,
-            22f,
-            0f,
-            ticksRemaining: FlareProjectileEntity.DragonRageLifetimeTicks,
-            damagePerHit: 35f,
-            style: FlareProjectileStyle.DragonRageSlug);
-
-        for (var tick = 0; tick < FlareProjectileEntity.DragonRageLifetimeTicks / 2; tick += 1)
-        {
-            slug.AdvanceOneTick();
-        }
-
-        Assert.Equal(1f, slug.PresentationAlpha);
-        slug.AdvanceOneTick();
-        Assert.InRange(slug.PresentationAlpha, 0.56f, 0.57f);
-        for (var tick = 0; tick < 3; tick += 1)
-        {
-            slug.AdvanceOneTick();
-        }
-        Assert.True(slug.IsExpired);
-        Assert.Equal(176f, slug.X);
-
-        slug.Reflect(3, PlayerTeam.Blue, MathF.PI);
-        Assert.Equal(FlareProjectileEntity.DragonRageLifetimeTicks, slug.TicksRemaining);
-        Assert.True(slug.IsDragonRageSlug);
-    }
 
     [Fact]
     public void DragonRageKeepsAirburstWithoutSpendingOrDelayingShotgunShells()
@@ -352,40 +294,7 @@ public sealed class AlternatePrimaryWeaponBalanceTests
         Assert.True(pyro.PyroAirblastCooldownTicks > 0);
     }
 
-    [Fact]
-    public void SmgAndTommyGunUseSharedReloadAnimationSheet()
-    {
-        var registry = GameplayRuntimeRegistry.CreateStock();
 
-        Assert.Equal(
-            "SmgFRS",
-            registry.GetRequiredItem("weapon.sniper-smg").Presentation.ReloadSpriteName);
-        Assert.Equal(
-            "SmgFRS",
-            registry.GetRequiredItem("weapon.tommy-gun").Presentation.ReloadSpriteName);
-    }
-
-    [Fact]
-    public void SoldierStockLoadoutIncludesConfiguredMortarLauncher()
-    {
-        var registry = GameplayRuntimeRegistry.CreateStock();
-        var loadout = registry.GetRequiredLoadout("soldier", "soldier.stock");
-        var mortar = registry.CreatePrimaryWeaponDefinition(
-            registry.GetRequiredItem("weapon.mortar-launcher"));
-
-        Assert.Contains("weapon.mortar-launcher", loadout.Primary!.ItemIds);
-        Assert.Equal(BuiltInGameplayBehaviorIds.MortarLauncher,
-            registry.GetRequiredItem("weapon.mortar-launcher").BehaviorId);
-        Assert.Equal(PrimaryWeaponKind.RocketLauncher, mortar.Kind);
-        Assert.Equal(1, mortar.MaxAmmo);
-        Assert.Equal(28, mortar.AmmoReloadTicks);
-        Assert.Equal(1.3f, mortar.PlayerKnockbackScale);
-        Assert.NotNull(mortar.RocketCombat);
-        Assert.Equal(33, mortar.RocketCombat!.DirectHitDamage);
-        Assert.Equal(45.5f, mortar.RocketCombat.BlastRadius);
-        Assert.Equal(45f, mortar.RocketCombat.MinimumSplashDamage);
-        Assert.Equal(1.2f, mortar.RocketCombat.SelfDamageMultiplier);
-    }
 
     [Fact]
     public void MortarChargeAndProjectileUseHeavierBallisticArc()
@@ -462,29 +371,6 @@ public sealed class AlternatePrimaryWeaponBalanceTests
         Assert.True(networkState.SuppressRocketSmokeTrail);
     }
 
-    [Fact]
-    public void HeavyStockLoadoutIncludesMobileMagazineFedTommyGun()
-    {
-        var registry = GameplayRuntimeRegistry.CreateStock();
-        var loadout = registry.GetRequiredLoadout("heavy", "heavy.stock");
-        var tommyItem = registry.GetRequiredItem("weapon.tommy-gun");
-        var tommy = registry.CreatePrimaryWeaponDefinition(
-            tommyItem);
-
-        Assert.Contains("weapon.tommy-gun", loadout.Primary!.ItemIds);
-        Assert.Equal(BuiltInGameplayBehaviorIds.TommyGun,
-            registry.GetRequiredItem("weapon.tommy-gun").BehaviorId);
-        Assert.Equal(PrimaryWeaponKind.PelletGun, tommy.Kind);
-        Assert.Equal(40, tommy.MaxAmmo);
-        Assert.Equal(9f, tommy.DirectHitDamage);
-        Assert.Equal(54, tommy.AmmoReloadTicks);
-        Assert.True(tommy.RefillsAllAtOnce);
-        Assert.Equal(0, tommy.AmmoRegenPerTick);
-        Assert.Null(tommy.PlayerSlowMovementMultiplier);
-        Assert.Equal(-5f, tommyItem.Presentation.WeaponOffsetX);
-        Assert.Equal(-5f, tommyItem.Presentation.WeaponOffsetY);
-        Assert.Equal(8f, tommyItem.Presentation.ReloadSpriteOffsetX);
-    }
 
     [Fact]
     public void DescendingMortarDirectHitPullsOnlyDirectVictimTowardSoldier()

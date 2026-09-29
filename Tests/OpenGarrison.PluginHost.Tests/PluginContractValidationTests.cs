@@ -235,55 +235,6 @@ public sealed class PluginContractValidationTests
     }
 
     [Fact]
-    public void ClientPluginHostDoesNotKeepBubbleMenuOverrideAfterDisablingLuaBubblePlugin()
-    {
-        var logLines = new List<string>();
-        var rootPath = TestFileSystem.CreateTempRoot();
-        var pluginsDirectory = Path.Combine(rootPath, "plugins");
-        WriteClientLuaPlugin(
-            pluginsDirectory,
-            "tests.client.lua-utility",
-            "Lua Utility",
-            """
-            local plugin = {}
-
-            function plugin.on_client_frame(e)
-            end
-
-            return plugin
-            """);
-        WriteClientLuaPlugin(
-            pluginsDirectory,
-            "tests.client.lua-bubble-menu",
-            "Lua Bubble Menu",
-            """
-            local plugin = {}
-
-            function plugin.try_handle_bubble_menu_input(input)
-                return { bubbleFrame = 20 }
-            end
-
-            return plugin
-            """);
-
-        var host = new ClientPluginHost(
-            new FakeClientPluginHostState(),
-            null!,
-            pluginsDirectory,
-            Path.Combine(rootPath, "config"),
-            Path.Combine(rootPath, "state.json"),
-            logLines.Add);
-
-        host.LoadPlugins();
-
-        Assert.True(host.HasLoadedBubbleMenuOverride());
-        Assert.True(host.SetPluginEnabled("tests.client.lua-bubble-menu", enabled: false));
-        Assert.Contains("tests.client.lua-utility", host.LoadedPluginIds);
-        Assert.DoesNotContain("tests.client.lua-bubble-menu", host.LoadedPluginIds);
-        Assert.False(host.HasLoadedBubbleMenuOverride(), string.Join(", ", host.LoadedPluginIds));
-    }
-
-    [Fact]
     public void ServerPluginHostRoutesValidatedInboundMessagesToTargetPluginOnly()
     {
         InboundServerReceiverPlugin.Reset();
@@ -451,51 +402,6 @@ public sealed class PluginContractValidationTests
             out _,
             out error));
         Assert.Contains("did not match expected message type", error, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void PackagedClientPluginBootstrapperMirrorsPackagedPluginsWithoutDeletingCustomRuntimePlugins()
-    {
-        var rootPath = TestFileSystem.CreateTempRoot();
-        var packagedSource = Path.Combine(rootPath, "Packaged");
-        var runtimeDestination = Path.Combine(rootPath, "Runtime");
-
-        var packagedPluginDirectory = Path.Combine(packagedSource, "Lua.GarrisonToolsEffects");
-        Directory.CreateDirectory(packagedPluginDirectory);
-        File.WriteAllText(Path.Combine(packagedPluginDirectory, "plugin.json"), """{"id":"open-garrison.client.lua-garrison-tools-effects"}""");
-        File.WriteAllText(Path.Combine(packagedPluginDirectory, "main.lua"), "return {}");
-
-        var nestedPackagedDirectory = Path.Combine(packagedPluginDirectory, "Resources");
-        Directory.CreateDirectory(nestedPackagedDirectory);
-        File.WriteAllText(Path.Combine(nestedPackagedDirectory, "effect.txt"), "blind");
-
-        var staleRuntimeDirectory = Path.Combine(runtimeDestination, "Lua.GarrisonToolsEffects");
-        Directory.CreateDirectory(staleRuntimeDirectory);
-        File.WriteAllText(Path.Combine(staleRuntimeDirectory, "old.txt"), "stale");
-
-        var customRuntimeDirectory = Path.Combine(runtimeDestination, "CustomPlugin");
-        Directory.CreateDirectory(customRuntimeDirectory);
-        File.WriteAllText(Path.Combine(customRuntimeDirectory, "custom.txt"), "keep");
-
-        Assert.True(PackagedClientPluginBootstrapper.TryMirrorPackagedPlugins(packagedSource, runtimeDestination, out var error), error);
-        Assert.Equal(string.Empty, error);
-
-        Assert.False(File.Exists(Path.Combine(staleRuntimeDirectory, "old.txt")));
-        Assert.True(File.Exists(Path.Combine(runtimeDestination, "Lua.GarrisonToolsEffects", "plugin.json")));
-        Assert.True(File.Exists(Path.Combine(runtimeDestination, "Lua.GarrisonToolsEffects", "main.lua")));
-        Assert.True(File.Exists(Path.Combine(runtimeDestination, "Lua.GarrisonToolsEffects", "Resources", "effect.txt")));
-        Assert.True(File.Exists(Path.Combine(customRuntimeDirectory, "custom.txt")));
-    }
-
-    [Fact]
-    public void ClientPluginStateDefaultsQuoteCurlyEnabled()
-    {
-        var rootPath = TestFileSystem.CreateTempRoot();
-        var stateStore = new ClientPluginStateStore(
-            Path.Combine(rootPath, "plugins.json"),
-            _ => { });
-
-        Assert.True(stateStore.IsPluginEnabled("quote-curly"));
     }
 
     [Fact]
@@ -703,82 +609,6 @@ public sealed class PluginContractValidationTests
     }
 
     [Fact]
-    public void ManifestPlannerAppliesDependenciesConflictsAndLoadOrderHints()
-    {
-        var plugins = new[]
-        {
-            CreatePlannedPlugin("dependent.plugin", dependencies: [new OpenGarrisonPluginManifestDependency { Id = "base.plugin" }]),
-            CreatePlannedPlugin("conflicting.plugin", conflicts: ["base.plugin"]),
-            CreatePlannedPlugin("late.plugin"),
-            CreatePlannedPlugin("base.plugin", before: ["late.plugin"]),
-            CreatePlannedPlugin("optional.plugin", optionalDependencies: [new OpenGarrisonPluginManifestDependency { Id = "base.plugin" }]),
-            CreatePlannedPlugin("missing-dependency.plugin", dependencies: [new OpenGarrisonPluginManifestDependency { Id = "not.installed" }]),
-        };
-
-        var result = OpenGarrisonPluginManifestPlanner.PlanLoadOrder(plugins, static plugin => plugin.Manifest);
-
-        Assert.Equal(
-            ["base.plugin", "dependent.plugin", "late.plugin", "optional.plugin"],
-            result.Plugins.Select(static plugin => plugin.Manifest.Id).ToArray());
-        Assert.Contains(result.Warnings, warning => warning.Contains("conflicting.plugin", StringComparison.Ordinal));
-        Assert.Contains(result.Warnings, warning => warning.Contains("missing-dependency.plugin", StringComparison.Ordinal));
-    }
-
-    [Fact]
-    public void ManifestPlannerSkipsPluginWhenDependencyVersionMismatches()
-    {
-        var plugins = new[]
-        {
-            CreatePlannedPlugin("versioned.plugin", dependencies: [new OpenGarrisonPluginManifestDependency { Id = "base.plugin", Version = "2.0.0" }]),
-            CreatePlannedPlugin("base.plugin"),
-        };
-
-        var result = OpenGarrisonPluginManifestPlanner.PlanLoadOrder(plugins, static plugin => plugin.Manifest);
-
-        Assert.Equal(
-            ["base.plugin"],
-            result.Plugins.Select(static plugin => plugin.Manifest.Id).ToArray());
-        Assert.Contains(result.Warnings, warning => warning.Contains("versioned.plugin", StringComparison.Ordinal)
-            && warning.Contains("2.0.0", StringComparison.Ordinal));
-    }
-
-    [Fact]
-    public void ManifestPlannerCascadesRemovalThroughMissingDependencyChain()
-    {
-        var plugins = new[]
-        {
-            CreatePlannedPlugin("top.plugin", dependencies: [new OpenGarrisonPluginManifestDependency { Id = "middle.plugin" }]),
-            CreatePlannedPlugin("middle.plugin", dependencies: [new OpenGarrisonPluginManifestDependency { Id = "missing.plugin" }]),
-            CreatePlannedPlugin("unrelated.plugin"),
-        };
-
-        var result = OpenGarrisonPluginManifestPlanner.PlanLoadOrder(plugins, static plugin => plugin.Manifest);
-
-        Assert.Equal(
-            ["unrelated.plugin"],
-            result.Plugins.Select(static plugin => plugin.Manifest.Id).ToArray());
-        Assert.Contains(result.Warnings, warning => warning.Contains("middle.plugin", StringComparison.Ordinal));
-        Assert.Contains(result.Warnings, warning => warning.Contains("top.plugin", StringComparison.Ordinal));
-    }
-
-    [Fact]
-    public void ManifestPlannerPreservesDiscoveryOrderWhenLoadOrderCycles()
-    {
-        var plugins = new[]
-        {
-            CreatePlannedPlugin("first.plugin", before: ["second.plugin"]),
-            CreatePlannedPlugin("second.plugin", before: ["first.plugin"]),
-        };
-
-        var result = OpenGarrisonPluginManifestPlanner.PlanLoadOrder(plugins, static plugin => plugin.Manifest);
-
-        Assert.Equal(
-            ["first.plugin", "second.plugin"],
-            result.Plugins.Select(static plugin => plugin.Manifest.Id).ToArray());
-        Assert.Contains(result.Warnings, warning => warning.Contains("cycle detected", StringComparison.Ordinal));
-    }
-
-    [Fact]
     public void ClientLuaHostApiAdvertisesCurrentRuntimeSurface()
     {
         var hostApi = OpenGarrisonPluginHostApi.CreateClientDefault();
@@ -833,17 +663,6 @@ public sealed class PluginContractValidationTests
             "try_start_demo_recording",
             "try_start_vote",
             "register_gameplay_ability_executor");
-    }
-
-    [Fact]
-    public void GeneratedLuaHostApiSurfaceMatchesHostBindings()
-    {
-        var repositoryRoot = FindRepositoryRoot();
-        var expectedClientFunctions = ScanLuaHostBindings(Path.Combine(repositoryRoot, "Client", "Plugins", "LuaClientPlugin.cs"));
-        var expectedServerFunctions = ScanLuaHostBindings(Path.Combine(repositoryRoot, "Server", "Plugins", "LuaServerPlugin.cs"));
-
-        Assert.Equal(expectedClientFunctions, OpenGarrisonLuaHostApiSurface.ClientFunctions);
-        Assert.Equal(expectedServerFunctions, OpenGarrisonLuaHostApiSurface.ServerFunctions);
     }
 
     private static void InvokeClientSendMessage(

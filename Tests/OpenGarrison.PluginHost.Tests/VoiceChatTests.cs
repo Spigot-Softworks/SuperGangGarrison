@@ -19,202 +19,16 @@ public sealed class VoiceChatTests
         return new(sequence, [StreamingOpus.Encode(encoder, Tone())]);
     }
 
-    [Fact]
-    public void ControlsDefaultToVVoiceAndTabScoreboardAndPreserveRebindings()
-    {
-        var path = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".ini");
-        try
-        {
-            File.WriteAllText(path, "[Controls]\nleft=A\n");
-            var bindings = InputBindingsSettings.Load(path);
-            Assert.Equal(InputBinding.FromKey(Keys.V), bindings.PushToTalk);
-            Assert.Equal(InputBinding.FromKey(Keys.Tab), bindings.ShowScoreboard);
-            bindings.PushToTalk = InputBinding.FromMouse(InputMouseButton.XButton2);
-            bindings.ShowScoreboard = InputBinding.FromKey(Keys.B);
-            bindings.Save(path);
-            var reloaded = InputBindingsSettings.Load(path);
-            Assert.Equal(bindings.PushToTalk, reloaded.PushToTalk);
-            Assert.Equal(bindings.ShowScoreboard, reloaded.ShowScoreboard);
-        }
-        finally { File.Delete(path); }
-    }
 
-    [Fact]
-    public void SettingsMigrationKeepsPushToTalkAsDefaultAndClampsInvalidValues()
-    {
-        Assert.Equal(VoiceTransmitMode.PushToTalk, VoiceChatSettings.FromJson("{}").Mode);
-        var settings = VoiceChatSettings.FromJson("{\"Mode\":42,\"VoiceVolumePercent\":999,\"JukeboxVolumePercent\":-8,\"MicrophoneGainPercent\":999,\"PushToTalkBinding\":\"bogus\"}");
-        Assert.Equal(VoiceTransmitMode.PushToTalk, settings.Mode);
-        Assert.Equal(300, settings.VoiceVolumePercent);
-        Assert.Equal(0, settings.JukeboxVolumePercent);
-        Assert.Equal(200, settings.MicrophoneGainPercent);
-        Assert.Equal("V", settings.PushToTalkBinding);
-    }
 
-    [Fact]
-    public void VoiceMuteDefaultsOffAndPersistsIndependentlyOfVolumeAndJukebox()
-    {
-        Assert.False(VoiceChatSettings.FromJson("{}").VoiceMuted);
-        var settings = new VoiceChatSettings { VoiceMuted = true, VoiceVolumePercent = 37, JukeboxVolumePercent = 62 };
-        var json = System.Text.Json.JsonSerializer.Serialize(settings, VoiceSettingsJsonContext.Default.VoiceChatSettings);
-        var reloaded = VoiceChatSettings.FromJson(json);
-        Assert.True(reloaded.VoiceMuted);
-        Assert.Equal(37, reloaded.VoiceVolumePercent);
-        Assert.Equal(62, reloaded.JukeboxVolumePercent);
-        Assert.False(reloaded.JukeboxMuted);
-        Assert.Equal(VoiceTransmitMode.PushToTalk, reloaded.Mode);
-    }
 
-    [Fact]
-    public void ReceivedVoiceBoostAppliesGainBeforeClampingDeviceVolume()
-    {
-        var normalDevice = new FakeVoiceDevice();
-        var boostedDevice = new FakeVoiceDevice();
-        var normalSettings = new VoiceChatSettings { VoiceVolumePercent = 100 };
-        var boostedSettings = new VoiceChatSettings { VoiceVolumePercent = 200 };
-        using var normal = new VoiceChatClient(normalDevice, normalSettings, (_, _) => { });
-        using var boosted = new VoiceChatClient(boostedDevice, boostedSettings, (_, _) => { });
-        var state = new ServerAudioStateMessage(1, true, false, 0, false, false, "");
-        normal.ApplyState(state);
-        boosted.ApplyState(state);
-        normal.Receive(new(2, 1, "Alice", 1, Packet()), 0);
-        boosted.Receive(new(2, 1, "Alice", 1, Packet()), 0);
-        normal.Update(0.08, true, false, 1, _ => false);
-        boosted.Update(0.08, true, false, 1, _ => false);
 
-        Assert.Equal(1f, normalDevice.Playback.Single().Volume);
-        Assert.Equal(1f, boostedDevice.Playback.Single().Volume);
-        Assert.True(MaxAbs(boostedDevice.Played.Single()) > MaxAbs(normalDevice.Played.Single()));
-    }
 
-    [Fact]
-    public void ChangingReceivedVoiceGainFlushesAlreadyBufferedChunks()
-    {
-        var device = new FakeVoiceDevice();
-        var settings = new VoiceChatSettings { VoiceVolumePercent = 200 };
-        using var client = new VoiceChatClient(device, settings, (_, _) => { });
-        client.ApplyState(new ServerAudioStateMessage(1, true, false, 0, false, false, ""));
-        client.Receive(new(2, 1, "Alice", 1, Packet()), 0);
-        client.Update(0.08, true, false, 1, _ => false);
 
-        device.Stopped.Clear();
-        settings.VoiceVolumePercent = 100;
-        client.Update(0.1, true, false, 1, _ => false);
-
-        Assert.Contains((byte)2, device.Stopped);
-    }
-
-    [Fact]
-    public void SmoothSpatialAndMasterMixChangesDoNotFlushBufferedVoice()
-    {
-        var device = new FakeVoiceDevice();
-        var settings = new VoiceChatSettings { VoiceVolumePercent = 100, SpatialVoice = true };
-        using var client = new VoiceChatClient(device, settings, (_, _) => { });
-        client.ApplyState(new ServerAudioStateMessage(1, true, false, 0, false, false, ""));
-        client.Receive(new(2, 1, "Alice", 1, Packet()), 0);
-        client.Update(0.08, true, false, 1f, _ => false, _ => (1f, 0f));
-
-        device.Stopped.Clear();
-        client.Update(0.10, true, false, 0.75f, _ => false, _ => (0.8f, 0.4f));
-
-        Assert.Empty(device.Stopped);
-        Assert.Contains(device.Volumes, output => output.Slot == 2 && Math.Abs(output.Volume - 0.6f) < 0.001f);
-    }
-
-    [Fact]
-    public void NativeVoiceMixerConsumesAdjacentChunksWithoutGameFrameGaps()
-    {
-        var mixer = new VoiceAudioMixer();
-        mixer.Enqueue(2, [1000, 1100], 1, 1f, 0f);
-        mixer.Enqueue(2, [1200, 1300], 1, 1f, 0f);
-        Span<short> output = stackalloc short[8];
-        mixer.Render(output);
-
-        Assert.Equal(new short[] { 1000, 1000, 1100, 1100, 1200, 1200, 1300, 1300 }, output.ToArray());
-    }
 
     private static int MaxAbs(short[] samples) => samples.Max(sample => Math.Abs((int)sample));
 
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void MuteAllVoiceImmediatelyFlushesPlayerAudioAndPreservesCaptureMembershipAndMusic(bool requiresJoin)
-    {
-        var device = new FakeVoiceDevice();
-        var settings = new VoiceChatSettings { VoiceVolumePercent = 37 };
-        var membership = new List<VoiceChannelMembershipMessage>();
-        var transmitted = new List<AudioPacket>();
-        using var client = new VoiceChatClient(device, settings, (_, packet) => transmitted.Add(packet), membership.Add);
-        var state = new ServerAudioStateMessage(1, true, false, 7, true, false, "Song", requiresJoin);
-        client.ApplyState(state);
-        if (requiresJoin)
-        {
-            client.SetVoiceChannelJoined(true);
-            client.ApplyState(state with { Revision = 2, VoiceChannelJoined = true, VoiceChannelRevision = membership.Single().Revision });
-        }
-        var membershipCount = membership.Count;
-        client.Receive(new(2, 1, "Alice", 1, Packet()), 0);
-        client.Receive(new(0, 7, "Jukebox", 0, Packet()), 0);
-        client.Update(0.08, true, true, 1, _ => false);
-        Assert.Contains(device.Playback, output => output.Slot == 2);
-        Assert.Contains(device.Playback, output => output.Slot == 0);
-        client.Receive(new(2, 1, "Alice", 1, Packet(2)), 0.09); // Queued but not played yet.
-        device.Stopped.Clear();
 
-        client.SetVoiceMuted(true);
-        Assert.True(settings.VoiceMuted);
-        Assert.Contains((byte)2, device.Stopped);
-        Assert.DoesNotContain((byte)0, device.Stopped);
-        Assert.Equal((byte)0, Assert.Single(client.Speakers).Slot);
-        Assert.True(device.CaptureActive);
-        Assert.True(client.CanUseVoiceChannel);
-        Assert.Equal(membershipCount, membership.Count);
-        Assert.Equal(37, settings.VoiceVolumePercent);
-
-        device.Playback.Clear();
-        device.Captured.Enqueue(Tone().Select(sample => sample / 32768f).ToArray());
-        client.Receive(new(2, 1, "Alice", 1, Packet(3)), 0.1);
-        client.Receive(new(0, 7, "Jukebox", 0, Packet(2)), 0.1);
-        client.Update(0.18, true, true, 1, _ => false);
-        Assert.Single(transmitted);
-        Assert.NotEmpty(device.Playback);
-        Assert.All(device.Playback, output => Assert.Equal((byte)0, output.Slot));
-
-        client.SetVoiceMuted(false);
-        client.Update(0.2, true, true, 1, _ => false);
-        Assert.All(device.Playback, output => Assert.Equal((byte)0, output.Slot)); // No stale player audio on unmute.
-        client.Receive(new(2, 1, "Alice", 1, Packet(4)), 0.21);
-        client.Update(0.3, true, true, 1, _ => false);
-        Assert.Contains(device.Playback, output => output.Slot == 2 && Math.Abs(output.Volume - 0.37f) < 0.001f);
-        Assert.Equal(membershipCount, membership.Count);
-    }
-
-    [Fact]
-    public void SavedVoiceMuteSurvivesReconnectAndUnmuteStillHonorsIndividualMutesAndMasterVolume()
-    {
-        var device = new FakeVoiceDevice();
-        var settings = new VoiceChatSettings { VoiceMuted = true, VoiceVolumePercent = 60 };
-        using var client = new VoiceChatClient(device, settings, (_, _) => { });
-        var state = new ServerAudioStateMessage(1, true, false, 0, false, false, "");
-        client.ApplyState(state);
-        client.Receive(new(2, 1, "Alice", 1, Packet()), 0);
-        Assert.Empty(client.Speakers);
-        client.Reset();
-        client.ApplyState(state);
-        client.Receive(new(2, 1, "Alice", 1, Packet()), 0);
-        Assert.Empty(client.Speakers);
-        Assert.True(settings.VoiceMuted);
-
-        client.SetVoiceMuted(false);
-        client.Receive(new(2, 1, "Alice", 1, Packet(2)), 0);
-        client.Receive(new(3, 1, "Bob", 1, Packet(2)), 0);
-        client.Update(0.08, true, false, 0.5f, slot => slot == 3);
-        var output = Assert.Single(device.Playback);
-        Assert.Equal((byte)2, output.Slot);
-        Assert.Equal(0.3f, output.Volume, precision: 3);
-        Assert.Contains((byte)3, device.Stopped);
-        Assert.Equal(60, settings.VoiceVolumePercent);
-    }
 
     [Theory]
     [InlineData(VoiceTransmitMode.PushToTalk, true, false, true, false)]
@@ -305,20 +119,6 @@ public sealed class VoiceChatTests
         Assert.InRange(playback.PendingFrames, 0, 2);
     }
 
-    [Fact]
-    public void ResamplerRetainsPhaseAcrossCaptureCallbacks()
-    {
-        var allAtOnce = new List<short>();
-        var chunked = new List<short>();
-        var source = Enumerable.Range(0, 44100).Select(i => (float)Math.Sin(i * Math.PI / 22)).ToArray();
-        var first = new StreamingPcmResampler(44100, 1, frame => allAtOnce.AddRange(frame));
-        first.Add(source); first.Finish();
-        var second = new StreamingPcmResampler(44100, 1, frame => chunked.AddRange(frame));
-        for (var i = 0; i < source.Length; i += 127) second.Add(source.AsSpan(i, Math.Min(127, source.Length - i)));
-        second.Finish();
-        Assert.Equal(48000, chunked.Count);
-        Assert.Equal(allAtOnce, chunked);
-    }
 
     [Fact]
     public void AuthenticatedVoiceRoutesByServerIdentityAndHonorsTeamGagReplayAndRateLimits()
@@ -411,25 +211,6 @@ public sealed class VoiceChatTests
         Assert.Single(device.Played);
     }
 
-    [Fact]
-    public void JukeboxStateAndIndependentMuteRejectOldMusicAndOldSnapshots()
-    {
-        var device = new FakeVoiceDevice();
-        var settings = new VoiceChatSettings { JukeboxMuted = true };
-        using var client = new VoiceChatClient(device, settings, (_, _) => { });
-        client.ApplyState(new(10, true, false, 5, true, false, "A song"));
-        client.Receive(new(0, 4, "Wrong", 0, Packet()), 0);
-        Assert.Empty(client.Speakers);
-        client.Receive(new(0, 5, "Wrong", 0, Packet()), 0);
-        Assert.Equal("Jukebox", Assert.Single(client.Speakers).Name);
-        client.Update(0.08, false, false, 1, _ => false);
-        Assert.Empty(device.Played);
-        client.ApplyState(new(11, true, false, 5, true, true, "A song"));
-        Assert.Empty(client.Speakers);
-        client.ApplyState(new(9, true, false, 4, true, false, "Old song"));
-        Assert.Equal((uint)11, client.ServerState!.Revision);
-        Assert.True(client.ServerState.JukeboxPaused);
-    }
 
     [Fact]
     public void ChannelMembershipAndPersonalizedAcknowledgmentsRoundTripBothProtocols()

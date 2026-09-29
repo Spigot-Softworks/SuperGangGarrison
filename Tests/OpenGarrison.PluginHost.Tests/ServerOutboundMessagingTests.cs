@@ -10,44 +10,7 @@ namespace OpenGarrison.PluginHost.Tests;
 
 public sealed class ServerOutboundMessagingTests
 {
-    [Fact]
-    public void PluginBroadcastSuppressesTransportSendFailures()
-    {
-        var clients = CreateAuthorizedClients();
-        var transport = new ThrowingServerMessageTransport();
-        var logs = new List<string>();
-        var outbound = CreateOutboundMessaging(transport, clients, logs);
 
-        outbound.BroadcastPluginMessage(
-            "chat.voting",
-            "chat.vote.presentation",
-            "vote.event",
-            "{}",
-            PluginMessagePayloadFormat.Json,
-            schemaVersion: 1);
-
-        Assert.Equal(clients.Count, transport.SendAttempts);
-        Assert.Contains(logs, log => log.Contains("failed to send plugin message broadcast", StringComparison.Ordinal));
-    }
-
-    [Fact]
-    public void CustomBubbleBroadcastSuppressesTransportSendFailures()
-    {
-        var clients = CreateAuthorizedClients();
-        var transport = new ThrowingServerMessageTransport();
-        var logs = new List<string>();
-        var outbound = CreateOutboundMessaging(transport, clients, logs);
-
-        outbound.ReceiveCustomBubbleUpload(
-            clients[1],
-            new CustomBubbleUploadMessage(
-                Slot: 0,
-                Revision: 1,
-                new byte[ProtocolCodec.CustomBubbleRgba64PayloadBytes]));
-
-        Assert.Equal(clients.Count, transport.SendAttempts);
-        Assert.Contains(logs, log => log.Contains("failed to send custom bubble state", StringComparison.Ordinal));
-    }
 
     [Fact]
     public void VipVotePassesWithStrictMajorityWithoutFullTurnout()

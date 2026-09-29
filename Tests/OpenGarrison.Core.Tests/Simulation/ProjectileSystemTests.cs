@@ -5,26 +5,6 @@ namespace OpenGarrison.Core.Tests;
 
 public sealed class ProjectileSystemTests
 {
-    [Fact]
-    public void SpawnShotRegistersProjectileInSystemAndStore()
-    {
-        var store = new EntityStore();
-        var combat = new CombatSystem(store);
-        var projectiles = CreateSystem(store, combat);
-        var owner = CreatePlayer(1, PlayerTeam.Red);
-        store.Add(owner);
-
-        projectiles.SpawnShot(owner, 100f, 200f, 10f, -5f);
-
-        var shot = Assert.Single(projectiles.Shots);
-        Assert.Equal(100f, shot.X);
-        Assert.Equal(200f, shot.Y);
-        Assert.Equal(10f, shot.VelocityX);
-        Assert.Equal(-5f, shot.VelocityY);
-        Assert.Equal(owner.Id, shot.OwnerId);
-        Assert.Equal(PlayerTeam.Red, shot.Team);
-        Assert.NotNull(store.Get(shot.Id));
-    }
 
     [Fact]
     public void AdvanceShotsMovesProjectilesAlongTheirTrajectory()

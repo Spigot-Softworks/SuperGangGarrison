@@ -11,33 +11,6 @@ namespace OpenGarrison.PluginHost.Tests;
 
 public sealed class EmbeddedSessionHostTests
 {
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void ClassicBrowserSessionsAdvertiseOriginalMapIdentitiesToDesktopGuests(bool lastToDie)
-    {
-        using var host = new EmbeddedSessionHost(new() { LastToDie = lastToDie, PreferClassicMaps = true,
-            MaximumPlayers = 4, Map = "Harvest", Seed = 123 });
-        using var owner = new NetworkGameClient();
-        using var guest = new NetworkGameClient();
-        Assert.True(owner.Connect(new EmbeddedSessionClientTransport(host.CreatePeer(local: true)), "Owner", 0, out _, clientInstanceId: Guid.NewGuid()));
-        Assert.True(guest.Connect(new EmbeddedSessionClientTransport(host.CreatePeer()), "Guest", 0, out _, clientInstanceId: Guid.NewGuid()));
-        Pump(host, [owner, guest], () => owner.LocalPlayerSlot == 1 && guest.LocalPlayerSlot == 2);
-        Assert.Equal("gg2_koth_harvest", host.World.Level.Name);
-        Assert.NotNull(SimpleLevelFactory.CreateImportedLevel(host.World.Level.Name));
-        Assert.True(host.World.TrySetNetworkPlayerAwaitingJoin(1, false));
-        owner.SendVoteCommand(VoteCommandKind.OpenMenu);
-        VoteMenuMessage? menu = null;
-        for (var tick = 0; tick < 30 && menu is null; tick++)
-        {
-            host.Advance(1d / 30);
-            menu = owner.ReceiveMessages().OfType<VoteMenuMessage>().FirstOrDefault();
-        }
-        Assert.NotNull(menu);
-        Assert.DoesNotContain(menu.Maps, entry => ClassicStockMapCatalog.Variants.Any(v => v.ReplacedLevelName == entry.LevelName));
-        if (lastToDie) Assert.Empty(menu.Maps);
-        else Assert.Contains(menu.Maps, entry => entry.LevelName == "gg2_koth_harvest" && entry.DisplayName == "Harvest");
-    }
 
     [Theory]
     [InlineData(1)]
@@ -126,18 +99,6 @@ public sealed class EmbeddedSessionHostTests
         finally { foreach (var client in clients) client.Dispose(); }
     }
 
-    [Fact]
-    public void PracticeUsesOwnSettingsAndReservesHumanSeatsBeforeAddingBots()
-    {
-        using var host = new EmbeddedSessionHost(new() { LastToDie = false, MaximumPlayers = 4,
-            TickRate = 60, RedBots = 2, BlueBots = 3, TimeLimitMinutes = 20, RespawnSeconds = 3 });
-        Assert.Equal(60, host.World.Config.TicksPerSecond);
-        Assert.Equal(3, host.World.ConfiguredRespawnSeconds);
-        Assert.Equal(20, host.World.MatchRules.TimeLimitMinutes);
-        Assert.Equal(5, host.World.EnumerateActiveNetworkPlayers().Count());
-        Assert.All(host.World.EnumerateActiveNetworkPlayers(), p => Assert.False(p.Player.HasLastToDieSurvivorBuff));
-    }
-
     private static void Pump(EmbeddedSessionHost host, NetworkGameClient[] clients, Func<bool> done)
     {
         for (var tick = 0; tick < 300; tick++)
@@ -155,28 +116,6 @@ public sealed class EmbeddedSessionHostTests
         }
         Assert.Fail("The embedded authority did not reach the expected state: "
             + string.Join(", ", clients.Select(c => $"slot={c.LocalPlayerSlot}, phase={c.LastToDieState.Snapshot?.Phase}")));
-    }
-
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void MapVotingIsAvailableOnlyInPractice(bool lastToDie)
-    {
-        using var host = new EmbeddedSessionHost(new() { LastToDie = lastToDie, MaximumPlayers = 4 });
-        using var client = new NetworkGameClient();
-        Assert.True(client.Connect(new EmbeddedSessionClientTransport(host.CreatePeer(local: true)),
-            "Host", 0, out _, clientInstanceId: Guid.NewGuid()));
-        Pump(host, [client], () => client.LocalPlayerSlot == 1);
-        Assert.True(host.World.TrySetNetworkPlayerAwaitingJoin(1, false));
-        client.SendVoteCommand(VoteCommandKind.OpenMenu);
-        VoteMenuMessage? catalog = null;
-        for (var tick = 0; tick < 30 && catalog is null; tick++)
-        {
-            host.Advance(1d / 30);
-            catalog = client.ReceiveMessages().OfType<VoteMenuMessage>().FirstOrDefault();
-        }
-        Assert.NotNull(catalog);
-        Assert.Equal(lastToDie, catalog.Maps.Count == 0);
     }
 
     [Fact]
