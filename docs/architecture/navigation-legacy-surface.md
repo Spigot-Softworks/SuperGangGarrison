@@ -1,9 +1,32 @@
 # Legacy navigation surface
 
-The live navigation model is `Core/BotBrain/Navigation/`. The files below are
-the quarantined compatibility surface under `Core/BotAI/Legacy/`. They retain
-the `OpenGarrison.BotAI` namespace so old asset-format checks and shared helper
-callers do not change behavior or serialized names.
+The live navigation model is `Core/BotBrain/Navigation/` (namespace
+`OpenGarrison.Core.BotBrain`). The quarantined old-model compatibility surface
+is `Core/BotAI/Legacy/` (namespace `OpenGarrison.BotAI`). Several files share
+names across the two directories but are different types in different
+namespaces — the sections below distinguish them precisely.
+
+## 1. Current graph serialization (`Core/BotBrain/Navigation/`)
+
+These are the live types, namespace `OpenGarrison.Core.BotBrain`. They are
+**not** legacy — they are the current asset/build/store pipeline used by the
+navigation provider.
+
+| File | Role |
+| --- | --- |
+| `BotNavigationAsset.cs` | Current graph asset schema (`OpenGarrison.Core.BotBrain.BotNavigationAsset`). |
+| `BotNavigationAssetBuilder.cs` | Current graph asset builder. |
+| `BotNavigationAssetStore.cs` | Current graph cache loader (`TryLoadCachedGraph`, etc.). |
+
+Consumers: `NavGraphBuilder.cs`, `Og2NavigationGraphBuilder.cs`,
+`Client/Managers/Menu/AnimatedMenuBackgroundController.cs`, and
+`Tools/BotBrain/Og2AlphaNavigationDiagnostics.cs` (line 313).
+
+## 2. Quarantined compatibility helpers (`Core/BotAI/Legacy/`)
+
+Namespace `OpenGarrison.BotAI`. Retained for compatibility only; must not be
+extended with new navigation behavior. New graph behavior, storage, and
+provider ownership stay in `Core/BotBrain/Navigation/`.
 
 | File | Remaining reason / consumers |
 | --- | --- |
@@ -17,13 +40,49 @@ callers do not change behavior or serialized names.
 | `BotNavigationLevelFingerprint.cs` | Fingerprinting used by the old BotAI asset/cache paths. |
 | `BotNavigationModernPointGraphBuilder.cs` | Old modern-client-point compatibility generation used by the old asset store. |
 | `BotNavigationMovementValidator.cs` | Shared movement/tape validator used directly by `Og2NavigationGraphBuilder` and `Og2AlphaNavigationDiagnostics`, and transitively by the old builders. |
-| `BotNavigationProfile.cs` | Shared profile mapping used directly by `Og2NavigationGraphBuilder` and `Og2AlphaNavigationDiagnostics`, and by the old asset pipeline. |
+| `BotNavigationProfile.cs` | Shared profile mapping (`BotNavigationProfiles`) used directly by `Og2NavigationGraphBuilder` and `Og2AlphaNavigationDiagnostics`, and by the old asset pipeline. |
 | `BotNavigationRuntimeGraph.cs` | Old graph wrapper used by `BotNavigationAssetValidator`. |
 | `ClientBotNavPoints.cs` | Old point-graph support used by `BotNavigationModernPointGraphBuilder`. |
 | `ModernObstacleGeometry.cs` | Old point-graph obstacle extraction used by `ClientBotNavPoints` and `BotNavigationModernPointGraphBuilder`. |
 
-This is a compatibility boundary, not an extension point. New graph behavior,
-storage, and provider ownership must stay in `Core/BotBrain/Navigation/`.
+This is a compatibility boundary, not an extension point.
+
+## 3. Legacy-format readers in the live cache (`Og2NavigationGraphCache.cs`)
+
+`Core/BotBrain/Navigation/Og2NavigationGraphCache.cs` is live code, not
+quarantined, but it contains the legacy snapshot-format readers/writers so old
+cached graph files keep loading:
+
+- `LegacyFormatVersion = 3` (line 20)
+- `TryReadLegacyGraph` (line 423) — reads version-3 snapshots
+- `SerializeLegacySnapshot` (line 512) — writes version-3 snapshots for cache
+  compatibility
+
+Do not confuse these with the quarantined `Core/BotAI/Legacy/` types above.
+If the legacy snapshot format is ever dropped, these members go with it; the
+rest of the cache stays.
+
+## 4. Remaining `BotAI` profile/movement-helper references
+
+The live builder still depends on two quarantined helpers (section 2), which
+is why they cannot be deleted yet:
+
+- `Core/BotBrain/Navigation/Og2NavigationGraphBuilder.cs` (lines 1718–1735)
+  uses `OpenGarrison.BotAI.BotNavigationProfiles` (class-profile mapping) and
+  `OpenGarrison.BotAI.BotNavigationMovementValidator.TryBuildJumpTape`
+  (jump-tape validation) while building the OG2 graph.
+- `Tools/BotBrain/Og2AlphaNavigationDiagnostics.cs` has
+  `using OpenGarrison.BotAI;` for the same profile and movement-validation
+  helpers in diagnostics.
+- `Tests/OpenGarrison.PluginHost.Tests/BotBrainCompressedAssetTests.cs`
+  aliases `OpenGarrison.BotAI.BotNavigationAsset` /
+  `OpenGarrison.BotAI.BotNavigationAssetStore` (`BotAiNavAsset`,
+  `BotAiNavStore`) to verify the old BotAI asset format and
+  compatibility-loading failure paths.
+
+Do not add new callers to `OpenGarrison.BotAI`. If a compatibility dependency
+can be removed, delete it only after updating the explicit tests/tools that
+prove the old-format boundary.
 
 ## Shelved/deleted authoring surface
 
