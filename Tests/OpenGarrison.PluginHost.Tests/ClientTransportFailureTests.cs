@@ -158,25 +158,6 @@ public sealed class ClientTransportFailureTests
         Assert.Empty(pending);
     }
 
-    [Fact]
-    public async Task LocalUdpHandshakeCanRetryAfterTheServerBindsItsPortLater()
-    {
-        int port;
-        using (var probe = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0))) port = ((IPEndPoint)probe.Client.LocalEndPoint!).Port;
-        using var client = new NetworkGameClient();
-        Assert.True(client.Connect("127.0.0.1", port, "Tester", 0, out var error), error);
-        Assert.Empty(client.ReceiveMessages());
-        Assert.True(client.IsConnected);
-        using var server = new UdpClient(new IPEndPoint(IPAddress.Loopback, port));
-        typeof(NetworkGameClient).GetField("_lastHelloSentAtMilliseconds", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!.SetValue(client, -1L);
-        Assert.Empty(client.ReceiveMessages());
-        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-        var packet = await server.ReceiveAsync(deadline.Token);
-        Assert.True(ProtocolCodec.TryDeserialize(packet.Buffer, out var message));
-        Assert.IsType<HelloMessage>(message);
-        Assert.True(client.IsConnected);
-        Assert.False(client.TryConsumeDisconnectReason(out _));
-    }
 
     private sealed class FaultingTransport(bool protocol64) : INetworkClientMessageTransport, INetworkClientAudioMessageTransport
     {

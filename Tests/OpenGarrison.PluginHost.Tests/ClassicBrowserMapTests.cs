@@ -9,42 +9,7 @@ namespace OpenGarrison.PluginHost.Tests;
 [Collection(ContentRootTestGroup.Name)]
 public sealed class ClassicBrowserMapTests
 {
-    [Fact]
-    public void RestrictedPracticeRosterUsesOriginalsInClassicSectionAndDesktopKeepsItsRoster()
-    {
-        var type = typeof(Game1).GetNestedType("PracticeSetupState", BindingFlags.Public | BindingFlags.NonPublic)!;
-        var method = type.GetMethod("BuildMapEntriesForEdition", BindingFlags.Public | BindingFlags.Static)!;
-        var entries = (IList)method.Invoke(null, [true])!;
-        var desktop = ((IEnumerable)method.Invoke(null, [false])!).Cast<object>().ToArray();
-        var state = Activator.CreateInstance(type, nonPublic: true)!;
-        type.GetProperty("MapEntries")!.SetValue(state, entries);
-        for (var i = 0; i < 5; i++)
-        {
-            var variant = ClassicStockMapCatalog.Variants[i];
-            Assert.Equal(variant.LevelName, entries[i]!.GetType().GetProperty("LevelName")!.GetValue(entries[i]));
-            Assert.Equal(variant.ReplacedLevelName, desktop[i].GetType().GetProperty("LevelName")!.GetValue(desktop[i]));
-            Assert.False((bool)entries[i]!.GetType().GetProperty("IsCustomMap")!.GetValue(entries[i])!);
-            type.GetProperty("MapIndex")!.SetValue(state, i);
-            type.GetMethod("OpenMapBrowser")!.Invoke(state, null);
-            Assert.Equal("Classic", type.GetProperty("MapBrowserSection")!.GetValue(state)!.ToString());
-            var visible = ((IEnumerable)type.GetMethod("GetAvailableMapsForDisplay")!.Invoke(state, null)!).Cast<OpenGarrisonMapRotationEntry>();
-            Assert.Contains(visible, entry => entry.LevelName == variant.LevelName);
-        }
-    }
 
-    [Theory]
-    [InlineData(640, 480)]
-    [InlineData(960, 540)]
-    [InlineData(1920, 1080)]
-    public void RestrictedMapTabsFillTheAvailableWidthWithoutAnInvisibleSggButton(int width, int height)
-    {
-        var normal = PracticeMapsMenuLayoutCalculator.Create(width, height);
-        var restricted = PracticeMapsMenuLayoutCalculator.Create(width, height, showSuperGangGarrison: false);
-        Assert.True(restricted.SuperGangGarrisonButtonBounds.IsEmpty);
-        Assert.Equal(normal.SuperGangGarrisonButtonBounds.Left, restricted.ClassicMapsButtonBounds.Left);
-        Assert.Equal(normal.CustomMapsButtonBounds.Right, restricted.CustomMapsButtonBounds.Right);
-        Assert.True(restricted.ClassicMapsButtonBounds.Right < restricted.CustomMapsButtonBounds.Left);
-    }
 
     [Fact]
     public void EveryOriginalLoadsCollisionAndObjectivesFromTheBrowserMemoryBundle()

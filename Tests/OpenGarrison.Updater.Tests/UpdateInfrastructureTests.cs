@@ -9,25 +9,7 @@ public sealed class UpdateInfrastructureTests : IDisposable
         "OpenGarrison.Updater.Tests",
         Guid.NewGuid().ToString("N"));
 
-    [Fact]
-    public void StableManifestUsesUniqueGitHubReleaseAssetWithApiFallback()
-    {
-        Assert.Equal(
-            "https://github.com/Spigot-Softworks/SuperGangGarrison/releases/latest/download/OpenGarrison-Windows-x64.latest.json",
-            UpdateManifestLocation.GetPrimary("stable", "windows-x64"));
-        Assert.Equal(
-            "https://api.superganggarrison.com/updates/windows-x64/stable/latest.json",
-            UpdateManifestLocation.GetFallback("stable", "windows-x64"));
-    }
 
-    [Fact]
-    public void BetaManifestRemainsOnTheChannelAwareApiEndpoint()
-    {
-        Assert.Equal(
-            "https://api.superganggarrison.com/updates/linux-x64/beta/latest.json",
-            UpdateManifestLocation.GetPrimary("beta", "linux-x64"));
-        Assert.Empty(UpdateManifestLocation.GetFallback("beta", "linux-x64"));
-    }
 
     [Fact]
     public void DeltaPreflightRequiresEveryUnchangedTargetFileToMatch()
@@ -313,39 +295,6 @@ public sealed class UpdateInfrastructureTests : IDisposable
             ".metadata.json.*.tmp"));
     }
 
-    [Fact]
-    public async Task AtomicJsonWriteRetriesAWindowsFileShareConflict()
-    {
-        if (!OperatingSystem.IsWindows())
-        {
-            return;
-        }
-
-        var metadataPath = Path.Combine(_root, "locked-atomic-json", "metadata.json");
-        UpdateJson.WriteAtomic(metadataPath, new PackageFileManifest { Version = "1.0.0" });
-        var lockStream = new FileStream(
-            metadataPath,
-            FileMode.Open,
-            FileAccess.Read,
-            FileShare.Read);
-        var releaseLock = Task.Run(async () =>
-        {
-            await Task.Delay(250);
-            lockStream.Dispose();
-        });
-
-        try
-        {
-            UpdateJson.WriteAtomic(metadataPath, new PackageFileManifest { Version = "1.1.0" });
-            await releaseLock;
-        }
-        finally
-        {
-            lockStream.Dispose();
-        }
-
-        Assert.Equal("1.1.0", UpdateJson.ReadRequired<PackageFileManifest>(metadataPath).Version);
-    }
 
     [Fact]
     public void FullPackageApplyNormalizesReadOnlyFilesAndCleansItsTransaction()

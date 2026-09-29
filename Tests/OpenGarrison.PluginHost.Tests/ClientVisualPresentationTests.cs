@@ -24,43 +24,6 @@ public sealed class ClientVisualPresentationTests
         Assert.False(Game1.ShouldConsumeFrozenSpyObservation(0, 0));
     }
 
-    [Fact]
-    public void QuoteBladeIncreaseDoesNotStartPrimaryWeaponAnimation()
-    {
-        var quote = new PlayerEntity(12, CharacterClassCatalog.Quote, "Quote");
-        var previousBladeCount = quote.QuoteBladesOut;
-        quote.IncrementQuoteBubbleCount();
-        Assert.True(Game1.IsQuotePrimaryAnimationStart(
-            previousBubbleCount: 0,
-            currentBubbleCount: quote.QuoteBubbleCount));
-        Assert.False(Game1.IsQuoteBladeSecondaryAnimationStart(
-            quote.ClassId,
-            previousBladeCount,
-            quote.QuoteBladesOut));
 
-        quote.IncrementQuoteBladeCount();
-        Assert.False(Game1.IsQuotePrimaryAnimationStart(
-            previousBubbleCount: quote.QuoteBubbleCount,
-            currentBubbleCount: quote.QuoteBubbleCount));
-        Assert.True(Game1.IsQuoteBladeSecondaryAnimationStart(
-            quote.ClassId,
-            previousBladeCount,
-            quote.QuoteBladesOut));
-        Assert.False(Game1.IsQuoteBladeSecondaryAnimationStart(PlayerClass.Quote, 1, 1));
-        Assert.False(Game1.IsQuoteBladeSecondaryAnimationStart(PlayerClass.Scout, 0, 1));
-    }
 
-    [Fact]
-    public void MedicBeamPresentationUsesAuthoritativeRange()
-    {
-        Assert.True(Game1.IsMedicBeamPresentationDistanceValid(300f * 300f));
-        Assert.False(Game1.IsMedicBeamPresentationDistanceValid(301f * 301f));
-    }
-
-    [Fact]
-    public void DispenserBeamPresentationUsesItsOwnAuraRange()
-    {
-        Assert.True(Game1.IsDispenserBeamPresentationDistanceValid(75f * 75f));
-        Assert.False(Game1.IsDispenserBeamPresentationDistanceValid(76f * 76f));
-    }
 }

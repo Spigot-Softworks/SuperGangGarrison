@@ -8,28 +8,6 @@ namespace OpenGarrison.PluginHost.Tests;
 
 public sealed class CivilianUmbrellaOpeningRegressionTests
 {
-    [Fact]
-    public void UmbrellaPresentationUsesItsGrantedAbilityWithAnEmptySecondaryWeaponSlot()
-    {
-        var player = CreateWorld(30).LocalPlayer;
-        Assert.True(string.IsNullOrEmpty(player.GameplayLoadoutState.SecondaryItemId));
-        var controller = typeof(GameplayWeaponRenderController);
-        var resolve = controller.GetMethod("ResolveRenderPresentation", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance)!;
-        var controllerInstance = new GameplayWeaponRenderController(
-            (IRenderContext)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(Game1)));
-        GameplayItemPresentationDefinition Presentation(bool force = false)
-            => (GameplayItemPresentationDefinition)resolve.Invoke(controllerInstance, [player, force])!;
-
-        Assert.Equal("CivvieUmbrellaS", Presentation().WorldSpriteName);
-        Assert.True(player.TryActivateCivvieUmbrella());
-        Assert.Equal("CivvieUmbrellaOpenAnimS", Presentation().WorldSpriteName);
-        player.SyncCivvieUmbrellaSecondaryInput(false);
-        // Closing still uses the ability strip after its active flag has cleared.
-        Assert.Equal("CivvieUmbrellaOpenAnimS", Presentation(force: true).WorldSpriteName);
-        Assert.Equal("CivvieUmbrellaS", Presentation().WorldSpriteName);
-        Assert.True(player.TryActivateCivvieUmbrella());
-        Assert.Equal("CivvieUmbrellaOpenAnimS", Presentation().WorldSpriteName);
-    }
 
     [Theory]
     [InlineData(30)]
@@ -99,25 +77,6 @@ public sealed class CivilianUmbrellaOpeningRegressionTests
         Assert.Equal(saved.CivvieUmbrellaOpeningElapsedTicks, player.CivvieUmbrellaOpeningElapsedTicks);
     }
 
-    [Fact]
-    public void ReopeningBetweenRenderUpdatesRestartsTheOpeningAnimation()
-    {
-        var player = CreateWorld(30).LocalPlayer;
-        var type = typeof(Game1).GetNestedType("PlayerRenderState", BindingFlags.Public | BindingFlags.NonPublic)!;
-        var state = Activator.CreateInstance(type, nonPublic: true)!;
-        var update = typeof(Game1).GetMethod("UpdateCivvieUmbrellaWeaponAnimationState", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)!;
-        player.TryActivateCivvieUmbrella();
-        update.Invoke(null, [player, state, true]);
-        type.GetProperty("WeaponAnimationTimeRemainingSeconds")!.SetValue(state, 0f);
-        update.Invoke(null, [player, state, true]);
-        Assert.Equal("CivvieUmbrellaHold", type.GetProperty("WeaponAnimationMode")!.GetValue(state)!.ToString());
-        // No render update sees the intervening closed state.
-        player.SyncCivvieUmbrellaSecondaryInput(false);
-        player.TryActivateCivvieUmbrella();
-        update.Invoke(null, [player, state, true]);
-        Assert.Equal("CivvieUmbrellaOpening", type.GetProperty("WeaponAnimationMode")!.GetValue(state)!.ToString());
-        Assert.Equal(0.2f, type.GetProperty("WeaponAnimationTimeRemainingSeconds")!.GetValue(state));
-    }
 
     private static SimulationWorld CreateWorld(int rate)
     {

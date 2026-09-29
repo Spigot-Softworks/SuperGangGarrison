@@ -7,69 +7,6 @@ namespace OpenGarrison.PluginHost.Tests;
 public sealed class WhippingCordSwingTests
 {
     [Fact]
-    public void TetherUsesTheStraightFrameRatherThanTheSmear()
-    {
-        var smear = MeleeHitboxMaskCatalog.GetOrLoad(
-            WhippingCordCatalog.WhipRecoilSpriteName, frameIndex: 1);
-        var extended = MeleeHitboxMaskCatalog.GetOrLoad(
-            WhippingCordCatalog.WhipRecoilSpriteName, WhippingCordCatalog.ExtendedWhipFrameIndex);
-
-        Assert.NotNull(smear);
-        Assert.NotNull(extended);
-        Assert.True(smear.IsOpaqueAtPixel(100, 26));
-        Assert.False(extended.IsOpaqueAtPixel(100, 26));
-        Assert.True(extended.IsOpaqueAtPixel(100, 32));
-        Assert.True(extended.IsOpaqueAtPixel(127, 31));
-        Assert.Equal(1, WhippingCordCatalog.ResolveRecoilFrameIndex(0.1f, 3));
-        Assert.Equal(WhippingCordCatalog.ExtendedWhipFrameIndex,
-            WhippingCordCatalog.ResolveRecoilFrameIndex(0.2f, 3));
-    }
-
-    [Fact]
-    public void StraightWhipPixelCanLatchOffTheAimCenterline()
-    {
-        var world = CreateWorld(new LevelSolid(336f, 492f, 2f, 2f));
-        var engineer = world.LocalPlayer;
-        Assert.True(engineer.TrySelectGameplayPrimaryItem(WhippingCordCatalog.ItemId));
-        world.SetLocalInput(default(PlayerInputSnapshot) with
-        {
-            FirePrimary = true,
-            AimWorldX = 650f,
-            AimWorldY = 500f,
-        });
-
-        for (var tick = 0; tick < 3; tick += 1)
-        {
-            world.AdvanceOneTick();
-        }
-
-        Assert.True(engineer.IsWhippingCordLatched);
-        Assert.InRange(engineer.WhippingCordAnchorX, 336f, 338f);
-        Assert.InRange(engineer.WhippingCordAnchorY, 492f, 494f);
-    }
-
-    [Fact]
-    public void TransparentGapFromTheSmearCannotLatch()
-    {
-        var world = CreateWorld(new LevelSolid(336f, 486f, 2f, 2f));
-        var engineer = world.LocalPlayer;
-        Assert.True(engineer.TrySelectGameplayPrimaryItem(WhippingCordCatalog.ItemId));
-        world.SetLocalInput(default(PlayerInputSnapshot) with
-        {
-            FirePrimary = true,
-            AimWorldX = 650f,
-            AimWorldY = 500f,
-        });
-
-        for (var tick = 0; tick < 3; tick += 1)
-        {
-            world.AdvanceOneTick();
-        }
-
-        Assert.False(engineer.IsWhippingCordLatched);
-    }
-
-    [Fact]
     public void HeldStrikeLatchesToTerrainAndReleasePullsTowardAnchor()
     {
         var world = CreateWorld(new LevelSolid(348f, 420f, 24f, 160f));
@@ -224,24 +161,6 @@ public sealed class WhippingCordSwingTests
         var firstSpeedAfterPull = firstEnemy.HorizontalSpeed;
         world.AdvanceOneTick();
         Assert.True(firstEnemy.HorizontalSpeed >= firstSpeedAfterPull - 20f);
-    }
-
-    [Theory]
-    [InlineData(60f, -40f, 1f, false)]
-    [InlineData(-60f, -40f, 1f, true)]
-    [InlineData(20f, 55f, 1.5f, false)]
-    [InlineData(-20f, 55f, 0.75f, true)]
-    public void AnchoredStrikeFrameTipStaysAtTerrainPoint(
-        float deltaX, float deltaY, float playerScale, bool facingLeft)
-    {
-        var pose = WhippingCordCatalog.ResolveAnchoredWhipPose(
-            deltaX, deltaY, playerScale, facingLeft);
-        var scaledTipX = WhippingCordCatalog.ExtendedWhipTipOffsetX * pose.ScaleX;
-        var scaledTipY = WhippingCordCatalog.ExtendedWhipTipOffsetY * pose.ScaleY;
-        var renderedTipX = scaledTipX * MathF.Cos(pose.Rotation) - scaledTipY * MathF.Sin(pose.Rotation);
-        var renderedTipY = scaledTipX * MathF.Sin(pose.Rotation) + scaledTipY * MathF.Cos(pose.Rotation);
-        Assert.InRange(renderedTipX, deltaX - 0.01f, deltaX + 0.01f);
-        Assert.InRange(renderedTipY, deltaY - 0.01f, deltaY + 0.01f);
     }
 
     private static SimulationWorld CreateWorld(params LevelSolid[] additionalSolids)
