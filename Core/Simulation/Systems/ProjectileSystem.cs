@@ -235,20 +235,105 @@ public sealed partial class ProjectileSystem
     public IReadOnlyList<GrenadeProjectileEntity> Grenades => _grenades;
     public IReadOnlyList<WorldRocketSpawnEvent> PendingRocketSpawnEvents => _pendingRocketSpawnEvents;
 
-    internal List<ShotProjectileEntity> ShotsInternal => _shots;
-    internal List<BubbleProjectileEntity> BubblesInternal => _bubbles;
-    internal List<BladeProjectileEntity> BladesInternal => _blades;
-    internal List<NeedleProjectileEntity> NeedlesInternal => _needles;
-    internal List<RevolverProjectileEntity> RevolverShotsInternal => _revolverShots;
-    internal List<StabAnimEntity> StabAnimationsInternal => _stabAnimations;
-    internal List<StabMaskEntity> StabMasksInternal => _stabMasks;
-    internal List<FlameProjectileEntity> FlamesInternal => _flames;
-    internal List<FlareProjectileEntity> FlaresInternal => _flares;
-    internal List<RocketProjectileEntity> RocketsInternal => _rockets;
-    internal List<int> PendingNewRocketIdsInternal => _pendingNewRocketIds;
-    internal List<MineProjectileEntity> MinesInternal => _mines;
-    internal List<GrenadeProjectileEntity> GrenadesInternal => _grenades;
     internal List<WorldRocketSpawnEvent> PendingRocketSpawnEventsInternal => _pendingRocketSpawnEvents;
+
+    public void ClearPendingNewRocketIds() => _pendingNewRocketIds.Clear();
+
+    internal void AddProjectileEntity(SimulationEntity entity, bool requireUniqueEntityId = false)
+    {
+        switch (entity)
+        {
+            case ShotProjectileEntity value: _shots.Add(value); break;
+            case BubbleProjectileEntity value: _bubbles.Add(value); break;
+            case BladeProjectileEntity value: _blades.Add(value); break;
+            case NeedleProjectileEntity value: _needles.Add(value); break;
+            case RevolverProjectileEntity value: _revolverShots.Add(value); break;
+            case StabAnimEntity value: _stabAnimations.Add(value); break;
+            case StabMaskEntity value: _stabMasks.Add(value); break;
+            case FlameProjectileEntity value: _flames.Add(value); break;
+            case FlareProjectileEntity value: _flares.Add(value); break;
+            case RocketProjectileEntity value: _rockets.Add(value); break;
+            case MineProjectileEntity value: _mines.Add(value); break;
+            case GrenadeProjectileEntity value: _grenades.Add(value); break;
+            default: throw new ArgumentOutOfRangeException(nameof(entity));
+        }
+
+        if (requireUniqueEntityId)
+        {
+            _entities.Add(entity);
+        }
+        else
+        {
+            _entities.Set(entity.Id, entity);
+        }
+    }
+
+    internal bool RemoveProjectileEntity(int entityId)
+    {
+        var removed = false;
+        removed |= RemoveProjectileEntity(_shots, entityId);
+        removed |= RemoveProjectileEntity(_bubbles, entityId);
+        removed |= RemoveProjectileEntity(_blades, entityId);
+        removed |= RemoveProjectileEntity(_needles, entityId);
+        removed |= RemoveProjectileEntity(_revolverShots, entityId);
+        removed |= RemoveProjectileEntity(_flames, entityId);
+        removed |= RemoveProjectileEntity(_flares, entityId);
+        removed |= RemoveProjectileEntity(_rockets, entityId);
+        removed |= RemoveProjectileEntity(_mines, entityId);
+        removed |= RemoveProjectileEntity(_grenades, entityId);
+        removed |= _entities.Remove(entityId);
+        return removed;
+    }
+
+    internal void ClearProjectileCollection<T>(IReadOnlyList<T> collection)
+        where T : SimulationEntity
+    {
+        if (collection is not List<T> mutableCollection)
+        {
+            throw new ArgumentException("The collection is not owned by this projectile system.", nameof(collection));
+        }
+
+        mutableCollection.Clear();
+    }
+
+    internal void AddProjectileToCollection<T>(IReadOnlyList<T> collection, T entity)
+        where T : SimulationEntity
+    {
+        if (collection is not List<T> mutableCollection)
+        {
+            throw new ArgumentException("The collection is not owned by this projectile system.", nameof(collection));
+        }
+
+        mutableCollection.Add(entity);
+    }
+
+    internal void RemoveAllProjectiles<T>(IReadOnlyList<T> collection)
+        where T : SimulationEntity
+    {
+        for (var index = 0; index < collection.Count; index += 1)
+        {
+            _entities.Remove(collection[index].Id);
+        }
+
+        ClearProjectileCollection(collection);
+    }
+
+    private static bool RemoveProjectileEntity<T>(List<T> entities, int entityId)
+        where T : SimulationEntity
+    {
+        for (var index = entities.Count - 1; index >= 0; index -= 1)
+        {
+            if (entities[index].Id != entityId)
+            {
+                continue;
+            }
+
+            entities.RemoveAt(index);
+            return true;
+        }
+
+        return false;
+    }
 
     private SimpleLevel Level => _dependencies.GetLevel();
     private EntityStore EntityStore => _entities;

@@ -36,19 +36,6 @@ public sealed partial class SimulationWorld
     private readonly List<CombatTrace> _combatTraces = new();
     private readonly List<SniperAimIndicator> _sniperAimIndicators = new();
     private readonly List<KillFeedEntry> _killFeed = new();
-    private readonly List<ShotProjectileEntity> _shots;
-    private readonly List<BubbleProjectileEntity> _bubbles;
-    private readonly List<BladeProjectileEntity> _blades;
-    private readonly List<NeedleProjectileEntity> _needles;
-    private readonly List<RevolverProjectileEntity> _revolverShots;
-    private readonly List<StabAnimEntity> _stabAnimations;
-    private readonly List<StabMaskEntity> _stabMasks;
-    private readonly List<FlameProjectileEntity> _flames;
-    private readonly List<FlareProjectileEntity> _flares;
-    private readonly List<RocketProjectileEntity> _rockets;
-    private readonly List<int> _pendingNewRocketIds;
-    private readonly List<MineProjectileEntity> _mines;
-    private readonly List<GrenadeProjectileEntity> _grenades;
     private readonly List<SentryEntity> _sentries = new();
     private readonly List<JumpPadEntity> _jumpPads = new();
     private readonly List<CivilDefenseTurretEntity> _civilDefenseTurrets = new();
@@ -284,29 +271,29 @@ public sealed partial class SimulationWorld
 
     public IReadOnlyList<SniperAimIndicator> SniperAimIndicators => _sniperAimIndicators;
 
-    public IReadOnlyList<ShotProjectileEntity> Shots => _shots;
+    public IReadOnlyList<ShotProjectileEntity> Shots => Projectiles.Shots;
 
-    public IReadOnlyList<BubbleProjectileEntity> Bubbles => _bubbles;
+    public IReadOnlyList<BubbleProjectileEntity> Bubbles => Projectiles.Bubbles;
 
-    public IReadOnlyList<BladeProjectileEntity> Blades => _blades;
+    public IReadOnlyList<BladeProjectileEntity> Blades => Projectiles.Blades;
 
-    public IReadOnlyList<NeedleProjectileEntity> Needles => _needles;
+    public IReadOnlyList<NeedleProjectileEntity> Needles => Projectiles.Needles;
 
-    public IReadOnlyList<RevolverProjectileEntity> RevolverShots => _revolverShots;
+    public IReadOnlyList<RevolverProjectileEntity> RevolverShots => Projectiles.RevolverShots;
 
-    public IReadOnlyList<StabAnimEntity> StabAnimations => _stabAnimations;
+    public IReadOnlyList<StabAnimEntity> StabAnimations => Projectiles.StabAnimations;
 
-    public IReadOnlyList<StabMaskEntity> StabMasks => _stabMasks;
+    public IReadOnlyList<StabMaskEntity> StabMasks => Projectiles.StabMasks;
 
-    public IReadOnlyList<FlameProjectileEntity> Flames => _flames;
+    public IReadOnlyList<FlameProjectileEntity> Flames => Projectiles.Flames;
 
-    public IReadOnlyList<FlareProjectileEntity> Flares => _flares;
+    public IReadOnlyList<FlareProjectileEntity> Flares => Projectiles.Flares;
 
-    public IReadOnlyList<RocketProjectileEntity> Rockets => _rockets;
+    public IReadOnlyList<RocketProjectileEntity> Rockets => Projectiles.Rockets;
 
-    public IReadOnlyList<MineProjectileEntity> Mines => _mines;
+    public IReadOnlyList<MineProjectileEntity> Mines => Projectiles.Mines;
 
-    public IReadOnlyList<GrenadeProjectileEntity> Grenades => _grenades;
+    public IReadOnlyList<GrenadeProjectileEntity> Grenades => Projectiles.Grenades;
 
     public IReadOnlyList<SentryEntity> Sentries => _sentries;
 
@@ -428,19 +415,6 @@ public sealed partial class SimulationWorld
         Combat = new CombatSystem(EntityStore, CreateCombatSystemDependencies());
         Snapshots = new SnapshotSystem(EntityStore, Combat, CreateSnapshotSystemDependencies());
         Projectiles = new ProjectileSystem(EntityStore, Combat, CreateProjectileSystemDependencies());
-        _shots = Projectiles.ShotsInternal;
-        _bubbles = Projectiles.BubblesInternal;
-        _blades = Projectiles.BladesInternal;
-        _needles = Projectiles.NeedlesInternal;
-        _revolverShots = Projectiles.RevolverShotsInternal;
-        _stabAnimations = Projectiles.StabAnimationsInternal;
-        _stabMasks = Projectiles.StabMasksInternal;
-        _flames = Projectiles.FlamesInternal;
-        _flares = Projectiles.FlaresInternal;
-        _rockets = Projectiles.RocketsInternal;
-        _pendingNewRocketIds = Projectiles.PendingNewRocketIdsInternal;
-        _mines = Projectiles.MinesInternal;
-        _grenades = Projectiles.GrenadesInternal;
         _pendingRocketSpawnEvents = Projectiles.PendingRocketSpawnEventsInternal;
         Level = SimpleLevelFactory.CreateScoutPrototypeLevel(_configuredMapScale);
         Movement = new MovementSystem(CreateMovementSystemDependencies());

@@ -4417,8 +4417,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
 
     private static void InvokeAdvanceStabMasks(SimulationWorld world)
     {
-        var method = GetRequiredNonPublicMethod("AdvanceStabMasks");
-        method.Invoke(world, null);
+        world.Projectiles.AdvanceStabMasks();
     }
 
     private static bool InvokeApplySentryDamage(SimulationWorld world, SentryEntity target, int damage, PlayerEntity attacker)
@@ -4531,11 +4530,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
 
     private static void InvokeAdvanceShots(SimulationWorld world)
     {
-        var method = typeof(SimulationWorld).GetMethod(
-            "AdvanceShots",
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        _ = method!.Invoke(world, null);
+        world.Projectiles.AdvanceShots();
     }
 
     private static void PrepareOpenFlamethrowerTestWorld(SimulationWorld world)
@@ -4620,9 +4615,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
 
     private static void AdvanceCombatRockets(SimulationWorld world)
     {
-        var method = typeof(SimulationWorld).GetMethod("AdvanceRockets", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        _ = method!.Invoke(world, []);
+        world.Projectiles.AdvanceRockets();
     }
 
     private static int GetCombatRocketCount(SimulationWorld world)
@@ -4646,9 +4639,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
 
     private static void AdvanceCombatGrenades(SimulationWorld world)
     {
-        var method = typeof(SimulationWorld).GetMethod("AdvanceGrenades", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        _ = method!.Invoke(world, []);
+        world.Projectiles.AdvanceGrenades();
     }
 
     private static int GetCombatGrenadeCount(SimulationWorld world)
@@ -4699,9 +4690,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
 
     private static void AdvanceCombatFlames(SimulationWorld world)
     {
-        var method = typeof(SimulationWorld).GetMethod("AdvanceFlames", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        _ = method!.Invoke(world, []);
+        world.Projectiles.AdvanceFlames();
     }
 
     private static MethodInfo GetRequiredNonPublicMethod(string methodName)

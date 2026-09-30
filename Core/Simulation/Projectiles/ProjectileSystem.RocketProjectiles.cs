@@ -96,53 +96,53 @@ public sealed partial class ProjectileSystem
     {
         private static readonly Lazy<GameMakerAssetManifest> _gameMakerAssets = new(GameMakerRuntimeAssetManifestLoader.LoadPackagedOrProjectAssets);
 
-        public static void Advance(ProjectileSystem world)
+        public static void Advance(ProjectileSystem projectiles)
         {
-            var deltaSeconds = (float)world.Config.FixedDeltaSeconds;
-            for (var rocketIndex = world._rockets.Count - 1; rocketIndex >= 0; rocketIndex -= 1)
+            var deltaSeconds = (float)projectiles.Config.FixedDeltaSeconds;
+            for (var rocketIndex = projectiles._rockets.Count - 1; rocketIndex >= 0; rocketIndex -= 1)
             {
-                AdvanceRocket(world, rocketIndex, deltaSeconds);
+                AdvanceRocket(projectiles, rocketIndex, deltaSeconds);
             }
         }
 
-        public static void AdvancePendingForOwner(ProjectileSystem world, int ownerId)
+        public static void AdvancePendingForOwner(ProjectileSystem projectiles, int ownerId)
         {
-            var deltaSeconds = (float)world.Config.FixedDeltaSeconds;
-            for (var pendingIndex = world._pendingNewRocketIds.Count - 1; pendingIndex >= 0; pendingIndex -= 1)
+            var deltaSeconds = (float)projectiles.Config.FixedDeltaSeconds;
+            for (var pendingIndex = projectiles._pendingNewRocketIds.Count - 1; pendingIndex >= 0; pendingIndex -= 1)
             {
-                var rocketId = world._pendingNewRocketIds[pendingIndex];
-                var rocketIndex = FindRocketIndex(world, rocketId);
+                var rocketId = projectiles._pendingNewRocketIds[pendingIndex];
+                var rocketIndex = FindRocketIndex(projectiles, rocketId);
                 if (rocketIndex < 0)
                 {
-                    world._pendingNewRocketIds.RemoveAt(pendingIndex);
+                    projectiles._pendingNewRocketIds.RemoveAt(pendingIndex);
                     continue;
                 }
 
-                if (world._rockets[rocketIndex].OwnerId != ownerId)
+                if (projectiles._rockets[rocketIndex].OwnerId != ownerId)
                 {
                     continue;
                 }
 
-                world._pendingNewRocketIds.RemoveAt(pendingIndex);
-                AdvanceRocket(world, rocketIndex, deltaSeconds);
+                projectiles._pendingNewRocketIds.RemoveAt(pendingIndex);
+                AdvanceRocket(projectiles, rocketIndex, deltaSeconds);
 
                 // Update the pending spawn event to the post-advance position so that clients
                 // reconstructing the rocket from the spawn event (e.g. when the main Rockets
                 // list is budget-dropped) start it at the in-flight position rather than the
                 // raw spawn origin, preventing a one-frame flash at the spawn point.
-                var advancedRocketIndex = FindRocketIndex(world, rocketId);
+                var advancedRocketIndex = FindRocketIndex(projectiles, rocketId);
                 if (advancedRocketIndex >= 0)
                 {
-                    var advancedRocket = world._rockets[advancedRocketIndex];
-                    for (var spawnEventIndex = world._pendingRocketSpawnEvents.Count - 1; spawnEventIndex >= 0; spawnEventIndex -= 1)
+                    var advancedRocket = projectiles._rockets[advancedRocketIndex];
+                    for (var spawnEventIndex = projectiles._pendingRocketSpawnEvents.Count - 1; spawnEventIndex >= 0; spawnEventIndex -= 1)
                     {
-                        if (world._pendingRocketSpawnEvents[spawnEventIndex].Id != rocketId)
+                        if (projectiles._pendingRocketSpawnEvents[spawnEventIndex].Id != rocketId)
                         {
                             continue;
                         }
 
-                        var spawnEvent = world._pendingRocketSpawnEvents[spawnEventIndex];
-                        world._pendingRocketSpawnEvents[spawnEventIndex] = spawnEvent with
+                        var spawnEvent = projectiles._pendingRocketSpawnEvents[spawnEventIndex];
+                        projectiles._pendingRocketSpawnEvents[spawnEventIndex] = spawnEvent with
                         {
                             X = advancedRocket.X,
                             Y = advancedRocket.Y,
@@ -158,33 +158,33 @@ public sealed partial class ProjectileSystem
             }
         }
 
-        private static void AdvanceRocket(ProjectileSystem world, int rocketIndex, float deltaSeconds)
+        private static void AdvanceRocket(ProjectileSystem projectiles, int rocketIndex, float deltaSeconds)
         {
-            if (rocketIndex < 0 || rocketIndex >= world._rockets.Count)
+            if (rocketIndex < 0 || rocketIndex >= projectiles._rockets.Count)
             {
                 return;
             }
 
-            var rocket = world._rockets[rocketIndex];
-            if (!world.ShouldAdvanceProjectileForClientPrediction(rocket.OwnerId))
+            var rocket = projectiles._rockets[rocketIndex];
+            if (!projectiles.ShouldAdvanceProjectileForClientPrediction(rocket.OwnerId))
             {
                 return;
             }
 
-            if (world.FindPlayerById(rocket.RangeAnchorOwnerId) is { } rangeAnchorPlayer)
+            if (projectiles.FindPlayerById(rocket.RangeAnchorOwnerId) is { } rangeAnchorPlayer)
             {
                 rocket.RefreshRangeOrigin(rangeAnchorPlayer.X, rangeAnchorPlayer.Y);
                 if (rocket.EnableExperimentalStingerTracking
-                    && world.GetLastToDieGameplaySettings(rangeAnchorPlayer).EnableSoldierStingerRockets
+                    && projectiles.GetLastToDieGameplaySettings(rangeAnchorPlayer).EnableSoldierStingerRockets
                     && rangeAnchorPlayer.ClassId == PlayerClass.Soldier
-                    && world.IsExperimentalPracticePowerOwner(rangeAnchorPlayer))
+                    && projectiles.IsExperimentalPracticePowerOwner(rangeAnchorPlayer))
                 {
                     rocket.TrackExperimentalStingerTarget(
                         rangeAnchorPlayer.AimDirectionDegrees * (MathF.PI / 180f),
                         ProjectileSystem.GetExperimentalSoldierStingerTurnRateRadians());
                 }
                 else if (rocket.EnableExperimentalCaveatTracking
-                    && world.TryResolveExperimentalEngineerRocketTrackingDirection(rocket, rangeAnchorPlayer, out var engineerTrackingDirection))
+                    && projectiles.TryResolveExperimentalEngineerRocketTrackingDirection(rocket, rangeAnchorPlayer, out var engineerTrackingDirection))
                 {
                     rocket.TrackExperimentalStingerTarget(
                         engineerTrackingDirection,
@@ -197,7 +197,7 @@ public sealed partial class ProjectileSystem
                 rocket.AdvanceFade(deltaSeconds);
                 if (rocket.IsExpired)
                 {
-                    world.RemoveRocketAt(rocketIndex);
+                    projectiles.RemoveRocketAt(rocketIndex);
                     return;
                 }
             }
@@ -211,21 +211,21 @@ public sealed partial class ProjectileSystem
                 var explodeReason = string.IsNullOrWhiteSpace(rocket.DelayedExplosionReason)
                     ? "Unknown"
                     : rocket.DelayedExplosionReason;
-                world.SetLastRocketCollisionDebug(rocket.X, rocket.Y, "ExplodeImmediately", explodeReason);
+                projectiles.SetLastRocketCollisionDebug(rocket.X, rocket.Y, "ExplodeImmediately", explodeReason);
                 rocket.ClearDelayedExplosion();
                 if (rocket.IsFading)
                 {
-                    world.RemoveRocketAt(rocketIndex);
+                    projectiles.RemoveRocketAt(rocketIndex);
                 }
                 else
                 {
-                    world.ExplodeRocket(rocket, null, null, null);
+                    projectiles.ExplodeRocket(rocket, null, null, null);
                 }
 
                 return;
             }
 
-            rocket.AdvanceOneTick(deltaSeconds, world._configuredGravityScale);
+            rocket.AdvanceOneTick(deltaSeconds, projectiles._configuredGravityScale);
             var movementX = rocket.X - rocket.PreviousX;
             var movementY = rocket.Y - rocket.PreviousY;
             var movementDistance = MathF.Sqrt((movementX * movementX) + (movementY * movementY));
@@ -233,7 +233,7 @@ public sealed partial class ProjectileSystem
             {
                 if (rocket.IsExpired)
                 {
-                    world.RemoveRocketAt(rocketIndex);
+                    projectiles.RemoveRocketAt(rocketIndex);
                 }
 
                 return;
@@ -241,21 +241,21 @@ public sealed partial class ProjectileSystem
 
             var directionX = movementX / movementDistance;
             var directionY = movementY / movementDistance;
-            var universalProjectileScale = world.FindPlayerById(rocket.OwnerId)?.LastToDieUniversalModifiers.ProjectileScale ?? 1f;
+            var universalProjectileScale = projectiles.FindPlayerById(rocket.OwnerId)?.LastToDieUniversalModifiers.ProjectileScale ?? 1f;
             var projectileGeometryScale = MathF.Max(
                 0.1f,
                 universalProjectileScale * (rocket.IsBallistic ? 1.3f : 1f));
             var hit = ResolveRocketCollisionAlongPath(
-                world,
+                projectiles,
                 rocket,
                 directionX,
                 directionY,
                 movementDistance,
                 projectileGeometryScale);
-            if (world.TryInterceptWithCivilDefenseTurret(rocket.Team, rocket.PreviousX, rocket.PreviousY,
+            if (projectiles.TryInterceptWithCivilDefenseTurret(rocket.Team, rocket.PreviousX, rocket.PreviousY,
                     directionX, directionY, MathF.Min(movementDistance, hit?.Distance ?? movementDistance)))
             {
-                world.RemoveRocketAt(rocketIndex);
+                projectiles.RemoveRocketAt(rocketIndex);
                 return;
             }
             if (hit.HasValue)
@@ -292,12 +292,12 @@ public sealed partial class ProjectileSystem
                     var backoffDistance = MathF.Min(hitResult.Distance, RocketProjectileEntity.EnvironmentCollisionBackoffDistance);
                     hitX -= directionX * backoffDistance;
                     hitY -= directionY * backoffDistance;
-                    collisionObjectName = world.ResolveRocketEnvironmentCollisionName(hitResult.HitX, hitResult.HitY);
+                    collisionObjectName = projectiles.ResolveRocketEnvironmentCollisionName(hitResult.HitX, hitResult.HitY);
                 }
 
                 rocket.MoveTo(hitX, hitY);
-                world.SetLastRocketCollisionDebug(hitX, hitY, collisionObjectName, "CollisionHit");
-                world.RegisterCombatTrace(rocket.PreviousX, rocket.PreviousY, directionX, directionY, hitResult.Distance, hitResult.HitPlayer is not null);
+                projectiles.SetLastRocketCollisionDebug(hitX, hitY, collisionObjectName, "CollisionHit");
+                projectiles.RegisterCombatTrace(rocket.PreviousX, rocket.PreviousY, directionX, directionY, hitResult.Distance, hitResult.HitPlayer is not null);
 
                 if (rocket.IsFading
                     && hitResult.HitPlayer is null
@@ -306,11 +306,11 @@ public sealed partial class ProjectileSystem
                     && hitResult.HitJumpPad is null
                     && hitResult.HitDamageableZoneRoomObjectIndex < 0)
                 {
-                    world.RemoveRocketAt(rocketIndex);
+                    projectiles.RemoveRocketAt(rocketIndex);
                 }
                 else
                 {
-                    world.ExplodeRocket(
+                    projectiles.ExplodeRocket(
                         rocket,
                         hitResult.HitPlayer,
                         hitResult.HitSentry,
@@ -322,16 +322,16 @@ public sealed partial class ProjectileSystem
             {
                 if (rocket.IsExpired)
                 {
-                    world.RemoveRocketAt(rocketIndex);
+                    projectiles.RemoveRocketAt(rocketIndex);
                 }
             }
         }
 
-        private static int FindRocketIndex(ProjectileSystem world, int rocketId)
+        private static int FindRocketIndex(ProjectileSystem projectiles, int rocketId)
         {
-            for (var rocketIndex = world._rockets.Count - 1; rocketIndex >= 0; rocketIndex -= 1)
+            for (var rocketIndex = projectiles._rockets.Count - 1; rocketIndex >= 0; rocketIndex -= 1)
             {
-                if (world._rockets[rocketIndex].Id == rocketId)
+                if (projectiles._rockets[rocketIndex].Id == rocketId)
                 {
                     return rocketIndex;
                 }
@@ -341,7 +341,7 @@ public sealed partial class ProjectileSystem
         }
 
         private static RocketHitResult? ResolveRocketCollisionAlongPath(
-            ProjectileSystem world,
+            ProjectileSystem projectiles,
             RocketProjectileEntity rocket,
             float directionX,
             float directionY,
@@ -363,7 +363,7 @@ public sealed partial class ProjectileSystem
                 var sampleX = rocket.PreviousX + (directionX * sampledDistance);
                 var sampleY = rocket.PreviousY + (directionY * sampledDistance);
                 var hit = ResolveRocketCollisionAtSamplePosition(
-                    world,
+                    projectiles,
                     rocket,
                     directionX,
                     directionY,
@@ -381,7 +381,7 @@ public sealed partial class ProjectileSystem
         }
 
         private static RocketHitResult? ResolveRocketCollisionAtSamplePosition(
-            ProjectileSystem world,
+            ProjectileSystem projectiles,
             RocketProjectileEntity rocket,
             float directionX,
             float directionY,
@@ -397,20 +397,20 @@ public sealed partial class ProjectileSystem
 
             PlayerEntity? bestDirectHitPlayer = null;
             var bestDirectHitDistance = float.PositiveInfinity;
-            foreach (var player in world.EnumerateSimulatedPlayers())
+            foreach (var player in projectiles.EnumerateSimulatedPlayers())
             {
                 if (!player.IsAlive || player.Id == rocket.OwnerId)
                 {
                     continue;
                 }
 
-                GetRocketPlayerCollisionBounds(world, player, out var left, out var top, out var right, out var bottom);
+                GetRocketPlayerCollisionBounds(projectiles, player, out var left, out var top, out var right, out var bottom);
                 if (!IntersectsRocketMaskRectangle(rocketX, rocketY, directionX, directionY, left, top, right, bottom, projectileGeometryScale))
                 {
                     continue;
                 }
 
-                if (player.Team == rocket.Team || !world.CanTeamDamagePlayer(rocket.Team, rocket.OwnerId, player))
+                if (player.Team == rocket.Team || !projectiles.CanTeamDamagePlayer(rocket.Team, rocket.OwnerId, player))
                 {
                     if (!rocket.IsFading)
                     {
@@ -448,7 +448,7 @@ public sealed partial class ProjectileSystem
                     null);
             }
 
-            foreach (var sentry in world._sentries)
+            foreach (var sentry in projectiles._sentries)
             {
                 if (sentry.Team == rocket.Team)
                 {
@@ -470,9 +470,9 @@ public sealed partial class ProjectileSystem
                 }
             }
 
-            for (var index = 0; index < world._generators.Count; index += 1)
+            for (var index = 0; index < projectiles._generators.Count; index += 1)
             {
-                var generator = world._generators[index];
+                var generator = projectiles._generators[index];
                 if (generator.Team == rocket.Team || generator.IsDestroyed)
                 {
                     continue;
@@ -494,7 +494,7 @@ public sealed partial class ProjectileSystem
             }
 
             var rocketBounds = GetRocketMaskBounds(rocketX, rocketY, directionX, directionY, projectileGeometryScale);
-            foreach (var solid in world.Level.Solids)
+            foreach (var solid in projectiles.Level.Solids)
             {
                 if (!RectanglesOverlap(rocketBounds.Left, rocketBounds.Top, rocketBounds.Right, rocketBounds.Bottom, solid.Left, solid.Top, solid.Right, solid.Bottom))
                 {
@@ -507,14 +507,14 @@ public sealed partial class ProjectileSystem
                 }
             }
 
-            foreach (var roomObjectIndex in world.Level.ProjectileObstacleIndices)
+            foreach (var roomObjectIndex in projectiles.Level.ProjectileObstacleIndices)
             {
-                if (!world.Level.IsRoomObjectActive(roomObjectIndex))
+                if (!projectiles.Level.IsRoomObjectActive(roomObjectIndex))
                 {
                     continue;
                 }
 
-                ref readonly var roomObject = ref world.Level.GetRoomObject(roomObjectIndex);
+                ref readonly var roomObject = ref projectiles.Level.GetRoomObject(roomObjectIndex);
                 if (roomObject.Type == RoomObjectType.Barrier)
                 {
                     if (BarrierCollision.BlocksProjectile(roomObject.Barrier, rocket.Team)
@@ -543,7 +543,7 @@ public sealed partial class ProjectileSystem
 
                 if (roomObject.Type == RoomObjectType.DamageableZone)
                 {
-                    if (!world.BlocksProjectileDamageableZone(roomObjectIndex)
+                    if (!projectiles.BlocksProjectileDamageableZone(roomObjectIndex)
                         || !RectanglesOverlap(
                             rocketBounds.Left,
                             rocketBounds.Top,
@@ -576,7 +576,7 @@ public sealed partial class ProjectileSystem
                     continue;
                 }
 
-                if (!IsRocketBlockingRoomObject(world, rocket, roomObject)
+                if (!IsRocketBlockingRoomObject(projectiles, rocket, roomObject)
                     || !RectanglesOverlap(rocketBounds.Left, rocketBounds.Top, rocketBounds.Right, rocketBounds.Bottom, roomObject.Left, roomObject.Top, roomObject.Right, roomObject.Bottom))
                 {
                     continue;
@@ -592,19 +592,19 @@ public sealed partial class ProjectileSystem
         }
 
         private static void GetRocketPlayerCollisionBounds(
-            ProjectileSystem world,
+            ProjectileSystem projectiles,
             PlayerEntity player,
             out float left,
             out float top,
             out float right,
             out float bottom)
         {
-            world.GetCachedPlayerPresentationHitBounds(player, out left, out top, out right, out bottom);
+            projectiles.GetCachedPlayerPresentationHitBounds(player, out left, out top, out right, out bottom);
         }
 
-        private static string? GetStandingSpriteName(ProjectileSystem world, PlayerEntity player)
+        private static string? GetStandingSpriteName(ProjectileSystem projectiles, PlayerEntity player)
         {
-            var leanDirection = GetPlayerLeanDirection(world, player);
+            var leanDirection = GetPlayerLeanDirection(projectiles, player);
             if (leanDirection == 0)
             {
                 return GetPresentationSpriteName(player.ClassId, player.Team, static presentation => presentation.StandSuffix ?? presentation.BaseSuffix, "StandS");
@@ -630,14 +630,14 @@ public sealed partial class ProjectileSystem
                     "LeanRS");
         }
 
-        private static int GetPlayerLeanDirection(ProjectileSystem world, PlayerEntity player)
+        private static int GetPlayerLeanDirection(ProjectileSystem projectiles, PlayerEntity player)
         {
             var playerScale = player.PlayerScale;
             var bottom = player.Bottom + (2f * playerScale);
-            var openRight = !IsPointBlockedForRocketPresentation(world, player, player.X + (6f * playerScale), bottom)
-                && !IsPointBlockedForRocketPresentation(world, player, player.X + (2f * playerScale), bottom);
-            var openLeft = !IsPointBlockedForRocketPresentation(world, player, player.X - (7f * playerScale), bottom)
-                && !IsPointBlockedForRocketPresentation(world, player, player.X - (3f * playerScale), bottom);
+            var openRight = !IsPointBlockedForRocketPresentation(projectiles, player, player.X + (6f * playerScale), bottom)
+                && !IsPointBlockedForRocketPresentation(projectiles, player, player.X + (2f * playerScale), bottom);
+            var openLeft = !IsPointBlockedForRocketPresentation(projectiles, player, player.X - (7f * playerScale), bottom)
+                && !IsPointBlockedForRocketPresentation(projectiles, player, player.X - (3f * playerScale), bottom);
             var leanDirection = 0;
             if (openRight)
             {
@@ -651,8 +651,8 @@ public sealed partial class ProjectileSystem
 
             if (openRight && openLeft)
             {
-                openRight = !IsPointBlockedForRocketPresentation(world, player, player.Right - playerScale, bottom);
-                openLeft = !IsPointBlockedForRocketPresentation(world, player, player.Left, bottom);
+                openRight = !IsPointBlockedForRocketPresentation(projectiles, player, player.Right - playerScale, bottom);
+                openLeft = !IsPointBlockedForRocketPresentation(projectiles, player, player.Left, bottom);
                 leanDirection = 0;
                 if (openRight)
                 {
@@ -668,7 +668,7 @@ public sealed partial class ProjectileSystem
             return leanDirection;
         }
 
-        private static bool HasGroundSupportForRocketPresentation(ProjectileSystem world, PlayerEntity player)
+        private static bool HasGroundSupportForRocketPresentation(ProjectileSystem projectiles, PlayerEntity player)
         {
             if (player.VerticalSpeed < 0f)
             {
@@ -680,14 +680,14 @@ public sealed partial class ProjectileSystem
             var leftProbeX = player.Left + MathF.Max(1f, 2f * playerScale);
             var centerProbeX = player.X;
             var rightProbeX = player.Right - MathF.Max(1f, 2f * playerScale);
-            return IsPointBlockedForRocketPresentation(world, player, leftProbeX, probeY)
-                || IsPointBlockedForRocketPresentation(world, player, centerProbeX, probeY)
-                || IsPointBlockedForRocketPresentation(world, player, rightProbeX, probeY);
+            return IsPointBlockedForRocketPresentation(projectiles, player, leftProbeX, probeY)
+                || IsPointBlockedForRocketPresentation(projectiles, player, centerProbeX, probeY)
+                || IsPointBlockedForRocketPresentation(projectiles, player, rightProbeX, probeY);
         }
 
-        private static bool IsPointBlockedForRocketPresentation(ProjectileSystem world, PlayerEntity player, float x, float y)
+        private static bool IsPointBlockedForRocketPresentation(ProjectileSystem projectiles, PlayerEntity player, float x, float y)
         {
-            foreach (var solid in world.Level.Solids)
+            foreach (var solid in projectiles.Level.Solids)
             {
                 if (x >= solid.Left && x < solid.Right && y >= solid.Top && y < solid.Bottom)
                 {
@@ -695,7 +695,7 @@ public sealed partial class ProjectileSystem
                 }
             }
 
-            foreach (var gate in world.Level.GetBlockingTeamGates(player.Team, player.IsCarryingIntel))
+            foreach (var gate in projectiles.Level.GetBlockingTeamGates(player.Team, player.IsCarryingIntel))
             {
                 if (x >= gate.Left && x < gate.Right && y >= gate.Top && y < gate.Bottom)
                 {
@@ -703,7 +703,7 @@ public sealed partial class ProjectileSystem
                 }
             }
 
-            foreach (var wall in world.Level.GetRoomObjects(RoomObjectType.PlayerWall))
+            foreach (var wall in projectiles.Level.GetRoomObjects(RoomObjectType.PlayerWall))
             {
                 if (x >= wall.Left && x < wall.Right && y >= wall.Top && y < wall.Bottom)
                 {
@@ -711,12 +711,12 @@ public sealed partial class ProjectileSystem
                 }
             }
 
-            if (SimpleLevelBarrierCollision.BlocksPointForPlayer(world.Level, player.Team, player.IsCarryingIntel, x, y))
+            if (SimpleLevelBarrierCollision.BlocksPointForPlayer(projectiles.Level, player.Team, player.IsCarryingIntel, x, y))
             {
                 return true;
             }
 
-            return SimpleLevelBarrierCollision.BlocksPointForProjectile(world.Level, player.Team, x, y);
+            return SimpleLevelBarrierCollision.BlocksPointForProjectile(projectiles.Level, player.Team, x, y);
         }
 
         private static string? GetPlayerSpriteName(PlayerClass classId, PlayerTeam team)
@@ -824,12 +824,12 @@ public sealed partial class ProjectileSystem
             return clearDistance;
         }
 
-        private static bool IsRocketBlockingRoomObject(ProjectileSystem world, RocketProjectileEntity rocket, RoomObjectMarker roomObject)
+        private static bool IsRocketBlockingRoomObject(ProjectileSystem projectiles, RocketProjectileEntity rocket, RoomObjectMarker roomObject)
         {
             return roomObject.Type switch
             {
                 RoomObjectType.TeamGate => true,
-                RoomObjectType.ControlPointSetupGate => world.Level.ControlPointSetupGatesActive,
+                RoomObjectType.ControlPointSetupGate => projectiles.Level.ControlPointSetupGatesActive,
                 RoomObjectType.BulletWall => true,
                 RoomObjectType.Barrier => BarrierCollision.BlocksProjectile(roomObject.Barrier, rocket.Team),
                 RoomObjectType.DirectionalWall => roomObject.DirectionalWall.AffectsProjectiles,

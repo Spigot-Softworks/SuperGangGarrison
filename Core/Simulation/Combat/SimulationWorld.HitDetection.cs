@@ -33,8 +33,7 @@ public sealed partial class SimulationWorld
             rangeAnchorOwnerId: owner.Id,
             lastKnownRangeOriginX: owner.X,
             lastKnownRangeOriginY: owner.Y);
-        _rockets.Add(rocket);
-        EntityStore.Set(rocket.Id, rocket);
+        Projectiles.AddProjectileEntity(rocket);
         ExplodeRocket(rocket, directHitPlayer: null, directHitSentry: null, directHitGenerator: null);
     }
 
@@ -56,8 +55,7 @@ public sealed partial class SimulationWorld
             rangeAnchorOwnerId: owner.Id,
             lastKnownRangeOriginX: owner.X,
             lastKnownRangeOriginY: owner.Y);
-        _rockets.Add(rocket);
-        EntityStore.Set(rocket.Id, rocket);
+        Projectiles.AddProjectileEntity(rocket);
         return rocket;
     }
 
@@ -69,16 +67,14 @@ public sealed partial class SimulationWorld
             mine.Stick();
         }
 
-        _mines.Add(mine);
-        EntityStore.Set(mine.Id, mine);
+        Projectiles.AddProjectileEntity(mine);
         return mine;
     }
 
     internal GrenadeProjectileEntity CombatTestSpawnGrenade(PlayerEntity owner, float x, float y, float velocityX = 0f, float velocityY = 0f)
     {
         var grenade = new GrenadeProjectileEntity(AllocateEntityId(), owner.Team, owner.Id, x, y, velocityX, velocityY);
-        _grenades.Add(grenade);
-        EntityStore.Set(grenade.Id, grenade);
+        Projectiles.AddProjectileEntity(grenade);
         return grenade;
     }
 
@@ -99,8 +95,7 @@ public sealed partial class SimulationWorld
             velocityY,
             GetSimulationTicksFromSourceTicks(FlameProjectileEntity.AirLifetimeTicks),
             isPerseverant: false);
-        _flames.Add(flame);
-        EntityStore.Set(flame.Id, flame);
+        Projectiles.AddProjectileEntity(flame);
         return flame;
     }
 
@@ -125,8 +120,7 @@ public sealed partial class SimulationWorld
             ticksRemaining: lifetimeTicks,
             damagePerHit: damagePerHit,
             style: style);
-        _flares.Add(flare);
-        EntityStore.Set(flare.Id, flare);
+        Projectiles.AddProjectileEntity(flare);
         return flare;
     }
 

@@ -291,7 +291,7 @@ public sealed class LastToDieMedicKritPowerRuntimeTests
         attacker.TeleportTo(civilian.X + 100f, civilian.Y);
         var chargeBefore = civilian.CivvieUmbrellaChargeTicks;
 
-        InvokePrivate(world, "AdvanceShots");
+        world.Projectiles.AdvanceShots();
 
         Assert.Equal(civilian.MaxHealth, civilian.Health);
         Assert.Equal(chargeBefore - expectedDrain, civilian.CivvieUmbrellaChargeTicks);

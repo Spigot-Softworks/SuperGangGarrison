@@ -131,9 +131,9 @@ public sealed partial class SimulationWorld
 
     private void ReflectEnemyRockets(PlayerEntity player, float aimRadians, float poofX, float poofY)
     {
-        for (var rocketIndex = 0; rocketIndex < _rockets.Count; rocketIndex += 1)
+        for (var rocketIndex = 0; rocketIndex < Rockets.Count; rocketIndex += 1)
         {
-            var rocket = _rockets[rocketIndex];
+            var rocket = Rockets[rocketIndex];
             if (rocket.Team == player.Team
                 || !IsWithinAirblastMask(poofX, poofY, aimRadians, rocket.X, rocket.Y, PyroAirblastProjectileRadius))
             {
@@ -146,9 +146,9 @@ public sealed partial class SimulationWorld
 
     private void ReflectEnemyFlares(PlayerEntity player, float aimRadians, float poofX, float poofY)
     {
-        for (var flareIndex = 0; flareIndex < _flares.Count; flareIndex += 1)
+        for (var flareIndex = 0; flareIndex < Flares.Count; flareIndex += 1)
         {
-            var flare = _flares[flareIndex];
+            var flare = Flares[flareIndex];
             if (flare.Team == player.Team
                 || !IsWithinAirblastMask(poofX, poofY, aimRadians, flare.X, flare.Y, PyroAirblastProjectileRadius))
             {
@@ -162,9 +162,9 @@ public sealed partial class SimulationWorld
 
     private void ReflectEnemyGrenades(PlayerEntity player, float aimRadians, float poofX, float poofY)
     {
-        for (var grenadeIndex = 0; grenadeIndex < _grenades.Count; grenadeIndex += 1)
+        for (var grenadeIndex = 0; grenadeIndex < Grenades.Count; grenadeIndex += 1)
         {
-            var grenade = _grenades[grenadeIndex];
+            var grenade = Grenades[grenadeIndex];
             if (grenade.Team == player.Team
                 || !IsWithinAirblastMask(poofX, poofY, aimRadians, grenade.X, grenade.Y, PyroAirblastProjectileRadius))
             {
@@ -177,9 +177,9 @@ public sealed partial class SimulationWorld
 
     private void PushEnemyMines(PlayerTeam team, float aimRadians, float poofX, float poofY)
     {
-        for (var mineIndex = 0; mineIndex < _mines.Count; mineIndex += 1)
+        for (var mineIndex = 0; mineIndex < Mines.Count; mineIndex += 1)
         {
-            var mine = _mines[mineIndex];
+            var mine = Mines[mineIndex];
             if (mine.Team == team
                 || !IsWithinAirblastMask(poofX, poofY, aimRadians, mine.X, mine.Y, PyroAirblastProjectileRadius))
             {

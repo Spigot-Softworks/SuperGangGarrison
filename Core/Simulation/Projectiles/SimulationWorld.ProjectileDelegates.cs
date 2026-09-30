@@ -159,18 +159,6 @@ public sealed partial class SimulationWorld
     private void SpawnQueuedLastToDieSniperArrow(PlayerEntity owner, float x, float y, in LastToDieSniperVolleyState volley)
         => Projectiles.SpawnQueuedLastToDieSniperArrow(owner, x, y, volley);
 
-    private void AdvanceShots() => Projectiles.AdvanceShots();
-    private void AdvanceBubbles() => Projectiles.AdvanceBubbles();
-    private void AdvanceBlades() => Projectiles.AdvanceBlades();
-    private void AdvanceNeedles() => Projectiles.AdvanceNeedles();
-    private void AdvanceRevolverShots() => Projectiles.AdvanceRevolverShots();
-    private void AdvanceStabAnimations() => Projectiles.AdvanceStabAnimations();
-    private void AdvanceStabMasks() => Projectiles.AdvanceStabMasks();
-    private void AdvanceFlames() => Projectiles.AdvanceFlames();
-    private void AdvanceFlares() => Projectiles.AdvanceFlares();
-    private void AdvanceRockets() => Projectiles.AdvanceRockets();
-    private void AdvanceMines() => Projectiles.AdvanceMines();
-    private void AdvanceGrenades() => Projectiles.AdvanceGrenades();
     private void AdvancePendingRocketsForOwner(int ownerId) => Projectiles.AdvancePendingRocketsForOwner(ownerId);
 
     private void RemoveOwnedProjectiles(int ownerId) => Projectiles.RemoveOwnedProjectiles(ownerId);
@@ -193,8 +181,6 @@ public sealed partial class SimulationWorld
         => Projectiles.ExplodeGrenade(grenade, directHitPlayer, directHitBuilding, directHitDamageableZoneIndex);
     private void ResolveDragonRageProjectileOutcome(FlareProjectileEntity flare, bool hitTarget)
         => Projectiles.ResolveDragonRageProjectileOutcome(flare, hitTarget);
-    private void SetLastRocketCollisionDebug(float x, float y, string objectName, string reason)
-        => Projectiles.SetLastRocketCollisionDebug(x, y, objectName, reason);
     private void SetProjectileSpawnBlockedDebug(float x, float y, float width, float height, string objectName)
         => Projectiles.SetProjectileSpawnBlockedDebug(x, y, width, height, objectName);
 

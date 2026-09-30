@@ -14,7 +14,7 @@ public sealed partial class SimulationWorld
             FindPlayerById = FindPlayerById,
             JumpPads = _jumpPads,
             Sentries = _sentries,
-            EnumerateArrowProjectiles = () => _needles.OfType<ArrowProjectileEntity>(),
+            EnumerateArrowProjectiles = () => Needles.OfType<ArrowProjectileEntity>(),
             RegisterWorldSoundEvent = RegisterWorldSoundEvent,
             RegisterSoundEvent = RegisterSoundEvent,
             RegisterVisualEffect = RegisterVisualEffect,

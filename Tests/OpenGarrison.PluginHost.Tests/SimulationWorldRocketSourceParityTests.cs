@@ -224,18 +224,12 @@ public sealed class SimulationWorldRocketSourceParityTests
 
     private static void AdvanceRockets(SimulationWorld world)
     {
-        var method = typeof(SimulationWorld).GetMethod("AdvanceRockets", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        _ = method!.Invoke(world, []);
+        world.Projectiles.AdvanceRockets();
     }
 
     private static int GetRocketCount(SimulationWorld world)
     {
-        var field = typeof(SimulationWorld).GetField("_rockets", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(field);
-        var rockets = field!.GetValue(world) as ICollection;
-        Assert.NotNull(rockets);
-        return rockets!.Count;
+        return world.Rockets.Count;
     }
 
     private static (float Left, float Top, float Right, float Bottom) GetPlayerPresentationHitBounds(SimulationWorld world, PlayerEntity player)

@@ -1130,9 +1130,9 @@ public sealed partial class SimulationWorld
                 experimentalTrackingLockTicksRemaining: lockDelayTicks,
                 killFeedWeaponSpriteNameOverride: "TurretKL");
 
-            if (_rockets.Count > 0)
+            if (Rockets.Count > 0)
             {
-                _rockets[^1].SetDistanceToTravel(rocketTravelDistance);
+                Rockets[^1].SetDistanceToTravel(rocketTravelDistance);
             }
         }
     }

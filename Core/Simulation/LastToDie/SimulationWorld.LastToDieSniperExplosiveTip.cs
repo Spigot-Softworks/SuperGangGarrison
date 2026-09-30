@@ -154,9 +154,9 @@ public sealed partial class SimulationWorld
     private bool DetonateOwnedLastToDieSniperArrows(PlayerEntity owner)
     {
         var detonated = false;
-        for (var needleIndex = _needles.Count - 1; needleIndex >= 0; needleIndex -= 1)
+        for (var needleIndex = Needles.Count - 1; needleIndex >= 0; needleIndex -= 1)
         {
-            if (_needles[needleIndex] is not ArrowProjectileEntity
+            if (Needles[needleIndex] is not ArrowProjectileEntity
                 {
                     IsLastToDieExplosiveTipArmed: true,
                 } arrow
@@ -179,7 +179,7 @@ public sealed partial class SimulationWorld
     public int CountOwnedLastToDieSniperExplosiveArrows(PlayerEntity owner)
     {
         ArgumentNullException.ThrowIfNull(owner);
-        return _needles.Count(needle => needle is ArrowProjectileEntity
+        return Needles.Count(needle => needle is ArrowProjectileEntity
         {
             IsLastToDieExplosiveTipArmed: true,
         } arrow && arrow.OwnerId == owner.Id);

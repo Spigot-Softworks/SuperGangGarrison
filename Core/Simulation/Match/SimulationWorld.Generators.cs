@@ -150,21 +150,21 @@ public sealed partial class SimulationWorld
         }
 
         var rocketIdsToExplode = new List<int>();
-        for (var rocketIndex = 0; rocketIndex < _rockets.Count; rocketIndex += 1)
+        for (var rocketIndex = 0; rocketIndex < Rockets.Count; rocketIndex += 1)
         {
-            if (DistanceBetween(centerX, centerY, _rockets[rocketIndex].X, _rockets[rocketIndex].Y) < GeneratorExplosionBlastRadius)
+            if (DistanceBetween(centerX, centerY, Rockets[rocketIndex].X, Rockets[rocketIndex].Y) < GeneratorExplosionBlastRadius)
             {
-                rocketIdsToExplode.Add(_rockets[rocketIndex].Id);
+                rocketIdsToExplode.Add(Rockets[rocketIndex].Id);
             }
         }
 
         for (var index = 0; index < rocketIdsToExplode.Count; index += 1)
         {
-            for (var rocketIndex = _rockets.Count - 1; rocketIndex >= 0; rocketIndex -= 1)
+            for (var rocketIndex = Rockets.Count - 1; rocketIndex >= 0; rocketIndex -= 1)
             {
-                if (_rockets[rocketIndex].Id == rocketIdsToExplode[index])
+                if (Rockets[rocketIndex].Id == rocketIdsToExplode[index])
                 {
-                    ExplodeRocket(_rockets[rocketIndex], directHitPlayer: null, directHitSentry: null, directHitGenerator: null);
+                    ExplodeRocket(Rockets[rocketIndex], directHitPlayer: null, directHitSentry: null, directHitGenerator: null);
                     break;
                 }
             }
@@ -173,11 +173,11 @@ public sealed partial class SimulationWorld
         ApplyDeadBodyExplosionImpulse(centerX, centerY, GeneratorExplosionBlastRadius, GeneratorExplosionDeadBodyKnockback);
 
         var mineIdsToExplode = new List<int>();
-        for (var mineIndex = 0; mineIndex < _mines.Count; mineIndex += 1)
+        for (var mineIndex = 0; mineIndex < Mines.Count; mineIndex += 1)
         {
-            if (DistanceBetween(centerX, centerY, _mines[mineIndex].X, _mines[mineIndex].Y) < GeneratorExplosionBlastRadius)
+            if (DistanceBetween(centerX, centerY, Mines[mineIndex].X, Mines[mineIndex].Y) < GeneratorExplosionBlastRadius)
             {
-                mineIdsToExplode.Add(_mines[mineIndex].Id);
+                mineIdsToExplode.Add(Mines[mineIndex].Id);
             }
         }
 
@@ -192,9 +192,9 @@ public sealed partial class SimulationWorld
 
         ApplyPlayerGibExplosionImpulse(centerX, centerY, GeneratorExplosionBlastRadius, GeneratorExplosionGibKnockback);
 
-        for (var bubbleIndex = _bubbles.Count - 1; bubbleIndex >= 0; bubbleIndex -= 1)
+        for (var bubbleIndex = Bubbles.Count - 1; bubbleIndex >= 0; bubbleIndex -= 1)
         {
-            if (DistanceBetween(centerX, centerY, _bubbles[bubbleIndex].X, _bubbles[bubbleIndex].Y) < GeneratorExplosionBlastRadius)
+            if (DistanceBetween(centerX, centerY, Bubbles[bubbleIndex].X, Bubbles[bubbleIndex].Y) < GeneratorExplosionBlastRadius)
             {
                 RemoveBubbleAt(bubbleIndex);
             }

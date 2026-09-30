@@ -1527,11 +1527,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
 
     private static void AdvanceNeedles(SimulationWorld world)
     {
-        var method = typeof(SimulationWorld).GetMethod(
-            "AdvanceNeedles",
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        _ = method!.Invoke(world, null);
+        world.Projectiles.AdvanceNeedles();
     }
 
     private static bool InvokeDetonateOwnedExplosiveArrows(

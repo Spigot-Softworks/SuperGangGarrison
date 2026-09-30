@@ -171,36 +171,7 @@ public sealed partial class SimulationWorld
 
     private bool RemoveProtocol64Projectile(int entityId)
     {
-        var removed = false;
-        removed |= RemoveEntity(_shots, entityId);
-        removed |= RemoveEntity(_bubbles, entityId);
-        removed |= RemoveEntity(_blades, entityId);
-        removed |= RemoveEntity(_needles, entityId);
-        removed |= RemoveEntity(_revolverShots, entityId);
-        removed |= RemoveEntity(_flames, entityId);
-        removed |= RemoveEntity(_flares, entityId);
-        removed |= RemoveEntity(_rockets, entityId);
-        removed |= RemoveEntity(_mines, entityId);
-        removed |= RemoveEntity(_grenades, entityId);
-        removed |= EntityStore.Remove(entityId);
-        return removed;
-    }
-
-    private static bool RemoveEntity<T>(List<T> entities, int entityId)
-        where T : SimulationEntity
-    {
-        for (var index = entities.Count - 1; index >= 0; index -= 1)
-        {
-            if (entities[index].Id != entityId)
-            {
-                continue;
-            }
-
-            entities.RemoveAt(index);
-            return true;
-        }
-
-        return false;
+        return Projectiles.RemoveProjectileEntity(entityId);
     }
 
     private static SimulationEntity? CreateProtocol64Projectile(
@@ -414,22 +385,7 @@ public sealed partial class SimulationWorld
 
     private void AddProtocol64Projectile(SimulationEntity entity)
     {
-        switch (entity)
-        {
-            case ShotProjectileEntity value: _shots.Add(value); break;
-            case BladeProjectileEntity value: _blades.Add(value); break;
-            case NeedleProjectileEntity value: _needles.Add(value); break;
-            case RevolverProjectileEntity value: _revolverShots.Add(value); break;
-            case RocketProjectileEntity value: _rockets.Add(value); break;
-            case FlameProjectileEntity value: _flames.Add(value); break;
-            case FlareProjectileEntity value: _flares.Add(value); break;
-            case MineProjectileEntity value: _mines.Add(value); break;
-            case GrenadeProjectileEntity value: _grenades.Add(value); break;
-            case BubbleProjectileEntity value: _bubbles.Add(value); break;
-            default: throw new ArgumentOutOfRangeException(nameof(entity));
-        }
-
-        EntityStore.Set(entity.Id, entity);
+        Projectiles.AddProjectileEntity(entity);
         ReserveEntityId(entity.Id);
     }
 

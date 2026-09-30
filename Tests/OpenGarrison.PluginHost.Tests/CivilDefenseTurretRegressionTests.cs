@@ -139,7 +139,7 @@ public sealed class CivilDefenseTurretRegressionTests
             "mine" => (new MineProjectileEntity(id, team, 9999, x, y, velocityX, 0), "_mines"),
             _ => (new ShotProjectileEntity(id, team, 9999, x, y, velocityX, 0), "_shots"),
         };
-        ((IList)typeof(SimulationWorld).GetField(projectile.Collection, BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance)!.GetValue(world)!).Add(projectile.Entity);
+        ((IList)typeof(ProjectileSystem).GetField(projectile.Collection, BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance)!.GetValue(world.Projectiles)!).Add(projectile.Entity);
         world.EntityStore.Add(projectile.Entity);
         return projectile.Entity;
     }
