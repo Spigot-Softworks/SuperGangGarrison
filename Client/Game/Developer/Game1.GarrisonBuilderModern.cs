@@ -13,7 +13,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private enum GarrisonBuilderTool
+    public enum GarrisonBuilderTool
     {
         Select,
         Place,
@@ -4038,7 +4038,7 @@ public partial class Game1
         }
     }
 
-    private bool IsLinkedObjectiveSelected(CustomMapBuilderEntity spawn)
+    public bool IsLinkedObjectiveSelected(CustomMapBuilderEntity spawn)
     {
         if (_builderSelectedEntityIndex < 0 || _builderSelectedEntityIndex >= _builderEntities.Count)
         {

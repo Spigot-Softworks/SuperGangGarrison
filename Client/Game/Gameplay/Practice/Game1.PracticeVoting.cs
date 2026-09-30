@@ -8,10 +8,10 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private (string Map, int Area)? _offlinePracticeNextMap;
-    private double _offlinePracticeMapChangeAt;
-    private bool IsOfflinePracticeVote => IsPracticeSessionActive && !_networkClient.IsConnected;
-    private void OpenPracticeVoteMenu()
+    public (string Map, int Area)? _offlinePracticeNextMap;
+    public double _offlinePracticeMapChangeAt;
+    public bool IsOfflinePracticeVote => IsPracticeSessionActive && !_networkClient.IsConnected;
+    public void OpenPracticeVoteMenu()
     {
         if (!IsOfflinePracticeVote) { _networkClient.SendVoteCommand(VoteCommandKind.OpenMenu); return; }
         var maps = BuildAllPracticeMapEntries().Select(map => new VoteMenuMapEntry(map.LevelName, map.DisplayName, 1)).ToArray();
@@ -34,7 +34,7 @@ public partial class Game1
         BeginPracticeSession(map);
         if (area > 1) _world.TryLoadLevel(map, area, preservePlayerStats: false);
     }
-    private void UpdateOfflinePracticeMapVote()
+    public void UpdateOfflinePracticeMapVote()
     {
         if (!IsOfflinePracticeVote || _offlinePracticeNextMap is not { } next || !_world.MatchState.IsEnded) return;
         if (_offlinePracticeMapChangeAt == 0) _offlinePracticeMapChangeAt = VoiceClockSeconds + 5;

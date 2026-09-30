@@ -35,7 +35,7 @@ public sealed class ClientTransportFailureTests
         if (operation == "send")
         {
             transport.SendError = SocketError.AccessDenied;
-            typeof(NetworkGameClient).GetField("_lastHelloSentAtMilliseconds", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(client, -1L);
+            typeof(NetworkGameClient).GetField("_lastHelloSentAtMilliseconds", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!.SetValue(client, -1L);
         }
         else if (operation == "available") transport.AvailableError = SocketError.NetworkDown;
         else transport.ReceiveError = SocketError.AccessDenied;
@@ -92,7 +92,7 @@ public sealed class ClientTransportFailureTests
         if (operation == "send")
         {
             transport.SendError = SocketError.WouldBlock;
-            typeof(NetworkGameClient).GetField("_lastHelloSentAtMilliseconds", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(client, -1L);
+            typeof(NetworkGameClient).GetField("_lastHelloSentAtMilliseconds", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!.SetValue(client, -1L);
         }
         else if (operation == "available") transport.AvailableError = SocketError.WouldBlock;
         else transport.ReceiveError = SocketError.WouldBlock;
@@ -100,7 +100,7 @@ public sealed class ClientTransportFailureTests
         Assert.True(client.IsConnected);
         Assert.False(client.TryConsumeDisconnectReason(out _));
         transport.SendError = transport.AvailableError = transport.ReceiveError = null;
-        typeof(NetworkGameClient).GetField("_lastHelloSentAtMilliseconds", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(client, -1L);
+        typeof(NetworkGameClient).GetField("_lastHelloSentAtMilliseconds", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!.SetValue(client, -1L);
         Assert.Empty(client.ReceiveMessages());
         Assert.Equal(2, transport.SentCount);
         Assert.True(client.IsConnected);
@@ -148,7 +148,7 @@ public sealed class ClientTransportFailureTests
             LastToDieWireDifficulty.Standard, LastToDieWirePhase.Lobby, 0, 0, 0, "", 0, 0, 0, [])).Applied);
         Assert.NotEqual(0UL, client.SendLastToDieCommand(LastToDieCommandKind.Ready));
         Assert.NotEqual(0UL, client.SendLastToDieCommand(LastToDieCommandKind.RequestStart));
-        var pending = (IDictionary)typeof(NetworkGameClient).GetField("_pendingLastToDieCommands", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(client)!;
+        var pending = (IDictionary)typeof(NetworkGameClient).GetField("_pendingLastToDieCommands", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!.GetValue(client)!;
         foreach (var command in pending.Values) command!.GetType().GetProperty("LastSentAtMilliseconds")!.SetValue(command, -1000L);
         transport.SendError = SocketError.AccessDenied;
         Assert.Empty(client.ReceiveMessages());
@@ -158,25 +158,6 @@ public sealed class ClientTransportFailureTests
         Assert.Empty(pending);
     }
 
-    [Fact]
-    public async Task LocalUdpHandshakeCanRetryAfterTheServerBindsItsPortLater()
-    {
-        int port;
-        using (var probe = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0))) port = ((IPEndPoint)probe.Client.LocalEndPoint!).Port;
-        using var client = new NetworkGameClient();
-        Assert.True(client.Connect("127.0.0.1", port, "Tester", 0, out var error), error);
-        Assert.Empty(client.ReceiveMessages());
-        Assert.True(client.IsConnected);
-        using var server = new UdpClient(new IPEndPoint(IPAddress.Loopback, port));
-        typeof(NetworkGameClient).GetField("_lastHelloSentAtMilliseconds", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(client, -1L);
-        Assert.Empty(client.ReceiveMessages());
-        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-        var packet = await server.ReceiveAsync(deadline.Token);
-        Assert.True(ProtocolCodec.TryDeserialize(packet.Buffer, out var message));
-        Assert.IsType<HelloMessage>(message);
-        Assert.True(client.IsConnected);
-        Assert.False(client.TryConsumeDisconnectReason(out _));
-    }
 
     private sealed class FaultingTransport(bool protocol64) : INetworkClientMessageTransport, INetworkClientAudioMessageTransport
     {

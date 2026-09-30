@@ -12,11 +12,11 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private int _practiceSetupControllerIndex;
-    private HostSetupMapPreviewState? _practiceMapBrowserPreviewState;
-    private string? _practiceMapBrowserPreviewLevelName;
+    public int _practiceSetupControllerIndex;
+    public HostSetupMapPreviewState? _practiceMapBrowserPreviewState;
+    public string? _practiceMapBrowserPreviewLevelName;
 
-    private readonly record struct PracticeSetupLayout(
+    public readonly record struct PracticeSetupLayout(
         Rectangle Panel,
         Rectangle MapLeftBounds,
         Rectangle MapValueBounds,
@@ -48,7 +48,7 @@ public partial class Game1
         Rectangle BackBounds,
         bool CompactLayout);
 
-    private void OpenPracticeSetupMenu()
+    public void OpenPracticeSetupMenu()
     {
         CloseInGameMenu();
         _practiceSetupOpen = true;
@@ -79,7 +79,7 @@ public partial class Game1
         OpenPracticeMapBrowser();
     }
 
-    private void UpdatePracticeSetupMenu(KeyboardState keyboard, MouseState mouse)
+    public void UpdatePracticeSetupMenu(KeyboardState keyboard, MouseState mouse)
     {
         if (_practiceSetupState.MapBrowserOpen)
         {
@@ -332,7 +332,7 @@ public partial class Game1
         }
     }
 
-    private void DrawPracticeSetupMenu()
+    public void DrawPracticeSetupMenu()
     {
         var viewportWidth = ViewportWidth;
         var viewportHeight = ViewportHeight;
@@ -345,7 +345,7 @@ public partial class Game1
             var barY = viewportHeight - bottomBarHeight;
             var bottomBarBounds = new Rectangle(0, barY, viewportWidth, bottomBarHeight);
             _spriteBatch.Draw(_pixel, bottomBarBounds, new Color(0x57, 0x4f, 0x47));
-            _menuBottomBarRunners.Draw(bottomBarBounds);
+            _menuManager.MenuBottomBarRunners.Draw(bottomBarBounds);
         }
 
         var layout = GetPracticeSetupLayout();
@@ -543,7 +543,7 @@ public partial class Game1
         _menuStatusMessage = string.Empty;
     }
 
-    private bool TryHandlePracticeMapBrowserTextInput(char character)
+    public bool TryHandlePracticeMapBrowserTextInput(char character)
     {
         if (!_practiceSetupOpen || !_practiceSetupState.MapBrowserOpen || _practiceEditField != PracticeEditField.MapNameFilter)
         {

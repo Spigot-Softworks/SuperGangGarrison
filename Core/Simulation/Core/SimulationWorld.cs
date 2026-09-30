@@ -29,23 +29,13 @@ public sealed partial class SimulationWorld
     private const int DefaultGibLevel = 3;
     private const int LocalProjectileTerminationSuppressionTicks = 12;
     private const int NetworkProjectileRemovalSuppressionTicks = 180;
-    private readonly Dictionary<int, SimulationEntity> _entities = new();
+    public EntityStore EntityStore { get; } = new();
+    public CombatSystem Combat { get; }
+    public SnapshotSystem Snapshots { get; }
+    public ProjectileSystem Projectiles { get; }
     private readonly List<CombatTrace> _combatTraces = new();
     private readonly List<SniperAimIndicator> _sniperAimIndicators = new();
     private readonly List<KillFeedEntry> _killFeed = new();
-    private readonly List<ShotProjectileEntity> _shots = new();
-    private readonly List<BubbleProjectileEntity> _bubbles = new();
-    private readonly List<BladeProjectileEntity> _blades = new();
-    private readonly List<NeedleProjectileEntity> _needles = new();
-    private readonly List<RevolverProjectileEntity> _revolverShots = new();
-    private readonly List<StabAnimEntity> _stabAnimations = new();
-    private readonly List<StabMaskEntity> _stabMasks = new();
-    private readonly List<FlameProjectileEntity> _flames = new();
-    private readonly List<FlareProjectileEntity> _flares = new();
-    private readonly List<RocketProjectileEntity> _rockets = new();
-    private readonly List<int> _pendingNewRocketIds = new();
-    private readonly List<MineProjectileEntity> _mines = new();
-    private readonly List<GrenadeProjectileEntity> _grenades = new();
     private readonly List<SentryEntity> _sentries = new();
     private readonly List<JumpPadEntity> _jumpPads = new();
     private readonly List<CivilDefenseTurretEntity> _civilDefenseTurrets = new();
@@ -58,13 +48,11 @@ public sealed partial class SimulationWorld
     private readonly List<DeadBodyEntity> _deadBodies = new();
     private readonly List<SentryGibEntity> _sentryGibs = new();
     private readonly List<JumpPadGibEntity> _jumpPadGibs = new();
-    private readonly List<MovingPlatformRuntimeState> _movingPlatforms = new();
     private readonly List<GeneratorState> _generators = new();
     private readonly List<WorldSoundEvent> _pendingSoundEvents = new();
     private readonly List<WorldVisualEvent> _pendingVisualEvents = new();
-    private readonly List<WorldDamageEvent> _pendingDamageEvents = new();
     private readonly List<WorldGibSpawnEvent> _pendingGibSpawnEvents = new();
-    private readonly List<WorldRocketSpawnEvent> _pendingRocketSpawnEvents = new();
+    private readonly List<WorldRocketSpawnEvent> _pendingRocketSpawnEvents;
     private readonly List<WorldHealingEvent> _pendingHealingEvents = new();
     private readonly Queue<DangerCloseExplosionRequest> _pendingDangerCloseExplosions = new();
     private readonly List<PlayerEntity> _remoteSnapshotPlayers = new();
@@ -94,9 +82,6 @@ public sealed partial class SimulationWorld
     private readonly Dictionary<byte, bool> _additionalNetworkPlayerAwaitingJoin = new();
     private readonly Dictionary<byte, int> _additionalNetworkPlayerRespawnTicks = new();
     private readonly HashSet<byte> _automaticRespawnSuppressedNetworkSlots = new();
-    private readonly Dictionary<int, int> _jumpInputBufferTicksByPlayerId = new();
-    private readonly Dictionary<(int PlayerId, int RoomObjectIndex), bool> _catapultContacts = new();
-    private SimpleLevel? _catapultContactLevel;
     private readonly Dictionary<byte, int> _networkPlayerPingMillisecondsBySlot = new();
     private readonly HashSet<byte> _networkBotSlots = new();
     private readonly Dictionary<byte, PlayerTeam> _additionalNetworkPlayerTeams = new();
@@ -182,7 +167,7 @@ public sealed partial class SimulationWorld
 
     public SimulationConfig Config { get; }
 
-    public IReadOnlyDictionary<int, SimulationEntity> Entities => _entities;
+    public IReadOnlyDictionary<int, SimulationEntity> Entities => EntityStore.AsReadOnly();
 
     public SimpleLevel Level { get; private set; }
 
@@ -286,29 +271,29 @@ public sealed partial class SimulationWorld
 
     public IReadOnlyList<SniperAimIndicator> SniperAimIndicators => _sniperAimIndicators;
 
-    public IReadOnlyList<ShotProjectileEntity> Shots => _shots;
+    public IReadOnlyList<ShotProjectileEntity> Shots => Projectiles.Shots;
 
-    public IReadOnlyList<BubbleProjectileEntity> Bubbles => _bubbles;
+    public IReadOnlyList<BubbleProjectileEntity> Bubbles => Projectiles.Bubbles;
 
-    public IReadOnlyList<BladeProjectileEntity> Blades => _blades;
+    public IReadOnlyList<BladeProjectileEntity> Blades => Projectiles.Blades;
 
-    public IReadOnlyList<NeedleProjectileEntity> Needles => _needles;
+    public IReadOnlyList<NeedleProjectileEntity> Needles => Projectiles.Needles;
 
-    public IReadOnlyList<RevolverProjectileEntity> RevolverShots => _revolverShots;
+    public IReadOnlyList<RevolverProjectileEntity> RevolverShots => Projectiles.RevolverShots;
 
-    public IReadOnlyList<StabAnimEntity> StabAnimations => _stabAnimations;
+    public IReadOnlyList<StabAnimEntity> StabAnimations => Projectiles.StabAnimations;
 
-    public IReadOnlyList<StabMaskEntity> StabMasks => _stabMasks;
+    public IReadOnlyList<StabMaskEntity> StabMasks => Projectiles.StabMasks;
 
-    public IReadOnlyList<FlameProjectileEntity> Flames => _flames;
+    public IReadOnlyList<FlameProjectileEntity> Flames => Projectiles.Flames;
 
-    public IReadOnlyList<FlareProjectileEntity> Flares => _flares;
+    public IReadOnlyList<FlareProjectileEntity> Flares => Projectiles.Flares;
 
-    public IReadOnlyList<RocketProjectileEntity> Rockets => _rockets;
+    public IReadOnlyList<RocketProjectileEntity> Rockets => Projectiles.Rockets;
 
-    public IReadOnlyList<MineProjectileEntity> Mines => _mines;
+    public IReadOnlyList<MineProjectileEntity> Mines => Projectiles.Mines;
 
-    public IReadOnlyList<GrenadeProjectileEntity> Grenades => _grenades;
+    public IReadOnlyList<GrenadeProjectileEntity> Grenades => Projectiles.Grenades;
 
     public IReadOnlyList<SentryEntity> Sentries => _sentries;
 
@@ -316,7 +301,6 @@ public sealed partial class SimulationWorld
 
     public IReadOnlyList<CivilDefenseTurretEntity> CivilDefenseTurrets => _civilDefenseTurrets;
 
-    public IReadOnlyList<MovingPlatformRuntimeState> MovingPlatforms => _movingPlatforms;
 
     public IReadOnlyList<PlayerGibEntity> PlayerGibs => _playerGibs;
 
@@ -336,7 +320,7 @@ public sealed partial class SimulationWorld
 
     public IReadOnlyList<WorldVisualEvent> PendingVisualEvents => _pendingVisualEvents;
 
-    public IReadOnlyList<WorldDamageEvent> PendingDamageEvents => _pendingDamageEvents;
+    public IReadOnlyList<WorldDamageEvent> PendingDamageEvents => Combat.PendingDamageEvents;
 
     public IReadOnlyList<WorldRocketSpawnEvent> PendingRocketSpawnEvents => _pendingRocketSpawnEvents;
 
@@ -428,7 +412,12 @@ public sealed partial class SimulationWorld
         _runtimeController = new RuntimeController(this);
         _runtimeQueryController = new RuntimeQueryController(this);
         Config = config ?? new SimulationConfig();
+        Combat = new CombatSystem(EntityStore, CreateCombatSystemDependencies());
+        Snapshots = new SnapshotSystem(EntityStore, Combat, CreateSnapshotSystemDependencies());
+        Projectiles = new ProjectileSystem(EntityStore, Combat, CreateProjectileSystemDependencies());
+        _pendingRocketSpawnEvents = Projectiles.PendingRocketSpawnEventsInternal;
         Level = SimpleLevelFactory.CreateScoutPrototypeLevel(_configuredMapScale);
+        Movement = new MovementSystem(CreateMovementSystemDependencies());
         RedIntel = CreateIntelState(PlayerTeam.Red);
         BlueIntel = CreateIntelState(PlayerTeam.Blue);
         MatchRules = CreateDefaultMatchRules(Level.Mode);
@@ -438,7 +427,7 @@ public sealed partial class SimulationWorld
         ApplyServerGameplayTuning(LocalPlayerSlot, LocalPlayer);
         var initialSpawn = ReserveSpawn(LocalPlayer, LocalPlayerTeam);
         SpawnPlayerResolved(LocalPlayer, LocalPlayerTeam, initialSpawn);
-        _entities.Add(LocalPlayer.Id, LocalPlayer);
+        EntityStore.Add(LocalPlayer);
         _activeNetworkPlayersById[LocalPlayer.Id] = LocalPlayer;
         _networkPlayerSlotsByPlayerId[LocalPlayer.Id] = LocalPlayerSlot;
         EnemyPlayer = new PlayerEntity(AllocateEntityId(), _enemyDummyClassDefinition, DefaultEnemyPlayerName);
@@ -455,12 +444,12 @@ public sealed partial class SimulationWorld
             EnemyPlayerEnabled = false;
             EnemyPlayer.Kill();
         }
-        _entities.Add(EnemyPlayer.Id, EnemyPlayer);
+        EntityStore.Add(EnemyPlayer);
         FriendlyDummy = new PlayerEntity(AllocateEntityId(), _friendlyDummyClassDefinition, DefaultFriendlyDummyName);
         FriendlyDummy.SetPlayerScale(_configuredPlayerScale);
         ApplyServerGameplayTuning(slot: 0, FriendlyDummy);
         FriendlyDummy.Kill();
-        _entities.Add(FriendlyDummy.Id, FriendlyDummy);
+        EntityStore.Add(FriendlyDummy);
         ResetHealthPackSpawnsForLevel();
         ResetJumpPadSpawnsForLevel();
     }
@@ -589,16 +578,7 @@ public sealed partial class SimulationWorld
     }
 
     public IReadOnlyList<WorldDamageEvent> DrainPendingDamageEvents()
-    {
-        if (_pendingDamageEvents.Count == 0)
-        {
-            return [];
-        }
-
-        var damageEvents = _pendingDamageEvents.ToArray();
-        _pendingDamageEvents.Clear();
-        return damageEvents;
-    }
+        => Combat.DrainPendingDamageEvents();
 
     public IReadOnlyList<WorldGibSpawnEvent> DrainPendingGibSpawnEvents()
     {

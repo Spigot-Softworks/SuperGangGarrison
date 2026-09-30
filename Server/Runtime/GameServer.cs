@@ -95,8 +95,6 @@ sealed partial class GameServer
     private readonly string? _webSocketCertificatePath;
     private readonly string? _webSocketCertificatePassword;
     private readonly string? _publicWebSocketUrl;
-    private readonly int _quicPort;
-    private readonly string? _publicQuicUrl;
     private readonly Uri? _relayHostUrl;
     private readonly double _clientTimeoutSeconds;
     private readonly double _passwordTimeoutSeconds;
@@ -118,7 +116,6 @@ sealed partial class GameServer
     private UdpClient _udp = null!;
     private OpenGarrison.Server.IServerMessageTransport _messageTransport = null!;
     private IDisposable? _webSocketHost;
-    private IAsyncDisposable? _quicHost;
     private Task? _relayHostTask;
     private CancellationTokenSource? _relayHostCts;
     private bool _mapDownloadEndpointAvailable;
@@ -201,8 +198,6 @@ sealed partial class GameServer
         string? webSocketCertificatePath,
         string? webSocketCertificatePassword,
         string? publicWebSocketUrl,
-        int quicPort,
-        string? publicQuicUrl,
         Uri? relayHostUrl,
         double clientTimeoutSeconds,
         double passwordTimeoutSeconds,
@@ -267,8 +262,6 @@ sealed partial class GameServer
         _webSocketCertificatePath = webSocketCertificatePath;
         _webSocketCertificatePassword = webSocketCertificatePassword;
         _publicWebSocketUrl = publicWebSocketUrl;
-        _quicPort = quicPort is > 0 and <= 65535 ? quicPort : 0;
-        _publicQuicUrl = publicQuicUrl;
         _relayHostUrl = relayHostUrl;
         _clientTimeoutSeconds = clientTimeoutSeconds;
         _passwordTimeoutSeconds = passwordTimeoutSeconds;

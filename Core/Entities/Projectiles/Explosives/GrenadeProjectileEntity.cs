@@ -76,7 +76,7 @@ public sealed class GrenadeProjectileEntity : SimulationEntity
         VelocityY = velocityY;
         KillFeedWeaponSpriteNameOverride = killFeedWeaponSpriteNameOverride;
         FuseTicksLeft = FuseTicksRemaining;
-        RotationAngle = MathF.Atan2(velocityY, velocityX);
+        RotationAngle = DeterministicMath.Atan2(velocityY, velocityX);
     }
 
     public PlayerTeam Team { get; private set; }
@@ -206,8 +206,8 @@ public sealed class GrenadeProjectileEntity : SimulationEntity
         Team = team;
         var currentSpeed = MathF.Sqrt((VelocityX * VelocityX) + (VelocityY * VelocityY));
         var reflectedSpeed = MathF.Max(currentSpeed, ReflectedSpeedFloor);
-        VelocityX = MathF.Cos(directionRadians) * reflectedSpeed;
-        VelocityY = MathF.Sin(directionRadians) * reflectedSpeed;
+        VelocityX = DeterministicMath.Cos(directionRadians) * reflectedSpeed;
+        VelocityY = DeterministicMath.Sin(directionRadians) * reflectedSpeed;
         PreviousX = X;
         PreviousY = Y;
         FuseTicksLeft = FuseTicksRemaining;
@@ -218,8 +218,8 @@ public sealed class GrenadeProjectileEntity : SimulationEntity
     {
         var currentSpeed = MathF.Sqrt((VelocityX * VelocityX) + (VelocityY * VelocityY));
         var pushedSpeed = MathF.Max(currentSpeed, MathF.Max(0f, speedFloor));
-        VelocityX = MathF.Cos(directionRadians) * pushedSpeed;
-        VelocityY = MathF.Sin(directionRadians) * pushedSpeed;
+        VelocityX = DeterministicMath.Cos(directionRadians) * pushedSpeed;
+        VelocityY = DeterministicMath.Sin(directionRadians) * pushedSpeed;
         PreviousX = X;
         PreviousY = Y;
     }
@@ -242,7 +242,7 @@ public sealed class GrenadeProjectileEntity : SimulationEntity
         IsDestroyed = isDestroyed;
         ExplosionDamage = explosionDamage;
         FuseTicksLeft = fuseTicksLeft;
-        RotationAngle = MathF.Atan2(velocityY, velocityX);
+        RotationAngle = DeterministicMath.Atan2(velocityY, velocityX);
         RotationSpeed = 0f;
     }
 
@@ -266,7 +266,7 @@ public sealed class GrenadeProjectileEntity : SimulationEntity
         IsDestroyed = isDestroyed;
         ExplosionDamage = explosionDamage;
         FuseTicksLeft = fuseTicksLeft;
-        RotationAngle = MathF.Atan2(velocityY, velocityX);
+        RotationAngle = DeterministicMath.Atan2(velocityY, velocityX);
         RotationSpeed = 0f;
     }
 }

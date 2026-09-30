@@ -8,21 +8,21 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private static readonly TimeSpan CrtUnlockSequenceTimeout = TimeSpan.FromSeconds(3);
-    private static readonly Keys[] CrtUnlockAlphabet =
+    public static readonly TimeSpan CrtUnlockSequenceTimeout = TimeSpan.FromSeconds(3);
+    public static readonly Keys[] CrtUnlockAlphabet =
     [
         Keys.A, Keys.B, Keys.C, Keys.D, Keys.E, Keys.F, Keys.G, Keys.H, Keys.I, Keys.J,
         Keys.K, Keys.L, Keys.M, Keys.N, Keys.O, Keys.P, Keys.Q, Keys.R, Keys.S, Keys.T,
         Keys.U, Keys.V, Keys.W, Keys.X, Keys.Y, Keys.Z,
     ];
 
-    private bool _crtSettingsUnlockedForSession;
-    private int _crtUnlockSequenceProgress;
-    private TimeSpan _crtUnlockLastInputAt;
+    public bool _crtSettingsUnlockedForSession;
+    public int _crtUnlockSequenceProgress;
+    public TimeSpan _crtUnlockLastInputAt;
 
-    private bool IsCrtSettingsUnlockedForSession => !OperatingSystem.IsBrowser() && _crtSettingsUnlockedForSession;
+    public bool IsCrtSettingsUnlockedForSession => !OperatingSystem.IsBrowser() && _crtSettingsUnlockedForSession;
 
-    private void UpdateCrtUnlockSequence(KeyboardState keyboard, TimeSpan totalGameTime)
+    public void UpdateCrtUnlockSequence(KeyboardState keyboard, TimeSpan totalGameTime)
     {
         if (!CanListenForCrtUnlockSequence())
         {
@@ -84,7 +84,7 @@ public partial class Game1
         _crtUnlockSequenceProgress = pressedLetter == Keys.C ? 1 : 0;
     }
 
-    private bool CanListenForCrtUnlockSequence()
+    public bool CanListenForCrtUnlockSequence()
     {
         return !OperatingSystem.IsBrowser()
             && !_crtSettingsUnlockedForSession
@@ -95,7 +95,7 @@ public partial class Game1
             && !_mainMenuChromeHidden
             && !_builderEditorEnabled
             && _mainMenuPage == MainMenuPage.Root
-            && _mainMenuOverlayController.GetActiveOverlay() == MainMenuOverlayKind.None
+            && _menuManager.MainMenuOverlay.GetActiveOverlay() == MainMenuOverlayKind.None
             && _activeDevMessagePopup is null
             && !_quitPromptOpen
             && !_passwordPromptOpen
@@ -110,7 +110,7 @@ public partial class Game1
             && _hostSetupEditField == HostSetupEditField.None;
     }
 
-    private void UnlockCrtSettingsForSession()
+    public void UnlockCrtSettingsForSession()
     {
         _crtSettingsUnlockedForSession = true;
         _crtUnlockSequenceProgress = 0;
@@ -120,7 +120,7 @@ public partial class Game1
         }
     }
 
-    private string GetCrtPresetLabel()
+    public string GetCrtPresetLabel()
     {
         return OpenGarrisonPreferencesDocument.NormalizeCrtPreset(_clientSettings.CrtPreset) switch
         {
@@ -132,7 +132,7 @@ public partial class Game1
         };
     }
 
-    private string GetCrtSignalModeLabel()
+    public string GetCrtSignalModeLabel()
     {
         return OpenGarrisonPreferencesDocument.NormalizeCrtSignalMode(_clientSettings.CrtSignalMode) switch
         {
@@ -142,7 +142,7 @@ public partial class Game1
         };
     }
 
-    private void CycleCrtPresetSetting()
+    public void CycleCrtPresetSetting()
     {
         _clientSettings.CrtPreset = OpenGarrisonPreferencesDocument.NormalizeCrtPreset(_clientSettings.CrtPreset) switch
         {
@@ -155,7 +155,7 @@ public partial class Game1
         CommitCrtSettingsChange();
     }
 
-    private void CycleCrtQualitySetting()
+    public void CycleCrtQualitySetting()
     {
         _clientSettings.CrtQuality = OpenGarrisonPreferencesDocument.NormalizeCrtQuality(_clientSettings.CrtQuality) switch
         {
@@ -166,7 +166,7 @@ public partial class Game1
         CommitCrtSettingsChange();
     }
 
-    private void CycleCrtSignalModeSetting()
+    public void CycleCrtSignalModeSetting()
     {
         _clientSettings.CrtSignalMode = OpenGarrisonPreferencesDocument.NormalizeCrtSignalMode(_clientSettings.CrtSignalMode) switch
         {
@@ -177,18 +177,18 @@ public partial class Game1
         CommitCrtSettingsChange();
     }
 
-    private void ToggleCrtCurvatureSetting()
+    public void ToggleCrtCurvatureSetting()
     {
         _clientSettings.CrtCurvatureEnabled = !_clientSettings.CrtCurvatureEnabled;
         CommitCrtSettingsChange();
     }
 
-    private void CycleCrtBrightnessSetting()
+    public void CycleCrtBrightnessSetting()
     {
         AdjustCrtBrightnessSetting(5);
     }
 
-    private void AdjustCrtBrightnessSetting(int delta)
+    public void AdjustCrtBrightnessSetting(int delta)
     {
         var current = OpenGarrisonPreferencesDocument.NormalizeCrtBrightnessPercent(_clientSettings.CrtBrightnessPercent);
         var next = OpenGarrisonPreferencesDocument.NormalizeCrtBrightnessPercent(current + delta);
@@ -201,7 +201,7 @@ public partial class Game1
         CommitCrtSettingsChange();
     }
 
-    private void ResetCrtSettings()
+    public void ResetCrtSettings()
     {
         var hasChanges = _clientSettings.CrtPreset != OpenGarrisonPreferencesDocument.DefaultCrtPreset
             || _clientSettings.CrtQuality != OpenGarrisonPreferencesDocument.DefaultCrtQuality

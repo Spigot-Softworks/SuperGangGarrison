@@ -16,7 +16,7 @@ public sealed partial class SimulationWorld
             return (startX, startY);
         var directionX = dx / distance;
         var directionY = dy / distance;
-        var hitDistance = Combat.GetProjectilePresentationEnvironmentHit(team, startX, startY, directionX, directionY, distance);
+        var hitDistance = GeometryResolver.GetProjectilePresentationEnvironmentHit(team, startX, startY, directionX, directionY, distance);
         if (!hitDistance.HasValue)
             return (endX, endY);
         var travel = MathF.Max(0f, hitDistance.Value - MathF.Max(0f, collisionBackoff));

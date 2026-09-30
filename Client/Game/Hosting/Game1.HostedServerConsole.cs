@@ -7,7 +7,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private void DrawHostedServerConsoleTab(HostSetupMenuLayout menuLayout)
+    public void DrawHostedServerConsoleTab(HostSetupMenuLayout menuLayout)
     {
         var consoleSnapshot = GetHostedServerConsoleSnapshot();
         var consoleLayout = HostSetupMenuLayoutCalculator.CreateHostedServerConsoleLayout(menuLayout.Panel);
@@ -102,7 +102,7 @@ public partial class Game1
         _spriteBatch.DrawString(_consoleFont, TrimConsoleText(value, bounds.Width - 16f), new Vector2(bounds.X + 10f, valueY), Color.White);
     }
 
-    private void ExecuteHostedServerCommandFromUi(string command)
+    public void ExecuteHostedServerCommandFromUi(string command)
     {
         if (TrySendHostedServerCommand(command, out var error))
         {

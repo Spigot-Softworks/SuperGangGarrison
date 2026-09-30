@@ -7,33 +7,33 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private void ResetGameplayRuntimeState()
+    public void ResetGameplayRuntimeState()
     {
-        _gameplayResetController.ResetGameplayRuntimeState();
+        _gameplayManager.Reset.ResetGameplayRuntimeState();
     }
 
-    private void ResetGameplayTransitionEffects()
+    public void ResetGameplayTransitionEffects()
     {
-        _gameplayResetController.ResetGameplayTransitionEffects();
+        _gameplayManager.Reset.ResetGameplayTransitionEffects();
     }
 
-    private void CloseGameplayOverlayState()
+    public void CloseGameplayOverlayState()
     {
-        _gameplayOverlayStateController.CloseGameplayOverlayState();
+        _gameplayManager.OverlayState.CloseGameplayOverlayState();
     }
 
-    private void CloseMainMenuOverlayState()
+    public void CloseMainMenuOverlayState()
     {
-        _gameplayOverlayStateController.CloseMainMenuOverlayState();
+        _gameplayManager.OverlayState.CloseMainMenuOverlayState();
     }
 
     private void EnterGameplaySession(GameplaySessionKind sessionKind, bool openJoinMenus, string? statusMessage = null)
     {
-        _gameplaySessionController.EnterGameplaySession(sessionKind, openJoinMenus, statusMessage);
+        _gameplayManager.Session.EnterGameplaySession(sessionKind, openJoinMenus, statusMessage);
     }
 
     private void ResetToMainMenuState(string? statusMessage)
     {
-        _gameplaySessionController.ResetToMainMenuState(statusMessage);
+        _gameplayManager.Session.ResetToMainMenuState(statusMessage);
     }
 }

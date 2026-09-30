@@ -23,12 +23,10 @@ public sealed record Protocol64ChannelSchedulerOptions
 /// </summary>
 public sealed class Protocol64ChannelScheduler
 {
-    // QUIC has a simulation-thread producer and an I/O-thread consumer. The
-    // original scheduler was written as a single-threaded primitive, but the
-    // native QUIC backend shares it across those two lifetimes. Keep the
-    // scheduler as the ownership boundary so callers cannot concurrently
-    // mutate one of the dictionaries while TryDequeue/GetActiveStreams is
-    // enumerating it.
+    // The scheduler may have a simulation-thread producer and an I/O-thread
+    // consumer. Keep it as the ownership boundary so callers cannot
+    // concurrently mutate one of the dictionaries while dequeueing or
+    // enumerating active streams.
     private readonly object _gate = new();
     private readonly Protocol64ChannelSchedulerOptions _options;
     private readonly Dictionary<ChannelType, Queue<PendingFrame>> _ordered = [];

@@ -1,0 +1,96 @@
+#nullable enable
+
+using System.Collections.Generic;
+using Microsoft.Xna.Framework;
+using OpenGarrison.Core;
+using static OpenGarrison.Client.Game1;
+
+namespace OpenGarrison.Client;
+
+public sealed class GameplayPlayerRenderController
+{
+    private readonly IRenderContext _game;
+
+    public GameplayPlayerRenderController(IRenderContext game)
+        {
+            _game = game;
+        }
+
+        public void DrawPlayer(PlayerEntity player, Vector2 cameraPosition, Color aliveColor, Color deadColor)
+        {
+            if (!player.IsAlive || !_game.HasFreshPlayerRenderHistory(player))
+            {
+                return;
+            }
+
+            var visibilityAlpha = _game.GetPlayerVisibilityAlpha(player);
+            if (visibilityAlpha <= 0f)
+            {
+                return;
+            }
+
+            var renderPosition = _game.GetRenderPosition(player);
+            var rectangle = Game1.GetPlayerScreenBounds(player, renderPosition, cameraPosition);
+            var fallbackColor = aliveColor * visibilityAlpha;
+            var spriteTint = _game.GetPlayerColor(player, Color.White);
+            var bodySelection = _game.GetPlayerBodySpriteSelection(player);
+            _game.DrawExperimentalDemoknightChargeBlur(player, cameraPosition, spriteTint, visibilityAlpha, bodySelection);
+            _game.DrawCapturedPointHealingGhosting(player, renderPosition, cameraPosition, visibilityAlpha, bodySelection);
+            _game.DrawLastToDieSniperAsceticGhosting(player, renderPosition, cameraPosition, visibilityAlpha, bodySelection);
+            if (player.ClassId == PlayerClass.Sniper
+                && player.IsSniperScoped
+                && player.LastToDieSniperProfile.AsceticEnabled)
+            {
+                spriteTint *= 0.72f;
+            }
+            _game.TryDrawWeaponSpriteBackdrop(player, cameraPosition, spriteTint, visibilityAlpha, bodySelection);
+
+            if (!_game.TryDrawPlayerSprite(player, cameraPosition, spriteTint, bodySelection))
+            {
+                _game._spriteBatch.Draw(_game._pixel, rectangle, fallbackColor);
+            }
+
+            _game.DrawExperimentalStickyGibBloodOverlay(player, cameraPosition, visibilityAlpha);
+            if (!_game.GetPlayerIsHeavyEating(player) && !player.IsTaunting && !_game.GetPlayerIsCivviePogoActive(player) && !_game._world.IsPlayerHumiliated(player))
+            {
+                _game.TryDrawWeaponSprite(player, cameraPosition, spriteTint, visibilityAlpha, bodySelection);
+            }
+
+            _game.DrawHealingCrossParticles(player, renderPosition, cameraPosition, visibilityAlpha);
+            _game.GameplayWeaponRenderer.DrawCivvieUmbrellaShieldBlockVisuals(player, cameraPosition, visibilityAlpha, bodySelection);
+
+            _game.DrawExperimentalEssenceExtractorOverlay(player, renderPosition, cameraPosition, visibilityAlpha, bodySelection);
+            _game.DrawExperimentalCryoOverlays(player, renderPosition, cameraPosition, visibilityAlpha, bodySelection);
+            _game.DrawAfterburnOverlay(player, renderPosition, cameraPosition, visibilityAlpha);
+            if (!_game._gameplayHudHidden)
+            {
+                _game.DrawDominationIndicator(player, cameraPosition, visibilityAlpha);
+                _game.DrawPracticeCombatDummyDps(player, cameraPosition);
+                _game.DrawChatBubble(player, cameraPosition);
+                _game.DrawWriteBubble(player, cameraPosition);
+                _game.DrawOverheadChatMessage(player, cameraPosition);
+                _game.DrawEvasionMissPopup(player, cameraPosition);
+                _game.DrawHeavyDashDodgePopup(player, cameraPosition);
+                _game.TryDrawAdditionalHealthBar(player, cameraPosition, visibilityAlpha);
+                _game.TryDrawCivvieUmbrellaShieldBar(player, cameraPosition, visibilityAlpha);
+            }
+        }
+
+        public IEnumerable<PlayerEntity> EnumerateRenderablePlayers()
+        {
+            if (!_game.IsLocalSpectatorPresentationActive())
+            {
+                yield return _game._world.LocalPlayer;
+            }
+
+            foreach (var player in _game.EnumerateRemotePlayersForView())
+            {
+                yield return player;
+            }
+        }
+
+        public static string GetHudPlayerLabel(PlayerEntity player)
+        {
+            return player.DisplayName;
+        }
+}

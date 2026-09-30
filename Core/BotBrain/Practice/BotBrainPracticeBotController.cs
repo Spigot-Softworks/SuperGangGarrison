@@ -154,7 +154,8 @@ public sealed class BotBrainPracticeBotController : IPracticeBotController
         {
             if (!_controllersBySlot.TryGetValue(slot, out var controller))
             {
-                controller = new BotBrainController(_disableShippedNavigationGraphs);
+                controller = new BotBrainController(
+                    new NavigationGraphProvider(_disableShippedNavigationGraphs));
                 controller.PreferEnemyPlayerObjective = controlledSlot.PreferEnemyPlayerObjective;
                 _controllersBySlot[slot] = controller;
                 _configuredSlots[slot] = controlledSlot;
@@ -388,7 +389,8 @@ public sealed class BotBrainPracticeBotController : IPracticeBotController
 
             if (!_controllersBySlot.TryGetValue(slot, out var controller))
             {
-                controller = new BotBrainController(_disableShippedNavigationGraphs);
+                controller = new BotBrainController(
+                    new NavigationGraphProvider(_disableShippedNavigationGraphs));
                 controller.PreferEnemyPlayerObjective = controlledSlot.PreferEnemyPlayerObjective;
                 _controllersBySlot[slot] = controller;
                 _configuredSlots[slot] = controlledSlot;

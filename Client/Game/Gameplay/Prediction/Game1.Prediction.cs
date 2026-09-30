@@ -10,21 +10,21 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private const int MaxPendingPredictedInputs = 256;
+    public const int MaxPendingPredictedInputs = 256;
 
-    private readonly List<PredictedLocalInput> _pendingPredictedInputs = new();
-    private Vector2 _predictedLocalPlayerPosition;
-    private Vector2 _smoothedLocalPlayerRenderPosition;
-    private Vector2 _predictedLocalPlayerRenderCorrectionOffset;
-    private Vector2 _predictedLocalPlayerVelocity;
-    private bool _hasPredictedLocalPlayerPosition;
-    private bool _hasSmoothedLocalPlayerRenderPosition;
+    public readonly List<PredictedLocalInput> _pendingPredictedInputs = new();
+    public Vector2 _predictedLocalPlayerPosition;
+    public Vector2 _smoothedLocalPlayerRenderPosition;
+    public Vector2 _predictedLocalPlayerRenderCorrectionOffset;
+    public Vector2 _predictedLocalPlayerVelocity;
+    public bool _hasPredictedLocalPlayerPosition;
+    public bool _hasSmoothedLocalPlayerRenderPosition;
     private bool _predictedLocalPlayerGrounded;
-    private PlayerEntity? _predictedLocalPlayerShadow;
+    public PlayerEntity? _predictedLocalPlayerShadow;
     private PredictedLocalActionState _predictedLocalActionState;
-    private bool _hasPredictedLocalActionState;
-    private bool _serverLocalPredictionEnabled;
-    private PlayerInputSnapshot _latestPredictedLocalInput;
+    public bool _hasPredictedLocalActionState;
+    public bool _serverLocalPredictionEnabled;
+    public PlayerInputSnapshot _latestPredictedLocalInput;
     private PlayerInputSnapshot _previousPredictedLocalInput;
     private ulong _lastProtocol64PredictionStateSequence;
     private int _predictedSniperRifleChargePendingCount;
@@ -636,7 +636,7 @@ public partial class Game1
         public int CivviePogoTrickDurationAtStart;
     }
 
-    private readonly record struct PredictedLocalInput(
+    public readonly record struct PredictedLocalInput(
         uint Sequence,
         PlayerInputSnapshot Input,
         bool JumpPressed,

@@ -29,7 +29,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     private static readonly MethodInfo TryHandleExperimentalEngineerAlternateWeaponInteractionMethod = GetRequiredNonPublicMethod("TryHandleExperimentalEngineerAlternateWeaponInteraction");
     private static readonly MethodInfo PlayerCanOccupyMethod = GetRequiredNonPublicPlayerMethod("CanOccupy");
     private static readonly MethodInfo GetExperimentalMovementSpeedMultiplierMethod = GetRequiredNonPublicPlayerMethod("GetExperimentalMovementSpeedMultiplier");
-    private static readonly FieldInfo AimDirectionDegreesBackingField = typeof(PlayerEntity).GetField("<AimDirectionDegrees>k__BackingField", BindingFlags.Instance | BindingFlags.NonPublic)
+    private static readonly FieldInfo AimDirectionDegreesBackingField = typeof(PlayerEntity).GetField("<AimDirectionDegrees>k__BackingField", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
         ?? throw new InvalidOperationException("Could not find PlayerEntity aim backing field.");
 
     [Fact]
@@ -57,7 +57,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
 
         var applyContinuousDamageMethod = typeof(SimulationWorld).GetMethod(
             "ApplyPlayerContinuousDamage",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(applyContinuousDamageMethod);
 
         var died = (bool)applyContinuousDamageMethod!.Invoke(
@@ -81,7 +81,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         Assert.True(world.TryGetNetworkPlayer(2, out var victim));
         victim.ForceSetHealth(1);
 
-        var killMethod = typeof(SimulationWorld).GetMethod("KillPlayer", BindingFlags.Instance | BindingFlags.NonPublic);
+        var killMethod = typeof(SimulationWorld).GetMethod("KillPlayer", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(killMethod);
         _ = killMethod!.Invoke(
             world,
@@ -144,7 +144,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     }
 
     [Fact]
-    public void StockEngineerFreshSentryIgnoresStrayImmediateRightClickDestroy()
+    public void StockEngineerFreshSentryCanBeDestroyedImmediatelyByRightClick()
     {
         var world = CreateJoinedEngineerWorld(new ExperimentalGameplaySettings());
 
@@ -153,13 +153,9 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         var sentry = Assert.Single(world.Sentries);
         Assert.False(sentry.IsBuilt);
 
+        // The old 2-second owner-destroy setup guard was removed: right-click
+        // destroys the fresh sentry immediately.
         ReleaseAllInput(world);
-        PressFireSecondary(world);
-
-        Assert.Same(sentry, Assert.Single(world.Sentries));
-
-        ReleaseAllInput(world);
-        AdvanceTicks(world, world.Config.TicksPerSecond * 2);
         PressFireSecondary(world);
 
         Assert.Empty(world.Sentries);
@@ -229,7 +225,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         var method = typeof(SimulationWorld).GetMethod(
             "IsWithinAirblastPlayerMask",
-            BindingFlags.Static | BindingFlags.NonPublic);
+            BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
 
         object[] sharedArguments =
@@ -2239,6 +2235,11 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         AdvanceTicks(world, 1);
 
         Assert.Equal(PlayerClass.Quote, world.LocalPlayer.ClassId);
+        // Class change suicides by design, so the stale-loadout scenario
+        // continues after a respawn.
+        Assert.False(world.LocalPlayer.IsAlive);
+        world.ForceRespawnLocalPlayer();
+
         Assert.True(world.LocalPlayer.IsAlive);
         Assert.False(world.LocalPlayer.HasExperimentalOffhandWeapon);
         Assert.False(world.LocalPlayer.IsExperimentalOffhandEquipped);
@@ -2301,7 +2302,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
 
         var executeMethod = typeof(SimulationWorld).GetMethod(
             "ExecuteHeavyGhostDashAbility",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(executeMethod);
 
         var result = (GameplayAbilityResult)executeMethod!.Invoke(
@@ -4416,8 +4417,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
 
     private static void InvokeAdvanceStabMasks(SimulationWorld world)
     {
-        var method = GetRequiredNonPublicMethod("AdvanceStabMasks");
-        method.Invoke(world, null);
+        world.Projectiles.AdvanceStabMasks();
     }
 
     private static bool InvokeApplySentryDamage(SimulationWorld world, SentryEntity target, int damage, PlayerEntity attacker)
@@ -4524,16 +4524,13 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
                 playerKnockbackImpulse.HasValue ? playerKnockbackImpulse.Value : Type.Missing,
                 playerKnockbackAirborneVerticalScale,
                 playerKnockbackGroundedVerticalScale,
+                false, // isBoomstickPellet
             ]);
     }
 
     private static void InvokeAdvanceShots(SimulationWorld world)
     {
-        var method = typeof(SimulationWorld).GetMethod(
-            "AdvanceShots",
-            BindingFlags.Instance | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        _ = method!.Invoke(world, null);
+        world.Projectiles.AdvanceShots();
     }
 
     private static void PrepareOpenFlamethrowerTestWorld(SimulationWorld world)
@@ -4610,7 +4607,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         float speed = 0f,
         float directionRadians = 0f)
     {
-        var method = typeof(SimulationWorld).GetMethod("CombatTestSpawnRocket", BindingFlags.Instance | BindingFlags.NonPublic);
+        var method = typeof(SimulationWorld).GetMethod("CombatTestSpawnRocket", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         var result = method!.Invoke(world, [owner, x, y, speed, directionRadians]);
         return Assert.IsType<RocketProjectileEntity>(result);
@@ -4618,9 +4615,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
 
     private static void AdvanceCombatRockets(SimulationWorld world)
     {
-        var method = typeof(SimulationWorld).GetMethod("AdvanceRockets", BindingFlags.Instance | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        _ = method!.Invoke(world, []);
+        world.Projectiles.AdvanceRockets();
     }
 
     private static int GetCombatRocketCount(SimulationWorld world)
@@ -4636,7 +4631,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         float velocityX = 0f,
         float velocityY = 0f)
     {
-        var method = typeof(SimulationWorld).GetMethod("CombatTestSpawnGrenade", BindingFlags.Instance | BindingFlags.NonPublic);
+        var method = typeof(SimulationWorld).GetMethod("CombatTestSpawnGrenade", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         var result = method!.Invoke(world, [owner, x, y, velocityX, velocityY]);
         return Assert.IsType<GrenadeProjectileEntity>(result);
@@ -4644,9 +4639,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
 
     private static void AdvanceCombatGrenades(SimulationWorld world)
     {
-        var method = typeof(SimulationWorld).GetMethod("AdvanceGrenades", BindingFlags.Instance | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        _ = method!.Invoke(world, []);
+        world.Projectiles.AdvanceGrenades();
     }
 
     private static int GetCombatGrenadeCount(SimulationWorld world)
@@ -4665,7 +4658,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         var method = typeof(SimulationWorld).GetMethod(
             "CombatTestSpawnMine",
-            BindingFlags.Instance | BindingFlags.NonPublic,
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
             binder: null,
             types: [typeof(PlayerEntity), typeof(float), typeof(float), typeof(float), typeof(float), typeof(bool)],
             modifiers: null);
@@ -4676,7 +4669,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
 
     private static void ExplodeCombatTestMine(SimulationWorld world, MineProjectileEntity mine)
     {
-        var method = typeof(SimulationWorld).GetMethod("CombatTestExplodeMine", BindingFlags.Instance | BindingFlags.NonPublic);
+        var method = typeof(SimulationWorld).GetMethod("CombatTestExplodeMine", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         _ = method!.Invoke(world, [mine]);
     }
@@ -4689,7 +4682,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         float velocityX = 0f,
         float velocityY = 0f)
     {
-        var method = typeof(SimulationWorld).GetMethod("CombatTestSpawnFlame", BindingFlags.Instance | BindingFlags.NonPublic);
+        var method = typeof(SimulationWorld).GetMethod("CombatTestSpawnFlame", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         var result = method!.Invoke(world, [owner, x, y, velocityX, velocityY]);
         return Assert.IsType<FlameProjectileEntity>(result);
@@ -4697,14 +4690,12 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
 
     private static void AdvanceCombatFlames(SimulationWorld world)
     {
-        var method = typeof(SimulationWorld).GetMethod("AdvanceFlames", BindingFlags.Instance | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        _ = method!.Invoke(world, []);
+        world.Projectiles.AdvanceFlames();
     }
 
     private static MethodInfo GetRequiredNonPublicMethod(string methodName)
     {
-        var method = typeof(SimulationWorld).GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic);
+        var method = typeof(SimulationWorld).GetMethod(methodName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         if (method is not null)
         {
             return method;
@@ -4715,7 +4706,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
 
     private static MethodInfo GetRequiredNonPublicPlayerMethod(string methodName)
     {
-        var method = typeof(PlayerEntity).GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic);
+        var method = typeof(PlayerEntity).GetMethod(methodName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         if (method is not null)
         {
             return method;

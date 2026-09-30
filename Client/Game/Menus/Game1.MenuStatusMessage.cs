@@ -7,9 +7,9 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private const float MenuStatusMessageAutoClearSeconds = 5f;
-    private const float MenuStatusMessageDefaultScale = 1f;
-    private const float MenuStatusMessagePaddingX = 10f;
+    public const float MenuStatusMessageAutoClearSeconds = 5f;
+    public const float MenuStatusMessageDefaultScale = 1f;
+    public const float MenuStatusMessagePaddingX = 10f;
     private const float MenuStatusMessagePaddingY = 6f;
 
     private enum MenuStatusMessageAnchor
@@ -41,12 +41,12 @@ public partial class Game1
         }
     }
 
-    private void SetPersistedMenuStatusMessage(string? message)
+    public void SetPersistedMenuStatusMessage(string? message)
     {
         SetMenuStatusMessageInternal(message, persist: true);
     }
 
-    private void UpdateMenuStatusMessageExpiry()
+    public void UpdateMenuStatusMessageExpiry()
     {
         if (_uiShellState.MenuStatusMessageClearAtUtc is not { } clearAtUtc)
         {
@@ -62,7 +62,7 @@ public partial class Game1
         _uiShellState.MenuStatusMessageClearAtUtc = null;
     }
 
-    private void DrawMenuStatusText()
+    public void DrawMenuStatusText()
     {
         if (string.IsNullOrWhiteSpace(_menuStatusMessage))
         {

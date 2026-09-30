@@ -116,7 +116,7 @@ public sealed class LuaClientPluginDispatcherTests
 
         var activeField = typeof(LuaClientPlugin).GetField(
             "_callbackDispatcherActive",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(activeField);
         activeField!.SetValue(fixture.Plugin, true);
         try
@@ -138,7 +138,7 @@ public sealed class LuaClientPluginDispatcherTests
         var callback = script.DoString("return function() return 11, 22 end");
         var invoke = typeof(LuaClientPlugin).GetMethod(
             "InvokeCallbackWithLimits",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(invoke);
 
         var result = (DynValue)invoke!.Invoke(fixture.Plugin, [callback, Array.Empty<DynValue>()])!;
@@ -208,7 +208,7 @@ public sealed class LuaClientPluginDispatcherTests
         var plugin = new LuaClientPlugin(manifest, root);
         plugin.Initialize(context);
         typeof(LuaClientPlugin)
-            .GetMethod("InitializeCallbackDispatcher", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .GetMethod("InitializeCallbackDispatcher", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!
             .Invoke(plugin, null);
         return new DispatcherFixture(root, plugin, logs);
     }
@@ -216,7 +216,7 @@ public sealed class LuaClientPluginDispatcherTests
     private static object? GetPrivateField(string name, LuaClientPlugin plugin)
     {
         return typeof(LuaClientPlugin)
-            .GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)!
+            .GetField(name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!
             .GetValue(plugin);
     }
 

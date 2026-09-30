@@ -71,7 +71,7 @@ public sealed partial class SimulationWorld
             var directionY = aimDeltaY / distance;
             var maxDistance = 2000f; // Maximum raycast distance (same as rifle shot)
 
-            var hitResult = Combat.ResolveRifleHit(player, originX, originY, directionX, directionY, maxDistance);
+            var hitResult = GeometryResolver.ResolveRifleHit(player, originX, originY, directionX, directionY, maxDistance);
 
             // If we hit any cloaked spy (friendly or enemy) that's not visible, ignore them and use max distance
             // This prevents revealing spy positions through the aim indicator
@@ -144,7 +144,7 @@ public sealed partial class SimulationWorld
 
     private static float PointDirectionDegrees(float x1, float y1, float x2, float y2)
     {
-        var degrees = MathF.Atan2(y2 - y1, x2 - x1) * (180f / MathF.PI);
+        var degrees = DeterministicMath.Atan2(y2 - y1, x2 - x1) * (180f / MathF.PI);
         if (degrees < 0f)
         {
             degrees += 360f;
@@ -198,11 +198,11 @@ public sealed partial class SimulationWorld
                 AllocateEntityId(),
                 x,
                 y,
-                MathF.Cos(velocityRadians) * speed,
-                MathF.Sin(velocityRadians) * speed,
+                DeterministicMath.Cos(velocityRadians) * speed,
+                DeterministicMath.Sin(velocityRadians) * speed,
                 lifetimeTicks: lifetimeTicks);
             _bloodDrops.Add(bloodDrop);
-            _entities.Add(bloodDrop.Id, bloodDrop);
+            EntityStore.Add(bloodDrop);
         }
     }
 
@@ -287,7 +287,7 @@ public sealed partial class SimulationWorld
         }
 
         arrow.Land(freezeX, freezeY, directionX, directionY);
-        var directionDegrees = MathF.Atan2(directionY, directionX) * (180f / MathF.PI);
+        var directionDegrees = DeterministicMath.Atan2(directionY, directionX) * (180f / MathF.PI);
         // Count encodes the ArrowS team frame: Red=1, Blue=2 (matches PlayerTeam values).
         RegisterVisualEffect("StuckArrow", freezeX, freezeY, directionDegrees, count: (int)arrow.Team);
     }
@@ -339,7 +339,7 @@ public sealed partial class SimulationWorld
             return false;
         }
 
-        var fractionalChance = 1f - MathF.Pow(1f - sourceTickChance, fractionalSourceTick);
+        var fractionalChance = 1f - DeterministicMath.Pow(1f - sourceTickChance, fractionalSourceTick);
         return _random.NextSingle() < fractionalChance;
     }
 

@@ -8,7 +8,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private void SelectLobbyBrowserSource(LobbyBrowserSource source)
+    public void SelectLobbyBrowserSource(LobbyBrowserSource source)
     {
         if ((IsRestrictedBrowserEdition || OpenGarrison.ClientShared.ClientDistribution.IsGg2Only)
             && source != LobbyBrowserSource.Gg2)
@@ -22,7 +22,7 @@ public partial class Game1
         RefreshLobbyBrowser();
     }
 
-    private void StartLegacyGg2LobbyRequest()
+    public void StartLegacyGg2LobbyRequest()
     {
         CancelLegacyGg2LobbyRequest();
         _legacyGg2LobbyRequestCancellation = new CancellationTokenSource(TimeSpan.FromSeconds(8));
@@ -34,7 +34,7 @@ public partial class Game1
                 cancellationToken: _legacyGg2LobbyRequestCancellation.Token);
     }
 
-    private void CancelLegacyGg2LobbyRequest()
+    public void CancelLegacyGg2LobbyRequest()
     {
         _legacyGg2LobbyRequestCancellation?.Cancel();
         _legacyGg2LobbyRequestCancellation?.Dispose();

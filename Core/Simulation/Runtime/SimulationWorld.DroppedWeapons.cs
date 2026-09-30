@@ -144,7 +144,7 @@ public sealed partial class SimulationWorld
             horizontalSpeed,
             verticalSpeed);
         _droppedWeapons.Add(droppedWeapon);
-        _entities.Add(droppedWeapon.Id, droppedWeapon);
+        EntityStore.Add(droppedWeapon);
     }
 
     private void TrySpawnExperimentalEnemyDroppedWeapon(PlayerEntity victim, PlayerEntity? killer)
@@ -171,7 +171,7 @@ public sealed partial class SimulationWorld
 
     private void RemoveDroppedWeaponAt(int index)
     {
-        _entities.Remove(_droppedWeapons[index].Id);
+        EntityStore.Remove(_droppedWeapons[index].Id);
         _droppedWeapons.RemoveAt(index);
     }
 }

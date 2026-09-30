@@ -1,0 +1,977 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using OpenGarrison.Protocol;
+
+namespace OpenGarrison.Core;
+
+public sealed class SnapshotSystem
+{
+    private readonly EntityStore _entities;
+    private readonly CombatSystem _combat;
+    private readonly SnapshotSystemDependencies _dependencies;
+
+    public SnapshotSystem(EntityStore entities, CombatSystem combat)
+        : this(entities, combat, new SnapshotSystemDependencies())
+    {
+    }
+
+    internal SnapshotSystem(EntityStore entities, CombatSystem combat, SnapshotSystemDependencies dependencies)
+    {
+        _entities = entities ?? throw new ArgumentNullException(nameof(entities));
+        _combat = combat ?? throw new ArgumentNullException(nameof(combat));
+        _dependencies = dependencies ?? throw new ArgumentNullException(nameof(dependencies));
+    }
+
+    public SnapshotDamageEvent[] DrainSnapshotDamageEvents(ref ulong nextFallbackEventId)
+    {
+        var damageEvents = _combat.DrainPendingDamageEvents();
+        if (damageEvents.Count == 0)
+        {
+            return [];
+        }
+
+        var snapshotEvents = new SnapshotDamageEvent[damageEvents.Count];
+        for (var index = 0; index < damageEvents.Count; index += 1)
+        {
+            snapshotEvents[index] = ToSnapshotDamageEvent(damageEvents[index], nextFallbackEventId++);
+        }
+
+        return snapshotEvents;
+    }
+
+    private const string CoreReplicatedOwnerId = "core.player";
+    private const string SecondaryWeaponAvailableKey = "secondary_weapon_available";
+    private const string SecondaryWeaponAmmoKey = "secondary_weapon_ammo";
+    private const string SecondaryWeaponMaxAmmoKey = "secondary_weapon_max_ammo";
+    private const string EngineerAlternateWeaponModeKey = "engineer_alternate_weapon_mode";
+    private const string SoldierShotgunAvailableKey = "soldier_shotgun_available";
+    private const string SoldierShotgunEquippedKey = "soldier_shotgun_equipped";
+    private const string SoldierShotgunAmmoKey = "soldier_shotgun_ammo";
+    private const string SoldierShotgunMaxAmmoKey = "soldier_shotgun_max_ammo";
+    private const string DemomanGrenadeLauncherAmmoKey = "demoman_gl_ammo";
+    private const string DemomanGrenadeLauncherMaxAmmoKey = "demoman_gl_max_ammo";
+    private const string ScoutNailgunAmmoKey = "scout_nailgun_ammo";
+    private const string ScoutNailgunMaxAmmoKey = "scout_nailgun_max_ammo";
+    private const string ScoutNailgunAvailableKey = "scout_nailgun_available";
+    private const string SniperBowAmmoKey = "sniper_bow_ammo";
+    private const string SniperBowMaxAmmoKey = "sniper_bow_max_ammo";
+    private const string SniperBowAvailableKey = "sniper_bow_available";
+    private const string MedicKritzAmmoKey = "medic_kritz_ammo";
+    private const string MedicKritzMaxAmmoKey = "medic_kritz_max_ammo";
+    private const string MedicKritzAvailableKey = "medic_kritz_available";
+
+    public SnapshotPlayerState ToSnapshotPlayerState(
+        byte slot,
+        PlayerEntity player,
+        PlayerEntity? viewer,
+        Func<string, ushort> getStringCacheId,
+        int pingMilliseconds = -1,
+        bool isBot = false)
+    {
+        var isPlayableSlot = _dependencies.IsPlayableNetworkPlayerSlot(slot);
+        var isAwaitingJoin = isPlayableSlot && _dependencies.IsNetworkPlayerAwaitingJoin(slot);
+        var snapshotTeam = isAwaitingJoin
+            ? _dependencies.GetNetworkPlayerConfiguredTeam(slot)
+            : player.Team;
+        var isDominatingLocalViewer = viewer is not null
+            && !ReferenceEquals(player, viewer)
+            && player.GetDominationKillCount(viewer.Id) > 3;
+        var isDominatedByLocalViewer = viewer is not null
+            && !ReferenceEquals(player, viewer)
+            && viewer.GetDominationKillCount(player.Id) > 3;
+        var hidesSniperMark = viewer is not null
+            && !ReferenceEquals(player, viewer)
+            && player.Team != viewer.Team;
+        var replicatedStates = player.GetReplicatedStateEntries()
+            .Select(entry => new SnapshotReplicatedStateEntry(
+                entry.OwnerId,
+                entry.Key,
+                entry.Kind switch
+                {
+                    GameplayReplicatedStateValueKind.Whole => SnapshotReplicatedStateValueKind.Whole,
+                    GameplayReplicatedStateValueKind.Scalar => SnapshotReplicatedStateValueKind.Scalar,
+                    _ => SnapshotReplicatedStateValueKind.Toggle,
+                },
+                hidesSniperMark
+                    && string.Equals(
+                        entry.OwnerId,
+                        PlayerEntity.LastToDieWeaponReplicatedStateOwnerId,
+                        StringComparison.Ordinal)
+                    && string.Equals(
+                        entry.Key,
+                        PlayerEntity.LastToDieSniperRuntimeReplicatedStateKey,
+                        StringComparison.Ordinal)
+                        ? entry.IntValue & ~0x7f
+                        : entry.IntValue,
+                entry.FloatValue,
+                entry.BoolValue))
+            .ToList();
+
+        replicatedStates.AddRange(GameplayAbilityReplicatedState.CreateEntries(player)
+            .Select(static entry => new SnapshotReplicatedStateEntry(
+                entry.OwnerId,
+                entry.Key,
+                entry.Kind switch
+                {
+                    GameplayReplicatedStateValueKind.Whole => SnapshotReplicatedStateValueKind.Whole,
+                    GameplayReplicatedStateValueKind.Scalar => SnapshotReplicatedStateValueKind.Scalar,
+                    _ => SnapshotReplicatedStateValueKind.Toggle,
+                },
+                entry.IntValue,
+                entry.FloatValue,
+                entry.BoolValue)));
+
+        replicatedStates.Add(new SnapshotReplicatedStateEntry(
+            GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId,
+            GameplayAbilityReplicatedState.SpecialAbilitiesEnabledKey,
+            SnapshotReplicatedStateValueKind.Toggle,
+            0, 0f, _dependencies.AreSpecialAbilitiesEnabled()));
+
+        if (!string.IsNullOrWhiteSpace(player.GameplayLoadoutState.SecondaryItemId))
+        {
+            replicatedStates.Add(new SnapshotReplicatedStateEntry(
+                CoreReplicatedOwnerId,
+                SecondaryWeaponAvailableKey,
+                SnapshotReplicatedStateValueKind.Toggle,
+                0,
+                0f,
+                player.HasExperimentalOffhandWeapon));
+            replicatedStates.Add(new SnapshotReplicatedStateEntry(
+                CoreReplicatedOwnerId,
+                SecondaryWeaponAmmoKey,
+                SnapshotReplicatedStateValueKind.Whole,
+                player.ExperimentalOffhandCurrentShells,
+                0f,
+                false));
+            replicatedStates.Add(new SnapshotReplicatedStateEntry(
+                CoreReplicatedOwnerId,
+                SecondaryWeaponMaxAmmoKey,
+                SnapshotReplicatedStateValueKind.Whole,
+                player.ExperimentalOffhandMaxShells,
+                0f,
+                false));
+        }
+
+        if (player.ClassId == PlayerClass.Engineer)
+        {
+            replicatedStates.Add(new SnapshotReplicatedStateEntry(
+                CoreReplicatedOwnerId,
+                EngineerAlternateWeaponModeKey,
+                SnapshotReplicatedStateValueKind.Whole,
+                (int)player.ExperimentalEngineerAlternateWeaponMode,
+                0f,
+                false));
+            if (player.HasPrimaryBehavior(OpenGarrison.GameplayModding.BuiltInGameplayBehaviorIds.WhippingCord))
+            {
+                replicatedStates.Add(new SnapshotReplicatedStateEntry(
+                    CoreReplicatedOwnerId, WhippingCordCatalog.ReplicatedLatchKey,
+                    SnapshotReplicatedStateValueKind.Toggle, 0, 0f, player.IsWhippingCordLatched));
+                if (player.IsWhippingCordLatched)
+                {
+                    replicatedStates.Add(new SnapshotReplicatedStateEntry(
+                        CoreReplicatedOwnerId, WhippingCordCatalog.ReplicatedAnchorXKey,
+                        SnapshotReplicatedStateValueKind.Scalar, 0, player.WhippingCordAnchorX, false));
+                    replicatedStates.Add(new SnapshotReplicatedStateEntry(
+                        CoreReplicatedOwnerId, WhippingCordCatalog.ReplicatedAnchorYKey,
+                        SnapshotReplicatedStateValueKind.Scalar, 0, player.WhippingCordAnchorY, false));
+                    replicatedStates.Add(new SnapshotReplicatedStateEntry(
+                        CoreReplicatedOwnerId, WhippingCordCatalog.ReplicatedRopeLengthKey,
+                        SnapshotReplicatedStateValueKind.Scalar, 0, player.WhippingCordRopeLength, false));
+                }
+            }
+        }
+
+        if (player.ClassId == PlayerClass.Soldier)
+        {
+            replicatedStates.Add(new SnapshotReplicatedStateEntry(
+                CoreReplicatedOwnerId,
+                SoldierShotgunAvailableKey,
+                SnapshotReplicatedStateValueKind.Toggle,
+                0,
+                0f,
+                player.HasExperimentalOffhandWeapon));
+            replicatedStates.Add(new SnapshotReplicatedStateEntry(
+                CoreReplicatedOwnerId,
+                SoldierShotgunEquippedKey,
+                SnapshotReplicatedStateValueKind.Toggle,
+                0,
+                0f,
+                player.IsExperimentalOffhandPresented));
+            replicatedStates.Add(new SnapshotReplicatedStateEntry(
+                CoreReplicatedOwnerId,
+                SoldierShotgunAmmoKey,
+                SnapshotReplicatedStateValueKind.Whole,
+                player.ExperimentalOffhandCurrentShells,
+                0f,
+                false));
+            replicatedStates.Add(new SnapshotReplicatedStateEntry(
+                CoreReplicatedOwnerId,
+                SoldierShotgunMaxAmmoKey,
+                SnapshotReplicatedStateValueKind.Whole,
+                player.ExperimentalOffhandMaxShells,
+                0f,
+                false));
+        }
+
+        if (player.ClassId == PlayerClass.Demoman)
+        {
+            replicatedStates.Add(new SnapshotReplicatedStateEntry(
+                CoreReplicatedOwnerId,
+                DemomanGrenadeLauncherAmmoKey,
+                SnapshotReplicatedStateValueKind.Whole,
+                player.ExperimentalOffhandCurrentShells,
+                0f,
+                false));
+            replicatedStates.Add(new SnapshotReplicatedStateEntry(
+                CoreReplicatedOwnerId,
+                DemomanGrenadeLauncherMaxAmmoKey,
+                SnapshotReplicatedStateValueKind.Whole,
+                player.ExperimentalOffhandMaxShells,
+                0f,
+                false));
+        }
+
+        if (player.ClassId == PlayerClass.Scout && player.HasExperimentalOffhandWeapon)
+        {
+            replicatedStates.Add(new SnapshotReplicatedStateEntry(
+                CoreReplicatedOwnerId,
+                ScoutNailgunAvailableKey,
+                SnapshotReplicatedStateValueKind.Toggle,
+                0,
+                0f,
+                true));
+            replicatedStates.Add(new SnapshotReplicatedStateEntry(
+                CoreReplicatedOwnerId,
+                ScoutNailgunAmmoKey,
+                SnapshotReplicatedStateValueKind.Whole,
+                player.ExperimentalOffhandCurrentShells,
+                0f,
+                false));
+            replicatedStates.Add(new SnapshotReplicatedStateEntry(
+                CoreReplicatedOwnerId,
+                ScoutNailgunMaxAmmoKey,
+                SnapshotReplicatedStateValueKind.Whole,
+                player.ExperimentalOffhandMaxShells,
+                0f,
+                false));
+        }
+
+        if (player.ClassId == PlayerClass.Sniper && player.HasExperimentalOffhandWeapon)
+        {
+            replicatedStates.Add(new SnapshotReplicatedStateEntry(
+                CoreReplicatedOwnerId,
+                SniperBowAvailableKey,
+                SnapshotReplicatedStateValueKind.Toggle,
+                0,
+                0f,
+                true));
+            replicatedStates.Add(new SnapshotReplicatedStateEntry(
+                CoreReplicatedOwnerId,
+                SniperBowAmmoKey,
+                SnapshotReplicatedStateValueKind.Whole,
+                player.ExperimentalOffhandCurrentShells,
+                0f,
+                false));
+            replicatedStates.Add(new SnapshotReplicatedStateEntry(
+                CoreReplicatedOwnerId,
+                SniperBowMaxAmmoKey,
+                SnapshotReplicatedStateValueKind.Whole,
+                player.ExperimentalOffhandMaxShells,
+                0f,
+                false));
+        }
+
+        if (player.ClassId == PlayerClass.Medic && player.HasExperimentalOffhandWeapon)
+        {
+            replicatedStates.Add(new SnapshotReplicatedStateEntry(
+                CoreReplicatedOwnerId,
+                MedicKritzAvailableKey,
+                SnapshotReplicatedStateValueKind.Toggle,
+                0,
+                0f,
+                true));
+            replicatedStates.Add(new SnapshotReplicatedStateEntry(
+                CoreReplicatedOwnerId,
+                MedicKritzAmmoKey,
+                SnapshotReplicatedStateValueKind.Whole,
+                player.ExperimentalOffhandCurrentShells,
+                0f,
+                false));
+            replicatedStates.Add(new SnapshotReplicatedStateEntry(
+                CoreReplicatedOwnerId,
+                MedicKritzMaxAmmoKey,
+                SnapshotReplicatedStateValueKind.Whole,
+                player.ExperimentalOffhandMaxShells,
+                0f,
+                false));
+        }
+
+        return new SnapshotPlayerState(
+            slot,
+            player.Id,
+            player.DisplayName,
+            (byte)snapshotTeam,
+            (byte)player.ClassId,
+            player.IsAlive,
+            isAwaitingJoin,
+            slot >= _dependencies.FirstSpectatorSlot,
+            isPlayableSlot ? _dependencies.GetNetworkPlayerRespawnTicks(slot) : 0,
+            player.X,
+            player.Y,
+            player.HorizontalSpeed,
+            player.VerticalSpeed,
+            (short)player.Health,
+            (short)player.MaxHealth,
+            (short)player.CurrentShells,
+            (short)player.MaxShells,
+            (short)player.Kills,
+            (short)player.Deaths,
+            (short)player.Caps,
+            player.Points,
+            (short)player.HealPoints,
+            (short)player.ActiveDominationCount,
+            isDominatingLocalViewer,
+            isDominatedByLocalViewer,
+            player.Metal,
+            player.IsGrounded,
+            player.RemainingAirJumps,
+            player.IsCarryingIntel,
+            player.IntelRechargeTicks,
+            player.IsSpyCloaked,
+            player.SpyCloakAlpha,
+            player.IsSpySuperjumping,
+            player.SpySuperjumpHorizontalVelocity,
+            player.SpySuperjumpCooldownTicksRemaining,
+            player.SpyBackstabVisualTicksRemaining,
+            player.IsUbered,
+            player.IsKritzCritBoosted,
+            player.IsHeavyEating,
+            player.HeavyEatTicksRemaining,
+            player.IsSniperScoped,
+            player.IsUsingBinoculars,
+            player.BinocularsFocusX,
+            player.BinocularsFocusY,
+            player.FacingDirectionX,
+            player.AimDirectionDegrees,
+            player.IsTaunting,
+            player.IsChatBubbleVisible,
+            player.ChatBubbleFrameIndex,
+            player.ChatBubbleAlpha,
+            player.IsTypingChatMessage,
+            player.BurnIntensity,
+            player.BurnDurationSourceTicks,
+            player.BurnDecayDelaySourceTicksRemaining,
+            player.BurnIntensityDecayPerSourceTick,
+            player.BurnedByPlayerId ?? -1,
+            (byte)player.MovementState,
+            player.PrimaryCooldownTicks,
+            player.ReloadTicksUntilNextShell,
+            player.MedicNeedleCooldownTicks,
+            player.MedicNeedleRefillTicks,
+            player.PyroAirblastCooldownTicks,
+            player.PyroFlareCooldownTicks,
+            player.PyroPrimaryFuelScaled,
+            player.IsPyroPrimaryRefilling,
+            player.PyroFlameLoopTicksRemaining,
+            player.PyroPrimaryRequiresReleaseAfterEmpty,
+            player.HeavyEatCooldownTicksRemaining,
+            (short)player.Assists,
+            player.BadgeMask,
+            player.IsMedicHealing,
+            player.MedicHealTargetId ?? -1,
+            player.MedicUberCharge,
+            player.IsMedicUberReady,
+            player.GameplayLoadoutState.ModPackId,
+            player.GameplayLoadoutState.LoadoutId,
+            player.GameplayLoadoutState.PrimaryItemId,
+            player.GameplayLoadoutState.SecondaryItemId ?? string.Empty,
+            player.GameplayLoadoutState.UtilityItemId ?? string.Empty,
+            (byte)player.GameplayLoadoutState.EquippedSlot,
+            player.GameplayLoadoutState.EquippedItemId,
+            player.GameplayLoadoutState.AcquiredItemId ?? string.Empty,
+            GameplayModPackCacheId: getStringCacheId(player.GameplayLoadoutState.ModPackId),
+            GameplayLoadoutCacheId: getStringCacheId(player.GameplayLoadoutState.LoadoutId),
+            GameplayPrimaryItemCacheId: getStringCacheId(player.GameplayLoadoutState.PrimaryItemId),
+            GameplaySecondaryItemCacheId: getStringCacheId(player.GameplayLoadoutState.SecondaryItemId ?? string.Empty),
+            GameplayUtilityItemCacheId: getStringCacheId(player.GameplayLoadoutState.UtilityItemId ?? string.Empty),
+            GameplayEquippedItemCacheId: getStringCacheId(player.GameplayLoadoutState.EquippedItemId),
+            GameplayAcquiredItemCacheId: getStringCacheId(player.GameplayLoadoutState.AcquiredItemId ?? string.Empty),
+            ReferenceEquals(player, viewer) ? player.GetTrackedOwnedGameplayItemIds() : Array.Empty<string>(),
+            replicatedStates.ToArray(),
+            player.PlayerScale,
+            AimWorldX: player.AimWorldX,
+            AimWorldY: player.AimWorldY,
+            OffhandCooldownTicks: player.ExperimentalOffhandCooldownTicks,
+            OffhandReloadTicks: player.ExperimentalOffhandReloadTicksUntilNextShell,
+            GibDeaths: (short)Math.Clamp(player.GibDeaths, 0, short.MaxValue),
+            IsReady: _dependencies.IsNetworkPlayerReady(slot),
+            GameplayClassId: player.GameplayClassId,
+            GameplayClassCacheId: getStringCacheId(player.GameplayClassId),
+            PingMilliseconds: pingMilliseconds,
+            LastToDieSpyCloakMeterUnits: checked((ushort)player.LastToDieSpyCloakMeterUnits),
+            LastToDieSpyRogueRampStacks: checked((byte)player.LastToDieSpyRogueRampStacks),
+            LastToDieSpyRogueRampTicks: checked((ushort)player.LastToDieSpyRogueRampTicks),
+            SpySuperjumpAvailableCharges: checked((byte)player.SpySuperjumpAvailableCharges),
+            SpySuperjumpMaximumCharges: checked((byte)player.SpySuperjumpMaximumCharges),
+            SpySuperjumpChargeTicks: checked((ushort)player.SpySuperjumpChargeTicks),
+            SpySuperjumpChargeDirectionDegrees: player.SpySuperjumpChargeDirectionDegrees,
+            SpySuperjumpChargeStartMovementButtons: player.SpySuperjumpChargeStartMovementButtons,
+            SpySuperjumpChargeStartBlockedUntilAbilityRelease: player.SpySuperjumpChargeStartBlockedUntilAbilityRelease,
+            MedicUberDeliveryState: player.MedicUberDeliveryState,
+            KritzCritBoostProviderPlayerId: player.KritzCritBoostProviderPlayerId,
+            KritzCritBoostProviderSlot: player.KritzCritBoostProviderSlot,
+            KritzCritBoostDamageMultiplier: player.ActiveKritzCritDamageMultiplier,
+            IsDispenserBuffed: player.IsDispenserBuffed,
+            DispenserAttackReloadSpeedMultiplier: player.IsDispenserBuffed
+                ? player.DispenserAttackReloadSpeedMultiplier
+                : 1f,
+            RageCharge: player.RageCharge,
+            IsRageReady: player.IsRageReady,
+            RageTicksRemaining: Math.Max(0, player.RageTicksRemaining),
+            IsBot: isBot,
+            CurrentCombo: player.CurrentCombo,
+            ComboTicksRemaining: player.ComboTicksRemaining,
+            ExperimentalCryoSlowTicksRemaining: player.ExperimentalCryoSlowTicksRemaining,
+            ExperimentalCryoFreezeTicksRemaining: player.ExperimentalCryoFreezeTicksRemaining,
+            ExperimentalCryoExposureFraction: player.ExperimentalCryoExposureFraction,
+            ExperimentalGhostVisibilityTicksRemaining: player.ExperimentalGhostVisibilityTicksRemaining,
+            ExperimentalGhostTrailAlpha: player.ExperimentalGhostDashTrailAlpha);
+    }
+
+    public SnapshotIntelState ToSnapshotIntelState(TeamIntelligenceState intel)
+    {
+        return new SnapshotIntelState(
+            (byte)intel.Team,
+            intel.X,
+            intel.Y,
+            intel.IsAtBase,
+            intel.IsDropped,
+            intel.ReturnTicksRemaining);
+    }
+
+    public SnapshotSentryState ToSnapshotSentryState(SentryEntity sentry)
+    {
+        return new SnapshotSentryState(
+            sentry.Id,
+            sentry.OwnerPlayerId,
+            (byte)sentry.Team,
+            sentry.X,
+            sentry.Y,
+            sentry.Health,
+            sentry.IsBuilt,
+            sentry.FacingDirectionX,
+            sentry.AimDirectionDegrees,
+            sentry.ShotTraceTicksRemaining,
+            sentry.HasLanded,
+            sentry.HasActiveTarget,
+            sentry.LastShotTargetX,
+            sentry.LastShotTargetY,
+            sentry.IsDispenser,
+            sentry.IsDispenser ? sentry.DispenserRampTicks : sentry.OverdriveTicksRemaining);
+    }
+
+    public SnapshotCivilDefenseTurretState ToSnapshotCivilDefenseTurretState(CivilDefenseTurretEntity turret)
+        => new(turret.Id, turret.OwnerPlayerId, (byte)turret.Team, turret.X, turret.Y,
+            turret.Health, turret.HasLanded, turret.IsBuilt, turret.FacingDirectionX, turret.AimDirectionDegrees,
+            turret.ReloadTicksRemaining, turret.ShotTraceTicksRemaining, turret.LastShotTargetX, turret.LastShotTargetY,
+            turret.LifetimeTicksRemaining);
+
+    public SnapshotJumpPadState ToSnapshotJumpPadState(JumpPadEntity pad)
+    {
+        return new SnapshotJumpPadState(
+            pad.Id,
+            pad.OwnerPlayerId,
+            (byte)pad.Team,
+            pad.X,
+            pad.Y,
+            pad.Health,
+            pad.HasLanded,
+            pad.IsBuilt);
+    }
+
+    public SnapshotJumpPadGibState ToSnapshotJumpPadGibState(JumpPadGibEntity jumpPadGib)
+    {
+        return new SnapshotJumpPadGibState(
+            jumpPadGib.Id,
+            (byte)jumpPadGib.Team,
+            jumpPadGib.X,
+            jumpPadGib.Y,
+            jumpPadGib.TicksRemaining);
+    }
+
+    public SnapshotHealthPackState ToSnapshotHealthPackState(HealthPackEntity healthPack, int respawnTicksRemaining = 0)
+    {
+        return new SnapshotHealthPackState(
+            healthPack.NetworkSnapshotId,
+            (byte)healthPack.Size,
+            healthPack.X,
+            healthPack.Y,
+            healthPack.HorizontalSpeed,
+            healthPack.VerticalSpeed,
+            healthPack.TicksRemaining,
+            healthPack.SourceSpawnIndex,
+            respawnTicksRemaining,
+            Active: true);
+    }
+
+    public SnapshotHealthPackState[] ToSnapshotHealthPackStates(
+        IReadOnlyList<HealthPackEntity> healthPacks,
+        IReadOnlyList<HealthPackSpawnMarker> healthPackSpawns,
+        Func<int, int> getHealthPackSpawnRespawnTicksRemaining)
+    {
+        if (healthPacks.Count == 0 && healthPackSpawns.Count == 0)
+        {
+            return [];
+        }
+
+        var states = new List<SnapshotHealthPackState>(healthPacks.Count + healthPackSpawns.Count);
+        var activeMapSpawns = new HashSet<int>();
+        for (var index = 0; index < healthPacks.Count; index += 1)
+        {
+            var healthPack = healthPacks[index];
+            if (healthPack.SourceSpawnIndex >= 0)
+            {
+                activeMapSpawns.Add(healthPack.SourceSpawnIndex);
+            }
+
+            states.Add(ToSnapshotHealthPackState(
+                healthPack,
+                healthPack.SourceSpawnIndex >= 0
+                    ? getHealthPackSpawnRespawnTicksRemaining(healthPack.SourceSpawnIndex)
+                    : 0));
+        }
+
+        for (var spawnIndex = 0; spawnIndex < healthPackSpawns.Count; spawnIndex += 1)
+        {
+            if (activeMapSpawns.Contains(spawnIndex))
+            {
+                continue;
+            }
+
+            var marker = healthPackSpawns[spawnIndex];
+            states.Add(new SnapshotHealthPackState(
+                HealthPackEntity.GetNetworkSnapshotId(spawnIndex, entityId: 0),
+                (byte)marker.Size,
+                marker.X,
+                marker.Y,
+                VelocityX: 0f,
+                VelocityY: 0f,
+                TicksRemaining: 0,
+                SourceSpawnIndex: spawnIndex,
+                getHealthPackSpawnRespawnTicksRemaining(spawnIndex),
+                Active: false));
+        }
+
+        states.Sort(static (left, right) => left.Id.CompareTo(right.Id));
+        return states.ToArray();
+    }
+
+    public SnapshotShotState ToSnapshotBulletState(ShotProjectileEntity shot)
+    {
+        return new SnapshotShotState(
+            shot.Id,
+            (byte)shot.Team,
+            shot.OwnerId,
+            shot.X,
+            shot.Y,
+            shot.VelocityX,
+            shot.VelocityY,
+            shot.TicksRemaining,
+            shot.IsCritical,
+            DamageValue: shot.DamageValue,
+            CriticalDamageMultiplier: shot.CriticalDamageMultiplier,
+            PlayerKnockbackImpulse: shot.PlayerKnockbackImpulse,
+            PlayerKnockbackAirborneVerticalScale: shot.PlayerKnockbackAirborneVerticalScale,
+            PlayerKnockbackGroundedVerticalScale: shot.PlayerKnockbackGroundedVerticalScale,
+            IsBoomstickPellet: shot.IsBoomstickPellet);
+    }
+
+    public SnapshotShotState ToSnapshotNeedleState(NeedleProjectileEntity shot)
+    {
+        var isArrow = shot is ArrowProjectileEntity;
+        var medicHealNeedle = shot as MedicHealNeedleProjectileEntity;
+        return new SnapshotShotState(
+            shot.Id,
+            (byte)shot.Team,
+            shot.OwnerId,
+            shot.X,
+            shot.Y,
+            shot.VelocityX,
+            shot.VelocityY,
+            shot.TicksRemaining,
+            shot.IsCritical,
+            shot is MedicHealNeedleProjectileEntity,
+            isArrow,
+            isArrow ? ((ArrowProjectileEntity)shot).FakeSpeedMultiplier : 1f,
+            isArrow && ((ArrowProjectileEntity)shot).IsLanded,
+            isArrow && ((ArrowProjectileEntity)shot).AppliesLastToDieGuardian,
+            isArrow && ((ArrowProjectileEntity)shot).PiercesPlayers,
+            isArrow && ((ArrowProjectileEntity)shot).AppliesLastToDieTranqDarts,
+            isArrow ? ((ArrowProjectileEntity)shot).LastToDiePoisonDamagePerSecond : 0f,
+            isArrow ? ((ArrowProjectileEntity)shot).LastToDieGhostDamageMultiplier : 1f,
+            isArrow && ((ArrowProjectileEntity)shot).AppliesLastToDieDecapitator,
+            isArrow && ((ArrowProjectileEntity)shot).IsLastToDieDecapitatorFullyCharged,
+            isArrow && ((ArrowProjectileEntity)shot).LastToDieAttachedHeadClassId.HasValue
+                ? (byte)((ArrowProjectileEntity)shot).LastToDieAttachedHeadClassId!.Value
+                : (byte)0,
+            isArrow && ((ArrowProjectileEntity)shot).LastToDieAttachedHeadTeam.HasValue
+                ? (byte)((ArrowProjectileEntity)shot).LastToDieAttachedHeadTeam!.Value
+                : (byte)0,
+            isArrow && ((ArrowProjectileEntity)shot).AppliesLastToDieExplosiveTip,
+            DamageValue: shot.Damage,
+            LastToDieMedicKritzM2Payload: medicHealNeedle is not null
+                ? medicHealNeedle.LastToDiePayload.Encode()
+                : (byte)0,
+            IsLastToDieMedicJavelinAnchored: medicHealNeedle?.IsLastToDieJavelinAnchored ?? false,
+            LastToDieMedicJavelinFuseTicksRemaining:
+                medicHealNeedle?.LastToDieJavelinFuseTicksRemaining ?? 0,
+            HasLastToDieMedicJavelinExploded:
+                medicHealNeedle?.HasLastToDieJavelinExploded ?? false,
+            CriticalDamageMultiplier: shot.CriticalDamageMultiplier);
+    }
+
+    public SnapshotShotState ToSnapshotBubbleState(BubbleProjectileEntity bubble)
+    {
+        return new SnapshotShotState(bubble.Id, (byte)bubble.Team, bubble.OwnerId, bubble.X, bubble.Y, bubble.VelocityX, bubble.VelocityY, bubble.TicksRemaining, bubble.IsCritical, CriticalDamageMultiplier: bubble.CriticalDamageMultiplier);
+    }
+
+    public SnapshotShotState ToSnapshotBladeState(BladeProjectileEntity blade)
+    {
+        return new SnapshotShotState(blade.Id, (byte)blade.Team, blade.OwnerId, blade.X, blade.Y, blade.VelocityX, blade.VelocityY, blade.TicksRemaining, blade.IsCritical, CriticalDamageMultiplier: blade.CriticalDamageMultiplier);
+    }
+
+    public SnapshotShotState ToSnapshotRevolverState(RevolverProjectileEntity shot)
+    {
+        return new SnapshotShotState(
+            shot.Id,
+            (byte)shot.Team,
+            shot.OwnerId,
+            shot.X,
+            shot.Y,
+            shot.VelocityX,
+            shot.VelocityY,
+            shot.TicksRemaining,
+            shot.IsCritical,
+            DamageValue: shot.DamageValue,
+            LastToDieRevolverProfile: shot.LastToDieProfile.Encode(),
+            AppliesLuckyStrikeStun: shot.AppliesLuckyStrikeStun,
+            CriticalDamageMultiplier: shot.CriticalDamageMultiplier,
+            PlayerKnockbackImpulse: shot.PlayerKnockbackImpulse,
+            PlayerKnockbackAirborneVerticalScale: shot.PlayerKnockbackAirborneVerticalScale,
+            PlayerKnockbackGroundedVerticalScale: shot.PlayerKnockbackGroundedVerticalScale);
+    }
+
+    public SnapshotRocketState ToSnapshotRocketState(RocketProjectileEntity rocket)
+    {
+        var passedFriendlyPlayerIds = rocket.PassedFriendlyPlayerIds.Count == 0
+            ? Array.Empty<int>()
+            : [.. rocket.PassedFriendlyPlayerIds.OrderBy(static id => id)];
+
+        return new SnapshotRocketState(
+            rocket.Id,
+            (byte)rocket.Team,
+            rocket.OwnerId,
+            rocket.X,
+            rocket.Y,
+            rocket.PreviousX,
+            rocket.PreviousY,
+            rocket.DirectionRadians,
+            rocket.Speed,
+            rocket.TicksRemaining,
+            rocket.ReducedKnockbackSourceTicksRemaining,
+            rocket.ZeroKnockbackSourceTicksRemaining,
+            rocket.RangeAnchorOwnerId,
+            rocket.LastKnownRangeOriginX,
+            rocket.LastKnownRangeOriginY,
+            rocket.DistanceToTravel,
+            rocket.IsFading,
+            rocket.FadeSourceTicksRemaining,
+            passedFriendlyPlayerIds,
+            rocket.IsCritical,
+            rocket.CriticalDamageMultiplier,
+            rocket.IsBallistic,
+            rocket.BallisticGravityPerTick,
+            rocket.SuppressSmokeTrail);
+    }
+
+    public SnapshotFlameState ToSnapshotFlameState(FlameProjectileEntity flame)
+    {
+        return new SnapshotFlameState(
+            flame.Id,
+            (byte)flame.Team,
+            flame.OwnerId,
+            flame.X,
+            flame.Y,
+            flame.PreviousX,
+            flame.PreviousY,
+            flame.VelocityX,
+            flame.VelocityY,
+            flame.TicksRemaining,
+            flame.AttachedPlayerId ?? -1,
+            flame.AttachedOffsetX,
+            flame.AttachedOffsetY,
+            flame.IsCritical,
+            flame.CriticalDamageMultiplier,
+            flame.SettlesOnGround,
+            flame.IsGrounded);
+    }
+
+    public SnapshotShotState ToSnapshotFlareState(FlareProjectileEntity flare)
+    {
+        return new SnapshotShotState(
+            flare.Id,
+            (byte)flare.Team,
+            flare.OwnerId,
+            flare.X,
+            flare.Y,
+            flare.VelocityX,
+            flare.VelocityY,
+            flare.TicksRemaining,
+            flare.IsCritical,
+            DamageValue: flare.DamagePerHit,
+            CriticalDamageMultiplier: flare.CriticalDamageMultiplier,
+            FlareStyle: (byte)flare.Style);
+    }
+
+    public SnapshotMineState ToSnapshotMineState(MineProjectileEntity mine)
+    {
+        return new SnapshotMineState(
+            mine.Id,
+            (byte)mine.Team,
+            mine.OwnerId,
+            mine.X,
+            mine.Y,
+            mine.VelocityX,
+            mine.VelocityY,
+            mine.IsStickied,
+            mine.IsDestroyed,
+            mine.ExplosionDamage,
+            mine.IsCritical,
+            mine.CriticalDamageMultiplier);
+    }
+
+    public SnapshotGrenadeState ToSnapshotGrenadeState(GrenadeProjectileEntity grenade)
+    {
+        return new SnapshotGrenadeState(
+            grenade.Id,
+            (byte)grenade.Team,
+            grenade.OwnerId,
+            grenade.X,
+            grenade.Y,
+            grenade.PreviousX,
+            grenade.PreviousY,
+            grenade.VelocityX,
+            grenade.VelocityY,
+            grenade.FuseTicksLeft,
+            grenade.IsCritical,
+            grenade.CriticalDamageMultiplier,
+            grenade.IsStrongDrink);
+    }
+
+    public SnapshotDeadBodyState ToSnapshotDeadBodyState(DeadBodyEntity deadBody)
+    {
+        return new SnapshotDeadBodyState(
+            deadBody.Id,
+            deadBody.SourcePlayerId,
+            (byte)deadBody.Team,
+            (byte)deadBody.ClassId,
+            (byte)deadBody.AnimationKind,
+            deadBody.X,
+            deadBody.Y,
+            deadBody.Width,
+            deadBody.Height,
+            deadBody.HorizontalSpeed,
+            deadBody.VerticalSpeed,
+            deadBody.FacingLeft,
+            deadBody.TicksRemaining,
+            deadBody.GameplayClassId,
+            deadBody.DiedToFire);
+    }
+
+    public SnapshotSentryGibState ToSnapshotSentryGibState(SentryGibEntity sentryGib)
+    {
+        return new SnapshotSentryGibState(
+            sentryGib.Id,
+            (byte)sentryGib.Team,
+            sentryGib.X,
+            sentryGib.Y,
+            sentryGib.TicksRemaining,
+            sentryGib.IsDispenser);
+    }
+
+    public SnapshotControlPointState ToSnapshotControlPointState(ControlPointState point)
+    {
+        return new SnapshotControlPointState(
+            (byte)point.Index,
+            (byte)(point.Team.HasValue ? point.Team.Value : 0),
+            (byte)(point.CappingTeam.HasValue ? point.CappingTeam.Value : 0),
+            (ushort)Math.Clamp((int)MathF.Round(point.CappingTicks), 0, ushort.MaxValue),
+            (ushort)Math.Clamp(point.CapTimeTicks, 0, ushort.MaxValue),
+            (byte)Math.Clamp(point.Cappers, 0, byte.MaxValue),
+            point.IsLocked,
+            point.HasHealingAura);
+    }
+
+    public SnapshotGeneratorState ToSnapshotGeneratorState(GeneratorState generator)
+    {
+        return new SnapshotGeneratorState(
+            (byte)generator.Team,
+            (short)generator.Health,
+            (short)generator.MaxHealth);
+    }
+
+    public SnapshotPlayerGibState ToSnapshotPlayerGibState(PlayerGibEntity gib)
+    {
+        return new SnapshotPlayerGibState(
+            gib.Id,
+            gib.SpriteName,
+            gib.FrameIndex,
+            gib.X,
+            gib.Y,
+            gib.VelocityX,
+            gib.VelocityY,
+            gib.RotationDegrees,
+            gib.RotationSpeedDegrees,
+            gib.TicksRemaining,
+            gib.BloodChance);
+    }
+
+    public SnapshotBloodDropState ToSnapshotBloodDropState(BloodDropEntity bloodDrop)
+    {
+        return new SnapshotBloodDropState(
+            bloodDrop.Id,
+            bloodDrop.X,
+            bloodDrop.Y,
+            bloodDrop.VelocityX,
+            bloodDrop.VelocityY,
+            bloodDrop.IsStuck,
+            bloodDrop.TicksRemaining,
+            bloodDrop.Scale);
+    }
+
+    public SnapshotCombatTraceState ToSnapshotCombatTraceState(CombatTrace trace)
+    {
+        return new SnapshotCombatTraceState(
+            trace.StartX,
+            trace.StartY,
+            trace.EndX,
+            trace.EndY,
+            trace.TicksRemaining,
+            trace.HitCharacter,
+            (byte)trace.Team,
+            trace.IsSniperTracer,
+            trace.IsCritical);
+    }
+
+    public SnapshotSniperAimIndicatorState ToSnapshotSniperAimIndicatorState(SniperAimIndicator indicator)
+    {
+        return new SnapshotSniperAimIndicatorState(
+            indicator.SniperPlayerId,
+            indicator.X,
+            indicator.Y,
+            (byte)indicator.Team,
+            indicator.Transparency);
+    }
+
+    public SnapshotSoundEvent ToSnapshotSoundEvent(WorldSoundEvent soundEvent, ulong fallbackEventId)
+    {
+        return new SnapshotSoundEvent(
+            soundEvent.SoundName,
+            soundEvent.X,
+            soundEvent.Y,
+            soundEvent.EventId == 0 ? fallbackEventId : soundEvent.EventId,
+            soundEvent.SourceFrame,
+            soundEvent.SourcePlayerId);
+    }
+
+    public SnapshotVisualEvent ToSnapshotVisualEvent(WorldVisualEvent visualEvent, ulong fallbackEventId)
+    {
+        return new SnapshotVisualEvent(
+            visualEvent.EffectName,
+            visualEvent.X,
+            visualEvent.Y,
+            visualEvent.DirectionDegrees,
+            visualEvent.Count,
+            visualEvent.EventId == 0 ? fallbackEventId : visualEvent.EventId,
+            visualEvent.SourceFrame);
+    }
+
+    public SnapshotDamageEvent ToSnapshotDamageEvent(WorldDamageEvent damageEvent, ulong fallbackEventId)
+    {
+        return new SnapshotDamageEvent(
+            damageEvent.Amount,
+            damageEvent.AttackerPlayerId,
+            damageEvent.AssistedByPlayerId,
+            (byte)damageEvent.TargetKind,
+            damageEvent.TargetEntityId,
+            damageEvent.X,
+            damageEvent.Y,
+            damageEvent.WasFatal,
+            damageEvent.EventId == 0 ? fallbackEventId : damageEvent.EventId,
+            damageEvent.SourceFrame,
+            (byte)damageEvent.Flags);
+    }
+
+    public SnapshotKillFeedEntry ToSnapshotKillFeedEntry(KillFeedEntry entry)
+    {
+        var messageText = TruncateSnapshotString(entry.MessageText, ProtocolCodec.MaxKillMessageBytes);
+        var messageHighlightStart = Math.Clamp(entry.MessageHighlightStart, 0, messageText.Length);
+        var messageHighlightLength = Math.Clamp(entry.MessageHighlightLength, 0, messageText.Length - messageHighlightStart);
+
+        return new SnapshotKillFeedEntry(
+            TruncateSnapshotString(entry.KillerName, ProtocolCodec.MaxPlayerNameBytes),
+            (byte)entry.KillerTeam,
+            TruncateSnapshotString(entry.WeaponSpriteName, ProtocolCodec.MaxAssetNameBytes),
+            TruncateSnapshotString(entry.VictimName, ProtocolCodec.MaxPlayerNameBytes),
+            (byte)entry.VictimTeam,
+            messageText,
+            messageHighlightStart,
+            messageHighlightLength,
+            entry.KillerPlayerId,
+            entry.VictimPlayerId,
+            (OpenGarrison.Protocol.KillFeedSpecialType)entry.SpecialType,
+            entry.EventId)
+        {
+            AssistName = entry.AssistName,
+                AssistTeam = (byte)entry.AssistTeam,
+                AssistPlayerId = entry.AssistPlayerId,
+                InvolvedPlayerIds = entry.InvolvedPlayerIds.ToArray(),
+        };
+    }
+
+    public SnapshotDeathCamState? ToSnapshotDeathCamState(LocalDeathCamState? deathCam)
+    {
+        if (deathCam is null)
+        {
+            return null;
+        }
+
+        return new SnapshotDeathCamState(
+            deathCam.FocusX,
+            deathCam.FocusY,
+            TruncateSnapshotString(deathCam.KillMessage, ProtocolCodec.MaxKillMessageBytes),
+            TruncateSnapshotString(deathCam.KillerName, ProtocolCodec.MaxPlayerNameBytes),
+            deathCam.KillerTeam.HasValue ? (byte)deathCam.KillerTeam.Value : (byte)0,
+            deathCam.Health,
+            deathCam.MaxHealth,
+            deathCam.RemainingTicks,
+            deathCam.InitialTicks);
+    }
+
+    private static string TruncateSnapshotString(string? value, int maxBytes)
+    {
+        return ProtocolCodec.TruncateUtf8(value ?? string.Empty, maxBytes);
+    }
+}
+
+internal sealed class SnapshotSystemDependencies
+{
+    public Func<byte, bool> IsPlayableNetworkPlayerSlot { get; init; } = static slot => slot >= 1 && slot <= 40;
+    public byte FirstSpectatorSlot { get; init; } = 128;
+    public Func<byte, bool> IsNetworkPlayerAwaitingJoin { get; init; } = static _ => false;
+    public Func<byte, PlayerTeam> GetNetworkPlayerConfiguredTeam { get; init; } = static _ => PlayerTeam.Red;
+    public Func<byte, int> GetNetworkPlayerRespawnTicks { get; init; } = static _ => 0;
+    public Func<byte, bool> IsNetworkPlayerReady { get; init; } = static _ => false;
+    public Func<bool> AreSpecialAbilitiesEnabled { get; init; } = static () => false;
+}

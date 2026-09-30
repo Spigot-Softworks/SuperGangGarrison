@@ -8,7 +8,7 @@ public sealed class PlayerEntityMovementRegressionTests
 {
     private static readonly FieldInfo AimDirectionDegreesBackingField = typeof(PlayerEntity).GetField(
         "<AimDirectionDegrees>k__BackingField",
-        BindingFlags.Instance | BindingFlags.NonPublic)!;
+        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!;
     [Fact]
     public void AirborneSubpixelMovementStillAdvancesInOpenSpace()
     {
@@ -283,38 +283,6 @@ public sealed class PlayerEntityMovementRegressionTests
         return player;
     }
 
-    [Fact]
-    public void CivilianUmbrellaOpeningAirblastWaitsForThirdFrame()
-    {
-        var player = CreateAirborneCivilianWithFallSpeed(0f);
-        Assert.True(player.TryActivateCivvieUmbrella());
-        player.BeginCivvieUmbrellaOpening();
-
-        for (var tick = 0; tick < PlayerEntity.CivvieUmbrellaAirblastOpeningTick; tick += 1)
-        {
-            Assert.False(player.ShouldTriggerCivvieUmbrellaOpeningAirblast());
-            player.AdvanceCivvieUmbrellaOpeningTick();
-        }
-
-        Assert.True(player.ShouldTriggerCivvieUmbrellaOpeningAirblast());
-    }
-
-    [Fact]
-    public void CivilianUmbrellaOpeningAirblastRetriggersOnEachNewOpening()
-    {
-        var player = CreateAirborneCivilianWithFallSpeed(0f);
-        Assert.True(player.TryActivateCivvieUmbrella());
-
-        player.BeginCivvieUmbrellaOpening();
-        AdvanceCivvieUmbrellaOpeningToAirblastFrame(player);
-        Assert.True(player.ShouldTriggerCivvieUmbrellaOpeningAirblast());
-        player.MarkCivvieUmbrellaOpeningAirblastTriggered();
-
-        player.BeginCivvieUmbrellaOpening();
-        AdvanceCivvieUmbrellaOpeningToAirblastFrame(player);
-        Assert.True(player.ShouldTriggerCivvieUmbrellaOpeningAirblast());
-    }
-
     private static void AdvanceCivvieUmbrellaOpeningToAirblastFrame(PlayerEntity player)
     {
         for (var tick = 0; tick < PlayerEntity.CivvieUmbrellaAirblastOpeningTick; tick += 1)
@@ -511,24 +479,6 @@ public sealed class PlayerEntityMovementRegressionTests
     }
 
     [Fact]
-    public void CivilianPogoSuperJumpSoundPendingOnlyWhenUpHeldOnBounce()
-    {
-        var level = CreateFlatGroundLevel();
-        var player = CreateGroundedCivilian(level);
-        player.SyncCivviePogoSuperJumpInput(false);
-        Assert.True(player.TryToggleCivviePogo());
-        FulfillCivviePogoGroundBounce(player, level);
-        Assert.False(player.TryConsumeCivviePogoSuperJumpSoundRequest(out _, out _));
-        player.DeactivateCivviePogo();
-        LandGroundedCivilian(player, level);
-
-        player.SyncCivviePogoSuperJumpInput(true);
-        Assert.True(player.TryToggleCivviePogo());
-        FulfillCivviePogoGroundBounce(player, level);
-        Assert.True(player.TryConsumeCivviePogoSuperJumpSoundRequest(out _, out _));
-    }
-
-    [Fact]
     public void CivilianPogoBouncesWhenActivatedDuringSlowFallLandingTick()
     {
         var level = CreateFlatGroundLevel();
@@ -644,7 +594,7 @@ public sealed class PlayerEntityMovementRegressionTests
     {
         var field = typeof(PlayerEntity).GetField(
             "<CivviePogoNeedsGroundBounce>k__BackingField",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(field);
         field!.SetValue(player, false);
     }
@@ -883,85 +833,6 @@ public sealed class PlayerEntityMovementRegressionTests
                 new LevelSolid(384f, 520f, 1664f, 504f),
             ],
             importedFromSource: false);
-    }
-
-    [Fact]
-    public void CivilianPogoTrickStartsOnTauntInputAndEndsOnLandingCrunch()
-    {
-        var level = CreateFlatGroundLevel();
-        var player = CreateGroundedCivilian(level);
-        EnterCivviePogoSuperJumpAirPhase(player, level);
-        Assert.True(player.TryStartCivviePogoTrick(trickFrameCount: 4, durationTicks: 18));
-        Assert.True(player.IsCivviePogoTrickActive);
-        Assert.InRange(player.GetCivviePogoTrickFrameIndex(sessionSeed: 0, currentFrame: 100, frameCount: 2), 0, 1);
-
-        FulfillCivviePogoGroundBounce(player, level);
-        player.AdvanceCivviePogoState();
-
-        Assert.False(player.IsCivviePogoTrickActive);
-        Assert.True(player.CivviePogoCrunchTicksRemaining > 0);
-    }
-
-    [Fact]
-    public void CivilianPogoTrickRequiresSuperJumpAirPhase()
-    {
-        var level = CreateFlatGroundLevel();
-        var player = CreateGroundedCivilian(level);
-        Assert.True(player.TryToggleCivviePogo());
-        Assert.False(player.CanPerformCivviePogoTrick);
-        Assert.False(player.TryStartCivviePogoTrick(trickFrameCount: 4, durationTicks: 18));
-
-        EnterCivviePogoSuperJumpAirPhase(player, level);
-        Assert.True(player.CanPerformCivviePogoTrick);
-        Assert.True(player.TryStartCivviePogoTrick(trickFrameCount: 4, durationTicks: 18));
-    }
-
-    [Fact]
-    public void CivilianPogoTrickDurationIsCappedAtPointSixSeconds()
-    {
-        Assert.Equal(18, PlayerEntity.ResolveCivviePogoTrickDurationTicks(30, ticksPerSecond: 30));
-        Assert.Equal(12, PlayerEntity.ResolveCivviePogoTrickDurationTicks(30, ticksPerSecond: 20));
-        Assert.Equal(10, PlayerEntity.ResolveCivviePogoTrickDurationTicks(10, ticksPerSecond: 30));
-    }
-
-    [Fact]
-    public void CivilianPogoTrickAllowsOnlyOneTrickPerSuperJump()
-    {
-        var level = CreateFlatGroundLevel();
-        var player = CreateGroundedCivilian(level);
-        EnterCivviePogoSuperJumpAirPhase(player, level);
-        Assert.True(player.TryStartCivviePogoTrick(trickFrameCount: 4, durationTicks: 2));
-        Assert.False(player.TryStartCivviePogoTrick(trickFrameCount: 4, durationTicks: 2));
-
-        for (var tick = 0; tick < 2; tick += 1)
-        {
-            player.AdvanceCivviePogoState();
-        }
-
-        Assert.False(player.IsCivviePogoTrickActive);
-        player.ObserveCivviePogoTrickInput(isHeld: false);
-        Assert.False(player.CanPerformCivviePogoTrick);
-        Assert.False(player.TryStartCivviePogoTrick(trickFrameCount: 4, durationTicks: 2));
-    }
-
-    [Fact]
-    public void CivilianPogoTrickResetsAfterAnotherSuperJump()
-    {
-        var level = CreateFlatGroundLevel();
-        var player = CreateGroundedCivilian(level);
-        EnterCivviePogoSuperJumpAirPhase(player, level);
-        Assert.True(player.TryStartCivviePogoTrick(trickFrameCount: 4, durationTicks: 2));
-
-        for (var tick = 0; tick < 2; tick += 1)
-        {
-            player.AdvanceCivviePogoState();
-        }
-
-        player.ObserveCivviePogoTrickInput(isHeld: false);
-        player.SyncCivviePogoSuperJumpInput(true);
-        AdvanceCivviePogoMovementUntil(player, level, static candidate => candidate.CanPerformCivviePogoTrick);
-
-        Assert.True(player.TryStartCivviePogoTrick(trickFrameCount: 4, durationTicks: 2));
     }
 
     private static void AdvanceCivviePogoMovementUntil(

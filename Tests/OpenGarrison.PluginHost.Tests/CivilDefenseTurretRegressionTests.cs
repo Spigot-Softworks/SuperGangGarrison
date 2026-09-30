@@ -24,7 +24,7 @@ public sealed class CivilDefenseTurretRegressionTests
         world.AdvanceOneTick();
 
         Assert.Equal(health, world.LocalPlayer.Health);
-        Assert.False(Entities(world).ContainsKey(projectile.Id));
+        Assert.False(world.EntityStore.Contains(projectile.Id));
         Assert.Equal(CivilDefenseTurretEntity.ReloadTicks, turret.ReloadTicksRemaining);
         Assert.InRange(turret.LastShotTargetX, 600f, 610f);
     }
@@ -53,8 +53,8 @@ public sealed class CivilDefenseTurretRegressionTests
         var friendly = AddProjectile(world, "shot", PlayerTeam.Red, 440f, 510f, 0f, 90001);
         var enemy = AddProjectile(world, "shot", PlayerTeam.Blue, 560f, 510f, 0f, 90002);
         world.AdvanceOneTick();
-        Assert.True(Entities(world).ContainsKey(friendly.Id));
-        Assert.True(Entities(world).ContainsKey(enemy.Id));
+        Assert.True(world.EntityStore.Contains(friendly.Id));
+        Assert.True(world.EntityStore.Contains(enemy.Id));
         Assert.True(turret.CanFire());
     }
 
@@ -77,7 +77,7 @@ public sealed class CivilDefenseTurretRegressionTests
         var world = CreateWorld();
         Assert.True(world.TryConfigureLastToDiePlayerBuild(SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Soldier.CivilDefenseTurret]));
-        var deploy = typeof(SimulationWorld).GetMethod("TryHandleExperimentalSoldierCivilDefenseTurret", BindingFlags.NonPublic | BindingFlags.Instance)!;
+        var deploy = typeof(SimulationWorld).GetMethod("TryHandleExperimentalSoldierCivilDefenseTurret", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance)!;
         Assert.True((bool)deploy.Invoke(world, [world.LocalPlayer])!);
         for (var tick = 0; tick < 120; tick++) world.AdvanceOneTick();
         Assert.Equal(0, world.LocalPlayer.PrimaryCooldownTicks);
@@ -98,9 +98,9 @@ public sealed class CivilDefenseTurretRegressionTests
         world.ClientPredictionMode = true;
         Assert.False(Deploy(world));
         var shot = AddProjectile(world, "shot", PlayerTeam.Blue, 550f, 500f, 0f);
-        typeof(SimulationWorld).GetMethod("AdvanceCivilDefenseTurrets", BindingFlags.NonPublic | BindingFlags.Instance)!.Invoke(world, null);
+        typeof(SimulationWorld).GetMethod("AdvanceCivilDefenseTurrets", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance)!.Invoke(world, null);
         Assert.True(turret.CanFire());
-        Assert.True(Entities(world).ContainsKey(shot.Id));
+        Assert.True(world.EntityStore.Contains(shot.Id));
     }
 
     internal static SimulationWorld CreateWorld(bool wall = false)
@@ -118,7 +118,7 @@ public sealed class CivilDefenseTurretRegressionTests
     }
 
     private static bool Deploy(SimulationWorld world) => (bool)typeof(SimulationWorld)
-        .GetMethod("TryDeployCivilDefenseTurret", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(world, [world.LocalPlayer])!;
+        .GetMethod("TryDeployCivilDefenseTurret", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!.Invoke(world, [world.LocalPlayer])!;
 
     internal static CivilDefenseTurretEntity DeployBuilt(SimulationWorld world)
     {
@@ -128,9 +128,6 @@ public sealed class CivilDefenseTurretRegressionTests
         Assert.True(turret.CanFire());
         return turret;
     }
-
-    private static Dictionary<int, SimulationEntity> Entities(SimulationWorld world) =>
-        (Dictionary<int, SimulationEntity>)typeof(SimulationWorld).GetField("_entities", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(world)!;
 
     private static SimulationEntity AddProjectile(SimulationWorld world, string kind, PlayerTeam team, float x, float y, float velocityX, int id = 90000)
     {
@@ -142,8 +139,8 @@ public sealed class CivilDefenseTurretRegressionTests
             "mine" => (new MineProjectileEntity(id, team, 9999, x, y, velocityX, 0), "_mines"),
             _ => (new ShotProjectileEntity(id, team, 9999, x, y, velocityX, 0), "_shots"),
         };
-        ((IList)typeof(SimulationWorld).GetField(projectile.Collection, BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(world)!).Add(projectile.Entity);
-        Entities(world).Add(id, projectile.Entity);
+        ((IList)typeof(ProjectileSystem).GetField(projectile.Collection, BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance)!.GetValue(world.Projectiles)!).Add(projectile.Entity);
+        world.EntityStore.Add(projectile.Entity);
         return projectile.Entity;
     }
 }

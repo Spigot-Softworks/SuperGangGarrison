@@ -6,20 +6,18 @@ using System.Globalization;
 
 namespace OpenGarrison.Client;
 
-internal enum NetworkEndpointTransport
+public enum NetworkEndpointTransport
 {
     Udp,
     WebSocket,
-    Quic,
 }
 
-internal readonly record struct NetworkEndpointCandidate(string Host, int Port, NetworkEndpointTransport Transport);
+public readonly record struct NetworkEndpointCandidate(string Host, int Port, NetworkEndpointTransport Transport);
 
-internal readonly record struct NetworkEndpoint(string Host, int UdpPort, int WebSocketPort, string WebSocketUrl = "", int QuicPort = 0, string QuicUrl = "")
+public readonly record struct NetworkEndpoint(string Host, int UdpPort, int WebSocketPort, string WebSocketUrl = "")
 {
     public bool HasUdpEndpoint => UdpPort is > 0 and <= 65535;
     public bool HasWebSocketEndpoint => !string.IsNullOrWhiteSpace(WebSocketUrl) || WebSocketPort is > 0 and <= 65535;
-    public bool HasQuicEndpoint => !string.IsNullOrWhiteSpace(QuicUrl) || QuicPort is > 0 and <= 65535;
 
     public bool TryResolveForCurrentRuntime(out string host, out int port, out NetworkEndpointTransport transport)
     {
@@ -65,9 +63,6 @@ internal readonly record struct NetworkEndpoint(string Host, int UdpPort, int We
             yield break;
         }
 
-        // Native clients intentionally use the shipped UDP transport. QUIC is
-        // retained in the codebase for later work, but is not a selectable or
-        // advertised native connection fallback in this release.
         if (HasUdpEndpoint)
         {
             yield return new NetworkEndpointCandidate(host, UdpPort, NetworkEndpointTransport.Udp);
@@ -109,12 +104,6 @@ internal readonly record struct NetworkEndpoint(string Host, int UdpPort, int We
             if (HasUdpEndpoint)
             {
                 return $"{host}:udp {UdpPort}";
-            }
-
-            if (HasQuicEndpoint)
-            {
-                var quicLabel = string.IsNullOrWhiteSpace(QuicUrl) ? QuicPort.ToString(CultureInfo.InvariantCulture) : QuicUrl.Trim();
-                return $"{host}:quic {quicLabel}";
             }
 
             return host;

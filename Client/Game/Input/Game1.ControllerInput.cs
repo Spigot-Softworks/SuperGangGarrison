@@ -10,16 +10,16 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private const float ControllerTriggerThreshold = 0.35f;
-    private const float ControllerMovementThreshold = 0.25f;
-    private const float ControllerSelectionActivityThreshold = 0.18f;
-    private const float ControllerAimAssistConeCos = 0.8660254f;
-    private const float ControllerAimAssistMaxDistance = 560f;
-    private const float ControllerAimAssistMinBlendScale = 0.55f;
-    private const float ControllerAimAssistMaxBlendScale = 1.35f;
-    private const float ControllerAimAssistMaxBlend = 0.85f;
-    private const float ControllerMenuNavigationThreshold = 0.45f;
-    private const float ControllerAimInputEngageThreshold = 0.12f;
+    public const float ControllerTriggerThreshold = 0.35f;
+    public const float ControllerMovementThreshold = 0.25f;
+    public const float ControllerSelectionActivityThreshold = 0.18f;
+    public const float ControllerAimAssistConeCos = 0.8660254f;
+    public const float ControllerAimAssistMaxDistance = 560f;
+    public const float ControllerAimAssistMinBlendScale = 0.55f;
+    public const float ControllerAimAssistMaxBlendScale = 1.35f;
+    public const float ControllerAimAssistMaxBlend = 0.85f;
+    public const float ControllerMenuNavigationThreshold = 0.45f;
+    public const float ControllerAimInputEngageThreshold = 0.12f;
     private const float ControllerAimInputReleaseThreshold = 0.04f;
     private const float ControllerDirectAimMinTurnRateRadians = 0.15f;
     private const float ControllerDirectAimMaxTurnRateRadians = 8f;
@@ -95,7 +95,7 @@ public partial class Game1
     private bool _controllerMenuConfirmConsumed;
     private float _controllerLeftStickAimFlickSecondsRemaining;
 
-    private void UpdateControllerInputState(bool windowActive, KeyboardState keyboard, MouseState mouse)
+    public void UpdateControllerInputState(bool windowActive, KeyboardState keyboard, MouseState mouse)
     {
         _previousGamePad = _currentGamePad;
         _currentGamePad = GetCurrentControllerGamePadState(windowActive, out var selectedControllerChanged);
@@ -252,7 +252,7 @@ public partial class Game1
             && state.IsButtonDown(Buttons.RightStick);
     }
 
-    private bool IsControllerBindingPressed(ControllerButtonBinding binding)
+    public bool IsControllerBindingPressed(ControllerButtonBinding binding)
     {
         return IsControllerGameplayInputActive()
             && IsControllerBindingPressed(binding, _currentGamePad, _previousGamePad);
@@ -264,7 +264,7 @@ public partial class Game1
             && IsControllerBindingDown(binding, _currentGamePad);
     }
 
-    private static bool IsControllerBindingPressed(
+    public static bool IsControllerBindingPressed(
         ControllerButtonBinding binding,
         GamePadState current,
         GamePadState previous)
@@ -347,14 +347,14 @@ public partial class Game1
         }
     }
 
-    private bool IsControllerMenuInputActive()
+    public bool IsControllerMenuInputActive()
     {
         return _controllerPreferred
             && _currentGamePad.IsConnected
             && OpenGarrisonPreferencesDocument.NormalizeControllerInputMode(_clientSettings.ControllerInputMode) != ControllerInputMode.Off;
     }
 
-    private bool IsControllerMenuConfirmPressed()
+    public bool IsControllerMenuConfirmPressed()
     {
         return IsControllerMenuInputActive()
             && !_controllerMenuConfirmConsumed
@@ -362,7 +362,7 @@ public partial class Game1
                 || IsControllerBindingPressed(_clientSettings.ControllerPrimaryFireButton));
     }
 
-    private void ConsumeControllerMenuConfirmPress()
+    public void ConsumeControllerMenuConfirmPress()
     {
         if (IsControllerMenuInputActive() && IsControllerMenuConfirmDown())
         {
@@ -377,7 +377,7 @@ public partial class Game1
                 || IsControllerBindingDown(_clientSettings.ControllerPrimaryFireButton));
     }
 
-    private bool IsControllerMenuBackPressed()
+    public bool IsControllerMenuBackPressed()
     {
         return IsControllerMenuInputActive()
             && (IsControllerButtonPressed(Buttons.B)
@@ -385,7 +385,7 @@ public partial class Game1
                 || IsControllerBindingPressed(_clientSettings.ControllerSecondaryFireButton));
     }
 
-    private bool ShouldUseMouseMenuHover(MouseState mouse)
+    public bool ShouldUseMouseMenuHover(MouseState mouse)
     {
         return !IsControllerMenuInputActive()
             || mouse.X != _previousMouse.X
@@ -398,7 +398,7 @@ public partial class Game1
             || mouse.XButton2 == ButtonState.Pressed;
     }
 
-    private bool TryConsumeControllerMenuNavigation(out int horizontal, out int vertical)
+    public bool TryConsumeControllerMenuNavigation(out int horizontal, out int vertical)
     {
         horizontal = 0;
         vertical = 0;
@@ -425,7 +425,7 @@ public partial class Game1
         return true;
     }
 
-    private bool TryGetPressedControllerButtonBinding(out ControllerButtonBinding binding)
+    public bool TryGetPressedControllerButtonBinding(out ControllerButtonBinding binding)
     {
         binding = ControllerButtonBinding.None;
         if (!IsControllerMenuInputActive())
@@ -502,7 +502,7 @@ public partial class Game1
         }
     }
 
-    private static int MoveControllerMenuSelection(int currentIndex, int itemCount, int step)
+    public static int MoveControllerMenuSelection(int currentIndex, int itemCount, int step)
     {
         if (itemCount <= 0 || step == 0)
         {

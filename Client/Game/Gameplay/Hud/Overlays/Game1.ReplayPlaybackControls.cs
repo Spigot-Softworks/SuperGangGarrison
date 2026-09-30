@@ -10,22 +10,22 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private const int ReplaySeekStepMilliseconds = 5000;
-    internal const float ReplayPlaybackTextScale = PixelPerfectTextLayout.NaturalScale;
+    public const int ReplaySeekStepMilliseconds = 5000;
+    public const float ReplayPlaybackTextScale = PixelPerfectTextLayout.NaturalScale;
 
-    internal readonly record struct ReplayPlaybackControlLayout(
+    public readonly record struct ReplayPlaybackControlLayout(
         Rectangle Panel,
         Rectangle Status,
         Rectangle Backward,
         Rectangle Forward);
 
-    private LoadedSpriteFrame? _replayBackwardArrow;
+    public LoadedSpriteFrame? _replayBackwardArrow;
     private LoadedSpriteFrame? _replayForwardArrow;
     private bool _replayPlaybackControlAssetsLoaded;
-    private bool _replaySeekCatchUpActive;
-    private int _replaySeekTargetMilliseconds;
+    public bool _replaySeekCatchUpActive;
+    public int _replaySeekTargetMilliseconds;
 
-    private void UpdateReplayPlaybackControls(KeyboardState keyboard, MouseState mouse)
+    public void UpdateReplayPlaybackControls(KeyboardState keyboard, MouseState mouse)
     {
         if (!TryGetInteractiveReplayPlaybackState(out var state))
         {
@@ -243,7 +243,7 @@ public partial class Game1
             "Sprites", "Menu", "LastToDie", "CharacterSelect", "arrowleft.png"));
     }
 
-    private void DisposeReplayPlaybackControlAssets()
+    public void DisposeReplayPlaybackControlAssets()
     {
         _replayBackwardArrow?.Dispose();
         _replayForwardArrow?.Dispose();

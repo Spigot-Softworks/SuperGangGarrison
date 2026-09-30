@@ -7,7 +7,7 @@ using OpenGarrison.Core;
 
 namespace OpenGarrison.Client;
 
-internal sealed class PlayerSkinCatalog
+public sealed class PlayerSkinCatalog
 {
     public int Version { get; set; }
     public string DefaultSet { get; set; } = "Elkondo";
@@ -102,7 +102,7 @@ internal sealed class PlayerSkinCatalog
     }
 }
 
-internal sealed class PlayerSkinDefinition
+public sealed class PlayerSkinDefinition
 {
     // Composite silhouette retained for outlines, shadows and afterimages.
     public string BodySprite { get; set; } = "";
@@ -134,7 +134,7 @@ internal sealed class PlayerSkinDefinition
     }
 }
 
-internal sealed class PlayerSkinClip
+public sealed class PlayerSkinClip
 {
     public int[] Frames { get; set; } = [];
     public float FramesPerSecond { get; set; } = 12;
@@ -147,7 +147,7 @@ internal sealed class PlayerSkinClip
     }
 }
 
-internal sealed class PlayerSkinPose
+public sealed class PlayerSkinPose
 {
     public string? WeaponSkin { get; set; }
     public int WeaponSkinPose { get; set; }
@@ -155,7 +155,7 @@ internal sealed class PlayerSkinPose
     public float EquipmentOffset { get; set; }
 }
 
-internal sealed class PlayerSkinWeapon
+public sealed class PlayerSkinWeapon
 {
     public string ItemId { get; set; } = "";
     public string MatchSprite { get; set; } = "";

@@ -2,7 +2,7 @@ namespace OpenGarrison.Core;
 
 public sealed partial class SimulationWorld
 {
-    private CombatResolver Combat => _combatResolver ??= new CombatResolver(this);
+    private CombatResolver GeometryResolver => _combatResolver ??= new CombatResolver(this);
     private CombatResolver? _combatResolver;
 
     private sealed partial class CombatResolver

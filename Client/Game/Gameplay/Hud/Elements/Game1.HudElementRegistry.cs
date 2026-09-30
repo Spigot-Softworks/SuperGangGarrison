@@ -10,21 +10,21 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private const int HudElementLayerLocalHealth = 10;
-    private const int HudElementLayerLastToDieBuffIcon = 11;
-    private const int HudElementLayerLastToDieActionStatus = 12;
-    private const int HudElementLayerLocalWeaponStack = 20;
-    private const int HudElementLayerLocalAbilityStack = 21;
+    public const int HudElementLayerLocalHealth = 10;
+    public const int HudElementLayerLastToDieBuffIcon = 11;
+    public const int HudElementLayerLastToDieActionStatus = 12;
+    public const int HudElementLayerLocalWeaponStack = 20;
+    public const int HudElementLayerLocalAbilityStack = 21;
     private const int HudElementLayerLastToDieRage = 9;
     private const int HudElementLayerLastToDieSpyCloak = 9;
     private const int HudElementLayerClassMedic = 30;
-    private const int HudElementLayerClassMedicAssist = 31;
+    public const int HudElementLayerClassMedicAssist = 31;
     private const int HudElementLayerClassEngineerMetal = 50;
-    private const int HudElementLayerClassEngineerSentry = 51;
-    private const int HudElementLayerClassEngineerDispenser = 52;
+    public const int HudElementLayerClassEngineerSentry = 51;
+    public const int HudElementLayerClassEngineerDispenser = 52;
     private const int HudElementLayerClassEngineerBuildMenu = 60;
 
-    private static class HudElementRendererId
+    public static class HudElementRendererId
     {
         public const string LocalHealth = "local.health.renderer";
         public const string LocalWeaponWidget = "local.weapon.widget.renderer";
@@ -73,21 +73,21 @@ public partial class Game1
         registry.RegisterProvider(new MedicAssistHudProvider());
         registry.RegisterProvider(new ClassAbilityHudProvider());
 
-        registry.RegisterRenderer(HudElementRendererId.LocalHealth, new DelegateHudElementRenderer(static (context, _) => context.Game._gameplayLocalStatusHudController.DrawLocalHealthHud()));
-        registry.RegisterRenderer(HudElementRendererId.LocalWeaponWidget, new DelegateHudElementRenderer(static (context, element) => context.Game._gameplayLocalStatusHudController.DrawWeaponHudElement(element.Id)));
-        registry.RegisterRenderer(HudElementRendererId.LocalWeaponPrompt, new DelegateHudElementRenderer(static (context, _) => context.Game._gameplayLocalStatusHudController.DrawAcquiredMedigunPrompt()));
-        registry.RegisterRenderer(HudElementRendererId.LocalAbilityStack, new DelegateHudElementRenderer(static (context, _) => context.Game._gameplayLocalStatusHudController.DrawAbilityHud()));
-        registry.RegisterRenderer(HudElementRendererId.LocalAbilityWidget, new DelegateHudElementRenderer(static (context, element) => context.Game._gameplayLocalStatusHudController.DrawAbilityHudElement(element.Id)));
+        registry.RegisterRenderer(HudElementRendererId.LocalHealth, new DelegateHudElementRenderer(static (context, _) => context.Game._hudManager.LocalStatus.DrawLocalHealthHud()));
+        registry.RegisterRenderer(HudElementRendererId.LocalWeaponWidget, new DelegateHudElementRenderer(static (context, element) => context.Game._hudManager.LocalStatus.DrawWeaponHudElement(element.Id)));
+        registry.RegisterRenderer(HudElementRendererId.LocalWeaponPrompt, new DelegateHudElementRenderer(static (context, _) => context.Game._hudManager.LocalStatus.DrawAcquiredMedigunPrompt()));
+        registry.RegisterRenderer(HudElementRendererId.LocalAbilityStack, new DelegateHudElementRenderer(static (context, _) => context.Game._hudManager.LocalStatus.DrawAbilityHud()));
+        registry.RegisterRenderer(HudElementRendererId.LocalAbilityWidget, new DelegateHudElementRenderer(static (context, element) => context.Game._hudManager.LocalStatus.DrawAbilityHudElement(element.Id)));
         registry.RegisterRenderer(HudElementRendererId.LastToDieRage, new DelegateHudElementRenderer(static (context, _) => context.Game.DrawLastToDieRageHud()));
         registry.RegisterRenderer(HudElementRendererId.LastToDieSpyCloak, new DelegateHudElementRenderer(static (context, _) => context.Game.DrawLastToDieSpyCloakHud()));
         registry.RegisterRenderer(HudElementRendererId.LastToDieBuffIcon, new DelegateHudElementRenderer(static (context, _) => context.Game.DrawLastToDieBuffIcon()));
         registry.RegisterRenderer(HudElementRendererId.LastToDieActionStatus, new DelegateHudElementRenderer(static (context, _) => context.Game.DrawLastToDieActionStatusHud()));
-        registry.RegisterRenderer(HudElementRendererId.ClassMedicUber, new DelegateHudElementRenderer(static (context, _) => context.Game._gameplayMedicHudController.DrawMedicHud()));
-        registry.RegisterRenderer(HudElementRendererId.ClassMedicHealingTarget, new DelegateHudElementRenderer(static (context, _) => context.Game._gameplayMedicHudController.DrawMedicHealingTargetHud()));
-        registry.RegisterRenderer(HudElementRendererId.ClassMedicHealer, new DelegateHudElementRenderer(static (context, _) => context.Game._gameplayMedicHudController.DrawMedicHealerHud()));
-        registry.RegisterRenderer(HudElementRendererId.ClassEngineerMetal, new DelegateHudElementRenderer(static (context, _) => context.Game._gameplayEngineerHudController.DrawEngineerMetalHud()));
-        registry.RegisterRenderer(HudElementRendererId.ClassEngineerSentry, new DelegateHudElementRenderer(static (context, _) => context.Game._gameplayEngineerHudController.DrawEngineerSentryHud()));
-        registry.RegisterRenderer(HudElementRendererId.ClassEngineerDispenser, new DelegateHudElementRenderer(static (context, _) => context.Game._gameplayEngineerHudController.DrawEngineerDispenserHud()));
+        registry.RegisterRenderer(HudElementRendererId.ClassMedicUber, new DelegateHudElementRenderer(static (context, _) => context.Game._hudManager.Medic.DrawMedicHud()));
+        registry.RegisterRenderer(HudElementRendererId.ClassMedicHealingTarget, new DelegateHudElementRenderer(static (context, _) => context.Game._hudManager.Medic.DrawMedicHealingTargetHud()));
+        registry.RegisterRenderer(HudElementRendererId.ClassMedicHealer, new DelegateHudElementRenderer(static (context, _) => context.Game._hudManager.Medic.DrawMedicHealerHud()));
+        registry.RegisterRenderer(HudElementRendererId.ClassEngineerMetal, new DelegateHudElementRenderer(static (context, _) => context.Game._hudManager.Engineer.DrawEngineerMetalHud()));
+        registry.RegisterRenderer(HudElementRendererId.ClassEngineerSentry, new DelegateHudElementRenderer(static (context, _) => context.Game._hudManager.Engineer.DrawEngineerSentryHud()));
+        registry.RegisterRenderer(HudElementRendererId.ClassEngineerDispenser, new DelegateHudElementRenderer(static (context, _) => context.Game._hudManager.Engineer.DrawEngineerDispenserHud()));
         registry.RegisterRenderer(HudElementRendererId.ClassEngineerBuildMenu, new DelegateHudElementRenderer(static (context, _) => context.Game.DrawBuildMenuHud()));
         return registry;
     }
@@ -138,7 +138,7 @@ public partial class Game1
                 return;
             }
 
-            context.Game._gameplayLocalStatusHudController.CollectWeaponHudElements(elements);
+            context.Game._hudManager.LocalStatus.CollectWeaponHudElements(elements);
             elements.Add(new HudElementInstance(
                 HudElementId.LocalWeaponPrompt,
                 HudElementRendererId.LocalWeaponPrompt,
@@ -155,7 +155,7 @@ public partial class Game1
                 return;
             }
 
-            context.Game._gameplayLocalStatusHudController.CollectAbilityHudElements(elements);
+            context.Game._hudManager.LocalStatus.CollectAbilityHudElements(elements);
         }
     }
 
@@ -163,7 +163,7 @@ public partial class Game1
     {
         public void Collect(HudElementContext context, List<HudElementInstance> elements)
         {
-            context.Game._gameplayMedicHudController.CollectMedicAssistHudElements(context, elements);
+            context.Game._hudManager.Medic.CollectMedicAssistHudElements(context, elements);
         }
     }
 
@@ -216,17 +216,17 @@ public partial class Game1
                     break;
                 case PlayerClass.Engineer:
                     context.AddIfRegistered(elements, HudElementId.ClassEngineerMetal);
-                    var hasSentry = game._gameplayEngineerHudController.GetLocalOwnedSentry() is not null;
-                    var hasDispenser = game._gameplayEngineerHudController.GetLocalOwnedDispenser() is not null;
+                    var hasSentry = game._hudManager.Engineer.GetLocalOwnedSentry() is not null;
+                    var hasDispenser = game._hudManager.Engineer.GetLocalOwnedDispenser() is not null;
                     if (game._hudEditorOpen || hasSentry)
                     {
-                        game._gameplayEngineerHudController.SetEngineerSentryRuntimeDefault();
+                        game._hudManager.Engineer.SetEngineerSentryRuntimeDefault();
                         context.AddIfRegistered(elements, HudElementId.ClassEngineerSentry);
                     }
 
                     if (game._hudEditorOpen || hasDispenser)
                     {
-                        game._gameplayEngineerHudController.SetEngineerDispenserRuntimeDefault(hasSentry);
+                        game._hudManager.Engineer.SetEngineerDispenserRuntimeDefault(hasSentry);
                         context.AddIfRegistered(elements, HudElementId.ClassEngineerDispenser);
                     }
 

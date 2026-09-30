@@ -15,7 +15,7 @@ internal enum AuthoritativeExplosionPresentationChannel : byte
 /// Pairs the independently replicated sound and visual events for one explosion.
 /// Event IDs cannot be used here because each channel receives its own ID.
 /// </summary>
-internal sealed class AuthoritativeExplosionPresentationTracker
+public sealed class AuthoritativeExplosionPresentationTracker
 {
     internal const int DefaultIdentityCapacity = 512;
     private const double PositionQuantizationScale = 4d;

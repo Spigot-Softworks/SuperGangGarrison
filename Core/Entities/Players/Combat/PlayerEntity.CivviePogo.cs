@@ -328,7 +328,7 @@ public sealed partial class PlayerEntity
         // Diminishing returns: the bonus climbs quickly for moderate falls and saturates
         // toward CivviePogoMaxFallBounceBonus no matter how far the civilian dropped.
         var falloffSpeed = jumpSpeed * CivviePogoFallBounceFalloffRatio;
-        var diminishingFactor = 1f - MathF.Exp(-excessFallSpeed / falloffSpeed);
+        var diminishingFactor = 1f - DeterministicMath.Exp(-excessFallSpeed / falloffSpeed);
         return CivviePogoMaxFallBounceBonus * diminishingFactor;
     }
 

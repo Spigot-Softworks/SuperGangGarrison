@@ -83,7 +83,7 @@ public sealed partial class PlayerEntity
         {
             // Calculate facing direction Y from aim angle
             var aimRadians = AimDirectionDegrees * (MathF.PI / 180f);
-            var facingDirectionY = MathF.Sin(aimRadians);
+            var facingDirectionY = DeterministicMath.Sin(aimRadians);
             if (MathF.Abs(facingDirectionY) > 0.2f)
             {
                 var verticalSteer = -facingDirectionY * drivePerTick * LegacyMovementModel.SourceTicksPerSecond * sourceTicks * 0.4f;

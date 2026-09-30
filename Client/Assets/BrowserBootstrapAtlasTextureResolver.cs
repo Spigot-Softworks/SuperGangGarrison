@@ -4,7 +4,7 @@ using OpenGarrison.Core;
 
 namespace OpenGarrison.Client;
 
-internal sealed class BrowserBootstrapAtlasTextureResolver(
+public sealed class BrowserBootstrapAtlasTextureResolver(
     BrowserAtlasManifest manifest,
     BrowserAtlasTextureCache atlasTextureCache)
 {

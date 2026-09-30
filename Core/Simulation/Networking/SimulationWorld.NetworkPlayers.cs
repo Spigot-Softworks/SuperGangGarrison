@@ -193,7 +193,7 @@ public sealed partial class SimulationWorld
         _additionalNetworkPlayerTeams[slot] = defaultTeam;
         _additionalNetworkPlayerAwaitingJoin[slot] = true;
         _additionalNetworkPlayerRespawnTicks[slot] = 0;
-        _entities.Add(player.Id, player);
+        EntityStore.Add(player);
         return player;
     }
 

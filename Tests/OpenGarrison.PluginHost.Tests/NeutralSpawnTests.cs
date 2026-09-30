@@ -93,7 +93,7 @@ public sealed class NeutralSpawnTests
         IReadOnlyList<SpawnPoint> blueSpawns)
     {
         var world = new SimulationWorld();
-        var setLevel = typeof(SimulationWorld).GetMethod("CombatTestSetLevel", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public)
+        var setLevel = typeof(SimulationWorld).GetMethod("CombatTestSetLevel", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Public)
             ?? throw new InvalidOperationException("CombatTestSetLevel was not found.");
         setLevel.Invoke(
             world,

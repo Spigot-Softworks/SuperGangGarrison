@@ -1485,7 +1485,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
         Assert.True(sniper.TryFirePrimaryWeapon());
         var method = typeof(SimulationWorld).GetMethod(
             "FirePrimaryWeapon",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         _ = method!.Invoke(world, [sniper, aimWorldX, aimWorldY]);
     }
@@ -1499,7 +1499,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
     {
         var method = typeof(SimulationWorld).GetMethod(
             "SpawnArrow",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         _ = method!.Invoke(
             world,
@@ -1527,11 +1527,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
 
     private static void AdvanceNeedles(SimulationWorld world)
     {
-        var method = typeof(SimulationWorld).GetMethod(
-            "AdvanceNeedles",
-            BindingFlags.Instance | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        _ = method!.Invoke(world, null);
+        world.Projectiles.AdvanceNeedles();
     }
 
     private static bool InvokeDetonateOwnedExplosiveArrows(
@@ -1540,7 +1536,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
     {
         var method = typeof(SimulationWorld).GetMethod(
             "DetonateOwnedLastToDieSniperArrows",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         return (bool)method!.Invoke(world, [owner])!;
     }
@@ -1557,7 +1553,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
     {
         var method = typeof(PlayerEntity).GetMethod(
             "GetMovementScale",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         return (float)method!.Invoke(player, [default(PlayerInputSnapshot)])!;
     }
@@ -1566,7 +1562,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
     {
         var method = typeof(PlayerEntity).GetMethod(
             "GetJumpScale",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         return (float)method!.Invoke(player, null)!;
     }

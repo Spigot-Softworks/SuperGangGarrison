@@ -14,9 +14,9 @@ public partial class Game1
     // Elkondo: temporary corpse uses the 5th run-cycle pose â€” see GameplayDynamicRagdollController.Elkondo.cs
     // TODO(dynamic-ragdoll): replace that temporary run-frame with unique Elkondo Dead sprites when authored.
 
-    private const int MaxDynamicRagdolls = 28;
-    private const int DynamicRagdollPivotCount = 3;
-    private const int DynamicRagdollCollisionNodeCount = DynamicRagdollPivotCount + 1; // one meat chunk per segment
+    public const int MaxDynamicRagdolls = 28;
+    public const int DynamicRagdollPivotCount = 3;
+    public const int DynamicRagdollCollisionNodeCount = DynamicRagdollPivotCount + 1; // one meat chunk per segment
     private const float DynamicRagdollMaxPivotDegrees = 45f;
     private const float DynamicRagdollGravity = 0.7f;
     private const float DynamicRagdollMaxFallSpeed = 11f;
@@ -92,13 +92,13 @@ public partial class Game1
         public readonly float[] RestPivotDegrees = new float[DynamicRagdollPivotCount];
     }
 
-    private void ResetDynamicRagdollEffects()
+    public void ResetDynamicRagdollEffects()
     {
         _dynamicRagdolls.Clear();
         _staleDynamicRagdollIds.Clear();
     }
 
-    private void AdvanceDynamicRagdolls()
+    public void AdvanceDynamicRagdolls()
     {
         if (!_dynamicRagdollEnabled || _dynamicRagdolls.Count == 0)
         {
@@ -270,7 +270,7 @@ public partial class Game1
         }
     }
 
-    private void SyncDynamicRagdollsWithDeadBodies()
+    public void SyncDynamicRagdollsWithDeadBodies()
     {
         if (!_dynamicRagdollEnabled)
         {
@@ -1723,6 +1723,7 @@ public partial class Game1
         DeadBodyAnimationKind animationKind,
         float x,
         float y,
+        float width,
         float height,
         bool facingLeft,
         string gameplayClassId,

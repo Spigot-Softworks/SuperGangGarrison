@@ -8,13 +8,13 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private readonly Queue<Guid> _pendingRunClaims = new();
+    public readonly Queue<Guid> _pendingRunClaims = new();
     private RunUploadQueue? _runUploads;
     private Task? _runUploadTask;
     private Task? _runSaveTask;
     private double _runUploadRetrySeconds;
 
-    private void PumpRunUploads(double elapsedSeconds)
+    public void PumpRunUploads(double elapsedSeconds)
     {
         _runUploads ??= new RunUploadQueue();
         if (_runSaveTask is { IsCompleted: false }) return;

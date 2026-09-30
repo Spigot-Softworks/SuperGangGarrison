@@ -9,13 +9,13 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private Rectangle GetLocalPlayerRectangle(Vector2 cameraPosition)
+    public Rectangle GetLocalPlayerRectangle(Vector2 cameraPosition)
     {
         var player = _world.LocalPlayer;
         return GetPlayerScreenBounds(player, GetRenderPosition(player), cameraPosition);
     }
 
-    private void DrawGameplayWorld(
+    public void DrawGameplayWorld(
         Vector2 cameraPosition,
         int viewportWidth,
         int viewportHeight,
@@ -47,7 +47,7 @@ public partial class Game1
         // Settled blood sits on the map layer; gameplay FX / characters draw above it.
         if (AreBloodVisualsEnabled && _bloodRenderMode == 0)
         {
-            _gameplayGoreEffectsController.DrawBloodSquibPools(cameraPosition);
+            _gameplayManager.GoreEffects.DrawBloodSquibPools(cameraPosition);
         }
 
         DrawGameplayEffectsAndProjectiles(cameraPosition);

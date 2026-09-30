@@ -27,8 +27,8 @@ public sealed class SpecialAbilitiesHudRegressionTests
         world.CompleteLocalPlayerJoin(playerClass);
         var game = (Game1)RuntimeHelpers.GetUninitializedObject(typeof(Game1));
         typeof(Game1).GetField("_world", instance)!.SetValue(game, world);
-        var type = typeof(Game1).GetNestedType("GameplayLocalStatusHudController", BindingFlags.NonPublic)!;
-        var controller = Activator.CreateInstance(type, instance, null, [game], null)!;
+        var type = typeof(GameplayLocalStatusHudController);
+        var controller = new GameplayLocalStatusHudController(game);
         GameplayItemDefinition[] Items() => ((IEnumerable<GameplayItemDefinition>)type.GetMethod(
             "GetLocalConfiguredAbilityHudItems", instance)!.Invoke(controller, null)!).ToArray();
         var enabled = Items();

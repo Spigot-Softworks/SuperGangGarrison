@@ -7,7 +7,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private const int CivviePogoTrickPresentationDropoutGraceTicks = 3;
+    public const int CivviePogoTrickPresentationDropoutGraceTicks = 3;
     private readonly Dictionary<int, int> _civviePogoTrickDurationTicksByPlayerId = new();
     private readonly Dictionary<int, int> _civviePogoTrickPresentationTicksByPlayerId = new();
     private readonly Dictionary<int, int> _civviePogoTrickPresentationGraceByPlayerId = new();
@@ -15,7 +15,7 @@ public partial class Game1
     private readonly Dictionary<int, int> _civviePogoTrickPreviousTicksByPlayerId = new();
     private readonly HashSet<int> _civviePogoTrickBurstSpawnedPlayerIds = new();
 
-    private void ResetCivviePogoTrickPresentationObservation()
+    public void ResetCivviePogoTrickPresentationObservation()
     {
         _civviePogoTrickDurationTicksByPlayerId.Clear();
         _civviePogoTrickPresentationTicksByPlayerId.Clear();

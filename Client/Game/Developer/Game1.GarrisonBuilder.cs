@@ -17,7 +17,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private enum GarrisonBuilderPathField
+    public enum GarrisonBuilderPathField
     {
         None,
         OpenMap,
@@ -29,7 +29,7 @@ public partial class Game1
         ResourceOutputDirectory,
     }
 
-    private enum GarrisonBuilderPropertyTarget
+    public enum GarrisonBuilderPropertyTarget
     {
         None,
         MapProperties,
@@ -37,12 +37,12 @@ public partial class Game1
         SelectedMapEntity,
     }
 
-    private const string GarrisonBuilderMapPropertyNameKey = "$name";
-    private const string GarrisonBuilderMapPropertyVisualScaleKey = "$visualScale";
-    private const string GarrisonBuilderMapPropertyWalkmaskScaleKey = "$walkmaskScale";
-    private const string GarrisonBuilderGameplayMessagePreviewAnimationKey = "$previewAnimation";
+    public const string GarrisonBuilderMapPropertyNameKey = "$name";
+    public const string GarrisonBuilderMapPropertyVisualScaleKey = "$visualScale";
+    public const string GarrisonBuilderMapPropertyWalkmaskScaleKey = "$walkmaskScale";
+    public const string GarrisonBuilderGameplayMessagePreviewAnimationKey = "$previewAnimation";
 
-    private static readonly string[] GarrisonBuilderMapPropertyRowOrder =
+    public static readonly string[] GarrisonBuilderMapPropertyRowOrder =
     [
         GarrisonBuilderMapPropertyNameKey,
         GarrisonBuilderMapPropertyVisualScaleKey,
@@ -59,7 +59,7 @@ public partial class Game1
         "void",
     ];
 
-    private enum GarrisonBuilderPropertyEditMode
+    public enum GarrisonBuilderPropertyEditMode
     {
         List,
         NewKey,
@@ -103,7 +103,7 @@ public partial class Game1
     private const int LegacyBuilderVisibleActionRows = 5;
     private const int LegacyBuilderResourceWidth = 160;
     private const int LegacyBuilderResourceVisibleRows = 6;
-    private bool _builderEditorEnabled;
+    public bool _builderEditorEnabled;
     private bool _builderPendingCameraCenter = true;
     private readonly Dictionary<string, LoadedGameMakerSprite> _builderCatalogSpriteCache = new(StringComparer.OrdinalIgnoreCase);
     private bool _builderShowBackground = true;
@@ -181,7 +181,7 @@ public partial class Game1
     private int _builderLayerParallaxSelectionStart;
     private bool _builderEntityCoordinatesAreWalkmaskPixels;
     private bool _builderLayerMarkModeEnabled;
-    private bool _garrisonBuilderQuickTestActive;
+    public bool _garrisonBuilderQuickTestActive;
     private bool _builderLayerOffsetDragging;
     private Point _builderLayerOffsetHoldMouse;
     private int _builderResourceScrollIndex;
@@ -245,7 +245,7 @@ public partial class Game1
         new("Clear entities", false),
     ];
 
-    private void UpdateGarrisonBuilderEditor(KeyboardState keyboard, MouseState mouse, float deltaSeconds)
+    public void UpdateGarrisonBuilderEditor(KeyboardState keyboard, MouseState mouse, float deltaSeconds)
     {
         try
         {
@@ -505,7 +505,7 @@ public partial class Game1
         };
     }
 
-    private void DrawGarrisonBuilderEditorOverlay(MouseState mouse)
+    public void DrawGarrisonBuilderEditorOverlay(MouseState mouse)
     {
         if (!_builderEditorEnabled)
         {
@@ -4809,7 +4809,7 @@ public partial class Game1
         return true;
     }
 
-    private bool HandleGarrisonBuilderTextInput(char character)
+    public bool HandleGarrisonBuilderTextInput(char character)
     {
         if (_builderDialogTask is not null || _builderFileWorkTask is not null) return _builderEditorEnabled;
         if (_builderDialogFallback)
@@ -9960,7 +9960,7 @@ public partial class Game1
 
     private void QuickTestGarrisonBuilderMapCore()
     {
-        if (!_bootstrapController.CanEnterGameplaySession(out var bootstrapReason))
+        if (!_gameplayManager.Bootstrap.CanEnterGameplaySession(out var bootstrapReason))
         {
             _builderStatus = bootstrapReason ?? "assets still loading";
             AddConsoleLine(_builderStatus);
@@ -9976,7 +9976,7 @@ public partial class Game1
 
         DisableGarrisonBuilderEditor("quick test");
         _garrisonBuilderQuickTestActive = true;
-        if (!_gameplaySessionController.TryBeginOfflineBotSession(
+        if (!_gameplayManager.Session.TryBeginOfflineBotSession(
                 levelName,
                 GameplaySessionKind.Practice,
                 _practiceTickRate,
@@ -10002,7 +10002,7 @@ public partial class Game1
         AddConsoleLine(_builderStatus);
     }
 
-    private void ReturnToGarrisonBuilderFromQuickTest()
+    public void ReturnToGarrisonBuilderFromQuickTest()
     {
         if (!_garrisonBuilderQuickTestActive)
         {
@@ -10011,7 +10011,7 @@ public partial class Game1
 
         _garrisonBuilderQuickTestActive = false;
         CloseInGameMenu();
-        _gameplaySessionController.ReturnToMainMenu();
+        _gameplayManager.Session.ReturnToMainMenu();
         EnableGarrisonBuilderEditor();
         _builderStatus = "returned to builder";
         AddConsoleLine(_builderStatus);
@@ -10535,7 +10535,7 @@ public partial class Game1
 
     private bool CanSaveGarrisonBuilderDocument() => !string.IsNullOrWhiteSpace(_builderSavePath);
 
-    private void OpenGarrisonBuilderFromMainMenu()
+    public void OpenGarrisonBuilderFromMainMenu()
     {
         if (!GarrisonBuilderFeature.CanOpenFromMainMenu)
         {
@@ -10560,7 +10560,7 @@ public partial class Game1
         _builderSavePathBuffer = _builderSavePath;
     }
 
-    private void DisposeGarrisonBuilderEditorAssets()
+    public void DisposeGarrisonBuilderEditorAssets()
     {
         _builderBackgroundTexture?.Dispose();
         _builderWalkmaskTexture?.Dispose();

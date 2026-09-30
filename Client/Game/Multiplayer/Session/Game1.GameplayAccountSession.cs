@@ -9,21 +9,21 @@ public partial class Game1
 {
     private static readonly TimeSpan GameplayAccountRefreshLeadTime = TimeSpan.FromMinutes(5);
     private static readonly TimeSpan GameplayAccountRetryDelay = TimeSpan.FromMinutes(1);
-    private Task<GameplaySessionCreateResponse>? _gameplayAccountSessionTask;
-    private ulong _pendingGameplayAccountAttachRequestId;
-    private DateTimeOffset _gameplayAccountTokenExpiresAt = DateTimeOffset.MinValue;
-    private DateTimeOffset _nextGameplayAccountAttachAttemptAt = DateTimeOffset.MinValue;
+    public Task<GameplaySessionCreateResponse>? _gameplayAccountSessionTask;
+    public ulong _pendingGameplayAccountAttachRequestId;
+    public DateTimeOffset _gameplayAccountTokenExpiresAt = DateTimeOffset.MinValue;
+    public DateTimeOffset _nextGameplayAccountAttachAttemptAt = DateTimeOffset.MinValue;
     private string _accountId = string.Empty;
-    private long _accountLifetimePoints;
-    private long _accountWalletBalance;
+    public long _accountLifetimePoints;
+    public long _accountWalletBalance;
     private long _accountProfileRevision;
-    private int _accountGlobalRank;
-    private bool _accountGlobalRankKnown;
-    private bool _accountIsProtected;
+    public int _accountGlobalRank;
+    public bool _accountGlobalRankKnown;
+    public bool _accountIsProtected;
     private string _accountRecoveryKey = string.Empty;
     private string _accountStatusMessage = string.Empty;
 
-    private void BeginGameplayAccountAttach()
+    public void BeginGameplayAccountAttach()
     {
         _gameplayAccountSessionTask = null;
         _pendingGameplayAccountAttachRequestId = 0;

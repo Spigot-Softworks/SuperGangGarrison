@@ -220,8 +220,8 @@ public sealed class MeleeHitboxMask
             var facingScale = facingLeft ? -1f : 1f;
             localX *= facingScale;
             var rotation = ResolveAimDrawRotation(aimRadians, facingLeft);
-            var cos = MathF.Cos(rotation);
-            var sin = MathF.Sin(rotation);
+            var cos = DeterministicMath.Cos(rotation);
+            var sin = DeterministicMath.Sin(rotation);
             var rotatedX = (localX * cos) - (localY * sin);
             var rotatedY = (localX * sin) + (localY * cos);
             localX = rotatedX;
@@ -245,8 +245,8 @@ public sealed class MeleeHitboxMask
         {
             var facingScale = facingLeft ? -1f : 1f;
             var rotation = ResolveAimDrawRotation(aimRadians, facingLeft);
-            var cos = MathF.Cos(-rotation);
-            var sin = MathF.Sin(-rotation);
+            var cos = DeterministicMath.Cos(-rotation);
+            var sin = DeterministicMath.Sin(-rotation);
             var unrotatedX = (localX * cos) - (localY * sin);
             var unrotatedY = (localX * sin) + (localY * cos);
             localX = unrotatedX * facingScale;

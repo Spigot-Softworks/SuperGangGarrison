@@ -11,23 +11,18 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private bool _logicalFrameRendersDirectlyToBackBuffer;
+    public bool _logicalFrameRendersDirectlyToBackBuffer;
 
-    private int ViewportWidth => GetViewportDimensions(_ingameResolution).X;
+    public int ViewportWidth => GetViewportDimensions(_ingameResolution).X;
 
-    private int ViewportHeight => GetViewportDimensions(_ingameResolution).Y;
+    public int ViewportHeight => GetViewportDimensions(_ingameResolution).Y;
 
-    private bool ShouldUseNavEditorWindowGutter()
-    {
-        return _navEditorEnabled && !IsScreenFillingDisplayMode(_displayMode);
-    }
-
-    private void ApplyGraphicsSettings()
+    public void ApplyGraphicsSettings()
     {
         ApplyGraphicsSettings(persist: true);
     }
 
-    private void ApplyGraphicsSettings(bool persist)
+    public void ApplyGraphicsSettings(bool persist)
     {
         var previousDisplayMode = _displayMode;
         RememberWindowedPosition(previousDisplayMode);
@@ -94,14 +89,14 @@ public partial class Game1
         }
     }
 
-    private void ApplyDisplayMode(DisplayModeKind displayMode)
+    public void ApplyDisplayMode(DisplayModeKind displayMode)
     {
         _displayMode = OperatingSystem.IsBrowser()
             ? DisplayModeKind.Windowed
             : OpenGarrisonPreferencesDocument.NormalizeDisplayMode(displayMode);
     }
 
-    private void ApplyIngameResolution(IngameResolutionKind ingameResolution)
+    public void ApplyIngameResolution(IngameResolutionKind ingameResolution)
     {
         var previousWidth = ViewportWidth;
         var previousHeight = ViewportHeight;
@@ -120,12 +115,12 @@ public partial class Game1
 
     }
 
-    private void ApplyWindowSize(WindowSizeKind windowSize)
+    public void ApplyWindowSize(WindowSizeKind windowSize)
     {
         _windowSize = OpenGarrisonPreferencesDocument.NormalizeWindowSize(windowSize);
     }
 
-    private void ApplyDisplayScaleMode(DisplayScaleModeKind displayScaleMode)
+    public void ApplyDisplayScaleMode(DisplayScaleModeKind displayScaleMode)
     {
         _displayScaleMode = OpenGarrisonPreferencesDocument.NormalizeDisplayScaleMode(displayScaleMode);
     }
@@ -151,7 +146,7 @@ public partial class Game1
             RenderTargetUsage.DiscardContents);
     }
 
-    private void BeginLogicalFrame(Color clearColor)
+    public void BeginLogicalFrame(Color clearColor)
     {
         _logicalFrameRendersDirectlyToBackBuffer = ShouldRenderDirectlyToBackBuffer();
         if (!_logicalFrameRendersDirectlyToBackBuffer)
@@ -190,7 +185,7 @@ public partial class Game1
         WriteGameplayRenderTrace("frame beginlogical done");
     }
 
-    private void BeginGameplayWorldSpriteBatch(RasterizerState rasterizerState)
+    public void BeginGameplayWorldSpriteBatch(RasterizerState rasterizerState)
     {
         _spriteBatch.End();
         _gameplayWorldSpriteBatchActive = true;
@@ -207,14 +202,14 @@ public partial class Game1
             : null;
     }
 
-    private void EndGameplayWorldSpriteBatch()
+    public void EndGameplayWorldSpriteBatch()
     {
         _spriteBatch.End();
         _gameplayWorldSpriteBatchActive = false;
         _spriteBatch.Begin(samplerState: SamplerState.PointClamp, rasterizerState: RasterizerState.CullNone);
     }
 
-    private void EndLogicalFrame()
+    public void EndLogicalFrame()
     {
         if (_logicalFrameRendersDirectlyToBackBuffer)
         {
@@ -269,11 +264,6 @@ public partial class Game1
             return false;
         }
 
-        if (ShouldUseNavEditorWindowGutter())
-        {
-            return false;
-        }
-
         var viewport = GraphicsDevice.Viewport;
         return viewport.Width == ViewportWidth
             && viewport.Height == ViewportHeight;
@@ -311,9 +301,7 @@ public partial class Game1
 
     private Rectangle GetGameplayDestinationRectangle(int surfaceWidth, int surfaceHeight)
     {
-        var availableWidth = ShouldUseNavEditorWindowGutter()
-            ? Math.Max(1, surfaceWidth - GetNavEditorWindowGutterWidth())
-            : surfaceWidth;
+        var availableWidth = surfaceWidth;
         var scale = MathF.Min(availableWidth / (float)ViewportWidth, surfaceHeight / (float)ViewportHeight);
         var destinationWidth = Math.Max(1, (int)MathF.Floor(ViewportWidth * scale));
         var destinationHeight = Math.Max(1, (int)MathF.Floor(ViewportHeight * scale));
@@ -332,7 +320,7 @@ public partial class Game1
         return false;
     }
 
-    private MouseState GetScaledMouseState(MouseState rawMouse)
+    public MouseState GetScaledMouseState(MouseState rawMouse)
     {
         var destination = GetInputDestinationRectangle();
         if (destination.Width <= 0 || destination.Height <= 0)
@@ -340,9 +328,7 @@ public partial class Game1
             return rawMouse;
         }
 
-        var nativeNavEditorPointer = ShouldUseNavEditorWindowGutter()
-            && GetNavEditorPanelHostBounds().Contains(rawMouse.Position);
-        if (!nativeNavEditorPointer && TryMapCurvedCrtPointer(rawMouse, destination, out var mappedMouse))
+        if (TryMapCurvedCrtPointer(rawMouse, destination, out var mappedMouse))
         {
             return mappedMouse;
         }
@@ -370,7 +356,7 @@ public partial class Game1
             rawMouse.XButton2);
     }
 
-    private MouseState GetConstrainedMouseState(MouseState rawMouse)
+    public MouseState GetConstrainedMouseState(MouseState rawMouse)
     {
         if (!IsScreenFillingDisplayMode(_displayMode) || !IsActive)
         {
@@ -411,38 +397,7 @@ public partial class Game1
     private Point GetWindowDimensions(DisplayModeKind displayMode, IngameResolutionKind ingameResolution, WindowSizeKind windowSize)
     {
         var gameplayDimensions = GetPreferredBackBufferDimensions(displayMode, ingameResolution, windowSize);
-        if (IsScreenFillingDisplayMode(displayMode) || !_navEditorEnabled)
-        {
-            return gameplayDimensions;
-        }
-
-        return new Point(
-            gameplayDimensions.X + GetNavEditorWindowGutterWidth(),
-            Math.Max(gameplayDimensions.Y, GetNavEditorExpandedWindowHeight()));
-    }
-
-    private void RefreshNavEditorWindowGutter()
-    {
-        var preferredDimensions = GetWindowDimensions(_displayMode, _ingameResolution, _windowSize);
-        if (_graphics.PreferredBackBufferWidth == preferredDimensions.X
-            && _graphics.PreferredBackBufferHeight == preferredDimensions.Y)
-        {
-            return;
-        }
-
-        _graphics.PreferredBackBufferWidth = preferredDimensions.X;
-        _graphics.PreferredBackBufferHeight = preferredDimensions.Y;
-        _graphics.ApplyChanges();
-    }
-
-    private static int GetNavEditorWindowGutterWidth()
-    {
-        return NavEditorPanelWidth + (NavEditorPanelMargin * 2);
-    }
-
-    private static int GetNavEditorExpandedWindowHeight()
-    {
-        return NavEditorPanelExpandedHeight + (NavEditorPanelMargin * 2);
+        return gameplayDimensions;
     }
 
     private static Point GetPreferredBackBufferDimensions(DisplayModeKind displayMode, IngameResolutionKind ingameResolution, WindowSizeKind windowSize)
@@ -493,7 +448,7 @@ public partial class Game1
         };
     }
 
-    private static string GetIngameResolutionLabel(IngameResolutionKind ingameResolution)
+    public static string GetIngameResolutionLabel(IngameResolutionKind ingameResolution)
     {
         return NormalizeIngameResolution(ingameResolution) switch
         {
@@ -503,7 +458,7 @@ public partial class Game1
         };
     }
 
-    private static string GetWindowSizeLabel(WindowSizeKind windowSize)
+    public static string GetWindowSizeLabel(WindowSizeKind windowSize)
     {
         return OpenGarrisonPreferencesDocument.NormalizeWindowSize(windowSize) switch
         {
@@ -514,7 +469,7 @@ public partial class Game1
     }
 
 
-    private static string GetDisplayModeLabel(DisplayModeKind displayMode)
+    public static string GetDisplayModeLabel(DisplayModeKind displayMode)
     {
         return OpenGarrisonPreferencesDocument.NormalizeDisplayMode(displayMode) switch
         {

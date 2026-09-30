@@ -172,12 +172,12 @@ public sealed class LastToDieMedicRejuvenationRayRuntimeTests
         Assert.Equal(target.Id, predictionShadow.MedicHealTargetId);
         Assert.Equal(medic.MedicUberCharge, predictionShadow.MedicUberCharge);
 
-        var legacyPlayer = ServerHelpers.ToSnapshotPlayerState(
-            source,
+        var stringCache = new SnapshotStringCache();
+        var legacyPlayer = source.Snapshots.ToSnapshotPlayerState(
             SimulationWorld.LocalPlayerSlot,
             medic,
             medic,
-            new SnapshotStringCache());
+            value => stringCache.GetOrAddCacheId(value));
         var legacySnapshot = CreateSnapshot(legacyPlayer);
         var payload = ProtocolCodec.Serialize(legacySnapshot, ProtocolCompressionSettings.Disabled);
         Assert.True(ProtocolCodec.TryDeserialize(payload, out var decodedMessage));
@@ -234,7 +234,7 @@ public sealed class LastToDieMedicRejuvenationRayRuntimeTests
     {
         var method = typeof(SimulationWorld).GetMethod(
             "ApplyMedicHealing",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         _ = method!.Invoke(world, [medic, target]);
     }
@@ -243,7 +243,7 @@ public sealed class LastToDieMedicRejuvenationRayRuntimeTests
     {
         var method = typeof(SimulationWorld).GetMethod(
             "AdvanceMedicUberEffects",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         _ = method!.Invoke(world, null);
     }

@@ -7,8 +7,8 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private const float GarrisonBuilderChatFontScale = 1f;
-    private const float GarrisonBuilderLinkLineThickness = 2.5f;
+    public const float GarrisonBuilderChatFontScale = 1f;
+    public const float GarrisonBuilderLinkLineThickness = 2.5f;
     private const int GarrisonBuilderLinkEndpointSize = 7;
 
     private float GetGarrisonBuilderLinkVisualScale()
@@ -21,9 +21,9 @@ public partial class Game1
         return MathF.Min(1f, _builderZoom);
     }
 
-    private int BuilderViewportWidth => ViewportWidth;
+    public int BuilderViewportWidth => ViewportWidth;
 
-    private int BuilderViewportHeight => ViewportHeight;
+    public int BuilderViewportHeight => ViewportHeight;
 
     private static int BuilderUi(int pixels) => pixels;
 

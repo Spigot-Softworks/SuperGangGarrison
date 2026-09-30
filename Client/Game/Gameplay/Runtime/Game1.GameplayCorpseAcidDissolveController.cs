@@ -10,10 +10,10 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private readonly Dictionary<int, CorpseAcidDissolveState> _corpseAcidDissolveStates = new();
-    private readonly List<int> _staleCorpseAcidDissolveIds = new();
+    public readonly Dictionary<int, CorpseAcidDissolveState> _corpseAcidDissolveStates = new();
+    public readonly List<int> _staleCorpseAcidDissolveIds = new();
 
-    private sealed class CorpseAcidDissolveState
+    public sealed class CorpseAcidDissolveState
     {
         public required Texture2D Texture { get; init; }
         public required Color[] SourcePixels { get; init; }
@@ -46,7 +46,7 @@ public partial class Game1
         public float LastOutlinePhase { get; set; } = float.MinValue;
     }
 
-    private void AdvanceCorpseAcidDissolves()
+    public void AdvanceCorpseAcidDissolves()
     {
         AdvanceCorpseAcidDissolveStates();
     }
@@ -239,7 +239,7 @@ public partial class Game1
         }
     }
 
-    private void ResetCorpseAcidDissolves()
+    public void ResetCorpseAcidDissolves()
     {
         foreach (var corpseId in _corpseAcidDissolveStates.Keys)
         {

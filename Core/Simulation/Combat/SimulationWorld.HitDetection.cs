@@ -2,51 +2,6 @@
 
 public sealed partial class SimulationWorld
 {
-    private readonly record struct ShotHitResult(float Distance, float HitX, float HitY, PlayerEntity? HitPlayer, SentryEntity? HitSentry, GeneratorState? HitGenerator)
-    {
-        public JumpPadEntity? HitJumpPad { get; init; }
-
-        public int HitDamageableZoneRoomObjectIndex { get; init; } = -1;
-
-        public bool IsLastToDieHeadshot { get; init; }
-    }
-    private readonly record struct FlameHitResult(float Distance, float HitX, float HitY, PlayerEntity? HitPlayer, SentryEntity? HitSentry, GeneratorState? HitGenerator)
-    {
-        public JumpPadEntity? HitJumpPad { get; init; }
-    }
-    private readonly record struct RocketHitResult(float Distance, float HitX, float HitY, PlayerEntity? HitPlayer, SentryEntity? HitSentry, GeneratorState? HitGenerator)
-    {
-        public JumpPadEntity? HitJumpPad { get; init; }
-
-        public int HitDamageableZoneRoomObjectIndex { get; init; } = -1;
-    }
-    private readonly record struct MineHitResult(float Distance, float HitX, float HitY, bool DestroyOnHit);
-    private readonly record struct GrenadeEnvironmentHit(float Distance, float HitX, float HitY, float NormalX, float NormalY);
-    private readonly record struct RifleHitResult(float Distance, PlayerEntity? HitPlayer, SentryEntity? HitSentry, GeneratorState? HitGenerator)
-    {
-        public JumpPadEntity? HitJumpPad { get; init; }
-    }
-    private readonly record struct OrderedRiflePlayerHit(
-        float Distance,
-        PlayerEntity Player,
-        bool IsFriendlySupport,
-        bool IsLastToDieHeadshot = false);
-    private readonly record struct OrderedRifleHitResult(
-        float Distance,
-        IReadOnlyList<OrderedRiflePlayerHit> PlayerHits,
-        SentryEntity? HitSentry,
-        GeneratorState? HitGenerator)
-    {
-        public JumpPadEntity? HitJumpPad { get; init; }
-    }
-    private readonly record struct RifleTracePolicy(
-        bool IgnoreOrdinaryGeometry,
-        bool AllowFriendlySupport,
-        int MaximumEnemyPlayerHits,
-        bool DetectLastToDieHeadshots = false,
-        bool PierceFriendlyPlayers = false);
-    private readonly record struct RectangleHitbox(float Left, float Top, float Right, float Bottom);
-
     internal void CombatTestSetLevel(SimpleLevel level)
     {
         Level = level;
@@ -62,7 +17,7 @@ public sealed partial class SimulationWorld
     internal void CombatTestAddSentry(SentryEntity sentry)
     {
         _sentries.Add(sentry);
-        _entities[sentry.Id] = sentry;
+        EntityStore.Set(sentry.Id, sentry);
     }
 
     internal void CombatTestExplodeRocket(PlayerEntity owner, float x, float y)
@@ -78,8 +33,7 @@ public sealed partial class SimulationWorld
             rangeAnchorOwnerId: owner.Id,
             lastKnownRangeOriginX: owner.X,
             lastKnownRangeOriginY: owner.Y);
-        _rockets.Add(rocket);
-        _entities[rocket.Id] = rocket;
+        Projectiles.AddProjectileEntity(rocket);
         ExplodeRocket(rocket, directHitPlayer: null, directHitSentry: null, directHitGenerator: null);
     }
 
@@ -101,8 +55,7 @@ public sealed partial class SimulationWorld
             rangeAnchorOwnerId: owner.Id,
             lastKnownRangeOriginX: owner.X,
             lastKnownRangeOriginY: owner.Y);
-        _rockets.Add(rocket);
-        _entities[rocket.Id] = rocket;
+        Projectiles.AddProjectileEntity(rocket);
         return rocket;
     }
 
@@ -114,16 +67,14 @@ public sealed partial class SimulationWorld
             mine.Stick();
         }
 
-        _mines.Add(mine);
-        _entities[mine.Id] = mine;
+        Projectiles.AddProjectileEntity(mine);
         return mine;
     }
 
     internal GrenadeProjectileEntity CombatTestSpawnGrenade(PlayerEntity owner, float x, float y, float velocityX = 0f, float velocityY = 0f)
     {
         var grenade = new GrenadeProjectileEntity(AllocateEntityId(), owner.Team, owner.Id, x, y, velocityX, velocityY);
-        _grenades.Add(grenade);
-        _entities[grenade.Id] = grenade;
+        Projectiles.AddProjectileEntity(grenade);
         return grenade;
     }
 
@@ -144,8 +95,7 @@ public sealed partial class SimulationWorld
             velocityY,
             GetSimulationTicksFromSourceTicks(FlameProjectileEntity.AirLifetimeTicks),
             isPerseverant: false);
-        _flames.Add(flame);
-        _entities[flame.Id] = flame;
+        Projectiles.AddProjectileEntity(flame);
         return flame;
     }
 
@@ -170,8 +120,7 @@ public sealed partial class SimulationWorld
             ticksRemaining: lifetimeTicks,
             damagePerHit: damagePerHit,
             style: style);
-        _flares.Add(flare);
-        _entities[flare.Id] = flare;
+        Projectiles.AddProjectileEntity(flare);
         return flare;
     }
 
@@ -181,13 +130,13 @@ public sealed partial class SimulationWorld
     }
 
     internal bool CombatTestHasLineOfSight(PlayerEntity attacker, PlayerEntity target)
-        => Combat.HasLineOfSight(attacker, target);
+        => GeometryResolver.HasLineOfSight(attacker, target);
 
     internal bool CombatTestHasObstacleLineOfSight(float originX, float originY, float targetX, float targetY)
-        => Combat.HasObstacleLineOfSight(originX, originY, targetX, targetY);
+        => GeometryResolver.HasObstacleLineOfSight(originX, originY, targetX, targetY);
 
     internal bool CombatTestIsProjectileSpawnBlocked(float originX, float originY, float targetX, float targetY, PlayerTeam shotTeam)
-        => Combat.IsProjectileSpawnBlocked(originX, originY, targetX, targetY, shotTeam);
+        => GeometryResolver.IsProjectileSpawnBlocked(originX, originY, targetX, targetY, shotTeam);
 
     internal (float Distance, float HitX, float HitY, PlayerEntity? HitPlayer, SentryEntity? HitSentry, GeneratorState? HitGenerator)? CombatTestGetNearestShotHit(
         ShotProjectileEntity shot,
@@ -195,7 +144,7 @@ public sealed partial class SimulationWorld
         float directionY,
         float maxDistance)
     {
-        var hit = Combat.GetNearestShotHit(shot, directionX, directionY, maxDistance);
+        var hit = GeometryResolver.GetNearestShotHit(shot, directionX, directionY, maxDistance);
         return hit.HasValue
             ? (hit.Value.Distance, hit.Value.HitX, hit.Value.HitY, hit.Value.HitPlayer, hit.Value.HitSentry, hit.Value.HitGenerator)
             : null;
@@ -212,7 +161,7 @@ public sealed partial class SimulationWorld
         float directionX,
         float directionY)
     {
-        var hit = Combat.GetNearestStabHit(mask, directionX, directionY);
+        var hit = GeometryResolver.GetNearestStabHit(mask, directionX, directionY);
         return hit.HasValue
             ? (hit.Value.Distance, hit.Value.HitX, hit.Value.HitY, hit.Value.HitPlayer, hit.Value.HitSentry, hit.Value.HitDamageableZoneRoomObjectIndex)
             : null;
@@ -224,7 +173,7 @@ public sealed partial class SimulationWorld
         float directionY,
         float maxDistance)
     {
-        var hit = Combat.ResolveRifleHit(attacker, directionX, directionY, maxDistance);
+        var hit = GeometryResolver.ResolveRifleHit(attacker, directionX, directionY, maxDistance);
         return (hit.Distance, hit.HitPlayer, hit.HitSentry, hit.HitGenerator);
     }
 
@@ -236,7 +185,7 @@ public sealed partial class SimulationWorld
         float directionY,
         float maxDistance)
     {
-        return Combat.IsFriendlyPlayerFirstRifleContact(
+        return GeometryResolver.IsFriendlyPlayerFirstRifleContact(
             attacker,
             originX,
             originY,
@@ -246,25 +195,25 @@ public sealed partial class SimulationWorld
     }
 
     private bool HasLineOfSight(PlayerEntity attacker, PlayerEntity target)
-        => Combat.HasLineOfSight(attacker, target);
+        => GeometryResolver.HasLineOfSight(attacker, target);
 
     private bool HasSentryLineOfSight(SentryEntity sentry, PlayerEntity target)
-        => Combat.HasSentryLineOfSight(sentry, target);
+        => GeometryResolver.HasSentryLineOfSight(sentry, target);
 
     private bool HasDirectLineOfSight(float originX, float originY, float targetX, float targetY, PlayerTeam targetTeam)
-        => Combat.HasDirectLineOfSight(originX, originY, targetX, targetY, targetTeam);
+        => GeometryResolver.HasDirectLineOfSight(originX, originY, targetX, targetY, targetTeam);
 
     private bool HasObstacleLineOfSight(float originX, float originY, float targetX, float targetY)
-        => Combat.HasObstacleLineOfSight(originX, originY, targetX, targetY);
+        => GeometryResolver.HasObstacleLineOfSight(originX, originY, targetX, targetY);
 
     private bool IsFlameSpawnBlocked(float originX, float originY, float spawnX, float spawnY, PlayerTeam team)
-        => Combat.IsFlameSpawnBlocked(originX, originY, spawnX, spawnY, team);
+        => GeometryResolver.IsFlameSpawnBlocked(originX, originY, spawnX, spawnY, team);
 
     private bool IsProjectileSpawnBlocked(float originX, float originY, float targetX, float targetY, PlayerTeam shotTeam)
-        => Combat.IsProjectileSpawnBlocked(originX, originY, targetX, targetY, shotTeam);
+        => GeometryResolver.IsProjectileSpawnBlocked(originX, originY, targetX, targetY, shotTeam);
 
     private bool IsProjectilePathBlocked(float originX, float originY, float targetX, float targetY, PlayerTeam shotTeam)
-        => Combat.IsProjectilePathBlocked(originX, originY, targetX, targetY, shotTeam);
+        => GeometryResolver.IsProjectilePathBlocked(originX, originY, targetX, targetY, shotTeam);
 
     private float? GetLineIntersectionDistanceToPlayer(
         float originX,
@@ -273,7 +222,7 @@ public sealed partial class SimulationWorld
         float endY,
         PlayerEntity player,
         float maxDistance)
-        => Combat.GetLineIntersectionDistanceToPlayer(originX, originY, endX, endY, player, maxDistance);
+        => GeometryResolver.GetLineIntersectionDistanceToPlayer(originX, originY, endX, endY, player, maxDistance);
 
     private float? GetThickLineIntersectionDistanceToPlayer(
         float originX,
@@ -283,40 +232,40 @@ public sealed partial class SimulationWorld
         PlayerEntity player,
         float maxDistance,
         float thicknessRadius)
-        => Combat.GetThickLineIntersectionDistanceToPlayer(originX, originY, endX, endY, player, maxDistance, thicknessRadius);
+        => GeometryResolver.GetThickLineIntersectionDistanceToPlayer(originX, originY, endX, endY, player, maxDistance, thicknessRadius);
 
     private ShotHitResult? GetNearestShotHit(ShotProjectileEntity shot, float directionX, float directionY, float maxDistance)
-        => Combat.GetNearestShotHit(shot, directionX, directionY, maxDistance);
+        => GeometryResolver.GetNearestShotHit(shot, directionX, directionY, maxDistance);
 
     private ShotHitResult? GetNearestNeedleHit(NeedleProjectileEntity needle, float directionX, float directionY, float maxDistance)
-        => Combat.GetNearestNeedleHit(needle, directionX, directionY, maxDistance);
+        => GeometryResolver.GetNearestNeedleHit(needle, directionX, directionY, maxDistance);
 
     private ShotHitResult? GetNearestMedicHealNeedleHit(MedicHealNeedleProjectileEntity needle, float directionX, float directionY, float maxDistance)
-        => Combat.GetNearestMedicHealNeedleHit(needle, directionX, directionY, maxDistance);
+        => GeometryResolver.GetNearestMedicHealNeedleHit(needle, directionX, directionY, maxDistance);
 
     private ShotHitResult? GetNearestRevolverHit(RevolverProjectileEntity shot, float directionX, float directionY, float maxDistance)
-        => Combat.GetNearestRevolverHit(shot, directionX, directionY, maxDistance);
+        => GeometryResolver.GetNearestRevolverHit(shot, directionX, directionY, maxDistance);
 
     private ShotHitResult? GetNearestBladeHit(BladeProjectileEntity blade, float directionX, float directionY, float maxDistance)
-        => Combat.GetNearestBladeHit(blade, directionX, directionY, maxDistance);
+        => GeometryResolver.GetNearestBladeHit(blade, directionX, directionY, maxDistance);
 
     private ShotHitResult? GetNearestStabHit(StabMaskEntity mask, float directionX, float directionY)
-        => Combat.GetNearestStabHit(mask, directionX, directionY);
+        => GeometryResolver.GetNearestStabHit(mask, directionX, directionY);
 
     private ShotHitResult? GetNearestHealstabHit(StabMaskEntity mask, float directionX, float directionY)
-        => Combat.GetNearestHealstabHit(mask, directionX, directionY);
+        => GeometryResolver.GetNearestHealstabHit(mask, directionX, directionY);
 
     private bool HasStabChainLineOfSight(float originX, float originY, float targetX, float targetY)
-        => Combat.HasStabChainLineOfSight(originX, originY, targetX, targetY);
+        => GeometryResolver.HasStabChainLineOfSight(originX, originY, targetX, targetY);
 
     private RocketHitResult? GetNearestRocketHit(RocketProjectileEntity rocket, float directionX, float directionY, float maxDistance)
-        => Combat.GetNearestRocketHit(rocket, directionX, directionY, maxDistance);
+        => GeometryResolver.GetNearestRocketHit(rocket, directionX, directionY, maxDistance);
 
     private MineHitResult? GetNearestMineHit(MineProjectileEntity mine, float directionX, float directionY, float maxDistance)
-        => Combat.GetNearestMineHit(mine, directionX, directionY, maxDistance);
+        => GeometryResolver.GetNearestMineHit(mine, directionX, directionY, maxDistance);
 
     private GrenadeEnvironmentHit? GetNearestGrenadeEnvironmentHit(GrenadeProjectileEntity grenade, float directionX, float directionY, float maxDistance)
-        => Combat.GetNearestGrenadeEnvironmentHit(grenade, directionX, directionY, maxDistance);
+        => GeometryResolver.GetNearestGrenadeEnvironmentHit(grenade, directionX, directionY, maxDistance);
 
     private bool TryGetGrenadeDamageableZoneContact(
         GrenadeProjectileEntity grenade,
@@ -326,22 +275,22 @@ public sealed partial class SimulationWorld
         out float hitX,
         out float hitY,
         out int roomObjectIndex)
-        => Combat.TryGetGrenadeDamageableZoneContact(grenade, directionX, directionY, maxDistance, out hitX, out hitY, out roomObjectIndex);
+        => GeometryResolver.TryGetGrenadeDamageableZoneContact(grenade, directionX, directionY, maxDistance, out hitX, out hitY, out roomObjectIndex);
 
     private PlayerEntity? GetNearestGrenadePlayerHit(GrenadeProjectileEntity grenade, float directionX, float directionY, float maxDistance)
-        => Combat.GetNearestGrenadePlayerHit(grenade, directionX, directionY, maxDistance);
+        => GeometryResolver.GetNearestGrenadePlayerHit(grenade, directionX, directionY, maxDistance);
 
     private FlameHitResult? GetNearestFlameHit(FlameProjectileEntity flame, float directionX, float directionY, float maxDistance)
-        => Combat.GetNearestFlameHit(flame, directionX, directionY, maxDistance);
+        => GeometryResolver.GetNearestFlameHit(flame, directionX, directionY, maxDistance);
 
     private ShotHitResult? GetNearestFlareHit(FlareProjectileEntity flare, float directionX, float directionY, float maxDistance)
-        => Combat.GetNearestFlareHit(flare, directionX, directionY, maxDistance);
+        => GeometryResolver.GetNearestFlareHit(flare, directionX, directionY, maxDistance);
 
     private RifleHitResult ResolveRifleHit(PlayerEntity attacker, float directionX, float directionY, float maxDistance)
-        => Combat.ResolveRifleHit(attacker, directionX, directionY, maxDistance);
+        => GeometryResolver.ResolveRifleHit(attacker, directionX, directionY, maxDistance);
 
     private RifleHitResult ResolveRifleHit(PlayerEntity attacker, float originX, float originY, float directionX, float directionY, float maxDistance)
-        => Combat.ResolveRifleHit(attacker, originX, originY, directionX, directionY, maxDistance);
+        => GeometryResolver.ResolveRifleHit(attacker, originX, originY, directionX, directionY, maxDistance);
 
     private OrderedRifleHitResult ResolveOrderedRifleHits(
         PlayerEntity attacker,
@@ -351,7 +300,7 @@ public sealed partial class SimulationWorld
         float directionY,
         float maxDistance,
         RifleTracePolicy policy)
-        => Combat.ResolveOrderedRifleHits(
+        => GeometryResolver.ResolveOrderedRifleHits(
             attacker,
             originX,
             originY,

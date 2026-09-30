@@ -5,14 +5,14 @@ using System;
 
 namespace OpenGarrison.Client;
 
-internal enum HostSetupScreen
+public enum HostSetupScreen
 {
     Main,
     Options,
     Maps,
 }
 
-internal readonly record struct HostSetupMenuLayout(
+public readonly record struct HostSetupMenuLayout(
     Rectangle Panel,
     HostSetupScreen Screen,
     Rectangle ListBounds,

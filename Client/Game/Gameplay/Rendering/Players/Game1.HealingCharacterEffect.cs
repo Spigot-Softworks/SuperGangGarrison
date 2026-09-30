@@ -9,8 +9,8 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private const float HealingCharacterEffectMinHealDelta = 1;
-    private const float HealingEmitterMinDurationSeconds = 0.5f;
+    public const float HealingCharacterEffectMinHealDelta = 1;
+    public const float HealingEmitterMinDurationSeconds = 0.5f;
     private const float HealingCrossSpawnIntervalSeconds = 0.15f;
     private const float HealingCrossLifetimeSeconds = 1f;
     private const float HealingCrossInitialAlpha = 0.95f;
@@ -54,7 +54,7 @@ public partial class Game1
         public int ColorVariantIndex;
     }
 
-    private void ResetHealingCharacterEffects()
+    public void ResetHealingCharacterEffects()
     {
         _observedPlayerHealthForHealingCharacterEffects.Clear();
         _wasPlayerAliveForHealingCharacterEffects.Clear();
@@ -65,7 +65,7 @@ public partial class Game1
         ResetHealingCharacterSweepEffects();
     }
 
-    private void ObservePendingWorldHealingEventsForHealingCharacterEffects()
+    public void ObservePendingWorldHealingEventsForHealingCharacterEffects()
     {
         // Online presentation derives healing visuals from authoritative snapshot health only.
         // PendingHealingEvents are local-simulation feedback and are not replicated.

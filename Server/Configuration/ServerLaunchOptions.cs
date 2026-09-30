@@ -60,8 +60,6 @@ sealed class ServerLaunchOptions
     public string? WebSocketCertificatePath { get; private init; }
     public string? WebSocketCertificatePassword { get; private init; }
     public string? PublicWebSocketUrl { get; private init; }
-    public int QuicPort { get; private init; }
-    public string? PublicQuicUrl { get; private init; }
     public Uri? RelayHostUrl { get; private init; }
     public SnapshotBudgetMode SnapshotBudgetMode { get; private init; } = SnapshotBudgetMode.GameplayCriticalUntrimmed;
     public GameplayVariantKind GameplayVariant { get; private init; } = GameplayVariantKind.Standard;
@@ -163,12 +161,7 @@ sealed class ServerLaunchOptions
         string? webSocketCertificatePath = null;
         string? webSocketCertificatePassword = null;
         string? publicWebSocketUrl = Environment.GetEnvironmentVariable("OPENGARRISON_PUBLIC_WEBSOCKET_URL");
-        // QUIC remains available in the source tree for later work, but is
-        // intentionally not exposed or advertised by the current UDP-first
-        // server package.
-        string? publicQuicUrl = null;
         var relayHostUrl = NormalizeRelayHostUrl(Environment.GetEnvironmentVariable("OPENGARRISON_RELAY_HOST_URL"));
-        var quicPort = 0;
         var snapshotBudgetMode = SnapshotBudgetModeParser.Parse(
             Environment.GetEnvironmentVariable("OPENGARRISON_SNAPSHOT_BUDGET_MODE"),
             settings.SnapshotBudgetMode);
@@ -647,27 +640,6 @@ sealed class ServerLaunchOptions
                 continue;
             }
 
-            if ((string.Equals(arg, "--quic-port", StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(arg, "--quic64-port", StringComparison.OrdinalIgnoreCase))
-                && index + 1 < args.Length)
-            {
-                // Reserved while QUIC is shelved; consume the value so old
-                // launch scripts do not shift the remaining arguments.
-                index += 1;
-                continue;
-            }
-
-            if ((string.Equals(arg, "--public-quic-url", StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(arg, "--quic-url", StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(arg, "--quic64-url", StringComparison.OrdinalIgnoreCase))
-                && index + 1 < args.Length)
-            {
-                // Reserved while QUIC is shelved; consume the value without
-                // publishing a QUIC endpoint.
-                index += 1;
-                continue;
-            }
-
             if (index == 0 && int.TryParse(arg, out var firstPort))
             {
                 port = firstPort;
@@ -768,8 +740,6 @@ sealed class ServerLaunchOptions
             WebSocketCertificatePath = webSocketCertificatePath,
             WebSocketCertificatePassword = webSocketCertificatePassword,
             PublicWebSocketUrl = NormalizePublicWebSocketUrl(publicWebSocketUrl),
-            QuicPort = quicPort,
-            PublicQuicUrl = NormalizePublicQuicUrl(publicQuicUrl),
             RelayHostUrl = relayHostUrl,
             SnapshotBudgetMode = snapshotBudgetMode,
             GameplayVariant = gameplayVariant,
@@ -822,23 +792,6 @@ sealed class ServerLaunchOptions
 
         if (!Uri.TryCreate(value.Trim(), UriKind.Absolute, out var uri)
             || (uri.Scheme != "ws" && uri.Scheme != "wss")
-            || string.IsNullOrWhiteSpace(uri.Host))
-        {
-            return null;
-        }
-
-        return uri.ToString();
-    }
-
-    private static string? NormalizePublicQuicUrl(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return null;
-        }
-
-        if (!Uri.TryCreate(value.Trim(), UriKind.Absolute, out var uri)
-            || !string.Equals(uri.Scheme, "quic64", StringComparison.OrdinalIgnoreCase)
             || string.IsNullOrWhiteSpace(uri.Host))
         {
             return null;

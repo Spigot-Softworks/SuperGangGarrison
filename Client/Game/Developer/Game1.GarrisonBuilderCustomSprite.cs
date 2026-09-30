@@ -13,7 +13,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private static readonly Color GarrisonBuilderCustomSpritePlaceholderColor = new(140, 140, 140, 220);
+    public static readonly Color GarrisonBuilderCustomSpritePlaceholderColor = new(140, 140, 140, 220);
 
     private void SyncGarrisonBuilderCustomSpriteResources()
     {
@@ -471,7 +471,7 @@ public partial class Game1
             && CustomMapCustomSpriteMetadata.IsCustomSpriteEntityType(entityType);
     }
 
-    private void GetGarrisonBuilderCustomSpriteZOrderSliderLayout(
+    public void GetGarrisonBuilderCustomSpriteZOrderSliderLayout(
         Rectangle rowBounds,
         string value,
         float textScale,

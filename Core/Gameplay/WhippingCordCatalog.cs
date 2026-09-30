@@ -54,10 +54,10 @@ public static class WhippingCordCatalog
         var projectedLength = MathF.Sqrt(MathF.Max(0f,
             distance * distance - ExtendedWhipTipOffsetY * ExtendedWhipTipOffsetY * verticalScale * verticalScale));
         var horizontalScale = projectedLength / ExtendedWhipTipOffsetX * (facingLeft ? -1f : 1f);
-        var sourceTipAngle = MathF.Atan2(
+        var sourceTipAngle = DeterministicMath.Atan2(
             ExtendedWhipTipOffsetY * verticalScale,
             ExtendedWhipTipOffsetX * horizontalScale);
-        var rotation = MathF.Atan2(handleToAnchorY, handleToAnchorX) - sourceTipAngle;
+        var rotation = DeterministicMath.Atan2(handleToAnchorY, handleToAnchorX) - sourceTipAngle;
         return (rotation, horizontalScale, verticalScale);
     }
 

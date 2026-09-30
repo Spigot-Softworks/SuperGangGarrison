@@ -5,7 +5,6 @@ using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Net.WebSockets;
-using System.Net.Quic;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
@@ -18,7 +17,6 @@ internal enum ServerTransportKind
 {
     Udp = 1,
     WebSocket = 2,
-    Quic = 3,
 }
 
 internal readonly struct ServerTransportPeer : IEquatable<ServerTransportPeer>
@@ -109,23 +107,6 @@ internal readonly struct ServerTransportPeer : IEquatable<ServerTransportPeer>
             normalizedAddress,
             remotePort,
             protocol64);
-    }
-
-    public static ServerTransportPeer FromQuicSession(long sessionId, IPEndPoint? remoteEndPoint)
-    {
-        var remoteAddress = NormalizeAddress(remoteEndPoint?.Address);
-        var remotePort = remoteEndPoint?.Port ?? 0;
-        var description = remoteAddress is null
-            ? $"quic:unknown#{sessionId}"
-            : $"quic:{remoteAddress}:{remotePort}#{sessionId}";
-        return new ServerTransportPeer(
-            ServerTransportKind.Quic,
-            unchecked((ulong)sessionId),
-            description,
-            udpEndPoint: null,
-            remoteAddress,
-            remotePort,
-            isProtocol64: true);
     }
 
     public static bool operator ==(ServerTransportPeer left, ServerTransportPeer right)
@@ -367,7 +348,6 @@ internal sealed class CompositeServerMessageTransport : IServerMessageTransport
     private readonly ConcurrentQueue<ServerMessagePacket> _inboundMessages = new();
     private readonly ConcurrentDictionary<ulong, WebSocketPeerConnection> _webSocketConnections = new();
     private readonly ConcurrentDictionary<ulong, Protocol64WebSocketConnection> _protocol64WebSocketConnections = new();
-    private readonly ConcurrentDictionary<ulong, Protocol64QuicConnectionRuntime> _protocol64QuicConnections = new();
     private readonly Protocol64SchemaRegistry _protocol64Registry = Protocol64SchemaRegistryFactory.CreateDefault();
     private readonly Action<string> _log;
 
@@ -424,21 +404,7 @@ internal sealed class CompositeServerMessageTransport : IServerMessageTransport
     {
         if (remotePeer.Kind == ServerTransportKind.Udp)
         {
-            _log($"[server] refusing protocol-64 delivery to legacy UDP peer {remotePeer}; canonical backends are WebSocket/QUIC.");
-            return;
-        }
-
-        if (remotePeer.Kind == ServerTransportKind.Quic)
-        {
-            if (_protocol64QuicConnections.TryGetValue(remotePeer.Id, out var quicConnection))
-            {
-                var result = quicConnection.EnqueueFrame(payload, replacementKey);
-                if (!result.Accepted)
-                {
-                    _log($"[server] protocol-64 QUIC peer {remotePeer} rejected outbound frame: {result.Fault?.Message}");
-                }
-            }
-
+            _log($"[server] refusing protocol-64 delivery to legacy UDP peer {remotePeer}; the canonical backend is WebSocket.");
             return;
         }
 
@@ -631,30 +597,6 @@ internal sealed class CompositeServerMessageTransport : IServerMessageTransport
             Fragment = string.Empty,
         };
         return builder.Uri.ToString();
-    }
-
-    public void RegisterProtocol64QuicConnection(
-        ServerTransportPeer peer,
-        Protocol64QuicConnectionRuntime connection)
-    {
-        ArgumentNullException.ThrowIfNull(connection);
-        if (!_protocol64QuicConnections.TryAdd(peer.Id, connection))
-        {
-            throw new InvalidOperationException($"A protocol-64 QUIC peer with id {peer.Id} is already connected.");
-        }
-    }
-
-    public void UnregisterProtocol64QuicConnection(ServerTransportPeer peer)
-    {
-        _protocol64QuicConnections.TryRemove(peer.Id, out _);
-    }
-
-    public void EnqueueInboundProtocol64Frame(
-        ServerTransportPeer peer,
-        Protocol64ReceivedFrame frame)
-    {
-        ArgumentNullException.ThrowIfNull(frame);
-        _inboundMessages.Enqueue(new ServerMessagePacket(peer, frame.EncodedPayload.ToArray()));
     }
 
     private sealed class WebSocketPeerConnection : IDisposable

@@ -8,9 +8,9 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private int _manualConnectControllerIndex;
+    public int _manualConnectControllerIndex;
 
-    private void UpdateManualConnectMenu(KeyboardState keyboard, MouseState mouse)
+    public void UpdateManualConnectMenu(KeyboardState keyboard, MouseState mouse)
     {
         GetManualConnectLayout(
             out _,
@@ -32,11 +32,11 @@ public partial class Game1
         {
             if (_lastToDieRoomCodeJoinOpen)
             {
-                _connectionFlowController.SetManualConnectEditingField(editHost: true);
+                _sessionManager.Connection.SetManualConnectEditingField(editHost: true);
             }
             else
             {
-                _connectionFlowController.ToggleManualConnectEditingField();
+                _sessionManager.Connection.ToggleManualConnectEditingField();
             }
         }
 
@@ -61,7 +61,7 @@ public partial class Game1
         if (hostBounds.Contains(point))
         {
             _manualConnectControllerIndex = 0;
-            _connectionFlowController.SetManualConnectEditingField(editHost: true);
+            _sessionManager.Connection.SetManualConnectEditingField(editHost: true);
             if (IsTextFieldDoubleClick(TextFieldClickTarget.ManualConnectHost))
             {
                 SelectAllTextInActiveField(TextFieldClickTarget.ManualConnectHost);
@@ -70,7 +70,7 @@ public partial class Game1
         else if (portBounds.Contains(point))
         {
             _manualConnectControllerIndex = 1;
-            _connectionFlowController.SetManualConnectEditingField(editHost: false);
+            _sessionManager.Connection.SetManualConnectEditingField(editHost: false);
             if (IsTextFieldDoubleClick(TextFieldClickTarget.ManualConnectPort))
             {
                 SelectAllTextInActiveField(TextFieldClickTarget.ManualConnectPort);
@@ -82,7 +82,7 @@ public partial class Game1
             if (_lastToDieRoomCodeJoinOpen && pasteBounds.Contains(point))
             {
                 _manualConnectControllerIndex = 0;
-                _connectionFlowController.SetManualConnectEditingField(editHost: true);
+                _sessionManager.Connection.SetManualConnectEditingField(editHost: true);
                 if (!PasteActiveClipboard())
                 {
                     _menuStatusMessage = "Clipboard does not contain a room or friend code.";
@@ -133,7 +133,7 @@ public partial class Game1
             switch (_manualConnectControllerIndex)
             {
                 case 0:
-                    _connectionFlowController.SetManualConnectEditingField(editHost: true);
+                    _sessionManager.Connection.SetManualConnectEditingField(editHost: true);
                     break;
                 case 1:
                     TryConnectFromMenu();
@@ -149,10 +149,10 @@ public partial class Game1
         switch (_manualConnectControllerIndex)
         {
             case 0:
-                _connectionFlowController.SetManualConnectEditingField(editHost: true);
+                _sessionManager.Connection.SetManualConnectEditingField(editHost: true);
                 break;
             case 1:
-                _connectionFlowController.SetManualConnectEditingField(editHost: false);
+                _sessionManager.Connection.SetManualConnectEditingField(editHost: false);
                 break;
             case 2:
                 TryConnectFromMenu();
@@ -169,19 +169,19 @@ public partial class Game1
     {
         if (_manualConnectControllerIndex == 0)
         {
-            _connectionFlowController.SetManualConnectEditingField(editHost: true);
+            _sessionManager.Connection.SetManualConnectEditingField(editHost: true);
         }
         else if (!_lastToDieRoomCodeJoinOpen && _manualConnectControllerIndex == 1)
         {
-            _connectionFlowController.SetManualConnectEditingField(editHost: false);
+            _sessionManager.Connection.SetManualConnectEditingField(editHost: false);
         }
         else
         {
-            _connectionFlowController.DisableManualConnectEditing();
+            _sessionManager.Connection.DisableManualConnectEditing();
         }
     }
 
-    private void DrawManualConnectMenu()
+    public void DrawManualConnectMenu()
     {
         var viewportWidth = ViewportWidth;
         var viewportHeight = ViewportHeight;
@@ -199,7 +199,7 @@ public partial class Game1
                 _lastToDieRoomCodeJoinOpen
                     ? new Color(0x4b, 0x4d, 0x50)
                     : new Color(0x57, 0x4f, 0x47));
-            _menuBottomBarRunners.Draw(bottomBarBounds);
+            _menuManager.MenuBottomBarRunners.Draw(bottomBarBounds);
         }
 
         GetManualConnectLayout(

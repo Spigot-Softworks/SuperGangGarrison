@@ -7,10 +7,10 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private const float VersionOverlayTextScale = 1f;
+    public const float VersionOverlayTextScale = 1f;
     private const float VersionOverlayMargin = 6f;
 
-    private void DrawVersionOverlay()
+    public void DrawVersionOverlay()
     {
         var version = GetApplicationVersionLabel();
         if (string.IsNullOrWhiteSpace(version))

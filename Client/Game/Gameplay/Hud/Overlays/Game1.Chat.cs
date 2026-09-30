@@ -14,10 +14,10 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private const int MaxChatHistoryLines = 128;
-    private const int ClosedChatVisibleLineLimit = 6;
-    private const int OpenChatFixedLineCount = 7;
-    private const int ChatScrollStep = 3;
+    public const int MaxChatHistoryLines = 128;
+    public const int ClosedChatVisibleLineLimit = 6;
+    public const int OpenChatFixedLineCount = 7;
+    public const int ChatScrollStep = 3;
     private const float ChatHudPanelMargin = 12f;
     private const float ChatHudPanelHorizontalPadding = 6f;
     private const float ChatHudPanelVerticalPadding = 4f;
@@ -34,7 +34,7 @@ public partial class Game1
         public string SpeakerPrefix { get; } = speakerPrefix;
     }
 
-    private void OpenChat(bool teamOnly)
+    public void OpenChat(bool teamOnly)
     {
         _chatOpen = true;
         _chatTeamOnly = teamOnly;
@@ -43,7 +43,7 @@ public partial class Game1
         InitializeChatInputCursor();
     }
 
-    private void ResetChatInputState(bool requireOpenKeyRelease = false)
+    public void ResetChatInputState(bool requireOpenKeyRelease = false)
     {
         _chatOpen = false;
         _chatTeamOnly = false;
@@ -53,7 +53,7 @@ public partial class Game1
         InitializeChatInputCursor();
     }
 
-    private void SubmitChatMessage()
+    public void SubmitChatMessage()
     {
         var text = _chatInput.Trim();
         var teamOnly = _chatTeamOnly;
@@ -431,7 +431,7 @@ public partial class Game1
             .Replace('\n', ' ');
     }
 
-    private void UpdateChatScrollState(KeyboardState keyboard, MouseState mouse)
+    public void UpdateChatScrollState(KeyboardState keyboard, MouseState mouse)
     {
         if (_chatOpen && TryGetOpenChatScrollbarTrackBounds(out var trackBounds))
         {

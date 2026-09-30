@@ -36,7 +36,7 @@ public partial class Game1
             && snapshotsAfterBaseline >= NetworkWorldWarmupMinimumAppliedSnapshotsAfterFull
             && !interpolationWarmupActive);
 
-    private void CloseGameplaySelectionMenus()
+    public void CloseGameplaySelectionMenus()
     {
         _teamSelectOpen = false;
         _classSelectOpen = false;
@@ -54,7 +54,7 @@ public partial class Game1
         CloseGameplaySelectionMenus();
     }
 
-    private void OpenGameplayTeamSelection()
+    public void OpenGameplayTeamSelection()
     {
         if (IsWatchOnlySession())
         {
@@ -79,7 +79,7 @@ public partial class Game1
         _classSelectOpen = false;
     }
 
-    private void OpenGameplayClassSelection()
+    public void OpenGameplayClassSelection()
     {
         if (IsWatchOnlySession())
         {
@@ -105,7 +105,7 @@ public partial class Game1
         WarmBrowserClassSelectionAssets(_pendingClassSelectTeam ?? _world.LocalPlayerTeam);
     }
 
-    private void ToggleGameplayTeamSelection()
+    public void ToggleGameplayTeamSelection()
     {
         if (IsWatchOnlySession())
         {
@@ -143,7 +143,7 @@ public partial class Game1
         }
     }
 
-    private void ToggleGameplayClassSelection()
+    public void ToggleGameplayClassSelection()
     {
         if (IsWatchOnlySession())
         {

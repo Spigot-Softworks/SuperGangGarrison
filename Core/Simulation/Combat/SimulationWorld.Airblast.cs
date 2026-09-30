@@ -28,8 +28,8 @@ public sealed partial class SimulationWorld
         var (sourceX, sourceY) = WeaponHandler.GetPyroSecondaryOrigin(player);
         var aimDegrees = PointDirectionDegrees(sourceX, sourceY, aimWorldX, aimWorldY);
         var aimRadians = DegreesToRadians(aimDegrees);
-        var poofX = sourceX + MathF.Cos(aimRadians) * 25f;
-        var poofY = sourceY + MathF.Sin(aimRadians) * 25f;
+        var poofX = sourceX + DeterministicMath.Cos(aimRadians) * 25f;
+        var poofY = sourceY + DeterministicMath.Sin(aimRadians) * 25f;
 
         RegisterSoundEvent(player, "CompressionBlastSnd");
         RegisterVisualEffect("AirBlast", poofX, poofY, aimDegrees);
@@ -54,8 +54,8 @@ public sealed partial class SimulationWorld
         var (sourceX, sourceY) = WeaponHandler.GetPyroSecondaryOrigin(player);
         var aimDegrees = PointDirectionDegrees(sourceX, sourceY, aimWorldX, aimWorldY);
         var aimRadians = DegreesToRadians(aimDegrees);
-        var poofX = sourceX + MathF.Cos(aimRadians) * 25f;
-        var poofY = sourceY + MathF.Sin(aimRadians) * 25f;
+        var poofX = sourceX + DeterministicMath.Cos(aimRadians) * 25f;
+        var poofY = sourceY + DeterministicMath.Sin(aimRadians) * 25f;
 
         RegisterSoundEvent(player, "CompressionBlastSnd");
         RegisterVisualEffect("AirBlast", poofX, poofY, aimDegrees);
@@ -104,8 +104,8 @@ public sealed partial class SimulationWorld
             ? (player.X, player.Y, PointDirectionRadians(player.X, player.Y, aimWorldX, aimWorldY, player.FacingDirectionX))
             : WeaponHandler.GetSoldierRocketLauncherTip(player, aimWorldX, aimWorldY);
         var aimDegrees = aimRadians * (180f / MathF.PI);
-        var poofX = sourceX + MathF.Cos(aimRadians) * 25f;
-        var poofY = sourceY + MathF.Sin(aimRadians) * 25f;
+        var poofX = sourceX + DeterministicMath.Cos(aimRadians) * 25f;
+        var poofY = sourceY + DeterministicMath.Sin(aimRadians) * 25f;
 
         RegisterSoundEvent(player, "CompressionBlastSnd");
         RegisterVisualEffect("AirBlast", poofX, poofY, aimDegrees);
@@ -124,16 +124,16 @@ public sealed partial class SimulationWorld
         }
 
         player.AddImpulse(
-            -MathF.Cos(aimRadians) * PyroAirblastPlayerImpulse * scale * PyroSelfAirblastHorizontalStrengthScale,
-            -MathF.Sin(aimRadians) * PyroAirblastPlayerImpulse * scale * PyroSelfAirblastVerticalStrengthScale + (PyroAirblastPlayerLift * PyroSelfAirblastVerticalStrengthScale));
+            -DeterministicMath.Cos(aimRadians) * PyroAirblastPlayerImpulse * scale * PyroSelfAirblastHorizontalStrengthScale,
+            -DeterministicMath.Sin(aimRadians) * PyroAirblastPlayerImpulse * scale * PyroSelfAirblastVerticalStrengthScale + (PyroAirblastPlayerLift * PyroSelfAirblastVerticalStrengthScale));
         player.SetMovementStateIfAirborne(LegacyMovementState.Airblast);
     }
 
     private void ReflectEnemyRockets(PlayerEntity player, float aimRadians, float poofX, float poofY)
     {
-        for (var rocketIndex = 0; rocketIndex < _rockets.Count; rocketIndex += 1)
+        for (var rocketIndex = 0; rocketIndex < Rockets.Count; rocketIndex += 1)
         {
-            var rocket = _rockets[rocketIndex];
+            var rocket = Rockets[rocketIndex];
             if (rocket.Team == player.Team
                 || !IsWithinAirblastMask(poofX, poofY, aimRadians, rocket.X, rocket.Y, PyroAirblastProjectileRadius))
             {
@@ -146,9 +146,9 @@ public sealed partial class SimulationWorld
 
     private void ReflectEnemyFlares(PlayerEntity player, float aimRadians, float poofX, float poofY)
     {
-        for (var flareIndex = 0; flareIndex < _flares.Count; flareIndex += 1)
+        for (var flareIndex = 0; flareIndex < Flares.Count; flareIndex += 1)
         {
-            var flare = _flares[flareIndex];
+            var flare = Flares[flareIndex];
             if (flare.Team == player.Team
                 || !IsWithinAirblastMask(poofX, poofY, aimRadians, flare.X, flare.Y, PyroAirblastProjectileRadius))
             {
@@ -162,9 +162,9 @@ public sealed partial class SimulationWorld
 
     private void ReflectEnemyGrenades(PlayerEntity player, float aimRadians, float poofX, float poofY)
     {
-        for (var grenadeIndex = 0; grenadeIndex < _grenades.Count; grenadeIndex += 1)
+        for (var grenadeIndex = 0; grenadeIndex < Grenades.Count; grenadeIndex += 1)
         {
-            var grenade = _grenades[grenadeIndex];
+            var grenade = Grenades[grenadeIndex];
             if (grenade.Team == player.Team
                 || !IsWithinAirblastMask(poofX, poofY, aimRadians, grenade.X, grenade.Y, PyroAirblastProjectileRadius))
             {
@@ -184,9 +184,9 @@ public sealed partial class SimulationWorld
 
     private void PushEnemyMines(PlayerTeam team, float aimRadians, float poofX, float poofY)
     {
-        for (var mineIndex = 0; mineIndex < _mines.Count; mineIndex += 1)
+        for (var mineIndex = 0; mineIndex < Mines.Count; mineIndex += 1)
         {
-            var mine = _mines[mineIndex];
+            var mine = Mines[mineIndex];
             if (mine.Team == team
                 || !IsWithinAirblastMask(poofX, poofY, aimRadians, mine.X, mine.Y, PyroAirblastProjectileRadius))
             {
@@ -197,7 +197,7 @@ public sealed partial class SimulationWorld
             var reflectedSpeed = MathF.Max(currentSpeed, PyroAirblastMineSpeedFloor);
             var wasStickied = mine.IsStickied;
             mine.Unstick();
-            mine.SetVelocity(MathF.Cos(aimRadians) * reflectedSpeed, MathF.Sin(aimRadians) * reflectedSpeed);
+            mine.SetVelocity(DeterministicMath.Cos(aimRadians) * reflectedSpeed, DeterministicMath.Sin(aimRadians) * reflectedSpeed);
             if (!wasStickied)
             {
                 continue;
@@ -285,8 +285,8 @@ public sealed partial class SimulationWorld
             }
 
             target.AddImpulse(
-                MathF.Cos(aimRadians) * PyroAirblastPlayerImpulse * scale,
-                MathF.Sin(aimRadians) * PyroAirblastPlayerImpulse * scale + PyroAirblastPlayerLift);
+                DeterministicMath.Cos(aimRadians) * PyroAirblastPlayerImpulse * scale,
+                DeterministicMath.Sin(aimRadians) * PyroAirblastPlayerImpulse * scale + PyroAirblastPlayerLift);
             target.SetMovementStateIfAirborne(LegacyMovementState.Airblast);
         }
     }
@@ -308,8 +308,8 @@ public sealed partial class SimulationWorld
             }
 
             body.AddImpulse(
-                MathF.Cos(aimRadians) * PyroAirblastLooseBodyImpulse * scale,
-                MathF.Sin(aimRadians) * PyroAirblastLooseBodyImpulse * scale);
+                DeterministicMath.Cos(aimRadians) * PyroAirblastLooseBodyImpulse * scale,
+                DeterministicMath.Sin(aimRadians) * PyroAirblastLooseBodyImpulse * scale);
         }
 
         var playerGibsSnapshot = _playerGibs.ToArray();
@@ -327,8 +327,8 @@ public sealed partial class SimulationWorld
             }
 
             gib.AddImpulse(
-                MathF.Cos(aimRadians) * PyroAirblastLooseBodyImpulse * scale,
-                MathF.Sin(aimRadians) * PyroAirblastLooseBodyImpulse * scale,
+                DeterministicMath.Cos(aimRadians) * PyroAirblastLooseBodyImpulse * scale,
+                DeterministicMath.Sin(aimRadians) * PyroAirblastLooseBodyImpulse * scale,
                 0f);
         }
     }
@@ -363,7 +363,7 @@ public sealed partial class SimulationWorld
             }
 
             var targetDirectionRadians = radial
-                ? MathF.Atan2(target.Y - sourceY, target.X - sourceX)
+                ? DeterministicMath.Atan2(target.Y - sourceY, target.X - sourceX)
                 : aimRadians;
             if (!radial && !IsWithinAirblastMask(poofX, poofY, aimRadians, target.X, target.Y, PyroAirblastTargetRadius))
             {
@@ -389,8 +389,8 @@ public sealed partial class SimulationWorld
             }
 
             target.AddImpulse(
-                MathF.Cos(targetDirectionRadians) * SoldierThundergunnerPlayerImpulse * scale,
-                MathF.Sin(targetDirectionRadians) * SoldierThundergunnerPlayerImpulse * scale + SoldierThundergunnerPlayerLift * forceScale);
+                DeterministicMath.Cos(targetDirectionRadians) * SoldierThundergunnerPlayerImpulse * scale,
+                DeterministicMath.Sin(targetDirectionRadians) * SoldierThundergunnerPlayerImpulse * scale + SoldierThundergunnerPlayerLift * forceScale);
             target.SetMovementState(LegacyMovementState.Airblast);
         }
     }
@@ -451,8 +451,8 @@ public sealed partial class SimulationWorld
     {
         var deltaX = targetX - poofX;
         var deltaY = targetY - poofY;
-        var cosine = MathF.Cos(aimRadians);
-        var sine = MathF.Sin(aimRadians);
+        var cosine = DeterministicMath.Cos(aimRadians);
+        var sine = DeterministicMath.Sin(aimRadians);
         var localX = (deltaX * cosine) + (deltaY * sine);
         var localY = (-deltaX * sine) + (deltaY * cosine);
 
@@ -475,7 +475,7 @@ public sealed partial class SimulationWorld
             deltaX = fallbackDirectionX == 0f ? 1f : fallbackDirectionX;
         }
 
-        return MathF.Atan2(deltaY, deltaX);
+        return DeterministicMath.Atan2(deltaY, deltaX);
     }
 
     private bool TryGetAirblastMineSurfaceNormal(float x, float y, out float normalX, out float normalY)

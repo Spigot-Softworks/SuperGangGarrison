@@ -9,8 +9,8 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private const int LastToDieBotReactionFrameZ1 = 20;
-    private const int LastToDieBotReactionFrameZ2 = 21;
+    public const int LastToDieBotReactionFrameZ1 = 20;
+    public const int LastToDieBotReactionFrameZ2 = 21;
     private const int LastToDieBotReactionFrameZ4 = 23;
     private const int LastToDieBotReactionFrameZ5 = 24;
     private const int LastToDieBotReactionFrameZ6 = 25;
@@ -49,7 +49,7 @@ public partial class Game1
 
     private readonly record struct LastToDieObservedBotDeath(Vector2 Position, byte Slot);
 
-    private void ResetLastToDieBotReactionState()
+    public void ResetLastToDieBotReactionState()
     {
         _lastToDieBotReactionStates.Clear();
         _lastToDieObservedBotReactionAcquiredWeaponClassId = null;
@@ -58,7 +58,7 @@ public partial class Game1
         _lastToDieObservedBotReactionCaptureCelebrated = false;
     }
 
-    private void ObserveLastToDieBotReactionState()
+    public void ObserveLastToDieBotReactionState()
     {
         if (!IsLastToDieSessionActive || _world.LocalPlayerAwaitingJoin)
         {

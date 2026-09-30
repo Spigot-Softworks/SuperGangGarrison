@@ -175,10 +175,10 @@ public sealed class SimulationWorldMedicUberChargeTests
     private static MethodInfo GetRequiredSimulationWorldMethod(string name, params Type[] parameterTypes)
     {
         var method = parameterTypes.Length == 0
-            ? typeof(SimulationWorld).GetMethod(name, BindingFlags.Instance | BindingFlags.NonPublic)
+            ? typeof(SimulationWorld).GetMethod(name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
             : typeof(SimulationWorld).GetMethod(
                 name,
-                BindingFlags.Instance | BindingFlags.NonPublic,
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
                 binder: null,
                 parameterTypes,
                 modifiers: null);

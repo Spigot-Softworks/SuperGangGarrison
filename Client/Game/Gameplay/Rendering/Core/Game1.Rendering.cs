@@ -11,9 +11,9 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private readonly Dictionary<LoadedSpriteFrame, Texture2D> _spriteFrameAlphaMaskCache = new();
-    private readonly Dictionary<LoadedSpriteFrame, LoadedSpriteFrame> _neutralSpriteFrameCache = new();
-    private static readonly BlendState _multiplyColorBlendState = new()
+    public readonly Dictionary<LoadedSpriteFrame, Texture2D> _spriteFrameAlphaMaskCache = new();
+    public readonly Dictionary<LoadedSpriteFrame, LoadedSpriteFrame> _neutralSpriteFrameCache = new();
+    public static readonly BlendState _multiplyColorBlendState = new()
     {
         ColorSourceBlend = Blend.DestinationColor,
         ColorDestinationBlend = Blend.InverseSourceAlpha,
@@ -23,7 +23,7 @@ public partial class Game1
         AlphaBlendFunction = BlendFunction.Add,
     };
 
-    private static readonly BlendState _screenColorBlendState = new()
+    public static readonly BlendState _screenColorBlendState = new()
     {
         ColorSourceBlend = Blend.SourceAlpha,
         ColorDestinationBlend = Blend.One,
@@ -33,7 +33,7 @@ public partial class Game1
         AlphaBlendFunction = BlendFunction.Add,
     };
 
-    private static float RoundToSourcePixel(float value)
+    public static float RoundToSourcePixel(float value)
     {
         return MathF.Round(value, MidpointRounding.AwayFromZero);
     }
@@ -62,10 +62,10 @@ public partial class Game1
     /// World → screen for HUD-layer draws. World sprite batches already apply
     /// <see cref="GameplayCameraZoom"/> via transform; HUD batches do not.
     /// </summary>
-    private Vector2 GetWorldHudScreenPosition(float worldX, float worldY, Vector2 cameraPosition)
+    public Vector2 GetWorldHudScreenPosition(float worldX, float worldY, Vector2 cameraPosition)
         => GetWorldScreenPosition(worldX, worldY, cameraPosition) * GameplayCameraZoom;
 
-    private Vector2 GetWorldHudScreenPosition(Vector2 worldPosition, Vector2 cameraPosition)
+    public Vector2 GetWorldHudScreenPosition(Vector2 worldPosition, Vector2 cameraPosition)
         => GetWorldHudScreenPosition(worldPosition.X, worldPosition.Y, cameraPosition);
 
     private void DrawScreenPixelRectangle(Vector2 position, float width, float height, Color color)
@@ -248,7 +248,7 @@ public partial class Game1
         return false;
     }
 
-    private bool TryGetLevelBackgroundTexture(out Texture2D texture)
+    public bool TryGetLevelBackgroundTexture(out Texture2D texture)
     {
         var backgroundName = _world.Level.BackgroundAssetName;
         if (TryGetLevelBackgroundFileTexture(backgroundName, out texture))
@@ -742,7 +742,7 @@ public partial class Game1
             0f);
     }
 
-    private void DrawSpriteFrame(
+    public void DrawSpriteFrame(
         LoadedSpriteFrame frame,
         Vector2 position,
         Color tint,
@@ -1016,7 +1016,7 @@ public partial class Game1
         return neutralFrame;
     }
 
-    private void DrawLoadedSpriteFrame(
+    public void DrawLoadedSpriteFrame(
         LoadedSpriteFrame frame,
         Vector2 position,
         Rectangle? sourceRectangle,
@@ -1039,7 +1039,7 @@ public partial class Game1
             layerDepth);
     }
 
-    private void DrawLoadedSpriteFrame(LoadedSpriteFrame frame, Rectangle destinationRectangle, Color tint)
+    public void DrawLoadedSpriteFrame(LoadedSpriteFrame frame, Rectangle destinationRectangle, Color tint)
     {
         _spriteBatch.Draw(
             frame.Texture,

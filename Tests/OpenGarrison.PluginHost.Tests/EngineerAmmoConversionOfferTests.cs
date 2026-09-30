@@ -10,9 +10,9 @@ public sealed class EngineerAmmoConversionOfferTests
     [Fact]
     public void OfflineOffersAlsoHideConversionsEvenWhenOtherPerksAreExhausted()
     {
-        var runType = typeof(Game1).GetNestedType("LastToDieRunState", BindingFlags.NonPublic)!;
-        var survivorType = typeof(Game1).GetNestedType("LastToDieSurvivorKind", BindingFlags.NonPublic)!;
-        var perkType = typeof(Game1).GetNestedType("LastToDiePerkKind", BindingFlags.NonPublic)!;
+        var runType = typeof(Game1).GetNestedType("LastToDieRunState", BindingFlags.Public | BindingFlags.NonPublic)!;
+        var survivorType = typeof(Game1).GetNestedType("LastToDieSurvivorKind", BindingFlags.Public | BindingFlags.NonPublic)!;
+        var perkType = typeof(Game1).GetNestedType("LastToDiePerkKind", BindingFlags.Public | BindingFlags.NonPublic)!;
         var conversions = new[] { "EngineerBuckshotConversion", "EngineerPrecisionInstantiator", "EngineerIncendiaryEnhancements" };
         foreach (var chosen in conversions)
         {
@@ -23,7 +23,7 @@ public sealed class EngineerAmmoConversionOfferTests
             foreach (var name in Enum.GetNames(perkType).Where(name => name.StartsWith("Engineer")
                 && (!conversions.Contains(name) || name == chosen) && name != "EngineerCaveatInjector"
                 && name != "EngineerDestinyPunctuator")) add.Invoke(owned, [Enum.Parse(perkType, name)]);
-            var choices = (Array)typeof(Game1).GetMethod("BuildLastToDiePerkChoices", BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null, [run])!;
+            var choices = (Array)typeof(Game1).GetMethod("BuildLastToDiePerkChoices", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)!.Invoke(null, [run])!;
             var kinds = choices.Cast<object>().Select(choice => choice.GetType().GetProperty("Perk")!.GetValue(choice)!)
                 .Select(perk => perk.GetType().GetProperty("Kind")!.GetValue(perk)!.ToString()).ToArray();
             Assert.DoesNotContain(kinds, kind => conversions.Contains(kind));

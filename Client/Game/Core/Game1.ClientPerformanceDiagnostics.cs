@@ -13,10 +13,10 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private const string ClientPerformanceLogEnvironmentVariable = "OG_CLIENT_PERF_LOG";
-    private const string ClientPerformanceTestEnvironmentVariable = "OG_CLIENT_PERF_TEST";
-    private const string ClientPerformanceModeEnvironmentVariable = "OG_CLIENT_PERF_MODE";
-    private const string ClientPerformanceMapEnvironmentVariable = "OG_CLIENT_PERF_MAP";
+    public const string ClientPerformanceLogEnvironmentVariable = "OG_CLIENT_PERF_LOG";
+    public const string ClientPerformanceTestEnvironmentVariable = "OG_CLIENT_PERF_TEST";
+    public const string ClientPerformanceModeEnvironmentVariable = "OG_CLIENT_PERF_MODE";
+    public const string ClientPerformanceMapEnvironmentVariable = "OG_CLIENT_PERF_MAP";
     private const string ClientPerformanceFriendlyBotsEnvironmentVariable = "OG_CLIENT_PERF_FRIENDLY_BOTS";
     private const string ClientPerformanceEnemyBotsEnvironmentVariable = "OG_CLIENT_PERF_ENEMY_BOTS";
     private const string ClientPerformanceClassEnvironmentVariable = "OG_CLIENT_PERF_CLASS";
@@ -90,7 +90,7 @@ public partial class Game1
         LastToDie,
     }
 
-    private enum ClientPerformanceMetric
+    public enum ClientPerformanceMetric
     {
         Update,
         Draw,
@@ -108,7 +108,7 @@ public partial class Game1
         BotApply,
     }
 
-    private static bool IsClientPerformanceDiagnosticsEnabled()
+    public static bool IsClientPerformanceDiagnosticsEnabled()
     {
         return !OperatingSystem.IsBrowser()
             && (ClientPerformanceLoggingEnabled || ClientPerformanceTestEnabled);
@@ -150,7 +150,7 @@ public partial class Game1
         PublishClientPerformanceSummary();
     }
 
-    private void RecordClientPerformanceMetric(ClientPerformanceMetric metric, double milliseconds)
+    public void RecordClientPerformanceMetric(ClientPerformanceMetric metric, double milliseconds)
     {
         if (!IsClientPerformanceDiagnosticsEnabled())
         {
@@ -173,7 +173,7 @@ public partial class Game1
             return;
         }
 
-        if (_startupSplashOpen && _bootstrapController.IsMenuBootstrapComplete)
+        if (_startupSplashOpen && _gameplayManager.Bootstrap.IsMenuBootstrapComplete)
         {
             _startupSplashOpen = false;
             _mainMenuOpen = true;
@@ -183,7 +183,7 @@ public partial class Game1
 
         if (!_clientPerformanceTestSessionRequested)
         {
-            if (_startupSplashOpen || !_mainMenuOpen || !_bootstrapController.CanEnterGameplaySession(out _))
+            if (_startupSplashOpen || !_mainMenuOpen || !_gameplayManager.Bootstrap.CanEnterGameplaySession(out _))
             {
                 return;
             }
@@ -968,7 +968,7 @@ public partial class Game1
                 out linkIndex);
     }
 
-    private void LogClientPerformanceLine(string line)
+    public void LogClientPerformanceLine(string line)
     {
         if (string.IsNullOrWhiteSpace(_clientPerformanceLogPath))
         {
@@ -1109,7 +1109,7 @@ public partial class Game1
 
     private sealed class ClientPerformanceAccumulator
     {
-        private readonly MetricAccumulator[] _metrics = new MetricAccumulator[Enum.GetValues<ClientPerformanceMetric>().Length];
+        public readonly MetricAccumulator[] _metrics = new MetricAccumulator[Enum.GetValues<ClientPerformanceMetric>().Length];
 
         public int UpdateCount => _metrics[(int)ClientPerformanceMetric.Update].Count;
 

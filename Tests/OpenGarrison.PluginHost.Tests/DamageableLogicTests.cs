@@ -737,7 +737,7 @@ public sealed class DamageableLogicTests
         blueSentry.ForceBuilt();
         var addSentry = typeof(SimulationWorld).GetMethod(
             "CombatTestAddSentry",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(addSentry);
         addSentry.Invoke(world, [blueSentry]);
 
@@ -763,7 +763,7 @@ public sealed class DamageableLogicTests
         PlayerEntity owner,
         float damage)
     {
-        var sentryTargetType = typeof(SimulationWorld).GetNestedType("SentryTarget", BindingFlags.NonPublic);
+        var sentryTargetType = typeof(SimulationWorld).GetNestedType("SentryTarget", BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(sentryTargetType);
         var target = Activator.CreateInstance(
             sentryTargetType,
@@ -777,7 +777,7 @@ public sealed class DamageableLogicTests
             null);
         var method = typeof(SimulationWorld).GetMethod(
             "ApplyExperimentalSentryStructuralTargetDamage",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         method.Invoke(world, [sentry, target, owner, damage]);
     }
@@ -980,7 +980,7 @@ public sealed class DamageableLogicTests
 
             "CombatTestSetLevel",
 
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
 
         Assert.NotNull(setLevel);
 

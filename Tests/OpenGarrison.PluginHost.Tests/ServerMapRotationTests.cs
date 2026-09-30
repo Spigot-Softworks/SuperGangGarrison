@@ -278,7 +278,7 @@ public sealed class ServerMapRotationTests
         var server = RuntimeHelpers.GetUninitializedObject(typeof(GameServer));
         var method = typeof(GameServer).GetMethod(
             "DetermineRoundEndTeamRuleAction",
-            BindingFlags.Instance | BindingFlags.NonPublic)
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
             ?? throw new InvalidOperationException("DetermineRoundEndTeamRuleAction was not found.");
         var transition = new MapChangeTransition(
             "vip_dirtbowl",
@@ -339,7 +339,7 @@ public sealed class ServerMapRotationTests
             ?? throw new InvalidOperationException("MatchState setter was not found.");
         matchStateSetter.Invoke(world, [world.MatchState with { Phase = MatchPhase.Ended, WinnerTeam = winner }]);
 
-        var mapChangeReadyField = typeof(SimulationWorld).GetField("_mapChangeReady", BindingFlags.Instance | BindingFlags.NonPublic)
+        var mapChangeReadyField = typeof(SimulationWorld).GetField("_mapChangeReady", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
             ?? throw new InvalidOperationException("_mapChangeReady field was not found.");
         mapChangeReadyField.SetValue(world, true);
     }

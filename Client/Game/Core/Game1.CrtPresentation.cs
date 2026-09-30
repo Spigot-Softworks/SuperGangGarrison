@@ -12,8 +12,8 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private CrtPresentationRenderer? _crtPresentationRenderer;
-    private string? _crtPresentationFailureReason;
+    public CrtPresentationRenderer? _crtPresentationRenderer;
+    public string? _crtPresentationFailureReason;
     private bool _crtInputMappingReady;
     private bool _crtDeviceResetSubscribed;
     private int _crtMappedSourceWidth;
@@ -56,7 +56,7 @@ public partial class Game1
         }
     }
 
-    private string GetCrtQualityStatusLabel()
+    public string GetCrtQualityStatusLabel()
     {
         if (OperatingSystem.IsBrowser())
         {
@@ -263,7 +263,7 @@ public partial class Game1
         _crtInputMappingReady = false;
     }
 
-    private void UnloadCrtPresentation()
+    public void UnloadCrtPresentation()
     {
         if (_crtDeviceResetSubscribed && !OperatingSystem.IsBrowser())
         {

@@ -6,13 +6,13 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private void OnWindowTextInput(object? sender, TextInputEventArgs e)
+    public void OnWindowTextInput(object? sender, TextInputEventArgs e)
     {
-        _windowTextInputController.Handle(e);
+        _inputManager.WindowTextInput.Handle(e);
     }
 
-    private void HandleBrowserTextInput(char character)
+    public void HandleBrowserTextInput(char character)
     {
-        _windowTextInputController.Handle(character);
+        _inputManager.WindowTextInput.Handle(character);
     }
 }

@@ -284,7 +284,7 @@ public sealed class LastToDieMedicJavelinRuntimeTests
         Assert.True(javelin.TryAnchorLastToDieJavelin(javelin.X, javelin.Y));
         var expectedFuse = javelin.LastToDieJavelinFuseTicksRemaining;
 
-        var legacy = global::ServerHelpers.ToSnapshotNeedleState(javelin);
+        var legacy = source.Snapshots.ToSnapshotNeedleState(javelin);
         Assert.Equal((byte)0b1001, legacy.LastToDieMedicKritzM2Payload);
         Assert.True(legacy.IsLastToDieMedicJavelinAnchored);
         Assert.Equal(expectedFuse, legacy.LastToDieMedicJavelinFuseTicksRemaining);
@@ -394,7 +394,7 @@ public sealed class LastToDieMedicJavelinRuntimeTests
     {
         var method = typeof(SimulationWorld).GetMethod(
             "SpawnMedicHealNeedle",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         _ = method!.Invoke(
             world,
@@ -416,7 +416,7 @@ public sealed class LastToDieMedicJavelinRuntimeTests
     {
         var method = typeof(SimulationWorld).GetMethod(
             "TryExplodeLastToDieMedicJavelin",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         return Assert.IsType<bool>(method!.Invoke(world, [javelin]));
     }

@@ -38,7 +38,6 @@ partial class GameServer
         if (reservation is not null && !_mapDownloadEndpointAvailable)
             throw new IOException($"Reserved HTTP/WebSocket listener on port {reservation.HttpPort} could not start. See the preceding listener error.");
 #endif
-        InitializeQuicHost();
         InitializeGameplayOwnershipService();
         InitializePluginRuntime();
         InitializeHttpRegistryHeartbeat();
@@ -250,43 +249,6 @@ partial class GameServer
             .RunOutboundProtocol64RelayAsync(_relayHostUrl, Console.WriteLine, _relayHostCts.Token);
     }
 
-#if EMBEDDED_SESSION
-    private static void InitializeQuicHost()
-#else
-    private void InitializeQuicHost()
-#endif
-    {
-#if !EMBEDDED_SESSION
-        if (OpenGarrison.Server.ManagedRoomRuntime.Enabled) return;
-        if (_quicPort <= 0)
-        {
-            return;
-        }
-
-        if (string.IsNullOrWhiteSpace(_webSocketCertificatePath))
-        {
-            Console.WriteLine("[server] protocol-64 QUIC disabled: OPENGARRISON_QUIC_PORT requires the WebSocket PKCS#12 certificate.");
-            return;
-        }
-
-        try
-        {
-            _quicHost = OpenGarrison.Server.Protocol64QuicServerHost.Start(
-                _quicPort,
-                _webSocketCertificatePath,
-                _webSocketCertificatePassword,
-                (OpenGarrison.Server.CompositeServerMessageTransport)_messageTransport,
-                Console.WriteLine);
-            Console.WriteLine($"[server] protocol-64 QUIC listener enabled on quic://0.0.0.0:{_quicPort}");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[server] failed to start protocol-64 QUIC listener: {ex.Message}");
-            _quicHost = null;
-        }
-#endif
-    }
-
     private void ApplyRuntimeBootstrap(OpenGarrison.Server.ServerRuntimeBootstrap runtime)
     {
         _lobbyRegistrar = runtime.LobbyRegistrar;
@@ -319,9 +281,6 @@ partial class GameServer
         Console.WriteLine(_webSocketPort <= 0 || _webSocketHost is null
             ? "[server] WebSocket: disabled"
             : $"[server] WebSocket: {(_webSocketCertificatePath is null ? "ws" : "wss")}://0.0.0.0:{_webSocketPort}/opengarrison/ws");
-        Console.WriteLine(_quicHost is null
-            ? "[server] protocol-64 QUIC: disabled"
-            : "[server] protocol-64 QUIC: enabled");
         Console.WriteLine(_mapDownloadEndpointAvailable
             ? $"[server] custom map downloads: enabled on TCP port {ResolveMapDownloadPort()} (forward and allow TCP as well as gameplay UDP)"
             : "[server] custom map downloads: unavailable");
@@ -367,18 +326,20 @@ partial class GameServer
         // stage commit preloads the graph after the client is registered.
         var botNavigationPreloadMs = 0d;
         var botNavigationPreloaded = false;
-        var botNavigationWarmup = default(Og2NavigationGraphResolution);
+        var botNavigationWarmupSource = "None";
+        var botNavigationWarmupPath = string.Empty;
         if (!IsLastToDieHosted)
         {
             botNavigationPreloaded = PreloadBotNavigationForCurrentLevel(
                 out botNavigationPreloadMs,
-                out botNavigationWarmup);
+                out botNavigationWarmupSource,
+                out botNavigationWarmupPath);
         }
         Console.WriteLine(
             "[botbrain] startup-nav " +
             $"level={_world.Level.Name} area={_world.Level.MapAreaIndex} " +
             $"preloaded={botNavigationPreloaded} preloadMs={botNavigationPreloadMs:0.###} " +
-            $"source={botNavigationWarmup.Source} sourcePath=\"{botNavigationWarmup.Path}\"");
+            $"source={botNavigationWarmupSource} sourcePath=\"{botNavigationWarmupPath}\"");
         Console.WriteLine($"Event log: {eventLog.FilePath}");
         Console.WriteLine(_passwordRequired ? "[server] password required" : "[server] no password set");
         if (_useLobbyServer)
@@ -443,7 +404,8 @@ partial class GameServer
 
     private bool PreloadBotNavigationForCurrentLevel(
         out double elapsedMilliseconds,
-        out Og2NavigationGraphResolution diagnostic)
+        out string source,
+        out string sourcePath)
     {
         var startTimestamp = Stopwatch.GetTimestamp();
         // The live bot brain is OG2-first. The previous preload only queried
@@ -451,7 +413,10 @@ partial class GameServer
         // the first bot Think on the simulation thread. Resolve the shared OG2
         // graph at startup/map transition instead; every controller then sees a
         // warmed immutable graph and cannot block a running simulation tick.
-        _ = Og2NavigationGraphStore.GetOrBuild(_world.Level, out diagnostic);
+        var provider = new NavigationGraphProvider();
+        _ = provider.PreloadGraph(_world.Level);
+        source = provider.LastPreloadSource;
+        sourcePath = provider.LastSourcePath;
         var loaded = true;
         elapsedMilliseconds = Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds;
         return loaded;
@@ -701,11 +666,6 @@ partial class GameServer
             _httpRegistryHeartbeat = null;
             _webSocketHost?.Dispose();
             _webSocketHost = null;
-            if (_quicHost is not null)
-            {
-                _quicHost.DisposeAsync().AsTask().GetAwaiter().GetResult();
-                _quicHost = null;
-            }
             if (_relayHostTask is not null)
             {
                 _relayHostCts?.Cancel();
@@ -765,12 +725,13 @@ partial class GameServer
                     LogMapTransitionPhase("navigation");
                     var botNavigationPreloaded = PreloadBotNavigationForCurrentLevel(
                         out var botNavigationPreloadMs,
-                        out var botNavigationWarmup);
+                        out var botNavigationWarmupSource,
+                        out var botNavigationWarmupPath);
                     Console.WriteLine(
                         "[botbrain] map-nav " +
                         $"level={_world.Level.Name} area={_world.Level.MapAreaIndex} " +
                         $"preloaded={botNavigationPreloaded} preloadMs={botNavigationPreloadMs:0.###} " +
-                        $"source={botNavigationWarmup.Source} sourcePath=\"{botNavigationWarmup.Path}\"");
+                        $"source={botNavigationWarmupSource} sourcePath=\"{botNavigationWarmupPath}\"");
                     LogMapTransitionPhase("team-rules");
                     ApplyRoundEndTeamRules(transition);
                     LogMapTransitionPhase("bots");
@@ -1094,8 +1055,6 @@ partial class GameServer
             _port,
             _webSocketHost is null ? 0 : _webSocketPort,
             _publicWebSocketUrl,
-            _quicHost is null ? 0 : _quicPort,
-            _quicHost is null ? null : _publicQuicUrl,
             _passwordRequired,
             _buildVersion,
             _releaseChannel,

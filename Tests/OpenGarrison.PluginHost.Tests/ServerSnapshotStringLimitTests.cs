@@ -22,7 +22,7 @@ public sealed class ServerSnapshotStringLimitTests
             "captured the point!",
             EventId: 42);
 
-        var snapshotEntry = global::ServerHelpers.ToSnapshotKillFeedEntry(entry);
+        var snapshotEntry = CreateSnapshotSystem().ToSnapshotKillFeedEntry(entry);
 
         Assert.True(Encoding.UTF8.GetByteCount(snapshotEntry.KillerName) <= ProtocolCodec.MaxPlayerNameBytes);
         var payload = ProtocolCodec.Serialize(
@@ -50,7 +50,7 @@ public sealed class ServerSnapshotStringLimitTests
             MaxHealth: 100,
             RemainingTicks: 30);
 
-        var snapshotDeathCam = global::ServerHelpers.ToSnapshotDeathCamState(deathCam);
+        var snapshotDeathCam = CreateSnapshotSystem().ToSnapshotDeathCamState(deathCam);
         Assert.NotNull(snapshotDeathCam);
         Assert.True(Encoding.UTF8.GetByteCount(snapshotDeathCam.KillMessage) <= ProtocolCodec.MaxKillMessageBytes);
         Assert.True(Encoding.UTF8.GetByteCount(snapshotDeathCam.KillerName) <= ProtocolCodec.MaxPlayerNameBytes);
@@ -109,5 +109,11 @@ public sealed class ServerSnapshotStringLimitTests
             VisualEvents: [],
             DamageEvents: [],
             SoundEvents: []);
+    }
+
+    private static SnapshotSystem CreateSnapshotSystem()
+    {
+        var store = new EntityStore();
+        return new SnapshotSystem(store, new CombatSystem(store));
     }
 }

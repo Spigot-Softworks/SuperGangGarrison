@@ -11,18 +11,18 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private PrivateRoomClient? _privateRoomClient;
-    private PrivateRoomRequest? _managedRoomRequest;
-    private PrivateRoomResponse? _managedRoom;
-    private CancellationTokenSource? _managedRoomCancellation;
-    private Task<PrivateRoomResponse>? _managedRoomOperation;
-    private Task _managedRoomCleanup = Task.CompletedTask;
-    private LastToDieMenuPage _managedRoomReturnPage = LastToDieMenuPage.CoOp;
-    private OpenGarrison.Core.LastToDie.LastToDieDifficulty _managedRoomRetryDifficulty;
+    public PrivateRoomClient? _privateRoomClient;
+    public PrivateRoomRequest? _managedRoomRequest;
+    public PrivateRoomResponse? _managedRoom;
+    public CancellationTokenSource? _managedRoomCancellation;
+    public Task<PrivateRoomResponse>? _managedRoomOperation;
+    public Task _managedRoomCleanup = Task.CompletedTask;
+    public LastToDieMenuPage _managedRoomReturnPage = LastToDieMenuPage.CoOp;
+    public OpenGarrison.Core.LastToDie.LastToDieDifficulty _managedRoomRetryDifficulty;
     private string _managedRoomCodeBuffer = string.Empty;
     private string _managedRoomFailureMessage = string.Empty;
     private bool IsManagedRoomOwner => _managedRoom?.IsOwner == true;
-    private bool HasManagedRoom => _managedRoom is not null;
+    public bool HasManagedRoom => _managedRoom is not null;
     private ulong _managedPauseCommandId;
     private bool _managedPauseRequested;
     private bool _managedPauseAccepted;
@@ -104,7 +104,7 @@ public partial class Game1
         _menuStatusMessage = "Enter the four-character room code.";
     }
 
-    private bool HandleManagedRoomText(char character)
+    public bool HandleManagedRoomText(char character)
     {
         if (!_lastToDieMenuOpen || _lastToDieMenuPage != LastToDieMenuPage.RoomJoin) return false;
         if (character == '\b' && _managedRoomCodeBuffer.Length > 0)
@@ -157,10 +157,10 @@ public partial class Game1
         _menuStatusMessage = _managedRoomFailureMessage;
     }
 
-    private string GetLastToDieMenuStatusMessage() => _lastToDieMenuPage == LastToDieMenuPage.RoomError
+    public string GetLastToDieMenuStatusMessage() => _lastToDieMenuPage == LastToDieMenuPage.RoomError
         ? _managedRoomFailureMessage : _menuStatusMessage;
 
-    private void PumpManagedRoomOperation()
+    public void PumpManagedRoomOperation()
     {
         if (_managedRoomCopyTask is { IsCompleted: true } copy)
         {
@@ -213,7 +213,7 @@ public partial class Game1
         _lastToDieMenuOpen = false;
     }
 
-    private void CancelManagedRoomRequest()
+    public void CancelManagedRoomRequest()
     {
         HideJoiningServerLoadingOverlay();
         _managedRoomCancellation?.Cancel();
@@ -226,7 +226,7 @@ public partial class Game1
         if (_managedRoom is null) _managedRoomRequest = null;
     }
 
-    private void LeaveManagedRoom()
+    public void LeaveManagedRoom()
     {
         CancelManagedRoomRequest();
         if (_managedRoom is not null && _managedRoomRequest is { } request)

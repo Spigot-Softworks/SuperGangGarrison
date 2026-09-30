@@ -76,8 +76,8 @@ public sealed class BubbleProjectileEntity : SimulationEntity
         var sourceDelta = MathF.Max(0f, deltaSeconds) * LegacyMovementModel.SourceTicksPerSecond;
 
         var aimRadians = aimDirectionDegrees * (MathF.PI / 180f);
-        VelocityX += MathF.Cos(aimRadians) * AimAccelerationPerSourceTick * sourceDelta;
-        VelocityY += MathF.Sin(aimRadians) * AimAccelerationPerSourceTick * sourceDelta;
+        VelocityX += DeterministicMath.Cos(aimRadians) * AimAccelerationPerSourceTick * sourceDelta;
+        VelocityY += DeterministicMath.Sin(aimRadians) * AimAccelerationPerSourceTick * sourceDelta;
         VelocityX += (ownerHorizontalSpeed / LegacyMovementModel.SourceTicksPerSecond) * OwnerVelocityCarryFactor * sourceDelta;
         VelocityY += (ownerVerticalSpeed / LegacyMovementModel.SourceTicksPerSecond) * OwnerVelocityCarryFactor * sourceDelta;
 
@@ -86,7 +86,7 @@ public sealed class BubbleProjectileEntity : SimulationEntity
         var distance = MathF.Sqrt((deltaX * deltaX) + (deltaY * deltaY));
         if (distance > 0.001f)
         {
-            var pull = -AimAccelerationPerSourceTick * MathF.Atan((distance - HomeDistance) / HomeDistanceResponseDivisor) * sourceDelta;
+            var pull = -AimAccelerationPerSourceTick * DeterministicMath.Atan((distance - HomeDistance) / HomeDistanceResponseDivisor) * sourceDelta;
             VelocityX += (deltaX / distance) * pull;
             VelocityY += (deltaY / distance) * pull;
         }

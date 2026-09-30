@@ -8,12 +8,12 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private readonly ClientSettings _clientSettings;
-    private readonly InputBindingsSettings _inputBindings;
-    private const string DefaultBrowserSecureManualConnectHost = "wss://45-61-52-208.sslip.io/opengarrison/ws";
-    private const int DefaultBrowserSecureManualConnectPort = 443;
+    public ClientSettings _clientSettings => _services.Get<ClientSettings>();
+    public InputBindingsSettings _inputBindings => _services.Get<InputBindingsSettings>();
+    public const string DefaultBrowserSecureManualConnectHost = "wss://45-61-52-208.sslip.io/opengarrison/ws";
+    public const int DefaultBrowserSecureManualConnectPort = 443;
 
-    private void ApplyLoadedSettings()
+    public void ApplyLoadedSettings()
     {
         InitializeVoiceSettings();
         ApplyGraphicsSettings(persist: false);
@@ -92,7 +92,7 @@ public partial class Game1
         ApplyBloodPresentationSettingsToWorld();
     }
 
-    private void PersistClientSettings()
+    public void PersistClientSettings()
     {
         _clientSettings.PlayerName = _world.LocalPlayer.DisplayName;
         _clientSettings.DisplayMode = _displayMode;
@@ -171,14 +171,14 @@ public partial class Game1
         };
     }
 
-    private void PersistInputBindings()
+    public void PersistInputBindings()
     {
         _inputBindings.Save();
         _voiceSettings.PushToTalkBinding = InputBindingsSettings.FormatBinding(_inputBindings.PushToTalk);
         SaveVoiceSettings();
     }
 
-    private void SetLocalPlayerNameFromSettings(string playerName)
+    public void SetLocalPlayerNameFromSettings(string playerName)
     {
         _world.SetLocalPlayerName(playerName);
         _playerNameEditBuffer = _world.LocalPlayer.DisplayName;
@@ -186,7 +186,7 @@ public partial class Game1
         PersistClientSettings();
     }
 
-    private void RecordRecentConnection(string host, int port)
+    public void RecordRecentConnection(string host, int port)
     {
         _recentConnectHost = host;
         _recentConnectPort = port;
@@ -297,9 +297,9 @@ public partial class Game1
     private const int AcidCorpseFadeTicks = 120;
     private const int CorpseFadeModeAcid = 1;
 
-    internal bool AreBloodVisualsEnabled => _gibLevel > 0;
+    public bool AreBloodVisualsEnabled => _gibLevel > 0;
 
-    internal float GetBloodAmountScale() => Math.Clamp(_bloodAmountLevel, 1, 5) / 5f;
+    public float GetBloodAmountScale() => Math.Clamp(_bloodAmountLevel, 1, 5) / 5f;
 
     internal void ApplyBloodPresentationSettingsToWorld()
     {

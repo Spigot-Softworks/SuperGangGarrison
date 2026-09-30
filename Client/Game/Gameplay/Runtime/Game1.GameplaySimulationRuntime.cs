@@ -9,14 +9,14 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private const int BrowserOfflineSimulationMaxCatchUpTicks = 2;
+    public const int BrowserOfflineSimulationMaxCatchUpTicks = 2;
     private const double BrowserOfflineSimulationMaxElapsedSeconds = 0.08d;
     private const int NetworkSimulationMaxCatchUpTicks = 4;
     private const double NetworkSimulationMaxElapsedSeconds = 0.12d;
     private const int PracticeBotOfflineSimulationMaxCatchUpTicks = 4;
     private const double PracticeBotOfflineSimulationMaxElapsedSeconds = 0.12d;
 
-    private void AdvanceGameplaySimulation(GameTime gameTime, PlayerInputSnapshot networkInput)
+    public void AdvanceGameplaySimulation(GameTime gameTime, PlayerInputSnapshot networkInput)
     {
         var browserSimulationStartTimestamp = ShouldMeasureClientPerformanceDurations() ? Stopwatch.GetTimestamp() : 0L;
         var simulationTickCount = 0;
@@ -102,13 +102,11 @@ public partial class Game1
     private void OnPracticeSimulationBeforeTick()
     {
         UpdatePracticeBots();
-        OnNavEditorTraversalCaptureBeforeTick();
         OnScoreRouteRecorderBeforeTick();
     }
 
     private void OnPracticeSimulationAfterTick()
     {
-        OnNavEditorTraversalCaptureAfterTick();
         OnScoreRouteRecorderAfterTick();
         AdvancePracticeMapBotSpawns();
         AdvancePracticeMapBotRespawnPolicies();

@@ -9,16 +9,15 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private bool IsRespawnFreeCameraActive()
+    public bool IsRespawnFreeCameraActive()
     {
-        return ShouldBlockGameplayForNavEditor()
-            || IsLocalSpectatorPresentationActive()
+        return IsLocalSpectatorPresentationActive()
             || (!_world.LocalPlayerAwaitingJoin
                 && !_world.LocalPlayer.IsAlive
                 && _world.LocalDeathCam is null);
     }
 
-    private void UpdateRespawnCameraState(float deltaSeconds, KeyboardState keyboard, MouseState mouse)
+    public void UpdateRespawnCameraState(float deltaSeconds, KeyboardState keyboard, MouseState mouse)
     {
         if (!IsRespawnFreeCameraActive())
         {
@@ -38,7 +37,7 @@ public partial class Game1
             _respawnCameraCenter = GetDefaultFreeCameraCenter();
         }
 
-        if (ShouldBlockGameplayForNavEditor() || !IsGameplayInputBlocked())
+        if (!IsGameplayInputBlocked())
         {
             var moveAmount = 600f * deltaSeconds;
             var moved = false;
@@ -138,7 +137,7 @@ public partial class Game1
 
     private bool TryApplySpectatorManualCameraMovement(float deltaSeconds, KeyboardState keyboard, MouseState mouse)
     {
-        if (ShouldBlockGameplayForNavEditor() || !IsGameplayInputBlocked())
+        if (!IsGameplayInputBlocked())
         {
             var moveAmount = 600f * deltaSeconds;
             var moved = false;

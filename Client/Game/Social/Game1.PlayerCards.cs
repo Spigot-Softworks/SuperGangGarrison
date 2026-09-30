@@ -90,7 +90,7 @@ public partial class Game1
         Rectangle ZoomOutBounds,
         Rectangle ZoomInBounds);
 
-    private void ClosePlayerCardOverlay()
+    public void ClosePlayerCardOverlay()
     {
         CommitPlayerCardBioEdit();
         _playerCardOwnOpen = false;
@@ -302,7 +302,7 @@ public partial class Game1
         SaveCurrentPlayerCardProfile();
     }
 
-    private bool TryHandlePlayerCardBioTextInput(char character)
+    public bool TryHandlePlayerCardBioTextInput(char character)
     {
         if (!_editingPlayerCardBio)
         {

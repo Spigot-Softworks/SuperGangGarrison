@@ -291,7 +291,7 @@ public sealed class LastToDieMedicKritPowerRuntimeTests
         attacker.TeleportTo(civilian.X + 100f, civilian.Y);
         var chargeBefore = civilian.CivvieUmbrellaChargeTicks;
 
-        InvokePrivate(world, "AdvanceShots");
+        world.Projectiles.AdvanceShots();
 
         Assert.Equal(civilian.MaxHealth, civilian.Health);
         Assert.Equal(chargeBefore - expectedDrain, civilian.CivvieUmbrellaChargeTicks);
@@ -308,13 +308,13 @@ public sealed class LastToDieMedicKritPowerRuntimeTests
         InvokePrivate(source, "SpawnRocket", medic, 150f, 100f, 1f, 0f);
         var rocket = source.Rockets[^1];
 
-        var legacyPlayer = ServerHelpers.ToSnapshotPlayerState(
-            source,
+        var stringCache = new SnapshotStringCache();
+        var legacyPlayer = source.Snapshots.ToSnapshotPlayerState(
             SimulationWorld.LocalPlayerSlot,
             medic,
             medic,
-            new SnapshotStringCache());
-        var legacyRocket = ServerHelpers.ToSnapshotRocketState(rocket);
+            value => stringCache.GetOrAddCacheId(value));
+        var legacyRocket = source.Snapshots.ToSnapshotRocketState(rocket);
         var legacySnapshot = CreateSnapshot(legacyPlayer) with { Rockets = [legacyRocket] };
         var legacyPayload = ProtocolCodec.Serialize(legacySnapshot, ProtocolCompressionSettings.Disabled);
         Assert.True(ProtocolCodec.TryDeserialize(legacyPayload, out var decodedMessage));
@@ -440,7 +440,7 @@ public sealed class LastToDieMedicKritPowerRuntimeTests
     {
         var field = typeof(PlayerEntity).GetField(
             "<AimDirectionDegrees>k__BackingField",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(field);
         field!.SetValue(player, degrees);
     }
@@ -554,9 +554,11 @@ public sealed class LastToDieMedicKritPowerRuntimeTests
 
     private static object? InvokePrivate(object target, string methodName, params object?[] suppliedArguments)
     {
-        var method = target.GetType().GetMethod(
-            methodName,
-            BindingFlags.Instance | BindingFlags.NonPublic);
+        var method = target.GetType()
+            .GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+            .Where(candidate => candidate.Name == methodName && candidate.GetParameters().Length >= suppliedArguments.Length)
+            .OrderBy(candidate => candidate.GetParameters().Length)
+            .FirstOrDefault();
         Assert.NotNull(method);
         var parameters = method!.GetParameters();
         Assert.True(suppliedArguments.Length <= parameters.Length);

@@ -9,14 +9,14 @@ using OpenGarrison.Core;
 
 namespace OpenGarrison.Client;
 
-internal enum HostedServerRuntimeUpdateState
+public enum HostedServerRuntimeUpdateState
 {
     None,
     SessionEnded,
     ProcessExited,
 }
 
-internal sealed class HostedServerRuntimeController : IDisposable
+public sealed class HostedServerRuntimeController : IDisposable
 {
     private const int SnapshotPollIntervalTicks = 90;
 

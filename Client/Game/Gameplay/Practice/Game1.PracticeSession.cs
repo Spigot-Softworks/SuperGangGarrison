@@ -8,18 +8,18 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private int _practiceRedRoundPoints;
-    private int _practiceBlueRoundPoints;
+    public int _practiceRedRoundPoints;
+    public int _practiceBlueRoundPoints;
 
-    private bool IsPracticeSessionActive => _gameplaySessionKind == GameplaySessionKind.Practice;
+    public bool IsPracticeSessionActive => _gameplaySessionKind == GameplaySessionKind.Practice;
 
-    private void ResetPracticeRoundPoints()
+    public void ResetPracticeRoundPoints()
     {
         _practiceRedRoundPoints = 0;
         _practiceBlueRoundPoints = 0;
     }
 
-    private void ObservePracticeRoundCompletion()
+    public void ObservePracticeRoundCompletion()
     {
         if (!IsPracticeSessionActive
             || _wasMatchEnded
@@ -45,17 +45,17 @@ public partial class Game1
 
     private void TryStartPracticeFromSetup()
     {
-        _gameplaySessionController.TryStartPracticeFromSetup();
+        _gameplayManager.Session.TryStartPracticeFromSetup();
     }
 
     private void RestartPracticeSession()
     {
-        _gameplaySessionController.RestartPracticeSession();
+        _gameplayManager.Session.RestartPracticeSession();
     }
 
     private void BeginPracticeSession(string levelName)
     {
-        _gameplaySessionController.BeginPracticeSession(levelName);
+        _gameplayManager.Session.BeginPracticeSession(levelName);
     }
 
     private void ApplyPracticeTeamSelection(PlayerTeam localTeam)
@@ -70,7 +70,7 @@ public partial class Game1
         _world.DespawnFriendlyDummy();
     }
 
-    private void ApplyPracticeDummyPreferencesBeforeJoin()
+    public void ApplyPracticeDummyPreferencesBeforeJoin()
     {
         if (!IsPracticeSessionActive)
         {
@@ -93,7 +93,7 @@ public partial class Game1
         _world.DespawnFriendlyDummy();
     }
 
-    private string GetGameplayExitStatusMessage()
+    public string GetGameplayExitStatusMessage()
     {
         if (IsLastToDieSessionActive)
         {

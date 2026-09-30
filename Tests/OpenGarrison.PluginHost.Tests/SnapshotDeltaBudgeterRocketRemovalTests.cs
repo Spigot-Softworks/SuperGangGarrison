@@ -211,7 +211,9 @@ public sealed class SnapshotDeltaBudgeterRocketRemovalTests
             Team: PlayerTeam.Blue,
             IsSniperTracer: true);
 
-        var captured = SnapshotBroadcaster.ConvertNetworkCombatTracesToArray([ordinaryTrace, sniperTrace]);
+        var snapshotStore = new EntityStore();
+        var snapshots = new SnapshotSystem(snapshotStore, new CombatSystem(snapshotStore));
+        var captured = SnapshotBroadcaster.ConvertNetworkCombatTracesToArray([ordinaryTrace, sniperTrace], snapshots);
 
         var trace = Assert.Single(captured);
         Assert.True(trace.IsSniperTracer);

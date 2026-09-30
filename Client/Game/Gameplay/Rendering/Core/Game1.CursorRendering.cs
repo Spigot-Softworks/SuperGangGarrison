@@ -9,12 +9,12 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private bool ShouldUseSoftwareMenuCursor()
+    public bool ShouldUseSoftwareMenuCursor()
     {
         return IsScreenFillingDisplayMode(_displayMode);
     }
 
-    private bool ShouldDrawSoftwareMenuCursor()
+    public bool ShouldDrawSoftwareMenuCursor()
     {
         if (!ShouldUseSoftwareMenuCursor())
         {
@@ -26,7 +26,7 @@ public partial class Game1
             || ShouldShowGameplayMouseCursor();
     }
 
-    private void DrawSoftwareMenuCursor(MouseState mouse)
+    public void DrawSoftwareMenuCursor(MouseState mouse)
     {
         var x = mouse.X;
         var y = mouse.Y;

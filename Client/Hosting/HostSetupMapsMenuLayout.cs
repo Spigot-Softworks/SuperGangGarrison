@@ -5,7 +5,7 @@ using System;
 
 namespace OpenGarrison.Client;
 
-internal readonly record struct HostSetupMapsMenuLayout(
+public readonly record struct HostSetupMapsMenuLayout(
     Rectangle Panel,
     Rectangle AvailableMapsLabelBounds,
     Rectangle PlaylistMapsLabelBounds,
@@ -115,7 +115,7 @@ internal readonly record struct HostSetupMapsMenuLayout(
     }
 }
 
-internal readonly record struct HostSetupMapsFiltersPopupLayout(
+public readonly record struct HostSetupMapsFiltersPopupLayout(
     Rectangle PopupBounds,
     int NameLabelY,
     Rectangle NameSearchBounds,

@@ -88,7 +88,7 @@ public sealed class TopDownMovementTests
             new LevelSolid(320f, 310f, 32f, 290f),
         ]);
 
-        var graph = Og2NavigationGraphBuilder.Build(level);
+        var graph = new NavigationGraphProvider().PreloadGraph(level);
         var start = graph.FindNearestNode(160f, 300f);
         var goal = graph.FindNearestNode(520f, 300f);
         var path = graph.FindPath(start, goal, CharacterClassCatalog.Scout.Id, team: PlayerTeam.Red);
@@ -120,7 +120,7 @@ public sealed class TopDownMovementTests
                     string.Empty),
             ]);
 
-        var graph = Og2NavigationGraphBuilder.Build(level);
+        var graph = new NavigationGraphProvider().PreloadGraph(level);
         var start = graph.FindNearestNode(128f, 300f);
         var goal = graph.FindNearestNode(400f, 300f);
 
@@ -153,7 +153,7 @@ public sealed class TopDownMovementTests
         Assert.NotEmpty(level.RedSpawns);
         Assert.NotEmpty(level.BlueSpawns);
 
-        Assert.True(Og2NavigationGraphStore.TryLoadShipped(level, out var graph));
+        Assert.True(NavigationGraphProvider.TryLoadShippedGraph(level, out var graph));
         foreach (var team in new[] { PlayerTeam.Red, PlayerTeam.Blue })
         {
             var startSpawn = team == PlayerTeam.Red ? level.RedSpawns[0] : level.BlueSpawns[0];
@@ -238,7 +238,7 @@ public sealed class TopDownMovementTests
                 // keeps the integration harness on the same graph handoff as
                 // live practice/server startup and prevents a cold build from
                 // masking a missing shipped asset.
-                Assert.True(Og2NavigationGraphStore.TryLoadShipped(world.Level, out var graph));
+                Assert.True(NavigationGraphProvider.TryLoadShippedGraph(world.Level, out var graph));
 
                 var startX = bot.X;
                 var startY = bot.Y;
@@ -253,7 +253,7 @@ public sealed class TopDownMovementTests
                 _ = controller.BuildInputsForSlots(world, controlledSlots, Array.Empty<byte>());
                 var controllersField = typeof(BotBrainPracticeBotController).GetField(
                     "_controllersBySlot",
-                    BindingFlags.Instance | BindingFlags.NonPublic);
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
                 Assert.NotNull(controllersField);
                 var controllers = (Dictionary<byte, BotBrainController>)controllersField!.GetValue(controller)!;
                 controllers[botSlot] = new BotBrainController(graph)
@@ -348,7 +348,7 @@ public sealed class TopDownMovementTests
         var world = new SimulationWorld();
         var setLevel = typeof(SimulationWorld).GetMethod(
             "CombatTestSetLevel",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(setLevel);
         _ = setLevel!.Invoke(world, [level]);
         Assert.True(world.TrySetLocalClass(PlayerClass.Soldier));
@@ -402,7 +402,7 @@ public sealed class TopDownMovementTests
         });
         var setLevel = typeof(SimulationWorld).GetMethod(
             "CombatTestSetLevel",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(setLevel);
         _ = setLevel!.Invoke(world, [level]);
         Assert.True(world.TrySetLocalClass(PlayerClass.Soldier));
@@ -452,7 +452,7 @@ public sealed class TopDownMovementTests
         });
         var setLevel = typeof(SimulationWorld).GetMethod(
             "CombatTestSetLevel",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(setLevel);
         _ = setLevel!.Invoke(world, [level]);
         Assert.True(world.TrySetLocalClass(PlayerClass.Soldier));
@@ -496,7 +496,7 @@ public sealed class TopDownMovementTests
         });
         var setLevel = typeof(SimulationWorld).GetMethod(
             "CombatTestSetLevel",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(setLevel);
         _ = setLevel!.Invoke(world, [level]);
 
@@ -520,7 +520,7 @@ public sealed class TopDownMovementTests
         _ = practiceController.BuildInputsForSlots(world, controlledSlots, Array.Empty<byte>());
         var controllersField = typeof(BotBrainPracticeBotController).GetField(
             "_controllersBySlot",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(controllersField);
         var controllers = (Dictionary<byte, BotBrainController>)controllersField!.GetValue(practiceController)!;
         controllers[botSlot] = new BotBrainController(graph);
@@ -681,11 +681,11 @@ public sealed class TopDownMovementTests
     public void WarmedNonShippedGraphIsAttachedByBotThinkWithoutBuilding()
     {
         var level = CreateTopDownLevel(name: $"topdown_warmed_runtime_{Guid.NewGuid():N}");
-        Assert.False(Og2NavigationGraphStore.TryLoadShipped(level, out _));
-        Assert.False(Og2NavigationGraphStore.TryGetCached(level, out _));
+        Assert.False(NavigationGraphProvider.TryLoadShippedGraph(level, out _));
+        Assert.False(NavigationGraphProvider.TryGetWarmedGraph(level, out _));
 
-        var warmedGraph = Og2NavigationGraphStore.GetOrBuild(level);
-        Assert.True(Og2NavigationGraphStore.TryGetCached(level, out var cachedGraph));
+        var warmedGraph = new NavigationGraphProvider().PreloadGraph(level);
+        Assert.True(NavigationGraphProvider.TryGetWarmedGraph(level, out var cachedGraph));
         Assert.Same(warmedGraph, cachedGraph);
 
         var world = CreateWorldForTopDownLevel(level);
@@ -713,12 +713,12 @@ public sealed class TopDownMovementTests
             DisableCombatForDiagnostics = true,
         };
 
-        Assert.False(Og2NavigationGraphStore.TryGetCached(level, out _));
+        Assert.False(NavigationGraphProvider.TryGetWarmedGraph(level, out _));
         _ = controller.Think(world.LocalPlayer, world, PlayerTeam.Red);
 
         Assert.False(controller.HasNavigationGraph);
         Assert.Equal("none", controller.LastNavigationGraphSource);
-        Assert.False(Og2NavigationGraphStore.TryGetCached(level, out _));
+        Assert.False(NavigationGraphProvider.TryGetWarmedGraph(level, out _));
     }
 
     [Fact]
@@ -868,7 +868,7 @@ public sealed class TopDownMovementTests
         });
         var setLevel = typeof(SimulationWorld).GetMethod(
             "CombatTestSetLevel",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(setLevel);
         _ = setLevel!.Invoke(world, [level]);
         Assert.True(world.TrySetLocalClass(PlayerClass.Soldier));

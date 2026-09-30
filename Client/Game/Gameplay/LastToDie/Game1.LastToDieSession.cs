@@ -16,52 +16,52 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private const int LastToDieStartingEnemyBotCount = 2;
-    private const int LastToDieFinalEnemyBotCount = 10;
-    private const int LastToDieStartingStageMinutes = 1;
-    private const int LastToDieStageMinuteIncrement = 1;
-    private const int LastToDieFinalStageMinutes =
+    public const int LastToDieStartingEnemyBotCount = 2;
+    public const int LastToDieFinalEnemyBotCount = 10;
+    public const int LastToDieStartingStageMinutes = 1;
+    public const int LastToDieStageMinuteIncrement = 1;
+    public const int LastToDieFinalStageMinutes =
         LastToDieStartingStageMinutes + ((LastToDieFinalEnemyBotCount - LastToDieStartingEnemyBotCount) * LastToDieStageMinuteIncrement);
-    private const int LastToDieMatchTimeLimitMinutes = 30;
-    private const int LastToDieCapLimit = 5;
-    private const int LastToDieRespawnSeconds = 5;
-    private const int LastToDiePerkChoiceCount = 3;
-    private const int LastToDieStageClearFadeTicks = 24;
-    private const int LastToDieStageClearContinueDelayTicks = 18;
-    private const int LastToDieFailureFadeTicks = 45;
-    private const int LastToDieFailureContinueDelayTicks = 18;
-    private const float LastToDieStageIntroDurationSeconds = 2f;
-    private const int LastToDieKillTimerReductionSeconds = 3;
-    private const float LastToDieAccessoryChoiceChance = 0.2f;
+    public const int LastToDieMatchTimeLimitMinutes = 30;
+    public const int LastToDieCapLimit = 5;
+    public const int LastToDieRespawnSeconds = 5;
+    public const int LastToDiePerkChoiceCount = 3;
+    public const int LastToDieStageClearFadeTicks = 24;
+    public const int LastToDieStageClearContinueDelayTicks = 18;
+    public const int LastToDieFailureFadeTicks = 45;
+    public const int LastToDieFailureContinueDelayTicks = 18;
+    public const float LastToDieStageIntroDurationSeconds = 2f;
+    public const int LastToDieKillTimerReductionSeconds = 3;
+    public const float LastToDieAccessoryChoiceChance = 0.2f;
     // Special rounds are temporarily disabled for the shipped Last To Die ruleset.
     // Keep the selection machinery intact so it can be re-enabled deliberately later,
     // but do not allow random or forced rounds to alter the normal enemy roster.
-    private const bool LastToDieSpecialRoundsEnabled = false;
-    private const int LastToDieSpecialRoundChancePercent = 10;
-    private const int LastToDieHardcoreMaxHealth = 25;
-    private const float LastToDieGigaScale = 1.7f;
-    private const float LastToDieGigaHealthMultiplier = 4f;
-    private const float LastToDieHaxtonScale = 1.35f;
-    private const float LastToDieHaxtonJumpHeightMultiplier = 1.4f;
-    private const int LastToDieHaxtonBaseHealth = 850;
-    private const int LastToDieHaxtonHealthPerRound = 500;
-    private const int LastToDieHaxtonSwordDamage = 60;
-    private const float LastToDieHaxtonHardcoreHealthMultiplier = 0.25f;
+    public const bool LastToDieSpecialRoundsEnabled = false;
+    public const int LastToDieSpecialRoundChancePercent = 10;
+    public const int LastToDieHardcoreMaxHealth = 25;
+    public const float LastToDieGigaScale = 1.7f;
+    public const float LastToDieGigaHealthMultiplier = 4f;
+    public const float LastToDieHaxtonScale = 1.35f;
+    public const float LastToDieHaxtonJumpHeightMultiplier = 1.4f;
+    public const int LastToDieHaxtonBaseHealth = 850;
+    public const int LastToDieHaxtonHealthPerRound = 500;
+    public const int LastToDieHaxtonSwordDamage = 60;
+    public const float LastToDieHaxtonHardcoreHealthMultiplier = 0.25f;
 
-    private enum LastToDieSurvivorKind
+public enum LastToDieSurvivorKind
     {
         Soldier,
         Demoknight,
         Engineer,
     }
 
-    private enum LastToDieDifficulty
+public enum LastToDieDifficulty
     {
         Standard,
         Hardcore,
     }
 
-    private enum LastToDieSpecialRoundKind
+public enum LastToDieSpecialRoundKind
     {
         None,
         AllOneClass,
@@ -70,7 +70,7 @@ public partial class Game1
         Haxton,
     }
 
-    private enum LastToDiePerkKind
+public enum LastToDiePerkKind
     {
         SoldierShotgun,
         HealOnDamage,
@@ -140,18 +140,18 @@ public partial class Game1
         DemoknightGhostDash,
     }
 
-    private readonly record struct LastToDiePerkDefinition(
+public readonly record struct LastToDiePerkDefinition(
         LastToDiePerkKind Kind,
         string Label,
         string Description);
 
-    private enum LastToDieAccessorySlot
+public enum LastToDieAccessorySlot
     {
         Helmet,
         Dogtags,
     }
 
-    private enum LastToDieAccessoryStatKind
+public enum LastToDieAccessoryStatKind
     {
         ExplosiveDamage,
         BulletDamage,
@@ -171,7 +171,7 @@ public partial class Game1
         ProjectilesPerShot,
     }
 
-    private readonly record struct LastToDieAccessoryDefinition(
+public readonly record struct LastToDieAccessoryDefinition(
         LastToDieAccessorySlot Slot,
         LastToDieAccessoryStatKind StatKind,
         int Value,
@@ -180,7 +180,7 @@ public partial class Game1
         public string SlotLabel => Slot == LastToDieAccessorySlot.Helmet ? "Helmet" : "Dogtags";
     }
 
-    private readonly record struct LastToDieRewardChoice(
+public readonly record struct LastToDieRewardChoice(
         LastToDiePerkDefinition? Perk,
         LastToDieAccessoryDefinition? Accessory,
         bool IsDisabled = false)
@@ -190,18 +190,18 @@ public partial class Game1
         public bool IsSelectable => !IsDisabled;
     }
 
-    private readonly record struct LastToDieSurvivorDefinition(
+public readonly record struct LastToDieSurvivorDefinition(
         LastToDieSurvivorKind Kind,
         string Label,
         string Description);
 
-    private readonly record struct LastToDieStageRuleProfile(
+    public readonly record struct LastToDieStageRuleProfile(
         int CapLimit,
         bool SpawnLocalPlayerAtOwnIntel,
         bool EndMatchOnRedTeamIntelCapture,
         TeamGateLockMask ForcedBlockingTeamGates);
 
-    private sealed class LastToDieStageSpecialRoundState
+public sealed class LastToDieStageSpecialRoundState
     {
         public LastToDieSpecialRoundKind Kind { get; init; }
 
@@ -226,7 +226,7 @@ public partial class Game1
         Rectangle Panel,
         Rectangle[] CardBounds);
 
-    private sealed class LastToDieRunState
+    public sealed class LastToDieRunState
     {
         public LastToDieRunState(string levelName)
         {
@@ -376,16 +376,16 @@ public partial class Game1
         new(LastToDiePerkKind.EngineerFreezeRay, "Freeze Ray", $"Press {OpenGarrison.Core.LastToDie.LastToDieExpansionPerkCatalog.InteractWeaponBindingToken} to equip the Freeze Ray, a beamgun that slows enemies, weakens their attacks, and freezes them after enough exposure."),
     ];
 
-    private LastToDieRunState? _lastToDieRun;
+    public LastToDieRunState? _lastToDieRun;
     private LastToDieSpecialRoundKind? _pendingLastToDieForcedSpecialRoundKind;
-    private bool _lastToDieSurvivorMenuOpen;
+    public bool _lastToDieSurvivorMenuOpen;
     private int _lastToDieSurvivorHoverIndex = -1;
-    private bool _lastToDiePerkMenuOpen;
-    private int _lastToDiePerkHoverIndex = -1;
-    private bool _lastToDieStageClearOverlayOpen;
-    private int _lastToDieStageClearOverlayTicks;
-    private bool _lastToDieFailureOverlayOpen;
-    private int _lastToDieFailureOverlayTicks;
+    public bool _lastToDiePerkMenuOpen;
+    public int _lastToDiePerkHoverIndex = -1;
+    public bool _lastToDieStageClearOverlayOpen;
+    public int _lastToDieStageClearOverlayTicks;
+    public bool _lastToDieFailureOverlayOpen;
+    public int _lastToDieFailureOverlayTicks;
     private int _lastToDieFailureActionIndex;
     private int _lastToDieTimerReductionPopupTicksRemaining;
     private float _lastToDieTimerReductionPopupRise;
@@ -400,12 +400,12 @@ public partial class Game1
     private const string LastToDieHelmetLoadoutItemId = "ltd.accessory.helmet";
     private const string LastToDieDogtagsLoadoutItemId = "ltd.accessory.dogtags";
 
-    private bool IsLastToDieSessionActive => _gameplaySessionKind == GameplaySessionKind.LastToDie;
+    public bool IsLastToDieSessionActive => _gameplaySessionKind == GameplaySessionKind.LastToDie;
 
-    private bool IsAnyLastToDieSessionActive =>
+    public bool IsAnyLastToDieSessionActive =>
         IsLastToDieSessionActive || IsHostedLastToDieActive();
 
-    private bool IsOfflineBotSessionActive => _gameplaySessionKind is GameplaySessionKind.Practice or GameplaySessionKind.LastToDie;
+    public bool IsOfflineBotSessionActive => _gameplaySessionKind is GameplaySessionKind.Practice or GameplaySessionKind.LastToDie;
 
     private bool ShouldUseLastToDieAccessoryLoadoutColumn(PlayerClass viewedClass)
     {
@@ -761,7 +761,7 @@ public partial class Game1
         return _lastToDieBuffIconFrame;
     }
 
-    private void DisposeLastToDieBuffIconFrame()
+    public void DisposeLastToDieBuffIconFrame()
     {
         _lastToDieBuffIconFrame?.Dispose();
         _lastToDieBuffIconFrame = null;
@@ -808,22 +808,22 @@ public partial class Game1
                 || failurePresentationActive);
     }
 
-    private bool IsLastToDieStageClearOverlayActive()
+    public bool IsLastToDieStageClearOverlayActive()
     {
         return _lastToDieStageClearOverlayOpen;
     }
 
-    private bool IsLastToDieFailureOverlayActive()
+    public bool IsLastToDieFailureOverlayActive()
     {
         return _lastToDieFailureOverlayOpen;
     }
 
-    private int GetLastToDieStageIntroDurationTicks()
+    public int GetLastToDieStageIntroDurationTicks()
     {
         return Math.Max(1, (int)MathF.Round(_config.TicksPerSecond * LastToDieStageIntroDurationSeconds));
     }
 
-    private void ResetLastToDieState()
+    public void ResetLastToDieState()
     {
         foreach (var slot in _practiceBotSlots.Keys)
         {
@@ -890,7 +890,7 @@ public partial class Game1
 
     private bool BeginLastToDieStage(string levelName)
     {
-        return _gameplaySessionController.BeginLastToDieStage(levelName);
+        return _gameplayManager.Session.BeginLastToDieStage(levelName);
     }
 
     private void PrepareLastToDieStageSpecialRound()
@@ -1014,7 +1014,7 @@ public partial class Game1
             refillHealth: true);
     }
 
-    private void ApplyLastToDieStageEnemyModifiers()
+    public void ApplyLastToDieStageEnemyModifiers()
     {
         if (_lastToDieRun is null)
         {
@@ -1208,7 +1208,7 @@ public partial class Game1
         return IsLastToDieHaxtonPlayer(player);
     }
 
-    private void SpawnLastToDieDroneSwarmForCurrentStage()
+    public void SpawnLastToDieDroneSwarmForCurrentStage()
     {
         _world.ClearLastToDieDroneSentries();
         if (_lastToDieRun?.CurrentSpecialRound.Kind != LastToDieSpecialRoundKind.DroneSwarm)
@@ -1249,7 +1249,7 @@ public partial class Game1
         };
     }
 
-    private void ApplySelectedLastToDieSurvivorToCurrentStage()
+    public void ApplySelectedLastToDieSurvivorToCurrentStage()
     {
         if (_lastToDieRun is null || _lastToDieRun.AwaitingOpeningSurvivorSelection)
         {
@@ -1287,7 +1287,7 @@ public partial class Game1
         bool openJoinMenus,
         string consoleSessionName)
     {
-        return _gameplaySessionController.TryBeginOfflineBotSession(
+        return _gameplayManager.Session.TryBeginOfflineBotSession(
             levelName,
             sessionKind,
             tickRate,
@@ -1797,7 +1797,7 @@ public partial class Game1
         return entry.Mode is GameModeKind.KingOfTheHill or GameModeKind.CaptureTheFlag;
     }
 
-    private static LastToDieStageRuleProfile ResolveLastToDieStageRuleProfile(
+    public static LastToDieStageRuleProfile ResolveLastToDieStageRuleProfile(
         LastToDieSurvivorKind survivorKind,
         string? levelName)
     {
@@ -1867,7 +1867,7 @@ public partial class Game1
         }
     }
 
-    private static ExperimentalGameplaySettings BuildLastToDieExperimentalGameplaySettings(LastToDieRunState run)
+    public static ExperimentalGameplaySettings BuildLastToDieExperimentalGameplaySettings(LastToDieRunState run)
     {
         var settings = new ExperimentalGameplaySettings(
             EnableSoldierFastCapture: run.SurvivorKind == LastToDieSurvivorKind.Soldier,
@@ -2050,7 +2050,7 @@ public partial class Game1
         return 1f - ((1f - Math.Clamp(current, 0f, 0.95f)) * (1f - Math.Clamp(added, 0f, 0.95f)));
     }
 
-    private void UpdateLastToDieSurvivorMenu(KeyboardState keyboard, MouseState mouse)
+    public void UpdateLastToDieSurvivorMenu(KeyboardState keyboard, MouseState mouse)
     {
         if (!_lastToDieSurvivorMenuOpen || _lastToDieRun is null)
         {
@@ -2075,7 +2075,7 @@ public partial class Game1
         ChooseLastToDieSurvivor(_lastToDieSurvivorHoverIndex);
     }
 
-    private void UpdateLastToDiePerkMenu(KeyboardState keyboard, MouseState mouse)
+    public void UpdateLastToDiePerkMenu(KeyboardState keyboard, MouseState mouse)
     {
         if (!_lastToDiePerkMenuOpen || _lastToDieRun is null)
         {
@@ -2130,7 +2130,7 @@ public partial class Game1
             IsDisabled: ShouldDisableLastToDiePerkChoice(_lastToDieRun, replacement.Kind));
     }
 
-    private void UpdateLastToDieStageClearOverlay(KeyboardState keyboard, MouseState mouse)
+    public void UpdateLastToDieStageClearOverlay(KeyboardState keyboard, MouseState mouse)
     {
         if (!_lastToDieStageClearOverlayOpen)
         {
@@ -2557,7 +2557,7 @@ public partial class Game1
         TriggerLastToDieDeathFocusFailure();
     }
 
-    private void UpdateLastToDieFailureOverlay(KeyboardState keyboard, MouseState mouse)
+    public void UpdateLastToDieFailureOverlay(KeyboardState keyboard, MouseState mouse)
     {
         if (!_lastToDieFailureOverlayOpen)
         {
@@ -2813,7 +2813,7 @@ public partial class Game1
         _lastToDieTimerReductionPopupSeconds = killCountDelta * LastToDieKillTimerReductionSeconds;
     }
 
-    private void RegisterLastToDieLocalDamageDealt(int amount)
+    public void RegisterLastToDieLocalDamageDealt(int amount)
     {
         if (!IsLastToDieSessionActive || _lastToDieRun is null || amount <= 0)
         {

@@ -73,8 +73,7 @@ On Linux with PowerShell:
 pwsh ./scripts/package.ps1 -Platforms linux-x64 -Version 1.0.2
 ```
 
-Linux packaging requires a compatible `libmsquic.so.2`. Cross-builds can supply it
-with `-LinuxMsQuicLibraryPath`. See the [packaging quickstart](packaging/DISTRO_QUICKSTART.txt).
+See the [packaging quickstart](packaging/DISTRO_QUICKSTART.txt).
 
 Packaged players launch `Super Gang Garrison.exe` on Windows or `./OG2` on
 Linux/macOS. The updater starts the game from the package's `app/` directory.

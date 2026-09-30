@@ -7,13 +7,13 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private void UpdateHostSetupMenu(MouseState mouse)
+    public void UpdateHostSetupMenu(MouseState mouse)
     {
-        _hostSetupFlowController.UpdateHostSetupMenu(mouse);
+        _hostingManager.HostSetup.UpdateHostSetupMenu(mouse);
     }
 
     private void CloseHostSetupMenuFromBackAction()
     {
-        _hostSetupFlowController.CloseHostSetupMenuFromBackAction();
+        _hostingManager.HostSetup.CloseHostSetupMenuFromBackAction();
     }
 }

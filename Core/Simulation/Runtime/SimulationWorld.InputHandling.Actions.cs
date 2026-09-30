@@ -210,9 +210,9 @@ public sealed partial class SimulationWorld
             return false;
         }
 
-        for (var rocketIndex = _rockets.Count - 1; rocketIndex >= 0; rocketIndex -= 1)
+        for (var rocketIndex = Rockets.Count - 1; rocketIndex >= 0; rocketIndex -= 1)
         {
-            var rocket = _rockets[rocketIndex];
+            var rocket = Rockets[rocketIndex];
             if (rocket.OwnerId != player.Id
                 || rocket.Team != player.Team
                 || rocket.IsFading
@@ -535,9 +535,9 @@ public sealed partial class SimulationWorld
         }
 
         var detonatedAnyRocket = false;
-        for (var rocketIndex = 0; rocketIndex < _rockets.Count; rocketIndex += 1)
+        for (var rocketIndex = 0; rocketIndex < Rockets.Count; rocketIndex += 1)
         {
-            var rocket = _rockets[rocketIndex];
+            var rocket = Rockets[rocketIndex];
             if (rocket.OwnerId != player.Id
                 || rocket.Team != player.Team
                 || rocket.IsFading
@@ -667,9 +667,9 @@ public sealed partial class SimulationWorld
             input.AimWorldY,
             global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerDestinyPunctuatorPelletMultiplier);
 
-        var aimRadians = MathF.Atan2(input.AimWorldY - player.Y, input.AimWorldX - player.X);
-        var blastOriginX = player.X + MathF.Cos(aimRadians) * 16f;
-        var blastOriginY = player.Y + MathF.Sin(aimRadians) * 12f;
+        var aimRadians = DeterministicMath.Atan2(input.AimWorldY - player.Y, input.AimWorldX - player.X);
+        var blastOriginX = player.X + DeterministicMath.Cos(aimRadians) * 16f;
+        var blastOriginY = player.Y + DeterministicMath.Sin(aimRadians) * 12f;
         ApplyExplosionImpulse(
             player,
             blastOriginX,

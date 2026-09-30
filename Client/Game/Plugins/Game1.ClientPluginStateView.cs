@@ -13,7 +13,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private sealed class ClientPluginStateView(Game1 game) : IOpenGarrisonClientReadOnlyState
+    public sealed class ClientPluginStateView(Game1 game) : IOpenGarrisonClientReadOnlyState
     {
         public bool IsConnected => game._networkClient.IsConnected;
         public bool IsMainMenuOpen => game._mainMenuOpen;

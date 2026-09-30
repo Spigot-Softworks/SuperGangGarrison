@@ -205,7 +205,7 @@ public sealed partial class SimulationWorld
         _killFeed.Clear();
         _pendingSoundEvents.Clear();
         _pendingVisualEvents.Clear();
-        _pendingDamageEvents.Clear();
+        Combat.ClearPendingDamageEvents();
         _pendingRocketSpawnEvents.Clear();
         _pendingHealingEvents.Clear();
         _civvieMoneyTrailTracker.Clear();
@@ -300,16 +300,16 @@ public sealed partial class SimulationWorld
 
     private void ClearDynamicEntities()
     {
-        RemoveEntities(_shots);
-        RemoveEntities(_bubbles);
-        RemoveEntities(_blades);
-        RemoveEntities(_needles);
-        RemoveEntities(_revolverShots);
-        RemoveEntities(_stabAnimations);
-        RemoveEntities(_stabMasks);
-        RemoveEntities(_flames);
-        RemoveEntities(_rockets);
-        RemoveEntities(_mines);
+        Projectiles.RemoveAllProjectiles(Shots);
+        Projectiles.RemoveAllProjectiles(Bubbles);
+        Projectiles.RemoveAllProjectiles(Blades);
+        Projectiles.RemoveAllProjectiles(Needles);
+        Projectiles.RemoveAllProjectiles(RevolverShots);
+        Projectiles.RemoveAllProjectiles(StabAnimations);
+        Projectiles.RemoveAllProjectiles(StabMasks);
+        Projectiles.RemoveAllProjectiles(Flames);
+        Projectiles.RemoveAllProjectiles(Rockets);
+        Projectiles.RemoveAllProjectiles(Mines);
         RemoveEntities(_sentries);
         RemoveEntities(_jumpPads);
         RemoveEntities(_civilDefenseTurrets);
@@ -318,7 +318,7 @@ public sealed partial class SimulationWorld
         RemoveEntities(_healthPacks);
         RemoveEntities(_deadBodies);
         RemoveEntities(_sentryGibs);
-        _pendingNewRocketIds.Clear();
+        Projectiles.ClearPendingNewRocketIds();
         _clientPredictedProjectileIds.Clear();
         _terminatedProjectileIds.Clear();
         _terminatedProjectileExpiryFrames.Clear();
@@ -331,7 +331,7 @@ public sealed partial class SimulationWorld
     {
         for (var index = 0; index < entities.Count; index += 1)
         {
-            _entities.Remove(entities[index].Id);
+            EntityStore.Remove(entities[index].Id);
         }
 
         entities.Clear();

@@ -5,18 +5,18 @@ using System.Collections.Generic;
 
 namespace OpenGarrison.Client;
 
-internal sealed record HudElementDefinition(
+public sealed record HudElementDefinition(
     string Id,
     string RendererId,
     int Layer,
     bool Editable = true);
 
-internal sealed record HudElementInstance(
+public sealed record HudElementInstance(
     string Id,
     string RendererId,
     int Layer);
 
-internal sealed class HudElementContext
+public sealed class HudElementContext
 {
     private readonly HudElementRegistry _registry;
 
@@ -42,7 +42,7 @@ internal sealed class HudElementContext
     }
 }
 
-internal sealed class HudElementRenderContext
+public sealed class HudElementRenderContext
 {
     internal HudElementRenderContext(Game1 game)
     {
@@ -52,17 +52,17 @@ internal sealed class HudElementRenderContext
     public Game1 Game { get; }
 }
 
-internal interface IHudElementProvider
+public interface IHudElementProvider
 {
     void Collect(HudElementContext context, List<HudElementInstance> elements);
 }
 
-internal interface IHudElementRenderer
+public interface IHudElementRenderer
 {
     void Draw(HudElementRenderContext context, HudElementInstance element);
 }
 
-internal sealed class HudElementRegistry
+public sealed class HudElementRegistry
 {
     private readonly Dictionary<string, HudElementDefinition> _definitionsById = new(StringComparer.Ordinal);
     private readonly Dictionary<string, IHudElementRenderer> _renderersById = new(StringComparer.Ordinal);
@@ -116,7 +116,7 @@ internal sealed class HudElementRegistry
     }
 }
 
-internal sealed class DelegateHudElementProvider(Action<HudElementContext, List<HudElementInstance>> collect) : IHudElementProvider
+public sealed class DelegateHudElementProvider(Action<HudElementContext, List<HudElementInstance>> collect) : IHudElementProvider
 {
     public void Collect(HudElementContext context, List<HudElementInstance> elements)
     {
@@ -124,7 +124,7 @@ internal sealed class DelegateHudElementProvider(Action<HudElementContext, List<
     }
 }
 
-internal sealed class DelegateHudElementRenderer(Action<HudElementRenderContext, HudElementInstance> draw) : IHudElementRenderer
+public sealed class DelegateHudElementRenderer(Action<HudElementRenderContext, HudElementInstance> draw) : IHudElementRenderer
 {
     public void Draw(HudElementRenderContext context, HudElementInstance element)
     {
