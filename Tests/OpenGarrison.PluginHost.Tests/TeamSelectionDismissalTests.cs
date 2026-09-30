@@ -13,6 +13,16 @@ public sealed class TeamSelectionDismissalTests
     private const BindingFlags Instance = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
 
     [Theory]
+    [InlineData(true, false, 0, false, false)]
+    [InlineData(true, true, 1, false, false)]
+    [InlineData(true, true, 2, true, false)]
+    [InlineData(true, true, 2, false, true)]
+    [InlineData(false, false, 0, false, true)]
+    public void MapTeamSelectionWaitsForPresentationWithoutWaitingForAJoinedPlayer(
+        bool warmup, bool baseline, int snapshots, bool interpolation, bool expected)
+        => Assert.Equal(expected, Game1.ShouldOpenDeferredMapTeamSelection(warmup, baseline, snapshots, interpolation));
+
+    [Theory]
     [InlineData(true)]
     [InlineData(false)]
     public void DismissingUnjoinedSelectionWatchesTheMatchAndCancelsQueuedJoinCommands(bool awaitingJoin)
