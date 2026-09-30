@@ -46,12 +46,12 @@ public partial class Game1
     private int _hostedSocialPresenceUdpPort;
     private string _hostedSocialPresenceRelayGuestUrl = string.Empty;
 
-    private void SetSocialPresenceNetworkEndpoint(NetworkEndpoint endpoint)
+    public void SetSocialPresenceNetworkEndpoint(NetworkEndpoint endpoint)
     {
         _socialPresenceNetworkEndpoint = endpoint;
     }
 
-    private void ClearSocialPresenceNetworkEndpoint()
+    public void ClearSocialPresenceNetworkEndpoint()
     {
         _socialPresenceNetworkEndpoint = null;
     }
@@ -64,7 +64,7 @@ public partial class Game1
         _lastSocialPresenceSignature = string.Empty;
     }
 
-    private void ClearHostedSocialPresenceEndpoint()
+    public void ClearHostedSocialPresenceEndpoint()
     {
         if (_hostedSocialPresenceUdpPort == 0 && string.IsNullOrWhiteSpace(_hostedSocialPresenceRelayGuestUrl))
         {
@@ -294,7 +294,7 @@ public partial class Game1
         }
     }
 
-    private void RefreshFriendPresence()
+    public void RefreshFriendPresence()
     {
         if (IsRestrictedBrowserEdition) return;
         if (OperatingSystem.IsBrowser() || _friendsPresenceRequestTask is not null)
@@ -306,7 +306,7 @@ public partial class Game1
         _friendsPresenceRequestTask = _presenceClient.GetFriendPresenceAsync(_friendList.Friends.Select(friend => friend.FriendCode));
     }
 
-    private void BeginFriendCodeJoin(string friendCode)
+    public void BeginFriendCodeJoin(string friendCode)
     {
         if (!ClientIdentityDocument.TryNormalizeFriendCode(friendCode, out var normalizedFriendCode))
         {
@@ -337,7 +337,7 @@ public partial class Game1
         _friendCodeJoinTask = _presenceClient.GetFriendPresenceAsync([_pendingFriendCodeJoin]);
     }
 
-    private void BeginRelayRoomJoin(string roomCode)
+    public void BeginRelayRoomJoin(string roomCode)
     {
         if (!RelayRoomCode.TryNormalize(roomCode, out var normalizedRoomCode))
         {
@@ -357,7 +357,7 @@ public partial class Game1
         _relayRoomJoinTask = _presenceClient.ResolveRelayRoomAsync(_pendingRelayRoomCodeJoin);
     }
 
-    private void CancelFriendCodeJoin()
+    public void CancelFriendCodeJoin()
     {
         if (_friendCodeJoinTask is { IsCompleted: false } abandonedTask)
         {

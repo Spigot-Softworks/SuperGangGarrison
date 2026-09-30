@@ -9,7 +9,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private int _prePredictionFlameCount;
+    public int _prePredictionFlameCount;
     private int _browserHostedLobbyDrawCount;
     public sealed record BrowserAutomationRect(int X, int Y, int Width, int Height)
     {
@@ -190,7 +190,7 @@ public partial class Game1
 
     public BrowserAutomationSnapshot GetBrowserAutomationSnapshot()
     {
-        var canEnterGameplaySession = _bootstrapController.CanEnterGameplaySession(out var gameplaySessionEntryReason);
+        var canEnterGameplaySession = _gameplayManager.Bootstrap.CanEnterGameplaySession(out var gameplaySessionEntryReason);
         return new BrowserAutomationSnapshot(
             Shell: GetBrowserAutomationShell(),
             StartupSplashOpen: _startupSplashOpen,
@@ -217,14 +217,14 @@ public partial class Game1
             QueuedAuthoritativeSnapshotCount: _queuedAuthoritativeSnapshots.Count,
             CanEnterGameplaySession: canEnterGameplaySession,
             GameplaySessionEntryReason: gameplaySessionEntryReason ?? string.Empty,
-            MenuBootstrapComplete: _bootstrapController.IsMenuBootstrapComplete,
-            ContentBootstrapComplete: _bootstrapController.IsContentBootstrapComplete,
-            BootstrapInitialized: _bootstrapController.IsInitialized,
-            BootstrapContentLoaded: _bootstrapController.IsContentLoaded,
-            BootstrapInitializeCalls: _bootstrapController.InitializeCallCount,
-            BootstrapLoadContentCalls: _bootstrapController.LoadContentCallCount,
+            MenuBootstrapComplete: _gameplayManager.Bootstrap.IsMenuBootstrapComplete,
+            ContentBootstrapComplete: _gameplayManager.Bootstrap.IsContentBootstrapComplete,
+            BootstrapInitialized: _gameplayManager.Bootstrap.IsInitialized,
+            BootstrapContentLoaded: _gameplayManager.Bootstrap.IsContentLoaded,
+            BootstrapInitializeCalls: _gameplayManager.Bootstrap.InitializeCallCount,
+            BootstrapLoadContentCalls: _gameplayManager.Bootstrap.LoadContentCallCount,
             BrowserHostLifecycleEnsureCalls: _browserHostLifecycleEnsureCallCount,
-            DeferredContentBootstrapStage: _bootstrapController.DeferredContentBootstrapStageName,
+            DeferredContentBootstrapStage: _gameplayManager.Bootstrap.DeferredContentBootstrapStageName,
             BrowserBootstrapAssetsApplied: _browserBootstrapAssetsApplied,
             StartupSplashTicks: _startupSplashTicks,
             BrowserInputFocused: BrowserInputBridge.IsFocused,
@@ -263,7 +263,7 @@ public partial class Game1
             RunRevision = _networkClient.LastToDieState.Snapshot?.StructuralRevision ?? 0,
             LastRunCommandResult = _networkClient.LastToDieState.LatestCommandResult?.ToString() ?? "",
             RoomSettings = _peerRoomSession?.State?.Settings?.ToString() ?? "",
-            InGameMenuLabels = _inGameMenuOpen ? _inGameMenuController.GetInGameMenuActions().Select(a => a.Label).ToArray() : [],
+            InGameMenuLabels = _inGameMenuOpen ? _menuManager.InGameMenu.GetInGameMenuActions().Select(a => a.Label).ToArray() : [],
             MusicPlaying = _voiceChat?.ServerState?.JukeboxPlaying == true,
             MusicPaused = _voiceChat?.ServerState?.JukeboxPaused == true,
             VoteMenuLabels = _voteMenuOpen ? BuildVoteMenuActions().Select(a => a.Label).ToArray() : [],
@@ -341,7 +341,7 @@ public partial class Game1
         }
 
         var layout = GetPracticeSetupLayout();
-        var canEnterGameplaySession = _bootstrapController.CanEnterGameplaySession(out _);
+        var canEnterGameplaySession = _gameplayManager.Bootstrap.CanEnterGameplaySession(out _);
         return
         [
             new BrowserAutomationAction("Enemy Bots -", BrowserAutomationRect.FromRectangle(layout.EnemyBotsLeftBounds)),
@@ -458,9 +458,9 @@ public partial class Game1
                 voteActions[voteIndex].Activate(); return true;
             case "ingame":
                 if (!_networkClient.IsConnected && !IsPracticeSessionActive) return false;
-                if (label == "Open") { _inGameMenuController.OpenInGameMenu(); return true; }
+                if (label == "Open") { _menuManager.InGameMenu.OpenInGameMenu(); return true; }
                 if (!_inGameMenuOpen) return false;
-                var menuActions = _inGameMenuController.GetInGameMenuActions();
+                var menuActions = _menuManager.InGameMenu.GetInGameMenuActions();
                 var menuIndex = menuActions.FindIndex(a => a.Label == label);
                 if (menuIndex < 0) return false;
                 menuActions[menuIndex].Activate(); return true;
@@ -574,19 +574,19 @@ public partial class Game1
         switch (label)
         {
             case "Edit Room Code" when _lastToDieRoomCodeJoinOpen:
-                _connectionFlowController.SetManualConnectEditingField(editHost: true);
+                _sessionManager.Connection.SetManualConnectEditingField(editHost: true);
                 return true;
             case "Paste Room Code" when _lastToDieRoomCodeJoinOpen:
-                _connectionFlowController.SetManualConnectEditingField(editHost: true);
+                _sessionManager.Connection.SetManualConnectEditingField(editHost: true);
                 return PasteActiveClipboard();
             case "Join" when _lastToDieRoomCodeJoinOpen:
                 TryConnectFromMenu();
                 return true;
             case "Edit Host":
-                _connectionFlowController.SetManualConnectEditingField(editHost: true);
+                _sessionManager.Connection.SetManualConnectEditingField(editHost: true);
                 return true;
             case "Edit Port":
-                _connectionFlowController.SetManualConnectEditingField(editHost: false);
+                _sessionManager.Connection.SetManualConnectEditingField(editHost: false);
                 return true;
             case "Connect":
                 TryConnectFromMenu();
@@ -621,7 +621,7 @@ public partial class Game1
                 _bloodRenderMode = bloodMode;
                 if (_bloodRenderMode != 0)
                 {
-                    _gameplayGoreEffectsController.ResetBloodSquibEffects();
+                    _gameplayManager.GoreEffects.ResetBloodSquibEffects();
                 }
 
                 return true;
@@ -650,7 +650,7 @@ public partial class Game1
 
                 _connectHostBuffer = (value ?? string.Empty).Trim();
                 InitializeConnectHostCursor();
-                _connectionFlowController.SetManualConnectEditingField(editHost: true);
+                _sessionManager.Connection.SetManualConnectEditingField(editHost: true);
                 return true;
             case "manualconnect_port":
                 if (!_manualConnectOpen)
@@ -661,7 +661,7 @@ public partial class Game1
                 var digitsOnly = new string((value ?? string.Empty).Where(char.IsDigit).Take(5).ToArray());
                 _connectPortBuffer = digitsOnly;
                 InitializeConnectPortCursor();
-                _connectionFlowController.SetManualConnectEditingField(editHost: false);
+                _sessionManager.Connection.SetManualConnectEditingField(editHost: false);
                 return true;
             case "practice_enemy_bots":
                 if (!_practiceSetupOpen || !int.TryParse((value ?? string.Empty).Trim(), out var practiceEnemyBots))
@@ -696,9 +696,9 @@ public partial class Game1
         InitializeConnectHostCursor();
         InitializeConnectPortCursor();
         _manualConnectOpen = true;
-        _connectionFlowController.SetManualConnectEditingField(editHost: false);
+        _sessionManager.Connection.SetManualConnectEditingField(editHost: false);
         _menuStatusMessage = string.Empty;
-        return _connectionFlowController.TryParseManualConnectTarget(out var endpoint)
+        return _sessionManager.Connection.TryParseManualConnectTarget(out var endpoint)
             && TryConnectToServer(endpoint, addConsoleFeedback: false);
     }
 

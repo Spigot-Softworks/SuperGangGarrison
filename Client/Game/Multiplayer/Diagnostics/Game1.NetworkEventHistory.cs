@@ -6,7 +6,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private void ResetProcessedNetworkEventHistory()
+    public void ResetProcessedNetworkEventHistory()
     {
         _processedNetworkSoundEventIds.Clear();
         _processedNetworkSoundEventOrder.Clear();
@@ -18,7 +18,7 @@ public partial class Game1
         _processedKillFeedEventOrder.Clear();
     }
 
-    private static bool ShouldProcessNetworkEvent(ulong eventId, HashSet<ulong> processedIds, Queue<ulong> processedOrder)
+    public static bool ShouldProcessNetworkEvent(ulong eventId, HashSet<ulong> processedIds, Queue<ulong> processedOrder)
     {
         if (eventId == 0)
         {
@@ -34,12 +34,12 @@ public partial class Game1
         return true;
     }
 
-    private static bool HasProcessedNetworkEvent(ulong eventId, HashSet<ulong> processedIds)
+    public static bool HasProcessedNetworkEvent(ulong eventId, HashSet<ulong> processedIds)
     {
         return eventId != 0 && processedIds.Contains(eventId);
     }
 
-    private static void MarkProcessedNetworkEvent(ulong eventId, HashSet<ulong> processedIds, Queue<ulong> processedOrder)
+    public static void MarkProcessedNetworkEvent(ulong eventId, HashSet<ulong> processedIds, Queue<ulong> processedOrder)
     {
         if (eventId == 0 || !processedIds.Add(eventId))
         {

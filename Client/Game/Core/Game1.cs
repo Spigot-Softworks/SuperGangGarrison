@@ -24,12 +24,12 @@ namespace OpenGarrison.Client;
 public partial class Game1 : Game
 {
 #if GG2_ONLY
-    private const string WindowTitle = "OpenGarrison";
+    public const string WindowTitle = "OpenGarrison";
 #else
-    private const string WindowTitle = "Super Gang Garrison";
+    public const string WindowTitle = "Super Gang Garrison";
 #endif
 
-    private enum BubbleMenuKind
+    public enum BubbleMenuKind
     {
         None,
         Z,
@@ -38,7 +38,7 @@ public partial class Game1 : Game
         Custom,
     }
 
-    private enum NoticeKind
+    public enum NoticeKind
     {
         NutsNBolts = 0,
         TooClose = 1,
@@ -51,7 +51,7 @@ public partial class Game1 : Game
         PlayerTrackDisable = 8,
     }
 
-    private enum HostSetupEditField
+    public enum HostSetupEditField
     {
         None,
         ServerName,
@@ -68,19 +68,19 @@ public partial class Game1 : Game
         MapNameFilter,
     }
 
-    private enum PracticeEditField
+    public enum PracticeEditField
     {
         None,
         MapNameFilter,
     }
 
-    private enum HostSetupTab
+    public enum HostSetupTab
     {
         Settings,
         ServerConsole,
     }
 
-    private enum GameplaySessionKind
+    public enum GameplaySessionKind
     {
         None,
         Online,
@@ -89,14 +89,14 @@ public partial class Game1 : Game
         Jump,
     }
 
-    private enum MainMenuPage
+    public enum MainMenuPage
     {
         Root,
         PlayOnline,
         PlayOffline,
     }
 
-    private enum ControlsMenuBinding
+    public enum ControlsMenuBinding
     {
         MoveUp,
         MoveLeft,
@@ -121,7 +121,7 @@ public partial class Game1 : Game
         CustomBubble,
     }
 
-    private enum ControllerControlsMenuBinding
+    public enum ControllerControlsMenuBinding
     {
         Jump,
         PrimaryFire,
@@ -136,231 +136,197 @@ public partial class Game1 : Game
         ChangeClass,
     }
 
-    private const int ProcessedNetworkEventHistoryLimit = 4096;
-    private readonly GameStartupMode _startupMode;
-    private readonly FrameController _frameController;
-    private readonly GameplayController _gameplayController;
-    private readonly GameplayScreenStateController _gameplayScreenStateController;
-    private readonly GameplayPresentationStateController _gameplayPresentationStateController;
-    private readonly GameplayImpactEffectsController _gameplayImpactEffectsController;
-    private readonly GameplayGoreEffectsController _gameplayGoreEffectsController;
-    private readonly GameplaySmokeEffectsController _gameplaySmokeEffectsController;
-    private readonly GameplayMaterialEffectsController _gameplayMaterialEffectsController;
-    private readonly GameplayVisualEventController _gameplayVisualEventController;
-    private readonly GameplayAudioMusicController _gameplayAudioMusicController;
-    private readonly GameplayAudioEventController _gameplayAudioEventController;
-    private readonly GameplayRapidFireAudioController _gameplayRapidFireAudioController;
-    private readonly GameplayLocalStatusHudController _gameplayLocalStatusHudController;
-    private readonly GameplayMedicHudController _gameplayMedicHudController;
-    private readonly GameplayEngineerHudController _gameplayEngineerHudController;
-    private readonly GameplayAimHudController _gameplayAimHudController;
-    private readonly GameplayPlayerNameHudController _gameplayPlayerNameHudController;
-    private readonly GameplayPlayerRenderController _gameplayPlayerRenderController;
-    private readonly GameplayDeadBodyRenderController _gameplayDeadBodyRenderController;
-    private readonly GameplayPlayerSpriteRenderController _gameplayPlayerSpriteRenderController;
-    private readonly GameplayWeaponRenderController _gameplayWeaponRenderController;
-    private readonly GameplayPlayerStatusEffectRenderController _gameplayPlayerStatusEffectRenderController;
-    private readonly GameplaySessionController _gameplaySessionController;
-    private readonly GameplayOverlayStateController _gameplayOverlayStateController;
-    private readonly GameplayResetController _gameplayResetController;
-    private readonly ClientPluginRuntimeController _clientPluginRuntimeController;
-    private readonly ClientPluginEventController _clientPluginEventController;
-    private readonly ClientPluginUiBridgeController _clientPluginUiBridgeController;
-    private readonly ClientPluginMarkerController _clientPluginMarkerController;
-    private readonly MenuController _menuController;
-    private readonly AnimatedMenuBackgroundController _animatedMenuBackgroundController;
-    private readonly MenuBottomBarRunners _menuBottomBarRunners;
-    private readonly ConnectionFlowController _connectionFlowController;
-    private readonly MainMenuOverlayController _mainMenuOverlayController;
-    private readonly MainMenuOverlayStateController _mainMenuOverlayStateController;
-    private readonly HostSetupFlowController _hostSetupFlowController;
-    private readonly WindowTextInputController _windowTextInputController;
-    private readonly MenuTextInputController _menuTextInputController;
-    private readonly NetworkPromptTextInputController _networkPromptTextInputController;
-    private readonly ChatTextInputController _chatTextInputController;
-    private readonly ConsoleTextInputController _consoleTextInputController;
-    private readonly BootstrapController _bootstrapController;
-    private readonly OptionsMenuController _optionsMenuController;
-    private readonly MainMenuPageController _mainMenuPageController;
-    private readonly PluginOptionsMenuController _pluginOptionsMenuController;
-    private readonly ControlsMenuController _controlsMenuController;
-    private readonly InGameMenuController _inGameMenuController;
-    private readonly DebugMenuController _debugMenuController;
-    private bool _debugMenuEnabled;
-    private bool _debugMenuOpen;
-    private bool _debugMenuAwaitingEscapeRelease;
-    private int _debugMenuHoverIndex;
-    private bool _debugRocketCollisionsEnabled;
-    private readonly GameplayOverlayController _gameplayOverlayController;
-    private readonly LastToDieStatsDocument _lastToDieStats;
-    private readonly ClientIdentityDocument _clientIdentity;
-    private readonly FriendListDocument _friendList;
-    private readonly OpenGarrisonPresenceClient _presenceClient;
-    private readonly GraphicsDeviceManager _graphics;
-    private readonly bool _crtStartupForcedOff;
-    private RenderTarget2D? _gameRenderTarget;
-    private RenderTarget2D? _hudRenderTarget;
-    private bool _hudOpacityCompositePending;
-    private bool _deferDamageVignetteForHudOpacityComposite;
-    private bool _damageVignetteCompositeDeferred;
-    private float _activeHudElementOpacity = 1f;
-    private bool _preLaunchSplashDismissed;
-    private SimulationConfig _config = null!;
-    private SimulationWorld _world = null!;
-    private FixedStepSimulator _simulator = null!;
-    private readonly NetworkGameClient _networkClient = new();
-    private readonly GameMakerAssetManifest _assetManifest;
-    private SpriteBatch _spriteBatch = null!;
-    private Texture2D _pixel = null!;
-    private Effect _grayscaleEffect = null!;
-    private Texture2D? _levelBackgroundFileTexture;
-    private string? _levelBackgroundFileTexturePath;
-    private string? _levelBackgroundFileFailedPath;
-    private SimpleLevel? _levelBackgroundFileTextureLevel;
-    private LoadedSpriteFrame? _menuBackgroundTexture;
-    private string? _menuBackgroundTexturePath;
-    private string? _menuBackgroundFailedPath;
-    private string _menuBackgroundAttributionText = string.Empty;
-    private SpriteFont _consoleFont = null!;
-    private SpriteFont _menuFont = null!;
-    private LoadedSpriteFrame? _menuBitmapFontTexture;
-    private readonly Dictionary<char, MenuBitmapGlyph> _menuBitmapFontGlyphs = new();
-    private int _menuBitmapFontLineHeight;
-    private int _menuBitmapFontSpacing = 1;
-    private LoadedSpriteFrame? _menuPlaqueTexture;
-    private LoadedSpriteFrame? _menuPlaqueTallTexture;
-    private LoadedSpriteFrame? _menuTextBoxTopTexture;
-    private LoadedSpriteFrame? _menuTextBoxMiddleTexture;
-    private LoadedSpriteFrame? _menuTextBoxBottomTexture;
-    private LoadedSpriteFrame? _menuTextBoxSoloTexture;
-    private LoadedSpriteFrame? _lastToDieMenuPlaqueTexture;
-    private LoadedSpriteFrame? _lastToDieMenuTextBoxSoloTexture;
-    private LoadedSpriteFrame? _gameplayLoadoutClassStripTexture;
-    private LoadedSpriteFrame? _gameplayLoadoutClassSelectionTexture;
-    private LoadedSpriteFrame? _gameplayLoadoutBackgroundBarTexture;
-    private LoadedSpriteFrame? _gameplayLoadoutDescriptionBoardTexture;
-    private LoadedSpriteFrame? _gameplayLoadoutSelectionAtlasTexture;
-    private readonly List<LoadedSpriteFrame> _gameplayLoadoutSelectionAtlasChunks = [];
-    private LoadedSpriteFrame? _gameplayLoadoutSelectionTexture;
-    private LoadedSpriteFrame? _gameplayLoadoutScrollerTexture;
-    private LoadedSpriteFrame? _gameplayLoadoutPageTexture;
-    private LoadedSpriteFrame? _gameplayLoadoutBackButtonTexture;
-    private LoadedSpriteFrame? _gameplayLoadoutHelmetTexture;
-    private LoadedSpriteFrame? _gameplayLoadoutDogTagsTexture;
-    private GameMakerRuntimeAssetCache _runtimeAssets = null!;
-    private GameplayModAssetCache _gameplayModAssets = null!;
-    private RotatedWeaponSpriteCache? _rotatedWeaponSprites;
-    private ClientRuntimeComposition? _runtimeComposition;
-    private readonly Dictionary<LoadedSpriteFrame, Rectangle> _spriteFontOpaqueBoundsCache = new();
-    private KeyboardState _previousKeyboard;
-    private KeyboardState _clientPluginPreviousKeyboard;
-    private KeyboardState _clientPluginKeyboard;
-    private readonly Dictionary<int, PlayerRenderState> _playerRenderStates = new();
-    private readonly Dictionary<int, Vector2> _playerPreviousRenderPositions = new();
-    private readonly Dictionary<int, double> _playerPreviousRenderSampleTimes = new();
-    private readonly Random _visualRandom = new(1337);
-    private bool _wasDeathCamActive;
-    private bool _wasMatchEnded;
-    private int _previousLocalDemoknightChargeTicks = PlayerEntity.ExperimentalDemoknightChargeMaxTicks;
-    private readonly BuffBannerReadyCueTracker _localBuffBannerReadyCueTracker = new();
-    private float _localBuffBannerReadyCueEchoSuppressionSeconds;
-    private MouseState _previousMouse;
+    public const int ProcessedNetworkEventHistoryLimit = 4096;
+    public readonly GameStartupMode _startupMode;
+    public readonly ClientServiceContainer _services = new();
+    private GameplayManager _gameplayManager => _services.Get<GameplayManager>();
+    private AudioManager _audioManager => _services.Get<AudioManager>();
+    private HudManager _hudManager => _services.Get<HudManager>();
+    private SessionManager _sessionManager => _services.Get<SessionManager>();
+    private HostingManager _hostingManager => _services.Get<HostingManager>();
+    private PluginManager _pluginManager => _services.Get<PluginManager>();
+    private MenuManager _menuManager => _services.Get<MenuManager>();
+    private InputManager _inputManager => _services.Get<InputManager>();
+    private GameplayPlayerRenderController _gameplayPlayerRenderController => _services.Get<GameplayPlayerRenderController>();
+    private GameplayDeadBodyRenderController _gameplayDeadBodyRenderController => _services.Get<GameplayDeadBodyRenderController>();
+    private GameplayPlayerSpriteRenderController _gameplayPlayerSpriteRenderController => _services.Get<GameplayPlayerSpriteRenderController>();
+    private GameplayWeaponRenderController _gameplayWeaponRenderController => _services.Get<GameplayWeaponRenderController>();
+    private GameplayPlayerStatusEffectRenderController _gameplayPlayerStatusEffectRenderController => _services.Get<GameplayPlayerStatusEffectRenderController>();
+    private RenderPipeline _renderPipeline => _services.Get<RenderPipeline>();
+    public bool _debugMenuEnabled;
+    public bool _debugMenuOpen;
+    public bool _debugMenuAwaitingEscapeRelease;
+    public int _debugMenuHoverIndex;
+    public bool _debugRocketCollisionsEnabled;
+    public LastToDieStatsDocument _lastToDieStats => _services.Get<LastToDieStatsDocument>();
+    public readonly ClientIdentityDocument _clientIdentity;
+    public readonly FriendListDocument _friendList;
+    public readonly OpenGarrisonPresenceClient _presenceClient;
+    public GraphicsDeviceManager _graphics => _services.Get<GraphicsDeviceManager>();
+    public readonly bool _crtStartupForcedOff;
+    public RenderTarget2D? _gameRenderTarget;
+    public RenderTarget2D? _hudRenderTarget;
+    public bool _hudOpacityCompositePending;
+    public bool _deferDamageVignetteForHudOpacityComposite;
+    public bool _damageVignetteCompositeDeferred;
+    public float _activeHudElementOpacity = 1f;
+    public bool _preLaunchSplashDismissed;
+    public SimulationConfig _config = null!;
+    public SimulationWorld _world = null!;
+    public FixedStepSimulator _simulator = null!;
+    public readonly NetworkGameClient _networkClient = new();
+    public readonly GameMakerAssetManifest _assetManifest;
+    public SpriteBatch _spriteBatch = null!;
+    public Texture2D _pixel = null!;
+    public Effect _grayscaleEffect = null!;
+    public Texture2D? _levelBackgroundFileTexture;
+    public string? _levelBackgroundFileTexturePath;
+    public string? _levelBackgroundFileFailedPath;
+    public SimpleLevel? _levelBackgroundFileTextureLevel;
+    public LoadedSpriteFrame? _menuBackgroundTexture;
+    public string? _menuBackgroundTexturePath;
+    public string? _menuBackgroundFailedPath;
+    public string _menuBackgroundAttributionText = string.Empty;
+    public SpriteFont _consoleFont = null!;
+    public SpriteFont _menuFont = null!;
+    public LoadedSpriteFrame? _menuBitmapFontTexture;
+    public readonly Dictionary<char, MenuBitmapGlyph> _menuBitmapFontGlyphs = new();
+    public int _menuBitmapFontLineHeight;
+    public int _menuBitmapFontSpacing = 1;
+    public LoadedSpriteFrame? _menuPlaqueTexture;
+    public LoadedSpriteFrame? _menuPlaqueTallTexture;
+    public LoadedSpriteFrame? _menuTextBoxTopTexture;
+    public LoadedSpriteFrame? _menuTextBoxMiddleTexture;
+    public LoadedSpriteFrame? _menuTextBoxBottomTexture;
+    public LoadedSpriteFrame? _menuTextBoxSoloTexture;
+    public LoadedSpriteFrame? _lastToDieMenuPlaqueTexture;
+    public LoadedSpriteFrame? _lastToDieMenuTextBoxSoloTexture;
+    public LoadedSpriteFrame? _gameplayLoadoutClassStripTexture;
+    public LoadedSpriteFrame? _gameplayLoadoutClassSelectionTexture;
+    public LoadedSpriteFrame? _gameplayLoadoutBackgroundBarTexture;
+    public LoadedSpriteFrame? _gameplayLoadoutDescriptionBoardTexture;
+    public LoadedSpriteFrame? _gameplayLoadoutSelectionAtlasTexture;
+    public readonly List<LoadedSpriteFrame> _gameplayLoadoutSelectionAtlasChunks = [];
+    public LoadedSpriteFrame? _gameplayLoadoutSelectionTexture;
+    public LoadedSpriteFrame? _gameplayLoadoutScrollerTexture;
+    public LoadedSpriteFrame? _gameplayLoadoutPageTexture;
+    public LoadedSpriteFrame? _gameplayLoadoutBackButtonTexture;
+    public LoadedSpriteFrame? _gameplayLoadoutHelmetTexture;
+    public LoadedSpriteFrame? _gameplayLoadoutDogTagsTexture;
+    public GameMakerRuntimeAssetCache _runtimeAssets = null!;
+    public GameplayModAssetCache _gameplayModAssets = null!;
+    public RotatedWeaponSpriteCache? _rotatedWeaponSprites;
+    public ClientRuntimeComposition? _runtimeComposition;
+    public readonly Dictionary<LoadedSpriteFrame, Rectangle> _spriteFontOpaqueBoundsCache = new();
+    public KeyboardState _previousKeyboard;
+    public KeyboardState _clientPluginPreviousKeyboard;
+    public KeyboardState _clientPluginKeyboard;
+    public readonly Dictionary<int, PlayerRenderState> _playerRenderStates = new();
+    public readonly Dictionary<int, Vector2> _playerPreviousRenderPositions = new();
+    public readonly Dictionary<int, double> _playerPreviousRenderSampleTimes = new();
+    public readonly Random _visualRandom = new(1337);
+    public bool _wasDeathCamActive;
+    public bool _wasMatchEnded;
+    public int _previousLocalDemoknightChargeTicks = PlayerEntity.ExperimentalDemoknightChargeMaxTicks;
+    public readonly BuffBannerReadyCueTracker _localBuffBannerReadyCueTracker = new();
+    public float _localBuffBannerReadyCueEchoSuppressionSeconds;
+    public MouseState _previousMouse;
     // Draw code must use the same focus-sanitized mouse sample as Update. Reading
     // Mouse.GetState directly during Draw lets an inactive window click through.
-    private MouseState _frameMouseState;
-    private MouseState _frameRawMouseState;
-    private Point _lastKnownMousePosition;
-    private bool _suppressPrimaryFireUntilMouseRelease;
-    private bool _suppressSecondaryFireUntilMouseRelease;
-    private bool _autoFireActive;
-    private Vector2 _respawnCameraCenter;
-    private bool _respawnCameraDetached;
-    private NoticeState? _notice;
-    private bool _hadLocalSentry;
-    private bool _wasCarryingIntel;
-    private readonly Queue<QueuedPluginNotice> _queuedPluginNotices = new();
-    private readonly HostSetupFormState _hostSetupState = new();
-    private readonly PracticeSetupState _practiceSetupState = new();
-    private readonly HostedServerConsoleState _hostedServerConsole = new();
-    private readonly HostedServerRuntimeController _hostedServerRuntime;
+    public MouseState _frameMouseState;
+    public MouseState _frameRawMouseState;
+    public Point _lastKnownMousePosition;
+    public bool _suppressPrimaryFireUntilMouseRelease;
+    public bool _suppressSecondaryFireUntilMouseRelease;
+    public bool _autoFireActive;
+    public Vector2 _respawnCameraCenter;
+    public bool _respawnCameraDetached;
+    public NoticeState? _notice;
+    public bool _hadLocalSentry;
+    public bool _wasCarryingIntel;
+    public readonly Queue<QueuedPluginNotice> _queuedPluginNotices = new();
+    public readonly HostSetupFormState _hostSetupState = new();
+    public readonly PracticeSetupState _practiceSetupState = new();
+    public readonly HostedServerConsoleState _hostedServerConsole = new();
+    public HostedServerRuntimeController _hostedServerRuntime => _services.Get<HostedServerRuntimeController>();
     private bool _devMessageCheckStarted;
     private bool _devMessageCheckFinished;
     private Task<DevMessageFetchResult>? _devMessageFetchTask;
     private readonly Queue<DevMessagePopupState> _pendingDevMessagePopups = new();
     private DevMessagePopupState? _activeDevMessagePopup;
     private readonly Queue<string> _queuedReplayPaths = new();
-    private string? _activeReplayPath;
-    private bool _killCamEnabled = true;
-    private bool _positionSmoothingEnabled = false;
-    private bool _enablePrediction = true;
-    private bool _cameraPanningEnabled = OpenGarrisonPreferencesDocument.DefaultCameraPanningEnabled;
+    public string? _activeReplayPath;
+    public bool _killCamEnabled = true;
+    public bool _positionSmoothingEnabled = false;
+    public bool _enablePrediction = true;
+    public bool _cameraPanningEnabled = OpenGarrisonPreferencesDocument.DefaultCameraPanningEnabled;
     private float _smoothCameraMultiplier = ClientSettings.DefaultSmoothCameraMultiplier;
     private bool _hasSmoothCamera;
     private Vector2 _smoothCamera;
-    private bool _hasGameplayCameraTopLeft;
-    private Vector2 _gameplayCameraTopLeft;
+    public bool _hasGameplayCameraTopLeft;
+    public Vector2 _gameplayCameraTopLeft;
     private int _gameplayCameraZoomIndex;
     private bool _gameplayWorldSpriteBatchActive;
-    private string _lastGameplayWindowTitle = string.Empty;
-    private DisplayModeKind _displayMode = OpenGarrisonPreferencesDocument.DefaultDisplayMode;
-    private IngameResolutionKind _ingameResolution = OpenGarrisonPreferencesDocument.DefaultIngameResolution;
-    private WindowSizeKind _windowSize = OpenGarrisonPreferencesDocument.DefaultWindowSize;
+    public string _lastGameplayWindowTitle = string.Empty;
+    public DisplayModeKind _displayMode = OpenGarrisonPreferencesDocument.DefaultDisplayMode;
+    public IngameResolutionKind _ingameResolution = OpenGarrisonPreferencesDocument.DefaultIngameResolution;
+    public WindowSizeKind _windowSize = OpenGarrisonPreferencesDocument.DefaultWindowSize;
     private DisplayScaleModeKind _displayScaleMode = OpenGarrisonPreferencesDocument.DefaultDisplayScaleMode;
     private Point? _lastWindowedPosition;
-    private int _particleMode;
-    private int _flameRenderMode;
-    private int _bloodRenderMode;
-    private bool _dynamicRagdollEnabled = true;
-    private bool _burnCharredCorpsesEnabled = true;
-    private int _bloodPersistenceSeconds = OpenGarrisonPreferencesDocument.DefaultBloodPersistenceSeconds;
-    private int _corpseFadeMode = OpenGarrisonPreferencesDocument.DefaultCorpseFadeMode;
-    private MenuBackgroundMode _menuBackgroundMode = MenuBackgroundMode.DefaultMaps;
-    private int _gibLevel = 3;
-    private int _bloodAmountLevel = 5;
-    private int _corpseDurationMode;
-    private int _frameRateLimit;
+    public int _particleMode;
+    public int _flameRenderMode;
+    public int _bloodRenderMode;
+    public bool _dynamicRagdollEnabled = true;
+    public bool _burnCharredCorpsesEnabled = true;
+    public int _bloodPersistenceSeconds = OpenGarrisonPreferencesDocument.DefaultBloodPersistenceSeconds;
+    public int _corpseFadeMode = OpenGarrisonPreferencesDocument.DefaultCorpseFadeMode;
+    public MenuBackgroundMode _menuBackgroundMode = MenuBackgroundMode.DefaultMaps;
+    public int _gibLevel = 3;
+    public int _bloodAmountLevel = 5;
+    public int _corpseDurationMode;
+    public int _frameRateLimit;
     private long _lastDrawTimestamp;
-    private bool _healerRadarEnabled = true;
-    private bool _showHealerEnabled = true;
-    private bool _showHealingEnabled = true;
-    private bool _showHealthBarEnabled;
-    private bool _showShieldBarEnabled = true;
-    private bool _hudShowOnlyActiveWeapon;
-    private bool _overheadChatEnabled = OpenGarrisonPreferencesDocument.DefaultOverheadChatEnabled;
+    public bool _healerRadarEnabled = true;
+    public bool _showHealerEnabled = true;
+    public bool _showHealingEnabled = true;
+    public bool _showHealthBarEnabled;
+    public bool _showShieldBarEnabled = true;
+    public bool _hudShowOnlyActiveWeapon;
+    public bool _overheadChatEnabled = OpenGarrisonPreferencesDocument.DefaultOverheadChatEnabled;
     private BubbleWheelBehavior _bubbleWheelBehavior = OpenGarrisonPreferencesDocument.DefaultBubbleWheelBehavior;
     private DateTime _bubbleWheelPluginConfigLastWriteUtc;
-    private bool _portraitRumbleEnabled = true;
-    private bool _postGameMvpArtEnabled;
-    private float _portraitRumbleRemainingSeconds;
-    private float _portraitRumbleIntensity;
-    private int _portraitRumbleSeed;
-    private bool _damageVignetteEnabled = true;
-    private int _damageVignetteIntensityPercent = ClientSettings.DefaultDamageVignetteIntensityPercent;
-    private LowHealthColorMode _lowHealthColorMode = LowHealthColorMode.Red;
-    private float _damageVignetteIntensity;
-    private float _damageVignetteFlashIntensity;
+    public bool _portraitRumbleEnabled = true;
+    public bool _postGameMvpArtEnabled;
+    public float _portraitRumbleRemainingSeconds;
+    public float _portraitRumbleIntensity;
+    public int _portraitRumbleSeed;
+    public bool _damageVignetteEnabled = true;
+    public int _damageVignetteIntensityPercent = ClientSettings.DefaultDamageVignetteIntensityPercent;
+    public LowHealthColorMode _lowHealthColorMode = LowHealthColorMode.Red;
+    public float _damageVignetteIntensity;
+    public float _damageVignetteFlashIntensity;
     private readonly Dictionary<int, Texture2D> _damageVignetteTexturesByBucket = new();
     private int _damageVignetteTextureWidth;
     private int _damageVignetteTextureHeight;
-    private bool _showPersistentSelfNameEnabled;
-    private bool _showPlayerNamesEnabled = true;
-    private bool _spriteDropShadowEnabled;
-    private bool _stuckArrowsEnabled = true;
-    private WeaponBobMode _weaponBobMode = WeaponBobMode.Enabled;
-    private bool _pixelPerfectWeaponRotation = true;
-    private bool _useLocalWeaponRotation = false;
-    private int _playerCardSizeMode = ClientSettings.PlayerCardSizeSmall;
-    private int _cursorSizePercent = ClientSettings.DefaultCursorSizePercent;
-    private bool _uberOutlineEnabled = true;
-    private bool _projectileTeamTintEnabled = true;
-    private bool _wasWindowActive = true;
+    public bool _showPersistentSelfNameEnabled;
+    public bool _showPlayerNamesEnabled = true;
+    public bool _spriteDropShadowEnabled;
+    public bool _stuckArrowsEnabled = true;
+    public WeaponBobMode _weaponBobMode = WeaponBobMode.Enabled;
+    public bool _pixelPerfectWeaponRotation = true;
+    public bool _useLocalWeaponRotation = false;
+    public int _playerCardSizeMode = ClientSettings.PlayerCardSizeSmall;
+    public int _cursorSizePercent = ClientSettings.DefaultCursorSizePercent;
+    public bool _uberOutlineEnabled = true;
+    public bool _projectileTeamTintEnabled = true;
+    public bool _wasWindowActive = true;
     private bool _windowInputActive = true;
-    private readonly WindowInputFilter _windowInputFilter = new();
-    private bool _suppressFullscreenToggleUntilRelease;
-    private int _menuImageFrame;
+    public readonly WindowInputFilter _windowInputFilter = new();
+    public bool _suppressFullscreenToggleUntilRelease;
+    public int _menuImageFrame;
     private readonly List<ChatLine> _chatLines = new();
-    private OverheadChatMessage? _localOverheadChatMessage;
-    private readonly Dictionary<byte, OverheadChatMessage> _overheadChatMessagesBySlot = new();
+    public OverheadChatMessage? _localOverheadChatMessage;
+    public readonly Dictionary<byte, OverheadChatMessage> _overheadChatMessagesBySlot = new();
     private readonly List<byte> _staleOverheadChatSlots = new();
     private readonly HashSet<string> _browserLoggedCriticalHudSpriteEvents = new(StringComparer.Ordinal);
     private ClientPluginOverlayMenuState? _clientPluginOverlayMenu;
@@ -384,60 +350,31 @@ public partial class Game1 : Game
     public Game1(GameStartupMode startupMode = GameStartupMode.Client)
     {
         _startupMode = startupMode;
-        (_frameController,
-            _gameplayController,
-            _gameplayScreenStateController,
-            _gameplayPresentationStateController,
-            _gameplayImpactEffectsController,
-            _gameplayGoreEffectsController,
-            _gameplaySmokeEffectsController,
-            _gameplayMaterialEffectsController,
-            _gameplayVisualEventController,
-            _gameplayAudioMusicController,
-            _gameplayAudioEventController,
-            _gameplayRapidFireAudioController,
-            _gameplayLocalStatusHudController,
-            _gameplayMedicHudController,
-            _gameplayEngineerHudController,
-            _gameplayAimHudController,
-            _gameplayPlayerNameHudController,
-            _gameplayPlayerRenderController,
-            _gameplayDeadBodyRenderController,
-            _gameplayPlayerSpriteRenderController,
-            _gameplayWeaponRenderController,
-            _gameplayPlayerStatusEffectRenderController,
-            _gameplaySessionController,
-            _gameplayOverlayStateController,
-            _gameplayResetController) = CreateGameplayControllerBundle(this);
-        (_clientPluginRuntimeController,
-            _clientPluginEventController,
-            _clientPluginUiBridgeController,
-            _clientPluginMarkerController,
-            _menuController,
-            _connectionFlowController,
-            _mainMenuOverlayController,
-            _mainMenuOverlayStateController,
-            _hostSetupFlowController,
-            _windowTextInputController,
-            _menuTextInputController,
-            _networkPromptTextInputController,
-            _chatTextInputController,
-            _consoleTextInputController,
-            _bootstrapController,
-            _optionsMenuController,
-            _mainMenuPageController,
-            _pluginOptionsMenuController,
-            _controlsMenuController,
-            _inGameMenuController,
-            _debugMenuController,
-            _gameplayOverlayController,
-            _animatedMenuBackgroundController,
-            _menuBottomBarRunners) = CreateShellControllerBundle(this);
-        (_clientSettings,
-            _inputBindings,
-            _lastToDieStats,
-            _hostedServerRuntime,
-            _graphics) = CreateRuntimeServices(this, _hostedServerConsole);
+        _services.Register(new GameplayManager(this));
+        _services.Register(new AudioManager(this));
+        _services.Register(new HudManager(this));
+        _services.Register(new GameplayPlayerRenderController(this));
+        _services.Register(new GameplayDeadBodyRenderController(this));
+        _services.Register(new GameplayPlayerSpriteRenderController(this));
+        _services.Register(new GameplayWeaponRenderController(this));
+        _services.Register(new GameplayPlayerStatusEffectRenderController(this));
+        _services.Register(new RenderPipeline(this));
+        _services.Register(new SessionManager(this));
+        _services.Register(new PluginManager(this));
+        _services.Register(new MenuManager(this));
+        _services.Register(new HostingManager(this));
+        _services.Register(new InputManager(this));
+
+        var (clientSettings,
+            inputBindings,
+            lastToDieStats,
+            hostedServerRuntime,
+            graphics) = CreateRuntimeServices(this, _hostedServerConsole);
+        _services.Register(clientSettings);
+        _services.Register(inputBindings);
+        _services.Register(lastToDieStats);
+        _services.Register(hostedServerRuntime);
+        _services.Register(graphics);
         _clientIdentity = ClientIdentityDocument.LoadOrCreate();
         _lastDirectMessageId = Math.Max(0L, _clientIdentity.LastDirectMessageId);
         _directMessagesInitialPollCompleted = _clientIdentity.DirectMessageCursorInitialized;
@@ -494,7 +431,7 @@ public partial class Game1 : Game
 
     protected override void Initialize()
     {
-        _bootstrapController.Initialize();
+        _gameplayManager.Bootstrap.Initialize();
         base.Initialize();
 
         if (!OperatingSystem.IsBrowser())
@@ -549,13 +486,13 @@ public partial class Game1 : Game
         }
 
         _browserHostLifecycleEnsureCallCount += 1;
-        _bootstrapController.Initialize();
-        _bootstrapController.LoadContent();
+        _gameplayManager.Bootstrap.Initialize();
+        _gameplayManager.Bootstrap.LoadContent();
     }
 
     protected override void LoadContent()
     {
-        _bootstrapController.LoadContent();
+        _gameplayManager.Bootstrap.LoadContent();
     }
 
     protected override void UnloadContent()
@@ -567,7 +504,7 @@ public partial class Game1 : Game
         _lobbyBrowserClient?.Dispose();
         _lobbyBrowserClient = null;
         ShutdownDiscordRichPresence();
-        _bootstrapController.UnloadContent();
+        _gameplayManager.Bootstrap.UnloadContent();
         base.UnloadContent();
     }
 
@@ -576,11 +513,11 @@ public partial class Game1 : Game
         var browserUpdateStartTimestamp = ShouldMeasureClientPerformanceDurations() ? Stopwatch.GetTimestamp() : 0L;
         LogBrowserFrameState("update", ref _browserDebugUpdateCount, gameTime);
         PollBrowserBootstrapAssetPreload();
-        _bootstrapController.AdvanceDeferredContentBootstrap();
+        _gameplayManager.Bootstrap.AdvanceDeferredContentBootstrap();
         BeginNetworkDiagnosticsFrame(gameTime);
         BeginClientPerformanceDiagnosticsFrame(gameTime);
         _networkInterpolationClockSeconds = _networkInterpolationClock.Elapsed.TotalSeconds;
-        var clientTicks = _frameController.Update(gameTime);
+        var clientTicks = _gameplayManager.Frame.Update(gameTime);
         UpdateVoiceChat(_clientPluginKeyboard, _frameMouseState, _wasWindowActive);
         PumpDiscordRichPresence(gameTime.ElapsedGameTime.TotalSeconds);
         PumpSocialPresence(gameTime.ElapsedGameTime.TotalSeconds);
@@ -596,21 +533,7 @@ public partial class Game1 : Game
 
     protected override void Draw(GameTime gameTime)
     {
-        var browserDrawStartTimestamp = ShouldMeasureClientPerformanceDurations() ? Stopwatch.GetTimestamp() : 0L;
-        LogBrowserFrameState("draw", ref _browserDebugDrawCount, gameTime);
-        // Use interpolation clock value from Update() - don't re-sample during Draw()
-        ApplyFrameRateLimit();
-        GraphicsDevice.Clear(new Color(24, 32, 48));
-        _frameController.Draw(gameTime);
-
-        base.Draw(gameTime);
-        RecordBrowserDrawDuration(browserDrawStartTimestamp);
-
-        if (!_preLaunchSplashDismissed)
-        {
-            _preLaunchSplashDismissed = true;
-            PreLaunchSplash.Close();
-        }
+        _renderPipeline.Draw(gameTime);
     }
 
     private void LogBrowserFrameState(string phase, ref int counter, GameTime gameTime)
@@ -622,7 +545,7 @@ public partial class Game1 : Game
 
         counter += 1;
         Console.WriteLine(
-            $"Browser frame {phase} #{counter}: startupSplash={_startupSplashOpen} mainMenu={_mainMenuOpen} bootstrapComplete={_bootstrapController.IsContentBootstrapComplete} elapsed={gameTime.ElapsedGameTime.TotalMilliseconds:0.##}ms");
+            $"Browser frame {phase} #{counter}: startupSplash={_startupSplashOpen} mainMenu={_mainMenuOpen} bootstrapComplete={_gameplayManager.Bootstrap.IsContentBootstrapComplete} elapsed={gameTime.ElapsedGameTime.TotalMilliseconds:0.##}ms");
     }
 
     private void ApplyFrameRateLimit()
@@ -659,7 +582,7 @@ public partial class Game1 : Game
         _lastDrawTimestamp = Stopwatch.GetTimestamp();
     }
 
-    private void LogBrowserMenuState(int buttonCount)
+    public void LogBrowserMenuState(int buttonCount)
     {
         if (!OperatingSystem.IsBrowser() || _browserDebugMenuCount >= 6)
         {
@@ -673,17 +596,17 @@ public partial class Game1 : Game
 
     private void DrawGameplayWorldForCamera(Vector2 cameraPosition, int viewportWidth, int viewportHeight, int? skippedDeadBodySourcePlayerId = null)
     {
-        _frameController.DrawGameplayWorldForCamera(cameraPosition, viewportWidth, viewportHeight, skippedDeadBodySourcePlayerId);
+        _gameplayManager.Frame.DrawGameplayWorldForCamera(cameraPosition, viewportWidth, viewportHeight, skippedDeadBodySourcePlayerId);
     }
 
-    private static KeyboardState GetCurrentKeyboardState()
+    public static KeyboardState GetCurrentKeyboardState()
     {
         return OperatingSystem.IsBrowser()
             ? BrowserInputBridge.GetKeyboardState()
             : Keyboard.GetState();
     }
 
-    private static MouseState GetCurrentMouseState()
+    public static MouseState GetCurrentMouseState()
     {
         return OperatingSystem.IsBrowser()
             ? BrowserInputBridge.GetMouseState()
@@ -718,92 +641,92 @@ public partial class Game1 : Game
 
     private MainMenuOverlayKind GetActiveMainMenuOverlay()
     {
-        return _menuController.GetActiveOverlay();
+        return _menuManager.Menu.GetActiveOverlay();
     }
 
-    private void OpenOptionsMenu(bool fromGameplay)
+    public void OpenOptionsMenu(bool fromGameplay)
     {
-        _optionsMenuController.OpenOptionsMenu(fromGameplay);
+        _menuManager.OptionsMenu.OpenOptionsMenu(fromGameplay);
     }
 
-    private void CloseOptionsMenu()
+    public void CloseOptionsMenu()
     {
-        _optionsMenuController.CloseOptionsMenu();
+        _menuManager.OptionsMenu.CloseOptionsMenu();
     }
 
     private void OpenPluginOptionsMenu(bool fromGameplay)
     {
-        _optionsMenuController.OpenPluginOptionsMenu(fromGameplay);
+        _menuManager.OptionsMenu.OpenPluginOptionsMenu(fromGameplay);
     }
 
-    private void ClosePluginOptionsMenu()
+    public void ClosePluginOptionsMenu()
     {
-        _optionsMenuController.ClosePluginOptionsMenu();
+        _menuManager.OptionsMenu.ClosePluginOptionsMenu();
     }
 
     private void OpenControlsMenu(bool fromGameplay)
     {
-        _controlsMenuController.OpenControlsMenu(fromGameplay);
+        _menuManager.ControlsMenu.OpenControlsMenu(fromGameplay);
     }
 
     private void CloseControlsMenu()
     {
-        _controlsMenuController.CloseControlsMenu();
+        _menuManager.ControlsMenu.CloseControlsMenu();
     }
 
-    private void UpdateOptionsMenu(KeyboardState keyboard, MouseState mouse)
+    public void UpdateOptionsMenu(KeyboardState keyboard, MouseState mouse)
     {
-        _optionsMenuController.UpdateOptionsMenu(keyboard, mouse);
+        _menuManager.OptionsMenu.UpdateOptionsMenu(keyboard, mouse);
     }
 
-    private void DrawOptionsMenu()
+    public void DrawOptionsMenu()
     {
-        _optionsMenuController.DrawOptionsMenu();
+        _menuManager.OptionsMenu.DrawOptionsMenu();
     }
 
-    private void UpdatePluginOptionsMenu(KeyboardState keyboard, MouseState mouse)
+    public void UpdatePluginOptionsMenu(KeyboardState keyboard, MouseState mouse)
     {
-        _pluginOptionsMenuController.UpdatePluginOptionsMenu(keyboard, mouse);
+        _menuManager.PluginOptionsMenu.UpdatePluginOptionsMenu(keyboard, mouse);
     }
 
-    private void DrawPluginOptionsMenu()
+    public void DrawPluginOptionsMenu()
     {
-        _pluginOptionsMenuController.DrawPluginOptionsMenu();
+        _menuManager.PluginOptionsMenu.DrawPluginOptionsMenu();
     }
 
-    private bool HasClientPluginOptions()
+    public bool HasClientPluginOptions()
     {
-        return _pluginOptionsMenuController.HasClientPluginOptions();
+        return _menuManager.PluginOptionsMenu.HasClientPluginOptions();
     }
 
-    private void UpdateControlsMenu(KeyboardState keyboard, MouseState mouse)
+    public void UpdateControlsMenu(KeyboardState keyboard, MouseState mouse)
     {
-        _controlsMenuController.UpdateControlsMenu(keyboard, mouse);
+        _menuManager.ControlsMenu.UpdateControlsMenu(keyboard, mouse);
     }
 
-    private void DrawControlsMenu()
+    public void DrawControlsMenu()
     {
-        _controlsMenuController.DrawControlsMenu();
+        _menuManager.ControlsMenu.DrawControlsMenu();
     }
 
-    private void OpenInGameMenu()
+    public void OpenInGameMenu()
     {
-        _inGameMenuController.OpenInGameMenu();
+        _menuManager.InGameMenu.OpenInGameMenu();
     }
 
     private void CloseInGameMenu()
     {
-        _inGameMenuController.CloseInGameMenu();
+        _menuManager.InGameMenu.CloseInGameMenu();
     }
 
-    private void UpdateInGameMenu(KeyboardState keyboard, MouseState mouse)
+    public void UpdateInGameMenu(KeyboardState keyboard, MouseState mouse)
     {
-        _inGameMenuController.UpdateInGameMenu(keyboard, mouse);
+        _menuManager.InGameMenu.UpdateInGameMenu(keyboard, mouse);
     }
 
     private void DrawInGameMenu()
     {
-        _inGameMenuController.DrawInGameMenu();
+        _menuManager.InGameMenu.DrawInGameMenu();
     }
 
 
@@ -817,32 +740,32 @@ public partial class Game1 : Game
 
     private GameplayOverlayKind GetActiveGameplayOverlay()
     {
-        return _gameplayOverlayController.GetActiveOverlay();
+        return _gameplayManager.Overlay.GetActiveOverlay();
     }
 
-    private void UpdateGameplayMenuState(KeyboardState keyboard, MouseState mouse)
+    public void UpdateGameplayMenuState(KeyboardState keyboard, MouseState mouse)
     {
-        _gameplayOverlayController.Update(keyboard, mouse);
+        _gameplayManager.Overlay.Update(keyboard, mouse);
     }
 
-    private void OpenMainMenuPage(MainMenuPage page)
+    public void OpenMainMenuPage(MainMenuPage page)
     {
-        _mainMenuPageController.OpenMainMenuPage(page);
+        _menuManager.MainMenuPage.OpenMainMenuPage(page);
     }
 
-    private List<MenuPageButton> BuildMainMenuButtons()
+    public List<MenuPageButton> BuildMainMenuButtons()
     {
-        return _mainMenuPageController.BuildMainMenuButtons();
+        return _menuManager.MainMenuPage.BuildMainMenuButtons();
     }
 
-    private void DrawCurrentMainMenuPage(IReadOnlyList<MenuPageButton> buttons)
+    public void DrawCurrentMainMenuPage(IReadOnlyList<MenuPageButton> buttons)
     {
-        _mainMenuPageController.DrawCurrentMainMenuPage(buttons);
+        _menuManager.MainMenuPage.DrawCurrentMainMenuPage(buttons);
     }
 
-    private void AddPluginMenuActions(List<MenuPageAction> actions, ClientPluginMenuLocation location, int insertIndex = -1)
+    public void AddPluginMenuActions(List<MenuPageAction> actions, ClientPluginMenuLocation location, int insertIndex = -1)
     {
-        _mainMenuPageController.AddPluginMenuActions(actions, location, insertIndex);
+        _menuManager.MainMenuPage.AddPluginMenuActions(actions, location, insertIndex);
     }
 
 
@@ -860,7 +783,7 @@ public partial class Game1 : Game
 
 
 
-    private sealed class NoticeState
+    public sealed class NoticeState
     {
         public NoticeState(string text, float alpha, bool done, int ticksRemaining, bool playSound)
         {
@@ -882,7 +805,7 @@ public partial class Game1 : Game
         public bool PlaySound { get; set; }
     }
 
-    private sealed class QueuedPluginNotice(string text, int ticksRemaining, bool playSound)
+    public sealed class QueuedPluginNotice(string text, int ticksRemaining, bool playSound)
     {
         public string Text { get; } = text;
 
@@ -919,7 +842,7 @@ public partial class Game1 : Game
         public int TicksRemaining { get; set; }
     }
 
-    private sealed class OverheadChatMessage(string text, bool teamOnly, int ticksRemaining)
+    public sealed class OverheadChatMessage(string text, bool teamOnly, int ticksRemaining)
     {
         public string Text { get; } = text;
 
@@ -946,7 +869,7 @@ public partial class Game1 : Game
         public IReadOnlyList<string> Entries { get; } = entries;
     }
 
-    private sealed class PracticeMapEntry
+    public sealed class PracticeMapEntry
     {
         public PracticeMapEntry(string levelName, string displayName, GameModeKind mode, bool isCustomMap, string? iniKey = null)
         {

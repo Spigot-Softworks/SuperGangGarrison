@@ -83,7 +83,7 @@ public partial class Game1
         return true;
     }
 
-    private void ClearReplayQueue(bool clearActiveReplayPath)
+    public void ClearReplayQueue(bool clearActiveReplayPath)
     {
         _queuedReplayPaths.Clear();
         if (clearActiveReplayPath)

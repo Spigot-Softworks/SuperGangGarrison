@@ -12,8 +12,8 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private const int DynamicMusicCombatLingerTicks = SimulationConfig.DefaultTicksPerSecond * 10;
-    private const float DynamicMusicFadeInPerSecond = 1.45f;
+    public const int DynamicMusicCombatLingerTicks = SimulationConfig.DefaultTicksPerSecond * 10;
+    public const float DynamicMusicFadeInPerSecond = 1.45f;
     // Combat should release back to normal music gradually after the linger
     // window; quick drops make brief contact breaks sound like repeated track
     // changes. Escalation still uses the faster fade-in below.
@@ -52,7 +52,7 @@ public partial class Game1
         BodyBass,
     }
 
-    private bool _dynamicMusicEnabled = true;
+    public bool _dynamicMusicEnabled = true;
     private bool _dynamicMusicLoadAttempted;
     private SoundEffect? _dynamicCombatDrumMusic;
     private SoundEffectInstance? _dynamicCombatDrumMusicInstance;
@@ -93,7 +93,7 @@ public partial class Game1
     private float _dirtbowlGateMusicElapsedSeconds;
     private int _dirtbowlGateMusicPreviousSetupTicksRemaining;
 
-    private void ObserveDynamicMusicDamageEvent(WorldDamageEvent damageEvent)
+    public void ObserveDynamicMusicDamageEvent(WorldDamageEvent damageEvent)
     {
         if (ShouldTriggerDynamicCombatMusic(damageEvent.Amount, damageEvent.AttackerPlayerId, damageEvent.TargetKind, damageEvent.TargetEntityId))
         {
@@ -101,7 +101,7 @@ public partial class Game1
         }
     }
 
-    private void ObserveDynamicMusicDamageEvent(SnapshotDamageEvent damageEvent)
+    public void ObserveDynamicMusicDamageEvent(SnapshotDamageEvent damageEvent)
     {
         if (ShouldTriggerDynamicCombatMusic(damageEvent.Amount, damageEvent.AttackerPlayerId, (DamageTargetKind)damageEvent.TargetKind, damageEvent.TargetEntityId))
         {
@@ -397,16 +397,16 @@ public partial class Game1
         }
 
         _dynamicMusicLoadAttempted = true;
-        _gameplayAudioMusicController.TryLoadOptionalMusicSound(
+        _audioManager.Music.TryLoadOptionalMusicSound(
             Path.Combine("Music", "menumusic1.ogg"),
             out _dynamicDirtbowlGateMusic,
             out _dynamicDirtbowlGateMusicInstance,
             isLooped: false);
-        _gameplayAudioMusicController.TryLoadOptionalLoopedMusic(
+        _audioManager.Music.TryLoadOptionalLoopedMusic(
             Path.Combine("Music", "menumusic4.wav"),
             out _dynamicIntelMusic,
             out _dynamicIntelMusicInstance);
-        _gameplayAudioMusicController.TryLoadOptionalLoopedMusic(
+        _audioManager.Music.TryLoadOptionalLoopedMusic(
             Path.Combine("Music", "uber_common.wav"),
             out _dynamicUberMusic,
             out _dynamicUberMusicInstance);
@@ -448,7 +448,7 @@ public partial class Game1
 
     private void EnsureDynamicCombatMusicPlaybackStarted()
     {
-        _gameplayAudioMusicController.EnsureIngameMusicPairPlaybackStarted();
+        _audioManager.Music.EnsureIngameMusicPairPlaybackStarted();
     }
 
     private bool HasDynamicCombatStemFade()

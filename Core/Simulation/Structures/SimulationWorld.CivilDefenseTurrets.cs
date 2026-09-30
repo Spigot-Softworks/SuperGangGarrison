@@ -134,7 +134,7 @@ public sealed partial class SimulationWorld
             player.Y,
             player.FacingDirectionX);
         _civilDefenseTurrets.Add(entity);
-        _entities.Add(entity.Id, entity);
+        EntityStore.Add(entity);
         RegisterWorldSoundEvent("SentryBuildSnd", entity.X, entity.Y);
         return true;
     }
@@ -158,7 +158,7 @@ public sealed partial class SimulationWorld
             facing,
             lifetimeTicks: Math.Max(1, Config.TicksPerSecond * 30));
         _civilDefenseTurrets.Add(turret);
-        _entities.Add(turret.Id, turret);
+        EntityStore.Add(turret);
         RegisterWorldSoundEvent("SentryBuildSnd", turret.X, turret.Y);
         return true;
     }
@@ -172,7 +172,7 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            _entities.Remove(turret.Id);
+            EntityStore.Remove(turret.Id);
             _civilDefenseTurrets.RemoveAt(index);
             RegisterWorldSoundEvent("ExplosionSnd", turret.X, turret.Y);
             RegisterVisualEffect("Explosion", turret.X, turret.Y);

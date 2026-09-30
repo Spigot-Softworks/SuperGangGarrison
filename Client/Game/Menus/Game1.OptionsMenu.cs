@@ -16,11 +16,11 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private const string DevelopmentVersionLabel = "dev";
+    public const string DevelopmentVersionLabel = "dev";
 
-    private static string? _cachedApplicationVersionLabel;
+    public static string? _cachedApplicationVersionLabel;
 
-    private static MusicMode GetNextMusicMode(MusicMode musicMode)
+    public static MusicMode GetNextMusicMode(MusicMode musicMode)
     {
         return musicMode switch
         {
@@ -31,7 +31,7 @@ public partial class Game1
         };
     }
 
-    private static string GetFrameRateLimitLabel(int frameRateLimit)
+    public static string GetFrameRateLimitLabel(int frameRateLimit)
     {
         return frameRateLimit switch
         {
@@ -44,7 +44,7 @@ public partial class Game1
         };
     }
 
-    private static float NormalizeSmoothCameraMultiplier(float multiplier)
+    public static float NormalizeSmoothCameraMultiplier(float multiplier)
     {
         if (float.IsNaN(multiplier) || float.IsInfinity(multiplier))
         {
@@ -55,7 +55,7 @@ public partial class Game1
     }
 
 
-    private static string GetPlayerCardSizeLabel(int sizeMode)
+    public static string GetPlayerCardSizeLabel(int sizeMode)
     {
         return ClientSettings.NormalizePlayerCardSizeMode(sizeMode) switch
         {
@@ -65,12 +65,12 @@ public partial class Game1
         };
     }
 
-    private static string GetCursorSizeLabel(int cursorSizePercent)
+    public static string GetCursorSizeLabel(int cursorSizePercent)
     {
         return $"{ClientSettings.NormalizeCursorSizePercent(cursorSizePercent)}%";
     }
 
-    private static string GetLowHealthColorModeLabel(LowHealthColorMode mode)
+    public static string GetLowHealthColorModeLabel(LowHealthColorMode mode)
     {
         return ClientSettings.NormalizeLowHealthColorMode(mode) switch
         {
@@ -79,26 +79,26 @@ public partial class Game1
         };
     }
 
-    private static string GetHudWeaponDisplayModeLabel(bool showOnlyActiveWeapon)
+    public static string GetHudWeaponDisplayModeLabel(bool showOnlyActiveWeapon)
     {
         return showOnlyActiveWeapon
             ? "Show Only Active Weapon"
             : "Show All Weapons";
     }
 
-    private static string GetBuildMenuStyleLabel(BuildMenuStyle style)
+    public static string GetBuildMenuStyleLabel(BuildMenuStyle style)
     {
         return OpenGarrisonPreferencesDocument.NormalizeBuildMenuStyle(style) == BuildMenuStyle.Wheel
             ? "Wheel"
             : "List";
     }
 
-    private static string GetDamageVignetteIntensityLabel(int percent)
+    public static string GetDamageVignetteIntensityLabel(int percent)
     {
         return $"{ClientSettings.NormalizeDamageVignetteIntensityPercent(percent)}%";
     }
 
-    private static string GetControllerInputModeLabel(ControllerInputMode mode)
+    public static string GetControllerInputModeLabel(ControllerInputMode mode)
     {
         return OpenGarrisonPreferencesDocument.NormalizeControllerInputMode(mode) switch
         {
@@ -108,7 +108,7 @@ public partial class Game1
         };
     }
 
-    private static string GetControllerReticleModeLabel(ControllerReticleMode mode)
+    public static string GetControllerReticleModeLabel(ControllerReticleMode mode)
     {
         return OpenGarrisonPreferencesDocument.NormalizeControllerReticleMode(mode) switch
         {
@@ -117,22 +117,22 @@ public partial class Game1
         };
     }
 
-    private static string GetControllerPercentLabel(float value)
+    public static string GetControllerPercentLabel(float value)
     {
         return $"{MathF.Round(value * 100f)}%";
     }
 
-    private static string GetControllerPixelsLabel(float value)
+    public static string GetControllerPixelsLabel(float value)
     {
         return $"{MathF.Round(value)} px";
     }
 
-    private static string GetControllerSpeedLabel(float value)
+    public static string GetControllerSpeedLabel(float value)
     {
         return $"{MathF.Round(value)} px/s";
     }
 
-    private static readonly ControllerButtonBinding[] ControllerButtonBindingCycle =
+    public static readonly ControllerButtonBinding[] ControllerButtonBindingCycle =
     [
         ControllerButtonBinding.None,
         ControllerButtonBinding.A,
@@ -153,7 +153,7 @@ public partial class Game1
         ControllerButtonBinding.DPadRight,
     ];
 
-    private static string GetControllerButtonBindingLabel(ControllerButtonBinding binding)
+    public static string GetControllerButtonBindingLabel(ControllerButtonBinding binding)
     {
         return OpenGarrisonPreferencesDocument.NormalizeControllerButtonBinding(binding) switch
         {
@@ -178,7 +178,7 @@ public partial class Game1
         };
     }
 
-    private static string GetApplicationVersionLabel()
+    public static string GetApplicationVersionLabel()
     {
         if (OperatingSystem.IsBrowser() && IsRestrictedBrowserEdition)
         {
@@ -188,7 +188,7 @@ public partial class Game1
         return _cachedApplicationVersionLabel ??= FormatApplicationVersionDisplayLabel(LoadApplicationVersionLabel());
     }
 
-    private static string LoadApplicationVersionLabel()
+    public static string LoadApplicationVersionLabel()
     {
         foreach (var candidate in EnumerateApplicationVersionCandidates())
         {
@@ -202,7 +202,7 @@ public partial class Game1
         return DevelopmentVersionLabel;
     }
 
-    private static IEnumerable<string> EnumerateApplicationVersionCandidates()
+    public static IEnumerable<string> EnumerateApplicationVersionCandidates()
     {
         if (OperatingSystem.IsBrowser())
         {
@@ -248,7 +248,7 @@ public partial class Game1
         }
     }
 
-    private static IEnumerable<string> EnumerateBrowserApplicationVersionCandidates()
+    public static IEnumerable<string> EnumerateBrowserApplicationVersionCandidates()
     {
         foreach (var relativePath in new[] { ApplicationBuildInfo.VersionFileName, $"Content/{ApplicationBuildInfo.VersionFileName}" })
         {
@@ -259,7 +259,7 @@ public partial class Game1
         }
     }
 
-    private static IEnumerable<string> EnumerateApplicationVersionFilePaths()
+    public static IEnumerable<string> EnumerateApplicationVersionFilePaths()
     {
         var directories = new List<string>();
         AddVersionProbeDirectory(directories, AppContext.BaseDirectory);
@@ -278,7 +278,7 @@ public partial class Game1
         }
     }
 
-    private static void AddVersionProbeDirectory(List<string> directories, string? directory)
+    public static void AddVersionProbeDirectory(List<string> directories, string? directory)
     {
         if (string.IsNullOrWhiteSpace(directory))
         {
@@ -301,7 +301,7 @@ public partial class Game1
         }
     }
 
-    private static bool TryReadVersionFile(string path, out string version)
+    public static bool TryReadVersionFile(string path, out string version)
     {
         version = string.Empty;
         try
@@ -324,18 +324,18 @@ public partial class Game1
         }
     }
 
-    private static bool TryNormalizeApplicationVersionLabel(string? rawVersion, out string version)
+    public static bool TryNormalizeApplicationVersionLabel(string? rawVersion, out string version)
     {
         version = rawVersion?.Trim() ?? string.Empty;
         return !string.IsNullOrWhiteSpace(version);
     }
 
-    private static string FormatApplicationVersionDisplayLabel(string version)
+    public static string FormatApplicationVersionDisplayLabel(string version)
     {
         return version.Trim();
     }
 
-    private static bool IsDefaultSdkVersionLabel(string version)
+    public static bool IsDefaultSdkVersionLabel(string version)
     {
         var comparable = version.Trim();
         if (comparable.StartsWith('v') || comparable.StartsWith('V'))
@@ -348,7 +348,7 @@ public partial class Game1
             || string.Equals(comparable, "1.0.0.0", StringComparison.OrdinalIgnoreCase);
     }
 
-    private float GetPlayerCardSizeScale()
+    public float GetPlayerCardSizeScale()
     {
         return ClientSettings.NormalizePlayerCardSizeMode(_playerCardSizeMode) switch
         {
@@ -358,14 +358,14 @@ public partial class Game1
         };
     }
 
-    private void BeginEditingPlayerName()
+    public void BeginEditingPlayerName()
     {
         _editingPlayerName = true;
         _playerNameEditBuffer = _world.LocalPlayer.DisplayName;
         InitializePlayerNameEditCursor();
     }
 
-    private void ApplyLoadedBubbleWheelPluginSettings()
+    public void ApplyLoadedBubbleWheelPluginSettings()
     {
         _bubbleWheelBehavior = OpenGarrisonPreferencesDocument.NormalizeBubbleWheelBehavior(_clientSettings.BubbleWheelBehavior);
         if (OperatingSystem.IsBrowser())
@@ -379,7 +379,7 @@ public partial class Game1
         _bubbleWheelPluginConfigLastWriteUtc = GetFileLastWriteUtcOrDefault(path);
     }
 
-    private BubbleWheelBehavior GetBubbleWheelBehaviorSetting()
+    public BubbleWheelBehavior GetBubbleWheelBehaviorSetting()
     {
         if (OperatingSystem.IsBrowser())
         {
@@ -397,12 +397,12 @@ public partial class Game1
         return OpenGarrisonPreferencesDocument.NormalizeBubbleWheelBehavior(_bubbleWheelBehavior);
     }
 
-    private static string GetBubbleWheelPluginConfigPath()
+    public static string GetBubbleWheelPluginConfigPath()
     {
         return Path.Combine(RuntimePaths.ConfigDirectory, "plugins", "client", "bubblewheel", BubbleWheelPluginConfig.DefaultFileName);
     }
 
-    private static DateTime GetFileLastWriteUtcOrDefault(string path)
+    public static DateTime GetFileLastWriteUtcOrDefault(string path)
     {
         try
         {
@@ -418,7 +418,7 @@ public partial class Game1
         }
     }
 
-    private void CycleDisplayModeSetting()
+    public void CycleDisplayModeSetting()
     {
         if (OperatingSystem.IsBrowser())
         {
@@ -429,7 +429,7 @@ public partial class Game1
         ApplyGraphicsSettings();
     }
 
-    private void ToggleFullscreenHotkey()
+    public void ToggleFullscreenHotkey()
     {
         if (OperatingSystem.IsBrowser())
         {
@@ -443,7 +443,7 @@ public partial class Game1
         ApplyGraphicsSettings();
     }
 
-    private void ResetWindowSize()
+    public void ResetWindowSize()
     {
         if (IsScreenFillingDisplayMode(_displayMode) || OperatingSystem.IsBrowser())
         {
@@ -456,7 +456,7 @@ public partial class Game1
         _graphics.ApplyChanges();
     }
 
-    private void CycleMusicModeSetting()
+    public void CycleMusicModeSetting()
     {
         _musicMode = GetNextMusicMode(_musicMode);
         StopMenuMusic();
@@ -466,7 +466,7 @@ public partial class Game1
         PersistClientSettings();
     }
 
-    private void ToggleDynamicMusicSetting()
+    public void ToggleDynamicMusicSetting()
     {
         _dynamicMusicEnabled = !_dynamicMusicEnabled;
         if (!_dynamicMusicEnabled)
@@ -479,13 +479,13 @@ public partial class Game1
     }
 
 
-    private void TogglePositionSmoothingSetting()
+    public void TogglePositionSmoothingSetting()
     {
         _positionSmoothingEnabled = !_positionSmoothingEnabled;
         PersistClientSettings();
     }
 
-    private void ToggleCameraPanningSetting()
+    public void ToggleCameraPanningSetting()
     {
         _cameraPanningEnabled = !_cameraPanningEnabled;
         ResetCameraPanningState();
@@ -493,14 +493,14 @@ public partial class Game1
         PersistClientSettings();
     }
 
-    private void TogglePredictionSetting()
+    public void TogglePredictionSetting()
     {
         _enablePrediction = !_enablePrediction;
         ResetLocalPredictionForAuthorityTransition();
         PersistClientSettings();
     }
 
-    private void CycleSwapWeaponsBindingSetting()
+    public void CycleSwapWeaponsBindingSetting()
     {
         _inputBindings.SwapWeaponsBinding = InputBindingsSettings.NormalizeSwapWeaponsBinding(_inputBindings.SwapWeaponsBinding) switch
         {
@@ -512,13 +512,13 @@ public partial class Game1
         PersistInputBindings();
     }
 
-    private void ToggleScrollWheelWeaponSwapSetting()
+    public void ToggleScrollWheelWeaponSwapSetting()
     {
         _inputBindings.ScrollWheelWeaponSwapEnabled = !_inputBindings.ScrollWheelWeaponSwapEnabled;
         PersistInputBindings();
     }
 
-    private void CycleBuildMenuStyleSetting()
+    public void CycleBuildMenuStyleSetting()
     {
         _clientSettings.BuildMenuStyle = OpenGarrisonPreferencesDocument.NormalizeBuildMenuStyle(_clientSettings.BuildMenuStyle) == BuildMenuStyle.List
             ? BuildMenuStyle.Wheel
@@ -527,7 +527,7 @@ public partial class Game1
         PersistClientSettings();
     }
 
-    private void CycleControllerInputModeSetting()
+    public void CycleControllerInputModeSetting()
     {
         _clientSettings.ControllerInputMode = OpenGarrisonPreferencesDocument.NormalizeControllerInputMode(_clientSettings.ControllerInputMode) switch
         {
@@ -538,7 +538,7 @@ public partial class Game1
         PersistClientSettings();
     }
 
-    private void CycleControllerReticleModeSetting()
+    public void CycleControllerReticleModeSetting()
     {
         _clientSettings.ControllerReticleMode = OpenGarrisonPreferencesDocument.NormalizeControllerReticleMode(_clientSettings.ControllerReticleMode) switch
         {
@@ -548,24 +548,24 @@ public partial class Game1
         PersistClientSettings();
     }
 
-    private void ToggleControllerAimAssistSetting()
+    public void ToggleControllerAimAssistSetting()
     {
         _clientSettings.ControllerAimAssistEnabled = !_clientSettings.ControllerAimAssistEnabled;
         PersistClientSettings();
     }
 
-    private void ToggleControllerFlickToChangeDirectionsSetting()
+    public void ToggleControllerFlickToChangeDirectionsSetting()
     {
         _clientSettings.ControllerFlickToChangeDirections = !_clientSettings.ControllerFlickToChangeDirections;
         PersistClientSettings();
     }
 
-    private void CycleControllerAimAssistStrengthSetting()
+    public void CycleControllerAimAssistStrengthSetting()
     {
         AdjustControllerAimAssistStrengthSetting(0.1f);
     }
 
-    private void AdjustControllerAimAssistStrengthSetting(float delta)
+    public void AdjustControllerAimAssistStrengthSetting(float delta)
     {
         var current = OpenGarrisonPreferencesDocument.NormalizeControllerAimAssistStrength(_clientSettings.ControllerAimAssistStrength);
         var next = current + delta;
@@ -582,12 +582,12 @@ public partial class Game1
         PersistClientSettings();
     }
 
-    private void CycleControllerAimDeadzoneSetting()
+    public void CycleControllerAimDeadzoneSetting()
     {
         AdjustControllerAimDeadzoneSetting(0.05f);
     }
 
-    private void AdjustControllerAimDeadzoneSetting(float delta)
+    public void AdjustControllerAimDeadzoneSetting(float delta)
     {
         var current = OpenGarrisonPreferencesDocument.NormalizeControllerAimDeadzone(_clientSettings.ControllerAimDeadzone);
         var next = current + delta;
@@ -604,12 +604,12 @@ public partial class Game1
         PersistClientSettings();
     }
 
-    private void CycleControllerScopedPrecisionSpeedSetting()
+    public void CycleControllerScopedPrecisionSpeedSetting()
     {
         AdjustControllerScopedPrecisionSpeedSetting(30f);
     }
 
-    private void AdjustControllerScopedPrecisionSpeedSetting(float delta)
+    public void AdjustControllerScopedPrecisionSpeedSetting(float delta)
     {
         var current = OpenGarrisonPreferencesDocument.NormalizeControllerScopedPrecisionSpeed(_clientSettings.ControllerScopedPrecisionSpeed);
         var next = current + delta;
@@ -626,12 +626,12 @@ public partial class Game1
         PersistClientSettings();
     }
 
-    private void CycleControllerAimDistanceTier1Setting()
+    public void CycleControllerAimDistanceTier1Setting()
     {
         AdjustControllerAimDistanceTier1Setting(16f);
     }
 
-    private void AdjustControllerAimDistanceTier1Setting(float delta)
+    public void AdjustControllerAimDistanceTier1Setting(float delta)
     {
         _clientSettings.ControllerAimDistanceTier1 = AdjustControllerAimDistance(
             _clientSettings.ControllerAimDistanceTier1,
@@ -640,12 +640,12 @@ public partial class Game1
         PersistClientSettings();
     }
 
-    private void CycleControllerAimDistanceTier2Setting()
+    public void CycleControllerAimDistanceTier2Setting()
     {
         AdjustControllerAimDistanceTier2Setting(16f);
     }
 
-    private void AdjustControllerAimDistanceTier2Setting(float delta)
+    public void AdjustControllerAimDistanceTier2Setting(float delta)
     {
         _clientSettings.ControllerAimDistanceTier2 = AdjustControllerAimDistance(
             _clientSettings.ControllerAimDistanceTier2,
@@ -654,12 +654,12 @@ public partial class Game1
         PersistClientSettings();
     }
 
-    private void CycleControllerAimDistanceTier3Setting()
+    public void CycleControllerAimDistanceTier3Setting()
     {
         AdjustControllerAimDistanceTier3Setting(16f);
     }
 
-    private void AdjustControllerAimDistanceTier3Setting(float delta)
+    public void AdjustControllerAimDistanceTier3Setting(float delta)
     {
         _clientSettings.ControllerAimDistanceTier3 = AdjustControllerAimDistance(
             _clientSettings.ControllerAimDistanceTier3,
@@ -668,7 +668,7 @@ public partial class Game1
         PersistClientSettings();
     }
 
-    private static float AdjustControllerAimDistance(float current, float fallback, float delta)
+    public static float AdjustControllerAimDistance(float current, float fallback, float delta)
     {
         var normalized = OpenGarrisonPreferencesDocument.NormalizeControllerAimDistance(current, fallback);
         var next = normalized + delta;
@@ -684,7 +684,7 @@ public partial class Game1
         return OpenGarrisonPreferencesDocument.NormalizeControllerAimDistance(next, fallback);
     }
 
-    private string GetSwapWeaponsBindingLabel()
+    public string GetSwapWeaponsBindingLabel()
     {
         return InputBindingsSettings.NormalizeSwapWeaponsBinding(_inputBindings.SwapWeaponsBinding) switch
         {
@@ -696,13 +696,13 @@ public partial class Game1
         };
     }
 
-    private void CycleIngameResolutionSetting()
+    public void CycleIngameResolutionSetting()
     {
         _clientSettings.IngameResolution = GetNextIngameResolution(_clientSettings.IngameResolution);
         ApplyGraphicsSettings();
     }
 
-    private void CycleWindowSizeSetting()
+    public void CycleWindowSizeSetting()
     {
         if (OperatingSystem.IsBrowser())
         {
@@ -714,7 +714,7 @@ public partial class Game1
     }
 
 
-    private void CycleFrameRateLimitSetting()
+    public void CycleFrameRateLimitSetting()
     {
         var current = NormalizeFrameRateLimit(_frameRateLimit);
         var next = current switch
@@ -730,14 +730,14 @@ public partial class Game1
         PersistClientSettings();
     }
 
-    private void CycleParticleModeSetting()
+    public void CycleParticleModeSetting()
     {
         _particleMode = (_particleMode + 2) % 3;
         PersistClientSettings();
     }
 
 
-    private void CyclePlayerCardSizeSetting()
+    public void CyclePlayerCardSizeSetting()
     {
         _playerCardSizeMode = ClientSettings.NormalizePlayerCardSizeMode(_playerCardSizeMode) switch
         {
@@ -749,7 +749,7 @@ public partial class Game1
         PersistClientSettings();
     }
 
-    private void CycleCursorSizeSetting()
+    public void CycleCursorSizeSetting()
     {
         var current = ClientSettings.NormalizeCursorSizePercent(_cursorSizePercent);
         _cursorSizePercent = current >= ClientSettings.CursorSizeMaxPercent
@@ -759,7 +759,7 @@ public partial class Game1
         PersistClientSettings();
     }
 
-    private void AdjustCursorSizeSetting(int step)
+    public void AdjustCursorSizeSetting(int step)
     {
         var current = ClientSettings.NormalizeCursorSizePercent(_cursorSizePercent);
         _cursorSizePercent = Math.Clamp(
@@ -770,7 +770,7 @@ public partial class Game1
         PersistClientSettings();
     }
 
-    private void CycleLowHealthColorModeSetting()
+    public void CycleLowHealthColorModeSetting()
     {
         _lowHealthColorMode = ClientSettings.NormalizeLowHealthColorMode(_lowHealthColorMode) switch
         {
@@ -781,7 +781,7 @@ public partial class Game1
         PersistClientSettings();
     }
 
-    private void CycleDamageVignetteIntensitySetting()
+    public void CycleDamageVignetteIntensitySetting()
     {
         var current = ClientSettings.NormalizeDamageVignetteIntensityPercent(_damageVignetteIntensityPercent);
         _damageVignetteIntensityPercent = current <= 0
@@ -790,24 +790,24 @@ public partial class Game1
         PersistClientSettings();
     }
 
-    private void CycleFlameRenderModeSetting()
+    public void CycleFlameRenderModeSetting()
     {
         _flameRenderMode = (_flameRenderMode + 1) % 2;
         PersistClientSettings();
     }
 
-    private void CycleBloodRenderModeSetting()
+    public void CycleBloodRenderModeSetting()
     {
         _bloodRenderMode = (_bloodRenderMode + 1) % 2;
         if (_bloodRenderMode != 0)
         {
-            _gameplayGoreEffectsController.ResetBloodSquibEffects();
+            _gameplayManager.GoreEffects.ResetBloodSquibEffects();
         }
 
         PersistClientSettings();
     }
 
-    private void ToggleDynamicRagdollSetting()
+    public void ToggleDynamicRagdollSetting()
     {
         _dynamicRagdollEnabled = !_dynamicRagdollEnabled;
         if (!_dynamicRagdollEnabled)
@@ -818,7 +818,7 @@ public partial class Game1
         PersistClientSettings();
     }
 
-    private void ToggleBurnCharredCorpsesSetting()
+    public void ToggleBurnCharredCorpsesSetting()
     {
         _burnCharredCorpsesEnabled = !_burnCharredCorpsesEnabled;
         if (!_burnCharredCorpsesEnabled)
@@ -829,20 +829,20 @@ public partial class Game1
         PersistClientSettings();
     }
 
-    private void AdjustBloodPersistenceSeconds(int step)
+    public void AdjustBloodPersistenceSeconds(int step)
     {
         _bloodPersistenceSeconds = Math.Clamp(_bloodPersistenceSeconds + step, 1, 120);
         ApplyBloodPresentationSettingsToWorld();
         PersistClientSettings();
     }
 
-    private void CycleCorpseFadeModeSetting()
+    public void CycleCorpseFadeModeSetting()
     {
         _corpseFadeMode = (_corpseFadeMode + 1) % 2;
         PersistClientSettings();
     }
 
-    private void CycleMenuBackgroundModeSetting()
+    public void CycleMenuBackgroundModeSetting()
     {
         _menuBackgroundMode = _menuBackgroundMode switch
         {
@@ -855,17 +855,17 @@ public partial class Game1
         // Initialize or reset the animated background controller based on new mode
         if (_menuBackgroundMode != MenuBackgroundMode.Static && _mainMenuOpen)
         {
-            _animatedMenuBackgroundController.Initialize(_menuBackgroundMode);
+            _menuManager.AnimatedMenuBackground.Initialize(_menuBackgroundMode);
         }
         else if (_menuBackgroundMode == MenuBackgroundMode.Static)
         {
-            _animatedMenuBackgroundController.Reset();
+            _menuManager.AnimatedMenuBackground.Reset();
         }
 
         PersistClientSettings();
     }
 
-    private void CycleGibLevelSetting()
+    public void CycleGibLevelSetting()
     {
         _gibLevel = _gibLevel switch
         {
@@ -876,19 +876,19 @@ public partial class Game1
         };
         if (!AreBloodVisualsEnabled)
         {
-            _gameplayGoreEffectsController.ResetBloodSquibEffects();
+            _gameplayManager.GoreEffects.ResetBloodSquibEffects();
         }
 
         PersistClientSettings();
     }
 
-    private void CycleBloodAmountSetting()
+    public void CycleBloodAmountSetting()
     {
         _bloodAmountLevel = _bloodAmountLevel >= 5 ? 1 : _bloodAmountLevel + 1;
         PersistClientSettings();
     }
 
-    private void CycleCorpseDurationSetting()
+    public void CycleCorpseDurationSetting()
     {
         _corpseDurationMode = _corpseDurationMode == ClientSettings.CorpseDurationInfinite
             ? ClientSettings.CorpseDurationDefault
@@ -901,43 +901,43 @@ public partial class Game1
         PersistClientSettings();
     }
 
-    private void ToggleHealerRadarSetting()
+    public void ToggleHealerRadarSetting()
     {
         _healerRadarEnabled = !_healerRadarEnabled;
         PersistClientSettings();
     }
 
-    private void ToggleShowHealerSetting()
+    public void ToggleShowHealerSetting()
     {
         _showHealerEnabled = !_showHealerEnabled;
         PersistClientSettings();
     }
 
-    private void ToggleShowHealingSetting()
+    public void ToggleShowHealingSetting()
     {
         _showHealingEnabled = !_showHealingEnabled;
         PersistClientSettings();
     }
 
-    private void ToggleShowHealthBarSetting()
+    public void ToggleShowHealthBarSetting()
     {
         _showHealthBarEnabled = !_showHealthBarEnabled;
         PersistClientSettings();
     }
 
-    private void ToggleShowShieldBarSetting()
+    public void ToggleShowShieldBarSetting()
     {
         _showShieldBarEnabled = !_showShieldBarEnabled;
         PersistClientSettings();
     }
 
-    private void ToggleHudWeaponDisplayModeSetting()
+    public void ToggleHudWeaponDisplayModeSetting()
     {
         _hudShowOnlyActiveWeapon = !_hudShowOnlyActiveWeapon;
         PersistClientSettings();
     }
 
-    private void ToggleOverheadChatSetting()
+    public void ToggleOverheadChatSetting()
     {
         _overheadChatEnabled = !_overheadChatEnabled;
         if (!_overheadChatEnabled)
@@ -949,7 +949,7 @@ public partial class Game1
         PersistClientSettings();
     }
 
-    private void TogglePortraitRumbleSetting()
+    public void TogglePortraitRumbleSetting()
     {
         _portraitRumbleEnabled = !_portraitRumbleEnabled;
         if (!_portraitRumbleEnabled)
@@ -961,7 +961,7 @@ public partial class Game1
         PersistClientSettings();
     }
 
-    private void TogglePostGameMvpArtSetting()
+    public void TogglePostGameMvpArtSetting()
     {
         _postGameMvpArtEnabled = !_postGameMvpArtEnabled;
         _postGameMvpArtHidden = false;
@@ -973,7 +973,7 @@ public partial class Game1
         PersistClientSettings();
     }
 
-    private void ToggleDamageVignetteSetting()
+    public void ToggleDamageVignetteSetting()
     {
         _damageVignetteEnabled = !_damageVignetteEnabled;
         if (!_damageVignetteEnabled)
@@ -985,25 +985,25 @@ public partial class Game1
         PersistClientSettings();
     }
 
-    private void TogglePersistentSelfNameSetting()
+    public void TogglePersistentSelfNameSetting()
     {
         _showPersistentSelfNameEnabled = !_showPersistentSelfNameEnabled;
         PersistClientSettings();
     }
 
-    private void ToggleShowPlayerNamesSetting()
+    public void ToggleShowPlayerNamesSetting()
     {
         _showPlayerNamesEnabled = !_showPlayerNamesEnabled;
         PersistClientSettings();
     }
 
-    private void ToggleSpriteDropShadowSetting()
+    public void ToggleSpriteDropShadowSetting()
     {
         _spriteDropShadowEnabled = !_spriteDropShadowEnabled;
         PersistClientSettings();
     }
 
-    private void ToggleStuckArrowsSetting()
+    public void ToggleStuckArrowsSetting()
     {
         _stuckArrowsEnabled = !_stuckArrowsEnabled;
         if (!_stuckArrowsEnabled)
@@ -1014,7 +1014,7 @@ public partial class Game1
         PersistClientSettings();
     }
 
-    private void CycleWeaponBobSetting()
+    public void CycleWeaponBobSetting()
     {
         _weaponBobMode = OpenGarrisonPreferencesDocument.NormalizeWeaponBobMode(_weaponBobMode) == WeaponBobMode.Enabled
             ? WeaponBobMode.Disabled
@@ -1022,47 +1022,47 @@ public partial class Game1
         PersistClientSettings();
     }
 
-    private void ToggleWeaponRotationStyleSetting()
+    public void ToggleWeaponRotationStyleSetting()
     {
         _pixelPerfectWeaponRotation = !_pixelPerfectWeaponRotation;
         PersistClientSettings();
     }
 
-    private void ToggleWeaponRotationSourceSetting()
+    public void ToggleWeaponRotationSourceSetting()
     {
         _useLocalWeaponRotation = !_useLocalWeaponRotation;
         PersistClientSettings();
     }
 
-    private void ToggleAudioMuteSetting()
+    public void ToggleAudioMuteSetting()
     {
         _audioMuted = !_audioMuted;
         ApplyAudioVolumeState();
         PersistClientSettings();
     }
 
-    private void AdjustMasterVolume(int deltaPercent)
+    public void AdjustMasterVolume(int deltaPercent)
     {
         _masterVolumePercent = Math.Clamp(_masterVolumePercent + deltaPercent, 0, 100);
         ApplyAudioVolumeState();
         PersistClientSettings();
     }
 
-    private void AdjustMenuMusicVolume(int deltaPercent)
+    public void AdjustMenuMusicVolume(int deltaPercent)
     {
         _menuMusicVolumePercent = Math.Clamp(_menuMusicVolumePercent + deltaPercent, 0, 100);
         ApplyAudioVolumeState();
         PersistClientSettings();
     }
 
-    private void AdjustIngameMusicVolume(int deltaPercent)
+    public void AdjustIngameMusicVolume(int deltaPercent)
     {
         _ingameMusicVolumePercent = Math.Clamp(_ingameMusicVolumePercent + deltaPercent, 0, 100);
         ApplyAudioVolumeState();
         PersistClientSettings();
     }
 
-    private void AdjustCombatMusicVolume(int deltaPercent)
+    public void AdjustCombatMusicVolume(int deltaPercent)
     {
         _combatMusicVolumePercent = Math.Clamp(
             _combatMusicVolumePercent + deltaPercent,
@@ -1072,38 +1072,38 @@ public partial class Game1
         PersistClientSettings();
     }
 
-    private void AdjustSoundEffectsVolume(int deltaPercent)
+    public void AdjustSoundEffectsVolume(int deltaPercent)
     {
         _soundEffectsVolumePercent = Math.Clamp(_soundEffectsVolumePercent + deltaPercent, 0, 100);
         PersistClientSettings();
     }
 
-    private void ToggleUberOutlinesSetting()
+    public void ToggleUberOutlinesSetting()
     {
         _uberOutlineEnabled = !_uberOutlineEnabled;
         PersistClientSettings();
     }
 
-    private void ToggleProjectileTeamTintSetting()
+    public void ToggleProjectileTeamTintSetting()
     {
         _projectileTeamTintEnabled = !_projectileTeamTintEnabled;
         PersistClientSettings();
     }
 
-    private void ToggleKillCamSetting()
+    public void ToggleKillCamSetting()
     {
         _killCamEnabled = !_killCamEnabled;
         PersistClientSettings();
     }
 
-    private void ToggleVSyncSetting()
+    public void ToggleVSyncSetting()
     {
         _clientSettings.VSync = !_clientSettings.VSync;
         ApplyGraphicsSettings();
     }
 
 
-    private void DrawMenuPanelBackdrop(Rectangle rectangle, float alpha)
+    public void DrawMenuPanelBackdrop(Rectangle rectangle, float alpha)
     {
         if (rectangle.Width <= 0 || rectangle.Height <= 0)
         {

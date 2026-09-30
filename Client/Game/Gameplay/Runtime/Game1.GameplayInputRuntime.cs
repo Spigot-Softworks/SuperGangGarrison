@@ -9,7 +9,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private (PlayerInputSnapshot GameplayInput, PlayerInputSnapshot NetworkInput) BuildGameplayInputs(KeyboardState keyboard, MouseState mouse, Vector2 cameraPosition, float deltaSeconds)
+    public (PlayerInputSnapshot GameplayInput, PlayerInputSnapshot NetworkInput) BuildGameplayInputs(KeyboardState keyboard, MouseState mouse, Vector2 cameraPosition, float deltaSeconds)
     {
         if (_suppressPrimaryFireUntilMouseRelease
             && mouse.LeftButton != ButtonState.Pressed)
@@ -168,7 +168,7 @@ public partial class Game1
     }
 
 
-    internal static PlayerInputSnapshot ApplyBubbleMenuGameplaySuppression(PlayerInputSnapshot input)
+    public static PlayerInputSnapshot ApplyBubbleMenuGameplaySuppression(PlayerInputSnapshot input)
     {
         return input with
         {
@@ -191,7 +191,7 @@ public partial class Game1
         _suppressSecondaryFireUntilMouseRelease = true;
     }
 
-    private void SuppressMouseFireAfterGameplayInputUnblocks(bool wasGameplayInputBlocked, MouseState mouse)
+    public void SuppressMouseFireAfterGameplayInputUnblocks(bool wasGameplayInputBlocked, MouseState mouse)
     {
         if (!wasGameplayInputBlocked || IsGameplayInputBlocked())
         {
@@ -209,7 +209,7 @@ public partial class Game1
         }
     }
 
-    private void UpdateSpectatorTrackingHotkeys(KeyboardState keyboard, MouseState mouse)
+    public void UpdateSpectatorTrackingHotkeys(KeyboardState keyboard, MouseState mouse)
     {
         if (_scoreboardOpen || IsBindingDown(keyboard, mouse, _inputBindings.ShowScoreboard))
         {

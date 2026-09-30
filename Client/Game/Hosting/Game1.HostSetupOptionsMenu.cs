@@ -9,7 +9,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private static readonly string[] HostSetupOptionsTabLabels =
+    public static readonly string[] HostSetupOptionsTabLabels =
     [
         "Basic",
         "Match",
@@ -32,7 +32,7 @@ public partial class Game1
             var barY = viewportHeight - bottomBarHeight;
             var bottomBarBounds = new Rectangle(0, barY, viewportWidth, bottomBarHeight);
             _spriteBatch.Draw(_pixel, bottomBarBounds, new Color(0x57, 0x4f, 0x47));
-            _menuBottomBarRunners.Draw(bottomBarBounds);
+            _menuManager.MenuBottomBarRunners.Draw(bottomBarBounds);
         }
 
         var layout = HostSetupOptionsMenuLayout.Create(viewportWidth, viewportHeight);
@@ -142,7 +142,7 @@ public partial class Game1
         }
     }
 
-    private void HandleHostSetupOptionsMenu(MouseState mouse, bool clickPressed)
+    public void HandleHostSetupOptionsMenu(MouseState mouse, bool clickPressed)
     {
         var layout = HostSetupOptionsMenuLayout.Create(ViewportWidth, ViewportHeight);
         var optionCount = _hostSetupState.GetHostOptionsRowCount();
@@ -217,7 +217,7 @@ public partial class Game1
         if (_hostOptionsHoverIndex == optionCount)
         {
             _hostSetupState.NavigateToMainScreen();
-            _hostSetupFlowController.FocusHostSetupField(HostSetupEditField.ServerName);
+            _hostingManager.HostSetup.FocusHostSetupField(HostSetupEditField.ServerName);
             return;
         }
 
@@ -285,7 +285,7 @@ public partial class Game1
             case HostSetupCvarEditorKind.NumericText:
                 _hostSetupState.ActiveAdvancedCvarName = definition.Name;
                 _hostSetupState.SetAdvancedCvarRawValue(definition, _hostSetupState.GetAdvancedCvarRawValue(definition));
-                _hostSetupFlowController.FocusHostSetupField(HostSetupEditField.AdvancedCvar);
+                _hostingManager.HostSetup.FocusHostSetupField(HostSetupEditField.AdvancedCvar);
                 _hostSetupState.AdvancedCvarCursorIndex = _hostSetupState.GetActiveAdvancedCvarEditBuffer().Length;
                 _hostSetupState.AdvancedCvarSelectionStart = _hostSetupState.AdvancedCvarCursorIndex;
                 if (IsTextFieldDoubleClick(TextFieldClickTarget.HostSetupAdvancedCvar))
@@ -302,7 +302,7 @@ public partial class Game1
         switch (rowIndex)
         {
             case 0:
-                _hostSetupFlowController.FocusHostSetupField(HostSetupEditField.TimeLimit);
+                _hostingManager.HostSetup.FocusHostSetupField(HostSetupEditField.TimeLimit);
                 _hostSetupState.ClearAdvancedCvarEditFocus();
                 if (IsTextFieldDoubleClick(TextFieldClickTarget.HostSetupTimeLimit))
                 {
@@ -311,7 +311,7 @@ public partial class Game1
 
                 break;
             case 1:
-                _hostSetupFlowController.FocusHostSetupField(HostSetupEditField.CapLimit);
+                _hostingManager.HostSetup.FocusHostSetupField(HostSetupEditField.CapLimit);
                 _hostSetupState.ClearAdvancedCvarEditFocus();
                 if (IsTextFieldDoubleClick(TextFieldClickTarget.HostSetupCapLimit))
                 {
@@ -320,7 +320,7 @@ public partial class Game1
 
                 break;
             case 2:
-                _hostSetupFlowController.FocusHostSetupField(HostSetupEditField.RespawnSeconds);
+                _hostingManager.HostSetup.FocusHostSetupField(HostSetupEditField.RespawnSeconds);
                 _hostSetupState.ClearAdvancedCvarEditFocus();
                 if (IsTextFieldDoubleClick(TextFieldClickTarget.HostSetupRespawnSeconds))
                 {

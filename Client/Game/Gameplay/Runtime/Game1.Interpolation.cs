@@ -11,34 +11,34 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private const int SnapshotStateHistoryLimit = 96;
-    private const int MaxQueuedAuthoritativeSnapshots = 4;
-    private const float RemotePlayerTeleportSnapDistance = 128f;
-    private const float RemotePlayerExtrapolationDurationSeconds = 0.07f;
-    private const float LocalPlayerMinimumInterpolationBackTimeSeconds = 0.050f;
-    private const float LocalPlayerMaximumInterpolationBackTimeSeconds = 0.180f;
-    private const float RemotePlayerMinimumInterpolationBackTimeSeconds = 0.050f;
-    private const float RemotePlayerMaximumInterpolationBackTimeSeconds = 0.280f;
-    private const float ProjectileMinimumInterpolationBackTimeSeconds = 0.075f;
-    private const float ProjectileMaximumInterpolationBackTimeSeconds = 0.220f;
-    private const float ReplayMinimumInterpolationBackTimeSeconds = 0.02f;
-    private const float ReplayMaximumInterpolationBackTimeSeconds = 0.06f;
-    private const float OfflineInterpolationTeleportSnapDistance = 128f;
-    private const float SnapshotHistoryRetentionSeconds = 0.5f;
-    private const float StaleEntitySnapshotHistoryPruneSeconds = 1.0f;
-    private const float StaleRemotePlayerSnapshotHistoryPruneSeconds = 1.0f;
-    private const float MaximumLocalProjectileInterpolationDistance = 256f;
-    private const int NetworkInterpolationWarmupSnapshotCount = 4;
-    private const float NetworkInterpolationWarmupSeconds = 0.35f;
-    private const int NetworkWorldWarmupMinimumAppliedSnapshotsAfterFull = 2;
-    private const int NetworkPlayerPresentationMinimumSamples = 2;
-    private const float NetworkWorldWarmupFreshPlayerHistorySeconds = 0.25f;
+    public const int SnapshotStateHistoryLimit = 96;
+    public const int MaxQueuedAuthoritativeSnapshots = 4;
+    public const float RemotePlayerTeleportSnapDistance = 128f;
+    public const float RemotePlayerExtrapolationDurationSeconds = 0.07f;
+    public const float LocalPlayerMinimumInterpolationBackTimeSeconds = 0.050f;
+    public const float LocalPlayerMaximumInterpolationBackTimeSeconds = 0.180f;
+    public const float RemotePlayerMinimumInterpolationBackTimeSeconds = 0.050f;
+    public const float RemotePlayerMaximumInterpolationBackTimeSeconds = 0.280f;
+    public const float ProjectileMinimumInterpolationBackTimeSeconds = 0.075f;
+    public const float ProjectileMaximumInterpolationBackTimeSeconds = 0.220f;
+    public const float ReplayMinimumInterpolationBackTimeSeconds = 0.02f;
+    public const float ReplayMaximumInterpolationBackTimeSeconds = 0.06f;
+    public const float OfflineInterpolationTeleportSnapDistance = 128f;
+    public const float SnapshotHistoryRetentionSeconds = 0.5f;
+    public const float StaleEntitySnapshotHistoryPruneSeconds = 1.0f;
+    public const float StaleRemotePlayerSnapshotHistoryPruneSeconds = 1.0f;
+    public const float MaximumLocalProjectileInterpolationDistance = 256f;
+    public const int NetworkInterpolationWarmupSnapshotCount = 4;
+    public const float NetworkInterpolationWarmupSeconds = 0.35f;
+    public const int NetworkWorldWarmupMinimumAppliedSnapshotsAfterFull = 2;
+    public const int NetworkPlayerPresentationMinimumSamples = 2;
+    public const float NetworkWorldWarmupFreshPlayerHistorySeconds = 0.25f;
     // Projectiles are updated every few ticks - enable extrapolation to smooth between updates
     // This prevents jittering when the camera/player moves around projectiles
-    private static readonly float ProjectileInterpolationExtrapolationCeilingSeconds = 0.30f;
-    private const int ExpectedProjectileUpdateIntervalTicks = 1;
+    public static readonly float ProjectileInterpolationExtrapolationCeilingSeconds = 0.30f;
+    public const int ExpectedProjectileUpdateIntervalTicks = 1;
 
-    private int GetPlayerStateKey(PlayerEntity player)
+    public int GetPlayerStateKey(PlayerEntity player)
     {
         if (ReferenceEquals(player, _world.LocalPlayer))
         {
@@ -48,18 +48,18 @@ public partial class Game1
         return player.Id;
     }
 
-    private readonly Dictionary<int, Vector2> _interpolatedEntityPositions = new();
-    private readonly Dictionary<PlayerTeam, Vector2> _interpolatedIntelPositions = new();
-    private readonly Dictionary<int, InterpolationTrack> _entityInterpolationTracks = new();
-    private readonly Dictionary<PlayerTeam, InterpolationTrack> _intelInterpolationTracks = new();
-    private readonly Dictionary<int, List<EntitySnapshotSample>> _entitySnapshotHistories = new();
-    private readonly Dictionary<int, NetworkDiagnosticEntityInterpolationKind> _entitySnapshotHistoryKinds = new();
+    public readonly Dictionary<int, Vector2> _interpolatedEntityPositions = new();
+    public readonly Dictionary<PlayerTeam, Vector2> _interpolatedIntelPositions = new();
+    public readonly Dictionary<int, InterpolationTrack> _entityInterpolationTracks = new();
+    public readonly Dictionary<PlayerTeam, InterpolationTrack> _intelInterpolationTracks = new();
+    public readonly Dictionary<int, List<EntitySnapshotSample>> _entitySnapshotHistories = new();
+    public readonly Dictionary<int, NetworkDiagnosticEntityInterpolationKind> _entitySnapshotHistoryKinds = new();
     // These detached proxies bridge the small interval between an authoritative
     // projectile removal and the shared render clock reaching that terminal tick.
     // They never enter SimulationWorld.Entities and therefore cannot participate
     // in combat, prediction, or snapshot application.
-    private readonly Dictionary<int, RocketProjectileEntity> _retainedRocketPresentationEntities = new();
-    private readonly Dictionary<int, FlareProjectileEntity> _retainedFlarePresentationEntities = new();
+    public readonly Dictionary<int, RocketProjectileEntity> _retainedRocketPresentationEntities = new();
+    public readonly Dictionary<int, FlareProjectileEntity> _retainedFlarePresentationEntities = new();
     private readonly Dictionary<int, ulong> _retainedProjectilePresentationSourceFrames = new();
     private readonly Dictionary<PlayerTeam, List<EntitySnapshotSample>> _intelSnapshotHistories = new();
     private readonly Dictionary<int, List<PlayerSnapshotSample>> _remotePlayerSnapshotHistories = new();
@@ -73,33 +73,33 @@ public partial class Game1
     private readonly Queue<QueuedAuthoritativeSnapshot> _queuedAuthoritativeSnapshots = new();
     private readonly Stopwatch _networkInterpolationClock = Stopwatch.StartNew();
     private double _networkInterpolationClockSeconds;
-    private float _networkSnapshotInterpolationDurationSeconds = 1f / SimulationConfig.DefaultTicksPerSecond;
-    private float _smoothedSnapshotIntervalSeconds = 1f / SimulationConfig.DefaultTicksPerSecond;
-    private float _smoothedSnapshotJitterSeconds;
-    private float _localPlayerInterpolationBackTimeSeconds = LocalPlayerMinimumInterpolationBackTimeSeconds;
-    private float _remotePlayerInterpolationBackTimeSeconds = RemotePlayerMinimumInterpolationBackTimeSeconds;
-    private float _projectileInterpolationBackTimeSeconds = ProjectileMinimumInterpolationBackTimeSeconds;
-    private double _localPlayerRenderTimeSeconds;
-    private double _remotePlayerRenderTimeSeconds;
-    private double _lastLocalPlayerRenderTimeClockSeconds = -1d;
-    private double _lastRemotePlayerRenderTimeClockSeconds = -1d;
-    private double _lastSnapshotReceivedTimeSeconds = -1d;
-    private double _latestSnapshotServerTimeSeconds = -1d;
-    private double _latestSnapshotReceivedClockSeconds = -1d;
-    private double _lastPredictedRenderSmoothingTimeSeconds = -1d;
-    private bool _hasReceivedSnapshot;
-    private bool _hasLocalPlayerRenderTime;
-    private bool _hasRemotePlayerRenderTime;
-    private ulong _lastAppliedSnapshotFrame;
-    private ulong _lastBufferedSnapshotFrame;
-    private int? _lastAppliedSnapshotLocalPlayerId;
-    private int _networkInterpolationWarmupSnapshotsRemaining;
-    private double _networkInterpolationWarmupUntilClockSeconds = -1d;
-    private bool _networkWorldWarmupActive;
-    private bool _networkWorldWarmupFullSnapshotApplied;
-    private int _networkWorldWarmupAppliedSnapshotsAfterFull;
-    private bool _networkWorldWarmupAcceptNextAppliedSnapshotAsBaseline;
-    private LastToDieWirePhase? _networkPresentationObservedLastToDiePhase;
+    public float _networkSnapshotInterpolationDurationSeconds = 1f / SimulationConfig.DefaultTicksPerSecond;
+    public float _smoothedSnapshotIntervalSeconds = 1f / SimulationConfig.DefaultTicksPerSecond;
+    public float _smoothedSnapshotJitterSeconds;
+    public float _localPlayerInterpolationBackTimeSeconds = LocalPlayerMinimumInterpolationBackTimeSeconds;
+    public float _remotePlayerInterpolationBackTimeSeconds = RemotePlayerMinimumInterpolationBackTimeSeconds;
+    public float _projectileInterpolationBackTimeSeconds = ProjectileMinimumInterpolationBackTimeSeconds;
+    public double _localPlayerRenderTimeSeconds;
+    public double _remotePlayerRenderTimeSeconds;
+    public double _lastLocalPlayerRenderTimeClockSeconds = -1d;
+    public double _lastRemotePlayerRenderTimeClockSeconds = -1d;
+    public double _lastSnapshotReceivedTimeSeconds = -1d;
+    public double _latestSnapshotServerTimeSeconds = -1d;
+    public double _latestSnapshotReceivedClockSeconds = -1d;
+    public double _lastPredictedRenderSmoothingTimeSeconds = -1d;
+    public bool _hasReceivedSnapshot;
+    public bool _hasLocalPlayerRenderTime;
+    public bool _hasRemotePlayerRenderTime;
+    public ulong _lastAppliedSnapshotFrame;
+    public ulong _lastBufferedSnapshotFrame;
+    public int? _lastAppliedSnapshotLocalPlayerId;
+    public int _networkInterpolationWarmupSnapshotsRemaining;
+    public double _networkInterpolationWarmupUntilClockSeconds = -1d;
+    public bool _networkWorldWarmupActive;
+    public bool _networkWorldWarmupFullSnapshotApplied;
+    public int _networkWorldWarmupAppliedSnapshotsAfterFull;
+    public bool _networkWorldWarmupAcceptNextAppliedSnapshotAsBaseline;
+    public LastToDieWirePhase? _networkPresentationObservedLastToDiePhase;
 
     private bool IsPositionSmoothingActive()
     {
@@ -109,7 +109,7 @@ public partial class Game1
             _networkClient.IsReplayConnection);
     }
 
-    private float GetMinimumRemotePlayerInterpolationBackTimeSeconds()
+    public float GetMinimumRemotePlayerInterpolationBackTimeSeconds()
     {
         return _networkClient.IsReplayConnection
             ? ReplayMinimumInterpolationBackTimeSeconds
@@ -123,7 +123,7 @@ public partial class Game1
             : RemotePlayerMaximumInterpolationBackTimeSeconds;
     }
 
-    private float GetMinimumLocalPlayerInterpolationBackTimeSeconds()
+    public float GetMinimumLocalPlayerInterpolationBackTimeSeconds()
     {
         return _networkClient.IsReplayConnection
             ? ReplayMinimumInterpolationBackTimeSeconds
@@ -137,7 +137,7 @@ public partial class Game1
             : LocalPlayerMaximumInterpolationBackTimeSeconds;
     }
 
-    private Vector2 GetRenderPosition(int entityId, float x, float y, bool allowInterpolation = true)
+    public Vector2 GetRenderPosition(int entityId, float x, float y, bool allowInterpolation = true)
     {
         var renderPosition = GetBaseRenderPosition(entityId, x, y, allowInterpolation);
         if (TryGetLocalProjectileLaunchOriginOffset(entityId, out var predictionOffset))
@@ -315,7 +315,7 @@ public partial class Game1
             <= MaximumLocalProjectileInterpolationDistance * MaximumLocalProjectileInterpolationDistance;
     }
 
-    private Vector2 GetRenderPosition(PlayerEntity player, bool allowInterpolation = true)
+    public Vector2 GetRenderPosition(PlayerEntity player, bool allowInterpolation = true)
     {
         if (_networkClient.IsLegacyGg2Connection
             && player.IsAlive
@@ -400,7 +400,7 @@ public partial class Game1
         return _interpolatedIntelPositions.GetValueOrDefault(intelState.Team, new Vector2(intelState.X, intelState.Y));
     }
 
-    private readonly record struct InterpolationTrack(
+    public readonly record struct InterpolationTrack(
         Vector2 Start,
         Vector2 Target,
         double StartTimeSeconds,
@@ -424,14 +424,14 @@ public partial class Game1
         SnapshotMessage ResolvedSnapshot,
         bool IsServerFullSnapshot);
 
-    private readonly record struct EntitySnapshotSample(
+    public readonly record struct EntitySnapshotSample(
         Vector2 Position,
         Vector2 Velocity,
         double TimeSeconds,
         float ExtrapolationDurationSeconds,
         float MaxExtrapolationDistance);
 
-    private void ResetSnapshotStateHistory()
+    public void ResetSnapshotStateHistory()
     {
         _snapshotStatesByFrame.Clear();
         _snapshotStateFrameOrder.Clear();

@@ -6,7 +6,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private void ReinitializeSimulationForTickRate(int tickRate)
+    public void ReinitializeSimulationForTickRate(int tickRate)
     {
         var normalizedTickRate = SimulationConfig.NormalizeTicksPerSecond(tickRate);
         if (_world is not null && _config.TicksPerSecond == normalizedTickRate)

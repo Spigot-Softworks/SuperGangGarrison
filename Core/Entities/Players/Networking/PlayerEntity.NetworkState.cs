@@ -215,7 +215,7 @@ public sealed partial class PlayerEntity
         // Protocol 64 does not carry the legacy SnapshotMessage, so keep the
         // experimental secondary weapon's live ammo/timing on the canonical
         // player record as well. The HUD and weapon presentation both consume
-        // these properties when the QUIC path is active.
+        // these properties when the protocol-64 path is active.
         if ((!hasNestedEquipment || nestedEquipmentApplied)
             && HasExperimentalOffhandWeapon
             && state.OffhandMaxAmmo > 0)

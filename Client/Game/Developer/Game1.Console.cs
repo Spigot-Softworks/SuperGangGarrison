@@ -12,11 +12,11 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private const int ConsoleHistoryLimit = 256;
-    private const int ConsoleScrollStep = 4;
-    private bool _consoleOpen;
-    private bool _gameplayHudHidden;
-    private string _consoleInput = string.Empty;
+    public const int ConsoleHistoryLimit = 256;
+    public const int ConsoleScrollStep = 4;
+    public bool _consoleOpen;
+    public bool _gameplayHudHidden;
+    public string _consoleInput = string.Empty;
     private int _consoleScrollOffset;
     private readonly List<string> _consoleHistory = new();
     private (OpenGarrison.SessionRuntime.EmbeddedSessionHost Host, System.Threading.Tasks.Task<IReadOnlyList<string>> Result)? _embeddedConsoleCommand;
@@ -65,14 +65,14 @@ public partial class Game1
         return true;
     }
 
-    private void ExecuteConsoleCommand()
+    public void ExecuteConsoleCommand()
     {
         var commandText = _consoleInput.Trim();
         _consoleInput = string.Empty;
         ExecuteConsoleCommand(commandText);
     }
 
-    private void ExecuteConsoleCommand(string commandText)
+    public void ExecuteConsoleCommand(string commandText)
     {
         commandText = commandText.Trim();
         AddConsoleLine($"> {commandText}");
@@ -86,7 +86,7 @@ public partial class Game1
         switch (command)
         {
             case "help":
-                AddConsoleLine("help, bind <key> <action>, clear, hide_hud <on|off|toggle|status>, hud <show|hide|on|off|toggle|status>, camdebug <on|off|toggle|status>, connect <host> [port], replay_play <path>, demo_play <path>, demo_record <start [path]|stop|cancel|status>, replay_queue <path|status|clear>, replay_pause <on|off|toggle|status>, replay_speed <percent>, replay_status, replay_stop, disconnect, net_delay <ms>, net_diag/netdiag/net-diag <on|off|status|clear|export|path>, bot_diag <on|off|status|clear>, debug <0|1>, bots <server bot command>, practice_bot <add|list|clear>, nav_edit <on|off|status|save|reload|rebuild>, builder <on|off|new|open|bg|wm|save|status>, score_route_rec <start|stop|save|cancel|status> ..., spawn_dummy (offline training), despawn_dummy (offline training), spawn_combat_dummy [class]/spawn_dps_dummy (offline practice), despawn_combat_dummy/despawn_dps_dummy (offline practice), spawn_friendly_dummy (offline support), despawn_friendly_dummy (offline support), set_name <text>, set_dummy_name <text> (offline training), set_friendly_name <text> (offline support), set_friendly_dummy_hp <n> (offline support), killme, respawn_me, build_sentry, destroy_sentry, give_intel, drop_intel, set_hp <n>, set_ammo <n>, set_class <scout|engineer|pyro|soldier|demoman|heavy|sniper|medic|spy|quote>, load_map <map>, teleport <x> <y>, fill_uber, ltd_win, ltd_forcespecial <a|b|c|d>, show_import, show_engineer, show_medic, +fire (hold fire), -fire (release fire)");
+                AddConsoleLine("help, bind <key> <action>, clear, hide_hud <on|off|toggle|status>, hud <show|hide|on|off|toggle|status>, camdebug <on|off|toggle|status>, connect <host> [port], replay_play <path>, demo_play <path>, demo_record <start [path]|stop|cancel|status>, replay_queue <path|status|clear>, replay_pause <on|off|toggle|status>, replay_speed <percent>, replay_status, replay_stop, disconnect, net_delay <ms>, net_diag/netdiag/net-diag <on|off|status|clear|export|path>, bot_diag <on|off|status|clear>, debug <0|1>, bots <server bot command>, practice_bot <add|list|clear>, builder <on|off|new|open|bg|wm|save|status>, score_route_rec <start|stop|save|cancel|status> ..., spawn_dummy (offline training), despawn_dummy (offline training), spawn_combat_dummy [class]/spawn_dps_dummy (offline practice), despawn_combat_dummy/despawn_dps_dummy (offline practice), spawn_friendly_dummy (offline support), despawn_friendly_dummy (offline support), set_name <text>, set_dummy_name <text> (offline training), set_friendly_name <text> (offline support), set_friendly_dummy_hp <n> (offline support), killme, respawn_me, build_sentry, destroy_sentry, give_intel, drop_intel, set_hp <n>, set_ammo <n>, set_class <scout|engineer|pyro|soldier|demoman|heavy|sniper|medic|spy|quote>, load_map <map>, teleport <x> <y>, fill_uber, ltd_win, ltd_forcespecial <a|b|c|d>, show_import, show_engineer, show_medic, +fire (hold fire), -fire (release fire)");
                 break;
             case "bind":
                 HandleBindConsoleCommand(parts);
@@ -404,40 +404,6 @@ public partial class Game1
             case "practice_bot":
             case "practice_bots":
                 TryHandlePracticeBotConsoleCommand(parts);
-                break;
-            case "nav_edit":
-                if (parts.Length < 2)
-                {
-                    AddConsoleLine(_navEditorEnabled ? "nav editor: enabled" : "nav editor: disabled");
-                    break;
-                }
-
-                switch (parts[1].ToLowerInvariant())
-                {
-                    case "on":
-                        EnableNavEditor();
-                        break;
-                    case "off":
-                        DisableNavEditor("nav editor disabled");
-                        break;
-                    case "status":
-                        AddConsoleLine(_navEditorEnabled ? "nav editor: enabled" : "nav editor: disabled");
-                        AddConsoleLine(_navEditorStatusMessage);
-                        break;
-                    case "save":
-                        SaveNavEditorState();
-                        break;
-                    case "reload":
-                        ReloadNavEditorState("nav editor reloaded from disk");
-                        break;
-                    case "rebuild":
-                        StartNavEditorRebuild();
-                        break;
-                    default:
-                        AddConsoleLine("usage: nav_edit <on|off|status|save|reload|rebuild>");
-                        break;
-                }
-
                 break;
             case "builder":
                 TryHandleGarrisonBuilderConsoleCommand(commandText, parts);
@@ -801,7 +767,7 @@ public partial class Game1
             ? (_peerRoomSession.IsOwner ? _peerRoomSession.Host : null)
             : _embeddedSessionHost;
 
-    private void UpdateEmbeddedConsoleCommand()
+    public void UpdateEmbeddedConsoleCommand()
     {
         if (_embeddedConsoleCommand is not { } pending) return;
         if (!ReferenceEquals(pending.Host, GetOwnedEmbeddedConsoleHost()))
@@ -1062,7 +1028,7 @@ public partial class Game1
         AddConsoleLine(hidden ? "hud hidden" : "hud visible");
     }
 
-    private void UpdateConsoleScrollState(KeyboardState keyboard, MouseState mouse)
+    public void UpdateConsoleScrollState(KeyboardState keyboard, MouseState mouse)
     {
         if (!_consoleOpen)
         {
@@ -1260,7 +1226,7 @@ public partial class Game1
         }
     }
 
-    private void AddConsoleLine(string line)
+    public void AddConsoleLine(string line)
     {
         if (string.IsNullOrWhiteSpace(line))
         {

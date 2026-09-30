@@ -68,7 +68,7 @@ public sealed class FireZoneTests
     {
         var method = typeof(SimulationWorld).GetMethod(
             "ApplyRoomHazards",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         method.Invoke(world, [player]);
     }

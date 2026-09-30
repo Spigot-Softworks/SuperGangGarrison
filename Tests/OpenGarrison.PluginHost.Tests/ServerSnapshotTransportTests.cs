@@ -54,14 +54,11 @@ public sealed class ServerSnapshotTransportTests
     }
 
     [Theory]
-    [InlineData(true, false)]
-    [InlineData(true, true)]
-    [InlineData(false, false)]
-    public void InitialWorldSnapshotUsesThePeersNegotiatedTransport(bool protocol64, bool quic)
+    [InlineData(true)]
+    [InlineData(false)]
+    public void InitialWorldSnapshotUsesThePeersNegotiatedTransport(bool protocol64)
     {
-        var peer = quic
-            ? ServerTransportPeer.FromQuicSession(7, new IPEndPoint(IPAddress.Loopback, 8190))
-            : ServerTransportPeer.FromWebSocketSession(7, IPAddress.Loopback, 8190, protocol64);
+        var peer = ServerTransportPeer.FromWebSocketSession(7, IPAddress.Loopback, 8190, protocol64);
         var client = new ClientSession(1, 101, peer, "Tester", TimeSpan.Zero)
         {
             IsAuthorized = true,

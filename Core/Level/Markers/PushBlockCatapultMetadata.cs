@@ -146,7 +146,7 @@ public readonly record struct CatapultConfiguration(
     public (float X, float Y) GetImpulse()
     {
         var radians = AngleDegrees * (MathF.PI / 180f);
-        return (MathF.Cos(radians) * Speed, -MathF.Sin(radians) * Speed);
+        return (DeterministicMath.Cos(radians) * Speed, -DeterministicMath.Sin(radians) * Speed);
     }
 }
 

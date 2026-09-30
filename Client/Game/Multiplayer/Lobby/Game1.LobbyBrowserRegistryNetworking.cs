@@ -18,7 +18,7 @@ public partial class Game1
 {
     private const string LegacyLobbyHost = "OpenGarrison.game-host.org";
 
-    private void StartLobbyBrowserRegistryRequest()
+    public void StartLobbyBrowserRegistryRequest()
     {
         _lobbyBrowserRegistryRequestTask = LoadLobbyRegistryEntriesAsync(LobbyRegistryEndpoint);
     }
@@ -111,7 +111,7 @@ public partial class Game1
         return string.Equals(entryBuildVersion, currentBuildVersion, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static void ApplyLobbyRegistryMetadata(LobbyBrowserEntry lobbyEntry, LobbyRegistryServerEntry registryEntry)
+    public static void ApplyLobbyRegistryMetadata(LobbyBrowserEntry lobbyEntry, LobbyRegistryServerEntry registryEntry)
     {
         lobbyEntry.CanJoinDirectly = lobbyEntry.Endpoint.TryResolveForCurrentRuntime(out _, out _, out _);
         lobbyEntry.HasTimedOut = false;
@@ -147,7 +147,7 @@ public partial class Game1
             webSocketUrl = browserWebSocketUrl;
         }
 
-        return new NetworkEndpoint(host, entry.UdpPort, entry.WebSocketPort, webSocketUrl, entry.QuicPort, entry.QuicUrl);
+        return new NetworkEndpoint(host, entry.UdpPort, entry.WebSocketPort, webSocketUrl);
     }
 
     private static bool TryCreateBrowserPublicWebSocketUrl(string host, out string webSocketUrl)
@@ -292,7 +292,7 @@ public partial class Game1
         public List<LobbyRegistryServerEntry> Servers { get; set; } = [];
     }
 
-    private sealed class LobbyRegistryServerEntry
+    public sealed class LobbyRegistryServerEntry
     {
         [JsonPropertyName("name")]
         public string Name { get; set; } = string.Empty;
@@ -308,12 +308,6 @@ public partial class Game1
 
         [JsonPropertyName("webSocketUrl")]
         public string WebSocketUrl { get; set; } = string.Empty;
-
-        [JsonPropertyName("quicPort")]
-        public int QuicPort { get; set; }
-
-        [JsonPropertyName("quicUrl")]
-        public string QuicUrl { get; set; } = string.Empty;
 
         [JsonPropertyName("private")]
         public bool IsPrivate { get; set; }
@@ -355,8 +349,6 @@ public partial class Game1
             || ProtocolVersion > 0
             || !string.IsNullOrWhiteSpace(BuildVersion)
             || !string.IsNullOrWhiteSpace(ReleaseChannel)
-            || !string.IsNullOrWhiteSpace(CompatibilityKey)
-            || QuicPort > 0
-            || !string.IsNullOrWhiteSpace(QuicUrl);
+            || !string.IsNullOrWhiteSpace(CompatibilityKey);
     }
 }

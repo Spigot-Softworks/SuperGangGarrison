@@ -9,23 +9,23 @@ namespace OpenGarrison.Client;
 public partial class Game1
 {
 
-    private static bool IsChatShortcutHeld(KeyboardState keyboard)
+    public static bool IsChatShortcutHeld(KeyboardState keyboard)
     {
         return keyboard.IsKeyDown(Keys.Y)
             || keyboard.IsKeyDown(Keys.U);
     }
 
-    private bool IsChatShortcutPressed(KeyboardState keyboard, Keys key)
+    public bool IsChatShortcutPressed(KeyboardState keyboard, Keys key)
     {
         return IsKeyPressed(keyboard, key);
     }
 
-    private void UpdateGameplayScreenState(KeyboardState keyboard, MouseState mouse)
+    public void UpdateGameplayScreenState(KeyboardState keyboard, MouseState mouse)
     {
-        _gameplayScreenStateController.UpdateGameplayScreenState(keyboard, mouse);
+        _gameplayManager.ScreenState.UpdateGameplayScreenState(keyboard, mouse);
     }
 
-    private void FinalizeGameplayFrame(KeyboardState keyboard, MouseState mouse)
+    public void FinalizeGameplayFrame(KeyboardState keyboard, MouseState mouse)
     {
         _previousKeyboard = keyboard;
         _previousMouse = mouse;

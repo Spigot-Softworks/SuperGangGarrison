@@ -1,6 +1,6 @@
 namespace OpenGarrison.Core.BotBrain;
 
-public enum Og2NavigationGraphResolutionSource
+internal enum Og2NavigationGraphResolutionSource
 {
     None,
     InMemory,
@@ -9,6 +9,6 @@ public enum Og2NavigationGraphResolutionSource
     Built,
 }
 
-public readonly record struct Og2NavigationGraphResolution(
+internal readonly record struct Og2NavigationGraphResolution(
     Og2NavigationGraphResolutionSource Source,
     string Path);

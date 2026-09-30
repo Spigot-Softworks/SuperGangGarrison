@@ -7,11 +7,11 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private float MeasureServerPlayerTitle(PlayerServerTitleState title, float scale, bool includeTrailingSpace = true)
+    public float MeasureServerPlayerTitle(PlayerServerTitleState title, float scale, bool includeTrailingSpace = true)
         => MeasureBitmapFontWidth(title.Text, scale)
             + (includeTrailingSpace ? MeasureBitmapFontWidth(" ", scale) : 0f);
 
-    private float DrawServerPlayerTitle(
+    public float DrawServerPlayerTitle(
         PlayerServerTitleState title,
         Vector2 position,
         float alpha,

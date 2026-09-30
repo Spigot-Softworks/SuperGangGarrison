@@ -7,7 +7,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private void BeginNetworkWorldWarmup(string levelName)
+    public void BeginNetworkWorldWarmup(string levelName)
         => StartNetworkWorldWarmup(acceptNextAppliedSnapshotAsBaseline: false);
 
     private void BeginNetworkWorldWarmupFromAppliedSnapshot(string levelName)
@@ -67,7 +67,7 @@ public partial class Game1
             && !_networkClient.IsReplayConnection;
     }
 
-    private bool IsNetworkWorldWarmupBlockingPresentation()
+    public bool IsNetworkWorldWarmupBlockingPresentation()
         => ShouldBlockNetworkWorldWarmupPresentation(
             IsNetworkWorldWarmupBlockingGameplay(),
             _networkClient.LastToDieState.Snapshot?.Phase);
@@ -229,7 +229,7 @@ public partial class Game1
             NetworkWorldWarmupFreshPlayerHistorySeconds);
     }
 
-    private bool HasFreshPlayerRenderHistory(PlayerEntity player)
+    public bool HasFreshPlayerRenderHistory(PlayerEntity player)
     {
         if (!_networkClient.IsConnected || _networkClient.IsReplayConnection)
         {

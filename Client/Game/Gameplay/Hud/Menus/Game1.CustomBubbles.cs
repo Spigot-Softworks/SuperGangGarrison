@@ -15,37 +15,36 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private const int CustomBubbleShellOriginX = 5;
-    private const int CustomBubbleShellOriginY = 57;
-    private const int CustomBubbleShellPixelWidth = 72;
-    private const int CustomBubbleShellPixelHeight = 58;
-    private const int CustomBubbleDrawableInsetPixels = 2;
-    private const float CustomBubbleGameplayScale = 0.5f;
+    public const int CustomBubbleShellOriginX = 5;
+    public const int CustomBubbleShellOriginY = 57;
+    public const int CustomBubbleShellPixelWidth = 72;
+    public const int CustomBubbleShellPixelHeight = 58;
+    public const int CustomBubbleDrawableInsetPixels = 2;
+    public const float CustomBubbleGameplayScale = 0.5f;
 
-    private readonly CustomBubbleDocument _customBubbleDocument = CustomBubbleDocument.Load();
-    private readonly Dictionary<byte, CustomBubbleRenderState> _customBubbleRenderStatesByPlayerSlot = new();
-    private CustomBubbleEditorController? _customBubbleEditorController;
-    private CustomBubbleRenderState? _localCustomBubbleRenderState;
-    private LoadedSpriteFrame? _customBubbleShellFrame;
-    private bool[]? _customBubbleCanvasMask;
-    private bool[]? _customBubbleShellInteriorMask;
-    private bool _customBubbleEditorOpen;
-    private bool _customBubbleEditorReturnToOptions;
-    private bool _customBubbleEditorReturnFromGameplayOptions;
-    private bool _customBubbleEditorReturnToProfile;
-    private bool _showCustomBubbles = true;
-    private int _selectedCustomBubbleSlot;
+    public readonly CustomBubbleDocument _customBubbleDocument = CustomBubbleDocument.Load();
+    public readonly Dictionary<byte, CustomBubbleRenderState> _customBubbleRenderStatesByPlayerSlot = new();
+    public CustomBubbleRenderState? _localCustomBubbleRenderState;
+    public LoadedSpriteFrame? _customBubbleShellFrame;
+    public bool[]? _customBubbleCanvasMask;
+    public bool[]? _customBubbleShellInteriorMask;
+    public bool _customBubbleEditorOpen;
+    public bool _customBubbleEditorReturnToOptions;
+    public bool _customBubbleEditorReturnFromGameplayOptions;
+    public bool _customBubbleEditorReturnToProfile;
+    public bool _showCustomBubbles = true;
+    public int _selectedCustomBubbleSlot;
 
-    private CustomBubbleEditorController CustomBubbleEditor => _customBubbleEditorController ??= new CustomBubbleEditorController(this);
+    public CustomBubbleEditorController CustomBubbleEditor => _hudManager.CustomBubbleEditor;
 
-    private void ApplyLoadedCustomBubbleSettings()
+    public void ApplyLoadedCustomBubbleSettings()
     {
         _customBubbleDocument.Normalize();
         _showCustomBubbles = _customBubbleDocument.ShowCustomBubbles;
         _selectedCustomBubbleSlot = CustomBubbleDocument.NormalizeSlotIndex(_customBubbleDocument.SelectedSlot);
     }
 
-    private void ToggleCustomBubbleVisibilitySetting()
+    public void ToggleCustomBubbleVisibilitySetting()
     {
         _showCustomBubbles = !_showCustomBubbles;
         PersistCustomBubbleDocument();
@@ -68,7 +67,7 @@ public partial class Game1
     }
 
 
-    private static string GetCustomBubbleSlotLabel(int slotIndex)
+    public static string GetCustomBubbleSlotLabel(int slotIndex)
     {
         return $"Bubble {CustomBubbleDocument.NormalizeSlotIndex(slotIndex) + 1}";
     }
@@ -100,7 +99,7 @@ public partial class Game1
         CustomBubbleEditor.Open(_selectedCustomBubbleSlot);
     }
 
-    private void CloseCustomBubbleEditor()
+    public void CloseCustomBubbleEditor()
     {
         var returnToOptions = _customBubbleEditorReturnToOptions;
         var returnFromGameplay = _customBubbleEditorReturnFromGameplayOptions;
@@ -108,7 +107,7 @@ public partial class Game1
         DismissCustomBubbleEditor();
         if (returnToProfile)
         {
-            _mainMenuOverlayStateController.OpenFriendsMenu();
+            _menuManager.MainMenuOverlayState.OpenFriendsMenu();
             _friendsMenuTab = FriendsMenuTab.Bubble;
             _editingFriendCode = false;
             _editingFriendMessage = false;
@@ -122,7 +121,7 @@ public partial class Game1
         }
     }
 
-    private void DismissCustomBubbleEditor()
+    public void DismissCustomBubbleEditor()
     {
         if (!_customBubbleEditorOpen)
         {
@@ -133,10 +132,10 @@ public partial class Game1
         _customBubbleEditorReturnToOptions = false;
         _customBubbleEditorReturnFromGameplayOptions = false;
         _customBubbleEditorReturnToProfile = false;
-        _customBubbleEditorController?.Close();
+        CustomBubbleEditor.Close();
     }
 
-    private void SaveCustomBubbleEditorPixels(int slotIndex, byte[] pixels)
+    public void SaveCustomBubbleEditorPixels(int slotIndex, byte[] pixels)
     {
         _selectedCustomBubbleSlot = CustomBubbleDocument.NormalizeSlotIndex(slotIndex);
         _customBubbleDocument.SetSlotPixels(_selectedCustomBubbleSlot, pixels);
@@ -145,12 +144,12 @@ public partial class Game1
         UploadSelectedCustomBubbleState();
     }
 
-    private void UpdateCustomBubbleEditor(KeyboardState keyboard, MouseState mouse)
+    public void UpdateCustomBubbleEditor(KeyboardState keyboard, MouseState mouse)
     {
         CustomBubbleEditor.Update(keyboard, mouse);
     }
 
-    private void DrawCustomBubbleEditor()
+    public void DrawCustomBubbleEditor()
     {
         CustomBubbleEditor.Draw();
     }
@@ -164,7 +163,7 @@ public partial class Game1
             && !IsGameplayInputBlocked();
     }
 
-    private void UpdateCustomBubbleHotkey(KeyboardState keyboard, MouseState mouse)
+    public void UpdateCustomBubbleHotkey(KeyboardState keyboard, MouseState mouse)
     {
         if (!CanTriggerCustomBubble(keyboard, mouse))
         {
@@ -180,7 +179,7 @@ public partial class Game1
         OpenBubbleMenu(BubbleMenuKind.Custom);
     }
 
-    private void UploadSelectedCustomBubbleState()
+    public void UploadSelectedCustomBubbleState()
     {
         if (!_networkClient.IsConnected || _networkClient.IsAwaitingWelcome || _networkClient.IsReplayConnection)
         {
@@ -224,7 +223,7 @@ public partial class Game1
         }
     }
 
-    private void ClearRemoteCustomBubbleStates()
+    public void ClearRemoteCustomBubbleStates()
     {
         foreach (var state in _customBubbleRenderStatesByPlayerSlot.Values)
         {
@@ -234,7 +233,7 @@ public partial class Game1
         _customBubbleRenderStatesByPlayerSlot.Clear();
     }
 
-    private LoadedSpriteFrame? GetCustomBubbleShellFrame()
+    public LoadedSpriteFrame? GetCustomBubbleShellFrame()
     {
         if (_customBubbleShellFrame is not null)
         {
@@ -337,7 +336,7 @@ public partial class Game1
         _localCustomBubbleRenderState = null;
     }
 
-    private bool IsCustomBubbleCanvasPixelInsideShell(int pixelIndex)
+    public bool IsCustomBubbleCanvasPixelInsideShell(int pixelIndex)
     {
         if (pixelIndex < 0 || pixelIndex >= CustomBubbleDocument.BubbleWidth * CustomBubbleDocument.BubbleHeight)
         {
@@ -432,7 +431,7 @@ public partial class Game1
         return _customBubbleShellInteriorMask;
     }
 
-    private Texture2D CreateCustomBubbleShellTexture(byte[] pixels)
+    public Texture2D CreateCustomBubbleShellTexture(byte[] pixels)
     {
         if (pixels.Length != CustomBubbleDocument.Rgba64ByteCount)
         {
@@ -477,7 +476,7 @@ public partial class Game1
         return texture;
     }
 
-    private static Color ReadRgba64ColorPremultiplied(byte[] pixels, int pixelIndex)
+    public static Color ReadRgba64ColorPremultiplied(byte[] pixels, int pixelIndex)
     {
         var offset = pixelIndex * CustomBubbleDocument.BytesPerPixel;
         var r16 = BinaryPrimitives.ReadUInt16LittleEndian(pixels.AsSpan(offset, 2));
@@ -497,7 +496,7 @@ public partial class Game1
             a8);
     }
 
-    private static Color ReadRgba64Color(byte[] pixels, int pixelIndex)
+    public static Color ReadRgba64Color(byte[] pixels, int pixelIndex)
     {
         var offset = pixelIndex * CustomBubbleDocument.BytesPerPixel;
         return new Color(
@@ -507,17 +506,17 @@ public partial class Game1
             ToByteChannel(BinaryPrimitives.ReadUInt16LittleEndian(pixels.AsSpan(offset + 6, 2))));
     }
 
-    private static ulong ReadRgba64Pixel(byte[] pixels, int pixelIndex)
+    public static ulong ReadRgba64Pixel(byte[] pixels, int pixelIndex)
     {
         return BinaryPrimitives.ReadUInt64LittleEndian(pixels.AsSpan(pixelIndex * CustomBubbleDocument.BytesPerPixel, CustomBubbleDocument.BytesPerPixel));
     }
 
-    private static void WriteRgba64Pixel(byte[] pixels, int pixelIndex, ulong value)
+    public static void WriteRgba64Pixel(byte[] pixels, int pixelIndex, ulong value)
     {
         BinaryPrimitives.WriteUInt64LittleEndian(pixels.AsSpan(pixelIndex * CustomBubbleDocument.BytesPerPixel, CustomBubbleDocument.BytesPerPixel), value);
     }
 
-    private static ulong PackRgba64Color(Color color)
+    public static ulong PackRgba64Color(Color color)
     {
         var r16 = ToUShortChannel(color.R);
         var g16 = ToUShortChannel(color.G);
@@ -544,7 +543,7 @@ public partial class Game1
         return (byte)((value * alpha + 127) / 255);
     }
 
-    private sealed class CustomBubbleRenderState : IDisposable
+    public sealed class CustomBubbleRenderState : IDisposable
     {
         private readonly byte[] _pixels;
         private Texture2D? _texture;

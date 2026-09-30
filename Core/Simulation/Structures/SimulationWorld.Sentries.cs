@@ -1,4 +1,4 @@
-﻿namespace OpenGarrison.Core;
+namespace OpenGarrison.Core;
 
 public sealed partial class SimulationWorld
 {
@@ -108,7 +108,7 @@ public sealed partial class SimulationWorld
             maxHealth);
         sentry.ForceBuilt();
         _sentries.Add(sentry);
-        _entities.Add(sentry.Id, sentry);
+        EntityStore.Add(sentry);
         _lastToDieDroneSentryIds.Add(sentry.Id);
         return sentry;
     }
@@ -128,7 +128,7 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            _entities.Remove(sentry.Id);
+            EntityStore.Remove(sentry.Id);
             _sentries.RemoveAt(index);
         }
 
@@ -390,7 +390,7 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            _entities.Remove(gib.Id);
+            EntityStore.Remove(gib.Id);
             _sentryGibs.RemoveAt(gibIndex);
         }
     }
@@ -612,7 +612,7 @@ public sealed partial class SimulationWorld
             AwardSentryDestructionPoints(sentry, attacker);
             ReleaseMinesFromSentry(sentry);
             ApplySentryDestroyBlastToOwner(sentry);
-            _entities.Remove(sentry.Id);
+            EntityStore.Remove(sentry.Id);
             _sentries.RemoveAt(sentryIndex);
             _lastToDieDroneSentryIds.Remove(sentry.Id);
             RegisterWorldSoundEvent("ExplosionSnd", sentry.X, sentry.Y);
@@ -629,7 +629,7 @@ public sealed partial class SimulationWorld
         var top = sentry.Y - (SentryEntity.Height / 2f);
         var bottom = sentry.Y + (SentryEntity.Height / 2f);
 
-        foreach (var mine in _mines)
+        foreach (var mine in Mines)
         {
             if (!mine.IsStickied)
             {
@@ -681,7 +681,7 @@ public sealed partial class SimulationWorld
     {
         var gib = new SentryGibEntity(AllocateEntityId(), team, x, y, isDispenser);
         _sentryGibs.Add(gib);
-        _entities.Add(gib.Id, gib);
+        EntityStore.Add(gib);
     }
 
     private bool TryBuildSentry(PlayerEntity player)
@@ -718,7 +718,7 @@ public sealed partial class SimulationWorld
         }
 
         var aimRadians = player.AimDirectionDegrees * (MathF.PI / 180f);
-        var aimDirectionX = MathF.Cos(aimRadians);
+        var aimDirectionX = DeterministicMath.Cos(aimRadians);
         var startDirectionX = MathF.Abs(aimDirectionX) > 0.001f
             ? (aimDirectionX >= 0f ? 1f : -1f)
             : player.FacingDirectionX;
@@ -731,7 +731,7 @@ public sealed partial class SimulationWorld
             startDirectionX,
             GetExperimentalSentryMaxHealth(player));
         _sentries.Add(sentryEntity);
-        _entities.Add(sentryEntity.Id, sentryEntity);
+        EntityStore.Add(sentryEntity);
         return true;
     }
 
@@ -774,7 +774,7 @@ public sealed partial class SimulationWorld
         }
 
         var aimRadians = player.AimDirectionDegrees * (MathF.PI / 180f);
-        var aimDirectionX = MathF.Cos(aimRadians);
+        var aimDirectionX = DeterministicMath.Cos(aimRadians);
         var startDirectionX = MathF.Abs(aimDirectionX) > 0.001f
             ? (aimDirectionX >= 0f ? 1f : -1f)
             : player.FacingDirectionX;
@@ -788,7 +788,7 @@ public sealed partial class SimulationWorld
             SentryEntity.DispenserMaxHealth,
             isDispenser: true);
         _sentries.Add(dispenser);
-        _entities.Add(dispenser.Id, dispenser);
+        EntityStore.Add(dispenser);
         return true;
     }
 

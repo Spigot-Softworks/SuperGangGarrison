@@ -13,69 +13,69 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private readonly List<SnapshotDamageEvent> _pendingNetworkDamageEvents = new();
-    private readonly HashSet<ulong> _processedNetworkDamageEventIds = new();
-    private readonly Queue<ulong> _processedNetworkDamageEventOrder = new();
-    private ClientRoundPhase _clientPluginPreviousMatchPhase;
-    private bool _clientPluginPreviousLocalAlive;
-    private int _clientPluginPreviousLocalAmmo;
-    private int _clientPluginPreviousLocalPrimaryCooldownTicks;
-    private bool _clientPluginPreviousLocalCarryingIntel;
-    private bool _clientPluginPreviousLocalBurning;
-    private int _clientPluginPreviousKillFeedCount;
-    private readonly Dictionary<int, (ClientPluginTeam Team, ClientPluginTeam CappingTeam, float Progress, bool IsLocked)> _clientPluginPreviousObjectiveStates = new();
-    private (bool IsAtBase, bool IsDropped, ClientPluginTeam CarrierTeam, float ReturnProgress, float X, float Y) _clientPluginPreviousRedIntelState;
-    private (bool IsAtBase, bool IsDropped, ClientPluginTeam CarrierTeam, float ReturnProgress, float X, float Y) _clientPluginPreviousBlueIntelState;
-    private readonly Dictionary<PlayerTeam, (int Health, int MaxHealth, bool IsDestroyed)> _clientPluginPreviousGeneratorStates = new();
-    private ClientPluginHost? _clientPluginHost;
-    private ClientPluginStateView? _clientPluginStateView;
+    public readonly List<SnapshotDamageEvent> _pendingNetworkDamageEvents = new();
+    public readonly HashSet<ulong> _processedNetworkDamageEventIds = new();
+    public readonly Queue<ulong> _processedNetworkDamageEventOrder = new();
+    public ClientRoundPhase _clientPluginPreviousMatchPhase;
+    public bool _clientPluginPreviousLocalAlive;
+    public int _clientPluginPreviousLocalAmmo;
+    public int _clientPluginPreviousLocalPrimaryCooldownTicks;
+    public bool _clientPluginPreviousLocalCarryingIntel;
+    public bool _clientPluginPreviousLocalBurning;
+    public int _clientPluginPreviousKillFeedCount;
+    public readonly Dictionary<int, (ClientPluginTeam Team, ClientPluginTeam CappingTeam, float Progress, bool IsLocked)> _clientPluginPreviousObjectiveStates = new();
+    public (bool IsAtBase, bool IsDropped, ClientPluginTeam CarrierTeam, float ReturnProgress, float X, float Y) _clientPluginPreviousRedIntelState;
+    public (bool IsAtBase, bool IsDropped, ClientPluginTeam CarrierTeam, float ReturnProgress, float X, float Y) _clientPluginPreviousBlueIntelState;
+    public readonly Dictionary<PlayerTeam, (int Health, int MaxHealth, bool IsDestroyed)> _clientPluginPreviousGeneratorStates = new();
+    public ClientPluginHost? _clientPluginHost;
+    public ClientPluginStateView? _clientPluginStateView;
 
-    private void InitializeClientPlugins()
+    public void InitializeClientPlugins()
     {
-        _clientPluginRuntimeController.InitializeClientPlugins();
+        _pluginManager.Runtime.InitializeClientPlugins();
     }
 
-    private void NotifyClientPluginsStarted()
+    public void NotifyClientPluginsStarted()
     {
-        _clientPluginRuntimeController.NotifyClientPluginsStarted();
+        _pluginManager.Runtime.NotifyClientPluginsStarted();
     }
 
-    private void ShutdownClientPlugins()
+    public void ShutdownClientPlugins()
     {
-        _clientPluginRuntimeController.ShutdownClientPlugins();
+        _pluginManager.Runtime.ShutdownClientPlugins();
     }
 
     private void NotifyClientPluginsFrame(GameTime gameTime, int clientTicks)
     {
-        _clientPluginRuntimeController.NotifyClientPluginsFrame(gameTime, clientTicks);
+        _pluginManager.Runtime.NotifyClientPluginsFrame(gameTime, clientTicks);
     }
 
     private void QueueResolvedSnapshotDamageEvents(SnapshotMessage resolvedSnapshot)
     {
-        _clientPluginEventController.QueueResolvedSnapshotDamageEvents(resolvedSnapshot);
+        _pluginManager.Events.QueueResolvedSnapshotDamageEvents(resolvedSnapshot);
     }
 
     private void DrawClientPluginHud(Vector2 cameraTopLeft)
     {
-        _clientPluginUiBridgeController.DrawClientPluginHud(cameraTopLeft);
+        _pluginManager.UiBridge.DrawClientPluginHud(cameraTopLeft);
     }
 
     private ClientBubbleMenuUpdateResult? TryHandleClientPluginBubbleMenuInput(ClientBubbleMenuInputState inputState)
     {
-        return _clientPluginUiBridgeController.TryHandleClientPluginBubbleMenuInput(inputState);
+        return _pluginManager.UiBridge.TryHandleClientPluginBubbleMenuInput(inputState);
     }
 
     private bool TryDrawClientPluginBubbleMenu(Vector2 cameraTopLeft, ClientBubbleMenuRenderState renderState)
     {
-        return _clientPluginUiBridgeController.TryDrawClientPluginBubbleMenu(cameraTopLeft, renderState);
+        return _pluginManager.UiBridge.TryDrawClientPluginBubbleMenu(cameraTopLeft, renderState);
     }
 
     private bool HasClientPluginBubbleMenuOverride()
     {
-        return _clientPluginUiBridgeController.HasClientPluginBubbleMenuOverride();
+        return _pluginManager.UiBridge.HasClientPluginBubbleMenuOverride();
     }
 
-    private bool SetClientPluginEnabled(string pluginId, bool enabled)
+    public bool SetClientPluginEnabled(string pluginId, bool enabled)
     {
         var hadBubbleMenuOverride = HasClientPluginBubbleMenuOverride();
         var applied = _clientPluginHost?.SetPluginEnabled(pluginId, enabled) ?? false;
@@ -89,22 +89,22 @@ public partial class Game1
 
     private bool TryDrawClientPluginDeadBody(Vector2 cameraTopLeft, ClientDeadBodyRenderState deadBody)
     {
-        return _clientPluginUiBridgeController.TryDrawClientPluginDeadBody(cameraTopLeft, deadBody);
+        return _pluginManager.UiBridge.TryDrawClientPluginDeadBody(cameraTopLeft, deadBody);
     }
 
-    private ClientPluginMainMenuBackgroundOverride? GetClientPluginMainMenuBackgroundOverride()
+    public ClientPluginMainMenuBackgroundOverride? GetClientPluginMainMenuBackgroundOverride()
     {
-        return _clientPluginUiBridgeController.GetClientPluginMainMenuBackgroundOverride();
+        return _pluginManager.UiBridge.GetClientPluginMainMenuBackgroundOverride();
     }
 
-    private void NotifyClientPluginsWorldSound(WorldSoundEvent soundEvent)
+    public void NotifyClientPluginsWorldSound(WorldSoundEvent soundEvent)
     {
-        _clientPluginUiBridgeController.NotifyClientPluginsWorldSound(soundEvent);
+        _pluginManager.UiBridge.NotifyClientPluginsWorldSound(soundEvent);
     }
 
     private void NotifyClientPluginsServerMessage(ServerPluginMessage message)
     {
-        _clientPluginUiBridgeController.NotifyClientPluginsServerMessage(message);
+        _pluginManager.UiBridge.NotifyClientPluginsServerMessage(message);
     }
 
     private Vector2 GetClientPluginCameraOffset()
@@ -114,22 +114,22 @@ public partial class Game1
             return Vector2.Zero;
         }
 
-        return _clientPluginUiBridgeController.GetClientPluginCameraOffset();
+        return _pluginManager.UiBridge.GetClientPluginCameraOffset();
     }
 
-    private int? GetClientPluginLocalPlayerId()
+    public int? GetClientPluginLocalPlayerId()
     {
-        return _clientPluginUiBridgeController.GetClientPluginLocalPlayerId();
+        return _pluginManager.UiBridge.GetClientPluginLocalPlayerId();
     }
 
     private Vector2 GetCurrentClientPluginCameraTopLeft()
     {
-        return _clientPluginUiBridgeController.GetCurrentClientPluginCameraTopLeft();
+        return _pluginManager.UiBridge.GetCurrentClientPluginCameraTopLeft();
     }
 
     private Texture2D? GetClientPluginLevelBackgroundTexture()
     {
-        return _clientPluginUiBridgeController.GetClientPluginLevelBackgroundTexture();
+        return _pluginManager.UiBridge.GetClientPluginLevelBackgroundTexture();
     }
 
     private bool WasClientPluginKeyPressedThisFrame(Keys key)
@@ -137,7 +137,7 @@ public partial class Game1
         return _clientPluginKeyboard.IsKeyDown(key) && !_clientPluginPreviousKeyboard.IsKeyDown(key);
     }
 
-    private ClientPluginHost CreateClientPluginHost(string pluginsDirectory, string pluginConfigRoot, string pluginStatePath)
+    public ClientPluginHost CreateClientPluginHost(string pluginsDirectory, string pluginConfigRoot, string pluginStatePath)
     {
         return new ClientPluginHost(
             _clientPluginStateView!,
@@ -156,27 +156,27 @@ public partial class Game1
 
     private List<ClientPlayerMarker> GetClientPluginPlayerMarkers()
     {
-        return _clientPluginMarkerController.GetClientPluginPlayerMarkers();
+        return _pluginManager.Marker.GetClientPluginPlayerMarkers();
     }
 
     private List<ClientSentryMarker> GetClientPluginSentryMarkers()
     {
-        return _clientPluginMarkerController.GetClientPluginSentryMarkers();
+        return _pluginManager.Marker.GetClientPluginSentryMarkers();
     }
 
     private List<ClientObjectiveMarker> GetClientPluginObjectiveMarkers()
     {
-        return _clientPluginMarkerController.GetClientPluginObjectiveMarkers();
+        return _pluginManager.Marker.GetClientPluginObjectiveMarkers();
     }
 
-    private void DispatchClientSemanticGameplayEvents()
+    public void DispatchClientSemanticGameplayEvents()
     {
-        _clientPluginEventController.DispatchClientSemanticGameplayEvents();
+        _pluginManager.Events.DispatchClientSemanticGameplayEvents();
     }
 
     private void DispatchPendingDamageEventsToPlugins()
     {
-        _clientPluginEventController.DispatchPendingDamageEventsToPlugins();
+        _pluginManager.Events.DispatchPendingDamageEventsToPlugins();
     }
 
     private void NotifyClientPluginsScoreboardDraw(
@@ -203,12 +203,12 @@ public partial class Game1
     }
 
 
-    private void ResetClientPluginGameplayEventState()
+    public void ResetClientPluginGameplayEventState()
     {
-        _clientPluginEventController.ResetClientPluginGameplayEventState();
+        _pluginManager.Events.ResetClientPluginGameplayEventState();
     }
 
-    private static ClientPluginTeam ToClientPluginTeam(PlayerTeam? team)
+    public static ClientPluginTeam ToClientPluginTeam(PlayerTeam? team)
     {
         return team switch
         {
@@ -218,7 +218,7 @@ public partial class Game1
         };
     }
 
-    private static ClientPluginClass ToClientPluginClass(PlayerClass classId)
+    public static ClientPluginClass ToClientPluginClass(PlayerClass classId)
     {
         return classId switch
         {
@@ -236,7 +236,7 @@ public partial class Game1
         };
     }
 
-    private static ClientRoundPhase ToClientRoundPhase(MatchPhase matchPhase)
+    public static ClientRoundPhase ToClientRoundPhase(MatchPhase matchPhase)
     {
         return matchPhase switch
         {

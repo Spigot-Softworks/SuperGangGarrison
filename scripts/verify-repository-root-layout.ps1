@@ -26,7 +26,8 @@ foreach ($name in @(
     "GPL.txt",
     "LICENSE",
     "OpenGarrison.sln",
-    "README.md"
+    "README.md",
+    "global.json"
 )) {
     [void]$allowedFiles.Add($name)
 }
@@ -36,7 +37,7 @@ foreach ($name in @(
     ".git", ".github", ".local", ".vscode",
     "artifacts", "bin", "dist", "obj",
     "Bootstrap", "Client", "Client.Browser", "Client.Shared", "Core", "docs",
-    "Maps", "Modern", "Networking", "packaging", "Plugins", "Protocol", "scripts", "Server", "ServerLauncher",
+    "Gg2Gateway", "Maps", "Modern", "Networking", "packaging", "Plugins", "Protocol", "scripts", "Server", "ServerLauncher",
     "services", "SessionRuntime", "SourceAssets", "Tests", "Tools", "Updater"
 )) {
     [void]$allowedDirectories.Add($name)

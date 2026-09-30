@@ -8,14 +8,14 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private readonly record struct SpriteFontDefinition(
+    public readonly record struct SpriteFontDefinition(
         string SpriteName,
         char FirstCharacter,
         bool IsProportional,
         int CharacterSeparator);
 
-    private readonly record struct SpriteFontMetrics(float CellWidth, float MaxHeight);
-    private readonly record struct SpriteFontGlyphMetrics(float LeftTrim, float VisibleWidth);
+    public readonly record struct SpriteFontMetrics(float CellWidth, float MaxHeight);
+    public readonly record struct SpriteFontGlyphMetrics(float LeftTrim, float VisibleWidth);
 
     private static readonly SpriteFontDefinition BitmapFontDefinition = new("gg2FontS", '!', false, 0);
     private static readonly SpriteFontDefinition CountFontDefinition = new("countFontS", '0', false, 2);
@@ -28,12 +28,12 @@ public partial class Game1
         return minimumSizeRequired ? MathF.Max(1f, scale) : scale;
     }
 
-    private void DrawBitmapFontText(string text, Vector2 position, Color color, float scale = 1f)
+    public void DrawBitmapFontText(string text, Vector2 position, Color color, float scale = 1f)
     {
         DrawBitmapFontText(text, position, color, scale, 0f);
     }
 
-    private void DrawBitmapFontText(string text, Vector2 position, Color color, float scale, float rotation)
+    public void DrawBitmapFontText(string text, Vector2 position, Color color, float scale, float rotation)
     {
         DrawSpriteFontText(BitmapFontDefinition, text, position, color, scale, rotation);
     }
@@ -67,12 +67,12 @@ public partial class Game1
         DrawTimerFontText(text, new Vector2(position.X - width, position.Y - (height / 2f)), color, scale);
     }
 
-    private float MeasureBitmapFontWidth(string text, float scale)
+    public float MeasureBitmapFontWidth(string text, float scale)
     {
         return MeasureSpriteFontWidth(BitmapFontDefinition, text, scale);
     }
 
-    private float MeasureBitmapFontHeight(float scale)
+    public float MeasureBitmapFontHeight(float scale)
     {
         return MeasureSpriteFontHeight(BitmapFontDefinition, scale);
     }

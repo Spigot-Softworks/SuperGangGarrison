@@ -162,7 +162,7 @@ public sealed class SimulationWorldRoundEndScorekeepingTests
         PlayerEntity killer,
         string weaponSpriteName)
     {
-        var method = typeof(SimulationWorld).GetMethod("KillPlayer", BindingFlags.Instance | BindingFlags.NonPublic)
+        var method = typeof(SimulationWorld).GetMethod("KillPlayer", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
             ?? throw new InvalidOperationException("KillPlayer method was not found.");
         _ = method.Invoke(
             world,
@@ -186,7 +186,7 @@ public sealed class SimulationWorldRoundEndScorekeepingTests
 
     private static void InvokeAwardHealingPoints(SimulationWorld world, PlayerEntity healer, int healedAmount)
     {
-        var method = typeof(SimulationWorld).GetMethod("AwardHealingPoints", BindingFlags.Instance | BindingFlags.NonPublic)
+        var method = typeof(SimulationWorld).GetMethod("AwardHealingPoints", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
             ?? throw new InvalidOperationException("AwardHealingPoints method was not found.");
         method.Invoke(world, [healer, healedAmount]);
     }

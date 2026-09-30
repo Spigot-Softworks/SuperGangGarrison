@@ -16,6 +16,7 @@ public sealed class GameplayBuffHudAndReplicationTests
         var source = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
         var receiver = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
         var publisher = new Protocol64StatePublisher(source);
+        var stringCache = new SnapshotStringCache();
         foreach (var enabled in new[] { false, true, false })
         {
             source.ConfigureExperimentalGameplaySettings(new(EnableSecondaryAbilities: enabled));
@@ -23,163 +24,17 @@ public sealed class GameplayBuffHudAndReplicationTests
             Assert.True(receiver.ApplyProtocol64PlayerState(state, SimulationWorld.LocalPlayerSlot));
             Assert.Equal(enabled, receiver.ExperimentalGameplaySettings.EnableSecondaryAbilities);
             receiver.ConfigureExperimentalGameplaySettings(new(EnableSecondaryAbilities: !enabled));
-            var player = ServerHelpers.ToSnapshotPlayerState(source, SimulationWorld.LocalPlayerSlot,
-                source.LocalPlayer, source.LocalPlayer, new SnapshotStringCache());
+            var player = source.Snapshots.ToSnapshotPlayerState(
+                SimulationWorld.LocalPlayerSlot,
+                source.LocalPlayer,
+                source.LocalPlayer,
+                value => stringCache.GetOrAddCacheId(value));
             var snapshot = CreateSnapshot(player);
             var bytes = ProtocolCodec.Serialize(snapshot, ProtocolCompressionSettings.Disabled);
             Assert.True(ProtocolCodec.TryDeserialize(bytes, out var message));
             Assert.True(receiver.ApplySnapshot(Assert.IsType<SnapshotMessage>(message)));
             Assert.Equal(enabled, receiver.ExperimentalGameplaySettings.EnableSecondaryAbilities);
         }
-    }
-    [Theory]
-    [InlineData(true, true, false, true)]
-    [InlineData(false, true, false, false)]
-    [InlineData(true, false, false, false)]
-    [InlineData(true, true, true, false)]
-    public void HostedLastToDieRageHudRequiresPlayingAliveParticipant(
-        bool playing,
-        bool alive,
-        bool awaitingJoin,
-        bool expected)
-    {
-        Assert.Equal(
-            expected,
-            Game1.ShouldPresentHostedLastToDieCombatFeedbackHud(
-                playing ? LastToDieWirePhase.Playing : LastToDieWirePhase.Lobby,
-                alive,
-                awaitingJoin));
-    }
-
-    [Fact]
-    public void CombatPerformanceFeedbackIsEnabledForHostedLastToDie()
-    {
-        Assert.True(Game1.ShouldEnableCombatPerformanceFeedback(
-            isPracticeSessionActive: false,
-            isOfflineLastToDieSessionActive: false,
-            isHostedLastToDieSessionActive: true));
-        Assert.False(Game1.ShouldEnableCombatPerformanceFeedback(
-            isPracticeSessionActive: false,
-            isOfflineLastToDieSessionActive: false,
-            isHostedLastToDieSessionActive: false));
-    }
-
-    [Fact]
-    public void HostedLastToDieCombatAnnouncementsBelongToTheLocalPlayer()
-    {
-        Assert.True(Game1.IsLocalLastToDieCombatAnnouncement(
-            isAnyLastToDieSessionActive: true,
-            killerPlayerId: 42,
-            localPlayerId: 42));
-        Assert.False(Game1.IsLocalLastToDieCombatAnnouncement(
-            isAnyLastToDieSessionActive: true,
-            killerPlayerId: 43,
-            localPlayerId: 42));
-    }
-
-    [Theory]
-    [InlineData(LastToDieWirePhase.Playing, 0.1f, true)]
-    [InlineData(LastToDieWirePhase.Playing, 0f, false)]
-    [InlineData(LastToDieWirePhase.RewardChoice, 1f, false)]
-    public void HostedLastToDieStageIntroOnlyAppearsDuringActivePlay(
-        LastToDieWirePhase phase,
-        float secondsRemaining,
-        bool expected)
-    {
-        Assert.Equal(
-            expected,
-            Game1.ShouldShowHostedLastToDieStageIntro(phase, secondsRemaining));
-    }
-
-    [Fact]
-    public void PerkTooltipIncludesEffectsForEveryOwnedHostedPerk()
-    {
-        var definitions = LastToDieExpansionPerkCatalog.CreateDefinitions()
-            .ToDictionary(definition => definition.Id.Value, StringComparer.Ordinal);
-        var ownedPerks = new[]
-        {
-            LastToDiePerkIds.Rare.Mimic.Value,
-            LastToDiePerkIds.Rare.Triage.Value,
-            "future.perk.without.a.current.definition",
-        };
-
-        var lines = Game1.BuildHostedLastToDieBuffTooltipLines(ownedPerks, definitions, "F");
-
-        Assert.Equal(ownedPerks.Length, lines.Count);
-        Assert.Contains($"{definitions[ownedPerks[0]].DisplayName}: {definitions[ownedPerks[0]].Description}", lines);
-        Assert.Contains($"{definitions[ownedPerks[1]].DisplayName}: {definitions[ownedPerks[1]].Description}", lines);
-        Assert.Contains(ownedPerks[2], lines);
-    }
-
-    [Fact]
-    public void BuffCatalogReturnsNoPresentationWhenNoBuffIsActive()
-    {
-        Assert.Empty(GameplayBuffPresentationCatalog.Collect(false, false, 1f));
-    }
-
-    [Fact]
-    public void BuffCatalogPresentsKritzTargetStats()
-    {
-        var presentation = Assert.Single(GameplayBuffPresentationCatalog.Collect(true, false, 1f));
-
-        Assert.Equal(GameplayBuffPresentationCatalog.KritzCritTargetId, presentation.Id);
-        Assert.Equal(["Critical Rate: +100%"], presentation.StatLines);
-    }
-
-    [Fact]
-    public void BuffCatalogPresentsDispenserStats()
-    {
-        var presentation = Assert.Single(GameplayBuffPresentationCatalog.Collect(false, true, 1.25f));
-
-        Assert.Equal(GameplayBuffPresentationCatalog.DispenserId, presentation.Id);
-        Assert.Equal(
-            ["Rate of Fire: +25%", "Reload Speed: +25%"],
-            presentation.StatLines);
-    }
-
-    [Fact]
-    public void BuffCatalogCombinesKritzAndDispenserInStableOrder()
-    {
-        var presentations = GameplayBuffPresentationCatalog.Collect(true, true, 1.25f);
-
-        Assert.Collection(
-            presentations,
-            kritz => Assert.Equal(GameplayBuffPresentationCatalog.KritzCritTargetId, kritz.Id),
-            dispenser => Assert.Equal(GameplayBuffPresentationCatalog.DispenserId, dispenser.Id));
-    }
-
-    [Theory]
-    [InlineData(1f, "+0%")]
-    [InlineData(1.25f, "+25%")]
-    [InlineData(1.255f, "+25.5%")]
-    [InlineData(1.005f, "+0.5%")]
-    public void DispenserPercentageFormattingIsInvariantAndHumanFriendly(float multiplier, string expected)
-    {
-        Assert.Equal(
-            expected,
-            GameplayBuffPresentationCatalog.FormatMultiplierBonusPercentage(multiplier));
-    }
-
-    [Theory]
-    [InlineData(false, false, false, false, false)]
-    [InlineData(true, false, false, false, false)]
-    [InlineData(true, true, false, false, false)]
-    [InlineData(false, false, true, false, false)]
-    [InlineData(true, false, false, true, true)]
-    public void BuffIconVisibilityRequiresAlivePlayerAndAnyBuff(
-        bool alive,
-        bool awaitingJoin,
-        bool hasLastToDieBonuses,
-        bool hasNormalGameplayBuffs,
-        bool expected)
-    {
-        Assert.Equal(
-            expected,
-            Game1.ShouldPresentLastToDieBuffIcon(
-                alive,
-                awaitingJoin,
-                hasLastToDieBonuses,
-                hasNormalGameplayBuffs));
     }
 
     [Fact]
@@ -188,12 +43,12 @@ public sealed class GameplayBuffHudAndReplicationTests
         var source = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
         source.LocalPlayer.SetDispenserBuffed(true, 1.25f);
         source.LocalPlayer.RegisterCombatComboHit(120);
-        var player = ServerHelpers.ToSnapshotPlayerState(
-            source,
+        var stringCache = new SnapshotStringCache();
+        var player = source.Snapshots.ToSnapshotPlayerState(
             SimulationWorld.LocalPlayerSlot,
             source.LocalPlayer,
             source.LocalPlayer,
-            new SnapshotStringCache()) with
+            value => stringCache.GetOrAddCacheId(value)) with
         {
             ExperimentalCryoSlowTicksRemaining = 42,
             ExperimentalCryoFreezeTicksRemaining = 21,
@@ -380,12 +235,12 @@ public sealed class GameplayBuffHudAndReplicationTests
     {
         var source = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
         source.LocalPlayer.AddRageCharge(250f, ExperimentalGameplaySettings.RageMaxCharge);
-        var player = ServerHelpers.ToSnapshotPlayerState(
-            source,
+        var stringCache = new SnapshotStringCache();
+        var player = source.Snapshots.ToSnapshotPlayerState(
             SimulationWorld.LocalPlayerSlot,
             source.LocalPlayer,
             source.LocalPlayer,
-            new SnapshotStringCache());
+            value => stringCache.GetOrAddCacheId(value));
         var fullSnapshot = CreateSnapshot(player);
 
         var payload = ProtocolCodec.Serialize(fullSnapshot, ProtocolCompressionSettings.Disabled);

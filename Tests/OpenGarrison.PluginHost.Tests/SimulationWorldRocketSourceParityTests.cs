@@ -208,14 +208,14 @@ public sealed class SimulationWorldRocketSourceParityTests
 
     private static void SetCombatLevel(SimulationWorld world, SimpleLevel level)
     {
-        var method = typeof(SimulationWorld).GetMethod("CombatTestSetLevel", BindingFlags.Instance | BindingFlags.NonPublic);
+        var method = typeof(SimulationWorld).GetMethod("CombatTestSetLevel", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         _ = method!.Invoke(world, [level]);
     }
 
     private static RocketProjectileEntity SpawnRocket(SimulationWorld world, PlayerEntity owner, float x, float y, float speed, float directionRadians)
     {
-        var method = typeof(SimulationWorld).GetMethod("CombatTestSpawnRocket", BindingFlags.Instance | BindingFlags.NonPublic);
+        var method = typeof(SimulationWorld).GetMethod("CombatTestSpawnRocket", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         var result = method!.Invoke(world, [owner, x, y, speed, directionRadians]);
         Assert.IsType<RocketProjectileEntity>(result);
@@ -224,30 +224,24 @@ public sealed class SimulationWorldRocketSourceParityTests
 
     private static void AdvanceRockets(SimulationWorld world)
     {
-        var method = typeof(SimulationWorld).GetMethod("AdvanceRockets", BindingFlags.Instance | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        _ = method!.Invoke(world, []);
+        world.Projectiles.AdvanceRockets();
     }
 
     private static int GetRocketCount(SimulationWorld world)
     {
-        var field = typeof(SimulationWorld).GetField("_rockets", BindingFlags.Instance | BindingFlags.NonPublic);
-        Assert.NotNull(field);
-        var rockets = field!.GetValue(world) as ICollection;
-        Assert.NotNull(rockets);
-        return rockets!.Count;
+        return world.Rockets.Count;
     }
 
     private static (float Left, float Top, float Right, float Bottom) GetPlayerPresentationHitBounds(SimulationWorld world, PlayerEntity player)
     {
-        var method = typeof(SimulationWorld).GetMethod("CombatTestGetPlayerPresentationHitBounds", BindingFlags.Instance | BindingFlags.NonPublic);
+        var method = typeof(SimulationWorld).GetMethod("CombatTestGetPlayerPresentationHitBounds", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         return ((float Left, float Top, float Right, float Bottom))method!.Invoke(world, [player])!;
     }
 
     private static string? GetPlayerPresentationBodySpriteName(SimulationWorld world, PlayerEntity player)
     {
-        var method = typeof(SimulationWorld).GetMethod("GetPlayerPresentationBodySpriteName", BindingFlags.Static | BindingFlags.NonPublic);
+        var method = typeof(SimulationWorld).GetMethod("GetPlayerPresentationBodySpriteName", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         return (string?)method!.Invoke(null, [world, player]);
     }

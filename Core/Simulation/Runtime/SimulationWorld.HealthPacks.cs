@@ -74,7 +74,7 @@ public sealed partial class SimulationWorld
             horizontalSpeed,
             verticalSpeed);
         _healthPacks.Add(healthPack);
-        _entities.Add(healthPack.Id, healthPack);
+        EntityStore.Add(healthPack);
     }
 
     private float ResolveHealthPackSpawnY(float x, float y)
@@ -141,7 +141,7 @@ public sealed partial class SimulationWorld
             verticalSpeed: 0f,
             sourceSpawnIndex: spawnIndex);
         _healthPacks.Add(healthPack);
-        _entities.Add(healthPack.Id, healthPack);
+        EntityStore.Add(healthPack);
     }
 
     private void AdvanceHealthPackSpawnTimers()
@@ -242,7 +242,7 @@ public sealed partial class SimulationWorld
     private void RemoveHealthPackAt(int index)
     {
         var healthPack = _healthPacks[index];
-        _entities.Remove(healthPack.Id);
+        EntityStore.Remove(healthPack.Id);
         _healthPacks.RemoveAt(index);
         if (healthPack.SourceSpawnIndex >= 0
             && healthPack.SourceSpawnIndex < Level.HealthPackSpawns.Count

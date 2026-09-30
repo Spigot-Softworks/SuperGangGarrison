@@ -261,7 +261,7 @@ public sealed partial class SimulationWorld
             snapshot.Shots,
             snapshot.RemovedShotIds,
             IsSnapshotEntityCollectionComplete(snapshot, SnapshotEntityCollectionCompletenessFlags.Shots),
-            _shots,
+            Shots,
             static (entity, state) => entity.Team == (PlayerTeam)state.Team && entity.OwnerId == state.OwnerId,
             state =>
         {
@@ -310,7 +310,7 @@ public sealed partial class SimulationWorld
             snapshot.Bubbles,
             snapshot.RemovedBubbleIds,
             IsSnapshotEntityCollectionComplete(snapshot, SnapshotEntityCollectionCompletenessFlags.Bubbles),
-            _bubbles,
+            Bubbles,
             static (entity, state) => entity.Team == (PlayerTeam)state.Team && entity.OwnerId == state.OwnerId,
             state =>
         {
@@ -330,7 +330,7 @@ public sealed partial class SimulationWorld
             snapshot.Blades,
             snapshot.RemovedBladeIds,
             IsSnapshotEntityCollectionComplete(snapshot, SnapshotEntityCollectionCompletenessFlags.Blades),
-            _blades,
+            Blades,
             static (entity, state) => entity.Team == (PlayerTeam)state.Team && entity.OwnerId == state.OwnerId,
             state =>
         {
@@ -352,7 +352,7 @@ public sealed partial class SimulationWorld
             snapshot.Needles,
             snapshot.RemovedNeedleIds,
             IsSnapshotEntityCollectionComplete(snapshot, SnapshotEntityCollectionCompletenessFlags.Needles),
-            _needles,
+            Needles,
             static (entity, state) => entity.Team == (PlayerTeam)state.Team
                 && entity.OwnerId == state.OwnerId
                 && entity is MedicHealNeedleProjectileEntity == state.IsMedicHealNeedle
@@ -461,7 +461,7 @@ public sealed partial class SimulationWorld
             snapshot.RevolverShots,
             snapshot.RemovedRevolverShotIds,
             IsSnapshotEntityCollectionComplete(snapshot, SnapshotEntityCollectionCompletenessFlags.RevolverShots),
-            _revolverShots,
+            RevolverShots,
             static (entity, state) => entity.Team == (PlayerTeam)state.Team
                 && entity.OwnerId == state.OwnerId
                 && entity.IsCritical == state.IsCritical
@@ -524,7 +524,7 @@ public sealed partial class SimulationWorld
             snapshot.Flares,
             snapshot.RemovedFlareIds,
             IsSnapshotEntityCollectionComplete(snapshot, SnapshotEntityCollectionCompletenessFlags.Flares),
-            _flares,
+            Flares,
             static (entity, state) => entity.Team == (PlayerTeam)state.Team
                 && entity.OwnerId == state.OwnerId
                 && entity.Style == (FlareProjectileStyle)state.FlareStyle,
@@ -588,7 +588,7 @@ public sealed partial class SimulationWorld
                 || !_snapshotSeenEntityIds.Contains(snapshotId)
                 || SnapshotMarksHealthPackInactive(healthPacks, snapshotId))
             {
-                _entities.Remove(healthPack.Id);
+                EntityStore.Remove(healthPack.Id);
                 _healthPacks.RemoveAt(index);
             }
         }
@@ -610,7 +610,7 @@ public sealed partial class SimulationWorld
             {
                 if (healthPack is not null)
                 {
-                    _entities.Remove(healthPack.Id);
+                    EntityStore.Remove(healthPack.Id);
                     _healthPacks.Remove(healthPack);
                 }
 
@@ -623,7 +623,7 @@ public sealed partial class SimulationWorld
                     state.VelocityY,
                     state.SourceSpawnIndex);
                 _healthPacks.Add(healthPack);
-                _entities[healthPack.Id] = healthPack;
+                EntityStore.Set(healthPack.Id, healthPack);
             }
 
             healthPack.ApplyNetworkState(
@@ -772,7 +772,7 @@ public sealed partial class SimulationWorld
         IReadOnlyList<SnapshotShotState> shots,
         IReadOnlyList<int> removedShotIds,
         bool collectionIsComplete,
-        List<T> target,
+        IReadOnlyList<T> target,
         Func<T, SnapshotShotState, bool> canReuse,
         Func<SnapshotShotState, T> factory,
         Action<T, SnapshotShotState> applyState,
@@ -838,7 +838,9 @@ public sealed partial class SimulationWorld
                 }
 
                 applyState(entity, state);
-            });
+            },
+            () => Projectiles.ClearProjectileCollection(target),
+            entity => Projectiles.AddProjectileToCollection(target, entity));
     }
 
     private static bool ShouldApplyLocallySimulatedProjectileState(int localTicksRemaining, int snapshotTicksRemaining)
@@ -1020,7 +1022,7 @@ public sealed partial class SimulationWorld
         {
             RegisterBloodEffect(
                 nearestPlayer.X, nearestPlayer.Y,
-                MathF.Atan2(dirY, dirX) * (180f / MathF.PI) - 180f,
+                DeterministicMath.Atan2(dirY, dirX) * (180f / MathF.PI) - 180f,
                 bloodCount);
         }
     }
@@ -1073,7 +1075,7 @@ public sealed partial class SimulationWorld
             FilterTerminatedProjectiles(rockets, static state => state.Id),
             removedRocketIds,
             collectionIsComplete,
-            _rockets,
+            Rockets,
             static state => state.Id,
             static (entity, state) => entity.Team == (PlayerTeam)state.Team && entity.OwnerId == state.OwnerId,
             state =>
@@ -1116,7 +1118,9 @@ public sealed partial class SimulationWorld
                 }
 
                 ApplyRocketSnapshotState(entity, state);
-            });
+            },
+            () => Projectiles.ClearProjectileCollection(Rockets),
+            entity => Projectiles.AddProjectileToCollection(Rockets, entity));
     }
 
     private void ApplySnapshotRocketSpawnEvents(IReadOnlyList<SnapshotRocketSpawnEvent> rocketSpawnEvents)
@@ -1131,7 +1135,7 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            if (_entities.ContainsKey(e.Id))
+            if (EntityStore.Contains(e.Id))
             {
                 continue;
             }
@@ -1191,8 +1195,7 @@ public sealed partial class SimulationWorld
                 rocket.DelayExplosionUntilNextTick(RocketProjectileEntity.DelayedExplosionReasonSpawnBlocked);
             }
 
-            _rockets.Add(rocket);
-            _entities.Add(rocket.Id, rocket);
+            Projectiles.AddProjectileEntity(rocket, requireUniqueEntityId: true);
             if (ShouldTrackSnapshotProjectileForClientPrediction(e.OwnerId))
             {
                 _clientPredictedProjectileIds.Add(rocket.Id);
@@ -1209,7 +1212,7 @@ public sealed partial class SimulationWorld
             FilterTerminatedProjectiles(flames, static state => state.Id),
             removedFlameIds,
             collectionIsComplete,
-            _flames,
+            Flames,
             static state => state.Id,
             static (entity, state) => entity.Team == (PlayerTeam)state.Team && entity.OwnerId == state.OwnerId,
             state =>
@@ -1240,7 +1243,9 @@ public sealed partial class SimulationWorld
                 }
 
                 ApplyFlameSnapshotState(entity, state);
-            });
+            },
+            () => Projectiles.ClearProjectileCollection(Flames),
+            entity => Projectiles.AddProjectileToCollection(Flames, entity));
     }
 
     private void ApplySnapshotBloodDrops(IReadOnlyList<SnapshotBloodDropState> bloodDrops)
@@ -1290,7 +1295,7 @@ public sealed partial class SimulationWorld
             FilterTerminatedProjectiles(mines, static state => state.Id),
             removedMineIds,
             collectionIsComplete,
-            _mines,
+            Mines,
             static state => state.Id,
             static (entity, state) => entity.Team == (PlayerTeam)state.Team && entity.OwnerId == state.OwnerId,
             state =>
@@ -1321,7 +1326,9 @@ public sealed partial class SimulationWorld
                 }
 
                 ApplyMineSnapshotState(entity, state);
-            });
+            },
+            () => Projectiles.ClearProjectileCollection(Mines),
+            entity => Projectiles.AddProjectileToCollection(Mines, entity));
     }
 
     private void ApplySnapshotGrenades(
@@ -1333,7 +1340,7 @@ public sealed partial class SimulationWorld
             FilterTerminatedProjectiles(grenades, static state => state.Id),
             removedGrenadeIds,
             collectionIsComplete,
-            _grenades,
+            Grenades,
             static state => state.Id,
             static (entity, state) => entity.Team == (PlayerTeam)state.Team && entity.OwnerId == state.OwnerId,
             state =>
@@ -1364,7 +1371,9 @@ public sealed partial class SimulationWorld
                 }
 
                 ApplyGrenadeSnapshotState(entity, state);
-            });
+            },
+            () => Projectiles.ClearProjectileCollection(Grenades),
+            entity => Projectiles.AddProjectileToCollection(Grenades, entity));
     }
 
     private void ApplySnapshotDeadBodies(IReadOnlyList<SnapshotDeadBodyState> deadBodies)
@@ -1490,7 +1499,7 @@ public sealed partial class SimulationWorld
                 e.LifetimeTicks,
                 e.BloodChance);
             _playerGibs.Add(gib);
-            _entities.Add(gib.Id, gib);
+            EntityStore.Add(gib);
         }
     }
 
@@ -1707,7 +1716,7 @@ public sealed partial class SimulationWorld
     private bool IsRemoteSpyHiddenFromLocalPlayer(PlayerEntity spy)
     {
         var radians = MathF.PI * LocalPlayer.AimDirectionDegrees / 180f;
-        var viewerFacingSign = MathF.Cos(radians) < 0f ? -1 : 1;
+        var viewerFacingSign = DeterministicMath.Cos(radians) < 0f ? -1 : 1;
         return Math.Sign(spy.X - LocalPlayer.X) == -viewerFacingSign;
     }
 
@@ -1931,7 +1940,8 @@ public sealed partial class SimulationWorld
 
             TEntity entity;
             var isNewEntity = false;
-            if (_entities.TryGetValue(entityId, out var existingEntity)
+            var existingEntity = EntityStore.Get(entityId);
+            if (existingEntity is not null
                 && existingEntity is TEntity typedEntity
                 && canReuse(typedEntity, state))
             {
@@ -1941,7 +1951,7 @@ public sealed partial class SimulationWorld
             {
                 if (existingEntity is not null)
                 {
-                    _entities.Remove(entityId);
+                    EntityStore.Remove(entityId);
                 }
 
                 entity = factory(state);
@@ -1958,13 +1968,117 @@ public sealed partial class SimulationWorld
             }
 
             target.Add(entity);
-            _entities[entityId] = entity;
+            EntityStore.Set(entityId, entity);
         }
 
         for (var index = 0; index < _snapshotStaleEntityIds.Count; index += 1)
         {
             var staleId = _snapshotStaleEntityIds[index];
-            _entities.Remove(staleId);
+            EntityStore.Remove(staleId);
+            if (suppressProjectileRespawnOnRemoval)
+            {
+                SuppressProjectileRespawn(staleId, NetworkProjectileRemovalSuppressionTicks);
+                _clientPredictedProjectileIds.Remove(staleId);
+            }
+            else if (_clientPredictedProjectileIds.Remove(staleId))
+            {
+                SuppressProjectileRespawn(staleId, NetworkProjectileRemovalSuppressionTicks);
+            }
+        }
+    }
+
+    private void SyncSnapshotEntities<TState, TEntity>(
+        IReadOnlyList<TState> snapshotStates,
+        IReadOnlyList<int> removedEntityIds,
+        bool collectionIsComplete,
+        IReadOnlyList<TEntity> target,
+        Func<TState, int> idSelector,
+        Func<TEntity, TState, bool> canReuse,
+        Func<TState, TEntity> factory,
+        Action<TEntity, TState> applyState,
+        bool suppressProjectileRespawnOnRemoval,
+        Action<TEntity, TState, bool> applyStateForNewEntity,
+        Action clearTarget,
+        Action<TEntity> addTarget)
+        where TEntity : SimulationEntity
+    {
+        _snapshotSeenEntityIds.Clear();
+        for (var index = 0; index < snapshotStates.Count; index += 1)
+        {
+            _snapshotSeenEntityIds.Add(idSelector(snapshotStates[index]));
+        }
+
+        _snapshotStaleEntityIds.Clear();
+        List<TEntity>? retainedEntities = null;
+        for (var index = 0; index < target.Count; index += 1)
+        {
+            var entityId = target[index].Id;
+            var explicitlyRemoved = ContainsEntityId(removedEntityIds, entityId);
+            if (explicitlyRemoved || (collectionIsComplete && !_snapshotSeenEntityIds.Contains(entityId)))
+            {
+                _snapshotStaleEntityIds.Add(entityId);
+                continue;
+            }
+
+            if (!_snapshotSeenEntityIds.Contains(entityId))
+            {
+                retainedEntities ??= new List<TEntity>();
+                retainedEntities.Add(target[index]);
+            }
+        }
+
+        clearTarget();
+        if (retainedEntities is not null)
+        {
+            for (var index = 0; index < retainedEntities.Count; index += 1)
+            {
+                addTarget(retainedEntities[index]);
+            }
+        }
+
+        for (var index = 0; index < snapshotStates.Count; index += 1)
+        {
+            var state = snapshotStates[index];
+            var entityId = idSelector(state);
+            ReserveEntityId(entityId);
+
+            TEntity entity;
+            var isNewEntity = false;
+            var existingEntity = EntityStore.Get(entityId);
+            if (existingEntity is not null
+                && existingEntity is TEntity typedEntity
+                && canReuse(typedEntity, state))
+            {
+                entity = typedEntity;
+            }
+            else
+            {
+                if (existingEntity is not null)
+                {
+                    EntityStore.Remove(entityId);
+                }
+
+                entity = factory(state);
+                isNewEntity = true;
+            }
+
+            if (isNewEntity)
+            {
+                applyStateForNewEntity(entity, state, true);
+            }
+            else
+            {
+                applyStateForNewEntity(entity, state, false);
+            }
+
+            addTarget(entity);
+            EntityStore.Set(entityId, entity);
+        }
+
+        for (var index = 0; index < _snapshotStaleEntityIds.Count; index += 1)
+        {
+            var staleId = _snapshotStaleEntityIds[index];
+            EntityStore.Remove(staleId);
             if (suppressProjectileRespawnOnRemoval)
             {
                 SuppressProjectileRespawn(staleId, NetworkProjectileRemovalSuppressionTicks);

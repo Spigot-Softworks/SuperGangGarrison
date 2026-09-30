@@ -10,7 +10,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private enum HitboxDebugMode
+    public enum HitboxDebugMode
     {
         Off = 0,
         Filled = 1,
@@ -24,9 +24,9 @@ public partial class Game1
 
     private HitboxDebugMode _hitboxDebugMode;
 
-    private void UpdateHitboxDebugHotkey(KeyboardState keyboard)
+    public void UpdateHitboxDebugHotkey(KeyboardState keyboard)
     {
-        if (_consoleOpen || _mainMenuOpen || IsGameplayInputBlocked() || _navEditorEnabled)
+        if (_consoleOpen || _mainMenuOpen || IsGameplayInputBlocked())
         {
             return;
         }

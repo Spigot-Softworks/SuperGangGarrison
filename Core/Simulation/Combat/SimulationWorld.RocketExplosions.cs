@@ -79,9 +79,9 @@ public sealed partial class SimulationWorld
 
         private static void RemoveAt(SimulationWorld world, int rocketId)
         {
-            for (var rocketIndex = world._rockets.Count - 1; rocketIndex >= 0; rocketIndex -= 1)
+            for (var rocketIndex = world.Rockets.Count - 1; rocketIndex >= 0; rocketIndex -= 1)
             {
-                if (world._rockets[rocketIndex].Id == rocketId)
+                if (world.Rockets[rocketIndex].Id == rocketId)
                 {
                     world.RemoveRocketAt(rocketIndex);
                     break;
@@ -345,7 +345,7 @@ public sealed partial class SimulationWorld
             if (owner is null
                 || ReferenceEquals(player, owner)
                 || !rocket.IsBallistic
-                || MathF.Sin(rocket.DirectionRadians) <= 0.0001f)
+                || DeterministicMath.Sin(rocket.DirectionRadians) <= 0.0001f)
             {
                 return false;
             }
@@ -379,7 +379,7 @@ public sealed partial class SimulationWorld
                 (towardOwnerX * towardOwnerX) + (towardOwnerY * towardOwnerY));
             if (distanceToOwner <= 0.0001f)
             {
-                var fallbackDirectionX = -MathF.Cos(rocket.DirectionRadians);
+                var fallbackDirectionX = -DeterministicMath.Cos(rocket.DirectionRadians);
                 player.AddImpulse(MathF.Sign(fallbackDirectionX) * impulse, 0f);
                 return;
             }
@@ -472,7 +472,7 @@ public sealed partial class SimulationWorld
         private static void TriggerMinesInBlast(SimulationWorld world, RocketProjectileEntity rocket, float blastRadius)
         {
             var queuedMineIds = new List<int>();
-            foreach (var mine in world._mines)
+            foreach (var mine in world.Mines)
             {
                 if ((mine.Team == rocket.Team && mine.OwnerId != rocket.OwnerId)
                     || SimulationWorld.DistanceBetween(rocket.X, rocket.Y, mine.X, mine.Y) >= blastRadius * 0.66f)
@@ -495,9 +495,9 @@ public sealed partial class SimulationWorld
 
         private static void DestroyBubblesInBlast(SimulationWorld world, RocketProjectileEntity rocket, float blastRadius)
         {
-            for (var bubbleIndex = world._bubbles.Count - 1; bubbleIndex >= 0; bubbleIndex -= 1)
+            for (var bubbleIndex = world.Bubbles.Count - 1; bubbleIndex >= 0; bubbleIndex -= 1)
             {
-                if (SimulationWorld.DistanceBetween(rocket.X, rocket.Y, world._bubbles[bubbleIndex].X, world._bubbles[bubbleIndex].Y) < blastRadius * 0.66f)
+                if (SimulationWorld.DistanceBetween(rocket.X, rocket.Y, world.Bubbles[bubbleIndex].X, world.Bubbles[bubbleIndex].Y) < blastRadius * 0.66f)
                 {
                     world.RemoveBubbleAt(bubbleIndex);
                 }

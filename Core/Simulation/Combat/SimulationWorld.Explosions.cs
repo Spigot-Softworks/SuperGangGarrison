@@ -32,8 +32,8 @@ public sealed partial class SimulationWorld
             RegisterCombatTrace(
                 centerX,
                 centerY,
-                MathF.Cos(angle),
-                MathF.Sin(angle),
+                DeterministicMath.Cos(angle),
+                DeterministicMath.Sin(angle),
                 RocketProjectileEntity.BlastRadius * 0.5f,
                 true);
         }
@@ -42,7 +42,7 @@ public sealed partial class SimulationWorld
     private void DetonateOwnedMines(int ownerId)
     {
         var queuedMineIds = new Queue<int>();
-        foreach (var mine in _mines)
+        foreach (var mine in Mines)
         {
             if (mine.OwnerId == ownerId && CanPlayerDetonateMine(mine))
             {
@@ -82,9 +82,9 @@ public sealed partial class SimulationWorld
         var blastRadius = ResolveExplosiveSplashRadius(
             MineProjectileEntity.BlastRadius
                 * MathF.Max(0.1f, owner?.LastToDieUniversalModifiers.ExplosionScale ?? 1f));
-        for (var mineIndex = _mines.Count - 1; mineIndex >= 0; mineIndex -= 1)
+        for (var mineIndex = Mines.Count - 1; mineIndex >= 0; mineIndex -= 1)
         {
-            if (_mines[mineIndex].Id == mine.Id)
+            if (Mines[mineIndex].Id == mine.Id)
             {
                 RemoveMineAt(mineIndex);
                 break;
@@ -236,7 +236,7 @@ public sealed partial class SimulationWorld
 
     private MineProjectileEntity? FindMineById(int mineId)
     {
-        foreach (var mine in _mines)
+        foreach (var mine in Mines)
         {
             if (mine.Id == mineId)
             {
@@ -250,7 +250,7 @@ public sealed partial class SimulationWorld
     internal void ExplodeOldestMine(int ownerId, bool triggerNearbyMines = true)
     {
         MineProjectileEntity? oldestMine = null;
-        foreach (var mine in _mines)
+        foreach (var mine in Mines)
         {
             if (mine.OwnerId == ownerId)
             {
@@ -272,7 +272,7 @@ public sealed partial class SimulationWorld
         var blastRadius = ResolveExplosiveSplashRadius(
             MineProjectileEntity.BlastRadius
                 * MathF.Max(0.1f, sourceOwner?.LastToDieUniversalModifiers.ExplosionScale ?? 1f));
-        foreach (var mine in _mines)
+        foreach (var mine in Mines)
         {
             if (mine.Id == sourceMine.Id)
             {
@@ -316,8 +316,8 @@ public sealed partial class SimulationWorld
             }
 
             var impulseScale = 1f - (distance / resolvedFalloffRadius);
-            var angle = MathF.Atan2(deadBody.Y - originY, deadBody.X - originX);
-            deadBody.AddImpulse(MathF.Cos(angle) * maxImpulse * impulseScale, MathF.Sin(angle) * maxImpulse * impulseScale);
+            var angle = DeterministicMath.Atan2(deadBody.Y - originY, deadBody.X - originX);
+            deadBody.AddImpulse(DeterministicMath.Cos(angle) * maxImpulse * impulseScale, DeterministicMath.Sin(angle) * maxImpulse * impulseScale);
         }
     }
 
@@ -339,10 +339,10 @@ public sealed partial class SimulationWorld
             }
 
             var impulseScale = 1f - (distance / resolvedFalloffRadius);
-            var angle = MathF.Atan2(gib.Y - originY, gib.X - originX);
+            var angle = DeterministicMath.Atan2(gib.Y - originY, gib.X - originX);
             gib.AddImpulse(
-                MathF.Cos(angle) * maxImpulse * impulseScale,
-                MathF.Sin(angle) * maxImpulse * impulseScale,
+                DeterministicMath.Cos(angle) * maxImpulse * impulseScale,
+                DeterministicMath.Sin(angle) * maxImpulse * impulseScale,
                 ((_random.NextSingle() * 151f) - 75f) * impulseScale);
         }
     }
@@ -391,9 +391,9 @@ public sealed partial class SimulationWorld
     private void AffectRocketsInMineBlast(MineProjectileEntity mine)
     {
         var rocketsToExplode = new List<int>();
-        for (var rocketIndex = 0; rocketIndex < _rockets.Count; rocketIndex += 1)
+        for (var rocketIndex = 0; rocketIndex < Rockets.Count; rocketIndex += 1)
         {
-            var rocket = _rockets[rocketIndex];
+            var rocket = Rockets[rocketIndex];
             if ((mine.Team == rocket.Team && mine.OwnerId != rocket.OwnerId))
             {
                 continue;
@@ -418,21 +418,21 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            var angle = MathF.Atan2(rocket.Y - mine.Y, rocket.X - mine.X);
-            rocket.ApplyImpulse(MathF.Cos(angle) * impulse, MathF.Sin(angle) * impulse);
+            var angle = DeterministicMath.Atan2(rocket.Y - mine.Y, rocket.X - mine.X);
+            rocket.ApplyImpulse(DeterministicMath.Cos(angle) * impulse, DeterministicMath.Sin(angle) * impulse);
         }
 
         for (var index = 0; index < rocketsToExplode.Count; index += 1)
         {
             var rocketId = rocketsToExplode[index];
-            for (var rocketIndex = _rockets.Count - 1; rocketIndex >= 0; rocketIndex -= 1)
+            for (var rocketIndex = Rockets.Count - 1; rocketIndex >= 0; rocketIndex -= 1)
             {
-                if (_rockets[rocketIndex].Id != rocketId)
+                if (Rockets[rocketIndex].Id != rocketId)
                 {
                     continue;
                 }
 
-                ExplodeRocket(_rockets[rocketIndex], directHitPlayer: null, directHitSentry: null, directHitGenerator: null);
+                ExplodeRocket(Rockets[rocketIndex], directHitPlayer: null, directHitSentry: null, directHitGenerator: null);
                 break;
             }
         }
@@ -602,32 +602,32 @@ public sealed partial class SimulationWorld
             owner.Team);
 
         var rocketIdsToExplode = new List<int>();
-        for (var rocketIndex = 0; rocketIndex < _rockets.Count; rocketIndex += 1)
+        for (var rocketIndex = 0; rocketIndex < Rockets.Count; rocketIndex += 1)
         {
-            if (DistanceBetween(centerX, centerY, _rockets[rocketIndex].X, _rockets[rocketIndex].Y) < blastRadius * 0.66f)
+            if (DistanceBetween(centerX, centerY, Rockets[rocketIndex].X, Rockets[rocketIndex].Y) < blastRadius * 0.66f)
             {
-                rocketIdsToExplode.Add(_rockets[rocketIndex].Id);
+                rocketIdsToExplode.Add(Rockets[rocketIndex].Id);
             }
         }
 
         for (var index = 0; index < rocketIdsToExplode.Count; index += 1)
         {
-            for (var rocketIndex = _rockets.Count - 1; rocketIndex >= 0; rocketIndex -= 1)
+            for (var rocketIndex = Rockets.Count - 1; rocketIndex >= 0; rocketIndex -= 1)
             {
-                if (_rockets[rocketIndex].Id == rocketIdsToExplode[index])
+                if (Rockets[rocketIndex].Id == rocketIdsToExplode[index])
                 {
-                    ExplodeRocket(_rockets[rocketIndex], directHitPlayer: null, directHitSentry: null, directHitGenerator: null);
+                    ExplodeRocket(Rockets[rocketIndex], directHitPlayer: null, directHitSentry: null, directHitGenerator: null);
                     break;
                 }
             }
         }
 
         var mineIdsToExplode = new List<int>();
-        for (var mineIndex = 0; mineIndex < _mines.Count; mineIndex += 1)
+        for (var mineIndex = 0; mineIndex < Mines.Count; mineIndex += 1)
         {
-            if (DistanceBetween(centerX, centerY, _mines[mineIndex].X, _mines[mineIndex].Y) < blastRadius)
+            if (DistanceBetween(centerX, centerY, Mines[mineIndex].X, Mines[mineIndex].Y) < blastRadius)
             {
-                mineIdsToExplode.Add(_mines[mineIndex].Id);
+                mineIdsToExplode.Add(Mines[mineIndex].Id);
             }
         }
 
@@ -640,9 +640,9 @@ public sealed partial class SimulationWorld
             }
         }
 
-        for (var bubbleIndex = _bubbles.Count - 1; bubbleIndex >= 0; bubbleIndex -= 1)
+        for (var bubbleIndex = Bubbles.Count - 1; bubbleIndex >= 0; bubbleIndex -= 1)
         {
-            if (DistanceBetween(centerX, centerY, _bubbles[bubbleIndex].X, _bubbles[bubbleIndex].Y) < blastRadius)
+            if (DistanceBetween(centerX, centerY, Bubbles[bubbleIndex].X, Bubbles[bubbleIndex].Y) < blastRadius)
             {
                 RemoveBubbleAt(bubbleIndex);
             }
@@ -707,9 +707,9 @@ public sealed partial class SimulationWorld
         var blastRadius = ResolveExplosiveSplashRadius(
             MineProjectileEntity.BlastRadius
                 * MathF.Max(0.1f, owner?.LastToDieUniversalModifiers.ExplosionScale ?? 1f));
-        for (var bubbleIndex = _bubbles.Count - 1; bubbleIndex >= 0; bubbleIndex -= 1)
+        for (var bubbleIndex = Bubbles.Count - 1; bubbleIndex >= 0; bubbleIndex -= 1)
         {
-            if (DistanceBetween(mine.X, mine.Y, _bubbles[bubbleIndex].X, _bubbles[bubbleIndex].Y) < blastRadius + BubbleProjectileEntity.SelfPopRadius)
+            if (DistanceBetween(mine.X, mine.Y, Bubbles[bubbleIndex].X, Bubbles[bubbleIndex].Y) < blastRadius + BubbleProjectileEntity.SelfPopRadius)
             {
                 RemoveBubbleAt(bubbleIndex);
             }

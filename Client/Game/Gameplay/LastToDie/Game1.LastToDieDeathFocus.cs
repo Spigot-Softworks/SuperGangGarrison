@@ -9,12 +9,12 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private const int LastToDieDeathFocusDurationTicks = 54;
-    private const int LastToDieDeathFocusZoomDelayTicks = 6;
-    private const int LastToDieDeathFocusZoomTicks = 42;
-    private const float LastToDieDeathFocusZoomStart = 1f;
-    private const float LastToDieDeathFocusZoomEnd = 1.82f;
-    private const float LastToDieDeathFocusCorpsePlaybackRate = 1f;
+    public const int LastToDieDeathFocusDurationTicks = 54;
+    public const int LastToDieDeathFocusZoomDelayTicks = 6;
+    public const int LastToDieDeathFocusZoomTicks = 42;
+    public const float LastToDieDeathFocusZoomStart = 1f;
+    public const float LastToDieDeathFocusZoomEnd = 1.82f;
+    public const float LastToDieDeathFocusCorpsePlaybackRate = 1f;
     private const float LastToDieDeathFocusBaseDimMaxAlpha = 0.2f;
     private const float LastToDieDeathFocusEdgeDimMaxAlpha = 0.84f;
     private const float LastToDieFailureCorpseScale = 3f;
@@ -71,18 +71,18 @@ public partial class Game1
     private RenderTarget2D? _lastToDieFailureCorpseTarget;
     private bool _lastToDieFailureCorpseTargetHasVisual;
 
-    private bool IsLastToDieDeathFocusPresentationActive()
+    public bool IsLastToDieDeathFocusPresentationActive()
     {
         return (IsLastToDieSessionActive || IsHostedLastToDieActive())
             && _lastToDieDeathFocus is not null;
     }
 
-    private bool IsLastToDieFailurePresentationActive()
+    public bool IsLastToDieFailurePresentationActive()
     {
         return IsLastToDieDeathFocusPresentationActive() || IsLastToDieFailureOverlayActive();
     }
 
-    private void ClearLastToDieDeathFocusPresentation()
+    public void ClearLastToDieDeathFocusPresentation()
     {
         _lastToDieDeathFocus = null;
         _lastToDieFailureCorpseTargetHasVisual = false;
@@ -187,7 +187,7 @@ public partial class Game1
         return false;
     }
 
-    private void UpdateLastToDieDeathFocusPresentation()
+    public void UpdateLastToDieDeathFocusPresentation()
     {
         if (_lastToDieDeathFocus is null)
         {
@@ -314,7 +314,7 @@ public partial class Game1
             RenderTargetUsage.PreserveContents);
     }
 
-    private void PrepareLastToDieDeathFocusOverlayIfNeeded(int viewportWidth, int viewportHeight)
+    public void PrepareLastToDieDeathFocusOverlayIfNeeded(int viewportWidth, int viewportHeight)
     {
         if (!IsLastToDieDeathFocusPresentationActive())
         {
@@ -505,7 +505,7 @@ public partial class Game1
             : DeadBodyAnimationKind.Default;
     }
 
-    private bool DrawLastToDieDeathFocusOverlay(int viewportWidth, int viewportHeight)
+    public bool DrawLastToDieDeathFocusOverlay(int viewportWidth, int viewportHeight)
     {
         if (!IsLastToDieDeathFocusPresentationActive() || _lastToDieDeathFocusTarget is null)
         {

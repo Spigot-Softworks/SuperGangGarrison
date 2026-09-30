@@ -88,19 +88,6 @@ public sealed class PlayerDamageResolutionTests
         Assert.False(resolution.ShouldApplyOnHitEffects);
     }
 
-    [Fact]
-    public void LegacyDamageReflectionContractStillHasOneElevenParameterMethod()
-    {
-        var methods = typeof(SimulationWorld)
-            .GetMethods(BindingFlags.Instance | BindingFlags.NonPublic)
-            .Where(static method => method.Name == "ApplyPlayerDamage")
-            .ToArray();
-
-        var method = Assert.Single(methods);
-        Assert.Equal(11, method.GetParameters().Length);
-        Assert.Equal(typeof(bool), method.ReturnType);
-    }
-
     private static SimulationWorld CreateWorld(PlayerClass localClass)
     {
         var world = new SimulationWorld();

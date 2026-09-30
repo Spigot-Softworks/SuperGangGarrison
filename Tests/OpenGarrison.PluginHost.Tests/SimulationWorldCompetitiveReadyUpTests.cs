@@ -162,7 +162,7 @@ public sealed class SimulationWorldCompetitiveReadyUpTests
 
     private static MethodInfo GetRequiredSimulationWorldMethod(string name)
     {
-        return typeof(SimulationWorld).GetMethod(name, BindingFlags.Instance | BindingFlags.NonPublic)
+        return typeof(SimulationWorld).GetMethod(name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
             ?? throw new InvalidOperationException($"Could not find SimulationWorld.{name}.");
     }
 }

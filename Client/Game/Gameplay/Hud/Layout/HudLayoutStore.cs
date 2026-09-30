@@ -87,7 +87,7 @@ internal static class HudLayoutStore
     }
 }
 
-internal sealed class HudLayoutDocument
+public sealed class HudLayoutDocument
 {
     public int Version { get; set; } = 1;
 
@@ -153,7 +153,7 @@ internal sealed class HudLayoutDocument
     }
 }
 
-internal sealed class HudLayoutEditorDocument
+public sealed class HudLayoutEditorDocument
 {
     public bool GridVisible { get; set; } = true;
 

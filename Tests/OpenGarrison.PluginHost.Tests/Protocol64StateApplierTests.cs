@@ -25,7 +25,7 @@ public sealed class Protocol64StateApplierTests
 
         // The legacy snapshot's complete flame collection excludes this newer
         // fast-channel spawn. Exercise the actual collection synchronization.
-        var applyFlames = typeof(SimulationWorld).GetMethod("ApplySnapshotFlames", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        var applyFlames = typeof(SimulationWorld).GetMethod("ApplySnapshotFlames", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!;
         applyFlames.Invoke(world, [Array.Empty<SnapshotFlameState>(), Array.Empty<int>(), true]);
         Assert.Empty(world.Flames);
         applier.ApplyToWorld(world, 1);
@@ -727,7 +727,7 @@ public sealed class Protocol64StateApplierTests
     {
         var method = typeof(SimulationWorld).GetMethod(
             "FirePrimaryWeapon",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         _ = method!.Invoke(world, [player, aimWorldX, aimWorldY]);
     }

@@ -8,7 +8,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private void DrawHostSetupMenu()
+    public void DrawHostSetupMenu()
     {
         var viewportWidth = ViewportWidth;
         var viewportHeight = ViewportHeight;
@@ -20,7 +20,7 @@ public partial class Game1
             var barY = viewportHeight - bottomBarHeight;
             var bottomBarBounds = new Rectangle(0, barY, viewportWidth, bottomBarHeight);
             _spriteBatch.Draw(_pixel, bottomBarBounds, new Color(0x57, 0x4f, 0x47));
-            _menuBottomBarRunners.Draw(bottomBarBounds);
+            _menuManager.MenuBottomBarRunners.Draw(bottomBarBounds);
         }
 
         if (_hostSetupScreen == HostSetupScreen.Options)
@@ -97,7 +97,7 @@ public partial class Game1
         }
     }
 
-    private void DrawHostSetupMainScreen(
+    public void DrawHostSetupMainScreen(
         HostSetupMenuLayout layout,
         bool compactLayout,
         float fieldLabelScale,
@@ -167,7 +167,7 @@ public partial class Game1
         DrawHostSetupContentScrollbar(layout);
     }
 
-    private void DrawHostSetupFooter(HostSetupMenuLayout layout, float buttonScale, float infoScale)
+    public void DrawHostSetupFooter(HostSetupMenuLayout layout, float buttonScale, float infoScale)
     {
         var panel = layout.Panel;
         if (_hostSetupScreen == HostSetupScreen.Main)
@@ -217,7 +217,7 @@ public partial class Game1
             Math.Max(0, optionCount - visibleRowCount));
     }
 
-    private static int GetHostSetupContentHeight(HostSetupMenuLayout layout)
+    public static int GetHostSetupContentHeight(HostSetupMenuLayout layout)
     {
         var contentBottom = layout.Screen switch
         {
@@ -233,7 +233,7 @@ public partial class Game1
         return Math.Max(layout.ContentViewportBounds.Height, (contentBottom - layout.ContentTop) + 12);
     }
 
-    private void ClampHostSetupContentScrollOffset(HostSetupMenuLayout layout)
+    public void ClampHostSetupContentScrollOffset(HostSetupMenuLayout layout)
     {
         if (layout.Screen == HostSetupScreen.Maps)
         {
@@ -247,7 +247,7 @@ public partial class Game1
             Math.Max(0, GetHostSetupContentHeight(layout) - layout.ContentViewportBounds.Height));
     }
 
-    private Rectangle GetHostSetupScrolledContentBounds(Rectangle bounds)
+    public Rectangle GetHostSetupScrolledContentBounds(Rectangle bounds)
     {
         return new Rectangle(bounds.X, bounds.Y - _hostSetupContentScrollOffset, bounds.Width, bounds.Height);
     }

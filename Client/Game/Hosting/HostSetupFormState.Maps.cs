@@ -10,7 +10,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private sealed partial class HostSetupFormState
+    public sealed partial class HostSetupFormState
 {
     public int AvailableMapIndex { get; set; } = -1;
     public int PlaylistMapIndex { get; set; } = -1;

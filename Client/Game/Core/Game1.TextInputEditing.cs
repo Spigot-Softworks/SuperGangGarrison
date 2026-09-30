@@ -11,30 +11,30 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private static bool IsShiftHeld(KeyboardState keyboard)
+    public static bool IsShiftHeld(KeyboardState keyboard)
         => keyboard.IsKeyDown(Keys.LeftShift) || keyboard.IsKeyDown(Keys.RightShift);
 
-    private static bool HasTextSelection(int cursorIndex, int selectionStart)
+    public static bool HasTextSelection(int cursorIndex, int selectionStart)
         => cursorIndex != selectionStart;
 
-    private static (int start, int length) GetTextSelectionRange(int cursorIndex, int selectionStart)
+    public static (int start, int length) GetTextSelectionRange(int cursorIndex, int selectionStart)
     {
         var start = Math.Min(cursorIndex, selectionStart);
         return (start, Math.Abs(cursorIndex - selectionStart));
     }
 
 
-    private static string GetTextWithCursor(string text, int cursorIndex)
+    public static string GetTextWithCursor(string text, int cursorIndex)
     {
         cursorIndex = Math.Clamp(cursorIndex, 0, text.Length);
         return string.Concat(text.AsSpan(0, cursorIndex), "_", text.AsSpan(cursorIndex));
     }
 
-    private const double TextInputDoubleClickThresholdSeconds = 0.45;
-    private const double TextInputArrowRepeatDelaySeconds = 0.5;
-    private const double TextInputArrowRepeatIntervalSeconds = 0.05;
+    public const double TextInputDoubleClickThresholdSeconds = 0.45;
+    public const double TextInputArrowRepeatDelaySeconds = 0.5;
+    public const double TextInputArrowRepeatIntervalSeconds = 0.05;
 
-    private enum TextFieldClickTarget
+    public enum TextFieldClickTarget
     {
         None,
         ManualConnectHost,
@@ -56,20 +56,20 @@ public partial class Game1
         HostSetupConsoleCommand,
     }
 
-    private TextFieldClickTarget _lastTextInputClickTarget;
-    private double _lastTextInputClickTimeSeconds;
+    public TextFieldClickTarget _lastTextInputClickTarget;
+    public double _lastTextInputClickTimeSeconds;
 
-    private ArrowKeyRepeatState _textInputLeftArrowRepeatState;
-    private ArrowKeyRepeatState _textInputRightArrowRepeatState;
+    public ArrowKeyRepeatState _textInputLeftArrowRepeatState;
+    public ArrowKeyRepeatState _textInputRightArrowRepeatState;
 
-    private struct ArrowKeyRepeatState
+    public struct ArrowKeyRepeatState
     {
         public bool IsHeld;
         public double HeldTimeSeconds;
         public double RepeatTimerSeconds;
     }
 
-    private void DrawBitmapFontTextWithSelection(
+    public void DrawBitmapFontTextWithSelection(
         string text,
         Vector2 position,
         int cursorIndex,
@@ -112,7 +112,7 @@ public partial class Game1
         DrawBitmapFontText(after, new Vector2(selectionX + selectionWidth, position.Y), normalTextColor, scale);
     }
 
-    private void DrawSpriteFontTextWithSelection(
+    public void DrawSpriteFontTextWithSelection(
         SpriteFont font,
         string text,
         Vector2 position,
@@ -155,10 +155,10 @@ public partial class Game1
         _spriteBatch.DrawString(font, after, new Vector2(selectionX + selectionWidth, position.Y), normalTextColor);
     }
 
-    private static double GetCurrentTimeSeconds()
+    public static double GetCurrentTimeSeconds()
         => Environment.TickCount64 / 1000.0;
 
-    private bool IsTextFieldDoubleClick(TextFieldClickTarget target)
+    public bool IsTextFieldDoubleClick(TextFieldClickTarget target)
     {
         var now = GetCurrentTimeSeconds();
         var isDoubleClick = target != TextFieldClickTarget.None
@@ -202,7 +202,7 @@ public partial class Game1
         return false;
     }
 
-    private void SelectAllTextInActiveField(TextFieldClickTarget clickTarget)
+    public void SelectAllTextInActiveField(TextFieldClickTarget clickTarget)
     {
         switch (clickTarget)
         {
@@ -279,7 +279,7 @@ public partial class Game1
         }
     }
 
-    private void ResetTextFieldClickTarget()
+    public void ResetTextFieldClickTarget()
     {
         _lastTextInputClickTarget = TextFieldClickTarget.None;
         _lastTextInputClickTimeSeconds = 0;
@@ -447,7 +447,7 @@ public partial class Game1
         return true;
     }
 
-    private TextFieldClickTarget GetActiveTextFieldClickTarget()
+    public TextFieldClickTarget GetActiveTextFieldClickTarget()
     {
         if (_mainMenuOpen && _manualConnectOpen)
         {
@@ -1231,7 +1231,7 @@ public partial class Game1
         return false;
     }
 
-    private void HandleHostSetupFieldBackspace()
+    public void HandleHostSetupFieldBackspace()
     {
         if (!_mainMenuOpen || !_hostSetupOpen)
         {
@@ -1345,7 +1345,7 @@ public partial class Game1
         }
     }
 
-    private void HandleHostSetupFieldCharacterInput(char character)
+    public void HandleHostSetupFieldCharacterInput(char character)
     {
         if (char.IsControl(character) || !_mainMenuOpen || !_hostSetupOpen)
         {
@@ -1774,7 +1774,7 @@ public partial class Game1
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern IntPtr GlobalFree(IntPtr hMem);
 
-    private bool HandleActiveTextFieldKeyboardShortcuts(KeyboardState keyboard, double elapsedSeconds)
+    public bool HandleActiveTextFieldKeyboardShortcuts(KeyboardState keyboard, double elapsedSeconds)
     {
         if (HandleActiveTextFieldClipboardShortcuts(keyboard))
         {
@@ -2160,7 +2160,7 @@ public partial class Game1
         return false;
     }
 
-    private static (string Text, int CursorIndex, int SelectionStart) DeleteTextSelectionOrBackspace(string text, int cursorIndex, int selectionStart)
+    public static (string Text, int CursorIndex, int SelectionStart) DeleteTextSelectionOrBackspace(string text, int cursorIndex, int selectionStart)
     {
         if (HasTextSelection(cursorIndex, selectionStart))
         {
@@ -2194,7 +2194,7 @@ public partial class Game1
         return (text, cursorIndex, selectionStart);
     }
 
-    private static (string Text, int CursorIndex, int SelectionStart) InsertTextCharacterAtCursor(string text, char character, int cursorIndex, int selectionStart, int maxLength)
+    public static (string Text, int CursorIndex, int SelectionStart) InsertTextCharacterAtCursor(string text, char character, int cursorIndex, int selectionStart, int maxLength)
     {
         return InsertTextAtCursor(text, character.ToString(), cursorIndex, selectionStart, maxLength, c => !char.IsControl(c));
     }
@@ -2296,25 +2296,25 @@ public partial class Game1
         _playerNameEditSelectionStart = _playerNameEditCursorIndex;
     }
 
-    private void InitializeConnectHostCursor()
+    public void InitializeConnectHostCursor()
     {
         _connectHostCursorIndex = _connectHostBuffer.Length;
         _connectHostSelectionStart = _connectHostCursorIndex;
     }
 
-    private void InitializeConnectPortCursor()
+    public void InitializeConnectPortCursor()
     {
         _connectPortCursorIndex = _connectPortBuffer.Length;
         _connectPortSelectionStart = _connectPortCursorIndex;
     }
 
-    private void InitializeFriendCodeCursor()
+    public void InitializeFriendCodeCursor()
     {
         _friendCodeCursorIndex = _friendCodeInputBuffer.Length;
         _friendCodeSelectionStart = _friendCodeCursorIndex;
     }
 
-    private void InitializeFriendNicknameCursor()
+    public void InitializeFriendNicknameCursor()
     {
         _friendNicknameCursorIndex = _friendNicknameInputBuffer.Length;
         _friendNicknameSelectionStart = _friendNicknameCursorIndex;
@@ -2326,7 +2326,7 @@ public partial class Game1
         _friendMessageSelectionStart = _friendMessageCursorIndex;
     }
 
-    private void InitializePasswordEditCursor()
+    public void InitializePasswordEditCursor()
     {
         _passwordEditCursorIndex = _passwordEditBuffer.Length;
         _passwordEditSelectionStart = _passwordEditCursorIndex;
@@ -2338,13 +2338,13 @@ public partial class Game1
         _chatInputSelectionStart = _chatInputCursorIndex;
     }
 
-    private void InitializeConsoleInputCursor()
+    public void InitializeConsoleInputCursor()
     {
         _consoleInputCursorIndex = _consoleInput.Length;
         _consoleInputSelectionStart = _consoleInputCursorIndex;
     }
 
-    private void InitializeHostSetupFieldCursor(HostSetupEditField field)
+    public void InitializeHostSetupFieldCursor(HostSetupEditField field)
     {
         switch (field)
         {

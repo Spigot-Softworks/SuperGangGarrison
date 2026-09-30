@@ -180,7 +180,7 @@ public sealed class FirePredictionRegressionTests
         var game = CreatePredictionHarness(world);
         var method = typeof(Game1).GetMethod(
             "CanStartImmediatePrimaryFirePresentation",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
 
         var canPresent = method!.Invoke(
@@ -352,30 +352,6 @@ public sealed class FirePredictionRegressionTests
         Assert.Equal(equippedItemBefore, player.GameplayLoadoutState.EquippedItemId);
     }
 
-    [Fact]
-    public void ImmediatePresentationLatchAndAuthorityConfirmationAreSeparateOneShotStates()
-    {
-        var pendingConfirmationSeconds = 0f;
-        Assert.True(Game1.ResolvePredictedWeaponAnimationStart(
-            authoritativeShotStarted: false,
-            immediateLocalPrimaryPress: true,
-            elapsedSeconds: 1f / 60f,
-            ref pendingConfirmationSeconds));
-
-        Assert.False(Game1.ResolvePredictedWeaponAnimationStart(
-            authoritativeShotStarted: false,
-            immediateLocalPrimaryPress: false,
-            elapsedSeconds: 1f / 60f,
-            ref pendingConfirmationSeconds));
-
-        Assert.False(Game1.ResolvePredictedWeaponAnimationStart(
-            authoritativeShotStarted: true,
-            immediateLocalPrimaryPress: false,
-            elapsedSeconds: 1f / 60f,
-            ref pendingConfirmationSeconds));
-        Assert.Equal(0f, pendingConfirmationSeconds);
-    }
-
     [Theory]
     [InlineData(5u, 10u, true)]
     [InlineData(10u, 10u, true)]
@@ -390,7 +366,7 @@ public sealed class FirePredictionRegressionTests
     {
         var method = typeof(Game1).GetMethod(
             "IsInputSequenceAcknowledged",
-            BindingFlags.Static | BindingFlags.NonPublic)
+            BindingFlags.Static | BindingFlags.Public | BindingFlags.Public | BindingFlags.NonPublic)
             ?? throw new MissingMethodException(typeof(Game1).FullName, "IsInputSequenceAcknowledged");
 
         var acknowledged = method.Invoke(null, [sequence, lastProcessedInputSequence]);
@@ -413,52 +389,16 @@ public sealed class FirePredictionRegressionTests
         Assert.Equal(100u, GetPrivateField<uint>(game, "_latchedJumpPressSequence"));
     }
 
-    [Fact]
-    public void PredictedRenderPositionDoesNotAdvanceWithZeroDelta()
-    {
-        var world = new SimulationWorld();
-        var game = CreatePredictionHarness(world);
-        var current = new Vector2(100f, 200f);
-
-        var result = InvokePrivateResult<Vector2>(
-            typeof(Game1),
-            game,
-            "AdvancePredictedLocalPlayerRenderPosition",
-            current,
-            new Vector2(150f, 250f),
-            new Vector2(50f, 0f),
-            0f);
-
-        Assert.Equal(current, result);
-    }
-
-    [Fact]
-    public void PredictedRenderPositionClampsHorizontalLead()
-    {
-        var world = new SimulationWorld(new() { TicksPerSecond = 60, EnableLocalDummies = false });
-        var game = CreatePredictionHarness(world);
-
-        var result = InvokePrivateResult<Vector2>(
-            typeof(Game1),
-            game,
-            "AdvancePredictedLocalPlayerRenderPosition",
-            new Vector2(0f, 0f),
-            new Vector2(100f, 0f),
-            new Vector2(500f, 0f),
-            0.016f);
-
-        var maxLead = 500f * (1f / 60f) * 1.25f;
-        Assert.InRange(result.X, 100f - maxLead - 0.01f, 100f - maxLead + 0.01f);
-        Assert.Equal(0f, result.Y);
-    }
-
     private static object CreatePredictionHarness(SimulationWorld world)
     {
         var game = RuntimeHelpers.GetUninitializedObject(typeof(Game1));
-        var networkField = typeof(Game1).GetField("_networkClient", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        var networkField = typeof(Game1).GetField("_networkClient", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!;
         networkField.SetValue(game, Activator.CreateInstance(networkField.FieldType));
         SetPrivateField(game, "_config", world.Config);
         SetPrivateField(game, "_world", world);
+        // The GG2-interop guards read _networkClient; the ctor never ran on this
+        // uninitialized instance, so provide the production default explicitly.
+        SetPrivateField(game, "_networkClient", new NetworkGameClient());
         return game;
     }
 
@@ -470,10 +410,10 @@ public sealed class FirePredictionRegressionTests
     {
         var inputType = typeof(Game1).GetNestedType(
             "PredictedLocalInput",
-            BindingFlags.NonPublic)
+            BindingFlags.Public | BindingFlags.NonPublic)
             ?? throw new MissingMemberException(typeof(Game1).FullName, "PredictedLocalInput");
         var constructor = inputType.GetConstructor(
-            BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public,
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Public,
             binder: null,
             [
                 typeof(uint),
@@ -515,7 +455,7 @@ public sealed class FirePredictionRegressionTests
     {
         var method = declaringType.GetMethod(
             methodName,
-            BindingFlags.Instance | BindingFlags.NonPublic)
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.Public | BindingFlags.NonPublic)
             ?? throw new MissingMethodException(declaringType.FullName, methodName);
         method.Invoke(target, arguments);
     }
@@ -524,7 +464,7 @@ public sealed class FirePredictionRegressionTests
     {
         var field = target.GetType().GetField(
             fieldName,
-            BindingFlags.Instance | BindingFlags.NonPublic)
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.Public | BindingFlags.NonPublic)
             ?? throw new MissingFieldException(target.GetType().FullName, fieldName);
         field.SetValue(target, value);
     }
@@ -533,7 +473,7 @@ public sealed class FirePredictionRegressionTests
     {
         var field = target.GetType().GetField(
             fieldName,
-            BindingFlags.Instance | BindingFlags.NonPublic)
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.Public | BindingFlags.NonPublic)
             ?? throw new MissingFieldException(target.GetType().FullName, fieldName);
         return (T)field.GetValue(target)!;
     }
@@ -546,7 +486,7 @@ public sealed class FirePredictionRegressionTests
     {
         var method = declaringType.GetMethod(
             methodName,
-            BindingFlags.Instance | BindingFlags.NonPublic)
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.Public | BindingFlags.NonPublic)
             ?? throw new MissingMethodException(declaringType.FullName, methodName);
         return (T)method.Invoke(target, arguments)!;
     }

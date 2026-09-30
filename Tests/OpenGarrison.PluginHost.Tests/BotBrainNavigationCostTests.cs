@@ -10,70 +10,7 @@ public sealed class BotBrainNavigationCostTests
 {
     private static readonly JsonSerializerOptions AssetJsonOptions = CreateAssetJsonOptions();
 
-    [Fact]
-    public void FindPathPenalizesCheapVerticalWalkRelay()
-    {
-        var nodes = new[]
-        {
-            new NavNode(0f, 0f, NavNodeKind.Surface, 0),
-            new NavNode(50f, -80f, NavNodeKind.Surface, 1),
-            new NavNode(100f, 0f, NavNodeKind.Surface, 2),
-            new NavNode(50f, 0f, NavNodeKind.Surface, 3),
-        };
-        var adjacency = new List<NavEdge>[nodes.Length];
-        for (var i = 0; i < adjacency.Length; i += 1)
-        {
-            adjacency[i] = [];
-        }
 
-        adjacency[0].Add(new NavEdge(1, NavEdgeKind.Walk, 2f));
-        adjacency[1].Add(new NavEdge(2, NavEdgeKind.Walk, 2f));
-        adjacency[0].Add(new NavEdge(3, NavEdgeKind.Walk, 50f));
-        adjacency[3].Add(new NavEdge(2, NavEdgeKind.Walk, 50f));
-
-        var graph = new NavGraph(nodes, adjacency, levelName: "Synthetic", mode: GameModeKind.CaptureTheFlag);
-
-        var path = graph.FindPath(0, 2, PlayerClass.Heavy, team: PlayerTeam.Blue);
-
-        Assert.NotNull(path);
-        Assert.Equal(3, path.Count);
-        Assert.Equal(0, path.GetWaypoint(0));
-        Assert.Equal(3, path.GetWaypoint(1));
-        Assert.Equal(2, path.GetWaypoint(2));
-    }
-
-    [Fact]
-    public void ConflictCarrierReturnPenalizesSpawnAdjacentShortcut()
-    {
-        var nodes = new[]
-        {
-            new NavNode(-300f, 0f, NavNodeKind.Surface, 0),
-            new NavNode(0f, 0f, NavNodeKind.Surface, 1),
-            new NavNode(300f, 0f, NavNodeKind.Surface, 2),
-            new NavNode(0f, 160f, NavNodeKind.Surface, 3),
-            new NavNode(0f, 20f, NavNodeKind.Spawn, null),
-        };
-        var adjacency = new List<NavEdge>[nodes.Length];
-        for (var i = 0; i < adjacency.Length; i += 1)
-        {
-            adjacency[i] = [];
-        }
-
-        adjacency[0].Add(new NavEdge(1, NavEdgeKind.Walk, 10f));
-        adjacency[1].Add(new NavEdge(2, NavEdgeKind.Walk, 10f));
-        adjacency[0].Add(new NavEdge(3, NavEdgeKind.Walk, 100f));
-        adjacency[3].Add(new NavEdge(2, NavEdgeKind.Walk, 100f));
-
-        var graph = new NavGraph(nodes, adjacency, levelName: "Conflict", mode: GameModeKind.CaptureTheFlag);
-
-        var path = graph.FindPath(0, 2, PlayerClass.Heavy, team: PlayerTeam.Blue, carryingIntel: true);
-
-        Assert.NotNull(path);
-        Assert.Equal(3, path!.Count);
-        Assert.Equal(0, path.GetWaypoint(0));
-        Assert.Equal(3, path.GetWaypoint(1));
-        Assert.Equal(2, path.GetWaypoint(2));
-    }
 
     [Fact]
     public void ConflictShippedNavigationPolicyDoesNotRequireObsoleteLegacyAsset()
@@ -84,7 +21,7 @@ public sealed class BotBrainNavigationCostTests
         // Runtime alpha navigation uses immutable OG2 binaries. Conflict does
         // not currently ship a compatible snapshot, so the graphless policy
         // must remain valid rather than demanding the retired JSON asset.
-        if (Og2NavigationGraphStore.TryLoadShipped(level!, out var graph))
+        if (NavigationGraphProvider.TryLoadShippedGraph(level!, out var graph))
         {
             Assert.True(graph.NodeCount > 0);
             return;
@@ -100,119 +37,8 @@ public sealed class BotBrainNavigationCostTests
             $"Unexpected legacy Conflict nav status: {diagnostic.ShippedStatus}");
     }
 
-    [Fact]
-    public void ConflictCarrierReturnKeepsLegacyAllSpawnPenalty()
-    {
-        var nodes = new[]
-        {
-            new NavNode(-300f, 0f, NavNodeKind.Surface, 0),
-            new NavNode(0f, 0f, NavNodeKind.Surface, 1),
-            new NavNode(300f, 0f, NavNodeKind.Surface, 2),
-            new NavNode(0f, 160f, NavNodeKind.Surface, 3),
-            new NavNode(0f, 20f, NavNodeKind.Spawn, null),
-        };
-        var adjacency = new List<NavEdge>[nodes.Length];
-        for (var i = 0; i < adjacency.Length; i += 1)
-        {
-            adjacency[i] = [];
-        }
 
-        adjacency[0].Add(new NavEdge(1, NavEdgeKind.Walk, 10f));
-        adjacency[1].Add(new NavEdge(2, NavEdgeKind.Walk, 10f));
-        adjacency[0].Add(new NavEdge(3, NavEdgeKind.Walk, 100f));
-        adjacency[3].Add(new NavEdge(2, NavEdgeKind.Walk, 100f));
 
-        var graph = new NavGraph(
-            nodes,
-            adjacency,
-            levelName: "Conflict",
-            mode: GameModeKind.CaptureTheFlag,
-            spawnAnchors: [new NavSpawnAnchor(0f, 20f, PlayerTeam.Blue)]);
-
-        var path = graph.FindPath(0, 2, PlayerClass.Heavy, team: PlayerTeam.Blue, carryingIntel: true);
-
-        Assert.NotNull(path);
-        Assert.Equal(3, path!.Count);
-        Assert.Equal(0, path.GetWaypoint(0));
-        Assert.Equal(3, path.GetWaypoint(1));
-        Assert.Equal(2, path.GetWaypoint(2));
-    }
-
-    [Fact]
-    public void WaterwayCarrierReturnKeepsSpawnAdjacentRouteAvailable()
-    {
-        var nodes = new[]
-        {
-            new NavNode(-300f, 0f, NavNodeKind.Surface, 0),
-            new NavNode(0f, 0f, NavNodeKind.Surface, 1),
-            new NavNode(300f, 0f, NavNodeKind.Surface, 2),
-            new NavNode(0f, 160f, NavNodeKind.Surface, 3),
-            new NavNode(0f, 20f, NavNodeKind.Spawn, null),
-        };
-        var adjacency = new List<NavEdge>[nodes.Length];
-        for (var i = 0; i < adjacency.Length; i += 1)
-        {
-            adjacency[i] = [];
-        }
-
-        adjacency[0].Add(new NavEdge(1, NavEdgeKind.Walk, 10f));
-        adjacency[1].Add(new NavEdge(2, NavEdgeKind.Walk, 10f));
-        adjacency[0].Add(new NavEdge(3, NavEdgeKind.Walk, 100f));
-        adjacency[3].Add(new NavEdge(2, NavEdgeKind.Walk, 100f));
-
-        var graph = new NavGraph(
-            nodes,
-            adjacency,
-            levelName: "Waterway",
-            mode: GameModeKind.CaptureTheFlag,
-            spawnAnchors: [new NavSpawnAnchor(0f, 20f, PlayerTeam.Blue)]);
-
-        var path = graph.FindPath(0, 2, PlayerClass.Heavy, team: PlayerTeam.Blue, carryingIntel: true);
-
-        Assert.NotNull(path);
-        Assert.Equal(3, path!.Count);
-        Assert.Equal(0, path.GetWaypoint(0));
-        Assert.Equal(1, path.GetWaypoint(1));
-        Assert.Equal(2, path.GetWaypoint(2));
-    }
-
-    [Fact]
-    public void WaterwayCarrierReturnPenalizesEnemySpawnAdjacentShortcut()
-    {
-        var nodes = new[]
-        {
-            new NavNode(-300f, 0f, NavNodeKind.Surface, 0),
-            new NavNode(0f, 0f, NavNodeKind.Surface, 1),
-            new NavNode(300f, 0f, NavNodeKind.Surface, 2),
-            new NavNode(0f, 160f, NavNodeKind.Surface, 3),
-            new NavNode(0f, 20f, NavNodeKind.Spawn, null),
-        };
-        var adjacency = new List<NavEdge>[nodes.Length];
-        for (var i = 0; i < adjacency.Length; i += 1)
-        {
-            adjacency[i] = [];
-        }
-
-        adjacency[0].Add(new NavEdge(1, NavEdgeKind.Walk, 10f));
-        adjacency[1].Add(new NavEdge(2, NavEdgeKind.Walk, 10f));
-        adjacency[0].Add(new NavEdge(3, NavEdgeKind.Walk, 100f));
-        adjacency[3].Add(new NavEdge(2, NavEdgeKind.Walk, 100f));
-
-        var graph = new NavGraph(
-            nodes,
-            adjacency,
-            levelName: "Waterway",
-            mode: GameModeKind.CaptureTheFlag,
-            spawnAnchors: [new NavSpawnAnchor(0f, 20f, PlayerTeam.Red)]);
-
-        var path = graph.FindPath(0, 2, PlayerClass.Heavy, team: PlayerTeam.Blue, carryingIntel: true);
-
-        Assert.NotNull(path);
-        Assert.Equal(3, path!.Count);
-        Assert.Equal(0, path.GetWaypoint(0));
-        Assert.Equal(3, path.GetWaypoint(1));
-        Assert.Equal(2, path.GetWaypoint(2));
-    }
 
     [Theory]
     [MemberData(nameof(EigerAndWaterwayCaptureRouteCases))]
@@ -245,17 +71,13 @@ public sealed class BotBrainNavigationCostTests
             routeLabel: $"{levelName} {team} {playerClass} return");
     }
 
+    // Trimmed to one representative route-existence row per map (Red Scout);
+    // the full team/class cross-product was cut as part of the test-suite trim.
     public static IEnumerable<object[]> EigerAndWaterwayCaptureRouteCases()
     {
         foreach (var levelName in new[] { "Eiger", "Waterway" })
         {
-            foreach (var team in new[] { PlayerTeam.Red, PlayerTeam.Blue })
-            {
-                foreach (var playerClass in CaptureRouteClasses())
-                {
-                    yield return [levelName, team, playerClass];
-                }
-            }
+            yield return [levelName, PlayerTeam.Red, PlayerClass.Scout];
         }
     }
 

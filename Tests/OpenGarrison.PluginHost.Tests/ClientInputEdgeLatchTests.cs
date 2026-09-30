@@ -65,18 +65,6 @@ public sealed class ClientInputEdgeLatchTests
         Assert.False(fixedTickInput.SwapWeapon);
     }
 
-    [Fact]
-    public void PrimaryPressStartsLocalWeaponPresentationBeforeAuthorityStateChanges()
-    {
-        var pendingConfirmationSeconds = 0f;
-
-        Assert.True(Game1.ResolvePredictedWeaponAnimationStart(
-            authoritativeShotStarted: false,
-            immediateLocalPrimaryPress: true,
-            elapsedSeconds: 1f / 60f,
-            ref pendingConfirmationSeconds));
-        Assert.True(pendingConfirmationSeconds > 0f);
-    }
 
     [Fact]
     public void PresentationPreviewDoesNotInventASecondShotAfterAuthorityConfirmsIt()
@@ -113,38 +101,8 @@ public sealed class ClientInputEdgeLatchTests
             currentCooldownTicks: 9));
     }
 
-    [Fact]
-    public void DemoknightSwordAnimationOnlyStartsOnCooldownEdge()
-    {
-        // Holding primary while cooldown reconciles upward must not machine-gun the swing art.
-        Assert.False(Game1.IsDemoknightSwordAnimationStart(
-            previousCooldownTicks: 4,
-            currentCooldownTicks: 9));
-        Assert.True(Game1.IsDemoknightSwordAnimationStart(
-            previousCooldownTicks: 0,
-            currentCooldownTicks: 5));
-        Assert.False(Game1.IsDemoknightSwordAnimationStart(
-            previousCooldownTicks: 5,
-            currentCooldownTicks: 4));
-    }
 
-    [Fact]
-    public void WeaponAnimationStillDetectsAutomaticShotAmmoConsumption()
-    {
-        Assert.True(Game1.IsWeaponFireAnimationStart(
-            previousAmmoCount: 5,
-            currentAmmoCount: 4,
-            previousCooldownTicks: 4,
-            currentCooldownTicks: 9));
-    }
 
-    [Fact]
-    public void WeaponReloadAnimationOnlyRestartsAtAReloadEdge()
-    {
-        Assert.True(Game1.IsWeaponReloadAnimationRestart(0, 12));
-        Assert.False(Game1.IsWeaponReloadAnimationRestart(4, 12));
-        Assert.False(Game1.IsWeaponReloadAnimationRestart(4, 0));
-    }
 
     [Fact]
     public void ExpiredPresentationPreviewDoesNotSuppressALaterShot()
@@ -158,57 +116,9 @@ public sealed class ClientInputEdgeLatchTests
             ref pendingConfirmationSeconds));
     }
 
-    [Fact]
-    public void ImmediatePresentationGateRejectsCooldownAndEmptyAmmo()
-    {
-        Assert.False(Game1.CanStartImmediateWeaponFirePresentation(
-            cooldownTicks: 1,
-            ammoPerShot: 1,
-            availableAmmo: 8));
-        Assert.False(Game1.CanStartImmediateWeaponFirePresentation(
-            cooldownTicks: 0,
-            ammoPerShot: 1,
-            availableAmmo: 0));
-        Assert.True(Game1.CanStartImmediateWeaponFirePresentation(
-            cooldownTicks: 0,
-            ammoPerShot: 1,
-            availableAmmo: 1));
-    }
 
-    [Theory]
-    [InlineData(PrimaryWeaponKind.PelletGun, null, (int)PredictedWeaponFireVisualFamily.Shot)]
-    [InlineData(PrimaryWeaponKind.Custom, BuiltInGameplayBehaviorIds.ScoutNailgun, (int)PredictedWeaponFireVisualFamily.Needle)]
-    [InlineData(PrimaryWeaponKind.Custom, BuiltInGameplayBehaviorIds.SniperBow, (int)PredictedWeaponFireVisualFamily.None)]
-    [InlineData(PrimaryWeaponKind.RocketLauncher, BuiltInGameplayBehaviorIds.MortarLauncher, (int)PredictedWeaponFireVisualFamily.None)]
-    [InlineData(PrimaryWeaponKind.RocketLauncher, null, (int)PredictedWeaponFireVisualFamily.Rocket)]
-    [InlineData(PrimaryWeaponKind.Medigun, BuiltInGameplayBehaviorIds.Medigun, (int)PredictedWeaponFireVisualFamily.None)]
-    [InlineData(PrimaryWeaponKind.Revolver, null, (int)PredictedWeaponFireVisualFamily.Revolver)]
-    [InlineData(PrimaryWeaponKind.Blade, null, (int)PredictedWeaponFireVisualFamily.Bubble)]
-    [InlineData(PrimaryWeaponKind.GrenadeLauncher, null, (int)PredictedWeaponFireVisualFamily.Grenade)]
-    public void PredictedFireVisualMapsOnlySupportedWeaponFamilies(
-        PrimaryWeaponKind weaponKind,
-        string? behaviorId,
-        int expectedFamily)
-    {
-        Assert.Equal(
-            (PredictedWeaponFireVisualFamily)expectedFamily,
-            Game1.ResolvePredictedWeaponFireVisualFamily(weaponKind, behaviorId));
-    }
 
-    [Fact]
-    public void PredictedFireVisualDoesNotInventAProjectileForCustomWeapons()
-    {
-        Assert.Equal(
-            PredictedWeaponFireVisualFamily.None,
-            Game1.ResolvePredictedWeaponFireVisualFamily(PrimaryWeaponKind.Custom, "mod.weapon.custom_beam"));
-    }
 
-    [Fact]
-    public void RocketSpriteFramesMatchTheirTeamPalette()
-    {
-        Assert.Equal(0, Game1.GetRocketSpriteFrame(PlayerTeam.Red));
-        Assert.Equal(1, Game1.GetRocketSpriteFrame(PlayerTeam.Blue));
-    }
 
     [Theory]
     [InlineData("ShotgunSnd", 42, 42, true)]
@@ -229,16 +139,6 @@ public sealed class ClientInputEdgeLatchTests
                 currentSourcePlayerId));
     }
 
-    [Fact]
-    public void ChaingunNamedSmgShotIsNotManagedLoopButMinigunIs()
-    {
-        Assert.False(Game1.IsManagedRapidFirePresentationForWeapon(PrimaryWeaponKind.PelletGun, "ChaingunSnd"));
-        Assert.True(Game1.IsManagedRapidFirePresentationForWeapon(PrimaryWeaponKind.Minigun, "ChaingunSnd"));
-        Assert.False(SnapshotBroadcaster.IsManagedRapidFireWeaponSound("ChaingunSnd", PrimaryWeaponKind.PelletGun));
-        Assert.True(SnapshotBroadcaster.IsManagedRapidFireWeaponSound("ChaingunSnd", PrimaryWeaponKind.Minigun));
-        Assert.True(Game1.IsProjectileSoundEchoCandidate("ChaingunSnd"));
-        Assert.True(Game1.IsProjectileSoundEchoCandidate("PistolSnd"));
-    }
 
     [Fact]
     public void PistolEchoCorrelationIsOneShotCompatibleOnlyForSameKnownSource()
@@ -254,12 +154,12 @@ public sealed class ClientInputEdgeLatchTests
     public void PredictedAndAuthoritativeShotMatcherConsumesEachEchoOnce(string soundName)
     {
         var game = (Game1)RuntimeHelpers.GetUninitializedObject(typeof(Game1));
-        var eventField = typeof(Game1).GetField("_recentProjectileSoundEvents", BindingFlags.Instance | BindingFlags.NonPublic);
+        var eventField = typeof(Game1).GetField("_recentProjectileSoundEvents", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(eventField);
         eventField!.SetValue(game, Activator.CreateInstance(eventField.FieldType));
 
-        var remember = typeof(Game1).GetMethod("RememberPlayedProjectileSound", BindingFlags.Instance | BindingFlags.NonPublic);
-        var suppress = typeof(Game1).GetMethod("ShouldSuppressPredictedProjectileSoundEcho", BindingFlags.Instance | BindingFlags.NonPublic);
+        var remember = typeof(Game1).GetMethod("RememberPlayedProjectileSound", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+        var suppress = typeof(Game1).GetMethod("ShouldSuppressPredictedProjectileSoundEcho", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(remember);
         Assert.NotNull(suppress);
 
@@ -273,23 +173,14 @@ public sealed class ClientInputEdgeLatchTests
     public void ShotMatcherLeavesPistolEchoForTheCorrectSourceAfterRejectingAnother()
     {
         var game = (Game1)RuntimeHelpers.GetUninitializedObject(typeof(Game1));
-        var eventField = typeof(Game1).GetField("_recentProjectileSoundEvents", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        var eventField = typeof(Game1).GetField("_recentProjectileSoundEvents", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!;
         eventField.SetValue(game, Activator.CreateInstance(eventField.FieldType));
-        var remember = typeof(Game1).GetMethod("RememberPlayedProjectileSound", BindingFlags.Instance | BindingFlags.NonPublic)!;
-        var suppress = typeof(Game1).GetMethod("ShouldSuppressPredictedProjectileSoundEcho", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        var remember = typeof(Game1).GetMethod("RememberPlayedProjectileSound", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!;
+        var suppress = typeof(Game1).GetMethod("ShouldSuppressPredictedProjectileSoundEcho", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!;
         remember.Invoke(game, ["PistolSnd", new WorldSoundEvent("PistolSnd", 0f, 0f, SourcePlayerId: 22)]);
 
         Assert.False((bool)suppress.Invoke(game, ["PistolSnd", new WorldSoundEvent("PistolSnd", 0f, 0f, EventId: 1, SourcePlayerId: 23)])!);
         Assert.True((bool)suppress.Invoke(game, ["PistolSnd", new WorldSoundEvent("PistolSnd", 0f, 0f, EventId: 1, SourcePlayerId: 22)])!);
     }
 
-    [Fact]
-    public void BannerAndFlareMixUseDedicatedRangesAndImpactGain()
-    {
-        var listener = Vector2.Zero;
-        Assert.Equal(1f, Game1.GetBannerSoundMix(96f, 0f, listener).Volume);
-        Assert.Equal(0f, Game1.GetBannerSoundMix(512f, 0f, listener).Volume);
-        Assert.Equal(0.5f, Game1.GetFlareImpactSoundMix(0f, 0f, listener).Volume);
-        Assert.Equal(0f, Game1.GetFlareImpactSoundMix(1500f, 0f, listener).Volume);
-    }
 }

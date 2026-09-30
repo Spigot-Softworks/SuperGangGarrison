@@ -3,7 +3,7 @@ using System;
 namespace OpenGarrison.Client;
 
 // Presentation only: animation never changes movement, weapon timing, or hitboxes.
-internal sealed class PlayerSkinAnimator
+public sealed class PlayerSkinAnimator
 {
     private PlayerSkinDefinition? _skin;
     private bool _airborne;

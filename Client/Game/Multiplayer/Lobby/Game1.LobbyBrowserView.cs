@@ -11,33 +11,33 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private void OpenLobbyBrowser()
+    public void OpenLobbyBrowser()
     {
-        _connectionFlowController.OpenLobbyBrowser();
+        _sessionManager.Connection.OpenLobbyBrowser();
     }
 
-    private void OpenGg2LobbyBrowser()
+    public void OpenGg2LobbyBrowser()
     {
         _lobbyBrowserSource = LobbyBrowserSource.Gg2;
-        _connectionFlowController.OpenLobbyBrowser();
+        _sessionManager.Connection.OpenLobbyBrowser();
     }
 
-    private void OpenWatchBrowser()
+    public void OpenWatchBrowser()
     {
-        _connectionFlowController.OpenWatchBrowser();
+        _sessionManager.Connection.OpenWatchBrowser();
     }
 
-    private void CloseLobbyBrowser(bool clearStatus)
+    public void CloseLobbyBrowser(bool clearStatus)
     {
-        _connectionFlowController.CloseLobbyBrowser(clearStatus);
+        _sessionManager.Connection.CloseLobbyBrowser(clearStatus);
     }
 
     private void RefreshLobbyBrowser()
     {
-        _connectionFlowController.RefreshLobbyBrowser();
+        _sessionManager.Connection.RefreshLobbyBrowser();
     }
 
-    private void UpdateLobbyBrowserState(KeyboardState keyboard, MouseState mouse)
+    public void UpdateLobbyBrowserState(KeyboardState keyboard, MouseState mouse)
     {
         UpdateLobbyBrowserResponses();
         UpdateLobbyBrowserDetailsState();
@@ -189,7 +189,7 @@ public partial class Game1
         }
         else if (_lobbyBrowserMode == LobbyBrowserMode.Join && !OpenGarrison.ClientShared.ClientDistribution.IsGg2Only && manualBounds.Contains(point))
         {
-            _connectionFlowController.OpenManualConnectMenuFromLobbyBrowser();
+            _sessionManager.Connection.OpenManualConnectMenuFromLobbyBrowser();
         }
         else if (backBounds.Contains(point))
         {
@@ -244,7 +244,7 @@ public partial class Game1
         }
     }
 
-    private void DrawLobbyBrowserMenu()
+    public void DrawLobbyBrowserMenu()
     {
         var viewportWidth = ViewportWidth;
         var viewportHeight = ViewportHeight;
@@ -257,7 +257,7 @@ public partial class Game1
             var barY = viewportHeight - bottomBarHeight;
             var bottomBarBounds = new Rectangle(0, barY, viewportWidth, bottomBarHeight);
             _spriteBatch.Draw(_pixel, bottomBarBounds, new Color(0x57, 0x4f, 0x47));
-            _menuBottomBarRunners.Draw(bottomBarBounds);
+            _menuManager.MenuBottomBarRunners.Draw(bottomBarBounds);
         }
 
         GetLobbyBrowserLayout(
@@ -555,28 +555,28 @@ public partial class Game1
 
     private void JoinSelectedLobbyEntry()
     {
-        _connectionFlowController.JoinSelectedLobbyEntry();
+        _sessionManager.Connection.JoinSelectedLobbyEntry();
     }
 
     private void OpenSelectedLobbyEntryDetails()
     {
-        _connectionFlowController.OpenSelectedLobbyEntryDetails();
+        _sessionManager.Connection.OpenSelectedLobbyEntryDetails();
     }
 
     private void WatchSelectedLobbyEntry()
     {
-        _connectionFlowController.WatchSelectedLobbyEntry();
+        _sessionManager.Connection.WatchSelectedLobbyEntry();
     }
 
     private bool CanJoinSelectedLobbyEntry()
     {
-        return _connectionFlowController.CanJoinSelectedLobbyEntry();
+        return _sessionManager.Connection.CanJoinSelectedLobbyEntry();
     }
 
 
     private IEnumerable<LobbyBrowserTarget> BuildLobbyBrowserTargets()
     {
-        return _connectionFlowController.BuildLobbyBrowserTargets();
+        return _sessionManager.Connection.BuildLobbyBrowserTargets();
     }
 
     private static string FormatServerDetailsTime(int ticks, int tickRate)

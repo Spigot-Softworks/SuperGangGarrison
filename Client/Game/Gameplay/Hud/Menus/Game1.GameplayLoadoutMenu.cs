@@ -14,7 +14,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private bool CanOpenGameplayLoadoutMenu()
+    public bool CanOpenGameplayLoadoutMenu()
     {
         if (_networkClient.IsLegacyGg2Connection)
         {
@@ -35,7 +35,7 @@ public partial class Game1
             || GameplayLoadoutSelectionResolver.GetOrderedLoadouts(_world.LocalPlayer.ClassId).Count > 1;
     }
 
-    private void LoadGameplayLoadoutMenuTextures()
+    public void LoadGameplayLoadoutMenuTextures()
     {
         _gameplayLoadoutClassStripTexture = TryLoadGameplayLoadoutMenuTexture("LoadoutStrip.png");
         _gameplayLoadoutClassSelectionTexture = TryLoadGameplayLoadoutMenuTexture("LoadoutSelectionStrip.png");
@@ -98,7 +98,7 @@ public partial class Game1
         }
     }
 
-    private void UpdateGameplayLoadoutMenu(KeyboardState keyboard, MouseState mouse)
+    public void UpdateGameplayLoadoutMenu(KeyboardState keyboard, MouseState mouse)
     {
         if (!_gameplayLoadoutMenuOpen)
         {

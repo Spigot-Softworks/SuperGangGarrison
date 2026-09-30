@@ -205,7 +205,8 @@ public sealed class LastToDiePerkRuntimeTests
         Assert.Same(profile, shot.LastToDieProfile);
         Assert.True(shot.AppliesLuckyStrikeStun);
 
-        var snapshot = global::ServerHelpers.ToSnapshotRevolverState(shot);
+        var snapshotStore = new EntityStore();
+        var snapshot = new SnapshotSystem(snapshotStore, new CombatSystem(snapshotStore)).ToSnapshotRevolverState(shot);
         Assert.Equal(11.2f, snapshot.DamageValue);
         Assert.Equal(profile.Encode(), snapshot.LastToDieRevolverProfile);
         Assert.True(snapshot.AppliesLuckyStrikeStun);
@@ -1943,7 +1944,7 @@ public sealed class LastToDiePerkRuntimeTests
     {
         var method = typeof(SimulationWorld).GetMethod(
             "CombatTestSetLevel",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         _ = method!.Invoke(world, [level]);
     }
@@ -1954,7 +1955,7 @@ public sealed class LastToDiePerkRuntimeTests
     {
         var method = typeof(SimulationWorld).GetMethod(
             "GetLastToDieEvasionChance",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         return (float)method!.Invoke(world, [player])!;
     }
@@ -1967,7 +1968,7 @@ public sealed class LastToDiePerkRuntimeTests
     {
         var method = typeof(SimulationWorld).GetMethod(
             "FirePrimaryWeapon",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         _ = method!.Invoke(world, [player, aimWorldX, aimWorldY]);
     }
@@ -1979,29 +1980,21 @@ public sealed class LastToDiePerkRuntimeTests
     {
         var method = typeof(SimulationWorld).GetMethod(
             "SpawnStabMask",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         _ = method!.Invoke(world, [player, directionDegrees]);
     }
 
     private static void InvokeAdvanceStabMasks(SimulationWorld world)
     {
-        var method = typeof(SimulationWorld).GetMethod(
-            "AdvanceStabMasks",
-            BindingFlags.Instance | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        _ = method!.Invoke(world, null);
+        world.Projectiles.AdvanceStabMasks();
     }
 
     private static void AdvanceRevolverShots(SimulationWorld world, int ticks)
     {
-        var method = typeof(SimulationWorld).GetMethod(
-            "AdvanceRevolverShots",
-            BindingFlags.Instance | BindingFlags.NonPublic);
-        Assert.NotNull(method);
         for (var tick = 0; tick < ticks; tick += 1)
         {
-            _ = method!.Invoke(world, null);
+            world.Projectiles.AdvanceRevolverShots();
         }
     }
 

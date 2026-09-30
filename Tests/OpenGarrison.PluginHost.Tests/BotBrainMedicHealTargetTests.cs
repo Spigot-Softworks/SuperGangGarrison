@@ -188,7 +188,7 @@ public sealed class BotBrainMedicHealTargetTests
         var controller = new BotBrainController();
         var method = typeof(BotBrainController).GetMethod(
             "TryResolveMedicSupportDrive",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
 
         var arguments = new object?[]
@@ -230,7 +230,7 @@ public sealed class BotBrainMedicHealTargetTests
         var args = new object?[] { world, medic, PlayerTeam.Red, heavy,
             new SteeringOutput(), null, null };
         Assert.True((bool)typeof(BotBrainController).GetMethod("TryResolveMedicRetreat",
-            BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(controller, args)!);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!.Invoke(controller, args)!);
         Assert.True(Assert.IsType<SteeringOutput>(args[5]).MoveDirection * direction < 0f);
         Assert.Contains("medicRetreat", Assert.IsType<string>(args[6]));
         var input = controller.Think(medic, world, PlayerTeam.Red);
@@ -260,7 +260,7 @@ public sealed class BotBrainMedicHealTargetTests
 
     private static void SetCombatLevel(SimulationWorld world)
     {
-        var method = typeof(SimulationWorld).GetMethod("CombatTestSetLevel", BindingFlags.Instance | BindingFlags.NonPublic);
+        var method = typeof(SimulationWorld).GetMethod("CombatTestSetLevel", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         _ = method!.Invoke(
             world,

@@ -254,7 +254,7 @@ public sealed class SentryEntity : SimulationEntity
         SetDesiredFacing(desiredFacingDirectionX);
         if (hasTarget)
         {
-            AimDirectionDegrees = MathF.Atan2(targetY - Y, targetX - X) * (180f / MathF.PI);
+            AimDirectionDegrees = DeterministicMath.Atan2(targetY - Y, targetX - X) * (180f / MathF.PI);
         }
     }
 
@@ -276,7 +276,7 @@ public sealed class SentryEntity : SimulationEntity
 
     public void FireAt(float targetX, float targetY, int reloadTicks = ReloadTicks, int idleResetTicks = 0)
     {
-        AimDirectionDegrees = MathF.Atan2(targetY - Y, targetX - X) * (180f / MathF.PI);
+        AimDirectionDegrees = DeterministicMath.Atan2(targetY - Y, targetX - X) * (180f / MathF.PI);
         LastShotTargetX = targetX;
         LastShotTargetY = targetY;
         ShotTraceTicksRemaining = ShotTraceTicks;

@@ -9,12 +9,12 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private void HandleGameplayMapTransitionIfNeeded()
+    public void HandleGameplayMapTransitionIfNeeded()
     {
-        _gameplayPresentationStateController.HandleGameplayMapTransitionIfNeeded();
+        _gameplayManager.PresentationState.HandleGameplayMapTransitionIfNeeded();
     }
 
-    private void UpdateGameplayPresentation(GameTime gameTime, KeyboardState keyboard, MouseState mouse, int clientTicks)
+    public void UpdateGameplayPresentation(GameTime gameTime, KeyboardState keyboard, MouseState mouse, int clientTicks)
     {
         _gameplayPresentationDeltaSeconds = _lastGameplayPresentationClockSeconds >= 0d
             ? (float)Math.Clamp(_networkInterpolationClockSeconds - _lastGameplayPresentationClockSeconds, 0d, 0.05d)
@@ -92,8 +92,8 @@ public partial class Game1
         RecordBrowserPresentationDuration(browserPresentationStartTimestamp);
     }
 
-    private void UpdateGameplayWindowState()
+    public void UpdateGameplayWindowState()
     {
-        _gameplayPresentationStateController.UpdateGameplayWindowState();
+        _gameplayManager.PresentationState.UpdateGameplayWindowState();
     }
 }

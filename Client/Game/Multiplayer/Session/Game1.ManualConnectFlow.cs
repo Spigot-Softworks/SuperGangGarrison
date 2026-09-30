@@ -4,18 +4,18 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private void TryConnectFromMenu()
+    public void TryConnectFromMenu()
     {
-        _connectionFlowController.TryConnectFromMenu();
+        _sessionManager.Connection.TryConnectFromMenu();
     }
 
     private bool TryParseManualConnectTarget(out string host, out int port)
     {
-        return _connectionFlowController.TryParseManualConnectTarget(out host, out port);
+        return _sessionManager.Connection.TryParseManualConnectTarget(out host, out port);
     }
 
     private bool TryParseManualConnectTarget(out NetworkEndpoint endpoint)
     {
-        return _connectionFlowController.TryParseManualConnectTarget(out endpoint);
+        return _sessionManager.Connection.TryParseManualConnectTarget(out endpoint);
     }
 }

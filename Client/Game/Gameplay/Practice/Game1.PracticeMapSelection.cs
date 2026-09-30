@@ -10,7 +10,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private int _practiceMapHoverIndex = -1;
+    public int _practiceMapHoverIndex = -1;
     private PracticeEditField _practiceEditField;
     private HostSetupMapContextMenuState? _practiceMapContextMenu;
 
@@ -451,7 +451,7 @@ public partial class Game1
         return false;
     }
 
-    private void SelectPracticeMapBrowserSection(PracticeSetupState.PracticeMapBrowserSection section)
+    public void SelectPracticeMapBrowserSection(PracticeSetupState.PracticeMapBrowserSection section)
     {
         _practiceSetupState.SetMapBrowserSection(section);
         _practiceSetupState.ModeFilterDropdownOpen = false;

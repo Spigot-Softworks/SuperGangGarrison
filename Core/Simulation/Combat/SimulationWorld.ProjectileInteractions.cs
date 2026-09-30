@@ -11,9 +11,9 @@ public sealed partial class SimulationWorld
         float radialRadius = PyroAirblastDistance)
     {
         var reflectedCount = 0;
-        for (var shotIndex = 0; shotIndex < _shots.Count; shotIndex += 1)
+        for (var shotIndex = 0; shotIndex < Shots.Count; shotIndex += 1)
         {
-            var shot = _shots[shotIndex];
+            var shot = Shots[shotIndex];
             if (shot.Team == player.Team
                 || !IsWithinProjectileInteractionArea(poofX, poofY, aimRadians, shot.X, shot.Y, PyroAirblastProjectileRadius, radial, radialRadius))
             {
@@ -24,9 +24,9 @@ public sealed partial class SimulationWorld
             reflectedCount += 1;
         }
 
-        for (var needleIndex = 0; needleIndex < _needles.Count; needleIndex += 1)
+        for (var needleIndex = 0; needleIndex < Needles.Count; needleIndex += 1)
         {
-            var needle = _needles[needleIndex];
+            var needle = Needles[needleIndex];
             if (needle.Team == player.Team
                 || !IsWithinProjectileInteractionArea(poofX, poofY, aimRadians, needle.X, needle.Y, PyroAirblastProjectileRadius, radial, radialRadius))
             {
@@ -37,9 +37,9 @@ public sealed partial class SimulationWorld
             reflectedCount += 1;
         }
 
-        for (var shotIndex = 0; shotIndex < _revolverShots.Count; shotIndex += 1)
+        for (var shotIndex = 0; shotIndex < RevolverShots.Count; shotIndex += 1)
         {
-            var shot = _revolverShots[shotIndex];
+            var shot = RevolverShots[shotIndex];
             if (shot.Team == player.Team
                 || !IsWithinProjectileInteractionArea(poofX, poofY, aimRadians, shot.X, shot.Y, PyroAirblastProjectileRadius, radial, radialRadius))
             {
@@ -62,9 +62,9 @@ public sealed partial class SimulationWorld
         float radialRadius = PyroAirblastDistance)
     {
         var reflectedCount = 0;
-        for (var rocketIndex = 0; rocketIndex < _rockets.Count; rocketIndex += 1)
+        for (var rocketIndex = 0; rocketIndex < Rockets.Count; rocketIndex += 1)
         {
-            var rocket = _rockets[rocketIndex];
+            var rocket = Rockets[rocketIndex];
             if (rocket.Team == player.Team
                 || !IsWithinProjectileInteractionArea(poofX, poofY, aimRadians, rocket.X, rocket.Y, PyroAirblastProjectileRadius, radial, radialRadius))
             {
@@ -75,9 +75,9 @@ public sealed partial class SimulationWorld
             reflectedCount += 1;
         }
 
-        for (var flareIndex = 0; flareIndex < _flares.Count; flareIndex += 1)
+        for (var flareIndex = 0; flareIndex < Flares.Count; flareIndex += 1)
         {
-            var flare = _flares[flareIndex];
+            var flare = Flares[flareIndex];
             if (flare.Team == player.Team
                 || !IsWithinProjectileInteractionArea(poofX, poofY, aimRadians, flare.X, flare.Y, PyroAirblastProjectileRadius, radial, radialRadius))
             {
@@ -89,9 +89,9 @@ public sealed partial class SimulationWorld
             reflectedCount += 1;
         }
 
-        for (var mineIndex = 0; mineIndex < _mines.Count; mineIndex += 1)
+        for (var mineIndex = 0; mineIndex < Mines.Count; mineIndex += 1)
         {
-            var mine = _mines[mineIndex];
+            var mine = Mines[mineIndex];
             if (mine.Team == player.Team
                 || !IsWithinProjectileInteractionArea(poofX, poofY, aimRadians, mine.X, mine.Y, PyroAirblastProjectileRadius, radial, radialRadius))
             {
@@ -113,11 +113,11 @@ public sealed partial class SimulationWorld
         var nearestKind = DefensibleProjectileKind.None;
         var nearestIndex = -1;
         var nearestDistanceSquared = radius * radius;
-        FindNearestDefensibleProjectile(_shots, DefensibleProjectileKind.Shot, team, x, y, ref nearestDistanceSquared, ref nearestKind, ref nearestIndex, ref targetX, ref targetY);
-        FindNearestDefensibleProjectile(_needles, DefensibleProjectileKind.Needle, team, x, y, ref nearestDistanceSquared, ref nearestKind, ref nearestIndex, ref targetX, ref targetY);
-        FindNearestDefensibleProjectile(_revolverShots, DefensibleProjectileKind.RevolverShot, team, x, y, ref nearestDistanceSquared, ref nearestKind, ref nearestIndex, ref targetX, ref targetY);
-        FindNearestDefensibleProjectile(_rockets, DefensibleProjectileKind.Rocket, team, x, y, ref nearestDistanceSquared, ref nearestKind, ref nearestIndex, ref targetX, ref targetY);
-        FindNearestDefensibleProjectile(_mines, DefensibleProjectileKind.Mine, team, x, y, ref nearestDistanceSquared, ref nearestKind, ref nearestIndex, ref targetX, ref targetY);
+        FindNearestDefensibleProjectile(Shots, DefensibleProjectileKind.Shot, team, x, y, ref nearestDistanceSquared, ref nearestKind, ref nearestIndex, ref targetX, ref targetY);
+        FindNearestDefensibleProjectile(Needles, DefensibleProjectileKind.Needle, team, x, y, ref nearestDistanceSquared, ref nearestKind, ref nearestIndex, ref targetX, ref targetY);
+        FindNearestDefensibleProjectile(RevolverShots, DefensibleProjectileKind.RevolverShot, team, x, y, ref nearestDistanceSquared, ref nearestKind, ref nearestIndex, ref targetX, ref targetY);
+        FindNearestDefensibleProjectile(Rockets, DefensibleProjectileKind.Rocket, team, x, y, ref nearestDistanceSquared, ref nearestKind, ref nearestIndex, ref targetX, ref targetY);
+        FindNearestDefensibleProjectile(Mines, DefensibleProjectileKind.Mine, team, x, y, ref nearestDistanceSquared, ref nearestKind, ref nearestIndex, ref targetX, ref targetY);
 
         if (nearestIndex < 0)
         {
@@ -167,7 +167,7 @@ public sealed partial class SimulationWorld
     }
 
     private void FindNearestDefensibleProjectile<TProjectile>(
-        List<TProjectile> projectiles,
+        IReadOnlyList<TProjectile> projectiles,
         DefensibleProjectileKind kind,
         PlayerTeam team,
         float x,

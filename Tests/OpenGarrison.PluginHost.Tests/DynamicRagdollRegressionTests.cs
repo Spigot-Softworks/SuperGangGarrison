@@ -16,8 +16,6 @@ public sealed class DynamicRagdollRegressionTests
         const BindingFlags instance = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
         var game = CreateGame(Level());
         Set(game, "_corpseDurationMode", ClientSettings.CorpseDurationInfinite);
-        var type = typeof(Game1).GetNestedType("GameplayDeadBodyRenderController", BindingFlags.NonPublic)!;
-        Set(game, "_gameplayDeadBodyRenderController", Activator.CreateInstance(type, instance, null, [game], null)!);
         var world = (SimulationWorld)typeof(Game1).GetField("_world", instance)!.GetValue(game)!;
         var corpses = (List<DeadBodyEntity>)typeof(SimulationWorld).GetField("_deadBodies", instance)!.GetValue(world)!;
         var corpse = new DeadBodyEntity(1, 1, PlayerClass.Scout, PlayerTeam.Red, DeadBodyAnimationKind.Default,
@@ -50,8 +48,8 @@ public sealed class DynamicRagdollRegressionTests
         pose.Y = 90;
         pose.VelocityX = -2;
         GetBodies(game).Add(-19, pose);
-        var world = (SimulationWorld)typeof(Game1).GetField("_world", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(game)!;
-        var corpses = (List<DeadBodyEntity>)typeof(SimulationWorld).GetField("_deadBodies", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(world)!;
+        var world = (SimulationWorld)typeof(Game1).GetField("_world", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!.GetValue(game)!;
+        var corpses = (List<DeadBodyEntity>)typeof(SimulationWorld).GetField("_deadBodies", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!.GetValue(world)!;
         corpses.Add(new(99, 19, PlayerClass.Scout, PlayerTeam.Red, DeadBodyAnimationKind.Default,
             100, 100, 24, 12, 6, 2, false, "scout"));
         Invoke(game, "SyncDynamicRagdollsWithDeadBodies");
@@ -68,7 +66,7 @@ public sealed class DynamicRagdollRegressionTests
     public void CorpseCannotCaptureTheWeaponOfARespawnedPlayer()
     {
         var game = CreateGame(Level());
-        var world = (SimulationWorld)typeof(Game1).GetField("_world", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(game)!;
+        var world = (SimulationWorld)typeof(Game1).GetField("_world", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!.GetValue(game)!;
         world.PrepareLocalPlayerJoin();
         world.CompleteLocalPlayerJoin(PlayerClass.Scout);
         var pose = Body(true);
@@ -200,19 +198,24 @@ public sealed class DynamicRagdollRegressionTests
         typeof(SimulationWorld).GetProperty(nameof(SimulationWorld.Level))!.SetValue(world, level);
         Set(game, "_world", world);
         Set(game, "_dynamicRagdollEnabled", true);
+        // The dead-body renderer is resolved through the service container, which
+        // the constructor normally populates.
+        var services = new ClientServiceContainer();
+        services.Register(new GameplayDeadBodyRenderController((IRenderContext)game));
+        Set(game, "_services", services);
         foreach (var name in new[] { "_dynamicRagdolls", "_staleDynamicRagdollIds", "_retainedDeadBodies", "_immediateNetworkDeadBodies",
             "_networkClient", "_trackedDeadBodyVisuals", "_staleTrackedDeadBodyIds" })
         {
-            var field = typeof(Game1).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)!;
+            var field = typeof(Game1).GetField(name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!;
             field.SetValue(game, Activator.CreateInstance(field.FieldType));
         }
         return game;
     }
 
     private static Dictionary<int, Game1.DynamicRagdollState> GetBodies(Game1 game)
-        => (Dictionary<int, Game1.DynamicRagdollState>)typeof(Game1).GetField("_dynamicRagdolls", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(game)!;
+        => (Dictionary<int, Game1.DynamicRagdollState>)typeof(Game1).GetField("_dynamicRagdolls", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!.GetValue(game)!;
     private static void Set(Game1 game, string name, object value)
-        => typeof(Game1).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(game, value);
+        => typeof(Game1).GetField(name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!.SetValue(game, value);
     private static void Invoke(Game1 game, string name, params object[] args)
-        => typeof(Game1).GetMethod(name, BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(game, args);
+        => typeof(Game1).GetMethod(name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!.Invoke(game, args);
 }

@@ -49,7 +49,7 @@ public partial class Game1
         EnsureClientOnlineSmokeInitialized();
         if (_clientOnlineSmokeStage == ClientOnlineSmokeStage.Idle)
         {
-            if (_startupSplashOpen || !_mainMenuOpen || !_bootstrapController.CanEnterGameplaySession(out _))
+            if (_startupSplashOpen || !_mainMenuOpen || !_gameplayManager.Bootstrap.CanEnterGameplaySession(out _))
             {
                 return;
             }

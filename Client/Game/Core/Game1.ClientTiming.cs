@@ -10,26 +10,26 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private const int ClientUpdateTicksPerSecond = 60;
-    private const double ClientUpdateStepSeconds = 1d / ClientUpdateTicksPerSecond;
-    private const int LegacyBuildMenuCommandRetryInputTicks = 4;
-    private double _clientTickAccumulatorSeconds;
-    private double _networkInputAccumulatorSeconds;
-    private float _clientUpdateElapsedSeconds;
-    private float _gameplayPresentationDeltaSeconds;
-    private double _lastGameplayPresentationClockSeconds = -1d;
-    private float _goreSourceTickAccumulator;
-    private bool _pendingPredictedJumpPress;
-    private bool _pendingPredictedPrimaryPress;
+    public const int ClientUpdateTicksPerSecond = 60;
+    public const double ClientUpdateStepSeconds = 1d / ClientUpdateTicksPerSecond;
+    public const int LegacyBuildMenuCommandRetryInputTicks = 4;
+    public double _clientTickAccumulatorSeconds;
+    public double _networkInputAccumulatorSeconds;
+    public float _clientUpdateElapsedSeconds;
+    public float _gameplayPresentationDeltaSeconds;
+    public double _lastGameplayPresentationClockSeconds = -1d;
+    public float _goreSourceTickAccumulator;
+    public bool _pendingPredictedJumpPress;
+    public bool _pendingPredictedPrimaryPress;
     // Presentation-only edge. The simulation/prediction lane may not advance
     // until the next fixed tick, so retain the press long enough to show local
     // recoil on the current render frame without spawning a second projectile.
-    private bool _pendingImmediateWeaponFirePresentation;
-    private PrimaryWeaponKind? _pendingImmediateRapidFireWeaponKind;
-    private bool _pendingPredictedSecondaryAbilityPress;
-    private bool _pendingPredictedSecondaryAbilityRelease;
-    private bool _pendingPredictedAbilityPress;
-    private bool _pendingPredictedAbilityRelease;
+    public bool _pendingImmediateWeaponFirePresentation;
+    public PrimaryWeaponKind? _pendingImmediateRapidFireWeaponKind;
+    public bool _pendingPredictedSecondaryAbilityPress;
+    public bool _pendingPredictedSecondaryAbilityRelease;
+    public bool _pendingPredictedAbilityPress;
+    public bool _pendingPredictedAbilityRelease;
     private bool _pendingPredictedSwapWeaponPress;
     private bool _pendingPredictedToggleSecondaryWeaponPress;
     private int _pendingPredictedBuildSentryTicksRemaining;
@@ -53,15 +53,15 @@ public partial class Game1
     private float _pendingBuildSentryAimOffsetY;
     private uint _latchedJumpPressSequence;
 
-    private bool _hasLatestLocalAimWorldPosition;
-    private float _latestLocalAimWorldX;
-    private float _latestLocalAimWorldY;
-    private bool _hasLatestNetworkInputAimOrigin;
-    private float _latestNetworkInputAimOriginX;
-    private float _latestNetworkInputAimOriginY;
+    public bool _hasLatestLocalAimWorldPosition;
+    public float _latestLocalAimWorldX;
+    public float _latestLocalAimWorldY;
+    public bool _hasLatestNetworkInputAimOrigin;
+    public float _latestNetworkInputAimOriginX;
+    public float _latestNetworkInputAimOriginY;
     private int _writeBubbleTick;
 
-    private int ConsumeClientTickCount(GameTime gameTime)
+    public int ConsumeClientTickCount(GameTime gameTime)
     {
         _clientUpdateElapsedSeconds = (float)Math.Clamp(gameTime.ElapsedGameTime.TotalSeconds, 0d, 0.1d);
         _clientTickAccumulatorSeconds += _clientUpdateElapsedSeconds;
@@ -77,7 +77,7 @@ public partial class Game1
         return ticks;
     }
 
-    private void ResetClientTimingState()
+    public void ResetClientTimingState()
     {
         _clientTickAccumulatorSeconds = 0d;
         _networkInputAccumulatorSeconds = 0d;
@@ -137,7 +137,7 @@ public partial class Game1
         _pendingImmediateRapidFireWeaponKind = null;
     }
 
-    private void CapturePendingPredictedInputEdges(KeyboardState keyboard, MouseState mouse, PlayerInputSnapshot networkInput)
+    public void CapturePendingPredictedInputEdges(KeyboardState keyboard, MouseState mouse, PlayerInputSnapshot networkInput)
     {
         _previousPredictedLocalInput = _latestPredictedLocalInput;
         _latestPredictedLocalInput = networkInput;
@@ -340,7 +340,7 @@ public partial class Game1
         }
     }
 
-    private PlayerInputSnapshot ApplyPendingInputEdges(PlayerInputSnapshot input)
+    public PlayerInputSnapshot ApplyPendingInputEdges(PlayerInputSnapshot input)
     {
         input = ApplyLatchedOneShotInputEdges(
             input,
@@ -482,7 +482,7 @@ public partial class Game1
         return input;
     }
 
-    private void ClearPendingSecondaryAbilityPress()
+    public void ClearPendingSecondaryAbilityPress()
     {
         _pendingPredictedSecondaryAbilityPress = false;
     }
@@ -577,7 +577,7 @@ public partial class Game1
                 : player.CurrentShells);
     }
 
-    private PlayerEntity GetImmediatePrimaryPresentationPlayer()
+    public PlayerEntity GetImmediatePrimaryPresentationPlayer()
     {
         return CanUseLocalPrediction()
             && _hasPredictedLocalActionState
@@ -719,7 +719,7 @@ public partial class Game1
         }
     }
 
-    private void AdvanceStartupSplashTicks(int ticks, KeyboardState keyboard, MouseState mouse)
+    public void AdvanceStartupSplashTicks(int ticks, KeyboardState keyboard, MouseState mouse)
     {
         for (var tick = 0; tick < ticks && _startupSplashOpen; tick += 1)
         {
@@ -727,7 +727,7 @@ public partial class Game1
         }
     }
 
-    private void AdvanceMenuClientTicks(int ticks)
+    public void AdvanceMenuClientTicks(int ticks)
     {
         UpdateDevMessageState();
         for (var tick = 0; tick < ticks; tick += 1)
@@ -989,7 +989,7 @@ public partial class Game1
 
     private void AdvanceGoreSourceTicks()
     {
-        _gameplayGoreEffectsController.AdvanceGibBloodExplosions();
+        _gameplayManager.GoreEffects.AdvanceGibBloodExplosions();
         _goreSourceTickAccumulator += (float)(ClientUpdateStepSeconds * LegacyMovementModel.SourceTicksPerSecond);
         while (_goreSourceTickAccumulator >= 1f)
         {

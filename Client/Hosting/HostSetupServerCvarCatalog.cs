@@ -7,21 +7,21 @@ using System.Globalization;
 
 namespace OpenGarrison.Client;
 
-internal enum HostSetupServerCvarValueType
+public enum HostSetupServerCvarValueType
 {
     Integer,
     Float,
     Boolean,
 }
 
-internal enum HostSetupCvarEditorKind
+public enum HostSetupCvarEditorKind
 {
     Toggle,
     Stepped,
     NumericText,
 }
 
-internal enum HostSetupOptionsTab
+public enum HostSetupOptionsTab
 {
     Basic,
     Match,
@@ -32,7 +32,7 @@ internal enum HostSetupOptionsTab
     Classes,
 }
 
-internal sealed class HostSetupServerCvarDefinition
+public sealed class HostSetupServerCvarDefinition
 {
     public required string Name { get; init; }
 

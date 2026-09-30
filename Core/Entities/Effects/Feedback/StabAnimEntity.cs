@@ -88,7 +88,7 @@ public sealed class StabAnimEntity : SimulationEntity
         {
             var progress = elapsedTicks / (float)warmupDuration;
             return Math.Clamp(
-                InitialAlpha + ((MaxAlpha - InitialAlpha) * MathF.Pow(progress, FadeInExponent)),
+                InitialAlpha + ((MaxAlpha - InitialAlpha) * DeterministicMath.Pow(progress, FadeInExponent)),
                 InitialAlpha,
                 MaxAlpha);
         }
@@ -105,7 +105,7 @@ public sealed class StabAnimEntity : SimulationEntity
         }
 
         var remainingFraction = 1f - (fadeElapsed / (float)fadeOutDuration);
-        return Math.Clamp(MaxAlpha * MathF.Pow(remainingFraction, FadeOutExponent), 0f, MaxAlpha);
+        return Math.Clamp(MaxAlpha * DeterministicMath.Pow(remainingFraction, FadeOutExponent), 0f, MaxAlpha);
     }
 
     public void AdvanceOneTick(float ownerX, float ownerY)

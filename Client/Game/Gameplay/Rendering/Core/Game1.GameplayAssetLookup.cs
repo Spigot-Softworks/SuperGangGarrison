@@ -4,7 +4,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private LoadedGameMakerSprite? GetResolvedSprite(string spriteName)
+    public LoadedGameMakerSprite? GetResolvedSprite(string spriteName)
     {
         if (OperatingSystem.IsBrowser())
         {

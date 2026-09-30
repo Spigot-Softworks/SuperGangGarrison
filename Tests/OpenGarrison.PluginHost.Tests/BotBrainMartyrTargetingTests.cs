@@ -27,7 +27,7 @@ public sealed class BotBrainMartyrTargetingTests
 
         var refreshMethod = typeof(BotBrainController).GetMethod(
             "TryRefreshReusableGraphlessCombatTarget",
-            BindingFlags.Static | BindingFlags.NonPublic);
+            BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(refreshMethod);
         object?[] arguments =
         [
@@ -151,7 +151,7 @@ public sealed class BotBrainMartyrTargetingTests
     {
         var method = typeof(SimulationWorld).GetMethod(
             "RefreshLastToDieMedicLinkProjections",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         _ = method!.Invoke(world, null);
     }

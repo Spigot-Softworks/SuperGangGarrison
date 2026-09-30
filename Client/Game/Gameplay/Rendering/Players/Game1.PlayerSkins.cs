@@ -9,9 +9,9 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private readonly Lazy<PlayerSkinCatalog> _playerSkins = new(PlayerSkinCatalog.Load);
+    public readonly Lazy<PlayerSkinCatalog> _playerSkins = new(PlayerSkinCatalog.Load);
 
-    private PlayerSkinDefinition? GetPlayerSkin(PlayerEntity player) =>
+    public PlayerSkinDefinition? GetPlayerSkin(PlayerEntity player) =>
         _networkClient.IsLegacyGg2Connection
             ? null
             : _playerSkins.Value.Find(player.GameplayClassId, player.Team);

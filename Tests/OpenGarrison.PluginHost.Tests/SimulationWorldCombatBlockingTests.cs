@@ -199,7 +199,7 @@ public sealed class SimulationWorldCombatBlockingTests
 
     private static void SetCombatLevel(SimulationWorld world, SimpleLevel level)
     {
-        var method = typeof(SimulationWorld).GetMethod("CombatTestSetLevel", BindingFlags.Instance | BindingFlags.NonPublic);
+        var method = typeof(SimulationWorld).GetMethod("CombatTestSetLevel", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         _ = method!.Invoke(world, [level]);
     }
@@ -211,7 +211,7 @@ public sealed class SimulationWorldCombatBlockingTests
         float directionY,
         float maxDistance)
     {
-        var method = typeof(SimulationWorld).GetMethod("CombatTestResolveRifleHit", BindingFlags.Instance | BindingFlags.NonPublic);
+        var method = typeof(SimulationWorld).GetMethod("CombatTestResolveRifleHit", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         var result = method!.Invoke(world, [attacker, directionX, directionY, maxDistance]);
         Assert.NotNull(result);
@@ -227,7 +227,7 @@ public sealed class SimulationWorldCombatBlockingTests
         float directionY,
         float maxDistance)
     {
-        var method = typeof(SimulationWorld).GetMethod("CombatTestGetNearestShotHit", BindingFlags.Instance | BindingFlags.NonPublic);
+        var method = typeof(SimulationWorld).GetMethod("CombatTestGetNearestShotHit", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         var result = method!.Invoke(world, [shot, directionX, directionY, maxDistance]);
         if (result is null)
@@ -242,7 +242,7 @@ public sealed class SimulationWorldCombatBlockingTests
 
     private static MineProjectileEntity SpawnMine(SimulationWorld world, PlayerEntity owner, float x, float y, bool stickied)
     {
-        var method = typeof(SimulationWorld).GetMethod("CombatTestSpawnMine", BindingFlags.Instance | BindingFlags.NonPublic);
+        var method = typeof(SimulationWorld).GetMethod("CombatTestSpawnMine", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         var result = method!.Invoke(world, [owner, x, y, 0f, 0f, stickied]);
         return Assert.IsType<MineProjectileEntity>(result);
@@ -250,7 +250,7 @@ public sealed class SimulationWorldCombatBlockingTests
 
     private static void ExplodeOldestMine(SimulationWorld world, int ownerId, bool triggerNearbyMines)
     {
-        var method = typeof(SimulationWorld).GetMethod("ExplodeOldestMine", BindingFlags.Instance | BindingFlags.NonPublic);
+        var method = typeof(SimulationWorld).GetMethod("ExplodeOldestMine", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         _ = method!.Invoke(world, [ownerId, triggerNearbyMines]);
     }
@@ -262,23 +262,20 @@ public sealed class SimulationWorldCombatBlockingTests
         bool primaryPressed,
         bool suppressPyroPrimaryThisTick)
     {
-        var method = typeof(SimulationWorld).GetMethod("TryHandleNetworkPrimaryFire", BindingFlags.Instance | BindingFlags.NonPublic);
+        var method = typeof(SimulationWorld).GetMethod("TryHandleNetworkPrimaryFire", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         _ = method!.Invoke(world, [player, input, default(PlayerInputSnapshot), primaryPressed, suppressPyroPrimaryThisTick]);
     }
 
     private static void InvokeFirePrimaryWeapon(SimulationWorld world, PlayerEntity player, float aimWorldX, float aimWorldY)
     {
-        var method = typeof(SimulationWorld).GetMethod("FirePrimaryWeapon", BindingFlags.Instance | BindingFlags.NonPublic);
+        var method = typeof(SimulationWorld).GetMethod("FirePrimaryWeapon", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         _ = method!.Invoke(world, [player, aimWorldX, aimWorldY]);
     }
 
     private static int GetMineCount(SimulationWorld world)
     {
-        var field = typeof(SimulationWorld).GetField("_mines", BindingFlags.Instance | BindingFlags.NonPublic);
-        Assert.NotNull(field);
-        var mines = Assert.IsAssignableFrom<ICollection>(field!.GetValue(world));
-        return mines.Count;
+        return world.Mines.Count;
     }
 }

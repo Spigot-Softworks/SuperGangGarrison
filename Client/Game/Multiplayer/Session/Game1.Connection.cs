@@ -22,7 +22,7 @@ public partial class Game1
         string? requestedMap,
         string? mapRotationFile)
     {
-        _gameplaySessionController.BeginHostedGame(
+        _gameplayManager.Session.BeginHostedGame(
             serverName,
             port,
             maxPlayers,
@@ -38,49 +38,49 @@ public partial class Game1
             mapRotationFile);
     }
 
-    private bool TryConnectToServer(string host, int port, bool addConsoleFeedback)
+    public bool TryConnectToServer(string host, int port, bool addConsoleFeedback)
     {
-        return _gameplaySessionController.TryConnectToServer(host, port, addConsoleFeedback);
+        return _gameplayManager.Session.TryConnectToServer(host, port, addConsoleFeedback);
     }
 
-    private bool TryConnectLegacyGg2Server(string host, int port, bool addConsoleFeedback)
+    public bool TryConnectLegacyGg2Server(string host, int port, bool addConsoleFeedback)
     {
-        return _gameplaySessionController.TryConnectLegacyGg2Server(host, port, addConsoleFeedback);
+        return _gameplayManager.Session.TryConnectLegacyGg2Server(host, port, addConsoleFeedback);
     }
 
-    private bool TryConnectToServer(NetworkEndpoint endpoint, bool addConsoleFeedback)
+    public bool TryConnectToServer(NetworkEndpoint endpoint, bool addConsoleFeedback)
     {
-        return _gameplaySessionController.TryConnectToServer(endpoint, addConsoleFeedback);
+        return _gameplayManager.Session.TryConnectToServer(endpoint, addConsoleFeedback);
     }
 
-    private bool TryConnectToServer(NetworkEndpoint endpoint, bool addConsoleFeedback, OnlineConnectionIntent intent)
+    public bool TryConnectToServer(NetworkEndpoint endpoint, bool addConsoleFeedback, OnlineConnectionIntent intent)
     {
-        return _gameplaySessionController.TryConnectToServer(endpoint, addConsoleFeedback, intent);
+        return _gameplayManager.Session.TryConnectToServer(endpoint, addConsoleFeedback, intent);
     }
 
-    private bool TryPlayLegacyReplay(string replayPath, bool addConsoleFeedback, bool clearQueuedReplays = true)
+    public bool TryPlayLegacyReplay(string replayPath, bool addConsoleFeedback, bool clearQueuedReplays = true)
     {
-        return _gameplaySessionController.TryPlayLegacyReplay(replayPath, addConsoleFeedback, clearQueuedReplays);
+        return _gameplayManager.Session.TryPlayLegacyReplay(replayPath, addConsoleFeedback, clearQueuedReplays);
     }
 
-    private bool TryPlayOpenGarrisonDemo(string demoPath, bool addConsoleFeedback)
+    public bool TryPlayOpenGarrisonDemo(string demoPath, bool addConsoleFeedback)
     {
-        return _gameplaySessionController.TryPlayOpenGarrisonDemo(demoPath, addConsoleFeedback);
+        return _gameplayManager.Session.TryPlayOpenGarrisonDemo(demoPath, addConsoleFeedback);
     }
 
     private bool TrySeekOpenGarrisonDemo(int deltaMilliseconds, out int targetMilliseconds, out string error)
     {
-        return _gameplaySessionController.TrySeekOpenGarrisonDemo(deltaMilliseconds, out targetMilliseconds, out error);
+        return _gameplayManager.Session.TrySeekOpenGarrisonDemo(deltaMilliseconds, out targetMilliseconds, out error);
     }
 
     private void ShowAutoBalanceNotice(string text, int seconds)
     {
-        _connectionFlowController.ShowAutoBalanceNotice(text, seconds);
+        _sessionManager.Connection.ShowAutoBalanceNotice(text, seconds);
     }
 
-    private void CloseManualConnectMenu(bool clearStatus)
+    public void CloseManualConnectMenu(bool clearStatus)
     {
-        _connectionFlowController.CloseManualConnectMenu(clearStatus);
+        _sessionManager.Connection.CloseManualConnectMenu(clearStatus);
     }
 
 }

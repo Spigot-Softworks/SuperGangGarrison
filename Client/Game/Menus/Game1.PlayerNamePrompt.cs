@@ -8,12 +8,12 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private void EnsurePlayerNamePrompt()
+    public void EnsurePlayerNamePrompt()
     {
         if (!_mainMenuOpen
             || _namePromptOpen
             || _namePromptPresented
-            || _mainMenuOverlayController.GetActiveOverlay() != MainMenuOverlayKind.None
+            || _menuManager.MainMenuOverlay.GetActiveOverlay() != MainMenuOverlayKind.None
             || !string.Equals(_world.LocalPlayer.DisplayName, "Player", StringComparison.Ordinal))
         {
             return;
@@ -26,7 +26,7 @@ public partial class Game1
         InitializePlayerNameEditCursor();
     }
 
-    private void UpdatePlayerNamePrompt(KeyboardState keyboard)
+    public void UpdatePlayerNamePrompt(KeyboardState keyboard)
     {
         if (IsKeyPressed(keyboard, Keys.Enter))
         {
@@ -34,7 +34,7 @@ public partial class Game1
         }
     }
 
-    private void CommitPlayerNamePrompt()
+    public void CommitPlayerNamePrompt()
     {
         if (!_namePromptOpen || string.IsNullOrWhiteSpace(_playerNameEditBuffer))
         {
@@ -46,7 +46,7 @@ public partial class Game1
         _namePromptOpen = false;
     }
 
-    private void DrawPlayerNamePrompt()
+    public void DrawPlayerNamePrompt()
     {
         var viewportWidth = ViewportWidth;
         var viewportHeight = ViewportHeight;

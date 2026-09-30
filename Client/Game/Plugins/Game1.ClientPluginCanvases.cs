@@ -9,7 +9,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private sealed class GameplayHudCanvas(Game1 game, Vector2 cameraTopLeft) : IOpenGarrisonClientHudCanvas
+    public sealed class GameplayHudCanvas(Game1 game, Vector2 cameraTopLeft) : IOpenGarrisonClientHudCanvas
     {
         public int ViewportWidth => game.ViewportWidth;
         public int ViewportHeight => game.ViewportHeight;

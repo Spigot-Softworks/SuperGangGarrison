@@ -154,7 +154,7 @@ public sealed class BotBrainLineOfSightTests
         world.ForceRespawnLocalPlayer();
         world.LocalPlayer.TeleportTo(100f, 100f);
         var enemy = AddNetworkPlayer(world, 2, PlayerClass.Scout, PlayerTeam.Blue, 400f, 100f);
-        var method = typeof(BotBrainController).GetMethod("TryFindNearestEnemyPlayer", BindingFlags.Static | BindingFlags.NonPublic);
+        var method = typeof(BotBrainController).GetMethod("TryFindNearestEnemyPlayer", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         object?[] args = [world, world.LocalPlayer, PlayerTeam.Red, float.PositiveInfinity, null];
 
@@ -196,7 +196,7 @@ public sealed class BotBrainLineOfSightTests
             EnableEnemyTrainingDummy = false,
             EnableFriendlySupportDummy = false,
         });
-        var method = typeof(SimulationWorld).GetMethod("CombatTestSetLevel", BindingFlags.Instance | BindingFlags.NonPublic);
+        var method = typeof(SimulationWorld).GetMethod("CombatTestSetLevel", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         _ = method!.Invoke(
             world,

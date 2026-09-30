@@ -8,7 +8,7 @@ namespace OpenGarrison.Client;
 public partial class Game1
 {
 
-    private void DrawMenuInputBoxScaled(
+    public void DrawMenuInputBoxScaled(
         Rectangle bounds,
         string text,
         bool active,
@@ -65,7 +65,7 @@ public partial class Game1
         DrawBitmapFontText(trimmedDisplay, new Vector2(textAreaX, textY), textColor, textScale);
     }
 
-    private void DrawMenuSelectorValueScaled(Rectangle bounds, string text, bool highlighted, float textScale, bool enabled = true)
+    public void DrawMenuSelectorValueScaled(Rectangle bounds, string text, bool highlighted, float textScale, bool enabled = true)
     {
         var fillColor = !enabled
             ? new Color(42, 38, 36)
@@ -82,12 +82,12 @@ public partial class Game1
         DrawBitmapFontText(trimmedDisplay, new Vector2(textAreaX, textY), textColor, textScale);
     }
 
-    private void DrawMenuButton(Rectangle bounds, string label, bool highlighted)
+    public void DrawMenuButton(Rectangle bounds, string label, bool highlighted)
     {
         DrawMenuButtonScaled(bounds, label, highlighted, 1f);
     }
 
-    private void DrawMenuButtonScaled(Rectangle bounds, string label, bool highlighted, float textScale, bool enabled = true)
+    public void DrawMenuButtonScaled(Rectangle bounds, string label, bool highlighted, float textScale, bool enabled = true)
     {
         var fillColor = !enabled
             ? new Color(42, 38, 36)
@@ -103,7 +103,7 @@ public partial class Game1
         DrawBitmapFontText(label, new Vector2(bounds.X + 14f, textY), textColor, fittedScale);
     }
 
-    private void DrawMenuButtonCentered(Rectangle bounds, string label, bool highlighted, float textScale, bool enabled = true)
+    public void DrawMenuButtonCentered(Rectangle bounds, string label, bool highlighted, float textScale, bool enabled = true)
     {
         var fillColor = !enabled
             ? new Color(42, 38, 36)
@@ -148,7 +148,7 @@ public partial class Game1
     }
 
 
-    private void DrawRoundedRectangleOutline(Rectangle bounds, Color fillColor, Color outlineColor, int outlineThickness, int radius)
+    public void DrawRoundedRectangleOutline(Rectangle bounds, Color fillColor, Color outlineColor, int outlineThickness, int radius)
     {
         DrawRoundedRectangle(bounds, outlineColor, radius);
 
@@ -165,7 +165,7 @@ public partial class Game1
     }
 
     // Draws fill first, then only the border ring pixels on top (outline does not appear behind the fill).
-    private void DrawRoundedRectangleFillThenBorder(Rectangle bounds, Color fillColor, Color outlineColor, int outlineThickness, int radius)
+    public void DrawRoundedRectangleFillThenBorder(Rectangle bounds, Color fillColor, Color outlineColor, int outlineThickness, int radius)
     {
         var innerRadius = Math.Max(0, radius - outlineThickness);
         var inner = new Rectangle(
@@ -311,7 +311,7 @@ public partial class Game1
         }
     }
 
-    private string TrimBitmapMenuText(string text, float maxWidth, float scale)
+    public string TrimBitmapMenuText(string text, float maxWidth, float scale)
     {
         if (string.IsNullOrEmpty(text) || MeasureBitmapFontWidth(text, scale) <= maxWidth)
         {

@@ -19,11 +19,11 @@ public sealed class BotBrainCompressedAssetTests
     {
         using var workspace = TempContentWorkspace.Create();
         var level = TraversalLabFixtures.Create(TraversalLabFixtureKind.FlatGround);
-        var key = Og2NavigationGraphCache.BuildKey(level);
+        var key = NavigationGraphProvider.BuildCacheKey(level);
         var graph = new NavGraph(
             [new NavNode(10f, 20f, NavNodeKind.Surface, 0)],
             [new List<NavEdge>()], levelName: level.Name, mode: level.Mode);
-        Og2NavigationGraphCache.SaveShipped(level, key, graph, out var diskPath);
+        NavigationGraphProvider.SaveShippedGraph(level, key, graph, out var diskPath);
         var bytes = File.ReadAllBytes(diskPath);
         if (browserCompression)
         {
@@ -36,7 +36,7 @@ public sealed class BotBrainCompressedAssetTests
         BrowserContentCatalog.SetBinaryAssets(
             [new($"Content/BotBrainOg2Nav/{Path.GetFileName(diskPath)}", bytes)]);
 
-        Assert.True(Og2NavigationGraphCache.TryLoadShipped(level, key, out var loaded, out _));
+        Assert.True(NavigationGraphProvider.TryLoadShippedGraph(level, key, out var loaded, out _));
         Assert.Equal(1, loaded.NodeCount);
     }
 

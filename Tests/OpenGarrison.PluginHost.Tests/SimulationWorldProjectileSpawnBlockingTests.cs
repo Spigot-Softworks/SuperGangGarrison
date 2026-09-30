@@ -68,7 +68,7 @@ public sealed class SimulationWorldProjectileSpawnBlockingTests
         float targetY,
         PlayerTeam shotTeam)
     {
-        var method = typeof(SimulationWorld).GetMethod("CombatTestIsProjectileSpawnBlocked", BindingFlags.Instance | BindingFlags.NonPublic);
+        var method = typeof(SimulationWorld).GetMethod("CombatTestIsProjectileSpawnBlocked", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         var result = method!.Invoke(world, [originX, originY, targetX, targetY, shotTeam]);
         Assert.IsType<bool>(result);
@@ -77,7 +77,7 @@ public sealed class SimulationWorldProjectileSpawnBlockingTests
 
     private static void SetLevel(SimulationWorld world, SimpleLevel level)
     {
-        var method = typeof(SimulationWorld).GetMethod("CombatTestSetLevel", BindingFlags.Instance | BindingFlags.NonPublic);
+        var method = typeof(SimulationWorld).GetMethod("CombatTestSetLevel", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         _ = method!.Invoke(world, [level]);
     }

@@ -15,49 +15,49 @@ public partial class Game1
 {
     // Normal particles opt into the same effects as desktop. Alternative and
     // Disabled retain the browser's lighter effects budget.
-    private bool UseReducedBrowserEffects => OperatingSystem.IsBrowser() && _particleMode != 0;
+    public bool UseReducedBrowserEffects => OperatingSystem.IsBrowser() && _particleMode != 0;
 
-    private readonly List<ExplosionVisual> _explosions = new();
-    private readonly List<ImpactVisual> _impactVisuals = new();
-    private readonly List<StuckArrowVisual> _stuckArrowVisuals = new();
-    private readonly List<AirBlastVisual> _airBlasts = new();
-    private readonly List<BubblePopVisual> _bubblePops = new();
-    private readonly List<BackstabVisual> _backstabVisuals = new();
-    private readonly List<BloodVisual> _bloodVisuals = new();
-    private readonly List<BloodSprayVisual> _bloodSprayVisuals = new();
-    private readonly List<BloodSquibParticle> _bloodSquibParticles = new();
-    private readonly Dictionary<(int X, int Y), SettledBloodCell> _settledBloodCells = new();
-    private readonly Dictionary<(int, int), float> _bloodDrawCellsScratch = new();
-    private readonly Dictionary<(int, int), float> _bloodCryoDrawCellsScratch = new();
-    private readonly Dictionary<(int, int), float> _bloodBridgeScratch = new();
-    private readonly HashSet<int> _processedSettledBloodDropIds = new();
-    private readonly List<int> _staleSettledBloodDropIds = new();
-    private readonly List<(int X, int Y)> _staleSettledBloodCellKeys = new();
-    private readonly List<(int X, int Y, float Amount, bool Cryo)> _pendingSettledBloodTransfers = new();
-    private int _nextBloodSquibSeed = 1;
-    private readonly Dictionary<int, StickyGibBloodCoating> _stickyGibBloodCoatings = new();
-    private readonly List<int> _staleStickyGibBloodPlayerIds = new();
-    private readonly HashSet<int> _processedStickyGibBloodDropIds = new();
-    private readonly List<int> _staleStickyGibBloodDropIds = new();
-    private readonly List<PendingWeaponShellVisual> _pendingWeaponShellVisuals = new();
-    private readonly List<ShellVisual> _shellVisuals = new();
-    private readonly List<RocketSmokeVisual> _rocketSmokeVisuals = new();
-    private readonly Dictionary<int, FrozenSpyFrameState> _lastVisibleEnemySpyFrameStates = new();
-    private readonly Dictionary<int, ulong> _lastVisibleEnemySpyObservationEpochs = new();
-    private readonly Dictionary<int, ulong> _consumedFrozenSpyObservationEpochs = new();
-    private ulong _nextFrozenSpyObservationEpoch;
-    private readonly List<FrozenSpyVisual> _frozenSpyVisuals = new();
-    private readonly Dictionary<int, FrozenSpyFrameState> _lastHeavyDashFrameStates = new();
-    private readonly Dictionary<int, int> _heavyDashTrailTickCounters = new();
-    private readonly Dictionary<int, Vector2> _heavyDashTrailLastSpawnPositions = new();
-    private readonly List<SniperTracerParticle> _sniperTracerParticles = new();
-    private float _medigunBeamHelixPhase;
-    private const float DispenserBeamFadeInPerSecond = 8f;
-    private const float DispenserBeamFadeOutPerSecond = 6f;
-    private readonly Dictionary<(int DispenserId, int PlayerId), float> _dispenserBeamAlphas = new();
-    private readonly List<(int DispenserId, int PlayerId)> _staleDispenserBeamKeys = new();
+    public readonly List<ExplosionVisual> _explosions = new();
+    public readonly List<ImpactVisual> _impactVisuals = new();
+    public readonly List<StuckArrowVisual> _stuckArrowVisuals = new();
+    public readonly List<AirBlastVisual> _airBlasts = new();
+    public readonly List<BubblePopVisual> _bubblePops = new();
+    public readonly List<BackstabVisual> _backstabVisuals = new();
+    public readonly List<BloodVisual> _bloodVisuals = new();
+    public readonly List<BloodSprayVisual> _bloodSprayVisuals = new();
+    public readonly List<BloodSquibParticle> _bloodSquibParticles = new();
+    public readonly Dictionary<(int X, int Y), SettledBloodCell> _settledBloodCells = new();
+    public readonly Dictionary<(int, int), float> _bloodDrawCellsScratch = new();
+    public readonly Dictionary<(int, int), float> _bloodCryoDrawCellsScratch = new();
+    public readonly Dictionary<(int, int), float> _bloodBridgeScratch = new();
+    public readonly HashSet<int> _processedSettledBloodDropIds = new();
+    public readonly List<int> _staleSettledBloodDropIds = new();
+    public readonly List<(int X, int Y)> _staleSettledBloodCellKeys = new();
+    public readonly List<(int X, int Y, float Amount, bool Cryo)> _pendingSettledBloodTransfers = new();
+    public int _nextBloodSquibSeed = 1;
+    public readonly Dictionary<int, StickyGibBloodCoating> _stickyGibBloodCoatings = new();
+    public readonly List<int> _staleStickyGibBloodPlayerIds = new();
+    public readonly HashSet<int> _processedStickyGibBloodDropIds = new();
+    public readonly List<int> _staleStickyGibBloodDropIds = new();
+    public readonly List<PendingWeaponShellVisual> _pendingWeaponShellVisuals = new();
+    public readonly List<ShellVisual> _shellVisuals = new();
+    public readonly List<RocketSmokeVisual> _rocketSmokeVisuals = new();
+    public readonly Dictionary<int, FrozenSpyFrameState> _lastVisibleEnemySpyFrameStates = new();
+    public readonly Dictionary<int, ulong> _lastVisibleEnemySpyObservationEpochs = new();
+    public readonly Dictionary<int, ulong> _consumedFrozenSpyObservationEpochs = new();
+    public ulong _nextFrozenSpyObservationEpoch;
+    public readonly List<FrozenSpyVisual> _frozenSpyVisuals = new();
+    public readonly Dictionary<int, FrozenSpyFrameState> _lastHeavyDashFrameStates = new();
+    public readonly Dictionary<int, int> _heavyDashTrailTickCounters = new();
+    public readonly Dictionary<int, Vector2> _heavyDashTrailLastSpawnPositions = new();
+    public readonly List<SniperTracerParticle> _sniperTracerParticles = new();
+    public float _medigunBeamHelixPhase;
+    public const float DispenserBeamFadeInPerSecond = 8f;
+    public const float DispenserBeamFadeOutPerSecond = 6f;
+    public readonly Dictionary<(int DispenserId, int PlayerId), float> _dispenserBeamAlphas = new();
+    public readonly List<(int DispenserId, int PlayerId)> _staleDispenserBeamKeys = new();
 
-    private readonly record struct FrozenSpyFrameState(
+    public readonly record struct FrozenSpyFrameState(
         string SpriteName,
         int FrameIndex,
         Vector2 RenderPosition,
@@ -67,7 +67,7 @@ public partial class Game1
         Color Tint,
         bool DrawIntelOverlay);
 
-    private sealed class FrozenSpyVisual
+    public sealed class FrozenSpyVisual
     {
         public FrozenSpyVisual(int playerId, FrozenSpyFrameState frameState, int lifetimeTicks)
         {
@@ -83,35 +83,35 @@ public partial class Game1
         public int LifetimeTicks { get; }
     }
 
-    private void AdvanceMedigunBeamHelixPhase()
+    public void AdvanceMedigunBeamHelixPhase()
     {
         _medigunBeamHelixPhase -= 0.08f;
         if (_medigunBeamHelixPhase < 0f)
             _medigunBeamHelixPhase += MathF.PI * 2f;
     }
-    private readonly List<MineTrailVisual> _mineTrailVisuals = new();
-    private readonly List<WallspinDustVisual> _wallspinDustVisuals = new();
-    private readonly List<BlastJumpFlameVisual> _blastJumpFlameVisuals = new();
-    private readonly List<FlameSmokeVisual> _flameSmokeVisuals = new();
-    private readonly List<FlameSmokeVisual> _flameSmokeSecondaryVisuals = new();
-    private readonly List<LooseSheetVisual> _looseSheetVisuals = new();
+    public readonly List<MineTrailVisual> _mineTrailVisuals = new();
+    public readonly List<WallspinDustVisual> _wallspinDustVisuals = new();
+    public readonly List<BlastJumpFlameVisual> _blastJumpFlameVisuals = new();
+    public readonly List<FlameSmokeVisual> _flameSmokeVisuals = new();
+    public readonly List<FlameSmokeVisual> _flameSmokeSecondaryVisuals = new();
+    public readonly List<LooseSheetVisual> _looseSheetVisuals = new();
     private readonly List<CivvieUmbrellaShieldBlockVisual> _civvieUmbrellaShieldBlockVisuals = new();
-    private readonly List<SnapshotVisualEvent> _pendingNetworkVisualEvents = new();
+    public readonly List<SnapshotVisualEvent> _pendingNetworkVisualEvents = new();
     private readonly List<RecentPredictedExplosionVisual> _recentPredictedExplosionVisuals = new();
-    private readonly AuthoritativeExplosionPresentationTracker _authoritativeExplosionPresentations = new();
+    public readonly AuthoritativeExplosionPresentationTracker _authoritativeExplosionPresentations = new();
     private readonly List<RecentPredictedAirBlastVisual> _recentPredictedAirBlastVisuals = new();
     private uint _lastPresentedPredictedAirBlastInputSequence;
     private readonly HashSet<ulong> _presentedNetworkExplosionSoundEventIds = new();
     private readonly HashSet<WorldSoundEvent> _presentedLocalExplosionSoundEvents = new();
     private readonly HashSet<ulong> _processedNetworkVisualEventIds = new();
     private readonly Queue<ulong> _processedNetworkVisualEventOrder = new();
-    private readonly List<PresentedExplosionVisual> _presentedExplosionVisualsThisFrame = new();
+    public readonly List<PresentedExplosionVisual> _presentedExplosionVisualsThisFrame = new();
     private const int RecentPredictedExplosionVisualEchoLifetimeTicks = 24;
     private const int RecentPredictedExplosionVisualEchoLimit = 32;
     private const float RecentPredictedExplosionVisualEchoDistanceSquared = 64f * 64f;
     private const int RecentPredictedAirBlastVisualEchoLifetimeTicks = 30;
     private const float RecentPredictedAirBlastVisualEchoDistanceSquared = 64f * 64f;
-    private int _nextClientBackstabVisualId = -1;
+    public int _nextClientBackstabVisualId = -1;
     private int _spySuperjumpTrajectoryAnimationTicks;
     private const int TrajectoryPreviewMaxTicks = 300;
     private const float SniperBowAimArcPreviewLength = 2000f;
@@ -127,7 +127,7 @@ public partial class Game1
     private readonly Dictionary<int, int> _lastObservedRemoteSpyBackstabVisualTicks = new();
     private bool _wasLocalSpySuperjumping;
 
-    private readonly record struct PresentedExplosionVisual(float X, float Y);
+    public readonly record struct PresentedExplosionVisual(float X, float Y);
 
     private sealed class RecentPredictedExplosionVisual
     {
@@ -145,13 +145,13 @@ public partial class Game1
         public int TicksRemaining { get; set; }
     }
 
-    private void ResetTransientPresentationEffects()
+    public void ResetTransientPresentationEffects()
     {
         ClearPredictedWeaponFireVisuals();
-        _gameplayImpactEffectsController.ResetTransientEffects();
+        _gameplayManager.ImpactEffects.ResetTransientEffects();
         ResetRetainedDeadBodies();
         ResetImmediateNetworkDeadBodies();
-        _gameplayGoreEffectsController.ResetTransientEffects();
+        _gameplayManager.GoreEffects.ResetTransientEffects();
         ResetPendingBrowserSoundEvents();
         ResetRecentGibSoundEvents();
         ResetRecentProjectileSoundEvents();
@@ -163,7 +163,7 @@ public partial class Game1
         _portraitRumbleIntensity = 0f;
         _damageVignetteIntensity = 0f;
         _damageVignetteFlashIntensity = 0f;
-        _gameplayMaterialEffectsController.ResetTransientEffects();
+        _gameplayManager.MaterialEffects.ResetTransientEffects();
         ResetCivvieUmbrellaShieldBlockObservation();
         ResetCivviePogoTrickPresentationObservation();
         ResetEvasionMissPopups();
@@ -248,12 +248,12 @@ public partial class Game1
         }
     }
 
-    private bool TryCreateExplosionVisual(WorldSoundEvent soundEvent, out ExplosionVisual? explosion)
+    public bool TryCreateExplosionVisual(WorldSoundEvent soundEvent, out ExplosionVisual? explosion)
     {
-        return _gameplayImpactEffectsController.TryCreateExplosionVisual(soundEvent, out explosion);
+        return _gameplayManager.ImpactEffects.TryCreateExplosionVisual(soundEvent, out explosion);
     }
 
-    private void RecordPresentedExplosionVisual(string effectName, float x, float y)
+    public void RecordPresentedExplosionVisual(string effectName, float x, float y)
     {
         if (string.Equals(effectName, "Explosion", StringComparison.OrdinalIgnoreCase)
             || string.Equals(effectName, "ExplosionSmall", StringComparison.OrdinalIgnoreCase))
@@ -262,7 +262,7 @@ public partial class Game1
         }
     }
 
-    private bool HasPresentedExplosionVisualThisFrame(float x, float y)
+    public bool HasPresentedExplosionVisualThisFrame(float x, float y)
     {
         const float epsilon = 0.01f;
         for (var index = 0; index < _presentedExplosionVisualsThisFrame.Count; index += 1)
@@ -278,14 +278,14 @@ public partial class Game1
         return false;
     }
 
-    private bool HasPresentedExplosionVisualForSoundEvent(WorldSoundEvent soundEvent)
+    public bool HasPresentedExplosionVisualForSoundEvent(WorldSoundEvent soundEvent)
     {
         return soundEvent.EventId != 0
             ? _presentedNetworkExplosionSoundEventIds.Contains(soundEvent.EventId)
             : _presentedLocalExplosionSoundEvents.Contains(soundEvent);
     }
 
-    private void RememberPresentedExplosionVisualForSoundEvent(WorldSoundEvent soundEvent)
+    public void RememberPresentedExplosionVisualForSoundEvent(WorldSoundEvent soundEvent)
     {
         if (soundEvent.EventId != 0)
         {
@@ -297,7 +297,7 @@ public partial class Game1
         }
     }
 
-    private void ForgetPresentedExplosionVisualForSoundEvent(WorldSoundEvent soundEvent)
+    public void ForgetPresentedExplosionVisualForSoundEvent(WorldSoundEvent soundEvent)
     {
         if (soundEvent.EventId != 0)
         {
@@ -309,7 +309,7 @@ public partial class Game1
         }
     }
 
-    private void AdvanceRecentPredictedExplosionVisuals()
+    public void AdvanceRecentPredictedExplosionVisuals()
     {
         for (var index = _recentPredictedExplosionVisuals.Count - 1; index >= 0; index -= 1)
         {
@@ -321,7 +321,7 @@ public partial class Game1
         }
     }
 
-    private void RememberPredictedExplosionVisual(WorldVisualEvent visualEvent)
+    public void RememberPredictedExplosionVisual(WorldVisualEvent visualEvent)
     {
         if (!_networkClient.IsConnected
             || _networkClient.IsReplayConnection
@@ -341,7 +341,7 @@ public partial class Game1
             RecentPredictedExplosionVisualEchoLifetimeTicks));
     }
 
-    private bool ShouldSuppressPredictedExplosionVisualEcho(SnapshotVisualEvent visualEvent)
+    public bool ShouldSuppressPredictedExplosionVisualEcho(SnapshotVisualEvent visualEvent)
     {
         if (!string.Equals(visualEvent.EffectName, "Explosion", StringComparison.OrdinalIgnoreCase))
         {
@@ -351,7 +351,7 @@ public partial class Game1
         return HasRecentPredictedExplosionVisual(visualEvent.X, visualEvent.Y);
     }
 
-    private bool HasRecentPredictedExplosionVisual(float x, float y)
+    public bool HasRecentPredictedExplosionVisual(float x, float y)
     {
         for (var index = 0; index < _recentPredictedExplosionVisuals.Count; index += 1)
         {
@@ -369,22 +369,22 @@ public partial class Game1
 
     private void AdvanceExplosionVisuals()
     {
-        _gameplayImpactEffectsController.AdvanceExplosionVisuals();
+        _gameplayManager.ImpactEffects.AdvanceExplosionVisuals();
     }
 
     private void AdvanceImpactVisuals()
     {
-        _gameplayImpactEffectsController.AdvanceImpactVisuals();
+        _gameplayManager.ImpactEffects.AdvanceImpactVisuals();
     }
 
     private void AdvanceStuckArrowVisuals()
     {
-        _gameplayImpactEffectsController.AdvanceStuckArrowVisuals();
+        _gameplayManager.ImpactEffects.AdvanceStuckArrowVisuals();
     }
 
     private void AdvanceLooseSheetVisuals()
     {
-        _gameplayMaterialEffectsController.AdvanceLooseSheetVisuals();
+        _gameplayManager.MaterialEffects.AdvanceLooseSheetVisuals();
     }
 
     private void AdvanceCivvieUmbrellaShieldBlockVisuals()
@@ -415,7 +415,7 @@ public partial class Game1
 
     private void AdvanceBloodVisuals()
     {
-        _gameplayGoreEffectsController.AdvanceBloodVisuals();
+        _gameplayManager.GoreEffects.AdvanceBloodVisuals();
     }
 
     private void AdvanceSniperTracerParticles()
@@ -439,47 +439,47 @@ public partial class Game1
 
     private void AdvanceShellVisuals()
     {
-        _gameplayMaterialEffectsController.AdvanceShellVisuals();
+        _gameplayManager.MaterialEffects.AdvanceShellVisuals();
     }
 
     private void AdvanceBackstabVisuals()
     {
-        _gameplayGoreEffectsController.AdvanceBackstabVisuals();
+        _gameplayManager.GoreEffects.AdvanceBackstabVisuals();
     }
 
     private void DrawBackstabVisuals(Vector2 cameraPosition)
     {
-        _gameplayGoreEffectsController.DrawBackstabVisuals(cameraPosition);
+        _gameplayManager.GoreEffects.DrawBackstabVisuals(cameraPosition);
     }
 
     private void AdvanceRocketSmokeVisuals()
     {
-        _gameplaySmokeEffectsController.AdvanceRocketSmokeVisuals();
+        _gameplayManager.SmokeEffects.AdvanceRocketSmokeVisuals();
     }
 
-    private void AdvanceFlameSmokeVisuals()
+    public void AdvanceFlameSmokeVisuals()
     {
-        _gameplaySmokeEffectsController.AdvanceFlameSmokeVisuals();
+        _gameplayManager.SmokeEffects.AdvanceFlameSmokeVisuals();
     }
 
     private void AdvanceWallspinDustVisuals()
     {
-        _gameplaySmokeEffectsController.AdvanceWallspinDustVisuals();
+        _gameplayManager.SmokeEffects.AdvanceWallspinDustVisuals();
     }
 
-    private void SpawnWallspinDustVisual(float x, float y, int emissionTicks = 1)
+    public void SpawnWallspinDustVisual(float x, float y, int emissionTicks = 1)
     {
-        _gameplaySmokeEffectsController.SpawnWallspinDustVisual(x, y, emissionTicks);
+        _gameplayManager.SmokeEffects.SpawnWallspinDustVisual(x, y, emissionTicks);
     }
 
     private void AdvanceMineTrailVisuals()
     {
-        _gameplaySmokeEffectsController.AdvanceMineTrailVisuals();
+        _gameplayManager.SmokeEffects.AdvanceMineTrailVisuals();
     }
 
     private void DrawBlastJumpFlameVisuals(Vector2 cameraPosition)
     {
-        _gameplaySmokeEffectsController.DrawBlastJumpFlameVisuals(cameraPosition);
+        _gameplayManager.SmokeEffects.DrawBlastJumpFlameVisuals(cameraPosition);
     }
 
     private void DrawFrozenSpyVisuals(Vector2 cameraPosition)
@@ -747,7 +747,7 @@ public partial class Game1
         }
     }
 
-    private void AdvanceRecentPredictedAirBlastVisuals()
+    public void AdvanceRecentPredictedAirBlastVisuals()
     {
         for (var index = _recentPredictedAirBlastVisuals.Count - 1; index >= 0; index -= 1)
         {
@@ -795,7 +795,7 @@ public partial class Game1
         return candidate != previous && unchecked((int)(candidate - previous)) > 0;
     }
 
-    private bool ShouldSuppressPredictedAirBlastVisualEcho(SnapshotVisualEvent visualEvent)
+    public bool ShouldSuppressPredictedAirBlastVisualEcho(SnapshotVisualEvent visualEvent)
     {
         if (!string.Equals(visualEvent.EffectName, "AirBlast", StringComparison.OrdinalIgnoreCase))
         {
@@ -822,7 +822,7 @@ public partial class Game1
         return false;
     }
 
-    private bool ShouldPresentAuthoritativeExplosionVisual(SnapshotVisualEvent visualEvent)
+    public bool ShouldPresentAuthoritativeExplosionVisual(SnapshotVisualEvent visualEvent)
     {
         return (!string.Equals(visualEvent.EffectName, "Explosion", StringComparison.OrdinalIgnoreCase)
                 && !string.Equals(visualEvent.EffectName, "ExplosionSmall", StringComparison.OrdinalIgnoreCase))
@@ -833,7 +833,7 @@ public partial class Game1
                 AuthoritativeExplosionPresentationChannel.Visual);
     }
 
-    private bool ShouldPresentAuthoritativeExplosionSound(WorldSoundEvent soundEvent)
+    public bool ShouldPresentAuthoritativeExplosionSound(WorldSoundEvent soundEvent)
     {
         return soundEvent.EventId == 0
             || _authoritativeExplosionPresentations.ShouldPresent(
@@ -1309,72 +1309,72 @@ public partial class Game1
 
     private void DrawRocketSmokeVisuals(Vector2 cameraPosition)
     {
-        _gameplaySmokeEffectsController.DrawRocketSmokeVisuals(cameraPosition);
+        _gameplayManager.SmokeEffects.DrawRocketSmokeVisuals(cameraPosition);
     }
 
     private void DrawFlameSmokeVisuals(Vector2 cameraPosition)
     {
-        _gameplaySmokeEffectsController.DrawFlameSmokeVisuals(cameraPosition);
+        _gameplayManager.SmokeEffects.DrawFlameSmokeVisuals(cameraPosition);
     }
 
     private void DrawExplosionVisuals(Vector2 cameraPosition)
     {
-        _gameplayImpactEffectsController.DrawExplosionVisuals(cameraPosition);
+        _gameplayManager.ImpactEffects.DrawExplosionVisuals(cameraPosition);
     }
 
     private void DrawImpactVisuals(Vector2 cameraPosition)
     {
-        _gameplayImpactEffectsController.DrawImpactVisuals(cameraPosition);
+        _gameplayManager.ImpactEffects.DrawImpactVisuals(cameraPosition);
     }
 
     private void DrawStuckArrowVisuals(Vector2 cameraPosition)
     {
-        _gameplayImpactEffectsController.DrawStuckArrowVisuals(cameraPosition);
+        _gameplayManager.ImpactEffects.DrawStuckArrowVisuals(cameraPosition);
     }
 
     private void DrawLooseSheetVisuals(Vector2 cameraPosition)
     {
-        _gameplayMaterialEffectsController.DrawLooseSheetVisuals(cameraPosition);
+        _gameplayManager.MaterialEffects.DrawLooseSheetVisuals(cameraPosition);
     }
 
     private void DrawBloodVisuals(Vector2 cameraPosition)
     {
-        _gameplayGoreEffectsController.DrawBloodVisuals(cameraPosition);
+        _gameplayManager.GoreEffects.DrawBloodVisuals(cameraPosition);
     }
 
     private void DrawMineTrailVisuals(Vector2 cameraPosition)
     {
-        _gameplaySmokeEffectsController.DrawMineTrailVisuals(cameraPosition);
+        _gameplayManager.SmokeEffects.DrawMineTrailVisuals(cameraPosition);
     }
 
     private void DrawWallspinDustVisuals(Vector2 cameraPosition)
     {
-        _gameplaySmokeEffectsController.DrawWallspinDustVisuals(cameraPosition);
+        _gameplayManager.SmokeEffects.DrawWallspinDustVisuals(cameraPosition);
     }
 
     private void DrawShellVisuals(Vector2 cameraPosition)
     {
-        _gameplayMaterialEffectsController.DrawShellVisuals(cameraPosition);
+        _gameplayManager.MaterialEffects.DrawShellVisuals(cameraPosition);
     }
 
     private void QueueWeaponShellVisual(PlayerEntity player, float delaySeconds, int count)
     {
-        _gameplayMaterialEffectsController.QueueWeaponShellVisual(player, delaySeconds, count);
+        _gameplayManager.MaterialEffects.QueueWeaponShellVisual(player, delaySeconds, count);
     }
 
     private void QueueWeaponShellVisual(PlayerEntity player, float delaySeconds, int count, PlayerClass classId)
     {
-        _gameplayMaterialEffectsController.QueueWeaponShellVisual(player, delaySeconds, count, classId);
+        _gameplayManager.MaterialEffects.QueueWeaponShellVisual(player, delaySeconds, count, classId);
     }
 
     private void QueueWeaponShellVisual(PlayerEntity player, float delaySeconds, int count, PlayerClass classId, string spriteName)
     {
-        _gameplayMaterialEffectsController.QueueWeaponShellVisual(player, delaySeconds, count, classId, spriteName);
+        _gameplayManager.MaterialEffects.QueueWeaponShellVisual(player, delaySeconds, count, classId, spriteName);
     }
 
     private bool IsShellBlocked(float x, float y)
     {
-        return _gameplayMaterialEffectsController.IsShellBlocked(x, y);
+        return _gameplayManager.MaterialEffects.IsShellBlocked(x, y);
     }
 
     private static float ScaleSourceTickDistance(float sourceDistance)
@@ -1384,32 +1384,32 @@ public partial class Game1
 
     private void PlayPendingVisualEvents()
     {
-        _gameplayVisualEventController.PlayPendingVisualEvents();
+        _gameplayManager.VisualEvents.PlayPendingVisualEvents();
     }
 
     private void PlayVisualEvent(string effectName, float x, float y, float directionDegrees, int count)
     {
-        _gameplayVisualEventController.PlayVisualEvent(effectName, x, y, directionDegrees, count);
+        _gameplayManager.VisualEvents.PlayVisualEvent(effectName, x, y, directionDegrees, count);
     }
 
-    private void SpawnLooseSheetVisual(float x, float y, float initialHorizontalSpeed)
+    public void SpawnLooseSheetVisual(float x, float y, float initialHorizontalSpeed)
     {
-        _gameplayMaterialEffectsController.SpawnLooseSheetVisual(x, y, initialHorizontalSpeed);
+        _gameplayManager.MaterialEffects.SpawnLooseSheetVisual(x, y, initialHorizontalSpeed);
     }
 
-    private void SpawnCivvieMoneyVisual(CivvieMoneyTrailSpawn spawn)
+    public void SpawnCivvieMoneyVisual(CivvieMoneyTrailSpawn spawn)
     {
-        _gameplayMaterialEffectsController.SpawnCivvieMoneyVisual(spawn);
+        _gameplayManager.MaterialEffects.SpawnCivvieMoneyVisual(spawn);
     }
 
     private void SpawnCivvieMoneyBurstVisual(CivvieMoneyBurstSpawn spawn)
     {
-        _gameplayMaterialEffectsController.SpawnCivvieMoneyBurstVisual(spawn);
+        _gameplayManager.MaterialEffects.SpawnCivvieMoneyBurstVisual(spawn);
     }
 
-    private void SpawnCivvieMoneyVisual(float x, float y, float initialHorizontalSpeed)
+    public void SpawnCivvieMoneyVisual(float x, float y, float initialHorizontalSpeed)
     {
-        _gameplayMaterialEffectsController.SpawnCivvieMoneyVisual(
+        _gameplayManager.MaterialEffects.SpawnCivvieMoneyVisual(
             new CivvieMoneyTrailSpawn(x, y, initialHorizontalSpeed, Frame: 0, OwnerPlayerId: 0));
     }
 
@@ -1551,10 +1551,10 @@ public partial class Game1
         }
     }
 
-    private void SpawnBackstabVisual(int ownerId, PlayerTeam team, float x, float y, float directionDegrees)
+    public void SpawnBackstabVisual(int ownerId, PlayerTeam team, float x, float y, float directionDegrees)
     {
         var owner = FindPlayerById(ownerId);
-        _gameplayGoreEffectsController.SpawnBackstabVisual(
+        _gameplayManager.GoreEffects.SpawnBackstabVisual(
             ownerId,
             team,
             x,
@@ -1565,9 +1565,9 @@ public partial class Game1
                 : 1);
     }
 
-    private void ResetBackstabVisuals()
+    public void ResetBackstabVisuals()
     {
-        _gameplayGoreEffectsController.ResetBackstabVisuals();
+        _gameplayManager.GoreEffects.ResetBackstabVisuals();
     }
 
     private static bool IsBlastJumpVisualState(LegacyMovementState movementState)
@@ -1616,10 +1616,10 @@ public partial class Game1
 
     private void DrawExperimentalStickyGibBloodOverlay(PlayerEntity player, Vector2 cameraPosition, float visibilityAlpha)
     {
-        _gameplayGoreEffectsController.DrawExperimentalStickyGibBloodOverlay(player, cameraPosition, visibilityAlpha);
+        _gameplayManager.GoreEffects.DrawExperimentalStickyGibBloodOverlay(player, cameraPosition, visibilityAlpha);
     }
 
-    private sealed class ExplosionVisual
+    public sealed class ExplosionVisual
     {
         public const int LifetimeSourceTicks = 13;
         public const float PlaybackRate = 0.8f;
@@ -1652,7 +1652,7 @@ public partial class Game1
         public bool SmallOnly { get; set; }
     }
 
-    private sealed class BubblePopVisual
+    public sealed class BubblePopVisual
     {
         public const int LifetimeSourceTicks = 2;
 
@@ -1671,7 +1671,7 @@ public partial class Game1
         public float PendingSourceTicks { get; set; }
     }
 
-    private sealed class ImpactVisual
+    public sealed class ImpactVisual
     {
         public const int LifetimeSourceTicks = 4;
 
@@ -1693,7 +1693,7 @@ public partial class Game1
         public float PendingSourceTicks { get; set; }
     }
 
-    private sealed class StuckArrowVisual
+    public sealed class StuckArrowVisual
     {
         public const int VisibleTicks = 10 * ClientUpdateTicksPerSecond;
         public const int FadeTicks = ClientUpdateTicksPerSecond;
@@ -1726,7 +1726,7 @@ public partial class Game1
         public float Alpha { get; set; }
     }
 
-    private sealed class BackstabVisual
+    public sealed class BackstabVisual
     {
         public BackstabVisual(StabAnimEntity animation)
         {
@@ -1738,7 +1738,7 @@ public partial class Game1
         public float PendingSourceTicks { get; set; }
     }
 
-    private sealed class AirBlastVisual
+    public sealed class AirBlastVisual
     {
         public const int LifetimeTicks = 8;
 
@@ -1782,7 +1782,7 @@ public partial class Game1
         public int TicksRemaining { get; set; }
     }
 
-    private sealed class BloodVisual
+    public sealed class BloodVisual
     {
         public const int LifetimeTicks = 4;
 
@@ -1800,7 +1800,7 @@ public partial class Game1
         public int TicksRemaining { get; set; }
     }
 
-    private sealed class FlameSmokeVisual
+    public sealed class FlameSmokeVisual
     {
         public FlameSmokeVisual(
             float x,
@@ -1854,7 +1854,7 @@ public partial class Game1
         public int TicksRemaining { get; set; }
     }
 
-    private sealed class LooseSheetVisual
+    public sealed class LooseSheetVisual
     {
         public const int LifetimeTicks = 260;
         public const int FadeTicks = 60;
@@ -1917,7 +1917,7 @@ public partial class Game1
         public int FadeTicksRemaining { get; }
     }
 
-    private sealed class CivvieUmbrellaShieldBlockVisual
+    public sealed class CivvieUmbrellaShieldBlockVisual
     {
         public const int LifetimeTicks = 18;
         public const int FadeTicks = 8;
@@ -1935,7 +1935,7 @@ public partial class Game1
         public int ElapsedTicks { get; set; }
     }
 
-    private sealed class StickyGibBloodCoating
+    public sealed class StickyGibBloodCoating
     {
         public const int LifetimeTicks = 10 * ClientUpdateTicksPerSecond;
         public const int FadeTicks = 2 * ClientUpdateTicksPerSecond;
@@ -1945,7 +1945,7 @@ public partial class Game1
         public int TicksRemaining { get; set; }
     }
 
-    private sealed class WallspinDustVisual
+    public sealed class WallspinDustVisual
     {
         public WallspinDustVisual(float x, float y, int totalLifetimeTicks)
         {
@@ -1964,7 +1964,7 @@ public partial class Game1
         public int TicksRemaining { get; set; }
     }
 
-    private sealed class BloodSprayVisual
+    public sealed class BloodSprayVisual
     {
         public BloodSprayVisual(float x, float y, float velocityX, float velocityY, int initialTicks)
         {
@@ -1989,7 +1989,7 @@ public partial class Game1
         public int TicksRemaining { get; set; }
     }
 
-    private sealed class BloodSquibParticle
+    public sealed class BloodSquibParticle
     {
         public BloodSquibParticle(
             float x,
@@ -2032,7 +2032,7 @@ public partial class Game1
         public bool Heavy { get; }
     }
 
-    private sealed class SettledBloodCell
+    public sealed class SettledBloodCell
     {
         public float Amount;
         public float DripProgress;
@@ -2040,7 +2040,7 @@ public partial class Game1
         public bool ExperimentalCryoTinted;
     }
 
-    private sealed class PendingWeaponShellVisual
+    public sealed class PendingWeaponShellVisual
     {
         public PendingWeaponShellVisual(int playerId, PlayerClass classId, PlayerTeam team, float delaySeconds, int count, string? spriteName = null)
         {
@@ -2065,7 +2065,7 @@ public partial class Game1
         public string? SpriteName { get; }
     }
 
-    private sealed class ShellVisual
+    public sealed class ShellVisual
     {
         public ShellVisual(
             float x,
@@ -2138,7 +2138,7 @@ public partial class Game1
         public bool DrawAsPixel { get; }
     }
 
-    private sealed class BlastJumpFlameVisual
+    public sealed class BlastJumpFlameVisual
     {
         public BlastJumpFlameVisual(float x, float y, float motionX, float motionY, int initialTicks, int frameSeed)
         {
@@ -2166,7 +2166,7 @@ public partial class Game1
         public int FrameSeed { get; }
     }
 
-    private sealed class RocketSmokeVisual
+    public sealed class RocketSmokeVisual
     {
         public RocketSmokeVisual(
             float x,
@@ -2224,7 +2224,7 @@ public partial class Game1
         public int TicksRemaining { get; set; }
     }
 
-    private sealed class MineTrailVisual
+    public sealed class MineTrailVisual
     {
         public const int LifetimeTicks = 10;
 
@@ -2242,7 +2242,7 @@ public partial class Game1
         public int TicksRemaining { get; set; }
     }
 
-    private sealed class SniperTracerParticle
+    public sealed class SniperTracerParticle
     {
         public const int LifetimeTicks = 30; // ~1.0s at 30 TPS
 

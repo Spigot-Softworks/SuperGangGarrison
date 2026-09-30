@@ -6,6 +6,8 @@ using OpenGarrison.Core.BotBrain;
 
 internal static class Og2AlphaNavigationDiagnostics
 {
+    private static readonly NavigationGraphProvider NavigationProvider = new();
+
     private static readonly PlayerClass[] DefaultCaptureClasses =
     [
         PlayerClass.Scout,
@@ -53,7 +55,7 @@ internal static class Og2AlphaNavigationDiagnostics
             }
 
             var stopwatch = Stopwatch.StartNew();
-            var graph = Og2NavigationGraphStore.GetOrBuild(level);
+            var graph = NavigationProvider.PreloadGraph(level);
             stopwatch.Stop();
 
             var edgeCount = 0;
@@ -620,7 +622,7 @@ internal static class Og2AlphaNavigationDiagnostics
                 continue;
             }
 
-            var sharedGraph = Og2NavigationGraphStore.GetOrBuild(level);
+            var sharedGraph = NavigationProvider.PreloadGraph(level);
             var mapPassed = true;
             var trials = requestedTeams
                 .SelectMany(team => classes.Select(playerClass => (Team: team, PlayerClass: playerClass)))
@@ -730,7 +732,7 @@ internal static class Og2AlphaNavigationDiagnostics
             }
 
             var buildStopwatch = Stopwatch.StartNew();
-            var graph = Og2NavigationGraphStore.GetOrBuild(level);
+            var graph = NavigationProvider.PreloadGraph(level);
             buildStopwatch.Stop();
             var report = Og2NavigationGraphValidator.Validate(level, graph, classes);
             totalRoutes += report.RouteCount;
@@ -821,11 +823,11 @@ internal static class Og2AlphaNavigationDiagnostics
                     continue;
                 }
 
-                var key = Og2NavigationGraphCache.BuildKey(level);
+                var key = NavigationGraphProvider.BuildCacheKey(level);
                 var graphStopwatch = Stopwatch.StartNew();
-                var graph = Og2NavigationGraphStore.GetOrBuild(level);
+                var graph = NavigationProvider.PreloadGraph(level);
                 graphStopwatch.Stop();
-                Og2NavigationGraphCache.SaveShipped(level, key, graph, out var shippedPath);
+                NavigationGraphProvider.SaveShippedGraph(level, key, graph, out var shippedPath);
                 built += 1;
                 Console.WriteLine(
                     $"alphaGraphPrewarm map={requestedMap} loadedMap={mapName} area={area} " +
@@ -903,7 +905,7 @@ internal static class Og2AlphaNavigationDiagnostics
                 }
 
                 auditedAreas += 1;
-                var found = Og2NavigationGraphStore.TryLoadShipped(level, out var graph);
+                var found = NavigationGraphProvider.TryLoadShippedGraph(level, out var graph);
                 var runtimePath = string.Empty;
                 var foundInRuntimeCache = false;
                 if (found)
@@ -912,8 +914,8 @@ internal static class Og2AlphaNavigationDiagnostics
                 }
                 else
                 {
-                    var key = Og2NavigationGraphCache.BuildKey(level);
-                    foundInRuntimeCache = Og2NavigationGraphCache.TryLoad(
+                    var key = NavigationGraphProvider.BuildCacheKey(level);
+                    foundInRuntimeCache = NavigationGraphProvider.TryLoadPersistentGraph(
                         level,
                         key,
                         out graph,

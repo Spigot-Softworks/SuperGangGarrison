@@ -21,7 +21,7 @@ internal static class FirstPlayMessageCatalog
     }
 }
 
-internal sealed class FirstPlayHintSequence(bool alreadyShown)
+public sealed class FirstPlayHintSequence(bool alreadyShown)
 {
     public bool Started { get; private set; } = alreadyShown;
     public bool Finished { get; private set; } = alreadyShown;

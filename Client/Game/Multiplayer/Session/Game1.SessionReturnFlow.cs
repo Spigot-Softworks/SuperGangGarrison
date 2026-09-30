@@ -6,14 +6,14 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private void ReturnToMainMenu(string? statusMessage = null)
+    public void ReturnToMainMenu(string? statusMessage = null)
     {
         _garrisonBuilderQuickTestActive = false;
-        _gameplaySessionController.ReturnToMainMenu(statusMessage);
+        _gameplayManager.Session.ReturnToMainMenu(statusMessage);
     }
 
     private void ResetActiveSessionState()
     {
-        _gameplaySessionController.ResetActiveSessionState();
+        _gameplayManager.Session.ResetActiveSessionState();
     }
 }

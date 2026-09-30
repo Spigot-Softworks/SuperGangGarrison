@@ -11,7 +11,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private const int SpectatorPanelSourceHeight = 36 * 6;
+    public const int SpectatorPanelSourceHeight = 36 * 6;
     private const int SpectatorBoardRowHeight = 36;
     private const int SpectatorBoardIconSize = 25;
     private const int SpectatorBoardPad = 5;
@@ -24,7 +24,7 @@ public partial class Game1
     private static readonly Color SpectatorBlueDark = new(0, 0, 64);
     private static readonly Color SpectatorHudGray = new(128, 128, 128);
 
-    private int GetGameplayCameraViewportHeight(int viewportHeight)
+    public int GetGameplayCameraViewportHeight(int viewportHeight)
     {
         if (!IsLocalSpectatorPresentationActive())
         {

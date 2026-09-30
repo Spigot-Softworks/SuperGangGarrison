@@ -9,7 +9,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private void DrawScreenHealthBar(Rectangle rectangle, float value, float maxValue, bool useTeamColors, Color? fillColor = null, Color? backColor = null, HudFillDirection fillDirection = HudFillDirection.HorizontalLeftToRight)
+    public void DrawScreenHealthBar(Rectangle rectangle, float value, float maxValue, bool useTeamColors, Color? fillColor = null, Color? backColor = null, HudFillDirection fillDirection = HudFillDirection.HorizontalLeftToRight)
     {
         var resolvedBackColor = backColor ?? Color.Black;
         _spriteBatch.Draw(_pixel, rectangle, ApplyCurrentHudElementOpacity(resolvedBackColor));
@@ -47,13 +47,13 @@ public partial class Game1
         _spriteBatch.Draw(_pixel, fillRectangle, ApplyCurrentHudElementOpacity(resolvedFillColor));
     }
 
-    private enum HudFillDirection
+    public enum HudFillDirection
     {
         HorizontalLeftToRight,
         VerticalBottomToTop,
     }
 
-    private void DrawHudTextCentered(string text, Vector2 position, Color color, float scale)
+    public void DrawHudTextCentered(string text, Vector2 position, Color color, float scale)
     {
         var width = MeasureBitmapFontWidth(text, scale);
         var height = MeasureBitmapFontHeight(scale);
@@ -61,12 +61,12 @@ public partial class Game1
     }
 
 
-    private void DrawHudTextLeftAligned(string text, Vector2 position, Color color, float scale)
+    public void DrawHudTextLeftAligned(string text, Vector2 position, Color color, float scale)
     {
         DrawBitmapFontText(text, position, color, scale);
     }
 
-    private void DrawHudTextRightAligned(string text, Vector2 position, Color color, float scale)
+    public void DrawHudTextRightAligned(string text, Vector2 position, Color color, float scale)
     {
         var width = MeasureBitmapFontWidth(text, scale);
         DrawBitmapFontText(text, new Vector2(position.X - width, position.Y), color, scale);
@@ -106,12 +106,12 @@ public partial class Game1
             0f);
     }
 
-    private bool TryDrawScreenSprite(string spriteName, int frameIndex, Vector2 position, Color tint, Vector2 scale)
+    public bool TryDrawScreenSprite(string spriteName, int frameIndex, Vector2 position, Color tint, Vector2 scale)
     {
         return TryDrawScreenSprite(spriteName, frameIndex, position, tint, scale, 0f);
     }
 
-    private bool TryDrawScreenSprite(string spriteName, int frameIndex, Vector2 position, Color tint, Vector2 scale, float rotation)
+    public bool TryDrawScreenSprite(string spriteName, int frameIndex, Vector2 position, Color tint, Vector2 scale, float rotation)
     {
         var sprite = GetResolvedSprite(spriteName);
         if (sprite is null || sprite.Frames.Count == 0)
@@ -170,12 +170,12 @@ public partial class Game1
         "TimerS",
     };
 
-    private bool TryDrawScreenSpritePart(string spriteName, int frameIndex, Rectangle sourceRectangle, Vector2 position, Color tint, Vector2 scale)
+    public bool TryDrawScreenSpritePart(string spriteName, int frameIndex, Rectangle sourceRectangle, Vector2 position, Color tint, Vector2 scale)
     {
         return TryDrawScreenSpritePart(spriteName, frameIndex, sourceRectangle, position, tint, scale, SpriteEffects.None);
     }
 
-    private bool TryDrawScreenSpritePart(string spriteName, int frameIndex, Rectangle sourceRectangle, Vector2 position, Color tint, Vector2 scale, SpriteEffects effects)
+    public bool TryDrawScreenSpritePart(string spriteName, int frameIndex, Rectangle sourceRectangle, Vector2 position, Color tint, Vector2 scale, SpriteEffects effects)
     {
         var sprite = GetResolvedSprite(spriteName);
         return sprite is not null
@@ -191,7 +191,7 @@ public partial class Game1
                 sprite.Origin.ToVector2());
     }
 
-    private bool TryDrawScreenSpritePart(
+    public bool TryDrawScreenSpritePart(
         string spriteName,
         int frameIndex,
         Rectangle sourceRectangle,
@@ -269,7 +269,7 @@ public partial class Game1
         }
     }
 
-    private void DrawRoundedRectangleHud(Rectangle bounds, Color color, int radius)
+    public void DrawRoundedRectangleHud(Rectangle bounds, Color color, int radius)
     {
         if (bounds.Width <= 0 || bounds.Height <= 0)
         {

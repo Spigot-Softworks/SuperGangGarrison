@@ -8,7 +8,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private enum AccountOperationKind
+    public enum AccountOperationKind
     {
         None,
         Refresh,
@@ -17,23 +17,23 @@ public partial class Game1
         Login,
     }
 
-    private enum AccountDialogKind
+    public enum AccountDialogKind
     {
         Login,
         ConfirmRecoveryReplacement,
     }
 
-    private Task<AccountProfileResponse>? _accountOperationTask;
-    private AccountOperationKind _accountOperationKind;
-    private bool _accountDialogOpen;
-    private AccountDialogKind _accountDialogKind;
-    private string _accountLoginFriendCode = string.Empty;
-    private string _accountLoginRecoveryKey = string.Empty;
-    private int _accountDialogSelection;
+    public Task<AccountProfileResponse>? _accountOperationTask;
+    public AccountOperationKind _accountOperationKind;
+    public bool _accountDialogOpen;
+    public AccountDialogKind _accountDialogKind;
+    public string _accountLoginFriendCode = string.Empty;
+    public string _accountLoginRecoveryKey = string.Empty;
+    public int _accountDialogSelection;
 
-    private bool IsAccountOperationPending => _accountOperationTask is not null;
+    public bool IsAccountOperationPending => _accountOperationTask is not null;
 
-    private bool CanShortenAccountFriendCode
+    public bool CanShortenAccountFriendCode
     {
         get
         {
@@ -48,15 +48,15 @@ public partial class Game1
         }
     }
 
-    private string GetAccountRecoveryKeyDisplay()
+    public string GetAccountRecoveryKeyDisplay()
         => string.IsNullOrWhiteSpace(_accountRecoveryKey)
             ? _accountIsProtected ? "Stored securely (not shown)" : "Not created"
             : _accountRecoveryKey;
 
-    private string GetAccountStatusDisplay()
+    public string GetAccountStatusDisplay()
         => string.IsNullOrWhiteSpace(_accountStatusMessage) ? "Ready" : _accountStatusMessage;
 
-    private void BeginAccountProfileRefresh(bool silent)
+    public void BeginAccountProfileRefresh(bool silent)
     {
         if (IsAccountOperationPending)
         {
@@ -71,7 +71,7 @@ public partial class Game1
         StartAccountOperation(AccountOperationKind.Refresh, _presenceClient.GetAccountProfileAsync(_clientIdentity));
     }
 
-    private void BeginProtectAccount()
+    public void BeginProtectAccount()
     {
         if (IsAccountOperationPending)
         {
@@ -96,7 +96,7 @@ public partial class Game1
         StartAccountOperation(AccountOperationKind.Protect, _presenceClient.ProtectAccountAsync(_clientIdentity));
     }
 
-    private void BeginShortenAccountFriendCode()
+    public void BeginShortenAccountFriendCode()
     {
         if (IsAccountOperationPending)
         {
@@ -113,7 +113,7 @@ public partial class Game1
         StartAccountOperation(AccountOperationKind.ShortenCode, _presenceClient.ShortenFriendCodeAsync(_clientIdentity));
     }
 
-    private void OpenAccountLoginDialog()
+    public void OpenAccountLoginDialog()
     {
         if (IsAccountOperationPending)
         {
@@ -127,7 +127,7 @@ public partial class Game1
         _accountDialogOpen = true;
     }
 
-    private void CloseAccountDialog()
+    public void CloseAccountDialog()
     {
         _accountDialogOpen = false;
         _accountDialogSelection = 0;
@@ -139,7 +139,7 @@ public partial class Game1
         _accountOperationTask = task;
     }
 
-    private void UpdateAccountOperation()
+    public void UpdateAccountOperation()
     {
         var task = _accountOperationTask;
         if (task is null || !task.IsCompleted)
@@ -224,7 +224,7 @@ public partial class Game1
             _presenceClient.LoginAccountAsync(_clientIdentity, friendCode, recoveryKey));
     }
 
-    private void UpdateAccountDialog(KeyboardState keyboard, MouseState mouse)
+    public void UpdateAccountDialog(KeyboardState keyboard, MouseState mouse)
     {
         if (!_accountDialogOpen)
         {
@@ -313,7 +313,7 @@ public partial class Game1
         }
     }
 
-    private bool TryHandleAccountDialogTextInput(char character)
+    public bool TryHandleAccountDialogTextInput(char character)
     {
         if (!_accountDialogOpen || _accountDialogKind != AccountDialogKind.Login || _accountDialogSelection > 1)
         {
@@ -356,7 +356,7 @@ public partial class Game1
         return true;
     }
 
-    private void DrawAccountDialog()
+    public void DrawAccountDialog()
     {
         if (!_accountDialogOpen)
         {

@@ -6,7 +6,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private enum MainMenuOverlayKind
+    public enum MainMenuOverlayKind
     {
         None,
         NamePrompt,
@@ -25,7 +25,7 @@ public partial class Game1
         CustomBubbleEditor,
     }
 
-    private enum GameplayOverlayKind
+    public enum GameplayOverlayKind
     {
         None,
         LastToDieFailure,
@@ -48,14 +48,14 @@ public partial class Game1
         DebugMenu,
     }
 
-    private bool HasOpenGameplayOverlay()
+    public bool HasOpenGameplayOverlay()
     {
         return GetActiveGameplayOverlay() != GameplayOverlayKind.None;
     }
 
     private bool HasOpenGameplayBlockingMenu()
     {
-        return HasOpenGameplayOverlay() || ShouldBlockGameplayForNavEditor() || ShouldBlockGameplayForGarrisonBuilder();
+        return HasOpenGameplayOverlay() || ShouldBlockGameplayForGarrisonBuilder();
     }
 
     private bool IsGameplayDeathCamActive()
@@ -153,14 +153,13 @@ public partial class Game1
             && !IsLocalSpectatorPresentationActive()
             && _world.LocalPlayer.IsAlive
             && !IsGameplayDeathCamActive()
-            && !ShouldBlockGameplayForNavEditor()
             && !ShouldBlockGameplayForGarrisonBuilder()
             && !_consoleOpen
             && !_hudEditorOpen
             && !ShouldSuppressGameplayHudForActiveOverlay();
     }
 
-    private bool ShouldShowGameplayMouseCursor()
+    public bool ShouldShowGameplayMouseCursor()
     {
         return _passwordPromptOpen
             || _scoreboardOpen

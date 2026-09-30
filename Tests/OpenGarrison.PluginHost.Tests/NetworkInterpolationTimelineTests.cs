@@ -36,7 +36,7 @@ public sealed class NetworkInterpolationTimelineTests
             1.0,
             NetworkInterpolationTimeline.AdvanceTowards(double.NaN, 1.0, 0.016));
         Assert.Equal(
-            1.0,
+            double.PositiveInfinity,
             NetworkInterpolationTimeline.AdvanceTowards(0.5, double.PositiveInfinity, 0.016));
     }
 

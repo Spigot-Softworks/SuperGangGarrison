@@ -9,13 +9,13 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private enum OnlineConnectionIntent
+    public enum OnlineConnectionIntent
     {
         Join,
         Watch,
     }
 
-    private enum SpectatorCameraMode
+    public enum SpectatorCameraMode
     {
         Normal = 0,
         RedIntel = 1,
@@ -23,496 +23,496 @@ public partial class Game1
         Auto = 3,
     }
 
-    private readonly UiShellState _uiShellState = new();
-    private readonly GameplaySessionState _gameplaySessionState = new();
+    public readonly UiShellState _uiShellState = new();
+    public readonly GameplaySessionState _gameplaySessionState = new();
 
-    private int? _localPlayerSnapshotEntityId
+    public int? _localPlayerSnapshotEntityId
     {
         get => _gameplaySessionState.LocalPlayerSnapshotEntityId;
         set => _gameplaySessionState.LocalPlayerSnapshotEntityId = value;
     }
 
-    private int? _spectatorTrackedPlayerId
+    public int? _spectatorTrackedPlayerId
     {
         get => _gameplaySessionState.SpectatorTrackedPlayerId;
         set => _gameplaySessionState.SpectatorTrackedPlayerId = value;
     }
 
-    private bool _spectatorTrackingEnabled
+    public bool _spectatorTrackingEnabled
     {
         get => _gameplaySessionState.SpectatorTrackingEnabled;
         set => _gameplaySessionState.SpectatorTrackingEnabled = value;
     }
 
-    private bool _offlinePracticeSpectatorMode
+    public bool _offlinePracticeSpectatorMode
     {
         get => _gameplaySessionState.OfflinePracticeSpectatorMode;
         set => _gameplaySessionState.OfflinePracticeSpectatorMode = value;
     }
 
-    private string _observedGameplayLevelName
+    public string _observedGameplayLevelName
     {
         get => _gameplaySessionState.ObservedGameplayLevelName;
         set => _gameplaySessionState.ObservedGameplayLevelName = value;
     }
 
-    private int _observedGameplayMapAreaIndex
+    public int _observedGameplayMapAreaIndex
     {
         get => _gameplaySessionState.ObservedGameplayMapAreaIndex;
         set => _gameplaySessionState.ObservedGameplayMapAreaIndex = value;
     }
 
-    private GameplaySessionKind _gameplaySessionKind
+    public GameplaySessionKind _gameplaySessionKind
     {
         get => _gameplaySessionState.GameplaySessionKind;
         set => _gameplaySessionState.GameplaySessionKind = value;
     }
 
-    private ExperimentalGameplaySettings _practiceExperimentalGameplaySettings
+    public ExperimentalGameplaySettings _practiceExperimentalGameplaySettings
     {
         get => _gameplaySessionState.PracticeExperimentalGameplaySettings;
         set => _gameplaySessionState.PracticeExperimentalGameplaySettings = value;
     }
 
-    private bool _practiceStickyGibBloodEnabled
+    public bool _practiceStickyGibBloodEnabled
     {
         get => _gameplaySessionState.PracticeStickyGibBloodEnabled;
         set => _gameplaySessionState.PracticeStickyGibBloodEnabled = value;
     }
 
-    private string _autoBalanceNoticeText
+    public string _autoBalanceNoticeText
     {
         get => _gameplaySessionState.AutoBalanceNoticeText;
         set => _gameplaySessionState.AutoBalanceNoticeText = value;
     }
 
-    private int _autoBalanceNoticeTicks
+    public int _autoBalanceNoticeTicks
     {
         get => _gameplaySessionState.AutoBalanceNoticeTicks;
         set => _gameplaySessionState.AutoBalanceNoticeTicks = value;
     }
 
-    private int _pendingHostedConnectTicks
+    public int _pendingHostedConnectTicks
     {
         get => _gameplaySessionState.PendingHostedConnectTicks;
         set => _gameplaySessionState.PendingHostedConnectTicks = value;
     }
 
-    private int _pendingHostedConnectPort
+    public int _pendingHostedConnectPort
     {
         get => _gameplaySessionState.PendingHostedConnectPort;
         set => _gameplaySessionState.PendingHostedConnectPort = value;
     }
 
-    private string? _recentConnectHost
+    public string? _recentConnectHost
     {
         get => _gameplaySessionState.RecentConnectHost;
         set => _gameplaySessionState.RecentConnectHost = value;
     }
 
-    private int _recentConnectPort
+    public int _recentConnectPort
     {
         get => _gameplaySessionState.RecentConnectPort;
         set => _gameplaySessionState.RecentConnectPort = value;
     }
 
-    private bool _teamSelectOpen
+    public bool _teamSelectOpen
     {
         get => _uiShellState.TeamSelectOpen;
         set => _uiShellState.TeamSelectOpen = value;
     }
 
-    private float _teamSelectAlpha
+    public float _teamSelectAlpha
     {
         get => _uiShellState.TeamSelectAlpha;
         set => _uiShellState.TeamSelectAlpha = value;
     }
 
-    private float _teamSelectPanelY
+    public float _teamSelectPanelY
     {
         get => _uiShellState.TeamSelectPanelY;
         set => _uiShellState.TeamSelectPanelY = value;
     }
 
-    private int _teamSelectHoverIndex
+    public int _teamSelectHoverIndex
     {
         get => _uiShellState.TeamSelectHoverIndex;
         set => _uiShellState.TeamSelectHoverIndex = value;
     }
 
-    private PlayerTeam? _pendingClassSelectTeam
+    public PlayerTeam? _pendingClassSelectTeam
     {
         get => _uiShellState.PendingClassSelectTeam;
         set => _uiShellState.PendingClassSelectTeam = value;
     }
 
-    private bool _classSelectOpen
+    public bool _classSelectOpen
     {
         get => _uiShellState.ClassSelectOpen;
         set => _uiShellState.ClassSelectOpen = value;
     }
 
-    private float _classSelectAlpha
+    public float _classSelectAlpha
     {
         get => _uiShellState.ClassSelectAlpha;
         set => _uiShellState.ClassSelectAlpha = value;
     }
 
-    private float _classSelectPanelY
+    public float _classSelectPanelY
     {
         get => _uiShellState.ClassSelectPanelY;
         set => _uiShellState.ClassSelectPanelY = value;
     }
 
-    private int _classSelectHoverIndex
+    public int _classSelectHoverIndex
     {
         get => _uiShellState.ClassSelectHoverIndex;
         set => _uiShellState.ClassSelectHoverIndex = value;
     }
 
-    private int _classSelectPortraitAnimationHoverIndex
+    public int _classSelectPortraitAnimationHoverIndex
     {
         get => _uiShellState.ClassSelectPortraitAnimationHoverIndex;
         set => _uiShellState.ClassSelectPortraitAnimationHoverIndex = value;
     }
 
-    private PlayerTeam? _classSelectPortraitAnimationTeam
+    public PlayerTeam? _classSelectPortraitAnimationTeam
     {
         get => _uiShellState.ClassSelectPortraitAnimationTeam;
         set => _uiShellState.ClassSelectPortraitAnimationTeam = value;
     }
 
-    private float _classSelectPortraitAnimationFrame
+    public float _classSelectPortraitAnimationFrame
     {
         get => _uiShellState.ClassSelectPortraitAnimationFrame;
         set => _uiShellState.ClassSelectPortraitAnimationFrame = value;
     }
 
-    private int _gameplayLoadoutPortraitAnimationHoverIndex
+    public int _gameplayLoadoutPortraitAnimationHoverIndex
     {
         get => _uiShellState.GameplayLoadoutPortraitAnimationHoverIndex;
         set => _uiShellState.GameplayLoadoutPortraitAnimationHoverIndex = value;
     }
 
-    private PlayerTeam? _gameplayLoadoutPortraitAnimationTeam
+    public PlayerTeam? _gameplayLoadoutPortraitAnimationTeam
     {
         get => _uiShellState.GameplayLoadoutPortraitAnimationTeam;
         set => _uiShellState.GameplayLoadoutPortraitAnimationTeam = value;
     }
 
-    private float _gameplayLoadoutPortraitAnimationFrame
+    public float _gameplayLoadoutPortraitAnimationFrame
     {
         get => _uiShellState.GameplayLoadoutPortraitAnimationFrame;
         set => _uiShellState.GameplayLoadoutPortraitAnimationFrame = value;
     }
 
-    private bool _scoreboardOpen
+    public bool _scoreboardOpen
     {
         get => _uiShellState.ScoreboardOpen;
         set => _uiShellState.ScoreboardOpen = value;
     }
 
-    private float _scoreboardAlpha
+    public float _scoreboardAlpha
     {
         get => _uiShellState.ScoreboardAlpha;
         set => _uiShellState.ScoreboardAlpha = value;
     }
 
-    private bool _chatOpen
+    public bool _chatOpen
     {
         get => _uiShellState.ChatOpen;
         set => _uiShellState.ChatOpen = value;
     }
 
-    private bool _chatTeamOnly
+    public bool _chatTeamOnly
     {
         get => _uiShellState.ChatTeamOnly;
         set => _uiShellState.ChatTeamOnly = value;
     }
 
-    private bool _chatSubmitAwaitingOpenKeyRelease
+    public bool _chatSubmitAwaitingOpenKeyRelease
     {
         get => _uiShellState.ChatSubmitAwaitingOpenKeyRelease;
         set => _uiShellState.ChatSubmitAwaitingOpenKeyRelease = value;
     }
 
-    private string _chatInput
+    public string _chatInput
     {
         get => _uiShellState.ChatInput;
         set => _uiShellState.ChatInput = value;
     }
 
-    private int _chatScrollOffset
+    public int _chatScrollOffset
     {
         get => _uiShellState.ChatScrollOffset;
         set => _uiShellState.ChatScrollOffset = value;
     }
 
-    private BubbleMenuKind _bubbleMenuKind
+    public BubbleMenuKind _bubbleMenuKind
     {
         get => _uiShellState.BubbleMenuKind;
         set => _uiShellState.BubbleMenuKind = value;
     }
 
-    private float _bubbleMenuAlpha
+    public float _bubbleMenuAlpha
     {
         get => _uiShellState.BubbleMenuAlpha;
         set => _uiShellState.BubbleMenuAlpha = value;
     }
 
-    private float _bubbleMenuX
+    public float _bubbleMenuX
     {
         get => _uiShellState.BubbleMenuX;
         set => _uiShellState.BubbleMenuX = value;
     }
 
-    private bool _bubbleMenuClosing
+    public bool _bubbleMenuClosing
     {
         get => _uiShellState.BubbleMenuClosing;
         set => _uiShellState.BubbleMenuClosing = value;
     }
 
-    private int _bubbleMenuXPageIndex
+    public int _bubbleMenuXPageIndex
     {
         get => _uiShellState.BubbleMenuXPageIndex;
         set => _uiShellState.BubbleMenuXPageIndex = value;
     }
 
-    private bool _bubbleMenuSessionHadInteraction
+    public bool _bubbleMenuSessionHadInteraction
     {
         get => _uiShellState.BubbleMenuSessionHadInteraction;
         set => _uiShellState.BubbleMenuSessionHadInteraction = value;
     }
 
-    private int? _bubbleMenuPendingFrame
+    public int? _bubbleMenuPendingFrame
     {
         get => _uiShellState.BubbleMenuPendingFrame;
         set => _uiShellState.BubbleMenuPendingFrame = value;
     }
 
-    private int _recentBubbleFrameZ
+    public int _recentBubbleFrameZ
     {
         get => _uiShellState.RecentBubbleFrameZ;
         set => _uiShellState.RecentBubbleFrameZ = value;
     }
 
-    private int _recentBubbleFrameX
+    public int _recentBubbleFrameX
     {
         get => _uiShellState.RecentBubbleFrameX;
         set => _uiShellState.RecentBubbleFrameX = value;
     }
 
-    private int _recentBubbleFrameC
+    public int _recentBubbleFrameC
     {
         get => _uiShellState.RecentBubbleFrameC;
         set => _uiShellState.RecentBubbleFrameC = value;
     }
 
-    private int _recentBubbleFrameCustom
+    public int _recentBubbleFrameCustom
     {
         get => _uiShellState.RecentBubbleFrameCustom;
         set => _uiShellState.RecentBubbleFrameCustom = value;
     }
 
-    private bool _buildMenuOpen
+    public bool _buildMenuOpen
     {
         get => _uiShellState.BuildMenuOpen;
         set => _uiShellState.BuildMenuOpen = value;
     }
 
-    private bool _buildMenuClosing
+    public bool _buildMenuClosing
     {
         get => _uiShellState.BuildMenuClosing;
         set => _uiShellState.BuildMenuClosing = value;
     }
 
-    private float _buildMenuAlpha
+    public float _buildMenuAlpha
     {
         get => _uiShellState.BuildMenuAlpha;
         set => _uiShellState.BuildMenuAlpha = value;
     }
 
-    private float _buildMenuX
+    public float _buildMenuX
     {
         get => _uiShellState.BuildMenuX;
         set => _uiShellState.BuildMenuX = value;
     }
 
-    private bool _startupSplashOpen
+    public bool _startupSplashOpen
     {
         get => _uiShellState.StartupSplashOpen;
         set => _uiShellState.StartupSplashOpen = value;
     }
 
-    private int _startupSplashTicks
+    public int _startupSplashTicks
     {
         get => _uiShellState.StartupSplashTicks;
         set => _uiShellState.StartupSplashTicks = value;
     }
 
-    private float _startupSplashFrame
+    public float _startupSplashFrame
     {
         get => _uiShellState.StartupSplashFrame;
         set => _uiShellState.StartupSplashFrame = value;
     }
 
-    private bool _mainMenuOpen
+    public bool _mainMenuOpen
     {
         get => _uiShellState.MainMenuOpen;
         set => _uiShellState.MainMenuOpen = value;
     }
 
-    private bool _mainMenuChromeHidden
+    public bool _mainMenuChromeHidden
     {
         get => _uiShellState.MainMenuChromeHidden;
         set => _uiShellState.MainMenuChromeHidden = value;
     }
 
-    private bool _optionsMenuOpen
+    public bool _optionsMenuOpen
     {
         get => _uiShellState.OptionsMenuOpen;
         set => _uiShellState.OptionsMenuOpen = value;
     }
 
-    private bool _optionsMenuOpenedFromGameplay
+    public bool _optionsMenuOpenedFromGameplay
     {
         get => _uiShellState.OptionsMenuOpenedFromGameplay;
         set => _uiShellState.OptionsMenuOpenedFromGameplay = value;
     }
 
-    private bool _pluginOptionsMenuOpen
+    public bool _pluginOptionsMenuOpen
     {
         get => _uiShellState.PluginOptionsMenuOpen;
         set => _uiShellState.PluginOptionsMenuOpen = value;
     }
 
-    private bool _pluginOptionsMenuOpenedFromGameplay
+    public bool _pluginOptionsMenuOpenedFromGameplay
     {
         get => _uiShellState.PluginOptionsMenuOpenedFromGameplay;
         set => _uiShellState.PluginOptionsMenuOpenedFromGameplay = value;
     }
 
-    private string? _selectedPluginOptionsPluginId
+    public string? _selectedPluginOptionsPluginId
     {
         get => _uiShellState.SelectedPluginOptionsPluginId;
         set => _uiShellState.SelectedPluginOptionsPluginId = value;
     }
 
-    private bool _lobbyBrowserOpen
+    public bool _lobbyBrowserOpen
     {
         get => _uiShellState.LobbyBrowserOpen;
         set => _uiShellState.LobbyBrowserOpen = value;
     }
 
-    private bool _manualConnectOpen
+    public bool _manualConnectOpen
     {
         get => _uiShellState.ManualConnectOpen;
         set => _uiShellState.ManualConnectOpen = value;
     }
 
-    private bool _hostSetupOpen
+    public bool _hostSetupOpen
     {
         get => _uiShellState.HostSetupOpen;
         set => _uiShellState.HostSetupOpen = value;
     }
 
-    private bool _practiceSetupOpen
+    public bool _practiceSetupOpen
     {
         get => _uiShellState.PracticeSetupOpen;
         set => _uiShellState.PracticeSetupOpen = value;
     }
 
-    private bool _clientPowersOpen
+    public bool _clientPowersOpen
     {
         get => _uiShellState.ClientPowersOpen;
         set => _uiShellState.ClientPowersOpen = value;
     }
 
-    private bool _clientPowersOpenedFromGameplay
+    public bool _clientPowersOpenedFromGameplay
     {
         get => _uiShellState.ClientPowersOpenedFromGameplay;
         set => _uiShellState.ClientPowersOpenedFromGameplay = value;
     }
 
-    private bool _creditsOpen
+    public bool _creditsOpen
     {
         get => _uiShellState.CreditsOpen;
         set => _uiShellState.CreditsOpen = value;
     }
 
-    private SpectatorCameraMode _spectatorCameraMode
+    public SpectatorCameraMode _spectatorCameraMode
     {
         get => _gameplaySessionState.SpectatorCameraMode;
         set => _gameplaySessionState.SpectatorCameraMode = value;
     }
 
-    private OnlineConnectionIntent _onlineConnectionIntent
+    public OnlineConnectionIntent _onlineConnectionIntent
     {
         get => _gameplaySessionState.OnlineConnectionIntent;
         set => _gameplaySessionState.OnlineConnectionIntent = value;
     }
 
-    private bool _friendsMenuOpen
+    public bool _friendsMenuOpen
     {
         get => _uiShellState.FriendsMenuOpen;
         set => _uiShellState.FriendsMenuOpen = value;
     }
 
-    private int _friendsMenuHoverIndex
+    public int _friendsMenuHoverIndex
     {
         get => _uiShellState.FriendsMenuHoverIndex;
         set => _uiShellState.FriendsMenuHoverIndex = value;
     }
 
-    private int _friendsMenuSelectedIndex
+    public int _friendsMenuSelectedIndex
     {
         get => _uiShellState.FriendsMenuSelectedIndex;
         set => _uiShellState.FriendsMenuSelectedIndex = value;
     }
 
-    private FriendsMenuTab _friendsMenuTab
+    public FriendsMenuTab _friendsMenuTab
     {
         get => _uiShellState.FriendsMenuTab;
         set => _uiShellState.FriendsMenuTab = value;
     }
 
-    private bool _friendsContextMenuOpen
+    public bool _friendsContextMenuOpen
     {
         get => _uiShellState.FriendsContextMenuOpen;
         set => _uiShellState.FriendsContextMenuOpen = value;
     }
 
-    private int _friendsContextMenuTargetIndex
+    public int _friendsContextMenuTargetIndex
     {
         get => _uiShellState.FriendsContextMenuTargetIndex;
         set => _uiShellState.FriendsContextMenuTargetIndex = value;
     }
 
-    private int _friendsContextMenuX
+    public int _friendsContextMenuX
     {
         get => _uiShellState.FriendsContextMenuX;
         set => _uiShellState.FriendsContextMenuX = value;
     }
 
-    private int _friendsContextMenuY
+    public int _friendsContextMenuY
     {
         get => _uiShellState.FriendsContextMenuY;
         set => _uiShellState.FriendsContextMenuY = value;
     }
 
-    private bool _playerCardOwnOpen
+    public bool _playerCardOwnOpen
     {
         get => _uiShellState.PlayerCardOwnOpen;
         set => _uiShellState.PlayerCardOwnOpen = value;
     }
 
-    private bool _playerCardEditorOpen
+    public bool _playerCardEditorOpen
     {
         get => _uiShellState.PlayerCardEditorOpen;
         set => _uiShellState.PlayerCardEditorOpen = value;
     }
 
-    private bool _playerCardDraggingPortrait
+    public bool _playerCardDraggingPortrait
     {
         get => _uiShellState.PlayerCardDraggingPortrait;
         set => _uiShellState.PlayerCardDraggingPortrait = value;
@@ -524,85 +524,85 @@ public partial class Game1
         set => _uiShellState.PlayerCardActiveColorIndex = value;
     }
 
-    private bool _editingFriendCode
+    public bool _editingFriendCode
     {
         get => _uiShellState.EditingFriendCode;
         set => _uiShellState.EditingFriendCode = value;
     }
 
-    private bool _friendsMenuAddingFriend
+    public bool _friendsMenuAddingFriend
     {
         get => _uiShellState.FriendsMenuAddingFriend;
         set => _uiShellState.FriendsMenuAddingFriend = value;
     }
 
-    private bool _editingFriendNickname
+    public bool _editingFriendNickname
     {
         get => _uiShellState.EditingFriendNickname;
         set => _uiShellState.EditingFriendNickname = value;
     }
 
-    private bool _editingFriendMessage
+    public bool _editingFriendMessage
     {
         get => _uiShellState.EditingFriendMessage;
         set => _uiShellState.EditingFriendMessage = value;
     }
 
-    private string _friendNicknameInputBuffer
+    public string _friendNicknameInputBuffer
     {
         get => _uiShellState.FriendNicknameInputBuffer;
         set => _uiShellState.FriendNicknameInputBuffer = value;
     }
 
-    private int _friendNicknameCursorIndex
+    public int _friendNicknameCursorIndex
     {
         get => _uiShellState.FriendNicknameCursorIndex;
         set => _uiShellState.FriendNicknameCursorIndex = value;
     }
 
-    private int _friendNicknameSelectionStart
+    public int _friendNicknameSelectionStart
     {
         get => _uiShellState.FriendNicknameSelectionStart;
         set => _uiShellState.FriendNicknameSelectionStart = value;
     }
 
-    private string _friendCodeInputBuffer
+    public string _friendCodeInputBuffer
     {
         get => _uiShellState.FriendCodeInputBuffer;
         set => _uiShellState.FriendCodeInputBuffer = value;
     }
 
-    private int _friendCodeCursorIndex
+    public int _friendCodeCursorIndex
     {
         get => _uiShellState.FriendCodeCursorIndex;
         set => _uiShellState.FriendCodeCursorIndex = value;
     }
 
-    private int _friendCodeSelectionStart
+    public int _friendCodeSelectionStart
     {
         get => _uiShellState.FriendCodeSelectionStart;
         set => _uiShellState.FriendCodeSelectionStart = value;
     }
 
-    private string _friendMessageInputBuffer
+    public string _friendMessageInputBuffer
     {
         get => _uiShellState.FriendMessageInputBuffer;
         set => _uiShellState.FriendMessageInputBuffer = value;
     }
 
-    private int _friendMessageCursorIndex
+    public int _friendMessageCursorIndex
     {
         get => _uiShellState.FriendMessageCursorIndex;
         set => _uiShellState.FriendMessageCursorIndex = value;
     }
 
-    private int _friendMessageSelectionStart
+    public int _friendMessageSelectionStart
     {
         get => _uiShellState.FriendMessageSelectionStart;
         set => _uiShellState.FriendMessageSelectionStart = value;
     }
 
-    private bool _creditsScrollInitialized
+    public bool _creditsScrollInitialized
     {
         get => _uiShellState.CreditsScrollInitialized;
         set => _uiShellState.CreditsScrollInitialized = value;
@@ -614,25 +614,25 @@ public partial class Game1
         set => _uiShellState.CreditsScrollY = value;
     }
 
-    private bool _inGameMenuOpen
+    public bool _inGameMenuOpen
     {
         get => _uiShellState.InGameMenuOpen;
         set => _uiShellState.InGameMenuOpen = value;
     }
 
-    private bool _inGameMenuAwaitingEscapeRelease
+    public bool _inGameMenuAwaitingEscapeRelease
     {
         get => _uiShellState.InGameMenuAwaitingEscapeRelease;
         set => _uiShellState.InGameMenuAwaitingEscapeRelease = value;
     }
 
-    private bool _gameplayLoadoutMenuOpen
+    public bool _gameplayLoadoutMenuOpen
     {
         get => _uiShellState.GameplayLoadoutMenuOpen;
         set => _uiShellState.GameplayLoadoutMenuOpen = value;
     }
 
-    private bool _gameplayLoadoutMenuAwaitingEscapeRelease
+    public bool _gameplayLoadoutMenuAwaitingEscapeRelease
     {
         get => _uiShellState.GameplayLoadoutMenuAwaitingEscapeRelease;
         set => _uiShellState.GameplayLoadoutMenuAwaitingEscapeRelease = value;
@@ -646,157 +646,157 @@ public partial class Game1
 
     private Dictionary<PlayerClass, string> _gameplayLoadoutMenuViewedLoadoutIds => _uiShellState.GameplayLoadoutMenuViewedLoadoutIds;
 
-    private bool _quitPromptOpen
+    public bool _quitPromptOpen
     {
         get => _uiShellState.QuitPromptOpen;
         set => _uiShellState.QuitPromptOpen = value;
     }
 
-    private int _quitPromptHoverIndex
+    public int _quitPromptHoverIndex
     {
         get => _uiShellState.QuitPromptHoverIndex;
         set => _uiShellState.QuitPromptHoverIndex = value;
     }
 
-    private bool _controlsMenuOpen
+    public bool _controlsMenuOpen
     {
         get => _uiShellState.ControlsMenuOpen;
         set => _uiShellState.ControlsMenuOpen = value;
     }
 
-    private bool _controlsMenuOpenedFromGameplay
+    public bool _controlsMenuOpenedFromGameplay
     {
         get => _uiShellState.ControlsMenuOpenedFromGameplay;
         set => _uiShellState.ControlsMenuOpenedFromGameplay = value;
     }
 
-    private bool _editingPlayerName
+    public bool _editingPlayerName
     {
         get => _uiShellState.EditingPlayerName;
         set => _uiShellState.EditingPlayerName = value;
     }
 
-    private bool _namePromptOpen
+    public bool _namePromptOpen
     {
         get => _uiShellState.NamePromptOpen;
         set => _uiShellState.NamePromptOpen = value;
     }
 
-    private bool _namePromptPresented
+    public bool _namePromptPresented
     {
         get => _uiShellState.NamePromptPresented;
         set => _uiShellState.NamePromptPresented = value;
     }
 
-    private bool _editingConnectHost
+    public bool _editingConnectHost
     {
         get => _uiShellState.EditingConnectHost;
         set => _uiShellState.EditingConnectHost = value;
     }
 
-    private bool _editingConnectPort
+    public bool _editingConnectPort
     {
         get => _uiShellState.EditingConnectPort;
         set => _uiShellState.EditingConnectPort = value;
     }
 
-    private bool _passwordPromptOpen
+    public bool _passwordPromptOpen
     {
         get => _uiShellState.PasswordPromptOpen;
         set => _uiShellState.PasswordPromptOpen = value;
     }
 
-    private string _passwordEditBuffer
+    public string _passwordEditBuffer
     {
         get => _uiShellState.PasswordEditBuffer;
         set => _uiShellState.PasswordEditBuffer = value;
     }
 
-    private string _passwordPromptMessage
+    public string _passwordPromptMessage
     {
         get => _uiShellState.PasswordPromptMessage;
         set => _uiShellState.PasswordPromptMessage = value;
     }
 
-    private MainMenuPage _mainMenuPage
+    public MainMenuPage _mainMenuPage
     {
         get => _uiShellState.MainMenuPage;
         set => _uiShellState.MainMenuPage = value;
     }
 
-    private int _mainMenuHoverIndex
+    public int _mainMenuHoverIndex
     {
         get => _uiShellState.MainMenuHoverIndex;
         set => _uiShellState.MainMenuHoverIndex = value;
     }
 
-    private bool _mainMenuBottomBarHover
+    public bool _mainMenuBottomBarHover
     {
         get => _uiShellState.MainMenuBottomBarHover;
         set => _uiShellState.MainMenuBottomBarHover = value;
     }
 
-    private int _optionsHoverIndex
+    public int _optionsHoverIndex
     {
         get => _uiShellState.OptionsHoverIndex;
         set => _uiShellState.OptionsHoverIndex = value;
     }
 
-    private int _optionsPageIndex
+    public int _optionsPageIndex
     {
         get => _uiShellState.OptionsPageIndex;
         set => _uiShellState.OptionsPageIndex = value;
     }
 
-    private int _optionsScrollOffset
+    public int _optionsScrollOffset
     {
         get => _uiShellState.OptionsScrollOffset;
         set => _uiShellState.OptionsScrollOffset = value;
     }
 
-    private int _pluginOptionsHoverIndex
+    public int _pluginOptionsHoverIndex
     {
         get => _uiShellState.PluginOptionsHoverIndex;
         set => _uiShellState.PluginOptionsHoverIndex = value;
     }
 
-    private int _pluginOptionsScrollOffset
+    public int _pluginOptionsScrollOffset
     {
         get => _uiShellState.PluginOptionsScrollOffset;
         set => _uiShellState.PluginOptionsScrollOffset = value;
     }
 
-    private ClientPluginKeyOptionItem? _pendingPluginOptionsKeyItem
+    public ClientPluginKeyOptionItem? _pendingPluginOptionsKeyItem
     {
         get => _uiShellState.PendingPluginOptionsKeyItem;
         set => _uiShellState.PendingPluginOptionsKeyItem = value;
     }
 
-    private int _controlsHoverIndex
+    public int _controlsHoverIndex
     {
         get => _uiShellState.ControlsHoverIndex;
         set => _uiShellState.ControlsHoverIndex = value;
     }
 
-    private int _controlsScrollOffset
+    public int _controlsScrollOffset
     {
         get => _uiShellState.ControlsScrollOffset;
         set => _uiShellState.ControlsScrollOffset = value;
     }
 
-    private int _controlsPageIndex
+    public int _controlsPageIndex
     {
         get => _uiShellState.ControlsPageIndex;
         set => _uiShellState.ControlsPageIndex = value;
     }
 
-    private int _lobbyBrowserHoverIndex
+    public int _lobbyBrowserHoverIndex
     {
         get => _uiShellState.LobbyBrowserHoverIndex;
         set => _uiShellState.LobbyBrowserHoverIndex = value;
     }
 
-    private int _lobbyBrowserSelectedIndex
+    public int _lobbyBrowserSelectedIndex
     {
         get => _uiShellState.LobbyBrowserSelectedIndex;
         set => _uiShellState.LobbyBrowserSelectedIndex = value;
@@ -808,127 +808,127 @@ public partial class Game1
         set => _uiShellState.ClientPowersScrollOffset = value;
     }
 
-    private int _inGameMenuHoverIndex
+    public int _inGameMenuHoverIndex
     {
         get => _uiShellState.InGameMenuHoverIndex;
         set => _uiShellState.InGameMenuHoverIndex = value;
     }
 
-    private int _gameplayLoadoutMenuHoverIndex
+    public int _gameplayLoadoutMenuHoverIndex
     {
         get => _uiShellState.GameplayLoadoutMenuHoverIndex;
         set => _uiShellState.GameplayLoadoutMenuHoverIndex = value;
     }
 
-    private string _playerNameEditBuffer
+    public string _playerNameEditBuffer
     {
         get => _uiShellState.PlayerNameEditBuffer;
         set => _uiShellState.PlayerNameEditBuffer = value;
     }
 
-    private string _connectHostBuffer
+    public string _connectHostBuffer
     {
         get => _uiShellState.ConnectHostBuffer;
         set => _uiShellState.ConnectHostBuffer = value;
     }
 
-    private string _connectPortBuffer
+    public string _connectPortBuffer
     {
         get => _uiShellState.ConnectPortBuffer;
         set => _uiShellState.ConnectPortBuffer = value;
     }
 
-    private int _playerNameEditCursorIndex
+    public int _playerNameEditCursorIndex
     {
         get => _uiShellState.PlayerNameEditCursorIndex;
         set => _uiShellState.PlayerNameEditCursorIndex = value;
     }
 
-    private int _playerNameEditSelectionStart
+    public int _playerNameEditSelectionStart
     {
         get => _uiShellState.PlayerNameEditSelectionStart;
         set => _uiShellState.PlayerNameEditSelectionStart = value;
     }
 
-    private int _connectHostCursorIndex
+    public int _connectHostCursorIndex
     {
         get => _uiShellState.ConnectHostCursorIndex;
         set => _uiShellState.ConnectHostCursorIndex = value;
     }
 
-    private int _connectHostSelectionStart
+    public int _connectHostSelectionStart
     {
         get => _uiShellState.ConnectHostSelectionStart;
         set => _uiShellState.ConnectHostSelectionStart = value;
     }
 
-    private int _connectPortCursorIndex
+    public int _connectPortCursorIndex
     {
         get => _uiShellState.ConnectPortCursorIndex;
         set => _uiShellState.ConnectPortCursorIndex = value;
     }
 
-    private int _connectPortSelectionStart
+    public int _connectPortSelectionStart
     {
         get => _uiShellState.ConnectPortSelectionStart;
         set => _uiShellState.ConnectPortSelectionStart = value;
     }
 
-    private int _passwordEditCursorIndex
+    public int _passwordEditCursorIndex
     {
         get => _uiShellState.PasswordEditCursorIndex;
         set => _uiShellState.PasswordEditCursorIndex = value;
     }
 
-    private int _passwordEditSelectionStart
+    public int _passwordEditSelectionStart
     {
         get => _uiShellState.PasswordEditSelectionStart;
         set => _uiShellState.PasswordEditSelectionStart = value;
     }
 
-    private int _chatInputCursorIndex
+    public int _chatInputCursorIndex
     {
         get => _uiShellState.ChatInputCursorIndex;
         set => _uiShellState.ChatInputCursorIndex = value;
     }
 
-    private int _chatInputSelectionStart
+    public int _chatInputSelectionStart
     {
         get => _uiShellState.ChatInputSelectionStart;
         set => _uiShellState.ChatInputSelectionStart = value;
     }
 
-    private int _consoleInputCursorIndex
+    public int _consoleInputCursorIndex
     {
         get => _uiShellState.ConsoleInputCursorIndex;
         set => _uiShellState.ConsoleInputCursorIndex = value;
     }
 
-    private int _consoleInputSelectionStart
+    public int _consoleInputSelectionStart
     {
         get => _uiShellState.ConsoleInputSelectionStart;
         set => _uiShellState.ConsoleInputSelectionStart = value;
     }
 
-    private string _menuStatusMessage
+    public string _menuStatusMessage
     {
         get => _uiShellState.MenuStatusMessage;
         set => SetMenuStatusMessageInternal(value, persist: false);
     }
 
-    private ControlsMenuBinding? _pendingControlsBinding
+    public ControlsMenuBinding? _pendingControlsBinding
     {
         get => _uiShellState.PendingControlsBinding;
         set => _uiShellState.PendingControlsBinding = value;
     }
 
-    private ControllerControlsMenuBinding? _pendingControllerControlsBinding
+    public ControllerControlsMenuBinding? _pendingControllerControlsBinding
     {
         get => _uiShellState.PendingControllerControlsBinding;
         set => _uiShellState.PendingControllerControlsBinding = value;
     }
 
-    private sealed class UiShellState
+    public sealed class UiShellState
     {
         public bool TeamSelectOpen;
         public float TeamSelectAlpha = 0.01f;
@@ -1067,7 +1067,7 @@ public partial class Game1
         public ControllerControlsMenuBinding? PendingControllerControlsBinding;
     }
 
-    private sealed class GameplaySessionState
+    public sealed class GameplaySessionState
     {
         public int? LocalPlayerSnapshotEntityId;
         public int? SpectatorTrackedPlayerId;

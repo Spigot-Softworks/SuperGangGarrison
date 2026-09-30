@@ -11,7 +11,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private SpriteFont LoadInitialSpriteFont(string assetName)
+    public SpriteFont LoadInitialSpriteFont(string assetName)
     {
         if (OperatingSystem.IsBrowser())
         {

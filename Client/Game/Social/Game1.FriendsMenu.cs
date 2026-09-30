@@ -11,7 +11,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private enum FriendsMenuTab
+    public enum FriendsMenuTab
     {
         Friends,
         Requests,
@@ -53,7 +53,7 @@ public partial class Game1
         FriendsContextMenuAction[] Actions,
         string[] Labels);
 
-    private void UpdateFriendsMenu(KeyboardState keyboard, MouseState mouse)
+    public void UpdateFriendsMenu(KeyboardState keyboard, MouseState mouse)
     {
         CompleteSocialPresenceTasks();
         var layout = GetFriendsMenuLayout();
@@ -61,7 +61,7 @@ public partial class Game1
         if ((keyboard.IsKeyDown(Keys.Escape) && !_previousKeyboard.IsKeyDown(Keys.Escape))
             || IsControllerMenuBackPressed())
         {
-            _mainMenuOverlayStateController.CloseFriendsMenu(clearStatus: false);
+            _menuManager.MainMenuOverlayState.CloseFriendsMenu(clearStatus: false);
             return;
         }
 
@@ -111,7 +111,7 @@ public partial class Game1
         var point = mouse.Position;
         if (!layout.Panel.Contains(point))
         {
-            _mainMenuOverlayStateController.CloseFriendsMenu(clearStatus: false);
+            _menuManager.MainMenuOverlayState.CloseFriendsMenu(clearStatus: false);
             return;
         }
 
@@ -238,7 +238,7 @@ public partial class Game1
         return false;
     }
 
-    private void SelectFriendsMenuTab(FriendsMenuTab tab)
+    public void SelectFriendsMenuTab(FriendsMenuTab tab)
     {
         _friendsMenuTab = tab;
         _friendsMenuSelectedIndex = -1;
@@ -334,7 +334,7 @@ public partial class Game1
         ResetTextFieldClickTarget();
     }
 
-    private void CloseFriendsContextMenu()
+    public void CloseFriendsContextMenu()
     {
         _friendsContextMenuOpen = false;
         _friendsContextMenuTargetIndex = -1;
@@ -516,7 +516,7 @@ public partial class Game1
         }
     }
 
-    private void DrawFriendsMenu()
+    public void DrawFriendsMenu()
     {
         var layout = GetFriendsMenuLayout();
         var panel = layout.Panel;
@@ -1028,7 +1028,7 @@ public partial class Game1
         };
     }
 
-    private void TrySendFriendRequestFromInput()
+    public void TrySendFriendRequestFromInput()
     {
         if (TrySendFriendRequest(_friendCodeInputBuffer, clearFriendCodeInput: true))
         {
@@ -1067,7 +1067,7 @@ public partial class Game1
         return true;
     }
 
-    private static bool TryExtractFriendCodeFromText(string? text, out string friendCode)
+    public static bool TryExtractFriendCodeFromText(string? text, out string friendCode)
     {
         if (ClientIdentityDocument.TryNormalizeFriendCode(text, out friendCode))
         {
@@ -1197,7 +1197,7 @@ public partial class Game1
             && string.Equals(request.Status, "pending", StringComparison.OrdinalIgnoreCase);
     }
 
-    private string GetFriendNicknameInputDefault()
+    public string GetFriendNicknameInputDefault()
     {
         if (!string.IsNullOrWhiteSpace(_clientIdentity.DisplayName))
         {
@@ -1207,7 +1207,7 @@ public partial class Game1
         return NormalizeFriendNickname(_world.LocalPlayer.DisplayName);
     }
 
-    private void SaveFriendNicknameFromInput()
+    public void SaveFriendNicknameFromInput()
     {
         var nickname = NormalizeFriendNickname(_friendNicknameInputBuffer);
         if (string.IsNullOrWhiteSpace(nickname))
@@ -1285,7 +1285,7 @@ public partial class Game1
         }
     }
 
-    private bool TrySendSelectedFriendDirectMessageFromInput()
+    public bool TrySendSelectedFriendDirectMessageFromInput()
     {
         SelectDefaultFriendMessageTarget();
         if (!TryGetSelectedFriend(out var friend))
@@ -1386,7 +1386,7 @@ public partial class Game1
         var connected = TryConnectToServer(endpoint, addConsoleFeedback: false);
         if (connected)
         {
-            _mainMenuOverlayStateController.CloseFriendsMenu(clearStatus: false);
+            _menuManager.MainMenuOverlayState.CloseFriendsMenu(clearStatus: false);
         }
 
         return connected;

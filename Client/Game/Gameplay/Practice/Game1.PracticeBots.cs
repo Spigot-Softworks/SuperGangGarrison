@@ -13,10 +13,10 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private const int PracticeBotThinkBatchSizeSmallRoster = 1;
-    private const int PracticeBotThinkBatchSizeMediumRoster = 2;
-    private const int PracticeBotThinkBatchSizeLargeRoster = 3;
-    private const int BrowserPracticeBotThinkBatchSizeSmallRoster = 1;
+    public const int PracticeBotThinkBatchSizeSmallRoster = 1;
+    public const int PracticeBotThinkBatchSizeMediumRoster = 2;
+    public const int PracticeBotThinkBatchSizeLargeRoster = 3;
+    public const int BrowserPracticeBotThinkBatchSizeSmallRoster = 1;
     private const int BrowserPracticeBotThinkBatchSizeMediumRoster = 1;
     private const int BrowserPracticeBotThinkBatchSizeLargeRoster = 2;
     private const int PracticeBotHeldCombatInputReuseTicks = 6;
@@ -45,13 +45,6 @@ public partial class Game1
         PlayerClass.Spy,
         PlayerClass.Sniper,
     ];
-    private static readonly PlayerClass[] NavEditorScoreTrioClasses =
-    [
-        PlayerClass.Scout,
-        PlayerClass.Heavy,
-        PlayerClass.Pyro,
-    ];
-
     private readonly Dictionary<byte, PracticeBotSlotState> _practiceBotSlots = new();
     private readonly Dictionary<byte, PlayerInputSnapshot> _practiceBotInputCache = new();
     private readonly Dictionary<byte, int> _practiceBotInputCacheAgeTicks = new();
@@ -83,7 +76,6 @@ public partial class Game1
     private double _practiceBotPerfBuildInputMaxMilliseconds;
     private double _practiceBotPerfSetInputTotalMilliseconds;
     private double _practiceBotPerfSetInputMaxMilliseconds;
-    private bool _navEditorScoreTrioActive;
 
     private sealed class PracticeBotSlotState
     {
@@ -148,7 +140,7 @@ public partial class Game1
         public string DisplayName { get; }
     }
 
-    private void ResetPracticeBotManagerState(bool releaseWorldSlots)
+    public void ResetPracticeBotManagerState(bool releaseWorldSlots)
     {
         ClearPracticeBotSpawnOverrides(_practiceBotSlots.Keys);
         if (releaseWorldSlots)
@@ -164,7 +156,7 @@ public partial class Game1
         ResetPracticeBotControllerState();
     }
 
-    private void SyncPracticeBotRoster(PlayerTeam localTeam)
+    public void SyncPracticeBotRoster(PlayerTeam localTeam)
     {
         if (!IsOfflineBotSessionActive)
         {
@@ -225,16 +217,6 @@ public partial class Game1
     {
         var desiredSlots = new Dictionary<byte, PracticeBotSlotState>();
         var nextSlot = (byte)(SimulationWorld.LocalPlayerSlot + 1);
-
-        if (_navEditorScoreTrioActive && !IsLastToDieSessionActive)
-        {
-            AppendExplicitDesiredPracticeBotSlots(
-                desiredSlots,
-                nextSlot,
-                localTeam,
-                NavEditorScoreTrioClasses);
-            return desiredSlots;
-        }
 
         if (IsLastToDieSessionActive)
         {
@@ -541,12 +523,12 @@ public partial class Game1
                 || levelName.Contains(restrictedMapName, StringComparison.OrdinalIgnoreCase));
     }
 
-    private void InitializePracticeBotNamePoolForMatch()
+    public void InitializePracticeBotNamePoolForMatch()
     {
         _practiceBotDisplayNamePool.Reset();
     }
 
-    private void ClearManualPracticeBotRequests()
+    public void ClearManualPracticeBotRequests()
     {
         _manualPracticeBotRequests.Clear();
     }
@@ -586,12 +568,6 @@ public partial class Game1
 
     private void TryAddManualPracticeBotFromConsole(string[] parts)
     {
-        if (_navEditorScoreTrioActive)
-        {
-            AddConsoleLine("practice_bot add is unavailable while nav editor score trio is active.");
-            return;
-        }
-
         if (parts.Length < 4
             || !TryParsePracticeBotTeam(parts[2], out var team)
             || !TryParsePlayerClass(parts[3], out var playerClass))
@@ -708,8 +684,7 @@ public partial class Game1
         }
 
         var collectDiagnostics = (ClientPerformanceTestEnabled && ClientPerformanceBotDiagnosticsEnabled)
-            || _botDiagnosticsEnabled
-            || (_navEditorEnabled && _navEditorShowBotTags);
+            || _botDiagnosticsEnabled;
         _practiceBotController.CollectDiagnostics = collectDiagnostics;
         if (_practiceBotSlots.Count == 0)
         {
@@ -1070,54 +1045,6 @@ public partial class Game1
 
             yield return player;
         }
-    }
-
-    private void RunNavEditorScoreTrioPracticeBots()
-    {
-        if (!IsPracticeSessionActive)
-        {
-            SetNavEditorStatus("score trio is practice-only");
-            AddConsoleLine("nav editor score trio requires an active practice session.");
-            return;
-        }
-
-        _navEditorScoreTrioActive = true;
-        ResetPracticeBotManagerState(releaseWorldSlots: true);
-        SyncPracticeBotRoster(_world.LocalPlayerTeam);
-        var teamLabel = _world.LocalPlayerTeam.ToString();
-        SetNavEditorStatus($"score trio spawned from {teamLabel} spawn ({DescribeNavEditorScoreTrioClasses()}, current state)");
-        AddConsoleLine($"nav editor score trio respawned {DescribeNavEditorScoreTrioClasses()} on {teamLabel} from spawn in the current match state.");
-    }
-
-    private void StopNavEditorScoreTrioPracticeBots(bool silent = false)
-    {
-        if (!_navEditorScoreTrioActive)
-        {
-            if (!silent)
-            {
-                SetNavEditorStatus("score trio is not active");
-            }
-
-            return;
-        }
-
-        _navEditorScoreTrioActive = false;
-        ResetPracticeBotManagerState(releaseWorldSlots: true);
-        if (IsOfflineBotSessionActive)
-        {
-            SyncPracticeBotRoster(_world.LocalPlayerTeam);
-        }
-
-        if (!silent)
-        {
-            SetNavEditorStatus("score trio cleared; restored practice bot roster");
-            AddConsoleLine("nav editor score trio cleared; restored the normal practice bot roster.");
-        }
-    }
-
-    private static string DescribeNavEditorScoreTrioClasses()
-    {
-        return string.Join("/", NavEditorScoreTrioClasses.Select(static classId => classId.ToString()));
     }
 
     private void ResetPracticeBotControllerState()

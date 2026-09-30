@@ -9,13 +9,13 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private Task<BrowserBootstrapAssetCatalog>? _browserBootstrapAssetsTask;
-    private BrowserBootstrapAssetCatalog? _browserBootstrapAssets;
-    private bool _browserBootstrapAssetsApplied;
-    private BrowserAtlasTextureCache? _browserAtlasTextureCache;
-    private BrowserBootstrapAtlasTextureResolver? _browserBootstrapAtlasResolver;
+    public Task<BrowserBootstrapAssetCatalog>? _browserBootstrapAssetsTask;
+    public BrowserBootstrapAssetCatalog? _browserBootstrapAssets;
+    public bool _browserBootstrapAssetsApplied;
+    public BrowserAtlasTextureCache? _browserAtlasTextureCache;
+    public BrowserBootstrapAtlasTextureResolver? _browserBootstrapAtlasResolver;
 
-    private LoadedSpriteFrame? LoadSpriteFrameFromPath(string path)
+    public LoadedSpriteFrame? LoadSpriteFrameFromPath(string path)
     {
         if (string.IsNullOrWhiteSpace(path))
         {
@@ -137,7 +137,7 @@ public partial class Game1
             && _browserBootstrapAssets.TryGetText(relativePath, out text);
     }
 
-    private bool CanLoadSpriteFrameFromPath(string path)
+    public bool CanLoadSpriteFrameFromPath(string path)
     {
         if (string.IsNullOrWhiteSpace(path))
         {

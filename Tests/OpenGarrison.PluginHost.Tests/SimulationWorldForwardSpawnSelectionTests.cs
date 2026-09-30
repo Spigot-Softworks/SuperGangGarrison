@@ -224,7 +224,7 @@ public sealed class SimulationWorldForwardSpawnSelectionTests
 
     private static MethodInfo GetRequiredSimulationWorldMethod(string name)
     {
-        return typeof(SimulationWorld).GetMethod(name, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public)
+        return typeof(SimulationWorld).GetMethod(name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Public)
             ?? throw new InvalidOperationException($"Could not find SimulationWorld.{name}.");
     }
 }

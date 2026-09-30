@@ -43,7 +43,7 @@ public sealed partial class SimulationWorld
         }
 
         if (!completingLastToDieSpyAfterlifeDeath
-            && ShouldCancelDeath(player, gibbed, killer, weaponSpriteName))
+            && !TryBeginPlayerDeath(player, gibbed, killer, weaponSpriteName))
         {
             return;
         }
@@ -514,10 +514,10 @@ public sealed partial class SimulationWorld
             player.Height,
             horizontalSpeed,
             verticalSpeed,
-            MathF.Cos(player.AimDirectionDegrees * (MathF.PI / 180f)) < 0f,
+            DeterministicMath.Cos(player.AimDirectionDegrees * (MathF.PI / 180f)) < 0f,
             player.GameplayClassId,
             diedToFire);
         _deadBodies.Add(deadBody);
-        _entities.Add(deadBody.Id, deadBody);
+        EntityStore.Add(deadBody);
     }
 }

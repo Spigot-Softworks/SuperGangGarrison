@@ -513,30 +513,30 @@ sealed class SnapshotBroadcaster
             _world.BlueCaps,
             spectatorCount,
             LastProcessedInputSequence: 0,
-            ToSnapshotIntelState(_world.RedIntel),
-            ToSnapshotIntelState(_world.BlueIntel),
+            _world.Snapshots.ToSnapshotIntelState(_world.RedIntel),
+            _world.Snapshots.ToSnapshotIntelState(_world.BlueIntel),
             Players: Array.Empty<SnapshotPlayerState>(),
-            ConvertNetworkCombatTracesToArray(_world.CombatTraces),
-            ConvertToArray(_world.SniperAimIndicators, static indicator => ToSnapshotSniperAimIndicatorState(indicator)),
-            ConvertToArray(_world.Sentries, static sentry => ToSnapshotSentryState(sentry)),
-            ConvertToArray(_world.Shots, static shot => ToSnapshotBulletState(shot)),
-            ConvertToArray(_world.Bubbles, static bubble => ToSnapshotBubbleState(bubble)),
-            ConvertToArray(_world.Blades, static blade => ToSnapshotBladeState(blade)),
-            ConvertToArray(_world.Needles, static needle => ToSnapshotNeedleState(needle)),
-            ConvertToArray(_world.RevolverShots, static shot => ToSnapshotRevolverState(shot)),
-            ConvertToArray(_world.Rockets, static rocket => ToSnapshotRocketState(rocket)),
-            ConvertToArray(_world.Flames, static flame => ToSnapshotFlameState(flame)),
-            ConvertToArray(_world.Flares, static flare => ToSnapshotFlareState(flare)),
-            ConvertToArray(_world.Mines, static mine => ToSnapshotMineState(mine)),
-            ConvertToArray(_world.DeadBodies, static body => ToSnapshotDeadBodyState(body)),
+            ConvertNetworkCombatTracesToArray(_world.CombatTraces, _world.Snapshots),
+            ConvertToArray(_world.SniperAimIndicators, indicator => _world.Snapshots.ToSnapshotSniperAimIndicatorState(indicator)),
+            ConvertToArray(_world.Sentries, sentry => _world.Snapshots.ToSnapshotSentryState(sentry)),
+            ConvertToArray(_world.Shots, shot => _world.Snapshots.ToSnapshotBulletState(shot)),
+            ConvertToArray(_world.Bubbles, bubble => _world.Snapshots.ToSnapshotBubbleState(bubble)),
+            ConvertToArray(_world.Blades, blade => _world.Snapshots.ToSnapshotBladeState(blade)),
+            ConvertToArray(_world.Needles, needle => _world.Snapshots.ToSnapshotNeedleState(needle)),
+            ConvertToArray(_world.RevolverShots, shot => _world.Snapshots.ToSnapshotRevolverState(shot)),
+            ConvertToArray(_world.Rockets, rocket => _world.Snapshots.ToSnapshotRocketState(rocket)),
+            ConvertToArray(_world.Flames, flame => _world.Snapshots.ToSnapshotFlameState(flame)),
+            ConvertToArray(_world.Flares, flare => _world.Snapshots.ToSnapshotFlareState(flare)),
+            ConvertToArray(_world.Mines, mine => _world.Snapshots.ToSnapshotMineState(mine)),
+            ConvertToArray(_world.DeadBodies, body => _world.Snapshots.ToSnapshotDeadBodyState(body)),
             _world.ControlPointSetupTicksRemaining,
             _world.KothUnlockTicksRemaining,
             _world.KothRedTimerTicksRemaining,
             _world.KothBlueTimerTicksRemaining,
-            ConvertToArray(_world.ControlPoints, static point => ToSnapshotControlPointState(point)),
-            ConvertToArray(_world.Generators, static generator => ToSnapshotGeneratorState(generator)),
+            ConvertToArray(_world.ControlPoints, point => _world.Snapshots.ToSnapshotControlPointState(point)),
+            ConvertToArray(_world.Generators, generator => _world.Snapshots.ToSnapshotGeneratorState(generator)),
             LocalDeathCam: null,
-            ConvertToArray(_world.KillFeed, static entry => ToSnapshotKillFeedEntry(entry)),
+            ConvertToArray(_world.KillFeed, entry => _world.Snapshots.ToSnapshotKillFeedEntry(entry)),
             visualEvents,
             damageEvents,
             soundEvents,
@@ -557,12 +557,12 @@ sealed class SnapshotBroadcaster
             CompetitiveReadyUpPhase = (byte)_world.CompetitiveReadyUpPhase,
             CompetitiveReadyUpTicksRemaining = _world.CompetitiveReadyUpTicksRemaining,
             CapLimit = _world.MatchRules.CapLimit,
-            SentryGibs = ConvertToArray(_world.SentryGibs, static sentryGib => ToSnapshotSentryGibState(sentryGib)),
-            JumpPads = ConvertToArray(_world.JumpPads, static jumpPad => ToSnapshotJumpPadState(jumpPad)),
-            CivilDefenseTurrets = ConvertToArray(_world.CivilDefenseTurrets, static turret => ToSnapshotCivilDefenseTurretState(turret)),
-            JumpPadGibs = ConvertToArray(_world.JumpPadGibs, static jumpPadGib => ToSnapshotJumpPadGibState(jumpPadGib)),
-            Grenades = ConvertToArray(_world.Grenades, static grenade => ToSnapshotGrenadeState(grenade)),
-            HealthPacks = ToSnapshotHealthPackStates(_world),
+            SentryGibs = ConvertToArray(_world.SentryGibs, sentryGib => _world.Snapshots.ToSnapshotSentryGibState(sentryGib)),
+            JumpPads = ConvertToArray(_world.JumpPads, jumpPad => _world.Snapshots.ToSnapshotJumpPadState(jumpPad)),
+            CivilDefenseTurrets = ConvertToArray(_world.CivilDefenseTurrets, turret => _world.Snapshots.ToSnapshotCivilDefenseTurretState(turret)),
+            JumpPadGibs = ConvertToArray(_world.JumpPadGibs, jumpPadGib => _world.Snapshots.ToSnapshotJumpPadGibState(jumpPadGib)),
+            Grenades = ConvertToArray(_world.Grenades, grenade => _world.Snapshots.ToSnapshotGrenadeState(grenade)),
+            HealthPacks = _world.Snapshots.ToSnapshotHealthPackStates(_world.HealthPacks, _world.Level.HealthPackSpawns, _world.GetHealthPackSpawnRespawnTicksRemaining),
             GibSpawnEvents = gibSpawnEvents,
             RocketSpawnEvents = rocketSpawnEvents,
         };
@@ -601,7 +601,7 @@ sealed class SnapshotBroadcaster
                 continue;
             }
 
-            var playerState = ToSnapshotPlayerState(_world, entry.Slot, player, viewer, _stringCache, entry.PingMilliseconds);
+            var playerState = _world.Snapshots.ToSnapshotPlayerState(entry.Slot, player, viewer, value => _stringCache.GetOrAddCacheId(value), entry.PingMilliseconds);
             scoreboardPlayers.Add(playerState);
 
             if (ShouldHideSpyFromViewer(player, viewer))
@@ -621,7 +621,7 @@ sealed class SnapshotBroadcaster
                 continue;
             }
 
-            var playerState = ToSnapshotPlayerState(_world, botSlot, botPlayer, viewer, _stringCache, isBot: true);
+            var playerState = _world.Snapshots.ToSnapshotPlayerState(botSlot, botPlayer, viewer, value => _stringCache.GetOrAddCacheId(value), isBot: true);
             scoreboardPlayers.Add(playerState);
 
             if (ShouldHideSpyFromViewer(botPlayer, viewer))
@@ -644,7 +644,7 @@ sealed class SnapshotBroadcaster
             Players = players.ToArray(),
             ScoreboardPlayers = scoreboardPlayers.ToArray(),
             RemovedPlayerIds = removedPlayerIds.Count == 0 ? Array.Empty<int>() : removedPlayerIds.ToArray(),
-            LocalDeathCam = ToSnapshotDeathCamState(_world.GetNetworkPlayerDeathCam(client.Slot)),
+            LocalDeathCam = _world.Snapshots.ToSnapshotDeathCamState(_world.GetNetworkPlayerDeathCam(client.Slot)),
             StringCacheUpdates = stringCacheUpdates,
             VisualEvents = FilterAcknowledgedTransientEvents(
                 sharedSnapshot.Template.VisualEvents,
@@ -877,7 +877,7 @@ sealed class SnapshotBroadcaster
     private static bool IsFacingLeftByAim(PlayerEntity player)
     {
         var radians = MathF.PI * player.AimDirectionDegrees / 180f;
-        return MathF.Cos(radians) < 0f;
+        return DeterministicMath.Cos(radians) < 0f;
     }
 
     private static SnapshotPlayerState CreateSpectatorSnapshotPlayerState(ClientSession client)
@@ -1050,7 +1050,9 @@ sealed class SnapshotBroadcaster
         return list.Count == 0 ? Array.Empty<TTarget>() : [.. list];
     }
 
-    internal static SnapshotCombatTraceState[] ConvertNetworkCombatTracesToArray(IEnumerable<CombatTrace> combatTraces)
+    internal static SnapshotCombatTraceState[] ConvertNetworkCombatTracesToArray(
+        IEnumerable<CombatTrace> combatTraces,
+        SnapshotSystem snapshots)
     {
         var traces = new List<SnapshotCombatTraceState>();
         foreach (var trace in combatTraces)
@@ -1060,7 +1062,7 @@ sealed class SnapshotBroadcaster
                 continue;
             }
 
-            traces.Add(ToSnapshotCombatTraceState(trace));
+            traces.Add(snapshots.ToSnapshotCombatTraceState(trace));
         }
 
         return traces.Count == 0 ? Array.Empty<SnapshotCombatTraceState>() : [.. traces];
@@ -1121,7 +1123,7 @@ sealed class SnapshotBroadcaster
 
             if (_world.TryGetNetworkPlayer(entry.Slot, out var player))
             {
-                players.Add(ToSnapshotPlayerState(_world, entry.Slot, player, viewer: null, _stringCache, entry.PingMilliseconds));
+                players.Add(_world.Snapshots.ToSnapshotPlayerState(entry.Slot, player, null, value => _stringCache.GetOrAddCacheId(value), entry.PingMilliseconds));
             }
         }
 
@@ -1129,7 +1131,7 @@ sealed class SnapshotBroadcaster
         {
             if (_world.TryGetNetworkPlayer(botSlot, out var botPlayer))
             {
-                players.Add(ToSnapshotPlayerState(_world, botSlot, botPlayer, viewer: null, _stringCache, isBot: true));
+                players.Add(_world.Snapshots.ToSnapshotPlayerState(botSlot, botPlayer, null, value => _stringCache.GetOrAddCacheId(value), isBot: true));
             }
         }
 

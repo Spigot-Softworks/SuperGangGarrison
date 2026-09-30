@@ -9,24 +9,24 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private VoiceChatSettings _voiceSettings = VoiceChatSettings.Load();
-    private VoiceChatClient? _voiceChat;
-    private string _voiceStartupError = "";
-    private bool _jukeboxWasAudible;
-    private uint _voiceConnectionGeneration;
-    private double VoiceClockSeconds => _networkInterpolationClock.Elapsed.TotalSeconds;
-    private bool IsJukeboxPresent => _voiceChat?.ServerState?.JukeboxPlaying == true;
-    private bool IsJukeboxAudible => IsJukeboxPresent && _voiceChat?.ServerState?.JukeboxPaused == false
+    public VoiceChatSettings _voiceSettings = VoiceChatSettings.Load();
+    public VoiceChatClient? _voiceChat;
+    public string _voiceStartupError = "";
+    public bool _jukeboxWasAudible;
+    public uint _voiceConnectionGeneration;
+    public double VoiceClockSeconds => _networkInterpolationClock.Elapsed.TotalSeconds;
+    public bool IsJukeboxPresent => _voiceChat?.ServerState?.JukeboxPlaying == true;
+    public bool IsJukeboxAudible => IsJukeboxPresent && _voiceChat?.ServerState?.JukeboxPaused == false
         && !_voiceSettings.JukeboxMuted && _voiceSettings.JukeboxVolumePercent > 0
         && _voiceChat.IsSpeaking(0, VoiceClockSeconds);
 
-    private void InitializeVoiceSettings()
+    public void InitializeVoiceSettings()
     {
         if (OperatingSystem.IsBrowser() && InputBindingsSettings.TryParseBinding(_voiceSettings.PushToTalkBinding, out var binding))
             _inputBindings.PushToTalk = binding;
     }
 
-    private VoiceChatClient? EnsureVoiceChat()
+    public VoiceChatClient? EnsureVoiceChat()
     {
         if (_voiceConnectionGeneration != _networkClient.ConnectionGeneration)
         {
@@ -46,7 +46,7 @@ public partial class Game1
         return _voiceChat;
     }
 
-    private void UpdateVoiceChat(KeyboardState keyboard, MouseState mouse, bool windowActive)
+    public void UpdateVoiceChat(KeyboardState keyboard, MouseState mouse, bool windowActive)
     {
         _localJukebox?.Tick();
         if ((!_networkClient.IsConnected && _localJukebox is null) || _networkClient.IsReplayConnection)
@@ -70,9 +70,9 @@ public partial class Game1
         }
     }
 
-    private string GetVoiceChannelActionLabel() => _voiceChat?.IsVoiceChannelJoined == true ? "Leave voice" : "Join voice";
-    private string GetVoiceMuteActionLabel() => _voiceSettings.VoiceMuted ? "Unmute all voice" : "Mute all voice";
-    private void ToggleVoiceMute()
+    public string GetVoiceChannelActionLabel() => _voiceChat?.IsVoiceChannelJoined == true ? "Leave voice" : "Join voice";
+    public string GetVoiceMuteActionLabel() => _voiceSettings.VoiceMuted ? "Unmute all voice" : "Mute all voice";
+    public void ToggleVoiceMute()
     {
         var muted = !_voiceSettings.VoiceMuted;
         if (_voiceChat is { } voice) voice.SetVoiceMuted(muted);
@@ -80,7 +80,7 @@ public partial class Game1
         SaveVoiceSettings();
     }
 
-    private string GetVoiceStatusLabel()
+    public string GetVoiceStatusLabel()
     {
         var error = string.IsNullOrEmpty(_voiceStartupError) ? _voiceChat?.Status : _voiceStartupError;
         if (!string.IsNullOrEmpty(error)) return error;
@@ -89,13 +89,13 @@ public partial class Game1
         if (_voiceChat?.ServerState?.VoiceEnabled == false) return "Transmission disabled by server";
         return "Ready";
     }
-    private void ToggleVoiceChannelMembership()
+    public void ToggleVoiceChannelMembership()
     {
         var voice = EnsureVoiceChat();
         if (voice is not null) voice.SetVoiceChannelJoined(!voice.IsVoiceChannelJoined);
     }
 
-    private void ResetVoiceChat()
+    public void ResetVoiceChat()
     {
         _voiceChat?.Reset();
         if (_jukeboxWasAudible) { _jukeboxWasAudible = false; UpdateCurrentMusicInstanceVolumes(); }
@@ -105,17 +105,17 @@ public partial class Game1
         try { _voiceSettings.Save(); }
         catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException) { _voiceStartupError = "Could not save voice settings: " + ex.Message; }
     }
-    private string GetVoiceModeLabel() => _voiceSettings.Mode switch
+    public string GetVoiceModeLabel() => _voiceSettings.Mode switch
     {
         VoiceTransmitMode.OpenMicrophone => "Open Microphone",
         VoiceTransmitMode.Disabled => "Disabled",
         _ => "Push to Talk",
     };
-    private void CycleVoiceMode() { _voiceSettings.Mode = (VoiceTransmitMode)(((int)_voiceSettings.Mode + 1) % 3); SaveVoiceSettings(); }
-    private void ToggleVoiceTeamOnly() { _voiceSettings.TeamOnly = !_voiceSettings.TeamOnly; SaveVoiceSettings(); }
-    private string GetVoiceChannelLabel() => _voiceChat?.ServerState?.TeamOnly == true ? "Team (Server)" : _voiceSettings.TeamOnly ? "Team" : "All Players";
-    private void ToggleJukeboxMute() { _voiceSettings.JukeboxMuted = !_voiceSettings.JukeboxMuted; SaveVoiceSettings(); }
-    private void AdjustVoiceSetting(string setting, int amount)
+    public void CycleVoiceMode() { _voiceSettings.Mode = (VoiceTransmitMode)(((int)_voiceSettings.Mode + 1) % 3); SaveVoiceSettings(); }
+    public void ToggleVoiceTeamOnly() { _voiceSettings.TeamOnly = !_voiceSettings.TeamOnly; SaveVoiceSettings(); }
+    public string GetVoiceChannelLabel() => _voiceChat?.ServerState?.TeamOnly == true ? "Team (Server)" : _voiceSettings.TeamOnly ? "Team" : "All Players";
+    public void ToggleJukeboxMute() { _voiceSettings.JukeboxMuted = !_voiceSettings.JukeboxMuted; SaveVoiceSettings(); }
+    public void AdjustVoiceSetting(string setting, int amount)
     {
         switch (setting)
         {
@@ -126,7 +126,7 @@ public partial class Game1
         SaveVoiceSettings();
     }
 
-    private void ToggleSpatialVoice() { _voiceSettings.SpatialVoice = !_voiceSettings.SpatialVoice; SaveVoiceSettings(); }
+    public void ToggleSpatialVoice() { _voiceSettings.SpatialVoice = !_voiceSettings.SpatialVoice; SaveVoiceSettings(); }
 
     private bool TryGetVoiceSpeakerPlayer(byte slot, out PlayerEntity player)
     {
@@ -197,7 +197,7 @@ public partial class Game1
         return position.X >= 8f && position.X <= ViewportWidth - 8f
             && position.Y >= 8f && position.Y <= ViewportHeight - 8f;
     }
-    private void CycleVoiceMicrophone()
+    public void CycleVoiceMicrophone()
     {
         var microphones = EnsureVoiceChat()?.MicrophoneNames.ToList() ?? [];
         microphones.Insert(0, "");
@@ -206,11 +206,11 @@ public partial class Game1
         SaveVoiceSettings();
     }
 
-    private bool IsScoreboardPlayerSpeaking(PlayerEntity player) => ReferenceEquals(player, _world.LocalPlayer)
+    public bool IsScoreboardPlayerSpeaking(PlayerEntity player) => ReferenceEquals(player, _world.LocalPlayer)
         ? _voiceChat?.IsTransmitting(VoiceClockSeconds) == true
         : !_voiceSettings.VoiceMuted && TryGetScoreboardPlayerNetworkSlot(player, out var slot) && _voiceChat?.IsSpeaking(slot, VoiceClockSeconds) == true && !IsScoreboardSlotMuted(slot);
 
-    private void DrawVoiceParticipants()
+    public void DrawVoiceParticipants()
     {
         if (_gameplayHudHidden || !_networkClient.IsConnected || _networkClient.IsReplayConnection || _voiceChat is not { } voice) return;
         const int width = 192;

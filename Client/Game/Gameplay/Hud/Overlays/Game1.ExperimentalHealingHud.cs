@@ -9,7 +9,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private const int ExperimentalHealingHudIndicatorLifetimeTicks = ClientUpdateTicksPerSecond;
+    public const int ExperimentalHealingHudIndicatorLifetimeTicks = ClientUpdateTicksPerSecond;
     private const int ExperimentalHealingHudIndicatorMergeTicks = 9;
     private const float ExperimentalHealingHudIndicatorRisePerTick = 0.35f;
     private const float ExperimentalHealingHudIndicatorTextScale = 1.8f;

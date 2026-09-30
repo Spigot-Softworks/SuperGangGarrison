@@ -9,7 +9,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private enum NetworkMapSyncStatus
+    public enum NetworkMapSyncStatus
     {
         Available,
         Pending,
@@ -53,7 +53,7 @@ public partial class Game1
         }
     }
 
-    private void ClearPendingNetworkMapSync()
+    public void ClearPendingNetworkMapSync()
     {
         _pendingNetworkMapSyncCancellation?.Cancel();
         _pendingNetworkMapSyncCancellation?.Dispose();
@@ -69,12 +69,12 @@ public partial class Game1
         }
     }
 
-    private void QueueWelcomeAfterNetworkMapSync(WelcomeMessage welcome)
+    public void QueueWelcomeAfterNetworkMapSync(WelcomeMessage welcome)
     {
         _pendingWelcomeAfterNetworkMapSync = welcome;
     }
 
-    private NetworkMapSyncStatus TryEnsureNetworkMapAvailable(
+    public NetworkMapSyncStatus TryEnsureNetworkMapAvailable(
         string levelName,
         bool isCustomMap,
         string mapDownloadUrl,
