@@ -200,6 +200,7 @@ public interface IGameplayContext
     ulong _pendingGameplayAccountAttachRequestId { get; set; }
     int _pendingHostedConnectPort { get; set; }
     int _pendingHostedConnectTicks { get; set; }
+    bool _pendingMapTeamSelection { get; set; }
     List<OpenGarrison.Protocol.SnapshotDamageEvent> _pendingNetworkDamageEvents { get; }
     List<OpenGarrison.Core.WorldSoundEvent> _pendingNetworkSoundEvents { get; }
     List<OpenGarrison.Protocol.SnapshotVisualEvent> _pendingNetworkVisualEvents { get; }
@@ -282,6 +283,7 @@ public interface IGameplayContext
     void AddNetworkConsoleLine(string message);
     bool AdvanceBrowserGameplayWarmup();
     void AdvanceCorpseAcidDissolves();
+    void AdvanceBurnCharredCorpses();
     void AdvanceDynamicRagdolls();
     void AdvanceFlameSmokeVisuals();
     void AdvanceGameplaySimulation(Microsoft.Xna.Framework.GameTime gameTime, OpenGarrison.Core.PlayerInputSnapshot networkInput);
@@ -324,6 +326,7 @@ public interface IGameplayContext
     int ConsumeClientTickCount(Microsoft.Xna.Framework.GameTime gameTime);
     void CycleGameplayCameraZoom();
     void DismissCustomBubbleEditor();
+    void DismissGameplayTeamSelection();
     void DispatchClientSemanticGameplayEvents();
     void DisposeBrandLogoAssets();
     void DisposeDamageVignetteTextures();
@@ -453,6 +456,7 @@ public interface IGameplayContext
     void ResetChatInputState(bool requireOpenKeyRelease = false);
     void ResetCivviePogoTrickPresentationObservation();
     void ResetClientTimingState();
+    void ResetBurnCharredCorpses();
     void ResetCorpseAcidDissolves();
     void ResetDynamicRagdollEffects();
     void ResetGameplayRuntimeState();
@@ -511,6 +515,7 @@ public interface IGameplayContext
     void StopMenuMusic();
     void SuppressMouseFireAfterGameplayInputUnblocks(bool wasGameplayInputBlocked, Microsoft.Xna.Framework.Input.MouseState mouse);
     void SyncDynamicRagdollsWithDeadBodies();
+    void SyncRetainedDeadBodies();
     void SyncPracticeBotRoster(OpenGarrison.Core.PlayerTeam localTeam);
     void ToggleAudioMute();
     void ToggleFullscreenHotkey();

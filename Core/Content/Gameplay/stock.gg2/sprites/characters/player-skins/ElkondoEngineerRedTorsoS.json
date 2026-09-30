@@ -1,0 +1,16 @@
+{
+  "id": "ElkondoEngineerRedTorsoS",
+  "framePaths": [
+    "assets/characters/player-skins/ElkondoEngineerRedTorsoS/0.png",
+    "assets/characters/player-skins/ElkondoEngineerRedTorsoS/1.png",
+    "assets/characters/player-skins/ElkondoEngineerRedTorsoS/2.png",
+    "assets/characters/player-skins/ElkondoEngineerRedTorsoS/3.png",
+    "assets/characters/player-skins/ElkondoEngineerRedTorsoS/4.png",
+    "assets/characters/player-skins/ElkondoEngineerRedTorsoS/5.png",
+    "assets/characters/player-skins/ElkondoEngineerRedTorsoS/6.png",
+    "assets/characters/player-skins/ElkondoEngineerRedTorsoS/7.png",
+    "assets/characters/player-skins/ElkondoEngineerRedTorsoS/8.png"
+  ],
+  "originX": 32,
+  "originY": 40
+}

@@ -2,6 +2,7 @@ namespace OpenGarrison.Core;
 
 public static class GameplayAbilityReplicatedState
 {
+    public const string SpecialAbilitiesEnabledKey = "special_abilities_enabled";
     public const string PyroAirblastCooldownTicksKey = "pyro_airblast_cooldown_ticks";
     public const string MedicUberChargeKey = "medic_uber_charge";
     public const string MedicUberReadyKey = "medic_uber_ready";
@@ -12,6 +13,7 @@ public static class GameplayAbilityReplicatedState
     public const string SniperChargeTicksKey = "sniper_charge_ticks";
     public const string SniperBowChargeTicksKey = "sniper_bow_charge_ticks";
     public const string SniperRifleStreakKey = "sniper_rifle_streak";
+    public const string SniperStrongDrinkCooldownTicksKey = "sniper_strong_drink_cooldown_ticks";
     public const string SpyCloakAlphaKey = "spy_cloak_alpha";
     public const string SpySuperjumpCooldownTicksKey = "spy_superjump_cooldown_ticks";
     public const string SpySuperjumpActiveKey = "spy_superjump_active";

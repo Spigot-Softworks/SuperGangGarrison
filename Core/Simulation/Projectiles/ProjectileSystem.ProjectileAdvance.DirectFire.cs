@@ -31,6 +31,23 @@ public sealed partial class ProjectileSystem
             var directionX = movementX / movementDistance;
             var directionY = movementY / movementDistance;
             var hit = GetNearestShotHit(shot, directionX, directionY, movementDistance);
+            var strongDrinkHit = GetNearestFriendlyStrongDrinkHit(
+                shot.Team,
+                shot.PreviousX,
+                shot.PreviousY,
+                directionX,
+                directionY,
+                MathF.Min(movementDistance, hit?.Distance ?? movementDistance));
+            if (strongDrinkHit is not null
+                && FindPlayerById(shot.OwnerId) is { ClassId: PlayerClass.Sniper })
+            {
+                ExplodeStrongDrinkFromShot(
+                    strongDrinkHit.Value.GrenadeIndex,
+                    GrenadeProjectileEntity.StrongDrinkDefaultFireParticleCount);
+                RemoveShotAt(shotIndex);
+                continue;
+            }
+
             if (TryInterceptWithCivilDefenseTurret(shot.Team, shot.PreviousX, shot.PreviousY,
                     directionX, directionY, MathF.Min(movementDistance, hit?.Distance ?? movementDistance)))
             {

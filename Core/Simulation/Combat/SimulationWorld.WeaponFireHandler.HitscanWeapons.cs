@@ -70,6 +70,31 @@ public sealed partial class SimulationWorld
                     MaximumEnemyPlayerHits: maximumEnemyPlayerHits,
                     DetectLastToDieHeadshots: sniperProfile.DecapitatorEnabled,
                     PierceFriendlyPlayers: sniperProfile.MechanicaEnabled && isFullyCharged));
+            // Friendly Strong Drink bottles stop the rifle shot (explode instead of piercing through).
+            if (_world.TryShootFriendlyStrongDrink(
+                    attacker.Team,
+                    attacker.ClassId,
+                    attacker.Id,
+                    weaponOrigin.BaseX,
+                    weaponOrigin.BaseY,
+                    directionX,
+                    directionY,
+                    result.Distance,
+                    GrenadeProjectileEntity.StrongDrinkDefaultFireParticleCount))
+            {
+                RegisterCombatTrace(
+                    weaponOrigin.BaseX,
+                    weaponOrigin.BaseY,
+                    directionX,
+                    directionY,
+                    result.Distance,
+                    hitCharacter: true,
+                    attacker.Team,
+                    isSniperTracer: true,
+                    isCritical: isCritical);
+                return;
+            }
+
             RegisterCombatTrace(
                 weaponOrigin.BaseX,
                 weaponOrigin.BaseY,

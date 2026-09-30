@@ -489,6 +489,7 @@ public partial class Game1
     {
         _cameraPanningEnabled = !_cameraPanningEnabled;
         ResetCameraPanningState();
+        ResetSmoothCameraState();
         PersistClientSettings();
     }
 
@@ -817,6 +818,17 @@ public partial class Game1
         PersistClientSettings();
     }
 
+    public void ToggleBurnCharredCorpsesSetting()
+    {
+        _burnCharredCorpsesEnabled = !_burnCharredCorpsesEnabled;
+        if (!_burnCharredCorpsesEnabled)
+        {
+            ResetBurnCharredCorpses();
+        }
+
+        PersistClientSettings();
+    }
+
     public void AdjustBloodPersistenceSeconds(int step)
     {
         _bloodPersistenceSeconds = Math.Clamp(_bloodPersistenceSeconds + step, 1, 120);
@@ -999,6 +1011,14 @@ public partial class Game1
             _stuckArrowVisuals.Clear();
         }
 
+        PersistClientSettings();
+    }
+
+    public void CycleWeaponBobSetting()
+    {
+        _weaponBobMode = OpenGarrisonPreferencesDocument.NormalizeWeaponBobMode(_weaponBobMode) == WeaponBobMode.Enabled
+            ? WeaponBobMode.Disabled
+            : WeaponBobMode.Enabled;
         PersistClientSettings();
     }
 

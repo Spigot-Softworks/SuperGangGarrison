@@ -31,6 +31,11 @@ def compose(source: Path, layers: list[dict], team: dict, size: list[int]) -> Im
     return canvas
 
 
+def is_leg_layer(layer: dict) -> bool:
+    path = Path(layer["file"].replace("\\", "/"))
+    return "legs" in path.parts or path.name.startswith("legs_")
+
+
 def write_sprite(name: str, images: list[Image.Image], origin: list[int], check: bool) -> None:
     if not re.fullmatch(r"[A-Za-z0-9_.-]+", name):
         raise ValueError(f"Invalid generated sprite name: {name}")
@@ -88,7 +93,7 @@ def build(catalog: Path, check: bool) -> None:
                     return [
                         layer
                         for layer in pose["layers"]
-                        if str(layer.get("file", "")).replace("\\", "/").startswith("legs/")
+                        if is_leg_layer(layer)
                     ]
 
                 if any(legs_layers(pose) for pose in skin["poses"]):
@@ -97,6 +102,15 @@ def build(catalog: Path, check: bool) -> None:
                         for pose in skin["poses"]
                     ]
                     write(legs_sprite, legs, skin["origin"])
+                    torso = [compose(source, [layer for layer in pose["layers"] if not is_leg_layer(layer)],
+                                     team, skin["canvas"]) for pose in skin["poses"]]
+                    write(skin["torsoBodySprite"], torso, skin["origin"])
+            if "cloakedTorsoBodySprite" in skin:
+                for part, is_legs in (("cloakedLegsBodySprite", True), ("cloakedTorsoBodySprite", False)):
+                    frames = [compose(source, [layer for layer in pose["cloakedLayers"]
+                                               if is_leg_layer(layer) == is_legs], team, skin["canvas"])
+                              for pose in skin["poses"]]
+                    write(skin[part], frames, skin["origin"])
             weapon = skin.get("weapon")
             if weapon is None:
                 continue

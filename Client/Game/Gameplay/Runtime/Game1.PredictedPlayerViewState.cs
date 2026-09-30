@@ -166,6 +166,20 @@ public partial class Game1
             : player.SniperBowChargeTicks;
     }
 
+    public int GetPlayerStrongDrinkChargeTicks(PlayerEntity player)
+    {
+        return IsUsingPredictedLocalState(player)
+            ? _predictedLocalActionState.StrongDrinkChargeTicks
+            : player.StrongDrinkChargeTicks;
+    }
+
+    public float GetPlayerStrongDrinkChargeDirectionDegrees(PlayerEntity player)
+    {
+        return IsUsingPredictedLocalState(player)
+            ? _predictedLocalActionState.StrongDrinkChargeDirectionDegrees
+            : player.StrongDrinkChargeDirectionDegrees;
+    }
+
     public bool GetPlayerIsSniperBowEquipped(PlayerEntity player)
     {
         if (IsUsingPredictedLocalState(player)

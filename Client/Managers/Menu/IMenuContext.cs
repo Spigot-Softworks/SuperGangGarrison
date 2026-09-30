@@ -50,6 +50,7 @@ public interface IMenuContext
     bool _debugRocketCollisionsEnabled { get; set; }
     OpenGarrison.Core.DisplayModeKind _displayMode { get; set; }
     bool _dynamicMusicEnabled { get; set; }
+    bool _burnCharredCorpsesEnabled { get; set; }
     bool _dynamicRagdollEnabled { get; set; }
     bool _editingFriendCode { get; set; }
     bool _editingFriendNickname { get; set; }
@@ -152,6 +153,7 @@ public interface IMenuContext
     Microsoft.Xna.Framework.Graphics.SpriteBatch _spriteBatch { get; set; }
     bool _spriteDropShadowEnabled { get; set; }
     bool _stuckArrowsEnabled { get; set; }
+    OpenGarrison.Core.WeaponBobMode _weaponBobMode { get; set; }
     bool _uberOutlineEnabled { get; set; }
     bool _useLocalWeaponRotation { get; set; }
     OpenGarrison.Client.VoiceChatSettings _voiceSettings { get; set; }
@@ -364,6 +366,7 @@ public interface IMenuContext
     void ToggleCrtCurvatureSetting();
     void ToggleDamageVignetteSetting();
     void ToggleDynamicMusicSetting();
+    void ToggleBurnCharredCorpsesSetting();
     void ToggleDynamicRagdollSetting();
     void ToggleHealerRadarSetting();
     void ToggleHudWeaponDisplayModeSetting();
@@ -384,6 +387,7 @@ public interface IMenuContext
     void ToggleShowShieldBarSetting();
     void ToggleSpatialVoice();
     void ToggleSpriteDropShadowSetting();
+    void CycleWeaponBobSetting();
     void ToggleStuckArrowsSetting();
     void ToggleUberOutlinesSetting();
     void ToggleVoiceChannelMembership();

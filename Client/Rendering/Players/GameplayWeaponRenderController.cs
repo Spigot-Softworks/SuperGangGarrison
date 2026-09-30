@@ -898,6 +898,11 @@ public sealed class GameplayWeaponRenderController
 
             if (weaponDefinition.SingleTeamFrames)
             {
+                if (weaponAnimationMode == WeaponAnimationMode.StrongDrinkThrow)
+                {
+                    return GetStrongDrinkThrowFrameIndex(player, frameCount);
+                }
+
                 var hasActionStrip = weaponAnimationMode == WeaponAnimationMode.Recoil && weaponDefinition.RecoilSpriteName is not null
                     || weaponAnimationMode == WeaponAnimationMode.Reload && weaponDefinition.ReloadSpriteName is not null;
                 if (!hasActionStrip)
@@ -926,6 +931,11 @@ public sealed class GameplayWeaponRenderController
             if (IsCivvieUmbrellaAnimationMode(weaponAnimationMode))
             {
                 return GetCivvieUmbrellaFrameIndex(player, weaponAnimationMode, frameCount);
+            }
+
+            if (weaponAnimationMode == WeaponAnimationMode.StrongDrinkThrow)
+            {
+                return GetStrongDrinkThrowFrameIndex(player, frameCount);
             }
 
             if (weaponAnimationMode == WeaponAnimationMode.Idle)
@@ -1056,6 +1066,9 @@ public sealed class GameplayWeaponRenderController
             }
 
             var weaponSpriteName = weaponAnimationMode == WeaponAnimationMode.Recoil
+                    && weaponDefinition.RecoilSpriteName is not null
+                ? weaponDefinition.RecoilSpriteName
+                : weaponAnimationMode == WeaponAnimationMode.StrongDrinkThrow
                     && weaponDefinition.RecoilSpriteName is not null
                 ? weaponDefinition.RecoilSpriteName
                 : weaponDefinition.NormalSpriteName;
@@ -1280,6 +1293,16 @@ public sealed class GameplayWeaponRenderController
                 return umbrellaAbility.Presentation;
             }
 
+            if (ShouldPresentSniperStrongDrink(player)
+                && player.TryGetGameplayAbilityItem(
+                    GameplayAbilityConstants.UtilityChannel,
+                    BuiltInGameplayBehaviorIds.SniperStrongDrink,
+                    out var strongDrinkAbility)
+                && !string.IsNullOrWhiteSpace(strongDrinkAbility.Presentation.WorldSpriteName))
+            {
+                return strongDrinkAbility.Presentation;
+            }
+
             if ((player.IsCivvieUmbrellaActive || forceCivvieUmbrellaPresentation)
                 && !string.IsNullOrWhiteSpace(player.GameplayLoadoutState.SecondaryItemId))
             {
@@ -1336,6 +1359,41 @@ public sealed class GameplayWeaponRenderController
             }
 
             return CharacterClassCatalog.RuntimeRegistry.GetPrimaryItem(_game.GetRenderWeaponPresentationClassId(player)).Presentation;
+        }
+
+        private bool ShouldPresentSniperStrongDrink(PlayerEntity player)
+        {
+            if (player.ClassId != PlayerClass.Sniper
+                || !player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.SniperStrongDrink))
+            {
+                return false;
+            }
+
+            if (_game.GetPlayerStrongDrinkChargeTicks(player) > 0)
+            {
+                return true;
+            }
+
+            return _game._playerRenderStates.TryGetValue(_game.GetPlayerStateKey(player), out var renderState)
+                && renderState.WeaponAnimationMode == WeaponAnimationMode.StrongDrinkThrow;
+        }
+
+        private int GetStrongDrinkThrowFrameIndex(PlayerEntity player, int frameCount)
+        {
+            if (frameCount <= 1)
+            {
+                return 0;
+            }
+
+            if (!_game._playerRenderStates.TryGetValue(_game.GetPlayerStateKey(player), out var renderState))
+            {
+                return 0;
+            }
+
+            var durationSeconds = System.MathF.Max(renderState.WeaponAnimationDurationSeconds, 0.0001f);
+            var progress = System.Math.Clamp(renderState.WeaponAnimationElapsedSeconds / durationSeconds, 0f, 1f);
+            // Frame 2 is brief; frame 3 lasts a bit longer (~40% / 60%).
+            return progress < 0.4f ? 0 : System.Math.Min(frameCount - 1, 1);
         }
 
         public static bool IsCivvieUmbrellaAnimationMode(WeaponAnimationMode mode)

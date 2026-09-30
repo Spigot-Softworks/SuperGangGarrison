@@ -87,6 +87,12 @@ public sealed class GameplayVisualEventController
                 return;
             }
 
+            if (string.Equals(effectName, "BottleShards", StringComparison.OrdinalIgnoreCase))
+            {
+                _context.Gameplay.MaterialEffects.SpawnBottleShardBurst(x, y, count, directionDegrees);
+                return;
+            }
+
             if (string.Equals(effectName, "CivvieMoney", StringComparison.OrdinalIgnoreCase))
             {
                 _context.SpawnCivvieMoneyVisual(x, y, directionDegrees);

@@ -11,6 +11,34 @@ namespace OpenGarrison.PluginHost.Tests;
 
 public sealed class InputBindingsSettingsTests
 {
+    [Theory]
+    [InlineData(Keys.Q, true, false)]
+    [InlineData(Keys.RightControl, false, true)]
+    [InlineData(Keys.G, false, false)]
+    public void CustomControlSwapLeavesQForUtility(Keys key, bool utility, bool swap)
+    {
+        var bindings = new InputBindingsSettings
+        {
+            UseAbility = InputBinding.FromKey(Keys.Q),
+            SwapWeaponsBinding = WeaponSwapBindingMode.Custom,
+            SwapWeaponsCustomKey = InputBinding.FromKey(Keys.RightControl),
+        };
+        var input = KeyboardInputMapper.BuildGameplaySnapshot(bindings,
+            new KeyboardState(key), new MouseState(), 0, 0, 0, 0);
+        Assert.Equal(utility, input.UseAbility);
+        Assert.Equal(swap, input.SwapWeapon);
+        Assert.Equal(key == Keys.G, input.InteractWeapon);
+    }
+
+    [Fact]
+    public void SharedUtilityAndSwapBindingOnlySwaps()
+    {
+        var bindings = new InputBindingsSettings { UseAbility = InputBinding.FromKey(Keys.Q) };
+        var input = KeyboardInputMapper.BuildGameplaySnapshot(bindings,
+            new KeyboardState(Keys.Q), new MouseState(), 0, 0, 0, 0);
+        Assert.True(input.SwapWeapon);
+        Assert.False(input.UseAbility);
+    }
     [Fact]
     public void WeaponSwapDefaultsToQAndUtilityAbilityDefaultsToSpace()
     {
@@ -19,14 +47,6 @@ public sealed class InputBindingsSettingsTests
         Assert.Equal(InputBinding.FromKey(Keys.Space), bindings.UseAbility);
         Assert.Equal(InputBinding.FromKey(Keys.G), bindings.InteractWeapon);
         Assert.True(bindings.ScrollWheelWeaponSwapEnabled);
-        Assert.True(KeyboardInputMapper.UsesMultiplayerExclusivePrimarySwapBinding(
-            isNetworkMultiplayerSession: true,
-            isLastToDieSession: false,
-            isLockedPrimaryWeaponClass: true));
-        Assert.False(KeyboardInputMapper.UsesMultiplayerExclusivePrimarySwapBinding(
-            isNetworkMultiplayerSession: true,
-            isLastToDieSession: true,
-            isLockedPrimaryWeaponClass: true));
         Assert.Equal(InputBinding.FromKey(Keys.F1), bindings.VoteYes);
         Assert.Equal(InputBinding.FromKey(Keys.F2), bindings.VoteNo);
         Assert.Equal(InputBinding.FromKey(Keys.F3), bindings.OpenVoteMenu);
@@ -102,7 +122,7 @@ public sealed class InputBindingsSettingsTests
     }
 
     [Fact]
-    public void ExclusiveMultiplayerQSwapDoesNotAlsoTriggerWeaponInteraction()
+    public void CustomSwapDoesNotOverrideQWeaponInteraction()
     {
         var bindings = new InputBindingsSettings
         {
@@ -117,11 +137,10 @@ public sealed class InputBindingsSettingsTests
             cameraX: 0f,
             cameraY: 0f,
             localPlayerX: 0f,
-            localPlayerY: 0f,
-            useMultiplayerExclusivePrimarySwapBinding: true);
+            localPlayerY: 0f);
 
-        Assert.True(snapshot.SwapWeapon);
-        Assert.False(snapshot.InteractWeapon);
+        Assert.False(snapshot.SwapWeapon);
+        Assert.True(snapshot.InteractWeapon);
     }
 
     [Fact]
@@ -140,8 +159,7 @@ public sealed class InputBindingsSettingsTests
             cameraX: 0f,
             cameraY: 0f,
             localPlayerX: 0f,
-            localPlayerY: 0f,
-            useMultiplayerExclusivePrimarySwapBinding: false);
+            localPlayerY: 0f);
 
         Assert.False(snapshot.SwapWeapon);
         Assert.True(snapshot.InteractWeapon);

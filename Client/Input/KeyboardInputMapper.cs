@@ -16,7 +16,6 @@ internal static class KeyboardInputMapper
         bool isUsingBinoculars = false,
         float binocularsFocusX = 0f,
         float binocularsFocusY = 0f,
-        bool useMultiplayerExclusivePrimarySwapBinding = false,
         MouseState? previousMouse = null,
         float cameraZoom = 1f)
     {
@@ -24,14 +23,10 @@ internal static class KeyboardInputMapper
         var mouseWorldX = cameraX + (mouse.X / safeCameraZoom);
         var mouseWorldY = cameraY + (mouse.Y / safeCameraZoom);
         var swapWeaponsBinding = InputBindingsSettings.NormalizeSwapWeaponsBinding(bindings.SwapWeaponsBinding);
-        var qIsExclusivePrimarySwap = useMultiplayerExclusivePrimarySwapBinding
-            && keyboard.IsKeyDown(Keys.Q);
-        var swapWeapon = IsSwapWeaponInputDown(bindings, swapWeaponsBinding, keyboard, mouse)
-            || qIsExclusivePrimarySwap;
+        var swapWeapon = IsSwapWeaponInputDown(bindings, swapWeaponsBinding, keyboard, mouse);
         var fireSecondary = mouse.RightButton == ButtonState.Pressed;
         var interactWeapon = InputBindingInput.IsDown(bindings.InteractWeapon, keyboard, mouse)
-            && !IsBindingReservedForSwapWeapons(bindings, swapWeaponsBinding, bindings.InteractWeapon)
-            && !(qIsExclusivePrimarySwap && bindings.InteractWeapon.IsKeyboardKey(Keys.Q));
+            && !IsBindingReservedForSwapWeapons(bindings, swapWeaponsBinding, bindings.InteractWeapon);
         
         return new PlayerInputSnapshot(
             Left: InputBindingInput.IsDown(bindings.MoveLeft, keyboard, mouse) || keyboard.IsKeyDown(Keys.Left),
@@ -43,7 +38,8 @@ internal static class KeyboardInputMapper
             Taunt: InputBindingInput.IsDown(bindings.Taunt, keyboard, mouse),
             FirePrimary: mouse.LeftButton == ButtonState.Pressed,
             FireSecondary: fireSecondary,
-            UseAbility: InputBindingInput.IsDown(bindings.UseAbility, keyboard, mouse),
+            UseAbility: InputBindingInput.IsDown(bindings.UseAbility, keyboard, mouse)
+                && !IsBindingReservedForSwapWeapons(bindings, swapWeaponsBinding, bindings.UseAbility),
             InteractWeapon: interactWeapon,
             AimWorldX: mouseWorldX,
             AimWorldY: mouseWorldY,
@@ -67,14 +63,6 @@ internal static class KeyboardInputMapper
             && previousMouse.HasValue
             && mouse.ScrollWheelValue != previousMouse.Value.ScrollWheelValue;
     }
-
-    internal static bool UsesMultiplayerExclusivePrimarySwapBinding(
-        bool isNetworkMultiplayerSession,
-        bool isLastToDieSession,
-        bool isLockedPrimaryWeaponClass)
-        => isNetworkMultiplayerSession
-            && !isLastToDieSession
-            && isLockedPrimaryWeaponClass;
 
     internal static bool IsSwapWeaponInputDown(
         InputBindingsSettings bindings,

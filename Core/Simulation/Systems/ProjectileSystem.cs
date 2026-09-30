@@ -366,6 +366,9 @@ public sealed partial class ProjectileSystem
     private void RegisterVisualEffect(string effect, float x, float y, float direction = 0f, int count = 1, bool normalizeDirection = true) => _dependencies.RegisterVisualEffect(effect, x, y, direction, count, normalizeDirection);
     private void RegisterWorldSoundEvent(string sound, float x, float y, int sourcePlayerId = -1) => _dependencies.RegisterWorldSoundEvent(sound, x, y, sourcePlayerId);
     private void RegisterImpactEffect(float x, float y, float direction) => _dependencies.RegisterImpactEffect(x, y, direction);
+    // The burst direction is the surface's outward normal; 270 degrees bursts straight up.
+    private void RegisterStrongDrinkShatterEffect(float x, float y, PlayerTeam team, float burstDirectionDegrees = 270f)
+        => RegisterVisualEffect("BottleShards", x, y, burstDirectionDegrees, count: (int)team);
     private void RegisterStuckArrowEffect(float x, float y, float directionX, float directionY, ArrowProjectileEntity arrow) => _dependencies.RegisterStuckArrowEffect(x, y, directionX, directionY, arrow);
 
     private ShotHitResult? GetNearestShotHit(ShotProjectileEntity shot, float dx, float dy, float distance) => _dependencies.GetNearestShotHit(shot, dx, dy, distance);

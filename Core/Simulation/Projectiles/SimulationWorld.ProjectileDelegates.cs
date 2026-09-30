@@ -156,6 +156,31 @@ public sealed partial class SimulationWorld
     private void SpawnGrenade(PlayerEntity owner, float x, float y, float velocityX, float velocityY, string? killFeedWeaponSpriteNameOverride = null)
         => Projectiles.SpawnGrenade(owner, x, y, velocityX, velocityY, killFeedWeaponSpriteNameOverride);
 
+    private void SpawnGrenade(
+        PlayerEntity owner,
+        float x,
+        float y,
+        float velocityX,
+        float velocityY,
+        string? killFeedWeaponSpriteNameOverride,
+        bool isStrongDrink,
+        int fuseTicks,
+        float initialSpinSpeed,
+        float gravityPerTick = GrenadeProjectileEntity.StrongDrinkGravityPerTick)
+        => Projectiles.SpawnGrenade(owner, x, y, velocityX, velocityY, killFeedWeaponSpriteNameOverride, isStrongDrink, fuseTicks, initialSpinSpeed, gravityPerTick);
+
+    private bool TryShootFriendlyStrongDrink(
+        PlayerTeam shooterTeam,
+        PlayerClass shooterClass,
+        int shooterOwnerId,
+        float originX,
+        float originY,
+        float directionX,
+        float directionY,
+        float maxDistance,
+        int fireParticleCount)
+        => Projectiles.TryShootFriendlyStrongDrink(shooterTeam, shooterClass, shooterOwnerId, originX, originY, directionX, directionY, maxDistance, fireParticleCount);
+
     private void SpawnQueuedLastToDieSniperArrow(PlayerEntity owner, float x, float y, in LastToDieSniperVolleyState volley)
         => Projectiles.SpawnQueuedLastToDieSniperArrow(owner, x, y, volley);
 

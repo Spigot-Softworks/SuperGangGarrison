@@ -171,6 +171,13 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
+            // Strong Drink: sticky-style shove — redirect velocity, keep original owner/team.
+            if (grenade.IsStrongDrink)
+            {
+                grenade.PushByAirblast(aimRadians, PyroAirblastMineSpeedFloor);
+                continue;
+            }
+
             grenade.Reflect(player.Id, player.Team, aimRadians);
         }
     }

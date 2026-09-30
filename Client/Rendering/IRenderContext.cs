@@ -26,6 +26,7 @@ public interface IRenderContext : IGameplayContext
     bool _showShieldBarEnabled { get; set; }
     bool _uberOutlineEnabled { get; set; }
     bool _useLocalWeaponRotation { get; set; }
+    WeaponBobMode _weaponBobMode { get; set; }
 
     Dictionary<int, Game1.RetainedDeadBodyVisual> _trackedDeadBodyVisuals { get; }
     List<Game1.RetainedDeadBodyVisual> _retainedDeadBodies { get; }
@@ -104,7 +105,11 @@ public interface IRenderContext : IGameplayContext
     void ResolveCorpseDeathKnockback(float corpseX, float corpseY, bool facingLeft, int attackerPlayerId, float damageEventX, float damageEventY, out float knockbackX, out float knockbackY);
     bool ShouldForceLastToDieSpecialEnemyHealthBar(PlayerEntity player);
     bool ShouldHideLastToDieWeaponForPlayer(PlayerEntity player);
-    void SpawnDynamicRagdoll(int deadBodyId, int sourcePlayerId, PlayerClass classId, PlayerTeam team, DeadBodyAnimationKind animationKind, string gameplayClassId, bool facingLeft, float x, float y, float knockbackX, float knockbackY);
+    void SpawnDynamicRagdoll(int deadBodyId, int sourcePlayerId, PlayerClass classId, PlayerTeam team, DeadBodyAnimationKind animationKind, string gameplayClassId, bool facingLeft, float x, float y, float knockbackX, float knockbackY, bool diedToFire = false);
+    bool ResolveDeadBodyDiedToFire(int deadBodyId, int sourcePlayerId);
+    bool TryDrawBurnCharredCorpse(int corpseId, int sourcePlayerId, bool diedToFire, float worldX, float worldY, float corpseHeight, bool facingLeft, string gameplayClassId, PlayerClass classId, PlayerTeam team, DeadBodyAnimationKind animationKind, int ticksRemaining, Vector2 cameraPosition);
+    PlayerSkinDefinition? GetPlayerSkin(PlayerEntity player);
+    int GetPlayerStrongDrinkChargeTicks(PlayerEntity player);
     void TryDrawAdditionalHealthBar(PlayerEntity player, Vector2 cameraPosition, float visibilityAlpha);
     void TryDrawCivvieUmbrellaShieldBar(PlayerEntity player, Vector2 cameraPosition, float visibilityAlpha);
     bool TryDrawClientPluginDeadBody(Vector2 cameraTopLeft, ClientDeadBodyRenderState deadBody);

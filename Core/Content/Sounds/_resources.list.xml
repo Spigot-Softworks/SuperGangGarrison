@@ -60,4 +60,5 @@
   <resource name="PistolSnd" type="RESOURCE"/>
   <resource name="FlaregunSnd" type="RESOURCE"/>
   <resource name="BuffbannerSnd" type="RESOURCE"/>
+  <resource name="BottleCrashSnd" type="RESOURCE"/>
 </resources>

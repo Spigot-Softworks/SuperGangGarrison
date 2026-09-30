@@ -73,9 +73,9 @@ public sealed class GameplayScreenStateController
             {
                 _context.ResetChatInputState();
             }
-            else if (_context._teamSelectOpen && escapePressed && !_context._world.LocalPlayerAwaitingJoin)
+            else if (_context._teamSelectOpen && escapePressed)
             {
-                _context.CloseGameplaySelectionMenus();
+                _context.DismissGameplayTeamSelection();
             }
             else if (_context._classSelectOpen && escapePressed)
             {

@@ -10,6 +10,30 @@ namespace OpenGarrison.PluginHost.Tests;
 public sealed class AlternatePrimaryWeaponBalanceTests
 {
     [Fact]
+    public void DragonRageRefillsItsMagazineWhileFlaregunIsEquipped()
+    {
+        var world = CreateJoinedWorld(PlayerClass.Pyro);
+        var pyro = world.LocalPlayer;
+        Assert.True(pyro.TrySelectGameplayPrimaryItem("weapon.dragon-rage"));
+        world.SetLocalInput(default(PlayerInputSnapshot) with
+        {
+            FirePrimary = true, AimWorldX = pyro.X + 300f, AimWorldY = pyro.Y,
+        });
+        world.AdvanceOneTick();
+        Assert.Equal(pyro.PrimaryWeapon.MaxAmmo - 1, pyro.CurrentShells);
+        pyro.EquipExperimentalOffhandWeapon();
+        Assert.True(pyro.IsExperimentalOffhandEquipped);
+        world.SetLocalInput(default);
+        // Exercise weapon timers without unrelated round transitions respawning
+        // the player and resetting their selected slot.
+        for (var tick = 0; tick < 600; tick++) pyro.AdvanceTickState(default, 1d / 30d);
+        Assert.True(pyro.IsExperimentalOffhandEquipped);
+        Assert.Equal(pyro.PrimaryWeapon.MaxAmmo, pyro.CurrentShells);
+        pyro.StowExperimentalOffhandWeapon();
+        Assert.Equal(pyro.PrimaryWeapon.MaxAmmo, pyro.CurrentShells);
+    }
+
+    [Fact]
     public void DetonatorCanEquipBoomstickAndFireThreeFiveDamagePellets()
     {
         var registry = GameplayRuntimeRegistry.CreateStock();

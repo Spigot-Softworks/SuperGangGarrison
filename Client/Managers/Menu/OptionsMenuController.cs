@@ -600,11 +600,13 @@ public sealed class OptionsMenuController
                 new("Flame Style", GetFlameRenderModeLabel(_context._flameRenderMode), _context.CycleFlameRenderModeSetting, OptionsMenuTab.Graphics),
                 new("Blood Style", GetBloodRenderModeLabel(_context._bloodRenderMode), _context.CycleBloodRenderModeSetting, OptionsMenuTab.Graphics),
                 new("Dynamic Ragdoll", _context._dynamicRagdollEnabled ? "Enabled" : "Disabled", _context.ToggleDynamicRagdollSetting, OptionsMenuTab.Graphics),
+                new("Burn Charred Corpses", _context._burnCharredCorpsesEnabled ? "Enabled" : "Disabled", _context.ToggleBurnCharredCorpsesSetting, OptionsMenuTab.Graphics),
                 new("Gibs", GetGibLevelLabel(_context._gibLevel), _context.CycleGibLevelSetting, OptionsMenuTab.Graphics),
                 new("Blood Amount", GetBloodAmountLabel(_context._bloodAmountLevel), _context.CycleBloodAmountSetting, OptionsMenuTab.Graphics),
                 new("Blood Persistence", $"{_context._bloodPersistenceSeconds}s", () => _context.AdjustBloodPersistenceSeconds(1), OptionsMenuTab.Graphics, _context.AdjustBloodPersistenceSeconds),
                 new("Corpse Fade", GetCorpseFadeModeLabel(_context._corpseFadeMode), _context.CycleCorpseFadeModeSetting, OptionsMenuTab.Graphics),
                 new("Stuck Arrows", _context._stuckArrowsEnabled ? "Enabled" : "Disabled", _context.ToggleStuckArrowsSetting, OptionsMenuTab.Graphics),
+                new("Weapon Bob", GetWeaponBobModeLabel(_context._weaponBobMode), _context.CycleWeaponBobSetting, OptionsMenuTab.Graphics),
                 new("Corpses", GetCorpseDurationLabel(_context._corpseDurationMode), _context.CycleCorpseDurationSetting, OptionsMenuTab.Graphics),
                 new("Sprite Shadow", _context._spriteDropShadowEnabled ? "Enabled" : "Disabled", _context.ToggleSpriteDropShadowSetting, OptionsMenuTab.Graphics),
                 new("Weapon Rotation", _context._pixelPerfectWeaponRotation ? "Pixel-Perfect" : "High-Res", _context.ToggleWeaponRotationStyleSetting, OptionsMenuTab.Graphics),
@@ -1055,6 +1057,13 @@ public sealed class OptionsMenuController
             };
         }
 
+        private static string GetWeaponBobModeLabel(WeaponBobMode mode)
+        {
+            return OpenGarrisonPreferencesDocument.NormalizeWeaponBobMode(mode) == WeaponBobMode.Disabled
+                ? "Disabled"
+                : "Enabled";
+        }
+
         private static string GetFlameRenderModeLabel(int flameRenderMode)
         {
             return flameRenderMode == 0 ? "Particle" : "Sprite";
@@ -1067,7 +1076,7 @@ public sealed class OptionsMenuController
 
         private static string GetCorpseFadeModeLabel(int corpseFadeMode)
         {
-            return corpseFadeMode == 0 ? "Regular" : "Acid";
+            return corpseFadeMode == 0 ? "Regular" : "Dissolve";
         }
 
         private static string GetMenuBackgroundModeLabel(MenuBackgroundMode menuBackgroundMode)

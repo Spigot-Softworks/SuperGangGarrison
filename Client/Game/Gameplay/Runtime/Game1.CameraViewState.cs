@@ -452,6 +452,11 @@ public partial class Game1
             return cameraTopLeft;
         }
 
+        return AdvanceSmoothCameraTarget(cameraTopLeft, multiplier);
+    }
+
+    internal Vector2 AdvanceSmoothCameraTarget(Vector2 cameraTopLeft, float multiplier)
+    {
         if (!_hasSmoothCamera
             || !IsFinite(_smoothCamera)
             || Vector2.Distance(cameraTopLeft, _smoothCamera) > SmoothCameraSnapDeltaPixels)
@@ -465,17 +470,13 @@ public partial class Game1
         var rawTargetDelta = _hasLastSmoothCameraRawTarget
             ? cameraTopLeft - _lastSmoothCameraRawTarget
             : Vector2.Zero;
-        if (_hasLastSmoothCameraRawTarget)
-        {
-            _smoothCamera += rawTargetDelta;
-        }
-
         _lastSmoothCameraRawTarget = cameraTopLeft;
         _hasLastSmoothCameraRawTarget = true;
 
         if (deltaSeconds > 0f)
         {
-            var rawTargetVelocity = rawTargetDelta / deltaSeconds;
+            // Subpixel standing corrections must not become lookahead impulses.
+            var rawTargetVelocity = FilterCameraTargetDelta(rawTargetDelta) / deltaSeconds;
             var lookaheadTarget = GetSmoothCameraLookaheadOffset(rawTargetVelocity, multiplier);
             var catchUpRate = MathHelper.Lerp(
                 SmoothCameraFastCatchUpRate,
@@ -561,6 +562,10 @@ public partial class Game1
             ? current
             : rawTarget - (MathF.Sign(displacement) * windowPixels);
     }
+
+    private static Vector2 FilterCameraTargetDelta(Vector2 delta) => new(
+        MathF.Abs(delta.X) <= SmoothCameraMinVerticalWindowPixels ? 0f : delta.X,
+        MathF.Abs(delta.Y) <= SmoothCameraMinVerticalWindowPixels ? 0f : delta.Y);
 
     private static Vector2 GetSmoothCameraLookaheadOffset(Vector2 rawTargetVelocity, float multiplier)
     {

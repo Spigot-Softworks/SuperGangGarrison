@@ -70,12 +70,38 @@ public sealed partial class SimulationWorld
                 }
 
                 _world.GetCachedPlayerPresentationHitBounds(player, out var left, out var top, out var right, out var bottom);
+                if (grenade.IsStrongDrink)
+                {
+                    var half = GrenadeProjectileEntity.StrongDrinkHitboxHalfExtent;
+                    left -= half;
+                    top -= half;
+                    right += half;
+                    bottom += half;
+                }
+
                 if (!RayBoundsMayIntersectRectangle(rayBounds, left, top, right, bottom))
                 {
                     continue;
                 }
 
-                var distance = GetRayIntersectionDistanceWithPlayer(grenade.PreviousX, grenade.PreviousY, directionX, directionY, _world, player, maxDistance);
+                float? distance;
+                if (grenade.IsStrongDrink)
+                {
+                    distance = GetRayIntersectionDistanceWithRectangle(
+                        grenade.PreviousX,
+                        grenade.PreviousY,
+                        directionX,
+                        directionY,
+                        left,
+                        top,
+                        right,
+                        bottom,
+                        maxDistance);
+                }
+                else
+                {
+                    distance = GetRayIntersectionDistanceWithPlayer(grenade.PreviousX, grenade.PreviousY, directionX, directionY, _world, player, maxDistance);
+                }
                 if (distance.HasValue && distance.Value < nearestDistance)
                 {
                     nearestPlayer = player;

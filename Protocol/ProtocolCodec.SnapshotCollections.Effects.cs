@@ -58,6 +58,7 @@ public static partial class ProtocolCodec
             writer.Write(deadBody.FacingLeft);
             writer.Write(deadBody.TicksRemaining);
             WriteString(writer, deadBody.GameplayClassId, MaxGameplayIdBytes, nameof(deadBody.GameplayClassId));
+            writer.Write(deadBody.DiedToFire);
         }
     }
 
@@ -81,7 +82,8 @@ public static partial class ProtocolCodec
                 reader.ReadSingle(),
                 reader.ReadBoolean(),
                 reader.ReadInt32(),
-                ReadString(reader, MaxGameplayIdBytes)));
+                ReadString(reader, MaxGameplayIdBytes),
+                reader.ReadBoolean()));
         }
 
         return deadBodies;

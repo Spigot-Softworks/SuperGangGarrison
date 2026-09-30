@@ -227,7 +227,9 @@ public sealed partial class PlayerEntity
         int WhippingCordBackswingTicksValue = 0,
         int WhippingCordBackswingDurationTicksValue = 0,
         int WhippingCordPendingBackswingTargetIdValue = -1,
-        bool WhippingCordBackswingTargetClaimedValue = false);
+        bool WhippingCordBackswingTargetClaimedValue = false,
+        int StrongDrinkChargeTicks = 0,
+        float StrongDrinkChargeDirectionDegrees = 0f);
 
     internal PredictionState CapturePredictionState()
     {
@@ -454,7 +456,9 @@ public sealed partial class PlayerEntity
             WhippingCordBackswingTicksRemaining,
             WhippingCordBackswingDurationTicks,
             WhippingCordPendingBackswingTargetId,
-            WhippingCordBackswingTargetClaimed);
+            WhippingCordBackswingTargetClaimed,
+            StrongDrinkChargeTicks,
+            StrongDrinkChargeDirectionDegrees);
     }
 
     internal void RestorePredictionState(in PredictionState state)
@@ -581,6 +585,8 @@ public sealed partial class PlayerEntity
             state.SniperBowChargeTicks,
             0,
             IsMortarLauncherEquipped ? MortarLauncherMaxChargeTicks : LastToDieSniperBowFullChargeTicks);
+        StrongDrinkChargeTicks = Math.Clamp(state.StrongDrinkChargeTicks, 0, StrongDrinkMaxChargeTicks);
+        StrongDrinkChargeDirectionDegrees = state.StrongDrinkChargeDirectionDegrees;
         IsUsingBinoculars = state.IsUsingBinoculars;
         BinocularsFocusX = state.BinocularsFocusX;
         BinocularsFocusY = state.BinocularsFocusY;

@@ -15,7 +15,7 @@
     "runPower": 1.4,
     "jumpStrength": 8.3,
     "maxAirJumps": 1,
-    "tauntLengthFrames": 8
+    "tauntLengthFrames": 11
   },
   "presentation": {
     "spritePrefix": "Scout",

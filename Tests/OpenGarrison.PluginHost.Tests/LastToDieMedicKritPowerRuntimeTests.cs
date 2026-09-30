@@ -554,9 +554,11 @@ public sealed class LastToDieMedicKritPowerRuntimeTests
 
     private static object? InvokePrivate(object target, string methodName, params object?[] suppliedArguments)
     {
-        var method = target.GetType().GetMethod(
-            methodName,
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+        var method = target.GetType()
+            .GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+            .Where(candidate => candidate.Name == methodName && candidate.GetParameters().Length >= suppliedArguments.Length)
+            .OrderBy(candidate => candidate.GetParameters().Length)
+            .FirstOrDefault();
         Assert.NotNull(method);
         var parameters = method!.GetParameters();
         Assert.True(suppliedArguments.Length <= parameters.Length);

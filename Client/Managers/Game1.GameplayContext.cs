@@ -389,6 +389,8 @@ public partial class Game1 : IGameplayContext
 
     int IGameplayContext._pendingHostedConnectTicks { get => _pendingHostedConnectTicks; set => _pendingHostedConnectTicks = value; }
 
+    bool IGameplayContext._pendingMapTeamSelection { get => _pendingMapTeamSelection; set => _pendingMapTeamSelection = value; }
+
     List<OpenGarrison.Protocol.SnapshotDamageEvent> IGameplayContext._pendingNetworkDamageEvents { get => _pendingNetworkDamageEvents; }
 
     List<OpenGarrison.Core.WorldSoundEvent> IGameplayContext._pendingNetworkSoundEvents { get => _pendingNetworkSoundEvents; }
@@ -559,6 +561,8 @@ public partial class Game1 : IGameplayContext
 
     void IGameplayContext.AdvanceCorpseAcidDissolves() { AdvanceCorpseAcidDissolves(); }
 
+    void IGameplayContext.AdvanceBurnCharredCorpses() { AdvanceBurnCharredCorpses(); }
+
     void IGameplayContext.AdvanceDynamicRagdolls() { AdvanceDynamicRagdolls(); }
 
     void IGameplayContext.AdvanceFlameSmokeVisuals() { AdvanceFlameSmokeVisuals(); }
@@ -632,6 +636,8 @@ public partial class Game1 : IGameplayContext
     void IGameplayContext.CloseGameplayOverlayState() { CloseGameplayOverlayState(); }
 
     void IGameplayContext.CloseGameplaySelectionMenus() { CloseGameplaySelectionMenus(); }
+
+    void IGameplayContext.DismissGameplayTeamSelection() { DismissGameplayTeamSelection(); }
 
     void IGameplayContext.CloseLobbyBrowser(bool clearStatus) { CloseLobbyBrowser(clearStatus); }
 
@@ -901,6 +907,8 @@ public partial class Game1 : IGameplayContext
 
     void IGameplayContext.ResetClientTimingState() { ResetClientTimingState(); }
 
+    void IGameplayContext.ResetBurnCharredCorpses() { ResetBurnCharredCorpses(); }
+
     void IGameplayContext.ResetCorpseAcidDissolves() { ResetCorpseAcidDissolves(); }
 
     void IGameplayContext.ResetDynamicRagdollEffects() { ResetDynamicRagdollEffects(); }
@@ -1016,6 +1024,8 @@ public partial class Game1 : IGameplayContext
     void IGameplayContext.SuppressMouseFireAfterGameplayInputUnblocks(bool wasGameplayInputBlocked, Microsoft.Xna.Framework.Input.MouseState mouse) { SuppressMouseFireAfterGameplayInputUnblocks(wasGameplayInputBlocked, mouse); }
 
     void IGameplayContext.SyncDynamicRagdollsWithDeadBodies() { SyncDynamicRagdollsWithDeadBodies(); }
+
+    void IGameplayContext.SyncRetainedDeadBodies() { SyncRetainedDeadBodies(); }
 
     void IGameplayContext.SyncPracticeBotRoster(OpenGarrison.Core.PlayerTeam localTeam) { SyncPracticeBotRoster(localTeam); }
 

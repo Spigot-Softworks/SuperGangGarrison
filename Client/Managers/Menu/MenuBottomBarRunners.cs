@@ -77,6 +77,7 @@ public sealed class MenuBottomBarRunners
                 var runner = _runners[i];
                 runner.X -= RunnerSpeed * deltaTime; // Move left (subtract)
                 runner.AnimationFrame += AnimationSpeed * deltaTime;
+                UpdateRunnerWeaponBob(runner);
 
                 // Remove runners that are off-screen to the left
                 if (runner.X < -100f)
@@ -84,6 +85,23 @@ public sealed class MenuBottomBarRunners
                     _runners.RemoveAt(i);
                 }
             }
+        }
+
+        private void UpdateRunnerWeaponBob(RunnerInstance runner)
+        {
+            var mode = OpenGarrisonPreferencesDocument.NormalizeWeaponBobMode(_context._weaponBobMode);
+            if (mode == WeaponBobMode.Disabled)
+            {
+                runner.SmoothedEquipmentOffset = 0f;
+                return;
+            }
+
+            var frame = GameplayPlayerSpriteRenderController.GetRunEquipmentBobFrame(
+                (int)System.MathF.Floor(runner.AnimationFrame),
+                delayByOneFrame: true);
+            runner.SmoothedEquipmentOffset = GameplayPlayerSpriteRenderController.IsRunEquipmentLowerFrame(frame)
+                ? -2f
+                : 0f;
         }
 
         public void Draw(Rectangle bottomBarBounds)
@@ -143,10 +161,10 @@ public sealed class MenuBottomBarRunners
 
             // Calculate equipment offset (weapon bounce) based on animation frame
             var equipmentOffset = 0f;
-            var frame = (int)System.MathF.Floor(runner.AnimationFrame) % 8;
-            if (GameplayPlayerSpriteRenderController.IsRunEquipmentLowerFrame(frame))
+            var weaponBobMode = OpenGarrisonPreferencesDocument.NormalizeWeaponBobMode(_context._weaponBobMode);
+            if (weaponBobMode != WeaponBobMode.Disabled)
             {
-                equipmentOffset -= 2f;
+                equipmentOffset = runner.SmoothedEquipmentOffset;
             }
 
             // Draw weapon first (behind character)
@@ -297,6 +315,7 @@ public sealed class MenuBottomBarRunners
             public PlayerTeam Team { get; set; }
             public float X { get; set; }
             public float AnimationFrame { get; set; }
+            public float SmoothedEquipmentOffset { get; set; }
             public bool HasUmbrellaShieldOpen { get; set; }
         }
 }

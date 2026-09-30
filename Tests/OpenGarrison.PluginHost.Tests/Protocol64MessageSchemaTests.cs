@@ -108,8 +108,8 @@ public sealed class Protocol64MessageSchemaTests
         return eventId switch
         {
             Protocol64EventId.Hello => 2,
-            Protocol64EventId.PlayerStateBatch => 29,
-            Protocol64EventId.StateResyncResponse => 33,
+            Protocol64EventId.PlayerStateBatch => 31,
+            Protocol64EventId.StateResyncResponse => 35,
             Protocol64EventId.Snapshot => 9,
             Protocol64EventId.ProjectileState
                 or Protocol64EventId.ProjectileLifecycle => 13,

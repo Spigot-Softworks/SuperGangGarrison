@@ -26,6 +26,7 @@ public partial class Game1
         _flameRenderMode = Math.Clamp(_clientSettings.FlameRenderMode, 0, 1);
         _bloodRenderMode = Math.Clamp(_clientSettings.BloodRenderMode, 0, 1);
         _dynamicRagdollEnabled = _clientSettings.DynamicRagdollEnabled;
+        _burnCharredCorpsesEnabled = _clientSettings.BurnCharredCorpsesEnabled;
         _bloodPersistenceSeconds = Math.Clamp(
             _clientSettings.BloodPersistenceSeconds <= 0
                 ? OpenGarrisonPreferencesDocument.DefaultBloodPersistenceSeconds
@@ -63,6 +64,7 @@ public partial class Game1
 
         _spriteDropShadowEnabled = _clientSettings.SpriteDropShadowEnabled;
         _stuckArrowsEnabled = _clientSettings.StuckArrowsEnabled;
+        _weaponBobMode = OpenGarrisonPreferencesDocument.NormalizeWeaponBobMode(_clientSettings.WeaponBobMode);
         _pixelPerfectWeaponRotation = _clientSettings.PixelPerfectWeaponRotation;
         _useLocalWeaponRotation = _clientSettings.UseLocalWeaponRotation;
         _playerCardSizeMode = ClientSettings.NormalizePlayerCardSizeMode(_clientSettings.PlayerCardSizeMode);
@@ -107,6 +109,7 @@ public partial class Game1
         _clientSettings.FlameRenderMode = Math.Clamp(_flameRenderMode, 0, 1);
         _clientSettings.BloodRenderMode = Math.Clamp(_bloodRenderMode, 0, 1);
         _clientSettings.DynamicRagdollEnabled = _dynamicRagdollEnabled;
+        _clientSettings.BurnCharredCorpsesEnabled = _burnCharredCorpsesEnabled;
         _clientSettings.BloodPersistenceSeconds = Math.Clamp(_bloodPersistenceSeconds, 1, 120);
         _clientSettings.CorpseFadeMode = OpenGarrisonPreferencesDocument.NormalizeCorpseFadeMode(_corpseFadeMode);
         _clientSettings.MenuBackgroundMode = _menuBackgroundMode;
@@ -133,6 +136,7 @@ public partial class Game1
         _clientSettings.SmoothCameraMultiplier = NormalizeSmoothCameraMultiplier(_smoothCameraMultiplier);
         _clientSettings.SpriteDropShadowEnabled = _spriteDropShadowEnabled;
         _clientSettings.StuckArrowsEnabled = _stuckArrowsEnabled;
+        _clientSettings.WeaponBobMode = OpenGarrisonPreferencesDocument.NormalizeWeaponBobMode(_weaponBobMode);
         _clientSettings.PixelPerfectWeaponRotation = _pixelPerfectWeaponRotation;
         _clientSettings.UseLocalWeaponRotation = _useLocalWeaponRotation;
         _clientSettings.PlayerCardSizeMode = ClientSettings.NormalizePlayerCardSizeMode(_playerCardSizeMode);
@@ -289,7 +293,8 @@ public partial class Game1
     }
 
     private const int RegularCorpseFadeTicks = 20;
-    private const int AcidCorpseFadeTicks = 52;
+    /// <summary>Slower top-down melt so the front reads as eating across the corpse, not a quick wipe.</summary>
+    private const int AcidCorpseFadeTicks = 120;
     private const int CorpseFadeModeAcid = 1;
 
     public bool AreBloodVisualsEnabled => _gibLevel > 0;
@@ -305,7 +310,7 @@ public partial class Game1
         => _corpseFadeMode == CorpseFadeModeAcid ? AcidCorpseFadeTicks : RegularCorpseFadeTicks;
 
     /// <summary>
-    /// Infinite corpses never fade. Default corpses use the selected Regular/Acid corpse fade.
+    /// Infinite corpses never fade. Default corpses use the selected Regular/Dissolve corpse fade.
     /// </summary>
     internal bool IsCorpseFading(int ticksRemaining)
     {

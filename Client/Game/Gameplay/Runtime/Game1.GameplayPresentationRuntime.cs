@@ -85,6 +85,7 @@ public partial class Game1
         UpdateHeavyDashDodgePopup();
         UpdateGameplayMessages(gameTime, keyboard, mouse);
         UpdateFirstPlayHints(gameTime);
+        UpdatePendingMapTeamSelection();
         var teamSelectionOwnedInput = _teamSelectOpen;
         UpdateTeamSelect(keyboard, mouse);
         UpdateClassSelect(keyboard, mouse, acceptSelectionInput: !teamSelectionOwnedInput);

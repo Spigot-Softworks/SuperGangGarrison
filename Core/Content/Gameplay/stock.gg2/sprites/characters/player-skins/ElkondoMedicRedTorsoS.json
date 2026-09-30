@@ -1,0 +1,16 @@
+{
+  "id": "ElkondoMedicRedTorsoS",
+  "framePaths": [
+    "assets/characters/player-skins/ElkondoMedicRedTorsoS/0.png",
+    "assets/characters/player-skins/ElkondoMedicRedTorsoS/1.png",
+    "assets/characters/player-skins/ElkondoMedicRedTorsoS/2.png",
+    "assets/characters/player-skins/ElkondoMedicRedTorsoS/3.png",
+    "assets/characters/player-skins/ElkondoMedicRedTorsoS/4.png",
+    "assets/characters/player-skins/ElkondoMedicRedTorsoS/5.png",
+    "assets/characters/player-skins/ElkondoMedicRedTorsoS/6.png",
+    "assets/characters/player-skins/ElkondoMedicRedTorsoS/7.png",
+    "assets/characters/player-skins/ElkondoMedicRedTorsoS/8.png"
+  ],
+  "originX": 32,
+  "originY": 40
+}

@@ -26,7 +26,7 @@
         20
       ],
       "bodySprite": "Rocketman{team}BodyS",
-      "pixelsPerRunFrame": 15,
+      "pixelsPerRunFrame": 12,
       "teams": {
         "Red": {
           "directory": "RED",
@@ -723,7 +723,9 @@
           ]
         }
       ],
-      "pixelScale": 2
+      "pixelScale": 2,
+      "legsBodySprite": "Rocketman{team}LegsS",
+      "torsoBodySprite": "Rocketman{team}TorsoS"
     },
     "elkondo-scout": {
       "source": "Elkondo/Scout",
@@ -738,7 +740,7 @@
       ],
       "pixelScale": 2,
       "equipmentOffset": -1,
-      "pixelsPerRunFrame": 15,
+      "pixelsPerRunFrame": 12,
       "teams": {
         "Red": {
           "directory": "Red",
@@ -901,7 +903,9 @@
           "equipmentOffset": 0
         }
       ],
-      "legsBodySprite": "ElkondoScout{team}LegsS"
+      "legsBodySprite": "ElkondoScout{team}LegsS",
+      "tauntSprite": "ElkondoScout{team}TauntS",
+      "torsoBodySprite": "ElkondoScout{team}TorsoS"
     },
     "elkondo-soldier": {
       "source": "Elkondo/Soldier",
@@ -916,7 +920,7 @@
       ],
       "pixelScale": 2,
       "equipmentOffset": -1,
-      "pixelsPerRunFrame": 15,
+      "pixelsPerRunFrame": 12,
       "teams": {
         "Red": {
           "directory": "Red",
@@ -1227,7 +1231,8 @@
           "weaponSkinPose": 16
         }
       ],
-      "legsBodySprite": "ElkondoSoldier{team}LegsS"
+      "legsBodySprite": "ElkondoSoldier{team}LegsS",
+      "torsoBodySprite": "ElkondoSoldier{team}TorsoS"
     },
     "elkondo-pyro": {
       "source": "Elkondo/Pyro",
@@ -1242,7 +1247,7 @@
       ],
       "pixelScale": 2,
       "equipmentOffset": -1,
-      "pixelsPerRunFrame": 15,
+      "pixelsPerRunFrame": 12,
       "teams": {
         "Red": {
           "directory": "Red",
@@ -1311,7 +1316,11 @@
               "file": "legs/idle.png"
             },
             {
-              "file": "torso/1.png"
+              "file": "torso/1.png",
+              "position": [
+                0,
+                1
+              ]
             }
           ],
           "equipmentOffset": 0
@@ -1405,7 +1414,8 @@
           "equipmentOffset": 1
         }
       ],
-      "legsBodySprite": "ElkondoPyro{team}LegsS"
+      "legsBodySprite": "ElkondoPyro{team}LegsS",
+      "torsoBodySprite": "ElkondoPyro{team}TorsoS"
     },
     "elkondo-demoman": {
       "source": "Elkondo/Demoman",
@@ -1420,7 +1430,7 @@
       ],
       "pixelScale": 2,
       "equipmentOffset": -1,
-      "pixelsPerRunFrame": 15,
+      "pixelsPerRunFrame": 12,
       "teams": {
         "Red": {
           "directory": "Red",
@@ -1641,7 +1651,8 @@
           "equipmentOffset": 1
         }
       ],
-      "legsBodySprite": "ElkondoDemoman{team}LegsS"
+      "legsBodySprite": "ElkondoDemoman{team}LegsS",
+      "torsoBodySprite": "ElkondoDemoman{team}TorsoS"
     },
     "elkondo-heavy": {
       "source": "Elkondo/Heavy",
@@ -1656,7 +1667,7 @@
       ],
       "pixelScale": 2,
       "equipmentOffset": -1,
-      "pixelsPerRunFrame": 15,
+      "pixelsPerRunFrame": 12,
       "teams": {
         "Red": {
           "directory": "Red",
@@ -1819,7 +1830,8 @@
           "equipmentOffset": 0
         }
       ],
-      "legsBodySprite": "ElkondoHeavy{team}LegsS"
+      "legsBodySprite": "ElkondoHeavy{team}LegsS",
+      "torsoBodySprite": "ElkondoHeavy{team}TorsoS"
     },
     "elkondo-medic": {
       "source": "Elkondo/Medic",
@@ -1834,7 +1846,7 @@
       ],
       "pixelScale": 2,
       "equipmentOffset": -1,
-      "pixelsPerRunFrame": 15,
+      "pixelsPerRunFrame": 12,
       "teams": {
         "Red": {
           "directory": "Red",
@@ -1997,7 +2009,8 @@
           "equipmentOffset": 1
         }
       ],
-      "legsBodySprite": "ElkondoMedic{team}LegsS"
+      "legsBodySprite": "ElkondoMedic{team}LegsS",
+      "torsoBodySprite": "ElkondoMedic{team}TorsoS"
     },
     "elkondo-engineer": {
       "source": "Elkondo/Engineer",
@@ -2012,7 +2025,7 @@
       ],
       "pixelScale": 2,
       "equipmentOffset": -1,
-      "pixelsPerRunFrame": 15,
+      "pixelsPerRunFrame": 12,
       "teams": {
         "Red": {
           "directory": "Red",
@@ -2175,7 +2188,8 @@
           "equipmentOffset": 0
         }
       ],
-      "legsBodySprite": "ElkondoEngineer{team}LegsS"
+      "legsBodySprite": "ElkondoEngineer{team}LegsS",
+      "torsoBodySprite": "ElkondoEngineer{team}TorsoS"
     },
     "elkondo-sniper": {
       "source": "Elkondo/Sniper",
@@ -2190,7 +2204,7 @@
       ],
       "pixelScale": 2,
       "equipmentOffset": -1,
-      "pixelsPerRunFrame": 15,
+      "pixelsPerRunFrame": 12,
       "teams": {
         "Red": {
           "directory": "Red",
@@ -2353,7 +2367,8 @@
           "equipmentOffset": 0
         }
       ],
-      "legsBodySprite": "ElkondoSniper{team}LegsS"
+      "legsBodySprite": "ElkondoSniper{team}LegsS",
+      "torsoBodySprite": "ElkondoSniper{team}TorsoS"
     },
     "elkondo-spy": {
       "source": "Elkondo/Spy",
@@ -2368,7 +2383,7 @@
       ],
       "pixelScale": 2,
       "equipmentOffset": -1,
-      "pixelsPerRunFrame": 15,
+      "pixelsPerRunFrame": 12,
       "teams": {
         "Red": {
           "directory": "Red",
@@ -2631,7 +2646,10 @@
         }
       ],
       "cloakedBodySprite": "ElkondoSpy{team}CloakedBodyS",
-      "legsBodySprite": "ElkondoSpy{team}LegsS"
+      "legsBodySprite": "ElkondoSpy{team}LegsS",
+      "torsoBodySprite": "ElkondoSpy{team}TorsoS",
+      "cloakedLegsBodySprite": "ElkondoSpy{team}CloakedLegsS",
+      "cloakedTorsoBodySprite": "ElkondoSpy{team}CloakedTorsoS"
     }
   }
 }
