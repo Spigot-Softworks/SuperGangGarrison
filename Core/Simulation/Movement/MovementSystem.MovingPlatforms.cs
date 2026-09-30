@@ -2,6 +2,9 @@ namespace OpenGarrison.Core;
 
 public sealed partial class MovementSystem
 {
+    private readonly List<PlayerEntity> _alivePlayersScratch = new();
+    private readonly List<PlayerEntity> _carriedPlayersScratch = new();
+
     public void ResetMovingPlatformsForLevel()
     {
         _movingPlatforms.Clear();
@@ -18,19 +21,30 @@ public sealed partial class MovementSystem
             return;
         }
 
-        var players = EnumerateSimulatedPlayers()
-            .Where(static player => player.IsAlive)
-            .ToArray();
+        _alivePlayersScratch.Clear();
+        foreach (var player in EnumerateSimulatedPlayers())
+        {
+            if (player.IsAlive)
+            {
+                _alivePlayersScratch.Add(player);
+            }
+        }
+
         foreach (var platform in _movingPlatforms)
         {
-            TryTriggerMovingPlatform(platform, players);
+            TryTriggerMovingPlatform(platform, _alivePlayersScratch);
             var oldLeft = platform.Left;
             var oldTop = platform.Top;
             var oldRight = platform.Right;
             var oldBottom = platform.Bottom;
-            var carriedPlayers = players
-                .Where(player => player.IsStandingOnMovingPlatform(oldLeft, oldTop, oldRight))
-                .ToArray();
+            _carriedPlayersScratch.Clear();
+            foreach (var player in _alivePlayersScratch)
+            {
+                if (player.IsStandingOnMovingPlatform(oldLeft, oldTop, oldRight))
+                {
+                    _carriedPlayersScratch.Add(player);
+                }
+            }
 
             var (deltaX, deltaY) = platform.Advance(Config.FixedDeltaSeconds);
             if (deltaX == 0f && deltaY == 0f)
@@ -38,14 +52,20 @@ public sealed partial class MovementSystem
                 continue;
             }
 
-            foreach (var player in carriedPlayers)
+            foreach (var player in _carriedPlayersScratch)
             {
                 player.TryMoveWithMovingPlatform(Level, player.Team, deltaX, deltaY, platform.ResetMovementState);
             }
 
             if (deltaY < 0f)
             {
-                LiftPlayersCaughtByMovingPlatform(platform, oldLeft, oldTop, oldRight, oldBottom, players);
+                LiftPlayersCaughtByMovingPlatform(
+                    platform,
+                    oldLeft,
+                    oldTop,
+                    oldRight,
+                    oldBottom,
+                    _alivePlayersScratch);
             }
         }
     }
