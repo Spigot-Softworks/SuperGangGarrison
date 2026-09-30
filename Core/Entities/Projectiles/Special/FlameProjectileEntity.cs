@@ -11,6 +11,7 @@ public sealed class FlameProjectileEntity : SimulationEntity
     public const float BurnDamagePerTick = 0.06f;
     public const float GravityPerTick = 0.15f;
     public const int PenetrationCap = 1;
+    public const int SettledGroundedLifetimeTicks = 90;
 
     private float _burnDamageAccumulator;
     private readonly HashSet<int> _hitPlayerIds = [];
@@ -66,6 +67,12 @@ public sealed class FlameProjectileEntity : SimulationEntity
 
     public float CriticalDamageMultiplier { get; private set; } = 1f;
 
+    public bool SettlesOnGround { get; private set; }
+
+    public bool IsGrounded { get; private set; }
+
+    public float GravityScale { get; private set; } = 1f;
+
     public void SetCritical(float damageMultiplier = ExperimentalGameplaySettings.KritzCriticalDamageMultiplier)
         => HydrateCritical(true, damageMultiplier);
 
@@ -76,6 +83,38 @@ public sealed class FlameProjectileEntity : SimulationEntity
             ? ExperimentalGameplaySettings.NormalizeCriticalDamageMultiplier(damageMultiplier)
             : 1f;
     }
+
+    public void ConfigureSettlingFlame(
+        int groundedLifetimeTicks = SettledGroundedLifetimeTicks,
+        float gravityScale = 1f)
+    {
+        SettlesOnGround = true;
+        IsGrounded = false;
+        _settledGroundedLifetimeTicks = Math.Max(1, groundedLifetimeTicks);
+        GravityScale = MathF.Max(0.01f, gravityScale);
+    }
+
+    public void HydrateSettleState(bool settlesOnGround, bool isGrounded)
+    {
+        SettlesOnGround = settlesOnGround;
+        IsGrounded = isGrounded && settlesOnGround;
+        if (SettlesOnGround)
+        {
+            if (_settledGroundedLifetimeTicks <= 0)
+            {
+                _settledGroundedLifetimeTicks = SettledGroundedLifetimeTicks;
+            }
+
+            // Strong Drink is the only settling flame; restore its fall multiplier after snapshots.
+            GravityScale = GrenadeProjectileEntity.StrongDrinkFireGravityScale;
+        }
+        else
+        {
+            GravityScale = 1f;
+        }
+    }
+
+    private int _settledGroundedLifetimeTicks = SettledGroundedLifetimeTicks;
 
     public int? AttachedPlayerId { get; private set; }
 
@@ -95,15 +134,37 @@ public sealed class FlameProjectileEntity : SimulationEntity
     {
         PreviousX = X;
         PreviousY = Y;
-        if (!IsAttached)
+        if (IsGrounded)
+        {
+            VelocityX = 0f;
+            VelocityY = 0f;
+        }
+        else if (!IsAttached)
         {
             var sourceDelta = MathF.Max(0f, deltaSeconds) * LegacyMovementModel.SourceTicksPerSecond;
             X += VelocityX * sourceDelta;
             Y += VelocityY * sourceDelta;
-            VelocityY += GravityPerTick * gravityScale * sourceDelta;
+            VelocityY += GravityPerTick * gravityScale * GravityScale * sourceDelta;
         }
 
         TicksRemaining -= 1;
+    }
+
+    public void SettleOnGround(float x, float y)
+    {
+        if (!SettlesOnGround)
+        {
+            Destroy();
+            return;
+        }
+
+        MoveTo(x, y);
+        VelocityX = 0f;
+        VelocityY = 0f;
+        IsGrounded = true;
+        // Grounded puddle lifetime starts on contact — do not inherit leftover air time.
+        TicksRemaining = _settledGroundedLifetimeTicks;
+        _hitPlayerIds.Clear();
     }
 
     public float GetAfterburnFalloffAmount(int airLifetimeSimulationTicks)

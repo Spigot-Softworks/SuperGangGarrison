@@ -103,10 +103,9 @@ public partial class Game1
     {
         if (CanUseLocalPrediction() && _hasPredictedLocalPlayerPosition)
         {
-            // Do not put the local camera on the render-correction spring. That
-            // spring is useful for hiding small network corrections on a remote
-            // presentation, but following it locally makes the entire view lag
-            // behind held movement even when smooth camera is disabled.
+            // Follow the same correction spring used for the predicted player
+            // sprite so online reconciliation does not move the whole view in
+            // visible jumps around the player.
             position = _predictedLocalPlayerPosition + _predictedLocalPlayerRenderCorrectionOffset;
             return true;
         }
@@ -398,6 +397,8 @@ public partial class Game1
             IsSniperScoped = player.IsSniperScoped,
             SniperChargeTicks = player.SniperChargeTicks,
             SniperBowChargeTicks = player.SniperBowChargeTicks,
+            StrongDrinkChargeTicks = player.StrongDrinkChargeTicks,
+            StrongDrinkChargeDirectionDegrees = player.StrongDrinkChargeDirectionDegrees,
             IsUsingBinoculars = player.IsUsingBinoculars,
             IsSpyCloaked = player.IsSpyCloaked,
             SpyCloakAlpha = player.SpyCloakAlpha,
@@ -578,6 +579,8 @@ public partial class Game1
         public bool IsSniperScoped;
         public int SniperChargeTicks;
         public int SniperBowChargeTicks;
+        public int StrongDrinkChargeTicks;
+        public float StrongDrinkChargeDirectionDegrees;
         public bool IsUsingBinoculars;
         public bool IsSpyCloaked;
         public float SpyCloakAlpha;

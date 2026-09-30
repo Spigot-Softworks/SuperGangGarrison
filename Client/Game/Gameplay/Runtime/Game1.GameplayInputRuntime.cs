@@ -25,11 +25,6 @@ public partial class Game1
 
         UpdateBinocularsFocusPosition(keyboard, mouse, deltaSeconds);
 
-        var useMultiplayerExclusivePrimarySwapBinding = KeyboardInputMapper.UsesMultiplayerExclusivePrimarySwapBinding(
-            _networkClient.IsConnected && !_networkClient.IsReplayConnection && !_networkClient.IsLegacyGg2Connection && _gameplaySessionKind == GameplaySessionKind.Online,
-            IsLastToDieSessionActive,
-            _world.LocalPlayer.HasAlternatePrimaryWeapons);
-
         var fullInput = KeyboardInputMapper.BuildGameplaySnapshot(
             _inputBindings,
             keyboard,
@@ -41,7 +36,6 @@ public partial class Game1
             GetPlayerIsUsingBinoculars(_world.LocalPlayer),
             _binocularsFocusX,
             _binocularsFocusY,
-            useMultiplayerExclusivePrimarySwapBinding,
             previousMouse: _previousMouse,
             cameraZoom: GameplayCameraZoom);
         fullInput = ApplyControllerGameplayInput(fullInput, deltaSeconds);

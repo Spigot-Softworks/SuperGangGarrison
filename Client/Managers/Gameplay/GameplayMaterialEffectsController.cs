@@ -113,7 +113,7 @@ public sealed class GameplayMaterialEffectsController
                 _context._pendingWeaponShellVisuals.RemoveAt(index);
             }
 
-            var gravityPerTick = ScaleSourceTickDistance(0.7f);
+            var baseGravityPerTick = ScaleSourceTickDistance(0.7f);
             var settleSpeed = ScaleSourceTickDistance(1f);
             for (var index = _context._shellVisuals.Count - 1; index >= 0; index -= 1)
             {
@@ -155,7 +155,7 @@ public sealed class GameplayMaterialEffectsController
 
                 if (IsShellBlocked(shell.X, shell.Y + shell.VelocityY))
                 {
-                    shell.VelocityY *= -0.7f;
+                    shell.VelocityY *= -shell.FloorBounceFactor;
                     shell.VelocityY = MathF.Max(-ScaleSourceTickDistance(2.5f), shell.VelocityY);
                     shell.VelocityX *= 0.7f;
                     shell.RotationSpeedDegrees *= 0.8f;
@@ -174,7 +174,7 @@ public sealed class GameplayMaterialEffectsController
                 shell.Y += shell.VelocityY;
                 if (!shell.Stuck)
                 {
-                    shell.VelocityY += gravityPerTick;
+                    shell.VelocityY += baseGravityPerTick * shell.GravityScale;
                 }
             }
         }
@@ -220,16 +220,69 @@ public sealed class GameplayMaterialEffectsController
             for (var index = 0; index < _context._shellVisuals.Count; index += 1)
             {
                 var shell = _context._shellVisuals[index];
-                var shellSprite = _context.GetResolvedSprite(shell.SpriteName ?? "ShellS");
-                if (shellSprite is not null && shellSprite.Frames.Count > 0)
+                if (!shell.DrawAsPixel)
                 {
-                    var frameIndex = Math.Clamp(shell.FrameIndex, 0, shellSprite.Frames.Count - 1);
-                    _context.DrawLoadedSpriteFrame(shellSprite.Frames[frameIndex], new Vector2(shell.X - cameraPosition.X, shell.Y - cameraPosition.Y), null, Color.White * shell.Alpha, MathHelper.ToRadians(shell.RotationDegrees), shellSprite.Origin.ToVector2(), Vector2.One, SpriteEffects.None, 0f);
-                    continue;
+                    var shellSprite = _context.GetResolvedSprite(shell.SpriteName ?? "ShellS");
+                    if (shellSprite is not null && shellSprite.Frames.Count > 0)
+                    {
+                        var frameIndex = Math.Clamp(shell.FrameIndex, 0, shellSprite.Frames.Count - 1);
+                        _context.DrawLoadedSpriteFrame(shellSprite.Frames[frameIndex], new Vector2(shell.X - cameraPosition.X, shell.Y - cameraPosition.Y), null, Color.White * shell.Alpha, MathHelper.ToRadians(shell.RotationDegrees), shellSprite.Origin.ToVector2(), Vector2.One, SpriteEffects.None, 0f);
+                        continue;
+                    }
                 }
 
-                var shellRectangle = new Rectangle((int)(shell.X - 2f - cameraPosition.X), (int)(shell.Y - 2f - cameraPosition.Y), 4, 4);
-                _context._spriteBatch.Draw(_context._pixel, shellRectangle, new Color(230, 210, 160) * shell.Alpha);
+                var halfWidth = shell.PixelWidth * 0.5f;
+                var halfHeight = shell.PixelHeight * 0.5f;
+                var shellRectangle = new Rectangle(
+                    (int)(shell.X - halfWidth - cameraPosition.X),
+                    (int)(shell.Y - halfHeight - cameraPosition.Y),
+                    shell.PixelWidth,
+                    shell.PixelHeight);
+                _context._spriteBatch.Draw(_context._pixel, shellRectangle, shell.Tint * shell.Alpha);
+            }
+        }
+
+        public void SpawnBottleShardBurst(float x, float y, int teamCount, float burstDirectionDegrees = 270f)
+        {
+            if (_context._particleMode != 0)
+            {
+                return;
+            }
+
+            var spriteName = teamCount >= (int)PlayerTeam.Blue
+                ? "BlueStrongDrinkShardS"
+                : "RedStrongDrinkShardS";
+            var shardSprite = _context.GetResolvedSprite(spriteName);
+            var frameCount = shardSprite is not null && shardSprite.Frames.Count > 0
+                ? shardSprite.Frames.Count
+                : 7;
+            var fadeDelayTicks = (int)MathF.Round(GetSourceTicksAsSeconds(50f) * ClientUpdateTicksPerSecond);
+            var burstRadians = burstDirectionDegrees * (MathF.PI / 180f);
+            var burstNormalX = MathF.Cos(burstRadians);
+            var burstNormalY = MathF.Sin(burstRadians);
+            var upwardBias = ScaleSourceTickDistance(4.0f);
+            for (var index = 0; index < frameCount; index += 1)
+            {
+                var angle = (_context._visualRandom.NextSingle() * MathF.PI * 2f) - MathF.PI;
+                var speed = ScaleSourceTickDistance(5.0f + (_context._visualRandom.NextSingle() * 4.5f));
+                var burstPush = ScaleSourceTickDistance(3.5f + (_context._visualRandom.NextSingle() * 3.0f));
+                var velocityX = (MathF.Cos(angle) * speed) + (burstNormalX * burstPush);
+                // Negative Y is up in screen space — always lift shards a bit for a cooler pop.
+                var velocityY = (MathF.Sin(angle) * speed * 0.85f) + (burstNormalY * burstPush) - upwardBias;
+                var rotationSpeed = ScaleSourceTickDistance(8f + (_context._visualRandom.NextSingle() * 12f))
+                    * (_context._visualRandom.Next(2) == 0 ? -1f : 1f);
+                _context._shellVisuals.Add(new ShellVisual(
+                    x + ((_context._visualRandom.NextSingle() - 0.5f) * 3f),
+                    y + ((_context._visualRandom.NextSingle() - 0.5f) * 3f),
+                    velocityX,
+                    velocityY,
+                    frameIndex: index,
+                    rotationDegrees: _context._visualRandom.NextSingle() * 360f,
+                    rotationSpeedDegrees: rotationSpeed,
+                    fadeDelayTicks: fadeDelayTicks,
+                    spriteName: spriteName,
+                    gravityScale: 0.45f,
+                    floorBounceFactor: 0.5f));
             }
         }
 

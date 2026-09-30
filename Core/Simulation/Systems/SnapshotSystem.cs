@@ -122,6 +122,12 @@ public sealed class SnapshotSystem
                 entry.FloatValue,
                 entry.BoolValue)));
 
+        replicatedStates.Add(new SnapshotReplicatedStateEntry(
+            GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId,
+            GameplayAbilityReplicatedState.SpecialAbilitiesEnabledKey,
+            SnapshotReplicatedStateValueKind.Toggle,
+            0, 0f, _dependencies.AreSpecialAbilitiesEnabled()));
+
         if (!string.IsNullOrWhiteSpace(player.GameplayLoadoutState.SecondaryItemId))
         {
             replicatedStates.Add(new SnapshotReplicatedStateEntry(
@@ -706,7 +712,9 @@ public sealed class SnapshotSystem
             flame.AttachedOffsetX,
             flame.AttachedOffsetY,
             flame.IsCritical,
-            flame.CriticalDamageMultiplier);
+            flame.CriticalDamageMultiplier,
+            flame.SettlesOnGround,
+            flame.IsGrounded);
     }
 
     public SnapshotShotState ToSnapshotFlareState(FlareProjectileEntity flare)
@@ -757,7 +765,8 @@ public sealed class SnapshotSystem
             grenade.VelocityY,
             grenade.FuseTicksLeft,
             grenade.IsCritical,
-            grenade.CriticalDamageMultiplier);
+            grenade.CriticalDamageMultiplier,
+            grenade.IsStrongDrink);
     }
 
     public SnapshotDeadBodyState ToSnapshotDeadBodyState(DeadBodyEntity deadBody)
@@ -776,7 +785,8 @@ public sealed class SnapshotSystem
             deadBody.VerticalSpeed,
             deadBody.FacingLeft,
             deadBody.TicksRemaining,
-            deadBody.GameplayClassId);
+            deadBody.GameplayClassId,
+            deadBody.DiedToFire);
     }
 
     public SnapshotSentryGibState ToSnapshotSentryGibState(SentryGibEntity sentryGib)
@@ -963,4 +973,5 @@ internal sealed class SnapshotSystemDependencies
     public Func<byte, PlayerTeam> GetNetworkPlayerConfiguredTeam { get; init; } = static _ => PlayerTeam.Red;
     public Func<byte, int> GetNetworkPlayerRespawnTicks { get; init; } = static _ => 0;
     public Func<byte, bool> IsNetworkPlayerReady { get; init; } = static _ => false;
+    public Func<bool> AreSpecialAbilitiesEnabled { get; init; } = static () => false;
 }

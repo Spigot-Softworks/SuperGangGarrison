@@ -1,0 +1,16 @@
+{
+  "id": "ElkondoScoutBlueTorsoS",
+  "framePaths": [
+    "assets/characters/player-skins/ElkondoScoutBlueTorsoS/0.png",
+    "assets/characters/player-skins/ElkondoScoutBlueTorsoS/1.png",
+    "assets/characters/player-skins/ElkondoScoutBlueTorsoS/2.png",
+    "assets/characters/player-skins/ElkondoScoutBlueTorsoS/3.png",
+    "assets/characters/player-skins/ElkondoScoutBlueTorsoS/4.png",
+    "assets/characters/player-skins/ElkondoScoutBlueTorsoS/5.png",
+    "assets/characters/player-skins/ElkondoScoutBlueTorsoS/6.png",
+    "assets/characters/player-skins/ElkondoScoutBlueTorsoS/7.png",
+    "assets/characters/player-skins/ElkondoScoutBlueTorsoS/8.png"
+  ],
+  "originX": 32,
+  "originY": 40
+}

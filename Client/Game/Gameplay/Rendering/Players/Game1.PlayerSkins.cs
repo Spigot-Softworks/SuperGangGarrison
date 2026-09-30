@@ -49,9 +49,13 @@ public partial class Game1
         }
         var pose = GetPlayerSkinPose(player, skin);
         string bodySprite;
+        string? legsSprite = null;
+        string? torsoSprite = null;
         if (skin.CloakedBodySprite is { } cloakedSprite && GetPlayerIsSpyCloaked(player))
         {
             bodySprite = cloakedSprite;
+            legsSprite = skin.CloakedLegsBodySprite;
+            torsoSprite = skin.CloakedTorsoBodySprite;
         }
         else if (ShouldDrawLegsOnlyBody(player, skin))
         {
@@ -60,10 +64,28 @@ public partial class Game1
         else
         {
             bodySprite = skin.BodySprite;
+            legsSprite = skin.LegsBodySprite;
+            torsoSprite = skin.TorsoBodySprite;
         }
+
+        var equipmentPose = pose;
+        var weaponBobMode = OpenGarrisonPreferencesDocument.NormalizeWeaponBobMode(_weaponBobMode);
+        float equipmentOffset;
+        if (weaponBobMode == WeaponBobMode.Disabled)
+        {
+            equipmentOffset = (skin.EquipmentOffset + skin.Poses[pose].EquipmentOffset) * skin.PixelScale;
+        }
+        else
+        {
+            equipmentPose = GetDelayedRunSkinPose(skin, pose);
+            equipmentOffset = (skin.EquipmentOffset + skin.Poses[equipmentPose].EquipmentOffset) * skin.PixelScale;
+        }
+
         selection = new PlayerBodySpriteSelection(skin.SpriteForTeam(bodySprite, player.Team),
-            pose, 0, (skin.EquipmentOffset + skin.Poses[pose].EquipmentOffset) * skin.PixelScale,
-            player.IsCarryingIntel, false);
+            pose, 0, equipmentOffset,
+            player.IsCarryingIntel, false,
+            legsSprite is null ? null : skin.SpriteForTeam(legsSprite, player.Team),
+            torsoSprite is null ? null : skin.SpriteForTeam(torsoSprite, player.Team));
         return true;
     }
 
@@ -90,7 +112,7 @@ public partial class Game1
                 continue;
             }
 
-            var cycleIndex = ((i % 8) + 8) % 8;
+            var cycleIndex = GameplayPlayerSpriteRenderController.GetRunEquipmentBobFrame(i, delayByOneFrame: false);
             if (cycleIndex is 0 or 1 or 4 or 5)
             {
                 return true;
@@ -101,13 +123,56 @@ public partial class Game1
     }
 
     /// <summary>
+    /// Returns the pose one run-cycle frame behind <paramref name="pose"/> when that pose
+    /// appears in the run clip; otherwise returns <paramref name="pose"/> unchanged.
+    /// </summary>
+    private static int GetDelayedRunSkinPose(PlayerSkinDefinition skin, int pose)
+    {
+        if (!skin.Clips.TryGetValue("run", out var run) || run.Frames.Length == 0)
+        {
+            return pose;
+        }
+
+        for (var i = 0; i < run.Frames.Length; i++)
+        {
+            if (run.Frames[i] != pose)
+            {
+                continue;
+            }
+
+            var delayedIndex = ((i - 1) % run.Frames.Length + run.Frames.Length) % run.Frames.Length;
+            return run.Frames[delayedIndex];
+        }
+
+        return pose;
+    }
+
+    /// <summary>
     /// Idle-height torso replacements share the body/legs origin; bob up 1 source
     /// pixel on the up-bob run/jump poses.
     /// </summary>
     private float GetTorsoReplacementYOffset(PlayerEntity player)
     {
+        var mode = OpenGarrisonPreferencesDocument.NormalizeWeaponBobMode(_weaponBobMode);
+        if (mode == WeaponBobMode.Disabled)
+        {
+            return 0f;
+        }
+
+        if (_playerRenderStates.TryGetValue(GetPlayerStateKey(player), out var renderState))
+        {
+            return renderState.SmoothedTorsoBobOffset;
+        }
+
         var skin = GetPlayerSkin(player);
-        if (skin is not null && IsTorsoReplacementUpBobPose(skin, GetPlayerSkinPose(player, skin)))
+        if (skin is null)
+        {
+            return 0f;
+        }
+
+        var pose = GetPlayerSkinPose(player, skin);
+        var bobPose = GetDelayedRunSkinPose(skin, pose);
+        if (IsTorsoReplacementUpBobPose(skin, bobPose))
         {
             return -1f * skin.PixelScale;
         }
@@ -128,6 +193,19 @@ public partial class Game1
         {
             // Torso replacements keep their own idle/attack strips; do not remap to skin weapons.
             // Blue team uses FooBlueS / FooBlueFS when those sprites exist (Detonator sleeve palette).
+            var xOffset = definition.XOffset;
+            var yOffset = definition.YOffset;
+            // Strong Drink art is authored against stock SniperRedS origin (26,40). Elkondo
+            // legs use (32,40); nudge so the bottle torso sits on the skin legs.
+            if (IsStrongDrinkWeaponPresentation(definition)
+                && GetPlayerSkin(player) is { } strongDrinkSkin)
+            {
+                const float stockBodyOriginX = 26f;
+                const float stockBodyOriginY = 40f;
+                xOffset += stockBodyOriginX - (strongDrinkSkin.Origin[0] * strongDrinkSkin.PixelScale);
+                yOffset += stockBodyOriginY - (strongDrinkSkin.Origin[1] * strongDrinkSkin.PixelScale);
+            }
+
             return definition with
             {
                 NormalSpriteName = ResolveTorsoReplacementSpriteForTeam(definition.NormalSpriteName, player.Team),
@@ -135,6 +213,8 @@ public partial class Game1
                 ReloadSpriteName = ResolveTorsoReplacementSpriteForTeam(definition.ReloadSpriteName, player.Team),
                 TorsoSpriteName = ResolveTorsoReplacementSpriteForTeam(definition.TorsoSpriteName, player.Team),
                 TorsoRecoilSpriteName = ResolveTorsoReplacementSpriteForTeam(definition.TorsoRecoilSpriteName, player.Team),
+                XOffset = xOffset,
+                YOffset = yOffset,
                 SingleTeamFrames = true,
             };
         }
@@ -192,5 +272,11 @@ public partial class Game1
         }
 
         return GetResolvedSprite(teamSpriteName) is not null ? teamSpriteName : spriteName;
+    }
+
+    private static bool IsStrongDrinkWeaponPresentation(WeaponRenderDefinition definition)
+    {
+        return definition.NormalSpriteName is not null
+            && definition.NormalSpriteName.StartsWith("BottleArm", StringComparison.Ordinal);
     }
 }

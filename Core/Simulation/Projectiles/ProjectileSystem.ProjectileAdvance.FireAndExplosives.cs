@@ -15,6 +15,21 @@ public sealed partial class ProjectileSystem
             }
 
             flame.AdvanceOneTick(deltaSeconds, _configuredGravityScale);
+            if (flame.IsGrounded)
+            {
+                if (TryIgniteEnemiesTouchingGroundedFlame(flame))
+                {
+                    // Grounded pools keep burning until expiry.
+                }
+
+                if (flame.IsExpired)
+                {
+                    RemoveFlameAt(flameIndex);
+                }
+
+                continue;
+            }
+
             var movementX = flame.X - flame.PreviousX;
             var movementY = flame.Y - flame.PreviousY;
             var movementDistance = MathF.Sqrt((movementX * movementX) + (movementY * movementY));
@@ -39,40 +54,49 @@ public sealed partial class ProjectileSystem
                 if (hitResult.HitPlayer is not null)
                 {
                     var hitPlayer = hitResult.HitPlayer;
-                    var shieldChargeBefore = hitPlayer.CivvieUmbrellaChargeTicks;
-                    var infiltrateBlockedFlame = hitPlayer.IsLastToDieSpyInfiltrateProjectileImmune;
-                    var playerDied = ApplyPlayerContinuousDamageWithContext(
-                        hitPlayer,
-                        flame.DirectHitDamageValue * flame.CriticalDamageMultiplier,
-                        owner,
-                        civvieUmbrellaThreatSourceX: flame.PreviousX,
-                        civvieUmbrellaThreatSourceY: flame.PreviousY,
-                        civvieUmbrellaCriticalBoost: PlayerEntity.IsCriticalDamageMultiplierBoosted(flame.CriticalDamageMultiplier),
-                        civvieUmbrellaUseLiveAttackerCriticalBoost: false,
-                        additionalTraits: PlayerDamageTraits.DirectProjectile);
-                    var umbrellaBlockedFlame = hitPlayer.CivvieUmbrellaChargeTicks < shieldChargeBefore;
-                    if (playerDied)
+                    if (flame.SettlesOnGround)
                     {
-                        KillPlayer(hitPlayer, killer: owner, weaponSpriteName: "FlameKL");
-                    }
-                    else if (!umbrellaBlockedFlame && !infiltrateBlockedFlame)
-                    {
-                        hitPlayer.IgniteAfterburn(
-                            flame.OwnerId,
-                            FlameProjectileEntity.BurnDurationIncreaseSourceTicks,
-                            FlameProjectileEntity.BurnIntensityIncrease,
-                            FlameProjectileEntity.AfterburnFalloff,
-                            flame.GetAfterburnFalloffAmount(flameAirLifetimeTicks));
-                    }
-
-                    if (flame.HitPlayerCount >= FlameProjectileEntity.PenetrationCap && !flame.IsPerseverant)
-                    {
-                        flame.Destroy();
+                        IgniteStrongDrinkAfterburn(hitPlayer, flame.OwnerId);
+                        flame.RegisterHitPlayer(hitPlayer.Id);
+                        flame.MoveTo(hitResult.HitX + directionX, hitResult.HitY + directionY);
                     }
                     else
                     {
-                        flame.RegisterHitPlayer(hitPlayer.Id);
-                        flame.MoveTo(hitResult.HitX + directionX, hitResult.HitY + directionY);
+                        var shieldChargeBefore = hitPlayer.CivvieUmbrellaChargeTicks;
+                        var infiltrateBlockedFlame = hitPlayer.IsLastToDieSpyInfiltrateProjectileImmune;
+                        var playerDied = ApplyPlayerContinuousDamageWithContext(
+                            hitPlayer,
+                            flame.DirectHitDamageValue * flame.CriticalDamageMultiplier,
+                            owner,
+                            civvieUmbrellaThreatSourceX: flame.PreviousX,
+                            civvieUmbrellaThreatSourceY: flame.PreviousY,
+                            civvieUmbrellaCriticalBoost: PlayerEntity.IsCriticalDamageMultiplierBoosted(flame.CriticalDamageMultiplier),
+                            civvieUmbrellaUseLiveAttackerCriticalBoost: false,
+                            additionalTraits: PlayerDamageTraits.DirectProjectile);
+                        var umbrellaBlockedFlame = hitPlayer.CivvieUmbrellaChargeTicks < shieldChargeBefore;
+                        if (playerDied)
+                        {
+                            KillPlayer(hitPlayer, killer: owner, weaponSpriteName: "FlameKL");
+                        }
+                        else if (!umbrellaBlockedFlame && !infiltrateBlockedFlame)
+                        {
+                            hitPlayer.IgniteAfterburn(
+                                flame.OwnerId,
+                                FlameProjectileEntity.BurnDurationIncreaseSourceTicks,
+                                FlameProjectileEntity.BurnIntensityIncrease,
+                                FlameProjectileEntity.AfterburnFalloff,
+                                flame.GetAfterburnFalloffAmount(flameAirLifetimeTicks));
+                        }
+
+                        if (flame.HitPlayerCount >= FlameProjectileEntity.PenetrationCap && !flame.IsPerseverant)
+                        {
+                            flame.Destroy();
+                        }
+                        else
+                        {
+                            flame.RegisterHitPlayer(hitPlayer.Id);
+                            flame.MoveTo(hitResult.HitX + directionX, hitResult.HitY + directionY);
+                        }
                     }
                 }
                 else if (hitResult.HitSentry is not null && ApplySentryDamage(hitResult.HitSentry, (int)(flame.DirectHitDamageValue * flame.CriticalDamageMultiplier), owner))
@@ -89,6 +113,10 @@ public sealed partial class ProjectileSystem
                 {
                     hitResult.HitJumpPad.TakeDamage((int)(flame.DirectHitDamageValue * flame.CriticalDamageMultiplier));
                     flame.Destroy();
+                }
+                else if (flame.SettlesOnGround)
+                {
+                    flame.SettleOnGround(hitResult.HitX, hitResult.HitY);
                 }
                 else
                 {
@@ -107,6 +135,41 @@ public sealed partial class ProjectileSystem
                 RemoveFlameAt(flameIndex);
             }
         }
+    }
+
+    private bool TryIgniteEnemiesTouchingGroundedFlame(FlameProjectileEntity flame)
+    {
+        var ignitedAny = false;
+        foreach (var player in EnumerateSimulatedPlayers())
+        {
+            if (!player.IsAlive
+                || player.Team == flame.Team
+                || !CanTeamDamagePlayer(flame.Team, flame.OwnerId, player))
+            {
+                continue;
+            }
+
+            if (!CircleIntersectsPlayer(this, flame.X, flame.Y, GrenadeProjectileEntity.StrongDrinkCollisionRadius, player))
+            {
+                continue;
+            }
+
+            IgniteStrongDrinkAfterburn(player, flame.OwnerId);
+            ignitedAny = true;
+        }
+
+        return ignitedAny;
+    }
+
+    private static void IgniteStrongDrinkAfterburn(PlayerEntity player, int ownerPlayerId)
+    {
+        player.IgniteAfterburn(
+            ownerPlayerId,
+            PlayerEntity.BurnDefaultMaxDurationSourceTicks,
+            PlayerEntity.BurnMaxIntensity,
+            afterburnFalloff: false,
+            burnFalloffAmount: 0f,
+            killFeedWeaponSpriteName: GrenadeProjectileEntity.StrongDrinkFireKillFeedSpriteName);
     }
 
     public void AdvanceFlares()
@@ -338,8 +401,18 @@ public sealed partial class ProjectileSystem
             // Check if fuse has expired
             if (grenade.FuseTicksLeft <= 0)
             {
-                ExplodeGrenade(grenade);
-                RemoveGrenadeAt(grenadeIndex);
+                if (grenade.IsStrongDrink)
+                {
+                    // Strong Drink despawns quietly when the fuse runs out.
+                    grenade.Destroy();
+                    RemoveGrenadeAt(grenadeIndex);
+                }
+                else
+                {
+                    ExplodeGrenade(grenade);
+                    RemoveGrenadeAt(grenadeIndex);
+                }
+
                 continue;
             }
 
@@ -356,15 +429,35 @@ public sealed partial class ProjectileSystem
                 : null;
             if (directHitPlayer is not null)
             {
-                ExplodeGrenade(grenade, directHitPlayer: directHitPlayer);
-                RemoveGrenadeAt(grenadeIndex);
+                if (grenade.IsStrongDrink)
+                {
+                    ApplyStrongDrinkDirectHit(grenade, directHitPlayer);
+                    RemoveGrenadeAt(grenadeIndex);
+                }
+                else
+                {
+                    ExplodeGrenade(grenade, directHitPlayer: directHitPlayer);
+                    RemoveGrenadeAt(grenadeIndex);
+                }
+
                 continue;
             }
 
             if (CheckGrenadeBuildingCollision(grenade, out var directHitBuilding))
             {
-                ExplodeGrenade(grenade, directHitBuilding: directHitBuilding);
-                RemoveGrenadeAt(grenadeIndex);
+                if (grenade.IsStrongDrink)
+                {
+                    // Strong Drink shatters harmlessly on buildings / env props.
+                    RegisterStrongDrinkShatterEffect(grenade.X, grenade.Y, grenade.Team);
+                    grenade.Destroy();
+                    RemoveGrenadeAt(grenadeIndex);
+                }
+                else
+                {
+                    ExplodeGrenade(grenade, directHitBuilding: directHitBuilding);
+                    RemoveGrenadeAt(grenadeIndex);
+                }
+
                 continue;
             }
 
@@ -379,17 +472,37 @@ public sealed partial class ProjectileSystem
                     out var damageableZoneIndex))
             {
                 grenade.MoveTo(damageableHitX, damageableHitY);
-                ExplodeGrenade(grenade, directHitDamageableZoneIndex: damageableZoneIndex);
-                RemoveGrenadeAt(grenadeIndex);
+                if (grenade.IsStrongDrink)
+                {
+                    RegisterStrongDrinkShatterEffect(grenade.X, grenade.Y, grenade.Team);
+                    grenade.Destroy();
+                    RemoveGrenadeAt(grenadeIndex);
+                }
+                else
+                {
+                    ExplodeGrenade(grenade, directHitDamageableZoneIndex: damageableZoneIndex);
+                    RemoveGrenadeAt(grenadeIndex);
+                }
+
                 continue;
             }
 
-            // Swept environment collision — bounce off walls
+            // Swept environment collision — bounce off walls (Strong Drink shatters instead)
             if (movementDistance > 0.0001f)
             {
                 var envHit = GetNearestGrenadeEnvironmentHit(grenade, directionX, directionY, movementDistance);
                 if (envHit.HasValue)
                 {
+                    if (grenade.IsStrongDrink)
+                    {
+                        grenade.MoveTo(envHit.Value.HitX, envHit.Value.HitY);
+                        var burstDegrees = MathF.Atan2(envHit.Value.NormalY, envHit.Value.NormalX) * (180f / MathF.PI);
+                        RegisterStrongDrinkShatterEffect(grenade.X, grenade.Y, grenade.Team, burstDegrees);
+                        grenade.Destroy();
+                        RemoveGrenadeAt(grenadeIndex);
+                        continue;
+                    }
+
                     // Place the grenade at the hit surface, backed off slightly so it doesn't embed
                     var backoffX = -directionX * GrenadeProjectileEntity.EnvironmentCollisionBackoffDistance;
                     var backoffY = -directionY * GrenadeProjectileEntity.EnvironmentCollisionBackoffDistance;
@@ -405,6 +518,288 @@ public sealed partial class ProjectileSystem
         }
     }
 
+    private void ApplyStrongDrinkDirectHit(GrenadeProjectileEntity grenade, PlayerEntity target)
+    {
+        grenade.MoveTo(target.X, target.Y);
+        RegisterStrongDrinkShatterEffect(grenade.X, grenade.Y, grenade.Team);
+        RegisterWorldSoundEvent(
+            GrenadeProjectileEntity.StrongDrinkCrashSoundName,
+            grenade.X,
+            grenade.Y,
+            grenade.OwnerId);
+        var owner = FindPlayerById(grenade.OwnerId);
+        if (!target.IsAlive || !CanTeamDamagePlayer(grenade.Team, grenade.OwnerId, target))
+        {
+            grenade.Destroy();
+            return;
+        }
+
+        RegisterBloodEffect(target.X, target.Y, PointDirectionDegrees(grenade.PreviousX, grenade.PreviousY, target.X, target.Y) - 180f);
+        var damage = Math.Max(1, (int)MathF.Round(GrenadeProjectileEntity.StrongDrinkDirectHitDamage * grenade.CriticalDamageMultiplier));
+        if (ApplyPlayerDamageWithContext(
+                target,
+                damage,
+                owner,
+                PlayerEntity.SpyDamageRevealAlpha,
+                civvieUmbrellaThreatSourceX: grenade.PreviousX,
+                civvieUmbrellaThreatSourceY: grenade.PreviousY,
+                civvieUmbrellaCriticalBoost: PlayerEntity.IsCriticalDamageMultiplierBoosted(grenade.CriticalDamageMultiplier),
+                civvieUmbrellaUseLiveAttackerCriticalBoost: false,
+                additionalTraits: PlayerDamageTraits.DirectProjectile))
+        {
+            KillPlayer(
+                target,
+                killer: owner,
+                weaponSpriteName: grenade.KillFeedWeaponSpriteNameOverride
+                    ?? GrenadeProjectileEntity.StrongDrinkKillFeedSpriteName);
+        }
+
+        grenade.Destroy();
+    }
+
+    internal bool TryShootFriendlyStrongDrink(
+        PlayerTeam shooterTeam,
+        PlayerClass shooterClass,
+        int shooterOwnerId,
+        float originX,
+        float originY,
+        float directionX,
+        float directionY,
+        float maxDistance,
+        int fireParticleCount)
+    {
+        if (shooterClass != PlayerClass.Sniper)
+        {
+            return false;
+        }
+
+        var hit = GetNearestFriendlyStrongDrinkHit(shooterTeam, originX, originY, directionX, directionY, maxDistance);
+        if (hit is null)
+        {
+            return false;
+        }
+
+        ExplodeStrongDrinkFromShot(hit.Value.GrenadeIndex, fireParticleCount);
+        return true;
+    }
+
+    private readonly record struct StrongDrinkHitResult(int GrenadeIndex, float Distance, float HitX, float HitY);
+
+    private StrongDrinkHitResult? GetNearestFriendlyStrongDrinkHit(
+        PlayerTeam team,
+        float originX,
+        float originY,
+        float directionX,
+        float directionY,
+        float maxDistance)
+    {
+        StrongDrinkHitResult? nearest = null;
+        for (var grenadeIndex = 0; grenadeIndex < _grenades.Count; grenadeIndex += 1)
+        {
+            var grenade = _grenades[grenadeIndex];
+            if (!grenade.IsStrongDrink || grenade.Team != team || grenade.IsDestroyed)
+            {
+                continue;
+            }
+
+            var half = GrenadeProjectileEntity.StrongDrinkHitboxHalfExtent;
+            var distance = GetRayIntersectionDistanceWithAxisAlignedSquare(
+                originX,
+                originY,
+                directionX,
+                directionY,
+                grenade.X,
+                grenade.Y,
+                half,
+                maxDistance);
+            if (!distance.HasValue)
+            {
+                continue;
+            }
+
+            if (nearest is not null && nearest.Value.Distance <= distance.Value)
+            {
+                continue;
+            }
+
+            nearest = new StrongDrinkHitResult(
+                grenadeIndex,
+                distance.Value,
+                originX + directionX * distance.Value,
+                originY + directionY * distance.Value);
+        }
+
+        return nearest;
+    }
+
+    private static float? GetRayIntersectionDistanceWithAxisAlignedSquare(
+        float originX,
+        float originY,
+        float directionX,
+        float directionY,
+        float centerX,
+        float centerY,
+        float halfExtent,
+        float maxDistance)
+    {
+        var left = centerX - halfExtent;
+        var top = centerY - halfExtent;
+        var right = centerX + halfExtent;
+        var bottom = centerY + halfExtent;
+        const float epsilon = 0.0001f;
+        var tMin = float.NegativeInfinity;
+        var tMax = float.PositiveInfinity;
+
+        if (MathF.Abs(directionX) < epsilon)
+        {
+            if (originX < left || originX > right)
+            {
+                return null;
+            }
+        }
+        else
+        {
+            var invX = 1f / directionX;
+            var t1 = (left - originX) * invX;
+            var t2 = (right - originX) * invX;
+            if (t1 > t2)
+            {
+                (t1, t2) = (t2, t1);
+            }
+
+            tMin = MathF.Max(tMin, t1);
+            tMax = MathF.Min(tMax, t2);
+            if (tMin > tMax)
+            {
+                return null;
+            }
+        }
+
+        if (MathF.Abs(directionY) < epsilon)
+        {
+            if (originY < top || originY > bottom)
+            {
+                return null;
+            }
+        }
+        else
+        {
+            var invY = 1f / directionY;
+            var t1 = (top - originY) * invY;
+            var t2 = (bottom - originY) * invY;
+            if (t1 > t2)
+            {
+                (t1, t2) = (t2, t1);
+            }
+
+            tMin = MathF.Max(tMin, t1);
+            tMax = MathF.Min(tMax, t2);
+            if (tMin > tMax)
+            {
+                return null;
+            }
+        }
+
+        var hitDistance = tMin >= 0f ? tMin : tMax;
+        if (hitDistance < 0f || hitDistance > maxDistance)
+        {
+            return null;
+        }
+
+        return hitDistance;
+    }
+
+    private void ExplodeStrongDrinkFromShot(int grenadeIndex, int fireParticleCount)
+    {
+        if (grenadeIndex < 0 || grenadeIndex >= _grenades.Count)
+        {
+            return;
+        }
+
+        var grenade = _grenades[grenadeIndex];
+        if (!grenade.IsStrongDrink)
+        {
+            return;
+        }
+
+        var owner = FindPlayerById(grenade.OwnerId);
+        var particleCount = fireParticleCount > 0
+            ? fireParticleCount
+            : GrenadeProjectileEntity.StrongDrinkDefaultFireParticleCount;
+
+        // Rocket-style splash (same 30 / 65 as rockets) via existing grenade explode helpers.
+        grenade.HydrateStrongDrink(true);
+        RegisterStrongDrinkShatterEffect(grenade.X, grenade.Y, grenade.Team);
+        RegisterWorldSoundEvent(
+            GrenadeProjectileEntity.StrongDrinkCrashSoundName,
+            grenade.X,
+            grenade.Y,
+            grenade.OwnerId);
+        ExplodeGrenade(grenade);
+        SpawnStrongDrinkFireRain(owner ?? FindPlayerById(grenade.OwnerId), grenade.X, grenade.Y, particleCount);
+        RemoveGrenadeAt(grenadeIndex);
+    }
+
+    private void SpawnStrongDrinkFireRain(PlayerEntity? owner, float centerX, float centerY, int particleCount)
+    {
+        if (owner is null || particleCount <= 0)
+        {
+            return;
+        }
+
+        // Long air failsafe only — grounded lifetime is applied when SettleOnGround runs.
+        var airTicks = GetSimulationTicksFromSourceTicks(GrenadeProjectileEntity.StrongDrinkAirFailsafeLifetimeTicks);
+        var groundedTicks = GetSimulationTicksFromSourceTicks(GrenadeProjectileEntity.StrongDrinkGroundedFlameLifetimeTicks);
+        for (var index = 0; index < particleCount; index += 1)
+        {
+            // Erupt around the bottle blast point, then fall and settle on the ground.
+            var angle = _random.NextSingle() * MathF.Tau;
+            var radiusFactor = MathF.Sqrt(_random.NextSingle());
+            var radius = radiusFactor * (GrenadeProjectileEntity.StrongDrinkFireHorizontalSpread * 0.5f);
+            var spawnX = centerX + MathF.Cos(angle) * radius;
+            var spawnY = centerY
+                + ((_random.NextSingle() - 0.5f) * GrenadeProjectileEntity.StrongDrinkFireSpawnJitterY);
+            var burstSpeed = GrenadeProjectileEntity.StrongDrinkFireBurstSpeedMin
+                + (_random.NextSingle()
+                    * (GrenadeProjectileEntity.StrongDrinkFireBurstSpeedMax - GrenadeProjectileEntity.StrongDrinkFireBurstSpeedMin));
+            var velocityX = MathF.Cos(angle) * burstSpeed * (0.45f + (radiusFactor * 0.55f))
+                + (_random.NextSingle() - 0.5f) * GrenadeProjectileEntity.StrongDrinkFireDriftSpeed;
+            var velocityY = GrenadeProjectileEntity.StrongDrinkFireUpwardBurstMin
+                + (_random.NextSingle()
+                    * (GrenadeProjectileEntity.StrongDrinkFireUpwardBurstMax - GrenadeProjectileEntity.StrongDrinkFireUpwardBurstMin));
+            SpawnStrongDrinkSettlingFlame(
+                owner,
+                spawnX,
+                spawnY,
+                velocityX,
+                velocityY,
+                airTicks,
+                groundedTicks);
+        }
+    }
+
+    private bool CheckGrenadePlayerCollision(GrenadeProjectileEntity grenade, out PlayerEntity? hitPlayer)
+    {
+        hitPlayer = null;
+        foreach (var player in EnumerateSimulatedPlayers())
+        {
+            if (!player.IsAlive || player.Team == grenade.Team)
+            {
+                continue;
+            }
+
+            var deltaX = grenade.X - player.X;
+            var deltaY = grenade.Y - player.Y;
+            var distanceSquared = (deltaX * deltaX) + (deltaY * deltaY);
+
+            if (distanceSquared < 100f) // ~10 pixel collision radius
+            {
+                hitPlayer = player;
+                return true;
+            }
+        }
+        return false;
+    }
 
     private bool CheckGrenadeBuildingCollision(GrenadeProjectileEntity grenade, out SimulationEntity? hitBuilding)
     {
@@ -553,7 +948,7 @@ public sealed partial class ProjectileSystem
                         player,
                         gibbed: true,
                         killer: owner,
-                        weaponSpriteName: grenade.KillFeedWeaponSpriteNameOverride ?? "GrenadeLauncherKL");
+                        weaponSpriteName: ResolveGrenadeKillFeedSpriteName(grenade));
                 }
             }
         }
@@ -687,8 +1082,19 @@ public sealed partial class ProjectileSystem
                 target,
                 gibbed: true,
                 killer: owner,
-                weaponSpriteName: grenade.KillFeedWeaponSpriteNameOverride ?? "GrenadeLauncherKL");
+                weaponSpriteName: ResolveGrenadeKillFeedSpriteName(grenade));
         }
+    }
+
+    private static string ResolveGrenadeKillFeedSpriteName(GrenadeProjectileEntity grenade)
+    {
+        if (grenade.IsStrongDrink)
+        {
+            // Shot/splash/fire-rain explosion kills use the fire bottle icon; direct throws keep SniperBottleKL.
+            return GrenadeProjectileEntity.StrongDrinkFireKillFeedSpriteName;
+        }
+
+        return grenade.KillFeedWeaponSpriteNameOverride ?? "GrenadeLauncherKL";
     }
 
     private void ApplyGrenadeDirectImpactDamage(GrenadeProjectileEntity grenade, PlayerEntity? owner, SimulationEntity target)

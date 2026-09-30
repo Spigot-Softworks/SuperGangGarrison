@@ -2156,7 +2156,9 @@ public partial class Game1
     private void DrawGrenadeProjectile(GrenadeProjectileEntity grenade, Vector2 cameraPosition)
     {
         var renderPosition = GetRenderPosition(grenade.Id, grenade.X, grenade.Y);
-        var spriteName = grenade.Team == PlayerTeam.Blue ? "BlueGrenadeS" : "RedGrenadeS";
+        var spriteName = grenade.IsStrongDrink
+            ? (grenade.Team == PlayerTeam.Blue ? "BlueStrongDrinkS" : "RedStrongDrinkS")
+            : (grenade.Team == PlayerTeam.Blue ? "BlueGrenadeS" : "RedGrenadeS");
         const int FrameIndex = 0;
         var rotation = grenade.RotationAngle;
 

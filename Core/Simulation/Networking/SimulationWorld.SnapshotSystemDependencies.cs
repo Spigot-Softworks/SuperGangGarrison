@@ -12,6 +12,7 @@ public sealed partial class SimulationWorld
             GetNetworkPlayerConfiguredTeam = GetNetworkPlayerConfiguredTeam,
             GetNetworkPlayerRespawnTicks = GetNetworkPlayerRespawnTicks,
             IsNetworkPlayerReady = IsNetworkPlayerReady,
+            AreSpecialAbilitiesEnabled = () => ExperimentalGameplaySettings.EnableSecondaryAbilities,
         };
     }
 }

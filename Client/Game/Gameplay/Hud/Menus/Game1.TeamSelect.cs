@@ -58,9 +58,9 @@ public partial class Game1
             _teamSelectHoverIndex = 0;
         }
 
-        if (IsControllerMenuBackPressed() && !_world.LocalPlayerAwaitingJoin)
+        if (IsControllerMenuBackPressed())
         {
-            CloseGameplaySelectionMenus();
+            DismissGameplayTeamSelection();
             return;
         }
 

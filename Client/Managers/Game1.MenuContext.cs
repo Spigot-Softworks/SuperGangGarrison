@@ -293,6 +293,10 @@ public partial class Game1 : IMenuContext
 
     bool IMenuContext._stuckArrowsEnabled { get => _stuckArrowsEnabled; set => _stuckArrowsEnabled = value; }
 
+    WeaponBobMode IMenuContext._weaponBobMode { get => _weaponBobMode; set => _weaponBobMode = value; }
+
+    bool IMenuContext._burnCharredCorpsesEnabled { get => _burnCharredCorpsesEnabled; set => _burnCharredCorpsesEnabled = value; }
+
     bool IMenuContext._uberOutlineEnabled { get => _uberOutlineEnabled; set => _uberOutlineEnabled = value; }
 
     bool IMenuContext._useLocalWeaponRotation { get => _useLocalWeaponRotation; set => _useLocalWeaponRotation = value; }
@@ -723,6 +727,8 @@ public partial class Game1 : IMenuContext
 
     void IMenuContext.ToggleDynamicMusicSetting() { ToggleDynamicMusicSetting(); }
 
+    void IMenuContext.ToggleBurnCharredCorpsesSetting() { ToggleBurnCharredCorpsesSetting(); }
+
     void IMenuContext.ToggleDynamicRagdollSetting() { ToggleDynamicRagdollSetting(); }
 
     void IMenuContext.ToggleHealerRadarSetting() { ToggleHealerRadarSetting(); }
@@ -762,6 +768,8 @@ public partial class Game1 : IMenuContext
     void IMenuContext.ToggleSpatialVoice() { ToggleSpatialVoice(); }
 
     void IMenuContext.ToggleSpriteDropShadowSetting() { ToggleSpriteDropShadowSetting(); }
+
+    void IMenuContext.CycleWeaponBobSetting() { CycleWeaponBobSetting(); }
 
     void IMenuContext.ToggleStuckArrowsSetting() { ToggleStuckArrowsSetting(); }
 

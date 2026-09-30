@@ -320,10 +320,10 @@ internal sealed class Protocol64StatePublisher
             grenade.Y,
             grenade.VelocityX,
             grenade.VelocityY,
-            0f,
+            grenade.RotationAngle,
             grenade.FuseTicksLeft,
             active: true,
-            damage: 0,
+            damage: grenade.IsStrongDrink ? GrenadeProjectileEntity.StrongDrinkDirectHitDamage : 0f,
             stateTick,
             isCritical: grenade.IsCritical,
             criticalDamageMultiplier: grenade.CriticalDamageMultiplier)));
@@ -598,7 +598,12 @@ internal sealed class Protocol64StatePublisher
             player.CaptureProtocol64UmbrellaState(),
             IsBot: _isBotSlotProvider(slot),
             CurrentCombo: player.CurrentCombo,
-            ComboTicksRemaining: player.ComboTicksRemaining);
+            ComboTicksRemaining: player.ComboTicksRemaining,
+            EngineerBuild: player.ClassId == PlayerClass.Engineer
+                ? new Protocol64EngineerBuildState(player.Metal, player.MaxMetal,
+                    player.PassiveMetalRegenerationPerTick, player.IsInSpawnRoom)
+                : null,
+            SpecialAbilitiesEnabled: _world.ExperimentalGameplaySettings.EnableSecondaryAbilities);
 
     private static Protocol64LastToDieSniperVolleyState? ToProtocol64SniperVolleyState(
         in LastToDieSniperVolleyState state)

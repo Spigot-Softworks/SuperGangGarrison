@@ -1,0 +1,17 @@
+{
+    "id":  "BlueStrongDrinkS",
+    "framePaths":  [
+                       "assets/projectiles/BlueStrongDrinkS.images/image 0.png"
+                   ],
+    "originX":  4,
+    "originY":  11,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "FULL",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

@@ -28,6 +28,14 @@ public sealed partial class SimulationWorld
         }
 
         ApplySnapshotPlayerState(snapshot, localPlayerSlot, localPlayerState, isSpectatorSnapshot);
+        var abilitySettingsPlayer = localPlayerState ?? snapshot.Players.FirstOrDefault();
+        var abilitySettings = abilitySettingsPlayer?.ReplicatedStates?.FirstOrDefault(entry =>
+            entry.OwnerId == GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId
+            && entry.Key == GameplayAbilityReplicatedState.SpecialAbilitiesEnabledKey);
+        if (abilitySettings is not null)
+        {
+            ApplyNetworkSpecialAbilitiesSetting(abilitySettings.BoolValue);
+        }
         ApplySnapshotTransientEntities(snapshot);
         ApplySnapshotEventQueues(snapshot);
 
@@ -877,6 +885,7 @@ public sealed partial class SimulationWorld
             state.AttachedOffsetX,
             state.AttachedOffsetY);
         entity.HydrateCritical(state.IsCritical, state.CriticalDamageMultiplier);
+        entity.HydrateSettleState(state.SettlesOnGround, state.IsGrounded);
     }
 
     private static void ApplyMineSnapshotState(MineProjectileEntity entity, SnapshotMineState state)
@@ -902,9 +911,12 @@ public sealed partial class SimulationWorld
             state.VelocityX,
             state.VelocityY,
             isDestroyed: false,
-            GrenadeProjectileEntity.BaseExplosionDamage,
+            state.IsStrongDrink
+                ? RocketProjectileEntity.ExplosionDamage
+                : GrenadeProjectileEntity.BaseExplosionDamage,
             state.FuseTicksLeft);
         entity.HydrateCritical(state.IsCritical, state.CriticalDamageMultiplier);
+        entity.HydrateStrongDrink(state.IsStrongDrink);
     }
 
     private static bool ShouldApplyExistingRocketState(RocketProjectileEntity entity, SnapshotRocketState state)
@@ -929,7 +941,9 @@ public sealed partial class SimulationWorld
 
         return entity.IsCritical != state.IsCritical
             || entity.CriticalDamageMultiplier != state.CriticalDamageMultiplier
-            || (attachedPlayerId.HasValue && entity.AttachedPlayerId != attachedPlayerId);
+            || (attachedPlayerId.HasValue && entity.AttachedPlayerId != attachedPlayerId)
+            || entity.SettlesOnGround != state.SettlesOnGround
+            || entity.IsGrounded != state.IsGrounded;
     }
 
     private static bool ShouldApplyExistingMineState(MineProjectileEntity entity, SnapshotMineState state)
@@ -944,7 +958,8 @@ public sealed partial class SimulationWorld
     {
         return ShouldApplyLocallySimulatedProjectileState(entity.FuseTicksLeft, state.FuseTicksLeft)
             || entity.IsCritical != state.IsCritical
-            || entity.CriticalDamageMultiplier != state.CriticalDamageMultiplier;
+            || entity.CriticalDamageMultiplier != state.CriticalDamageMultiplier
+            || entity.IsStrongDrink != state.IsStrongDrink;
     }
 
     /// <summary>
@@ -1375,6 +1390,7 @@ public sealed partial class SimulationWorld
                 && entity.Width == state.Width
                 && entity.Height == state.Height
                 && entity.FacingLeft == state.FacingLeft
+                && entity.DiedToFire == state.DiedToFire
                 && string.Equals(entity.GameplayClassId, state.GameplayClassId, StringComparison.Ordinal),
             state => new DeadBodyEntity(
                 state.Id,
@@ -1389,7 +1405,8 @@ public sealed partial class SimulationWorld
                 state.HorizontalSpeed,
                 state.VerticalSpeed,
                 state.FacingLeft,
-                state.GameplayClassId),
+                state.GameplayClassId,
+                state.DiedToFire),
             static (entity, state) => entity.ApplyNetworkState(
                 state.X,
                 state.Y,

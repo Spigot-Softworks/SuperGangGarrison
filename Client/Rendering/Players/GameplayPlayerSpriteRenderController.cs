@@ -94,11 +94,42 @@ public sealed class GameplayPlayerSpriteRenderController
                 }
             }
 
+            // Keep the composite silhouette for outlines, shadows and history,
+            // but draw independently authored legs and torso for the live body.
+            var legs = !isHeavyEating && !player.IsTaunting && !isPogo
+                && bodySelection.LegsSpriteName is { } legsName ? _game.GetResolvedSprite(legsName) : null;
+            var torso = !isHeavyEating && !player.IsTaunting && !isPogo
+                && bodySelection.TorsoSpriteName is { } torsoName ? _game.GetResolvedSprite(torsoName) : null;
+            void DrawBody(Color color, bool multiply = false)
+            {
+                // Fade the precomposited silhouette for translucency: fading two
+                // overlapping layers independently would reveal the waist seam.
+                if (tint.A == 255 && legs is not null && torso is not null
+                    && frameIndex < legs.Frames.Count && frameIndex < torso.Frames.Count)
+                {
+                    if (multiply)
+                    {
+                        // Color the final silhouette once, avoiding double tint at overlaps.
+                        _game.DrawSpriteFrameMultiplyColor(sprite.Frames[frameIndex], position, color, 0f, sprite.Origin.ToVector2(), scale);
+                    }
+                    else
+                    {
+                        _game.DrawSpriteFrame(legs.Frames[frameIndex], position, color, 0f, legs.Origin.ToVector2(), scale);
+                        _game.DrawSpriteFrame(torso.Frames[frameIndex], position, color, 0f, torso.Origin.ToVector2(), scale);
+                    }
+                }
+                else if (multiply)
+                    _game.DrawSpriteFrameMultiplyColor(sprite.Frames[frameIndex], position, color, 0f, sprite.Origin.ToVector2(), scale);
+                else
+                    _game.DrawSpriteFrame(sprite.Frames[frameIndex], position, color, 0f, sprite.Origin.ToVector2(), scale);
+            }
+
             if (player.IsUbered)
             {
                 if (_game.IsKritzUberWeaponOnlyVisual(player))
                 {
-                    _game.DrawSpriteFrameWithOptionalShadow(sprite.Frames[frameIndex], position, tint, 0f, sprite.Origin.ToVector2(), scale);
+                    _game.DrawSpriteFrameShadow(sprite.Frames[frameIndex], position, tint, 0f, sprite.Origin.ToVector2(), scale);
+                    DrawBody(tint);
                 }
                 else
                 {
@@ -109,13 +140,14 @@ public sealed class GameplayPlayerSpriteRenderController
                 {
                     _game.DrawSpriteFrameOutline(sprite.Frames[frameIndex], position, outlineTint, 0f, sprite.Origin.ToVector2(), scale);
                 }
-                _game.DrawSpriteFrame(sprite.Frames[frameIndex], position, tint, 0f, sprite.Origin.ToVector2(), scale);
-                _game.DrawSpriteFrameMultiplyColor(sprite.Frames[frameIndex], position, teamColor, 0f, sprite.Origin.ToVector2(), scale);
+                DrawBody(tint);
+                DrawBody(teamColor, multiply: true);
                 }
             }
             else
             {
-                _game.DrawSpriteFrameWithOptionalShadow(sprite.Frames[frameIndex], position, tint, 0f, sprite.Origin.ToVector2(), scale);
+                _game.DrawSpriteFrameShadow(sprite.Frames[frameIndex], position, tint, 0f, sprite.Origin.ToVector2(), scale);
+                DrawBody(tint);
             }
 
             if (drawIntelOverlay && !isHeavyEating && !player.IsTaunting && bodySelection.DrawIntelUnderlay)
@@ -315,13 +347,11 @@ public sealed class GameplayPlayerSpriteRenderController
             }
 
             var equipmentOffset = bodyYOffset;
-            if (isRunSprite && !appearsAirborne)
+            var weaponBobMode = OpenGarrisonPreferencesDocument.NormalizeWeaponBobMode(_game._weaponBobMode);
+            if (isRunSprite && !appearsAirborne && weaponBobMode != WeaponBobMode.Disabled)
             {
-                var frame = (int)System.MathF.Floor(animationImage) % 8;
-                if (IsRunEquipmentLowerFrame(frame))
-                {
-                    equipmentOffset -= 2f;
-                }
+                var frame = GetRunEquipmentBobFrame((int)System.MathF.Floor(animationImage), delayByOneFrame: true);
+                equipmentOffset += IsRunEquipmentLowerFrame(frame) ? -2f : 0f;
             }
 
             if (isHeavySlowWalk)
@@ -348,7 +378,16 @@ public sealed class GameplayPlayerSpriteRenderController
             return System.MathF.Cos(radians) < 0f;
         }
 
-        public static string? GetTauntSpriteName(PlayerEntity player) => GetPresentationSpriteName(player, static presentation => presentation.TauntSuffix ?? presentation.BaseSuffix, "TauntS");
+        public string? GetTauntSpriteName(PlayerEntity player)
+        {
+            var skin = _game.GetPlayerSkin(player);
+            if (skin?.TauntSprite is { } tauntSprite)
+            {
+                return skin.SpriteForTeam(tauntSprite, player.Team);
+            }
+
+            return GetPresentationSpriteName(player, static presentation => presentation.TauntSuffix ?? presentation.BaseSuffix, "TauntS");
+        }
         public static string? GetPogoSpriteName(PlayerEntity player) => GetPresentationSpriteName(player, static presentation => presentation.PogoSuffix ?? presentation.BaseSuffix, "PogoS");
         public static string? GetPogoTrickSpriteName(PlayerEntity player) => GetPresentationSpriteName(player, static presentation => presentation.PogoTrickSuffix ?? presentation.PogoSuffix ?? presentation.BaseSuffix, "PogoTrickS");
 
@@ -361,11 +400,26 @@ public sealed class GameplayPlayerSpriteRenderController
         /// <summary>
         /// Run equipment is drawn 2px lower on the down-bob frames of the run cycle.
         /// Run sprites were realigned so frame 0 matches the intended cycle start; down-bob is on {0,1,4,5}.
+        /// When weapon bob is enabled, callers should pass the prior run frame so equipment lags the body.
         /// </summary>
         public static bool IsRunEquipmentLowerFrame(int frameIndex)
         {
             var frame = ((frameIndex % 8) + 8) % 8;
             return frame is 0 or 1 or 4 or 5;
+        }
+
+        /// <summary>
+        /// Resolves the run-cycle equipment bob frame, optionally delayed by one frame for inertia.
+        /// </summary>
+        public static int GetRunEquipmentBobFrame(int runFrameIndex, bool delayByOneFrame)
+        {
+            var frame = ((runFrameIndex % 8) + 8) % 8;
+            if (delayByOneFrame)
+            {
+                frame = ((frame - 1) % 8 + 8) % 8;
+            }
+
+            return frame;
         }
         public static string? GetWalkSpriteName(PlayerEntity player) => GetPresentationSpriteName(player, static presentation => presentation.WalkSuffix ?? presentation.RunSuffix ?? presentation.BaseSuffix, "WalkS");
         public static string? GetHudStandingSpriteName(PlayerEntity player) => GetPresentationSpriteName(player, static presentation => presentation.StandSuffix ?? presentation.BaseSuffix, "StandS");
@@ -560,7 +614,19 @@ public sealed class GameplayPlayerSpriteRenderController
             return System.Math.Clamp((poseOffset * framesPerPose) + poseFrame, 0, frameCount - 1);
         }
 
-        private static int GetTauntSpriteFrameIndex(PlayerEntity player, int frameCount) => frameCount <= 0 ? 0 : System.Math.Clamp((int)System.MathF.Floor(player.TauntFrameIndex), 0, frameCount - 1);
+        private static int GetTauntSpriteFrameIndex(PlayerEntity player, int frameCount)
+        {
+            if (frameCount <= 0)
+            {
+                return 0;
+            }
+
+            // TauntLengthFrames is the fixed duration unit. Stretch whatever art
+            // strip we have across that window so more frames still finish on time.
+            var length = System.Math.Max(1, player.ClassDefinition.TauntLengthFrames);
+            var index = (int)System.MathF.Floor(player.TauntFrameIndex * frameCount / length);
+            return System.Math.Clamp(index, 0, frameCount - 1);
+        }
 
         private static int GetHeavyEatSpriteFrameIndex(int heavyEatTicksRemaining, int frameCount, PlayerTeam team, int durationTicks = PlayerEntity.HeavyEatDurationTicks)
         {

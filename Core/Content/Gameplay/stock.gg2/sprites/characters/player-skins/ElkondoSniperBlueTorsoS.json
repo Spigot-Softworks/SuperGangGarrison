@@ -1,0 +1,16 @@
+{
+  "id": "ElkondoSniperBlueTorsoS",
+  "framePaths": [
+    "assets/characters/player-skins/ElkondoSniperBlueTorsoS/0.png",
+    "assets/characters/player-skins/ElkondoSniperBlueTorsoS/1.png",
+    "assets/characters/player-skins/ElkondoSniperBlueTorsoS/2.png",
+    "assets/characters/player-skins/ElkondoSniperBlueTorsoS/3.png",
+    "assets/characters/player-skins/ElkondoSniperBlueTorsoS/4.png",
+    "assets/characters/player-skins/ElkondoSniperBlueTorsoS/5.png",
+    "assets/characters/player-skins/ElkondoSniperBlueTorsoS/6.png",
+    "assets/characters/player-skins/ElkondoSniperBlueTorsoS/7.png",
+    "assets/characters/player-skins/ElkondoSniperBlueTorsoS/8.png"
+  ],
+  "originX": 32,
+  "originY": 40
+}

@@ -36,6 +36,7 @@ public partial class Game1 : IRenderContext
     bool IRenderContext._uberOutlineEnabled { get => _uberOutlineEnabled; set => _uberOutlineEnabled = value; }
 
     bool IRenderContext._useLocalWeaponRotation { get => _useLocalWeaponRotation; set => _useLocalWeaponRotation = value; }
+    WeaponBobMode IRenderContext._weaponBobMode { get => _weaponBobMode; set => _weaponBobMode = value; }
 
     Dictionary<int, Game1.RetainedDeadBodyVisual> IRenderContext._trackedDeadBodyVisuals => _trackedDeadBodyVisuals;
 
@@ -199,7 +200,11 @@ public partial class Game1 : IRenderContext
 
     bool IRenderContext.ShouldHideLastToDieWeaponForPlayer(PlayerEntity player) => ShouldHideLastToDieWeaponForPlayer(player);
 
-    void IRenderContext.SpawnDynamicRagdoll(int deadBodyId, int sourcePlayerId, PlayerClass classId, PlayerTeam team, DeadBodyAnimationKind animationKind, string gameplayClassId, bool facingLeft, float x, float y, float knockbackX, float knockbackY) => SpawnDynamicRagdoll(deadBodyId, sourcePlayerId, classId, team, animationKind, gameplayClassId, facingLeft, x, y, knockbackX, knockbackY);
+    void IRenderContext.SpawnDynamicRagdoll(int deadBodyId, int sourcePlayerId, PlayerClass classId, PlayerTeam team, DeadBodyAnimationKind animationKind, string gameplayClassId, bool facingLeft, float x, float y, float knockbackX, float knockbackY, bool diedToFire) => SpawnDynamicRagdoll(deadBodyId, sourcePlayerId, classId, team, animationKind, gameplayClassId, facingLeft, x, y, knockbackX, knockbackY, diedToFire);
+    bool IRenderContext.ResolveDeadBodyDiedToFire(int deadBodyId, int sourcePlayerId) => ResolveDeadBodyDiedToFire(deadBodyId, sourcePlayerId);
+    bool IRenderContext.TryDrawBurnCharredCorpse(int corpseId, int sourcePlayerId, bool diedToFire, float worldX, float worldY, float corpseHeight, bool facingLeft, string gameplayClassId, PlayerClass classId, PlayerTeam team, DeadBodyAnimationKind animationKind, int ticksRemaining, Vector2 cameraPosition) => TryDrawBurnCharredCorpse(corpseId, sourcePlayerId, diedToFire, worldX, worldY, corpseHeight, facingLeft, gameplayClassId, classId, team, animationKind, ticksRemaining, cameraPosition);
+    PlayerSkinDefinition? IRenderContext.GetPlayerSkin(PlayerEntity player) => GetPlayerSkin(player);
+    int IRenderContext.GetPlayerStrongDrinkChargeTicks(PlayerEntity player) => GetPlayerStrongDrinkChargeTicks(player);
 
     void IRenderContext.TryDrawAdditionalHealthBar(PlayerEntity player, Vector2 cameraPosition, float visibilityAlpha) => TryDrawAdditionalHealthBar(player, cameraPosition, visibilityAlpha);
 

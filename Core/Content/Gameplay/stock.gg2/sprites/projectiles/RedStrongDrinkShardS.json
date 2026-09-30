@@ -1,0 +1,23 @@
+{
+    "id": "RedStrongDrinkShardS",
+    "framePaths": [
+        "assets/projectiles/RedStrongDrinkShardS.images/image 0.png",
+        "assets/projectiles/RedStrongDrinkShardS.images/image 1.png",
+        "assets/projectiles/RedStrongDrinkShardS.images/image 2.png",
+        "assets/projectiles/RedStrongDrinkShardS.images/image 3.png",
+        "assets/projectiles/RedStrongDrinkShardS.images/image 4.png",
+        "assets/projectiles/RedStrongDrinkShardS.images/image 5.png",
+        "assets/projectiles/RedStrongDrinkShardS.images/image 6.png"
+    ],
+    "originX": 4,
+    "originY": 3,
+    "mask": {
+        "separate": false,
+        "shape": "RECTANGLE",
+        "boundsMode": "FULL",
+        "left": null,
+        "top": null,
+        "right": null,
+        "bottom": null
+    }
+}

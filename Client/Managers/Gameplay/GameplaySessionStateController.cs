@@ -31,6 +31,7 @@ public sealed class GameplaySessionStateController
             _context.CloseMainMenuOverlayState();
             _context.CloseGameplayOverlayState();
             _context._teamSelectOpen = openJoinMenus;
+            _context._pendingMapTeamSelection = false;
             _context._menuStatusMessage = statusMessage ?? string.Empty;
             _context.InvalidateDiscordRichPresenceRefresh();
 
@@ -47,6 +48,7 @@ public sealed class GameplaySessionStateController
             _context._pendingHostedConnectTicks = -1;
             _context._pendingHostedConnectPort = OpenGarrisonPreferencesDocument.DefaultServerPort;
             _context._mainMenuOpen = true;
+            _context._pendingMapTeamSelection = false;
             _context._mainMenuPage = MainMenuPage.Root;
             _context._mainMenuHoverIndex = -1;
             _context._mainMenuBottomBarHover = false;

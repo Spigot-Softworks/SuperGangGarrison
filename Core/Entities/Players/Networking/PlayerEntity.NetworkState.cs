@@ -20,7 +20,8 @@ public sealed partial class PlayerEntity
         // Reject the complete packet before class, profile, loadout, or ammo
         // fields are touched. A malformed nested equipment record is not a
         // legacy partial update and must never leave a half-hydrated player.
-        if (!PlayerEntity.IsValidProtocol64EquipmentState(state))
+        if (state.EngineerBuild is { IsValid: false }
+            || !PlayerEntity.IsValidProtocol64EquipmentState(state))
         {
             return;
         }
@@ -30,6 +31,13 @@ public sealed partial class PlayerEntity
             || ClassDefinition.Id != classDefinition.Id)
         {
             SetClassDefinition(classDefinition);
+        }
+
+        if (state.EngineerBuild is { } build)
+        {
+            ConfigureExperimentalMetal(build.MaxMetal, build.PassiveRegenPerTick);
+            Metal = build.Metal;
+            SetSpawnRoomState(build.IsInSpawnRoom);
         }
 
         HydrateProtocol64LastToDieWeaponProfileState(state.LastToDieSpyRevolverState);

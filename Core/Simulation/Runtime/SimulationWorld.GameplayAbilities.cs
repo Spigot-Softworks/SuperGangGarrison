@@ -194,7 +194,14 @@ public sealed partial class SimulationWorld
         return !player.IsTaunting || ability.Tags.Contains("allowed_while_taunting", StringComparer.Ordinal);
     }
 
-    private bool IsGameplayAbilityBlockedBySpecialAbilitiesSetting(GameplayAbilityDefinition ability)
+    private void ApplyNetworkSpecialAbilitiesSetting(bool enabled)
+    {
+        // Equipment arrives with the authoritative player state; avoid rebuilding
+        // loadouts here and overwriting that equipment during reconciliation.
+        ExperimentalGameplaySettings = ExperimentalGameplaySettings with { EnableSecondaryAbilities = enabled };
+    }
+
+    internal bool IsGameplayAbilityBlockedBySpecialAbilitiesSetting(GameplayAbilityDefinition ability)
     {
         if (ExperimentalGameplaySettings.EnableSecondaryAbilities)
         {
@@ -486,6 +493,114 @@ public sealed partial class SimulationWorld
     internal static GameplayAbilityResult ExecuteSniperBinocularsAbility(GameplayAbilityContext context)
     {
         return new GameplayAbilityResult(context.Player.TryToggleBinoculars(), ConsumedInput: true);
+    }
+
+    internal GameplayAbilityResult ExecuteSniperStrongDrinkAbility(GameplayAbilityContext context)
+    {
+        var player = context.Player;
+        if (player.ClassId != PlayerClass.Sniper || !player.IsAlive)
+        {
+            player.CancelStrongDrinkCharge();
+            return new GameplayAbilityResult(Handled: false, ConsumedInput: true);
+        }
+
+        var cooldownTicks = GameplayAbilityParameterReader.GetTicks(
+            context.Ability,
+            "cooldownTicks",
+            "cooldownSeconds",
+            450,
+            Config.TicksPerSecond);
+        if (player.TryGetReplicatedStateInt(
+                GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId,
+                GameplayAbilityReplicatedState.SniperStrongDrinkCooldownTicksKey,
+                out var remainingCooldown)
+            && remainingCooldown > 0)
+        {
+            player.CancelStrongDrinkCharge();
+            return new GameplayAbilityResult(Handled: false, ConsumedInput: true);
+        }
+
+        if (player.IsTaunting || player.IsHeavyEating)
+        {
+            player.CancelStrongDrinkCharge();
+            return new GameplayAbilityResult(Handled: false, ConsumedInput: true);
+        }
+
+        var maxThrowSpeed = GameplayAbilityParameterReader.GetFloat(
+            context.Ability,
+            "throwSpeed",
+            PlayerEntity.StrongDrinkMaxThrowSpeed,
+            minValue: 0.1f);
+        // Legacy alias used by older ability params.
+        if (context.Ability.Parameters.ContainsKey("maxThrowSpeed"))
+        {
+            maxThrowSpeed = GameplayAbilityParameterReader.GetFloat(
+                context.Ability,
+                "maxThrowSpeed",
+                maxThrowSpeed,
+                minValue: 0.1f);
+        }
+
+        var lobBiasDegrees = GameplayAbilityParameterReader.GetFloat(
+            context.Ability,
+            "lobBiasDegrees",
+            PlayerEntity.StrongDrinkLobBiasDegrees,
+            minValue: 0f);
+        var gravityPerTick = GameplayAbilityParameterReader.GetFloat(
+            context.Ability,
+            "gravityPerTick",
+            GrenadeProjectileEntity.StrongDrinkGravityPerTick,
+            minValue: 0f);
+        var spinSpeed = GameplayAbilityParameterReader.GetFloat(
+            context.Ability,
+            "spinSpeed",
+            GrenadeProjectileEntity.StrongDrinkDefaultSpinSpeed);
+        var fuseTicks = GameplayAbilityParameterReader.GetInt(
+            context.Ability,
+            "fuseTicks",
+            GrenadeProjectileEntity.StrongDrinkDefaultFuseTicks,
+            minValue: 1);
+        var directionDegrees = PointDirectionDegrees(
+            player.X,
+            player.Y,
+            context.Input.AimWorldX,
+            context.Input.AimWorldY);
+
+        if (context.Phase == GameplayAbilityInputPhase.Released)
+        {
+            // Holding is only for the aim-arc preview; release always throws at full strength.
+            if (!player.TryReleaseStrongDrinkCharge(out _, out _))
+            {
+                return new GameplayAbilityResult(Handled: false, ConsumedInput: false);
+            }
+
+            WeaponHandler.FireStrongDrink(
+                player,
+                context.Input.AimWorldX,
+                context.Input.AimWorldY,
+                maxThrowSpeed,
+                chargeFraction: 1f,
+                spinSpeed,
+                fuseTicks,
+                lobBiasDegrees,
+                gravityPerTick);
+            player.SetGameplayAbilityCooldownReplicatedState(
+                GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId,
+                GameplayAbilityReplicatedState.SniperStrongDrinkCooldownTicksKey,
+                cooldownTicks);
+            return GameplayAbilityResult.HandledAndConsumed;
+        }
+
+        if (player.StrongDrinkChargeTicks == 0)
+        {
+            return new GameplayAbilityResult(
+                player.TryStartStrongDrinkCharge(directionDegrees),
+                ConsumedInput: true);
+        }
+
+        // Keep the preview aim live while held; throw power is not charged.
+        player.IncrementStrongDrinkCharge(directionDegrees, maxChargeTicks: 1);
+        return GameplayAbilityResult.HandledAndConsumed;
     }
 
     internal GameplayAbilityResult ExecuteMedicNeedlegunAbility(GameplayAbilityContext context)

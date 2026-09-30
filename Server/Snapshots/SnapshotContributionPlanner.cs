@@ -1218,7 +1218,8 @@ internal static class SnapshotContributionPlanner
             return false;
         }
 
-        return entry.Key is GameplayAbilityReplicatedState.HeavyDashCooldownTicksKey
+        return entry.Key is GameplayAbilityReplicatedState.SpecialAbilitiesEnabledKey
+            or GameplayAbilityReplicatedState.HeavyDashCooldownTicksKey
             or GameplayAbilityReplicatedState.HeavyDashActiveKey
             or GameplayAbilityReplicatedState.HeavyDashVisibleKey
             or GameplayAbilityReplicatedState.HeavyDashTrailAlphaKey

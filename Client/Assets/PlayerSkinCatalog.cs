@@ -59,6 +59,14 @@ public sealed class PlayerSkinCatalog
             {
                 Require(!string.IsNullOrWhiteSpace(legsBody), "legsBodySprite must not be blank when supplied.");
             }
+            if (skin.TauntSprite is { } tauntSprite)
+            {
+                Require(!string.IsNullOrWhiteSpace(tauntSprite), "tauntSprite must not be blank when supplied.");
+            }
+            Require(skin.TorsoBodySprite is null || (!string.IsNullOrWhiteSpace(skin.TorsoBodySprite)
+                && skin.LegsBodySprite is not null), "torsoBodySprite requires legsBodySprite.");
+            Require((skin.CloakedLegsBodySprite is null) == (skin.CloakedTorsoBodySprite is null),
+                "cloaked torso and legs must be supplied together.");
             Require(skin.Origin.Length == 2, "origin must have two coordinates.");
             Require(skin.PixelScale is >= 1 and <= 8, "pixelScale must be an integer from 1 to 8.");
             Require(float.IsFinite(skin.PixelsPerRunFrame) && skin.PixelsPerRunFrame > 0, "pixelsPerRunFrame must be positive.");
@@ -96,15 +104,23 @@ public sealed class PlayerSkinCatalog
 
 public sealed class PlayerSkinDefinition
 {
+    // Composite silhouette retained for outlines, shadows and afterimages.
     public string BodySprite { get; set; } = "";
     /// <summary>
-    /// Optional legs-only body strip for weapons that replace the torso layer.
+    /// Legs layer, also used alone when an equipped weapon replaces the torso.
     /// </summary>
     public string? LegsBodySprite { get; set; }
+    /// <summary>
+    /// Optional taunt strip used while this skin is active (e.g. Elkondo mode).
+    /// </summary>
+    public string? TauntSprite { get; set; }
+    public string? TorsoBodySprite { get; set; }
+    public string? CloakedLegsBodySprite { get; set; }
+    public string? CloakedTorsoBodySprite { get; set; }
     public string? CloakedBodySprite { get; set; }
     public int[] Origin { get; set; } = [];
     public int PixelScale { get; set; } = 1;
-    public float PixelsPerRunFrame { get; set; } = 15;
+    public float PixelsPerRunFrame { get; set; } = 12;
     public float EquipmentOffset { get; set; }
     public Dictionary<string, JsonElement> Teams { get; set; } = new();
     public Dictionary<string, PlayerSkinClip> Clips { get; set; } = new();

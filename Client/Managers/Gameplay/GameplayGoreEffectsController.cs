@@ -43,12 +43,17 @@ public sealed partial class GameplayGoreEffectsController
             ResetBloodSquibEffects();
             _context.ResetDynamicRagdollEffects();
             _context.ResetCorpseAcidDissolves();
+            _context.ResetBurnCharredCorpses();
         }
 
         public void AdvanceBloodVisuals()
         {
+            // Retain an expired body's pose before ragdoll synchronization can
+            // prune it. Drawing may be skipped for several simulation ticks.
+            _context.SyncRetainedDeadBodies();
             _context.AdvanceDynamicRagdolls();
             _context.SyncDynamicRagdollsWithDeadBodies();
+            _context.AdvanceBurnCharredCorpses();
             _context.AdvanceCorpseAcidDissolves();
 
             if (!_context.AreBloodVisualsEnabled)
