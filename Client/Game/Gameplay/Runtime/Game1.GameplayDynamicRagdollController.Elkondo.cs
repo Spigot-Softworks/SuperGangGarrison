@@ -427,7 +427,8 @@ public partial class Game1
     // Visual-only; uses the same on-player sprite pivot. Never feeds collision.
     private void TryCaptureElkondoRagdollWeapon(DynamicRagdollState ragdoll, PlayerEntity? player)
     {
-        if (player is null)
+        if (player is null || player.IsAlive
+            || player.ClassId != ragdoll.ClassId || player.Team != ragdoll.Team)
         {
             return;
         }

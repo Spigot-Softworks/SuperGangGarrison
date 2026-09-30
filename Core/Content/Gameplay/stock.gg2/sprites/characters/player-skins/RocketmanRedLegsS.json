@@ -1,0 +1,24 @@
+{
+  "id": "RocketmanRedLegsS",
+  "framePaths": [
+    "assets/characters/player-skins/RocketmanRedLegsS/0.png",
+    "assets/characters/player-skins/RocketmanRedLegsS/1.png",
+    "assets/characters/player-skins/RocketmanRedLegsS/2.png",
+    "assets/characters/player-skins/RocketmanRedLegsS/3.png",
+    "assets/characters/player-skins/RocketmanRedLegsS/4.png",
+    "assets/characters/player-skins/RocketmanRedLegsS/5.png",
+    "assets/characters/player-skins/RocketmanRedLegsS/6.png",
+    "assets/characters/player-skins/RocketmanRedLegsS/7.png",
+    "assets/characters/player-skins/RocketmanRedLegsS/8.png",
+    "assets/characters/player-skins/RocketmanRedLegsS/9.png",
+    "assets/characters/player-skins/RocketmanRedLegsS/10.png",
+    "assets/characters/player-skins/RocketmanRedLegsS/11.png",
+    "assets/characters/player-skins/RocketmanRedLegsS/12.png",
+    "assets/characters/player-skins/RocketmanRedLegsS/13.png",
+    "assets/characters/player-skins/RocketmanRedLegsS/14.png",
+    "assets/characters/player-skins/RocketmanRedLegsS/15.png",
+    "assets/characters/player-skins/RocketmanRedLegsS/16.png"
+  ],
+  "originX": 32,
+  "originY": 40
+}

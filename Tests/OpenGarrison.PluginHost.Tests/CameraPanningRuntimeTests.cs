@@ -7,6 +7,27 @@ namespace OpenGarrison.PluginHost.Tests;
 
 public sealed class CameraPanningRuntimeTests
 {
+    [Fact]
+    public void StationarySubpixelCorrectionsDoNotShakeCameraWithPanningDisabled()
+    {
+        var game = (Game1)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(Game1));
+        SetPrivateField(game, "_cameraPanningEnabled", false);
+        SetPrivateField(game, "_gameplayPresentationDeltaSeconds", 1f / 60f);
+        var origin = new Vector2(400, 500);
+        Assert.Equal(origin, game.AdvanceSmoothCameraTarget(origin, 0.5f));
+        for (var frame = 1; frame <= 120; frame++)
+        {
+            SetPrivateField(game, "_networkInterpolationClockSeconds", frame / 60d);
+            var jitter = new Vector2(frame % 2 == 0 ? 0.05f : -0.05f);
+            Assert.Equal(origin, game.AdvanceSmoothCameraTarget(origin + jitter, 0.5f));
+        }
+        SetPrivateField(game, "_networkInterpolationClockSeconds", 3d);
+        var moving = game.AdvanceSmoothCameraTarget(origin + new Vector2(20, 0), 0.5f);
+        Assert.True(moving.X > origin.X);
+        Assert.True(moving.X < origin.X + 20);
+        Assert.Equal(origin.Y, moving.Y);
+    }
+
     [Theory]
     [InlineData(960, 540)]
     [InlineData(800, 600)]

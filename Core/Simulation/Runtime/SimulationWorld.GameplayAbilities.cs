@@ -194,7 +194,14 @@ public sealed partial class SimulationWorld
         return !player.IsTaunting || ability.Tags.Contains("allowed_while_taunting", StringComparer.Ordinal);
     }
 
-    private bool IsGameplayAbilityBlockedBySpecialAbilitiesSetting(GameplayAbilityDefinition ability)
+    private void ApplyNetworkSpecialAbilitiesSetting(bool enabled)
+    {
+        // Equipment arrives with the authoritative player state; avoid rebuilding
+        // loadouts here and overwriting that equipment during reconciliation.
+        ExperimentalGameplaySettings = ExperimentalGameplaySettings with { EnableSecondaryAbilities = enabled };
+    }
+
+    internal bool IsGameplayAbilityBlockedBySpecialAbilitiesSetting(GameplayAbilityDefinition ability)
     {
         if (ExperimentalGameplaySettings.EnableSecondaryAbilities)
         {

@@ -598,7 +598,12 @@ internal sealed class Protocol64StatePublisher
             player.CaptureProtocol64UmbrellaState(),
             IsBot: _isBotSlotProvider(slot),
             CurrentCombo: player.CurrentCombo,
-            ComboTicksRemaining: player.ComboTicksRemaining);
+            ComboTicksRemaining: player.ComboTicksRemaining,
+            EngineerBuild: player.ClassId == PlayerClass.Engineer
+                ? new Protocol64EngineerBuildState(player.Metal, player.MaxMetal,
+                    player.PassiveMetalRegenerationPerTick, player.IsInSpawnRoom)
+                : null,
+            SpecialAbilitiesEnabled: _world.ExperimentalGameplaySettings.EnableSecondaryAbilities);
 
     private static Protocol64LastToDieSniperVolleyState? ToProtocol64SniperVolleyState(
         in LastToDieSniperVolleyState state)

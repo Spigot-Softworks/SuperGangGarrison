@@ -740,11 +740,13 @@ internal static class SnapshotDeltaBudgeter
                 && entry.Key.Contains("_ammo", StringComparison.Ordinal))
             || (string.Equals(entry.OwnerId, "core.player", StringComparison.Ordinal)
                 && string.Equals(entry.Key, "engineer_alternate_weapon_mode", StringComparison.Ordinal))
+            || (string.Equals(entry.OwnerId, "core.player", StringComparison.Ordinal)
+                && entry.Key.StartsWith("whipping_cord_", StringComparison.Ordinal))
             || (!string.Equals(entry.OwnerId, "core.player", StringComparison.Ordinal)
                 && entry.Kind == SnapshotReplicatedStateValueKind.Whole
                 && entry.Key.Contains("cooldown", StringComparison.OrdinalIgnoreCase))
             || (string.Equals(entry.OwnerId, "core.ability", StringComparison.Ordinal)
-                && entry.Key is "sniper_charge_ticks" or "sniper_bow_charge_ticks")
+                && entry.Key is "sniper_charge_ticks" or "sniper_bow_charge_ticks" or "special_abilities_enabled")
             || string.Equals(entry.OwnerId, "ltd.status", StringComparison.Ordinal)
             || string.Equals(entry.OwnerId, "ltd.weapon", StringComparison.Ordinal)
             || string.Equals(entry.OwnerId, "ltd.link", StringComparison.Ordinal)
@@ -772,7 +774,7 @@ internal static class SnapshotDeltaBudgeter
             ActiveDominationCount = 0,
             IsDominatingLocalViewer = false,
             IsDominatedByLocalViewer = false,
-            Metal = 0f,
+            // Preserve authoritative metal: zero disables Constructor build choices.
             IsGrounded = false,
             RemainingAirJumps = 0,
             IsCarryingIntel = false,

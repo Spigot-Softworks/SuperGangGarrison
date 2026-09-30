@@ -1248,6 +1248,11 @@ public partial class Game1
             var seenItemIds = new HashSet<string>(StringComparer.Ordinal);
             foreach (var item in player.GetGameplayAbilityItems())
             {
+                if (item.Ability is { } ability
+                    && _game._world.IsGameplayAbilityBlockedBySpecialAbilitiesSetting(ability))
+                {
+                    continue;
+                }
                 if (seenItemIds.Add(item.Id))
                 {
                     yield return item;
@@ -1275,6 +1280,7 @@ public partial class Game1
                 {
                     if (!CharacterClassCatalog.RuntimeRegistry.TryGetItem(abilityItemId, out var abilityItem)
                         || abilityItem.Ability is null
+                        || _game._world.IsGameplayAbilityBlockedBySpecialAbilitiesSetting(abilityItem.Ability)
                         || !ShouldShowStowedGrantedAbilityHud(abilityItem.Presentation.Hud)
                         || !seenItemIds.Add(abilityItem.Id))
                     {

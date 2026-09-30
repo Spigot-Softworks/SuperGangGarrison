@@ -28,6 +28,14 @@ public sealed partial class SimulationWorld
         }
 
         ApplySnapshotPlayerState(snapshot, localPlayerSlot, localPlayerState, isSpectatorSnapshot);
+        var abilitySettingsPlayer = localPlayerState ?? snapshot.Players.FirstOrDefault();
+        var abilitySettings = abilitySettingsPlayer?.ReplicatedStates?.FirstOrDefault(entry =>
+            entry.OwnerId == GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId
+            && entry.Key == GameplayAbilityReplicatedState.SpecialAbilitiesEnabledKey);
+        if (abilitySettings is not null)
+        {
+            ApplyNetworkSpecialAbilitiesSetting(abilitySettings.BoolValue);
+        }
         ApplySnapshotTransientEntities(snapshot);
         ApplySnapshotEventQueues(snapshot);
 

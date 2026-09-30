@@ -5,6 +5,7 @@ using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using OpenGarrison.ClientShared;
 using OpenGarrison.Core;
+using OpenGarrison.GameplayModding;
 
 namespace OpenGarrison.Client;
 
@@ -12,66 +13,135 @@ public partial class Game1
 {
     internal const string ContinuousCrosshairSpriteName = "CrosshairContinuousS";
     internal const int ContinuousCrosshairActiveFrameCount = 10;
-    internal const int ContinuousCrosshairIdleFrameIndex = ContinuousCrosshairActiveFrameCount;
+    internal const int ContinuousCrosshairDisabledFrameIndex = ContinuousCrosshairActiveFrameCount;
     internal const int RechargeCrosshairIdleFrameIndex = 0;
     internal const int RechargeCrosshairActiveFrameOffset = 1;
     internal const int RechargeCrosshairActiveFrameCount = 9;
+    internal const int RechargeCrosshairRefireLastFrameIndex = 4;
+
+    internal readonly record struct CrosshairFrame(string SpriteName, int FrameIndex);
 
     internal const int SniperChargeHudFillMaxWidth = 40;
 
     internal static bool IsContinuousCrosshairWeapon(PrimaryWeaponDefinition weapon)
     {
         ArgumentNullException.ThrowIfNull(weapon);
-        return weapon.Kind is PrimaryWeaponKind.Minigun or PrimaryWeaponKind.FlameThrower;
+        return weapon.Kind is PrimaryWeaponKind.Minigun or PrimaryWeaponKind.FlameThrower or PrimaryWeaponKind.Medigun
+            || (weapon.Kind == PrimaryWeaponKind.PelletGun && weapon.RefillsAllAtOnce)
+            || (CharacterClassCatalog.RuntimeRegistry.TryGetItem(weapon.ItemId, out var item)
+                && item.BehaviorId == BuiltInGameplayBehaviorIds.Needlegun);
     }
 
-    internal static int GetCrosshairFrameIndex(
+    internal static CrosshairFrame GetCrosshairFrame(
         PrimaryWeaponDefinition weapon,
         int cooldownTicks,
         int reloadTicks,
         int currentAmmo = -1,
         int maxAmmo = -1,
-        bool isFireHeld = false)
+        bool isFireHeld = false,
+        bool isFireBlocked = false,
+        int? cooldownDurationTicks = null,
+        int? reloadDurationTicks = null)
     {
         ArgumentNullException.ThrowIfNull(weapon);
 
-        var remainingTicks = Math.Max(0, Math.Max(cooldownTicks, reloadTicks));
         if (IsContinuousCrosshairWeapon(weapon))
         {
-            return GetContinuousCrosshairFrameIndex(
-                currentAmmo,
-                maxAmmo,
-                isFireHeld || remainingTicks > 0);
+            // Flamethrower fuel has sub-unit precision. Its exact firing gate
+            // is checked on the player rather than the rounded HUD ammo count.
+            var requiredAmmo = weapon.Kind == PrimaryWeaponKind.FlameThrower ? 1 : weapon.AmmoPerShot;
+            if (isFireBlocked || (currentAmmo >= 0 && currentAmmo < requiredAmmo))
+            {
+                return new(ContinuousCrosshairSpriteName, ContinuousCrosshairDisabledFrameIndex);
+            }
+
+            // Reload/refill timers do not mean the weapon is firing. Ready idle
+            // weapons use the white outline from the single-shot sprite.
+            return isFireHeld && maxAmmo > 0
+                ? new(ContinuousCrosshairSpriteName, GetContinuousCrosshairFrameIndex(currentAmmo, maxAmmo))
+                : new("CrosshairS", RechargeCrosshairIdleFrameIndex);
         }
 
-        if (remainingTicks <= 0)
+        if (cooldownTicks > 0)
         {
-            return RechargeCrosshairIdleFrameIndex;
+            var duration = Math.Max(1, cooldownDurationTicks ?? weapon.ReloadDelayTicks);
+            var elapsedFraction = Math.Clamp(1f - cooldownTicks / (float)duration, 0f, 1f);
+            return new("CrosshairS", RechargeCrosshairActiveFrameOffset + Math.Clamp(
+                (int)MathF.Floor(elapsedFraction * RechargeCrosshairRefireLastFrameIndex),
+                0,
+                RechargeCrosshairRefireLastFrameIndex - 1));
         }
 
-        var durationTicks = Math.Max(1, Math.Max(weapon.ReloadDelayTicks, weapon.AmmoReloadTicks));
-        var elapsedFraction = Math.Clamp(
-            1f - (remainingTicks / (float)durationTicks),
-            0f,
-            1f);
-        return RechargeCrosshairActiveFrameOffset + Math.Clamp(
-            (int)MathF.Floor(elapsedFraction * RechargeCrosshairActiveFrameCount),
-            0,
-            RechargeCrosshairActiveFrameCount - 1);
+        if (weapon.AutoReloads && reloadTicks > 0)
+        {
+            var duration = Math.Max(1, reloadDurationTicks ?? weapon.AmmoReloadTicks);
+            var elapsedFraction = Math.Clamp(1f - reloadTicks / (float)duration, 0f, 1f);
+            return new("CrosshairS", RechargeCrosshairRefireLastFrameIndex + Math.Clamp(
+                (int)MathF.Floor(elapsedFraction * (RechargeCrosshairActiveFrameCount - RechargeCrosshairRefireLastFrameIndex + 1)),
+                0,
+                RechargeCrosshairActiveFrameCount - RechargeCrosshairRefireLastFrameIndex));
+        }
+
+        return new("CrosshairS", RechargeCrosshairIdleFrameIndex);
     }
 
-    internal static int GetContinuousCrosshairFrameIndex(int currentAmmo, int maxAmmo, bool isActive)
+    internal static int GetContinuousCrosshairFrameIndex(int currentAmmo, int maxAmmo)
     {
-        if (!isActive || maxAmmo <= 0)
-        {
-            return ContinuousCrosshairIdleFrameIndex;
-        }
-
-        var ammoFraction = Math.Clamp(currentAmmo / (float)maxAmmo, 0f, 1f);
+        var ammoFraction = Math.Clamp(currentAmmo / (float)Math.Max(1, maxAmmo), 0f, 1f);
         return Math.Clamp(
             (int)MathF.Floor((1f - ammoFraction) * ContinuousCrosshairActiveFrameCount),
             0,
             ContinuousCrosshairActiveFrameCount - 1);
+    }
+
+    internal static bool IsCrosshairFireBlocked(PlayerEntity player, PrimaryWeaponDefinition weapon,
+        int cooldownTicks = 0, int cooldownDurationTicks = 0)
+    {
+        return !player.IsAlive || player.IsHeavyEating || player.IsTaunting
+            || player.IsBuffBannerDeploying || player.IsCivviePogoActive
+            || player.IsExperimentalCryoFrozen
+            || (player.ClassId == PlayerClass.Heavy && player.IsExperimentalGhostDashing)
+            || (player.IsSpyCloaked && !player.CanFireLastToDieProfessionalRevolverWhileCloaked)
+            || (weapon.Kind == PrimaryWeaponKind.FlameThrower
+                && (player.PyroPrimaryRequiresReleaseAfterEmpty
+                    || (cooldownTicks > 0 && cooldownDurationTicks > weapon.ReloadDelayTicks)
+                    || (!player.HasInfiniteAmmoFromUber
+                        && player.PyroPrimaryFuelScaled < PlayerEntity.PyroPrimaryFlameCostScaled)));
+    }
+
+    // Observe the actual countdowns so perks and alternate weapon timings use
+    // their real durations rather than the stock weapon's reload duration.
+    internal sealed class CrosshairTimingState
+    {
+        private PrimaryWeaponDefinition? _weapon;
+        private int _cooldownTicks;
+        private int _reloadTicks;
+        public int CooldownDurationTicks { get; private set; }
+        public int ReloadDurationTicks { get; private set; }
+
+        public void Update(PrimaryWeaponDefinition weapon, int cooldownTicks, int reloadTicks)
+        {
+            if (_weapon != weapon)
+            {
+                _weapon = weapon;
+                _cooldownTicks = 0;
+                _reloadTicks = 0;
+                CooldownDurationTicks = Math.Max(1, cooldownTicks);
+                ReloadDurationTicks = Math.Max(1, reloadTicks);
+            }
+
+            if (cooldownTicks > _cooldownTicks)
+            {
+                CooldownDurationTicks = cooldownTicks;
+            }
+            if (reloadTicks > _reloadTicks)
+            {
+                ReloadDurationTicks = reloadTicks;
+            }
+
+            _cooldownTicks = cooldownTicks;
+            _reloadTicks = reloadTicks;
+        }
     }
 
     internal static int GetSniperChargeHudFillWidthForTicks(
@@ -107,6 +177,7 @@ public partial class Game1
     private sealed class GameplayAimHudController
     {
         private readonly Game1 _game;
+        private readonly CrosshairTimingState _crosshairTiming = new();
 
         public GameplayAimHudController(Game1 game)
         {
@@ -279,23 +350,26 @@ public partial class Game1
             var reloadTicks = _game.GetLocalDisplayedMainWeaponReloadTicks();
             var currentAmmo = _game.GetLocalDisplayedMainWeaponCurrentShells();
             var maxAmmo = _game.GetLocalDisplayedMainWeaponMaxShells();
-            var spriteName = IsContinuousCrosshairWeapon(weapon)
-                ? ContinuousCrosshairSpriteName
-                : "CrosshairS";
-            var frameIndex = GetCrosshairFrameIndex(
+            var player = _game.GetPlayerPredictedPresentationState(_game._world.LocalPlayer);
+            _crosshairTiming.Update(weapon, cooldownTicks, reloadTicks);
+            var frame = GetCrosshairFrame(
                 weapon,
                 cooldownTicks,
                 reloadTicks,
-                currentAmmo,
+                player.HasInfiniteAmmoFromUber ? maxAmmo : currentAmmo,
                 maxAmmo,
-                _game._latestPredictedLocalInput.FirePrimary);
-            var crosshair = _game.GetResolvedSprite(spriteName);
+                _game._latestPredictedLocalInput.FirePrimary,
+                IsCrosshairFireBlocked(player, weapon, cooldownTicks, _crosshairTiming.CooldownDurationTicks)
+                    || _game.GetPlayerIsExperimentalGhostDashing(_game._world.LocalPlayer),
+                _crosshairTiming.CooldownDurationTicks,
+                _crosshairTiming.ReloadDurationTicks);
+            var crosshair = _game.GetResolvedSprite(frame.SpriteName);
             if (crosshair is null || crosshair.Frames.Count == 0)
             {
                 return;
             }
 
-            frameIndex = Math.Clamp(frameIndex, 0, crosshair.Frames.Count - 1);
+            var frameIndex = Math.Clamp(frame.FrameIndex, 0, crosshair.Frames.Count - 1);
             var cursorScale = ClientSettings.GetCursorScale(_game._cursorSizePercent);
             _game.DrawLoadedSpriteFrame(
                 crosshair.Frames[frameIndex],

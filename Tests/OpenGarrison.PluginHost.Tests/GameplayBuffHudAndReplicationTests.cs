@@ -10,6 +10,28 @@ namespace OpenGarrison.PluginHost.Tests;
 
 public sealed class GameplayBuffHudAndReplicationTests
 {
+    [Fact]
+    public void SpecialAbilitiesSettingFollowsServerChangesInBothSnapshotPaths()
+    {
+        var source = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
+        var receiver = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
+        var publisher = new Protocol64StatePublisher(source);
+        foreach (var enabled in new[] { false, true, false })
+        {
+            source.ConfigureExperimentalGameplaySettings(new(EnableSecondaryAbilities: enabled));
+            var state = Assert.Single(publisher.BuildPlayerStateBatch(1).Players);
+            Assert.True(receiver.ApplyProtocol64PlayerState(state, SimulationWorld.LocalPlayerSlot));
+            Assert.Equal(enabled, receiver.ExperimentalGameplaySettings.EnableSecondaryAbilities);
+            receiver.ConfigureExperimentalGameplaySettings(new(EnableSecondaryAbilities: !enabled));
+            var player = ServerHelpers.ToSnapshotPlayerState(source, SimulationWorld.LocalPlayerSlot,
+                source.LocalPlayer, source.LocalPlayer, new SnapshotStringCache());
+            var snapshot = CreateSnapshot(player);
+            var bytes = ProtocolCodec.Serialize(snapshot, ProtocolCompressionSettings.Disabled);
+            Assert.True(ProtocolCodec.TryDeserialize(bytes, out var message));
+            Assert.True(receiver.ApplySnapshot(Assert.IsType<SnapshotMessage>(message)));
+            Assert.Equal(enabled, receiver.ExperimentalGameplaySettings.EnableSecondaryAbilities);
+        }
+    }
     [Theory]
     [InlineData(true, true, false, true)]
     [InlineData(false, true, false, false)]

@@ -63,7 +63,9 @@ public sealed partial class PlayerEntity
             return;
         }
 
-        if ((IsExperimentalOffhandEquipped || IsAcquiredWeaponEquipped) && !CanReloadExperimentalSoldierStowedWeapons())
+        if ((IsExperimentalOffhandEquipped || IsAcquiredWeaponEquipped)
+            && !CanReloadExperimentalSoldierStowedWeapons()
+            && !HasPrimaryBehavior(BuiltInGameplayBehaviorIds.DragonRage))
         {
             AdvanceExperimentalOffhandWeaponState();
             AdvanceAcquiredWeaponState();

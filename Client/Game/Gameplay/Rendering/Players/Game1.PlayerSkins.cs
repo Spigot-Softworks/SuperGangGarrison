@@ -49,9 +49,13 @@ public partial class Game1
         }
         var pose = GetPlayerSkinPose(player, skin);
         string bodySprite;
+        string? legsSprite = null;
+        string? torsoSprite = null;
         if (skin.CloakedBodySprite is { } cloakedSprite && GetPlayerIsSpyCloaked(player))
         {
             bodySprite = cloakedSprite;
+            legsSprite = skin.CloakedLegsBodySprite;
+            torsoSprite = skin.CloakedTorsoBodySprite;
         }
         else if (ShouldDrawLegsOnlyBody(player, skin))
         {
@@ -60,6 +64,8 @@ public partial class Game1
         else
         {
             bodySprite = skin.BodySprite;
+            legsSprite = skin.LegsBodySprite;
+            torsoSprite = skin.TorsoBodySprite;
         }
 
         var equipmentPose = pose;
@@ -77,7 +83,9 @@ public partial class Game1
 
         selection = new PlayerBodySpriteSelection(skin.SpriteForTeam(bodySprite, player.Team),
             pose, 0, equipmentOffset,
-            player.IsCarryingIntel, false);
+            player.IsCarryingIntel, false,
+            legsSprite is null ? null : skin.SpriteForTeam(legsSprite, player.Team),
+            torsoSprite is null ? null : skin.SpriteForTeam(torsoSprite, player.Team));
         return true;
     }
 

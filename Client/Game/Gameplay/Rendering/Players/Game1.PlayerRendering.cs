@@ -19,7 +19,9 @@ public partial class Game1
         float BodyYOffset,
         float EquipmentOffset,
         bool DrawIntelUnderlay,
-        bool IsHumiliated);
+        bool IsHumiliated,
+        string? LegsSpriteName = null,
+        string? TorsoSpriteName = null);
 
     private readonly record struct RetainedDeadBodyVisual(
         int Id,
