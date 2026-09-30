@@ -36,6 +36,7 @@ public sealed partial class SimulationWorld
     {
         if (state is null
             || state.Slot > byte.MaxValue
+            || state.EngineerBuild is { IsValid: false }
             || state.PlayerId == 0
             || (state.Equipment is not null && !PlayerEntity.IsValidProtocol64EquipmentState(state))
             || !IsPlayableNetworkPlayerSlot((byte)state.Slot)
@@ -45,6 +46,10 @@ public sealed partial class SimulationWorld
         }
 
         var slot = (byte)state.Slot;
+        if (clientLocalPlayerSlot.HasValue)
+        {
+            ApplyNetworkSpecialAbilitiesSetting(state.SpecialAbilitiesEnabled);
+        }
         var classDefinition = CharacterClassCatalog.GetDefinition(state.GameplayClassId);
         if (clientLocalPlayerSlot.HasValue)
         {

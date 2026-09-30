@@ -7,10 +7,51 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
+    private bool _pendingMapTeamSelection;
+
+    private void UpdatePendingMapTeamSelection()
+    {
+        if (!_pendingMapTeamSelection) return;
+        if (!_networkClient.IsConnected || _networkClient.IsSpectator || !_world.LocalPlayerAwaitingJoin)
+        {
+            _pendingMapTeamSelection = false;
+            return;
+        }
+        if (_world.MatchState.IsEnded || !ShouldOpenDeferredMapTeamSelection(
+                _networkWorldWarmupActive,
+                _networkWorldWarmupFullSnapshotApplied,
+                _networkWorldWarmupAppliedSnapshotsAfterFull,
+                IsNetworkInterpolationWarmupActive()))
+        {
+            return;
+        }
+
+        _pendingMapTeamSelection = false;
+        OpenOnlineTeamSelection(clearPendingSelections: true, statusMessage: string.Empty);
+    }
+
+    internal static bool ShouldOpenDeferredMapTeamSelection(bool warmupActive, bool hasBaseline,
+        int snapshotsAfterBaseline, bool interpolationWarmupActive)
+        => !warmupActive || (hasBaseline
+            && snapshotsAfterBaseline >= NetworkWorldWarmupMinimumAppliedSnapshotsAfterFull
+            && !interpolationWarmupActive);
+
     private void CloseGameplaySelectionMenus()
     {
         _teamSelectOpen = false;
         _classSelectOpen = false;
+    }
+
+    private void DismissGameplayTeamSelection()
+    {
+        _pendingMapTeamSelection = false;
+        if (_world.LocalPlayerAwaitingJoin && _networkClient.IsConnected
+            && !_networkClient.IsReplayConnection)
+        {
+            BeginOnlineSpectateSelection();
+            return;
+        }
+        CloseGameplaySelectionMenus();
     }
 
     private void OpenGameplayTeamSelection()
@@ -78,12 +119,8 @@ public partial class Game1
             return;
         }
 
-        // A server opens the team menu while a client is awaiting its first
-        // team/class selection.  N is also the toggle key, but closing this
-        // menu at that point leaves the local slot unjoined while gameplay
-        // continues to run around the last replicated camera position.  The
-        // join menu must remain modal until the player chooses a team or
-        // explicitly chooses Spectate.
+        // N opens selection for an unjoined slot. Escape/Back dismisses it
+        // through spectator mode so the player can watch the match.
         if (_world.LocalPlayerAwaitingJoin)
         {
             _teamSelectOpen = true;
@@ -139,6 +176,8 @@ public partial class Game1
         }
 
         ResetLocalPredictionForAuthorityTransition();
+        _networkClient.ClearPendingTeamSelection();
+        _networkClient.ClearPendingClassSelection();
         _networkClient.QueueSpectateSelection();
         CloseGameplaySelectionMenus();
         _menuStatusMessage = "Switching to spectator mode...";

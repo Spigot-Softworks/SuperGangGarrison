@@ -89,6 +89,12 @@ internal static partial class ServerHelpers
                 entry.FloatValue,
                 entry.BoolValue)));
 
+        replicatedStates.Add(new SnapshotReplicatedStateEntry(
+            GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId,
+            GameplayAbilityReplicatedState.SpecialAbilitiesEnabledKey,
+            SnapshotReplicatedStateValueKind.Toggle,
+            0, 0f, world.ExperimentalGameplaySettings.EnableSecondaryAbilities));
+
         if (!string.IsNullOrWhiteSpace(player.GameplayLoadoutState.SecondaryItemId))
         {
             replicatedStates.Add(new SnapshotReplicatedStateEntry(

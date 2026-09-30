@@ -48,6 +48,9 @@ public partial class Game1
 
         public void AdvanceBloodVisuals()
         {
+            // Retain an expired body's pose before ragdoll synchronization can
+            // prune it. Drawing may be skipped for several simulation ticks.
+            _game.SyncRetainedDeadBodies();
             _game.AdvanceDynamicRagdolls();
             _game.SyncDynamicRagdollsWithDeadBodies();
             _game.AdvanceBurnCharredCorpses();

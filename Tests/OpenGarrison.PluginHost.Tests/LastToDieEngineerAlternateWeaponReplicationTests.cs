@@ -8,6 +8,45 @@ namespace OpenGarrison.PluginHost.Tests;
 public sealed class LastToDieEngineerAlternateWeaponReplicationTests
 {
     [Fact]
+    public void ConstructorResourceUpdatesPreservePerkCapacityAndRecoverAcrossRepeatedRefills()
+    {
+        var source = JoinedEngineerWorld();
+        var receiver = JoinedEngineerWorld();
+        source.LocalPlayer.ConfigureExperimentalMetal(200, 0.25f);
+        var publisher = new Protocol64StatePublisher(source);
+        for (uint tick = 1; tick <= 3; tick++)
+        {
+            Assert.True(source.LocalPlayer.SpendMetal(100));
+            Assert.True(receiver.ApplyProtocol64PlayerState(Assert.Single(publisher.BuildPlayerStateBatch(tick).Players)));
+            Assert.Equal(source.LocalPlayer.Metal, receiver.LocalPlayer.Metal);
+            Assert.Equal(200f, receiver.LocalPlayer.MaxMetal);
+            Assert.Equal(0.25f, receiver.LocalPlayer.PassiveMetalRegenerationPerTick);
+            source.LocalPlayer.AddMetal(100);
+            source.LocalPlayer.SetSpawnRoomState(tick == 1);
+            Assert.True(receiver.ApplyProtocol64PlayerState(Assert.Single(publisher.BuildPlayerStateBatch(tick + 3).Players)));
+            Assert.Equal(200f, receiver.LocalPlayer.Metal);
+            Assert.Equal(tick == 1, receiver.LocalPlayer.IsInSpawnRoom);
+        }
+        var invalid = Assert.Single(publisher.BuildPlayerStateBatch(7).Players) with
+        { EngineerBuild = new(float.NaN, 200, 0.25f, false) };
+        Assert.False(receiver.ApplyProtocol64PlayerState(invalid));
+        Assert.Equal(200f, receiver.LocalPlayer.Metal);
+    }
+
+    [Fact]
+    public void AuthoritativeBuildResourcesRecoverAfterSpendingMetalAndStartingAnotherSession()
+    {
+        var source = JoinedEngineerWorld();
+        var receiver = JoinedEngineerWorld();
+        Assert.True(receiver.LocalPlayer.SpendMetal(100));
+        receiver.LocalPlayer.SetSpawnRoomState(true);
+        var state = Assert.Single(new Protocol64StatePublisher(source).BuildPlayerStateBatch(1).Players);
+        Assert.True(receiver.ApplyProtocol64PlayerState(state));
+        Assert.Equal(source.LocalPlayer.Metal, receiver.LocalPlayer.Metal);
+        Assert.False(receiver.LocalPlayer.IsInSpawnRoom);
+    }
+
+    [Fact]
     public void QCyclesBothEngineerBeamsAndReturnsToShotgunWithoutBeingStowedOnTheNextTick()
     {
         var world = JoinedEngineerWorld();

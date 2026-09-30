@@ -9,6 +9,35 @@ namespace OpenGarrison.PluginHost.Tests;
 public sealed class WeaponAbilityInputSeparationTests
 {
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void CustomSwapAndQUtilityStaySeparateWithEitherAbilitySetting(bool enabled)
+    {
+        var world = CreateWorld(PlayerClass.Scout);
+        world.ConfigureExperimentalGameplaySettings(new(EnableSecondaryAbilities: enabled));
+        var bindings = new InputBindingsSettings
+        {
+            UseAbility = InputBinding.FromKey(Keys.Q),
+            SwapWeaponsBinding = WeaponSwapBindingMode.Custom,
+            SwapWeaponsCustomKey = InputBinding.FromKey(Keys.RightControl),
+        };
+        var equipped = world.LocalPlayer.GameplayLoadoutState.EquippedItemId;
+        var utility = KeyboardInputMapper.BuildGameplaySnapshot(bindings,
+            new KeyboardState(Keys.Q), new MouseState(), 0, 0, 0, 0);
+        world.SetLocalInput(utility);
+        world.AdvanceOneTick();
+        Assert.Equal(equipped, world.LocalPlayer.GameplayLoadoutState.EquippedItemId);
+        world.SetLocalInput(default);
+        for (var tick = 0; tick < 30; tick++) world.AdvanceOneTick();
+        var swap = KeyboardInputMapper.BuildGameplaySnapshot(bindings,
+            new KeyboardState(Keys.RightControl), new MouseState(), 0, 0, 0, 0);
+        Assert.True(swap.SwapWeapon);
+        Assert.False(swap.UseAbility);
+        world.SetLocalInput(swap);
+        world.AdvanceOneTick();
+        Assert.True(world.LocalPlayer.IsExperimentalOffhandSelected);
+    }
+    [Theory]
     [InlineData(PlayerClass.Scout)]
     [InlineData(PlayerClass.Pyro)]
     [InlineData(PlayerClass.Soldier)]

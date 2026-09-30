@@ -231,7 +231,16 @@ public sealed record Protocol64PlayerState(
     // snapshot having arrived first.
     bool IsBot = false,
     int CurrentCombo = 0,
-    int ComboTicksRemaining = 0);
+    int ComboTicksRemaining = 0,
+    Protocol64EngineerBuildState? EngineerBuild = null,
+    bool SpecialAbilitiesEnabled = true);
+
+public sealed record Protocol64EngineerBuildState(float Metal, float MaxMetal, float PassiveRegenPerTick, bool IsInSpawnRoom)
+{
+    public bool IsValid => float.IsFinite(Metal) && float.IsFinite(MaxMetal)
+        && float.IsFinite(PassiveRegenPerTick) && MaxMetal >= 1f
+        && Metal >= 0f && Metal <= MaxMetal && PassiveRegenPerTick >= 0f;
+}
 
 public sealed record Protocol64PlayerStateBatch(
     ulong StateSequence,
@@ -378,7 +387,7 @@ public sealed class Protocol64PlayerStateBatchSchema
     public const int MaxBodyBytes = 64 * 1024;
 
     public Protocol64PlayerStateBatchSchema()
-        : base(Protocol64StateSchemaIds.PlayerStateBatch, 29, Protocol64Direction.ServerToClient, MaxBodyBytes)
+        : base(Protocol64StateSchemaIds.PlayerStateBatch, 31, Protocol64Direction.ServerToClient, MaxBodyBytes)
     {
     }
 
@@ -536,7 +545,7 @@ public sealed class Protocol64StateResyncResponseSchema
     public const int MaxBodyBytes = 256 * 1024;
 
     public Protocol64StateResyncResponseSchema()
-        : base(Protocol64StateSchemaIds.StateResyncResponse, 33, Protocol64Direction.ServerToClient, MaxBodyBytes)
+        : base(Protocol64StateSchemaIds.StateResyncResponse, 35, Protocol64Direction.ServerToClient, MaxBodyBytes)
     {
     }
 
@@ -667,6 +676,9 @@ internal static class Protocol64StateValidation
         {
             throw new Protocol64SchemaValidationException("Player team is outside the protocol range.");
         }
+
+        if (value.EngineerBuild is { IsValid: false })
+            throw new Protocol64SchemaValidationException("Invalid Constructor build resources.");
 
         if (value.RemainingAirJumps < 0)
         {
@@ -1703,6 +1715,15 @@ internal static class Protocol64StateBinary
         writer.Write(value.IsBot);
         writer.Write(value.CurrentCombo);
         writer.Write(value.ComboTicksRemaining);
+        writer.Write(value.EngineerBuild is not null);
+        if (value.EngineerBuild is { } build)
+        {
+            writer.Write(build.Metal);
+            writer.Write(build.MaxMetal);
+            writer.Write(build.PassiveRegenPerTick);
+            writer.Write(build.IsInSpawnRoom);
+        }
+        writer.Write(value.SpecialAbilitiesEnabled);
     }
 
     public static Protocol64PlayerState ReadPlayer(BinaryReader reader)
@@ -1791,7 +1812,11 @@ internal static class Protocol64StateBinary
                 : null,
             reader.ReadBoolean(),
             reader.ReadInt32(),
-            reader.ReadInt32());
+            reader.ReadInt32(),
+            reader.ReadBoolean()
+                ? new Protocol64EngineerBuildState(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle(), reader.ReadBoolean())
+                : null,
+            reader.ReadBoolean());
 
     public static void WriteProjectileState(BinaryWriter writer, Protocol64ProjectileState value)
     {

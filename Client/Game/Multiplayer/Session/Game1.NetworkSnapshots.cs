@@ -517,6 +517,9 @@ public partial class Game1
             return;
         }
 
-        OpenOnlineTeamSelection(clearPendingSelections: true, statusMessage: string.Empty);
+        // Await the new world's presentation baseline instead of opening over
+        // the old map and opening again when the new snapshot arrives.
+        CloseGameplaySelectionMenus();
+        _pendingMapTeamSelection = true;
     }
 }

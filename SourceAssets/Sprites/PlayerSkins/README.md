@@ -42,6 +42,16 @@ frames or metadata without rewriting them. Changes to clip timing, frame order,
 default selection, and `weapon.attachmentOffset` need no art import. Changes to layers, pixel scale,
 origins, palettes, or weapon offsets do.
 
+Normal rendering uses `legsBodySprite` and `torsoBodySprite` as separate draw
+layers with matching origins and pose indices. Cloaked Spy uses the corresponding
+`cloakedLegsBodySprite` and `cloakedTorsoBodySprite`. The combined `bodySprite`
+is retained for silhouette effects (outlines, shadows, afterimages, translucent
+fades without overlapping alpha seams), and as a
+fallback for older catalogs. Torso-replacement weapons draw only the legs.
+The importer recognizes both `legs/` layers and Kelly's `legs_*.png` frames.
+Run `python scripts/verify-player-skin-layers.py` to check every generated pose's
+alignment against its combined silhouette.
+
 ## Coordinates and poses
 
 All authored coordinates are in the original PNG's pixels. `canvas` is the

@@ -95,11 +95,42 @@ public partial class Game1
                 }
             }
 
+            // Keep the composite silhouette for outlines, shadows and history,
+            // but draw independently authored legs and torso for the live body.
+            var legs = !isHeavyEating && !player.IsTaunting && !isPogo
+                && bodySelection.LegsSpriteName is { } legsName ? _game.GetResolvedSprite(legsName) : null;
+            var torso = !isHeavyEating && !player.IsTaunting && !isPogo
+                && bodySelection.TorsoSpriteName is { } torsoName ? _game.GetResolvedSprite(torsoName) : null;
+            void DrawBody(Color color, bool multiply = false)
+            {
+                // Fade the precomposited silhouette for translucency: fading two
+                // overlapping layers independently would reveal the waist seam.
+                if (tint.A == 255 && legs is not null && torso is not null
+                    && frameIndex < legs.Frames.Count && frameIndex < torso.Frames.Count)
+                {
+                    if (multiply)
+                    {
+                        // Color the final silhouette once, avoiding double tint at overlaps.
+                        _game.DrawSpriteFrameMultiplyColor(sprite.Frames[frameIndex], position, color, 0f, sprite.Origin.ToVector2(), scale);
+                    }
+                    else
+                    {
+                        _game.DrawSpriteFrame(legs.Frames[frameIndex], position, color, 0f, legs.Origin.ToVector2(), scale);
+                        _game.DrawSpriteFrame(torso.Frames[frameIndex], position, color, 0f, torso.Origin.ToVector2(), scale);
+                    }
+                }
+                else if (multiply)
+                    _game.DrawSpriteFrameMultiplyColor(sprite.Frames[frameIndex], position, color, 0f, sprite.Origin.ToVector2(), scale);
+                else
+                    _game.DrawSpriteFrame(sprite.Frames[frameIndex], position, color, 0f, sprite.Origin.ToVector2(), scale);
+            }
+
             if (player.IsUbered)
             {
                 if (_game.IsKritzUberWeaponOnlyVisual(player))
                 {
-                    _game.DrawSpriteFrameWithOptionalShadow(sprite.Frames[frameIndex], position, tint, 0f, sprite.Origin.ToVector2(), scale);
+                    _game.DrawSpriteFrameShadow(sprite.Frames[frameIndex], position, tint, 0f, sprite.Origin.ToVector2(), scale);
+                    DrawBody(tint);
                 }
                 else
                 {
@@ -110,13 +141,14 @@ public partial class Game1
                 {
                     _game.DrawSpriteFrameOutline(sprite.Frames[frameIndex], position, outlineTint, 0f, sprite.Origin.ToVector2(), scale);
                 }
-                _game.DrawSpriteFrame(sprite.Frames[frameIndex], position, tint, 0f, sprite.Origin.ToVector2(), scale);
-                _game.DrawSpriteFrameMultiplyColor(sprite.Frames[frameIndex], position, teamColor, 0f, sprite.Origin.ToVector2(), scale);
+                DrawBody(tint);
+                DrawBody(teamColor, multiply: true);
                 }
             }
             else
             {
-                _game.DrawSpriteFrameWithOptionalShadow(sprite.Frames[frameIndex], position, tint, 0f, sprite.Origin.ToVector2(), scale);
+                _game.DrawSpriteFrameShadow(sprite.Frames[frameIndex], position, tint, 0f, sprite.Origin.ToVector2(), scale);
+                DrawBody(tint);
             }
 
             if (drawIntelOverlay && !isHeavyEating && !player.IsTaunting && bodySelection.DrawIntelUnderlay)

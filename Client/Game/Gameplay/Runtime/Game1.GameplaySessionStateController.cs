@@ -31,6 +31,7 @@ public partial class Game1
             _game.CloseMainMenuOverlayState();
             _game.CloseGameplayOverlayState();
             _game._teamSelectOpen = openJoinMenus;
+            _game._pendingMapTeamSelection = false;
             _game._menuStatusMessage = statusMessage ?? string.Empty;
             _game.InvalidateDiscordRichPresenceRefresh();
 
@@ -47,6 +48,7 @@ public partial class Game1
             _game._pendingHostedConnectTicks = -1;
             _game._pendingHostedConnectPort = OpenGarrisonPreferencesDocument.DefaultServerPort;
             _game._mainMenuOpen = true;
+            _game._pendingMapTeamSelection = false;
             _game._mainMenuPage = MainMenuPage.Root;
             _game._mainMenuHoverIndex = -1;
             _game._mainMenuBottomBarHover = false;

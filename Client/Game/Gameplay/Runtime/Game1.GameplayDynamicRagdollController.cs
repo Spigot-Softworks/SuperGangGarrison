@@ -22,7 +22,7 @@ public partial class Game1
     private const float DynamicRagdollMaxFallSpeed = 11f;
     private const float DynamicRagdollGroundBounce = 0.18f;
     private const float DynamicRagdollWallBounce = 0.28f;
-    private const float DynamicRagdollLaunchSpeedScale = 1.85f;
+    private const float DynamicRagdollLaunchSpeedScale = 1f;
     private const float DynamicRagdollMinLaunchSpeed = 3.2f;
     private const float DynamicRagdollGroundFriction = 0.64f;
     private const float DynamicRagdollAirAngularDamping = 0.992f;
@@ -33,10 +33,8 @@ public partial class Game1
     private const float DynamicRagdollSettledSpeed = 0.28f;
     private const float DynamicRagdollSettledAngularSpeed = 0.8f;
     private const float DynamicRagdollAngularPivotCoupling = 0.22f;
-    // Circle hitboxes along the spine (world solids only â€” never each other).
-    // Diameter ~4.5px for all meat circles; waist stays the same size but is weighted as primary support.
+    // Body probes follow the articulated spine and use the sprite thickness.
     private const float DynamicRagdollSegmentRadius = 2.25f; // Ã˜ 4.5
-    private const float DynamicRagdollWaistRadius = 2.25f; // same size; primacy is weight/resolve order, not radius
     private const float DynamicRagdollLedgeDroopAccel = 2.8f;
     private const float DynamicRagdollHangProbeDepth = 56f;
     private const float DynamicRagdollLieTorque = 0.14f;
@@ -54,9 +52,9 @@ public partial class Game1
     private readonly List<int> _staleDynamicRagdollIds = new();
     private readonly Random _dynamicRagdollRandom = new();
 
-    private sealed class DynamicRagdollState
+    internal sealed class DynamicRagdollState
     {
-        public required int DeadBodyId { get; init; }
+        public required int DeadBodyId { get; set; }
         public required int SourcePlayerId { get; init; }
         public required PlayerClass ClassId { get; init; }
         public required PlayerTeam Team { get; init; }
@@ -73,6 +71,7 @@ public partial class Game1
         public float AngularVelocityDegrees;
         public bool Grounded;
         public bool Settled;
+        public bool SimulationFrozen;
         /// <summary>Pose frozen for acid dissolve â€” physics and live draw stop; snapshot owns the visual.</summary>
         public bool AcidFrozen;
         public int AgeTicks;
@@ -122,7 +121,7 @@ public partial class Game1
         {
             var ragdoll = pair.Value;
             ragdoll.AgeTicks += 1;
-            if (ragdoll.AcidFrozen
+            if (ragdoll.SimulationFrozen || ragdoll.AcidFrozen
                 || IsBurnCharredRagdollHeld(ragdoll)
                 || (TryGetRagdollCorpseTicksRemaining(ragdoll, out var corpseTicks)
                     && IsCorpseAcidFading(corpseTicks)))
@@ -139,20 +138,15 @@ public partial class Game1
                 poseNodes,
                 poseGrounded,
                 poseNodeCount,
+                GetRagdollCollisionRadius(ragdoll),
                 out var groundedCount);
             var isHangingOffLedge = groundedCount > 0 && hangingCount > 0;
 
             if (ragdoll.Settled)
             {
-                var settledWaist = GetRagdollWaistWorldPosition(ragdoll);
-                var settledWaistGrounded = TryFindRagdollNodeFloor(
-                    settledWaist,
-                    DynamicRagdollWaistRadius,
-                    level,
-                    wasFalling: true,
-                    out _);
-                // Wake if hanging off a ledge, or settled in an upright feet-plant with hips in the air.
-                if (isHangingOffLedge || !settledWaistGrounded)
+                // A folded body can rest on a shoulder or knee rather than its
+                // waist. Wake only when terrain no longer supports the pose.
+                if (!IsRagdollPoseSupported(ragdoll, level, bounds))
                 {
                     ragdoll.Settled = false;
                     ragdoll.GroundedTicks = 0;
@@ -175,12 +169,13 @@ public partial class Game1
                 poseNodes,
                 poseGrounded,
                 poseNodeCount,
+                GetRagdollCollisionRadius(ragdoll),
                 out groundedCount);
             isHangingOffLedge = groundedCount > 0 && hangingCount > 0;
             var waistWorld = GetRagdollWaistWorldPosition(ragdoll);
             var waistGrounded = TryFindRagdollNodeFloor(
                 waistWorld,
-                DynamicRagdollWaistRadius,
+                GetRagdollCollisionRadius(ragdoll),
                 level,
                 wasFalling: true,
                 out _);
@@ -228,8 +223,22 @@ public partial class Game1
                 ragdoll.AngularVelocityDegrees *= DynamicRagdollAirAngularDamping;
             }
 
+            var previousRotation = ragdoll.RotationDegrees;
+            var previousX = ragdoll.X;
+            var previousY = ragdoll.Y;
+            Span<float> previousPivots = stackalloc float[DynamicRagdollPivotCount];
+            ragdoll.PivotDegrees.AsSpan().CopyTo(previousPivots);
             ragdoll.RotationDegrees += ragdoll.AngularVelocityDegrees;
             AdvanceRagdollPivots(ragdoll, hitGround || isHangingOffLedge || waistGrounded);
+            if (!TryDepenetrateRagdoll(ragdoll, level, bounds, maxDistance: 6))
+            {
+                ragdoll.X = previousX;
+                ragdoll.Y = previousY;
+                ragdoll.RotationDegrees = previousRotation;
+                previousPivots.CopyTo(ragdoll.PivotDegrees);
+                ragdoll.AngularVelocityDegrees *= 0.25f;
+                Array.Clear(ragdoll.PivotVelocities);
+            }
             if (ragdoll.UseElkondoVerticalVisual)
             {
                 AdvanceElkondoRagdollWeapon(ragdoll);
@@ -237,14 +246,14 @@ public partial class Game1
 
             var lieError = MathF.Abs(NormalizeRagdollRotationDegrees(
                 GetRagdollLieTargetDegrees(ragdoll) - ragdoll.RotationDegrees));
-            // Settle only with waist planted and body mostly horizontal â€” never "standing".
-            if (waistGrounded
-                && !isHangingOffLedge
+            // Rest only once the body lies down and all joints stop moving.
+            if (hitGround
                 && lieError <= DynamicRagdollSettleMaxLieErrorDegrees
                 && ragdoll.GroundedTicks > 6
                 && MathF.Abs(ragdoll.VelocityX) < DynamicRagdollSettledSpeed
                 && MathF.Abs(ragdoll.VelocityY) < DynamicRagdollSettledSpeed
-                && MathF.Abs(ragdoll.AngularVelocityDegrees) < DynamicRagdollSettledAngularSpeed)
+                && MathF.Abs(ragdoll.AngularVelocityDegrees) < DynamicRagdollSettledAngularSpeed
+                && ragdoll.PivotVelocities.All(velocity => MathF.Abs(velocity) < DynamicRagdollSettledAngularSpeed))
             {
                 ragdoll.VelocityX = 0f;
                 ragdoll.VelocityY = 0f;
@@ -290,7 +299,7 @@ public partial class Game1
                 _staleDynamicRagdollIds.Remove(syntheticId);
                 // Prefer server corpse speeds when the immediate launch was weak or aimed the wrong way.
                 // Fire deaths keep original motion â€” never re-apply the shot launch scale.
-                if (!deadBody.DiedToFire && !transferred.DiedToFire)
+                if (!transferred.SimulationFrozen && !deadBody.DiedToFire && !transferred.DiedToFire)
                 {
                     var authSpeedSq = (deadBody.HorizontalSpeed * deadBody.HorizontalSpeed)
                         + (deadBody.VerticalSpeed * deadBody.VerticalSpeed);
@@ -305,21 +314,22 @@ public partial class Game1
                         && transferred.AgeTicks <= 8
                         && (directionDisagrees || authSpeedSq > currentSpeedSq * 1.35f))
                     {
-                        transferred.VelocityX = authLaunchX;
-                        transferred.VelocityY = MathF.Min(
+                        transferred.VelocityX = Math.Clamp(authLaunchX, -12f, 12f);
+                        transferred.VelocityY = Math.Clamp(
                             deadBody.VerticalSpeed * DynamicRagdollLaunchSpeedScale,
-                            -2.0f);
+                            -12f, DynamicRagdollMaxFallSpeed);
                         transferred.Settled = false;
                         transferred.GroundedTicks = 0;
                     }
                 }
-                else if (transferred.AgeTicks <= 8)
+                else if (!transferred.SimulationFrozen && transferred.AgeTicks <= 8)
                 {
                     transferred.VelocityX = deadBody.HorizontalSpeed;
                     transferred.VelocityY = deadBody.VerticalSpeed;
                 }
 
                 transferred.DiedToFire |= deadBody.DiedToFire;
+                transferred.DeadBodyId = deadBody.Id;
                 _dynamicRagdolls[deadBody.Id] = transferred;
                 continue;
             }
@@ -329,7 +339,12 @@ public partial class Game1
 
         for (var index = 0; index < _retainedDeadBodies.Count; index += 1)
         {
-            _staleDynamicRagdollIds.Remove(_retainedDeadBodies[index].Id);
+            var retainedId = _retainedDeadBodies[index].Id;
+            _staleDynamicRagdollIds.Remove(retainedId);
+            if (_dynamicRagdolls.TryGetValue(retainedId, out var retainedRagdoll))
+            {
+                FreezeDynamicRagdoll(retainedRagdoll);
+            }
         }
 
         foreach (var entry in _immediateNetworkDeadBodies)
@@ -553,7 +568,7 @@ public partial class Game1
 
         if (_dynamicRagdolls.Count >= MaxDynamicRagdolls)
         {
-            TrimDynamicRagdollCapacity(forceRemoveOne: true);
+            TrimDynamicRagdollCapacity(reserveSlot: true);
         }
 
         if (!TryResolveRagdollOpaqueBounds(
@@ -601,25 +616,10 @@ public partial class Game1
                 launchY = -2.8f - (_dynamicRagdollRandom.NextSingle() * 2.0f);
                 launchSpeed = MathF.Sqrt((launchX * launchX) + (launchY * launchY));
             }
-            else
-            {
-                // Bias a meaty upward burst so it doesn't just crumple in place.
-                launchY -= 1.6f + (_dynamicRagdollRandom.NextSingle() * 1.2f);
-            }
-
-            // Keep a noticeable horizontal shove even when the supplied knockback was weak/slow.
-            var minHorizontal = CorpseKnockbackRules.MinimumSpeed * DynamicRagdollLaunchSpeedScale * 0.85f;
-            if (MathF.Abs(launchX) < minHorizontal)
-            {
-                var awaySign = launchX != 0f
-                    ? MathF.Sign(launchX)
-                    : (facingLeft ? 1f : -1f);
-                launchX = awaySign * minHorizontal;
-                launchSpeed = MathF.Sqrt((launchX * launchX) + (launchY * launchY));
-            }
-
-            // Never spawn with net downward launch â€” overlapping floors + down velocity looks like a slam under the map.
-            launchY = MathF.Min(launchY, -2.0f);
+            // Keep the authoritative shot direction; collision resolution,
+            // rather than an extra upward impulse, keeps bodies out of solids.
+            launchX = Math.Clamp(launchX, -12f, 12f);
+            launchY = Math.Clamp(launchY, -12f, DynamicRagdollMaxFallSpeed);
 
             // Tip/fold WITH the knockback so the corpse leans away from the bullet, not into it.
             tipSign = launchX >= 0f ? 1f : -1f;
@@ -655,7 +655,8 @@ public partial class Game1
         }
 
         var sourcePlayer = FindPlayerById(sourcePlayerId);
-        if (useElkondoVisual)
+        if (useElkondoVisual && sourcePlayer is { IsAlive: false }
+            && sourcePlayer.ClassId == classId && sourcePlayer.Team == team)
         {
             TryCaptureElkondoRagdollWeapon(ragdoll, sourcePlayer);
         }
@@ -826,15 +827,20 @@ public partial class Game1
         return true;
     }
 
-    private void TrimDynamicRagdollCapacity(bool forceRemoveOne = false)
+    private void TrimDynamicRagdollCapacity(bool reserveSlot = false)
     {
-        while (_dynamicRagdolls.Count > MaxDynamicRagdolls || (forceRemoveOne && _dynamicRagdolls.Count > 0))
+        var limit = MaxDynamicRagdolls - (reserveSlot ? 1 : 0);
+        while (_dynamicRagdolls.Values.Count(ragdoll => !ragdoll.SimulationFrozen) > limit)
         {
             var oldestId = 0;
             var oldestAge = int.MinValue;
             var found = false;
             foreach (var pair in _dynamicRagdolls)
             {
+                if (pair.Value.SimulationFrozen)
+                {
+                    continue;
+                }
                 if (!found || pair.Value.AgeTicks > oldestAge)
                 {
                     found = true;
@@ -848,12 +854,18 @@ public partial class Game1
                 break;
             }
 
-            _dynamicRagdolls.Remove(oldestId);
-            if (forceRemoveOne)
-            {
-                break;
-            }
+            FreezeDynamicRagdoll(_dynamicRagdolls[oldestId]);
         }
+    }
+
+    private static void FreezeDynamicRagdoll(DynamicRagdollState ragdoll)
+    {
+        ragdoll.SimulationFrozen = true;
+        ragdoll.Settled = true;
+        ragdoll.VelocityX = 0f;
+        ragdoll.VelocityY = 0f;
+        ragdoll.AngularVelocityDegrees = 0f;
+        Array.Clear(ragdoll.PivotVelocities);
     }
 
     private static void AdvanceRagdollPivots(DynamicRagdollState ragdoll, bool hitGround)
@@ -912,6 +924,12 @@ public partial class Game1
             ragdoll.PivotVelocities[index] *= damping;
             ragdoll.PivotDegrees[index] += ragdoll.PivotVelocities[index];
             ragdoll.PivotDegrees[index] = ClampRagdollPivotDegrees(ragdoll, index, ragdoll.PivotDegrees[index]);
+            if (!ragdoll.UseElkondoVerticalVisual
+                && ((ragdoll.PivotDegrees[index] <= -DynamicRagdollMaxPivotDegrees && ragdoll.PivotVelocities[index] < 0f)
+                    || (ragdoll.PivotDegrees[index] >= DynamicRagdollMaxPivotDegrees && ragdoll.PivotVelocities[index] > 0f)))
+            {
+                ragdoll.PivotVelocities[index] = 0f;
+            }
             if (ragdoll.UseElkondoVerticalVisual)
             {
                 GetElkondoPivotLimits(ragdoll, index, out var minDegrees, out var maxDegrees);
@@ -943,7 +961,7 @@ public partial class Game1
             return;
         }
 
-        var radius = DynamicRagdollSegmentRadius;
+        var radius = GetRagdollCollisionRadius(ragdoll);
         Span<bool> grounded = stackalloc bool[DynamicRagdollCollisionNodeCount];
         var anyGround = false;
         var wallLeft = false;
@@ -1069,10 +1087,10 @@ public partial class Game1
         Span<Vector2> nodes,
         Span<bool> grounded,
         int nodeCount,
+        float radius,
         out int groundedCount)
     {
         groundedCount = 0;
-        var radius = DynamicRagdollSegmentRadius;
         for (var i = 0; i < nodeCount; i += 1)
         {
             grounded[i] = TryFindRagdollNodeFloor(nodes[i], radius, level, wasFalling: true, out _);
@@ -1263,229 +1281,113 @@ public partial class Game1
     }
 
     /// <summary>
-    /// Body-only chain collision. Waist circle is the primary weighted support; other circles
-    /// drape/walls only and never prop the corpse into a standing pose. Circles never hit each other.
+    /// Sweeps the articulated body through solid terrain in small steps.
+    /// Weapons and other corpses do not contribute collision shapes.
     /// </summary>
-    private static bool AdvanceRagdollSegmentCollision(
-        DynamicRagdollState ragdoll,
-        SimpleLevel level,
-        WorldBounds bounds)
+    internal static bool AdvanceRagdollSegmentCollision(
+        DynamicRagdollState ragdoll, SimpleLevel level, WorldBounds bounds)
     {
-        ragdoll.X += ragdoll.VelocityX;
-        ragdoll.Y += ragdoll.VelocityY;
-
-        Span<Vector2> nodes = stackalloc Vector2[DynamicRagdollCollisionNodeCount];
-        var nodeCount = BuildRagdollCollisionNodes(ragdoll, nodes);
-        if (nodeCount <= 0)
+        if (!TryDepenetrateRagdoll(ragdoll, level, bounds, maxDistance: 64))
         {
-            ragdoll.X = bounds.ClampX(ragdoll.X, DynamicRagdollWaistRadius * 2f);
-            ragdoll.Y = bounds.ClampY(ragdoll.Y, DynamicRagdollWaistRadius * 2f);
+            FreezeDynamicRagdoll(ragdoll);
             return false;
         }
-
-        var radius = DynamicRagdollSegmentRadius;
-        var waistRadius = DynamicRagdollWaistRadius;
-        var wasFalling = ragdoll.VelocityY >= -0.05f;
-        var maxImpact = 0f;
-        var waistWorld = GetRagdollWaistWorldPosition(ragdoll);
-        var waistGrounded = false;
-
-        // --- PRIMARY: plant the waist. Root follows so hips stay on the floor. ---
-        if (TryFindRagdollNodeFloor(waistWorld, waistRadius, level, wasFalling, out var waistFloorTop))
+        // Sweep the whole body in steps no larger than a map pixel.
+        var steps = Math.Clamp((int)MathF.Ceiling(MathF.Max(MathF.Abs(ragdoll.VelocityX), MathF.Abs(ragdoll.VelocityY))), 1, 32);
+        var stepX = ragdoll.VelocityX / steps;
+        var stepY = ragdoll.VelocityY / steps;
+        var hitGround = false;
+        for (var step = 0; step < steps; step++)
         {
-            var waistPushY = waistFloorTop - waistRadius - waistWorld.Y;
-            if (waistPushY <= waistRadius * 0.5f)
+            if (stepX != 0f)
             {
-                ragdoll.Y += Math.Clamp(waistPushY, -12f, 3f);
-                waistGrounded = true;
-                maxImpact = MathF.Max(maxImpact, MathF.Max(0f, ragdoll.VelocityY));
-                waistWorld = GetRagdollWaistWorldPosition(ragdoll);
-            }
-        }
-
-        nodeCount = BuildRagdollCollisionNodes(ragdoll, nodes);
-        Span<bool> nodeGrounded = stackalloc bool[DynamicRagdollCollisionNodeCount];
-        var groundedNodes = waistGrounded ? 1 : 0;
-
-        // Secondary nodes: detect contacts for drape, but do NOT lift the root off a planted waist.
-        for (var nodeIndex = 0; nodeIndex < nodeCount; nodeIndex += 1)
-        {
-            var node = nodes[nodeIndex];
-            if (!TryFindRagdollNodeFloor(node, radius, level, wasFalling: true, out var floorTop))
-            {
-                continue;
-            }
-
-            nodeGrounded[nodeIndex] = true;
-            if (!waistGrounded)
-            {
-                groundedNodes += 1;
-                continue;
-            }
-
-            // Waist already supports the body â€” secondary floor contacts only nudge if they'd
-            // sink deeper into the ground (never push the hips back up into a stand).
-            var pushY = floorTop - radius - node.Y;
-            if (pushY < -1.5f)
-            {
-                // Soft sink correction shared lightly so limbs don't clip through floors.
-                ragdoll.Y += Math.Clamp(pushY * 0.15f, -2f, 0f);
-            }
-        }
-
-        // Waist still airborne but feet/head found floor â†’ tip over, pull hips down (more gravity).
-        if (!waistGrounded)
-        {
-            var secondaryFloor = false;
-            for (var i = 0; i < nodeCount; i += 1)
-            {
-                if (nodeGrounded[i])
+                ragdoll.X += stepX;
+                if (IsRagdollPoseBlocked(ragdoll, level, bounds))
                 {
-                    secondaryFloor = true;
-                    break;
+                    ragdoll.X -= stepX;
+                    ragdoll.VelocityX *= -DynamicRagdollWallBounce;
+                    stepX = 0f;
+                    ragdoll.AngularVelocityDegrees *= 0.5f;
                 }
             }
-
-            if (secondaryFloor)
+            if (stepY != 0f)
             {
-                ragdoll.VelocityY = MathF.Min(DynamicRagdollMaxFallSpeed, ragdoll.VelocityY + DynamicRagdollGravity * 0.85f);
-                groundedNodes = Math.Max(groundedNodes, 1);
-            }
-            else if (TryFindRagdollNodeFloor(
-                         new Vector2(waistWorld.X, waistWorld.Y + 10f),
-                         waistRadius,
-                         level,
-                         wasFalling: true,
-                         out var nearFloor))
-            {
-                // Snap-seek waist toward nearby ground under the hips.
-                var seek = nearFloor - waistRadius - waistWorld.Y;
-                if (seek < 0f)
+                ragdoll.Y += stepY;
+                if (IsRagdollPoseBlocked(ragdoll, level, bounds))
                 {
-                    ragdoll.Y += Math.Clamp(seek * 0.45f, -8f, 0f);
-                    waistGrounded = true;
-                    groundedNodes = Math.Max(groundedNodes, 1);
+                    ragdoll.Y -= stepY;
+                    hitGround |= stepY > 0f;
+                    ragdoll.VelocityY = stepY > 0f && ragdoll.VelocityY > 1f
+                        ? -ragdoll.VelocityY * DynamicRagdollGroundBounce : 0f;
+                    stepY = 0f;
+                    ragdoll.AngularVelocityDegrees *= 0.55f;
                 }
             }
         }
-
-        // --- Wall pass: secondary circles + waist; never lift hanging/secondary meat onto tops. ---
-        nodeCount = BuildRagdollCollisionNodes(ragdoll, nodes);
-        waistWorld = GetRagdollWaistWorldPosition(ragdoll);
-        var wallPushX = 0f;
-        var wallPushCount = 0;
-        var hitWall = false;
-
-        if (TryResolveRagdollNodeWall(waistWorld, waistRadius, level, ragdoll.VelocityX, out var waistWallX, out var waistWallY))
-        {
-            if (waistWallY < 0f)
-            {
-                waistWallY = 0f;
-            }
-
-            ragdoll.X += Math.Clamp(waistWallX, -8f, 8f);
-            ragdoll.Y += Math.Clamp(waistWallY, -4f, 4f);
-            if (MathF.Abs(waistWallX) > 0.01f)
-            {
-                hitWall = true;
-            }
-        }
-
-        for (var nodeIndex = 0; nodeIndex < nodeCount; nodeIndex += 1)
-        {
-            if (nodeGrounded[nodeIndex] && waistGrounded)
-            {
-                continue;
-            }
-
-            var node = nodes[nodeIndex];
-            if (!TryResolveRagdollNodeWall(node, radius, level, ragdoll.VelocityX, out var pushX, out var pushY))
-            {
-                continue;
-            }
-
-            if (pushY < 0f)
-            {
-                pushY = 0f;
-            }
-
-            wallPushX += Math.Clamp(pushX, -6f, 6f);
-            wallPushCount += 1;
-            if (MathF.Abs(pushX) > 0.01f)
-            {
-                hitWall = true;
-            }
-
-            _ = pushY;
-        }
-
-        if (wallPushCount > 0)
-        {
-            ragdoll.X += (wallPushX / wallPushCount) * 0.65f;
-        }
-
-        // Final: keep waist planted if we have a floor under the hips.
-        waistWorld = GetRagdollWaistWorldPosition(ragdoll);
-        if (TryFindRagdollNodeFloor(waistWorld, waistRadius, level, wasFalling: true, out var finalWaistTop))
-        {
-            var finalPush = finalWaistTop - waistRadius - waistWorld.Y;
-            if (finalPush <= waistRadius * 0.55f)
-            {
-                ragdoll.Y += Math.Clamp(finalPush, -10f, 2f);
-                waistGrounded = true;
-                groundedNodes = Math.Max(groundedNodes, 1);
-            }
-        }
-
-        var hitGround = waistGrounded || groundedNodes > 0;
-        if (waistGrounded)
-        {
-            if (maxImpact > 1.0f)
-            {
-                ragdoll.VelocityY = -maxImpact * DynamicRagdollGroundBounce;
-                ExciteRagdollPivots(ragdoll, maxImpact * 1.4f);
-            }
-            else if (ragdoll.VelocityY > 0f)
-            {
-                ragdoll.VelocityY = 0f;
-            }
-
-            ragdoll.AngularVelocityDegrees *= 0.55f;
-        }
-        else if (hitWall)
-        {
-            ragdoll.VelocityX *= -DynamicRagdollWallBounce;
-            ExciteRagdollPivots(ragdoll, 5f);
-        }
-
-        var span = MathF.Max(waistRadius * 2f, EstimateRagdollChainSpan(ragdoll) * 0.35f);
-        var clampedX = bounds.ClampX(ragdoll.X, span);
-        if (clampedX != ragdoll.X)
-        {
-            ragdoll.X = clampedX;
-            ragdoll.VelocityX *= -DynamicRagdollWallBounce;
-        }
-
-        var clampedY = bounds.ClampY(ragdoll.Y, span);
-        if (clampedY != ragdoll.Y)
-        {
-            if (wasFalling && clampedY < ragdoll.Y)
-            {
-                hitGround = true;
-                ragdoll.VelocityY = ragdoll.VelocityY > 1f
-                    ? -ragdoll.VelocityY * DynamicRagdollGroundBounce
-                    : 0f;
-                ragdoll.AngularVelocityDegrees *= 0.55f;
-            }
-            else
-            {
-                ragdoll.VelocityY = 0f;
-            }
-
-            ragdoll.Y = clampedY;
-        }
-
+        hitGround |= IsRagdollPoseSupported(ragdoll, level, bounds);
         return hitGround;
+    }
+
+    private static bool IsRagdollPoseSupported(DynamicRagdollState ragdoll, SimpleLevel level, WorldBounds bounds)
+    {
+        ragdoll.Y += 1f;
+        var supported = IsRagdollPoseBlocked(ragdoll, level, bounds);
+        ragdoll.Y -= 1f;
+        return supported;
+    }
+
+    private static float GetRagdollCollisionRadius(DynamicRagdollState ragdoll)
+        => Math.Clamp((ragdoll.UseElkondoVerticalVisual ? ragdoll.OpaqueBounds.Width : ragdoll.OpaqueBounds.Height) * 0.5f,
+            DynamicRagdollSegmentRadius, DynamicRagdollMaxCollisionHalfWidth);
+
+    internal static bool IsRagdollPoseBlocked(DynamicRagdollState ragdoll, SimpleLevel level, WorldBounds bounds)
+    {
+        Span<Vector2> nodes = stackalloc Vector2[DynamicRagdollCollisionNodeCount];
+        var count = BuildRagdollCollisionNodes(ragdoll, nodes);
+        var radius = GetRagdollCollisionRadius(ragdoll);
+        // Cover the articulated strips, including gaps between center probes.
+        // The attached weapon never contributes a collision shape.
+        var start = count > 1 ? nodes[0] - (nodes[1] - nodes[0]) * 0.5f : nodes[0];
+        for (var index = 0; index <= count; index++)
+        {
+            var end = index < count ? nodes[index]
+                : count > 1 ? nodes[count - 1] + (nodes[count - 1] - nodes[count - 2]) * 0.5f : nodes[0];
+            var samples = Math.Max(1, (int)MathF.Ceiling(Vector2.Distance(start, end) / radius));
+            for (var sample = 0; sample <= samples; sample++)
+            {
+                var center = Vector2.Lerp(start, end, sample / (float)samples);
+                var left = center.X - radius;
+                var top = center.Y - radius;
+                var right = center.X + radius;
+                var bottom = center.Y + radius;
+                if (left < 0f || top < 0f || right > bounds.Width || bottom > bounds.Height
+                    || level.IntersectsSolid(left + 0.01f, top + 0.01f, right - 0.01f, bottom - 0.01f))
+                    return true;
+            }
+            start = end;
+        }
+        return false;
+    }
+
+    private static bool TryDepenetrateRagdoll(DynamicRagdollState ragdoll, SimpleLevel level, WorldBounds bounds, int maxDistance)
+    {
+        if (!IsRagdollPoseBlocked(ragdoll, level, bounds)) return true;
+        var originX = ragdoll.X;
+        var originY = ragdoll.Y;
+        ReadOnlySpan<Vector2> directions = [new(0, -1), new(-1, 0), new(1, 0), new(-1, -1), new(1, -1), new(0, 1)];
+        for (var distance = 1; distance <= maxDistance; distance++)
+        {
+            // Resolve at the closest free position without adding launch energy.
+            foreach (var direction in directions)
+            {
+                ragdoll.X = originX + direction.X * distance;
+                ragdoll.Y = originY + direction.Y * distance;
+                if (!IsRagdollPoseBlocked(ragdoll, level, bounds)) return true;
+            }
+        }
+        ragdoll.X = originX;
+        ragdoll.Y = originY;
+        return false;
     }
 
     /// <summary>
@@ -1537,89 +1439,6 @@ public partial class Game1
                 floorTop = solid.Top;
                 found = true;
             }
-        }
-
-        return found;
-    }
-
-    private static bool TryResolveRagdollNodeWall(
-        Vector2 node,
-        float radius,
-        SimpleLevel level,
-        float velocityX,
-        out float pushX,
-        out float pushY)
-    {
-        pushX = 0f;
-        pushY = 0f;
-        var bestPen = float.MaxValue;
-        var found = false;
-
-        foreach (var solid in level.Solids)
-        {
-            if (!RagdollNodeIntersectsSolid(node, radius, solid))
-            {
-                continue;
-            }
-
-            // Skip if this is really a floor contact (near Top while over the solid).
-            if (node.X >= solid.Left - radius
-                && node.X <= solid.Right + radius
-                && (node.Y + radius) <= solid.Top + radius * 1.25f
-                && (node.Y + radius) >= solid.Top - radius * 0.5f)
-            {
-                continue;
-            }
-
-            var distToLeft = MathF.Abs((node.X + radius) - solid.Left);
-            var distToRight = MathF.Abs((node.X - radius) - solid.Right);
-            var distToTop = MathF.Abs((node.Y + radius) - solid.Top);
-            var distToBottom = MathF.Abs((node.Y - radius) - solid.Bottom);
-
-            // Prefer the shallowest side separation; never use Bottom (that's the old under-map fling).
-            if (distToTop <= distToLeft && distToTop <= distToRight && distToTop <= 4f)
-            {
-                // Shallow top graze â€” treat as floor, not wall.
-                continue;
-            }
-
-            float candidateX;
-            float candidateY = 0f;
-            float pen;
-            if (distToLeft <= distToRight && (velocityX >= -0.01f || distToLeft < distToRight - 0.5f))
-            {
-                candidateX = solid.Left - radius - node.X;
-                pen = MathF.Abs(candidateX);
-            }
-            else
-            {
-                candidateX = solid.Right + radius - node.X;
-                pen = MathF.Abs(candidateX);
-            }
-
-            // If deeply overlapping vertically past the top, still don't push to Bottom â€”
-            // lift toward Top when that penetration is smaller.
-            if (distToTop < pen && node.X >= solid.Left && node.X <= solid.Right)
-            {
-                candidateX = 0f;
-                candidateY = solid.Top - radius - node.Y;
-                pen = MathF.Abs(candidateY);
-                if (candidateY > 2f)
-                {
-                    continue;
-                }
-            }
-
-            if (pen >= bestPen)
-            {
-                continue;
-            }
-
-            bestPen = pen;
-            pushX = candidateX;
-            pushY = candidateY;
-            found = true;
-            _ = distToBottom;
         }
 
         return found;
@@ -1848,11 +1667,10 @@ public partial class Game1
             return NormalizeRagdollRotationDegrees(ragdoll.RotationDegrees) >= 0f ? 90f : -90f;
         }
 
-        // Stock DeadS ragdolls start near Â±90; settle toward the nearer flat pose.
-        return MathF.Abs(NormalizeRagdollRotationDegrees(ragdoll.RotationDegrees - 90f))
-            <= MathF.Abs(NormalizeRagdollRotationDegrees(ragdoll.RotationDegrees + 90f))
-            ? 90f
-            : -90f;
+        // Stock DeadS is authored horizontally; zero/180 degrees lie flat.
+        return MathF.Abs(NormalizeRagdollRotationDegrees(ragdoll.RotationDegrees))
+            <= MathF.Abs(NormalizeRagdollRotationDegrees(ragdoll.RotationDegrees - 180f))
+            ? 0f : 180f;
     }
 
     private static bool RagdollNodeIntersectsSolid(Vector2 node, float radius, LevelSolid solid)
@@ -1916,6 +1734,14 @@ public partial class Game1
             return false;
         }
 
+        if (!_dynamicRagdolls.ContainsKey(deadBodyId)
+            && _world.DeadBodies.Any(body => body.Id == deadBodyId))
+        {
+            // Draw can precede the next client tick. Use the real death impulse
+            // and transfer an immediate pose through the same path as ticking.
+            SyncDynamicRagdollsWithDeadBodies();
+        }
+
         if (!_dynamicRagdolls.TryGetValue(deadBodyId, out var ragdoll))
         {
             // Draw can see the authoritative corpse before Sync re-keys the immediate ragdoll.
@@ -1924,6 +1750,7 @@ public partial class Game1
                 && _dynamicRagdolls.Remove(syntheticId, out var transferred))
             {
                 transferred.DiedToFire |= ResolveDeadBodyDiedToFire(deadBodyId, sourcePlayerId);
+                transferred.DeadBodyId = deadBodyId;
                 _dynamicRagdolls[deadBodyId] = transferred;
                 ragdoll = transferred;
             }

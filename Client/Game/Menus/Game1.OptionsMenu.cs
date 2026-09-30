@@ -489,6 +489,7 @@ public partial class Game1
     {
         _cameraPanningEnabled = !_cameraPanningEnabled;
         ResetCameraPanningState();
+        ResetSmoothCameraState();
         PersistClientSettings();
     }
 

@@ -1,17 +1,17 @@
 {
   "schemaVersion": 2,
-  "version": "0.8.4.2",
-  "packageVersion": "0.8.4.14",
+  "version": "0.8.7.2",
+  "packageVersion": "0.8.7.2",
   "channel": "stable",
-  "url": "OpenGarrison-Linux-x64-0.8.4.2.tar.gz",
-  "sha256": "06e212887f529d9c7d5ee104880fb01abe03a0665a67354a2b5cab3110de014c",
-  "size": 143041517,
+  "url": "OpenGarrison-Linux-x64-0.8.7.2.tar.gz",
+  "sha256": "5286f1215c187d47b0a18ecc2120afef9cc7247fe80a636622984a0c80375473",
+  "size": 143655929,
   "minLauncherVersion": "0.1.0",
   "notesUrl": "",
   "fullPackage": {
-    "url": "OpenGarrison-Linux-x64-0.8.4.2.tar.gz",
-    "sha256": "06e212887f529d9c7d5ee104880fb01abe03a0665a67354a2b5cab3110de014c",
-    "size": 143041517
+    "url": "OpenGarrison-Linux-x64-0.8.7.2.tar.gz",
+    "sha256": "5286f1215c187d47b0a18ecc2120afef9cc7247fe80a636622984a0c80375473",
+    "size": 143655929
   },
   "deltas": []
 }

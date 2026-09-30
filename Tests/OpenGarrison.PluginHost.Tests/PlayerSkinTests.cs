@@ -42,6 +42,17 @@ public sealed class PlayerSkinTests
             Assert.Equal(skin.Poses.Length, body.FramePaths.Count);
             Assert.Equal(24, 64 - body.OriginY); // Same foot anchor as the stock characters.
             Assert.Equal(skin.Origin[0] * skin.PixelScale, body.OriginX);
+            Assert.NotNull(skin.LegsBodySprite);
+            Assert.NotNull(skin.TorsoBodySprite);
+            foreach (var layerName in new[] { skin.LegsBodySprite, skin.TorsoBodySprite,
+                         skin.CloakedLegsBodySprite, skin.CloakedTorsoBodySprite }.OfType<string>())
+            {
+                var layer = pack.Assets.Sprites[skin.SpriteForTeam(layerName, team)];
+                Assert.Equal(body.FramePaths.Count, layer.FramePaths.Count);
+                Assert.Equal(body.OriginX, layer.OriginX);
+                Assert.Equal(body.OriginY, layer.OriginY);
+                Assert.All(layer.FramePaths, path => Assert.True(File.Exists(Path.Combine(root, path)), path));
+            }
             if (skin.Weapon is { } weaponDefinition)
             {
                 var weapon = pack.Assets.Sprites[skin.SpriteForTeam(weaponDefinition.Sprite, team)];

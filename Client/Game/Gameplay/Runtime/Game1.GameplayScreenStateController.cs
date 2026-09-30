@@ -73,9 +73,9 @@ public partial class Game1
             {
                 _game.ResetChatInputState();
             }
-            else if (_game._teamSelectOpen && escapePressed && !_game._world.LocalPlayerAwaitingJoin)
+            else if (_game._teamSelectOpen && escapePressed)
             {
-                _game.CloseGameplaySelectionMenus();
+                _game.DismissGameplayTeamSelection();
             }
             else if (_game._classSelectOpen && escapePressed)
             {

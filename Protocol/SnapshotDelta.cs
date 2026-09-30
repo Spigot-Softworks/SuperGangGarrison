@@ -408,7 +408,8 @@ public static class SnapshotDelta
             return false;
         }
 
-        return entry.Key is "heavy_dash_cooldown_ticks"
+        return entry.Key is "special_abilities_enabled"
+            or "heavy_dash_cooldown_ticks"
             or "heavy_dash_active"
             or "heavy_dash_visible"
             or "heavy_dash_trail_alpha"

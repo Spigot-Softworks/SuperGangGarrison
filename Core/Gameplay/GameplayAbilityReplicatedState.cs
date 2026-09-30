@@ -2,6 +2,7 @@ namespace OpenGarrison.Core;
 
 public static class GameplayAbilityReplicatedState
 {
+    public const string SpecialAbilitiesEnabledKey = "special_abilities_enabled";
     public const string PyroAirblastCooldownTicksKey = "pyro_airblast_cooldown_ticks";
     public const string MedicUberChargeKey = "medic_uber_charge";
     public const string MedicUberReadyKey = "medic_uber_ready";

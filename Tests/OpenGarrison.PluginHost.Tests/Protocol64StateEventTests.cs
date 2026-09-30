@@ -9,6 +9,42 @@ namespace OpenGarrison.PluginHost.Tests;
 public sealed class Protocol64StateEventTests
 {
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void SpecialAbilitiesSettingRoundTripsThroughUpdatesAndResync(bool enabled)
+    {
+        var player = new Protocol64PlayerState(1, 1, 1, "engineer", 120, 120, 1, true,
+            100, 100, 0, 0, 0, 0, 1, SpecialAbilitiesEnabled: enabled);
+        var batch = RoundTrip(CreateRegistry(new Protocol64PlayerStateBatchSchema()),
+            new Protocol64PlayerStateBatch(1, 1, [player]), 1);
+        Assert.Equal(enabled, Assert.Single(batch.Players).SpecialAbilitiesEnabled);
+        var resync = RoundTrip(CreateRegistry(new Protocol64StateResyncResponseSchema()),
+            new Protocol64StateResyncResponse(1, 1, 1, [player], [], [], []), 1);
+        Assert.Equal(enabled, Assert.Single(resync.Players).SpecialAbilitiesEnabled);
+    }
+    [Fact]
+    public void ConstructorResourcesRoundTripThroughUpdatesAndResync()
+    {
+        var build = new Protocol64EngineerBuildState(150.5f, 200f, 0.25f, false);
+        var player = new Protocol64PlayerState(1, 1, 1, "engineer", 120, 120, 1, true,
+            100, 100, 0, 0, 1, 0, 1, EngineerBuild: build);
+        var batch = RoundTrip(CreateRegistry(new Protocol64PlayerStateBatchSchema()),
+            new Protocol64PlayerStateBatch(1, 1, [player]), 1);
+        Assert.Equal(build, Assert.Single(batch.Players).EngineerBuild);
+        var resync = RoundTrip(CreateRegistry(new Protocol64StateResyncResponseSchema()),
+            new Protocol64StateResyncResponse(1, 1, 1, [player], [], [], []), 1);
+        Assert.Equal(build, Assert.Single(resync.Players).EngineerBuild);
+        foreach (var invalid in new[] { build with { Metal = float.NaN },
+            build with { Metal = 201 }, build with { MaxMetal = 0 },
+            build with { PassiveRegenPerTick = -1 } })
+        {
+            var encoded = Protocol64FrameCodec.Encode(CreateRegistry(new Protocol64PlayerStateBatchSchema()),
+                new Protocol64PlayerStateBatch(1, 1, [player with { EngineerBuild = invalid }]), 1, 1);
+            Assert.False(encoded.Succeeded);
+        }
+    }
+
+    [Theory]
     [InlineData((byte)1)]
     [InlineData((byte)2)]
     public void EngineerBeamIdentityRoundTripsInUpdatesAndResync(byte mode)
@@ -192,7 +228,7 @@ public sealed class Protocol64StateEventTests
         Assert.True(player.IsBot);
         Assert.Equal(4, player.CurrentCombo);
         Assert.Equal(87, player.ComboTicksRemaining);
-        Assert.Equal((ushort)29, registry.Get<Protocol64PlayerStateBatch>().Descriptor.Key.Revision);
+        Assert.Equal((ushort)31, registry.Get<Protocol64PlayerStateBatch>().Descriptor.Key.Revision);
     }
 
     [Fact]
@@ -674,7 +710,7 @@ public sealed class Protocol64StateEventTests
         Assert.Equal(Protocol64DeliveryKind.LastWins, schemas[2].Descriptor.Delivery.Kind);
         Assert.Equal(ChannelType.Control, schemas[4].Descriptor.Delivery.Channel);
         Assert.Equal(
-            new ushort[] { 29, 1, 13, 13, 1, 33 },
+            new ushort[] { 31, 1, 13, 13, 1, 35 },
             schemas.Select(schema => schema.Descriptor.Key.Revision).ToArray());
     }
 
