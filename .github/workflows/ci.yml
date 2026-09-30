@@ -7,8 +7,13 @@ on:
 
 jobs:
   build-and-test:
-    runs-on: ubuntu-latest
+    name: build-and-test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
     steps:
       - uses: actions/checkout@v4
 
@@ -22,14 +27,31 @@ jobs:
       - name: Restore solution
         run: dotnet restore OpenGarrison.sln
 
-      - name: Verify repository policies
+      # One check per step: a multi-line run block only fails on its last
+      # command, which let earlier policy failures pass unnoticed.
+      - name: Verify repository root layout
+        if: runner.os == 'Linux'
         shell: pwsh
-        run: |
-          ./scripts/verify-repository-root-layout.ps1
-          ./scripts/verify-gameplay-pack-layout.ps1
-          ./scripts/verify-packaged-content.ps1 -SelfTest
-          ./scripts/verify-architecture-boundaries.ps1
-          dotnet run --project Tools/OpenGarrison.PluginHost.ApiGenerator/OpenGarrison.PluginHost.ApiGenerator.csproj -- --check
+        run: ./scripts/verify-repository-root-layout.ps1
+
+      - name: Verify gameplay pack layout
+        if: runner.os == 'Linux'
+        shell: pwsh
+        run: ./scripts/verify-gameplay-pack-layout.ps1
+
+      - name: Verify packaged content policy
+        if: runner.os == 'Linux'
+        shell: pwsh
+        run: ./scripts/verify-packaged-content.ps1 -SelfTest
+
+      - name: Verify architecture boundaries
+        if: runner.os == 'Linux'
+        shell: pwsh
+        run: ./scripts/verify-architecture-boundaries.ps1
+
+      - name: Verify plugin host API is up to date
+        if: runner.os == 'Linux'
+        run: dotnet run --project Tools/OpenGarrison.PluginHost.ApiGenerator/OpenGarrison.PluginHost.ApiGenerator.csproj -- --check
 
       - name: Restore browser build graph
         run: >
