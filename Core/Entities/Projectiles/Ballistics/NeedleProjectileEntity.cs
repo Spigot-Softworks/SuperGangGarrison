@@ -142,8 +142,8 @@ public class NeedleProjectileEntity : SimulationEntity
         var speed = MathF.Sqrt((VelocityX * VelocityX) + (VelocityY * VelocityY));
         OwnerId = ownerId;
         Team = team;
-        VelocityX = MathF.Cos(directionRadians) * speed;
-        VelocityY = MathF.Sin(directionRadians) * speed;
+        VelocityX = DeterministicMath.Cos(directionRadians) * speed;
+        VelocityY = DeterministicMath.Sin(directionRadians) * speed;
         PreviousX = X;
         PreviousY = Y;
         TicksRemaining = LifetimeTicks;

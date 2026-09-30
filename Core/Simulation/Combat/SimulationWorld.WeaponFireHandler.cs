@@ -1,4 +1,4 @@
-﻿namespace OpenGarrison.Core;
+namespace OpenGarrison.Core;
 
 public sealed partial class SimulationWorld
 {
@@ -410,8 +410,8 @@ public sealed partial class SimulationWorld
                 aimDeltaX = fallbackFacingDirectionX == 0f ? 1f : fallbackFacingDirectionX;
             }
 
-            var initialAngle = MathF.Atan2(aimDeltaY, aimDeltaX);
-            var facingScale = MathF.Cos(initialAngle) < 0f ? -1f : 1f;
+            var initialAngle = DeterministicMath.Atan2(aimDeltaY, aimDeltaX);
+            var facingScale = DeterministicMath.Cos(initialAngle) < 0f ? -1f : 1f;
             var pivotX = originX + (pivotOffsetX * facingScale);
             var pivotY = originY + pivotOffsetY;
 
@@ -422,12 +422,12 @@ public sealed partial class SimulationWorld
                 pivotAimDeltaX = facingScale;
             }
 
-            var angleRadians = MathF.Atan2(pivotAimDeltaY, pivotAimDeltaX);
+            var angleRadians = DeterministicMath.Atan2(pivotAimDeltaY, pivotAimDeltaX);
             return new WeaponPivotRay(
                 pivotX,
                 pivotY,
-                MathF.Cos(angleRadians),
-                MathF.Sin(angleRadians),
+                DeterministicMath.Cos(angleRadians),
+                DeterministicMath.Sin(angleRadians),
                 angleRadians);
         }
 
@@ -457,10 +457,10 @@ public sealed partial class SimulationWorld
                 aimDeltaX = attacker.FacingDirectionX == 0f ? 1f : attacker.FacingDirectionX;
             }
 
-            var aimRadians = MathF.Atan2(aimDeltaY, aimDeltaX);
+            var aimRadians = DeterministicMath.Atan2(aimDeltaY, aimDeltaX);
             return (
-                weaponOrigin.BaseX + MathF.Cos(aimRadians) * 20f,
-                weaponOrigin.BaseY + MathF.Sin(aimRadians) * 20f,
+                weaponOrigin.BaseX + DeterministicMath.Cos(aimRadians) * 20f,
+                weaponOrigin.BaseY + DeterministicMath.Sin(aimRadians) * 20f,
                 aimRadians);
         }
 
@@ -480,8 +480,8 @@ public sealed partial class SimulationWorld
             return (
                 sourceX,
                 sourceY,
-                sourceX + MathF.Cos(aimRadians) * CivvieUmbrellaTipForwardOffset,
-                sourceY + MathF.Sin(aimRadians) * CivvieUmbrellaTipForwardOffset,
+                sourceX + DeterministicMath.Cos(aimRadians) * CivvieUmbrellaTipForwardOffset,
+                sourceY + DeterministicMath.Sin(aimRadians) * CivvieUmbrellaTipForwardOffset,
                 aimRadians);
         }
 

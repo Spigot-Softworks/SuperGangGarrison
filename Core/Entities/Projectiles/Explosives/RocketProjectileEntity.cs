@@ -220,21 +220,21 @@ public sealed class RocketProjectileEntity : SimulationEntity
         PreviousY = Y;
         if (IsBallistic)
         {
-            var velocityX = MathF.Cos(DirectionRadians) * Speed;
-            var velocityY = MathF.Sin(DirectionRadians) * Speed;
+            var velocityX = DeterministicMath.Cos(DirectionRadians) * Speed;
+            var velocityY = DeterministicMath.Sin(DirectionRadians) * Speed;
             X += velocityX;
             Y += velocityY;
             velocityY += BallisticGravityPerTick * MathF.Max(0f, gravityScale);
             Speed = MathF.Sqrt((velocityX * velocityX) + (velocityY * velocityY));
             if (Speed > 0.0001f)
             {
-                DirectionRadians = MathF.Atan2(velocityY, velocityX);
+                DirectionRadians = DeterministicMath.Atan2(velocityY, velocityX);
             }
         }
         else
         {
-            X += MathF.Cos(DirectionRadians) * Speed;
-            Y += MathF.Sin(DirectionRadians) * Speed;
+            X += DeterministicMath.Cos(DirectionRadians) * Speed;
+            Y += DeterministicMath.Sin(DirectionRadians) * Speed;
             Speed += 1f;
             Speed *= 0.92f;
         }
@@ -341,8 +341,8 @@ public sealed class RocketProjectileEntity : SimulationEntity
 
     public void ApplyImpulse(float velocityX, float velocityY)
     {
-        var nextVelocityX = MathF.Cos(DirectionRadians) * Speed + velocityX;
-        var nextVelocityY = MathF.Sin(DirectionRadians) * Speed + velocityY;
+        var nextVelocityX = DeterministicMath.Cos(DirectionRadians) * Speed + velocityX;
+        var nextVelocityY = DeterministicMath.Sin(DirectionRadians) * Speed + velocityY;
         var nextSpeed = MathF.Sqrt((nextVelocityX * nextVelocityX) + (nextVelocityY * nextVelocityY));
         if (nextSpeed <= 0.0001f)
         {
@@ -350,7 +350,7 @@ public sealed class RocketProjectileEntity : SimulationEntity
             return;
         }
 
-        DirectionRadians = MathF.Atan2(nextVelocityY, nextVelocityX);
+        DirectionRadians = DeterministicMath.Atan2(nextVelocityY, nextVelocityX);
         Speed = nextSpeed;
     }
 

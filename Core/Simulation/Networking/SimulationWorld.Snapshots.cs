@@ -1022,7 +1022,7 @@ public sealed partial class SimulationWorld
         {
             RegisterBloodEffect(
                 nearestPlayer.X, nearestPlayer.Y,
-                MathF.Atan2(dirY, dirX) * (180f / MathF.PI) - 180f,
+                DeterministicMath.Atan2(dirY, dirX) * (180f / MathF.PI) - 180f,
                 bloodCount);
         }
     }
@@ -1716,7 +1716,7 @@ public sealed partial class SimulationWorld
     private bool IsRemoteSpyHiddenFromLocalPlayer(PlayerEntity spy)
     {
         var radians = MathF.PI * LocalPlayer.AimDirectionDegrees / 180f;
-        var viewerFacingSign = MathF.Cos(radians) < 0f ? -1 : 1;
+        var viewerFacingSign = DeterministicMath.Cos(radians) < 0f ? -1 : 1;
         return Math.Sign(spy.X - LocalPlayer.X) == -viewerFacingSign;
     }
 

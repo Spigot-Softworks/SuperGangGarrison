@@ -145,7 +145,7 @@ public sealed class CivilDefenseTurretEntity : SimulationEntity
     public void FireAt(float targetX, float targetY)
     {
         FacingDirectionX = targetX < X ? -1f : 1f;
-        AimDirectionDegrees = MathF.Atan2(targetY - Y, targetX - X) * (180f / MathF.PI);
+        AimDirectionDegrees = DeterministicMath.Atan2(targetY - Y, targetX - X) * (180f / MathF.PI);
         LastShotTargetX = targetX;
         LastShotTargetY = targetY;
         ShotTraceTicksRemaining = ShotTraceTicks;

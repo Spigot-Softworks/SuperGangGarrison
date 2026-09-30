@@ -67,7 +67,7 @@ public sealed partial class SimulationWorld
             var directionX = aimDeltaX / distance;
             var directionY = aimDeltaY / distance;
             var aimRadians = attacker.AimDirectionDegrees * (MathF.PI / 180f);
-            var facingLeft = MathF.Cos(aimRadians) < 0f;
+            var facingLeft = DeterministicMath.Cos(aimRadians) < 0f;
             var hitboxSpriteName = ResolveWhippingCordMeleeHitboxSpriteName(attacker);
             var hitboxMask = MeleeHitboxMaskCatalog.GetOrLoad(
                 hitboxSpriteName, WhippingCordCatalog.ExtendedWhipFrameIndex);
@@ -258,7 +258,7 @@ public sealed partial class SimulationWorld
             }
 
             var aimRadians = attacker.AimDirectionDegrees * MathF.PI / 180f;
-            var facingLeft = MathF.Cos(aimRadians) < 0f;
+            var facingLeft = DeterministicMath.Cos(aimRadians) < 0f;
             ResolveWhippingCordDrawOffset(attacker, facingLeft, out var offsetX, out var offsetY);
             var originX = attacker.X + offsetX;
             var originY = attacker.Y + offsetY;

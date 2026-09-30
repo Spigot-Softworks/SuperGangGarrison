@@ -34,8 +34,8 @@ public sealed partial class SimulationWorld
             // Spawn bullets directly from the weapon pivot, moving forward along the firing direction
             var spreadRadians = GetWeaponSpreadRadians(attacker.Id, weaponDefinition.SpreadDegrees);
             var pelletAngle = pivotRay.AngleRadians + spreadRadians;
-            var directionX = MathF.Cos(pelletAngle);
-            var directionY = MathF.Sin(pelletAngle);
+            var directionX = DeterministicMath.Cos(pelletAngle);
+            var directionY = DeterministicMath.Sin(pelletAngle);
             var shotSpeed = GetWeaponShotSpeed(weaponDefinition);
             var (launchedVelocityX, launchedVelocityY) = _world.ApplyExperimentalProjectileSpeedMultiplier(
                 attacker,
@@ -158,7 +158,7 @@ public sealed partial class SimulationWorld
                 aimDeltaX = attacker.FacingDirectionX;
             }
 
-            var baseAngle = MathF.Atan2(aimDeltaY, aimDeltaX);
+            var baseAngle = DeterministicMath.Atan2(aimDeltaY, aimDeltaX);
             var projectileCount = GetExperimentalProjectilesPerShot(
                 attacker,
                 weaponDefinition.ProjectilesPerShot * Math.Max(1, pelletCountMultiplier));
@@ -171,8 +171,8 @@ public sealed partial class SimulationWorld
                     pelletIndex,
                     projectileCount);
                 var pelletAngle = baseAngle + spreadRadians;
-                var directionX = MathF.Cos(pelletAngle);
-                var directionY = MathF.Sin(pelletAngle);
+                var directionX = DeterministicMath.Cos(pelletAngle);
+                var directionY = DeterministicMath.Sin(pelletAngle);
                 var pelletSpeed = GetWeaponShotSpeed(weaponDefinition);
                 var (launchedVelocityX, launchedVelocityY) = _world.ApplyExperimentalProjectileSpeedMultiplier(
                     attacker,
@@ -230,8 +230,8 @@ public sealed partial class SimulationWorld
             var lockDelayTicks = Math.Max(
                 0,
                 (int)MathF.Round(Config.TicksPerSecond * ExperimentalGameplaySettings.DefaultEngineerCaveatInjectorRocketLockDelaySeconds));
-            var spawnX = weaponOrigin.BaseX + MathF.Cos(baseAngle) * 20f;
-            var spawnY = weaponOrigin.BaseY + MathF.Sin(baseAngle) * 20f;
+            var spawnX = weaponOrigin.BaseX + DeterministicMath.Cos(baseAngle) * 20f;
+            var spawnY = weaponOrigin.BaseY + DeterministicMath.Sin(baseAngle) * 20f;
             var explodeImmediately = _world.IsProjectileSpawnBlocked(weaponOrigin.BaseX, weaponOrigin.BaseY, spawnX, spawnY, attacker.Team);
             for (var rocketIndex = 0; rocketIndex < ExperimentalGameplaySettings.DefaultEngineerExperimentalOverkillAugmentRocketCount; rocketIndex += 1)
             {
@@ -306,9 +306,9 @@ public sealed partial class SimulationWorld
                 aimDeltaX = attacker.FacingDirectionX;
             }
 
-            var directionRadians = MathF.Atan2(aimDeltaY, aimDeltaX);
-            var spawnX = weaponOrigin.BaseX + MathF.Cos(directionRadians) * 20f;
-            var spawnY = weaponOrigin.BaseY + MathF.Sin(directionRadians) * 20f;
+            var directionRadians = DeterministicMath.Atan2(aimDeltaY, aimDeltaX);
+            var spawnX = weaponOrigin.BaseX + DeterministicMath.Cos(directionRadians) * 20f;
+            var spawnY = weaponOrigin.BaseY + DeterministicMath.Sin(directionRadians) * 20f;
             var explodeImmediately = _world.IsProjectileSpawnBlocked(weaponOrigin.BaseX, weaponOrigin.BaseY, spawnX, spawnY, attacker.Team);
             var experimentalSoldierPerkOwner = _world.IsExperimentalPracticePowerOwner(attacker)
                 && attacker.ClassId == PlayerClass.Soldier;
@@ -404,7 +404,7 @@ public sealed partial class SimulationWorld
                     aimDeltaX = attacker.FacingDirectionX;
                 }
 
-                directionRadians = MathF.Atan2(aimDeltaY, aimDeltaX);
+                directionRadians = DeterministicMath.Atan2(aimDeltaY, aimDeltaX);
             }
 
             var lastToDieProfile = attacker.ClassId == PlayerClass.Spy
@@ -436,10 +436,10 @@ public sealed partial class SimulationWorld
                 var finalAngle = directionRadians + spreadRadians;
                 var (finalVelocityX, finalVelocityY) = _world.ApplyExperimentalProjectileSpeedMultiplier(
                     attacker,
-                    MathF.Cos(finalAngle) * weaponDefinition.MinShotSpeed,
-                    MathF.Sin(finalAngle) * weaponDefinition.MinShotSpeed);
-                var nominalSpawnX = shotOriginX + MathF.Cos(finalAngle) * barrelForwardOffset;
-                var nominalSpawnY = shotOriginY + MathF.Sin(finalAngle) * barrelForwardOffset;
+                    DeterministicMath.Cos(finalAngle) * weaponDefinition.MinShotSpeed,
+                    DeterministicMath.Sin(finalAngle) * weaponDefinition.MinShotSpeed);
+                var nominalSpawnX = shotOriginX + DeterministicMath.Cos(finalAngle) * barrelForwardOffset;
+                var nominalSpawnY = shotOriginY + DeterministicMath.Sin(finalAngle) * barrelForwardOffset;
                 var spawnBlocked = _world.IsProjectileSpawnBlocked(shotOriginX, shotOriginY, nominalSpawnX, nominalSpawnY, attacker.Team);
                 SpawnRevolverShot(
                     attacker,
@@ -490,9 +490,9 @@ public sealed partial class SimulationWorld
                 aimDeltaX = attacker.FacingDirectionX;
             }
 
-            var directionRadians = MathF.Atan2(aimDeltaY, aimDeltaX);
-            var nominalSpawnX = weaponOrigin.BaseX + MathF.Cos(directionRadians) * 10f;
-            var nominalSpawnY = weaponOrigin.BaseY + MathF.Sin(directionRadians) * 10f;
+            var directionRadians = DeterministicMath.Atan2(aimDeltaY, aimDeltaX);
+            var nominalSpawnX = weaponOrigin.BaseX + DeterministicMath.Cos(directionRadians) * 10f;
+            var nominalSpawnY = weaponOrigin.BaseY + DeterministicMath.Sin(directionRadians) * 10f;
             var spawnBlocked = _world.IsProjectileSpawnBlocked(weaponOrigin.BaseX, weaponOrigin.BaseY, nominalSpawnX, nominalSpawnY, attacker.Team);
             var spawnX = spawnBlocked ? weaponOrigin.BaseX : nominalSpawnX;
             var spawnY = spawnBlocked ? weaponOrigin.BaseY : nominalSpawnY;
@@ -505,8 +505,8 @@ public sealed partial class SimulationWorld
                 var finalAngle = directionRadians + spreadOffset;
                 var (finalVelocityX, finalVelocityY) = _world.ApplyExperimentalProjectileSpeedMultiplier(
                     attacker,
-                    MathF.Cos(finalAngle) * weaponDefinition.MinShotSpeed,
-                    MathF.Sin(finalAngle) * weaponDefinition.MinShotSpeed);
+                    DeterministicMath.Cos(finalAngle) * weaponDefinition.MinShotSpeed,
+                    DeterministicMath.Sin(finalAngle) * weaponDefinition.MinShotSpeed);
                 SpawnMine(
                     attacker,
                     spawnX,
@@ -548,9 +548,9 @@ public sealed partial class SimulationWorld
                 aimDeltaX = attacker.FacingDirectionX;
             }
 
-            var directionRadians = MathF.Atan2(aimDeltaY, aimDeltaX);
-            var spawnX = weaponOrigin.BaseX + MathF.Cos(directionRadians) * 10f;
-            var spawnY = weaponOrigin.BaseY + MathF.Sin(directionRadians) * 10f;
+            var directionRadians = DeterministicMath.Atan2(aimDeltaY, aimDeltaX);
+            var spawnX = weaponOrigin.BaseX + DeterministicMath.Cos(directionRadians) * 10f;
+            var spawnY = weaponOrigin.BaseY + DeterministicMath.Sin(directionRadians) * 10f;
             var projectileCount = GetExperimentalProjectilesPerShot(attacker, 1);
             for (var projectileIndex = 0; projectileIndex < projectileCount; projectileIndex += 1)
             {
@@ -560,8 +560,8 @@ public sealed partial class SimulationWorld
                 var finalAngle = directionRadians + spreadOffset;
                 var (finalVelocityX, finalVelocityY) = _world.ApplyExperimentalProjectileSpeedMultiplier(
                     attacker,
-                    MathF.Cos(finalAngle) * weaponDefinition.MinShotSpeed,
-                    MathF.Sin(finalAngle) * weaponDefinition.MinShotSpeed);
+                    DeterministicMath.Cos(finalAngle) * weaponDefinition.MinShotSpeed,
+                    DeterministicMath.Sin(finalAngle) * weaponDefinition.MinShotSpeed);
                 SpawnGrenade(
                     attacker,
                     spawnX,
@@ -587,9 +587,9 @@ public sealed partial class SimulationWorld
             var weaponOrigin = GetSourceWeaponOrigin(attacker, PlayerClass.Sniper);
             var speed = MathF.Max(0.1f, throwSpeed);
             // Seed spawn slightly toward the crosshair, then solve a through-point lob from there.
-            var seedAim = MathF.Atan2(aimWorldY - weaponOrigin.BaseY, aimWorldX - weaponOrigin.BaseX);
-            var spawnX = weaponOrigin.BaseX + MathF.Cos(seedAim) * 10f;
-            var spawnY = weaponOrigin.BaseY + MathF.Sin(seedAim) * 10f;
+            var seedAim = DeterministicMath.Atan2(aimWorldY - weaponOrigin.BaseY, aimWorldX - weaponOrigin.BaseX);
+            var spawnX = weaponOrigin.BaseX + DeterministicMath.Cos(seedAim) * 10f;
+            var spawnY = weaponOrigin.BaseY + DeterministicMath.Sin(seedAim) * 10f;
             var throwRadians = PlayerEntity.ResolveStrongDrinkThrowDirection(
                 spawnX,
                 spawnY,
@@ -601,8 +601,8 @@ public sealed partial class SimulationWorld
                 unreachableLobBiasDegrees);
             var (finalVelocityX, finalVelocityY) = _world.ApplyExperimentalProjectileSpeedMultiplier(
                 attacker,
-                MathF.Cos(throwRadians) * speed,
-                MathF.Sin(throwRadians) * speed);
+                DeterministicMath.Cos(throwRadians) * speed,
+                DeterministicMath.Sin(throwRadians) * speed);
             var spinMagnitude = GrenadeProjectileEntity.StrongDrinkSpinSpeedMin
                 + (_random.NextSingle()
                     * (GrenadeProjectileEntity.StrongDrinkSpinSpeedMax - GrenadeProjectileEntity.StrongDrinkSpinSpeedMin));

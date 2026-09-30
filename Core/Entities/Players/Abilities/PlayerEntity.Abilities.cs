@@ -1006,8 +1006,8 @@ public sealed partial class PlayerEntity
         var velocity = minVelocity + (maxVelocity - minVelocity) * chargeFraction;
 
         var radians = SpySuperjumpChargeDirectionDegrees * (MathF.PI / 180f);
-        var calculatedVelocityX = MathF.Cos(radians) * velocity;
-        var calculatedVelocityY = MathF.Sin(radians) * velocity;
+        var calculatedVelocityX = DeterministicMath.Cos(radians) * velocity;
+        var calculatedVelocityY = DeterministicMath.Sin(radians) * velocity;
 
         // Only execute jump if grounded, but always clear charge state
         var canLaunch = IsGrounded
@@ -1287,8 +1287,8 @@ public sealed partial class PlayerEntity
         fakeSpeedMultiplier = GetSniperBowFakeSpeedMultiplierForChargeFraction(chargeFraction);
         var velocity = (minVelocity + (maxVelocity - minVelocity) * chargeFraction) * fakeSpeedMultiplier;
         var radians = SniperBowChargeDirectionDegrees * (MathF.PI / 180f);
-        velocityX = MathF.Cos(radians) * velocity;
-        velocityY = MathF.Sin(radians) * velocity;
+        velocityX = DeterministicMath.Cos(radians) * velocity;
+        velocityY = DeterministicMath.Sin(radians) * velocity;
         damage = GetSniperBowDamageForChargeFraction(chargeFraction);
 
         SniperBowChargeTicks = 0;
@@ -1374,8 +1374,8 @@ public sealed partial class PlayerEntity
             return aimRadians;
         }
 
-        var ax = MathF.Cos(aimRadians);
-        var ay = MathF.Sin(aimRadians);
+        var ax = DeterministicMath.Cos(aimRadians);
+        var ay = DeterministicMath.Sin(aimRadians);
         const float ux = 0f;
         const float uy = -1f;
         var x = ax + (ux - ax) * t;
@@ -1385,7 +1385,7 @@ public sealed partial class PlayerEntity
             return -MathF.PI / 2f;
         }
 
-        return MathF.Atan2(y, x);
+        return DeterministicMath.Atan2(y, x);
     }
 
     /// <summary>
@@ -1405,7 +1405,7 @@ public sealed partial class PlayerEntity
     {
         var dx = targetX - originX;
         var dy = targetY - originY;
-        var directAim = MathF.Atan2(dy, dx);
+        var directAim = DeterministicMath.Atan2(dy, dx);
         var speed = MathF.Max(0.1f, throwSpeed);
         var g = MathF.Max(0.0001f, gravityPerTick);
         var charge = float.Clamp(chargeFraction, 0f, 1f);
@@ -1456,7 +1456,7 @@ public sealed partial class PlayerEntity
         var denom = MathF.Sqrt(1f + (tanTheta * tanTheta));
         var cos = horizontalSign / denom;
         var sin = (tanTheta * horizontalSign) / denom;
-        return MathF.Atan2(sin, cos);
+        return DeterministicMath.Atan2(sin, cos);
     }
 
     private static float LerpAngleRadians(float fromRadians, float toRadians, float t)

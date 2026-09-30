@@ -1227,8 +1227,8 @@ public static class CombatDecisionResolver
 
         foreach (var rocket in world.Rockets)
         {
-            var velocityX = MathF.Cos(rocket.DirectionRadians) * rocket.Speed;
-            var velocityY = MathF.Sin(rocket.DirectionRadians) * rocket.Speed;
+            var velocityX = DeterministicMath.Cos(rocket.DirectionRadians) * rocket.Speed;
+            var velocityY = DeterministicMath.Sin(rocket.DirectionRadians) * rocket.Speed;
             TryConsiderReflectProjectile(self, rocket.Team, rocket.OwnerId, rocket.Id, rocket.X, rocket.Y, velocityX, velocityY, ref bestScore, ref projectile);
         }
 
@@ -1310,8 +1310,8 @@ public static class CombatDecisionResolver
 
         foreach (var rocket in world.Rockets)
         {
-            var velocityX = MathF.Cos(rocket.DirectionRadians) * rocket.Speed;
-            var velocityY = MathF.Sin(rocket.DirectionRadians) * rocket.Speed;
+            var velocityX = DeterministicMath.Cos(rocket.DirectionRadians) * rocket.Speed;
+            var velocityY = DeterministicMath.Sin(rocket.DirectionRadians) * rocket.Speed;
             TryConsiderHeavyDashProjectile(self, rocket.Team, rocket.OwnerId, rocket.Id, rocket.X, rocket.Y, velocityX, velocityY, ref bestScore, ref projectile);
         }
 

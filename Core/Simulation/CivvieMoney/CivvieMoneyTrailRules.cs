@@ -66,7 +66,7 @@ public static class CivvieMoneyTrailRules
             return false;
         }
 
-        var fractionalChance = 1f - MathF.Pow(1f - sourceTickChance, fractionalSourceTick);
+        var fractionalChance = 1f - DeterministicMath.Pow(1f - sourceTickChance, fractionalSourceTick);
         return GetDeterministicUnitFloat(frame, playerId, wholeSourceTicks + 1000) < fractionalChance;
     }
 
@@ -112,12 +112,12 @@ public static class CivvieMoneyTrailRules
         var angle = baseAngle
             + GetDeterministicSignedOffset(frame, playerId, angleSalt, PogoTrickBurstAngleJitter);
         var spawnRadius = GetDeterministicUnitFloat(frame, playerId, radiusSalt) * PogoTrickBurstSpawnRadiusSpan;
-        var x = centerX + (MathF.Cos(angle) * spawnRadius);
-        var y = centerY - 8f + (MathF.Sin(angle) * spawnRadius * 0.25f);
+        var x = centerX + (DeterministicMath.Cos(angle) * spawnRadius);
+        var y = centerY - 8f + (DeterministicMath.Sin(angle) * spawnRadius * 0.25f);
         var speed = PogoTrickBurstSpeedMin
             + (GetDeterministicUnitFloat(frame, playerId, speedSalt) * PogoTrickBurstSpeedSpan);
-        var velocityX = MathF.Cos(angle) * speed;
-        var velocityY = MathF.Sin(angle) * speed;
+        var velocityX = DeterministicMath.Cos(angle) * speed;
+        var velocityY = DeterministicMath.Sin(angle) * speed;
         return new CivvieMoneyBurstSpawn(
             x,
             y,

@@ -345,7 +345,7 @@ public sealed partial class SimulationWorld
             if (owner is null
                 || ReferenceEquals(player, owner)
                 || !rocket.IsBallistic
-                || MathF.Sin(rocket.DirectionRadians) <= 0.0001f)
+                || DeterministicMath.Sin(rocket.DirectionRadians) <= 0.0001f)
             {
                 return false;
             }
@@ -379,7 +379,7 @@ public sealed partial class SimulationWorld
                 (towardOwnerX * towardOwnerX) + (towardOwnerY * towardOwnerY));
             if (distanceToOwner <= 0.0001f)
             {
-                var fallbackDirectionX = -MathF.Cos(rocket.DirectionRadians);
+                var fallbackDirectionX = -DeterministicMath.Cos(rocket.DirectionRadians);
                 player.AddImpulse(MathF.Sign(fallbackDirectionX) * impulse, 0f);
                 return;
             }

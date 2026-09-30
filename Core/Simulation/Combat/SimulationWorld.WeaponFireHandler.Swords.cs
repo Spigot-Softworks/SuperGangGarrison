@@ -15,9 +15,9 @@ public sealed partial class SimulationWorld
                 aimDeltaX = attacker.FacingDirectionX;
             }
 
-            var directionRadians = MathF.Atan2(aimDeltaY, aimDeltaX);
-            var directionX = MathF.Cos(directionRadians);
-            var directionY = MathF.Sin(directionRadians);
+            var directionRadians = DeterministicMath.Atan2(aimDeltaY, aimDeltaX);
+            var directionX = DeterministicMath.Cos(directionRadians);
+            var directionY = DeterministicMath.Sin(directionRadians);
             var bladePower = attacker.CurrentShells;
             var bonusDamage = (int)MathF.Floor((15f / 100f) * bladePower + 3f);
             var hitDamage = 3 + bonusDamage;
@@ -76,7 +76,7 @@ public sealed partial class SimulationWorld
 
             var directionX = aimDeltaX / distance;
             var directionY = aimDeltaY / distance;
-            var facingLeft = MathF.Cos(attacker.AimDirectionDegrees * (MathF.PI / 180f)) < 0f;
+            var facingLeft = DeterministicMath.Cos(attacker.AimDirectionDegrees * (MathF.PI / 180f)) < 0f;
             var hitboxSpriteName = ResolveExperimentalDemoknightMeleeHitboxSpriteName(attacker);
             var hitboxMask = MeleeHitboxMaskCatalog.GetOrLoad(hitboxSpriteName);
             if (hitboxMask is null)
@@ -342,7 +342,7 @@ public sealed partial class SimulationWorld
             float directionX,
             float directionY)
         {
-            var directionRadians = MathF.Atan2(directionY, directionX);
+            var directionRadians = DeterministicMath.Atan2(directionY, directionX);
 
             for (var rocketIndex = 0; rocketIndex < _world.Rockets.Count; rocketIndex += 1)
             {

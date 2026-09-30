@@ -14,9 +14,9 @@ public sealed partial class SimulationWorld
                 aimDeltaX = attacker.FacingDirectionX;
             }
 
-            var directionRadians = MathF.Atan2(aimDeltaY, aimDeltaX);
-            var directionX = MathF.Cos(directionRadians);
-            var directionY = MathF.Sin(directionRadians);
+            var directionRadians = DeterministicMath.Atan2(aimDeltaY, aimDeltaX);
+            var directionX = DeterministicMath.Cos(directionRadians);
+            var directionY = DeterministicMath.Sin(directionRadians);
             var bubbleSpeed = 10f;
             var (launchedVelocityX, launchedVelocityY) = _world.ApplyExperimentalProjectileSpeedMultiplier(
                 attacker,
@@ -96,15 +96,15 @@ public sealed partial class SimulationWorld
                 aimDeltaX = attacker.FacingDirectionX;
             }
 
-            var directionRadians = MathF.Atan2(aimDeltaY, aimDeltaX);
+            var directionRadians = DeterministicMath.Atan2(aimDeltaY, aimDeltaX);
             var speed = MathF.Max(0f, weapon.MinShotSpeed);
             if (_world.RandomSpreadEnabled && weapon.AdditionalRandomShotSpeed > 0f)
             {
                 speed += _random.NextSingle() * weapon.AdditionalRandomShotSpeed;
             }
 
-            var directionX = MathF.Cos(directionRadians);
-            var directionY = MathF.Sin(directionRadians);
+            var directionX = DeterministicMath.Cos(directionRadians);
+            var directionY = DeterministicMath.Sin(directionRadians);
             var spawnX = weaponOrigin.BaseX + (directionX * 13f);
             var spawnY = weaponOrigin.BaseY + weaponOrigin.WeaponYOffset + weaponOrigin.EquipmentOffset + (directionY * 13f);
             if (_world.IsProjectileSpawnBlocked(
@@ -170,8 +170,8 @@ public sealed partial class SimulationWorld
                 aimDeltaX = attacker.FacingDirectionX;
             }
 
-            var aimRadians = MathF.Atan2(aimDeltaY, aimDeltaX);
-            var facingScale = MathF.Cos(aimRadians) < 0f ? -1f : 1f;
+            var aimRadians = DeterministicMath.Atan2(aimDeltaY, aimDeltaX);
+            var facingScale = DeterministicMath.Cos(aimRadians) < 0f ? -1f : 1f;
 
             // Nailgun weapon sprite values (from weapon.scout-nailgun.json and NailgunS.json):
             // weaponOffsetX = -7, weaponOffsetY = 0, originX = 8, originY = 3
@@ -193,7 +193,7 @@ public sealed partial class SimulationWorld
                 shotAimDeltaX = facingScale;
             }
 
-            var directionRadians = MathF.Atan2(shotAimDeltaY, shotAimDeltaX);
+            var directionRadians = DeterministicMath.Atan2(shotAimDeltaY, shotAimDeltaX);
             if (!_world.RandomSpreadEnabled)
             {
                 directionRadians += GetDeterministicContinuousSpreadRadians(attacker.Id, 4f);
@@ -207,8 +207,8 @@ public sealed partial class SimulationWorld
 
             var (launchedVelocityX, launchedVelocityY) = _world.ApplyExperimentalProjectileSpeedMultiplier(
                 attacker,
-                MathF.Cos(directionRadians) * speed,
-                MathF.Sin(directionRadians) * speed);
+                DeterministicMath.Cos(directionRadians) * speed,
+                DeterministicMath.Sin(directionRadians) * speed);
             SpawnNail(
                 attacker,
                 spawnX,
@@ -261,8 +261,8 @@ public sealed partial class SimulationWorld
         {
             RegisterSoundEvent(attacker, weapon.FireSoundName ?? "RocketSnd");
             chargeFraction = Math.Clamp(chargeFraction, 0f, 1f);
-            var directionX = MathF.Cos(directionRadians);
-            var directionY = MathF.Sin(directionRadians);
+            var directionX = DeterministicMath.Cos(directionRadians);
+            var directionY = DeterministicMath.Sin(directionRadians);
             var weaponOrigin = GetSourceWeaponOrigin(attacker, PlayerClass.Soldier);
             var spawnX = weaponOrigin.BaseX + (directionX * 20f);
             var spawnY = weaponOrigin.BaseY
@@ -278,7 +278,7 @@ public sealed partial class SimulationWorld
             velocityX += attacker.HorizontalSpeed * (float)Config.FixedDeltaSeconds;
             var finalSpeed = MathF.Sqrt((velocityX * velocityX) + (velocityY * velocityY));
             var finalDirection = finalSpeed > 0.0001f
-                ? MathF.Atan2(velocityY, velocityX)
+                ? DeterministicMath.Atan2(velocityY, velocityX)
                 : directionRadians;
             var explodeImmediately = _world.IsProjectileSpawnBlocked(
                 weaponOrigin.BaseX,
@@ -352,8 +352,8 @@ public sealed partial class SimulationWorld
                 aimDeltaX = attacker.FacingDirectionX;
             }
 
-            var aimRadians = MathF.Atan2(aimDeltaY, aimDeltaX);
-            var facingScale = MathF.Cos(aimRadians) < 0f ? -1f : 1f;
+            var aimRadians = DeterministicMath.Atan2(aimDeltaY, aimDeltaX);
+            var facingScale = DeterministicMath.Cos(aimRadians) < 0f ? -1f : 1f;
 
             // Medigun weapon sprite values (from weapon.medigun.json and MedigunS.json):
             // weaponOffsetX = -7, weaponOffsetY = 0, originX = 8, originY = 3
@@ -380,7 +380,7 @@ public sealed partial class SimulationWorld
                 shotAimDeltaX = facingScale;
             }
 
-            var directionRadians = MathF.Atan2(shotAimDeltaY, shotAimDeltaX);
+            var directionRadians = DeterministicMath.Atan2(shotAimDeltaY, shotAimDeltaX);
             var spreadDegrees = weapon?.SpreadDegrees ?? 4f;
             if (!_world.RandomSpreadEnabled)
             {
@@ -399,8 +399,8 @@ public sealed partial class SimulationWorld
 
             var (launchedVelocityX, launchedVelocityY) = _world.ApplyExperimentalProjectileSpeedMultiplier(
                 attacker,
-                MathF.Cos(directionRadians) * speed,
-                MathF.Sin(directionRadians) * speed);
+                DeterministicMath.Cos(directionRadians) * speed,
+                DeterministicMath.Sin(directionRadians) * speed);
             SpawnNeedle(
                 attacker,
                 spawnX,
@@ -431,8 +431,8 @@ public sealed partial class SimulationWorld
                 aimDeltaX = attacker.FacingDirectionX;
             }
 
-            var aimRadians = MathF.Atan2(aimDeltaY, aimDeltaX);
-            var facingScale = MathF.Cos(aimRadians) < 0f ? -1f : 1f;
+            var aimRadians = DeterministicMath.Atan2(aimDeltaY, aimDeltaX);
+            var facingScale = DeterministicMath.Cos(aimRadians) < 0f ? -1f : 1f;
             const float medicWeaponOffsetX = -7f;
             const float medicWeaponOffsetY = 0f;
             const float medicWeaponSpriteOriginX = 8f;
@@ -441,14 +441,14 @@ public sealed partial class SimulationWorld
             var shotOriginY = weaponOrigin.BaseY + weaponOrigin.WeaponYOffset + (medicWeaponOffsetY + weaponOrigin.EquipmentOffset + medicWeaponSpriteOriginY) - 2f;
             var barrelForwardOffset = 18f;
             var spreadRadians = GetWeaponSpreadRadians(attacker.Id, MathF.Max(0f, spreadDegrees));
-            var directionRadians = MathF.Atan2(aimWorldY - shotOriginY, aimWorldX - shotOriginX) + spreadRadians;
-            var nominalSpawnX = shotOriginX + MathF.Cos(directionRadians) * barrelForwardOffset;
-            var nominalSpawnY = shotOriginY + MathF.Sin(directionRadians) * barrelForwardOffset;
+            var directionRadians = DeterministicMath.Atan2(aimWorldY - shotOriginY, aimWorldX - shotOriginX) + spreadRadians;
+            var nominalSpawnX = shotOriginX + DeterministicMath.Cos(directionRadians) * barrelForwardOffset;
+            var nominalSpawnY = shotOriginY + DeterministicMath.Sin(directionRadians) * barrelForwardOffset;
             var spawnBlocked = _world.IsProjectileSpawnBlocked(shotOriginX, shotOriginY, nominalSpawnX, nominalSpawnY, attacker.Team);
             var (finalVelocityX, finalVelocityY) = _world.ApplyExperimentalProjectileSpeedMultiplier(
                 attacker,
-                MathF.Cos(directionRadians) * MathF.Max(0f, projectileSpeed),
-                MathF.Sin(directionRadians) * MathF.Max(0f, projectileSpeed));
+                DeterministicMath.Cos(directionRadians) * MathF.Max(0f, projectileSpeed),
+                DeterministicMath.Sin(directionRadians) * MathF.Max(0f, projectileSpeed));
             SpawnMedicHealNeedle(
                 attacker,
                 spawnBlocked ? shotOriginX : nominalSpawnX,

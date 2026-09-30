@@ -197,8 +197,8 @@ public sealed partial class SimulationWorld
             {
                 var angle = _random.NextSingle() * (MathF.PI * 2f);
                 var radialSpeed = MathF.Max(2f, MathF.Max(velocityRangeX, velocityRangeY) * (0.45f + (_random.NextSingle() * 0.55f)));
-                velocityX = inheritedVelocityX + (MathF.Cos(angle) * radialSpeed);
-                velocityY = inheritedVelocityY + (MathF.Sin(angle) * radialSpeed);
+                velocityX = inheritedVelocityX + (DeterministicMath.Cos(angle) * radialSpeed);
+                velocityY = inheritedVelocityY + (DeterministicMath.Sin(angle) * radialSpeed);
             }
             var rotationSpeed = (_random.NextSingle() * ((rotationRange * 2f) + 1f)) - rotationRange;
 
@@ -450,13 +450,13 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        var angle = MathF.Atan2(gib.VelocityY, gib.VelocityX);
+        var angle = DeterministicMath.Atan2(gib.VelocityY, gib.VelocityX);
         var bloodDrop = new BloodDropEntity(
             AllocateEntityId(),
             gib.X,
             gib.Y - 1f,
-            MathF.Cos(angle) * gib.Speed * 0.9f + (_random.NextSingle() * 3f) - 1f,
-            MathF.Sin(angle) * gib.Speed * 0.9f + (_random.NextSingle() * 3f) - 1f,
+            DeterministicMath.Cos(angle) * gib.Speed * 0.9f + (_random.NextSingle() * 3f) - 1f,
+            DeterministicMath.Sin(angle) * gib.Speed * 0.9f + (_random.NextSingle() * 3f) - 1f,
             experimentalCryoTinted: gib.ExperimentalCryoTinted,
             lifetimeTicks: ScaleBloodDropLifetimeTicks());
         _bloodDrops.Add(bloodDrop);

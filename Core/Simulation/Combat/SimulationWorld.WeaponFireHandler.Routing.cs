@@ -156,7 +156,7 @@ public sealed partial class SimulationWorld
                 aimDeltaX = attacker.FacingDirectionX == 0f ? 1f : attacker.FacingDirectionX;
             }
 
-            var directionRadians = MathF.Atan2(aimDeltaY, aimDeltaX);
+            var directionRadians = DeterministicMath.Atan2(aimDeltaY, aimDeltaX);
             var itemId = CharacterClassCatalog.RuntimeRegistry.TryResolvePrimaryWeaponItemId(weaponDefinition, out var resolvedItemId)
                 ? resolvedItemId
                 : string.Empty;
@@ -172,8 +172,8 @@ public sealed partial class SimulationWorld
                 SourceY = sourceY,
                 AimWorldX = aimWorldX,
                 AimWorldY = aimWorldY,
-                DirectionX = MathF.Cos(directionRadians),
-                DirectionY = MathF.Sin(directionRadians),
+                DirectionX = DeterministicMath.Cos(directionRadians),
+                DirectionY = DeterministicMath.Sin(directionRadians),
                 DirectionRadians = directionRadians,
                 KillFeedWeaponSpriteName = resolvedKillFeedWeaponSpriteName,
             });
