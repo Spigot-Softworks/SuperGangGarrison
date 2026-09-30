@@ -358,7 +358,7 @@ public sealed partial class ProjectileSystem
     }
 
     private static float PointDirectionDegrees(float x1, float y1, float x2, float y2)
-        => MathF.Atan2(y2 - y1, x2 - x1) * (180f / MathF.PI);
+        => DeterministicMath.Atan2(y2 - y1, x2 - x1) * (180f / MathF.PI);
 
     private void RegisterCombatTrace(float x, float y, float directionX, float directionY, float distance, bool hitCharacter, PlayerTeam team = PlayerTeam.Red, bool isSniperTracer = false, bool isCritical = false)
         => _dependencies.RegisterCombatTrace(x, y, directionX, directionY, distance, hitCharacter, team, isSniperTracer, isCritical);

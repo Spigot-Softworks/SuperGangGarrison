@@ -47,8 +47,8 @@ public sealed partial class SimulationWorld
         }
 
         var currentSourceFrame = GetCurrentSourceFrame();
-        var directionX = MathF.Cos(aimRadians);
-        var directionY = MathF.Sin(aimRadians);
+        var directionX = DeterministicMath.Cos(aimRadians);
+        var directionY = DeterministicMath.Sin(aimRadians);
         for (var flameIndex = 0; flameIndex < flameCount; flameIndex += 1)
         {
             target.GetBurnVisualOffset(flameIndex, currentSourceFrame, out var offsetX, out var offsetY);

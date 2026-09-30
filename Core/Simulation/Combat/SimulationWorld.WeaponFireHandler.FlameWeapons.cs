@@ -39,15 +39,15 @@ public sealed partial class SimulationWorld
             }
 
             var spreadSign = MathF.Sign((_random.NextSingle() * 2f) - 1f);
-            var spreadDegrees = spreadSign * MathF.Pow(_random.NextSingle() * 3f, 1.8f);
+            var spreadDegrees = spreadSign * DeterministicMath.Pow(_random.NextSingle() * 3f, 1.8f);
             var maxRunSpeed = MathF.Max(0.0001f, attacker.MaxRunSpeed);
             spreadDegrees *= 1f - (attacker.HorizontalSpeed / maxRunSpeed);
             var flameAngle = pivotRay.AngleRadians + DegreesToRadians(spreadDegrees);
             var flameSpeed = 6.5f + (_random.NextSingle() * 3.5f);
             var (launchedVelocityX, launchedVelocityY) = _world.ApplyExperimentalProjectileSpeedMultiplier(
                 attacker,
-                MathF.Cos(flameAngle) * flameSpeed,
-                MathF.Sin(flameAngle) * flameSpeed);
+                DeterministicMath.Cos(flameAngle) * flameSpeed,
+                DeterministicMath.Sin(flameAngle) * flameSpeed);
             var airborneReachMultiplier = AirborneVelocityReachRules.ResolveMultiplier(
                 attacker,
                 weaponDefinition.AirborneVelocityReach);

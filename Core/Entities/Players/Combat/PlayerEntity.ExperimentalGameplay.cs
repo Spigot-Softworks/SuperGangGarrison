@@ -373,7 +373,7 @@ public sealed partial class PlayerEntity
 
         IsExperimentalDemoknightCharging = true;
         ExperimentalDemoknightChargeRechargeAccumulator = 0f;
-        FacingDirectionX = MathF.Cos(AimDirectionDegrees * (MathF.PI / 180f)) < 0f ? -1f : 1f;
+        FacingDirectionX = DeterministicMath.Cos(AimDirectionDegrees * (MathF.PI / 180f)) < 0f ? -1f : 1f;
         StartExperimentalDemoknightChargeMovementState();
         return true;
     }

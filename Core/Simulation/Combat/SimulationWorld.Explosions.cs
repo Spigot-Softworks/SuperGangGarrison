@@ -32,8 +32,8 @@ public sealed partial class SimulationWorld
             RegisterCombatTrace(
                 centerX,
                 centerY,
-                MathF.Cos(angle),
-                MathF.Sin(angle),
+                DeterministicMath.Cos(angle),
+                DeterministicMath.Sin(angle),
                 RocketProjectileEntity.BlastRadius * 0.5f,
                 true);
         }
@@ -316,8 +316,8 @@ public sealed partial class SimulationWorld
             }
 
             var impulseScale = 1f - (distance / resolvedFalloffRadius);
-            var angle = MathF.Atan2(deadBody.Y - originY, deadBody.X - originX);
-            deadBody.AddImpulse(MathF.Cos(angle) * maxImpulse * impulseScale, MathF.Sin(angle) * maxImpulse * impulseScale);
+            var angle = DeterministicMath.Atan2(deadBody.Y - originY, deadBody.X - originX);
+            deadBody.AddImpulse(DeterministicMath.Cos(angle) * maxImpulse * impulseScale, DeterministicMath.Sin(angle) * maxImpulse * impulseScale);
         }
     }
 
@@ -339,10 +339,10 @@ public sealed partial class SimulationWorld
             }
 
             var impulseScale = 1f - (distance / resolvedFalloffRadius);
-            var angle = MathF.Atan2(gib.Y - originY, gib.X - originX);
+            var angle = DeterministicMath.Atan2(gib.Y - originY, gib.X - originX);
             gib.AddImpulse(
-                MathF.Cos(angle) * maxImpulse * impulseScale,
-                MathF.Sin(angle) * maxImpulse * impulseScale,
+                DeterministicMath.Cos(angle) * maxImpulse * impulseScale,
+                DeterministicMath.Sin(angle) * maxImpulse * impulseScale,
                 ((_random.NextSingle() * 151f) - 75f) * impulseScale);
         }
     }
@@ -418,8 +418,8 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            var angle = MathF.Atan2(rocket.Y - mine.Y, rocket.X - mine.X);
-            rocket.ApplyImpulse(MathF.Cos(angle) * impulse, MathF.Sin(angle) * impulse);
+            var angle = DeterministicMath.Atan2(rocket.Y - mine.Y, rocket.X - mine.X);
+            rocket.ApplyImpulse(DeterministicMath.Cos(angle) * impulse, DeterministicMath.Sin(angle) * impulse);
         }
 
         for (var index = 0; index < rocketsToExplode.Count; index += 1)

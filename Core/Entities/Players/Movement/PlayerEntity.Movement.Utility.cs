@@ -108,7 +108,7 @@ public sealed partial class PlayerEntity
             return;
         }
 
-        AimDirectionDegrees = NormalizeDegrees(MathF.Atan2(aimDeltaY, aimDeltaX) * (180f / MathF.PI));
+        AimDirectionDegrees = NormalizeDegrees(DeterministicMath.Atan2(aimDeltaY, aimDeltaX) * (180f / MathF.PI));
     }
 
     internal void ApplyPredictionAimWorld(float aimWorldX, float aimWorldY)
@@ -122,7 +122,7 @@ public sealed partial class PlayerEntity
             return;
         }
 
-        AimDirectionDegrees = NormalizeDegrees(MathF.Atan2(aimDeltaY, aimDeltaX) * (180f / MathF.PI));
+        AimDirectionDegrees = NormalizeDegrees(DeterministicMath.Atan2(aimDeltaY, aimDeltaX) * (180f / MathF.PI));
     }
 
     internal void ApplyPredictionSniperChargeTicks(int chargeTicks)

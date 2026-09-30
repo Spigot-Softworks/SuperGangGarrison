@@ -667,9 +667,9 @@ public sealed partial class SimulationWorld
             input.AimWorldY,
             global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerDestinyPunctuatorPelletMultiplier);
 
-        var aimRadians = MathF.Atan2(input.AimWorldY - player.Y, input.AimWorldX - player.X);
-        var blastOriginX = player.X + MathF.Cos(aimRadians) * 16f;
-        var blastOriginY = player.Y + MathF.Sin(aimRadians) * 12f;
+        var aimRadians = DeterministicMath.Atan2(input.AimWorldY - player.Y, input.AimWorldX - player.X);
+        var blastOriginX = player.X + DeterministicMath.Cos(aimRadians) * 16f;
+        var blastOriginY = player.Y + DeterministicMath.Sin(aimRadians) * 12f;
         ApplyExplosionImpulse(
             player,
             blastOriginX,

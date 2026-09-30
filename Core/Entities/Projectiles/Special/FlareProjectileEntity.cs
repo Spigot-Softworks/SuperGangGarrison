@@ -141,8 +141,8 @@ public sealed class FlareProjectileEntity : SimulationEntity
         Team = team;
         PreviousX = X;
         PreviousY = Y;
-        VelocityX = MathF.Cos(directionRadians) * speed;
-        VelocityY = MathF.Sin(directionRadians) * speed;
+        VelocityX = DeterministicMath.Cos(directionRadians) * speed;
+        VelocityY = DeterministicMath.Sin(directionRadians) * speed;
         TicksRemaining = InitialLifetimeTicks;
         DragonRageShotSequence = 0;
         _hitPlayers.Clear();

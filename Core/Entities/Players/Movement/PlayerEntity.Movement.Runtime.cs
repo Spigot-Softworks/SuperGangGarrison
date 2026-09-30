@@ -621,7 +621,7 @@ public sealed partial class PlayerEntity
         }
 
         var aimRadians = AimDirectionDegrees * (MathF.PI / 180f);
-        return MathF.Sin(aimRadians) <= -MathF.Cos(CivvieUmbrellaSlowFallAimArcDegrees * (MathF.PI / 180f));
+        return DeterministicMath.Sin(aimRadians) <= -DeterministicMath.Cos(CivvieUmbrellaSlowFallAimArcDegrees * (MathF.PI / 180f));
     }
 
     private bool IsCivvieUmbrellaSlowFalling()

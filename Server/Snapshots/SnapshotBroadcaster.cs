@@ -877,7 +877,7 @@ sealed class SnapshotBroadcaster
     private static bool IsFacingLeftByAim(PlayerEntity player)
     {
         var radians = MathF.PI * player.AimDirectionDegrees / 180f;
-        return MathF.Cos(radians) < 0f;
+        return DeterministicMath.Cos(radians) < 0f;
     }
 
     private static SnapshotPlayerState CreateSpectatorSnapshotPlayerState(ClientSession client)

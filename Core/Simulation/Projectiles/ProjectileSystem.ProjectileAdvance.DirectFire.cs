@@ -64,7 +64,7 @@ public sealed partial class ProjectileSystem
                 if (hitResult.HitPlayer is not null)
                 {
                     var targetWasGrounded = hitResult.HitPlayer.IsGrounded;
-                    RegisterBloodEffect(hitResult.HitPlayer.X, hitResult.HitPlayer.Y, MathF.Atan2(directionY, directionX) * (180f / MathF.PI) - 180f);
+                    RegisterBloodEffect(hitResult.HitPlayer.X, hitResult.HitPlayer.Y, DeterministicMath.Atan2(directionY, directionX) * (180f / MathF.PI) - 180f);
                     if (sourceSentry is not null && owner is not null)
                     {
                         ApplyExperimentalSentryPlayerHit(
@@ -144,15 +144,15 @@ public sealed partial class ProjectileSystem
                 else if (hitResult.HitJumpPad is not null)
                 {
                     hitResult.HitJumpPad.TakeDamage((int)MathF.Round(shot.DamageValue * shot.CriticalDamageMultiplier));
-                    RegisterImpactEffect(hitResult.HitX, hitResult.HitY, MathF.Atan2(directionY, directionX) * (180f / MathF.PI));
+                    RegisterImpactEffect(hitResult.HitX, hitResult.HitY, DeterministicMath.Atan2(directionY, directionX) * (180f / MathF.PI));
                 }
                 else if (TryHandleProjectileDamageableZoneHit(hitResult, shot.DamageValue * shot.CriticalDamageMultiplier, shot.Team))
                 {
-                    RegisterImpactEffect(hitResult.HitX, hitResult.HitY, MathF.Atan2(directionY, directionX) * (180f / MathF.PI));
+                    RegisterImpactEffect(hitResult.HitX, hitResult.HitY, DeterministicMath.Atan2(directionY, directionX) * (180f / MathF.PI));
                 }
                 else
                 {
-                    RegisterImpactEffect(hitResult.HitX, hitResult.HitY, MathF.Atan2(directionY, directionX) * (180f / MathF.PI));
+                    RegisterImpactEffect(hitResult.HitX, hitResult.HitY, DeterministicMath.Atan2(directionY, directionX) * (180f / MathF.PI));
                 }
 
                 if (shot.IsBoomstickPellet)
@@ -220,7 +220,7 @@ public sealed partial class ProjectileSystem
                     if (hitResult.HitPlayer is not null)
                     {
                         var targetWasGrounded = hitResult.HitPlayer.IsGrounded;
-                        RegisterBloodEffect(hitResult.HitPlayer.X, hitResult.HitPlayer.Y, MathF.Atan2(directionY, directionX) * (180f / MathF.PI) - 180f, 6);
+                        RegisterBloodEffect(hitResult.HitPlayer.X, hitResult.HitPlayer.Y, DeterministicMath.Atan2(directionY, directionX) * (180f / MathF.PI) - 180f, 6);
                         if (!hitResult.HitPlayer.IsUbered)
                         {
                             hitResult.HitPlayer.AddImpulse(
@@ -256,11 +256,11 @@ public sealed partial class ProjectileSystem
                     }
                     else if (TryHandleProjectileDamageableZoneHit(hitResult, blade.HitDamage * blade.CriticalDamageMultiplier, blade.Team))
                     {
-                        RegisterImpactEffect(hitResult.HitX, hitResult.HitY, MathF.Atan2(directionY, directionX) * (180f / MathF.PI));
+                        RegisterImpactEffect(hitResult.HitX, hitResult.HitY, DeterministicMath.Atan2(directionY, directionX) * (180f / MathF.PI));
                     }
                     else
                     {
-                        RegisterImpactEffect(hitResult.HitX, hitResult.HitY, MathF.Atan2(directionY, directionX) * (180f / MathF.PI));
+                        RegisterImpactEffect(hitResult.HitX, hitResult.HitY, DeterministicMath.Atan2(directionY, directionX) * (180f / MathF.PI));
                     }
 
                     blade.Destroy();
@@ -367,7 +367,7 @@ public sealed partial class ProjectileSystem
                 }
                 else if (hitResult.HitPlayer is not null)
                 {
-                    RegisterBloodEffect(hitResult.HitPlayer.X, hitResult.HitPlayer.Y, MathF.Atan2(directionY, directionX) * (180f / MathF.PI) - 180f);
+                    RegisterBloodEffect(hitResult.HitPlayer.X, hitResult.HitPlayer.Y, DeterministicMath.Atan2(directionY, directionX) * (180f / MathF.PI) - 180f);
                     var arrowPayload = needle as ArrowProjectileEntity;
                     var capturedDamageMultiplier = arrowPayload?.LastToDieGhostDamageMultiplier ?? 1f;
                     var executesFromDecapitator = arrowPayload is
@@ -524,7 +524,7 @@ public sealed partial class ProjectileSystem
                         RegisterImpactEffect(
                             hitResult.HitX,
                             hitResult.HitY,
-                            MathF.Atan2(directionY, directionX) * (180f / MathF.PI));
+                            DeterministicMath.Atan2(directionY, directionX) * (180f / MathF.PI));
                     }
 
                     if (javelin.IsLastToDieJavelinFuseExpired)
@@ -595,7 +595,7 @@ public sealed partial class ProjectileSystem
             return;
         }
 
-        RegisterImpactEffect(hitX, hitY, MathF.Atan2(directionY, directionX) * (180f / MathF.PI));
+        RegisterImpactEffect(hitX, hitY, DeterministicMath.Atan2(directionY, directionX) * (180f / MathF.PI));
     }
 
     public void AdvanceRevolverShots()
@@ -674,15 +674,15 @@ public sealed partial class ProjectileSystem
                     else if (hitResult.HitJumpPad is not null)
                     {
                         hitResult.HitJumpPad.TakeDamage((int)MathF.Round(shot.DamageValue * shot.CriticalDamageMultiplier));
-                        RegisterImpactEffect(hitResult.HitX, hitResult.HitY, MathF.Atan2(directionY, directionX) * (180f / MathF.PI));
+                        RegisterImpactEffect(hitResult.HitX, hitResult.HitY, DeterministicMath.Atan2(directionY, directionX) * (180f / MathF.PI));
                     }
                     else if (TryHandleProjectileDamageableZoneHit(hitResult, shot.DamageValue * shot.CriticalDamageMultiplier, shot.Team))
                     {
-                        RegisterImpactEffect(hitResult.HitX, hitResult.HitY, MathF.Atan2(directionY, directionX) * (180f / MathF.PI));
+                        RegisterImpactEffect(hitResult.HitX, hitResult.HitY, DeterministicMath.Atan2(directionY, directionX) * (180f / MathF.PI));
                     }
                     else
                     {
-                        RegisterImpactEffect(hitResult.HitX, hitResult.HitY, MathF.Atan2(directionY, directionX) * (180f / MathF.PI));
+                        RegisterImpactEffect(hitResult.HitX, hitResult.HitY, DeterministicMath.Atan2(directionY, directionX) * (180f / MathF.PI));
                     }
                 }
 
@@ -790,7 +790,7 @@ public sealed partial class ProjectileSystem
             RegisterBloodEffect(
                 target.X,
                 target.Y,
-                MathF.Atan2(directionY, directionX) * (180f / MathF.PI) - 180f);
+                DeterministicMath.Atan2(directionY, directionX) * (180f / MathF.PI) - 180f);
             if (!resolution.WasFatal)
             {
                 ApplyLastToDieRevolverOnHitEffects(shot, target);

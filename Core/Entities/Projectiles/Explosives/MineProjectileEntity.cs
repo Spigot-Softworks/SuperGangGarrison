@@ -128,8 +128,8 @@ public sealed class MineProjectileEntity : SimulationEntity
         OwnerId = ownerId;
         Team = team;
         Unstick();
-        VelocityX = MathF.Cos(directionRadians) * reflectedSpeed;
-        VelocityY = MathF.Sin(directionRadians) * reflectedSpeed;
+        VelocityX = DeterministicMath.Cos(directionRadians) * reflectedSpeed;
+        VelocityY = DeterministicMath.Sin(directionRadians) * reflectedSpeed;
     }
 
     public void Destroy()

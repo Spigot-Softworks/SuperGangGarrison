@@ -1,4 +1,4 @@
-﻿namespace OpenGarrison.Core;
+namespace OpenGarrison.Core;
 
 public sealed partial class SimulationWorld
 {
@@ -718,7 +718,7 @@ public sealed partial class SimulationWorld
         }
 
         var aimRadians = player.AimDirectionDegrees * (MathF.PI / 180f);
-        var aimDirectionX = MathF.Cos(aimRadians);
+        var aimDirectionX = DeterministicMath.Cos(aimRadians);
         var startDirectionX = MathF.Abs(aimDirectionX) > 0.001f
             ? (aimDirectionX >= 0f ? 1f : -1f)
             : player.FacingDirectionX;
@@ -774,7 +774,7 @@ public sealed partial class SimulationWorld
         }
 
         var aimRadians = player.AimDirectionDegrees * (MathF.PI / 180f);
-        var aimDirectionX = MathF.Cos(aimRadians);
+        var aimDirectionX = DeterministicMath.Cos(aimRadians);
         var startDirectionX = MathF.Abs(aimDirectionX) > 0.001f
             ? (aimDirectionX >= 0f ? 1f : -1f)
             : player.FacingDirectionX;

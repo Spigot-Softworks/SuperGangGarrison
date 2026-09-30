@@ -57,7 +57,7 @@ public sealed partial class SimulationWorld
             originY,
             player.X,
             player.Y,
-            MathF.Atan2(aimY, aimX),
+            DeterministicMath.Atan2(aimY, aimX),
             facingLeft,
             player.PlayerScale,
             out contactX,

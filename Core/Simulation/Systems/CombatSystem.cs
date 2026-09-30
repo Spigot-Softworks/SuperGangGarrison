@@ -1011,8 +1011,8 @@ public sealed class CombatSystem
     private (float X, float Y) GetCivvieUmbrellaBlockEffectPosition(PlayerEntity target)
     {
         var aimRadians = DegreesToRadians(target.AimDirectionDegrees);
-        var aimWorldX = target.X + MathF.Cos(aimRadians) * 128f;
-        var aimWorldY = target.Y + MathF.Sin(aimRadians) * 128f;
+        var aimWorldX = target.X + DeterministicMath.Cos(aimRadians) * 128f;
+        var aimWorldY = target.Y + DeterministicMath.Sin(aimRadians) * 128f;
         return _dependencies.GetCivvieUmbrellaTip(target, aimWorldX, aimWorldY);
     }
 
@@ -1026,8 +1026,8 @@ public sealed class CombatSystem
         }
 
         var aimRadians = DegreesToRadians(target.AimDirectionDegrees);
-        var forwardX = MathF.Cos(aimRadians);
-        var forwardY = MathF.Sin(aimRadians);
+        var forwardX = DeterministicMath.Cos(aimRadians);
+        var forwardY = DeterministicMath.Sin(aimRadians);
         var length = MathF.Sqrt((deltaX * deltaX) + (deltaY * deltaY));
         var threatDirX = deltaX / length;
         var threatDirY = deltaY / length;

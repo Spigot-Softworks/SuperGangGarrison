@@ -242,7 +242,7 @@ public sealed partial class ProjectileSystem
                             if (!infiltrateBlockedFlare)
                             {
                                 hitTarget = true;
-                                RegisterBloodEffect(hitResult.HitPlayer.X, hitResult.HitPlayer.Y, MathF.Atan2(directionY, directionX) * (180f / MathF.PI) - 180f);
+                                RegisterBloodEffect(hitResult.HitPlayer.X, hitResult.HitPlayer.Y, DeterministicMath.Atan2(directionY, directionX) * (180f / MathF.PI) - 180f);
                             }
 
                             var hitDamage = ApplyExperimentalAirshotDamageMultiplier(owner, hitResult.HitPlayer, (int)MathF.Round(flare.DamagePerHit * flare.CriticalDamageMultiplier), out var damageFlags);
@@ -496,7 +496,7 @@ public sealed partial class ProjectileSystem
                     if (grenade.IsStrongDrink)
                     {
                         grenade.MoveTo(envHit.Value.HitX, envHit.Value.HitY);
-                        var burstDegrees = MathF.Atan2(envHit.Value.NormalY, envHit.Value.NormalX) * (180f / MathF.PI);
+                        var burstDegrees = DeterministicMath.Atan2(envHit.Value.NormalY, envHit.Value.NormalX) * (180f / MathF.PI);
                         RegisterStrongDrinkShatterEffect(grenade.X, grenade.Y, grenade.Team, burstDegrees);
                         grenade.Destroy();
                         RemoveGrenadeAt(grenadeIndex);
@@ -756,13 +756,13 @@ public sealed partial class ProjectileSystem
             var angle = _random.NextSingle() * MathF.Tau;
             var radiusFactor = MathF.Sqrt(_random.NextSingle());
             var radius = radiusFactor * (GrenadeProjectileEntity.StrongDrinkFireHorizontalSpread * 0.5f);
-            var spawnX = centerX + MathF.Cos(angle) * radius;
+            var spawnX = centerX + DeterministicMath.Cos(angle) * radius;
             var spawnY = centerY
                 + ((_random.NextSingle() - 0.5f) * GrenadeProjectileEntity.StrongDrinkFireSpawnJitterY);
             var burstSpeed = GrenadeProjectileEntity.StrongDrinkFireBurstSpeedMin
                 + (_random.NextSingle()
                     * (GrenadeProjectileEntity.StrongDrinkFireBurstSpeedMax - GrenadeProjectileEntity.StrongDrinkFireBurstSpeedMin));
-            var velocityX = MathF.Cos(angle) * burstSpeed * (0.45f + (radiusFactor * 0.55f))
+            var velocityX = DeterministicMath.Cos(angle) * burstSpeed * (0.45f + (radiusFactor * 0.55f))
                 + (_random.NextSingle() - 0.5f) * GrenadeProjectileEntity.StrongDrinkFireDriftSpeed;
             var velocityY = GrenadeProjectileEntity.StrongDrinkFireUpwardBurstMin
                 + (_random.NextSingle()

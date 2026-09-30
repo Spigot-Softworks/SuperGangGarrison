@@ -250,7 +250,7 @@ public sealed partial class SimulationWorld
                 state.X,
                 state.Y,
                 MathF.Sqrt((state.VelocityX * state.VelocityX) + (state.VelocityY * state.VelocityY)),
-                MathF.Atan2(state.VelocityY, state.VelocityX),
+                DeterministicMath.Atan2(state.VelocityY, state.VelocityX),
                 isBallistic: state.IsBallisticRocket,
                 ballisticGravityPerTick: state.BallisticRocketGravityPerTick,
                 suppressSmokeTrail: state.SuppressRocketSmokeTrail),

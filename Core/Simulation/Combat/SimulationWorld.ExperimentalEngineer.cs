@@ -845,7 +845,7 @@ public sealed partial class SimulationWorld
         var pelletKnockback = BulletKnockbackRules.ResolvePayload(
             CharacterClassCatalog.Scattergun,
             pelletCount);
-        var baseAngle = MathF.Atan2(target.Y - sentry.Y, target.X - sentry.X);
+        var baseAngle = DeterministicMath.Atan2(target.Y - sentry.Y, target.X - sentry.X);
         for (var pelletIndex = 0; pelletIndex < pelletCount; pelletIndex += 1)
         {
             var spreadRadians = DegreesToRadians(
@@ -853,15 +853,15 @@ public sealed partial class SimulationWorld
                 * CharacterClassCatalog.Scattergun.SpreadDegrees
                 * 1.25f);
             var pelletAngle = baseAngle + spreadRadians;
-            var directionX = MathF.Cos(pelletAngle);
-            var directionY = MathF.Sin(pelletAngle);
+            var directionX = DeterministicMath.Cos(pelletAngle);
+            var directionY = DeterministicMath.Sin(pelletAngle);
             var pelletSpeed = CharacterClassCatalog.Scattergun.MinShotSpeed
                 + (_random.NextSingle() * CharacterClassCatalog.Scattergun.AdditionalRandomShotSpeed);
             var spawnX = sentry.X + directionX * 14f;
             var spawnY = sentry.Y + directionY * 14f;
             if (IsProjectileSpawnBlocked(sentry.X, sentry.Y, spawnX, spawnY, sentry.Team))
             {
-                RegisterImpactEffect(spawnX, spawnY, MathF.Atan2(directionY, directionX) * (180f / MathF.PI));
+                RegisterImpactEffect(spawnX, spawnY, DeterministicMath.Atan2(directionY, directionX) * (180f / MathF.PI));
                 continue;
             }
 
@@ -1091,13 +1091,13 @@ public sealed partial class SimulationWorld
         for (var flameIndex = 0; flameIndex < global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerIncendiaryEnhancementsFlameCount; flameIndex += 1)
         {
             var spreadRadians = ((_random.NextSingle() * 2f) - 1f) * (8f * (MathF.PI / 180f));
-            var directionRadians = MathF.Atan2(directionY, directionX) + spreadRadians;
+            var directionRadians = DeterministicMath.Atan2(directionY, directionX) + spreadRadians;
             SpawnFlame(
                 owner,
                 sentry.X,
                 sentry.Y - 8f,
-                MathF.Cos(directionRadians) * global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerIncendiaryEnhancementsFlameSpeed,
-                MathF.Sin(directionRadians) * global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerIncendiaryEnhancementsFlameSpeed);
+                DeterministicMath.Cos(directionRadians) * global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerIncendiaryEnhancementsFlameSpeed,
+                DeterministicMath.Sin(directionRadians) * global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerIncendiaryEnhancementsFlameSpeed);
         }
     }
 
@@ -1108,7 +1108,7 @@ public sealed partial class SimulationWorld
             global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerCaveatInjectorExplosionDamage,
             global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerCaveatInjectorBlastRadius,
             RocketProjectileEntity.SplashThresholdFactor);
-        var baseAngle = MathF.Atan2(target.Y - sentry.Y, target.X - sentry.X);
+        var baseAngle = DeterministicMath.Atan2(target.Y - sentry.Y, target.X - sentry.X);
         var spreadRadians = global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerCaveatInjectorSpreadDegrees * (MathF.PI / 180f);
         var lockDelayTicks = GetExperimentalEngineerCaveatLockDelayTicks();
         var rocketTravelDistance = GetExperimentalEngineerInfiniteTargetRange();
@@ -1176,7 +1176,7 @@ public sealed partial class SimulationWorld
             return false;
         }
 
-        targetDirectionRadians = MathF.Atan2(bestTarget.Y - rocket.Y, bestTarget.X - rocket.X);
+        targetDirectionRadians = DeterministicMath.Atan2(bestTarget.Y - rocket.Y, bestTarget.X - rocket.X);
         _ = rocket.TryApplyExperimentalCaveatLockSpeedBurst(
             global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerCaveatInjectorPostLockSpeedMultiplier);
         return true;

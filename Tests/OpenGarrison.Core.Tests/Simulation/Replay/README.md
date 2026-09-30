@@ -22,16 +22,15 @@ serialize/deserialize/serialize byte round-trip.
 
 ## Golden lifecycle
 
-Goldens are recorded on the pre-refactor `main` branch through the CI
-`workflow_dispatch` input `record_replay_goldens`, then committed and merged
-with the harness. The `SGG-Cray0nn` port is reconciled against those files and
-normal CI verifies them thereafter. A mismatch means behavior or snapshot
-serialization changed; the first differing tick in the failure localizes the
-investigation.
+Goldens are platform-independent: Core simulation math goes through
+`DeterministicMath` instead of `MathF`, whose transcendental functions defer to
+the OS C runtime and differ by an ulp between Windows and Linux. Record on any
+machine with `REPLAY_RECORD=1`; CI on Linux verifies the same files. A
+mismatch means behavior or snapshot serialization changed; the first differing
+tick in the failure localizes the investigation.
 
-If a gameplay change intentionally changes the replay, record new goldens via
-the CI dispatch workflow, review the diff, and commit the updated files with
-the gameplay change.
+If a gameplay or protocol change intentionally changes the replay, record new
+goldens, review the diff, and commit the updated files with that change.
 
 ## SGG-Cray0nn porting note
 
