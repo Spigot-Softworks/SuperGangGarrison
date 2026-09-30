@@ -160,11 +160,7 @@ public sealed class SimulationWorldRocketExplosionRegressionTests
 
     private static void InvokeAdvanceRockets(SimulationWorld world)
     {
-        var method = typeof(SimulationWorld).GetMethod(
-            "AdvanceRockets",
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        _ = method!.Invoke(world, []);
+        world.Projectiles.AdvanceRockets();
     }
 
     private static PlayerEntity AddEnemy(SimulationWorld world, int id, float x, float y)

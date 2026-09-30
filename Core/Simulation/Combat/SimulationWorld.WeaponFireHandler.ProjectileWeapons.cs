@@ -252,9 +252,9 @@ public sealed partial class SimulationWorld
                     experimentalTrackingLockTicksRemaining: lockDelayTicks,
                     killFeedWeaponSpriteNameOverride: killFeedWeaponSpriteNameOverride ?? "ShotgunKL");
 
-                if (_world._rockets.Count > 0)
+                if (_world.Rockets.Count > 0)
                 {
-                    _world._rockets[^1].SetDistanceToTravel(_world.Bounds.Width + _world.Bounds.Height);
+                    _world.Rockets[^1].SetDistanceToTravel(_world.Bounds.Width + _world.Bounds.Height);
                 }
             }
         }

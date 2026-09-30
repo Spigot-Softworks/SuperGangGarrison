@@ -629,7 +629,7 @@ public sealed partial class SimulationWorld
         var top = sentry.Y - (SentryEntity.Height / 2f);
         var bottom = sentry.Y + (SentryEntity.Height / 2f);
 
-        foreach (var mine in _mines)
+        foreach (var mine in Mines)
         {
             if (!mine.IsStickied)
             {

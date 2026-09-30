@@ -344,9 +344,9 @@ public sealed partial class SimulationWorld
         {
             var directionRadians = MathF.Atan2(directionY, directionX);
 
-            for (var rocketIndex = 0; rocketIndex < _world._rockets.Count; rocketIndex += 1)
+            for (var rocketIndex = 0; rocketIndex < _world.Rockets.Count; rocketIndex += 1)
             {
-                var rocket = _world._rockets[rocketIndex];
+                var rocket = _world.Rockets[rocketIndex];
                 if (rocket.Team == attacker.Team
                     || !mask.OverlapsCircle(rocket.X, rocket.Y, 5f, anchorX, anchorY, facingLeft, maskScale))
                 {
@@ -356,9 +356,9 @@ public sealed partial class SimulationWorld
                 rocket.Reflect(attacker.Id, attacker.Team, directionRadians);
             }
 
-            for (var flareIndex = 0; flareIndex < _world._flares.Count; flareIndex += 1)
+            for (var flareIndex = 0; flareIndex < _world.Flares.Count; flareIndex += 1)
             {
-                var flare = _world._flares[flareIndex];
+                var flare = _world.Flares[flareIndex];
                 if (flare.Team == attacker.Team
                     || !mask.OverlapsCircle(flare.X, flare.Y, 5f, anchorX, anchorY, facingLeft, maskScale))
                 {
@@ -369,9 +369,9 @@ public sealed partial class SimulationWorld
                 flare.Reflect(attacker.Id, attacker.Team, directionRadians);
             }
 
-            for (var mineIndex = 0; mineIndex < _world._mines.Count; mineIndex += 1)
+            for (var mineIndex = 0; mineIndex < _world.Mines.Count; mineIndex += 1)
             {
-                var mine = _world._mines[mineIndex];
+                var mine = _world.Mines[mineIndex];
                 if (mine.Team == attacker.Team
                     || !mask.OverlapsCircle(mine.X, mine.Y, 5f, anchorX, anchorY, facingLeft, maskScale))
                 {

@@ -1987,22 +1987,14 @@ public sealed class LastToDiePerkRuntimeTests
 
     private static void InvokeAdvanceStabMasks(SimulationWorld world)
     {
-        var method = typeof(SimulationWorld).GetMethod(
-            "AdvanceStabMasks",
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        _ = method!.Invoke(world, null);
+        world.Projectiles.AdvanceStabMasks();
     }
 
     private static void AdvanceRevolverShots(SimulationWorld world, int ticks)
     {
-        var method = typeof(SimulationWorld).GetMethod(
-            "AdvanceRevolverShots",
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
         for (var tick = 0; tick < ticks; tick += 1)
         {
-            _ = method!.Invoke(world, null);
+            world.Projectiles.AdvanceRevolverShots();
         }
     }
 

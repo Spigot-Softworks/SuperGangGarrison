@@ -300,16 +300,16 @@ public sealed partial class SimulationWorld
 
     private void ClearDynamicEntities()
     {
-        RemoveEntities(_shots);
-        RemoveEntities(_bubbles);
-        RemoveEntities(_blades);
-        RemoveEntities(_needles);
-        RemoveEntities(_revolverShots);
-        RemoveEntities(_stabAnimations);
-        RemoveEntities(_stabMasks);
-        RemoveEntities(_flames);
-        RemoveEntities(_rockets);
-        RemoveEntities(_mines);
+        Projectiles.RemoveAllProjectiles(Shots);
+        Projectiles.RemoveAllProjectiles(Bubbles);
+        Projectiles.RemoveAllProjectiles(Blades);
+        Projectiles.RemoveAllProjectiles(Needles);
+        Projectiles.RemoveAllProjectiles(RevolverShots);
+        Projectiles.RemoveAllProjectiles(StabAnimations);
+        Projectiles.RemoveAllProjectiles(StabMasks);
+        Projectiles.RemoveAllProjectiles(Flames);
+        Projectiles.RemoveAllProjectiles(Rockets);
+        Projectiles.RemoveAllProjectiles(Mines);
         RemoveEntities(_sentries);
         RemoveEntities(_jumpPads);
         RemoveEntities(_civilDefenseTurrets);
@@ -318,7 +318,7 @@ public sealed partial class SimulationWorld
         RemoveEntities(_healthPacks);
         RemoveEntities(_deadBodies);
         RemoveEntities(_sentryGibs);
-        _pendingNewRocketIds.Clear();
+        Projectiles.ClearPendingNewRocketIds();
         _clientPredictedProjectileIds.Clear();
         _terminatedProjectileIds.Clear();
         _terminatedProjectileExpiryFrames.Clear();

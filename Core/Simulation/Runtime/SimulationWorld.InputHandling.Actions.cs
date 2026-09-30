@@ -210,9 +210,9 @@ public sealed partial class SimulationWorld
             return false;
         }
 
-        for (var rocketIndex = _rockets.Count - 1; rocketIndex >= 0; rocketIndex -= 1)
+        for (var rocketIndex = Rockets.Count - 1; rocketIndex >= 0; rocketIndex -= 1)
         {
-            var rocket = _rockets[rocketIndex];
+            var rocket = Rockets[rocketIndex];
             if (rocket.OwnerId != player.Id
                 || rocket.Team != player.Team
                 || rocket.IsFading
@@ -535,9 +535,9 @@ public sealed partial class SimulationWorld
         }
 
         var detonatedAnyRocket = false;
-        for (var rocketIndex = 0; rocketIndex < _rockets.Count; rocketIndex += 1)
+        for (var rocketIndex = 0; rocketIndex < Rockets.Count; rocketIndex += 1)
         {
-            var rocket = _rockets[rocketIndex];
+            var rocket = Rockets[rocketIndex];
             if (rocket.OwnerId != player.Id
                 || rocket.Team != player.Team
                 || rocket.IsFading

@@ -185,17 +185,11 @@ public sealed class SimulationWorldGrenadeDamageTests
 
     private static void AdvanceGrenades(SimulationWorld world)
     {
-        var method = typeof(SimulationWorld).GetMethod("AdvanceGrenades", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        _ = method!.Invoke(world, []);
+        world.Projectiles.AdvanceGrenades();
     }
 
     private static int GetGrenadeCount(SimulationWorld world)
     {
-        var field = typeof(SimulationWorld).GetField("_grenades", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(field);
-        var grenades = field!.GetValue(world) as ICollection;
-        Assert.NotNull(grenades);
-        return grenades!.Count;
+        return world.Grenades.Count;
     }
 }

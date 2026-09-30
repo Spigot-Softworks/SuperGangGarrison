@@ -276,9 +276,6 @@ public sealed class SimulationWorldCombatBlockingTests
 
     private static int GetMineCount(SimulationWorld world)
     {
-        var field = typeof(SimulationWorld).GetField("_mines", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(field);
-        var mines = Assert.IsAssignableFrom<ICollection>(field!.GetValue(world));
-        return mines.Count;
+        return world.Mines.Count;
     }
 }
