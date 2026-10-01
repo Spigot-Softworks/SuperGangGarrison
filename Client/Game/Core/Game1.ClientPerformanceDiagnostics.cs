@@ -226,13 +226,13 @@ public partial class Game1
             return;
         }
 
-        if (_teamSelectOpen)
+        if (_teamClassSelectionState.TeamSelectOpen)
         {
             ApplyTeamSelection(3);
             return;
         }
 
-        if (_classSelectOpen)
+        if (_teamClassSelectionState.ClassSelectOpen)
         {
             var requestedClass = GetClientPerformanceClass();
             var requestedClassHoverIndex = GetClientPerformanceClassSelectHoverIndex(requestedClass);
@@ -301,14 +301,14 @@ public partial class Game1
             return false;
         }
 
-        _classSelectHoverIndex = GetClientPerformanceClassSelectHoverIndex(playerClass);
+        _teamClassSelectionState.ClassSelectHoverIndex = GetClientPerformanceClassSelectHoverIndex(playerClass);
         if (!hoverPrimed)
         {
-            _classSelectAlpha = 0.99f;
-            _classSelectPanelY = 120f;
+            _teamClassSelectionState.ClassSelectAlpha = 0.99f;
+            _teamClassSelectionState.ClassSelectPanelY = 120f;
             AdvanceClassSelectPortraitAnimation();
             hoverPrimed = true;
-            LogClientPerformanceLine($"event=client_perf_test_class_select_hover class={playerClass} hover={_classSelectHoverIndex}");
+            LogClientPerformanceLine($"event=client_perf_test_class_select_hover class={playerClass} hover={_teamClassSelectionState.ClassSelectHoverIndex}");
             return true;
         }
 
@@ -440,9 +440,9 @@ public partial class Game1
             $"gc1={GC.CollectionCount(1)} " +
             $"gc2={GC.CollectionCount(2)} " +
             $"gcHeapMb={gcHeapMegabytes:0.0} " +
-            $"looseSheets={_looseSheetVisuals.Count} " +
+            $"looseSheets={_gameplayManager.MaterialEffects.LooseSheetVisualCount} " +
             $"moneySheets={GetClientPerformanceMoneySheetCount()} " +
-            $"pendingVisuals={_pendingNetworkVisualEvents.Count} " +
+            $"pendingVisuals={_gameplayManager.VisualEvents.PendingNetworkVisualEventCount} " +
             $"memMb={currentMemoryMegabytes:F1}");
         LogClientPerformanceLine(line);
 
@@ -891,16 +891,7 @@ public partial class Game1
 
     private int GetClientPerformanceMoneySheetCount()
     {
-        var count = 0;
-        for (var index = 0; index < _looseSheetVisuals.Count; index += 1)
-        {
-            if (_looseSheetVisuals[index].IsCivvieMoney)
-            {
-                count += 1;
-            }
-        }
-
-        return count;
+        return _gameplayManager.MaterialEffects.CivvieMoneySheetVisualCount;
     }
 
     private string FormatClientPerformanceBotSlotSummary()

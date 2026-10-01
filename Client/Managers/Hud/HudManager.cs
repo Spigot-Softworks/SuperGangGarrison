@@ -11,6 +11,7 @@ public sealed class HudManager
     public HudManager(IHudContext context)
     {
         _context = context;
+        RuntimeSettings = new HudRuntimeSettings();
         LocalStatus = new GameplayLocalStatusHudController(context);
         Medic = new GameplayMedicHudController(context);
         Engineer = new GameplayEngineerHudController(context);
@@ -21,6 +22,8 @@ public sealed class HudManager
     }
 
     public GameplayLocalStatusHudController LocalStatus { get; }
+
+    public HudRuntimeSettings RuntimeSettings { get; }
 
     public GameplayMedicHudController Medic { get; }
 

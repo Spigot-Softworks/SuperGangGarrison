@@ -164,11 +164,11 @@ public sealed partial class ProjectileSystem
 
     private void MarkProjectileTerminated(int projectileId)
     {
-        if (_dependencies.ClientPredictedProjectileIds.Remove(projectileId))
+        if (_host.ClientPredictedProjectileIds.Remove(projectileId))
         {
-            _dependencies.SuppressProjectileRespawn(
+            _host.SuppressProjectileRespawn(
                 projectileId,
-                ClientPredictionMode ? _dependencies.LocalProjectileTerminationSuppressionTicks : 0);
+                ClientPredictionMode ? _host.LocalProjectileTerminationSuppressionTicks : 0);
         }
     }
 
@@ -184,10 +184,10 @@ public sealed partial class ProjectileSystem
 
     private bool IsAuthoritativeLocalPlayerId(int playerId)
     {
-        var authoritativeId = _dependencies.GetAuthoritativeLocalPlayerId();
+        var authoritativeId = _host.AuthoritativeLocalPlayerId;
         return authoritativeId.HasValue
             ? playerId == authoritativeId.Value
-            : playerId == _dependencies.GetLocalPlayerId();
+            : playerId == _host.LocalPlayerId;
     }
 
     internal int CountOwnedMines(int ownerId)

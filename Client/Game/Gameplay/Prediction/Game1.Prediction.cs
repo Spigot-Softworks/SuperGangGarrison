@@ -12,23 +12,7 @@ public partial class Game1
 {
     public const int MaxPendingPredictedInputs = 256;
 
-    public readonly List<PredictedLocalInput> _pendingPredictedInputs = new();
-    public Vector2 _predictedLocalPlayerPosition;
-    public Vector2 _smoothedLocalPlayerRenderPosition;
-    public Vector2 _predictedLocalPlayerRenderCorrectionOffset;
-    public Vector2 _predictedLocalPlayerVelocity;
-    public bool _hasPredictedLocalPlayerPosition;
-    public bool _hasSmoothedLocalPlayerRenderPosition;
-    private bool _predictedLocalPlayerGrounded;
-    public PlayerEntity? _predictedLocalPlayerShadow;
-    private PredictedLocalActionState _predictedLocalActionState;
-    public bool _hasPredictedLocalActionState;
-    public bool _serverLocalPredictionEnabled;
-    public PlayerInputSnapshot _latestPredictedLocalInput;
-    private PlayerInputSnapshot _previousPredictedLocalInput;
-    private ulong _lastProtocol64PredictionStateSequence;
-    private int _predictedSniperRifleChargePendingCount;
-    private int _predictedSniperBowChargePendingCount;
+    private LocalPredictionState _localPredictionState => _gameplayManager.LocalPrediction;
 
     private void RecordPredictedInput(
         uint sequence,
@@ -43,7 +27,7 @@ public partial class Game1
         bool tauntPressed,
         bool abilityReleased)
     {
-        _latestPredictedLocalInput = input;
+        _localPredictionState.LatestPredictedLocalInput = input;
 
         if (!CanUseLocalPrediction() || sequence == 0 || !_world.LocalPlayer.IsAlive || _world.LocalPlayerAwaitingJoin)
         {
@@ -51,7 +35,7 @@ public partial class Game1
             return;
         }
 
-        _pendingPredictedInputs.Add(new PredictedLocalInput(
+        _localPredictionState.PendingPredictedInputs.Add(new PredictedLocalInput(
             sequence,
             input,
             jumpPressed,
@@ -63,9 +47,9 @@ public partial class Game1
             toggleSecondaryWeaponPressed,
             tauntPressed,
             abilityReleased));
-        if (_pendingPredictedInputs.Count > MaxPendingPredictedInputs)
+        if (_localPredictionState.PendingPredictedInputs.Count > MaxPendingPredictedInputs)
         {
-            _pendingPredictedInputs.RemoveRange(0, _pendingPredictedInputs.Count - MaxPendingPredictedInputs);
+            _localPredictionState.PendingPredictedInputs.RemoveRange(0, _localPredictionState.PendingPredictedInputs.Count - MaxPendingPredictedInputs);
         }
 
         RebuildLocalPrediction(preserveRenderContinuity: true);
@@ -87,8 +71,8 @@ public partial class Game1
 
     private bool CanUseLocalPrediction()
     {
-        return _enablePrediction
-            && _serverLocalPredictionEnabled
+        return _gameplayManager.RuntimeSettings.EnablePrediction
+            && _localPredictionState.ServerLocalPredictionEnabled
             && _networkClient.IsConnected
             && !_networkClient.IsAwaitingWelcome
             && !_networkClient.IsReplayConnection
@@ -101,12 +85,12 @@ public partial class Game1
 
     private bool TryGetPredictedLocalPlayerCameraPosition(out Vector2 position)
     {
-        if (CanUseLocalPrediction() && _hasPredictedLocalPlayerPosition)
+        if (CanUseLocalPrediction() && _localPredictionState.HasPredictedLocalPlayerPosition)
         {
             // Follow the same correction spring used for the predicted player
             // sprite so online reconciliation does not move the whole view in
             // visible jumps around the player.
-            position = _predictedLocalPlayerPosition + _predictedLocalPlayerRenderCorrectionOffset;
+            position = _localPredictionState.PredictedLocalPlayerPosition + _localPredictionState.PredictedLocalPlayerRenderCorrectionOffset;
             return true;
         }
 
@@ -116,19 +100,19 @@ public partial class Game1
 
     private void ClearLocalPredictionState(bool clearPendingInputs)
     {
-        _hasPredictedLocalPlayerPosition = false;
-        _hasSmoothedLocalPlayerRenderPosition = false;
-        _hasPredictedLocalActionState = false;
-        _predictedLocalPlayerShadow = null;
-        _predictedLocalPlayerRenderCorrectionOffset = Vector2.Zero;
-        _predictedLocalPlayerVelocity = Vector2.Zero;
-        _predictedLocalPlayerGrounded = false;
-        _predictedSniperRifleChargePendingCount = 0;
-        _predictedSniperBowChargePendingCount = 0;
-        _lastPredictedRenderSmoothingTimeSeconds = -1d;
+        _localPredictionState.HasPredictedLocalPlayerPosition = false;
+        _localPredictionState.HasSmoothedLocalPlayerRenderPosition = false;
+        _localPredictionState.HasPredictedLocalActionState = false;
+        _localPredictionState.PredictedLocalPlayerShadow = null;
+        _localPredictionState.PredictedLocalPlayerRenderCorrectionOffset = Vector2.Zero;
+        _localPredictionState.PredictedLocalPlayerVelocity = Vector2.Zero;
+        _localPredictionState.PredictedLocalPlayerGrounded = false;
+        _localPredictionState.PredictedSniperRifleChargePendingCount = 0;
+        _localPredictionState.PredictedSniperBowChargePendingCount = 0;
+        _localPredictionState.LastPredictedRenderSmoothingTimeSeconds = -1d;
         if (clearPendingInputs)
         {
-            _pendingPredictedInputs.Clear();
+            _localPredictionState.PendingPredictedInputs.Clear();
             // Clear presentation-only edges with the prediction queue.  The
             // Protocol64 path can transition to dead/awaiting-join without
             // applying a legacy snapshot, so leaving this latch alive would
@@ -142,19 +126,19 @@ public partial class Game1
         ClearLocalPredictionState(clearPendingInputs: true);
         ClearPendingPredictedInputEdges();
         _latchedJumpPressSequence = 0;
-        _lastProtocol64PredictionStateSequence = 0;
+        _localPredictionState.LastProtocol64PredictionStateSequence = 0;
     }
 
     private void ReconcileProtocol64PredictionState()
     {
         if (!_networkClient.Protocol64ModeEnabled)
         {
-            _lastProtocol64PredictionStateSequence = 0;
+            _localPredictionState.LastProtocol64PredictionStateSequence = 0;
             return;
         }
 
         var stateSequence = _networkClient.Protocol64State.PlayerStateSequence;
-        if (stateSequence == 0 || stateSequence == _lastProtocol64PredictionStateSequence)
+        if (stateSequence == 0 || stateSequence == _localPredictionState.LastProtocol64PredictionStateSequence)
         {
             return;
         }
@@ -164,28 +148,28 @@ public partial class Game1
             return;
         }
 
-        _lastProtocol64PredictionStateSequence = stateSequence;
+        _localPredictionState.LastProtocol64PredictionStateSequence = stateSequence;
         _networkClient.AcknowledgeProcessedInput(localPlayer.LastProcessedInputSequence);
         ReconcileLocalPrediction(localPlayer.LastProcessedInputSequence);
     }
 
     private void RemoveAcknowledgedPredictedInputs(uint lastProcessedInputSequence)
     {
-        if (lastProcessedInputSequence == 0 || _pendingPredictedInputs.Count == 0)
+        if (lastProcessedInputSequence == 0 || _localPredictionState.PendingPredictedInputs.Count == 0)
         {
             return;
         }
 
         var removeCount = 0;
-        while (removeCount < _pendingPredictedInputs.Count
-            && IsInputSequenceAcknowledged(_pendingPredictedInputs[removeCount].Sequence, lastProcessedInputSequence))
+        while (removeCount < _localPredictionState.PendingPredictedInputs.Count
+            && IsInputSequenceAcknowledged(_localPredictionState.PendingPredictedInputs[removeCount].Sequence, lastProcessedInputSequence))
         {
             removeCount += 1;
         }
 
         if (removeCount > 0)
         {
-            _pendingPredictedInputs.RemoveRange(0, removeCount);
+            _localPredictionState.PendingPredictedInputs.RemoveRange(0, removeCount);
         }
     }
 
@@ -208,22 +192,22 @@ public partial class Game1
         }
 
         var player = _world.LocalPlayer;
-        if (_hasLatestLocalAimWorldPosition)
+        if (_gameplayManager.InputUpdate.HasLatestLocalAimWorldPosition)
         {
             // Keep LocalPlayer aim on the cursor so Capture/HUD/arc do not wait on snapshot aim.
-            player.ApplyPredictionAimWorld(_latestLocalAimWorldX, _latestLocalAimWorldY);
+            player.ApplyPredictionAimWorld(_gameplayManager.InputUpdate.LatestLocalAimWorldX, _gameplayManager.InputUpdate.LatestLocalAimWorldY);
         }
 
-        var hadPredictedState = _hasPredictedLocalActionState;
+        var hadPredictedState = _localPredictionState.HasPredictedLocalActionState;
         var previousRifleCharge = hadPredictedState
-            ? _predictedLocalActionState.SniperChargeTicks
+            ? _localPredictionState.PredictedLocalActionState.SniperChargeTicks
             : player.SniperChargeTicks;
         var previousBowCharge = hadPredictedState
-            ? _predictedLocalActionState.SniperBowChargeTicks
+            ? _localPredictionState.PredictedLocalActionState.SniperBowChargeTicks
             : player.SniperBowChargeTicks;
-        var previousRiflePending = _predictedSniperRifleChargePendingCount;
-        var previousBowPending = _predictedSniperBowChargePendingCount;
-        var previousScoped = hadPredictedState && _predictedLocalActionState.IsSniperScoped;
+        var previousRiflePending = _localPredictionState.PredictedSniperRifleChargePendingCount;
+        var previousBowPending = _localPredictionState.PredictedSniperBowChargePendingCount;
+        var previousScoped = hadPredictedState && _localPredictionState.PredictedLocalActionState.IsSniperScoped;
 
         var predictedPlayer = GetPredictedLocalPlayerShadow(player);
         predictedPlayer.RestorePredictionState(player.CapturePredictionState());
@@ -240,34 +224,34 @@ public partial class Game1
             previousBowPending);
         SyncPredictedLocalPlayerState(predictedPlayer);
 
-        for (var index = 0; index < _pendingPredictedInputs.Count; index += 1)
+        for (var index = 0; index < _localPredictionState.PendingPredictedInputs.Count; index += 1)
         {
-            ApplyPredictedInputStep(predictedPlayer, _pendingPredictedInputs[index]);
+            ApplyPredictedInputStep(predictedPlayer, _localPredictionState.PendingPredictedInputs[index]);
         }
 
-        _predictedSniperRifleChargePendingCount = _pendingPredictedInputs.Count;
-        _predictedSniperBowChargePendingCount = CountPendingBowChargingInputs();
+        _localPredictionState.PredictedSniperRifleChargePendingCount = _localPredictionState.PendingPredictedInputs.Count;
+        _localPredictionState.PredictedSniperBowChargePendingCount = CountPendingBowChargingInputs();
 
-        if (!_hasSmoothedLocalPlayerRenderPosition)
+        if (!_localPredictionState.HasSmoothedLocalPlayerRenderPosition)
         {
-            _predictedLocalPlayerRenderCorrectionOffset = Vector2.Zero;
-            _smoothedLocalPlayerRenderPosition = _predictedLocalPlayerPosition;
-            _hasSmoothedLocalPlayerRenderPosition = true;
+            _localPredictionState.PredictedLocalPlayerRenderCorrectionOffset = Vector2.Zero;
+            _localPredictionState.SmoothedLocalPlayerRenderPosition = _localPredictionState.PredictedLocalPlayerPosition;
+            _localPredictionState.HasSmoothedLocalPlayerRenderPosition = true;
             return;
         }
 
         if (hadRenderPositionBeforeRebuild)
         {
-            _predictedLocalPlayerRenderCorrectionOffset = renderPositionBeforeRebuild - _predictedLocalPlayerPosition;
-            var correctionDistance = _predictedLocalPlayerRenderCorrectionOffset.Length();
+            _localPredictionState.PredictedLocalPlayerRenderCorrectionOffset = renderPositionBeforeRebuild - _localPredictionState.PredictedLocalPlayerPosition;
+            var correctionDistance = _localPredictionState.PredictedLocalPlayerRenderCorrectionOffset.Length();
             if (correctionDistance >= PredictedRenderCorrectionTeleportSnapDistance)
             {
                 RecordPredictedRenderCorrection(correctionDistance, hardSnap: true);
-                _predictedLocalPlayerRenderCorrectionOffset = Vector2.Zero;
+                _localPredictionState.PredictedLocalPlayerRenderCorrectionOffset = Vector2.Zero;
             }
         }
 
-        _smoothedLocalPlayerRenderPosition = _predictedLocalPlayerPosition + _predictedLocalPlayerRenderCorrectionOffset;
+        _localPredictionState.SmoothedLocalPlayerRenderPosition = _localPredictionState.PredictedLocalPlayerPosition + _localPredictionState.PredictedLocalPlayerRenderCorrectionOffset;
     }
 
     private static void SeedPredictedSniperRifleCharge(
@@ -344,9 +328,9 @@ public partial class Game1
     private int CountPendingBowChargingInputs()
     {
         var count = 0;
-        for (var index = 0; index < _pendingPredictedInputs.Count; index += 1)
+        for (var index = 0; index < _localPredictionState.PendingPredictedInputs.Count; index += 1)
         {
-            if (_pendingPredictedInputs[index].Input.FirePrimary)
+            if (_localPredictionState.PendingPredictedInputs[index].Input.FirePrimary)
             {
                 count += 1;
             }
@@ -357,9 +341,9 @@ public partial class Game1
 
     private bool TryGetCurrentPredictedRenderPosition(out Vector2 renderPosition)
     {
-        if (CanUseLocalPrediction() && _hasPredictedLocalPlayerPosition)
+        if (CanUseLocalPrediction() && _localPredictionState.HasPredictedLocalPlayerPosition)
         {
-            renderPosition = _predictedLocalPlayerPosition + _predictedLocalPlayerRenderCorrectionOffset;
+            renderPosition = _localPredictionState.PredictedLocalPlayerPosition + _localPredictionState.PredictedLocalPlayerRenderCorrectionOffset;
             return true;
         }
 
@@ -369,23 +353,23 @@ public partial class Game1
 
     private PlayerEntity GetPredictedLocalPlayerShadow(PlayerEntity player)
     {
-        if (_predictedLocalPlayerShadow is null
-            || _predictedLocalPlayerShadow.Id != player.Id
-            || _predictedLocalPlayerShadow.ClassId != player.ClassId)
+        if (_localPredictionState.PredictedLocalPlayerShadow is null
+            || _localPredictionState.PredictedLocalPlayerShadow.Id != player.Id
+            || _localPredictionState.PredictedLocalPlayerShadow.ClassId != player.ClassId)
         {
-            _predictedLocalPlayerShadow = new PlayerEntity(player.Id, player.ClassDefinition, player.DisplayName);
+            _localPredictionState.PredictedLocalPlayerShadow = new PlayerEntity(player.Id, player.ClassDefinition, player.DisplayName);
         }
 
-        return _predictedLocalPlayerShadow;
+        return _localPredictionState.PredictedLocalPlayerShadow;
     }
 
     private void SyncPredictedLocalPlayerState(PlayerEntity player)
     {
-        _predictedLocalPlayerPosition = new Vector2(player.X, player.Y);
-        _predictedLocalPlayerVelocity = new Vector2(player.HorizontalSpeed, player.VerticalSpeed);
-        _predictedLocalPlayerGrounded = player.IsGrounded;
-        _hasPredictedLocalPlayerPosition = true;
-        _predictedLocalActionState = new PredictedLocalActionState
+        _localPredictionState.PredictedLocalPlayerPosition = new Vector2(player.X, player.Y);
+        _localPredictionState.PredictedLocalPlayerVelocity = new Vector2(player.HorizontalSpeed, player.VerticalSpeed);
+        _localPredictionState.PredictedLocalPlayerGrounded = player.IsGrounded;
+        _localPredictionState.HasPredictedLocalPlayerPosition = true;
+        _localPredictionState.PredictedLocalActionState = new PredictedLocalActionState
         {
             IsHeavyEating = player.IsHeavyEating,
             HeavyEatTicksRemaining = player.HeavyEatTicksRemaining,
@@ -453,7 +437,7 @@ public partial class Game1
             CivviePogoTrickTicksRemaining = player.CivviePogoTrickTicksRemaining,
             CivviePogoTrickDurationAtStart = player.CivviePogoTrickDurationAtStart,
         };
-        _hasPredictedLocalActionState = true;
+        _localPredictionState.HasPredictedLocalActionState = true;
     }
 
     private void ApplyPredictedInputStep(PlayerEntity player, PredictedLocalInput predictedInput)
@@ -489,7 +473,7 @@ public partial class Game1
         {
             movementInput = ResetMovementInput(movementInput);
             jumpPressed = false;
-            _latestPredictedLocalInput = ResetMovementInput(_latestPredictedLocalInput);
+            _localPredictionState.LatestPredictedLocalInput = ResetMovementInput(_localPredictionState.LatestPredictedLocalInput);
         }
 
         ApplyPredictedRoomForces(player);
@@ -567,7 +551,7 @@ public partial class Game1
         }
     }
 
-    private struct PredictedLocalActionState
+    internal struct PredictedLocalActionState
     {
         public bool IsHeavyEating;
         public int HeavyEatTicksRemaining;

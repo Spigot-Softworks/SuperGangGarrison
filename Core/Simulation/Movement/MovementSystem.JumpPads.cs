@@ -22,7 +22,7 @@ public sealed partial class MovementSystem
             if (!pad.IsNeutral
                 && (owner is null || owner.ClassId != PlayerClass.Engineer || owner.Team != pad.Team))
             {
-                _dependencies.DestroyJumpPad(pad);
+                _host.DestroyJumpPad(pad);
                 continue;
             }
 
@@ -41,7 +41,7 @@ public sealed partial class MovementSystem
 
             if (pad.IsDead)
             {
-                _dependencies.DestroyJumpPad(pad);
+                _host.DestroyJumpPad(pad);
             }
         }
     }

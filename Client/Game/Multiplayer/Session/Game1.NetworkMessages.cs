@@ -31,7 +31,7 @@ public partial class Game1
             RecordNetworkReceiveDiagnostics(_networkClient.LastReceiveDiagnostics);
         }
 
-        var latestBufferedSnapshotFrame = Math.Max(_lastAppliedSnapshotFrame, _lastBufferedSnapshotFrame);
+        var latestBufferedSnapshotFrame = Math.Max(_gameplayManager.NetworkPresentation.LastAppliedSnapshotFrame, _gameplayManager.NetworkPresentation.LastBufferedSnapshotFrame);
         SnapshotMessage? latestResolvedSnapshot = null;
         Dictionary<ulong, SnapshotBaselineState>? resolvedBatchSnapshotsByFrame = null;
         List<ResolvedSnapshotEntry>? resolvedBatchSnapshots = null;

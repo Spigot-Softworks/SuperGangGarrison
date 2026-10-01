@@ -103,9 +103,9 @@ public partial class Game1
     private void RecordResolvedSnapshotPredictionError(SnapshotMessage resolvedSnapshot)
     {
         var localSnapshotPlayer = resolvedSnapshot.Players.FirstOrDefault(player => player.Slot == _networkClient.LocalPlayerSlot);
-        if (_networkDiagnosticsEnabled && localSnapshotPlayer is not null && CanUseLocalPrediction() && _hasPredictedLocalPlayerPosition)
+        if (_networkDiagnosticsEnabled && localSnapshotPlayer is not null && CanUseLocalPrediction() && _localPredictionState.HasPredictedLocalPlayerPosition)
         {
-            RecordPredictionError(Vector2.Distance(_predictedLocalPlayerPosition, new Vector2(localSnapshotPlayer.X, localSnapshotPlayer.Y)));
+            RecordPredictionError(Vector2.Distance(_localPredictionState.PredictedLocalPlayerPosition, new Vector2(localSnapshotPlayer.X, localSnapshotPlayer.Y)));
         }
 
         _localPlayerSnapshotEntityId = localSnapshotPlayer?.PlayerId;
@@ -121,7 +121,7 @@ public partial class Game1
                 continue;
             }
 
-            _pendingNetworkVisualEvents.Add(visualEvent with
+            _gameplayManager.VisualEvents.QueuePendingNetworkVisualEvent(visualEvent with
             {
                 SourceFrame = ResolveNetworkEventSourceFrame(visualEvent.SourceFrame, resolvedSnapshot.Frame),
             });
@@ -133,12 +133,12 @@ public partial class Game1
         for (var soundIndex = 0; soundIndex < resolvedSnapshot.SoundEvents.Count; soundIndex += 1)
         {
             var soundEvent = resolvedSnapshot.SoundEvents[soundIndex];
-            if (HasProcessedNetworkEvent(soundEvent.EventId, _processedNetworkSoundEventIds))
+            if (_audioManager.Events.HasProcessedNetworkSoundEvent(soundEvent.EventId))
             {
                 continue;
             }
 
-            _pendingNetworkSoundEvents.Add(new WorldSoundEvent(
+            _audioManager.Events.QueuePendingNetworkSoundEvent(new WorldSoundEvent(
                 soundEvent.SoundName,
                 soundEvent.X,
                 soundEvent.Y,
@@ -173,7 +173,7 @@ public partial class Game1
             EnqueueAuthoritativeSnapshot(entry.RawSnapshot, entry.ResolvedSnapshot, isServerFullSnapshot);
         }
 
-        RecordSnapshotAckAhead(latestResolvedSnapshot.Frame, _lastAppliedSnapshotFrame, _queuedAuthoritativeSnapshots.Count);
+        RecordSnapshotAckAhead(latestResolvedSnapshot.Frame, _gameplayManager.NetworkPresentation.LastAppliedSnapshotFrame, _queuedAuthoritativeSnapshots.Count);
         _networkClient.AcknowledgeSnapshot(latestResolvedSnapshot.Frame);
     }
 
@@ -187,7 +187,7 @@ public partial class Game1
         SnapshotMessage resolvedSnapshot,
         bool isServerFullSnapshot)
     {
-        if (resolvedSnapshot.Frame <= _lastBufferedSnapshotFrame)
+        if (resolvedSnapshot.Frame <= _gameplayManager.NetworkPresentation.LastBufferedSnapshotFrame)
         {
             return;
         }
@@ -196,9 +196,9 @@ public partial class Game1
             rawSnapshot,
             resolvedSnapshot,
             isServerFullSnapshot));
-        _lastBufferedSnapshotFrame = resolvedSnapshot.Frame;
-        var frameBacklog = _lastAppliedSnapshotFrame > 0 && resolvedSnapshot.Frame > _lastAppliedSnapshotFrame
-            ? resolvedSnapshot.Frame - _lastAppliedSnapshotFrame
+        _gameplayManager.NetworkPresentation.LastBufferedSnapshotFrame = resolvedSnapshot.Frame;
+        var frameBacklog = _gameplayManager.NetworkPresentation.LastAppliedSnapshotFrame > 0 && resolvedSnapshot.Frame > _gameplayManager.NetworkPresentation.LastAppliedSnapshotFrame
+            ? resolvedSnapshot.Frame - _gameplayManager.NetworkPresentation.LastAppliedSnapshotFrame
             : 0UL;
         RecordQueuedAuthoritativeSnapshot(_queuedAuthoritativeSnapshots.Count, frameBacklog);
         while (_queuedAuthoritativeSnapshots.Count > MaxQueuedAuthoritativeSnapshots)
@@ -206,13 +206,13 @@ public partial class Game1
             var droppedSnapshot = _queuedAuthoritativeSnapshots.Dequeue();
             if (droppedSnapshot.IsServerFullSnapshot
                 && IsNetworkWorldWarmupBlockingGameplay()
-                && !_networkWorldWarmupFullSnapshotApplied)
+                && !_gameplayManager.NetworkPresentation.NetworkWorldWarmupFullSnapshotApplied)
             {
                 // Every queued resolved delta already contains the complete state
                 // reconstructed from this baseline. If burst trimming drops the
                 // original full packet, promote the first retained resolved state
                 // instead of leaving the visibility gate waiting forever.
-                _networkWorldWarmupAcceptNextAppliedSnapshotAsBaseline = true;
+                _gameplayManager.NetworkPresentation.NetworkWorldWarmupAcceptNextAppliedSnapshotAsBaseline = true;
             }
 
             RecordDroppedQueuedAuthoritativeSnapshot();
@@ -233,7 +233,7 @@ public partial class Game1
         var applySnapshotStartTimestamp = _networkDiagnosticsEnabled ? Stopwatch.GetTimestamp() : 0L;
         var previousLevelName = _world.Level.Name;
         var previousMapAreaIndex = _world.Level.MapAreaIndex;
-        var previousLocalPlayerId = _lastAppliedSnapshotLocalPlayerId;
+        var previousLocalPlayerId = _gameplayManager.NetworkPresentation.LastAppliedSnapshotLocalPlayerId;
         var wasAwaitingJoin = _world.LocalPlayerAwaitingJoin;
         var wasLocalPlayerAlive = _world.LocalPlayer.IsAlive;
         var previousLocalClassId = _world.LocalPlayer.ClassId;
@@ -293,11 +293,11 @@ public partial class Game1
 
         CaptureSmoothingTrackForLocalPlayer(snapshot);
         DetectFrozenSpyVisualsForMissingEnemySpies(snapshot);
-        var previousAppliedSnapshotFrame = _lastAppliedSnapshotFrame;
-        _lastAppliedSnapshotFrame = snapshot.Frame;
+        var previousAppliedSnapshotFrame = _gameplayManager.NetworkPresentation.LastAppliedSnapshotFrame;
+        _gameplayManager.NetworkPresentation.LastAppliedSnapshotFrame = snapshot.Frame;
         if (_queuedAuthoritativeSnapshots.Count == 0)
         {
-            _lastBufferedSnapshotFrame = _lastAppliedSnapshotFrame;
+            _gameplayManager.NetworkPresentation.LastBufferedSnapshotFrame = _gameplayManager.NetworkPresentation.LastAppliedSnapshotFrame;
         }
 
         if (_networkDiagnosticsEnabled)
@@ -311,14 +311,14 @@ public partial class Game1
             ResetLocalPredictionForAuthorityTransition();
         }
 
-        _lastAppliedSnapshotLocalPlayerId = currentLocalPlayerId;
+        _gameplayManager.NetworkPresentation.LastAppliedSnapshotLocalPlayerId = currentLocalPlayerId;
         ObserveAppliedNetworkWorldSnapshot(
             isServerFullSnapshot,
             presentationEpochChanged);
 
-        if (!_classSelectOpen)
+        if (!_teamClassSelectionState.ClassSelectOpen)
         {
-            _pendingClassSelectTeam = null;
+            _teamClassSelectionState.PendingClassSelectTeam = null;
         }
         var reconcileStartTimestamp = _networkDiagnosticsEnabled ? Stopwatch.GetTimestamp() : 0L;
         if (!_networkClient.Protocol64ModeEnabled)
@@ -520,6 +520,6 @@ public partial class Game1
         // Await the new world's presentation baseline instead of opening over
         // the old map and opening again when the new snapshot arrives.
         CloseGameplaySelectionMenus();
-        _pendingMapTeamSelection = true;
+        _teamClassSelectionState.PendingMapTeamSelection = true;
     }
 }

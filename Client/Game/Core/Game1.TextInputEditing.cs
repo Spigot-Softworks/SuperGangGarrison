@@ -207,24 +207,24 @@ public partial class Game1
         switch (clickTarget)
         {
             case TextFieldClickTarget.ManualConnectHost:
-                _connectHostCursorIndex = _connectHostBuffer.Length;
-                _connectHostSelectionStart = 0;
+                _inputManager.MenuTextInput.ConnectHostEdit.CursorIndex = _inputManager.MenuTextInput.ConnectHostEdit.Text.Length;
+                _inputManager.MenuTextInput.ConnectHostEdit.SelectionStart = 0;
                 break;
             case TextFieldClickTarget.ManualConnectPort:
-                _connectPortCursorIndex = _connectPortBuffer.Length;
-                _connectPortSelectionStart = 0;
+                _inputManager.MenuTextInput.ConnectPortEdit.CursorIndex = _inputManager.MenuTextInput.ConnectPortEdit.Text.Length;
+                _inputManager.MenuTextInput.ConnectPortEdit.SelectionStart = 0;
                 break;
             case TextFieldClickTarget.FriendsCode:
-                _friendCodeCursorIndex = _friendCodeInputBuffer.Length;
-                _friendCodeSelectionStart = 0;
+                _inputManager.MenuTextInput.FriendCodeEdit.CursorIndex = _inputManager.MenuTextInput.FriendCodeEdit.Text.Length;
+                _inputManager.MenuTextInput.FriendCodeEdit.SelectionStart = 0;
                 break;
             case TextFieldClickTarget.FriendsNickname:
-                _friendNicknameCursorIndex = _friendNicknameInputBuffer.Length;
-                _friendNicknameSelectionStart = 0;
+                _inputManager.MenuTextInput.FriendNicknameEdit.CursorIndex = _inputManager.MenuTextInput.FriendNicknameEdit.Text.Length;
+                _inputManager.MenuTextInput.FriendNicknameEdit.SelectionStart = 0;
                 break;
             case TextFieldClickTarget.FriendsMessage:
-                _friendMessageCursorIndex = _friendMessageInputBuffer.Length;
-                _friendMessageSelectionStart = 0;
+                _inputManager.MenuTextInput.FriendMessageEdit.CursorIndex = _inputManager.MenuTextInput.FriendMessageEdit.Text.Length;
+                _inputManager.MenuTextInput.FriendMessageEdit.SelectionStart = 0;
                 break;
             case TextFieldClickTarget.OptionsPlayerName:
                 _playerNameEditCursorIndex = _playerNameEditBuffer.Length;
@@ -321,27 +321,27 @@ public partial class Game1
         string selectedText;
         if (_passwordPromptOpen)
         {
-            selectedText = GetSelectedText(_passwordEditBuffer, _passwordEditCursorIndex, _passwordEditSelectionStart);
+            selectedText = GetSelectedText(_inputManager.NetworkPromptTextInput.Edit.Text, _inputManager.NetworkPromptTextInput.Edit.CursorIndex, _inputManager.NetworkPromptTextInput.Edit.SelectionStart);
         }
         else if (_mainMenuOpen && _manualConnectOpen && _editingConnectHost)
         {
-            selectedText = GetSelectedText(_connectHostBuffer, _connectHostCursorIndex, _connectHostSelectionStart);
+            selectedText = GetSelectedText(_inputManager.MenuTextInput.ConnectHostEdit.Text, _inputManager.MenuTextInput.ConnectHostEdit.CursorIndex, _inputManager.MenuTextInput.ConnectHostEdit.SelectionStart);
         }
         else if (_mainMenuOpen && _manualConnectOpen && _editingConnectPort)
         {
-            selectedText = GetSelectedText(_connectPortBuffer, _connectPortCursorIndex, _connectPortSelectionStart);
+            selectedText = GetSelectedText(_inputManager.MenuTextInput.ConnectPortEdit.Text, _inputManager.MenuTextInput.ConnectPortEdit.CursorIndex, _inputManager.MenuTextInput.ConnectPortEdit.SelectionStart);
         }
         else if (_friendsMenuOpen && _editingFriendCode)
         {
-            selectedText = GetSelectedText(_friendCodeInputBuffer, _friendCodeCursorIndex, _friendCodeSelectionStart);
+            selectedText = GetSelectedText(_inputManager.MenuTextInput.FriendCodeEdit.Text, _inputManager.MenuTextInput.FriendCodeEdit.CursorIndex, _inputManager.MenuTextInput.FriendCodeEdit.SelectionStart);
         }
         else if (_friendsMenuOpen && _editingFriendNickname)
         {
-            selectedText = GetSelectedText(_friendNicknameInputBuffer, _friendNicknameCursorIndex, _friendNicknameSelectionStart);
+            selectedText = GetSelectedText(_inputManager.MenuTextInput.FriendNicknameEdit.Text, _inputManager.MenuTextInput.FriendNicknameEdit.CursorIndex, _inputManager.MenuTextInput.FriendNicknameEdit.SelectionStart);
         }
         else if (_friendsMenuOpen && _editingFriendMessage)
         {
-            selectedText = GetSelectedText(_friendMessageInputBuffer, _friendMessageCursorIndex, _friendMessageSelectionStart);
+            selectedText = GetSelectedText(_inputManager.MenuTextInput.FriendMessageEdit.Text, _inputManager.MenuTextInput.FriendMessageEdit.CursorIndex, _inputManager.MenuTextInput.FriendMessageEdit.SelectionStart);
         }
         else if (_optionsMenuOpen && _editingPlayerName)
         {
@@ -395,11 +395,11 @@ public partial class Game1
         }
         else if (_chatOpen)
         {
-            selectedText = GetSelectedText(_chatInput, _chatInputCursorIndex, _chatInputSelectionStart);
+            selectedText = GetSelectedText(_inputManager.ChatTextInput.Edit.Text, _inputManager.ChatTextInput.Edit.CursorIndex, _inputManager.ChatTextInput.Edit.SelectionStart);
         }
         else if (_consoleOpen)
         {
-            selectedText = GetSelectedText(_consoleInput, _consoleInputCursorIndex, _consoleInputSelectionStart);
+            selectedText = GetSelectedText(_inputManager.ConsoleTextInput.Edit.Text, _inputManager.ConsoleTextInput.Edit.CursorIndex, _inputManager.ConsoleTextInput.Edit.SelectionStart);
         }
         else
         {
@@ -418,22 +418,22 @@ public partial class Game1
     {
         if (_passwordPromptOpen)
         {
-            _passwordEditCursorIndex = _passwordEditBuffer.Length;
-            _passwordEditSelectionStart = 0;
+            _inputManager.NetworkPromptTextInput.Edit.CursorIndex = _inputManager.NetworkPromptTextInput.Edit.Text.Length;
+            _inputManager.NetworkPromptTextInput.Edit.SelectionStart = 0;
             return true;
         }
 
         if (_chatOpen)
         {
-            _chatInputCursorIndex = _chatInput.Length;
-            _chatInputSelectionStart = 0;
+            _inputManager.ChatTextInput.Edit.CursorIndex = _inputManager.ChatTextInput.Edit.Text.Length;
+            _inputManager.ChatTextInput.Edit.SelectionStart = 0;
             return true;
         }
 
         if (_consoleOpen)
         {
-            _consoleInputCursorIndex = _consoleInput.Length;
-            _consoleInputSelectionStart = 0;
+            _inputManager.ConsoleTextInput.Edit.CursorIndex = _inputManager.ConsoleTextInput.Edit.Text.Length;
+            _inputManager.ConsoleTextInput.Edit.SelectionStart = 0;
             return true;
         }
 
@@ -509,16 +509,16 @@ public partial class Game1
         if (_passwordPromptOpen)
         {
             if (CutSelectionFromField(
-                _passwordEditBuffer,
-                _passwordEditCursorIndex,
-                _passwordEditSelectionStart,
+                _inputManager.NetworkPromptTextInput.Edit.Text,
+                _inputManager.NetworkPromptTextInput.Edit.CursorIndex,
+                _inputManager.NetworkPromptTextInput.Edit.SelectionStart,
                 out var newText,
                 out var newCursorIndex,
                 out var newSelectionStart))
             {
-                _passwordEditBuffer = newText;
-                _passwordEditCursorIndex = newCursorIndex;
-                _passwordEditSelectionStart = newSelectionStart;
+                _inputManager.NetworkPromptTextInput.Edit.Text = newText;
+                _inputManager.NetworkPromptTextInput.Edit.CursorIndex = newCursorIndex;
+                _inputManager.NetworkPromptTextInput.Edit.SelectionStart = newSelectionStart;
                 return true;
             }
 
@@ -528,16 +528,16 @@ public partial class Game1
         if (_mainMenuOpen && _manualConnectOpen && _editingConnectHost)
         {
             if (CutSelectionFromField(
-                _connectHostBuffer,
-                _connectHostCursorIndex,
-                _connectHostSelectionStart,
+                _inputManager.MenuTextInput.ConnectHostEdit.Text,
+                _inputManager.MenuTextInput.ConnectHostEdit.CursorIndex,
+                _inputManager.MenuTextInput.ConnectHostEdit.SelectionStart,
                 out var newText,
                 out var newCursorIndex,
                 out var newSelectionStart))
             {
-                _connectHostBuffer = newText;
-                _connectHostCursorIndex = newCursorIndex;
-                _connectHostSelectionStart = newSelectionStart;
+                _inputManager.MenuTextInput.ConnectHostEdit.Text = newText;
+                _inputManager.MenuTextInput.ConnectHostEdit.CursorIndex = newCursorIndex;
+                _inputManager.MenuTextInput.ConnectHostEdit.SelectionStart = newSelectionStart;
                 return true;
             }
 
@@ -547,16 +547,16 @@ public partial class Game1
         if (_mainMenuOpen && _manualConnectOpen && _editingConnectPort)
         {
             if (CutSelectionFromField(
-                _connectPortBuffer,
-                _connectPortCursorIndex,
-                _connectPortSelectionStart,
+                _inputManager.MenuTextInput.ConnectPortEdit.Text,
+                _inputManager.MenuTextInput.ConnectPortEdit.CursorIndex,
+                _inputManager.MenuTextInput.ConnectPortEdit.SelectionStart,
                 out var newText,
                 out var newCursorIndex,
                 out var newSelectionStart))
             {
-                _connectPortBuffer = newText;
-                _connectPortCursorIndex = newCursorIndex;
-                _connectPortSelectionStart = newSelectionStart;
+                _inputManager.MenuTextInput.ConnectPortEdit.Text = newText;
+                _inputManager.MenuTextInput.ConnectPortEdit.CursorIndex = newCursorIndex;
+                _inputManager.MenuTextInput.ConnectPortEdit.SelectionStart = newSelectionStart;
                 return true;
             }
 
@@ -566,16 +566,16 @@ public partial class Game1
         if (_friendsMenuOpen && _editingFriendCode)
         {
             if (CutSelectionFromField(
-                _friendCodeInputBuffer,
-                _friendCodeCursorIndex,
-                _friendCodeSelectionStart,
+                _inputManager.MenuTextInput.FriendCodeEdit.Text,
+                _inputManager.MenuTextInput.FriendCodeEdit.CursorIndex,
+                _inputManager.MenuTextInput.FriendCodeEdit.SelectionStart,
                 out var newText,
                 out var newCursorIndex,
                 out var newSelectionStart))
             {
-                _friendCodeInputBuffer = newText;
-                _friendCodeCursorIndex = newCursorIndex;
-                _friendCodeSelectionStart = newSelectionStart;
+                _inputManager.MenuTextInput.FriendCodeEdit.Text = newText;
+                _inputManager.MenuTextInput.FriendCodeEdit.CursorIndex = newCursorIndex;
+                _inputManager.MenuTextInput.FriendCodeEdit.SelectionStart = newSelectionStart;
                 return true;
             }
 
@@ -585,16 +585,16 @@ public partial class Game1
         if (_friendsMenuOpen && _editingFriendNickname)
         {
             if (CutSelectionFromField(
-                _friendNicknameInputBuffer,
-                _friendNicknameCursorIndex,
-                _friendNicknameSelectionStart,
+                _inputManager.MenuTextInput.FriendNicknameEdit.Text,
+                _inputManager.MenuTextInput.FriendNicknameEdit.CursorIndex,
+                _inputManager.MenuTextInput.FriendNicknameEdit.SelectionStart,
                 out var newText,
                 out var newCursorIndex,
                 out var newSelectionStart))
             {
-                _friendNicknameInputBuffer = newText;
-                _friendNicknameCursorIndex = newCursorIndex;
-                _friendNicknameSelectionStart = newSelectionStart;
+                _inputManager.MenuTextInput.FriendNicknameEdit.Text = newText;
+                _inputManager.MenuTextInput.FriendNicknameEdit.CursorIndex = newCursorIndex;
+                _inputManager.MenuTextInput.FriendNicknameEdit.SelectionStart = newSelectionStart;
                 return true;
             }
 
@@ -604,16 +604,16 @@ public partial class Game1
         if (_friendsMenuOpen && _editingFriendMessage)
         {
             if (CutSelectionFromField(
-                _friendMessageInputBuffer,
-                _friendMessageCursorIndex,
-                _friendMessageSelectionStart,
+                _inputManager.MenuTextInput.FriendMessageEdit.Text,
+                _inputManager.MenuTextInput.FriendMessageEdit.CursorIndex,
+                _inputManager.MenuTextInput.FriendMessageEdit.SelectionStart,
                 out var newText,
                 out var newCursorIndex,
                 out var newSelectionStart))
             {
-                _friendMessageInputBuffer = newText;
-                _friendMessageCursorIndex = newCursorIndex;
-                _friendMessageSelectionStart = newSelectionStart;
+                _inputManager.MenuTextInput.FriendMessageEdit.Text = newText;
+                _inputManager.MenuTextInput.FriendMessageEdit.CursorIndex = newCursorIndex;
+                _inputManager.MenuTextInput.FriendMessageEdit.SelectionStart = newSelectionStart;
                 return true;
             }
 
@@ -852,16 +852,16 @@ public partial class Game1
         if (_chatOpen)
         {
             if (CutSelectionFromField(
-                _chatInput,
-                _chatInputCursorIndex,
-                _chatInputSelectionStart,
+                _inputManager.ChatTextInput.Edit.Text,
+                _inputManager.ChatTextInput.Edit.CursorIndex,
+                _inputManager.ChatTextInput.Edit.SelectionStart,
                 out var newText,
                 out var newCursorIndex,
                 out var newSelectionStart))
             {
-                _chatInput = newText;
-                _chatInputCursorIndex = newCursorIndex;
-                _chatInputSelectionStart = newSelectionStart;
+                _inputManager.ChatTextInput.Edit.Text = newText;
+                _inputManager.ChatTextInput.Edit.CursorIndex = newCursorIndex;
+                _inputManager.ChatTextInput.Edit.SelectionStart = newSelectionStart;
                 return true;
             }
 
@@ -871,16 +871,16 @@ public partial class Game1
         if (_consoleOpen)
         {
             if (CutSelectionFromField(
-                _consoleInput,
-                _consoleInputCursorIndex,
-                _consoleInputSelectionStart,
+                _inputManager.ConsoleTextInput.Edit.Text,
+                _inputManager.ConsoleTextInput.Edit.CursorIndex,
+                _inputManager.ConsoleTextInput.Edit.SelectionStart,
                 out var newText,
                 out var newCursorIndex,
                 out var newSelectionStart))
             {
-                _consoleInput = newText;
-                _consoleInputCursorIndex = newCursorIndex;
-                _consoleInputSelectionStart = newSelectionStart;
+                _inputManager.ConsoleTextInput.Edit.Text = newText;
+                _inputManager.ConsoleTextInput.Edit.CursorIndex = newCursorIndex;
+                _inputManager.ConsoleTextInput.Edit.SelectionStart = newSelectionStart;
                 return true;
             }
 
@@ -900,15 +900,15 @@ public partial class Game1
         if (_passwordPromptOpen)
         {
             var result = InsertTextAtCursor(
-                _passwordEditBuffer,
+                _inputManager.NetworkPromptTextInput.Edit.Text,
                 pasteText,
-                _passwordEditCursorIndex,
-                _passwordEditSelectionStart,
+                _inputManager.NetworkPromptTextInput.Edit.CursorIndex,
+                _inputManager.NetworkPromptTextInput.Edit.SelectionStart,
                 32,
                 c => !char.IsControl(c));
-            _passwordEditBuffer = result.Text;
-            _passwordEditCursorIndex = result.CursorIndex;
-            _passwordEditSelectionStart = result.SelectionStart;
+            _inputManager.NetworkPromptTextInput.Edit.Text = result.Text;
+            _inputManager.NetworkPromptTextInput.Edit.CursorIndex = result.CursorIndex;
+            _inputManager.NetworkPromptTextInput.Edit.SelectionStart = result.SelectionStart;
             return true;
         }
 
@@ -917,7 +917,7 @@ public partial class Game1
             if (_lastToDieRoomCodeJoinOpen
                 && RelayRoomCode.TryNormalize(pasteText, out var roomCode))
             {
-                _connectHostBuffer = roomCode;
+                _inputManager.MenuTextInput.ConnectHostEdit.Text = roomCode;
                 InitializeConnectHostCursor();
                 return true;
             }
@@ -925,56 +925,56 @@ public partial class Game1
             if (_lastToDieRoomCodeJoinOpen
                 && TryExtractFriendCodeFromText(pasteText, out var friendCode))
             {
-                _connectHostBuffer = friendCode;
+                _inputManager.MenuTextInput.ConnectHostEdit.Text = friendCode;
                 InitializeConnectHostCursor();
                 return true;
             }
 
             var result = InsertTextAtCursor(
-                _connectHostBuffer,
+                _inputManager.MenuTextInput.ConnectHostEdit.Text,
                 pasteText,
-                _connectHostCursorIndex,
-                _connectHostSelectionStart,
+                _inputManager.MenuTextInput.ConnectHostEdit.CursorIndex,
+                _inputManager.MenuTextInput.ConnectHostEdit.SelectionStart,
                 64,
                 c => !char.IsControl(c));
-            _connectHostBuffer = result.Text;
-            _connectHostCursorIndex = result.CursorIndex;
-            _connectHostSelectionStart = result.SelectionStart;
+            _inputManager.MenuTextInput.ConnectHostEdit.Text = result.Text;
+            _inputManager.MenuTextInput.ConnectHostEdit.CursorIndex = result.CursorIndex;
+            _inputManager.MenuTextInput.ConnectHostEdit.SelectionStart = result.SelectionStart;
             return true;
         }
 
         if (_mainMenuOpen && _manualConnectOpen && _editingConnectPort)
         {
             var result = InsertTextAtCursor(
-                _connectPortBuffer,
+                _inputManager.MenuTextInput.ConnectPortEdit.Text,
                 pasteText,
-                _connectPortCursorIndex,
-                _connectPortSelectionStart,
+                _inputManager.MenuTextInput.ConnectPortEdit.CursorIndex,
+                _inputManager.MenuTextInput.ConnectPortEdit.SelectionStart,
                 5,
                 c => char.IsDigit(c));
-            _connectPortBuffer = result.Text;
-            _connectPortCursorIndex = result.CursorIndex;
-            _connectPortSelectionStart = result.SelectionStart;
+            _inputManager.MenuTextInput.ConnectPortEdit.Text = result.Text;
+            _inputManager.MenuTextInput.ConnectPortEdit.CursorIndex = result.CursorIndex;
+            _inputManager.MenuTextInput.ConnectPortEdit.SelectionStart = result.SelectionStart;
             return true;
         }
 
         if (_friendsMenuOpen && _editingFriendCode)
         {
             var result = InsertTextAtCursor(
-                _friendCodeInputBuffer,
+                _inputManager.MenuTextInput.FriendCodeEdit.Text,
                 pasteText,
-                _friendCodeCursorIndex,
-                _friendCodeSelectionStart,
+                _inputManager.MenuTextInput.FriendCodeEdit.CursorIndex,
+                _inputManager.MenuTextInput.FriendCodeEdit.SelectionStart,
                 20,
                 c => char.IsAsciiLetterOrDigit(c) || c == '-');
-            _friendCodeInputBuffer = result.Text.ToUpperInvariant();
-            _friendCodeCursorIndex = result.CursorIndex;
-            _friendCodeSelectionStart = result.SelectionStart;
+            _inputManager.MenuTextInput.FriendCodeEdit.Text = result.Text.ToUpperInvariant();
+            _inputManager.MenuTextInput.FriendCodeEdit.CursorIndex = result.CursorIndex;
+            _inputManager.MenuTextInput.FriendCodeEdit.SelectionStart = result.SelectionStart;
             if (_friendsMenuAddingFriend
                 && (TryExtractFriendCodeFromText(pasteText, out var pastedFriendCode)
-                    || TryExtractFriendCodeFromText(_friendCodeInputBuffer, out pastedFriendCode)))
+                    || TryExtractFriendCodeFromText(_inputManager.MenuTextInput.FriendCodeEdit.Text, out pastedFriendCode)))
             {
-                _friendCodeInputBuffer = pastedFriendCode;
+                _inputManager.MenuTextInput.FriendCodeEdit.Text = pastedFriendCode;
                 InitializeFriendCodeCursor();
                 TrySendFriendRequestFromInput();
             }
@@ -985,30 +985,30 @@ public partial class Game1
         if (_friendsMenuOpen && _editingFriendNickname)
         {
             var result = InsertTextAtCursor(
-                _friendNicknameInputBuffer,
+                _inputManager.MenuTextInput.FriendNicknameEdit.Text,
                 pasteText,
-                _friendNicknameCursorIndex,
-                _friendNicknameSelectionStart,
+                _inputManager.MenuTextInput.FriendNicknameEdit.CursorIndex,
+                _inputManager.MenuTextInput.FriendNicknameEdit.SelectionStart,
                 20,
                 c => !char.IsControl(c) && c != '#');
-            _friendNicknameInputBuffer = result.Text;
-            _friendNicknameCursorIndex = result.CursorIndex;
-            _friendNicknameSelectionStart = result.SelectionStart;
+            _inputManager.MenuTextInput.FriendNicknameEdit.Text = result.Text;
+            _inputManager.MenuTextInput.FriendNicknameEdit.CursorIndex = result.CursorIndex;
+            _inputManager.MenuTextInput.FriendNicknameEdit.SelectionStart = result.SelectionStart;
             return true;
         }
 
         if (_friendsMenuOpen && _editingFriendMessage)
         {
             var result = InsertTextAtCursor(
-                _friendMessageInputBuffer,
+                _inputManager.MenuTextInput.FriendMessageEdit.Text,
                 pasteText,
-                _friendMessageCursorIndex,
-                _friendMessageSelectionStart,
+                _inputManager.MenuTextInput.FriendMessageEdit.CursorIndex,
+                _inputManager.MenuTextInput.FriendMessageEdit.SelectionStart,
                 500,
                 c => !char.IsControl(c));
-            _friendMessageInputBuffer = result.Text;
-            _friendMessageCursorIndex = result.CursorIndex;
-            _friendMessageSelectionStart = result.SelectionStart;
+            _inputManager.MenuTextInput.FriendMessageEdit.Text = result.Text;
+            _inputManager.MenuTextInput.FriendMessageEdit.CursorIndex = result.CursorIndex;
+            _inputManager.MenuTextInput.FriendMessageEdit.SelectionStart = result.SelectionStart;
             return true;
         }
 
@@ -1201,30 +1201,30 @@ public partial class Game1
         if (_chatOpen)
         {
             var result = InsertTextAtCursor(
-                _chatInput,
+                _inputManager.ChatTextInput.Edit.Text,
                 pasteText,
-                _chatInputCursorIndex,
-                _chatInputSelectionStart,
+                _inputManager.ChatTextInput.Edit.CursorIndex,
+                _inputManager.ChatTextInput.Edit.SelectionStart,
                 120,
                 c => !char.IsControl(c));
-            _chatInput = result.Text;
-            _chatInputCursorIndex = result.CursorIndex;
-            _chatInputSelectionStart = result.SelectionStart;
+            _inputManager.ChatTextInput.Edit.Text = result.Text;
+            _inputManager.ChatTextInput.Edit.CursorIndex = result.CursorIndex;
+            _inputManager.ChatTextInput.Edit.SelectionStart = result.SelectionStart;
             return true;
         }
 
         if (_consoleOpen)
         {
             var result = InsertTextAtCursor(
-                _consoleInput,
+                _inputManager.ConsoleTextInput.Edit.Text,
                 pasteText,
-                _consoleInputCursorIndex,
-                _consoleInputSelectionStart,
+                _inputManager.ConsoleTextInput.Edit.CursorIndex,
+                _inputManager.ConsoleTextInput.Edit.SelectionStart,
                 int.MaxValue,
                 c => !char.IsControl(c));
-            _consoleInput = result.Text;
-            _consoleInputCursorIndex = result.CursorIndex;
-            _consoleInputSelectionStart = result.SelectionStart;
+            _inputManager.ConsoleTextInput.Edit.Text = result.Text;
+            _inputManager.ConsoleTextInput.Edit.CursorIndex = result.CursorIndex;
+            _inputManager.ConsoleTextInput.Edit.SelectionStart = result.SelectionStart;
             return true;
         }
 
@@ -1798,16 +1798,16 @@ public partial class Game1
         {
             if (leftRepeat)
             {
-                var result = MoveTextCursorLeft(_passwordEditCursorIndex, _passwordEditSelectionStart, shiftHeld);
-                _passwordEditCursorIndex = result.CursorIndex;
-                _passwordEditSelectionStart = result.SelectionStart;
+                var result = MoveTextCursorLeft(_inputManager.NetworkPromptTextInput.Edit.CursorIndex, _inputManager.NetworkPromptTextInput.Edit.SelectionStart, shiftHeld);
+                _inputManager.NetworkPromptTextInput.Edit.CursorIndex = result.CursorIndex;
+                _inputManager.NetworkPromptTextInput.Edit.SelectionStart = result.SelectionStart;
             }
 
             if (rightRepeat)
             {
-                var result = MoveTextCursorRight(_passwordEditCursorIndex, _passwordEditSelectionStart, _passwordEditBuffer, shiftHeld);
-                _passwordEditCursorIndex = result.CursorIndex;
-                _passwordEditSelectionStart = result.SelectionStart;
+                var result = MoveTextCursorRight(_inputManager.NetworkPromptTextInput.Edit.CursorIndex, _inputManager.NetworkPromptTextInput.Edit.SelectionStart, _inputManager.NetworkPromptTextInput.Edit.Text, shiftHeld);
+                _inputManager.NetworkPromptTextInput.Edit.CursorIndex = result.CursorIndex;
+                _inputManager.NetworkPromptTextInput.Edit.SelectionStart = result.SelectionStart;
             }
 
             return true;
@@ -1819,16 +1819,16 @@ public partial class Game1
             {
                 if (leftRepeat)
                 {
-                    var result = MoveTextCursorLeft(_connectHostCursorIndex, _connectHostSelectionStart, shiftHeld);
-                    _connectHostCursorIndex = result.CursorIndex;
-                    _connectHostSelectionStart = result.SelectionStart;
+                    var result = MoveTextCursorLeft(_inputManager.MenuTextInput.ConnectHostEdit.CursorIndex, _inputManager.MenuTextInput.ConnectHostEdit.SelectionStart, shiftHeld);
+                    _inputManager.MenuTextInput.ConnectHostEdit.CursorIndex = result.CursorIndex;
+                    _inputManager.MenuTextInput.ConnectHostEdit.SelectionStart = result.SelectionStart;
                 }
 
                 if (rightRepeat)
                 {
-                    var result = MoveTextCursorRight(_connectHostCursorIndex, _connectHostSelectionStart, _connectHostBuffer, shiftHeld);
-                    _connectHostCursorIndex = result.CursorIndex;
-                    _connectHostSelectionStart = result.SelectionStart;
+                    var result = MoveTextCursorRight(_inputManager.MenuTextInput.ConnectHostEdit.CursorIndex, _inputManager.MenuTextInput.ConnectHostEdit.SelectionStart, _inputManager.MenuTextInput.ConnectHostEdit.Text, shiftHeld);
+                    _inputManager.MenuTextInput.ConnectHostEdit.CursorIndex = result.CursorIndex;
+                    _inputManager.MenuTextInput.ConnectHostEdit.SelectionStart = result.SelectionStart;
                 }
 
                 return true;
@@ -1838,16 +1838,16 @@ public partial class Game1
             {
                 if (leftRepeat)
                 {
-                    var result = MoveTextCursorLeft(_connectPortCursorIndex, _connectPortSelectionStart, shiftHeld);
-                    _connectPortCursorIndex = result.CursorIndex;
-                    _connectPortSelectionStart = result.SelectionStart;
+                    var result = MoveTextCursorLeft(_inputManager.MenuTextInput.ConnectPortEdit.CursorIndex, _inputManager.MenuTextInput.ConnectPortEdit.SelectionStart, shiftHeld);
+                    _inputManager.MenuTextInput.ConnectPortEdit.CursorIndex = result.CursorIndex;
+                    _inputManager.MenuTextInput.ConnectPortEdit.SelectionStart = result.SelectionStart;
                 }
 
                 if (rightRepeat)
                 {
-                    var result = MoveTextCursorRight(_connectPortCursorIndex, _connectPortSelectionStart, _connectPortBuffer, shiftHeld);
-                    _connectPortCursorIndex = result.CursorIndex;
-                    _connectPortSelectionStart = result.SelectionStart;
+                    var result = MoveTextCursorRight(_inputManager.MenuTextInput.ConnectPortEdit.CursorIndex, _inputManager.MenuTextInput.ConnectPortEdit.SelectionStart, _inputManager.MenuTextInput.ConnectPortEdit.Text, shiftHeld);
+                    _inputManager.MenuTextInput.ConnectPortEdit.CursorIndex = result.CursorIndex;
+                    _inputManager.MenuTextInput.ConnectPortEdit.SelectionStart = result.SelectionStart;
                 }
 
                 return true;
@@ -1860,16 +1860,16 @@ public partial class Game1
             {
                 if (leftRepeat)
                 {
-                    var result = MoveTextCursorLeft(_friendCodeCursorIndex, _friendCodeSelectionStart, shiftHeld);
-                    _friendCodeCursorIndex = result.CursorIndex;
-                    _friendCodeSelectionStart = result.SelectionStart;
+                    var result = MoveTextCursorLeft(_inputManager.MenuTextInput.FriendCodeEdit.CursorIndex, _inputManager.MenuTextInput.FriendCodeEdit.SelectionStart, shiftHeld);
+                    _inputManager.MenuTextInput.FriendCodeEdit.CursorIndex = result.CursorIndex;
+                    _inputManager.MenuTextInput.FriendCodeEdit.SelectionStart = result.SelectionStart;
                 }
 
                 if (rightRepeat)
                 {
-                    var result = MoveTextCursorRight(_friendCodeCursorIndex, _friendCodeSelectionStart, _friendCodeInputBuffer, shiftHeld);
-                    _friendCodeCursorIndex = result.CursorIndex;
-                    _friendCodeSelectionStart = result.SelectionStart;
+                    var result = MoveTextCursorRight(_inputManager.MenuTextInput.FriendCodeEdit.CursorIndex, _inputManager.MenuTextInput.FriendCodeEdit.SelectionStart, _inputManager.MenuTextInput.FriendCodeEdit.Text, shiftHeld);
+                    _inputManager.MenuTextInput.FriendCodeEdit.CursorIndex = result.CursorIndex;
+                    _inputManager.MenuTextInput.FriendCodeEdit.SelectionStart = result.SelectionStart;
                 }
 
                 return true;
@@ -1879,16 +1879,16 @@ public partial class Game1
             {
                 if (leftRepeat)
                 {
-                    var result = MoveTextCursorLeft(_friendNicknameCursorIndex, _friendNicknameSelectionStart, shiftHeld);
-                    _friendNicknameCursorIndex = result.CursorIndex;
-                    _friendNicknameSelectionStart = result.SelectionStart;
+                    var result = MoveTextCursorLeft(_inputManager.MenuTextInput.FriendNicknameEdit.CursorIndex, _inputManager.MenuTextInput.FriendNicknameEdit.SelectionStart, shiftHeld);
+                    _inputManager.MenuTextInput.FriendNicknameEdit.CursorIndex = result.CursorIndex;
+                    _inputManager.MenuTextInput.FriendNicknameEdit.SelectionStart = result.SelectionStart;
                 }
 
                 if (rightRepeat)
                 {
-                    var result = MoveTextCursorRight(_friendNicknameCursorIndex, _friendNicknameSelectionStart, _friendNicknameInputBuffer, shiftHeld);
-                    _friendNicknameCursorIndex = result.CursorIndex;
-                    _friendNicknameSelectionStart = result.SelectionStart;
+                    var result = MoveTextCursorRight(_inputManager.MenuTextInput.FriendNicknameEdit.CursorIndex, _inputManager.MenuTextInput.FriendNicknameEdit.SelectionStart, _inputManager.MenuTextInput.FriendNicknameEdit.Text, shiftHeld);
+                    _inputManager.MenuTextInput.FriendNicknameEdit.CursorIndex = result.CursorIndex;
+                    _inputManager.MenuTextInput.FriendNicknameEdit.SelectionStart = result.SelectionStart;
                 }
 
                 return true;
@@ -1898,16 +1898,16 @@ public partial class Game1
             {
                 if (leftRepeat)
                 {
-                    var result = MoveTextCursorLeft(_friendMessageCursorIndex, _friendMessageSelectionStart, shiftHeld);
-                    _friendMessageCursorIndex = result.CursorIndex;
-                    _friendMessageSelectionStart = result.SelectionStart;
+                    var result = MoveTextCursorLeft(_inputManager.MenuTextInput.FriendMessageEdit.CursorIndex, _inputManager.MenuTextInput.FriendMessageEdit.SelectionStart, shiftHeld);
+                    _inputManager.MenuTextInput.FriendMessageEdit.CursorIndex = result.CursorIndex;
+                    _inputManager.MenuTextInput.FriendMessageEdit.SelectionStart = result.SelectionStart;
                 }
 
                 if (rightRepeat)
                 {
-                    var result = MoveTextCursorRight(_friendMessageCursorIndex, _friendMessageSelectionStart, _friendMessageInputBuffer, shiftHeld);
-                    _friendMessageCursorIndex = result.CursorIndex;
-                    _friendMessageSelectionStart = result.SelectionStart;
+                    var result = MoveTextCursorRight(_inputManager.MenuTextInput.FriendMessageEdit.CursorIndex, _inputManager.MenuTextInput.FriendMessageEdit.SelectionStart, _inputManager.MenuTextInput.FriendMessageEdit.Text, shiftHeld);
+                    _inputManager.MenuTextInput.FriendMessageEdit.CursorIndex = result.CursorIndex;
+                    _inputManager.MenuTextInput.FriendMessageEdit.SelectionStart = result.SelectionStart;
                 }
 
                 return true;
@@ -2123,16 +2123,16 @@ public partial class Game1
         {
             if (leftRepeat)
             {
-                var result = MoveTextCursorLeft(_chatInputCursorIndex, _chatInputSelectionStart, shiftHeld);
-                _chatInputCursorIndex = result.CursorIndex;
-                _chatInputSelectionStart = result.SelectionStart;
+                var result = MoveTextCursorLeft(_inputManager.ChatTextInput.Edit.CursorIndex, _inputManager.ChatTextInput.Edit.SelectionStart, shiftHeld);
+                _inputManager.ChatTextInput.Edit.CursorIndex = result.CursorIndex;
+                _inputManager.ChatTextInput.Edit.SelectionStart = result.SelectionStart;
             }
 
             if (rightRepeat)
             {
-                var result = MoveTextCursorRight(_chatInputCursorIndex, _chatInputSelectionStart, _chatInput, shiftHeld);
-                _chatInputCursorIndex = result.CursorIndex;
-                _chatInputSelectionStart = result.SelectionStart;
+                var result = MoveTextCursorRight(_inputManager.ChatTextInput.Edit.CursorIndex, _inputManager.ChatTextInput.Edit.SelectionStart, _inputManager.ChatTextInput.Edit.Text, shiftHeld);
+                _inputManager.ChatTextInput.Edit.CursorIndex = result.CursorIndex;
+                _inputManager.ChatTextInput.Edit.SelectionStart = result.SelectionStart;
             }
 
             return true;
@@ -2142,16 +2142,16 @@ public partial class Game1
         {
             if (leftRepeat)
             {
-                var result = MoveTextCursorLeft(_consoleInputCursorIndex, _consoleInputSelectionStart, shiftHeld);
-                _consoleInputCursorIndex = result.CursorIndex;
-                _consoleInputSelectionStart = result.SelectionStart;
+                var result = MoveTextCursorLeft(_inputManager.ConsoleTextInput.Edit.CursorIndex, _inputManager.ConsoleTextInput.Edit.SelectionStart, shiftHeld);
+                _inputManager.ConsoleTextInput.Edit.CursorIndex = result.CursorIndex;
+                _inputManager.ConsoleTextInput.Edit.SelectionStart = result.SelectionStart;
             }
 
             if (rightRepeat)
             {
-                var result = MoveTextCursorRight(_consoleInputCursorIndex, _consoleInputSelectionStart, _consoleInput, shiftHeld);
-                _consoleInputCursorIndex = result.CursorIndex;
-                _consoleInputSelectionStart = result.SelectionStart;
+                var result = MoveTextCursorRight(_inputManager.ConsoleTextInput.Edit.CursorIndex, _inputManager.ConsoleTextInput.Edit.SelectionStart, _inputManager.ConsoleTextInput.Edit.Text, shiftHeld);
+                _inputManager.ConsoleTextInput.Edit.CursorIndex = result.CursorIndex;
+                _inputManager.ConsoleTextInput.Edit.SelectionStart = result.SelectionStart;
             }
 
             return true;
@@ -2298,50 +2298,50 @@ public partial class Game1
 
     public void InitializeConnectHostCursor()
     {
-        _connectHostCursorIndex = _connectHostBuffer.Length;
-        _connectHostSelectionStart = _connectHostCursorIndex;
+        _inputManager.MenuTextInput.ConnectHostEdit.CursorIndex = _inputManager.MenuTextInput.ConnectHostEdit.Text.Length;
+        _inputManager.MenuTextInput.ConnectHostEdit.SelectionStart = _inputManager.MenuTextInput.ConnectHostEdit.CursorIndex;
     }
 
     public void InitializeConnectPortCursor()
     {
-        _connectPortCursorIndex = _connectPortBuffer.Length;
-        _connectPortSelectionStart = _connectPortCursorIndex;
+        _inputManager.MenuTextInput.ConnectPortEdit.CursorIndex = _inputManager.MenuTextInput.ConnectPortEdit.Text.Length;
+        _inputManager.MenuTextInput.ConnectPortEdit.SelectionStart = _inputManager.MenuTextInput.ConnectPortEdit.CursorIndex;
     }
 
     public void InitializeFriendCodeCursor()
     {
-        _friendCodeCursorIndex = _friendCodeInputBuffer.Length;
-        _friendCodeSelectionStart = _friendCodeCursorIndex;
+        _inputManager.MenuTextInput.FriendCodeEdit.CursorIndex = _inputManager.MenuTextInput.FriendCodeEdit.Text.Length;
+        _inputManager.MenuTextInput.FriendCodeEdit.SelectionStart = _inputManager.MenuTextInput.FriendCodeEdit.CursorIndex;
     }
 
     public void InitializeFriendNicknameCursor()
     {
-        _friendNicknameCursorIndex = _friendNicknameInputBuffer.Length;
-        _friendNicknameSelectionStart = _friendNicknameCursorIndex;
+        _inputManager.MenuTextInput.FriendNicknameEdit.CursorIndex = _inputManager.MenuTextInput.FriendNicknameEdit.Text.Length;
+        _inputManager.MenuTextInput.FriendNicknameEdit.SelectionStart = _inputManager.MenuTextInput.FriendNicknameEdit.CursorIndex;
     }
 
     private void InitializeFriendMessageCursor()
     {
-        _friendMessageCursorIndex = _friendMessageInputBuffer.Length;
-        _friendMessageSelectionStart = _friendMessageCursorIndex;
+        _inputManager.MenuTextInput.FriendMessageEdit.CursorIndex = _inputManager.MenuTextInput.FriendMessageEdit.Text.Length;
+        _inputManager.MenuTextInput.FriendMessageEdit.SelectionStart = _inputManager.MenuTextInput.FriendMessageEdit.CursorIndex;
     }
 
     public void InitializePasswordEditCursor()
     {
-        _passwordEditCursorIndex = _passwordEditBuffer.Length;
-        _passwordEditSelectionStart = _passwordEditCursorIndex;
+        _inputManager.NetworkPromptTextInput.Edit.CursorIndex = _inputManager.NetworkPromptTextInput.Edit.Text.Length;
+        _inputManager.NetworkPromptTextInput.Edit.SelectionStart = _inputManager.NetworkPromptTextInput.Edit.CursorIndex;
     }
 
     private void InitializeChatInputCursor()
     {
-        _chatInputCursorIndex = _chatInput.Length;
-        _chatInputSelectionStart = _chatInputCursorIndex;
+        _inputManager.ChatTextInput.Edit.CursorIndex = _inputManager.ChatTextInput.Edit.Text.Length;
+        _inputManager.ChatTextInput.Edit.SelectionStart = _inputManager.ChatTextInput.Edit.CursorIndex;
     }
 
     public void InitializeConsoleInputCursor()
     {
-        _consoleInputCursorIndex = _consoleInput.Length;
-        _consoleInputSelectionStart = _consoleInputCursorIndex;
+        _inputManager.ConsoleTextInput.Edit.CursorIndex = _inputManager.ConsoleTextInput.Edit.Text.Length;
+        _inputManager.ConsoleTextInput.Edit.SelectionStart = _inputManager.ConsoleTextInput.Edit.CursorIndex;
     }
 
     public void InitializeHostSetupFieldCursor(HostSetupEditField field)

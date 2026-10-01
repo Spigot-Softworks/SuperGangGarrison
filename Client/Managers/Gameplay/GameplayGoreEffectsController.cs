@@ -17,6 +17,23 @@ public sealed partial class GameplayGoreEffectsController
         private const float GibBloodExplosionDrawScale = 1.4f;
         private readonly List<GibBloodExplosionVisual> _gibBloodExplosionVisuals = new();
         private readonly IGameplayContext _context;
+        private readonly List<(int X, int Y)> _staleSettledBloodCellKeys = new();
+        private readonly Dictionary<(int X, int Y), OpenGarrison.Client.Game1.SettledBloodCell> _settledBloodCells = new();
+        private readonly List<(int X, int Y, float Amount, bool Cryo)> _pendingSettledBloodTransfers = new();
+        private readonly Dictionary<(int X, int Y), float> _bloodDrawCellsScratch = new();
+        private readonly Dictionary<(int X, int Y), float> _bloodCryoDrawCellsScratch = new();
+        private readonly Dictionary<(int X, int Y), float> _bloodBridgeScratch = new();
+        private readonly List<OpenGarrison.Client.Game1.BloodSquibParticle> _bloodSquibParticles = new();
+        private int _nextBloodSquibSeed = 1;
+        private readonly HashSet<int> _processedSettledBloodDropIds = new();
+        private readonly List<int> _staleSettledBloodDropIds = new();
+        private readonly List<OpenGarrison.Client.Game1.BloodSprayVisual> _bloodSprayVisuals = new();
+        private readonly List<OpenGarrison.Client.Game1.BloodVisual> _bloodVisuals = new();
+        private int _nextClientBackstabVisualId = -1;
+        private readonly HashSet<int> _processedStickyGibBloodDropIds = new();
+        private readonly List<int> _staleStickyGibBloodDropIds = new();
+        private readonly List<int> _staleStickyGibBloodPlayerIds = new();
+        private readonly Dictionary<int, OpenGarrison.Client.Game1.StickyGibBloodCoating> _stickyGibBloodCoatings = new();
 
         private sealed class GibBloodExplosionVisual(float x, float y)
         {
@@ -33,13 +50,13 @@ public sealed partial class GameplayGoreEffectsController
         public void ResetTransientEffects()
         {
             ResetBackstabVisuals();
-            _context._bloodVisuals.Clear();
-            _context._bloodSprayVisuals.Clear();
+            _bloodVisuals.Clear();
+            _bloodSprayVisuals.Clear();
             _gibBloodExplosionVisuals.Clear();
-            _context._stickyGibBloodCoatings.Clear();
-            _context._staleStickyGibBloodPlayerIds.Clear();
-            _context._processedStickyGibBloodDropIds.Clear();
-            _context._staleStickyGibBloodDropIds.Clear();
+            _stickyGibBloodCoatings.Clear();
+            _staleStickyGibBloodPlayerIds.Clear();
+            _processedStickyGibBloodDropIds.Clear();
+            _staleStickyGibBloodDropIds.Clear();
             ResetBloodSquibEffects();
             _context.ResetDynamicRagdollEffects();
             _context.ResetCorpseAcidDissolves();
@@ -58,21 +75,21 @@ public sealed partial class GameplayGoreEffectsController
 
             if (!_context.AreBloodVisualsEnabled)
             {
-                _context._bloodVisuals.Clear();
-                _context._bloodSprayVisuals.Clear();
+                _bloodVisuals.Clear();
+                _bloodSprayVisuals.Clear();
                 _gibBloodExplosionVisuals.Clear();
                 ResetBloodSquibEffects();
-                _context._stickyGibBloodCoatings.Clear();
-                _context._staleStickyGibBloodPlayerIds.Clear();
-                _context._processedStickyGibBloodDropIds.Clear();
-                _context._staleStickyGibBloodDropIds.Clear();
+                _stickyGibBloodCoatings.Clear();
+                _staleStickyGibBloodPlayerIds.Clear();
+                _processedStickyGibBloodDropIds.Clear();
+                _staleStickyGibBloodDropIds.Clear();
                 return;
             }
 
-            if (_context._bloodRenderMode == 0)
+            if (_context.GameplayRuntimeSettings.BloodRenderMode == 0)
             {
-                _context._bloodVisuals.Clear();
-                _context._bloodSprayVisuals.Clear();
+                _bloodVisuals.Clear();
+                _bloodSprayVisuals.Clear();
                 AdvanceBloodSquibEffects();
                 AdvanceStickyGibBloodCoatings();
                 return;
@@ -80,22 +97,22 @@ public sealed partial class GameplayGoreEffectsController
 
             ResetBloodSquibEffects();
 
-            for (var index = _context._bloodVisuals.Count - 1; index >= 0; index -= 1)
+            for (var index = _bloodVisuals.Count - 1; index >= 0; index -= 1)
             {
-                _context._bloodVisuals[index].TicksRemaining -= 1;
-                if (_context._bloodVisuals[index].TicksRemaining <= 0)
+                _bloodVisuals[index].TicksRemaining -= 1;
+                if (_bloodVisuals[index].TicksRemaining <= 0)
                 {
-                    _context._bloodVisuals.RemoveAt(index);
+                    _bloodVisuals.RemoveAt(index);
                 }
             }
 
-            for (var index = _context._bloodSprayVisuals.Count - 1; index >= 0; index -= 1)
+            for (var index = _bloodSprayVisuals.Count - 1; index >= 0; index -= 1)
             {
-                var spray = _context._bloodSprayVisuals[index];
+                var spray = _bloodSprayVisuals[index];
                 spray.TicksRemaining -= 1;
                 if (spray.TicksRemaining <= 0)
                 {
-                    _context._bloodSprayVisuals.RemoveAt(index);
+                    _bloodSprayVisuals.RemoveAt(index);
                     continue;
                 }
 
@@ -208,7 +225,7 @@ public sealed partial class GameplayGoreEffectsController
 
         public void DrawBloodVisuals(Vector2 cameraPosition)
         {
-            if (!_context.AreBloodVisualsEnabled || _context._bloodRenderMode == 0)
+            if (!_context.AreBloodVisualsEnabled || _context.GameplayRuntimeSettings.BloodRenderMode == 0)
             {
                 // Squib flight particles are drawn with gameplay effects; settled pools with the map.
                 return;
@@ -220,7 +237,7 @@ public sealed partial class GameplayGoreEffectsController
                 return;
             }
 
-            foreach (var blood in _context._bloodVisuals)
+            foreach (var blood in _bloodVisuals)
             {
                 var elapsedTicks = BloodVisual.LifetimeTicks - blood.TicksRemaining;
                 var frameIndex = Math.Clamp(elapsedTicks, 0, sprite.Frames.Count - 1);
@@ -239,9 +256,9 @@ public sealed partial class GameplayGoreEffectsController
             }
 
             var bloodDropSprite = _context.GetResolvedSprite("BloodDropS");
-            for (var index = 0; index < _context._bloodSprayVisuals.Count; index += 1)
+            for (var index = 0; index < _bloodSprayVisuals.Count; index += 1)
             {
-                var spray = _context._bloodSprayVisuals[index];
+                var spray = _bloodSprayVisuals[index];
                 var alpha = Math.Clamp(spray.TicksRemaining / (float)spray.InitialTicks, 0f, 1f);
                 if (bloodDropSprite is not null && bloodDropSprite.Frames.Count > 0)
                 {
@@ -298,7 +315,7 @@ public sealed partial class GameplayGoreEffectsController
 
         public void DrawBloodSquibPools(Vector2 cameraPosition)
         {
-            if (!_context.AreBloodVisualsEnabled || _context._bloodRenderMode != 0)
+            if (!_context.AreBloodVisualsEnabled || _context.GameplayRuntimeSettings.BloodRenderMode != 0)
             {
                 return;
             }
@@ -308,7 +325,7 @@ public sealed partial class GameplayGoreEffectsController
 
         public void DrawBloodSquibFlight(Vector2 cameraPosition)
         {
-            if (!_context.AreBloodVisualsEnabled || _context._bloodRenderMode != 0)
+            if (!_context.AreBloodVisualsEnabled || _context.GameplayRuntimeSettings.BloodRenderMode != 0)
             {
                 return;
             }
@@ -383,7 +400,7 @@ public sealed partial class GameplayGoreEffectsController
                 {
                     _context._backstabVisuals[index] = new BackstabVisual(
                         new StabAnimEntity(
-                            _context._nextClientBackstabVisualId--,
+                            _nextClientBackstabVisualId--,
                             ownerId,
                             team,
                             x,
@@ -418,7 +435,7 @@ public sealed partial class GameplayGoreEffectsController
 
             _context._backstabVisuals.Add(new BackstabVisual(
                 new StabAnimEntity(
-                    _context._nextClientBackstabVisualId--,
+                    _nextClientBackstabVisualId--,
                     ownerId,
                     team,
                     x,
@@ -430,7 +447,7 @@ public sealed partial class GameplayGoreEffectsController
         public void ResetBackstabVisuals()
         {
             _context._backstabVisuals.Clear();
-            _context._nextClientBackstabVisualId = -1;
+            _nextClientBackstabVisualId = -1;
         }
 
         public void DrawExperimentalStickyGibBloodOverlay(PlayerEntity player, Vector2 cameraPosition, float visibilityAlpha)
@@ -438,7 +455,7 @@ public sealed partial class GameplayGoreEffectsController
             if (!_context.IsPracticeSessionActive
                 || !_context._practiceStickyGibBloodEnabled
                 || visibilityAlpha <= 0f
-                || !_context._stickyGibBloodCoatings.TryGetValue(player.Id, out var coating))
+                || !_stickyGibBloodCoatings.TryGetValue(player.Id, out var coating))
             {
                 return;
             }
@@ -493,49 +510,49 @@ public sealed partial class GameplayGoreEffectsController
         {
             AdvanceStickyGibBloodContactCoatings();
 
-            if (_context._stickyGibBloodCoatings.Count == 0)
+            if (_stickyGibBloodCoatings.Count == 0)
             {
                 return;
             }
 
-            _context._staleStickyGibBloodPlayerIds.Clear();
-            foreach (var entry in _context._stickyGibBloodCoatings)
+            _staleStickyGibBloodPlayerIds.Clear();
+            foreach (var entry in _stickyGibBloodCoatings)
             {
                 var coatedPlayer = _context.FindPlayerById(entry.Key);
                 if (coatedPlayer is null || !coatedPlayer.IsAlive)
                 {
-                    _context._staleStickyGibBloodPlayerIds.Add(entry.Key);
+                    _staleStickyGibBloodPlayerIds.Add(entry.Key);
                     continue;
                 }
 
                 entry.Value.TicksRemaining -= 1;
                 if (entry.Value.TicksRemaining <= 0)
                 {
-                    _context._staleStickyGibBloodPlayerIds.Add(entry.Key);
+                    _staleStickyGibBloodPlayerIds.Add(entry.Key);
                 }
             }
 
-            for (var index = 0; index < _context._staleStickyGibBloodPlayerIds.Count; index += 1)
+            for (var index = 0; index < _staleStickyGibBloodPlayerIds.Count; index += 1)
             {
-                _context._stickyGibBloodCoatings.Remove(_context._staleStickyGibBloodPlayerIds[index]);
+                _stickyGibBloodCoatings.Remove(_staleStickyGibBloodPlayerIds[index]);
             }
 
-            _context._staleStickyGibBloodPlayerIds.Clear();
+            _staleStickyGibBloodPlayerIds.Clear();
         }
 
         private void AdvanceStickyGibBloodContactCoatings()
         {
             if (!_context.IsPracticeSessionActive || !_context._practiceStickyGibBloodEnabled)
             {
-                _context._processedStickyGibBloodDropIds.Clear();
-                _context._staleStickyGibBloodDropIds.Clear();
+                _processedStickyGibBloodDropIds.Clear();
+                _staleStickyGibBloodDropIds.Clear();
                 return;
             }
 
             for (var index = 0; index < _context._world.BloodDrops.Count; index += 1)
             {
                 var bloodDrop = _context._world.BloodDrops[index];
-                if (_context._processedStickyGibBloodDropIds.Contains(bloodDrop.Id))
+                if (_processedStickyGibBloodDropIds.Contains(bloodDrop.Id))
                 {
                     continue;
                 }
@@ -547,16 +564,16 @@ public sealed partial class GameplayGoreEffectsController
 
                 var intensity = Math.Clamp((int)MathF.Round(bloodDrop.Scale * 1.5f), 1, 3);
                 ApplyStickyGibBloodCoating(coatedPlayer, intensity);
-                _context._processedStickyGibBloodDropIds.Add(bloodDrop.Id);
+                _processedStickyGibBloodDropIds.Add(bloodDrop.Id);
             }
 
-            if (_context._processedStickyGibBloodDropIds.Count == 0)
+            if (_processedStickyGibBloodDropIds.Count == 0)
             {
                 return;
             }
 
-            _context._staleStickyGibBloodDropIds.Clear();
-            foreach (var processedDropId in _context._processedStickyGibBloodDropIds)
+            _staleStickyGibBloodDropIds.Clear();
+            foreach (var processedDropId in _processedStickyGibBloodDropIds)
             {
                 var isActive = false;
                 for (var bloodDropIndex = 0; bloodDropIndex < _context._world.BloodDrops.Count; bloodDropIndex += 1)
@@ -572,16 +589,16 @@ public sealed partial class GameplayGoreEffectsController
 
                 if (!isActive)
                 {
-                    _context._staleStickyGibBloodDropIds.Add(processedDropId);
+                    _staleStickyGibBloodDropIds.Add(processedDropId);
                 }
             }
 
-            for (var index = 0; index < _context._staleStickyGibBloodDropIds.Count; index += 1)
+            for (var index = 0; index < _staleStickyGibBloodDropIds.Count; index += 1)
             {
-                _context._processedStickyGibBloodDropIds.Remove(_context._staleStickyGibBloodDropIds[index]);
+                _processedStickyGibBloodDropIds.Remove(_staleStickyGibBloodDropIds[index]);
             }
 
-            _context._staleStickyGibBloodDropIds.Clear();
+            _staleStickyGibBloodDropIds.Clear();
         }
 
         private void SpawnBloodImpactVisuals(float x, float y, float directionDegrees, int burstCount, bool explosive = false)
@@ -591,7 +608,7 @@ public sealed partial class GameplayGoreEffectsController
                 return;
             }
 
-            if (_context._bloodRenderMode == 0)
+            if (_context.GameplayRuntimeSettings.BloodRenderMode == 0)
             {
                 SpawnBloodSquibBurst(x, y, directionDegrees, burstCount, explosive);
                 return;
@@ -607,7 +624,7 @@ public sealed partial class GameplayGoreEffectsController
                     : directionDegrees + (_context._visualRandom.NextSingle() * 6f) - 3f;
                 var spreadRadians = spreadDegrees * (MathF.PI / 180f);
                 var distance = splashCount > 1 ? _context._visualRandom.NextSingle() * (explosive ? 8f : 1f) : 0f;
-                _context._bloodVisuals.Add(new BloodVisual(
+                _bloodVisuals.Add(new BloodVisual(
                     x + MathF.Cos(spreadRadians) * distance,
                     y + MathF.Sin(spreadRadians) * distance));
             }
@@ -624,7 +641,7 @@ public sealed partial class GameplayGoreEffectsController
                 var speed = explosive
                     ? 4.5f + (_context._visualRandom.NextSingle() * 10f)
                     : 2.5f + (_context._visualRandom.NextSingle() * 3f);
-                _context._bloodSprayVisuals.Add(new BloodSprayVisual(
+                _bloodSprayVisuals.Add(new BloodSprayVisual(
                     x,
                     y,
                     MathF.Cos(spreadRadians) * speed,
@@ -642,7 +659,7 @@ public sealed partial class GameplayGoreEffectsController
                 return;
             }
 
-            if (_context._bloodRenderMode == 0)
+            if (_context.GameplayRuntimeSettings.BloodRenderMode == 0)
             {
                 SpawnBloodSquibGibBurst(x, y, intensity);
                 return;
@@ -653,7 +670,7 @@ public sealed partial class GameplayGoreEffectsController
             {
                 var directionRadians = _context._visualRandom.NextSingle() * MathF.Tau;
                 var distance = _context._visualRandom.NextSingle() * 8f;
-                _context._bloodVisuals.Add(new BloodVisual(
+                _bloodVisuals.Add(new BloodVisual(
                     x + MathF.Cos(directionRadians) * distance,
                     y + MathF.Sin(directionRadians) * distance));
             }
@@ -664,7 +681,7 @@ public sealed partial class GameplayGoreEffectsController
                 var directionRadians = _context._visualRandom.NextSingle() * MathF.Tau;
                 var speed = 5f + (_context._visualRandom.NextSingle() * 12f);
                 var startRadius = _context._visualRandom.NextSingle() * 5f;
-                _context._bloodSprayVisuals.Add(new BloodSprayVisual(
+                _bloodSprayVisuals.Add(new BloodSprayVisual(
                     x + MathF.Cos(directionRadians) * startRadius,
                     y + MathF.Sin(directionRadians) * startRadius,
                     MathF.Cos(directionRadians) * speed,
@@ -702,10 +719,10 @@ public sealed partial class GameplayGoreEffectsController
 
         private void ApplyStickyGibBloodCoating(PlayerEntity player, int intensity)
         {
-            if (!_context._stickyGibBloodCoatings.TryGetValue(player.Id, out var coating))
+            if (!_stickyGibBloodCoatings.TryGetValue(player.Id, out var coating))
             {
                 coating = new StickyGibBloodCoating();
-                _context._stickyGibBloodCoatings[player.Id] = coating;
+                _stickyGibBloodCoatings[player.Id] = coating;
             }
 
             coating.TicksRemaining = Math.Max(

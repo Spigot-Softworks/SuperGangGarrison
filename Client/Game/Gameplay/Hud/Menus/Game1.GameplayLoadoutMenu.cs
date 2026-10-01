@@ -37,17 +37,17 @@ public partial class Game1
 
     public void LoadGameplayLoadoutMenuTextures()
     {
-        _gameplayLoadoutClassStripTexture = TryLoadGameplayLoadoutMenuTexture("LoadoutStrip.png");
-        _gameplayLoadoutClassSelectionTexture = TryLoadGameplayLoadoutMenuTexture("LoadoutSelectionStrip.png");
-        _gameplayLoadoutBackgroundBarTexture = TryLoadGameplayLoadoutMenuTexture("LoadoutBackgroundBar.png");
-        _gameplayLoadoutDescriptionBoardTexture = TryLoadGameplayLoadoutMenuTexture("DescriptionBoardS.png");
+        _gameplayLoadoutResources.ClassStripTexture = TryLoadGameplayLoadoutMenuTexture("LoadoutStrip.png");
+        _gameplayLoadoutResources.ClassSelectionTexture = TryLoadGameplayLoadoutMenuTexture("LoadoutSelectionStrip.png");
+        _gameplayLoadoutResources.BackgroundBarTexture = TryLoadGameplayLoadoutMenuTexture("LoadoutBackgroundBar.png");
+        _gameplayLoadoutResources.DescriptionBoardTexture = TryLoadGameplayLoadoutMenuTexture("DescriptionBoardS.png");
         LoadGameplayLoadoutSelectionAtlasTextures();
-        _gameplayLoadoutSelectionTexture = TryLoadGameplayLoadoutMenuTexture("SelectionS2.png");
-        _gameplayLoadoutScrollerTexture = TryLoadGameplayLoadoutMenuTexture("ScrollerS.png");
-        _gameplayLoadoutPageTexture = TryLoadGameplayLoadoutMenuTexture("PageS.png");
-        _gameplayLoadoutBackButtonTexture = TryLoadGameplayLoadoutMenuTexture("BackS.png");
-        _gameplayLoadoutHelmetTexture = TryLoadGameplayLoadoutMenuTexture("HelmetS2.png");
-        _gameplayLoadoutDogTagsTexture = TryLoadGameplayLoadoutMenuTexture("DogTagsS2.png");
+        _gameplayLoadoutResources.SelectionTexture = TryLoadGameplayLoadoutMenuTexture("SelectionS2.png");
+        _gameplayLoadoutResources.ScrollerTexture = TryLoadGameplayLoadoutMenuTexture("ScrollerS.png");
+        _gameplayLoadoutResources.PageTexture = TryLoadGameplayLoadoutMenuTexture("PageS.png");
+        _gameplayLoadoutResources.BackButtonTexture = TryLoadGameplayLoadoutMenuTexture("BackS.png");
+        _gameplayLoadoutResources.HelmetTexture = TryLoadGameplayLoadoutMenuTexture("HelmetS2.png");
+        _gameplayLoadoutResources.DogTagsTexture = TryLoadGameplayLoadoutMenuTexture("DogTagsS2.png");
     }
 
     private LoadedSpriteFrame? TryLoadGameplayLoadoutMenuTexture(string fileName)
@@ -65,19 +65,19 @@ public partial class Game1
 
     private void LoadGameplayLoadoutSelectionAtlasTextures()
     {
-        _gameplayLoadoutSelectionAtlasTexture?.Dispose();
-        _gameplayLoadoutSelectionAtlasTexture = null;
+        _gameplayLoadoutResources.SelectionAtlasTexture?.Dispose();
+        _gameplayLoadoutResources.SelectionAtlasTexture = null;
 
-        foreach (var chunk in _gameplayLoadoutSelectionAtlasChunks)
+        foreach (var chunk in _gameplayLoadoutResources.SelectionAtlasChunks)
         {
             chunk.Dispose();
         }
 
-        _gameplayLoadoutSelectionAtlasChunks.Clear();
+        _gameplayLoadoutResources.SelectionAtlasChunks.Clear();
 
         if (!OperatingSystem.IsBrowser())
         {
-            _gameplayLoadoutSelectionAtlasTexture = LoadMenuTexture("Sprites", "Menu", "RandomizerLoadout", "SelectionS.png");
+            _gameplayLoadoutResources.SelectionAtlasTexture = LoadMenuTexture("Sprites", "Menu", "RandomizerLoadout", "SelectionS.png");
             return;
         }
 
@@ -89,12 +89,12 @@ public partial class Game1
                 break;
             }
 
-            _gameplayLoadoutSelectionAtlasChunks.Add(chunkTexture!);
+            _gameplayLoadoutResources.SelectionAtlasChunks.Add(chunkTexture!);
         }
 
-        if (_gameplayLoadoutSelectionAtlasChunks.Count == 0)
+        if (_gameplayLoadoutResources.SelectionAtlasChunks.Count == 0)
         {
-            _gameplayLoadoutSelectionAtlasTexture = TryLoadGameplayLoadoutMenuTexture("SelectionS.png");
+            _gameplayLoadoutResources.SelectionAtlasTexture = TryLoadGameplayLoadoutMenuTexture("SelectionS.png");
         }
     }
 
@@ -462,9 +462,9 @@ public partial class Game1
         PlayerClass viewedClass,
         List<GameplayLoadoutMenuButton> buttons)
     {
-        if (_gameplayLoadoutClassSelectionTexture is not null)
+        if (_gameplayLoadoutResources.ClassSelectionTexture is not null)
         {
-            DrawLoadedSpriteFrame(_gameplayLoadoutClassSelectionTexture, layout.ClassStripBounds, Color.White);
+            DrawLoadedSpriteFrame(_gameplayLoadoutResources.ClassSelectionTexture, layout.ClassStripBounds, Color.White);
         }
         else
         {
@@ -529,11 +529,11 @@ public partial class Game1
             selectedOptionIndex = optionIndex;
             break;
         }
-        if (_gameplayLoadoutScrollerTexture is not null)
+        if (_gameplayLoadoutResources.ScrollerTexture is not null)
         {
-            var frameWidth = _gameplayLoadoutScrollerTexture.Width / 5;
-            var source = new Rectangle(frameWidth * selectedOptionIndex, 0, frameWidth, _gameplayLoadoutScrollerTexture.Height);
-            DrawLoadedSpriteFrame(_gameplayLoadoutScrollerTexture, columnBounds.Location.ToVector2(), source, Color.White, 0f, Vector2.Zero, new Vector2(columnBounds.Width / (float)source.Width, columnBounds.Height / (float)source.Height), SpriteEffects.None, 0f);
+            var frameWidth = _gameplayLoadoutResources.ScrollerTexture.Width / 5;
+            var source = new Rectangle(frameWidth * selectedOptionIndex, 0, frameWidth, _gameplayLoadoutResources.ScrollerTexture.Height);
+            DrawLoadedSpriteFrame(_gameplayLoadoutResources.ScrollerTexture, columnBounds.Location.ToVector2(), source, Color.White, 0f, Vector2.Zero, new Vector2(columnBounds.Width / (float)source.Width, columnBounds.Height / (float)source.Height), SpriteEffects.None, 0f);
         }
         else
         {
@@ -579,9 +579,9 @@ public partial class Game1
 
         DrawGameplayLoadoutMenuPreview(layout, viewedClass);
 
-        if (_gameplayLoadoutDescriptionBoardTexture is not null)
+        if (_gameplayLoadoutResources.DescriptionBoardTexture is not null)
         {
-            DrawLoadedSpriteFrame(_gameplayLoadoutDescriptionBoardTexture, layout.DescriptionBounds, Color.White);
+            DrawLoadedSpriteFrame(_gameplayLoadoutResources.DescriptionBoardTexture, layout.DescriptionBounds, Color.White);
         }
         else
         {
@@ -608,16 +608,16 @@ public partial class Game1
 
     private void DrawGameplayLoadoutMenuFooter(GameplayLoadoutMenuLayout layout, bool backHovered)
     {
-        if (_gameplayLoadoutBackButtonTexture is not null)
+        if (_gameplayLoadoutResources.BackButtonTexture is not null)
         {
             var source = new Rectangle(
                 backHovered
-                    ? _gameplayLoadoutBackButtonTexture.Width / 2
+                    ? _gameplayLoadoutResources.BackButtonTexture.Width / 2
                     : 0,
                 0,
-                _gameplayLoadoutBackButtonTexture.Width / 2,
-                _gameplayLoadoutBackButtonTexture.Height);
-            DrawLoadedSpriteFrame(_gameplayLoadoutBackButtonTexture, layout.BackButtonBounds.Location.ToVector2(), source, Color.White, 0f, Vector2.Zero, new Vector2(layout.BackButtonBounds.Width / (float)source.Width, layout.BackButtonBounds.Height / (float)source.Height), SpriteEffects.None, 0f);
+                _gameplayLoadoutResources.BackButtonTexture.Width / 2,
+                _gameplayLoadoutResources.BackButtonTexture.Height);
+            DrawLoadedSpriteFrame(_gameplayLoadoutResources.BackButtonTexture, layout.BackButtonBounds.Location.ToVector2(), source, Color.White, 0f, Vector2.Zero, new Vector2(layout.BackButtonBounds.Width / (float)source.Width, layout.BackButtonBounds.Height / (float)source.Height), SpriteEffects.None, 0f);
         }
         else
         {
@@ -671,19 +671,19 @@ public partial class Game1
 
     private bool TryDrawGameplayLoadoutSelectionAtlas(Rectangle destination, Rectangle source)
     {
-        if (_gameplayLoadoutSelectionAtlasTexture is not null)
+        if (_gameplayLoadoutResources.SelectionAtlasTexture is not null)
         {
-            DrawLoadedSpriteFrame(_gameplayLoadoutSelectionAtlasTexture, destination.Location.ToVector2(), source, Color.White, 0f, Vector2.Zero, new Vector2(destination.Width / (float)source.Width, destination.Height / (float)source.Height), SpriteEffects.None, 0f);
+            DrawLoadedSpriteFrame(_gameplayLoadoutResources.SelectionAtlasTexture, destination.Location.ToVector2(), source, Color.White, 0f, Vector2.Zero, new Vector2(destination.Width / (float)source.Width, destination.Height / (float)source.Height), SpriteEffects.None, 0f);
             return true;
         }
 
-        if (_gameplayLoadoutSelectionAtlasChunks.Count == 0)
+        if (_gameplayLoadoutResources.SelectionAtlasChunks.Count == 0)
         {
             return false;
         }
 
         var sourceOffset = source.X;
-        foreach (var chunk in _gameplayLoadoutSelectionAtlasChunks)
+        foreach (var chunk in _gameplayLoadoutResources.SelectionAtlasChunks)
         {
             if (sourceOffset < chunk.Width)
             {

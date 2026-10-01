@@ -13,6 +13,8 @@ public sealed class GameplayOverlayStateController
             _context = context;
         }
 
+        public TeamClassSelectionState TeamClassSelection { get; } = new();
+
         public void CloseGameplayOverlayState()
         {
             CloseGameplayMenuStack();
@@ -52,9 +54,9 @@ public sealed class GameplayOverlayStateController
 
         private void CloseJoinAndCommunicationOverlays()
         {
-            _context._teamSelectOpen = false;
-            _context._classSelectOpen = false;
-            _context._pendingClassSelectTeam = null;
+            TeamClassSelection.TeamSelectOpen = false;
+            TeamClassSelection.ClassSelectOpen = false;
+            TeamClassSelection.PendingClassSelectTeam = null;
             _context._consoleOpen = false;
             _context._scoreboardOpen = false;
             _context.ResetChatInputState();

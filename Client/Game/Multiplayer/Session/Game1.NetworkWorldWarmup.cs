@@ -22,7 +22,7 @@ public partial class Game1
             RecordDroppedQueuedAuthoritativeSnapshot();
         }
 
-        _lastBufferedSnapshotFrame = _lastAppliedSnapshotFrame;
+        _gameplayManager.NetworkPresentation.LastBufferedSnapshotFrame = _gameplayManager.NetworkPresentation.LastAppliedSnapshotFrame;
         ResetSnapshotPresentationHistories();
     }
 
@@ -30,22 +30,22 @@ public partial class Game1
     {
         if (!_networkClient.IsConnected || _networkClient.IsReplayConnection)
         {
-            _networkWorldWarmupActive = false;
+            _gameplayManager.NetworkPresentation.NetworkWorldWarmupActive = false;
             return;
         }
 
-        _networkWorldWarmupActive = true;
-        _networkWorldWarmupFullSnapshotApplied = false;
-        _networkWorldWarmupAppliedSnapshotsAfterFull = 0;
-        _networkWorldWarmupAcceptNextAppliedSnapshotAsBaseline = acceptNextAppliedSnapshotAsBaseline;
-        _networkInterpolationWarmupSnapshotsRemaining = Math.Max(
-            _networkInterpolationWarmupSnapshotsRemaining,
+        _gameplayManager.NetworkPresentation.NetworkWorldWarmupActive = true;
+        _gameplayManager.NetworkPresentation.NetworkWorldWarmupFullSnapshotApplied = false;
+        _gameplayManager.NetworkPresentation.NetworkWorldWarmupAppliedSnapshotsAfterFull = 0;
+        _gameplayManager.NetworkPresentation.NetworkWorldWarmupAcceptNextAppliedSnapshotAsBaseline = acceptNextAppliedSnapshotAsBaseline;
+        _gameplayManager.NetworkPresentation.NetworkInterpolationWarmupSnapshotsRemaining = Math.Max(
+            _gameplayManager.NetworkPresentation.NetworkInterpolationWarmupSnapshotsRemaining,
             NetworkInterpolationWarmupSnapshotCount - 1);
-        _networkInterpolationWarmupUntilClockSeconds = Math.Max(
-            _networkInterpolationWarmupUntilClockSeconds,
+        _gameplayManager.NetworkPresentation.NetworkInterpolationWarmupUntilClockSeconds = Math.Max(
+            _gameplayManager.NetworkPresentation.NetworkInterpolationWarmupUntilClockSeconds,
             _networkInterpolationClockSeconds + NetworkInterpolationWarmupSeconds);
-        _hasLocalPlayerRenderTime = false;
-        _hasRemotePlayerRenderTime = false;
+        _gameplayManager.NetworkPresentation.HasLocalPlayerRenderTime = false;
+        _gameplayManager.NetworkPresentation.HasRemotePlayerRenderTime = false;
         ResetTransientPresentationEffects();
         ResetHealingCharacterEffects();
         ResetBackstabVisuals();
@@ -54,15 +54,15 @@ public partial class Game1
 
     private void CancelNetworkWorldWarmup()
     {
-        _networkWorldWarmupActive = false;
-        _networkWorldWarmupFullSnapshotApplied = false;
-        _networkWorldWarmupAppliedSnapshotsAfterFull = 0;
-        _networkWorldWarmupAcceptNextAppliedSnapshotAsBaseline = false;
+        _gameplayManager.NetworkPresentation.NetworkWorldWarmupActive = false;
+        _gameplayManager.NetworkPresentation.NetworkWorldWarmupFullSnapshotApplied = false;
+        _gameplayManager.NetworkPresentation.NetworkWorldWarmupAppliedSnapshotsAfterFull = 0;
+        _gameplayManager.NetworkPresentation.NetworkWorldWarmupAcceptNextAppliedSnapshotAsBaseline = false;
     }
 
     private bool IsNetworkWorldWarmupBlockingGameplay()
     {
-        return _networkWorldWarmupActive
+        return _gameplayManager.NetworkPresentation.NetworkWorldWarmupActive
             && _networkClient.IsConnected
             && !_networkClient.IsReplayConnection;
     }
@@ -122,19 +122,19 @@ public partial class Game1
 
         var establishesPresentationBaseline = ShouldEstablishNetworkWorldWarmupBaseline(
             _networkClient.IsLegacyGg2Connection,
-            _networkWorldWarmupFullSnapshotApplied,
+            _gameplayManager.NetworkPresentation.NetworkWorldWarmupFullSnapshotApplied,
             isServerFullSnapshot,
             isPresentationEpochBaselineSnapshot,
-            _networkWorldWarmupAcceptNextAppliedSnapshotAsBaseline);
+            _gameplayManager.NetworkPresentation.NetworkWorldWarmupAcceptNextAppliedSnapshotAsBaseline);
         if (establishesPresentationBaseline)
         {
-            _networkWorldWarmupFullSnapshotApplied = true;
-            _networkWorldWarmupAppliedSnapshotsAfterFull = 0;
-            _networkWorldWarmupAcceptNextAppliedSnapshotAsBaseline = false;
+            _gameplayManager.NetworkPresentation.NetworkWorldWarmupFullSnapshotApplied = true;
+            _gameplayManager.NetworkPresentation.NetworkWorldWarmupAppliedSnapshotsAfterFull = 0;
+            _gameplayManager.NetworkPresentation.NetworkWorldWarmupAcceptNextAppliedSnapshotAsBaseline = false;
         }
-        else if (_networkWorldWarmupFullSnapshotApplied)
+        else if (_gameplayManager.NetworkPresentation.NetworkWorldWarmupFullSnapshotApplied)
         {
-            _networkWorldWarmupAppliedSnapshotsAfterFull += 1;
+            _gameplayManager.NetworkPresentation.NetworkWorldWarmupAppliedSnapshotsAfterFull += 1;
         }
 
         var hasAuthoritativeLocalPlayer = HasAuthoritativeLocalPlayerForNetworkWorldWarmup();
@@ -142,8 +142,8 @@ public partial class Game1
             && HasFreshRemotePlayerHistoriesForCurrentWorld();
         if (!ShouldReleaseNetworkWorldWarmup(
                 hasAuthoritativeLocalPlayer,
-                _networkWorldWarmupFullSnapshotApplied,
-                _networkWorldWarmupAppliedSnapshotsAfterFull,
+                _gameplayManager.NetworkPresentation.NetworkWorldWarmupFullSnapshotApplied,
+                _gameplayManager.NetworkPresentation.NetworkWorldWarmupAppliedSnapshotsAfterFull,
                 hasFreshRemotePlayerHistories,
                 _queuedAuthoritativeSnapshots.Count > 0,
                 IsNetworkInterpolationWarmupActive()))
@@ -182,7 +182,7 @@ public partial class Game1
 
     private bool HasFreshRemotePlayerHistoriesForCurrentWorld()
     {
-        if (_latestSnapshotServerTimeSeconds < 0d)
+        if (_gameplayManager.NetworkPresentation.LatestSnapshotServerTimeSeconds < 0d)
         {
             return false;
         }
@@ -224,7 +224,7 @@ public partial class Game1
 
         return IsNetworkPlayerPresentationHistoryReady(
             history.Count,
-            _latestSnapshotServerTimeSeconds,
+            _gameplayManager.NetworkPresentation.LatestSnapshotServerTimeSeconds,
             history.Count > 0 ? history[^1].TimeSeconds : -1d,
             NetworkWorldWarmupFreshPlayerHistorySeconds);
     }
@@ -249,7 +249,7 @@ public partial class Game1
 
         return IsNetworkPlayerPresentationHistoryRenderable(
             history.Count,
-            _latestSnapshotServerTimeSeconds,
+            _gameplayManager.NetworkPresentation.LatestSnapshotServerTimeSeconds,
             history.Count > 0 ? history[^1].TimeSeconds : -1d,
             StaleRemotePlayerSnapshotHistoryPruneSeconds);
     }
@@ -302,19 +302,19 @@ public partial class Game1
     {
         if (!_networkClient.IsConnected || _networkClient.IsReplayConnection)
         {
-            _networkPresentationObservedLastToDiePhase = null;
+            _gameplayManager.NetworkPresentation.NetworkPresentationObservedLastToDiePhase = null;
             return;
         }
 
         var currentPhase = _networkClient.LastToDieState.Snapshot?.Phase;
         if (ShouldRestartNetworkPresentationForLastToDiePhase(
-                _networkPresentationObservedLastToDiePhase,
+                _gameplayManager.NetworkPresentation.NetworkPresentationObservedLastToDiePhase,
                 currentPhase))
         {
             BeginNetworkWorldWarmupFromNextAppliedSnapshot(_world.Level.Name);
         }
 
-        _networkPresentationObservedLastToDiePhase = currentPhase;
+        _gameplayManager.NetworkPresentation.NetworkPresentationObservedLastToDiePhase = currentPhase;
     }
 
     internal static bool ShouldRestartNetworkPresentationForLastToDiePhase(

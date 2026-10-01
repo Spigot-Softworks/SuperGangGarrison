@@ -18,58 +18,58 @@ public partial class Game1
 
     private void UpdateLocalPredictedRenderPosition()
     {
-        if (!CanUseLocalPrediction() || !_hasPredictedLocalPlayerPosition || !_world.LocalPlayer.IsAlive || _world.LocalPlayerAwaitingJoin)
+        if (!CanUseLocalPrediction() || !_localPredictionState.HasPredictedLocalPlayerPosition || !_world.LocalPlayer.IsAlive || _world.LocalPlayerAwaitingJoin)
         {
             ClearLocalPredictionState(clearPendingInputs: false);
             return;
         }
 
-        if (!_hasSmoothedLocalPlayerRenderPosition)
+        if (!_localPredictionState.HasSmoothedLocalPlayerRenderPosition)
         {
-            _predictedLocalPlayerRenderCorrectionOffset = Vector2.Zero;
-            _smoothedLocalPlayerRenderPosition = _predictedLocalPlayerPosition;
-            _hasSmoothedLocalPlayerRenderPosition = true;
-            _lastPredictedRenderSmoothingTimeSeconds = _networkInterpolationClockSeconds;
+            _localPredictionState.PredictedLocalPlayerRenderCorrectionOffset = Vector2.Zero;
+            _localPredictionState.SmoothedLocalPlayerRenderPosition = _localPredictionState.PredictedLocalPlayerPosition;
+            _localPredictionState.HasSmoothedLocalPlayerRenderPosition = true;
+            _localPredictionState.LastPredictedRenderSmoothingTimeSeconds = _networkInterpolationClockSeconds;
             RecordPredictedRenderCorrection(0f, hardSnap: false);
             return;
         }
 
-        if (_lastPredictedRenderSmoothingTimeSeconds < 0d)
+        if (_localPredictionState.LastPredictedRenderSmoothingTimeSeconds < 0d)
         {
-            _lastPredictedRenderSmoothingTimeSeconds = _networkInterpolationClockSeconds;
-            _smoothedLocalPlayerRenderPosition = _predictedLocalPlayerPosition + _predictedLocalPlayerRenderCorrectionOffset;
+            _localPredictionState.LastPredictedRenderSmoothingTimeSeconds = _networkInterpolationClockSeconds;
+            _localPredictionState.SmoothedLocalPlayerRenderPosition = _localPredictionState.PredictedLocalPlayerPosition + _localPredictionState.PredictedLocalPlayerRenderCorrectionOffset;
             return;
         }
 
         var deltaSeconds = (float)Math.Clamp(
-            _networkInterpolationClockSeconds - _lastPredictedRenderSmoothingTimeSeconds,
+            _networkInterpolationClockSeconds - _localPredictionState.LastPredictedRenderSmoothingTimeSeconds,
             0d,
             0.05d);
-        _lastPredictedRenderSmoothingTimeSeconds = _networkInterpolationClockSeconds;
+        _localPredictionState.LastPredictedRenderSmoothingTimeSeconds = _networkInterpolationClockSeconds;
 
-        var distance = _predictedLocalPlayerRenderCorrectionOffset.Length();
-        var targetRenderPosition = _predictedLocalPlayerPosition + _predictedLocalPlayerRenderCorrectionOffset;
-        var renderDistance = Vector2.Distance(_smoothedLocalPlayerRenderPosition, targetRenderPosition);
+        var distance = _localPredictionState.PredictedLocalPlayerRenderCorrectionOffset.Length();
+        var targetRenderPosition = _localPredictionState.PredictedLocalPlayerPosition + _localPredictionState.PredictedLocalPlayerRenderCorrectionOffset;
+        var renderDistance = Vector2.Distance(_localPredictionState.SmoothedLocalPlayerRenderPosition, targetRenderPosition);
         if (renderDistance >= PredictedRenderCorrectionTeleportSnapDistance)
         {
             RecordPredictedRenderCorrection(distance, hardSnap: true);
-            _predictedLocalPlayerRenderCorrectionOffset = Vector2.Zero;
-            _smoothedLocalPlayerRenderPosition = _predictedLocalPlayerPosition;
+            _localPredictionState.PredictedLocalPlayerRenderCorrectionOffset = Vector2.Zero;
+            _localPredictionState.SmoothedLocalPlayerRenderPosition = _localPredictionState.PredictedLocalPlayerPosition;
             return;
         }
 
         if (distance <= 0.01f)
         {
-            _predictedLocalPlayerRenderCorrectionOffset = Vector2.Zero;
-            targetRenderPosition = _predictedLocalPlayerPosition;
+            _localPredictionState.PredictedLocalPlayerRenderCorrectionOffset = Vector2.Zero;
+            targetRenderPosition = _localPredictionState.PredictedLocalPlayerPosition;
             distance = 0f;
         }
 
         if (distance >= PredictedRenderCorrectionTeleportSnapDistance)
         {
             RecordPredictedRenderCorrection(distance, hardSnap: true);
-            _predictedLocalPlayerRenderCorrectionOffset = Vector2.Zero;
-            _smoothedLocalPlayerRenderPosition = _predictedLocalPlayerPosition;
+            _localPredictionState.PredictedLocalPlayerRenderCorrectionOffset = Vector2.Zero;
+            _localPredictionState.SmoothedLocalPlayerRenderPosition = _localPredictionState.PredictedLocalPlayerPosition;
             return;
         }
 
@@ -79,30 +79,30 @@ public partial class Game1
             return;
         }
 
-        var isActivelyMoving = _latestPredictedLocalInput.Left
-            || _latestPredictedLocalInput.Right
-            || _latestPredictedLocalInput.Up
-            || MathF.Abs(_predictedLocalPlayerVelocity.X) > 20f
-            || MathF.Abs(_predictedLocalPlayerVelocity.Y) > 20f;
+        var isActivelyMoving = _localPredictionState.LatestPredictedLocalInput.Left
+            || _localPredictionState.LatestPredictedLocalInput.Right
+            || _localPredictionState.LatestPredictedLocalInput.Up
+            || MathF.Abs(_localPredictionState.PredictedLocalPlayerVelocity.X) > 20f
+            || MathF.Abs(_localPredictionState.PredictedLocalPlayerVelocity.Y) > 20f;
         var catchUpRate = isActivelyMoving
             ? PredictedRenderCorrectionActiveCatchUpRate
             : PredictedRenderCorrectionIdleCatchUpRate;
         catchUpRate += MathF.Min(distance * PredictedRenderCorrectionDistanceRateScale, PredictedRenderCorrectionMaxRateBonus);
 
         var decayFactor = MathF.Exp(-catchUpRate * deltaSeconds);
-        _predictedLocalPlayerRenderCorrectionOffset *= decayFactor;
-        if (_predictedLocalPlayerRenderCorrectionOffset.LengthSquared() <= 0.0001f)
+        _localPredictionState.PredictedLocalPlayerRenderCorrectionOffset *= decayFactor;
+        if (_localPredictionState.PredictedLocalPlayerRenderCorrectionOffset.LengthSquared() <= 0.0001f)
         {
-            _predictedLocalPlayerRenderCorrectionOffset = Vector2.Zero;
+            _localPredictionState.PredictedLocalPlayerRenderCorrectionOffset = Vector2.Zero;
         }
 
-        targetRenderPosition = _predictedLocalPlayerPosition + _predictedLocalPlayerRenderCorrectionOffset;
-        _smoothedLocalPlayerRenderPosition = AdvancePredictedLocalPlayerRenderPosition(
-            _smoothedLocalPlayerRenderPosition,
+        targetRenderPosition = _localPredictionState.PredictedLocalPlayerPosition + _localPredictionState.PredictedLocalPlayerRenderCorrectionOffset;
+        _localPredictionState.SmoothedLocalPlayerRenderPosition = AdvancePredictedLocalPlayerRenderPosition(
+            _localPredictionState.SmoothedLocalPlayerRenderPosition,
             targetRenderPosition,
-            _predictedLocalPlayerVelocity,
+            _localPredictionState.PredictedLocalPlayerVelocity,
             deltaSeconds);
-        RecordPredictedRenderCorrection(_predictedLocalPlayerRenderCorrectionOffset.Length(), hardSnap: false);
+        RecordPredictedRenderCorrection(_localPredictionState.PredictedLocalPlayerRenderCorrectionOffset.Length(), hardSnap: false);
     }
 
     private Vector2 AdvancePredictedLocalPlayerRenderPosition(

@@ -46,7 +46,7 @@ public partial class Game1
         _builderDialogInitialPath = initialPath;
         _builderDialogTitle = title;
         _builderStatus = title;
-        var transition = ResolveGarrisonBuilderDialogDisplayMode(_displayMode, _clientSettings.DisplayMode);
+        var transition = ResolveGarrisonBuilderDialogDisplayMode(_menuManager.DisplaySettings.DisplayMode, _clientSettings.DisplayMode);
         if (transition.TemporarilyWindowed)
         {
             _builderDialogRestoreMode = transition.RequestedMode;

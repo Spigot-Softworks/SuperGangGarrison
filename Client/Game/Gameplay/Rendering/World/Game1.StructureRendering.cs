@@ -129,14 +129,14 @@ public partial class Game1
 
     private bool ShouldDrawPlayerGib(PlayerGibEntity gib)
     {
-        if (_gibLevel == 0 || _gibLevel == 1)
+        if (_gameplayManager.RuntimeSettings.GibLevel == 0 || _gameplayManager.RuntimeSettings.GibLevel == 1)
         {
             return false;
         }
 
         // Authored parts form one complete character. Hiding alternate parts at
         // medium detail leaves the body visibly incomplete.
-        if (_gibLevel != 2 || AuthoredPlayerGibCatalog.IsAuthoredSprite(gib.SpriteName))
+        if (_gameplayManager.RuntimeSettings.GibLevel != 2 || AuthoredPlayerGibCatalog.IsAuthoredSprite(gib.SpriteName))
         {
             return true;
         }
@@ -152,7 +152,7 @@ public partial class Game1
 
     private void DrawBloodDrop(BloodDropEntity bloodDrop, Vector2 cameraPosition)
     {
-        if (!AreBloodVisualsEnabled || _bloodRenderMode == 0)
+        if (!AreBloodVisualsEnabled || _gameplayManager.RuntimeSettings.BloodRenderMode == 0)
         {
             return;
         }
@@ -257,7 +257,7 @@ public partial class Game1
         var drawY = renderPosition.Y + turretSprite.Origin.Y - 10f;
         var turretScreenPosition = new Vector2(drawX - cameraPosition.X, drawY - cameraPosition.Y);
         var turretScale = new Vector2(facingScale, 1f);
-        if (sentry.IsOverdriveActive && _uberOutlineEnabled)
+        if (sentry.IsOverdriveActive && _gameplayManager.RuntimeSettings.ShowUberOutlinesEnabled)
         {
             var teamColor = GameplayPlayerStatusEffectRenderController.GetUberOverlayColor(sentry.Team);
             var outlineTint = Color.Lerp(teamColor, Color.White, 0.75f);

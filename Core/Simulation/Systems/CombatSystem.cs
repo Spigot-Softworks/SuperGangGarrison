@@ -4,7 +4,7 @@ namespace OpenGarrison.Core;
 /// Applies combat damage, records ordered damage outcomes, and resolves the
 /// entity-local part of a death. The system owns health mutation, modifiers,
 /// assists, friendly-fire admission, and the damage-event queue. It receives
-/// the remaining simulation concerns through narrow callbacks: mode/perk
+/// the remaining simulation concerns through <see cref="ICombatSystemHost"/>: mode/perk
 /// modifiers, decision interceptors, presentation feedback, and the shared
 /// random source. Level geometry, projectile queries, networking, rendering,
 /// kill-feed/respawn consequences, and mode-specific death consequences stay
@@ -18,18 +18,18 @@ public sealed class CombatSystem
     public const float ExplosiveSplashMinimumDamage = 25f;
 
     private readonly EntityStore _entities;
-    private readonly CombatSystemDependencies _dependencies;
+    private readonly ICombatSystemHost _host;
     private readonly List<WorldDamageEvent> _pendingDamageEvents = new();
 
     public CombatSystem(EntityStore entities)
-        : this(entities, null)
+        : this(entities, new DetachedSimulationHost())
     {
     }
 
-    internal CombatSystem(EntityStore entities, CombatSystemDependencies? dependencies)
+    internal CombatSystem(EntityStore entities, ICombatSystemHost host)
     {
         _entities = entities ?? throw new ArgumentNullException(nameof(entities));
-        _dependencies = dependencies ?? new CombatSystemDependencies();
+        _host = host ?? throw new ArgumentNullException(nameof(host));
     }
 
     public IReadOnlyList<WorldDamageEvent> PendingDamageEvents => _pendingDamageEvents;
@@ -50,7 +50,7 @@ public sealed class CombatSystem
 
     public bool CanDamagePlayer(PlayerTeam attackerTeam, int attackerId, PlayerEntity target)
     {
-        return _dependencies.CanDamagePlayer(attackerTeam, attackerId, target);
+        return _host.CanTeamDamagePlayer(attackerTeam, attackerId, target);
     }
 
     /// <summary>
@@ -170,12 +170,12 @@ public sealed class CombatSystem
             y,
             wasFatal,
             flags,
-            SourceFrame: (ulong)_dependencies.CurrentFrame()));
+            SourceFrame: (ulong)_host.Frame));
         if (targetKind == DamageTargetKind.Player
             && attacker is not null
             && playerTarget is not null)
         {
-            _dependencies.TryRegisterBuffBannerDamage(attacker, playerTarget, amount);
+            _host.TryRegisterBuffBannerDamage(attacker, playerTarget, amount);
         }
     }
 
@@ -425,8 +425,8 @@ public sealed class CombatSystem
             return Finish(PlayerDamageDisposition.UmbrellaBlocked);
         }
 
-        damage = _dependencies.ApplyExperimentalOutgoingDamageMultiplier(request.Attacker, target, damage);
-        damage = _dependencies.ApplyLastToDieOutgoingDamageMultiplier(
+        damage = _host.ApplyExperimentalOutgoingDamageMultiplier(request.Attacker, target, damage);
+        damage = _host.ApplyLastToDieOutgoingDamageMultiplier(
             request.Attacker,
             target,
             damage,
@@ -446,10 +446,10 @@ public sealed class CombatSystem
             return Finish(PlayerDamageDisposition.Evaded);
         }
 
-        damage = _dependencies.ApplyExperimentalIncomingDamageMultiplier(target, request.Attacker, damage);
-        damage = _dependencies.ApplyLastToDieIncomingDamageMultiplier(target, damage, damageTraits);
+        damage = _host.ApplyExperimentalIncomingDamageMultiplier(target, request.Attacker, damage);
+        damage = _host.ApplyLastToDieIncomingDamageMultiplier(target, damage, damageTraits);
         damageAfterIncomingModifiers = damage;
-        damage = _dependencies.ScaleConfiguredDamage(damage);
+        damage = _host.ScaleConfiguredDamage(damage);
         damageAfterServerScaling = damage;
         damage = target.AbsorbExperimentalShieldDamage(damage);
         damageAfterShield = damage;
@@ -463,22 +463,22 @@ public sealed class CombatSystem
             damage = target.Health;
         }
 
-        if (_dependencies.TryConvertExperimentalSelfDamageToHealing(target, request.Attacker, damage))
+        if (_host.TryConvertExperimentalSelfDamageToHealing(target, request.Attacker, damage))
         {
             return Finish(PlayerDamageDisposition.ConvertedToHealing);
         }
 
-        if (_dependencies.TryPreventExperimentalFatalDamage(target, damage))
+        if (_host.TryPreventExperimentalFatalDamage(target, damage))
         {
             var fatalPreventedDamage = Math.Max(0, healthBefore - target.Health);
-            var fatalPreventedLinkedMedic = _dependencies.ResolveLastToDieMedicLinkedOnHit(
+            var fatalPreventedLinkedMedic = _host.ResolveLastToDieMedicLinkedOnHit(
                 request.Attacker,
                 target,
                 fatalPreventedDamage,
                 request.Traits);
             var fatalPreventedAssistPlayerIdOverride = request.AssistPlayerIdOverride > 0
                 ? request.AssistPlayerIdOverride
-                : _dependencies.ResolveLastToDieMedicLinkedAssistPlayerId(request.Attacker, fatalPreventedLinkedMedic);
+                : _host.ResolveLastToDieMedicLinkedAssistPlayerId(request.Attacker, fatalPreventedLinkedMedic);
             RegisterDamageEvent(
                 request.Attacker,
                 DamageTargetKind.Player,
@@ -491,12 +491,12 @@ public sealed class CombatSystem
                 damageFlags,
                 fatalPreventedAssistPlayerIdOverride,
                 request.AttackerPlayerIdOverride);
-            _dependencies.ApplyLastToDieDamageRewards(request.Attacker, target, fatalPreventedDamage, request.Traits);
-            _dependencies.ApplyLastToDieMedicLinkedOnHitEffects(
+            _host.ApplyLastToDieDamageRewards(request.Attacker, target, fatalPreventedDamage, request.Traits);
+            _host.ApplyLastToDieMedicLinkedOnHitEffects(
                 request.Attacker,
                 target,
                 fatalPreventedLinkedMedic);
-            _dependencies.ApplyLastToDieDamageTakenEffects(target, request.Attacker, fatalPreventedDamage, request.Traits);
+            _host.ApplyLastToDieDamageTakenEffects(target, request.Attacker, fatalPreventedDamage, request.Traits);
             return Finish(PlayerDamageDisposition.FatalPrevented, fatalPreventedDamage);
         }
 
@@ -526,7 +526,7 @@ public sealed class CombatSystem
             return Finish(PlayerDamageDisposition.DamageCancelled);
         }
 
-        if (_dependencies.TryAbsorbPracticeCombatDummyDamage(target, damage, request.Attacker, damageFlags))
+        if (_host.TryAbsorbPracticeCombatDummyDamage(target, damage, request.Attacker, damageFlags))
         {
             return Finish(PlayerDamageDisposition.PracticeDummyRecorded);
         }
@@ -543,14 +543,14 @@ public sealed class CombatSystem
         var died = target.ApplyDamage(damage, request.SpyRevealAlpha);
         var appliedDamage = Math.Max(0, healthBefore - target.Health);
         RegisterPlayerDamageDealer(target, request.Attacker, appliedDamage);
-        var linkedMedic = _dependencies.ResolveLastToDieMedicLinkedOnHit(
+        var linkedMedic = _host.ResolveLastToDieMedicLinkedOnHit(
             request.Attacker,
             target,
             appliedDamage,
             request.Traits);
         var assistPlayerIdOverride = request.AssistPlayerIdOverride > 0
             ? request.AssistPlayerIdOverride
-            : _dependencies.ResolveLastToDieMedicLinkedAssistPlayerId(request.Attacker, linkedMedic);
+            : _host.ResolveLastToDieMedicLinkedAssistPlayerId(request.Attacker, linkedMedic);
         RegisterDamageEvent(
             request.Attacker,
             DamageTargetKind.Player,
@@ -563,26 +563,26 @@ public sealed class CombatSystem
             damageFlags,
             assistPlayerIdOverride,
             request.AttackerPlayerIdOverride);
-        _dependencies.ApplyExperimentalDamageRewards(
+        _host.ApplyExperimentalDamageRewards(
             request.Attacker,
             target,
             appliedDamage,
             request.AllowOsmosisHealOwnedSentries);
-        _dependencies.ApplyLastToDieDamageRewards(request.Attacker, target, appliedDamage, request.Traits);
-        _dependencies.ApplyLastToDieMedicLinkedOnHitEffects(
+        _host.ApplyLastToDieDamageRewards(request.Attacker, target, appliedDamage, request.Traits);
+        _host.ApplyLastToDieMedicLinkedOnHitEffects(
             request.Attacker,
             target,
             linkedMedic);
-        _dependencies.ApplyLastToDieDamageTakenEffects(target, request.Attacker, appliedDamage, request.Traits);
+        _host.ApplyLastToDieDamageTakenEffects(target, request.Attacker, appliedDamage, request.Traits);
         if (!request.Traits.HasFlag(PlayerDamageTraits.Reflected))
         {
-            _dependencies.ApplyExperimentalDamageTakenRewards(target, request.Attacker, appliedDamage);
+            _host.ApplyExperimentalDamageTakenRewards(target, request.Attacker, appliedDamage);
         }
         if (request.Attacker is not null)
         {
-            _dependencies.ApplyExperimentalEngineerFriendlyFireRetaliation(request.Attacker, target, appliedDamage);
+            _host.ApplyExperimentalEngineerFriendlyFireRetaliation(request.Attacker, target, appliedDamage);
         }
-        _dependencies.TryRegisterCombatComboHit(request.Attacker, target, appliedDamage);
+        _host.TryRegisterCombatComboHit(request.Attacker, target, appliedDamage);
         return Finish(
             martyrFatalPrevented
                 ? PlayerDamageDisposition.FatalPrevented
@@ -733,8 +733,8 @@ public sealed class CombatSystem
             return Finish(PlayerDamageDisposition.UmbrellaBlocked);
         }
 
-        damage = _dependencies.ApplyExperimentalOutgoingDamageMultiplierContinuous(request.Attacker, target, damage);
-        damage = _dependencies.ApplyLastToDieOutgoingDamageMultiplierContinuous(
+        damage = _host.ApplyExperimentalOutgoingDamageMultiplier(request.Attacker, target, damage);
+        damage = _host.ApplyLastToDieOutgoingDamageMultiplier(
             request.Attacker,
             target,
             damage,
@@ -754,10 +754,10 @@ public sealed class CombatSystem
             return Finish(PlayerDamageDisposition.Evaded);
         }
 
-        damage = _dependencies.ApplyExperimentalIncomingDamageMultiplierContinuous(target, request.Attacker, damage);
-        damage = _dependencies.ApplyLastToDieIncomingDamageMultiplierContinuous(target, damage, damageTraits);
+        damage = _host.ApplyExperimentalIncomingDamageMultiplier(target, request.Attacker, damage);
+        damage = _host.ApplyLastToDieIncomingDamageMultiplier(target, damage, damageTraits);
         damageAfterIncomingModifiers = damage;
-        damage = _dependencies.ScaleConfiguredContinuousDamage(damage);
+        damage = _host.ScaleConfiguredDamage(damage);
         damageAfterServerScaling = damage;
         damage = target.AbsorbExperimentalShieldDamage(damage);
         damageAfterShield = damage;
@@ -771,22 +771,22 @@ public sealed class CombatSystem
             damage = target.Health;
         }
 
-        if (_dependencies.TryConvertExperimentalSelfDamageToHealing(target, request.Attacker, damage))
+        if (_host.TryConvertExperimentalSelfDamageToHealing(target, request.Attacker, damage))
         {
             return Finish(PlayerDamageDisposition.ConvertedToHealing);
         }
 
-        if (_dependencies.TryPreventExperimentalFatalDamage(target, (int)MathF.Ceiling(damage)))
+        if (_host.TryPreventExperimentalFatalDamage(target, (int)MathF.Ceiling(damage)))
         {
             var fatalPreventedDamage = Math.Max(0, healthBefore - target.Health);
-            var fatalPreventedLinkedMedic = _dependencies.ResolveLastToDieMedicLinkedOnHit(
+            var fatalPreventedLinkedMedic = _host.ResolveLastToDieMedicLinkedOnHit(
                 request.Attacker,
                 target,
                 fatalPreventedDamage,
                 request.Traits);
             var fatalPreventedAssistPlayerIdOverride = request.AssistPlayerIdOverride > 0
                 ? request.AssistPlayerIdOverride
-                : _dependencies.ResolveLastToDieMedicLinkedAssistPlayerId(request.Attacker, fatalPreventedLinkedMedic);
+                : _host.ResolveLastToDieMedicLinkedAssistPlayerId(request.Attacker, fatalPreventedLinkedMedic);
             RegisterDamageEvent(
                 request.Attacker,
                 DamageTargetKind.Player,
@@ -799,12 +799,12 @@ public sealed class CombatSystem
                 damageFlags,
                 fatalPreventedAssistPlayerIdOverride,
                 request.AttackerPlayerIdOverride);
-            _dependencies.ApplyLastToDieDamageRewards(request.Attacker, target, fatalPreventedDamage, request.Traits);
-            _dependencies.ApplyLastToDieMedicLinkedOnHitEffects(
+            _host.ApplyLastToDieDamageRewards(request.Attacker, target, fatalPreventedDamage, request.Traits);
+            _host.ApplyLastToDieMedicLinkedOnHitEffects(
                 request.Attacker,
                 target,
                 fatalPreventedLinkedMedic);
-            _dependencies.ApplyLastToDieDamageTakenEffects(target, request.Attacker, fatalPreventedDamage, request.Traits);
+            _host.ApplyLastToDieDamageTakenEffects(target, request.Attacker, fatalPreventedDamage, request.Traits);
             return Finish(PlayerDamageDisposition.FatalPrevented, fatalPreventedDamage);
         }
 
@@ -834,7 +834,7 @@ public sealed class CombatSystem
             return Finish(PlayerDamageDisposition.DamageCancelled);
         }
 
-        if (_dependencies.TryAbsorbPracticeCombatDummyContinuousDamage(target, damage, request.Attacker, damageFlags))
+        if (_host.TryAbsorbPracticeCombatDummyContinuousDamage(target, damage, request.Attacker, damageFlags))
         {
             return Finish(PlayerDamageDisposition.PracticeDummyRecorded);
         }
@@ -852,14 +852,14 @@ public sealed class CombatSystem
             : target.ApplyContinuousDamage(damage, request.SpyRevealAlpha);
         var appliedDamage = Math.Max(0, healthBefore - target.Health);
         RegisterPlayerDamageDealer(target, request.Attacker, appliedDamage);
-        var linkedMedic = _dependencies.ResolveLastToDieMedicLinkedOnHit(
+        var linkedMedic = _host.ResolveLastToDieMedicLinkedOnHit(
             request.Attacker,
             target,
             appliedDamage,
             request.Traits);
         var assistPlayerIdOverride = request.AssistPlayerIdOverride > 0
             ? request.AssistPlayerIdOverride
-            : _dependencies.ResolveLastToDieMedicLinkedAssistPlayerId(request.Attacker, linkedMedic);
+            : _host.ResolveLastToDieMedicLinkedAssistPlayerId(request.Attacker, linkedMedic);
         RegisterDamageEvent(
             request.Attacker,
             DamageTargetKind.Player,
@@ -872,26 +872,26 @@ public sealed class CombatSystem
             damageFlags,
             assistPlayerIdOverride,
             request.AttackerPlayerIdOverride);
-        _dependencies.ApplyExperimentalDamageRewards(
+        _host.ApplyExperimentalDamageRewards(
             request.Attacker,
             target,
             appliedDamage,
             request.AllowOsmosisHealOwnedSentries);
-        _dependencies.ApplyLastToDieDamageRewards(request.Attacker, target, appliedDamage, request.Traits);
-        _dependencies.ApplyLastToDieMedicLinkedOnHitEffects(
+        _host.ApplyLastToDieDamageRewards(request.Attacker, target, appliedDamage, request.Traits);
+        _host.ApplyLastToDieMedicLinkedOnHitEffects(
             request.Attacker,
             target,
             linkedMedic);
-        _dependencies.ApplyLastToDieDamageTakenEffects(target, request.Attacker, appliedDamage, request.Traits);
+        _host.ApplyLastToDieDamageTakenEffects(target, request.Attacker, appliedDamage, request.Traits);
         if (!request.Traits.HasFlag(PlayerDamageTraits.Reflected))
         {
-            _dependencies.ApplyExperimentalDamageTakenRewards(target, request.Attacker, appliedDamage);
+            _host.ApplyExperimentalDamageTakenRewards(target, request.Attacker, appliedDamage);
         }
         if (request.Attacker is not null)
         {
-            _dependencies.ApplyExperimentalEngineerFriendlyFireRetaliation(request.Attacker, target, appliedDamage);
+            _host.ApplyExperimentalEngineerFriendlyFireRetaliation(request.Attacker, target, appliedDamage);
         }
-        _dependencies.TryRegisterCombatComboHit(request.Attacker, target, appliedDamage);
+        _host.TryRegisterCombatComboHit(request.Attacker, target, appliedDamage);
         var disposition = martyrFatalPrevented
             ? PlayerDamageDisposition.FatalPrevented
             : appliedDamage > 0
@@ -974,7 +974,7 @@ public sealed class CombatSystem
         DamageEventFlags damageFlags = DamageEventFlags.None,
         bool criticalBoost = false)
     {
-        var attacker = _dependencies.FindPlayerById(ownerId);
+        var attacker = _host.FindPlayerById(ownerId);
         if (attacker is null
             || ReferenceEquals(attacker, target)
             || attacker.Team == target.Team
@@ -994,7 +994,7 @@ public sealed class CombatSystem
             return false;
         }
 
-        _dependencies.RegisterImpactEffect(hitX, hitY, 0f);
+        _host.RegisterImpactEffect(hitX, hitY, 0f);
         RegisterDamageEvent(
             attacker,
             DamageTargetKind.Player,
@@ -1013,7 +1013,7 @@ public sealed class CombatSystem
         var aimRadians = DegreesToRadians(target.AimDirectionDegrees);
         var aimWorldX = target.X + DeterministicMath.Cos(aimRadians) * 128f;
         var aimWorldY = target.Y + DeterministicMath.Sin(aimRadians) * 128f;
-        return _dependencies.GetCivvieUmbrellaTip(target, aimWorldX, aimWorldY);
+        return _host.GetCivvieUmbrellaTip(target, aimWorldX, aimWorldY);
     }
 
     private static bool IsCivvieUmbrellaFrontThreat(PlayerEntity target, float threatSourceX, float threatSourceY)
@@ -1066,8 +1066,8 @@ public sealed class CombatSystem
         float damage,
         DamageEventFlags damageFlags)
     {
-        var experimentalEvasionChance = _dependencies.GetExperimentalTotalEvasionChance(target);
-        var lastToDieEvasionChance = _dependencies.GetLastToDieEvasionChance(target);
+        var experimentalEvasionChance = _host.GetExperimentalTotalEvasionChance(target);
+        var lastToDieEvasionChance = _host.GetLastToDieEvasionChance(target);
         var totalEvasionChance = Math.Clamp(
             1f - ((1f - experimentalEvasionChance) * (1f - lastToDieEvasionChance)),
             0f,
@@ -1082,8 +1082,8 @@ public sealed class CombatSystem
         }
 
         var evaded = lastToDieEvasionChance > 0f
-            ? !_dependencies.RollLastToDieEvasion(target, totalEvasionChance)
-            : _dependencies.NextSharedRandomDouble() < totalEvasionChance;
+            ? !_host.RollLastToDieEvasion(target, totalEvasionChance)
+            : _host.NextDouble() < totalEvasionChance;
         if (!evaded)
         {
             return false;
@@ -1109,8 +1109,8 @@ public sealed class CombatSystem
             return false;
         }
 
-        damage = _dependencies.ApplyExperimentalIncomingSentryDamageMultiplier(target, damage);
-        damage = _dependencies.ScaleConfiguredDamage(damage);
+        damage = _host.ApplyExperimentalIncomingSentryDamageMultiplier(target, damage);
+        damage = _host.ScaleConfiguredDamage(damage);
         if (damage <= 0)
         {
             return false;
@@ -1151,7 +1151,7 @@ public sealed class CombatSystem
             return false;
         }
 
-        damage = _dependencies.ScaleConfiguredFloatDamage(damage);
+        damage = _host.ScaleConfiguredDamage(damage);
         if (damage <= 0f)
         {
             return false;
@@ -1199,7 +1199,7 @@ public sealed class CombatSystem
         var remainingTicks = victim.LastDamageDealerPlayerId != killer.Id
             ? victim.LastDamageDealerAssistTicksRemaining
             : victim.SecondToLastDamageDealerAssistTicksRemaining;
-        var assistant = assistantId.HasValue ? _dependencies.FindPlayerById(assistantId.Value) : null;
+        var assistant = assistantId.HasValue ? _host.FindPlayerById(assistantId.Value) : null;
         if (remainingTicks <= 0 || assistant is null
             || assistant.Id == killer.Id || assistant.Id == victim.Id
             || assistant.Team != killer.Team)
@@ -1225,7 +1225,7 @@ public sealed class CombatSystem
 
         target.RegisterDamageDealer(
             attacker.Id,
-            _dependencies.GetSimulationTicksFromSourceTicks(AssistTrackingSourceTicks));
+            _host.GetSimulationTicksFromSourceTicks(AssistTrackingSourceTicks));
     }
 
     private int ResolveDamageEventAssistPlayerId(
@@ -1261,7 +1261,7 @@ public sealed class CombatSystem
                     : -1;
         }
 
-        foreach (var player in _dependencies.EnumerateSimulatedPlayers())
+        foreach (var player in _host.EnumerateSimulatedPlayers())
         {
             if (player.ClassId == PlayerClass.Medic
                 && player.IsAlive
@@ -1287,8 +1287,7 @@ public sealed class CombatSystem
         float x,
         float y)
     {
-        return _dependencies.ShouldCancelDamage(
-            _dependencies.CurrentFrame(),
+        return _host.ShouldCancelDamage(
             targetKind,
             targetEntityId,
             targetPlayerId,
@@ -1306,78 +1305,64 @@ public sealed class CombatSystem
         PlayerEntity? killer,
         string? weaponSpriteName)
     {
-        return _dependencies.ShouldCancelDeath(
-            _dependencies.CurrentFrame(),
-            player,
-            gibbed,
-            killer,
-            weaponSpriteName);
+        return _host.ShouldCancelDeath(player, gibbed, killer, weaponSpriteName);
     }
 }
 
-public delegate bool CombatDamageDecision(
-    long frame,
-    DamageTargetKind targetKind,
-    int targetEntityId,
-    int targetPlayerId,
-    PlayerTeam? targetTeam,
-    PlayerEntity? attacker,
-    int amount,
-    bool wouldBeFatal,
-    float x,
-    float y);
-
-public delegate bool CombatDeathDecision(
-    long frame,
-    PlayerEntity player,
-    bool gibbed,
-    PlayerEntity? killer,
-    string? weaponSpriteName);
-
-/// <summary>World adapters used by CombatSystem; all members are intentionally narrow.</summary>
-internal sealed class CombatSystemDependencies
+/// <summary>Mode, perk, and server-configuration adjustments to a damage amount.</summary>
+internal interface ICombatDamageModifiers
 {
-    public Func<long> CurrentFrame { get; init; } = static () => 0L;
-    public Func<double> NextSharedRandomDouble { get; init; } = static () => 1d;
-    public Func<IEnumerable<PlayerEntity>> EnumerateSimulatedPlayers { get; init; } = static () => [];
-    public Func<int, PlayerEntity?> FindPlayerById { get; init; } = static _ => null;
-    public Func<PlayerTeam, int, PlayerEntity, bool> CanDamagePlayer { get; init; } =
-        static (attackerTeam, attackerId, target) => target.IsAlive
-            && (attackerId == target.Id || attackerTeam != target.Team);
-    public Func<int, int> ScaleConfiguredDamage { get; init; } = static damage => damage;
-    public Func<float, float> ScaleConfiguredFloatDamage { get; init; } = static damage => damage;
-    public Func<float, float> ScaleConfiguredContinuousDamage { get; init; } = static damage => damage;
-    public Func<float, int> GetSimulationTicksFromSourceTicks { get; init; } = static ticks => Math.Max(0, (int)MathF.Round(ticks));
+    int ScaleConfiguredDamage(int damage);
+    float ScaleConfiguredDamage(float damage);
+    int ApplyExperimentalOutgoingDamageMultiplier(PlayerEntity? attacker, PlayerEntity target, int damage);
+    float ApplyExperimentalOutgoingDamageMultiplier(PlayerEntity? attacker, PlayerEntity target, float damage);
+    int ApplyExperimentalIncomingDamageMultiplier(PlayerEntity target, PlayerEntity? attacker, int damage);
+    float ApplyExperimentalIncomingDamageMultiplier(PlayerEntity target, PlayerEntity? attacker, float damage);
+    int ApplyLastToDieOutgoingDamageMultiplier(PlayerEntity? attacker, PlayerEntity target, int damage, PlayerDamageTraits traits, bool? attackerWasGrounded, bool? targetWasGrounded);
+    float ApplyLastToDieOutgoingDamageMultiplier(PlayerEntity? attacker, PlayerEntity target, float damage, PlayerDamageTraits traits, bool? attackerWasGrounded, bool? targetWasGrounded);
+    int ApplyLastToDieIncomingDamageMultiplier(PlayerEntity target, int damage, PlayerDamageTraits traits);
+    float ApplyLastToDieIncomingDamageMultiplier(PlayerEntity target, float damage, PlayerDamageTraits traits);
+    int ApplyExperimentalIncomingSentryDamageMultiplier(SentryEntity target, int damage);
+    float GetExperimentalTotalEvasionChance(PlayerEntity target);
+    float GetLastToDieEvasionChance(PlayerEntity target);
+    bool RollLastToDieEvasion(PlayerEntity target, float totalEvasionChance);
+}
 
-    public Func<PlayerEntity?, PlayerEntity, int, int> ApplyExperimentalOutgoingDamageMultiplier { get; init; } = static (_, _, damage) => damage;
-    public Func<PlayerEntity?, PlayerEntity, float, float> ApplyExperimentalOutgoingDamageMultiplierContinuous { get; init; } = static (_, _, damage) => damage;
-    public Func<PlayerEntity, PlayerEntity?, int, int> ApplyExperimentalIncomingDamageMultiplier { get; init; } = static (_, _, damage) => damage;
-    public Func<PlayerEntity, PlayerEntity?, float, float> ApplyExperimentalIncomingDamageMultiplierContinuous { get; init; } = static (_, _, damage) => damage;
-    public Func<PlayerEntity?, PlayerEntity, int, PlayerDamageTraits, bool?, bool?, int> ApplyLastToDieOutgoingDamageMultiplier { get; init; } = static (_, _, damage, _, _, _) => damage;
-    public Func<PlayerEntity?, PlayerEntity, float, PlayerDamageTraits, bool?, bool?, float> ApplyLastToDieOutgoingDamageMultiplierContinuous { get; init; } = static (_, _, damage, _, _, _) => damage;
-    public Func<PlayerEntity, int, PlayerDamageTraits, int> ApplyLastToDieIncomingDamageMultiplier { get; init; } = static (_, damage, _) => damage;
-    public Func<PlayerEntity, float, PlayerDamageTraits, float> ApplyLastToDieIncomingDamageMultiplierContinuous { get; init; } = static (_, damage, _) => damage;
-    public Func<SentryEntity, int, int> ApplyExperimentalIncomingSentryDamageMultiplier { get; init; } = static (_, damage) => damage;
-    public Func<PlayerEntity, int, bool> TryPreventExperimentalFatalDamage { get; init; } = static (_, _) => false;
-    public Func<PlayerEntity, PlayerEntity?, float, bool> TryConvertExperimentalSelfDamageToHealing { get; init; } = static (_, _, _) => false;
-    public Func<PlayerEntity, int, PlayerEntity?, DamageEventFlags, bool> TryAbsorbPracticeCombatDummyDamage { get; init; } = static (_, _, _, _) => false;
-    public Func<PlayerEntity, float, PlayerEntity?, DamageEventFlags, bool> TryAbsorbPracticeCombatDummyContinuousDamage { get; init; } = static (_, _, _, _) => false;
-    public Func<PlayerEntity, float> GetExperimentalTotalEvasionChance { get; init; } = static _ => 0f;
-    public Func<PlayerEntity, float> GetLastToDieEvasionChance { get; init; } = static _ => 0f;
-    public Func<PlayerEntity, float, bool> RollLastToDieEvasion { get; init; } = static (_, _) => false;
+/// <summary>Checks that may cancel, absorb, or convert damage before it is applied.</summary>
+internal interface ICombatDamageInterceptors
+{
+    bool ShouldCancelDamage(DamageTargetKind targetKind, int targetEntityId, int targetPlayerId, PlayerTeam? targetTeam, PlayerEntity? attacker, int amount, bool wouldBeFatal, float x, float y);
+    bool ShouldCancelDeath(PlayerEntity player, bool gibbed, PlayerEntity? killer, string? weaponSpriteName);
+    bool TryPreventExperimentalFatalDamage(PlayerEntity target, int damage);
+    bool TryConvertExperimentalSelfDamageToHealing(PlayerEntity target, PlayerEntity? attacker, float damage);
+    bool TryAbsorbPracticeCombatDummyDamage(PlayerEntity target, int damage, PlayerEntity? attacker, DamageEventFlags flags);
+    bool TryAbsorbPracticeCombatDummyContinuousDamage(PlayerEntity target, float damage, PlayerEntity? attacker, DamageEventFlags flags);
+}
 
-    public Action<PlayerEntity?, PlayerEntity, int, bool> ApplyExperimentalDamageRewards { get; init; } = static (_, _, _, _) => { };
-    public Action<PlayerEntity?, PlayerEntity, int> ApplyExperimentalDamageTakenRewards { get; init; } = static (_, _, _) => { };
-    public Action<PlayerEntity?, PlayerEntity, int, PlayerDamageTraits> ApplyLastToDieDamageRewards { get; init; } = static (_, _, _, _) => { };
-    public Action<PlayerEntity, PlayerEntity?, int, PlayerDamageTraits> ApplyLastToDieDamageTakenEffects { get; init; } = static (_, _, _, _) => { };
-    public Func<PlayerEntity?, PlayerEntity, int, PlayerDamageTraits, PlayerEntity?> ResolveLastToDieMedicLinkedOnHit { get; init; } = static (_, _, _, _) => null;
-    public Func<PlayerEntity?, PlayerEntity?, int> ResolveLastToDieMedicLinkedAssistPlayerId { get; init; } = static (_, _) => -1;
-    public Action<PlayerEntity?, PlayerEntity, PlayerEntity?> ApplyLastToDieMedicLinkedOnHitEffects { get; init; } = static (_, _, _) => { };
-    public Action<PlayerEntity, PlayerEntity, int> ApplyExperimentalEngineerFriendlyFireRetaliation { get; init; } = static (_, _, _) => { };
-    public Action<PlayerEntity?, PlayerEntity, int> TryRegisterCombatComboHit { get; init; } = static (_, _, _) => { };
-    public Action<PlayerEntity, PlayerEntity, int> TryRegisterBuffBannerDamage { get; init; } = static (_, _, _) => { };
-    public Action<float, float, float> RegisterImpactEffect { get; init; } = static (_, _, _) => { };
-    public Func<PlayerEntity, float, float, (float X, float Y)> GetCivvieUmbrellaTip { get; init; } = static (target, _, _) => (target.X, target.Y);
-    public CombatDamageDecision ShouldCancelDamage { get; init; } = static (_, _, _, _, _, _, _, _, _, _) => false;
-    public CombatDeathDecision ShouldCancelDeath { get; init; } = static (_, _, _, _, _) => false;
+/// <summary>Mode and perk consequences that follow applied damage.</summary>
+internal interface ICombatDamageConsequences
+{
+    void ApplyExperimentalDamageRewards(PlayerEntity? attacker, PlayerEntity target, int damage, bool allowOsmosisHealOwnedSentries);
+    void ApplyExperimentalDamageTakenRewards(PlayerEntity target, PlayerEntity? attacker, int damage);
+    void ApplyLastToDieDamageRewards(PlayerEntity? attacker, PlayerEntity target, int damage, PlayerDamageTraits traits);
+    void ApplyLastToDieDamageTakenEffects(PlayerEntity target, PlayerEntity? attacker, int damage, PlayerDamageTraits traits);
+    PlayerEntity? ResolveLastToDieMedicLinkedOnHit(PlayerEntity? attacker, PlayerEntity target, int damage, PlayerDamageTraits traits);
+    int ResolveLastToDieMedicLinkedAssistPlayerId(PlayerEntity? attacker, PlayerEntity? linkedMedic);
+    void ApplyLastToDieMedicLinkedOnHitEffects(PlayerEntity? attacker, PlayerEntity target, PlayerEntity? linkedMedic);
+    void ApplyExperimentalEngineerFriendlyFireRetaliation(PlayerEntity attacker, PlayerEntity target, int damage);
+    void TryRegisterCombatComboHit(PlayerEntity? attacker, PlayerEntity target, int damage);
+    void TryRegisterBuffBannerDamage(PlayerEntity attacker, PlayerEntity target, int damage);
+}
+
+/// <summary>Everything <see cref="CombatSystem"/> needs from the world.</summary>
+internal interface ICombatSystemHost :
+    ISimulationWorldState,
+    ISimulationPlayerDirectory,
+    ISimulationRandomSource,
+    ISimulationPresentationEvents,
+    ICombatDamageModifiers,
+    ICombatDamageInterceptors,
+    ICombatDamageConsequences
+{
+    (float X, float Y) GetCivvieUmbrellaTip(PlayerEntity target, float aimWorldX, float aimWorldY);
 }

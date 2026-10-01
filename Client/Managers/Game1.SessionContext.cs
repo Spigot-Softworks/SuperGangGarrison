@@ -15,13 +15,19 @@ public partial class Game1 : ISessionContext, IDiscordContext
 
     int ISessionContext._autoBalanceNoticeTicks { get => _autoBalanceNoticeTicks; set => _autoBalanceNoticeTicks = value; }
 
-    bool ISessionContext._classSelectOpen { get => _classSelectOpen; set => _classSelectOpen = value; }
-
     OpenGarrison.Core.SimulationConfig ISessionContext._config { get => _config; set => _config = value; }
 
-    string ISessionContext._connectHostBuffer { get => _connectHostBuffer; set => _connectHostBuffer = value; }
+    TextEditState ISessionContext.PasswordEdit => _inputManager.NetworkPromptTextInput.Edit;
 
-    string ISessionContext._connectPortBuffer { get => _connectPortBuffer; set => _connectPortBuffer = value; }
+    TextEditState ISessionContext.ConnectHostEdit => _inputManager.MenuTextInput.ConnectHostEdit;
+
+    TextEditState ISessionContext.ConnectPortEdit => _inputManager.MenuTextInput.ConnectPortEdit;
+
+    TeamClassSelectionState ISessionContext.TeamClassSelection => _gameplayManager.OverlayState.TeamClassSelection;
+
+    GameplaySessionTransitionState ISessionContext.SessionTransitions => _gameplayManager.SessionState.SessionTransitions;
+
+
 
     bool ISessionContext._consoleOpen { get => _consoleOpen; set => _consoleOpen = value; }
 
@@ -36,8 +42,6 @@ public partial class Game1 : ISessionContext, IDiscordContext
     bool ISessionContext._editingPlayerName { get => _editingPlayerName; set => _editingPlayerName = value; }
 
     bool ISessionContext._inGameMenuOpen { get => _inGameMenuOpen; set => _inGameMenuOpen = value; }
-
-    bool ISessionContext._lastToDieConnectionPresentationPending { get => _lastToDieConnectionPresentationPending; set => _lastToDieConnectionPresentationPending = value; }
 
     bool ISessionContext._lastToDieRoomCodeJoinOpen { get => _lastToDieRoomCodeJoinOpen; set => _lastToDieRoomCodeJoinOpen = value; }
 
@@ -73,7 +77,6 @@ public partial class Game1 : ISessionContext, IDiscordContext
 
     bool ISessionContext._optionsMenuOpen { get => _optionsMenuOpen; set => _optionsMenuOpen = value; }
 
-    string ISessionContext._passwordEditBuffer { get => _passwordEditBuffer; set => _passwordEditBuffer = value; }
 
     string ISessionContext._passwordPromptMessage { get => _passwordPromptMessage; set => _passwordPromptMessage = value; }
 
@@ -84,12 +87,6 @@ public partial class Game1 : ISessionContext, IDiscordContext
     Nullable<OpenGarrison.Client.Game1.ControlsMenuBinding> ISessionContext._pendingControlsBinding { get => _pendingControlsBinding; set => _pendingControlsBinding = value; }
 
     bool ISessionContext._pluginOptionsMenuOpen { get => _pluginOptionsMenuOpen; set => _pluginOptionsMenuOpen = value; }
-
-    string ISessionContext._recentConnectHost { get => _recentConnectHost; set => _recentConnectHost = value; }
-
-    int ISessionContext._recentConnectPort { get => _recentConnectPort; set => _recentConnectPort = value; }
-
-    bool ISessionContext._teamSelectOpen { get => _teamSelectOpen; set => _teamSelectOpen = value; }
 
     OpenGarrison.Client.Game1.LobbyBrowserEntry ISessionContext.AddLobbyBrowserEntry(string displayName, OpenGarrison.Client.NetworkEndpoint endpoint, bool isPrivate, bool isLobbyEntry) => AddLobbyBrowserEntry(displayName, endpoint, isPrivate, isLobbyEntry);
 

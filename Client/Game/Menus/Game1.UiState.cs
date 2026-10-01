@@ -61,16 +61,16 @@ public partial class Game1
     private bool IsGameplayDeathCamActive()
     {
         return !IsHostedLastToDieActive()
-            && _killCamEnabled
+            && _gameplayManager.RuntimeSettings.KillCamEnabled
             && _world.LocalDeathCam is not null;
     }
 
     private bool IsGameplaySelectionOverlayVisible()
     {
-        return _teamSelectOpen
-            || _teamSelectAlpha > 0.02f
-            || _classSelectOpen
-            || _classSelectAlpha > 0.02f
+        return _teamClassSelectionState.TeamSelectOpen
+            || _teamClassSelectionState.TeamSelectAlpha > 0.02f
+            || _teamClassSelectionState.ClassSelectOpen
+            || _teamClassSelectionState.ClassSelectAlpha > 0.02f
             || _gameplayLoadoutMenuOpen;
     }
 
@@ -79,8 +79,8 @@ public partial class Game1
         return !_mainMenuOpen
             && !HasOpenGameplayOverlay()
             && !_consoleOpen
-            && !_teamSelectOpen
-            && !_classSelectOpen
+            && !_teamClassSelectionState.TeamSelectOpen
+            && !_teamClassSelectionState.ClassSelectOpen
             && !_gameplayLoadoutMenuOpen;
     }
 
@@ -90,8 +90,8 @@ public partial class Game1
             || HasOpenGameplayOverlay()
             || _consoleOpen
             || _chatOpen
-            || _teamSelectOpen
-            || _classSelectOpen
+            || _teamClassSelectionState.TeamSelectOpen
+            || _teamClassSelectionState.ClassSelectOpen
             || _gameplayLoadoutMenuOpen
             || _passwordPromptOpen
             || _world.LocalPlayerAwaitingJoin
@@ -112,8 +112,8 @@ public partial class Game1
             || HasOpenGameplayOverlay()
             || _consoleOpen
             || _chatOpen
-            || _teamSelectOpen
-            || _classSelectOpen
+            || _teamClassSelectionState.TeamSelectOpen
+            || _teamClassSelectionState.ClassSelectOpen
             || _gameplayLoadoutMenuOpen
             || _passwordPromptOpen
             || IsLocalSpectatorPresentationActive()
@@ -147,8 +147,8 @@ public partial class Game1
 
     private bool CanDrawGameplayCrosshair()
     {
-        return !_teamSelectOpen
-            && _teamSelectAlpha <= 0.02f
+        return !_teamClassSelectionState.TeamSelectOpen
+            && _teamClassSelectionState.TeamSelectAlpha <= 0.02f
             && !_gameplayLoadoutMenuOpen
             && !IsLocalSpectatorPresentationActive()
             && _world.LocalPlayer.IsAlive

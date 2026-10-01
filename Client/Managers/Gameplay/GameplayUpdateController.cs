@@ -10,11 +10,14 @@ namespace OpenGarrison.Client;
 public sealed class GameplayUpdateController
     {
         private readonly IGameplayContext _context;
+        private int _prePredictionFlameCount;
 
         public GameplayUpdateController(IGameplayContext context)
         {
             _context = context;
         }
+
+        internal int PrePredictionFlameCount => _prePredictionFlameCount;
 
         public void UpdateFrame(GameTime gameTime, KeyboardState keyboard, MouseState mouse, MouseState rawMouse, int clientTicks)
         {
@@ -30,7 +33,7 @@ public sealed class GameplayUpdateController
             }
 
             var networkInput = _context.Gameplay.InputUpdate.PrepareFrame(gameTime, keyboard, mouse, rawMouse);
-            _context._prePredictionFlameCount = _context._world.Flames.Count;
+            _prePredictionFlameCount = _context._world.Flames.Count;
             if (_context._networkClient.IsConnected)
             {
                 // Emit from the received positions before local projectile prediction

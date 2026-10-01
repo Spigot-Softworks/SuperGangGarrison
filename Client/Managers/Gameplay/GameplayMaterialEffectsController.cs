@@ -20,24 +20,48 @@ public sealed class GameplayMaterialEffectsController
         private const float CivvieMoneySheetDrawScale = 1.2f;
         private static readonly Color CivvieMoneySheetTint = new(0, 114, 3);
         private readonly IGameplayContext _context;
+        private readonly List<OpenGarrison.Client.Game1.ShellVisual> _shellVisuals = new();
+        private readonly List<OpenGarrison.Client.Game1.PendingWeaponShellVisual> _pendingWeaponShellVisuals = new();
+        private readonly List<OpenGarrison.Client.Game1.LooseSheetVisual> _looseSheetVisuals = new();
 
         public GameplayMaterialEffectsController(IGameplayContext context)
         {
             _context = context;
         }
 
+        internal int ShellVisualCount => _shellVisuals.Count;
+
+        internal int LooseSheetVisualCount => _looseSheetVisuals.Count;
+
+        internal int CivvieMoneySheetVisualCount
+        {
+            get
+            {
+                var count = 0;
+                for (var index = 0; index < _looseSheetVisuals.Count; index += 1)
+                {
+                    if (_looseSheetVisuals[index].IsCivvieMoney)
+                    {
+                        count += 1;
+                    }
+                }
+
+                return count;
+            }
+        }
+
         public void ResetTransientEffects()
         {
-            _context._pendingWeaponShellVisuals.Clear();
-            _context._shellVisuals.Clear();
-            _context._looseSheetVisuals.Clear();
+            _pendingWeaponShellVisuals.Clear();
+            _shellVisuals.Clear();
+            _looseSheetVisuals.Clear();
         }
 
         public void AdvanceLooseSheetVisuals()
         {
-            for (var index = _context._looseSheetVisuals.Count - 1; index >= 0; index -= 1)
+            for (var index = _looseSheetVisuals.Count - 1; index >= 0; index -= 1)
             {
-                var sheet = _context._looseSheetVisuals[index];
+                var sheet = _looseSheetVisuals[index];
                 sheet.TicksRemaining -= 1;
                 if (sheet.IsBurning)
                 {
@@ -47,7 +71,7 @@ public sealed class GameplayMaterialEffectsController
 
                 if (sheet.TicksRemaining <= 0 || (sheet.IsBurning && sheet.BurnTicksRemaining <= 0))
                 {
-                    _context._looseSheetVisuals.RemoveAt(index);
+                    _looseSheetVisuals.RemoveAt(index);
                     continue;
                 }
 
@@ -92,17 +116,17 @@ public sealed class GameplayMaterialEffectsController
 
         public void AdvanceShellVisuals()
         {
-            if (_context._particleMode != 0)
+            if (_context.GameplayRuntimeSettings.ParticleMode != 0)
             {
-                _context._pendingWeaponShellVisuals.Clear();
-                _context._shellVisuals.Clear();
+                _pendingWeaponShellVisuals.Clear();
+                _shellVisuals.Clear();
                 return;
             }
 
             const float clientTickSeconds = 1f / ClientUpdateTicksPerSecond;
-            for (var index = _context._pendingWeaponShellVisuals.Count - 1; index >= 0; index -= 1)
+            for (var index = _pendingWeaponShellVisuals.Count - 1; index >= 0; index -= 1)
             {
-                var pendingShell = _context._pendingWeaponShellVisuals[index];
+                var pendingShell = _pendingWeaponShellVisuals[index];
                 pendingShell.DelaySeconds -= clientTickSeconds;
                 if (pendingShell.DelaySeconds > 0f)
                 {
@@ -110,14 +134,14 @@ public sealed class GameplayMaterialEffectsController
                 }
 
                 SpawnPendingWeaponShellVisual(pendingShell);
-                _context._pendingWeaponShellVisuals.RemoveAt(index);
+                _pendingWeaponShellVisuals.RemoveAt(index);
             }
 
             var baseGravityPerTick = ScaleSourceTickDistance(0.7f);
             var settleSpeed = ScaleSourceTickDistance(1f);
-            for (var index = _context._shellVisuals.Count - 1; index >= 0; index -= 1)
+            for (var index = _shellVisuals.Count - 1; index >= 0; index -= 1)
             {
-                var shell = _context._shellVisuals[index];
+                var shell = _shellVisuals[index];
                 if (shell.TicksUntilFade > 0)
                 {
                     shell.TicksUntilFade -= 1;
@@ -134,7 +158,7 @@ public sealed class GameplayMaterialEffectsController
 
                 if (shell.Alpha < 0.3f)
                 {
-                    _context._shellVisuals.RemoveAt(index);
+                    _shellVisuals.RemoveAt(index);
                     continue;
                 }
 
@@ -181,9 +205,9 @@ public sealed class GameplayMaterialEffectsController
 
         public void DrawLooseSheetVisuals(Vector2 cameraPosition)
         {
-            for (var index = 0; index < _context._looseSheetVisuals.Count; index += 1)
+            for (var index = 0; index < _looseSheetVisuals.Count; index += 1)
             {
-                var sheet = _context._looseSheetVisuals[index];
+                var sheet = _looseSheetVisuals[index];
                 var sprite = _context.GetResolvedSprite(sheet.SpriteName);
                 var alpha = sheet.TicksRemaining <= sheet.FadeTicksRemaining
                     ? sheet.TicksRemaining / (float)sheet.FadeTicksRemaining
@@ -212,14 +236,14 @@ public sealed class GameplayMaterialEffectsController
 
         public void DrawShellVisuals(Vector2 cameraPosition)
         {
-            if (_context._particleMode != 0)
+            if (_context.GameplayRuntimeSettings.ParticleMode != 0)
             {
                 return;
             }
 
-            for (var index = 0; index < _context._shellVisuals.Count; index += 1)
+            for (var index = 0; index < _shellVisuals.Count; index += 1)
             {
-                var shell = _context._shellVisuals[index];
+                var shell = _shellVisuals[index];
                 if (!shell.DrawAsPixel)
                 {
                     var shellSprite = _context.GetResolvedSprite(shell.SpriteName ?? "ShellS");
@@ -244,7 +268,7 @@ public sealed class GameplayMaterialEffectsController
 
         public void SpawnBottleShardBurst(float x, float y, int teamCount, float burstDirectionDegrees = 270f)
         {
-            if (_context._particleMode != 0)
+            if (_context.GameplayRuntimeSettings.ParticleMode != 0)
             {
                 return;
             }
@@ -271,7 +295,7 @@ public sealed class GameplayMaterialEffectsController
                 var velocityY = (MathF.Sin(angle) * speed * 0.85f) + (burstNormalY * burstPush) - upwardBias;
                 var rotationSpeed = ScaleSourceTickDistance(8f + (_context._visualRandom.NextSingle() * 12f))
                     * (_context._visualRandom.Next(2) == 0 ? -1f : 1f);
-                _context._shellVisuals.Add(new ShellVisual(
+                _shellVisuals.Add(new ShellVisual(
                     x + ((_context._visualRandom.NextSingle() - 0.5f) * 3f),
                     y + ((_context._visualRandom.NextSingle() - 0.5f) * 3f),
                     velocityX,
@@ -293,27 +317,70 @@ public sealed class GameplayMaterialEffectsController
 
         public void QueueWeaponShellVisual(PlayerEntity player, float delaySeconds, int count, PlayerClass classId)
         {
-            if (_context._particleMode != 0 || count <= 0)
+            if (_context.GameplayRuntimeSettings.ParticleMode != 0 || count <= 0)
             {
                 return;
             }
 
-            _context._pendingWeaponShellVisuals.Add(new PendingWeaponShellVisual(_context.GetPlayerStateKey(player), classId, player.Team, Math.Max(0f, delaySeconds), count));
+            _pendingWeaponShellVisuals.Add(new PendingWeaponShellVisual(_context.GetPlayerStateKey(player), classId, player.Team, Math.Max(0f, delaySeconds), count));
         }
 
         public void QueueWeaponShellVisual(PlayerEntity player, float delaySeconds, int count, PlayerClass classId, string spriteName)
         {
-            if (_context._particleMode != 0 || count <= 0)
+            if (_context.GameplayRuntimeSettings.ParticleMode != 0 || count <= 0)
             {
                 return;
             }
 
-            _context._pendingWeaponShellVisuals.Add(new PendingWeaponShellVisual(_context.GetPlayerStateKey(player), classId, player.Team, Math.Max(0f, delaySeconds), count, spriteName));
+            _pendingWeaponShellVisuals.Add(new PendingWeaponShellVisual(_context.GetPlayerStateKey(player), classId, player.Team, Math.Max(0f, delaySeconds), count, spriteName));
+        }
+
+        internal void QueueResettingWeaponShellVisual(PlayerEntity player, float delaySeconds, int count)
+        {
+            if (_context.GameplayRuntimeSettings.ParticleMode != 0 || count <= 0)
+            {
+                return;
+            }
+
+            var playerStateKey = _context.GetPlayerStateKey(player);
+            for (var pendingIndex = _pendingWeaponShellVisuals.Count - 1; pendingIndex >= 0; pendingIndex -= 1)
+            {
+                var pendingShell = _pendingWeaponShellVisuals[pendingIndex];
+                if (pendingShell.PlayerId == playerStateKey
+                    && pendingShell.ClassId == player.ClassId)
+                {
+                    _pendingWeaponShellVisuals.RemoveAt(pendingIndex);
+                }
+            }
+
+            QueueWeaponShellVisual(player, delaySeconds, count);
+        }
+
+        internal void QueueResettingWeaponShellVisual(PlayerEntity player, float delaySeconds, int count, string spriteName)
+        {
+            if (_context.GameplayRuntimeSettings.ParticleMode != 0 || count <= 0)
+            {
+                return;
+            }
+
+            var playerStateKey = _context.GetPlayerStateKey(player);
+            for (var pendingIndex = _pendingWeaponShellVisuals.Count - 1; pendingIndex >= 0; pendingIndex -= 1)
+            {
+                var pendingShell = _pendingWeaponShellVisuals[pendingIndex];
+                if (pendingShell.PlayerId == playerStateKey
+                    && pendingShell.ClassId == player.ClassId
+                    && pendingShell.SpriteName == spriteName)
+                {
+                    _pendingWeaponShellVisuals.RemoveAt(pendingIndex);
+                }
+            }
+
+            QueueWeaponShellVisual(player, delaySeconds, count, player.ClassId, spriteName);
         }
 
         public void SpawnCivvieMoneyVisual(CivvieMoneyTrailSpawn spawn)
         {
-            if (!AreCivvieMoneyParticlesEnabled(_context._particleMode))
+            if (!AreCivvieMoneyParticlesEnabled(_context.GameplayRuntimeSettings.ParticleMode))
             {
                 return;
             }
@@ -334,7 +401,7 @@ public sealed class GameplayMaterialEffectsController
                 spawn.OwnerPlayerId,
                 salt: 0x524F5453,
                 magnitude: 0.06f) * MathF.PI;
-            _context._looseSheetVisuals.Add(new LooseSheetVisual(
+            _looseSheetVisuals.Add(new LooseSheetVisual(
                 spawn.X,
                 spawn.Y,
                 horizontalVelocity,
@@ -350,7 +417,7 @@ public sealed class GameplayMaterialEffectsController
 
         public void SpawnCivvieMoneyBurstVisual(CivvieMoneyBurstSpawn spawn)
         {
-            if (!AreCivvieMoneyParticlesEnabled(_context._particleMode))
+            if (!AreCivvieMoneyParticlesEnabled(_context.GameplayRuntimeSettings.ParticleMode))
             {
                 return;
             }
@@ -369,7 +436,7 @@ public sealed class GameplayMaterialEffectsController
                 spawn.OwnerPlayerId,
                 salt: 0x42555254 ^ spawn.ParticleIndex,
                 magnitude: 0.08f) * MathF.PI;
-            _context._looseSheetVisuals.Add(new LooseSheetVisual(
+            _looseSheetVisuals.Add(new LooseSheetVisual(
                 spawn.X,
                 spawn.Y,
                 horizontalVelocity,
@@ -386,7 +453,7 @@ public sealed class GameplayMaterialEffectsController
         public void SpawnLooseSheetVisual(float x, float y, float initialHorizontalSpeed, string? spriteName = null, bool isCivvieMoney = false)
         {
             string[] sheetSprites = ["SheetFalling1", "SheetFalling2", "SheetFalling3"];
-            if (isCivvieMoney && !AreCivvieMoneyParticlesEnabled(_context._particleMode))
+            if (isCivvieMoney && !AreCivvieMoneyParticlesEnabled(_context.GameplayRuntimeSettings.ParticleMode))
             {
                 return;
             }
@@ -398,9 +465,9 @@ public sealed class GameplayMaterialEffectsController
                     return;
                 }
 
-                while (_context._looseSheetVisuals.Count >= BrowserMaxLooseSheetVisuals)
+                while (_looseSheetVisuals.Count >= BrowserMaxLooseSheetVisuals)
                 {
-                    _context._looseSheetVisuals.RemoveAt(0);
+                    _looseSheetVisuals.RemoveAt(0);
                 }
             }
             else if (isCivvieMoney)
@@ -420,7 +487,7 @@ public sealed class GameplayMaterialEffectsController
                 : isCivvieMoney
                     ? CivvieMoneySheetFadeTicks
                     : LooseSheetVisual.FadeTicks;
-            _context._looseSheetVisuals.Add(new LooseSheetVisual(
+            _looseSheetVisuals.Add(new LooseSheetVisual(
                 x,
                 y,
                 horizontalVelocity,
@@ -437,9 +504,9 @@ public sealed class GameplayMaterialEffectsController
         private void PruneCivvieMoneySheetVisuals()
         {
             var civvieMoneyCount = 0;
-            for (var index = 0; index < _context._looseSheetVisuals.Count; index += 1)
+            for (var index = 0; index < _looseSheetVisuals.Count; index += 1)
             {
-                if (_context._looseSheetVisuals[index].IsCivvieMoney)
+                if (_looseSheetVisuals[index].IsCivvieMoney)
                 {
                     civvieMoneyCount += 1;
                 }
@@ -448,14 +515,14 @@ public sealed class GameplayMaterialEffectsController
             while (civvieMoneyCount >= MaxCivvieMoneySheetVisuals)
             {
                 var removed = false;
-                for (var index = 0; index < _context._looseSheetVisuals.Count; index += 1)
+                for (var index = 0; index < _looseSheetVisuals.Count; index += 1)
                 {
-                    if (!_context._looseSheetVisuals[index].IsCivvieMoney)
+                    if (!_looseSheetVisuals[index].IsCivvieMoney)
                     {
                         continue;
                     }
 
-                    _context._looseSheetVisuals.RemoveAt(index);
+                    _looseSheetVisuals.RemoveAt(index);
                     civvieMoneyCount -= 1;
                     removed = true;
                     break;
@@ -528,7 +595,7 @@ public sealed class GameplayMaterialEffectsController
                 var velX = ScaleSourceTickDistance(-1.5f) * facingScale;
                 var velY = -ScaleSourceTickDistance(1.5f);
                 var rotSpeed = ScaleSourceTickDistance(6f + (_context._visualRandom.NextSingle() * 4f)) * (_context._visualRandom.Next(2) == 0 ? -1f : 1f);
-                _context._shellVisuals.Add(new ShellVisual(spawnPosition.X, spawnPosition.Y, velX, velY, 0, _context._visualRandom.NextSingle() * 360f, rotSpeed, fadeDelayTicks: (int)MathF.Round(GetSourceTicksAsSeconds(45f) * ClientUpdateTicksPerSecond), spriteName: "NailgunMagS"));
+                _shellVisuals.Add(new ShellVisual(spawnPosition.X, spawnPosition.Y, velX, velY, 0, _context._visualRandom.NextSingle() * 360f, rotSpeed, fadeDelayTicks: (int)MathF.Round(GetSourceTicksAsSeconds(45f) * ClientUpdateTicksPerSecond), spriteName: "NailgunMagS"));
                 return;
             }
 
@@ -565,7 +632,7 @@ public sealed class GameplayMaterialEffectsController
 
             var directionRadians = directionDegrees * (MathF.PI / 180f);
             var rotationSpeed = ScaleSourceTickDistance(14f + (_context._visualRandom.NextSingle() * 18f)) * (_context._visualRandom.Next(2) == 0 ? -1f : 1f);
-            _context._shellVisuals.Add(new ShellVisual(spawnPosition.X, spawnPosition.Y, (MathF.Cos(directionRadians) * speed) + velocityOffsetX, (MathF.Sin(directionRadians) * speed) + velocityOffsetY, frameIndex, _context._visualRandom.NextSingle() * 360f, rotationSpeed, fadeDelayTicks: (int)MathF.Round(GetSourceTicksAsSeconds(45f) * ClientUpdateTicksPerSecond)));
+            _shellVisuals.Add(new ShellVisual(spawnPosition.X, spawnPosition.Y, (MathF.Cos(directionRadians) * speed) + velocityOffsetX, (MathF.Sin(directionRadians) * speed) + velocityOffsetY, frameIndex, _context._visualRandom.NextSingle() * 360f, rotationSpeed, fadeDelayTicks: (int)MathF.Round(GetSourceTicksAsSeconds(45f) * ClientUpdateTicksPerSecond)));
         }
 
         private void AdvanceLooseSheetAxis(ref float primaryCoordinate, float secondaryCoordinate, ref float velocity, bool horizontal)

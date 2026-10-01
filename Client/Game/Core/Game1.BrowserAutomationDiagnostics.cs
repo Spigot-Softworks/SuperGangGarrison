@@ -9,7 +9,6 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    public int _prePredictionFlameCount;
     private int _browserHostedLobbyDrawCount;
     public sealed record BrowserAutomationRect(int X, int Y, int Width, int Height)
     {
@@ -200,12 +199,12 @@ public partial class Game1
             GameplayOverlay: GetActiveGameplayOverlay().ToString(),
             ManualConnectOpen: _manualConnectOpen,
             PracticeSetupOpen: _practiceSetupOpen,
-            TeamSelectOpen: _teamSelectOpen,
-            ClassSelectOpen: _classSelectOpen,
+            TeamSelectOpen: _teamClassSelectionState.TeamSelectOpen,
+            ClassSelectOpen: _teamClassSelectionState.ClassSelectOpen,
             ChatOpen: _chatOpen,
-            ChatInput: _chatInput,
-            ManualConnectHost: _connectHostBuffer,
-            ManualConnectPort: _connectPortBuffer,
+            ChatInput: _inputManager.ChatTextInput.Edit.Text,
+            ManualConnectHost: _inputManager.MenuTextInput.ConnectHostEdit.Text,
+            ManualConnectPort: _inputManager.MenuTextInput.ConnectPortEdit.Text,
             EditingConnectHost: _editingConnectHost,
             EditingConnectPort: _editingConnectPort,
             AwaitingJoin: _world.LocalPlayerAwaitingJoin,
@@ -213,7 +212,7 @@ public partial class Game1
             NetworkConnected: _networkClient.IsConnected,
             NetworkServerDescription: _networkClient.ServerDescription ?? string.Empty,
             EstimatedPingMilliseconds: _networkClient.EstimatedPingMilliseconds,
-            LastAppliedSnapshotFrame: _lastAppliedSnapshotFrame,
+            LastAppliedSnapshotFrame: _gameplayManager.NetworkPresentation.LastAppliedSnapshotFrame,
             QueuedAuthoritativeSnapshotCount: _queuedAuthoritativeSnapshots.Count,
             CanEnterGameplaySession: canEnterGameplaySession,
             GameplaySessionEntryReason: gameplaySessionEntryReason ?? string.Empty,
@@ -225,18 +224,18 @@ public partial class Game1
             BootstrapLoadContentCalls: _gameplayManager.Bootstrap.LoadContentCallCount,
             BrowserHostLifecycleEnsureCalls: _browserHostLifecycleEnsureCallCount,
             DeferredContentBootstrapStage: _gameplayManager.Bootstrap.DeferredContentBootstrapStageName,
-            BrowserBootstrapAssetsApplied: _browserBootstrapAssetsApplied,
+            BrowserBootstrapAssetsApplied: _browserBootstrapResources.AssetsApplied,
             StartupSplashTicks: _startupSplashTicks,
             BrowserInputFocused: BrowserInputBridge.IsFocused,
             BrowserPressedKeys: BrowserInputBridge.GetPressedKeyNamesSnapshot(),
-            IngameResolution: GetIngameResolutionLabel(_ingameResolution),
+            IngameResolution: GetIngameResolutionLabel(_menuManager.DisplaySettings.IngameResolution),
             ViewportWidth: ViewportWidth,
             ViewportHeight: ViewportHeight,
             AudioAvailable: _audioAvailable,
             LocalPlayerAlive: _world.LocalPlayer.IsAlive,
             LocalPlayerX: _world.LocalPlayer.X,
             LocalPlayerY: _world.LocalPlayer.Y,
-            LooseSheetVisualCount: _looseSheetVisuals.Count,
+            LooseSheetVisualCount: _gameplayManager.MaterialEffects.LooseSheetVisualCount,
             StatusMessage: (_lastToDieMenuOpen ? GetLastToDieMenuStatusMessage() : _menuStatusMessage) ?? string.Empty,
             SelectedPracticeMap: GetSelectedPracticeMapEntry()?.LevelName ?? string.Empty,
             PracticeTickRate: _practiceTickRate,
@@ -255,7 +254,7 @@ public partial class Game1
                 IsManagedRoomOwner || IsPeerRoomOwner || IsEmbeddedSessionOwner, _networkClient.LastToDieState.Snapshot?.ServerTick ?? 0,
                 _lastToDieMenuOpen ? _lastToDieMenuPage == LastToDieMenuPage.PeerLobby ? GetPeerLobbyButtons() : GetLastToDieMenuButtonLabels() : [],
                 _networkClient.LastToDieState.Snapshot?.Players.FirstOrDefault(p => p.Slot == _networkClient.LocalPlayerSlot)?.ActiveOfferChoices.ToArray() ?? []),
-            LoadingOverlayVisible = _loadingOverlayVisible,
+            LoadingOverlayVisible = _loadingOverlayState.Visible,
             RoomPhase = _peerRoomSession?.State?.Phase ?? "",
             RoomGeneration = _peerRoomSession?.State?.Generation ?? 0,
             RunRoster = _networkClient.LastToDieState.Snapshot?.Players.Select(p => $"{p.Slot}: connected={p.IsConnected}, ready={p.IsReady}, host={p.IsHost}, survivor={p.SurvivorId}").ToArray() ?? [],
@@ -275,22 +274,22 @@ public partial class Game1
             CustomBubbleBinding = InputBindingsSettings.FormatBinding(_inputBindings.CustomBubble),
             BubbleMenu = _bubbleMenuKind.ToString(),
             PracticeBotNames = _practiceBotSlots.Values.Select(slot => slot.DisplayName).ToArray(),
-            ParticleMode = _particleMode,
-            FlameRenderMode = _flameRenderMode,
-            BloodRenderMode = _bloodRenderMode,
+            ParticleMode = _gameplayManager.RuntimeSettings.ParticleMode,
+            FlameRenderMode = _gameplayManager.RuntimeSettings.FlameRenderMode,
+            BloodRenderMode = _gameplayManager.RuntimeSettings.BloodRenderMode,
             ReducedBrowserEffects = UseReducedBrowserEffects,
             LoadingTitle = GetLoadingOverlayTitle(IsRestrictedBrowserEdition),
             HostedLobbyDrawCount = _browserHostedLobbyDrawCount,
-            RocketSmokeCount = _rocketSmokeVisuals.Count,
+            RocketSmokeCount = _gameplayManager.SmokeEffects.RocketSmokeVisualCount,
             FlameSmokeCount = _flameSmokeVisuals.Count,
             WorldFlameCount = _world.Flames.Count,
-            PrePredictionFlameCount = _prePredictionFlameCount,
+            PrePredictionFlameCount = _gameplayManager.Update.PrePredictionFlameCount,
             ProtocolFlameStates = _networkClient.Protocol64State.Projectiles
                 .Where(projectile => projectile.EntityKind == OpenGarrison.Protocol.Protocol64ProjectileKind.Flame)
                 .Take(4).Select(projectile => $"{projectile.StateTick}/{projectile.RemainingLifetimeTicks}@{projectile.X},{projectile.Y}").ToArray(),
             ProtocolFlameCount = _networkClient.Protocol64State.Projectiles.Count(
                 projectile => projectile.EntityKind == OpenGarrison.Protocol.Protocol64ProjectileKind.Flame),
-            ShellCount = _shellVisuals.Count,
+            ShellCount = _gameplayManager.MaterialEffects.ShellVisualCount,
             UmbrellaActive = GetPlayerIsCivvieUmbrellaActive(_world.LocalPlayer),
             UmbrellaOpeningTicks = GetPlayerPredictedPresentationState(_world.LocalPlayer).CivvieUmbrellaOpeningElapsedTicks,
             WeaponAnimation = GetPlayerWeaponAnimationMode(_world.LocalPlayer).ToString(),
@@ -302,7 +301,7 @@ public partial class Game1
             SurvivorBuffActive = _world.LocalPlayer.HasLastToDieSurvivorBuff,
             AutomaticRespawnSuppressed = _world.IsNetworkPlayerAutomaticRespawnSuppressed(_world.LocalPlayer),
             DroppedWeaponPickupsEnabled = _world.IsLastToDieGameplaySettingEnabled(settings => settings.EnableEnemyDroppedWeapons),
-            JoiningOverlayVisible = _loadingOverlayVisible && _loadingOverlayIsJoining,
+            JoiningOverlayVisible = _loadingOverlayState.Visible && _loadingOverlayState.IsJoining,
         };
     }
 
@@ -394,7 +393,7 @@ public partial class Game1
 
     private BrowserAutomationAction[] GetBrowserTeamSelectAutomationActions()
     {
-        if (!_teamSelectOpen)
+        if (!_teamClassSelectionState.TeamSelectOpen)
         {
             return [];
         }
@@ -411,7 +410,7 @@ public partial class Game1
 
     private BrowserAutomationAction[] GetBrowserClassSelectAutomationActions()
     {
-        if (!_classSelectOpen)
+        if (!_teamClassSelectionState.ClassSelectOpen)
         {
             return [];
         }
@@ -610,16 +609,16 @@ public partial class Game1
         {
             case "particle_mode":
                 if (!int.TryParse(value, out var particleMode) || particleMode is < 0 or > 2) return false;
-                _particleMode = particleMode;
+                _gameplayManager.RuntimeSettings.ParticleMode = particleMode;
                 return true;
             case "flame_render_mode":
                 if (!int.TryParse(value, out var flameMode) || flameMode is < 0 or > 1) return false;
-                _flameRenderMode = flameMode;
+                _gameplayManager.RuntimeSettings.FlameRenderMode = flameMode;
                 return true;
             case "blood_render_mode":
                 if (!int.TryParse(value, out var bloodMode) || bloodMode is < 0 or > 1) return false;
-                _bloodRenderMode = bloodMode;
-                if (_bloodRenderMode != 0)
+                _gameplayManager.RuntimeSettings.BloodRenderMode = bloodMode;
+                if (_gameplayManager.RuntimeSettings.BloodRenderMode != 0)
                 {
                     _gameplayManager.GoreEffects.ResetBloodSquibEffects();
                 }
@@ -648,7 +647,7 @@ public partial class Game1
                     return false;
                 }
 
-                _connectHostBuffer = (value ?? string.Empty).Trim();
+                _inputManager.MenuTextInput.ConnectHostEdit.Text = (value ?? string.Empty).Trim();
                 InitializeConnectHostCursor();
                 _sessionManager.Connection.SetManualConnectEditingField(editHost: true);
                 return true;
@@ -659,7 +658,7 @@ public partial class Game1
                 }
 
                 var digitsOnly = new string((value ?? string.Empty).Where(char.IsDigit).Take(5).ToArray());
-                _connectPortBuffer = digitsOnly;
+                _inputManager.MenuTextInput.ConnectPortEdit.Text = digitsOnly;
                 InitializeConnectPortCursor();
                 _sessionManager.Connection.SetManualConnectEditingField(editHost: false);
                 return true;
@@ -691,8 +690,8 @@ public partial class Game1
             return false;
         }
 
-        _connectHostBuffer = (host ?? string.Empty).Trim();
-        _connectPortBuffer = new string((portText ?? string.Empty).Where(char.IsDigit).Take(5).ToArray());
+        _inputManager.MenuTextInput.ConnectHostEdit.Text = (host ?? string.Empty).Trim();
+        _inputManager.MenuTextInput.ConnectPortEdit.Text = new string((portText ?? string.Empty).Where(char.IsDigit).Take(5).ToArray());
         InitializeConnectHostCursor();
         InitializeConnectPortCursor();
         _manualConnectOpen = true;
@@ -717,7 +716,7 @@ public partial class Game1
 
     private bool TryInvokeBrowserTeamSelectAction(string label)
     {
-        if (!_teamSelectOpen)
+        if (!_teamClassSelectionState.TeamSelectOpen)
         {
             return false;
         }
@@ -743,7 +742,7 @@ public partial class Game1
 
     private bool TryInvokeBrowserClassSelectAction(string label)
     {
-        if (!_classSelectOpen)
+        if (!_teamClassSelectionState.ClassSelectOpen)
         {
             return false;
         }

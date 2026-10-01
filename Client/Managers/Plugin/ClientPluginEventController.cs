@@ -15,10 +15,40 @@ namespace OpenGarrison.Client;
 public sealed class ClientPluginEventController
     {
         private readonly IPluginContext _context;
+        private readonly List<OpenGarrison.Protocol.SnapshotDamageEvent> _pendingNetworkDamageEvents = new();
+        private readonly Queue<ulong> _processedNetworkDamageEventOrder = new();
+        private readonly HashSet<ulong> _processedNetworkDamageEventIds = new();
+        private ValueTuple<bool, bool, OpenGarrison.Client.Plugins.ClientPluginTeam, float, float, float> _clientPluginPreviousBlueIntelState;
+        private readonly Dictionary<OpenGarrison.Core.PlayerTeam, ValueTuple<int, int, bool>> _clientPluginPreviousGeneratorStates = new();
+        private int _clientPluginPreviousKillFeedCount;
+        private bool _clientPluginPreviousLocalAlive;
+        private int _clientPluginPreviousLocalAmmo;
+        private bool _clientPluginPreviousLocalBurning;
+        private bool _clientPluginPreviousLocalCarryingIntel;
+        private int _clientPluginPreviousLocalPrimaryCooldownTicks;
+        private OpenGarrison.Client.Plugins.ClientRoundPhase _clientPluginPreviousMatchPhase;
+        private readonly Dictionary<int, ValueTuple<OpenGarrison.Client.Plugins.ClientPluginTeam, OpenGarrison.Client.Plugins.ClientPluginTeam, float, bool>> _clientPluginPreviousObjectiveStates = new();
+        private ValueTuple<bool, bool, OpenGarrison.Client.Plugins.ClientPluginTeam, float, float, float> _clientPluginPreviousRedIntelState;
 
         public ClientPluginEventController(IPluginContext context)
         {
             _context = context;
+        }
+
+        internal void QueuePendingNetworkDamageEvent(SnapshotDamageEvent damageEvent)
+        {
+            _pendingNetworkDamageEvents.Add(damageEvent);
+        }
+
+        internal void ClearPendingNetworkDamageEvents()
+        {
+            _pendingNetworkDamageEvents.Clear();
+        }
+
+        internal void ResetProcessedNetworkDamageEventHistory()
+        {
+            _processedNetworkDamageEventIds.Clear();
+            _processedNetworkDamageEventOrder.Clear();
         }
 
         public void QueueResolvedSnapshotDamageEvents(SnapshotMessage resolvedSnapshot)
@@ -26,12 +56,12 @@ public sealed class ClientPluginEventController
             for (var damageIndex = 0; damageIndex < resolvedSnapshot.DamageEvents.Count; damageIndex += 1)
             {
                 var damageEvent = resolvedSnapshot.DamageEvents[damageIndex];
-                if (!ShouldProcessNetworkEvent(damageEvent.EventId, _context._processedNetworkDamageEventIds, _context._processedNetworkDamageEventOrder))
+                if (!ShouldProcessNetworkEvent(damageEvent.EventId, _processedNetworkDamageEventIds, _processedNetworkDamageEventOrder))
                 {
                     continue;
                 }
 
-                _context._pendingNetworkDamageEvents.Add(damageEvent);
+                QueuePendingNetworkDamageEvent(damageEvent);
                 SpawnClientDamageVisuals(damageEvent);
                 _context.QueueImmediateNetworkDeathPresentation(resolvedSnapshot, damageEvent);
             }
@@ -59,31 +89,31 @@ public sealed class ClientPluginEventController
 
         public void ResetClientPluginGameplayEventState()
         {
-            _context._clientPluginPreviousMatchPhase = ToClientRoundPhase(_context._world.MatchState.Phase);
-            _context._clientPluginPreviousLocalAlive = _context._world.LocalPlayer.IsAlive;
-            _context._clientPluginPreviousLocalAmmo = _context._world.LocalPlayer.CurrentShells;
-            _context._clientPluginPreviousLocalPrimaryCooldownTicks = _context._world.LocalPlayer.PrimaryCooldownTicks;
-            _context._clientPluginPreviousLocalCarryingIntel = _context._world.LocalPlayer.IsCarryingIntel;
-            _context._clientPluginPreviousLocalBurning = _context._world.LocalPlayer.IsBurning;
-            _context._clientPluginPreviousKillFeedCount = _context._world.KillFeed.Count;
-            _context._clientPluginPreviousObjectiveStates.Clear();
-            _context._clientPluginPreviousGeneratorStates.Clear();
+            _clientPluginPreviousMatchPhase = ToClientRoundPhase(_context._world.MatchState.Phase);
+            _clientPluginPreviousLocalAlive = _context._world.LocalPlayer.IsAlive;
+            _clientPluginPreviousLocalAmmo = _context._world.LocalPlayer.CurrentShells;
+            _clientPluginPreviousLocalPrimaryCooldownTicks = _context._world.LocalPlayer.PrimaryCooldownTicks;
+            _clientPluginPreviousLocalCarryingIntel = _context._world.LocalPlayer.IsCarryingIntel;
+            _clientPluginPreviousLocalBurning = _context._world.LocalPlayer.IsBurning;
+            _clientPluginPreviousKillFeedCount = _context._world.KillFeed.Count;
+            _clientPluginPreviousObjectiveStates.Clear();
+            _clientPluginPreviousGeneratorStates.Clear();
             for (var index = 0; index < _context._world.ControlPoints.Count; index += 1)
             {
                 var point = _context._world.ControlPoints[index];
-                _context._clientPluginPreviousObjectiveStates[point.Index] = (
+                _clientPluginPreviousObjectiveStates[point.Index] = (
                     ToClientPluginTeam(point.Team),
                     ToClientPluginTeam(point.CappingTeam),
                     point.CapTimeTicks <= 0 ? 0f : Math.Clamp(point.CappingTicks / point.CapTimeTicks, 0f, 1f),
                     point.IsLocked);
             }
 
-            _context._clientPluginPreviousRedIntelState = CaptureIntelState(_context._world.RedIntel, PlayerTeam.Red);
-            _context._clientPluginPreviousBlueIntelState = CaptureIntelState(_context._world.BlueIntel, PlayerTeam.Blue);
+            _clientPluginPreviousRedIntelState = CaptureIntelState(_context._world.RedIntel, PlayerTeam.Red);
+            _clientPluginPreviousBlueIntelState = CaptureIntelState(_context._world.BlueIntel, PlayerTeam.Blue);
             for (var index = 0; index < _context._world.Generators.Count; index += 1)
             {
                 var generator = _context._world.Generators[index];
-                _context._clientPluginPreviousGeneratorStates[generator.Team] = (
+                _clientPluginPreviousGeneratorStates[generator.Team] = (
                     generator.Health,
                     generator.MaxHealth,
                     generator.IsDestroyed);
@@ -114,9 +144,9 @@ public sealed class ClientPluginEventController
                 }
             }
 
-            for (var index = 0; index < _context._pendingNetworkDamageEvents.Count; index += 1)
+            for (var index = 0; index < _pendingNetworkDamageEvents.Count; index += 1)
             {
-                var damageEvent = _context._pendingNetworkDamageEvents[index];
+                var damageEvent = _pendingNetworkDamageEvents[index];
                 TryTrackLastToDieDamageDealt(damageEvent.AttackerPlayerId, damageEvent.Amount);
                 _context.ObserveEvasionMissDamageEvent(damageEvent);
                 _context.ObserveHeavyDashDodgeDamageEvent(damageEvent);
@@ -127,7 +157,7 @@ public sealed class ClientPluginEventController
 
             if (_context._clientPluginHost is null)
             {
-                _context._pendingNetworkDamageEvents.Clear();
+                _pendingNetworkDamageEvents.Clear();
                 return;
             }
 
@@ -142,20 +172,20 @@ public sealed class ClientPluginEventController
                     }
                 }
 
-                for (var index = 0; index < _context._pendingNetworkDamageEvents.Count; index += 1)
+                for (var index = 0; index < _pendingNetworkDamageEvents.Count; index += 1)
                 {
-                    TryDispatchLocalDamageEvent(localPlayerId.Value, _context._pendingNetworkDamageEvents[index]);
+                    TryDispatchLocalDamageEvent(localPlayerId.Value, _pendingNetworkDamageEvents[index]);
                 }
             }
 
-            _context._pendingNetworkDamageEvents.Clear();
+            _pendingNetworkDamageEvents.Clear();
         }
 
         private bool ShouldSpawnClientBloodFromDamage(CoreDamageTargetKind targetKind, int damageAmount)
         {
             // Squib mode draws its own client squirts from visual events — skip legacy BloodDropEntity.
             return _context.AreBloodVisualsEnabled
-                && _context._bloodRenderMode != 0
+                && _context.GameplayRuntimeSettings.BloodRenderMode != 0
                 && targetKind == CoreDamageTargetKind.Player
                 && damageAmount > 0;
         }
@@ -361,18 +391,18 @@ public sealed class ClientPluginEventController
         {
             if (_context._clientPluginHost is null)
             {
-                _context._clientPluginPreviousMatchPhase = ToClientRoundPhase(_context._world.MatchState.Phase);
+                _clientPluginPreviousMatchPhase = ToClientRoundPhase(_context._world.MatchState.Phase);
                 return;
             }
 
             var currentPhase = ToClientRoundPhase(_context._world.MatchState.Phase);
-            if (currentPhase != _context._clientPluginPreviousMatchPhase)
+            if (currentPhase != _clientPluginPreviousMatchPhase)
             {
                 _context._clientPluginHost.NotifyRoundPhaseChanged(new ClientRoundPhaseChangedEvent(
-                    _context._clientPluginPreviousMatchPhase,
+                    _clientPluginPreviousMatchPhase,
                     currentPhase,
                     (ulong)Math.Max(0, _context._world.Frame)));
-                _context._clientPluginPreviousMatchPhase = currentPhase;
+                _clientPluginPreviousMatchPhase = currentPhase;
             }
         }
 
@@ -382,15 +412,15 @@ public sealed class ClientPluginEventController
             var localPlayer = _context._world.LocalPlayer;
             if (pluginHost is null || _context.IsLocalSpectatorPresentationActive())
             {
-                _context._clientPluginPreviousLocalAlive = localPlayer.IsAlive;
-                _context._clientPluginPreviousLocalAmmo = localPlayer.CurrentShells;
-                _context._clientPluginPreviousLocalPrimaryCooldownTicks = localPlayer.PrimaryCooldownTicks;
-                _context._clientPluginPreviousLocalCarryingIntel = localPlayer.IsCarryingIntel;
-                _context._clientPluginPreviousLocalBurning = localPlayer.IsBurning;
+                _clientPluginPreviousLocalAlive = localPlayer.IsAlive;
+                _clientPluginPreviousLocalAmmo = localPlayer.CurrentShells;
+                _clientPluginPreviousLocalPrimaryCooldownTicks = localPlayer.PrimaryCooldownTicks;
+                _clientPluginPreviousLocalCarryingIntel = localPlayer.IsCarryingIntel;
+                _clientPluginPreviousLocalBurning = localPlayer.IsBurning;
                 return;
             }
 
-            if (_context._clientPluginPreviousLocalAlive && !localPlayer.IsAlive)
+            if (_clientPluginPreviousLocalAlive && !localPlayer.IsAlive)
             {
                 var latestEntry = FindLatestKillFeedEntryForVictim(localPlayer.Id);
                 pluginHost.NotifyLocalDeath(new ClientLocalDeathEvent(
@@ -404,8 +434,8 @@ public sealed class ClientPluginEventController
 
             if (localPlayer.IsAlive)
             {
-                var firedShot = localPlayer.CurrentShells < _context._clientPluginPreviousLocalAmmo
-                    || (_context._clientPluginPreviousLocalPrimaryCooldownTicks <= 0 && localPlayer.PrimaryCooldownTicks > 0);
+                var firedShot = localPlayer.CurrentShells < _clientPluginPreviousLocalAmmo
+                    || (_clientPluginPreviousLocalPrimaryCooldownTicks <= 0 && localPlayer.PrimaryCooldownTicks > 0);
                 if (firedShot)
                 {
                     pluginHost.NotifyShotFired(new ClientShotFiredEvent(
@@ -415,7 +445,7 @@ public sealed class ClientPluginEventController
                         (ulong)Math.Max(0, _context._world.Frame)));
                 }
 
-                if (!_context._clientPluginPreviousLocalCarryingIntel && localPlayer.IsCarryingIntel)
+                if (!_clientPluginPreviousLocalCarryingIntel && localPlayer.IsCarryingIntel)
                 {
                     pluginHost.NotifyPickup(new ClientPickupEvent(
                         ClientGameplayPickupKind.Intel,
@@ -424,20 +454,20 @@ public sealed class ClientPluginEventController
                 }
             }
 
-            if (!_context._clientPluginPreviousLocalBurning && localPlayer.IsBurning)
+            if (!_clientPluginPreviousLocalBurning && localPlayer.IsBurning)
             {
                 pluginHost.NotifyIgnited(new ClientIgniteEvent(localPlayer.BurnedByPlayerId ?? -1, localPlayer.BurnIntensity, (ulong)Math.Max(0, _context._world.Frame)));
             }
-            else if (_context._clientPluginPreviousLocalBurning && !localPlayer.IsBurning)
+            else if (_clientPluginPreviousLocalBurning && !localPlayer.IsBurning)
             {
                 pluginHost.NotifyExtinguished(new ClientExtinguishEvent((ulong)Math.Max(0, _context._world.Frame)));
             }
 
-            _context._clientPluginPreviousLocalAlive = localPlayer.IsAlive;
-            _context._clientPluginPreviousLocalAmmo = localPlayer.CurrentShells;
-            _context._clientPluginPreviousLocalPrimaryCooldownTicks = localPlayer.PrimaryCooldownTicks;
-            _context._clientPluginPreviousLocalCarryingIntel = localPlayer.IsCarryingIntel;
-            _context._clientPluginPreviousLocalBurning = localPlayer.IsBurning;
+            _clientPluginPreviousLocalAlive = localPlayer.IsAlive;
+            _clientPluginPreviousLocalAmmo = localPlayer.CurrentShells;
+            _clientPluginPreviousLocalPrimaryCooldownTicks = localPlayer.PrimaryCooldownTicks;
+            _clientPluginPreviousLocalCarryingIntel = localPlayer.IsCarryingIntel;
+            _clientPluginPreviousLocalBurning = localPlayer.IsBurning;
         }
 
         private void DispatchClientObjectiveEvents()
@@ -456,7 +486,7 @@ public sealed class ClientPluginEventController
                     ToClientPluginTeam(point.CappingTeam),
                     point.CapTimeTicks <= 0 ? 0f : Math.Clamp(point.CappingTicks / point.CapTimeTicks, 0f, 1f),
                     point.IsLocked);
-                var previousState = _context._clientPluginPreviousObjectiveStates.GetValueOrDefault(point.Index, currentState);
+                var previousState = _clientPluginPreviousObjectiveStates.GetValueOrDefault(point.Index, currentState);
                 if (!Equals(previousState, currentState))
                 {
                     pluginHost.NotifyObjectiveStateChanged(new ClientObjectiveStateEvent(
@@ -470,11 +500,11 @@ public sealed class ClientPluginEventController
                         (ulong)Math.Max(0, _context._world.Frame)));
                 }
 
-                _context._clientPluginPreviousObjectiveStates[point.Index] = currentState;
+                _clientPluginPreviousObjectiveStates[point.Index] = currentState;
             }
 
-            DispatchIntelStateEvent(pluginHost, _context._world.RedIntel, PlayerTeam.Red, ref _context._clientPluginPreviousRedIntelState);
-            DispatchIntelStateEvent(pluginHost, _context._world.BlueIntel, PlayerTeam.Blue, ref _context._clientPluginPreviousBlueIntelState);
+            DispatchIntelStateEvent(pluginHost, _context._world.RedIntel, PlayerTeam.Red, ref _clientPluginPreviousRedIntelState);
+            DispatchIntelStateEvent(pluginHost, _context._world.BlueIntel, PlayerTeam.Blue, ref _clientPluginPreviousBlueIntelState);
 
             for (var index = 0; index < _context._world.Generators.Count; index += 1)
             {
@@ -483,7 +513,7 @@ public sealed class ClientPluginEventController
                     generator.Health,
                     generator.MaxHealth,
                     generator.IsDestroyed);
-                var previousState = _context._clientPluginPreviousGeneratorStates.GetValueOrDefault(generator.Team, currentState);
+                var previousState = _clientPluginPreviousGeneratorStates.GetValueOrDefault(generator.Team, currentState);
                 if (!Equals(previousState, currentState))
                 {
                     pluginHost.NotifyGeneratorStateChanged(new ClientGeneratorStateEvent(
@@ -495,7 +525,7 @@ public sealed class ClientPluginEventController
                         (ulong)Math.Max(0, _context._world.Frame)));
                 }
 
-                _context._clientPluginPreviousGeneratorStates[generator.Team] = currentState;
+                _clientPluginPreviousGeneratorStates[generator.Team] = currentState;
             }
         }
 
@@ -504,17 +534,17 @@ public sealed class ClientPluginEventController
             var pluginHost = _context._clientPluginHost;
             if (pluginHost is null)
             {
-                _context._clientPluginPreviousKillFeedCount = _context._world.KillFeed.Count;
+                _clientPluginPreviousKillFeedCount = _context._world.KillFeed.Count;
                 return;
             }
 
-            if (_context._world.KillFeed.Count < _context._clientPluginPreviousKillFeedCount)
+            if (_context._world.KillFeed.Count < _clientPluginPreviousKillFeedCount)
             {
-                _context._clientPluginPreviousKillFeedCount = 0;
+                _clientPluginPreviousKillFeedCount = 0;
             }
 
             var localPlayerId = _context.GetClientPluginLocalPlayerId();
-            for (var index = _context._clientPluginPreviousKillFeedCount; index < _context._world.KillFeed.Count; index += 1)
+            for (var index = _clientPluginPreviousKillFeedCount; index < _context._world.KillFeed.Count; index += 1)
             {
                 var entry = _context._world.KillFeed[index];
                 var killFeedEvent = new ClientKillFeedEvent(
@@ -540,7 +570,7 @@ public sealed class ClientPluginEventController
                 }
             }
 
-            _context._clientPluginPreviousKillFeedCount = _context._world.KillFeed.Count;
+            _clientPluginPreviousKillFeedCount = _context._world.KillFeed.Count;
         }
 
         private KillFeedEntry? FindLatestKillFeedEntryForVictim(int victimPlayerId)

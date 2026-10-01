@@ -11,18 +11,18 @@ public partial class Game1
 {
     public void UpdateClassSelect(KeyboardState keyboard, MouseState mouse, bool acceptSelectionInput = true)
     {
-        if (!_classSelectOpen)
+        if (!_teamClassSelectionState.ClassSelectOpen)
         {
-            _classSelectHoverIndex = -1;
+            _teamClassSelectionState.ClassSelectHoverIndex = -1;
             ResetClassSelectPortraitAnimation();
-            if (_classSelectAlpha > 0.01f)
+            if (_teamClassSelectionState.ClassSelectAlpha > 0.01f)
             {
-                _classSelectAlpha = AdvanceClosingAlpha(_classSelectAlpha, 0.01f);
+                _teamClassSelectionState.ClassSelectAlpha = AdvanceClosingAlpha(_teamClassSelectionState.ClassSelectAlpha, 0.01f);
             }
 
-            if (_classSelectPanelY > -120f)
+            if (_teamClassSelectionState.ClassSelectPanelY > -120f)
             {
-                _classSelectPanelY = MathF.Max(-120f, _classSelectPanelY - ScaleLegacyUiDistance(15f));
+                _teamClassSelectionState.ClassSelectPanelY = MathF.Max(-120f, _teamClassSelectionState.ClassSelectPanelY - ScaleLegacyUiDistance(15f));
             }
 
             return;
@@ -51,34 +51,34 @@ public partial class Game1
             return;
         }
 
-        if (_classSelectAlpha < 0.99f)
+        if (_teamClassSelectionState.ClassSelectAlpha < 0.99f)
         {
-            _classSelectAlpha = AdvanceOpeningAlpha(_classSelectAlpha, 0.01f, 0.99f);
+            _teamClassSelectionState.ClassSelectAlpha = AdvanceOpeningAlpha(_teamClassSelectionState.ClassSelectAlpha, 0.01f, 0.99f);
         }
 
-        if (_classSelectPanelY < 120f)
+        if (_teamClassSelectionState.ClassSelectPanelY < 120f)
         {
-            _classSelectPanelY = MathF.Min(120f, _classSelectPanelY + ScaleLegacyUiDistance(15f));
+            _teamClassSelectionState.ClassSelectPanelY = MathF.Min(120f, _teamClassSelectionState.ClassSelectPanelY + ScaleLegacyUiDistance(15f));
         }
 
         var panelLeft = GetClassSelectPanelLeft(ViewportWidth);
         var mouseHoverIndex = GetClassSelectHoverIndex(mouse.X, mouse.Y, panelLeft);
         if (ShouldUseMouseMenuHover(mouse) && mouseHoverIndex >= 0)
         {
-            _classSelectHoverIndex = mouseHoverIndex;
+            _teamClassSelectionState.ClassSelectHoverIndex = mouseHoverIndex;
         }
         else if (!IsControllerMenuInputActive())
         {
-            _classSelectHoverIndex = -1;
+            _teamClassSelectionState.ClassSelectHoverIndex = -1;
         }
 
         if (TryConsumeControllerMenuNavigation(out var horizontalStep, out _) && horizontalStep != 0)
         {
-            _classSelectHoverIndex = MoveControllerMenuSelectionClamped(_classSelectHoverIndex, 10, horizontalStep);
+            _teamClassSelectionState.ClassSelectHoverIndex = MoveControllerMenuSelectionClamped(_teamClassSelectionState.ClassSelectHoverIndex, 10, horizontalStep);
         }
-        else if (IsControllerMenuInputActive() && _classSelectHoverIndex < 0)
+        else if (IsControllerMenuInputActive() && _teamClassSelectionState.ClassSelectHoverIndex < 0)
         {
-            _classSelectHoverIndex = 0;
+            _teamClassSelectionState.ClassSelectHoverIndex = 0;
         }
 
         AdvanceClassSelectPortraitAnimation();
@@ -89,13 +89,13 @@ public partial class Game1
         }
 
         var clickPressed = mouse.LeftButton == ButtonState.Pressed && _previousMouse.LeftButton != ButtonState.Pressed;
-        if ((!clickPressed && !IsControllerMenuConfirmPressed()) || _classSelectHoverIndex < 0)
+        if ((!clickPressed && !IsControllerMenuConfirmPressed()) || _teamClassSelectionState.ClassSelectHoverIndex < 0)
         {
             return;
         }
 
         SuppressPrimaryFireUntilMouseRelease();
-        if (ApplyClassSelection(_classSelectHoverIndex))
+        if (ApplyClassSelection(_teamClassSelectionState.ClassSelectHoverIndex))
         {
             CloseGameplaySelectionMenus();
         }
@@ -117,19 +117,19 @@ public partial class Game1
         var viewportWidth = ViewportWidth;
         var viewportHeight = ViewportHeight;
         var panelLeft = GetClassSelectPanelLeft(viewportWidth);
-        var alpha = Math.Clamp(_classSelectAlpha, 0.01f, 0.99f);
+        var alpha = Math.Clamp(_teamClassSelectionState.ClassSelectAlpha, 0.01f, 0.99f);
         _spriteBatch.Draw(_pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.Black * MathF.Min(0.8f, alpha));
         DrawClassSelectBackground(panelLeft, viewportWidth, alpha);
 
-        var previewTeam = _pendingClassSelectTeam ?? _world.LocalPlayerTeam;
-        if (_classSelectPanelY >= 120f && _classSelectHoverIndex >= 0 && _classSelectHoverIndex < 10)
+        var previewTeam = _teamClassSelectionState.PendingClassSelectTeam ?? _world.LocalPlayerTeam;
+        if (_teamClassSelectionState.ClassSelectPanelY >= 120f && _teamClassSelectionState.ClassSelectHoverIndex >= 0 && _teamClassSelectionState.ClassSelectHoverIndex < 10)
         {
             var teamOffset = previewTeam == PlayerTeam.Blue ? 10 : 0;
-            var drawX = GetClassSelectDrawX(_classSelectHoverIndex);
+            var drawX = GetClassSelectDrawX(_teamClassSelectionState.ClassSelectHoverIndex);
             var previewPosition = new Vector2(panelLeft + drawX, 0f);
-            TryDrawScreenSprite("ClassSelectSpritesS", _classSelectHoverIndex + teamOffset, previewPosition, Color.White * alpha, Vector2.One);
+            TryDrawScreenSprite("ClassSelectSpritesS", _teamClassSelectionState.ClassSelectHoverIndex + teamOffset, previewPosition, Color.White * alpha, Vector2.One);
 
-            var lines = GetClassSelectDescription(_classSelectHoverIndex);
+            var lines = GetClassSelectDescription(_teamClassSelectionState.ClassSelectHoverIndex);
             float[] lineY = [80f, 100f, 120f, 130f, 140f];
             var lineCount = Math.Min(lines.Length, lineY.Length);
             for (var index = 0; index < lineCount; index += 1)
@@ -138,12 +138,12 @@ public partial class Game1
             }
         }
 
-        if (_classSelectPanelY >= 120f
-            && _classSelectPortraitAnimationHoverIndex >= 0
-            && _classSelectPortraitAnimationHoverIndex <= 9
+        if (_teamClassSelectionState.ClassSelectPanelY >= 120f
+            && _teamClassSelectionState.ClassSelectPortraitAnimationHoverIndex >= 0
+            && _teamClassSelectionState.ClassSelectPortraitAnimationHoverIndex <= 9
             && !TryDrawClassSelectPortraitAnimation(
-                _classSelectPortraitAnimationHoverIndex,
-                _classSelectPortraitAnimationTeam ?? previewTeam,
+                _teamClassSelectionState.ClassSelectPortraitAnimationHoverIndex,
+                _teamClassSelectionState.ClassSelectPortraitAnimationTeam ?? previewTeam,
                 new Vector2(panelLeft + 230f, 128f),
                 Color.White * alpha))
         {
@@ -157,10 +157,10 @@ public partial class Game1
         var stretchWidth = MathF.Max(0f, viewportWidth - panelLeft - 800f);
         if (stretchWidth > 0f)
         {
-            TryDrawScreenSprite("ClassSelectBS", 0, new Vector2(panelLeft + 800f, _classSelectPanelY), Color.White * alpha, new Vector2(stretchWidth, 1f));
+            TryDrawScreenSprite("ClassSelectBS", 0, new Vector2(panelLeft + 800f, _teamClassSelectionState.ClassSelectPanelY), Color.White * alpha, new Vector2(stretchWidth, 1f));
         }
 
-        TryDrawScreenSprite("ClassSelectS", 0, new Vector2(panelLeft + 400f, _classSelectPanelY), Color.White * alpha, Vector2.One);
+        TryDrawScreenSprite("ClassSelectS", 0, new Vector2(panelLeft + 400f, _teamClassSelectionState.ClassSelectPanelY), Color.White * alpha, Vector2.One);
     }
 
     private static float GetClassSelectPanelLeft(int viewportWidth)
@@ -265,7 +265,7 @@ public partial class Game1
             return false;
         }
 
-        WarmBrowserPlayableClassAssets(selectedClass, _pendingClassSelectTeam ?? _world.LocalPlayerTeam);
+        WarmBrowserPlayableClassAssets(selectedClass, _teamClassSelectionState.PendingClassSelectTeam ?? _world.LocalPlayerTeam);
 
         if (_networkClient.IsConnected)
         {
@@ -454,29 +454,29 @@ public partial class Game1
 
     private void AdvanceClassSelectPortraitAnimation()
     {
-        if (_classSelectPanelY < 120f)
+        if (_teamClassSelectionState.ClassSelectPanelY < 120f)
         {
             ResetClassSelectPortraitAnimation();
             return;
         }
 
-        var previewTeam = _pendingClassSelectTeam ?? _world.LocalPlayerTeam;
-        if (_classSelectHoverIndex >= 0
-            && (_classSelectPortraitAnimationHoverIndex != _classSelectHoverIndex
-                || _classSelectPortraitAnimationTeam != previewTeam))
+        var previewTeam = _teamClassSelectionState.PendingClassSelectTeam ?? _world.LocalPlayerTeam;
+        if (_teamClassSelectionState.ClassSelectHoverIndex >= 0
+            && (_teamClassSelectionState.ClassSelectPortraitAnimationHoverIndex != _teamClassSelectionState.ClassSelectHoverIndex
+                || _teamClassSelectionState.ClassSelectPortraitAnimationTeam != previewTeam))
         {
-            _classSelectPortraitAnimationHoverIndex = _classSelectHoverIndex;
-            _classSelectPortraitAnimationTeam = previewTeam;
-            _classSelectPortraitAnimationFrame = 0f;
+            _teamClassSelectionState.ClassSelectPortraitAnimationHoverIndex = _teamClassSelectionState.ClassSelectHoverIndex;
+            _teamClassSelectionState.ClassSelectPortraitAnimationTeam = previewTeam;
+            _teamClassSelectionState.ClassSelectPortraitAnimationFrame = 0f;
             return;
         }
 
-        if (_classSelectPortraitAnimationHoverIndex < 0)
+        if (_teamClassSelectionState.ClassSelectPortraitAnimationHoverIndex < 0)
         {
             return;
         }
 
-        var spriteName = GetClassSelectPortraitAnimationSpriteName(_classSelectPortraitAnimationHoverIndex);
+        var spriteName = GetClassSelectPortraitAnimationSpriteName(_teamClassSelectionState.ClassSelectPortraitAnimationHoverIndex);
         if (spriteName is null)
         {
             return;
@@ -491,18 +491,18 @@ public partial class Game1
         var perTeamFrames = sprite.Frames.Count / 2;
         if (perTeamFrames <= 0)
         {
-            _classSelectPortraitAnimationFrame = 0f;
+            _teamClassSelectionState.ClassSelectPortraitAnimationFrame = 0f;
             return;
         }
 
         var maxFrame = perTeamFrames - 1;
         if (maxFrame <= 0)
         {
-            _classSelectPortraitAnimationFrame = 0f;
+            _teamClassSelectionState.ClassSelectPortraitAnimationFrame = 0f;
             return;
         }
 
-        _classSelectPortraitAnimationFrame = MathF.Min(maxFrame, _classSelectPortraitAnimationFrame + GetClassSelectPortraitAnimationAdvance(_clientUpdateElapsedSeconds));
+        _teamClassSelectionState.ClassSelectPortraitAnimationFrame = MathF.Min(maxFrame, _teamClassSelectionState.ClassSelectPortraitAnimationFrame + GetClassSelectPortraitAnimationAdvance(_clientUpdateElapsedSeconds));
     }
 
     private static float GetClassSelectPortraitAnimationAdvance(float clientUpdateElapsedSeconds)
@@ -532,7 +532,7 @@ public partial class Game1
         }
 
         var teamOffset = previewTeam == PlayerTeam.Blue ? perTeamFrames : 0;
-        var frameIndex = teamOffset + Math.Clamp((int)MathF.Floor(_classSelectPortraitAnimationFrame), 0, perTeamFrames - 1);
+        var frameIndex = teamOffset + Math.Clamp((int)MathF.Floor(_teamClassSelectionState.ClassSelectPortraitAnimationFrame), 0, perTeamFrames - 1);
         return TryDrawScreenSprite(spriteName, frameIndex, position, tint, new Vector2(4f, 4f));
     }
 
@@ -556,8 +556,8 @@ public partial class Game1
 
     private void ResetClassSelectPortraitAnimation()
     {
-        _classSelectPortraitAnimationHoverIndex = -1;
-        _classSelectPortraitAnimationTeam = null;
-        _classSelectPortraitAnimationFrame = 0f;
+        _teamClassSelectionState.ClassSelectPortraitAnimationHoverIndex = -1;
+        _teamClassSelectionState.ClassSelectPortraitAnimationTeam = null;
+        _teamClassSelectionState.ClassSelectPortraitAnimationFrame = 0f;
     }
 }

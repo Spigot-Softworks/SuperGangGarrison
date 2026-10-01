@@ -60,10 +60,45 @@ public sealed class GameplayAudioEventController
         private const float LocalBuffBannerReadyCueVolume = 0.9f;
         private const float LocalBuffBannerReadyCueEchoSuppressionSeconds = 2f;
         private readonly IAudioContext _context;
+        private readonly List<OpenGarrison.Core.WorldSoundEvent> _pendingNetworkSoundEvents = new();
+        private readonly Queue<ulong> _processedKillFeedEventOrder = new();
+        private readonly HashSet<ulong> _processedKillFeedEventIds = new();
+        private readonly Queue<ulong> _processedNetworkSoundEventOrder = new();
+        private readonly HashSet<ulong> _processedNetworkSoundEventIds = new();
+        private float _localBuffBannerReadyCueEchoSuppressionSeconds;
+        private readonly OpenGarrison.Client.BuffBannerReadyCueTracker _localBuffBannerReadyCueTracker = new();
+        private int _previousLocalDemoknightChargeTicks = PlayerEntity.ExperimentalDemoknightChargeMaxTicks;
 
         public GameplayAudioEventController(IAudioContext context)
         {
             _context = context;
+        }
+
+        internal void QueuePendingNetworkSoundEvent(WorldSoundEvent soundEvent)
+        {
+            _pendingNetworkSoundEvents.Add(soundEvent);
+        }
+
+        internal void ClearPendingNetworkSoundEvents()
+        {
+            _pendingNetworkSoundEvents.Clear();
+        }
+
+        internal void ResetProcessedNetworkSoundEventHistory()
+        {
+            _processedNetworkSoundEventIds.Clear();
+            _processedNetworkSoundEventOrder.Clear();
+        }
+
+        internal void ResetProcessedKillFeedEventHistory()
+        {
+            _processedKillFeedEventIds.Clear();
+            _processedKillFeedEventOrder.Clear();
+        }
+
+        internal bool HasProcessedNetworkSoundEvent(ulong eventId)
+        {
+            return Game1.HasProcessedNetworkEvent(eventId, _processedNetworkSoundEventIds);
         }
 
         public void PlayDeathCamSoundIfNeeded()
@@ -78,7 +113,7 @@ public sealed class GameplayAudioEventController
                 return;
             }
 
-            if (!_context._killCamEnabled || _context._world.LocalPlayer.IsAlive || _context._world.LocalDeathCam is null)
+            if (!_context.GameplayRuntimeSettings.KillCamEnabled || _context._world.LocalPlayer.IsAlive || _context._world.LocalDeathCam is null)
             {
                 return;
             }
@@ -102,10 +137,10 @@ public sealed class GameplayAudioEventController
             var reachedReadyThisTick = player.IsExperimentalDemoknightEnabled
                 && player.IsAlive
                 && !player.IsExperimentalDemoknightCharging
-                && _context._previousLocalDemoknightChargeTicks < PlayerEntity.ExperimentalDemoknightChargeMaxTicks
+                && _previousLocalDemoknightChargeTicks < PlayerEntity.ExperimentalDemoknightChargeMaxTicks
                 && currentChargeTicks >= PlayerEntity.ExperimentalDemoknightChargeMaxTicks;
 
-            _context._previousLocalDemoknightChargeTicks = currentChargeTicks;
+            _previousLocalDemoknightChargeTicks = currentChargeTicks;
             if (!reachedReadyThisTick || !_context._audioAvailable)
             {
                 return;
@@ -117,9 +152,9 @@ public sealed class GameplayAudioEventController
 
         public void PlayBuffBannerReadySoundIfNeeded()
         {
-            _context._localBuffBannerReadyCueEchoSuppressionSeconds = Math.Max(
+            _localBuffBannerReadyCueEchoSuppressionSeconds = Math.Max(
                 0f,
-                _context._localBuffBannerReadyCueEchoSuppressionSeconds
+                _localBuffBannerReadyCueEchoSuppressionSeconds
                     - _context._gameplayPresentationDeltaSeconds);
             var player = _context._world.LocalPlayer;
             var eligible = player.IsAlive
@@ -127,7 +162,7 @@ public sealed class GameplayAudioEventController
                 && player.HasGameplayAbilityBehavior(
                     GameplayAbilityConstants.UtilityChannel,
                     BuiltInGameplayBehaviorIds.SoldierBuffBanner);
-            if (!_context._localBuffBannerReadyCueTracker.Observe(
+            if (!_localBuffBannerReadyCueTracker.Observe(
                     eligible,
                     _context.GetPlayerBuffBannerChargeDamage(player),
                     _context.GetPlayerBuffBannerMaxChargeDamage(player))
@@ -140,15 +175,15 @@ public sealed class GameplayAudioEventController
             if (sound is not null
                 && _context.TryPlaySound(sound, LocalBuffBannerReadyCueVolume, 0f, 0f))
             {
-                _context._localBuffBannerReadyCueEchoSuppressionSeconds =
+                _localBuffBannerReadyCueEchoSuppressionSeconds =
                     LocalBuffBannerReadyCueEchoSuppressionSeconds;
             }
         }
 
         public void ResetBuffBannerReadySoundObservation()
         {
-            _context._localBuffBannerReadyCueTracker.Reset();
-            _context._localBuffBannerReadyCueEchoSuppressionSeconds = 0f;
+            _localBuffBannerReadyCueTracker.Reset();
+            _localBuffBannerReadyCueEchoSuppressionSeconds = 0f;
         }
 
         public void PlayRoundEndSoundIfNeeded()
@@ -190,7 +225,7 @@ public sealed class GameplayAudioEventController
                 var entry = _context._world.KillFeed[index];
                 if (entry.EventId == 0
                     || entry.SpecialType == OpenGarrison.Core.KillFeedSpecialType.None
-                    || !Game1.ShouldProcessNetworkEvent(entry.EventId, _context._processedKillFeedEventIds, _context._processedKillFeedEventOrder))
+                    || !Game1.ShouldProcessNetworkEvent(entry.EventId, _processedKillFeedEventIds, _processedKillFeedEventOrder))
                 {
                     continue;
                 }
@@ -218,32 +253,32 @@ public sealed class GameplayAudioEventController
             _context.AdvanceLowPriorityWorldSoundThrottle();
             _context.AdvanceLocalWeaponSoundFocus();
 
-            if (_context._pendingNetworkSoundEvents.Count > 1)
+            if (_pendingNetworkSoundEvents.Count > 1)
             {
-                _context._pendingNetworkSoundEvents.Sort((left, right) => GetSoundEventPlaybackPriority(left).CompareTo(GetSoundEventPlaybackPriority(right)));
+                _pendingNetworkSoundEvents.Sort((left, right) => GetSoundEventPlaybackPriority(left).CompareTo(GetSoundEventPlaybackPriority(right)));
             }
 
             var retainedNetworkSoundCount = 0;
-            for (var index = 0; index < _context._pendingNetworkSoundEvents.Count; index += 1)
+            for (var index = 0; index < _pendingNetworkSoundEvents.Count; index += 1)
             {
-                var soundEvent = _context._pendingNetworkSoundEvents[index];
+                var soundEvent = _pendingNetworkSoundEvents[index];
                 if (ProcessPendingSoundEvent(soundEvent))
                 {
                     continue;
                 }
 
-                _context._pendingNetworkSoundEvents[retainedNetworkSoundCount++] = soundEvent;
+                _pendingNetworkSoundEvents[retainedNetworkSoundCount++] = soundEvent;
             }
 
             if (retainedNetworkSoundCount == 0)
             {
-                _context._pendingNetworkSoundEvents.Clear();
+                _pendingNetworkSoundEvents.Clear();
             }
-            else if (retainedNetworkSoundCount < _context._pendingNetworkSoundEvents.Count)
+            else if (retainedNetworkSoundCount < _pendingNetworkSoundEvents.Count)
             {
-                _context._pendingNetworkSoundEvents.RemoveRange(
+                _pendingNetworkSoundEvents.RemoveRange(
                     retainedNetworkSoundCount,
-                    _context._pendingNetworkSoundEvents.Count - retainedNetworkSoundCount);
+                    _pendingNetworkSoundEvents.Count - retainedNetworkSoundCount);
             }
 
             var worldSoundEvents = _context._world.DrainPendingSoundEvents();
@@ -275,16 +310,16 @@ public sealed class GameplayAudioEventController
         {
             if (soundEvent.EventId != 0)
             {
-                for (var index = 0; index < _context._pendingNetworkSoundEvents.Count; index += 1)
+                for (var index = 0; index < _pendingNetworkSoundEvents.Count; index += 1)
                 {
-                    if (_context._pendingNetworkSoundEvents[index].EventId == soundEvent.EventId)
+                    if (_pendingNetworkSoundEvents[index].EventId == soundEvent.EventId)
                     {
                         return;
                     }
                 }
             }
 
-            _context._pendingNetworkSoundEvents.Add(soundEvent);
+            _pendingNetworkSoundEvents.Add(soundEvent);
         }
 
         private int GetSoundEventPlaybackPriority(WorldSoundEvent soundEvent)
@@ -297,7 +332,7 @@ public sealed class GameplayAudioEventController
 
         private bool ProcessPendingSoundEvent(WorldSoundEvent soundEvent)
         {
-            if (Game1.HasProcessedNetworkEvent(soundEvent.EventId, _context._processedNetworkSoundEventIds))
+            if (Game1.HasProcessedNetworkEvent(soundEvent.EventId, _processedNetworkSoundEventIds))
             {
                 return true;
             }
@@ -314,7 +349,7 @@ public sealed class GameplayAudioEventController
 
             if (ShouldSuppressLocalBuffBannerReadySoundEcho(soundEvent))
             {
-                _context._localBuffBannerReadyCueEchoSuppressionSeconds = 0f;
+                _localBuffBannerReadyCueEchoSuppressionSeconds = 0f;
                 return CompleteSoundEvent(soundEvent);
             }
 
@@ -387,7 +422,7 @@ public sealed class GameplayAudioEventController
             }
 
             _context.NotifyClientPluginsWorldSound(soundEvent);
-            Game1.MarkProcessedNetworkEvent(soundEvent.EventId, _context._processedNetworkSoundEventIds, _context._processedNetworkSoundEventOrder);
+            Game1.MarkProcessedNetworkEvent(soundEvent.EventId, _processedNetworkSoundEventIds, _processedNetworkSoundEventOrder);
             _context.ForgetPresentedExplosionVisualForSoundEvent(soundEvent);
             _context.RememberPlayedLowPriorityWorldSound(resolvedSoundName, soundEvent);
             _context.TriggerLocalConfirmedWeaponFireFeedback(resolvedSoundName, soundEvent);
@@ -405,7 +440,7 @@ public sealed class GameplayAudioEventController
         private bool CompleteSoundEvent(WorldSoundEvent soundEvent)
         {
             _context.NotifyClientPluginsWorldSound(soundEvent);
-            Game1.MarkProcessedNetworkEvent(soundEvent.EventId, _context._processedNetworkSoundEventIds, _context._processedNetworkSoundEventOrder);
+            Game1.MarkProcessedNetworkEvent(soundEvent.EventId, _processedNetworkSoundEventIds, _processedNetworkSoundEventOrder);
             _context.ForgetPresentedExplosionVisualForSoundEvent(soundEvent);
             return true;
         }
@@ -470,7 +505,7 @@ public sealed class GameplayAudioEventController
         private bool ShouldSuppressLocalBuffBannerReadySoundEcho(WorldSoundEvent soundEvent)
         {
             var player = _context._world.LocalPlayer;
-            return _context._localBuffBannerReadyCueEchoSuppressionSeconds > 0f
+            return _localBuffBannerReadyCueEchoSuppressionSeconds > 0f
                 && string.Equals(
                     soundEvent.SoundName,
                     PlayerEntity.BuffBannerReadySoundName,

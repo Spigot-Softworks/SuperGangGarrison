@@ -35,7 +35,7 @@ public sealed class MainMenuPageController
                 tall: false,
                 stackedActions.Count,
                 includeSoloButton: soloAction is not null,
-                includeBottomBarButton: bottomBarAction is not null || (!ClientShared.ClientDistribution.IsGg2Only && _context._menuBackgroundMode != Core.MenuBackgroundMode.Static));
+                includeBottomBarButton: bottomBarAction is not null || (!ClientShared.ClientDistribution.IsGg2Only && _context.GameplayRuntimeSettings.MenuBackgroundMode != Core.MenuBackgroundMode.Static));
 
             for (var index = 0; index < stackedActions.Count && index < layout.StackedButtonBounds.Length; index += 1)
             {
@@ -80,7 +80,7 @@ public sealed class MainMenuPageController
                 tall: false,
                 stackedActions.Count,
                 includeSoloButton: soloAction is not null,
-                includeBottomBarButton: bottomBarAction is not null || (!ClientShared.ClientDistribution.IsGg2Only && _context._menuBackgroundMode != Core.MenuBackgroundMode.Static));
+                includeBottomBarButton: bottomBarAction is not null || (!ClientShared.ClientDistribution.IsGg2Only && _context.GameplayRuntimeSettings.MenuBackgroundMode != Core.MenuBackgroundMode.Static));
             var hoveredStackedIndex = -1;
             var soloHovered = false;
             var bottomHovered = false;

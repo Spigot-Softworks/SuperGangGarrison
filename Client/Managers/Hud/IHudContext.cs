@@ -9,34 +9,18 @@ namespace OpenGarrison.Client;
 public interface IHudContext
 {
     GameplayManager Gameplay { get; }
+    HudRuntimeSettings HudRuntimeSettings { get; }
     HudManager Hud { get; }
     GameplayWeaponRenderController GameplayWeaponRenderer { get; }
     float _clientUpdateElapsedSeconds { get; set; }
     OpenGarrison.Core.SimulationConfig _config { get; set; }
-    int _cursorSizePercent { get; set; }
     OpenGarrison.ClientShared.CustomBubbleDocument _customBubbleDocument { get; }
-    bool _damageVignetteEnabled { get; set; }
-    float _damageVignetteFlashIntensity { get; set; }
-    float _damageVignetteIntensity { get; set; }
-    int _damageVignetteIntensityPercent { get; set; }
-    bool _healerRadarEnabled { get; set; }
     bool _hudEditorOpen { get; set; }
     OpenGarrison.Client.HudLayoutProfile _hudLayoutProfile { get; set; }
-    bool _hudShowOnlyActiveWeapon { get; set; }
     Microsoft.Xna.Framework.Point _lastKnownMousePosition { get; set; }
-    OpenGarrison.Core.PlayerInputSnapshot _latestPredictedLocalInput { get; set; }
-    OpenGarrison.Core.LowHealthColorMode _lowHealthColorMode { get; set; }
     OpenGarrison.Client.NetworkGameClient _networkClient { get; }
     Microsoft.Xna.Framework.Graphics.Texture2D _pixel { get; set; }
-    bool _portraitRumbleEnabled { get; set; }
-    float _portraitRumbleIntensity { get; set; }
-    float _portraitRumbleRemainingSeconds { get; set; }
-    int _portraitRumbleSeed { get; set; }
     Microsoft.Xna.Framework.Input.MouseState _previousMouse { get; set; }
-    bool _showHealerEnabled { get; set; }
-    bool _showHealingEnabled { get; set; }
-    bool _showPersistentSelfNameEnabled { get; set; }
-    bool _showPlayerNamesEnabled { get; set; }
     Microsoft.Xna.Framework.Graphics.SpriteBatch _spriteBatch { get; set; }
     OpenGarrison.Core.SimulationWorld _world { get; set; }
     int ViewportHeight { get; }

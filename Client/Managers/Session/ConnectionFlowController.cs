@@ -11,10 +11,18 @@ namespace OpenGarrison.Client;
 public sealed class ConnectionFlowController
     {
         private readonly ISessionContext _context;
+        private string? _recentConnectHost;
+        private int _recentConnectPort;
 
         public ConnectionFlowController(ISessionContext context)
         {
             _context = context;
+        }
+
+        internal void RememberRecentConnection(string? host, int port)
+        {
+            _recentConnectHost = host;
+            _recentConnectPort = port;
         }
 
         public void OpenLobbyBrowser()
@@ -114,7 +122,7 @@ public sealed class ConnectionFlowController
         {
             if (IsRestrictedBrowserEdition || OpenGarrison.ClientShared.ClientDistribution.IsGg2Only) return;
             _context._lastToDieRoomCodeJoinOpen = false;
-            _context._lastToDieConnectionPresentationPending = false;
+            _context.SessionTransitions.LastToDieConnectionPresentationPending = false;
             CloseLobbyBrowser(clearStatus: false);
             _context.CancelFriendCodeJoin();
             _context._manualConnectOpen = true;
@@ -126,7 +134,7 @@ public sealed class ConnectionFlowController
         public void CloseManualConnectMenu(bool clearStatus)
         {
             _context._lastToDieRoomCodeJoinOpen = false;
-            _context._lastToDieConnectionPresentationPending = false;
+            _context.SessionTransitions.LastToDieConnectionPresentationPending = false;
             _context._manualConnectOpen = false;
             _context._manualConnectControllerIndex = 0;
             _context.CancelFriendCodeJoin();
@@ -167,18 +175,18 @@ public sealed class ConnectionFlowController
             if (_context._lastToDieRoomCodeJoinOpen)
             {
                 if (OpenGarrison.ClientShared.RelayRoomCode.TryNormalize(
-                        _context._connectHostBuffer,
+                        _context.ConnectHostEdit.Text,
                         out var roomCode))
                 {
-                    _context._connectHostBuffer = roomCode;
+                    _context.ConnectHostEdit.Text = roomCode;
                     _context.InitializeConnectHostCursor();
                     _context.BeginRelayRoomJoin(roomCode);
                     return;
                 }
 
-                if (Game1.TryExtractFriendCodeFromText(_context._connectHostBuffer, out var lastToDieFriendCode))
+                if (Game1.TryExtractFriendCodeFromText(_context.ConnectHostEdit.Text, out var lastToDieFriendCode))
                 {
-                    _context._connectHostBuffer = lastToDieFriendCode;
+                    _context.ConnectHostEdit.Text = lastToDieFriendCode;
                     _context.InitializeConnectHostCursor();
                     _context.BeginFriendCodeJoin(lastToDieFriendCode);
                     return;
@@ -189,7 +197,7 @@ public sealed class ConnectionFlowController
             }
 
             if (OpenGarrison.ClientShared.ClientIdentityDocument.TryNormalizeFriendCode(
-                    _context._connectHostBuffer,
+                    _context.ConnectHostEdit.Text,
                     out var friendCode))
             {
                 _context.BeginFriendCodeJoin(friendCode);
@@ -223,7 +231,7 @@ public sealed class ConnectionFlowController
 
         public bool TryParseManualConnectTarget(out string host, out int port)
         {
-            host = _context._connectHostBuffer.Trim();
+            host = _context.ConnectHostEdit.Text.Trim();
             port = 0;
 
             if (string.IsNullOrWhiteSpace(host))
@@ -240,7 +248,7 @@ public sealed class ConnectionFlowController
                 return true;
             }
 
-            if (!int.TryParse(_context._connectPortBuffer.Trim(), out port) || port is <= 0 or > 65535)
+            if (!int.TryParse(_context.ConnectPortEdit.Text.Trim(), out port) || port is <= 0 or > 65535)
             {
                 _context._menuStatusMessage = "Port must be 1-65535.";
                 return false;
@@ -339,7 +347,7 @@ public sealed class ConnectionFlowController
         public void OpenNetworkPasswordPrompt(string message)
         {
             _context._passwordPromptOpen = true;
-            _context._passwordEditBuffer = string.Empty;
+            _context.PasswordEdit.Text = string.Empty;
             _context.InitializePasswordEditCursor();
             _context._passwordPromptMessage = message;
             _context._consoleOpen = false;
@@ -349,30 +357,30 @@ public sealed class ConnectionFlowController
             _context._controlsMenuOpen = false;
             _context._pendingControlsBinding = null;
             _context._pendingControllerControlsBinding = null;
-            _context._teamSelectOpen = false;
-            _context._classSelectOpen = false;
+            _context.TeamClassSelection.TeamSelectOpen = false;
+            _context.TeamClassSelection.ClassSelectOpen = false;
         }
 
         public void CloseNetworkPasswordPrompt()
         {
             _context._passwordPromptOpen = false;
-            _context._passwordEditBuffer = string.Empty;
+            _context.PasswordEdit.Text = string.Empty;
             _context._passwordPromptMessage = string.Empty;
         }
 
         public void EnterOnlineSpectatorState(string statusMessage)
         {
             _context.ResetSpectatorTracking(enableTracking: true);
-            _context._teamSelectOpen = false;
-            _context._classSelectOpen = false;
+            _context.TeamClassSelection.TeamSelectOpen = false;
+            _context.TeamClassSelection.ClassSelectOpen = false;
             _context._menuStatusMessage = statusMessage;
         }
 
         public void EnterOnlineClassSelectionState(string statusMessage)
         {
             _context.ResetSpectatorTracking(enableTracking: false);
-            _context._teamSelectOpen = false;
-            _context._classSelectOpen = true;
+            _context.TeamClassSelection.TeamSelectOpen = false;
+            _context.TeamClassSelection.ClassSelectOpen = true;
             _context._menuStatusMessage = statusMessage;
         }
 
@@ -380,8 +388,8 @@ public sealed class ConnectionFlowController
         {
             if (_context.IsWatchOnlySession())
             {
-                _context._teamSelectOpen = false;
-                _context._classSelectOpen = false;
+                _context.TeamClassSelection.TeamSelectOpen = false;
+                _context.TeamClassSelection.ClassSelectOpen = false;
                 _context._menuStatusMessage = string.IsNullOrWhiteSpace(statusMessage)
                     ? "Watch mode cannot join teams."
                     : statusMessage;
@@ -394,8 +402,8 @@ public sealed class ConnectionFlowController
                 _context._networkClient.ClearPendingClassSelection();
             }
 
-            _context._teamSelectOpen = true;
-            _context._classSelectOpen = false;
+            _context.TeamClassSelection.TeamSelectOpen = true;
+            _context.TeamClassSelection.ClassSelectOpen = false;
             _context.ResetChatInputState();
             _context._consoleOpen = false;
             _context._menuStatusMessage = statusMessage;
@@ -419,12 +427,12 @@ public sealed class ConnectionFlowController
                 yield return new LobbyBrowserTarget("Localhost", localhostEndpoint);
             }
 
-            if (TryCreateManualConnectEndpoint(_context._connectHostBuffer, TryParseBrowserPort(_context._connectPortBuffer), out var manualEndpoint))
+            if (TryCreateManualConnectEndpoint(_context.ConnectHostEdit.Text, TryParseBrowserPort(_context.ConnectPortEdit.Text), out var manualEndpoint))
             {
                 yield return new LobbyBrowserTarget("Manual target", manualEndpoint);
             }
 
-            if (TryCreateManualConnectEndpoint(_context._recentConnectHost ?? string.Empty, _context._recentConnectPort, out var recentEndpoint))
+            if (TryCreateManualConnectEndpoint(_recentConnectHost ?? string.Empty, _recentConnectPort, out var recentEndpoint))
             {
                 yield return new LobbyBrowserTarget("Recent", recentEndpoint);
             }
@@ -432,7 +440,7 @@ public sealed class ConnectionFlowController
 
         private bool TryParseManualConnectUriEndpoint(out NetworkEndpoint endpoint)
         {
-            return TryCreateManualConnectEndpoint(_context._connectHostBuffer, TryParseBrowserPort(_context._connectPortBuffer), out endpoint);
+            return TryCreateManualConnectEndpoint(_context.ConnectHostEdit.Text, TryParseBrowserPort(_context.ConnectPortEdit.Text), out endpoint);
         }
 
         private static bool TryCreateManualConnectEndpoint(string? hostText, int port, out NetworkEndpoint endpoint)

@@ -16,7 +16,6 @@ public partial class Game1
     public const int ConsoleScrollStep = 4;
     public bool _consoleOpen;
     public bool _gameplayHudHidden;
-    public string _consoleInput = string.Empty;
     private int _consoleScrollOffset;
     private readonly List<string> _consoleHistory = new();
     private (OpenGarrison.SessionRuntime.EmbeddedSessionHost Host, System.Threading.Tasks.Task<IReadOnlyList<string>> Result)? _embeddedConsoleCommand;
@@ -67,8 +66,8 @@ public partial class Game1
 
     public void ExecuteConsoleCommand()
     {
-        var commandText = _consoleInput.Trim();
-        _consoleInput = string.Empty;
+        var commandText = _inputManager.ConsoleTextInput.Edit.Text.Trim();
+        _inputManager.ConsoleTextInput.Edit.Text = string.Empty;
         ExecuteConsoleCommand(commandText);
     }
 
@@ -1128,14 +1127,14 @@ public partial class Game1
         var promptPrefixWidth = _consoleFont.MeasureString(promptPrefix).X;
         _spriteBatch.DrawString(_consoleFont, promptPrefix, promptPosition, new Color(255, 245, 190));
 
-        if (HasTextSelection(_consoleInputCursorIndex, _consoleInputSelectionStart))
+        if (HasTextSelection(_inputManager.ConsoleTextInput.Edit.CursorIndex, _inputManager.ConsoleTextInput.Edit.SelectionStart))
         {
             DrawSpriteFontTextWithSelection(
                 _consoleFont,
-                _consoleInput,
+                _inputManager.ConsoleTextInput.Edit.Text,
                 new Vector2(promptPosition.X + promptPrefixWidth, promptPosition.Y),
-                _consoleInputCursorIndex,
-                _consoleInputSelectionStart,
+                _inputManager.ConsoleTextInput.Edit.CursorIndex,
+                _inputManager.ConsoleTextInput.Edit.SelectionStart,
                 new Color(255, 245, 190),
                 Color.Black,
                 Color.White);
@@ -1144,7 +1143,7 @@ public partial class Game1
         {
             _spriteBatch.DrawString(
                 _consoleFont,
-                GetTextWithCursor(_consoleInput, _consoleInputCursorIndex),
+                GetTextWithCursor(_inputManager.ConsoleTextInput.Edit.Text, _inputManager.ConsoleTextInput.Edit.CursorIndex),
                 new Vector2(promptPosition.X + promptPrefixWidth, promptPosition.Y),
                 new Color(255, 245, 190));
         }

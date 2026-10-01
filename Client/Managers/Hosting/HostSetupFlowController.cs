@@ -170,7 +170,7 @@ public sealed class HostSetupFlowController
             }
 
             _context.CancelPendingHostedLocalConnect();
-            _context._pendingHostedConnectPort = port;
+            _context.PendingHostedConnect.Port = port;
             SelectHostSetupConsoleTab();
             ClearHostSetupFocus();
             _context._menuStatusMessage = $"Starting dedicated server on UDP port {port}...";

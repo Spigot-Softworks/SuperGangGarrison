@@ -23,11 +23,19 @@ public sealed class BootstrapController
         }
 
         private readonly IGameplayContext _context;
+        private OpenGarrison.ClientShared.ClientRuntimeComposition? _runtimeComposition;
         private DeferredContentBootstrapStage _deferredContentBootstrapStage;
         private bool _deferredContentBootstrapStarted;
         private bool _deferredContentBootstrapCompleted;
         private bool _initialized;
         private bool _contentLoaded;
+        public GameplayLoadoutResources GameplayLoadoutResources { get; } = new();
+        public MenuResources MenuResources { get; } = new();
+        public LevelBackgroundResources LevelBackgroundResources { get; } = new();
+        public LastToDieLogoResources LastToDieLogoResources { get; } = new();
+        public BrowserBootstrapResources BrowserBootstrapResources { get; } = new();
+        public SpriteFrameCacheResources SpriteFrameCacheResources { get; } = new();
+        public RenderTargetResources RenderTargetResources { get; } = new();
         private int _initializeCallCount;
         private int _loadContentCallCount;
 
@@ -106,7 +114,7 @@ public sealed class BootstrapController
                 _context.Window.TextInput += _context.OnWindowTextInput;
             }
             _context.Window.Title = WindowTitle;
-            _context._menuImageFrame = _context._visualRandom.Next(2);
+            _context.MenuResources.ImageFrame = _context._visualRandom.Next(2);
             _context._playerNameEditBuffer = _context._world.LocalPlayer.DisplayName;
             _context.AddConsoleLine("debug console ready (`)");
             _context.InitializeClientPlugins();
@@ -153,7 +161,7 @@ public sealed class BootstrapController
                 switch (_deferredContentBootstrapStage)
                 {
                     case DeferredContentBootstrapStage.MenuAssets:
-                        if (OperatingSystem.IsBrowser() && !_context._browserBootstrapAssetsApplied)
+                        if (OperatingSystem.IsBrowser() && !BrowserBootstrapResources.AssetsApplied)
                         {
                             return;
                         }
@@ -246,18 +254,18 @@ public sealed class BootstrapController
                 }
             }
 
-            if (_context._gameplayModAssets is not null && _context._runtimeComposition is not null)
+            if (_context._gameplayModAssets is not null && _runtimeComposition is not null)
             {
                 return;
             }
 
             _context._gameplayModAssets ??= new GameplayModAssetCache(_context.GraphicsDevice);
             var gameplayModPacks = CharacterClassCatalog.RuntimeRegistry.ModPacks.ToArray();
-            _context._runtimeComposition = new ClientRuntimeComposition(
+            _runtimeComposition = new ClientRuntimeComposition(
                 gameplayModPacks,
                 GameplayPackSpriteAssetServiceRegistry.Create(gameplayModPacks));
-            _context._gameplayModAssets.LoadRegisteredPacks(_context._runtimeComposition);
-            _context._spriteFontOpaqueBoundsCache.Clear();
+            _context._gameplayModAssets.LoadRegisteredPacks(_runtimeComposition);
+            SpriteFrameCacheResources.SpriteFontOpaqueBoundsCache.Clear();
         }
 
         private void FinalizeBootstrap()
@@ -277,16 +285,16 @@ public sealed class BootstrapController
             }
 
             _context.ShutdownClientPlugins();
-            _context._menuMusicInstance?.Dispose();
-            _context._menuMusic?.Dispose();
-            _context._lastToDieMenuMusicInstance?.Dispose();
-            _context._lastToDieMenuMusic?.Dispose();
-            _context._faucetMusicInstance?.Dispose();
-            _context._faucetMusic?.Dispose();
-            _context._ingameMusicInstance?.Dispose();
-            _context._ingameMusic?.Dispose();
-            _context._lastToDieIngameMusicInstance?.Dispose();
-            _context._lastToDieIngameMusic?.Dispose();
+            _context.MusicResources.MenuMusicInstance?.Dispose();
+            _context.MusicResources.MenuMusic?.Dispose();
+            _context.MusicResources.LastToDieMenuMusicInstance?.Dispose();
+            _context.MusicResources.LastToDieMenuMusic?.Dispose();
+            _context.MusicResources.FaucetMusicInstance?.Dispose();
+            _context.MusicResources.FaucetMusic?.Dispose();
+            _context.MusicResources.IngameMusicInstance?.Dispose();
+            _context.MusicResources.IngameMusic?.Dispose();
+            _context.MusicResources.LastToDieIngameMusicInstance?.Dispose();
+            _context.MusicResources.LastToDieIngameMusic?.Dispose();
             _context.StopHostedServer();
             _context._networkClient.Dispose();
             _context.LeavePeerRoom();
@@ -296,44 +304,44 @@ public sealed class BootstrapController
             _context._runtimeAssets?.Dispose();
             _context._rotatedWeaponSprites?.Dispose();
             _context._rotatedWeaponSprites = null;
-            foreach (var frame in _context._neutralSpriteFrameCache.Values)
+            foreach (var frame in SpriteFrameCacheResources.NeutralSpriteFrameCache.Values)
             {
                 frame.Dispose();
             }
-            _context._neutralSpriteFrameCache.Clear();
-            _context._browserAtlasTextureCache?.Dispose();
-            _context._browserAtlasTextureCache = null;
-            _context._browserBootstrapAtlasResolver = null;
-            _context._runtimeComposition = null;
-            _context._spriteFontOpaqueBoundsCache.Clear();
-            _context._levelBackgroundFileTexture?.Dispose();
-            _context._menuBackgroundTexture?.Dispose();
-            _context._menuBitmapFontTexture?.Dispose();
-            _context._menuPlaqueTexture?.Dispose();
-            _context._menuPlaqueTallTexture?.Dispose();
-            _context._menuTextBoxTopTexture?.Dispose();
-            _context._menuTextBoxMiddleTexture?.Dispose();
-            _context._menuTextBoxBottomTexture?.Dispose();
-            _context._menuTextBoxSoloTexture?.Dispose();
-            _context._lastToDieMenuPlaqueTexture?.Dispose();
-            _context._lastToDieMenuTextBoxSoloTexture?.Dispose();
-            _context._gameplayLoadoutClassStripTexture?.Dispose();
-            _context._gameplayLoadoutClassSelectionTexture?.Dispose();
-            _context._gameplayLoadoutBackgroundBarTexture?.Dispose();
-            _context._gameplayLoadoutDescriptionBoardTexture?.Dispose();
-            _context._gameplayLoadoutSelectionAtlasTexture?.Dispose();
-            foreach (var chunk in _context._gameplayLoadoutSelectionAtlasChunks)
+            SpriteFrameCacheResources.NeutralSpriteFrameCache.Clear();
+            BrowserBootstrapResources.AtlasTextureCache?.Dispose();
+            BrowserBootstrapResources.AtlasTextureCache = null;
+            BrowserBootstrapResources.AtlasResolver = null;
+            _runtimeComposition = null;
+            SpriteFrameCacheResources.SpriteFontOpaqueBoundsCache.Clear();
+            LevelBackgroundResources.Texture?.Dispose();
+            _context.MenuResources.BackgroundTexture?.Dispose();
+            _context.MenuResources.BitmapFontTexture?.Dispose();
+            _context.MenuResources.PlaqueTexture?.Dispose();
+            _context.MenuResources.PlaqueTallTexture?.Dispose();
+            _context.MenuResources.TextBoxTopTexture?.Dispose();
+            _context.MenuResources.TextBoxMiddleTexture?.Dispose();
+            _context.MenuResources.TextBoxBottomTexture?.Dispose();
+            _context.MenuResources.TextBoxSoloTexture?.Dispose();
+            _context.MenuResources.LastToDieMenuPlaqueTexture?.Dispose();
+            _context.MenuResources.LastToDieMenuTextBoxSoloTexture?.Dispose();
+            _context.GameplayLoadoutResources.ClassStripTexture?.Dispose();
+            _context.GameplayLoadoutResources.ClassSelectionTexture?.Dispose();
+            _context.GameplayLoadoutResources.BackgroundBarTexture?.Dispose();
+            _context.GameplayLoadoutResources.DescriptionBoardTexture?.Dispose();
+            _context.GameplayLoadoutResources.SelectionAtlasTexture?.Dispose();
+            foreach (var chunk in _context.GameplayLoadoutResources.SelectionAtlasChunks)
             {
                 chunk.Dispose();
             }
-            _context._gameplayLoadoutSelectionAtlasChunks.Clear();
-            _context._gameplayLoadoutSelectionTexture?.Dispose();
-            _context._gameplayLoadoutScrollerTexture?.Dispose();
-            _context._gameplayLoadoutPageTexture?.Dispose();
-            _context._gameplayLoadoutBackButtonTexture?.Dispose();
-            _context._gameplayLoadoutHelmetTexture?.Dispose();
-            _context._gameplayLoadoutDogTagsTexture?.Dispose();
-            _context._lastToDieLogoTexture?.Dispose();
+            _context.GameplayLoadoutResources.SelectionAtlasChunks.Clear();
+            _context.GameplayLoadoutResources.SelectionTexture?.Dispose();
+            _context.GameplayLoadoutResources.ScrollerTexture?.Dispose();
+            _context.GameplayLoadoutResources.PageTexture?.Dispose();
+            _context.GameplayLoadoutResources.BackButtonTexture?.Dispose();
+            _context.GameplayLoadoutResources.HelmetTexture?.Dispose();
+            _context.GameplayLoadoutResources.DogTagsTexture?.Dispose();
+            LastToDieLogoResources.Texture?.Dispose();
             _context.DisposeBrandLogoAssets();
             _context.DisposeLastToDieSurvivorCarouselAssets();
             _context.DisposeReplayPlaybackControlAssets();
@@ -341,41 +349,41 @@ public sealed class BootstrapController
             _context.DisposeGameplayMissPopupFrame();
             _context.DisposeGarrisonBuilderEditorAssets();
             _context.UnloadCrtPresentation();
-            _context._gameRenderTarget?.Dispose();
-            _context._gameRenderTarget = null;
-            _context._hudRenderTarget?.Dispose();
-            _context._hudRenderTarget = null;
+            RenderTargetResources.GameRenderTarget?.Dispose();
+            RenderTargetResources.GameRenderTarget = null;
+            RenderTargetResources.HudRenderTarget?.Dispose();
+            RenderTargetResources.HudRenderTarget = null;
             _context.DisposeDamageVignetteTextures();
-            _context._deathCamCaptureTarget?.Dispose();
-            _context._deathCamCaptureTarget = null;
-            _context._levelBackgroundFileTexture = null;
-            _context._levelBackgroundFileTexturePath = null;
-            _context._levelBackgroundFileFailedPath = null;
-            _context._levelBackgroundFileTextureLevel = null;
-            _context._menuBackgroundTexture = null;
-            _context._menuBackgroundTexturePath = null;
-            _context._menuBitmapFontTexture = null;
-            _context._menuBitmapFontGlyphs.Clear();
-            _context._menuBitmapFontLineHeight = 0;
-            _context._menuPlaqueTexture = null;
-            _context._menuPlaqueTallTexture = null;
-            _context._menuTextBoxTopTexture = null;
-            _context._menuTextBoxMiddleTexture = null;
-            _context._menuTextBoxBottomTexture = null;
-            _context._menuTextBoxSoloTexture = null;
-            _context._lastToDieMenuPlaqueTexture = null;
-            _context._lastToDieMenuTextBoxSoloTexture = null;
-            _context._gameplayLoadoutClassStripTexture = null;
-            _context._gameplayLoadoutClassSelectionTexture = null;
-            _context._gameplayLoadoutBackgroundBarTexture = null;
-            _context._gameplayLoadoutDescriptionBoardTexture = null;
-            _context._gameplayLoadoutSelectionAtlasTexture = null;
-            _context._gameplayLoadoutSelectionTexture = null;
-            _context._gameplayLoadoutScrollerTexture = null;
-            _context._gameplayLoadoutPageTexture = null;
-            _context._gameplayLoadoutBackButtonTexture = null;
-            _context._gameplayLoadoutHelmetTexture = null;
-            _context._gameplayLoadoutDogTagsTexture = null;
+            RenderTargetResources.DeathCamCaptureTarget?.Dispose();
+            RenderTargetResources.DeathCamCaptureTarget = null;
+            LevelBackgroundResources.Texture = null;
+            LevelBackgroundResources.TexturePath = null;
+            LevelBackgroundResources.FailedPath = null;
+            LevelBackgroundResources.TextureLevel = null;
+            _context.MenuResources.BackgroundTexture = null;
+            _context.MenuResources.BackgroundTexturePath = null;
+            _context.MenuResources.BitmapFontTexture = null;
+            _context.MenuResources.BitmapFontGlyphs.Clear();
+            _context.MenuResources.BitmapFontLineHeight = 0;
+            _context.MenuResources.PlaqueTexture = null;
+            _context.MenuResources.PlaqueTallTexture = null;
+            _context.MenuResources.TextBoxTopTexture = null;
+            _context.MenuResources.TextBoxMiddleTexture = null;
+            _context.MenuResources.TextBoxBottomTexture = null;
+            _context.MenuResources.TextBoxSoloTexture = null;
+            _context.MenuResources.LastToDieMenuPlaqueTexture = null;
+            _context.MenuResources.LastToDieMenuTextBoxSoloTexture = null;
+            _context.GameplayLoadoutResources.ClassStripTexture = null;
+            _context.GameplayLoadoutResources.ClassSelectionTexture = null;
+            _context.GameplayLoadoutResources.BackgroundBarTexture = null;
+            _context.GameplayLoadoutResources.DescriptionBoardTexture = null;
+            _context.GameplayLoadoutResources.SelectionAtlasTexture = null;
+            _context.GameplayLoadoutResources.SelectionTexture = null;
+            _context.GameplayLoadoutResources.ScrollerTexture = null;
+            _context.GameplayLoadoutResources.PageTexture = null;
+            _context.GameplayLoadoutResources.BackButtonTexture = null;
+            _context.GameplayLoadoutResources.HelmetTexture = null;
+            _context.GameplayLoadoutResources.DogTagsTexture = null;
             _context.PersistClientSettings();
             _context.PersistInputBindings();
             _initialized = false;

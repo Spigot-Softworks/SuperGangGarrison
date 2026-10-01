@@ -12,6 +12,7 @@ namespace OpenGarrison.Client;
 
 public interface IRenderContext : IGameplayContext
 {
+    HudRuntimeSettings HudRuntimeSettings { get; }
     GameplayManager GameplayManager { get; }
     GameplayPlayerRenderController GameplayPlayerRenderer { get; }
     GameplayDeadBodyRenderController GameplayDeadBodyRenderer { get; }
@@ -19,24 +20,11 @@ public interface IRenderContext : IGameplayContext
     GameplayPlayerStatusEffectRenderController GameplayPlayerStatusEffectRenderer { get; }
     GameplayWeaponRenderController GameplayWeaponRenderer { get; }
 
-    int _corpseDurationMode { get; set; }
-    bool _dynamicRagdollEnabled { get; set; }
-    bool _pixelPerfectWeaponRotation { get; set; }
-    bool _showHealthBarEnabled { get; set; }
-    bool _showShieldBarEnabled { get; set; }
-    bool _uberOutlineEnabled { get; set; }
-    bool _useLocalWeaponRotation { get; set; }
-    WeaponBobMode _weaponBobMode { get; set; }
 
-    Dictionary<int, Game1.RetainedDeadBodyVisual> _trackedDeadBodyVisuals { get; }
     List<Game1.RetainedDeadBodyVisual> _retainedDeadBodies { get; }
-    List<int> _staleTrackedDeadBodyIds { get; }
     Dictionary<int, Game1.ImmediateNetworkDeadBodyVisual> _immediateNetworkDeadBodies { get; }
-    List<int> _staleImmediateNetworkDeadBodyPlayerIds { get; }
     IReadOnlyList<Game1.CivvieUmbrellaShieldBlockVisual> _civvieUmbrellaShieldBlockVisuals { get; }
     Dictionary<int, Game1.PlayerRenderState> _playerRenderStates { get; }
-    Vector2 _predictedLocalPlayerVelocity { get; }
-
     int AllocateRemainsSortKey();
     Game1.WeaponRenderDefinition ApplyPlayerSkinWeapon(PlayerEntity player, GameplayItemPresentationDefinition presentation, Game1.WeaponRenderDefinition definition, bool standing = false);
     bool CanUseLocalPrediction();
@@ -141,5 +129,4 @@ public interface IRenderContext : IGameplayContext
     void ApplyFrameRateLimit();
     void DrawBase(GameTime gameTime);
     void RecordBrowserDrawDuration(long browserDrawStartTimestamp);
-    bool _preLaunchSplashDismissed { get; set; }
 }

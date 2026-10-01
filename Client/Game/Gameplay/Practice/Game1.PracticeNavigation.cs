@@ -131,7 +131,7 @@ public partial class Game1
             _ = task.Exception;
         }
 
-        if (string.Equals(_loadingOverlayMessage, PracticeNavigationWarmupMessage, StringComparison.Ordinal))
+        if (string.Equals(_loadingOverlayState.Message, PracticeNavigationWarmupMessage, StringComparison.Ordinal))
         {
             HideLoadingOverlay();
         }

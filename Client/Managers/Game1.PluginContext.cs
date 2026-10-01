@@ -11,39 +11,27 @@ namespace OpenGarrison.Client;
 
 public partial class Game1 : IPluginContext
 {
+    GameplayRuntimeSettings IPluginContext.GameplayRuntimeSettings { get => _gameplayManager.RuntimeSettings; }
     Game1.GameplayHudCanvas IPluginContext.CreateGameplayHudCanvas(Microsoft.Xna.Framework.Vector2 cameraTopLeft)
         => new(this, cameraTopLeft);
 
     Game1.ClientPluginStateView IPluginContext.CreateClientPluginStateView()
         => new(this);
 
-    int IPluginContext._bloodRenderMode { get => _bloodRenderMode; set => _bloodRenderMode = value; }
 
     OpenGarrison.Client.ClientPluginHost IPluginContext._clientPluginHost { get => _clientPluginHost; set => _clientPluginHost = value; }
 
-    ref ValueTuple<bool, bool, OpenGarrison.Client.Plugins.ClientPluginTeam, float, float, float> IPluginContext._clientPluginPreviousBlueIntelState => ref _clientPluginPreviousBlueIntelState;
 
-    Dictionary<OpenGarrison.Core.PlayerTeam, ValueTuple<int, int, bool>> IPluginContext._clientPluginPreviousGeneratorStates { get => _clientPluginPreviousGeneratorStates; }
 
-    int IPluginContext._clientPluginPreviousKillFeedCount { get => _clientPluginPreviousKillFeedCount; set => _clientPluginPreviousKillFeedCount = value; }
 
-    bool IPluginContext._clientPluginPreviousLocalAlive { get => _clientPluginPreviousLocalAlive; set => _clientPluginPreviousLocalAlive = value; }
 
-    int IPluginContext._clientPluginPreviousLocalAmmo { get => _clientPluginPreviousLocalAmmo; set => _clientPluginPreviousLocalAmmo = value; }
 
-    bool IPluginContext._clientPluginPreviousLocalBurning { get => _clientPluginPreviousLocalBurning; set => _clientPluginPreviousLocalBurning = value; }
 
-    bool IPluginContext._clientPluginPreviousLocalCarryingIntel { get => _clientPluginPreviousLocalCarryingIntel; set => _clientPluginPreviousLocalCarryingIntel = value; }
 
-    int IPluginContext._clientPluginPreviousLocalPrimaryCooldownTicks { get => _clientPluginPreviousLocalPrimaryCooldownTicks; set => _clientPluginPreviousLocalPrimaryCooldownTicks = value; }
 
-    OpenGarrison.Client.Plugins.ClientRoundPhase IPluginContext._clientPluginPreviousMatchPhase { get => _clientPluginPreviousMatchPhase; set => _clientPluginPreviousMatchPhase = value; }
 
-    Dictionary<int, ValueTuple<OpenGarrison.Client.Plugins.ClientPluginTeam, OpenGarrison.Client.Plugins.ClientPluginTeam, float, bool>> IPluginContext._clientPluginPreviousObjectiveStates { get => _clientPluginPreviousObjectiveStates; }
 
-    ref ValueTuple<bool, bool, OpenGarrison.Client.Plugins.ClientPluginTeam, float, float, float> IPluginContext._clientPluginPreviousRedIntelState => ref _clientPluginPreviousRedIntelState;
 
-    OpenGarrison.Client.Game1.ClientPluginStateView IPluginContext._clientPluginStateView { get => _clientPluginStateView; set => _clientPluginStateView = value; }
 
     Microsoft.Xna.Framework.Vector2 IPluginContext._gameplayCameraTopLeft { get => _gameplayCameraTopLeft; set => _gameplayCameraTopLeft = value; }
 
@@ -55,11 +43,8 @@ public partial class Game1 : IPluginContext
 
     OpenGarrison.Client.NetworkGameClient IPluginContext._networkClient { get => _networkClient; }
 
-    List<OpenGarrison.Protocol.SnapshotDamageEvent> IPluginContext._pendingNetworkDamageEvents { get => _pendingNetworkDamageEvents; }
 
-    HashSet<ulong> IPluginContext._processedNetworkDamageEventIds { get => _processedNetworkDamageEventIds; }
 
-    Queue<ulong> IPluginContext._processedNetworkDamageEventOrder { get => _processedNetworkDamageEventOrder; }
 
     OpenGarrison.Client.GameMakerRuntimeAssetCache IPluginContext._runtimeAssets { get => _runtimeAssets; set => _runtimeAssets = value; }
 

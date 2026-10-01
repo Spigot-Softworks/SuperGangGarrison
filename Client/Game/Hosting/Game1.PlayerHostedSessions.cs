@@ -37,7 +37,7 @@ public partial class Game1
             { transport.Dispose(); throw new InvalidOperationException(error); }
             _onlineConnectionIntent = OnlineConnectionIntent.Join;
             ClearOnlinePlayerSocialProfiles();
-            _lastToDieConnectionPresentationPending = true;
+            _sessionTransitions.LastToDieConnectionPresentationPending = true;
             CloseLastToDieMenu(clearStatus: true);
             SetJoiningServerLoadingLabel("Last to Die");
             ShowJoiningServerLoadingOverlay();

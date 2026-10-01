@@ -11,7 +11,7 @@ public sealed class ProjectileSystemTests
     {
         var store = new EntityStore();
         var combat = new CombatSystem(store);
-        var projectiles = CreateSystem(store, combat);
+        var projectiles = new ProjectileSystem(store, combat);
         var owner = CreatePlayer(1, PlayerTeam.Red);
         store.Add(owner);
 
@@ -36,16 +36,7 @@ public sealed class ProjectileSystemTests
         store.Add(target);
         var targetHealthBefore = target.Health;
 
-        var nextId = 100;
-        var dependencies = new ProjectileSystemDependencies
-        {
-            AllocateEntityId = () => nextId++,
-            EnumerateSimulatedPlayers = () => store.All().OfType<PlayerEntity>(),
-            FindPlayerById = id => store.Get(id) as PlayerEntity,
-            GetNearestShotHit = (shot, directionX, directionY, distance) =>
-                new ShotHitResult(distance, target.X, target.Y, target, null, null),
-        };
-        var projectiles = new ProjectileSystem(store, combat, dependencies);
+        var projectiles = new ProjectileSystem(store, combat, new ShotAlwaysHitsHost(store, target));
 
         projectiles.SpawnShot(attacker, target.X - 50f, target.Y, 10f, 0f, damagePerHit: 5f);
         projectiles.AdvanceShots();
@@ -53,24 +44,16 @@ public sealed class ProjectileSystemTests
         Assert.True(target.Health < targetHealthBefore);
     }
 
-    private static ProjectileSystem CreateSystem(EntityStore store, CombatSystem combat)
-    {
-        var nextId = 100;
-        return new ProjectileSystem(
-            store,
-            combat,
-            new ProjectileSystemDependencies
-            {
-                AllocateEntityId = () => nextId++,
-                EnumerateSimulatedPlayers = () => store.All().OfType<PlayerEntity>(),
-                FindPlayerById = id => store.Get(id) as PlayerEntity,
-            });
-    }
-
     private static PlayerEntity CreatePlayer(int id, PlayerTeam team)
     {
         var player = new PlayerEntity(id, CharacterClassCatalog.Scout, $"Player {id}");
         player.Spawn(team, 0f, 0f);
         return player;
+    }
+
+    private sealed class ShotAlwaysHitsHost(EntityStore store, PlayerEntity target) : DetachedSimulationHost(store)
+    {
+        public override ShotHitResult? GetNearestShotHit(ShotProjectileEntity shot, float directionX, float directionY, float distance)
+            => new ShotHitResult(distance, target.X, target.Y, target, null, null);
     }
 }

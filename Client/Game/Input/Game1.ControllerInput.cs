@@ -99,7 +99,7 @@ public partial class Game1
     {
         _previousGamePad = _currentGamePad;
         _currentGamePad = GetCurrentControllerGamePadState(windowActive, out var selectedControllerChanged);
-        _currentGamePad = _windowInputFilter.FilterController(windowActive, _currentGamePad, HasGamePadSelectionActivity(_currentGamePad));
+        _currentGamePad = _gameplayManager.Frame.FilterController(windowActive, _currentGamePad, HasGamePadSelectionActivity(_currentGamePad));
         if (selectedControllerChanged)
         {
             _previousGamePad = default;
@@ -639,9 +639,9 @@ public partial class Game1
         }
 
         var currentAim = new Vector2(localPlayer.AimWorldX - localPlayer.X, localPlayer.AimWorldY - localPlayer.Y);
-        if (currentAim.LengthSquared() <= 0.001f && _hasLatestLocalAimWorldPosition)
+        if (currentAim.LengthSquared() <= 0.001f && _gameplayManager.InputUpdate.HasLatestLocalAimWorldPosition)
         {
-            currentAim = new Vector2(_latestLocalAimWorldX - localPlayer.X, _latestLocalAimWorldY - localPlayer.Y);
+            currentAim = new Vector2(_gameplayManager.InputUpdate.LatestLocalAimWorldX - localPlayer.X, _gameplayManager.InputUpdate.LatestLocalAimWorldY - localPlayer.Y);
         }
 
         if (currentAim.LengthSquared() <= 0.001f)
@@ -860,10 +860,10 @@ public partial class Game1
 
     private Vector2 GetEffectiveAimScreenPosition(MouseState mouse, Vector2 cameraPosition)
     {
-        if (_latestAimUsesController && _hasLatestLocalAimWorldPosition)
+        if (_latestAimUsesController && _gameplayManager.InputUpdate.HasLatestLocalAimWorldPosition)
         {
             var localPlayer = _world.LocalPlayer;
-            var aimOffset = new Vector2(_latestLocalAimWorldX - localPlayer.X, _latestLocalAimWorldY - localPlayer.Y);
+            var aimOffset = new Vector2(_gameplayManager.InputUpdate.LatestLocalAimWorldX - localPlayer.X, _gameplayManager.InputUpdate.LatestLocalAimWorldY - localPlayer.Y);
             var renderAnchor = localPlayer.IsAlive
                 ? GetRenderPosition(localPlayer)
                 : new Vector2(localPlayer.X, localPlayer.Y);

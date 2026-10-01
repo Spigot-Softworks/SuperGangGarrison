@@ -15,6 +15,8 @@ public sealed class ChatTextInputController
             _context = context;
         }
 
+        public TextEditState Edit { get; } = new();
+
         public bool TryHandle(TextInputEventArgs e)
         {
             return TryHandle(e.Character);
@@ -32,12 +34,12 @@ public sealed class ChatTextInputController
                 case '\b':
                 {
                     var result = _context.DeleteTextSelectionOrBackspace(
-                        _context._chatInput,
-                        _context._chatInputCursorIndex,
-                        _context._chatInputSelectionStart);
-                    _context._chatInput = result.Text;
-                    _context._chatInputCursorIndex = result.CursorIndex;
-                    _context._chatInputSelectionStart = result.SelectionStart;
+                        Edit.Text,
+                        Edit.CursorIndex,
+                        Edit.SelectionStart);
+                    Edit.Text = result.Text;
+                    Edit.CursorIndex = result.CursorIndex;
+                    Edit.SelectionStart = result.SelectionStart;
                     break;
                 }
                 case '\r':
@@ -45,17 +47,17 @@ public sealed class ChatTextInputController
                     _context.SubmitChatMessage();
                     break;
                 default:
-                    if (!char.IsControl(character) && _context._chatInput.Length < 120)
+                    if (!char.IsControl(character) && Edit.Text.Length < 120)
                     {
                         var result = _context.InsertTextCharacterAtCursor(
-                            _context._chatInput,
+                            Edit.Text,
                             character,
-                            _context._chatInputCursorIndex,
-                            _context._chatInputSelectionStart,
+                            Edit.CursorIndex,
+                            Edit.SelectionStart,
                             120);
-                        _context._chatInput = result.Text;
-                        _context._chatInputCursorIndex = result.CursorIndex;
-                        _context._chatInputSelectionStart = result.SelectionStart;
+                        Edit.Text = result.Text;
+                        Edit.CursorIndex = result.CursorIndex;
+                        Edit.SelectionStart = result.SelectionStart;
                     }
                     break;
             }

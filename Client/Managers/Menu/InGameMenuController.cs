@@ -14,18 +14,30 @@ namespace OpenGarrison.Client;
 public sealed class InGameMenuController
     {
         private readonly IMenuContext _context;
+        private bool _inGameMenuAwaitingEscapeRelease;
+        private int _inGameMenuHoverIndex = -1;
 
         public InGameMenuController(IMenuContext context)
         {
             _context = context;
         }
 
+        internal void ResetAwaitingEscapeRelease()
+        {
+            _inGameMenuAwaitingEscapeRelease = false;
+        }
+
+        internal void ResetHoverIndex()
+        {
+            _inGameMenuHoverIndex = 0;
+        }
+
         public void OpenInGameMenu()
         {
             _context._jukeboxMenuOpen = false;
             _context._inGameMenuOpen = true;
-            _context._inGameMenuAwaitingEscapeRelease = true;
-            _context._inGameMenuHoverIndex = -1;
+            _inGameMenuAwaitingEscapeRelease = true;
+            _inGameMenuHoverIndex = -1;
             _context._clientPowersOpen = false;
             _context._clientPowersOpenedFromGameplay = false;
             _context._optionsMenuOpen = false;
@@ -40,8 +52,8 @@ public sealed class InGameMenuController
         public void CloseInGameMenu()
         {
             _context._inGameMenuOpen = false;
-            _context._inGameMenuAwaitingEscapeRelease = false;
-            _context._inGameMenuHoverIndex = -1;
+            _inGameMenuAwaitingEscapeRelease = false;
+            _inGameMenuHoverIndex = -1;
         }
 
         public void UpdateInGameMenu(KeyboardState keyboard, MouseState mouse)
@@ -49,11 +61,11 @@ public sealed class InGameMenuController
             var items = GetInGameMenuActions();
             GetInGameMenuLayout(items.Count, out _, out var itemBounds, out _, out _);
 
-            if (_context._inGameMenuAwaitingEscapeRelease)
+            if (_inGameMenuAwaitingEscapeRelease)
             {
                 if (!keyboard.IsKeyDown(Keys.Escape))
                 {
-                    _context._inGameMenuAwaitingEscapeRelease = false;
+                    _inGameMenuAwaitingEscapeRelease = false;
                 }
             }
             else if (_context.IsKeyPressed(keyboard, Keys.Escape) || _context.IsControllerMenuBackPressed())
@@ -74,30 +86,30 @@ public sealed class InGameMenuController
 
             if (_context.ShouldUseMouseMenuHover(mouse) && mouseHoverIndex >= 0)
             {
-                _context._inGameMenuHoverIndex = mouseHoverIndex;
+                _inGameMenuHoverIndex = mouseHoverIndex;
             }
             else if (!_context.IsControllerMenuInputActive())
             {
-                _context._inGameMenuHoverIndex = -1;
+                _inGameMenuHoverIndex = -1;
             }
 
             if (_context.TryConsumeControllerMenuNavigation(out _, out var verticalStep) && verticalStep != 0)
             {
-                _context._inGameMenuHoverIndex = MoveControllerMenuSelection(_context._inGameMenuHoverIndex, items.Count, verticalStep);
+                _inGameMenuHoverIndex = MoveControllerMenuSelection(_inGameMenuHoverIndex, items.Count, verticalStep);
             }
-            else if (_context.IsControllerMenuInputActive() && items.Count > 0 && _context._inGameMenuHoverIndex < 0)
+            else if (_context.IsControllerMenuInputActive() && items.Count > 0 && _inGameMenuHoverIndex < 0)
             {
-                _context._inGameMenuHoverIndex = 0;
+                _inGameMenuHoverIndex = 0;
             }
 
             var clickPressed = mouse.LeftButton == ButtonState.Pressed && _context._previousMouse.LeftButton != ButtonState.Pressed;
             var controllerConfirmPressed = _context.IsControllerMenuConfirmPressed();
-            if ((!clickPressed && !controllerConfirmPressed) || _context._inGameMenuHoverIndex < 0)
+            if ((!clickPressed && !controllerConfirmPressed) || _inGameMenuHoverIndex < 0)
             {
                 return;
             }
 
-            items[_context._inGameMenuHoverIndex].Activate();
+            items[_inGameMenuHoverIndex].Activate();
             if (controllerConfirmPressed)
             {
                 _context.ConsumeControllerMenuConfirmPress();
@@ -128,7 +140,7 @@ public sealed class InGameMenuController
                     buttonTexture,
                     itemBounds[index],
                     items[index].Label,
-                    index == _context._inGameMenuHoverIndex,
+                    index == _inGameMenuHoverIndex,
                     plaqueScale,
                     1f);
             }
@@ -138,7 +150,7 @@ public sealed class InGameMenuController
         {
             itemCount = Math.Max(1, itemCount);
             var useTallPlaque = itemCount >= 5;
-            plaqueTexture = useTallPlaque ? _context._menuPlaqueTallTexture : _context._menuPlaqueTexture;
+            plaqueTexture = useTallPlaque ? _context.MenuResources.PlaqueTallTexture : _context.MenuResources.PlaqueTexture;
 
             var availableHeight = _context.ViewportHeight - 84f;
             var maxScale = _context.ViewportHeight < 540 ? 0.52f : 0.58f;

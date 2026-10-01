@@ -11,8 +11,6 @@ public partial class Game1
     public const float DeathCamZoomEnd = 2f;
     public const float DeathCamZoomTicks = 10f;
 
-    public RenderTarget2D? _deathCamCaptureTarget;
-    private bool _deathCamCaptureValid;
     private Vector2 _lastLiveCameraTopLeft;
     private Vector2 _deathCamEntryCameraTopLeft;
     private bool _hasDeathCamEntryCameraTopLeft;
@@ -22,7 +20,7 @@ public partial class Game1
     private bool IsDeathCamPresentationActive()
     {
         return !IsHostedLastToDieActive()
-            && _killCamEnabled
+            && _gameplayManager.RuntimeSettings.KillCamEnabled
             && !_world.LocalPlayer.IsAlive
             && _world.LocalDeathCam is not null;
     }
@@ -58,7 +56,7 @@ public partial class Game1
 
     private void ClearDeathCamPresentation()
     {
-        _deathCamCaptureValid = false;
+        _renderTargetResources.DeathCamCaptureValid = false;
         _hasDeathCamEntryCameraTopLeft = false;
         _deathCamTrackedInitialTicks = 0;
         _deathCamTrackedRemainingTicks = -1;
@@ -82,7 +80,7 @@ public partial class Game1
         {
             _deathCamEntryCameraTopLeft = _lastLiveCameraTopLeft;
             _hasDeathCamEntryCameraTopLeft = true;
-            _deathCamCaptureValid = false;
+            _renderTargetResources.DeathCamCaptureValid = false;
             _deathCamTrackedInitialTicks = initialTicks;
         }
 
@@ -117,15 +115,15 @@ public partial class Game1
 
     private void EnsureDeathCamCaptureTarget(int viewportWidth, int viewportHeight)
     {
-        if (_deathCamCaptureTarget is not null
-            && _deathCamCaptureTarget.Width == viewportWidth
-            && _deathCamCaptureTarget.Height == viewportHeight)
+        if (_renderTargetResources.DeathCamCaptureTarget is not null
+            && _renderTargetResources.DeathCamCaptureTarget.Width == viewportWidth
+            && _renderTargetResources.DeathCamCaptureTarget.Height == viewportHeight)
         {
             return;
         }
 
-        _deathCamCaptureTarget?.Dispose();
-        _deathCamCaptureTarget = new RenderTarget2D(
+        _renderTargetResources.DeathCamCaptureTarget?.Dispose();
+        _renderTargetResources.DeathCamCaptureTarget = new RenderTarget2D(
             GraphicsDevice,
             viewportWidth,
             viewportHeight,
@@ -134,7 +132,7 @@ public partial class Game1
             DepthFormat.None,
             0,
             RenderTargetUsage.PreserveContents);
-        _deathCamCaptureValid = false;
+        _renderTargetResources.DeathCamCaptureValid = false;
     }
 
     public void PrepareDeathCamCaptureIfNeeded(int viewportWidth, int viewportHeight)
@@ -146,7 +144,7 @@ public partial class Game1
 
         SyncDeathCamPresentationState();
         var deathCam = _world.LocalDeathCam!;
-        if (!IsDeathCamZoomPhase(deathCam) || _deathCamCaptureValid)
+        if (!IsDeathCamZoomPhase(deathCam) || _renderTargetResources.DeathCamCaptureValid)
         {
             return;
         }
@@ -154,7 +152,7 @@ public partial class Game1
         EnsureDeathCamCaptureTarget(viewportWidth, viewportHeight);
         var focusCameraPosition = GetDeathCamFocusCameraTopLeft(viewportWidth, viewportHeight);
         WriteGameplayRenderTrace("deathcam prepare setrendertarget");
-        GraphicsDevice.SetRenderTarget(_deathCamCaptureTarget);
+        GraphicsDevice.SetRenderTarget(_renderTargetResources.DeathCamCaptureTarget);
         GraphicsDevice.Clear(new Color(24, 32, 48));
         WriteGameplayRenderTrace("deathcam prepare spritebatchbegin");
         _spriteBatch.Begin(samplerState: SamplerState.PointClamp, rasterizerState: RasterizerState.CullNone);
@@ -164,12 +162,12 @@ public partial class Game1
         _spriteBatch.End();
         WriteGameplayRenderTrace("deathcam prepare setrendertarget-null");
         GraphicsDevice.SetRenderTarget(null);
-        _deathCamCaptureValid = true;
+        _renderTargetResources.DeathCamCaptureValid = true;
     }
 
     public bool DrawDeathCamCaptureOverlay(int viewportWidth, int viewportHeight)
     {
-        if (!IsDeathCamPresentationActive() || !_deathCamCaptureValid || _deathCamCaptureTarget is null)
+        if (!IsDeathCamPresentationActive() || !_renderTargetResources.DeathCamCaptureValid || _renderTargetResources.DeathCamCaptureTarget is null)
         {
             return false;
         }
@@ -185,7 +183,7 @@ public partial class Game1
         var focusScreenPosition = new Vector2(
             Math.Clamp(deathCam.FocusX - focusCameraPosition.X, 0f, viewportWidth),
             Math.Clamp(deathCam.FocusY - focusCameraPosition.Y, 0f, viewportHeight));
-        _spriteBatch.Draw(_deathCamCaptureTarget, focusScreenPosition, null, Color.White, 0f, focusScreenPosition, scale, SpriteEffects.None, 0f);
+        _spriteBatch.Draw(_renderTargetResources.DeathCamCaptureTarget, focusScreenPosition, null, Color.White, 0f, focusScreenPosition, scale, SpriteEffects.None, 0f);
         return true;
     }
 }

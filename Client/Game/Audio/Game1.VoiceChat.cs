@@ -60,9 +60,9 @@ public partial class Game1
         var allowed = windowActive && !_networkClient.IsAwaitingWelcome && (!_mainMenuOpen || inLastToDieLobby)
             && (!_inGameMenuOpen || IsHostedLastToDieActive())
             && !_optionsMenuOpen && !_controlsMenuOpen && !_chatOpen && !_consoleOpen && !_passwordPromptOpen
-            && !_teamSelectOpen && !_classSelectOpen && !_loadingOverlayVisible;
+            && !_teamClassSelectionState.TeamSelectOpen && !_teamClassSelectionState.ClassSelectOpen && !_loadingOverlayState.Visible;
         var held = InputBindingInput.IsDown(_inputBindings.PushToTalk, keyboard, mouse);
-        voice.Update(VoiceClockSeconds, allowed, held, _audioMuted ? 0 : GetNonLinearVolumeScale(_masterVolumePercent), IsScoreboardSlotMuted, GetVoiceSpeakerMix);
+        voice.Update(VoiceClockSeconds, allowed, held, _audioManager.RuntimeSettings.AudioMuted ? 0 : GetNonLinearVolumeScale(_audioManager.RuntimeSettings.MasterVolumePercent), IsScoreboardSlotMuted, GetVoiceSpeakerMix);
         if (_jukeboxWasAudible != IsJukeboxAudible)
         {
             _jukeboxWasAudible = IsJukeboxAudible;

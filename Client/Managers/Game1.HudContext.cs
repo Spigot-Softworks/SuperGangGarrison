@@ -11,57 +11,40 @@ namespace OpenGarrison.Client;
 
 public partial class Game1 : IHudContext
 {
+    HudRuntimeSettings IHudContext.HudRuntimeSettings { get => _hudManager.RuntimeSettings; }
     float IHudContext._clientUpdateElapsedSeconds { get => _clientUpdateElapsedSeconds; set => _clientUpdateElapsedSeconds = value; }
 
     OpenGarrison.Core.SimulationConfig IHudContext._config { get => _config; set => _config = value; }
 
-    int IHudContext._cursorSizePercent { get => _cursorSizePercent; set => _cursorSizePercent = value; }
 
     OpenGarrison.ClientShared.CustomBubbleDocument IHudContext._customBubbleDocument { get => _customBubbleDocument; }
 
-    bool IHudContext._damageVignetteEnabled { get => _damageVignetteEnabled; set => _damageVignetteEnabled = value; }
 
-    float IHudContext._damageVignetteFlashIntensity { get => _damageVignetteFlashIntensity; set => _damageVignetteFlashIntensity = value; }
 
-    float IHudContext._damageVignetteIntensity { get => _damageVignetteIntensity; set => _damageVignetteIntensity = value; }
 
-    int IHudContext._damageVignetteIntensityPercent { get => _damageVignetteIntensityPercent; set => _damageVignetteIntensityPercent = value; }
 
-    bool IHudContext._healerRadarEnabled { get => _healerRadarEnabled; set => _healerRadarEnabled = value; }
 
     bool IHudContext._hudEditorOpen { get => _hudEditorOpen; set => _hudEditorOpen = value; }
 
     OpenGarrison.Client.HudLayoutProfile IHudContext._hudLayoutProfile { get => _hudLayoutProfile; set => _hudLayoutProfile = value; }
 
-    bool IHudContext._hudShowOnlyActiveWeapon { get => _hudShowOnlyActiveWeapon; set => _hudShowOnlyActiveWeapon = value; }
 
     Microsoft.Xna.Framework.Point IHudContext._lastKnownMousePosition { get => _lastKnownMousePosition; set => _lastKnownMousePosition = value; }
 
-    OpenGarrison.Core.PlayerInputSnapshot IHudContext._latestPredictedLocalInput { get => _latestPredictedLocalInput; set => _latestPredictedLocalInput = value; }
-
-    OpenGarrison.Core.LowHealthColorMode IHudContext._lowHealthColorMode { get => _lowHealthColorMode; set => _lowHealthColorMode = value; }
 
     OpenGarrison.Client.NetworkGameClient IHudContext._networkClient { get => _networkClient; }
 
     Microsoft.Xna.Framework.Graphics.Texture2D IHudContext._pixel { get => _pixel; set => _pixel = value; }
 
-    bool IHudContext._portraitRumbleEnabled { get => _portraitRumbleEnabled; set => _portraitRumbleEnabled = value; }
 
-    float IHudContext._portraitRumbleIntensity { get => _portraitRumbleIntensity; set => _portraitRumbleIntensity = value; }
 
-    float IHudContext._portraitRumbleRemainingSeconds { get => _portraitRumbleRemainingSeconds; set => _portraitRumbleRemainingSeconds = value; }
 
-    int IHudContext._portraitRumbleSeed { get => _portraitRumbleSeed; set => _portraitRumbleSeed = value; }
 
     Microsoft.Xna.Framework.Input.MouseState IHudContext._previousMouse { get => _previousMouse; set => _previousMouse = value; }
 
-    bool IHudContext._showHealerEnabled { get => _showHealerEnabled; set => _showHealerEnabled = value; }
 
-    bool IHudContext._showHealingEnabled { get => _showHealingEnabled; set => _showHealingEnabled = value; }
 
-    bool IHudContext._showPersistentSelfNameEnabled { get => _showPersistentSelfNameEnabled; set => _showPersistentSelfNameEnabled = value; }
 
-    bool IHudContext._showPlayerNamesEnabled { get => _showPlayerNamesEnabled; set => _showPlayerNamesEnabled = value; }
 
     Microsoft.Xna.Framework.Graphics.SpriteBatch IHudContext._spriteBatch { get => _spriteBatch; set => _spriteBatch = value; }
 

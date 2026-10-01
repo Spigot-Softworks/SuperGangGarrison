@@ -99,7 +99,7 @@ public sealed class GameplayMedicHudController
 
             var healingTarget = GetLocalMedicHealingTarget();
             var healer = FindMedicHealingPlayer(_context.GetPlayerStateKey(_context._world.LocalPlayer));
-            var showHealingTarget = _context._showHealingEnabled
+            var showHealingTarget = _context.HudRuntimeSettings.ShowHealingEnabled
                 && (healingTarget is not null || (_context._hudEditorOpen && _context._world.LocalPlayer.ClassId == PlayerClass.Medic));
             if (showHealingTarget)
             {
@@ -107,7 +107,7 @@ public sealed class GameplayMedicHudController
                 context.AddIfRegistered(elements, HudElementId.ClassMedicHealingTarget);
             }
 
-            var showHealer = _context._showHealerEnabled && (healer is not null || _context._hudEditorOpen);
+            var showHealer = _context.HudRuntimeSettings.ShowHealerEnabled && (healer is not null || _context._hudEditorOpen);
             if (showHealer)
             {
                 var yRatio = showHealingTarget ? HealerStackedHudYRatio : HealingTargetHudYRatio;
@@ -118,7 +118,7 @@ public sealed class GameplayMedicHudController
 
         public void DrawMedicHealingTargetHud()
         {
-            if (!_context._showHealingEnabled || !_context._world.LocalPlayer.IsAlive)
+            if (!_context.HudRuntimeSettings.ShowHealingEnabled || !_context._world.LocalPlayer.IsAlive)
             {
                 return;
             }
@@ -138,7 +138,7 @@ public sealed class GameplayMedicHudController
 
         public void DrawMedicHealerHud()
         {
-            if (!_context._showHealerEnabled || !_context._world.LocalPlayer.IsAlive)
+            if (!_context.HudRuntimeSettings.ShowHealerEnabled || !_context._world.LocalPlayer.IsAlive)
             {
                 return;
             }
@@ -163,7 +163,7 @@ public sealed class GameplayMedicHudController
 
         public void DrawHealerRadarHud(Vector2 cameraPosition, MouseState mouse)
         {
-            if (!_context._healerRadarEnabled
+            if (!_context.HudRuntimeSettings.HealerRadarEnabled
                 || !_context._world.LocalPlayer.IsAlive
                 || _context._world.LocalPlayer.ClassId != PlayerClass.Medic
                 || _context.IsLocalSpectatorPresentationActive())

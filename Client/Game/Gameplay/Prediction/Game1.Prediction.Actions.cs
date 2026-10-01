@@ -20,7 +20,7 @@ public partial class Game1
     {
         if (!player.IsSniperBowEquipped)
         {
-            _predictedLocalActionState.SniperBowChargeTicks = 0;
+            _localPredictionState.PredictedLocalActionState.SniperBowChargeTicks = 0;
             return false;
         }
 
@@ -43,7 +43,7 @@ public partial class Game1
             player.CancelSniperBowCharge();
         }
 
-        _predictedLocalActionState.SniperBowChargeTicks = player.SniperBowChargeTicks;
+        _localPredictionState.PredictedLocalActionState.SniperBowChargeTicks = player.SniperBowChargeTicks;
         return true;
     }
 
@@ -78,7 +78,7 @@ public partial class Game1
             }
         }
 
-        _predictedLocalActionState.SniperBowChargeTicks = player.SniperBowChargeTicks;
+        _localPredictionState.PredictedLocalActionState.SniperBowChargeTicks = player.SniperBowChargeTicks;
         SyncPredictedLocalPlayerState(player);
         return true;
     }
@@ -555,7 +555,7 @@ public partial class Game1
 
             if (hasMedicUber)
             {
-                if (predictedInput.Input.FirePrimary && _predictedLocalActionState.IsMedicUberReady)
+                if (predictedInput.Input.FirePrimary && _localPredictionState.PredictedLocalActionState.IsMedicUberReady)
                 {
                     TryPredictedStartMedicUber(player);
                 }
@@ -573,7 +573,7 @@ public partial class Game1
                 return true;
             }
 
-            if (_predictedLocalActionState.IsMedicUberReady && predictedInput.Input.FirePrimary)
+            if (_localPredictionState.PredictedLocalActionState.IsMedicUberReady && predictedInput.Input.FirePrimary)
             {
                 TryPredictedStartMedicUber(player);
             }
@@ -1219,12 +1219,12 @@ public partial class Game1
 
     private bool IsPredictedSpyBackstabAnimating()
     {
-        return _predictedLocalActionState.SpyBackstabVisualTicksRemaining > 0;
+        return _localPredictionState.PredictedLocalActionState.SpyBackstabVisualTicksRemaining > 0;
     }
 
     private bool IsPredictedSpyBackstabReady()
     {
-        return _predictedLocalActionState.SpyBackstabWindupTicksRemaining <= 0
-            && _predictedLocalActionState.SpyBackstabRecoveryTicksRemaining <= 0;
+        return _localPredictionState.PredictedLocalActionState.SpyBackstabWindupTicksRemaining <= 0
+            && _localPredictionState.PredictedLocalActionState.SpyBackstabRecoveryTicksRemaining <= 0;
     }
 }

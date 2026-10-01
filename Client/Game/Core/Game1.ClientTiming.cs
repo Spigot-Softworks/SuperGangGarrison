@@ -53,12 +53,6 @@ public partial class Game1
     private float _pendingBuildSentryAimOffsetY;
     private uint _latchedJumpPressSequence;
 
-    public bool _hasLatestLocalAimWorldPosition;
-    public float _latestLocalAimWorldX;
-    public float _latestLocalAimWorldY;
-    public bool _hasLatestNetworkInputAimOrigin;
-    public float _latestNetworkInputAimOriginX;
-    public float _latestNetworkInputAimOriginY;
     private int _writeBubbleTick;
 
     public int ConsumeClientTickCount(GameTime gameTime)
@@ -86,12 +80,8 @@ public partial class Game1
         _goreSourceTickAccumulator = 0f;
         ClearPendingPredictedInputEdges();
         _latchedJumpPressSequence = 0;
-        _hasLatestLocalAimWorldPosition = false;
-        _latestLocalAimWorldX = 0f;
-        _latestLocalAimWorldY = 0f;
-        _hasLatestNetworkInputAimOrigin = false;
-        _latestNetworkInputAimOriginX = 0f;
-        _latestNetworkInputAimOriginY = 0f;
+        _gameplayManager.InputUpdate.ResetLatestLocalAimWorldPosition();
+        _gameplayManager.InputUpdate.ResetLatestNetworkInputAimOrigin();
         _writeBubbleTick = 0;
     }
 
@@ -139,9 +129,9 @@ public partial class Game1
 
     public void CapturePendingPredictedInputEdges(KeyboardState keyboard, MouseState mouse, PlayerInputSnapshot networkInput)
     {
-        _previousPredictedLocalInput = _latestPredictedLocalInput;
-        _latestPredictedLocalInput = networkInput;
-        var previousPredictedInput = _previousPredictedLocalInput;
+        _localPredictionState.PreviousPredictedLocalInput = _localPredictionState.LatestPredictedLocalInput;
+        _localPredictionState.LatestPredictedLocalInput = networkInput;
+        var previousPredictedInput = _localPredictionState.PreviousPredictedLocalInput;
         var buildSentryPressed = networkInput.BuildSentry && !previousPredictedInput.BuildSentry;
         if (buildSentryPressed)
         {
@@ -580,9 +570,9 @@ public partial class Game1
     public PlayerEntity GetImmediatePrimaryPresentationPlayer()
     {
         return CanUseLocalPrediction()
-            && _hasPredictedLocalActionState
-            && _predictedLocalPlayerShadow is not null
-            ? _predictedLocalPlayerShadow
+            && _localPredictionState.HasPredictedLocalActionState
+            && _localPredictionState.PredictedLocalPlayerShadow is not null
+            ? _localPredictionState.PredictedLocalPlayerShadow
             : _world.LocalPlayer;
     }
 
@@ -613,9 +603,7 @@ public partial class Game1
                 outboundNetworkInput = outboundNetworkInput with { Up = true };
             }
 
-            var aimOrigin = _hasLatestNetworkInputAimOrigin
-                ? new Vector2(_latestNetworkInputAimOriginX, _latestNetworkInputAimOriginY)
-                : GetLocalViewPosition();
+            var aimOrigin = _gameplayManager.InputUpdate.LatestNetworkInputAimOrigin ?? GetLocalViewPosition();
             var sentInputSequence = _networkClient.SendInput(outboundNetworkInput, aimOrigin.X, aimOrigin.Y);
             if (_networkClient.IsLegacyGg2Connection)
             {
@@ -654,14 +642,14 @@ public partial class Game1
                 _pendingPredictedAbilityPress,
                 _pendingPredictedSwapWeaponPress,
                 _pendingPredictedToggleSecondaryWeaponPress,
-                outboundNetworkInput.Taunt && !_previousPredictedLocalInput.Taunt,
+                outboundNetworkInput.Taunt && !_localPredictionState.PreviousPredictedLocalInput.Taunt,
                 _pendingPredictedAbilityRelease);
             ClearConsumedPredictedInputEdges();
             // PrepareFrame returns the edge-augmented snapshot so the local
             // world can observe it. A catch-up loop must use the raw current
             // render input after the first network tick; otherwise one brief
             // press is replayed as a held button across every catch-up tick.
-            networkInput = _latestPredictedLocalInput;
+            networkInput = _localPredictionState.LatestPredictedLocalInput;
             if (buildSentryCommandSent)
             {
                 _pendingPredictedBuildSentryTicksRemaining = Math.Max(0, buildSentryTicksRemaining - 1);
@@ -937,7 +925,7 @@ public partial class Game1
     private bool GetPlayerIsSpySuperjumping(PlayerEntity player)
     {
         return IsUsingPredictedLocalState(player)
-            ? _predictedLocalActionState.IsSpySuperjumping
+            ? _localPredictionState.PredictedLocalActionState.IsSpySuperjumping
             : player.IsSpySuperjumping;
     }
 
@@ -1037,14 +1025,14 @@ public partial class Game1
 
     private bool TryGetLocalPlayerAimDirection(PlayerEntity player, out float aimDirectionDegrees)
     {
-        if (!ReferenceEquals(player, _world.LocalPlayer) || !_hasLatestLocalAimWorldPosition)
+        if (!ReferenceEquals(player, _world.LocalPlayer) || !_gameplayManager.InputUpdate.HasLatestLocalAimWorldPosition)
         {
             aimDirectionDegrees = 0f;
             return false;
         }
 
-        var aimDeltaX = _latestLocalAimWorldX - player.X;
-        var aimDeltaY = _latestLocalAimWorldY - player.Y;
+        var aimDeltaX = _gameplayManager.InputUpdate.LatestLocalAimWorldX - player.X;
+        var aimDeltaY = _gameplayManager.InputUpdate.LatestLocalAimWorldY - player.Y;
         aimDirectionDegrees = MathF.Atan2(aimDeltaY, aimDeltaX) * (180f / MathF.PI);
         return true;
     }

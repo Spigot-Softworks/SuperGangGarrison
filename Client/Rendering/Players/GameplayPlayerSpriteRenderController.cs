@@ -136,7 +136,7 @@ public sealed class GameplayPlayerSpriteRenderController
                 var teamColor = GameplayPlayerStatusEffectRenderController.GetUberOverlayColor(player.Team);
                 var outlineTint = Color.Lerp(teamColor, Color.White, 0.75f);
                 _game.DrawSpriteFrameShadow(sprite.Frames[frameIndex], position, tint, 0f, sprite.Origin.ToVector2(), scale);
-                if (_game._uberOutlineEnabled)
+                if (_game.GameplayRuntimeSettings.ShowUberOutlinesEnabled)
                 {
                     _game.DrawSpriteFrameOutline(sprite.Frames[frameIndex], position, outlineTint, 0f, sprite.Origin.ToVector2(), scale);
                 }
@@ -347,7 +347,7 @@ public sealed class GameplayPlayerSpriteRenderController
             }
 
             var equipmentOffset = bodyYOffset;
-            var weaponBobMode = OpenGarrisonPreferencesDocument.NormalizeWeaponBobMode(_game._weaponBobMode);
+            var weaponBobMode = OpenGarrisonPreferencesDocument.NormalizeWeaponBobMode(_game.GameplayRuntimeSettings.WeaponBobMode);
             if (isRunSprite && !appearsAirborne && weaponBobMode != WeaponBobMode.Disabled)
             {
                 var frame = GetRunEquipmentBobFrame((int)System.MathF.Floor(animationImage), delayByOneFrame: true);
@@ -495,7 +495,7 @@ public sealed class GameplayPlayerSpriteRenderController
                 return System.MathF.Cos(radians) < 0f ? -1f : 1f;
             }
             if (ReferenceEquals(player, _game._world.LocalPlayer)
-                && _game._useLocalWeaponRotation
+                && _game.GameplayRuntimeSettings.UseLocalWeaponRotation
                 && _game.TryGetLocalPlayerAimDirection(player, out var aimDirectionDegrees))
             {
                 var radians = System.MathF.PI * aimDirectionDegrees / 180f;

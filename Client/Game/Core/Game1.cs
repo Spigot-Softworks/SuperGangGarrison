@@ -140,6 +140,8 @@ public partial class Game1 : Game
     public readonly GameStartupMode _startupMode;
     public readonly ClientServiceContainer _services = new();
     private GameplayManager _gameplayManager => _services.Get<GameplayManager>();
+    private GameplayLoadoutResources _gameplayLoadoutResources => _gameplayManager.Bootstrap.GameplayLoadoutResources;
+    private MenuResources _menuResources => _gameplayManager.Bootstrap.MenuResources;
     private AudioManager _audioManager => _services.Get<AudioManager>();
     private HudManager _hudManager => _services.Get<HudManager>();
     private SessionManager _sessionManager => _services.Get<SessionManager>();
@@ -155,8 +157,6 @@ public partial class Game1 : Game
     private RenderPipeline _renderPipeline => _services.Get<RenderPipeline>();
     public bool _debugMenuEnabled;
     public bool _debugMenuOpen;
-    public bool _debugMenuAwaitingEscapeRelease;
-    public int _debugMenuHoverIndex;
     public bool _debugRocketCollisionsEnabled;
     public LastToDieStatsDocument _lastToDieStats => _services.Get<LastToDieStatsDocument>();
     public readonly ClientIdentityDocument _clientIdentity;
@@ -164,13 +164,11 @@ public partial class Game1 : Game
     public readonly OpenGarrisonPresenceClient _presenceClient;
     public GraphicsDeviceManager _graphics => _services.Get<GraphicsDeviceManager>();
     public readonly bool _crtStartupForcedOff;
-    public RenderTarget2D? _gameRenderTarget;
-    public RenderTarget2D? _hudRenderTarget;
+    private RenderTargetResources _renderTargetResources => _gameplayManager.Bootstrap.RenderTargetResources;
     public bool _hudOpacityCompositePending;
     public bool _deferDamageVignetteForHudOpacityComposite;
     public bool _damageVignetteCompositeDeferred;
     public float _activeHudElementOpacity = 1f;
-    public bool _preLaunchSplashDismissed;
     public SimulationConfig _config = null!;
     public SimulationWorld _world = null!;
     public FixedStepSimulator _simulator = null!;
@@ -179,62 +177,21 @@ public partial class Game1 : Game
     public SpriteBatch _spriteBatch = null!;
     public Texture2D _pixel = null!;
     public Effect _grayscaleEffect = null!;
-    public Texture2D? _levelBackgroundFileTexture;
-    public string? _levelBackgroundFileTexturePath;
-    public string? _levelBackgroundFileFailedPath;
-    public SimpleLevel? _levelBackgroundFileTextureLevel;
-    public LoadedSpriteFrame? _menuBackgroundTexture;
-    public string? _menuBackgroundTexturePath;
-    public string? _menuBackgroundFailedPath;
-    public string _menuBackgroundAttributionText = string.Empty;
+    private LevelBackgroundResources _levelBackgroundResources => _gameplayManager.Bootstrap.LevelBackgroundResources;
     public SpriteFont _consoleFont = null!;
     public SpriteFont _menuFont = null!;
-    public LoadedSpriteFrame? _menuBitmapFontTexture;
-    public readonly Dictionary<char, MenuBitmapGlyph> _menuBitmapFontGlyphs = new();
-    public int _menuBitmapFontLineHeight;
-    public int _menuBitmapFontSpacing = 1;
-    public LoadedSpriteFrame? _menuPlaqueTexture;
-    public LoadedSpriteFrame? _menuPlaqueTallTexture;
-    public LoadedSpriteFrame? _menuTextBoxTopTexture;
-    public LoadedSpriteFrame? _menuTextBoxMiddleTexture;
-    public LoadedSpriteFrame? _menuTextBoxBottomTexture;
-    public LoadedSpriteFrame? _menuTextBoxSoloTexture;
-    public LoadedSpriteFrame? _lastToDieMenuPlaqueTexture;
-    public LoadedSpriteFrame? _lastToDieMenuTextBoxSoloTexture;
-    public LoadedSpriteFrame? _gameplayLoadoutClassStripTexture;
-    public LoadedSpriteFrame? _gameplayLoadoutClassSelectionTexture;
-    public LoadedSpriteFrame? _gameplayLoadoutBackgroundBarTexture;
-    public LoadedSpriteFrame? _gameplayLoadoutDescriptionBoardTexture;
-    public LoadedSpriteFrame? _gameplayLoadoutSelectionAtlasTexture;
-    public readonly List<LoadedSpriteFrame> _gameplayLoadoutSelectionAtlasChunks = [];
-    public LoadedSpriteFrame? _gameplayLoadoutSelectionTexture;
-    public LoadedSpriteFrame? _gameplayLoadoutScrollerTexture;
-    public LoadedSpriteFrame? _gameplayLoadoutPageTexture;
-    public LoadedSpriteFrame? _gameplayLoadoutBackButtonTexture;
-    public LoadedSpriteFrame? _gameplayLoadoutHelmetTexture;
-    public LoadedSpriteFrame? _gameplayLoadoutDogTagsTexture;
     public GameMakerRuntimeAssetCache _runtimeAssets = null!;
     public GameplayModAssetCache _gameplayModAssets = null!;
     public RotatedWeaponSpriteCache? _rotatedWeaponSprites;
-    public ClientRuntimeComposition? _runtimeComposition;
-    public readonly Dictionary<LoadedSpriteFrame, Rectangle> _spriteFontOpaqueBoundsCache = new();
+    private SpriteFrameCacheResources _spriteFrameCacheResources => _gameplayManager.Bootstrap.SpriteFrameCacheResources;
     public KeyboardState _previousKeyboard;
-    public KeyboardState _clientPluginPreviousKeyboard;
-    public KeyboardState _clientPluginKeyboard;
     public readonly Dictionary<int, PlayerRenderState> _playerRenderStates = new();
     public readonly Dictionary<int, Vector2> _playerPreviousRenderPositions = new();
     public readonly Dictionary<int, double> _playerPreviousRenderSampleTimes = new();
     public readonly Random _visualRandom = new(1337);
     public bool _wasDeathCamActive;
     public bool _wasMatchEnded;
-    public int _previousLocalDemoknightChargeTicks = PlayerEntity.ExperimentalDemoknightChargeMaxTicks;
-    public readonly BuffBannerReadyCueTracker _localBuffBannerReadyCueTracker = new();
-    public float _localBuffBannerReadyCueEchoSuppressionSeconds;
     public MouseState _previousMouse;
-    // Draw code must use the same focus-sanitized mouse sample as Update. Reading
-    // Mouse.GetState directly during Draw lets an inactive window click through.
-    public MouseState _frameMouseState;
-    public MouseState _frameRawMouseState;
     public Point _lastKnownMousePosition;
     public bool _suppressPrimaryFireUntilMouseRelease;
     public bool _suppressSecondaryFireUntilMouseRelease;
@@ -256,74 +213,20 @@ public partial class Game1 : Game
     private DevMessagePopupState? _activeDevMessagePopup;
     private readonly Queue<string> _queuedReplayPaths = new();
     public string? _activeReplayPath;
-    public bool _killCamEnabled = true;
-    public bool _positionSmoothingEnabled = false;
-    public bool _enablePrediction = true;
-    public bool _cameraPanningEnabled = OpenGarrisonPreferencesDocument.DefaultCameraPanningEnabled;
-    private float _smoothCameraMultiplier = ClientSettings.DefaultSmoothCameraMultiplier;
     private bool _hasSmoothCamera;
     private Vector2 _smoothCamera;
     public bool _hasGameplayCameraTopLeft;
     public Vector2 _gameplayCameraTopLeft;
     private int _gameplayCameraZoomIndex;
     private bool _gameplayWorldSpriteBatchActive;
-    public string _lastGameplayWindowTitle = string.Empty;
-    public DisplayModeKind _displayMode = OpenGarrisonPreferencesDocument.DefaultDisplayMode;
-    public IngameResolutionKind _ingameResolution = OpenGarrisonPreferencesDocument.DefaultIngameResolution;
-    public WindowSizeKind _windowSize = OpenGarrisonPreferencesDocument.DefaultWindowSize;
-    private DisplayScaleModeKind _displayScaleMode = OpenGarrisonPreferencesDocument.DefaultDisplayScaleMode;
     private Point? _lastWindowedPosition;
-    public int _particleMode;
-    public int _flameRenderMode;
-    public int _bloodRenderMode;
-    public bool _dynamicRagdollEnabled = true;
-    public bool _burnCharredCorpsesEnabled = true;
-    public int _bloodPersistenceSeconds = OpenGarrisonPreferencesDocument.DefaultBloodPersistenceSeconds;
-    public int _corpseFadeMode = OpenGarrisonPreferencesDocument.DefaultCorpseFadeMode;
-    public MenuBackgroundMode _menuBackgroundMode = MenuBackgroundMode.DefaultMaps;
-    public int _gibLevel = 3;
-    public int _bloodAmountLevel = 5;
-    public int _corpseDurationMode;
-    public int _frameRateLimit;
     private long _lastDrawTimestamp;
-    public bool _healerRadarEnabled = true;
-    public bool _showHealerEnabled = true;
-    public bool _showHealingEnabled = true;
-    public bool _showHealthBarEnabled;
-    public bool _showShieldBarEnabled = true;
-    public bool _hudShowOnlyActiveWeapon;
-    public bool _overheadChatEnabled = OpenGarrisonPreferencesDocument.DefaultOverheadChatEnabled;
     private BubbleWheelBehavior _bubbleWheelBehavior = OpenGarrisonPreferencesDocument.DefaultBubbleWheelBehavior;
     private DateTime _bubbleWheelPluginConfigLastWriteUtc;
-    public bool _portraitRumbleEnabled = true;
-    public bool _postGameMvpArtEnabled;
-    public float _portraitRumbleRemainingSeconds;
-    public float _portraitRumbleIntensity;
-    public int _portraitRumbleSeed;
-    public bool _damageVignetteEnabled = true;
-    public int _damageVignetteIntensityPercent = ClientSettings.DefaultDamageVignetteIntensityPercent;
-    public LowHealthColorMode _lowHealthColorMode = LowHealthColorMode.Red;
-    public float _damageVignetteIntensity;
-    public float _damageVignetteFlashIntensity;
     private readonly Dictionary<int, Texture2D> _damageVignetteTexturesByBucket = new();
     private int _damageVignetteTextureWidth;
     private int _damageVignetteTextureHeight;
-    public bool _showPersistentSelfNameEnabled;
-    public bool _showPlayerNamesEnabled = true;
-    public bool _spriteDropShadowEnabled;
-    public bool _stuckArrowsEnabled = true;
-    public WeaponBobMode _weaponBobMode = WeaponBobMode.Enabled;
-    public bool _pixelPerfectWeaponRotation = true;
-    public bool _useLocalWeaponRotation = false;
-    public int _playerCardSizeMode = ClientSettings.PlayerCardSizeSmall;
-    public int _cursorSizePercent = ClientSettings.DefaultCursorSizePercent;
-    public bool _uberOutlineEnabled = true;
-    public bool _projectileTeamTintEnabled = true;
-    public bool _wasWindowActive = true;
     private bool _windowInputActive = true;
-    public readonly WindowInputFilter _windowInputFilter = new();
-    public bool _suppressFullscreenToggleUntilRelease;
-    public int _menuImageFrame;
     private readonly List<ChatLine> _chatLines = new();
     public OverheadChatMessage? _localOverheadChatMessage;
     public readonly Dictionary<byte, OverheadChatMessage> _overheadChatMessagesBySlot = new();
@@ -405,7 +308,7 @@ public partial class Game1 : Game
         ApplyDisplayMode(_clientSettings.DisplayMode);
         ApplyIngameResolution(_clientSettings.IngameResolution);
         ApplyWindowSize(_clientSettings.WindowSize);
-        ApplyPreferredBackBufferSize(_displayMode, _ingameResolution, _windowSize);
+        ApplyPreferredBackBufferSize(_menuManager.DisplaySettings.DisplayMode, _menuManager.DisplaySettings.IngameResolution, _menuManager.DisplaySettings.WindowSize);
 
         ReinitializeSimulationForTickRate(SimulationConfig.DefaultTicksPerSecond);
         _assetManifest = OperatingSystem.IsBrowser()
@@ -436,7 +339,7 @@ public partial class Game1 : Game
 
         if (!OperatingSystem.IsBrowser())
         {
-            Window.AllowUserResizing = IsUserResizableDisplayMode(_displayMode);
+            Window.AllowUserResizing = IsUserResizableDisplayMode(_menuManager.DisplaySettings.DisplayMode);
         }
 
         // Subscribe to game exit event to ensure proper server disconnection
@@ -448,10 +351,10 @@ public partial class Game1 : Game
     private void OnGameActivated(object? sender, EventArgs e)
     {
         _windowInputActive = true;
-        _windowInputFilter.LoseFocus();
+        _gameplayManager.Frame.LoseFocus();
         // Rebase the edge detector on the first active frame. A button held while
         // another window was focused must not become a new click on refocus.
-        _wasWindowActive = false;
+        _gameplayManager.Frame.RebaseWindowActivation();
     }
 
     private void OnGameDeactivated(object? sender, EventArgs e)
@@ -518,7 +421,7 @@ public partial class Game1 : Game
         BeginClientPerformanceDiagnosticsFrame(gameTime);
         _networkInterpolationClockSeconds = _networkInterpolationClock.Elapsed.TotalSeconds;
         var clientTicks = _gameplayManager.Frame.Update(gameTime);
-        UpdateVoiceChat(_clientPluginKeyboard, _frameMouseState, _wasWindowActive);
+        UpdateVoiceChat(_gameplayManager.Frame.ClientPluginKeyboard, _gameplayManager.Frame.FrameMouseState, _gameplayManager.Frame.WasWindowActive);
         PumpDiscordRichPresence(gameTime.ElapsedGameTime.TotalSeconds);
         PumpSocialPresence(gameTime.ElapsedGameTime.TotalSeconds);
         PumpManagedRoomOperation();
@@ -550,7 +453,7 @@ public partial class Game1 : Game
 
     private void ApplyFrameRateLimit()
     {
-        if (OperatingSystem.IsBrowser() || _frameRateLimit <= 0)
+        if (OperatingSystem.IsBrowser() || _menuManager.DisplaySettings.FrameRateLimit <= 0)
         {
             _lastDrawTimestamp = Stopwatch.GetTimestamp();
             return;
@@ -564,7 +467,7 @@ public partial class Game1 : Game
         }
 
         var elapsedSeconds = (currentTimestamp - _lastDrawTimestamp) / (double)Stopwatch.Frequency;
-        var targetSeconds = 1d / _frameRateLimit;
+        var targetSeconds = 1d / _menuManager.DisplaySettings.FrameRateLimit;
         if (elapsedSeconds < targetSeconds)
         {
             var sleepMilliseconds = (int)Math.Floor((targetSeconds - elapsedSeconds) * 1000d);
@@ -591,7 +494,7 @@ public partial class Game1 : Game
 
         _browserDebugMenuCount += 1;
         Console.WriteLine(
-            $"Browser menu draw #{_browserDebugMenuCount}: page={_mainMenuPage} overlay={GetActiveMainMenuOverlay()} buttons={buttonCount} plaque={_menuPlaqueTexture is not null} solo={_menuTextBoxSoloTexture is not null} bitmapFont={_menuBitmapFontTexture is not null && _menuBitmapFontGlyphs.Count > 0} menuFontLineSpacing={_menuFont.LineSpacing}");
+            $"Browser menu draw #{_browserDebugMenuCount}: page={_mainMenuPage} overlay={GetActiveMainMenuOverlay()} buttons={buttonCount} plaque={_menuResources.PlaqueTexture is not null} solo={_menuResources.TextBoxSoloTexture is not null} bitmapFont={_menuResources.BitmapFontTexture is not null && _menuResources.BitmapFontGlyphs.Count > 0} menuFontLineSpacing={_menuFont.LineSpacing}");
     }
 
     private void DrawGameplayWorldForCamera(Vector2 cameraPosition, int viewportWidth, int viewportHeight, int? skippedDeadBodySourcePlayerId = null)
@@ -615,12 +518,12 @@ public partial class Game1 : Game
 
     internal MouseState GetFrameMouseState()
     {
-        return _frameMouseState;
+        return _gameplayManager.Frame.FrameMouseState;
     }
 
     internal MouseState GetFrameRawMouseState()
     {
-        return _frameRawMouseState;
+        return _gameplayManager.Frame.FrameRawMouseState;
     }
 
     internal bool IsWindowInputActive => OperatingSystem.IsBrowser()

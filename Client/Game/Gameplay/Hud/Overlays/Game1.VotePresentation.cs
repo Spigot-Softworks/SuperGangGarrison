@@ -232,7 +232,7 @@ public partial class Game1
         var blocked = _networkClient.IsReplayConnection
             || (!_networkClient.IsConnected && !IsPracticeSessionActive)
             || _chatOpen || _consoleOpen || _optionsMenuOpen || _controlsMenuOpen
-            || _passwordPromptOpen || _teamSelectOpen || _classSelectOpen || _voteMenuOpen
+            || _passwordPromptOpen || _teamClassSelectionState.TeamSelectOpen || _teamClassSelectionState.ClassSelectOpen || _voteMenuOpen
             || _mainMenuOpen;
         var hasActiveVote = _votePresentationState is { IsComplete: false, RemainingTicks: > 0 };
         var command = ResolveVoteShortcut(

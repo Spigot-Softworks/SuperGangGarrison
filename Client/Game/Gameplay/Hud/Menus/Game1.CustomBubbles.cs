@@ -94,7 +94,7 @@ public partial class Game1
         _pendingControllerControlsBinding = null;
         _friendsMenuOpen = false;
         _inGameMenuOpen = false;
-        _inGameMenuAwaitingEscapeRelease = false;
+        _menuManager.InGameMenu.ResetAwaitingEscapeRelease();
         _editingPlayerName = false;
         CustomBubbleEditor.Open(_selectedCustomBubbleSlot);
     }

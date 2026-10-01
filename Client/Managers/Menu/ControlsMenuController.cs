@@ -317,7 +317,7 @@ public sealed class ControlsMenuController
             _context._spriteBatch.Draw(_context._pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.Black * 0.86f);
 
             // Draw bottom bar and runners (in animated mode only) - behind everything else
-            if (_context._menuBackgroundMode != MenuBackgroundMode.Static)
+            if (_context.GameplayRuntimeSettings.MenuBackgroundMode != MenuBackgroundMode.Static)
             {
                 const int bottomBarHeight = 76;
                 var barY = viewportHeight - bottomBarHeight;

@@ -27,6 +27,11 @@ public sealed class SpecialAbilitiesHudRegressionTests
         world.CompleteLocalPlayerJoin(playerClass);
         var game = (Game1)RuntimeHelpers.GetUninitializedObject(typeof(Game1));
         typeof(Game1).GetField("_world", instance)!.SetValue(game, world);
+        var services = new ClientServiceContainer();
+        typeof(Game1).GetField("_services", instance)!.SetValue(game, services);
+        var gameplayManager = new GameplayManager((IGameplayContext)game);
+        services.Register(gameplayManager);
+        gameplayManager.RuntimeSettings.EnablePrediction = false;
         var type = typeof(GameplayLocalStatusHudController);
         var controller = new GameplayLocalStatusHudController(game);
         GameplayItemDefinition[] Items() => ((IEnumerable<GameplayItemDefinition>)type.GetMethod(

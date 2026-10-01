@@ -23,7 +23,7 @@ public sealed class GameplayPlayerStatusEffectRenderController
             var forceSpecialEnemyHealthBar = _game.ShouldForceLastToDieSpecialEnemyHealthBar(player);
             var forcePracticeCombatDummyHealthBar = _game._world.IsPracticeCombatDummy(player);
             var forceMapBotHealthBar = _game.ShouldForceMapBotHealthBar(player);
-            if ((!_game._showHealthBarEnabled && !forceSpecialEnemyHealthBar && !forcePracticeCombatDummyHealthBar && !forceMapBotHealthBar)
+            if ((!_game.HudRuntimeSettings.ShowHealthBarEnabled && !forceSpecialEnemyHealthBar && !forcePracticeCombatDummyHealthBar && !forceMapBotHealthBar)
                 || visibilityAlpha <= 0f
                 || (!ReferenceEquals(player, _game._world.LocalPlayer)
                     && player.Team != _game._world.LocalPlayer.Team
@@ -39,7 +39,7 @@ public sealed class GameplayPlayerStatusEffectRenderController
 
         public void TryDrawCivvieUmbrellaShieldBar(PlayerEntity player, Vector2 cameraPosition, float visibilityAlpha)
         {
-            if (!_game._showShieldBarEnabled
+            if (!_game.HudRuntimeSettings.ShowShieldBarEnabled
                 || visibilityAlpha <= 0f
                 || !player.IsAlive
                 || !_game.GetPlayerIsCivvieUmbrellaActive(player)
@@ -279,7 +279,7 @@ public sealed class GameplayPlayerStatusEffectRenderController
             }
 
             var sourceFrame = (int)((_game._world.Frame * LegacyMovementModel.SourceTicksPerSecond) / _game._config.TicksPerSecond);
-            if (_game._flameRenderMode == 0)
+            if (_game.GameplayRuntimeSettings.FlameRenderMode == 0)
             {
                 var cells = new System.Collections.Generic.Dictionary<(int, int), float>();
                 var baseCount = player.BurnVisualBaseCount;
@@ -471,8 +471,8 @@ public sealed class GameplayPlayerStatusEffectRenderController
         {
             var velocity = ReferenceEquals(player, _game._world.LocalPlayer)
                 && _game.CanUseLocalPrediction()
-                && _game._hasPredictedLocalPlayerPosition
-                ? _game._predictedLocalPlayerVelocity
+                && _game.LocalPrediction.HasPredictedLocalPlayerPosition
+                ? _game.LocalPrediction.PredictedLocalPlayerVelocity
                 : new Vector2(player.HorizontalSpeed, player.VerticalSpeed);
             if (velocity.LengthSquared() <= 0.01f)
             {

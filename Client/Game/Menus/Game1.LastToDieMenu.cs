@@ -61,8 +61,7 @@ public partial class Game1
     public LastToDieMenuPage _lastToDieMenuPage;
     public int _lastToDieMenuHoverIndex = -1;
     public bool _lastToDieFriendsHover;
-    public LoadedSpriteFrame? _lastToDieLogoTexture;
-    private string? _lastToDieLogoTexturePath;
+    private LastToDieLogoResources _lastToDieLogoResources => _gameplayManager.Bootstrap.LastToDieLogoResources;
     private Task<OpenGarrison.ClientShared.LastToDieRankingsResponse>? _lastToDieRankingsTask;
     private OpenGarrison.ClientShared.LastToDieRankingsResponse? _lastToDieRankings;
     private Task<OpenGarrison.ClientShared.LastToDieLeaderboardResponse>? _lastToDieLeaderboardTask;
@@ -80,7 +79,7 @@ public partial class Game1
         return _mainMenuOpen
             && (_lastToDieMenuOpen
                 || _lastToDieRoomCodeJoinOpen
-                || _lastToDieConnectionPresentationPending);
+                || _sessionTransitions.LastToDieConnectionPresentationPending);
     }
 
     public void OpenLastToDieMenu(string? statusMessage = null)
@@ -598,8 +597,8 @@ public partial class Game1
 
     private LastToDieMenuLayout GetLastToDieMenuLayout(int buttonCount, bool statsPage)
     {
-        var plaqueTexture = _lastToDieMenuPlaqueTexture ?? _menuPlaqueTexture;
-        var buttonTexture = _lastToDieMenuTextBoxSoloTexture ?? _menuTextBoxSoloTexture;
+        var plaqueTexture = _menuResources.LastToDieMenuPlaqueTexture ?? _menuResources.PlaqueTexture;
+        var buttonTexture = _menuResources.LastToDieMenuTextBoxSoloTexture ?? _menuResources.TextBoxSoloTexture;
         if (plaqueTexture is null || buttonTexture is null)
         {
             return new LastToDieMenuLayout(Rectangle.Empty, Rectangle.Empty, [], 1f);
@@ -685,7 +684,7 @@ public partial class Game1
 
     private Rectangle GetLastToDieFriendsButtonBounds(float scale)
     {
-        var texture = _lastToDieMenuTextBoxSoloTexture ?? _menuTextBoxSoloTexture;
+        var texture = _menuResources.LastToDieMenuTextBoxSoloTexture ?? _menuResources.TextBoxSoloTexture;
         if (texture is null)
         {
             return Rectangle.Empty;
@@ -780,7 +779,7 @@ public partial class Game1
         var barY = viewportHeight - bottomBarHeight;
         var bottomBarBounds = new Rectangle(0, barY, viewportWidth, bottomBarHeight);
         _spriteBatch.Draw(_pixel, bottomBarBounds, new Color(0x4b, 0x4d, 0x50));
-        if (_menuBackgroundMode != MenuBackgroundMode.Static)
+        if (_gameplayManager.RuntimeSettings.MenuBackgroundMode != MenuBackgroundMode.Static)
         {
             _menuManager.MenuBottomBarRunners.Draw(bottomBarBounds);
         }
@@ -789,8 +788,8 @@ public partial class Game1
 
         var buttonLabels = GetLastToDieMenuButtonLabels();
         var layout = GetLastToDieMenuLayout(buttonLabels.Length, _lastToDieMenuPage == LastToDieMenuPage.Rankings);
-        var plaqueTexture = _lastToDieMenuPlaqueTexture ?? _menuPlaqueTexture;
-        var buttonTexture = _lastToDieMenuTextBoxSoloTexture ?? _menuTextBoxSoloTexture;
+        var plaqueTexture = _menuResources.LastToDieMenuPlaqueTexture ?? _menuResources.PlaqueTexture;
+        var buttonTexture = _menuResources.LastToDieMenuTextBoxSoloTexture ?? _menuResources.TextBoxSoloTexture;
         if (plaqueTexture is not null && layout.PlaqueBounds != Rectangle.Empty)
         {
             DrawLoadedSpriteFrame(plaqueTexture, layout.PlaqueBounds, Color.White);
@@ -1195,20 +1194,20 @@ public partial class Game1
     private void DrawLastToDieMenuLogo(int viewportWidth)
     {
         EnsureLastToDieLogoTexture();
-        if (_lastToDieLogoTexture is null)
+        if (_lastToDieLogoResources.Texture is null)
         {
             return;
         }
 
         const float targetWidth = 420f;
-        var scale = targetWidth / Math.Max(1f, _lastToDieLogoTexture.Width);
-        var targetHeight = _lastToDieLogoTexture.Height * scale;
+        var scale = targetWidth / Math.Max(1f, _lastToDieLogoResources.Texture.Width);
+        var targetHeight = _lastToDieLogoResources.Texture.Height * scale;
         var destination = new Rectangle(
             (int)MathF.Round(viewportWidth - targetWidth - 36f),
             32,
             (int)MathF.Round(targetWidth),
             (int)MathF.Round(targetHeight));
-        DrawLoadedSpriteFrame(_lastToDieLogoTexture, destination, Color.White);
+        DrawLoadedSpriteFrame(_lastToDieLogoResources.Texture, destination, Color.White);
     }
 
     private void EnsureLastToDieLogoTexture()
@@ -1220,21 +1219,21 @@ public partial class Game1
             return;
         }
 
-        if (_lastToDieLogoTexture is not null
-            && string.Equals(_lastToDieLogoTexturePath, path, StringComparison.OrdinalIgnoreCase))
+        if (_lastToDieLogoResources.Texture is not null
+            && string.Equals(_lastToDieLogoResources.TexturePath, path, StringComparison.OrdinalIgnoreCase))
         {
             return;
         }
 
         DisposeLastToDieLogoTexture();
-        _lastToDieLogoTexture = LoadSpriteFrameFromPath(path);
-        _lastToDieLogoTexturePath = path;
+        _lastToDieLogoResources.Texture = LoadSpriteFrameFromPath(path);
+        _lastToDieLogoResources.TexturePath = path;
     }
 
     private void DisposeLastToDieLogoTexture()
     {
-        _lastToDieLogoTexture?.Dispose();
-        _lastToDieLogoTexture = null;
-        _lastToDieLogoTexturePath = null;
+        _lastToDieLogoResources.Texture?.Dispose();
+        _lastToDieLogoResources.Texture = null;
+        _lastToDieLogoResources.TexturePath = null;
     }
 }

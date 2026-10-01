@@ -725,9 +725,9 @@ public partial class Game1
         }
 
         // Pick the player nearest to the mouse cursor's world position in the binoculars view.
-        // _latestLocalAimWorldX/Y is already the cursor's world position (set by PrepareFrame).
-        var pickWorldX = _hasLatestLocalAimWorldPosition ? _latestLocalAimWorldX : _binocularsFocusX;
-        var pickWorldY = _hasLatestLocalAimWorldPosition ? _latestLocalAimWorldY : _binocularsFocusY;
+        // The cached aim position is already the cursor's world position (set by PrepareFrame).
+        var pickWorldX = _gameplayManager.InputUpdate.HasLatestLocalAimWorldPosition ? _gameplayManager.InputUpdate.LatestLocalAimWorldX : _binocularsFocusX;
+        var pickWorldY = _gameplayManager.InputUpdate.HasLatestLocalAimWorldPosition ? _gameplayManager.InputUpdate.LatestLocalAimWorldY : _binocularsFocusY;
         const float pickRadius = 30f;
         var bestDistanceSquared = pickRadius * pickRadius;
         PlayerEntity? target = null;

@@ -53,7 +53,7 @@ public partial class Game1
 
     private void AdvanceCorpseAcidDissolveStates()
     {
-        if (_corpseDurationMode == ClientSettings.CorpseDurationInfinite)
+        if (_gameplayManager.RuntimeSettings.CorpseDurationMode == ClientSettings.CorpseDurationInfinite)
         {
             // Keep burn-charred dissolve textures; only clear normal end-of-life fades.
             _staleCorpseAcidDissolveIds.Clear();
@@ -336,7 +336,7 @@ public partial class Game1
         int sourcePlayerId,
         out DynamicRagdollState ragdoll)
     {
-        if (!_dynamicRagdollEnabled)
+        if (!_gameplayManager.RuntimeSettings.DynamicRagdollEnabled)
         {
             ragdoll = null!;
             return false;

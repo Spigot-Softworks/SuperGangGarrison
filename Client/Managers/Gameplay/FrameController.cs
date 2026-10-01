@@ -12,10 +12,56 @@ namespace OpenGarrison.Client;
 public sealed class FrameController
     {
         private readonly IGameplayContext _context;
+        private readonly OpenGarrison.Client.WindowInputFilter _windowInputFilter = new();
+        private bool _wasWindowActive = true;
+        private Microsoft.Xna.Framework.Input.KeyboardState _clientPluginPreviousKeyboard;
+        private Microsoft.Xna.Framework.Input.KeyboardState _clientPluginKeyboard;
+        // Draw code must use the same focus-sanitized mouse sample as Update. Reading
+        // Mouse.GetState directly during Draw lets an inactive window click through.
+        private Microsoft.Xna.Framework.Input.MouseState _frameMouseState;
+        private Microsoft.Xna.Framework.Input.MouseState _frameRawMouseState;
+        private bool _suppressFullscreenToggleUntilRelease;
 
         public FrameController(IGameplayContext context)
         {
             _context = context;
+        }
+
+        internal LoadingOverlayState LoadingOverlay { get; } = new();
+
+        internal MouseState FrameRawMouseState => _frameRawMouseState;
+
+        internal MouseState FrameMouseState => _frameMouseState;
+
+        internal KeyboardState ClientPluginKeyboard => _clientPluginKeyboard;
+
+        internal bool WasWindowActive => _wasWindowActive;
+
+        internal bool WasClientPluginKeyPressedThisFrame(Keys key)
+        {
+            return _clientPluginKeyboard.IsKeyDown(key)
+                && !_clientPluginPreviousKeyboard.IsKeyDown(key);
+        }
+
+        internal void ResetClientPluginKeyboard()
+        {
+            _clientPluginPreviousKeyboard = default;
+            _clientPluginKeyboard = default;
+        }
+
+        internal void RebaseWindowActivation()
+        {
+            _wasWindowActive = false;
+        }
+
+        internal void LoseFocus()
+        {
+            _windowInputFilter.LoseFocus();
+        }
+
+        internal GamePadState FilterController(bool windowActive, GamePadState gamePad, bool hasSelectionActivity)
+        {
+            return _windowInputFilter.FilterController(windowActive, gamePad, hasSelectionActivity);
         }
 
         public int Update(GameTime gameTime)
@@ -31,16 +77,16 @@ public sealed class FrameController
                 BrowserInputBridge.BeginFrame();
             }
 
-            var wasWindowActive = _context._wasWindowActive;
+            var wasWindowActive = _wasWindowActive;
             var windowActive = _context.IsWindowInputActive;
             var keyboard = windowActive ? Game1.GetCurrentKeyboardState() : default;
             var rawMouse = Game1.GetCurrentMouseState();
-            _context._windowInputFilter.Filter(windowActive, ref keyboard, ref rawMouse);
+            _windowInputFilter.Filter(windowActive, ref keyboard, ref rawMouse);
             if (windowActive) rawMouse = _context.GetConstrainedMouseState(rawMouse);
             var mouse = _context.GetScaledMouseState(rawMouse);
             _context._lastKnownMousePosition = new Point(mouse.X, mouse.Y);
-            _context._frameRawMouseState = rawMouse;
-            _context._frameMouseState = mouse;
+            _frameRawMouseState = rawMouse;
+            _frameMouseState = mouse;
 
             if (wasWindowActive && !windowActive)
             {
@@ -61,9 +107,9 @@ public sealed class FrameController
                 }
             }
 
-            _context._clientPluginPreviousKeyboard = _context._previousKeyboard;
-            _context._clientPluginKeyboard = keyboard;
-            _context._wasWindowActive = windowActive;
+            _clientPluginPreviousKeyboard = _context._previousKeyboard;
+            _clientPluginKeyboard = keyboard;
+            _wasWindowActive = windowActive;
 
             if (TryHandlePasswordPromptCancel(keyboard, mouse))
             {
@@ -80,7 +126,7 @@ public sealed class FrameController
             var fullscreenDown = keyboard.IsKeyDown(Keys.F11);
             if (!fullscreenDown)
             {
-                _context._suppressFullscreenToggleUntilRelease = false;
+                _suppressFullscreenToggleUntilRelease = false;
             }
 
             var toggleFullscreenPressed = fullscreenDown && !_context._previousKeyboard.IsKeyDown(Keys.F11);
@@ -88,17 +134,17 @@ public sealed class FrameController
             {
                 var deferFullscreenToggle = Game1.ShouldDeferFullscreenToggle(
                     _context._startupSplashOpen,
-                    _context._loadingOverlayVisible,
+                    LoadingOverlay.Visible,
                     _context.Gameplay.Bootstrap.IsContentBootstrapComplete,
-                    _context._lastToDieConnectionPresentationPending);
+                    _context.SessionTransitions.LastToDieConnectionPresentationPending);
                 if (deferFullscreenToggle)
                 {
                     // Consume the edge while startup/loading owns the
                     // presentation.  A held F11 must not toggle as soon as
                     // loading finishes.
-                    _context._suppressFullscreenToggleUntilRelease = true;
+                    _suppressFullscreenToggleUntilRelease = true;
                 }
-                else if (!_context._suppressFullscreenToggleUntilRelease)
+                else if (!_suppressFullscreenToggleUntilRelease)
                 {
                     _context.ToggleFullscreenHotkey();
                 }
@@ -246,13 +292,12 @@ public partial class Game1
 
     public void HandleWindowFocusLost(MouseState releasedMouse)
     {
-        _windowInputFilter.LoseFocus();
+        _gameplayManager.Frame.LoseFocus();
         _crtUnlockSequenceProgress = 0;
         ReleaseGameplayInputForFocusLoss();
         _previousKeyboard = default;
         _previousMouse = releasedMouse;
-        _clientPluginPreviousKeyboard = default;
-        _clientPluginKeyboard = default;
+        _gameplayManager.Frame.ResetClientPluginKeyboard();
         _suppressPrimaryFireUntilMouseRelease = false;
         _suppressSecondaryFireUntilMouseRelease = false;
         _autoFireActive = false;
@@ -277,8 +322,8 @@ public partial class Game1
     private void ReleaseGameplayInputForFocusLoss()
     {
         _world.SetLocalInput(default);
-        _latestPredictedLocalInput = default;
-        _previousPredictedLocalInput = default;
+        _localPredictionState.LatestPredictedLocalInput = default;
+        _localPredictionState.PreviousPredictedLocalInput = default;
         _latchedJumpPressSequence = 0;
         ClearPendingPredictedInputEdges();
         _currentGamePad = default;

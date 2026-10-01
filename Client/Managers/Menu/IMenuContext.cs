@@ -9,6 +9,11 @@ namespace OpenGarrison.Client;
 public interface IMenuContext
 {
     MenuManager Menus { get; }
+    AudioRuntimeSettings AudioRuntimeSettings { get; }
+    DisplayRuntimeSettings DisplayRuntimeSettings { get; }
+    GameplayRuntimeSettings GameplayRuntimeSettings { get; }
+    HudRuntimeSettings HudRuntimeSettings { get; }
+    MenuResources MenuResources { get; }
     SessionManager Session { get; }
     HostingManager Hosting { get; }
     bool _accountDialogOpen { get; set; }
@@ -17,49 +22,28 @@ public interface IMenuContext
     bool _accountIsProtected { get; set; }
     long _accountLifetimePoints { get; set; }
     long _accountWalletBalance { get; set; }
-    bool _audioMuted { get; set; }
-    int _bloodAmountLevel { get; set; }
-    int _bloodPersistenceSeconds { get; set; }
-    int _bloodRenderMode { get; set; }
     bool _brandIntroActive { get; set; }
     bool _builderEditorEnabled { get; set; }
-    bool _cameraPanningEnabled { get; set; }
     OpenGarrison.ClientShared.ClientIdentityDocument _clientIdentity { get; }
     OpenGarrison.Client.ClientPluginHost _clientPluginHost { get; set; }
     bool _clientPowersOpen { get; set; }
     bool _clientPowersOpenedFromGameplay { get; set; }
     OpenGarrison.ClientShared.ClientSettings _clientSettings { get; }
-    int _combatMusicVolumePercent { get; set; }
     int _controlsHoverIndex { get; set; }
     bool _controlsMenuOpen { get; set; }
     bool _controlsMenuOpenedFromGameplay { get; set; }
     int _controlsPageIndex { get; set; }
     int _controlsScrollOffset { get; set; }
-    int _corpseDurationMode { get; set; }
-    int _corpseFadeMode { get; set; }
     bool _creditsOpen { get; set; }
-    bool _creditsScrollInitialized { get; set; }
-    int _cursorSizePercent { get; set; }
     bool _customBubbleEditorOpen { get; set; }
-    bool _damageVignetteEnabled { get; set; }
-    int _damageVignetteIntensityPercent { get; set; }
-    bool _debugMenuAwaitingEscapeRelease { get; set; }
     bool _debugMenuEnabled { get; set; }
-    int _debugMenuHoverIndex { get; set; }
     bool _debugMenuOpen { get; set; }
     bool _debugRocketCollisionsEnabled { get; set; }
-    OpenGarrison.Core.DisplayModeKind _displayMode { get; set; }
-    bool _dynamicMusicEnabled { get; set; }
-    bool _burnCharredCorpsesEnabled { get; set; }
-    bool _dynamicRagdollEnabled { get; set; }
     bool _editingFriendCode { get; set; }
     bool _editingFriendNickname { get; set; }
     bool _editingPlayerName { get; set; }
-    bool _enablePrediction { get; set; }
-    int _flameRenderMode { get; set; }
-    int _frameRateLimit { get; set; }
     OpenGarrison.ClientShared.FriendListDocument _friendList { get; }
-    string _friendNicknameInputBuffer { get; set; }
+    TextEditState FriendNicknameEdit { get; }
     bool _friendsMenuAddingFriend { get; set; }
     int _friendsMenuHoverIndex { get; set; }
     bool _friendsMenuOpen { get; set; }
@@ -67,30 +51,21 @@ public interface IMenuContext
     OpenGarrison.Client.Game1.FriendsMenuTab _friendsMenuTab { get; set; }
     OpenGarrison.Client.Game1.GameplaySessionKind _gameplaySessionKind { get; set; }
     bool _garrisonBuilderQuickTestActive { get; set; }
-    int _gibLevel { get; set; }
     Microsoft.Xna.Framework.GraphicsDeviceManager _graphics { get; }
     Microsoft.Xna.Framework.Graphics.Effect _grayscaleEffect { get; set; }
-    bool _healerRadarEnabled { get; set; }
     OpenGarrison.Client.Game1.HostSetupEditField _hostSetupEditField { get; set; }
     bool _hostSetupOpen { get; set; }
     OpenGarrison.Client.Game1.HostSetupFormState _hostSetupState { get; }
-    bool _hudShowOnlyActiveWeapon { get; set; }
-    bool _inGameMenuAwaitingEscapeRelease { get; set; }
-    int _inGameMenuHoverIndex { get; set; }
     bool _inGameMenuOpen { get; set; }
-    int _ingameMusicVolumePercent { get; set; }
-    OpenGarrison.Core.IngameResolutionKind _ingameResolution { get; set; }
     OpenGarrison.Client.InputBindingsSettings _inputBindings { get; }
     bool _jukeboxMenuOpen { get; set; }
     int _jumpMenuHoverIndex { get; set; }
     bool _jumpMenuOpen { get; set; }
-    bool _killCamEnabled { get; set; }
     int _lastToDieMenuHoverIndex { get; set; }
     bool _lastToDieMenuOpen { get; set; }
     OpenGarrison.Client.Game1.LastToDieMenuPage _lastToDieMenuPage { get; set; }
     bool _lastToDieRoomCodeJoinOpen { get; set; }
     bool _lobbyBrowserOpen { get; set; }
-    OpenGarrison.Core.LowHealthColorMode _lowHealthColorMode { get; set; }
     bool _mainMenuBottomBarHover { get; set; }
     bool _mainMenuChromeHidden { get; set; }
     int _mainMenuHoverIndex { get; set; }
@@ -98,34 +73,17 @@ public interface IMenuContext
     OpenGarrison.Client.Game1.MainMenuPage _mainMenuPage { get; set; }
     int _manualConnectControllerIndex { get; set; }
     bool _manualConnectOpen { get; set; }
-    int _masterVolumePercent { get; set; }
-    string _menuBackgroundAttributionText { get; set; }
-    string _menuBackgroundFailedPath { get; set; }
-    OpenGarrison.Core.MenuBackgroundMode _menuBackgroundMode { get; set; }
-    OpenGarrison.Client.LoadedSpriteFrame _menuBackgroundTexture { get; set; }
-    string _menuBackgroundTexturePath { get; set; }
-    int _menuImageFrame { get; set; }
-    int _menuMusicVolumePercent { get; set; }
-    OpenGarrison.Client.LoadedSpriteFrame _menuPlaqueTallTexture { get; set; }
-    OpenGarrison.Client.LoadedSpriteFrame _menuPlaqueTexture { get; set; }
     string _menuStatusMessage { get; set; }
-    OpenGarrison.Core.MusicMode _musicMode { get; set; }
     bool _namePromptOpen { get; set; }
     OpenGarrison.Client.NetworkGameClient _networkClient { get; }
-    int _optionsHoverIndex { get; set; }
     bool _optionsMenuOpen { get; set; }
     bool _optionsMenuOpenedFromGameplay { get; set; }
     int _optionsPageIndex { get; set; }
-    int _optionsScrollOffset { get; set; }
-    bool _overheadChatEnabled { get; set; }
-    int _particleMode { get; set; }
     OpenGarrison.Client.PlayerHostedRoomSession _peerRoomSession { get; set; }
     Nullable<OpenGarrison.Client.Game1.ControllerControlsMenuBinding> _pendingControllerControlsBinding { get; set; }
     Nullable<OpenGarrison.Client.Game1.ControlsMenuBinding> _pendingControlsBinding { get; set; }
     OpenGarrison.Client.Plugins.ClientPluginKeyOptionItem _pendingPluginOptionsKeyItem { get; set; }
     Microsoft.Xna.Framework.Graphics.Texture2D _pixel { get; set; }
-    bool _pixelPerfectWeaponRotation { get; set; }
-    int _playerCardSizeMode { get; set; }
     string _playerNameEditBuffer { get; set; }
     int _playerNameEditCursorIndex { get; set; }
     int _playerNameEditSelectionStart { get; set; }
@@ -133,31 +91,14 @@ public interface IMenuContext
     bool _pluginOptionsMenuOpen { get; set; }
     bool _pluginOptionsMenuOpenedFromGameplay { get; set; }
     int _pluginOptionsScrollOffset { get; set; }
-    bool _portraitRumbleEnabled { get; set; }
-    bool _positionSmoothingEnabled { get; set; }
-    bool _postGameMvpArtEnabled { get; set; }
     bool _practiceSetupOpen { get; set; }
     Microsoft.Xna.Framework.Input.KeyboardState _previousKeyboard { get; set; }
     Microsoft.Xna.Framework.Input.MouseState _previousMouse { get; set; }
-    bool _projectileTeamTintEnabled { get; set; }
     bool _quitPromptOpen { get; set; }
     OpenGarrison.Client.GameMakerRuntimeAssetCache _runtimeAssets { get; set; }
     string _selectedPluginOptionsPluginId { get; set; }
-    bool _showHealerEnabled { get; set; }
-    bool _showHealingEnabled { get; set; }
-    bool _showHealthBarEnabled { get; set; }
-    bool _showPersistentSelfNameEnabled { get; set; }
-    bool _showPlayerNamesEnabled { get; set; }
-    bool _showShieldBarEnabled { get; set; }
-    int _soundEffectsVolumePercent { get; set; }
     Microsoft.Xna.Framework.Graphics.SpriteBatch _spriteBatch { get; set; }
-    bool _spriteDropShadowEnabled { get; set; }
-    bool _stuckArrowsEnabled { get; set; }
-    OpenGarrison.Core.WeaponBobMode _weaponBobMode { get; set; }
-    bool _uberOutlineEnabled { get; set; }
-    bool _useLocalWeaponRotation { get; set; }
     OpenGarrison.Client.VoiceChatSettings _voiceSettings { get; set; }
-    OpenGarrison.Core.WindowSizeKind _windowSize { get; set; }
     OpenGarrison.Core.SimulationWorld _world { get; set; }
     bool CanShortenAccountFriendCode { get; }
     Microsoft.Xna.Framework.Graphics.GraphicsDevice GraphicsDevice { get; }

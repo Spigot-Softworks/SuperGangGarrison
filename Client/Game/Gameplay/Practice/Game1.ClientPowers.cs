@@ -248,7 +248,7 @@ public partial class Game1
         _spriteBatch.Draw(_pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.Black * 0.82f);
 
         // Draw bottom bar and runners (in animated mode only, not when opened from gameplay) - behind everything else
-        if (!_clientPowersOpenedFromGameplay && _menuBackgroundMode != MenuBackgroundMode.Static)
+        if (!_clientPowersOpenedFromGameplay && _gameplayManager.RuntimeSettings.MenuBackgroundMode != MenuBackgroundMode.Static)
         {
             const int bottomBarHeight = 76;
             var barY = viewportHeight - bottomBarHeight;

@@ -305,7 +305,7 @@ public sealed class OnlineSessionController
             _context.SetJoiningServerLoadingLabel(_context.HasManagedRoom ? "Last to Die" : endpoint.AddressLabel);
             _context.ShowJoiningServerLoadingOverlay();
             _context.SetNetworkStatus(
-                _context._lastToDieConnectionPresentationPending
+                _context.SessionTransitions.LastToDieConnectionPresentationPending
                     ? "Loading Last to Die..."
                     : $"{actionLabel} {candidate.Host}:{candidate.Port} over {transportLabel}...");
             if (addConsoleFeedback)
@@ -512,7 +512,7 @@ public sealed class OnlineSessionController
             _context._networkClient.ClearPendingTeamSelection();
             _context._networkClient.ClearPendingClassSelection();
             _context.ResetGameplayRuntimeState();
-            _context._serverLocalPredictionEnabled = welcome.LocalPredictionEnabled && !_context._networkClient.IsSpectator;
+            _context.LocalPrediction.ServerLocalPredictionEnabled = welcome.LocalPredictionEnabled && !_context._networkClient.IsSpectator;
             _context.ShowJoiningServerLoadingOverlay();
             if (!_context._world.TryLoadLevel(welcome.LevelName, mapAreaIndex: 1, preservePlayerStats: false, mapScale: welcome.MapScale))
             {
@@ -539,7 +539,7 @@ public sealed class OnlineSessionController
             {
                 var seat = roomPlayers.FirstOrDefault(player => player.Slot == welcome.PlayerSlot);
                 _context._networkClient.QueueTeamSelection(seat?.Team == "Blue" ? PlayerTeam.Blue : PlayerTeam.Red);
-                _context._teamSelectOpen = false;
+                _context.TeamClassSelection.TeamSelectOpen = false;
                 _context.OpenGameplayClassSelection();
             }
             _context.AddNetworkConsoleLine(

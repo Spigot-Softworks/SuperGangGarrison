@@ -350,7 +350,7 @@ public partial class Game1
 
     public float GetPlayerCardSizeScale()
     {
-        return ClientSettings.NormalizePlayerCardSizeMode(_playerCardSizeMode) switch
+        return ClientSettings.NormalizePlayerCardSizeMode(_hudManager.RuntimeSettings.PlayerCardSizeMode) switch
         {
             ClientSettings.PlayerCardSizeMedium => 0.75f,
             ClientSettings.PlayerCardSizeLarge => 1f,
@@ -436,7 +436,7 @@ public partial class Game1
             return;
         }
 
-        var currentMode = OpenGarrisonPreferencesDocument.NormalizeDisplayMode(_displayMode);
+        var currentMode = OpenGarrisonPreferencesDocument.NormalizeDisplayMode(_menuManager.DisplaySettings.DisplayMode);
         _clientSettings.DisplayMode = currentMode == DisplayModeKind.Fullscreen
             ? DisplayModeKind.Windowed
             : DisplayModeKind.Fullscreen;
@@ -445,12 +445,12 @@ public partial class Game1
 
     public void ResetWindowSize()
     {
-        if (IsScreenFillingDisplayMode(_displayMode) || OperatingSystem.IsBrowser())
+        if (IsScreenFillingDisplayMode(_menuManager.DisplaySettings.DisplayMode) || OperatingSystem.IsBrowser())
         {
             return;
         }
 
-        var defaultDimensions = GetWindowDimensions(DisplayModeKind.Windowed, _ingameResolution, _windowSize);
+        var defaultDimensions = GetWindowDimensions(DisplayModeKind.Windowed, _menuManager.DisplaySettings.IngameResolution, _menuManager.DisplaySettings.WindowSize);
         _graphics.PreferredBackBufferWidth = defaultDimensions.X;
         _graphics.PreferredBackBufferHeight = defaultDimensions.Y;
         _graphics.ApplyChanges();
@@ -458,7 +458,7 @@ public partial class Game1
 
     public void CycleMusicModeSetting()
     {
-        _musicMode = GetNextMusicMode(_musicMode);
+        _audioManager.RuntimeSettings.MusicMode = GetNextMusicMode(_audioManager.RuntimeSettings.MusicMode);
         StopMenuMusic();
         StopFaucetMusic();
         StopIngameMusic();
@@ -468,8 +468,8 @@ public partial class Game1
 
     public void ToggleDynamicMusicSetting()
     {
-        _dynamicMusicEnabled = !_dynamicMusicEnabled;
-        if (!_dynamicMusicEnabled)
+        _audioManager.RuntimeSettings.DynamicMusicEnabled = !_audioManager.RuntimeSettings.DynamicMusicEnabled;
+        if (!_audioManager.RuntimeSettings.DynamicMusicEnabled)
         {
             ResetDynamicMusicPlayback();
         }
@@ -481,13 +481,13 @@ public partial class Game1
 
     public void TogglePositionSmoothingSetting()
     {
-        _positionSmoothingEnabled = !_positionSmoothingEnabled;
+        _gameplayManager.RuntimeSettings.PositionSmoothingEnabled = !_gameplayManager.RuntimeSettings.PositionSmoothingEnabled;
         PersistClientSettings();
     }
 
     public void ToggleCameraPanningSetting()
     {
-        _cameraPanningEnabled = !_cameraPanningEnabled;
+        _gameplayManager.RuntimeSettings.CameraPanningEnabled = !_gameplayManager.RuntimeSettings.CameraPanningEnabled;
         ResetCameraPanningState();
         ResetSmoothCameraState();
         PersistClientSettings();
@@ -495,7 +495,7 @@ public partial class Game1
 
     public void TogglePredictionSetting()
     {
-        _enablePrediction = !_enablePrediction;
+        _gameplayManager.RuntimeSettings.EnablePrediction = !_gameplayManager.RuntimeSettings.EnablePrediction;
         ResetLocalPredictionForAuthorityTransition();
         PersistClientSettings();
     }
@@ -716,7 +716,7 @@ public partial class Game1
 
     public void CycleFrameRateLimitSetting()
     {
-        var current = NormalizeFrameRateLimit(_frameRateLimit);
+        var current = NormalizeFrameRateLimit(_menuManager.DisplaySettings.FrameRateLimit);
         var next = current switch
         {
             0 => 30,
@@ -726,20 +726,20 @@ public partial class Game1
             _ => 0,
         };
 
-        _frameRateLimit = next;
+        _menuManager.DisplaySettings.FrameRateLimit = next;
         PersistClientSettings();
     }
 
     public void CycleParticleModeSetting()
     {
-        _particleMode = (_particleMode + 2) % 3;
+        _gameplayManager.RuntimeSettings.ParticleMode = (_gameplayManager.RuntimeSettings.ParticleMode + 2) % 3;
         PersistClientSettings();
     }
 
 
     public void CyclePlayerCardSizeSetting()
     {
-        _playerCardSizeMode = ClientSettings.NormalizePlayerCardSizeMode(_playerCardSizeMode) switch
+        _hudManager.RuntimeSettings.PlayerCardSizeMode = ClientSettings.NormalizePlayerCardSizeMode(_hudManager.RuntimeSettings.PlayerCardSizeMode) switch
         {
             ClientSettings.PlayerCardSizeSmall => ClientSettings.PlayerCardSizeMedium,
             ClientSettings.PlayerCardSizeMedium => ClientSettings.PlayerCardSizeLarge,
@@ -751,8 +751,8 @@ public partial class Game1
 
     public void CycleCursorSizeSetting()
     {
-        var current = ClientSettings.NormalizeCursorSizePercent(_cursorSizePercent);
-        _cursorSizePercent = current >= ClientSettings.CursorSizeMaxPercent
+        var current = ClientSettings.NormalizeCursorSizePercent(_hudManager.RuntimeSettings.CursorSizePercent);
+        _hudManager.RuntimeSettings.CursorSizePercent = current >= ClientSettings.CursorSizeMaxPercent
             ? ClientSettings.CursorSizeMinPercent
             : current + ClientSettings.CursorSizeStepPercent;
 
@@ -761,8 +761,8 @@ public partial class Game1
 
     public void AdjustCursorSizeSetting(int step)
     {
-        var current = ClientSettings.NormalizeCursorSizePercent(_cursorSizePercent);
-        _cursorSizePercent = Math.Clamp(
+        var current = ClientSettings.NormalizeCursorSizePercent(_hudManager.RuntimeSettings.CursorSizePercent);
+        _hudManager.RuntimeSettings.CursorSizePercent = Math.Clamp(
             current + (step * ClientSettings.CursorSizeStepPercent),
             ClientSettings.CursorSizeMinPercent,
             ClientSettings.CursorSizeMaxPercent);
@@ -772,7 +772,7 @@ public partial class Game1
 
     public void CycleLowHealthColorModeSetting()
     {
-        _lowHealthColorMode = ClientSettings.NormalizeLowHealthColorMode(_lowHealthColorMode) switch
+        _hudManager.RuntimeSettings.LowHealthColorMode = ClientSettings.NormalizeLowHealthColorMode(_hudManager.RuntimeSettings.LowHealthColorMode) switch
         {
             LowHealthColorMode.Red => LowHealthColorMode.None,
             _ => LowHealthColorMode.Red,
@@ -783,8 +783,8 @@ public partial class Game1
 
     public void CycleDamageVignetteIntensitySetting()
     {
-        var current = ClientSettings.NormalizeDamageVignetteIntensityPercent(_damageVignetteIntensityPercent);
-        _damageVignetteIntensityPercent = current <= 0
+        var current = ClientSettings.NormalizeDamageVignetteIntensityPercent(_hudManager.RuntimeSettings.DamageVignetteIntensityPercent);
+        _hudManager.RuntimeSettings.DamageVignetteIntensityPercent = current <= 0
             ? ClientSettings.DefaultDamageVignetteIntensityPercent
             : current - 10;
         PersistClientSettings();
@@ -792,14 +792,14 @@ public partial class Game1
 
     public void CycleFlameRenderModeSetting()
     {
-        _flameRenderMode = (_flameRenderMode + 1) % 2;
+        _gameplayManager.RuntimeSettings.FlameRenderMode = (_gameplayManager.RuntimeSettings.FlameRenderMode + 1) % 2;
         PersistClientSettings();
     }
 
     public void CycleBloodRenderModeSetting()
     {
-        _bloodRenderMode = (_bloodRenderMode + 1) % 2;
-        if (_bloodRenderMode != 0)
+        _gameplayManager.RuntimeSettings.BloodRenderMode = (_gameplayManager.RuntimeSettings.BloodRenderMode + 1) % 2;
+        if (_gameplayManager.RuntimeSettings.BloodRenderMode != 0)
         {
             _gameplayManager.GoreEffects.ResetBloodSquibEffects();
         }
@@ -809,8 +809,8 @@ public partial class Game1
 
     public void ToggleDynamicRagdollSetting()
     {
-        _dynamicRagdollEnabled = !_dynamicRagdollEnabled;
-        if (!_dynamicRagdollEnabled)
+        _gameplayManager.RuntimeSettings.DynamicRagdollEnabled = !_gameplayManager.RuntimeSettings.DynamicRagdollEnabled;
+        if (!_gameplayManager.RuntimeSettings.DynamicRagdollEnabled)
         {
             ResetDynamicRagdollEffects();
         }
@@ -820,8 +820,8 @@ public partial class Game1
 
     public void ToggleBurnCharredCorpsesSetting()
     {
-        _burnCharredCorpsesEnabled = !_burnCharredCorpsesEnabled;
-        if (!_burnCharredCorpsesEnabled)
+        _gameplayManager.RuntimeSettings.BurnCharredCorpsesEnabled = !_gameplayManager.RuntimeSettings.BurnCharredCorpsesEnabled;
+        if (!_gameplayManager.RuntimeSettings.BurnCharredCorpsesEnabled)
         {
             ResetBurnCharredCorpses();
         }
@@ -831,20 +831,20 @@ public partial class Game1
 
     public void AdjustBloodPersistenceSeconds(int step)
     {
-        _bloodPersistenceSeconds = Math.Clamp(_bloodPersistenceSeconds + step, 1, 120);
+        _gameplayManager.RuntimeSettings.BloodPersistenceSeconds = Math.Clamp(_gameplayManager.RuntimeSettings.BloodPersistenceSeconds + step, 1, 120);
         ApplyBloodPresentationSettingsToWorld();
         PersistClientSettings();
     }
 
     public void CycleCorpseFadeModeSetting()
     {
-        _corpseFadeMode = (_corpseFadeMode + 1) % 2;
+        _gameplayManager.RuntimeSettings.CorpseFadeMode = (_gameplayManager.RuntimeSettings.CorpseFadeMode + 1) % 2;
         PersistClientSettings();
     }
 
     public void CycleMenuBackgroundModeSetting()
     {
-        _menuBackgroundMode = _menuBackgroundMode switch
+        _gameplayManager.RuntimeSettings.MenuBackgroundMode = _gameplayManager.RuntimeSettings.MenuBackgroundMode switch
         {
             MenuBackgroundMode.Static => MenuBackgroundMode.DefaultMaps,
             MenuBackgroundMode.DefaultMaps => MenuBackgroundMode.AllMaps,
@@ -853,11 +853,11 @@ public partial class Game1
         };
 
         // Initialize or reset the animated background controller based on new mode
-        if (_menuBackgroundMode != MenuBackgroundMode.Static && _mainMenuOpen)
+        if (_gameplayManager.RuntimeSettings.MenuBackgroundMode != MenuBackgroundMode.Static && _mainMenuOpen)
         {
-            _menuManager.AnimatedMenuBackground.Initialize(_menuBackgroundMode);
+            _menuManager.AnimatedMenuBackground.Initialize(_gameplayManager.RuntimeSettings.MenuBackgroundMode);
         }
-        else if (_menuBackgroundMode == MenuBackgroundMode.Static)
+        else if (_gameplayManager.RuntimeSettings.MenuBackgroundMode == MenuBackgroundMode.Static)
         {
             _menuManager.AnimatedMenuBackground.Reset();
         }
@@ -867,7 +867,7 @@ public partial class Game1
 
     public void CycleGibLevelSetting()
     {
-        _gibLevel = _gibLevel switch
+        _gameplayManager.RuntimeSettings.GibLevel = _gameplayManager.RuntimeSettings.GibLevel switch
         {
             0 => 1,
             1 => 2,
@@ -884,16 +884,16 @@ public partial class Game1
 
     public void CycleBloodAmountSetting()
     {
-        _bloodAmountLevel = _bloodAmountLevel >= 5 ? 1 : _bloodAmountLevel + 1;
+        _gameplayManager.RuntimeSettings.BloodAmountLevel = _gameplayManager.RuntimeSettings.BloodAmountLevel >= 5 ? 1 : _gameplayManager.RuntimeSettings.BloodAmountLevel + 1;
         PersistClientSettings();
     }
 
     public void CycleCorpseDurationSetting()
     {
-        _corpseDurationMode = _corpseDurationMode == ClientSettings.CorpseDurationInfinite
+        _gameplayManager.RuntimeSettings.CorpseDurationMode = _gameplayManager.RuntimeSettings.CorpseDurationMode == ClientSettings.CorpseDurationInfinite
             ? ClientSettings.CorpseDurationDefault
             : ClientSettings.CorpseDurationInfinite;
-        if (_corpseDurationMode != ClientSettings.CorpseDurationInfinite)
+        if (_gameplayManager.RuntimeSettings.CorpseDurationMode != ClientSettings.CorpseDurationInfinite)
         {
             ResetRetainedDeadBodies();
         }
@@ -903,44 +903,44 @@ public partial class Game1
 
     public void ToggleHealerRadarSetting()
     {
-        _healerRadarEnabled = !_healerRadarEnabled;
+        _hudManager.RuntimeSettings.HealerRadarEnabled = !_hudManager.RuntimeSettings.HealerRadarEnabled;
         PersistClientSettings();
     }
 
     public void ToggleShowHealerSetting()
     {
-        _showHealerEnabled = !_showHealerEnabled;
+        _hudManager.RuntimeSettings.ShowHealerEnabled = !_hudManager.RuntimeSettings.ShowHealerEnabled;
         PersistClientSettings();
     }
 
     public void ToggleShowHealingSetting()
     {
-        _showHealingEnabled = !_showHealingEnabled;
+        _hudManager.RuntimeSettings.ShowHealingEnabled = !_hudManager.RuntimeSettings.ShowHealingEnabled;
         PersistClientSettings();
     }
 
     public void ToggleShowHealthBarSetting()
     {
-        _showHealthBarEnabled = !_showHealthBarEnabled;
+        _hudManager.RuntimeSettings.ShowHealthBarEnabled = !_hudManager.RuntimeSettings.ShowHealthBarEnabled;
         PersistClientSettings();
     }
 
     public void ToggleShowShieldBarSetting()
     {
-        _showShieldBarEnabled = !_showShieldBarEnabled;
+        _hudManager.RuntimeSettings.ShowShieldBarEnabled = !_hudManager.RuntimeSettings.ShowShieldBarEnabled;
         PersistClientSettings();
     }
 
     public void ToggleHudWeaponDisplayModeSetting()
     {
-        _hudShowOnlyActiveWeapon = !_hudShowOnlyActiveWeapon;
+        _hudManager.RuntimeSettings.HudShowOnlyActiveWeapon = !_hudManager.RuntimeSettings.HudShowOnlyActiveWeapon;
         PersistClientSettings();
     }
 
     public void ToggleOverheadChatSetting()
     {
-        _overheadChatEnabled = !_overheadChatEnabled;
-        if (!_overheadChatEnabled)
+        _hudManager.RuntimeSettings.OverheadChatEnabled = !_hudManager.RuntimeSettings.OverheadChatEnabled;
+        if (!_hudManager.RuntimeSettings.OverheadChatEnabled)
         {
             _localOverheadChatMessage = null;
             _overheadChatMessagesBySlot.Clear();
@@ -951,11 +951,10 @@ public partial class Game1
 
     public void TogglePortraitRumbleSetting()
     {
-        _portraitRumbleEnabled = !_portraitRumbleEnabled;
-        if (!_portraitRumbleEnabled)
+        _hudManager.RuntimeSettings.PortraitRumbleEnabled = !_hudManager.RuntimeSettings.PortraitRumbleEnabled;
+        if (!_hudManager.RuntimeSettings.PortraitRumbleEnabled)
         {
-            _portraitRumbleRemainingSeconds = 0f;
-            _portraitRumbleIntensity = 0f;
+            _hudManager.LocalStatus.ResetPortraitRumble();
         }
 
         PersistClientSettings();
@@ -963,9 +962,9 @@ public partial class Game1
 
     public void TogglePostGameMvpArtSetting()
     {
-        _postGameMvpArtEnabled = !_postGameMvpArtEnabled;
+        _hudManager.RuntimeSettings.PostGameMvpArtEnabled = !_hudManager.RuntimeSettings.PostGameMvpArtEnabled;
         _postGameMvpArtHidden = false;
-        if (!_postGameMvpArtEnabled)
+        if (!_hudManager.RuntimeSettings.PostGameMvpArtEnabled)
         {
             _postGameMvpArtFrameSelections.Clear();
         }
@@ -975,11 +974,10 @@ public partial class Game1
 
     public void ToggleDamageVignetteSetting()
     {
-        _damageVignetteEnabled = !_damageVignetteEnabled;
-        if (!_damageVignetteEnabled)
+        _hudManager.RuntimeSettings.DamageVignetteEnabled = !_hudManager.RuntimeSettings.DamageVignetteEnabled;
+        if (!_hudManager.RuntimeSettings.DamageVignetteEnabled)
         {
-            _damageVignetteIntensity = 0f;
-            _damageVignetteFlashIntensity = 0f;
+            _hudManager.LocalStatus.ResetDamageVignette();
         }
 
         PersistClientSettings();
@@ -987,28 +985,28 @@ public partial class Game1
 
     public void TogglePersistentSelfNameSetting()
     {
-        _showPersistentSelfNameEnabled = !_showPersistentSelfNameEnabled;
+        _hudManager.RuntimeSettings.ShowPersistentSelfNameEnabled = !_hudManager.RuntimeSettings.ShowPersistentSelfNameEnabled;
         PersistClientSettings();
     }
 
     public void ToggleShowPlayerNamesSetting()
     {
-        _showPlayerNamesEnabled = !_showPlayerNamesEnabled;
+        _hudManager.RuntimeSettings.ShowPlayerNamesEnabled = !_hudManager.RuntimeSettings.ShowPlayerNamesEnabled;
         PersistClientSettings();
     }
 
     public void ToggleSpriteDropShadowSetting()
     {
-        _spriteDropShadowEnabled = !_spriteDropShadowEnabled;
+        _gameplayManager.RuntimeSettings.SpriteDropShadowEnabled = !_gameplayManager.RuntimeSettings.SpriteDropShadowEnabled;
         PersistClientSettings();
     }
 
     public void ToggleStuckArrowsSetting()
     {
-        _stuckArrowsEnabled = !_stuckArrowsEnabled;
-        if (!_stuckArrowsEnabled)
+        _gameplayManager.RuntimeSettings.StuckArrowsEnabled = !_gameplayManager.RuntimeSettings.StuckArrowsEnabled;
+        if (!_gameplayManager.RuntimeSettings.StuckArrowsEnabled)
         {
-            _stuckArrowVisuals.Clear();
+            _gameplayManager.ImpactEffects.ClearStuckArrows();
         }
 
         PersistClientSettings();
@@ -1016,7 +1014,7 @@ public partial class Game1
 
     public void CycleWeaponBobSetting()
     {
-        _weaponBobMode = OpenGarrisonPreferencesDocument.NormalizeWeaponBobMode(_weaponBobMode) == WeaponBobMode.Enabled
+        _gameplayManager.RuntimeSettings.WeaponBobMode = OpenGarrisonPreferencesDocument.NormalizeWeaponBobMode(_gameplayManager.RuntimeSettings.WeaponBobMode) == WeaponBobMode.Enabled
             ? WeaponBobMode.Disabled
             : WeaponBobMode.Enabled;
         PersistClientSettings();
@@ -1024,48 +1022,48 @@ public partial class Game1
 
     public void ToggleWeaponRotationStyleSetting()
     {
-        _pixelPerfectWeaponRotation = !_pixelPerfectWeaponRotation;
+        _gameplayManager.RuntimeSettings.PixelPerfectWeaponRotation = !_gameplayManager.RuntimeSettings.PixelPerfectWeaponRotation;
         PersistClientSettings();
     }
 
     public void ToggleWeaponRotationSourceSetting()
     {
-        _useLocalWeaponRotation = !_useLocalWeaponRotation;
+        _gameplayManager.RuntimeSettings.UseLocalWeaponRotation = !_gameplayManager.RuntimeSettings.UseLocalWeaponRotation;
         PersistClientSettings();
     }
 
     public void ToggleAudioMuteSetting()
     {
-        _audioMuted = !_audioMuted;
+        _audioManager.RuntimeSettings.AudioMuted = !_audioManager.RuntimeSettings.AudioMuted;
         ApplyAudioVolumeState();
         PersistClientSettings();
     }
 
     public void AdjustMasterVolume(int deltaPercent)
     {
-        _masterVolumePercent = Math.Clamp(_masterVolumePercent + deltaPercent, 0, 100);
+        _audioManager.RuntimeSettings.MasterVolumePercent = Math.Clamp(_audioManager.RuntimeSettings.MasterVolumePercent + deltaPercent, 0, 100);
         ApplyAudioVolumeState();
         PersistClientSettings();
     }
 
     public void AdjustMenuMusicVolume(int deltaPercent)
     {
-        _menuMusicVolumePercent = Math.Clamp(_menuMusicVolumePercent + deltaPercent, 0, 100);
+        _audioManager.RuntimeSettings.MenuMusicVolumePercent = Math.Clamp(_audioManager.RuntimeSettings.MenuMusicVolumePercent + deltaPercent, 0, 100);
         ApplyAudioVolumeState();
         PersistClientSettings();
     }
 
     public void AdjustIngameMusicVolume(int deltaPercent)
     {
-        _ingameMusicVolumePercent = Math.Clamp(_ingameMusicVolumePercent + deltaPercent, 0, 100);
+        _audioManager.RuntimeSettings.IngameMusicVolumePercent = Math.Clamp(_audioManager.RuntimeSettings.IngameMusicVolumePercent + deltaPercent, 0, 100);
         ApplyAudioVolumeState();
         PersistClientSettings();
     }
 
     public void AdjustCombatMusicVolume(int deltaPercent)
     {
-        _combatMusicVolumePercent = Math.Clamp(
-            _combatMusicVolumePercent + deltaPercent,
+        _audioManager.RuntimeSettings.CombatMusicVolumePercent = Math.Clamp(
+            _audioManager.RuntimeSettings.CombatMusicVolumePercent + deltaPercent,
             0,
             OpenGarrisonPreferencesDocument.MaxCombatMusicVolumePercent);
         ApplyAudioVolumeState();
@@ -1074,25 +1072,25 @@ public partial class Game1
 
     public void AdjustSoundEffectsVolume(int deltaPercent)
     {
-        _soundEffectsVolumePercent = Math.Clamp(_soundEffectsVolumePercent + deltaPercent, 0, 100);
+        _audioManager.RuntimeSettings.SoundEffectsVolumePercent = Math.Clamp(_audioManager.RuntimeSettings.SoundEffectsVolumePercent + deltaPercent, 0, 100);
         PersistClientSettings();
     }
 
     public void ToggleUberOutlinesSetting()
     {
-        _uberOutlineEnabled = !_uberOutlineEnabled;
+        _gameplayManager.RuntimeSettings.ShowUberOutlinesEnabled = !_gameplayManager.RuntimeSettings.ShowUberOutlinesEnabled;
         PersistClientSettings();
     }
 
     public void ToggleProjectileTeamTintSetting()
     {
-        _projectileTeamTintEnabled = !_projectileTeamTintEnabled;
+        _gameplayManager.RuntimeSettings.ProjectileTeamTintEnabled = !_gameplayManager.RuntimeSettings.ProjectileTeamTintEnabled;
         PersistClientSettings();
     }
 
     public void ToggleKillCamSetting()
     {
-        _killCamEnabled = !_killCamEnabled;
+        _gameplayManager.RuntimeSettings.KillCamEnabled = !_gameplayManager.RuntimeSettings.KillCamEnabled;
         PersistClientSettings();
     }
 

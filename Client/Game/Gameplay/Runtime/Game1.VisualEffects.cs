@@ -15,33 +15,10 @@ public partial class Game1
 {
     // Normal particles opt into the same effects as desktop. Alternative and
     // Disabled retain the browser's lighter effects budget.
-    public bool UseReducedBrowserEffects => OperatingSystem.IsBrowser() && _particleMode != 0;
+    public bool UseReducedBrowserEffects => OperatingSystem.IsBrowser() && _gameplayManager.RuntimeSettings.ParticleMode != 0;
 
     public readonly List<ExplosionVisual> _explosions = new();
-    public readonly List<ImpactVisual> _impactVisuals = new();
-    public readonly List<StuckArrowVisual> _stuckArrowVisuals = new();
-    public readonly List<AirBlastVisual> _airBlasts = new();
-    public readonly List<BubblePopVisual> _bubblePops = new();
     public readonly List<BackstabVisual> _backstabVisuals = new();
-    public readonly List<BloodVisual> _bloodVisuals = new();
-    public readonly List<BloodSprayVisual> _bloodSprayVisuals = new();
-    public readonly List<BloodSquibParticle> _bloodSquibParticles = new();
-    public readonly Dictionary<(int X, int Y), SettledBloodCell> _settledBloodCells = new();
-    public readonly Dictionary<(int, int), float> _bloodDrawCellsScratch = new();
-    public readonly Dictionary<(int, int), float> _bloodCryoDrawCellsScratch = new();
-    public readonly Dictionary<(int, int), float> _bloodBridgeScratch = new();
-    public readonly HashSet<int> _processedSettledBloodDropIds = new();
-    public readonly List<int> _staleSettledBloodDropIds = new();
-    public readonly List<(int X, int Y)> _staleSettledBloodCellKeys = new();
-    public readonly List<(int X, int Y, float Amount, bool Cryo)> _pendingSettledBloodTransfers = new();
-    public int _nextBloodSquibSeed = 1;
-    public readonly Dictionary<int, StickyGibBloodCoating> _stickyGibBloodCoatings = new();
-    public readonly List<int> _staleStickyGibBloodPlayerIds = new();
-    public readonly HashSet<int> _processedStickyGibBloodDropIds = new();
-    public readonly List<int> _staleStickyGibBloodDropIds = new();
-    public readonly List<PendingWeaponShellVisual> _pendingWeaponShellVisuals = new();
-    public readonly List<ShellVisual> _shellVisuals = new();
-    public readonly List<RocketSmokeVisual> _rocketSmokeVisuals = new();
     public readonly Dictionary<int, FrozenSpyFrameState> _lastVisibleEnemySpyFrameStates = new();
     public readonly Dictionary<int, ulong> _lastVisibleEnemySpyObservationEpochs = new();
     public readonly Dictionary<int, ulong> _consumedFrozenSpyObservationEpochs = new();
@@ -89,14 +66,8 @@ public partial class Game1
         if (_medigunBeamHelixPhase < 0f)
             _medigunBeamHelixPhase += MathF.PI * 2f;
     }
-    public readonly List<MineTrailVisual> _mineTrailVisuals = new();
-    public readonly List<WallspinDustVisual> _wallspinDustVisuals = new();
-    public readonly List<BlastJumpFlameVisual> _blastJumpFlameVisuals = new();
     public readonly List<FlameSmokeVisual> _flameSmokeVisuals = new();
-    public readonly List<FlameSmokeVisual> _flameSmokeSecondaryVisuals = new();
-    public readonly List<LooseSheetVisual> _looseSheetVisuals = new();
     private readonly List<CivvieUmbrellaShieldBlockVisual> _civvieUmbrellaShieldBlockVisuals = new();
-    public readonly List<SnapshotVisualEvent> _pendingNetworkVisualEvents = new();
     private readonly List<RecentPredictedExplosionVisual> _recentPredictedExplosionVisuals = new();
     public readonly AuthoritativeExplosionPresentationTracker _authoritativeExplosionPresentations = new();
     private readonly List<RecentPredictedAirBlastVisual> _recentPredictedAirBlastVisuals = new();
@@ -111,7 +82,6 @@ public partial class Game1
     private const float RecentPredictedExplosionVisualEchoDistanceSquared = 64f * 64f;
     private const int RecentPredictedAirBlastVisualEchoLifetimeTicks = 30;
     private const float RecentPredictedAirBlastVisualEchoDistanceSquared = 64f * 64f;
-    public int _nextClientBackstabVisualId = -1;
     private int _spySuperjumpTrajectoryAnimationTicks;
     private const int TrajectoryPreviewMaxTicks = 300;
     private const float SniperBowAimArcPreviewLength = 2000f;
@@ -156,33 +126,28 @@ public partial class Game1
         ResetRecentGibSoundEvents();
         ResetRecentProjectileSoundEvents();
         ResetLowPriorityWorldSoundThrottle();
-        _pendingNetworkSoundEvents.Clear();
+        _audioManager.Events.ClearPendingNetworkSoundEvents();
         _pendingLegacyGg2FireAnimationPlayerIds.Clear();
         ResetExperimentalHealingHudIndicators();
-        _portraitRumbleRemainingSeconds = 0f;
-        _portraitRumbleIntensity = 0f;
-        _damageVignetteIntensity = 0f;
-        _damageVignetteFlashIntensity = 0f;
+        _hudManager.LocalStatus.ResetPortraitRumble();
+        _hudManager.LocalStatus.ResetDamageVignette();
         _gameplayManager.MaterialEffects.ResetTransientEffects();
         ResetCivvieUmbrellaShieldBlockObservation();
         ResetCivviePogoTrickPresentationObservation();
         ResetEvasionMissPopups();
         ResetHeavyDashDodgePopups();
-        _rocketSmokeVisuals.Clear();
-        _mineTrailVisuals.Clear();
-        _wallspinDustVisuals.Clear();
-        _blastJumpFlameVisuals.Clear();
+        _gameplayManager.SmokeEffects.ClearRocketAndTrailVisuals();
         _flameSmokeVisuals.Clear();
-        _flameSmokeSecondaryVisuals.Clear();
+        _gameplayManager.SmokeEffects.ClearSecondaryFlameSmokeVisuals();
         _civvieUmbrellaShieldBlockVisuals.Clear();
-        _pendingNetworkVisualEvents.Clear();
+        _gameplayManager.VisualEvents.ClearPendingNetworkVisualEvents();
         _recentPredictedExplosionVisuals.Clear();
         _authoritativeExplosionPresentations.Clear();
         _recentPredictedAirBlastVisuals.Clear();
         _lastPresentedPredictedAirBlastInputSequence = 0;
         _presentedNetworkExplosionSoundEventIds.Clear();
         _presentedLocalExplosionSoundEvents.Clear();
-        _pendingNetworkDamageEvents.Clear();
+        _pluginManager.Events.ClearPendingNetworkDamageEvents();
         _frozenSpyVisuals.Clear();
         _lastVisibleEnemySpyFrameStates.Clear();
         _lastVisibleEnemySpyObservationEpochs.Clear();
@@ -1042,10 +1007,10 @@ public partial class Game1
 
         float aimWorldX;
         float aimWorldY;
-        if (_hasLatestLocalAimWorldPosition)
+        if (_gameplayManager.InputUpdate.HasLatestLocalAimWorldPosition)
         {
-            aimWorldX = _latestLocalAimWorldX;
-            aimWorldY = _latestLocalAimWorldY;
+            aimWorldX = _gameplayManager.InputUpdate.LatestLocalAimWorldX;
+            aimWorldY = _gameplayManager.InputUpdate.LatestLocalAimWorldY;
         }
         else
         {
@@ -1061,10 +1026,10 @@ public partial class Game1
 
         float spawnBaseX;
         float spawnBaseY;
-        if (CanUseLocalPrediction() && _hasPredictedLocalPlayerPosition)
+        if (CanUseLocalPrediction() && _localPredictionState.HasPredictedLocalPlayerPosition)
         {
-            spawnBaseX = MathF.Round(_predictedLocalPlayerPosition.X + _predictedLocalPlayerRenderCorrectionOffset.X);
-            spawnBaseY = MathF.Round(_predictedLocalPlayerPosition.Y + _predictedLocalPlayerRenderCorrectionOffset.Y);
+            spawnBaseX = MathF.Round(_localPredictionState.PredictedLocalPlayerPosition.X + _localPredictionState.PredictedLocalPlayerRenderCorrectionOffset.X);
+            spawnBaseY = MathF.Round(_localPredictionState.PredictedLocalPlayerPosition.Y + _localPredictionState.PredictedLocalPlayerRenderCorrectionOffset.Y);
         }
         else
         {
@@ -1183,14 +1148,14 @@ public partial class Game1
 
     private float GetLocalSniperBowAimDirectionDegrees(PlayerEntity localPlayer)
     {
-        if (_hasLatestLocalAimWorldPosition)
+        if (_gameplayManager.InputUpdate.HasLatestLocalAimWorldPosition)
         {
             float originX;
             float originY;
-            if (CanUseLocalPrediction() && _hasPredictedLocalPlayerPosition)
+            if (CanUseLocalPrediction() && _localPredictionState.HasPredictedLocalPlayerPosition)
             {
-                originX = _predictedLocalPlayerPosition.X + _predictedLocalPlayerRenderCorrectionOffset.X;
-                originY = _predictedLocalPlayerPosition.Y + _predictedLocalPlayerRenderCorrectionOffset.Y;
+                originX = _localPredictionState.PredictedLocalPlayerPosition.X + _localPredictionState.PredictedLocalPlayerRenderCorrectionOffset.X;
+                originY = _localPredictionState.PredictedLocalPlayerPosition.Y + _localPredictionState.PredictedLocalPlayerRenderCorrectionOffset.Y;
             }
             else
             {
@@ -1198,8 +1163,8 @@ public partial class Game1
                 originY = localPlayer.Y;
             }
 
-            var aimDeltaX = _latestLocalAimWorldX - originX;
-            var aimDeltaY = _latestLocalAimWorldY - originY;
+            var aimDeltaX = _gameplayManager.InputUpdate.LatestLocalAimWorldX - originX;
+            var aimDeltaY = _gameplayManager.InputUpdate.LatestLocalAimWorldY - originY;
             if (MathF.Abs(aimDeltaX) > 0.0001f || MathF.Abs(aimDeltaY) > 0.0001f)
             {
                 var degrees = MathF.Atan2(aimDeltaY, aimDeltaX) * (180f / MathF.PI);

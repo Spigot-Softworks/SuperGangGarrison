@@ -32,7 +32,10 @@ public sealed class TeamSelectionDismissalTests
         world.PrepareLocalPlayerJoin();
         if (!awaitingJoin) world.CompleteLocalPlayerJoin(PlayerClass.Scout);
         Set(game, "_world", world);
-        foreach (var name in new[] { "_networkClient", "_uiShellState", "_gameplaySessionState", "_pendingPredictedInputs", "_predictedWeaponFireVisuals" })
+        var services = new ClientServiceContainer();
+        Set(game, "_services", services);
+        services.Register(new GameplayManager((IGameplayContext)game));
+        foreach (var name in new[] { "_networkClient", "_uiShellState", "_gameplaySessionState", "_predictedWeaponFireVisuals" })
         {
             var field = typeof(Game1).GetField(name, Instance)!;
             field.SetValue(game, Activator.CreateInstance(field.FieldType, true));
@@ -45,15 +48,16 @@ public sealed class TeamSelectionDismissalTests
             client.QueueTeamSelection(PlayerTeam.Red);
             client.QueueClassSelection(PlayerClass.Scout);
         }
-        Set(game, "_teamSelectOpen", true);
-        Set(game, "_pendingMapTeamSelection", true);
+        var teamSelection = ((IGameplayContext)game).TeamClassSelection;
+        teamSelection.TeamSelectOpen = true;
+        teamSelection.PendingMapTeamSelection = true;
         typeof(Game1).GetMethod("DismissGameplayTeamSelection", Instance)!.Invoke(game, null);
         var commands = (IDictionary)typeof(NetworkGameClient).GetField("_pendingControlCommands", Instance)!.GetValue(client)!;
         Assert.Equal(awaitingJoin, commands.Contains(ControlCommandKind.Spectate));
         Assert.False(commands.Contains(ControlCommandKind.SelectTeam));
         Assert.False(commands.Contains(ControlCommandKind.SelectClass));
-        Assert.False((bool)typeof(Game1).GetProperty("_teamSelectOpen", Instance)!.GetValue(game)!);
-        Assert.False((bool)typeof(Game1).GetField("_pendingMapTeamSelection", Instance)!.GetValue(game)!);
+        Assert.False(teamSelection.TeamSelectOpen);
+        Assert.False(teamSelection.PendingMapTeamSelection);
     }
 
     private static void Set(Game1 game, string name, object value)

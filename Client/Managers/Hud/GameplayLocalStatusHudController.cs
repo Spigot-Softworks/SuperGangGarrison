@@ -65,32 +65,12 @@ public partial class Game1
 
     public void TriggerLocalHudPortraitDamageFeedback(int damageAmount)
     {
-        if (!_portraitRumbleEnabled || _networkClient.IsLegacyGg2Connection || damageAmount <= 0)
-        {
-            return;
-        }
-
-        _portraitRumbleSeed += 1;
-        _portraitRumbleRemainingSeconds = PortraitRumbleDurationSeconds;
-        _portraitRumbleIntensity = Math.Clamp(0.65f + (damageAmount / 75f), 0.75f, 1.35f);
+        _hudManager.LocalStatus.TriggerLocalHudPortraitDamageFeedback(damageAmount);
     }
 
     public void TriggerLocalHudDamageVignette(int damageAmount)
     {
-        if (!_damageVignetteEnabled || damageAmount <= 0)
-        {
-            return;
-        }
-
-        var addedIntensity = Math.Clamp(
-            DamageVignetteReactiveMinimumIntensity + (damageAmount / DamageVignetteReactiveDamageScale),
-            DamageVignetteReactiveMinimumIntensity,
-            DamageVignetteReactiveMaximumIntensity);
-        _damageVignetteFlashIntensity = Math.Clamp(
-            _damageVignetteFlashIntensity + addedIntensity,
-            0f,
-            DamageVignetteReactiveMaximumIntensity);
-        _damageVignetteIntensity = Math.Max(_damageVignetteIntensity, _damageVignetteFlashIntensity);
+        _hudManager.LocalStatus.TriggerLocalHudDamageVignette(damageAmount);
     }
 
     internal static Rectangle? GetLocalHealthMedicineSourceRectangle(
@@ -179,6 +159,11 @@ public sealed class GameplayLocalStatusHudController
         private const int WeaponHudOrderPostPrimaryAbility = 110;
 
         private readonly IHudContext _context;
+        private float _damageVignetteFlashIntensity;
+        private float _damageVignetteIntensity;
+        private float _portraitRumbleRemainingSeconds;
+        private float _portraitRumbleIntensity;
+        private int _portraitRumbleSeed;
         private Vector2 _sourceHudOffset;
         private Vector2 _sourceHudScaleOrigin;
         private float _sourceHudScale = 1f;
@@ -235,6 +220,48 @@ public sealed class GameplayLocalStatusHudController
         public GameplayLocalStatusHudController(IHudContext context)
         {
             _context = context;
+        }
+
+        public void TriggerLocalHudPortraitDamageFeedback(int damageAmount)
+        {
+            if (!_context.HudRuntimeSettings.PortraitRumbleEnabled || _context._networkClient.IsLegacyGg2Connection || damageAmount <= 0)
+            {
+                return;
+            }
+
+            _portraitRumbleSeed += 1;
+            _portraitRumbleRemainingSeconds = PortraitRumbleDurationSeconds;
+            _portraitRumbleIntensity = Math.Clamp(0.65f + (damageAmount / 75f), 0.75f, 1.35f);
+        }
+
+        public void TriggerLocalHudDamageVignette(int damageAmount)
+        {
+            if (!_context.HudRuntimeSettings.DamageVignetteEnabled || damageAmount <= 0)
+            {
+                return;
+            }
+
+            var addedIntensity = Math.Clamp(
+                DamageVignetteReactiveMinimumIntensity + (damageAmount / DamageVignetteReactiveDamageScale),
+                DamageVignetteReactiveMinimumIntensity,
+                DamageVignetteReactiveMaximumIntensity);
+            _damageVignetteFlashIntensity = Math.Clamp(
+                _damageVignetteFlashIntensity + addedIntensity,
+                0f,
+                DamageVignetteReactiveMaximumIntensity);
+            _damageVignetteIntensity = Math.Max(_damageVignetteIntensity, _damageVignetteFlashIntensity);
+        }
+
+        internal void ResetPortraitRumble()
+        {
+            _portraitRumbleRemainingSeconds = 0f;
+            _portraitRumbleIntensity = 0f;
+        }
+
+        internal void ResetDamageVignette()
+        {
+            _damageVignetteIntensity = 0f;
+            _damageVignetteFlashIntensity = 0f;
         }
 
         public void DrawLocalHealthHud()
@@ -496,7 +523,7 @@ public sealed class GameplayLocalStatusHudController
             
             // Draw health text centered on top of the crosses
             var health = Math.Max(_context._world.LocalPlayer.Health, 0);
-            var hpColor = _context._lowHealthColorMode == LowHealthColorMode.Red && IsLocalHudLowHealth(_context._world.LocalPlayer)
+            var hpColor = _context.HudRuntimeSettings.LowHealthColorMode == LowHealthColorMode.Red && IsLocalHudLowHealth(_context._world.LocalPlayer)
                 ? Color.Red
                 : Color.White;
             var healthTextPosition = crossPosition + new Vector2((crossSprite?.Frames[0].Width ?? 0) * scale.X / 2f, (crossSprite?.Frames[0].Height ?? 0) * scale.Y / 2f);
@@ -807,7 +834,7 @@ public sealed class GameplayLocalStatusHudController
             var displayedWeaponStats = GetLocalDisplayedMainWeaponStats();
             var isLegacyGg2 = _context._networkClient.IsLegacyGg2Connection;
             var hasGrenadeLauncher = !isLegacyGg2 && HasLocalDemomanGrenadeLauncher();
-            var showOnlyActiveWeapon = _context._hudShowOnlyActiveWeapon || isLegacyGg2;
+            var showOnlyActiveWeapon = _context.HudRuntimeSettings.HudShowOnlyActiveWeapon || isLegacyGg2;
             var selectedOffhandItemId = !isLegacyGg2 && IsLocalDisplayedOffhandWeaponSelected()
                 ? GetLocalDisplayedOffhandPresentationItemId()
                 : null;
@@ -1524,74 +1551,74 @@ public sealed class GameplayLocalStatusHudController
 
         private void UpdateLocalHudPortraitDamageFeedback(ref Vector2 portraitPosition, ref Color portraitColor)
         {
-            if (!_context._portraitRumbleEnabled || _context._portraitRumbleRemainingSeconds <= 0f)
+            if (!_context.HudRuntimeSettings.PortraitRumbleEnabled || _portraitRumbleRemainingSeconds <= 0f)
             {
-                _context._portraitRumbleRemainingSeconds = 0f;
-                _context._portraitRumbleIntensity = 0f;
+                _portraitRumbleRemainingSeconds = 0f;
+                _portraitRumbleIntensity = 0f;
                 return;
             }
 
-            var progress = Math.Clamp(_context._portraitRumbleRemainingSeconds / PortraitRumbleDurationSeconds, 0f, 1f);
+            var progress = Math.Clamp(_portraitRumbleRemainingSeconds / PortraitRumbleDurationSeconds, 0f, 1f);
             var falloff = progress * progress;
-            var shakePixels = 2.4f * _context._portraitRumbleIntensity * falloff;
-            var seed = _context._portraitRumbleSeed * 17.31f;
-            var phase = (PortraitRumbleDurationSeconds - _context._portraitRumbleRemainingSeconds) * 92f;
+            var shakePixels = 2.4f * _portraitRumbleIntensity * falloff;
+            var seed = _portraitRumbleSeed * 17.31f;
+            var phase = (PortraitRumbleDurationSeconds - _portraitRumbleRemainingSeconds) * 92f;
             portraitPosition += new Vector2(
                 MathF.Sin(seed + phase) * shakePixels,
                 MathF.Cos((seed * 0.73f) + (phase * 1.37f)) * shakePixels * 0.65f);
-            portraitColor = Color.Lerp(Color.White, PortraitRumbleTintColor, Math.Clamp(0.75f * _context._portraitRumbleIntensity * progress, 0f, 1f));
+            portraitColor = Color.Lerp(Color.White, PortraitRumbleTintColor, Math.Clamp(0.75f * _portraitRumbleIntensity * progress, 0f, 1f));
 
-            _context._portraitRumbleRemainingSeconds = Math.Max(0f, _context._portraitRumbleRemainingSeconds - Math.Max(0f, _context._clientUpdateElapsedSeconds));
+            _portraitRumbleRemainingSeconds = Math.Max(0f, _portraitRumbleRemainingSeconds - Math.Max(0f, _context._clientUpdateElapsedSeconds));
         }
 
         private void DrawDamageVignetteCore()
         {
-            if (!_context._damageVignetteEnabled)
+            if (!_context.HudRuntimeSettings.DamageVignetteEnabled)
             {
-                _context._damageVignetteIntensity = 0f;
-                _context._damageVignetteFlashIntensity = 0f;
+                _damageVignetteIntensity = 0f;
+                _damageVignetteFlashIntensity = 0f;
                 return;
             }
 
             var elapsedSeconds = Math.Max(0f, _context._clientUpdateElapsedSeconds);
             var lowHealthDepth = GetDamageVignetteLowHealthDepth();
             var persistentIntensity = GetDamageVignettePersistentTargetIntensity(lowHealthDepth);
-            var flashIntensity = _context._damageVignetteFlashIntensity;
+            var flashIntensity = _damageVignetteFlashIntensity;
             var flashMultiplier = MathHelper.Lerp(1f, 1.75f, lowHealthDepth);
             var targetIntensity = Math.Clamp(
                 persistentIntensity + (flashIntensity * flashMultiplier),
                 0f,
                 1f);
 
-            if (targetIntensity > _context._damageVignetteIntensity)
+            if (targetIntensity > _damageVignetteIntensity)
             {
-                _context._damageVignetteIntensity = Math.Min(
+                _damageVignetteIntensity = Math.Min(
                     targetIntensity,
-                    _context._damageVignetteIntensity + (DamageVignetteFadeInPerSecond * elapsedSeconds));
+                    _damageVignetteIntensity + (DamageVignetteFadeInPerSecond * elapsedSeconds));
             }
             else
             {
-                _context._damageVignetteIntensity = Math.Max(
+                _damageVignetteIntensity = Math.Max(
                     targetIntensity,
-                    _context._damageVignetteIntensity - (DamageVignetteFadeOutPerSecond * elapsedSeconds));
+                    _damageVignetteIntensity - (DamageVignetteFadeOutPerSecond * elapsedSeconds));
             }
 
-            _context._damageVignetteFlashIntensity = Math.Max(
+            _damageVignetteFlashIntensity = Math.Max(
                 0f,
-                _context._damageVignetteFlashIntensity - (DamageVignetteReactiveFadePerSecond * elapsedSeconds));
-            if (_context._damageVignetteFlashIntensity <= DamageVignetteMinimumVisibleIntensity)
+                _damageVignetteFlashIntensity - (DamageVignetteReactiveFadePerSecond * elapsedSeconds));
+            if (_damageVignetteFlashIntensity <= DamageVignetteMinimumVisibleIntensity)
             {
-                _context._damageVignetteFlashIntensity = 0f;
+                _damageVignetteFlashIntensity = 0f;
             }
 
-            if (_context._damageVignetteIntensity <= DamageVignetteMinimumVisibleIntensity)
+            if (_damageVignetteIntensity <= DamageVignetteMinimumVisibleIntensity)
             {
-                _context._damageVignetteIntensity = 0f;
+                _damageVignetteIntensity = 0f;
                 return;
             }
 
-            var renderIntensity = _context._damageVignetteIntensity
-                * (ClientSettings.NormalizeDamageVignetteIntensityPercent(_context._damageVignetteIntensityPercent) / 100f)
+            var renderIntensity = _damageVignetteIntensity
+                * (ClientSettings.NormalizeDamageVignetteIntensityPercent(_context.HudRuntimeSettings.DamageVignetteIntensityPercent) / 100f)
                 * 0.65f;
             if (renderIntensity <= DamageVignetteMinimumVisibleIntensity)
             {

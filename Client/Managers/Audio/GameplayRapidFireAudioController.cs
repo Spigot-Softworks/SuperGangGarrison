@@ -23,6 +23,10 @@ public sealed class GameplayRapidFireAudioController
         private const float WorldSoundPanDistance = 400f;
 
         private readonly IAudioContext _context;
+        private Microsoft.Xna.Framework.Audio.SoundEffectInstance? _localChaingunSoundInstance;
+        private Microsoft.Xna.Framework.Audio.SoundEffectInstance? _localFlamethrowerSoundInstance;
+        private Microsoft.Xna.Framework.Audio.SoundEffectInstance? _localMedigunSoundInstance;
+        private Microsoft.Xna.Framework.Audio.SoundEffectInstance? _localUberIdleSoundInstance;
         private readonly Dictionary<RemoteRapidFireSoundKey, SoundEffectInstance> _remoteRapidFireSoundInstances = new();
         private readonly HashSet<RemoteRapidFireSoundKey> _activeRemoteRapidFireSoundKeys = new();
         private readonly List<RemoteRapidFireSoundKey> _staleRemoteRapidFireSoundKeys = new();
@@ -43,15 +47,15 @@ public sealed class GameplayRapidFireAudioController
             UpdateLocalRapidFireWeaponAudio(
                 PrimaryWeaponKind.Minigun,
                 ChaingunSoundName,
-                ref _context._localChaingunSoundInstance);
+                ref _localChaingunSoundInstance);
             UpdateLocalRapidFireWeaponAudio(
                 PrimaryWeaponKind.FlameThrower,
                 FlamethrowerSoundName,
-                ref _context._localFlamethrowerSoundInstance);
+                ref _localFlamethrowerSoundInstance);
             UpdateLocalRapidFireWeaponAudio(
                 PrimaryWeaponKind.Medigun,
                 MedigunSoundName,
-                ref _context._localMedigunSoundInstance);
+                ref _localMedigunSoundInstance);
             if (_context._networkClient.IsReplayConnection)
             {
                 StopAndDisposeRemoteRapidFireWeaponAudio();
@@ -149,19 +153,19 @@ public sealed class GameplayRapidFireAudioController
 
         public void StopRapidFireWeaponAudio()
         {
-            StopLocalRapidFireWeaponSound(ref _context._localChaingunSoundInstance);
-            StopLocalRapidFireWeaponSound(ref _context._localFlamethrowerSoundInstance);
-            StopLocalRapidFireWeaponSound(ref _context._localMedigunSoundInstance);
-            StopLocalRapidFireWeaponSound(ref _context._localUberIdleSoundInstance);
+            StopLocalRapidFireWeaponSound(ref _localChaingunSoundInstance);
+            StopLocalRapidFireWeaponSound(ref _localFlamethrowerSoundInstance);
+            StopLocalRapidFireWeaponSound(ref _localMedigunSoundInstance);
+            StopLocalRapidFireWeaponSound(ref _localUberIdleSoundInstance);
             StopAndDisposeRemoteRapidFireWeaponAudio();
         }
 
         public void StopAndDisposeRapidFireWeaponAudio()
         {
-            StopAndDisposeLocalRapidFireWeaponSound(ref _context._localChaingunSoundInstance);
-            StopAndDisposeLocalRapidFireWeaponSound(ref _context._localFlamethrowerSoundInstance);
-            StopAndDisposeLocalRapidFireWeaponSound(ref _context._localMedigunSoundInstance);
-            StopAndDisposeLocalRapidFireWeaponSound(ref _context._localUberIdleSoundInstance);
+            StopAndDisposeLocalRapidFireWeaponSound(ref _localChaingunSoundInstance);
+            StopAndDisposeLocalRapidFireWeaponSound(ref _localFlamethrowerSoundInstance);
+            StopAndDisposeLocalRapidFireWeaponSound(ref _localMedigunSoundInstance);
+            StopAndDisposeLocalRapidFireWeaponSound(ref _localUberIdleSoundInstance);
             StopAndDisposeRemoteRapidFireWeaponAudio();
         }
 
@@ -178,7 +182,7 @@ public sealed class GameplayRapidFireAudioController
                     BuiltInGameplayBehaviorIds.MedicUber)
                 || _context._world.MatchState.IsEnded)
             {
-                StopLocalRapidFireWeaponSound(ref _context._localUberIdleSoundInstance);
+                StopLocalRapidFireWeaponSound(ref _localUberIdleSoundInstance);
                 return;
             }
 
@@ -186,7 +190,7 @@ public sealed class GameplayRapidFireAudioController
                 "UberIdleSnd",
                 player.X,
                 player.Y,
-                ref _context._localUberIdleSoundInstance,
+                ref _localUberIdleSoundInstance,
                 isLocalSource: true);
         }
 

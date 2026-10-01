@@ -13,22 +13,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    public readonly List<SnapshotDamageEvent> _pendingNetworkDamageEvents = new();
-    public readonly HashSet<ulong> _processedNetworkDamageEventIds = new();
-    public readonly Queue<ulong> _processedNetworkDamageEventOrder = new();
-    public ClientRoundPhase _clientPluginPreviousMatchPhase;
-    public bool _clientPluginPreviousLocalAlive;
-    public int _clientPluginPreviousLocalAmmo;
-    public int _clientPluginPreviousLocalPrimaryCooldownTicks;
-    public bool _clientPluginPreviousLocalCarryingIntel;
-    public bool _clientPluginPreviousLocalBurning;
-    public int _clientPluginPreviousKillFeedCount;
-    public readonly Dictionary<int, (ClientPluginTeam Team, ClientPluginTeam CappingTeam, float Progress, bool IsLocked)> _clientPluginPreviousObjectiveStates = new();
-    public (bool IsAtBase, bool IsDropped, ClientPluginTeam CarrierTeam, float ReturnProgress, float X, float Y) _clientPluginPreviousRedIntelState;
-    public (bool IsAtBase, bool IsDropped, ClientPluginTeam CarrierTeam, float ReturnProgress, float X, float Y) _clientPluginPreviousBlueIntelState;
-    public readonly Dictionary<PlayerTeam, (int Health, int MaxHealth, bool IsDestroyed)> _clientPluginPreviousGeneratorStates = new();
     public ClientPluginHost? _clientPluginHost;
-    public ClientPluginStateView? _clientPluginStateView;
 
     public void InitializeClientPlugins()
     {
@@ -134,13 +119,13 @@ public partial class Game1
 
     private bool WasClientPluginKeyPressedThisFrame(Keys key)
     {
-        return _clientPluginKeyboard.IsKeyDown(key) && !_clientPluginPreviousKeyboard.IsKeyDown(key);
+        return _gameplayManager.Frame.WasClientPluginKeyPressedThisFrame(key);
     }
 
     public ClientPluginHost CreateClientPluginHost(string pluginsDirectory, string pluginConfigRoot, string pluginStatePath)
     {
         return new ClientPluginHost(
-            _clientPluginStateView!,
+            _pluginManager.Runtime.StateView!,
             GraphicsDevice,
             pluginsDirectory,
             pluginConfigRoot,

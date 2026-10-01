@@ -69,7 +69,7 @@ public partial class Game1
         }
 
         var equipmentPose = pose;
-        var weaponBobMode = OpenGarrisonPreferencesDocument.NormalizeWeaponBobMode(_weaponBobMode);
+        var weaponBobMode = OpenGarrisonPreferencesDocument.NormalizeWeaponBobMode(_gameplayManager.RuntimeSettings.WeaponBobMode);
         float equipmentOffset;
         if (weaponBobMode == WeaponBobMode.Disabled)
         {
@@ -153,7 +153,7 @@ public partial class Game1
     /// </summary>
     private float GetTorsoReplacementYOffset(PlayerEntity player)
     {
-        var mode = OpenGarrisonPreferencesDocument.NormalizeWeaponBobMode(_weaponBobMode);
+        var mode = OpenGarrisonPreferencesDocument.NormalizeWeaponBobMode(_gameplayManager.RuntimeSettings.WeaponBobMode);
         if (mode == WeaponBobMode.Disabled)
         {
             return 0f;

@@ -4,7 +4,6 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    public bool _gameplayModalOwnedInputThisFrame;
 
     public static bool ShouldOpenInGamePauseMenu(
         bool escapePressed,
@@ -18,7 +17,7 @@ public partial class Game1
         => _consoleOpen || _chatOpen || _passwordPromptOpen || HasOpenGameplayOverlay();
 
     public bool CanUpdateHostedLastToDieMenuInput()
-        => !_gameplayModalOwnedInputThisFrame && !HasGameplayModalInputOwner();
+        => !_gameplayManager.InputUpdate.GameplayModalOwnedInputThisFrame && !HasGameplayModalInputOwner();
 
     public bool IsGameplayMenuOpen()
     {
@@ -33,8 +32,8 @@ public partial class Game1
             || ShouldBlockGameplayForGarrisonBuilder()
             || _consoleOpen
             || _chatOpen
-            || _teamSelectOpen
-            || _classSelectOpen
+            || _teamClassSelectionState.TeamSelectOpen
+            || _teamClassSelectionState.ClassSelectOpen
             || _passwordPromptOpen;
     }
 
@@ -48,8 +47,8 @@ public partial class Game1
         return !_passwordPromptOpen
             && !ShouldBlockGameplayForGarrisonBuilder()
             && !_consoleOpen
-            && !_teamSelectOpen
-            && !_classSelectOpen
+            && !_teamClassSelectionState.TeamSelectOpen
+            && !_teamClassSelectionState.ClassSelectOpen
             && !_chatOpen;
     }
 
@@ -66,8 +65,8 @@ public partial class Game1
             || (_chatOpen
                 && !_consoleOpen
                 && !_passwordPromptOpen
-                && !_teamSelectOpen
-                && !_classSelectOpen
+                && !_teamClassSelectionState.TeamSelectOpen
+                && !_teamClassSelectionState.ClassSelectOpen
                 && !IsGameplayMenuOpen());
     }
 
@@ -78,8 +77,8 @@ public partial class Game1
             && !ShouldBlockGameplayForGarrisonBuilder()
             && !_chatOpen
             && !_passwordPromptOpen
-            && !_teamSelectOpen
-            && !_classSelectOpen
+            && !_teamClassSelectionState.TeamSelectOpen
+            && !_teamClassSelectionState.ClassSelectOpen
             && !IsGameplayMenuOpen();
     }
 
@@ -124,8 +123,8 @@ public partial class Game1
         return !_consoleOpen
             && !IsGameplayLoadingForMenuInput()
             && !ShouldBlockGameplayForGarrisonBuilder()
-            && !_teamSelectOpen
-            && !_classSelectOpen
+            && !_teamClassSelectionState.TeamSelectOpen
+            && !_teamClassSelectionState.ClassSelectOpen
             && !ShouldConsumeHostedLastToDieBackInput()
             && !HasOpenGameplayOverlay();
     }
@@ -134,6 +133,6 @@ public partial class Game1
     public bool IsGameplayLoadingForMenuInput()
         => IsNetworkWorldWarmupBlockingPresentation()
             || IsPracticeNavigationWarmupBlockingGameplay()
-            || _loadingOverlayVisible
+            || _loadingOverlayState.Visible
             || _networkClient.LastToDieState.Snapshot?.Phase == OpenGarrison.Protocol.LastToDieWirePhase.LoadingStage;
 }

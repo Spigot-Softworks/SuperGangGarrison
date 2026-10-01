@@ -11,7 +11,7 @@ public partial class Game1
 {
     public bool ShouldUseSoftwareMenuCursor()
     {
-        return IsScreenFillingDisplayMode(_displayMode);
+        return IsScreenFillingDisplayMode(_menuManager.DisplaySettings.DisplayMode);
     }
 
     public bool ShouldDrawSoftwareMenuCursor()
@@ -30,7 +30,7 @@ public partial class Game1
     {
         var x = mouse.X;
         var y = mouse.Y;
-        var cursorSizePercent = ClientSettings.NormalizeCursorSizePercent(_cursorSizePercent);
+        var cursorSizePercent = ClientSettings.NormalizeCursorSizePercent(_hudManager.RuntimeSettings.CursorSizePercent);
         var fillColor = new Color(92, 213, 255);
         var shadowColor = Color.Black;
 

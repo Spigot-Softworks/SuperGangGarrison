@@ -11,71 +11,31 @@ namespace OpenGarrison.Client;
 
 public partial class Game1 : IAudioContext
 {
+    AudioRuntimeSettings IAudioContext.AudioRuntimeSettings { get => _audioManager.RuntimeSettings; }
+    GameplayRuntimeSettings IAudioContext.GameplayRuntimeSettings { get => _gameplayManager.RuntimeSettings; }
+    MusicResources IAudioContext.MusicResources => _audioManager.MusicResources;
+
     bool IAudioContext._audioAvailable { get => _audioAvailable; set => _audioAvailable = value; }
 
     OpenGarrison.Core.SimulationConfig IAudioContext._config { get => _config; set => _config = value; }
 
     List<OpenGarrison.Client.Game1.ExplosionVisual> IAudioContext._explosions { get => _explosions; }
 
-    ref Microsoft.Xna.Framework.Audio.SoundEffect IAudioContext._faucetMusic => ref _faucetMusic;
-
-    ref Microsoft.Xna.Framework.Audio.SoundEffectInstance IAudioContext._faucetMusicInstance => ref _faucetMusicInstance;
-
-    ref bool IAudioContext._faucetMusicLoadAttempted => ref _faucetMusicLoadAttempted;
 
     float IAudioContext._gameplayPresentationDeltaSeconds { get => _gameplayPresentationDeltaSeconds; set => _gameplayPresentationDeltaSeconds = value; }
 
-    ref Microsoft.Xna.Framework.Audio.SoundEffect IAudioContext._ingameCombatMusic => ref _ingameCombatMusic;
 
-    ref Microsoft.Xna.Framework.Audio.SoundEffectInstance IAudioContext._ingameCombatMusicInstance => ref _ingameCombatMusicInstance;
 
-    ref Microsoft.Xna.Framework.Audio.SoundEffect IAudioContext._ingameMusic => ref _ingameMusic;
 
-    ref Microsoft.Xna.Framework.Audio.SoundEffectInstance IAudioContext._ingameMusicInstance => ref _ingameMusicInstance;
 
-    ref bool IAudioContext._ingameMusicLoadAttempted => ref _ingameMusicLoadAttempted;
 
-    int IAudioContext._ingameMusicVolumePercent { get => _ingameMusicVolumePercent; set => _ingameMusicVolumePercent = value; }
 
-    bool IAudioContext._killCamEnabled { get => _killCamEnabled; set => _killCamEnabled = value; }
 
-    Microsoft.Xna.Framework.Audio.SoundEffect IAudioContext._lastToDieGameOverSound { get => _lastToDieGameOverSound; set => _lastToDieGameOverSound = value; }
 
-    Microsoft.Xna.Framework.Audio.SoundEffectInstance IAudioContext._lastToDieGameOverSoundInstance { get => _lastToDieGameOverSoundInstance; set => _lastToDieGameOverSoundInstance = value; }
 
-    bool IAudioContext._lastToDieGameOverSoundLoadAttempted { get => _lastToDieGameOverSoundLoadAttempted; set => _lastToDieGameOverSoundLoadAttempted = value; }
-
-    ref Microsoft.Xna.Framework.Audio.SoundEffect IAudioContext._lastToDieIngameMusic => ref _lastToDieIngameMusic;
-
-    ref Microsoft.Xna.Framework.Audio.SoundEffectInstance IAudioContext._lastToDieIngameMusicInstance => ref _lastToDieIngameMusicInstance;
-
-    ref bool IAudioContext._lastToDieIngameMusicLoadAttempted => ref _lastToDieIngameMusicLoadAttempted;
-
-    ref Microsoft.Xna.Framework.Audio.SoundEffect IAudioContext._lastToDieMenuMusic => ref _lastToDieMenuMusic;
-
-    ref Microsoft.Xna.Framework.Audio.SoundEffectInstance IAudioContext._lastToDieMenuMusicInstance => ref _lastToDieMenuMusicInstance;
-
-    ref bool IAudioContext._lastToDieMenuMusicLoadAttempted => ref _lastToDieMenuMusicLoadAttempted;
-
-    float IAudioContext._localBuffBannerReadyCueEchoSuppressionSeconds { get => _localBuffBannerReadyCueEchoSuppressionSeconds; set => _localBuffBannerReadyCueEchoSuppressionSeconds = value; }
-
-    OpenGarrison.Client.BuffBannerReadyCueTracker IAudioContext._localBuffBannerReadyCueTracker { get => _localBuffBannerReadyCueTracker; }
-
-    ref Microsoft.Xna.Framework.Audio.SoundEffectInstance IAudioContext._localChaingunSoundInstance => ref _localChaingunSoundInstance;
-
-    ref Microsoft.Xna.Framework.Audio.SoundEffectInstance IAudioContext._localFlamethrowerSoundInstance => ref _localFlamethrowerSoundInstance;
-
-    ref Microsoft.Xna.Framework.Audio.SoundEffectInstance IAudioContext._localMedigunSoundInstance => ref _localMedigunSoundInstance;
-
-    ref Microsoft.Xna.Framework.Audio.SoundEffectInstance IAudioContext._localUberIdleSoundInstance => ref _localUberIdleSoundInstance;
 
     bool IAudioContext._mainMenuOpen { get => _mainMenuOpen; set => _mainMenuOpen = value; }
 
-    ref Microsoft.Xna.Framework.Audio.SoundEffect IAudioContext._menuMusic => ref _menuMusic;
-
-    ref Microsoft.Xna.Framework.Audio.SoundEffectInstance IAudioContext._menuMusicInstance => ref _menuMusicInstance;
-
-    ref bool IAudioContext._menuMusicLoadAttempted => ref _menuMusicLoadAttempted;
 
     OpenGarrison.Client.NetworkGameClient IAudioContext._networkClient { get => _networkClient; }
 
@@ -83,17 +43,11 @@ public partial class Game1 : IAudioContext
 
     Nullable<OpenGarrison.Core.PrimaryWeaponKind> IAudioContext._pendingImmediateRapidFireWeaponKind { get => _pendingImmediateRapidFireWeaponKind; set => _pendingImmediateRapidFireWeaponKind = value; }
 
-    List<OpenGarrison.Core.WorldSoundEvent> IAudioContext._pendingNetworkSoundEvents { get => _pendingNetworkSoundEvents; }
 
-    int IAudioContext._previousLocalDemoknightChargeTicks { get => _previousLocalDemoknightChargeTicks; set => _previousLocalDemoknightChargeTicks = value; }
 
-    HashSet<ulong> IAudioContext._processedKillFeedEventIds { get => _processedKillFeedEventIds; }
 
-    Queue<ulong> IAudioContext._processedKillFeedEventOrder { get => _processedKillFeedEventOrder; }
 
-    HashSet<ulong> IAudioContext._processedNetworkSoundEventIds { get => _processedNetworkSoundEventIds; }
 
-    Queue<ulong> IAudioContext._processedNetworkSoundEventOrder { get => _processedNetworkSoundEventOrder; }
 
     OpenGarrison.Client.GameMakerRuntimeAssetCache IAudioContext._runtimeAssets { get => _runtimeAssets; set => _runtimeAssets = value; }
 

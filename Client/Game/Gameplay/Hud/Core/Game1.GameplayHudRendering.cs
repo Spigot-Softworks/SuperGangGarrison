@@ -52,12 +52,12 @@ public partial class Game1
         }
 
         EnsureHudRenderTarget();
-        if (_hudRenderTarget is null)
+        if (_renderTargetResources.HudRenderTarget is null)
         {
             return;
         }
 
-        GraphicsDevice.SetRenderTarget(_hudRenderTarget);
+        GraphicsDevice.SetRenderTarget(_renderTargetResources.HudRenderTarget);
         GraphicsDevice.Clear(Color.Transparent);
         _spriteBatch.Begin(samplerState: SamplerState.PointClamp, rasterizerState: RasterizerState.CullNone);
         _deferDamageVignetteForHudOpacityComposite = true;
@@ -79,7 +79,7 @@ public partial class Game1
     // HUD target onto the active batch, or falls through to the normal direct HUD draw.
     public void DrawGameplayHudLayersOrComposite(MouseState mouse, Vector2 cameraPosition)
     {
-        if (!_hudOpacityCompositePending || _hudRenderTarget is null)
+        if (!_hudOpacityCompositePending || _renderTargetResources.HudRenderTarget is null)
         {
             DrawGameplayHudLayers(mouse, cameraPosition);
             return;
@@ -93,7 +93,7 @@ public partial class Game1
         }
 
         var opacity = GetEffectiveGameplayHudCompositeOpacity();
-        _spriteBatch.Draw(_hudRenderTarget, Vector2.Zero, Color.White * opacity);
+        _spriteBatch.Draw(_renderTargetResources.HudRenderTarget, Vector2.Zero, Color.White * opacity);
     }
 
     private float GetEffectiveGameplayHudCompositeOpacity()
@@ -168,15 +168,15 @@ public partial class Game1
 
     private void EnsureHudRenderTarget()
     {
-        if (_hudRenderTarget is not null
-            && _hudRenderTarget.Width == ViewportWidth
-            && _hudRenderTarget.Height == ViewportHeight)
+        if (_renderTargetResources.HudRenderTarget is not null
+            && _renderTargetResources.HudRenderTarget.Width == ViewportWidth
+            && _renderTargetResources.HudRenderTarget.Height == ViewportHeight)
         {
             return;
         }
 
-        _hudRenderTarget?.Dispose();
-        _hudRenderTarget = new RenderTarget2D(
+        _renderTargetResources.HudRenderTarget?.Dispose();
+        _renderTargetResources.HudRenderTarget = new RenderTarget2D(
             GraphicsDevice,
             ViewportWidth,
             ViewportHeight,
@@ -355,7 +355,7 @@ public partial class Game1
         var screenPosition = GetWorldHudScreenPosition(aimWorldPosition, cameraPosition);
         var frameIndex = trackedPlayer.Team == PlayerTeam.Blue ? 1 : 0;
         frameIndex = Math.Clamp(frameIndex, 0, crosshairSprite.Frames.Count - 1);
-        var cursorScale = ClientSettings.GetCursorScale(_cursorSizePercent);
+        var cursorScale = ClientSettings.GetCursorScale(_hudManager.RuntimeSettings.CursorSizePercent);
         DrawLoadedSpriteFrame(
             crosshairSprite.Frames[frameIndex],
             screenPosition,
@@ -404,13 +404,13 @@ public partial class Game1
             WriteGameplayRenderTrace("modal after passwordprompt");
         }
 
-        if (_teamSelectOpen || _teamSelectAlpha > 0.02f)
+        if (_teamClassSelectionState.TeamSelectOpen || _teamClassSelectionState.TeamSelectAlpha > 0.02f)
         {
             DrawTeamSelectHud();
             WriteGameplayRenderTrace("modal after teamselect");
         }
 
-        if (_classSelectOpen || _classSelectAlpha > 0.02f)
+        if (_teamClassSelectionState.ClassSelectOpen || _teamClassSelectionState.ClassSelectAlpha > 0.02f)
         {
             DrawClassSelectHud();
             WriteGameplayRenderTrace("modal after classselect");

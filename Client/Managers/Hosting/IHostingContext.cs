@@ -8,6 +8,7 @@ namespace OpenGarrison.Client;
 
 public interface IHostingContext
 {
+    PendingHostedConnectState PendingHostedConnect { get; }
     bool _controlsMenuOpen { get; set; }
     OpenGarrison.Client.HostedServerConsoleState _hostedServerConsole { get; }
     OpenGarrison.Client.HostedServerRuntimeController _hostedServerRuntime { get; }
@@ -24,7 +25,6 @@ public interface IHostingContext
     bool _optionsMenuOpen { get; set; }
     Nullable<OpenGarrison.Client.Game1.ControllerControlsMenuBinding> _pendingControllerControlsBinding { get; set; }
     Nullable<OpenGarrison.Client.Game1.ControlsMenuBinding> _pendingControlsBinding { get; set; }
-    int _pendingHostedConnectPort { get; set; }
     bool _pluginOptionsMenuOpen { get; set; }
     Microsoft.Xna.Framework.Input.MouseState _previousMouse { get; set; }
     bool _startupSplashOpen { get; set; }

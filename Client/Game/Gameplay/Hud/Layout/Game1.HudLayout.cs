@@ -128,7 +128,7 @@ public partial class Game1
         _optionsMenuOpen = false;
         _optionsMenuOpenedFromGameplay = false;
         _inGameMenuOpen = false;
-        _inGameMenuAwaitingEscapeRelease = false;
+        _menuManager.InGameMenu.ResetAwaitingEscapeRelease();
         _controlsMenuOpen = false;
         _controlsMenuOpenedFromGameplay = false;
         _pendingControlsBinding = null;

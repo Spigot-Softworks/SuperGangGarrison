@@ -440,24 +440,24 @@ public sealed class LastToDieStageSpecialRoundState
         DrawLastToDieAccessoryLoadoutOption(
             GameplayLoadoutMenuPresentation.GetColumnOptionBounds(columnBounds, 0),
             _lastToDieRun?.EquippedHelmet,
-            _gameplayLoadoutHelmetTexture,
+            _gameplayLoadoutResources.HelmetTexture,
             LastToDieHelmetLoadoutItemId,
             buttons);
         DrawLastToDieAccessoryLoadoutOption(
             GameplayLoadoutMenuPresentation.GetColumnOptionBounds(columnBounds, 1),
             _lastToDieRun?.EquippedDogtags,
-            _gameplayLoadoutDogTagsTexture,
+            _gameplayLoadoutResources.DogTagsTexture,
             LastToDieDogtagsLoadoutItemId,
             buttons);
     }
 
     private void DrawGameplayLoadoutAccessoryColumnBackground(Rectangle columnBounds)
     {
-        if (_gameplayLoadoutScrollerTexture is not null)
+        if (_gameplayLoadoutResources.ScrollerTexture is not null)
         {
-            var frameWidth = _gameplayLoadoutScrollerTexture.Width / 5;
-            var source = new Rectangle(0, 0, frameWidth, _gameplayLoadoutScrollerTexture.Height);
-            DrawLoadedSpriteFrame(_gameplayLoadoutScrollerTexture, columnBounds.Location.ToVector2(), source, Color.White, 0f, Vector2.Zero, new Vector2(columnBounds.Width / (float)source.Width, columnBounds.Height / (float)source.Height), SpriteEffects.None, 0f);
+            var frameWidth = _gameplayLoadoutResources.ScrollerTexture.Width / 5;
+            var source = new Rectangle(0, 0, frameWidth, _gameplayLoadoutResources.ScrollerTexture.Height);
+            DrawLoadedSpriteFrame(_gameplayLoadoutResources.ScrollerTexture, columnBounds.Location.ToVector2(), source, Color.White, 0f, Vector2.Zero, new Vector2(columnBounds.Width / (float)source.Width, columnBounds.Height / (float)source.Height), SpriteEffects.None, 0f);
             return;
         }
 

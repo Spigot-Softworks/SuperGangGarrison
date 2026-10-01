@@ -234,5 +234,5 @@ public partial class Game1
         IsGameplaySoundMusicOverrideActive ? 1f - _gameplaySoundMusicOverrideFade : 1f;
 
     private float GetGameplaySoundMusicOverrideVolume() =>
-        GetNonLinearVolumeScale(_ingameMusicVolumePercent) * 0.8f * _gameplaySoundMusicOverrideFade;
+        GetNonLinearVolumeScale(_audioManager.RuntimeSettings.IngameMusicVolumePercent) * 0.8f * _gameplaySoundMusicOverrideFade;
 }

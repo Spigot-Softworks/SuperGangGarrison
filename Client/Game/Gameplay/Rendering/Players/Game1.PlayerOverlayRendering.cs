@@ -105,7 +105,7 @@ public partial class Game1
     private void DrawOverheadChatMessage(PlayerEntity player, Vector2 cameraPosition)
     {
         if (IsPlayerMutedByScoreboardSlot(player)
-            || !_overheadChatEnabled
+            || !_hudManager.RuntimeSettings.OverheadChatEnabled
             || !TryGetOverheadChatMessageForPlayer(player, out var message))
         {
             return;

@@ -43,14 +43,14 @@ public sealed partial class GameplayGoreEffectsController
 
         public void ResetBloodSquibEffects()
         {
-            _context._bloodSquibParticles.Clear();
-            _context._settledBloodCells.Clear();
-            _context._processedSettledBloodDropIds.Clear();
-            _context._staleSettledBloodDropIds.Clear();
-            _context._staleSettledBloodCellKeys.Clear();
-            _context._pendingSettledBloodTransfers.Clear();
-            _context._bloodDrawCellsScratch.Clear();
-            _context._bloodCryoDrawCellsScratch.Clear();
+            _bloodSquibParticles.Clear();
+            _settledBloodCells.Clear();
+            _processedSettledBloodDropIds.Clear();
+            _staleSettledBloodDropIds.Clear();
+            _staleSettledBloodCellKeys.Clear();
+            _pendingSettledBloodTransfers.Clear();
+            _bloodDrawCellsScratch.Clear();
+            _bloodCryoDrawCellsScratch.Clear();
         }
 
         private void AdvanceBloodSquibEffects()
@@ -154,19 +154,19 @@ public sealed partial class GameplayGoreEffectsController
             bool experimentalCryoTinted,
             bool heavy)
         {
-            if (_context._bloodSquibParticles.Count >= MaxBloodSquibParticles)
+            if (_bloodSquibParticles.Count >= MaxBloodSquibParticles)
             {
                 // Drop the oldest particle instead of scanning for the weakest.
-                _context._bloodSquibParticles.RemoveAt(0);
+                _bloodSquibParticles.RemoveAt(0);
             }
 
-            _context._bloodSquibParticles.Add(new BloodSquibParticle(
+            _bloodSquibParticles.Add(new BloodSquibParticle(
                 x,
                 y,
                 velocityX,
                 velocityY,
                 scale,
-                unchecked(_context._nextBloodSquibSeed++),
+                unchecked(_nextBloodSquibSeed++),
                 lifetimeTicks,
                 experimentalCryoTinted,
                 heavy));
@@ -180,9 +180,9 @@ public sealed partial class GameplayGoreEffectsController
             var isTopDown = level.IsTopDown;
             var solids = level.Solids;
 
-            for (var index = _context._bloodSquibParticles.Count - 1; index >= 0; index -= 1)
+            for (var index = _bloodSquibParticles.Count - 1; index >= 0; index -= 1)
             {
-                var squib = _context._bloodSquibParticles[index];
+                var squib = _bloodSquibParticles[index];
                 if (squib.TicksRemaining > 0)
                 {
                     squib.TicksRemaining -= 1;
@@ -215,7 +215,7 @@ public sealed partial class GameplayGoreEffectsController
                     && landed)
                 {
                     TryDepositSettledBloodOnGround(impactX, impactY, SettledBloodDepositAmount * squib.Scale, squib.ExperimentalCryoTinted);
-                    _context._bloodSquibParticles.RemoveAt(index);
+                    _bloodSquibParticles.RemoveAt(index);
                     continue;
                 }
 
@@ -229,7 +229,7 @@ public sealed partial class GameplayGoreEffectsController
                         clampedY,
                         SettledBloodDepositAmount * squib.Scale * 0.7f,
                         squib.ExperimentalCryoTinted);
-                    _context._bloodSquibParticles.RemoveAt(index);
+                    _bloodSquibParticles.RemoveAt(index);
                     continue;
                 }
 
@@ -241,7 +241,7 @@ public sealed partial class GameplayGoreEffectsController
                         squib.Y,
                         SettledBloodDepositAmount * squib.Scale * 0.7f,
                         squib.ExperimentalCryoTinted);
-                    _context._bloodSquibParticles.RemoveAt(index);
+                    _bloodSquibParticles.RemoveAt(index);
                 }
             }
         }
@@ -335,7 +335,7 @@ public sealed partial class GameplayGoreEffectsController
 
         private void AdvanceSettledBloodSeepage()
         {
-            if (_context._settledBloodCells.Count == 0)
+            if (_settledBloodCells.Count == 0)
             {
                 return;
             }
@@ -343,10 +343,10 @@ public sealed partial class GameplayGoreEffectsController
             FadeSettledBloodFromEdges();
 
             var solids = _context._world.Level.Solids;
-            _context._pendingSettledBloodTransfers.Clear();
-            _context._staleSettledBloodCellKeys.Clear();
+            _pendingSettledBloodTransfers.Clear();
+            _staleSettledBloodCellKeys.Clear();
 
-            foreach (var entry in _context._settledBloodCells)
+            foreach (var entry in _settledBloodCells)
             {
                 var cell = entry.Value;
 
@@ -392,49 +392,49 @@ public sealed partial class GameplayGoreEffectsController
                 }
 
                 cell.Amount -= transferAmount;
-                _context._pendingSettledBloodTransfers.Add((targetX, targetY, transferAmount, cell.ExperimentalCryoTinted));
+                _pendingSettledBloodTransfers.Add((targetX, targetY, transferAmount, cell.ExperimentalCryoTinted));
                 if (cell.Amount <= 0.05f)
                 {
-                    _context._staleSettledBloodCellKeys.Add(entry.Key);
+                    _staleSettledBloodCellKeys.Add(entry.Key);
                 }
             }
 
-            for (var index = 0; index < _context._staleSettledBloodCellKeys.Count; index += 1)
+            for (var index = 0; index < _staleSettledBloodCellKeys.Count; index += 1)
             {
-                _context._settledBloodCells.Remove(_context._staleSettledBloodCellKeys[index]);
+                _settledBloodCells.Remove(_staleSettledBloodCellKeys[index]);
             }
 
-            _context._staleSettledBloodCellKeys.Clear();
+            _staleSettledBloodCellKeys.Clear();
 
-            for (var index = 0; index < _context._pendingSettledBloodTransfers.Count; index += 1)
+            for (var index = 0; index < _pendingSettledBloodTransfers.Count; index += 1)
             {
-                var transfer = _context._pendingSettledBloodTransfers[index];
+                var transfer = _pendingSettledBloodTransfers[index];
                 AddSettledBloodCellAmount(transfer.X, transfer.Y, transfer.Amount, transfer.Cryo);
             }
 
-            _context._pendingSettledBloodTransfers.Clear();
+            _pendingSettledBloodTransfers.Clear();
             TrimSettledBloodCellsIfNeeded();
         }
 
         private void FadeSettledBloodFromEdges()
         {
-            _context._staleSettledBloodCellKeys.Clear();
-            _context._bloodBridgeScratch.Clear();
+            _staleSettledBloodCellKeys.Clear();
+            _bloodBridgeScratch.Clear();
 
             // Age every cell, but only erode the silhouette so large pools shrink from the sides.
-            foreach (var entry in _context._settledBloodCells)
+            foreach (var entry in _settledBloodCells)
             {
                 entry.Value.Age += 1;
             }
 
-            foreach (var entry in _context._settledBloodCells)
+            foreach (var entry in _settledBloodCells)
             {
                 var cell = entry.Value;
                 var (gx, gy) = entry.Key;
 
                 if (cell.Amount <= 0.05f)
                 {
-                    _context._staleSettledBloodCellKeys.Add(entry.Key);
+                    _staleSettledBloodCellKeys.Add(entry.Key);
                     continue;
                 }
 
@@ -462,34 +462,34 @@ public sealed partial class GameplayGoreEffectsController
 
                 if (cell.Amount <= 0.08f || cell.Age >= maxAge)
                 {
-                    _context._staleSettledBloodCellKeys.Add(entry.Key);
+                    _staleSettledBloodCellKeys.Add(entry.Key);
                 }
             }
 
-            for (var index = 0; index < _context._staleSettledBloodCellKeys.Count; index += 1)
+            for (var index = 0; index < _staleSettledBloodCellKeys.Count; index += 1)
             {
-                _context._settledBloodCells.Remove(_context._staleSettledBloodCellKeys[index]);
+                _settledBloodCells.Remove(_staleSettledBloodCellKeys[index]);
             }
 
-            _context._staleSettledBloodCellKeys.Clear();
+            _staleSettledBloodCellKeys.Clear();
         }
 
         private bool IsSettledBloodSilhouetteEdge(int gx, int gy)
         {
             // 4-neighbour gap => silhouette edge of the pool sheet.
-            if (!_context._settledBloodCells.ContainsKey((gx - 1, gy))
-                || !_context._settledBloodCells.ContainsKey((gx + 1, gy))
-                || !_context._settledBloodCells.ContainsKey((gx, gy - 1))
-                || !_context._settledBloodCells.ContainsKey((gx, gy + 1)))
+            if (!_settledBloodCells.ContainsKey((gx - 1, gy))
+                || !_settledBloodCells.ContainsKey((gx + 1, gy))
+                || !_settledBloodCells.ContainsKey((gx, gy - 1))
+                || !_settledBloodCells.ContainsKey((gx, gy + 1)))
             {
                 return true;
             }
 
             // Also treat very thin neighbouring amounts as edge so fade doesn't leave speck islands.
-            if (!_context._settledBloodCells.TryGetValue((gx - 1, gy), out var left) || left.Amount < 0.18f
-                || !_context._settledBloodCells.TryGetValue((gx + 1, gy), out var right) || right.Amount < 0.18f
-                || !_context._settledBloodCells.TryGetValue((gx, gy - 1), out var up) || up.Amount < 0.18f
-                || !_context._settledBloodCells.TryGetValue((gx, gy + 1), out var down) || down.Amount < 0.18f)
+            if (!_settledBloodCells.TryGetValue((gx - 1, gy), out var left) || left.Amount < 0.18f
+                || !_settledBloodCells.TryGetValue((gx + 1, gy), out var right) || right.Amount < 0.18f
+                || !_settledBloodCells.TryGetValue((gx, gy - 1), out var up) || up.Amount < 0.18f
+                || !_settledBloodCells.TryGetValue((gx, gy + 1), out var down) || down.Amount < 0.18f)
             {
                 return true;
             }
@@ -623,7 +623,7 @@ public sealed partial class GameplayGoreEffectsController
             var centerGx = (int)MathF.Floor(worldX / BloodCellSize);
             var centerGy = (int)MathF.Floor(worldY / BloodCellSize);
             var existing = 0f;
-            if (_context._settledBloodCells.TryGetValue((centerGx, centerGy), out var centerCell))
+            if (_settledBloodCells.TryGetValue((centerGx, centerGy), out var centerCell))
             {
                 existing = centerCell.Amount;
             }
@@ -639,7 +639,7 @@ public sealed partial class GameplayGoreEffectsController
                         continue;
                     }
 
-                    if (!_context._settledBloodCells.TryGetValue((centerGx + ox, centerGy + oy), out var neighbour))
+                    if (!_settledBloodCells.TryGetValue((centerGx + ox, centerGy + oy), out var neighbour))
                     {
                         continue;
                     }
@@ -823,7 +823,7 @@ public sealed partial class GameplayGoreEffectsController
                     }
 
                     var key = (centerGx + ox, centerGy + oy);
-                    if (!_context._settledBloodCells.TryGetValue(key, out var neighbour) || neighbour.Amount < 0.2f)
+                    if (!_settledBloodCells.TryGetValue(key, out var neighbour) || neighbour.Amount < 0.2f)
                     {
                         continue;
                     }
@@ -860,7 +860,7 @@ public sealed partial class GameplayGoreEffectsController
             }
 
             var key = (gx, gy);
-            if (_context._settledBloodCells.TryGetValue(key, out var cell))
+            if (_settledBloodCells.TryGetValue(key, out var cell))
             {
                 cell.Amount = MathF.Min(SettledBloodMaxAmount, cell.Amount + amount);
                 // Fresh blood keeps the pool coherent: rejuvenate so fade stays edge-driven.
@@ -869,12 +869,12 @@ public sealed partial class GameplayGoreEffectsController
                 return;
             }
 
-            if (_context._settledBloodCells.Count >= MaxSettledBloodCells)
+            if (_settledBloodCells.Count >= MaxSettledBloodCells)
             {
                 return;
             }
 
-            _context._settledBloodCells[key] = new SettledBloodCell
+            _settledBloodCells[key] = new SettledBloodCell
             {
                 Amount = MathF.Min(SettledBloodMaxAmount, amount),
                 DripProgress = 0f,
@@ -885,43 +885,43 @@ public sealed partial class GameplayGoreEffectsController
 
         private void TrimSettledBloodCellsIfNeeded()
         {
-            var overflow = _context._settledBloodCells.Count - MaxSettledBloodCells;
+            var overflow = _settledBloodCells.Count - MaxSettledBloodCells;
             if (overflow <= 0)
             {
                 return;
             }
 
-            _context._staleSettledBloodCellKeys.Clear();
-            foreach (var entry in _context._settledBloodCells)
+            _staleSettledBloodCellKeys.Clear();
+            foreach (var entry in _settledBloodCells)
             {
                 if (entry.Value.Amount < 0.4f || entry.Value.Age > GetSettledBloodFadeStartTicks())
                 {
-                    _context._staleSettledBloodCellKeys.Add(entry.Key);
-                    if (_context._staleSettledBloodCellKeys.Count >= overflow)
+                    _staleSettledBloodCellKeys.Add(entry.Key);
+                    if (_staleSettledBloodCellKeys.Count >= overflow)
                     {
                         break;
                     }
                 }
             }
 
-            for (var index = 0; index < _context._staleSettledBloodCellKeys.Count; index += 1)
+            for (var index = 0; index < _staleSettledBloodCellKeys.Count; index += 1)
             {
-                _context._settledBloodCells.Remove(_context._staleSettledBloodCellKeys[index]);
+                _settledBloodCells.Remove(_staleSettledBloodCellKeys[index]);
             }
 
-            _context._staleSettledBloodCellKeys.Clear();
+            _staleSettledBloodCellKeys.Clear();
         }
 
         private void DrawFlyingBloodSquibParticles(Vector2 cameraPosition)
         {
-            var normalCells = _context._bloodDrawCellsScratch;
-            var cryoCells = _context._bloodCryoDrawCellsScratch;
+            var normalCells = _bloodDrawCellsScratch;
+            var cryoCells = _bloodCryoDrawCellsScratch;
 
             normalCells.Clear();
             cryoCells.Clear();
-            for (var index = 0; index < _context._bloodSquibParticles.Count; index += 1)
+            for (var index = 0; index < _bloodSquibParticles.Count; index += 1)
             {
-                var squib = _context._bloodSquibParticles[index];
+                var squib = _bloodSquibParticles[index];
                 AccumulateBloodSquibParticle(
                     squib.ExperimentalCryoTinted ? cryoCells : normalCells,
                     squib.Seed,
@@ -938,12 +938,12 @@ public sealed partial class GameplayGoreEffectsController
 
         private void DrawSettledBloodSquibPools(Vector2 cameraPosition)
         {
-            var normalCells = _context._bloodDrawCellsScratch;
-            var cryoCells = _context._bloodCryoDrawCellsScratch;
+            var normalCells = _bloodDrawCellsScratch;
+            var cryoCells = _bloodCryoDrawCellsScratch;
 
             normalCells.Clear();
             cryoCells.Clear();
-            foreach (var entry in _context._settledBloodCells)
+            foreach (var entry in _settledBloodCells)
             {
                 if (entry.Value.Amount < 0.08f)
                 {
@@ -968,7 +968,7 @@ public sealed partial class GameplayGoreEffectsController
                 return;
             }
 
-            var bridgeScratch = _context._bloodBridgeScratch;
+            var bridgeScratch = _bloodBridgeScratch;
             bridgeScratch.Clear();
 
             // Aggressive morphological close: unify nearby pools into one sheet.
@@ -1053,15 +1053,15 @@ public sealed partial class GameplayGoreEffectsController
             bridgeScratch.Clear();
 
             // Soften stair/slope steps by filling diagonal corner flats.
-            _context._staleSettledBloodCellKeys.Clear();
+            _staleSettledBloodCellKeys.Clear();
             foreach (var key in cells.Keys)
             {
-                _context._staleSettledBloodCellKeys.Add(key);
+                _staleSettledBloodCellKeys.Add(key);
             }
 
-            for (var index = 0; index < _context._staleSettledBloodCellKeys.Count; index += 1)
+            for (var index = 0; index < _staleSettledBloodCellKeys.Count; index += 1)
             {
-                var (gx, gy) = _context._staleSettledBloodCellKeys[index];
+                var (gx, gy) = _staleSettledBloodCellKeys[index];
                 if (!cells.TryGetValue((gx, gy), out var amount) || amount < 0.25f)
                 {
                     continue;
@@ -1096,15 +1096,15 @@ public sealed partial class GameplayGoreEffectsController
             bridgeScratch.Clear();
 
             // Weld 2–3 cell horizontal gaps between separate pool blobs.
-            _context._staleSettledBloodCellKeys.Clear();
+            _staleSettledBloodCellKeys.Clear();
             foreach (var key in cells.Keys)
             {
-                _context._staleSettledBloodCellKeys.Add(key);
+                _staleSettledBloodCellKeys.Add(key);
             }
 
-            for (var index = 0; index < _context._staleSettledBloodCellKeys.Count; index += 1)
+            for (var index = 0; index < _staleSettledBloodCellKeys.Count; index += 1)
             {
-                var (gx, gy) = _context._staleSettledBloodCellKeys[index];
+                var (gx, gy) = _staleSettledBloodCellKeys[index];
                 if (!cells.TryGetValue((gx, gy), out var amount) || amount < 0.25f)
                 {
                     continue;
@@ -1122,15 +1122,15 @@ public sealed partial class GameplayGoreEffectsController
             bridgeScratch.Clear();
 
             // Downward thickness only on fully interior cells; rim stays single-cell thin.
-            _context._staleSettledBloodCellKeys.Clear();
+            _staleSettledBloodCellKeys.Clear();
             foreach (var key in cells.Keys)
             {
-                _context._staleSettledBloodCellKeys.Add(key);
+                _staleSettledBloodCellKeys.Add(key);
             }
 
-            for (var index = 0; index < _context._staleSettledBloodCellKeys.Count; index += 1)
+            for (var index = 0; index < _staleSettledBloodCellKeys.Count; index += 1)
             {
-                var (gx, gy) = _context._staleSettledBloodCellKeys[index];
+                var (gx, gy) = _staleSettledBloodCellKeys[index];
                 if (!cells.TryGetValue((gx, gy), out var amount) || amount < 0.35f)
                 {
                     continue;
@@ -1160,7 +1160,7 @@ public sealed partial class GameplayGoreEffectsController
                 }
             }
 
-            _context._staleSettledBloodCellKeys.Clear();
+            _staleSettledBloodCellKeys.Clear();
         }
 
         private static int CountMissingBloodNeighbours(Dictionary<(int, int), float> cells, int gx, int gy)

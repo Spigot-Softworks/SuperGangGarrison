@@ -1,6 +1,8 @@
 #nullable enable
 
+using System.Globalization;
 using Microsoft.Xna.Framework;
+using OpenGarrison.Core;
 
 using static OpenGarrison.Client.Game1;
 
@@ -14,6 +16,16 @@ public sealed class MenuTextInputController
         {
             _context = context;
         }
+
+        public TextEditState ConnectHostEdit { get; } = new("127.0.0.1");
+
+        public TextEditState ConnectPortEdit { get; } = new(OpenGarrisonPreferencesDocument.DefaultServerPort.ToString(CultureInfo.InvariantCulture));
+
+        public TextEditState FriendNicknameEdit { get; } = new();
+
+        public TextEditState FriendCodeEdit { get; } = new();
+
+        public TextEditState FriendMessageEdit { get; } = new();
 
         public bool TryHandleManualConnect(TextInputEventArgs e)
         {
@@ -29,22 +41,22 @@ public sealed class MenuTextInputController
                     if (_context._editingConnectPort)
                     {
                         var result = _context.DeleteTextSelectionOrBackspace(
-                            _context._connectPortBuffer,
-                            _context._connectPortCursorIndex,
-                            _context._connectPortSelectionStart);
-                        _context._connectPortBuffer = result.Text;
-                        _context._connectPortCursorIndex = result.CursorIndex;
-                        _context._connectPortSelectionStart = result.SelectionStart;
+                            ConnectPortEdit.Text,
+                            ConnectPortEdit.CursorIndex,
+                            ConnectPortEdit.SelectionStart);
+                        ConnectPortEdit.Text = result.Text;
+                        ConnectPortEdit.CursorIndex = result.CursorIndex;
+                        ConnectPortEdit.SelectionStart = result.SelectionStart;
                     }
                     else
                     {
                         var result = _context.DeleteTextSelectionOrBackspace(
-                            _context._connectHostBuffer,
-                            _context._connectHostCursorIndex,
-                            _context._connectHostSelectionStart);
-                        _context._connectHostBuffer = result.Text;
-                        _context._connectHostCursorIndex = result.CursorIndex;
-                        _context._connectHostSelectionStart = result.SelectionStart;
+                            ConnectHostEdit.Text,
+                            ConnectHostEdit.CursorIndex,
+                            ConnectHostEdit.SelectionStart);
+                        ConnectHostEdit.Text = result.Text;
+                        ConnectHostEdit.CursorIndex = result.CursorIndex;
+                        ConnectHostEdit.SelectionStart = result.SelectionStart;
                     }
                     break;
                 }
@@ -66,27 +78,27 @@ public sealed class MenuTextInputController
                         if (char.IsDigit(character))
                         {
                             var result = _context.InsertTextCharacterAtCursor(
-                                _context._connectPortBuffer,
+                                ConnectPortEdit.Text,
                                 character,
-                                _context._connectPortCursorIndex,
-                                _context._connectPortSelectionStart,
+                                ConnectPortEdit.CursorIndex,
+                                ConnectPortEdit.SelectionStart,
                                 5);
-                            _context._connectPortBuffer = result.Text;
-                            _context._connectPortCursorIndex = result.CursorIndex;
-                            _context._connectPortSelectionStart = result.SelectionStart;
+                            ConnectPortEdit.Text = result.Text;
+                            ConnectPortEdit.CursorIndex = result.CursorIndex;
+                            ConnectPortEdit.SelectionStart = result.SelectionStart;
                         }
                     }
                     else
                     {
                         var result = _context.InsertTextCharacterAtCursor(
-                            _context._connectHostBuffer,
+                            ConnectHostEdit.Text,
                             character,
-                            _context._connectHostCursorIndex,
-                            _context._connectHostSelectionStart,
+                            ConnectHostEdit.CursorIndex,
+                            ConnectHostEdit.SelectionStart,
                             64);
-                        _context._connectHostBuffer = result.Text;
-                        _context._connectHostCursorIndex = result.CursorIndex;
-                        _context._connectHostSelectionStart = result.SelectionStart;
+                        ConnectHostEdit.Text = result.Text;
+                        ConnectHostEdit.CursorIndex = result.CursorIndex;
+                        ConnectHostEdit.SelectionStart = result.SelectionStart;
                     }
                     break;
             }
@@ -106,12 +118,12 @@ public sealed class MenuTextInputController
                 case '\b':
                 {
                     var result = _context.DeleteTextSelectionOrBackspace(
-                        _context._friendCodeInputBuffer,
-                        _context._friendCodeCursorIndex,
-                        _context._friendCodeSelectionStart);
-                    _context._friendCodeInputBuffer = result.Text;
-                    _context._friendCodeCursorIndex = result.CursorIndex;
-                    _context._friendCodeSelectionStart = result.SelectionStart;
+                        FriendCodeEdit.Text,
+                        FriendCodeEdit.CursorIndex,
+                        FriendCodeEdit.SelectionStart);
+                    FriendCodeEdit.Text = result.Text;
+                    FriendCodeEdit.CursorIndex = result.CursorIndex;
+                    FriendCodeEdit.SelectionStart = result.SelectionStart;
                     break;
                 }
                 case '\r':
@@ -122,14 +134,14 @@ public sealed class MenuTextInputController
                     if (char.IsAsciiLetterOrDigit(character) || character == '-')
                     {
                         var result = _context.InsertTextCharacterAtCursor(
-                            _context._friendCodeInputBuffer,
+                            FriendCodeEdit.Text,
                             char.ToUpperInvariant(character),
-                            _context._friendCodeCursorIndex,
-                            _context._friendCodeSelectionStart,
+                            FriendCodeEdit.CursorIndex,
+                            FriendCodeEdit.SelectionStart,
                             20);
-                        _context._friendCodeInputBuffer = result.Text;
-                        _context._friendCodeCursorIndex = result.CursorIndex;
-                        _context._friendCodeSelectionStart = result.SelectionStart;
+                        FriendCodeEdit.Text = result.Text;
+                        FriendCodeEdit.CursorIndex = result.CursorIndex;
+                        FriendCodeEdit.SelectionStart = result.SelectionStart;
                     }
                     break;
             }
@@ -144,12 +156,12 @@ public sealed class MenuTextInputController
                 case '\b':
                 {
                     var result = _context.DeleteTextSelectionOrBackspace(
-                        _context._friendNicknameInputBuffer,
-                        _context._friendNicknameCursorIndex,
-                        _context._friendNicknameSelectionStart);
-                    _context._friendNicknameInputBuffer = result.Text;
-                    _context._friendNicknameCursorIndex = result.CursorIndex;
-                    _context._friendNicknameSelectionStart = result.SelectionStart;
+                        FriendNicknameEdit.Text,
+                        FriendNicknameEdit.CursorIndex,
+                        FriendNicknameEdit.SelectionStart);
+                    FriendNicknameEdit.Text = result.Text;
+                    FriendNicknameEdit.CursorIndex = result.CursorIndex;
+                    FriendNicknameEdit.SelectionStart = result.SelectionStart;
                     break;
                 }
                 case '\r':
@@ -160,14 +172,14 @@ public sealed class MenuTextInputController
                     if (!char.IsControl(character) && character != '#')
                     {
                         var result = _context.InsertTextCharacterAtCursor(
-                            _context._friendNicknameInputBuffer,
+                            FriendNicknameEdit.Text,
                             character,
-                            _context._friendNicknameCursorIndex,
-                            _context._friendNicknameSelectionStart,
+                            FriendNicknameEdit.CursorIndex,
+                            FriendNicknameEdit.SelectionStart,
                             20);
-                        _context._friendNicknameInputBuffer = result.Text;
-                        _context._friendNicknameCursorIndex = result.CursorIndex;
-                        _context._friendNicknameSelectionStart = result.SelectionStart;
+                        FriendNicknameEdit.Text = result.Text;
+                        FriendNicknameEdit.CursorIndex = result.CursorIndex;
+                        FriendNicknameEdit.SelectionStart = result.SelectionStart;
                     }
                     break;
             }
@@ -182,12 +194,12 @@ public sealed class MenuTextInputController
                 case '\b':
                 {
                     var result = _context.DeleteTextSelectionOrBackspace(
-                        _context._friendMessageInputBuffer,
-                        _context._friendMessageCursorIndex,
-                        _context._friendMessageSelectionStart);
-                    _context._friendMessageInputBuffer = result.Text;
-                    _context._friendMessageCursorIndex = result.CursorIndex;
-                    _context._friendMessageSelectionStart = result.SelectionStart;
+                        FriendMessageEdit.Text,
+                        FriendMessageEdit.CursorIndex,
+                        FriendMessageEdit.SelectionStart);
+                    FriendMessageEdit.Text = result.Text;
+                    FriendMessageEdit.CursorIndex = result.CursorIndex;
+                    FriendMessageEdit.SelectionStart = result.SelectionStart;
                     break;
                 }
                 case '\r':
@@ -198,14 +210,14 @@ public sealed class MenuTextInputController
                     if (!char.IsControl(character))
                     {
                         var result = _context.InsertTextCharacterAtCursor(
-                            _context._friendMessageInputBuffer,
+                            FriendMessageEdit.Text,
                             character,
-                            _context._friendMessageCursorIndex,
-                            _context._friendMessageSelectionStart,
+                            FriendMessageEdit.CursorIndex,
+                            FriendMessageEdit.SelectionStart,
                             500);
-                        _context._friendMessageInputBuffer = result.Text;
-                        _context._friendMessageCursorIndex = result.CursorIndex;
-                        _context._friendMessageSelectionStart = result.SelectionStart;
+                        FriendMessageEdit.Text = result.Text;
+                        FriendMessageEdit.CursorIndex = result.CursorIndex;
+                        FriendMessageEdit.SelectionStart = result.SelectionStart;
                     }
                     break;
             }

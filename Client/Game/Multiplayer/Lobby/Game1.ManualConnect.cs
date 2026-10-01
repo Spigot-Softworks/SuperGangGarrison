@@ -188,7 +188,7 @@ public partial class Game1
         _spriteBatch.Draw(_pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.Black * 0.86f);
 
         // Draw bottom bar and runners (in animated mode only) - behind everything else
-        if (_menuBackgroundMode != MenuBackgroundMode.Static)
+        if (_gameplayManager.RuntimeSettings.MenuBackgroundMode != MenuBackgroundMode.Static)
         {
             const int bottomBarHeight = 76;
             var barY = viewportHeight - bottomBarHeight;
@@ -236,11 +236,11 @@ public partial class Game1
 
         DrawMenuInputBoxScaled(
             hostBounds,
-            _connectHostBuffer,
+            _inputManager.MenuTextInput.ConnectHostEdit.Text,
             _editingConnectHost || hostBounds.Contains(mouse.Position),
             buttonScale,
-            _connectHostCursorIndex,
-            _connectHostSelectionStart);
+            _inputManager.MenuTextInput.ConnectHostEdit.CursorIndex,
+            _inputManager.MenuTextInput.ConnectHostEdit.SelectionStart);
         if (_lastToDieRoomCodeJoinOpen)
         {
             DrawMenuButtonScaled(
@@ -253,11 +253,11 @@ public partial class Game1
         {
             DrawMenuInputBoxScaled(
                 portBounds,
-                _connectPortBuffer,
+                _inputManager.MenuTextInput.ConnectPortEdit.Text,
                 _editingConnectPort || portBounds.Contains(mouse.Position),
                 buttonScale,
-                _connectPortCursorIndex,
-                _connectPortSelectionStart);
+                _inputManager.MenuTextInput.ConnectPortEdit.CursorIndex,
+                _inputManager.MenuTextInput.ConnectPortEdit.SelectionStart);
         }
         DrawMenuButtonScaled(
             connectBounds,
@@ -356,14 +356,14 @@ public partial class Game1
         DrawBitmapFontText("Server Password", new Vector2(panel.X + 28f, panel.Y + 24f), Color.White, 1f);
         DrawBitmapFontText("Enter password to continue.", new Vector2(panel.X + 28f, panel.Y + 54f), new Color(200, 200, 200), 0.9f);
 
-        var masked = new string('*', _passwordEditBuffer.Length);
+        var masked = new string('*', _inputManager.NetworkPromptTextInput.Edit.Text.Length);
         DrawMenuInputBoxScaled(
             new Rectangle(panel.X + 28, panel.Y + 92, Math.Max(1, panel.Width - 56), 36),
             masked,
             active: true,
             1f,
-            _passwordEditCursorIndex,
-            _passwordEditSelectionStart);
+            _inputManager.NetworkPromptTextInput.Edit.CursorIndex,
+            _inputManager.NetworkPromptTextInput.Edit.SelectionStart);
         DrawBitmapFontText("Press Enter to submit, Esc to cancel.", new Vector2(panel.X + 28f, panel.Y + 142f), new Color(200, 200, 200), 0.85f);
 
         if (!string.IsNullOrWhiteSpace(_passwordPromptMessage))

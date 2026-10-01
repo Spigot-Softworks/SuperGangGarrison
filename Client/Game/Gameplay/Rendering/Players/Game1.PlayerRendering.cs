@@ -62,11 +62,8 @@ public partial class Game1
 
     public readonly record struct RemainsDrawEntry(int SortKey, RemainsDrawKind Kind, int Index);
 
-    public readonly Dictionary<int, RetainedDeadBodyVisual> _trackedDeadBodyVisuals = new();
     public readonly List<RetainedDeadBodyVisual> _retainedDeadBodies = new();
-    public readonly List<int> _staleTrackedDeadBodyIds = new();
     public readonly Dictionary<int, ImmediateNetworkDeadBodyVisual> _immediateNetworkDeadBodies = new();
-    public readonly List<int> _staleImmediateNetworkDeadBodyPlayerIds = new();
     private readonly List<RemainsDrawEntry> _remainsDrawOrder = new();
     private int _remainsSortCeiling;
 

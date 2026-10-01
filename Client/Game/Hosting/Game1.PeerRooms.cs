@@ -148,7 +148,7 @@ public partial class Game1
         { transport.Dispose(); FailPeerRoom(error); return; }
         _onlineConnectionIntent = OnlineConnectionIntent.Join;
         ClearOnlinePlayerSocialProfiles();
-        _lastToDieConnectionPresentationPending = _peerRoomSession?.State?.Kind == "LastToDie";
+        _sessionTransitions.LastToDieConnectionPresentationPending = _peerRoomSession?.State?.Kind == "LastToDie";
         CloseLastToDieMenu(clearStatus: true);
         SetJoiningServerLoadingLabel(_practiceCoOpMenu ? "Practice" : "Last to Die");
         ShowJoiningServerLoadingOverlay();
@@ -159,7 +159,7 @@ public partial class Game1
         _networkClient.Disconnect();
         _embeddedSessionHost = null;
         HideJoiningServerLoadingOverlay();
-        _lastToDieConnectionPresentationPending = false;
+        _sessionTransitions.LastToDieConnectionPresentationPending = false;
         CloseGameplayOverlayState();
         _mainMenuOpen = true; _lastToDieMenuOpen = true;
         _gameplaySessionKind = GameplaySessionKind.None;
