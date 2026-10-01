@@ -248,31 +248,31 @@ public partial class Game1
     {
         ResetSnapshotPresentationHistories();
         ResetSnapshotStateHistory();
-        _lastAppliedSnapshotFrame = 0;
-        _lastBufferedSnapshotFrame = 0;
-        _lastAppliedSnapshotLocalPlayerId = null;
-        _hasReceivedSnapshot = false;
-        _lastSnapshotReceivedTimeSeconds = -1d;
-        _latestSnapshotServerTimeSeconds = -1d;
-        _latestSnapshotReceivedClockSeconds = -1d;
-        _networkSnapshotInterpolationDurationSeconds = 1f / _config.TicksPerSecond;
-        _smoothedSnapshotIntervalSeconds = 1f / _config.TicksPerSecond;
-        _smoothedSnapshotJitterSeconds = 0f;
-        _localPlayerInterpolationBackTimeSeconds = GetMinimumLocalPlayerInterpolationBackTimeSeconds();
-        _remotePlayerInterpolationBackTimeSeconds = GetMinimumRemotePlayerInterpolationBackTimeSeconds();
-        _projectileInterpolationBackTimeSeconds = ProjectileMinimumInterpolationBackTimeSeconds;
-        _networkInterpolationWarmupSnapshotsRemaining = 0;
-        _networkInterpolationWarmupUntilClockSeconds = -1d;
-        _localPlayerRenderTimeSeconds = 0d;
-        _remotePlayerRenderTimeSeconds = 0d;
-        _lastLocalPlayerRenderTimeClockSeconds = -1d;
-        _lastRemotePlayerRenderTimeClockSeconds = -1d;
-        _hasLocalPlayerRenderTime = false;
-        _hasRemotePlayerRenderTime = false;
-        _hasPredictedLocalPlayerPosition = false;
-        _hasPredictedLocalActionState = false;
-        _predictedLocalPlayerShadow = null;
-        _pendingPredictedInputs.Clear();
+        _gameplayManager.NetworkPresentation.LastAppliedSnapshotFrame = 0;
+        _gameplayManager.NetworkPresentation.LastBufferedSnapshotFrame = 0;
+        _gameplayManager.NetworkPresentation.LastAppliedSnapshotLocalPlayerId = null;
+        _gameplayManager.NetworkPresentation.HasReceivedSnapshot = false;
+        _gameplayManager.NetworkPresentation.LastSnapshotReceivedTimeSeconds = -1d;
+        _gameplayManager.NetworkPresentation.LatestSnapshotServerTimeSeconds = -1d;
+        _gameplayManager.NetworkPresentation.LatestSnapshotReceivedClockSeconds = -1d;
+        _gameplayManager.NetworkPresentation.NetworkSnapshotInterpolationDurationSeconds = 1f / _config.TicksPerSecond;
+        _gameplayManager.NetworkPresentation.SmoothedSnapshotIntervalSeconds = 1f / _config.TicksPerSecond;
+        _gameplayManager.NetworkPresentation.SmoothedSnapshotJitterSeconds = 0f;
+        _gameplayManager.NetworkPresentation.LocalPlayerInterpolationBackTimeSeconds = GetMinimumLocalPlayerInterpolationBackTimeSeconds();
+        _gameplayManager.NetworkPresentation.RemotePlayerInterpolationBackTimeSeconds = GetMinimumRemotePlayerInterpolationBackTimeSeconds();
+        _gameplayManager.NetworkPresentation.ProjectileInterpolationBackTimeSeconds = ProjectileMinimumInterpolationBackTimeSeconds;
+        _gameplayManager.NetworkPresentation.NetworkInterpolationWarmupSnapshotsRemaining = 0;
+        _gameplayManager.NetworkPresentation.NetworkInterpolationWarmupUntilClockSeconds = -1d;
+        _gameplayManager.NetworkPresentation.LocalPlayerRenderTimeSeconds = 0d;
+        _gameplayManager.NetworkPresentation.RemotePlayerRenderTimeSeconds = 0d;
+        _gameplayManager.NetworkPresentation.LastLocalPlayerRenderTimeClockSeconds = -1d;
+        _gameplayManager.NetworkPresentation.LastRemotePlayerRenderTimeClockSeconds = -1d;
+        _gameplayManager.NetworkPresentation.HasLocalPlayerRenderTime = false;
+        _gameplayManager.NetworkPresentation.HasRemotePlayerRenderTime = false;
+        _localPredictionState.HasPredictedLocalPlayerPosition = false;
+        _localPredictionState.HasPredictedLocalActionState = false;
+        _localPredictionState.PredictedLocalPlayerShadow = null;
+        _localPredictionState.PendingPredictedInputs.Clear();
     }
 
     public void ResetSnapshotPresentationHistories(bool preserveRetainedProjectilePresentation = false)
@@ -571,8 +571,8 @@ public partial class Game1
             return true;
         }
 
-        return _latestSnapshotServerTimeSeconds >= 0d
-            && _latestSnapshotServerTimeSeconds - history[^1].TimeSeconds > StaleRemotePlayerSnapshotHistoryPruneSeconds;
+        return _gameplayManager.NetworkPresentation.LatestSnapshotServerTimeSeconds >= 0d
+            && _gameplayManager.NetworkPresentation.LatestSnapshotServerTimeSeconds - history[^1].TimeSeconds > StaleRemotePlayerSnapshotHistoryPruneSeconds;
     }
 
     private bool ShouldPruneEntitySnapshotHistory(List<EntitySnapshotSample> history)
@@ -582,8 +582,8 @@ public partial class Game1
             return true;
         }
 
-        return _latestSnapshotServerTimeSeconds >= 0d
-            && _latestSnapshotServerTimeSeconds - history[^1].TimeSeconds > StaleEntitySnapshotHistoryPruneSeconds;
+        return _gameplayManager.NetworkPresentation.LatestSnapshotServerTimeSeconds >= 0d
+            && _gameplayManager.NetworkPresentation.LatestSnapshotServerTimeSeconds - history[^1].TimeSeconds > StaleEntitySnapshotHistoryPruneSeconds;
     }
 
     private void UpdateInterpolatedIntelPosition(TeamIntelligenceState intelState, double renderTimeSeconds)
@@ -622,7 +622,7 @@ public partial class Game1
             var snapshotTickRate = Math.Max(1, resolvedSnapshot.TickRate > 0 ? resolvedSnapshot.TickRate : _config.TicksPerSecond);
             var velocity = new Vector2(deadBody.HorizontalSpeed, deadBody.VerticalSpeed) * snapshotTickRate;
             var extrapolationDurationSeconds = Math.Clamp(
-                _smoothedSnapshotIntervalSeconds + (_smoothedSnapshotJitterSeconds * 2f),
+                _gameplayManager.NetworkPresentation.SmoothedSnapshotIntervalSeconds + (_gameplayManager.NetworkPresentation.SmoothedSnapshotJitterSeconds * 2f),
                 1f / snapshotTickRate,
                 0.12f);
             CaptureEntityInterpolationTarget(
@@ -1244,53 +1244,53 @@ public partial class Game1
             : 1f / SimulationConfig.DefaultTicksPerSecond;
         var snapshotReceivedTimeSeconds = _networkInterpolationClockSeconds;
         var snapshotServerTimeSeconds = GetSnapshotTimelineTimeSeconds(snapshotFrame, tickRate);
-        var wasAwaitingFirstSnapshot = !_hasReceivedSnapshot;
-        if (_hasReceivedSnapshot)
+        var wasAwaitingFirstSnapshot = !_gameplayManager.NetworkPresentation.HasReceivedSnapshot;
+        if (_gameplayManager.NetworkPresentation.HasReceivedSnapshot)
         {
             var observedIntervalSecondsTotal = (float)Math.Max(
                 0d,
-                snapshotServerTimeSeconds - _latestSnapshotServerTimeSeconds);
+                snapshotServerTimeSeconds - _gameplayManager.NetworkPresentation.LatestSnapshotServerTimeSeconds);
             if (observedIntervalSecondsTotal > 0f)
             {
                 var observedIntervalSeconds = observedIntervalSecondsTotal / effectiveBurstCount;
                 var clampedObservedIntervalSeconds = Math.Clamp(observedIntervalSeconds, baseIntervalSeconds * 0.5f, 0.25f);
-                _smoothedSnapshotIntervalSeconds += (clampedObservedIntervalSeconds - _smoothedSnapshotIntervalSeconds) * 0.2f;
+                _gameplayManager.NetworkPresentation.SmoothedSnapshotIntervalSeconds += (clampedObservedIntervalSeconds - _gameplayManager.NetworkPresentation.SmoothedSnapshotIntervalSeconds) * 0.2f;
 
                 var arrivalIntervalSecondsTotal = (float)Math.Max(
                     0d,
-                    snapshotReceivedTimeSeconds - _lastSnapshotReceivedTimeSeconds);
+                    snapshotReceivedTimeSeconds - _gameplayManager.NetworkPresentation.LastSnapshotReceivedTimeSeconds);
                 var jitterSampleSeconds = NetworkInterpolationPolicy.CalculateSnapshotJitterSampleSeconds(
                     arrivalIntervalSecondsTotal,
                     observedIntervalSecondsTotal,
                     effectiveBurstCount);
-                var jitterAdjustmentAlpha = jitterSampleSeconds >= _smoothedSnapshotJitterSeconds
+                var jitterAdjustmentAlpha = jitterSampleSeconds >= _gameplayManager.NetworkPresentation.SmoothedSnapshotJitterSeconds
                     ? 0.35f
                     : 0.08f;
-                _smoothedSnapshotJitterSeconds += (jitterSampleSeconds - _smoothedSnapshotJitterSeconds) * jitterAdjustmentAlpha;
+                _gameplayManager.NetworkPresentation.SmoothedSnapshotJitterSeconds += (jitterSampleSeconds - _gameplayManager.NetworkPresentation.SmoothedSnapshotJitterSeconds) * jitterAdjustmentAlpha;
             }
         }
         else
         {
-            _smoothedSnapshotIntervalSeconds = baseIntervalSeconds;
-            _smoothedSnapshotJitterSeconds = 0f;
-            _hasReceivedSnapshot = true;
+            _gameplayManager.NetworkPresentation.SmoothedSnapshotIntervalSeconds = baseIntervalSeconds;
+            _gameplayManager.NetworkPresentation.SmoothedSnapshotJitterSeconds = 0f;
+            _gameplayManager.NetworkPresentation.HasReceivedSnapshot = true;
         }
 
         if (wasAwaitingFirstSnapshot)
         {
-            _networkInterpolationWarmupSnapshotsRemaining = Math.Max(0, NetworkInterpolationWarmupSnapshotCount - 1);
-            _networkInterpolationWarmupUntilClockSeconds = snapshotReceivedTimeSeconds + NetworkInterpolationWarmupSeconds;
+            _gameplayManager.NetworkPresentation.NetworkInterpolationWarmupSnapshotsRemaining = Math.Max(0, NetworkInterpolationWarmupSnapshotCount - 1);
+            _gameplayManager.NetworkPresentation.NetworkInterpolationWarmupUntilClockSeconds = snapshotReceivedTimeSeconds + NetworkInterpolationWarmupSeconds;
         }
-        else if (_networkInterpolationWarmupSnapshotsRemaining > 0)
+        else if (_gameplayManager.NetworkPresentation.NetworkInterpolationWarmupSnapshotsRemaining > 0)
         {
-            _networkInterpolationWarmupSnapshotsRemaining -= 1;
+            _gameplayManager.NetworkPresentation.NetworkInterpolationWarmupSnapshotsRemaining -= 1;
         }
 
-        _lastSnapshotReceivedTimeSeconds = snapshotReceivedTimeSeconds;
-        _latestSnapshotServerTimeSeconds = snapshotServerTimeSeconds;
-        _latestSnapshotReceivedClockSeconds = snapshotReceivedTimeSeconds;
-        var targetIntervalSeconds = MathF.Max(baseIntervalSeconds, _smoothedSnapshotIntervalSeconds);
-        _networkSnapshotInterpolationDurationSeconds =
+        _gameplayManager.NetworkPresentation.LastSnapshotReceivedTimeSeconds = snapshotReceivedTimeSeconds;
+        _gameplayManager.NetworkPresentation.LatestSnapshotServerTimeSeconds = snapshotServerTimeSeconds;
+        _gameplayManager.NetworkPresentation.LatestSnapshotReceivedClockSeconds = snapshotReceivedTimeSeconds;
+        var targetIntervalSeconds = MathF.Max(baseIntervalSeconds, _gameplayManager.NetworkPresentation.SmoothedSnapshotIntervalSeconds);
+        _gameplayManager.NetworkPresentation.NetworkSnapshotInterpolationDurationSeconds =
             NetworkInterpolationPolicy.CalculateSnapshotInterpolationDurationSeconds(
                 _networkClient.IsReplayConnection,
                 targetIntervalSeconds,
@@ -1300,17 +1300,17 @@ public partial class Game1
         var maximumLocalBackTimeSeconds = GetMaximumLocalPlayerInterpolationBackTimeSeconds();
         var desiredLocalBackTimeSeconds = NetworkInterpolationPolicy.CalculateLocalBackTimeSeconds(
             _networkClient.IsReplayConnection,
-            _smoothedSnapshotIntervalSeconds,
-            _smoothedSnapshotJitterSeconds,
+            _gameplayManager.NetworkPresentation.SmoothedSnapshotIntervalSeconds,
+            _gameplayManager.NetworkPresentation.SmoothedSnapshotJitterSeconds,
             minimumLocalBackTimeSeconds,
             maximumLocalBackTimeSeconds);
-        var localBackTimeAdjustmentAlpha = desiredLocalBackTimeSeconds >= _localPlayerInterpolationBackTimeSeconds
+        var localBackTimeAdjustmentAlpha = desiredLocalBackTimeSeconds >= _gameplayManager.NetworkPresentation.LocalPlayerInterpolationBackTimeSeconds
             ? 0.45f
             : 0.35f;
-        _localPlayerInterpolationBackTimeSeconds +=
-            (desiredLocalBackTimeSeconds - _localPlayerInterpolationBackTimeSeconds) * localBackTimeAdjustmentAlpha;
-        _localPlayerInterpolationBackTimeSeconds = Math.Clamp(
-            _localPlayerInterpolationBackTimeSeconds,
+        _gameplayManager.NetworkPresentation.LocalPlayerInterpolationBackTimeSeconds +=
+            (desiredLocalBackTimeSeconds - _gameplayManager.NetworkPresentation.LocalPlayerInterpolationBackTimeSeconds) * localBackTimeAdjustmentAlpha;
+        _gameplayManager.NetworkPresentation.LocalPlayerInterpolationBackTimeSeconds = Math.Clamp(
+            _gameplayManager.NetworkPresentation.LocalPlayerInterpolationBackTimeSeconds,
             minimumLocalBackTimeSeconds,
             maximumLocalBackTimeSeconds);
 
@@ -1318,42 +1318,42 @@ public partial class Game1
         var maximumRemoteBackTimeSeconds = GetMaximumRemotePlayerInterpolationBackTimeSeconds();
         var desiredRemoteBackTimeSeconds = NetworkInterpolationPolicy.CalculateRemoteBackTimeSeconds(
             _networkClient.IsReplayConnection,
-            _smoothedSnapshotIntervalSeconds,
-            _smoothedSnapshotJitterSeconds,
+            _gameplayManager.NetworkPresentation.SmoothedSnapshotIntervalSeconds,
+            _gameplayManager.NetworkPresentation.SmoothedSnapshotJitterSeconds,
             minimumRemoteBackTimeSeconds,
             maximumRemoteBackTimeSeconds);
-        var remoteBackTimeAdjustmentAlpha = desiredRemoteBackTimeSeconds >= _remotePlayerInterpolationBackTimeSeconds
+        var remoteBackTimeAdjustmentAlpha = desiredRemoteBackTimeSeconds >= _gameplayManager.NetworkPresentation.RemotePlayerInterpolationBackTimeSeconds
             ? 0.35f
             : 0.25f;
-        _remotePlayerInterpolationBackTimeSeconds +=
-            (desiredRemoteBackTimeSeconds - _remotePlayerInterpolationBackTimeSeconds) * remoteBackTimeAdjustmentAlpha;
-        _remotePlayerInterpolationBackTimeSeconds = Math.Clamp(
-            _remotePlayerInterpolationBackTimeSeconds,
+        _gameplayManager.NetworkPresentation.RemotePlayerInterpolationBackTimeSeconds +=
+            (desiredRemoteBackTimeSeconds - _gameplayManager.NetworkPresentation.RemotePlayerInterpolationBackTimeSeconds) * remoteBackTimeAdjustmentAlpha;
+        _gameplayManager.NetworkPresentation.RemotePlayerInterpolationBackTimeSeconds = Math.Clamp(
+            _gameplayManager.NetworkPresentation.RemotePlayerInterpolationBackTimeSeconds,
             minimumRemoteBackTimeSeconds,
             maximumRemoteBackTimeSeconds);
 
         var desiredProjectileBackTimeSeconds = NetworkInterpolationPolicy.CalculateProjectileBackTimeSeconds(
-            _networkSnapshotInterpolationDurationSeconds,
-            _smoothedSnapshotIntervalSeconds,
-            _smoothedSnapshotJitterSeconds,
+            _gameplayManager.NetworkPresentation.NetworkSnapshotInterpolationDurationSeconds,
+            _gameplayManager.NetworkPresentation.SmoothedSnapshotIntervalSeconds,
+            _gameplayManager.NetworkPresentation.SmoothedSnapshotJitterSeconds,
             _config.TicksPerSecond,
             ExpectedProjectileUpdateIntervalTicks,
             ProjectileMinimumInterpolationBackTimeSeconds,
             ProjectileMaximumInterpolationBackTimeSeconds);
-        var projectileBackTimeAdjustmentAlpha = desiredProjectileBackTimeSeconds >= _projectileInterpolationBackTimeSeconds
+        var projectileBackTimeAdjustmentAlpha = desiredProjectileBackTimeSeconds >= _gameplayManager.NetworkPresentation.ProjectileInterpolationBackTimeSeconds
             ? 0.55f
             : 0.25f;
-        _projectileInterpolationBackTimeSeconds +=
-            (desiredProjectileBackTimeSeconds - _projectileInterpolationBackTimeSeconds) * projectileBackTimeAdjustmentAlpha;
-        _projectileInterpolationBackTimeSeconds = Math.Clamp(
-            _projectileInterpolationBackTimeSeconds,
+        _gameplayManager.NetworkPresentation.ProjectileInterpolationBackTimeSeconds +=
+            (desiredProjectileBackTimeSeconds - _gameplayManager.NetworkPresentation.ProjectileInterpolationBackTimeSeconds) * projectileBackTimeAdjustmentAlpha;
+        _gameplayManager.NetworkPresentation.ProjectileInterpolationBackTimeSeconds = Math.Clamp(
+            _gameplayManager.NetworkPresentation.ProjectileInterpolationBackTimeSeconds,
             ProjectileMinimumInterpolationBackTimeSeconds,
             ProjectileMaximumInterpolationBackTimeSeconds);
     }
 
     private void CaptureEntityInterpolationTarget(bool isActive, int entityId, float x, float y)
     {
-        CaptureEntityInterpolationTarget(isActive, entityId, x, y, Vector2.Zero, 0f, 0f, _latestSnapshotServerTimeSeconds);
+        CaptureEntityInterpolationTarget(isActive, entityId, x, y, Vector2.Zero, 0f, 0f, _gameplayManager.NetworkPresentation.LatestSnapshotServerTimeSeconds);
     }
 
     private void UpdateInterpolatedRemotePlayerPosition(PlayerEntity player, double renderTimeSeconds)
@@ -1706,24 +1706,24 @@ public partial class Game1
     private double GetRemotePlayerRenderTimeSeconds()
     {
         var sharedBackTimeSeconds = _networkClient.IsReplayConnection
-            ? _remotePlayerInterpolationBackTimeSeconds
-            : MathF.Max(_remotePlayerInterpolationBackTimeSeconds, _projectileInterpolationBackTimeSeconds);
+            ? _gameplayManager.NetworkPresentation.RemotePlayerInterpolationBackTimeSeconds
+            : MathF.Max(_gameplayManager.NetworkPresentation.RemotePlayerInterpolationBackTimeSeconds, _gameplayManager.NetworkPresentation.ProjectileInterpolationBackTimeSeconds);
         var targetRenderTimeSeconds = GetSnapshotRenderTimeSeconds(sharedBackTimeSeconds);
-        if (!_hasRemotePlayerRenderTime)
+        if (!_gameplayManager.NetworkPresentation.HasRemotePlayerRenderTime)
         {
-            _remotePlayerRenderTimeSeconds = targetRenderTimeSeconds;
-            _lastRemotePlayerRenderTimeClockSeconds = _networkInterpolationClockSeconds;
-            _hasRemotePlayerRenderTime = true;
-            return _remotePlayerRenderTimeSeconds;
+            _gameplayManager.NetworkPresentation.RemotePlayerRenderTimeSeconds = targetRenderTimeSeconds;
+            _gameplayManager.NetworkPresentation.LastRemotePlayerRenderTimeClockSeconds = _networkInterpolationClockSeconds;
+            _gameplayManager.NetworkPresentation.HasRemotePlayerRenderTime = true;
+            return _gameplayManager.NetworkPresentation.RemotePlayerRenderTimeSeconds;
         }
 
         var deltaSeconds = Math.Clamp(
-            _networkInterpolationClockSeconds - _lastRemotePlayerRenderTimeClockSeconds,
+            _networkInterpolationClockSeconds - _gameplayManager.NetworkPresentation.LastRemotePlayerRenderTimeClockSeconds,
             0d,
             0.05d);
-        _lastRemotePlayerRenderTimeClockSeconds = _networkInterpolationClockSeconds;
-        _remotePlayerRenderTimeSeconds = NetworkInterpolationTimeline.AdvanceTowards(
-            _remotePlayerRenderTimeSeconds,
+        _gameplayManager.NetworkPresentation.LastRemotePlayerRenderTimeClockSeconds = _networkInterpolationClockSeconds;
+        _gameplayManager.NetworkPresentation.RemotePlayerRenderTimeSeconds = NetworkInterpolationTimeline.AdvanceTowards(
+            _gameplayManager.NetworkPresentation.RemotePlayerRenderTimeSeconds,
             targetRenderTimeSeconds,
             deltaSeconds,
             snapThresholdSeconds: 0.12d,
@@ -1731,27 +1731,27 @@ public partial class Game1
             slowDownRate: 12d,
             maxLagBehindTargetSeconds: 0.045d,
             maxLeadAheadOfTargetSeconds: 0.025d);
-        return _remotePlayerRenderTimeSeconds;
+        return _gameplayManager.NetworkPresentation.RemotePlayerRenderTimeSeconds;
     }
 
     private double GetLocalPlayerRenderTimeSeconds()
     {
-        var targetRenderTimeSeconds = GetSnapshotRenderTimeSeconds(_localPlayerInterpolationBackTimeSeconds);
-        if (!_hasLocalPlayerRenderTime)
+        var targetRenderTimeSeconds = GetSnapshotRenderTimeSeconds(_gameplayManager.NetworkPresentation.LocalPlayerInterpolationBackTimeSeconds);
+        if (!_gameplayManager.NetworkPresentation.HasLocalPlayerRenderTime)
         {
-            _localPlayerRenderTimeSeconds = targetRenderTimeSeconds;
-            _lastLocalPlayerRenderTimeClockSeconds = _networkInterpolationClockSeconds;
-            _hasLocalPlayerRenderTime = true;
-            return _localPlayerRenderTimeSeconds;
+            _gameplayManager.NetworkPresentation.LocalPlayerRenderTimeSeconds = targetRenderTimeSeconds;
+            _gameplayManager.NetworkPresentation.LastLocalPlayerRenderTimeClockSeconds = _networkInterpolationClockSeconds;
+            _gameplayManager.NetworkPresentation.HasLocalPlayerRenderTime = true;
+            return _gameplayManager.NetworkPresentation.LocalPlayerRenderTimeSeconds;
         }
 
         var deltaSeconds = Math.Clamp(
-            _networkInterpolationClockSeconds - _lastLocalPlayerRenderTimeClockSeconds,
+            _networkInterpolationClockSeconds - _gameplayManager.NetworkPresentation.LastLocalPlayerRenderTimeClockSeconds,
             0d,
             0.05d);
-        _lastLocalPlayerRenderTimeClockSeconds = _networkInterpolationClockSeconds;
-        _localPlayerRenderTimeSeconds = NetworkInterpolationTimeline.AdvanceTowards(
-            _localPlayerRenderTimeSeconds,
+        _gameplayManager.NetworkPresentation.LastLocalPlayerRenderTimeClockSeconds = _networkInterpolationClockSeconds;
+        _gameplayManager.NetworkPresentation.LocalPlayerRenderTimeSeconds = NetworkInterpolationTimeline.AdvanceTowards(
+            _gameplayManager.NetworkPresentation.LocalPlayerRenderTimeSeconds,
             targetRenderTimeSeconds,
             deltaSeconds,
             snapThresholdSeconds: 0.16d,
@@ -1759,7 +1759,7 @@ public partial class Game1
             slowDownRate: 10d,
             maxLagBehindTargetSeconds: 0.06d,
             maxLeadAheadOfTargetSeconds: 0.035d);
-        return _localPlayerRenderTimeSeconds;
+        return _gameplayManager.NetworkPresentation.LocalPlayerRenderTimeSeconds;
     }
 
     private static double GetSnapshotTimelineTimeSeconds(ulong snapshotFrame, int tickRate)
@@ -1775,27 +1775,27 @@ public partial class Game1
 
     private double GetEstimatedServerTimeSeconds()
     {
-        if (_latestSnapshotServerTimeSeconds < 0d)
+        if (_gameplayManager.NetworkPresentation.LatestSnapshotServerTimeSeconds < 0d)
         {
             return _networkInterpolationClockSeconds;
         }
 
-        if (_latestSnapshotReceivedClockSeconds < 0d)
+        if (_gameplayManager.NetworkPresentation.LatestSnapshotReceivedClockSeconds < 0d)
         {
-            return _latestSnapshotServerTimeSeconds;
+            return _gameplayManager.NetworkPresentation.LatestSnapshotServerTimeSeconds;
         }
 
         var extrapolationHeadroomSeconds = Math.Clamp(
             Math.Max(
-                _smoothedSnapshotIntervalSeconds + (_smoothedSnapshotJitterSeconds * 2f),
+                _gameplayManager.NetworkPresentation.SmoothedSnapshotIntervalSeconds + (_gameplayManager.NetworkPresentation.SmoothedSnapshotJitterSeconds * 2f),
                 0.05f),
             0.05f,
             0.15f);
         var localElapsedSinceSnapshotSeconds = Math.Clamp(
-            _networkInterpolationClockSeconds - _latestSnapshotReceivedClockSeconds,
+            _networkInterpolationClockSeconds - _gameplayManager.NetworkPresentation.LatestSnapshotReceivedClockSeconds,
             0d,
             extrapolationHeadroomSeconds);
-        return _latestSnapshotServerTimeSeconds + localElapsedSinceSnapshotSeconds;
+        return _gameplayManager.NetworkPresentation.LatestSnapshotServerTimeSeconds + localElapsedSinceSnapshotSeconds;
     }
 
     private void CaptureProjectileInterpolationTarget(
@@ -1828,9 +1828,9 @@ public partial class Game1
 
         var baseSnapshotIntervalSeconds = MathF.Max(
             1f / _config.TicksPerSecond,
-            _smoothedSnapshotIntervalSeconds);
+            _gameplayManager.NetworkPresentation.SmoothedSnapshotIntervalSeconds);
         var expectedAuthoritativeIntervalSeconds = baseSnapshotIntervalSeconds * ExpectedProjectileUpdateIntervalTicks;
-        var cadenceJitterHeadroomSeconds = (_smoothedSnapshotJitterSeconds * 2f) + (baseSnapshotIntervalSeconds * 0.25f);
+        var cadenceJitterHeadroomSeconds = (_gameplayManager.NetworkPresentation.SmoothedSnapshotJitterSeconds * 2f) + (baseSnapshotIntervalSeconds * 0.25f);
         var desiredExtrapolationDurationSeconds = MathF.Max(
             expectedAuthoritativeIntervalSeconds + cadenceJitterHeadroomSeconds,
             1f / LegacyMovementModel.SourceTicksPerSecond);
@@ -1848,7 +1848,7 @@ public partial class Game1
         {
             var previousSnapshotTimeSeconds = snapshotTimeSeconds - Math.Max(
                 1d / Math.Max(1, _config.TicksPerSecond),
-                _smoothedSnapshotIntervalSeconds);
+                _gameplayManager.NetworkPresentation.SmoothedSnapshotIntervalSeconds);
             AppendEntitySnapshot(
                 _entitySnapshotHistories,
                 entityId,
@@ -2309,9 +2309,9 @@ public partial class Game1
     private double GetEntityRenderTimeSeconds()
     {
         var entityBackTimeSeconds = NetworkInterpolationPolicy.CalculateEntityBackTimeSeconds(
-            _networkSnapshotInterpolationDurationSeconds,
-            _smoothedSnapshotIntervalSeconds,
-            _smoothedSnapshotJitterSeconds,
+            _gameplayManager.NetworkPresentation.NetworkSnapshotInterpolationDurationSeconds,
+            _gameplayManager.NetworkPresentation.SmoothedSnapshotIntervalSeconds,
+            _gameplayManager.NetworkPresentation.SmoothedSnapshotJitterSeconds,
             _config.TicksPerSecond,
             ExpectedProjectileUpdateIntervalTicks,
             RemotePlayerMinimumInterpolationBackTimeSeconds,
@@ -2326,9 +2326,9 @@ public partial class Game1
 
     private bool IsNetworkInterpolationWarmupActive()
     {
-        return _networkInterpolationWarmupSnapshotsRemaining > 0
-            || (_networkInterpolationWarmupUntilClockSeconds >= 0d
-                && _networkInterpolationClockSeconds < _networkInterpolationWarmupUntilClockSeconds);
+        return _gameplayManager.NetworkPresentation.NetworkInterpolationWarmupSnapshotsRemaining > 0
+            || (_gameplayManager.NetworkPresentation.NetworkInterpolationWarmupUntilClockSeconds >= 0d
+                && _networkInterpolationClockSeconds < _gameplayManager.NetworkPresentation.NetworkInterpolationWarmupUntilClockSeconds);
     }
 
     private Vector2 EvaluateInterpolationTrack(InterpolationTrack track)

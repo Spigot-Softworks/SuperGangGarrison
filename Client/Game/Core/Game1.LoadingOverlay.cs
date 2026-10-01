@@ -21,34 +21,27 @@ public partial class Game1
     private const int LoadingOverlayProgressSegments = 20;
     private const float LoadingOverlayTextScale = 1f;
 
-    public bool _loadingOverlayVisible;
-    private bool _loadingOverlayIsJoining;
-    private string _loadingOverlayMessage = string.Empty;
-    private string _joiningServerLoadingLabel = string.Empty;
-    private double? _loadingOverlayProgress;
-    private bool _browserLoadingProgressVisible;
-
     public void ShowLoadingOverlay(string message, double? progress = null)
     {
-        _loadingOverlayVisible = true;
-        _loadingOverlayIsJoining = false;
-        _loadingOverlayMessage = string.IsNullOrWhiteSpace(message) ? "Loading..." : message.Trim();
-        _loadingOverlayProgress = NormalizeLoadingOverlayProgress(progress);
+        _loadingOverlayState.Visible = true;
+        _loadingOverlayState.IsJoining = false;
+        _loadingOverlayState.Message = string.IsNullOrWhiteSpace(message) ? "Loading..." : message.Trim();
+        _loadingOverlayState.Progress = NormalizeLoadingOverlayProgress(progress);
     }
 
     public void HideLoadingOverlay()
     {
         HideBrowserLoadingProgress();
-        _loadingOverlayVisible = false;
-        _loadingOverlayIsJoining = false;
-        _loadingOverlayMessage = string.Empty;
-        _loadingOverlayProgress = null;
+        _loadingOverlayState.Visible = false;
+        _loadingOverlayState.IsJoining = false;
+        _loadingOverlayState.Message = string.Empty;
+        _loadingOverlayState.Progress = null;
     }
 
     public void DrawLoadingOverlay()
     {
         if (HasLastToDieLoadingPresentation) HideJoiningServerLoadingOverlay();
-        if (!_loadingOverlayVisible)
+        if (!_loadingOverlayState.Visible)
         {
             HideBrowserLoadingProgress();
             return;
@@ -67,7 +60,7 @@ public partial class Game1
             Color.White,
             LoadingOverlayTextScale);
 
-        var message = TrimBitmapMenuText(_loadingOverlayMessage, bounds.Width - 20f, LoadingOverlayTextScale);
+        var message = TrimBitmapMenuText(_loadingOverlayState.Message, bounds.Width - 20f, LoadingOverlayTextScale);
         DrawBitmapFontText(message, new Vector2(bounds.X + 10f, bounds.Y + 32f), Color.White, LoadingOverlayTextScale);
         DrawLoadingOverlayProgress(bounds);
         _practiceNavigationWarmupPresentationPending = false;
@@ -85,16 +78,16 @@ public partial class Game1
         }
 
         ShowLoadingOverlay(CreateJoiningServerLoadingMessage(serverLabel), progress: null);
-        _loadingOverlayIsJoining = true;
+        _loadingOverlayState.IsJoining = true;
     }
 
     private bool HasLastToDieLoadingPresentation => !ShouldShowJoiningServerLoadingOverlay(
-        _lastToDieConnectionPresentationPending, HasManagedRoom,
+        _sessionTransitions.LastToDieConnectionPresentationPending, HasManagedRoom,
         _networkClient.IsConnected && _networkClient.LastToDieState.Snapshot is not null);
 
     private void HideJoiningServerLoadingOverlay()
     {
-        if (_loadingOverlayIsJoining) HideLoadingOverlay();
+        if (_loadingOverlayState.IsJoining) HideLoadingOverlay();
     }
 
     internal static bool ShouldShowJoiningServerLoadingOverlay(bool isLastToDie,
@@ -103,7 +96,7 @@ public partial class Game1
 
     public void SetJoiningServerLoadingLabel(string? serverLabel)
     {
-        _joiningServerLoadingLabel = NormalizeLoadingOverlayServerLabel(serverLabel);
+        _loadingOverlayState.JoiningServerLabel = NormalizeLoadingOverlayServerLabel(serverLabel);
     }
 
     private string CreateJoiningServerLoadingMessage(string? serverLabel = null)
@@ -111,7 +104,7 @@ public partial class Game1
         var resolvedServerLabel = NormalizeLoadingOverlayServerLabel(serverLabel);
         if (string.IsNullOrWhiteSpace(resolvedServerLabel))
         {
-            resolvedServerLabel = _joiningServerLoadingLabel;
+            resolvedServerLabel = _loadingOverlayState.JoiningServerLabel;
         }
 
         if (string.IsNullOrWhiteSpace(resolvedServerLabel))
@@ -125,7 +118,7 @@ public partial class Game1
         }
 
         return FormatJoiningServerLoadingMessage(
-            _lastToDieConnectionPresentationPending,
+            _sessionTransitions.LastToDieConnectionPresentationPending,
             resolvedServerLabel);
     }
 
@@ -155,7 +148,7 @@ public partial class Game1
         var inner = new Rectangle(progressBounds.X + 1, progressBounds.Y + 1, progressBounds.Width - 2, progressBounds.Height - 2);
         _spriteBatch.Draw(_pixel, inner, new Color(54, 51, 50));
 
-        if (OperatingSystem.IsBrowser() && !_loadingOverlayProgress.HasValue
+        if (OperatingSystem.IsBrowser() && !_loadingOverlayState.Progress.HasValue
             && BrowserLoadingProgress.Show is { } showBrowserProgress)
         {
             // CSS transforms run on the browser compositor, so the bar keeps
@@ -170,7 +163,7 @@ public partial class Game1
                 (destination.Y + inner.Y * destination.Height / (float)ViewportHeight) / surfaceHeight,
                 inner.Width * destination.Width / (float)ViewportWidth / surfaceWidth,
                 inner.Height * destination.Height / (float)ViewportHeight / surfaceHeight);
-            _browserLoadingProgressVisible = true;
+            _loadingOverlayState.BrowserProgressVisible = true;
             return;
         }
 
@@ -179,16 +172,16 @@ public partial class Game1
         var availableWidth = inner.Width - 4;
         var segmentStride = Math.Max(6, availableWidth / LoadingOverlayProgressSegments);
         var segmentWidth = Math.Max(3, Math.Min(8, segmentStride - 3));
-        var segmentCount = _loadingOverlayProgress.HasValue
-            ? Math.Clamp((int)Math.Floor(_loadingOverlayProgress.Value * LoadingOverlayProgressSegments), 0, LoadingOverlayProgressSegments)
+        var segmentCount = _loadingOverlayState.Progress.HasValue
+            ? Math.Clamp((int)Math.Floor(_loadingOverlayState.Progress.Value * LoadingOverlayProgressSegments), 0, LoadingOverlayProgressSegments)
             : 3;
-        var indeterminateOffset = _loadingOverlayProgress.HasValue
+        var indeterminateOffset = _loadingOverlayState.Progress.HasValue
             ? 0
             : (int)((Stopwatch.GetTimestamp() / (double)Stopwatch.Frequency) * 8.0) % LoadingOverlayProgressSegments;
 
         for (var index = 0; index < segmentCount; index += 1)
         {
-            var resolvedIndex = _loadingOverlayProgress.HasValue
+            var resolvedIndex = _loadingOverlayState.Progress.HasValue
                 ? index
                 : (indeterminateOffset + index) % LoadingOverlayProgressSegments;
             var left = inner.X + 2 + (resolvedIndex * segmentStride);
@@ -203,8 +196,8 @@ public partial class Game1
 
     private void HideBrowserLoadingProgress()
     {
-        if (!_browserLoadingProgressVisible) return;
-        _browserLoadingProgressVisible = false;
+        if (!_loadingOverlayState.BrowserProgressVisible) return;
+        _loadingOverlayState.BrowserProgressVisible = false;
         BrowserLoadingProgress.Hide?.Invoke();
     }
 

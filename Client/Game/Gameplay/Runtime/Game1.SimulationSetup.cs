@@ -29,7 +29,6 @@ public partial class Game1
         _simulator = new FixedStepSimulator(_world);
         _world.SetLocalPlayerName(localPlayerName);
         _world.SetLocalPlayerBadgeMask(localPlayerBadgeMask);
-        _observedGameplayLevelName = string.Empty;
-        _observedGameplayMapAreaIndex = -1;
+        _gameplayManager.PresentationState.ResetObservedGameplayMapIdentity();
     }
 }

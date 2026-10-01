@@ -1429,7 +1429,7 @@ public partial class Game1
         }
 
         var drawColor = ApplyCurrentHudElementOpacity(color);
-        if (_menuBitmapFontTexture is null || _menuBitmapFontGlyphs.Count == 0)
+        if (_menuResources.BitmapFontTexture is null || _menuResources.BitmapFontGlyphs.Count == 0)
         {
             _spriteBatch.DrawString(_menuFont, text, rotationCenter, drawColor, rotation, (rotationCenter - position) / scale, scale, SpriteEffects.None, 0f);
             return;
@@ -1439,11 +1439,11 @@ public partial class Game1
         for (var index = 0; index < text.Length; index += 1)
         {
             var character = text[index];
-            if (!_menuBitmapFontGlyphs.TryGetValue(character, out var glyph))
+            if (!_menuResources.BitmapFontGlyphs.TryGetValue(character, out var glyph))
             {
-                if (_menuBitmapFontGlyphs.TryGetValue(' ', out var spaceGlyph))
+                if (_menuResources.BitmapFontGlyphs.TryGetValue(' ', out var spaceGlyph))
                 {
-                    cursor.X += (spaceGlyph.Advance + _menuBitmapFontSpacing) * scale;
+                    cursor.X += (spaceGlyph.Advance + _menuResources.BitmapFontSpacing) * scale;
                 }
 
                 continue;
@@ -1454,21 +1454,21 @@ public partial class Game1
                 if (rotation == 0f)
                 {
                     _spriteBatch.Draw(
-                        _menuBitmapFontTexture.Texture,
+                        _menuResources.BitmapFontTexture.Texture,
                         new Rectangle(
                             (int)MathF.Round(cursor.X),
                             (int)MathF.Round(cursor.Y),
                             Math.Max(1, (int)MathF.Round(glyph.SourceRect.Width * scale)),
                             Math.Max(1, (int)MathF.Round(glyph.SourceRect.Height * scale))),
-                        CombineSourceRectangles(_menuBitmapFontTexture.SourceRectangle, glyph.SourceRect),
+                        CombineSourceRectangles(_menuResources.BitmapFontTexture.SourceRectangle, glyph.SourceRect),
                         drawColor);
                 }
                 else
                 {
                     _spriteBatch.Draw(
-                        _menuBitmapFontTexture.Texture,
+                        _menuResources.BitmapFontTexture.Texture,
                         rotationCenter,
-                        CombineSourceRectangles(_menuBitmapFontTexture.SourceRectangle, glyph.SourceRect),
+                        CombineSourceRectangles(_menuResources.BitmapFontTexture.SourceRectangle, glyph.SourceRect),
                         drawColor,
                         rotation,
                         (rotationCenter - cursor) / scale,
@@ -1478,7 +1478,7 @@ public partial class Game1
                 }
             }
 
-            cursor.X += (glyph.Advance + _menuBitmapFontSpacing) * scale;
+            cursor.X += (glyph.Advance + _menuResources.BitmapFontSpacing) * scale;
         }
     }
 }

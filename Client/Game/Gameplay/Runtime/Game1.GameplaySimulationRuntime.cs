@@ -90,7 +90,7 @@ public partial class Game1
                 // after the tick consumes them so a held button remains held
                 // through the live input, but a tap cannot fire twice.
                 ClearConsumedPredictedInputEdges();
-                _world.SetLocalInput(_latestPredictedLocalInput);
+                _world.SetLocalInput(_localPredictionState.LatestPredictedLocalInput);
             }
 
             FinalizeBotDiagnosticsFrame();
@@ -124,7 +124,7 @@ public partial class Game1
         // the raw current input before a possible catch-up tick so a tap cannot
         // turn into multiple automatic-weapon shots or repeated commands.
         ClearConsumedPredictedInputEdges();
-        _world.SetLocalInput(_latestPredictedLocalInput);
+        _world.SetLocalInput(_localPredictionState.LatestPredictedLocalInput);
     }
 
     private void AdvanceGameplayLogicPresentationTriggers()

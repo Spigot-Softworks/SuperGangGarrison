@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using Microsoft.Xna.Framework;
 using OpenGarrison.Client;
+using OpenGarrison.Core;
 using Xunit;
 
 namespace OpenGarrison.PluginHost.Tests;
@@ -12,7 +13,11 @@ public sealed class CameraPanningRuntimeTests
     public void StationarySubpixelCorrectionsDoNotShakeCameraWithPanningDisabled()
     {
         var game = (Game1)RuntimeHelpers.GetUninitializedObject(typeof(Game1));
-        SetField(game, "_cameraPanningEnabled", false);
+        var services = new ClientServiceContainer();
+        SetField(game, "_services", services);
+        var gameplayManager = new GameplayManager((IGameplayContext)game);
+        services.Register(gameplayManager);
+        gameplayManager.RuntimeSettings.CameraPanningEnabled = false;
         SetField(game, "_gameplayPresentationDeltaSeconds", 1f / 60f);
         var origin = new Vector2(400, 500);
         Assert.Equal(origin, game.AdvanceSmoothCameraTarget(origin, 0.5f));

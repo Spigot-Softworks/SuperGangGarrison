@@ -45,7 +45,7 @@ public partial class Game1
         DrawFallbackLevelSolids(cameraPosition, hasLevelBackground, viewportWidth, viewportHeight);
         DrawMovingPlatforms(cameraPosition);
         // Settled blood sits on the map layer; gameplay FX / characters draw above it.
-        if (AreBloodVisualsEnabled && _bloodRenderMode == 0)
+        if (AreBloodVisualsEnabled && _gameplayManager.RuntimeSettings.BloodRenderMode == 0)
         {
             _gameplayManager.GoreEffects.DrawBloodSquibPools(cameraPosition);
         }

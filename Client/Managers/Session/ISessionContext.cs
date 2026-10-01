@@ -8,12 +8,14 @@ namespace OpenGarrison.Client;
 
 public interface ISessionContext
 {
+    TextEditState PasswordEdit { get; }
+    TextEditState ConnectHostEdit { get; }
+    TextEditState ConnectPortEdit { get; }
+    TeamClassSelectionState TeamClassSelection { get; }
+    GameplaySessionTransitionState SessionTransitions { get; }
     string _autoBalanceNoticeText { get; set; }
     int _autoBalanceNoticeTicks { get; set; }
-    bool _classSelectOpen { get; set; }
     OpenGarrison.Core.SimulationConfig _config { get; set; }
-    string _connectHostBuffer { get; set; }
-    string _connectPortBuffer { get; set; }
     bool _consoleOpen { get; set; }
     bool _controlsMenuOpen { get; set; }
     bool _creditsOpen { get; set; }
@@ -21,7 +23,6 @@ public interface ISessionContext
     bool _editingConnectPort { get; set; }
     bool _editingPlayerName { get; set; }
     bool _inGameMenuOpen { get; set; }
-    bool _lastToDieConnectionPresentationPending { get; set; }
     bool _lastToDieRoomCodeJoinOpen { get; set; }
     OpenGarrison.Client.Game1.LobbyBrowserEntry _lobbyBrowserDetailsEntry { get; set; }
     string _lobbyBrowserDetailsStatus { get; set; }
@@ -39,15 +40,11 @@ public interface ISessionContext
     string _menuStatusMessage { get; set; }
     OpenGarrison.Client.NetworkGameClient _networkClient { get; }
     bool _optionsMenuOpen { get; set; }
-    string _passwordEditBuffer { get; set; }
     string _passwordPromptMessage { get; set; }
     bool _passwordPromptOpen { get; set; }
     Nullable<OpenGarrison.Client.Game1.ControllerControlsMenuBinding> _pendingControllerControlsBinding { get; set; }
     Nullable<OpenGarrison.Client.Game1.ControlsMenuBinding> _pendingControlsBinding { get; set; }
     bool _pluginOptionsMenuOpen { get; set; }
-    string _recentConnectHost { get; set; }
-    int _recentConnectPort { get; set; }
-    bool _teamSelectOpen { get; set; }
     OpenGarrison.Client.Game1.LobbyBrowserEntry AddLobbyBrowserEntry(string displayName, OpenGarrison.Client.NetworkEndpoint endpoint, bool isPrivate, bool isLobbyEntry);
     void BeginFriendCodeJoin(string friendCode);
     void BeginRelayRoomJoin(string roomCode);

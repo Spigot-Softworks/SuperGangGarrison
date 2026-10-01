@@ -12,19 +12,28 @@ namespace OpenGarrison.Client;
 public sealed class GameplayImpactEffectsController
     {
         private readonly IGameplayContext _context;
+        private readonly List<OpenGarrison.Client.Game1.StuckArrowVisual> _stuckArrowVisuals = new();
+        private readonly List<OpenGarrison.Client.Game1.AirBlastVisual> _airBlasts = new();
+        private readonly List<OpenGarrison.Client.Game1.BubblePopVisual> _bubblePops = new();
+        private readonly List<OpenGarrison.Client.Game1.ImpactVisual> _impactVisuals = new();
 
         public GameplayImpactEffectsController(IGameplayContext context)
         {
             _context = context;
         }
 
+        internal void ClearStuckArrows()
+        {
+            _stuckArrowVisuals.Clear();
+        }
+
         public void ResetTransientEffects()
         {
             _context._explosions.Clear();
-            _context._impactVisuals.Clear();
-            _context._stuckArrowVisuals.Clear();
-            _context._airBlasts.Clear();
-            _context._bubblePops.Clear();
+            _impactVisuals.Clear();
+            _stuckArrowVisuals.Clear();
+            _airBlasts.Clear();
+            _bubblePops.Clear();
         }
 
         public bool TryCreateExplosionVisual(WorldSoundEvent soundEvent, out ExplosionVisual? explosion)
@@ -66,12 +75,12 @@ public sealed class GameplayImpactEffectsController
 
         public void AdvanceExplosionVisuals()
         {
-            for (var index = _context._airBlasts.Count - 1; index >= 0; index -= 1)
+            for (var index = _airBlasts.Count - 1; index >= 0; index -= 1)
             {
-                _context._airBlasts[index].TicksRemaining -= 1;
-                if (_context._airBlasts[index].TicksRemaining <= 0)
+                _airBlasts[index].TicksRemaining -= 1;
+                if (_airBlasts[index].TicksRemaining <= 0)
                 {
-                    _context._airBlasts.RemoveAt(index);
+                    _airBlasts.RemoveAt(index);
                 }
             }
 
@@ -81,9 +90,9 @@ public sealed class GameplayImpactEffectsController
                 return;
             }
 
-            for (var index = _context._bubblePops.Count - 1; index >= 0; index -= 1)
+            for (var index = _bubblePops.Count - 1; index >= 0; index -= 1)
             {
-                var bubblePop = _context._bubblePops[index];
+                var bubblePop = _bubblePops[index];
                 bubblePop.PendingSourceTicks += sourceTickAdvance;
                 while (bubblePop.PendingSourceTicks >= 1f && bubblePop.ElapsedSourceTicks < BubblePopVisual.LifetimeSourceTicks)
                 {
@@ -93,7 +102,7 @@ public sealed class GameplayImpactEffectsController
 
                 if (bubblePop.ElapsedSourceTicks >= BubblePopVisual.LifetimeSourceTicks)
                 {
-                    _context._bubblePops.RemoveAt(index);
+                    _bubblePops.RemoveAt(index);
                 }
             }
 
@@ -123,9 +132,9 @@ public sealed class GameplayImpactEffectsController
                 return;
             }
 
-            for (var index = _context._impactVisuals.Count - 1; index >= 0; index -= 1)
+            for (var index = _impactVisuals.Count - 1; index >= 0; index -= 1)
             {
-                var impact = _context._impactVisuals[index];
+                var impact = _impactVisuals[index];
                 impact.PendingSourceTicks += sourceTickAdvance;
                 while (impact.PendingSourceTicks >= 1f && impact.ElapsedSourceTicks < ImpactVisual.LifetimeSourceTicks)
                 {
@@ -135,26 +144,26 @@ public sealed class GameplayImpactEffectsController
 
                 if (impact.ElapsedSourceTicks >= ImpactVisual.LifetimeSourceTicks)
                 {
-                    _context._impactVisuals.RemoveAt(index);
+                    _impactVisuals.RemoveAt(index);
                 }
             }
         }
 
         public void AdvanceStuckArrowVisuals()
         {
-            if (!_context._stuckArrowsEnabled)
+            if (!_context.GameplayRuntimeSettings.StuckArrowsEnabled)
             {
-                if (_context._stuckArrowVisuals.Count > 0)
+                if (_stuckArrowVisuals.Count > 0)
                 {
-                    _context._stuckArrowVisuals.Clear();
+                    _stuckArrowVisuals.Clear();
                 }
 
                 return;
             }
 
-            for (var index = _context._stuckArrowVisuals.Count - 1; index >= 0; index -= 1)
+            for (var index = _stuckArrowVisuals.Count - 1; index >= 0; index -= 1)
             {
-                var arrow = _context._stuckArrowVisuals[index];
+                var arrow = _stuckArrowVisuals[index];
                 if (arrow.TicksUntilFade > 0)
                 {
                     arrow.TicksUntilFade -= 1;
@@ -164,7 +173,7 @@ public sealed class GameplayImpactEffectsController
                 arrow.Alpha -= 1f / StuckArrowVisual.FadeTicks;
                 if (arrow.Alpha <= 0f)
                 {
-                    _context._stuckArrowVisuals.RemoveAt(index);
+                    _stuckArrowVisuals.RemoveAt(index);
                 }
             }
         }
@@ -200,9 +209,9 @@ public sealed class GameplayImpactEffectsController
                 return;
             }
 
-            for (var index = 0; index < _context._impactVisuals.Count; index += 1)
+            for (var index = 0; index < _impactVisuals.Count; index += 1)
             {
-                var impact = _context._impactVisuals[index];
+                var impact = _impactVisuals[index];
                 var secondStage = impact.ElapsedSourceTicks >= (ImpactVisual.LifetimeSourceTicks / 2);
                 var alpha = secondStage ? 0.5f : 1f;
                 var scale = secondStage ? 1f : 0.5f;
@@ -221,7 +230,7 @@ public sealed class GameplayImpactEffectsController
 
         public void DrawStuckArrowVisuals(Vector2 cameraPosition)
         {
-            if (!_context._stuckArrowsEnabled)
+            if (!_context.GameplayRuntimeSettings.StuckArrowsEnabled)
             {
                 return;
             }
@@ -232,9 +241,9 @@ public sealed class GameplayImpactEffectsController
                 return;
             }
 
-            for (var index = 0; index < _context._stuckArrowVisuals.Count; index += 1)
+            for (var index = 0; index < _stuckArrowVisuals.Count; index += 1)
             {
-                var arrow = _context._stuckArrowVisuals[index];
+                var arrow = _stuckArrowVisuals[index];
                 var frameIndex = Math.Clamp(arrow.FrameIndex, 0, sprite.Frames.Count - 1);
                 var scale = arrow.FlipY ? new Vector2(1f, -1f) : Vector2.One;
                 _context.DrawLoadedSpriteFrame(
@@ -277,7 +286,7 @@ public sealed class GameplayImpactEffectsController
 
             if (string.Equals(effectName, "Impact", StringComparison.OrdinalIgnoreCase))
             {
-                _context._impactVisuals.Add(new ImpactVisual(x, y, directionDegrees * (MathF.PI / 180f)));
+                _impactVisuals.Add(new ImpactVisual(x, y, directionDegrees * (MathF.PI / 180f)));
                 return true;
             }
 
@@ -289,13 +298,13 @@ public sealed class GameplayImpactEffectsController
 
             if (string.Equals(effectName, "AirBlast", StringComparison.OrdinalIgnoreCase))
             {
-                _context._airBlasts.Add(new AirBlastVisual(x, y, directionDegrees * (MathF.PI / 180f)));
+                _airBlasts.Add(new AirBlastVisual(x, y, directionDegrees * (MathF.PI / 180f)));
                 return true;
             }
 
             if (string.Equals(effectName, "Pop", StringComparison.OrdinalIgnoreCase))
             {
-                _context._bubblePops.Add(new BubblePopVisual(x, y));
+                _bubblePops.Add(new BubblePopVisual(x, y));
                 return true;
             }
 
@@ -304,15 +313,15 @@ public sealed class GameplayImpactEffectsController
 
         private void SpawnStuckArrowVisual(float x, float y, float directionDegrees, int count)
         {
-            if (!_context._stuckArrowsEnabled)
+            if (!_context.GameplayRuntimeSettings.StuckArrowsEnabled)
             {
                 return;
             }
 
             // Dedup predicted local + networked echo of the same impact.
-            for (var index = 0; index < _context._stuckArrowVisuals.Count; index += 1)
+            for (var index = 0; index < _stuckArrowVisuals.Count; index += 1)
             {
-                var existing = _context._stuckArrowVisuals[index];
+                var existing = _stuckArrowVisuals[index];
                 var deltaX = existing.X - x;
                 var deltaY = existing.Y - y;
                 if ((deltaX * deltaX) + (deltaY * deltaY) <= StuckArrowVisual.SpawnDedupDistanceSquared)
@@ -321,15 +330,15 @@ public sealed class GameplayImpactEffectsController
                 }
             }
 
-            while (_context._stuckArrowVisuals.Count >= StuckArrowVisual.MaxVisuals)
+            while (_stuckArrowVisuals.Count >= StuckArrowVisual.MaxVisuals)
             {
-                _context._stuckArrowVisuals.RemoveAt(0);
+                _stuckArrowVisuals.RemoveAt(0);
             }
 
             var rotationRadians = directionDegrees * (MathF.PI / 180f);
             var frameIndex = count >= (int)PlayerTeam.Blue ? 1 : 0;
             var flipY = MathF.Cos(rotationRadians) < 0f;
-            _context._stuckArrowVisuals.Add(new StuckArrowVisual(x, y, rotationRadians, frameIndex, flipY));
+            _stuckArrowVisuals.Add(new StuckArrowVisual(x, y, rotationRadians, frameIndex, flipY));
         }
 
         private void DrawWalkmaskOcclusionOverStuckArrow(
@@ -485,7 +494,7 @@ public sealed class GameplayImpactEffectsController
                 return;
             }
 
-            foreach (var bubblePop in _context._bubblePops)
+            foreach (var bubblePop in _bubblePops)
             {
                 var frameIndex = Math.Clamp(
                     (int)MathF.Floor(bubblePop.ElapsedSourceTicks * sprite.Frames.Count / (float)BubblePopVisual.LifetimeSourceTicks),
@@ -508,7 +517,7 @@ public sealed class GameplayImpactEffectsController
         {
             var sprite = _context.GetResolvedSprite("AirBlastS");
 
-            foreach (var airBlast in _context._airBlasts)
+            foreach (var airBlast in _airBlasts)
             {
                 var elapsedTicks = AirBlastVisual.LifetimeTicks - airBlast.TicksRemaining;
                 var progress = MathHelper.Clamp(elapsedTicks / (float)AirBlastVisual.LifetimeTicks, 0f, 1f);

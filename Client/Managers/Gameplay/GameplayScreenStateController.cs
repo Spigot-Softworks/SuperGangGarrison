@@ -73,11 +73,11 @@ public sealed class GameplayScreenStateController
             {
                 _context.ResetChatInputState();
             }
-            else if (_context._teamSelectOpen && escapePressed)
+            else if (_context.TeamClassSelection.TeamSelectOpen && escapePressed)
             {
                 _context.DismissGameplayTeamSelection();
             }
-            else if (_context._classSelectOpen && escapePressed)
+            else if (_context.TeamClassSelection.ClassSelectOpen && escapePressed)
             {
                 _context.CloseGameplaySelectionMenus();
             }
@@ -93,7 +93,7 @@ public sealed class GameplayScreenStateController
                 _context.OpenInGameMenu();
             }
 
-            if (_context._world.MatchState.IsEnded || (_context._killCamEnabled && _context._world.LocalDeathCam is not null))
+            if (_context._world.MatchState.IsEnded || (_context.GameplayRuntimeSettings.KillCamEnabled && _context._world.LocalDeathCam is not null))
             {
                 _context.CloseGameplaySelectionMenus();
             }

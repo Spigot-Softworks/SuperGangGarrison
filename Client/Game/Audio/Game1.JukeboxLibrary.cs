@@ -35,7 +35,7 @@ public partial class Game1
     }
     public void OpenSessionJukebox()
     {
-        _jukeboxMenuOpen = true; _inGameMenuHoverIndex = 0;
+        _jukeboxMenuOpen = true; _menuManager.InGameMenu.ResetHoverIndex();
         if (OperatingSystem.IsBrowser() && CanControlSessionJukebox && _jukeboxLibraryDirty
             && _jukeboxLibraryLoad is null && BrowserJukeboxStore.RestoreLibrary is { } restore)
         {
@@ -106,7 +106,7 @@ public partial class Game1
             actions.Add(new("Refresh Tracks", () => { _jukeboxLibraryDirty = true; OpenSessionJukebox(); }));
         }
         actions.Add(new(_voiceSettings.JukeboxMuted ? "Unmute Music" : "Mute Music", ToggleJukeboxMute));
-        actions.Add(new("Back", () => { _jukeboxMenuOpen = false; _inGameMenuHoverIndex = 0; }));
+        actions.Add(new("Back", () => { _jukeboxMenuOpen = false; _menuManager.InGameMenu.ResetHoverIndex(); }));
         return actions;
     }
     public void StopLocalJukebox()

@@ -362,7 +362,7 @@ public sealed class GameplayAimHudController
                 reloadTicks,
                 player.HasInfiniteAmmoFromUber ? maxAmmo : currentAmmo,
                 maxAmmo,
-                _context._latestPredictedLocalInput.FirePrimary,
+                _context.Gameplay.LocalPrediction.LatestPredictedLocalInput.FirePrimary,
                 IsCrosshairFireBlocked(player, weapon, cooldownTicks, _crosshairTiming.CooldownDurationTicks)
                     || _context.GetPlayerIsExperimentalGhostDashing(_context._world.LocalPlayer),
                 _crosshairTiming.CooldownDurationTicks,
@@ -374,7 +374,7 @@ public sealed class GameplayAimHudController
             }
 
             var frameIndex = Math.Clamp(frame.FrameIndex, 0, crosshair.Frames.Count - 1);
-            var cursorScale = ClientSettings.GetCursorScale(_context._cursorSizePercent);
+            var cursorScale = ClientSettings.GetCursorScale(_context.HudRuntimeSettings.CursorSizePercent);
             _context.DrawLoadedSpriteFrame(
                 crosshair.Frames[frameIndex],
                 screenPosition,

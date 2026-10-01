@@ -249,7 +249,7 @@ public partial class Game1
         PlayerRenderState renderState,
         float horizontalSourceStepSpeed)
     {
-        var mode = OpenGarrisonPreferencesDocument.NormalizeWeaponBobMode(_weaponBobMode);
+        var mode = OpenGarrisonPreferencesDocument.NormalizeWeaponBobMode(_gameplayManager.RuntimeSettings.WeaponBobMode);
         if (mode == WeaponBobMode.Disabled)
         {
             renderState.SmoothedTorsoBobOffset = 0f;
@@ -1140,11 +1140,11 @@ public partial class Game1
                 return serverVelocity.X;
             }
 
-            if (CanUseLocalPrediction() && _hasPredictedLocalPlayerPosition)
+            if (CanUseLocalPrediction() && _localPredictionState.HasPredictedLocalPlayerPosition)
             {
-                return MathF.Abs(observedRenderVelocity.X) > MathF.Abs(_predictedLocalPlayerVelocity.X)
+                return MathF.Abs(observedRenderVelocity.X) > MathF.Abs(_localPredictionState.PredictedLocalPlayerVelocity.X)
                     ? observedRenderVelocity.X
-                    : _predictedLocalPlayerVelocity.X;
+                    : _localPredictionState.PredictedLocalPlayerVelocity.X;
             }
 
             return observedRenderVelocity.X;
@@ -1157,9 +1157,9 @@ public partial class Game1
     {
         if (_networkClient.IsConnected && ReferenceEquals(player, _world.LocalPlayer))
         {
-            if (CanUseLocalPrediction() && _hasPredictedLocalPlayerPosition)
+            if (CanUseLocalPrediction() && _localPredictionState.HasPredictedLocalPlayerPosition)
             {
-                return _predictedLocalPlayerVelocity.X;
+                return _localPredictionState.PredictedLocalPlayerVelocity.X;
             }
 
             if (TryGetLatestLocalServerVelocity(out var serverVelocity))
@@ -1175,9 +1175,9 @@ public partial class Game1
     {
         if (_networkClient.IsConnected && ReferenceEquals(player, _world.LocalPlayer))
         {
-            if (CanUseLocalPrediction() && _hasPredictedLocalPlayerPosition)
+            if (CanUseLocalPrediction() && _localPredictionState.HasPredictedLocalPlayerPosition)
             {
-                return _predictedLocalPlayerVelocity.Y;
+                return _localPredictionState.PredictedLocalPlayerVelocity.Y;
             }
 
             if (TryGetLatestLocalServerVelocity(out var serverVelocity))
@@ -1198,11 +1198,11 @@ public partial class Game1
                 return serverVelocity.Y;
             }
 
-            if (CanUseLocalPrediction() && _hasPredictedLocalPlayerPosition)
+            if (CanUseLocalPrediction() && _localPredictionState.HasPredictedLocalPlayerPosition)
             {
-                return MathF.Abs(observedRenderVelocity.Y) > MathF.Abs(_predictedLocalPlayerVelocity.Y)
+                return MathF.Abs(observedRenderVelocity.Y) > MathF.Abs(_localPredictionState.PredictedLocalPlayerVelocity.Y)
                     ? observedRenderVelocity.Y
-                    : _predictedLocalPlayerVelocity.Y;
+                    : _localPredictionState.PredictedLocalPlayerVelocity.Y;
             }
 
             return observedRenderVelocity.Y;
@@ -1234,8 +1234,8 @@ public partial class Game1
         return _networkClient.IsConnected
             && ReferenceEquals(player, _world.LocalPlayer)
             && CanUseLocalPrediction()
-            && _hasPredictedLocalPlayerPosition
-                ? _predictedLocalPlayerGrounded
+            && _localPredictionState.HasPredictedLocalPlayerPosition
+                ? _localPredictionState.PredictedLocalPlayerGrounded
                 : player.IsGrounded;
     }
 
@@ -1269,7 +1269,7 @@ public partial class Game1
         if (ShouldPresentAcquiredWeapon(player))
         {
             return IsUsingPredictedLocalState(player)
-                ? _predictedLocalActionState.AcquiredWeaponCurrentShells
+                ? _localPredictionState.PredictedLocalActionState.AcquiredWeaponCurrentShells
                 : player.AcquiredWeaponCurrentShells;
         }
 
@@ -1282,7 +1282,7 @@ public partial class Game1
         {
             if (IsUsingPredictedLocalState(player))
             {
-                return _predictedLocalActionState.ExperimentalOffhandCurrentShells;
+                return _localPredictionState.PredictedLocalActionState.ExperimentalOffhandCurrentShells;
             }
 
             if (player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, SoldierShotgunAmmoKey, out var replicatedAmmo))
@@ -1296,14 +1296,14 @@ public partial class Game1
         if (ShouldPresentExperimentalScoutNailgun(player))
         {
             return IsUsingPredictedLocalState(player)
-                ? _predictedLocalActionState.CurrentShells
+                ? _localPredictionState.PredictedLocalActionState.CurrentShells
                 : player.CurrentShells;
         }
 
         if (ShouldPresentSniperBow(player))
         {
             return IsUsingPredictedLocalState(player)
-                ? _predictedLocalActionState.CurrentShells
+                ? _localPredictionState.PredictedLocalActionState.CurrentShells
                 : player.CurrentShells;
         }
 
@@ -1311,7 +1311,7 @@ public partial class Game1
         {
             if (IsUsingPredictedLocalState(player))
             {
-                return _predictedLocalActionState.ExperimentalOffhandCurrentShells;
+                return _localPredictionState.PredictedLocalActionState.ExperimentalOffhandCurrentShells;
             }
 
             return player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, DemomanGrenadeLauncherAmmoKey, out var replicatedAmmo)
@@ -1322,15 +1322,15 @@ public partial class Game1
         if (ShouldPresentExperimentalMedicKritzHealNeedles(player))
         {
             return IsUsingPredictedLocalState(player)
-                ? _predictedLocalActionState.CurrentShells
+                ? _localPredictionState.PredictedLocalActionState.CurrentShells
                 : player.CurrentShells;
         }
 
         return _networkClient.IsConnected
             && ReferenceEquals(player, _world.LocalPlayer)
             && CanUseLocalPrediction()
-            && _hasPredictedLocalActionState
-                ? _predictedLocalActionState.CurrentShells
+            && _localPredictionState.HasPredictedLocalActionState
+                ? _localPredictionState.PredictedLocalActionState.CurrentShells
                 : player.CurrentShells;
     }
 
@@ -1341,7 +1341,7 @@ public partial class Game1
         if (ShouldPresentAcquiredWeapon(player))
         {
             return IsUsingPredictedLocalState(player)
-                ? _predictedLocalActionState.AcquiredWeaponCooldownTicks
+                ? _localPredictionState.PredictedLocalActionState.AcquiredWeaponCooldownTicks
                 : player.AcquiredWeaponCooldownTicks;
         }
 
@@ -1353,46 +1353,46 @@ public partial class Game1
         if (ShouldPresentExperimentalSoldierShotgun(player))
         {
             return IsUsingPredictedLocalState(player)
-                ? _predictedLocalActionState.ExperimentalOffhandCooldownTicks
+                ? _localPredictionState.PredictedLocalActionState.ExperimentalOffhandCooldownTicks
                 : player.ExperimentalOffhandCooldownTicks;
         }
 
         if (ShouldPresentExperimentalScoutNailgun(player))
         {
             return IsUsingPredictedLocalState(player)
-                ? _predictedLocalActionState.PrimaryCooldownTicks
+                ? _localPredictionState.PredictedLocalActionState.PrimaryCooldownTicks
                 : player.PrimaryCooldownTicks;
         }
 
         if (ShouldPresentSniperBow(player))
         {
             return IsUsingPredictedLocalState(player)
-                ? _predictedLocalActionState.PrimaryCooldownTicks
+                ? _localPredictionState.PredictedLocalActionState.PrimaryCooldownTicks
                 : player.PrimaryCooldownTicks;
         }
 
         if (ShouldPresentExperimentalDemomanGrenadeLauncher(player))
         {
             return IsUsingPredictedLocalState(player)
-                ? _predictedLocalActionState.ExperimentalOffhandCooldownTicks
+                ? _localPredictionState.PredictedLocalActionState.ExperimentalOffhandCooldownTicks
                 : player.ExperimentalOffhandCooldownTicks;
         }
 
         if (ShouldPresentExperimentalMedicKritzHealNeedles(player))
         {
             return IsUsingPredictedLocalState(player)
-                ? _predictedLocalActionState.PrimaryCooldownTicks
+                ? _localPredictionState.PredictedLocalActionState.PrimaryCooldownTicks
                 : player.PrimaryCooldownTicks;
         }
 
         if (_networkClient.IsConnected
             && ReferenceEquals(player, _world.LocalPlayer)
             && CanUseLocalPrediction()
-            && _hasPredictedLocalActionState)
+            && _localPredictionState.HasPredictedLocalActionState)
         {
             return player.ClassId == PlayerClass.Medic
-                ? _predictedLocalActionState.MedicNeedleCooldownTicks
-                : _predictedLocalActionState.PrimaryCooldownTicks;
+                ? _localPredictionState.PredictedLocalActionState.MedicNeedleCooldownTicks
+                : _localPredictionState.PredictedLocalActionState.PrimaryCooldownTicks;
         }
 
         return player.ClassId == PlayerClass.Medic
@@ -1412,7 +1412,7 @@ public partial class Game1
         if (ShouldPresentAcquiredWeapon(player))
         {
             return IsUsingPredictedLocalState(player)
-                ? _predictedLocalActionState.AcquiredWeaponReloadTicksUntilNextShell
+                ? _localPredictionState.PredictedLocalActionState.AcquiredWeaponReloadTicksUntilNextShell
                 : player.AcquiredWeaponReloadTicksUntilNextShell;
         }
 
@@ -1424,46 +1424,46 @@ public partial class Game1
         if (ShouldPresentExperimentalSoldierShotgun(player))
         {
             return IsUsingPredictedLocalState(player)
-                ? _predictedLocalActionState.ExperimentalOffhandReloadTicksUntilNextShell
+                ? _localPredictionState.PredictedLocalActionState.ExperimentalOffhandReloadTicksUntilNextShell
                 : player.ExperimentalOffhandReloadTicksUntilNextShell;
         }
 
         if (ShouldPresentExperimentalScoutNailgun(player))
         {
             return IsUsingPredictedLocalState(player)
-                ? _predictedLocalActionState.ReloadTicksUntilNextShell
+                ? _localPredictionState.PredictedLocalActionState.ReloadTicksUntilNextShell
                 : player.ReloadTicksUntilNextShell;
         }
 
         if (ShouldPresentSniperBow(player))
         {
             return IsUsingPredictedLocalState(player)
-                ? _predictedLocalActionState.ReloadTicksUntilNextShell
+                ? _localPredictionState.PredictedLocalActionState.ReloadTicksUntilNextShell
                 : player.ReloadTicksUntilNextShell;
         }
 
         if (ShouldPresentExperimentalDemomanGrenadeLauncher(player))
         {
             return IsUsingPredictedLocalState(player)
-                ? _predictedLocalActionState.ExperimentalOffhandReloadTicksUntilNextShell
+                ? _localPredictionState.PredictedLocalActionState.ExperimentalOffhandReloadTicksUntilNextShell
                 : player.ExperimentalOffhandReloadTicksUntilNextShell;
         }
 
         if (ShouldPresentExperimentalMedicKritzHealNeedles(player))
         {
             return IsUsingPredictedLocalState(player)
-                ? _predictedLocalActionState.ReloadTicksUntilNextShell
+                ? _localPredictionState.PredictedLocalActionState.ReloadTicksUntilNextShell
                 : player.ReloadTicksUntilNextShell;
         }
 
         if (_networkClient.IsConnected
             && ReferenceEquals(player, _world.LocalPlayer)
             && CanUseLocalPrediction()
-            && _hasPredictedLocalActionState)
+            && _localPredictionState.HasPredictedLocalActionState)
         {
             return player.ClassId == PlayerClass.Medic
-                ? _predictedLocalActionState.MedicNeedleRefillTicks
-                : _predictedLocalActionState.ReloadTicksUntilNextShell;
+                ? _localPredictionState.PredictedLocalActionState.MedicNeedleRefillTicks
+                : _localPredictionState.PredictedLocalActionState.ReloadTicksUntilNextShell;
         }
 
         return player.ClassId == PlayerClass.Medic
@@ -1739,7 +1739,7 @@ public partial class Game1
 
     private void QueueWeaponShellVisuals(PlayerEntity player, bool shotStarted, bool shellInserted)
     {
-        if (_particleMode != 0)
+        if (_gameplayManager.RuntimeSettings.ParticleMode != 0)
         {
             return;
         }
@@ -1776,45 +1776,12 @@ public partial class Game1
 
     private void QueueResettingWeaponShellVisual(PlayerEntity player, float delaySeconds, int count)
     {
-        if (_particleMode != 0 || count <= 0)
-        {
-            return;
-        }
-
-        var playerStateKey = GetPlayerStateKey(player);
-        for (var pendingIndex = _pendingWeaponShellVisuals.Count - 1; pendingIndex >= 0; pendingIndex -= 1)
-        {
-            var pendingShell = _pendingWeaponShellVisuals[pendingIndex];
-            if (pendingShell.PlayerId == playerStateKey
-                && pendingShell.ClassId == player.ClassId)
-            {
-                _pendingWeaponShellVisuals.RemoveAt(pendingIndex);
-            }
-        }
-
-        QueueWeaponShellVisual(player, delaySeconds, count);
+        _gameplayManager.MaterialEffects.QueueResettingWeaponShellVisual(player, delaySeconds, count);
     }
 
     private void QueueResettingWeaponShellVisual(PlayerEntity player, float delaySeconds, int count, string spriteName)
     {
-        if (_particleMode != 0 || count <= 0)
-        {
-            return;
-        }
-
-        var playerStateKey = GetPlayerStateKey(player);
-        for (var pendingIndex = _pendingWeaponShellVisuals.Count - 1; pendingIndex >= 0; pendingIndex -= 1)
-        {
-            var pendingShell = _pendingWeaponShellVisuals[pendingIndex];
-            if (pendingShell.PlayerId == playerStateKey
-                && pendingShell.ClassId == player.ClassId
-                && pendingShell.SpriteName == spriteName)
-            {
-                _pendingWeaponShellVisuals.RemoveAt(pendingIndex);
-            }
-        }
-
-        QueueWeaponShellVisual(player, delaySeconds, count, player.ClassId, spriteName);
+        _gameplayManager.MaterialEffects.QueueResettingWeaponShellVisual(player, delaySeconds, count, spriteName);
     }
 
     public static void StartWeaponAnimation(PlayerRenderState renderState, WeaponAnimationMode mode, float durationSeconds, bool preserveElapsed = false)

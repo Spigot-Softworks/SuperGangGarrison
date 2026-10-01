@@ -7,6 +7,14 @@ namespace OpenGarrison.Client;
 public sealed class MainMenuOverlayStateController
     {
         private readonly IMenuContext _context;
+        private bool _creditsScrollInitialized;
+
+        internal bool IsCreditsScrollInitialized => _creditsScrollInitialized;
+
+        internal void MarkCreditsScrollInitialized()
+        {
+            _creditsScrollInitialized = true;
+        }
 
         public MainMenuOverlayStateController(IMenuContext context)
         {
@@ -51,7 +59,7 @@ public sealed class MainMenuOverlayStateController
         {
             PrepareForExclusiveMainMenuOverlayOpen();
             _context._creditsOpen = true;
-            _context._creditsScrollInitialized = false;
+            _creditsScrollInitialized = false;
         }
 
         public void OpenFriendsMenu()
@@ -66,7 +74,7 @@ public sealed class MainMenuOverlayStateController
             _context._friendsMenuTab = FriendsMenuTab.Friends;
             _context.CloseFriendsContextMenu();
             _context.ClosePlayerCardOverlay();
-            _context._friendNicknameInputBuffer = _context.GetFriendNicknameInputDefault();
+            _context.FriendNicknameEdit.Text = _context.GetFriendNicknameInputDefault();
             _context.InitializeFriendNicknameCursor();
             var needsNickname = string.IsNullOrWhiteSpace(_context._clientIdentity.DisplayName);
             _context._editingFriendNickname = needsNickname;
@@ -102,7 +110,7 @@ public sealed class MainMenuOverlayStateController
         public void CloseCreditsMenu()
         {
             _context._creditsOpen = false;
-            _context._creditsScrollInitialized = false;
+            _creditsScrollInitialized = false;
         }
 
         public void OpenLastToDieMenu(string? statusMessage = null)

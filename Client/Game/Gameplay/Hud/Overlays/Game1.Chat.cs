@@ -38,7 +38,7 @@ public partial class Game1
     {
         _chatOpen = true;
         _chatTeamOnly = teamOnly;
-        _chatInput = string.Empty;
+        _inputManager.ChatTextInput.Edit.Text = string.Empty;
         _chatScrollOffset = 0;
         InitializeChatInputCursor();
     }
@@ -48,14 +48,14 @@ public partial class Game1
         _chatOpen = false;
         _chatTeamOnly = false;
         _chatSubmitAwaitingOpenKeyRelease = requireOpenKeyRelease;
-        _chatInput = string.Empty;
+        _inputManager.ChatTextInput.Edit.Text = string.Empty;
         _chatScrollOffset = 0;
         InitializeChatInputCursor();
     }
 
     public void SubmitChatMessage()
     {
-        var text = _chatInput.Trim();
+        var text = _inputManager.ChatTextInput.Edit.Text.Trim();
         var teamOnly = _chatTeamOnly;
         if (!string.IsNullOrWhiteSpace(text))
         {
@@ -252,7 +252,7 @@ public partial class Game1
 
     private void TryShowOverheadChatMessage(ChatRelayMessage chatRelay)
     {
-        if (!_overheadChatEnabled)
+        if (!_hudManager.RuntimeSettings.OverheadChatEnabled)
         {
             return;
         }
@@ -272,7 +272,7 @@ public partial class Game1
 
     private void ShowLocalOverheadChatMessage(string text, bool teamOnly)
     {
-        if (!_overheadChatEnabled)
+        if (!_hudManager.RuntimeSettings.OverheadChatEnabled)
         {
             return;
         }
@@ -291,7 +291,7 @@ public partial class Game1
 
     private void ShowOverheadChatMessage(byte slot, string text, bool teamOnly)
     {
-        if (!_overheadChatEnabled || slot == 0 || IsScoreboardSlotMuted(slot))
+        if (!_hudManager.RuntimeSettings.OverheadChatEnabled || slot == 0 || IsScoreboardSlotMuted(slot))
         {
             return;
         }
@@ -509,7 +509,7 @@ public partial class Game1
         var lineHeight = GetChatHudLineHeight();
         var promptPrefix = _chatTeamOnly ? "(TEAM) > " : "> ";
         var maxInputWidth = Math.Max(24f, GetOpenChatPanelWidth() - 18f - MeasureBitmapFontWidth(promptPrefix, 1f));
-        var promptLines = WrapBitmapFontText(GetTextWithCursor(_chatInput, _chatInputCursorIndex), maxInputWidth, maxInputWidth);
+        var promptLines = WrapBitmapFontText(GetTextWithCursor(_inputManager.ChatTextInput.Edit.Text, _inputManager.ChatTextInput.Edit.CursorIndex), maxInputWidth, maxInputWidth);
         var promptHeight = Math.Max(24, (int)MathF.Ceiling(promptLines.Count * lineHeight + 12f));
         var promptRectangle = new Rectangle(
             12,
@@ -543,7 +543,7 @@ public partial class Game1
         var lineHeight = GetChatHudLineHeight();
         var promptPrefix = _chatTeamOnly ? "(TEAM) > " : "> ";
         var maxInputWidth = Math.Max(24f, GetOpenChatPanelWidth() - 18f - MeasureBitmapFontWidth(promptPrefix, 1f));
-        var promptLines = WrapBitmapFontText(GetTextWithCursor(_chatInput, _chatInputCursorIndex), maxInputWidth, maxInputWidth);
+        var promptLines = WrapBitmapFontText(GetTextWithCursor(_inputManager.ChatTextInput.Edit.Text, _inputManager.ChatTextInput.Edit.CursorIndex), maxInputWidth, maxInputWidth);
         var promptHeight = Math.Max(24, (int)MathF.Ceiling(promptLines.Count * lineHeight + 12f));
         var promptRectangle = new Rectangle(
             12,
@@ -685,11 +685,11 @@ public partial class Game1
         var inputY = promptPosition.Y;
         var lineHeight = GetChatHudLineHeight();
 
-        if (promptLines.Count == 1 && HasTextSelection(_chatInputCursorIndex, _chatInputSelectionStart))
+        if (promptLines.Count == 1 && HasTextSelection(_inputManager.ChatTextInput.Edit.CursorIndex, _inputManager.ChatTextInput.Edit.SelectionStart))
         {
             var maxInputWidth = Math.Max(24f, promptRectangle.Width - 18f - prefixWidth);
-            var (visibleInputWithOffset, visibleStartIndex) = GetTrailingBitmapFontTextThatFitsWithOffset(_chatInput, maxInputWidth);
-            var (selectionStart, selectionLength) = GetTextSelectionRange(_chatInputCursorIndex, _chatInputSelectionStart);
+            var (visibleInputWithOffset, visibleStartIndex) = GetTrailingBitmapFontTextThatFitsWithOffset(_inputManager.ChatTextInput.Edit.Text, maxInputWidth);
+            var (selectionStart, selectionLength) = GetTextSelectionRange(_inputManager.ChatTextInput.Edit.CursorIndex, _inputManager.ChatTextInput.Edit.SelectionStart);
             var visibleSelectionStart = Math.Max(0, Math.Min(visibleInputWithOffset.Length, selectionStart - visibleStartIndex));
             var visibleSelectionEnd = Math.Max(visibleSelectionStart, Math.Min(visibleInputWithOffset.Length, selectionStart + selectionLength - visibleStartIndex));
             var visibleSelectionLength = Math.Max(0, visibleSelectionEnd - visibleSelectionStart);

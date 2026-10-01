@@ -73,7 +73,7 @@ public partial class Game1
             _postGameMvpPresentationTicks = Math.Min(3600, _postGameMvpPresentationTicks + clientTicks);
         }
 
-        if (_postGameMvpArtEnabled && IsPostGameMvpArtTogglePressed(keyboard))
+        if (_hudManager.RuntimeSettings.PostGameMvpArtEnabled && IsPostGameMvpArtTogglePressed(keyboard))
         {
             _postGameMvpArtHidden = !_postGameMvpArtHidden;
         }
@@ -111,7 +111,7 @@ public partial class Game1
         var winnerTeam = _world.MatchState.WinnerTeam!.Value;
         var entries = EnsurePostGameMvpEntriesLocked(winnerTeam);
         var layout = GetPostGameMvpLayout();
-        var drawArt = _postGameMvpArtEnabled && !_postGameMvpArtHidden;
+        var drawArt = _hudManager.RuntimeSettings.PostGameMvpArtEnabled && !_postGameMvpArtHidden;
 
         if (drawArt)
         {

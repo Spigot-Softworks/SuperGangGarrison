@@ -123,44 +123,8 @@ public partial class Game1
         public int TicksRemaining { get; set; }
     }
 
-    public SoundEffect? _menuMusic;
-    public SoundEffectInstance? _menuMusicInstance;
-    public SoundEffect? _lastToDieMenuMusic;
-    public SoundEffectInstance? _lastToDieMenuMusicInstance;
-    public SoundEffect? _faucetMusic;
-    public SoundEffectInstance? _faucetMusicInstance;
-    public SoundEffect? _ingameMusic;
-    public SoundEffectInstance? _ingameMusicInstance;
-    public SoundEffect? _ingameCombatMusic;
-    public SoundEffectInstance? _ingameCombatMusicInstance;
-    public SoundEffect? _lastToDieIngameMusic;
-    public SoundEffectInstance? _lastToDieIngameMusicInstance;
-    public SoundEffect? _lastToDieGameOverSound;
-    public SoundEffectInstance? _lastToDieGameOverSoundInstance;
-    public SoundEffectInstance? _localChaingunSoundInstance;
-    public SoundEffectInstance? _localFlamethrowerSoundInstance;
-    public SoundEffectInstance? _localMedigunSoundInstance;
-    public SoundEffectInstance? _localUberIdleSoundInstance;
     public bool _audioAvailable = true;
-    public bool _audioMuted;
-    public int _masterVolumePercent = 100;
-    public int _menuMusicVolumePercent = 70;
-    public int _ingameMusicVolumePercent = 70;
-    public int _combatMusicVolumePercent = OpenGarrisonPreferencesDocument.DefaultCombatMusicVolumePercent;
-    public int _soundEffectsVolumePercent = 70;
-    public MusicMode _musicMode = MusicMode.MenuAndInGame;
-    public bool _menuMusicLoadAttempted;
-    public bool _lastToDieMenuMusicLoadAttempted;
-    public bool _faucetMusicLoadAttempted;
-    public bool _ingameMusicLoadAttempted;
-    public bool _lastToDieIngameMusicLoadAttempted;
-    public bool _lastToDieGameOverSoundLoadAttempted;
-    public readonly HashSet<ulong> _processedNetworkSoundEventIds = new();
-    public readonly Queue<ulong> _processedNetworkSoundEventOrder = new();
-    public readonly HashSet<ulong> _processedKillFeedEventIds = new();
-    public readonly Queue<ulong> _processedKillFeedEventOrder = new();
     public readonly List<PendingBrowserSoundEvent> _pendingBrowserSoundEvents = new();
-    public readonly List<WorldSoundEvent> _pendingNetworkSoundEvents = new();
     public readonly List<RecentGibSoundEvent> _recentGibSoundEvents = new();
     public readonly List<RecentProjectileSoundEvent> _recentProjectileSoundEvents = new();
     public readonly List<RecentLowPriorityWorldSoundEvent> _recentLowPriorityWorldSoundEvents = new();
@@ -913,34 +877,34 @@ public partial class Game1
         StopLastToDieGameOverSound();
         StopGameplaySoundMusicOverride();
         DisposeDynamicMusic();
-        _menuMusicInstance?.Dispose();
-        _menuMusicInstance = null;
-        _menuMusic?.Dispose();
-        _menuMusic = null;
-        _lastToDieMenuMusicInstance?.Dispose();
-        _lastToDieMenuMusicInstance = null;
-        _lastToDieMenuMusic?.Dispose();
-        _lastToDieMenuMusic = null;
-        _faucetMusicInstance?.Dispose();
-        _faucetMusicInstance = null;
-        _faucetMusic?.Dispose();
-        _faucetMusic = null;
-        _ingameMusicInstance?.Dispose();
-        _ingameMusicInstance = null;
-        _ingameMusic?.Dispose();
-        _ingameMusic = null;
-        _ingameCombatMusicInstance?.Dispose();
-        _ingameCombatMusicInstance = null;
-        _ingameCombatMusic?.Dispose();
-        _ingameCombatMusic = null;
-        _lastToDieIngameMusicInstance?.Dispose();
-        _lastToDieIngameMusicInstance = null;
-        _lastToDieIngameMusic?.Dispose();
-        _lastToDieIngameMusic = null;
-        _lastToDieGameOverSoundInstance?.Dispose();
-        _lastToDieGameOverSoundInstance = null;
-        _lastToDieGameOverSound?.Dispose();
-        _lastToDieGameOverSound = null;
+        _audioManager.MusicResources.MenuMusicInstance?.Dispose();
+        _audioManager.MusicResources.MenuMusicInstance = null;
+        _audioManager.MusicResources.MenuMusic?.Dispose();
+        _audioManager.MusicResources.MenuMusic = null;
+        _audioManager.MusicResources.LastToDieMenuMusicInstance?.Dispose();
+        _audioManager.MusicResources.LastToDieMenuMusicInstance = null;
+        _audioManager.MusicResources.LastToDieMenuMusic?.Dispose();
+        _audioManager.MusicResources.LastToDieMenuMusic = null;
+        _audioManager.MusicResources.FaucetMusicInstance?.Dispose();
+        _audioManager.MusicResources.FaucetMusicInstance = null;
+        _audioManager.MusicResources.FaucetMusic?.Dispose();
+        _audioManager.MusicResources.FaucetMusic = null;
+        _audioManager.MusicResources.IngameMusicInstance?.Dispose();
+        _audioManager.MusicResources.IngameMusicInstance = null;
+        _audioManager.MusicResources.IngameMusic?.Dispose();
+        _audioManager.MusicResources.IngameMusic = null;
+        _audioManager.MusicResources.IngameCombatMusicInstance?.Dispose();
+        _audioManager.MusicResources.IngameCombatMusicInstance = null;
+        _audioManager.MusicResources.IngameCombatMusic?.Dispose();
+        _audioManager.MusicResources.IngameCombatMusic = null;
+        _audioManager.MusicResources.LastToDieIngameMusicInstance?.Dispose();
+        _audioManager.MusicResources.LastToDieIngameMusicInstance = null;
+        _audioManager.MusicResources.LastToDieIngameMusic?.Dispose();
+        _audioManager.MusicResources.LastToDieIngameMusic = null;
+        _audioManager.MusicResources.LastToDieGameOverSoundInstance?.Dispose();
+        _audioManager.MusicResources.LastToDieGameOverSoundInstance = null;
+        _audioManager.MusicResources.LastToDieGameOverSound?.Dispose();
+        _audioManager.MusicResources.LastToDieGameOverSound = null;
         AddConsoleLine($"audio disabled: {reason} ({ex.GetType().Name}: {ex.Message})");
     }
 
@@ -951,12 +915,12 @@ public partial class Game1
 
     public bool AllowsMenuMusic()
     {
-        return _musicMode is MusicMode.MenuOnly or MusicMode.MenuAndInGame;
+        return _audioManager.RuntimeSettings.MusicMode is MusicMode.MenuOnly or MusicMode.MenuAndInGame;
     }
 
     public bool AllowsIngameMusic()
     {
-        return _musicMode is MusicMode.InGameOnly or MusicMode.MenuAndInGame;
+        return _audioManager.RuntimeSettings.MusicMode is MusicMode.InGameOnly or MusicMode.MenuAndInGame;
     }
 
     private void UpdateLocalRapidFireWeaponAudio()
@@ -966,9 +930,9 @@ public partial class Game1
 
     public void ToggleAudioMute()
     {
-        _audioMuted = !_audioMuted;
+        _audioManager.RuntimeSettings.AudioMuted = !_audioManager.RuntimeSettings.AudioMuted;
         ApplyAudioVolumeState();
-        AddConsoleLine(_audioMuted ? "audio muted (F12)" : "audio unmuted (F12)");
+        AddConsoleLine(_audioManager.RuntimeSettings.AudioMuted ? "audio muted (F12)" : "audio unmuted (F12)");
     }
 
     public void ApplyAudioVolumeState()
@@ -981,7 +945,7 @@ public partial class Game1
     {
         try
         {
-            SoundEffect.MasterVolume = _audioMuted ? 0f : GetNonLinearVolumeScale(_masterVolumePercent);
+            SoundEffect.MasterVolume = _audioManager.RuntimeSettings.AudioMuted ? 0f : GetNonLinearVolumeScale(_audioManager.RuntimeSettings.MasterVolumePercent);
         }
         catch (Exception ex)
         {
@@ -991,15 +955,15 @@ public partial class Game1
 
     private void UpdateCurrentMusicInstanceVolumes()
     {
-        SetSoundEffectInstanceVolume(_menuMusicInstance, GetNonLinearVolumeScale(_menuMusicVolumePercent) * 0.8f);
-        SetSoundEffectInstanceVolume(_lastToDieMenuMusicInstance, GetNonLinearVolumeScale(_menuMusicVolumePercent) * 0.82f);
-        SetSoundEffectInstanceVolume(_faucetMusicInstance, GetNonLinearVolumeScale(_menuMusicVolumePercent) * 0.8f);
-        var ingameMusicVolume = GetNonLinearVolumeScale(_ingameMusicVolumePercent) * (IsJukeboxAudible ? 0f : 1f);
+        SetSoundEffectInstanceVolume(_audioManager.MusicResources.MenuMusicInstance, GetNonLinearVolumeScale(_audioManager.RuntimeSettings.MenuMusicVolumePercent) * 0.8f);
+        SetSoundEffectInstanceVolume(_audioManager.MusicResources.LastToDieMenuMusicInstance, GetNonLinearVolumeScale(_audioManager.RuntimeSettings.MenuMusicVolumePercent) * 0.82f);
+        SetSoundEffectInstanceVolume(_audioManager.MusicResources.FaucetMusicInstance, GetNonLinearVolumeScale(_audioManager.RuntimeSettings.MenuMusicVolumePercent) * 0.8f);
+        var ingameMusicVolume = GetNonLinearVolumeScale(_audioManager.RuntimeSettings.IngameMusicVolumePercent) * (IsJukeboxAudible ? 0f : 1f);
         var gameplaySoundUnderlyingScale = GetGameplaySoundUnderlyingMusicVolumeScale();
-        SetSoundEffectInstanceVolume(_ingameMusicInstance, ingameMusicVolume * 0.8f * _dynamicNormalMusicFade * gameplaySoundUnderlyingScale);
-        SetSoundEffectInstanceVolume(_lastToDieIngameMusicInstance, ingameMusicVolume * 0.82f * gameplaySoundUnderlyingScale);
+        SetSoundEffectInstanceVolume(_audioManager.MusicResources.IngameMusicInstance, ingameMusicVolume * 0.8f * _dynamicNormalMusicFade * gameplaySoundUnderlyingScale);
+        SetSoundEffectInstanceVolume(_audioManager.MusicResources.LastToDieIngameMusicInstance, ingameMusicVolume * 0.82f * gameplaySoundUnderlyingScale);
         SetSoundEffectInstanceVolume(_gameplaySoundMusicOverrideInstance, GetGameplaySoundMusicOverrideVolume() * (IsJukeboxAudible ? 0f : 1f));
-        SetSoundEffectInstanceVolume(_lastToDieGameOverSoundInstance, ingameMusicVolume * 0.85f);
+        SetSoundEffectInstanceVolume(_audioManager.MusicResources.LastToDieGameOverSoundInstance, ingameMusicVolume * 0.85f);
         UpdateDynamicMusicInstanceVolumes(ingameMusicVolume * gameplaySoundUnderlyingScale);
     }
 
@@ -1026,7 +990,7 @@ public partial class Game1
 
     public float GetSoundEffectsVolumeScale()
     {
-        return _audioMuted ? 0f : GetNonLinearVolumeScale(_soundEffectsVolumePercent);
+        return _audioManager.RuntimeSettings.AudioMuted ? 0f : GetNonLinearVolumeScale(_audioManager.RuntimeSettings.SoundEffectsVolumePercent);
     }
 
     private bool IsLocalRapidFireWeaponSoundActive(PrimaryWeaponKind weaponKind)

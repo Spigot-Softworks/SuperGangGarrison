@@ -12,50 +12,50 @@ public partial class Game1
 {
     public void UpdateTeamSelect(KeyboardState keyboard, MouseState mouse)
     {
-        if (!_teamSelectOpen)
+        if (!_teamClassSelectionState.TeamSelectOpen)
         {
-            _teamSelectHoverIndex = -1;
-            if (_teamSelectAlpha > 0.01f)
+            _teamClassSelectionState.TeamSelectHoverIndex = -1;
+            if (_teamClassSelectionState.TeamSelectAlpha > 0.01f)
             {
-                _teamSelectAlpha = AdvanceClosingAlpha(_teamSelectAlpha, 0.01f);
+                _teamClassSelectionState.TeamSelectAlpha = AdvanceClosingAlpha(_teamClassSelectionState.TeamSelectAlpha, 0.01f);
             }
 
-            if (_teamSelectPanelY > -120f)
+            if (_teamClassSelectionState.TeamSelectPanelY > -120f)
             {
-                _teamSelectPanelY = MathF.Max(-120f, _teamSelectPanelY - ScaleLegacyUiDistance(15f));
+                _teamClassSelectionState.TeamSelectPanelY = MathF.Max(-120f, _teamClassSelectionState.TeamSelectPanelY - ScaleLegacyUiDistance(15f));
             }
 
             return;
         }
 
-        if (_teamSelectAlpha < 0.99f)
+        if (_teamClassSelectionState.TeamSelectAlpha < 0.99f)
         {
-            _teamSelectAlpha = AdvanceOpeningAlpha(_teamSelectAlpha, 0.01f, 0.99f);
+            _teamClassSelectionState.TeamSelectAlpha = AdvanceOpeningAlpha(_teamClassSelectionState.TeamSelectAlpha, 0.01f, 0.99f);
         }
 
-        if (_teamSelectPanelY < 120f)
+        if (_teamClassSelectionState.TeamSelectPanelY < 120f)
         {
-            _teamSelectPanelY = MathF.Min(120f, _teamSelectPanelY + ScaleLegacyUiDistance(15f));
+            _teamClassSelectionState.TeamSelectPanelY = MathF.Min(120f, _teamClassSelectionState.TeamSelectPanelY + ScaleLegacyUiDistance(15f));
         }
 
         var panelLeft = GetTeamSelectPanelLeft(ViewportWidth);
         var mouseHoverIndex = GetTeamSelectHoverIndex(mouse.X, mouse.Y, panelLeft);
         if (ShouldUseMouseMenuHover(mouse) && mouseHoverIndex >= 0)
         {
-            _teamSelectHoverIndex = mouseHoverIndex;
+            _teamClassSelectionState.TeamSelectHoverIndex = mouseHoverIndex;
         }
         else if (!IsControllerMenuInputActive())
         {
-            _teamSelectHoverIndex = -1;
+            _teamClassSelectionState.TeamSelectHoverIndex = -1;
         }
 
         if (TryConsumeControllerMenuNavigation(out var horizontalStep, out _) && horizontalStep != 0)
         {
-            _teamSelectHoverIndex = MoveControllerMenuSelectionClamped(_teamSelectHoverIndex, 4, horizontalStep);
+            _teamClassSelectionState.TeamSelectHoverIndex = MoveControllerMenuSelectionClamped(_teamClassSelectionState.TeamSelectHoverIndex, 4, horizontalStep);
         }
-        else if (IsControllerMenuInputActive() && _teamSelectHoverIndex < 0)
+        else if (IsControllerMenuInputActive() && _teamClassSelectionState.TeamSelectHoverIndex < 0)
         {
-            _teamSelectHoverIndex = 0;
+            _teamClassSelectionState.TeamSelectHoverIndex = 0;
         }
 
         if (IsControllerMenuBackPressed())
@@ -67,20 +67,20 @@ public partial class Game1
         var selectionFromKeyboard = GetTeamSelectKeyboardSelection(keyboard);
         if (selectionFromKeyboard >= 0)
         {
-            _teamSelectHoverIndex = selectionFromKeyboard;
+            _teamClassSelectionState.TeamSelectHoverIndex = selectionFromKeyboard;
             ApplyTeamSelection(selectionFromKeyboard);
             return;
         }
 
         var clickPressed = mouse.LeftButton == ButtonState.Pressed && _previousMouse.LeftButton != ButtonState.Pressed;
         var controllerConfirmPressed = IsControllerMenuConfirmPressed();
-        if ((!clickPressed && !controllerConfirmPressed) || _teamSelectHoverIndex < 0)
+        if ((!clickPressed && !controllerConfirmPressed) || _teamClassSelectionState.TeamSelectHoverIndex < 0)
         {
             return;
         }
 
         SuppressPrimaryFireUntilMouseRelease();
-        ApplyTeamSelection(_teamSelectHoverIndex);
+        ApplyTeamSelection(_teamClassSelectionState.TeamSelectHoverIndex);
         if (controllerConfirmPressed)
         {
             ConsumeControllerMenuConfirmPress();
@@ -92,18 +92,18 @@ public partial class Game1
         var viewportWidth = ViewportWidth;
         var viewportHeight = ViewportHeight;
         var panelLeft = GetTeamSelectPanelLeft(viewportWidth);
-        var alpha = Math.Clamp(_teamSelectAlpha, 0.01f, 0.99f);
+        var alpha = Math.Clamp(_teamClassSelectionState.TeamSelectAlpha, 0.01f, 0.99f);
         _spriteBatch.Draw(_pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.Black * MathF.Min(0.8f, alpha));
         DrawTeamSelectBackground(panelLeft, viewportWidth, alpha);
 
-        if (_teamSelectHoverIndex >= 0 && _teamSelectPanelY >= 120f)
+        if (_teamClassSelectionState.TeamSelectHoverIndex >= 0 && _teamClassSelectionState.TeamSelectPanelY >= 120f)
         {
-            var drawX = GetTeamSelectDrawX(_teamSelectHoverIndex);
-            var lines = GetTeamSelectDescription(_teamSelectHoverIndex);
+            var drawX = GetTeamSelectDrawX(_teamClassSelectionState.TeamSelectHoverIndex);
+            var lines = GetTeamSelectDescription(_teamClassSelectionState.TeamSelectHoverIndex);
             var balance = GetTeamBalance();
-            if (_teamSelectHoverIndex != 1 && _teamSelectHoverIndex != 4)
+            if (_teamClassSelectionState.TeamSelectHoverIndex != 1 && _teamClassSelectionState.TeamSelectHoverIndex != 4)
             {
-                var doorFrame = _teamSelectHoverIndex switch
+                var doorFrame = _teamClassSelectionState.TeamSelectHoverIndex switch
                 {
                     0 => 2,
                     2 => balance == PlayerTeam.Red ? 3 : 0,
@@ -117,7 +117,7 @@ public partial class Game1
                 }
             }
 
-            if (_teamSelectHoverIndex == 1)
+            if (_teamClassSelectionState.TeamSelectHoverIndex == 1)
             {
                 TryDrawScreenSprite("TVLightUpS", 0, new Vector2(panelLeft + drawX, 118f), Color.White, Vector2.One);
             }
@@ -134,7 +134,7 @@ public partial class Game1
         const float teamCountOffsetY = -2f;
         const float teamCountScale = 1.5f;
         const float teamCountExtraDrop = -1f;
-        var panelYOffset = _teamSelectPanelY - 120f;
+        var panelYOffset = _teamClassSelectionState.TeamSelectPanelY - 120f;
         var teamCountBottomY = (teamCountBaseY + teamCountOffsetY + panelYOffset) + MeasureBitmapFontHeight(1f);
         var teamCountDrawY = (teamCountBottomY - MeasureBitmapFontHeight(teamCountScale)) + teamCountExtraDrop;
         DrawBitmapFontText(GetTeamCount(PlayerTeam.Red).ToString(CultureInfo.InvariantCulture), new Vector2(panelLeft + 284f + teamCountOffsetX, teamCountDrawY), Color.Black * alpha, teamCountScale);
@@ -146,10 +146,10 @@ public partial class Game1
         var stretchWidth = MathF.Max(0f, viewportWidth - panelLeft - 800f);
         if (stretchWidth > 0f)
         {
-            TryDrawScreenSprite("TeamSelectBS", 0, new Vector2(panelLeft + 800f, _teamSelectPanelY), Color.White * alpha, new Vector2(stretchWidth, 1f));
+            TryDrawScreenSprite("TeamSelectBS", 0, new Vector2(panelLeft + 800f, _teamClassSelectionState.TeamSelectPanelY), Color.White * alpha, new Vector2(stretchWidth, 1f));
         }
 
-        TryDrawScreenSprite("TeamSelectS", 0, new Vector2(panelLeft + 400f, _teamSelectPanelY), Color.White * alpha, Vector2.One);
+        TryDrawScreenSprite("TeamSelectS", 0, new Vector2(panelLeft + 400f, _teamClassSelectionState.TeamSelectPanelY), Color.White * alpha, Vector2.One);
     }
 
     private static float GetTeamSelectPanelLeft(int viewportWidth)
@@ -239,7 +239,7 @@ public partial class Game1
             3 => PlayerTeam.Blue,
             _ => GetAutoSelectedTeam(balance),
         };
-        _pendingClassSelectTeam = selectedTeam;
+        _teamClassSelectionState.PendingClassSelectTeam = selectedTeam;
 
         if (_networkClient.IsConnected)
         {

@@ -21,8 +21,8 @@ public sealed class GameplayPlayerNameHudController
 
         public void DrawPersistentSelfNameHud(Vector2 cameraPosition)
         {
-            if (!_context._showPlayerNamesEnabled
-                || !_context._showPersistentSelfNameEnabled
+            if (!_context.HudRuntimeSettings.ShowPlayerNamesEnabled
+                || !_context.HudRuntimeSettings.ShowPersistentSelfNameEnabled
                 || _context.IsLocalSpectatorPresentationActive()
                 || !_context._world.LocalPlayer.IsAlive)
             {
@@ -34,7 +34,7 @@ public sealed class GameplayPlayerNameHudController
 
         public void DrawForcedPlayerNameHuds(Vector2 cameraPosition)
         {
-            if (!_context._showPlayerNamesEnabled)
+            if (!_context.HudRuntimeSettings.ShowPlayerNamesEnabled)
             {
                 return;
             }
@@ -54,7 +54,7 @@ public sealed class GameplayPlayerNameHudController
 
         public void DrawHoveredPlayerNameHud(MouseState mouse, Vector2 cameraPosition)
         {
-            if (!_context._showPlayerNamesEnabled)
+            if (!_context.HudRuntimeSettings.ShowPlayerNamesEnabled)
             {
                 return;
             }
@@ -65,7 +65,7 @@ public sealed class GameplayPlayerNameHudController
                 return;
             }
 
-            if (_context._showPersistentSelfNameEnabled && ReferenceEquals(hoveredPlayer, _context._world.LocalPlayer))
+            if (_context.HudRuntimeSettings.ShowPersistentSelfNameEnabled && ReferenceEquals(hoveredPlayer, _context._world.LocalPlayer))
             {
                 return;
             }

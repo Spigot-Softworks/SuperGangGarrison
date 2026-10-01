@@ -11,6 +11,8 @@ namespace OpenGarrison.Client;
 
 public partial class Game1 : IHostingContext
 {
+    PendingHostedConnectState IHostingContext.PendingHostedConnect => _gameplayManager.SessionState.PendingHostedConnect;
+
     bool IHostingContext._controlsMenuOpen { get => _controlsMenuOpen; set => _controlsMenuOpen = value; }
 
     OpenGarrison.Client.HostedServerConsoleState IHostingContext._hostedServerConsole { get => _hostedServerConsole; }
@@ -42,8 +44,6 @@ public partial class Game1 : IHostingContext
     Nullable<OpenGarrison.Client.Game1.ControllerControlsMenuBinding> IHostingContext._pendingControllerControlsBinding { get => _pendingControllerControlsBinding; set => _pendingControllerControlsBinding = value; }
 
     Nullable<OpenGarrison.Client.Game1.ControlsMenuBinding> IHostingContext._pendingControlsBinding { get => _pendingControlsBinding; set => _pendingControlsBinding = value; }
-
-    int IHostingContext._pendingHostedConnectPort { get => _pendingHostedConnectPort; set => _pendingHostedConnectPort = value; }
 
     bool IHostingContext._pluginOptionsMenuOpen { get => _pluginOptionsMenuOpen; set => _pluginOptionsMenuOpen = value; }
 

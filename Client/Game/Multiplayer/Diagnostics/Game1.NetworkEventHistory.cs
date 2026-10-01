@@ -8,14 +8,11 @@ public partial class Game1
 {
     public void ResetProcessedNetworkEventHistory()
     {
-        _processedNetworkSoundEventIds.Clear();
-        _processedNetworkSoundEventOrder.Clear();
+        _audioManager.Events.ResetProcessedNetworkSoundEventHistory();
         _processedNetworkVisualEventIds.Clear();
         _processedNetworkVisualEventOrder.Clear();
-        _processedNetworkDamageEventIds.Clear();
-        _processedNetworkDamageEventOrder.Clear();
-        _processedKillFeedEventIds.Clear();
-        _processedKillFeedEventOrder.Clear();
+        _pluginManager.Events.ResetProcessedNetworkDamageEventHistory();
+        _audioManager.Events.ResetProcessedKillFeedEventHistory();
     }
 
     public static bool ShouldProcessNetworkEvent(ulong eventId, HashSet<ulong> processedIds, Queue<ulong> processedOrder)

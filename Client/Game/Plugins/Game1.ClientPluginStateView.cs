@@ -20,7 +20,7 @@ public partial class Game1
         public bool IsGameplayActive => !game._startupSplashOpen && !game._mainMenuOpen;
         public bool IsGameplayInputBlocked => game.IsGameplayInputBlocked();
         public bool IsSpectator => game.IsLocalSpectatorPresentationActive();
-        public bool IsDeathCamActive => game._killCamEnabled && !game._world.LocalPlayer.IsAlive && game._world.LocalDeathCam is not null;
+        public bool IsDeathCamActive => game._gameplayManager.RuntimeSettings.KillCamEnabled && !game._world.LocalPlayer.IsAlive && game._world.LocalDeathCam is not null;
         public ulong WorldFrame => (ulong)Math.Max(0, game._world.Frame);
         public int TickRate => game._config.TicksPerSecond;
         public int LocalPingMilliseconds => game._networkClient.EstimatedPingMilliseconds;

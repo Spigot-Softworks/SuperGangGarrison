@@ -140,6 +140,9 @@ public sealed class GameplayDeadBodyRenderController
 {
     private const int ImmediateNetworkDeadBodyLifetimeTicks = 90;
     private readonly IRenderContext _game;
+    private readonly List<int> _staleTrackedDeadBodyIds = new();
+    private readonly Dictionary<int, Game1.RetainedDeadBodyVisual> _trackedDeadBodyVisuals = new();
+    private readonly List<int> _staleImmediateNetworkDeadBodyPlayerIds = new();
 
     public GameplayDeadBodyRenderController(IRenderContext game)
         {
@@ -211,57 +214,57 @@ public sealed class GameplayDeadBodyRenderController
         public void SyncRetainedDeadBodies()
         {
             if (_game._networkClient.IsLegacyGg2Connection
-                || _game._corpseDurationMode != ClientSettings.CorpseDurationInfinite)
+                || _game.GameplayRuntimeSettings.CorpseDurationMode != ClientSettings.CorpseDurationInfinite)
             {
                 ResetRetainedDeadBodies();
                 return;
             }
 
-            _game._staleTrackedDeadBodyIds.Clear();
-            foreach (var trackedId in _game._trackedDeadBodyVisuals.Keys)
+            _staleTrackedDeadBodyIds.Clear();
+            foreach (var trackedId in _trackedDeadBodyVisuals.Keys)
             {
-                _game._staleTrackedDeadBodyIds.Add(trackedId);
+                _staleTrackedDeadBodyIds.Add(trackedId);
             }
 
             foreach (var deadBody in _game._world.DeadBodies)
             {
-                _game._trackedDeadBodyVisuals[deadBody.Id] = new RetainedDeadBodyVisual(deadBody.Id, deadBody.SourcePlayerId, deadBody.ClassId, deadBody.Team, deadBody.AnimationKind, deadBody.X, deadBody.Y, deadBody.Width, deadBody.Height, deadBody.FacingLeft, deadBody.TicksRemaining, deadBody.GameplayClassId);
-                _game._staleTrackedDeadBodyIds.Remove(deadBody.Id);
+                _trackedDeadBodyVisuals[deadBody.Id] = new RetainedDeadBodyVisual(deadBody.Id, deadBody.SourcePlayerId, deadBody.ClassId, deadBody.Team, deadBody.AnimationKind, deadBody.X, deadBody.Y, deadBody.Width, deadBody.Height, deadBody.FacingLeft, deadBody.TicksRemaining, deadBody.GameplayClassId);
+                _staleTrackedDeadBodyIds.Remove(deadBody.Id);
                 RemoveRetainedDeadBody(deadBody.Id);
             }
 
-            for (var index = 0; index < _game._staleTrackedDeadBodyIds.Count; index += 1)
+            for (var index = 0; index < _staleTrackedDeadBodyIds.Count; index += 1)
             {
-                var deadBodyId = _game._staleTrackedDeadBodyIds[index];
-                if (_game._trackedDeadBodyVisuals.TryGetValue(deadBodyId, out var retainedDeadBody))
+                var deadBodyId = _staleTrackedDeadBodyIds[index];
+                if (_trackedDeadBodyVisuals.TryGetValue(deadBodyId, out var retainedDeadBody))
                 {
                     if (retainedDeadBody.TicksRemaining <= 15)
                     {
                         _game._retainedDeadBodies.Add(retainedDeadBody);
                     }
 
-                    _game._trackedDeadBodyVisuals.Remove(deadBodyId);
+                    _trackedDeadBodyVisuals.Remove(deadBodyId);
                 }
             }
         }
 
         public void SyncImmediateNetworkDeadBodies()
         {
-            _game._staleImmediateNetworkDeadBodyPlayerIds.Clear();
+            _staleImmediateNetworkDeadBodyPlayerIds.Clear();
             foreach (var sourcePlayerId in _game._immediateNetworkDeadBodies.Keys)
             {
-                _game._staleImmediateNetworkDeadBodyPlayerIds.Add(sourcePlayerId);
+                _staleImmediateNetworkDeadBodyPlayerIds.Add(sourcePlayerId);
             }
 
             foreach (var deadBody in _game._world.DeadBodies)
             {
-                _game._staleImmediateNetworkDeadBodyPlayerIds.Remove(deadBody.SourcePlayerId);
+                _staleImmediateNetworkDeadBodyPlayerIds.Remove(deadBody.SourcePlayerId);
                 _game._immediateNetworkDeadBodies.Remove(deadBody.SourcePlayerId);
             }
 
-            for (var index = _game._staleImmediateNetworkDeadBodyPlayerIds.Count - 1; index >= 0; index -= 1)
+            for (var index = _staleImmediateNetworkDeadBodyPlayerIds.Count - 1; index >= 0; index -= 1)
             {
-                var sourcePlayerId = _game._staleImmediateNetworkDeadBodyPlayerIds[index];
+                var sourcePlayerId = _staleImmediateNetworkDeadBodyPlayerIds[index];
                 var player = _game.FindPlayerById(sourcePlayerId);
                 if (player is not null && !player.IsAlive)
                 {
@@ -285,28 +288,28 @@ public sealed class GameplayDeadBodyRenderController
 
         public void ResetRetainedDeadBodies()
         {
-            _game._trackedDeadBodyVisuals.Clear();
+            _trackedDeadBodyVisuals.Clear();
             _game._retainedDeadBodies.Clear();
-            _game._staleTrackedDeadBodyIds.Clear();
+            _staleTrackedDeadBodyIds.Clear();
         }
 
         public void ResetImmediateNetworkDeadBodies()
         {
             _game._immediateNetworkDeadBodies.Clear();
-            _game._staleImmediateNetworkDeadBodyPlayerIds.Clear();
+            _staleImmediateNetworkDeadBodyPlayerIds.Clear();
         }
 
         public void AdvanceImmediateNetworkDeadBodies()
         {
-            _game._staleImmediateNetworkDeadBodyPlayerIds.Clear();
+            _staleImmediateNetworkDeadBodyPlayerIds.Clear();
             foreach (var entry in _game._immediateNetworkDeadBodies)
             {
-                _game._staleImmediateNetworkDeadBodyPlayerIds.Add(entry.Key);
+                _staleImmediateNetworkDeadBodyPlayerIds.Add(entry.Key);
             }
 
-            for (var index = 0; index < _game._staleImmediateNetworkDeadBodyPlayerIds.Count; index += 1)
+            for (var index = 0; index < _staleImmediateNetworkDeadBodyPlayerIds.Count; index += 1)
             {
-                var sourcePlayerId = _game._staleImmediateNetworkDeadBodyPlayerIds[index];
+                var sourcePlayerId = _staleImmediateNetworkDeadBodyPlayerIds[index];
                 if (!_game._immediateNetworkDeadBodies.TryGetValue(sourcePlayerId, out var deadBody))
                 {
                     continue;
@@ -322,7 +325,7 @@ public sealed class GameplayDeadBodyRenderController
                 _game._immediateNetworkDeadBodies[sourcePlayerId] = deadBody with { TicksRemaining = nextTicksRemaining };
             }
 
-            _game._staleImmediateNetworkDeadBodyPlayerIds.Clear();
+            _staleImmediateNetworkDeadBodyPlayerIds.Clear();
         }
 
         public void QueueImmediateNetworkDeathPresentation(SnapshotMessage resolvedSnapshot, SnapshotDamageEvent damageEvent)
@@ -384,7 +387,7 @@ public sealed class GameplayDeadBodyRenderController
                 RemainsSortKey: _game.AllocateRemainsSortKey(),
                 DiedToFire: deadBody.DiedToFire);
 
-            if (_game._dynamicRagdollEnabled)
+            if (_game.GameplayRuntimeSettings.DynamicRagdollEnabled)
             {
                 var syntheticId = -Math.Abs(deadBody.SourcePlayerId);
                 float knockbackX;

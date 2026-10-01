@@ -13,9 +13,9 @@ public partial class Game1
 {
     public bool _logicalFrameRendersDirectlyToBackBuffer;
 
-    public int ViewportWidth => GetViewportDimensions(_ingameResolution).X;
+    public int ViewportWidth => GetViewportDimensions(_menuManager.DisplaySettings.IngameResolution).X;
 
-    public int ViewportHeight => GetViewportDimensions(_ingameResolution).Y;
+    public int ViewportHeight => GetViewportDimensions(_menuManager.DisplaySettings.IngameResolution).Y;
 
     public void ApplyGraphicsSettings()
     {
@@ -24,7 +24,7 @@ public partial class Game1
 
     public void ApplyGraphicsSettings(bool persist)
     {
-        var previousDisplayMode = _displayMode;
+        var previousDisplayMode = _menuManager.DisplaySettings.DisplayMode;
         RememberWindowedPosition(previousDisplayMode);
 
         ApplyDisplayMode(_clientSettings.DisplayMode);
@@ -47,7 +47,7 @@ public partial class Game1
             return;
         }
 
-        var displayMode = OpenGarrisonPreferencesDocument.NormalizeDisplayMode(_displayMode);
+        var displayMode = OpenGarrisonPreferencesDocument.NormalizeDisplayMode(_menuManager.DisplaySettings.DisplayMode);
         var isFullscreen = displayMode == DisplayModeKind.Fullscreen;
         var isBorderless = IsBorderlessDisplayMode(displayMode);
         if (!isFullscreen)
@@ -64,7 +64,7 @@ public partial class Game1
         SetWindowBorderless(isBorderless);
         _graphics.IsFullScreen = isFullscreen;
         _graphics.SynchronizeWithVerticalRetrace = _clientSettings.VSync;
-        ApplyPreferredBackBufferSize(displayMode, _ingameResolution, _windowSize);
+        ApplyPreferredBackBufferSize(displayMode, _menuManager.DisplaySettings.IngameResolution, _menuManager.DisplaySettings.WindowSize);
         _graphics.ApplyChanges();
         SetWindowBorderless(isBorderless);
         if (displayMode == DisplayModeKind.Windowed)
@@ -91,7 +91,7 @@ public partial class Game1
 
     public void ApplyDisplayMode(DisplayModeKind displayMode)
     {
-        _displayMode = OperatingSystem.IsBrowser()
+        _menuManager.DisplaySettings.DisplayMode = OperatingSystem.IsBrowser()
             ? DisplayModeKind.Windowed
             : OpenGarrisonPreferencesDocument.NormalizeDisplayMode(displayMode);
     }
@@ -100,42 +100,42 @@ public partial class Game1
     {
         var previousWidth = ViewportWidth;
         var previousHeight = ViewportHeight;
-        _ingameResolution = NormalizeIngameResolution(ingameResolution);
+        _menuManager.DisplaySettings.IngameResolution = NormalizeIngameResolution(ingameResolution);
         if (previousWidth != ViewportWidth || previousHeight != ViewportHeight)
         {
             InvalidateCrtPresentationMapping();
         }
 
-        if (_gameRenderTarget is not null
-            && (_gameRenderTarget.Width != ViewportWidth || _gameRenderTarget.Height != ViewportHeight))
+        if (_renderTargetResources.GameRenderTarget is not null
+            && (_renderTargetResources.GameRenderTarget.Width != ViewportWidth || _renderTargetResources.GameRenderTarget.Height != ViewportHeight))
         {
-            _gameRenderTarget.Dispose();
-            _gameRenderTarget = null;
+            _renderTargetResources.GameRenderTarget.Dispose();
+            _renderTargetResources.GameRenderTarget = null;
         }
 
     }
 
     public void ApplyWindowSize(WindowSizeKind windowSize)
     {
-        _windowSize = OpenGarrisonPreferencesDocument.NormalizeWindowSize(windowSize);
+        _menuManager.DisplaySettings.WindowSize = OpenGarrisonPreferencesDocument.NormalizeWindowSize(windowSize);
     }
 
     public void ApplyDisplayScaleMode(DisplayScaleModeKind displayScaleMode)
     {
-        _displayScaleMode = OpenGarrisonPreferencesDocument.NormalizeDisplayScaleMode(displayScaleMode);
+        _menuManager.DisplaySettings.DisplayScaleMode = OpenGarrisonPreferencesDocument.NormalizeDisplayScaleMode(displayScaleMode);
     }
 
     private void EnsureGameRenderTarget()
     {
-        if (_gameRenderTarget is not null
-            && _gameRenderTarget.Width == ViewportWidth
-            && _gameRenderTarget.Height == ViewportHeight)
+        if (_renderTargetResources.GameRenderTarget is not null
+            && _renderTargetResources.GameRenderTarget.Width == ViewportWidth
+            && _renderTargetResources.GameRenderTarget.Height == ViewportHeight)
         {
             return;
         }
 
-        _gameRenderTarget?.Dispose();
-        _gameRenderTarget = new RenderTarget2D(
+        _renderTargetResources.GameRenderTarget?.Dispose();
+        _renderTargetResources.GameRenderTarget = new RenderTarget2D(
             GraphicsDevice,
             ViewportWidth,
             ViewportHeight,
@@ -177,7 +177,7 @@ public partial class Game1
         }
 
         WriteGameplayRenderTrace("frame beginlogical setrendertarget");
-        GraphicsDevice.SetRenderTarget(_gameRenderTarget);
+        GraphicsDevice.SetRenderTarget(_renderTargetResources.GameRenderTarget);
         WriteGameplayRenderTrace("frame beginlogical clear");
         GraphicsDevice.Clear(clearColor);
         WriteGameplayRenderTrace("frame beginlogical spritebatchbegin");
@@ -227,7 +227,7 @@ public partial class Game1
         WriteGameplayRenderTrace("frame endlogical clear-backbuffer");
         GraphicsDevice.Clear(Color.Black);
         var presentationDestination = GetPresentationDestinationRectangle();
-        if (ShouldUseCrtPresentation && TryPresentCrtFrame(_gameRenderTarget!, presentationDestination))
+        if (ShouldUseCrtPresentation && TryPresentCrtFrame(_renderTargetResources.GameRenderTarget!, presentationDestination))
         {
             _logicalFrameRendersDirectlyToBackBuffer = false;
             WriteGameplayRenderTrace("frame endlogical crt-presented");
@@ -237,7 +237,7 @@ public partial class Game1
         WriteGameplayRenderTrace("frame endlogical spritebatchbegin-2");
         _spriteBatch.Begin(samplerState: SamplerState.PointClamp, rasterizerState: RasterizerState.CullNone);
         WriteGameplayRenderTrace("frame endlogical draw-rendertarget");
-        _spriteBatch.Draw(_gameRenderTarget, presentationDestination, Color.White);
+        _spriteBatch.Draw(_renderTargetResources.GameRenderTarget, presentationDestination, Color.White);
         WriteGameplayRenderTrace("frame endlogical spritebatchend-2");
         _spriteBatch.End();
         _logicalFrameRendersDirectlyToBackBuffer = false;
@@ -250,7 +250,7 @@ public partial class Game1
         var actualHeight = GraphicsDevice.Viewport.Height;
         if (actualWidth <= 0 || actualHeight <= 0)
         {
-            var fallback = GetPreferredBackBufferDimensions(DisplayModeKind.Windowed, _ingameResolution, _windowSize);
+            var fallback = GetPreferredBackBufferDimensions(DisplayModeKind.Windowed, _menuManager.DisplaySettings.IngameResolution, _menuManager.DisplaySettings.WindowSize);
             return new Rectangle(0, 0, fallback.X, fallback.Y);
         }
 
@@ -292,7 +292,7 @@ public partial class Game1
 
         if (inputWidth <= 0 || inputHeight <= 0)
         {
-            var fallback = GetPreferredBackBufferDimensions(DisplayModeKind.Windowed, _ingameResolution, _windowSize);
+            var fallback = GetPreferredBackBufferDimensions(DisplayModeKind.Windowed, _menuManager.DisplaySettings.IngameResolution, _menuManager.DisplaySettings.WindowSize);
             return new Rectangle(0, 0, fallback.X, fallback.Y);
         }
 
@@ -358,7 +358,7 @@ public partial class Game1
 
     public MouseState GetConstrainedMouseState(MouseState rawMouse)
     {
-        if (!IsScreenFillingDisplayMode(_displayMode) || !IsActive)
+        if (!IsScreenFillingDisplayMode(_menuManager.DisplaySettings.DisplayMode) || !IsActive)
         {
             return rawMouse;
         }
@@ -540,7 +540,7 @@ public partial class Game1
             return;
         }
 
-        var preferredDimensions = GetWindowDimensions(DisplayModeKind.Windowed, _ingameResolution, _windowSize);
+        var preferredDimensions = GetWindowDimensions(DisplayModeKind.Windowed, _menuManager.DisplaySettings.IngameResolution, _menuManager.DisplaySettings.WindowSize);
         var targetPosition = _lastWindowedPosition ?? GetCenteredWindowPosition(preferredDimensions);
         TrySetWindowPosition(targetPosition);
         SetNativeWindowPosition(targetPosition);

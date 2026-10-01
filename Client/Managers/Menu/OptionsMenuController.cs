@@ -65,6 +65,8 @@ public sealed class OptionsMenuController
         private const string ControllerAimDistanceTier3Label = "Aim Distance 3";
 
         private readonly IMenuContext _context;
+        private int _optionsHoverIndex = -1;
+        private int _optionsScrollOffset;
         private enum AudioOptionsGroup { Game, Chat }
         private AudioOptionsGroup? _expandedAudioGroup = AudioOptionsGroup.Game;
         private bool _crtOptionsExpanded;
@@ -80,14 +82,14 @@ public sealed class OptionsMenuController
             _crtOptionsExpanded = false;
             _context._optionsMenuOpenedFromGameplay = fromGameplay;
             _context._optionsPageIndex = 0;
-            _context._optionsScrollOffset = 0;
+            _optionsScrollOffset = 0;
             _context._pluginOptionsMenuOpen = false;
             _context._pendingPluginOptionsKeyItem = null;
             _context._selectedPluginOptionsPluginId = null;
             _context._controlsMenuOpen = false;
             _context._pendingControlsBinding = null;
             _context._pendingControllerControlsBinding = null;
-            _context._optionsHoverIndex = -1;
+            _optionsHoverIndex = -1;
             _context._pluginOptionsHoverIndex = -1;
             _context._controlsHoverIndex = -1;
             _context._editingPlayerName = false;
@@ -103,8 +105,8 @@ public sealed class OptionsMenuController
             _context._pluginOptionsMenuOpenedFromGameplay = false;
             _context._pendingPluginOptionsKeyItem = null;
             _context._selectedPluginOptionsPluginId = null;
-            _context._optionsHoverIndex = -1;
-            _context._optionsScrollOffset = 0;
+            _optionsHoverIndex = -1;
+            _optionsScrollOffset = 0;
             _context._pluginOptionsHoverIndex = -1;
             _context._editingPlayerName = false;
             _context._playerNameEditBuffer = _context._world.LocalPlayer.DisplayName;
@@ -124,7 +126,7 @@ public sealed class OptionsMenuController
             _context._optionsMenuOpen = false;
             _context._pluginOptionsHoverIndex = -1;
             _context._pluginOptionsScrollOffset = 0;
-            _context._optionsHoverIndex = -1;
+            _optionsHoverIndex = -1;
             _context._editingPlayerName = false;
             _context._playerNameEditBuffer = _context._world.LocalPlayer.DisplayName;
         }
@@ -200,7 +202,7 @@ public sealed class OptionsMenuController
                     GetOptionsMenuPanelLayout(out _, out var valueListBounds, out _, out _, out var valueRowHeight);
                     var rowBounds = new Rectangle(
                         valueListBounds.X,
-                        valueListBounds.Y + ((0 - _context._optionsScrollOffset) * valueRowHeight),
+                        valueListBounds.Y + ((0 - _optionsScrollOffset) * valueRowHeight),
                         valueListBounds.Width,
                         valueRowHeight - 2);
 
@@ -251,7 +253,7 @@ public sealed class OptionsMenuController
             }
 
             var trackBounds = new Rectangle(panel.Right - 20, listBounds.Y, 8, listBounds.Height);
-            var optionsScrollOffset = _context._optionsScrollOffset;
+            var optionsScrollOffset = _optionsScrollOffset;
             if (_context.TryHandleScrollbarDrag(
                     mouse,
                     _context._previousMouse,
@@ -261,11 +263,11 @@ public sealed class OptionsMenuController
                     actions.Count,
                     visibleRowCount))
             {
-                _context._optionsScrollOffset = optionsScrollOffset;
+                _optionsScrollOffset = optionsScrollOffset;
                 return;
             }
 
-            _context._optionsScrollOffset = optionsScrollOffset;
+            _optionsScrollOffset = optionsScrollOffset;
 
             const float optionsRowValueHorizontalPadding = 14f;
             const float optionsRowValueTextScale = 1f;
@@ -273,8 +275,8 @@ public sealed class OptionsMenuController
             if (wheelDelta != 0 && listBounds.Contains(mouse.Position))
             {
                 var stepCount = Math.Max(1, Math.Abs(wheelDelta) / 120);
-                _context._optionsScrollOffset = Math.Clamp(
-                    _context._optionsScrollOffset + (wheelDelta > 0 ? -stepCount : stepCount),
+                _optionsScrollOffset = Math.Clamp(
+                    _optionsScrollOffset + (wheelDelta > 0 ? -stepCount : stepCount),
                     0,
                     Math.Max(0, actions.Count - visibleRowCount));
             }
@@ -286,8 +288,8 @@ public sealed class OptionsMenuController
                     if (tabBounds[tabIndex].Contains(mouse.Position))
                     {
                         _context._optionsPageIndex = tabIndex;
-                        _context._optionsScrollOffset = 0;
-                        _context._optionsHoverIndex = -1;
+                        _optionsScrollOffset = 0;
+                        _optionsHoverIndex = -1;
                         if (GetOptionsMenuTab(tabIndex) == OptionsMenuTab.Account)
                         {
                             _context.BeginAccountProfileRefresh(silent: true);
@@ -299,46 +301,46 @@ public sealed class OptionsMenuController
 
             if (_context.IsControllerMenuInputActive())
             {
-                if (_context._optionsHoverIndex < 0 && actions.Count > 0)
+                if (_optionsHoverIndex < 0 && actions.Count > 0)
                 {
-                    _context._optionsHoverIndex = 0;
+                    _optionsHoverIndex = 0;
                 }
             }
             else
             {
-                _context._optionsHoverIndex = -1;
+                _optionsHoverIndex = -1;
             }
 
             if (_context.ShouldUseMouseMenuHover(mouse) && backBounds.Contains(mouse.Position))
             {
-                _context._optionsHoverIndex = actions.Count;
+                _optionsHoverIndex = actions.Count;
             }
             else if (_context.ShouldUseMouseMenuHover(mouse) && listBounds.Contains(mouse.Position))
             {
                 var visibleIndex = (mouse.Y - listBounds.Y) / rowHeight;
-                var hoverIndex = _context._optionsScrollOffset + visibleIndex;
+                var hoverIndex = _optionsScrollOffset + visibleIndex;
                 if (visibleIndex >= 0 && hoverIndex >= 0 && hoverIndex < actions.Count)
                 {
-                    _context._optionsHoverIndex = hoverIndex;
+                    _optionsHoverIndex = hoverIndex;
                 }
             }
 
             var clickPressed = mouse.LeftButton == ButtonState.Pressed && _context._previousMouse.LeftButton != ButtonState.Pressed;
-            if (!clickPressed || _context._optionsHoverIndex < 0)
+            if (!clickPressed || _optionsHoverIndex < 0)
             {
                 return;
             }
 
-            if (_context._optionsHoverIndex == actions.Count)
+            if (_optionsHoverIndex == actions.Count)
             {
                 CloseOptionsMenu();
                 return;
             }
 
-            var selectedAction = actions[_context._optionsHoverIndex];
+            var selectedAction = actions[_optionsHoverIndex];
             if (IsOptionsStepperRow(selectedAction))
             {
-                var visibleIndex = _context._optionsHoverIndex - _context._optionsScrollOffset;
+                var visibleIndex = _optionsHoverIndex - _optionsScrollOffset;
                 var rowBounds = new Rectangle(listBounds.X, listBounds.Y + (visibleIndex * rowHeight), listBounds.Width, rowHeight);
                 var valueRightX = rowBounds.Right - optionsRowValueHorizontalPadding;
                 var displayValue = $"< {selectedAction.Value} >";
@@ -372,8 +374,8 @@ public sealed class OptionsMenuController
             {
                 if (verticalStep != 0)
                 {
-                    _context._optionsHoverIndex = MoveControllerMenuSelection(
-                        _context._optionsHoverIndex,
+                    _optionsHoverIndex = MoveControllerMenuSelection(
+                        _optionsHoverIndex,
                         actions.Count + 1,
                         verticalStep);
                     EnsureOptionsControllerSelectionVisible(actions.Count, visibleRowCount);
@@ -381,9 +383,9 @@ public sealed class OptionsMenuController
                 }
                 else if (horizontalStep != 0)
                 {
-                    if (_context._optionsHoverIndex >= 0 && _context._optionsHoverIndex < actions.Count)
+                    if (_optionsHoverIndex >= 0 && _optionsHoverIndex < actions.Count)
                     {
-                        var selectedAction = actions[_context._optionsHoverIndex];
+                        var selectedAction = actions[_optionsHoverIndex];
                         if (TryAdjustOptionsStepperValue(selectedAction, horizontalStep))
                         {
                             return true;
@@ -391,8 +393,8 @@ public sealed class OptionsMenuController
                     }
 
                     _context._optionsPageIndex = Math.Clamp(_context._optionsPageIndex + horizontalStep, 0, OptionsMenuTabLabels.Length - 1);
-                    _context._optionsScrollOffset = 0;
-                    _context._optionsHoverIndex = actions.Count > 0 ? 0 : -1;
+                    _optionsScrollOffset = 0;
+                    _optionsHoverIndex = actions.Count > 0 ? 0 : -1;
                     if (GetOptionsMenuTab(_context._optionsPageIndex) == OptionsMenuTab.Account)
                     {
                         _context.BeginAccountProfileRefresh(silent: true);
@@ -403,20 +405,20 @@ public sealed class OptionsMenuController
 
             if (_context.IsControllerMenuConfirmPressed())
             {
-                if (_context._optionsHoverIndex < 0 && actions.Count > 0)
+                if (_optionsHoverIndex < 0 && actions.Count > 0)
                 {
-                    _context._optionsHoverIndex = 0;
+                    _optionsHoverIndex = 0;
                 }
 
-                if (_context._optionsHoverIndex == actions.Count)
+                if (_optionsHoverIndex == actions.Count)
                 {
                     CloseOptionsMenu();
                     return true;
                 }
 
-                if (_context._optionsHoverIndex >= 0 && _context._optionsHoverIndex < actions.Count)
+                if (_optionsHoverIndex >= 0 && _optionsHoverIndex < actions.Count)
                 {
-                    actions[_context._optionsHoverIndex].Activate();
+                    actions[_optionsHoverIndex].Activate();
                     return true;
                 }
             }
@@ -442,18 +444,18 @@ public sealed class OptionsMenuController
 
         private void EnsureOptionsControllerSelectionVisible(int actionCount, int visibleRowCount)
         {
-            if (_context._optionsHoverIndex < 0 || _context._optionsHoverIndex >= actionCount)
+            if (_optionsHoverIndex < 0 || _optionsHoverIndex >= actionCount)
             {
                 return;
             }
 
-            if (_context._optionsHoverIndex < _context._optionsScrollOffset)
+            if (_optionsHoverIndex < _optionsScrollOffset)
             {
-                _context._optionsScrollOffset = _context._optionsHoverIndex;
+                _optionsScrollOffset = _optionsHoverIndex;
             }
-            else if (_context._optionsHoverIndex >= _context._optionsScrollOffset + visibleRowCount)
+            else if (_optionsHoverIndex >= _optionsScrollOffset + visibleRowCount)
             {
-                _context._optionsScrollOffset = _context._optionsHoverIndex - visibleRowCount + 1;
+                _optionsScrollOffset = _optionsHoverIndex - visibleRowCount + 1;
             }
         }
 
@@ -464,7 +466,7 @@ public sealed class OptionsMenuController
             _context._spriteBatch.Draw(_context._pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.Black * 0.86f);
 
             // Draw bottom bar and runners (in animated mode only) - behind everything else
-            if (_context._menuBackgroundMode != MenuBackgroundMode.Static)
+            if (_context.GameplayRuntimeSettings.MenuBackgroundMode != MenuBackgroundMode.Static)
             {
                 const int bottomBarHeight = 76;
                 var barY = viewportHeight - bottomBarHeight;
@@ -491,8 +493,8 @@ public sealed class OptionsMenuController
                 DrawOptionsMenuTabs(panel, compactLayout);
             if (actions.Count > visibleRowCount)
             {
-                var visibleStart = _context._optionsScrollOffset + 1;
-                var visibleEnd = Math.Min(actions.Count, _context._optionsScrollOffset + visibleRowCount);
+                var visibleStart = _optionsScrollOffset + 1;
+                var visibleEnd = Math.Min(actions.Count, _optionsScrollOffset + visibleRowCount);
                 _context.DrawBitmapFontText(
                     $"{visibleStart}-{visibleEnd}/{actions.Count}",
                     new Vector2(listBounds.Right - (compactLayout ? 78f : 96f), panel.Y + 14f),
@@ -500,14 +502,14 @@ public sealed class OptionsMenuController
                     1f);
             }
 
-            var endIndex = Math.Min(actions.Count, _context._optionsScrollOffset + visibleRowCount);
+            var endIndex = Math.Min(actions.Count, _optionsScrollOffset + visibleRowCount);
             var rowSpacing = compactLayout ? 4 : 6;
             var rowHeightWithoutSpacing = rowHeight - rowSpacing;
-            for (var index = _context._optionsScrollOffset; index < endIndex; index += 1)
+            for (var index = _optionsScrollOffset; index < endIndex; index += 1)
             {
-                var visibleRow = index - _context._optionsScrollOffset;
+                var visibleRow = index - _optionsScrollOffset;
                 var rowBounds = new Rectangle(listBounds.X, listBounds.Y + (visibleRow * rowHeight), listBounds.Width, rowHeightWithoutSpacing);
-                var isHovered = index == _context._optionsHoverIndex || rowBounds.Contains(mouse.Position);
+                var isHovered = index == _optionsHoverIndex || rowBounds.Contains(mouse.Position);
                 var row = actions[index];
                 _context._spriteBatch.Draw(_context._pixel, rowBounds, row.IsGroupHeader
                     ? isHovered ? new Color(101, 83, 62) : new Color(80, 66, 51)
@@ -567,12 +569,12 @@ public sealed class OptionsMenuController
                 var maxOffset = Math.Max(1, actions.Count - visibleRowCount);
                 var thumbHeight = Math.Max(24, (int)MathF.Round(trackBounds.Height * (visibleRowCount / (float)actions.Count)));
                 var thumbTravel = Math.Max(0, trackBounds.Height - thumbHeight);
-                var thumbY = trackBounds.Y + (int)MathF.Round((_context._optionsScrollOffset / (float)maxOffset) * thumbTravel);
+                var thumbY = trackBounds.Y + (int)MathF.Round((_optionsScrollOffset / (float)maxOffset) * thumbTravel);
                 var thumbBounds = new Rectangle(trackBounds.X, thumbY, trackBounds.Width, thumbHeight);
                 _context._spriteBatch.Draw(_context._pixel, thumbBounds, new Color(105, 105, 105));
             }
 
-            var backHovered = _context._optionsHoverIndex == actions.Count || backBounds.Contains(mouse.Position);
+            var backHovered = _optionsHoverIndex == actions.Count || backBounds.Contains(mouse.Position);
             _context.DrawMenuButtonScaled(backBounds, "Back", backHovered, 1f);
             _context.DrawAccountDialog();
         }
@@ -590,30 +592,30 @@ public sealed class OptionsMenuController
             var allActions = new List<OptionsMenuAction>
             {
                 // Graphics: display, rendering, and client-side visual presentation.
-                new("Display Mode", OperatingSystem.IsBrowser() ? "Browser" : Game1.GetDisplayModeLabel(_context._displayMode), _context.CycleDisplayModeSetting, OptionsMenuTab.Graphics),
-                new("Aspect Ratio", Game1.GetIngameResolutionLabel(_context._ingameResolution), _context.CycleIngameResolutionSetting, OptionsMenuTab.Graphics),
-                new("Camera panning", _context._cameraPanningEnabled ? "Enabled" : "Disabled", _context.ToggleCameraPanningSetting, OptionsMenuTab.Graphics),
-                new("Window Size", OperatingSystem.IsBrowser() ? "Browser" : Game1.GetWindowSizeLabel(_context._windowSize), _context.CycleWindowSizeSetting, OptionsMenuTab.Graphics),
-                new("Cursor Size", Game1.GetCursorSizeLabel(_context._cursorSizePercent), _context.CycleCursorSizeSetting, OptionsMenuTab.Graphics, _context.AdjustCursorSizeSetting),
-                new("Menu Background", GetMenuBackgroundModeLabel(_context._menuBackgroundMode), _context.CycleMenuBackgroundModeSetting, OptionsMenuTab.Graphics),
-                new("Particles", GetParticleModeLabel(_context._particleMode), _context.CycleParticleModeSetting, OptionsMenuTab.Graphics),
-                new("Flame Style", GetFlameRenderModeLabel(_context._flameRenderMode), _context.CycleFlameRenderModeSetting, OptionsMenuTab.Graphics),
-                new("Blood Style", GetBloodRenderModeLabel(_context._bloodRenderMode), _context.CycleBloodRenderModeSetting, OptionsMenuTab.Graphics),
-                new("Dynamic Ragdoll", _context._dynamicRagdollEnabled ? "Enabled" : "Disabled", _context.ToggleDynamicRagdollSetting, OptionsMenuTab.Graphics),
-                new("Burn Charred Corpses", _context._burnCharredCorpsesEnabled ? "Enabled" : "Disabled", _context.ToggleBurnCharredCorpsesSetting, OptionsMenuTab.Graphics),
-                new("Gibs", GetGibLevelLabel(_context._gibLevel), _context.CycleGibLevelSetting, OptionsMenuTab.Graphics),
-                new("Blood Amount", GetBloodAmountLabel(_context._bloodAmountLevel), _context.CycleBloodAmountSetting, OptionsMenuTab.Graphics),
-                new("Blood Persistence", $"{_context._bloodPersistenceSeconds}s", () => _context.AdjustBloodPersistenceSeconds(1), OptionsMenuTab.Graphics, _context.AdjustBloodPersistenceSeconds),
-                new("Corpse Fade", GetCorpseFadeModeLabel(_context._corpseFadeMode), _context.CycleCorpseFadeModeSetting, OptionsMenuTab.Graphics),
-                new("Stuck Arrows", _context._stuckArrowsEnabled ? "Enabled" : "Disabled", _context.ToggleStuckArrowsSetting, OptionsMenuTab.Graphics),
-                new("Weapon Bob", GetWeaponBobModeLabel(_context._weaponBobMode), _context.CycleWeaponBobSetting, OptionsMenuTab.Graphics),
-                new("Corpses", GetCorpseDurationLabel(_context._corpseDurationMode), _context.CycleCorpseDurationSetting, OptionsMenuTab.Graphics),
-                new("Sprite Shadow", _context._spriteDropShadowEnabled ? "Enabled" : "Disabled", _context.ToggleSpriteDropShadowSetting, OptionsMenuTab.Graphics),
-                new("Weapon Rotation", _context._pixelPerfectWeaponRotation ? "Pixel-Perfect" : "High-Res", _context.ToggleWeaponRotationStyleSetting, OptionsMenuTab.Graphics),
-                new("Weapon Rotation Source", _context._useLocalWeaponRotation ? "Local (snappier)" : "Remote (accurate)", _context.ToggleWeaponRotationSourceSetting, OptionsMenuTab.Graphics),
-                new("Uber Outlines", _context._uberOutlineEnabled ? "Enabled" : "Disabled", _context.ToggleUberOutlinesSetting, OptionsMenuTab.Graphics),
-                new("Projectile Team Tint", _context._projectileTeamTintEnabled ? "Enabled" : "Disabled", _context.ToggleProjectileTeamTintSetting, OptionsMenuTab.Graphics),
-                new("Frame Limit", GetFrameRateLimitLabel(_context._frameRateLimit), _context.CycleFrameRateLimitSetting, OptionsMenuTab.Graphics),
+                new("Display Mode", OperatingSystem.IsBrowser() ? "Browser" : Game1.GetDisplayModeLabel(_context.DisplayRuntimeSettings.DisplayMode), _context.CycleDisplayModeSetting, OptionsMenuTab.Graphics),
+                new("Aspect Ratio", Game1.GetIngameResolutionLabel(_context.DisplayRuntimeSettings.IngameResolution), _context.CycleIngameResolutionSetting, OptionsMenuTab.Graphics),
+                new("Camera panning", _context.GameplayRuntimeSettings.CameraPanningEnabled ? "Enabled" : "Disabled", _context.ToggleCameraPanningSetting, OptionsMenuTab.Graphics),
+                new("Window Size", OperatingSystem.IsBrowser() ? "Browser" : Game1.GetWindowSizeLabel(_context.DisplayRuntimeSettings.WindowSize), _context.CycleWindowSizeSetting, OptionsMenuTab.Graphics),
+                new("Cursor Size", Game1.GetCursorSizeLabel(_context.HudRuntimeSettings.CursorSizePercent), _context.CycleCursorSizeSetting, OptionsMenuTab.Graphics, _context.AdjustCursorSizeSetting),
+                new("Menu Background", GetMenuBackgroundModeLabel(_context.GameplayRuntimeSettings.MenuBackgroundMode), _context.CycleMenuBackgroundModeSetting, OptionsMenuTab.Graphics),
+                new("Particles", GetParticleModeLabel(_context.GameplayRuntimeSettings.ParticleMode), _context.CycleParticleModeSetting, OptionsMenuTab.Graphics),
+                new("Flame Style", GetFlameRenderModeLabel(_context.GameplayRuntimeSettings.FlameRenderMode), _context.CycleFlameRenderModeSetting, OptionsMenuTab.Graphics),
+                new("Blood Style", GetBloodRenderModeLabel(_context.GameplayRuntimeSettings.BloodRenderMode), _context.CycleBloodRenderModeSetting, OptionsMenuTab.Graphics),
+                new("Dynamic Ragdoll", _context.GameplayRuntimeSettings.DynamicRagdollEnabled ? "Enabled" : "Disabled", _context.ToggleDynamicRagdollSetting, OptionsMenuTab.Graphics),
+                new("Burn Charred Corpses", _context.GameplayRuntimeSettings.BurnCharredCorpsesEnabled ? "Enabled" : "Disabled", _context.ToggleBurnCharredCorpsesSetting, OptionsMenuTab.Graphics),
+                new("Gibs", GetGibLevelLabel(_context.GameplayRuntimeSettings.GibLevel), _context.CycleGibLevelSetting, OptionsMenuTab.Graphics),
+                new("Blood Amount", GetBloodAmountLabel(_context.GameplayRuntimeSettings.BloodAmountLevel), _context.CycleBloodAmountSetting, OptionsMenuTab.Graphics),
+                new("Blood Persistence", $"{_context.GameplayRuntimeSettings.BloodPersistenceSeconds}s", () => _context.AdjustBloodPersistenceSeconds(1), OptionsMenuTab.Graphics, _context.AdjustBloodPersistenceSeconds),
+                new("Corpse Fade", GetCorpseFadeModeLabel(_context.GameplayRuntimeSettings.CorpseFadeMode), _context.CycleCorpseFadeModeSetting, OptionsMenuTab.Graphics),
+                new("Stuck Arrows", _context.GameplayRuntimeSettings.StuckArrowsEnabled ? "Enabled" : "Disabled", _context.ToggleStuckArrowsSetting, OptionsMenuTab.Graphics),
+                new("Weapon Bob", GetWeaponBobModeLabel(_context.GameplayRuntimeSettings.WeaponBobMode), _context.CycleWeaponBobSetting, OptionsMenuTab.Graphics),
+                new("Corpses", GetCorpseDurationLabel(_context.GameplayRuntimeSettings.CorpseDurationMode), _context.CycleCorpseDurationSetting, OptionsMenuTab.Graphics),
+                new("Sprite Shadow", _context.GameplayRuntimeSettings.SpriteDropShadowEnabled ? "Enabled" : "Disabled", _context.ToggleSpriteDropShadowSetting, OptionsMenuTab.Graphics),
+                new("Weapon Rotation", _context.GameplayRuntimeSettings.PixelPerfectWeaponRotation ? "Pixel-Perfect" : "High-Res", _context.ToggleWeaponRotationStyleSetting, OptionsMenuTab.Graphics),
+                new("Weapon Rotation Source", _context.GameplayRuntimeSettings.UseLocalWeaponRotation ? "Local (snappier)" : "Remote (accurate)", _context.ToggleWeaponRotationSourceSetting, OptionsMenuTab.Graphics),
+                new("Uber Outlines", _context.GameplayRuntimeSettings.ShowUberOutlinesEnabled ? "Enabled" : "Disabled", _context.ToggleUberOutlinesSetting, OptionsMenuTab.Graphics),
+                new("Projectile Team Tint", _context.GameplayRuntimeSettings.ProjectileTeamTintEnabled ? "Enabled" : "Disabled", _context.ToggleProjectileTeamTintSetting, OptionsMenuTab.Graphics),
+                new("Frame Limit", GetFrameRateLimitLabel(_context.DisplayRuntimeSettings.FrameRateLimit), _context.CycleFrameRateLimitSetting, OptionsMenuTab.Graphics),
                 new("V Sync", _context._graphics.SynchronizeWithVerticalRetrace ? "Enabled" : "Disabled", _context.ToggleVSyncSetting, OptionsMenuTab.Graphics),
                 new("Reset Window Size", string.Empty, _context.ResetWindowSize, OptionsMenuTab.Graphics),
 
@@ -633,29 +635,29 @@ public sealed class OptionsMenuController
                 new(ControllerAimDistanceTier3Label, Game1.GetControllerPixelsLabel(OpenGarrisonPreferencesDocument.NormalizeControllerAimDistance(_context._clientSettings.ControllerAimDistanceTier3, OpenGarrisonPreferencesDocument.DefaultControllerAimDistanceTier3)), _context.CycleControllerAimDistanceTier3Setting, OptionsMenuTab.Controls, step => _context.AdjustControllerAimDistanceTier3Setting(step * 16f)),
 
                 // HUD: in-match overlays, player presentation, and feedback effects.
-                new("Healer Radar", _context._healerRadarEnabled ? "Enabled" : "Disabled", _context.ToggleHealerRadarSetting, OptionsMenuTab.Hud),
-                new("Show Healer", _context._showHealerEnabled ? "Enabled" : "Disabled", _context.ToggleShowHealerSetting, OptionsMenuTab.Hud),
-                new("Show Healing", _context._showHealingEnabled ? "Enabled" : "Disabled", _context.ToggleShowHealingSetting, OptionsMenuTab.Hud),
-                new("Health Bar", _context._showHealthBarEnabled ? "Enabled" : "Disabled", _context.ToggleShowHealthBarSetting, OptionsMenuTab.Hud),
-                new("Shield Bar", _context._showShieldBarEnabled ? "Enabled" : "Disabled", _context.ToggleShowShieldBarSetting, OptionsMenuTab.Hud),
-                new("Weapon HUD", Game1.GetHudWeaponDisplayModeLabel(_context._hudShowOnlyActiveWeapon), _context.ToggleHudWeaponDisplayModeSetting, OptionsMenuTab.Hud),
+                new("Healer Radar", _context.HudRuntimeSettings.HealerRadarEnabled ? "Enabled" : "Disabled", _context.ToggleHealerRadarSetting, OptionsMenuTab.Hud),
+                new("Show Healer", _context.HudRuntimeSettings.ShowHealerEnabled ? "Enabled" : "Disabled", _context.ToggleShowHealerSetting, OptionsMenuTab.Hud),
+                new("Show Healing", _context.HudRuntimeSettings.ShowHealingEnabled ? "Enabled" : "Disabled", _context.ToggleShowHealingSetting, OptionsMenuTab.Hud),
+                new("Health Bar", _context.HudRuntimeSettings.ShowHealthBarEnabled ? "Enabled" : "Disabled", _context.ToggleShowHealthBarSetting, OptionsMenuTab.Hud),
+                new("Shield Bar", _context.HudRuntimeSettings.ShowShieldBarEnabled ? "Enabled" : "Disabled", _context.ToggleShowShieldBarSetting, OptionsMenuTab.Hud),
+                new("Weapon HUD", Game1.GetHudWeaponDisplayModeLabel(_context.HudRuntimeSettings.HudShowOnlyActiveWeapon), _context.ToggleHudWeaponDisplayModeSetting, OptionsMenuTab.Hud),
                 new("Build Menu Style", Game1.GetBuildMenuStyleLabel(_context._clientSettings.BuildMenuStyle), _context.CycleBuildMenuStyleSetting, OptionsMenuTab.Hud),
-                new("Overhead Chat", _context._overheadChatEnabled ? "Enabled" : "Disabled", _context.ToggleOverheadChatSetting, OptionsMenuTab.Hud),
-                new("Low HP Color", Game1.GetLowHealthColorModeLabel(_context._lowHealthColorMode), _context.CycleLowHealthColorModeSetting, OptionsMenuTab.Hud),
-                new("Playercard Size", Game1.GetPlayerCardSizeLabel(_context._playerCardSizeMode), _context.CyclePlayerCardSizeSetting, OptionsMenuTab.Hud),
-                new("Portrait Rumble", _context._portraitRumbleEnabled ? "Enabled" : "Disabled", _context.TogglePortraitRumbleSetting, OptionsMenuTab.Hud),
-                new("MVP Art", _context._postGameMvpArtEnabled ? "Enabled" : "Disabled", _context.TogglePostGameMvpArtSetting, OptionsMenuTab.Hud),
-                new("Damage Vignette", _context._damageVignetteEnabled ? "Enabled" : "Disabled", _context.ToggleDamageVignetteSetting, OptionsMenuTab.Hud),
-                new("Vignette Intensity", Game1.GetDamageVignetteIntensityLabel(_context._damageVignetteIntensityPercent), _context.CycleDamageVignetteIntensitySetting, OptionsMenuTab.Hud),
-                new("Player Names", _context._showPlayerNamesEnabled ? "Enabled" : "Disabled", _context.ToggleShowPlayerNamesSetting, OptionsMenuTab.Hud),
-                new("Persistent Name", _context._showPersistentSelfNameEnabled ? "Enabled" : "Disabled", _context.TogglePersistentSelfNameSetting, OptionsMenuTab.Hud),
+                new("Overhead Chat", _context.HudRuntimeSettings.OverheadChatEnabled ? "Enabled" : "Disabled", _context.ToggleOverheadChatSetting, OptionsMenuTab.Hud),
+                new("Low HP Color", Game1.GetLowHealthColorModeLabel(_context.HudRuntimeSettings.LowHealthColorMode), _context.CycleLowHealthColorModeSetting, OptionsMenuTab.Hud),
+                new("Playercard Size", Game1.GetPlayerCardSizeLabel(_context.HudRuntimeSettings.PlayerCardSizeMode), _context.CyclePlayerCardSizeSetting, OptionsMenuTab.Hud),
+                new("Portrait Rumble", _context.HudRuntimeSettings.PortraitRumbleEnabled ? "Enabled" : "Disabled", _context.TogglePortraitRumbleSetting, OptionsMenuTab.Hud),
+                new("MVP Art", _context.HudRuntimeSettings.PostGameMvpArtEnabled ? "Enabled" : "Disabled", _context.TogglePostGameMvpArtSetting, OptionsMenuTab.Hud),
+                new("Damage Vignette", _context.HudRuntimeSettings.DamageVignetteEnabled ? "Enabled" : "Disabled", _context.ToggleDamageVignetteSetting, OptionsMenuTab.Hud),
+                new("Vignette Intensity", Game1.GetDamageVignetteIntensityLabel(_context.HudRuntimeSettings.DamageVignetteIntensityPercent), _context.CycleDamageVignetteIntensitySetting, OptionsMenuTab.Hud),
+                new("Player Names", _context.HudRuntimeSettings.ShowPlayerNamesEnabled ? "Enabled" : "Disabled", _context.ToggleShowPlayerNamesSetting, OptionsMenuTab.Hud),
+                new("Persistent Name", _context.HudRuntimeSettings.ShowPersistentSelfNameEnabled ? "Enabled" : "Disabled", _context.TogglePersistentSelfNameSetting, OptionsMenuTab.Hud),
                 new("Edit HUD", _context._mainMenuOpen ? "In context only" : string.Empty, OpenHudEditorFromOptions, OptionsMenuTab.Hud),
 
                 // Gameplay: rules and simulation behavior that affect the match itself.
                 new("Player Name", _context._editingPlayerName ? GetTextWithCursor(_context._playerNameEditBuffer, _context._playerNameEditCursorIndex) : _context._world.LocalPlayer.DisplayName, _context.BeginEditingPlayerName, OptionsMenuTab.Gameplay),
-                new("Kill Cam", _context._killCamEnabled ? "Enabled" : "Disabled", _context.ToggleKillCamSetting, OptionsMenuTab.Gameplay),
-                new("Network Smoothing", _context._positionSmoothingEnabled ? "Enabled" : "Disabled", _context.TogglePositionSmoothingSetting, OptionsMenuTab.Gameplay),
-                new("Enable Prediction", _context._enablePrediction ? "Enabled" : "Disabled", _context.TogglePredictionSetting, OptionsMenuTab.Gameplay),
+                new("Kill Cam", _context.GameplayRuntimeSettings.KillCamEnabled ? "Enabled" : "Disabled", _context.ToggleKillCamSetting, OptionsMenuTab.Gameplay),
+                new("Network Smoothing", _context.GameplayRuntimeSettings.PositionSmoothingEnabled ? "Enabled" : "Disabled", _context.TogglePositionSmoothingSetting, OptionsMenuTab.Gameplay),
+                new("Enable Prediction", _context.GameplayRuntimeSettings.EnablePrediction ? "Enabled" : "Disabled", _context.TogglePredictionSetting, OptionsMenuTab.Gameplay),
 
                 // Account: portable identity, recovery, points, and future cosmetic currency.
                 new("Friend Code", _context._clientIdentity.FriendCode, NoOp, OptionsMenuTab.Account),
@@ -758,14 +760,14 @@ public sealed class OptionsMenuController
             {
                 actions.AddRange(new OptionsMenuAction[]
                 {
-                    new(MasterVolumeLabel, $"{_context._masterVolumePercent}%", () => _context.AdjustMasterVolume(5), OptionsMenuTab.Audio, step => _context.AdjustMasterVolume(step * 5)),
-                    new("Mute All Audio (F12)", _context._audioMuted ? "Muted" : "Unmuted", _context.ToggleAudioMuteSetting, OptionsMenuTab.Audio),
-                    new(SoundEffectsVolumeLabel, $"{_context._soundEffectsVolumePercent}%", () => _context.AdjustSoundEffectsVolume(5), OptionsMenuTab.Audio, step => _context.AdjustSoundEffectsVolume(step * 5)),
-                    new("Music", GetMusicModeLabel(_context._musicMode), _context.CycleMusicModeSetting, OptionsMenuTab.Audio),
-                    new(MenuMusicVolumeLabel, $"{_context._menuMusicVolumePercent}%", () => _context.AdjustMenuMusicVolume(5), OptionsMenuTab.Audio, step => _context.AdjustMenuMusicVolume(step * 5)),
-                    new(InGameMusicVolumeLabel, $"{_context._ingameMusicVolumePercent}%", () => _context.AdjustIngameMusicVolume(5), OptionsMenuTab.Audio, step => _context.AdjustIngameMusicVolume(step * 5)),
-                    new("Dynamic Music", _context._dynamicMusicEnabled ? "Enabled" : "Disabled", _context.ToggleDynamicMusicSetting, OptionsMenuTab.Audio),
-                    new(CombatMusicVolumeLabel, $"{_context._combatMusicVolumePercent}%", () => _context.AdjustCombatMusicVolume(5), OptionsMenuTab.Audio, step => _context.AdjustCombatMusicVolume(step * 5)),
+                    new(MasterVolumeLabel, $"{_context.AudioRuntimeSettings.MasterVolumePercent}%", () => _context.AdjustMasterVolume(5), OptionsMenuTab.Audio, step => _context.AdjustMasterVolume(step * 5)),
+                    new("Mute All Audio (F12)", _context.AudioRuntimeSettings.AudioMuted ? "Muted" : "Unmuted", _context.ToggleAudioMuteSetting, OptionsMenuTab.Audio),
+                    new(SoundEffectsVolumeLabel, $"{_context.AudioRuntimeSettings.SoundEffectsVolumePercent}%", () => _context.AdjustSoundEffectsVolume(5), OptionsMenuTab.Audio, step => _context.AdjustSoundEffectsVolume(step * 5)),
+                    new("Music", GetMusicModeLabel(_context.AudioRuntimeSettings.MusicMode), _context.CycleMusicModeSetting, OptionsMenuTab.Audio),
+                    new(MenuMusicVolumeLabel, $"{_context.AudioRuntimeSettings.MenuMusicVolumePercent}%", () => _context.AdjustMenuMusicVolume(5), OptionsMenuTab.Audio, step => _context.AdjustMenuMusicVolume(step * 5)),
+                    new(InGameMusicVolumeLabel, $"{_context.AudioRuntimeSettings.IngameMusicVolumePercent}%", () => _context.AdjustIngameMusicVolume(5), OptionsMenuTab.Audio, step => _context.AdjustIngameMusicVolume(step * 5)),
+                    new("Dynamic Music", _context.AudioRuntimeSettings.DynamicMusicEnabled ? "Enabled" : "Disabled", _context.ToggleDynamicMusicSetting, OptionsMenuTab.Audio),
+                    new(CombatMusicVolumeLabel, $"{_context.AudioRuntimeSettings.CombatMusicVolumePercent}%", () => _context.AdjustCombatMusicVolume(5), OptionsMenuTab.Audio, step => _context.AdjustCombatMusicVolume(step * 5)),
                     new("Jukebox Volume", $"{_context._voiceSettings.JukeboxVolumePercent}%", () => _context.AdjustVoiceSetting("jukebox", 5), OptionsMenuTab.Audio, step => _context.AdjustVoiceSetting("jukebox", step * 5)),
                     new("Jukebox", _context._voiceSettings.JukeboxMuted ? "Muted" : "Unmuted", _context.ToggleJukeboxMute, OptionsMenuTab.Audio),
                     new("Music Library", OperatingSystem.IsBrowser() ? "Import / Remove" : "Open Folder", _context.ManageJukeboxLibrary, OptionsMenuTab.Audio),
@@ -794,16 +796,16 @@ public sealed class OptionsMenuController
         private void ToggleAudioOptionsGroup(AudioOptionsGroup group)
         {
             _expandedAudioGroup = _expandedAudioGroup == group ? null : group;
-            _context._optionsScrollOffset = 0;
-            _context._optionsHoverIndex = group == AudioOptionsGroup.Game ? 0 : 1;
+            _optionsScrollOffset = 0;
+            _optionsHoverIndex = group == AudioOptionsGroup.Game ? 0 : 1;
         }
 
         private void ToggleCrtOptionsGroup()
         {
             _crtOptionsExpanded = !_crtOptionsExpanded;
-            _context._optionsScrollOffset = 0;
+            _optionsScrollOffset = 0;
             var actions = BuildOptionsMenuActions();
-            _context._optionsHoverIndex = Math.Max(0, actions.FindIndex(action => action.Label == "CRT"));
+            _optionsHoverIndex = Math.Max(0, actions.FindIndex(action => action.Label == "CRT"));
         }
 
         private static OptionsMenuTab GetOptionsMenuTab(int pageIndex)
@@ -953,8 +955,8 @@ public sealed class OptionsMenuController
             _context._menuStatusMessage = string.Empty;
             _context._optionsMenuOpen = false;
             _context._optionsMenuOpenedFromGameplay = false;
-            _context._optionsHoverIndex = -1;
-            _context._optionsScrollOffset = 0;
+            _optionsHoverIndex = -1;
+            _optionsScrollOffset = 0;
         }
 
         private static void NoOp()
@@ -1026,8 +1028,8 @@ public sealed class OptionsMenuController
 
         private void ClampOptionsScrollOffset(int rowCount, int visibleRowCount)
         {
-            _context._optionsScrollOffset = Math.Clamp(
-                _context._optionsScrollOffset,
+            _optionsScrollOffset = Math.Clamp(
+                _optionsScrollOffset,
                 0,
                 Math.Max(0, rowCount - visibleRowCount));
         }

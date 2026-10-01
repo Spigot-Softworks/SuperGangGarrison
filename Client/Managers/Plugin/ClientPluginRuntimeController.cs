@@ -13,6 +13,9 @@ namespace OpenGarrison.Client;
 public sealed class ClientPluginRuntimeController
     {
         private readonly IPluginContext _context;
+        private OpenGarrison.Client.Game1.ClientPluginStateView? _clientPluginStateView;
+
+        internal Game1.ClientPluginStateView? StateView => _clientPluginStateView;
 
         public ClientPluginRuntimeController(IPluginContext context)
         {
@@ -31,7 +34,7 @@ public sealed class ClientPluginRuntimeController
                     _context.AddConsoleLine(packagedPluginError);
                 }
 
-                _context._clientPluginStateView = _context.CreateClientPluginStateView();
+                _clientPluginStateView = _context.CreateClientPluginStateView();
                 _context._clientPluginHost = _context.CreateClientPluginHost(pluginsDirectory, pluginConfigRoot, pluginStatePath);
                 _context._clientPluginHost.LoadPlugins();
                 _context.ResetClientPluginGameplayEventState();
@@ -39,7 +42,7 @@ public sealed class ClientPluginRuntimeController
                 return;
             }
 
-            _context._clientPluginStateView = _context.CreateClientPluginStateView();
+            _clientPluginStateView = _context.CreateClientPluginStateView();
             _context._clientPluginHost = _context.CreateClientPluginHost(pluginsDirectory, pluginConfigRoot, pluginStatePath);
             _context._clientPluginHost.LoadPlugins();
             _context.ResetClientPluginGameplayEventState();
@@ -62,7 +65,7 @@ public sealed class ClientPluginRuntimeController
             _context._clientPluginHost.NotifyClientStopped();
             _context._clientPluginHost.ShutdownPlugins();
             _context._clientPluginHost = null;
-            _context._clientPluginStateView = null;
+            _clientPluginStateView = null;
         }
 
         public void NotifyClientPluginsFrame(GameTime gameTime, int clientTicks)

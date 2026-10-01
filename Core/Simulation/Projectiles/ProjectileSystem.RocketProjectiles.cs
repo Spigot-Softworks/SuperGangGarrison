@@ -181,14 +181,14 @@ public sealed partial class ProjectileSystem
                 {
                     rocket.TrackExperimentalStingerTarget(
                         rangeAnchorPlayer.AimDirectionDegrees * (MathF.PI / 180f),
-                        ProjectileSystem.GetExperimentalSoldierStingerTurnRateRadians());
+                        projectiles.GetExperimentalSoldierStingerTurnRateRadians());
                 }
                 else if (rocket.EnableExperimentalCaveatTracking
                     && projectiles.TryResolveExperimentalEngineerRocketTrackingDirection(rocket, rangeAnchorPlayer, out var engineerTrackingDirection))
                 {
                     rocket.TrackExperimentalStingerTarget(
                         engineerTrackingDirection,
-                        ProjectileSystem.GetExperimentalEngineerCaveatTurnRateRadians());
+                        projectiles.GetExperimentalEngineerCaveatTurnRateRadians());
                 }
             }
 

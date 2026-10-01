@@ -124,7 +124,7 @@ public sealed partial class MovementSystem
             return false;
         }
 
-        foreach (var arrow in _dependencies.EnumerateArrowProjectiles())
+        foreach (var arrow in _host.EnumerateArrowProjectiles())
         {
             if (!arrow.TryGetOneWayPlatformBounds(out var left, out var top, out var right))
             {
@@ -152,7 +152,7 @@ public sealed partial class MovementSystem
             return;
         }
 
-        foreach (var arrow in _dependencies.EnumerateArrowProjectiles())
+        foreach (var arrow in _host.EnumerateArrowProjectiles())
         {
             if (!arrow.TryGetOneWayPlatformBounds(out var left, out var top, out var right))
             {

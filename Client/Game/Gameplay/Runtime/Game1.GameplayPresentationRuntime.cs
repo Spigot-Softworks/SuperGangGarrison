@@ -86,7 +86,7 @@ public partial class Game1
         UpdateGameplayMessages(gameTime, keyboard, mouse);
         UpdateFirstPlayHints(gameTime);
         UpdatePendingMapTeamSelection();
-        var teamSelectionOwnedInput = _teamSelectOpen;
+        var teamSelectionOwnedInput = _teamClassSelectionState.TeamSelectOpen;
         UpdateTeamSelect(keyboard, mouse);
         UpdateClassSelect(keyboard, mouse, acceptSelectionInput: !teamSelectionOwnedInput);
         RecordBrowserPresentationDuration(browserPresentationStartTimestamp);

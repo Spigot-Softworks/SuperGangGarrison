@@ -7,26 +7,24 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private bool _pendingMapTeamSelection;
-
     private void UpdatePendingMapTeamSelection()
     {
-        if (!_pendingMapTeamSelection) return;
+        if (!_teamClassSelectionState.PendingMapTeamSelection) return;
         if (!_networkClient.IsConnected || _networkClient.IsSpectator || !_world.LocalPlayerAwaitingJoin)
         {
-            _pendingMapTeamSelection = false;
+            _teamClassSelectionState.PendingMapTeamSelection = false;
             return;
         }
         if (_world.MatchState.IsEnded || !ShouldOpenDeferredMapTeamSelection(
-                _networkWorldWarmupActive,
-                _networkWorldWarmupFullSnapshotApplied,
-                _networkWorldWarmupAppliedSnapshotsAfterFull,
+                _gameplayManager.NetworkPresentation.NetworkWorldWarmupActive,
+                _gameplayManager.NetworkPresentation.NetworkWorldWarmupFullSnapshotApplied,
+                _gameplayManager.NetworkPresentation.NetworkWorldWarmupAppliedSnapshotsAfterFull,
                 IsNetworkInterpolationWarmupActive()))
         {
             return;
         }
 
-        _pendingMapTeamSelection = false;
+        _teamClassSelectionState.PendingMapTeamSelection = false;
         OpenOnlineTeamSelection(clearPendingSelections: true, statusMessage: string.Empty);
     }
 
@@ -38,13 +36,13 @@ public partial class Game1
 
     public void CloseGameplaySelectionMenus()
     {
-        _teamSelectOpen = false;
-        _classSelectOpen = false;
+        _teamClassSelectionState.TeamSelectOpen = false;
+        _teamClassSelectionState.ClassSelectOpen = false;
     }
 
     private void DismissGameplayTeamSelection()
     {
-        _pendingMapTeamSelection = false;
+        _teamClassSelectionState.PendingMapTeamSelection = false;
         if (_world.LocalPlayerAwaitingJoin && _networkClient.IsConnected
             && !_networkClient.IsReplayConnection)
         {
@@ -75,8 +73,8 @@ public partial class Game1
             return;
         }
 
-        _teamSelectOpen = true;
-        _classSelectOpen = false;
+        _teamClassSelectionState.TeamSelectOpen = true;
+        _teamClassSelectionState.ClassSelectOpen = false;
     }
 
     public void OpenGameplayClassSelection()
@@ -100,9 +98,9 @@ public partial class Game1
             return;
         }
 
-        _classSelectOpen = true;
-        _teamSelectOpen = false;
-        WarmBrowserClassSelectionAssets(_pendingClassSelectTeam ?? _world.LocalPlayerTeam);
+        _teamClassSelectionState.ClassSelectOpen = true;
+        _teamClassSelectionState.TeamSelectOpen = false;
+        WarmBrowserClassSelectionAssets(_teamClassSelectionState.PendingClassSelectTeam ?? _world.LocalPlayerTeam);
     }
 
     public void ToggleGameplayTeamSelection()
@@ -123,8 +121,8 @@ public partial class Game1
         // through spectator mode so the player can watch the match.
         if (_world.LocalPlayerAwaitingJoin)
         {
-            _teamSelectOpen = true;
-            _classSelectOpen = false;
+            _teamClassSelectionState.TeamSelectOpen = true;
+            _teamClassSelectionState.ClassSelectOpen = false;
             return;
         }
 
@@ -135,11 +133,11 @@ public partial class Game1
             return;
         }
 
-        var shouldOpen = !_teamSelectOpen;
-        _teamSelectOpen = shouldOpen;
+        var shouldOpen = !_teamClassSelectionState.TeamSelectOpen;
+        _teamClassSelectionState.TeamSelectOpen = shouldOpen;
         if (shouldOpen)
         {
-            _classSelectOpen = false;
+            _teamClassSelectionState.ClassSelectOpen = false;
         }
     }
 
@@ -159,11 +157,11 @@ public partial class Game1
             return;
         }
 
-        var shouldOpen = !_classSelectOpen;
-        _classSelectOpen = shouldOpen;
+        var shouldOpen = !_teamClassSelectionState.ClassSelectOpen;
+        _teamClassSelectionState.ClassSelectOpen = shouldOpen;
         if (shouldOpen)
         {
-            _teamSelectOpen = false;
+            _teamClassSelectionState.TeamSelectOpen = false;
         }
     }
 
@@ -283,7 +281,7 @@ public partial class Game1
             return false;
         }
 
-        _pendingClassSelectTeam = team;
+        _teamClassSelectionState.PendingClassSelectTeam = team;
         if (_networkClient.IsConnected)
         {
             ResetLocalPredictionForAuthorityTransition();
@@ -339,7 +337,7 @@ public partial class Game1
 
     private bool CanLocalPlayerSelectClassByMapBehavior(CharacterClassDefinition definition)
     {
-        var team = _pendingClassSelectTeam ?? _world.GetNetworkPlayerConfiguredTeam(SimulationWorld.LocalPlayerSlot);
+        var team = _teamClassSelectionState.PendingClassSelectTeam ?? _world.GetNetworkPlayerConfiguredTeam(SimulationWorld.LocalPlayerSlot);
         return !TryGetLocalMapSpawnClassBehavior(team, out var behavior)
             || behavior.AllowClassChange
             || _world.LocalPlayerAwaitingJoin;
@@ -347,7 +345,7 @@ public partial class Game1
 
     private bool TryResolveLocalMapForcedGameplayClass(out string gameplayClassId)
     {
-        var team = _pendingClassSelectTeam ?? _world.GetNetworkPlayerConfiguredTeam(SimulationWorld.LocalPlayerSlot);
+        var team = _teamClassSelectionState.PendingClassSelectTeam ?? _world.GetNetworkPlayerConfiguredTeam(SimulationWorld.LocalPlayerSlot);
         if (TryGetLocalMapSpawnClassBehavior(team, out var behavior)
             && SpawnClassBehaviorMetadata.TryGetForcedGameplayClassId(behavior.ForcedClass, out gameplayClassId))
         {

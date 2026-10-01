@@ -11,8 +11,8 @@ public partial class Game1
         _gameplaySessionKind is GameplaySessionKind.Online or GameplaySessionKind.Practice or GameplaySessionKind.LastToDie
         && !_networkClient.IsLegacyGg2Connection
         && !OpenGarrison.ClientShared.ClientDistribution.IsGg2Only
-        && !_mainMenuOpen && !_startupSplashOpen && !_loadingOverlayVisible
-        && !_inGameMenuOpen && !_teamSelectOpen && !_classSelectOpen && !_consoleOpen && !_hudEditorOpen
+        && !_mainMenuOpen && !_startupSplashOpen && !_loadingOverlayState.Visible
+        && !_inGameMenuOpen && !_teamClassSelectionState.TeamSelectOpen && !_teamClassSelectionState.ClassSelectOpen && !_consoleOpen && !_hudEditorOpen
         && !_builderEditorEnabled && !_garrisonBuilderQuickTestActive && !_networkClient.IsReplayConnection
         && !_lastToDieSurvivorMenuOpen && !_lastToDiePerkMenuOpen && !_lastToDieStageClearOverlayOpen && !_lastToDieFailureOverlayOpen
         && !_world.LocalPlayerAwaitingJoin && _world.LocalPlayer.IsAlive && !_world.MatchState.IsEnded

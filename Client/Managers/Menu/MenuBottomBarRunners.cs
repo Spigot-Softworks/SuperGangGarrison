@@ -49,7 +49,7 @@ public sealed class MenuBottomBarRunners
         public void Update(float deltaTime)
         {
             // Only run when in animated mode
-            if (_context._menuBackgroundMode == MenuBackgroundMode.Static)
+            if (_context.GameplayRuntimeSettings.MenuBackgroundMode == MenuBackgroundMode.Static)
             {
                 _runners.Clear();
                 _spawnTimer = SpawnInterval - 0.5f; // Reset timer for when mode switches back
@@ -89,7 +89,7 @@ public sealed class MenuBottomBarRunners
 
         private void UpdateRunnerWeaponBob(RunnerInstance runner)
         {
-            var mode = OpenGarrisonPreferencesDocument.NormalizeWeaponBobMode(_context._weaponBobMode);
+            var mode = OpenGarrisonPreferencesDocument.NormalizeWeaponBobMode(_context.GameplayRuntimeSettings.WeaponBobMode);
             if (mode == WeaponBobMode.Disabled)
             {
                 runner.SmoothedEquipmentOffset = 0f;
@@ -107,7 +107,7 @@ public sealed class MenuBottomBarRunners
         public void Draw(Rectangle bottomBarBounds)
         {
             // Only draw when in animated mode
-            if (_context._menuBackgroundMode == MenuBackgroundMode.Static || bottomBarBounds.Width <= 0)
+            if (_context.GameplayRuntimeSettings.MenuBackgroundMode == MenuBackgroundMode.Static || bottomBarBounds.Width <= 0)
             {
                 return;
             }
@@ -161,7 +161,7 @@ public sealed class MenuBottomBarRunners
 
             // Calculate equipment offset (weapon bounce) based on animation frame
             var equipmentOffset = 0f;
-            var weaponBobMode = OpenGarrisonPreferencesDocument.NormalizeWeaponBobMode(_context._weaponBobMode);
+            var weaponBobMode = OpenGarrisonPreferencesDocument.NormalizeWeaponBobMode(_context.GameplayRuntimeSettings.WeaponBobMode);
             if (weaponBobMode != WeaponBobMode.Disabled)
             {
                 equipmentOffset = runner.SmoothedEquipmentOffset;

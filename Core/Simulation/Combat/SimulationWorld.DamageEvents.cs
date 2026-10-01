@@ -2,58 +2,6 @@ namespace OpenGarrison.Core;
 
 public sealed partial class SimulationWorld
 {
-    private CombatSystemDependencies CreateCombatSystemDependencies()
-    {
-        return new CombatSystemDependencies
-        {
-            CurrentFrame = () => Frame,
-            NextSharedRandomDouble = () => _random.NextDouble(),
-            EnumerateSimulatedPlayers = EnumerateSimulatedPlayers,
-            FindPlayerById = FindPlayerById,
-            CanDamagePlayer = CanTeamDamagePlayer,
-            ScaleConfiguredDamage = ScaleConfiguredDamage,
-            ScaleConfiguredFloatDamage = ScaleConfiguredDamage,
-            ScaleConfiguredContinuousDamage = ScaleConfiguredDamage,
-            GetSimulationTicksFromSourceTicks = GetSimulationTicksFromSourceTicks,
-            ApplyExperimentalOutgoingDamageMultiplier = ApplyExperimentalOutgoingDamageMultiplier,
-            ApplyExperimentalOutgoingDamageMultiplierContinuous = ApplyExperimentalOutgoingDamageMultiplier,
-            ApplyExperimentalIncomingDamageMultiplier = ApplyExperimentalIncomingDamageMultiplier,
-            ApplyExperimentalIncomingDamageMultiplierContinuous = ApplyExperimentalIncomingDamageMultiplier,
-            ApplyLastToDieOutgoingDamageMultiplier = ApplyLastToDieOutgoingDamageMultiplier,
-            ApplyLastToDieOutgoingDamageMultiplierContinuous = ApplyLastToDieOutgoingDamageMultiplier,
-            ApplyLastToDieIncomingDamageMultiplier = ApplyLastToDieIncomingDamageMultiplier,
-            ApplyLastToDieIncomingDamageMultiplierContinuous = ApplyLastToDieIncomingDamageMultiplier,
-            ApplyExperimentalIncomingSentryDamageMultiplier = ApplyExperimentalIncomingSentryDamageMultiplier,
-            TryPreventExperimentalFatalDamage = TryPreventExperimentalFatalDamage,
-            TryConvertExperimentalSelfDamageToHealing = TryConvertExperimentalSelfDamageToHealing,
-            TryAbsorbPracticeCombatDummyDamage = TryAbsorbPracticeCombatDummyDamage,
-            TryAbsorbPracticeCombatDummyContinuousDamage = TryAbsorbPracticeCombatDummyContinuousDamage,
-            GetExperimentalTotalEvasionChance = GetExperimentalTotalEvasionChance,
-            GetLastToDieEvasionChance = GetLastToDieEvasionChance,
-            RollLastToDieEvasion = RollLastToDieEvasion,
-            ApplyExperimentalDamageRewards = ApplyExperimentalDamageRewards,
-            ApplyExperimentalDamageTakenRewards = ApplyExperimentalDamageTakenRewards,
-            ApplyLastToDieDamageRewards = ApplyLastToDieDamageRewards,
-            ApplyLastToDieDamageTakenEffects = ApplyLastToDieDamageTakenEffects,
-            ResolveLastToDieMedicLinkedOnHit = ResolveLastToDieMedicLinkedOnHit,
-            ResolveLastToDieMedicLinkedAssistPlayerId = ResolveLastToDieMedicLinkedAssistPlayerId,
-            ApplyLastToDieMedicLinkedOnHitEffects = ApplyLastToDieMedicLinkedOnHitEffects,
-            ApplyExperimentalEngineerFriendlyFireRetaliation = ApplyExperimentalEngineerFriendlyFireRetaliation,
-            TryRegisterCombatComboHit = TryRegisterCombatComboHit,
-            TryRegisterBuffBannerDamage = TryRegisterBuffBannerDamage,
-            RegisterImpactEffect = RegisterImpactEffect,
-            GetCivvieUmbrellaTip = (target, x, y) =>
-            {
-                var tip = WeaponHandler.GetCivvieUmbrellaTip(target, x, y);
-                return (tip.X, tip.Y);
-            },
-            ShouldCancelDamage = (frame, targetKind, targetEntityId, targetPlayerId, targetTeam, attacker, amount, wouldBeFatal, x, y) =>
-                ShouldCancelDamage(targetKind, targetEntityId, targetPlayerId, targetTeam, attacker, amount, wouldBeFatal, x, y),
-            ShouldCancelDeath = (frame, player, gibbed, killer, weaponSpriteName) =>
-                ShouldCancelDeath(player, gibbed, killer, weaponSpriteName),
-        };
-    }
-
     private void RegisterDamageEvent(
         PlayerEntity? attacker,
         DamageTargetKind targetKind,

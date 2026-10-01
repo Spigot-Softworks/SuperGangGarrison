@@ -64,21 +64,21 @@ public partial class Game1
             var connected = TryConnectToServer(host.Trim(), port, addConsoleFeedback: true);
             _clientOnlineSmokeStage = ClientOnlineSmokeStage.Connecting;
             _clientOnlineSmokeStartedAtUtc = DateTimeOffset.UtcNow;
-            _clientOnlineSmokeLastAppliedSnapshotFrame = _lastAppliedSnapshotFrame;
+            _clientOnlineSmokeLastAppliedSnapshotFrame = _gameplayManager.NetworkPresentation.LastAppliedSnapshotFrame;
             _clientOnlineSmokeLastAppliedSnapshotFrameAtUtc = _clientOnlineSmokeStartedAtUtc;
             AppendClientOnlineSmokeLine(
                 $"event=connect requested={connected} host={host.Trim()} port={port} status=\"{SanitizeClientOnlineSmokeValue(_menuStatusMessage)}\"");
             return;
         }
 
-        if (_teamSelectOpen)
+        if (_teamClassSelectionState.TeamSelectOpen)
         {
             ApplyTeamSelection(3);
             AppendClientOnlineSmokeLine("event=team_select team=BLU");
             return;
         }
 
-        if (_classSelectOpen)
+        if (_teamClassSelectionState.ClassSelectOpen)
         {
             ApplyDirectClassSelection(GetClientPerformanceClass());
             CloseGameplaySelectionMenus();
@@ -97,9 +97,9 @@ public partial class Game1
         }
 
         var nowUtc = DateTimeOffset.UtcNow;
-        if (_lastAppliedSnapshotFrame != _clientOnlineSmokeLastAppliedSnapshotFrame)
+        if (_gameplayManager.NetworkPresentation.LastAppliedSnapshotFrame != _clientOnlineSmokeLastAppliedSnapshotFrame)
         {
-            _clientOnlineSmokeLastAppliedSnapshotFrame = _lastAppliedSnapshotFrame;
+            _clientOnlineSmokeLastAppliedSnapshotFrame = _gameplayManager.NetworkPresentation.LastAppliedSnapshotFrame;
             _clientOnlineSmokeLastAppliedSnapshotFrameAtUtc = nowUtc;
         }
 
@@ -109,7 +109,7 @@ public partial class Game1
             AppendClientOnlineSmokeLine(
                 string.Create(
                     CultureInfo.InvariantCulture,
-                    $"event=sample stage={_clientOnlineSmokeStage} connected={_networkClient.IsConnected} mainMenu={_mainMenuOpen} awaitingJoin={_world.LocalPlayerAwaitingJoin} frame={_lastAppliedSnapshotFrame} queued={_queuedAuthoritativeSnapshots.Count} ping={_networkClient.EstimatedPingMilliseconds} frameStallMs={(nowUtc - _clientOnlineSmokeLastAppliedSnapshotFrameAtUtc).TotalMilliseconds:0} status=\"{SanitizeClientOnlineSmokeValue(_menuStatusMessage)}\""));
+                    $"event=sample stage={_clientOnlineSmokeStage} connected={_networkClient.IsConnected} mainMenu={_mainMenuOpen} awaitingJoin={_world.LocalPlayerAwaitingJoin} frame={_gameplayManager.NetworkPresentation.LastAppliedSnapshotFrame} queued={_queuedAuthoritativeSnapshots.Count} ping={_networkClient.EstimatedPingMilliseconds} frameStallMs={(nowUtc - _clientOnlineSmokeLastAppliedSnapshotFrameAtUtc).TotalMilliseconds:0} status=\"{SanitizeClientOnlineSmokeValue(_menuStatusMessage)}\""));
         }
 
         if (!_clientOnlineSmokeDisconnectCaptured
@@ -190,7 +190,7 @@ public partial class Game1
                 $"connected={_networkClient.IsConnected}",
                 $"mainMenu={_mainMenuOpen}",
                 $"lastStatus=\"{SanitizeClientOnlineSmokeValue(_menuStatusMessage)}\"",
-                $"lastAppliedSnapshotFrame={_lastAppliedSnapshotFrame}",
+                $"lastAppliedSnapshotFrame={_gameplayManager.NetworkPresentation.LastAppliedSnapshotFrame}",
                 $"queuedAuthoritativeSnapshots={_queuedAuthoritativeSnapshots.Count}",
                 $"estimatedPingMilliseconds={_networkClient.EstimatedPingMilliseconds}",
                 string.Empty,

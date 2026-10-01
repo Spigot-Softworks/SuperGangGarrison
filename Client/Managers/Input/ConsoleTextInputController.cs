@@ -15,6 +15,8 @@ public sealed class ConsoleTextInputController
             _context = context;
         }
 
+        public TextEditState Edit { get; } = new();
+
         public void Handle(TextInputEventArgs e)
         {
             Handle(e.Character);
@@ -32,12 +34,12 @@ public sealed class ConsoleTextInputController
                 case '\b':
                 {
                     var result = _context.DeleteTextSelectionOrBackspace(
-                        _context._consoleInput,
-                        _context._consoleInputCursorIndex,
-                        _context._consoleInputSelectionStart);
-                    _context._consoleInput = result.Text;
-                    _context._consoleInputCursorIndex = result.CursorIndex;
-                    _context._consoleInputSelectionStart = result.SelectionStart;
+                        Edit.Text,
+                        Edit.CursorIndex,
+                        Edit.SelectionStart);
+                    Edit.Text = result.Text;
+                    Edit.CursorIndex = result.CursorIndex;
+                    Edit.SelectionStart = result.SelectionStart;
                     break;
                 }
                 case '\r':
@@ -50,14 +52,14 @@ public sealed class ConsoleTextInputController
                     if (!char.IsControl(character))
                     {
                         var result = _context.InsertTextCharacterAtCursor(
-                            _context._consoleInput,
+                            Edit.Text,
                             character,
-                            _context._consoleInputCursorIndex,
-                            _context._consoleInputSelectionStart,
+                            Edit.CursorIndex,
+                            Edit.SelectionStart,
                             int.MaxValue);
-                        _context._consoleInput = result.Text;
-                        _context._consoleInputCursorIndex = result.CursorIndex;
-                        _context._consoleInputSelectionStart = result.SelectionStart;
+                        Edit.Text = result.Text;
+                        Edit.CursorIndex = result.CursorIndex;
+                        Edit.SelectionStart = result.SelectionStart;
                     }
                     break;
             }

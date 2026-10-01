@@ -103,7 +103,7 @@ public partial class Game1
         DrawMenuButton(new Rectangle(panel.X + 30, panel.Bottom - 62, 180, 42), "Back", false);
 
         // Draw bottom bar and runners (in animated mode only)
-        if (_menuBackgroundMode != MenuBackgroundMode.Static)
+        if (_gameplayManager.RuntimeSettings.MenuBackgroundMode != MenuBackgroundMode.Static)
         {
             DrawMainMenuBottomBar();
         }
@@ -111,7 +111,7 @@ public partial class Game1
 
     public void DrawMainMenuBottomBar()
     {
-        if (_menuBackgroundMode == MenuBackgroundMode.Static)
+        if (_gameplayManager.RuntimeSettings.MenuBackgroundMode == MenuBackgroundMode.Static)
         {
             return;
         }
@@ -124,7 +124,7 @@ public partial class Game1
 
     public void OpenManualConnectMenu()
     {
-        _lastToDieConnectionPresentationPending = false;
+        _sessionTransitions.LastToDieConnectionPresentationPending = false;
         _menuManager.MainMenuOverlayState.OpenManualConnectMenu();
     }
 
@@ -150,13 +150,13 @@ public partial class Game1
 
     private void EnsureCreditsViewState()
     {
-        if (_creditsScrollInitialized)
+        if (_menuManager.MainMenuOverlayState.IsCreditsScrollInitialized)
         {
             return;
         }
 
         _creditsScrollY = GetCreditsInitialScrollY();
-        _creditsScrollInitialized = true;
+        _menuManager.MainMenuOverlayState.MarkCreditsScrollInitialized();
     }
 
     private float GetCreditsInitialScrollY()

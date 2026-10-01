@@ -52,7 +52,6 @@ public partial class Game1
         BodyBass,
     }
 
-    public bool _dynamicMusicEnabled = true;
     private bool _dynamicMusicLoadAttempted;
     private SoundEffect? _dynamicCombatDrumMusic;
     private SoundEffectInstance? _dynamicCombatDrumMusicInstance;
@@ -126,7 +125,7 @@ public partial class Game1
 
     private bool ShouldTriggerDynamicCombatMusic(int amount, int attackerPlayerId, DamageTargetKind targetKind, int targetEntityId)
     {
-        if (!_dynamicMusicEnabled
+        if (!_audioManager.RuntimeSettings.DynamicMusicEnabled
             || amount <= 0
             || targetKind != DamageTargetKind.Player
             || attackerPlayerId <= 0
@@ -316,7 +315,7 @@ public partial class Game1
 
     private bool CanUseDynamicMusic()
     {
-        return _dynamicMusicEnabled
+        return _audioManager.RuntimeSettings.DynamicMusicEnabled
             && _audioAvailable
             && AllowsIngameMusic()
             && !_world.MatchState.IsEnded
@@ -365,7 +364,7 @@ public partial class Game1
 
     private bool HasDynamicCombatMusicInstances()
     {
-        return _ingameCombatMusicInstance is not null;
+        return _audioManager.MusicResources.IngameCombatMusicInstance is not null;
     }
 
     private bool IsNearbyUberMusicEventActive()
@@ -906,7 +905,7 @@ public partial class Game1
     private void UpdateDynamicMusicInstanceVolumes(float ingameMusicVolume)
     {
         var combatMusicVolume = GetCombatMusicVolumeScale(ingameMusicVolume);
-        SetSoundEffectInstanceVolume(_ingameCombatMusicInstance, combatMusicVolume * 0.8f * _dynamicCombatMusicFade);
+        SetSoundEffectInstanceVolume(_audioManager.MusicResources.IngameCombatMusicInstance, combatMusicVolume * 0.8f * _dynamicCombatMusicFade);
         var backingScale = MathHelper.Lerp(1f, DynamicMusicCombatBackingWithLeadScale, _dynamicCombatLeadFade);
         SetSoundEffectInstanceVolume(_dynamicCombatDrumMusicInstance, combatMusicVolume * backingScale * _dynamicCombatDrumFade);
         SetSoundEffectInstanceVolume(_dynamicCombatBodyMusicInstance, combatMusicVolume * backingScale * _dynamicCombatBodyFade);
@@ -921,7 +920,7 @@ public partial class Game1
     private float GetCombatMusicVolumeScale(float ingameMusicVolume)
     {
         return ingameMusicVolume * Math.Clamp(
-            _combatMusicVolumePercent / 100f,
+            _audioManager.RuntimeSettings.CombatMusicVolumePercent / 100f,
             0f,
             OpenGarrisonPreferencesDocument.MaxCombatMusicVolumePercent / 100f);
     }

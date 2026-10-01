@@ -11,31 +11,19 @@ namespace OpenGarrison.Client;
 
 public partial class Game1 : IInputContext
 {
-    string IInputContext._chatInput { get => _chatInput; set => _chatInput = value; }
 
-    int IInputContext._chatInputCursorIndex { get => _chatInputCursorIndex; set => _chatInputCursorIndex = value; }
 
-    int IInputContext._chatInputSelectionStart { get => _chatInputSelectionStart; set => _chatInputSelectionStart = value; }
 
     bool IInputContext._chatOpen { get => _chatOpen; set => _chatOpen = value; }
 
-    string IInputContext._connectHostBuffer { get => _connectHostBuffer; set => _connectHostBuffer = value; }
 
-    int IInputContext._connectHostCursorIndex { get => _connectHostCursorIndex; set => _connectHostCursorIndex = value; }
 
-    int IInputContext._connectHostSelectionStart { get => _connectHostSelectionStart; set => _connectHostSelectionStart = value; }
 
-    string IInputContext._connectPortBuffer { get => _connectPortBuffer; set => _connectPortBuffer = value; }
 
-    int IInputContext._connectPortCursorIndex { get => _connectPortCursorIndex; set => _connectPortCursorIndex = value; }
 
-    int IInputContext._connectPortSelectionStart { get => _connectPortSelectionStart; set => _connectPortSelectionStart = value; }
 
-    string IInputContext._consoleInput { get => _consoleInput; set => _consoleInput = value; }
 
-    int IInputContext._consoleInputCursorIndex { get => _consoleInputCursorIndex; set => _consoleInputCursorIndex = value; }
 
-    int IInputContext._consoleInputSelectionStart { get => _consoleInputSelectionStart; set => _consoleInputSelectionStart = value; }
 
     bool IInputContext._consoleOpen { get => _consoleOpen; set => _consoleOpen = value; }
 
@@ -49,23 +37,14 @@ public partial class Game1 : IInputContext
 
     bool IInputContext._editingPlayerName { get => _editingPlayerName; set => _editingPlayerName = value; }
 
-    int IInputContext._friendCodeCursorIndex { get => _friendCodeCursorIndex; set => _friendCodeCursorIndex = value; }
 
-    string IInputContext._friendCodeInputBuffer { get => _friendCodeInputBuffer; set => _friendCodeInputBuffer = value; }
 
-    int IInputContext._friendCodeSelectionStart { get => _friendCodeSelectionStart; set => _friendCodeSelectionStart = value; }
 
-    int IInputContext._friendMessageCursorIndex { get => _friendMessageCursorIndex; set => _friendMessageCursorIndex = value; }
 
-    string IInputContext._friendMessageInputBuffer { get => _friendMessageInputBuffer; set => _friendMessageInputBuffer = value; }
 
-    int IInputContext._friendMessageSelectionStart { get => _friendMessageSelectionStart; set => _friendMessageSelectionStart = value; }
 
-    int IInputContext._friendNicknameCursorIndex { get => _friendNicknameCursorIndex; set => _friendNicknameCursorIndex = value; }
 
-    string IInputContext._friendNicknameInputBuffer { get => _friendNicknameInputBuffer; set => _friendNicknameInputBuffer = value; }
 
-    int IInputContext._friendNicknameSelectionStart { get => _friendNicknameSelectionStart; set => _friendNicknameSelectionStart = value; }
 
     bool IInputContext._friendsMenuOpen { get => _friendsMenuOpen; set => _friendsMenuOpen = value; }
 
@@ -81,11 +60,8 @@ public partial class Game1 : IInputContext
 
     bool IInputContext._optionsMenuOpen { get => _optionsMenuOpen; set => _optionsMenuOpen = value; }
 
-    string IInputContext._passwordEditBuffer { get => _passwordEditBuffer; set => _passwordEditBuffer = value; }
 
-    int IInputContext._passwordEditCursorIndex { get => _passwordEditCursorIndex; set => _passwordEditCursorIndex = value; }
 
-    int IInputContext._passwordEditSelectionStart { get => _passwordEditSelectionStart; set => _passwordEditSelectionStart = value; }
 
     string IInputContext._passwordPromptMessage { get => _passwordPromptMessage; set => _passwordPromptMessage = value; }
 

@@ -63,23 +63,23 @@ public partial class Game1
 
     public void LoadMenuPlaqueTextures()
     {
-        _menuPlaqueTexture = LoadMenuTexture("Sprites", "Menu", "Plaques", "MenuPlaque.png");
-        _menuPlaqueTallTexture = LoadMenuTexture("Sprites", "Menu", "Plaques", "MenuPlaqueTall.png");
-        _menuTextBoxTopTexture = LoadMenuTexture("Sprites", "Menu", "Plaques", "MenuTextBoxTop.png");
-        _menuTextBoxMiddleTexture = LoadMenuTexture("Sprites", "Menu", "Plaques", "MenuTextBoxMiddle.png");
-        _menuTextBoxBottomTexture = LoadMenuTexture("Sprites", "Menu", "Plaques", "MenuTextBoxBottom.png");
-        _menuTextBoxSoloTexture = LoadMenuTexture("Sprites", "Menu", "Plaques", "MenuTextBoxSolo.png");
-        _lastToDieMenuPlaqueTexture = LoadMenuTexture("Sprites", "Menu", "Plaques", "LTD_MenuPlaque.png");
-        _lastToDieMenuTextBoxSoloTexture = LoadMenuTexture("Sprites", "Menu", "Plaques", "LTD_MenuTextBoxSolo.png");
+        _menuResources.PlaqueTexture = LoadMenuTexture("Sprites", "Menu", "Plaques", "MenuPlaque.png");
+        _menuResources.PlaqueTallTexture = LoadMenuTexture("Sprites", "Menu", "Plaques", "MenuPlaqueTall.png");
+        _menuResources.TextBoxTopTexture = LoadMenuTexture("Sprites", "Menu", "Plaques", "MenuTextBoxTop.png");
+        _menuResources.TextBoxMiddleTexture = LoadMenuTexture("Sprites", "Menu", "Plaques", "MenuTextBoxMiddle.png");
+        _menuResources.TextBoxBottomTexture = LoadMenuTexture("Sprites", "Menu", "Plaques", "MenuTextBoxBottom.png");
+        _menuResources.TextBoxSoloTexture = LoadMenuTexture("Sprites", "Menu", "Plaques", "MenuTextBoxSolo.png");
+        _menuResources.LastToDieMenuPlaqueTexture = LoadMenuTexture("Sprites", "Menu", "Plaques", "LTD_MenuPlaque.png");
+        _menuResources.LastToDieMenuTextBoxSoloTexture = LoadMenuTexture("Sprites", "Menu", "Plaques", "LTD_MenuTextBoxSolo.png");
     }
 
     public void LoadMenuBitmapFont()
     {
-        _menuBitmapFontTexture?.Dispose();
-        _menuBitmapFontTexture = null;
-        _menuBitmapFontGlyphs.Clear();
-        _menuBitmapFontLineHeight = 0;
-        _menuBitmapFontSpacing = 1;
+        _menuResources.BitmapFontTexture?.Dispose();
+        _menuResources.BitmapFontTexture = null;
+        _menuResources.BitmapFontGlyphs.Clear();
+        _menuResources.BitmapFontLineHeight = 0;
+        _menuResources.BitmapFontSpacing = 1;
 
         if (!TryLoadMenuBitmapFont("MenuBuildFontAtlas.png", "MenuBuildFontAtlas.json"))
         {
@@ -97,8 +97,8 @@ public partial class Game1
             return false;
         }
 
-        _menuBitmapFontTexture = LoadSpriteFrameFromPath(texturePath);
-        if (_menuBitmapFontTexture is null)
+        _menuResources.BitmapFontTexture = LoadSpriteFrameFromPath(texturePath);
+        if (_menuResources.BitmapFontTexture is null)
         {
             return false;
         }
@@ -110,8 +110,8 @@ public partial class Game1
                 : null;
         if (string.IsNullOrWhiteSpace(metadataJson))
         {
-            _menuBitmapFontTexture.Dispose();
-            _menuBitmapFontTexture = null;
+            _menuResources.BitmapFontTexture.Dispose();
+            _menuResources.BitmapFontTexture = null;
             return false;
         }
 
@@ -119,23 +119,23 @@ public partial class Game1
         var metadata = JsonSerializer.Deserialize<MenuBitmapFontData>(metadataJson, MenuBitmapFontJsonOptions);
         if (metadata is null)
         {
-            _menuBitmapFontTexture.Dispose();
-            _menuBitmapFontTexture = null;
+            _menuResources.BitmapFontTexture.Dispose();
+            _menuResources.BitmapFontTexture = null;
             return false;
         }
 
-        _menuBitmapFontLineHeight = Math.Max(1, metadata.LineHeight);
-        _menuBitmapFontSpacing = Math.Max(0, metadata.Spacing);
+        _menuResources.BitmapFontLineHeight = Math.Max(1, metadata.LineHeight);
+        _menuResources.BitmapFontSpacing = Math.Max(0, metadata.Spacing);
         for (var index = 0; index < metadata.Glyphs.Count; index += 1)
         {
             var glyph = metadata.Glyphs[index];
             var character = (char)glyph.Character;
             var sourceRect = new Rectangle(glyph.X, glyph.Y, Math.Max(0, glyph.Width), Math.Max(0, glyph.Height));
             var advance = Math.Max(1, glyph.Advance);
-            _menuBitmapFontGlyphs[character] = new MenuBitmapGlyph(sourceRect, advance);
+            _menuResources.BitmapFontGlyphs[character] = new MenuBitmapGlyph(sourceRect, advance);
         }
 
-        return _menuBitmapFontTexture is not null && _menuBitmapFontGlyphs.Count > 0;
+        return _menuResources.BitmapFontTexture is not null && _menuResources.BitmapFontGlyphs.Count > 0;
     }
 
     public static string NormalizeMenuBitmapFontMetadataJson(string metadataJson)
@@ -168,8 +168,8 @@ public partial class Game1
 
     public PlaqueMenuLayout GetCenteredPlaqueMenuLayout(bool tall, int stackedButtonCount, bool includeSoloButton, bool includeBottomBarButton)
     {
-        var backgroundTexture = tall ? _menuPlaqueTallTexture : _menuPlaqueTexture;
-        var soloTexture = _menuTextBoxSoloTexture;
+        var backgroundTexture = tall ? _menuResources.PlaqueTallTexture : _menuResources.PlaqueTexture;
+        var soloTexture = _menuResources.TextBoxSoloTexture;
         if (backgroundTexture is null || soloTexture is null || stackedButtonCount <= 0)
         {
             return new PlaqueMenuLayout(Rectangle.Empty, [], Rectangle.Empty, null, null, 1f);
@@ -250,13 +250,13 @@ public partial class Game1
 
     public Rectangle GetBottomRightPlaqueButtonBounds(PlaqueMenuLayout layout)
     {
-        if (!layout.BottomBarBounds.HasValue || _menuTextBoxSoloTexture is null)
+        if (!layout.BottomBarBounds.HasValue || _menuResources.TextBoxSoloTexture is null)
         {
             return Rectangle.Empty;
         }
 
-        var buttonWidth = (int)MathF.Round(_menuTextBoxSoloTexture.Width * layout.Scale);
-        var buttonHeight = (int)MathF.Round(_menuTextBoxSoloTexture.Height * layout.Scale);
+        var buttonWidth = (int)MathF.Round(_menuResources.TextBoxSoloTexture.Width * layout.Scale);
+        var buttonHeight = (int)MathF.Round(_menuResources.TextBoxSoloTexture.Height * layout.Scale);
         var rightMargin = MathF.Max(20f, ViewportWidth * 0.04f);
         return new Rectangle(
             ViewportWidth - (int)MathF.Round(rightMargin) - buttonWidth,
@@ -267,13 +267,13 @@ public partial class Game1
 
     public Rectangle GetBottomCenterPlaqueButtonBounds(PlaqueMenuLayout layout)
     {
-        if (!layout.BottomBarBounds.HasValue || _menuTextBoxSoloTexture is null)
+        if (!layout.BottomBarBounds.HasValue || _menuResources.TextBoxSoloTexture is null)
         {
             return Rectangle.Empty;
         }
 
-        var buttonWidth = (int)MathF.Round(_menuTextBoxSoloTexture.Width * layout.Scale);
-        var buttonHeight = (int)MathF.Round(_menuTextBoxSoloTexture.Height * layout.Scale);
+        var buttonWidth = (int)MathF.Round(_menuResources.TextBoxSoloTexture.Width * layout.Scale);
+        var buttonHeight = (int)MathF.Round(_menuResources.TextBoxSoloTexture.Height * layout.Scale);
         var x = (ViewportWidth - buttonWidth) / 2;
         return new Rectangle(
             x,
@@ -290,7 +290,7 @@ public partial class Game1
             return;
         }
 
-        DrawPlaqueMenuButton(_menuTextBoxSoloTexture, bounds, label, hovered, layout.Scale, textScaleMultiplier);
+        DrawPlaqueMenuButton(_menuResources.TextBoxSoloTexture, bounds, label, hovered, layout.Scale, textScaleMultiplier);
     }
 
     public void DrawBottomRightPlaqueButton(PlaqueMenuLayout layout, string label, bool hovered, float textScaleMultiplier)
@@ -301,17 +301,17 @@ public partial class Game1
             return;
         }
 
-        DrawPlaqueMenuButton(_menuTextBoxSoloTexture, bounds, label, hovered, layout.Scale, textScaleMultiplier);
+        DrawPlaqueMenuButton(_menuResources.TextBoxSoloTexture, bounds, label, hovered, layout.Scale, textScaleMultiplier);
     }
 
     public LoadedSpriteFrame? GetMenuStackedButtonTexture(int index, int count)
     {
         return count switch
         {
-            <= 1 => _menuTextBoxTopTexture,
-            _ when index == 0 => _menuTextBoxTopTexture,
-            _ when index == count - 1 => _menuTextBoxBottomTexture,
-            _ => _menuTextBoxMiddleTexture,
+            <= 1 => _menuResources.TextBoxTopTexture,
+            _ when index == 0 => _menuResources.TextBoxTopTexture,
+            _ when index == count - 1 => _menuResources.TextBoxBottomTexture,
+            _ => _menuResources.TextBoxMiddleTexture,
         };
     }
 
@@ -331,9 +331,9 @@ public partial class Game1
             return;
         }
 
-        var backgroundTexture = layout.PlaqueBounds.Height >= (_menuPlaqueTallTexture?.Height ?? int.MaxValue) * layout.Scale - 0.5f
-            ? _menuPlaqueTallTexture
-            : _menuPlaqueTexture;
+        var backgroundTexture = layout.PlaqueBounds.Height >= (_menuResources.PlaqueTallTexture?.Height ?? int.MaxValue) * layout.Scale - 0.5f
+            ? _menuResources.PlaqueTallTexture
+            : _menuResources.PlaqueTexture;
         if (backgroundTexture is not null)
         {
             DrawLoadedSpriteFrame(backgroundTexture, layout.PlaqueBounds, Color.White);
@@ -347,11 +347,11 @@ public partial class Game1
 
         if (soloAction.HasValue)
         {
-            DrawPlaqueMenuButton(_menuTextBoxSoloTexture, layout.SoloButtonBounds, soloAction.Value.Label, soloHovered, layout.Scale, textScaleMultiplier);
+            DrawPlaqueMenuButton(_menuResources.TextBoxSoloTexture, layout.SoloButtonBounds, soloAction.Value.Label, soloHovered, layout.Scale, textScaleMultiplier);
         }
 
         // Always draw bottom bar and runners in animated mode (outside gameplay)
-        if (layout.BottomBarBounds.HasValue && _menuBackgroundMode != MenuBackgroundMode.Static)
+        if (layout.BottomBarBounds.HasValue && _gameplayManager.RuntimeSettings.MenuBackgroundMode != MenuBackgroundMode.Static)
         {
             _spriteBatch.Draw(_pixel, layout.BottomBarBounds.Value, new Color(0x57, 0x4f, 0x47));
             
@@ -362,7 +362,7 @@ public partial class Game1
         // Draw bottom bar button only if explicitly requested
         if (drawBottomBarButton && layout.BottomBarButtonBounds.HasValue)
         {
-            DrawPlaqueMenuButton(_menuTextBoxSoloTexture, layout.BottomBarButtonBounds.Value, bottomBarLabel, bottomBarHovered, layout.Scale, textScaleMultiplier);
+            DrawPlaqueMenuButton(_menuResources.TextBoxSoloTexture, layout.BottomBarButtonBounds.Value, bottomBarLabel, bottomBarHovered, layout.Scale, textScaleMultiplier);
         }
     }
 
@@ -431,7 +431,7 @@ public partial class Game1
         }
 
         var drawColor = ApplyCurrentHudElementOpacity(color);
-        if (_menuBitmapFontTexture is null || _menuBitmapFontGlyphs.Count == 0)
+        if (_menuResources.BitmapFontTexture is null || _menuResources.BitmapFontGlyphs.Count == 0)
         {
             _spriteBatch.DrawString(_menuFont, text, position, drawColor, 0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
             return;
@@ -441,11 +441,11 @@ public partial class Game1
         for (var index = 0; index < text.Length; index += 1)
         {
             var character = text[index];
-            if (!_menuBitmapFontGlyphs.TryGetValue(character, out var glyph))
+            if (!_menuResources.BitmapFontGlyphs.TryGetValue(character, out var glyph))
             {
-                if (_menuBitmapFontGlyphs.TryGetValue(' ', out var spaceGlyph))
+                if (_menuResources.BitmapFontGlyphs.TryGetValue(' ', out var spaceGlyph))
                 {
-                    cursor.X += (spaceGlyph.Advance + _menuBitmapFontSpacing) * scale;
+                    cursor.X += (spaceGlyph.Advance + _menuResources.BitmapFontSpacing) * scale;
                 }
 
                 continue;
@@ -454,16 +454,16 @@ public partial class Game1
             if (glyph.SourceRect.Width > 0 && glyph.SourceRect.Height > 0)
             {
                 _spriteBatch.Draw(
-                    _menuBitmapFontTexture.Texture,
+                    _menuResources.BitmapFontTexture.Texture,
                     new Rectangle(
                         (int)MathF.Round(cursor.X),
                         (int)MathF.Round(cursor.Y),
                         Math.Max(1, (int)MathF.Round(glyph.SourceRect.Width * scale)),
                         Math.Max(1, (int)MathF.Round(glyph.SourceRect.Height * scale))),
-                    CombineSourceRectangles(_menuBitmapFontTexture.SourceRectangle, glyph.SourceRect),
+                    CombineSourceRectangles(_menuResources.BitmapFontTexture.SourceRectangle, glyph.SourceRect),
                     drawColor);
             }
-            cursor.X += (glyph.Advance + _menuBitmapFontSpacing) * scale;
+            cursor.X += (glyph.Advance + _menuResources.BitmapFontSpacing) * scale;
         }
     }
 
@@ -475,7 +475,7 @@ public partial class Game1
             return 0f;
         }
 
-        if (_menuBitmapFontGlyphs.Count == 0)
+        if (_menuResources.BitmapFontGlyphs.Count == 0)
         {
             return _menuFont.MeasureString(text).X * scale;
         }
@@ -483,30 +483,30 @@ public partial class Game1
         var width = 0f;
         for (var index = 0; index < text.Length; index += 1)
         {
-            if (!_menuBitmapFontGlyphs.TryGetValue(text[index], out var glyph))
+            if (!_menuResources.BitmapFontGlyphs.TryGetValue(text[index], out var glyph))
             {
-                if (_menuBitmapFontGlyphs.TryGetValue(' ', out var spaceGlyph))
+                if (_menuResources.BitmapFontGlyphs.TryGetValue(' ', out var spaceGlyph))
                 {
-                    width += (spaceGlyph.Advance + _menuBitmapFontSpacing) * scale;
+                    width += (spaceGlyph.Advance + _menuResources.BitmapFontSpacing) * scale;
                 }
 
                 continue;
             }
 
-            width += (glyph.Advance + _menuBitmapFontSpacing) * scale;
+            width += (glyph.Advance + _menuResources.BitmapFontSpacing) * scale;
         }
 
-        return Math.Max(0f, width - (_menuBitmapFontSpacing * scale));
+        return Math.Max(0f, width - (_menuResources.BitmapFontSpacing * scale));
     }
 
     public float MeasureMenuBitmapFontHeight(float scale)
     {
         scale = NormalizeUiTextScale(scale);
-        if (_menuBitmapFontLineHeight <= 0)
+        if (_menuResources.BitmapFontLineHeight <= 0)
         {
             return _menuFont.LineSpacing * scale;
         }
 
-        return _menuBitmapFontLineHeight * scale;
+        return _menuResources.BitmapFontLineHeight * scale;
     }
 }

@@ -11,6 +11,10 @@ namespace OpenGarrison.Client;
 
 public partial class Game1 : IMenuContext
 {
+    AudioRuntimeSettings IMenuContext.AudioRuntimeSettings { get => _audioManager.RuntimeSettings; }
+    DisplayRuntimeSettings IMenuContext.DisplayRuntimeSettings { get => _menuManager.DisplaySettings; }
+    GameplayRuntimeSettings IMenuContext.GameplayRuntimeSettings { get => _gameplayManager.RuntimeSettings; }
+    HudRuntimeSettings IMenuContext.HudRuntimeSettings { get => _hudManager.RuntimeSettings; }
     bool IMenuContext._accountDialogOpen { get => _accountDialogOpen; set => _accountDialogOpen = value; }
 
     int IMenuContext._accountGlobalRank { get => _accountGlobalRank; set => _accountGlobalRank = value; }
@@ -23,19 +27,14 @@ public partial class Game1 : IMenuContext
 
     long IMenuContext._accountWalletBalance { get => _accountWalletBalance; set => _accountWalletBalance = value; }
 
-    bool IMenuContext._audioMuted { get => _audioMuted; set => _audioMuted = value; }
 
-    int IMenuContext._bloodAmountLevel { get => _bloodAmountLevel; set => _bloodAmountLevel = value; }
 
-    int IMenuContext._bloodPersistenceSeconds { get => _bloodPersistenceSeconds; set => _bloodPersistenceSeconds = value; }
 
-    int IMenuContext._bloodRenderMode { get => _bloodRenderMode; set => _bloodRenderMode = value; }
 
     bool IMenuContext._brandIntroActive { get => _brandIntroActive; set => _brandIntroActive = value; }
 
     bool IMenuContext._builderEditorEnabled { get => _builderEditorEnabled; set => _builderEditorEnabled = value; }
 
-    bool IMenuContext._cameraPanningEnabled { get => _cameraPanningEnabled; set => _cameraPanningEnabled = value; }
 
     OpenGarrison.ClientShared.ClientIdentityDocument IMenuContext._clientIdentity { get => _clientIdentity; }
 
@@ -47,7 +46,6 @@ public partial class Game1 : IMenuContext
 
     OpenGarrison.ClientShared.ClientSettings IMenuContext._clientSettings { get => _clientSettings; }
 
-    int IMenuContext._combatMusicVolumePercent { get => _combatMusicVolumePercent; set => _combatMusicVolumePercent = value; }
 
     int IMenuContext._controlsHoverIndex { get => _controlsHoverIndex; set => _controlsHoverIndex = value; }
 
@@ -59,37 +57,25 @@ public partial class Game1 : IMenuContext
 
     int IMenuContext._controlsScrollOffset { get => _controlsScrollOffset; set => _controlsScrollOffset = value; }
 
-    int IMenuContext._corpseDurationMode { get => _corpseDurationMode; set => _corpseDurationMode = value; }
 
-    int IMenuContext._corpseFadeMode { get => _corpseFadeMode; set => _corpseFadeMode = value; }
 
     bool IMenuContext._creditsOpen { get => _creditsOpen; set => _creditsOpen = value; }
 
-    bool IMenuContext._creditsScrollInitialized { get => _creditsScrollInitialized; set => _creditsScrollInitialized = value; }
-
-    int IMenuContext._cursorSizePercent { get => _cursorSizePercent; set => _cursorSizePercent = value; }
 
     bool IMenuContext._customBubbleEditorOpen { get => _customBubbleEditorOpen; set => _customBubbleEditorOpen = value; }
 
-    bool IMenuContext._damageVignetteEnabled { get => _damageVignetteEnabled; set => _damageVignetteEnabled = value; }
 
-    int IMenuContext._damageVignetteIntensityPercent { get => _damageVignetteIntensityPercent; set => _damageVignetteIntensityPercent = value; }
 
-    bool IMenuContext._debugMenuAwaitingEscapeRelease { get => _debugMenuAwaitingEscapeRelease; set => _debugMenuAwaitingEscapeRelease = value; }
 
     bool IMenuContext._debugMenuEnabled { get => _debugMenuEnabled; set => _debugMenuEnabled = value; }
 
-    int IMenuContext._debugMenuHoverIndex { get => _debugMenuHoverIndex; set => _debugMenuHoverIndex = value; }
 
     bool IMenuContext._debugMenuOpen { get => _debugMenuOpen; set => _debugMenuOpen = value; }
 
     bool IMenuContext._debugRocketCollisionsEnabled { get => _debugRocketCollisionsEnabled; set => _debugRocketCollisionsEnabled = value; }
 
-    OpenGarrison.Core.DisplayModeKind IMenuContext._displayMode { get => _displayMode; set => _displayMode = value; }
 
-    bool IMenuContext._dynamicMusicEnabled { get => _dynamicMusicEnabled; set => _dynamicMusicEnabled = value; }
 
-    bool IMenuContext._dynamicRagdollEnabled { get => _dynamicRagdollEnabled; set => _dynamicRagdollEnabled = value; }
 
     bool IMenuContext._editingFriendCode { get => _editingFriendCode; set => _editingFriendCode = value; }
 
@@ -97,15 +83,14 @@ public partial class Game1 : IMenuContext
 
     bool IMenuContext._editingPlayerName { get => _editingPlayerName; set => _editingPlayerName = value; }
 
-    bool IMenuContext._enablePrediction { get => _enablePrediction; set => _enablePrediction = value; }
 
-    int IMenuContext._flameRenderMode { get => _flameRenderMode; set => _flameRenderMode = value; }
 
-    int IMenuContext._frameRateLimit { get => _frameRateLimit; set => _frameRateLimit = value; }
 
     OpenGarrison.ClientShared.FriendListDocument IMenuContext._friendList { get => _friendList; }
 
-    string IMenuContext._friendNicknameInputBuffer { get => _friendNicknameInputBuffer; set => _friendNicknameInputBuffer = value; }
+    TextEditState IMenuContext.FriendNicknameEdit => _inputManager.MenuTextInput.FriendNicknameEdit;
+    MenuResources IMenuContext.MenuResources => _gameplayManager.Bootstrap.MenuResources;
+
 
     bool IMenuContext._friendsMenuAddingFriend { get => _friendsMenuAddingFriend; set => _friendsMenuAddingFriend = value; }
 
@@ -121,13 +106,11 @@ public partial class Game1 : IMenuContext
 
     bool IMenuContext._garrisonBuilderQuickTestActive { get => _garrisonBuilderQuickTestActive; set => _garrisonBuilderQuickTestActive = value; }
 
-    int IMenuContext._gibLevel { get => _gibLevel; set => _gibLevel = value; }
 
     Microsoft.Xna.Framework.GraphicsDeviceManager IMenuContext._graphics { get => _graphics; }
 
     Microsoft.Xna.Framework.Graphics.Effect IMenuContext._grayscaleEffect { get => _grayscaleEffect; set => _grayscaleEffect = value; }
 
-    bool IMenuContext._healerRadarEnabled { get => _healerRadarEnabled; set => _healerRadarEnabled = value; }
 
     OpenGarrison.Client.Game1.HostSetupEditField IMenuContext._hostSetupEditField { get => _hostSetupEditField; set => _hostSetupEditField = value; }
 
@@ -135,17 +118,10 @@ public partial class Game1 : IMenuContext
 
     OpenGarrison.Client.Game1.HostSetupFormState IMenuContext._hostSetupState { get => _hostSetupState; }
 
-    bool IMenuContext._hudShowOnlyActiveWeapon { get => _hudShowOnlyActiveWeapon; set => _hudShowOnlyActiveWeapon = value; }
-
-    bool IMenuContext._inGameMenuAwaitingEscapeRelease { get => _inGameMenuAwaitingEscapeRelease; set => _inGameMenuAwaitingEscapeRelease = value; }
-
-    int IMenuContext._inGameMenuHoverIndex { get => _inGameMenuHoverIndex; set => _inGameMenuHoverIndex = value; }
 
     bool IMenuContext._inGameMenuOpen { get => _inGameMenuOpen; set => _inGameMenuOpen = value; }
 
-    int IMenuContext._ingameMusicVolumePercent { get => _ingameMusicVolumePercent; set => _ingameMusicVolumePercent = value; }
 
-    OpenGarrison.Core.IngameResolutionKind IMenuContext._ingameResolution { get => _ingameResolution; set => _ingameResolution = value; }
 
     OpenGarrison.Client.InputBindingsSettings IMenuContext._inputBindings { get => _inputBindings; }
 
@@ -155,7 +131,6 @@ public partial class Game1 : IMenuContext
 
     bool IMenuContext._jumpMenuOpen { get => _jumpMenuOpen; set => _jumpMenuOpen = value; }
 
-    bool IMenuContext._killCamEnabled { get => _killCamEnabled; set => _killCamEnabled = value; }
 
     int IMenuContext._lastToDieMenuHoverIndex { get => _lastToDieMenuHoverIndex; set => _lastToDieMenuHoverIndex = value; }
 
@@ -167,7 +142,6 @@ public partial class Game1 : IMenuContext
 
     bool IMenuContext._lobbyBrowserOpen { get => _lobbyBrowserOpen; set => _lobbyBrowserOpen = value; }
 
-    OpenGarrison.Core.LowHealthColorMode IMenuContext._lowHealthColorMode { get => _lowHealthColorMode; set => _lowHealthColorMode = value; }
 
     bool IMenuContext._mainMenuBottomBarHover { get => _mainMenuBottomBarHover; set => _mainMenuBottomBarHover = value; }
 
@@ -183,35 +157,22 @@ public partial class Game1 : IMenuContext
 
     bool IMenuContext._manualConnectOpen { get => _manualConnectOpen; set => _manualConnectOpen = value; }
 
-    int IMenuContext._masterVolumePercent { get => _masterVolumePercent; set => _masterVolumePercent = value; }
 
-    string IMenuContext._menuBackgroundAttributionText { get => _menuBackgroundAttributionText; set => _menuBackgroundAttributionText = value; }
 
-    string IMenuContext._menuBackgroundFailedPath { get => _menuBackgroundFailedPath; set => _menuBackgroundFailedPath = value; }
 
-    OpenGarrison.Core.MenuBackgroundMode IMenuContext._menuBackgroundMode { get => _menuBackgroundMode; set => _menuBackgroundMode = value; }
 
-    OpenGarrison.Client.LoadedSpriteFrame IMenuContext._menuBackgroundTexture { get => _menuBackgroundTexture; set => _menuBackgroundTexture = value; }
 
-    string IMenuContext._menuBackgroundTexturePath { get => _menuBackgroundTexturePath; set => _menuBackgroundTexturePath = value; }
 
-    int IMenuContext._menuImageFrame { get => _menuImageFrame; set => _menuImageFrame = value; }
 
-    int IMenuContext._menuMusicVolumePercent { get => _menuMusicVolumePercent; set => _menuMusicVolumePercent = value; }
 
-    OpenGarrison.Client.LoadedSpriteFrame IMenuContext._menuPlaqueTallTexture { get => _menuPlaqueTallTexture; set => _menuPlaqueTallTexture = value; }
 
-    OpenGarrison.Client.LoadedSpriteFrame IMenuContext._menuPlaqueTexture { get => _menuPlaqueTexture; set => _menuPlaqueTexture = value; }
 
     string IMenuContext._menuStatusMessage { get => _menuStatusMessage; set => _menuStatusMessage = value; }
 
-    OpenGarrison.Core.MusicMode IMenuContext._musicMode { get => _musicMode; set => _musicMode = value; }
 
     bool IMenuContext._namePromptOpen { get => _namePromptOpen; set => _namePromptOpen = value; }
 
     OpenGarrison.Client.NetworkGameClient IMenuContext._networkClient { get => _networkClient; }
-
-    int IMenuContext._optionsHoverIndex { get => _optionsHoverIndex; set => _optionsHoverIndex = value; }
 
     bool IMenuContext._optionsMenuOpen { get => _optionsMenuOpen; set => _optionsMenuOpen = value; }
 
@@ -219,11 +180,7 @@ public partial class Game1 : IMenuContext
 
     int IMenuContext._optionsPageIndex { get => _optionsPageIndex; set => _optionsPageIndex = value; }
 
-    int IMenuContext._optionsScrollOffset { get => _optionsScrollOffset; set => _optionsScrollOffset = value; }
 
-    bool IMenuContext._overheadChatEnabled { get => _overheadChatEnabled; set => _overheadChatEnabled = value; }
-
-    int IMenuContext._particleMode { get => _particleMode; set => _particleMode = value; }
 
     OpenGarrison.Client.PlayerHostedRoomSession IMenuContext._peerRoomSession { get => _peerRoomSession; set => _peerRoomSession = value; }
 
@@ -235,9 +192,7 @@ public partial class Game1 : IMenuContext
 
     Microsoft.Xna.Framework.Graphics.Texture2D IMenuContext._pixel { get => _pixel; set => _pixel = value; }
 
-    bool IMenuContext._pixelPerfectWeaponRotation { get => _pixelPerfectWeaponRotation; set => _pixelPerfectWeaponRotation = value; }
 
-    int IMenuContext._playerCardSizeMode { get => _playerCardSizeMode; set => _playerCardSizeMode = value; }
 
     string IMenuContext._playerNameEditBuffer { get => _playerNameEditBuffer; set => _playerNameEditBuffer = value; }
 
@@ -253,11 +208,8 @@ public partial class Game1 : IMenuContext
 
     int IMenuContext._pluginOptionsScrollOffset { get => _pluginOptionsScrollOffset; set => _pluginOptionsScrollOffset = value; }
 
-    bool IMenuContext._portraitRumbleEnabled { get => _portraitRumbleEnabled; set => _portraitRumbleEnabled = value; }
 
-    bool IMenuContext._positionSmoothingEnabled { get => _positionSmoothingEnabled; set => _positionSmoothingEnabled = value; }
 
-    bool IMenuContext._postGameMvpArtEnabled { get => _postGameMvpArtEnabled; set => _postGameMvpArtEnabled = value; }
 
     bool IMenuContext._practiceSetupOpen { get => _practiceSetupOpen; set => _practiceSetupOpen = value; }
 
@@ -265,7 +217,6 @@ public partial class Game1 : IMenuContext
 
     Microsoft.Xna.Framework.Input.MouseState IMenuContext._previousMouse { get => _previousMouse; set => _previousMouse = value; }
 
-    bool IMenuContext._projectileTeamTintEnabled { get => _projectileTeamTintEnabled; set => _projectileTeamTintEnabled = value; }
 
     bool IMenuContext._quitPromptOpen { get => _quitPromptOpen; set => _quitPromptOpen = value; }
 
@@ -273,37 +224,23 @@ public partial class Game1 : IMenuContext
 
     string IMenuContext._selectedPluginOptionsPluginId { get => _selectedPluginOptionsPluginId; set => _selectedPluginOptionsPluginId = value; }
 
-    bool IMenuContext._showHealerEnabled { get => _showHealerEnabled; set => _showHealerEnabled = value; }
 
-    bool IMenuContext._showHealingEnabled { get => _showHealingEnabled; set => _showHealingEnabled = value; }
 
-    bool IMenuContext._showHealthBarEnabled { get => _showHealthBarEnabled; set => _showHealthBarEnabled = value; }
 
-    bool IMenuContext._showPersistentSelfNameEnabled { get => _showPersistentSelfNameEnabled; set => _showPersistentSelfNameEnabled = value; }
 
-    bool IMenuContext._showPlayerNamesEnabled { get => _showPlayerNamesEnabled; set => _showPlayerNamesEnabled = value; }
 
-    bool IMenuContext._showShieldBarEnabled { get => _showShieldBarEnabled; set => _showShieldBarEnabled = value; }
 
-    int IMenuContext._soundEffectsVolumePercent { get => _soundEffectsVolumePercent; set => _soundEffectsVolumePercent = value; }
 
     Microsoft.Xna.Framework.Graphics.SpriteBatch IMenuContext._spriteBatch { get => _spriteBatch; set => _spriteBatch = value; }
 
-    bool IMenuContext._spriteDropShadowEnabled { get => _spriteDropShadowEnabled; set => _spriteDropShadowEnabled = value; }
 
-    bool IMenuContext._stuckArrowsEnabled { get => _stuckArrowsEnabled; set => _stuckArrowsEnabled = value; }
 
-    WeaponBobMode IMenuContext._weaponBobMode { get => _weaponBobMode; set => _weaponBobMode = value; }
 
-    bool IMenuContext._burnCharredCorpsesEnabled { get => _burnCharredCorpsesEnabled; set => _burnCharredCorpsesEnabled = value; }
 
-    bool IMenuContext._uberOutlineEnabled { get => _uberOutlineEnabled; set => _uberOutlineEnabled = value; }
 
-    bool IMenuContext._useLocalWeaponRotation { get => _useLocalWeaponRotation; set => _useLocalWeaponRotation = value; }
 
     OpenGarrison.Client.VoiceChatSettings IMenuContext._voiceSettings { get => _voiceSettings; set => _voiceSettings = value; }
 
-    OpenGarrison.Core.WindowSizeKind IMenuContext._windowSize { get => _windowSize; set => _windowSize = value; }
 
     OpenGarrison.Core.SimulationWorld IMenuContext._world { get => _world; set => _world = value; }
 

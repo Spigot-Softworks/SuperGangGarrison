@@ -202,7 +202,7 @@ public partial class Game1
         _managedRoomRequest = _managedRoomRequest! with { RoomId = room.RoomId };
         ClientDistribution.AuthorizeRoomEndpoint(endpoint!, DateTimeOffset.Parse(room.ExpiresAtIso, CultureInfo.InvariantCulture));
         _hostedLastToDieRoomCode = room.RoomCode;
-        _lastToDieConnectionPresentationPending = true;
+        _sessionTransitions.LastToDieConnectionPresentationPending = true;
         if (!TryConnectToServer(new NetworkEndpoint(endpoint!.Host, 0, 0, endpoint.AbsoluteUri), false))
         {
             if (_managedReconnecting && TryReconnectManagedRoom()) return;

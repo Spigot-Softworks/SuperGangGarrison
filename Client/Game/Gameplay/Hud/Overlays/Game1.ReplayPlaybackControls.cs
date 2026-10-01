@@ -111,12 +111,12 @@ public partial class Game1
             || !_networkClient.IsConnected
             || !_networkClient.IsReplayConnection
             || _mainMenuOpen
-            || _loadingOverlayVisible
+            || _loadingOverlayState.Visible
             || _consoleOpen
             || _chatOpen
             || _passwordPromptOpen
-            || _teamSelectOpen
-            || _classSelectOpen
+            || _teamClassSelectionState.TeamSelectOpen
+            || _teamClassSelectionState.ClassSelectOpen
             || GetActiveGameplayOverlay() != GameplayOverlayKind.None
             || !_networkClient.TryGetReplayPlaybackState(out state)
             || !state.CanSeek)
@@ -262,9 +262,9 @@ public partial class Game1
             }
 
             _replaySeekCatchUpActive = false;
-            _pendingNetworkVisualEvents.Clear();
-            _pendingNetworkSoundEvents.Clear();
-            _pendingNetworkDamageEvents.Clear();
+            _gameplayManager.VisualEvents.ClearPendingNetworkVisualEvents();
+            _audioManager.Events.ClearPendingNetworkSoundEvents();
+            _pluginManager.Events.ClearPendingNetworkDamageEvents();
             _ = _world.DrainPendingSoundEvents();
             HideLoadingOverlay();
             SetNetworkStatus($"Replay at {FormatReplayPlaybackTime(_replaySeekTargetMilliseconds)}.");

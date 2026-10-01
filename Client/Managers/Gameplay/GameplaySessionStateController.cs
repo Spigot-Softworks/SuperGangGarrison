@@ -15,6 +15,10 @@ public sealed class GameplaySessionStateController
             _context = context;
         }
 
+        public GameplaySessionTransitionState SessionTransitions { get; } = new();
+
+        public PendingHostedConnectState PendingHostedConnect { get; } = new();
+
         public void EnterGameplaySession(GameplaySessionKind sessionKind, bool openJoinMenus, string? statusMessage)
         {
             if (sessionKind != GameplaySessionKind.LastToDie)
@@ -25,13 +29,13 @@ public sealed class GameplaySessionStateController
             _context._gameplaySessionKind = sessionKind;
             _context._offlinePracticeSpectatorMode = false;
             _context._practiceSessionElapsedTicks = 0;
-            _context._pendingHostedConnectTicks = -1;
-            _context._pendingHostedConnectPort = OpenGarrisonPreferencesDocument.DefaultServerPort;
+            PendingHostedConnect.Ticks = -1;
+            PendingHostedConnect.Port = OpenGarrisonPreferencesDocument.DefaultServerPort;
             _context._mainMenuOpen = false;
             _context.CloseMainMenuOverlayState();
             _context.CloseGameplayOverlayState();
-            _context._teamSelectOpen = openJoinMenus;
-            _context._pendingMapTeamSelection = false;
+            _context.TeamClassSelection.TeamSelectOpen = openJoinMenus;
+            _context.TeamClassSelection.PendingMapTeamSelection = false;
             _context._menuStatusMessage = statusMessage ?? string.Empty;
             _context.InvalidateDiscordRichPresenceRefresh();
 
@@ -44,11 +48,11 @@ public sealed class GameplaySessionStateController
             _context._firstPlayHints?.LeaveSession();
             _context.HideLoadingOverlay();
             _context.SetJoiningServerLoadingLabel(null);
-            _context._lastToDieConnectionPresentationPending = false;
-            _context._pendingHostedConnectTicks = -1;
-            _context._pendingHostedConnectPort = OpenGarrisonPreferencesDocument.DefaultServerPort;
+            SessionTransitions.LastToDieConnectionPresentationPending = false;
+            PendingHostedConnect.Ticks = -1;
+            PendingHostedConnect.Port = OpenGarrisonPreferencesDocument.DefaultServerPort;
             _context._mainMenuOpen = true;
-            _context._pendingMapTeamSelection = false;
+            _context.TeamClassSelection.PendingMapTeamSelection = false;
             _context._mainMenuPage = MainMenuPage.Root;
             _context._mainMenuHoverIndex = -1;
             _context._mainMenuBottomBarHover = false;
@@ -67,9 +71,9 @@ public sealed class GameplaySessionStateController
             _context.InvalidateDiscordRichPresenceRefresh();
 
             // Initialize animated menu background if enabled
-            if (_context._menuBackgroundMode != MenuBackgroundMode.Static)
+            if (_context.GameplayRuntimeSettings.MenuBackgroundMode != MenuBackgroundMode.Static)
             {
-                _context.Menus.AnimatedMenuBackground.Initialize(_context._menuBackgroundMode);
+                _context.Menus.AnimatedMenuBackground.Initialize(_context.GameplayRuntimeSettings.MenuBackgroundMode);
             }
         }
 

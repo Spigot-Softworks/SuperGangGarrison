@@ -46,7 +46,7 @@ public partial class Game1
 
     private void AdvanceBurnCharredCorpses()
     {
-        if (!_burnCharredCorpsesEnabled)
+        if (!_gameplayManager.RuntimeSettings.BurnCharredCorpsesEnabled)
         {
             if (_burnCharredCorpseStates.Count > 0)
             {
@@ -257,7 +257,7 @@ public partial class Game1
         if (!TryGetDynamicRagdollForAcidCapture(corpseId, sourcePlayerId, out var ragdoll))
         {
             // Keep waiting for the ragdoll; never fall back to DeadS for dynamic corpses.
-            if (_dynamicRagdollEnabled)
+            if (_gameplayManager.RuntimeSettings.DynamicRagdollEnabled)
             {
                 state.SettledDwellTicks = Math.Max(0, state.SettledDwellTicks - 1);
                 return;
@@ -317,7 +317,7 @@ public partial class Game1
                     && MathF.Abs(ragdoll.VelocityY) < DynamicRagdollSettledSpeed * 1.5f
                     && MathF.Abs(ragdoll.AngularVelocityDegrees) < DynamicRagdollSettledAngularSpeed * 1.5f);
         }
-        else if (!_dynamicRagdollEnabled)
+        else if (!_gameplayManager.RuntimeSettings.DynamicRagdollEnabled)
         {
             resting = MathF.Abs(horizontalSpeed) <= 0.35f && MathF.Abs(verticalSpeed) <= 0.45f;
         }
@@ -337,7 +337,7 @@ public partial class Game1
     /// </summary>
     private bool IsBurnCharredRagdollHeld(DynamicRagdollState ragdoll)
     {
-        if (!_burnCharredCorpsesEnabled || !ragdoll.DiedToFire)
+        if (!_gameplayManager.RuntimeSettings.BurnCharredCorpsesEnabled || !ragdoll.DiedToFire)
         {
             return false;
         }
@@ -401,7 +401,7 @@ public partial class Game1
         int ticksRemaining,
         Vector2 cameraPosition)
     {
-        if (!_burnCharredCorpsesEnabled || !diedToFire)
+        if (!_gameplayManager.RuntimeSettings.BurnCharredCorpsesEnabled || !diedToFire)
         {
             return false;
         }
@@ -443,7 +443,7 @@ public partial class Game1
         }
 
         // Dynamic ragdolls on: wait for the ragdoll instead of flashing DeadS.
-        if (_dynamicRagdollEnabled)
+        if (_gameplayManager.RuntimeSettings.DynamicRagdollEnabled)
         {
             return false;
         }

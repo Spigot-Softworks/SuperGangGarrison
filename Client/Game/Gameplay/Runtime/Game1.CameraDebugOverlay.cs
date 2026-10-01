@@ -124,10 +124,10 @@ public partial class Game1
         _cameraDebugOverlayLines.Add(FormatCameraDebugLine("player step", renderDeltaX));
         _cameraDebugOverlayLines.Add(FormatCameraDebugLine("sim alpha", _simulator.InterpolationAlpha));
         _cameraDebugOverlayLines.Add(FormatCameraDebugLine("client ticks", _cameraDebugLastClientTicks.ToString(CultureInfo.InvariantCulture)));
-        _cameraDebugOverlayLines.Add(FormatCameraDebugLine("raw/pred", FormatCameraDebugPair(rawPosition.X, _hasPredictedLocalPlayerPosition ? _predictedLocalPlayerPosition.X : float.NaN)));
+        _cameraDebugOverlayLines.Add(FormatCameraDebugLine("raw/pred", FormatCameraDebugPair(rawPosition.X, _localPredictionState.HasPredictedLocalPlayerPosition ? _localPredictionState.PredictedLocalPlayerPosition.X : float.NaN)));
         _cameraDebugOverlayLines.Add(FormatCameraDebugLine("smooth/corr", FormatCameraDebugPair(
-            _hasSmoothedLocalPlayerRenderPosition ? _smoothedLocalPlayerRenderPosition.X : float.NaN,
-            _predictedLocalPlayerRenderCorrectionOffset.X)));
+            _localPredictionState.HasSmoothedLocalPlayerRenderPosition ? _localPredictionState.SmoothedLocalPlayerRenderPosition.X : float.NaN,
+            _localPredictionState.PredictedLocalPlayerRenderCorrectionOffset.X)));
 
         const int padding = 10;
         const int lineHeight = 17;

@@ -42,6 +42,7 @@ public partial class Game1
     private const float DynamicRagdollSettleMaxLieErrorDegrees = 38f;
     private const float DynamicRagdollMaxCollisionHalfWidth = 9f;
     private const float DynamicRagdollMaxCollisionHalfHeight = 12f;
+    private const float DynamicRagdollCollisionEpsilon = 0.01f;
     private const int DynamicRagdollOpaqueAlphaThreshold = 24;
     private const int DynamicRagdollSeamWidthPixels = 2;
 
@@ -80,6 +81,7 @@ public partial class Game1
         public float CollisionHalfWidth;
         public float CollisionHalfHeight;
         public bool UseElkondoVerticalVisual;
+        public Rectangle[]? CollisionSegmentOpaqueBounds;
         public string WeaponSpriteName = string.Empty;
         public int WeaponFrameIndex;
         public Vector2 WeaponOrigin;
@@ -100,9 +102,9 @@ public partial class Game1
 
     public void AdvanceDynamicRagdolls()
     {
-        if (!_dynamicRagdollEnabled || _dynamicRagdolls.Count == 0)
+        if (!_gameplayManager.RuntimeSettings.DynamicRagdollEnabled || _dynamicRagdolls.Count == 0)
         {
-            if (!_dynamicRagdollEnabled && _dynamicRagdolls.Count > 0)
+            if (!_gameplayManager.RuntimeSettings.DynamicRagdollEnabled && _dynamicRagdolls.Count > 0)
             {
                 ResetDynamicRagdollEffects();
             }
@@ -272,7 +274,7 @@ public partial class Game1
 
     public void SyncDynamicRagdollsWithDeadBodies()
     {
-        if (!_dynamicRagdollEnabled)
+        if (!_gameplayManager.RuntimeSettings.DynamicRagdollEnabled)
         {
             if (_dynamicRagdolls.Count > 0)
             {
@@ -578,11 +580,13 @@ public partial class Game1
                 animationKind,
                 out var opaqueBounds,
                 out var collisionHalfWidth,
-                out var collisionHalfHeight))
+                out var collisionHalfHeight,
+                out var collisionSegmentOpaqueBounds))
         {
             opaqueBounds = new Rectangle(0, 0, 24, 12);
             collisionHalfWidth = 12f;
             collisionHalfHeight = 6f;
+            collisionSegmentOpaqueBounds = null;
         }
 
         var useElkondoVisual = TryResolveElkondoCorpseSprite(gameplayClassId, classId, team, out _, out _, out _);
@@ -647,6 +651,7 @@ public partial class Game1
             CollisionHalfWidth = collisionHalfWidth,
             CollisionHalfHeight = collisionHalfHeight,
             UseElkondoVerticalVisual = useElkondoVisual,
+            CollisionSegmentOpaqueBounds = collisionSegmentOpaqueBounds,
         };
 
         if (!diedToFire)
@@ -741,15 +746,24 @@ public partial class Game1
         DeadBodyAnimationKind animationKind,
         out Rectangle opaqueBounds,
         out float collisionHalfWidth,
-        out float collisionHalfHeight)
+        out float collisionHalfHeight,
+        out Rectangle[]? collisionSegmentOpaqueBounds)
     {
         opaqueBounds = default;
         collisionHalfWidth = 8f;
         collisionHalfHeight = 6f;
+        collisionSegmentOpaqueBounds = null;
 
         string? spriteName;
         var frameIndex = 0;
-        if (TryResolveElkondoCorpseSprite(gameplayClassId, classId, team, out var elkondoSprite, out frameIndex, out _))
+        var useElkondoVisual = TryResolveElkondoCorpseSprite(
+            gameplayClassId,
+            classId,
+            team,
+            out var elkondoSprite,
+            out frameIndex,
+            out _);
+        if (useElkondoVisual)
         {
             spriteName = elkondoSprite;
         }
@@ -770,17 +784,28 @@ public partial class Game1
         }
 
         var frame = sprite.Frames[Math.Clamp(frameIndex, 0, sprite.Frames.Count - 1)];
+        var hasPixels = TryGetSpriteFramePixels(frame, out var pixels, out var width, out var height);
         if (frame.OpaqueBounds is { Width: > 0, Height: > 0 } frameOpaque)
         {
             opaqueBounds = frameOpaque;
         }
-        else if (TryGetSpriteFramePixels(frame, out var pixels, out var width, out var height)
-                 && TryComputeOpaqueBounds(pixels, width, height, out opaqueBounds))
+        else if (hasPixels && TryComputeOpaqueBounds(pixels, width, height, out opaqueBounds))
         {
         }
         else
         {
             opaqueBounds = new Rectangle(0, 0, frame.Width, frame.Height);
+        }
+
+        if (hasPixels)
+        {
+            collisionSegmentOpaqueBounds = CreateRagdollCollisionSegmentOpaqueBounds(
+                pixels,
+                width,
+                height,
+                opaqueBounds,
+                classId,
+                useElkondoVisual);
         }
 
         // Collision stays player-sized. Full opaque halves (especially Elkondo standing run poses)
@@ -824,6 +849,157 @@ public partial class Game1
         }
 
         bounds = new Rectangle(minX, minY, maxX - minX + 1, maxY - minY + 1);
+        return true;
+    }
+
+    internal static Rectangle[]? CreateRagdollCollisionSegmentOpaqueBounds(
+        Color[] pixels,
+        int width,
+        int height,
+        Rectangle opaqueBounds,
+        PlayerClass classId,
+        bool useElkondoVerticalVisual)
+    {
+        if (width <= 0 || height <= 0 || pixels.Length < width * height
+            || opaqueBounds.Width <= 1 || opaqueBounds.Height <= 1
+            || opaqueBounds.Left < 0 || opaqueBounds.Top < 0
+            || opaqueBounds.Right > width || opaqueBounds.Bottom > height)
+        {
+            return null;
+        }
+
+        var segmentBounds = new Rectangle[DynamicRagdollPivotCount + 1];
+        if (useElkondoVerticalVisual)
+        {
+            var waistFraction = GetElkondoWaistFraction(classId);
+            var chestFraction = Math.Clamp(waistFraction * 0.48f, 0.16f, waistFraction - 0.10f);
+            var kneeFraction = Math.Clamp(waistFraction + ((1f - waistFraction) * 0.50f), waistFraction + 0.10f, 0.90f);
+            Span<float> cutFractions = stackalloc float[]
+            {
+                0f,
+                chestFraction,
+                waistFraction,
+                kneeFraction,
+                1f,
+            };
+            Span<int> cutYs = stackalloc int[cutFractions.Length];
+            for (var index = 0; index < cutFractions.Length; index += 1)
+            {
+                cutYs[index] = opaqueBounds.Top + Math.Clamp(
+                    (int)MathF.Round(opaqueBounds.Height * cutFractions[index]),
+                    0,
+                    opaqueBounds.Height);
+            }
+
+            for (var index = 1; index < cutYs.Length; index += 1)
+            {
+                if (cutYs[index] <= cutYs[index - 1])
+                {
+                    cutYs[index] = Math.Min(opaqueBounds.Bottom, cutYs[index - 1] + 1);
+                }
+            }
+
+            for (var segmentIndex = 0; segmentIndex < segmentBounds.Length; segmentIndex += 1)
+            {
+                var sourceStrip = new Rectangle(
+                    opaqueBounds.Left,
+                    cutYs[segmentIndex],
+                    opaqueBounds.Width,
+                    cutYs[segmentIndex + 1] - cutYs[segmentIndex]);
+                if (!TryComputeSegmentOpaqueBounds(pixels, width, height, sourceStrip, out segmentBounds[segmentIndex]))
+                {
+                    return null;
+                }
+            }
+        }
+        else
+        {
+            Span<int> cutXs = stackalloc int[DynamicRagdollPivotCount + 2];
+            cutXs[0] = opaqueBounds.Left;
+            for (var pivotIndex = 0; pivotIndex < DynamicRagdollPivotCount; pivotIndex += 1)
+            {
+                cutXs[pivotIndex + 1] = opaqueBounds.Left + Math.Clamp(
+                    (int)MathF.Round(opaqueBounds.Width * DynamicRagdollPivotFractions[pivotIndex]),
+                    1,
+                    Math.Max(1, opaqueBounds.Width - 1));
+            }
+
+            cutXs[DynamicRagdollPivotCount + 1] = opaqueBounds.Right;
+            for (var index = 1; index < cutXs.Length; index += 1)
+            {
+                if (cutXs[index] <= cutXs[index - 1])
+                {
+                    cutXs[index] = Math.Min(opaqueBounds.Right, cutXs[index - 1] + 1);
+                }
+            }
+
+            for (var segmentIndex = 0; segmentIndex < segmentBounds.Length; segmentIndex += 1)
+            {
+                var sourceStrip = new Rectangle(
+                    cutXs[segmentIndex],
+                    opaqueBounds.Top,
+                    cutXs[segmentIndex + 1] - cutXs[segmentIndex],
+                    opaqueBounds.Height);
+                if (!TryComputeSegmentOpaqueBounds(pixels, width, height, sourceStrip, out segmentBounds[segmentIndex]))
+                {
+                    return null;
+                }
+            }
+        }
+
+        return segmentBounds;
+    }
+
+    private static bool TryComputeSegmentOpaqueBounds(
+        Color[] pixels,
+        int width,
+        int height,
+        Rectangle sourceStrip,
+        out Rectangle localOpaqueBounds)
+    {
+        localOpaqueBounds = Rectangle.Empty;
+        if (sourceStrip.Width <= 0 || sourceStrip.Height <= 0)
+        {
+            return true;
+        }
+
+        if (sourceStrip.Left < 0 || sourceStrip.Top < 0
+            || sourceStrip.Right > width || sourceStrip.Bottom > height)
+        {
+            return false;
+        }
+
+        var minX = sourceStrip.Right;
+        var minY = sourceStrip.Bottom;
+        var maxX = sourceStrip.Left - 1;
+        var maxY = sourceStrip.Top - 1;
+        for (var y = sourceStrip.Top; y < sourceStrip.Bottom; y += 1)
+        {
+            var row = y * width;
+            for (var x = sourceStrip.Left; x < sourceStrip.Right; x += 1)
+            {
+                if (pixels[row + x].A < DynamicRagdollOpaqueAlphaThreshold)
+                {
+                    continue;
+                }
+
+                minX = Math.Min(minX, x);
+                minY = Math.Min(minY, y);
+                maxX = Math.Max(maxX, x);
+                maxY = Math.Max(maxY, y);
+            }
+        }
+
+        if (maxX < minX || maxY < minY)
+        {
+            return true;
+        }
+
+        localOpaqueBounds = new Rectangle(
+            minX - sourceStrip.Left,
+            minY - sourceStrip.Top,
+            maxX - minX + 1,
+            maxY - minY + 1);
         return true;
     }
 
@@ -1342,31 +1518,283 @@ public partial class Game1
 
     internal static bool IsRagdollPoseBlocked(DynamicRagdollState ragdoll, SimpleLevel level, WorldBounds bounds)
     {
-        Span<Vector2> nodes = stackalloc Vector2[DynamicRagdollCollisionNodeCount];
-        var count = BuildRagdollCollisionNodes(ragdoll, nodes);
-        var radius = GetRagdollCollisionRadius(ragdoll);
-        // Cover the articulated strips, including gaps between center probes.
-        // The attached weapon never contributes a collision shape.
-        var start = count > 1 ? nodes[0] - (nodes[1] - nodes[0]) * 0.5f : nodes[0];
-        for (var index = 0; index <= count; index++)
+        var opaque = ragdoll.OpaqueBounds;
+        if (opaque.Width <= 1 || opaque.Height <= 1)
         {
-            var end = index < count ? nodes[index]
-                : count > 1 ? nodes[count - 1] + (nodes[count - 1] - nodes[count - 2]) * 0.5f : nodes[0];
-            var samples = Math.Max(1, (int)MathF.Ceiling(Vector2.Distance(start, end) / radius));
-            for (var sample = 0; sample <= samples; sample++)
-            {
-                var center = Vector2.Lerp(start, end, sample / (float)samples);
-                var left = center.X - radius;
-                var top = center.Y - radius;
-                var right = center.X + radius;
-                var bottom = center.Y + radius;
-                if (left < 0f || top < 0f || right > bounds.Width || bottom > bounds.Height
-                    || level.IntersectsSolid(left + 0.01f, top + 0.01f, right - 0.01f, bottom - 0.01f))
-                    return true;
-            }
-            start = end;
+            return IsInvalidOpaqueRagdollPoseBlocked(ragdoll, level, bounds);
         }
+
+        return ragdoll.UseElkondoVerticalVisual
+            ? IsElkondoRagdollPoseBlocked(ragdoll, level, bounds)
+            : IsHorizontalRagdollPoseBlocked(ragdoll, level, bounds);
+    }
+
+    private static bool IsInvalidOpaqueRagdollPoseBlocked(
+        DynamicRagdollState ragdoll,
+        SimpleLevel level,
+        WorldBounds bounds)
+    {
+        var radius = GetRagdollCollisionRadius(ragdoll);
+        var left = ragdoll.X - radius;
+        var top = ragdoll.Y - radius;
+        var right = ragdoll.X + radius;
+        var bottom = ragdoll.Y + radius;
+        return left < 0f || top < 0f || right > bounds.Width || bottom > bounds.Height
+            || level.IntersectsSolid(
+                left + DynamicRagdollCollisionEpsilon,
+                top + DynamicRagdollCollisionEpsilon,
+                right - DynamicRagdollCollisionEpsilon,
+                bottom - DynamicRagdollCollisionEpsilon);
+    }
+
+    private static bool IsHorizontalRagdollPoseBlocked(
+        DynamicRagdollState ragdoll,
+        SimpleLevel level,
+        WorldBounds bounds)
+    {
+        var opaque = ragdoll.OpaqueBounds;
+        Span<int> cutXs = stackalloc int[DynamicRagdollPivotCount + 2];
+        cutXs[0] = opaque.Left;
+        for (var pivotIndex = 0; pivotIndex < DynamicRagdollPivotCount; pivotIndex += 1)
+        {
+            cutXs[pivotIndex + 1] = opaque.Left + Math.Clamp(
+                (int)MathF.Round(opaque.Width * DynamicRagdollPivotFractions[pivotIndex]),
+                1,
+                Math.Max(1, opaque.Width - 1));
+        }
+
+        cutXs[DynamicRagdollPivotCount + 1] = opaque.Right;
+        for (var index = 1; index < cutXs.Length; index += 1)
+        {
+            if (cutXs[index] <= cutXs[index - 1])
+            {
+                cutXs[index] = Math.Min(opaque.Right, cutXs[index - 1] + 1);
+            }
+        }
+
+        var scaleX = ragdoll.FacingLeft ? -1f : 1f;
+        var root = new Vector2(ragdoll.X, ragdoll.Y);
+        var cursor = root + TransformRagdollLocal(
+            new Vector2(-opaque.Width * 0.5f, 0f),
+            scaleX,
+            ragdoll.RotationDegrees * (MathF.PI / 180f));
+        var cumulativePivotDegrees = 0f;
+        var collisionSegmentOpaqueBounds = ragdoll.CollisionSegmentOpaqueBounds;
+        for (var segmentIndex = 0; segmentIndex < cutXs.Length - 1; segmentIndex += 1)
+        {
+            var segmentWidth = cutXs[segmentIndex + 1] - cutXs[segmentIndex];
+            if (segmentWidth <= 0)
+            {
+                continue;
+            }
+
+            var rotationRadians = (ragdoll.RotationDegrees + cumulativePivotDegrees) * (MathF.PI / 180f);
+            var alongAxis = TransformRagdollLocal(Vector2.UnitX, scaleX, rotationRadians);
+            var acrossAxis = TransformRagdollLocal(Vector2.UnitY, scaleX, rotationRadians);
+            var next = cursor + (alongAxis * segmentWidth);
+            var segmentOpaqueBounds = collisionSegmentOpaqueBounds is { Length: DynamicRagdollPivotCount + 1 }
+                ? collisionSegmentOpaqueBounds[segmentIndex]
+                : new Rectangle(0, 0, segmentWidth, opaque.Height);
+            if (segmentOpaqueBounds.Width > 0 && segmentOpaqueBounds.Height > 0)
+            {
+                var localCenter = new Vector2(
+                    segmentOpaqueBounds.Left + (segmentOpaqueBounds.Width * 0.5f),
+                    segmentOpaqueBounds.Top + (segmentOpaqueBounds.Height * 0.5f) - (opaque.Height * 0.5f));
+                var center = cursor + TransformRagdollLocal(localCenter, scaleX, rotationRadians);
+                if (IsRagdollStripBlocked(
+                        center,
+                        alongAxis,
+                        acrossAxis,
+                        segmentOpaqueBounds.Width * 0.5f,
+                        segmentOpaqueBounds.Height * 0.5f,
+                        level,
+                        bounds))
+                {
+                    return true;
+                }
+            }
+
+            cursor = next;
+            if (segmentIndex < DynamicRagdollPivotCount)
+            {
+                cumulativePivotDegrees += ragdoll.PivotDegrees[segmentIndex];
+            }
+        }
+
         return false;
+    }
+
+    private static bool IsElkondoRagdollPoseBlocked(
+        DynamicRagdollState ragdoll,
+        SimpleLevel level,
+        WorldBounds bounds)
+    {
+        var opaque = ragdoll.OpaqueBounds;
+        var waistFraction = GetElkondoWaistFraction(ragdoll.ClassId);
+        var chestFraction = Math.Clamp(waistFraction * 0.48f, 0.16f, waistFraction - 0.10f);
+        var kneeFraction = Math.Clamp(waistFraction + ((1f - waistFraction) * 0.50f), waistFraction + 0.10f, 0.90f);
+        Span<float> cutFractions = stackalloc float[]
+        {
+            0f,
+            chestFraction,
+            waistFraction,
+            kneeFraction,
+            1f,
+        };
+        Span<int> cutYs = stackalloc int[cutFractions.Length];
+        for (var index = 0; index < cutFractions.Length; index += 1)
+        {
+            cutYs[index] = opaque.Top + Math.Clamp(
+                (int)MathF.Round(opaque.Height * cutFractions[index]),
+                0,
+                opaque.Height);
+        }
+
+        for (var index = 1; index < cutYs.Length; index += 1)
+        {
+            if (cutYs[index] <= cutYs[index - 1])
+            {
+                cutYs[index] = Math.Min(opaque.Bottom, cutYs[index - 1] + 1);
+            }
+        }
+
+        var scaleX = ragdoll.FacingLeft ? -1f : 1f;
+        var root = new Vector2(ragdoll.X, ragdoll.Y);
+        var cursor = root + TransformRagdollLocal(
+            new Vector2(0f, -opaque.Height * 0.5f),
+            scaleX,
+            ragdoll.RotationDegrees * (MathF.PI / 180f));
+        var cumulativePivotDegrees = 0f;
+        var collisionSegmentOpaqueBounds = ragdoll.CollisionSegmentOpaqueBounds;
+        for (var segmentIndex = 0; segmentIndex < cutYs.Length - 1; segmentIndex += 1)
+        {
+            var segmentHeight = cutYs[segmentIndex + 1] - cutYs[segmentIndex];
+            var rotationRadians = (ragdoll.RotationDegrees + cumulativePivotDegrees) * (MathF.PI / 180f);
+            var alongAxis = TransformRagdollLocal(Vector2.UnitY, scaleX, rotationRadians);
+            var acrossAxis = TransformRagdollLocal(Vector2.UnitX, scaleX, rotationRadians);
+            var next = cursor + (alongAxis * segmentHeight);
+            var segmentOpaqueBounds = collisionSegmentOpaqueBounds is { Length: DynamicRagdollPivotCount + 1 }
+                ? collisionSegmentOpaqueBounds[segmentIndex]
+                : new Rectangle(0, 0, opaque.Width, segmentHeight);
+            if (segmentHeight > 0 && segmentOpaqueBounds.Width > 0 && segmentOpaqueBounds.Height > 0)
+            {
+                var localCenter = new Vector2(
+                    segmentOpaqueBounds.Left + (segmentOpaqueBounds.Width * 0.5f) - (opaque.Width * 0.5f),
+                    segmentOpaqueBounds.Top + (segmentOpaqueBounds.Height * 0.5f));
+                var center = cursor + TransformRagdollLocal(localCenter, scaleX, rotationRadians);
+                if (IsRagdollStripBlocked(
+                        center,
+                        alongAxis,
+                        acrossAxis,
+                        segmentOpaqueBounds.Height * 0.5f,
+                        segmentOpaqueBounds.Width * 0.5f,
+                        level,
+                        bounds))
+                {
+                    return true;
+                }
+            }
+
+            cursor = next;
+            if (segmentIndex < DynamicRagdollPivotCount)
+            {
+                cumulativePivotDegrees += ragdoll.PivotDegrees[segmentIndex];
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsRagdollStripBlocked(
+        Vector2 center,
+        Vector2 alongAxis,
+        Vector2 acrossAxis,
+        float halfLength,
+        float halfThickness,
+        SimpleLevel level,
+        WorldBounds bounds)
+    {
+        var halfExtentX = (MathF.Abs(alongAxis.X) * halfLength) + (MathF.Abs(acrossAxis.X) * halfThickness);
+        var halfExtentY = (MathF.Abs(alongAxis.Y) * halfLength) + (MathF.Abs(acrossAxis.Y) * halfThickness);
+        var left = center.X - halfExtentX;
+        var top = center.Y - halfExtentY;
+        var right = center.X + halfExtentX;
+        var bottom = center.Y + halfExtentY;
+        if (left < -DynamicRagdollCollisionEpsilon
+            || top < -DynamicRagdollCollisionEpsilon
+            || right > bounds.Width + DynamicRagdollCollisionEpsilon
+            || bottom > bounds.Height + DynamicRagdollCollisionEpsilon)
+        {
+            return true;
+        }
+
+        if (!level.IntersectsSolid(left, top, right, bottom))
+        {
+            return false;
+        }
+
+        foreach (var solid in level.Solids)
+        {
+            if (right <= solid.Left + DynamicRagdollCollisionEpsilon
+                || left >= solid.Right - DynamicRagdollCollisionEpsilon
+                || bottom <= solid.Top + DynamicRagdollCollisionEpsilon
+                || top >= solid.Bottom - DynamicRagdollCollisionEpsilon)
+            {
+                continue;
+            }
+
+            if (RagdollStripIntersectsSolid(
+                    center,
+                    alongAxis,
+                    acrossAxis,
+                    halfLength,
+                    halfThickness,
+                    solid))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool RagdollStripIntersectsSolid(
+        Vector2 center,
+        Vector2 alongAxis,
+        Vector2 acrossAxis,
+        float halfLength,
+        float halfThickness,
+        LevelSolid solid)
+    {
+        var solidCenter = new Vector2(solid.Left + (solid.Width * 0.5f), solid.Top + (solid.Height * 0.5f));
+        var delta = center - solidCenter;
+        var halfSolidWidth = solid.Width * 0.5f;
+        var halfSolidHeight = solid.Height * 0.5f;
+        return RagdollProjectionOverlaps(delta, Vector2.UnitX, alongAxis, acrossAxis,
+                   halfLength, halfThickness, halfSolidWidth, halfSolidHeight)
+            && RagdollProjectionOverlaps(delta, Vector2.UnitY, alongAxis, acrossAxis,
+                   halfLength, halfThickness, halfSolidWidth, halfSolidHeight)
+            && RagdollProjectionOverlaps(delta, alongAxis, alongAxis, acrossAxis,
+                   halfLength, halfThickness, halfSolidWidth, halfSolidHeight)
+            && RagdollProjectionOverlaps(delta, acrossAxis, alongAxis, acrossAxis,
+                   halfLength, halfThickness, halfSolidWidth, halfSolidHeight);
+    }
+
+    private static bool RagdollProjectionOverlaps(
+        Vector2 centerDelta,
+        Vector2 axis,
+        Vector2 alongAxis,
+        Vector2 acrossAxis,
+        float halfLength,
+        float halfThickness,
+        float halfSolidWidth,
+        float halfSolidHeight)
+    {
+        var ragdollRadius = (halfLength * MathF.Abs(Vector2.Dot(alongAxis, axis)))
+            + (halfThickness * MathF.Abs(Vector2.Dot(acrossAxis, axis)));
+        var solidRadius = (halfSolidWidth * MathF.Abs(axis.X)) + (halfSolidHeight * MathF.Abs(axis.Y));
+        var centerDistance = MathF.Abs(Vector2.Dot(centerDelta, axis));
+        return (ragdollRadius + solidRadius - centerDistance) > DynamicRagdollCollisionEpsilon;
     }
 
     private static bool TryDepenetrateRagdoll(DynamicRagdollState ragdoll, SimpleLevel level, WorldBounds bounds, int maxDistance)
@@ -1730,7 +2158,7 @@ public partial class Game1
         int ticksRemaining,
         Vector2 cameraPosition)
     {
-        if (!_dynamicRagdollEnabled)
+        if (!_gameplayManager.RuntimeSettings.DynamicRagdollEnabled)
         {
             return false;
         }

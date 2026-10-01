@@ -322,7 +322,7 @@ public partial class Game1
             return opaqueBounds;
         }
 
-        if (_spriteFontOpaqueBoundsCache.TryGetValue(frame, out var cached))
+        if (_spriteFrameCacheResources.SpriteFontOpaqueBoundsCache.TryGetValue(frame, out var cached))
         {
             return cached;
         }
@@ -357,7 +357,7 @@ public partial class Game1
         cached = maxX >= minX && maxY >= minY
             ? new Rectangle(minX, minY, (maxX - minX) + 1, (maxY - minY) + 1)
             : new Rectangle(0, 0, frame.Width, frame.Height);
-        _spriteFontOpaqueBoundsCache[frame] = cached;
+        _spriteFrameCacheResources.SpriteFontOpaqueBoundsCache[frame] = cached;
         return cached;
     }
 }

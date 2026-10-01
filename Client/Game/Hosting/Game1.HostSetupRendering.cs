@@ -14,7 +14,7 @@ public partial class Game1
         var viewportHeight = ViewportHeight;
         _spriteBatch.Draw(_pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.Black * 0.86f);
 
-        if (_menuBackgroundMode != MenuBackgroundMode.Static)
+        if (_gameplayManager.RuntimeSettings.MenuBackgroundMode != MenuBackgroundMode.Static)
         {
             const int bottomBarHeight = 76;
             var barY = viewportHeight - bottomBarHeight;

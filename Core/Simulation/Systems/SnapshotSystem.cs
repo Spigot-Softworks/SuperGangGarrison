@@ -9,18 +9,18 @@ public sealed class SnapshotSystem
 {
     private readonly EntityStore _entities;
     private readonly CombatSystem _combat;
-    private readonly SnapshotSystemDependencies _dependencies;
+    private readonly ISnapshotSystemHost _host;
 
     public SnapshotSystem(EntityStore entities, CombatSystem combat)
-        : this(entities, combat, new SnapshotSystemDependencies())
+        : this(entities, combat, new DetachedSimulationHost())
     {
     }
 
-    internal SnapshotSystem(EntityStore entities, CombatSystem combat, SnapshotSystemDependencies dependencies)
+    internal SnapshotSystem(EntityStore entities, CombatSystem combat, ISnapshotSystemHost host)
     {
         _entities = entities ?? throw new ArgumentNullException(nameof(entities));
         _combat = combat ?? throw new ArgumentNullException(nameof(combat));
-        _dependencies = dependencies ?? throw new ArgumentNullException(nameof(dependencies));
+        _host = host ?? throw new ArgumentNullException(nameof(host));
     }
 
     public SnapshotDamageEvent[] DrainSnapshotDamageEvents(ref ulong nextFallbackEventId)
@@ -69,10 +69,10 @@ public sealed class SnapshotSystem
         int pingMilliseconds = -1,
         bool isBot = false)
     {
-        var isPlayableSlot = _dependencies.IsPlayableNetworkPlayerSlot(slot);
-        var isAwaitingJoin = isPlayableSlot && _dependencies.IsNetworkPlayerAwaitingJoin(slot);
+        var isPlayableSlot = _host.IsPlayableNetworkPlayerSlot(slot);
+        var isAwaitingJoin = isPlayableSlot && _host.IsNetworkPlayerAwaitingJoin(slot);
         var snapshotTeam = isAwaitingJoin
-            ? _dependencies.GetNetworkPlayerConfiguredTeam(slot)
+            ? _host.GetNetworkPlayerConfiguredTeam(slot)
             : player.Team;
         var isDominatingLocalViewer = viewer is not null
             && !ReferenceEquals(player, viewer)
@@ -126,7 +126,7 @@ public sealed class SnapshotSystem
             GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId,
             GameplayAbilityReplicatedState.SpecialAbilitiesEnabledKey,
             SnapshotReplicatedStateValueKind.Toggle,
-            0, 0f, _dependencies.AreSpecialAbilitiesEnabled()));
+            0, 0f, _host.AreSpecialAbilitiesEnabled));
 
         if (!string.IsNullOrWhiteSpace(player.GameplayLoadoutState.SecondaryItemId))
         {
@@ -315,8 +315,8 @@ public sealed class SnapshotSystem
             (byte)player.ClassId,
             player.IsAlive,
             isAwaitingJoin,
-            slot >= _dependencies.FirstSpectatorSlot,
-            isPlayableSlot ? _dependencies.GetNetworkPlayerRespawnTicks(slot) : 0,
+            slot >= _host.FirstSpectatorSlot,
+            isPlayableSlot ? _host.GetNetworkPlayerRespawnTicks(slot) : 0,
             player.X,
             player.Y,
             player.HorizontalSpeed,
@@ -405,7 +405,7 @@ public sealed class SnapshotSystem
             OffhandCooldownTicks: player.ExperimentalOffhandCooldownTicks,
             OffhandReloadTicks: player.ExperimentalOffhandReloadTicksUntilNextShell,
             GibDeaths: (short)Math.Clamp(player.GibDeaths, 0, short.MaxValue),
-            IsReady: _dependencies.IsNetworkPlayerReady(slot),
+            IsReady: _host.IsNetworkPlayerReady(slot),
             GameplayClassId: player.GameplayClassId,
             GameplayClassCacheId: getStringCacheId(player.GameplayClassId),
             PingMilliseconds: pingMilliseconds,
@@ -965,13 +965,14 @@ public sealed class SnapshotSystem
     }
 }
 
-internal sealed class SnapshotSystemDependencies
+/// <summary>Network-slot facts <see cref="SnapshotSystem"/> needs from the world.</summary>
+internal interface ISnapshotSystemHost
 {
-    public Func<byte, bool> IsPlayableNetworkPlayerSlot { get; init; } = static slot => slot >= 1 && slot <= 40;
-    public byte FirstSpectatorSlot { get; init; } = 128;
-    public Func<byte, bool> IsNetworkPlayerAwaitingJoin { get; init; } = static _ => false;
-    public Func<byte, PlayerTeam> GetNetworkPlayerConfiguredTeam { get; init; } = static _ => PlayerTeam.Red;
-    public Func<byte, int> GetNetworkPlayerRespawnTicks { get; init; } = static _ => 0;
-    public Func<byte, bool> IsNetworkPlayerReady { get; init; } = static _ => false;
-    public Func<bool> AreSpecialAbilitiesEnabled { get; init; } = static () => false;
+    byte FirstSpectatorSlot { get; }
+    bool AreSpecialAbilitiesEnabled { get; }
+    bool IsPlayableNetworkPlayerSlot(byte slot);
+    bool IsNetworkPlayerAwaitingJoin(byte slot);
+    PlayerTeam GetNetworkPlayerConfiguredTeam(byte slot);
+    int GetNetworkPlayerRespawnTicks(byte slot);
+    bool IsNetworkPlayerReady(byte slot);
 }

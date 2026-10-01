@@ -12,7 +12,6 @@ namespace OpenGarrison.Client;
 public partial class Game1
 {
     public readonly Dictionary<LoadedSpriteFrame, Texture2D> _spriteFrameAlphaMaskCache = new();
-    public readonly Dictionary<LoadedSpriteFrame, LoadedSpriteFrame> _neutralSpriteFrameCache = new();
     public static readonly BlendState _multiplyColorBlendState = new()
     {
         ColorSourceBlend = Blend.DestinationColor,
@@ -284,17 +283,17 @@ public partial class Game1
             return false;
         }
 
-        if (string.Equals(_levelBackgroundFileFailedPath, backgroundName, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(_levelBackgroundResources.FailedPath, backgroundName, StringComparison.OrdinalIgnoreCase))
         {
             texture = null!;
             return false;
         }
 
-        if (!string.Equals(_levelBackgroundFileTexturePath, backgroundName, StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(_levelBackgroundResources.TexturePath, backgroundName, StringComparison.OrdinalIgnoreCase))
         {
-            _levelBackgroundFileTexture?.Dispose();
-            _levelBackgroundFileTexture = null;
-            _levelBackgroundFileTexturePath = null;
+            _levelBackgroundResources.Texture?.Dispose();
+            _levelBackgroundResources.Texture = null;
+            _levelBackgroundResources.TexturePath = null;
 
             try
             {
@@ -310,57 +309,57 @@ public partial class Game1
 
                 if (bytes is null || bytes.Length == 0)
                 {
-                    _levelBackgroundFileFailedPath = backgroundName;
+                    _levelBackgroundResources.FailedPath = backgroundName;
                     texture = null!;
                     return false;
                 }
 
-                _levelBackgroundFileTexture = TextureDecodeUtility.LoadTexture(GraphicsDevice, bytes, applyLegacyChromaKey: false);
-                _levelBackgroundFileTexturePath = backgroundName;
-                _levelBackgroundFileFailedPath = null;
+                _levelBackgroundResources.Texture = TextureDecodeUtility.LoadTexture(GraphicsDevice, bytes, applyLegacyChromaKey: false);
+                _levelBackgroundResources.TexturePath = backgroundName;
+                _levelBackgroundResources.FailedPath = null;
             }
             catch (IOException)
             {
-                _levelBackgroundFileFailedPath = backgroundName;
+                _levelBackgroundResources.FailedPath = backgroundName;
                 texture = null!;
                 return false;
             }
             catch (InvalidOperationException)
             {
-                _levelBackgroundFileFailedPath = backgroundName;
+                _levelBackgroundResources.FailedPath = backgroundName;
                 texture = null!;
                 return false;
             }
             catch (NotSupportedException)
             {
-                _levelBackgroundFileFailedPath = backgroundName;
+                _levelBackgroundResources.FailedPath = backgroundName;
                 texture = null!;
                 return false;
             }
         }
 
-        if (_levelBackgroundFileTexture is null)
+        if (_levelBackgroundResources.Texture is null)
         {
             texture = null!;
             return false;
         }
 
-        texture = _levelBackgroundFileTexture;
+        texture = _levelBackgroundResources.Texture;
         return true;
     }
 
     private void EnsureLevelBackgroundFileCacheLevel(SimpleLevel level)
     {
-        if (!ShouldInvalidateLevelBackgroundFileCache(_levelBackgroundFileTextureLevel, level))
+        if (!ShouldInvalidateLevelBackgroundFileCache(_levelBackgroundResources.TextureLevel, level))
         {
             return;
         }
 
-        _levelBackgroundFileTexture?.Dispose();
-        _levelBackgroundFileTexture = null;
-        _levelBackgroundFileTexturePath = null;
-        _levelBackgroundFileFailedPath = null;
-        _levelBackgroundFileTextureLevel = level;
+        _levelBackgroundResources.Texture?.Dispose();
+        _levelBackgroundResources.Texture = null;
+        _levelBackgroundResources.TexturePath = null;
+        _levelBackgroundResources.FailedPath = null;
+        _levelBackgroundResources.TextureLevel = level;
     }
 
     internal static bool ShouldInvalidateLevelBackgroundFileCache(SimpleLevel? cachedLevel, SimpleLevel currentLevel)
@@ -713,7 +712,7 @@ public partial class Game1
     {
         if (!UseReducedBrowserEffects
             && !_world.Level.IsTopDown
-            && _spriteDropShadowEnabled
+            && _gameplayManager.RuntimeSettings.SpriteDropShadowEnabled
             && tint.A > 0)
         {
             var shadowAlpha = ((tint.A / 255f) * 0.32f);
@@ -774,7 +773,7 @@ public partial class Game1
     {
         if (!UseReducedBrowserEffects
             && !_world.Level.IsTopDown
-            && _spriteDropShadowEnabled
+            && _gameplayManager.RuntimeSettings.SpriteDropShadowEnabled
             && tint.A > 0)
         {
             var shadowAlpha = ((tint.A / 255f) * 0.32f);
@@ -800,7 +799,7 @@ public partial class Game1
     {
         if (UseReducedBrowserEffects
             || !_world.Level.IsTopDown
-            || !_spriteDropShadowEnabled
+            || !_gameplayManager.RuntimeSettings.SpriteDropShadowEnabled
             || tint.A <= 0)
         {
             return;
@@ -985,7 +984,7 @@ public partial class Game1
 
     private LoadedSpriteFrame GetNeutralSpriteFrame(LoadedSpriteFrame frame)
     {
-        if (_neutralSpriteFrameCache.TryGetValue(frame, out var cachedFrame))
+        if (_spriteFrameCacheResources.NeutralSpriteFrameCache.TryGetValue(frame, out var cachedFrame))
         {
             return cachedFrame;
         }
@@ -1012,7 +1011,7 @@ public partial class Game1
         var neutralFrame = new LoadedSpriteFrame(
             texture,
             PixelSource: new LoadedSpriteFramePixelSource(pixels, sourceRectangle.Width, sourceRectangle.Height));
-        _neutralSpriteFrameCache[frame] = neutralFrame;
+        _spriteFrameCacheResources.NeutralSpriteFrameCache[frame] = neutralFrame;
         return neutralFrame;
     }
 

@@ -11,6 +11,7 @@ public sealed class MenuManager
     public MenuManager(IMenuContext context)
     {
         _context = context;
+        DisplaySettings = new DisplayRuntimeSettings();
         Menu = new MenuController(context);
         MainMenuOverlay = new MainMenuOverlayController(context);
         MainMenuOverlayState = new MainMenuOverlayStateController(context);
@@ -25,6 +26,8 @@ public sealed class MenuManager
     }
 
     public MenuController Menu { get; }
+
+    public DisplayRuntimeSettings DisplaySettings { get; }
 
     public MainMenuOverlayController MainMenuOverlay { get; }
 

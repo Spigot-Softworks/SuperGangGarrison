@@ -15,7 +15,7 @@ public partial class Game1
 
     public Color ResolveProjectileTint(PlayerTeam team, Color blueColor, Color redColor, Color neutralColor)
     {
-        if (!_projectileTeamTintEnabled)
+        if (!_gameplayManager.RuntimeSettings.ProjectileTeamTintEnabled)
         {
             return neutralColor;
         }
@@ -54,7 +54,7 @@ public partial class Game1
     private void DrawCriticalProjectileOutline(string spriteName, int frameIndex, float worldX, float worldY, Vector2 cameraPosition, PlayerTeam team, float rotation = 0f, Vector2? scale = null)
     {
         var sprite = GetResolvedSprite(spriteName);
-        if (sprite is null || sprite.Frames.Count == 0 || !_uberOutlineEnabled)
+        if (sprite is null || sprite.Frames.Count == 0 || !_gameplayManager.RuntimeSettings.ShowUberOutlinesEnabled)
         {
             return;
         }
@@ -847,7 +847,7 @@ public partial class Game1
         }
         else
         {
-            var renderAim = (_networkClient.IsConnected && !_useLocalWeaponRotation)
+            var renderAim = (_networkClient.IsConnected && !_gameplayManager.RuntimeSettings.UseLocalWeaponRotation)
                 ? new Vector2(medic.AimWorldX, medic.AimWorldY)
                 : GetRenderAimWorldPosition(medic);
             if (!IsFiniteVector(renderAim))
@@ -927,7 +927,7 @@ public partial class Game1
         {
             WriteGameplayRenderTrace("effects before blood");
             DrawBloodVisuals(cameraPosition);
-            if (_bloodRenderMode == 0)
+            if (_gameplayManager.RuntimeSettings.BloodRenderMode == 0)
             {
                 _gameplayManager.GoreEffects.DrawBloodSquibFlight(cameraPosition);
             }
@@ -936,7 +936,7 @@ public partial class Game1
         WriteGameplayRenderTrace("effects before shells");
         DrawShellVisuals(cameraPosition);
 
-        if (_particleMode != 1)
+        if (_gameplayManager.RuntimeSettings.ParticleMode != 1)
         {
             WriteGameplayRenderTrace("effects before rocket-smoke");
             DrawRocketSmokeVisuals(cameraPosition);
@@ -982,7 +982,7 @@ public partial class Game1
             DrawNeedleProjectile(needle, cameraPosition);
         }
 
-        if (_flameRenderMode == 0)
+        if (_gameplayManager.RuntimeSettings.FlameRenderMode == 0)
         {
             WriteGameplayRenderTrace("effects before procedural-flames");
             DrawFlameProjectiles(cameraPosition);
@@ -1009,7 +1009,7 @@ public partial class Game1
 
         DrawRetainedTerminalProjectileVisuals(cameraPosition);
 
-        if (_particleMode != 1)
+        if (_gameplayManager.RuntimeSettings.ParticleMode != 1)
         {
             WriteGameplayRenderTrace("effects before mine-trails");
             DrawMineTrailVisuals(cameraPosition);
@@ -1780,7 +1780,7 @@ public partial class Game1
                 var teamColor = GetCriticalProjectileOverlayColor(flame.Team);
                 var outlineTint = Color.Lerp(teamColor, Color.White, 0.75f);
 
-                if (_uberOutlineEnabled)
+                if (_gameplayManager.RuntimeSettings.ShowUberOutlinesEnabled)
                 {
                     DrawSpriteFrameOutline(flameSprite.Frames[frameIndex], position, outlineTint, 0f, flameSprite.Origin.ToVector2(), scale);
                 }
@@ -1908,7 +1908,7 @@ public partial class Game1
             return;
         }
 
-        if (_flameRenderMode == 0)
+        if (_gameplayManager.RuntimeSettings.FlameRenderMode == 0)
         {
             DrawFlareProjectileAsParticle(flare, cameraPosition);
             return;

@@ -14,7 +14,7 @@ public partial class Game1
             return;
         }
 
-        if (_killCamEnabled && _world.LocalDeathCam is not null)
+        if (_gameplayManager.RuntimeSettings.KillCamEnabled && _world.LocalDeathCam is not null)
         {
             return;
         }

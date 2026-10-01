@@ -126,12 +126,12 @@ public partial class Game1
 
         ObserveHostedLastToDiePresentationState(snapshot);
         if (snapshot.Phase != LastToDieWirePhase.Playing
-            && _menuBackgroundMode != MenuBackgroundMode.Static)
+            && _gameplayManager.RuntimeSettings.MenuBackgroundMode != MenuBackgroundMode.Static)
         {
             // Gameplay entry deliberately disposes the animated menu scene.
             // Recreate and advance that independent scene for hosted LTD menus;
             // otherwise the old gameplay frame remains visible underneath.
-            _menuManager.AnimatedMenuBackground.Initialize(_menuBackgroundMode);
+            _menuManager.AnimatedMenuBackground.Initialize(_gameplayManager.RuntimeSettings.MenuBackgroundMode);
             var presentationDeltaSeconds = Math.Max(0f, _gameplayPresentationDeltaSeconds);
             _menuManager.AnimatedMenuBackground.Update(presentationDeltaSeconds);
             _menuManager.MenuBottomBarRunners.Update(presentationDeltaSeconds);
@@ -336,7 +336,7 @@ public partial class Game1
                 _networkClient.IsConnected,
                 snapshot.Phase))
         {
-            _lastToDieConnectionPresentationPending = false;
+            _sessionTransitions.LastToDieConnectionPresentationPending = false;
         }
 
         if (snapshot.Phase == LastToDieWirePhase.Playing)
@@ -660,7 +660,7 @@ public partial class Game1
             _networkClient.IsConnected,
             _networkClient.LastToDieState.Snapshot?.Phase,
             _hostedLastToDieObservedRunId != Guid.Empty,
-            _lastToDieConnectionPresentationPending,
+            _sessionTransitions.LastToDieConnectionPresentationPending,
             _hostedLastToDieRetryMusicPending);
 
     internal static bool ShouldPlayHostedLastToDieMenuMusicDuringTransition(

@@ -412,12 +412,12 @@ public sealed partial class SimulationWorld
         _runtimeController = new RuntimeController(this);
         _runtimeQueryController = new RuntimeQueryController(this);
         Config = config ?? new SimulationConfig();
-        Combat = new CombatSystem(EntityStore, CreateCombatSystemDependencies());
-        Snapshots = new SnapshotSystem(EntityStore, Combat, CreateSnapshotSystemDependencies());
-        Projectiles = new ProjectileSystem(EntityStore, Combat, CreateProjectileSystemDependencies());
+        Combat = new CombatSystem(EntityStore, this);
+        Snapshots = new SnapshotSystem(EntityStore, Combat, this);
+        Projectiles = new ProjectileSystem(EntityStore, Combat, this);
         _pendingRocketSpawnEvents = Projectiles.PendingRocketSpawnEventsInternal;
         Level = SimpleLevelFactory.CreateScoutPrototypeLevel(_configuredMapScale);
-        Movement = new MovementSystem(CreateMovementSystemDependencies());
+        Movement = new MovementSystem(this);
         RedIntel = CreateIntelState(PlayerTeam.Red);
         BlueIntel = CreateIntelState(PlayerTeam.Blue);
         MatchRules = CreateDefaultMatchRules(Level.Mode);

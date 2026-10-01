@@ -546,7 +546,7 @@ public partial class Game1
 
     private void TryShowEngineerJumpPadBuildNoticeOnUtilityPress(PlayerInputSnapshot input)
     {
-        if (!input.UseAbility || _latestPredictedLocalInput.UseAbility)
+        if (!input.UseAbility || _localPredictionState.LatestPredictedLocalInput.UseAbility)
         {
             return;
         }

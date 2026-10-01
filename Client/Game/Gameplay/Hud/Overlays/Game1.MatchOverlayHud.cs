@@ -726,7 +726,7 @@ public partial class Game1
 
     private void DrawDeathCamHud()
     {
-        if (!_killCamEnabled || _world.LocalPlayer.IsAlive || _world.LocalDeathCam is null)
+        if (!_gameplayManager.RuntimeSettings.KillCamEnabled || _world.LocalPlayer.IsAlive || _world.LocalDeathCam is null)
         {
             return;
         }
@@ -910,7 +910,7 @@ public partial class Game1
 
     private void DrawRespawnHud()
     {
-        if ((_killCamEnabled && _world.LocalDeathCam is not null)
+        if ((_gameplayManager.RuntimeSettings.KillCamEnabled && _world.LocalDeathCam is not null)
             || _world.LocalPlayerAwaitingJoin
             || _world.LocalPlayer.IsAlive)
         {

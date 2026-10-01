@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using OpenGarrison.Protocol;
 
 using static OpenGarrison.Client.Game1;
 
@@ -9,10 +10,23 @@ namespace OpenGarrison.Client;
 public sealed class GameplayVisualEventController
     {
         private readonly IGameplayContext _context;
+        private readonly List<OpenGarrison.Protocol.SnapshotVisualEvent> _pendingNetworkVisualEvents = new();
 
         public GameplayVisualEventController(IGameplayContext context)
         {
             _context = context;
+        }
+
+        internal int PendingNetworkVisualEventCount => _pendingNetworkVisualEvents.Count;
+
+        internal void QueuePendingNetworkVisualEvent(SnapshotVisualEvent visualEvent)
+        {
+            _pendingNetworkVisualEvents.Add(visualEvent);
+        }
+
+        internal void ClearPendingNetworkVisualEvents()
+        {
+            _pendingNetworkVisualEvents.Clear();
         }
 
         public void PlayPendingVisualEvents()
@@ -28,9 +42,9 @@ public sealed class GameplayVisualEventController
 
             var retainedCount = 0;
             var renderTime = _context.GetProjectileRenderTimeSeconds();
-            for (var index = 0; index < _context._pendingNetworkVisualEvents.Count; index++)
+            for (var index = 0; index < _pendingNetworkVisualEvents.Count; index++)
             {
-                var visualEvent = _context._pendingNetworkVisualEvents[index];
+                var visualEvent = _pendingNetworkVisualEvents[index];
                 if (_context.ShouldSuppressPredictedExplosionVisualEcho(visualEvent))
                 {
                     // Still pair the authoritative visual with its separately
@@ -47,7 +61,7 @@ public sealed class GameplayVisualEventController
 
                 if (!NetworkInterpolationPolicy.IsSourceFrameReady(visualEvent.SourceFrame, _context._config.TicksPerSecond, renderTime))
                 {
-                    _context._pendingNetworkVisualEvents[retainedCount++] = visualEvent;
+                    _pendingNetworkVisualEvents[retainedCount++] = visualEvent;
                     continue;
                 }
 
@@ -59,7 +73,7 @@ public sealed class GameplayVisualEventController
                 PlayVisualEvent(visualEvent.EffectName, visualEvent.X, visualEvent.Y, visualEvent.DirectionDegrees, visualEvent.Count);
             }
 
-            _context._pendingNetworkVisualEvents.RemoveRange(retainedCount, _context._pendingNetworkVisualEvents.Count - retainedCount);
+            _pendingNetworkVisualEvents.RemoveRange(retainedCount, _pendingNetworkVisualEvents.Count - retainedCount);
         }
 
         public void PlayVisualEvent(string effectName, float x, float y, float directionDegrees, int count)

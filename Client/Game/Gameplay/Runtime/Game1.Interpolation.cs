@@ -73,39 +73,12 @@ public partial class Game1
     private readonly Queue<QueuedAuthoritativeSnapshot> _queuedAuthoritativeSnapshots = new();
     private readonly Stopwatch _networkInterpolationClock = Stopwatch.StartNew();
     private double _networkInterpolationClockSeconds;
-    public float _networkSnapshotInterpolationDurationSeconds = 1f / SimulationConfig.DefaultTicksPerSecond;
-    public float _smoothedSnapshotIntervalSeconds = 1f / SimulationConfig.DefaultTicksPerSecond;
-    public float _smoothedSnapshotJitterSeconds;
-    public float _localPlayerInterpolationBackTimeSeconds = LocalPlayerMinimumInterpolationBackTimeSeconds;
-    public float _remotePlayerInterpolationBackTimeSeconds = RemotePlayerMinimumInterpolationBackTimeSeconds;
-    public float _projectileInterpolationBackTimeSeconds = ProjectileMinimumInterpolationBackTimeSeconds;
-    public double _localPlayerRenderTimeSeconds;
-    public double _remotePlayerRenderTimeSeconds;
-    public double _lastLocalPlayerRenderTimeClockSeconds = -1d;
-    public double _lastRemotePlayerRenderTimeClockSeconds = -1d;
-    public double _lastSnapshotReceivedTimeSeconds = -1d;
-    public double _latestSnapshotServerTimeSeconds = -1d;
-    public double _latestSnapshotReceivedClockSeconds = -1d;
-    public double _lastPredictedRenderSmoothingTimeSeconds = -1d;
-    public bool _hasReceivedSnapshot;
-    public bool _hasLocalPlayerRenderTime;
-    public bool _hasRemotePlayerRenderTime;
-    public ulong _lastAppliedSnapshotFrame;
-    public ulong _lastBufferedSnapshotFrame;
-    public int? _lastAppliedSnapshotLocalPlayerId;
-    public int _networkInterpolationWarmupSnapshotsRemaining;
-    public double _networkInterpolationWarmupUntilClockSeconds = -1d;
-    public bool _networkWorldWarmupActive;
-    public bool _networkWorldWarmupFullSnapshotApplied;
-    public int _networkWorldWarmupAppliedSnapshotsAfterFull;
-    public bool _networkWorldWarmupAcceptNextAppliedSnapshotAsBaseline;
-    public LastToDieWirePhase? _networkPresentationObservedLastToDiePhase;
 
     private bool IsPositionSmoothingActive()
     {
         return NetworkInterpolationPolicy.IsSnapshotInterpolationActive(
             _networkClient.IsConnected,
-            _positionSmoothingEnabled,
+            _gameplayManager.RuntimeSettings.PositionSmoothingEnabled,
             _networkClient.IsReplayConnection);
     }
 
@@ -344,12 +317,12 @@ public partial class Game1
                 return GetRenderPosition(GetResolvedLocalPlayerId(), player.X, player.Y, allowInterpolation);
             }
 
-            if (CanUseLocalPrediction() && _hasPredictedLocalPlayerPosition)
+            if (CanUseLocalPrediction() && _localPredictionState.HasPredictedLocalPlayerPosition)
             {
                 // Local prediction is already the input-responsive position.
                 // The optional render-correction spring must not delay the
                 // actor or camera during ordinary movement.
-                return _predictedLocalPlayerPosition + _predictedLocalPlayerRenderCorrectionOffset;
+                return _localPredictionState.PredictedLocalPlayerPosition + _localPredictionState.PredictedLocalPlayerRenderCorrectionOffset;
             }
 
             return GetRenderPosition(GetResolvedLocalPlayerId(), player.X, player.Y, allowInterpolation);
@@ -367,9 +340,9 @@ public partial class Game1
 
         if (ReferenceEquals(player, _world.LocalPlayer))
         {
-            if (_hasLatestLocalAimWorldPosition)
+            if (_gameplayManager.InputUpdate.HasLatestLocalAimWorldPosition)
             {
-                return new Vector2(_latestLocalAimWorldX, _latestLocalAimWorldY);
+                return new Vector2(_gameplayManager.InputUpdate.LatestLocalAimWorldX, _gameplayManager.InputUpdate.LatestLocalAimWorldY);
             }
 
             return new Vector2(player.AimWorldX, player.AimWorldY);
@@ -382,7 +355,7 @@ public partial class Game1
 
         if (_remotePlayerSnapshotHistories.TryGetValue(player.Id, out var history) && history.Count > 0)
         {
-            return EvaluateRemotePlayerAimHistory(history, _remotePlayerRenderTimeSeconds);
+            return EvaluateRemotePlayerAimHistory(history, _gameplayManager.NetworkPresentation.RemotePlayerRenderTimeSeconds);
         }
 
         return new Vector2(player.AimWorldX, player.AimWorldY);
@@ -436,7 +409,7 @@ public partial class Game1
         _snapshotStatesByFrame.Clear();
         _snapshotStateFrameOrder.Clear();
         _queuedAuthoritativeSnapshots.Clear();
-        _lastBufferedSnapshotFrame = 0;
+        _gameplayManager.NetworkPresentation.LastBufferedSnapshotFrame = 0;
     }
 
     private void RememberSnapshotState(SnapshotMessage snapshot)

@@ -142,9 +142,9 @@ public partial class Game1
         }
         else if (_world.LocalPlayer.IsAlive && GetPlayerIsSniperScoped(_world.LocalPlayer))
         {
-            if (IsControllerGameplayInputActive() && _hasLatestLocalAimWorldPosition)
+            if (IsControllerGameplayInputActive() && _gameplayManager.InputUpdate.HasLatestLocalAimWorldPosition)
             {
-                var aimWorldPosition = new Vector2(_latestLocalAimWorldX, _latestLocalAimWorldY);
+                var aimWorldPosition = new Vector2(_gameplayManager.InputUpdate.LatestLocalAimWorldX, _gameplayManager.InputUpdate.LatestLocalAimWorldY);
                 var scopedCameraCenter = (localViewPosition + aimWorldPosition) / 2f;
                 cameraTopLeft = new Vector2(
                     scopedCameraCenter.X - (viewportWidth / 2f),
@@ -224,7 +224,7 @@ public partial class Game1
 
     private bool IsCameraPanningEligible()
     {
-        return _cameraPanningEnabled
+        return _gameplayManager.RuntimeSettings.CameraPanningEnabled
             && !_networkClient.IsLegacyGg2Connection
             && !OpenGarrison.ClientShared.ClientDistribution.IsGg2Only
             && _world.LocalPlayer.IsAlive
@@ -445,7 +445,7 @@ public partial class Game1
 
     private Vector2 ApplySmoothCamera(Vector2 cameraTopLeft)
     {
-        var multiplier = NormalizeSmoothCameraMultiplier(_smoothCameraMultiplier);
+        var multiplier = NormalizeSmoothCameraMultiplier(_gameplayManager.RuntimeSettings.SmoothCameraMultiplier);
         if (multiplier <= 0f || !ShouldSmoothCamera())
         {
             ResetSmoothCameraState();

@@ -66,9 +66,9 @@ public partial class Game1
         }
 
         _brandIntroMenuBackgroundInitialized = true;
-        if (_menuBackgroundMode != MenuBackgroundMode.Static)
+        if (_gameplayManager.RuntimeSettings.MenuBackgroundMode != MenuBackgroundMode.Static)
         {
-            _menuManager.AnimatedMenuBackground.Initialize(_menuBackgroundMode);
+            _menuManager.AnimatedMenuBackground.Initialize(_gameplayManager.RuntimeSettings.MenuBackgroundMode);
         }
     }
 
@@ -120,7 +120,7 @@ public partial class Game1
         }
 
         AdvanceBrandLogoFlame(deltaSeconds);
-        if (_menuBackgroundMode != MenuBackgroundMode.Static)
+        if (_gameplayManager.RuntimeSettings.MenuBackgroundMode != MenuBackgroundMode.Static)
         {
             _menuManager.AnimatedMenuBackground.Update(deltaSeconds);
         }

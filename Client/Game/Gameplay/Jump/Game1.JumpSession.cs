@@ -318,7 +318,7 @@ public partial class Game1
         var viewportHeight = ViewportHeight;
         _spriteBatch.Draw(_pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), new Color(4, 6, 10, 220));
 
-        if (_menuBackgroundMode != MenuBackgroundMode.Static)
+        if (_gameplayManager.RuntimeSettings.MenuBackgroundMode != MenuBackgroundMode.Static)
         {
             const int bottomBarHeight = 76;
             var barY = viewportHeight - bottomBarHeight;
@@ -329,8 +329,8 @@ public partial class Game1
 
         var buttonLabels = GetJumpMenuButtonLabels();
         var layout = GetLastToDieMenuLayout(buttonLabels.Length, statsPage: false);
-        var plaqueTexture = _lastToDieMenuPlaqueTexture ?? _menuPlaqueTexture;
-        var buttonTexture = _lastToDieMenuTextBoxSoloTexture ?? _menuTextBoxSoloTexture;
+        var plaqueTexture = _menuResources.LastToDieMenuPlaqueTexture ?? _menuResources.PlaqueTexture;
+        var buttonTexture = _menuResources.LastToDieMenuTextBoxSoloTexture ?? _menuResources.TextBoxSoloTexture;
         if (plaqueTexture is not null && layout.PlaqueBounds != Rectangle.Empty)
         {
             DrawLoadedSpriteFrame(plaqueTexture, layout.PlaqueBounds, Color.White);

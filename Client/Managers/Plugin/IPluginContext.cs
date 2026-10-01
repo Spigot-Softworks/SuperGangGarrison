@@ -10,28 +10,13 @@ public interface IPluginContext
 {
     Game1.GameplayHudCanvas CreateGameplayHudCanvas(Microsoft.Xna.Framework.Vector2 cameraTopLeft);
     Game1.ClientPluginStateView CreateClientPluginStateView();
-    int _bloodRenderMode { get; set; }
+    GameplayRuntimeSettings GameplayRuntimeSettings { get; }
     OpenGarrison.Client.ClientPluginHost _clientPluginHost { get; set; }
-    ref ValueTuple<bool, bool, OpenGarrison.Client.Plugins.ClientPluginTeam, float, float, float> _clientPluginPreviousBlueIntelState { get; }
-    Dictionary<OpenGarrison.Core.PlayerTeam, ValueTuple<int, int, bool>> _clientPluginPreviousGeneratorStates { get; }
-    int _clientPluginPreviousKillFeedCount { get; set; }
-    bool _clientPluginPreviousLocalAlive { get; set; }
-    int _clientPluginPreviousLocalAmmo { get; set; }
-    bool _clientPluginPreviousLocalBurning { get; set; }
-    bool _clientPluginPreviousLocalCarryingIntel { get; set; }
-    int _clientPluginPreviousLocalPrimaryCooldownTicks { get; set; }
-    OpenGarrison.Client.Plugins.ClientRoundPhase _clientPluginPreviousMatchPhase { get; set; }
-    Dictionary<int, ValueTuple<OpenGarrison.Client.Plugins.ClientPluginTeam, OpenGarrison.Client.Plugins.ClientPluginTeam, float, bool>> _clientPluginPreviousObjectiveStates { get; }
-    ref ValueTuple<bool, bool, OpenGarrison.Client.Plugins.ClientPluginTeam, float, float, float> _clientPluginPreviousRedIntelState { get; }
-    OpenGarrison.Client.Game1.ClientPluginStateView _clientPluginStateView { get; set; }
     Microsoft.Xna.Framework.Vector2 _gameplayCameraTopLeft { get; set; }
     bool _hasGameplayCameraTopLeft { get; set; }
     Nullable<int> _localPlayerSnapshotEntityId { get; set; }
     bool _mainMenuOpen { get; set; }
     OpenGarrison.Client.NetworkGameClient _networkClient { get; }
-    List<OpenGarrison.Protocol.SnapshotDamageEvent> _pendingNetworkDamageEvents { get; }
-    HashSet<ulong> _processedNetworkDamageEventIds { get; }
-    Queue<ulong> _processedNetworkDamageEventOrder { get; }
     OpenGarrison.Client.GameMakerRuntimeAssetCache _runtimeAssets { get; set; }
     bool _startupSplashOpen { get; set; }
     OpenGarrison.Core.SimulationWorld _world { get; set; }

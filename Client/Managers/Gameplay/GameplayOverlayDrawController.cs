@@ -26,12 +26,12 @@ public sealed class GameplayOverlayDrawController
                 _context.DrawLoadingOverlay();
                 if (!_context._gameplayHudHidden)
                 {
-                    if (_context._teamSelectOpen || _context._teamSelectAlpha > 0.02f)
+                    if (_context.TeamClassSelection.TeamSelectOpen || _context.TeamClassSelection.TeamSelectAlpha > 0.02f)
                     {
                         _context.DrawTeamSelectHud();
                     }
 
-                    if (_context._classSelectOpen || _context._classSelectAlpha > 0.02f)
+                    if (_context.TeamClassSelection.ClassSelectOpen || _context.TeamClassSelection.ClassSelectAlpha > 0.02f)
                     {
                         _context.DrawClassSelectHud();
                     }

@@ -11,6 +11,9 @@ public sealed class GameplayManager
     public GameplayManager(IGameplayContext context)
     {
         _context = context;
+        RuntimeSettings = new GameplayRuntimeSettings();
+        LocalPrediction = new LocalPredictionState();
+        NetworkPresentation = new NetworkPresentationState();
         Frame = new FrameController(context);
         Bootstrap = new BootstrapController(context);
         InputUpdate = new GameplayInputUpdateController(context);
@@ -37,6 +40,12 @@ public sealed class GameplayManager
     }
 
     public FrameController Frame { get; }
+
+    public GameplayRuntimeSettings RuntimeSettings { get; }
+
+    internal LocalPredictionState LocalPrediction { get; }
+
+    internal NetworkPresentationState NetworkPresentation { get; }
 
     public BootstrapController Bootstrap { get; }
 

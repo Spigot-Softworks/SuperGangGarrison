@@ -408,7 +408,7 @@ public partial class Game1
             {
                 _friendsMenuAddingFriend = false;
                 _editingFriendCode = false;
-                _friendCodeInputBuffer = string.Empty;
+                _inputManager.MenuTextInput.FriendCodeEdit.Text = string.Empty;
                 InitializeFriendCodeCursor();
                 _menuStatusMessage = string.Empty;
                 return;
@@ -526,11 +526,11 @@ public partial class Game1
         DrawBitmapFontText("Nickname", new Vector2(layout.NicknameBounds.X, layout.NicknameBounds.Y - 16f), Color.White, 1f);
         DrawMenuInputBoxScaled(
             layout.NicknameBounds,
-            _friendNicknameInputBuffer,
+            _inputManager.MenuTextInput.FriendNicknameEdit.Text,
             _editingFriendNickname,
             1f,
-            _friendNicknameCursorIndex,
-            _friendNicknameSelectionStart);
+            _inputManager.MenuTextInput.FriendNicknameEdit.CursorIndex,
+            _inputManager.MenuTextInput.FriendNicknameEdit.SelectionStart);
         DrawMenuButtonScaled(layout.PlayerCardButtonBounds, "Card", _playerCardOwnOpen, 1f);
         DrawMenuButtonScaled(layout.RefreshBounds, "Refresh", false, 1f);
         DrawFriendsTabs(layout);
@@ -584,15 +584,15 @@ public partial class Game1
     private void DrawFriendsTab(FriendsMenuLayout layout)
     {
         var codeLabel = _friendsMenuAddingFriend ? "Add Friend Code" : "Your Friend Code";
-        var codeText = _friendsMenuAddingFriend ? _friendCodeInputBuffer : _clientIdentity.FriendCode;
+        var codeText = _friendsMenuAddingFriend ? _inputManager.MenuTextInput.FriendCodeEdit.Text : _clientIdentity.FriendCode;
         DrawBitmapFontText(codeLabel, new Vector2(layout.OwnCodeBounds.X, layout.OwnCodeBounds.Y - 16f), Color.White, 1f);
         DrawMenuInputBoxScaled(
             layout.OwnCodeBounds,
             codeText,
             _friendsMenuAddingFriend && _editingFriendCode,
             1f,
-            _friendsMenuAddingFriend ? _friendCodeCursorIndex : -1,
-            _friendsMenuAddingFriend ? _friendCodeSelectionStart : -1);
+            _friendsMenuAddingFriend ? _inputManager.MenuTextInput.FriendCodeEdit.CursorIndex : -1,
+            _friendsMenuAddingFriend ? _inputManager.MenuTextInput.FriendCodeEdit.SelectionStart : -1);
         DrawMenuButtonScaled(layout.AddCodeBounds, _friendsMenuAddingFriend ? "Back" : "Add", _friendsMenuAddingFriend, 1f);
 
         DrawRoundedRectangleOutline(layout.ListBounds, new Color(59, 51, 46), new Color(213, 205, 188), outlineThickness: 1, radius: 6);
@@ -650,11 +650,11 @@ public partial class Game1
 
         DrawMenuInputBoxScaled(
             layout.MessageInputBounds,
-            _friendMessageInputBuffer,
+            _inputManager.MenuTextInput.FriendMessageEdit.Text,
             _editingFriendMessage,
             1f,
-            _friendMessageCursorIndex,
-            _friendMessageSelectionStart);
+            _inputManager.MenuTextInput.FriendMessageEdit.CursorIndex,
+            _inputManager.MenuTextInput.FriendMessageEdit.SelectionStart);
     }
 
     private void DrawFriendBubbleTab(FriendsMenuLayout layout)
@@ -891,7 +891,7 @@ public partial class Game1
             rightMargin = 16;
         }
 
-        var bottomReserved = _mainMenuOpen && _menuBackgroundMode != MenuBackgroundMode.Static ? 92 : 24;
+        var bottomReserved = _mainMenuOpen && _gameplayManager.RuntimeSettings.MenuBackgroundMode != MenuBackgroundMode.Static ? 92 : 24;
         var availableHeight = Math.Max(300, ViewportHeight - bottomReserved - 24);
         var panelHeight = Math.Min(availableHeight, ViewportHeight < 540 ? 430 : 500);
         var usableBottom = ViewportHeight - bottomReserved;
@@ -1030,7 +1030,7 @@ public partial class Game1
 
     public void TrySendFriendRequestFromInput()
     {
-        if (TrySendFriendRequest(_friendCodeInputBuffer, clearFriendCodeInput: true))
+        if (TrySendFriendRequest(_inputManager.MenuTextInput.FriendCodeEdit.Text, clearFriendCodeInput: true))
         {
             _friendsMenuAddingFriend = false;
             _editingFriendCode = false;
@@ -1059,7 +1059,7 @@ public partial class Game1
         _friendRequestSendTask = _presenceClient.SendFriendRequestAsync(_clientIdentity, friendCode);
         if (clearFriendCodeInput)
         {
-            _friendCodeInputBuffer = string.Empty;
+            _inputManager.MenuTextInput.FriendCodeEdit.Text = string.Empty;
             InitializeFriendCodeCursor();
         }
 
@@ -1209,7 +1209,7 @@ public partial class Game1
 
     public void SaveFriendNicknameFromInput()
     {
-        var nickname = NormalizeFriendNickname(_friendNicknameInputBuffer);
+        var nickname = NormalizeFriendNickname(_inputManager.MenuTextInput.FriendNicknameEdit.Text);
         if (string.IsNullOrWhiteSpace(nickname))
         {
             _menuStatusMessage = "Enter a nickname.";
@@ -1220,7 +1220,7 @@ public partial class Game1
 
         _clientIdentity.DisplayName = nickname;
         _clientIdentity.Save();
-        _friendNicknameInputBuffer = nickname;
+        _inputManager.MenuTextInput.FriendNicknameEdit.Text = nickname;
         InitializeFriendNicknameCursor();
         _editingFriendNickname = false;
         _friendsMenuAddingFriend = true;
@@ -1294,7 +1294,7 @@ public partial class Game1
             return false;
         }
 
-        var text = _friendMessageInputBuffer.Trim();
+        var text = _inputManager.MenuTextInput.FriendMessageEdit.Text.Trim();
         if (string.IsNullOrWhiteSpace(text))
         {
             return false;
@@ -1305,7 +1305,7 @@ public partial class Game1
             return false;
         }
 
-        _friendMessageInputBuffer = string.Empty;
+        _inputManager.MenuTextInput.FriendMessageEdit.Text = string.Empty;
         InitializeFriendMessageCursor();
         _lastDirectMessageSenderFriendCode = friend.FriendCode;
         _editingFriendMessage = true;

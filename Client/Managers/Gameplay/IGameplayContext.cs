@@ -11,36 +11,27 @@ public interface IGameplayContext
     MenuManager Menus { get; }
     SessionManager Session { get; }
     GameplayManager Gameplay { get; }
+    GameplayRuntimeSettings GameplayRuntimeSettings { get; }
+    LocalPredictionState LocalPrediction { get; }
+    NetworkPresentationState NetworkPresentation { get; }
+    GameplayLoadoutResources GameplayLoadoutResources { get; }
+    MenuResources MenuResources { get; }
+    MusicResources MusicResources { get; }
+    TeamClassSelectionState TeamClassSelection { get; }
+    GameplaySessionTransitionState SessionTransitions { get; }
     string _activeReplayPath { get; set; }
-    List<OpenGarrison.Client.Game1.AirBlastVisual> _airBlasts { get; }
     OpenGarrison.Core.GameMakerAssetManifest _assetManifest { get; }
     OpenGarrison.Client.AuthoritativeExplosionPresentationTracker _authoritativeExplosionPresentations { get; }
     string _autoBalanceNoticeText { get; set; }
     int _autoBalanceNoticeTicks { get; set; }
     List<OpenGarrison.Client.Game1.BackstabVisual> _backstabVisuals { get; }
-    List<OpenGarrison.Client.Game1.BlastJumpFlameVisual> _blastJumpFlameVisuals { get; }
-    Dictionary<(int X, int Y), float> _bloodBridgeScratch { get; }
-    Dictionary<(int X, int Y), float> _bloodCryoDrawCellsScratch { get; }
-    Dictionary<(int X, int Y), float> _bloodDrawCellsScratch { get; }
-    int _bloodRenderMode { get; set; }
-    List<OpenGarrison.Client.Game1.BloodSprayVisual> _bloodSprayVisuals { get; }
-    List<OpenGarrison.Client.Game1.BloodSquibParticle> _bloodSquibParticles { get; }
-    List<OpenGarrison.Client.Game1.BloodVisual> _bloodVisuals { get; }
     OpenGarrison.Core.BotBrain.BotControllerDiagnosticsSnapshot _botDiagnosticLatestSnapshot { get; set; }
-    OpenGarrison.Client.BrowserAtlasTextureCache _browserAtlasTextureCache { get; set; }
-    bool _browserBootstrapAssetsApplied { get; set; }
-    OpenGarrison.Client.BrowserBootstrapAtlasTextureResolver _browserBootstrapAtlasResolver { get; set; }
     bool _bubbleMenuClosing { get; set; }
     OpenGarrison.Client.Game1.BubbleMenuKind _bubbleMenuKind { get; set; }
-    List<OpenGarrison.Client.Game1.BubblePopVisual> _bubblePops { get; }
     bool _buildMenuOpen { get; set; }
     bool _chatOpen { get; set; }
     bool _chatSubmitAwaitingOpenKeyRelease { get; set; }
-    float _classSelectAlpha { get; set; }
-    bool _classSelectOpen { get; set; }
     OpenGarrison.ClientShared.ClientIdentityDocument _clientIdentity { get; }
-    Microsoft.Xna.Framework.Input.KeyboardState _clientPluginKeyboard { get; set; }
-    Microsoft.Xna.Framework.Input.KeyboardState _clientPluginPreviousKeyboard { get; set; }
     bool _clientPowersOpen { get; set; }
     bool _clientPowersOpenedFromGameplay { get; set; }
     OpenGarrison.ClientShared.ClientSettings _clientSettings { get; }
@@ -50,140 +41,47 @@ public interface IGameplayContext
     bool _controlsMenuOpen { get; set; }
     bool _controlsMenuOpenedFromGameplay { get; set; }
     bool _customBubbleEditorOpen { get; set; }
-    Microsoft.Xna.Framework.Graphics.RenderTarget2D _deathCamCaptureTarget { get; set; }
     bool _debugMenuOpen { get; set; }
     bool _editingPlayerName { get; set; }
     List<OpenGarrison.Client.Game1.ExplosionVisual> _explosions { get; }
-    Microsoft.Xna.Framework.Audio.SoundEffect _faucetMusic { get; set; }
-    Microsoft.Xna.Framework.Audio.SoundEffectInstance _faucetMusicInstance { get; set; }
     OpenGarrison.Client.FirstPlayHintSequence _firstPlayHints { get; set; }
-    int _flameRenderMode { get; set; }
-    List<OpenGarrison.Client.Game1.FlameSmokeVisual> _flameSmokeSecondaryVisuals { get; }
     List<OpenGarrison.Client.Game1.FlameSmokeVisual> _flameSmokeVisuals { get; }
-    Microsoft.Xna.Framework.Input.MouseState _frameMouseState { get; set; }
-    Microsoft.Xna.Framework.Input.MouseState _frameRawMouseState { get; set; }
     bool _friendsMenuOpen { get; set; }
     Task<OpenGarrison.ClientShared.GameplaySessionCreateResponse> _gameplayAccountSessionTask { get; set; }
     System.DateTimeOffset _gameplayAccountTokenExpiresAt { get; set; }
     bool _gameplayHudHidden { get; set; }
-    OpenGarrison.Client.LoadedSpriteFrame _gameplayLoadoutBackButtonTexture { get; set; }
-    OpenGarrison.Client.LoadedSpriteFrame _gameplayLoadoutBackgroundBarTexture { get; set; }
-    OpenGarrison.Client.LoadedSpriteFrame _gameplayLoadoutClassSelectionTexture { get; set; }
-    OpenGarrison.Client.LoadedSpriteFrame _gameplayLoadoutClassStripTexture { get; set; }
-    OpenGarrison.Client.LoadedSpriteFrame _gameplayLoadoutDescriptionBoardTexture { get; set; }
-    OpenGarrison.Client.LoadedSpriteFrame _gameplayLoadoutDogTagsTexture { get; set; }
-    OpenGarrison.Client.LoadedSpriteFrame _gameplayLoadoutHelmetTexture { get; set; }
     bool _gameplayLoadoutMenuAwaitingEscapeRelease { get; set; }
     int _gameplayLoadoutMenuHoverIndex { get; set; }
     bool _gameplayLoadoutMenuOpen { get; set; }
-    OpenGarrison.Client.LoadedSpriteFrame _gameplayLoadoutPageTexture { get; set; }
-    OpenGarrison.Client.LoadedSpriteFrame _gameplayLoadoutScrollerTexture { get; set; }
-    List<OpenGarrison.Client.LoadedSpriteFrame> _gameplayLoadoutSelectionAtlasChunks { get; }
-    OpenGarrison.Client.LoadedSpriteFrame _gameplayLoadoutSelectionAtlasTexture { get; set; }
-    OpenGarrison.Client.LoadedSpriteFrame _gameplayLoadoutSelectionTexture { get; set; }
-    bool _gameplayModalOwnedInputThisFrame { get; set; }
     OpenGarrison.Client.GameplayModAssetCache _gameplayModAssets { get; set; }
     OpenGarrison.Client.Game1.GameplaySessionKind _gameplaySessionKind { get; set; }
-    Microsoft.Xna.Framework.Graphics.RenderTarget2D _gameRenderTarget { get; set; }
     Microsoft.Xna.Framework.Graphics.Effect _grayscaleEffect { get; set; }
-    bool _hasLatestLocalAimWorldPosition { get; set; }
-    bool _hasLatestNetworkInputAimOrigin { get; set; }
-    bool _hasLocalPlayerRenderTime { get; set; }
-    bool _hasPredictedLocalActionState { get; set; }
-    bool _hasPredictedLocalPlayerPosition { get; set; }
-    bool _hasReceivedSnapshot { get; set; }
-    bool _hasRemotePlayerRenderTime { get; set; }
-    bool _hasSmoothedLocalPlayerRenderPosition { get; set; }
     bool _hudEditorOpen { get; set; }
-    Microsoft.Xna.Framework.Graphics.RenderTarget2D _hudRenderTarget { get; set; }
-    List<OpenGarrison.Client.Game1.ImpactVisual> _impactVisuals { get; }
     bool _inGameMenuOpen { get; set; }
-    Microsoft.Xna.Framework.Audio.SoundEffect _ingameMusic { get; set; }
-    Microsoft.Xna.Framework.Audio.SoundEffectInstance _ingameMusicInstance { get; set; }
     OpenGarrison.Client.InputBindingsSettings _inputBindings { get; }
     bool _jumpMenuOpen { get; set; }
-    bool _killCamEnabled { get; set; }
-    ulong _lastAppliedSnapshotFrame { get; set; }
-    Nullable<int> _lastAppliedSnapshotLocalPlayerId { get; set; }
-    ulong _lastBufferedSnapshotFrame { get; set; }
-    string _lastGameplayWindowTitle { get; set; }
     Microsoft.Xna.Framework.Point _lastKnownMousePosition { get; set; }
-    double _lastLocalPlayerRenderTimeClockSeconds { get; set; }
-    double _lastPredictedRenderSmoothingTimeSeconds { get; set; }
-    double _lastRemotePlayerRenderTimeClockSeconds { get; set; }
-    double _lastSnapshotReceivedTimeSeconds { get; set; }
-    bool _lastToDieConnectionPresentationPending { get; set; }
     bool _lastToDieFailureOverlayOpen { get; set; }
     int _lastToDieFailureOverlayTicks { get; set; }
-    Microsoft.Xna.Framework.Audio.SoundEffect _lastToDieIngameMusic { get; set; }
-    Microsoft.Xna.Framework.Audio.SoundEffectInstance _lastToDieIngameMusicInstance { get; set; }
-    OpenGarrison.Client.LoadedSpriteFrame _lastToDieLogoTexture { get; set; }
-    Microsoft.Xna.Framework.Audio.SoundEffect _lastToDieMenuMusic { get; set; }
-    Microsoft.Xna.Framework.Audio.SoundEffectInstance _lastToDieMenuMusicInstance { get; set; }
     bool _lastToDieMenuOpen { get; set; }
-    OpenGarrison.Client.LoadedSpriteFrame _lastToDieMenuPlaqueTexture { get; set; }
-    OpenGarrison.Client.LoadedSpriteFrame _lastToDieMenuTextBoxSoloTexture { get; set; }
     int _lastToDiePerkHoverIndex { get; set; }
     bool _lastToDiePerkMenuOpen { get; set; }
     OpenGarrison.Client.Game1.LastToDieRunState _lastToDieRun { get; set; }
     bool _lastToDieStageClearOverlayOpen { get; set; }
     int _lastToDieStageClearOverlayTicks { get; set; }
     bool _lastToDieSurvivorMenuOpen { get; set; }
-    float _latestLocalAimWorldX { get; set; }
-    float _latestLocalAimWorldY { get; set; }
-    float _latestNetworkInputAimOriginX { get; set; }
-    float _latestNetworkInputAimOriginY { get; set; }
-    double _latestSnapshotReceivedClockSeconds { get; set; }
-    double _latestSnapshotServerTimeSeconds { get; set; }
-    string _levelBackgroundFileFailedPath { get; set; }
-    Microsoft.Xna.Framework.Graphics.Texture2D _levelBackgroundFileTexture { get; set; }
-    OpenGarrison.Core.SimpleLevel _levelBackgroundFileTextureLevel { get; set; }
-    string _levelBackgroundFileTexturePath { get; set; }
-    bool _loadingOverlayVisible { get; set; }
     OpenGarrison.Client.Game1.OverheadChatMessage _localOverheadChatMessage { get; set; }
-    float _localPlayerInterpolationBackTimeSeconds { get; set; }
-    double _localPlayerRenderTimeSeconds { get; set; }
     Nullable<int> _localPlayerSnapshotEntityId { get; set; }
-    List<OpenGarrison.Client.Game1.LooseSheetVisual> _looseSheetVisuals { get; }
     bool _mainMenuBottomBarHover { get; set; }
     bool _mainMenuChromeHidden { get; set; }
     int _mainMenuHoverIndex { get; set; }
     bool _mainMenuOpen { get; set; }
     OpenGarrison.Client.Game1.MainMenuPage _mainMenuPage { get; set; }
-    OpenGarrison.Core.MenuBackgroundMode _menuBackgroundMode { get; set; }
-    OpenGarrison.Client.LoadedSpriteFrame _menuBackgroundTexture { get; set; }
-    string _menuBackgroundTexturePath { get; set; }
-    Dictionary<char, OpenGarrison.Client.Game1.MenuBitmapGlyph> _menuBitmapFontGlyphs { get; }
-    int _menuBitmapFontLineHeight { get; set; }
-    OpenGarrison.Client.LoadedSpriteFrame _menuBitmapFontTexture { get; set; }
     Microsoft.Xna.Framework.Graphics.SpriteFont _menuFont { get; set; }
-    int _menuImageFrame { get; set; }
-    Microsoft.Xna.Framework.Audio.SoundEffect _menuMusic { get; set; }
-    Microsoft.Xna.Framework.Audio.SoundEffectInstance _menuMusicInstance { get; set; }
-    OpenGarrison.Client.LoadedSpriteFrame _menuPlaqueTallTexture { get; set; }
-    OpenGarrison.Client.LoadedSpriteFrame _menuPlaqueTexture { get; set; }
     string _menuStatusMessage { get; set; }
-    OpenGarrison.Client.LoadedSpriteFrame _menuTextBoxBottomTexture { get; set; }
-    OpenGarrison.Client.LoadedSpriteFrame _menuTextBoxMiddleTexture { get; set; }
-    OpenGarrison.Client.LoadedSpriteFrame _menuTextBoxSoloTexture { get; set; }
-    OpenGarrison.Client.LoadedSpriteFrame _menuTextBoxTopTexture { get; set; }
-    List<OpenGarrison.Client.Game1.MineTrailVisual> _mineTrailVisuals { get; }
     bool _namePromptPresented { get; set; }
     OpenGarrison.Client.NetworkGameClient _networkClient { get; }
-    int _networkInterpolationWarmupSnapshotsRemaining { get; set; }
-    double _networkInterpolationWarmupUntilClockSeconds { get; set; }
-    Nullable<OpenGarrison.Protocol.LastToDieWirePhase> _networkPresentationObservedLastToDiePhase { get; set; }
-    float _networkSnapshotInterpolationDurationSeconds { get; set; }
-    bool _networkWorldWarmupAcceptNextAppliedSnapshotAsBaseline { get; set; }
-    bool _networkWorldWarmupActive { get; set; }
-    int _networkWorldWarmupAppliedSnapshotsAfterFull { get; set; }
-    bool _networkWorldWarmupFullSnapshotApplied { get; set; }
-    Dictionary<OpenGarrison.Client.LoadedSpriteFrame, OpenGarrison.Client.LoadedSpriteFrame> _neutralSpriteFrameCache { get; }
-    int _nextBloodSquibSeed { get; set; }
-    int _nextClientBackstabVisualId { get; set; }
     System.DateTimeOffset _nextGameplayAccountAttachAttemptAt { get; set; }
-    string _observedGameplayLevelName { get; set; }
-    int _observedGameplayMapAreaIndex { get; set; }
     Nullable<ValueTuple<string, int>> _offlinePracticeNextMap { get; set; }
     bool _offlinePracticeSpectatorMode { get; set; }
     OpenGarrison.Client.Game1.OnlineConnectionIntent _onlineConnectionIntent { get; set; }
@@ -191,22 +89,14 @@ public interface IGameplayContext
     bool _optionsMenuOpenedFromGameplay { get; set; }
     int _optionsPageIndex { get; set; }
     Dictionary<byte, OpenGarrison.Client.Game1.OverheadChatMessage> _overheadChatMessagesBySlot { get; }
-    int _particleMode { get; set; }
     bool _passwordPromptOpen { get; set; }
     OpenGarrison.Client.PlayerHostedRoomSession _peerRoomSession { get; set; }
-    Nullable<OpenGarrison.Core.PlayerTeam> _pendingClassSelectTeam { get; set; }
     Nullable<OpenGarrison.Client.Game1.ControllerControlsMenuBinding> _pendingControllerControlsBinding { get; set; }
     Nullable<OpenGarrison.Client.Game1.ControlsMenuBinding> _pendingControlsBinding { get; set; }
     ulong _pendingGameplayAccountAttachRequestId { get; set; }
-    int _pendingHostedConnectPort { get; set; }
-    int _pendingHostedConnectTicks { get; set; }
-    bool _pendingMapTeamSelection { get; set; }
-    List<OpenGarrison.Protocol.SnapshotDamageEvent> _pendingNetworkDamageEvents { get; }
-    List<OpenGarrison.Core.WorldSoundEvent> _pendingNetworkSoundEvents { get; }
-    List<OpenGarrison.Protocol.SnapshotVisualEvent> _pendingNetworkVisualEvents { get; }
-    List<OpenGarrison.Client.Game1.PredictedLocalInput> _pendingPredictedInputs { get; }
-    List<(int X, int Y, float Amount, bool Cryo)> _pendingSettledBloodTransfers { get; }
-    List<OpenGarrison.Client.Game1.PendingWeaponShellVisual> _pendingWeaponShellVisuals { get; }
+    void ClearPendingNetworkDamageEvents();
+    void ClearPendingNetworkSoundEvents();
+    void ClearPendingNetworkVisualEvents();
     Microsoft.Xna.Framework.Graphics.Texture2D _pixel { get; set; }
     string _playerNameEditBuffer { get; set; }
     bool _pluginOptionsMenuOpen { get; set; }
@@ -219,53 +109,24 @@ public interface IGameplayContext
     bool _practiceStickyGibBloodEnabled { get; set; }
     int _practiceTickRate { get; set; }
     int _practiceTimeLimitMinutes { get; set; }
-    Microsoft.Xna.Framework.Vector2 _predictedLocalPlayerRenderCorrectionOffset { get; set; }
-    OpenGarrison.Core.PlayerEntity _predictedLocalPlayerShadow { get; set; }
-    int _prePredictionFlameCount { get; set; }
     List<OpenGarrison.Client.Game1.PresentedExplosionVisual> _presentedExplosionVisualsThisFrame { get; }
     Microsoft.Xna.Framework.Input.KeyboardState _previousKeyboard { get; set; }
     Microsoft.Xna.Framework.Input.MouseState _previousMouse { get; set; }
-    HashSet<int> _processedSettledBloodDropIds { get; }
-    HashSet<int> _processedStickyGibBloodDropIds { get; }
-    float _projectileInterpolationBackTimeSeconds { get; set; }
     int _quitPromptHoverIndex { get; set; }
     bool _quitPromptOpen { get; set; }
-    float _remotePlayerInterpolationBackTimeSeconds { get; set; }
-    double _remotePlayerRenderTimeSeconds { get; set; }
     bool _replaySeekCatchUpActive { get; set; }
     int _replaySeekTargetMilliseconds { get; set; }
-    List<OpenGarrison.Client.Game1.RocketSmokeVisual> _rocketSmokeVisuals { get; }
     OpenGarrison.Client.RotatedWeaponSpriteCache _rotatedWeaponSprites { get; set; }
     OpenGarrison.Client.GameMakerRuntimeAssetCache _runtimeAssets { get; set; }
-    OpenGarrison.ClientShared.ClientRuntimeComposition _runtimeComposition { get; set; }
     bool _scoreboardOpen { get; set; }
-    bool _serverLocalPredictionEnabled { get; set; }
-    Dictionary<(int X, int Y), OpenGarrison.Client.Game1.SettledBloodCell> _settledBloodCells { get; }
-    List<OpenGarrison.Client.Game1.ShellVisual> _shellVisuals { get; }
-    float _smoothedSnapshotIntervalSeconds { get; set; }
-    float _smoothedSnapshotJitterSeconds { get; set; }
     Microsoft.Xna.Framework.Graphics.SpriteBatch _spriteBatch { get; set; }
-    Dictionary<OpenGarrison.Client.LoadedSpriteFrame, Microsoft.Xna.Framework.Rectangle> _spriteFontOpaqueBoundsCache { get; }
-    List<(int X, int Y)> _staleSettledBloodCellKeys { get; }
-    List<int> _staleSettledBloodDropIds { get; }
-    List<int> _staleStickyGibBloodDropIds { get; }
-    List<int> _staleStickyGibBloodPlayerIds { get; }
     OpenGarrison.Client.GameStartupMode _startupMode { get; }
     bool _startupSplashOpen { get; set; }
-    Dictionary<int, OpenGarrison.Client.Game1.StickyGibBloodCoating> _stickyGibBloodCoatings { get; }
-    bool _stuckArrowsEnabled { get; set; }
-    List<OpenGarrison.Client.Game1.StuckArrowVisual> _stuckArrowVisuals { get; }
-    bool _suppressFullscreenToggleUntilRelease { get; set; }
-    float _teamSelectAlpha { get; set; }
-    bool _teamSelectOpen { get; set; }
     System.Random _visualRandom { get; }
     OpenGarrison.Client.VoiceChatClient _voiceChat { get; set; }
     bool _voteMenuOpen { get; set; }
-    List<OpenGarrison.Client.Game1.WallspinDustVisual> _wallspinDustVisuals { get; }
     bool _wasDeathCamActive { get; set; }
     bool _wasMatchEnded { get; set; }
-    bool _wasWindowActive { get; set; }
-    OpenGarrison.Client.WindowInputFilter _windowInputFilter { get; }
     OpenGarrison.Core.SimulationWorld _world { get; set; }
     bool AreBloodVisualsEnabled { get; }
     Microsoft.Xna.Framework.Content.ContentManager Content { get; set; }

@@ -11,10 +11,15 @@ public sealed class AudioManager
     public AudioManager(IAudioContext context)
     {
         _context = context;
+        RuntimeSettings = new AudioRuntimeSettings();
         Events = new GameplayAudioEventController(context);
         Music = new GameplayAudioMusicController(context);
         RapidFire = new GameplayRapidFireAudioController(context);
     }
+
+    internal MusicResources MusicResources { get; } = new();
+
+    public AudioRuntimeSettings RuntimeSettings { get; }
 
     public GameplayAudioEventController Events { get; }
 

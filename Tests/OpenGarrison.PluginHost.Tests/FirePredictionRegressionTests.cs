@@ -399,6 +399,11 @@ public sealed class FirePredictionRegressionTests
         // The GG2-interop guards read _networkClient; the ctor never ran on this
         // uninitialized instance, so provide the production default explicitly.
         SetPrivateField(game, "_networkClient", new NetworkGameClient());
+        var services = new ClientServiceContainer();
+        SetPrivateField(game, "_services", services);
+        var gameplayManager = new GameplayManager((IGameplayContext)game);
+        services.Register(gameplayManager);
+        gameplayManager.RuntimeSettings.EnablePrediction = false;
         return game;
     }
 

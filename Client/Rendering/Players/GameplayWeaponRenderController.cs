@@ -105,7 +105,7 @@ public sealed class GameplayWeaponRenderController
                 rotation = localAimRotation;
             }
 
-            if (!_game._uberOutlineEnabled)
+            if (!_game.GameplayRuntimeSettings.ShowUberOutlinesEnabled)
             {
                 return false;
             }
@@ -232,7 +232,7 @@ public sealed class GameplayWeaponRenderController
                 facingScale,
                 rotation);
 
-            if (_game.IsKritzUberWeaponOnlyVisual(player) && _game._uberOutlineEnabled)
+            if (_game.IsKritzUberWeaponOnlyVisual(player) && _game.GameplayRuntimeSettings.ShowUberOutlinesEnabled)
             {
                 var teamColor = GameplayPlayerStatusEffectRenderController.GetUberOverlayColor(player.Team);
                 var outlineTint = Color.Lerp(teamColor, Color.White, 0.75f);
@@ -697,10 +697,10 @@ public sealed class GameplayWeaponRenderController
             }
 
             if (ReferenceEquals(player, _game._world.LocalPlayer)
-                && _game._hasLatestLocalAimWorldPosition
-                && _game._useLocalWeaponRotation)
+                && _game.Gameplay.InputUpdate.HasLatestLocalAimWorldPosition
+                && _game.GameplayRuntimeSettings.UseLocalWeaponRotation)
             {
-                var aimDeltaX = _game._latestLocalAimWorldX - player.X;
+                var aimDeltaX = _game.Gameplay.InputUpdate.LatestLocalAimWorldX - player.X;
                 if (System.MathF.Abs(aimDeltaX) > 0.001f)
                 {
                     return aimDeltaX < 0f ? -1f : 1f;
@@ -720,11 +720,11 @@ public sealed class GameplayWeaponRenderController
             }
 
             if (ReferenceEquals(player, _game._world.LocalPlayer)
-                && _game._hasLatestLocalAimWorldPosition
-                && _game._useLocalWeaponRotation)
+                && _game.Gameplay.InputUpdate.HasLatestLocalAimWorldPosition
+                && _game.GameplayRuntimeSettings.UseLocalWeaponRotation)
             {
-                var aimDeltaX = _game._latestLocalAimWorldX - player.X;
-                var aimDeltaY = _game._latestLocalAimWorldY - player.Y;
+                var aimDeltaX = _game.Gameplay.InputUpdate.LatestLocalAimWorldX - player.X;
+                var aimDeltaY = _game.Gameplay.InputUpdate.LatestLocalAimWorldY - player.Y;
                 var aimRadians = System.MathF.Atan2(aimDeltaY, aimDeltaX);
                 var facingScale = System.MathF.Abs(aimDeltaX) > 0.001f
                     ? (aimDeltaX < 0f ? -1f : 1f)
@@ -778,14 +778,14 @@ public sealed class GameplayWeaponRenderController
             if (!ReferenceEquals(player, _game._world.LocalPlayer)
                 || _game.IsLocalSpectatorPresentationActive()
                 || _game.IsBackstabReplacementRenderActive(player)
-                || !_game._hasLatestLocalAimWorldPosition
-                || !_game._useLocalWeaponRotation)
+                || !_game.Gameplay.InputUpdate.HasLatestLocalAimWorldPosition
+                || !_game.GameplayRuntimeSettings.UseLocalWeaponRotation)
             {
                 return false;
             }
 
-            aimWorldX = _game._latestLocalAimWorldX;
-            aimWorldY = _game._latestLocalAimWorldY;
+            aimWorldX = _game.Gameplay.InputUpdate.LatestLocalAimWorldX;
+            aimWorldY = _game.Gameplay.InputUpdate.LatestLocalAimWorldY;
             return true;
         }
 
@@ -813,7 +813,7 @@ public sealed class GameplayWeaponRenderController
             out Vector2 drawScale)
         {
             if (!_game.IsBackstabReplacementRenderActive(player)
-                && _game._pixelPerfectWeaponRotation
+                && _game.GameplayRuntimeSettings.PixelPerfectWeaponRotation
                 && _game._rotatedWeaponSprites is not null)
             {
                 // For left-facing weapons GetWeaponRotationFromAim adds +π to rotation so that
@@ -1011,7 +1011,7 @@ public sealed class GameplayWeaponRenderController
             var scale = new Vector2(facingScale * playerScale, playerScale);
             var origin = sprite.Origin.ToVector2();
 
-            if (_game.IsKritzUberWeaponOnlyVisual(player) && _game._uberOutlineEnabled)
+            if (_game.IsKritzUberWeaponOnlyVisual(player) && _game.GameplayRuntimeSettings.ShowUberOutlinesEnabled)
             {
                 var teamColor = GameplayPlayerStatusEffectRenderController.GetUberOverlayColor(player.Team);
                 var outlineTint = Color.Lerp(teamColor, Color.White, 0.75f);
@@ -1164,7 +1164,7 @@ public sealed class GameplayWeaponRenderController
                 out var scale);
 
             var isKritzWeaponOnly = _game.IsKritzUberWeaponOnlyVisual(player);
-            if (_game._uberOutlineEnabled
+            if (_game.GameplayRuntimeSettings.ShowUberOutlinesEnabled
                 && (isKritzWeaponOnly || player.IsUbered))
             {
                 var teamColor = GameplayPlayerStatusEffectRenderController.GetUberOverlayColor(player.Team);
@@ -1213,7 +1213,7 @@ public sealed class GameplayWeaponRenderController
             var drawOrigin = whipSprite.Origin.ToVector2();
             var drawScale = new Vector2(pose.ScaleX, pose.ScaleY);
             var isKritzWeaponOnly = _game.IsKritzUberWeaponOnlyVisual(player);
-            if (_game._uberOutlineEnabled && (isKritzWeaponOnly || player.IsUbered))
+            if (_game.GameplayRuntimeSettings.ShowUberOutlinesEnabled && (isKritzWeaponOnly || player.IsUbered))
             {
                 var teamColor = GameplayPlayerStatusEffectRenderController.GetUberOverlayColor(player.Team);
                 var outlineTint = Color.Lerp(teamColor, Color.White, 0.75f);

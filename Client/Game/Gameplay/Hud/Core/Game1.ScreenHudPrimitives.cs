@@ -119,7 +119,7 @@ public partial class Game1
             LogCriticalBrowserHudSpriteState(
                 spriteName,
                 sprite is null ? "missing" : "empty",
-                $"frameIndex={frameIndex} position={position} teamSelectOpen={_teamSelectOpen} classSelectOpen={_classSelectOpen} awaitingJoin={_world.LocalPlayerAwaitingJoin}");
+                $"frameIndex={frameIndex} position={position} teamSelectOpen={_teamClassSelectionState.TeamSelectOpen} classSelectOpen={_teamClassSelectionState.ClassSelectOpen} awaitingJoin={_world.LocalPlayerAwaitingJoin}");
             return false;
         }
 
@@ -127,7 +127,7 @@ public partial class Game1
         LogCriticalBrowserHudSpriteState(
             spriteName,
             "drawn",
-            $"requestedFrame={frameIndex} drawnFrame={clampedFrameIndex} frames={sprite.Frames.Count} position={position} teamSelectOpen={_teamSelectOpen} classSelectOpen={_classSelectOpen} awaitingJoin={_world.LocalPlayerAwaitingJoin}");
+            $"requestedFrame={frameIndex} drawnFrame={clampedFrameIndex} frames={sprite.Frames.Count} position={position} teamSelectOpen={_teamClassSelectionState.TeamSelectOpen} classSelectOpen={_teamClassSelectionState.ClassSelectOpen} awaitingJoin={_world.LocalPlayerAwaitingJoin}");
         DrawLoadedSpriteFrame(
             sprite.Frames[clampedFrameIndex],
             position,

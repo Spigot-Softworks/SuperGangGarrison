@@ -100,14 +100,14 @@ public partial class Game1
 
     public void BeginPendingHostedLocalConnect(int port, int delayTicks, string statusMessage)
     {
-        _pendingHostedConnectPort = port;
-        _pendingHostedConnectTicks = delayTicks;
+        _pendingHostedConnectState.Port = port;
+        _pendingHostedConnectState.Ticks = delayTicks;
         _menuStatusMessage = statusMessage;
     }
 
     public void CancelPendingHostedLocalConnect(string? statusMessage = null)
     {
-        _pendingHostedConnectTicks = -1;
+        _pendingHostedConnectState.Ticks = -1;
         if (statusMessage is not null)
         {
             _menuStatusMessage = statusMessage;

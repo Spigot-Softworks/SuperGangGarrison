@@ -91,7 +91,7 @@ public partial class Game1
             && IsWindowInputActive
             && _mainMenuOpen
             && !_startupSplashOpen
-            && !_loadingOverlayVisible
+            && !_loadingOverlayState.Visible
             && !_mainMenuChromeHidden
             && !_builderEditorEnabled
             && _mainMenuPage == MainMenuPage.Root

@@ -29,7 +29,7 @@ public partial class Game1
     {
         _previousKeyboard = keyboard;
         _previousMouse = mouse;
-        _wasDeathCamActive = _killCamEnabled
+        _wasDeathCamActive = _gameplayManager.RuntimeSettings.KillCamEnabled
             && !_world.LocalPlayer.IsAlive
             && _world.LocalDeathCam is not null
             && GetDeathCamElapsedTicks(_world.LocalDeathCam) >= DeathCamFocusDelayTicks;

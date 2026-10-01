@@ -15,6 +15,8 @@ public sealed class NetworkPromptTextInputController
             _context = context;
         }
 
+        public TextEditState Edit { get; } = new();
+
         public bool TryHandle(TextInputEventArgs e)
         {
             return TryHandle(e.Character);
@@ -32,20 +34,20 @@ public sealed class NetworkPromptTextInputController
                 case '\b':
                 {
                     var result = _context.DeleteTextSelectionOrBackspace(
-                        _context._passwordEditBuffer,
-                        _context._passwordEditCursorIndex,
-                        _context._passwordEditSelectionStart);
-                    _context._passwordEditBuffer = result.Text;
-                    _context._passwordEditCursorIndex = result.CursorIndex;
-                    _context._passwordEditSelectionStart = result.SelectionStart;
+                        Edit.Text,
+                        Edit.CursorIndex,
+                        Edit.SelectionStart);
+                    Edit.Text = result.Text;
+                    Edit.CursorIndex = result.CursorIndex;
+                    Edit.SelectionStart = result.SelectionStart;
                     break;
                 }
                 case '\r':
                 case '\n':
-                    if (!string.IsNullOrEmpty(_context._passwordEditBuffer))
+                    if (!string.IsNullOrEmpty(Edit.Text))
                     {
                         _context._passwordPromptMessage = "Submitting...";
-                        _context._networkClient.SendPassword(_context._passwordEditBuffer);
+                        _context._networkClient.SendPassword(Edit.Text);
                     }
                     else
                     {
@@ -53,17 +55,17 @@ public sealed class NetworkPromptTextInputController
                     }
                     break;
                 default:
-                    if (!char.IsControl(character) && _context._passwordEditBuffer.Length < 32)
+                    if (!char.IsControl(character) && Edit.Text.Length < 32)
                     {
                         var result = _context.InsertTextCharacterAtCursor(
-                            _context._passwordEditBuffer,
+                            Edit.Text,
                             character,
-                            _context._passwordEditCursorIndex,
-                            _context._passwordEditSelectionStart,
+                            Edit.CursorIndex,
+                            Edit.SelectionStart,
                             32);
-                        _context._passwordEditBuffer = result.Text;
-                        _context._passwordEditCursorIndex = result.CursorIndex;
-                        _context._passwordEditSelectionStart = result.SelectionStart;
+                        Edit.Text = result.Text;
+                        Edit.CursorIndex = result.CursorIndex;
+                        Edit.SelectionStart = result.SelectionStart;
                         _context._passwordPromptMessage = string.Empty;
                     }
                     break;

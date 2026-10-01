@@ -6,7 +6,7 @@ public partial class Game1
 {
     private void UpdatePendingHostedConnect()
     {
-        if (_pendingHostedConnectTicks < 0)
+        if (_pendingHostedConnectState.Ticks < 0)
         {
             return;
         }
@@ -20,29 +20,29 @@ public partial class Game1
         if (_hostedServerRuntime.HasTrackedProcessExited)
         {
             ClearHostedSocialPresenceEndpoint();
-            _lastToDieConnectionPresentationPending = false;
+            _sessionTransitions.LastToDieConnectionPresentationPending = false;
             CancelPendingHostedLocalConnect(BuildHostedServerExitMessage());
             return;
         }
 
-        if (_pendingHostedConnectTicks > 0)
+        if (_pendingHostedConnectState.Ticks > 0)
         {
-            _pendingHostedConnectTicks -= 1;
+            _pendingHostedConnectState.Ticks -= 1;
             return;
         }
 
         // The server selects and reserves its actual port. Never connect to
         // the requested port while another instance may still own it.
         if (_hostedServerRuntime.ReadyPort is not { } readyPort) return;
-        _pendingHostedConnectPort = readyPort;
+        _pendingHostedConnectState.Port = readyPort;
         if (_hostedSocialPresenceUdpPort > 0 || !string.IsNullOrEmpty(_hostedSocialPresenceRelayGuestUrl))
             SetHostedSocialPresenceEndpoint(readyPort, _hostedSocialPresenceRelayGuestUrl);
         CancelPendingHostedLocalConnect();
-        if (!TryConnectToServer(NetworkEndpoint.ForUdp("127.0.0.1", _pendingHostedConnectPort), addConsoleFeedback: false))
+        if (!TryConnectToServer(NetworkEndpoint.ForUdp("127.0.0.1", _pendingHostedConnectState.Port), addConsoleFeedback: false))
         {
             // An immediate socket/permission failure never reaches the connected
             // frame pump. Release the owned server and the LTD loading state here.
-            var returnToLastToDie = _lastToDieConnectionPresentationPending;
+            var returnToLastToDie = _sessionTransitions.LastToDieConnectionPresentationPending;
             var error = _menuStatusMessage;
             ReturnToMainMenuWithNetworkStatus(error);
             if (returnToLastToDie) OpenLastToDieMenu(error);

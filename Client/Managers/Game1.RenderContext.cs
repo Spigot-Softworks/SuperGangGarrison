@@ -11,6 +11,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1 : IRenderContext
 {
+    HudRuntimeSettings IRenderContext.HudRuntimeSettings { get => _hudManager.RuntimeSettings; }
     GameplayManager IRenderContext.GameplayManager => _gameplayManager;
 
     GameplayPlayerRenderController IRenderContext.GameplayPlayerRenderer => _gameplayPlayerRenderController;
@@ -23,36 +24,23 @@ public partial class Game1 : IRenderContext
 
     GameplayWeaponRenderController IRenderContext.GameplayWeaponRenderer => _gameplayWeaponRenderController;
 
-    int IRenderContext._corpseDurationMode { get => _corpseDurationMode; set => _corpseDurationMode = value; }
 
-    bool IRenderContext._dynamicRagdollEnabled { get => _dynamicRagdollEnabled; set => _dynamicRagdollEnabled = value; }
 
-    bool IRenderContext._pixelPerfectWeaponRotation { get => _pixelPerfectWeaponRotation; set => _pixelPerfectWeaponRotation = value; }
 
-    bool IRenderContext._showHealthBarEnabled { get => _showHealthBarEnabled; set => _showHealthBarEnabled = value; }
 
-    bool IRenderContext._showShieldBarEnabled { get => _showShieldBarEnabled; set => _showShieldBarEnabled = value; }
 
-    bool IRenderContext._uberOutlineEnabled { get => _uberOutlineEnabled; set => _uberOutlineEnabled = value; }
 
-    bool IRenderContext._useLocalWeaponRotation { get => _useLocalWeaponRotation; set => _useLocalWeaponRotation = value; }
-    WeaponBobMode IRenderContext._weaponBobMode { get => _weaponBobMode; set => _weaponBobMode = value; }
 
-    Dictionary<int, Game1.RetainedDeadBodyVisual> IRenderContext._trackedDeadBodyVisuals => _trackedDeadBodyVisuals;
 
     List<Game1.RetainedDeadBodyVisual> IRenderContext._retainedDeadBodies => _retainedDeadBodies;
 
-    List<int> IRenderContext._staleTrackedDeadBodyIds => _staleTrackedDeadBodyIds;
 
     Dictionary<int, Game1.ImmediateNetworkDeadBodyVisual> IRenderContext._immediateNetworkDeadBodies => _immediateNetworkDeadBodies;
 
-    List<int> IRenderContext._staleImmediateNetworkDeadBodyPlayerIds => _staleImmediateNetworkDeadBodyPlayerIds;
 
     IReadOnlyList<Game1.CivvieUmbrellaShieldBlockVisual> IRenderContext._civvieUmbrellaShieldBlockVisuals => _civvieUmbrellaShieldBlockVisuals;
 
     Dictionary<int, Game1.PlayerRenderState> IRenderContext._playerRenderStates => _playerRenderStates;
-
-    Vector2 IRenderContext._predictedLocalPlayerVelocity => _predictedLocalPlayerVelocity;
 
     bool IRenderContext.ShouldMeasureClientPerformanceDurations() => ShouldMeasureClientPerformanceDurations();
 
@@ -64,7 +52,6 @@ public partial class Game1 : IRenderContext
 
     void IRenderContext.RecordBrowserDrawDuration(long browserDrawStartTimestamp) => RecordBrowserDrawDuration(browserDrawStartTimestamp);
 
-    bool IRenderContext._preLaunchSplashDismissed { get => _preLaunchSplashDismissed; set => _preLaunchSplashDismissed = value; }
 
     int IRenderContext.AllocateRemainsSortKey() => AllocateRemainsSortKey();
 

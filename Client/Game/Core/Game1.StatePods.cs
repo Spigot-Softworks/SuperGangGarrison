@@ -26,6 +26,11 @@ public partial class Game1
     public readonly UiShellState _uiShellState = new();
     public readonly GameplaySessionState _gameplaySessionState = new();
 
+    private TeamClassSelectionState _teamClassSelectionState => _gameplayManager.OverlayState.TeamClassSelection;
+    private GameplaySessionTransitionState _sessionTransitions => _gameplayManager.SessionState.SessionTransitions;
+    private PendingHostedConnectState _pendingHostedConnectState => _gameplayManager.SessionState.PendingHostedConnect;
+    private LoadingOverlayState _loadingOverlayState => _gameplayManager.Frame.LoadingOverlay;
+
     public int? _localPlayerSnapshotEntityId
     {
         get => _gameplaySessionState.LocalPlayerSnapshotEntityId;
@@ -48,18 +53,6 @@ public partial class Game1
     {
         get => _gameplaySessionState.OfflinePracticeSpectatorMode;
         set => _gameplaySessionState.OfflinePracticeSpectatorMode = value;
-    }
-
-    public string _observedGameplayLevelName
-    {
-        get => _gameplaySessionState.ObservedGameplayLevelName;
-        set => _gameplaySessionState.ObservedGameplayLevelName = value;
-    }
-
-    public int _observedGameplayMapAreaIndex
-    {
-        get => _gameplaySessionState.ObservedGameplayMapAreaIndex;
-        set => _gameplaySessionState.ObservedGameplayMapAreaIndex = value;
     }
 
     public GameplaySessionKind _gameplaySessionKind
@@ -90,102 +83,6 @@ public partial class Game1
     {
         get => _gameplaySessionState.AutoBalanceNoticeTicks;
         set => _gameplaySessionState.AutoBalanceNoticeTicks = value;
-    }
-
-    public int _pendingHostedConnectTicks
-    {
-        get => _gameplaySessionState.PendingHostedConnectTicks;
-        set => _gameplaySessionState.PendingHostedConnectTicks = value;
-    }
-
-    public int _pendingHostedConnectPort
-    {
-        get => _gameplaySessionState.PendingHostedConnectPort;
-        set => _gameplaySessionState.PendingHostedConnectPort = value;
-    }
-
-    public string? _recentConnectHost
-    {
-        get => _gameplaySessionState.RecentConnectHost;
-        set => _gameplaySessionState.RecentConnectHost = value;
-    }
-
-    public int _recentConnectPort
-    {
-        get => _gameplaySessionState.RecentConnectPort;
-        set => _gameplaySessionState.RecentConnectPort = value;
-    }
-
-    public bool _teamSelectOpen
-    {
-        get => _uiShellState.TeamSelectOpen;
-        set => _uiShellState.TeamSelectOpen = value;
-    }
-
-    public float _teamSelectAlpha
-    {
-        get => _uiShellState.TeamSelectAlpha;
-        set => _uiShellState.TeamSelectAlpha = value;
-    }
-
-    public float _teamSelectPanelY
-    {
-        get => _uiShellState.TeamSelectPanelY;
-        set => _uiShellState.TeamSelectPanelY = value;
-    }
-
-    public int _teamSelectHoverIndex
-    {
-        get => _uiShellState.TeamSelectHoverIndex;
-        set => _uiShellState.TeamSelectHoverIndex = value;
-    }
-
-    public PlayerTeam? _pendingClassSelectTeam
-    {
-        get => _uiShellState.PendingClassSelectTeam;
-        set => _uiShellState.PendingClassSelectTeam = value;
-    }
-
-    public bool _classSelectOpen
-    {
-        get => _uiShellState.ClassSelectOpen;
-        set => _uiShellState.ClassSelectOpen = value;
-    }
-
-    public float _classSelectAlpha
-    {
-        get => _uiShellState.ClassSelectAlpha;
-        set => _uiShellState.ClassSelectAlpha = value;
-    }
-
-    public float _classSelectPanelY
-    {
-        get => _uiShellState.ClassSelectPanelY;
-        set => _uiShellState.ClassSelectPanelY = value;
-    }
-
-    public int _classSelectHoverIndex
-    {
-        get => _uiShellState.ClassSelectHoverIndex;
-        set => _uiShellState.ClassSelectHoverIndex = value;
-    }
-
-    public int _classSelectPortraitAnimationHoverIndex
-    {
-        get => _uiShellState.ClassSelectPortraitAnimationHoverIndex;
-        set => _uiShellState.ClassSelectPortraitAnimationHoverIndex = value;
-    }
-
-    public PlayerTeam? _classSelectPortraitAnimationTeam
-    {
-        get => _uiShellState.ClassSelectPortraitAnimationTeam;
-        set => _uiShellState.ClassSelectPortraitAnimationTeam = value;
-    }
-
-    public float _classSelectPortraitAnimationFrame
-    {
-        get => _uiShellState.ClassSelectPortraitAnimationFrame;
-        set => _uiShellState.ClassSelectPortraitAnimationFrame = value;
     }
 
     public int _gameplayLoadoutPortraitAnimationHoverIndex
@@ -234,12 +131,6 @@ public partial class Game1
     {
         get => _uiShellState.ChatSubmitAwaitingOpenKeyRelease;
         set => _uiShellState.ChatSubmitAwaitingOpenKeyRelease = value;
-    }
-
-    public string _chatInput
-    {
-        get => _uiShellState.ChatInput;
-        set => _uiShellState.ChatInput = value;
     }
 
     public int _chatScrollOffset
@@ -548,66 +439,6 @@ public partial class Game1
         set => _uiShellState.EditingFriendMessage = value;
     }
 
-    public string _friendNicknameInputBuffer
-    {
-        get => _uiShellState.FriendNicknameInputBuffer;
-        set => _uiShellState.FriendNicknameInputBuffer = value;
-    }
-
-    public int _friendNicknameCursorIndex
-    {
-        get => _uiShellState.FriendNicknameCursorIndex;
-        set => _uiShellState.FriendNicknameCursorIndex = value;
-    }
-
-    public int _friendNicknameSelectionStart
-    {
-        get => _uiShellState.FriendNicknameSelectionStart;
-        set => _uiShellState.FriendNicknameSelectionStart = value;
-    }
-
-    public string _friendCodeInputBuffer
-    {
-        get => _uiShellState.FriendCodeInputBuffer;
-        set => _uiShellState.FriendCodeInputBuffer = value;
-    }
-
-    public int _friendCodeCursorIndex
-    {
-        get => _uiShellState.FriendCodeCursorIndex;
-        set => _uiShellState.FriendCodeCursorIndex = value;
-    }
-
-    public int _friendCodeSelectionStart
-    {
-        get => _uiShellState.FriendCodeSelectionStart;
-        set => _uiShellState.FriendCodeSelectionStart = value;
-    }
-
-    public string _friendMessageInputBuffer
-    {
-        get => _uiShellState.FriendMessageInputBuffer;
-        set => _uiShellState.FriendMessageInputBuffer = value;
-    }
-
-    public int _friendMessageCursorIndex
-    {
-        get => _uiShellState.FriendMessageCursorIndex;
-        set => _uiShellState.FriendMessageCursorIndex = value;
-    }
-
-    public int _friendMessageSelectionStart
-    {
-        get => _uiShellState.FriendMessageSelectionStart;
-        set => _uiShellState.FriendMessageSelectionStart = value;
-    }
-
-    public bool _creditsScrollInitialized
-    {
-        get => _uiShellState.CreditsScrollInitialized;
-        set => _uiShellState.CreditsScrollInitialized = value;
-    }
-
     private float _creditsScrollY
     {
         get => _uiShellState.CreditsScrollY;
@@ -618,12 +449,6 @@ public partial class Game1
     {
         get => _uiShellState.InGameMenuOpen;
         set => _uiShellState.InGameMenuOpen = value;
-    }
-
-    public bool _inGameMenuAwaitingEscapeRelease
-    {
-        get => _uiShellState.InGameMenuAwaitingEscapeRelease;
-        set => _uiShellState.InGameMenuAwaitingEscapeRelease = value;
     }
 
     public bool _gameplayLoadoutMenuOpen
@@ -706,12 +531,6 @@ public partial class Game1
         set => _uiShellState.PasswordPromptOpen = value;
     }
 
-    public string _passwordEditBuffer
-    {
-        get => _uiShellState.PasswordEditBuffer;
-        set => _uiShellState.PasswordEditBuffer = value;
-    }
-
     public string _passwordPromptMessage
     {
         get => _uiShellState.PasswordPromptMessage;
@@ -736,22 +555,10 @@ public partial class Game1
         set => _uiShellState.MainMenuBottomBarHover = value;
     }
 
-    public int _optionsHoverIndex
-    {
-        get => _uiShellState.OptionsHoverIndex;
-        set => _uiShellState.OptionsHoverIndex = value;
-    }
-
     public int _optionsPageIndex
     {
         get => _uiShellState.OptionsPageIndex;
         set => _uiShellState.OptionsPageIndex = value;
-    }
-
-    public int _optionsScrollOffset
-    {
-        get => _uiShellState.OptionsScrollOffset;
-        set => _uiShellState.OptionsScrollOffset = value;
     }
 
     public int _pluginOptionsHoverIndex
@@ -808,12 +615,6 @@ public partial class Game1
         set => _uiShellState.ClientPowersScrollOffset = value;
     }
 
-    public int _inGameMenuHoverIndex
-    {
-        get => _uiShellState.InGameMenuHoverIndex;
-        set => _uiShellState.InGameMenuHoverIndex = value;
-    }
-
     public int _gameplayLoadoutMenuHoverIndex
     {
         get => _uiShellState.GameplayLoadoutMenuHoverIndex;
@@ -826,18 +627,6 @@ public partial class Game1
         set => _uiShellState.PlayerNameEditBuffer = value;
     }
 
-    public string _connectHostBuffer
-    {
-        get => _uiShellState.ConnectHostBuffer;
-        set => _uiShellState.ConnectHostBuffer = value;
-    }
-
-    public string _connectPortBuffer
-    {
-        get => _uiShellState.ConnectPortBuffer;
-        set => _uiShellState.ConnectPortBuffer = value;
-    }
-
     public int _playerNameEditCursorIndex
     {
         get => _uiShellState.PlayerNameEditCursorIndex;
@@ -848,66 +637,6 @@ public partial class Game1
     {
         get => _uiShellState.PlayerNameEditSelectionStart;
         set => _uiShellState.PlayerNameEditSelectionStart = value;
-    }
-
-    public int _connectHostCursorIndex
-    {
-        get => _uiShellState.ConnectHostCursorIndex;
-        set => _uiShellState.ConnectHostCursorIndex = value;
-    }
-
-    public int _connectHostSelectionStart
-    {
-        get => _uiShellState.ConnectHostSelectionStart;
-        set => _uiShellState.ConnectHostSelectionStart = value;
-    }
-
-    public int _connectPortCursorIndex
-    {
-        get => _uiShellState.ConnectPortCursorIndex;
-        set => _uiShellState.ConnectPortCursorIndex = value;
-    }
-
-    public int _connectPortSelectionStart
-    {
-        get => _uiShellState.ConnectPortSelectionStart;
-        set => _uiShellState.ConnectPortSelectionStart = value;
-    }
-
-    public int _passwordEditCursorIndex
-    {
-        get => _uiShellState.PasswordEditCursorIndex;
-        set => _uiShellState.PasswordEditCursorIndex = value;
-    }
-
-    public int _passwordEditSelectionStart
-    {
-        get => _uiShellState.PasswordEditSelectionStart;
-        set => _uiShellState.PasswordEditSelectionStart = value;
-    }
-
-    public int _chatInputCursorIndex
-    {
-        get => _uiShellState.ChatInputCursorIndex;
-        set => _uiShellState.ChatInputCursorIndex = value;
-    }
-
-    public int _chatInputSelectionStart
-    {
-        get => _uiShellState.ChatInputSelectionStart;
-        set => _uiShellState.ChatInputSelectionStart = value;
-    }
-
-    public int _consoleInputCursorIndex
-    {
-        get => _uiShellState.ConsoleInputCursorIndex;
-        set => _uiShellState.ConsoleInputCursorIndex = value;
-    }
-
-    public int _consoleInputSelectionStart
-    {
-        get => _uiShellState.ConsoleInputSelectionStart;
-        set => _uiShellState.ConsoleInputSelectionStart = value;
     }
 
     public string _menuStatusMessage
@@ -930,18 +659,6 @@ public partial class Game1
 
     public sealed class UiShellState
     {
-        public bool TeamSelectOpen;
-        public float TeamSelectAlpha = 0.01f;
-        public float TeamSelectPanelY = -120f;
-        public int TeamSelectHoverIndex = -1;
-        public PlayerTeam? PendingClassSelectTeam;
-        public bool ClassSelectOpen;
-        public float ClassSelectAlpha = 0.01f;
-        public float ClassSelectPanelY = -120f;
-        public int ClassSelectHoverIndex = -1;
-        public int ClassSelectPortraitAnimationHoverIndex = -1;
-        public PlayerTeam? ClassSelectPortraitAnimationTeam;
-        public float ClassSelectPortraitAnimationFrame;
         public int GameplayLoadoutPortraitAnimationHoverIndex = -1;
         public PlayerTeam? GameplayLoadoutPortraitAnimationTeam;
         public float GameplayLoadoutPortraitAnimationFrame;
@@ -950,7 +667,6 @@ public partial class Game1
         public bool ChatOpen;
         public bool ChatTeamOnly;
         public bool ChatSubmitAwaitingOpenKeyRelease;
-        public string ChatInput = string.Empty;
         public int ChatScrollOffset;
         public BubbleMenuKind BubbleMenuKind;
         public float BubbleMenuAlpha = 0.01f;
@@ -1002,19 +718,8 @@ public partial class Game1
         public bool FriendsMenuAddingFriend;
         public bool EditingFriendNickname;
         public bool EditingFriendMessage;
-        public string FriendNicknameInputBuffer = string.Empty;
-        public int FriendNicknameCursorIndex;
-        public int FriendNicknameSelectionStart;
-        public string FriendCodeInputBuffer = string.Empty;
-        public int FriendCodeCursorIndex;
-        public int FriendCodeSelectionStart;
-        public string FriendMessageInputBuffer = string.Empty;
-        public int FriendMessageCursorIndex;
-        public int FriendMessageSelectionStart;
-        public bool CreditsScrollInitialized;
         public float CreditsScrollY;
         public bool InGameMenuOpen;
-        public bool InGameMenuAwaitingEscapeRelease;
         public bool GameplayLoadoutMenuOpen;
         public bool GameplayLoadoutMenuAwaitingEscapeRelease;
         public PlayerClass GameplayLoadoutMenuViewedClass = PlayerClass.Scout;
@@ -1027,14 +732,11 @@ public partial class Game1
         public bool EditingConnectHost;
         public bool EditingConnectPort;
         public bool PasswordPromptOpen;
-        public string PasswordEditBuffer = string.Empty;
         public string PasswordPromptMessage = string.Empty;
         public MainMenuPage MainMenuPage = MainMenuPage.Root;
         public int MainMenuHoverIndex = -1;
         public bool MainMenuBottomBarHover;
-        public int OptionsHoverIndex = -1;
         public int OptionsPageIndex;
-        public int OptionsScrollOffset;
         public int PluginOptionsHoverIndex = -1;
         public int PluginOptionsScrollOffset;
         public ClientPluginKeyOptionItem? PendingPluginOptionsKeyItem;
@@ -1044,23 +746,10 @@ public partial class Game1
         public int LobbyBrowserHoverIndex = -1;
         public int LobbyBrowserSelectedIndex = -1;
         public int ClientPowersScrollOffset;
-        public int InGameMenuHoverIndex = -1;
         public int GameplayLoadoutMenuHoverIndex = -1;
         public string PlayerNameEditBuffer = string.Empty;
         public int PlayerNameEditCursorIndex;
         public int PlayerNameEditSelectionStart;
-        public string ConnectHostBuffer = "127.0.0.1";
-        public int ConnectHostCursorIndex;
-        public int ConnectHostSelectionStart;
-        public string ConnectPortBuffer = OpenGarrisonPreferencesDocument.DefaultServerPort.ToString(CultureInfo.InvariantCulture);
-        public int ConnectPortCursorIndex;
-        public int ConnectPortSelectionStart;
-        public int PasswordEditCursorIndex;
-        public int PasswordEditSelectionStart;
-        public int ConsoleInputCursorIndex;
-        public int ConsoleInputSelectionStart;
-        public int ChatInputCursorIndex;
-        public int ChatInputSelectionStart;
         public string MenuStatusMessage = string.Empty;
         public DateTime? MenuStatusMessageClearAtUtc;
         public ControlsMenuBinding? PendingControlsBinding;
@@ -1075,16 +764,10 @@ public partial class Game1
         public bool OfflinePracticeSpectatorMode;
         public SpectatorCameraMode SpectatorCameraMode = SpectatorCameraMode.Auto;
         public OnlineConnectionIntent OnlineConnectionIntent;
-        public string ObservedGameplayLevelName = string.Empty;
-        public int ObservedGameplayMapAreaIndex = -1;
         public GameplaySessionKind GameplaySessionKind;
         public ExperimentalGameplaySettings PracticeExperimentalGameplaySettings = new();
         public bool PracticeStickyGibBloodEnabled;
         public string AutoBalanceNoticeText = string.Empty;
         public int AutoBalanceNoticeTicks;
-        public int PendingHostedConnectTicks = -1;
-        public int PendingHostedConnectPort = OpenGarrisonPreferencesDocument.DefaultServerPort;
-        public string? RecentConnectHost;
-        public int RecentConnectPort;
     }
 }

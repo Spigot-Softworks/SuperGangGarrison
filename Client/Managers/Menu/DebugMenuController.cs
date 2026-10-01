@@ -15,6 +15,8 @@ public sealed class DebugMenuController
         private readonly record struct DebugMenuRow(string Label, string Value, Action? Activate);
 
         private readonly IMenuContext _context;
+        private bool _debugMenuAwaitingEscapeRelease;
+        private int _debugMenuHoverIndex;
 
         public DebugMenuController(IMenuContext context)
         {
@@ -24,15 +26,15 @@ public sealed class DebugMenuController
         public void OpenDebugMenu()
         {
             _context._debugMenuOpen = true;
-            _context._debugMenuAwaitingEscapeRelease = true;
-            _context._debugMenuHoverIndex = -1;
+            _debugMenuAwaitingEscapeRelease = true;
+            _debugMenuHoverIndex = -1;
         }
 
         public void CloseDebugMenu()
         {
             _context._debugMenuOpen = false;
-            _context._debugMenuAwaitingEscapeRelease = false;
-            _context._debugMenuHoverIndex = -1;
+            _debugMenuAwaitingEscapeRelease = false;
+            _debugMenuHoverIndex = -1;
         }
 
         public void UpdateDebugMenu(KeyboardState keyboard, MouseState mouse)
@@ -40,11 +42,11 @@ public sealed class DebugMenuController
             var rows = BuildDebugMenuRows();
             GetDebugMenuLayout(rows.Count, out var _, out var rowBounds, out var rowHeight);
 
-            if (_context._debugMenuAwaitingEscapeRelease)
+            if (_debugMenuAwaitingEscapeRelease)
             {
                 if (!keyboard.IsKeyDown(Keys.Escape))
                 {
-                    _context._debugMenuAwaitingEscapeRelease = false;
+                    _debugMenuAwaitingEscapeRelease = false;
                 }
             }
             else if (_context.IsKeyPressed(keyboard, Keys.Escape) || _context.IsControllerMenuBackPressed())
@@ -55,51 +57,51 @@ public sealed class DebugMenuController
 
             if (_context.TryConsumeControllerMenuNavigation(out _, out var verticalStep) && verticalStep != 0)
             {
-                _context._debugMenuHoverIndex = MoveControllerMenuSelection(
-                    _context._debugMenuHoverIndex,
+                _debugMenuHoverIndex = MoveControllerMenuSelection(
+                    _debugMenuHoverIndex,
                     rows.Count,
                     verticalStep);
             }
             else if (_context.IsControllerMenuInputActive())
             {
-                if (_context._debugMenuHoverIndex < 0 && rows.Count > 0)
+                if (_debugMenuHoverIndex < 0 && rows.Count > 0)
                 {
-                    _context._debugMenuHoverIndex = 0;
+                    _debugMenuHoverIndex = 0;
                 }
             }
             else
             {
-                _context._debugMenuHoverIndex = -1;
+                _debugMenuHoverIndex = -1;
             }
 
             if (_context.ShouldUseMouseMenuHover(mouse))
             {
-                _context._debugMenuHoverIndex = -1;
+                _debugMenuHoverIndex = -1;
                 for (var index = 0; index < rowBounds.Length; index += 1)
                 {
                     if (rowBounds[index].Contains(mouse.Position))
                     {
-                        _context._debugMenuHoverIndex = index;
+                        _debugMenuHoverIndex = index;
                         break;
                     }
                 }
             }
 
             if (_context.IsControllerMenuConfirmPressed()
-                && _context._debugMenuHoverIndex >= 0
-                && _context._debugMenuHoverIndex < rows.Count)
+                && _debugMenuHoverIndex >= 0
+                && _debugMenuHoverIndex < rows.Count)
             {
-                rows[_context._debugMenuHoverIndex].Activate?.Invoke();
+                rows[_debugMenuHoverIndex].Activate?.Invoke();
                 return;
             }
 
             var clickPressed = mouse.LeftButton == ButtonState.Pressed && _context._previousMouse.LeftButton != ButtonState.Pressed;
-            if (!clickPressed || _context._debugMenuHoverIndex < 0 || _context._debugMenuHoverIndex >= rows.Count)
+            if (!clickPressed || _debugMenuHoverIndex < 0 || _debugMenuHoverIndex >= rows.Count)
             {
                 return;
             }
 
-            var activate = rows[_context._debugMenuHoverIndex].Activate;
+            var activate = rows[_debugMenuHoverIndex].Activate;
             activate?.Invoke();
         }
 
@@ -126,7 +128,7 @@ public sealed class DebugMenuController
             for (var index = 0; index < rows.Count && index < rowBounds.Length; index += 1)
             {
                 var rowRect = rowBounds[index];
-                var isHovered = index == _context._debugMenuHoverIndex;
+                var isHovered = index == _debugMenuHoverIndex;
                 _context._spriteBatch.Draw(_context._pixel, rowRect, isHovered ? new Color(60, 60, 70) : new Color(44, 46, 52, 170));
 
                 var textScale = debugRowTextScale;

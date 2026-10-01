@@ -9,11 +9,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    public Task<BrowserBootstrapAssetCatalog>? _browserBootstrapAssetsTask;
-    public BrowserBootstrapAssetCatalog? _browserBootstrapAssets;
-    public bool _browserBootstrapAssetsApplied;
-    public BrowserAtlasTextureCache? _browserAtlasTextureCache;
-    public BrowserBootstrapAtlasTextureResolver? _browserBootstrapAtlasResolver;
+    private BrowserBootstrapResources _browserBootstrapResources => _gameplayManager.Bootstrap.BrowserBootstrapResources;
 
     public LoadedSpriteFrame? LoadSpriteFrameFromPath(string path)
     {
@@ -44,7 +40,7 @@ public partial class Game1
 
     private void StartBrowserBootstrapAssetPreloadIfNeeded()
     {
-        if (!OperatingSystem.IsBrowser() || _browserBootstrapAssetsTask is not null)
+        if (!OperatingSystem.IsBrowser() || _browserBootstrapResources.AssetsTask is not null)
         {
             return;
         }
@@ -52,13 +48,13 @@ public partial class Game1
         var preloadedAssets = ClientRuntimeBootstrap.GetBrowserBootstrapAssetCatalog();
         if (preloadedAssets is not null)
         {
-            _browserBootstrapAssets = preloadedAssets;
-            _browserBootstrapAssetsApplied = true;
+            _browserBootstrapResources.Assets = preloadedAssets;
+            _browserBootstrapResources.AssetsApplied = true;
             return;
         }
 
         var browserHttpClient = ClientRuntimeBootstrap.GetBrowserHttpClient();
-        _browserBootstrapAssetsTask = browserHttpClient is null
+        _browserBootstrapResources.AssetsTask = browserHttpClient is null
             ? BrowserBootstrapAssetCatalog.LoadDefaultAsync()
             : BrowserBootstrapAssetCatalog.LoadDefaultAsync(browserHttpClient);
     }
@@ -66,16 +62,16 @@ public partial class Game1
     private void PollBrowserBootstrapAssetPreload()
     {
         if (!OperatingSystem.IsBrowser()
-            || _browserBootstrapAssetsApplied
-            || _browserBootstrapAssetsTask?.IsCompleted != true)
+            || _browserBootstrapResources.AssetsApplied
+            || _browserBootstrapResources.AssetsTask?.IsCompleted != true)
         {
             return;
         }
 
         try
         {
-            _browserBootstrapAssets = _browserBootstrapAssetsTask.GetAwaiter().GetResult();
-            _browserBootstrapAssetsApplied = true;
+            _browserBootstrapResources.Assets = _browserBootstrapResources.AssetsTask.GetAwaiter().GetResult();
+            _browserBootstrapResources.AssetsApplied = true;
             EnsureBrowserBootstrapAtlasResolver();
             RefreshBrowserSpriteFontsIfPossible();
             LoadMenuPlaqueTextures();
@@ -85,7 +81,7 @@ public partial class Game1
         }
         catch (Exception ex)
         {
-            _browserBootstrapAssetsApplied = true;
+            _browserBootstrapResources.AssetsApplied = true;
             AddConsoleLine($"browser bootstrap asset preload failed: {ex.Message}");
         }
     }
@@ -104,9 +100,9 @@ public partial class Game1
     {
         frame = null;
         EnsureBrowserBootstrapAtlasResolver();
-        if (_browserBootstrapAtlasResolver?.CanResolve(relativePath) == true)
+        if (_browserBootstrapResources.AtlasResolver?.CanResolve(relativePath) == true)
         {
-            var pendingFrame = _browserBootstrapAtlasResolver.LoadFrameAsync(relativePath);
+            var pendingFrame = _browserBootstrapResources.AtlasResolver.LoadFrameAsync(relativePath);
             if (OperatingSystem.IsBrowser() && !pendingFrame.IsCompletedSuccessfully)
             {
                 return false;
@@ -119,7 +115,7 @@ public partial class Game1
             }
         }
 
-        if (_browserBootstrapAssets is not null && _browserBootstrapAssets.TryGetBinary(relativePath, out var bytes))
+        if (_browserBootstrapResources.Assets is not null && _browserBootstrapResources.Assets.TryGetBinary(relativePath, out var bytes))
         {
             frame = TextureDecodeUtility.LoadSpriteFrame(GraphicsDevice, bytes, applyLegacyChromaKey: false);
             return true;
@@ -132,9 +128,9 @@ public partial class Game1
     {
         text = string.Empty;
         return OperatingSystem.IsBrowser()
-            && _browserBootstrapAssets is not null
+            && _browserBootstrapResources.Assets is not null
             && TryGetBrowserContentRelativePath(path, out var relativePath)
-            && _browserBootstrapAssets.TryGetText(relativePath, out text);
+            && _browserBootstrapResources.Assets.TryGetText(relativePath, out text);
     }
 
     public bool CanLoadSpriteFrameFromPath(string path)
@@ -155,14 +151,14 @@ public partial class Game1
         }
 
         EnsureBrowserBootstrapAtlasResolver();
-        if (_browserBootstrapAtlasResolver?.CanResolve(relativePath) == true)
+        if (_browserBootstrapResources.AtlasResolver?.CanResolve(relativePath) == true)
         {
             return true;
         }
 
         if (OperatingSystem.IsBrowser())
         {
-            if ((_browserBootstrapAssets?.TryGetBinary(relativePath, out _) ?? false)
+            if ((_browserBootstrapResources.Assets?.TryGetBinary(relativePath, out _) ?? false)
                 || BrowserContentCatalog.TryGetBinary(relativePath, out _)
                 || BrowserContentCatalog.TryGetBinaryForPath(path, out _))
             {
@@ -198,7 +194,7 @@ public partial class Game1
 
     private void EnsureBrowserBootstrapAtlasResolver()
     {
-        if (_browserBootstrapAtlasResolver is not null)
+        if (_browserBootstrapResources.AtlasResolver is not null)
         {
             return;
         }
@@ -214,8 +210,8 @@ public partial class Game1
             return;
         }
 
-        _browserAtlasTextureCache ??= new BrowserAtlasTextureCache(GraphicsDevice);
-        _browserBootstrapAtlasResolver = new BrowserBootstrapAtlasTextureResolver(bootstrapAtlasManifest, _browserAtlasTextureCache);
+        _browserBootstrapResources.AtlasTextureCache ??= new BrowserAtlasTextureCache(GraphicsDevice);
+        _browserBootstrapResources.AtlasResolver = new BrowserBootstrapAtlasTextureResolver(bootstrapAtlasManifest, _browserBootstrapResources.AtlasTextureCache);
     }
 
     private static void InitializeLocalDistributionAtlasManifestsIfPresent()

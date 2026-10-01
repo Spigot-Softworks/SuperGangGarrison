@@ -331,7 +331,7 @@ public partial class Game1
         var path = ContentRoot.GetPath("Sounds", "LastToDie", fileName);
         if (OperatingSystem.IsBrowser())
         {
-            if ((_browserBootstrapAssets?.TryGetBinary(relativePath, out var browserBytes) ?? false)
+            if ((_browserBootstrapResources.Assets?.TryGetBinary(relativePath, out var browserBytes) ?? false)
                 || BrowserContentCatalog.TryGetBinary(relativePath, out browserBytes))
             {
                 try

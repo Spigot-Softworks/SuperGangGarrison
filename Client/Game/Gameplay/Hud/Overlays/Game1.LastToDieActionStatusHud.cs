@@ -77,7 +77,7 @@ public partial class Game1
 
         var localPlayer = _world.LocalPlayer;
         var predictedActionPlayer = IsUsingPredictedLocalState(localPlayer)
-            ? _predictedLocalPlayerShadow
+            ? _localPredictionState.PredictedLocalPlayerShadow
             : null;
         var lines = BuildLastToDieActionStatusLines(
             localPlayer,

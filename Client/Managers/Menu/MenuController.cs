@@ -13,6 +13,8 @@ namespace OpenGarrison.Client;
 public sealed class MenuController
     {
         private readonly IMenuContext _context;
+        private string _menuBackgroundAttributionText = string.Empty;
+        private string? _menuBackgroundFailedPath;
 
         public MenuController(IMenuContext context)
         {
@@ -31,7 +33,7 @@ public sealed class MenuController
             _context.StopLastToDieIngameMusic();
 
             // Update animated menu background if enabled
-            if (_context._menuBackgroundMode != MenuBackgroundMode.Static)
+            if (_context.GameplayRuntimeSettings.MenuBackgroundMode != MenuBackgroundMode.Static)
             {
                 _context.Menus.AnimatedMenuBackground.Update((float)gameTime.ElapsedGameTime.TotalSeconds);
             }
@@ -129,7 +131,7 @@ public sealed class MenuController
             // Keep modal menu surfaces on the exact same user-selected background
             // path as the main menu. In particular, do not reuse the gameplay map
             // that happens to be loaded behind a hosted Last to Die lobby.
-            if (_context._menuBackgroundMode != MenuBackgroundMode.Static)
+            if (_context.GameplayRuntimeSettings.MenuBackgroundMode != MenuBackgroundMode.Static)
             {
                 _context.Menus.AnimatedMenuBackground.Draw(viewportWidth, viewportHeight);
             }
@@ -137,11 +139,11 @@ public sealed class MenuController
             {
                 EnsureMenuBackgroundTexture(viewportWidth, viewportHeight);
 
-                if (_context._menuBackgroundTexture is not null)
+                if (_context.MenuResources.BackgroundTexture is not null)
                 {
-                    _context.DrawLoadedSpriteFrame(_context._menuBackgroundTexture, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.White);
+                    _context.DrawLoadedSpriteFrame(_context.MenuResources.BackgroundTexture, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.White);
                 }
-                else if (!_context.TryDrawScreenSprite("MenuBackgroundS", _context._menuImageFrame, new Vector2(viewportWidth / 2f, viewportHeight / 2f), Color.White, Vector2.One))
+                else if (!_context.TryDrawScreenSprite("MenuBackgroundS", _context.MenuResources.ImageFrame, new Vector2(viewportWidth / 2f, viewportHeight / 2f), Color.White, Vector2.One))
                 {
                     _context._spriteBatch.Draw(_context._pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), new Color(26, 24, 20));
                 }
@@ -236,39 +238,39 @@ public sealed class MenuController
         private void EnsureMenuBackgroundTexture(int viewportWidth, int viewportHeight)
         {
             var (path, attributionText) = GetMenuBackgroundSelection(viewportWidth, viewportHeight);
-            _context._menuBackgroundAttributionText = attributionText;
+            _menuBackgroundAttributionText = attributionText;
             if (string.IsNullOrWhiteSpace(path))
             {
                 DisposeMenuBackgroundTexture();
-                _context._menuBackgroundFailedPath = null;
+                _menuBackgroundFailedPath = null;
                 return;
             }
 
-            if (string.Equals(_context._menuBackgroundTexturePath, path, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(_context.MenuResources.BackgroundTexturePath, path, StringComparison.OrdinalIgnoreCase))
             {
-                if (_context._menuBackgroundTexture is not null
-                    || string.Equals(_context._menuBackgroundFailedPath, path, StringComparison.OrdinalIgnoreCase))
+                if (_context.MenuResources.BackgroundTexture is not null
+                    || string.Equals(_menuBackgroundFailedPath, path, StringComparison.OrdinalIgnoreCase))
                 {
                     return;
                 }
             }
 
             DisposeMenuBackgroundTexture();
-            _context._menuBackgroundTexturePath = path;
-            _context._menuBackgroundFailedPath = null;
+            _context.MenuResources.BackgroundTexturePath = path;
+            _menuBackgroundFailedPath = null;
 
             try
             {
-                _context._menuBackgroundTexture = _context.LoadSpriteFrameFromPath(path);
-                if (_context._menuBackgroundTexture is null)
+                _context.MenuResources.BackgroundTexture = _context.LoadSpriteFrameFromPath(path);
+                if (_context.MenuResources.BackgroundTexture is null)
                 {
                     throw new InvalidOperationException("The menu background bytes were unavailable.");
                 }
             }
             catch (Exception ex)
             {
-                _context._menuBackgroundFailedPath = path;
-                _context._menuBackgroundAttributionText = string.Empty;
+                _menuBackgroundFailedPath = path;
+                _menuBackgroundAttributionText = string.Empty;
                 _context.AddConsoleLine($"plugin menu background failed to load from \"{path}\": {ex.Message}");
             }
         }
@@ -299,22 +301,22 @@ public sealed class MenuController
 
         private void DisposeMenuBackgroundTexture()
         {
-            _context._menuBackgroundTexture?.Dispose();
-            _context._menuBackgroundTexture = null;
-            _context._menuBackgroundTexturePath = null;
+            _context.MenuResources.BackgroundTexture?.Dispose();
+            _context.MenuResources.BackgroundTexture = null;
+            _context.MenuResources.BackgroundTexturePath = null;
         }
 
         private void DrawMenuBackgroundAttribution()
         {
-            if (string.IsNullOrWhiteSpace(_context._menuBackgroundAttributionText))
+            if (string.IsNullOrWhiteSpace(_menuBackgroundAttributionText))
             {
                 return;
             }
 
             var scale = _context.ViewportHeight < 540 ? 0.82f : 0.95f;
             var position = new Vector2(_context.ViewportWidth - 18f, _context.ViewportHeight - 18f);
-            _context.DrawBitmapFontTextRightAligned(_context._menuBackgroundAttributionText, position + Vector2.One, Color.Black * 0.75f, scale);
-            _context.DrawBitmapFontTextRightAligned(_context._menuBackgroundAttributionText, position, Color.White, scale);
+            _context.DrawBitmapFontTextRightAligned(_menuBackgroundAttributionText, position + Vector2.One, Color.Black * 0.75f, scale);
+            _context.DrawBitmapFontTextRightAligned(_menuBackgroundAttributionText, position, Color.White, scale);
         }
 
         private void DrawAnimatedMenuLogo(int viewportWidth)

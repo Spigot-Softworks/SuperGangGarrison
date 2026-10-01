@@ -21,7 +21,7 @@ public sealed partial class MovementSystem
             return false;
         }
 
-        if (!_dependencies.TryFindWhippingCordTerrainContact(
+        if (!_host.TryFindWhippingCordTerrainContact(
                 player,
                 item,
                 aimWorldX,
@@ -48,7 +48,7 @@ public sealed partial class MovementSystem
 
         // A player or structure between the hand and the contact pixel blocks
         // the latch. Terrain itself is resolved by the opaque whip pixels.
-        if (!_dependencies.IsWhippingCordTerrainLatchPathClear(
+        if (!_host.IsWhippingCordTerrainLatchPathClear(
                 player,
                 originX,
                 originY,

@@ -13,7 +13,6 @@ public partial class Game1
 {
     public Task<RelaySessionCreateResponse>? _hostedLastToDieRelayCreateTask;
     public bool _hostedLastToDieRelayLaunchRequested;
-    public bool _lastToDieConnectionPresentationPending;
     public bool _lastToDieRoomCodeJoinOpen;
     private string _hostedLastToDieRoomCode = string.Empty;
     public OpenGarrison.Core.LastToDie.LastToDieDifficulty _pendingHostedLastToDieDifficulty;
@@ -57,7 +56,7 @@ public partial class Game1
                     "Online co-op relay is temporarily unavailable. Please try again later.",
                 _ => $"Could not create the co-op room: {relayException?.Message ?? "the relay service returned an invalid session"}",
             };
-            _lastToDieConnectionPresentationPending = false;
+            _sessionTransitions.LastToDieConnectionPresentationPending = false;
             return;
         }
 
@@ -124,7 +123,7 @@ public partial class Game1
             SetHostedSocialPresenceEndpoint(0, relay?.GuestWebSocketUrl);
         }
 
-        _lastToDieConnectionPresentationPending = true;
+        _sessionTransitions.LastToDieConnectionPresentationPending = true;
         CloseLastToDieMenu(clearStatus: true);
         BeginPendingHostedLocalConnect(
             port,

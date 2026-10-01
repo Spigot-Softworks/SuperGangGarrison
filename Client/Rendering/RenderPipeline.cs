@@ -7,6 +7,7 @@ namespace OpenGarrison.Client;
 public sealed class RenderPipeline
 {
     private readonly IRenderContext _context;
+    private bool _preLaunchSplashDismissed;
 
     public RenderPipeline(IRenderContext context)
     {
@@ -27,9 +28,9 @@ public sealed class RenderPipeline
         _context.DrawBase(gameTime);
         _context.RecordBrowserDrawDuration(browserDrawStartTimestamp);
 
-        if (!_context._preLaunchSplashDismissed)
+        if (!_preLaunchSplashDismissed)
         {
-            _context._preLaunchSplashDismissed = true;
+            _preLaunchSplashDismissed = true;
             PreLaunchSplash.Close();
         }
     }
