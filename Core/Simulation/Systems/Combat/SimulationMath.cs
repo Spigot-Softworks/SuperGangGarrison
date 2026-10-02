@@ -1,4 +1,4 @@
-﻿namespace OpenGarrison.Core;
+namespace OpenGarrison.Core;
 
 /// <summary>
 /// Pure geometry helpers shared by the world and the combat systems. Keeping them here lets

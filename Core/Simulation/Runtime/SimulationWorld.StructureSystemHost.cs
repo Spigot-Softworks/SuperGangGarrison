@@ -1,4 +1,4 @@
-﻿using OpenGarrison.Core.LastToDie;
+using OpenGarrison.Core.LastToDie;
 using OpenGarrison.GameplayModding;
 using OpenGarrison.Protocol;
 

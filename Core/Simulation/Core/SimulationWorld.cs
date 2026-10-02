@@ -1,4 +1,4 @@
-﻿using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.CodeAnalysis;
 using OpenGarrison.Protocol;
 
 namespace OpenGarrison.Core;

@@ -1,4 +1,4 @@
-﻿using OpenGarrison.Protocol;
+using OpenGarrison.Protocol;
 
 namespace OpenGarrison.Core;
 

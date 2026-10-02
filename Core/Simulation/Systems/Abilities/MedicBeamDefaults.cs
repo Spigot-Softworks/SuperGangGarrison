@@ -1,4 +1,4 @@
-﻿namespace OpenGarrison.Core;
+namespace OpenGarrison.Core;
 
 /// <summary>Shared Medic beam tuning values used by both the world's Medic rules and the ability system.</summary>
 internal static class MedicBeamDefaults

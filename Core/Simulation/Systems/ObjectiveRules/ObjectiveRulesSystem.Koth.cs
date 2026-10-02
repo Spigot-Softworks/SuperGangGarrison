@@ -1,4 +1,4 @@
-﻿using OpenGarrison.Protocol;
+using OpenGarrison.Protocol;
 
 namespace OpenGarrison.Core;
 
@@ -112,6 +112,21 @@ internal sealed partial class ObjectiveRulesSystem
             return;
         }
 
+        var overtimeActive = _host.MatchState.TimeRemainingTicks > 0
+            && _host.Objectives.Koth.UnlockTicksRemaining <= 0
+            && IsKothTeamWaitingOnContestedPoint(PlayerTeam.Red)
+            || _host.MatchState.TimeRemainingTicks > 0
+                && _host.Objectives.Koth.UnlockTicksRemaining <= 0
+                && IsKothTeamWaitingOnContestedPoint(PlayerTeam.Blue);
+        if (overtimeActive != _host.MatchState.IsOvertime)
+        {
+            _host.MatchState = _host.MatchState with
+            {
+                Phase = overtimeActive ? MatchPhase.Overtime : MatchPhase.Running,
+                WinnerTeam = null,
+            };
+        }
+
         if (_host.MatchState.TimeRemainingTicks > 0)
         {
             return;
@@ -213,6 +228,39 @@ internal sealed partial class ObjectiveRulesSystem
         }
 
         return null;
+    }
+
+    private bool IsKothTeamWaitingOnContestedPoint(PlayerTeam team)
+    {
+        var teamTimerTicksRemaining = team == PlayerTeam.Red
+            ? _host.Objectives.Koth.RedTimerTicksRemaining
+            : _host.Objectives.Koth.BlueTimerTicksRemaining;
+        if (teamTimerTicksRemaining > 0)
+        {
+            return false;
+        }
+
+        ControlPointState? point;
+        if (_host.MatchRules.Mode == GameModeKind.KingOfTheHill)
+        {
+            point = GetSingleKothPoint();
+        }
+        else if (_host.MatchRules.Mode == GameModeKind.DoubleKingOfTheHill)
+        {
+            point = GetDualKothPoint(team == PlayerTeam.Red ? PlayerTeam.Blue : PlayerTeam.Red);
+        }
+        else
+        {
+            return false;
+        }
+
+        if (point?.Team != team)
+        {
+            return false;
+        }
+
+        var opposingCappers = team == PlayerTeam.Red ? point.BlueCappers : point.RedCappers;
+        return point.CappingTicks > 0f || opposingCappers > 0;
     }
 
     internal PlayerTeam? GetKothTimerLeader()

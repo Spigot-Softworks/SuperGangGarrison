@@ -1,4 +1,4 @@
-﻿using OpenGarrison.GameplayModding;
+using OpenGarrison.GameplayModding;
 
 namespace OpenGarrison.Core;
 

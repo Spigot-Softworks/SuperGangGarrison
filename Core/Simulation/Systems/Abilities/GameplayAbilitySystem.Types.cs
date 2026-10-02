@@ -1,4 +1,4 @@
-﻿namespace OpenGarrison.Core;
+namespace OpenGarrison.Core;
 
 public readonly record struct WorldGameplayAbilityEvent(
     long Frame,

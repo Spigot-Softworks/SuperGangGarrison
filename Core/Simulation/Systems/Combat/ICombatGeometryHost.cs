@@ -1,4 +1,4 @@
-﻿namespace OpenGarrison.Core;
+namespace OpenGarrison.Core;
 
 /// <summary>
 /// Narrow view of the world used by CombatResolver for line-of-sight, raycast, and hit queries.

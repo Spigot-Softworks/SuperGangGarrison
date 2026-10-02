@@ -2,7 +2,7 @@ root = true
 
 [*]
 charset = utf-8
-end_of_line = crlf
+end_of_line = lf
 insert_final_newline = true
 trim_trailing_whitespace = true
 
@@ -17,7 +17,13 @@ indent_size = 4
 indent_style = space
 indent_size = 2
 
+# Windows PowerShell 5.1 reads BOM-less scripts as ANSI; keep the BOM there.
+[*.ps1]
+charset = utf-8-bom
+
 [*.sh]
-end_of_line = lf
 indent_style = space
 indent_size = 2
+
+[*.{cmd,bat}]
+end_of_line = crlf

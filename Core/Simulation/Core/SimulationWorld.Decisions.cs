@@ -1,4 +1,4 @@
-﻿namespace OpenGarrison.Core;
+namespace OpenGarrison.Core;
 
 // The plugin decision surface. Interceptor state lives on DecisionGate; these
 // properties are the public API the server plugin host and tests set.

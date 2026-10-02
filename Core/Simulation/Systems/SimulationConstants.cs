@@ -1,4 +1,4 @@
-﻿namespace OpenGarrison.Core;
+namespace OpenGarrison.Core;
 
 /// <summary>Constants shared by the world and the systems extracted from it.</summary>
 internal static class SimulationConstants
