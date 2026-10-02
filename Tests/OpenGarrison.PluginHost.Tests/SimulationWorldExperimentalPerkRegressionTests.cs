@@ -4390,10 +4390,10 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
             enableExperimentalCaveatTracking,
             visualScale,
             trackingLockTicksRemaining,
-            Type.Missing,
-            Type.Missing,
-            Type.Missing,
-            null);
+            isBallistic: false,
+            ballisticGravityPerTick: 0f,
+            suppressSmokeTrail: false,
+            killFeedWeaponSpriteNameOverride: null);
     }
 
     private static void InvokeSpawnShot(
@@ -4425,11 +4425,10 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
             playerKnockbackScale,
             playerSlowMovementMultiplier,
             playerSlowRefreshTicks,
-            playerKnockbackImpulse.HasValue ? playerKnockbackImpulse.Value : Type.Missing,
+            playerKnockbackImpulse,
             playerKnockbackAirborneVerticalScale,
             playerKnockbackGroundedVerticalScale,
-            false,
-            // isBoomstickPellet);
+            isBoomstickPellet: false);
     }
 
     private static void InvokeAdvanceShots(SimulationWorld world)
