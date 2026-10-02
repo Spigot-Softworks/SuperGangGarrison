@@ -51,11 +51,14 @@ public sealed partial class GameplayGoreEffectsController
             _pendingSettledBloodTransfers.Clear();
             _bloodDrawCellsScratch.Clear();
             _bloodCryoDrawCellsScratch.Clear();
+            ResetGibBloodTrails();
         }
 
         private void AdvanceBloodSquibEffects()
         {
             // Floor stains come only from visible client squibs — not legacy BloodDropEntity.
+            // Moving gibs (thrown, kicked or blasted) bleed and splat like GG2's Gib object.
+            AdvanceGibBloodTrails();
             AdvanceBloodSquibParticles();
             AdvanceSettledBloodSeepage();
         }

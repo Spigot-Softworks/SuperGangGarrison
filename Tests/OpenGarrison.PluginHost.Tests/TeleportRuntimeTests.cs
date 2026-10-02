@@ -1,4 +1,3 @@
-using System.Reflection;
 using OpenGarrison.Core;
 using Xunit;
 
@@ -278,30 +277,22 @@ public sealed class TeleportRuntimeTests
     private static SimulationWorld CreateWorld(IReadOnlyList<RoomObjectMarker> roomObjects)
     {
         var world = new SimulationWorld();
-        var setLevel = typeof(SimulationWorld).GetMethod(
-            "CombatTestSetLevel",
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(setLevel);
-        setLevel.Invoke(
-            world,
-            [
-                new SimpleLevel(
-                    "teleport-runtime-test",
-                    GameModeKind.TeamDeathmatch,
-                    new WorldBounds(512f, 512f),
-                    1f,
-                    null,
-                    0,
-                    1,
-                    new SpawnPoint(0f, 0f),
-                    [],
-                    [],
-                    [],
-                    roomObjects,
-                    0f,
-                    [],
-                    importedFromSource: false),
-            ]);
+        world.CombatTestSetLevel(new SimpleLevel(
+            "teleport-runtime-test",
+            GameModeKind.TeamDeathmatch,
+            new WorldBounds(512f, 512f),
+            1f,
+            null,
+            0,
+            1,
+            new SpawnPoint(0f, 0f),
+            [],
+            [],
+            [],
+            roomObjects,
+            0f,
+            [],
+            importedFromSource: false));
         return world;
     }
 
@@ -315,10 +306,6 @@ public sealed class TeleportRuntimeTests
 
     private static void InvokeApplyTeleportZones(SimulationWorld world, PlayerEntity player)
     {
-        var method = typeof(SimulationWorld).GetMethod(
-            "ApplyTeleportZones",
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        method.Invoke(world, [player]);
+        world.Movement.ApplyTeleportZones(player);
     }
 }

@@ -47,7 +47,7 @@ public sealed class GameplayRuntimeSettings
 
     public bool PixelPerfectWeaponRotation { get; set; } = true;
 
-    public bool UseLocalWeaponRotation { get; set; } = false;
+    public bool UseLocalWeaponRotation { get; set; } = true;
 
     public bool ShowUberOutlinesEnabled { get; set; } = true;
 

@@ -1,4 +1,3 @@
-using System.Reflection;
 using OpenGarrison.Core;
 using OpenGarrison.Core.LastToDie;
 using OpenGarrison.Server;
@@ -287,11 +286,7 @@ public sealed class LastToDieMedicMartyrRuntimeTests
 
     private static void RefreshMedicLinks(SimulationWorld world)
     {
-        var method = typeof(SimulationWorld).GetMethod(
-            "RefreshLastToDieMedicLinkProjections",
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        _ = method!.Invoke(world, null);
+        world.LastToDieRules.RefreshLastToDieMedicLinkProjections();
     }
 
     private static PlayerDamageResolution ResolveDamage(

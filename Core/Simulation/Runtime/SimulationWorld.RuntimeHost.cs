@@ -8,19 +8,19 @@ public sealed partial class SimulationWorld : ISimulationTickHost
 
     bool ISimulationTickHost.AdvancePendingMapChange() => AdvancePendingMapChange();
 
-    void ISimulationTickHost.AdvanceAuthoritativeMapLogicRuntime() => AdvanceAuthoritativeMapLogicRuntime();
+    void ISimulationTickHost.AdvanceAuthoritativeMapLogicRuntime() => MapLogic.AdvanceAuthoritativeMapLogicRuntime();
 
     void ISimulationTickHost.AdvanceMovingPlatforms() => AdvanceMovingPlatforms();
 
-    void ISimulationTickHost.BeginLastToDieStatusEffectsTick() => BeginLastToDieStatusEffectsTick();
+    void ISimulationTickHost.BeginLastToDieStatusEffectsTick() => LastToDieRules.BeginLastToDieStatusEffectsTick();
 
-    void ISimulationTickHost.RefreshLastToDieMedicLinkProjections() => RefreshLastToDieMedicLinkProjections();
+    void ISimulationTickHost.RefreshLastToDieMedicLinkProjections() => LastToDieRules.RefreshLastToDieMedicLinkProjections();
 
-    void ISimulationTickHost.AdvanceCivilDefenseTurrets() => AdvanceCivilDefenseTurrets();
+    void ISimulationTickHost.AdvanceCivilDefenseTurrets() => Structures.AdvanceCivilDefenseTurrets();
 
-    void ISimulationTickHost.EndLastToDieStatusEffectsTick() => EndLastToDieStatusEffectsTick();
+    void ISimulationTickHost.EndLastToDieStatusEffectsTick() => LastToDieRules.EndLastToDieStatusEffectsTick();
 
-    void ISimulationTickHost.TickMapLogicTimersOncePerFrame() => TickMapLogicTimersOncePerFrame();
+    void ISimulationTickHost.TickMapLogicTimersOncePerFrame() => MapLogic.TickMapLogicTimersOncePerFrame();
 
     void ISimulationTickHost.CommitLocalInputForTick() => LocalState.PreviousInput = LocalState.Input;
 

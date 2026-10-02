@@ -40,7 +40,7 @@ public sealed class SnapshotSystem
         return snapshotEvents;
     }
 
-    private const string CoreReplicatedOwnerId = "core.player";
+    private const string CoreReplicatedOwnerId = PlayerEntity.CoreReplicatedStateOwnerId;
     private const string SecondaryWeaponAvailableKey = "secondary_weapon_available";
     private const string SecondaryWeaponAmmoKey = "secondary_weapon_ammo";
     private const string SecondaryWeaponMaxAmmoKey = "secondary_weapon_max_ammo";
@@ -127,6 +127,15 @@ public sealed class SnapshotSystem
             GameplayAbilityReplicatedState.SpecialAbilitiesEnabledKey,
             SnapshotReplicatedStateValueKind.Toggle,
             0, 0f, _host.AreSpecialAbilitiesEnabled));
+
+        // Spawn-room eligibility affects authoritative building and must be
+        // present even when the player's bounded runtime replicated-state map
+        // is full. Snapshot application hydrates this from the raw snapshot.
+        replicatedStates.Add(new SnapshotReplicatedStateEntry(
+            PlayerEntity.CoreReplicatedStateOwnerId,
+            PlayerEntity.SpawnRoomReplicatedStateKey,
+            SnapshotReplicatedStateValueKind.Toggle,
+            0, 0f, player.IsInSpawnRoom));
 
         if (!string.IsNullOrWhiteSpace(player.GameplayLoadoutState.SecondaryItemId))
         {

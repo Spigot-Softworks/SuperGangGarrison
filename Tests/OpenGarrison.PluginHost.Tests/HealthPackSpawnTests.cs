@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Reflection;
 using OpenGarrison.Core;
 using Xunit;
 
@@ -7,9 +6,6 @@ namespace OpenGarrison.PluginHost.Tests;
 
 public sealed class HealthPackSpawnTests
 {
-    private static readonly MethodInfo KillPlayerMethod = typeof(SimulationWorld)
-        .GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
-        .Single(method => method.Name == "KillPlayer" && method.GetParameters().Length == 14);
 
     [Fact]
     public void RuntimeImporterCreatesHealthPackSpawnMarker()
@@ -195,24 +191,21 @@ public sealed class HealthPackSpawnTests
             EnableEnemyHealthPackDrops: true,
             EnemyHealthPackDropChance: 1f));
 
-        KillPlayerMethod.Invoke(
-            world,
-            [
-                victim,
-                false,
-                world.LocalPlayer,
-                null,
-                DeadBodyAnimationKind.Default,
-                null,
-                null,
-                null,
-                true,
-                true,
-                false,
-                true,
-                -1,
-                false,
-            ]);
+        world.PlayerDeaths.KillPlayer(
+            victim,
+            false,
+            world.LocalPlayer,
+            null,
+            DeadBodyAnimationKind.Default,
+            null,
+            null,
+            null,
+            true,
+            true,
+            false,
+            true,
+            -1,
+            false);
 
         Assert.False(victim.IsAlive);
         Assert.Single(world.HealthPacks.Where(candidate => !candidate.IsMapSpawned));

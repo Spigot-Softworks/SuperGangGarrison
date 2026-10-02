@@ -83,7 +83,7 @@ internal sealed partial class CombatResolver
     }
 
     // Like GetRayIntersectionDistanceWithRectangle but also returns the surface normal at the hit point.
-    private static (float Distance, float NormalX, float NormalY)? GetRayIntersectionWithNormalWithRectangle(
+    private static (float Distance, float NormalX, float NormalY, bool StartsOverlapping, float OverlapDistance)? GetRayIntersectionWithNormalWithRectangle(
         float originX,
         float originY,
         float directionX,
@@ -138,6 +138,43 @@ internal sealed partial class CombatResolver
         float distance;
         float normalX;
         float normalY;
+        if (originX > left && originX < right && originY > top && originY < bottom)
+        {
+            // A grenade may be created or corrected while already inside a
+            // projectile blocker. Returning the inbound-facing normal makes
+            // the caller back off along the path, which leaves it embedded and
+            // causes another zero-distance bounce on every following tick.
+            // Move it through the shallowest face instead so it can leave the
+            // overlap in a finite number of steps.
+            var leftDepth = originX - left;
+            var rightDepth = right - originX;
+            var topDepth = originY - top;
+            var bottomDepth = bottom - originY;
+            var overlapDistance = leftDepth;
+            normalX = -1f;
+            normalY = 0f;
+            if (rightDepth < overlapDistance)
+            {
+                overlapDistance = rightDepth;
+                normalX = 1f;
+                normalY = 0f;
+            }
+            if (topDepth < overlapDistance)
+            {
+                overlapDistance = topDepth;
+                normalX = 0f;
+                normalY = -1f;
+            }
+            if (bottomDepth < overlapDistance)
+            {
+                overlapDistance = bottomDepth;
+                normalX = 0f;
+                normalY = 1f;
+            }
+
+            return (0f, normalX, normalY, true, overlapDistance);
+        }
+
         if (tMin < 0f)
         {
             // Already overlapping — contact at the current point, push back along inbound direction.
@@ -166,7 +203,7 @@ internal sealed partial class CombatResolver
             }
         }
 
-        return (distance, normalX, normalY);
+        return (distance, normalX, normalY, false, 0f);
     }
 
     private static RectangleHitbox GetRayBounds(

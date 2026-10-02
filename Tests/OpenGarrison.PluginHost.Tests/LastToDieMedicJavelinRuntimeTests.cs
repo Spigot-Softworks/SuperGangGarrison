@@ -1,4 +1,3 @@
-using System.Reflection;
 using OpenGarrison.Core;
 using OpenGarrison.Core.LastToDie;
 using OpenGarrison.Protocol;
@@ -392,21 +391,13 @@ public sealed class LastToDieMedicJavelinRuntimeTests
         float velocityX,
         float velocityY)
     {
-        var method = typeof(SimulationWorld).GetMethod(
-            "SpawnMedicHealNeedle",
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        _ = method!.Invoke(
-            world,
-            [
-                owner,
-                x,
-                y,
-                velocityX,
-                velocityY,
-                MedicHealNeedleProjectileEntity.DefaultHealPerHit,
-                MedicHealNeedleProjectileEntity.DefaultEnemyDamagePerHit,
-            ]);
+        world.Projectiles.SpawnMedicHealNeedle(owner,
+            x,
+            y,
+            velocityX,
+            velocityY,
+            MedicHealNeedleProjectileEntity.DefaultHealPerHit,
+            MedicHealNeedleProjectileEntity.DefaultEnemyDamagePerHit);
         return Assert.IsType<MedicHealNeedleProjectileEntity>(world.Needles[^1]);
     }
 
@@ -414,11 +405,7 @@ public sealed class LastToDieMedicJavelinRuntimeTests
         SimulationWorld world,
         MedicHealNeedleProjectileEntity javelin)
     {
-        var method = typeof(SimulationWorld).GetMethod(
-            "TryExplodeLastToDieMedicJavelin",
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        return Assert.IsType<bool>(method!.Invoke(world, [javelin]));
+        return world.LastToDieRules.TryExplodeLastToDieMedicJavelin(javelin);
     }
 
     private static void AdvanceUntilAnchored(

@@ -11,7 +11,9 @@ public sealed class BladeProjectileEntity : SimulationEntity
         float velocityX,
         float velocityY,
         int hitDamage,
-        int ticksRemaining = PlayerEntity.QuoteBladeLifetimeTicks) : base(id)
+        int ticksRemaining = PlayerEntity.QuoteBladeLifetimeTicks,
+        int lifetimeSimulationTicks = PlayerEntity.QuoteBladeLifetimeTicks,
+        long ownerAmmoGeneration = 0) : base(id)
     {
         Team = team;
         OwnerId = ownerId;
@@ -20,7 +22,9 @@ public sealed class BladeProjectileEntity : SimulationEntity
         VelocityX = velocityX;
         VelocityY = velocityY;
         HitDamage = hitDamage;
+        LifetimeSimulationTicks = Math.Max(1, lifetimeSimulationTicks);
         TicksRemaining = Math.Max(1, ticksRemaining);
+        OwnerAmmoGeneration = ownerAmmoGeneration;
     }
 
     public PlayerTeam Team { get; }
@@ -58,6 +62,24 @@ public sealed class BladeProjectileEntity : SimulationEntity
 
     public int TicksRemaining { get; private set; }
 
+    public int LifetimeSimulationTicks { get; private set; }
+
+    internal long OwnerAmmoGeneration { get; private set; }
+
+    public int AmmoDrainedSourceTicks { get; private set; }
+
+    private float AmmoDrainSourceTickAccumulator { get; set; }
+
+    internal void HydrateLifetimeSimulationTicks(int lifetimeSimulationTicks)
+    {
+        LifetimeSimulationTicks = Math.Max(1, lifetimeSimulationTicks);
+    }
+
+    internal void HydrateOwnerAmmoGeneration(long ownerAmmoGeneration)
+    {
+        OwnerAmmoGeneration = ownerAmmoGeneration;
+    }
+
     public bool IsExpired => TicksRemaining <= 0;
 
     public void AdvanceOneTick()
@@ -67,6 +89,47 @@ public sealed class BladeProjectileEntity : SimulationEntity
         X += VelocityX;
         Y += VelocityY;
         TicksRemaining -= 1;
+    }
+
+    internal int AdvanceAmmoDrain(float sourceTicksPerSimulationTick)
+    {
+        if (!float.IsFinite(sourceTicksPerSimulationTick) || sourceTicksPerSimulationTick <= 0f)
+        {
+            return 0;
+        }
+
+        AmmoDrainSourceTickAccumulator += sourceTicksPerSimulationTick;
+        var drainedThisAdvance = 0;
+        while (AmmoDrainSourceTickAccumulator >= 1f)
+        {
+            AmmoDrainSourceTickAccumulator -= 1f;
+            AmmoDrainedSourceTicks += 1;
+            drainedThisAdvance += 1;
+        }
+
+        return drainedThisAdvance;
+    }
+
+    internal void HydrateAmmoDrainProgress(int ticksRemaining, float sourceTicksPerSimulationTick)
+    {
+        if (!float.IsFinite(sourceTicksPerSimulationTick) || sourceTicksPerSimulationTick <= 0f)
+        {
+            return;
+        }
+
+        var elapsedSimulationTicks = Math.Clamp(
+            LifetimeSimulationTicks - Math.Max(0, ticksRemaining),
+            0,
+            LifetimeSimulationTicks);
+        var elapsedSourceTicks = elapsedSimulationTicks * sourceTicksPerSimulationTick;
+        var trackedSourceTicks = AmmoDrainedSourceTicks + AmmoDrainSourceTickAccumulator;
+        if (elapsedSourceTicks <= trackedSourceTicks)
+        {
+            return;
+        }
+
+        AmmoDrainedSourceTicks = (int)MathF.Floor(elapsedSourceTicks);
+        AmmoDrainSourceTickAccumulator = elapsedSourceTicks - AmmoDrainedSourceTicks;
     }
 
     public void MoveTo(float x, float y)

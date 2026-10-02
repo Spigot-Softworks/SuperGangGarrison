@@ -1,6 +1,5 @@
 using OpenGarrison.Core;
 using OpenGarrison.Core.LastToDie;
-using System.Reflection;
 using Xunit;
 
 namespace OpenGarrison.PluginHost.Tests;
@@ -430,26 +429,18 @@ public sealed class SpyBackstabTests
 
     private static void SetCombatLevel(SimulationWorld world, SimpleLevel level)
     {
-        var method = typeof(SimulationWorld).GetMethod("CombatTestSetLevel", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        _ = method!.Invoke(world, [level]);
+        world.CombatTestSetLevel(level);
     }
 
     private static (float Distance, float HitX, float HitY, PlayerEntity? HitPlayer, SentryEntity? HitSentry, int HitDamageableZoneRoomObjectIndex) GetNearestStabHit(
         SimulationWorld world,
         StabMaskEntity mask)
     {
-        var method = typeof(SimulationWorld).GetMethod("CombatTestGetNearestStabHit", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        var result = method!.Invoke(world, [mask, mask.FacingLeft ? -1f : 1f, 0f]);
-        Assert.NotNull(result);
-        return ((float Distance, float HitX, float HitY, PlayerEntity? HitPlayer, SentryEntity? HitSentry, int HitDamageableZoneRoomObjectIndex))result!;
+        return Assert.NotNull(world.CombatTestGetNearestStabHit(mask, mask.FacingLeft ? -1f : 1f, 0f));
     }
 
     private static void InvokeFirePrimaryWeapon(SimulationWorld world, PlayerEntity player, float aimWorldX, float aimWorldY)
     {
-        var method = typeof(SimulationWorld).GetMethod("FirePrimaryWeapon", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        _ = method!.Invoke(world, [player, aimWorldX, aimWorldY]);
+        world.WeaponHandler.FirePrimaryWeapon(player, aimWorldX, aimWorldY);
     }
 }

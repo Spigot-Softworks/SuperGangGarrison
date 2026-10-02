@@ -333,21 +333,13 @@ public sealed class ServerMapRotationTests
 
     private static void ForceMapChangeReady(SimulationWorld world, PlayerTeam? winner = null)
     {
-        var matchStateProperty = typeof(SimulationWorld).GetProperty(nameof(SimulationWorld.MatchState))
-            ?? throw new InvalidOperationException("MatchState property was not found.");
-        var matchStateSetter = matchStateProperty.GetSetMethod(nonPublic: true)
-            ?? throw new InvalidOperationException("MatchState setter was not found.");
-        matchStateSetter.Invoke(world, [world.MatchState with { Phase = MatchPhase.Ended, WinnerTeam = winner }]);
+        world.CombatTestSetMatchState(world.MatchState with { Phase = MatchPhase.Ended, WinnerTeam = winner });
 
         world.Lifecycle.MapChangeReady = true;
     }
 
     private static void SetWorldFrame(SimulationWorld world, long frame)
     {
-        var frameProperty = typeof(SimulationWorld).GetProperty(nameof(SimulationWorld.Frame))
-            ?? throw new InvalidOperationException("Frame property was not found.");
-        var frameSetter = frameProperty.GetSetMethod(nonPublic: true)
-            ?? throw new InvalidOperationException("Frame setter was not found.");
-        frameSetter.Invoke(world, [frame]);
+        world.CombatTestSetFrame(frame);
     }
 }

@@ -2,6 +2,45 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
+internal static class LauncherVersionResolver
+{
+    public static string Resolve(
+        string? processPath,
+        string? processProductVersion,
+        string? informationalVersion,
+        Version? assemblyVersion)
+    {
+        if (!IsDotNetHost(processPath) && !string.IsNullOrWhiteSpace(processProductVersion))
+        {
+            return processProductVersion.Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(informationalVersion))
+        {
+            return informationalVersion.Trim();
+        }
+
+        return assemblyVersion?.ToString() ?? "0.0.0";
+    }
+
+    public static bool IsDotNetHost(string? processPath)
+    {
+        if (string.IsNullOrWhiteSpace(processPath))
+        {
+            return false;
+        }
+
+        var fileName = processPath.Replace('\\', '/').Split('/').Last();
+        var extensionIndex = fileName.LastIndexOf('.');
+        if (extensionIndex >= 0)
+        {
+            fileName = fileName[..extensionIndex];
+        }
+
+        return string.Equals(fileName, "dotnet", StringComparison.OrdinalIgnoreCase);
+    }
+}
+
 internal static class UpdateFileNames
 {
     public const string PackageManifest = "package-manifest.json";

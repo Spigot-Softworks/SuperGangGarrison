@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Reflection;
 using OpenGarrison.Core;
 using Xunit;
 
@@ -7,9 +6,6 @@ namespace OpenGarrison.PluginHost.Tests;
 
 public sealed class NeutralJumpPadTests
 {
-    private static readonly MethodInfo RestartCurrentRoundMethod = typeof(SimulationWorld)
-        .GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
-        .Single(method => method.Name == "RestartCurrentRound" && method.GetParameters().Length == 2);
 
     [Fact]
     public void BuilderNeutralJumpPadImportsAsMapSpawn()
@@ -76,7 +72,7 @@ public sealed class NeutralJumpPadTests
         oldPad.TakeDamage(JumpPadEntity.MaxHealth);
         Assert.True(oldPad.IsDead);
 
-        RestartCurrentRoundMethod.Invoke(world, [true, false]);
+        world.RestartCurrentRound(true, false);
 
         var newPad = Assert.Single(world.JumpPads);
         Assert.NotSame(oldPad, newPad);

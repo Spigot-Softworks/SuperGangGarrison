@@ -1,4 +1,3 @@
-using System.Reflection;
 using OpenGarrison.Core;
 using OpenGarrison.Core.LastToDie;
 using OpenGarrison.GameplayModding;
@@ -1942,22 +1941,14 @@ public sealed class LastToDiePerkRuntimeTests
 
     private static void SetCombatLevel(SimulationWorld world, SimpleLevel level)
     {
-        var method = typeof(SimulationWorld).GetMethod(
-            "CombatTestSetLevel",
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        _ = method!.Invoke(world, [level]);
+        world.CombatTestSetLevel(level);
     }
 
     private static float InvokeGetLastToDieEvasionChance(
         SimulationWorld world,
         PlayerEntity player)
     {
-        var method = typeof(SimulationWorld).GetMethod(
-            "GetLastToDieEvasionChance",
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        return (float)method!.Invoke(world, [player])!;
+        return world.LastToDieRules.GetLastToDieEvasionChance(player);
     }
 
     private static void InvokeFirePrimaryWeapon(
@@ -1966,11 +1957,7 @@ public sealed class LastToDiePerkRuntimeTests
         float aimWorldX,
         float aimWorldY)
     {
-        var method = typeof(SimulationWorld).GetMethod(
-            "FirePrimaryWeapon",
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        _ = method!.Invoke(world, [player, aimWorldX, aimWorldY]);
+        world.WeaponHandler.FirePrimaryWeapon(player, aimWorldX, aimWorldY);
     }
 
     private static void InvokeSpawnStabMask(
@@ -1978,11 +1965,7 @@ public sealed class LastToDiePerkRuntimeTests
         PlayerEntity player,
         float directionDegrees)
     {
-        var method = typeof(SimulationWorld).GetMethod(
-            "SpawnStabMask",
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        _ = method!.Invoke(world, [player, directionDegrees]);
+        world.Projectiles.SpawnStabMask(player, directionDegrees);
     }
 
     private static void InvokeAdvanceStabMasks(SimulationWorld world)

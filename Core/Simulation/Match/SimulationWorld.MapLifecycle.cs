@@ -82,8 +82,8 @@ public sealed partial class SimulationWorld
             : string.Empty;
         ConfigureSessionPresentationSeed(Level.Name, mapContentHash);
         MatchRules = CreateDefaultMatchRules(Level.Mode);
-        ApplyScrLevelMatchSettings();
-        RebuildForegroundJungleSpriteCache();
+        ObjectiveRules.ApplyScrLevelMatchSettings();
+        MapLogic.RebuildForegroundJungleSpriteCache();
         ResetModeStateForNewMap();
         RestartCurrentRound(preservePlayerStats);
         return true;
@@ -163,7 +163,7 @@ public sealed partial class SimulationWorld
         Lifecycle.MapChangeReady = false;
     }
 
-    private void RestartCurrentRound(bool preservePlayerStats, bool enterCompetitiveSkirmish = true)
+    internal void RestartCurrentRound(bool preservePlayerStats, bool enterCompetitiveSkirmish = true)
     {
         Lifecycle.PendingMapChangeTicks = -1;
         Lifecycle.MapChangeReady = false;
@@ -175,7 +175,7 @@ public sealed partial class SimulationWorld
 
         if (!preservePlayerStats)
         {
-            ClearAllDominations();
+            CombatFeedback.ClearAllDominations();
             LocalPlayer.ResetRoundStats();
             EnemyPlayer.ResetRoundStats();
             FriendlyDummy.ResetRoundStats();
@@ -186,10 +186,10 @@ public sealed partial class SimulationWorld
         }
 
         MatchState = CreateInitialMatchState(MatchRules);
-        RedIntel = CreateIntelState(PlayerTeam.Red);
-        BlueIntel = CreateIntelState(PlayerTeam.Blue);
+        RedIntel = ObjectiveRules.CreateIntelState(PlayerTeam.Red);
+        BlueIntel = ObjectiveRules.CreateIntelState(PlayerTeam.Blue);
         ResetModeStateForNewRound();
-        FinalizeScrRoundStart();
+        ObjectiveRules.FinalizeScrRoundStart();
         if (MapRuntime.LogicActivatorStartApplied.Length > 0)
         {
             Array.Clear(MapRuntime.LogicActivatorStartApplied, 0, MapRuntime.LogicActivatorStartApplied.Length);
@@ -197,7 +197,7 @@ public sealed partial class SimulationWorld
 
         MapRuntime.LogicControlPointInputSignature = 0;
 
-        TrySetNetworkPlayerRespawnTicks(LocalPlayerSlot, 0);
+        NetworkPlayerRules.TrySetNetworkPlayerRespawnTicks(LocalPlayerSlot, 0);
         DummyState.EnemyRespawnTicks = 0;
         LocalDeathCam = null;
         PresentationEvents.ClearForRoundRestart();
@@ -208,14 +208,14 @@ public sealed partial class SimulationWorld
         Lifecycle.NextBlueSpawnIndex = 0;
         ClearDynamicEntities();
         ResetMovingPlatformsForLevel();
-        ResetHealthPackSpawnsForLevel();
-        ResetJumpPadSpawnsForLevel();
-        RespawnPlayersForNewRound();
+        Pickups.ResetHealthPackSpawnsForLevel();
+        Structures.ResetJumpPadSpawnsForLevel();
+        Spawns.RespawnPlayersForNewRound();
         if (ReadyUpState.Enabled
             && enterCompetitiveSkirmish
             && !ReadyUpState.SuppressSkirmishOnNextRoundRestart)
         {
-            BeginCompetitiveSkirmish(clearReadyPlayers: true);
+            ReadyUp.BeginCompetitiveSkirmish(clearReadyPlayers: true);
         }
     }
 
@@ -224,13 +224,13 @@ public sealed partial class SimulationWorld
         RedCaps = 0;
         BlueCaps = 0;
 
-        if (!IsControlPointMode(MatchRules.Mode)
-            && !IsKothMode(MatchRules.Mode)
+        if (!ObjectiveRulesSystem.IsControlPointMode(MatchRules.Mode)
+            && !ObjectiveRulesSystem.IsKothMode(MatchRules.Mode)
             && !Level.ShouldSimulateControlPoints)
         {
             Objectives.ControlPoints.Clear();
         }
-        if (!IsKothMode(MatchRules.Mode))
+        if (!ObjectiveRulesSystem.IsKothMode(MatchRules.Mode))
         {
             Objectives.Koth.Clear();
         }
@@ -238,7 +238,7 @@ public sealed partial class SimulationWorld
         {
             WorldObjects.Generators.Clear();
         }
-        UpdateControlPointSetupGates();
+        ObjectiveRules.UpdateControlPointSetupGates();
 
         Objectives.Arena.ResetWinStreaks();
 
@@ -250,30 +250,30 @@ public sealed partial class SimulationWorld
         ResetTeleportTracking();
         Objectives.Arena.ResetForNewRound(MatchRules.Mode == GameModeKind.Arena ? ArenaPointUnlockTicksDefault : 0);
 
-        if (IsControlPointMode(MatchRules.Mode)
-            || IsKothMode(MatchRules.Mode)
+        if (ObjectiveRulesSystem.IsControlPointMode(MatchRules.Mode)
+            || ObjectiveRulesSystem.IsKothMode(MatchRules.Mode)
             || Level.ShouldSimulateControlPoints)
         {
-            ResetControlPointStateForNewRound();
+            ObjectiveRules.ResetControlPointStateForNewRound();
         }
 
         if (IsVipModeActive)
         {
-            ResetVipStateForNewRound();
+            VipRules.ResetVipStateForNewRound();
         }
         else
         {
-            ClearVipState();
+            VipRules.ClearVipState();
         }
 
-        if (!IsKothMode(MatchRules.Mode))
+        if (!ObjectiveRulesSystem.IsKothMode(MatchRules.Mode))
         {
             Objectives.Koth.Clear();
         }
 
         if (MatchRules.Mode == GameModeKind.Generator)
         {
-            ResetGeneratorStateForNewRound();
+            ObjectiveRules.ResetGeneratorStateForNewRound();
         }
         else
         {
@@ -308,24 +308,53 @@ public sealed partial class SimulationWorld
         for (var index = 0; index < NetworkPlayerSlots.Count; index += 1)
         {
             var slot = NetworkPlayerSlots[index];
-            if (slot != LocalPlayerSlot && !IsNetworkPlayerEnabled(slot))
+            if (slot != LocalPlayerSlot && !NetworkPlayerRules.IsNetworkPlayerEnabled(slot))
             {
                 continue;
             }
 
-            if (!TryGetNetworkPlayer(slot, out var player))
+            if (!NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
             {
                 continue;
             }
 
-            TryDropCarriedIntel(player);
-            TrySetNetworkPlayerReady(slot, ready: false);
-            TrySetNetworkPlayerAwaitingJoin(slot, true);
-            TrySetNetworkPlayerRespawnTicks(slot, 0);
-            SetNetworkPlayerDeathCam(slot, null);
+            ObjectiveRules.TryDropCarriedIntel(player);
+            ReadyUp.TrySetNetworkPlayerReady(slot, ready: false);
+            NetworkPlayerRules.TrySetNetworkPlayerAwaitingJoin(slot, true);
+            NetworkPlayerRules.TrySetNetworkPlayerRespawnTicks(slot, 0);
+            PlayerDeaths.SetNetworkPlayerDeathCam(slot, null);
             player.ClearMedicHealingTarget();
             player.Kill();
         }
     }
 
+    public void SetMapScale(float scale)
+    {
+        var nextScale = float.Clamp(scale, 0.25f, 4f);
+        if (MathF.Abs(MatchSettings.MapScale - nextScale) <= 0.0001f)
+        {
+            return;
+        }
+
+        var previousScale = MatchSettings.MapScale;
+        MatchSettings.MapScale = nextScale;
+        if (TryLoadLevel(Level.Name, Level.MapAreaIndex, preservePlayerStats: false, mapScale: nextScale))
+        {
+            return;
+        }
+
+        if (!Level.ImportedFromSource)
+        {
+            Level = SimpleLevelFactory.CreateScoutPrototypeLevel(nextScale);
+            MatchRules = CreateDefaultMatchRules(Level.Mode);
+            ResetModeStateForNewMap();
+            RestartCurrentRound(preservePlayerStats: false);
+            return;
+        }
+
+        if (!TryLoadLevel(Level.Name, Level.MapAreaIndex, preservePlayerStats: false, mapScale: previousScale))
+        {
+            MatchSettings.MapScale = previousScale;
+        }
+    }
 }

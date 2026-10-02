@@ -297,6 +297,63 @@ public sealed class GameplayBuffHudAndReplicationTests
         Assert.Equal(0, mergedPlayer.RageTicksRemaining);
     }
 
+    [Fact]
+    public void LegacySnapshotHydratesSpawnRoomEligibilityEvenWhenRuntimeStateIsFull()
+    {
+        var source = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
+        source.PrepareLocalPlayerJoin();
+        source.CompleteLocalPlayerJoin(PlayerClass.Engineer);
+        var receiver = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
+
+        var nextEntry = 0;
+        while (source.LocalPlayer.GetReplicatedStateEntries().Count < 16)
+        {
+            Assert.True(source.LocalPlayer.SetReplicatedStateInt(
+                $"test.state{nextEntry}", "value", nextEntry));
+            nextEntry++;
+        }
+
+        source.LocalPlayer.SetSpawnRoomState(true);
+        var stringCache = new SnapshotStringCache();
+        var inSpawnPlayer = source.Snapshots.ToSnapshotPlayerState(
+            SimulationWorld.LocalPlayerSlot,
+            source.LocalPlayer,
+            source.LocalPlayer,
+            value => stringCache.GetOrAddCacheId(value));
+        Assert.Contains(inSpawnPlayer.ReplicatedStates!, entry =>
+            entry.OwnerId == PlayerEntity.CoreReplicatedStateOwnerId
+            && entry.Key == PlayerEntity.SpawnRoomReplicatedStateKey
+            && entry.Kind == SnapshotReplicatedStateValueKind.Toggle
+            && entry.BoolValue);
+
+        var encoded = ProtocolCodec.Serialize(CreateSnapshot(inSpawnPlayer), ProtocolCompressionSettings.Disabled);
+        Assert.True(ProtocolCodec.TryDeserialize(encoded, out var decodedMessage));
+        var decoded = Assert.IsType<SnapshotMessage>(decodedMessage);
+        Assert.True(receiver.ApplySnapshot(decoded));
+        Assert.True(receiver.LocalPlayer.IsInSpawnRoom);
+        Assert.Equal(decoded.Players[0].Metal, receiver.LocalPlayer.Metal);
+
+        source.LocalPlayer.SetSpawnRoomState(false);
+        var outsideSpawnPlayer = source.Snapshots.ToSnapshotPlayerState(
+            SimulationWorld.LocalPlayerSlot,
+            source.LocalPlayer,
+            source.LocalPlayer,
+            value => stringCache.GetOrAddCacheId(value));
+        Assert.Contains(outsideSpawnPlayer.ReplicatedStates!, entry =>
+            entry.OwnerId == PlayerEntity.CoreReplicatedStateOwnerId
+            && entry.Key == PlayerEntity.SpawnRoomReplicatedStateKey
+            && entry.Kind == SnapshotReplicatedStateValueKind.Toggle
+            && !entry.BoolValue);
+
+        var nextSnapshot = CreateSnapshot(outsideSpawnPlayer) with { Frame = decoded.Frame + 1 };
+        encoded = ProtocolCodec.Serialize(nextSnapshot, ProtocolCompressionSettings.Disabled);
+        Assert.True(ProtocolCodec.TryDeserialize(encoded, out decodedMessage));
+        Assert.True(receiver.ApplySnapshot(Assert.IsType<SnapshotMessage>(decodedMessage)));
+        Assert.False(receiver.LocalPlayer.IsInSpawnRoom);
+        Assert.True(outsideSpawnPlayer.Metal >= 100f);
+        Assert.Equal(outsideSpawnPlayer.Metal, receiver.LocalPlayer.Metal);
+    }
+
     private static SnapshotMessage CreateSnapshot(SnapshotPlayerState player)
     {
         return new SnapshotMessage(

@@ -239,6 +239,10 @@ sealed class SnapshotBroadcaster
             if (snapshotSent)
             {
                 builtSnapshot.Client.RememberResolvedSnapshotState(builtSnapshot.ResolvedFullSnapshot);
+                if (!builtSnapshot.SentSnapshot.IsDelta || builtSnapshot.SentSnapshot.BaselineFrame == 0)
+                {
+                    builtSnapshot.Client.MarkSnapshotResyncFullSnapshotSent(builtSnapshot.SentSnapshot.Frame);
+                }
             }
 
             perClientTicks += Stopwatch.GetTimestamp() - commitStartTimestamp;

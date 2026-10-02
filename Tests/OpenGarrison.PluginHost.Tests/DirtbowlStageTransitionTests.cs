@@ -1,4 +1,3 @@
-using System.Reflection;
 using OpenGarrison.Core;
 using Xunit;
 
@@ -79,17 +78,7 @@ public sealed class DirtbowlStageTransitionTests
 
     private static void SetEndedMatchState(SimulationWorld world, PlayerTeam winner)
     {
-        var property = typeof(SimulationWorld).GetProperty(nameof(SimulationWorld.MatchState))
-            ?? throw new InvalidOperationException("MatchState property was not found.");
-        var setter = property.GetSetMethod(nonPublic: true)
-            ?? throw new InvalidOperationException("MatchState setter was not found.");
-        setter.Invoke(world, [world.MatchState with { Phase = MatchPhase.Ended, WinnerTeam = winner }]);
+        world.CombatTestSetMatchState(world.MatchState with { Phase = MatchPhase.Ended, WinnerTeam = winner });
     }
 
-    private static void SetPrivateField(SimulationWorld world, string fieldName, object value)
-    {
-        var field = typeof(SimulationWorld).GetField(fieldName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
-            ?? throw new InvalidOperationException($"{fieldName} was not found.");
-        field.SetValue(world, value);
-    }
 }

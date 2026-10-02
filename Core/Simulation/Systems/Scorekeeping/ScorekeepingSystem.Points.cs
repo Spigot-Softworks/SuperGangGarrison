@@ -1,0 +1,130 @@
+using System;
+
+namespace OpenGarrison.Core;
+
+internal sealed partial class ScorekeepingSystem
+{
+    private const float KillPointValue = 1f;
+    internal const float AssistPointValue = 0.5f;
+    private const float StabKillBonusPointValue = 1f;
+    private const float IntelDefensePointValue = 1f;
+    private const float UberReadyKillBonusPointValue = 1f;
+    private const float ObjectiveCapturePointValue = 2f;
+    private const float BuildingDestructionPointValue = 1f;
+    private const float UberActivationPointValue = 1f;
+    private const int HealingHealthPerPoint = 800;
+
+    internal bool ShouldAwardRoundPoints()
+    {
+        return !_host.MatchState.IsEnded;
+    }
+
+    internal void AwardKillPoints(PlayerEntity victim, PlayerEntity killer, string? weaponSpriteName)
+    {
+        if (!ShouldAwardRoundPoints())
+        {
+            return;
+        }
+
+        if (ReferenceEquals(victim, killer) || killer.Team == victim.Team)
+        {
+            return;
+        }
+
+        killer.AddPoints(KillPointValue);
+
+        if (string.Equals(weaponSpriteName, "KnifeKL", StringComparison.Ordinal))
+        {
+            killer.AddPoints(StabKillBonusPointValue);
+        }
+
+        if (victim.IsCarryingIntel)
+        {
+            killer.AddPoints(IntelDefensePointValue);
+        }
+
+        if (victim.ClassId == PlayerClass.Medic && victim.IsMedicUberReady)
+        {
+            killer.AddPoints(UberReadyKillBonusPointValue);
+        }
+    }
+
+    internal void AwardAssistPoints(PlayerEntity? assistant, PlayerEntity victim, PlayerEntity killer)
+    {
+        if (!ShouldAwardRoundPoints())
+        {
+            return;
+        }
+
+        if (assistant is null
+            || ReferenceEquals(assistant, victim)
+            || ReferenceEquals(assistant, killer)
+            || assistant.Team != killer.Team
+            || assistant.Team == victim.Team)
+        {
+            return;
+        }
+
+        assistant.AddAssist();
+        assistant.AddPoints(AssistPointValue);
+    }
+
+    internal void AwardObjectiveCapturePoints(PlayerEntity player)
+    {
+        if (!ShouldAwardRoundPoints())
+        {
+            return;
+        }
+
+        player.AddPoints(ObjectiveCapturePointValue);
+    }
+
+    internal void AwardMedicUberActivationPoints(PlayerEntity player)
+    {
+        if (!ShouldAwardRoundPoints())
+        {
+            return;
+        }
+
+        player.AddPoints(UberActivationPointValue);
+    }
+
+    internal void AwardSentryDestructionPoints(SentryEntity sentry, PlayerEntity? attacker)
+    {
+        if (!ShouldAwardRoundPoints())
+        {
+            return;
+        }
+
+        if (attacker is null || attacker.Id == sentry.OwnerPlayerId)
+        {
+            return;
+        }
+
+        attacker.AddPoints(BuildingDestructionPointValue);
+    }
+
+    internal void AwardHealingPoints(PlayerEntity healer, int healedAmount)
+    {
+        if (healedAmount <= 0)
+        {
+            return;
+        }
+
+        var previousMilestone = healer.HealPoints / HealingHealthPerPoint;
+        healer.AddHealPoints(healedAmount);
+
+        if (!ShouldAwardRoundPoints())
+        {
+            return;
+        }
+
+        var currentMilestone = healer.HealPoints / HealingHealthPerPoint;
+        var earnedPoints = currentMilestone - previousMilestone;
+        if (earnedPoints > 0)
+        {
+            healer.AddPoints(earnedPoints);
+        }
+    }
+
+}

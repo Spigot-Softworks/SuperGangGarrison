@@ -182,5 +182,5 @@ public sealed class ClientSnapshotBaselinePinTests
             .GetValue(game)!;
 
     private static void SetField(Game1 game, string name, object? value)
-        => typeof(Game1).GetField(name, InstanceMembers)!.SetValue(game, value);
+        => typeof(Game1).GetField(name, InstanceMembers | BindingFlags.Public)!.SetValue(game, value);
 }

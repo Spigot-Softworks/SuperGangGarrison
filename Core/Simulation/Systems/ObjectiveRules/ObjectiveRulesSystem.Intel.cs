@@ -144,7 +144,7 @@ internal sealed partial class ObjectiveRulesSystem
 
         if (_host.MatchRules.Mode != GameModeKind.Scr
             && player.Team == PlayerTeam.Red
-            && _host.ShouldEndMatchOnRedTeamIntelCapture())
+            && ShouldEndMatchOnRedTeamIntelCapture())
         {
             _host.TryEndRound(PlayerTeam.Red, "special_red_intel_capture");
         }

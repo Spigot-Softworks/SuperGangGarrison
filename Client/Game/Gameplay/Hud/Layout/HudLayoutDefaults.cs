@@ -57,7 +57,8 @@ internal static class HudLayoutDefaults
                 new Vector2(-4f, 59f),
                 new Vector2(340f, 104f),
                 new Vector2(-340f, -3f),
-                Layer: 5),
+                Layer: 5,
+                Scale: 1f),
 
             [HudElementId.MatchCtfPanel] = new(
                 HudElementId.MatchCtfPanel,

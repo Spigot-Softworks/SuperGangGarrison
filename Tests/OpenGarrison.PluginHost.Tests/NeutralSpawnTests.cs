@@ -1,5 +1,4 @@
 using OpenGarrison.Core;
-using System.Reflection;
 using Xunit;
 
 namespace OpenGarrison.PluginHost.Tests;
@@ -81,8 +80,8 @@ public sealed class NeutralSpawnTests
             redSpawns: [new SpawnPoint(10f, 10f), neutralSpawn],
             blueSpawns: [new SpawnPoint(90f, 90f), neutralSpawn]);
 
-        var redPool = world.CombatTestGetTeamSpawnSelectionPool(PlayerTeam.Red);
-        var bluePool = world.CombatTestGetTeamSpawnSelectionPool(PlayerTeam.Blue);
+        var redPool = world.Spawns.CombatTestGetTeamSpawnSelectionPool(PlayerTeam.Red);
+        var bluePool = world.Spawns.CombatTestGetTeamSpawnSelectionPool(PlayerTeam.Blue);
 
         Assert.Contains(redPool, spawn => spawn.X == 55f && spawn.Y == 55f);
         Assert.Contains(bluePool, spawn => spawn.X == 55f && spawn.Y == 55f);
@@ -93,28 +92,22 @@ public sealed class NeutralSpawnTests
         IReadOnlyList<SpawnPoint> blueSpawns)
     {
         var world = new SimulationWorld();
-        var setLevel = typeof(SimulationWorld).GetMethod("CombatTestSetLevel", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Public)
-            ?? throw new InvalidOperationException("CombatTestSetLevel was not found.");
-        setLevel.Invoke(
-            world,
-            [
-                new SimpleLevel(
-                    "neutral_spawn_test",
-                    GameModeKind.CaptureTheFlag,
-                    new WorldBounds(1024f, 768f),
-                    1f,
-                    null,
-                    1,
-                    1,
-                    new SpawnPoint(0f, 0f),
-                    redSpawns,
-                    blueSpawns,
-                    [],
-                    [],
-                    768f,
-                    [],
-                    false),
-            ]);
+        world.CombatTestSetLevel(new SimpleLevel(
+            "neutral_spawn_test",
+            GameModeKind.CaptureTheFlag,
+            new WorldBounds(1024f, 768f),
+            1f,
+            null,
+            1,
+            1,
+            new SpawnPoint(0f, 0f),
+            redSpawns,
+            blueSpawns,
+            [],
+            [],
+            768f,
+            [],
+            false));
 
         return world;
     }

@@ -254,7 +254,11 @@ public partial class Game1
 
         foreach (var gib in _world.PlayerGibs)
         {
-            UpdateOfflineInterpolatedEntityPosition(gib.Id, gib.X, gib.Y);
+            // Gibs record their tick-start sample, so blend by the simulator
+            // phase like projectiles instead of chasing each new tick.
+            _activeInterpolatedEntityIds.Add(gib.Id);
+            _interpolatedEntityPositions[gib.Id] = GetLocallySimulatedPlayerGibRenderPosition(gib);
+            _entityInterpolationTracks.Remove(gib.Id);
         }
 
         foreach (var bloodDrop in _world.BloodDrops)

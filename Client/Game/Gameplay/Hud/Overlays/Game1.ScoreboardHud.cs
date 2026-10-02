@@ -196,7 +196,9 @@ public partial class Game1
 
     private int CompareScoreboardPlayers(PlayerEntity left, PlayerEntity right)
     {
-        var scoreCompare = right.Points.CompareTo(left.Points);
+        // The scoreboard displays whole points. Half-point changes (for example
+        // assists) must not move a row while both displayed scores are unchanged.
+        var scoreCompare = MathF.Floor(right.Points).CompareTo(MathF.Floor(left.Points));
         if (scoreCompare != 0)
         {
             return scoreCompare;

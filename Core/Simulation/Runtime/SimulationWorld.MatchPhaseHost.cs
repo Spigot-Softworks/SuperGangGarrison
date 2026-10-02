@@ -12,25 +12,25 @@ public sealed partial class SimulationWorld : IMatchPhaseHost
 
     PlayerEntity IMatchPhaseHost.FriendlyDummy => FriendlyDummy;
 
-    bool IMatchPhaseHost.TryGetNetworkPlayer(byte slot, out PlayerEntity player) => TryGetNetworkPlayer(slot, out player);
+    bool IMatchPhaseHost.TryGetNetworkPlayer(byte slot, out PlayerEntity player) => NetworkPlayerRules.TryGetNetworkPlayer(slot, out player);
 
-    void IMatchPhaseHost.ApplyExperimentalRageEffects() => ApplyExperimentalRageEffects();
+    void IMatchPhaseHost.ApplyExperimentalRageEffects() => ExperimentalRules.ApplyExperimentalRageEffects();
 
-    void IMatchPhaseHost.AdvanceMedicUberEffects() => AdvanceMedicUberEffects();
+    void IMatchPhaseHost.AdvanceMedicUberEffects() => SupportRules.AdvanceMedicUberEffects();
 
-    void IMatchPhaseHost.AdvanceVipState() => AdvanceVipState();
+    void IMatchPhaseHost.AdvanceVipState() => VipRules.AdvanceVipState();
 
-    void IMatchPhaseHost.AdvanceKillFeed() => AdvanceKillFeed();
+    void IMatchPhaseHost.AdvanceKillFeed() => KillFeedRules.AdvanceKillFeed();
 
-    void IMatchPhaseHost.AdvanceLocalDeathCam() => AdvanceLocalDeathCam();
+    void IMatchPhaseHost.AdvanceLocalDeathCam() => PlayerDeaths.AdvanceLocalDeathCam();
 
-    void IMatchPhaseHost.EmitPendingMedicUberReadyPresentation() => EmitPendingMedicUberReadyPresentation();
+    void IMatchPhaseHost.EmitPendingMedicUberReadyPresentation() => SupportRules.EmitPendingMedicUberReadyPresentation();
 
-    void IMatchPhaseHost.AdvanceExperimentalRageState() => AdvanceExperimentalRageState();
+    void IMatchPhaseHost.AdvanceExperimentalRageState() => ExperimentalRules.AdvanceExperimentalRageState();
 
     void IMatchPhaseHost.UpdateAuxiliaryControlPointStateIfNeeded() => UpdateAuxiliaryControlPointStateIfNeeded();
 
-    void IMatchPhaseHost.TickForegroundSpriteJungle() => TickForegroundSpriteJungle();
+    void IMatchPhaseHost.TickForegroundSpriteJungle() => MapLogic.TickForegroundSpriteJungle();
 
-    void IMatchPhaseHost.TickSpritesheetPlayback() => TickSpritesheetPlayback();
+    void IMatchPhaseHost.TickSpritesheetPlayback() => MapLogic.TickSpritesheetPlayback();
 }

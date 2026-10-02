@@ -422,6 +422,11 @@ public sealed partial class PlayerEntity
         float dispenserAttackReloadSpeedMultiplier = 1f)
     {
         var previousHealth = Health;
+        var previousIsAlive = IsAlive;
+        var previousGameplayClassId = GameplayClassId;
+        var previousGameplayLoadoutId = SelectedGameplayLoadoutId;
+        var previousGameplayPrimaryItemId = SelectedGameplayPrimaryItemId;
+        var previousQuoteBladeAmmoGeneration = QuoteBladeAmmoGeneration;
         Team = team;
         if (!string.Equals(ClassDefinition.GameplayClassId, classDefinition.GameplayClassId, StringComparison.Ordinal)
             || ClassDefinition.Id != classDefinition.Id)
@@ -671,6 +676,16 @@ public sealed partial class PlayerEntity
         // are delivered every tick rather than only with the budget-limited full-state update.
         ExperimentalOffhandCooldownTicks = Math.Max(0, offhandCooldownTicks);
         ExperimentalOffhandReloadTicksUntilNextShell = Math.Max(0, offhandReloadTicks);
+
+        var quoteBladeAmmoIdentityChanged = previousIsAlive != IsAlive
+            || !string.Equals(previousGameplayClassId, GameplayClassId, StringComparison.Ordinal)
+            || !string.Equals(previousGameplayLoadoutId, SelectedGameplayLoadoutId, StringComparison.Ordinal)
+            || !string.Equals(previousGameplayPrimaryItemId, SelectedGameplayPrimaryItemId, StringComparison.Ordinal);
+        if (quoteBladeAmmoIdentityChanged
+            && QuoteBladeAmmoGeneration == previousQuoteBladeAmmoGeneration)
+        {
+            AdvanceQuoteBladeAmmoGeneration();
+        }
     }
 
     private void ApplyReplicatedAcquiredWeaponState(string gameplayAcquiredItemId)

@@ -12,7 +12,7 @@
     "parameters": {
       "healAmount": 30,
       "healRadius": 120,
-      "healFrameIndex": 9,
+      "healFrameIndex": 3,
       "healSelfOnly": true,
       "moneyBurst": true
     }

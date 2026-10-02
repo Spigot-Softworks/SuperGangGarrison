@@ -26,6 +26,7 @@ public sealed partial class PlayerEntity
             return true;
         }
 
+        AdvanceQuoteBladeAmmoGeneration();
         SelectedGameplayLoadoutId = resolvedLoadoutId;
         var selectedLoadout = runtimeRegistry.GetRequiredLoadout(GameplayClassId, resolvedLoadoutId);
         SelectedGameplayPrimaryItemId = selectedLoadout.Primary?.DefaultItemId ?? selectedLoadout.PrimaryItemId;
@@ -72,6 +73,7 @@ public sealed partial class PlayerEntity
             return true;
         }
 
+        AdvanceQuoteBladeAmmoGeneration();
         SelectedGameplayPrimaryItemId = normalizedItemId;
         RefreshSelectedGameplayPrimaryWeapon();
         SelectedGameplayEquippedSlot = GameplayEquipmentSlot.Primary;

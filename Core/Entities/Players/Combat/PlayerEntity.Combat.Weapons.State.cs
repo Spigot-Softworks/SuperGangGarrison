@@ -20,7 +20,17 @@ public sealed partial class PlayerEntity
             return;
         }
 
-        if (PrimaryWeapon.AmmoRegenPerTick > 0 && CurrentShells < PrimaryWeapon.MaxAmmo)
+        var isQuoteBladeWeapon = HasPrimaryBehavior(BuiltInGameplayBehaviorIds.Blade)
+            && HasSecondaryBehavior(BuiltInGameplayBehaviorIds.QuoteBladeThrow);
+        var quoteBladeRecoveryActive = isQuoteBladeWeapon && ReloadTicksUntilNextShell > 0;
+        if (isQuoteBladeWeapon && ReloadTicksUntilNextShell > 0)
+        {
+            ReloadTicksUntilNextShell -= 1;
+        }
+
+        if (!quoteBladeRecoveryActive
+            && PrimaryWeapon.AmmoRegenPerTick > 0
+            && CurrentShells < PrimaryWeapon.MaxAmmo)
         {
             CurrentShells = int.Min(PrimaryWeapon.MaxAmmo, CurrentShells + PrimaryWeapon.AmmoRegenPerTick);
         }
@@ -49,7 +59,10 @@ public sealed partial class PlayerEntity
 
         if (!PrimaryWeapon.AutoReloads)
         {
-            ReloadTicksUntilNextShell = 0;
+            if (!isQuoteBladeWeapon)
+            {
+                ReloadTicksUntilNextShell = 0;
+            }
             AdvanceExperimentalOffhandWeaponState();
             AdvanceAcquiredWeaponState();
             return;
@@ -57,7 +70,10 @@ public sealed partial class PlayerEntity
 
         if (CurrentShells >= PrimaryWeapon.MaxAmmo)
         {
-            ReloadTicksUntilNextShell = 0;
+            if (!isQuoteBladeWeapon)
+            {
+                ReloadTicksUntilNextShell = 0;
+            }
             AdvanceExperimentalOffhandWeaponState();
             AdvanceAcquiredWeaponState();
             return;

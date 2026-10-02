@@ -260,32 +260,26 @@ public sealed class BotBrainMedicHealTargetTests
 
     private static void SetCombatLevel(SimulationWorld world)
     {
-        var method = typeof(SimulationWorld).GetMethod("CombatTestSetLevel", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        _ = method!.Invoke(
-            world,
+        world.CombatTestSetLevel(new SimpleLevel(
+            name: "botbrain_medic_target_test",
+            mode: GameModeKind.CaptureTheFlag,
+            bounds: new WorldBounds(2048f, 2048f),
+            mapScale: 1f,
+            backgroundAssetName: null,
+            mapAreaIndex: 1,
+            mapAreaCount: 1,
+            localSpawn: new SpawnPoint(100f, 100f),
+            redSpawns: [new SpawnPoint(100f, 100f)],
+            blueSpawns: [new SpawnPoint(400f, 100f)],
+            intelBases:
             [
-                new SimpleLevel(
-                    name: "botbrain_medic_target_test",
-                    mode: GameModeKind.CaptureTheFlag,
-                    bounds: new WorldBounds(2048f, 2048f),
-                    mapScale: 1f,
-                    backgroundAssetName: null,
-                    mapAreaIndex: 1,
-                    mapAreaCount: 1,
-                    localSpawn: new SpawnPoint(100f, 100f),
-                    redSpawns: [new SpawnPoint(100f, 100f)],
-                    blueSpawns: [new SpawnPoint(400f, 100f)],
-                    intelBases:
-                    [
-                        new IntelBaseMarker(PlayerTeam.Red, 100f, 100f),
-                        new IntelBaseMarker(PlayerTeam.Blue, 400f, 100f),
-                    ],
-                    roomObjects: [],
-                    floorY: 2048f,
-                    solids: [],
-                    importedFromSource: false),
-            ]);
+                new IntelBaseMarker(PlayerTeam.Red, 100f, 100f),
+                new IntelBaseMarker(PlayerTeam.Blue, 400f, 100f),
+            ],
+            roomObjects: [],
+            floorY: 2048f,
+            solids: [],
+            importedFromSource: false));
     }
 
     private static PlayerEntity AddNetworkPlayer(

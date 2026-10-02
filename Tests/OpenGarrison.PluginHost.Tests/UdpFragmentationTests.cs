@@ -77,12 +77,13 @@ public sealed class UdpFragmentationTests
     {
         var payload = new byte[5000];
         var frames = UdpFragmentation.Fragment(payload, 17);
+        const ulong overflowMessageId = 999;
         var receiver = new UdpFragmentReassembler();
         for (var index = 0; index < UdpFragmentReassembler.MaxAssembliesPerPeer; index++)
             Assert.True(receiver.TryAccept("peer-a", UdpFragmentation.Fragment(payload, (ulong)(index + 17))[0], 0, out _));
-        Assert.False(receiver.TryAccept("peer-a", UdpFragmentation.Fragment(payload, 99)[0], 0, out _));
+        Assert.False(receiver.TryAccept("peer-a", UdpFragmentation.Fragment(payload, overflowMessageId)[0], 0, out _));
         Assert.True(receiver.TryAccept("peer-b", frames[0], 0, out _));
-        Assert.True(receiver.TryAccept("peer-a", UdpFragmentation.Fragment(payload, 99)[0], UdpFragmentReassembler.AssemblyLifetimeMilliseconds, out _));
+        Assert.True(receiver.TryAccept("peer-a", UdpFragmentation.Fragment(payload, overflowMessageId)[0], UdpFragmentReassembler.AssemblyLifetimeMilliseconds, out _));
         Assert.InRange(receiver.BufferedBytes, 1, UdpFragmentReassembler.MaxBufferedBytes);
     }
 
@@ -93,6 +94,8 @@ public sealed class UdpFragmentationTests
         var receiver = new UdpFragmentReassembler();
         Assert.True(receiver.TryAccept("peer", frames[0], 1, out _));
         Assert.True(receiver.TryAccept("peer", frames[0], 4000, out _));
+        Assert.Equal(4000, receiver.BufferedBytes);
+        Assert.Empty(receiver.GetDueNacks(1 + UdpFragmentReassembler.AssemblyLifetimeMilliseconds));
         Assert.Equal(0, receiver.BufferedBytes);
 
         var completedReceiver = new UdpFragmentReassembler();
@@ -250,23 +253,42 @@ public sealed class UdpFragmentationTests
     }
 
     [Fact]
-    public void ClientReceivePumpDrainsAllFragmentsInOneFrame()
+    public void ClientReceivePumpResumesFragmentDrainAfterItsTimeBudget()
     {
         using var server = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
         var endpoint = (IPEndPoint)server.Client.LocalEndPoint!;
         Assert.True(UdpNetworkClientMessageTransport.TryConnect("127.0.0.1", endpoint.Port, out var transport, out var error), error);
         using var client = new NetworkGameClient();
         Assert.True(client.Connect(transport!, "Tester", 0, out error), error);
+        client.CollectDiagnostics = true;
         IPEndPoint remote = new(IPAddress.Any, 0);
         _ = server.Receive(ref remote); // consume the client's Hello and learn its local endpoint
 
         var malformedButLargePayload = Enumerable.Range(0, 9000).Select(index => (byte)(index * 13)).ToArray();
-        foreach (var frame in UdpFragmentation.Fragment(malformedButLargePayload, 77))
+        var frames = UdpFragmentation.Fragment(malformedButLargePayload, 77);
+        foreach (var frame in frames)
             server.Send(frame, frame.Length, remote);
 
-        Assert.Empty(client.ReceiveMessages());
-        Assert.Equal(UdpFragmentation.Fragment(malformedButLargePayload, 78).Count,
-            client.LastReceiveDiagnostics.PacketsRead);
+        var packetsReadTotal = 0;
+        var pumps = 0;
+        while (packetsReadTotal < frames.Count)
+        {
+            Assert.True(pumps < frames.Count, "Receive pump made no bounded progress through the fragment burst.");
+            Assert.Empty(client.ReceiveMessages());
+            pumps += 1;
+
+            var receive = client.LastReceiveDiagnostics;
+            Assert.True(receive.PacketsRead > 0, "A receive pump stopped before consuming an available fragment.");
+            packetsReadTotal += receive.PacketsRead;
+            Assert.InRange(packetsReadTotal, 1, frames.Count);
+            if (packetsReadTotal < frames.Count)
+            {
+                Assert.True(receive.ReceiveBudgetHit,
+                    "The pump left fragments pending without reporting that its time budget was exhausted.");
+            }
+        }
+
+        Assert.Equal(frames.Count, packetsReadTotal);
     }
 
     [Fact]

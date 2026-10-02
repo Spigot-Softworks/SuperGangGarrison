@@ -4,14 +4,14 @@
   "packageVersion": "0.8.8",
   "channel": "stable",
   "url": "OpenGarrison-Windows-x64-0.8.8.zip",
-  "sha256": "5b9295e2c1228e0b72bfe4d2d679ef0cfbd83d18db816856da2527f4386c10dc",
-  "size": 93333981,
+  "sha256": "872ad308185753cd7fcd6bbfdc026cbc6b1714979b60cf522621d56dfaac30b9",
+  "size": 93337146,
   "minLauncherVersion": "0.1.0",
   "notesUrl": "",
   "fullPackage": {
     "url": "OpenGarrison-Windows-x64-0.8.8.zip",
-    "sha256": "5b9295e2c1228e0b72bfe4d2d679ef0cfbd83d18db816856da2527f4386c10dc",
-    "size": 93333981
+    "sha256": "872ad308185753cd7fcd6bbfdc026cbc6b1714979b60cf522621d56dfaac30b9",
+    "size": 93337146
   },
   "deltas": []
 }

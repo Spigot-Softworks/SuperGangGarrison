@@ -149,10 +149,6 @@ public sealed class BotBrainMartyrTargetingTests
 
     private static void RefreshMedicLinks(SimulationWorld world)
     {
-        var method = typeof(SimulationWorld).GetMethod(
-            "RefreshLastToDieMedicLinkProjections",
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        _ = method!.Invoke(world, null);
+        world.LastToDieRules.RefreshLastToDieMedicLinkProjections();
     }
 }

@@ -341,12 +341,28 @@ public partial class Game1
             && sourceUv.X <= 1f
             && sourceUv.Y >= 0f
             && sourceUv.Y <= 1f;
+        var maskedGameplayClick = ShouldPassMaskedCrtPointerToGameplay(
+            visible,
+            outputUv,
+            sourceUv,
+            CanAllowGameplayInputOutsideCrtMask());
+        if (maskedGameplayClick)
+        {
+            // The CRT shader crops the source image at the curved screen edge.
+            // During live gameplay, keep pointer aim on the nearest visible edge
+            // and let physical mouse clicks reach gameplay instead of arming the
+            // menu-only click suppression state.
+            logicalX = Math.Clamp(logicalX, 0, ViewportWidth - 1);
+            logicalY = Math.Clamp(logicalY, 0, ViewportHeight - 1);
+        }
+
+        var pointerVisibleForButtons = visible || maskedGameplayClick;
         var scrollWheelValue = GetCrtAwareScrollWheelValue(rawMouse.ScrollWheelValue, visible);
-        var leftButton = GetCrtAwareButtonState(rawMouse.LeftButton, ref _crtSuppressLeftButtonUntilRelease, visible);
-        var middleButton = GetCrtAwareButtonState(rawMouse.MiddleButton, ref _crtSuppressMiddleButtonUntilRelease, visible);
-        var rightButton = GetCrtAwareButtonState(rawMouse.RightButton, ref _crtSuppressRightButtonUntilRelease, visible);
-        var xButton1 = GetCrtAwareButtonState(rawMouse.XButton1, ref _crtSuppressXButton1UntilRelease, visible);
-        var xButton2 = GetCrtAwareButtonState(rawMouse.XButton2, ref _crtSuppressXButton2UntilRelease, visible);
+        var leftButton = GetCrtAwareButtonState(rawMouse.LeftButton, ref _crtSuppressLeftButtonUntilRelease, pointerVisibleForButtons);
+        var middleButton = GetCrtAwareButtonState(rawMouse.MiddleButton, ref _crtSuppressMiddleButtonUntilRelease, pointerVisibleForButtons);
+        var rightButton = GetCrtAwareButtonState(rawMouse.RightButton, ref _crtSuppressRightButtonUntilRelease, pointerVisibleForButtons);
+        var xButton1 = GetCrtAwareButtonState(rawMouse.XButton1, ref _crtSuppressXButton1UntilRelease, pointerVisibleForButtons);
+        var xButton2 = GetCrtAwareButtonState(rawMouse.XButton2, ref _crtSuppressXButton2UntilRelease, pointerVisibleForButtons);
         mappedMouse = new MouseState(
             logicalX,
             logicalY,
@@ -357,6 +373,39 @@ public partial class Game1
             xButton1,
             xButton2);
         return true;
+    }
+
+    private bool CanAllowGameplayInputOutsideCrtMask()
+    {
+        return IsWindowInputActive
+            && _world.LocalPlayer.IsAlive
+            && !_world.LocalPlayerAwaitingJoin
+            && !_networkClient.IsSpectator
+            && !_offlinePracticeSpectatorMode
+            && !_mainMenuOpen
+            && !_gameplayLoadoutMenuOpen
+            && !_scoreboardOpen
+            && _scoreboardAlpha <= 0.02f
+            && _bubbleMenuKind == BubbleMenuKind.None
+            && !_buildMenuOpen
+            && !_hudEditorOpen
+            && !IsGameplayInputBlocked();
+    }
+
+    internal static bool ShouldPassMaskedCrtPointerToGameplay(
+        bool pointerVisible,
+        Vector2 outputUv,
+        Vector2 sourceUv,
+        bool gameplayInputAllowed)
+    {
+        return !pointerVisible
+            && gameplayInputAllowed
+            && outputUv.X >= 0f
+            && outputUv.X <= 1f
+            && outputUv.Y >= 0f
+            && outputUv.Y <= 1f
+            && float.IsFinite(sourceUv.X)
+            && float.IsFinite(sourceUv.Y);
     }
 
     private static int MapCrtUvToLogicalCoordinate(float sourceUv, int logicalSize)
@@ -395,7 +444,7 @@ public partial class Game1
         return (int)Math.Clamp(logicalValue, int.MinValue, int.MaxValue);
     }
 
-    private static ButtonState GetCrtAwareButtonState(ButtonState rawState, ref bool suppressUntilRelease, bool pointerVisible)
+    internal static ButtonState GetCrtAwareButtonState(ButtonState rawState, ref bool suppressUntilRelease, bool pointerVisible)
     {
         if (!pointerVisible && rawState == ButtonState.Pressed)
         {

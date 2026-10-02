@@ -1148,23 +1148,38 @@ static string NormalizeCurrentVersionForManifest(CurrentVersionInfo currentVersi
 
 static string ReadCurrentLauncherVersion()
 {
+    var processPath = Environment.ProcessPath;
+    string? processProductVersion = null;
     try
     {
-        var processPath = Environment.ProcessPath;
-        if (!string.IsNullOrWhiteSpace(processPath))
+        if (!LauncherVersionResolver.IsDotNetHost(processPath)
+            && !string.IsNullOrWhiteSpace(processPath))
         {
-            var version = FileVersionInfo.GetVersionInfo(processPath).ProductVersion;
-            if (!string.IsNullOrWhiteSpace(version))
-            {
-                return version.Trim();
-            }
+            processProductVersion = FileVersionInfo.GetVersionInfo(processPath).ProductVersion;
         }
     }
     catch
     {
+        // ProductVersion is not populated on every native apphost, especially ELF apphosts.
     }
 
-    return "0.0.0";
+    string? informationalVersion = null;
+    Version? assemblyVersion = null;
+    try
+    {
+        var updaterAssembly = typeof(LauncherVersionResolver).Assembly;
+        informationalVersion = updaterAssembly
+            .GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), inherit: false)
+            .OfType<System.Reflection.AssemblyInformationalVersionAttribute>()
+            .FirstOrDefault()?.InformationalVersion;
+        assemblyVersion = updaterAssembly.GetName().Version;
+    }
+    catch
+    {
+        // Keep the update check usable if assembly metadata cannot be read.
+    }
+
+    return LauncherVersionResolver.Resolve(processPath, processProductVersion, informationalVersion, assemblyVersion);
 }
 
 static bool IsVersionAtLeast(string candidate, string required)

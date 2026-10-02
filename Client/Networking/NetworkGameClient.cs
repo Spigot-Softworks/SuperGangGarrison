@@ -51,6 +51,7 @@ public sealed class NetworkGameClient : IDisposable
     private const long ConnectedTimeoutMilliseconds = 5000;
     private const long LocalWelcomeTimeoutMilliseconds = 30000;
     private const long LocalConnectedTimeoutMilliseconds = 30000;
+    private const long SnapshotResyncRetryMilliseconds = 500;
     private const int MaxTrackedInputRoundTrips = 512;
     private const int MaxTrackedPingRoundTrips = 32;
     private const int MaxPendingLastToDieCommands = 128;
@@ -98,6 +99,8 @@ public sealed class NetworkGameClient : IDisposable
     private long _snapshotAckLastSentAtMilliseconds = -1;
     private ulong _snapshotAckLastSentFrame;
     private ulong _serverProvenSnapshotBaselineFrame;
+    private long _lastSnapshotResyncRequestAtMilliseconds = -1;
+    private bool _snapshotResyncRequestOutstanding;
     private int _serverTickRate = SimulationConfig.DefaultTicksPerSecond;
     private readonly Stopwatch _clock = Stopwatch.StartNew();
     private readonly Queue<PendingPacket> _pendingOutboundPackets = new();
@@ -1047,6 +1050,51 @@ public sealed class NetworkGameClient : IDisposable
         _snapshotAckLastSentAtMilliseconds = -1;
         _snapshotAckLastSentFrame = 0;
         _serverProvenSnapshotBaselineFrame = 0;
+        _lastSnapshotResyncRequestAtMilliseconds = -1;
+        _snapshotResyncRequestOutstanding = false;
+    }
+
+    /// <summary>
+    /// Requests a fresh full snapshot when a received delta references a baseline
+    /// this client can no longer resolve. Frame zero is reserved for this standalone
+    /// message; input-state snapshot ACKs remain nonzero-only.
+    /// </summary>
+    public void RequestSnapshotResync()
+    {
+        if (!IsConnected || IsAwaitingWelcome || IsReplayConnection || IsLegacyGg2Connection || Protocol64ModeEnabled)
+        {
+            return;
+        }
+
+        if (!_snapshotResyncRequestOutstanding)
+        {
+            _snapshotResyncRequestOutstanding = true;
+            _lastSnapshotResyncRequestAtMilliseconds = -1;
+        }
+
+        SendSnapshotResyncRequestIfDue(_clock.ElapsedMilliseconds);
+    }
+
+    private void FlushSnapshotResyncRequest()
+    {
+        if (!IsConnected || !_snapshotResyncRequestOutstanding)
+        {
+            return;
+        }
+
+        SendSnapshotResyncRequestIfDue(_clock.ElapsedMilliseconds);
+    }
+
+    private void SendSnapshotResyncRequestIfDue(long nowMilliseconds)
+    {
+        if (_lastSnapshotResyncRequestAtMilliseconds >= 0
+            && nowMilliseconds - _lastSnapshotResyncRequestAtMilliseconds < SnapshotResyncRetryMilliseconds)
+        {
+            return;
+        }
+
+        _lastSnapshotResyncRequestAtMilliseconds = nowMilliseconds;
+        Send(new SnapshotAckMessage(0));
     }
 
     // Advance the input send cadence and flush any input packets that were delayed
@@ -1087,6 +1135,7 @@ public sealed class NetworkGameClient : IDisposable
         FlushHandshakeState();
         FlushTransportState();
         FlushLastToDieCommands();
+        FlushSnapshotResyncRequest();
         FlushSnapshotAcknowledgementFallback();
         FlushPendingOutboundPackets();
         FlushPingState();
@@ -1919,6 +1968,7 @@ public sealed class NetworkGameClient : IDisposable
     private ulong? GetDueSnapshotAck(long nowMilliseconds)
     {
         if (Protocol64ModeEnabled
+            || _snapshotResyncRequestOutstanding
             || _pendingSnapshotAckFrame == 0
             || _pendingSnapshotAckFrame <= _serverProvenSnapshotBaselineFrame)
         {
@@ -1966,7 +2016,8 @@ public sealed class NetworkGameClient : IDisposable
 
     private ulong? GetDueSnapshotAckFallback(long nowMilliseconds)
     {
-        if (_pendingSnapshotAckFrame == 0
+        if (_snapshotResyncRequestOutstanding
+            || _pendingSnapshotAckFrame == 0
             || _pendingSnapshotAckFrame <= _serverProvenSnapshotBaselineFrame)
         {
             return null;
@@ -2005,6 +2056,8 @@ public sealed class NetworkGameClient : IDisposable
 
         if (snapshot.BaselineFrame == 0)
         {
+            _snapshotResyncRequestOutstanding = false;
+            _lastSnapshotResyncRequestAtMilliseconds = -1;
             return;
         }
 

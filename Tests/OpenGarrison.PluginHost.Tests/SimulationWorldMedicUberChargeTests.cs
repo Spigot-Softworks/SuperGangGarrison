@@ -1,26 +1,10 @@
 using OpenGarrison.Core;
-using System.Reflection;
 using Xunit;
 
 namespace OpenGarrison.PluginHost.Tests;
 
 public sealed class SimulationWorldMedicUberChargeTests
 {
-    private static readonly MethodInfo CombatTestSetLevelMethod = GetRequiredSimulationWorldMethod("CombatTestSetLevel");
-    private static readonly MethodInfo UpdateMedicHealingMethod = GetRequiredSimulationWorldMethod("UpdateMedicHealing");
-    private static readonly MethodInfo ApplyPlayerDamageMethod = GetRequiredSimulationWorldMethod(
-        "ApplyPlayerDamage",
-        typeof(PlayerEntity),
-        typeof(int),
-        typeof(PlayerEntity),
-        typeof(float),
-        typeof(DamageEventFlags),
-        typeof(bool),
-        typeof(bool),
-        typeof(float?),
-        typeof(float?),
-        typeof(int?),
-        typeof(bool));
 
     [Theory]
     [InlineData(false, 1.75f)]
@@ -134,54 +118,47 @@ public sealed class SimulationWorldMedicUberChargeTests
 
     private static void SetOpenCombatLevel(SimulationWorld world)
     {
-        CombatTestSetLevelMethod.Invoke(
-            world,
-            [
-                new SimpleLevel(
-                    name: "medigun_uber_charge_test",
-                    mode: GameModeKind.CaptureTheFlag,
-                    bounds: new WorldBounds(1024f, 768f),
-                    mapScale: 1f,
-                    backgroundAssetName: null,
-                    mapAreaIndex: 1,
-                    mapAreaCount: 1,
-                    localSpawn: new SpawnPoint(100f, 100f),
-                    redSpawns: [new SpawnPoint(100f, 100f)],
-                    blueSpawns: [new SpawnPoint(900f, 100f)],
-                    intelBases:
-                    [
-                        new IntelBaseMarker(PlayerTeam.Red, 100f, 100f),
-                        new IntelBaseMarker(PlayerTeam.Blue, 900f, 100f),
-                    ],
-                    roomObjects: [],
-                    floorY: 768f,
-                    solids: [],
-                    importedFromSource: false),
-            ]);
+        world.CombatTestSetLevel(
+            new SimpleLevel(
+                name: "medigun_uber_charge_test",
+                mode: GameModeKind.CaptureTheFlag,
+                bounds: new WorldBounds(1024f, 768f),
+                mapScale: 1f,
+                backgroundAssetName: null,
+                mapAreaIndex: 1,
+                mapAreaCount: 1,
+                localSpawn: new SpawnPoint(100f, 100f),
+                redSpawns: [new SpawnPoint(100f, 100f)],
+                blueSpawns: [new SpawnPoint(900f, 100f)],
+                intelBases:
+                [
+                    new IntelBaseMarker(PlayerTeam.Red, 100f, 100f),
+                    new IntelBaseMarker(PlayerTeam.Blue, 900f, 100f),
+                ],
+                roomObjects: [],
+                floorY: 768f,
+                solids: [],
+                importedFromSource: false));
     }
 
     private static void InvokeUpdateMedicHealing(SimulationWorld world, PlayerEntity medic, PlayerEntity target)
     {
-        UpdateMedicHealingMethod.Invoke(world, [medic, target.X, target.Y]);
+        world.SupportRules.UpdateMedicHealing(medic, target.X, target.Y);
     }
 
     private static bool InvokeApplyPlayerDamage(SimulationWorld world, PlayerEntity target, int damage, PlayerEntity attacker)
     {
-        return (bool)ApplyPlayerDamageMethod.Invoke(
-            world,
-            [target, damage, attacker, PlayerEntity.SpyDamageRevealAlpha, DamageEventFlags.None, true, true, null, null, null, false])!;
-    }
-
-    private static MethodInfo GetRequiredSimulationWorldMethod(string name, params Type[] parameterTypes)
-    {
-        var method = parameterTypes.Length == 0
-            ? typeof(SimulationWorld).GetMethod(name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
-            : typeof(SimulationWorld).GetMethod(
-                name,
-                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
-                binder: null,
-                parameterTypes,
-                modifiers: null);
-        return method ?? throw new InvalidOperationException($"Could not find SimulationWorld.{name}.");
+        return world.Combat.ApplyPlayerDamage(
+            target,
+            damage,
+            attacker,
+            PlayerEntity.SpyDamageRevealAlpha,
+            DamageEventFlags.None,
+            true,
+            true,
+            null,
+            null,
+            null,
+            false);
     }
 }

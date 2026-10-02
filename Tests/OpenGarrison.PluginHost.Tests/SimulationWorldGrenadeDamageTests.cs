@@ -1,6 +1,5 @@
 using OpenGarrison.Core;
 using System.Collections;
-using System.Reflection;
 using Xunit;
 
 namespace OpenGarrison.PluginHost.Tests;
@@ -156,9 +155,7 @@ public sealed class SimulationWorldGrenadeDamageTests
 
     private static void SetCombatLevel(SimulationWorld world, SimpleLevel level)
     {
-        var method = typeof(SimulationWorld).GetMethod("CombatTestSetLevel", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        _ = method!.Invoke(world, [level]);
+        world.CombatTestSetLevel(level);
     }
 
     private static GrenadeProjectileEntity SpawnGrenade(
@@ -169,18 +166,12 @@ public sealed class SimulationWorldGrenadeDamageTests
         float velocityX = 0f,
         float velocityY = 0f)
     {
-        var method = typeof(SimulationWorld).GetMethod("CombatTestSpawnGrenade", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        var result = method!.Invoke(world, [owner, x, y, velocityX, velocityY]);
-        Assert.IsType<GrenadeProjectileEntity>(result);
-        return (GrenadeProjectileEntity)result!;
+        return world.CombatTestSpawnGrenade(owner, x, y, velocityX, velocityY);
     }
 
     private static void ExplodeGrenade(SimulationWorld world, GrenadeProjectileEntity grenade)
     {
-        var method = typeof(SimulationWorld).GetMethod("CombatTestExplodeGrenade", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        _ = method!.Invoke(world, [grenade]);
+        world.CombatTestExplodeGrenade(grenade);
     }
 
     private static void AdvanceGrenades(SimulationWorld world)

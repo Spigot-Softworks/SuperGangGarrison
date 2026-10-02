@@ -1,5 +1,4 @@
 using System.Collections;
-using System.Reflection;
 using OpenGarrison.Core;
 using Xunit;
 
@@ -199,9 +198,7 @@ public sealed class SimulationWorldCombatBlockingTests
 
     private static void SetCombatLevel(SimulationWorld world, SimpleLevel level)
     {
-        var method = typeof(SimulationWorld).GetMethod("CombatTestSetLevel", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        _ = method!.Invoke(world, [level]);
+        world.CombatTestSetLevel(level);
     }
 
     private static (float Distance, PlayerEntity? HitPlayer) ResolveRifleHit(
@@ -211,13 +208,8 @@ public sealed class SimulationWorldCombatBlockingTests
         float directionY,
         float maxDistance)
     {
-        var method = typeof(SimulationWorld).GetMethod("CombatTestResolveRifleHit", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        var result = method!.Invoke(world, [attacker, directionX, directionY, maxDistance]);
-        Assert.NotNull(result);
-        var distance = (float)result!.GetType().GetField("Item1")!.GetValue(result)!;
-        var hitPlayer = (PlayerEntity?)result.GetType().GetField("Item2")!.GetValue(result);
-        return (distance, hitPlayer);
+        var result = world.CombatTestResolveRifleHit(attacker, directionX, directionY, maxDistance);
+        return (result.Distance, result.HitPlayer);
     }
 
     private static (float Distance, PlayerEntity? HitPlayer)? GetNearestShotHit(
@@ -227,32 +219,18 @@ public sealed class SimulationWorldCombatBlockingTests
         float directionY,
         float maxDistance)
     {
-        var method = typeof(SimulationWorld).GetMethod("CombatTestGetNearestShotHit", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        var result = method!.Invoke(world, [shot, directionX, directionY, maxDistance]);
-        if (result is null)
-        {
-            return null;
-        }
-
-        var distance = (float)result.GetType().GetField("Item1")!.GetValue(result)!;
-        var hitPlayer = (PlayerEntity?)result.GetType().GetField("Item4")!.GetValue(result);
-        return (distance, hitPlayer);
+        var result = world.CombatTestGetNearestShotHit(shot, directionX, directionY, maxDistance);
+        return result is { } hit ? (hit.Distance, hit.HitPlayer) : null;
     }
 
     private static MineProjectileEntity SpawnMine(SimulationWorld world, PlayerEntity owner, float x, float y, bool stickied)
     {
-        var method = typeof(SimulationWorld).GetMethod("CombatTestSpawnMine", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        var result = method!.Invoke(world, [owner, x, y, 0f, 0f, stickied]);
-        return Assert.IsType<MineProjectileEntity>(result);
+        return world.CombatTestSpawnMine(owner, x, y, 0f, 0f, stickied);
     }
 
     private static void ExplodeOldestMine(SimulationWorld world, int ownerId, bool triggerNearbyMines)
     {
-        var method = typeof(SimulationWorld).GetMethod("ExplodeOldestMine", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        _ = method!.Invoke(world, [ownerId, triggerNearbyMines]);
+        world.ExplosionRules.ExplodeOldestMine(ownerId, triggerNearbyMines);
     }
 
     private static void InvokeTryHandleNetworkPrimaryFire(
@@ -262,16 +240,12 @@ public sealed class SimulationWorldCombatBlockingTests
         bool primaryPressed,
         bool suppressPyroPrimaryThisTick)
     {
-        var method = typeof(SimulationWorld).GetMethod("TryHandleNetworkPrimaryFire", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        _ = method!.Invoke(world, [player, input, default(PlayerInputSnapshot), primaryPressed, suppressPyroPrimaryThisTick]);
+        world.PlayerInput.TryHandleNetworkPrimaryFire(player, input, default(PlayerInputSnapshot), primaryPressed, suppressPyroPrimaryThisTick);
     }
 
     private static void InvokeFirePrimaryWeapon(SimulationWorld world, PlayerEntity player, float aimWorldX, float aimWorldY)
     {
-        var method = typeof(SimulationWorld).GetMethod("FirePrimaryWeapon", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        _ = method!.Invoke(world, [player, aimWorldX, aimWorldY]);
+        world.WeaponHandler.FirePrimaryWeapon(player, aimWorldX, aimWorldY);
     }
 
     private static int GetMineCount(SimulationWorld world)

@@ -39,9 +39,6 @@ public partial class Game1
         Rectangle FriendlyBotsLeftBounds,
         Rectangle FriendlyBotsValueBounds,
         Rectangle FriendlyBotsRightBounds,
-        Rectangle SpecialAbilitiesLeftBounds,
-        Rectangle SpecialAbilitiesValueBounds,
-        Rectangle SpecialAbilitiesRightBounds,
         Rectangle StartBounds,
         Rectangle ClientPowersBounds,
         Rectangle JoinCoOpBounds,
@@ -206,34 +203,24 @@ public partial class Game1
             _practiceSetupControllerIndex = 6;
             CyclePracticeFriendlyBots(1);
         }
-        else if (layout.SpecialAbilitiesLeftBounds.Contains(point))
-        {
-            _practiceSetupControllerIndex = 7;
-            CyclePracticeSpecialAbilities(-1);
-        }
-        else if (layout.SpecialAbilitiesRightBounds.Contains(point))
-        {
-            _practiceSetupControllerIndex = 7;
-            CyclePracticeSpecialAbilities(1);
-        }
         else if (layout.StartBounds.Contains(point))
         {
-            _practiceSetupControllerIndex = 8;
+            _practiceSetupControllerIndex = 7;
             ApplyPeerPracticeSettings();
         }
         else if (layout.ClientPowersBounds.Contains(point))
         {
-            _practiceSetupControllerIndex = 9;
+            _practiceSetupControllerIndex = 8;
             if (_editingPeerPractice) ShowPeerLobby(); else OpenPracticeCoOpMenu();
         }
         else if (layout.BackBounds.Contains(point))
         {
-            _practiceSetupControllerIndex = 11;
+            _practiceSetupControllerIndex = 10;
             BackFromPracticeSetup();
         }
         else if (layout.JoinCoOpBounds.Contains(point) && !_editingPeerPractice)
         {
-            _practiceSetupControllerIndex = 10;
+            _practiceSetupControllerIndex = 9;
             OpenPracticeCoOpJoin();
         }
     }
@@ -249,7 +236,7 @@ public partial class Game1
         {
             if (verticalStep != 0)
             {
-                _practiceSetupControllerIndex = MoveControllerMenuSelectionClamped(_practiceSetupControllerIndex, 12, verticalStep);
+                _practiceSetupControllerIndex = MoveControllerMenuSelectionClamped(_practiceSetupControllerIndex, 11, verticalStep);
                 return true;
             }
 
@@ -294,9 +281,6 @@ public partial class Game1
             case 6:
                 CyclePracticeFriendlyBots(direction);
                 break;
-            case 7:
-                CyclePracticeSpecialAbilities(direction);
-                break;
         }
     }
 
@@ -315,18 +299,15 @@ public partial class Game1
                 }
                 break;
             case 7:
-                CyclePracticeSpecialAbilities(1);
-                break;
-            case 8:
                 ApplyPeerPracticeSettings();
                 break;
-            case 9:
+            case 8:
                 if (_editingPeerPractice) ShowPeerLobby(); else OpenPracticeCoOpMenu();
                 break;
-            case 10:
+            case 9:
                 if (!_editingPeerPractice) OpenPracticeCoOpJoin();
                 break;
-            case 11:
+            case 10:
                 BackFromPracticeSetup();
                 break;
         }
@@ -480,23 +461,10 @@ public partial class Game1
             friendlyBotHighlights.Value,
             friendlyBotHighlights.Right);
 
-        DrawBitmapFontText("Special Abilities", new Vector2(rowLabelX, layout.SpecialAbilitiesValueBounds.Y + rowTextOffset), Color.White, labelScale);
-        var specialAbilitiesHighlights = GetPracticeSelectorHighlights(7, layout.SpecialAbilitiesLeftBounds, layout.SpecialAbilitiesValueBounds, layout.SpecialAbilitiesRightBounds);
-        DrawPracticeSelectorRow(
-            layout.SpecialAbilitiesLeftBounds,
-            layout.SpecialAbilitiesValueBounds,
-            layout.SpecialAbilitiesRightBounds,
-            _practiceSpecialAbilitiesEnabled ? "On" : "Off",
-            buttonScale,
-            valueScale,
-            specialAbilitiesHighlights.Left,
-            specialAbilitiesHighlights.Value,
-            specialAbilitiesHighlights.Right);
-
-        DrawMenuButtonScaled(layout.StartBounds, _editingPeerPractice ? "Apply" : "Start Singleplayer", IsPracticeControlHighlighted(8, layout.StartBounds), Math.Min(buttonScale, layout.StartBounds.Width / 170f));
-        DrawMenuButtonScaled(layout.ClientPowersBounds, _editingPeerPractice ? "Cancel" : "Co-Op Lobby", IsPracticeControlHighlighted(9, layout.ClientPowersBounds), buttonScale);
-        DrawMenuButtonScaled(layout.JoinCoOpBounds, "Join Co-Op", IsPracticeControlHighlighted(10, layout.JoinCoOpBounds), buttonScale, !_editingPeerPractice);
-        DrawMenuButtonScaled(layout.BackBounds, "Back", IsPracticeControlHighlighted(11, layout.BackBounds), buttonScale);
+        DrawMenuButtonScaled(layout.StartBounds, _editingPeerPractice ? "Apply" : "Start Singleplayer", IsPracticeControlHighlighted(7, layout.StartBounds), Math.Min(buttonScale, layout.StartBounds.Width / 170f));
+        DrawMenuButtonScaled(layout.ClientPowersBounds, _editingPeerPractice ? "Cancel" : "Co-Op Lobby", IsPracticeControlHighlighted(8, layout.ClientPowersBounds), buttonScale);
+        DrawMenuButtonScaled(layout.JoinCoOpBounds, "Join Co-Op", IsPracticeControlHighlighted(9, layout.JoinCoOpBounds), buttonScale, !_editingPeerPractice);
+        DrawMenuButtonScaled(layout.BackBounds, "Back", IsPracticeControlHighlighted(10, layout.BackBounds), buttonScale);
 
         if (!string.IsNullOrWhiteSpace(_menuStatusMessage))
         {
@@ -666,10 +634,6 @@ public partial class Game1
         var friendlyBotsValueBounds = OffsetPracticeRow(enemyBotsValueBounds, rowHeight + rowGap);
         var friendlyBotsRightBounds = OffsetPracticeRow(enemyBotsRightBounds, rowHeight + rowGap);
 
-        var specialAbilitiesLeftBounds = OffsetPracticeRow(friendlyBotsLeftBounds, rowHeight + rowGap);
-        var specialAbilitiesValueBounds = OffsetPracticeRow(friendlyBotsValueBounds, rowHeight + rowGap);
-        var specialAbilitiesRightBounds = OffsetPracticeRow(friendlyBotsRightBounds, rowHeight + rowGap);
-
         var startBounds = new Rectangle(panel.X + padding, actionsY, actionWidth, buttonHeight);
         var clientPowersBounds = new Rectangle(startBounds.Right + actionGap, actionsY, actionWidth, buttonHeight);
         var joinCoOpBounds = new Rectangle(clientPowersBounds.Right + actionGap, actionsY, actionWidth, buttonHeight);
@@ -698,9 +662,6 @@ public partial class Game1
             friendlyBotsLeftBounds,
             friendlyBotsValueBounds,
             friendlyBotsRightBounds,
-            specialAbilitiesLeftBounds,
-            specialAbilitiesValueBounds,
-            specialAbilitiesRightBounds,
             startBounds,
             clientPowersBounds,
             joinCoOpBounds,

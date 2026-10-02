@@ -7,8 +7,6 @@ namespace OpenGarrison.Core;
 // Thin forwarders so remaining world code keeps its call shape; callers should migrate to the system directly over time.
 public sealed partial class SimulationWorld
 {
-    private void ApplyNetworkSpecialAbilitiesSetting(bool enabled) => Abilities.ApplyNetworkSpecialAbilitiesSetting(enabled);
-    private void DispatchPassiveGameplayAbilities(PlayerEntity player, PlayerInputSnapshot input, PlayerInputSnapshot previousInput, float sourceX, float sourceY) => Abilities.DispatchPassiveGameplayAbilities(player, input, previousInput, sourceX, sourceY);
     public IReadOnlyList<WorldGameplayAbilityEvent> DrainPendingGameplayAbilityEvents() => Abilities.DrainPendingGameplayAbilityEvents();
     internal GameplayPrimaryWeaponResult ExecuteBoomstickPrimaryWeapon(GameplayPrimaryWeaponContext context) => Abilities.ExecuteBoomstickPrimaryWeapon(context);
     internal static GameplayAbilityResult ExecuteCivviePogoAbility(GameplayAbilityContext context) => GameplayAbilitySystem.ExecuteCivviePogoAbility(context);
@@ -46,16 +44,11 @@ public sealed partial class SimulationWorld
     public Func<WorldGameplayAbilityEvent, bool>? GameplayAbilityInputInterceptor { get => Abilities.GameplayAbilityInputInterceptor; set => Abilities.GameplayAbilityInputInterceptor = value; }
     internal bool IsGameplayAbilityBlockedBySpecialAbilitiesSetting(GameplayAbilityDefinition ability) => Abilities.IsGameplayAbilityBlockedBySpecialAbilitiesSetting(ability);
     public IReadOnlyList<WorldGameplayAbilityEvent> PendingGameplayAbilityEvents => Abilities.PendingGameplayAbilityEvents;
-    private static IReadOnlyList<GameplayItemDefinition> ResolveAllPlayerGameplayAbilityItems(PlayerEntity player) => GameplayAbilitySystem.ResolveAllPlayerGameplayAbilityItems(player);
     private static IEnumerable<GameplayItemDefinition> ResolveGameplayAbilityItems(PlayerEntity player, string channel) => GameplayAbilitySystem.ResolveGameplayAbilityItems(player, channel);
     public bool TryApplyGameplayDamage(int targetPlayerId, float amount, int? attackerPlayerId, string? weaponSpriteName) => Abilities.TryApplyGameplayDamage(targetPlayerId, amount, attackerPlayerId, weaponSpriteName);
     public bool TryApplyGameplayHealing(int playerId, float amount) => Abilities.TryApplyGameplayHealing(playerId, amount);
     public bool TryApplyGameplayImpulse(int playerId, float velocityX, float velocityY) => Abilities.TryApplyGameplayImpulse(playerId, velocityX, velocityY);
     public bool TryApplyGameplayStatusEffect(int playerId, string statusEffectId, int ticks, float value = 0f) => Abilities.TryApplyGameplayStatusEffect(playerId, statusEffectId, ticks, value);
-    private void TryApplyPendingCivvieTauntHeal(PlayerEntity player) => Abilities.TryApplyPendingCivvieTauntHeal(player);
-    private GameplayAbilityResult TryDispatchGameplayAbility(PlayerEntity player, PlayerInputSnapshot input, PlayerInputSnapshot previousInput, GameplayAbilityInputPhase phase, string category, float sourceX, float sourceY) => Abilities.TryDispatchGameplayAbility(player, input, previousInput, phase, category, sourceX, sourceY);
-    private static bool TryResolveSecondaryGameplayAbilityItem(PlayerEntity player, out GameplayItemDefinition item) => GameplayAbilitySystem.TryResolveSecondaryGameplayAbilityItem(player, out item);
     public bool TrySetGameplayAbilityCooldown(int playerId, string ownerId, string cooldownKey, int ticks) => Abilities.TrySetGameplayAbilityCooldown(playerId, ownerId, cooldownKey, ticks);
     public bool TrySpawnGameplayProjectile(GameplayProjectileSpawnRequest request, out int projectileId) => Abilities.TrySpawnGameplayProjectile(request, out projectileId);
-    private static bool TryStartTauntWithCivvieHeal(PlayerEntity player) => GameplayAbilitySystem.TryStartTauntWithCivvieHeal(player);
 }

@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using OpenGarrison.Core;
 using Xunit;
 
@@ -138,24 +137,12 @@ public sealed class SimulationWorldRocketExplosionRegressionTests
         float speed = 0f,
         float directionRadians = 0f)
     {
-        var method = typeof(SimulationWorld).GetMethod(
-            "CombatTestSpawnRocket",
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        var result = method!.Invoke(world, [owner, x, y, speed, directionRadians]);
-        return Assert.IsType<RocketProjectileEntity>(result);
+        return world.CombatTestSpawnRocket(owner, x, y, speed, directionRadians);
     }
 
     private static void InvokeCombatTestExplodeRocket(SimulationWorld world, RocketProjectileEntity rocket)
     {
-        var method = typeof(SimulationWorld).GetMethod(
-            "CombatTestExplodeRocket",
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
-            binder: null,
-            types: [typeof(RocketProjectileEntity)],
-            modifiers: null);
-        Assert.NotNull(method);
-        _ = method!.Invoke(world, [rocket]);
+        world.CombatTestExplodeRocket(rocket);
     }
 
     private static void InvokeAdvanceRockets(SimulationWorld world)

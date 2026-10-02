@@ -1,4 +1,3 @@
-using System.Reflection;
 using OpenGarrison.Core;
 using Xunit;
 
@@ -66,10 +65,6 @@ public sealed class FireZoneTests
 
     private static void InvokeRoomHazards(SimulationWorld world, PlayerEntity player)
     {
-        var method = typeof(SimulationWorld).GetMethod(
-            "ApplyRoomHazards",
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        method.Invoke(world, [player]);
+        world.RoomEffects.ApplyRoomHazards(player);
     }
 }

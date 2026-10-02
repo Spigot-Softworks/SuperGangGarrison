@@ -1455,8 +1455,6 @@ public sealed class CustomMapPngExporterTests
 
     private static void SetWorldLevel(SimulationWorld world, SimpleLevel level)
     {
-        var method = typeof(SimulationWorld).GetMethod("CombatTestSetLevel", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        method.Invoke(world, [level]);
+        world.CombatTestSetLevel(level);
     }
 }

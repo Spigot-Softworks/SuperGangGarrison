@@ -321,6 +321,19 @@ public partial class Game1
             : GraphicsDevice.Viewport;
     }
 
+    /// <summary>
+    /// Camera fraction the active world pass shifts everything by. Draw code
+    /// whose screen position is not a whole-pixel offset of the camera
+    /// (parallax layers) computes against the exact camera and adds this back,
+    /// so the pass transform cancels it instead of applying it twice.
+    /// </summary>
+    private Vector2 GetWorldPassCameraResidual()
+    {
+        return _gameplayWorldSpriteBatchActive && SubpixelWorld.IsSubpixelPassActive
+            ? SubpixelWorld.CameraResidual
+            : Vector2.Zero;
+    }
+
     /// <summary>Maps a world-pass scissor rectangle into pixels of the bound render target.</summary>
     private Rectangle GetGameplayWorldScissorRectangle(Rectangle worldPassRectangle)
     {

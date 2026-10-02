@@ -83,6 +83,11 @@ public partial class Game1
             return;
         }
 
+        // Parallax moves by a fraction of the camera, so it must be computed
+        // from the exact camera. The world pass shifts by the camera residual,
+        // which is added back to the draw position to cancel that shift.
+        var residual = GetWorldPassCameraResidual();
+        cameraPosition += residual;
         var xOrigin = cameraPosition.X + (viewportWidth / 2f) - (scaledWidth / 2f);
         var yOrigin = cameraPosition.Y + (viewportHeight / 2f) - (scaledHeight / 2f);
         var xParallax = MathF.Abs(layer.XFactor) > 0.0001f
@@ -104,7 +109,7 @@ public partial class Game1
         {
             _spriteBatch.Draw(
                 texture,
-                new Vector2(screenX, screenY),
+                new Vector2(screenX + residual.X, screenY + residual.Y),
                 null,
                 Color.White,
                 0f,

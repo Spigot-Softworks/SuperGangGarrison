@@ -2,7 +2,6 @@ using OpenGarrison.Core;
 using OpenGarrison.GameplayModding;
 using OpenGarrison.Protocol;
 using OpenGarrison.Server;
-using System.Reflection;
 using Xunit;
 
 namespace OpenGarrison.PluginHost.Tests;
@@ -107,11 +106,7 @@ public sealed class AlternatePrimaryWeaponBalanceTests
             damagePerHit: 5f,
             isBoomstickPellet: true);
 
-        var explode = typeof(SimulationWorld).GetMethod(
-            "ExplodeBoomstickPellet",
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(explode);
-        _ = explode!.Invoke(world, [pellet]);
+        world.ExplodeBoomstickPellet(pellet);
 
         Assert.Equal(nearbyHealth - 25, nearby.Health);
         Assert.Equal(outsideHealth, outside.Health);
@@ -498,20 +493,6 @@ public sealed class AlternatePrimaryWeaponBalanceTests
         RocketProjectileEntity rocket,
         PlayerEntity directHitPlayer)
     {
-        var method = typeof(SimulationWorld).GetMethod(
-            "ExplodeRocket",
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
-            binder: null,
-            types:
-            [
-                typeof(RocketProjectileEntity),
-                typeof(PlayerEntity),
-                typeof(SentryEntity),
-                typeof(GeneratorState),
-                typeof(int),
-            ],
-            modifiers: null);
-        Assert.NotNull(method);
-        _ = method!.Invoke(world, [rocket, directHitPlayer, null, null, -1]);
+        world.ExplosionRules.ExplodeRocket(rocket, directHitPlayer, null, null, -1);
     }
 }

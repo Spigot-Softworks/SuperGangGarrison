@@ -47,7 +47,7 @@ internal sealed partial class ObjectiveRulesSystem
         }
 
         var previousSetupTicksRemaining = _host.Objectives.ControlPoints.SetupTicksRemaining;
-        _host.InitializeControlPointsForLevel(evaluateLogicGraph: false);
+        InitializeControlPointsForLevel(evaluateLogicGraph: false);
         if (_host.Objectives.ControlPoints.Points.Count == 0)
         {
             return;
@@ -64,7 +64,7 @@ internal sealed partial class ObjectiveRulesSystem
             _host.Objectives.ControlPoints.SetupTicksRemaining = snapshot.ControlPointSetupTicksRemaining;
         }
 
-        _host.UpdateControlPointSetupGates();
+        UpdateControlPointSetupGates();
 
         for (var index = 0; index < snapshot.ControlPoints.Count; index += 1)
         {
@@ -84,8 +84,8 @@ internal sealed partial class ObjectiveRulesSystem
             target.HasHealingAura = pointState.HasHealingAura;
         }
 
-        var enteredSetupPhase = _host.ControlPointSetupDurationTicks > 0
-            && _host.Objectives.ControlPoints.SetupTicksRemaining >= _host.ControlPointSetupDurationTicks
+        var enteredSetupPhase = ControlPointSetupDurationTicks > 0
+            && _host.Objectives.ControlPoints.SetupTicksRemaining >= ControlPointSetupDurationTicks
             && previousSetupTicksRemaining < _host.Objectives.ControlPoints.SetupTicksRemaining;
         _host.SyncMapLogicRuntimeFromAuthoritativeControlPoints(enteredSetupPhase);
     }

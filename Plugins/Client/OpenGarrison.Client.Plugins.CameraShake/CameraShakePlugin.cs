@@ -12,6 +12,9 @@ public sealed class CameraShakePlugin :
 {
     private const float ShakeDecayPerReferenceFrame = 0.8f;
     private const float ReferenceFramesPerSecond = 30f;
+    // GG2 picked a new shake offset once per 30 Hz game frame. Picking one
+    // every rendered frame turns the shake into high-frequency jitter at 60+ fps.
+    private const float OffsetRefreshSeconds = 1f / ReferenceFramesPerSecond;
     private const float IntensityEpsilon = 0.0005f;
     private const float SourceClassDetectionDistanceSquared = 32f * 32f;
     private const float LocalSourceDistanceSquared = 20f * 20f;
@@ -21,6 +24,7 @@ public sealed class CameraShakePlugin :
     private string _configPath = string.Empty;
     private float _currentShakeIntensity;
     private Vector2 _currentCameraOffset;
+    private float _secondsSinceOffsetRefresh;
 
     public string Id => "camerashake";
 
@@ -56,7 +60,15 @@ public sealed class CameraShakePlugin :
             return;
         }
 
-        _currentCameraOffset = CreateRandomOffset(_currentShakeIntensity);
+        _secondsSinceOffsetRefresh += MathF.Max(0f, e.DeltaSeconds);
+        if (_secondsSinceOffsetRefresh >= OffsetRefreshSeconds)
+        {
+            _secondsSinceOffsetRefresh = MathF.Min(
+                _secondsSinceOffsetRefresh - OffsetRefreshSeconds,
+                OffsetRefreshSeconds);
+            _currentCameraOffset = CreateRandomOffset(_currentShakeIntensity);
+        }
+
         var referenceFrames = MathF.Max(0f, e.DeltaSeconds * ReferenceFramesPerSecond);
         _currentShakeIntensity *= MathF.Pow(ShakeDecayPerReferenceFrame, referenceFrames);
         if (_currentShakeIntensity <= IntensityEpsilon)
@@ -80,6 +92,7 @@ public sealed class CameraShakePlugin :
 
         _currentShakeIntensity += contribution;
         _currentCameraOffset = CreateRandomOffset(_currentShakeIntensity);
+        _secondsSinceOffsetRefresh = 0f;
     }
 
     public Vector2 GetCameraOffset()
@@ -248,5 +261,6 @@ public sealed class CameraShakePlugin :
     {
         _currentShakeIntensity = 0f;
         _currentCameraOffset = Vector2.Zero;
+        _secondsSinceOffsetRefresh = 0f;
     }
 }

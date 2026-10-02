@@ -229,7 +229,7 @@ public sealed class SnapshotDeltaBudgeterTests
     }
 
     [Fact]
-    public void ScoreboardDeltaKeepsTwentyFourPlayerMovementAndLateStatusChangesCompact()
+    public void ScoreboardDeltaKeepsTwentyFourPlayersLosslessAndWithinUdpPayloadBudget()
     {
         var baselinePlayers = Enumerable.Range(1, 24)
             .Select(slot => CreatePlayerState((byte)slot, 800 + slot, $"Player {slot:00}"))
@@ -247,6 +247,7 @@ public sealed class SnapshotDeltaBudgeterTests
         var current = CreateSnapshot(51) with { ScoreboardPlayers = currentPlayers };
         var built = SnapshotDeltaBudgeter.BuildUntrimmedSnapshot(
             current, baseline, Array.Empty<SnapshotDeltaBudgeter.Contribution>());
+        Assert.True(built.Message.HasScoreboardDelta);
         var movement = currentPlayers.Select(player => new SnapshotPlayerMovementState(
             player.Slot, player.X, player.Y, player.HorizontalSpeed, player.VerticalSpeed,
             player.IsGrounded, player.RemainingAirJumps, player.FacingDirectionX,
@@ -261,6 +262,7 @@ public sealed class SnapshotDeltaBudgeterTests
             PlayerStatusStates = lateStatus,
         };
         var compactBytes = ProtocolCodec.Serialize(compactDelta, ProtocolCompressionSettings.Default);
+        var compactUncompressedBytes = ProtocolCodec.Serialize(compactDelta, ProtocolCompressionSettings.Disabled);
         var decoded = Assert.IsType<SnapshotMessage>(Decode(compactBytes));
         var merged = SnapshotDelta.ToFullSnapshot(decoded, baseline);
         Assert.Equal(SerializeScoreboardOnly(RoundTripSnapshot(current).ScoreboardPlayers),
@@ -277,11 +279,18 @@ public sealed class SnapshotDeltaBudgeterTests
             PlayerMovementStates = movement,
             PlayerStatusStates = lateStatus,
         };
-        var fullRosterBytes = ProtocolCodec.Serialize(fullRosterWithMovement, ProtocolCompressionSettings.Default).Length;
-        _output.WriteLine("Scoreboard LZ4 sample (24 players; movement plus eight late status changes): compact={0} bytes, full roster={1} bytes",
-            compactBytes.Length, fullRosterBytes);
-        Assert.True(compactBytes.Length < fullRosterBytes,
-            $"Expected compact 24-player roster ({compactBytes.Length} bytes) below full roster ({fullRosterBytes} bytes).");
+        var fullRosterBytes = ProtocolCodec.Serialize(fullRosterWithMovement, ProtocolCompressionSettings.Default);
+        var fullRosterUncompressedBytes = ProtocolCodec.Serialize(fullRosterWithMovement, ProtocolCompressionSettings.Disabled);
+        _output.WriteLine(
+            "Scoreboard representations (24 players; movement plus eight late status changes): delta raw={0} bytes, delta wire={1} bytes, full raw={2} bytes, full wire={3} bytes",
+            compactUncompressedBytes.Length,
+            compactBytes.Length,
+            fullRosterUncompressedBytes.Length,
+            fullRosterBytes.Length);
+        Assert.True(compactUncompressedBytes.Length < fullRosterUncompressedBytes.Length,
+            $"Expected raw scoreboard delta ({compactUncompressedBytes.Length} bytes) below full roster ({fullRosterUncompressedBytes.Length} bytes).");
+        Assert.True(compactBytes.Length <= SnapshotDeltaBudgeter.TargetSnapshotPayloadBytes,
+            $"Expected scoreboard delta wire payload ({compactBytes.Length} bytes) within UDP target ({SnapshotDeltaBudgeter.TargetSnapshotPayloadBytes} bytes).");
     }
 
     private static IProtocolMessage? Decode(byte[] payload)

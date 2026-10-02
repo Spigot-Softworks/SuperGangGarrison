@@ -33,6 +33,8 @@ public sealed class PlayerGibEntity : SimulationEntity
         FrameIndex = frameIndex;
         X = x;
         Y = y;
+        PreviousX = x;
+        PreviousY = y;
         VelocityX = velocityX;
         VelocityY = velocityY;
         RotationSpeedDegrees = rotationSpeedDegrees;
@@ -58,6 +60,13 @@ public sealed class PlayerGibEntity : SimulationEntity
     public float VelocityY { get; private set; }
 
     public float RotationDegrees { get; private set; }
+
+    /// <summary>Position and rotation at the start of the latest tick, for render interpolation.</summary>
+    public float PreviousX { get; private set; }
+
+    public float PreviousY { get; private set; }
+
+    public float PreviousRotationDegrees { get; private set; }
 
     public float RotationSpeedDegrees { get; private set; }
 
@@ -91,6 +100,9 @@ public sealed class PlayerGibEntity : SimulationEntity
         bool preservePosition = false,
         bool topDown = false)
     {
+        PreviousX = X;
+        PreviousY = Y;
+        PreviousRotationDegrees = RotationDegrees;
         if (TicksRemaining > 0)
         {
             TicksRemaining -= 1;
@@ -220,10 +232,11 @@ public sealed class PlayerGibEntity : SimulationEntity
         var right = X + (BoundingSize / 2f);
         var top = Y - (BoundingSize / 2f);
         var bottom = Y + (BoundingSize / 2f);
-        var playerLeft = player.X - (player.Width / 2f);
-        var playerRight = player.X + (player.Width / 2f);
-        var playerTop = player.Y - (player.Height / 2f);
-        var playerBottom = player.Y + (player.Height / 2f);
+        // The player's origin is not the centre of its collision box (the box
+        // reaches about 24 px below the origin but only ~10 px above it). A box
+        // centred on the origin stopped ~7 px above the feet, so gibs lying on
+        // the floor could never be touched.
+        player.GetCollisionBounds(out var playerLeft, out var playerTop, out var playerRight, out var playerBottom);
         return left < playerRight
             && right > playerLeft
             && top < playerBottom
@@ -241,9 +254,12 @@ public sealed class PlayerGibEntity : SimulationEntity
     {
         X = x;
         Y = y;
+        PreviousX = x;
+        PreviousY = y;
         VelocityX = velocityX;
         VelocityY = velocityY;
         RotationDegrees = rotationDegrees;
+        PreviousRotationDegrees = rotationDegrees;
         RotationSpeedDegrees = rotationSpeedDegrees;
         TicksRemaining = ticksRemaining;
     }

@@ -13,6 +13,21 @@ internal static class SimulationMath
         return degrees * (MathF.PI / 180f);
     }
 
+    public static float NormalizeAngleDegrees(float degrees)
+    {
+        while (degrees < 0f)
+        {
+            degrees += 360f;
+        }
+
+        while (degrees >= 360f)
+        {
+            degrees -= 360f;
+        }
+
+        return degrees;
+    }
+
     public static float DistanceBetween(float x1, float y1, float x2, float y2)
     {
         var deltaX = x2 - x1;

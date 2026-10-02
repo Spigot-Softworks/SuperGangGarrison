@@ -121,7 +121,14 @@ internal sealed partial class CombatResolver
             var result = GetRayIntersectionWithNormalWithRectangle(grenade.PreviousX, grenade.PreviousY, directionX, directionY, solid.Left, solid.Top, solid.Right, solid.Bottom, maxDistance);
             if (result.HasValue && (!nearestHit.HasValue || result.Value.Distance < nearestHit.Value.Distance))
             {
-                nearestHit = new GrenadeEnvironmentHit(result.Value.Distance, grenade.PreviousX + directionX * result.Value.Distance, grenade.PreviousY + directionY * result.Value.Distance, result.Value.NormalX, result.Value.NormalY);
+                nearestHit = new GrenadeEnvironmentHit(
+                    result.Value.Distance,
+                    grenade.PreviousX + directionX * result.Value.Distance,
+                    grenade.PreviousY + directionY * result.Value.Distance,
+                    result.Value.NormalX,
+                    result.Value.NormalY,
+                    result.Value.StartsOverlapping,
+                    result.Value.OverlapDistance);
             }
         }
 
@@ -138,7 +145,14 @@ internal sealed partial class CombatResolver
             var result = GetRayIntersectionWithNormalWithRectangle(grenade.PreviousX, grenade.PreviousY, directionX, directionY, hitbox.Left, hitbox.Top, hitbox.Right, hitbox.Bottom, maxDistance);
             if (result.HasValue && (!nearestHit.HasValue || result.Value.Distance < nearestHit.Value.Distance))
             {
-                nearestHit = new GrenadeEnvironmentHit(result.Value.Distance, grenade.PreviousX + directionX * result.Value.Distance, grenade.PreviousY + directionY * result.Value.Distance, result.Value.NormalX, result.Value.NormalY);
+                nearestHit = new GrenadeEnvironmentHit(
+                    result.Value.Distance,
+                    grenade.PreviousX + directionX * result.Value.Distance,
+                    grenade.PreviousY + directionY * result.Value.Distance,
+                    result.Value.NormalX,
+                    result.Value.NormalY,
+                    result.Value.StartsOverlapping,
+                    result.Value.OverlapDistance);
             }
         }
 

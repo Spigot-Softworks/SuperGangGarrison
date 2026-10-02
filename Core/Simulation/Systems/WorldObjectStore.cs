@@ -41,7 +41,7 @@ internal sealed class WorldObjectStore
     {
         for (var index = 0; index < entities.Count; index += 1)
         {
-            _entities.Remove(entities[index].Id);
+            _entities.RemoveIfSame(entities[index]);
         }
 
         entities.Clear();

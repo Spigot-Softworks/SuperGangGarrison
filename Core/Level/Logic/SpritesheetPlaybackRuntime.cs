@@ -2,13 +2,13 @@ namespace OpenGarrison.Core;
 
 internal static class SpritesheetPlaybackRuntime
 {
-    public static void Reset(SimulationWorld world)
+    public static void Reset(SimpleLevel level)
     {
-        world.SpritesheetPlaybackState.ResetFromConfiguration(world.Level.SpritesheetPlaybackSet);
+        level.SpritesheetPlaybackState.ResetFromConfiguration(level.SpritesheetPlaybackSet);
     }
 
     public static void ApplyControlSignals(
-        SimulationWorld world,
+        SimpleLevel level,
         MapLogicGraph graph,
         SpritesheetPlaybackSet playbackSet,
         SpritesheetPlaybackRuntimeState runtimeState)
@@ -22,7 +22,7 @@ internal static class SpritesheetPlaybackRuntime
         for (var index = 0; index < playbackSet.Entries.Count; index += 1)
         {
             var entry = playbackSet.Entries[index];
-            if (entry.RoomObjectIndex < 0 || entry.RoomObjectIndex >= world.SpritesheetPlaybackState.IsPlaying.Length)
+            if (entry.RoomObjectIndex < 0 || entry.RoomObjectIndex >= level.SpritesheetPlaybackState.IsPlaying.Length)
             {
                 continue;
             }
@@ -31,27 +31,27 @@ internal static class SpritesheetPlaybackRuntime
                 && entry.StartInputNodeIndex >= 0
                 && runtimeState.RecordSignalTransition(index * 3, graph.GetOutput(entry.StartInputNodeIndex)))
             {
-                StartPlayback(world, entry);
+                StartPlayback(level, entry);
             }
 
             if (entry.StopInputNodeIndex >= 0
                 && runtimeState.RecordSignalTransition((index * 3) + 1, graph.GetOutput(entry.StopInputNodeIndex)))
             {
-                StopPlayback(world, entry.RoomObjectIndex);
+                StopPlayback(level, entry.RoomObjectIndex);
             }
 
             if (!entry.Configuration.Autoplay
                 && entry.NextFrameInputNodeIndex >= 0
                 && runtimeState.RecordSignalTransition((index * 3) + 2, graph.GetOutput(entry.NextFrameInputNodeIndex)))
             {
-                AdvanceManualFrame(world, entry);
+                AdvanceManualFrame(level, entry);
             }
         }
     }
 
-    public static void TickAutoplay(SimulationWorld world, float deltaSeconds)
+    public static void TickAutoplay(SimpleLevel level, float deltaSeconds)
     {
-        var playbackSet = world.Level.SpritesheetPlaybackSet;
+        var playbackSet = level.SpritesheetPlaybackSet;
         if (!playbackSet.HasEntries)
         {
             return;
@@ -62,24 +62,24 @@ internal static class SpritesheetPlaybackRuntime
             var entry = playbackSet.Entries[index];
             if (!entry.Configuration.Autoplay
                 || entry.RoomObjectIndex < 0
-                || entry.RoomObjectIndex >= world.SpritesheetPlaybackState.IsPlaying.Length)
+                || entry.RoomObjectIndex >= level.SpritesheetPlaybackState.IsPlaying.Length)
             {
                 continue;
             }
 
-            if (!world.SpritesheetPlaybackState.IsPlaying[entry.RoomObjectIndex]
-                || world.SpritesheetPlaybackState.Completed[entry.RoomObjectIndex])
+            if (!level.SpritesheetPlaybackState.IsPlaying[entry.RoomObjectIndex]
+                || level.SpritesheetPlaybackState.Completed[entry.RoomObjectIndex])
             {
                 continue;
             }
 
-            var state = world.SpritesheetPlaybackState;
+            var state = level.SpritesheetPlaybackState;
             var ticksPerSecond = Math.Max(1, entry.Configuration.Framerate);
             state.FrameAccumulator[entry.RoomObjectIndex] += deltaSeconds * ticksPerSecond;
             while (state.FrameAccumulator[entry.RoomObjectIndex] >= 1f)
             {
                 state.FrameAccumulator[entry.RoomObjectIndex] -= 1f;
-                if (!TryAdvanceAutoplayFrame(world, entry))
+                if (!TryAdvanceAutoplayFrame(level, entry))
                 {
                     break;
                 }
@@ -87,9 +87,9 @@ internal static class SpritesheetPlaybackRuntime
         }
     }
 
-    private static void StartPlayback(SimulationWorld world, SpritesheetPlaybackEntry entry)
+    private static void StartPlayback(SimpleLevel level, SpritesheetPlaybackEntry entry)
     {
-        var state = world.SpritesheetPlaybackState;
+        var state = level.SpritesheetPlaybackState;
         state.IsPlaying[entry.RoomObjectIndex] = true;
         state.Completed[entry.RoomObjectIndex] = false;
         state.FrameAccumulator[entry.RoomObjectIndex] = 0f;
@@ -100,16 +100,16 @@ internal static class SpritesheetPlaybackRuntime
         }
     }
 
-    private static void StopPlayback(SimulationWorld world, int roomObjectIndex)
+    private static void StopPlayback(SimpleLevel level, int roomObjectIndex)
     {
-        world.SpritesheetPlaybackState.IsPlaying[roomObjectIndex] = false;
-        world.SpritesheetPlaybackState.FrameAccumulator[roomObjectIndex] = 0f;
+        level.SpritesheetPlaybackState.IsPlaying[roomObjectIndex] = false;
+        level.SpritesheetPlaybackState.FrameAccumulator[roomObjectIndex] = 0f;
     }
 
-    private static void AdvanceManualFrame(SimulationWorld world, SpritesheetPlaybackEntry entry)
+    private static void AdvanceManualFrame(SimpleLevel level, SpritesheetPlaybackEntry entry)
     {
         var roomObjectIndex = entry.RoomObjectIndex;
-        var state = world.SpritesheetPlaybackState;
+        var state = level.SpritesheetPlaybackState;
         if (state.Completed[roomObjectIndex])
         {
             return;
@@ -123,10 +123,10 @@ internal static class SpritesheetPlaybackRuntime
             manualAdvance: true);
     }
 
-    private static bool TryAdvanceAutoplayFrame(SimulationWorld world, SpritesheetPlaybackEntry entry)
+    private static bool TryAdvanceAutoplayFrame(SimpleLevel level, SpritesheetPlaybackEntry entry)
     {
         return TryAdvanceFrame(
-            world.SpritesheetPlaybackState,
+            level.SpritesheetPlaybackState,
             entry.Configuration,
             entry.RoomObjectIndex,
             manualAdvance: false);

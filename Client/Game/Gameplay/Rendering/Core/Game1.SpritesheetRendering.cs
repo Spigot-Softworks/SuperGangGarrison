@@ -19,6 +19,8 @@ public partial class Game1
 
         var viewport = GetGameplayWorldPassViewport();
         var parallaxLayers = _world.Level.CustomMapVisuals.ParallaxLayers;
+        // See DrawCustomMapParallaxLayer: parallax needs the exact camera.
+        var residual = GetWorldPassCameraResidual();
         foreach (var (roomObjectIndex, marker) in GetCachedSpritesheets(layer))
         {
             if (!_world.Level.IsRoomObjectActive(roomObjectIndex))
@@ -30,11 +32,13 @@ public partial class Game1
                 marker.CenterX,
                 marker.CenterY,
                 layer,
-                cameraPosition.X,
-                cameraPosition.Y,
+                cameraPosition.X + residual.X,
+                cameraPosition.Y + residual.Y,
                 viewport.Width,
                 viewport.Height,
                 parallaxLayers);
+            relX += residual.X;
+            relY += residual.Y;
             var drawWidth = MathF.Max(1f, marker.Width);
             var drawHeight = MathF.Max(1f, marker.Height);
             var destination = new Rectangle(

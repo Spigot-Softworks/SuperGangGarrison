@@ -347,8 +347,6 @@ public partial class Game1
             new BrowserAutomationAction("Enemy Bots +", BrowserAutomationRect.FromRectangle(layout.EnemyBotsRightBounds)),
             new BrowserAutomationAction("Friendly Bots -", BrowserAutomationRect.FromRectangle(layout.FriendlyBotsLeftBounds)),
             new BrowserAutomationAction("Friendly Bots +", BrowserAutomationRect.FromRectangle(layout.FriendlyBotsRightBounds)),
-            new BrowserAutomationAction("Special Abilities -", BrowserAutomationRect.FromRectangle(layout.SpecialAbilitiesLeftBounds)),
-            new BrowserAutomationAction("Special Abilities +", BrowserAutomationRect.FromRectangle(layout.SpecialAbilitiesRightBounds)),
             new BrowserAutomationAction(_editingPeerPractice ? "Apply" : "Start Singleplayer", BrowserAutomationRect.FromRectangle(layout.StartBounds), canEnterGameplaySession),
             new BrowserAutomationAction(_editingPeerPractice ? "Cancel" : "Co-Op Lobby", BrowserAutomationRect.FromRectangle(layout.ClientPowersBounds)),
             new BrowserAutomationAction("Join Co-Op", BrowserAutomationRect.FromRectangle(layout.JoinCoOpBounds), !_editingPeerPractice),
@@ -534,12 +532,6 @@ public partial class Game1
                 return true;
             case "Friendly Bots +":
                 CyclePracticeFriendlyBots(1);
-                return true;
-            case "Special Abilities -":
-                CyclePracticeSpecialAbilities(-1);
-                return true;
-            case "Special Abilities +":
-                CyclePracticeSpecialAbilities(1);
                 return true;
             case "Start Practice":
             case "Start Singleplayer":

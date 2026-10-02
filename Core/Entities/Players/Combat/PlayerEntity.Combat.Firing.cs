@@ -184,32 +184,25 @@ public sealed partial class PlayerEntity
             return false;
         }
 
-        PrimaryCooldownTicks = GetPrimaryCooldownAfterShot();
+        PrimaryCooldownTicks = GetPrimaryCooldownAfterShot(QuoteBubbleRefireTicks);
         return true;
     }
 
-    public bool TryFireQuoteBlade(int energyCost = QuoteBladeEnergyCost, int activeProjectileLimit = QuoteBladeMaxOut)
+    public bool TryFireQuoteBlade(int activeProjectileLimit = QuoteBladeMaxOut)
     {
-        energyCost = Math.Max(0, energyCost);
         activeProjectileLimit = Math.Max(0, activeProjectileLimit);
-        var ignoreAmmoCost = HasInfiniteAmmoFromUber;
         if (!IsAlive
             || IsHeavyEating
             || IsTaunting
             || IsCivviePogoActive
             || PrimaryCooldownTicks > 0
-            || QuoteBladesOut >= activeProjectileLimit
-            || (!ignoreAmmoCost && CurrentShells < energyCost))
+            || QuoteBladesOut >= activeProjectileLimit)
         {
             return false;
         }
 
-        if (!ignoreAmmoCost)
-        {
-            CurrentShells -= energyCost;
-        }
-
-        PrimaryCooldownTicks = GetPrimaryCooldownAfterShot();
+        PrimaryCooldownTicks = GetPrimaryCooldownAfterShot(QuoteBladeRefireTicks);
+        ReloadTicksUntilNextShell = QuoteBladeAmmoRecoveryTicks;
         return true;
     }
 
@@ -526,7 +519,7 @@ public sealed partial class PlayerEntity
         return ApplyExperimentalPrimaryCooldownMultiplier(cooldownTicks);
     }
 
-    private int GetPrimaryCooldownAfterShot()
+    private int GetPrimaryCooldownAfterShot(int? sourceCooldownTicksOverride = null)
     {
         if (HasPrimaryBehavior(BuiltInGameplayBehaviorIds.TommyGun))
         {
@@ -543,11 +536,12 @@ public sealed partial class PlayerEntity
             return GetDragonRageCooldownAfterShot(IsDragonRageRapidFireActive);
         }
 
-        var cooldownTicks = HasScopedSniperWeaponEquipped
-            && IsSniperScoped
-            && !LastToDieSniperProfile.LightMarksmanEnabled
-            ? PrimaryWeapon.ReloadDelayTicks + SniperScopedReloadBonusTicks
-            : PrimaryWeapon.ReloadDelayTicks;
+        var cooldownTicks = sourceCooldownTicksOverride
+            ?? (HasScopedSniperWeaponEquipped
+                && IsSniperScoped
+                && !LastToDieSniperProfile.LightMarksmanEnabled
+                ? PrimaryWeapon.ReloadDelayTicks + SniperScopedReloadBonusTicks
+                : PrimaryWeapon.ReloadDelayTicks);
         cooldownTicks = ApplyLastToDieSniperRifleCycleSpeed(cooldownTicks);
         return ApplyExperimentalPrimaryCooldownMultiplier(cooldownTicks);
     }

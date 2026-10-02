@@ -1,4 +1,3 @@
-using System.Reflection;
 using OpenGarrison.Core;
 using OpenGarrison.Core.LastToDie;
 using OpenGarrison.Protocol;
@@ -273,21 +272,13 @@ public sealed class LastToDieMedicKritzM2RuntimeTests
         float y,
         float velocityX)
     {
-        var method = typeof(SimulationWorld).GetMethod(
-            "SpawnMedicHealNeedle",
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        _ = method!.Invoke(
-            world,
-            [
-                world.LocalPlayer,
-                x,
-                y,
-                velocityX,
-                0f,
-                MedicHealNeedleProjectileEntity.DefaultHealPerHit,
-                MedicHealNeedleProjectileEntity.DefaultEnemyDamagePerHit,
-            ]);
+        world.Projectiles.SpawnMedicHealNeedle(world.LocalPlayer,
+            x,
+            y,
+            velocityX,
+            0f,
+            MedicHealNeedleProjectileEntity.DefaultHealPerHit,
+            MedicHealNeedleProjectileEntity.DefaultEnemyDamagePerHit);
         return Assert.IsType<MedicHealNeedleProjectileEntity>(world.Needles[^1]);
     }
 
@@ -297,11 +288,7 @@ public sealed class LastToDieMedicKritzM2RuntimeTests
         PlayerEntity target,
         MedicHealNeedleProjectileEntity needle)
     {
-        var method = typeof(SimulationWorld).GetMethod(
-            "ApplyMedicHealNeedleTeammateHit",
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        _ = method!.Invoke(world, [medic, target, needle]);
+        world.SupportRules.ApplyMedicHealNeedleTeammateHit(medic, target, needle);
     }
 
     private static void AdvanceUntilNeedlesAreGone(SimulationWorld world)

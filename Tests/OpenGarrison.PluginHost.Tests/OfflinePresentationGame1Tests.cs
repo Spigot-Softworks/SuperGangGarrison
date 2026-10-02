@@ -39,6 +39,9 @@ public sealed class OfflinePresentationGame1Tests
     {
         const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
         var game = (Game1)RuntimeHelpers.GetUninitializedObject(typeof(Game1));
+        // RuntimeHelpers skips Game1's field initializers, so the first presentation
+        // update needs the state pod used by IsOfflineBotSessionActive.
+        SetField(game, "_gameplaySessionState", new Game1.GameplaySessionState());
         var services = new ClientServiceContainer();
         typeof(Game1).GetField("_services", flags)!.SetValue(game, services);
         services.Register(new GameplayManager(game));
@@ -83,11 +86,7 @@ public sealed class OfflinePresentationGame1Tests
 
     private static GrenadeProjectileEntity SpawnGrenade(SimulationWorld world, PlayerEntity owner, float x, float y)
     {
-        var method = typeof(SimulationWorld).GetMethod(
-            "CombatTestSpawnGrenade",
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        return Assert.IsType<GrenadeProjectileEntity>(method!.Invoke(world, [owner, x, y]));
+        return world.CombatTestSpawnGrenade(owner, x, y, 0f, 0f);
     }
 
     private static void SetField(Game1 game, string name, object value)

@@ -1,17 +1,11 @@
 using OpenGarrison.Core;
 using OpenGarrison.Protocol;
-using System.Reflection;
 using Xunit;
 
 namespace OpenGarrison.PluginHost.Tests;
 
 public sealed class LastToDieCapturedPointHealingTests
 {
-    private static readonly MethodInfo ApplyPassiveEffectsMethod =
-        typeof(SimulationWorld).GetMethod(
-            "ApplyExperimentalPassivePlayerEffects",
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
-        ?? throw new InvalidOperationException("Could not find LTD passive effect method.");
 
     [Theory]
     [InlineData(PlayerClass.Scout)]
@@ -43,7 +37,7 @@ public sealed class LastToDieCapturedPointHealingTests
         Assert.True(world.IsPlayerInsideCapturedPointHealingAuraForVisuals(remotePlayer));
         for (var tick = 0; tick < world.Config.TicksPerSecond; tick += 1)
         {
-            ApplyPassiveEffectsMethod.Invoke(world, [remotePlayer]);
+            world.ExperimentalRules.ApplyExperimentalPassivePlayerEffects(remotePlayer);
         }
 
         Assert.True(remotePlayer.Health > healthBefore);
@@ -119,48 +113,40 @@ public sealed class LastToDieCapturedPointHealingTests
             EnableEnemyTrainingDummy = false,
             EnableFriendlySupportDummy = false,
         });
-        var setLevelMethod = typeof(SimulationWorld).GetMethod(
-            "CombatTestSetLevel",
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(setLevelMethod);
-        _ = setLevelMethod!.Invoke(
-            world,
+        world.CombatTestSetLevel(new SimpleLevel(
+            name: "ltd_koth_healing_test",
+            mode: GameModeKind.KingOfTheHill,
+            bounds: new WorldBounds(1024f, 512f),
+            mapScale: 1f,
+            backgroundAssetName: null,
+            mapAreaIndex: 1,
+            mapAreaCount: 1,
+            localSpawn: new SpawnPoint(100f, 100f),
+            redSpawns: [new SpawnPoint(100f, 100f)],
+            blueSpawns: [new SpawnPoint(700f, 100f)],
+            intelBases: [],
+            roomObjects:
             [
-                new SimpleLevel(
-                    name: "ltd_koth_healing_test",
-                    mode: GameModeKind.KingOfTheHill,
-                    bounds: new WorldBounds(1024f, 512f),
-                    mapScale: 1f,
-                    backgroundAssetName: null,
-                    mapAreaIndex: 1,
-                    mapAreaCount: 1,
-                    localSpawn: new SpawnPoint(100f, 100f),
-                    redSpawns: [new SpawnPoint(100f, 100f)],
-                    blueSpawns: [new SpawnPoint(700f, 100f)],
-                    intelBases: [],
-                    roomObjects:
-                    [
-                        new RoomObjectMarker(
-                            RoomObjectType.ControlPoint,
-                            400f,
-                            100f,
-                            40f,
-                            20f,
-                            string.Empty,
-                            SourceName: "KothControlPoint"),
-                        new RoomObjectMarker(
-                            RoomObjectType.CaptureZone,
-                            400f,
-                            100f,
-                            100f,
-                            60f,
-                            string.Empty,
-                            SourceName: "CaptureZone"),
-                    ],
-                    floorY: 512f,
-                    solids: [],
-                    importedFromSource: false),
-            ]);
+                new RoomObjectMarker(
+                    RoomObjectType.ControlPoint,
+                    400f,
+                    100f,
+                    40f,
+                    20f,
+                    string.Empty,
+                    SourceName: "KothControlPoint"),
+                new RoomObjectMarker(
+                    RoomObjectType.CaptureZone,
+                    400f,
+                    100f,
+                    100f,
+                    60f,
+                    string.Empty,
+                    SourceName: "CaptureZone"),
+            ],
+            floorY: 512f,
+            solids: [],
+            importedFromSource: false));
 
         return world;
     }

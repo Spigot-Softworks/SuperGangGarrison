@@ -3,7 +3,7 @@ namespace OpenGarrison.Core;
 internal static class MapLogicScoreTriggerRuntime
 {
     public static void Apply(
-        SimulationWorld world,
+        IMapLogicHost world,
         MapLogicGraph graph,
         MapLogicScoreTriggerSet scoreTriggers,
         MapLogicActivatorRuntimeState runtimeState)
@@ -36,7 +36,7 @@ internal static class MapLogicScoreTriggerRuntime
         }
     }
 
-    private static void ApplyTrigger(SimulationWorld world, MapLogicScoreTrigger trigger)
+    private static void ApplyTrigger(IMapLogicHost world, MapLogicScoreTrigger trigger)
     {
         var delta = trigger.SignedDelta;
         if (delta == 0)

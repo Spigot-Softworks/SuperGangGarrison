@@ -7,12 +7,19 @@ public sealed partial class SimulationWorld
         Level = level;
         MatchRules = CreateDefaultMatchRules(level.Mode);
         MatchState = CreateInitialMatchState(MatchRules);
-        RebuildForegroundJungleSpriteCache();
+        MapLogic.RebuildForegroundJungleSpriteCache();
         ResetModeStateForNewRound();
         ResetMovingPlatformsForLevel();
-        ResetHealthPackSpawnsForLevel();
-        ResetJumpPadSpawnsForLevel();
+        Pickups.ResetHealthPackSpawnsForLevel();
+        Structures.ResetJumpPadSpawnsForLevel();
     }
+
+    // Swaps the level without the reset CombatTestSetLevel performs.
+    internal void CombatTestReplaceLevel(SimpleLevel level) => Level = level;
+
+    internal void CombatTestSetMatchState(MatchState matchState) => MatchState = matchState;
+
+    internal void CombatTestSetFrame(long frame) => Frame = frame;
 
     internal void CombatTestAddSentry(SentryEntity sentry)
     {
@@ -34,12 +41,12 @@ public sealed partial class SimulationWorld
             lastKnownRangeOriginX: owner.X,
             lastKnownRangeOriginY: owner.Y);
         Projectiles.AddProjectileEntity(rocket);
-        ExplodeRocket(rocket, directHitPlayer: null, directHitSentry: null, directHitGenerator: null);
+        ExplosionRules.ExplodeRocket(rocket, directHitPlayer: null, directHitSentry: null, directHitGenerator: null);
     }
 
     internal void CombatTestExplodeRocket(RocketProjectileEntity rocket)
     {
-        ExplodeRocket(rocket, directHitPlayer: null, directHitSentry: null, directHitGenerator: null);
+        ExplosionRules.ExplodeRocket(rocket, directHitPlayer: null, directHitSentry: null, directHitGenerator: null);
     }
 
     internal RocketProjectileEntity CombatTestSpawnRocket(PlayerEntity owner, float x, float y, float speed = 0f, float directionRadians = 0f)
@@ -126,7 +133,7 @@ public sealed partial class SimulationWorld
 
     internal void CombatTestExplodeMine(MineProjectileEntity mine)
     {
-        ExplodeMine(mine);
+        ExplosionRules.ExplodeMine(mine);
     }
 
     internal bool CombatTestHasLineOfSight(PlayerEntity attacker, PlayerEntity target)

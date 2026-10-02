@@ -1,4 +1,3 @@
-using System.Reflection;
 using OpenGarrison.Client;
 using OpenGarrison.Core;
 using OpenGarrison.Core.LastToDie;
@@ -199,8 +198,7 @@ public sealed class LastToDieSurvivorRulesTests
         Assert.InRange(world.DroppedWeapons.Count, 30, 70);
         var drop = world.DroppedWeapons[0];
         soldier.TeleportTo(drop.X, drop.Y);
-        typeof(SimulationWorld).GetMethod("TryHandleDroppedWeaponInteraction", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!
-            .Invoke(world, [soldier]);
+        world.Pickups.TryHandleDroppedWeaponInteraction(soldier);
         Assert.True(soldier.HasAcquiredWeapon);
     }
 
@@ -239,9 +237,6 @@ public sealed class LastToDieSurvivorRulesTests
 
     private static void Kill(SimulationWorld world, PlayerEntity victim, PlayerEntity? killer)
     {
-        var method = typeof(SimulationWorld).GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
-            .Single(method => method.Name == "KillPlayer" && method.GetParameters().Length == 14);
-        method.Invoke(world, [victim, false, killer, null, DeadBodyAnimationKind.Default, null, null, null,
-            true, true, false, true, -1, false]);
+        world.PlayerDeaths.KillPlayer(victim, false, killer);
     }
 }

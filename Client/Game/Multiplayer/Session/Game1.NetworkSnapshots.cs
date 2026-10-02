@@ -74,6 +74,7 @@ public partial class Game1
             {
                 RecordMissingBaselineSnapshot();
                 AddNetworkConsoleLine($"snapshot {snapshot.Frame} missing baseline {snapshot.BaselineFrame}");
+                _networkClient.RequestSnapshotResync();
                 return false;
             }
         }

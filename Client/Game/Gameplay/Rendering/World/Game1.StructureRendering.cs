@@ -88,13 +88,14 @@ public partial class Game1
         var gibTint = gib.ExperimentalCryoTinted
             ? new Color(170, 228, 255)
             : Color.White;
+        var renderPosition = GetPlayerGibRenderPosition(gib);
         if (sprite is null || sprite.Frames.Count == 0)
         {
             var gibScale = GetPlayerGibRenderScale(gib);
             var size = (int)(6f * gibScale);
             var rectangle = new Rectangle(
-                (int)(gib.X - (size / 2f) - cameraPosition.X),
-                (int)(gib.Y - (size / 2f) - cameraPosition.Y),
+                (int)(renderPosition.X - (size / 2f) - cameraPosition.X),
+                (int)(renderPosition.Y - (size / 2f) - cameraPosition.Y),
                 size,
                 size);
             _spriteBatch.Draw(_pixel, rectangle, gibTint * gib.Alpha);
@@ -105,14 +106,37 @@ public partial class Game1
         var renderScale = GetPlayerGibRenderScale(gib);
         DrawLoadedSpriteFrame(
             sprite.Frames[frameIndex],
-            new Vector2(gib.X - cameraPosition.X, gib.Y - cameraPosition.Y),
+            new Vector2(renderPosition.X - cameraPosition.X, renderPosition.Y - cameraPosition.Y),
             null,
             gibTint * gib.Alpha,
-            gib.RotationDegrees * (MathF.PI / 180f),
+            GetPlayerGibRenderRotationDegrees(gib) * (MathF.PI / 180f),
             sprite.Origin.ToVector2(),
             new Vector2(gib.FlipHorizontally ? -renderScale : renderScale, renderScale),
             SpriteEffects.None,
             0f);
+    }
+
+    /// <summary>
+    /// Gibs advance at the simulation tick rate. Drawing the raw tick sample
+    /// moves and spins them in 30 Hz steps, so blend from the tick-start sample
+    /// by the simulator phase.
+    /// </summary>
+    private Vector2 GetPlayerGibRenderPosition(PlayerGibEntity gib)
+        => GetLocallySimulatedPlayerGibRenderPosition(gib);
+
+    private Vector2 GetLocallySimulatedPlayerGibRenderPosition(PlayerGibEntity gib)
+        => InterpolateLocalProjectilePosition(gib.PreviousX, gib.PreviousY, gib.X, gib.Y);
+
+    private float GetPlayerGibRenderRotationDegrees(PlayerGibEntity gib)
+    {
+        if (!float.IsFinite(gib.PreviousRotationDegrees)
+            || !float.IsFinite(gib.RotationDegrees))
+        {
+            return gib.RotationDegrees;
+        }
+
+        var alpha = _simulator is null ? 1f : Math.Clamp(_simulator.InterpolationAlpha, 0f, 1f);
+        return gib.PreviousRotationDegrees + ((gib.RotationDegrees - gib.PreviousRotationDegrees) * alpha);
     }
 
     private static float GetPlayerGibRenderScale(PlayerGibEntity gib)

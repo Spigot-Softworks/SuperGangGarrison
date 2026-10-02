@@ -1,6 +1,5 @@
 using OpenGarrison.Core;
 using System.Collections;
-using System.Reflection;
 using Xunit;
 
 namespace OpenGarrison.PluginHost.Tests;
@@ -208,18 +207,12 @@ public sealed class SimulationWorldRocketSourceParityTests
 
     private static void SetCombatLevel(SimulationWorld world, SimpleLevel level)
     {
-        var method = typeof(SimulationWorld).GetMethod("CombatTestSetLevel", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        _ = method!.Invoke(world, [level]);
+        world.CombatTestSetLevel(level);
     }
 
     private static RocketProjectileEntity SpawnRocket(SimulationWorld world, PlayerEntity owner, float x, float y, float speed, float directionRadians)
     {
-        var method = typeof(SimulationWorld).GetMethod("CombatTestSpawnRocket", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        var result = method!.Invoke(world, [owner, x, y, speed, directionRadians]);
-        Assert.IsType<RocketProjectileEntity>(result);
-        return (RocketProjectileEntity)result!;
+        return world.CombatTestSpawnRocket(owner, x, y, speed, directionRadians);
     }
 
     private static void AdvanceRockets(SimulationWorld world)
@@ -234,15 +227,11 @@ public sealed class SimulationWorldRocketSourceParityTests
 
     private static (float Left, float Top, float Right, float Bottom) GetPlayerPresentationHitBounds(SimulationWorld world, PlayerEntity player)
     {
-        var method = typeof(SimulationWorld).GetMethod("CombatTestGetPlayerPresentationHitBounds", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        return ((float Left, float Top, float Right, float Bottom))method!.Invoke(world, [player])!;
+        return world.CombatTestGetPlayerPresentationHitBounds(player);
     }
 
     private static string? GetPlayerPresentationBodySpriteName(SimulationWorld world, PlayerEntity player)
     {
-        var method = typeof(SimulationWorld).GetMethod("GetPlayerPresentationBodySpriteName", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        return (string?)method!.Invoke(null, [world, player]);
+        return world.PresentationBounds.GetPlayerPresentationBodySpriteName(player);
     }
 }

@@ -54,25 +54,6 @@ public partial class Game1
         public int TicksRemaining { get; set; }
     }
 
-    public sealed class RecentGibSoundEvent
-    {
-        public RecentGibSoundEvent(float x, float y, bool isNetworkEvent, int ticksRemaining)
-        {
-            X = x;
-            Y = y;
-            IsNetworkEvent = isNetworkEvent;
-            TicksRemaining = ticksRemaining;
-        }
-
-        public float X { get; }
-
-        public float Y { get; }
-
-        public bool IsNetworkEvent { get; }
-
-        public int TicksRemaining { get; set; }
-    }
-
     public sealed class RecentProjectileSoundEvent
     {
         public RecentProjectileSoundEvent(
@@ -125,7 +106,7 @@ public partial class Game1
 
     public bool _audioAvailable = true;
     public readonly List<PendingBrowserSoundEvent> _pendingBrowserSoundEvents = new();
-    public readonly List<RecentGibSoundEvent> _recentGibSoundEvents = new();
+    internal readonly RecentGibSoundEchoTracker _recentGibSoundEchoTracker = new();
     public readonly List<RecentProjectileSoundEvent> _recentProjectileSoundEvents = new();
     public readonly List<RecentLowPriorityWorldSoundEvent> _recentLowPriorityWorldSoundEvents = new();
     public int _lowPriorityWorldSoundsPlayedThisFrame;
@@ -332,8 +313,8 @@ public partial class Game1
             return;
         }
 
-        TryPlaySound(sound, volume, 0f, pan);
-        RememberPlayedGibSound(soundEvent);
+        var playbackSucceeded = TryPlaySound(sound, volume, 0f, pan);
+        _recentGibSoundEchoTracker.RecordPlayback(soundEvent, playbackSucceeded);
     }
 
     private void PlayPredictedPrimaryFireSound()
@@ -486,72 +467,24 @@ public partial class Game1
         _pendingBrowserSoundEvents.Clear();
     }
 
-    private static bool IsGibSoundEvent(WorldSoundEvent soundEvent)
-    {
-        return string.Equals(soundEvent.SoundName, "Gibbing", StringComparison.OrdinalIgnoreCase);
-    }
-
     public void AdvanceRecentGibSoundEvents()
     {
-        for (var index = _recentGibSoundEvents.Count - 1; index >= 0; index -= 1)
-        {
-            _recentGibSoundEvents[index].TicksRemaining -= 1;
-            if (_recentGibSoundEvents[index].TicksRemaining <= 0)
-            {
-                _recentGibSoundEvents.RemoveAt(index);
-            }
-        }
+        _recentGibSoundEchoTracker.Advance();
     }
 
     public bool ShouldSuppressPredictedGibSoundEcho(WorldSoundEvent soundEvent)
     {
-        if (!IsGibSoundEvent(soundEvent))
-        {
-            return false;
-        }
-
-        var isNetworkEvent = soundEvent.EventId != 0;
-        for (var index = 0; index < _recentGibSoundEvents.Count; index += 1)
-        {
-            var recent = _recentGibSoundEvents[index];
-            if (recent.IsNetworkEvent == isNetworkEvent)
-            {
-                continue;
-            }
-
-            var deltaX = soundEvent.X - recent.X;
-            var deltaY = soundEvent.Y - recent.Y;
-            if ((deltaX * deltaX) + (deltaY * deltaY) <= RecentGibSoundEchoDistanceSquared)
-            {
-                return true;
-            }
-        }
-
-        return false;
+        return _recentGibSoundEchoTracker.ShouldSuppress(soundEvent);
     }
 
     public void RememberPlayedGibSound(WorldSoundEvent soundEvent)
     {
-        if (!IsGibSoundEvent(soundEvent))
-        {
-            return;
-        }
-
-        while (_recentGibSoundEvents.Count >= RecentGibSoundEchoLimit)
-        {
-            _recentGibSoundEvents.RemoveAt(0);
-        }
-
-        _recentGibSoundEvents.Add(new RecentGibSoundEvent(
-            soundEvent.X,
-            soundEvent.Y,
-            soundEvent.EventId != 0,
-            RecentGibSoundEchoLifetimeTicks));
+        _recentGibSoundEchoTracker.RecordPlayback(soundEvent, playbackSucceeded: true);
     }
 
     private void ResetRecentGibSoundEvents()
     {
-        _recentGibSoundEvents.Clear();
+        _recentGibSoundEchoTracker.Reset();
     }
 
     private static string NormalizeProjectileSoundEchoName(string soundName)
@@ -1029,6 +962,11 @@ public partial class Game1
 
     public (float Volume, float Pan) GetWorldSoundMix(WorldSoundEvent soundEvent)
     {
+        if (UsesGlobalWorldSoundMix(soundEvent.SoundName))
+        {
+            return (1f, 0f);
+        }
+
         if (string.Equals(soundEvent.SoundName, "FlareImpactSnd", StringComparison.OrdinalIgnoreCase))
         {
             return GetFlareImpactSoundMix(soundEvent.X, soundEvent.Y, GetWorldSoundListenerPosition());
@@ -1069,6 +1007,13 @@ public partial class Game1
         }
 
         return (volume * remoteMultiplier, pan);
+    }
+
+    internal static bool UsesGlobalWorldSoundMix(string soundName)
+    {
+        // Legacy pointCapture.gml calls sound_play(IntelPutSnd), which is global.
+        // CPCapturedSnd and Gibbing remain spatial cues from their world positions.
+        return string.Equals(soundName, "IntelPutSnd", StringComparison.OrdinalIgnoreCase);
     }
 
     public (float Volume, float Pan) GetLoopedWorldSoundMix(string soundName, float worldX, float worldY, bool isLocalSource)

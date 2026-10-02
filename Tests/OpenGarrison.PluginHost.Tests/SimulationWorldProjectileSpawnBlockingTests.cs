@@ -1,5 +1,4 @@
 using OpenGarrison.Core;
-using System.Reflection;
 using Xunit;
 
 namespace OpenGarrison.PluginHost.Tests;
@@ -68,18 +67,12 @@ public sealed class SimulationWorldProjectileSpawnBlockingTests
         float targetY,
         PlayerTeam shotTeam)
     {
-        var method = typeof(SimulationWorld).GetMethod("CombatTestIsProjectileSpawnBlocked", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        var result = method!.Invoke(world, [originX, originY, targetX, targetY, shotTeam]);
-        Assert.IsType<bool>(result);
-        return (bool)result!;
+        return world.CombatTestIsProjectileSpawnBlocked(originX, originY, targetX, targetY, shotTeam);
     }
 
     private static void SetLevel(SimulationWorld world, SimpleLevel level)
     {
-        var method = typeof(SimulationWorld).GetMethod("CombatTestSetLevel", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        _ = method!.Invoke(world, [level]);
+        world.CombatTestSetLevel(level);
     }
 
     private static SimpleLevel CreateLevel(IReadOnlyList<LevelSolid>? solids = null, IReadOnlyList<RoomObjectMarker>? roomObjects = null)

@@ -24,7 +24,7 @@ public sealed class LastToDieMedicKritPowerRuntimeTests
         medic.FillMedicUberCharge();
         Assert.True(medic.TryStartMedicUber());
 
-        InvokePrivate(world, "AdvanceMedicUberEffects");
+        world.SupportRules.AdvanceMedicUberEffects();
 
         AssertKritPowerGrant(medic, medic.Id, SimulationWorld.LocalPlayerSlot);
         AssertKritPowerGrant(target, medic.Id, SimulationWorld.LocalPlayerSlot);
@@ -66,19 +66,19 @@ public sealed class LastToDieMedicKritPowerRuntimeTests
         var owner = world.LocalPlayer;
         owner.RefreshKritzCritBoost(99, 3, 3.5f, 30);
 
-        InvokePrivate(world, "SpawnShot", owner, 100f, 100f, 1f, 0f);
-        InvokePrivate(world, "SpawnBubble", owner, 100f, 100f, 1f, 0f);
-        InvokePrivate(world, "SpawnBlade", owner, 100f, 100f, 1f, 0f, 10);
-        InvokePrivate(world, "SpawnNail", owner, 100f, 100f, 1f, 0f);
-        InvokePrivate(world, "SpawnArrow", owner, 100f, 100f, 1f, 0f, 40, 1f);
-        InvokePrivate(world, "SpawnNeedle", owner, 100f, 100f, 1f, 0f);
-        InvokePrivate(world, "SpawnMedicHealNeedle", owner, 100f, 100f, 1f, 0f);
-        InvokePrivate(world, "SpawnRevolverShot", owner, 100f, 100f, 1f, 0f);
-        InvokePrivate(world, "SpawnFlame", owner, 100f, 100f, 1f, 0f);
-        InvokePrivate(world, "SpawnFlare", owner, 100f, 100f, 1f, 0f);
-        InvokePrivate(world, "SpawnRocket", owner, 100f, 100f, 1f, 0f);
-        InvokePrivate(world, "SpawnMine", owner, 100f, 100f, 1f, 0f);
-        InvokePrivate(world, "SpawnGrenade", owner, 100f, 100f, 1f, 0f);
+        world.Projectiles.SpawnShot(owner, 100f, 100f, 1f, 0f);
+        world.Projectiles.SpawnBubble(owner, 100f, 100f, 1f, 0f);
+        world.Projectiles.SpawnBlade(owner, 100f, 100f, 1f, 0f, 10);
+        world.Projectiles.SpawnNail(owner, 100f, 100f, 1f, 0f);
+        world.Projectiles.SpawnArrow(owner, 100f, 100f, 1f, 0f, 40, 1f);
+        world.Projectiles.SpawnNeedle(owner, 100f, 100f, 1f, 0f);
+        world.Projectiles.SpawnMedicHealNeedle(owner, 100f, 100f, 1f, 0f);
+        world.Projectiles.SpawnRevolverShot(owner, 100f, 100f, 1f, 0f);
+        world.Projectiles.SpawnFlame(owner, 100f, 100f, 1f, 0f);
+        world.Projectiles.SpawnFlare(owner, 100f, 100f, 1f, 0f);
+        world.Projectiles.SpawnRocket(owner, 100f, 100f, 1f, 0f);
+        world.Projectiles.SpawnMine(owner, 100f, 100f, 1f, 0f);
+        world.Projectiles.SpawnGrenade(owner, 100f, 100f, 1f, 0f);
 
         AssertCritical(world.Shots[^1]);
         AssertCritical(world.Bubbles[^1]);
@@ -99,9 +99,7 @@ public sealed class LastToDieMedicKritPowerRuntimeTests
         Assert.Equal(3.5f, world.Rockets[^1].CriticalDamageMultiplier);
         Assert.Equal(3.5f, world.Needles[1].CriticalDamageMultiplier);
 
-        InvokePrivate(
-            world,
-            "SpawnRevolverShot",
+        world.Projectiles.SpawnRevolverShot(
             owner,
             100f,
             100f,
@@ -129,7 +127,7 @@ public sealed class LastToDieMedicKritPowerRuntimeTests
         var baseDamage = sniper.GetSniperRifleDamage();
 
         Assert.True(sniper.TryFirePrimaryWeapon());
-        InvokePrivate(world, "FirePrimaryWeapon", sniper, target.X, target.Y);
+        world.WeaponHandler.FirePrimaryWeapon(sniper, target.X, target.Y);
 
         Assert.Equal(
             Math.Max(1, (int)MathF.Round(baseDamage * multiplier)),
@@ -147,12 +145,12 @@ public sealed class LastToDieMedicKritPowerRuntimeTests
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.Javelin]));
         owner.RefreshKritzCritBoost(77, 2, 3.5f, 10);
-        InvokePrivate(world, "SpawnMedicHealNeedle", owner, 240f, 100f, 0f, 0f);
+        world.Projectiles.SpawnMedicHealNeedle(owner, 240f, 100f, 0f, 0f);
         var javelin = Assert.IsType<MedicHealNeedleProjectileEntity>(world.Needles[^1]);
         owner.HydrateKritzCritBoost(false, 0, 0, int.MaxValue, 1f);
         var healthBefore = target.Health;
 
-        Assert.True(Assert.IsType<bool>(InvokePrivate(world, "TryExplodeLastToDieMedicJavelin", javelin)));
+        Assert.True(world.LastToDieRules.TryExplodeLastToDieMedicJavelin(javelin));
 
         Assert.Equal(
             (int)MathF.Round(LastToDieDerivedModifiers.MedicJavelinEnemyCenterDamage * 3.5f),
@@ -179,11 +177,9 @@ public sealed class LastToDieMedicKritPowerRuntimeTests
         provider.SetMedicHealingTarget(sniper);
         provider.FillMedicUberCharge();
         Assert.True(provider.TryStartMedicUber());
-        InvokePrivate(world, "AdvanceMedicUberEffects");
+        world.SupportRules.AdvanceMedicUberEffects();
 
-        InvokePrivate(
-            world,
-            "SpawnArrow",
+        world.Projectiles.SpawnArrow(
             sniper,
             100f,
             100f,
@@ -210,17 +206,17 @@ public sealed class LastToDieMedicKritPowerRuntimeTests
     public void ExplosiveProjectilesApplyCapturedMultiplierOnceAfterGrantEnds()
     {
         AssertExplosionMultiplier(
-            "SpawnRocket",
+            static (world, owner, x, y) => world.Projectiles.SpawnRocket(owner, x, y, 0f, 0f),
             static world => world.Rockets[^1],
             static (world, projectile) => world.CombatTestExplodeRocket((RocketProjectileEntity)projectile),
             RocketProjectileEntity.ExplosionDamage);
         AssertExplosionMultiplier(
-            "SpawnMine",
+            static (world, owner, x, y) => world.Projectiles.SpawnMine(owner, x, y, 0f, 0f),
             static world => world.Mines[^1],
             static (world, projectile) => world.CombatTestExplodeMine((MineProjectileEntity)projectile),
             MineProjectileEntity.BaseExplosionDamage);
         AssertExplosionMultiplier(
-            "SpawnGrenade",
+            static (world, owner, x, y) => world.Projectiles.SpawnGrenade(owner, x, y, 0f, 0f),
             static world => world.Grenades[^1],
             static (world, projectile) => world.CombatTestExplodeGrenade((GrenadeProjectileEntity)projectile),
             GrenadeProjectileEntity.BaseExplosionDamage);
@@ -237,9 +233,7 @@ public sealed class LastToDieMedicKritPowerRuntimeTests
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Sniper.ExplosiveTip]));
         sniper.RefreshKritzCritBoost(41, 2, 3.5f, 10);
-        InvokePrivate(
-            world,
-            "SpawnArrow",
+        world.Projectiles.SpawnArrow(
             sniper,
             target.X,
             target.Y,
@@ -251,7 +245,7 @@ public sealed class LastToDieMedicKritPowerRuntimeTests
         sniper.HydrateKritzCritBoost(false, 0, 0, int.MaxValue, 1f);
         var healthBefore = target.Health;
 
-        Assert.True(Assert.IsType<bool>(InvokePrivate(world, "TryExplodeLastToDieSniperArrow", arrow)));
+        Assert.True(world.LastToDieRules.TryExplodeLastToDieSniperArrow(arrow));
 
         Assert.Equal(
             (int)MathF.Round(LastToDieSniperProfile.ExplosiveTipCenterDamage * 3.5f),
@@ -281,7 +275,7 @@ public sealed class LastToDieMedicKritPowerRuntimeTests
             attacker.RefreshKritzCritBoost(41, 3, 3.5f, 10);
         }
 
-        InvokePrivate(world, "SpawnShot", attacker, left - 5f, (top + bottom) * 0.5f, 10f, 0f);
+        world.Projectiles.SpawnShot(attacker, left - 5f, (top + bottom) * 0.5f, 10f, 0f);
         attacker.HydrateKritzCritBoost(
             criticalAtImpact,
             criticalAtImpact ? 10 : 0,
@@ -305,7 +299,7 @@ public sealed class LastToDieMedicKritPowerRuntimeTests
         var source = CreateWorld(PlayerClass.Medic);
         var medic = source.LocalPlayer;
         medic.RefreshKritzCritBoost(41, 2, 3.5f, 17);
-        InvokePrivate(source, "SpawnRocket", medic, 150f, 100f, 1f, 0f);
+        source.Projectiles.SpawnRocket(medic, 150f, 100f, 1f, 0f);
         var rocket = source.Rockets[^1];
 
         var stringCache = new SnapshotStringCache();
@@ -406,7 +400,7 @@ public sealed class LastToDieMedicKritPowerRuntimeTests
     }
 
     private static void AssertExplosionMultiplier(
-        string spawnMethod,
+        Action<SimulationWorld, PlayerEntity, float, float> spawn,
         Func<SimulationWorld, SimulationEntity> getProjectile,
         Action<SimulationWorld, SimulationEntity> explode,
         float baseDamage)
@@ -416,7 +410,7 @@ public sealed class LastToDieMedicKritPowerRuntimeTests
         var target = AddPlayer(world, 2, PlayerClass.Heavy, PlayerTeam.Blue, 240f, 100f);
         target.SetExperimentalMaxHealthOverride(600, refillHealth: true);
         owner.RefreshKritzCritBoost(41, 2, 3.5f, 10);
-        InvokePrivate(world, spawnMethod, owner, target.X, target.Y, 0f, 0f);
+        spawn(world, owner, target.X, target.Y);
         var projectile = getProjectile(world);
         owner.HydrateKritzCritBoost(false, 0, 0, int.MaxValue, 1f);
         var healthBefore = target.Health;
@@ -552,26 +546,6 @@ public sealed class LastToDieMedicKritPowerRuntimeTests
         return player;
     }
 
-    private static object? InvokePrivate(object target, string methodName, params object?[] suppliedArguments)
-    {
-        var method = target.GetType()
-            .GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
-            .Where(candidate => candidate.Name == methodName && candidate.GetParameters().Length >= suppliedArguments.Length)
-            .OrderBy(candidate => candidate.GetParameters().Length)
-            .FirstOrDefault();
-        Assert.NotNull(method);
-        var parameters = method!.GetParameters();
-        Assert.True(suppliedArguments.Length <= parameters.Length);
-        var arguments = new object?[parameters.Length];
-        for (var index = 0; index < arguments.Length; index += 1)
-        {
-            arguments[index] = index < suppliedArguments.Length
-                ? suppliedArguments[index]
-                : Type.Missing;
-        }
-
-        return method.Invoke(target, arguments);
-    }
 
     private static SnapshotMessage CreateSnapshot(SnapshotPlayerState player)
     {

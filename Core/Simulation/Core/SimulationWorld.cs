@@ -10,7 +10,7 @@ public sealed partial class SimulationWorld
     public const int MaxPlayableNetworkPlayers = SimulationConstants.MaxPlayableNetworkPlayers;
     public const byte LocalPlayerSlot = SimulationConstants.LocalPlayerSlot;
     public const byte FirstSpectatorSlot = 128;
-    public static IReadOnlyList<byte> NetworkPlayerSlots { get; } = Enumerable.Range(1, MaxPlayableNetworkPlayers).Select(static value => (byte)value).ToArray();
+    public static IReadOnlyList<byte> NetworkPlayerSlots => SimulationConstants.NetworkPlayerSlots;
     private const string DefaultLocalPlayerName = SimulationConstants.DefaultLocalPlayerName;
     private const string DefaultEnemyPlayerName = "Player 2";
     private const string DefaultFriendlyDummyName = "Player 3";
@@ -22,13 +22,13 @@ public sealed partial class SimulationWorld
     private const int ArenaPointUnlockTicksDefault = 1800;
     private const int PendingMapChangeTicks = 300;
     private const string ClassChangeKillFeedSuffix = SimulationConstants.ClassChangeKillFeedSuffix;
-    private const int CombatTraceLifetimeTicks = 3;
-    private const int KillFeedLifetimeTicks = 150;
-    private const int KillFeedLocalInvolvedLifetimeTicks = 300;
-    private const int DeathCamFocusFreezeDelayTicks = 60;
-    private const int DefaultGibLevel = 3;
+    private const int CombatTraceLifetimeTicks = SimulationConstants.CombatTraceLifetimeTicks;
+    private const int KillFeedLifetimeTicks = SimulationConstants.KillFeedLifetimeTicks;
+    private const int KillFeedLocalInvolvedLifetimeTicks = SimulationConstants.KillFeedLocalInvolvedLifetimeTicks;
+    private const int DeathCamFocusFreezeDelayTicks = SimulationConstants.DeathCamFocusFreezeDelayTicks;
+    private const int DefaultGibLevel = SimulationConstants.DefaultGibLevel;
     private const int LocalProjectileTerminationSuppressionTicks = 12;
-    private const int NetworkProjectileRemovalSuppressionTicks = 180;
+    private const int NetworkProjectileRemovalSuppressionTicks = SimulationConstants.NetworkProjectileRemovalSuppressionTicks;
     public EntityStore EntityStore { get; } = new();
     public CombatSystem Combat { get; }
     public SnapshotSystem Snapshots { get; }
@@ -59,6 +59,30 @@ public sealed partial class SimulationWorld
     internal PickupSystem Pickups { get; }
     internal StructureSystem Structures { get; }
     internal LastToDieRulesSystem LastToDieRules { get; }
+    internal ExperimentalRulesSystem ExperimentalRules { get; }
+    internal SupportRulesSystem SupportRules { get; }
+    internal ExplosionRulesSystem ExplosionRules { get; }
+    internal AirblastRulesSystem AirblastRules { get; }
+    internal PlayerPresentationBoundsSystem PresentationBounds { get; }
+    internal CombatFeedbackSystem CombatFeedback { get; }
+    internal VipRulesSystem VipRules { get; }
+    internal ReadyUpSystem ReadyUp { get; }
+    internal MapLogicSystem MapLogic { get; }
+    internal PracticeDummySystem PracticeDummies { get; }
+    internal ServerTuningSystem ServerTuning { get; }
+    internal RoomEffectsSystem RoomEffects { get; }
+    internal WorldEffectsSystem WorldEffects { get; }
+    internal ClassRulesSystem ClassRules { get; }
+    internal ScorekeepingSystem Scorekeeping { get; }
+    internal AdminCommandsSystem AdminCommands { get; }
+    internal KillFeedSystem KillFeedRules { get; }
+    internal PlayerRemainsSystem PlayerRemains { get; }
+    internal SpawnSystem Spawns { get; }
+    internal PlayerDeathSystem PlayerDeaths { get; }
+    internal PlayerInputSystem PlayerInput { get; }
+    internal SnapshotApplySystem SnapshotApply { get; }
+    internal DecisionGate Decisions { get; }
+    internal DamageRulesSystem DamageRules { get; }
 
     public long Frame { get; private set; }
 
@@ -252,7 +276,7 @@ public sealed partial class SimulationWorld
             deathCam = PlayerRegistry.DeathCams.GetValueOrDefault(slot);
         }
 
-        return deathCam is null ? null : ResolveTrackedDeathCamFocus(deathCam);
+        return deathCam is null ? null : PlayerDeaths.ResolveTrackedDeathCamFocus(deathCam);
     }
 
     public PlayerTeam? ArenaPointTeam => Objectives.Arena.PointTeam;
@@ -284,12 +308,12 @@ public sealed partial class SimulationWorld
 
     public bool IsPlayerHumiliated(PlayerEntity player)
     {
-        if (IsPracticeDummy(player))
+        if (PracticeDummies.IsPracticeDummy(player))
         {
             return true;
         }
 
-        if (IsExperimentalRageHumiliationActiveForPlayer(player))
+        if (ExperimentalRules.IsExperimentalRageHumiliationActiveForPlayer(player))
         {
             return true;
         }
@@ -317,6 +341,30 @@ public sealed partial class SimulationWorld
         Abilities = new GameplayAbilitySystem(this);
         NetworkPlayerRules = new NetworkPlayerSystem(this);
         LastToDieRules = new LastToDieRulesSystem(this);
+        ExperimentalRules = new ExperimentalRulesSystem(this);
+        SupportRules = new SupportRulesSystem(this);
+        ExplosionRules = new ExplosionRulesSystem(this);
+        AirblastRules = new AirblastRulesSystem(this);
+        PresentationBounds = new PlayerPresentationBoundsSystem(this);
+        CombatFeedback = new CombatFeedbackSystem(this);
+        VipRules = new VipRulesSystem(this);
+        ReadyUp = new ReadyUpSystem(this);
+        MapLogic = new MapLogicSystem(this);
+        PracticeDummies = new PracticeDummySystem(this);
+        ServerTuning = new ServerTuningSystem(this);
+        RoomEffects = new RoomEffectsSystem(this);
+        WorldEffects = new WorldEffectsSystem(this);
+        ClassRules = new ClassRulesSystem(this);
+        Scorekeeping = new ScorekeepingSystem(this);
+        AdminCommands = new AdminCommandsSystem(this);
+        KillFeedRules = new KillFeedSystem(this);
+        PlayerRemains = new PlayerRemainsSystem(this);
+        Spawns = new SpawnSystem(this);
+        PlayerDeaths = new PlayerDeathSystem(this);
+        PlayerInput = new PlayerInputSystem(this);
+        SnapshotApply = new SnapshotApplySystem(this);
+        Decisions = new DecisionGate(this);
+        DamageRules = new DamageRulesSystem(this);
         _runtime = new SimulationRuntime(this, new EntityTickPhase(this), new MatchTickPhase(this, new MatchObjectiveSystem(this)));
         _playerCounts = new PlayerCountQueries(this);
         Config = config ?? new SimulationConfig();
@@ -325,25 +373,25 @@ public sealed partial class SimulationWorld
         Projectiles = new ProjectileSystem(EntityStore, Combat, this);
         Level = SimpleLevelFactory.CreateScoutPrototypeLevel(MatchSettings.MapScale);
         Movement = new MovementSystem(this);
-        RedIntel = CreateIntelState(PlayerTeam.Red);
-        BlueIntel = CreateIntelState(PlayerTeam.Blue);
+        RedIntel = ObjectiveRules.CreateIntelState(PlayerTeam.Red);
+        BlueIntel = ObjectiveRules.CreateIntelState(PlayerTeam.Blue);
         MatchRules = CreateDefaultMatchRules(Level.Mode);
         MatchState = CreateInitialMatchState(MatchRules);
         LocalPlayer = new PlayerEntity(AllocateEntityId(), LocalState.PlayerClassDefinition, DefaultLocalPlayerName);
         LocalPlayer.SetPlayerScale(MatchSettings.PlayerScale);
-        ApplyServerGameplayTuning(LocalPlayerSlot, LocalPlayer);
-        var initialSpawn = ReserveSpawn(LocalPlayer, LocalPlayerTeam);
-        SpawnPlayerResolved(LocalPlayer, LocalPlayerTeam, initialSpawn);
+        ServerTuning.ApplyServerGameplayTuning(LocalPlayerSlot, LocalPlayer);
+        var initialSpawn = Spawns.ReserveSpawn(LocalPlayer, LocalPlayerTeam);
+        Spawns.SpawnPlayerResolved(LocalPlayer, LocalPlayerTeam, initialSpawn);
         EntityStore.Add(LocalPlayer);
         PlayerRegistry.ActivePlayersById[LocalPlayer.Id] = LocalPlayer;
         PlayerRegistry.SlotsByPlayerId[LocalPlayer.Id] = LocalPlayerSlot;
         EnemyPlayer = new PlayerEntity(AllocateEntityId(), DummyState.EnemyClassDefinition, DefaultEnemyPlayerName);
         EnemyPlayer.SetPlayerScale(MatchSettings.PlayerScale);
-        ApplyServerGameplayTuning(slot: 0, EnemyPlayer);
+        ServerTuning.ApplyServerGameplayTuning(slot: 0, EnemyPlayer);
         if (Config.EnableLocalDummies && Config.EnableEnemyTrainingDummy)
         {
-            var enemySpawn = ReserveSpawn(EnemyPlayer, DummyState.EnemyTeam);
-            SpawnPlayerResolved(EnemyPlayer, DummyState.EnemyTeam, enemySpawn);
+            var enemySpawn = Spawns.ReserveSpawn(EnemyPlayer, DummyState.EnemyTeam);
+            Spawns.SpawnPlayerResolved(EnemyPlayer, DummyState.EnemyTeam, enemySpawn);
             EnemyPlayerEnabled = true;
         }
         else
@@ -354,58 +402,24 @@ public sealed partial class SimulationWorld
         EntityStore.Add(EnemyPlayer);
         FriendlyDummy = new PlayerEntity(AllocateEntityId(), LocalState.FriendlyDummyClassDefinition, DefaultFriendlyDummyName);
         FriendlyDummy.SetPlayerScale(MatchSettings.PlayerScale);
-        ApplyServerGameplayTuning(slot: 0, FriendlyDummy);
+        ServerTuning.ApplyServerGameplayTuning(slot: 0, FriendlyDummy);
         FriendlyDummy.Kill();
         EntityStore.Add(FriendlyDummy);
-        ResetHealthPackSpawnsForLevel();
-        ResetJumpPadSpawnsForLevel();
+        Pickups.ResetHealthPackSpawnsForLevel();
+        Structures.ResetJumpPadSpawnsForLevel();
     }
-
-    public void ConfigureExperimentalGameplaySettings(ExperimentalGameplaySettings settings)
-    {
-        ExperimentalGameplaySettings = settings ?? new ExperimentalGameplaySettings();
-        if (!ExperimentalGameplaySettings.EnableRage)
-        {
-            CombatRuntime.RageEnemyHumiliationTicksRemaining = 0;
-            LocalPlayer.ClearRageState();
-        }
-
-        if (!ExperimentalGameplaySettings.EnableEnemyHealthPackDrops)
-        {
-            ClearTemporaryHealthPacks();
-        }
-        if (!ExperimentalGameplaySettings.EnableEnemyDroppedWeapons)
-        {
-            ClearDroppedWeapons();
-        }
-
-        SyncExperimentalGameplayLoadouts();
-    }
-
-    private void SyncExperimentalGameplayLoadouts()
-    {
-        for (var index = 0; index < NetworkPlayerSlots.Count; index += 1)
-        {
-            var slot = NetworkPlayerSlots[index];
-            if (IsNetworkPlayerEnabled(slot) && TryGetNetworkPlayer(slot, out var player))
-            {
-                SyncExperimentalGameplayLoadout(slot, player);
-            }
-        }
-    }
-
 
     public void SetLocalHealth(int health)
     {
         if (health <= 0)
         {
-            ForceKillLocalPlayer();
+            NetworkPlayerRules.ForceKillLocalPlayer();
             return;
         }
 
         if (!LocalPlayer.IsAlive)
         {
-            ForceRespawnLocalPlayer();
+            NetworkPlayerRules.ForceRespawnLocalPlayer();
         }
 
         LocalPlayer.ForceSetHealth(health);
@@ -420,7 +434,7 @@ public sealed partial class SimulationWorld
     {
         if (!LocalPlayer.IsAlive)
         {
-            ForceRespawnLocalPlayer();
+            NetworkPlayerRules.ForceRespawnLocalPlayer();
         }
 
         LocalPlayer.TeleportTo(
@@ -446,17 +460,17 @@ public sealed partial class SimulationWorld
 
     public bool TrySetLocalClass(string gameplayClassId)
     {
-        var definition = ResolveMapForcedClassDefinition(LocalPlayerSlot, CharacterClassCatalog.GetDefinition(gameplayClassId));
-        if (string.Equals(definition.GameplayClassId, GetNetworkPlayerClassDefinition(LocalPlayerSlot).GameplayClassId, StringComparison.Ordinal))
+        var definition = ClassRules.ResolveMapForcedClassDefinition(LocalPlayerSlot, CharacterClassCatalog.GetDefinition(gameplayClassId));
+        if (string.Equals(definition.GameplayClassId, NetworkPlayerRules.GetNetworkPlayerClassDefinition(LocalPlayerSlot).GameplayClassId, StringComparison.Ordinal))
         {
             // Allow same-class selection to commit a pending team swap.
             // Use TryApplyNetworkPlayerClassChange so spawn-room and respawn-timer rules are respected.
-            return (LocalPlayer.Team != GetNetworkPlayerConfiguredTeam(LocalPlayerSlot)
-                    || HasPendingNetworkPlayerTeamSelection(LocalPlayerSlot))
-                && TryApplyNetworkPlayerClassChange(LocalPlayerSlot, definition);
+            return (LocalPlayer.Team != NetworkPlayerRules.GetNetworkPlayerConfiguredTeam(LocalPlayerSlot)
+                    || NetworkPlayerRules.HasPendingNetworkPlayerTeamSelection(LocalPlayerSlot))
+                && NetworkPlayerRules.TryApplyNetworkPlayerClassChange(LocalPlayerSlot, definition);
         }
 
-        return TryApplyNetworkPlayerClassChange(LocalPlayerSlot, definition);
+        return NetworkPlayerRules.TryApplyNetworkPlayerClassChange(LocalPlayerSlot, definition);
     }
 
 
@@ -497,122 +511,11 @@ public sealed partial class SimulationWorld
         return new MatchState(MatchPhase.Running, rules.TimeLimitTicks, null);
     }
 
+    public void ConfigureExperimentalGameplaySettings(ExperimentalGameplaySettings settings)
+        => ExperimentalRules.ConfigureExperimentalGameplaySettings(settings);
+
     private void SyncExperimentalGameplayLoadout(byte slot, PlayerEntity player)
-    {
-        var hasLastToDieProfile = TryGetLastToDieLegacyGameplaySettings(
-            slot,
-            out var lastToDieSettings);
-        var settings = hasLastToDieProfile
-            ? lastToDieSettings
-            : ExperimentalGameplaySettings;
-        if (slot != LocalPlayerSlot && !hasLastToDieProfile)
-        {
-            player.SetExperimentalDemoknightEnabled(false);
-            player.SetExperimentalPassiveMovementSpeedMultiplier(global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultPassiveMovementSpeedMultiplier);
-            player.SetExperimentalJumpHeightMultiplier(global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultPassiveJumpHeightMultiplier);
-            player.SetExperimentalBonusAirJumps(0);
-            player.SetExperimentalDemoknightSwordRangeMultiplier(global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultDemoknightSwordRangeMultiplier);
-            player.SetExperimentalDemoknightSwordBaseDamage(global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultDemoknightSwordBaseDamage);
-            player.SetExperimentalDemoknightSwordDamageMultiplier(global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultDemoknightSwordDamageMultiplier);
-            player.SetExperimentalDemoknightSwordCooldownMultiplier(global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultDemoknightSwordCooldownMultiplier);
-            player.SetExperimentalDemoknightChargeRechargeMultiplier(global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultDemoknightChargeRechargeMultiplier);
-            player.SetExperimentalSoldierAmmoRegeneratesWhileSwappedOut(false);
-            player.SetExperimentalSelfDamageHealing(false);
-            player.SetExperimentalReloadSpeedMultiplier(global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultReloadSpeedMultiplier);
-            player.SetExperimentalDemoknightChargeFullControlEnabled(false);
-            player.ConfigureExperimentalDemoknightPostRageRegeneration(0f);
-            player.StartExperimentalDemoknightPostRageRegeneration(0);
-            player.SetExperimentalOffhandWeapon(
-                ResolveGameplaySecondaryWeapon(player, allowSoldierShotgun: false, allowSoldierShotgunLtd: false));
-            if (player.ClassId == PlayerClass.Soldier)
-            {
-                player.SetAcquiredWeapon(null);
-            }
-            ApplyNetworkPlayerMaxHealthOverride(slot, player, refillHealth: false);
-            return;
-        }
+        => ExperimentalRules.SyncExperimentalGameplayLoadout(slot, player);
 
-        player.SetExperimentalDemoknightEnabled(
-            settings.EnableDemoknightKit
-            && player.ClassId == PlayerClass.Demoman);
-        player.SetExperimentalPassiveMovementSpeedMultiplier(settings.PassiveMovementSpeedMultiplier);
-        player.SetExperimentalJumpHeightMultiplier(settings.PassiveJumpHeightMultiplier);
-        player.SetExperimentalBonusAirJumps(settings.PassiveBonusAirJumps);
-        player.SetExperimentalDemoknightSwordRangeMultiplier(settings.DemoknightSwordRangeMultiplier);
-        player.SetExperimentalDemoknightSwordBaseDamage(settings.DemoknightSwordBaseDamage);
-        player.SetExperimentalDemoknightSwordDamageMultiplier(settings.DemoknightSwordDamageMultiplier);
-        player.SetExperimentalDemoknightSwordCooldownMultiplier(settings.DemoknightSwordCooldownMultiplier);
-        player.SetExperimentalDemoknightChargeRechargeMultiplier(settings.DemoknightChargeRechargeMultiplier);
-        player.SetExperimentalSoldierAmmoRegeneratesWhileSwappedOut(
-            settings.EnableSoldierAmmoRegeneratesWhileSwappedOut
-            && player.ClassId == PlayerClass.Soldier);
-        player.SetExperimentalSelfDamageHealing(
-            settings.EnableSelfDamageHealing
-            && player.ClassId == PlayerClass.Soldier);
-        player.SetExperimentalReloadSpeedMultiplier(
-            player.ClassId == PlayerClass.Soldier
-                ? settings.ReloadSpeedMultiplierValue
-                : global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultReloadSpeedMultiplier);
-        player.SetExperimentalDemoknightChargeFullControlEnabled(
-            settings.EnableDemoknightFullControlDuringCharge
-            && player.ClassId == PlayerClass.Demoman);
-        if (settings.EnableDemoknightPostRageRegeneration
-            && player.ClassId == PlayerClass.Demoman)
-        {
-            player.ConfigureExperimentalDemoknightPostRageRegeneration(
-                global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultDemoknightPostRageRegenerationPerSecond);
-        }
-        else
-        {
-            player.ConfigureExperimentalDemoknightPostRageRegeneration(0f);
-            player.StartExperimentalDemoknightPostRageRegeneration(0);
-        }
-        player.SetExperimentalOffhandWeapon(
-            ResolveGameplaySecondaryWeapon(
-                player,
-                allowSoldierShotgun: settings.EnableSoldierShotgunSecondaryWeapon,
-                allowSoldierShotgunLtd: settings.EnableSoldierShotgunLtdPerk));
-        if (player.ClassId == PlayerClass.Soldier
-            && !settings.EnableEnemyDroppedWeapons)
-        {
-            player.SetAcquiredWeapon(null);
-        }
-
-        if (player.ClassId == PlayerClass.Engineer)
-        {
-            // Legacy Engineer perks alter metal capacity and alternate
-            // weapon presentation. Apply those profile-owned fields during
-            // the same synchronization pass as the rest of the loadout.
-            ApplyExperimentalEngineerPassivePlayerEffects(player);
-        }
-
-        ApplyNetworkPlayerMaxHealthOverride(slot, player, refillHealth: false);
-    }
-
-    private static PrimaryWeaponDefinition? ResolveGameplaySecondaryWeapon(
-        PlayerEntity player,
-        bool allowSoldierShotgun,
-        bool allowSoldierShotgunLtd)
-    {
-        var runtimeRegistry = CharacterClassCatalog.RuntimeRegistry;
-        if (allowSoldierShotgunLtd && player.ClassId == PlayerClass.Soldier)
-        {
-            return CharacterClassCatalog.SoldierShotgunLtd;
-        }
-
-        var secondaryItemId = player.GameplayLoadoutState.SecondaryItemId;
-        if (!string.IsNullOrWhiteSpace(secondaryItemId))
-        {
-            var secondaryItem = runtimeRegistry.GetRequiredItem(secondaryItemId);
-            if (runtimeRegistry.TryGetPrimaryWeaponBinding(secondaryItem.BehaviorId, out _))
-            {
-                return runtimeRegistry.CreatePrimaryWeaponDefinition(secondaryItem);
-            }
-        }
-
-        return allowSoldierShotgun && player.ClassId == PlayerClass.Soldier
-            ? CharacterClassCatalog.SoldierShotgun
-            : null;
-    }
 
 }

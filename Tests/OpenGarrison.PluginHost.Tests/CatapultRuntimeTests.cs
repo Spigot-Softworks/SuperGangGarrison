@@ -1,4 +1,3 @@
-using System.Reflection;
 using OpenGarrison.Core;
 using Xunit;
 
@@ -6,14 +5,6 @@ namespace OpenGarrison.PluginHost.Tests;
 
 public sealed class CatapultRuntimeTests
 {
-    private static readonly MethodInfo ApplyRoomForcesMethod = typeof(SimulationWorld).GetMethod(
-        "ApplyRoomForces",
-        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
-        null,
-        [typeof(PlayerEntity), typeof(bool)],
-        null)
-        ?? throw new MissingMethodException(typeof(SimulationWorld).FullName, "ApplyRoomForces");
-
     [Fact]
     public void CatapultLaunchesOnZoneEntryOnlyOnce()
     {
@@ -59,7 +50,7 @@ public sealed class CatapultRuntimeTests
 
     private static bool InvokeApplyRoomForces(SimulationWorld world, PlayerEntity player, bool jumpPressed)
     {
-        return (bool)(ApplyRoomForcesMethod.Invoke(world, [player, jumpPressed]) ?? false);
+        return world.Movement.ApplyRoomForces(player, jumpPressed);
     }
 
     private static SimulationWorld CreateWorldWithCatapult(CatapultConfiguration configuration)

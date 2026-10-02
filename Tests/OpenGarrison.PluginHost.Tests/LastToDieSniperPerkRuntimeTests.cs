@@ -1483,11 +1483,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
         float aimWorldY)
     {
         Assert.True(sniper.TryFirePrimaryWeapon());
-        var method = typeof(SimulationWorld).GetMethod(
-            "FirePrimaryWeapon",
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        _ = method!.Invoke(world, [sniper, aimWorldX, aimWorldY]);
+        world.WeaponHandler.FirePrimaryWeapon(sniper, aimWorldX, aimWorldY);
     }
 
     private static ArrowProjectileEntity SpawnTestArrow(
@@ -1497,21 +1493,13 @@ public sealed class LastToDieSniperPerkRuntimeTests
         int damage,
         float fakeSpeedMultiplier = PlayerEntity.SniperBowMaxFakeSpeedMultiplier)
     {
-        var method = typeof(SimulationWorld).GetMethod(
-            "SpawnArrow",
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        _ = method!.Invoke(
-            world,
-            [
-                sniper,
-                sniper.X,
-                sniper.Y,
-                velocityX,
-                0f,
-                damage,
-                fakeSpeedMultiplier,
-            ]);
+        world.Projectiles.SpawnArrow(sniper,
+            sniper.X,
+            sniper.Y,
+            velocityX,
+            0f,
+            damage,
+            fakeSpeedMultiplier);
         return Assert.IsType<ArrowProjectileEntity>(world.Needles[^1]);
     }
 
@@ -1534,11 +1522,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
         SimulationWorld world,
         PlayerEntity owner)
     {
-        var method = typeof(SimulationWorld).GetMethod(
-            "DetonateOwnedLastToDieSniperArrows",
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        return (bool)method!.Invoke(world, [owner])!;
+        return world.LastToDieRules.DetonateOwnedLastToDieSniperArrows(owner);
     }
 
     private static void AdvanceSourceTicks(PlayerEntity player, int ticks)

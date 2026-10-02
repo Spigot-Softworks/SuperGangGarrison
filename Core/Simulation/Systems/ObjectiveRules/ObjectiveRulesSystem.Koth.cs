@@ -24,10 +24,10 @@ internal sealed partial class ObjectiveRulesSystem
 
     internal void ResetKothStateForNewRound()
     {
-        _host.InitializeControlPointsForLevel();
+        InitializeControlPointsForLevel();
         _host.Objectives.ControlPoints.SetupMode = false;
         _host.Objectives.ControlPoints.SetupTicksRemaining = 0;
-        _host.UpdateControlPointSetupGates();
+        UpdateControlPointSetupGates();
 
         _host.Objectives.Koth.RedTimerTicksRemaining = GetDefaultKothTeamTimerTicks();
         _host.Objectives.Koth.BlueTimerTicksRemaining = GetDefaultKothTeamTimerTicks();

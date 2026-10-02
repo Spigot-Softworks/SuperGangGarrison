@@ -405,6 +405,40 @@ public sealed partial class PlayerEntity
         QuoteBladesOut = int.Max(0, QuoteBladesOut - 1);
     }
 
+    internal void HydrateQuoteBladeCount(int count)
+    {
+        QuoteBladesOut = Math.Max(0, count);
+    }
+
+    internal void DrainQuoteBladeAmmoSourceTick(long ammoGeneration)
+    {
+        if (!IsAlive
+            || ammoGeneration != QuoteBladeAmmoGeneration
+            || !HasPrimaryBehavior(BuiltInGameplayBehaviorIds.Blade)
+            || !HasSecondaryBehavior(BuiltInGameplayBehaviorIds.QuoteBladeThrow)
+            || HasInfiniteAmmoFromUber)
+        {
+            return;
+        }
+
+        CurrentShells = Math.Max(0, CurrentShells - QuoteBladeAmmoDrainPerSourceTick);
+    }
+
+    internal void SettleQuoteBladeMinimumAmmoCost(long ammoGeneration, int ammoDrainedSourceTicks)
+    {
+        if (!IsAlive
+            || ammoGeneration != QuoteBladeAmmoGeneration
+            || !HasPrimaryBehavior(BuiltInGameplayBehaviorIds.Blade)
+            || !HasSecondaryBehavior(BuiltInGameplayBehaviorIds.QuoteBladeThrow)
+            || HasInfiniteAmmoFromUber)
+        {
+            return;
+        }
+
+        var missingMinimumCost = Math.Max(0, QuoteBladeMinimumAmmoCost - Math.Max(0, ammoDrainedSourceTicks));
+        CurrentShells = Math.Max(0, CurrentShells - missingMinimumCost);
+    }
+
     public void AdvanceCivvieUmbrellaState(
         int maxChargeTicks = CivvieUmbrellaMaxChargeTicks,
         int holdDrainPerTick = CivvieUmbrellaHoldDrainPerTick,

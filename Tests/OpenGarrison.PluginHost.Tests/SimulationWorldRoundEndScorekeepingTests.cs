@@ -1,4 +1,3 @@
-using System.Reflection;
 using OpenGarrison.Core;
 using Xunit;
 
@@ -149,11 +148,7 @@ public sealed class SimulationWorldRoundEndScorekeepingTests
 
     private static void SetMatchEnded(SimulationWorld world, PlayerTeam winner)
     {
-        var property = typeof(SimulationWorld).GetProperty(nameof(SimulationWorld.MatchState))
-            ?? throw new InvalidOperationException("MatchState property was not found.");
-        var setter = property.GetSetMethod(nonPublic: true)
-            ?? throw new InvalidOperationException("MatchState setter was not found.");
-        setter.Invoke(world, [world.MatchState with { Phase = MatchPhase.Ended, WinnerTeam = winner }]);
+        world.CombatTestSetMatchState(world.MatchState with { Phase = MatchPhase.Ended, WinnerTeam = winner });
     }
 
     private static void InvokeKillPlayer(
@@ -162,32 +157,24 @@ public sealed class SimulationWorldRoundEndScorekeepingTests
         PlayerEntity killer,
         string weaponSpriteName)
     {
-        var method = typeof(SimulationWorld).GetMethod("KillPlayer", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
-            ?? throw new InvalidOperationException("KillPlayer method was not found.");
-        _ = method.Invoke(
-            world,
-            [
-                victim,
-                false,
-                killer,
-                weaponSpriteName,
-                DeadBodyAnimationKind.Default,
-                null,
-                null,
-                null,
-                true,
-                true,
-                false,
-                true,
-                -1,
-                false,
-            ]);
+        world.PlayerDeaths.KillPlayer(victim,
+            false,
+            killer,
+            weaponSpriteName,
+            DeadBodyAnimationKind.Default,
+            null,
+            null,
+            null,
+            true,
+            true,
+            false,
+            true,
+            -1,
+            false);
     }
 
     private static void InvokeAwardHealingPoints(SimulationWorld world, PlayerEntity healer, int healedAmount)
     {
-        var method = typeof(SimulationWorld).GetMethod("AwardHealingPoints", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
-            ?? throw new InvalidOperationException("AwardHealingPoints method was not found.");
-        method.Invoke(world, [healer, healedAmount]);
+        world.Scorekeeping.AwardHealingPoints(healer, healedAmount);
     }
 }

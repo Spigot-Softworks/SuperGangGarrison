@@ -1032,7 +1032,6 @@ public static class CombatDecisionResolver
             || self.IsCivviePogoActive
             || self.PrimaryCooldownTicks > 0
             || self.QuoteBladesOut >= PlayerEntity.QuoteBladeMaxOut
-            || self.CurrentShells < PlayerEntity.QuoteBladeEnergyCost
             || combatTarget is not { Kind: BotBrainCombatTargetKind.Player, Player: { IsAlive: true } target })
         {
             return false;

@@ -820,12 +820,18 @@ internal sealed partial class GameplayAbilitySystem
             "lifetimeTicks",
             PlayerEntity.QuoteBladeLifetimeTicks,
             minValue: 1);
-        if (!context.Player.TryFireQuoteBlade(energyCost, activeProjectileLimit))
+        var damageAmmoShells = Math.Max(0, context.Player.CurrentShells - energyCost);
+        if (!context.Player.TryFireQuoteBlade(activeProjectileLimit))
         {
             return new GameplayAbilityResult(Handled: false, ConsumedInput: true);
         }
 
-        _host.WeaponHandler.FireQuoteBlade(context.Player, context.Input.AimWorldX, context.Input.AimWorldY, lifetimeTicks);
+        _host.WeaponHandler.FireQuoteBlade(
+            context.Player,
+            context.Input.AimWorldX,
+            context.Input.AimWorldY,
+            lifetimeTicks,
+            damageAmmoShells);
         return GameplayAbilityResult.HandledAndConsumed;
     }
 

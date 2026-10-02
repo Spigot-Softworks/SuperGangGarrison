@@ -7,15 +7,10 @@ namespace OpenGarrison.Core;
 // Thin forwarders so remaining world code keeps its call shape; callers should migrate to the system directly over time.
 public sealed partial class SimulationWorld
 {
-    private void AdvancePlayableNetworkPlayer(byte slot) => NetworkPlayerRules.AdvancePlayableNetworkPlayer(slot);
-    private void ApplySnapshotNetworkPlayerBot(byte slot, bool isBot) => NetworkPlayerRules.ApplySnapshotNetworkPlayerBot(slot, isBot);
-    private void ApplySnapshotNetworkPlayerPingMilliseconds(byte slot, int pingMilliseconds) => NetworkPlayerRules.ApplySnapshotNetworkPlayerPingMilliseconds(slot, pingMilliseconds);
     public void ClearEnemyInputOverride() => NetworkPlayerRules.ClearEnemyInputOverride();
     public void CompleteLocalPlayerJoin(PlayerClass playerClass) => NetworkPlayerRules.CompleteLocalPlayerJoin(playerClass);
     public void CompleteLocalPlayerJoin(string gameplayClassId) => NetworkPlayerRules.CompleteLocalPlayerJoin(gameplayClassId);
-    private PlayerEntity EnsureAdditionalNetworkPlayer(byte slot) => NetworkPlayerRules.EnsureAdditionalNetworkPlayer(slot);
     public IEnumerable<(byte Slot, PlayerEntity Player)> EnumerateActiveNetworkPlayers() => NetworkPlayerRules.EnumerateActiveNetworkPlayers();
-    private IEnumerable<byte> EnumerateEnabledNetworkPlayerSlots() => NetworkPlayerRules.EnumerateEnabledNetworkPlayerSlots();
     public IEnumerable<(byte Slot, PlayerEntity Player)> EnumerateReplicatedNetworkPlayers() => NetworkPlayerRules.EnumerateReplicatedNetworkPlayers();
     public void ForceKillLocalPlayer() => NetworkPlayerRules.ForceKillLocalPlayer();
     public bool ForceKillNetworkPlayer(byte slot) => NetworkPlayerRules.ForceKillNetworkPlayer(slot);
@@ -25,14 +20,11 @@ public sealed partial class SimulationWorld
     public static string GetNetworkPlayerDefaultName(byte slot) => NetworkPlayerSystem.GetNetworkPlayerDefaultName(slot);
     public int GetNetworkPlayerPingMilliseconds(byte slot) => NetworkPlayerRules.GetNetworkPlayerPingMilliseconds(slot);
     public int GetNetworkPlayerRespawnTicks(byte slot) => NetworkPlayerRules.GetNetworkPlayerRespawnTicks(slot);
-    private bool HasPendingNetworkPlayerTeamSelection(byte slot) => NetworkPlayerRules.HasPendingNetworkPlayerTeamSelection(slot);
     public bool IsNetworkPlayerAutomaticRespawnSuppressed(PlayerEntity player) => NetworkPlayerRules.IsNetworkPlayerAutomaticRespawnSuppressed(player);
     public bool IsNetworkPlayerAwaitingJoin(byte slot) => NetworkPlayerRules.IsNetworkPlayerAwaitingJoin(slot);
     public bool IsNetworkPlayerBot(byte slot) => NetworkPlayerRules.IsNetworkPlayerBot(slot);
-    private bool IsNetworkPlayerEnabled(byte slot) => NetworkPlayerRules.IsNetworkPlayerEnabled(slot);
     public static bool IsPlayableNetworkPlayerSlot(byte slot) => NetworkPlayerSystem.IsPlayableNetworkPlayerSlot(slot);
     public void PrepareLocalPlayerJoin() => NetworkPlayerRules.PrepareLocalPlayerJoin();
-    private PlayerInputSnapshot ResolveNetworkPlayerInput(byte slot) => NetworkPlayerRules.ResolveNetworkPlayerInput(slot);
     public void SetEnemyInput(PlayerInputSnapshot input) => NetworkPlayerRules.SetEnemyInput(input);
     public void SetLocalInput(PlayerInputSnapshot input) => NetworkPlayerRules.SetLocalInput(input);
     public void SetLocalPlayerBadgeMask(ulong badgeMask) => NetworkPlayerRules.SetLocalPlayerBadgeMask(badgeMask);
@@ -40,11 +32,9 @@ public sealed partial class SimulationWorld
     public void SetLocalPlayerName(string displayName) => NetworkPlayerRules.SetLocalPlayerName(displayName);
     public void SetLocalPlayerTeam(PlayerTeam team) => NetworkPlayerRules.SetLocalPlayerTeam(team);
     public void SetLocalPreviousInput(PlayerInputSnapshot input) => NetworkPlayerRules.SetLocalPreviousInput(input);
-    private void SetNetworkPlayerEnabled(byte slot, bool enabled) => NetworkPlayerRules.SetNetworkPlayerEnabled(slot, enabled);
     public void SetNetworkPlayerIsTypingChatMessage(byte slot, bool isTyping) => NetworkPlayerRules.SetNetworkPlayerIsTypingChatMessage(slot, isTyping);
     public void SetPendingLocalPlayerClass(PlayerClass playerClass) => NetworkPlayerRules.SetPendingLocalPlayerClass(playerClass);
     public void SetPendingLocalPlayerClass(string gameplayClassId) => NetworkPlayerRules.SetPendingLocalPlayerClass(gameplayClassId);
-    private bool TryApplyNetworkPlayerClassChange(byte slot, CharacterClassDefinition definition, bool enforceClassLimit = true) => NetworkPlayerRules.TryApplyNetworkPlayerClassChange(slot, definition, enforceClassLimit);
     public bool TryApplyNetworkPlayerClassSelection(byte slot, PlayerClass playerClass) => NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, playerClass);
     public bool TryApplyNetworkPlayerClassSelection(byte slot, string gameplayClassId) => NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, gameplayClassId);
     public bool TryClearNetworkPlayerInputOverride(byte slot) => NetworkPlayerRules.TryClearNetworkPlayerInputOverride(slot);
@@ -52,7 +42,6 @@ public sealed partial class SimulationWorld
     public bool TryForceNetworkPlayerClassSelectionAndRespawn(byte slot, PlayerClass playerClass) => NetworkPlayerRules.TryForceNetworkPlayerClassSelectionAndRespawn(slot, playerClass);
     public bool TryForceNetworkPlayerClassSelectionAndRespawn(byte slot, string gameplayClassId) => NetworkPlayerRules.TryForceNetworkPlayerClassSelectionAndRespawn(slot, gameplayClassId);
     public bool TryGetNetworkPlayer(byte slot, out PlayerEntity player) => NetworkPlayerRules.TryGetNetworkPlayer(slot, out player);
-    private bool TryGetNetworkPlayerSlot(PlayerEntity player, out byte slot) => NetworkPlayerRules.TryGetNetworkPlayerSlot(player, out slot);
     public bool TryGetPlayerNetworkSlot(PlayerEntity player, out byte slot) => NetworkPlayerRules.TryGetPlayerNetworkSlot(player, out slot);
     public bool TryGrantNetworkPlayerGameplayItem(byte slot, string itemId) => NetworkPlayerRules.TryGrantNetworkPlayerGameplayItem(slot, itemId);
     public bool TryPrepareNetworkPlayerJoin(byte slot) => NetworkPlayerRules.TryPrepareNetworkPlayerJoin(slot);

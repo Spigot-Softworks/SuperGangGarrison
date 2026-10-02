@@ -104,6 +104,7 @@ public partial class Game1
             RespawnSeconds = NormalizeOption(RespawnSeconds, RespawnOptions, 5);
             EnemyBotCount = NormalizeOption(EnemyBotCount, BotCountOptions, 0);
             FriendlyBotCount = NormalizeOption(FriendlyBotCount, BotCountOptions, 0);
+            SpecialAbilitiesEnabled = true;
         }
 
         public void CycleMap(int direction)
@@ -706,20 +707,4 @@ public partial class Game1
         return count <= 0 ? "Off" : count.ToString(CultureInfo.InvariantCulture);
     }
 
-    private bool _practiceSpecialAbilitiesEnabled
-    {
-        get => _practiceSetupState.SpecialAbilitiesEnabled;
-        set => _practiceSetupState.SpecialAbilitiesEnabled = value;
-    }
-
-    private void CyclePracticeSpecialAbilities(int direction)
-    {
-        if (direction == 0)
-        {
-            return;
-        }
-
-        _practiceSetupState.SpecialAbilitiesEnabled = direction > 0;
-        ApplyPracticeExperimentalGameplaySettings();
-    }
 }

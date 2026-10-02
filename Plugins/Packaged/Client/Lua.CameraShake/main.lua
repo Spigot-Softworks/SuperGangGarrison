@@ -2,6 +2,9 @@ local plugin = {}
 
 local SHAKE_DECAY_PER_REFERENCE_FRAME = 0.8
 local REFERENCE_FRAMES_PER_SECOND = 30.0
+-- GG2 picked a new shake offset once per 30 Hz game frame. Picking one every
+-- rendered frame turns the shake into high-frequency jitter at 60+ fps.
+local OFFSET_REFRESH_SECONDS = 1.0 / REFERENCE_FRAMES_PER_SECOND
 local INTENSITY_EPSILON = 0.0005
 local LOCAL_SOURCE_DISTANCE_SQUARED = 20 * 20
 
@@ -12,6 +15,7 @@ local default_config = {
 local config = default_config
 local current_shake_intensity = 0.0
 local current_camera_offset = { x = 0.0, y = 0.0 }
+local seconds_since_offset_refresh = 0.0
 local current_camera_center = { x = 0.0, y = 0.0 }
 local current_local_player_position = nil
 local current_local_player_class = "Unknown"
@@ -43,6 +47,7 @@ end
 local function reset_shake_state()
     current_shake_intensity = 0.0
     current_camera_offset = plugin.host.vec2(0.0, 0.0)
+    seconds_since_offset_refresh = 0.0
     current_camera_center = plugin.host.vec2(0.0, 0.0)
     current_local_player_position = nil
     current_local_player_class = "Unknown"
@@ -154,7 +159,14 @@ function plugin.on_client_frame(e)
         return
     end
 
-    current_camera_offset = create_random_offset(current_shake_intensity)
+    seconds_since_offset_refresh = seconds_since_offset_refresh + math.max(0.0, e.deltaSeconds)
+    if seconds_since_offset_refresh >= OFFSET_REFRESH_SECONDS then
+        seconds_since_offset_refresh = math.min(
+            seconds_since_offset_refresh - OFFSET_REFRESH_SECONDS,
+            OFFSET_REFRESH_SECONDS)
+        current_camera_offset = create_random_offset(current_shake_intensity)
+    end
+
     local reference_frames = math.max(0.0, e.deltaSeconds * REFERENCE_FRAMES_PER_SECOND)
     current_shake_intensity = current_shake_intensity * (SHAKE_DECAY_PER_REFERENCE_FRAME ^ reference_frames)
     if current_shake_intensity <= INTENSITY_EPSILON then
@@ -178,6 +190,7 @@ function plugin.on_world_sound(e)
 
     current_shake_intensity = current_shake_intensity + contribution
     current_camera_offset = create_random_offset(current_shake_intensity)
+    seconds_since_offset_refresh = 0.0
 end
 
 function plugin.get_camera_offset()

@@ -1105,11 +1105,7 @@ public sealed class LastToDieMedicPerkRuntimeTests
         PlayerEntity medic,
         PlayerEntity target)
     {
-        var method = typeof(SimulationWorld).GetMethod(
-            "ApplyMedicHealing",
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        _ = method!.Invoke(world, [medic, target]);
+        world.SupportRules.ApplyMedicHealing(medic, target);
     }
 
     private static float InvokeMedicHealingMultiplier(
@@ -1117,31 +1113,19 @@ public sealed class LastToDieMedicPerkRuntimeTests
         PlayerEntity medic,
         PlayerEntity target)
     {
-        var method = typeof(SimulationWorld).GetMethod(
-            "GetLastToDieMedicHealingMultiplier",
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        return (float)method!.Invoke(world, [medic, target])!;
+        return world.LastToDieRules.GetLastToDieMedicHealingMultiplier(medic, target);
     }
 
     private static float InvokeLastToDieEvasionChance(
         SimulationWorld world,
         PlayerEntity target)
     {
-        var method = typeof(SimulationWorld).GetMethod(
-            "GetLastToDieEvasionChance",
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        return (float)method!.Invoke(world, [target])!;
+        return world.LastToDieRules.GetLastToDieEvasionChance(target);
     }
 
     private static void InvokeRefreshMedicLinkProjections(SimulationWorld world)
     {
-        var method = typeof(SimulationWorld).GetMethod(
-            "RefreshLastToDieMedicLinkProjections",
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        _ = method!.Invoke(world, null);
+        world.LastToDieRules.RefreshLastToDieMedicLinkProjections();
     }
 
     private static int InvokeExperimentalReloadMultiplier(PlayerEntity player, int ticks)
@@ -1164,24 +1148,15 @@ public sealed class LastToDieMedicPerkRuntimeTests
 
     private static void SetWorldFrame(SimulationWorld world, long frame)
     {
-        var property = typeof(SimulationWorld).GetProperty(
-            nameof(SimulationWorld.Frame),
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(property);
-        property!.SetValue(world, frame);
+        world.CombatTestSetFrame(frame);
     }
 
     private static PlayerEntity? InvokeResolveExsanguinationMedic(
         SimulationWorld world,
         PlayerEntity attacker)
     {
-        var method = typeof(SimulationWorld).GetMethod(
-            "TryResolveLastToDieExsanguinationMedic",
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        object?[] arguments = [attacker, null];
-        return (bool)method!.Invoke(world, arguments)!
-            ? Assert.IsType<PlayerEntity>(arguments[1])
+        return world.LastToDieRules.TryResolveLastToDieExsanguinationMedic(attacker, out var medic)
+            ? medic
             : null;
     }
 
@@ -1191,11 +1166,7 @@ public sealed class LastToDieMedicPerkRuntimeTests
         PlayerEntity target,
         MedicHealNeedleProjectileEntity needle)
     {
-        var method = typeof(SimulationWorld).GetMethod(
-            "ApplyMedicHealNeedleTeammateHit",
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        _ = method!.Invoke(world, [medic, target, needle]);
+        world.SupportRules.ApplyMedicHealNeedleTeammateHit(medic, target, needle);
     }
 
     private static PlayerDamageResolution ResolveDamage(

@@ -58,10 +58,10 @@ public sealed class ForwardSpawnControlPointLinkTests
             foreach (var first in new PlayerTeam?[] { PlayerTeam.Red, PlayerTeam.Blue, null, PlayerTeam.Red })
             foreach (var second in new PlayerTeam?[] { PlayerTeam.Red, PlayerTeam.Blue, null, PlayerTeam.Blue })
             {
-                world.CombatTestSetControlPointOwner(1, first);
-                world.CombatTestSetControlPointOwner(2, second);
-                var r = Assert.Single(world.CombatTestGetTeamSpawnSelectionPool(PlayerTeam.Red));
-                var b = Assert.Single(world.CombatTestGetTeamSpawnSelectionPool(PlayerTeam.Blue));
+                world.Spawns.CombatTestSetControlPointOwner(1, first);
+                world.Spawns.CombatTestSetControlPointOwner(2, second);
+                var r = Assert.Single(world.Spawns.CombatTestGetTeamSpawnSelectionPool(PlayerTeam.Red));
+                var b = Assert.Single(world.Spawns.CombatTestGetTeamSpawnSelectionPool(PlayerTeam.Blue));
                 Assert.Equal(second == PlayerTeam.Red ? 2 : 1, r.LegacySpawnSlot);
                 Assert.Equal(first == PlayerTeam.Blue ? 2 : 1, b.LegacySpawnSlot);
             }

@@ -14,7 +14,7 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        UpdateControlPointState();
+        ObjectiveRules.UpdateControlPointState();
     }
 
     private static bool NearlyEqual(float left, float right)

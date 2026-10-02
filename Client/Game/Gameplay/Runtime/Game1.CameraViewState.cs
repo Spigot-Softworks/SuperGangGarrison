@@ -67,7 +67,10 @@ public partial class Game1
         cameraTopLeft = ApplySmoothCamera(cameraTopLeft);
         var panOffset = GetCameraPanningOffset();
         cameraTopLeft += panOffset;
-        var effectsOffset = GetClientPluginCameraOffset() + GetLastToDieCameraShakeOffset();
+        // Shake offsets are random per refresh. Keep them on whole world pixels,
+        // as the whole-pixel camera used to, so fading shake tails do not turn
+        // into sub-pixel shimmer once the camera fraction is presented.
+        var effectsOffset = RoundToSourcePixels(GetClientPluginCameraOffset() + GetLastToDieCameraShakeOffset());
         var unclampedCameraTopLeft = cameraTopLeft + effectsOffset;
         if (!_smoothCameraRenderingActive && IsSubpixelWorldPresentationEligible())
         {
@@ -273,11 +276,16 @@ public partial class Game1
             ? _gameplayCameraPlayerPosition
             : GetRenderPosition(_world.LocalPlayer, allowInterpolation: true);
         var worldViewport = GetGameplayWorldViewport(viewportWidth, viewportHeight);
-        var cameraPosition = _hasGameplayCameraTopLeft
-            ? _gameplayCameraTopLeft
-            : FinalizeGameplayCameraTopLeft(
-                playerPosition - new Vector2(worldViewport.X, worldViewport.Y) * 0.5f,
-                worldViewport.X, worldViewport.Y, roundToSourcePixels: true);
+        // Measure the cursor against where the player sits on an unpanned,
+        // unshaken screen (still clamped to the map). Using the drawn camera
+        // fed the pan back into its own input: panning moves the player on
+        // screen, which moved the cursor further out, which panned further.
+        // Vertically that loop gain is about 0.9 at the default zoom, so small
+        // mouse or shake movements were amplified several times and the pan
+        // lurched to its limit and stuck there.
+        var cameraPosition = FinalizeGameplayCameraTopLeft(
+            playerPosition - new Vector2(worldViewport.X, worldViewport.Y) * 0.5f,
+            worldViewport.X, worldViewport.Y, roundToSourcePixels: false);
         var playerScreen = (playerPosition - cameraPosition) * GameplayCameraZoom;
         return CameraPanningState.GetMouseDirectionFromPlayer(viewportWidth, viewportHeight,
             new Vector2(mouseX, mouseY), playerScreen);

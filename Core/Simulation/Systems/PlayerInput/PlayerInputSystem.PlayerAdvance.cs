@@ -1,0 +1,583 @@
+using OpenGarrison.GameplayModding;
+using System.Diagnostics;
+using System.Globalization;
+using System.IO;
+
+namespace OpenGarrison.Core;
+
+internal sealed partial class PlayerInputSystem
+{
+    private static readonly bool SlowPlayerPhaseTracingEnabled =
+        Environment.GetEnvironmentVariable("OG_CLIENT_PERF_SIM_TRACE") is "1" or "true" or "TRUE";
+    private static readonly double SlowPlayerPhaseThresholdMilliseconds = ResolveSlowPlayerPhaseThresholdMilliseconds();
+    private static readonly string? SlowPlayerPhaseTracePath = SlowPlayerPhaseTracingEnabled
+        ? RuntimePaths.GetLogPath($"simulation-player-phases-{DateTime.Now.ToString("yyyyMMdd-HHmmssfff", CultureInfo.InvariantCulture)}.log")
+        : null;
+    private static readonly object SlowPlayerPhaseTraceSync = new();
+
+    internal void AdvanceAlivePlayerWithInput(
+        PlayerEntity player,
+        PlayerInputSnapshot input,
+        PlayerInputSnapshot previousInput,
+        PlayerTeam team,
+        bool allowDebugKill)
+    {
+        var preAdvanceX = player.X;
+        var preAdvanceY = player.Y;
+        var phaseStartTimestamp = SlowPlayerPhaseTracingEnabled ? Stopwatch.GetTimestamp() : 0L;
+        var advanceTickStateMilliseconds = 0d;
+        var primaryFireMilliseconds = 0d;
+        var prepareMovementMilliseconds = 0d;
+        var completeMovementMilliseconds = 0d;
+        var postMovementMilliseconds = 0d;
+        var postMovementContactEffectsMilliseconds = 0d;
+        var postMovementObjectiveEffectsMilliseconds = 0d;
+        var postMovementInventoryEffectsMilliseconds = 0d;
+        var postMovementPassiveAbilitiesMilliseconds = 0d;
+        if (player.IsServerInputSuppressed)
+        {
+            input = input with
+            {
+                Left = false,
+                Right = false,
+                Up = false,
+                Down = false,
+                BuildSentry = false,
+                BuildDispenser = false,
+                DestroySentry = false,
+                DestroyDispenser = false,
+                BuildJumpPad = false,
+                DestroyJumpPad = false,
+                Taunt = false,
+                FirePrimary = false,
+                FireSecondary = false,
+                DebugKill = false,
+                DropIntel = false,
+                UseAbility = false,
+                InteractWeapon = false,
+                SwapWeapon = false,
+                ToggleSecondaryWeapon = false,
+            };
+        }
+        var isHumiliated = _host.IsPlayerHumiliated(player);
+        player.ObserveTauntInput(
+            input.Taunt
+                || (player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.CivvieTaunt) && input.UseAbility));
+        player.ObserveCivviePogoTrickInput(input.Taunt);
+
+        if (isHumiliated)
+        {
+            input = input with
+            {
+                FirePrimary = false,
+                FireSecondary = false,
+                UseAbility = false,
+                SwapWeapon = false,
+                ToggleSecondaryWeapon = false,
+                BuildSentry = false,
+                BuildDispenser = false,
+                DestroySentry = false,
+                DestroyDispenser = false,
+                BuildJumpPad = false,
+                DestroyJumpPad = false,
+            };
+
+            // Force exit binoculars at the start of humiliation
+            if (player.IsUsingBinoculars)
+            {
+                player.TryToggleBinoculars();
+            }
+
+            player.ForceEndSniperScopeForHumiliation();
+            player.ForceEndSpyStealthForHumiliation();
+        }
+        
+        // Disable shooting while using binoculars
+        if (player.IsUsingBinoculars)
+        {
+            input = input with
+            {
+                FirePrimary = false,
+                FireSecondary = false,
+            };
+        }
+
+        // Disable shooting during Heavy ghost dash
+        if (player.ClassId == PlayerClass.Heavy && player.IsExperimentalGhostDashing)
+        {
+            input = input with
+            {
+                FirePrimary = false,
+                FireSecondary = false,
+            };
+        }
+
+        player.SetAimWorldPosition(input.AimWorldX, input.AimWorldY);
+        
+        // Update binoculars focus position if active
+        if (input.IsUsingBinoculars)
+        {
+            player.SetBinocularsFocusPosition(input.BinocularsFocusX, input.BinocularsFocusY);
+        }
+
+        var jumpPressed = input.Up && !previousInput.Up;
+        var dropPressed = input.DropIntel && !previousInput.DropIntel;
+        var buildPressed = input.BuildSentry && !previousInput.BuildSentry;
+        var buildDispenserPressed = input.BuildDispenser && !previousInput.BuildDispenser;
+        var destroyPressed = input.DestroySentry && !previousInput.DestroySentry;
+        var destroyDispenserPressed = input.DestroyDispenser && !previousInput.DestroyDispenser;
+        var buildJumpPadPressed = input.BuildJumpPad && !previousInput.BuildJumpPad;
+        var destroyJumpPadPressed = input.DestroyJumpPad && !previousInput.DestroyJumpPad;
+        var tauntPressed = input.Taunt && !previousInput.Taunt;
+        var killPressed = input.DebugKill && !previousInput.DebugKill;
+        var primaryPressed = input.FirePrimary && !previousInput.FirePrimary;
+        var secondaryAbilityPressed = input.FireSecondary && !previousInput.FireSecondary;
+        var secondaryAbilityReleased = !input.FireSecondary && previousInput.FireSecondary;
+        var abilityPressed = input.UseAbility && !previousInput.UseAbility;
+        var abilityReleased = !input.UseAbility && previousInput.UseAbility;
+        var swapWeaponPressed = input.SwapWeapon && !previousInput.SwapWeapon;
+        var toggleSecondaryWeaponPressed = input.ToggleSecondaryWeapon && !previousInput.ToggleSecondaryWeapon;
+        var interactWeaponPressed = input.InteractWeapon && !previousInput.InteractWeapon;
+        if (jumpPressed)
+        {
+            _host.Movement.StartJumpInputBuffer(player);
+        }
+        else if (!input.Up)
+        {
+            _host.Movement.ClearJumpInputBuffer(player);
+        }
+
+        var allowHeldSecondaryAbility = ShouldUseHeldSecondaryAbility(player)
+            || player.HasAcquiredMedigunEquipped;
+        var allowHeldUtilityAbility = ShouldUseHeldUtilityAbility(player);
+        var suppressPyroPrimaryThisTick = player.HasPyroWeaponEquipped
+            && secondaryAbilityPressed
+            && player.CanFirePyroAirblast();
+
+        player.ObserveSpySuperjumpAbilityInput(input.UseAbility);
+
+        player.SyncCivvieUmbrellaSecondaryInput(input.FireSecondary);
+        player.SyncCivviePogoSuperJumpInput(input.Up);
+
+        var healthBeforeTick = player.Health;
+        var subphaseStartTimestamp = SlowPlayerPhaseTracingEnabled ? Stopwatch.GetTimestamp() : 0L;
+        var afterburn = player.AdvanceTickState(input, _host.Config.FixedDeltaSeconds);
+        advanceTickStateMilliseconds = ElapsedMilliseconds(subphaseStartTimestamp);
+        if (_host.LastToDieRules.TryCompleteExpiredLastToDieSpyAfterlife(player))
+        {
+            return;
+        }
+
+        while (player.TryTakeDueLastToDieSniperVolleyArrow(out var volleyArrow))
+        {
+            if (!player.IsAlive || player.ClassId != PlayerClass.Sniper || !player.IsSniperBowEquipped)
+            {
+                player.CancelLastToDieSniperVolley();
+                break;
+            }
+
+            _host.WeaponHandler.FireQueuedLastToDieSniperBowArrow(player, volleyArrow);
+        }
+
+        var afterburnDamageCommitted = false;
+        if (healthBeforeTick > player.Health)
+        {
+            var burnedByPlayerId = afterburn.BurnedByPlayerId ?? player.BurnedByPlayerId;
+            var burner = burnedByPlayerId.HasValue
+                ? _host.FindPlayerById(burnedByPlayerId.Value)
+                : null;
+            var afterburnDamage = healthBeforeTick - player.Health;
+            if (burner is not null
+                && _host.TryAbsorbCivvieUmbrellaDamage(
+                    player,
+                    burner,
+                    DamageEventFlags.None,
+                    burner.X,
+                    burner.Y))
+            {
+                player.ForceSetHealth(healthBeforeTick);
+            }
+            else if (!_host.PracticeDummies.TryAbsorbPracticeCombatDummyTickDamage(player, afterburnDamage, burner))
+            {
+                _host.RegisterDamageEvent(
+                    burner,
+                    DamageTargetKind.Player,
+                    player.Id,
+                    player.X,
+                    player.Y,
+                    afterburnDamage,
+                    afterburn.IsFatal,
+                    playerTarget: player,
+                    flags: DamageEventFlags.AfterburnTick);
+                _host.ExperimentalRules.ApplyExperimentalDamageRewards(burner, player, afterburnDamage, allowOsmosisHealOwnedSentries: false);
+                _host.LastToDieRules.ApplyLastToDieDamageRewards(
+                    burner,
+                    player,
+                    afterburnDamage,
+                    PlayerDamageTraits.Periodic | PlayerDamageTraits.Fire);
+                afterburnDamageCommitted = true;
+            }
+        }
+
+        if (afterburnDamageCommitted && (afterburn.IsFatal || player.Health <= 0))
+        {
+            var burnedByPlayerId = afterburn.BurnedByPlayerId ?? player.BurnedByPlayerId;
+            var burner = burnedByPlayerId.HasValue
+                ? _host.FindPlayerById(burnedByPlayerId.Value)
+                : null;
+            _host.PlayerDeaths.KillPlayer(
+                player,
+                killer: burner,
+                weaponSpriteName: player.AfterburnKillFeedWeaponSpriteName,
+                killFeedMessage: " finished off ");
+            return;
+        }
+
+        if (player.IsServerFrozen)
+        {
+            return;
+        }
+
+        _host.Abilities.TryApplyPendingCivvieTauntHeal(player);
+
+        if (isHumiliated)
+        {
+            player.ForceEndSniperScopeForHumiliation();
+            player.ForceEndSpyStealthForHumiliation();
+        }
+
+        var wasSpyBackstabAnimating = player.IsSpyBackstabAnimating;
+        subphaseStartTimestamp = SlowPlayerPhaseTracingEnabled ? Stopwatch.GetTimestamp() : 0L;
+        if (!player.HasEquippedBehavior(BuiltInGameplayBehaviorIds.WhippingCord))
+        {
+            player.ReleaseWhippingCord();
+        }
+        else if (!input.FirePrimary)
+        {
+            _ = player.ReleaseWhippingCordWithPull();
+        }
+        TryHandleNetworkPrimaryFire(player, input, previousInput, primaryPressed, suppressPyroPrimaryThisTick);
+        primaryFireMilliseconds = ElapsedMilliseconds(subphaseStartTimestamp);
+        if (!wasSpyBackstabAnimating && player.IsSpyBackstabAnimating)
+        {
+            input = ResetMovementInput(input);
+            jumpPressed = false;
+            _host.Movement.ClearJumpInputBuffer(player);
+        }
+
+        if (tauntPressed)
+        {
+            var tauntAbilityResult = _host.Abilities.TryDispatchGameplayAbility(
+                player,
+                input,
+                previousInput,
+                GameplayAbilityInputPhase.Pressed,
+                GameplayAbilityConstants.TauntCategory,
+                preAdvanceX,
+                preAdvanceY);
+            if (!tauntAbilityResult.ConsumedInput)
+            {
+                GameplayAbilitySystem.TryStartTauntWithCivvieHeal(player);
+            }
+        }
+
+        if (_host.Movement.ApplyRoomForces(player, jumpPressed))
+        {
+            jumpPressed = false;
+            input = input with { Up = false };
+            _host.Movement.ClearJumpInputBuffer(player);
+        }
+
+        var cancelledSpySuperjumpChargeWithJump = _host.Movement.TryCancelSpySuperjumpChargeFromJumpInput(player, jumpPressed, input.UseAbility);
+        if (cancelledSpySuperjumpChargeWithJump)
+        {
+            jumpPressed = false;
+            input = input with { Up = false };
+            _host.Movement.ClearJumpInputBuffer(player);
+        }
+
+        subphaseStartTimestamp = SlowPlayerPhaseTracingEnabled ? Stopwatch.GetTimestamp() : 0L;
+        var movementPreparation = _host.Movement.PreparePlayerMovement(
+            player,
+            input,
+            jumpPressed,
+            team,
+            isHumiliated);
+        input = movementPreparation.Input;
+        jumpPressed = movementPreparation.JumpPressed;
+        var startedGrounded = movementPreparation.StartedGrounded;
+        var jumped = movementPreparation.Jumped;
+        var emitWallspinDust = movementPreparation.EmitWallspinDust;
+        prepareMovementMilliseconds = ElapsedMilliseconds(subphaseStartTimestamp);
+
+        var secondaryAbilityConsumedInput = false;
+        if (secondaryAbilityReleased
+            && player.TryReleaseLastToDieProfessionalFireChord(out var shouldDecloakFromProfessionalChord))
+        {
+            if (shouldDecloakFromProfessionalChord)
+            {
+                // The chord deliberately defers the normal M2 toggle until
+                // release. Complete that toggle even while cloak is still
+                // fading in; TryToggleSpyCloak rejects that transition.
+                player.ForceDecloak();
+            }
+
+            secondaryAbilityConsumedInput = true;
+        }
+        else if (secondaryAbilityPressed
+            && player.IsSniperBowEquipped
+            && (player.LastToDieSniperProfile.ExplosiveTipEnabled
+                || _host.LastToDieRules.HasOwnedLastToDieSniperExplosiveArrow(player)))
+        {
+            secondaryAbilityConsumedInput = true;
+            _ = _host.LastToDieRules.DetonateOwnedLastToDieSniperArrows(player);
+        }
+        else if (player.ClassId == PlayerClass.Medic)
+        {
+            if (input.FireSecondary)
+            {
+                var secondaryResult = TryHandleNetworkSecondaryAbility(
+                    player,
+                    input,
+                    previousInput,
+                    GameplayAbilityInputPhase.Held,
+                    preAdvanceX,
+                    preAdvanceY);
+                secondaryAbilityConsumedInput = secondaryResult.ConsumedInput;
+            }
+        }
+        else if ((allowHeldSecondaryAbility && input.FireSecondary) || (!allowHeldSecondaryAbility && secondaryAbilityPressed))
+        {
+            var secondaryResult = TryHandleNetworkSecondaryAbility(
+                player,
+                input,
+                previousInput,
+                allowHeldSecondaryAbility ? GameplayAbilityInputPhase.Held : GameplayAbilityInputPhase.Pressed,
+                preAdvanceX,
+                preAdvanceY);
+            secondaryAbilityConsumedInput = secondaryResult.ConsumedInput;
+        }
+
+        if (toggleSecondaryWeaponPressed
+            && !player.IsTaunting
+            && !player.IsExperimentalCryoFrozen)
+        {
+            _ = TryHandleSecondaryWeaponToggle(player);
+        }
+        else if (swapWeaponPressed && !secondaryAbilityConsumedInput)
+        {
+            _ = TryHandleNetworkWeaponSwap(player);
+        }
+
+        if (!player.HasEquippedBehavior(BuiltInGameplayBehaviorIds.WhippingCord))
+        {
+            player.ReleaseWhippingCord();
+        }
+
+        var utilityInputActive = abilityPressed
+            || (allowHeldUtilityAbility && input.UseAbility)
+            || (allowHeldUtilityAbility && abilityReleased);
+        if (!cancelledSpySuperjumpChargeWithJump
+            && utilityInputActive
+            && !input.FireSecondary)
+        {
+            var utilityPhase = allowHeldUtilityAbility
+                ? (abilityReleased ? GameplayAbilityInputPhase.Released : GameplayAbilityInputPhase.Held)
+                : GameplayAbilityInputPhase.Pressed;
+            _ = TryHandleNetworkAbilityInput(
+                player,
+                input,
+                previousInput,
+                utilityPhase);
+        }
+
+        if (interactWeaponPressed)
+        {
+            var ghostConsumedInput = !isHumiliated
+                && player.TryActivateLastToDieSniperGhostCloak();
+            var infiltrateConsumedInput = !ghostConsumedInput
+                && !isHumiliated
+                && player.TryStartLastToDieSpyInfiltrate(_host.Config.TicksPerSecond);
+            if (!ghostConsumedInput && !infiltrateConsumedInput)
+            {
+                TryHandleNetworkWeaponInteraction(player);
+            }
+        }
+
+        if (emitWallspinDust)
+        {
+            _host.WorldEffects.RegisterWallspinDustEffect(player);
+        }
+
+        subphaseStartTimestamp = SlowPlayerPhaseTracingEnabled ? Stopwatch.GetTimestamp() : 0L;
+        _host.Projectiles.AdvancePendingRocketsForOwner(player.Id);
+        var previousBottom = preAdvanceY + player.CollisionBottomOffset;
+        _host.Movement.CompletePlayerMovement(player, team, startedGrounded, jumped, input.Down);
+        completeMovementMilliseconds = ElapsedMilliseconds(subphaseStartTimestamp);
+        if (player.TryConsumeCivviePogoSuperJumpSoundRequest(out var pogoJumpSoundX, out var pogoJumpSoundY))
+        {
+            _host.WorldEffects.RegisterWorldSoundEvent("JumpSnd", pogoJumpSoundX, pogoJumpSoundY, player.Id);
+        }
+
+        var postMovementSubphaseStartTimestamp = SlowPlayerPhaseTracingEnabled ? Stopwatch.GetTimestamp() : 0L;
+        _host.Movement.ResolveMovingPlatformLanding(player, previousBottom, input.Down);
+        _host.Movement.ResolveLandedArrowLanding(player, previousBottom, input.Down);
+        _host.Movement.HandleJumpPadTriggerContactEffects(player);
+        _host.WorldEffects.TryRegisterIntelTrailEffect(player);
+        _host.TryRegisterCivvieMoneyTrail(player);
+        postMovementContactEffectsMilliseconds = ElapsedMilliseconds(postMovementSubphaseStartTimestamp);
+
+        postMovementSubphaseStartTimestamp = SlowPlayerPhaseTracingEnabled ? Stopwatch.GetTimestamp() : 0L;
+        _host.RoomEffects.UpdateSpawnRoomState(player);
+        TryActivatePendingSpyBackstab(player);
+        postMovementObjectiveEffectsMilliseconds = ElapsedMilliseconds(postMovementSubphaseStartTimestamp);
+
+        postMovementSubphaseStartTimestamp = SlowPlayerPhaseTracingEnabled ? Stopwatch.GetTimestamp() : 0L;
+        if (dropPressed)
+        {
+            _host.ObjectiveRules.TryDropCarriedIntel(player);
+        }
+
+        if (destroyPressed)
+        {
+            _host.Structures.TryDestroySentry(player);
+        }
+        else if (destroyDispenserPressed)
+        {
+            _host.Structures.TryDestroyDispenser(player);
+        }
+        else if (destroyJumpPadPressed)
+        {
+            _host.Structures.TryDestroyJumpPad(player);
+        }
+        else if (buildDispenserPressed)
+        {
+            _host.Structures.TryBuildDispenser(player);
+        }
+        else if (buildJumpPadPressed)
+        {
+            _host.Structures.TryBuildJumpPad(player);
+        }
+        else if (buildPressed)
+        {
+            _host.Structures.TryBuildSentry(player);
+        }
+
+        _host.RoomEffects.ApplyHealingCabinets(player);
+        _host.RoomEffects.ApplyRoomHazards(player);
+        _host.Movement.ApplyTeleportZones(player);
+        postMovementInventoryEffectsMilliseconds = ElapsedMilliseconds(postMovementSubphaseStartTimestamp);
+        if (!player.IsAlive)
+        {
+            return;
+        }
+
+        postMovementSubphaseStartTimestamp = SlowPlayerPhaseTracingEnabled ? Stopwatch.GetTimestamp() : 0L;
+        _host.Abilities.DispatchPassiveGameplayAbilities(player, input, previousInput, preAdvanceX, preAdvanceY);
+        postMovementPassiveAbilitiesMilliseconds = ElapsedMilliseconds(postMovementSubphaseStartTimestamp);
+
+        postMovementMilliseconds = ElapsedMilliseconds(phaseStartTimestamp)
+            - advanceTickStateMilliseconds
+            - primaryFireMilliseconds
+            - prepareMovementMilliseconds
+            - completeMovementMilliseconds;
+        TraceSlowPlayerPhases(
+            player,
+            phaseStartTimestamp,
+            advanceTickStateMilliseconds,
+            primaryFireMilliseconds,
+            prepareMovementMilliseconds,
+            completeMovementMilliseconds,
+            postMovementMilliseconds,
+            postMovementContactEffectsMilliseconds,
+            postMovementObjectiveEffectsMilliseconds,
+            postMovementInventoryEffectsMilliseconds,
+            postMovementPassiveAbilitiesMilliseconds,
+            player.MovementCollisionContactIterations,
+            player.MovementCollisionOccupyChecks,
+            player.MovementCollisionResolutionIterations);
+
+        if (allowDebugKill && killPressed)
+        {
+            _host.PlayerDeaths.KillPlayer(player);
+        }
+    }
+
+    private static double ResolveSlowPlayerPhaseThresholdMilliseconds()
+    {
+        var configured = Environment.GetEnvironmentVariable("OG_CLIENT_PERF_SIM_PLAYER_PHASE_TRACE_THRESHOLD_MS");
+        return double.TryParse(configured, NumberStyles.Float, CultureInfo.InvariantCulture, out var threshold)
+            ? Math.Max(0d, threshold)
+            : 10d;
+    }
+
+    internal static double ElapsedMilliseconds(long startTimestamp)
+    {
+        return startTimestamp == 0L
+            ? 0d
+            : (Stopwatch.GetTimestamp() - startTimestamp) * 1000d / Stopwatch.Frequency;
+    }
+
+    private void TraceSlowPlayerPhases(
+        PlayerEntity player,
+        long startTimestamp,
+        double advanceTickStateMilliseconds,
+        double primaryFireMilliseconds,
+        double prepareMovementMilliseconds,
+        double completeMovementMilliseconds,
+        double postMovementMilliseconds,
+        double postMovementContactEffectsMilliseconds,
+        double postMovementObjectiveEffectsMilliseconds,
+        double postMovementInventoryEffectsMilliseconds,
+        double postMovementPassiveAbilitiesMilliseconds,
+        int movementCollisionContactIterations,
+        int movementCollisionOccupyChecks,
+        int movementCollisionResolutionIterations)
+    {
+        if (!SlowPlayerPhaseTracingEnabled
+            || startTimestamp == 0L
+            || string.IsNullOrWhiteSpace(SlowPlayerPhaseTracePath))
+        {
+            return;
+        }
+
+        var totalMilliseconds = ElapsedMilliseconds(startTimestamp);
+        if (totalMilliseconds < SlowPlayerPhaseThresholdMilliseconds)
+        {
+            return;
+        }
+
+        var line = string.Create(
+            CultureInfo.InvariantCulture,
+            $"{DateTime.Now:O} frame={_host.Frame} slot={FindNetworkSlotForPlayer(player)} class={player.ClassId} totalMs={totalMilliseconds:0.0} advanceTickStateMs={advanceTickStateMilliseconds:0.0} primaryFireMs={primaryFireMilliseconds:0.0} prepareMovementMs={prepareMovementMilliseconds:0.0} completeMovementMs={completeMovementMilliseconds:0.0} postMovementMs={postMovementMilliseconds:0.0} postContactMs={postMovementContactEffectsMilliseconds:0.0} postObjectiveMs={postMovementObjectiveEffectsMilliseconds:0.0} postInventoryMs={postMovementInventoryEffectsMilliseconds:0.0} postPassiveMs={postMovementPassiveAbilitiesMilliseconds:0.0} collisionContactIterations={movementCollisionContactIterations} collisionOccupyChecks={movementCollisionOccupyChecks} collisionResolutionIterations={movementCollisionResolutionIterations}{Environment.NewLine}");
+        lock (SlowPlayerPhaseTraceSync)
+        {
+            File.AppendAllText(SlowPlayerPhaseTracePath, line);
+        }
+    }
+
+    private byte FindNetworkSlotForPlayer(PlayerEntity player)
+    {
+        for (var index = 0; index < SimulationConstants.NetworkPlayerSlots.Count; index += 1)
+        {
+            var slot = SimulationConstants.NetworkPlayerSlots[index];
+            if (_host.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var networkPlayer) && networkPlayer.Id == player.Id)
+            {
+                return slot;
+            }
+        }
+
+        return byte.MaxValue;
+    }
+
+    internal static PlayerInputSnapshot ResetMovementInput(PlayerInputSnapshot input)
+    {
+        return input with
+        {
+            Left = false,
+            Right = false,
+            Up = false,
+            Down = false,
+        };
+    }
+}

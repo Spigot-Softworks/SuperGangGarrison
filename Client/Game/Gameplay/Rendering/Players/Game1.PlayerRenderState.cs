@@ -70,6 +70,8 @@ public partial class Game1
 
         public int PreviousQuoteBubbleCount { get; set; }
 
+        internal WhippingCordPresentationTrack WhippingCordPresentation { get; } = new();
+
         public float PendingImmediateShotConfirmationSeconds { get; set; }
 
         public bool PreviousCivvieUmbrellaActive { get; set; }
@@ -331,6 +333,7 @@ public partial class Game1
             renderState.BowAnimationPauseRemainingSeconds = 0f;
             renderState.PendingImmediateShotConfirmationSeconds = 0f;
             renderState.ReloadAnimationCompleted = false;
+            renderState.WhippingCordPresentation.Reset();
             renderState.PreviousAmmoCount = GetRenderWeaponAmmoCount(player);
             renderState.PreviousCooldownTicks = GetRenderWeaponCooldownTicks(player);
             renderState.PreviousReloadTicks = GetRenderWeaponReloadTicks(player);
@@ -458,7 +461,9 @@ public partial class Game1
                 renderState,
                 weaponRenderDefinition,
                 currentCooldownTicks,
-                immediateLocalPrimaryPress);
+                immediateLocalPrimaryPress,
+                shotStarted,
+                elapsedSeconds);
             renderState.FiredThisUpdate = immediateLocalPrimaryPress
                 || IsDemoknightSwordAnimationStart(renderState.PreviousCooldownTicks, currentCooldownTicks);
             renderState.PreviousAmmoCount = currentAmmoCount;
@@ -716,16 +721,35 @@ public partial class Game1
         PlayerRenderState renderState,
         WeaponRenderDefinition weaponDefinition,
         int currentCooldownTicks,
-        bool immediatePress)
+        bool immediatePress,
+        bool swingStarted,
+        float elapsedSeconds)
     {
         if (weaponDefinition.RecoilSpriteName is null)
         {
+            renderState.WhippingCordPresentation.Reset();
             StopWeaponAnimation(renderState);
             return;
         }
 
         var recoilSeconds = MathF.Max(weaponDefinition.RecoilDurationSeconds, 0.0001f);
-        if (player.IsWhippingCordLatched)
+        var recoilTicks = Math.Max(
+            1,
+            (int)MathF.Round(recoilSeconds * LegacyMovementModel.SourceTicksPerSecond));
+        var backswingTicks = WhippingCordCatalog.ResolveBackswingTicks(recoilTicks);
+        var cooldownTicks = Math.Max(1, player.ResolveWhippingCordCooldownTicks());
+        var presentationPhase = renderState.WhippingCordPresentation.Update(
+            player.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.WhippingCord),
+            player.IsAlive,
+            player.IsWhippingCordLatched,
+            currentCooldownTicks,
+            cooldownTicks,
+            immediatePress || swingStarted,
+            elapsedSeconds,
+            recoilTicks,
+            backswingTicks,
+            (int)LegacyMovementModel.SourceTicksPerSecond);
+        if (presentationPhase == WhippingCordPresentationPhase.Latched)
         {
             renderState.WeaponAnimationMode = WeaponAnimationMode.Recoil;
             renderState.WeaponAnimationDurationSeconds = recoilSeconds;
@@ -734,6 +758,38 @@ public partial class Game1
             renderState.WeaponAnimationTimeRemainingSeconds = recoilSeconds;
             return;
         }
+
+        if (presentationPhase == WhippingCordPresentationPhase.ReleaseBackswing)
+        {
+            renderState.WeaponAnimationMode = WeaponAnimationMode.Recoil;
+            renderState.WeaponAnimationDurationSeconds = recoilSeconds;
+            renderState.WeaponAnimationElapsedSeconds = recoilSeconds
+                * (WhippingCordCatalog.FollowThroughProgress
+                    + renderState.WhippingCordPresentation.ReleaseProgress
+                        * (1f - WhippingCordCatalog.FollowThroughProgress));
+            renderState.WeaponAnimationTimeRemainingSeconds = recoilSeconds
+                * (1f - WhippingCordCatalog.FollowThroughProgress)
+                * (1f - renderState.WhippingCordPresentation.ReleaseProgress);
+            return;
+        }
+
+        if (presentationPhase == WhippingCordPresentationPhase.Released)
+        {
+            StopWeaponAnimation(renderState);
+            return;
+        }
+
+        if (presentationPhase == WhippingCordPresentationPhase.SwingRecoil)
+        {
+            renderState.WeaponAnimationMode = WeaponAnimationMode.Recoil;
+            renderState.WeaponAnimationDurationSeconds = recoilSeconds;
+            renderState.WeaponAnimationElapsedSeconds = recoilSeconds
+                * renderState.WhippingCordPresentation.RecoilProgress;
+            renderState.WeaponAnimationTimeRemainingSeconds = recoilSeconds
+                * (1f - renderState.WhippingCordPresentation.RecoilProgress);
+            return;
+        }
+
         if (player.IsWhippingCordBackswingActive)
         {
             renderState.WeaponAnimationMode = WeaponAnimationMode.Recoil;
@@ -746,41 +802,14 @@ public partial class Game1
                 * (1f - player.WhippingCordBackswingProgress);
             return;
         }
-        var recoilTicks = Math.Max(
-            1,
-            (int)MathF.Round(recoilSeconds * LegacyMovementModel.SourceTicksPerSecond));
-        var maxCooldownTicks = Math.Max(1, player.ResolveWhippingCordCooldownTicks());
 
-        if (immediatePress && currentCooldownTicks <= 0)
-        {
-            StartWeaponAnimation(renderState, WeaponAnimationMode.Recoil, recoilSeconds);
-            return;
-        }
-
-        if (currentCooldownTicks <= 0)
+        if (presentationPhase == WhippingCordPresentationPhase.SwingComplete)
         {
             StopWeaponAnimation(renderState);
             return;
         }
 
-        var elapsedTicks = maxCooldownTicks - currentCooldownTicks;
-        if (elapsedTicks < 0)
-        {
-            elapsedTicks = 0;
-        }
-
-        if (elapsedTicks >= recoilTicks)
-        {
-            StopWeaponAnimation(renderState);
-            return;
-        }
-
-        renderState.WeaponAnimationMode = WeaponAnimationMode.Recoil;
-        renderState.WeaponAnimationDurationSeconds = recoilSeconds;
-        renderState.WeaponAnimationElapsedSeconds = elapsedTicks / LegacyMovementModel.SourceTicksPerSecond;
-        renderState.WeaponAnimationTimeRemainingSeconds = MathF.Max(
-            0f,
-            recoilSeconds - renderState.WeaponAnimationElapsedSeconds);
+        StopWeaponAnimation(renderState);
     }
 
     internal static bool IsWeaponReloadAnimationRestart(

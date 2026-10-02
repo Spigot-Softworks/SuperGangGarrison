@@ -8,6 +8,8 @@ namespace OpenGarrison.Core;
 
 public sealed partial class PlayerEntity : SimulationEntity
 {
+    public const string CoreReplicatedStateOwnerId = "core.player";
+    public const string SpawnRoomReplicatedStateKey = "is_in_spawn_room";
     private const int MaxReplicatedStateEntries = 16;
     private const int MaxDisplayNameLength = 20;
     private const string DefaultDisplayName = "Player";
@@ -20,6 +22,7 @@ public sealed partial class PlayerEntity : SimulationEntity
     private const float HealingCabinetResupplyCooldownSeconds = 4f;
     private static readonly float HeavyEatHealPerTick = 200f / HeavyEatDurationTicks;
     private float HeavyEatHealPerTickValue { get; set; } = HeavyEatHealPerTick;
+    private long _quoteBladeAmmoGeneration;
     private const float StepUpHeight = 6f;
     private const float StepSupportEpsilon = 2f;
     public const float SniperScopedMoveScale = 2f / 3f;
@@ -66,8 +69,13 @@ public sealed partial class PlayerEntity : SimulationEntity
     public const float SpyMineRevealAlpha = 0.2f;
     public const float SpySniperRevealAlpha = 0.3f;
     public const int QuoteBubbleLimit = 25;
+    public const int QuoteBubbleRefireTicks = 4;
     public const int QuoteBladeEnergyCost = 15;
+    public const int QuoteBladeRefireTicks = 5;
     public const int QuoteBladeLifetimeTicks = 15;
+    public const int QuoteBladeAmmoRecoveryTicks = 15;
+    public const int QuoteBladeAmmoDrainPerSourceTick = 1;
+    public const int QuoteBladeMinimumAmmoCost = 5;
     public const int QuoteBladeMaxOut = 1;
     public const int CivvieUmbrellaMaxChargeTicks = 360;
     public const int CivvieUmbrellaHoldDrainPerTick = 0;
@@ -535,6 +543,8 @@ public sealed partial class PlayerEntity : SimulationEntity
     public int QuoteBubbleCount { get; private set; }
 
     public int QuoteBladesOut { get; private set; }
+
+    internal long QuoteBladeAmmoGeneration => _quoteBladeAmmoGeneration;
 
     public int CivvieUmbrellaChargeTicks { get; private set; } = CivvieUmbrellaMaxChargeTicks;
 
@@ -1064,6 +1074,7 @@ public sealed partial class PlayerEntity : SimulationEntity
         bool resetMedicUberCharge,
         bool clearSpawnRoomState)
     {
+        AdvanceQuoteBladeAmmoGeneration();
         ContinuousDamageAccumulator = 0f;
         ResetPassiveRegenState();
         ExtinguishAfterburn();
@@ -1139,6 +1150,13 @@ public sealed partial class PlayerEntity : SimulationEntity
         ResetSpyTransientState();
         ResetMovementPresentationState();
         ClearChatBubble();
+    }
+
+    private void AdvanceQuoteBladeAmmoGeneration()
+    {
+        _quoteBladeAmmoGeneration = _quoteBladeAmmoGeneration == long.MaxValue
+            ? 1
+            : _quoteBladeAmmoGeneration + 1;
     }
 
     private void ResetSpyTransientState()

@@ -178,6 +178,7 @@ public sealed class UdpPathMtuDiscovery
     public const long PeerLifetimeMilliseconds = 60_000;
     public const long ProbeTimeoutMilliseconds = 1_500;
     public const long ProbeIntervalMilliseconds = 5_000;
+    public const long RevalidationIntervalMilliseconds = 1_000;
     private static readonly int[] LargerCandidates = [1240, 1280, 1320, 1360, UdpFragmentation.MaxDatagramBytes];
     private readonly Dictionary<string, PeerState> _peers = new(StringComparer.Ordinal);
     private ulong _nextNonce = unchecked((ulong)Random.Shared.NextInt64(1, long.MaxValue));
@@ -186,7 +187,9 @@ public sealed class UdpPathMtuDiscovery
     {
         var state = GetOrCreate(peerKey, nowMilliseconds);
         state.LastSeenMilliseconds = nowMilliseconds;
-        return state.ConfirmedDatagramBytes;
+        return state.NeedsRevalidationFallback
+            ? InitialDatagramBytes
+            : state.ConfirmedDatagramBytes;
     }
 
     /// <summary>Returns a non-blocking probe when this peer's bounded discovery timer is due.</summary>
@@ -201,33 +204,66 @@ public sealed class UdpPathMtuDiscovery
             var missedSize = state.PendingDatagramBytes;
             state.PendingNonce = 0;
             state.PendingDatagramBytes = 0;
-            if (missedSize == InitialDatagramBytes)
+            if (missedSize > InitialDatagramBytes
+                && missedSize == state.ConfirmedDatagramBytes)
+            {
+                // The confirmed ceiling itself stopped answering probes. Keep
+                // application traffic at the known-good base size while we
+                // confirm that the smaller path is still reachable.
+                state.NeedsRevalidationFallback = true;
+                state.MissedBaseProbes = 0;
+                state.NextLargerCandidateRetryAtMilliseconds = 0;
+                state.NextLargerCandidate = 0;
+                state.NextProbeAtMilliseconds = nowMilliseconds;
+            }
+            else if (missedSize == InitialDatagramBytes)
             {
                 state.MissedBaseProbes++;
                 state.NextProbeAtMilliseconds = state.MissedBaseProbes >= 2
                     ? nowMilliseconds
-                    : nowMilliseconds + ProbeIntervalMilliseconds;
+                    : nowMilliseconds + (state.NeedsRevalidationFallback
+                        ? ProbeTimeoutMilliseconds
+                        : ProbeIntervalMilliseconds);
             }
             else if (missedSize == SmallerConfirmationDatagramBytes)
             {
                 // The smaller confirmation failed too; keep the prior confirmed ceiling.
                 state.MissedBaseProbes = 0;
-                state.NextProbeAtMilliseconds = nowMilliseconds + PeerLifetimeMilliseconds;
+                state.NextProbeAtMilliseconds = nowMilliseconds + (state.NeedsRevalidationFallback
+                    ? ProbeTimeoutMilliseconds
+                    : PeerLifetimeMilliseconds);
             }
             else
             {
                 // A failed upward probe never changes the confirmed path ceiling.
                 state.NextLargerCandidate = LargerCandidates.Length;
-                state.NextProbeAtMilliseconds = nowMilliseconds + PeerLifetimeMilliseconds;
+                if (state.ConfirmedDatagramBytes > InitialDatagramBytes)
+                {
+                    // Recheck the last known-good size immediately. If it
+                    // answers, keep using it; if it also fails, fall back to
+                    // the confirmed base size without waiting for another
+                    // discovery cycle.
+                    state.NextLargerCandidateRetryAtMilliseconds = nowMilliseconds + PeerLifetimeMilliseconds;
+                    state.NextProbeAtMilliseconds = nowMilliseconds;
+                }
+                else
+                {
+                    state.NextLargerCandidateRetryAtMilliseconds = 0;
+                    state.NextProbeAtMilliseconds = nowMilliseconds + PeerLifetimeMilliseconds;
+                }
             }
         }
         if (nowMilliseconds < state.NextProbeAtMilliseconds) return false;
 
         var size = state.MissedBaseProbes >= 2
             ? SmallerConfirmationDatagramBytes
-            : state.NextLargerCandidate < LargerCandidates.Length
-                ? LargerCandidates[state.NextLargerCandidate]
-                : InitialDatagramBytes;
+            : state.NeedsRevalidationFallback
+                ? InitialDatagramBytes
+                : state.NextLargerCandidate < LargerCandidates.Length
+                    ? LargerCandidates[state.NextLargerCandidate]
+                    : state.ConfirmedDatagramBytes > InitialDatagramBytes
+                        ? state.ConfirmedDatagramBytes
+                        : InitialDatagramBytes;
         var nonce = NextNonce();
         state.PendingNonce = nonce;
         state.PendingSinceMilliseconds = nowMilliseconds;
@@ -254,27 +290,71 @@ public sealed class UdpPathMtuDiscovery
         {
             state.ConfirmedDatagramBytes = SmallerConfirmationDatagramBytes;
             state.MissedBaseProbes = 0;
+            state.NeedsRevalidationFallback = false;
+            state.NextLargerCandidateRetryAtMilliseconds = 0;
             state.NextLargerCandidate = LargerCandidates.Length;
             state.NextProbeAtMilliseconds = nowMilliseconds + PeerLifetimeMilliseconds;
         }
         else if (confirmedSize == InitialDatagramBytes)
         {
-            state.ConfirmedDatagramBytes = Math.Max(state.ConfirmedDatagramBytes, InitialDatagramBytes);
             state.MissedBaseProbes = 0;
-            if (state.ConfirmedDatagramBytes == InitialDatagramBytes) state.NextLargerCandidate = 0;
+            if (state.NeedsRevalidationFallback)
+            {
+                state.ConfirmedDatagramBytes = InitialDatagramBytes;
+                state.NeedsRevalidationFallback = false;
+                state.NextLargerCandidateRetryAtMilliseconds = 0;
+                state.NextLargerCandidate = 0;
+            }
+            else
+            {
+                state.ConfirmedDatagramBytes = Math.Max(state.ConfirmedDatagramBytes, InitialDatagramBytes);
+                if (state.ConfirmedDatagramBytes == InitialDatagramBytes)
+                {
+                    state.NextLargerCandidateRetryAtMilliseconds = 0;
+                    state.NextLargerCandidate = 0;
+                }
+            }
             state.NextProbeAtMilliseconds = nowMilliseconds + ProbeIntervalMilliseconds;
+        }
+        else if (confirmedSize == state.ConfirmedDatagramBytes)
+        {
+            // This is a successful same-size revalidation, not a new upward
+            // step. Keep the ceiling and schedule the next light probe sooner
+            // than the broader candidate discovery cadence.
+            if (state.NextLargerCandidateRetryAtMilliseconds != 0
+                && nowMilliseconds >= state.NextLargerCandidateRetryAtMilliseconds)
+            {
+                state.NextLargerCandidate = FindNextLargerCandidateIndex(confirmedSize);
+                state.NextLargerCandidateRetryAtMilliseconds = 0;
+            }
+
+            state.NextProbeAtMilliseconds = nowMilliseconds + RevalidationIntervalMilliseconds;
         }
         else
         {
             state.ConfirmedDatagramBytes = confirmedSize;
             state.NextLargerCandidate++;
-            state.NextProbeAtMilliseconds = nowMilliseconds + ProbeIntervalMilliseconds;
+            state.NextLargerCandidateRetryAtMilliseconds = 0;
+            state.NextProbeAtMilliseconds = nowMilliseconds + RevalidationIntervalMilliseconds;
         }
         confirmedDatagramBytes = state.ConfirmedDatagramBytes;
         return true;
     }
 
     public void ClearPeer(string peerKey) => _peers.Remove(peerKey);
+
+    private static int FindNextLargerCandidateIndex(int confirmedDatagramBytes)
+    {
+        for (var index = 0; index < LargerCandidates.Length; index++)
+        {
+            if (LargerCandidates[index] > confirmedDatagramBytes)
+            {
+                return index;
+            }
+        }
+
+        return LargerCandidates.Length;
+    }
 
     private PeerState GetOrCreate(string peerKey, long nowMilliseconds)
     {
@@ -319,6 +399,8 @@ public sealed class UdpPathMtuDiscovery
         public long LastSeenMilliseconds { get; set; } = now;
         public int MissedBaseProbes { get; set; }
         public int NextLargerCandidate { get; set; } = LargerCandidates.Length;
+        public long NextLargerCandidateRetryAtMilliseconds { get; set; }
+        public bool NeedsRevalidationFallback { get; set; }
     }
 }
 

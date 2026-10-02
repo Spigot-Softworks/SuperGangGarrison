@@ -96,7 +96,14 @@ internal sealed class ServerIncomingMessageDispatcher(
                 if (TryGetAuthorizedClient(remotePeer, out var ackClient))
                 {
                     ackClient.LastSeen = elapsedGetter();
-                    ackClient.AcknowledgeSnapshot(snapshotAck.Frame);
+                    if (snapshotAck.Frame == 0)
+                    {
+                        ackClient.RequestSnapshotResync();
+                    }
+                    else
+                    {
+                        ackClient.AcknowledgeSnapshot(snapshotAck.Frame);
+                    }
                 }
                 break;
             case PingRequestMessage pingRequest:

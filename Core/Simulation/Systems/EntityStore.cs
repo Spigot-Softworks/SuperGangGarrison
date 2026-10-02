@@ -4,6 +4,7 @@ namespace OpenGarrison.Core;
 public sealed class EntityStore
 {
     private readonly Dictionary<int, SimulationEntity> _entities = new();
+    private long _nextLocalEffectId = int.MinValue;
 
     /// <summary>Gets the next entity ID that <see cref="AllocateId"/> will hand out.</summary>
     internal int NextEntityId { get; private set; } = 1;
@@ -12,6 +13,22 @@ public sealed class EntityStore
     internal int AllocateId()
     {
         return NextEntityId++;
+    }
+
+    /// <summary>Reserves a negative ID for a client-local visual effect.</summary>
+    internal int AllocateLocalEffectId()
+    {
+        while (_nextLocalEffectId < -1)
+        {
+            var id = (int)_nextLocalEffectId;
+            _nextLocalEffectId += 1;
+            if (!_entities.ContainsKey(id))
+            {
+                return id;
+            }
+        }
+
+        throw new InvalidOperationException("The client-local entity ID range is exhausted.");
     }
 
     /// <summary>Ensures future allocations never reuse the specified, already-known entity ID.</summary>
@@ -45,6 +62,14 @@ public sealed class EntityStore
     public bool Remove(int id)
     {
         return _entities.Remove(id);
+    }
+
+    /// <summary>Removes the ID only when it still maps to the specified entity instance.</summary>
+    internal bool RemoveIfSame(SimulationEntity entity)
+    {
+        return _entities.TryGetValue(entity.Id, out var current)
+            && ReferenceEquals(current, entity)
+            && _entities.Remove(entity.Id);
     }
 
     /// <summary>Returns whether an entity with the specified ID is present.</summary>

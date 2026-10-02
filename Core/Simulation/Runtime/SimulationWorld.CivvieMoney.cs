@@ -14,7 +14,7 @@ public sealed partial class SimulationWorld
         {
             // The server owns the trail spawn. Preserve the source horizontal speed
             // in the direction field so clients can reproduce its deterministic fall.
-            RegisterVisualEffect(
+            WorldEffects.RegisterVisualEffect(
                 "CivvieMoney",
                 spawn.X,
                 spawn.Y,
@@ -27,7 +27,7 @@ public sealed partial class SimulationWorld
     {
         CombatRuntime.CivvieMoneyTrailTracker.AdvancePickups(
             EnumerateSimulatedPlayers(),
-            (player, amount) => ApplyHealingWithFeedback(player, amount) > 0);
+            (player, amount) => DamageRules.ApplyHealingWithFeedback(player, amount) > 0);
     }
 
     internal void CombatTestAddCivvieMoneyPickup(

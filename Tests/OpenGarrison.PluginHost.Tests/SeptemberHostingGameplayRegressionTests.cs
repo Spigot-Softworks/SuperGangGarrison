@@ -48,8 +48,7 @@ public sealed class SeptemberHostingGameplayRegressionTests
         var manager = new MapRotationManager(world, maps[0], null, maps, lines.Add);
         for (var index = 0; index < 6; index++)
         {
-            typeof(SimulationWorld).GetProperty(nameof(SimulationWorld.MatchState))!.GetSetMethod(true)!
-                .Invoke(world, [world.MatchState with { Phase = MatchPhase.Ended, WinnerTeam = null }]);
+            world.CombatTestSetMatchState(world.MatchState with { Phase = MatchPhase.Ended, WinnerTeam = null });
             world.Lifecycle.MapChangeReady = true;
             Assert.True(manager.TryApplyPendingMapChange(out _));
             Assert.Equal(maps[(index + 1) % maps.Length], world.Level.Name);

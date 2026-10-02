@@ -427,7 +427,7 @@ public sealed class SimulationWorldSnapshotPresentationTests
 
 
 
-    private static SnapshotMessage CreateSnapshot(
+    internal static SnapshotMessage CreateSnapshot(
         SimulationWorld world,
         ulong frame,
         SnapshotPlayerState localPlayer,
@@ -479,7 +479,7 @@ public sealed class SimulationWorldSnapshotPresentationTests
             SoundEvents: []);
     }
 
-    private static SnapshotPlayerState CreatePlayerState(
+    internal static SnapshotPlayerState CreatePlayerState(
         byte slot,
         int playerId,
         string name,
@@ -544,32 +544,24 @@ public sealed class SimulationWorldSnapshotPresentationTests
 
     private static void InvokeRegisterBloodEffect(SimulationWorld world, float x, float y, float directionDegrees, int count)
     {
-        var method = typeof(SimulationWorld).GetMethod("RegisterBloodEffect", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        _ = method!.Invoke(world, [x, y, directionDegrees, count]);
+        world.WorldEffects.RegisterBloodEffect(x, y, directionDegrees, count);
     }
 
     private static void InvokeKillPlayer(SimulationWorld world, PlayerEntity player, bool gibbed)
     {
-        var method = typeof(SimulationWorld).GetMethod("KillPlayer", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        _ = method!.Invoke(
-            world,
-            [
-                player,
-                gibbed,
-                null,
-                "ExplodeKL",
-                DeadBodyAnimationKind.Default,
-                null,
-                null,
-                null,
-                true,
-                true,
-                false,
-                true,
-                -1,
-                false,
-            ]);
+        world.PlayerDeaths.KillPlayer(player,
+            gibbed,
+            null,
+            "ExplodeKL",
+            DeadBodyAnimationKind.Default,
+            null,
+            null,
+            null,
+            true,
+            true,
+            false,
+            true,
+            -1,
+            false);
     }
 }

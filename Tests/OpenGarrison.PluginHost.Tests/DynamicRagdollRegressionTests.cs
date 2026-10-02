@@ -473,7 +473,7 @@ public sealed class DynamicRagdollRegressionTests
     {
         var game = (Game1)RuntimeHelpers.GetUninitializedObject(typeof(Game1));
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        typeof(SimulationWorld).GetProperty(nameof(SimulationWorld.Level))!.SetValue(world, level);
+        world.CombatTestReplaceLevel(level);
         Set(game, "_world", world);
         // The dead-body renderer is resolved through the service container, which
         // the constructor normally populates.

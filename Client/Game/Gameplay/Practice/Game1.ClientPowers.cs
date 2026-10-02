@@ -551,11 +551,10 @@ public partial class Game1
 
     public ExperimentalGameplaySettings GetPracticeExperimentalGameplaySettings()
     {
-        var specialAbilities = _practiceSpecialAbilitiesEnabled;
         return _practiceExperimentalGameplaySettings with
         {
-            EnableSecondaryAbilities = specialAbilities,
-            EnableSoldierShotgunSecondaryWeapon = specialAbilities,
+            EnableSecondaryAbilities = true,
+            EnableSoldierShotgunSecondaryWeapon = true,
             EnableKillStreakTracking = true,
         };
     }

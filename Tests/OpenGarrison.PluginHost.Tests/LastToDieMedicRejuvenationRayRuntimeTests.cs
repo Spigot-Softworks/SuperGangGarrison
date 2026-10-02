@@ -232,20 +232,12 @@ public sealed class LastToDieMedicRejuvenationRayRuntimeTests
         PlayerEntity medic,
         PlayerEntity target)
     {
-        var method = typeof(SimulationWorld).GetMethod(
-            "ApplyMedicHealing",
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        _ = method!.Invoke(world, [medic, target]);
+        world.SupportRules.ApplyMedicHealing(medic, target);
     }
 
     private static void InvokeAdvanceMedicUberEffects(SimulationWorld world)
     {
-        var method = typeof(SimulationWorld).GetMethod(
-            "AdvanceMedicUberEffects",
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        _ = method!.Invoke(world, null);
+        world.SupportRules.AdvanceMedicUberEffects();
     }
 
     private static void SetProperty(PlayerEntity player, string propertyName, object value)

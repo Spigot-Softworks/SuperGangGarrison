@@ -5,7 +5,7 @@
   "displayName": "Blade",
   "behaviorId": "builtin.weapon.blade",
   "ammo": {
-    "maxAmmo": 100,
+    "maxAmmo": 90,
     "ammoPerUse": 0,
     "projectilesPerUse": 1,
     "useDelaySourceTicks": 5,
@@ -14,7 +14,7 @@
     "minProjectileSpeed": 10.0,
     "additionalProjectileSpeed": 2.0,
     "autoReloads": false,
-    "ammoRegenPerTick": 1,
+    "ammoRegenPerTick": 2,
     "refillsAllAtOnce": false
   },
   "combat": {

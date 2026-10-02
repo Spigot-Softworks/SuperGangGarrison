@@ -1,4 +1,8 @@
+using System.Collections;
 using System.IO;
+using System.Net;
+using System.Net.Sockets;
+using System.Reflection;
 using System.Text;
 using OpenGarrison.Client;
 using OpenGarrison.Core;
@@ -108,6 +112,81 @@ public sealed class LegacyGg2WireTests
     }
 
     [Fact]
+    public void BundledGg2ControlsReachWireOnceAndAcknowledgeClientCommands()
+    {
+        using var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+        Assert.True(LegacyGg2NetworkClientTransport.TryConnect(
+            IPAddress.Loopback.ToString(), port, out var transportInterface, out var connectError), connectError);
+        var transport = Assert.IsType<LegacyGg2NetworkClientTransport>(transportInterface);
+        using var serverPeer = listener.AcceptTcpClient();
+        var serverStream = serverPeer.GetStream();
+        serverStream.ReadTimeout = 2000;
+
+        typeof(LegacyGg2NetworkClientTransport)
+            .GetField("_joined", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .SetValue(transport, 1);
+        ((IDictionary)typeof(LegacyGg2NetworkClientTransport)
+            .GetField("_lastControlCommandSequences", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .GetValue(transport)!).Add(ControlCommandKind.SelectTeam, uint.MaxValue);
+
+        using var client = new NetworkGameClient();
+        Assert.True(client.Connect(transport, "Tester", 0, out var clientConnectError), clientConnectError);
+        var hello = new byte[LegacyGg2Wire.CreateHello().Length];
+        serverStream.ReadExactly(hello);
+        Assert.Equal(LegacyGg2Wire.CreateHello(), hello);
+
+        client.QueueTeamSelection(PlayerTeam.Red);
+        client.QueueClassSelection(PlayerClass.Demoman);
+        client.SendInput(default, 0f, 0f);
+
+        // Retransmit the exact same bundled controls before their local ACKs
+        // are consumed. The adapter must acknowledge them again without
+        // repeating the non-idempotent class change on the GG2 wire.
+        var repeatedCommands = new ControlCommandMessage[]
+        {
+            new(1, ControlCommandKind.SelectTeam, (byte)PlayerTeam.Red),
+            new(2, ControlCommandKind.SelectClass, (byte)PlayerClass.Demoman),
+        };
+        var repeatedInput = new InputStateMessage(
+            2,
+            InputButtons.None,
+            0f,
+            0f,
+            -1,
+            BundledControlCommands: repeatedCommands);
+        transport.Send(ProtocolCodec.Serialize(repeatedInput));
+        transport.Send(ProtocolCodec.Serialize(new ControlCommandMessage(
+            0, ControlCommandKind.SelectTeam, (byte)PlayerTeam.Red)));
+
+        var firstInput = new InputStateMessage(1, InputButtons.None, 0f, 0f, -1);
+        var expectedWire = Concatenate(
+            LegacyGg2Wire.CreateTeamSelection(PlayerTeam.Red),
+            LegacyGg2Wire.CreateClassSelection(PlayerClass.Demoman),
+            LegacyGg2Wire.CreateInputState(firstInput),
+            LegacyGg2Wire.CreateInputState(repeatedInput));
+        var actualWire = new byte[expectedWire.Length];
+        serverStream.ReadExactly(actualWire);
+        Assert.Equal(expectedWire, actualWire);
+
+        var acknowledgements = client.ReceiveMessages().OfType<ControlAckMessage>().ToArray();
+        Assert.Equal(5, acknowledgements.Length);
+        Assert.All(acknowledgements.Take(4), acknowledgement => Assert.True(acknowledgement.Accepted));
+        Assert.False(acknowledgements[4].Accepted);
+
+        foreach (var acknowledgement in acknowledgements)
+        {
+            client.AcknowledgeControlCommand(acknowledgement.Sequence, acknowledgement.Kind);
+        }
+
+        var pendingCommands = (IDictionary)typeof(NetworkGameClient)
+            .GetField("_pendingControlCommands", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .GetValue(client)!;
+        Assert.Empty(pendingCommands);
+    }
+
+    [Fact]
     public void ReadsServerHelloIncludingPluginDeclaration()
     {
         using var stream = new MemoryStream();
@@ -160,4 +239,7 @@ public sealed class LegacyGg2WireTests
         writer.Write(checked((byte)value.Length));
         writer.Write(Encoding.Latin1.GetBytes(value));
     }
+
+    private static byte[] Concatenate(params byte[][] segments)
+        => segments.SelectMany(static segment => segment).ToArray();
 }

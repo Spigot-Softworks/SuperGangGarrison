@@ -5,7 +5,7 @@ public sealed partial class SimulationWorld
     public const float BoomstickExplosionDamage = 25f;
     public const float BoomstickBlastRadius = RocketProjectileEntity.BlastRadius * 0.25f;
 
-    private void ExplodeBoomstickPellet(ShotProjectileEntity shot)
+    internal void ExplodeBoomstickPellet(ShotProjectileEntity shot)
     {
         // The shot already applied its five direct damage. Reuse rocket splash
         // handling for knockback, buildings, prediction, and replicated effects.
@@ -23,6 +23,6 @@ public sealed partial class SimulationWorld
                 BlastRadius: BoomstickBlastRadius,
                 MinimumSplashDamage: 0f),
             killFeedWeaponSpriteNameOverride: shot.KillFeedWeaponSpriteNameOverride);
-        ExplodeRocket(blast, directHitPlayer: null, directHitSentry: null, directHitGenerator: null);
+        ExplosionRules.ExplodeRocket(blast, directHitPlayer: null, directHitSentry: null, directHitGenerator: null);
     }
 }

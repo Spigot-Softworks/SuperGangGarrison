@@ -1024,8 +1024,7 @@ public sealed class ServerAdminFoundationTests
         Assert.True(Assert.IsType<ControlAckMessage>(sentMessages[1]).Accepted);
         Assert.False(Assert.IsType<ControlAckMessage>(sentMessages[2]).Accepted);
         Assert.Equal(1u, client.LastTeamCommandSequence);
-        Assert.True(world.TryGetNetworkPlayer(client.Slot, out var player));
-        Assert.Equal(PlayerTeam.Blue, player.Team);
+        Assert.Equal(PlayerTeam.Blue, world.GetNetworkPlayerConfiguredTeam(client.Slot));
     }
 
     [Fact]

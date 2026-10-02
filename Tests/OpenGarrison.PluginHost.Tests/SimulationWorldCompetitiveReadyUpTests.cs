@@ -1,12 +1,10 @@
 using OpenGarrison.Core;
-using System.Reflection;
 using Xunit;
 
 namespace OpenGarrison.PluginHost.Tests;
 
 public sealed class SimulationWorldCompetitiveReadyUpTests
 {
-    private static readonly MethodInfo CombatTestSetLevelMethod = GetRequiredSimulationWorldMethod("CombatTestSetLevel");
 
     [Fact]
     public void CompetitiveReadyUpStartsInSkirmishWithObjectivesHeld()
@@ -94,75 +92,66 @@ public sealed class SimulationWorldCompetitiveReadyUpTests
 
     private static void SetAttackDefenseControlPointLevel(SimulationWorld world)
     {
-        CombatTestSetLevelMethod.Invoke(
-            world,
-            [
-                new SimpleLevel(
-                    name: "adcp_competitive_ready_test",
-                    mode: GameModeKind.ControlPoint,
-                    bounds: new WorldBounds(1024f, 768f),
-                    mapScale: 1f,
-                    backgroundAssetName: null,
-                    mapAreaIndex: 1,
-                    mapAreaCount: 1,
-                    localSpawn: new SpawnPoint(100f, 100f),
-                    redSpawns: [new SpawnPoint(100f, 100f)],
-                    blueSpawns: [new SpawnPoint(900f, 100f)],
-                    intelBases: [],
-                    roomObjects:
-                    [
-                        new RoomObjectMarker(
-                            RoomObjectType.ControlPoint,
-                            320f,
-                            92f,
-                            48f,
-                            24f,
-                            "",
-                            SourceName: "ControlPoint1"),
-                        new RoomObjectMarker(
-                            RoomObjectType.ControlPoint,
-                            620f,
-                            92f,
-                            48f,
-                            24f,
-                            "",
-                            SourceName: "ControlPoint2"),
-                        new RoomObjectMarker(
-                            RoomObjectType.ControlPointSetupGate,
-                            240f,
-                            72f,
-                            60f,
-                            6f,
-                            "SetupGateS",
-                            SourceName: "ControlPointSetupGate"),
-                        new RoomObjectMarker(
-                            RoomObjectType.TeamGate,
-                            140f,
-                            72f,
-                            16f,
-                            80f,
-                            "",
-                            Team: PlayerTeam.Red,
-                            SourceName: "RedTeamGate"),
-                        new RoomObjectMarker(
-                            RoomObjectType.TeamGate,
-                            860f,
-                            72f,
-                            16f,
-                            80f,
-                            "",
-                            Team: PlayerTeam.Blue,
-                            SourceName: "BlueTeamGate"),
-                    ],
-                    floorY: 768f,
-                    solids: [],
-                    importedFromSource: false),
-            ]);
-    }
-
-    private static MethodInfo GetRequiredSimulationWorldMethod(string name)
-    {
-        return typeof(SimulationWorld).GetMethod(name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
-            ?? throw new InvalidOperationException($"Could not find SimulationWorld.{name}.");
+        world.CombatTestSetLevel(
+            new SimpleLevel(
+                name: "adcp_competitive_ready_test",
+                mode: GameModeKind.ControlPoint,
+                bounds: new WorldBounds(1024f, 768f),
+                mapScale: 1f,
+                backgroundAssetName: null,
+                mapAreaIndex: 1,
+                mapAreaCount: 1,
+                localSpawn: new SpawnPoint(100f, 100f),
+                redSpawns: [new SpawnPoint(100f, 100f)],
+                blueSpawns: [new SpawnPoint(900f, 100f)],
+                intelBases: [],
+                roomObjects:
+                [
+                    new RoomObjectMarker(
+                        RoomObjectType.ControlPoint,
+                        320f,
+                        92f,
+                        48f,
+                        24f,
+                        "",
+                        SourceName: "ControlPoint1"),
+                    new RoomObjectMarker(
+                        RoomObjectType.ControlPoint,
+                        620f,
+                        92f,
+                        48f,
+                        24f,
+                        "",
+                        SourceName: "ControlPoint2"),
+                    new RoomObjectMarker(
+                        RoomObjectType.ControlPointSetupGate,
+                        240f,
+                        72f,
+                        60f,
+                        6f,
+                        "SetupGateS",
+                        SourceName: "ControlPointSetupGate"),
+                    new RoomObjectMarker(
+                        RoomObjectType.TeamGate,
+                        140f,
+                        72f,
+                        16f,
+                        80f,
+                        "",
+                        Team: PlayerTeam.Red,
+                        SourceName: "RedTeamGate"),
+                    new RoomObjectMarker(
+                        RoomObjectType.TeamGate,
+                        860f,
+                        72f,
+                        16f,
+                        80f,
+                        "",
+                        Team: PlayerTeam.Blue,
+                        SourceName: "BlueTeamGate"),
+                ],
+                floorY: 768f,
+                solids: [],
+                importedFromSource: false));
     }
 }

@@ -1,6 +1,7 @@
 #nullable enable
 
 using Microsoft.Xna.Framework;
+using System.Collections.Generic;
 using System.Globalization;
 using OpenGarrison.Core;
 
@@ -15,8 +16,22 @@ public partial class Game1
         var centerX = viewportWidth / 2f;
 
         DrawKothPointStatus();
-        DrawKothTeamTimer(HudElementId.MatchKothRedTimer, centerX - 132f, viewportHeight - 28f, PlayerTeam.Red, _world.KothRedTimerTicksRemaining, IsKothTimerActive(PlayerTeam.Red));
-        DrawKothTeamTimer(HudElementId.MatchKothBlueTimer, centerX + 132f, viewportHeight - 28f, PlayerTeam.Blue, _world.KothBlueTimerTicksRemaining, IsKothTimerActive(PlayerTeam.Blue));
+        DrawKothTeamTimer(
+            HudElementId.MatchKothRedTimer,
+            centerX - 132f,
+            viewportHeight - 28f,
+            PlayerTeam.Red,
+            _world.KothRedTimerTicksRemaining,
+            IsKothTimerActive(PlayerTeam.Red),
+            IsKothTeamOvertime(PlayerTeam.Red));
+        DrawKothTeamTimer(
+            HudElementId.MatchKothBlueTimer,
+            centerX + 132f,
+            viewportHeight - 28f,
+            PlayerTeam.Blue,
+            _world.KothBlueTimerTicksRemaining,
+            IsKothTimerActive(PlayerTeam.Blue),
+            IsKothTeamOvertime(PlayerTeam.Blue));
 
         if (_world.KothUnlockTicksRemaining > 0)
         {
@@ -89,7 +104,14 @@ public partial class Game1
                 Math.Max(1, (int)MathF.Round(64f * scale))));
     }
 
-    private void DrawKothTeamTimer(string elementId, float defaultCenterX, float defaultY, PlayerTeam team, int ticksRemaining, bool isActive)
+    private void DrawKothTeamTimer(
+        string elementId,
+        float defaultCenterX,
+        float defaultY,
+        PlayerTeam team,
+        int ticksRemaining,
+        bool isActive,
+        bool isOvertime)
     {
         var center = new Vector2(defaultCenterX, defaultY);
         var scale = 1f;
@@ -106,14 +128,56 @@ public partial class Game1
                     Math.Max(1, (int)MathF.Round(46f * scale))));
         }
 
+        var teamOffset = team == PlayerTeam.Blue ? 1 : 0;
+        var timerHudScale = 2f * scale;
+        TryDrawScreenSprite(
+            "TimerHudS",
+            isOvertime ? 2 + teamOffset : teamOffset,
+            center,
+            Color.White,
+            new Vector2(timerHudScale));
+
         var color = team == PlayerTeam.Red
             ? new Color(220, 110, 90)
             : new Color(100, 160, 235);
         var label = team == PlayerTeam.Red ? "RED" : "BLU";
         var textColor = isActive ? color : Color.White;
 
-        DrawHudTextCentered(FormatHudTimerText(ticksRemaining), center, textColor, 2f * scale);
+        if (isOvertime)
+        {
+            DrawHudTextCentered("OVERTIME", center, Color.White, 0.8f * scale);
+        }
+        else
+        {
+            var timerLimitTicks = Math.Max(1, _config.TicksPerSecond * 180);
+            var timerFrame = Math.Clamp((int)MathF.Floor((ticksRemaining / (float)timerLimitTicks) * 12f), 0, 12);
+            TryDrawScreenSprite(
+                "TimerS",
+                timerFrame,
+                center + new Vector2(26f * scale, 0f),
+                Color.White,
+                new Vector2(timerHudScale));
+            DrawTimerFontTextRightAlignedCenteredY(
+                FormatHudTimerText(ticksRemaining),
+                center + new Vector2(2f * scale, 0f),
+                textColor,
+                1.15f * scale);
+        }
+
         DrawHudTextCentered(label, center + new Vector2(0f, -18f * scale), textColor * 0.95f, 1f * scale);
+    }
+
+    private bool IsKothTeamOvertime(PlayerTeam team)
+    {
+        return KothHudOvertimeResolver.IsTeamInOvertime(
+            _world.MatchRules.Mode,
+            team,
+            _world.ControlPoints,
+            _world.KothRedTimerTicksRemaining,
+            _world.KothBlueTimerTicksRemaining,
+            _world.KothUnlockTicksRemaining,
+            _world.MatchState.TimeRemainingTicks,
+            _world.MatchState.IsEnded);
     }
 
     private bool IsKothTimerActive(PlayerTeam team)
@@ -147,5 +211,68 @@ public partial class Game1
         }
 
         return false;
+    }
+}
+
+internal static class KothHudOvertimeResolver
+{
+    internal static bool IsTeamInOvertime(
+        GameModeKind mode,
+        PlayerTeam team,
+        IReadOnlyList<ControlPointState> controlPoints,
+        int redTimerTicksRemaining,
+        int blueTimerTicksRemaining,
+        int unlockTicksRemaining,
+        int matchTimeRemainingTicks,
+        bool matchEnded)
+    {
+        if (team is not (PlayerTeam.Red or PlayerTeam.Blue)
+            || mode is not (GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill)
+            || unlockTicksRemaining > 0
+            || matchTimeRemainingTicks <= 0
+            || matchEnded)
+        {
+            return false;
+        }
+
+        var teamTimerTicksRemaining = team == PlayerTeam.Red
+            ? redTimerTicksRemaining
+            : blueTimerTicksRemaining;
+        if (teamTimerTicksRemaining > 0)
+        {
+            return false;
+        }
+
+        var point = FindTeamVictoryPoint(mode, team, controlPoints);
+        if (point?.Team != team)
+        {
+            return false;
+        }
+
+        var opposingTeam = team == PlayerTeam.Red ? PlayerTeam.Blue : PlayerTeam.Red;
+        var opposingCappers = opposingTeam == PlayerTeam.Red ? point.RedCappers : point.BlueCappers;
+        return opposingCappers > 0 || point.CappingTicks > 0f;
+    }
+
+    private static ControlPointState? FindTeamVictoryPoint(
+        GameModeKind mode,
+        PlayerTeam team,
+        IReadOnlyList<ControlPointState> controlPoints)
+    {
+        for (var index = 0; index < controlPoints.Count; index += 1)
+        {
+            var point = controlPoints[index];
+            var isVictoryPoint = mode == GameModeKind.KingOfTheHill
+                ? point.Marker.IsSingleKothControlPoint()
+                : team == PlayerTeam.Red
+                    ? point.Marker.IsBlueKothControlPoint()
+                    : point.Marker.IsRedKothControlPoint();
+            if (isVictoryPoint)
+            {
+                return point;
+            }
+        }
+
+        return null;
     }
 }

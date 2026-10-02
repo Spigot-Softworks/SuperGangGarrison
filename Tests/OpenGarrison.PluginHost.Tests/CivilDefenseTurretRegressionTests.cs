@@ -77,16 +77,15 @@ public sealed class CivilDefenseTurretRegressionTests
         var world = CreateWorld();
         Assert.True(world.TryConfigureLastToDiePlayerBuild(SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Soldier.CivilDefenseTurret]));
-        var deploy = typeof(SimulationWorld).GetMethod("TryHandleExperimentalSoldierCivilDefenseTurret", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance)!;
-        Assert.True((bool)deploy.Invoke(world, [world.LocalPlayer])!);
+        Assert.True(world.PlayerInput.TryHandleExperimentalSoldierCivilDefenseTurret(world.LocalPlayer));
         for (var tick = 0; tick < 120; tick++) world.AdvanceOneTick();
         Assert.Equal(0, world.LocalPlayer.PrimaryCooldownTicks);
         for (var attempt = 0; attempt < 12; attempt++)
-            Assert.False((bool)deploy.Invoke(world, [world.LocalPlayer])!);
+            Assert.False(world.PlayerInput.TryHandleExperimentalSoldierCivilDefenseTurret(world.LocalPlayer));
         Assert.Single(world.CivilDefenseTurrets);
         Assert.Equal(0, world.LocalPlayer.PrimaryCooldownTicks);
         world.ForceRespawnLocalPlayer();
-        Assert.False((bool)deploy.Invoke(world, [world.LocalPlayer])!);
+        Assert.False(world.PlayerInput.TryHandleExperimentalSoldierCivilDefenseTurret(world.LocalPlayer));
         Assert.Single(world.CivilDefenseTurrets);
     }
 
@@ -98,7 +97,7 @@ public sealed class CivilDefenseTurretRegressionTests
         world.ClientPredictionMode = true;
         Assert.False(Deploy(world));
         var shot = AddProjectile(world, "shot", PlayerTeam.Blue, 550f, 500f, 0f);
-        typeof(SimulationWorld).GetMethod("AdvanceCivilDefenseTurrets", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance)!.Invoke(world, null);
+        world.Structures.AdvanceCivilDefenseTurrets();
         Assert.True(turret.CanFire());
         Assert.True(world.EntityStore.Contains(shot.Id));
     }
@@ -117,8 +116,7 @@ public sealed class CivilDefenseTurretRegressionTests
         return world;
     }
 
-    private static bool Deploy(SimulationWorld world) => (bool)typeof(SimulationWorld)
-        .GetMethod("TryDeployCivilDefenseTurret", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!.Invoke(world, [world.LocalPlayer])!;
+    private static bool Deploy(SimulationWorld world) => world.Structures.TryDeployCivilDefenseTurret(world.LocalPlayer);
 
     internal static CivilDefenseTurretEntity DeployBuilt(SimulationWorld world)
     {

@@ -32,6 +32,7 @@ sealed class ClientSession(
     private readonly HashSet<ulong> _acknowledgedTransientEventIds = new();
     private readonly Queue<ulong> _acknowledgedTransientEventOrder = new();
     private SnapshotBaselineState? _acknowledgedSnapshotBaseline;
+    private ulong _minimumSnapshotResyncAckFrame;
     private string _name = PlayerEntity.NormalizeDisplayName(name);
     private int _pingMilliseconds = -1;
 
@@ -95,6 +96,7 @@ sealed class ClientSession(
     public uint LastSpectateCommandSequence { get; set; }
     public uint LastGameplayLoadoutCommandSequence { get; set; }
     public ulong LastAcknowledgedSnapshotFrame { get; private set; }
+    public bool SnapshotResyncPending { get; private set; }
     public bool HasAcknowledgedStringCacheId(ushort cacheId) => cacheId != 0 && _acknowledgedStringCacheIds.Contains(cacheId);
     public bool TryGetLastAcceptedControlCommandSequence(ControlCommandKind kind, out uint sequence)
     {
@@ -364,9 +366,24 @@ sealed class ClientSession(
 
     public void AcknowledgeSnapshot(ulong frame)
     {
-        if (!TryGetSnapshotState(frame, out var baseline) || frame <= LastAcknowledgedSnapshotFrame)
+        if (frame == 0
+            || !TryGetSnapshotState(frame, out var baseline)
+            || frame <= LastAcknowledgedSnapshotFrame)
         {
             return;
+        }
+
+        if (SnapshotResyncPending)
+        {
+            // While resynchronizing, an ACK for any snapshot sent before the
+            // first replacement full snapshot must not restore the lost baseline.
+            if (_minimumSnapshotResyncAckFrame == 0 || frame < _minimumSnapshotResyncAckFrame)
+            {
+                return;
+            }
+
+            SnapshotResyncPending = false;
+            _minimumSnapshotResyncAckFrame = 0;
         }
 
         AcknowledgeSnapshotTransientEvents(frame);
@@ -381,6 +398,32 @@ sealed class ClientSession(
         LastAcknowledgedSnapshotFrame = frame;
         _acknowledgedSnapshotBaseline = baseline;
         PruneOlderSnapshotHistory(frame);
+    }
+
+    /// <summary>
+    /// Drops only the acknowledged delta base. Other acknowledged cache/event
+    /// histories remain intact because the client retains those independently.
+    /// Duplicate requests keep the original full-snapshot ACK floor.
+    /// </summary>
+    public void RequestSnapshotResync()
+    {
+        if (SnapshotResyncPending)
+        {
+            return;
+        }
+
+        SnapshotResyncPending = true;
+        _minimumSnapshotResyncAckFrame = 0;
+        LastAcknowledgedSnapshotFrame = 0;
+        _acknowledgedSnapshotBaseline = null;
+    }
+
+    public void MarkSnapshotResyncFullSnapshotSent(ulong frame)
+    {
+        if (SnapshotResyncPending && _minimumSnapshotResyncAckFrame == 0 && frame != 0)
+        {
+            _minimumSnapshotResyncAckFrame = frame;
+        }
     }
 
     public bool TryGetSnapshotState(ulong frame, out SnapshotBaselineState snapshot)
@@ -408,6 +451,8 @@ sealed class ClientSession(
     {
         LastAcknowledgedSnapshotFrame = 0;
         _acknowledgedSnapshotBaseline = null;
+        SnapshotResyncPending = false;
+        _minimumSnapshotResyncAckFrame = 0;
         _snapshotStatesByFrame.Clear();
         _snapshotFrameOrder.Clear();
         _snapshotStringCacheIdsByFrame.Clear();

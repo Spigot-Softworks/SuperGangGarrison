@@ -1,4 +1,3 @@
-using System.Reflection;
 using OpenGarrison.Core;
 using Xunit;
 
@@ -330,31 +329,23 @@ public sealed class PlayerTriggerLogicTests
             },
         ]);
         var world = new SimulationWorld();
-        var setLevel = typeof(SimulationWorld).GetMethod(
-            "CombatTestSetLevel",
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(setLevel);
-        setLevel.Invoke(
-            world,
-            [
-                new SimpleLevel(
-                    "player-trigger-test",
-                    GameModeKind.TeamDeathmatch,
-                    new WorldBounds(512f, 512f),
-                    1f,
-                    null,
-                    0,
-                    1,
-                    new SpawnPoint(0f, 0f),
-                    [],
-                    [],
-                    [],
-                    [zone],
-                    0f,
-                    [],
-                    importedFromSource: false,
-                    logicGraph: graph),
-            ]);
+        world.CombatTestSetLevel(new SimpleLevel(
+            "player-trigger-test",
+            GameModeKind.TeamDeathmatch,
+            new WorldBounds(512f, 512f),
+            1f,
+            null,
+            0,
+            1,
+            new SpawnPoint(0f, 0f),
+            [],
+            [],
+            [],
+            [zone],
+            0f,
+            [],
+            importedFromSource: false,
+            logicGraph: graph));
 
         world.PrepareLocalPlayerJoin();
         world.SetLocalPlayerTeam(PlayerTeam.Red);
@@ -383,31 +374,23 @@ public sealed class PlayerTriggerLogicTests
             },
         ]);
         var world = new SimulationWorld();
-        var setLevel = typeof(SimulationWorld).GetMethod(
-            "CombatTestSetLevel",
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(setLevel);
-        setLevel.Invoke(
-            world,
-            [
-                new SimpleLevel(
-                    "player-trigger-frame-test",
-                    GameModeKind.TeamDeathmatch,
-                    new WorldBounds(512f, 512f),
-                    1f,
-                    null,
-                    0,
-                    1,
-                    new SpawnPoint(0f, 0f),
-                    [],
-                    [],
-                    [],
-                    [zone],
-                    0f,
-                    [],
-                    importedFromSource: false,
-                    logicGraph: graph),
-            ]);
+        world.CombatTestSetLevel(new SimpleLevel(
+            "player-trigger-frame-test",
+            GameModeKind.TeamDeathmatch,
+            new WorldBounds(512f, 512f),
+            1f,
+            null,
+            0,
+            1,
+            new SpawnPoint(0f, 0f),
+            [],
+            [],
+            [],
+            [zone],
+            0f,
+            [],
+            importedFromSource: false,
+            logicGraph: graph));
 
         world.PrepareLocalPlayerJoin();
         world.SetLocalPlayerTeam(PlayerTeam.Red);
@@ -437,31 +420,23 @@ public sealed class PlayerTriggerLogicTests
             },
         ]);
         var world = new SimulationWorld();
-        var setLevel = typeof(SimulationWorld).GetMethod(
-            "CombatTestSetLevel",
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(setLevel);
-        setLevel.Invoke(
-            world,
-            [
-                new SimpleLevel(
-                    "player-trigger-after-tick-test",
-                    GameModeKind.TeamDeathmatch,
-                    new WorldBounds(512f, 512f),
-                    1f,
-                    null,
-                    0,
-                    1,
-                    new SpawnPoint(0f, 0f),
-                    [],
-                    [],
-                    [],
-                    [zone],
-                    0f,
-                    [],
-                    importedFromSource: false,
-                    logicGraph: graph),
-            ]);
+        world.CombatTestSetLevel(new SimpleLevel(
+            "player-trigger-after-tick-test",
+            GameModeKind.TeamDeathmatch,
+            new WorldBounds(512f, 512f),
+            1f,
+            null,
+            0,
+            1,
+            new SpawnPoint(0f, 0f),
+            [],
+            [],
+            [],
+            [zone],
+            0f,
+            [],
+            importedFromSource: false,
+            logicGraph: graph));
 
         world.PrepareLocalPlayerJoin();
         world.SetLocalPlayerTeam(PlayerTeam.Red);

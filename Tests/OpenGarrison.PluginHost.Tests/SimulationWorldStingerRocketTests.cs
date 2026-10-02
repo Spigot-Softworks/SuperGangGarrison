@@ -1,5 +1,4 @@
 using OpenGarrison.Core;
-using System.Reflection;
 using Xunit;
 
 namespace OpenGarrison.PluginHost.Tests;
@@ -221,27 +220,20 @@ public sealed class SimulationWorldStingerRocketTests
         firstVictim.ForceSetHealth(1);
         secondVictim.ForceSetHealth(1);
 
-        var killMethod = typeof(SimulationWorld).GetMethod("KillPlayer", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(killMethod);
-
-        _ = killMethod!.Invoke(
-            world,
-            [
-                firstVictim,
-                true,
-                world.LocalPlayer,
-                "RocketKL",
-                DeadBodyAnimationKind.Default,
-                null,
-                null,
-                null,
-                true,
-                true,
-                false,
-                true,
-                -1,
-                false,
-            ]);
+        world.PlayerDeaths.KillPlayer(firstVictim,
+            true,
+            world.LocalPlayer,
+            "RocketKL",
+            DeadBodyAnimationKind.Default,
+            null,
+            null,
+            null,
+            true,
+            true,
+            false,
+            true,
+            -1,
+            false);
 
         Assert.False(firstVictim.IsAlive);
         Assert.False(secondVictim.IsAlive);
@@ -261,24 +253,12 @@ public sealed class SimulationWorldStingerRocketTests
 
     private static RocketCombatDefinition InvokeStingerRocketCombat(SimulationWorld world, PlayerEntity attacker, RocketCombatDefinition combat)
     {
-        var method = typeof(SimulationWorld).GetMethod(
-            "ApplyExperimentalSoldierRocketCombat",
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        var result = method!.Invoke(world, [attacker, combat]);
-        Assert.IsType<RocketCombatDefinition>(result);
-        return (RocketCombatDefinition)result!;
+        return world.ExperimentalRules.ApplyExperimentalSoldierRocketCombat(attacker, combat);
     }
 
     private static float InvokeStingerLaunchSpeed(SimulationWorld world, PlayerEntity attacker, float launchSpeed)
     {
-        var method = typeof(SimulationWorld).GetMethod(
-            "ApplyExperimentalSoldierRocketLaunchSpeed",
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        var result = method!.Invoke(world, [attacker, launchSpeed]);
-        Assert.IsType<float>(result);
-        return (float)result!;
+        return world.ExperimentalRules.ApplyExperimentalSoldierRocketLaunchSpeed(attacker, launchSpeed);
     }
 
     private static float GetPlayerSpeedMagnitude(PlayerEntity player)
@@ -288,11 +268,7 @@ public sealed class SimulationWorldStingerRocketTests
 
     private static void InvokeRocketExplosion(SimulationWorld world, RocketProjectileEntity rocket)
     {
-        var method = typeof(SimulationWorld).GetMethod(
-            "ExplodeRocket",
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        _ = method!.Invoke(world, [rocket, null, null, null, -1]);
+        world.ExplosionRules.ExplodeRocket(rocket, null, null, null, -1);
     }
 
     private static void AssertApproximately(float expected, float actual, float tolerance = 0.001f)

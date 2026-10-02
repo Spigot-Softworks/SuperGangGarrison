@@ -2,7 +2,12 @@
 
 internal sealed partial class WeaponFireHandler
 {
-    public void FireQuoteBlade(PlayerEntity attacker, float aimWorldX, float aimWorldY, int lifetimeTicks = PlayerEntity.QuoteBladeLifetimeTicks)
+    public void FireQuoteBlade(
+        PlayerEntity attacker,
+        float aimWorldX,
+        float aimWorldY,
+        int lifetimeTicks = PlayerEntity.QuoteBladeLifetimeTicks,
+        int? damageAmmoShells = null)
     {
         RegisterSoundEvent(attacker, "BladeSnd");
         var weaponOrigin = GetSourceWeaponOrigin(attacker);
@@ -16,7 +21,7 @@ internal sealed partial class WeaponFireHandler
         var directionRadians = DeterministicMath.Atan2(aimDeltaY, aimDeltaX);
         var directionX = DeterministicMath.Cos(directionRadians);
         var directionY = DeterministicMath.Sin(directionRadians);
-        var bladePower = attacker.CurrentShells;
+        var bladePower = Math.Max(0, damageAmmoShells ?? attacker.CurrentShells);
         var bonusDamage = (int)MathF.Floor((15f / 100f) * bladePower + 3f);
         var hitDamage = 3 + bonusDamage;
         var inheritedVelocityX = attacker.HorizontalSpeed / LegacyMovementModel.SourceTicksPerSecond;

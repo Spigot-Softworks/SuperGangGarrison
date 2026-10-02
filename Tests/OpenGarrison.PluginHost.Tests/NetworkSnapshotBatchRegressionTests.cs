@@ -66,6 +66,7 @@ public sealed class NetworkSnapshotBatchRegressionTests
         SetField(game, "_config", world.Config);
         SetField(game, "_networkClient", networkClient);
         SetField(game, "_services", services);
+        SetField(game, "_gameplaySessionState", new Game1.GameplaySessionState());
         SetField(game, "_processedNetworkVisualEventIds", new HashSet<ulong>());
         SetField(game, "_processedNetworkVisualEventOrder", new Queue<ulong>());
         SetField(game, "_snapshotStringCacheConnectionGeneration", networkClient.ConnectionGeneration);

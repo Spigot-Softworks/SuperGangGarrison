@@ -9,24 +9,6 @@ namespace OpenGarrison.PluginHost.Tests;
 
 public sealed class SimulationWorldExperimentalPerkRegressionTests
 {
-    private static readonly MethodInfo ApplyPlayerDamageMethod = GetRequiredNonPublicMethod("ApplyPlayerDamage");
-    private static readonly MethodInfo ApplySentryDamageMethod = GetRequiredNonPublicMethod("ApplySentryDamage");
-    private static readonly MethodInfo CombatTestSetLevelMethod = GetRequiredNonPublicMethod("CombatTestSetLevel");
-    private static readonly MethodInfo TryHandleNetworkSecondaryAbilityMethod = GetRequiredNonPublicMethod("TryHandleNetworkSecondaryAbility");
-    private static readonly MethodInfo TryHandleExperimentalRageActivationMethod = GetRequiredNonPublicMethod("TryHandleExperimentalRageActivation");
-    private static readonly MethodInfo UpdateExperimentalEngineerEssenceExtractorMethod = GetRequiredNonPublicMethod("UpdateExperimentalEngineerEssenceExtractor");
-    private static readonly MethodInfo UpdateExperimentalEngineerFreezeRayMethod = GetRequiredNonPublicMethod("UpdateExperimentalEngineerFreezeRay");
-    private static readonly MethodInfo ApplyExperimentalSentryPlayerHitMethod = GetRequiredNonPublicMethod("ApplyExperimentalSentryPlayerHit");
-    private static readonly MethodInfo SpawnRocketMethod = GetRequiredNonPublicMethod("SpawnRocket");
-    private static readonly MethodInfo SpawnShotMethod = GetRequiredNonPublicMethod("SpawnShot");
-    private static readonly MethodInfo SpawnArrowMethod = GetRequiredNonPublicMethod("SpawnArrow");
-    private static readonly MethodInfo TryResolveExperimentalEngineerRocketTrackingDirectionMethod = GetRequiredNonPublicMethod("TryResolveExperimentalEngineerRocketTrackingDirection");
-    private static readonly MethodInfo GetExperimentalSentryReloadTicksMethod = GetRequiredNonPublicMethod("GetExperimentalSentryReloadTicks");
-    private static readonly MethodInfo GetExperimentalSentryIdleResetTicksMethod = GetRequiredNonPublicMethod("GetExperimentalSentryIdleResetTicks");
-    private static readonly MethodInfo GetExperimentalSentryTargetRangeMethod = GetRequiredNonPublicMethod("GetExperimentalSentryTargetRange");
-    private static readonly MethodInfo HasSentryLineOfSightMethod = GetRequiredNonPublicMethod("HasSentryLineOfSight");
-    private static readonly MethodInfo FirePrimaryWeaponMethod = GetRequiredNonPublicMethod("FirePrimaryWeapon");
-    private static readonly MethodInfo TryHandleExperimentalEngineerAlternateWeaponInteractionMethod = GetRequiredNonPublicMethod("TryHandleExperimentalEngineerAlternateWeaponInteraction");
     private static readonly MethodInfo PlayerCanOccupyMethod = GetRequiredNonPublicPlayerMethod("CanOccupy");
     private static readonly MethodInfo GetExperimentalMovementSpeedMultiplierMethod = GetRequiredNonPublicPlayerMethod("GetExperimentalMovementSpeedMultiplier");
     private static readonly FieldInfo AimDirectionDegreesBackingField = typeof(PlayerEntity).GetField("<AimDirectionDegrees>k__BackingField", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
@@ -55,14 +37,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         player.ForceSetHealth(Math.Max(1, player.MaxHealth / 2));
         var healthBefore = player.Health;
 
-        var applyContinuousDamageMethod = typeof(SimulationWorld).GetMethod(
-            "ApplyPlayerContinuousDamage",
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(applyContinuousDamageMethod);
-
-        var died = (bool)applyContinuousDamageMethod!.Invoke(
-            world,
-            [player, 12f, player, PlayerEntity.SpyDamageRevealAlpha, DamageEventFlags.None, true, true, null, null, null, false])!;
+        var died = world.Combat.ApplyPlayerContinuousDamage(player, 12f, player, PlayerEntity.SpyDamageRevealAlpha, DamageEventFlags.None, true, true, null, null, null, false);
 
         Assert.False(died);
         Assert.True(player.Health > healthBefore);
@@ -81,26 +56,20 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         Assert.True(world.TryGetNetworkPlayer(2, out var victim));
         victim.ForceSetHealth(1);
 
-        var killMethod = typeof(SimulationWorld).GetMethod("KillPlayer", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(killMethod);
-        _ = killMethod!.Invoke(
-            world,
-            [
-                victim,
-                true,
-                world.LocalPlayer,
-                "RocketKL",
-                DeadBodyAnimationKind.Default,
-                null,
-                null,
-                null,
-                true,
-                true,
-                false,
-                true,
-                -1,
-                false,
-            ]);
+        world.PlayerDeaths.KillPlayer(victim,
+            true,
+            world.LocalPlayer,
+            "RocketKL",
+            DeadBodyAnimationKind.Default,
+            null,
+            null,
+            null,
+            true,
+            true,
+            false,
+            true,
+            -1,
+            false);
 
         Assert.True(world.LocalPlayer.IsExperimentalGhostDashing);
         Assert.False(world.LocalPlayer.IsUbered);
@@ -223,34 +192,8 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     [Fact]
     public void FriendlyPyroAirburstUsesNarrowerPlayerConeThanAirblast()
     {
-        var method = typeof(SimulationWorld).GetMethod(
-            "IsWithinAirblastPlayerMask",
-            BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-
-        object[] sharedArguments =
-        [
-            0f,
-            0f,
-            0f,
-            50f,
-            37f,
-            25f,
-            false,
-        ];
-        object[] airburstArguments =
-        [
-            0f,
-            0f,
-            0f,
-            50f,
-            37f,
-            25f,
-            true,
-        ];
-
-        Assert.True((bool)method!.Invoke(null, sharedArguments)!);
-        Assert.False((bool)method.Invoke(null, airburstArguments)!);
+        Assert.True(AirblastRulesSystem.IsWithinAirblastPlayerMask(0f, 0f, 0f, 50f, 37f, 25f, useFriendlyAirburstMask: false));
+        Assert.False(AirblastRulesSystem.IsWithinAirblastPlayerMask(0f, 0f, 0f, 50f, 37f, 25f, useFriendlyAirburstMask: true));
     }
 
     [Fact]
@@ -1337,28 +1280,25 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         Assert.True(world.LocalPlayer.IsExperimentalOffhandEquipped);
         world.LocalPlayer.ForceSetAmmo(ExperimentalGameplaySettings.DefaultEngineerDestinyPunctuatorShotgunClipSize);
 
-        TryHandleNetworkSecondaryAbilityMethod.Invoke(
-            world,
-            [
-                world.LocalPlayer,
-                new PlayerInputSnapshot(
-                    Left: false,
-                    Right: false,
-                    Up: false,
-                    Down: false,
-                    BuildSentry: false,
-                    DestroySentry: false,
-                    Taunt: false,
-                    FirePrimary: false,
-                    FireSecondary: true,
-                    AimWorldX: world.LocalPlayer.X + 128f,
-                    AimWorldY: world.LocalPlayer.Y,
-                    DebugKill: false),
-                default(PlayerInputSnapshot),
-                GameplayAbilityInputPhase.Pressed,
-                world.LocalPlayer.X,
-                world.LocalPlayer.Y,
-            ]);
+        world.PlayerInput.TryHandleNetworkSecondaryAbility(
+            world.LocalPlayer,
+            new PlayerInputSnapshot(
+                Left: false,
+                Right: false,
+                Up: false,
+                Down: false,
+                BuildSentry: false,
+                DestroySentry: false,
+                Taunt: false,
+                FirePrimary: false,
+                FireSecondary: true,
+                AimWorldX: world.LocalPlayer.X + 128f,
+                AimWorldY: world.LocalPlayer.Y,
+                DebugKill: false),
+            default(PlayerInputSnapshot),
+            GameplayAbilityInputPhase.Pressed,
+            world.LocalPlayer.X,
+            world.LocalPlayer.Y);
 
         Assert.Equal(0, world.LocalPlayer.CurrentShells);
         Assert.True(world.Shots.Count >= CharacterClassCatalog.Shotgun.ProjectilesPerShot);
@@ -1380,28 +1320,25 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         Assert.Equal(ExperimentalEngineerAlternateWeaponMode.None, world.LocalPlayer.ExperimentalEngineerAlternateWeaponMode);
 
         world.LocalPlayer.ForceSetAmmo(ExperimentalGameplaySettings.DefaultEngineerDestinyPunctuatorShotgunClipSize);
-        TryHandleNetworkSecondaryAbilityMethod.Invoke(
-            world,
-            [
-                world.LocalPlayer,
-                new PlayerInputSnapshot(
-                    Left: false,
-                    Right: false,
-                    Up: false,
-                    Down: false,
-                    BuildSentry: false,
-                    DestroySentry: false,
-                    Taunt: false,
-                    FirePrimary: false,
-                    FireSecondary: true,
-                    AimWorldX: world.LocalPlayer.X + 128f,
-                    AimWorldY: world.LocalPlayer.Y,
-                    DebugKill: false),
-                default(PlayerInputSnapshot),
-                GameplayAbilityInputPhase.Pressed,
-                world.LocalPlayer.X,
-                world.LocalPlayer.Y,
-            ]);
+        world.PlayerInput.TryHandleNetworkSecondaryAbility(
+            world.LocalPlayer,
+            new PlayerInputSnapshot(
+                Left: false,
+                Right: false,
+                Up: false,
+                Down: false,
+                BuildSentry: false,
+                DestroySentry: false,
+                Taunt: false,
+                FirePrimary: false,
+                FireSecondary: true,
+                AimWorldX: world.LocalPlayer.X + 128f,
+                AimWorldY: world.LocalPlayer.Y,
+                DebugKill: false),
+            default(PlayerInputSnapshot),
+            GameplayAbilityInputPhase.Pressed,
+            world.LocalPlayer.X,
+            world.LocalPlayer.Y);
 
         Assert.Equal(0, world.LocalPlayer.CurrentShells);
         Assert.True(world.Shots.Count >= CharacterClassCatalog.Shotgun.ProjectilesPerShot);
@@ -1449,16 +1386,13 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         Assert.True(world.LocalPlayer.IsExperimentalOffhandEquipped);
         Assert.Equal(ExperimentalEngineerAlternateWeaponMode.EssenceExtractor, world.LocalPlayer.ExperimentalEngineerAlternateWeaponMode);
 
-        TryHandleNetworkSecondaryAbilityMethod.Invoke(
-            world,
-            [
-                world.LocalPlayer,
-                default(PlayerInputSnapshot),
-                default(PlayerInputSnapshot),
-                GameplayAbilityInputPhase.Pressed,
-                world.LocalPlayer.X,
-                world.LocalPlayer.Y,
-            ]);
+        world.PlayerInput.TryHandleNetworkSecondaryAbility(
+            world.LocalPlayer,
+            default(PlayerInputSnapshot),
+            default(PlayerInputSnapshot),
+            GameplayAbilityInputPhase.Pressed,
+            world.LocalPlayer.X,
+            world.LocalPlayer.Y);
 
         Assert.Single(world.Sentries);
         Assert.True(world.LocalPlayer.IsExperimentalOffhandEquipped);
@@ -2300,27 +2234,18 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
             SwapWeapon: true);
         world.LocalPlayer.ApplyVelocityImpulse(0f, 0f);
 
-        var executeMethod = typeof(SimulationWorld).GetMethod(
-            "ExecuteHeavyGhostDashAbility",
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(executeMethod);
-
-        var result = (GameplayAbilityResult)executeMethod!.Invoke(
-            world,
-            [
-                new GameplayAbilityContext
-                {
-                    World = world,
-                    Player = world.LocalPlayer,
-                    Item = item,
-                    Ability = staleAbility,
-                    Phase = GameplayAbilityInputPhase.Pressed,
-                    Input = input,
-                    PreviousInput = default,
-                    SourceX = world.LocalPlayer.X,
-                    SourceY = world.LocalPlayer.Y,
-                },
-            ])!;
+        var result = world.ExecuteHeavyGhostDashAbility(new GameplayAbilityContext
+            {
+                World = world,
+                Player = world.LocalPlayer,
+                Item = item,
+                Ability = staleAbility,
+                Phase = GameplayAbilityInputPhase.Pressed,
+                Input = input,
+                PreviousInput = default,
+                SourceX = world.LocalPlayer.X,
+                SourceY = world.LocalPlayer.Y,
+            });
         var expectedBurstSpeed = LegacyMovementModel.GetMaxRunSpeed(world.LocalPlayer.RunPower)
             * ExperimentalGameplaySettings.HeavyGhostDashBurstSpeedMultiplier;
 
@@ -2672,17 +2597,14 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         AdvanceTicks(world, 1);
         SetArrowCollisionTestLevel(world);
 
-        SpawnArrowMethod.Invoke(
-            world,
-            [
-                world.LocalPlayer,
-                100f,
-                730f,
-                0f,
-                8f,
-                PlayerEntity.SniperBowMinDamage,
-                PlayerEntity.SniperBowMinFakeSpeedMultiplier,
-            ]);
+        world.Projectiles.SpawnArrow(
+            world.LocalPlayer,
+            100f,
+            730f,
+            0f,
+            8f,
+            PlayerEntity.SniperBowMinDamage,
+            PlayerEntity.SniperBowMinFakeSpeedMultiplier);
 
         var arrow = Assert.IsType<ArrowProjectileEntity>(Assert.Single(world.Needles));
         var lifetimeBeforeCollision = arrow.TicksRemaining;
@@ -2715,17 +2637,14 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         AdvanceTicks(world, 1);
         SetArrowCollisionTestLevel(world);
 
-        SpawnArrowMethod.Invoke(
-            world,
-            [
-                world.LocalPlayer,
-                300f,
-                300f,
-                0f,
-                0f,
-                PlayerEntity.SniperBowMinDamage,
-                PlayerEntity.SniperBowMinFakeSpeedMultiplier,
-            ]);
+        world.Projectiles.SpawnArrow(
+            world.LocalPlayer,
+            300f,
+            300f,
+            0f,
+            0f,
+            PlayerEntity.SniperBowMinDamage,
+            PlayerEntity.SniperBowMinFakeSpeedMultiplier);
 
         var arrow = Assert.IsType<ArrowProjectileEntity>(Assert.Single(world.Needles));
         Assert.False(arrow.TryGetOneWayPlatformBounds(out _, out _, out _));
@@ -3740,30 +3659,27 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
 
     private static void SetOpenCombatLevel(SimulationWorld world)
     {
-        CombatTestSetLevelMethod.Invoke(
-            world,
-            [
-                new SimpleLevel(
-                    name: "experimental_perk_regression_test",
-                    mode: GameModeKind.CaptureTheFlag,
-                    bounds: new WorldBounds(1024f, 768f),
-                    mapScale: 1f,
-                    backgroundAssetName: null,
-                    mapAreaIndex: 1,
-                    mapAreaCount: 1,
-                    localSpawn: new SpawnPoint(100f, 100f),
-                    redSpawns: [new SpawnPoint(100f, 100f)],
-                    blueSpawns: [new SpawnPoint(900f, 100f)],
-                    intelBases:
-                    [
-                        new IntelBaseMarker(PlayerTeam.Red, 100f, 100f),
-                        new IntelBaseMarker(PlayerTeam.Blue, 900f, 100f),
-                    ],
-                    roomObjects: [],
-                    floorY: 768f,
-                    solids: [],
-                    importedFromSource: false),
-            ]);
+        world.CombatTestSetLevel(
+            new SimpleLevel(
+                name: "experimental_perk_regression_test",
+                mode: GameModeKind.CaptureTheFlag,
+                bounds: new WorldBounds(1024f, 768f),
+                mapScale: 1f,
+                backgroundAssetName: null,
+                mapAreaIndex: 1,
+                mapAreaCount: 1,
+                localSpawn: new SpawnPoint(100f, 100f),
+                redSpawns: [new SpawnPoint(100f, 100f)],
+                blueSpawns: [new SpawnPoint(900f, 100f)],
+                intelBases:
+                [
+                    new IntelBaseMarker(PlayerTeam.Red, 100f, 100f),
+                    new IntelBaseMarker(PlayerTeam.Blue, 900f, 100f),
+                ],
+                roomObjects: [],
+                floorY: 768f,
+                solids: [],
+                importedFromSource: false));
     }
 
     private static void InstallPrimaryWeaponSwapCabinetAtPlayer(
@@ -3771,66 +3687,60 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         PlayerEntity player)
     {
         var spawn = new SpawnPoint(player.X, player.Y);
-        CombatTestSetLevelMethod.Invoke(
-            world,
-            [
-                new SimpleLevel(
-                    name: "primary_swap_station_test",
-                    mode: GameModeKind.TeamDeathmatch,
-                    bounds: new WorldBounds(1024f, 768f),
-                    mapScale: 1f,
-                    backgroundAssetName: null,
-                    mapAreaIndex: 1,
-                    mapAreaCount: 1,
-                    localSpawn: spawn,
-                    redSpawns: [spawn],
-                    blueSpawns: [spawn],
-                    intelBases: [],
-                    roomObjects:
-                    [
-                        new RoomObjectMarker(
-                            RoomObjectType.HealingCabinet,
-                            player.X - 16f,
-                            player.Y - 24f,
-                            32f,
-                            48f,
-                            "sprite74",
-                            SourceName: "HealingCabinet"),
-                    ],
-                    floorY: player.Y + 64f,
-                    solids: [],
-                    importedFromSource: false),
-            ]);
+        world.CombatTestSetLevel(
+            new SimpleLevel(
+                name: "primary_swap_station_test",
+                mode: GameModeKind.TeamDeathmatch,
+                bounds: new WorldBounds(1024f, 768f),
+                mapScale: 1f,
+                backgroundAssetName: null,
+                mapAreaIndex: 1,
+                mapAreaCount: 1,
+                localSpawn: spawn,
+                redSpawns: [spawn],
+                blueSpawns: [spawn],
+                intelBases: [],
+                roomObjects:
+                [
+                    new RoomObjectMarker(
+                        RoomObjectType.HealingCabinet,
+                        player.X - 16f,
+                        player.Y - 24f,
+                        32f,
+                        48f,
+                        "sprite74",
+                        SourceName: "HealingCabinet"),
+                ],
+                floorY: player.Y + 64f,
+                solids: [],
+                importedFromSource: false));
 
         Assert.True(world.IsNearPrimaryWeaponSwapStation(player));
     }
 
     private static void SetArrowCollisionTestLevel(SimulationWorld world)
     {
-        CombatTestSetLevelMethod.Invoke(
-            world,
-            [
-                new SimpleLevel(
-                    name: "experimental_arrow_collision_test",
-                    mode: GameModeKind.CaptureTheFlag,
-                    bounds: new WorldBounds(1024f, 768f),
-                    mapScale: 1f,
-                    backgroundAssetName: null,
-                    mapAreaIndex: 1,
-                    mapAreaCount: 1,
-                    localSpawn: new SpawnPoint(100f, 100f),
-                    redSpawns: [new SpawnPoint(100f, 100f)],
-                    blueSpawns: [new SpawnPoint(900f, 100f)],
-                    intelBases:
-                    [
-                        new IntelBaseMarker(PlayerTeam.Red, 100f, 100f),
-                        new IntelBaseMarker(PlayerTeam.Blue, 900f, 100f),
-                    ],
-                    roomObjects: [],
-                    floorY: 768f,
-                    solids: [new LevelSolid(0f, 768f, 1024f, 792f)],
-                    importedFromSource: false),
-            ]);
+        world.CombatTestSetLevel(
+            new SimpleLevel(
+                name: "experimental_arrow_collision_test",
+                mode: GameModeKind.CaptureTheFlag,
+                bounds: new WorldBounds(1024f, 768f),
+                mapScale: 1f,
+                backgroundAssetName: null,
+                mapAreaIndex: 1,
+                mapAreaCount: 1,
+                localSpawn: new SpawnPoint(100f, 100f),
+                redSpawns: [new SpawnPoint(100f, 100f)],
+                blueSpawns: [new SpawnPoint(900f, 100f)],
+                intelBases:
+                [
+                    new IntelBaseMarker(PlayerTeam.Red, 100f, 100f),
+                    new IntelBaseMarker(PlayerTeam.Blue, 900f, 100f),
+                ],
+                roomObjects: [],
+                floorY: 768f,
+                solids: [new LevelSolid(0f, 768f, 1024f, 792f)],
+                importedFromSource: false));
     }
 
     private static PlayerEntity CreateBlueNetworkScout(SimulationWorld world, byte slot)
@@ -4385,34 +4295,39 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
 
     private static void InvokeEngineerPda(SimulationWorld world)
     {
-        TryHandleNetworkSecondaryAbilityMethod.Invoke(
-            world,
-            [
-                world.LocalPlayer,
-                default(PlayerInputSnapshot),
-                default(PlayerInputSnapshot),
-                GameplayAbilityInputPhase.Pressed,
-                world.LocalPlayer.X,
-                world.LocalPlayer.Y,
-            ]);
+        world.PlayerInput.TryHandleNetworkSecondaryAbility(
+            world.LocalPlayer,
+            default(PlayerInputSnapshot),
+            default(PlayerInputSnapshot),
+            GameplayAbilityInputPhase.Pressed,
+            world.LocalPlayer.X,
+            world.LocalPlayer.Y);
     }
 
     private static bool InvokeTryHandleExperimentalRageActivation(SimulationWorld world, PlayerEntity player)
     {
-        return (bool)TryHandleExperimentalRageActivationMethod.Invoke(world, [player])!;
+        return world.ExperimentalRules.TryHandleExperimentalRageActivation(player);
     }
 
     private static bool InvokeApplyPlayerDamage(SimulationWorld world, PlayerEntity target, int damage, PlayerEntity attacker)
     {
-        return (bool)ApplyPlayerDamageMethod.Invoke(
-            world,
-            [target, damage, attacker, PlayerEntity.SpyDamageRevealAlpha, DamageEventFlags.None, true, true, null, null, null, false])!;
+        return world.Combat.ApplyPlayerDamage(
+            target,
+            damage,
+            attacker,
+            PlayerEntity.SpyDamageRevealAlpha,
+            DamageEventFlags.None,
+            true,
+            true,
+            null,
+            null,
+            null,
+            false);
     }
 
     private static void InvokeSpawnStabMask(SimulationWorld world, PlayerEntity owner, float directionDegrees)
     {
-        var method = GetRequiredNonPublicMethod("SpawnStabMask");
-        method.Invoke(world, [owner, directionDegrees]);
+        world.Projectiles.SpawnStabMask(owner, directionDegrees);
     }
 
     private static void InvokeAdvanceStabMasks(SimulationWorld world)
@@ -4422,37 +4337,31 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
 
     private static bool InvokeApplySentryDamage(SimulationWorld world, SentryEntity target, int damage, PlayerEntity attacker)
     {
-        return (bool)ApplySentryDamageMethod.Invoke(world, [target, damage, attacker])!;
+        return world.Combat.ApplySentryDamage(target, damage, attacker);
     }
 
     private static void InvokeUpdateExperimentalEngineerEssenceExtractor(SimulationWorld world, PlayerEntity engineer, float aimWorldX, float aimWorldY)
     {
-        UpdateExperimentalEngineerEssenceExtractorMethod.Invoke(world, [engineer, aimWorldX, aimWorldY]);
+        world.SupportRules.UpdateExperimentalEngineerEssenceExtractor(engineer, aimWorldX, aimWorldY);
     }
 
     private static void InvokeUpdateExperimentalEngineerFreezeRay(SimulationWorld world, PlayerEntity engineer, float aimWorldX, float aimWorldY)
     {
-        UpdateExperimentalEngineerFreezeRayMethod.Invoke(world, [engineer, aimWorldX, aimWorldY]);
+        world.SupportRules.UpdateExperimentalEngineerFreezeRay(engineer, aimWorldX, aimWorldY);
     }
 
     private static void InvokeApplyExperimentalSentryPlayerHit(SimulationWorld world, SentryEntity sentry, PlayerEntity owner, PlayerEntity target, int baseDamage)
     {
-        ApplyExperimentalSentryPlayerHitMethod.Invoke(
-            world,
-            [
-                sentry,
-                owner,
-                target,
-                baseDamage,
-                PlayerDamageTraits.None,
-                false,
-                true,
-                null,
-                null,
-                Type.Missing,
-                Type.Missing,
-                Type.Missing,
-            ]);
+        world.ExperimentalRules.ApplyExperimentalSentryPlayerHit(
+            sentry,
+            owner,
+            target,
+            baseDamage,
+            PlayerDamageTraits.None,
+            false,
+            true,
+            null,
+            null);
     }
 
     private static void InvokeSpawnRocket(
@@ -4465,29 +4374,26 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         float visualScale = 1f,
         int trackingLockTicksRemaining = 0)
     {
-        SpawnRocketMethod.Invoke(
-            world,
-            [
-                owner,
-                x,
-                y,
-                4.5f,
-                directionRadians,
-                null,
-                0f,
-                false,
-                false,
-                1f,
-                false,
-                false,
-                enableExperimentalCaveatTracking,
-                visualScale,
-                trackingLockTicksRemaining,
-                Type.Missing,
-                Type.Missing,
-                Type.Missing,
-                null,
-            ]);
+        world.Projectiles.SpawnRocket(
+            owner,
+            x,
+            y,
+            4.5f,
+            directionRadians,
+            null,
+            0f,
+            false,
+            false,
+            1f,
+            false,
+            false,
+            enableExperimentalCaveatTracking,
+            visualScale,
+            trackingLockTicksRemaining,
+            Type.Missing,
+            Type.Missing,
+            Type.Missing,
+            null);
     }
 
     private static void InvokeSpawnShot(
@@ -4505,27 +4411,25 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         float playerKnockbackAirborneVerticalScale = 1f,
         float playerKnockbackGroundedVerticalScale = 1f)
     {
-        SpawnShotMethod.Invoke(
-            world,
-            [
-                owner,
-                x,
-                y,
-                velocityX,
-                velocityY,
-                damagePerHit,
-                false,
-                null,
-                null,
-                false,
-                playerKnockbackScale,
-                playerSlowMovementMultiplier,
-                playerSlowRefreshTicks,
-                playerKnockbackImpulse.HasValue ? playerKnockbackImpulse.Value : Type.Missing,
-                playerKnockbackAirborneVerticalScale,
-                playerKnockbackGroundedVerticalScale,
-                false, // isBoomstickPellet
-            ]);
+        world.Projectiles.SpawnShot(
+            owner,
+            x,
+            y,
+            velocityX,
+            velocityY,
+            damagePerHit,
+            false,
+            null,
+            null,
+            false,
+            playerKnockbackScale,
+            playerSlowMovementMultiplier,
+            playerSlowRefreshTicks,
+            playerKnockbackImpulse.HasValue ? playerKnockbackImpulse.Value : Type.Missing,
+            playerKnockbackAirborneVerticalScale,
+            playerKnockbackGroundedVerticalScale,
+            false,
+            // isBoomstickPellet);
     }
 
     private static void InvokeAdvanceShots(SimulationWorld world)
@@ -4544,12 +4448,12 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
 
     private static void InvokeFirePrimaryWeapon(SimulationWorld world, PlayerEntity attacker, float aimWorldX, float aimWorldY)
     {
-        FirePrimaryWeaponMethod.Invoke(world, [attacker, aimWorldX, aimWorldY]);
+        world.WeaponHandler.FirePrimaryWeapon(attacker, aimWorldX, aimWorldY);
     }
 
     private static bool InvokeTryHandleExperimentalEngineerAlternateWeaponInteraction(SimulationWorld world, PlayerEntity player)
     {
-        return (bool)(TryHandleExperimentalEngineerAlternateWeaponInteractionMethod.Invoke(world, [player]) ?? false);
+        return world.PlayerInput.TryHandleExperimentalEngineerAlternateWeaponInteraction(player);
     }
 
     private static bool InvokeTryResolveExperimentalEngineerRocketTrackingDirection(
@@ -4558,30 +4462,27 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         PlayerEntity owner,
         out float targetDirectionRadians)
     {
-        var arguments = new object[] { rocket, owner, 0f };
-        var resolved = (bool)TryResolveExperimentalEngineerRocketTrackingDirectionMethod.Invoke(world, arguments)!;
-        targetDirectionRadians = (float)arguments[2];
-        return resolved;
+        return world.ExperimentalRules.TryResolveExperimentalEngineerRocketTrackingDirection(rocket, owner, out targetDirectionRadians);
     }
 
     private static int InvokeGetExperimentalSentryReloadTicks(SimulationWorld world, PlayerEntity owner, SentryEntity sentry)
     {
-        return (int)GetExperimentalSentryReloadTicksMethod.Invoke(world, [owner, sentry])!;
+        return world.ExperimentalRules.GetExperimentalSentryReloadTicks(owner, sentry);
     }
 
     private static int InvokeGetExperimentalSentryIdleResetTicks(SimulationWorld world)
     {
-        return (int)GetExperimentalSentryIdleResetTicksMethod.Invoke(world, null)!;
+        return world.ExperimentalRules.GetExperimentalSentryIdleResetTicks();
     }
 
     private static float InvokeGetExperimentalSentryTargetRange(SimulationWorld world, PlayerEntity owner)
     {
-        return (float)GetExperimentalSentryTargetRangeMethod.Invoke(world, [owner])!;
+        return world.ExperimentalRules.GetExperimentalSentryTargetRange(owner);
     }
 
     private static bool InvokeHasSentryLineOfSight(SimulationWorld world, SentryEntity sentry, PlayerEntity target)
     {
-        return (bool)HasSentryLineOfSightMethod.Invoke(world, [sentry, target])!;
+        return world.GeometryResolver.HasSentryLineOfSight(sentry, target);
     }
 
     private static bool InvokePlayerCanOccupy(PlayerEntity player, SimpleLevel level, PlayerTeam team, float x, float y)
@@ -4607,10 +4508,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         float speed = 0f,
         float directionRadians = 0f)
     {
-        var method = typeof(SimulationWorld).GetMethod("CombatTestSpawnRocket", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        var result = method!.Invoke(world, [owner, x, y, speed, directionRadians]);
-        return Assert.IsType<RocketProjectileEntity>(result);
+        return world.CombatTestSpawnRocket(owner, x, y, speed, directionRadians);
     }
 
     private static void AdvanceCombatRockets(SimulationWorld world)
@@ -4631,10 +4529,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         float velocityX = 0f,
         float velocityY = 0f)
     {
-        var method = typeof(SimulationWorld).GetMethod("CombatTestSpawnGrenade", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        var result = method!.Invoke(world, [owner, x, y, velocityX, velocityY]);
-        return Assert.IsType<GrenadeProjectileEntity>(result);
+        return world.CombatTestSpawnGrenade(owner, x, y, velocityX, velocityY);
     }
 
     private static void AdvanceCombatGrenades(SimulationWorld world)
@@ -4656,22 +4551,12 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         float velocityY = 0f,
         bool stickied = false)
     {
-        var method = typeof(SimulationWorld).GetMethod(
-            "CombatTestSpawnMine",
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
-            binder: null,
-            types: [typeof(PlayerEntity), typeof(float), typeof(float), typeof(float), typeof(float), typeof(bool)],
-            modifiers: null);
-        Assert.NotNull(method);
-        var result = method!.Invoke(world, [owner, x, y, velocityX, velocityY, stickied]);
-        return Assert.IsType<MineProjectileEntity>(result);
+        return world.CombatTestSpawnMine(owner, x, y, velocityX, velocityY, stickied);
     }
 
     private static void ExplodeCombatTestMine(SimulationWorld world, MineProjectileEntity mine)
     {
-        var method = typeof(SimulationWorld).GetMethod("CombatTestExplodeMine", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        _ = method!.Invoke(world, [mine]);
+        world.CombatTestExplodeMine(mine);
     }
 
     private static FlameProjectileEntity SpawnCombatTestFlame(
@@ -4682,26 +4567,12 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         float velocityX = 0f,
         float velocityY = 0f)
     {
-        var method = typeof(SimulationWorld).GetMethod("CombatTestSpawnFlame", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        var result = method!.Invoke(world, [owner, x, y, velocityX, velocityY]);
-        return Assert.IsType<FlameProjectileEntity>(result);
+        return world.CombatTestSpawnFlame(owner, x, y, velocityX, velocityY);
     }
 
     private static void AdvanceCombatFlames(SimulationWorld world)
     {
         world.Projectiles.AdvanceFlames();
-    }
-
-    private static MethodInfo GetRequiredNonPublicMethod(string methodName)
-    {
-        var method = typeof(SimulationWorld).GetMethod(methodName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        if (method is not null)
-        {
-            return method;
-        }
-
-        throw new InvalidOperationException($"Could not find SimulationWorld.{methodName}.");
     }
 
     private static MethodInfo GetRequiredNonPublicPlayerMethod(string methodName)

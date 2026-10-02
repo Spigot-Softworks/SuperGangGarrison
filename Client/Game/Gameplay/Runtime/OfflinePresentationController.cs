@@ -25,17 +25,16 @@ internal sealed class OfflinePresentationController
         int localPlayerId,
         bool isMatchEnded)
     {
-        var roundRestarted = !isConnected
+        var roundStateChanged = !isConnected
             && _hasObservedFrame
             && !_wasConnected
-            && _wasMatchEnded
-            && !isMatchEnded;
+            && _wasMatchEnded != isMatchEnded;
         var sessionChanged = !_hasObservedFrame
             || _wasConnected != isConnected
             || !ReferenceEquals(_worldIdentity, world)
             || !ReferenceEquals(_levelIdentity, level)
             || _localPlayerId != localPlayerId
-            || roundRestarted;
+            || roundStateChanged;
 
         if (sessionChanged)
         {

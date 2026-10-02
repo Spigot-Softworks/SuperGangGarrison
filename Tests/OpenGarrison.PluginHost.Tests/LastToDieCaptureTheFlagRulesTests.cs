@@ -57,9 +57,9 @@ public sealed class LastToDieCaptureTheFlagRulesTests
         var world = new SimulationWorld();
         Assert.True(world.TryLoadLevel("Harvest"));
         Assert.False(world.CanCompleteLastToDieStageOnTimeout);
-        world.CombatTestSetControlPointOwner(1, PlayerTeam.Blue);
+        world.Spawns.CombatTestSetControlPointOwner(1, PlayerTeam.Blue);
         Assert.False(world.CanCompleteLastToDieStageOnTimeout);
-        world.CombatTestSetControlPointOwner(1, PlayerTeam.Red);
+        world.Spawns.CombatTestSetControlPointOwner(1, PlayerTeam.Red);
         Assert.True(world.CanCompleteLastToDieStageOnTimeout);
     }
 

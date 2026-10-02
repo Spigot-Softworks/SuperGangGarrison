@@ -38,7 +38,7 @@ public sealed class SimulationPerformanceLineOfSightTests
     public void SolidSpatialIndexReturnsOnlyCandidatesAlongTheQueriedRay()
     {
         var world = CreateWorld(CreateSparseSolids());
-        var resolver = GetGeometryResolver(world);
+        var resolver = world.GeometryResolver;
         var candidateMethod = resolver.GetType().GetMethod(
             "GetPotentialSolidRaycastCandidates",
             BindingFlags.Instance | BindingFlags.NonPublic);
@@ -111,21 +111,7 @@ public sealed class SimulationPerformanceLineOfSightTests
 
     private static bool HasSentryLineOfSight(SimulationWorld world, SentryEntity sentry, PlayerEntity target)
     {
-        var resolver = GetGeometryResolver(world);
-        var method = resolver.GetType().GetMethod(
-            "HasSentryLineOfSight",
-            BindingFlags.Instance | BindingFlags.Public);
-        Assert.NotNull(method);
-        return (bool)method!.Invoke(resolver, [sentry, target])!;
-    }
-
-    private static object GetGeometryResolver(SimulationWorld world)
-    {
-        var property = typeof(SimulationWorld).GetProperty(
-            "GeometryResolver",
-            BindingFlags.Instance | BindingFlags.NonPublic);
-        Assert.NotNull(property);
-        return property!.GetValue(world)!;
+        return world.GeometryResolver.HasSentryLineOfSight(sentry, target);
     }
 
     private static bool HasFullScanLineOfSight(

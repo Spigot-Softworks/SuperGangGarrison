@@ -20,6 +20,7 @@ public sealed class ClientSettings
     public const int CursorSizeMaxPercent = OpenGarrisonPreferencesDocument.MaxCursorSizePercent;
     public const int CursorSizeStepPercent = OpenGarrisonPreferencesDocument.CursorSizeStepPercent;
     public const int DefaultCursorSizePercent = OpenGarrisonPreferencesDocument.DefaultCursorSizePercent;
+    public const int CurrentClientSettingsMigrationVersion = OpenGarrisonPreferencesDocument.CurrentClientSettingsMigrationVersion;
 
     public string PlayerName { get; set; } = "Player";
 
@@ -189,7 +190,9 @@ public sealed class ClientSettings
 
     public bool PixelPerfectWeaponRotation { get; set; } = true;
 
-    public bool UseLocalWeaponRotation { get; set; } = false;
+    public bool UseLocalWeaponRotation { get; set; } = true;
+
+    public int ClientSettingsMigrationVersion { get; set; }
 
     public bool DisableLegacyGameplaySpriteFallback { get; set; }
 
@@ -265,43 +268,79 @@ public sealed class ClientSettings
                     saved.DiscordApplicationId = string.Empty;
                     saved.LobbyHost = OpenGarrisonPreferencesDocument.DefaultLobbyHost;
                     saved.AlwaysRecordGames = false;
+                    if (saved.ApplyVersionedMigrations())
+                    {
+                        saved.Save();
+                    }
+
                     return saved;
                 }
             }
             catch (System.Text.Json.JsonException ex) { Console.WriteLine($"Client settings were invalid; using defaults: {ex.Message}"); }
-            return new ClientSettings
+            var browserDefaults = new ClientSettings
             {
                 VSync = false,
                 ParticleMode = 2,
             };
+            browserDefaults.ApplyVersionedMigrations();
+            return browserDefaults;
         }
 
         var resolvedPath = path ?? RuntimePaths.GetConfigPath(DefaultFileName);
         if (File.Exists(resolvedPath))
         {
-            return LoadFromIni(resolvedPath);
+            return LoadMigratingFromIni(resolvedPath);
         }
 
         if (OpenGarrisonLegacyPreferencesMigration.TryMigrate(resolvedPath))
         {
-            return LoadFromIni(resolvedPath);
+            return LoadMigratingFromIni(resolvedPath);
         }
 
         var legacyPath = RuntimePaths.GetConfigPath(LegacyFileName);
         if (File.Exists(legacyPath))
         {
             var migrated = JsonConfigurationFile.LoadOrCreate<ClientSettings>(legacyPath);
+            migrated.ApplyVersionedMigrations();
             migrated.Save(resolvedPath);
             return migrated;
         }
 
         var created = new ClientSettings();
+        created.ApplyVersionedMigrations();
         created.Save(resolvedPath);
         return created;
     }
 
+    private static ClientSettings LoadMigratingFromIni(string path)
+    {
+        var settings = LoadFromIni(path);
+        if (settings.ApplyVersionedMigrations())
+        {
+            settings.Save(path);
+        }
+
+        return settings;
+    }
+
+    internal bool ApplyVersionedMigrations()
+    {
+        if (ClientSettingsMigrationVersion >= CurrentClientSettingsMigrationVersion)
+        {
+            return false;
+        }
+
+        // Prior releases defaulted this preference to remote/snapshot aim. New
+        // configs use current local cursor aim; migrate older saved configs once.
+        UseLocalWeaponRotation = true;
+        ClientSettingsMigrationVersion = CurrentClientSettingsMigrationVersion;
+        return true;
+    }
+
     public void Save(string? path = null)
     {
+        ClientSettingsMigrationVersion = CurrentClientSettingsMigrationVersion;
+
         if (OperatingSystem.IsBrowser())
         {
             var document = System.Text.Json.JsonSerializer.SerializeToNode(this, BrowserClientSettingsJsonContext.Default.ClientSettings)?.AsObject();
@@ -395,6 +434,7 @@ public sealed class ClientSettings
             SpriteDropShadowEnabled = document.SpriteDropShadowEnabled,
             PixelPerfectWeaponRotation = document.PixelPerfectWeaponRotation,
             UseLocalWeaponRotation = document.UseLocalWeaponRotation,
+            ClientSettingsMigrationVersion = document.ClientSettingsMigrationVersion,
             DisableLegacyGameplaySpriteFallback = document.DisableLegacyGameplaySpriteFallback,
             PlayerCardSizeMode = NormalizePlayerCardSizeMode(document.PlayerCardSizeMode),
             CursorSizePercent = NormalizeCursorSizePercent(document.CursorSizePercent),
@@ -499,6 +539,7 @@ public sealed class ClientSettings
         preferences.SpriteDropShadowEnabled = SpriteDropShadowEnabled;
         preferences.PixelPerfectWeaponRotation = PixelPerfectWeaponRotation;
         preferences.UseLocalWeaponRotation = UseLocalWeaponRotation;
+        preferences.ClientSettingsMigrationVersion = CurrentClientSettingsMigrationVersion;
         preferences.FrameRateLimit = FrameRateLimit;
         preferences.DisableLegacyGameplaySpriteFallback = DisableLegacyGameplaySpriteFallback;
         preferences.PlayerCardSizeMode = NormalizePlayerCardSizeMode(PlayerCardSizeMode);

@@ -346,11 +346,7 @@ public sealed class TopDownMovementTests
     {
         var level = CreateTopDownLevel();
         var world = new SimulationWorld();
-        var setLevel = typeof(SimulationWorld).GetMethod(
-            "CombatTestSetLevel",
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(setLevel);
-        _ = setLevel!.Invoke(world, [level]);
+        world.CombatTestSetLevel(level);
         Assert.True(world.TrySetLocalClass(PlayerClass.Soldier));
         Assert.True(world.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red));
         world.ForceRespawnLocalPlayer();
@@ -400,11 +396,7 @@ public sealed class TopDownMovementTests
             EnableEnemyTrainingDummy = false,
             EnableFriendlySupportDummy = false,
         });
-        var setLevel = typeof(SimulationWorld).GetMethod(
-            "CombatTestSetLevel",
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(setLevel);
-        _ = setLevel!.Invoke(world, [level]);
+        world.CombatTestSetLevel(level);
         Assert.True(world.TrySetLocalClass(PlayerClass.Soldier));
         Assert.True(world.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red));
         world.ForceRespawnLocalPlayer();
@@ -450,11 +442,7 @@ public sealed class TopDownMovementTests
             EnableEnemyTrainingDummy = false,
             EnableFriendlySupportDummy = false,
         });
-        var setLevel = typeof(SimulationWorld).GetMethod(
-            "CombatTestSetLevel",
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(setLevel);
-        _ = setLevel!.Invoke(world, [level]);
+        world.CombatTestSetLevel(level);
         Assert.True(world.TrySetLocalClass(PlayerClass.Soldier));
         Assert.True(world.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red));
         world.ForceRespawnLocalPlayer();
@@ -494,11 +482,7 @@ public sealed class TopDownMovementTests
             EnableEnemyTrainingDummy = false,
             EnableFriendlySupportDummy = false,
         });
-        var setLevel = typeof(SimulationWorld).GetMethod(
-            "CombatTestSetLevel",
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(setLevel);
-        _ = setLevel!.Invoke(world, [level]);
+        world.CombatTestSetLevel(level);
 
         const byte botSlot = 2;
         Assert.True(world.TryPrepareNetworkPlayerJoin(botSlot));
@@ -866,11 +850,7 @@ public sealed class TopDownMovementTests
             EnableEnemyTrainingDummy = false,
             EnableFriendlySupportDummy = false,
         });
-        var setLevel = typeof(SimulationWorld).GetMethod(
-            "CombatTestSetLevel",
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(setLevel);
-        _ = setLevel!.Invoke(world, [level]);
+        world.CombatTestSetLevel(level);
         Assert.True(world.TrySetLocalClass(PlayerClass.Soldier));
         Assert.True(world.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red));
         world.ForceRespawnLocalPlayer();

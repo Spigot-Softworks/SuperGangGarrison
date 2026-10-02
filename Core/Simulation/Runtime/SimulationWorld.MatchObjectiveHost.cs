@@ -7,11 +7,11 @@ public sealed partial class SimulationWorld : IMatchObjectiveHost
 
     IEnumerable<PlayerEntity> IPlayerCountHost.EnumerateSimulatedPlayers() => EnumerateSimulatedPlayers();
 
-    bool IPlayerCountHost.TryGetNetworkPlayerSlot(PlayerEntity player, out byte slot) => TryGetNetworkPlayerSlot(player, out slot);
+    bool IPlayerCountHost.TryGetNetworkPlayerSlot(PlayerEntity player, out byte slot) => NetworkPlayerRules.TryGetNetworkPlayerSlot(player, out slot);
 
-    bool IPlayerCountHost.IsNetworkPlayerAwaitingJoin(byte slot) => IsNetworkPlayerAwaitingJoin(slot);
+    bool IPlayerCountHost.IsNetworkPlayerAwaitingJoin(byte slot) => NetworkPlayerRules.IsNetworkPlayerAwaitingJoin(slot);
 
-    bool IPlayerCountHost.CanPlayerContributeToControlPoint(PlayerEntity player) => CanPlayerContributeToControlPoint(player);
+    bool IPlayerCountHost.CanPlayerContributeToControlPoint(PlayerEntity player) => LastToDieRules.CanPlayerContributeToControlPoint(player);
 
     // Match state shared by every mode
     MatchState IMatchObjectiveHost.MatchState
@@ -33,7 +33,7 @@ public sealed partial class SimulationWorld : IMatchObjectiveHost
     bool IMatchObjectiveHost.TryEndRound(PlayerTeam? winnerTeam, string reason) => TryEndRound(winnerTeam, reason);
 
     void IMatchObjectiveHost.RegisterWorldSoundEvent(string soundName, float x, float y, int sourcePlayerId)
-        => RegisterWorldSoundEvent(soundName, x, y, sourcePlayerId);
+        => WorldEffects.RegisterWorldSoundEvent(soundName, x, y, sourcePlayerId);
 
     // Capture-the-flag and SCR scoring
     int IMatchObjectiveHost.RedCaps => RedCaps;
@@ -44,19 +44,19 @@ public sealed partial class SimulationWorld : IMatchObjectiveHost
 
     TeamIntelligenceState IMatchObjectiveHost.BlueIntel => BlueIntel;
 
-    bool IMatchObjectiveHost.IsIntelAtHome(TeamIntelligenceState intelState) => IsIntelAtHome(intelState);
+    bool IMatchObjectiveHost.IsIntelAtHome(TeamIntelligenceState intelState) => ObjectiveRules.IsIntelAtHome(intelState);
 
-    void IMatchObjectiveHost.TryPickUpEnemyIntel(PlayerEntity player) => TryPickUpEnemyIntel(player);
+    void IMatchObjectiveHost.TryPickUpEnemyIntel(PlayerEntity player) => ObjectiveRules.TryPickUpEnemyIntel(player);
 
-    void IMatchObjectiveHost.TryScoreCarriedIntel(PlayerEntity player) => TryScoreCarriedIntel(player);
+    void IMatchObjectiveHost.TryScoreCarriedIntel(PlayerEntity player) => ObjectiveRules.TryScoreCarriedIntel(player);
 
-    void IMatchObjectiveHost.RecordIntelReturnedObjectiveLog(PlayerTeam team) => RecordIntelReturnedObjectiveLog(team);
+    void IMatchObjectiveHost.RecordIntelReturnedObjectiveLog(PlayerTeam team) => KillFeedRules.RecordIntelReturnedObjectiveLog(team);
 
-    void IMatchObjectiveHost.EvaluateMapLogicIntelTriggersIfNeeded() => EvaluateMapLogicIntelTriggersIfNeeded();
+    void IMatchObjectiveHost.EvaluateMapLogicIntelTriggersIfNeeded() => MapLogic.EvaluateMapLogicIntelTriggersIfNeeded();
 
-    bool IMatchObjectiveHost.TryEvaluateScrThresholdCrossing(bool isRoundStart) => TryEvaluateScrThresholdCrossing(isRoundStart);
+    bool IMatchObjectiveHost.TryEvaluateScrThresholdCrossing(bool isRoundStart) => ObjectiveRules.TryEvaluateScrThresholdCrossing(isRoundStart);
 
-    void IMatchObjectiveHost.UpdateScrQualificationTracking() => UpdateScrQualificationTracking();
+    void IMatchObjectiveHost.UpdateScrQualificationTracking() => ObjectiveRules.UpdateScrQualificationTracking();
 
     // Arena
     float IMatchObjectiveHost.ConfiguredCaptureSpeedMultiplierPerPlayer => ConfiguredCaptureSpeedMultiplierPerPlayer;
@@ -72,17 +72,17 @@ public sealed partial class SimulationWorld : IMatchObjectiveHost
     int IMatchObjectiveHost.CountPlayersInArenaCaptureZone(PlayerTeam team) => CountPlayersInArenaCaptureZone(team);
 
     // Control point, KOTH, VIP and generator
-    void IMatchObjectiveHost.UpdateControlPointState() => UpdateControlPointState();
+    void IMatchObjectiveHost.UpdateControlPointState() => ObjectiveRules.UpdateControlPointState();
 
-    void IMatchObjectiveHost.UpdateControlPointSetupGates() => UpdateControlPointSetupGates();
+    void IMatchObjectiveHost.UpdateControlPointSetupGates() => ObjectiveRules.UpdateControlPointSetupGates();
 
-    void IMatchObjectiveHost.ApplyControlPointSetupMatchRules() => ApplyControlPointSetupMatchRules();
+    void IMatchObjectiveHost.ApplyControlPointSetupMatchRules() => ObjectiveRules.ApplyControlPointSetupMatchRules();
 
-    void IMatchObjectiveHost.UpdateKothState() => UpdateKothState();
+    void IMatchObjectiveHost.UpdateKothState() => ObjectiveRules.UpdateKothState();
 
-    void IMatchObjectiveHost.AdvanceKothMatchStateCore() => AdvanceKothMatchStateCore();
+    void IMatchObjectiveHost.AdvanceKothMatchStateCore() => ObjectiveRules.AdvanceKothMatchStateCore();
 
-    bool IMatchObjectiveHost.ShouldDeferVipObjectiveResolution() => ShouldDeferVipObjectiveResolution();
+    bool IMatchObjectiveHost.ShouldDeferVipObjectiveResolution() => VipRules.ShouldDeferVipObjectiveResolution();
 
-    void IMatchObjectiveHost.UpdateGeneratorState() => UpdateGeneratorState();
+    void IMatchObjectiveHost.UpdateGeneratorState() => ObjectiveRulesSystem.UpdateGeneratorState();
 }

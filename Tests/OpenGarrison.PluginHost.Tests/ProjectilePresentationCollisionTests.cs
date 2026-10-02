@@ -149,8 +149,7 @@ public sealed class ProjectilePresentationCollisionTests
         var level = new SimpleLevel("presentation-sweep", GameModeKind.TeamDeathmatch,
             new WorldBounds(1024f, 512f), 1f, null, 1, 1, spawn, [spawn], [spawn], [], markers,
             512f, solids, false);
-        typeof(SimulationWorld).GetMethod("CombatTestSetLevel", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!
-            .Invoke(world, [level]);
+        world.CombatTestSetLevel(level);
         _ = world.DrainPendingVisualEvents();
         _ = world.DrainPendingDamageEvents();
         return world;

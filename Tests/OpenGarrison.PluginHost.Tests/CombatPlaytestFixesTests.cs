@@ -1,4 +1,3 @@
-using System.Reflection;
 using OpenGarrison.Core;
 using OpenGarrison.Core.BotBrain;
 using OpenGarrison.GameplayModding;
@@ -12,7 +11,7 @@ public sealed class CombatPlaytestFixesTests
     public void CenteredExplosiveSplashDestroysFullHealthNeutralJumpPad()
     {
         var world = CreateWorldWithNeutralJumpPad();
-        world.ApplyExplosiveDamageToJumpPads(
+        world.ExplosionRules.ApplyExplosiveDamageToJumpPads(
             256f,
             256f,
             MineProjectileEntity.BlastRadius,
@@ -53,13 +52,7 @@ public sealed class CombatPlaytestFixesTests
         world.CombatTestAddSentry(new SentryEntity(100, 2, PlayerTeam.Blue, 8f, 0f, 1f, isDispenser: true));
         var mask = new StabMaskEntity(101, spy.Id, spy.Team, spy.X, spy.Y, directionDegrees: 0f);
 
-        var hitMethod = typeof(SimulationWorld).GetMethod(
-            "CombatTestGetNearestStabHit",
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(hitMethod);
-        var result = hitMethod!.Invoke(world, [mask, 1f, 0f]);
-        Assert.NotNull(result);
-        var hit = ((float Distance, float HitX, float HitY, PlayerEntity? HitPlayer, SentryEntity? HitSentry, int HitDamageableZoneRoomObjectIndex))result!;
+        var hit = Assert.NotNull(world.CombatTestGetNearestStabHit(mask, 1f, 0f));
         Assert.Same(target, hit.HitPlayer);
         Assert.Null(hit.HitSentry);
     }
@@ -89,28 +82,23 @@ public sealed class CombatPlaytestFixesTests
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
         var spawn = new SpawnPoint(256f, 256f);
-        var setLevel = typeof(SimulationWorld).GetMethod("CombatTestSetLevel", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(setLevel);
-        setLevel!.Invoke(world,
-        [
-            new SimpleLevel(
-                name: "combat-playtest-fixes-test",
-                mode: GameModeKind.TeamDeathmatch,
-                bounds: new WorldBounds(512f, 512f),
-                mapScale: 1f,
-                backgroundAssetName: null,
-                mapAreaIndex: 1,
-                mapAreaCount: 1,
-                localSpawn: spawn,
-                redSpawns: [spawn],
-                blueSpawns: [spawn],
-                intelBases: [],
-                roomObjects: [],
-                floorY: 512f,
-                solids: [],
-                importedFromSource: false,
-                jumpPadSpawns: [new JumpPadSpawnMarker(spawn.X, spawn.Y)]),
-        ]);
+        world.CombatTestSetLevel(new SimpleLevel(
+            name: "combat-playtest-fixes-test",
+            mode: GameModeKind.TeamDeathmatch,
+            bounds: new WorldBounds(512f, 512f),
+            mapScale: 1f,
+            backgroundAssetName: null,
+            mapAreaIndex: 1,
+            mapAreaCount: 1,
+            localSpawn: spawn,
+            redSpawns: [spawn],
+            blueSpawns: [spawn],
+            intelBases: [],
+            roomObjects: [],
+            floorY: 512f,
+            solids: [],
+            importedFromSource: false,
+            jumpPadSpawns: [new JumpPadSpawnMarker(spawn.X, spawn.Y)]));
         return world;
     }
 
@@ -126,40 +114,35 @@ public sealed class CombatPlaytestFixesTests
         });
         if (openLevel)
         {
-            var setLevel = typeof(SimulationWorld).GetMethod("CombatTestSetLevel", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-            Assert.NotNull(setLevel);
-            setLevel!.Invoke(world,
-            [
-                new SimpleLevel(
-                    name: "combat-playtest-fixes-open",
-                    mode: GameModeKind.TeamDeathmatch,
-                    bounds: new WorldBounds(2048f, 1024f),
-                    mapScale: 1f,
-                    backgroundAssetName: null,
-                    mapAreaIndex: 1,
-                    mapAreaCount: 1,
-                    localSpawn: new SpawnPoint(256f, 256f),
-                    redSpawns: [new SpawnPoint(256f, 256f)],
-                    blueSpawns: [new SpawnPoint(768f, 256f)],
-                    intelBases: [],
-                    roomObjects:
-                    [
-                        // Place the player in a primary-swap station. This
-                        // makes a SwapWeapon edge cycle the primary loadout,
-                        // exposing accidental use of that edge for offhand
-                        // selection.
-                        new RoomObjectMarker(
-                            RoomObjectType.HealingCabinet,
-                            240f,
-                            230f,
-                            32f,
-                            52f,
-                            "healing-cabinet"),
-                    ],
-                    floorY: 1024f,
-                    solids: [],
-                    importedFromSource: false),
-            ]);
+            world.CombatTestSetLevel(new SimpleLevel(
+                name: "combat-playtest-fixes-open",
+                mode: GameModeKind.TeamDeathmatch,
+                bounds: new WorldBounds(2048f, 1024f),
+                mapScale: 1f,
+                backgroundAssetName: null,
+                mapAreaIndex: 1,
+                mapAreaCount: 1,
+                localSpawn: new SpawnPoint(256f, 256f),
+                redSpawns: [new SpawnPoint(256f, 256f)],
+                blueSpawns: [new SpawnPoint(768f, 256f)],
+                intelBases: [],
+                roomObjects:
+                [
+                    // Place the player in a primary-swap station. This
+                    // makes a SwapWeapon edge cycle the primary loadout,
+                    // exposing accidental use of that edge for offhand
+                    // selection.
+                    new RoomObjectMarker(
+                        RoomObjectType.HealingCabinet,
+                        240f,
+                        230f,
+                        32f,
+                        52f,
+                        "healing-cabinet"),
+                ],
+                floorY: 1024f,
+                solids: [],
+                importedFromSource: false));
         }
         world.PrepareLocalPlayerJoin();
         world.CompleteLocalPlayerJoin(playerClass);

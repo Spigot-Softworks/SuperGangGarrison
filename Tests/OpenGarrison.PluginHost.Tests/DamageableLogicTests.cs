@@ -735,11 +735,7 @@ public sealed class DamageableLogicTests
             y: 10f,
             startDirectionX: 1f);
         blueSentry.ForceBuilt();
-        var addSentry = typeof(SimulationWorld).GetMethod(
-            "CombatTestAddSentry",
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(addSentry);
-        addSentry.Invoke(world, [blueSentry]);
+        world.CombatTestAddSentry(blueSentry);
 
         InvokeApplyExperimentalSentryStructuralTargetDamage(
             world,
@@ -763,23 +759,16 @@ public sealed class DamageableLogicTests
         PlayerEntity owner,
         float damage)
     {
-        var sentryTargetType = typeof(SimulationWorld).Assembly.GetType("OpenGarrison.Core.SentryTarget", throwOnError: true);
-        Assert.NotNull(sentryTargetType);
-        var target = Activator.CreateInstance(
-            sentryTargetType,
-            null,
-            null,
-            null,
-            null,
-            damageableZoneRoomObjectIndex,
-            targetX,
-            targetY,
-            null);
-        var method = typeof(SimulationWorld).GetMethod(
-            "ApplyExperimentalSentryStructuralTargetDamage",
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        method.Invoke(world, [sentry, target, owner, damage]);
+        var target = new SentryTarget(
+            Player: null,
+            Generator: null,
+            Sentry: null,
+            JumpPad: null,
+            DamageableZoneRoomObjectIndex: damageableZoneRoomObjectIndex,
+            X: targetX,
+            Y: targetY,
+            PlayerId: null);
+        world.ExperimentalRules.ApplyExperimentalSentryStructuralTargetDamage(sentry, target, owner, damage);
     }
 
     private static MapLogicGraph BuildThresholdTrigger()
@@ -976,57 +965,41 @@ public sealed class DamageableLogicTests
 
         var world = new SimulationWorld();
 
-        var setLevel = typeof(SimulationWorld).GetMethod(
+        world.CombatTestSetLevel(new SimpleLevel(
 
-            "CombatTestSetLevel",
+            "damageable-heal-test",
 
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            GameModeKind.TeamDeathmatch,
 
-        Assert.NotNull(setLevel);
+            new WorldBounds(512f, 512f),
 
-        setLevel.Invoke(
+            1f,
 
-            world,
+            null,
 
-            [
+            0,
 
-                new SimpleLevel(
+            1,
 
-                    "damageable-heal-test",
+            new SpawnPoint(0f, 0f),
 
-                    GameModeKind.TeamDeathmatch,
+            [],
 
-                    new WorldBounds(512f, 512f),
+            [],
 
-                    1f,
+            [],
 
-                    null,
+            roomObjects,
 
-                    0,
+            0f,
 
-                    1,
+            [],
 
-                    new SpawnPoint(0f, 0f),
+            importedFromSource: false,
 
-                    [],
+            logicGraph: logicGraph,
 
-                    [],
-
-                    [],
-
-                    roomObjects,
-
-                    0f,
-
-                    [],
-
-                    importedFromSource: false,
-
-                    logicGraph: logicGraph,
-
-                    logicActivators: logicActivators),
-
-            ]);
+            logicActivators: logicActivators));
 
         return world;
 

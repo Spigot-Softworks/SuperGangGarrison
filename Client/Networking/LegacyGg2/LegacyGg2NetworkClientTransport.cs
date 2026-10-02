@@ -21,6 +21,7 @@ internal sealed class LegacyGg2NetworkClientTransport : INetworkClientMessageTra
     private readonly NetworkStream _stream;
     private readonly object _sendLock = new();
     private readonly ConcurrentQueue<byte[]> _inbound = new();
+    private readonly Dictionary<ControlCommandKind, uint> _lastControlCommandSequences = new();
     private readonly string _host;
     private readonly int _port;
     private readonly string? _mapCacheDirectory;
@@ -111,6 +112,14 @@ internal sealed class LegacyGg2NetworkClientTransport : INetworkClientMessageTra
                     _ = Task.Run(() => ReadServerLoop(hello.Name));
                     break;
                 case InputStateMessage input when Volatile.Read(ref _joined) != 0:
+                    if (input.BundledControlCommands is { } bundledCommands)
+                    {
+                        for (var index = 0; index < bundledCommands.Count; index += 1)
+                        {
+                            SendControl(bundledCommands[index]);
+                        }
+                    }
+
                     SendStockInputEdges(input);
                     WriteRaw(LegacyGg2Wire.CreateInputState(input));
                     break;
@@ -345,21 +354,43 @@ internal sealed class LegacyGg2NetworkClientTransport : INetworkClientMessageTra
 
     private void SendControl(ControlCommandMessage command)
     {
-        byte[]? wire = command.Kind switch
+        lock (_sendLock)
         {
-            ControlCommandKind.SelectTeam => LegacyGg2Wire.CreateTeamSelection((PlayerTeam)command.Value),
-            ControlCommandKind.Spectate => LegacyGg2Wire.CreateTeamSelection(PlayerTeam.Neutral),
-            ControlCommandKind.SelectClass when TryResolveStockClass(command, out var playerClass)
-                => LegacyGg2Wire.CreateClassSelection(playerClass),
-            _ => null,
-        };
-        if (wire is not null)
-        {
-            WriteRaw(wire);
-        }
+            if (_lastControlCommandSequences.TryGetValue(command.Kind, out var lastSequence))
+            {
+                if (command.Sequence == lastSequence)
+                {
+                    Enqueue(new ControlAckMessage(command.Sequence, command.Kind, Accepted: true));
+                    return;
+                }
 
-        Enqueue(new ControlAckMessage(command.Sequence, command.Kind, wire is not null));
+                if (!IsControlCommandSequenceNewer(command.Sequence, lastSequence))
+                {
+                    Enqueue(new ControlAckMessage(command.Sequence, command.Kind, Accepted: false));
+                    return;
+                }
+            }
+
+            byte[]? wire = command.Kind switch
+            {
+                ControlCommandKind.SelectTeam => LegacyGg2Wire.CreateTeamSelection((PlayerTeam)command.Value),
+                ControlCommandKind.Spectate => LegacyGg2Wire.CreateTeamSelection(PlayerTeam.Neutral),
+                ControlCommandKind.SelectClass when TryResolveStockClass(command, out var playerClass)
+                    => LegacyGg2Wire.CreateClassSelection(playerClass),
+                _ => null,
+            };
+            if (wire is not null)
+            {
+                _stream.Write(wire);
+                _lastControlCommandSequences[command.Kind] = command.Sequence;
+            }
+
+            Enqueue(new ControlAckMessage(command.Sequence, command.Kind, wire is not null));
+        }
     }
+
+    private static bool IsControlCommandSequenceNewer(uint candidate, uint previous)
+        => unchecked((int)(candidate - previous)) > 0;
 
     private void SendStockInputEdges(InputStateMessage input)
     {

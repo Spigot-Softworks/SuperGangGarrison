@@ -10,6 +10,7 @@ namespace OpenGarrison.Core;
 public sealed class OpenGarrisonPreferencesDocument
 {
     public const string DefaultFileName = "OpenGarrison.ini";
+    public const int CurrentClientSettingsMigrationVersion = 1;
     public const string DefaultApiBaseUrl = "https://api.superganggarrison.com";
     public const string DefaultLobbyHost = DefaultApiBaseUrl + "/api/servers";
 
@@ -253,7 +254,9 @@ public sealed class OpenGarrisonPreferencesDocument
 
     public bool PixelPerfectWeaponRotation { get; set; } = true;
 
-    public bool UseLocalWeaponRotation { get; set; } = false;
+    public bool UseLocalWeaponRotation { get; set; } = true;
+
+    public int ClientSettingsMigrationVersion { get; set; } = CurrentClientSettingsMigrationVersion;
 
     public bool DisableLegacyGameplaySpriteFallback { get; set; }
 
@@ -400,7 +403,8 @@ public sealed class OpenGarrisonPreferencesDocument
             SmoothCameraMultiplier = Math.Clamp(ini.GetFloat(SettingsSection, "Smooth Camera Multiplier", 0f), 0f, 1f),
             SpriteDropShadowEnabled = ini.GetBool(SettingsSection, "Sprite Drop Shadow", true),
             PixelPerfectWeaponRotation = ini.GetBool(SettingsSection, "Pixel Perfect Weapon Rotation", true),
-            UseLocalWeaponRotation = ini.GetBool(SettingsSection, "Use Local Weapon Rotation", false),
+            UseLocalWeaponRotation = ini.GetBool(SettingsSection, "Use Local Weapon Rotation", true),
+            ClientSettingsMigrationVersion = ini.GetInt(SettingsSection, "Client Settings Migration Version", 0),
             DisableLegacyGameplaySpriteFallback = ini.GetBool(SettingsSection, "Disable Legacy Gameplay Sprite Fallback", false),
             PlayerCardSizeMode = Math.Clamp(ini.GetInt(SettingsSection, "Playercard Size", 0), 0, 2),
             CursorSizePercent = ReadCursorSizePercent(ini),
@@ -527,6 +531,7 @@ public sealed class OpenGarrisonPreferencesDocument
         ini.SetBool(SettingsSection, "Sprite Drop Shadow", SpriteDropShadowEnabled);
         ini.SetBool(SettingsSection, "Pixel Perfect Weapon Rotation", PixelPerfectWeaponRotation);
         ini.SetBool(SettingsSection, "Use Local Weapon Rotation", UseLocalWeaponRotation);
+        ini.SetInt(SettingsSection, "Client Settings Migration Version", ClientSettingsMigrationVersion);
         ini.SetBool(SettingsSection, "Disable Legacy Gameplay Sprite Fallback", DisableLegacyGameplaySpriteFallback);
         ini.SetInt(SettingsSection, "Playercard Size", Math.Clamp(PlayerCardSizeMode, 0, 2));
         ini.SetInt(SettingsSection, "Cursor Size", NormalizeCursorSizePercent(CursorSizePercent));
