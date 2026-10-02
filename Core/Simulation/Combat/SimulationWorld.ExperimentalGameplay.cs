@@ -553,17 +553,17 @@ public sealed partial class SimulationWorld
             return false;
         }
 
-        for (var pointIndex = 0; pointIndex < _controlPoints.Count; pointIndex += 1)
+        for (var pointIndex = 0; pointIndex < Objectives.ControlPoints.Points.Count; pointIndex += 1)
         {
-            var point = _controlPoints[pointIndex];
+            var point = Objectives.ControlPoints.Points[pointIndex];
             if (!point.HasHealingAura || point.Team != player.Team)
             {
                 continue;
             }
 
-            for (var zoneIndex = 0; zoneIndex < _controlPointZones.Count; zoneIndex += 1)
+            for (var zoneIndex = 0; zoneIndex < Objectives.ControlPoints.Zones.Count; zoneIndex += 1)
             {
-                var zone = _controlPointZones[zoneIndex];
+                var zone = Objectives.ControlPoints.Zones[zoneIndex];
                 if (zone.ControlPointIndex != pointIndex)
                 {
                     continue;
@@ -586,7 +586,7 @@ public sealed partial class SimulationWorld
             return launchSpeed;
         }
 
-        var speedScale = _configuredProjectileSpeedScale;
+        var speedScale = MatchSettings.ProjectileSpeedScale;
         var settings = GetLastToDieGameplaySettings(attacker);
         if (settings.EnableProjectileSpeedMultiplier
             && IsExperimentalPracticePowerOwner(attacker))
@@ -602,7 +602,7 @@ public sealed partial class SimulationWorld
         float launchVelocityX,
         float launchVelocityY)
     {
-        var speedScale = _configuredProjectileSpeedScale;
+        var speedScale = MatchSettings.ProjectileSpeedScale;
         var settings = GetLastToDieGameplaySettings(attacker);
         if (settings.EnableProjectileSpeedMultiplier
             && IsExperimentalPracticePowerOwner(attacker))

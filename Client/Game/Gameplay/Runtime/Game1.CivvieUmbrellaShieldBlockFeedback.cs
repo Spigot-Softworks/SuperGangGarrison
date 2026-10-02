@@ -56,7 +56,7 @@ public partial class Game1
 
         foreach (var player in EnumerateRenderablePlayers())
         {
-            if (!player.IsAlive || player.ClassId != PlayerClass.Quote)
+            if (!player.IsAlive || !player.IsCivilian)
             {
                 _civvieUmbrellaShieldBlockObservationByPlayerId.Remove(player.Id);
                 continue;
@@ -74,7 +74,7 @@ public partial class Game1
         foreach (var playerId in _civvieUmbrellaShieldBlockObservationByPlayerId.Keys)
         {
             if (FindPlayerById(playerId) is not { IsAlive: true } found
-                || found.ClassId != PlayerClass.Quote)
+                || !found.IsCivilian)
             {
                 stalePlayerIds.Add(playerId);
             }

@@ -108,10 +108,10 @@ public sealed partial class SimulationWorld
     private int GetExperimentalOwnedSentryCount(int ownerPlayerId)
     {
         var count = 0;
-        for (var sentryIndex = 0; sentryIndex < _sentries.Count; sentryIndex += 1)
+        for (var sentryIndex = 0; sentryIndex < WorldObjects.Sentries.Count; sentryIndex += 1)
         {
-            if (_sentries[sentryIndex].OwnerPlayerId == ownerPlayerId
-                && !_sentries[sentryIndex].IsDispenser)
+            if (WorldObjects.Sentries[sentryIndex].OwnerPlayerId == ownerPlayerId
+                && !WorldObjects.Sentries[sentryIndex].IsDispenser)
             {
                 count += 1;
             }
@@ -263,9 +263,9 @@ public sealed partial class SimulationWorld
         }
 
         var auraRadius = GetExperimentalNearbySentryAuraRadius();
-        for (var sentryIndex = 0; sentryIndex < _sentries.Count; sentryIndex += 1)
+        for (var sentryIndex = 0; sentryIndex < WorldObjects.Sentries.Count; sentryIndex += 1)
         {
-            var sentry = _sentries[sentryIndex];
+            var sentry = WorldObjects.Sentries[sentryIndex];
             if (sentry.OwnerPlayerId != player!.Id
                 || !sentry.IsBuilt
                 || DistanceBetween(sentry.X, sentry.Y, player.X, player.Y) > auraRadius)
@@ -458,9 +458,9 @@ public sealed partial class SimulationWorld
     private int GetExperimentalOwnedSentryFormationIndex(int ownerPlayerId, SentryEntity sentry)
     {
         var ownedIndex = 0;
-        for (var sentryIndex = 0; sentryIndex < _sentries.Count; sentryIndex += 1)
+        for (var sentryIndex = 0; sentryIndex < WorldObjects.Sentries.Count; sentryIndex += 1)
         {
-            var candidate = _sentries[sentryIndex];
+            var candidate = WorldObjects.Sentries[sentryIndex];
             if (candidate.OwnerPlayerId != ownerPlayerId)
             {
                 continue;
@@ -635,9 +635,9 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        for (var sentryIndex = 0; sentryIndex < _sentries.Count; sentryIndex += 1)
+        for (var sentryIndex = 0; sentryIndex < WorldObjects.Sentries.Count; sentryIndex += 1)
         {
-            var sentry = _sentries[sentryIndex];
+            var sentry = WorldObjects.Sentries[sentryIndex];
             if (sentry.OwnerPlayerId == owner.Id)
             {
                 sentry.Heal(appliedDamage);
@@ -659,11 +659,11 @@ public sealed partial class SimulationWorld
 
     private void DestroyExperimentalEngineerOwnedSentries(int ownerPlayerId)
     {
-        for (var sentryIndex = _sentries.Count - 1; sentryIndex >= 0; sentryIndex -= 1)
+        for (var sentryIndex = WorldObjects.Sentries.Count - 1; sentryIndex >= 0; sentryIndex -= 1)
         {
-            if (_sentries[sentryIndex].OwnerPlayerId == ownerPlayerId)
+            if (WorldObjects.Sentries[sentryIndex].OwnerPlayerId == ownerPlayerId)
             {
-                DestroySentry(_sentries[sentryIndex], attacker: null);
+                DestroySentry(WorldObjects.Sentries[sentryIndex], attacker: null);
             }
         }
     }
@@ -849,14 +849,14 @@ public sealed partial class SimulationWorld
         for (var pelletIndex = 0; pelletIndex < pelletCount; pelletIndex += 1)
         {
             var spreadRadians = DegreesToRadians(
-                ((_random.NextSingle() * 2f) - 1f)
+                ((Randoms.Gameplay.NextSingle() * 2f) - 1f)
                 * CharacterClassCatalog.Scattergun.SpreadDegrees
                 * 1.25f);
             var pelletAngle = baseAngle + spreadRadians;
             var directionX = DeterministicMath.Cos(pelletAngle);
             var directionY = DeterministicMath.Sin(pelletAngle);
             var pelletSpeed = CharacterClassCatalog.Scattergun.MinShotSpeed
-                + (_random.NextSingle() * CharacterClassCatalog.Scattergun.AdditionalRandomShotSpeed);
+                + (Randoms.Gameplay.NextSingle() * CharacterClassCatalog.Scattergun.AdditionalRandomShotSpeed);
             var spawnX = sentry.X + directionX * 14f;
             var spawnY = sentry.Y + directionY * 14f;
             if (IsProjectileSpawnBlocked(sentry.X, sentry.Y, spawnX, spawnY, sentry.Team))
@@ -1090,7 +1090,7 @@ public sealed partial class SimulationWorld
         directionY /= directionLength;
         for (var flameIndex = 0; flameIndex < global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerIncendiaryEnhancementsFlameCount; flameIndex += 1)
         {
-            var spreadRadians = ((_random.NextSingle() * 2f) - 1f) * (8f * (MathF.PI / 180f));
+            var spreadRadians = ((Randoms.Gameplay.NextSingle() * 2f) - 1f) * (8f * (MathF.PI / 180f));
             var directionRadians = DeterministicMath.Atan2(directionY, directionX) + spreadRadians;
             SpawnFlame(
                 owner,

@@ -269,6 +269,21 @@ public partial class Game1
             return;
         }
 
+        if (player.TryGetGameplayAbilityItem(
+                GameplayAbilityConstants.UtilityChannel,
+                BuiltInGameplayBehaviorIds.CivvieTaunt,
+                out var civvieTauntItem)
+            && predictedInput.AbilityPressed)
+        {
+            if (player.TryStartTaunt())
+            {
+                _ = player.BeginPendingCivvieTauntHeal(civvieTauntItem.Id);
+                SyncPredictedLocalPlayerState(player);
+            }
+
+            return;
+        }
+
         if (TryPredictedFireMedicHealDart(player, predictedInput))
         {
             return;
@@ -887,7 +902,7 @@ public partial class Game1
             return;
         }
 
-        if (player.ClassId == PlayerClass.Quote && player.IsCivviePogoActive)
+        if (player.IsCivilian && player.IsCivviePogoActive)
         {
             if (TryPredictedStartCivviePogoTrick(player))
             {
@@ -899,12 +914,24 @@ public partial class Game1
 
         if (player.TryStartTaunt())
         {
-            if (player.ClassId == PlayerClass.Quote)
-            {
-                player.BeginPendingCivvieTauntHeal();
-            }
+            BeginPredictedCivvieTauntHeal(player);
 
             SyncPredictedLocalPlayerState(player);
+        }
+    }
+
+    private static void BeginPredictedCivvieTauntHeal(PlayerEntity player)
+    {
+        if (player.TryGetGameplayAbilityItem(
+                GameplayAbilityConstants.TauntChannel,
+                BuiltInGameplayBehaviorIds.CivvieTaunt,
+                out var tauntAbilityItem))
+        {
+            _ = player.BeginPendingCivvieTauntHeal(tauntAbilityItem.Id);
+        }
+        else
+        {
+            player.BeginPendingCivvieTauntHeal();
         }
     }
 

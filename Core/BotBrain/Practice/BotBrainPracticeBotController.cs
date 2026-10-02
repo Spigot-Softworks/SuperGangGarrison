@@ -44,6 +44,10 @@ public sealed class BotBrainPracticeBotController : IPracticeBotController
     private readonly Dictionary<byte, BotBrainController> _controllersBySlot = new();
     private readonly Dictionary<byte, ControlledBotSlot> _configuredSlots = new();
     private readonly Dictionary<byte, PlayerTeam> _controlledTeamsBySlot = new();
+    // Scratch buffers stay private to this controller; only independent input dictionaries escape.
+    private readonly List<byte> _removedControllerSlotsBuffer = new();
+    private BotThinkWorkItem[] _botThinkWorkItemsBuffer = [];
+    private BotThinkResult[] _botThinkResultsBuffer = [];
     private readonly BotBrainChatBubbleController _chatBubbles = new();
     private readonly List<BotControllerDiagnosticsEntry> _diagnosticEntries = new();
     private BotControllerDiagnosticsSnapshot _lastDiagnostics = BotControllerDiagnosticsSnapshot.Empty;
@@ -107,6 +111,9 @@ public sealed class BotBrainPracticeBotController : IPracticeBotController
         _controllersBySlot.Clear();
         _configuredSlots.Clear();
         _controlledTeamsBySlot.Clear();
+        _removedControllerSlotsBuffer.Clear();
+        Array.Clear(_botThinkWorkItemsBuffer);
+        Array.Clear(_botThinkResultsBuffer);
         _chatBubbles.Reset();
         _diagnosticEntries.Clear();
         _lastDiagnostics = BotControllerDiagnosticsSnapshot.Empty;
@@ -143,12 +150,25 @@ public sealed class BotBrainPracticeBotController : IPracticeBotController
         SimulationWorld world,
         IReadOnlyDictionary<byte, ControlledBotSlot> controlledSlots)
     {
-        foreach (var slot in _controllersBySlot.Keys.Except(controlledSlots.Keys).ToArray())
+        _removedControllerSlotsBuffer.Clear();
+        foreach (var slot in _controllersBySlot.Keys)
+        {
+            if (controlledSlots.ContainsKey(slot))
+            {
+                continue;
+            }
+
+            _removedControllerSlotsBuffer.Add(slot);
+        }
+
+        foreach (var slot in _removedControllerSlotsBuffer)
         {
             _controllersBySlot.Remove(slot);
             _configuredSlots.Remove(slot);
             _chatBubbles.RemoveSlot(slot);
         }
+
+        _removedControllerSlotsBuffer.Clear();
 
         foreach (var (slot, controlledSlot) in controlledSlots)
         {
@@ -180,7 +200,7 @@ public sealed class BotBrainPracticeBotController : IPracticeBotController
         SimulationWorld world,
         IReadOnlyDictionary<byte, ControlledBotSlot> controlledSlots)
     {
-        return BuildInputsForSlots(world, controlledSlots, new List<byte>(controlledSlots.Keys));
+        return BuildInputsCore(world, controlledSlots, slotsToThink: null);
     }
 
     public IReadOnlyDictionary<byte, PlayerInputSnapshot> BuildInputsForSlots(
@@ -188,43 +208,61 @@ public sealed class BotBrainPracticeBotController : IPracticeBotController
         IReadOnlyDictionary<byte, ControlledBotSlot> controlledSlots,
         IReadOnlyCollection<byte> slotsToThink)
     {
+        return BuildInputsCore(world, controlledSlots, slotsToThink);
+    }
+
+    private IReadOnlyDictionary<byte, PlayerInputSnapshot> BuildInputsCore(
+        SimulationWorld world,
+        IReadOnlyDictionary<byte, ControlledBotSlot> controlledSlots,
+        IReadOnlyCollection<byte>? slotsToThink)
+    {
         ConfigureSpawnOverrides(world, controlledSlots);
 
-        var inputs = new Dictionary<byte, PlayerInputSnapshot>(slotsToThink.Count);
+        var inputCapacity = slotsToThink?.Count ?? controlledSlots.Count;
+        // Callers can retain returned dictionaries after this method completes, so this result cannot alias scratch storage.
+        var inputs = new Dictionary<byte, PlayerInputSnapshot>(inputCapacity);
         _controlledTeamsBySlot.Clear();
         foreach (var (slot, controlledSlot) in controlledSlots)
         {
             _controlledTeamsBySlot[slot] = controlledSlot.Team;
         }
 
-        var workItems = BuildBotThinkWorkItems(world, controlledSlots, slotsToThink);
-        if (workItems.Length == 0)
+        var workItemCount = BuildBotThinkWorkItems(world, controlledSlots, slotsToThink);
+        if (workItemCount == 0)
         {
             return inputs;
         }
 
-        var thinkResults = BuildBotThinkResults(world, workItems, _controlledTeamsBySlot);
-        for (var index = 0; index < thinkResults.Length; index += 1)
+        try
         {
-            var result = thinkResults[index];
-            if (!result.HasInput)
+            var thinkResultCount = BuildBotThinkResults(world, workItemCount);
+            for (var index = 0; index < thinkResultCount; index += 1)
             {
-                continue;
+                var result = _botThinkResultsBuffer[index];
+                if (!result.HasInput)
+                {
+                    continue;
+                }
+
+                inputs[result.Slot] = _chatBubbles.Update(
+                    world,
+                    result.Slot,
+                    result.Player,
+                    result.Team,
+                    result.Controller,
+                    result.Input,
+                    _controlledTeamsBySlot);
             }
 
-            inputs[result.Slot] = _chatBubbles.Update(
-                world,
-                result.Slot,
-                result.Player,
-                result.Team,
-                result.Controller,
-                result.Input,
-            _controlledTeamsBySlot);
+            _lastDiagnostics = BuildDiagnostics(world, controlledSlots);
+
+            return inputs;
         }
-
-        _lastDiagnostics = BuildDiagnostics(world, controlledSlots);
-
-        return inputs;
+        finally
+        {
+            Array.Clear(_botThinkResultsBuffer, 0, workItemCount);
+            Array.Clear(_botThinkWorkItemsBuffer, 0, workItemCount);
+        }
     }
 
     public IReadOnlyDictionary<byte, PlayerInputSnapshot> AdvanceCachedNavigationForSlots(
@@ -369,59 +407,99 @@ public sealed class BotBrainPracticeBotController : IPracticeBotController
             UnstickCount: 0);
     }
 
-    private BotThinkWorkItem[] BuildBotThinkWorkItems(
+    private int BuildBotThinkWorkItems(
         SimulationWorld world,
         IReadOnlyDictionary<byte, ControlledBotSlot> controlledSlots,
-        IReadOnlyCollection<byte> slotsToThink)
+        IReadOnlyCollection<byte>? slotsToThink)
     {
-        var workItems = new List<BotThinkWorkItem>(slotsToThink.Count);
-        foreach (var slot in slotsToThink)
+        EnsureBotThinkWorkItemCapacity(slotsToThink?.Count ?? controlledSlots.Count);
+        var workItemCount = 0;
+        if (slotsToThink is null)
         {
-            if (!controlledSlots.TryGetValue(slot, out var controlledSlot))
+            foreach (var slot in controlledSlots.Keys)
             {
-                continue;
+                TryAppendBotThinkWorkItem(world, controlledSlots, slot, ref workItemCount);
             }
 
-            if (!world.TryGetNetworkPlayer(slot, out var player))
-            {
-                continue;
-            }
-
-            if (!_controllersBySlot.TryGetValue(slot, out var controller))
-            {
-                controller = new BotBrainController(
-                    new NavigationGraphProvider(_disableShippedNavigationGraphs));
-                controller.PreferEnemyPlayerObjective = controlledSlot.PreferEnemyPlayerObjective;
-                _controllersBySlot[slot] = controller;
-                _configuredSlots[slot] = controlledSlot;
-            }
-            else if (controller.PreferEnemyPlayerObjective != controlledSlot.PreferEnemyPlayerObjective)
-            {
-                controller.Reset();
-                controller.PreferEnemyPlayerObjective = controlledSlot.PreferEnemyPlayerObjective;
-                _configuredSlots[slot] = controlledSlot;
-            }
-
-            workItems.Add(new BotThinkWorkItem(slot, controlledSlot, player, controller));
+            return workItemCount;
         }
 
-        return workItems.Count == 0 ? Array.Empty<BotThinkWorkItem>() : [.. workItems];
+        foreach (var slot in slotsToThink)
+        {
+            TryAppendBotThinkWorkItem(world, controlledSlots, slot, ref workItemCount);
+        }
+
+        return workItemCount;
     }
 
-    private static BotThinkResult[] BuildBotThinkResults(
+    private void TryAppendBotThinkWorkItem(
         SimulationWorld world,
-        BotThinkWorkItem[] workItems,
-        IReadOnlyDictionary<byte, PlayerTeam> controlledTeamsBySlot)
+        IReadOnlyDictionary<byte, ControlledBotSlot> controlledSlots,
+        byte slot,
+        ref int workItemCount)
     {
-        var results = new BotThinkResult[workItems.Length];
+        if (!controlledSlots.TryGetValue(slot, out var controlledSlot)
+            || !world.TryGetNetworkPlayer(slot, out var player))
+        {
+            return;
+        }
+
+        if (!_controllersBySlot.TryGetValue(slot, out var controller))
+        {
+            controller = new BotBrainController(
+                new NavigationGraphProvider(_disableShippedNavigationGraphs));
+            controller.PreferEnemyPlayerObjective = controlledSlot.PreferEnemyPlayerObjective;
+            _controllersBySlot[slot] = controller;
+            _configuredSlots[slot] = controlledSlot;
+        }
+        else if (controller.PreferEnemyPlayerObjective != controlledSlot.PreferEnemyPlayerObjective)
+        {
+            controller.Reset();
+            controller.PreferEnemyPlayerObjective = controlledSlot.PreferEnemyPlayerObjective;
+            _configuredSlots[slot] = controlledSlot;
+        }
+
+        EnsureBotThinkWorkItemCapacity(workItemCount + 1);
+        _botThinkWorkItemsBuffer[workItemCount] = new BotThinkWorkItem(slot, controlledSlot, player, controller);
+        workItemCount += 1;
+    }
+
+    private void EnsureBotThinkWorkItemCapacity(int requiredCapacity)
+    {
+        if (_botThinkWorkItemsBuffer.Length >= requiredCapacity)
+        {
+            return;
+        }
+
+        var capacity = Math.Max(requiredCapacity, Math.Max(4, _botThinkWorkItemsBuffer.Length * 2));
+        Array.Resize(ref _botThinkWorkItemsBuffer, capacity);
+    }
+
+    private void EnsureBotThinkResultCapacity(int requiredCapacity)
+    {
+        if (_botThinkResultsBuffer.Length >= requiredCapacity)
+        {
+            return;
+        }
+
+        var capacity = Math.Max(requiredCapacity, Math.Max(4, _botThinkResultsBuffer.Length * 2));
+        Array.Resize(ref _botThinkResultsBuffer, capacity);
+    }
+
+    private int BuildBotThinkResults(SimulationWorld world, int workItemCount)
+    {
+        EnsureBotThinkResultCapacity(workItemCount);
         if (!EnableParallelBotThinkForDiagnostics)
         {
-            for (var index = 0; index < workItems.Length; index += 1)
+            for (var index = 0; index < workItemCount; index += 1)
             {
-                results[index] = ThinkForBot(world, workItems[index], controlledTeamsBySlot);
+                _botThinkResultsBuffer[index] = ThinkForBot(
+                    world,
+                    _botThinkWorkItemsBuffer[index],
+                    _controlledTeamsBySlot);
             }
 
-            return results;
+            return workItemCount;
         }
 
         // This is an opt-in diagnostic comparison path. The default is the
@@ -432,13 +510,16 @@ public sealed class BotBrainPracticeBotController : IPracticeBotController
         // or input is changed by the scheduling choice.
         Parallel.For(
             0,
-            workItems.Length,
+            workItemCount,
             index =>
             {
-                results[index] = ThinkForBot(world, workItems[index], controlledTeamsBySlot);
+                _botThinkResultsBuffer[index] = ThinkForBot(
+                    world,
+                    _botThinkWorkItemsBuffer[index],
+                    _controlledTeamsBySlot);
             });
 
-        return results;
+        return workItemCount;
     }
 
     private static BotThinkResult ThinkForBot(

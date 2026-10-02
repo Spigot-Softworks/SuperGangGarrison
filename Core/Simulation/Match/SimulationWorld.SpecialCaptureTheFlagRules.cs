@@ -2,16 +2,15 @@ namespace OpenGarrison.Core;
 
 public sealed partial class SimulationWorld
 {
-    private bool _endMatchOnRedTeamIntelCapture;
 
     public void ConfigureSpecialCaptureTheFlagRules(bool endMatchOnRedTeamIntelCapture)
     {
-        _endMatchOnRedTeamIntelCapture = endMatchOnRedTeamIntelCapture;
+        MapRuntime.EndMatchOnRedTeamIntelCapture = endMatchOnRedTeamIntelCapture;
     }
 
     private bool ShouldEndMatchOnRedTeamIntelCapture()
     {
-        return _endMatchOnRedTeamIntelCapture
+        return MapRuntime.EndMatchOnRedTeamIntelCapture
             && MatchRules.Mode == GameModeKind.CaptureTheFlag
             && !MatchState.IsEnded;
     }

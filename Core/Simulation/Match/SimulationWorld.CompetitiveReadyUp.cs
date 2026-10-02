@@ -6,39 +6,33 @@ public sealed partial class SimulationWorld
     private const int DefaultCompetitiveSetupSeconds = 10;
     private const int MaximumCompetitiveSetupSeconds = 120;
 
-    private readonly HashSet<byte> _readyNetworkPlayerSlots = new();
-    private bool _competitiveReadyUpEnabled;
-    private int _competitiveSetupSeconds = DefaultCompetitiveSetupSeconds;
-    private CompetitiveReadyUpPhase _competitiveReadyUpPhase = CompetitiveReadyUpPhase.Disabled;
-    private int _competitiveReadyUpTicksRemaining;
-    private bool _suppressCompetitiveSkirmishOnNextRoundRestart;
 
-    public bool CompetitiveReadyUpEnabled => _competitiveReadyUpEnabled;
+    public bool CompetitiveReadyUpEnabled => ReadyUpState.Enabled;
 
-    public int CompetitiveSetupSeconds => _competitiveSetupSeconds;
+    public int CompetitiveSetupSeconds => ReadyUpState.SetupSeconds;
 
-    public CompetitiveReadyUpPhase CompetitiveReadyUpPhase => _competitiveReadyUpPhase;
+    public CompetitiveReadyUpPhase CompetitiveReadyUpPhase => ReadyUpState.Phase;
 
-    public int CompetitiveReadyUpTicksRemaining => _competitiveReadyUpTicksRemaining;
+    public int CompetitiveReadyUpTicksRemaining => ReadyUpState.TicksRemaining;
 
     public bool CompetitiveObjectivesLocked =>
-        _competitiveReadyUpPhase is CompetitiveReadyUpPhase.Skirmish
+        ReadyUpState.Phase is CompetitiveReadyUpPhase.Skirmish
             or CompetitiveReadyUpPhase.Countdown
             or CompetitiveReadyUpPhase.Setup;
 
     public bool IsNetworkPlayerReady(byte slot)
     {
-        return _readyNetworkPlayerSlots.Contains(slot);
+        return ReadyUpState.ReadySlots.Contains(slot);
     }
 
     public void SetCompetitiveReadyUpEnabled(bool enabled)
     {
-        if (_competitiveReadyUpEnabled == enabled)
+        if (ReadyUpState.Enabled == enabled)
         {
             return;
         }
 
-        _competitiveReadyUpEnabled = enabled;
+        ReadyUpState.Enabled = enabled;
         if (enabled)
         {
             RestartCurrentRound(preservePlayerStats: false);
@@ -55,11 +49,11 @@ public sealed partial class SimulationWorld
 
     public void SetCompetitiveSetupSeconds(int seconds)
     {
-        _competitiveSetupSeconds = Math.Clamp(seconds, 0, MaximumCompetitiveSetupSeconds);
-        if (_competitiveReadyUpPhase == CompetitiveReadyUpPhase.Setup)
+        ReadyUpState.SetupSeconds = Math.Clamp(seconds, 0, MaximumCompetitiveSetupSeconds);
+        if (ReadyUpState.Phase == CompetitiveReadyUpPhase.Setup)
         {
-            _competitiveReadyUpTicksRemaining = Math.Min(
-                _competitiveReadyUpTicksRemaining,
+            ReadyUpState.TicksRemaining = Math.Min(
+                ReadyUpState.TicksRemaining,
                 GetCompetitiveSetupDurationTicks());
         }
     }
@@ -71,20 +65,20 @@ public sealed partial class SimulationWorld
             return false;
         }
 
-        if (!_competitiveReadyUpEnabled
-            || _competitiveReadyUpPhase is not (CompetitiveReadyUpPhase.Skirmish or CompetitiveReadyUpPhase.Countdown))
+        if (!ReadyUpState.Enabled
+            || ReadyUpState.Phase is not (CompetitiveReadyUpPhase.Skirmish or CompetitiveReadyUpPhase.Countdown))
         {
-            _readyNetworkPlayerSlots.Remove(slot);
+            ReadyUpState.ReadySlots.Remove(slot);
             return false;
         }
 
         if (ready)
         {
-            _readyNetworkPlayerSlots.Add(slot);
+            ReadyUpState.ReadySlots.Add(slot);
         }
         else
         {
-            _readyNetworkPlayerSlots.Remove(slot);
+            ReadyUpState.ReadySlots.Remove(slot);
         }
 
         return true;
@@ -92,7 +86,7 @@ public sealed partial class SimulationWorld
 
     public bool TryToggleNetworkPlayerReady(byte slot)
     {
-        if (!_readyNetworkPlayerSlots.Contains(slot))
+        if (!ReadyUpState.ReadySlots.Contains(slot))
         {
             return TrySetNetworkPlayerReady(slot, ready: true);
         }
@@ -109,24 +103,24 @@ public sealed partial class SimulationWorld
 
         if (ready)
         {
-            _readyNetworkPlayerSlots.Add(slot);
+            ReadyUpState.ReadySlots.Add(slot);
         }
         else
         {
-            _readyNetworkPlayerSlots.Remove(slot);
+            ReadyUpState.ReadySlots.Remove(slot);
         }
     }
 
     public void AdvanceCompetitiveReadyUp(IReadOnlyCollection<byte> playableSlots)
     {
-        if (!_competitiveReadyUpEnabled)
+        if (!ReadyUpState.Enabled)
         {
             return;
         }
 
         PruneReadyPlayers(playableSlots);
 
-        switch (_competitiveReadyUpPhase)
+        switch (ReadyUpState.Phase)
         {
             case CompetitiveReadyUpPhase.Skirmish:
                 if (HasReadyMajority(playableSlots))
@@ -141,15 +135,15 @@ public sealed partial class SimulationWorld
                     return;
                 }
 
-                _competitiveReadyUpTicksRemaining -= 1;
-                if (_competitiveReadyUpTicksRemaining <= 0)
+                ReadyUpState.TicksRemaining -= 1;
+                if (ReadyUpState.TicksRemaining <= 0)
                 {
                     BeginCompetitiveSetup();
                 }
                 break;
             case CompetitiveReadyUpPhase.Setup:
-                _competitiveReadyUpTicksRemaining -= 1;
-                if (_competitiveReadyUpTicksRemaining <= 0)
+                ReadyUpState.TicksRemaining -= 1;
+                if (ReadyUpState.TicksRemaining <= 0)
                 {
                     BeginCompetitiveLive();
                 }
@@ -159,17 +153,17 @@ public sealed partial class SimulationWorld
 
     private void BeginCompetitiveSkirmish(bool clearReadyPlayers)
     {
-        if (!_competitiveReadyUpEnabled)
+        if (!ReadyUpState.Enabled)
         {
             return;
         }
 
-        _competitiveReadyUpPhase = CompetitiveReadyUpPhase.Skirmish;
-        _competitiveReadyUpTicksRemaining = 0;
+        ReadyUpState.Phase = CompetitiveReadyUpPhase.Skirmish;
+        ReadyUpState.TicksRemaining = 0;
         Level.ForcedBlockingTeamGates = TeamGateLockMask.None;
         if (clearReadyPlayers)
         {
-            _readyNetworkPlayerSlots.Clear();
+            ReadyUpState.ReadySlots.Clear();
         }
 
         SuspendObjectiveSetupTimersForCompetitiveHold();
@@ -177,29 +171,29 @@ public sealed partial class SimulationWorld
 
     private void BeginCompetitiveCountdown()
     {
-        _competitiveReadyUpPhase = CompetitiveReadyUpPhase.Countdown;
-        _competitiveReadyUpTicksRemaining = Math.Max(1, Config.TicksPerSecond * CompetitiveReadyCountdownSeconds);
+        ReadyUpState.Phase = CompetitiveReadyUpPhase.Countdown;
+        ReadyUpState.TicksRemaining = Math.Max(1, Config.TicksPerSecond * CompetitiveReadyCountdownSeconds);
         Level.ForcedBlockingTeamGates = TeamGateLockMask.None;
     }
 
     private void BeginCompetitiveSetup()
     {
-        _suppressCompetitiveSkirmishOnNextRoundRestart = true;
+        ReadyUpState.SuppressSkirmishOnNextRoundRestart = true;
         try
         {
             RestartCurrentRound(preservePlayerStats: false, enterCompetitiveSkirmish: false);
         }
         finally
         {
-            _suppressCompetitiveSkirmishOnNextRoundRestart = false;
+            ReadyUpState.SuppressSkirmishOnNextRoundRestart = false;
         }
 
-        _competitiveReadyUpPhase = CompetitiveReadyUpPhase.Setup;
-        _competitiveReadyUpTicksRemaining = GetCompetitiveSetupDurationTicks();
+        ReadyUpState.Phase = CompetitiveReadyUpPhase.Setup;
+        ReadyUpState.TicksRemaining = GetCompetitiveSetupDurationTicks();
         Level.ForcedBlockingTeamGates = TeamGateLockMask.Red | TeamGateLockMask.Blue;
         SuspendObjectiveSetupTimersForCompetitiveHold();
 
-        if (_competitiveReadyUpTicksRemaining <= 0)
+        if (ReadyUpState.TicksRemaining <= 0)
         {
             BeginCompetitiveLive();
         }
@@ -209,34 +203,34 @@ public sealed partial class SimulationWorld
     {
         Level.ForcedBlockingTeamGates = TeamGateLockMask.None;
         ResetModeStateForNewRound();
-        _readyNetworkPlayerSlots.Clear();
-        _competitiveReadyUpPhase = CompetitiveReadyUpPhase.Live;
-        _competitiveReadyUpTicksRemaining = 0;
+        ReadyUpState.ReadySlots.Clear();
+        ReadyUpState.Phase = CompetitiveReadyUpPhase.Live;
+        ReadyUpState.TicksRemaining = 0;
     }
 
     private void ClearCompetitiveReadyUpState()
     {
-        _competitiveReadyUpPhase = CompetitiveReadyUpPhase.Disabled;
-        _competitiveReadyUpTicksRemaining = 0;
-        _readyNetworkPlayerSlots.Clear();
+        ReadyUpState.Phase = CompetitiveReadyUpPhase.Disabled;
+        ReadyUpState.TicksRemaining = 0;
+        ReadyUpState.ReadySlots.Clear();
         Level.ForcedBlockingTeamGates = TeamGateLockMask.None;
     }
 
     private void SuspendObjectiveSetupTimersForCompetitiveHold()
     {
-        if (_controlPointSetupMode)
+        if (Objectives.ControlPoints.SetupMode)
         {
-            _controlPointSetupTicksRemaining = 0;
+            Objectives.ControlPoints.SetupTicksRemaining = 0;
             UpdateControlPointSetupGates();
         }
 
-        _arenaUnlockTicksRemaining = 0;
-        _kothUnlockTicksRemaining = 0;
+        Objectives.Arena.UnlockTicksRemaining = 0;
+        Objectives.Koth.UnlockTicksRemaining = 0;
     }
 
     private int GetCompetitiveSetupDurationTicks()
     {
-        return Math.Max(0, _competitiveSetupSeconds * Config.TicksPerSecond);
+        return Math.Max(0, ReadyUpState.SetupSeconds * Config.TicksPerSecond);
     }
 
     private bool HasReadyMajority(IReadOnlyCollection<byte> playableSlots)
@@ -250,7 +244,7 @@ public sealed partial class SimulationWorld
         var readyCount = 0;
         foreach (var slot in playableSlots)
         {
-            if (_readyNetworkPlayerSlots.Contains(slot))
+            if (ReadyUpState.ReadySlots.Contains(slot))
             {
                 readyCount += 1;
             }
@@ -261,21 +255,21 @@ public sealed partial class SimulationWorld
 
     private void PruneReadyPlayers(IReadOnlyCollection<byte> playableSlots)
     {
-        if (_readyNetworkPlayerSlots.Count == 0)
+        if (ReadyUpState.ReadySlots.Count == 0)
         {
             return;
         }
 
-        _readyNetworkPlayerSlots.RemoveWhere(slot => !playableSlots.Contains(slot));
+        ReadyUpState.ReadySlots.RemoveWhere(slot => !playableSlots.Contains(slot));
     }
 
     private void ApplySnapshotCompetitiveReadyUp(byte phase, int ticksRemaining)
     {
-        _competitiveReadyUpPhase = Enum.IsDefined(typeof(CompetitiveReadyUpPhase), phase)
+        ReadyUpState.Phase = Enum.IsDefined(typeof(CompetitiveReadyUpPhase), phase)
             ? (CompetitiveReadyUpPhase)phase
             : CompetitiveReadyUpPhase.Disabled;
-        _competitiveReadyUpTicksRemaining = Math.Max(0, ticksRemaining);
-        Level.ForcedBlockingTeamGates = _competitiveReadyUpPhase == CompetitiveReadyUpPhase.Setup
+        ReadyUpState.TicksRemaining = Math.Max(0, ticksRemaining);
+        Level.ForcedBlockingTeamGates = ReadyUpState.Phase == CompetitiveReadyUpPhase.Setup
             ? TeamGateLockMask.Red | TeamGateLockMask.Blue
             : TeamGateLockMask.None;
     }

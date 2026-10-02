@@ -6,7 +6,7 @@ public sealed partial class SimulationWorld
 {
     private void TryRegisterCivvieMoneyTrail(PlayerEntity player)
     {
-        if (_civvieMoneyTrailTracker.TryRegisterTrail(
+        if (CombatRuntime.CivvieMoneyTrailTracker.TryRegisterTrail(
                 (ulong)Frame,
                 Config.TicksPerSecond,
                 player,
@@ -25,7 +25,7 @@ public sealed partial class SimulationWorld
 
     private void AdvanceCivvieMoneyPickups()
     {
-        _civvieMoneyTrailTracker.AdvancePickups(
+        CombatRuntime.CivvieMoneyTrailTracker.AdvancePickups(
             EnumerateSimulatedPlayers(),
             (player, amount) => ApplyHealingWithFeedback(player, amount) > 0);
     }
@@ -37,13 +37,13 @@ public sealed partial class SimulationWorld
         float y,
         int ticksRemaining = CivvieMoneyTrailRules.PickupLifetimeTicks)
     {
-        _civvieMoneyTrailTracker.CombatTestAddPickup(ownerPlayerId, team, x, y, ticksRemaining);
+        CombatRuntime.CivvieMoneyTrailTracker.CombatTestAddPickup(ownerPlayerId, team, x, y, ticksRemaining);
     }
 
-    internal int CombatTestCivvieMoneyPickupCount => _civvieMoneyTrailTracker.PickupCount;
+    internal int CombatTestCivvieMoneyPickupCount => CombatRuntime.CivvieMoneyTrailTracker.PickupCount;
 
     public IReadOnlyList<CivvieMoneyTrailSpawn> DrainPendingCivvieMoneyTrailSpawns()
     {
-        return _civvieMoneyTrailTracker.DrainPendingSpawns();
+        return CombatRuntime.CivvieMoneyTrailTracker.DrainPendingSpawns();
     }
 }

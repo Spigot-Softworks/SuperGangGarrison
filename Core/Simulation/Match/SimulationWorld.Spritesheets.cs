@@ -2,7 +2,6 @@ namespace OpenGarrison.Core;
 
 public sealed partial class SimulationWorld
 {
-    private SpritesheetPlaybackRuntimeState _spritesheetPlaybackRuntimeState = new();
 
     public SpritesheetPlaybackState SpritesheetPlaybackState => Level.SpritesheetPlaybackState;
 
@@ -27,13 +26,13 @@ public sealed partial class SimulationWorld
             this,
             Level.LogicGraph,
             Level.SpritesheetPlaybackSet,
-            _spritesheetPlaybackRuntimeState);
+            MapRuntime.SpritesheetPlaybackRuntimeState);
         SpritesheetPlaybackRuntime.TickAutoplay(this, (float)Config.FixedDeltaSeconds);
     }
 
     private void ResetSpritesheetPlaybackRuntime()
     {
-        _spritesheetPlaybackRuntimeState.Reset();
+        MapRuntime.SpritesheetPlaybackRuntimeState.Reset();
         SpritesheetPlaybackRuntime.Reset(this);
     }
 }

@@ -1,0 +1,15 @@
+{
+  "id": "ImpostorRedRunS",
+  "framePaths": [
+    "assets/characters/player-skins/ImpostorRedRunS/0.png",
+    "assets/characters/player-skins/ImpostorRedRunS/1.png",
+    "assets/characters/player-skins/ImpostorRedRunS/2.png",
+    "assets/characters/player-skins/ImpostorRedRunS/3.png",
+    "assets/characters/player-skins/ImpostorRedRunS/4.png",
+    "assets/characters/player-skins/ImpostorRedRunS/5.png",
+    "assets/characters/player-skins/ImpostorRedRunS/6.png",
+    "assets/characters/player-skins/ImpostorRedRunS/7.png"
+  ],
+  "originX": 32,
+  "originY": 52
+}

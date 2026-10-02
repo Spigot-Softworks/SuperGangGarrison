@@ -5,7 +5,7 @@ public sealed partial class SimulationWorld
     private void UpdateAuxiliaryControlPointStateIfNeeded()
     {
         if (!Level.ShowControlPoints
-            || _controlPoints.Count == 0
+            || Objectives.ControlPoints.Points.Count == 0
             || MatchRules.Mode is GameModeKind.ControlPoint
                 or GameModeKind.Scr
                 or GameModeKind.KingOfTheHill

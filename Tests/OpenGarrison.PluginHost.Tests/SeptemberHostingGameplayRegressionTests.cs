@@ -50,7 +50,7 @@ public sealed class SeptemberHostingGameplayRegressionTests
         {
             typeof(SimulationWorld).GetProperty(nameof(SimulationWorld.MatchState))!.GetSetMethod(true)!
                 .Invoke(world, [world.MatchState with { Phase = MatchPhase.Ended, WinnerTeam = null }]);
-            typeof(SimulationWorld).GetField("_mapChangeReady", Private)!.SetValue(world, true);
+            world.Lifecycle.MapChangeReady = true;
             Assert.True(manager.TryApplyPendingMapChange(out _));
             Assert.Equal(maps[(index + 1) % maps.Length], world.Level.Name);
         }

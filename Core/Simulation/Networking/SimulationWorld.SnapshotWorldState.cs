@@ -52,7 +52,7 @@ public sealed partial class SimulationWorld
 
     private void ApplySnapshotSpectators(IReadOnlyList<SnapshotPlayerState> players)
     {
-        _spectators.Clear();
+        ClientSnapshots.Spectators.Clear();
         for (var playerIndex = 0; playerIndex < players.Count; playerIndex += 1)
         {
             var player = players[playerIndex];
@@ -61,7 +61,7 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            _spectators.Add(new ScoreboardSpectatorEntry(
+            ClientSnapshots.Spectators.Add(new ScoreboardSpectatorEntry(
                 player.Name,
                 player.BadgeMask,
                 player.IsAwaitingJoin));
@@ -92,23 +92,18 @@ public sealed partial class SimulationWorld
     {
         if ((GameModeKind)snapshot.GameMode != GameModeKind.Arena)
         {
-            _arenaPointTeam = null;
-            _arenaCappingTeam = null;
-            _arenaCappingTicks = 0f;
-            _arenaCappers = 0;
-            _arenaUnlockTicksRemaining = 0;
-            _arenaRedConsecutiveWins = 0;
-            _arenaBlueConsecutiveWins = 0;
+            Objectives.Arena.ResetForNewRound(unlockTicksRemaining: 0);
+            Objectives.Arena.ResetWinStreaks();
             return;
         }
 
-        _arenaPointTeam = snapshot.ArenaPointTeam == 0 ? null : (PlayerTeam)snapshot.ArenaPointTeam;
-        _arenaCappingTeam = snapshot.ArenaCappingTeam == 0 ? null : (PlayerTeam)snapshot.ArenaCappingTeam;
-        _arenaCappingTicks = Math.Max(0f, snapshot.ArenaCappingTicks);
-        _arenaCappers = Math.Max(0, snapshot.ArenaCappers);
-        _arenaUnlockTicksRemaining = Math.Max(0, snapshot.ArenaUnlockTicksRemaining);
-        _arenaRedConsecutiveWins = Math.Max(0, snapshot.ArenaRedConsecutiveWins);
-        _arenaBlueConsecutiveWins = Math.Max(0, snapshot.ArenaBlueConsecutiveWins);
+        Objectives.Arena.PointTeam = snapshot.ArenaPointTeam == 0 ? null : (PlayerTeam)snapshot.ArenaPointTeam;
+        Objectives.Arena.CappingTeam = snapshot.ArenaCappingTeam == 0 ? null : (PlayerTeam)snapshot.ArenaCappingTeam;
+        Objectives.Arena.CappingTicks = Math.Max(0f, snapshot.ArenaCappingTicks);
+        Objectives.Arena.Cappers = Math.Max(0, snapshot.ArenaCappers);
+        Objectives.Arena.UnlockTicksRemaining = Math.Max(0, snapshot.ArenaUnlockTicksRemaining);
+        Objectives.Arena.RedConsecutiveWins = Math.Max(0, snapshot.ArenaRedConsecutiveWins);
+        Objectives.Arena.BlueConsecutiveWins = Math.Max(0, snapshot.ArenaBlueConsecutiveWins);
     }
 
     private void ApplySnapshotKillFeed(IReadOnlyList<SnapshotKillFeedEntry> killFeed)
@@ -123,36 +118,16 @@ public sealed partial class SimulationWorld
         for (var killFeedIndex = 0; killFeedIndex < killFeed.Count; killFeedIndex += 1)
         {
             var entry = killFeed[killFeedIndex];
-            var alreadyPresent = false;
-            for (var existingIndex = 0; existingIndex < _killFeed.Count; existingIndex += 1)
-            {
-                if (_killFeed[existingIndex].EventId == entry.EventId)
-                {
-                    alreadyPresent = true;
-                    break;
-                }
-            }
-
-            if (alreadyPresent)
+            if (PresentationEvents.ContainsKillFeedEventId(entry.EventId))
             {
                 continue;
             }
 
             // Insert in EventId-ascending order so oldest entries are first and
             // new events always appear at the bottom of the feed.
-            var insertIndex = _killFeed.Count;
-            for (var i = 0; i < _killFeed.Count; i += 1)
-            {
-                if (_killFeed[i].EventId > entry.EventId)
-                {
-                    insertIndex = i;
-                    break;
-                }
-            }
-
             var isLocalInvolved = IsSnapshotKillFeedEntryLocalInvolved(entry, LocalPlayer.Id);
             var lifetime = isLocalInvolved ? KillFeedLocalInvolvedLifetimeTicks : KillFeedLifetimeTicks;
-            _killFeed.Insert(insertIndex, new KillFeedEntry(
+            PresentationEvents.InsertKillFeedEntryOrdered(new KillFeedEntry(
                 entry.KillerName,
                 (PlayerTeam)entry.KillerTeam,
                 entry.WeaponSpriteName,
@@ -170,17 +145,12 @@ public sealed partial class SimulationWorld
                 AssistTeam = (PlayerTeam)entry.AssistTeam,
                 AssistPlayerId = entry.AssistPlayerId,
                 InvolvedPlayerIds = entry.InvolvedPlayerIds,
-            });
-            _killFeedEntryLifetimes.Insert(insertIndex, lifetime);
+            }, lifetime);
         }
 
         // Keep the local list bounded in case the client accumulates more entries
         // than the server would normally allow.
-        while (_killFeed.Count > 5)
-        {
-            _killFeed.RemoveAt(0);
-            _killFeedEntryLifetimes.RemoveAt(0);
-        }
+        PresentationEvents.TrimKillFeed();
     }
 
     private static bool IsSnapshotKillFeedEntryLocalInvolved(SnapshotKillFeedEntry entry, int localPlayerId)

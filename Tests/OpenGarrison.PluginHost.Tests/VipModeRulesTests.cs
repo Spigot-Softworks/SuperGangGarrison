@@ -136,6 +136,26 @@ public sealed class VipModeRulesTests
     }
 
     [Fact]
+    public void PracticeVipRulesAllowCivilianButNotRestoredQuoteAsVipClass()
+    {
+        var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
+
+        Assert.True(world.TryLoadLevel("Dirtbowl"));
+        world.ConfigurePracticeVipRules(enabled: true);
+        world.SetPendingLocalPlayerClass(PlayerClass.Quote);
+        AdvancePastSetup(world);
+
+        Assert.True(world.TryGetVipSlot(PlayerTeam.Red, out var vipSlot));
+        Assert.Equal(SimulationWorld.LocalPlayerSlot, vipSlot);
+        Assert.True(world.CanNetworkPlayerSelectClassInCurrentMode(
+            vipSlot,
+            CharacterClassCatalog.Civilian));
+        Assert.False(world.CanNetworkPlayerSelectClassInCurrentMode(
+            vipSlot,
+            CharacterClassCatalog.Quote));
+    }
+
+    [Fact]
     public void PracticeVipRulesAssignBotAtSetupEndWhenNoCivilianVipExists()
     {
         const byte botSlot = 2;

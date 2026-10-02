@@ -21,7 +21,8 @@ public partial class Game1
             return;
         }
 
-        _spriteBatch.Draw(_pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), visuals.BackgroundColor.Value);
+        // One extra pixel covers the edge exposed by the sub-pixel camera shift.
+        _spriteBatch.Draw(_pixel, new Rectangle(0, 0, viewportWidth + 1, viewportHeight + 1), visuals.BackgroundColor.Value);
     }
 
     private void DrawCustomMapParallaxBackgrounds(Vector2 cameraPosition, int viewportWidth, int viewportHeight)

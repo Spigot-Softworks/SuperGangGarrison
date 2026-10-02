@@ -566,7 +566,7 @@ public sealed partial class PlayerEntity
         {
             HeavyHealingAccumulator = 0f;
         }
-        if (ClassId != PlayerClass.Quote)
+        if (!IsQuoteCurly)
         {
             QuoteBubbleCount = 0;
             QuoteBladesOut = 0;
@@ -960,7 +960,7 @@ public sealed partial class PlayerEntity
             ExperimentalGhostDashCooldownTicksRemaining = 0;
         }
 
-        if (ClassId != PlayerClass.Quote)
+        if (!IsCivilian)
         {
             return;
         }
@@ -994,7 +994,7 @@ public sealed partial class PlayerEntity
 
     private void HydrateNetworkReplicatedCivvieRuntimeState()
     {
-        if (ClassId != PlayerClass.Quote)
+        if (!IsCivilian)
         {
             CivvieUmbrellaChargeTicks = CivvieUmbrellaMaxChargeTicks;
             IsCivvieUmbrellaActive = false;

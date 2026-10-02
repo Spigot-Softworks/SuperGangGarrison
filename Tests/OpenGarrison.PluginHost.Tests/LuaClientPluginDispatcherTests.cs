@@ -150,6 +150,31 @@ public sealed class LuaClientPluginDispatcherTests
     }
 
     [Fact]
+    public void CallbacksWithMoreThanThreeArgumentsUseTheFreshCoroutineFallback()
+    {
+        using var fixture = CreateFixture("return {} ");
+        var dispatcherBeforeCall = GetPrivateField("_callbackDispatcher", fixture.Plugin);
+        var script = (Script)GetPrivateField("_script", fixture.Plugin)!;
+        var callback = script.DoString("return function(a, b, c, d) coroutine.yield('pause'); return a + b + c + d end");
+        var invoke = typeof(LuaClientPlugin).GetMethod(
+            "InvokeCallbackWithLimits",
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+        Assert.NotNull(invoke);
+
+        var args = new[]
+        {
+            DynValue.NewNumber(1),
+            DynValue.NewNumber(2),
+            DynValue.NewNumber(3),
+            DynValue.NewNumber(4),
+        };
+        var result = (DynValue)invoke!.Invoke(fixture.Plugin, [callback, args])!;
+
+        Assert.Equal(10d, result.Number);
+        Assert.Same(dispatcherBeforeCall, GetPrivateField("_callbackDispatcher", fixture.Plugin));
+    }
+
+    [Fact]
     public void DispatcherHandlesRepeatedCallsWithFrequentAutomaticYields()
     {
         using var fixture = CreateFixture("""
@@ -207,9 +232,7 @@ public sealed class LuaClientPluginDispatcherTests
 
         var plugin = new LuaClientPlugin(manifest, root);
         plugin.Initialize(context);
-        typeof(LuaClientPlugin)
-            .GetMethod("InitializeCallbackDispatcher", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!
-            .Invoke(plugin, null);
+        Assert.NotNull(GetPrivateField("_callbackDispatcher", plugin));
         return new DispatcherFixture(root, plugin, logs);
     }
 

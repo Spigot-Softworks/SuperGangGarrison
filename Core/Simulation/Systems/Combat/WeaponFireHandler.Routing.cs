@@ -1,0 +1,252 @@
+﻿namespace OpenGarrison.Core;
+
+internal sealed partial class WeaponFireHandler
+{
+    public void FirePrimaryWeapon(PlayerEntity attacker, float aimWorldX, float aimWorldY)
+    {
+        DispatchPrimaryWeaponFire(attacker, attacker.PrimaryWeapon, attacker.PrimaryBehaviorId, attacker.ClassId, aimWorldX, aimWorldY);
+    }
+
+    public void FireSoldierShotgun(PlayerEntity attacker, float aimWorldX, float aimWorldY)
+    {
+        var weaponDefinition = attacker.ExperimentalOffhandWeapon ?? CharacterClassCatalog.SoldierShotgun;
+        var pelletCountMultiplier = _host.IsExperimentalPracticePowerOwner(attacker)
+            ? Math.Max(1, _host.GetLastToDieGameplaySettings(attacker).SoldierShotgunPelletMultiplier)
+            : 1;
+        DispatchPrimaryWeaponFire(
+            attacker,
+            weaponDefinition,
+            attacker.SecondaryBehaviorId,
+            PlayerClass.Engineer,
+            aimWorldX,
+            aimWorldY,
+            pelletSpawnDistance: 20f,
+            pelletCountMultiplier: pelletCountMultiplier,
+            spreadMultiplier: 1f,
+            killFeedWeaponSpriteNameOverride: "ShotgunKL");
+    }
+
+    public void FireExperimentalOffhandWeapon(PlayerEntity attacker, string? behaviorId, float aimWorldX, float aimWorldY)
+    {
+        var weaponDefinition = attacker.ExperimentalOffhandWeapon;
+        if (weaponDefinition is null)
+        {
+            return;
+        }
+
+        DispatchPrimaryWeaponFire(
+            attacker,
+            weaponDefinition,
+            behaviorId,
+            attacker.ClassId,
+            aimWorldX,
+            aimWorldY,
+            killFeedWeaponSpriteNameOverride: weaponDefinition.KillFeedWeaponSpriteName);
+    }
+
+    public void FireAcquiredWeapon(PlayerEntity attacker, float aimWorldX, float aimWorldY)
+    {
+        var weaponClassId = attacker.AcquiredWeaponClassId;
+        var weaponDefinition = attacker.AcquiredWeapon;
+        if (!weaponClassId.HasValue || weaponDefinition is null)
+        {
+            return;
+        }
+
+        var killFeedWeaponSpriteNameOverride = CharacterClassCatalog.GetPrimaryWeaponKillFeedSprite(weaponClassId.Value);
+        DispatchPrimaryWeaponFire(
+            attacker,
+            weaponDefinition,
+            attacker.AcquiredBehaviorId,
+            weaponClassId.Value,
+            aimWorldX,
+            aimWorldY,
+            killFeedWeaponSpriteNameOverride: killFeedWeaponSpriteNameOverride);
+    }
+
+    private void DispatchPrimaryWeaponFire(
+        PlayerEntity attacker,
+        PrimaryWeaponDefinition weaponDefinition,
+        string? behaviorId,
+        PlayerClass weaponClassId,
+        float aimWorldX,
+        float aimWorldY,
+        float pelletSpawnDistance = 15f,
+        int pelletCountMultiplier = 1,
+        float spreadMultiplier = 1f,
+        string? killFeedWeaponSpriteNameOverride = null,
+        bool forceGibOnKill = false)
+    {
+        var binding = ResolvePrimaryWeaponRuntimeBinding(behaviorId, weaponDefinition);
+        var resolvedKillFeedWeaponSpriteName = killFeedWeaponSpriteNameOverride
+            ?? weaponDefinition.KillFeedWeaponSpriteName
+            ?? (weaponClassId == attacker.ClassId
+                ? CharacterClassCatalog.GetPrimaryWeaponKillFeedSprite(attacker.GameplayClassId)
+                : CharacterClassCatalog.GetPrimaryWeaponKillFeedSprite(weaponClassId));
+        TryRegisterPrimaryWeaponFireSound(attacker, weaponDefinition, binding);
+        if (TryDispatchPrimaryWeaponExecutor(
+                attacker,
+                weaponDefinition,
+                binding,
+                behaviorId,
+                weaponClassId,
+                aimWorldX,
+                aimWorldY,
+                resolvedKillFeedWeaponSpriteName))
+        {
+            return;
+        }
+
+        DispatchPrimaryWeaponByKind(
+            attacker,
+            weaponDefinition,
+            binding.WeaponKind,
+            weaponClassId,
+            aimWorldX,
+            aimWorldY,
+            pelletSpawnDistance,
+            pelletCountMultiplier,
+            spreadMultiplier,
+            killFeedWeaponSpriteNameOverride,
+            resolvedKillFeedWeaponSpriteName,
+            forceGibOnKill);
+    }
+
+    private static GameplayPrimaryWeaponRuntimeBinding ResolvePrimaryWeaponRuntimeBinding(string? behaviorId, PrimaryWeaponDefinition weaponDefinition)
+    {
+        return CharacterClassCatalog.RuntimeRegistry.TryGetPrimaryWeaponBinding(behaviorId, out var binding)
+            ? binding
+            : new GameplayPrimaryWeaponRuntimeBinding(behaviorId ?? string.Empty, weaponDefinition.Kind);
+    }
+
+    private void TryRegisterPrimaryWeaponFireSound(
+        PlayerEntity attacker,
+        PrimaryWeaponDefinition weaponDefinition,
+        GameplayPrimaryWeaponRuntimeBinding binding)
+    {
+        var fireSoundName = weaponDefinition.FireSoundName ?? binding.FireSoundName;
+        if (!string.IsNullOrWhiteSpace(fireSoundName))
+        {
+            RegisterSoundEvent(attacker, fireSoundName);
+        }
+    }
+
+    private bool TryDispatchPrimaryWeaponExecutor(
+        PlayerEntity attacker,
+        PrimaryWeaponDefinition weaponDefinition,
+        GameplayPrimaryWeaponRuntimeBinding binding,
+        string? behaviorId,
+        PlayerClass weaponClassId,
+        float aimWorldX,
+        float aimWorldY,
+        string resolvedKillFeedWeaponSpriteName)
+    {
+        if (binding.Executor is not { } executor)
+        {
+            return false;
+        }
+
+        var weaponOrigin = GetSourceWeaponOrigin(attacker, weaponClassId);
+        var sourceX = weaponOrigin.BaseX;
+        var sourceY = weaponOrigin.BaseY + weaponOrigin.WeaponYOffset + weaponOrigin.EquipmentOffset;
+        var aimDeltaX = aimWorldX - sourceX;
+        var aimDeltaY = aimWorldY - sourceY;
+        if (aimDeltaX == 0f && aimDeltaY == 0f)
+        {
+            aimDeltaX = attacker.FacingDirectionX == 0f ? 1f : attacker.FacingDirectionX;
+        }
+
+        var directionRadians = DeterministicMath.Atan2(aimDeltaY, aimDeltaX);
+        var itemId = CharacterClassCatalog.RuntimeRegistry.TryResolvePrimaryWeaponItemId(weaponDefinition, out var resolvedItemId)
+            ? resolvedItemId
+            : string.Empty;
+        var directionX = DeterministicMath.Cos(directionRadians);
+        var directionY = DeterministicMath.Sin(directionRadians);
+        var result = _host.ExecutePrimaryWeaponExecutor(
+            executor,
+            attacker,
+            weaponDefinition,
+            itemId,
+            string.IsNullOrWhiteSpace(behaviorId) ? binding.BehaviorId : behaviorId.Trim(),
+            weaponClassId,
+            sourceX,
+            sourceY,
+            aimWorldX,
+            aimWorldY,
+            directionX,
+            directionY,
+            directionRadians,
+            resolvedKillFeedWeaponSpriteName);
+        return result.Handled || binding.WeaponKind == PrimaryWeaponKind.Custom;
+    }
+
+    private void DispatchPrimaryWeaponByKind(
+        PlayerEntity attacker,
+        PrimaryWeaponDefinition weaponDefinition,
+        PrimaryWeaponKind weaponKind,
+        PlayerClass weaponClassId,
+        float aimWorldX,
+        float aimWorldY,
+        float pelletSpawnDistance,
+        int pelletCountMultiplier,
+        float spreadMultiplier,
+        string? killFeedWeaponSpriteNameOverride,
+        string resolvedKillFeedWeaponSpriteName,
+        bool forceGibOnKill)
+    {
+        switch (weaponKind)
+        {
+            case PrimaryWeaponKind.FlameThrower:
+                FireFlamethrower(attacker, weaponDefinition, weaponClassId, aimWorldX, aimWorldY);
+                return;
+            case PrimaryWeaponKind.Blade:
+                FireBladeBubble(attacker, aimWorldX, aimWorldY);
+                return;
+            case PrimaryWeaponKind.Minigun:
+                FireMinigun(attacker, weaponDefinition, weaponClassId, aimWorldX, aimWorldY, killFeedWeaponSpriteNameOverride);
+                return;
+            case PrimaryWeaponKind.MineLauncher:
+                FireMineLauncher(attacker, weaponDefinition, weaponClassId, aimWorldX, aimWorldY, resolvedKillFeedWeaponSpriteName);
+                return;
+            case PrimaryWeaponKind.GrenadeLauncher:
+                FireGrenadeLauncher(attacker, weaponDefinition, weaponClassId, aimWorldX, aimWorldY, resolvedKillFeedWeaponSpriteName);
+                return;
+            case PrimaryWeaponKind.Revolver:
+                FireRevolver(attacker, weaponDefinition, weaponClassId, aimWorldX, aimWorldY, resolvedKillFeedWeaponSpriteName);
+                return;
+            case PrimaryWeaponKind.Rifle:
+                FireRifle(attacker, weaponDefinition, weaponClassId, aimWorldX, aimWorldY, resolvedKillFeedWeaponSpriteName);
+                return;
+            case PrimaryWeaponKind.RocketLauncher:
+                FireRocketLauncher(attacker, weaponDefinition, weaponClassId, aimWorldX, aimWorldY, resolvedKillFeedWeaponSpriteName);
+                return;
+            case PrimaryWeaponKind.Custom:
+                return;
+            default:
+                FirePelletWeapon(attacker, weaponDefinition, aimWorldX, aimWorldY, weaponClassId, killFeedWeaponSpriteNameOverride, pelletSpawnDistance, pelletCountMultiplier, spreadMultiplier, forceGibOnKill);
+                return;
+        }
+    }
+
+    public bool TryFirePyroPrimaryWeapon(PlayerEntity attacker, float aimWorldX, float aimWorldY)
+    {
+        if (!attacker.TryPreparePyroPrimaryFireAttempt())
+        {
+            return false;
+        }
+
+        var shouldStartLoopSound = attacker.PyroFlameLoopTicksRemaining <= 0;
+        if (!FireFlamethrower(attacker, aimWorldX, aimWorldY))
+        {
+            return false;
+        }
+
+        attacker.CommitPyroPrimaryWeaponShot();
+        if (shouldStartLoopSound)
+        {
+            RegisterSoundEvent(attacker, "FlamethrowerSnd");
+        }
+
+        return true;
+    }
+}

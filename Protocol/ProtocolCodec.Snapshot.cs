@@ -6,6 +6,8 @@ namespace OpenGarrison.Protocol;
 
 public static partial class ProtocolCodec
 {
+    private const ushort ScoreboardDeltaExtensionMarker = 0x5342;
+    private const int MaxScoreboardPatchBytes = 64 * 1024;
     private const float QuantizedAimDegreesMax = 360f;
     private const float QuantizedMetalScale = 10f;
     private const float QuantizedIntelRechargeScale = 4f;
@@ -17,6 +19,11 @@ public static partial class ProtocolCodec
 
     private static void WriteSnapshot(BinaryWriter writer, SnapshotMessage snapshot)
     {
+        if (snapshot.HasScoreboardDelta && !snapshot.IsDelta)
+        {
+            throw new InvalidDataException("A full snapshot cannot carry scoreboard delta patches.");
+        }
+
         writer.Write(snapshot.Frame);
         writer.Write(snapshot.BaselineFrame);
         writer.Write(snapshot.IsDelta);
@@ -108,6 +115,15 @@ public static partial class ProtocolCodec
         WriteVisualEvents(writer, snapshot.VisualEvents);
         WriteDamageEvents(writer, snapshot.DamageEvents);
         WriteSoundEvents(writer, snapshot.SoundEvents);
+        if (snapshot.HasScoreboardDelta)
+        {
+            if (!snapshot.IsDelta)
+            {
+                throw new InvalidDataException("A full snapshot cannot carry scoreboard delta patches.");
+            }
+
+            WriteScoreboardDeltaExtension(writer, snapshot.ScoreboardPlayerOrder, snapshot.ScoreboardPlayerPatches);
+        }
     }
 
     private static SnapshotMessage ReadSnapshot(BinaryReader reader)
@@ -203,6 +219,18 @@ public static partial class ProtocolCodec
         var visualEvents = ReadVisualEvents(reader);
         var damageEvents = ReadDamageEvents(reader);
         var soundEvents = ReadSoundEvents(reader);
+        var hasScoreboardDelta = reader.BaseStream.Position < reader.BaseStream.Length;
+        IReadOnlyList<byte> scoreboardPlayerOrder = Array.Empty<byte>();
+        IReadOnlyList<SnapshotScoreboardPlayerPatch> scoreboardPlayerPatches = Array.Empty<SnapshotScoreboardPlayerPatch>();
+        if (hasScoreboardDelta)
+        {
+            if (!isDelta)
+            {
+                throw new InvalidDataException("A full snapshot cannot carry scoreboard delta patches.");
+            }
+
+            (scoreboardPlayerOrder, scoreboardPlayerPatches) = ReadScoreboardDeltaExtension(reader);
+        }
 
         return new SnapshotMessage(
             frame,
@@ -266,6 +294,9 @@ public static partial class ProtocolCodec
             IsDelta = isDelta,
             EntityCollectionCompletenessFlags = entityCollectionCompletenessFlags,
             ScoreboardPlayers = scoreboardPlayers,
+            HasScoreboardDelta = hasScoreboardDelta,
+            ScoreboardPlayerOrder = scoreboardPlayerOrder,
+            ScoreboardPlayerPatches = scoreboardPlayerPatches,
             PlayerMovementStates = playerMovementStates,
             PlayerStatusStates = playerStatusStates,
             PlayerExtendedStatusStates = playerExtendedStatusStates,
@@ -298,6 +329,114 @@ public static partial class ProtocolCodec
             HealthPacks = healthPacks,
             RemovedHealthPackIds = removedHealthPackIds,
         };
+    }
+
+    private static void WriteScoreboardDeltaExtension(
+        BinaryWriter writer,
+        IReadOnlyList<byte> order,
+        IReadOnlyList<SnapshotScoreboardPlayerPatch> patches)
+    {
+        if (order.Count > byte.MaxValue || patches.Count > byte.MaxValue)
+        {
+            throw new InvalidDataException("Scoreboard delta exceeds the protocol collection limit.");
+        }
+
+        writer.Write(ScoreboardDeltaExtensionMarker);
+        writer.Write((byte)order.Count);
+        for (var index = 0; index < order.Count; index += 1)
+        {
+            writer.Write(order[index]);
+        }
+
+        writer.Write((byte)patches.Count);
+        for (var index = 0; index < patches.Count; index += 1)
+        {
+            var patch = patches[index];
+            if (patch.ReplacementBytes is null || patch.ReplacementBytes.Length > MaxScoreboardPatchBytes)
+            {
+                throw new InvalidDataException("Scoreboard replacement exceeds the protocol byte limit.");
+            }
+
+            writer.Write(patch.Slot);
+            writer.Write(patch.PlayerId);
+            writer.Write(patch.Index);
+            writer.Write(patch.BaseLength);
+            writer.Write(patch.PrefixLength);
+            writer.Write(patch.SuffixLength);
+            writer.Write(patch.ReplacementBytes.Length);
+            writer.Write(patch.ReplacementBytes);
+        }
+    }
+
+    private static (IReadOnlyList<byte> Order, IReadOnlyList<SnapshotScoreboardPlayerPatch> Patches) ReadScoreboardDeltaExtension(BinaryReader reader)
+    {
+        if (reader.ReadUInt16() != ScoreboardDeltaExtensionMarker)
+        {
+            throw new InvalidDataException("Unrecognized trailing snapshot extension.");
+        }
+
+        var orderCount = reader.ReadByte();
+        var order = new byte[orderCount];
+        for (var index = 0; index < order.Length; index += 1)
+        {
+            order[index] = reader.ReadByte();
+        }
+
+        var patchCount = reader.ReadByte();
+        var patches = new SnapshotScoreboardPlayerPatch[patchCount];
+        for (var index = 0; index < patches.Length; index += 1)
+        {
+            var slot = reader.ReadByte();
+            var playerId = reader.ReadInt32();
+            var rosterIndex = reader.ReadInt32();
+            var baseLength = reader.ReadInt32();
+            var prefixLength = reader.ReadInt32();
+            var suffixLength = reader.ReadInt32();
+            var replacementLength = reader.ReadInt32();
+            if (rosterIndex < 0 || rosterIndex >= order.Length || order[rosterIndex] != slot
+                || baseLength < 0 || baseLength > MaxScoreboardPatchBytes
+                || prefixLength < 0 || prefixLength > baseLength
+                || suffixLength < 0 || suffixLength > baseLength
+                || (long)prefixLength + suffixLength > baseLength
+                || (baseLength == 0 && (prefixLength != 0 || suffixLength != 0))
+                || replacementLength < 0 || replacementLength > MaxScoreboardPatchBytes)
+            {
+                throw new InvalidDataException("Invalid scoreboard patch metadata.");
+            }
+
+            var replacement = reader.ReadBytes(replacementLength);
+            if (replacement.Length != replacementLength)
+            {
+                throw new EndOfStreamException();
+            }
+
+            patches[index] = new SnapshotScoreboardPlayerPatch(slot, playerId, rosterIndex, baseLength, prefixLength, suffixLength, replacement);
+        }
+
+        var orderedSlots = new HashSet<byte>();
+        foreach (var slot in order)
+        {
+            if (!orderedSlots.Add(slot))
+            {
+                throw new InvalidDataException("Scoreboard delta contains duplicate roster slots.");
+            }
+        }
+
+        var patchedSlots = new HashSet<byte>();
+        foreach (var patch in patches)
+        {
+            if (!patchedSlots.Add(patch.Slot))
+            {
+                throw new InvalidDataException("Scoreboard delta contains duplicate player patches.");
+            }
+        }
+
+        if (reader.BaseStream.Position != reader.BaseStream.Length)
+        {
+            throw new InvalidDataException("Unexpected data after scoreboard delta extension.");
+        }
+
+        return (order, patches);
     }
 
     private static void WriteEntityIdList(BinaryWriter writer, IReadOnlyList<int> ids)
@@ -499,6 +638,34 @@ public static partial class ProtocolCodec
             writer.Write((ushort)Math.Clamp(player.ExperimentalGhostVisibilityTicksRemaining, 0, ushort.MaxValue));
             writer.Write((byte)Math.Clamp((int)MathF.Round(Math.Clamp(player.ExperimentalGhostTrailAlpha, 0f, 1f) * QuantizedSpyCloakAlphaScale), 0, byte.MaxValue));
         }
+    }
+
+    internal static byte[] SerializeCanonicalSnapshotPlayer(SnapshotPlayerState player)
+    {
+        using var stream = new MemoryStream();
+        using var writer = new BinaryWriter(stream, Utf8, leaveOpen: true);
+        WriteSnapshotPlayers(writer, new[] { player });
+        writer.Flush();
+        var bytes = stream.ToArray();
+        var record = new byte[bytes.Length - 1];
+        Array.Copy(bytes, 1, record, 0, record.Length);
+        return record;
+    }
+
+    internal static SnapshotPlayerState DeserializeCanonicalSnapshotPlayer(byte[] record)
+    {
+        using var stream = new MemoryStream(record.Length + 1);
+        stream.WriteByte(1);
+        stream.Write(record, 0, record.Length);
+        stream.Position = 0;
+        using var reader = new BinaryReader(stream, Utf8, leaveOpen: true);
+        var players = ReadSnapshotPlayers(reader);
+        if (players.Count != 1 || stream.Position != stream.Length)
+        {
+            throw new InvalidDataException("Invalid canonical scoreboard player record.");
+        }
+
+        return players[0];
     }
 
     private static List<SnapshotPlayerState> ReadSnapshotPlayers(BinaryReader reader)

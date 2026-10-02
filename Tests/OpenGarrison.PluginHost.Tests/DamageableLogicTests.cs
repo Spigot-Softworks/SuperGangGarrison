@@ -763,7 +763,7 @@ public sealed class DamageableLogicTests
         PlayerEntity owner,
         float damage)
     {
-        var sentryTargetType = typeof(SimulationWorld).GetNestedType("SentryTarget", BindingFlags.Public | BindingFlags.NonPublic);
+        var sentryTargetType = typeof(SimulationWorld).Assembly.GetType("OpenGarrison.Core.SentryTarget", throwOnError: true);
         Assert.NotNull(sentryTargetType);
         var target = Activator.CreateInstance(
             sentryTargetType,

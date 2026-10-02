@@ -1089,6 +1089,7 @@ public static class GameplayModPackDirectoryLoader
                 return;
             case BuiltInGameplayBehaviorIds.CivvieTaunt:
                 ValidateNumberParameters(itemId, ability, filePath, "healAmount", "healRadius", "healFrameIndex");
+                ValidateBoolParameters(itemId, ability, filePath, "healSelfOnly", "moneyBurst");
                 return;
             case BuiltInGameplayBehaviorIds.CivviePogo:
                 ValidateNumberParameters(itemId, ability, filePath, "baseBounceJumpScale", "superJumpScale", "crunchDurationTicks");

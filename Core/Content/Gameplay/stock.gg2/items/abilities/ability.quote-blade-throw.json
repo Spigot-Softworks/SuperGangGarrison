@@ -1,0 +1,20 @@
+{
+  "id": "ability.quote-blade-throw",
+  "kind": "Ability",
+  "displayName": "Blade Throw",
+  "behaviorId": "builtin.ability.quote_blade_throw",
+  "ability": {
+    "category": "secondary",
+    "channel": "special",
+    "activation": "held",
+    "executorId": "builtin.ability.quote_blade_throw",
+    "tags": [ "projectile", "cooldown" ],
+    "parameters": {
+      "energyCost": 15,
+      "activeProjectileLimit": 1,
+      "lifetimeTicks": 15
+    }
+  },
+  "ammo": {},
+  "presentation": {}
+}

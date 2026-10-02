@@ -26,6 +26,11 @@ public partial class Game1
     private const string ClientPerformanceInputEnvironmentVariable = "OG_CLIENT_PERF_INPUT";
     private const string ClientPerformanceWarmupSecondsEnvironmentVariable = "OG_CLIENT_PERF_WARMUP_SECONDS";
     private const string ClientPerformanceMeasureSecondsEnvironmentVariable = "OG_CLIENT_PERF_MEASURE_SECONDS";
+    private const string ClientPerformanceTargetFpsEnvironmentVariable = "OG_CLIENT_PERF_TARGET_FPS";
+    private const string ClientPerformanceFpsToleranceEnvironmentVariable = "OG_CLIENT_PERF_FPS_TOLERANCE";
+    private const string ClientPerformanceP95FrameMillisecondsEnvironmentVariable = "OG_CLIENT_PERF_P95_FRAME_MS";
+    private const string ClientPerformanceP99FrameMillisecondsEnvironmentVariable = "OG_CLIENT_PERF_P99_FRAME_MS";
+    private const string ClientPerformanceMaxFrameMillisecondsEnvironmentVariable = "OG_CLIENT_PERF_MAX_FRAME_MS";
     private const string ClientPerformanceAutoExitEnvironmentVariable = "OG_CLIENT_PERF_AUTO_EXIT";
     private const string ClientPerformanceRequireObjectiveEventEnvironmentVariable = "OG_CLIENT_PERF_REQUIRE_OBJECTIVE_EVENT";
     private const string ClientPerformanceBotDiagnosticsEnvironmentVariable = "OG_CLIENT_PERF_BOT_DIAGNOSTICS";
@@ -33,8 +38,8 @@ public partial class Game1
     private const string ClientPerformanceLastToDieSurvivorEnvironmentVariable = "OG_CLIENT_PERF_LTD_SURVIVOR";
     private const string ClientPerformanceLogFilePrefix = "client-perf";
     private const double ClientPerformanceSummaryIntervalSeconds = 1d;
-    private const double ClientPerformanceMinimumFps = 45d;
-    private const double ClientPerformanceMaximumFrameMilliseconds = 200d;
+    private const double ClientPerformanceDefaultTargetFps = 60d;
+    private const double ClientPerformanceDefaultFpsTolerance = 3d;
     private const int ClientPerformanceDefaultFriendlyBots = 3;
     private const int ClientPerformanceDefaultEnemyBots = 3;
     private const int ClientPerformanceDefaultWarmupSeconds = 5;
@@ -55,6 +60,7 @@ public partial class Game1
     private static readonly bool ClientPerformanceBotDiagnosticsEnabled =
         GetClientPerformanceEnvironmentFlagOrDefault(ClientPerformanceBotDiagnosticsEnvironmentVariable, fallback: true);
     private readonly ClientPerformanceAccumulator _clientPerformance = new();
+    private readonly ClientFrameTimingAccumulator _clientDrawFrameTiming = new();
     private string? _clientPerformanceLogPath;
     private bool _clientPerformanceDiagnosticsInitialized;
     private double _clientPerformanceSummaryElapsedSeconds;
@@ -73,6 +79,8 @@ public partial class Game1
     private double _clientPerformanceTestMinDrawFps = double.MaxValue;
     private double _clientPerformanceTestMaxUpdateMilliseconds;
     private double _clientPerformanceTestMaxDrawMilliseconds;
+    private long _clientPerformanceStartupRequestTimestamp;
+    private long _clientPerformanceFirstGameplayWorldDrawTimestamp;
     private readonly Dictionary<byte, ClientPerformanceBotBehaviorSlot> _clientPerformanceBotBehaviorSlots = new();
     private bool _clientPerformanceBotBehaviorActive;
     private int _clientPerformanceBotBehaviorInitialRedCaps;
@@ -106,6 +114,9 @@ public partial class Game1
         Music,
         BotBuild,
         BotApply,
+        NetworkReceive,
+        NetworkResolve,
+        NetworkApply,
     }
 
     public static bool IsClientPerformanceDiagnosticsEnabled()
@@ -383,8 +394,54 @@ public partial class Game1
     private void ResetClientPerformanceMeasurementWindow()
     {
         _clientPerformance.Reset();
+        _clientDrawFrameTiming.Reset();
         _clientPerformanceSummaryElapsedSeconds = 0d;
         _clientPerformanceLastFrameTimestamp = Stopwatch.GetTimestamp();
+    }
+
+    private void RecordClientPerformanceStartupRequest()
+    {
+        if (!OperatingSystem.IsBrowser() && !IsClientPerformanceDiagnosticsEnabled())
+        {
+            return;
+        }
+
+        _clientPerformanceStartupRequestTimestamp = Stopwatch.GetTimestamp();
+        _clientPerformanceFirstGameplayWorldDrawTimestamp = 0L;
+    }
+
+    private void RecordFirstGameplayWorldDrawCompleted()
+    {
+        if (_clientPerformanceStartupRequestTimestamp <= 0L
+            || _clientPerformanceFirstGameplayWorldDrawTimestamp > 0L
+            || !IsPracticeSessionActive
+            || _startupSplashOpen
+            || _mainMenuOpen
+            || _loadingOverlayState.Visible
+            || _teamClassSelectionState.TeamSelectOpen
+            || _teamClassSelectionState.ClassSelectOpen
+            || _world.LocalPlayerAwaitingJoin
+            || IsPracticeNavigationWarmupBlockingGameplay())
+        {
+            return;
+        }
+
+        _clientPerformanceFirstGameplayWorldDrawTimestamp = Stopwatch.GetTimestamp();
+        if (IsClientPerformanceDiagnosticsEnabled())
+        {
+            LogClientPerformanceLine(string.Create(
+                CultureInfo.InvariantCulture,
+                $"event=client_perf_first_gameplay_world_draw requestToWorldDrawMs={GetClientPerformanceStartupToGameplayDrawMilliseconds():0.0}"));
+        }
+    }
+
+    private double? GetClientPerformanceStartupToGameplayDrawMilliseconds()
+    {
+        return _clientPerformanceStartupRequestTimestamp > 0L
+            && _clientPerformanceFirstGameplayWorldDrawTimestamp > _clientPerformanceStartupRequestTimestamp
+            ? (_clientPerformanceFirstGameplayWorldDrawTimestamp - _clientPerformanceStartupRequestTimestamp)
+                * 1000d / Stopwatch.Frequency
+            : null;
     }
 
     private void EnsureClientPerformanceDiagnosticsInitialized()
@@ -415,6 +472,7 @@ public partial class Game1
     {
         var elapsedSeconds = Math.Max(_clientPerformanceSummaryElapsedSeconds, 0.0001d);
         var snapshot = _clientPerformance.GetSnapshot();
+        var frameTiming = _clientDrawFrameTiming.GetSummary();
         var updateFps = snapshot.UpdateCount / elapsedSeconds;
         var drawFps = snapshot.DrawCount / elapsedSeconds;
         var currentMemoryMegabytes = GC.GetTotalMemory(forceFullCollection: false) / (1024d * 1024d);
@@ -422,6 +480,8 @@ public partial class Game1
         var line = string.Create(
             CultureInfo.InvariantCulture,
             $"event=client_perf_summary updateFps={updateFps:F1} drawFps={drawFps:F1} " +
+            $"drawDoneFps={frameTiming.AverageFps:F1} drawDoneIntervalMs={frameTiming.P50Milliseconds:0.00}/{frameTiming.P95Milliseconds:0.00}/{frameTiming.P99Milliseconds:0.00}/{frameTiming.MaxMilliseconds:0.00}ms " +
+            $"drawDoneHitchesGt16_67={frameTiming.Over16Point67Milliseconds} drawDoneHitchesGt33_34={frameTiming.Over33Point34Milliseconds} drawDoneHitchesGt50={frameTiming.Over50Milliseconds} " +
             $"update={snapshot.GetSummary(ClientPerformanceMetric.Update)} " +
             $"draw={snapshot.GetSummary(ClientPerformanceMetric.Draw)} " +
             $"sim={snapshot.GetSummary(ClientPerformanceMetric.Simulation)} " +
@@ -436,6 +496,9 @@ public partial class Game1
             $"music={snapshot.GetSummary(ClientPerformanceMetric.Music)} " +
             $"botBuild={snapshot.GetSummary(ClientPerformanceMetric.BotBuild)} " +
             $"botApply={snapshot.GetSummary(ClientPerformanceMetric.BotApply)} " +
+            $"networkReceive={snapshot.GetSummary(ClientPerformanceMetric.NetworkReceive)} " +
+            $"networkResolve={snapshot.GetSummary(ClientPerformanceMetric.NetworkResolve)} " +
+            $"networkApply={snapshot.GetSummary(ClientPerformanceMetric.NetworkApply)} " +
             $"gc0={GC.CollectionCount(0)} " +
             $"gc1={GC.CollectionCount(1)} " +
             $"gc2={GC.CollectionCount(2)} " +
@@ -479,18 +542,27 @@ public partial class Game1
         var averageDrawFps = _clientPerformanceTestDrawFpsTotal / samples;
         var minimumUpdateFps = _clientPerformanceTestMinUpdateFps == double.MaxValue ? 0d : _clientPerformanceTestMinUpdateFps;
         var minimumDrawFps = _clientPerformanceTestMinDrawFps == double.MaxValue ? 0d : _clientPerformanceTestMinDrawFps;
+        var frameTiming = _clientDrawFrameTiming.GetSummary();
+        var targetFps = Math.Max(1d, GetClientPerformanceEnvironmentDouble(ClientPerformanceTargetFpsEnvironmentVariable, ClientPerformanceDefaultTargetFps));
+        var fpsTolerance = Math.Max(0d, GetClientPerformanceEnvironmentDouble(ClientPerformanceFpsToleranceEnvironmentVariable, ClientPerformanceDefaultFpsTolerance));
+        var targetFrameMilliseconds = 1000d / targetFps;
+        var p95FrameGateMilliseconds = Math.Max(0d,
+            GetClientPerformanceEnvironmentDouble(ClientPerformanceP95FrameMillisecondsEnvironmentVariable, targetFrameMilliseconds * 1.2d));
+        var p99FrameGateMilliseconds = Math.Max(0d,
+            GetClientPerformanceEnvironmentDouble(ClientPerformanceP99FrameMillisecondsEnvironmentVariable, targetFrameMilliseconds * 2d));
+        var maxFrameGateMilliseconds = Math.Max(0d,
+            GetClientPerformanceEnvironmentDouble(ClientPerformanceMaxFrameMillisecondsEnvironmentVariable, targetFrameMilliseconds * 3d));
         var botBehaviorPass = IsClientPerformanceBotBehaviorPass(out var botBehaviorFailureReason);
-        var pass = averageUpdateFps >= ClientPerformanceMinimumFps
-            && averageDrawFps >= ClientPerformanceMinimumFps
-            && minimumUpdateFps >= ClientPerformanceMinimumFps
-            && minimumDrawFps >= ClientPerformanceMinimumFps
-            && _clientPerformanceTestMaxUpdateMilliseconds < ClientPerformanceMaximumFrameMilliseconds
-            && _clientPerformanceTestMaxDrawMilliseconds < ClientPerformanceMaximumFrameMilliseconds
+        var pass = frameTiming.SampleCount > 0
+            && frameTiming.AverageFps >= targetFps - fpsTolerance
+            && frameTiming.P95Milliseconds <= p95FrameGateMilliseconds
+            && frameTiming.P99Milliseconds <= p99FrameGateMilliseconds
+            && frameTiming.MaxMilliseconds <= maxFrameGateMilliseconds
             && botBehaviorPass;
         LogClientPerformanceLine(
             string.Create(
                 CultureInfo.InvariantCulture,
-                $"event=client_perf_test_result pass={pass} avgUpdateFps={averageUpdateFps:F1} avgDrawFps={averageDrawFps:F1} minUpdateFps={minimumUpdateFps:F1} minDrawFps={minimumDrawFps:F1} maxUpdateMs={_clientPerformanceTestMaxUpdateMilliseconds:F1} maxDrawMs={_clientPerformanceTestMaxDrawMilliseconds:F1} minFpsGate={ClientPerformanceMinimumFps:F1} maxFrameGateMs={ClientPerformanceMaximumFrameMilliseconds:F1} seconds={_clientPerformanceTestMeasuredSeconds:F1} botBehaviorPass={botBehaviorPass} botBehaviorReason={botBehaviorFailureReason}"));
+                $"event=client_perf_test_result pass={pass} avgUpdateFps={averageUpdateFps:F1} avgDrawFps={averageDrawFps:F1} minUpdateFps={minimumUpdateFps:F1} minDrawFps={minimumDrawFps:F1} maxUpdateCpuMs={_clientPerformanceTestMaxUpdateMilliseconds:F1} maxDrawCpuMs={_clientPerformanceTestMaxDrawMilliseconds:F1} drawDoneFps={frameTiming.AverageFps:F1} drawDoneP50Ms={frameTiming.P50Milliseconds:F2} drawDoneP95Ms={frameTiming.P95Milliseconds:F2} drawDoneP99Ms={frameTiming.P99Milliseconds:F2} drawDoneMaxMs={frameTiming.MaxMilliseconds:F2} drawDoneHitchesGt16_67={frameTiming.Over16Point67Milliseconds} drawDoneHitchesGt33_34={frameTiming.Over33Point34Milliseconds} drawDoneHitchesGt50={frameTiming.Over50Milliseconds} targetFps={targetFps:F1} fpsTolerance={fpsTolerance:F1} p95GateMs={p95FrameGateMilliseconds:F2} p99GateMs={p99FrameGateMilliseconds:F2} maxFrameGateMs={maxFrameGateMilliseconds:F2} requestToFirstGameplayWorldDrawMs={GetClientPerformanceStartupToGameplayDrawMilliseconds()?.ToString("F1", CultureInfo.InvariantCulture) ?? "unmeasured"} seconds={_clientPerformanceTestMeasuredSeconds:F1} botBehaviorPass={botBehaviorPass} botBehaviorReason={botBehaviorFailureReason}"));
         LogClientPerformanceLine(
             $"event=client_perf_test_bot_behavior pass={botBehaviorPass} reason={botBehaviorFailureReason} {FormatClientPerformanceBotBehaviorSummary()}");
 
@@ -995,6 +1067,15 @@ public partial class Game1
     {
         var value = Environment.GetEnvironmentVariable(variableName);
         return int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed)
+            ? parsed
+            : fallback;
+    }
+
+    private static double GetClientPerformanceEnvironmentDouble(string variableName, double fallback)
+    {
+        var value = Environment.GetEnvironmentVariable(variableName);
+        return double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)
+            && double.IsFinite(parsed)
             ? parsed
             : fallback;
     }

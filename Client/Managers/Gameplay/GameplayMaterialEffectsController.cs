@@ -450,6 +450,26 @@ public sealed class GameplayMaterialEffectsController
                 CivvieMoneySheetDrawScale));
         }
 
+        public void SpawnCivvieMoneyBurstVisuals(float x, float y, int count)
+        {
+            if (count <= 0 || !AreCivvieMoneyParticlesEnabled(_context.GameplayRuntimeSettings.ParticleMode))
+            {
+                return;
+            }
+
+            var frame = _context._world.Frame < 0 ? 0UL : (ulong)_context._world.Frame;
+            for (var particleIndex = 0; particleIndex < count; particleIndex += 1)
+            {
+                var spawn = CivvieMoneyTrailRules.CreatePogoTrickBurstSpawn(
+                    frame,
+                    0,
+                    particleIndex,
+                    x,
+                    y);
+                SpawnCivvieMoneyBurstVisual(spawn);
+            }
+        }
+
         public void SpawnLooseSheetVisual(float x, float y, float initialHorizontalSpeed, string? spriteName = null, bool isCivvieMoney = false)
         {
             string[] sheetSprites = ["SheetFalling1", "SheetFalling2", "SheetFalling3"];

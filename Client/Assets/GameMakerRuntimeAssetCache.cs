@@ -56,14 +56,37 @@ public sealed class GameMakerRuntimeAssetCache : IDisposable
             return null;
         }
 
+        var loadStartTimestamp = ClientAssetLoadDiagnostics.StartTimestamp();
+        var atlasStartTimestamp = ClientAssetLoadDiagnostics.StartTimestamp();
         var atlasSprite = TryGetAtlasSprite(spriteName);
+        var atlasMilliseconds = atlasStartTimestamp > 0L
+            ? ClientAssetLoadDiagnostics.GetElapsedMilliseconds(atlasStartTimestamp)
+            : 0d;
         if (atlasSprite is not null)
         {
+            if (loadStartTimestamp > 0L)
+            {
+                ClientAssetLoadDiagnostics.RecordOnce(
+                    "sprite",
+                    spriteName,
+                    FormattableString.Invariant($"source=atlas atlasMs={atlasMilliseconds:F3} frames={atlasSprite.Frames.Count}"),
+                    loadStartTimestamp);
+            }
+
             return atlasSprite;
         }
 
         if (ShouldRequireRuntimeAtlas())
         {
+            if (loadStartTimestamp > 0L)
+            {
+                ClientAssetLoadDiagnostics.RecordOnce(
+                    "sprite",
+                    spriteName,
+                    FormattableString.Invariant($"source=atlas result=missing atlasMs={atlasMilliseconds:F3}"),
+                    loadStartTimestamp);
+            }
+
             var reason = ClientRuntimeBootstrap.GetBrowserGameMakerAtlasManifest() is null
                 ? "the runtime GameMaker atlas manifest was not loaded"
                 : "the sprite was not present in the runtime GameMaker atlas";
@@ -77,6 +100,7 @@ public sealed class GameMakerRuntimeAssetCache : IDisposable
         }
 
         var framePaths = spriteAsset.FramePaths;
+        var looseLoadStartTimestamp = ClientAssetLoadDiagnostics.StartTimestamp();
         {
             var metadataDirectory = Path.GetDirectoryName(spriteAsset.MetadataPath) ?? string.Empty;
             var imagesDirectory = Path.Combine(metadataDirectory, $"{spriteAsset.Name}.images");
@@ -96,6 +120,15 @@ public sealed class GameMakerRuntimeAssetCache : IDisposable
 
         if (framePaths.Count == 0)
         {
+            if (loadStartTimestamp > 0L)
+            {
+                ClientAssetLoadDiagnostics.RecordOnce(
+                    "sprite",
+                    spriteName,
+                    FormattableString.Invariant($"source=loose result=no-frames atlasMs={atlasMilliseconds:F3} looseMs={ClientAssetLoadDiagnostics.GetElapsedMilliseconds(looseLoadStartTimestamp):F3}"),
+                    loadStartTimestamp);
+            }
+
             return null;
         }
 
@@ -105,6 +138,15 @@ public sealed class GameMakerRuntimeAssetCache : IDisposable
             var framePath = framePaths[frameIndex];
             if (!File.Exists(framePath))
             {
+                if (loadStartTimestamp > 0L)
+                {
+                    ClientAssetLoadDiagnostics.RecordOnce(
+                        "sprite",
+                        spriteName,
+                        FormattableString.Invariant($"source=loose result=missing-frame frame={frameIndex} atlasMs={atlasMilliseconds:F3} looseMs={ClientAssetLoadDiagnostics.GetElapsedMilliseconds(looseLoadStartTimestamp):F3}"),
+                        loadStartTimestamp);
+                }
+
                 return null;
             }
 
@@ -114,6 +156,15 @@ public sealed class GameMakerRuntimeAssetCache : IDisposable
 
         cached = new LoadedGameMakerSprite(frames, new Point(spriteAsset.OriginX, spriteAsset.OriginY));
         _sprites[spriteName] = cached;
+        if (loadStartTimestamp > 0L)
+        {
+            ClientAssetLoadDiagnostics.RecordOnce(
+                "sprite",
+                spriteName,
+                FormattableString.Invariant($"source=loose atlasMs={atlasMilliseconds:F3} looseMs={ClientAssetLoadDiagnostics.GetElapsedMilliseconds(looseLoadStartTimestamp):F3} frames={frames.Length}"),
+                loadStartTimestamp);
+        }
+
         return cached;
     }
 
@@ -253,19 +304,77 @@ public sealed class GameMakerRuntimeAssetCache : IDisposable
             return TryGetBrowserSound(soundName, soundAsset);
         }
 
+        var loadStartTimestamp = ClientAssetLoadDiagnostics.StartTimestamp();
         if (!File.Exists(soundAsset.AudioPath))
         {
+            if (loadStartTimestamp > 0L)
+            {
+                ClientAssetLoadDiagnostics.RecordOnce(
+                    "sound",
+                    soundName,
+                    FormattableString.Invariant($"path=\"{soundAsset.AudioPath}\" result=missing-file"),
+                    loadStartTimestamp);
+            }
+
             return null;
         }
 
+        var readStartTimestamp = ClientAssetLoadDiagnostics.StartTimestamp();
+        var decodeStartTimestamp = 0L;
+        var readMilliseconds = 0d;
+        var decodeMilliseconds = 0d;
+        var readCompleted = false;
+        var decodeCompleted = false;
         try
         {
-            cached = SoundDecodeUtility.LoadSoundEffect(File.ReadAllBytes(soundAsset.AudioPath), soundAsset.AudioPath);
+            var soundBytes = File.ReadAllBytes(soundAsset.AudioPath);
+            readCompleted = true;
+            if (readStartTimestamp > 0L)
+            {
+                readMilliseconds = ClientAssetLoadDiagnostics.GetElapsedMilliseconds(readStartTimestamp);
+            }
+
+            decodeStartTimestamp = ClientAssetLoadDiagnostics.StartTimestamp();
+            cached = SoundDecodeUtility.LoadSoundEffect(soundBytes, soundAsset.AudioPath);
+            decodeCompleted = true;
+            if (decodeStartTimestamp > 0L)
+            {
+                decodeMilliseconds = ClientAssetLoadDiagnostics.GetElapsedMilliseconds(decodeStartTimestamp);
+            }
+
             _sounds[soundName] = cached;
+            if (loadStartTimestamp > 0L)
+            {
+                ClientAssetLoadDiagnostics.RecordOnce(
+                    "sound",
+                    soundName,
+                    FormattableString.Invariant($"path=\"{soundAsset.AudioPath}\" readMs={readMilliseconds:F3} decodeMs={decodeMilliseconds:F3} bytes={soundBytes.Length}"),
+                    loadStartTimestamp);
+            }
+
             return cached;
         }
-        catch
+        catch (Exception exception)
         {
+            if (loadStartTimestamp > 0L)
+            {
+                if (!readCompleted)
+                {
+                    readMilliseconds = ClientAssetLoadDiagnostics.GetElapsedMilliseconds(readStartTimestamp);
+                }
+
+                if (decodeStartTimestamp > 0L && !decodeCompleted)
+                {
+                    decodeMilliseconds = ClientAssetLoadDiagnostics.GetElapsedMilliseconds(decodeStartTimestamp);
+                }
+
+                ClientAssetLoadDiagnostics.RecordOnce(
+                    "sound",
+                    soundName,
+                    FormattableString.Invariant($"path=\"{soundAsset.AudioPath}\" readMs={readMilliseconds:F3} decodeMs={decodeMilliseconds:F3} result=failed error={exception.GetType().Name}"),
+                    loadStartTimestamp);
+            }
+
             return null;
         }
     }

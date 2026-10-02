@@ -1,27 +1,27 @@
-using System.Diagnostics.CodeAnalysis;
+﻿using System.Diagnostics.CodeAnalysis;
 using OpenGarrison.Protocol;
 
 namespace OpenGarrison.Core;
 
 public sealed partial class SimulationWorld
 {
-    private readonly RuntimeController _runtimeController;
-    private readonly RuntimeQueryController _runtimeQueryController;
-    public const int MaxPlayableNetworkPlayers = 40;
-    public const byte LocalPlayerSlot = 1;
+    private readonly SimulationRuntime _runtime;
+    private readonly PlayerCountQueries _playerCounts;
+    public const int MaxPlayableNetworkPlayers = SimulationConstants.MaxPlayableNetworkPlayers;
+    public const byte LocalPlayerSlot = SimulationConstants.LocalPlayerSlot;
     public const byte FirstSpectatorSlot = 128;
     public static IReadOnlyList<byte> NetworkPlayerSlots { get; } = Enumerable.Range(1, MaxPlayableNetworkPlayers).Select(static value => (byte)value).ToArray();
-    private const string DefaultLocalPlayerName = "Player 1";
+    private const string DefaultLocalPlayerName = SimulationConstants.DefaultLocalPlayerName;
     private const string DefaultEnemyPlayerName = "Player 2";
     private const string DefaultFriendlyDummyName = "Player 3";
     private const int DefaultRespawnSeconds = 5;
     private const int DefaultTimeLimitMinutes = 15;
     private const int DefaultCapLimit = 5;
     private const int DefaultTeamDeathmatchKillLimit = 30;
-    private const int ArenaPointCapTimeTicksDefault = 300;
+    private const int ArenaPointCapTimeTicksDefault = ArenaObjectiveState.PointCapTimeTicksDefault;
     private const int ArenaPointUnlockTicksDefault = 1800;
     private const int PendingMapChangeTicks = 300;
-    private const string ClassChangeKillFeedSuffix = " bid farewell, cruel world!";
+    private const string ClassChangeKillFeedSuffix = SimulationConstants.ClassChangeKillFeedSuffix;
     private const int CombatTraceLifetimeTicks = 3;
     private const int KillFeedLifetimeTicks = 150;
     private const int KillFeedLocalInvolvedLifetimeTicks = 300;
@@ -33,131 +33,32 @@ public sealed partial class SimulationWorld
     public CombatSystem Combat { get; }
     public SnapshotSystem Snapshots { get; }
     public ProjectileSystem Projectiles { get; }
-    private readonly List<CombatTrace> _combatTraces = new();
-    private readonly List<SniperAimIndicator> _sniperAimIndicators = new();
-    private readonly List<KillFeedEntry> _killFeed = new();
-    private readonly List<SentryEntity> _sentries = new();
-    private readonly List<JumpPadEntity> _jumpPads = new();
-    private readonly List<CivilDefenseTurretEntity> _civilDefenseTurrets = new();
-    private readonly List<PlayerGibEntity> _playerGibs = new();
-    private readonly List<BloodDropEntity> _bloodDrops = new();
-    private readonly List<HealthPackEntity> _healthPacks = new();
-    private readonly List<int> _healthPackSpawnRespawnTicks = new();
-    private readonly CivvieMoneyTrailTracker _civvieMoneyTrailTracker = new();
-    private readonly List<DroppedWeaponEntity> _droppedWeapons = new();
-    private readonly List<DeadBodyEntity> _deadBodies = new();
-    private readonly List<SentryGibEntity> _sentryGibs = new();
-    private readonly List<JumpPadGibEntity> _jumpPadGibs = new();
-    private readonly List<GeneratorState> _generators = new();
-    private readonly List<WorldSoundEvent> _pendingSoundEvents = new();
-    private readonly List<WorldVisualEvent> _pendingVisualEvents = new();
-    private readonly List<WorldGibSpawnEvent> _pendingGibSpawnEvents = new();
-    private readonly List<WorldRocketSpawnEvent> _pendingRocketSpawnEvents;
-    private readonly List<WorldHealingEvent> _pendingHealingEvents = new();
-    private readonly Queue<DangerCloseExplosionRequest> _pendingDangerCloseExplosions = new();
-    private readonly List<PlayerEntity> _remoteSnapshotPlayers = new();
-    private readonly List<PlayerEntity> _remoteSnapshotScoreboardPlayers = new();
-    private readonly List<ScoreboardSpectatorEntry> _spectators = new();
-    private readonly Dictionary<byte, PlayerEntity> _remoteSnapshotPlayersBySlot = new();
-    private readonly Dictionary<byte, PlayerEntity> _remoteSnapshotScoreboardPlayersBySlot = new();
-    private readonly HashSet<int> _snapshotSeenEntityIds = new();
-    private readonly List<int> _snapshotStaleEntityIds = new();
-    private readonly HashSet<ulong> _processedNetworkGibSpawnEventIds = new();
-    private readonly HashSet<ulong> _processedImmediateNetworkRocketSpawnEventIds = new();
-    private readonly Dictionary<int, int> _presentedNetworkGibDeathCountsByPlayerId = new();
-    private readonly HashSet<byte> _snapshotSeenRemotePlayerSlots = new();
-    private readonly List<byte> _snapshotStaleRemotePlayerSlots = new();
-    private readonly HashSet<byte> _remoteSnapshotAwaitingJoinSlots = new();
-    private readonly HashSet<int> _remoteSnapshotAwaitingJoinPlayerIds = new();
-    private readonly Dictionary<byte, PlayerEntity> _additionalNetworkPlayersBySlot = new();
-    private readonly Dictionary<int, PlayerEntity> _activeNetworkPlayersById = new();
-    private readonly Dictionary<int, byte> _networkPlayerSlotsByPlayerId = new();
-    // Keep enabled slots ordered so hot-path player enumeration retains the
-    // same slot order without scanning all forty possible network slots.
-    private readonly SortedSet<byte> _enabledAdditionalNetworkPlayerSlots = new();
-    private readonly Dictionary<byte, CharacterClassDefinition> _additionalNetworkPlayerClassDefinitions = new();
-    private readonly Dictionary<byte, PlayerInputSnapshot> _additionalNetworkPlayerInputs = new();
-    private readonly Dictionary<byte, PlayerInputSnapshot> _additionalNetworkPlayerPreviousInputs = new();
-    private readonly Dictionary<byte, (InputButtons Buttons, bool ExplicitOnly)> _networkPlayerForcedPressedButtons = new();
-    private readonly Dictionary<byte, bool> _additionalNetworkPlayerAwaitingJoin = new();
-    private readonly Dictionary<byte, int> _additionalNetworkPlayerRespawnTicks = new();
-    private readonly HashSet<byte> _automaticRespawnSuppressedNetworkSlots = new();
-    private readonly Dictionary<byte, int> _networkPlayerPingMillisecondsBySlot = new();
-    private readonly HashSet<byte> _networkBotSlots = new();
-    private readonly Dictionary<byte, PlayerTeam> _additionalNetworkPlayerTeams = new();
-    private readonly HashSet<byte> _pendingNetworkPlayerTeamSelections = new();
-    private readonly Dictionary<byte, SpawnPoint> _networkPlayerSpawnOverrides = new();
-    private readonly HashSet<byte> _networkPlayerMapSpawnClassBehaviorBypassSlots = new();
-    private readonly Dictionary<byte, float> _networkPlayerMovementSpeedScaleOverrides = new();
-    private readonly Dictionary<byte, float> _networkPlayerLastToDieEnemyDamageScaleOverrides = new();
-    private readonly Dictionary<byte, float> _networkPlayerGravityScaleOverrides = new();
-    private readonly Dictionary<byte, int> _networkPlayerMaxHealthOverrides = new();
-    private readonly Dictionary<PlayerClass, int> _configuredClassLimits = new();
-    private readonly Dictionary<byte, LocalDeathCamState> _networkPlayerDeathCams = new();
-    private readonly HashSet<int> _lastToDieDroneSentryIds = new();
-    private readonly HashSet<int> _clientPredictedProjectileIds = new();
-    private int? _authoritativeLocalPlayerId;
-    private readonly HashSet<int> _terminatedProjectileIds = new();
-    private readonly Dictionary<int, long> _terminatedProjectileExpiryFrames = new();
-    private readonly ClientSnapshotStringCache _snapshotStringCache = new();
-    private readonly Random _random = new(1337);
-    private readonly Random _deathCamPhraseRandom = new(0x474732);
-    private int _configuredTimeLimitMinutes = DefaultTimeLimitMinutes;
-    private int _configuredCapLimit = DefaultCapLimit;
-    private int _configuredRespawnSeconds = DefaultRespawnSeconds;
-    private int _configuredRespawnTicks = DefaultRespawnSeconds * SimulationConfig.DefaultTicksPerSecond;
-    private float _configuredPlayerScale = 1f;
-    private float _configuredMapScale = 1f;
-    private float _configuredMovementSpeedScale = 1f;
-    private float _configuredProjectileSpeedScale = 1f;
-    private float _configuredDamageScale = 1f;
-    private float _configuredGravityScale = 1f;
-    private float _configuredHorizontalSpeedClampPerTick = LegacyMovementModel.MaxStepSpeedPerTick;
-    private float _configuredVerticalSpeedClampPerTick = LegacyMovementModel.MaxStepSpeedPerTick;
-    private float _configuredCaptureSpeedMultiplierPerPlayer = 2f;
-    private bool _vipAllowDuplicateClasses;
-    private bool _roundEndFriendlyFireEnabled;
-    private readonly Dictionary<int, int> _deterministicSpreadShotIndexByPlayerId = new();
-    private CharacterClassDefinition _localPlayerClassDefinition = CharacterClassCatalog.Scout;
-    private CharacterClassDefinition _enemyDummyClassDefinition = CharacterClassCatalog.Scout;
-    private readonly CharacterClassDefinition _friendlyDummyClassDefinition = CharacterClassCatalog.Heavy;
-    private PlayerTeam _enemyDummyTeam = PlayerTeam.Blue;
-    private PlayerInputSnapshot _localInput;
-    private PlayerInputSnapshot _previousLocalInput;
-    private PlayerInputSnapshot _enemyInput;
-    private PlayerInputSnapshot _previousEnemyInput;
-    private bool _enemyInputOverrideActive;
-    private int _enemyDummyRespawnTicks;
-    private int _nextEntityId = 1;
-    private int _nextRedSpawnIndex;
-    private int _nextBlueSpawnIndex;
-    private int _enemyStrafeDirection = -1;
-    private int _enemyStrafeTicksRemaining;
-    private readonly List<int> _killFeedEntryLifetimes = new();
-    private ulong _nextKillFeedEventId = 1;
-    private long _lastKillFeedRecordedFrame = -1;
-    private int _pendingMapChangeTicks = -1;
-    private bool _mapChangeReady;
-    private bool _autoRestartOnMapChange = true;
-    private bool _localPlayerAwaitingJoin;
-    private PlayerTeam? _arenaPointTeam;
-    private PlayerTeam? _arenaCappingTeam;
-    private float _arenaCappingTicks;
-    private int _arenaCappers;
-    private int _arenaUnlockTicksRemaining;
-    private int _arenaRedConsecutiveWins;
-    private int _arenaBlueConsecutiveWins;
-    private bool _processingDangerCloseExplosions;
-    private readonly List<ControlPointState> _controlPoints = new();
-    private readonly List<ControlPointZone> _controlPointZones = new();
-    private bool _controlPointSetupMode;
-    private int _controlPointSetupTicksRemaining;
-    private readonly Dictionary<PlayerTeam, byte> _vipSlotsByTeam = new();
-    private readonly Dictionary<PlayerTeam, byte> _preferredVipSlotsByTeam = new();
-    private bool _practiceVipRulesEnabled;
-    private int _vipWarmupTicksRemaining;
-    private int _vipAssignmentVersion;
-    private int _vipRoundStartVersion;
+    internal PresentationEventLog PresentationEvents { get; } = new();
+    internal WorldObjectStore WorldObjects { get; }
+    internal ObjectiveStateStore Objectives { get; } = new();
+    internal NetworkPlayerRegistry PlayerRegistry { get; } = new();
+    internal RemoteSnapshotPlayerRegistry RemoteSnapshots { get; } = new();
+    internal VipState VipState { get; } = new();
+    internal CompetitiveReadyUpState ReadyUpState { get; } = new(DefaultCompetitiveSetupSeconds);
+    internal PracticeDummyState DummyState { get; } = new();
+    internal LastToDieState LastToDieState { get; } = new();
+    internal MatchSettingsState MatchSettings { get; } = new(
+        DefaultTimeLimitMinutes,
+        DefaultCapLimit,
+        DefaultRespawnSeconds,
+        DefaultRespawnSeconds * SimulationConfig.DefaultTicksPerSecond);
+    internal ClientSnapshotState ClientSnapshots { get; } = new();
+    internal MapRuntimeState MapRuntime { get; } = new();
+    internal CombatRuntimeState CombatRuntime { get; } = new();
+    internal LocalSimulationState LocalState { get; } = new();
+    internal MatchLifecycleState Lifecycle { get; } = new();
+    internal SimulationRandomStreams Randoms { get; } = new();
+    internal NetworkPlayerSystem NetworkPlayerRules { get; }
+    internal GameplayAbilitySystem Abilities { get; }
+    internal ObjectiveRulesSystem ObjectiveRules { get; }
+    internal PickupSystem Pickups { get; }
+    internal StructureSystem Structures { get; }
+    internal LastToDieRulesSystem LastToDieRules { get; }
 
     public long Frame { get; private set; }
 
@@ -187,7 +88,7 @@ public sealed partial class SimulationWorld
 
     public int SpectatorCount { get; private set; }
 
-    public IReadOnlyList<ScoreboardSpectatorEntry> Spectators => _spectators;
+    public IReadOnlyList<ScoreboardSpectatorEntry> Spectators => ClientSnapshots.Spectators;
 
     public MatchRules MatchRules { get; private set; }
 
@@ -216,60 +117,60 @@ public sealed partial class SimulationWorld
 
     public int GetDeterministicSpreadShotIndex(int attackerId)
     {
-        var index = _deterministicSpreadShotIndexByPlayerId.TryGetValue(attackerId, out var currentIndex)
+        var index = CombatRuntime.SpreadShotIndexByPlayerId.TryGetValue(attackerId, out var currentIndex)
             ? currentIndex
             : 0;
-        _deterministicSpreadShotIndexByPlayerId[attackerId] = index + 1;
+        CombatRuntime.SpreadShotIndexByPlayerId[attackerId] = index + 1;
         return index;
     }
 
-    public int MapChangeTicksRemaining => _pendingMapChangeTicks;
+    public int MapChangeTicksRemaining => Lifecycle.PendingMapChangeTicks;
 
-    public bool IsMapChangePending => _pendingMapChangeTicks >= 0;
+    public bool IsMapChangePending => Lifecycle.PendingMapChangeTicks >= 0;
 
-    public bool IsMapChangeReady => _mapChangeReady;
+    public bool IsMapChangeReady => Lifecycle.MapChangeReady;
 
     public bool AutoRestartOnMapChange
     {
-        get => _autoRestartOnMapChange;
-        set => _autoRestartOnMapChange = value;
+        get => Lifecycle.AutoRestartOnMapChange;
+        set => Lifecycle.AutoRestartOnMapChange = value;
     }
 
-    public int ConfiguredRespawnSeconds => _configuredRespawnSeconds;
+    public int ConfiguredRespawnSeconds => MatchSettings.RespawnSeconds;
 
-    public float ConfiguredPlayerScale => _configuredPlayerScale;
+    public float ConfiguredPlayerScale => MatchSettings.PlayerScale;
 
-    public float ConfiguredMapScale => _configuredMapScale;
+    public float ConfiguredMapScale => MatchSettings.MapScale;
 
-    public float ConfiguredMovementSpeedScale => _configuredMovementSpeedScale;
+    public float ConfiguredMovementSpeedScale => MatchSettings.MovementSpeedScale;
 
-    public float ConfiguredProjectileSpeedScale => _configuredProjectileSpeedScale;
+    public float ConfiguredProjectileSpeedScale => MatchSettings.ProjectileSpeedScale;
 
-    public float ConfiguredDamageScale => _configuredDamageScale;
+    public float ConfiguredDamageScale => MatchSettings.DamageScale;
 
-    public float ConfiguredGravityScale => _configuredGravityScale;
+    public float ConfiguredGravityScale => MatchSettings.GravityScale;
 
-    public float ConfiguredHorizontalSpeedClampPerTick => _configuredHorizontalSpeedClampPerTick;
+    public float ConfiguredHorizontalSpeedClampPerTick => MatchSettings.HorizontalSpeedClampPerTick;
 
-    public float ConfiguredVerticalSpeedClampPerTick => _configuredVerticalSpeedClampPerTick;
+    public float ConfiguredVerticalSpeedClampPerTick => MatchSettings.VerticalSpeedClampPerTick;
 
-    public float ConfiguredCaptureSpeedMultiplierPerPlayer => _configuredCaptureSpeedMultiplierPerPlayer;
+    public float ConfiguredCaptureSpeedMultiplierPerPlayer => MatchSettings.CaptureSpeedMultiplierPerPlayer;
 
-    public bool VipAllowDuplicateClasses => _vipAllowDuplicateClasses;
+    public bool VipAllowDuplicateClasses => VipState.AllowDuplicateClasses;
 
-    public bool RoundEndFriendlyFireEnabled => _roundEndFriendlyFireEnabled;
+    public bool RoundEndFriendlyFireEnabled => MatchSettings.RoundEndFriendlyFireEnabled;
 
     public int LocalPlayerRespawnTicks { get; private set; }
 
-    public bool LocalPlayerAwaitingJoin => _localPlayerAwaitingJoin;
+    public bool LocalPlayerAwaitingJoin => LocalState.PlayerAwaitingJoin;
 
     public LocalDeathCamState? LocalDeathCam { get; private set; }
 
-    public IReadOnlyList<KillFeedEntry> KillFeed => _killFeed;
+    public IReadOnlyList<KillFeedEntry> KillFeed => PresentationEvents.KillFeed;
 
-    public IReadOnlyList<CombatTrace> CombatTraces => _combatTraces;
+    public IReadOnlyList<CombatTrace> CombatTraces => PresentationEvents.CombatTraces;
 
-    public IReadOnlyList<SniperAimIndicator> SniperAimIndicators => _sniperAimIndicators;
+    public IReadOnlyList<SniperAimIndicator> SniperAimIndicators => PresentationEvents.SniperAimIndicators;
 
     public IReadOnlyList<ShotProjectileEntity> Shots => Projectiles.Shots;
 
@@ -295,47 +196,47 @@ public sealed partial class SimulationWorld
 
     public IReadOnlyList<GrenadeProjectileEntity> Grenades => Projectiles.Grenades;
 
-    public IReadOnlyList<SentryEntity> Sentries => _sentries;
+    public IReadOnlyList<SentryEntity> Sentries => WorldObjects.Sentries;
 
-    public IReadOnlyList<JumpPadEntity> JumpPads => _jumpPads;
+    public IReadOnlyList<JumpPadEntity> JumpPads => WorldObjects.JumpPads;
 
-    public IReadOnlyList<CivilDefenseTurretEntity> CivilDefenseTurrets => _civilDefenseTurrets;
+    public IReadOnlyList<CivilDefenseTurretEntity> CivilDefenseTurrets => WorldObjects.CivilDefenseTurrets;
 
 
-    public IReadOnlyList<PlayerGibEntity> PlayerGibs => _playerGibs;
+    public IReadOnlyList<PlayerGibEntity> PlayerGibs => WorldObjects.PlayerGibs;
 
-    public IReadOnlyList<BloodDropEntity> BloodDrops => _bloodDrops;
+    public IReadOnlyList<BloodDropEntity> BloodDrops => WorldObjects.BloodDrops;
 
-    public IReadOnlyList<HealthPackEntity> HealthPacks => _healthPacks;
+    public IReadOnlyList<HealthPackEntity> HealthPacks => WorldObjects.HealthPacks;
 
-    public IReadOnlyList<DroppedWeaponEntity> DroppedWeapons => _droppedWeapons;
+    public IReadOnlyList<DroppedWeaponEntity> DroppedWeapons => WorldObjects.DroppedWeapons;
 
-    public IReadOnlyList<DeadBodyEntity> DeadBodies => _deadBodies;
+    public IReadOnlyList<DeadBodyEntity> DeadBodies => WorldObjects.DeadBodies;
 
-    public IReadOnlyList<SentryGibEntity> SentryGibs => _sentryGibs;
+    public IReadOnlyList<SentryGibEntity> SentryGibs => WorldObjects.SentryGibs;
 
-    public IReadOnlyList<JumpPadGibEntity> JumpPadGibs => _jumpPadGibs;
+    public IReadOnlyList<JumpPadGibEntity> JumpPadGibs => WorldObjects.JumpPadGibs;
 
-    public IReadOnlyList<WorldSoundEvent> PendingSoundEvents => _pendingSoundEvents;
+    public IReadOnlyList<WorldSoundEvent> PendingSoundEvents => PresentationEvents.SoundEvents;
 
-    public IReadOnlyList<WorldVisualEvent> PendingVisualEvents => _pendingVisualEvents;
+    public IReadOnlyList<WorldVisualEvent> PendingVisualEvents => PresentationEvents.VisualEvents;
 
     public IReadOnlyList<WorldDamageEvent> PendingDamageEvents => Combat.PendingDamageEvents;
 
-    public IReadOnlyList<WorldRocketSpawnEvent> PendingRocketSpawnEvents => _pendingRocketSpawnEvents;
+    public IReadOnlyList<WorldRocketSpawnEvent> PendingRocketSpawnEvents => Projectiles.PendingRocketSpawnEvents;
 
-    public IReadOnlyList<WorldHealingEvent> PendingHealingEvents => _pendingHealingEvents;
+    public IReadOnlyList<WorldHealingEvent> PendingHealingEvents => PresentationEvents.HealingEvents;
 
-    public IReadOnlyList<PlayerEntity> RemoteSnapshotPlayers => _remoteSnapshotPlayers;
+    public IReadOnlyList<PlayerEntity> RemoteSnapshotPlayers => RemoteSnapshots.Players;
 
-    public IReadOnlyList<PlayerEntity> RemoteSnapshotScoreboardPlayers => _remoteSnapshotScoreboardPlayers;
+    public IReadOnlyList<PlayerEntity> RemoteSnapshotScoreboardPlayers => RemoteSnapshots.ScoreboardPlayers;
 
-    public IReadOnlySet<byte> RemoteSnapshotAwaitingJoinSlots => _remoteSnapshotAwaitingJoinSlots;
+    public IReadOnlySet<byte> RemoteSnapshotAwaitingJoinSlots => RemoteSnapshots.AwaitingJoinSlots;
 
     public bool EnemyPlayerEnabled { get; private set; } = true;
 
     public bool IsRemoteSnapshotPlayerAwaitingJoin(PlayerEntity player)
-        => _remoteSnapshotAwaitingJoinPlayerIds.Contains(player.Id);
+        => RemoteSnapshots.AwaitingJoinPlayerIds.Contains(player.Id);
 
     public bool FriendlyDummyEnabled { get; private set; }
 
@@ -348,30 +249,30 @@ public sealed partial class SimulationWorld
         }
         else
         {
-            deathCam = _networkPlayerDeathCams.GetValueOrDefault(slot);
+            deathCam = PlayerRegistry.DeathCams.GetValueOrDefault(slot);
         }
 
         return deathCam is null ? null : ResolveTrackedDeathCamFocus(deathCam);
     }
 
-    public PlayerTeam? ArenaPointTeam => _arenaPointTeam;
+    public PlayerTeam? ArenaPointTeam => Objectives.Arena.PointTeam;
 
-    public PlayerTeam? ArenaCappingTeam => _arenaCappingTeam;
+    public PlayerTeam? ArenaCappingTeam => Objectives.Arena.CappingTeam;
 
-    public float ArenaCappingTicks => _arenaCappingTicks;
+    public float ArenaCappingTicks => Objectives.Arena.CappingTicks;
 
     [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Kept as an instance property to preserve the public simulation API.")]
     public int ArenaPointCapTimeTicks => ArenaPointCapTimeTicksDefault;
 
-    public int ArenaCappers => _arenaCappers;
+    public int ArenaCappers => Objectives.Arena.Cappers;
 
-    public int ArenaUnlockTicksRemaining => _arenaUnlockTicksRemaining;
+    public int ArenaUnlockTicksRemaining => Objectives.Arena.UnlockTicksRemaining;
 
-    public bool ArenaPointLocked => MatchRules.Mode == GameModeKind.Arena && _arenaUnlockTicksRemaining > 0;
+    public bool ArenaPointLocked => MatchRules.Mode == GameModeKind.Arena && Objectives.Arena.UnlockTicksRemaining > 0;
 
-    public int ArenaRedConsecutiveWins => _arenaRedConsecutiveWins;
+    public int ArenaRedConsecutiveWins => Objectives.Arena.RedConsecutiveWins;
 
-    public int ArenaBlueConsecutiveWins => _arenaBlueConsecutiveWins;
+    public int ArenaBlueConsecutiveWins => Objectives.Arena.BlueConsecutiveWins;
 
     public int ArenaRedAliveCount => CountAlivePlayers(PlayerTeam.Red);
 
@@ -401,42 +302,48 @@ public sealed partial class SimulationWorld
         return !MatchState.WinnerTeam.HasValue || player.Team != MatchState.WinnerTeam.Value;
     }
 
-    public IReadOnlyList<ControlPointState> ControlPoints => _controlPoints;
+    public IReadOnlyList<ControlPointState> ControlPoints => Objectives.ControlPoints.Points;
 
-    public bool ControlPointSetupActive => _controlPointSetupMode && _controlPointSetupTicksRemaining > 0;
+    public bool ControlPointSetupActive => Objectives.ControlPoints.SetupMode && Objectives.ControlPoints.SetupTicksRemaining > 0;
 
-    public int ControlPointSetupTicksRemaining => _controlPointSetupTicksRemaining;
+    public int ControlPointSetupTicksRemaining => Objectives.ControlPoints.SetupTicksRemaining;
 
     public SimulationWorld(SimulationConfig? config = null)
     {
-        _runtimeController = new RuntimeController(this);
-        _runtimeQueryController = new RuntimeQueryController(this);
+        WorldObjects = new WorldObjectStore(EntityStore);
+        Structures = new StructureSystem(this);
+        Pickups = new PickupSystem(this);
+        ObjectiveRules = new ObjectiveRulesSystem(this);
+        Abilities = new GameplayAbilitySystem(this);
+        NetworkPlayerRules = new NetworkPlayerSystem(this);
+        LastToDieRules = new LastToDieRulesSystem(this);
+        _runtime = new SimulationRuntime(this, new EntityTickPhase(this), new MatchTickPhase(this, new MatchObjectiveSystem(this)));
+        _playerCounts = new PlayerCountQueries(this);
         Config = config ?? new SimulationConfig();
         Combat = new CombatSystem(EntityStore, this);
         Snapshots = new SnapshotSystem(EntityStore, Combat, this);
         Projectiles = new ProjectileSystem(EntityStore, Combat, this);
-        _pendingRocketSpawnEvents = Projectiles.PendingRocketSpawnEventsInternal;
-        Level = SimpleLevelFactory.CreateScoutPrototypeLevel(_configuredMapScale);
+        Level = SimpleLevelFactory.CreateScoutPrototypeLevel(MatchSettings.MapScale);
         Movement = new MovementSystem(this);
         RedIntel = CreateIntelState(PlayerTeam.Red);
         BlueIntel = CreateIntelState(PlayerTeam.Blue);
         MatchRules = CreateDefaultMatchRules(Level.Mode);
         MatchState = CreateInitialMatchState(MatchRules);
-        LocalPlayer = new PlayerEntity(AllocateEntityId(), _localPlayerClassDefinition, DefaultLocalPlayerName);
-        LocalPlayer.SetPlayerScale(_configuredPlayerScale);
+        LocalPlayer = new PlayerEntity(AllocateEntityId(), LocalState.PlayerClassDefinition, DefaultLocalPlayerName);
+        LocalPlayer.SetPlayerScale(MatchSettings.PlayerScale);
         ApplyServerGameplayTuning(LocalPlayerSlot, LocalPlayer);
         var initialSpawn = ReserveSpawn(LocalPlayer, LocalPlayerTeam);
         SpawnPlayerResolved(LocalPlayer, LocalPlayerTeam, initialSpawn);
         EntityStore.Add(LocalPlayer);
-        _activeNetworkPlayersById[LocalPlayer.Id] = LocalPlayer;
-        _networkPlayerSlotsByPlayerId[LocalPlayer.Id] = LocalPlayerSlot;
-        EnemyPlayer = new PlayerEntity(AllocateEntityId(), _enemyDummyClassDefinition, DefaultEnemyPlayerName);
-        EnemyPlayer.SetPlayerScale(_configuredPlayerScale);
+        PlayerRegistry.ActivePlayersById[LocalPlayer.Id] = LocalPlayer;
+        PlayerRegistry.SlotsByPlayerId[LocalPlayer.Id] = LocalPlayerSlot;
+        EnemyPlayer = new PlayerEntity(AllocateEntityId(), DummyState.EnemyClassDefinition, DefaultEnemyPlayerName);
+        EnemyPlayer.SetPlayerScale(MatchSettings.PlayerScale);
         ApplyServerGameplayTuning(slot: 0, EnemyPlayer);
         if (Config.EnableLocalDummies && Config.EnableEnemyTrainingDummy)
         {
-            var enemySpawn = ReserveSpawn(EnemyPlayer, _enemyDummyTeam);
-            SpawnPlayerResolved(EnemyPlayer, _enemyDummyTeam, enemySpawn);
+            var enemySpawn = ReserveSpawn(EnemyPlayer, DummyState.EnemyTeam);
+            SpawnPlayerResolved(EnemyPlayer, DummyState.EnemyTeam, enemySpawn);
             EnemyPlayerEnabled = true;
         }
         else
@@ -445,8 +352,8 @@ public sealed partial class SimulationWorld
             EnemyPlayer.Kill();
         }
         EntityStore.Add(EnemyPlayer);
-        FriendlyDummy = new PlayerEntity(AllocateEntityId(), _friendlyDummyClassDefinition, DefaultFriendlyDummyName);
-        FriendlyDummy.SetPlayerScale(_configuredPlayerScale);
+        FriendlyDummy = new PlayerEntity(AllocateEntityId(), LocalState.FriendlyDummyClassDefinition, DefaultFriendlyDummyName);
+        FriendlyDummy.SetPlayerScale(MatchSettings.PlayerScale);
         ApplyServerGameplayTuning(slot: 0, FriendlyDummy);
         FriendlyDummy.Kill();
         EntityStore.Add(FriendlyDummy);
@@ -459,7 +366,7 @@ public sealed partial class SimulationWorld
         ExperimentalGameplaySettings = settings ?? new ExperimentalGameplaySettings();
         if (!ExperimentalGameplaySettings.EnableRage)
         {
-            _experimentalRageEnemyHumiliationTicksRemaining = 0;
+            CombatRuntime.RageEnemyHumiliationTicksRemaining = 0;
             LocalPlayer.ClearRageState();
         }
 
@@ -528,7 +435,7 @@ public sealed partial class SimulationWorld
 
     public string GetEngineerSummary()
     {
-        return $"class={LocalPlayer.ClassName} metal={LocalPlayer.Metal:F1}/{LocalPlayer.MaxMetal:F1} sentries={_sentries.Count} gibs={_sentryGibs.Count}";
+        return $"class={LocalPlayer.ClassName} metal={LocalPlayer.Metal:F1}/{LocalPlayer.MaxMetal:F1} sentries={WorldObjects.Sentries.Count} gibs={WorldObjects.SentryGibs.Count}";
     }
 
     public bool TrySetLocalClass(PlayerClass playerClass)
@@ -554,80 +461,35 @@ public sealed partial class SimulationWorld
 
 
     public IReadOnlyList<WorldSoundEvent> DrainPendingSoundEvents()
-    {
-        if (_pendingSoundEvents.Count == 0)
-        {
-            return [];
-        }
-
-        var sounds = _pendingSoundEvents.ToArray();
-        _pendingSoundEvents.Clear();
-        return sounds;
-    }
+        => PresentationEvents.DrainSoundEvents();
 
     public IReadOnlyList<WorldVisualEvent> DrainPendingVisualEvents()
-    {
-        if (_pendingVisualEvents.Count == 0)
-        {
-            return [];
-        }
-
-        var visuals = _pendingVisualEvents.ToArray();
-        _pendingVisualEvents.Clear();
-        return visuals;
-    }
+        => PresentationEvents.DrainVisualEvents();
 
     public IReadOnlyList<WorldDamageEvent> DrainPendingDamageEvents()
         => Combat.DrainPendingDamageEvents();
 
     public IReadOnlyList<WorldGibSpawnEvent> DrainPendingGibSpawnEvents()
-    {
-        if (_pendingGibSpawnEvents.Count == 0)
-        {
-            return [];
-        }
-
-        var gibSpawnEvents = _pendingGibSpawnEvents.ToArray();
-        _pendingGibSpawnEvents.Clear();
-        return gibSpawnEvents;
-    }
+        => PresentationEvents.DrainGibSpawnEvents();
 
     public IReadOnlyList<WorldRocketSpawnEvent> DrainPendingRocketSpawnEvents()
-    {
-        if (_pendingRocketSpawnEvents.Count == 0)
-        {
-            return [];
-        }
-
-        var rocketSpawnEvents = _pendingRocketSpawnEvents.ToArray();
-        _pendingRocketSpawnEvents.Clear();
-        return rocketSpawnEvents;
-    }
+        => Projectiles.DrainPendingRocketSpawnEvents();
 
     public IReadOnlyList<WorldHealingEvent> DrainPendingHealingEvents()
-    {
-        if (_pendingHealingEvents.Count == 0)
-        {
-            return [];
-        }
-
-        var healingEvents = _pendingHealingEvents.ToArray();
-        _pendingHealingEvents.Clear();
-        return healingEvents;
-    }
+        => PresentationEvents.DrainHealingEvents();
 
     private int AllocateEntityId()
     {
-        return _nextEntityId++;
+        return EntityStore.AllocateId();
     }
 
     private MatchRules CreateDefaultMatchRules(GameModeKind mode)
     {
-        var timeLimitTicks = _configuredTimeLimitMinutes * Config.TicksPerSecond * 60;
-        var capLimit = mode == GameModeKind.TeamDeathmatch && _configuredCapLimit == DefaultCapLimit
+        var timeLimitTicks = MatchSettings.TimeLimitMinutes * Config.TicksPerSecond * 60;
+        var capLimit = mode == GameModeKind.TeamDeathmatch && MatchSettings.CapLimit == DefaultCapLimit
             ? DefaultTeamDeathmatchKillLimit
-            : _configuredCapLimit;
-        return new MatchRules(mode, _configuredTimeLimitMinutes, timeLimitTicks, capLimit);
+            : MatchSettings.CapLimit;
+        return new MatchRules(mode, MatchSettings.TimeLimitMinutes, timeLimitTicks, capLimit);
     }
 
     private static MatchState CreateInitialMatchState(MatchRules rules)

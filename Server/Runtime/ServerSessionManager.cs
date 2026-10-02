@@ -370,18 +370,19 @@ sealed class ServerSessionManager
             return;
         }
 
-        var previousSequence = command.Kind switch
+        if (client.TryGetLastAcceptedControlCommandSequence(command.Kind, out var previousSequence))
         {
-            ControlCommandKind.SelectTeam => client.LastTeamCommandSequence,
-            ControlCommandKind.SelectClass => client.LastClassCommandSequence,
-            ControlCommandKind.Spectate => client.LastSpectateCommandSequence,
-            ControlCommandKind.SelectGameplayLoadout => client.LastGameplayLoadoutCommandSequence,
-            _ => 0u,
-        };
-        if (previousSequence == command.Sequence)
-        {
-            _sendMessage(client.Peer, new ControlAckMessage(command.Sequence, command.Kind, true));
-            return;
+            if (previousSequence == command.Sequence)
+            {
+                _sendMessage(client.Peer, new ControlAckMessage(command.Sequence, command.Kind, true));
+                return;
+            }
+
+            if (!IsSequenceNewer(command.Sequence, previousSequence))
+            {
+                _sendMessage(client.Peer, new ControlAckMessage(command.Sequence, command.Kind, false));
+                return;
+            }
         }
 
         if (client.IsWatchOnly
@@ -404,26 +405,14 @@ sealed class ServerSessionManager
 
         if (accepted)
         {
-            if (command.Kind == ControlCommandKind.SelectTeam)
-            {
-                client.LastTeamCommandSequence = command.Sequence;
-            }
-            else if (command.Kind == ControlCommandKind.SelectClass)
-            {
-                client.LastClassCommandSequence = command.Sequence;
-            }
-            else if (command.Kind == ControlCommandKind.Spectate)
-            {
-                client.LastSpectateCommandSequence = command.Sequence;
-            }
-            else if (command.Kind == ControlCommandKind.SelectGameplayLoadout)
-            {
-                client.LastGameplayLoadoutCommandSequence = command.Sequence;
-            }
+            client.RememberAcceptedControlCommand(command.Kind, command.Sequence);
         }
 
         _sendMessage(client.Peer, new ControlAckMessage(command.Sequence, command.Kind, accepted));
     }
+
+    private static bool IsSequenceNewer(uint candidate, uint previous)
+        => unchecked((int)(candidate - previous)) > 0;
 
     public void HandlePasswordSubmit(ClientSession client, PasswordSubmitMessage passwordSubmit)
     {

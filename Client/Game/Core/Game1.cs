@@ -223,6 +223,8 @@ public partial class Game1 : Game
     private long _lastDrawTimestamp;
     private BubbleWheelBehavior _bubbleWheelBehavior = OpenGarrisonPreferencesDocument.DefaultBubbleWheelBehavior;
     private DateTime _bubbleWheelPluginConfigLastWriteUtc;
+    private string? _bubbleWheelPluginConfigPath;
+    private string? _bubbleWheelPluginConfigPathUserDataRootOverride;
     private readonly Dictionary<int, Texture2D> _damageVignetteTexturesByBucket = new();
     private int _damageVignetteTextureWidth;
     private int _damageVignetteTextureHeight;
@@ -453,37 +455,60 @@ public partial class Game1 : Game
 
     private void ApplyFrameRateLimit()
     {
-        if (OperatingSystem.IsBrowser() || _menuManager.DisplaySettings.FrameRateLimit <= 0)
+        if (OperatingSystem.IsBrowser()
+            || _menuManager.DisplaySettings.FrameRateLimit <= 0
+            || ShouldLetVSyncPaceFrames(_menuManager.DisplaySettings.FrameRateLimit))
         {
             _lastDrawTimestamp = Stopwatch.GetTimestamp();
             return;
         }
 
         var currentTimestamp = Stopwatch.GetTimestamp();
+        var periodTicks = Math.Max(1L, (long)Math.Round(Stopwatch.Frequency / (double)_menuManager.DisplaySettings.FrameRateLimit));
         if (_lastDrawTimestamp == 0)
         {
             _lastDrawTimestamp = currentTimestamp;
             return;
         }
 
-        var elapsedSeconds = (currentTimestamp - _lastDrawTimestamp) / (double)Stopwatch.Frequency;
-        var targetSeconds = 1d / _menuManager.DisplaySettings.FrameRateLimit;
-        if (elapsedSeconds < targetSeconds)
+        // _lastDrawTimestamp is the previous frame's scheduled start. Pace to
+        // fixed deadlines rather than "one period after the last wake-up":
+        // the latter adds every oversleep to the next period, so the average
+        // rate settles below the limit and beats against the display refresh
+        // as a periodic repeated frame.
+        var deadline = _lastDrawTimestamp + periodTicks;
+        var remainingTicks = deadline - currentTimestamp;
+        if (remainingTicks > 0)
         {
-            var sleepMilliseconds = (int)Math.Floor((targetSeconds - elapsedSeconds) * 1000d);
+            // Sleep coarsely, leaving ~1.5 ms to spin so timer granularity
+            // cannot carry the wake-up past the deadline.
+            var sleepMilliseconds = (int)Math.Floor((remainingTicks * 1000d / Stopwatch.Frequency) - 1.5d);
             if (sleepMilliseconds > 0)
             {
                 Thread.Sleep(sleepMilliseconds);
             }
 
-            while ((Stopwatch.GetTimestamp() - _lastDrawTimestamp) / (double)Stopwatch.Frequency < targetSeconds)
+            while (Stopwatch.GetTimestamp() < deadline)
             {
                 Thread.Sleep(0);
             }
+
+            _lastDrawTimestamp = deadline;
+            return;
         }
 
-        _lastDrawTimestamp = Stopwatch.GetTimestamp();
+        // Late frame: keep the schedule unless we have fallen a whole period
+        // behind, in which case restart it from now instead of rushing frames.
+        _lastDrawTimestamp = -remainingTicks >= periodTicks ? currentTimestamp : deadline;
     }
+
+    /// <summary>
+    /// With vsync on, a software cap at or above display rates only adds risk:
+    /// a sleep deadline landing just after a vblank pushes that frame to the
+    /// next one (a 33 ms hitch at 60 Hz). Let presentation pace those frames.
+    /// </summary>
+    private bool ShouldLetVSyncPaceFrames(int frameRateLimit)
+        => frameRateLimit >= 60 && _graphics.SynchronizeWithVerticalRetrace;
 
     public void LogBrowserMenuState(int buttonCount)
     {

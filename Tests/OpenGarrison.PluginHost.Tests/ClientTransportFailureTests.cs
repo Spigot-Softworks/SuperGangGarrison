@@ -116,6 +116,23 @@ public sealed class ClientTransportFailureTests
         Assert.True(transport.Disposed);
     }
 
+    [Fact]
+    public void MessageSizeIsTransientOnlyForTheFragmentAwareUdpTransport()
+    {
+        using var client = new NetworkGameClient();
+        Assert.True(UdpNetworkClientMessageTransport.TryConnect("127.0.0.1", 8190, out var udpTransport, out var error), error);
+        using (var configuredUdpTransport = Assert.IsType<UdpNetworkClientMessageTransport>(udpTransport))
+        {
+            var classifier = typeof(NetworkGameClient).GetMethod(
+                "IsTransientTransportError",
+                BindingFlags.Instance | BindingFlags.NonPublic)!;
+            var messageSize = new SocketException((int)SocketError.MessageSize);
+
+            Assert.True((bool)classifier.Invoke(client, [configuredUdpTransport, messageSize])!);
+            Assert.False((bool)classifier.Invoke(client, [new FaultingTransport(false), messageSize])!);
+        }
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

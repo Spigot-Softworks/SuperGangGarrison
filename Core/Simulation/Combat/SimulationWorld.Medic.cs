@@ -11,12 +11,12 @@ public sealed partial class SimulationWorld
     private const float AcquiredMedigunHealsplosionMaxDamage = 110f;
     private const float AcquiredMedigunHealsplosionSelfHealing = 120f;
     private const float AcquiredMedigunHealsplosionMinimumDamageFactor = 0.12f;
-    private const float MedicUberChargeGainPerTickHealthyTarget = 1.75f;
+    private const float MedicUberChargeGainPerTickHealthyTarget = MedicBeamDefaults.UberChargeGainPerTickHealthyTarget;
     private const float MedicUberChargeGainPerTickDamagedTarget = 2.5f;
-    private const float MedicHealBeamRange = 300f;
-    private const float MedicKritzBeamDefaultRange = MedicHealBeamRange * 0.5f;
-    private const float MedicKritzBeamDefaultDamagePerSecond = 1f;
-    private const float MedicKritzBeamDefaultChargePerTick = MedicUberChargeGainPerTickHealthyTarget;
+    private const float MedicHealBeamRange = MedicBeamDefaults.HealBeamRange;
+    private const float MedicKritzBeamDefaultRange = MedicBeamDefaults.KritzBeamDefaultRange;
+    private const float MedicKritzBeamDefaultDamagePerSecond = MedicBeamDefaults.KritzBeamDefaultDamagePerSecond;
+    private const float MedicKritzBeamDefaultChargePerTick = MedicBeamDefaults.KritzBeamDefaultChargePerTick;
 
     public string GetMedicSummary()
     {

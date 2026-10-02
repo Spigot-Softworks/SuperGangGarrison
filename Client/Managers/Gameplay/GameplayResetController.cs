@@ -29,6 +29,8 @@ public sealed class GameplayResetController
             _context.NetworkPresentation.LastSnapshotReceivedTimeSeconds = -1d;
             _context.NetworkPresentation.LatestSnapshotServerTimeSeconds = -1d;
             _context.NetworkPresentation.LatestSnapshotReceivedClockSeconds = -1d;
+            _context.NetworkPresentation.HasFilteredServerClockOffset = false;
+            _context.NetworkPresentation.FilteredServerClockOffsetSampleServerTimeSeconds = -1d;
             _context.NetworkPresentation.NetworkSnapshotInterpolationDurationSeconds = 1f / _context._config.TicksPerSecond;
             _context.NetworkPresentation.SmoothedSnapshotIntervalSeconds = 1f / _context._config.TicksPerSecond;
             _context.NetworkPresentation.SmoothedSnapshotJitterSeconds = 0f;
@@ -56,6 +58,7 @@ public sealed class GameplayResetController
             _context.ResetHealingCharacterEffects();
             _context.ResetBackstabVisuals();
             _context.LocalPrediction.HasPredictedLocalPlayerPosition = false;
+            _context.LocalPrediction.HasPredictedLocalPlayerTickStartPosition = false;
             _context.LocalPrediction.HasSmoothedLocalPlayerRenderPosition = false;
             _context.LocalPrediction.HasPredictedLocalActionState = false;
             _context.LocalPrediction.ServerLocalPredictionEnabled = false;

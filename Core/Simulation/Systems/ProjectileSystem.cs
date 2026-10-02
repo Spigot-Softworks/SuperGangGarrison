@@ -194,7 +194,20 @@ public sealed partial class ProjectileSystem
     public IReadOnlyList<GrenadeProjectileEntity> Grenades => _grenades;
     public IReadOnlyList<WorldRocketSpawnEvent> PendingRocketSpawnEvents => _pendingRocketSpawnEvents;
 
-    internal List<WorldRocketSpawnEvent> PendingRocketSpawnEventsInternal => _pendingRocketSpawnEvents;
+    /// <summary>Returns the queued rocket spawn events and empties the queue.</summary>
+    public IReadOnlyList<WorldRocketSpawnEvent> DrainPendingRocketSpawnEvents()
+    {
+        if (_pendingRocketSpawnEvents.Count == 0)
+        {
+            return [];
+        }
+
+        var rocketSpawnEvents = _pendingRocketSpawnEvents.ToArray();
+        _pendingRocketSpawnEvents.Clear();
+        return rocketSpawnEvents;
+    }
+
+    public void ClearPendingRocketSpawnEvents() => _pendingRocketSpawnEvents.Clear();
 
     public void ClearPendingNewRocketIds() => _pendingNewRocketIds.Clear();
 

@@ -6,12 +6,12 @@ public sealed partial class SimulationWorld
     {
         if (timeLimitMinutes.HasValue)
         {
-            _configuredTimeLimitMinutes = Math.Clamp(timeLimitMinutes.Value, 1, 255);
+            MatchSettings.TimeLimitMinutes = Math.Clamp(timeLimitMinutes.Value, 1, 255);
         }
 
         if (capLimit.HasValue)
         {
-            _configuredCapLimit = Math.Clamp(capLimit.Value, 1, 255);
+            MatchSettings.CapLimit = Math.Clamp(capLimit.Value, 1, 255);
         }
 
         if (respawnSeconds.HasValue)
@@ -25,9 +25,9 @@ public sealed partial class SimulationWorld
 
     public void SetTimeLimitMinutes(int timeLimitMinutes)
     {
-        _configuredTimeLimitMinutes = Math.Clamp(timeLimitMinutes, 1, 255);
+        MatchSettings.TimeLimitMinutes = Math.Clamp(timeLimitMinutes, 1, 255);
         var previousTimeLimitTicks = MatchRules.TimeLimitTicks;
-        var nextTimeLimitTicks = _configuredTimeLimitMinutes * Config.TicksPerSecond * 60;
+        var nextTimeLimitTicks = MatchSettings.TimeLimitMinutes * Config.TicksPerSecond * 60;
         var elapsedTicks = Math.Max(0, previousTimeLimitTicks - MatchState.TimeRemainingTicks);
         var nextRemainingTicks = Math.Max(0, nextTimeLimitTicks - elapsedTicks);
         var nextPhase = !MatchState.IsEnded && nextRemainingTicks > 0
@@ -36,7 +36,7 @@ public sealed partial class SimulationWorld
 
         MatchRules = MatchRules with
         {
-            TimeLimitMinutes = _configuredTimeLimitMinutes,
+            TimeLimitMinutes = MatchSettings.TimeLimitMinutes,
             TimeLimitTicks = nextTimeLimitTicks,
         };
         MatchState = MatchState with
@@ -49,34 +49,34 @@ public sealed partial class SimulationWorld
 
     public void SetCapLimit(int capLimit)
     {
-        _configuredCapLimit = Math.Clamp(capLimit, 1, 255);
+        MatchSettings.CapLimit = Math.Clamp(capLimit, 1, 255);
         MatchRules = MatchRules with
         {
-            CapLimit = _configuredCapLimit,
+            CapLimit = MatchSettings.CapLimit,
         };
     }
 
     public void SetRespawnSeconds(int respawnSeconds)
     {
-        _configuredRespawnSeconds = Math.Clamp(respawnSeconds, 0, 255);
-        _configuredRespawnTicks = Math.Max(1, _configuredRespawnSeconds * Config.TicksPerSecond);
+        MatchSettings.RespawnSeconds = Math.Clamp(respawnSeconds, 0, 255);
+        MatchSettings.RespawnTicks = Math.Max(1, MatchSettings.RespawnSeconds * Config.TicksPerSecond);
     }
 
     public bool TryLoadLevel(string levelName)
     {
-        return TryLoadLevel(levelName, mapAreaIndex: 1, preservePlayerStats: false, mapScale: _configuredMapScale);
+        return TryLoadLevel(levelName, mapAreaIndex: 1, preservePlayerStats: false, mapScale: MatchSettings.MapScale);
     }
 
     public bool TryLoadLevel(string levelName, int mapAreaIndex, bool preservePlayerStats, float? mapScale = null)
     {
-        var nextLevel = SimpleLevelFactory.CreateImportedLevel(levelName, mapAreaIndex, mapScale ?? _configuredMapScale);
+        var nextLevel = SimpleLevelFactory.CreateImportedLevel(levelName, mapAreaIndex, mapScale ?? MatchSettings.MapScale);
         if (nextLevel is null)
         {
             return false;
         }
 
         Level = nextLevel;
-        _configuredMapScale = Level.MapScale;
+        MatchSettings.MapScale = Level.MapScale;
         var mapContentHash = CustomMapDescriptorResolver.TryResolve(Level.Name, out var descriptor)
             ? descriptor.ContentHash
             : string.Empty;
@@ -91,7 +91,7 @@ public sealed partial class SimulationWorld
 
     public bool ApplyPendingMapChange(string levelName, int mapAreaIndex, bool preservePlayerStats)
     {
-        if (!_mapChangeReady)
+        if (!Lifecycle.MapChangeReady)
         {
             return false;
         }
@@ -102,7 +102,7 @@ public sealed partial class SimulationWorld
             return false;
         }
 
-        _mapChangeReady = false;
+        Lifecycle.MapChangeReady = false;
         return true;
     }
 
@@ -121,14 +121,14 @@ public sealed partial class SimulationWorld
 
     private bool AdvancePendingMapChange()
     {
-        if (_pendingMapChangeTicks < 0)
+        if (Lifecycle.PendingMapChangeTicks < 0)
         {
             return false;
         }
 
-        if (_pendingMapChangeTicks == 0)
+        if (Lifecycle.PendingMapChangeTicks == 0)
         {
-            if (_autoRestartOnMapChange)
+            if (Lifecycle.AutoRestartOnMapChange)
             {
                 if (MatchState.WinnerTeam == PlayerTeam.Red
                     && Level.MapAreaIndex < Level.MapAreaCount
@@ -144,29 +144,29 @@ public sealed partial class SimulationWorld
                 return false;
             }
 
-            _mapChangeReady = true;
+            Lifecycle.MapChangeReady = true;
             return false;
         }
 
-        _pendingMapChangeTicks -= 1;
+        Lifecycle.PendingMapChangeTicks -= 1;
         return false;
     }
 
     private void QueuePendingMapChange()
     {
-        if (_pendingMapChangeTicks >= 0)
+        if (Lifecycle.PendingMapChangeTicks >= 0)
         {
             return;
         }
 
-        _pendingMapChangeTicks = PendingMapChangeTicks;
-        _mapChangeReady = false;
+        Lifecycle.PendingMapChangeTicks = PendingMapChangeTicks;
+        Lifecycle.MapChangeReady = false;
     }
 
     private void RestartCurrentRound(bool preservePlayerStats, bool enterCompetitiveSkirmish = true)
     {
-        _pendingMapChangeTicks = -1;
-        _mapChangeReady = false;
+        Lifecycle.PendingMapChangeTicks = -1;
+        Lifecycle.MapChangeReady = false;
         if (MatchRules.Mode == GameModeKind.CaptureTheFlag)
         {
             RedCaps = 0;
@@ -179,7 +179,7 @@ public sealed partial class SimulationWorld
             LocalPlayer.ResetRoundStats();
             EnemyPlayer.ResetRoundStats();
             FriendlyDummy.ResetRoundStats();
-            foreach (var player in _additionalNetworkPlayersBySlot.Values)
+            foreach (var player in PlayerRegistry.PlayersBySlot.Values)
             {
                 player.ResetRoundStats();
             }
@@ -190,35 +190,30 @@ public sealed partial class SimulationWorld
         BlueIntel = CreateIntelState(PlayerTeam.Blue);
         ResetModeStateForNewRound();
         FinalizeScrRoundStart();
-        if (_logicActivatorStartApplied.Length > 0)
+        if (MapRuntime.LogicActivatorStartApplied.Length > 0)
         {
-            Array.Clear(_logicActivatorStartApplied, 0, _logicActivatorStartApplied.Length);
+            Array.Clear(MapRuntime.LogicActivatorStartApplied, 0, MapRuntime.LogicActivatorStartApplied.Length);
         }
 
-        _mapLogicControlPointInputSignature = 0;
+        MapRuntime.LogicControlPointInputSignature = 0;
 
         TrySetNetworkPlayerRespawnTicks(LocalPlayerSlot, 0);
-        _enemyDummyRespawnTicks = 0;
+        DummyState.EnemyRespawnTicks = 0;
         LocalDeathCam = null;
-        _killFeedEntryLifetimes.Clear();
-        _combatTraces.Clear();
-        _killFeed.Clear();
-        _pendingSoundEvents.Clear();
-        _pendingVisualEvents.Clear();
+        PresentationEvents.ClearForRoundRestart();
         Combat.ClearPendingDamageEvents();
-        _pendingRocketSpawnEvents.Clear();
-        _pendingHealingEvents.Clear();
-        _civvieMoneyTrailTracker.Clear();
-        _nextRedSpawnIndex = 0;
-        _nextBlueSpawnIndex = 0;
+        Projectiles.ClearPendingRocketSpawnEvents();
+        CombatRuntime.CivvieMoneyTrailTracker.Clear();
+        Lifecycle.NextRedSpawnIndex = 0;
+        Lifecycle.NextBlueSpawnIndex = 0;
         ClearDynamicEntities();
         ResetMovingPlatformsForLevel();
         ResetHealthPackSpawnsForLevel();
         ResetJumpPadSpawnsForLevel();
         RespawnPlayersForNewRound();
-        if (_competitiveReadyUpEnabled
+        if (ReadyUpState.Enabled
             && enterCompetitiveSkirmish
-            && !_suppressCompetitiveSkirmishOnNextRoundRestart)
+            && !ReadyUpState.SuppressSkirmishOnNextRoundRestart)
         {
             BeginCompetitiveSkirmish(clearReadyPlayers: true);
         }
@@ -233,25 +228,19 @@ public sealed partial class SimulationWorld
             && !IsKothMode(MatchRules.Mode)
             && !Level.ShouldSimulateControlPoints)
         {
-            _controlPoints.Clear();
-            _controlPointZones.Clear();
-            _controlPointSetupMode = false;
-            _controlPointSetupTicksRemaining = 0;
+            Objectives.ControlPoints.Clear();
         }
         if (!IsKothMode(MatchRules.Mode))
         {
-            _kothRedTimerTicksRemaining = 0;
-            _kothBlueTimerTicksRemaining = 0;
-            _kothUnlockTicksRemaining = 0;
+            Objectives.Koth.Clear();
         }
         if (MatchRules.Mode != GameModeKind.Generator)
         {
-            _generators.Clear();
+            WorldObjects.Generators.Clear();
         }
         UpdateControlPointSetupGates();
 
-        _arenaRedConsecutiveWins = 0;
-        _arenaBlueConsecutiveWins = 0;
+        Objectives.Arena.ResetWinStreaks();
 
         ResetModeStateForNewRound();
     }
@@ -259,11 +248,7 @@ public sealed partial class SimulationWorld
     private void ResetModeStateForNewRound()
     {
         ResetTeleportTracking();
-        _arenaPointTeam = null;
-        _arenaCappingTeam = null;
-        _arenaCappingTicks = 0f;
-        _arenaCappers = 0;
-        _arenaUnlockTicksRemaining = MatchRules.Mode == GameModeKind.Arena ? ArenaPointUnlockTicksDefault : 0;
+        Objectives.Arena.ResetForNewRound(MatchRules.Mode == GameModeKind.Arena ? ArenaPointUnlockTicksDefault : 0);
 
         if (IsControlPointMode(MatchRules.Mode)
             || IsKothMode(MatchRules.Mode)
@@ -283,9 +268,7 @@ public sealed partial class SimulationWorld
 
         if (!IsKothMode(MatchRules.Mode))
         {
-            _kothRedTimerTicksRemaining = 0;
-            _kothBlueTimerTicksRemaining = 0;
-            _kothUnlockTicksRemaining = 0;
+            Objectives.Koth.Clear();
         }
 
         if (MatchRules.Mode == GameModeKind.Generator)
@@ -294,7 +277,7 @@ public sealed partial class SimulationWorld
         }
         else
         {
-            _generators.Clear();
+            WorldObjects.Generators.Clear();
         }
     }
 
@@ -310,31 +293,14 @@ public sealed partial class SimulationWorld
         Projectiles.RemoveAllProjectiles(Flames);
         Projectiles.RemoveAllProjectiles(Rockets);
         Projectiles.RemoveAllProjectiles(Mines);
-        RemoveEntities(_sentries);
-        RemoveEntities(_jumpPads);
-        RemoveEntities(_civilDefenseTurrets);
-        RemoveEntities(_playerGibs);
-        RemoveEntities(_bloodDrops);
-        RemoveEntities(_healthPacks);
-        RemoveEntities(_deadBodies);
-        RemoveEntities(_sentryGibs);
+        WorldObjects.RemoveRoundScopedObjects();
         Projectiles.ClearPendingNewRocketIds();
-        _clientPredictedProjectileIds.Clear();
-        _terminatedProjectileIds.Clear();
-        _terminatedProjectileExpiryFrames.Clear();
-        _processedImmediateNetworkRocketSpawnEventIds.Clear();
-        _processedNetworkGibSpawnEventIds.Clear();
-        _presentedNetworkGibDeathCountsByPlayerId.Clear();
-    }
-
-    private void RemoveEntities<T>(List<T> entities) where T : SimulationEntity
-    {
-        for (var index = 0; index < entities.Count; index += 1)
-        {
-            EntityStore.Remove(entities[index].Id);
-        }
-
-        entities.Clear();
+        ClientSnapshots.PredictedProjectileIds.Clear();
+        ClientSnapshots.TerminatedProjectileIds.Clear();
+        ClientSnapshots.TerminatedProjectileExpiryFrames.Clear();
+        ClientSnapshots.ProcessedImmediateRocketSpawnEventIds.Clear();
+        ClientSnapshots.ProcessedGibSpawnEventIds.Clear();
+        ClientSnapshots.PresentedGibDeathCountsByPlayerId.Clear();
     }
 
     public void ResetPlayersToAwaitingJoinForFreshMap()

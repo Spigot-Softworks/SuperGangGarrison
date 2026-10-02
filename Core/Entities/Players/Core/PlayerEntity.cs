@@ -179,6 +179,13 @@ public sealed partial class PlayerEntity : SimulationEntity
         ? CharacterClassCatalog.RuntimeRegistry.GetRequiredClassBinding(ClassId).ClassId
         : ClassDefinition.GameplayClassId;
 
+    public bool IsCivilian => string.Equals(
+        GameplayClassId,
+        CharacterClassCatalog.CivilianGameplayClassId,
+        StringComparison.Ordinal);
+
+    public bool IsQuoteCurly => CharacterClassCatalog.IsQuoteCurlyGameplayClassId(GameplayClassId);
+
     public PlayerClass BotGraphClassId => string.IsNullOrWhiteSpace(ClassDefinition.GameplayClassId)
         ? ClassId
         : ClassDefinition.BotGraphClassId;
@@ -382,7 +389,9 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     private bool TauntInputReleaseRequired { get; set; }
 
-    private bool CivvieTauntHealPending { get; set; }
+    internal bool CivvieTauntHealPending { get; private set; }
+
+    internal string? CivvieTauntHealAbilityItemId { get; private set; }
 
     private bool CivviePogoSuperJumpHeld { get; set; }
 
@@ -1068,7 +1077,7 @@ public sealed partial class PlayerEntity : SimulationEntity
         TauntRestartCooldownTicksRemaining = 0;
         TauntInputReleaseRequired = false;
         BlockedJumpRetrySuppressionTicksRemaining = 0;
-        CivvieTauntHealPending = false;
+        ClearPendingCivvieTauntHeal();
         CivviePogoSuperJumpSoundPending = false;
         IsSniperScoped = false;
         SniperChargeTicks = 0;

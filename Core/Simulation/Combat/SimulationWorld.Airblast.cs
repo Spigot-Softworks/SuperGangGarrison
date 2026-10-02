@@ -13,7 +13,7 @@ public sealed partial class SimulationWorld
     private const float PyroAirblastPlayerMaskRight = 84f;
     private const float PyroAirblastPlayerMaskTop = -10f;
     private const float PyroAirblastPlayerMaskBottom = 11f;
-    private const float PyroAirblastMineSpeedFloor = 28f / 3f;
+    private const float PyroAirblastMineSpeedFloor = SimulationMath.PyroAirblastMineSpeedFloor;
     private const float PyroAirblastLooseBodyImpulse = 28f;
     private const float PyroAirblastPlayerImpulse = 15f * LegacyMovementModel.SourceTicksPerSecond;
     private const float PyroAirblastPlayerLift = -2f * LegacyMovementModel.SourceTicksPerSecond;
@@ -293,7 +293,7 @@ public sealed partial class SimulationWorld
 
     private void PushLooseBodies(float sourceX, float sourceY, float aimRadians, float poofX, float poofY)
     {
-        var deadBodiesSnapshot = _deadBodies.ToArray();
+        var deadBodiesSnapshot = WorldObjects.DeadBodies.ToArray();
         foreach (var body in deadBodiesSnapshot)
         {
             if (!IsWithinAirblastMask(poofX, poofY, aimRadians, body.X, body.Y, PyroAirblastTargetRadius))
@@ -312,7 +312,7 @@ public sealed partial class SimulationWorld
                 DeterministicMath.Sin(aimRadians) * PyroAirblastLooseBodyImpulse * scale);
         }
 
-        var playerGibsSnapshot = _playerGibs.ToArray();
+        var playerGibsSnapshot = WorldObjects.PlayerGibs.ToArray();
         foreach (var gib in playerGibsSnapshot)
         {
             if (!IsWithinAirblastMask(poofX, poofY, aimRadians, gib.X, gib.Y, PyroAirblastTargetRadius))
@@ -468,14 +468,7 @@ public sealed partial class SimulationWorld
 
     private static float PointDirectionRadians(float x1, float y1, float x2, float y2, float fallbackDirectionX)
     {
-        var deltaX = x2 - x1;
-        var deltaY = y2 - y1;
-        if (deltaX == 0f && deltaY == 0f)
-        {
-            deltaX = fallbackDirectionX == 0f ? 1f : fallbackDirectionX;
-        }
-
-        return DeterministicMath.Atan2(deltaY, deltaX);
+        return SimulationMath.PointDirectionRadians(x1, y1, x2, y2, fallbackDirectionX);
     }
 
     private bool TryGetAirblastMineSurfaceNormal(float x, float y, out float normalX, out float normalY)

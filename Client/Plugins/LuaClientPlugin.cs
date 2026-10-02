@@ -169,6 +169,7 @@ internal sealed partial class LuaClientPlugin(
             var result = _script.DoFile(entryPointPath);
             _pluginTable = ResolvePluginTable(_script, result);
             _callbackCache.Clear();
+            InitializeCallbackDispatcher();
             ExecuteInPhase(
                 LuaCallbackPhase.Initialize,
                 () => CallIfPresent("initialize", rethrowOnFailure: true, DynValue.NewTable(hostTable)));

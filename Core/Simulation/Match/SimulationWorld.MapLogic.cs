@@ -4,11 +4,7 @@ namespace OpenGarrison.Core;
 
 public sealed partial class SimulationWorld
 {
-    private bool[] _logicActivatorStartApplied = [];
-    private MapLogicActivatorRuntimeState _logicActivatorRuntimeState = new();
 
-    private ulong _mapLogicControlPointInputSignature;
-    private long _mapLogicTimersLastFrame = -1;
 
     public void EvaluateMapLogicGraph(bool resetStatefulNodes = true)
     {
@@ -96,12 +92,12 @@ public sealed partial class SimulationWorld
 
     public void TickMapLogicTimersOncePerFrame()
     {
-        if (_mapLogicTimersLastFrame == Frame)
+        if (MapRuntime.LogicTimersLastFrame == Frame)
         {
             return;
         }
 
-        _mapLogicTimersLastFrame = Frame;
+        MapRuntime.LogicTimersLastFrame = Frame;
         TickMapLogicTimers();
     }
 
@@ -123,7 +119,7 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        Level.LogicGraph.EvaluateCombinatorial(_controlPoints, CreatePlayerTriggerEvaluationContext());
+        Level.LogicGraph.EvaluateCombinatorial(Objectives.ControlPoints.Points, CreatePlayerTriggerEvaluationContext());
         ApplyMapLogicActivators();
     }
 
@@ -145,12 +141,12 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        _logicScoreTriggerRuntimeState.EnsureActivatorCount(Level.LogicScoreTriggers.Triggers.Count);
+        MapRuntime.LogicScoreTriggerRuntimeState.EnsureActivatorCount(Level.LogicScoreTriggers.Triggers.Count);
         MapLogicScoreTriggerRuntime.Apply(
             this,
             Level.LogicGraph,
             Level.LogicScoreTriggers,
-            _logicScoreTriggerRuntimeState);
+            MapRuntime.LogicScoreTriggerRuntimeState);
     }
 
     private PlayerTriggerEvaluationContext CreatePlayerTriggerEvaluationContext()
@@ -189,12 +185,12 @@ public sealed partial class SimulationWorld
             && !graph.HasPlayerTriggers
             && !graph.HasIntelTriggers
             && !graph.HasDamageTriggers
-            && signature == _mapLogicControlPointInputSignature)
+            && signature == MapRuntime.LogicControlPointInputSignature)
         {
             return;
         }
 
-        _mapLogicControlPointInputSignature = signature;
+        MapRuntime.LogicControlPointInputSignature = signature;
 
         if (force && resetStatefulNodes)
         {
@@ -207,7 +203,7 @@ public sealed partial class SimulationWorld
         {
             if (force && resetStatefulNodes)
             {
-                graph.ResetCpTriggerStates(_controlPoints);
+                graph.ResetCpTriggerStates(Objectives.ControlPoints.Points);
                 graph.ResetPlayerTriggerStates(CreatePlayerTriggerEvaluationContext());
                 graph.ResetIntelTriggerStates(CreateIntelTriggerEvaluationContext());
                 graph.ResetTimerStates();
@@ -217,7 +213,7 @@ public sealed partial class SimulationWorld
                 graph.ResetLatchStates();
             }
 
-            graph.EvaluateCombinatorial(_controlPoints, CreatePlayerTriggerEvaluationContext());
+            graph.EvaluateCombinatorial(Objectives.ControlPoints.Points, CreatePlayerTriggerEvaluationContext());
             graph.EvaluateIntelTriggers(CreateIntelTriggerEvaluationContext());
             ApplyDamageableZoneHealWhenSignals();
             graph.EvaluateDamageTriggers(CreateDamageTriggerEvaluationContext());
@@ -236,18 +232,18 @@ public sealed partial class SimulationWorld
 
     private void ApplyControlPointLogicLockTriggers()
     {
-        if (!Level.ControlPointSettings.OverrideInitialOwnership || _controlPoints.Count == 0)
+        if (!Level.ControlPointSettings.OverrideInitialOwnership || Objectives.ControlPoints.Points.Count == 0)
         {
             return;
         }
 
-        for (var index = 0; index < _controlPoints.Count; index += 1)
+        for (var index = 0; index < Objectives.ControlPoints.Points.Count; index += 1)
         {
-            var point = _controlPoints[index];
+            var point = Objectives.ControlPoints.Points[index];
             var isLocked = point.IsLocked;
             ControlPointLockDependencyMetadata.ApplyMapLockTriggers(
                 point.Marker.LockRules,
-                _controlPoints,
+                Objectives.ControlPoints.Points,
                 Level.LogicGraph,
                 ref isLocked);
             point.IsLocked = isLocked;
@@ -256,13 +252,13 @@ public sealed partial class SimulationWorld
 
     private void ResetMapLogicActivatorRuntime()
     {
-        if (_logicActivatorStartApplied.Length > 0)
+        if (MapRuntime.LogicActivatorStartApplied.Length > 0)
         {
-            Array.Clear(_logicActivatorStartApplied, 0, _logicActivatorStartApplied.Length);
+            Array.Clear(MapRuntime.LogicActivatorStartApplied, 0, MapRuntime.LogicActivatorStartApplied.Length);
         }
 
-        _logicActivatorRuntimeState.Reset();
-        _logicScoreTriggerRuntimeState.Reset();
+        MapRuntime.LogicActivatorRuntimeState.Reset();
+        MapRuntime.LogicScoreTriggerRuntimeState.Reset();
         ResetSpritesheetPlaybackRuntime();
     }
 
@@ -280,7 +276,7 @@ public sealed partial class SimulationWorld
 
     {
 
-        if (_controlPoints.Count == 0)
+        if (Objectives.ControlPoints.Points.Count == 0)
 
         {
 
@@ -292,11 +288,11 @@ public sealed partial class SimulationWorld
 
         var hash = 17ul;
 
-        for (var index = 0; index < _controlPoints.Count; index += 1)
+        for (var index = 0; index < Objectives.ControlPoints.Points.Count; index += 1)
 
         {
 
-            var point = _controlPoints[index];
+            var point = Objectives.ControlPoints.Points[index];
 
             var logicalIndex = 0;
 
@@ -338,23 +334,23 @@ public sealed partial class SimulationWorld
 
 
 
-        if (_logicActivatorStartApplied.Length != Level.LogicActivators.Activators.Count)
+        if (MapRuntime.LogicActivatorStartApplied.Length != Level.LogicActivators.Activators.Count)
 
         {
 
-            _logicActivatorStartApplied = new bool[Level.LogicActivators.Activators.Count];
+            MapRuntime.LogicActivatorStartApplied = new bool[Level.LogicActivators.Activators.Count];
 
         }
 
 
 
-        _logicActivatorRuntimeState.EnsureActivatorCount(Level.LogicActivators.Activators.Count);
+        MapRuntime.LogicActivatorRuntimeState.EnsureActivatorCount(Level.LogicActivators.Activators.Count);
         MapLogicActivatorRuntime.Apply(
             Level.LogicGraph,
             Level.LogicActivators,
             Level.RoomObjectLogicActiveMask,
-            _logicActivatorStartApplied,
-            _logicActivatorRuntimeState,
+            MapRuntime.LogicActivatorStartApplied,
+            MapRuntime.LogicActivatorRuntimeState,
             Level.RoomObjects);
     }
 

@@ -546,7 +546,7 @@ public partial class Game1
             return ticksRemaining <= 0;
         }
 
-        var spriteName = GetDeadBodySpriteName(gameplayClassId, classId, team, animationKind);
+        var spriteName = GetDynamicRagdollCorpseSpriteName(gameplayClassId, classId, team, animationKind);
         if (spriteName is null)
         {
             return false;

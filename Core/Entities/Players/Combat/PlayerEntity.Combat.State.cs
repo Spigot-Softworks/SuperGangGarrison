@@ -168,7 +168,7 @@ public sealed partial class PlayerEntity
         TauntFrameIndex = 0f;
         TauntRestartCooldownTicksRemaining = 0;
         TauntInputReleaseRequired = false;
-        CivvieTauntHealPending = false;
+        ClearPendingCivvieTauntHeal();
         CivviePogoSuperJumpSoundPending = false;
         IsSniperScoped = false;
         SniperChargeTicks = 0;

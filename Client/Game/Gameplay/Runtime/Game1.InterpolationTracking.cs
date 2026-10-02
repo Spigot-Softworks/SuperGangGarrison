@@ -10,6 +10,8 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
+    private readonly OfflinePresentationController _offlinePresentationController = new();
+
     public void UpdateInterpolatedWorldState()
     {
         if (!_networkClient.IsConnected)
@@ -17,6 +19,13 @@ public partial class Game1
             UpdateOfflineInterpolatedWorldState();
             return;
         }
+
+        _offlinePresentationController.ObserveFrame(
+            isConnected: true,
+            _world,
+            _world.Level,
+            _world.LocalPlayer.Id,
+            _world.MatchState.IsEnded);
 
         _activeInterpolatedEntityIds.Clear();
         var localPlayerRenderTimeSeconds = GetLocalPlayerRenderTimeSeconds();
@@ -160,7 +169,16 @@ public partial class Game1
 
     public void UpdateOfflineInterpolatedWorldState()
     {
-        ResetNetworkInterpolationStateForOfflineFrame();
+        if (_offlinePresentationController.ObserveFrame(
+            isConnected: false,
+            _world,
+            _world.Level,
+            _world.LocalPlayer.Id,
+            _world.MatchState.IsEnded))
+        {
+            ResetNetworkInterpolationStateForOfflineFrame();
+        }
+
         _activeInterpolatedEntityIds.Clear();
 
         UpdateOfflineInterpolatedPlayerPosition(_world.LocalPlayer);
@@ -186,47 +204,52 @@ public partial class Game1
 
         foreach (var shot in _world.Shots)
         {
-            UpdateOfflineInterpolatedEntityPosition(shot.Id, shot.X, shot.Y);
+            UpdateOfflineInterpolatedProjectilePosition(shot.Id, shot.X, shot.Y);
         }
 
         foreach (var bubble in _world.Bubbles)
         {
-            UpdateOfflineInterpolatedEntityPosition(bubble.Id, bubble.X, bubble.Y);
+            UpdateOfflineInterpolatedProjectilePosition(bubble.Id, bubble.X, bubble.Y);
         }
 
         foreach (var blade in _world.Blades)
         {
-            UpdateOfflineInterpolatedEntityPosition(blade.Id, blade.X, blade.Y);
+            UpdateOfflineInterpolatedProjectilePosition(blade.Id, blade.X, blade.Y);
         }
 
         foreach (var shot in _world.RevolverShots)
         {
-            UpdateOfflineInterpolatedEntityPosition(shot.Id, shot.X, shot.Y);
+            UpdateOfflineInterpolatedProjectilePosition(shot.Id, shot.X, shot.Y);
         }
 
         foreach (var needle in _world.Needles)
         {
-            UpdateOfflineInterpolatedEntityPosition(needle.Id, needle.X, needle.Y);
+            UpdateOfflineInterpolatedProjectilePosition(needle.Id, needle.X, needle.Y);
         }
 
         foreach (var flame in _world.Flames)
         {
-            UpdateOfflineInterpolatedEntityPosition(flame.Id, flame.X, flame.Y);
+            UpdateOfflineInterpolatedProjectilePosition(flame.Id, flame.X, flame.Y);
         }
 
         foreach (var flare in _world.Flares)
         {
-            UpdateOfflineInterpolatedEntityPosition(flare.Id, flare.X, flare.Y);
+            UpdateOfflineInterpolatedProjectilePosition(flare.Id, flare.X, flare.Y);
         }
 
         foreach (var rocket in _world.Rockets)
         {
-            UpdateOfflineInterpolatedEntityPosition(rocket.Id, rocket.X, rocket.Y);
+            UpdateOfflineInterpolatedProjectilePosition(rocket.Id, rocket.X, rocket.Y);
         }
 
         foreach (var mine in _world.Mines)
         {
-            UpdateOfflineInterpolatedEntityPosition(mine.Id, mine.X, mine.Y);
+            UpdateOfflineInterpolatedProjectilePosition(mine.Id, mine.X, mine.Y);
+        }
+
+        foreach (var grenade in _world.Grenades)
+        {
+            UpdateOfflineInterpolatedProjectilePosition(grenade.Id, grenade.X, grenade.Y);
         }
 
         foreach (var gib in _world.PlayerGibs)
@@ -255,6 +278,8 @@ public partial class Game1
         _gameplayManager.NetworkPresentation.LastSnapshotReceivedTimeSeconds = -1d;
         _gameplayManager.NetworkPresentation.LatestSnapshotServerTimeSeconds = -1d;
         _gameplayManager.NetworkPresentation.LatestSnapshotReceivedClockSeconds = -1d;
+        _gameplayManager.NetworkPresentation.HasFilteredServerClockOffset = false;
+        _gameplayManager.NetworkPresentation.FilteredServerClockOffsetSampleServerTimeSeconds = -1d;
         _gameplayManager.NetworkPresentation.NetworkSnapshotInterpolationDurationSeconds = 1f / _config.TicksPerSecond;
         _gameplayManager.NetworkPresentation.SmoothedSnapshotIntervalSeconds = 1f / _config.TicksPerSecond;
         _gameplayManager.NetworkPresentation.SmoothedSnapshotJitterSeconds = 0f;
@@ -379,7 +404,36 @@ public partial class Game1
             return;
         }
 
-        UpdateOfflineInterpolatedEntityPosition(GetPlayerStateKey(player), player.X, player.Y);
+        var isLocalPlayer = ReferenceEquals(player, _world.LocalPlayer);
+        var entityId = isLocalPlayer ? player.Id : GetPlayerStateKey(player);
+        _activeInterpolatedEntityIds.Add(entityId);
+        var target = new Vector2(player.X, player.Y);
+
+        // Every player, local or bot, is blended across the latest fixed tick
+        // by the simulator's accumulator phase. Drawing raw tick samples steps
+        // at the tick rate; restarting a one-tick chase track whenever a new
+        // tick is observed stalls and lurches under ordinary frame jitter.
+        _interpolatedEntityPositions[entityId] = _offlinePresentationController.GetPlayerRenderPosition(
+            entityId,
+            target,
+            player.Deaths,
+            new Vector2(player.HorizontalSpeed, player.VerticalSpeed),
+            GetOfflineSimulationInterpolationAlpha());
+        _entityInterpolationTracks.Remove(entityId);
+    }
+
+    private float GetOfflineSimulationInterpolationAlpha()
+        => _simulator is null ? 1f : _simulator.InterpolationAlpha;
+
+    /// <summary>
+    /// Offline projectiles record their start-of-tick position, so they blend
+    /// across the latest tick by the simulator phase like players do.
+    /// </summary>
+    private void UpdateOfflineInterpolatedProjectilePosition(int entityId, float x, float y)
+    {
+        _activeInterpolatedEntityIds.Add(entityId);
+        _interpolatedEntityPositions[entityId] = GetLocallyAdvancedProjectileRenderPosition(entityId, x, y);
+        _entityInterpolationTracks.Remove(entityId);
     }
 
     private void UpdateOfflineInterpolatedIntelPosition(TeamIntelligenceState intelState)
@@ -1795,7 +1849,25 @@ public partial class Game1
             _networkInterpolationClockSeconds - _gameplayManager.NetworkPresentation.LatestSnapshotReceivedClockSeconds,
             0d,
             extrapolationHeadroomSeconds);
-        return _gameplayManager.NetworkPresentation.LatestSnapshotServerTimeSeconds + localElapsedSinceSnapshotSeconds;
+        var anchoredEstimateSeconds = _gameplayManager.NetworkPresentation.LatestSnapshotServerTimeSeconds + localElapsedSinceSnapshotSeconds;
+
+        var presentation = _gameplayManager.NetworkPresentation;
+        if (presentation.FilteredServerClockOffsetSampleServerTimeSeconds != presentation.LatestSnapshotServerTimeSeconds)
+        {
+            presentation.FilteredServerClockOffsetSeconds = NetworkInterpolationPolicy.FilterServerClockOffset(
+                presentation.HasFilteredServerClockOffset,
+                presentation.FilteredServerClockOffsetSeconds,
+                presentation.LatestSnapshotServerTimeSeconds - presentation.LatestSnapshotReceivedClockSeconds);
+            presentation.FilteredServerClockOffsetSampleServerTimeSeconds = presentation.LatestSnapshotServerTimeSeconds;
+            presentation.HasFilteredServerClockOffset = true;
+        }
+
+        return NetworkInterpolationPolicy.EstimateServerTimeSeconds(
+            _networkInterpolationClockSeconds,
+            presentation.FilteredServerClockOffsetSeconds,
+            presentation.LatestSnapshotServerTimeSeconds,
+            anchoredEstimateSeconds,
+            extrapolationHeadroomSeconds);
     }
 
     private void CaptureProjectileInterpolationTarget(
@@ -2333,6 +2405,18 @@ public partial class Game1
 
     private Vector2 EvaluateInterpolationTrack(InterpolationTrack track)
     {
+        if (track.Velocity == Vector2.Zero
+            && track.ExtrapolationDurationSeconds <= 0f
+            && track.MaxExtrapolationDistance <= 0f)
+        {
+            return OfflinePresentationController.EvaluateTrack(
+                track.Start,
+                track.Target,
+                track.StartTimeSeconds,
+                track.DurationSeconds,
+                _networkInterpolationClockSeconds);
+        }
+
         if (track.DurationSeconds <= 0f)
         {
             if (track.ExtrapolationDurationSeconds <= 0f || track.MaxExtrapolationDistance <= 0f || track.Velocity == Vector2.Zero)

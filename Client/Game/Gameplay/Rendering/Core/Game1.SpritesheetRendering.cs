@@ -17,7 +17,7 @@ public partial class Game1
             return;
         }
 
-        var viewport = GraphicsDevice.Viewport;
+        var viewport = GetGameplayWorldPassViewport();
         var parallaxLayers = _world.Level.CustomMapVisuals.ParallaxLayers;
         foreach (var (roomObjectIndex, marker) in GetCachedSpritesheets(layer))
         {

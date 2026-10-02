@@ -101,6 +101,7 @@ public partial class Game1
 
     private void OnPracticeSimulationBeforeTick()
     {
+        CaptureOfflinePlayerTickStarts();
         UpdatePracticeBots();
         OnScoreRouteRecorderBeforeTick();
     }
@@ -125,6 +126,27 @@ public partial class Game1
         // turn into multiple automatic-weapon shots or repeated commands.
         ClearConsumedPredictedInputEdges();
         _world.SetLocalInput(_localPredictionState.LatestPredictedLocalInput);
+    }
+
+    private void CaptureOfflinePlayerTickStarts()
+    {
+        // Keys match UpdateOfflineInterpolatedPlayerPosition: the local player
+        // by entity id, everyone else by player state key.
+        _offlinePresentationController.BeginPlayerTickCapture();
+        var localPlayer = _world.LocalPlayer;
+        _offlinePresentationController.CapturePlayerTickStart(
+            localPlayer.Id,
+            new Vector2(localPlayer.X, localPlayer.Y),
+            localPlayer.Deaths,
+            localPlayer.IsAlive);
+        foreach (var player in EnumerateRemotePlayersForView())
+        {
+            _offlinePresentationController.CapturePlayerTickStart(
+                GetPlayerStateKey(player),
+                new Vector2(player.X, player.Y),
+                player.Deaths,
+                player.IsAlive);
+        }
     }
 
     private void AdvanceGameplayLogicPresentationTriggers()

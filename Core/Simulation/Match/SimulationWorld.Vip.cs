@@ -7,33 +7,33 @@ public sealed partial class SimulationWorld
     private const int VipDeathTimePenaltySeconds = 15;
     private const int VipWarmupSeconds = 10;
 
-    private bool IsPracticeVipRulesActive => _practiceVipRulesEnabled && MatchRules.Mode == GameModeKind.ControlPoint;
+    private bool IsPracticeVipRulesActive => VipState.PracticeRulesEnabled && MatchRules.Mode == GameModeKind.ControlPoint;
 
     public bool IsVipModeActive => MatchRules.Mode == GameModeKind.Vip || IsPracticeVipRulesActive;
 
-    public bool PracticeVipRulesEnabled => _practiceVipRulesEnabled;
+    public bool PracticeVipRulesEnabled => VipState.PracticeRulesEnabled;
 
-    public bool VipWarmupActive => IsVipModeActive && _vipWarmupTicksRemaining > 0;
+    public bool VipWarmupActive => IsVipModeActive && VipState.WarmupTicksRemaining > 0;
 
-    public int VipWarmupTicksRemaining => _vipWarmupTicksRemaining;
+    public int VipWarmupTicksRemaining => VipState.WarmupTicksRemaining;
 
-    public int VipAssignmentVersion => _vipAssignmentVersion;
+    public int VipAssignmentVersion => VipState.AssignmentVersion;
 
-    public int VipRoundStartVersion => _vipRoundStartVersion;
+    public int VipRoundStartVersion => VipState.RoundStartVersion;
 
-    public IReadOnlyDictionary<PlayerTeam, byte> VipSlotsByTeam => _vipSlotsByTeam;
+    public IReadOnlyDictionary<PlayerTeam, byte> VipSlotsByTeam => VipState.SlotsByTeam;
 
     public bool VipRequiresDualVip => RequiresDualVip();
 
     public void ConfigurePracticeVipRules(bool enabled)
     {
         var normalizedEnabled = enabled && MatchRules.Mode == GameModeKind.ControlPoint;
-        if (_practiceVipRulesEnabled == normalizedEnabled)
+        if (VipState.PracticeRulesEnabled == normalizedEnabled)
         {
             return;
         }
 
-        _practiceVipRulesEnabled = normalizedEnabled;
+        VipState.PracticeRulesEnabled = normalizedEnabled;
         if (IsVipModeActive)
         {
             ResetVipStateForNewRound();
@@ -46,12 +46,12 @@ public sealed partial class SimulationWorld
 
     public bool IsVipSlot(byte slot)
     {
-        return IsVipModeActive && _vipSlotsByTeam.ContainsValue(slot);
+        return IsVipModeActive && VipState.SlotsByTeam.ContainsValue(slot);
     }
 
     public bool TryGetVipSlot(PlayerTeam team, out byte slot)
     {
-        return _vipSlotsByTeam.TryGetValue(team, out slot);
+        return VipState.SlotsByTeam.TryGetValue(team, out slot);
     }
 
     public bool CanNetworkPlayerChangeTeamInCurrentMode(byte slot)
@@ -86,8 +86,10 @@ public sealed partial class SimulationWorld
             return true;
         }
 
-        var isCivilian = definition.Id == PlayerClass.Quote
-            || string.Equals(definition.GameplayClassId, CharacterClassCatalog.Civilian.GameplayClassId, StringComparison.Ordinal);
+        var isCivilian = string.Equals(
+            definition.GameplayClassId,
+            CharacterClassCatalog.CivilianGameplayClassId,
+            StringComparison.Ordinal);
         return IsVipSlot(slot)
             ? isCivilian
             : !isCivilian;
@@ -105,10 +107,10 @@ public sealed partial class SimulationWorld
             return false;
         }
 
-        _preferredVipSlotsByTeam[team] = slot;
-        if (_vipSlotsByTeam.TryGetValue(team, out var currentSlot) && currentSlot != slot)
+        VipState.PreferredSlotsByTeam[team] = slot;
+        if (VipState.SlotsByTeam.TryGetValue(team, out var currentSlot) && currentSlot != slot)
         {
-            _vipSlotsByTeam.Remove(team);
+            VipState.SlotsByTeam.Remove(team);
         }
 
         return true;
@@ -117,25 +119,25 @@ public sealed partial class SimulationWorld
 
     private void ResetVipStateForNewRound()
     {
-        _vipSlotsByTeam.Clear();
-        _preferredVipSlotsByTeam.Clear();
-        _vipWarmupTicksRemaining = ShouldStartVipWarmup()
+        VipState.SlotsByTeam.Clear();
+        VipState.PreferredSlotsByTeam.Clear();
+        VipState.WarmupTicksRemaining = ShouldStartVipWarmup()
             ? Math.Max(1, VipWarmupSeconds * Config.TicksPerSecond)
             : 0;
-        _vipAssignmentVersion += 1;
+        VipState.AssignmentVersion += 1;
     }
 
     private void ClearVipState()
     {
-        if (_vipSlotsByTeam.Count == 0 && _preferredVipSlotsByTeam.Count == 0 && _vipWarmupTicksRemaining == 0)
+        if (VipState.SlotsByTeam.Count == 0 && VipState.PreferredSlotsByTeam.Count == 0 && VipState.WarmupTicksRemaining == 0)
         {
             return;
         }
 
-        _vipSlotsByTeam.Clear();
-        _preferredVipSlotsByTeam.Clear();
-        _vipWarmupTicksRemaining = 0;
-        _vipAssignmentVersion += 1;
+        VipState.SlotsByTeam.Clear();
+        VipState.PreferredSlotsByTeam.Clear();
+        VipState.WarmupTicksRemaining = 0;
+        VipState.AssignmentVersion += 1;
     }
 
     private void AdvanceVipState()
@@ -195,7 +197,7 @@ public sealed partial class SimulationWorld
     private bool CanPlayerCaptureInVipMode(PlayerEntity player)
     {
         return !IsVipModeActive
-            || (!VipWarmupActive && player.ClassId == PlayerClass.Quote && IsVipPlayer(player));
+            || (!VipWarmupActive && player.IsCivilian && IsVipPlayer(player));
     }
 
     private bool CanPlayerAffectControlPointInVipMode()
@@ -213,14 +215,14 @@ public sealed partial class SimulationWorld
 
     private bool IsVipDead(PlayerTeam team)
     {
-        return _vipSlotsByTeam.TryGetValue(team, out var slot)
+        return VipState.SlotsByTeam.TryGetValue(team, out var slot)
             && TryGetNetworkPlayer(slot, out var vip)
             && !vip.IsAlive;
     }
 
     private bool RequiresDualVip()
     {
-        return IsVipModeActive && !_controlPointSetupMode;
+        return IsVipModeActive && !Objectives.ControlPoints.SetupMode;
     }
 
     private bool ShouldStartVipWarmup()
@@ -249,7 +251,7 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        _vipSlotsByTeam.Remove(PlayerTeam.Blue);
+        VipState.SlotsByTeam.Remove(PlayerTeam.Blue);
         EnsureVipAssignment(PlayerTeam.Red);
     }
 
@@ -257,24 +259,24 @@ public sealed partial class SimulationWorld
     {
         if (!IsVipTeamRequired(team))
         {
-            _vipSlotsByTeam.Remove(team);
+            VipState.SlotsByTeam.Remove(team);
             return;
         }
 
-        if (_vipSlotsByTeam.TryGetValue(team, out var currentSlot)
+        if (VipState.SlotsByTeam.TryGetValue(team, out var currentSlot)
             && IsValidVipSlot(currentSlot, team))
         {
             return;
         }
 
-        _vipSlotsByTeam.Remove(team);
+        VipState.SlotsByTeam.Remove(team);
         if (!TrySelectVipSlot(team, out var selectedSlot))
         {
             return;
         }
 
-        _vipSlotsByTeam[team] = selectedSlot;
-        _vipAssignmentVersion += 1;
+        VipState.SlotsByTeam[team] = selectedSlot;
+        VipState.AssignmentVersion += 1;
         ForceVipSlot(selectedSlot, team);
     }
 
@@ -285,7 +287,7 @@ public sealed partial class SimulationWorld
             return true;
         }
 
-        if (_preferredVipSlotsByTeam.TryGetValue(team, out var preferredSlot)
+        if (VipState.PreferredSlotsByTeam.TryGetValue(team, out var preferredSlot)
             && IsVipCandidateSlot(preferredSlot, team, allowTeamMove: true))
         {
             slot = preferredSlot;
@@ -318,7 +320,7 @@ public sealed partial class SimulationWorld
             return false;
         }
 
-        slot = candidates[_random.Next(candidates.Count)];
+        slot = candidates[Randoms.Gameplay.Next(candidates.Count)];
         return true;
     }
 
@@ -327,7 +329,7 @@ public sealed partial class SimulationWorld
         if (!TryGetNetworkPlayer(slot, out var player)
             || IsNetworkPlayerAwaitingJoin(slot)
             || !player.IsAlive
-            || _vipSlotsByTeam.Any(entry => entry.Value == slot && entry.Key != team))
+            || VipState.SlotsByTeam.Any(entry => entry.Value == slot && entry.Key != team))
         {
             return false;
         }
@@ -337,7 +339,7 @@ public sealed partial class SimulationWorld
 
     private bool TrySelectPracticeVipSlot(PlayerTeam team, out byte slot)
     {
-        if (_preferredVipSlotsByTeam.TryGetValue(team, out var preferredSlot)
+        if (VipState.PreferredSlotsByTeam.TryGetValue(team, out var preferredSlot)
             && IsVipCandidateSlot(preferredSlot, team, allowTeamMove: false)
             && TryGetNetworkPlayer(preferredSlot, out var preferredPlayer)
             && IsCivilianClass(preferredPlayer.ClassDefinition))
@@ -396,14 +398,16 @@ public sealed partial class SimulationWorld
             return false;
         }
 
-        slot = botCandidates[_random.Next(botCandidates.Count)];
+        slot = botCandidates[Randoms.Gameplay.Next(botCandidates.Count)];
         return true;
     }
 
     private static bool IsCivilianClass(CharacterClassDefinition definition)
     {
-        return definition.Id == PlayerClass.Quote
-            || string.Equals(definition.GameplayClassId, CharacterClassCatalog.Civilian.GameplayClassId, StringComparison.Ordinal);
+        return string.Equals(
+            definition.GameplayClassId,
+            CharacterClassCatalog.CivilianGameplayClassId,
+            StringComparison.Ordinal);
     }
 
     private bool IsValidVipSlot(byte slot, PlayerTeam team)
@@ -415,14 +419,14 @@ public sealed partial class SimulationWorld
 
     private void ForceVipRulesOnCurrentPlayers()
     {
-        foreach (var entry in _vipSlotsByTeam.ToArray())
+        foreach (var entry in VipState.SlotsByTeam.ToArray())
         {
             ForceVipSlot(entry.Value, entry.Key);
         }
 
         foreach (var entry in EnumerateActiveNetworkPlayers())
         {
-            if (IsVipSlot(entry.Slot) || entry.Player.ClassId != PlayerClass.Quote)
+            if (IsVipSlot(entry.Slot) || !entry.Player.IsCivilian)
             {
                 continue;
             }
@@ -445,7 +449,7 @@ public sealed partial class SimulationWorld
             TrySetNetworkPlayerTeam(slot, team, respawnLivePlayerImmediately: true);
         }
 
-        if (player.ClassId != PlayerClass.Quote)
+        if (!player.IsCivilian)
         {
             player.SetClassDefinition(civilianDefinition);
             SyncExperimentalGameplayLoadout(slot, player);
@@ -454,16 +458,16 @@ public sealed partial class SimulationWorld
 
     private void AdvanceVipWarmup()
     {
-        if (_vipWarmupTicksRemaining <= 0)
+        if (VipState.WarmupTicksRemaining <= 0)
         {
             return;
         }
 
-        _vipWarmupTicksRemaining -= 1;
-        if (_vipWarmupTicksRemaining <= 0)
+        VipState.WarmupTicksRemaining -= 1;
+        if (VipState.WarmupTicksRemaining <= 0)
         {
-            _vipWarmupTicksRemaining = 0;
-            _vipRoundStartVersion += 1;
+            VipState.WarmupTicksRemaining = 0;
+            VipState.RoundStartVersion += 1;
         }
     }
 
@@ -474,12 +478,12 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        foreach (var entry in _vipSlotsByTeam.ToArray())
+        foreach (var entry in VipState.SlotsByTeam.ToArray())
         {
             if (!TryGetNetworkPlayer(entry.Value, out _) || IsNetworkPlayerAwaitingJoin(entry.Value))
             {
-                _vipSlotsByTeam.Remove(entry.Key);
-                _vipAssignmentVersion += 1;
+                VipState.SlotsByTeam.Remove(entry.Key);
+                VipState.AssignmentVersion += 1;
                 return;
             }
 
@@ -512,7 +516,7 @@ public sealed partial class SimulationWorld
 
     private bool HasValidVipAssignment(PlayerTeam team)
     {
-        return _vipSlotsByTeam.TryGetValue(team, out var slot)
+        return VipState.SlotsByTeam.TryGetValue(team, out var slot)
             && IsValidVipSlot(slot, team);
     }
 }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using OpenGarrison.Core;
 using OpenGarrison.Protocol;
@@ -24,9 +25,13 @@ sealed class ClientSession(
     private readonly Protocol64InputCommandLedger _protocol64InputCommands = new();
     private readonly Dictionary<ulong, SnapshotBaselineState> _snapshotStatesByFrame = new();
     private readonly Queue<ulong> _snapshotFrameOrder = new();
+    private readonly Dictionary<ulong, ushort[]> _snapshotStringCacheIdsByFrame = new();
+    private readonly HashSet<ushort> _acknowledgedStringCacheIds = new();
+    private readonly HashSet<ControlCommandKind> _acceptedControlCommandKinds = new();
     private readonly Dictionary<ulong, ulong[]> _snapshotTransientEventIdsByFrame = new();
     private readonly HashSet<ulong> _acknowledgedTransientEventIds = new();
     private readonly Queue<ulong> _acknowledgedTransientEventOrder = new();
+    private SnapshotBaselineState? _acknowledgedSnapshotBaseline;
     private string _name = PlayerEntity.NormalizeDisplayName(name);
     private int _pingMilliseconds = -1;
 
@@ -90,6 +95,42 @@ sealed class ClientSession(
     public uint LastSpectateCommandSequence { get; set; }
     public uint LastGameplayLoadoutCommandSequence { get; set; }
     public ulong LastAcknowledgedSnapshotFrame { get; private set; }
+    public bool HasAcknowledgedStringCacheId(ushort cacheId) => cacheId != 0 && _acknowledgedStringCacheIds.Contains(cacheId);
+    public bool TryGetLastAcceptedControlCommandSequence(ControlCommandKind kind, out uint sequence)
+    {
+        sequence = kind switch
+        {
+            ControlCommandKind.SelectTeam => LastTeamCommandSequence,
+            ControlCommandKind.SelectClass => LastClassCommandSequence,
+            ControlCommandKind.Spectate => LastSpectateCommandSequence,
+            ControlCommandKind.SelectGameplayLoadout => LastGameplayLoadoutCommandSequence,
+            _ => 0,
+        };
+        return _acceptedControlCommandKinds.Contains(kind);
+    }
+
+    public void RememberAcceptedControlCommand(ControlCommandKind kind, uint sequence)
+    {
+        switch (kind)
+        {
+            case ControlCommandKind.SelectTeam:
+                LastTeamCommandSequence = sequence;
+                break;
+            case ControlCommandKind.SelectClass:
+                LastClassCommandSequence = sequence;
+                break;
+            case ControlCommandKind.Spectate:
+                LastSpectateCommandSequence = sequence;
+                break;
+            case ControlCommandKind.SelectGameplayLoadout:
+                LastGameplayLoadoutCommandSequence = sequence;
+                break;
+            default:
+                return;
+        }
+
+        _acceptedControlCommandKinds.Add(kind);
+    }
     public bool IsAuthorized { get; set; } = true;
     public bool Protocol64Enabled { get; set; }
     public bool IsWatchOnly { get; set; }
@@ -314,24 +355,42 @@ sealed class ClientSession(
         }
 
         _snapshotStatesByFrame[fullSnapshot.Frame] = baseline;
+        _snapshotStringCacheIdsByFrame[fullSnapshot.Frame] = fullSnapshot.StringCacheUpdates is { Count: > 0 } updates
+            ? updates.Keys.ToArray()
+            : Array.Empty<ushort>();
         RememberSnapshotSoundEvents(fullSnapshot);
         TrimSnapshotHistory();
     }
 
     public void AcknowledgeSnapshot(ulong frame)
     {
-        if (!_snapshotStatesByFrame.ContainsKey(frame) || frame <= LastAcknowledgedSnapshotFrame)
+        if (!TryGetSnapshotState(frame, out var baseline) || frame <= LastAcknowledgedSnapshotFrame)
         {
             return;
         }
 
         AcknowledgeSnapshotTransientEvents(frame);
+        if (_snapshotStringCacheIdsByFrame.TryGetValue(frame, out var cacheIds))
+        {
+            for (var index = 0; index < cacheIds.Length; index += 1)
+            {
+                _acknowledgedStringCacheIds.Add(cacheIds[index]);
+            }
+        }
+
         LastAcknowledgedSnapshotFrame = frame;
+        _acknowledgedSnapshotBaseline = baseline;
         PruneOlderSnapshotHistory(frame);
     }
 
     public bool TryGetSnapshotState(ulong frame, out SnapshotBaselineState snapshot)
     {
+        if (frame == LastAcknowledgedSnapshotFrame && _acknowledgedSnapshotBaseline is not null)
+        {
+            snapshot = _acknowledgedSnapshotBaseline;
+            return true;
+        }
+
         return _snapshotStatesByFrame.TryGetValue(frame, out snapshot!);
     }
 
@@ -348,8 +407,11 @@ sealed class ClientSession(
     public void ResetSnapshotHistory()
     {
         LastAcknowledgedSnapshotFrame = 0;
+        _acknowledgedSnapshotBaseline = null;
         _snapshotStatesByFrame.Clear();
         _snapshotFrameOrder.Clear();
+        _snapshotStringCacheIdsByFrame.Clear();
+        _acknowledgedStringCacheIds.Clear();
         _snapshotTransientEventIdsByFrame.Clear();
         _acknowledgedTransientEventIds.Clear();
         _acknowledgedTransientEventOrder.Clear();
@@ -362,11 +424,8 @@ sealed class ClientSession(
         {
             var oldestFrame = _snapshotFrameOrder.Dequeue();
             _snapshotStatesByFrame.Remove(oldestFrame);
+            _snapshotStringCacheIdsByFrame.Remove(oldestFrame);
             _snapshotTransientEventIdsByFrame.Remove(oldestFrame);
-            if (oldestFrame == LastAcknowledgedSnapshotFrame)
-            {
-                LastAcknowledgedSnapshotFrame = 0;
-            }
         }
     }
 
@@ -376,6 +435,7 @@ sealed class ClientSession(
         {
             var removedFrame = _snapshotFrameOrder.Dequeue();
             _snapshotStatesByFrame.Remove(removedFrame);
+            _snapshotStringCacheIdsByFrame.Remove(removedFrame);
             _snapshotTransientEventIdsByFrame.Remove(removedFrame);
         }
     }

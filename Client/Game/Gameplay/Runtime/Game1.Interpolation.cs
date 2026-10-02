@@ -70,6 +70,8 @@ public partial class Game1
     private readonly List<int> _staleInterpolatedEntityIds = new();
     private readonly Dictionary<ulong, SnapshotBaselineState> _snapshotStatesByFrame = new();
     private readonly Queue<ulong> _snapshotStateFrameOrder = new();
+    private SnapshotBaselineState? _pinnedServerSnapshotBaseline;
+    private ulong _pinnedServerSnapshotBaselineFrame;
     private readonly Queue<QueuedAuthoritativeSnapshot> _queuedAuthoritativeSnapshots = new();
     private readonly Stopwatch _networkInterpolationClock = Stopwatch.StartNew();
     private double _networkInterpolationClockSeconds;
@@ -269,7 +271,7 @@ public partial class Game1
             return current;
         }
 
-        return Vector2.Lerp(new Vector2(previousX, previousY), current, _simulator.InterpolationAlpha);
+        return Vector2.Lerp(new Vector2(previousX, previousY), current, _simulator is null ? 1f : _simulator.InterpolationAlpha);
     }
 
     private static bool HasUsableLocalProjectilePreviousPosition(float previousX, float previousY, float x, float y)
@@ -320,9 +322,9 @@ public partial class Game1
             if (CanUseLocalPrediction() && _localPredictionState.HasPredictedLocalPlayerPosition)
             {
                 // Local prediction is already the input-responsive position.
-                // The optional render-correction spring must not delay the
-                // actor or camera during ordinary movement.
-                return _localPredictionState.PredictedLocalPlayerPosition + _localPredictionState.PredictedLocalPlayerRenderCorrectionOffset;
+                // Blend it across the newest predicted tick so the actor and
+                // camera move every frame instead of once per simulation tick.
+                return GetPredictedLocalPlayerRenderPosition();
             }
 
             return GetRenderPosition(GetResolvedLocalPlayerId(), player.X, player.Y, allowInterpolation);
@@ -408,19 +410,40 @@ public partial class Game1
     {
         _snapshotStatesByFrame.Clear();
         _snapshotStateFrameOrder.Clear();
+        _pinnedServerSnapshotBaseline = null;
+        _pinnedServerSnapshotBaselineFrame = 0;
         _queuedAuthoritativeSnapshots.Clear();
         _gameplayManager.NetworkPresentation.LastBufferedSnapshotFrame = 0;
     }
 
-    private void RememberSnapshotState(SnapshotMessage snapshot)
+    private void RememberSnapshotState(SnapshotMessage snapshot, ulong referencedBaselineFrame)
     {
-        var baseline = SnapshotBaselineState.FromSnapshot(snapshot);
-        if (!_snapshotStatesByFrame.ContainsKey(snapshot.Frame))
+        RememberSnapshotState(SnapshotBaselineState.FromSnapshot(snapshot), referencedBaselineFrame);
+    }
+
+    private void RememberSnapshotState(SnapshotBaselineState baseline, ulong referencedBaselineFrame)
+    {
+        if (!_snapshotStatesByFrame.ContainsKey(baseline.Frame))
         {
-            _snapshotStateFrameOrder.Enqueue(snapshot.Frame);
+            _snapshotStateFrameOrder.Enqueue(baseline.Frame);
         }
 
-        _snapshotStatesByFrame[snapshot.Frame] = baseline;
+        _snapshotStatesByFrame[baseline.Frame] = baseline;
+
+        if (referencedBaselineFrame == 0)
+        {
+            _pinnedServerSnapshotBaseline = baseline;
+            _pinnedServerSnapshotBaselineFrame = baseline.Frame;
+        }
+        else if (TryGetSnapshotState(referencedBaselineFrame, out var referencedBaseline))
+        {
+            // The server's baseline may be older than the rolling client history
+            // during an ACK outage. Keep the last baseline it actually referenced
+            // until a later snapshot proves the server has switched baselines.
+            _pinnedServerSnapshotBaseline = referencedBaseline;
+            _pinnedServerSnapshotBaselineFrame = referencedBaselineFrame;
+        }
+
         while (_snapshotStateFrameOrder.Count > SnapshotStateHistoryLimit)
         {
             _snapshotStatesByFrame.Remove(_snapshotStateFrameOrder.Dequeue());
@@ -429,6 +452,12 @@ public partial class Game1
 
     private bool TryGetSnapshotState(ulong frame, out SnapshotBaselineState snapshot)
     {
+        if (frame == _pinnedServerSnapshotBaselineFrame && _pinnedServerSnapshotBaseline is not null)
+        {
+            snapshot = _pinnedServerSnapshotBaseline;
+            return true;
+        }
+
         return _snapshotStatesByFrame.TryGetValue(frame, out snapshot!);
     }
 }

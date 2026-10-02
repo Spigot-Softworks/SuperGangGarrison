@@ -719,7 +719,7 @@ public sealed class GameplayDeadBodyRenderController
 
             var tint = Color.White * fadeAlpha;
             var spriteName = _game._networkClient.IsLegacyGg2Connection && classId == PlayerClass.Quote
-                ? $"Querly{(team == PlayerTeam.Blue ? "Blue" : "Red")}DeadS"
+                ? $"Impostor{(team == PlayerTeam.Blue ? "Blue" : "Red")}DeadS"
                 : _game.GetDeadBodySpriteName(gameplayClassId, classId, team, animationKind);
             if (spriteName is not null)
             {

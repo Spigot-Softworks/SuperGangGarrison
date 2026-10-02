@@ -483,8 +483,8 @@ public sealed partial class SimulationWorld
 
         if (player.ClassId == PlayerClass.Sniper
             && TryGetPlayerNetworkSlot(player, out var sniperSlot)
-            && (_lastToDiePerkRuntimesBySlot.ContainsKey(sniperSlot)
-                || _lastToDieLegacyGameplaySettingsBySlot.ContainsKey(sniperSlot)))
+            && (LastToDieState.PerkRuntimesBySlot.ContainsKey(sniperSlot)
+                || LastToDieState.LegacyGameplaySettingsBySlot.ContainsKey(sniperSlot)))
         {
             return TryCycleLastToDieSniperWeapon(player);
         }

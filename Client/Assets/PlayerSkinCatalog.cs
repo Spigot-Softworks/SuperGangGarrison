@@ -63,6 +63,10 @@ public sealed class PlayerSkinCatalog
             {
                 Require(!string.IsNullOrWhiteSpace(tauntSprite), "tauntSprite must not be blank when supplied.");
             }
+            if (skin.CorpseSprite is { } corpseSprite)
+            {
+                Require(!string.IsNullOrWhiteSpace(corpseSprite), "corpseSprite must not be blank when supplied.");
+            }
             Require(skin.TorsoBodySprite is null || (!string.IsNullOrWhiteSpace(skin.TorsoBodySprite)
                 && skin.LegsBodySprite is not null), "torsoBodySprite requires legsBodySprite.");
             Require((skin.CloakedLegsBodySprite is null) == (skin.CloakedTorsoBodySprite is null),
@@ -79,6 +83,8 @@ public sealed class PlayerSkinCatalog
                 Require(weapon.AttachmentOffset.Length == 2, "weapon attachmentOffset must have two coordinates.");
                 Require(float.IsFinite(weapon.FirePlaybackRate) && weapon.FirePlaybackRate > 0,
                     "weapon firePlaybackRate must be positive.");
+                foreach (var itemAlias in weapon.ItemAliases)
+                    Require(!string.IsNullOrWhiteSpace(itemAlias), "weapon itemAliases must not contain blank IDs.");
             }
             foreach (var required in new[] { "idle", "run" })
                 Require(skin.Clips.ContainsKey(required), $"clip '{required}' is missing.");
@@ -114,6 +120,8 @@ public sealed class PlayerSkinDefinition
     /// Optional taunt strip used while this skin is active (e.g. Elkondo mode).
     /// </summary>
     public string? TauntSprite { get; set; }
+    /// <summary>Optional authored corpse sprite used by the dynamic ragdoll presentation.</summary>
+    public string? CorpseSprite { get; set; }
     public string? TorsoBodySprite { get; set; }
     public string? CloakedLegsBodySprite { get; set; }
     public string? CloakedTorsoBodySprite { get; set; }
@@ -158,6 +166,7 @@ public sealed class PlayerSkinPose
 public sealed class PlayerSkinWeapon
 {
     public string ItemId { get; set; } = "";
+    public List<string> ItemAliases { get; set; } = new();
     public string MatchSprite { get; set; } = "";
     public string Sprite { get; set; } = "";
     public string? FireSprite { get; set; }
@@ -166,6 +175,7 @@ public sealed class PlayerSkinWeapon
     public string? ReloadSprite { get; set; }
     public int[] Pivot { get; set; } = [];
     public int[] Muzzle { get; set; } = [];
+    public bool DrawBehindBody { get; set; }
 }
 
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]

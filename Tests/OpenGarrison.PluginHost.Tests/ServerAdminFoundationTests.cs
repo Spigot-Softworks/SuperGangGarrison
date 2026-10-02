@@ -978,6 +978,57 @@ public sealed class ServerAdminFoundationTests
     }
 
     [Fact]
+    public void ServerSessionManagerRejectsOlderControlRetryWithoutRevertingNewerChoice()
+    {
+        var world = new SimulationWorld();
+        var client = new ClientSession(1, 101, new IPEndPoint(IPAddress.Loopback, 8190), "Tester", TimeSpan.Zero)
+        {
+            IsAuthorized = true,
+        };
+        var clients = new Dictionary<byte, ClientSession> { [client.Slot] = client };
+        var sentMessages = new List<IProtocolMessage>();
+        var sessionManager = CreateSessionManager(world, clients, (_, message) => sentMessages.Add(message));
+        world.TryPrepareNetworkPlayerJoin(client.Slot);
+
+        sessionManager.HandleControlCommand(client, new ControlCommandMessage(10, ControlCommandKind.SelectTeam, (byte)PlayerTeam.Red));
+        sessionManager.HandleControlCommand(client, new ControlCommandMessage(9, ControlCommandKind.SelectTeam, (byte)PlayerTeam.Blue));
+
+        Assert.Equal(2, sentMessages.Count);
+        Assert.True(Assert.IsType<ControlAckMessage>(sentMessages[0]).Accepted);
+        var delayedRetryAck = Assert.IsType<ControlAckMessage>(sentMessages[1]);
+        Assert.Equal(9u, delayedRetryAck.Sequence);
+        Assert.False(delayedRetryAck.Accepted);
+        Assert.Equal(10u, client.LastTeamCommandSequence);
+        Assert.True(world.TryGetNetworkPlayer(client.Slot, out var player));
+        Assert.Equal(PlayerTeam.Red, player.Team);
+    }
+
+    [Fact]
+    public void ServerSessionManagerAcceptsNewerControlSequenceAcrossWraparound()
+    {
+        var world = new SimulationWorld();
+        var client = new ClientSession(1, 101, new IPEndPoint(IPAddress.Loopback, 8190), "Tester", TimeSpan.Zero)
+        {
+            IsAuthorized = true,
+        };
+        var clients = new Dictionary<byte, ClientSession> { [client.Slot] = client };
+        var sentMessages = new List<IProtocolMessage>();
+        var sessionManager = CreateSessionManager(world, clients, (_, message) => sentMessages.Add(message));
+        world.TryPrepareNetworkPlayerJoin(client.Slot);
+
+        sessionManager.HandleControlCommand(client, new ControlCommandMessage(uint.MaxValue - 1, ControlCommandKind.SelectTeam, (byte)PlayerTeam.Red));
+        sessionManager.HandleControlCommand(client, new ControlCommandMessage(1, ControlCommandKind.SelectTeam, (byte)PlayerTeam.Blue));
+        sessionManager.HandleControlCommand(client, new ControlCommandMessage(uint.MaxValue, ControlCommandKind.SelectTeam, (byte)PlayerTeam.Red));
+
+        Assert.True(Assert.IsType<ControlAckMessage>(sentMessages[0]).Accepted);
+        Assert.True(Assert.IsType<ControlAckMessage>(sentMessages[1]).Accepted);
+        Assert.False(Assert.IsType<ControlAckMessage>(sentMessages[2]).Accepted);
+        Assert.Equal(1u, client.LastTeamCommandSequence);
+        Assert.True(world.TryGetNetworkPlayer(client.Slot, out var player));
+        Assert.Equal(PlayerTeam.Blue, player.Team);
+    }
+
+    [Fact]
     public void ServerBanServicePersistsRejectsAndExpiresBans()
     {
         var root = TestFileSystem.CreateTempRoot();
@@ -1847,7 +1898,7 @@ public sealed class ServerAdminFoundationTests
     }
 
     [Fact]
-    public void SnapshotBroadcasterResendsStringCacheUpdatesAfterClientSlotStateIsCleared()
+    public void SnapshotBroadcasterResendsUnacknowledgedStringCacheUpdatesAndStopsAfterAcknowledgement()
     {
         var world = new SimulationWorld();
         var client = new ClientSession(
@@ -1879,6 +1930,22 @@ public sealed class ServerAdminFoundationTests
         var firstSnapshot = Assert.Single(sentSnapshots).Message;
         Assert.NotNull(firstSnapshot.StringCacheUpdates);
         Assert.NotEmpty(firstSnapshot.StringCacheUpdates!);
+
+        // Simulate loss of the first datagram: the server must repeat mappings
+        // on the next snapshot until an ACK proves the client resolved them.
+        sentSnapshots.Clear();
+        world.AdvanceOneTick();
+        broadcaster.BroadcastSnapshot();
+        var retransmittedSnapshot = Assert.Single(sentSnapshots).Message;
+        Assert.NotNull(retransmittedSnapshot.StringCacheUpdates);
+        Assert.NotEmpty(retransmittedSnapshot.StringCacheUpdates!);
+        client.AcknowledgeSnapshot(retransmittedSnapshot.Frame);
+
+        sentSnapshots.Clear();
+        world.AdvanceOneTick();
+        broadcaster.BroadcastSnapshot();
+        var acknowledgedSnapshot = Assert.Single(sentSnapshots).Message;
+        Assert.True(acknowledgedSnapshot.StringCacheUpdates is null || acknowledgedSnapshot.StringCacheUpdates.Count == 0);
 
         broadcaster.RemoveClientState(client.Slot);
         sentSnapshots.Clear();

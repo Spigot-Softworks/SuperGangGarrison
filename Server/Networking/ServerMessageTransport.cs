@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Net.WebSockets;
@@ -285,44 +286,146 @@ internal sealed class UdpServerMessageTransport : IServerMessageTransport
 {
     private readonly UdpClient _udp;
     private readonly ServerTransportDiagnosticsAccumulator _diagnostics;
+    private readonly UdpFragmentSendCache _fragmentSendCache = new();
+    private readonly UdpFragmentReassembler _fragmentReassembler = new();
+    private readonly UdpFragmentReassembler _preAdmissionFragmentReassembler = new(
+        assemblyLifetimeMilliseconds: 1500,
+        maxAssemblies: 512,
+        maxAssembliesPerPeer: 4,
+        maxBufferedBytes: 2 * 1024 * 1024,
+        maxBufferedBytesPerPeer: 16 * 1024,
+        maxCompletedIds: 512);
+    private readonly UdpRepairPacer _repairPacer = new();
+    private readonly UdpPathMtuDiscovery _pathMtu = new();
+    private readonly ConcurrentDictionary<string, (IPEndPoint EndPoint, long LastSeen)> _knownPeers = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, (IPEndPoint EndPoint, long LastSeen)> _repairPeers = new(StringComparer.Ordinal);
+    private readonly object _unadmittedProbeGate = new();
+    private readonly Dictionary<string, long> _lastUnadmittedProbeAck = new(StringComparer.Ordinal);
+    private const int MaxKnownUdpPeers = 256;
+    private const long KnownUdpPeerLifetimeMilliseconds = 10000;
+    private const int MaxUdpRepairPeers = 512;
+    private const int MaxUnadmittedProbeSources = 256;
+    private const long UnadmittedProbeAckIntervalMilliseconds = 1000;
+    private const long UnadmittedProbeStateLifetimeMilliseconds = 10000;
+    private const int MaxUnadmittedHelloBytes = 4096;
 
     public UdpServerMessageTransport(UdpClient udp, ServerTransportDiagnosticsAccumulator diagnostics)
     {
         _udp = udp;
         _diagnostics = diagnostics;
+        EnableDontFragmentWhenSupported(udp.Client);
     }
 
-    public bool HasPendingMessages => _udp.Available > 0;
+    internal int KnownPeerCount => _knownPeers.Count;
+
+    public bool HasPendingMessages
+    {
+        get
+        {
+            if (_udp.Available == 0)
+            {
+                ServiceDueFragmentNacks();
+                ServiceDueRepairs();
+                ServiceDuePathMtuProbes();
+            }
+            return _udp.Available > 0;
+        }
+    }
 
     public ServerMessagePacket Receive()
     {
         IPEndPoint remoteEndPoint = new(IPAddress.Any, 0);
         var payload = _udp.Receive(ref remoteEndPoint);
-        return new ServerMessagePacket(ServerTransportPeer.FromUdpEndPoint(remoteEndPoint), payload);
+        var peer = ServerTransportPeer.FromUdpEndPoint(remoteEndPoint);
+        var peerKey = remoteEndPoint.ToString();
+        if (!UdpFragmentation.IsFramed(payload))
+            return new ServerMessagePacket(peer, payload);
+        if (!UdpFragmentation.TryDecode(payload, out var frame))
+            return new ServerMessagePacket(peer, []);
+        var now = Environment.TickCount64;
+        if (frame.IsMtuProbe)
+        {
+            if (TryGetKnownPeer(peerKey, now, out var knownEndpoint))
+            {
+                var ack = UdpFragmentation.CreateMtuAck(frame.MessageId, frame.TotalLength);
+                SendDatagram(knownEndpoint, ack, snapshot: false, bestEffort: true);
+            }
+            else if ((frame.TotalLength is UdpPathMtuDiscovery.InitialDatagramBytes or UdpPathMtuDiscovery.SmallerConfirmationDatagramBytes)
+                && TryAllowUnadmittedProbeAck(peerKey, now))
+            {
+                var ack = UdpFragmentation.CreateMtuAck(frame.MessageId, frame.TotalLength);
+                SendDatagram(remoteEndPoint, ack, snapshot: false, bestEffort: true);
+            }
+            return new ServerMessagePacket(peer, []);
+        }
+        if (frame.IsMtuAck)
+        {
+            if (TryGetKnownPeer(peerKey, now, out _)) _pathMtu.TryAcceptAck(peerKey, frame, now, out _);
+            return new ServerMessagePacket(peer, []);
+        }
+        if (frame.IsNack)
+        {
+            if (TryGetRepairPeer(peerKey, now, out var repairEndpoint))
+            {
+                var repairLimit = TryGetKnownPeer(peerKey, now, out _)
+                    ? _pathMtu.GetDatagramLimit(peerKey, now)
+                    : UdpPathMtuDiscovery.InitialDatagramBytes;
+                var repairs = _fragmentSendCache.TryRepair(peerKey, payload, now, repairLimit);
+                if (repairs.Count > 0) RememberRepairPeer(peerKey, repairEndpoint, now);
+                _repairPacer.Enqueue(peerKey, repairs, now);
+            }
+            return new ServerMessagePacket(peer, []);
+        }
+
+        if (!TryGetKnownPeer(peerKey, now, out _))
+        {
+            if (frame.TotalLength > MaxUnadmittedHelloBytes
+                || !_preAdmissionFragmentReassembler.TryAccept(peerKey, payload, now, out var preAdmissionPayload)
+                || preAdmissionPayload is null)
+                return new ServerMessagePacket(peer, []);
+            if (!ProtocolCodec.TryDeserialize(preAdmissionPayload, out var preAdmissionMessage)
+                || preAdmissionMessage is not HelloMessage)
+            {
+                _preAdmissionFragmentReassembler.ClearPeer(peerKey);
+                return new ServerMessagePacket(peer, []);
+            }
+            _preAdmissionFragmentReassembler.ClearPeer(peerKey);
+            return new ServerMessagePacket(peer, preAdmissionPayload);
+        }
+        if (_fragmentReassembler.TryAccept(peerKey, payload, now, out var completePayload))
+            RememberPeer(peerKey, remoteEndPoint, now);
+        return new ServerMessagePacket(peer, completePayload ?? []);
     }
 
     public void Send(ServerTransportPeer remotePeer, byte[] payload, MessageType? messageType = null)
     {
         var remoteEndPoint = remotePeer.UdpEndPoint
             ?? throw new InvalidOperationException($"Peer {remotePeer} cannot be addressed by UDP.");
-        var startTimestamp = Stopwatch.GetTimestamp();
-        var failed = false;
+        var peerKey = remoteEndPoint.ToString();
+        var now = Environment.TickCount64;
+        var activePeer = IsProbeActivatingMessage(messageType)
+            || TryGetKnownPeer(peerKey, now, out _);
+        if (activePeer) RememberPeer(peerKey, remoteEndPoint, now);
+        var limit = activePeer
+            ? _pathMtu.GetDatagramLimit(peerKey, now)
+            : UdpPathMtuDiscovery.InitialDatagramBytes;
+        if (!activePeer && payload.Length > limit)
+        {
+            activePeer = true;
+            RememberPeer(peerKey, remoteEndPoint, now);
+            limit = _pathMtu.GetDatagramLimit(peerKey, now);
+        }
+        if (payload.Length > limit) RememberRepairPeer(peerKey, remoteEndPoint, now);
+        var datagrams = _fragmentSendCache.CacheAndFragment(
+            peerKey, payload, now, limit, messageType == MessageType.Snapshot, cacheForRepairs: true);
         try
         {
-            _udp.Send(payload, payload.Length, remoteEndPoint);
-        }
-        catch
-        {
-            failed = true;
-            throw;
+            foreach (var datagram in datagrams) SendDatagram(remoteEndPoint, datagram, messageType == MessageType.Snapshot);
         }
         finally
         {
-            _diagnostics.RecordUdpSend(
-                payload.Length,
-                messageType == MessageType.Snapshot,
-                Stopwatch.GetTimestamp() - startTimestamp,
-                failed);
+            ServiceDuePathMtuProbes();
+            ServiceDueRepairs();
         }
     }
 
@@ -332,6 +435,184 @@ internal sealed class UdpServerMessageTransport : IServerMessageTransport
         Protocol64DeliveryDescriptor delivery,
         string? replacementKey = null)
         => Send(remotePeer, payload, messageType: null);
+
+    private void ServiceDueFragmentNacks()
+    {
+        var now = Environment.TickCount64;
+        foreach (var (peerKey, packet) in _fragmentReassembler.GetDueNacks(now))
+            if (TryGetKnownPeer(peerKey, now, out _)) _repairPacer.Enqueue(peerKey, [packet], now);
+    }
+
+    private void ServiceDueRepairs()
+    {
+        var now = Environment.TickCount64;
+        if (_repairPacer.TryDequeueDue(now, out var peerKey, out var packet)
+            && packet is not null && TryGetRepairPeer(peerKey, now, out var endpoint)
+            && UdpFragmentation.TryDecode(packet, out var frame))
+        {
+            var isCurrent = frame.IsNack
+                ? _fragmentReassembler.IsCurrentNack(peerKey, packet, now)
+                : _fragmentSendCache.IsCurrentFrame(peerKey, packet, now);
+            if (isCurrent) SendDatagram(endpoint, packet, _fragmentSendCache.IsSnapshotFrame(peerKey, packet), bestEffort: true);
+        }
+    }
+
+    private void ServiceDuePathMtuProbes()
+    {
+        var now = Environment.TickCount64;
+        foreach (var peerKey in _knownPeers.Keys)
+        {
+            if (!TryGetKnownPeer(peerKey, now, out var endpoint)
+                || !_pathMtu.TryCreateProbe(peerKey, now, out var packet) || packet is null) continue;
+            SendDatagram(endpoint, packet, snapshot: false, bestEffort: true);
+        }
+    }
+
+    private void RememberPeer(string peerKey, IPEndPoint endpoint, long nowMilliseconds)
+    {
+        _knownPeers[peerKey] = (endpoint, nowMilliseconds);
+        RememberRepairPeer(peerKey, endpoint, nowMilliseconds);
+        foreach (var pair in _knownPeers)
+            if (nowMilliseconds - pair.Value.LastSeen >= KnownUdpPeerLifetimeMilliseconds)
+            {
+                _knownPeers.TryRemove(pair.Key, out _);
+                ClearPeerState(pair.Key);
+            }
+        if (_knownPeers.Count <= MaxKnownUdpPeers) return;
+        foreach (var pair in _knownPeers.OrderBy(pair => pair.Value.LastSeen).Take(_knownPeers.Count - MaxKnownUdpPeers))
+        {
+            _knownPeers.TryRemove(pair.Key, out _);
+            ClearPeerState(pair.Key);
+        }
+    }
+
+    private bool TryGetKnownPeer(string peerKey, long nowMilliseconds, out IPEndPoint endpoint)
+    {
+        if (_knownPeers.TryGetValue(peerKey, out var peer))
+        {
+            if (nowMilliseconds - peer.LastSeen < KnownUdpPeerLifetimeMilliseconds)
+            {
+                endpoint = peer.EndPoint;
+                return true;
+            }
+            _knownPeers.TryRemove(peerKey, out _);
+            ClearPeerState(peerKey);
+        }
+        endpoint = null!;
+        return false;
+    }
+
+    private void ClearPeerState(string peerKey)
+    {
+        _pathMtu.ClearPeer(peerKey);
+        _fragmentReassembler.ClearPeer(peerKey);
+        _preAdmissionFragmentReassembler.ClearPeer(peerKey);
+        _fragmentSendCache.ClearPeer(peerKey);
+        _repairPacer.ClearPeer(peerKey);
+        _repairPeers.TryRemove(peerKey, out _);
+    }
+
+    private void RememberRepairPeer(string peerKey, IPEndPoint endpoint, long nowMilliseconds)
+    {
+        _repairPeers[peerKey] = (endpoint, nowMilliseconds);
+        foreach (var pair in _repairPeers)
+            if (nowMilliseconds - pair.Value.LastSeen >= UdpFragmentSendCache.CacheLifetimeMilliseconds)
+            {
+                _repairPeers.TryRemove(pair.Key, out _);
+                _fragmentSendCache.ClearPeer(pair.Key);
+                _repairPacer.ClearPeer(pair.Key);
+            }
+        if (_repairPeers.Count <= MaxUdpRepairPeers) return;
+        foreach (var pair in _repairPeers.OrderBy(pair => pair.Value.LastSeen).Take(_repairPeers.Count - MaxUdpRepairPeers))
+        {
+            _repairPeers.TryRemove(pair.Key, out _);
+            _fragmentSendCache.ClearPeer(pair.Key);
+            _repairPacer.ClearPeer(pair.Key);
+        }
+    }
+
+    private bool TryGetRepairPeer(string peerKey, long nowMilliseconds, out IPEndPoint endpoint)
+    {
+        if (_repairPeers.TryGetValue(peerKey, out var peer)
+            && nowMilliseconds - peer.LastSeen < UdpFragmentSendCache.CacheLifetimeMilliseconds)
+        {
+            endpoint = peer.EndPoint;
+            return true;
+        }
+        _repairPeers.TryRemove(peerKey, out _);
+        _fragmentSendCache.ClearPeer(peerKey);
+        _repairPacer.ClearPeer(peerKey);
+        endpoint = null!;
+        return false;
+    }
+
+    private bool TryAllowUnadmittedProbeAck(string peerKey, long nowMilliseconds)
+    {
+        lock (_unadmittedProbeGate)
+        {
+            var expired = new List<string>();
+            foreach (var pair in _lastUnadmittedProbeAck)
+                if (nowMilliseconds - pair.Value >= UnadmittedProbeStateLifetimeMilliseconds) expired.Add(pair.Key);
+            foreach (var key in expired) _lastUnadmittedProbeAck.Remove(key);
+
+            if (_lastUnadmittedProbeAck.TryGetValue(peerKey, out var lastAck)
+                && nowMilliseconds - lastAck < UnadmittedProbeAckIntervalMilliseconds)
+                return false;
+            if (_lastUnadmittedProbeAck.Count >= MaxUnadmittedProbeSources)
+            {
+                string? oldestPeer = null;
+                var oldestTime = long.MaxValue;
+                foreach (var pair in _lastUnadmittedProbeAck)
+                    if (pair.Value < oldestTime) { oldestPeer = pair.Key; oldestTime = pair.Value; }
+                if (oldestPeer is not null) _lastUnadmittedProbeAck.Remove(oldestPeer);
+            }
+            _lastUnadmittedProbeAck[peerKey] = nowMilliseconds;
+            return true;
+        }
+    }
+
+    private static bool IsProbeActivatingMessage(MessageType? messageType)
+        => messageType is MessageType.Welcome or MessageType.PasswordRequest or MessageType.Snapshot;
+
+    private void SendDatagram(IPEndPoint endpoint, byte[] payload, bool snapshot, bool bestEffort = false)
+    {
+        var startTimestamp = Stopwatch.GetTimestamp();
+        var failed = false;
+        try
+        {
+            _udp.Send(payload, payload.Length, endpoint);
+        }
+        catch (SocketException) when (bestEffort)
+        {
+            failed = true;
+        }
+        catch
+        {
+            failed = true;
+            throw;
+        }
+        finally
+        {
+            _diagnostics.RecordUdpSend(payload.Length, snapshot, Stopwatch.GetTimestamp() - startTimestamp, failed);
+        }
+    }
+
+    private static void EnableDontFragmentWhenSupported(Socket socket)
+    {
+        try
+        {
+            if (socket.AddressFamily == AddressFamily.InterNetwork) socket.DontFragment = true;
+            else if (socket.AddressFamily == AddressFamily.InterNetworkV6)
+                socket.SetSocketOption(SocketOptionLevel.IPv6, SocketOptionName.DontFragment, true);
+        }
+        catch (SocketException)
+        {
+            // Some IPv6 stacks do not expose a per-socket no-fragment option.
+        }
+        catch (NotSupportedException)
+        {
+        }
+    }
 }
 
 internal sealed class CompositeServerMessageTransport : IServerMessageTransport

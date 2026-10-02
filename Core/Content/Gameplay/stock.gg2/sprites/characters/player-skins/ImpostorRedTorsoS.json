@@ -1,0 +1,16 @@
+{
+  "id": "ImpostorRedTorsoS",
+  "framePaths": [
+    "assets/characters/player-skins/ImpostorRedTorsoS/0.png",
+    "assets/characters/player-skins/ImpostorRedTorsoS/1.png",
+    "assets/characters/player-skins/ImpostorRedTorsoS/2.png",
+    "assets/characters/player-skins/ImpostorRedTorsoS/3.png",
+    "assets/characters/player-skins/ImpostorRedTorsoS/4.png",
+    "assets/characters/player-skins/ImpostorRedTorsoS/5.png",
+    "assets/characters/player-skins/ImpostorRedTorsoS/6.png",
+    "assets/characters/player-skins/ImpostorRedTorsoS/7.png",
+    "assets/characters/player-skins/ImpostorRedTorsoS/8.png"
+  ],
+  "originX": 32,
+  "originY": 52
+}

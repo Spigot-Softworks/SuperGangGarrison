@@ -107,6 +107,12 @@ public sealed class GameplayVisualEventController
                 return;
             }
 
+            if (string.Equals(effectName, "CivvieMoneyBurst", StringComparison.OrdinalIgnoreCase))
+            {
+                _context.Gameplay.MaterialEffects.SpawnCivvieMoneyBurstVisuals(x, y, count);
+                return;
+            }
+
             if (string.Equals(effectName, "CivvieMoney", StringComparison.OrdinalIgnoreCase))
             {
                 _context.SpawnCivvieMoneyVisual(x, y, directionDegrees);

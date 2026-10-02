@@ -29,7 +29,7 @@ public partial class Game1
     {
         foreach (var player in EnumerateRenderablePlayers())
         {
-            if (!player.IsAlive || player.ClassId != PlayerClass.Quote)
+            if (!player.IsAlive || !player.IsCivilian)
             {
                 _civviePogoTrickDurationTicksByPlayerId.Remove(player.Id);
                 _civviePogoTrickPresentationTicksByPlayerId.Remove(player.Id);
@@ -85,7 +85,7 @@ public partial class Game1
         foreach (var playerId in _civviePogoTrickPreviousTicksByPlayerId.Keys)
         {
             if (FindPlayerById(playerId) is not { IsAlive: true } found
-                || found.ClassId != PlayerClass.Quote)
+                || !found.IsCivilian)
             {
                 stalePlayerIds.Add(playerId);
             }

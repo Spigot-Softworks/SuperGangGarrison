@@ -1,3 +1,5 @@
+using System.Threading;
+
 namespace OpenGarrison.Core.BotBrain;
 
 internal static class BotBrainMovementProbe
@@ -1402,82 +1404,139 @@ internal static class BotBrainClassMask
 {
     public const int All = -1;
 
+    private const int CertifiedProfileClassMask =
+        (1 << (int)PlayerClass.Heavy)
+        | (1 << (int)PlayerClass.Soldier)
+        | (1 << (int)PlayerClass.Scout)
+        | (1 << (int)PlayerClass.Sniper)
+        | (1 << (int)PlayerClass.Engineer)
+        | (1 << (int)PlayerClass.Demoman)
+        | (1 << (int)PlayerClass.Quote)
+        | (1 << (int)PlayerClass.Spy)
+        | (1 << (int)PlayerClass.Medic)
+        | (1 << (int)PlayerClass.Pyro);
+
+    // CharacterClassDefinition snapshots are immutable. GameplayRuntimeRegistry
+    // replaces them when class data changes, so reference-keying each row keeps
+    // this query cache current without reading experimental settings or warming
+    // navigation graphs.
+    private static readonly object CertifiedProfileCacheSync = new();
+    private static readonly CachedCertifiedProfileMask?[] CertifiedProfileMasksByClass = new CachedCertifiedProfileMask?[11];
+
     public static bool CoversAll(int mask) =>
         Enum.GetValues<PlayerClass>().All(playerClass => Contains(mask, playerClass));
 
     public static int For(PlayerClass playerClass) => 1 << (int)playerClass;
 
     public static bool Contains(int mask, PlayerClass playerClass) =>
+        Contains(mask, playerClass, CharacterClassCatalog.RuntimeRegistry);
+
+    internal static bool Contains(int mask, PlayerClass playerClass, GameplayRuntimeRegistry runtimeRegistry) =>
         mask == All
         || (mask & For(playerClass)) != 0
-        || IsCoveredByCertifiedMovementProfile(mask, playerClass);
+        || IsCoveredByCertifiedMovementProfile(mask, playerClass, runtimeRegistry);
 
-    private static bool IsCoveredByCertifiedMovementProfile(int mask, PlayerClass playerClass)
+    private static bool IsCoveredByCertifiedMovementProfile(
+        int mask,
+        PlayerClass playerClass,
+        GameplayRuntimeRegistry runtimeRegistry)
     {
-        var candidate = CharacterClassCatalog.GetDefinition(playerClass);
-        foreach (var certifiedProfile in EnumerateCertifiedProfiles(mask))
+        if ((mask & CertifiedProfileClassMask) == 0)
         {
-            if (CanSubstituteForCertifiedProfile(candidate, certifiedProfile))
+            return false;
+        }
+
+        // CharacterClassCatalog.GetDefinition historically falls back to Scout
+        // for undefined enum values; preserve that behavior for this lookup.
+        var candidateClass = Enum.IsDefined(playerClass) ? playerClass : PlayerClass.Scout;
+        var candidate = runtimeRegistry.CreateCharacterClassDefinition(candidateClass);
+        var candidateClassIndex = (int)candidate.Id;
+        if (candidateClassIndex <= 0 || candidateClassIndex >= CertifiedProfileMasksByClass.Length)
+        {
+            return (BuildCertifiedProfileMask(candidate, runtimeRegistry) & mask) != 0;
+        }
+
+        var cachedProfileMask = Volatile.Read(ref CertifiedProfileMasksByClass[candidateClassIndex]);
+        if (cachedProfileMask is null
+            || !ReferenceEquals(cachedProfileMask.RuntimeRegistry, runtimeRegistry)
+            || !ReferenceEquals(cachedProfileMask.Candidate, candidate))
+        {
+            lock (CertifiedProfileCacheSync)
             {
-                return true;
+                cachedProfileMask = CertifiedProfileMasksByClass[candidateClassIndex];
+                if (cachedProfileMask is null
+                    || !ReferenceEquals(cachedProfileMask.RuntimeRegistry, runtimeRegistry)
+                    || !ReferenceEquals(cachedProfileMask.Candidate, candidate))
+                {
+                    cachedProfileMask = new CachedCertifiedProfileMask(
+                        candidate,
+                        runtimeRegistry,
+                        BuildCertifiedProfileMask(candidate, runtimeRegistry));
+                    Volatile.Write(ref CertifiedProfileMasksByClass[candidateClassIndex], cachedProfileMask);
+                }
             }
         }
 
-        return false;
+        return (cachedProfileMask!.SupportedProfileMask & mask) != 0;
     }
 
-    private static IEnumerable<CharacterClassDefinition> EnumerateCertifiedProfiles(int mask)
+    private static int BuildCertifiedProfileMask(
+        CharacterClassDefinition candidate,
+        GameplayRuntimeRegistry runtimeRegistry)
     {
-        if ((mask & For(PlayerClass.Heavy)) != 0)
+        var supportedProfileMask = 0;
+        if (CanSubstituteForCertifiedProfile(candidate, runtimeRegistry.CreateCharacterClassDefinition(PlayerClass.Heavy)))
         {
-            yield return CharacterClassCatalog.Heavy;
+            supportedProfileMask |= For(PlayerClass.Heavy);
         }
 
-        if ((mask & For(PlayerClass.Soldier)) != 0)
+        if (CanSubstituteForCertifiedProfile(candidate, runtimeRegistry.CreateCharacterClassDefinition(PlayerClass.Soldier)))
         {
-            yield return CharacterClassCatalog.Soldier;
+            supportedProfileMask |= For(PlayerClass.Soldier);
         }
 
-        if ((mask & For(PlayerClass.Scout)) != 0)
+        if (CanSubstituteForCertifiedProfile(candidate, runtimeRegistry.CreateCharacterClassDefinition(PlayerClass.Scout)))
         {
-            yield return CharacterClassCatalog.Scout;
+            supportedProfileMask |= For(PlayerClass.Scout);
         }
 
-        if ((mask & For(PlayerClass.Sniper)) != 0)
+        if (CanSubstituteForCertifiedProfile(candidate, runtimeRegistry.CreateCharacterClassDefinition(PlayerClass.Sniper)))
         {
-            yield return CharacterClassCatalog.Sniper;
+            supportedProfileMask |= For(PlayerClass.Sniper);
         }
 
-        if ((mask & For(PlayerClass.Engineer)) != 0)
+        if (CanSubstituteForCertifiedProfile(candidate, runtimeRegistry.CreateCharacterClassDefinition(PlayerClass.Engineer)))
         {
-            yield return CharacterClassCatalog.Engineer;
+            supportedProfileMask |= For(PlayerClass.Engineer);
         }
 
-        if ((mask & For(PlayerClass.Demoman)) != 0)
+        if (CanSubstituteForCertifiedProfile(candidate, runtimeRegistry.CreateCharacterClassDefinition(PlayerClass.Demoman)))
         {
-            yield return CharacterClassCatalog.Demoman;
+            supportedProfileMask |= For(PlayerClass.Demoman);
         }
 
-        if ((mask & For(PlayerClass.Quote)) != 0
-            && CharacterClassCatalog.RuntimeRegistry.TryGetClassBinding(PlayerClass.Quote, out _))
+        if (runtimeRegistry.TryGetClassBinding(PlayerClass.Quote, out _)
+            && CanSubstituteForCertifiedProfile(candidate, runtimeRegistry.CreateCharacterClassDefinition(PlayerClass.Quote)))
         {
-            yield return CharacterClassCatalog.Civilian;
+            supportedProfileMask |= For(PlayerClass.Quote);
         }
 
-        if ((mask & For(PlayerClass.Spy)) != 0)
+        if (CanSubstituteForCertifiedProfile(candidate, runtimeRegistry.CreateCharacterClassDefinition(PlayerClass.Spy)))
         {
-            yield return CharacterClassCatalog.Spy;
+            supportedProfileMask |= For(PlayerClass.Spy);
         }
 
-        if ((mask & For(PlayerClass.Medic)) != 0)
+        if (CanSubstituteForCertifiedProfile(candidate, runtimeRegistry.CreateCharacterClassDefinition(PlayerClass.Medic)))
         {
-            yield return CharacterClassCatalog.Medic;
+            supportedProfileMask |= For(PlayerClass.Medic);
         }
 
-        if ((mask & For(PlayerClass.Pyro)) != 0)
+        if (CanSubstituteForCertifiedProfile(candidate, runtimeRegistry.CreateCharacterClassDefinition(PlayerClass.Pyro)))
         {
-            yield return CharacterClassCatalog.Pyro;
+            supportedProfileMask |= For(PlayerClass.Pyro);
         }
+
+        return supportedProfileMask;
     }
 
     private static bool CanSubstituteForCertifiedProfile(
@@ -1492,6 +1551,11 @@ internal static class BotBrainClassMask
             && candidate.CollisionTop >= certifiedProfile.CollisionTop
             && candidate.CollisionBottom <= certifiedProfile.CollisionBottom;
     }
+
+    private sealed record CachedCertifiedProfileMask(
+        CharacterClassDefinition Candidate,
+        GameplayRuntimeRegistry RuntimeRegistry,
+        int SupportedProfileMask);
 }
 
 internal static class BotBrainTeamMask

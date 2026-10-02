@@ -49,6 +49,13 @@ public partial class Game1
         EnsureClientOnlineSmokeInitialized();
         if (_clientOnlineSmokeStage == ClientOnlineSmokeStage.Idle)
         {
+            if (_startupSplashOpen && _gameplayManager.Bootstrap.IsMenuBootstrapComplete)
+            {
+                // The opt-in loopback harness cannot press the interactive brand-intro
+                // button, so complete the normal intro transition before connecting.
+                CompleteStartupIntro();
+            }
+
             if (_startupSplashOpen || !_mainMenuOpen || !_gameplayManager.Bootstrap.CanEnterGameplaySession(out _))
             {
                 return;

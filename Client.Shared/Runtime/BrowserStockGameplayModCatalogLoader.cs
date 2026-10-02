@@ -18,6 +18,7 @@ public static class BrowserStockGameplayModCatalogLoader
         "ability.medic-uber.json",
         "ability.pyro-airblast.json",
         "ability.quote-blade-throw.json",
+        "ability.quote-utility.json",
         "ability.sniper-scope.json",
         "ability.sniper-strong-drink.json",
         "ability.spy-cloak.json",

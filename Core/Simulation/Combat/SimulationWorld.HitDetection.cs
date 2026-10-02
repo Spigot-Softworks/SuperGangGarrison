@@ -16,7 +16,7 @@ public sealed partial class SimulationWorld
 
     internal void CombatTestAddSentry(SentryEntity sentry)
     {
-        _sentries.Add(sentry);
+        WorldObjects.Sentries.Add(sentry);
         EntityStore.Set(sentry.Id, sentry);
     }
 

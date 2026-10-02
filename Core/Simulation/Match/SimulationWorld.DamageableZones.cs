@@ -4,8 +4,6 @@ namespace OpenGarrison.Core;
 
 public sealed partial class SimulationWorld
 {
-    private float[] _damageableZoneHealth = [];
-    private PlayerTeam?[] _damageableZoneLastDamagingTeam = [];
 
     public float GetDamageableZoneHealth(int roomObjectIndex)
     {
@@ -21,7 +19,7 @@ public sealed partial class SimulationWorld
         }
 
         EnsureDamageableZoneHealthInitialized();
-        return _damageableZoneHealth[roomObjectIndex];
+        return MapRuntime.DamageableZoneHealth[roomObjectIndex];
     }
 
     public float GetDamageableZoneHealthRatio(int roomObjectIndex)
@@ -73,17 +71,17 @@ public sealed partial class SimulationWorld
         }
 
         EnsureDamageableZoneHealthInitialized();
-        var previousHealth = _damageableZoneHealth[roomObjectIndex];
+        var previousHealth = MapRuntime.DamageableZoneHealth[roomObjectIndex];
         if (previousHealth <= 0f)
         {
             return false;
         }
 
-        _damageableZoneHealth[roomObjectIndex] = MathF.Max(0f, previousHealth - damage);
-        Level.DamageableZoneCurrentHealth = _damageableZoneHealth;
+        MapRuntime.DamageableZoneHealth[roomObjectIndex] = MathF.Max(0f, previousHealth - damage);
+        Level.DamageableZoneCurrentHealth = MapRuntime.DamageableZoneHealth;
         if (damagingTeam.HasValue)
         {
-            _damageableZoneLastDamagingTeam[roomObjectIndex] = damagingTeam;
+            MapRuntime.DamageableZoneLastDamagingTeam[roomObjectIndex] = damagingTeam;
         }
 
         EvaluateMapLogicDamageTriggersIfNeeded();
@@ -92,7 +90,7 @@ public sealed partial class SimulationWorld
 
     private void EnsureDamageableZoneHealthInitialized()
     {
-        if (_damageableZoneHealth.Length == Level.RoomObjects.Count)
+        if (MapRuntime.DamageableZoneHealth.Length == Level.RoomObjects.Count)
         {
             return;
         }
@@ -102,17 +100,17 @@ public sealed partial class SimulationWorld
 
     private void ResetDamageableZoneHealth()
     {
-        _damageableZoneHealth = new float[Level.RoomObjects.Count];
-        _damageableZoneLastDamagingTeam = new PlayerTeam?[Level.RoomObjects.Count];
+        MapRuntime.DamageableZoneHealth = new float[Level.RoomObjects.Count];
+        MapRuntime.DamageableZoneLastDamagingTeam = new PlayerTeam?[Level.RoomObjects.Count];
         for (var index = 0; index < Level.RoomObjects.Count; index += 1)
         {
             ref readonly var marker = ref Level.GetRoomObject(index);
-            _damageableZoneHealth[index] = marker.Type == RoomObjectType.DamageableZone
+            MapRuntime.DamageableZoneHealth[index] = marker.Type == RoomObjectType.DamageableZone
                 ? marker.DamageableZone.MaxHealth
                 : 0f;
         }
 
-        Level.DamageableZoneCurrentHealth = _damageableZoneHealth;
+        Level.DamageableZoneCurrentHealth = MapRuntime.DamageableZoneHealth;
     }
 
     private void ApplyDamageableZoneHealWhenSignals()
@@ -145,18 +143,18 @@ public sealed partial class SimulationWorld
         }
 
         EnsureDamageableZoneHealthInitialized();
-        var previousHealth = _damageableZoneHealth[roomObjectIndex];
+        var previousHealth = MapRuntime.DamageableZoneHealth[roomObjectIndex];
         var maxHealth = marker.DamageableZone.MaxHealth;
         if (MathF.Abs(previousHealth - maxHealth) <= 0.001f)
         {
             return;
         }
 
-        _damageableZoneHealth[roomObjectIndex] = maxHealth;
-        Level.DamageableZoneCurrentHealth = _damageableZoneHealth;
-        if (roomObjectIndex < _damageableZoneLastDamagingTeam.Length)
+        MapRuntime.DamageableZoneHealth[roomObjectIndex] = maxHealth;
+        Level.DamageableZoneCurrentHealth = MapRuntime.DamageableZoneHealth;
+        if (roomObjectIndex < MapRuntime.DamageableZoneLastDamagingTeam.Length)
         {
-            _damageableZoneLastDamagingTeam[roomObjectIndex] = null;
+            MapRuntime.DamageableZoneLastDamagingTeam[roomObjectIndex] = null;
         }
 
         EvaluateMapLogicDamageTriggersIfNeeded();
@@ -164,12 +162,12 @@ public sealed partial class SimulationWorld
 
     private PlayerTeam? GetDamageableZoneLastDamagingTeam(int roomObjectIndex)
     {
-        if (roomObjectIndex < 0 || roomObjectIndex >= _damageableZoneLastDamagingTeam.Length)
+        if (roomObjectIndex < 0 || roomObjectIndex >= MapRuntime.DamageableZoneLastDamagingTeam.Length)
         {
             return null;
         }
 
-        return _damageableZoneLastDamagingTeam[roomObjectIndex];
+        return MapRuntime.DamageableZoneLastDamagingTeam[roomObjectIndex];
     }
 
     private DamageTriggerEvaluationContext CreateDamageTriggerEvaluationContext()

@@ -9,6 +9,14 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
+    private readonly System.Collections.Generic.List<PlayerEntity> _worldRenderPlayers = new();
+    private readonly System.Collections.Generic.HashSet<int> _worldRenderUberedPlayerIds = new();
+    private readonly System.Collections.Generic.HashSet<int> _worldRenderMedicBeamPlayerIds = new();
+    private readonly System.Collections.Generic.HashSet<int> _worldRenderMedicBeamMedicIds = new();
+    private readonly System.Collections.Generic.HashSet<int> _worldRenderMedicBeamTargetIds = new();
+    private readonly System.Collections.Generic.HashSet<int> _worldRenderSkipBelowUberPlayerIds = new();
+    private bool _worldRenderLocalPlayerInActiveMedicBeam;
+
     public Rectangle GetLocalPlayerRectangle(Vector2 cameraPosition)
     {
         var player = _world.LocalPlayer;
@@ -50,19 +58,18 @@ public partial class Game1
             _gameplayManager.GoreEffects.DrawBloodSquibPools(cameraPosition);
         }
 
-        DrawGameplayEffectsAndProjectiles(cameraPosition);
+        DrawGameplayEffectsAndProjectiles(cameraPosition, viewportWidth, viewportHeight);
         DrawGameplayStructures(cameraPosition);
         DrawDispenserBeams(cameraPosition);
         DrawDamageableZoneHealthBars(cameraPosition);
         DrawGameplayMapMarkers(cameraPosition, hasLevelBackground, centerLine, centerColumn, worldTopBorder, worldBottomBorder, worldLeftBorder, worldRightBorder, spawnRectangle);
         DrawGameplayRemains(cameraPosition, skippedDeadBodySourcePlayerId);
-        var medicBeamPlayerIds = GetActiveMedicBeamPlayerIds();
-        var medicBeamTargetIds = GetActiveMedicBeamTargetIds();
-        var medicBeamMedicIds = GetActiveMedicBeamMedicIds();
-        var localPlayerInActiveMedicBeam = IsLocalPlayerInActiveMedicBeam();
-        var uberedPlayerIds = GetUberedPlayerIds();
-        var skipBelowUber = new System.Collections.Generic.HashSet<int>(medicBeamPlayerIds);
-        skipBelowUber.UnionWith(uberedPlayerIds);
+        PrepareGameplayPlayerLayers();
+        var medicBeamTargetIds = _worldRenderMedicBeamTargetIds;
+        var medicBeamMedicIds = _worldRenderMedicBeamMedicIds;
+        var localPlayerInActiveMedicBeam = _worldRenderLocalPlayerInActiveMedicBeam;
+        var uberedPlayerIds = _worldRenderUberedPlayerIds;
+        var skipBelowUber = _worldRenderSkipBelowUberPlayerIds;
 
         if (localPlayerInActiveMedicBeam)
         {
@@ -71,7 +78,7 @@ public partial class Game1
             DrawMedicBeams(cameraPosition);
             DrawGameplayPlayers(cameraPosition, skipPlayerIds: uberedPlayerIds, onlyPlayerIds: medicBeamTargetIds);
             DrawGameplayPlayers(cameraPosition, onlyPlayerIds: uberedPlayerIds);
-            DrawLocalPlayer(cameraPosition, playerRectangle);
+            DrawWithLocalPlayerSubpixelOffset(() => DrawLocalPlayer(cameraPosition, playerRectangle));
         }
         else
         {
@@ -80,7 +87,7 @@ public partial class Game1
             DrawGameplayPlayers(cameraPosition, skipPlayerIds: uberedPlayerIds, onlyPlayerIds: medicBeamMedicIds);
             DrawGameplayPlayers(cameraPosition, skipPlayerIds: uberedPlayerIds, onlyPlayerIds: medicBeamTargetIds);
             DrawGameplayPlayers(cameraPosition, onlyPlayerIds: uberedPlayerIds);
-            DrawLocalPlayer(cameraPosition, playerRectangle);
+            DrawWithLocalPlayerSubpixelOffset(() => DrawLocalPlayer(cameraPosition, playerRectangle));
         }
         DrawFrozenSpyVisuals(cameraPosition);
         DrawBackstabVisuals(cameraPosition);
@@ -97,6 +104,7 @@ public partial class Game1
         DrawProjectileSpawnBlockedDebug(cameraPosition);
         DrawHitboxDebugOverlay(cameraPosition);
         RecordBrowserWorldDrawDuration(browserWorldDrawStartTimestamp);
+        RecordFirstGameplayWorldDrawCompleted();
     }
 
     private void DrawRocketCollisionDebug(Vector2 cameraPosition)
@@ -475,92 +483,50 @@ public partial class Game1
         return _remainsSortCeiling;
     }
 
-    private System.Collections.Generic.HashSet<int> GetUberedPlayerIds()
+    private void PrepareGameplayPlayerLayers()
     {
-        var ids = new System.Collections.Generic.HashSet<int>();
+        _worldRenderPlayers.Clear();
+        _worldRenderUberedPlayerIds.Clear();
+        _worldRenderMedicBeamPlayerIds.Clear();
+        _worldRenderMedicBeamMedicIds.Clear();
+        _worldRenderMedicBeamTargetIds.Clear();
+        _worldRenderSkipBelowUberPlayerIds.Clear();
+
         var localId = _world.LocalPlayer.Id;
+        _worldRenderLocalPlayerInActiveMedicBeam = _world.LocalPlayer.IsMedicHealing
+            && _world.LocalPlayer.MedicHealTargetId.HasValue;
+
         foreach (var player in EnumerateRenderablePlayers())
         {
+            _worldRenderPlayers.Add(player);
             if (player.Id != localId && (player.IsUbered || player.IsKritzCritBoosted))
             {
-                ids.Add(player.Id);
+                _worldRenderUberedPlayerIds.Add(player.Id);
             }
-        }
 
-        return ids;
-    }
-
-    private System.Collections.Generic.HashSet<int> GetActiveMedicBeamPlayerIds()
-    {
-        var ids = new System.Collections.Generic.HashSet<int>();
-        foreach (var player in EnumerateRenderablePlayers())
-        {
-            if (player.IsMedicHealing
-                && player.MedicHealTargetId.HasValue)
-            {
-                ids.Add(player.Id);
-                var target = FindPlayerById(player.MedicHealTargetId.Value);
-                if (target is not null && target.IsAlive)
-                    ids.Add(target.Id);
-            }
-        }
-        return ids;
-    }
-
-
-    private System.Collections.Generic.HashSet<int> GetActiveMedicBeamMedicIds()
-    {
-        var ids = new System.Collections.Generic.HashSet<int>();
-        foreach (var player in EnumerateRenderablePlayers())
-        {
-            if (player.IsMedicHealing
-                && player.MedicHealTargetId.HasValue)
-            {
-                ids.Add(player.Id);
-            }
-        }
-        return ids;
-    }
-
-    private System.Collections.Generic.HashSet<int> GetActiveMedicBeamTargetIds()
-    {
-        var ids = new System.Collections.Generic.HashSet<int>();
-        foreach (var player in EnumerateRenderablePlayers())
-        {
-            if (player.IsMedicHealing
-                && player.MedicHealTargetId.HasValue)
-            {
-                var target = FindPlayerById(player.MedicHealTargetId.Value);
-                if (target is not null && target.IsAlive)
-                    ids.Add(target.Id);
-            }
-        }
-        return ids;
-    }
-
-    private bool IsLocalPlayerInActiveMedicBeam()
-    {
-        var localPlayer = _world.LocalPlayer;
-        if (localPlayer.IsMedicHealing && localPlayer.MedicHealTargetId.HasValue)
-        {
-            return true;
-        }
-
-        foreach (var player in EnumerateRenderablePlayers())
-        {
-            if (!player.IsMedicHealing
-                || !player.MedicHealTargetId.HasValue)
+            if (!player.IsMedicHealing || !player.MedicHealTargetId.HasValue)
             {
                 continue;
             }
 
-            if (player.MedicHealTargetId.Value == localPlayer.Id)
+            var targetId = player.MedicHealTargetId.Value;
+            _worldRenderMedicBeamPlayerIds.Add(player.Id);
+            _worldRenderMedicBeamMedicIds.Add(player.Id);
+            if (targetId == localId)
             {
-                return true;
+                _worldRenderLocalPlayerInActiveMedicBeam = true;
+            }
+
+            var target = FindPlayerById(targetId);
+            if (target is not null && target.IsAlive)
+            {
+                _worldRenderMedicBeamPlayerIds.Add(target.Id);
+                _worldRenderMedicBeamTargetIds.Add(target.Id);
             }
         }
 
-        return false;
+        _worldRenderSkipBelowUberPlayerIds.UnionWith(_worldRenderMedicBeamPlayerIds);
+        _worldRenderSkipBelowUberPlayerIds.UnionWith(_worldRenderUberedPlayerIds);
     }
 
     private void DrawGameplayPlayers(
@@ -568,7 +534,7 @@ public partial class Game1
         System.Collections.Generic.HashSet<int>? skipPlayerIds = null,
         System.Collections.Generic.HashSet<int>? onlyPlayerIds = null)
     {
-        foreach (var renderPlayer in EnumerateRenderablePlayers())
+        foreach (var renderPlayer in _worldRenderPlayers)
         {
             var playerId = renderPlayer.Id;
             if (skipPlayerIds is not null && skipPlayerIds.Contains(playerId)) continue;
@@ -609,6 +575,16 @@ public partial class Game1
         DrawCapturedPointHealingGhosting(_world.LocalPlayer, renderPosition, cameraPosition, visibilityAlpha, bodySelection);
         TryDrawWeaponSpriteBackdrop(_world.LocalPlayer, cameraPosition, playerSpriteTint, visibilityAlpha, bodySelection);
 
+        var shouldDrawWeapon = !GetPlayerIsHeavyEating(_world.LocalPlayer)
+            && !_world.LocalPlayer.IsTaunting
+            && !_world.LocalPlayer.IsCivviePogoActive
+            && !_world.IsPlayerHumiliated(_world.LocalPlayer);
+        var drawWeaponBehindBody = shouldDrawWeapon && GetWeaponRenderDefinition(_world.LocalPlayer).DrawBehindBody;
+        if (drawWeaponBehindBody)
+        {
+            TryDrawWeaponSprite(_world.LocalPlayer, cameraPosition, playerSpriteTint, visibilityAlpha, bodySelection);
+        }
+
         if (!TryDrawPlayerSprite(_world.LocalPlayer, cameraPosition, playerSpriteTint, bodySelection))
         {
             _spriteBatch.Draw(_pixel, playerRectangle, playerFallbackColor * visibilityAlpha);
@@ -616,10 +592,7 @@ public partial class Game1
 
         DrawExperimentalStickyGibBloodOverlay(_world.LocalPlayer, cameraPosition, visibilityAlpha);
 
-        if (!GetPlayerIsHeavyEating(_world.LocalPlayer)
-            && !_world.LocalPlayer.IsTaunting
-            && !_world.LocalPlayer.IsCivviePogoActive
-            && !_world.IsPlayerHumiliated(_world.LocalPlayer))
+        if (shouldDrawWeapon && !drawWeaponBehindBody)
         {
             TryDrawWeaponSprite(_world.LocalPlayer, cameraPosition, playerSpriteTint, visibilityAlpha, bodySelection);
         }

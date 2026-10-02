@@ -46,7 +46,7 @@ internal sealed partial class ServerOutboundMessaging(
         SendPayload(
             remotePeer,
             payload,
-            message is SnapshotMessage ? MessageType.Snapshot : null);
+            message.Type);
     }
 
     /// <summary>

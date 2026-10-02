@@ -112,6 +112,11 @@ public partial class Game1
         return CharacterClassCatalog.RuntimeRegistry.GetRequiredClassBinding(PlayerClass.Quote).ClassId;
     }
 
+    internal static string ResolveClassSelectRandomDoorGameplayClassId()
+    {
+        return CharacterClassCatalog.QuoteGameplayClassId;
+    }
+
     public void DrawClassSelectHud()
     {
         var viewportWidth = ViewportWidth;
@@ -192,9 +197,9 @@ public partial class Game1
 
     private bool ApplyClassSelection(int hoverIndex)
     {
-        if (hoverIndex == 9 && ApplyPreferredPluginClassSelection())
+        if (hoverIndex == 9)
         {
-            return true;
+            return ApplyDirectGameplayClassSelection(ResolveClassSelectRandomDoorGameplayClassId());
         }
 
         var selectedClass = hoverIndex switch
@@ -212,13 +217,6 @@ public partial class Game1
         };
 
         return ApplyDirectClassSelection(selectedClass);
-    }
-
-    private bool ApplyPreferredPluginClassSelection()
-    {
-        return !_networkClient.IsLegacyGg2Connection
-            && TryGetPreferredPluginGameplayClass(out var gameplayClassId, out _)
-            && ApplyDirectGameplayClassSelection(gameplayClassId);
     }
 
     private bool ApplyDirectClassSelection(PlayerClass selectedClass)
@@ -265,7 +263,15 @@ public partial class Game1
             return false;
         }
 
-        WarmBrowserPlayableClassAssets(selectedClass, _teamClassSelectionState.PendingClassSelectTeam ?? _world.LocalPlayerTeam);
+        var warmupTeam = _teamClassSelectionState.PendingClassSelectTeam ?? _world.LocalPlayerTeam;
+        if (CharacterClassCatalog.IsQuoteCurlyGameplayClassId(gameplayClassId))
+        {
+            WarmBrowserGameplayClassAssets(gameplayClassId, warmupTeam, includeExtendedAnimations: true);
+        }
+        else
+        {
+            WarmBrowserPlayableClassAssets(selectedClass, warmupTeam);
+        }
 
         if (_networkClient.IsConnected)
         {
@@ -333,18 +339,12 @@ public partial class Game1
 
         if (pressedDigit.Value == 0)
         {
-            if (!_networkClient.IsLegacyGg2Connection
-                && TryGetPreferredPluginGameplayClass(out gameplayClassId, out _))
-            {
-                return true;
-            }
-
-            if (!CharacterClassCatalog.RuntimeRegistry.TryGetClassBinding(GetRandomPlayableClass(), out var randomBinding))
+            gameplayClassId = ResolveClassSelectRandomDoorGameplayClassId();
+            if (!CharacterClassCatalog.RuntimeRegistry.TryGetClassBinding(gameplayClassId, out _))
             {
                 return false;
             }
 
-            gameplayClassId = randomBinding.ClassId;
             return true;
         }
 
@@ -370,51 +370,6 @@ public partial class Game1
         return true;
     }
 
-    private bool TryGetPreferredPluginGameplayClass(out string gameplayClassId, out PlayerClass playerClass)
-    {
-        gameplayClassId = string.Empty;
-        playerClass = default;
-        if (_networkClient.IsLegacyGg2Connection)
-        {
-            return false;
-        }
-
-        GameplayClassRuntimeBinding? selectedBinding = null;
-        foreach (var binding in CharacterClassCatalog.RuntimeRegistry.RuntimeClassBindings)
-        {
-            if (binding.BindsLegacyPlayerClass || !IsClassAllowedForCurrentGameplaySession(binding.PlayerClass))
-            {
-                continue;
-            }
-
-            if (selectedBinding is null || ComparePreferredPluginClass(binding, selectedBinding) < 0)
-            {
-                selectedBinding = binding;
-            }
-        }
-
-        if (selectedBinding is null)
-        {
-            return false;
-        }
-
-        gameplayClassId = selectedBinding.ClassId;
-        playerClass = selectedBinding.PlayerClass;
-        return true;
-    }
-
-    private static int ComparePreferredPluginClass(GameplayClassRuntimeBinding left, GameplayClassRuntimeBinding right)
-    {
-        var leftQuoteRank = left.BasePlayerClass == PlayerClass.Quote ? 0 : 1;
-        var rightQuoteRank = right.BasePlayerClass == PlayerClass.Quote ? 0 : 1;
-        if (leftQuoteRank != rightQuoteRank)
-        {
-            return leftQuoteRank.CompareTo(rightQuoteRank);
-        }
-
-        return string.Compare(left.ClassId, right.ClassId, StringComparison.Ordinal);
-    }
-
     private string[] GetClassSelectDescription(int hoverIndex)
     {
         if (_networkClient.IsLegacyGg2Connection)
@@ -430,11 +385,12 @@ public partial class Game1
             }
         }
 
-        if (hoverIndex == 9 && TryGetPreferredPluginGameplayClass(out var gameplayClassId, out _))
+        if (hoverIndex == 9)
         {
+            var gameplayClassId = ResolveClassSelectRandomDoorGameplayClassId();
             var gameplayClass = CharacterClassCatalog.RuntimeRegistry.GetClassDefinition(gameplayClassId);
             var primaryItem = CharacterClassCatalog.RuntimeRegistry.GetPrimaryItem(gameplayClassId);
-            return [gameplayClass.DisplayName, $"Weapon: {primaryItem.DisplayName}", "A specialist from an active", "gameplay pack.", string.Empty];
+            return [gameplayClass.DisplayName, $"Weapon: {primaryItem.DisplayName}", "A strange fighter with a", "bubble gun and a thrown blade.", string.Empty];
         }
 
         return hoverIndex switch
@@ -448,7 +404,7 @@ public partial class Game1
             6 => ["Constructor", "Weapon: Shotgun", "Builds sentries and support gear", "to lock down territory.", string.Empty],
             7 => ["Infiltrator", "Weapon: Revolver", "Uses disguise and cloaking to", "slip behind enemy lines and", "strike at key targets."],
             8 => ["Marksman", "Weapon: Sniper Rifle", "Picks enemies off from afar", "with charged shots and good", "positioning."],
-            _ => ["Random", string.Empty, "Let fate decide your role", "for this life.", string.Empty],
+            _ => ["Crewmate", "Weapon: Blade", "Fires bubbles and throws", "a deadly blade.", string.Empty],
         };
     }
 
@@ -549,7 +505,7 @@ public partial class Game1
             6 => "EngineerPortraitAnimationS",
             7 => "SpyPortraitAnimationS",
             8 => "SniperPortraitAnimationS",
-            9 => "RandomPortraitAnimationS",
+            9 => "ImpostorPortraitAnimationS",
             _ => null,
         };
     }

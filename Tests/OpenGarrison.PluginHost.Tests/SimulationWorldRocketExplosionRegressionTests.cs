@@ -176,10 +176,6 @@ public sealed class SimulationWorldRocketExplosionRegressionTests
 
     private static void SetAuthoritativeLocalPlayerId(SimulationWorld world, int playerId)
     {
-        var field = typeof(SimulationWorld).GetField(
-            "_authoritativeLocalPlayerId",
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(field);
-        field!.SetValue(world, playerId);
+        world.ClientSnapshots.AuthoritativeLocalPlayerId = playerId;
     }
 }

@@ -58,6 +58,7 @@ public sealed class NetworkGameClient : IDisposable
     private const int MaxReceivePacketsPerFrame = 256;
     private const double MaxReceiveMillisecondsPerFrame = 4d;
     private const long PingIntervalMilliseconds = 1000;
+    private const int MaximumBundledInputControlCommands = 16;
     private const InputButtons Protocol64OneShotInputMask =
         InputButtons.BuildSentry
         | InputButtons.DestroySentry
@@ -92,6 +93,12 @@ public sealed class NetworkGameClient : IDisposable
     private uint _nextControlSequence = 1;
     private int _pendingChatBubbleFrameIndex = -1;
     private readonly Dictionary<ControlCommandKind, PendingControlCommand> _pendingControlCommands = new();
+    private ulong _pendingSnapshotAckFrame;
+    private long _snapshotAckPendingSinceMilliseconds = -1;
+    private long _snapshotAckLastSentAtMilliseconds = -1;
+    private ulong _snapshotAckLastSentFrame;
+    private ulong _serverProvenSnapshotBaselineFrame;
+    private int _serverTickRate = SimulationConfig.DefaultTicksPerSecond;
     private readonly Stopwatch _clock = Stopwatch.StartNew();
     private readonly Queue<PendingPacket> _pendingOutboundPackets = new();
     private readonly Queue<PendingMessage> _pendingInboundMessages = new();
@@ -348,6 +355,8 @@ public sealed class NetworkGameClient : IDisposable
         _nextControlSequence = 1;
         _pendingChatBubbleFrameIndex = -1;
         _pendingControlCommands.Clear();
+        ResetSnapshotAcknowledgements();
+        _serverTickRate = SimulationConfig.DefaultTicksPerSecond;
         _pendingOutboundPackets.Clear();
         _pendingInboundMessages.Clear();
         _pendingDelayedInputs.Clear();
@@ -903,8 +912,10 @@ public sealed class NetworkGameClient : IDisposable
             return protocol64Sequence;
         }
 
-        SendPendingControlCommands();
         var sequence = _nextInputSequence++;
+        var nowMilliseconds = _clock.ElapsedMilliseconds;
+        var dueControlCommands = GetDueControlCommands(nowMilliseconds);
+        var attachedSnapshotAck = GetDueSnapshotAck(nowMilliseconds);
         var inputMessage = new InputStateMessage(
             sequence, 
             buttons, 
@@ -914,13 +925,20 @@ public sealed class NetworkGameClient : IDisposable
             input.IsUsingBinoculars,
             input.BinocularsFocusX,
             input.BinocularsFocusY,
-            EstimatedPingMilliseconds);
+            EstimatedPingMilliseconds,
+            attachedSnapshotAck,
+            (NetworkInputDelayTicks == 0 || IsLoopbackConnection()) && dueControlCommands.Count > 0 ? dueControlCommands : null);
         if (NetworkInputDelayTicks > 0 && !IsLoopbackConnection())
         {
+            // Input delay intentionally delays this sample. Keep control-command
+            // first-send timing aligned with the previous immediate send path.
+            SendDueControlCommands(dueControlCommands, nowMilliseconds);
             _pendingDelayedInputs.Enqueue(new PendingDelayedInput(_networkInputTick + (ulong)NetworkInputDelayTicks, inputMessage, sequence));
         }
         else
         {
+            MarkControlCommandsSent(dueControlCommands, nowMilliseconds);
+            MarkSnapshotAckSent(attachedSnapshotAck, nowMilliseconds);
             TrackInputRoundTrip(sequence);
             Send(inputMessage);
         }
@@ -997,7 +1015,38 @@ public sealed class NetworkGameClient : IDisposable
             return;
         }
 
-        Send(new SnapshotAckMessage(frame));
+        if (Protocol64ModeEnabled)
+        {
+            Send(new SnapshotAckMessage(frame));
+            return;
+        }
+
+        if (frame <= _serverProvenSnapshotBaselineFrame)
+        {
+            return;
+        }
+
+        if (frame <= _pendingSnapshotAckFrame)
+        {
+            return;
+        }
+
+        if (_pendingSnapshotAckFrame == 0
+            || _pendingSnapshotAckFrame == _snapshotAckLastSentFrame)
+        {
+            _snapshotAckPendingSinceMilliseconds = _clock.ElapsedMilliseconds;
+        }
+
+        _pendingSnapshotAckFrame = frame;
+    }
+
+    public void ResetSnapshotAcknowledgements()
+    {
+        _pendingSnapshotAckFrame = 0;
+        _snapshotAckPendingSinceMilliseconds = -1;
+        _snapshotAckLastSentAtMilliseconds = -1;
+        _snapshotAckLastSentFrame = 0;
+        _serverProvenSnapshotBaselineFrame = 0;
     }
 
     // Advance the input send cadence and flush any input packets that were delayed
@@ -1009,7 +1058,18 @@ public sealed class NetworkGameClient : IDisposable
         {
             var pending = _pendingDelayedInputs.Dequeue();
             TrackInputRoundTrip(pending.Sequence);
-            Send(pending.Message);
+            if (pending.Message is InputStateMessage delayedInput)
+            {
+                var nowMilliseconds = _clock.ElapsedMilliseconds;
+                var dueAck = GetDueSnapshotAck(nowMilliseconds);
+                var releasedInput = delayedInput with { SnapshotAckFrame = dueAck };
+                MarkSnapshotAckSent(dueAck, nowMilliseconds);
+                Send(releasedInput);
+            }
+            else
+            {
+                Send(pending.Message);
+            }
         }
     }
 
@@ -1027,6 +1087,7 @@ public sealed class NetworkGameClient : IDisposable
         FlushHandshakeState();
         FlushTransportState();
         FlushLastToDieCommands();
+        FlushSnapshotAcknowledgementFallback();
         FlushPendingOutboundPackets();
         FlushPingState();
         FlushPendingOutboundPackets();
@@ -1131,6 +1192,7 @@ public sealed class NetworkGameClient : IDisposable
         }
 
         FlushTransportState();
+        FlushSnapshotAcknowledgementFallback();
         FlushConnectedState();
         var releasedDelayedMessages = 0;
         while (releasedDelayedMessages < MaxReceivePacketsPerFrame
@@ -1734,6 +1796,8 @@ public sealed class NetworkGameClient : IDisposable
     {
         switch (message)
         {
+            case SnapshotMessage snapshot when !Protocol64ModeEnabled:
+                return false;
             case PingResponseMessage pingResponse:
                 AcknowledgePing(pingResponse.Sequence);
                 return true;
@@ -1794,6 +1858,51 @@ public sealed class NetworkGameClient : IDisposable
         return _smoothedPingMilliseconds;
     }
 
+    private List<ControlCommandMessage> GetDueControlCommands(long nowMilliseconds)
+    {
+        var due = new List<ControlCommandMessage>();
+        if (!IsConnected || Protocol64ModeEnabled)
+        {
+            return due;
+        }
+
+        foreach (var pending in _pendingControlCommands.Values)
+        {
+            if (pending.LastSentAtMilliseconds < 0
+                || nowMilliseconds - pending.LastSentAtMilliseconds >= GetReliableRetryIntervalMilliseconds())
+            {
+                due.Add(new ControlCommandMessage(pending.Sequence, pending.Kind, pending.Value, pending.TextValue));
+                if (due.Count >= MaximumBundledInputControlCommands)
+                {
+                    break;
+                }
+            }
+        }
+
+        return due;
+    }
+
+    private void MarkControlCommandsSent(IReadOnlyList<ControlCommandMessage> commands, long nowMilliseconds)
+    {
+        for (var index = 0; index < commands.Count; index += 1)
+        {
+            var command = commands[index];
+            if (_pendingControlCommands.TryGetValue(command.Kind, out var pending) && pending.Sequence == command.Sequence)
+            {
+                pending.LastSentAtMilliseconds = nowMilliseconds;
+            }
+        }
+    }
+
+    private void SendDueControlCommands(IReadOnlyList<ControlCommandMessage> commands, long nowMilliseconds)
+    {
+        MarkControlCommandsSent(commands, nowMilliseconds);
+        for (var index = 0; index < commands.Count; index += 1)
+        {
+            Send(commands[index]);
+        }
+    }
+
     private void SendPendingControlCommands()
     {
         if (!IsConnected)
@@ -1804,6 +1913,108 @@ public sealed class NetworkGameClient : IDisposable
         foreach (var pending in _pendingControlCommands.Values)
         {
             Send(new ControlCommandMessage(pending.Sequence, pending.Kind, pending.Value, pending.TextValue));
+        }
+    }
+
+    private ulong? GetDueSnapshotAck(long nowMilliseconds)
+    {
+        if (Protocol64ModeEnabled
+            || _pendingSnapshotAckFrame == 0
+            || _pendingSnapshotAckFrame <= _serverProvenSnapshotBaselineFrame)
+        {
+            return null;
+        }
+
+        if (_pendingSnapshotAckFrame != _snapshotAckLastSentFrame
+            || _snapshotAckLastSentAtMilliseconds < 0)
+        {
+            return _pendingSnapshotAckFrame;
+        }
+
+        return nowMilliseconds - _snapshotAckLastSentAtMilliseconds >= GetReliableRetryIntervalMilliseconds()
+            ? _pendingSnapshotAckFrame
+            : null;
+    }
+
+    private void MarkSnapshotAckSent(ulong? frame, long nowMilliseconds)
+    {
+        if (frame.HasValue && frame.Value == _pendingSnapshotAckFrame)
+        {
+            _snapshotAckLastSentAtMilliseconds = nowMilliseconds;
+            _snapshotAckLastSentFrame = frame.Value;
+        }
+    }
+
+    private void FlushSnapshotAcknowledgementFallback()
+    {
+        if (!IsConnected || Protocol64ModeEnabled)
+        {
+            return;
+        }
+
+        var nowMilliseconds = _clock.ElapsedMilliseconds;
+        var dueFrame = GetDueSnapshotAckFallback(nowMilliseconds);
+        if (dueFrame is not { } frame)
+        {
+            return;
+        }
+
+        Send(new SnapshotAckMessage(frame));
+        _snapshotAckLastSentAtMilliseconds = nowMilliseconds;
+        _snapshotAckLastSentFrame = frame;
+    }
+
+    private ulong? GetDueSnapshotAckFallback(long nowMilliseconds)
+    {
+        if (_pendingSnapshotAckFrame == 0
+            || _pendingSnapshotAckFrame <= _serverProvenSnapshotBaselineFrame)
+        {
+            return null;
+        }
+
+        var isNewFrame = _pendingSnapshotAckFrame != _snapshotAckLastSentFrame;
+        var dueMilliseconds = isNewFrame
+            ? GetSnapshotAckFallbackIntervalMilliseconds()
+            : GetReliableRetryIntervalMilliseconds();
+        var anchorMilliseconds = isNewFrame
+            ? _snapshotAckPendingSinceMilliseconds
+            : _snapshotAckLastSentAtMilliseconds;
+        if (anchorMilliseconds < 0 || nowMilliseconds - anchorMilliseconds < dueMilliseconds)
+        {
+            return null;
+        }
+
+        return _pendingSnapshotAckFrame;
+    }
+
+    private int GetSnapshotAckFallbackIntervalMilliseconds()
+        => Math.Clamp((int)Math.Round(1000d / Math.Max(1, _serverTickRate)), 16, 100);
+
+    private long GetReliableRetryIntervalMilliseconds()
+    {
+        var estimatedRoundTrip = EstimatedPingMilliseconds >= 0 ? EstimatedPingMilliseconds : 50;
+        return Math.Clamp(estimatedRoundTrip * 2L, 100L, 1000L);
+    }
+
+    public void ObserveResolvedSnapshotBaseline(SnapshotMessage snapshot)
+    {
+        if (snapshot.TickRate > 0)
+        {
+            _serverTickRate = Math.Clamp(snapshot.TickRate, 1, 1000);
+        }
+
+        if (snapshot.BaselineFrame == 0)
+        {
+            return;
+        }
+
+        _serverProvenSnapshotBaselineFrame = Math.Max(_serverProvenSnapshotBaselineFrame, snapshot.BaselineFrame);
+        if (_pendingSnapshotAckFrame != 0 && _pendingSnapshotAckFrame <= _serverProvenSnapshotBaselineFrame)
+        {
+            _pendingSnapshotAckFrame = 0;
+            _snapshotAckPendingSinceMilliseconds = -1;
+            _snapshotAckLastSentAtMilliseconds = -1;
+            _snapshotAckLastSentFrame = 0;
         }
     }
 
@@ -2067,6 +2278,8 @@ public sealed class NetworkGameClient : IDisposable
 
     private bool IsTransientTransportError(INetworkClientMessageTransport transport, SocketException exception)
         => exception.SocketErrorCode is SocketError.WouldBlock or SocketError.IOPending or SocketError.Interrupted or SocketError.NoBufferSpaceAvailable
+            // DF UDP payloads can exceed the route MTU before discovery confirms a smaller ceiling.
+            || transport is UdpNetworkClientMessageTransport && exception.SocketErrorCode == SocketError.MessageSize
             // A newly launched local UDP server may not have bound its port yet.
             || IsAwaitingWelcome && transport is UdpNetworkClientMessageTransport
                 && exception.SocketErrorCode is SocketError.ConnectionReset or SocketError.ConnectionRefused;
@@ -2089,12 +2302,21 @@ public sealed class NetworkGameClient : IDisposable
             BytesSent = current.BytesSent + Math.Max(0, payloadBytes),
             HelloMessagesSent = current.HelloMessagesSent + (message is HelloMessage ? 1 : 0),
             InputMessagesSent = current.InputMessagesSent + (message is InputStateMessage ? 1 : 0),
-            ControlMessagesSent = current.ControlMessagesSent + (message is ControlCommandMessage ? 1 : 0),
-            SnapshotAckMessagesSent = current.SnapshotAckMessagesSent + (message is SnapshotAckMessage ? 1 : 0),
+            ControlMessagesSent = current.ControlMessagesSent
+                + (message is ControlCommandMessage ? 1 : message is InputStateMessage { BundledControlCommands: { } commands } ? commands.Count : 0),
+            SnapshotAckMessagesSent = current.SnapshotAckMessagesSent
+                + (message is SnapshotAckMessage || message is InputStateMessage { SnapshotAckFrame: not null } ? 1 : 0),
         };
     }
 
-    private sealed record PendingControlCommand(uint Sequence, ControlCommandKind Kind, byte Value, string TextValue);
+    private sealed class PendingControlCommand(uint sequence, ControlCommandKind kind, byte value, string textValue)
+    {
+        public uint Sequence { get; } = sequence;
+        public ControlCommandKind Kind { get; } = kind;
+        public byte Value { get; } = value;
+        public string TextValue { get; } = textValue;
+        public long LastSentAtMilliseconds { get; set; } = -1;
+    }
     private sealed record TrackedInputRoundTrip(uint Sequence, long SentAtMilliseconds);
     private sealed record TrackedPingRoundTrip(uint Sequence, long SentAtMilliseconds);
     private sealed record PendingPacket(long ReleaseAtMilliseconds, byte[] Payload);

@@ -5,7 +5,6 @@ namespace OpenGarrison.Core;
 
 public sealed partial class SimulationWorld
 {
-    private int[] _foregroundJungleRoomObjectIndices = [];
 
     private void RebuildForegroundJungleSpriteCache()
     {
@@ -19,12 +18,12 @@ public sealed partial class SimulationWorld
             }
         }
 
-        _foregroundJungleRoomObjectIndices = indices.ToArray();
+        MapRuntime.ForegroundJungleRoomObjectIndices = indices.ToArray();
     }
 
     public void TickForegroundSpriteJungle()
     {
-        if (_foregroundJungleRoomObjectIndices.Length == 0)
+        if (MapRuntime.ForegroundJungleRoomObjectIndices.Length == 0)
         {
             return;
         }
@@ -41,7 +40,7 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            foreach (var roomObjectIndex in _foregroundJungleRoomObjectIndices)
+            foreach (var roomObjectIndex in MapRuntime.ForegroundJungleRoomObjectIndices)
             {
                 if (!Level.IsRoomObjectActive(roomObjectIndex))
                 {
@@ -85,7 +84,7 @@ public sealed partial class SimulationWorld
 
     private void ClearForegroundSpriteJungleState(PlayerEntity player)
     {
-        foreach (var roomObjectIndex in _foregroundJungleRoomObjectIndices)
+        foreach (var roomObjectIndex in MapRuntime.ForegroundJungleRoomObjectIndices)
         {
             UpdateForegroundSpriteJungleState(player, roomObjectIndex, isInside: false);
         }

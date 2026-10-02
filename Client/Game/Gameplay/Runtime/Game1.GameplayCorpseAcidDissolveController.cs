@@ -594,7 +594,7 @@ public partial class Game1
         origin = Vector2.Zero;
         scale = 1f;
 
-        var spriteName = GetDeadBodySpriteName(gameplayClassId, classId, team, animationKind);
+        var spriteName = GetDynamicRagdollCorpseSpriteName(gameplayClassId, classId, team, animationKind);
         if (spriteName is null)
         {
             return false;

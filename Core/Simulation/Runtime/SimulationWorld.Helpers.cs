@@ -4,22 +4,12 @@ public sealed partial class SimulationWorld
 {
     private void AdvanceCombatTraces()
     {
-        for (var traceIndex = _combatTraces.Count - 1; traceIndex >= 0; traceIndex -= 1)
-        {
-            var trace = _combatTraces[traceIndex];
-            if (trace.TicksRemaining <= 1)
-            {
-                _combatTraces.RemoveAt(traceIndex);
-                continue;
-            }
-
-            _combatTraces[traceIndex] = trace with { TicksRemaining = trace.TicksRemaining - 1 };
-        }
+        PresentationEvents.AdvanceCombatTraces();
     }
 
     private void RegisterCombatTrace(float originX, float originY, float directionX, float directionY, float distance, bool hitCharacter, PlayerTeam team = PlayerTeam.Red, bool isSniperTracer = false, bool isCritical = false)
     {
-        _combatTraces.Add(new CombatTrace(
+        PresentationEvents.AddCombatTrace(new CombatTrace(
             originX,
             originY,
             originX + directionX * distance,
@@ -33,7 +23,7 @@ public sealed partial class SimulationWorld
 
     private void ComputeSniperAimIndicators()
     {
-        _sniperAimIndicators.Clear();
+        PresentationEvents.ClearSniperAimIndicators();
 
         if (!SniperAimIndicatorEnabled)
         {
@@ -96,7 +86,7 @@ public sealed partial class SimulationWorld
                 player.SniperChargeTicks / (float)player.SniperRifleFullChargeTicks);
             var transparency = 0.25f + (chargeRatio * 0.55f);
 
-            _sniperAimIndicators.Add(new SniperAimIndicator(
+            PresentationEvents.AddSniperAimIndicator(new SniperAimIndicator(
                 player.Id,
                 hitX,
                 hitY,
@@ -107,7 +97,7 @@ public sealed partial class SimulationWorld
 
     private static float DegreesToRadians(float degrees)
     {
-        return degrees * (MathF.PI / 180f);
+        return SimulationMath.DegreesToRadians(degrees);
     }
 
     private static float NormalizeAngleDegrees(float degrees)
@@ -127,30 +117,22 @@ public sealed partial class SimulationWorld
 
     private static float DistanceBetween(float x1, float y1, float x2, float y2)
     {
-        var deltaX = x2 - x1;
-        var deltaY = y2 - y1;
-        return MathF.Sqrt((deltaX * deltaX) + (deltaY * deltaY));
+        return SimulationMath.DistanceBetween(x1, y1, x2, y2);
     }
 
     private static float GetStabOriginX(StabMaskEntity mask, float directionX)
     {
-        return mask.X + directionX * StabMaskEntity.StartOffset;
+        return SimulationMath.GetStabOriginX(mask, directionX);
     }
 
     private static float GetStabOriginY(StabMaskEntity mask, float directionY)
     {
-        return mask.Y + directionY * StabMaskEntity.StartOffset;
+        return SimulationMath.GetStabOriginY(mask, directionY);
     }
 
     private static float PointDirectionDegrees(float x1, float y1, float x2, float y2)
     {
-        var degrees = DeterministicMath.Atan2(y2 - y1, x2 - x1) * (180f / MathF.PI);
-        if (degrees < 0f)
-        {
-            degrees += 360f;
-        }
-
-        return degrees;
+        return SimulationMath.PointDirectionDegrees(x1, y1, x2, y2);
     }
 
     private readonly record struct PlayerGibPartDefinition(
@@ -174,7 +156,7 @@ public sealed partial class SimulationWorld
         }
 
         var normalizedDirectionDegrees = NormalizeAngleDegrees(directionDegrees);
-        _pendingVisualEvents.Add(new WorldVisualEvent(
+        PresentationEvents.AddVisualEvent(new WorldVisualEvent(
             "Blood",
             x,
             y,
@@ -191,8 +173,8 @@ public sealed partial class SimulationWorld
         var lifetimeTicks = ScaleBloodDropLifetimeTicks();
         for (var index = 0; index < dropCount; index += 1)
         {
-            var speed = _random.NextSingle() * 12f;
-            var spreadRadians = DegreesToRadians((_random.NextSingle() * 43f) - 22f);
+            var speed = Randoms.Gameplay.NextSingle() * 12f;
+            var spreadRadians = DegreesToRadians((Randoms.Gameplay.NextSingle() * 43f) - 22f);
             var velocityRadians = directionRadians + spreadRadians;
             var bloodDrop = new BloodDropEntity(
                 AllocateEntityId(),
@@ -201,7 +183,7 @@ public sealed partial class SimulationWorld
                 DeterministicMath.Cos(velocityRadians) * speed,
                 DeterministicMath.Sin(velocityRadians) * speed,
                 lifetimeTicks: lifetimeTicks);
-            _bloodDrops.Add(bloodDrop);
+            WorldObjects.BloodDrops.Add(bloodDrop);
             EntityStore.Add(bloodDrop);
         }
     }
@@ -216,7 +198,7 @@ public sealed partial class SimulationWorld
         var directionValue = normalizeDirection
             ? NormalizeAngleDegrees(directionDegrees)
             : directionDegrees;
-        _pendingVisualEvents.Add(new WorldVisualEvent(
+        PresentationEvents.AddVisualEvent(new WorldVisualEvent(
             effectName,
             x,
             y,
@@ -327,7 +309,7 @@ public sealed partial class SimulationWorld
         var wholeSourceTicks = (int)MathF.Floor(sourceTicksPerSimulationTick);
         for (var tick = 0; tick < wholeSourceTicks; tick += 1)
         {
-            if (_random.NextSingle() < sourceTickChance)
+            if (Randoms.Gameplay.NextSingle() < sourceTickChance)
             {
                 return true;
             }
@@ -340,7 +322,7 @@ public sealed partial class SimulationWorld
         }
 
         var fractionalChance = 1f - DeterministicMath.Pow(1f - sourceTickChance, fractionalSourceTick);
-        return _random.NextSingle() < fractionalChance;
+        return Randoms.Gameplay.NextSingle() < fractionalChance;
     }
 
     private void TryRegisterIntelTrailEffect(PlayerEntity player)
@@ -360,7 +342,7 @@ public sealed partial class SimulationWorld
 
         RegisterIntelTrailEffect(
             player.X,
-            player.Y - 11f + (_random.NextSingle() * 9f),
+            player.Y - 11f + (Randoms.Gameplay.NextSingle() * 9f),
             player.HorizontalSpeed);
     }
 
@@ -371,7 +353,7 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        _pendingSoundEvents.Add(new WorldSoundEvent(soundName, attacker.X, attacker.Y, SourceFrame: (ulong)Frame, SourcePlayerId: attacker.Id));
+        PresentationEvents.AddSoundEvent(new WorldSoundEvent(soundName, attacker.X, attacker.Y, SourceFrame: (ulong)Frame, SourcePlayerId: attacker.Id));
     }
 
     private void RegisterWorldSoundEvent(string soundName, float x, float y, int sourcePlayerId = -1)
@@ -381,7 +363,7 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        _pendingSoundEvents.Add(new WorldSoundEvent(soundName, x, y, SourceFrame: (ulong)Frame, SourcePlayerId: sourcePlayerId));
+        PresentationEvents.AddSoundEvent(new WorldSoundEvent(soundName, x, y, SourceFrame: (ulong)Frame, SourcePlayerId: sourcePlayerId));
     }
 
     private static PlayerTeam GetOpposingTeam(PlayerTeam team)

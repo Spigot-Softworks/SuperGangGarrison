@@ -21,6 +21,10 @@ public sealed class NetworkPresentationState
     public double LastSnapshotReceivedTimeSeconds = -1d;
     public double LatestSnapshotServerTimeSeconds = -1d;
     public double LatestSnapshotReceivedClockSeconds = -1d;
+    // Filtered (server timeline - local clock) offset; see NetworkInterpolationPolicy.FilterServerClockOffset.
+    public double FilteredServerClockOffsetSeconds;
+    public double FilteredServerClockOffsetSampleServerTimeSeconds = -1d;
+    public bool HasFilteredServerClockOffset;
     public bool HasReceivedSnapshot;
     public bool HasLocalPlayerRenderTime;
     public bool HasRemotePlayerRenderTime;

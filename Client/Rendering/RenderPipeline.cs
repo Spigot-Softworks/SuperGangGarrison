@@ -16,12 +16,13 @@ public sealed class RenderPipeline
 
     public void Draw(GameTime gameTime)
     {
-        var browserDrawStartTimestamp = _context.ShouldMeasureClientPerformanceDurations()
-            ? System.Diagnostics.Stopwatch.GetTimestamp()
-            : 0L;
         _context.LogBrowserDrawFrameState(gameTime);
         // Use interpolation clock value from Update() - don't re-sample during Draw()
         _context.ApplyFrameRateLimit();
+        // Draw CPU duration excludes the optional frame-cap wait above.
+        var browserDrawStartTimestamp = _context.ShouldMeasureClientPerformanceDurations()
+            ? System.Diagnostics.Stopwatch.GetTimestamp()
+            : 0L;
         _context.GraphicsDevice.Clear(new Color(24, 32, 48));
         _context.Gameplay.Frame.Draw(gameTime);
 

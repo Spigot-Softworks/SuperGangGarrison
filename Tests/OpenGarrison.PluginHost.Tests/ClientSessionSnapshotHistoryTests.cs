@@ -23,7 +23,23 @@ public sealed class ClientSessionSnapshotHistoryTests
     }
 
     [Fact]
-    public void SnapshotHistoryDropsStaleAcknowledgedBaselineWhenItAgesOut()
+    public void SnapshotAcknowledgementOutsideRecentHistoryIsIgnored()
+    {
+        var client = new ClientSession(1, 101, new IPEndPoint(IPAddress.Loopback, 8190), "Tester", TimeSpan.Zero);
+
+        for (ulong frame = 1; frame <= 60; frame += 1)
+        {
+            client.RememberSnapshotState(CreateSnapshot(frame));
+        }
+
+        client.AcknowledgeSnapshot(1);
+
+        Assert.Equal((ulong)0, client.LastAcknowledgedSnapshotFrame);
+        Assert.False(client.TryGetSnapshotState(1, out _));
+    }
+
+    [Fact]
+    public void SnapshotHistoryPinsAcknowledgedBaselineWhileRollingHistoryAdvances()
     {
         var client = new ClientSession(1, 101, new IPEndPoint(IPAddress.Loopback, 8190), "Tester", TimeSpan.Zero);
 
@@ -40,11 +56,48 @@ public sealed class ClientSessionSnapshotHistoryTests
             client.RememberSnapshotState(CreateSnapshot(frame));
         }
 
-        Assert.Equal((ulong)0, client.LastAcknowledgedSnapshotFrame);
+        Assert.Equal((ulong)1, client.LastAcknowledgedSnapshotFrame);
         Assert.Equal(48, client.SnapshotHistoryCount);
-        Assert.False(client.TryGetSnapshotState(1, out _));
+        Assert.True(client.TryGetSnapshotState(1, out var pinnedBaseline));
+        Assert.Equal((ulong)1, pinnedBaseline.Frame);
         Assert.True(client.TryGetSnapshotState(64, out var latestBaseline));
         Assert.Equal((ulong)64, latestBaseline.Frame);
+    }
+
+    [Fact]
+    public void SnapshotAcknowledgementsAdvanceMonotonicallyAndResetPinnedBaseline()
+    {
+        var client = new ClientSession(1, 101, new IPEndPoint(IPAddress.Loopback, 8190), "Tester", TimeSpan.Zero);
+        for (ulong frame = 1; frame <= 8; frame += 1)
+        {
+            client.RememberSnapshotState(CreateSnapshot(frame));
+        }
+
+        client.AcknowledgeSnapshot(5);
+        client.AcknowledgeSnapshot(3); // delayed/reordered ACK must not roll the baseline back
+        Assert.Equal((ulong)5, client.LastAcknowledgedSnapshotFrame);
+        Assert.True(client.TryGetSnapshotState(5, out _));
+
+        client.ResetSnapshotHistory();
+        Assert.Equal((ulong)0, client.LastAcknowledgedSnapshotFrame);
+        Assert.False(client.TryGetSnapshotState(5, out _));
+    }
+
+    [Fact]
+    public void CacheMappingIsAcknowledgedOnlyWhenItsSnapshotIsAcknowledged()
+    {
+        var client = new ClientSession(1, 101, new IPEndPoint(IPAddress.Loopback, 8190), "Tester", TimeSpan.Zero);
+        client.RememberResolvedSnapshotState(CreateSnapshot(1) with
+        {
+            StringCacheUpdates = new Dictionary<ushort, string> { [7] = "modpack-a" },
+        });
+
+        Assert.False(client.HasAcknowledgedStringCacheId(7));
+        client.AcknowledgeSnapshot(1);
+        Assert.True(client.HasAcknowledgedStringCacheId(7));
+
+        client.ResetSnapshotHistory();
+        Assert.False(client.HasAcknowledgedStringCacheId(7));
     }
 
     [Fact]

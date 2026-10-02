@@ -213,7 +213,8 @@ public partial class Game1
             ScissorTestEnable = true,
         };
 
-        GraphicsDevice.ScissorRectangle = clipBounds;
+        // Scissor rectangles are in render-target pixels, not world-pass units.
+        GraphicsDevice.ScissorRectangle = GetGameplayWorldScissorRectangle(clipBounds);
         _spriteBatch.Begin(
             samplerState: SamplerState.PointClamp,
             rasterizerState: scissorRasterizer,

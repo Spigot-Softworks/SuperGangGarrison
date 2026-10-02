@@ -1,0 +1,15 @@
+{
+  "id": "ImpostorBlueJumpS",
+  "framePaths": [
+    "assets/characters/player-skins/ImpostorBlueJumpS/0.png",
+    "assets/characters/player-skins/ImpostorBlueJumpS/1.png",
+    "assets/characters/player-skins/ImpostorBlueJumpS/2.png",
+    "assets/characters/player-skins/ImpostorBlueJumpS/3.png",
+    "assets/characters/player-skins/ImpostorBlueJumpS/4.png",
+    "assets/characters/player-skins/ImpostorBlueJumpS/5.png",
+    "assets/characters/player-skins/ImpostorBlueJumpS/6.png",
+    "assets/characters/player-skins/ImpostorBlueJumpS/7.png"
+  ],
+  "originX": 32,
+  "originY": 52
+}

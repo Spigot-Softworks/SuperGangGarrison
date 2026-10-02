@@ -50,6 +50,7 @@ public partial class Game1
     [
         "S",
         "RunS",
+        "JumpS",
         "DeadS",
         "IntelS",
         "TauntS",
@@ -70,7 +71,7 @@ public partial class Game1
         "EngineerPortraitAnimationS",
         "SpyPortraitAnimationS",
         "SniperPortraitAnimationS",
-        "RandomPortraitAnimationS",
+        "ImpostorPortraitAnimationS",
     ];
 
     private static readonly string[] BrowserWarmupEngineerStructureSprites =
@@ -99,6 +100,11 @@ public partial class Game1
                 WarmBrowserClassAssets(classId, team, includeExtendedAnimations: false);
             }
         }
+
+        WarmBrowserGameplayClassAssets(
+            CharacterClassCatalog.QuoteGameplayClassId,
+            team,
+            includeExtendedAnimations: false);
 
         WarmBrowserEngineerStructureAssets();
 
@@ -178,6 +184,38 @@ public partial class Game1
         }
 
         WarmBrowserWeaponPresentation(CharacterClassCatalog.RuntimeRegistry.GetPrimaryItem(classId).Presentation);
+    }
+
+    private void WarmBrowserGameplayClassAssets(string gameplayClassId, PlayerTeam team, bool includeExtendedAnimations)
+    {
+        if (!OperatingSystem.IsBrowser()
+            || !CharacterClassCatalog.RuntimeRegistry.TryGetClassBinding(gameplayClassId, out _))
+        {
+            return;
+        }
+
+        var presentation = CharacterClassCatalog.RuntimeRegistry.GetClassDefinition(gameplayClassId).Presentation;
+        var prefix = presentation?.SpritePrefix;
+        if (string.IsNullOrWhiteSpace(prefix))
+        {
+            return;
+        }
+
+        var teamName = team == PlayerTeam.Blue ? "Blue" : "Red";
+        var suffixes = includeExtendedAnimations
+            ? BrowserWarmupQuoteFullBodySuffixes
+            : BrowserWarmupQuoteSpawnBodySuffixes;
+        foreach (var suffix in suffixes)
+        {
+            WarmBrowserSprite($"{prefix}{teamName}{suffix}");
+        }
+
+        if (includeExtendedAnimations)
+        {
+            WarmBrowserSprite($"{prefix}{teamName}HS");
+        }
+
+        WarmBrowserWeaponPresentation(CharacterClassCatalog.RuntimeRegistry.GetPrimaryItem(gameplayClassId).Presentation);
     }
 
     private void WarmBrowserWeaponPresentation(GameplayItemPresentationDefinition presentation)

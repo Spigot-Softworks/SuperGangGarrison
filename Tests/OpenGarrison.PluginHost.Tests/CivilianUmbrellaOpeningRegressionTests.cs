@@ -81,7 +81,7 @@ public sealed class CivilianUmbrellaOpeningRegressionTests
     private static SimulationWorld CreateWorld(int rate)
     {
         var world = new SimulationWorld(new() { TicksPerSecond = rate, EnableLocalDummies = false });
-        world.LocalPlayer.SetClassDefinition(CharacterClassCatalog.Quote);
+        world.LocalPlayer.SetClassDefinition(CharacterClassCatalog.Civilian);
         return world;
     }
 

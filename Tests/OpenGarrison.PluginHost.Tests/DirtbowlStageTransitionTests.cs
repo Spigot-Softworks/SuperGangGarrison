@@ -67,14 +67,14 @@ public sealed class DirtbowlStageTransitionTests
     private static void ForceAutomaticMapChangeDue(SimulationWorld world, PlayerTeam winner)
     {
         SetEndedMatchState(world, winner);
-        SetPrivateField(world, "_pendingMapChangeTicks", 0);
-        SetPrivateField(world, "_mapChangeReady", false);
+        world.Lifecycle.PendingMapChangeTicks = 0;
+        world.Lifecycle.MapChangeReady = false;
     }
 
     private static void ForceServerMapChangeReady(SimulationWorld world, PlayerTeam winner)
     {
         SetEndedMatchState(world, winner);
-        SetPrivateField(world, "_mapChangeReady", true);
+        world.Lifecycle.MapChangeReady = true;
     }
 
     private static void SetEndedMatchState(SimulationWorld world, PlayerTeam winner)

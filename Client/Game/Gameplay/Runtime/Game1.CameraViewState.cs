@@ -69,11 +69,28 @@ public partial class Game1
         cameraTopLeft += panOffset;
         var effectsOffset = GetClientPluginCameraOffset() + GetLastToDieCameraShakeOffset();
         var unclampedCameraTopLeft = cameraTopLeft + effectsOffset;
-        cameraTopLeft = FinalizeGameplayCameraTopLeft(
-            unclampedCameraTopLeft,
-            worldViewport.X,
-            worldViewport.Y,
-            roundToSourcePixels: !_smoothCameraRenderingActive);
+        if (!_smoothCameraRenderingActive && IsSubpixelWorldPresentationEligible())
+        {
+            // Draw code keeps a whole-pixel camera; the remaining fraction is
+            // applied by the world-pass transform so scrolling advances evenly
+            // every frame instead of alternating whole-pixel step sizes.
+            var exactCameraTopLeft = FinalizeGameplayCameraTopLeft(
+                unclampedCameraTopLeft,
+                worldViewport.X,
+                worldViewport.Y,
+                roundToSourcePixels: false);
+            cameraTopLeft = SubpixelWorldPresentation.SplitCamera(exactCameraTopLeft, out var cameraResidual);
+            SubpixelWorld.SetCameraResidual(cameraResidual);
+        }
+        else
+        {
+            cameraTopLeft = FinalizeGameplayCameraTopLeft(
+                unclampedCameraTopLeft,
+                worldViewport.X,
+                worldViewport.Y,
+                roundToSourcePixels: !_smoothCameraRenderingActive);
+            SubpixelWorld.SetCameraResidual(Vector2.Zero);
+        }
         SynchronizeSmoothCameraAtMapBoundary(cameraTopLeft, effectsOffset + panOffset, unclampedCameraTopLeft);
 
         TrackLiveCamera(cameraTopLeft);
@@ -92,7 +109,11 @@ public partial class Game1
     {
         if (_hasGameplayCameraTopLeft)
         {
-            return _gameplayCameraTopLeft;
+            // Aim against the camera the world was actually drawn with,
+            // including the sub-pixel residual applied by the world pass.
+            return SubpixelWorld.LastWorldPassUsedSubpixel
+                ? _gameplayCameraTopLeft + SubpixelWorld.CameraResidual
+                : _gameplayCameraTopLeft;
         }
 
         return GetUntrackedCameraTopLeft(viewportWidth, viewportHeight, mouseX, mouseY);

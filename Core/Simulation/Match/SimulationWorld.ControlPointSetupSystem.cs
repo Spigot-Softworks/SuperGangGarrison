@@ -11,8 +11,6 @@ public sealed partial class SimulationWorld
     private const int ControlPointCaptureBonusMinutes = 3;
     private const int ControlPointMaximumTimeMinutes = 5;
 
-    private sealed record ControlPointZone(RoomObjectMarker Marker, int ControlPointIndex);
-
     public int ControlPointSetupDurationTicks => GetControlPointSetupDurationTicks();
 
     private int GetControlPointSetupDurationTicks()
@@ -37,7 +35,7 @@ public sealed partial class SimulationWorld
 
     private void ApplyControlPointSetupMatchRules()
     {
-        if (!_controlPointSetupMode)
+        if (!Objectives.ControlPoints.SetupMode)
         {
             return;
         }
@@ -61,18 +59,18 @@ public sealed partial class SimulationWorld
 
             InitializeForLevel(world);
             var hasSetupGates = world.Level.GetRoomObjects(RoomObjectType.ControlPointSetupGate).Count > 0;
-            if (world._controlPoints.Count == 0)
+            if (world.Objectives.ControlPoints.Points.Count == 0)
             {
-                world._controlPointSetupMode = hasSetupGates;
+                world.Objectives.ControlPoints.SetupMode = hasSetupGates;
                 world.ApplyControlPointSetupMatchRules();
-                world._controlPointSetupTicksRemaining = hasSetupGates ? world.GetControlPointSetupDurationTicks() : 0;
+                world.Objectives.ControlPoints.SetupTicksRemaining = hasSetupGates ? world.GetControlPointSetupDurationTicks() : 0;
                 UpdateSetupGates(world);
                 return;
             }
 
-            world._controlPointSetupMode = hasSetupGates;
+            world.Objectives.ControlPoints.SetupMode = hasSetupGates;
             world.ApplyControlPointSetupMatchRules();
-            world._controlPointSetupTicksRemaining = world._controlPointSetupMode ? world.GetControlPointSetupDurationTicks() : 0;
+            world.Objectives.ControlPoints.SetupTicksRemaining = world.Objectives.ControlPoints.SetupMode ? world.GetControlPointSetupDurationTicks() : 0;
             UpdateSetupGates(world);
 
             AssignCapTimes(world);
@@ -82,13 +80,13 @@ public sealed partial class SimulationWorld
 
         public static void UpdateSetupGates(SimulationWorld world)
         {
-            world.Level.ControlPointSetupGatesActive = world._controlPointSetupMode && world._controlPointSetupTicksRemaining > 0;
+            world.Level.ControlPointSetupGatesActive = world.Objectives.ControlPoints.SetupMode && world.Objectives.ControlPoints.SetupTicksRemaining > 0;
         }
 
         public static void InitializeForLevel(SimulationWorld world, bool evaluateLogicGraph = true)
         {
-            world._controlPoints.Clear();
-            world._controlPointZones.Clear();
+            world.Objectives.ControlPoints.Points.Clear();
+            world.Objectives.ControlPoints.Zones.Clear();
 
             var markers = world.MatchRules.Mode == GameModeKind.Arena
                 ? world.Level.GetRoomObjects(RoomObjectType.ArenaControlPoint)
@@ -102,7 +100,7 @@ public sealed partial class SimulationWorld
             for (var index = 0; index < orderedMarkers.Count; index += 1)
             {
                 var marker = orderedMarkers[index];
-                world._controlPoints.Add(new ControlPointState(index + 1, marker));
+                world.Objectives.ControlPoints.Points.Add(new ControlPointState(index + 1, marker));
             }
 
             BuildZones(world);
@@ -147,7 +145,7 @@ public sealed partial class SimulationWorld
         private static void BuildZones(SimulationWorld world)
         {
             var zones = world.Level.GetRoomObjects(RoomObjectType.CaptureZone);
-            if (zones.Count == 0 || world._controlPoints.Count == 0)
+            if (zones.Count == 0 || world.Objectives.ControlPoints.Points.Count == 0)
             {
                 return;
             }
@@ -157,9 +155,9 @@ public sealed partial class SimulationWorld
                 var zone = zones[zoneIndex];
                 var closestIndex = -1;
                 var closestDistance = float.MaxValue;
-                for (var pointIndex = 0; pointIndex < world._controlPoints.Count; pointIndex += 1)
+                for (var pointIndex = 0; pointIndex < world.Objectives.ControlPoints.Points.Count; pointIndex += 1)
                 {
-                    var point = world._controlPoints[pointIndex];
+                    var point = world.Objectives.ControlPoints.Points[pointIndex];
                     var distance = SimulationWorld.DistanceBetween(zone.CenterX, zone.CenterY, point.Marker.CenterX, point.Marker.CenterY);
                     if (distance < closestDistance)
                     {
@@ -170,8 +168,8 @@ public sealed partial class SimulationWorld
 
                 if (closestIndex >= 0)
                 {
-                    world._controlPointZones.Add(new ControlPointZone(zone, closestIndex));
-                    var point = world._controlPoints[closestIndex];
+                    world.Objectives.ControlPoints.Zones.Add(new ControlPointZone(zone, closestIndex));
+                    var point = world.Objectives.ControlPoints.Points[closestIndex];
                     var currentArea = point.HealingAuraWidth * point.HealingAuraHeight;
                     var zoneArea = zone.Width * zone.Height;
                     if (zoneArea >= currentArea)
@@ -187,20 +185,20 @@ public sealed partial class SimulationWorld
 
         private static void AssignCapTimes(SimulationWorld world)
         {
-            var total = world._controlPoints.Count;
+            var total = world.Objectives.ControlPoints.Points.Count;
             if (total == 0)
             {
                 return;
             }
 
-            for (var index = 0; index < world._controlPoints.Count; index += 1)
+            for (var index = 0; index < world.Objectives.ControlPoints.Points.Count; index += 1)
             {
-                var point = world._controlPoints[index];
+                var point = world.Objectives.ControlPoints.Points[index];
                 var (storedMultiplier, isCustom) = point.Marker.CapTimeMultiplierSettings;
                 point.CapTimeTicks = ControlPointCapTimeMultiplierMetadata.ResolveCapTimeTicks(
                     total,
                     point.Index,
-                    world._controlPointSetupMode,
+                    world.Objectives.ControlPoints.SetupMode,
                     storedMultiplier,
                     isCustom);
             }
@@ -208,14 +206,14 @@ public sealed partial class SimulationWorld
 
         private static void AssignOwnership(SimulationWorld world)
         {
-            var totalPoints = world._controlPoints.Count;
+            var totalPoints = world.Objectives.ControlPoints.Points.Count;
             for (var index = 0; index < totalPoints; index += 1)
             {
-                var point = world._controlPoints[index];
+                var point = world.Objectives.ControlPoints.Points[index];
                 var context = new ControlPointOwnershipContext(
                     point.Index,
                     totalPoints,
-                    world._controlPointSetupMode,
+                    world.Objectives.ControlPoints.SetupMode,
                     world.MatchRules.Mode,
                     world.Level.ControlPointSettings.OverrideInitialOwnership);
                 point.Team = ControlPointOwnershipResolver.ResolveInitialTeam(point.Marker, in context);
@@ -224,9 +222,9 @@ public sealed partial class SimulationWorld
 
         private static void ResetCappingState(SimulationWorld world)
         {
-            for (var index = 0; index < world._controlPoints.Count; index += 1)
+            for (var index = 0; index < world.Objectives.ControlPoints.Points.Count; index += 1)
             {
-                var point = world._controlPoints[index];
+                var point = world.Objectives.ControlPoints.Points[index];
                 point.CappingTicks = 0f;
                 point.CappingTeam = null;
                 point.Cappers = 0;

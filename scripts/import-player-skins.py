@@ -79,28 +79,54 @@ def build(catalog: Path, check: bool) -> None:
         for team_name, team in skin["teams"].items():
             name = lambda pattern: pattern.replace("{team}", team_name)
             scale = skin.get("pixelScale", 1)
+
+            def scaled(images):
+                return [image.resize((image.width * scale, image.height * scale), Image.Resampling.NEAREST)
+                        for image in images]
+
+            def write_named(sprite_name, images, origin):
+                write_sprite(sprite_name, scaled(images), [v * scale for v in origin], check)
+
             def write(pattern, images, origin):
-                scaled = [image.resize((image.width * scale, image.height * scale), Image.Resampling.NEAREST) for image in images]
-                write_sprite(name(pattern), scaled, [v * scale for v in origin], check)
+                write_named(name(pattern), images, origin)
+
             body = [compose(source, pose["layers"], team, skin["canvas"]) for pose in skin["poses"]]
             write(skin["bodySprite"], body, skin["origin"])
+
+            action_sprites = skin.get("actionSprites")
+            if action_sprites:
+                for pattern, pose_indices in action_sprites.get("poseAliases", {}).items():
+                    if not pose_indices or any(index < 0 or index >= len(body) for index in pose_indices):
+                        raise ValueError(f"Invalid action sprite pose alias: {pattern}")
+                    write(pattern, [body[index] for index in pose_indices], skin["origin"])
+
+                taunt_count = action_sprites.get("tauntFrames", 0)
+                if taunt_count:
+                    taunt_sprite = skin.get("tauntSprite")
+                    if not taunt_sprite:
+                        raise ValueError("actionSprites.tauntFrames requires tauntSprite")
+                    pattern = action_sprites["tauntFilePattern"]
+                    taunt = [load_image(source, {"file": pattern.replace("{frame}", str(index))}, team)
+                             for index in range(1, taunt_count + 1)]
+                    write(taunt_sprite, taunt, skin["origin"])
+
+                corpse_file = action_sprites.get("corpseFile")
+                if corpse_file:
+                    corpse_sprite = skin.get("corpseSprite")
+                    if not corpse_sprite:
+                        raise ValueError("actionSprites.corpseFile requires corpseSprite")
+                    write(corpse_sprite, [load_image(source, {"file": corpse_file}, team)], skin["origin"])
+
             if "cloakedBodySprite" in skin:
                 cloaked = [compose(source, pose["cloakedLayers"], team, skin["canvas"]) for pose in skin["poses"]]
                 write(skin["cloakedBodySprite"], cloaked, skin["origin"])
             legs_sprite = skin.get("legsBodySprite")
             if legs_sprite:
                 def legs_layers(pose: dict) -> list[dict]:
-                    return [
-                        layer
-                        for layer in pose["layers"]
-                        if is_leg_layer(layer)
-                    ]
+                    return [layer for layer in pose["layers"] if is_leg_layer(layer)]
 
                 if any(legs_layers(pose) for pose in skin["poses"]):
-                    legs = [
-                        compose(source, legs_layers(pose), team, skin["canvas"])
-                        for pose in skin["poses"]
-                    ]
+                    legs = [compose(source, legs_layers(pose), team, skin["canvas"]) for pose in skin["poses"]]
                     write(legs_sprite, legs, skin["origin"])
                     torso = [compose(source, [layer for layer in pose["layers"] if not is_leg_layer(layer)],
                                      team, skin["canvas"]) for pose in skin["poses"]]
@@ -112,22 +138,36 @@ def build(catalog: Path, check: bool) -> None:
                               for pose in skin["poses"]]
                     write(skin[part], frames, skin["origin"])
             weapon = skin.get("weapon")
-            if weapon is None:
-                continue
-            normal = []
-            for pose in skin["poses"]:
-                # The exported full-canvas weapon frames already contain the pose offset.
-                # Normalize around a shared pivot; the runtime applies that offset once.
-                image = compose(source, [pose["weapon"]], team, skin["canvas"])
-                normalized = Image.new("RGBA", tuple(skin["canvas"]))
-                normalized.alpha_composite(image, tuple(-v for v in pose["weaponOffset"]))
-                normal.append(normalized)
-            write(weapon["sprite"], normal, weapon["pivot"])
-            for action in ("fire", "reload"):
-                frames = weapon.get(action + "Frames", [])
-                if frames:
-                    images = [compose(source, [frame], team, skin["canvas"]) for frame in frames]
-                    write(weapon[action + "Sprite"], images, weapon["pivot"])
+            if weapon is not None:
+                normal = []
+                for pose in skin["poses"]:
+                    # The exported full-canvas weapon frames already contain the pose offset.
+                    # Normalize around a shared pivot; the runtime applies that offset once.
+                    image = compose(source, [pose["weapon"]], team, skin["canvas"])
+                    normalized = Image.new("RGBA", tuple(skin["canvas"]))
+                    normalized.alpha_composite(image, tuple(-v for v in pose["weaponOffset"]))
+                    normal.append(normalized)
+                write(weapon["sprite"], normal, weapon["pivot"])
+                for action in ("fire", "reload"):
+                    frames = weapon.get(action + "Frames", [])
+                    if frames:
+                        images = [compose(source, [frame], team, skin["canvas"]) for frame in frames]
+                        write(weapon[action + "Sprite"], images, weapon["pivot"])
+
+        action_sprites = skin.get("actionSprites")
+        portrait_sprite = action_sprites.get("portraitSprite") if action_sprites else None
+        if portrait_sprite:
+            portrait = []
+            taunt_count = action_sprites.get("tauntFrames", 0)
+            pattern = action_sprites["tauntFilePattern"]
+            for team_name in action_sprites.get("portraitTeamOrder", skin["teams"].keys()):
+                team = skin["teams"][team_name]
+                portrait.extend(load_image(source, {"file": pattern.replace("{frame}", str(index))}, team)
+                                for index in range(1, taunt_count + 1))
+            scale = skin.get("pixelScale", 1)
+            portrait = [image.resize((image.width * scale, image.height * scale), Image.Resampling.NEAREST)
+                        for image in portrait]
+            write_sprite(portrait_sprite, portrait, [v * scale for v in skin["origin"]], check)
     print("Player skin assets verified." if check else "Player skin assets imported.")
 
 

@@ -29,13 +29,38 @@ public sealed partial class PlayerEntity
 
     public void BeginPendingCivvieTauntHeal()
     {
-        if (ClassId != PlayerClass.Quote)
+        if (!IsCivilian)
         {
-            CivvieTauntHealPending = false;
+            ClearPendingCivvieTauntHeal();
             return;
         }
 
         CivvieTauntHealPending = true;
+        CivvieTauntHealAbilityItemId = CivvieTauntAbilityItemId;
+    }
+
+    internal bool BeginPendingCivvieTauntHeal(string abilityItemId)
+    {
+        foreach (var abilityItem in EnumerateGameplayAbilityItems())
+        {
+            if (string.Equals(abilityItem.Id, abilityItemId, StringComparison.Ordinal)
+                && abilityItem.Ability is { } ability
+                && string.Equals(ability.ExecutorId, BuiltInGameplayBehaviorIds.CivvieTaunt, StringComparison.Ordinal))
+            {
+                CivvieTauntHealPending = true;
+                CivvieTauntHealAbilityItemId = abilityItem.Id;
+                return true;
+            }
+        }
+
+        ClearPendingCivvieTauntHeal();
+        return false;
+    }
+
+    internal void ClearPendingCivvieTauntHeal()
+    {
+        CivvieTauntHealPending = false;
+        CivvieTauntHealAbilityItemId = null;
     }
 
     public bool ShouldTriggerCivvieTauntHeal(int healFrameIndex = CivvieTauntHealFrameIndex)
@@ -47,7 +72,7 @@ public sealed partial class PlayerEntity
 
     public void MarkCivvieTauntHealTriggered()
     {
-        CivvieTauntHealPending = false;
+        ClearPendingCivvieTauntHeal();
     }
 
     public void ObserveTauntInput(bool isHeld)
@@ -138,6 +163,7 @@ public sealed partial class PlayerEntity
         SetHeavyEatCooldown(cooldownTicks);
         IsTaunting = false;
         TauntFrameIndex = 0f;
+        ClearPendingCivvieTauntHeal();
         return true;
     }
 
@@ -170,7 +196,7 @@ public sealed partial class PlayerEntity
         }
 
         IsTaunting = false;
-        CivvieTauntHealPending = false;
+        ClearPendingCivvieTauntHeal();
         TauntRestartCooldownTicksRemaining = TauntRestartCooldownTicks;
     }
 
@@ -215,6 +241,7 @@ public sealed partial class PlayerEntity
         HeavyEatHealPerTickValue = HeavyEatHealPerTick;
         IsTaunting = false;
         TauntFrameIndex = 0f;
+        ClearPendingCivvieTauntHeal();
     }
 
     public bool TryToggleSniperScope()

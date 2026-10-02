@@ -1,6 +1,6 @@
 {
   "id": "plugin.quote-curly.quote",
-  "displayName": "Quote/Curly",
+  "displayName": "Crewmate",
   "runtime": {
     "basePlayerClass": "Quote",
     "botGraphPlayerClass": "Quote",
@@ -16,14 +16,17 @@
     "runPower": 1.07,
     "jumpStrength": 8.3,
     "maxAirJumps": 0,
-    "tauntLengthFrames": 16
+    "tauntLengthFrames": 11
   },
   "presentation": {
-    "spritePrefix": "Querly",
+    "spritePrefix": "Impostor",
     "baseSuffix": "S",
+    "runSuffix": "RunS",
+    "jumpSuffix": "JumpS",
     "tauntSuffix": "TauntS",
     "humiliationSuffix": "HS",
-    "deadSuffix": "DeadS"
+    "deadSuffix": "DeadS",
+    "intelSuffix": "IntelS"
   },
   "loadouts": {
     "plugin.quote-curly.quote.stock": {
@@ -31,7 +34,7 @@
       "displayName": "Stock",
       "primaryItemId": "plugin.quote-curly.weapon.blade",
       "secondaryItemId": "plugin.quote-curly.ability.blade-throw",
-      "utilityItemId": "plugin.quote-curly.ability.utility",
+      "utilityItemId": "plugin.quote-curly.ability.taunt",
       "abilityItemIds": [ "plugin.quote-curly.ability.experimental-ltd-passive" ]
     }
   },

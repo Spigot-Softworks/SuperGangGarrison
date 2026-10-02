@@ -13,8 +13,6 @@ public partial class Game1
     private const float PredictedRenderCorrectionActiveCatchUpRate = 16f;
     private const float PredictedRenderCorrectionDistanceRateScale = 2.5f;
     private const float PredictedRenderCorrectionMaxRateBonus = 120f;
-    private const float PredictedRenderMaxLeadTicks = 1.25f;
-    private const float PredictedRenderIdleCatchUpRate = 28f;
 
     private void UpdateLocalPredictedRenderPosition()
     {
@@ -37,7 +35,7 @@ public partial class Game1
         if (_localPredictionState.LastPredictedRenderSmoothingTimeSeconds < 0d)
         {
             _localPredictionState.LastPredictedRenderSmoothingTimeSeconds = _networkInterpolationClockSeconds;
-            _localPredictionState.SmoothedLocalPlayerRenderPosition = _localPredictionState.PredictedLocalPlayerPosition + _localPredictionState.PredictedLocalPlayerRenderCorrectionOffset;
+            _localPredictionState.SmoothedLocalPlayerRenderPosition = GetPredictedLocalPlayerRenderPosition();
             return;
         }
 
@@ -48,20 +46,19 @@ public partial class Game1
         _localPredictionState.LastPredictedRenderSmoothingTimeSeconds = _networkInterpolationClockSeconds;
 
         var distance = _localPredictionState.PredictedLocalPlayerRenderCorrectionOffset.Length();
-        var targetRenderPosition = _localPredictionState.PredictedLocalPlayerPosition + _localPredictionState.PredictedLocalPlayerRenderCorrectionOffset;
+        var targetRenderPosition = GetPredictedLocalPlayerRenderPosition();
         var renderDistance = Vector2.Distance(_localPredictionState.SmoothedLocalPlayerRenderPosition, targetRenderPosition);
         if (renderDistance >= PredictedRenderCorrectionTeleportSnapDistance)
         {
             RecordPredictedRenderCorrection(distance, hardSnap: true);
             _localPredictionState.PredictedLocalPlayerRenderCorrectionOffset = Vector2.Zero;
-            _localPredictionState.SmoothedLocalPlayerRenderPosition = _localPredictionState.PredictedLocalPlayerPosition;
+            _localPredictionState.SmoothedLocalPlayerRenderPosition = GetPredictedLocalPlayerRenderPosition();
             return;
         }
 
         if (distance <= 0.01f)
         {
             _localPredictionState.PredictedLocalPlayerRenderCorrectionOffset = Vector2.Zero;
-            targetRenderPosition = _localPredictionState.PredictedLocalPlayerPosition;
             distance = 0f;
         }
 
@@ -69,7 +66,7 @@ public partial class Game1
         {
             RecordPredictedRenderCorrection(distance, hardSnap: true);
             _localPredictionState.PredictedLocalPlayerRenderCorrectionOffset = Vector2.Zero;
-            _localPredictionState.SmoothedLocalPlayerRenderPosition = _localPredictionState.PredictedLocalPlayerPosition;
+            _localPredictionState.SmoothedLocalPlayerRenderPosition = GetPredictedLocalPlayerRenderPosition();
             return;
         }
 
@@ -96,47 +93,9 @@ public partial class Game1
             _localPredictionState.PredictedLocalPlayerRenderCorrectionOffset = Vector2.Zero;
         }
 
-        targetRenderPosition = _localPredictionState.PredictedLocalPlayerPosition + _localPredictionState.PredictedLocalPlayerRenderCorrectionOffset;
-        _localPredictionState.SmoothedLocalPlayerRenderPosition = AdvancePredictedLocalPlayerRenderPosition(
-            _localPredictionState.SmoothedLocalPlayerRenderPosition,
-            targetRenderPosition,
-            _localPredictionState.PredictedLocalPlayerVelocity,
-            deltaSeconds);
+        // The drawn position is the tick-interpolated prediction plus the
+        // decaying correction. Keep this mirror in step for diagnostics.
+        _localPredictionState.SmoothedLocalPlayerRenderPosition = GetPredictedLocalPlayerRenderPosition();
         RecordPredictedRenderCorrection(_localPredictionState.PredictedLocalPlayerRenderCorrectionOffset.Length(), hardSnap: false);
-    }
-
-    private Vector2 AdvancePredictedLocalPlayerRenderPosition(
-        Vector2 current,
-        Vector2 target,
-        Vector2 velocity,
-        float deltaSeconds)
-    {
-        if (deltaSeconds <= 0f)
-        {
-            return current;
-        }
-
-        var maxHorizontalLead = MathF.Max(
-            1f,
-            MathF.Abs(velocity.X) * (float)_config.FixedDeltaSeconds * PredictedRenderMaxLeadTicks);
-        var nextX = current.X;
-        if (MathF.Abs(velocity.X) > 0.01f)
-        {
-            nextX += velocity.X * deltaSeconds;
-            var leadX = nextX - target.X;
-            if (MathF.Abs(leadX) > maxHorizontalLead)
-            {
-                nextX = target.X + (MathF.Sign(leadX) * maxHorizontalLead);
-            }
-        }
-        else
-        {
-            var catchUp = 1f - MathF.Exp(-PredictedRenderIdleCatchUpRate * deltaSeconds);
-            nextX = MathHelper.Lerp(nextX, target.X, catchUp);
-        }
-
-        var verticalCatchUp = 1f - MathF.Exp(-PredictedRenderIdleCatchUpRate * deltaSeconds);
-        var nextY = MathHelper.Lerp(current.Y, target.Y, verticalCatchUp);
-        return new Vector2(nextX, nextY);
     }
 }

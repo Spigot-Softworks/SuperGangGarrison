@@ -88,7 +88,8 @@ public partial class Game1
         bool UseTorsoReplacement = false,
         string? TorsoSpriteName = null,
         string? TorsoRecoilSpriteName = null,
-        bool RotateMeleeHitboxWithAim = false)
+        bool RotateMeleeHitboxWithAim = false,
+        bool DrawBehindBody = false)
     {
         public bool HasCompanionTorso => !string.IsNullOrWhiteSpace(TorsoSpriteName);
 

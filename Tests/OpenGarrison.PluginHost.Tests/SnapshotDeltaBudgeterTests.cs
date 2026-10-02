@@ -5,11 +5,16 @@ using OpenGarrison.GameplayModding;
 using OpenGarrison.Protocol;
 using OpenGarrison.Server;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace OpenGarrison.PluginHost.Tests;
 
 public sealed class SnapshotDeltaBudgeterTests
 {
+    private readonly ITestOutputHelper _output;
+
+    public SnapshotDeltaBudgeterTests(ITestOutputHelper output) => _output = output;
+
     [Fact]
     public void SpecialAbilitiesToggleSurvivesACrowdedSnapshotAndCompactStatusMerge()
     {
@@ -44,6 +49,266 @@ public sealed class SnapshotDeltaBudgeterTests
         Assert.NotNull(method);
         var reduced = (SnapshotPlayerState)method.Invoke(null, new object[] { player })!;
         Assert.Equal(100f, reduced.Metal);
+    }
+
+    [Fact]
+    public void ScoreboardDeltaRoundTripsExactRosterOrderIdentityAndCanonicalPlayerRecords()
+    {
+        var unchanged = CreatePlayerState(1, 501, "Hidden Spy") with
+        {
+            IsSpyCloaked = true,
+            SpyCloakAlpha = 0.125f,
+            IsSpectator = true,
+            GameplayModPackId = "community.pack",
+            GameplayPrimaryItemId = "weapon.custom",
+            OwnedGameplayItemIds = ["weapon.custom", "ability.custom"],
+            ReplicatedStates = [new SnapshotReplicatedStateEntry("test.mod", "visible", SnapshotReplicatedStateValueKind.Toggle, BoolValue: true)],
+            IsDominatingLocalViewer = true,
+        };
+        var changed = CreatePlayerState(2, 502, "Spectator") with
+        {
+            IsSpectator = true,
+            PingMilliseconds = 88,
+            Kills = 3,
+            AimWorldX = 18.25f,
+            KritzCritBoostDamageMultiplier = 2.5f,
+        };
+        var removed = CreatePlayerState(3, 503, "Leaving Player");
+        var baseline = CreateSnapshot(20) with { ScoreboardPlayers = [unchanged, changed, removed] };
+        var current = CreateSnapshot(21) with
+        {
+            ScoreboardPlayers =
+            [
+                CreatePlayerState(2, 900, "Reused Slot") with
+                {
+                    Team = 2,
+                    IsAlive = false,
+                    ExperimentalCryoSlowTicksRemaining = 13,
+                    ExperimentalCryoFreezeTicksRemaining = 7,
+                    ExperimentalCryoExposureFraction = 0.63f,
+                    ExperimentalGhostTrailAlpha = 0.41f,
+                    RageCharge = 63.2f,
+                    IsRageReady = true,
+                    KritzCritBoostProviderPlayerId = 501,
+                    GameplayPrimaryItemId = "w.x",
+                },
+                unchanged,
+                CreatePlayerState(4, 901, "New Slot") with { GameplayClassId = "c" },
+            ],
+        };
+
+        var result = SnapshotDeltaBudgeter.BuildUntrimmedSnapshot(current, baseline, Array.Empty<SnapshotDeltaBudgeter.Contribution>());
+        Assert.True(result.Message.HasScoreboardDelta);
+        Assert.Empty(result.Message.ScoreboardPlayers);
+        Assert.Equal(new byte[] { 2, 1, 4 }, result.Message.ScoreboardPlayerOrder);
+        Assert.Equal(2, result.Message.ScoreboardPlayerPatches.Count);
+
+        Assert.True(ProtocolCodec.TryDeserialize(result.Payload, out var decodedMessage));
+        var decoded = Assert.IsType<SnapshotMessage>(decodedMessage);
+        Assert.True(decoded.HasScoreboardDelta);
+        var resolved = SnapshotDelta.ToFullSnapshot(decoded, baseline);
+        var expected = RoundTripSnapshot(current).ScoreboardPlayers;
+        Assert.Equal(SerializeScoreboardOnly(expected), SerializeScoreboardOnly(resolved.ScoreboardPlayers));
+        Assert.Equal(new[] { 900, 501, 901 }, resolved.ScoreboardPlayers.Select(player => player.PlayerId));
+        Assert.True(resolved.ScoreboardPlayers[1].IsSpyCloaked);
+        Assert.True(resolved.ScoreboardPlayers[1].IsSpectator);
+        Assert.True(resolved.ScoreboardPlayers[1].IsDominatingLocalViewer);
+        Assert.Equal(new[] { "weapon.custom", "ability.custom" }, resolved.ScoreboardPlayers[1].OwnedGameplayItemIds);
+
+        var compatibilityCurrent = RoundTripSnapshot(current);
+        var legacyFullRosterDelta = current with
+        {
+            BaselineFrame = baseline.Frame,
+            IsDelta = true,
+            ScoreboardPlayers = compatibilityCurrent.ScoreboardPlayers,
+        };
+        var legacyCompressedBytes = ProtocolCodec.Serialize(legacyFullRosterDelta, ProtocolCompressionSettings.Default).Length;
+        _output.WriteLine("Scoreboard-only sample (3 players; identity replacement, removal, addition, late ability changes): compact={0} bytes, full roster={1} bytes", result.Payload.Length, legacyCompressedBytes);
+        Assert.True(result.Payload.Length < legacyCompressedBytes,
+            $"Expected compact roster delta ({result.Payload.Length} bytes) below complete scoreboard ({legacyCompressedBytes} bytes).");
+    }
+
+    [Fact]
+    public void ScoreboardDeltaRepresentsExplicitEmptyRosterAndReorderingWithoutPatches()
+    {
+        var first = CreatePlayerState(1, 601, "One");
+        var second = CreatePlayerState(2, 602, "Two");
+        var baseline = CreateSnapshot(30) with { ScoreboardPlayers = [first, second] };
+        var reordered = CreateSnapshot(31) with { ScoreboardPlayers = [second, first] };
+        var reorderDelta = SnapshotDeltaBudgeter.BuildUntrimmedSnapshot(reordered, baseline, Array.Empty<SnapshotDeltaBudgeter.Contribution>());
+        Assert.Empty(reorderDelta.Message.ScoreboardPlayerPatches);
+        Assert.Equal(new byte[] { 2, 1 }, SnapshotDelta.ToFullSnapshot(reorderDelta.Message, baseline).ScoreboardPlayers.Select(player => player.Slot));
+
+        var empty = CreateSnapshot(32);
+        var emptyDelta = SnapshotDeltaBudgeter.BuildUntrimmedSnapshot(empty, baseline, Array.Empty<SnapshotDeltaBudgeter.Contribution>());
+        Assert.True(emptyDelta.Message.HasScoreboardDelta);
+        Assert.Empty(emptyDelta.Message.ScoreboardPlayerOrder);
+        Assert.Empty(SnapshotDelta.ToFullSnapshot(emptyDelta.Message, baseline).ScoreboardPlayers);
+        Assert.True(ProtocolCodec.TryDeserialize(emptyDelta.Payload, out var decodedMessage));
+        Assert.Empty(SnapshotDelta.ToFullSnapshot(Assert.IsType<SnapshotMessage>(decodedMessage), baseline).ScoreboardPlayers);
+    }
+
+    [Fact]
+    public void ScoreboardDeltaRejectsMismatchedDecodedIdentitySlotAndOverflowMetadata()
+    {
+        var baselinePlayer = CreatePlayerState(1, 701, "Original");
+        var baseline = CreateSnapshot(40) with { ScoreboardPlayers = [baselinePlayer] };
+        var currentPlayer = baselinePlayer with { Name = "Changed" };
+        var built = SnapshotDeltaBudgeter.BuildUntrimmedSnapshot(
+            CreateSnapshot(41) with { ScoreboardPlayers = [currentPlayer] }, baseline,
+            Array.Empty<SnapshotDeltaBudgeter.Contribution>());
+        var patch = Assert.Single(built.Message.ScoreboardPlayerPatches);
+
+        var wrongIdentity = patch with
+        {
+            BaseLength = 0,
+            PrefixLength = 0,
+            SuffixLength = 0,
+            PlayerId = 702,
+            ReplacementBytes = SerializeCanonicalSnapshotPlayerForTest(currentPlayer),
+        };
+        Assert.Throws<InvalidOperationException>(() => SnapshotDelta.ToFullSnapshot(
+            built.Message with { ScoreboardPlayerPatches = [wrongIdentity] }, baseline));
+
+        var wrongSlot = patch with
+        {
+            BaseLength = 0,
+            PrefixLength = 0,
+            SuffixLength = 0,
+            ReplacementBytes = SerializeCanonicalSnapshotPlayerForTest(currentPlayer with { Slot = 2 }),
+        };
+        Assert.Throws<InvalidOperationException>(() => SnapshotDelta.ToFullSnapshot(
+            built.Message with { ScoreboardPlayerPatches = [wrongSlot] }, baseline));
+
+        var overflow = built.Message with
+        {
+            ScoreboardPlayerPatches = [patch with { PrefixLength = int.MaxValue }],
+        };
+        var malformedPayload = ProtocolCodec.Serialize(overflow, ProtocolCompressionSettings.Disabled);
+        Assert.False(ProtocolCodec.TryDeserialize(malformedPayload, out _));
+
+        var malformedUtf8Bytes = SerializeCanonicalSnapshotPlayerForTest(currentPlayer);
+        malformedUtf8Bytes[7] = 0xff;
+        var malformedUtf8Patch = patch with
+        {
+            BaseLength = 0,
+            PrefixLength = 0,
+            SuffixLength = 0,
+            ReplacementBytes = malformedUtf8Bytes,
+        };
+        Assert.Throws<InvalidOperationException>(() => SnapshotDelta.ToFullSnapshot(
+            built.Message with { ScoreboardPlayerPatches = [malformedUtf8Patch] }, baseline));
+    }
+
+    [Fact]
+    public void OversizedButLegalScoreboardRecordsFallBackToCompleteRoster()
+    {
+        var largeId = new string('i', 96);
+        var largePlayer = CreatePlayerState(1, 751, "Large state") with
+        {
+            OwnedGameplayItemIds = Enumerable.Repeat(largeId, byte.MaxValue).ToArray(),
+            ReplicatedStates = Enumerable.Range(0, byte.MaxValue)
+                .Select(index => new SnapshotReplicatedStateEntry(
+                    new string((char)('a' + (index % 26)), 80),
+                    largeId,
+                    SnapshotReplicatedStateValueKind.Toggle,
+                    BoolValue: true))
+                .ToArray(),
+        };
+        Assert.True(SerializeCanonicalSnapshotPlayerForTest(largePlayer).Length > 64 * 1024);
+
+        var built = SnapshotDeltaBudgeter.BuildUntrimmedSnapshot(
+            CreateSnapshot(42) with { ScoreboardPlayers = [largePlayer] },
+            baseline: null,
+            contributions: Array.Empty<SnapshotDeltaBudgeter.Contribution>());
+
+        Assert.False(built.Message.HasScoreboardDelta);
+        Assert.Equal(new[] { largePlayer.PlayerId }, built.Message.ScoreboardPlayers.Select(player => player.PlayerId));
+        Assert.True(ProtocolCodec.TryDeserialize(built.Payload, out var decoded));
+        Assert.Equal(largePlayer.PlayerId, Assert.IsType<SnapshotMessage>(decoded).ScoreboardPlayers.Single().PlayerId);
+    }
+
+    [Fact]
+    public void ScoreboardDeltaKeepsTwentyFourPlayerMovementAndLateStatusChangesCompact()
+    {
+        var baselinePlayers = Enumerable.Range(1, 24)
+            .Select(slot => CreatePlayerState((byte)slot, 800 + slot, $"Player {slot:00}"))
+            .ToArray();
+        var currentPlayers = baselinePlayers.Select((player, index) => player with
+        {
+            X = player.X + 0.25f + index * 0.03125f,
+            Y = player.Y - 0.125f,
+            Health = index >= 16 ? (short)(player.Health - 17) : player.Health,
+            PingMilliseconds = index >= 16 ? 42 + index : player.PingMilliseconds,
+            ExperimentalCryoSlowTicksRemaining = index >= 16 ? index : player.ExperimentalCryoSlowTicksRemaining,
+            KritzCritBoostDamageMultiplier = index >= 16 ? 1.5f : player.KritzCritBoostDamageMultiplier,
+        }).ToArray();
+        var baseline = CreateSnapshot(50) with { ScoreboardPlayers = baselinePlayers };
+        var current = CreateSnapshot(51) with { ScoreboardPlayers = currentPlayers };
+        var built = SnapshotDeltaBudgeter.BuildUntrimmedSnapshot(
+            current, baseline, Array.Empty<SnapshotDeltaBudgeter.Contribution>());
+        var movement = currentPlayers.Select(player => new SnapshotPlayerMovementState(
+            player.Slot, player.X, player.Y, player.HorizontalSpeed, player.VerticalSpeed,
+            player.IsGrounded, player.RemainingAirJumps, player.FacingDirectionX,
+            player.AimDirectionDegrees, player.MovementState, player.IsTaunting,
+            player.BurnIntensity)).ToArray();
+        var lateStatus = currentPlayers.Skip(16).Select(player => new SnapshotPlayerStatusState(
+            player.Slot, player.Health, player.MaxHealth, player.Ammo, player.MaxAmmo,
+            player.Metal, player.IsCarryingIntel, player.IntelRechargeTicks)).ToArray();
+        var compactDelta = built.Message with
+        {
+            PlayerMovementStates = movement,
+            PlayerStatusStates = lateStatus,
+        };
+        var compactBytes = ProtocolCodec.Serialize(compactDelta, ProtocolCompressionSettings.Default);
+        var decoded = Assert.IsType<SnapshotMessage>(Decode(compactBytes));
+        var merged = SnapshotDelta.ToFullSnapshot(decoded, baseline);
+        Assert.Equal(SerializeScoreboardOnly(RoundTripSnapshot(current).ScoreboardPlayers),
+            SerializeScoreboardOnly(merged.ScoreboardPlayers));
+
+        var fullRoster = current with
+        {
+            BaselineFrame = baseline.Frame,
+            IsDelta = true,
+            ScoreboardPlayers = currentPlayers,
+        };
+        var fullRosterWithMovement = fullRoster with
+        {
+            PlayerMovementStates = movement,
+            PlayerStatusStates = lateStatus,
+        };
+        var fullRosterBytes = ProtocolCodec.Serialize(fullRosterWithMovement, ProtocolCompressionSettings.Default).Length;
+        _output.WriteLine("Scoreboard LZ4 sample (24 players; movement plus eight late status changes): compact={0} bytes, full roster={1} bytes",
+            compactBytes.Length, fullRosterBytes);
+        Assert.True(compactBytes.Length < fullRosterBytes,
+            $"Expected compact 24-player roster ({compactBytes.Length} bytes) below full roster ({fullRosterBytes} bytes).");
+    }
+
+    private static IProtocolMessage? Decode(byte[] payload)
+    {
+        Assert.True(ProtocolCodec.TryDeserialize(payload, out var message));
+        return message;
+    }
+
+    private static SnapshotMessage RoundTripSnapshot(SnapshotMessage snapshot)
+    {
+        var payload = ProtocolCodec.Serialize(snapshot, ProtocolCompressionSettings.Disabled);
+        Assert.True(ProtocolCodec.TryDeserialize(payload, out var decoded));
+        return Assert.IsType<SnapshotMessage>(decoded);
+    }
+
+    private static byte[] SerializeScoreboardOnly(IReadOnlyList<SnapshotPlayerState> players)
+    {
+        return ProtocolCodec.Serialize(CreateSnapshot(40) with { ScoreboardPlayers = players }, ProtocolCompressionSettings.Disabled);
+    }
+
+    private static byte[] SerializeCanonicalSnapshotPlayerForTest(SnapshotPlayerState player)
+    {
+        var method = typeof(ProtocolCodec).GetMethod(
+            "SerializeCanonicalSnapshotPlayer",
+            BindingFlags.Static | BindingFlags.NonPublic);
+        Assert.NotNull(method);
+        return Assert.IsType<byte[]>(method.Invoke(null, [player]));
     }
 
     private static SnapshotMessage CreateSnapshot(ulong frame)

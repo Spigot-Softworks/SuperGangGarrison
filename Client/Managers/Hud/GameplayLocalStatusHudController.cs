@@ -327,7 +327,7 @@ public sealed class GameplayLocalStatusHudController
                 && !string.IsNullOrWhiteSpace(portraitTorsoSpriteName);
             var characterSpriteName = _context._networkClient.IsLegacyGg2Connection
                 && localPlayer.ClassId == PlayerClass.Quote
-                    ? $"Querly{(localPlayer.Team == PlayerTeam.Blue ? "Blue" : "Red")}S"
+                    ? $"Impostor{(localPlayer.Team == PlayerTeam.Blue ? "Blue" : "Red")}S"
                     : portraitSkin is null
                         ? GameplayPlayerSpriteRenderController.GetHudStandingSpriteName(localPlayer)
                         : portraitSkin.SpriteForTeam(
