@@ -18,7 +18,7 @@ public sealed partial class SimulationWorld
 
     private PlayerEntity? FindPlayerById(int playerId)
     {
-        if (_activeNetworkPlayersById.TryGetValue(playerId, out var player))
+        if (PlayerRegistry.ActivePlayersById.TryGetValue(playerId, out var player))
         {
             return player;
         }

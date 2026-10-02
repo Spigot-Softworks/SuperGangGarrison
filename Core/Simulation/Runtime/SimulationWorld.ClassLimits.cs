@@ -4,12 +4,12 @@ public sealed partial class SimulationWorld
 {
     public void SetCaptureSpeedMultiplierPerPlayer(float multiplier)
     {
-        _configuredCaptureSpeedMultiplierPerPlayer = float.Clamp(multiplier, 0f, 10f);
+        MatchSettings.CaptureSpeedMultiplierPerPlayer = float.Clamp(multiplier, 0f, 10f);
     }
 
     public void SetVipAllowDuplicateClasses(bool enabled)
     {
-        _vipAllowDuplicateClasses = enabled;
+        VipState.AllowDuplicateClasses = enabled;
     }
 
     public void SetClassLimit(PlayerClass playerClass, int limit)
@@ -22,11 +22,11 @@ public sealed partial class SimulationWorld
         limit = Math.Clamp(limit, 0, MaxPlayableNetworkPlayers);
         if (limit == 0)
         {
-            _configuredClassLimits.Remove(playerClass);
+            MatchSettings.ClassLimits.Remove(playerClass);
             return;
         }
 
-        _configuredClassLimits[playerClass] = limit;
+        MatchSettings.ClassLimits[playerClass] = limit;
     }
 
     public void SetAllClassLimits(int limit)
@@ -66,7 +66,7 @@ public sealed partial class SimulationWorld
 
     public int GetClassLimit(PlayerClass playerClass)
     {
-        return _configuredClassLimits.TryGetValue(playerClass, out var limit) ? limit : 0;
+        return MatchSettings.ClassLimits.TryGetValue(playerClass, out var limit) ? limit : 0;
     }
 
     private bool CanApplyNetworkPlayerClassLimit(byte slot, CharacterClassDefinition definition)
@@ -113,7 +113,7 @@ public sealed partial class SimulationWorld
 
     private int GetEffectiveClassLimit(PlayerClass playerClass)
     {
-        if (IsVipModeActive && !_vipAllowDuplicateClasses)
+        if (IsVipModeActive && !VipState.AllowDuplicateClasses)
         {
             return 1;
         }

@@ -671,7 +671,9 @@ public sealed record InputStateMessage(
     bool IsUsingBinoculars = false,
     float BinocularsFocusX = 0f,
     float BinocularsFocusY = 0f,
-    int PingMilliseconds = -1) : IProtocolMessage
+    int PingMilliseconds = -1,
+    ulong? SnapshotAckFrame = null,
+    IReadOnlyList<ControlCommandMessage>? BundledControlCommands = null) : IProtocolMessage
 {
     /// <summary>Gets the message type.</summary>
     public MessageType Type => MessageType.InputState;
@@ -1297,6 +1299,16 @@ public sealed record SnapshotPlayerExtendedStatusState(
     float ExperimentalCryoExposureFraction = 0f,
     int ExperimentalGhostVisibilityTicksRemaining = 0,
     float ExperimentalGhostTrailAlpha = 0f);
+
+/// <summary>A lossless patch to one canonical serialized scoreboard player record.</summary>
+public sealed record SnapshotScoreboardPlayerPatch(
+    byte Slot,
+    int PlayerId,
+    int Index,
+    int BaseLength,
+    int PrefixLength,
+    int SuffixLength,
+    byte[] ReplacementBytes);
 
 /// <summary>The snapshot intel state.</summary>
 /// <param name="Team">The team.</param>
@@ -2180,6 +2192,12 @@ public sealed record SnapshotMessage(
     public IReadOnlyList<SnapshotPlayerExtendedStatusState> PlayerExtendedStatusStates { get; init; } = Array.Empty<SnapshotPlayerExtendedStatusState>();
     /// <summary>Gets the scoreboard players.</summary>
     public IReadOnlyList<SnapshotPlayerState> ScoreboardPlayers { get; init; } = Array.Empty<SnapshotPlayerState>();
+    /// <summary>Gets whether this snapshot carries an explicit scoreboard delta.</summary>
+    public bool HasScoreboardDelta { get; init; }
+    /// <summary>Gets the complete slot ordering when HasScoreboardDelta is set.</summary>
+    public IReadOnlyList<byte> ScoreboardPlayerOrder { get; init; } = Array.Empty<byte>();
+    /// <summary>Gets canonical byte patches for changed scoreboard records.</summary>
+    public IReadOnlyList<SnapshotScoreboardPlayerPatch> ScoreboardPlayerPatches { get; init; } = Array.Empty<SnapshotScoreboardPlayerPatch>();
     /// <summary>Gets the sentry update states.</summary>
     public IReadOnlyList<SnapshotSentryUpdateState> SentryUpdateStates { get; init; } = Array.Empty<SnapshotSentryUpdateState>();
     /// <summary>Gets the removed player ids.</summary>

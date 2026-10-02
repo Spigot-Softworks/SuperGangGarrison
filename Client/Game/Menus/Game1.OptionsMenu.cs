@@ -373,7 +373,7 @@ public partial class Game1
             return;
         }
 
-        var path = GetBubbleWheelPluginConfigPath();
+        var path = RefreshBubbleWheelPluginConfigPathCache();
         var config = BubbleWheelPluginConfig.LoadOrCreate(path, _bubbleWheelBehavior);
         _bubbleWheelBehavior = config.Behavior;
         _bubbleWheelPluginConfigLastWriteUtc = GetFileLastWriteUtcOrDefault(path);
@@ -386,7 +386,7 @@ public partial class Game1
             return OpenGarrisonPreferencesDocument.NormalizeBubbleWheelBehavior(_bubbleWheelBehavior);
         }
 
-        var path = GetBubbleWheelPluginConfigPath();
+        var path = GetCachedBubbleWheelPluginConfigPath();
         var lastWriteUtc = GetFileLastWriteUtcOrDefault(path);
         if (lastWriteUtc != default && lastWriteUtc != _bubbleWheelPluginConfigLastWriteUtc)
         {
@@ -400,6 +400,30 @@ public partial class Game1
     public static string GetBubbleWheelPluginConfigPath()
     {
         return Path.Combine(RuntimePaths.ConfigDirectory, "plugins", "client", "bubblewheel", BubbleWheelPluginConfig.DefaultFileName);
+    }
+
+    private string GetCachedBubbleWheelPluginConfigPath()
+    {
+        var configuredUserDataRoot = Environment.GetEnvironmentVariable(RuntimePaths.UserDataRootEnvironmentVariable);
+        var pathComparison = OperatingSystem.IsWindows()
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
+        if (_bubbleWheelPluginConfigPath is null
+            || !string.Equals(_bubbleWheelPluginConfigPathUserDataRootOverride, configuredUserDataRoot, pathComparison))
+        {
+            RefreshBubbleWheelPluginConfigPathCache(configuredUserDataRoot);
+        }
+
+        return _bubbleWheelPluginConfigPath!;
+    }
+
+    private string RefreshBubbleWheelPluginConfigPathCache(string? configuredUserDataRoot = null)
+    {
+        configuredUserDataRoot ??= Environment.GetEnvironmentVariable(RuntimePaths.UserDataRootEnvironmentVariable);
+        _bubbleWheelPluginConfigPath = GetBubbleWheelPluginConfigPath();
+        _bubbleWheelPluginConfigPathUserDataRootOverride = configuredUserDataRoot;
+        _bubbleWheelPluginConfigLastWriteUtc = default;
+        return _bubbleWheelPluginConfigPath;
     }
 
     public static DateTime GetFileLastWriteUtcOrDefault(string path)

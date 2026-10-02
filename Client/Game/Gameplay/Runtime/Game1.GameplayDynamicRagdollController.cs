@@ -769,7 +769,7 @@ public partial class Game1
         }
         else
         {
-            spriteName = GetDeadBodySpriteName(gameplayClassId, classId, team, animationKind);
+            spriteName = GetDynamicRagdollCorpseSpriteName(gameplayClassId, classId, team, animationKind);
         }
 
         if (spriteName is null)
@@ -2325,7 +2325,7 @@ public partial class Game1
             return ticksRemaining <= 0;
         }
 
-        var spriteName = GetDeadBodySpriteName(
+        var spriteName = GetDynamicRagdollCorpseSpriteName(
             ragdoll.GameplayClassId,
             ragdoll.ClassId,
             ragdoll.Team,

@@ -7,17 +7,16 @@ public sealed partial class SimulationWorld
     private const int BurnAlertSourceFrameMultiplier = 37;
     private const int BurnAlertPlayerIdMultiplier = 11;
 
-    private int _lastAfterburnAlertSourceFrame = -1;
 
     private void AdvanceAfterburnAlertBubbles()
     {
         var currentSourceFrame = GetCurrentSourceFrame();
-        if (currentSourceFrame == _lastAfterburnAlertSourceFrame)
+        if (currentSourceFrame == CombatRuntime.LastAfterburnAlertSourceFrame)
         {
             return;
         }
 
-        _lastAfterburnAlertSourceFrame = currentSourceFrame;
+        CombatRuntime.LastAfterburnAlertSourceFrame = currentSourceFrame;
         foreach (var player in EnumerateSimulatedPlayers())
         {
             if (!player.IsAlive || player.ClassId == PlayerClass.Pyro || player.BurnDurationSourceTicks <= 0f)
@@ -54,7 +53,7 @@ public sealed partial class SimulationWorld
             target.GetBurnVisualOffset(flameIndex, currentSourceFrame, out var offsetX, out var offsetY);
             var spawnX = target.X + offsetX;
             var spawnY = target.Y + offsetY;
-            var flameSpeed = 6.5f + (_random.NextSingle() * 2.5f);
+            var flameSpeed = 6.5f + (Randoms.Gameplay.NextSingle() * 2.5f);
             SpawnFlame(
                 attacker,
                 spawnX,

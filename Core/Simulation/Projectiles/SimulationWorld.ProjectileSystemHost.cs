@@ -4,12 +4,12 @@ namespace OpenGarrison.Core;
 
 public sealed partial class SimulationWorld
 {
-    float IProjectileSpawnContext.GravityScale => _configuredGravityScale;
+    float IProjectileSpawnContext.GravityScale => MatchSettings.GravityScale;
     bool IProjectileSpawnContext.IsClientPredictionMode => ClientPredictionMode;
-    int? IProjectileSpawnContext.AuthoritativeLocalPlayerId => _authoritativeLocalPlayerId;
+    int? IProjectileSpawnContext.AuthoritativeLocalPlayerId => ClientSnapshots.AuthoritativeLocalPlayerId;
     int IProjectileSpawnContext.LocalPlayerId => LocalPlayer.Id;
     int IProjectileSpawnContext.LocalProjectileTerminationSuppressionTicks => LocalProjectileTerminationSuppressionTicks;
-    HashSet<int> IProjectileSpawnContext.ClientPredictedProjectileIds => _clientPredictedProjectileIds;
+    HashSet<int> IProjectileSpawnContext.ClientPredictedProjectileIds => ClientSnapshots.PredictedProjectileIds;
     int IProjectileSpawnContext.AllocateEntityId() => AllocateEntityId();
     void IProjectileSpawnContext.SuppressProjectileRespawn(int projectileId, int ticks) => SuppressProjectileRespawn(projectileId, ticks);
 

@@ -25,7 +25,7 @@ public static class CivvieMoneyTrailRules
     public static bool IsEligibleTrailSource(PlayerEntity player)
     {
         if (!player.IsAlive
-            || player.ClassId != PlayerClass.Quote)
+            || !player.IsCivilian)
         {
             return false;
         }

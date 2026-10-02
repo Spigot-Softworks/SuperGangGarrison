@@ -246,16 +246,9 @@ public sealed class SimulationWorldStingerRocketTests
         Assert.False(firstVictim.IsAlive);
         Assert.False(secondVictim.IsAlive);
 
-        var processingField = typeof(SimulationWorld).GetField("_processingDangerCloseExplosions", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(processingField);
-        Assert.False((bool)processingField!.GetValue(world)!);
+        Assert.False(world.CombatRuntime.ProcessingDangerCloseExplosions);
 
-        var queueField = typeof(SimulationWorld).GetField("_pendingDangerCloseExplosions", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        Assert.NotNull(queueField);
-        var queue = queueField!.GetValue(world);
-        var countProperty = queue?.GetType().GetProperty("Count");
-        Assert.NotNull(countProperty);
-        Assert.Equal(0, (int)countProperty!.GetValue(queue)!);
+        Assert.Empty(world.CombatRuntime.PendingDangerCloseExplosions);
     }
 
     private static SimulationWorld CreateSoldierWorld(ExperimentalGameplaySettings settings)

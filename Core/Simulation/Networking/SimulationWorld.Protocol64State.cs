@@ -19,7 +19,7 @@ public sealed partial class SimulationWorld
         IReadOnlySet<byte> demoknightServerSlots)
     {
         ArgumentNullException.ThrowIfNull(demoknightServerSlots);
-        foreach (var (serverSlot, player) in _remoteSnapshotPlayersBySlot)
+        foreach (var (serverSlot, player) in RemoteSnapshots.PlayersBySlot)
         {
             player.SetExperimentalDemoknightEnabled(
                 demoknightServerSlots.Contains(serverSlot));
@@ -57,9 +57,9 @@ public sealed partial class SimulationWorld
                 return false;
             if (slot == clientLocalPlayerSlot.Value)
             {
-                if (_remoteSnapshotPlayersBySlot.Remove(slot, out var formerRemote))
-                    _remoteSnapshotPlayers.Remove(formerRemote);
-                _authoritativeLocalPlayerId = (int)state.PlayerId;
+                if (RemoteSnapshots.PlayersBySlot.Remove(slot, out var formerRemote))
+                    RemoteSnapshots.Players.Remove(formerRemote);
+                ClientSnapshots.AuthoritativeLocalPlayerId = (int)state.PlayerId;
                 LocalPlayer.ApplyProtocol64State(state, classDefinition, Config.TicksPerSecond);
                 TrySetNetworkPlayerConfiguredTeam(LocalPlayerSlot, (PlayerTeam)state.Team);
                 ApplySnapshotNetworkPlayerBot(LocalPlayerSlot, state.IsBot);
@@ -68,19 +68,19 @@ public sealed partial class SimulationWorld
                 return true;
             }
 
-            if (!_remoteSnapshotPlayersBySlot.TryGetValue(slot, out var remote)
+            if (!RemoteSnapshots.PlayersBySlot.TryGetValue(slot, out var remote)
                 || remote.Id != (int)state.PlayerId)
             {
                 if (remote is not null)
-                    _remoteSnapshotPlayers.Remove(remote);
+                    RemoteSnapshots.Players.Remove(remote);
                 ReserveEntityId((int)state.PlayerId);
                 remote = new PlayerEntity((int)state.PlayerId, classDefinition, GetNetworkPlayerDefaultName(slot));
-                _remoteSnapshotPlayersBySlot[slot] = remote;
+                RemoteSnapshots.PlayersBySlot[slot] = remote;
             }
             remote.ApplyProtocol64State(state, classDefinition, Config.TicksPerSecond);
             ApplySnapshotNetworkPlayerBot(slot, state.IsBot);
-            if (!_remoteSnapshotPlayers.Contains(remote))
-                _remoteSnapshotPlayers.Add(remote);
+            if (!RemoteSnapshots.Players.Contains(remote))
+                RemoteSnapshots.Players.Add(remote);
             return true;
         }
         if (slot != LocalPlayerSlot)
@@ -113,17 +113,17 @@ public sealed partial class SimulationWorld
         {
             if (identity.Slot == clientLocalPlayerSlot.Value)
             {
-                if (_authoritativeLocalPlayerId != (int)identity.PlayerId)
+                if (ClientSnapshots.AuthoritativeLocalPlayerId != (int)identity.PlayerId)
                     return false;
                 ResetProtocol64ClientLocalPlayer();
                 return true;
             }
             var slot = (byte)identity.Slot;
-            if (!_remoteSnapshotPlayersBySlot.TryGetValue(slot, out var remote)
+            if (!RemoteSnapshots.PlayersBySlot.TryGetValue(slot, out var remote)
                 || remote.Id != (int)identity.PlayerId)
                 return false;
-            _remoteSnapshotPlayersBySlot.Remove(slot);
-            _remoteSnapshotPlayers.Remove(remote);
+            RemoteSnapshots.PlayersBySlot.Remove(slot);
+            RemoteSnapshots.Players.Remove(remote);
             return true;
         }
         return TryReleaseNetworkPlayerSlot((byte)identity.Slot);
@@ -142,13 +142,13 @@ public sealed partial class SimulationWorld
         var hasLiveOwner = clientLocalPlayerSlot.HasValue
             ? state.OwnerSlot == clientLocalPlayerSlot.Value
                 ? (owner = LocalPlayer) is not null
-                : _remoteSnapshotPlayersBySlot.TryGetValue((byte)state.OwnerSlot, out owner)
+                : RemoteSnapshots.PlayersBySlot.TryGetValue((byte)state.OwnerSlot, out owner)
             : TryGetNetworkPlayer((byte)state.OwnerSlot, out owner);
         var ownerId = state.LastToDieMedicJavelinOwnerPlayerId > 0
             ? state.LastToDieMedicJavelinOwnerPlayerId
             : hasLiveOwner
                 ? clientLocalPlayerSlot.HasValue && state.OwnerSlot == clientLocalPlayerSlot.Value
-                    ? _authoritativeLocalPlayerId ?? owner!.Id
+                    ? ClientSnapshots.AuthoritativeLocalPlayerId ?? owner!.Id
                     : owner!.Id
                 : 0;
         var team = state.LastToDieMedicJavelinTeam is >= 1 and <= 2

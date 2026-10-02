@@ -13,6 +13,10 @@ public partial class Game1
 {
     public bool _logicalFrameRendersDirectlyToBackBuffer;
 
+    private SubpixelWorldPresentation? _subpixelWorldPresentation;
+    private Color _logicalFrameClearColor = new(24, 32, 48);
+    private bool _worldPresentationTargetPendingComposite;
+
     public int ViewportWidth => GetViewportDimensions(_menuManager.DisplaySettings.IngameResolution).X;
 
     public int ViewportHeight => GetViewportDimensions(_menuManager.DisplaySettings.IngameResolution).Y;
@@ -148,6 +152,8 @@ public partial class Game1
 
     public void BeginLogicalFrame(Color clearColor)
     {
+        _logicalFrameClearColor = clearColor;
+        _worldPresentationTargetPendingComposite = false;
         _logicalFrameRendersDirectlyToBackBuffer = ShouldRenderDirectlyToBackBuffer();
         if (!_logicalFrameRendersDirectlyToBackBuffer)
         {
@@ -189,16 +195,17 @@ public partial class Game1
     {
         _spriteBatch.End();
         _gameplayWorldSpriteBatchActive = true;
+        BeginSubpixelWorldPass(rasterizerState);
         _spriteBatch.Begin(
             samplerState: SamplerState.PointClamp,
             rasterizerState: rasterizerState,
-            transformMatrix: Matrix.CreateScale(GameplayCameraZoom, GameplayCameraZoom, 1f));
+            transformMatrix: SubpixelWorld.GetWorldTransform(GameplayCameraZoom));
     }
 
     private Matrix? GetActiveGameplayWorldSpriteBatchTransform()
     {
         return _gameplayWorldSpriteBatchActive
-            ? Matrix.CreateScale(GameplayCameraZoom, GameplayCameraZoom, 1f)
+            ? SubpixelWorld.GetWorldTransform(GameplayCameraZoom)
             : null;
     }
 
@@ -206,7 +213,166 @@ public partial class Game1
     {
         _spriteBatch.End();
         _gameplayWorldSpriteBatchActive = false;
+        var renderedToWorldTarget = SubpixelWorld.RendersToWorldTarget;
+        SubpixelWorld.EndWorldPass();
+        if (renderedToWorldTarget)
+        {
+            // The world now lives in the presentation-resolution target. The
+            // logical canvas carries only what is drawn after it (HUD, menus)
+            // and is composited over the world in EndLogicalFrame.
+            GraphicsDevice.SetRenderTarget(_renderTargetResources.GameRenderTarget);
+            GraphicsDevice.Clear(Color.Transparent);
+            _worldPresentationTargetPendingComposite = true;
+        }
+
         _spriteBatch.Begin(samplerState: SamplerState.PointClamp, rasterizerState: RasterizerState.CullNone);
+    }
+
+    private SubpixelWorldPresentation SubpixelWorld => _subpixelWorldPresentation ??= new SubpixelWorldPresentation();
+
+    private bool IsSubpixelWorldPresentationEligible()
+    {
+        return !OperatingSystem.IsBrowser()
+            && !ShouldUseCrtPresentation
+            && !_smoothCameraRenderingActive
+            && !SubpixelWorldPresentation.IsDisabledByEnvironment;
+    }
+
+    private void BeginSubpixelWorldPass(RasterizerState rasterizerState)
+    {
+        // Scissored passes (spectator split view) keep the legacy canvas path:
+        // their scissor rectangles are expressed in logical-canvas pixels.
+        if (!IsSubpixelWorldPresentationEligible() || rasterizerState.ScissorTestEnable)
+        {
+            SubpixelWorld.BeginWorldPass(useSubpixel: false, Vector2.One, rendersToWorldTarget: false);
+            return;
+        }
+
+        if (_logicalFrameRendersDirectlyToBackBuffer)
+        {
+            // The canvas is the window: one canvas pixel is one screen pixel.
+            SubpixelWorld.BeginWorldPass(useSubpixel: true, Vector2.One, rendersToWorldTarget: false);
+            return;
+        }
+
+        var destination = GetBackBufferPresentationDestinationRectangle();
+        if (destination.Width <= 0
+            || destination.Height <= 0
+            || !TryEnsureWorldPresentationTarget(destination.Width, destination.Height))
+        {
+            SubpixelWorld.BeginWorldPass(useSubpixel: false, Vector2.One, rendersToWorldTarget: false);
+            return;
+        }
+
+        GraphicsDevice.SetRenderTarget(_renderTargetResources.WorldPresentationTarget);
+        GraphicsDevice.Clear(_logicalFrameClearColor);
+        SubpixelWorld.BeginWorldPass(
+            useSubpixel: true,
+            new Vector2(destination.Width / (float)ViewportWidth, destination.Height / (float)ViewportHeight),
+            rendersToWorldTarget: true);
+    }
+
+    private bool TryEnsureWorldPresentationTarget(int width, int height)
+    {
+        var target = _renderTargetResources.WorldPresentationTarget;
+        if (target is not null && !target.IsDisposed && target.Width == width && target.Height == height)
+        {
+            return true;
+        }
+
+        try
+        {
+            target?.Dispose();
+            _renderTargetResources.WorldPresentationTarget = new RenderTarget2D(
+                GraphicsDevice,
+                width,
+                height,
+                mipMap: false,
+                SurfaceFormat.Color,
+                DepthFormat.None,
+                preferredMultiSampleCount: 0,
+                RenderTargetUsage.PreserveContents);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _renderTargetResources.WorldPresentationTarget = null;
+            Console.WriteLine($"Sub-pixel world presentation unavailable; using the canvas path: {ex.Message}");
+            return false;
+        }
+    }
+
+    private Rectangle GetBackBufferPresentationDestinationRectangle()
+    {
+        var presentation = GraphicsDevice.PresentationParameters;
+        return presentation.BackBufferWidth > 0 && presentation.BackBufferHeight > 0
+            ? GetGameplayDestinationRectangle(presentation.BackBufferWidth, presentation.BackBufferHeight)
+            : Rectangle.Empty;
+    }
+
+    /// <summary>
+    /// Viewport size that world-pass culling and parallax math expect: the
+    /// logical canvas, even while the pass renders into the larger world target.
+    /// </summary>
+    private Viewport GetGameplayWorldPassViewport()
+    {
+        return _gameplayWorldSpriteBatchActive && SubpixelWorld.RendersToWorldTarget
+            ? new Viewport(0, 0, ViewportWidth, ViewportHeight)
+            : GraphicsDevice.Viewport;
+    }
+
+    /// <summary>Maps a world-pass scissor rectangle into pixels of the bound render target.</summary>
+    private Rectangle GetGameplayWorldScissorRectangle(Rectangle worldPassRectangle)
+    {
+        if (!_gameplayWorldSpriteBatchActive)
+        {
+            return worldPassRectangle;
+        }
+
+        var mapped = SubpixelWorld.TransformWorldRectangle(worldPassRectangle, GameplayCameraZoom);
+        return Rectangle.Intersect(mapped, GraphicsDevice.Viewport.Bounds);
+    }
+
+    /// <summary>
+    /// Draws the local player with its own sub-pixel residual so it stays fixed
+    /// relative to the sub-pixel camera instead of snapping to the world grid.
+    /// </summary>
+    private void DrawWithLocalPlayerSubpixelOffset(Action draw)
+    {
+        if (!_gameplayWorldSpriteBatchActive
+            || !SubpixelWorld.IsSubpixelPassActive
+            || !_world.LocalPlayer.IsAlive)
+        {
+            draw();
+            return;
+        }
+
+        var residual = SubpixelWorldPresentation.GetObjectResidual(GetRenderPosition(_world.LocalPlayer));
+        if (residual.LengthSquared() <= 0.000001f)
+        {
+            draw();
+            return;
+        }
+
+        _spriteBatch.End();
+        SubpixelWorld.SetObjectResidual(residual);
+        _spriteBatch.Begin(
+            samplerState: SamplerState.PointClamp,
+            rasterizerState: RasterizerState.CullNone,
+            transformMatrix: SubpixelWorld.GetWorldTransform(GameplayCameraZoom));
+        try
+        {
+            draw();
+        }
+        finally
+        {
+            _spriteBatch.End();
+            SubpixelWorld.SetObjectResidual(Vector2.Zero);
+            _spriteBatch.Begin(
+                samplerState: SamplerState.PointClamp,
+                rasterizerState: RasterizerState.CullNone,
+                transformMatrix: SubpixelWorld.GetWorldTransform(GameplayCameraZoom));
+        }
     }
 
     public void EndLogicalFrame()
@@ -236,6 +402,15 @@ public partial class Game1
 
         WriteGameplayRenderTrace("frame endlogical spritebatchbegin-2");
         _spriteBatch.Begin(samplerState: SamplerState.PointClamp, rasterizerState: RasterizerState.CullNone);
+        if (_worldPresentationTargetPendingComposite && _renderTargetResources.WorldPresentationTarget is { } worldTarget)
+        {
+            // Presentation-resolution world first (1:1 when sizes match), then
+            // the logical canvas with HUD and menus over it.
+            WriteGameplayRenderTrace("frame endlogical draw-world-target");
+            _spriteBatch.Draw(worldTarget, presentationDestination, Color.White);
+        }
+
+        _worldPresentationTargetPendingComposite = false;
         WriteGameplayRenderTrace("frame endlogical draw-rendertarget");
         _spriteBatch.Draw(_renderTargetResources.GameRenderTarget, presentationDestination, Color.White);
         WriteGameplayRenderTrace("frame endlogical spritebatchend-2");

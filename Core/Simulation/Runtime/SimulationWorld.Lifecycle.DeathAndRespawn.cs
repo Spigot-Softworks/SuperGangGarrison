@@ -173,7 +173,7 @@ public sealed partial class SimulationWorld
         else
         {
             SpawnDeadBody(player, deadBodyAnimationKind, killer, weaponSpriteName, deathCamSentry);
-            RegisterWorldSoundEvent(_random.Next(2) == 0 ? "DeathSnd1" : "DeathSnd2", player.X, player.Y);
+            RegisterWorldSoundEvent(Randoms.Gameplay.Next(2) == 0 ? "DeathSnd1" : "DeathSnd2", player.X, player.Y);
         }
 
         if (recordKillFeed)
@@ -190,18 +190,18 @@ public sealed partial class SimulationWorld
             ? 0
             : player.IsInSpawnRoom
                 ? 1
-                : _configuredRespawnTicks;
+                : MatchSettings.RespawnTicks;
         var hasNetworkSlot = TryGetNetworkPlayerSlot(player, out var slot);
 
         var shouldCreateDeathCam = createDeathCam
             && hasNetworkSlot
-            && !_automaticRespawnSuppressedNetworkSlots.Contains(slot)
+            && !PlayerRegistry.AutomaticRespawnSuppressedSlots.Contains(slot)
             && (deathCamSentry is not null || (killer is not null && !ReferenceEquals(killer, player)));
         if (shouldCreateDeathCam)
         {
-            var deathCamTicks = Math.Clamp(respawnTicks > 0 ? respawnTicks : _configuredRespawnTicks, 1, 150);
+            var deathCamTicks = Math.Clamp(respawnTicks > 0 ? respawnTicks : MatchSettings.RespawnTicks, 1, 150);
             var resolvedDeathCamMessage = deathCamMessage
-                ?? DeathCamPhraseCatalog.ChoosePhrase(_deathCamPhraseRandom, weaponSpriteName, deathCamSentry is not null);
+                ?? DeathCamPhraseCatalog.ChoosePhrase(Randoms.DeathCamPhrase, weaponSpriteName, deathCamSentry is not null);
             LocalDeathCamState deathCam;
             if (deathCamSentry is not null)
             {
@@ -265,7 +265,7 @@ public sealed partial class SimulationWorld
         }
         else if (ReferenceEquals(player, EnemyPlayer))
         {
-            _enemyDummyRespawnTicks = respawnTicks;
+            DummyState.EnemyRespawnTicks = respawnTicks;
         }
 
         foreach (var otherPlayer in EnumerateSimulatedPlayers())
@@ -331,13 +331,13 @@ public sealed partial class SimulationWorld
 
     private void AdvanceAdditionalNetworkDeathCams()
     {
-        if (_networkPlayerDeathCams.Count == 0)
+        if (PlayerRegistry.DeathCams.Count == 0)
         {
             return;
         }
 
         var staleSlots = new List<byte>();
-        foreach (var entry in _networkPlayerDeathCams)
+        foreach (var entry in PlayerRegistry.DeathCams)
         {
             if (entry.Value.RemainingTicks <= 1)
             {
@@ -345,12 +345,12 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            _networkPlayerDeathCams[entry.Key] = AdvanceDeathCamState(entry.Value);
+            PlayerRegistry.DeathCams[entry.Key] = AdvanceDeathCamState(entry.Value);
         }
 
         for (var index = 0; index < staleSlots.Count; index += 1)
         {
-            _networkPlayerDeathCams.Remove(staleSlots[index]);
+            PlayerRegistry.DeathCams.Remove(staleSlots[index]);
         }
     }
 
@@ -364,11 +364,11 @@ public sealed partial class SimulationWorld
 
         if (deathCam is null)
         {
-            _networkPlayerDeathCams.Remove(slot);
+            PlayerRegistry.DeathCams.Remove(slot);
             return;
         }
 
-        _networkPlayerDeathCams[slot] = deathCam;
+        PlayerRegistry.DeathCams[slot] = deathCam;
     }
 
     private LocalDeathCamState AdvanceDeathCamState(LocalDeathCamState deathCam)
@@ -406,7 +406,7 @@ public sealed partial class SimulationWorld
     private void AdvanceNetworkRespawnTimer(byte slot)
     {
         if (IsNetworkPlayerAwaitingJoin(slot)
-            || _automaticRespawnSuppressedNetworkSlots.Contains(slot)
+            || PlayerRegistry.AutomaticRespawnSuppressedSlots.Contains(slot)
             || !TryGetNetworkPlayer(slot, out var player))
         {
             return;
@@ -444,24 +444,24 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        if (_enemyDummyRespawnTicks > 0)
+        if (DummyState.EnemyRespawnTicks > 0)
         {
-            _enemyDummyRespawnTicks -= 1;
+            DummyState.EnemyRespawnTicks -= 1;
         }
 
-        if (_enemyDummyRespawnTicks > 0)
+        if (DummyState.EnemyRespawnTicks > 0)
         {
             return;
         }
 
-        if (_practiceCombatDummyMode != PracticeCombatDummyMode.None)
+        if (DummyState.CombatMode != PracticeCombatDummyMode.None)
         {
             SpawnPracticeCombatDummyResolved(playRespawnSound: true);
             return;
         }
 
-        EnemyPlayer.SetClassDefinition(_enemyDummyClassDefinition);
-        SpawnPlayerResolved(EnemyPlayer, _enemyDummyTeam, ReserveSpawn(EnemyPlayer, _enemyDummyTeam), playRespawnSound: true);
+        EnemyPlayer.SetClassDefinition(DummyState.EnemyClassDefinition);
+        SpawnPlayerResolved(EnemyPlayer, DummyState.EnemyTeam, ReserveSpawn(EnemyPlayer, DummyState.EnemyTeam), playRespawnSound: true);
     }
 
     private void SpawnDeadBody(
@@ -517,7 +517,7 @@ public sealed partial class SimulationWorld
             DeterministicMath.Cos(player.AimDirectionDegrees * (MathF.PI / 180f)) < 0f,
             player.GameplayClassId,
             diedToFire);
-        _deadBodies.Add(deadBody);
+        WorldObjects.DeadBodies.Add(deadBody);
         EntityStore.Add(deadBody);
     }
 }

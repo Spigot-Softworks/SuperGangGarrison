@@ -1,0 +1,16 @@
+{
+  "id": "ImpostorRedWeaponS",
+  "framePaths": [
+    "assets/characters/player-skins/ImpostorRedWeaponS/0.png",
+    "assets/characters/player-skins/ImpostorRedWeaponS/1.png",
+    "assets/characters/player-skins/ImpostorRedWeaponS/2.png",
+    "assets/characters/player-skins/ImpostorRedWeaponS/3.png",
+    "assets/characters/player-skins/ImpostorRedWeaponS/4.png",
+    "assets/characters/player-skins/ImpostorRedWeaponS/5.png",
+    "assets/characters/player-skins/ImpostorRedWeaponS/6.png",
+    "assets/characters/player-skins/ImpostorRedWeaponS/7.png",
+    "assets/characters/player-skins/ImpostorRedWeaponS/8.png"
+  ],
+  "originX": 38,
+  "originY": 48
+}

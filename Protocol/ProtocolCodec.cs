@@ -30,6 +30,9 @@ public static partial class ProtocolCodec
     private const int MaxVoteMessageBytes = 256;
     private const int MaxVoteMenuEntries = 128;
     private const int MaxServerDetailsRosterEntries = 64;
+    private const int MaxBundledInputControlCommands = 16;
+    private const byte InputStateExtensionSnapshotAck = 1;
+    private const byte InputStateExtensionControlCommands = 2;
     private static readonly UTF8Encoding Utf8 = new(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
 
     // Position quantization: 0.25 pixel precision using int16 (-8192 to +8191 pixels range)
@@ -253,16 +256,7 @@ public static partial class ProtocolCodec
                     reader.ReadInt32()),
                 MessageType.ServerDetailsRequest => new ServerDetailsRequestMessage(),
                 MessageType.ServerDetailsResponse => ReadServerDetailsResponse(reader),
-                MessageType.InputState => new InputStateMessage(
-                    reader.ReadUInt32(),
-                    (InputButtons)reader.ReadUInt32(),
-                    reader.ReadSingle(),
-                    reader.ReadSingle(),
-                    reader.ReadInt32(),
-                    reader.ReadBoolean(),
-                    reader.ReadSingle(),
-                    reader.ReadSingle(),
-                    stream.Position < stream.Length ? reader.ReadInt32() : -1),
+                MessageType.InputState => ReadInputState(reader, stream),
                 MessageType.ControlCommand => new ControlCommandMessage(
                     reader.ReadUInt32(),
                     (ControlCommandKind)reader.ReadByte(),
@@ -380,6 +374,95 @@ public static partial class ProtocolCodec
 
         writer.Write((ushort)bytes.Length);
         writer.Write(bytes);
+    }
+
+    private static InputStateMessage ReadInputState(BinaryReader reader, Stream stream)
+    {
+        var sequence = reader.ReadUInt32();
+        var buttons = (InputButtons)reader.ReadUInt32();
+        var aimRelX = reader.ReadSingle();
+        var aimRelY = reader.ReadSingle();
+        var chatBubbleFrameIndex = reader.ReadInt32();
+        var isUsingBinoculars = reader.ReadBoolean();
+        var binocularsFocusX = reader.ReadSingle();
+        var binocularsFocusY = reader.ReadSingle();
+        var pingMilliseconds = stream.Position < stream.Length ? reader.ReadInt32() : -1;
+        ulong? snapshotAckFrame = null;
+        IReadOnlyList<ControlCommandMessage>? bundledCommands = null;
+        if (stream.Position < stream.Length)
+        {
+            var extensions = reader.ReadByte();
+            if (extensions == 0 || (extensions & ~(InputStateExtensionSnapshotAck | InputStateExtensionControlCommands)) != 0)
+            {
+                throw new IOException("Input state contains unknown or empty extension flags.");
+            }
+
+            if ((extensions & InputStateExtensionSnapshotAck) != 0)
+            {
+                var frame = reader.ReadUInt64();
+                if (frame == 0)
+                {
+                    throw new IOException("Input snapshot acknowledgement frame must be nonzero.");
+                }
+
+                snapshotAckFrame = frame;
+            }
+
+            if ((extensions & InputStateExtensionControlCommands) != 0)
+            {
+                var count = reader.ReadByte();
+                if (count == 0 || count > MaxBundledInputControlCommands)
+                {
+                    throw new IOException($"Input state bundled control count must be between 1 and {MaxBundledInputControlCommands}.");
+                }
+
+                var commands = new ControlCommandMessage[count];
+                for (var index = 0; index < count; index += 1)
+                {
+                    commands[index] = ReadBundledControlCommand(reader);
+                }
+
+                bundledCommands = commands;
+            }
+        }
+
+        return new InputStateMessage(
+            sequence,
+            buttons,
+            aimRelX,
+            aimRelY,
+            chatBubbleFrameIndex,
+            isUsingBinoculars,
+            binocularsFocusX,
+            binocularsFocusY,
+            pingMilliseconds,
+            snapshotAckFrame,
+            bundledCommands);
+    }
+
+    private static ControlCommandMessage ReadBundledControlCommand(BinaryReader reader)
+    {
+        var sequence = reader.ReadUInt32();
+        var kind = (ControlCommandKind)reader.ReadByte();
+        if (!Enum.IsDefined(kind))
+        {
+            throw new IOException("Input state contains an invalid bundled control command kind.");
+        }
+
+        return new ControlCommandMessage(sequence, kind, reader.ReadByte(), ReadString(reader, MaxGameplayIdBytes));
+    }
+
+    private static void WriteBundledControlCommand(BinaryWriter writer, ControlCommandMessage command)
+    {
+        if (!Enum.IsDefined(command.Kind))
+        {
+            throw new InvalidOperationException("Input state contains an invalid bundled control command kind.");
+        }
+
+        writer.Write(command.Sequence);
+        writer.Write((byte)command.Kind);
+        writer.Write(command.Value);
+        WriteString(writer, command.TextValue ?? string.Empty, MaxGameplayIdBytes, nameof(command.TextValue));
     }
 
     private static string ReadString(BinaryReader reader, int maxBytes)
@@ -512,6 +595,35 @@ public static partial class ProtocolCodec
                 writer.Write(input.BinocularsFocusX);
                 writer.Write(input.BinocularsFocusY);
                 writer.Write(input.PingMilliseconds);
+                var extensions = (byte)((input.SnapshotAckFrame.HasValue ? InputStateExtensionSnapshotAck : 0)
+                    | (input.BundledControlCommands is { Count: > 0 } ? InputStateExtensionControlCommands : 0));
+                if (extensions != 0)
+                {
+                    writer.Write(extensions);
+                    if (input.SnapshotAckFrame is { } snapshotAckFrame)
+                    {
+                        if (snapshotAckFrame == 0)
+                        {
+                            throw new InvalidOperationException("Input snapshot acknowledgement frame must be nonzero.");
+                        }
+
+                        writer.Write(snapshotAckFrame);
+                    }
+
+                    if (input.BundledControlCommands is { Count: > 0 } bundledCommands)
+                    {
+                        if (bundledCommands.Count > MaxBundledInputControlCommands)
+                        {
+                            throw new InvalidOperationException($"Input contains more than {MaxBundledInputControlCommands} bundled control commands.");
+                        }
+
+                        writer.Write((byte)bundledCommands.Count);
+                        foreach (var bundledCommand in bundledCommands)
+                        {
+                            WriteBundledControlCommand(writer, bundledCommand);
+                        }
+                    }
+                }
                 break;
             case ControlCommandMessage command:
                 writer.Write(command.Sequence);

@@ -19,13 +19,13 @@ public sealed partial class SimulationWorld :
     bool ISimulationPlayerDirectory.CanTeamDamagePlayer(PlayerTeam attackerTeam, int attackerId, PlayerEntity target)
         => CanTeamDamagePlayer(attackerTeam, attackerId, target);
 
-    int ISimulationRandomSource.Next(int maximumExclusive) => _random.Next(maximumExclusive);
-    float ISimulationRandomSource.NextSingle() => _random.NextSingle();
-    double ISimulationRandomSource.NextDouble() => _random.NextDouble();
+    int ISimulationRandomSource.Next(int maximumExclusive) => Randoms.Gameplay.Next(maximumExclusive);
+    float ISimulationRandomSource.NextSingle() => Randoms.Gameplay.NextSingle();
+    double ISimulationRandomSource.NextDouble() => Randoms.Gameplay.NextDouble();
 
-    IReadOnlyList<SentryEntity> ISimulationStructures.Sentries => _sentries;
-    IReadOnlyList<JumpPadEntity> ISimulationStructures.JumpPads => _jumpPads;
-    IReadOnlyList<GeneratorState> ISimulationStructures.Generators => _generators;
+    IReadOnlyList<SentryEntity> ISimulationStructures.Sentries => WorldObjects.Sentries;
+    IReadOnlyList<JumpPadEntity> ISimulationStructures.JumpPads => WorldObjects.JumpPads;
+    IReadOnlyList<GeneratorState> ISimulationStructures.Generators => WorldObjects.Generators;
     void ISimulationStructures.DestroyJumpPad(JumpPadEntity jumpPad) => DestroyJumpPad(jumpPad);
 
     void ISimulationPresentationEvents.RegisterWorldSoundEvent(string soundName, float x, float y, int sourcePlayerId)

@@ -339,9 +339,7 @@ public sealed class ServerMapRotationTests
             ?? throw new InvalidOperationException("MatchState setter was not found.");
         matchStateSetter.Invoke(world, [world.MatchState with { Phase = MatchPhase.Ended, WinnerTeam = winner }]);
 
-        var mapChangeReadyField = typeof(SimulationWorld).GetField("_mapChangeReady", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
-            ?? throw new InvalidOperationException("_mapChangeReady field was not found.");
-        mapChangeReadyField.SetValue(world, true);
+        world.Lifecycle.MapChangeReady = true;
     }
 
     private static void SetWorldFrame(SimulationWorld world, long frame)

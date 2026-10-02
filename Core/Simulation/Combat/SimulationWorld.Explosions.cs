@@ -4,8 +4,6 @@ public sealed partial class SimulationWorld
 {
     private const float SourceExplosionKnockbackCap = 15f;
     private const float ExplosiveJumpPadDamageMultiplier = 1.5f;
-    private readonly record struct DangerCloseExplosionRequest(float CenterX, float CenterY, int OwnerPlayerId);
-
     private static void ApplyExplosionImpulse(PlayerEntity player, float originX, float originY, float impulse)
     {
         if (impulse <= 0.0001f)
@@ -173,9 +171,9 @@ public sealed partial class SimulationWorld
             }
         }
 
-        for (var sentryIndex = _sentries.Count - 1; sentryIndex >= 0; sentryIndex -= 1)
+        for (var sentryIndex = WorldObjects.Sentries.Count - 1; sentryIndex >= 0; sentryIndex -= 1)
         {
-            var sentry = _sentries[sentryIndex];
+            var sentry = WorldObjects.Sentries[sentryIndex];
             var distance = DistanceBetween(mine.X, mine.Y, sentry.X, sentry.Y);
             if (distance >= blastRadius || sentry.Team == mine.Team)
             {
@@ -197,9 +195,9 @@ public sealed partial class SimulationWorld
             }
         }
 
-        for (var generatorIndex = 0; generatorIndex < _generators.Count; generatorIndex += 1)
+        for (var generatorIndex = 0; generatorIndex < WorldObjects.Generators.Count; generatorIndex += 1)
         {
-            var generator = _generators[generatorIndex];
+            var generator = WorldObjects.Generators[generatorIndex];
             var distance = DistanceBetween(mine.X, mine.Y, generator.Marker.CenterX, generator.Marker.CenterY);
             if (distance >= blastRadius || generator.Team == mine.Team || generator.IsDestroyed)
             {
@@ -306,7 +304,7 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        var deadBodiesSnapshot = _deadBodies.ToArray();
+        var deadBodiesSnapshot = WorldObjects.DeadBodies.ToArray();
         foreach (var deadBody in deadBodiesSnapshot)
         {
             var distance = DistanceBetween(originX, originY, deadBody.X, deadBody.Y);
@@ -329,7 +327,7 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        var playerGibsSnapshot = _playerGibs.ToArray();
+        var playerGibsSnapshot = WorldObjects.PlayerGibs.ToArray();
         foreach (var gib in playerGibsSnapshot)
         {
             var distance = DistanceBetween(originX, originY, gib.X, gib.Y);
@@ -343,7 +341,7 @@ public sealed partial class SimulationWorld
             gib.AddImpulse(
                 DeterministicMath.Cos(angle) * maxImpulse * impulseScale,
                 DeterministicMath.Sin(angle) * maxImpulse * impulseScale,
-                ((_random.NextSingle() * 151f) - 75f) * impulseScale);
+                ((Randoms.Gameplay.NextSingle() * 151f) - 75f) * impulseScale);
         }
     }
 
@@ -450,23 +448,23 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        _pendingDangerCloseExplosions.Enqueue(new DangerCloseExplosionRequest(victim.X, victim.Y, killer.Id));
+        CombatRuntime.PendingDangerCloseExplosions.Enqueue(new DangerCloseExplosionRequest(victim.X, victim.Y, killer.Id));
         ProcessPendingDangerCloseExplosions();
     }
 
     private void ProcessPendingDangerCloseExplosions()
     {
-        if (_processingDangerCloseExplosions)
+        if (CombatRuntime.ProcessingDangerCloseExplosions)
         {
             return;
         }
 
-        _processingDangerCloseExplosions = true;
+        CombatRuntime.ProcessingDangerCloseExplosions = true;
         try
         {
-            while (_pendingDangerCloseExplosions.Count > 0)
+            while (CombatRuntime.PendingDangerCloseExplosions.Count > 0)
             {
-                var request = _pendingDangerCloseExplosions.Dequeue();
+                var request = CombatRuntime.PendingDangerCloseExplosions.Dequeue();
                 var owner = FindPlayerById(request.OwnerPlayerId);
                 if (owner is null)
                 {
@@ -478,7 +476,7 @@ public sealed partial class SimulationWorld
         }
         finally
         {
-            _processingDangerCloseExplosions = false;
+            CombatRuntime.ProcessingDangerCloseExplosions = false;
         }
     }
 
@@ -565,9 +563,9 @@ public sealed partial class SimulationWorld
             }
         }
 
-        for (var sentryIndex = _sentries.Count - 1; sentryIndex >= 0; sentryIndex -= 1)
+        for (var sentryIndex = WorldObjects.Sentries.Count - 1; sentryIndex >= 0; sentryIndex -= 1)
         {
-            var sentry = _sentries[sentryIndex];
+            var sentry = WorldObjects.Sentries[sentryIndex];
             var distance = DistanceBetween(centerX, centerY, sentry.X, sentry.Y);
             if (distance >= blastRadius || sentry.Team == owner.Team)
             {
@@ -581,9 +579,9 @@ public sealed partial class SimulationWorld
             }
         }
 
-        for (var generatorIndex = 0; generatorIndex < _generators.Count; generatorIndex += 1)
+        for (var generatorIndex = 0; generatorIndex < WorldObjects.Generators.Count; generatorIndex += 1)
         {
-            var generator = _generators[generatorIndex];
+            var generator = WorldObjects.Generators[generatorIndex];
             var distance = DistanceBetween(centerX, centerY, generator.Marker.CenterX, generator.Marker.CenterY);
             if (distance >= blastRadius || generator.Team == owner.Team || generator.IsDestroyed)
             {
@@ -668,9 +666,9 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        for (var jumpPadIndex = _jumpPads.Count - 1; jumpPadIndex >= 0; jumpPadIndex -= 1)
+        for (var jumpPadIndex = WorldObjects.JumpPads.Count - 1; jumpPadIndex >= 0; jumpPadIndex -= 1)
         {
-            var jumpPad = _jumpPads[jumpPadIndex];
+            var jumpPad = WorldObjects.JumpPads[jumpPadIndex];
             if (jumpPad.IsDead
                 || (!jumpPad.IsNeutral && jumpPad.Team == sourceTeam))
             {
@@ -759,36 +757,9 @@ public sealed partial class SimulationWorld
     private static float GetExplosionDistanceToPlayer(SimulationWorld world, PlayerEntity player, float originX, float originY)
     {
         world.GetCachedPlayerPresentationHitBounds(player, out var left, out var top, out var right, out var bottom);
-        var deltaX = 0f;
-        if (originX < left)
-        {
-            deltaX = left - originX;
-        }
-        else if (originX > right)
-        {
-            deltaX = originX - right;
-        }
-
-        var deltaY = 0f;
-        if (originY < top)
-        {
-            deltaY = top - originY;
-        }
-        else if (originY > bottom)
-        {
-            deltaY = originY - bottom;
-        }
-
-        return MathF.Sqrt((deltaX * deltaX) + (deltaY * deltaY));
+        return ExplosionGeometry.GetDistanceToBounds(left, top, right, bottom, originX, originY);
     }
 
     private static void GetExplosionDirection(PlayerEntity player, float originX, float originY, out float deltaX, out float deltaY, out float distance)
-    {
-        var centerX = player.X + ((player.CollisionLeftOffset + player.CollisionRightOffset) * 0.5f);
-        var centerY = player.Y + ((player.CollisionTopOffset + player.CollisionBottomOffset) * 0.5f);
-        deltaX = centerX - originX;
-        deltaY = centerY - originY;
-        distance = MathF.Sqrt((deltaX * deltaX) + (deltaY * deltaY));
-    }
-
+        => ExplosionGeometry.GetDirectionToPlayerCenter(player, originX, originY, out deltaX, out deltaY, out distance);
 }

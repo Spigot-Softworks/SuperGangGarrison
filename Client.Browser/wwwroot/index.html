@@ -541,6 +541,22 @@
                 const recentPumps = metrics.pumpCompletions.filter(function (timestamp) {
                     return timestamp >= recentCutoff;
                 });
+                const recentPumpIntervals = [];
+                for (let index = 1; index < recentPumps.length; index += 1) {
+                    recentPumpIntervals.push(recentPumps[index] - recentPumps[index - 1]);
+                }
+                recentPumpIntervals.sort(function (left, right) { return left - right; });
+                const framePercentile = function (percentile) {
+                    if (recentPumpIntervals.length === 0) return 0;
+                    const rank = Math.max(1, Math.ceil(percentile * recentPumpIntervals.length));
+                    return recentPumpIntervals[rank - 1];
+                };
+                let over16Point67Ms = 0, over33Point34Ms = 0, over50Ms = 0;
+                for (const interval of recentPumpIntervals) {
+                    if (interval > 16.67) over16Point67Ms++;
+                    if (interval > 33.34) over33Point34Ms++;
+                    if (interval > 50) over50Ms++;
+                }
 
                 return {
                     loopStartedAt: metrics.loopStartedAt,
@@ -551,6 +567,16 @@
                     maxPumpDurationMs: metrics.maxPumpDurationMs,
                     recentCompletedPumps: recentPumps.length,
                     recentFps: recentPumps.length / 5,
+                    recentPumpFrameIntervalsMs: {
+                        sampleCount: recentPumpIntervals.length,
+                        p50: framePercentile(0.50),
+                        p95: framePercentile(0.95),
+                        p99: framePercentile(0.99),
+                        max: recentPumpIntervals.length ? recentPumpIntervals[recentPumpIntervals.length - 1] : 0,
+                        over16Point67: over16Point67Ms,
+                        over33Point34: over33Point34Ms,
+                        over50: over50Ms
+                    },
                     pending: window.OpenGarrisonBrowserHost.gameLoopPending,
                     active: window.OpenGarrisonBrowserHost.gameLoopActive
                 };
@@ -622,6 +648,11 @@
                         }
 
                         api.metrics.pumpCompletions.push(pumpCompletedAt);
+                        const frameProbe = api.metrics.performanceFrameProbe;
+                        if (frameProbe && frameProbe.running) {
+                            frameProbe.completionTimesMs.push(pumpCompletedAt);
+                            frameProbe.pumpDurationsMs.push(pumpDurationMs);
+                        }
                         const historyCutoff = pumpCompletedAt - 10000;
                         while (api.metrics.pumpCompletions.length > 0 && api.metrics.pumpCompletions[0] < historyCutoff) {
                             api.metrics.pumpCompletions.shift();

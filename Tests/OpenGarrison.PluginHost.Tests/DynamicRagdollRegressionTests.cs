@@ -17,7 +17,7 @@ public sealed class DynamicRagdollRegressionTests
         var game = CreateGame(Level());
         GetGameplayManager(game).RuntimeSettings.CorpseDurationMode = ClientSettings.CorpseDurationInfinite;
         var world = (SimulationWorld)typeof(Game1).GetField("_world", instance)!.GetValue(game)!;
-        var corpses = (List<DeadBodyEntity>)typeof(SimulationWorld).GetField("_deadBodies", instance)!.GetValue(world)!;
+        var corpses = world.WorldObjects.DeadBodies;
         var corpse = new DeadBodyEntity(1, 1, PlayerClass.Scout, PlayerTeam.Red, DeadBodyAnimationKind.Default,
             100, 100, 24, 12, 0, 0, false, "scout");
         corpse.ApplyNetworkState(100, 100, 0, 0, 1);
@@ -49,7 +49,7 @@ public sealed class DynamicRagdollRegressionTests
         pose.VelocityX = -2;
         GetBodies(game).Add(-19, pose);
         var world = (SimulationWorld)typeof(Game1).GetField("_world", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!.GetValue(game)!;
-        var corpses = (List<DeadBodyEntity>)typeof(SimulationWorld).GetField("_deadBodies", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!.GetValue(world)!;
+        var corpses = world.WorldObjects.DeadBodies;
         corpses.Add(new(99, 19, PlayerClass.Scout, PlayerTeam.Red, DeadBodyAnimationKind.Default,
             100, 100, 24, 12, 6, 2, false, "scout"));
         Invoke(game, "SyncDynamicRagdollsWithDeadBodies");

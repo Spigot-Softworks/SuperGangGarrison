@@ -10,6 +10,10 @@ public sealed class LocalPredictionState
 {
     internal readonly List<Game1.PredictedLocalInput> PendingPredictedInputs = new();
     internal Vector2 PredictedLocalPlayerPosition;
+    // Predicted sample at the start of the latest input tick. Presentation blends
+    // from here to PredictedLocalPlayerPosition across the next tick interval.
+    internal Vector2 PredictedLocalPlayerTickStartPosition;
+    internal bool HasPredictedLocalPlayerTickStartPosition;
     internal Vector2 SmoothedLocalPlayerRenderPosition;
     internal Vector2 PredictedLocalPlayerRenderCorrectionOffset;
     internal Vector2 PredictedLocalPlayerVelocity;

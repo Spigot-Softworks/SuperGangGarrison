@@ -10,7 +10,7 @@ public sealed partial class SimulationWorld
 
         public static void Update(SimulationWorld world)
         {
-            if (world.MatchState.IsEnded || world._controlPoints.Count == 0)
+            if (world.MatchState.IsEnded || world.Objectives.ControlPoints.Points.Count == 0)
             {
                 return;
             }
@@ -18,17 +18,17 @@ public sealed partial class SimulationWorld
             world.RefreshMapLogicRuntimeIfControlPointInputsChanged();
             world.TickMapLogicTimersOncePerFrame();
 
-            var redCappersByPoint = new HashSet<int>[world._controlPoints.Count];
-            var blueCappersByPoint = new HashSet<int>[world._controlPoints.Count];
-            var redPlayersByPoint = new HashSet<int>[world._controlPoints.Count];
-            var bluePlayersByPoint = new HashSet<int>[world._controlPoints.Count];
-            var redVipDecayBlockersByPoint = new HashSet<int>[world._controlPoints.Count];
-            var blueVipDecayBlockersByPoint = new HashSet<int>[world._controlPoints.Count];
-            var redCapStrengthByPoint = new int[world._controlPoints.Count];
-            var blueCapStrengthByPoint = new int[world._controlPoints.Count];
-            var redReverseStrengthByPoint = new int[world._controlPoints.Count];
-            var blueReverseStrengthByPoint = new int[world._controlPoints.Count];
-            for (var index = 0; index < world._controlPoints.Count; index += 1)
+            var redCappersByPoint = new HashSet<int>[world.Objectives.ControlPoints.Points.Count];
+            var blueCappersByPoint = new HashSet<int>[world.Objectives.ControlPoints.Points.Count];
+            var redPlayersByPoint = new HashSet<int>[world.Objectives.ControlPoints.Points.Count];
+            var bluePlayersByPoint = new HashSet<int>[world.Objectives.ControlPoints.Points.Count];
+            var redVipDecayBlockersByPoint = new HashSet<int>[world.Objectives.ControlPoints.Points.Count];
+            var blueVipDecayBlockersByPoint = new HashSet<int>[world.Objectives.ControlPoints.Points.Count];
+            var redCapStrengthByPoint = new int[world.Objectives.ControlPoints.Points.Count];
+            var blueCapStrengthByPoint = new int[world.Objectives.ControlPoints.Points.Count];
+            var redReverseStrengthByPoint = new int[world.Objectives.ControlPoints.Points.Count];
+            var blueReverseStrengthByPoint = new int[world.Objectives.ControlPoints.Points.Count];
+            for (var index = 0; index < world.Objectives.ControlPoints.Points.Count; index += 1)
             {
                 redCappersByPoint[index] = new HashSet<int>();
                 blueCappersByPoint[index] = new HashSet<int>();
@@ -59,9 +59,9 @@ public sealed partial class SimulationWorld
                     continue;
                 }
 
-                for (var zoneIndex = 0; zoneIndex < world._controlPointZones.Count; zoneIndex += 1)
+                for (var zoneIndex = 0; zoneIndex < world.Objectives.ControlPoints.Zones.Count; zoneIndex += 1)
                 {
-                    var zone = world._controlPointZones[zoneIndex];
+                    var zone = world.Objectives.ControlPoints.Zones[zoneIndex];
                     if (!player.IntersectsMarker(zone.Marker.CenterX, zone.Marker.CenterY, zone.Marker.Width, zone.Marker.Height))
                     {
                         continue;
@@ -105,9 +105,9 @@ public sealed partial class SimulationWorld
                 }
             }
 
-            for (var index = 0; index < world._controlPoints.Count; index += 1)
+            for (var index = 0; index < world.Objectives.ControlPoints.Points.Count; index += 1)
             {
-                var point = world._controlPoints[index];
+                var point = world.Objectives.ControlPoints.Points[index];
                 var previousRedCappers = point.RedCappers;
                 var previousBlueCappers = point.BlueCappers;
                 var redCappers = redCapStrengthByPoint[index];
@@ -147,7 +147,7 @@ public sealed partial class SimulationWorld
                     ClearCaptureParticipants(point);
                 }
 
-                if (world._controlPointSetupMode && capTeam == PlayerTeam.Blue)
+                if (world.Objectives.ControlPoints.SetupMode && capTeam == PlayerTeam.Blue)
                 {
                     cappers = 0;
                     ClearCaptureParticipants(point);
@@ -162,7 +162,7 @@ public sealed partial class SimulationWorld
                     var isLocked = point.IsLocked;
                     ControlPointLockDependencyMetadata.ApplyMapLockTriggers(
                         point.Marker.LockRules,
-                        world._controlPoints,
+                        world.Objectives.ControlPoints.Points,
                         world.Level.LogicGraph,
                         ref isLocked);
                     point.IsLocked = isLocked;
@@ -358,7 +358,7 @@ public sealed partial class SimulationWorld
         {
             if (SimulationWorld.IsKothMode(world.MatchRules.Mode))
             {
-                if (world._kothUnlockTicksRemaining > 0)
+                if (world.Objectives.Koth.UnlockTicksRemaining > 0)
                 {
                     return true;
                 }
@@ -390,7 +390,7 @@ public sealed partial class SimulationWorld
             {
                 if (point.Index > 1)
                 {
-                    var previous = world._controlPoints[point.Index - 2];
+                    var previous = world.Objectives.ControlPoints.Points[point.Index - 2];
                     if (previous.Team != PlayerTeam.Red)
                     {
                         return true;
@@ -399,16 +399,16 @@ public sealed partial class SimulationWorld
             }
             else if (point.Team == PlayerTeam.Red)
             {
-                if (point.Index < world._controlPoints.Count)
+                if (point.Index < world.Objectives.ControlPoints.Points.Count)
                 {
-                    var next = world._controlPoints[point.Index];
+                    var next = world.Objectives.ControlPoints.Points[point.Index];
                     if (next.Team != PlayerTeam.Blue)
                     {
                         return true;
                     }
                 }
 
-                if (world._controlPointSetupMode)
+                if (world.Objectives.ControlPoints.SetupMode)
                 {
                     return true;
                 }
@@ -459,7 +459,7 @@ public sealed partial class SimulationWorld
             world.RecordControlPointCapturedObjectiveLog(team, capperIds);
             ClearCaptureParticipants(point);
 
-            if (world._controlPointSetupMode)
+            if (world.Objectives.ControlPoints.SetupMode)
             {
                 var updatedTimeRemainingTicks = Math.Min(
                     world.GetControlPointMaximumTimeTicks(),

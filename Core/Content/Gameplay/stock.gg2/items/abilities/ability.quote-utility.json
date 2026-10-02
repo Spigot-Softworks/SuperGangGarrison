@@ -1,0 +1,20 @@
+{
+  "id": "ability.quote-utility",
+  "kind": "Ability",
+  "displayName": "Crewmate Utility",
+  "behaviorId": "builtin.utility.quote",
+  "ability": {
+    "category": "utility",
+    "channel": "utility",
+    "activation": "pressed",
+    "executorId": "builtin.ability.quote_blade_throw",
+    "tags": [ "projectile", "cooldown" ],
+    "parameters": {
+      "energyCost": 15,
+      "activeProjectileLimit": 1,
+      "lifetimeTicks": 15
+    }
+  },
+  "ammo": {},
+  "presentation": {}
+}

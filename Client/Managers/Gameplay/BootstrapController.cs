@@ -353,6 +353,8 @@ public sealed class BootstrapController
             RenderTargetResources.GameRenderTarget = null;
             RenderTargetResources.HudRenderTarget?.Dispose();
             RenderTargetResources.HudRenderTarget = null;
+            RenderTargetResources.WorldPresentationTarget?.Dispose();
+            RenderTargetResources.WorldPresentationTarget = null;
             _context.DisposeDamageVignetteTextures();
             RenderTargetResources.DeathCamCaptureTarget?.Dispose();
             RenderTargetResources.DeathCamCaptureTarget = null;

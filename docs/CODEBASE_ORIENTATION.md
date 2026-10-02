@@ -24,8 +24,17 @@ The projects target .NET 10. The browser builds the client with
 
 ## Gameplay and sessions
 
-`SimulationWorld`, split across `Core/Simulation/`, owns gameplay updates.
-`PlayerEntity`, under `Core/Entities/Players/`, holds player state and behavior.
+`SimulationWorld`, split across `Core/Simulation/`, composes gameplay state and
+rules. `SimulationRuntime` (`Core/Simulation/Systems/`) owns tick ordering, and
+state lives in owned systems and stores (`EntityStore`, `CombatSystem`,
+`ProjectileSystem`, `PresentationEventLog`, `WorldObjectStore`,
+`ObjectiveStateStore`, `NetworkPlayerRegistry`, `RemoteSnapshotPlayerRegistry`,
+`VipState`, `CompetitiveReadyUpState`, `PracticeDummyState`, `LastToDieState`, `MatchSettingsState`,
+`ClientSnapshotState`, `MapRuntimeState`, `CombatRuntimeState`, `LocalSimulationState`, `MatchLifecycleState`).
+Per-mode objective rules live in `Core/Simulation/Systems/Objectives/`, and raycast/weapon-fire logic in `Core/Simulation/Systems/Combat/`.
+The world still holds a lot of rule logic; see
+[simulation boundaries](architecture/simulation-boundaries.md) for the current
+status and the enforced limits. `PlayerEntity`, under `Core/Entities/Players/`, holds player state and behavior.
 Definitions in `Core/Content/Gameplay/stock.gg2/` supply the stock classes, items,
 and loadouts interpreted by the simulation.
 

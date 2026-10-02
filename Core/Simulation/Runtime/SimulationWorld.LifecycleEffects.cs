@@ -190,17 +190,17 @@ public sealed partial class SimulationWorld
         var resolvedSpawnY = spawnY ?? player.Y;
         for (var index = 0; index < count; index += 1)
         {
-            var resolvedFrameIndex = frameIndex ?? _random.Next(randomFrameCount);
-            var velocityX = inheritedVelocityX + ((_random.NextSingle() * ((velocityRangeX * 2f) + 1f)) - velocityRangeX);
-            var velocityY = inheritedVelocityY + ((_random.NextSingle() * ((velocityRangeY * 2f) + 1f)) - velocityRangeY);
+            var resolvedFrameIndex = frameIndex ?? Randoms.Gameplay.Next(randomFrameCount);
+            var velocityX = inheritedVelocityX + ((Randoms.Gameplay.NextSingle() * ((velocityRangeX * 2f) + 1f)) - velocityRangeX);
+            var velocityY = inheritedVelocityY + ((Randoms.Gameplay.NextSingle() * ((velocityRangeY * 2f) + 1f)) - velocityRangeY);
             if (Level.IsTopDown)
             {
-                var angle = _random.NextSingle() * (MathF.PI * 2f);
-                var radialSpeed = MathF.Max(2f, MathF.Max(velocityRangeX, velocityRangeY) * (0.45f + (_random.NextSingle() * 0.55f)));
+                var angle = Randoms.Gameplay.NextSingle() * (MathF.PI * 2f);
+                var radialSpeed = MathF.Max(2f, MathF.Max(velocityRangeX, velocityRangeY) * (0.45f + (Randoms.Gameplay.NextSingle() * 0.55f)));
                 velocityX = inheritedVelocityX + (DeterministicMath.Cos(angle) * radialSpeed);
                 velocityY = inheritedVelocityY + (DeterministicMath.Sin(angle) * radialSpeed);
             }
-            var rotationSpeed = (_random.NextSingle() * ((rotationRange * 2f) + 1f)) - rotationRange;
+            var rotationSpeed = (Randoms.Gameplay.NextSingle() * ((rotationRange * 2f) + 1f)) - rotationRange;
 
             // Create gib entity locally (for offline mode and server-side simulation)
             var gib = new PlayerGibEntity(
@@ -219,13 +219,13 @@ public sealed partial class SimulationWorld
                 experimentalCryoTinted,
                 flipHorizontally,
                 authoredRenderScale);
-            _playerGibs.Add(gib);
+            WorldObjects.PlayerGibs.Add(gib);
             EntityStore.Add(gib);
 
             if (emitNetworkEvents)
             {
                 // Emit event for network replication to clients.
-                _pendingGibSpawnEvents.Add(new WorldGibSpawnEvent(
+                PresentationEvents.AddGibSpawnEvent(new WorldGibSpawnEvent(
                     spriteName,
                     resolvedFrameIndex,
                     resolvedSpawnX,
@@ -259,9 +259,9 @@ public sealed partial class SimulationWorld
         var normalizedDirectionY = directionLength <= 0.0001f ? 0f : launchDirectionY / directionLength;
         var spawnX = victim.X;
         var spawnY = victim.Y - (victim.Height * 0.42f);
-        var velocityX = (normalizedDirectionX * 6f) + ((_random.NextSingle() * 4f) - 2f);
-        var velocityY = (normalizedDirectionY * 2.5f) - 6f - (_random.NextSingle() * 2f);
-        var rotationSpeed = (_random.NextSingle() * 160f) - 80f;
+        var velocityX = (normalizedDirectionX * 6f) + ((Randoms.Gameplay.NextSingle() * 4f) - 2f);
+        var velocityY = (normalizedDirectionY * 2.5f) - 6f - (Randoms.Gameplay.NextSingle() * 2f);
+        var rotationSpeed = (Randoms.Gameplay.NextSingle() * 160f) - 80f;
 
         // Create gib entity locally (for offline mode and server-side simulation)
         var headGib = new PlayerGibEntity(
@@ -277,11 +277,11 @@ public sealed partial class SimulationWorld
             rotationFriction: 0.55f,
             lifetimeTicks: 250,
             bloodChance: 1.3f);
-        _playerGibs.Add(headGib);
+        WorldObjects.PlayerGibs.Add(headGib);
         EntityStore.Add(headGib);
 
         // Emit event for network replication to clients
-        _pendingGibSpawnEvents.Add(new WorldGibSpawnEvent(
+        PresentationEvents.AddGibSpawnEvent(new WorldGibSpawnEvent(
             headSpriteName,
             0,
             spawnX,
@@ -358,13 +358,13 @@ public sealed partial class SimulationWorld
     {
         if (!LocalGoreEffectsEnabled)
         {
-            RemoveEntities(_playerGibs);
+            WorldObjects.RemoveAll(WorldObjects.PlayerGibs);
             return;
         }
 
-        for (var gibIndex = _playerGibs.Count - 1; gibIndex >= 0; gibIndex -= 1)
+        for (var gibIndex = WorldObjects.PlayerGibs.Count - 1; gibIndex >= 0; gibIndex -= 1)
         {
-            var gib = _playerGibs[gibIndex];
+            var gib = WorldObjects.PlayerGibs[gibIndex];
             gib.Advance(Level, Bounds, topDown: Level.IsTopDown);
             TryApplyPlayerGibSplat(gib);
             TrySpawnBloodDropFromGib(gib);
@@ -374,7 +374,7 @@ public sealed partial class SimulationWorld
             }
 
             EntityStore.Remove(gib.Id);
-            _playerGibs.RemoveAt(gibIndex);
+            WorldObjects.PlayerGibs.RemoveAt(gibIndex);
         }
     }
 
@@ -412,13 +412,13 @@ public sealed partial class SimulationWorld
     {
         if (!LocalGoreEffectsEnabled)
         {
-            RemoveEntities(_bloodDrops);
+            WorldObjects.RemoveAll(WorldObjects.BloodDrops);
             return;
         }
 
-        for (var dropIndex = _bloodDrops.Count - 1; dropIndex >= 0; dropIndex -= 1)
+        for (var dropIndex = WorldObjects.BloodDrops.Count - 1; dropIndex >= 0; dropIndex -= 1)
         {
-            var bloodDrop = _bloodDrops[dropIndex];
+            var bloodDrop = WorldObjects.BloodDrops[dropIndex];
             bloodDrop.Advance(Level, Bounds, topDown: Level.IsTopDown);
             if (!bloodDrop.IsExpired)
             {
@@ -426,7 +426,7 @@ public sealed partial class SimulationWorld
             }
 
             EntityStore.Remove(bloodDrop.Id);
-            _bloodDrops.RemoveAt(dropIndex);
+            WorldObjects.BloodDrops.RemoveAt(dropIndex);
         }
 
         MergeBloodDrops();
@@ -445,7 +445,7 @@ public sealed partial class SimulationWorld
         }
 
         var threshold = 16f / DefaultGibLevel;
-        if (MathF.Abs(gib.Speed / gib.BloodChance) <= _random.NextSingle() * threshold)
+        if (MathF.Abs(gib.Speed / gib.BloodChance) <= Randoms.Gameplay.NextSingle() * threshold)
         {
             return;
         }
@@ -455,11 +455,11 @@ public sealed partial class SimulationWorld
             AllocateEntityId(),
             gib.X,
             gib.Y - 1f,
-            DeterministicMath.Cos(angle) * gib.Speed * 0.9f + (_random.NextSingle() * 3f) - 1f,
-            DeterministicMath.Sin(angle) * gib.Speed * 0.9f + (_random.NextSingle() * 3f) - 1f,
+            DeterministicMath.Cos(angle) * gib.Speed * 0.9f + (Randoms.Gameplay.NextSingle() * 3f) - 1f,
+            DeterministicMath.Sin(angle) * gib.Speed * 0.9f + (Randoms.Gameplay.NextSingle() * 3f) - 1f,
             experimentalCryoTinted: gib.ExperimentalCryoTinted,
             lifetimeTicks: ScaleBloodDropLifetimeTicks());
-        _bloodDrops.Add(bloodDrop);
+        WorldObjects.BloodDrops.Add(bloodDrop);
         EntityStore.Add(bloodDrop);
     }
 
@@ -473,10 +473,10 @@ public sealed partial class SimulationWorld
         var lifetimeTicks = ScaleBloodDropLifetimeTicks();
         for (var index = 0; index < count; index += 1)
         {
-            var offsetX = spreadRadius <= 0f ? 0f : (_random.NextSingle() * ((spreadRadius * 2f) + 1f)) - spreadRadius;
-            var offsetY = spreadRadius <= 0f ? 0f : (_random.NextSingle() * ((spreadRadius * 2f) + 1f)) - spreadRadius;
-            var velocityX = (_random.NextSingle() * ((velocityRangeX * 2f) + 1f)) - velocityRangeX;
-            var velocityY = (_random.NextSingle() * ((velocityRangeY * 2f) + 1f)) - velocityRangeY;
+            var offsetX = spreadRadius <= 0f ? 0f : (Randoms.Gameplay.NextSingle() * ((spreadRadius * 2f) + 1f)) - spreadRadius;
+            var offsetY = spreadRadius <= 0f ? 0f : (Randoms.Gameplay.NextSingle() * ((spreadRadius * 2f) + 1f)) - spreadRadius;
+            var velocityX = (Randoms.Gameplay.NextSingle() * ((velocityRangeX * 2f) + 1f)) - velocityRangeX;
+            var velocityY = (Randoms.Gameplay.NextSingle() * ((velocityRangeY * 2f) + 1f)) - velocityRangeY;
             var bloodDrop = new BloodDropEntity(
                 AllocateEntityId(),
                 x + offsetX,
@@ -485,7 +485,7 @@ public sealed partial class SimulationWorld
                 velocityY,
                 experimentalCryoTinted: experimentalCryoTinted,
                 lifetimeTicks: lifetimeTicks);
-            _bloodDrops.Add(bloodDrop);
+            WorldObjects.BloodDrops.Add(bloodDrop);
             EntityStore.Add(bloodDrop);
         }
     }
@@ -513,7 +513,7 @@ public sealed partial class SimulationWorld
 
     private void MergeBloodDrops()
     {
-        if (_bloodDrops.Count < 2)
+        if (WorldObjects.BloodDrops.Count < 2)
         {
             return;
         }
@@ -522,9 +522,9 @@ public sealed partial class SimulationWorld
         var buckets = new Dictionary<long, List<int>>();
         bool[]? absorbedDrops = null;
 
-        for (var sourceIndex = 0; sourceIndex < _bloodDrops.Count; sourceIndex += 1)
+        for (var sourceIndex = 0; sourceIndex < WorldObjects.BloodDrops.Count; sourceIndex += 1)
         {
-            var source = _bloodDrops[sourceIndex];
+            var source = WorldObjects.BloodDrops[sourceIndex];
             if (!source.IsMergeable)
             {
                 continue;
@@ -546,7 +546,7 @@ public sealed partial class SimulationWorld
 
                     for (var targetBucketIndex = 0; targetBucketIndex < targetIndices.Count; targetBucketIndex += 1)
                     {
-                        var target = _bloodDrops[targetIndices[targetBucketIndex]];
+                        var target = WorldObjects.BloodDrops[targetIndices[targetBucketIndex]];
                         if (!target.CanMergeWith(source) || !ShouldMergeBloodDrops(target, source))
                         {
                             continue;
@@ -554,7 +554,7 @@ public sealed partial class SimulationWorld
 
                         target.Absorb(source);
                         EntityStore.Remove(source.Id);
-                        absorbedDrops ??= new bool[_bloodDrops.Count];
+                        absorbedDrops ??= new bool[WorldObjects.BloodDrops.Count];
                         absorbedDrops[sourceIndex] = true;
                         absorbed = true;
                         break;
@@ -582,11 +582,11 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        for (var dropIndex = _bloodDrops.Count - 1; dropIndex >= 0; dropIndex -= 1)
+        for (var dropIndex = WorldObjects.BloodDrops.Count - 1; dropIndex >= 0; dropIndex -= 1)
         {
             if (absorbedDrops[dropIndex])
             {
-                _bloodDrops.RemoveAt(dropIndex);
+                WorldObjects.BloodDrops.RemoveAt(dropIndex);
             }
         }
     }
@@ -608,9 +608,9 @@ public sealed partial class SimulationWorld
 
     private void AdvanceDeadBodies()
     {
-        for (var deadBodyIndex = _deadBodies.Count - 1; deadBodyIndex >= 0; deadBodyIndex -= 1)
+        for (var deadBodyIndex = WorldObjects.DeadBodies.Count - 1; deadBodyIndex >= 0; deadBodyIndex -= 1)
         {
-            var deadBody = _deadBodies[deadBodyIndex];
+            var deadBody = WorldObjects.DeadBodies[deadBodyIndex];
             var advanceResult = deadBody.Advance(Level, Bounds, preservePosition: Level.IsTopDown);
             if (!ClientPredictionMode
                 && advanceResult.HitGround
@@ -626,7 +626,7 @@ public sealed partial class SimulationWorld
             }
 
             EntityStore.Remove(deadBody.Id);
-            _deadBodies.RemoveAt(deadBodyIndex);
+            WorldObjects.DeadBodies.RemoveAt(deadBodyIndex);
         }
     }
 }

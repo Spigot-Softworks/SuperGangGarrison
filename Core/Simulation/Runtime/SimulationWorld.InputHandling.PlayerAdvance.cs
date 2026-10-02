@@ -61,7 +61,9 @@ public sealed partial class SimulationWorld
             };
         }
         var isHumiliated = IsPlayerHumiliated(player);
-        player.ObserveTauntInput(input.Taunt);
+        player.ObserveTauntInput(
+            input.Taunt
+                || (player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.CivvieTaunt) && input.UseAbility));
         player.ObserveCivviePogoTrickInput(input.Taunt);
 
         if (isHumiliated)

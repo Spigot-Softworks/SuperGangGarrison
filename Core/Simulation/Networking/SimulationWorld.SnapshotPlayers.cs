@@ -35,7 +35,7 @@ public sealed partial class SimulationWorld
         if (localPlayerState is not null && !localPlayerState.IsSpectator)
         {
             var appliedLocalPlayerState = NormalizeAwaitingJoinSnapshotPlayerState(localPlayerState);
-            _authoritativeLocalPlayerId = localPlayerState.PlayerId;
+            ClientSnapshots.AuthoritativeLocalPlayerId = localPlayerState.PlayerId;
             var wasAlive = LocalPlayer.IsAlive;
             var previousGibDeaths = LocalPlayer.GibDeaths;
 
@@ -60,7 +60,7 @@ public sealed partial class SimulationWorld
         TrySetNetworkPlayerAwaitingJoin(LocalPlayerSlot, true);
         TrySetNetworkPlayerRespawnTicks(LocalPlayerSlot, 0);
         ApplySnapshotNetworkPlayerPingMilliseconds(LocalPlayerSlot, -1);
-        _authoritativeLocalPlayerId = null;
+        ClientSnapshots.AuthoritativeLocalPlayerId = null;
         LocalDeathCam = null;
         LocalPlayer.ClearMedicHealingTarget();
         LocalPlayer.Kill();
@@ -87,7 +87,7 @@ public sealed partial class SimulationWorld
             .ToList();
 
         EnemyPlayerEnabled = false;
-        _enemyDummyRespawnTicks = 0;
+        DummyState.EnemyRespawnTicks = 0;
         ClearEnemyInputOverride();
         EnemyPlayer.Kill();
         FriendlyDummyEnabled = false;

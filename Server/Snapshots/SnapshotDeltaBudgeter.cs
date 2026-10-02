@@ -61,7 +61,7 @@ internal static class SnapshotDeltaBudgeter
         IReadOnlyList<Contribution> contributions,
         int targetPayloadBytes = TargetSnapshotPayloadBytes)
     {
-        var builder = new Builder(fullSnapshot, baseline?.Frame ?? 0, seedFromTemplateCollections: false);
+        var builder = new Builder(fullSnapshot, baseline, seedFromTemplateCollections: false);
         var snapshot = builder.Build();
         var serializePassCount = 0;
         byte[]? payload = null;
@@ -230,7 +230,7 @@ internal static class SnapshotDeltaBudgeter
         IReadOnlyList<Contribution> contributions,
         int targetPayloadBytes = TargetSnapshotPayloadBytes)
     {
-        var builder = new Builder(fullSnapshot, baseline?.Frame ?? 0, seedFromTemplateCollections: false);
+        var builder = new Builder(fullSnapshot, baseline, seedFromTemplateCollections: false);
         for (var index = 0; index < contributions.Count; index += 1)
         {
             contributions[index].Apply(builder);
@@ -1053,11 +1053,13 @@ internal static class SnapshotDeltaBudgeter
     internal sealed class Builder
     {
         private readonly SnapshotMessage _template;
+        private readonly IReadOnlyList<SnapshotPlayerState>? _scoreboardBaseline;
 
-        public Builder(SnapshotMessage template, ulong baselineFrame, bool seedFromTemplateCollections)
+        public Builder(SnapshotMessage template, ISnapshotBaselineState? baseline, bool seedFromTemplateCollections)
         {
             _template = template;
-            BaselineFrame = baselineFrame;
+            _scoreboardBaseline = baseline?.ScoreboardPlayers;
+            BaselineFrame = baseline?.Frame ?? 0;
             EntityCollectionCompletenessFlags = template.EntityCollectionCompletenessFlags;
             CombatTraces = seedFromTemplateCollections ? new TrackingList<SnapshotCombatTraceState>(template.CombatTraces) : [];
             SniperAimIndicators = seedFromTemplateCollections ? new TrackingList<SnapshotSniperAimIndicatorState>(template.SniperAimIndicators) : [];
@@ -1115,6 +1117,7 @@ internal static class SnapshotDeltaBudgeter
         private Builder(Builder other)
         {
             _template = other._template;
+            _scoreboardBaseline = other._scoreboardBaseline;
             BaselineFrame = other.BaselineFrame;
             EntityCollectionCompletenessFlags = other.EntityCollectionCompletenessFlags;
             CombatTraces = new TrackingList<SnapshotCombatTraceState>(other.CombatTraces);
@@ -1236,12 +1239,21 @@ internal static class SnapshotDeltaBudgeter
 
         public SnapshotMessage Build()
         {
+            var scoreboardDelta = SnapshotDelta.CreateScoreboardDelta(_template.ScoreboardPlayers, _scoreboardBaseline);
+            var scoreboardDeltaRequiredToClear = _template.ScoreboardPlayers.Count == 0
+                && _scoreboardBaseline is { Count: > 0 };
+            var useScoreboardDelta = scoreboardDelta.CanEncode
+                && (scoreboardDelta.ExtensionBytes < scoreboardDelta.FullRosterRecordBytes
+                    || scoreboardDeltaRequiredToClear);
             return _template with
             {
                 BaselineFrame = BaselineFrame,
                 IsDelta = true,
                 EntityCollectionCompletenessFlags = EntityCollectionCompletenessFlags,
-                ScoreboardPlayers = _template.ScoreboardPlayers,
+                ScoreboardPlayers = useScoreboardDelta ? Array.Empty<SnapshotPlayerState>() : _template.ScoreboardPlayers,
+                HasScoreboardDelta = useScoreboardDelta,
+                ScoreboardPlayerOrder = useScoreboardDelta ? scoreboardDelta.Order : Array.Empty<byte>(),
+                ScoreboardPlayerPatches = useScoreboardDelta ? scoreboardDelta.Patches : Array.Empty<SnapshotScoreboardPlayerPatch>(),
                 Players = Players.ToArrayCached(),
                 PlayerMovementStates = PlayerMovementStates.ToArrayCached(),
                 PlayerStatusStates = PlayerStatusStates.ToArrayCached(),

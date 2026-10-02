@@ -5,6 +5,7 @@ using Microsoft.Xna.Framework.Graphics;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.CompilerServices;
 using OpenGarrison.Core;
 
 namespace OpenGarrison.Client;
@@ -62,7 +63,8 @@ public partial class Game1
     /// <see cref="GameplayCameraZoom"/> via transform; HUD batches do not.
     /// </summary>
     public Vector2 GetWorldHudScreenPosition(float worldX, float worldY, Vector2 cameraPosition)
-        => GetWorldScreenPosition(worldX, worldY, cameraPosition) * GameplayCameraZoom;
+        => (GetWorldScreenPosition(worldX, worldY, cameraPosition) * GameplayCameraZoom)
+            + SubpixelWorld.GetHudOffset(GameplayCameraZoom);
 
     public Vector2 GetWorldHudScreenPosition(Vector2 worldPosition, Vector2 cameraPosition)
         => GetWorldHudScreenPosition(worldPosition.X, worldPosition.Y, cameraPosition);
@@ -962,11 +964,14 @@ public partial class Game1
             return cachedMask;
         }
 
+        var assetTraceStartTimestamp = ClientAssetLoadDiagnostics.StartTimestamp();
         var sourceRectangle = frame.SourceRectangle ?? new Rectangle(0, 0, frame.Texture.Width, frame.Texture.Height);
         var mask = new Texture2D(GraphicsDevice, sourceRectangle.Width, sourceRectangle.Height);
         var pixels = new Color[sourceRectangle.Width * sourceRectangle.Height];
+        var usedGpuReadback = false;
         if (!frame.TryCopyPixelData(pixels))
         {
+            usedGpuReadback = true;
             frame.Texture.GetData(0, sourceRectangle, pixels, 0, pixels.Length);
         }
 
@@ -979,6 +984,15 @@ public partial class Game1
 
         mask.SetData(pixels);
         _spriteFrameAlphaMaskCache[frame] = mask;
+        if (assetTraceStartTimestamp > 0L)
+        {
+            ClientAssetLoadDiagnostics.RecordOnce(
+                "alpha-mask",
+                GetSpriteFrameAssetTraceIdentity(frame),
+                FormattableString.Invariant($"size={sourceRectangle.Width}x{sourceRectangle.Height} pixelSource={(usedGpuReadback ? "gpu-readback" : "retained-cpu")}"),
+                assetTraceStartTimestamp);
+        }
+
         return mask;
     }
 
@@ -989,10 +1003,13 @@ public partial class Game1
             return cachedFrame;
         }
 
+        var assetTraceStartTimestamp = ClientAssetLoadDiagnostics.StartTimestamp();
         var sourceRectangle = frame.SourceRectangle ?? new Rectangle(0, 0, frame.Texture.Width, frame.Texture.Height);
         var pixels = new Color[sourceRectangle.Width * sourceRectangle.Height];
+        var usedGpuReadback = false;
         if (!frame.TryCopyPixelData(pixels))
         {
+            usedGpuReadback = true;
             frame.Texture.GetData(0, sourceRectangle, pixels, 0, pixels.Length);
         }
 
@@ -1012,7 +1029,24 @@ public partial class Game1
             texture,
             PixelSource: new LoadedSpriteFramePixelSource(pixels, sourceRectangle.Width, sourceRectangle.Height));
         _spriteFrameCacheResources.NeutralSpriteFrameCache[frame] = neutralFrame;
+        if (assetTraceStartTimestamp > 0L)
+        {
+            ClientAssetLoadDiagnostics.RecordOnce(
+                "neutral-frame",
+                GetSpriteFrameAssetTraceIdentity(frame),
+                FormattableString.Invariant($"size={sourceRectangle.Width}x{sourceRectangle.Height} pixelSource={(usedGpuReadback ? "gpu-readback" : "retained-cpu")}"),
+                assetTraceStartTimestamp);
+        }
+
         return neutralFrame;
+    }
+
+    private static string GetSpriteFrameAssetTraceIdentity(LoadedSpriteFrame frame)
+    {
+        var source = frame.SourceRectangle is { } rectangle
+            ? $"{rectangle.X},{rectangle.Y},{rectangle.Width},{rectangle.Height}"
+            : "full";
+        return $"frame-{RuntimeHelpers.GetHashCode(frame):X8}:{source}";
     }
 
     public void DrawLoadedSpriteFrame(

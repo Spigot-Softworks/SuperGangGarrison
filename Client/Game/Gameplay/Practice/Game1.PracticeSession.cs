@@ -45,6 +45,7 @@ public partial class Game1
 
     private void TryStartPracticeFromSetup()
     {
+        RecordClientPerformanceStartupRequest();
         _gameplayManager.Session.TryStartPracticeFromSetup();
     }
 

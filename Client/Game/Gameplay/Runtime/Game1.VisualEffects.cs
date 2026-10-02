@@ -1028,8 +1028,9 @@ public partial class Game1
         float spawnBaseY;
         if (CanUseLocalPrediction() && _localPredictionState.HasPredictedLocalPlayerPosition)
         {
-            spawnBaseX = MathF.Round(_localPredictionState.PredictedLocalPlayerPosition.X + _localPredictionState.PredictedLocalPlayerRenderCorrectionOffset.X);
-            spawnBaseY = MathF.Round(_localPredictionState.PredictedLocalPlayerPosition.Y + _localPredictionState.PredictedLocalPlayerRenderCorrectionOffset.Y);
+            var predictedRenderPosition = GetPredictedLocalPlayerRenderPosition();
+            spawnBaseX = MathF.Round(predictedRenderPosition.X);
+            spawnBaseY = MathF.Round(predictedRenderPosition.Y);
         }
         else
         {
@@ -1154,8 +1155,9 @@ public partial class Game1
             float originY;
             if (CanUseLocalPrediction() && _localPredictionState.HasPredictedLocalPlayerPosition)
             {
-                originX = _localPredictionState.PredictedLocalPlayerPosition.X + _localPredictionState.PredictedLocalPlayerRenderCorrectionOffset.X;
-                originY = _localPredictionState.PredictedLocalPlayerPosition.Y + _localPredictionState.PredictedLocalPlayerRenderCorrectionOffset.Y;
+                var predictedRenderPosition = GetPredictedLocalPlayerRenderPosition();
+                originX = predictedRenderPosition.X;
+                originY = predictedRenderPosition.Y;
             }
             else
             {

@@ -93,7 +93,7 @@ internal sealed class ServerIncomingMessageDispatcher(
                 }
                 break;
             case SnapshotAckMessage snapshotAck:
-                if (TryGetClient(remotePeer, out var ackClient))
+                if (TryGetAuthorizedClient(remotePeer, out var ackClient))
                 {
                     ackClient.LastSeen = elapsedGetter();
                     ackClient.AcknowledgeSnapshot(snapshotAck.Frame);
@@ -137,6 +137,22 @@ internal sealed class ServerIncomingMessageDispatcher(
                 if (TryGetAuthorizedClient(remotePeer, out var inputClient))
                 {
                     inputClient.LastSeen = elapsedGetter();
+                    if (!inputClient.Protocol64Enabled)
+                    {
+                        if (input.SnapshotAckFrame is { } snapshotAckFrame)
+                        {
+                            inputClient.AcknowledgeSnapshot(snapshotAckFrame);
+                        }
+
+                        if (input.BundledControlCommands is { Count: > 0 } bundledCommands)
+                        {
+                            for (var index = 0; index < bundledCommands.Count; index += 1)
+                            {
+                                ProcessControlCommand(inputClient, bundledCommands[index]);
+                            }
+                        }
+                    }
+
                     inputClient.TrySetLatestInput(input.Sequence, ToCoreInput(input));
                     inputClient.PingMilliseconds = input.PingMilliseconds;
                     if (input.ChatBubbleFrameIndex >= 0)
@@ -151,16 +167,7 @@ internal sealed class ServerIncomingMessageDispatcher(
                 if (TryGetAuthorizedClient(remotePeer, out var controlClient))
                 {
                     controlClient.LastSeen = elapsedGetter();
-                    if (allowControlCommand?.Invoke(controlClient, command) != false)
-                    {
-                        sessionManager.HandleControlCommand(controlClient, command);
-                    }
-                    else
-                    {
-                        sendMessage(
-                            controlClient.Peer,
-                            new ControlAckMessage(command.Sequence, command.Kind, Accepted: false));
-                    }
+                    ProcessControlCommand(controlClient, command);
                 }
                 break;
             case VoteCommandMessage voteCommand:
@@ -524,5 +531,19 @@ internal sealed class ServerIncomingMessageDispatcher(
         }
 
         return true;
+    }
+
+    private void ProcessControlCommand(ClientSession client, ControlCommandMessage command)
+    {
+        if (allowControlCommand?.Invoke(client, command) != false)
+        {
+            sessionManager.HandleControlCommand(client, command);
+        }
+        else
+        {
+            sendMessage(
+                client.Peer,
+                new ControlAckMessage(command.Sequence, command.Kind, Accepted: false));
+        }
     }
 }

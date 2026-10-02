@@ -14,7 +14,7 @@ public sealed partial class SimulationWorld
         }
 
         // Apply string cache updates from server
-        _snapshotStringCache.ApplyCacheUpdates(snapshot.StringCacheUpdates);
+        ClientSnapshots.StringCache.ApplyCacheUpdates(snapshot.StringCacheUpdates);
 
         ApplySnapshotWorldState(snapshot);
 
@@ -45,14 +45,14 @@ public sealed partial class SimulationWorld
     private void ApplySnapshotPlayer(PlayerEntity player, SnapshotPlayerState snapshotPlayer)
     {
         // Resolve cached strings using cache IDs
-        var modPackId = _snapshotStringCache.Resolve(snapshotPlayer.GameplayModPackCacheId, snapshotPlayer.GameplayModPackId);
-        var loadoutId = _snapshotStringCache.Resolve(snapshotPlayer.GameplayLoadoutCacheId, snapshotPlayer.GameplayLoadoutId);
-        var primaryItemId = _snapshotStringCache.Resolve(snapshotPlayer.GameplayPrimaryItemCacheId, snapshotPlayer.GameplayPrimaryItemId);
-        var secondaryItemId = _snapshotStringCache.Resolve(snapshotPlayer.GameplaySecondaryItemCacheId, snapshotPlayer.GameplaySecondaryItemId);
-        var utilityItemId = _snapshotStringCache.Resolve(snapshotPlayer.GameplayUtilityItemCacheId, snapshotPlayer.GameplayUtilityItemId);
-        var equippedItemId = _snapshotStringCache.Resolve(snapshotPlayer.GameplayEquippedItemCacheId, snapshotPlayer.GameplayEquippedItemId);
-        var acquiredItemId = _snapshotStringCache.Resolve(snapshotPlayer.GameplayAcquiredItemCacheId, snapshotPlayer.GameplayAcquiredItemId);
-        var gameplayClassId = _snapshotStringCache.Resolve(snapshotPlayer.GameplayClassCacheId, snapshotPlayer.GameplayClassId);
+        var modPackId = ClientSnapshots.StringCache.Resolve(snapshotPlayer.GameplayModPackCacheId, snapshotPlayer.GameplayModPackId);
+        var loadoutId = ClientSnapshots.StringCache.Resolve(snapshotPlayer.GameplayLoadoutCacheId, snapshotPlayer.GameplayLoadoutId);
+        var primaryItemId = ClientSnapshots.StringCache.Resolve(snapshotPlayer.GameplayPrimaryItemCacheId, snapshotPlayer.GameplayPrimaryItemId);
+        var secondaryItemId = ClientSnapshots.StringCache.Resolve(snapshotPlayer.GameplaySecondaryItemCacheId, snapshotPlayer.GameplaySecondaryItemId);
+        var utilityItemId = ClientSnapshots.StringCache.Resolve(snapshotPlayer.GameplayUtilityItemCacheId, snapshotPlayer.GameplayUtilityItemId);
+        var equippedItemId = ClientSnapshots.StringCache.Resolve(snapshotPlayer.GameplayEquippedItemCacheId, snapshotPlayer.GameplayEquippedItemId);
+        var acquiredItemId = ClientSnapshots.StringCache.Resolve(snapshotPlayer.GameplayAcquiredItemCacheId, snapshotPlayer.GameplayAcquiredItemId);
+        var gameplayClassId = ClientSnapshots.StringCache.Resolve(snapshotPlayer.GameplayClassCacheId, snapshotPlayer.GameplayClassId);
         var classDefinition = ResolveSnapshotClassDefinition(snapshotPlayer, gameplayClassId);
 
         ApplySnapshotNetworkPlayerReady(snapshotPlayer.Slot, snapshotPlayer.IsReady);
@@ -574,22 +574,22 @@ public sealed partial class SimulationWorld
         IReadOnlyList<SnapshotHealthPackState> healthPacks,
         IReadOnlyList<int> removedHealthPackIds)
     {
-        _snapshotSeenEntityIds.Clear();
+        ClientSnapshots.SeenEntityIds.Clear();
         for (var index = 0; index < healthPacks.Count; index += 1)
         {
-            _snapshotSeenEntityIds.Add(healthPacks[index].Id);
+            ClientSnapshots.SeenEntityIds.Add(healthPacks[index].Id);
         }
 
-        for (var index = _healthPacks.Count - 1; index >= 0; index -= 1)
+        for (var index = WorldObjects.HealthPacks.Count - 1; index >= 0; index -= 1)
         {
-            var healthPack = _healthPacks[index];
+            var healthPack = WorldObjects.HealthPacks[index];
             var snapshotId = healthPack.NetworkSnapshotId;
             if (ContainsEntityId(removedHealthPackIds, snapshotId)
-                || !_snapshotSeenEntityIds.Contains(snapshotId)
+                || !ClientSnapshots.SeenEntityIds.Contains(snapshotId)
                 || SnapshotMarksHealthPackInactive(healthPacks, snapshotId))
             {
                 EntityStore.Remove(healthPack.Id);
-                _healthPacks.RemoveAt(index);
+                WorldObjects.HealthPacks.RemoveAt(index);
             }
         }
 
@@ -611,7 +611,7 @@ public sealed partial class SimulationWorld
                 if (healthPack is not null)
                 {
                     EntityStore.Remove(healthPack.Id);
-                    _healthPacks.Remove(healthPack);
+                    WorldObjects.HealthPacks.Remove(healthPack);
                 }
 
                 healthPack = new HealthPackEntity(
@@ -622,7 +622,7 @@ public sealed partial class SimulationWorld
                     state.VelocityX,
                     state.VelocityY,
                     state.SourceSpawnIndex);
-                _healthPacks.Add(healthPack);
+                WorldObjects.HealthPacks.Add(healthPack);
                 EntityStore.Set(healthPack.Id, healthPack);
             }
 
@@ -637,11 +637,11 @@ public sealed partial class SimulationWorld
 
     private HealthPackEntity? FindHealthPackBySnapshotId(int snapshotId)
     {
-        for (var index = 0; index < _healthPacks.Count; index += 1)
+        for (var index = 0; index < WorldObjects.HealthPacks.Count; index += 1)
         {
-            if (_healthPacks[index].NetworkSnapshotId == snapshotId)
+            if (WorldObjects.HealthPacks[index].NetworkSnapshotId == snapshotId)
             {
-                return _healthPacks[index];
+                return WorldObjects.HealthPacks[index];
             }
         }
 
@@ -665,7 +665,7 @@ public sealed partial class SimulationWorld
 
     private void ApplySnapshotCivilDefenseTurrets(IReadOnlyList<SnapshotCivilDefenseTurretState> turrets)
     {
-        SyncSnapshotEntities(turrets, _civilDefenseTurrets, static state => state.Id,
+        SyncSnapshotEntities(turrets, WorldObjects.CivilDefenseTurrets, static state => state.Id,
             static (entity, state) => entity.OwnerPlayerId == state.OwnerPlayerId && entity.Team == (PlayerTeam)state.Team,
             state => new CivilDefenseTurretEntity(
                 state.Id,
@@ -685,7 +685,7 @@ public sealed partial class SimulationWorld
     {
         SyncSnapshotEntities(
             jumpPads,
-            _jumpPads,
+            WorldObjects.JumpPads,
             static state => state.Id,
             static (entity, state) => entity.OwnerPlayerId == state.OwnerPlayerId
                 && entity.Team == (PlayerTeam)state.Team,
@@ -707,7 +707,7 @@ public sealed partial class SimulationWorld
     {
         SyncSnapshotEntities(
             sentries,
-            _sentries,
+            WorldObjects.Sentries,
             static state => state.Id,
             static (entity, state) => entity.OwnerPlayerId == state.OwnerPlayerId
                 && entity.Team == (PlayerTeam)state.Team
@@ -747,7 +747,7 @@ public sealed partial class SimulationWorld
         for (var index = 0; index < updates.Count; index += 1)
         {
             var update = updates[index];
-            var sentry = _sentries.FirstOrDefault(s => s.Id == update.Id);
+            var sentry = WorldObjects.Sentries.FirstOrDefault(s => s.Id == update.Id);
             if (sentry is not null)
             {
                 // Apply only the dynamic fields
@@ -793,7 +793,7 @@ public sealed partial class SimulationWorld
             for (var i = 0; i < target.Count; i++)
             {
                 var entity = target[i];
-                if (!_clientPredictedProjectileIds.Contains(entity.Id))
+                if (!ClientSnapshots.PredictedProjectileIds.Contains(entity.Id))
                     continue;
 
                 var foundInFilteredShots = false;
@@ -827,7 +827,7 @@ public sealed partial class SimulationWorld
             {
                 if (isNewEntity && ShouldTrackSnapshotProjectileForClientPrediction(state.OwnerId))
                 {
-                    _clientPredictedProjectileIds.Add(state.Id);
+                    ClientSnapshots.PredictedProjectileIds.Add(state.Id);
                 }
 
                 if (!isNewEntity
@@ -1040,7 +1040,7 @@ public sealed partial class SimulationWorld
         IReadOnlyList<TState> states,
         Func<TState, int> idSelector)
     {
-        if (_terminatedProjectileIds.Count == 0)
+        if (ClientSnapshots.TerminatedProjectileIds.Count == 0)
         {
             return states;
         }
@@ -1109,7 +1109,7 @@ public sealed partial class SimulationWorld
             {
                 if (isNewEntity && ShouldTrackSnapshotProjectileForClientPrediction(state.OwnerId))
                 {
-                    _clientPredictedProjectileIds.Add(state.Id);
+                    ClientSnapshots.PredictedProjectileIds.Add(state.Id);
                 }
 
                 if (!isNewEntity && !ShouldApplyExistingRocketState(entity, state))
@@ -1130,7 +1130,7 @@ public sealed partial class SimulationWorld
             var e = rocketSpawnEvents[index];
             if (e.ExplodeImmediately
                 && e.EventId != 0
-                && !_processedImmediateNetworkRocketSpawnEventIds.Add(e.EventId))
+                && !ClientSnapshots.ProcessedImmediateRocketSpawnEventIds.Add(e.EventId))
             {
                 continue;
             }
@@ -1198,7 +1198,7 @@ public sealed partial class SimulationWorld
             Projectiles.AddProjectileEntity(rocket, requireUniqueEntityId: true);
             if (ShouldTrackSnapshotProjectileForClientPrediction(e.OwnerId))
             {
-                _clientPredictedProjectileIds.Add(rocket.Id);
+                ClientSnapshots.PredictedProjectileIds.Add(rocket.Id);
             }
         }
     }
@@ -1234,7 +1234,7 @@ public sealed partial class SimulationWorld
             {
                 if (isNewEntity && ShouldTrackSnapshotProjectileForClientPrediction(state.OwnerId))
                 {
-                    _clientPredictedProjectileIds.Add(state.Id);
+                    ClientSnapshots.PredictedProjectileIds.Add(state.Id);
                 }
 
                 if (!isNewEntity && !ShouldApplyExistingFlameState(entity, state))
@@ -1252,7 +1252,7 @@ public sealed partial class SimulationWorld
     {
         SyncSnapshotEntities(
             bloodDrops,
-            _bloodDrops,
+            WorldObjects.BloodDrops,
             static state => state.Id,
             static (_, _) => true,
             state => new BloodDropEntity(
@@ -1317,7 +1317,7 @@ public sealed partial class SimulationWorld
             {
                 if (isNewEntity && ShouldTrackSnapshotProjectileForClientPrediction(state.OwnerId))
                 {
-                    _clientPredictedProjectileIds.Add(state.Id);
+                    ClientSnapshots.PredictedProjectileIds.Add(state.Id);
                 }
 
                 if (!isNewEntity && !ShouldApplyExistingMineState(entity, state))
@@ -1362,7 +1362,7 @@ public sealed partial class SimulationWorld
             {
                 if (isNewEntity && ShouldTrackSnapshotProjectileForClientPrediction(state.OwnerId))
                 {
-                    _clientPredictedProjectileIds.Add(state.Id);
+                    ClientSnapshots.PredictedProjectileIds.Add(state.Id);
                 }
 
                 if (!isNewEntity && !ShouldApplyExistingGrenadeState(entity, state))
@@ -1380,7 +1380,7 @@ public sealed partial class SimulationWorld
     {
         SyncSnapshotEntities(
             deadBodies,
-            _deadBodies,
+            WorldObjects.DeadBodies,
             static state => state.Id,
             static (entity, state) =>
                 entity.SourcePlayerId == state.SourcePlayerId
@@ -1419,7 +1419,7 @@ public sealed partial class SimulationWorld
     {
         SyncSnapshotEntities(
             sentryGibs,
-            _sentryGibs,
+            WorldObjects.SentryGibs,
             static state => state.Id,
             static (entity, state) =>
                 entity.Team == (PlayerTeam)state.Team
@@ -1450,7 +1450,7 @@ public sealed partial class SimulationWorld
     {
         SyncSnapshotEntities(
             jumpPadGibs,
-            _jumpPadGibs,
+            WorldObjects.JumpPadGibs,
             static state => state.Id,
             static (entity, state) =>
                 entity.Team == (PlayerTeam)state.Team,
@@ -1480,7 +1480,7 @@ public sealed partial class SimulationWorld
         for (var index = 0; index < gibSpawnEvents.Count; index += 1)
         {
             var e = gibSpawnEvents[index];
-            if (e.EventId != 0 && !_processedNetworkGibSpawnEventIds.Add(e.EventId))
+            if (e.EventId != 0 && !ClientSnapshots.ProcessedGibSpawnEventIds.Add(e.EventId))
             {
                 continue;
             }
@@ -1498,7 +1498,7 @@ public sealed partial class SimulationWorld
                 e.RotationFriction,
                 e.LifetimeTicks,
                 e.BloodChance);
-            _playerGibs.Add(gib);
+            WorldObjects.PlayerGibs.Add(gib);
             EntityStore.Add(gib);
         }
     }
@@ -1510,9 +1510,9 @@ public sealed partial class SimulationWorld
             LocalPlayer.AdvanceTauntFrameLocally(Config.FixedDeltaSeconds);
         }
 
-        for (var index = 0; index < _remoteSnapshotPlayers.Count; index += 1)
+        for (var index = 0; index < RemoteSnapshots.Players.Count; index += 1)
         {
-            var player = _remoteSnapshotPlayers[index];
+            var player = RemoteSnapshots.Players[index];
             if (player.IsAlive && player.IsTaunting)
             {
                 player.AdvanceTauntFrameLocally(Config.FixedDeltaSeconds);
@@ -1522,15 +1522,15 @@ public sealed partial class SimulationWorld
 
     private void SyncRemoteSnapshotPlayers(IEnumerable<SnapshotPlayerState> snapshotPlayers)
     {
-        _snapshotSeenRemotePlayerSlots.Clear();
-        _remoteSnapshotPlayers.Clear();
-        _remoteSnapshotAwaitingJoinSlots.Clear();
-        _remoteSnapshotAwaitingJoinPlayerIds.Clear();
+        RemoteSnapshots.SeenSlots.Clear();
+        RemoteSnapshots.Players.Clear();
+        RemoteSnapshots.AwaitingJoinSlots.Clear();
+        RemoteSnapshots.AwaitingJoinPlayerIds.Clear();
         foreach (var snapshotPlayer in snapshotPlayers)
         {
             var appliedSnapshotPlayer = NormalizeAwaitingJoinSnapshotPlayerState(snapshotPlayer);
-            _snapshotSeenRemotePlayerSlots.Add(appliedSnapshotPlayer.Slot);
-            var hadRemotePlayer = _remoteSnapshotPlayersBySlot.TryGetValue(appliedSnapshotPlayer.Slot, out var existingPlayer);
+            RemoteSnapshots.SeenSlots.Add(appliedSnapshotPlayer.Slot);
+            var hadRemotePlayer = RemoteSnapshots.PlayersBySlot.TryGetValue(appliedSnapshotPlayer.Slot, out var existingPlayer);
             PlayerEntity player;
             if (!hadRemotePlayer || existingPlayer!.Id != appliedSnapshotPlayer.PlayerId)
             {
@@ -1540,21 +1540,21 @@ public sealed partial class SimulationWorld
                 // entity across an identity change.
                 if (hadRemotePlayer)
                 {
-                    _presentedNetworkGibDeathCountsByPlayerId.Remove(existingPlayer!.Id);
-                    if (_remoteSnapshotScoreboardPlayersBySlot.TryGetValue(appliedSnapshotPlayer.Slot, out var staleScoreboardPlayer)
+                    ClientSnapshots.PresentedGibDeathCountsByPlayerId.Remove(existingPlayer!.Id);
+                    if (RemoteSnapshots.ScoreboardPlayersBySlot.TryGetValue(appliedSnapshotPlayer.Slot, out var staleScoreboardPlayer)
                         && staleScoreboardPlayer.Id != appliedSnapshotPlayer.PlayerId)
                     {
-                        _remoteSnapshotScoreboardPlayersBySlot.Remove(appliedSnapshotPlayer.Slot);
+                        RemoteSnapshots.ScoreboardPlayersBySlot.Remove(appliedSnapshotPlayer.Slot);
                     }
                 }
 
                 ReserveEntityId(appliedSnapshotPlayer.PlayerId);
-                var gameplayClassId = _snapshotStringCache.Resolve(appliedSnapshotPlayer.GameplayClassCacheId, appliedSnapshotPlayer.GameplayClassId);
+                var gameplayClassId = ClientSnapshots.StringCache.Resolve(appliedSnapshotPlayer.GameplayClassCacheId, appliedSnapshotPlayer.GameplayClassId);
                 player = new PlayerEntity(
                     appliedSnapshotPlayer.PlayerId,
                     ResolveSnapshotClassDefinition(appliedSnapshotPlayer, gameplayClassId),
                     appliedSnapshotPlayer.Name);
-                _remoteSnapshotPlayersBySlot[appliedSnapshotPlayer.Slot] = player;
+                RemoteSnapshots.PlayersBySlot[appliedSnapshotPlayer.Slot] = player;
             }
             else
             {
@@ -1578,27 +1578,27 @@ public sealed partial class SimulationWorld
 
             if (appliedSnapshotPlayer.IsAwaitingJoin)
             {
-                _remoteSnapshotAwaitingJoinSlots.Add(appliedSnapshotPlayer.Slot);
-                _remoteSnapshotAwaitingJoinPlayerIds.Add(appliedSnapshotPlayer.PlayerId);
+                RemoteSnapshots.AwaitingJoinSlots.Add(appliedSnapshotPlayer.Slot);
+                RemoteSnapshots.AwaitingJoinPlayerIds.Add(appliedSnapshotPlayer.PlayerId);
             }
-            _remoteSnapshotPlayers.Add(player);
+            RemoteSnapshots.Players.Add(player);
         }
 
-        _snapshotStaleRemotePlayerSlots.Clear();
-        foreach (var entry in _remoteSnapshotPlayersBySlot)
+        RemoteSnapshots.StaleSlots.Clear();
+        foreach (var entry in RemoteSnapshots.PlayersBySlot)
         {
-            if (_snapshotSeenRemotePlayerSlots.Contains(entry.Key))
+            if (RemoteSnapshots.SeenSlots.Contains(entry.Key))
             {
                 continue;
             }
 
-            _snapshotStaleRemotePlayerSlots.Add(entry.Key);
+            RemoteSnapshots.StaleSlots.Add(entry.Key);
         }
 
-        for (var index = 0; index < _snapshotStaleRemotePlayerSlots.Count; index += 1)
+        for (var index = 0; index < RemoteSnapshots.StaleSlots.Count; index += 1)
         {
-            var slot = _snapshotStaleRemotePlayerSlots[index];
-            if (!_remoteSnapshotPlayersBySlot.TryGetValue(slot, out var removedPlayer))
+            var slot = RemoteSnapshots.StaleSlots[index];
+            if (!RemoteSnapshots.PlayersBySlot.TryGetValue(slot, out var removedPlayer))
             {
                 continue;
             }
@@ -1608,12 +1608,12 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            if (_remoteSnapshotPlayersBySlot.Remove(slot))
+            if (RemoteSnapshots.PlayersBySlot.Remove(slot))
             {
                 ApplySnapshotNetworkPlayerReady(slot, ready: false);
                 ApplySnapshotNetworkPlayerPingMilliseconds(slot, -1);
                 ApplySnapshotNetworkPlayerBot(slot, isBot: false);
-                _presentedNetworkGibDeathCountsByPlayerId.Remove(removedPlayer.Id);
+                ClientSnapshots.PresentedGibDeathCountsByPlayerId.Remove(removedPlayer.Id);
             }
         }
 
@@ -1621,19 +1621,19 @@ public sealed partial class SimulationWorld
 
     private void SyncRemoteSnapshotScoreboardPlayers(IEnumerable<SnapshotPlayerState> snapshotPlayers)
     {
-        _snapshotSeenRemotePlayerSlots.Clear();
-        _remoteSnapshotScoreboardPlayers.Clear();
+        RemoteSnapshots.SeenSlots.Clear();
+        RemoteSnapshots.ScoreboardPlayers.Clear();
         foreach (var snapshotPlayer in snapshotPlayers)
         {
             var appliedSnapshotPlayer = NormalizeAwaitingJoinSnapshotPlayerState(snapshotPlayer);
-            _snapshotSeenRemotePlayerSlots.Add(appliedSnapshotPlayer.Slot);
+            RemoteSnapshots.SeenSlots.Add(appliedSnapshotPlayer.Slot);
             PlayerEntity player;
-            if (_remoteSnapshotPlayersBySlot.TryGetValue(appliedSnapshotPlayer.Slot, out var visiblePlayer)
+            if (RemoteSnapshots.PlayersBySlot.TryGetValue(appliedSnapshotPlayer.Slot, out var visiblePlayer)
                 && visiblePlayer.Id == appliedSnapshotPlayer.PlayerId)
             {
                 player = visiblePlayer;
             }
-            else if (_remoteSnapshotScoreboardPlayersBySlot.TryGetValue(appliedSnapshotPlayer.Slot, out player!)
+            else if (RemoteSnapshots.ScoreboardPlayersBySlot.TryGetValue(appliedSnapshotPlayer.Slot, out player!)
                 && player.Id == appliedSnapshotPlayer.PlayerId)
             {
                 // Retained scoreboard entities can outlive a visible roster
@@ -1643,61 +1643,61 @@ public sealed partial class SimulationWorld
             {
                 if (visiblePlayer is not null)
                 {
-                    _remoteSnapshotPlayersBySlot.Remove(appliedSnapshotPlayer.Slot);
-                    _presentedNetworkGibDeathCountsByPlayerId.Remove(visiblePlayer.Id);
+                    RemoteSnapshots.PlayersBySlot.Remove(appliedSnapshotPlayer.Slot);
+                    ClientSnapshots.PresentedGibDeathCountsByPlayerId.Remove(visiblePlayer.Id);
                 }
 
                 ReserveEntityId(appliedSnapshotPlayer.PlayerId);
-                var gameplayClassId = _snapshotStringCache.Resolve(appliedSnapshotPlayer.GameplayClassCacheId, appliedSnapshotPlayer.GameplayClassId);
+                var gameplayClassId = ClientSnapshots.StringCache.Resolve(appliedSnapshotPlayer.GameplayClassCacheId, appliedSnapshotPlayer.GameplayClassId);
                 player = new PlayerEntity(
                     appliedSnapshotPlayer.PlayerId,
                     ResolveSnapshotClassDefinition(appliedSnapshotPlayer, gameplayClassId),
                     appliedSnapshotPlayer.Name);
-                _remoteSnapshotScoreboardPlayersBySlot[appliedSnapshotPlayer.Slot] = player;
+                RemoteSnapshots.ScoreboardPlayersBySlot[appliedSnapshotPlayer.Slot] = player;
             }
 
             ApplySnapshotPlayer(player, appliedSnapshotPlayer);
             ApplySnapshotNetworkPlayerBot(appliedSnapshotPlayer.Slot, appliedSnapshotPlayer.IsBot);
-            _remoteSnapshotScoreboardPlayers.Add(player);
+            RemoteSnapshots.ScoreboardPlayers.Add(player);
         }
 
         // A normal snapshot may omit cloaked/backstabbing enemy spies from the
         // visible player roster. Keep those retained snapshot players available
         // to the scoreboard until the server explicitly reports them again.
-        foreach (var entry in _remoteSnapshotPlayersBySlot)
+        foreach (var entry in RemoteSnapshots.PlayersBySlot)
         {
-            if (_snapshotSeenRemotePlayerSlots.Contains(entry.Key)
+            if (RemoteSnapshots.SeenSlots.Contains(entry.Key)
                 || !ShouldRetainMissingRemoteSnapshotPlayerForScoreboard(entry.Value))
             {
                 continue;
             }
 
-            _snapshotSeenRemotePlayerSlots.Add(entry.Key);
-            _remoteSnapshotScoreboardPlayersBySlot[entry.Key] = entry.Value;
-            _remoteSnapshotScoreboardPlayers.Add(entry.Value);
+            RemoteSnapshots.SeenSlots.Add(entry.Key);
+            RemoteSnapshots.ScoreboardPlayersBySlot[entry.Key] = entry.Value;
+            RemoteSnapshots.ScoreboardPlayers.Add(entry.Value);
         }
 
-        _snapshotStaleRemotePlayerSlots.Clear();
-        foreach (var entry in _remoteSnapshotScoreboardPlayersBySlot)
+        RemoteSnapshots.StaleSlots.Clear();
+        foreach (var entry in RemoteSnapshots.ScoreboardPlayersBySlot)
         {
-            if (!_snapshotSeenRemotePlayerSlots.Contains(entry.Key))
+            if (!RemoteSnapshots.SeenSlots.Contains(entry.Key))
             {
-                _snapshotStaleRemotePlayerSlots.Add(entry.Key);
+                RemoteSnapshots.StaleSlots.Add(entry.Key);
                 continue;
             }
 
-            if (_remoteSnapshotPlayersBySlot.TryGetValue(entry.Key, out var visiblePlayer)
+            if (RemoteSnapshots.PlayersBySlot.TryGetValue(entry.Key, out var visiblePlayer)
                 && (entry.Value.Id != visiblePlayer.Id || ReferenceEquals(entry.Value, visiblePlayer)))
             {
-                _snapshotStaleRemotePlayerSlots.Add(entry.Key);
+                RemoteSnapshots.StaleSlots.Add(entry.Key);
             }
         }
 
-        for (var index = 0; index < _snapshotStaleRemotePlayerSlots.Count; index += 1)
+        for (var index = 0; index < RemoteSnapshots.StaleSlots.Count; index += 1)
         {
-            var slot = _snapshotStaleRemotePlayerSlots[index];
-            _remoteSnapshotScoreboardPlayersBySlot.Remove(slot);
-            if (!_remoteSnapshotPlayersBySlot.ContainsKey(slot))
+            var slot = RemoteSnapshots.StaleSlots[index];
+            RemoteSnapshots.ScoreboardPlayersBySlot.Remove(slot);
+            if (!RemoteSnapshots.PlayersBySlot.ContainsKey(slot))
             {
                 ApplySnapshotNetworkPlayerBot(slot, isBot: false);
             }
@@ -1722,7 +1722,7 @@ public sealed partial class SimulationWorld
 
     private void SynchronizeNetworkGibDeathPresentationCount(int playerId, int observedGibDeaths)
     {
-        if (!_presentedNetworkGibDeathCountsByPlayerId.TryGetValue(playerId, out var presentedGibDeaths)
+        if (!ClientSnapshots.PresentedGibDeathCountsByPlayerId.TryGetValue(playerId, out var presentedGibDeaths)
             || observedGibDeaths >= presentedGibDeaths)
         {
             return;
@@ -1730,11 +1730,11 @@ public sealed partial class SimulationWorld
 
         if (observedGibDeaths <= 0)
         {
-            _presentedNetworkGibDeathCountsByPlayerId.Remove(playerId);
+            ClientSnapshots.PresentedGibDeathCountsByPlayerId.Remove(playerId);
             return;
         }
 
-        _presentedNetworkGibDeathCountsByPlayerId[playerId] = observedGibDeaths;
+        ClientSnapshots.PresentedGibDeathCountsByPlayerId[playerId] = observedGibDeaths;
     }
 
     private bool TryMarkNetworkGibDeathPresented(int playerId, int gibDeaths)
@@ -1744,13 +1744,13 @@ public sealed partial class SimulationWorld
             return false;
         }
 
-        if (_presentedNetworkGibDeathCountsByPlayerId.TryGetValue(playerId, out var presentedGibDeaths)
+        if (ClientSnapshots.PresentedGibDeathCountsByPlayerId.TryGetValue(playerId, out var presentedGibDeaths)
             && gibDeaths <= presentedGibDeaths)
         {
             return false;
         }
 
-        _presentedNetworkGibDeathCountsByPlayerId[playerId] = gibDeaths;
+        ClientSnapshots.PresentedGibDeathCountsByPlayerId[playerId] = gibDeaths;
         return true;
     }
 
@@ -1785,7 +1785,7 @@ public sealed partial class SimulationWorld
             return LocalPlayer;
         }
 
-        foreach (var player in _remoteSnapshotPlayersBySlot.Values)
+        foreach (var player in RemoteSnapshots.PlayersBySlot.Values)
         {
             if (player.Id == playerId)
             {
@@ -1901,25 +1901,25 @@ public sealed partial class SimulationWorld
         Action<TEntity, TState, bool> applyStateForNewEntity)
         where TEntity : SimulationEntity
     {
-        _snapshotSeenEntityIds.Clear();
+        ClientSnapshots.SeenEntityIds.Clear();
         for (var index = 0; index < snapshotStates.Count; index += 1)
         {
-            _snapshotSeenEntityIds.Add(idSelector(snapshotStates[index]));
+            ClientSnapshots.SeenEntityIds.Add(idSelector(snapshotStates[index]));
         }
 
-        _snapshotStaleEntityIds.Clear();
+        ClientSnapshots.StaleEntityIds.Clear();
         List<TEntity>? retainedEntities = null;
         for (var index = 0; index < target.Count; index += 1)
         {
             var entityId = target[index].Id;
             var explicitlyRemoved = ContainsEntityId(removedEntityIds, entityId);
-            if (explicitlyRemoved || (collectionIsComplete && !_snapshotSeenEntityIds.Contains(entityId)))
+            if (explicitlyRemoved || (collectionIsComplete && !ClientSnapshots.SeenEntityIds.Contains(entityId)))
             {
-                _snapshotStaleEntityIds.Add(entityId);
+                ClientSnapshots.StaleEntityIds.Add(entityId);
                 continue;
             }
 
-            if (!_snapshotSeenEntityIds.Contains(entityId))
+            if (!ClientSnapshots.SeenEntityIds.Contains(entityId))
             {
                 retainedEntities ??= new List<TEntity>();
                 retainedEntities.Add(target[index]);
@@ -1971,16 +1971,16 @@ public sealed partial class SimulationWorld
             EntityStore.Set(entityId, entity);
         }
 
-        for (var index = 0; index < _snapshotStaleEntityIds.Count; index += 1)
+        for (var index = 0; index < ClientSnapshots.StaleEntityIds.Count; index += 1)
         {
-            var staleId = _snapshotStaleEntityIds[index];
+            var staleId = ClientSnapshots.StaleEntityIds[index];
             EntityStore.Remove(staleId);
             if (suppressProjectileRespawnOnRemoval)
             {
                 SuppressProjectileRespawn(staleId, NetworkProjectileRemovalSuppressionTicks);
-                _clientPredictedProjectileIds.Remove(staleId);
+                ClientSnapshots.PredictedProjectileIds.Remove(staleId);
             }
-            else if (_clientPredictedProjectileIds.Remove(staleId))
+            else if (ClientSnapshots.PredictedProjectileIds.Remove(staleId))
             {
                 SuppressProjectileRespawn(staleId, NetworkProjectileRemovalSuppressionTicks);
             }
@@ -2002,25 +2002,25 @@ public sealed partial class SimulationWorld
         Action<TEntity> addTarget)
         where TEntity : SimulationEntity
     {
-        _snapshotSeenEntityIds.Clear();
+        ClientSnapshots.SeenEntityIds.Clear();
         for (var index = 0; index < snapshotStates.Count; index += 1)
         {
-            _snapshotSeenEntityIds.Add(idSelector(snapshotStates[index]));
+            ClientSnapshots.SeenEntityIds.Add(idSelector(snapshotStates[index]));
         }
 
-        _snapshotStaleEntityIds.Clear();
+        ClientSnapshots.StaleEntityIds.Clear();
         List<TEntity>? retainedEntities = null;
         for (var index = 0; index < target.Count; index += 1)
         {
             var entityId = target[index].Id;
             var explicitlyRemoved = ContainsEntityId(removedEntityIds, entityId);
-            if (explicitlyRemoved || (collectionIsComplete && !_snapshotSeenEntityIds.Contains(entityId)))
+            if (explicitlyRemoved || (collectionIsComplete && !ClientSnapshots.SeenEntityIds.Contains(entityId)))
             {
-                _snapshotStaleEntityIds.Add(entityId);
+                ClientSnapshots.StaleEntityIds.Add(entityId);
                 continue;
             }
 
-            if (!_snapshotSeenEntityIds.Contains(entityId))
+            if (!ClientSnapshots.SeenEntityIds.Contains(entityId))
             {
                 retainedEntities ??= new List<TEntity>();
                 retainedEntities.Add(target[index]);
@@ -2075,16 +2075,16 @@ public sealed partial class SimulationWorld
             EntityStore.Set(entityId, entity);
         }
 
-        for (var index = 0; index < _snapshotStaleEntityIds.Count; index += 1)
+        for (var index = 0; index < ClientSnapshots.StaleEntityIds.Count; index += 1)
         {
-            var staleId = _snapshotStaleEntityIds[index];
+            var staleId = ClientSnapshots.StaleEntityIds[index];
             EntityStore.Remove(staleId);
             if (suppressProjectileRespawnOnRemoval)
             {
                 SuppressProjectileRespawn(staleId, NetworkProjectileRemovalSuppressionTicks);
-                _clientPredictedProjectileIds.Remove(staleId);
+                ClientSnapshots.PredictedProjectileIds.Remove(staleId);
             }
-            else if (_clientPredictedProjectileIds.Remove(staleId))
+            else if (ClientSnapshots.PredictedProjectileIds.Remove(staleId))
             {
                 SuppressProjectileRespawn(staleId, NetworkProjectileRemovalSuppressionTicks);
             }
@@ -2106,16 +2106,16 @@ public sealed partial class SimulationWorld
 
     private bool IsProjectileRespawnSuppressed(int projectileId)
     {
-        if (!_terminatedProjectileIds.Contains(projectileId))
+        if (!ClientSnapshots.TerminatedProjectileIds.Contains(projectileId))
         {
             return false;
         }
 
-        if (_terminatedProjectileExpiryFrames.TryGetValue(projectileId, out var expiryFrame)
+        if (ClientSnapshots.TerminatedProjectileExpiryFrames.TryGetValue(projectileId, out var expiryFrame)
             && Frame > expiryFrame)
         {
-            _terminatedProjectileIds.Remove(projectileId);
-            _terminatedProjectileExpiryFrames.Remove(projectileId);
+            ClientSnapshots.TerminatedProjectileIds.Remove(projectileId);
+            ClientSnapshots.TerminatedProjectileExpiryFrames.Remove(projectileId);
             return false;
         }
 
@@ -2124,21 +2124,18 @@ public sealed partial class SimulationWorld
 
     private void SuppressProjectileRespawn(int projectileId, int suppressionTicks = 0)
     {
-        _terminatedProjectileIds.Add(projectileId);
+        ClientSnapshots.TerminatedProjectileIds.Add(projectileId);
         if (suppressionTicks > 0)
         {
-            _terminatedProjectileExpiryFrames[projectileId] = Frame + suppressionTicks;
+            ClientSnapshots.TerminatedProjectileExpiryFrames[projectileId] = Frame + suppressionTicks;
             return;
         }
 
-        _terminatedProjectileExpiryFrames.Remove(projectileId);
+        ClientSnapshots.TerminatedProjectileExpiryFrames.Remove(projectileId);
     }
 
     private void ReserveEntityId(int entityId)
     {
-        if (entityId >= _nextEntityId)
-        {
-            _nextEntityId = entityId + 1;
-        }
+        EntityStore.ReserveThrough(entityId);
     }
 }

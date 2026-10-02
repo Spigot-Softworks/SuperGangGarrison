@@ -1,11 +1,21 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Text;
 
 namespace OpenGarrison.Protocol;
 
 public static class SnapshotDelta
 {
     private const int SnapshotPlayerSlotLookupSize = 256;
+    private const int MaxScoreboardPatchBytes = 64 * 1024;
+
+    public readonly record struct ScoreboardDeltaBuild(
+        IReadOnlyList<byte> Order,
+        IReadOnlyList<SnapshotScoreboardPlayerPatch> Patches,
+        int FullRosterRecordBytes,
+        int ExtensionBytes,
+        bool CanEncode);
 
     public static SnapshotMessage ToFullSnapshot(SnapshotMessage snapshot, ISnapshotBaselineState? baseline = null)
     {
@@ -33,9 +43,14 @@ public static class SnapshotDelta
             BaselineFrame = 0,
             IsDelta = false,
             EntityCollectionCompletenessFlags = snapshot.EntityCollectionCompletenessFlags,
-            ScoreboardPlayers = snapshot.ScoreboardPlayers.Count == 0
-                ? baseline?.ScoreboardPlayers ?? Array.Empty<SnapshotPlayerState>()
-                : snapshot.ScoreboardPlayers,
+            ScoreboardPlayers = snapshot.HasScoreboardDelta
+                ? ApplyScoreboardDelta(snapshot.ScoreboardPlayerOrder, snapshot.ScoreboardPlayerPatches, baseline?.ScoreboardPlayers)
+                : snapshot.ScoreboardPlayers.Count == 0
+                    ? baseline?.ScoreboardPlayers ?? Array.Empty<SnapshotPlayerState>()
+                    : snapshot.ScoreboardPlayers,
+            HasScoreboardDelta = false,
+            ScoreboardPlayerOrder = Array.Empty<byte>(),
+            ScoreboardPlayerPatches = Array.Empty<SnapshotScoreboardPlayerPatch>(),
             Players = MergePlayers(
                 baseline?.Players,
                 snapshot.Players,
@@ -103,6 +118,9 @@ public static class SnapshotDelta
                 chatBubbleUpdates: Array.Empty<SnapshotPlayerChatBubbleState>(),
                 removedIds: Array.Empty<int>()),
             ScoreboardPlayers = snapshot.ScoreboardPlayers,
+            HasScoreboardDelta = false,
+            ScoreboardPlayerOrder = Array.Empty<byte>(),
+            ScoreboardPlayerPatches = Array.Empty<SnapshotScoreboardPlayerPatch>(),
             PlayerMovementStates = Array.Empty<SnapshotPlayerMovementState>(),
             PlayerStatusStates = Array.Empty<SnapshotPlayerStatusState>(),
             PlayerExtendedStatusStates = Array.Empty<SnapshotPlayerExtendedStatusState>(),
@@ -128,6 +146,219 @@ public static class SnapshotDelta
             RemovedCivilDefenseTurretIds = Array.Empty<int>(),
             RemovedHealthPackIds = Array.Empty<int>(),
         };
+    }
+
+    public static ScoreboardDeltaBuild CreateScoreboardDelta(
+        IReadOnlyList<SnapshotPlayerState> current,
+        IReadOnlyList<SnapshotPlayerState>? baseline)
+    {
+        if (current.Count > byte.MaxValue || (baseline?.Count ?? 0) > byte.MaxValue)
+        {
+            throw new InvalidOperationException("Scoreboard exceeds the protocol player-count limit.");
+        }
+
+        var baselineBySlot = new Dictionary<byte, (SnapshotPlayerState Player, byte[] Bytes)>();
+        if (baseline is not null)
+        {
+            foreach (var player in baseline)
+            {
+                if (!baselineBySlot.TryAdd(player.Slot, (player, ProtocolCodec.SerializeCanonicalSnapshotPlayer(player))))
+                {
+                    throw new InvalidOperationException($"Baseline scoreboard contains duplicate slot {player.Slot}.");
+                }
+            }
+        }
+
+        var order = new byte[current.Count];
+        var seen = new HashSet<byte>();
+        var patches = new List<SnapshotScoreboardPlayerPatch>();
+        long fullRosterRecordBytes = 0;
+        long replacementBytes = 0;
+        var canEncode = true;
+        for (var index = 0; index < current.Count; index += 1)
+        {
+            var player = current[index];
+            if (!seen.Add(player.Slot))
+            {
+                throw new InvalidOperationException($"Current scoreboard contains duplicate slot {player.Slot}.");
+            }
+
+            order[index] = player.Slot;
+            var currentBytes = ProtocolCodec.SerializeCanonicalSnapshotPlayer(player);
+            fullRosterRecordBytes += currentBytes.Length;
+            if (!baselineBySlot.TryGetValue(player.Slot, out var old) || old.Player.PlayerId != player.PlayerId)
+            {
+                patches.Add(new SnapshotScoreboardPlayerPatch(player.Slot, player.PlayerId, index, 0, 0, 0, currentBytes));
+                replacementBytes += currentBytes.Length;
+                canEncode &= currentBytes.Length <= MaxScoreboardPatchBytes;
+                continue;
+            }
+
+            var oldBytes = old.Bytes;
+            var prefix = 0;
+            while (prefix < oldBytes.Length && prefix < currentBytes.Length && oldBytes[prefix] == currentBytes[prefix])
+            {
+                prefix += 1;
+            }
+
+            if (prefix == oldBytes.Length && prefix == currentBytes.Length)
+            {
+                continue;
+            }
+
+            var suffix = 0;
+            while (suffix < oldBytes.Length - prefix && suffix < currentBytes.Length - prefix
+                && oldBytes[oldBytes.Length - 1 - suffix] == currentBytes[currentBytes.Length - 1 - suffix])
+            {
+                suffix += 1;
+            }
+
+            var replacementLength = currentBytes.Length - prefix - suffix;
+            var replacement = new byte[replacementLength];
+            Array.Copy(currentBytes, prefix, replacement, 0, replacementLength);
+            patches.Add(new SnapshotScoreboardPlayerPatch(player.Slot, player.PlayerId, index, oldBytes.Length, prefix, suffix, replacement));
+            replacementBytes += replacement.Length;
+            canEncode &= oldBytes.Length <= MaxScoreboardPatchBytes && currentBytes.Length <= MaxScoreboardPatchBytes;
+        }
+
+        var extensionBytes = 2L + 1 + order.Length + 1 + (25L * patches.Count) + replacementBytes;
+        return new ScoreboardDeltaBuild(
+            order,
+            patches,
+            fullRosterRecordBytes > int.MaxValue ? int.MaxValue : (int)fullRosterRecordBytes,
+            extensionBytes > int.MaxValue ? int.MaxValue : (int)extensionBytes,
+            canEncode);
+    }
+
+    private static SnapshotPlayerState[] ApplyScoreboardDelta(
+        IReadOnlyList<byte> order,
+        IReadOnlyList<SnapshotScoreboardPlayerPatch> patches,
+        IReadOnlyList<SnapshotPlayerState>? baseline)
+    {
+        var baselineBySlot = new Dictionary<byte, SnapshotPlayerState>();
+        if (baseline is not null)
+        {
+            foreach (var player in baseline)
+            {
+                if (!baselineBySlot.TryAdd(player.Slot, player))
+                {
+                    throw new InvalidOperationException($"Baseline scoreboard contains duplicate slot {player.Slot}.");
+                }
+            }
+        }
+
+        var orderedSlots = new HashSet<byte>();
+        foreach (var slot in order)
+        {
+            if (!orderedSlots.Add(slot))
+            {
+                throw new InvalidOperationException($"Scoreboard delta contains duplicate slot {slot}.");
+            }
+        }
+
+        var patchedSlots = new HashSet<byte>();
+        var patchedRecords = new Dictionary<byte, byte[]>();
+        var expectedPlayerIds = new Dictionary<byte, int>();
+        foreach (var patch in patches)
+        {
+            if (!patchedSlots.Add(patch.Slot) || patch.Index < 0 || patch.Index >= order.Count || order[patch.Index] != patch.Slot)
+            {
+                throw new InvalidOperationException("Scoreboard delta patch has a duplicate or invalid roster index.");
+            }
+
+            expectedPlayerIds.Add(patch.Slot, patch.PlayerId);
+
+            if (patch.BaseLength == 0)
+            {
+                if (patch.PrefixLength != 0 || patch.SuffixLength != 0 || patch.ReplacementBytes is null)
+                {
+                    throw new InvalidOperationException("Scoreboard addition patch has an invalid base record.");
+                }
+
+                if (patch.ReplacementBytes.Length > MaxScoreboardPatchBytes)
+                {
+                    throw new InvalidOperationException("Scoreboard addition exceeds the protocol byte limit.");
+                }
+
+                patchedRecords[patch.Slot] = patch.ReplacementBytes;
+                continue;
+            }
+
+            if (!baselineBySlot.TryGetValue(patch.Slot, out var oldPlayer))
+            {
+                throw new InvalidOperationException("Scoreboard patch does not match its baseline record.");
+            }
+
+            var oldBytes = ProtocolCodec.SerializeCanonicalSnapshotPlayer(oldPlayer);
+            if (patch.BaseLength != oldBytes.Length
+                || patch.BaseLength > MaxScoreboardPatchBytes
+                || patch.PrefixLength < 0
+                || patch.SuffixLength < 0
+                || patch.PrefixLength > oldBytes.Length
+                || patch.SuffixLength > oldBytes.Length
+                || (long)patch.PrefixLength + patch.SuffixLength > oldBytes.Length
+                || patch.ReplacementBytes is null)
+            {
+                throw new InvalidOperationException("Scoreboard patch does not match its baseline record.");
+            }
+
+            var patchedLength = (long)patch.PrefixLength + patch.ReplacementBytes.Length + patch.SuffixLength;
+            if (patchedLength > MaxScoreboardPatchBytes)
+            {
+                throw new InvalidOperationException("Scoreboard patch result exceeds the protocol byte limit.");
+            }
+
+            var patched = new byte[(int)patchedLength];
+
+            Array.Copy(oldBytes, 0, patched, 0, patch.PrefixLength);
+            Array.Copy(patch.ReplacementBytes, 0, patched, patch.PrefixLength, patch.ReplacementBytes.Length);
+            Array.Copy(oldBytes, oldBytes.Length - patch.SuffixLength, patched, patch.PrefixLength + patch.ReplacementBytes.Length, patch.SuffixLength);
+            patchedRecords[patch.Slot] = patched;
+        }
+
+        var result = new SnapshotPlayerState[order.Count];
+        for (var index = 0; index < order.Count; index += 1)
+        {
+            if (!patchedRecords.TryGetValue(order[index], out var bytes))
+            {
+                if (!baselineBySlot.TryGetValue(order[index], out var inheritedPlayer))
+                {
+                    throw new InvalidOperationException($"Scoreboard delta is missing player record for slot {order[index]}.");
+                }
+
+                result[index] = inheritedPlayer;
+                continue;
+            }
+
+            if (bytes.Length > MaxScoreboardPatchBytes)
+            {
+                throw new InvalidOperationException("Scoreboard player record exceeds the protocol byte limit.");
+            }
+
+            SnapshotPlayerState player;
+            try
+            {
+                player = ProtocolCodec.DeserializeCanonicalSnapshotPlayer(bytes);
+            }
+            catch (Exception exception) when (exception is IOException or DecoderFallbackException)
+            {
+                throw new InvalidOperationException("Scoreboard patch contains an invalid canonical player record.", exception);
+            }
+
+            if (player.Slot != order[index])
+            {
+                throw new InvalidOperationException("Scoreboard patch decoded to a different roster slot.");
+            }
+
+            if (expectedPlayerIds.TryGetValue(order[index], out var expectedPlayerId) && player.PlayerId != expectedPlayerId)
+            {
+                throw new InvalidOperationException("Scoreboard patch decoded to a different player identity.");
+            }
+
+            result[index] = player;
+        }
+
+        return result;
     }
 
     private static SnapshotPlayerState[] MergePlayers(

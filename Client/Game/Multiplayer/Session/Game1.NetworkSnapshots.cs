@@ -12,23 +12,37 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
+    private readonly Dictionary<ulong, SnapshotBaselineState> _resolvedBatchSnapshotsByFrame = new();
+    private readonly List<ResolvedSnapshotEntry> _resolvedBatchSnapshots = new();
+    private uint _snapshotStringCacheConnectionGeneration;
+    private bool _hasSnapshotStringCacheConnectionGeneration;
     private readonly HashSet<int> _lastVisibleEnemySpyIds = new();
     private readonly Dictionary<int, byte> _lastVisibleEnemySpySlots = new();
     private readonly HashSet<int> _pendingLegacyGg2FireAnimationPlayerIds = new();
 
     private readonly record struct ResolvedSnapshotEntry(
         SnapshotMessage RawSnapshot,
-        SnapshotMessage ResolvedSnapshot);
+        SnapshotMessage ResolvedSnapshot,
+        SnapshotBaselineState BaselineState);
 
     private bool TryHandleSnapshotMessage(
         SnapshotMessage snapshot,
         ref ulong latestBufferedSnapshotFrame,
         ref SnapshotMessage? latestResolvedSnapshot,
-        ref Dictionary<ulong, SnapshotBaselineState>? resolvedBatchSnapshotsByFrame,
-        ref List<ResolvedSnapshotEntry>? resolvedBatchSnapshots)
+        Dictionary<ulong, SnapshotBaselineState> resolvedBatchSnapshotsByFrame,
+        List<ResolvedSnapshotEntry> resolvedBatchSnapshots)
     {
-        if ((!string.Equals(snapshot.LevelName, _world.Level.Name, StringComparison.OrdinalIgnoreCase)
-                || snapshot.MapAreaIndex != _world.Level.MapAreaIndex)
+        EnsureSnapshotStringCacheConnectionGeneration();
+
+        if (snapshot.Frame <= latestBufferedSnapshotFrame)
+        {
+            RecordStaleSnapshot();
+            return false;
+        }
+
+        var snapshotMapChanged = !string.Equals(snapshot.LevelName, _world.Level.Name, StringComparison.OrdinalIgnoreCase)
+            || snapshot.MapAreaIndex != _world.Level.MapAreaIndex;
+        if (snapshotMapChanged
             && TryEnsureNetworkMapAvailable(
                 snapshot.LevelName,
                 snapshot.IsCustomMap,
@@ -42,12 +56,6 @@ public partial class Game1
             }
 
             ReturnToMainMenuWithNetworkStatus(snapshotMapError, $"custom map sync failed: {snapshotMapError}");
-            return false;
-        }
-
-        if (snapshot.Frame <= latestBufferedSnapshotFrame)
-        {
-            RecordStaleSnapshot();
             return false;
         }
 
@@ -82,6 +90,12 @@ public partial class Game1
             return false;
         }
 
+        // Cache updates are part of snapshot receipt, not delayed world
+        // application. The authoritative queue intentionally drops old entries
+        // during bursts, but those mappings remain necessary for later snapshots.
+        _world.ClientSnapshots.StringCache.ApplyCacheUpdates(resolvedSnapshot.StringCacheUpdates);
+        _networkClient.ObserveResolvedSnapshotBaseline(snapshot);
+
         if (!_replaySeekCatchUpActive)
         {
             RecordResolvedSnapshotPredictionError(resolvedSnapshot);
@@ -90,14 +104,23 @@ public partial class Game1
             QueueResolvedSnapshotDamageEvents(resolvedSnapshot);
         }
 
-        resolvedBatchSnapshotsByFrame ??= new Dictionary<ulong, SnapshotBaselineState>();
-        resolvedBatchSnapshotsByFrame[resolvedSnapshot.Frame] = SnapshotBaselineState.FromSnapshot(resolvedSnapshot);
-
-        resolvedBatchSnapshots ??= new List<ResolvedSnapshotEntry>();
-        resolvedBatchSnapshots.Add(new ResolvedSnapshotEntry(snapshot, resolvedSnapshot));
+        var baselineState = SnapshotBaselineState.FromSnapshot(resolvedSnapshot);
+        resolvedBatchSnapshotsByFrame[resolvedSnapshot.Frame] = baselineState;
+        resolvedBatchSnapshots.Add(new ResolvedSnapshotEntry(snapshot, resolvedSnapshot, baselineState));
         latestResolvedSnapshot = resolvedSnapshot;
         latestBufferedSnapshotFrame = resolvedSnapshot.Frame;
         return true;
+    }
+
+    private void EnsureSnapshotStringCacheConnectionGeneration()
+    {
+        if (!_hasSnapshotStringCacheConnectionGeneration
+            || _snapshotStringCacheConnectionGeneration != _networkClient.ConnectionGeneration)
+        {
+            _world.ClientSnapshots.StringCache.Clear();
+            _snapshotStringCacheConnectionGeneration = _networkClient.ConnectionGeneration;
+            _hasSnapshotStringCacheConnectionGeneration = true;
+        }
     }
 
     private void RecordResolvedSnapshotPredictionError(SnapshotMessage resolvedSnapshot)
@@ -169,7 +192,7 @@ public partial class Game1
         {
             var entry = resolvedBatchSnapshots[snapshotIndex];
             var isServerFullSnapshot = IsFullEquivalentNetworkSnapshot(entry.RawSnapshot);
-            RememberSnapshotState(entry.ResolvedSnapshot);
+            RememberSnapshotState(entry.BaselineState, entry.RawSnapshot.BaselineFrame);
             EnqueueAuthoritativeSnapshot(entry.RawSnapshot, entry.ResolvedSnapshot, isServerFullSnapshot);
         }
 
@@ -231,6 +254,7 @@ public partial class Game1
         var snapshot = queuedSnapshot.ResolvedSnapshot;
         var isServerFullSnapshot = queuedSnapshot.IsServerFullSnapshot;
         var applySnapshotStartTimestamp = _networkDiagnosticsEnabled ? Stopwatch.GetTimestamp() : 0L;
+        var networkApplyStartTimestamp = ShouldMeasureClientPerformanceDurations() ? Stopwatch.GetTimestamp() : 0L;
         var previousLevelName = _world.Level.Name;
         var previousMapAreaIndex = _world.Level.MapAreaIndex;
         var previousLocalPlayerId = _gameplayManager.NetworkPresentation.LastAppliedSnapshotLocalPlayerId;
@@ -244,6 +268,13 @@ public partial class Game1
             {
                 RecordApplySnapshotDuration(GetDiagnosticsElapsedMilliseconds(applySnapshotStartTimestamp));
                 RecordRejectedSnapshot();
+            }
+
+            if (networkApplyStartTimestamp > 0L)
+            {
+                RecordClientPerformanceMetric(
+                    ClientPerformanceMetric.NetworkApply,
+                    GetDiagnosticsElapsedMilliseconds(networkApplyStartTimestamp));
             }
 
             AddNetworkConsoleLine($"snapshot rejected for slot {_networkClient.LocalPlayerSlot}");
@@ -336,6 +367,12 @@ public partial class Game1
         }
 
         ReopenJoinMenusAfterMapTransition(previousLevelName, previousMapAreaIndex, wasAwaitingJoin);
+        if (networkApplyStartTimestamp > 0L)
+        {
+            RecordClientPerformanceMetric(
+                ClientPerformanceMetric.NetworkApply,
+                GetDiagnosticsElapsedMilliseconds(networkApplyStartTimestamp));
+        }
     }
 
     private void CaptureSmoothingTrackForLocalPlayer(SnapshotMessage snapshot)

@@ -636,7 +636,7 @@ sealed class SnapshotBroadcaster
         // Build string cache updates for this client
         var cacheTracker = GetOrCreateCacheTracker(client.Slot);
         var referencedStrings = CollectReferencedCachedStrings(players.Concat(scoreboardPlayers).ToArray());
-        var stringCacheUpdates = cacheTracker.BuildCacheUpdatesForSnapshot(referencedStrings);
+        var stringCacheUpdates = cacheTracker.BuildCacheUpdatesForSnapshot(referencedStrings, client);
 
         return sharedSnapshot.Template with
         {

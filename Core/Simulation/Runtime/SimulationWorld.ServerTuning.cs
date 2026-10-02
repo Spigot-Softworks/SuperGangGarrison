@@ -9,7 +9,7 @@ public sealed partial class SimulationWorld
             return false;
         }
 
-        _networkPlayerMovementSpeedScaleOverrides[slot] = float.Clamp(scale, 0.1f, 4f);
+        PlayerRegistry.MovementSpeedScaleOverrides[slot] = float.Clamp(scale, 0.1f, 4f);
         ApplyServerGameplayTuning(slot, player);
         return true;
     }
@@ -21,7 +21,7 @@ public sealed partial class SimulationWorld
             return false;
         }
 
-        _networkPlayerMovementSpeedScaleOverrides.Remove(slot);
+        PlayerRegistry.MovementSpeedScaleOverrides.Remove(slot);
         ApplyServerGameplayTuning(slot, player);
         return true;
     }
@@ -35,7 +35,7 @@ public sealed partial class SimulationWorld
 
     public bool HasNetworkPlayerMovementSpeedScaleOverride(byte slot)
     {
-        return _networkPlayerMovementSpeedScaleOverrides.ContainsKey(slot);
+        return PlayerRegistry.MovementSpeedScaleOverrides.ContainsKey(slot);
     }
 
     public bool TrySetNetworkPlayerLastToDieEnemyScaling(
@@ -48,8 +48,8 @@ public sealed partial class SimulationWorld
             return false;
         }
 
-        _networkPlayerMovementSpeedScaleOverrides[slot] = MathF.Max(0.1f, movementSpeedMultiplier);
-        _networkPlayerLastToDieEnemyDamageScaleOverrides[slot] = MathF.Max(0f, damageMultiplier);
+        PlayerRegistry.MovementSpeedScaleOverrides[slot] = MathF.Max(0.1f, movementSpeedMultiplier);
+        PlayerRegistry.LastToDieEnemyDamageScaleOverrides[slot] = MathF.Max(0f, damageMultiplier);
         ApplyServerGameplayTuning(slot, player);
         return true;
     }
@@ -61,8 +61,8 @@ public sealed partial class SimulationWorld
             return false;
         }
 
-        _networkPlayerMovementSpeedScaleOverrides.Remove(slot);
-        _networkPlayerLastToDieEnemyDamageScaleOverrides.Remove(slot);
+        PlayerRegistry.MovementSpeedScaleOverrides.Remove(slot);
+        PlayerRegistry.LastToDieEnemyDamageScaleOverrides.Remove(slot);
         ApplyServerGameplayTuning(slot, player);
         return true;
     }
@@ -74,7 +74,7 @@ public sealed partial class SimulationWorld
             return false;
         }
 
-        _networkPlayerGravityScaleOverrides[slot] = float.Clamp(scale, 0f, 4f);
+        PlayerRegistry.GravityScaleOverrides[slot] = float.Clamp(scale, 0f, 4f);
         ApplyServerGameplayTuning(slot, player);
         return true;
     }
@@ -86,7 +86,7 @@ public sealed partial class SimulationWorld
             return false;
         }
 
-        _networkPlayerGravityScaleOverrides.Remove(slot);
+        PlayerRegistry.GravityScaleOverrides.Remove(slot);
         ApplyServerGameplayTuning(slot, player);
         return true;
     }
@@ -100,7 +100,7 @@ public sealed partial class SimulationWorld
 
     public bool HasNetworkPlayerGravityScaleOverride(byte slot)
     {
-        return _networkPlayerGravityScaleOverrides.ContainsKey(slot);
+        return PlayerRegistry.GravityScaleOverrides.ContainsKey(slot);
     }
 
     public bool TrySetNetworkPlayerMaxHealthOverride(byte slot, int? maxHealth, bool refillHealth = true)
@@ -112,11 +112,11 @@ public sealed partial class SimulationWorld
 
         if (maxHealth.HasValue)
         {
-            _networkPlayerMaxHealthOverrides[slot] = Math.Max(1, maxHealth.Value);
+            PlayerRegistry.MaxHealthOverrides[slot] = Math.Max(1, maxHealth.Value);
         }
         else
         {
-            _networkPlayerMaxHealthOverrides.Remove(slot);
+            PlayerRegistry.MaxHealthOverrides.Remove(slot);
         }
 
         ApplyNetworkPlayerMaxHealthOverride(slot, player, refillHealth);
@@ -125,7 +125,7 @@ public sealed partial class SimulationWorld
 
     public void SetPlayerScale(float scale)
     {
-        _configuredPlayerScale = PlayerEntity.ClampPlayerScale(scale);
+        MatchSettings.PlayerScale = PlayerEntity.ClampPlayerScale(scale);
         ApplyConfiguredPlayerScaleToKnownPlayers();
     }
 
@@ -144,13 +144,13 @@ public sealed partial class SimulationWorld
     public void SetMapScale(float scale)
     {
         var nextScale = float.Clamp(scale, 0.25f, 4f);
-        if (MathF.Abs(_configuredMapScale - nextScale) <= 0.0001f)
+        if (MathF.Abs(MatchSettings.MapScale - nextScale) <= 0.0001f)
         {
             return;
         }
 
-        var previousScale = _configuredMapScale;
-        _configuredMapScale = nextScale;
+        var previousScale = MatchSettings.MapScale;
+        MatchSettings.MapScale = nextScale;
         if (TryLoadLevel(Level.Name, Level.MapAreaIndex, preservePlayerStats: false, mapScale: nextScale))
         {
             return;
@@ -167,48 +167,48 @@ public sealed partial class SimulationWorld
 
         if (!TryLoadLevel(Level.Name, Level.MapAreaIndex, preservePlayerStats: false, mapScale: previousScale))
         {
-            _configuredMapScale = previousScale;
+            MatchSettings.MapScale = previousScale;
         }
     }
 
     public void SetMovementSpeedScale(float scale)
     {
-        _configuredMovementSpeedScale = float.Clamp(scale, 0.1f, 4f);
+        MatchSettings.MovementSpeedScale = float.Clamp(scale, 0.1f, 4f);
         ApplyServerGameplayTuningToKnownPlayers();
     }
 
     public void SetProjectileSpeedScale(float scale)
     {
-        _configuredProjectileSpeedScale = float.Clamp(scale, 0.1f, 4f);
+        MatchSettings.ProjectileSpeedScale = float.Clamp(scale, 0.1f, 4f);
     }
 
     public void SetDamageScale(float scale)
     {
-        _configuredDamageScale = float.Clamp(scale, 0f, 10f);
+        MatchSettings.DamageScale = float.Clamp(scale, 0f, 10f);
         ApplyServerGameplayTuningToKnownPlayers();
     }
 
     public void SetGravityScale(float scale)
     {
-        _configuredGravityScale = float.Clamp(scale, 0f, 4f);
+        MatchSettings.GravityScale = float.Clamp(scale, 0f, 4f);
         ApplyServerGameplayTuningToKnownPlayers();
     }
 
     public void SetHorizontalSpeedClampPerTick(float clampPerTick)
     {
-        _configuredHorizontalSpeedClampPerTick = float.Clamp(clampPerTick, 1f, 60f);
+        MatchSettings.HorizontalSpeedClampPerTick = float.Clamp(clampPerTick, 1f, 60f);
         ApplyServerGameplayTuningToKnownPlayers();
     }
 
     public void SetVerticalSpeedClampPerTick(float clampPerTick)
     {
-        _configuredVerticalSpeedClampPerTick = float.Clamp(clampPerTick, 1f, 60f);
+        MatchSettings.VerticalSpeedClampPerTick = float.Clamp(clampPerTick, 1f, 60f);
         ApplyServerGameplayTuningToKnownPlayers();
     }
 
     public void SetRoundEndFriendlyFire(bool enabled)
     {
-        _roundEndFriendlyFireEnabled = enabled;
+        MatchSettings.RoundEndFriendlyFireEnabled = enabled;
     }
 
     private void ApplyServerGameplayTuningToKnownPlayers()
@@ -217,7 +217,7 @@ public sealed partial class SimulationWorld
         ApplyServerGameplayTuning(slot: 0, EnemyPlayer);
         ApplyServerGameplayTuning(slot: 0, FriendlyDummy);
 
-        foreach (var entry in _additionalNetworkPlayersBySlot)
+        foreach (var entry in PlayerRegistry.PlayersBySlot)
         {
             ApplyServerGameplayTuning(entry.Key, entry.Value);
         }
@@ -228,15 +228,15 @@ public sealed partial class SimulationWorld
         var movementSpeedScale = GetEffectiveNetworkPlayerMovementSpeedScale(slot);
         var gravityScale = GetEffectiveNetworkPlayerGravityScale(slot);
         player.SetServerMovementSpeedScale(movementSpeedScale);
-        player.SetServerDamageScale(_configuredDamageScale);
+        player.SetServerDamageScale(MatchSettings.DamageScale);
         player.SetLastToDieEnemyDamageMultiplier(
-            slot != 0 && _networkPlayerLastToDieEnemyDamageScaleOverrides.TryGetValue(slot, out var damageScale)
+            slot != 0 && PlayerRegistry.LastToDieEnemyDamageScaleOverrides.TryGetValue(slot, out var damageScale)
                 ? damageScale
                 : 1f);
         player.SetServerGravityScale(gravityScale);
         player.SetServerMovementSpeedClamps(
-            _configuredHorizontalSpeedClampPerTick,
-            _configuredVerticalSpeedClampPerTick);
+            MatchSettings.HorizontalSpeedClampPerTick,
+            MatchSettings.VerticalSpeedClampPerTick);
         player.SetReplicatedStateFloat(
             PlayerEntity.ServerTuningReplicatedStateOwnerId,
             PlayerEntity.MovementSpeedScaleReplicatedStateKey,
@@ -249,22 +249,22 @@ public sealed partial class SimulationWorld
 
     private float GetEffectiveNetworkPlayerMovementSpeedScale(byte slot)
     {
-        return slot != 0 && _networkPlayerMovementSpeedScaleOverrides.TryGetValue(slot, out var scale)
+        return slot != 0 && PlayerRegistry.MovementSpeedScaleOverrides.TryGetValue(slot, out var scale)
             ? scale
-            : _configuredMovementSpeedScale;
+            : MatchSettings.MovementSpeedScale;
     }
 
     private float GetEffectiveNetworkPlayerGravityScale(byte slot)
     {
-        return slot != 0 && _networkPlayerGravityScaleOverrides.TryGetValue(slot, out var scale)
+        return slot != 0 && PlayerRegistry.GravityScaleOverrides.TryGetValue(slot, out var scale)
             ? scale
-            : _configuredGravityScale;
+            : MatchSettings.GravityScale;
     }
 
     private void ApplyNetworkPlayerMaxHealthOverride(byte slot, PlayerEntity player, bool refillHealth)
     {
         player.SetExperimentalMaxHealthOverride(
-            slot != 0 && _networkPlayerMaxHealthOverrides.TryGetValue(slot, out var maxHealth)
+            slot != 0 && PlayerRegistry.MaxHealthOverrides.TryGetValue(slot, out var maxHealth)
                 ? maxHealth
                 : null,
             refillHealth);
@@ -272,15 +272,15 @@ public sealed partial class SimulationWorld
 
     private void ApplyConfiguredPlayerScaleToKnownPlayers()
     {
-        ApplyLivePlayerScaleToPlayer(LocalPlayer, LocalPlayer.Team, _configuredPlayerScale);
-        ApplyLivePlayerScaleToPlayer(EnemyPlayer, _enemyDummyTeam, _configuredPlayerScale);
-        ApplyLivePlayerScaleToPlayer(FriendlyDummy, LocalPlayer.Team, _configuredPlayerScale);
+        ApplyLivePlayerScaleToPlayer(LocalPlayer, LocalPlayer.Team, MatchSettings.PlayerScale);
+        ApplyLivePlayerScaleToPlayer(EnemyPlayer, DummyState.EnemyTeam, MatchSettings.PlayerScale);
+        ApplyLivePlayerScaleToPlayer(FriendlyDummy, LocalPlayer.Team, MatchSettings.PlayerScale);
 
-        foreach (var entry in _additionalNetworkPlayersBySlot)
+        foreach (var entry in PlayerRegistry.PlayersBySlot)
         {
             var player = entry.Value;
             var team = player.IsAlive ? player.Team : GetNetworkPlayerConfiguredTeam(entry.Key);
-            ApplyLivePlayerScaleToPlayer(player, team, _configuredPlayerScale);
+            ApplyLivePlayerScaleToPlayer(player, team, MatchSettings.PlayerScale);
         }
     }
 

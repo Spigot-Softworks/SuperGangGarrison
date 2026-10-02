@@ -5,23 +5,6 @@ namespace OpenGarrison.Core;
 
 public sealed partial class SimulationWorld
 {
-    private int _experimentalRageEnemyHumiliationTicksRemaining;
-    private readonly List<QueuedExperimentalRocketBurst> _experimentalQueuedRocketBursts = new();
-
-    private readonly record struct QueuedExperimentalRocketBurst(
-        int TicksRemaining,
-        int OwnerId,
-        float X,
-        float Y,
-        float Speed,
-        float DirectionRadians,
-        RocketCombatDefinition? RocketCombat,
-        float DirectHitHealAmount,
-        bool CanGrantExperimentalInstantReloadOnHit,
-        float KnockbackScale,
-        bool CanIgniteTargets,
-        bool EnableStingerTracking,
-        string? KillFeedWeaponSpriteNameOverride);
 
     private int GetExperimentalRageDurationTicks()
     {
@@ -99,7 +82,7 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        _experimentalQueuedRocketBursts.Add(new QueuedExperimentalRocketBurst(
+        CombatRuntime.QueuedRocketBursts.Add(new QueuedExperimentalRocketBurst(
             GetExperimentalFinalRocketBurstDelayTicks(),
             owner.Id,
             x,
@@ -152,8 +135,8 @@ public sealed partial class SimulationWorld
             player.StartExperimentalDemoknightPostRageRegeneration(GetExperimentalDemoknightPostRageRegenerationDurationTicks());
         }
 
-        _experimentalRageEnemyHumiliationTicksRemaining = Math.Max(
-            _experimentalRageEnemyHumiliationTicksRemaining,
+        CombatRuntime.RageEnemyHumiliationTicksRemaining = Math.Max(
+            CombatRuntime.RageEnemyHumiliationTicksRemaining,
             durationTicks);
         return true;
     }
@@ -162,7 +145,7 @@ public sealed partial class SimulationWorld
     {
         if (!IsLastToDieGameplaySettingEnabled(settings => settings.EnableRage))
         {
-            _experimentalRageEnemyHumiliationTicksRemaining = 0;
+            CombatRuntime.RageEnemyHumiliationTicksRemaining = 0;
             return;
         }
 
@@ -177,12 +160,12 @@ public sealed partial class SimulationWorld
 
     private void AdvanceExperimentalRageState()
     {
-        if (_experimentalRageEnemyHumiliationTicksRemaining > 0)
+        if (CombatRuntime.RageEnemyHumiliationTicksRemaining > 0)
         {
-            _experimentalRageEnemyHumiliationTicksRemaining -= 1;
-            if (_experimentalRageEnemyHumiliationTicksRemaining < 0)
+            CombatRuntime.RageEnemyHumiliationTicksRemaining -= 1;
+            if (CombatRuntime.RageEnemyHumiliationTicksRemaining < 0)
             {
-                _experimentalRageEnemyHumiliationTicksRemaining = 0;
+                CombatRuntime.RageEnemyHumiliationTicksRemaining = 0;
             }
         }
 
@@ -191,16 +174,16 @@ public sealed partial class SimulationWorld
             player.AdvanceRageState();
         }
 
-        for (var index = _experimentalQueuedRocketBursts.Count - 1; index >= 0; index -= 1)
+        for (var index = CombatRuntime.QueuedRocketBursts.Count - 1; index >= 0; index -= 1)
         {
-            var queuedBurst = _experimentalQueuedRocketBursts[index];
+            var queuedBurst = CombatRuntime.QueuedRocketBursts[index];
             if (queuedBurst.TicksRemaining > 1)
             {
-                _experimentalQueuedRocketBursts[index] = queuedBurst with { TicksRemaining = queuedBurst.TicksRemaining - 1 };
+                CombatRuntime.QueuedRocketBursts[index] = queuedBurst with { TicksRemaining = queuedBurst.TicksRemaining - 1 };
                 continue;
             }
 
-            _experimentalQueuedRocketBursts.RemoveAt(index);
+            CombatRuntime.QueuedRocketBursts.RemoveAt(index);
             var owner = FindPlayerById(queuedBurst.OwnerId);
             if (owner is null || !owner.IsAlive)
             {
@@ -235,7 +218,7 @@ public sealed partial class SimulationWorld
     private bool IsExperimentalRageHumiliationActiveForPlayer(PlayerEntity player)
     {
         return IsLastToDieGameplaySettingEnabled(settings => settings.EnableRage)
-            && _experimentalRageEnemyHumiliationTicksRemaining > 0
+            && CombatRuntime.RageEnemyHumiliationTicksRemaining > 0
             && !ReferenceEquals(player, LocalPlayer)
             && player.Team != LocalPlayer.Team;
     }

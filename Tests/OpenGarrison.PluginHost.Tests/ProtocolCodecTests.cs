@@ -133,6 +133,33 @@ public sealed class ProtocolCodecTests
     }
 
     [Fact]
+    public void InputStateExtensionsRoundTripSnapshotAckAndBundledControls()
+    {
+        var command = new ControlCommandMessage(77, ControlCommandKind.SelectGameplayLoadout, 0, "soldier.direct-hit");
+        var message = new InputStateMessage(
+            Sequence: 56,
+            Buttons: InputButtons.Right | InputButtons.FirePrimary,
+            AimRelX: 16f,
+            AimRelY: -8f,
+            ChatBubbleFrameIndex: -1,
+            IsUsingBinoculars: false,
+            BinocularsFocusX: 0f,
+            BinocularsFocusY: 0f,
+            PingMilliseconds: 42,
+            SnapshotAckFrame: 1234,
+            BundledControlCommands: [command]);
+
+        var payload = ProtocolCodec.Serialize(message, ProtocolCompressionSettings.Disabled);
+
+        Assert.True(ProtocolCodec.TryDeserialize(payload, out var roundTripped));
+        var input = Assert.IsType<InputStateMessage>(roundTripped);
+        Assert.Equal(56u, input.Sequence);
+        Assert.Equal(InputButtons.Right | InputButtons.FirePrimary, input.Buttons);
+        Assert.Equal(1234UL, input.SnapshotAckFrame);
+        Assert.Equal(command, Assert.Single(input.BundledControlCommands!));
+    }
+
+    [Fact]
     public void ChatRelayMessageRoundTripsSenderSlot()
     {
         var message = new ChatRelayMessage(

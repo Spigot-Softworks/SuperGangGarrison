@@ -1,4 +1,5 @@
 using OpenGarrison.Core;
+using OpenGarrison.Client;
 using OpenGarrison.ClientShared;
 using OpenGarrison.GameplayModding;
 using OpenGarrison.Protocol;
@@ -34,6 +35,7 @@ public sealed class GameplayModPackLoaderTests
         Assert.True(pack.Items.ContainsKey("ability.civilian-pogo"));
         Assert.True(pack.Classes.ContainsKey("soldier"));
         Assert.True(pack.Classes.ContainsKey("civilian"));
+        Assert.True(pack.Classes.ContainsKey("quote"));
         Assert.Equal("soldier.stock", pack.Classes["soldier"].DefaultLoadoutId);
         var civilianClass = pack.Classes["civilian"];
         Assert.Equal("Civilian/Employer", civilianClass.DisplayName);
@@ -67,6 +69,19 @@ public sealed class GameplayModPackLoaderTests
         Assert.True(pack.Assets.Sprites.ContainsKey("CivvieUmbrellaOpenAnimS"));
         Assert.True(pack.Assets.Sprites.ContainsKey("CivvieUmbrellaShieldBlockS"));
         Assert.True(pack.Classes["soldier"].Loadouts.ContainsKey("soldier.direct-hit"));
+        var quoteClass = pack.Classes["quote"];
+        Assert.Equal("Crewmate", quoteClass.DisplayName);
+        Assert.Equal("Quote", quoteClass.Runtime?.BasePlayerClass);
+        Assert.True(string.IsNullOrEmpty(quoteClass.Runtime?.PlayerClass));
+        Assert.Equal("Impostor", quoteClass.Presentation?.SpritePrefix);
+        Assert.Equal(11, quoteClass.Movement.TauntLengthFrames);
+        Assert.Equal("weapon.blade", quoteClass.Loadouts[quoteClass.DefaultLoadoutId].Primary!.DefaultItemId);
+        Assert.Null(quoteClass.Loadouts[quoteClass.DefaultLoadoutId].Secondary);
+        Assert.Contains("ability.quote-blade-throw", quoteClass.Loadouts[quoteClass.DefaultLoadoutId].Abilities);
+        Assert.Contains("ability.quote-taunt", quoteClass.Loadouts[quoteClass.DefaultLoadoutId].Abilities);
+        Assert.Equal(30, pack.Items["ability.quote-taunt"].Ability!.Parameters["healAmount"].GetInt32());
+        Assert.True(pack.Items["ability.quote-taunt"].Ability!.Parameters["healSelfOnly"].GetBoolean());
+        Assert.True(pack.Items["ability.quote-taunt"].Ability!.Parameters["moneyBurst"].GetBoolean());
         var soldierRuntime = pack.Classes["soldier"].Runtime;
         Assert.NotNull(soldierRuntime);
         Assert.Equal(nameof(PlayerClass.Soldier), soldierRuntime!.PlayerClass);
@@ -184,6 +199,245 @@ public sealed class GameplayModPackLoaderTests
         var demomanStock = pack.Classes["demoman"].Loadouts["demoman.stock"];
         Assert.Equal("weapon.grenadelauncher", demomanStock.Secondary?.ItemId);
         Assert.Contains("ability.demoman-detonate", demomanStock.Abilities);
+    }
+
+    [Fact]
+    public void StockQuoteCurlyHasItsOwnIdentityWhileLegacyQuoteStillBindsCivilian()
+    {
+        var registry = GameplayRuntimeRegistry.CreateStock();
+
+        Assert.True(registry.TryGetClassBinding("quote", out var quoteBinding));
+        Assert.Equal("quote", quoteBinding.ClassId);
+        Assert.Equal(PlayerClass.Quote, quoteBinding.PlayerClass);
+        Assert.Equal(PlayerClass.Quote, quoteBinding.BasePlayerClass);
+        Assert.False(quoteBinding.BindsLegacyPlayerClass);
+        Assert.True(registry.TryGetClassBinding(PlayerClass.Quote, out var legacyBinding));
+        Assert.Equal("civilian", legacyBinding.ClassId);
+        Assert.Equal("Crewmate", registry.GetClassDefinition("quote").DisplayName);
+        Assert.Equal("BladeKL", CharacterClassCatalog.GetPrimaryWeaponKillFeedSprite("quote"));
+        Assert.Equal("CivvieUmbrellaKL", CharacterClassCatalog.GetPrimaryWeaponKillFeedSprite(PlayerClass.Quote));
+        Assert.Equal("civilian", Game1.ResolveClassSelectCivilianShortcutGameplayClassId());
+        Assert.Equal("quote", Game1.ResolveClassSelectRandomDoorGameplayClassId());
+    }
+
+    [Fact]
+    public void StockQuoteCurlyHasBubbleAndBladeActionsWithoutCivilianAbilities()
+    {
+        var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
+        world.PrepareLocalPlayerJoin();
+        world.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.CompleteLocalPlayerJoin("quote");
+
+        var player = world.LocalPlayer;
+        Assert.Equal(PlayerClass.Quote, player.ClassId);
+        Assert.Equal("quote", player.GameplayClassId);
+        Assert.False(player.IsCivilian);
+        Assert.True(player.IsQuoteCurly);
+        Assert.Equal("weapon.blade", player.GameplayLoadoutState.PrimaryItemId);
+        Assert.Null(player.GameplayLoadoutState.SecondaryItemId);
+        Assert.Null(player.GameplayLoadoutState.UtilityItemId);
+        Assert.Contains("ability.quote-blade-throw", player.GameplayLoadoutState.AbilityItemIds ?? []);
+        Assert.Contains("ability.quote-taunt", player.GameplayLoadoutState.AbilityItemIds ?? []);
+        Assert.DoesNotContain("ability.quote-utility", player.GameplayLoadoutState.AbilityItemIds ?? []);
+        Assert.Equal(BuiltInGameplayBehaviorIds.Blade, player.PrimaryBehaviorId);
+        Assert.Equal(BuiltInGameplayBehaviorIds.QuoteBladeThrow, player.SpecialAbilityBehaviorId);
+
+        world.SetLocalInput(default(PlayerInputSnapshot) with
+        {
+            FirePrimary = true,
+            AimWorldX = player.X + 96f,
+            AimWorldY = player.Y,
+        });
+        world.AdvanceOneTick();
+
+        Assert.Single(world.Bubbles);
+        Assert.Empty(world.Blades);
+        Assert.DoesNotContain(
+            GameplayAbilityReplicatedState.CreateEntries(player),
+            entry => entry.Key.StartsWith("civvie_", StringComparison.Ordinal));
+        player.BeginPendingCivvieTauntHeal();
+        Assert.False(player.CivvieTauntHealPending);
+        Assert.False(CivvieMoneyTrailRules.IsEligibleTrailSource(player));
+    }
+
+    [Theory]
+    [InlineData(0, 0)]
+    [InlineData(40, 30)]
+    [InlineData(20, 20)]
+    public void CrewmateUseAbilityTauntHealsSelfAndEmitsMoneyBurst(int missingHealth, int expectedHealing)
+    {
+        var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
+        world.PrepareLocalPlayerJoin();
+        world.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.CompleteLocalPlayerJoin("quote");
+        var player = world.LocalPlayer;
+        var startingHealth = player.MaxHealth - missingHealth;
+        player.ForceSetHealth(startingHealth);
+
+        Assert.True(world.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.TrySetNetworkPlayerTeam(2, PlayerTeam.Red));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Scout));
+        Assert.True(world.TryGetNetworkPlayer(2, out var nearbyAlly));
+        nearbyAlly.TeleportTo(player.X + 24f, player.Y);
+        nearbyAlly.ForceSetHealth(50);
+
+        world.SetLocalInput(default(PlayerInputSnapshot) with { UseAbility = true });
+        world.AdvanceOneTick();
+
+        Assert.True(player.IsTaunting);
+        Assert.True(player.CivvieTauntHealPending);
+        Assert.Equal(startingHealth, player.Health);
+        for (var tick = 0; tick < 40 && player.CivvieTauntHealPending; tick += 1)
+        {
+            world.AdvanceOneTick();
+        }
+
+        Assert.False(player.CivvieTauntHealPending);
+        Assert.Equal(Math.Min(player.MaxHealth, startingHealth + expectedHealing), player.Health);
+        Assert.Equal(50, nearbyAlly.Health);
+        var burst = Assert.Single(world.PendingVisualEvents.Where(static e => e.EffectName == "CivvieMoneyBurst"));
+        Assert.Equal(CivvieMoneyTrailRules.PogoTrickBurstParticleCount, burst.Count);
+    }
+
+    [Fact]
+    public void CrewmateUseAbilityRequiresAReleaseAndFreshPressAfterTauntCooldown()
+    {
+        var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
+        world.PrepareLocalPlayerJoin();
+        world.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.CompleteLocalPlayerJoin("quote");
+        var player = world.LocalPlayer;
+
+        world.SetLocalInput(default(PlayerInputSnapshot) with { UseAbility = true });
+        world.AdvanceOneTick();
+        Assert.True(player.IsTaunting);
+        for (var tick = 0; tick < 40 && player.IsTaunting; tick += 1)
+        {
+            world.AdvanceOneTick();
+        }
+
+        Assert.False(player.IsTaunting);
+        Assert.True(player.TauntRestartCooldownTicksRemaining > 0);
+        world.SetLocalInput(default);
+        world.AdvanceOneTick();
+        world.SetLocalInput(default(PlayerInputSnapshot) with { UseAbility = true });
+        world.AdvanceOneTick();
+        Assert.False(player.IsTaunting);
+
+        for (var tick = 0; tick < 40; tick += 1)
+        {
+            world.AdvanceOneTick();
+        }
+
+        Assert.False(player.IsTaunting);
+        Assert.Single(world.PendingVisualEvents.Where(static e => e.EffectName == "CivvieMoneyBurst"));
+        world.SetLocalInput(default);
+        world.AdvanceOneTick();
+        world.SetLocalInput(default(PlayerInputSnapshot) with { UseAbility = true });
+        world.AdvanceOneTick();
+        Assert.True(player.IsTaunting);
+    }
+
+    [Fact]
+    public void CrewmatePendingTauntEffectClearsOnDeath()
+    {
+        var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
+        world.PrepareLocalPlayerJoin();
+        world.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.CompleteLocalPlayerJoin("quote");
+        var player = world.LocalPlayer;
+
+        world.SetLocalInput(default(PlayerInputSnapshot) with { UseAbility = true });
+        world.AdvanceOneTick();
+        Assert.True(player.CivvieTauntHealPending);
+        Assert.Equal("ability.quote-taunt", player.CivvieTauntHealAbilityItemId);
+
+        player.Kill();
+
+        Assert.False(player.CivvieTauntHealPending);
+        Assert.Null(player.CivvieTauntHealAbilityItemId);
+    }
+
+    [Fact]
+    public void CrewmateUseAbilityTauntIsBlockedWhenSecondaryAbilitiesAreDisabled()
+    {
+        var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
+        world.PrepareLocalPlayerJoin();
+        world.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.CompleteLocalPlayerJoin("quote");
+        world.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings(EnableSecondaryAbilities: false));
+
+        world.SetLocalInput(default(PlayerInputSnapshot) with { UseAbility = true });
+        world.AdvanceOneTick();
+
+        Assert.False(world.LocalPlayer.IsTaunting);
+        Assert.False(world.LocalPlayer.CivvieTauntHealPending);
+        Assert.DoesNotContain(world.PendingVisualEvents, static e => e.EffectName == "CivvieMoneyBurst");
+    }
+
+    [Fact]
+    public void CivilianTauntKeepsFifteenPointHealingWithoutCrewMoneyBurst()
+    {
+        var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
+        world.PrepareLocalPlayerJoin();
+        world.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.CompleteLocalPlayerJoin("civilian");
+        var player = world.LocalPlayer;
+        var startingHealth = player.MaxHealth - 30;
+        player.ForceSetHealth(startingHealth);
+
+        world.SetLocalInput(default(PlayerInputSnapshot) with { Taunt = true });
+        world.AdvanceOneTick();
+        Assert.True(player.CivvieTauntHealPending);
+        for (var tick = 0; tick < 40 && player.CivvieTauntHealPending; tick += 1)
+        {
+            world.AdvanceOneTick();
+        }
+
+        Assert.Equal(startingHealth + 15, player.Health);
+        Assert.DoesNotContain(world.PendingVisualEvents, static e => e.EffectName == "CivvieMoneyBurst");
+    }
+
+    [Fact]
+    public void StockQuoteCurlyCanThrowItsBladeAndRecordsBladeKillFeedSprite()
+    {
+        var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
+        world.PrepareLocalPlayerJoin();
+        world.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.CompleteLocalPlayerJoin("quote");
+        Assert.True(world.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.TrySetNetworkPlayerTeam(2, PlayerTeam.Blue));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Scout));
+        Assert.True(world.TryGetNetworkPlayer(2, out var target));
+
+        var player = world.LocalPlayer;
+        target.TeleportTo(player.X + 90f, player.Y);
+        // Let both players settle on the floor so the throw is aimed at where the target actually stands.
+        for (var tick = 0; tick < 30; tick += 1)
+        {
+            world.AdvanceOneTick();
+        }
+
+        target.ForceSetHealth(1);
+        world.SetLocalInput(default(PlayerInputSnapshot) with
+        {
+            FireSecondary = true,
+            AimWorldX = target.X,
+            AimWorldY = target.Y,
+        });
+        world.AdvanceOneTick();
+        Assert.Single(world.Blades);
+
+        world.SetLocalInput(default);
+        // An unattended network slot respawns immediately, so the kill feed (not IsAlive) records the kill.
+        for (var tick = 0; tick < 20 && world.KillFeed.Count == 0; tick += 1)
+        {
+            world.AdvanceOneTick();
+        }
+
+        var killFeedEntry = Assert.Single(world.KillFeed);
+        Assert.Equal(player.Id, killFeedEntry.KillerPlayerId);
+        Assert.Equal("BladeKL", killFeedEntry.WeaponSpriteName);
     }
 
     [Fact]
@@ -516,8 +770,9 @@ public sealed class GameplayModPackLoaderTests
         Assert.Equal(150, kritzBeam.Parameters["range"].GetInt32());
         Assert.Equal(1, kritzBeam.Parameters["damagePerSecond"].GetInt32());
 
-        Assert.False(pack.Items.ContainsKey("ability.quote-blade-throw"));
-        Assert.False(pack.Items.ContainsKey("ability.quote-utility"));
+        Assert.True(pack.Items.ContainsKey("ability.quote-blade-throw"));
+        Assert.True(pack.Items.ContainsKey("ability.quote-utility"));
+        Assert.True(pack.Items.ContainsKey("ability.quote-taunt"));
     }
 
     [Fact]
@@ -1220,7 +1475,7 @@ public sealed class GameplayModPackLoaderTests
         Assert.Equal(PlayerEntity.QuoteBladeMaxOut, quoteBladeThrow.Parameters["activeProjectileLimit"].GetInt32());
         Assert.Equal(PlayerEntity.QuoteBladeLifetimeTicks, quoteBladeThrow.Parameters["lifetimeTicks"].GetInt32());
         Assert.True(pack.Classes.TryGetValue("plugin.quote-curly.quote", out var gameplayClass));
-        Assert.Equal("Quote/Curly", gameplayClass!.DisplayName);
+        Assert.Equal("Crewmate", gameplayClass!.DisplayName);
         Assert.Equal(string.Empty, gameplayClass.Runtime?.PlayerClass);
         Assert.Equal("Quote", gameplayClass.Runtime?.BasePlayerClass);
         Assert.Equal("Quote", gameplayClass.Runtime?.BotGraphPlayerClass);
@@ -1232,8 +1487,14 @@ public sealed class GameplayModPackLoaderTests
             "plugin.quote-curly.ability.blade-throw",
             gameplayClass.Loadouts[gameplayClass.DefaultLoadoutId].SecondaryItemId);
         Assert.Equal(
-            "plugin.quote-curly.ability.utility",
+            "plugin.quote-curly.ability.taunt",
             gameplayClass.Loadouts[gameplayClass.DefaultLoadoutId].UtilityItemId);
+        Assert.True(pack.Items.ContainsKey("plugin.quote-curly.ability.taunt"));
+        var crewTaunt = pack.Items["plugin.quote-curly.ability.taunt"].Ability;
+        Assert.NotNull(crewTaunt);
+        Assert.Equal(30, crewTaunt!.Parameters["healAmount"].GetInt32());
+        Assert.True(crewTaunt.Parameters["healSelfOnly"].GetBoolean());
+        Assert.True(crewTaunt.Parameters["moneyBurst"].GetBoolean());
         Assert.True(pack.Classes.TryGetValue("plugin.quote-curly.ranger", out var rangerClass));
         Assert.Equal(string.Empty, rangerClass!.Runtime?.PlayerClass);
         Assert.Equal("Scout", rangerClass.Runtime?.BasePlayerClass);
@@ -1273,7 +1534,7 @@ public sealed class GameplayModPackLoaderTests
         Assert.DoesNotContain("ability.umbrella", registry.GetDefaultLoadout(PlayerClass.Quote).Abilities);
         Assert.Contains("ability.umbrella", registry.GetRequiredItem("weapon.umbrella").GrantedAbilityItemIds);
         Assert.Contains("ability.civilian-pogo", registry.GetDefaultLoadout(PlayerClass.Quote).Abilities);
-        Assert.Equal("Quote/Curly", registry.GetClassDefinition("plugin.quote-curly.quote").DisplayName);
+        Assert.Equal("Crewmate", registry.GetClassDefinition("plugin.quote-curly.quote").DisplayName);
         Assert.Equal("plugin.quote-curly.weapon.blade", registry.GetDefaultLoadout("plugin.quote-curly.quote").PrimaryItemId);
     }
 
@@ -1338,6 +1599,32 @@ public sealed class GameplayModPackLoaderTests
 
         Assert.Single(world.Blades);
         Assert.Equal(1, player.QuoteBladesOut);
+    }
+
+    [Fact]
+    public void PackagedCrewmateUseAbilityTauntUsesTheSameSelfHealAndMoneyBurst()
+    {
+        EnsureQuoteCurlyGameplayPackRegistered();
+
+        var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
+        world.PrepareLocalPlayerJoin();
+        world.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.CompleteLocalPlayerJoin("plugin.quote-curly.quote");
+        var player = world.LocalPlayer;
+        var startingHealth = player.MaxHealth - 40;
+        player.ForceSetHealth(startingHealth);
+
+        world.SetLocalInput(default(PlayerInputSnapshot) with { UseAbility = true });
+        world.AdvanceOneTick();
+        Assert.True(player.CivvieTauntHealPending);
+
+        for (var tick = 0; tick < 40 && player.CivvieTauntHealPending; tick += 1)
+        {
+            world.AdvanceOneTick();
+        }
+
+        Assert.Equal(startingHealth + 30, player.Health);
+        Assert.Single(world.PendingVisualEvents.Where(static e => e.EffectName == "CivvieMoneyBurst"));
     }
 
     private static void EnsureQuoteCurlyGameplayPackRegistered()

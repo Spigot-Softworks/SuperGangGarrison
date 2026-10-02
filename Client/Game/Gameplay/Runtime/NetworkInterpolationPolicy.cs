@@ -6,6 +6,62 @@ namespace OpenGarrison.Client;
 
 internal static class NetworkInterpolationPolicy
 {
+    /// <summary>Weight of each new snapshot when filtering the server clock offset.</summary>
+    public const double ServerClockOffsetFilterAlpha = 0.05d;
+
+    /// <summary>Offset change treated as a timeline reset (reconnect, map change) rather than jitter.</summary>
+    public const double ServerClockOffsetResetThresholdSeconds = 0.1d;
+
+    /// <summary>How far the filtered estimate may trail the latest-snapshot anchor before it is pulled in.</summary>
+    public const double ServerClockMaxBehindAnchorSeconds = 0.05d;
+
+    /// <summary>
+    /// Filters the offset between the server timeline and the local clock.
+    /// </summary>
+    /// <remarks>
+    /// Snapshots are timestamped when the frame that processes them runs, so
+    /// each raw offset sample carries up to a frame of quantization plus network
+    /// jitter. Re-anchoring the estimated server time on every snapshot makes
+    /// the render clock chase a sawtooth and speed up and slow down by roughly
+    /// 20% frame to frame, which reads as uneven motion of remote players and
+    /// projectiles. A slow average keeps the estimate advancing with the local
+    /// clock while still following real drift.
+    /// </remarks>
+    public static double FilterServerClockOffset(bool hasFilteredOffset, double filteredOffsetSeconds, double sampleOffsetSeconds)
+    {
+        if (!double.IsFinite(sampleOffsetSeconds))
+        {
+            return filteredOffsetSeconds;
+        }
+
+        if (!hasFilteredOffset
+            || !double.IsFinite(filteredOffsetSeconds)
+            || Math.Abs(sampleOffsetSeconds - filteredOffsetSeconds) > ServerClockOffsetResetThresholdSeconds)
+        {
+            return sampleOffsetSeconds;
+        }
+
+        return filteredOffsetSeconds + ((sampleOffsetSeconds - filteredOffsetSeconds) * ServerClockOffsetFilterAlpha);
+    }
+
+    /// <summary>
+    /// Estimated server time from the filtered offset, bounded by the newest
+    /// snapshot so it never extrapolates past the anchor's headroom and never
+    /// trails it far enough to delay presentation.
+    /// </summary>
+    public static double EstimateServerTimeSeconds(
+        double clockSeconds,
+        double filteredOffsetSeconds,
+        double latestSnapshotServerTimeSeconds,
+        double anchoredEstimateSeconds,
+        double extrapolationHeadroomSeconds)
+    {
+        var filteredEstimate = clockSeconds + filteredOffsetSeconds;
+        var upperBound = latestSnapshotServerTimeSeconds + extrapolationHeadroomSeconds;
+        var lowerBound = Math.Min(upperBound, anchoredEstimateSeconds - ServerClockMaxBehindAnchorSeconds);
+        return Math.Clamp(filteredEstimate, lowerBound, upperBound);
+    }
+
     public static bool IsSourceFrameReady(ulong sourceFrame, int tickRate, double renderTimeSeconds)
         => sourceFrame == 0 || sourceFrame / (double)Math.Max(1, tickRate) <= renderTimeSeconds;
 

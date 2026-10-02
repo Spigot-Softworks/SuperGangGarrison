@@ -414,7 +414,7 @@ public partial class Game1
                 renderState.PreviousCooldownTicks,
                 currentCooldownTicks);
         }
-        if (presentationPlayer.ClassId == PlayerClass.Quote && !_networkClient.IsLegacyGg2Connection)
+        if (presentationPlayer.IsQuoteCurly && !_networkClient.IsLegacyGg2Connection)
         {
             // Quote's bubble and blade actions share cooldown/ammo state. Only
             // a new bubble may start the primary recoil presentation; blade
@@ -507,7 +507,7 @@ public partial class Game1
         if (shotStarted)
         {
             renderState.ReloadAnimationCompleted = false;
-            var suppressRecoilForOpenUmbrella = player.ClassId == PlayerClass.Quote && GetPlayerIsCivvieUmbrellaActive(player);
+            var suppressRecoilForOpenUmbrella = player.IsCivilian && GetPlayerIsCivvieUmbrellaActive(player);
             if (useScopedRecoilSprite)
             {
                 StartWeaponAnimation(renderState, WeaponAnimationMode.ScopedRecoil, weaponRenderDefinition.ScopedRecoilDurationSeconds);
@@ -863,7 +863,7 @@ public partial class Game1
 
     private static bool UpdateCivvieUmbrellaWeaponAnimationState(PlayerEntity player, PlayerRenderState renderState, bool isCivvieUmbrellaActive)
     {
-        if (player.ClassId != PlayerClass.Quote
+        if (!player.IsCivilian
             || !player.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.CivvieUmbrella))
         {
             renderState.PreviousCivvieUmbrellaActive = false;
@@ -1813,7 +1813,7 @@ public partial class Game1
         int currentReloadTicks,
         int currentCooldownTicks)
     {
-        if (player.ClassId == PlayerClass.Quote
+        if (player.IsCivilian
             && GetPlayerIsCivvieUmbrellaActive(player)
             && player.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.CivvieUmbrella))
         {

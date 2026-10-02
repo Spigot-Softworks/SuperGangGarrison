@@ -13,11 +13,11 @@ public sealed partial class SimulationWorld
 
         if (bypass)
         {
-            _networkPlayerMapSpawnClassBehaviorBypassSlots.Add(slot);
+            PlayerRegistry.MapSpawnClassBehaviorBypassSlots.Add(slot);
         }
         else
         {
-            _networkPlayerMapSpawnClassBehaviorBypassSlots.Remove(slot);
+            PlayerRegistry.MapSpawnClassBehaviorBypassSlots.Remove(slot);
         }
     }
 
@@ -104,7 +104,7 @@ public sealed partial class SimulationWorld
 
     private bool ShouldApplyMapSpawnClassBehaviorToSlot(byte slot) =>
         IsPlayableNetworkPlayerSlot(slot)
-        && !_networkPlayerMapSpawnClassBehaviorBypassSlots.Contains(slot);
+        && !PlayerRegistry.MapSpawnClassBehaviorBypassSlots.Contains(slot);
 
     private CharacterClassDefinition ResolveMapForcedClassDefinition(byte slot, CharacterClassDefinition requested)
     {

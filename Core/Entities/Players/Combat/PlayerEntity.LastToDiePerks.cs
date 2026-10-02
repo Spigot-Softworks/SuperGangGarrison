@@ -225,6 +225,7 @@ public sealed partial class PlayerEntity
             {
                 IsTaunting = false;
                 TauntFrameIndex = 0f;
+                ClearPendingCivvieTauntHeal();
             }
         }
 

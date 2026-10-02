@@ -14,11 +14,36 @@ public partial class Game1
 {
     public void ProcessNetworkMessages()
     {
+        _resolvedBatchSnapshotsByFrame.Clear();
+        _resolvedBatchSnapshots.Clear();
+        try
+        {
+            ProcessNetworkMessagesCore();
+        }
+        finally
+        {
+            // Snapshot batches hold the full resolved entity graphs while the
+            // receive pump resolves chained deltas. Release those references
+            // promptly even when handling another message throws.
+            _resolvedBatchSnapshotsByFrame.Clear();
+            _resolvedBatchSnapshots.Clear();
+        }
+    }
+
+    private void ProcessNetworkMessagesCore()
+    {
         UpdateGameplayAccountAttach();
         var suppressReplayCatchUpEvents = _replaySeekCatchUpActive;
         UpdatePendingNetworkMapSync();
         var processStartTimestamp = _networkDiagnosticsEnabled ? Stopwatch.GetTimestamp() : 0L;
+        var networkReceiveStartTimestamp = ShouldMeasureClientPerformanceDurations() ? Stopwatch.GetTimestamp() : 0L;
         var messages = _networkClient.ReceiveMessages();
+        if (networkReceiveStartTimestamp > 0L)
+        {
+            RecordClientPerformanceMetric(
+                ClientPerformanceMetric.NetworkReceive,
+                GetDiagnosticsElapsedMilliseconds(networkReceiveStartTimestamp));
+        }
         UpdateLegacyGg2TeamRequest();
         CaptureProtocol64RemovedProjectilePresentationEntities(
             _networkClient.Protocol64State.RemovedProjectileLifecycles,
@@ -33,8 +58,7 @@ public partial class Game1
 
         var latestBufferedSnapshotFrame = Math.Max(_gameplayManager.NetworkPresentation.LastAppliedSnapshotFrame, _gameplayManager.NetworkPresentation.LastBufferedSnapshotFrame);
         SnapshotMessage? latestResolvedSnapshot = null;
-        Dictionary<ulong, SnapshotBaselineState>? resolvedBatchSnapshotsByFrame = null;
-        List<ResolvedSnapshotEntry>? resolvedBatchSnapshots = null;
+        var networkResolveStartTimestamp = ShouldMeasureClientPerformanceDurations() ? Stopwatch.GetTimestamp() : 0L;
         foreach (var message in messages)
         {
             RecordNetworkMessageProcessed(message);
@@ -124,17 +148,23 @@ public partial class Game1
                         snapshot,
                         ref latestBufferedSnapshotFrame,
                         ref latestResolvedSnapshot,
-                        ref resolvedBatchSnapshotsByFrame,
-                        ref resolvedBatchSnapshots);
+                        _resolvedBatchSnapshotsByFrame,
+                        _resolvedBatchSnapshots);
                     break;
             }
         }
 
         ObserveNetworkPresentationPhaseTransition();
 
-        if (latestResolvedSnapshot is not null && resolvedBatchSnapshots is not null)
+        if (latestResolvedSnapshot is not null && _resolvedBatchSnapshots.Count > 0)
         {
-            FinalizeResolvedSnapshotBatch(latestResolvedSnapshot, resolvedBatchSnapshots);
+            FinalizeResolvedSnapshotBatch(latestResolvedSnapshot, _resolvedBatchSnapshots);
+        }
+        if (networkResolveStartTimestamp > 0L)
+        {
+            RecordClientPerformanceMetric(
+                ClientPerformanceMetric.NetworkResolve,
+                GetDiagnosticsElapsedMilliseconds(networkResolveStartTimestamp));
         }
 
         ApplyQueuedAuthoritativeSnapshots();

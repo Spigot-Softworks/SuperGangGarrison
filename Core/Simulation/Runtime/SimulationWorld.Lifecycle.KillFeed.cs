@@ -4,19 +4,7 @@ public sealed partial class SimulationWorld
 {
     private void AdvanceKillFeed()
     {
-        if (_killFeed.Count == 0)
-        {
-            return;
-        }
-
-        _killFeedEntryLifetimes[0] -= 1;
-        if (_killFeedEntryLifetimes[0] > 0)
-        {
-            return;
-        }
-
-        _killFeed.RemoveAt(0);
-        _killFeedEntryLifetimes.RemoveAt(0);
+        PresentationEvents.AdvanceKillFeed();
     }
 
     private void RecordKillFeedEntry(
@@ -48,7 +36,7 @@ public sealed partial class SimulationWorld
                 KillerPlayerId: -1,
                 VictimPlayerId: victim.Id,
                 SpecialType: specialType,
-                EventId: _nextKillFeedEventId++)
+                EventId: PresentationEvents.AllocateKillFeedEventId())
             : new KillFeedEntry(
                 killer.DisplayName,
                 killer.Team,
@@ -61,52 +49,15 @@ public sealed partial class SimulationWorld
                 KillerPlayerId: killer.Id,
                 VictimPlayerId: victim.Id,
                 SpecialType: specialType,
-                EventId: _nextKillFeedEventId++);
+                EventId: PresentationEvents.AllocateKillFeedEventId());
         if (assistingPlayer is not null && killer is not null && !isSelfKill)
             entry = entry with { AssistName = assistingPlayer.DisplayName, AssistTeam = assistingPlayer.Team, AssistPlayerId = assistingPlayer.Id };
         AppendKillFeedEntry(entry);
     }
 
-    private bool ShouldSuppressDuplicateKillFeedEntry(KillFeedEntry entry)
-    {
-        if (_killFeed.Count == 0 || _lastKillFeedRecordedFrame != Frame)
-        {
-            return false;
-        }
-
-        var previousEntry = _killFeed[^1];
-        return previousEntry.AssistName == entry.AssistName
-            && previousEntry.AssistTeam == entry.AssistTeam
-            && previousEntry.AssistPlayerId == entry.AssistPlayerId
-            && previousEntry.KillerName == entry.KillerName
-            && previousEntry.KillerTeam == entry.KillerTeam
-            && previousEntry.WeaponSpriteName == entry.WeaponSpriteName
-            && previousEntry.VictimName == entry.VictimName
-            && previousEntry.VictimTeam == entry.VictimTeam
-            && previousEntry.MessageText == entry.MessageText
-            && previousEntry.MessageHighlightStart == entry.MessageHighlightStart
-            && previousEntry.MessageHighlightLength == entry.MessageHighlightLength
-            && previousEntry.KillerPlayerId == entry.KillerPlayerId
-            && previousEntry.VictimPlayerId == entry.VictimPlayerId
-            && KillFeedInvolvedPlayerIdsEqual(previousEntry.InvolvedPlayerIds, entry.InvolvedPlayerIds)
-            && previousEntry.SpecialType == entry.SpecialType;
-    }
-
     private void AppendKillFeedEntry(KillFeedEntry entry)
     {
-        if (ShouldSuppressDuplicateKillFeedEntry(entry))
-        {
-            return;
-        }
-
-        _killFeed.Add(entry);
-        _killFeedEntryLifetimes.Add(KillFeedLifetimeTicks);
-        _lastKillFeedRecordedFrame = Frame;
-        if (_killFeed.Count > 5)
-        {
-            _killFeed.RemoveAt(0);
-            _killFeedEntryLifetimes.RemoveAt(0);
-        }
+        PresentationEvents.AppendKillFeedEntry(entry, Frame, KillFeedLifetimeTicks);
     }
 
     private void RecordObjectiveLogEntry(
@@ -129,7 +80,7 @@ public sealed partial class SimulationWorld
             playerId,
             -1,
             KillFeedSpecialType.None,
-            _nextKillFeedEventId++)
+            PresentationEvents.AllocateKillFeedEventId())
         {
             InvolvedPlayerIds = involvedPlayerIds is null
                 ? Array.Empty<int>()
@@ -157,7 +108,7 @@ public sealed partial class SimulationWorld
             player.Id,
             -1,
             KillFeedSpecialType.None,
-            _nextKillFeedEventId++));
+            PresentationEvents.AllocateKillFeedEventId()));
     }
 
     private void RecordControlPointCapturedObjectiveLog(PlayerTeam team, IReadOnlyCollection<int> capperIds)
@@ -178,24 +129,6 @@ public sealed partial class SimulationWorld
             "defended the point!",
             team == PlayerTeam.Blue ? "BlueDefenseS" : "RedDefenseS",
             involvedPlayerIds: defenderIds);
-    }
-
-    private static bool KillFeedInvolvedPlayerIdsEqual(IReadOnlyList<int> left, IReadOnlyList<int> right)
-    {
-        if (left.Count != right.Count)
-        {
-            return false;
-        }
-
-        for (var index = 0; index < left.Count; index += 1)
-        {
-            if (left[index] != right[index])
-            {
-                return false;
-            }
-        }
-
-        return true;
     }
 
     private void RecordIntelPickedUpObjectiveLog(PlayerEntity player)
@@ -311,6 +244,6 @@ public sealed partial class SimulationWorld
             return "DeadKL";
         }
 
-        return CharacterClassCatalog.GetPrimaryWeaponKillFeedSprite(attacker.ClassId);
+        return CharacterClassCatalog.GetPrimaryWeaponKillFeedSprite(attacker.GameplayClassId);
     }
 }

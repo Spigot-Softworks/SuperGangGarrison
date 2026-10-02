@@ -8,32 +8,6 @@ public sealed partial class SimulationWorld
     private static readonly object _presentationSpriteAssetCacheSync = new();
     private static readonly Dictionary<string, GameMakerSpriteAsset> _resolvedPresentationSpriteAssets = new(StringComparer.OrdinalIgnoreCase);
     private static readonly HashSet<string> _missingPresentationSpriteAssets = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<int, PresentationHitBoundsCacheEntry> _presentationHitBoundsCache = new();
-    private long _presentationHitBoundsCacheFrame = long.MinValue;
-
-    private readonly record struct PresentationHitBoundsCacheKey(
-        float X,
-        float Y,
-        float HorizontalSpeed,
-        float VerticalSpeed,
-        float PlayerScale,
-        PlayerClass ClassId,
-        PlayerTeam Team,
-        bool IsAlive,
-        bool IsGrounded,
-        bool IsHeavyEating,
-        bool IsTaunting,
-        bool IsSniperScoped,
-        bool IsSourceFacingLeft,
-        bool IsCarryingIntel,
-        bool IsHumiliated);
-
-    private readonly record struct PresentationHitBoundsCacheEntry(
-        PresentationHitBoundsCacheKey Key,
-        float Left,
-        float Top,
-        float Right,
-        float Bottom);
 
     private static void GetPlayerPresentationHitBounds(
         SimulationWorld world,
@@ -58,10 +32,10 @@ public sealed partial class SimulationWorld
         out float right,
         out float bottom)
     {
-        if (_presentationHitBoundsCacheFrame != Frame)
+        if (CombatRuntime.PresentationHitBoundsCacheFrame != Frame)
         {
-            _presentationHitBoundsCache.Clear();
-            _presentationHitBoundsCacheFrame = Frame;
+            CombatRuntime.PresentationHitBoundsCache.Clear();
+            CombatRuntime.PresentationHitBoundsCacheFrame = Frame;
         }
 
         var key = new PresentationHitBoundsCacheKey(
@@ -71,6 +45,7 @@ public sealed partial class SimulationWorld
             player.VerticalSpeed,
             player.PlayerScale,
             player.ClassId,
+            player.GameplayClassId,
             player.Team,
             player.IsAlive,
             player.IsGrounded,
@@ -80,7 +55,7 @@ public sealed partial class SimulationWorld
             player.IsSourceFacingLeft,
             player.IsCarryingIntel,
             IsPlayerHumiliated(player));
-        if (_presentationHitBoundsCache.TryGetValue(player.Id, out var cached)
+        if (CombatRuntime.PresentationHitBoundsCache.TryGetValue(player.Id, out var cached)
             && cached.Key.Equals(key))
         {
             left = cached.Left;
@@ -91,7 +66,7 @@ public sealed partial class SimulationWorld
         }
 
         GetPlayerPresentationHitBounds(this, player, out left, out top, out right, out bottom);
-        _presentationHitBoundsCache[player.Id] = new PresentationHitBoundsCacheEntry(
+        CombatRuntime.PresentationHitBoundsCache[player.Id] = new PresentationHitBoundsCacheEntry(
             key,
             left,
             top,
@@ -252,11 +227,63 @@ public sealed partial class SimulationWorld
     {
         if (world.IsPlayerHumiliated(player))
         {
+            if (player.IsQuoteCurly)
+            {
+                return GetGameplayPresentationSpriteName(
+                    player.GameplayClassId,
+                    player.Team,
+                    static presentation => presentation.HumiliationSuffix ?? presentation.BaseSuffix,
+                    "HS");
+            }
+
             return GetPresentationSpriteName(
                 player.ClassId,
                 player.Team,
                 static presentation => presentation.HumiliationSuffix ?? presentation.BaseSuffix,
                 "HS");
+        }
+
+        if (player.IsQuoteCurly)
+        {
+            if (player.IsTaunting)
+            {
+                return GetGameplayPresentationSpriteName(
+                    player.GameplayClassId,
+                    player.Team,
+                    static presentation => presentation.TauntSuffix ?? presentation.BaseSuffix,
+                    "TauntS");
+            }
+
+            var quoteHorizontalSourceStepSpeed = MathF.Abs(player.HorizontalSpeed) / LegacyMovementModel.SourceTicksPerSecond;
+            var quoteAppearsAirborne = !player.IsGrounded;
+            if (quoteAppearsAirborne && HasGroundSupportForPresentation(world, player))
+            {
+                quoteAppearsAirborne = false;
+            }
+
+            if (quoteAppearsAirborne)
+            {
+                return GetGameplayPresentationSpriteName(
+                    player.GameplayClassId,
+                    player.Team,
+                    static presentation => presentation.JumpSuffix ?? presentation.BaseSuffix,
+                    "JumpS");
+            }
+
+            if (quoteHorizontalSourceStepSpeed >= 0.2f)
+            {
+                return GetGameplayPresentationSpriteName(
+                    player.GameplayClassId,
+                    player.Team,
+                    static presentation => presentation.RunSuffix ?? presentation.BaseSuffix,
+                    "RunS");
+            }
+
+            return GetGameplayPresentationSpriteName(
+                player.GameplayClassId,
+                player.Team,
+                static presentation => presentation.BaseSuffix,
+                "S");
         }
 
         if (player.ClassId == PlayerClass.Quote)
@@ -431,6 +458,37 @@ public sealed partial class SimulationWorld
     {
         var presentation = CharacterClassCatalog.RuntimeRegistry.GetClassDefinition(classId).Presentation;
         return GetTeamSpriteName(classId, team, presentation is null ? legacySuffix : suffixSelector(presentation));
+    }
+
+    private static string? GetGameplayPresentationSpriteName(
+        string gameplayClassId,
+        PlayerTeam team,
+        Func<GameplayClassPresentationDefinition, string> suffixSelector,
+        string legacySuffix)
+    {
+        var presentation = CharacterClassCatalog.RuntimeRegistry.GetClassDefinition(gameplayClassId).Presentation;
+        return GetGameplayTeamSpriteName(
+            gameplayClassId,
+            team,
+            presentation is null ? legacySuffix : suffixSelector(presentation));
+    }
+
+    private static string? GetGameplayTeamSpriteName(string gameplayClassId, PlayerTeam team, string suffix)
+    {
+        var prefix = CharacterClassCatalog.RuntimeRegistry.GetClassDefinition(gameplayClassId).Presentation?.SpritePrefix;
+        if (prefix is null)
+        {
+            return null;
+        }
+
+        var teamName = team switch
+        {
+            PlayerTeam.Red => "Red",
+            PlayerTeam.Blue => "Blue",
+            _ => null,
+        };
+
+        return teamName is null ? null : $"{prefix}{teamName}{suffix}";
     }
 
     private static string? GetPresentationFacingSpriteName(

@@ -13,7 +13,9 @@ public partial class Game1
 
     public PlayerSkinDefinition? GetPlayerSkin(PlayerEntity player) =>
         _networkClient.IsLegacyGg2Connection
-            ? null
+            ? player.ClassId == PlayerClass.Quote
+                ? _playerSkins.Value.Find("quote", player.Team)
+                : null
             : _playerSkins.Value.Find(player.GameplayClassId, player.Team);
 
     private BrowserPlayerSkinSnapshot? GetBrowserPlayerSkinSnapshot()
@@ -234,8 +236,21 @@ public partial class Game1
         if (weapon is null) return definition;
         // Match the actual equipped item's presentation, so offhands, acquired weapons,
         // and custom gameplay items retain their own art and attachment points.
-        if (!CharacterClassCatalog.RuntimeRegistry.TryGetItem(weapon.ItemId, out var item)
-            || !ReferenceEquals(presentation, item.Presentation) || presentation.WorldSpriteName != weapon.MatchSprite)
+        var matchesEquippedItem = CharacterClassCatalog.RuntimeRegistry.TryGetItem(weapon.ItemId, out var item)
+            && ReferenceEquals(presentation, item.Presentation);
+        if (!matchesEquippedItem)
+        {
+            foreach (var itemAlias in weapon.ItemAliases)
+            {
+                if (CharacterClassCatalog.RuntimeRegistry.TryGetItem(itemAlias, out var aliasItem)
+                    && ReferenceEquals(presentation, aliasItem.Presentation))
+                {
+                    matchesEquippedItem = true;
+                    break;
+                }
+            }
+        }
+        if (!matchesEquippedItem || presentation.WorldSpriteName != weapon.MatchSprite)
             return definition;
         var offset = skin.Poses[pose].WeaponOffset;
         return definition with
@@ -252,6 +267,7 @@ public partial class Game1
             ReloadSpriteYOffset = 0,
             SingleTeamFrames = true,
             PoseFrameIndex = pose,
+            DrawBehindBody = weapon.DrawBehindBody,
             MuzzleOffset = weapon.Muzzle.Length == 2
                 ? new Vector2(weapon.Muzzle[0] - weapon.Pivot[0], weapon.Muzzle[1] - weapon.Pivot[1]) * skin.PixelScale
                 : null,

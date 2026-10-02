@@ -34,8 +34,24 @@ const practiceLaunchSettleTimeoutMs = Number.parseInt(process.env.OG_BROWSER_PRA
 const gameplayShellTimeoutMs = Number.parseInt(process.env.OG_BROWSER_GAMEPLAY_SHELL_TIMEOUT_MS ?? "20000", 10);
 const practiceSpawnSettleTimeoutMs = Number.parseInt(process.env.OG_BROWSER_PRACTICE_SPAWN_SETTLE_TIMEOUT_MS ?? "15000", 10);
 const gameplayFpsSampleMs = Number.parseInt(process.env.OG_BROWSER_FPS_SAMPLE_MS ?? "5000", 10);
-const minGameplayFps = Number.parseFloat(process.env.OG_BROWSER_MIN_FPS ?? "30");
-const maxPumpDurationMs = Number.parseFloat(process.env.OG_BROWSER_MAX_PUMP_MS ?? "250");
+const requestedTargetFps = Number.parseFloat(process.env.OG_BROWSER_TARGET_FPS ?? "60");
+const fpsTolerance = Number.parseFloat(process.env.OG_BROWSER_FPS_TOLERANCE ?? "3");
+const configuredRefreshRateHz = process.env.OG_BROWSER_REFRESH_RATE_HZ === undefined
+  ? null
+  : Number.parseFloat(process.env.OG_BROWSER_REFRESH_RATE_HZ);
+const configuredMinimumGameplayFps = process.env.OG_BROWSER_MIN_FPS === undefined
+  ? null
+  : Number.parseFloat(process.env.OG_BROWSER_MIN_FPS);
+const configuredP95FrameMs = process.env.OG_BROWSER_P95_FRAME_MS === undefined
+  ? null
+  : Number.parseFloat(process.env.OG_BROWSER_P95_FRAME_MS);
+const configuredP99FrameMs = process.env.OG_BROWSER_P99_FRAME_MS === undefined
+  ? null
+  : Number.parseFloat(process.env.OG_BROWSER_P99_FRAME_MS);
+const configuredMaxFrameMs = process.env.OG_BROWSER_MAX_FRAME_MS === undefined
+  ? null
+  : Number.parseFloat(process.env.OG_BROWSER_MAX_FRAME_MS);
+const maxPumpDurationMs = Number.parseFloat(process.env.OG_BROWSER_MAX_PUMP_MS ?? "50");
 const maxPracticeShellReadyMs = Number.parseInt(process.env.OG_BROWSER_MAX_SHELL_READY_MS ?? "45000", 10);
 const practiceEnemyBots = clampPracticeBotCount(process.env.OG_BROWSER_PRACTICE_ENEMY_BOTS ?? "0");
 const practiceFriendlyBots = clampPracticeBotCount(process.env.OG_BROWSER_PRACTICE_FRIENDLY_BOTS ?? "0");
@@ -112,6 +128,25 @@ try {
     hostSettleTimeoutMs,
     "main menu"
   );
+  const displayRefreshHz = configuredRefreshRateHz ?? await sampleBrowserRefreshRateHz(page);
+  const targetFps = Math.min(requestedTargetFps, displayRefreshHz);
+  const targetFrameMs = 1000 / targetFps;
+  const minGameplayFps = configuredMinimumGameplayFps ?? Math.max(0, targetFps - fpsTolerance);
+  const frameLimits = {
+    minimumFps: minGameplayFps,
+    p95Ms: configuredP95FrameMs ?? targetFrameMs * 1.2,
+    p99Ms: configuredP99FrameMs ?? targetFrameMs * 2,
+    maxMs: configuredMaxFrameMs ?? targetFrameMs * 3
+  };
+  if (!Number.isFinite(displayRefreshHz) || displayRefreshHz <= 0
+    || !Number.isFinite(targetFps) || targetFps <= 0
+    || !Number.isFinite(fpsTolerance) || fpsTolerance < 0
+    || !Object.values(frameLimits).every(Number.isFinite)) {
+    throw new Error(`Invalid browser performance gates: ${JSON.stringify({displayRefreshHz, targetFps, fpsTolerance, frameLimits})}`);
+  }
+  timings.displayRefreshHz = displayRefreshHz;
+  timings.targetFps = targetFps;
+  timings.frameLimits = frameLimits;
   const scenarioResult = scenario === "dedicated"
     ? await runDedicatedScenario(page)
     : await runPracticeScenario(page);
@@ -129,9 +164,24 @@ try {
 
   if (gameplayMetrics.maxPumpDurationMs > maxPumpDurationMs) {
     throw new Error(
-      `Browser gameplay frame pump exceeded the long-frame threshold: ${gameplayMetrics.maxPumpDurationMs.toFixed(1)}ms, ` +
+      `Browser game-pump CPU duration exceeded its limit: ${gameplayMetrics.maxPumpDurationMs.toFixed(1)}ms, ` +
       `expected at most ${maxPumpDurationMs}ms. Metrics: ${JSON.stringify(gameplayMetrics)}`);
   }
+
+  const frameIntervals = gameplayMetrics.recentPumpFrameIntervalsMs;
+  if (!frameIntervals || frameIntervals.sampleCount <= 0) {
+    throw new Error(`Browser game pump exposed no completed-frame intervals: ${JSON.stringify(gameplayMetrics)}`);
+  }
+
+  if (frameIntervals.p95 > frameLimits.p95Ms
+    || frameIntervals.p99 > frameLimits.p99Ms
+    || frameIntervals.max > frameLimits.maxMs) {
+    throw new Error(
+      `Browser completed game-pump cadence missed its ${targetFps}Hz timing gates: ` +
+      `${JSON.stringify({frameIntervals, frameLimits, displayRefreshHz, gameplayMetrics})}`);
+  }
+
+  console.log(`Completed game-pump intervals: ${JSON.stringify({frameIntervals, frameLimits, displayRefreshHz})}`);
 
   if (scenarioResult.performanceSnapshot) {
     console.log(`Performance snapshot: ${JSON.stringify(scenarioResult.performanceSnapshot)}`);
@@ -882,6 +932,28 @@ function isGameplayShellReady(state) {
 async function sampleBrowserMetrics(page, durationMs) {
   await delay(durationMs);
   return await page.evaluate(() => globalThis.OpenGarrisonBrowserHost?.getMetrics?.() ?? null);
+}
+
+async function sampleBrowserRefreshRateHz(page) {
+  return await page.evaluate(async () => await new Promise(resolvePromise => {
+    const intervals = [];
+    let previous = null;
+    const startedAt = performance.now();
+    function frame(timestamp) {
+      if (previous !== null) intervals.push(timestamp - previous);
+      previous = timestamp;
+      if (performance.now() - startedAt >= 1200) {
+        intervals.sort((left, right) => left - right);
+        const fastRepresentative = intervals[Math.floor((intervals.length - 1) * 0.1)];
+        resolvePromise(fastRepresentative > 0 ? Math.round(1000 / fastRepresentative) : 60);
+        return;
+      }
+
+      requestAnimationFrame(frame);
+    }
+
+    requestAnimationFrame(frame);
+  }));
 }
 
 async function samplePerformanceSnapshot(page) {

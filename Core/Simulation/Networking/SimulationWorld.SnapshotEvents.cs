@@ -13,11 +13,11 @@ public sealed partial class SimulationWorld
 
     private void ApplySnapshotCombatTraces(IReadOnlyList<SnapshotCombatTraceState> combatTraces)
     {
-        _combatTraces.Clear();
+        PresentationEvents.ClearCombatTraces();
         for (var traceIndex = 0; traceIndex < combatTraces.Count; traceIndex += 1)
         {
             var trace = combatTraces[traceIndex];
-            _combatTraces.Add(new CombatTrace(
+            PresentationEvents.AddCombatTrace(new CombatTrace(
                 trace.StartX,
                 trace.StartY,
                 trace.EndX,
@@ -32,11 +32,11 @@ public sealed partial class SimulationWorld
 
     private void ApplySnapshotSniperAimIndicators(IReadOnlyList<SnapshotSniperAimIndicatorState> indicators)
     {
-        _sniperAimIndicators.Clear();
+        PresentationEvents.ClearSniperAimIndicators();
         for (var index = 0; index < indicators.Count; index += 1)
         {
             var indicator = indicators[index];
-            _sniperAimIndicators.Add(new SniperAimIndicator(
+            PresentationEvents.AddSniperAimIndicator(new SniperAimIndicator(
                 indicator.SniperPlayerId,
                 indicator.X,
                 indicator.Y,
@@ -58,12 +58,12 @@ public sealed partial class SimulationWorld
             // window already handles delivery; this queue only needs to retain
             // each authoritative event until the client consumes it.
             if (soundEvent.EventId != 0
-                && _pendingSoundEvents.Exists(pending => pending.EventId == soundEvent.EventId))
+                && PresentationEvents.ContainsSoundEvent(soundEvent.EventId))
             {
                 continue;
             }
 
-            _pendingSoundEvents.Add(new WorldSoundEvent(
+            PresentationEvents.AddSoundEvent(new WorldSoundEvent(
                 soundEvent.SoundName,
                 soundEvent.X,
                 soundEvent.Y,

@@ -16,7 +16,7 @@ public sealed partial class PlayerEntity
         int durationTicks = CivviePogoTrickDurationTicksDefault)
     {
         if (!IsAlive
-            || ClassId != PlayerClass.Quote
+            || !IsCivilian
             || !CanPerformCivviePogoTrick
             || CivviePogoTrickInputReleaseRequired
             || IsCivviePogoTrickActive)
@@ -61,7 +61,7 @@ public sealed partial class PlayerEntity
         int crunchDurationTicks = CivviePogoCrunchDurationTicksDefault)
     {
         if (!IsAlive
-            || ClassId != PlayerClass.Quote
+            || !IsCivilian
             || !HasUtilityBehavior(BuiltInGameplayBehaviorIds.CivviePogo)
             || IsTaunting
             || IsHeavyEating

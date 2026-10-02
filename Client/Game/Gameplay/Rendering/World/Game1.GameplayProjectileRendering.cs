@@ -12,6 +12,10 @@ public partial class Game1
 {
     public const float MedicBeamPresentationMaxDistance = 300f;
     public const float DispenserBeamPresentationMaxDistance = 75f;
+    private readonly System.Collections.Generic.Dictionary<(int, int), float> _normalFlameRenderCells = new();
+    private readonly System.Collections.Generic.Dictionary<(int, int), float> _criticalBlueFlameRenderCells = new();
+    private readonly System.Collections.Generic.Dictionary<(int, int), float> _criticalRedFlameRenderCells = new();
+    private readonly System.Collections.Generic.Dictionary<(int, int), float> _flareParticleRenderCells = new();
 
     public Color ResolveProjectileTint(PlayerTeam team, Color blueColor, Color redColor, Color neutralColor)
     {
@@ -912,7 +916,7 @@ public partial class Game1
         return true;
     }
 
-    private void DrawGameplayEffectsAndProjectiles(Vector2 cameraPosition)
+    private void DrawGameplayEffectsAndProjectiles(Vector2 cameraPosition, int viewportWidth, int viewportHeight)
     {
         WriteGameplayRenderTrace("effects before explosions");
         DrawExplosionVisuals(cameraPosition);
@@ -985,7 +989,7 @@ public partial class Game1
         if (_gameplayManager.RuntimeSettings.FlameRenderMode == 0)
         {
             WriteGameplayRenderTrace("effects before procedural-flames");
-            DrawFlameProjectiles(cameraPosition);
+            DrawFlameProjectiles(cameraPosition, viewportWidth, viewportHeight);
         }
         else
         {
@@ -999,7 +1003,7 @@ public partial class Game1
         WriteGameplayRenderTrace("effects before flares-rockets");
         foreach (var flare in _world.Flares)
         {
-            DrawFlareProjectile(flare, cameraPosition);
+            DrawFlareProjectile(flare, cameraPosition, viewportWidth, viewportHeight);
         }
 
         foreach (var rocket in _world.Rockets)
@@ -1007,7 +1011,7 @@ public partial class Game1
             DrawRocketProjectile(rocket, cameraPosition);
         }
 
-        DrawRetainedTerminalProjectileVisuals(cameraPosition);
+        DrawRetainedTerminalProjectileVisuals(cameraPosition, viewportWidth, viewportHeight);
 
         if (_gameplayManager.RuntimeSettings.ParticleMode != 1)
         {
@@ -1338,22 +1342,28 @@ public partial class Game1
     // Custom procedural flame particle
     // -----------------------------------------------------------------------
 
-    private void DrawFlameProjectiles(Vector2 cameraPosition)
+    private void DrawFlameProjectiles(Vector2 cameraPosition, int viewportWidth, int viewportHeight)
     {
-        var normalCells = new System.Collections.Generic.Dictionary<(int, int), float>();
-        var criticalBlueCells = new System.Collections.Generic.Dictionary<(int, int), float>();
-        var criticalRedCells = new System.Collections.Generic.Dictionary<(int, int), float>();
+        var normalCells = _normalFlameRenderCells;
+        var criticalBlueCells = _criticalBlueFlameRenderCells;
+        var criticalRedCells = _criticalRedFlameRenderCells;
+        normalCells.Clear();
+        criticalBlueCells.Clear();
+        criticalRedCells.Clear();
+        var visibleCellBounds = TryGetVisibleFlameCellBounds(cameraPosition, viewportWidth, viewportHeight, out var bounds)
+            ? bounds
+            : (FlameCellBounds?)null;
 
         foreach (var flame in _world.Flames)
         {
             if (flame.IsCritical)
             {
                 var critCells = flame.Team == PlayerTeam.Blue ? criticalBlueCells : criticalRedCells;
-                AccumulateFlameParticle(critCells, flame);
+                AccumulateFlameParticle(critCells, flame, visibleCellBounds);
             }
             else
             {
-                AccumulateFlameParticle(normalCells, flame);
+                AccumulateFlameParticle(normalCells, flame, visibleCellBounds);
             }
         }
 
@@ -1492,20 +1502,55 @@ public partial class Game1
 
     private void AccumulateFlameParticle(
         System.Collections.Generic.Dictionary<(int, int), float> cells,
-        FlameProjectileEntity flame)
+        FlameProjectileEntity flame,
+        FlameCellBounds? visibleCellBounds = null)
     {
         var renderPosition = GetRenderPosition(flame.Id, flame.X, flame.Y);
         var scale = GetFlameProjectileScale(flame);
-        AccumulateProceduralFlameParticle(
-            cells,
-            flame.Id,
-            renderPosition.X,
-            renderPosition.Y,
-            scale,
-            alphaScale: 1f,
-            motionX: flame.VelocityX,
-            motionY: flame.VelocityY,
-            trajectoryStretch: 1.5f);
+        if (visibleCellBounds is { } cellBounds)
+        {
+            AccumulateProceduralFlameParticleWithinBounds(
+                cells,
+                flame.Id,
+                renderPosition.X,
+                renderPosition.Y,
+                scale,
+                alphaScale: 1f,
+                motionX: flame.VelocityX,
+                motionY: flame.VelocityY,
+                trajectoryStretch: 1.5f,
+                includeHornAccent: false,
+                visibleCellBounds: cellBounds);
+        }
+        else
+        {
+            AccumulateProceduralFlameParticle(
+                cells,
+                flame.Id,
+                renderPosition.X,
+                renderPosition.Y,
+                scale,
+                alphaScale: 1f,
+                motionX: flame.VelocityX,
+                motionY: flame.VelocityY,
+                trajectoryStretch: 1.5f);
+        }
+    }
+
+    private bool TryGetVisibleFlameCellBounds(
+        Vector2 cameraPosition,
+        int viewportWidth,
+        int viewportHeight,
+        out FlameCellBounds bounds)
+    {
+        var worldViewport = GetGameplayWorldViewport(viewportWidth, viewportHeight);
+        return FlameCellBounds.TryCreateForWorldRectangle(
+            cameraPosition.X,
+            cameraPosition.Y,
+            cameraPosition.X + worldViewport.X,
+            cameraPosition.Y + worldViewport.Y,
+            haloCells: 1,
+            out bounds);
     }
 
     public void AccumulateProceduralFlameParticle(
@@ -1519,6 +1564,60 @@ public partial class Game1
         float motionY = 0f,
         float trajectoryStretch = 1f,
         bool includeHornAccent = false)
+    {
+        AccumulateProceduralFlameParticleCore(
+            cells,
+            seed,
+            centerX,
+            centerY,
+            scale,
+            alphaScale,
+            motionX,
+            motionY,
+            trajectoryStretch,
+            includeHornAccent,
+            visibleCellBounds: null);
+    }
+
+    internal void AccumulateProceduralFlameParticleWithinBounds(
+        System.Collections.Generic.Dictionary<(int, int), float> cells,
+        int seed,
+        float centerX,
+        float centerY,
+        float scale,
+        float alphaScale,
+        float motionX,
+        float motionY,
+        float trajectoryStretch,
+        bool includeHornAccent,
+        FlameCellBounds visibleCellBounds)
+    {
+        AccumulateProceduralFlameParticleCore(
+            cells,
+            seed,
+            centerX,
+            centerY,
+            scale,
+            alphaScale,
+            motionX,
+            motionY,
+            trajectoryStretch,
+            includeHornAccent,
+            visibleCellBounds);
+    }
+
+    private void AccumulateProceduralFlameParticleCore(
+        System.Collections.Generic.Dictionary<(int, int), float> cells,
+        int seed,
+        float centerX,
+        float centerY,
+        float scale,
+        float alphaScale,
+        float motionX,
+        float motionY,
+        float trajectoryStretch,
+        bool includeHornAccent,
+        FlameCellBounds? visibleCellBounds)
     {
         const float cellSize = 2f;
 
@@ -1646,6 +1745,23 @@ public partial class Game1
         var maxGX = (int)MathF.Floor(maxX / cellSize);
         var minGY = (int)MathF.Floor(minY / cellSize);
         var maxGY = (int)MathF.Floor(maxY / cellSize);
+
+        if (visibleCellBounds is { } cellBounds)
+        {
+            if (cellBounds.IsEmpty)
+            {
+                return;
+            }
+
+            minGX = Math.Max(minGX, cellBounds.MinGridX);
+            maxGX = Math.Min(maxGX, cellBounds.MaxGridX);
+            minGY = Math.Max(minGY, cellBounds.MinGridY);
+            maxGY = Math.Min(maxGY, cellBounds.MaxGridY);
+            if (minGX > maxGX || minGY > maxGY)
+            {
+                return;
+            }
+        }
 
         // Noise seed: unique per flame, stable across frames (no temporal shimmer).
         var noiseSeed = seed * 1234567 ^ 0x5EED_ABCD;
@@ -1900,7 +2016,7 @@ public partial class Game1
         }
     }
 
-    private void DrawFlareProjectile(FlareProjectileEntity flare, Vector2 cameraPosition)
+    private void DrawFlareProjectile(FlareProjectileEntity flare, Vector2 cameraPosition, int viewportWidth, int viewportHeight)
     {
         if (flare.IsDragonRageSlug)
         {
@@ -1910,7 +2026,7 @@ public partial class Game1
 
         if (_gameplayManager.RuntimeSettings.FlameRenderMode == 0)
         {
-            DrawFlareProjectileAsParticle(flare, cameraPosition);
+            DrawFlareProjectileAsParticle(flare, cameraPosition, viewportWidth, viewportHeight);
             return;
         }
 
@@ -1994,30 +2110,53 @@ public partial class Game1
             layerDepth: 0f);
     }
 
-    private void DrawFlareProjectileAsParticle(FlareProjectileEntity flare, Vector2 cameraPosition)
+    private void DrawFlareProjectileAsParticle(FlareProjectileEntity flare, Vector2 cameraPosition, int viewportWidth, int viewportHeight)
     {
-        var cells = new System.Collections.Generic.Dictionary<(int, int), float>();
-        AccumulateFlareParticle(cells, flare);
+        var cells = _flareParticleRenderCells;
+        cells.Clear();
+        var visibleCellBounds = TryGetVisibleFlameCellBounds(cameraPosition, viewportWidth, viewportHeight, out var bounds)
+            ? bounds
+            : (FlameCellBounds?)null;
+        AccumulateFlareParticle(cells, flare, visibleCellBounds);
         DrawProceduralFlameCells(cells, cameraPosition, useFlareColors: !flare.IsCritical, useCriticalColors: flare.IsCritical, criticalTeam: flare.Team);
     }
 
     private void AccumulateFlareParticle(
         System.Collections.Generic.Dictionary<(int, int), float> cells,
-        FlareProjectileEntity flare)
+        FlareProjectileEntity flare,
+        FlameCellBounds? visibleCellBounds = null)
     {
         var renderPosition = GetRenderPosition(flare.Id, flare.X, flare.Y);
         var scale = GetFlareProjectileScale(flare);
-        AccumulateProceduralFlameParticle(
-            cells,
-            flare.Id,
-            renderPosition.X,
-            renderPosition.Y,
-            scale,
-            alphaScale: 1f,
-            motionX: flare.VelocityX,
-            motionY: flare.VelocityY,
-            trajectoryStretch: 1.65f,
-            includeHornAccent: true);
+        if (visibleCellBounds is { } cellBounds)
+        {
+            AccumulateProceduralFlameParticleWithinBounds(
+                cells,
+                flare.Id,
+                renderPosition.X,
+                renderPosition.Y,
+                scale,
+                alphaScale: 1f,
+                motionX: flare.VelocityX,
+                motionY: flare.VelocityY,
+                trajectoryStretch: 1.65f,
+                includeHornAccent: true,
+                visibleCellBounds: cellBounds);
+        }
+        else
+        {
+            AccumulateProceduralFlameParticle(
+                cells,
+                flare.Id,
+                renderPosition.X,
+                renderPosition.Y,
+                scale,
+                alphaScale: 1f,
+                motionX: flare.VelocityX,
+                motionY: flare.VelocityY,
+                trajectoryStretch: 1.65f,
+                includeHornAccent: true);
+        }
     }
 
     private static float GetFlareProjectileScale(FlareProjectileEntity flare)
@@ -2093,11 +2232,11 @@ public partial class Game1
         return team == PlayerTeam.Blue ? 1 : 0;
     }
 
-    private void DrawRetainedTerminalProjectileVisuals(Vector2 cameraPosition)
+    private void DrawRetainedTerminalProjectileVisuals(Vector2 cameraPosition, int viewportWidth, int viewportHeight)
     {
         foreach (var flare in _retainedFlarePresentationEntities.Values)
         {
-            DrawFlareProjectile(flare, cameraPosition);
+            DrawFlareProjectile(flare, cameraPosition, viewportWidth, viewportHeight);
         }
 
         foreach (var rocket in _retainedRocketPresentationEntities.Values)

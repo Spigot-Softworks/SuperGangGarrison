@@ -58,7 +58,10 @@ public partial class Game1
     public int ConsumeClientTickCount(GameTime gameTime)
     {
         _clientUpdateElapsedSeconds = (float)Math.Clamp(gameTime.ElapsedGameTime.TotalSeconds, 0d, 0.1d);
-        _clientTickAccumulatorSeconds += _clientUpdateElapsedSeconds;
+        // Visual ticks only: snap near-exact frame times so the 60 Hz effect
+        // cadence does not depend on accumulator phase. _clientUpdateElapsedSeconds
+        // (which also drives the network input lane) keeps the measured time.
+        _clientTickAccumulatorSeconds += ClientTickCadence.SnapFrameSeconds(_clientUpdateElapsedSeconds, ClientUpdateStepSeconds);
 
         var ticks = 0;
         var maxCatchUpTicks = OperatingSystem.IsBrowser() ? 2 : 8;

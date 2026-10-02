@@ -45,13 +45,22 @@ public sealed class GameplayPlayerRenderController
             }
             _game.TryDrawWeaponSpriteBackdrop(player, cameraPosition, spriteTint, visibilityAlpha, bodySelection);
 
+            var shouldDrawWeapon = !_game.GetPlayerIsHeavyEating(player) && !player.IsTaunting
+                && !_game.GetPlayerIsCivviePogoActive(player) && !_game._world.IsPlayerHumiliated(player);
+            var drawWeaponBehindBody = shouldDrawWeapon
+                && _game.GameplayWeaponRenderer.GetWeaponRenderDefinitionProxy(player).DrawBehindBody;
+            if (drawWeaponBehindBody)
+            {
+                _game.TryDrawWeaponSprite(player, cameraPosition, spriteTint, visibilityAlpha, bodySelection);
+            }
+
             if (!_game.TryDrawPlayerSprite(player, cameraPosition, spriteTint, bodySelection))
             {
                 _game._spriteBatch.Draw(_game._pixel, rectangle, fallbackColor);
             }
 
             _game.DrawExperimentalStickyGibBloodOverlay(player, cameraPosition, visibilityAlpha);
-            if (!_game.GetPlayerIsHeavyEating(player) && !player.IsTaunting && !_game.GetPlayerIsCivviePogoActive(player) && !_game._world.IsPlayerHumiliated(player))
+            if (shouldDrawWeapon && !drawWeaponBehindBody)
             {
                 _game.TryDrawWeaponSprite(player, cameraPosition, spriteTint, visibilityAlpha, bodySelection);
             }

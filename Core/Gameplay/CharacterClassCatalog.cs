@@ -4,6 +4,10 @@ namespace OpenGarrison.Core;
 
 public static class CharacterClassCatalog
 {
+    public const string CivilianGameplayClassId = "civilian";
+    public const string QuoteGameplayClassId = "quote";
+    public const string PluginQuoteCurlyGameplayClassId = "plugin.quote-curly.quote";
+
     public static GameplayRuntimeRegistry RuntimeRegistry { get; } = GameplayRuntimeRegistry.CreateStock();
 
     public static GameplayModPackDefinition StockModPack => RuntimeRegistry.GetRequiredModPack(StockGameplayModCatalog.Definition.Id);
@@ -54,7 +58,7 @@ public static class CharacterClassCatalog
 
     public static CharacterClassDefinition Civilian => RuntimeRegistry.CreateCharacterClassDefinition(PlayerClass.Quote);
 
-    public static CharacterClassDefinition Quote => Civilian;
+    public static CharacterClassDefinition Quote => RuntimeRegistry.CreateCharacterClassDefinition("quote");
 
     public static CharacterClassDefinition GetDefinition(PlayerClass playerClass)
     {
@@ -76,6 +80,12 @@ public static class CharacterClassCatalog
     public static CharacterClassDefinition GetDefinition(string gameplayClassId)
     {
         return RuntimeRegistry.CreateCharacterClassDefinition(gameplayClassId);
+    }
+
+    public static bool IsQuoteCurlyGameplayClassId(string? gameplayClassId)
+    {
+        return string.Equals(gameplayClassId, QuoteGameplayClassId, StringComparison.Ordinal)
+            || string.Equals(gameplayClassId, PluginQuoteCurlyGameplayClassId, StringComparison.Ordinal);
     }
 
     public static bool SupportsExperimentalAcquiredWeapon(PlayerClass playerClass)

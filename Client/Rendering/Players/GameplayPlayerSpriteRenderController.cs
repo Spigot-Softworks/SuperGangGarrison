@@ -255,12 +255,18 @@ public sealed class GameplayPlayerSpriteRenderController
             if (_game._networkClient.IsLegacyGg2Connection && player.ClassId == PlayerClass.Quote)
             {
                 var teamName = player.Team == PlayerTeam.Blue ? "Blue" : "Red";
-                var suffix = _game._world.IsPlayerHumiliated(player) ? "HS"
-                    : player.IsTaunting ? "TauntS" : "S";
-                var querlyAnimationImage = _game._playerRenderStates.GetValueOrDefault(_game.GetPlayerStateKey(player))?.BodyAnimationImage ?? 0f;
+                var legacyRenderState = _game._playerRenderStates.GetValueOrDefault(_game.GetPlayerStateKey(player));
+                var isHumiliated = _game._world.IsPlayerHumiliated(player);
+                var legacyHorizontalSourceStepSpeed = _game.GetPlayerAnimationSourceStepSpeed(
+                    legacyRenderState?.AnimationHorizontalSpeed ?? player.HorizontalSpeed);
+                var isRunning = legacyHorizontalSourceStepSpeed >= 0.2f || legacyRenderState?.AppearsAirborne == true || !player.IsGrounded;
+                var suffix = isHumiliated ? "HS"
+                    : player.IsTaunting ? "TauntS"
+                    : isRunning ? "RunS" : "S";
+                var legacyAnimationImage = legacyRenderState?.BodyAnimationImage ?? 0f;
                 return new PlayerBodySpriteSelection(
-                    $"Querly{teamName}{suffix}", querlyAnimationImage, 0f, 0f, false,
-                    _game._world.IsPlayerHumiliated(player));
+                    $"Impostor{teamName}{suffix}", legacyAnimationImage, 0f, 0f, false,
+                    isHumiliated);
             }
 
             if (_game.IsBackstabReplacementRenderActive(player))
@@ -855,7 +861,7 @@ public sealed class GameplayPlayerSpriteRenderController
                 PlayerClass.Sniper => "Sniper",
                 PlayerClass.Medic => "Medic",
                 PlayerClass.Spy => "Spy",
-                PlayerClass.Quote => "Querly",
+                PlayerClass.Quote => "Impostor",
                 _ => null,
             };
         }

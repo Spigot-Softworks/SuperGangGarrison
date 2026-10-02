@@ -324,26 +324,26 @@ public sealed partial class SimulationWorld
 
         if (EnemyPlayerEnabled)
         {
-            if (_practiceCombatDummyMode != PracticeCombatDummyMode.None)
+            if (DummyState.CombatMode != PracticeCombatDummyMode.None)
             {
                 SpawnPracticeCombatDummyResolved(playRespawnSound: true);
             }
             else
             {
-                EnemyPlayer.SetClassDefinition(_enemyDummyClassDefinition);
-                SpawnPlayerResolved(EnemyPlayer, _enemyDummyTeam, ReserveSpawn(EnemyPlayer, _enemyDummyTeam), playRespawnSound: true);
+                EnemyPlayer.SetClassDefinition(DummyState.EnemyClassDefinition);
+                SpawnPlayerResolved(EnemyPlayer, DummyState.EnemyTeam, ReserveSpawn(EnemyPlayer, DummyState.EnemyTeam), playRespawnSound: true);
             }
-            _enemyDummyRespawnTicks = 0;
+            DummyState.EnemyRespawnTicks = 0;
         }
         else
         {
             EnemyPlayer.Kill();
-            _enemyDummyRespawnTicks = 0;
+            DummyState.EnemyRespawnTicks = 0;
         }
 
         if (FriendlyDummyEnabled)
         {
-            FriendlyDummy.SetClassDefinition(_friendlyDummyClassDefinition);
+            FriendlyDummy.SetClassDefinition(LocalState.FriendlyDummyClassDefinition);
             if (IsNetworkPlayerAwaitingJoin(LocalPlayerSlot))
             {
                 FriendlyDummy.Kill();
@@ -371,7 +371,7 @@ public sealed partial class SimulationWorld
         var spawnPool = BuildTeamSpawnSelectionPool(spawns, team);
         var spawnRooms = Level.GetRoomObjects(RoomObjectType.SpawnRoom);
         var requireSpawnRoom = spawnRooms.Count > 0;
-        var startIndex = team == PlayerTeam.Blue ? _nextBlueSpawnIndex : _nextRedSpawnIndex;
+        var startIndex = team == PlayerTeam.Blue ? Lifecycle.NextBlueSpawnIndex : Lifecycle.NextRedSpawnIndex;
         var selectedPoolIndex = -1;
         SpawnPoint selectedSpawn = default;
 
@@ -401,9 +401,9 @@ public sealed partial class SimulationWorld
         }
 
         if (team == PlayerTeam.Blue)
-            _nextBlueSpawnIndex = selectedPoolIndex + 1;
+            Lifecycle.NextBlueSpawnIndex = selectedPoolIndex + 1;
         else
-            _nextRedSpawnIndex = selectedPoolIndex + 1;
+            Lifecycle.NextRedSpawnIndex = selectedPoolIndex + 1;
 
         return selectedSpawn;
     }
@@ -470,25 +470,25 @@ public sealed partial class SimulationWorld
 
     private ControlPointState? TryGetLinkedControlPointState(int linkedControlPointIndex)
     {
-        if (_controlPoints.Count == 0)
+        if (Objectives.ControlPoints.Points.Count == 0)
         {
             return null;
         }
 
         if (linkedControlPointIndex > 0)
         {
-            for (var index = 0; index < _controlPoints.Count; index += 1)
+            for (var index = 0; index < Objectives.ControlPoints.Points.Count; index += 1)
             {
-                var point = _controlPoints[index];
+                var point = Objectives.ControlPoints.Points[index];
                 if (point.Index == linkedControlPointIndex)
                 {
                     return point;
                 }
             }
 
-            for (var index = 0; index < _controlPoints.Count; index += 1)
+            for (var index = 0; index < Objectives.ControlPoints.Points.Count; index += 1)
             {
-                var point = _controlPoints[index];
+                var point = Objectives.ControlPoints.Points[index];
                 if (ControlPointMarkerIndex.TryGetIndex(point.Marker, out var markerIndex)
                     && markerIndex == linkedControlPointIndex)
                 {
@@ -497,12 +497,12 @@ public sealed partial class SimulationWorld
             }
         }
 
-        return _controlPoints.Count == 1 ? _controlPoints[0] : null;
+        return Objectives.ControlPoints.Points.Count == 1 ? Objectives.ControlPoints.Points[0] : null;
     }
 
     private SpawnPoint ReserveSpawn(PlayerEntity player, PlayerTeam team, byte slot)
     {
-        if (_networkPlayerSpawnOverrides.TryGetValue(slot, out var spawnOverride))
+        if (PlayerRegistry.SpawnOverrides.TryGetValue(slot, out var spawnOverride))
         {
             if (player.CanOccupy(Level, team, spawnOverride.X, spawnOverride.Y))
             {
@@ -634,11 +634,11 @@ public sealed partial class SimulationWorld
 
     internal void CombatTestSetControlPointOwner(int controlPointIndex, PlayerTeam? team)
     {
-        for (var index = 0; index < _controlPoints.Count; index += 1)
+        for (var index = 0; index < Objectives.ControlPoints.Points.Count; index += 1)
         {
-            if (_controlPoints[index].Index == controlPointIndex)
+            if (Objectives.ControlPoints.Points[index].Index == controlPointIndex)
             {
-                _controlPoints[index].Team = team;
+                Objectives.ControlPoints.Points[index].Team = team;
                 return;
             }
         }

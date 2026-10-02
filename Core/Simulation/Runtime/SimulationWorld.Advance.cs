@@ -4,21 +4,21 @@ public sealed partial class SimulationWorld
 {
     public void AdvanceOneTick()
     {
-        _runtimeController.AdvanceOneTick();
+        _runtime.Tick();
     }
 
     private int CountPlayers(PlayerTeam team)
     {
-        return _runtimeQueryController.CountPlayers(team);
+        return _playerCounts.CountPlayers(team);
     }
 
     private int CountAlivePlayers(PlayerTeam team)
     {
-        return _runtimeQueryController.CountAlivePlayers(team);
+        return _playerCounts.CountAlivePlayers(team);
     }
 
     private int CountPlayersInArenaCaptureZone(PlayerTeam team)
     {
-        return _runtimeQueryController.CountPlayersInArenaCaptureZone(team);
+        return _playerCounts.CountPlayersInArenaCaptureZone(team);
     }
 }

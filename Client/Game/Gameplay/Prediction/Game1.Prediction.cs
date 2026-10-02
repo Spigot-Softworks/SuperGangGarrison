@@ -52,7 +52,7 @@ public partial class Game1
             _localPredictionState.PendingPredictedInputs.RemoveRange(0, _localPredictionState.PendingPredictedInputs.Count - MaxPendingPredictedInputs);
         }
 
-        RebuildLocalPrediction(preserveRenderContinuity: true);
+        RebuildLocalPrediction(preserveRenderContinuity: true, advancedOneTick: true);
     }
 
     private void ReconcileLocalPrediction(uint lastProcessedInputSequence)
@@ -87,10 +87,10 @@ public partial class Game1
     {
         if (CanUseLocalPrediction() && _localPredictionState.HasPredictedLocalPlayerPosition)
         {
-            // Follow the same correction spring used for the predicted player
-            // sprite so online reconciliation does not move the whole view in
-            // visible jumps around the player.
-            position = _localPredictionState.PredictedLocalPlayerPosition + _localPredictionState.PredictedLocalPlayerRenderCorrectionOffset;
+            // Follow the same interpolated, corrected position as the predicted
+            // player sprite so the view neither steps at the tick rate nor
+            // jumps around the player during online reconciliation.
+            position = GetPredictedLocalPlayerRenderPosition();
             return true;
         }
 
@@ -101,6 +101,7 @@ public partial class Game1
     private void ClearLocalPredictionState(bool clearPendingInputs)
     {
         _localPredictionState.HasPredictedLocalPlayerPosition = false;
+        _localPredictionState.HasPredictedLocalPlayerTickStartPosition = false;
         _localPredictionState.HasSmoothedLocalPlayerRenderPosition = false;
         _localPredictionState.HasPredictedLocalActionState = false;
         _localPredictionState.PredictedLocalPlayerShadow = null;
@@ -179,11 +180,15 @@ public partial class Game1
             || unchecked((int)(lastProcessedInputSequence - sequence)) > 0;
     }
 
-    private void RebuildLocalPrediction(bool preserveRenderContinuity)
+    private void RebuildLocalPrediction(bool preserveRenderContinuity, bool advancedOneTick = false)
     {
-        var renderPositionBeforeRebuild = default(Vector2);
         var hadRenderPositionBeforeRebuild = preserveRenderContinuity
-            && TryGetCurrentPredictedRenderPosition(out renderPositionBeforeRebuild);
+            && CanUseLocalPrediction()
+            && _localPredictionState.HasPredictedLocalPlayerPosition;
+        var tickEndBeforeRebuild = _localPredictionState.PredictedLocalPlayerPosition;
+        var tickStartBeforeRebuild = _localPredictionState.HasPredictedLocalPlayerTickStartPosition
+            ? _localPredictionState.PredictedLocalPlayerTickStartPosition
+            : tickEndBeforeRebuild;
 
         if (!CanUseLocalPrediction() || !_world.LocalPlayer.IsAlive || _world.LocalPlayerAwaitingJoin)
         {
@@ -223,9 +228,19 @@ public partial class Game1
             previousBowCharge,
             previousBowPending);
         SyncPredictedLocalPlayerState(predictedPlayer);
+        // With no pending input the authoritative sample is both endpoints.
+        _localPredictionState.PredictedLocalPlayerTickStartPosition = _localPredictionState.PredictedLocalPlayerPosition;
+        _localPredictionState.HasPredictedLocalPlayerTickStartPosition = true;
 
+        var lastPendingIndex = _localPredictionState.PendingPredictedInputs.Count - 1;
         for (var index = 0; index < _localPredictionState.PendingPredictedInputs.Count; index += 1)
         {
+            if (index == lastPendingIndex)
+            {
+                // Presentation blends across the newest predicted tick only.
+                _localPredictionState.PredictedLocalPlayerTickStartPosition = _localPredictionState.PredictedLocalPlayerPosition;
+            }
+
             ApplyPredictedInputStep(predictedPlayer, _localPredictionState.PendingPredictedInputs[index]);
         }
 
@@ -242,7 +257,15 @@ public partial class Game1
 
         if (hadRenderPositionBeforeRebuild)
         {
-            _localPredictionState.PredictedLocalPlayerRenderCorrectionOffset = renderPositionBeforeRebuild - _localPredictionState.PredictedLocalPlayerPosition;
+            // Carry only the misprediction into the correction spring. Advancing
+            // to a new tick is ordinary motion and must not become an offset.
+            _localPredictionState.PredictedLocalPlayerRenderCorrectionOffset += LocalPlayerRenderInterpolation.ComputeContinuityOffsetDelta(
+                tickStartBeforeRebuild,
+                tickEndBeforeRebuild,
+                _localPredictionState.PredictedLocalPlayerTickStartPosition,
+                _localPredictionState.PredictedLocalPlayerPosition,
+                GetPredictedLocalPlayerInterpolationAlpha(),
+                advancedOneTick);
             var correctionDistance = _localPredictionState.PredictedLocalPlayerRenderCorrectionOffset.Length();
             if (correctionDistance >= PredictedRenderCorrectionTeleportSnapDistance)
             {
@@ -251,7 +274,7 @@ public partial class Game1
             }
         }
 
-        _localPredictionState.SmoothedLocalPlayerRenderPosition = _localPredictionState.PredictedLocalPlayerPosition + _localPredictionState.PredictedLocalPlayerRenderCorrectionOffset;
+        _localPredictionState.SmoothedLocalPlayerRenderPosition = GetPredictedLocalPlayerRenderPosition();
     }
 
     private static void SeedPredictedSniperRifleCharge(
@@ -343,12 +366,33 @@ public partial class Game1
     {
         if (CanUseLocalPrediction() && _localPredictionState.HasPredictedLocalPlayerPosition)
         {
-            renderPosition = _localPredictionState.PredictedLocalPlayerPosition + _localPredictionState.PredictedLocalPlayerRenderCorrectionOffset;
+            renderPosition = GetPredictedLocalPlayerRenderPosition();
             return true;
         }
 
         renderPosition = default;
         return false;
+    }
+
+    /// <summary>Fraction of the current input-tick interval that has elapsed.</summary>
+    private float GetPredictedLocalPlayerInterpolationAlpha()
+        => LocalPlayerRenderInterpolation.ComputeAlpha(_networkInputAccumulatorSeconds, _config.FixedDeltaSeconds);
+
+    /// <summary>
+    /// Predicted local position for presentation: blended across the newest
+    /// predicted tick, plus the decaying misprediction correction. Gameplay
+    /// inputs keep using the unblended tick sample.
+    /// </summary>
+    private Vector2 GetPredictedLocalPlayerRenderPosition()
+    {
+        var tickEnd = _localPredictionState.PredictedLocalPlayerPosition;
+        var position = _localPredictionState.HasPredictedLocalPlayerTickStartPosition
+            ? LocalPlayerRenderInterpolation.Interpolate(
+                _localPredictionState.PredictedLocalPlayerTickStartPosition,
+                tickEnd,
+                GetPredictedLocalPlayerInterpolationAlpha())
+            : tickEnd;
+        return position + _localPredictionState.PredictedLocalPlayerRenderCorrectionOffset;
     }
 
     private PlayerEntity GetPredictedLocalPlayerShadow(PlayerEntity player)
@@ -446,7 +490,10 @@ public partial class Game1
         player.ObserveSpySuperjumpAbilityInput(predictedInput.Input.UseAbility);
         player.SyncCivvieUmbrellaSecondaryInput(predictedInput.Input.FireSecondary);
         player.SyncCivviePogoSuperJumpInput(predictedInput.Input.Up);
-        player.ObserveTauntInput(predictedInput.Input.Taunt);
+        player.ObserveTauntInput(
+            predictedInput.Input.Taunt
+                || (player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.CivvieTaunt)
+                    && predictedInput.Input.UseAbility));
         player.ObserveCivviePogoTrickInput(predictedInput.Input.Taunt);
 
         var afterburn = player.AdvanceTickState(predictedInput.Input, _config.FixedDeltaSeconds);

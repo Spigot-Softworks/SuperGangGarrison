@@ -1,0 +1,23 @@
+{
+  "id": "plugin.quote-curly.ability.taunt",
+  "kind": "Ability",
+  "displayName": "Crewmate Money Taunt",
+  "slot": "Utility",
+  "behaviorId": "builtin.ability.civvie_taunt",
+  "ability": {
+    "category": "utility",
+    "channel": "utility",
+    "activation": "pressed",
+    "executorId": "builtin.ability.civvie_taunt",
+    "tags": [ "taunt", "healing" ],
+    "parameters": {
+      "healAmount": 30,
+      "healRadius": 120,
+      "healFrameIndex": 9,
+      "healSelfOnly": true,
+      "moneyBurst": true
+    }
+  },
+  "ammo": {},
+  "presentation": {}
+}

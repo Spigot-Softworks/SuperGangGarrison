@@ -31,7 +31,7 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        _pendingHealingEvents.Add(new WorldHealingEvent(
+        PresentationEvents.AddHealingEvent(new WorldHealingEvent(
             target.Id,
             amount,
             SourceFrame: (ulong)Frame));

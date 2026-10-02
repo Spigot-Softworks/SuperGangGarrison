@@ -5,6 +5,24 @@ public sealed class EntityStore
 {
     private readonly Dictionary<int, SimulationEntity> _entities = new();
 
+    /// <summary>Gets the next entity ID that <see cref="AllocateId"/> will hand out.</summary>
+    internal int NextEntityId { get; private set; } = 1;
+
+    /// <summary>Reserves and returns the next unused entity ID.</summary>
+    internal int AllocateId()
+    {
+        return NextEntityId++;
+    }
+
+    /// <summary>Ensures future allocations never reuse the specified, already-known entity ID.</summary>
+    internal void ReserveThrough(int entityId)
+    {
+        if (entityId >= NextEntityId)
+        {
+            NextEntityId = entityId + 1;
+        }
+    }
+
     /// <summary>Gets the entity with the specified ID, or <see langword="null"/> when absent.</summary>
     public SimulationEntity? Get(int id)
     {

@@ -430,9 +430,9 @@ public sealed partial class SimulationWorld
 
         private static void ApplySplashDamageToSentries(SimulationWorld world, RocketProjectileEntity rocket, PlayerEntity? owner, float blastRadius)
         {
-            for (var sentryIndex = world._sentries.Count - 1; sentryIndex >= 0; sentryIndex -= 1)
+            for (var sentryIndex = world.WorldObjects.Sentries.Count - 1; sentryIndex >= 0; sentryIndex -= 1)
             {
-                var sentry = world._sentries[sentryIndex];
+                var sentry = world.WorldObjects.Sentries[sentryIndex];
                 var distance = SimulationWorld.DistanceBetween(rocket.X, rocket.Y, sentry.X, sentry.Y);
                 if (distance >= blastRadius || sentry.Team == rocket.Team)
                 {
@@ -452,9 +452,9 @@ public sealed partial class SimulationWorld
 
         private static void ApplySplashDamageToGenerators(SimulationWorld world, RocketProjectileEntity rocket, PlayerEntity? owner, float blastRadius)
         {
-            for (var generatorIndex = 0; generatorIndex < world._generators.Count; generatorIndex += 1)
+            for (var generatorIndex = 0; generatorIndex < world.WorldObjects.Generators.Count; generatorIndex += 1)
             {
-                var generator = world._generators[generatorIndex];
+                var generator = world.WorldObjects.Generators[generatorIndex];
                 var distance = SimulationWorld.DistanceBetween(rocket.X, rocket.Y, generator.Marker.CenterX, generator.Marker.CenterY);
                 if (distance >= blastRadius || generator.Team == rocket.Team || generator.IsDestroyed)
                 {

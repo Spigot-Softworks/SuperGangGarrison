@@ -80,6 +80,13 @@ public partial class Game1
             skin = _playerSkins.Value.Find(classId.ToString().ToLowerInvariant(), team);
         }
 
+        // An authored corpse sprite uses the classic GG2 horizontal corpse path,
+        // not the articulated upright Elkondo body topology.
+        if (skin?.CorpseSprite is not null)
+        {
+            return false;
+        }
+
         if (skin is null || !skin.Clips.TryGetValue("run", out var runClip) || runClip.Frames.Length == 0)
         {
             return false;
@@ -89,6 +96,21 @@ public partial class Game1
         frameIndex = runClip.Frames[clipIndex];
         spriteName = skin.SpriteForTeam(skin.BodySprite, team);
         return !string.IsNullOrWhiteSpace(spriteName);
+    }
+
+    private string? GetDynamicRagdollCorpseSpriteName(
+        string gameplayClassId,
+        PlayerClass classId,
+        PlayerTeam team,
+        DeadBodyAnimationKind animationKind)
+    {
+        if (_networkClient.IsLegacyGg2Connection && classId == PlayerClass.Quote)
+        {
+            var teamName = team == PlayerTeam.Blue ? "Blue" : "Red";
+            return $"Impostor{teamName}DeadS";
+        }
+
+        return GetDeadBodySpriteName(gameplayClassId, classId, team, animationKind);
     }
 
     /// <summary>

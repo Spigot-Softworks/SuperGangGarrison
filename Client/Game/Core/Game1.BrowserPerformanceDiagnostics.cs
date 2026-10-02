@@ -11,7 +11,10 @@ public partial class Game1
 
     public BrowserPerformanceSnapshot GetBrowserPerformanceSnapshot()
     {
-        return _browserPerformance.GetSnapshot();
+        return _browserPerformance.GetSnapshot() with
+        {
+            StartupToGameplayWorldDrawMilliseconds = GetClientPerformanceStartupToGameplayDrawMilliseconds(),
+        };
     }
 
     private void RecordBrowserUpdateDuration(long startTimestamp)
@@ -38,6 +41,13 @@ public partial class Game1
         }
 
         var elapsedMilliseconds = GetElapsedMilliseconds(startTimestamp);
+        if (IsClientPerformanceDiagnosticsEnabled())
+        {
+            // This boundary is after RenderPipeline's frame limiter; it tracks
+            // completed CPU draw calls, before the framework presents the GPU buffer.
+            _clientDrawFrameTiming.RecordCompletedFrame(Stopwatch.GetTimestamp());
+        }
+
         if (OperatingSystem.IsBrowser())
         {
             _browserPerformance.RecordDraw(elapsedMilliseconds);
@@ -151,6 +161,8 @@ public partial class Game1
         double LastModalDrawMs,
         double AverageModalDrawMs)
     {
+        public double? StartupToGameplayWorldDrawMilliseconds { get; init; }
+
         public string ToLogLine()
         {
             return string.Create(
@@ -161,7 +173,8 @@ public partial class Game1
                 $"present(last/avg)={LastPresentationMs:0.0}/{AveragePresentationMs:0.0}ms " +
                 $"world(last/avg)={LastWorldDrawMs:0.0}/{AverageWorldDrawMs:0.0}ms " +
                 $"hud(last/avg)={LastHudDrawMs:0.0}/{AverageHudDrawMs:0.0}ms " +
-                $"modal(last/avg)={LastModalDrawMs:0.0}/{AverageModalDrawMs:0.0}ms");
+                $"modal(last/avg)={LastModalDrawMs:0.0}/{AverageModalDrawMs:0.0}ms " +
+                $"startupToGameplayWorldDraw={StartupToGameplayWorldDrawMilliseconds?.ToString("0.0", CultureInfo.InvariantCulture) ?? "unmeasured"}ms");
         }
     }
 

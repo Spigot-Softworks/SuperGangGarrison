@@ -4,7 +4,7 @@ public sealed partial class SimulationWorld
 {
     private bool IsRoundEndFriendlyFireActive()
     {
-        return MatchState.IsEnded && _roundEndFriendlyFireEnabled;
+        return MatchState.IsEnded && MatchSettings.RoundEndFriendlyFireEnabled;
     }
 
     private bool CanPlayerDamagePlayer(PlayerEntity attacker, PlayerEntity target)
@@ -48,7 +48,7 @@ public sealed partial class SimulationWorld
             return 0;
         }
 
-        var scaledDamage = damage * _configuredDamageScale;
+        var scaledDamage = damage * MatchSettings.DamageScale;
         return scaledDamage <= 0f
             ? 0
             : Math.Max(1, (int)MathF.Ceiling(scaledDamage));
@@ -61,6 +61,6 @@ public sealed partial class SimulationWorld
             return 0f;
         }
 
-        return damage * _configuredDamageScale;
+        return damage * MatchSettings.DamageScale;
     }
 }

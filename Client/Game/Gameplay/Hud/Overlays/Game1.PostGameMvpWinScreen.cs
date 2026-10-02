@@ -36,7 +36,10 @@ public partial class Game1
         int Deaths,
         int HealPoints,
         float Points,
-        int Score);
+        int Score)
+    {
+        public string? GameplayClassId { get; init; }
+    }
     private readonly record struct PostGameMvpLayout(Vector2 BoardCenter, Vector2 ArtScale);
     private readonly record struct PostGameMvpArtFrameKey(int PlayerId, int Rank, string SpriteName);
 
@@ -157,7 +160,10 @@ public partial class Game1
                 player.Deaths,
                 player.HealPoints,
                 player.Points,
-                GetPostGameMvpScore(player)));
+                GetPostGameMvpScore(player))
+            {
+                GameplayClassId = player.GameplayClassId,
+            });
         }
 
         entries.Sort(static (left, right) =>
@@ -307,7 +313,11 @@ public partial class Game1
         origin = Vector2.Zero;
         effects = SpriteEffects.None;
 
-        var spriteName = GetPostGameMvpArtSpriteName(entry.Team, entry.ClassId, winner: rank == 1);
+        var spriteName = GetPostGameMvpArtSpriteNameForGameplayClassId(
+            entry.Team,
+            entry.ClassId,
+            winner: rank == 1,
+            gameplayClassId: entry.GameplayClassId);
         var sprite = GetResolvedSprite(spriteName);
         if (sprite is null || sprite.Frames.Count == 0)
         {
@@ -611,6 +621,21 @@ public partial class Game1
         return winner
             ? $"Mvp{teamName}{className}WinnerS"
             : $"Mvp{teamName}{className}S";
+    }
+
+    private static string GetPostGameMvpArtSpriteNameForGameplayClassId(
+        PlayerTeam team,
+        PlayerClass playerClass,
+        bool winner,
+        string? gameplayClassId)
+    {
+        if (CharacterClassCatalog.IsQuoteCurlyGameplayClassId(gameplayClassId))
+        {
+            var teamName = team == PlayerTeam.Blue ? "Blue" : "Red";
+            return $"Impostor{teamName}TauntS";
+        }
+
+        return GetPostGameMvpArtSpriteName(team, playerClass, winner);
     }
 
     private void DrawPostGameMvpBoard(PlayerTeam winnerTeam, IReadOnlyList<PostGameMvpEntry> entries, PostGameMvpLayout layout)

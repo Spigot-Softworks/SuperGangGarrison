@@ -40,6 +40,23 @@ public static class GameplayAbilityReplicatedState
 
     public static IReadOnlyList<GameplayReplicatedStateEntry> CreateEntries(PlayerEntity player)
     {
+        if (player.IsCivilian)
+        {
+            return
+            [
+                Whole(CivvieUmbrellaCooldownTicksKey, player.CivvieUmbrellaCooldownTicks),
+                Toggle(CivvieUmbrellaActiveKey, player.IsCivvieUmbrellaActive),
+                Toggle(CivvieUmbrellaDisabledKey, player.IsCivvieUmbrellaDisabled),
+                Whole(CivvieUmbrellaOpeningTicksKey, player.CivvieUmbrellaOpeningElapsedTicks),
+                Whole(CivvieUmbrellaOpeningSequenceKey, player.CivvieUmbrellaOpeningSequence),
+                Toggle(CivvieUmbrellaOpeningSpentKey, player.CivvieUmbrellaOpeningAirblastTriggered),
+                Toggle(CivviePogoActiveKey, player.IsCivviePogoActive),
+                Whole(CivviePogoCrunchTicksKey, player.CivviePogoCrunchTicksRemaining),
+                Whole(CivviePogoTrickTicksKey, player.CivviePogoTrickTicksRemaining),
+                Whole(CivviePogoTrickDurationTicksKey, player.CivviePogoTrickDurationAtStart),
+            ];
+        }
+
         return player.ClassId switch
         {
             PlayerClass.Pyro =>
@@ -84,19 +101,6 @@ public static class GameplayAbilityReplicatedState
                 Toggle(SpySuperjumpActiveKey, player.SpySuperjumpChargeTicks > 0 || player.IsSpySuperjumping),
                 Toggle(SpySuperjumpDisabledKey, player.IsCarryingIntel),
             ],
-            PlayerClass.Quote =>
-            [
-                Whole(CivvieUmbrellaCooldownTicksKey, player.CivvieUmbrellaCooldownTicks),
-                Toggle(CivvieUmbrellaActiveKey, player.IsCivvieUmbrellaActive),
-                Toggle(CivvieUmbrellaDisabledKey, player.IsCivvieUmbrellaDisabled),
-                Whole(CivvieUmbrellaOpeningTicksKey, player.CivvieUmbrellaOpeningElapsedTicks),
-                Whole(CivvieUmbrellaOpeningSequenceKey, player.CivvieUmbrellaOpeningSequence),
-                Toggle(CivvieUmbrellaOpeningSpentKey, player.CivvieUmbrellaOpeningAirblastTriggered),
-                Toggle(CivviePogoActiveKey, player.IsCivviePogoActive),
-                Whole(CivviePogoCrunchTicksKey, player.CivviePogoCrunchTicksRemaining),
-                Whole(CivviePogoTrickTicksKey, player.CivviePogoTrickTicksRemaining),
-                Whole(CivviePogoTrickDurationTicksKey, player.CivviePogoTrickDurationAtStart),
-            ],
             _ => Array.Empty<GameplayReplicatedStateEntry>(),
         };
     }
@@ -127,7 +131,7 @@ public static class GameplayAbilityReplicatedState
         }
 
         if (key == CivvieUmbrellaCooldownTicksKey
-            && player.ClassId == PlayerClass.Quote
+            && player.IsCivilian
             && player.TryGetReplicatedStateInt(
                 GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId,
                 CivvieUmbrellaCooldownTicksKey,
@@ -136,7 +140,7 @@ public static class GameplayAbilityReplicatedState
             return true;
         }
 
-        if (player.ClassId == PlayerClass.Quote
+        if (player.IsCivilian
             && key is CivviePogoTrickTicksKey or CivviePogoTrickDurationTicksKey
             && player.TryGetReplicatedStateInt(
                 GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId,
@@ -158,10 +162,10 @@ public static class GameplayAbilityReplicatedState
             SniperBowChargeTicksKey when player.ClassId is PlayerClass.Sniper or PlayerClass.Soldier => player.SniperBowChargeTicks,
             SniperRifleStreakKey when player.ClassId == PlayerClass.Sniper => player.SniperRifleFullyChargedHitStreak,
             SpySuperjumpCooldownTicksKey when player.ClassId == PlayerClass.Spy => player.SpySuperjumpCooldownTicksRemaining,
-            CivvieUmbrellaCooldownTicksKey when player.ClassId == PlayerClass.Quote => player.CivvieUmbrellaCooldownTicks,
-            CivviePogoCrunchTicksKey when player.ClassId == PlayerClass.Quote => player.CivviePogoCrunchTicksRemaining,
-            CivviePogoTrickTicksKey when player.ClassId == PlayerClass.Quote => player.CivviePogoTrickTicksRemaining,
-            CivviePogoTrickDurationTicksKey when player.ClassId == PlayerClass.Quote => player.CivviePogoTrickDurationAtStart,
+            CivvieUmbrellaCooldownTicksKey when player.IsCivilian => player.CivvieUmbrellaCooldownTicks,
+            CivviePogoCrunchTicksKey when player.IsCivilian => player.CivviePogoCrunchTicksRemaining,
+            CivviePogoTrickTicksKey when player.IsCivilian => player.CivviePogoTrickTicksRemaining,
+            CivviePogoTrickDurationTicksKey when player.IsCivilian => player.CivviePogoTrickDurationAtStart,
             BuffBannerChargeDamageKey when player.ClassId == PlayerClass.Soldier => player.BuffBannerChargeDamage,
             BuffBannerMissingDamageKey when player.ClassId == PlayerClass.Soldier => player.BuffBannerMissingChargeDamage,
             BuffBannerDeployTicksKey when player.ClassId == PlayerClass.Soldier => player.BuffBannerDeployTicksRemaining,
@@ -181,7 +185,7 @@ public static class GameplayAbilityReplicatedState
             CivvieUmbrellaCooldownTicksKey
                 or CivviePogoCrunchTicksKey
                 or CivviePogoTrickTicksKey
-                or CivviePogoTrickDurationTicksKey => player.ClassId == PlayerClass.Quote,
+                or CivviePogoTrickDurationTicksKey => player.IsCivilian,
             BuffBannerChargeDamageKey
                 or BuffBannerMissingDamageKey
                 or BuffBannerDeployTicksKey
@@ -221,7 +225,7 @@ public static class GameplayAbilityReplicatedState
             return true;
         }
 
-        if (player.ClassId == PlayerClass.Quote
+        if (player.IsCivilian
             && key is CivvieUmbrellaActiveKey or CivvieUmbrellaDisabledKey or CivviePogoActiveKey
             && player.TryGetReplicatedStateBool(
                 GameplayAbilityConstants.CoreAbilityReplicatedStateOwnerId,
@@ -238,9 +242,9 @@ public static class GameplayAbilityReplicatedState
             HeavyDashVisibleKey when player.ClassId == PlayerClass.Heavy => player.IsExperimentalGhostDashVisible,
             SpySuperjumpActiveKey when player.ClassId == PlayerClass.Spy => player.SpySuperjumpChargeTicks > 0 || player.IsSpySuperjumping,
             SpySuperjumpDisabledKey when player.ClassId == PlayerClass.Spy => player.IsCarryingIntel,
-            CivvieUmbrellaActiveKey when player.ClassId == PlayerClass.Quote => player.IsCivvieUmbrellaActive,
-            CivvieUmbrellaDisabledKey when player.ClassId == PlayerClass.Quote => player.IsCivvieUmbrellaDisabled,
-            CivviePogoActiveKey when player.ClassId == PlayerClass.Quote => player.IsCivviePogoActive,
+            CivvieUmbrellaActiveKey when player.IsCivilian => player.IsCivvieUmbrellaActive,
+            CivvieUmbrellaDisabledKey when player.IsCivilian => player.IsCivvieUmbrellaDisabled,
+            CivviePogoActiveKey when player.IsCivilian => player.IsCivviePogoActive,
             BuffBannerDeployingOrActiveKey when player.ClassId == PlayerClass.Soldier => player.IsBuffBannerDeploying || player.IsBuffBannerActive,
             _ => default,
         };
@@ -250,7 +254,7 @@ public static class GameplayAbilityReplicatedState
             MedicUberReadyKey => player.ClassId == PlayerClass.Medic,
             HeavyDashActiveKey or HeavyDashVisibleKey => player.ClassId == PlayerClass.Heavy,
             SpySuperjumpActiveKey or SpySuperjumpDisabledKey => player.ClassId == PlayerClass.Spy,
-            CivvieUmbrellaActiveKey or CivvieUmbrellaDisabledKey or CivviePogoActiveKey => player.ClassId == PlayerClass.Quote,
+            CivvieUmbrellaActiveKey or CivvieUmbrellaDisabledKey or CivviePogoActiveKey => player.IsCivilian,
             BuffBannerDeployingOrActiveKey => player.ClassId == PlayerClass.Soldier,
             _ => false,
         };
