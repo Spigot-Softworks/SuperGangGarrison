@@ -384,7 +384,7 @@ public partial class Game1
             return;
         }
 
-        if (_world.NetworkPlayerRules.TrySetNetworkPlayerGameplayLoadout(SimulationWorld.LocalPlayerSlot, loadout.Loadout.Id))
+        if (_world.NetworkPlayers.TrySetNetworkPlayerGameplayLoadout(SimulationWorld.LocalPlayerSlot, loadout.Loadout.Id))
         {
             SetNetworkStatus($"{loadout.Loadout.DisplayName} equipped.");
         }

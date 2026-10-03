@@ -108,7 +108,7 @@ internal sealed class ServerAudioService : IDisposable
     }
 
     private byte TeamFor(ClientSession client) => ServerHelpers.IsSpectatorSlot(client.Slot)
-        ? (byte)0 : _world.NetworkPlayerRules.TryGetNetworkPlayer(client.Slot, out var player) ? (byte)player.Team : (byte)0;
+        ? (byte)0 : _world.NetworkPlayers.TryGetNetworkPlayer(client.Slot, out var player) ? (byte)player.Team : (byte)0;
 
     public void SendState(ClientSession client)
     {

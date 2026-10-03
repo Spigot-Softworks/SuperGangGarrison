@@ -41,12 +41,12 @@ public sealed class SimulationWorldControlPointSetupTests
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
         SetAttackDefenseControlPointLevel(world);
-        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(
+        world.NetworkPlayers.PrepareLocalPlayerJoin();
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(
             SimulationWorld.LocalPlayerSlot,
             PlayerTeam.Red,
             respawnLivePlayerImmediately: true));
-        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Scout);
+        world.NetworkPlayers.CompleteLocalPlayerJoin(PlayerClass.Scout);
 
         while (world.ControlPointSetupTicksRemaining > 0)
         {
@@ -70,12 +70,12 @@ public sealed class SimulationWorldControlPointSetupTests
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
         SetAttackDefenseControlPointLevel(world);
-        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(
+        world.NetworkPlayers.PrepareLocalPlayerJoin();
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(
             SimulationWorld.LocalPlayerSlot,
             PlayerTeam.Red,
             respawnLivePlayerImmediately: true));
-        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Scout);
+        world.NetworkPlayers.CompleteLocalPlayerJoin(PlayerClass.Scout);
 
         while (world.ControlPointSetupTicksRemaining > 0)
         {
@@ -118,7 +118,7 @@ public sealed class SimulationWorldControlPointSetupTests
 
     private static void SetAttackDefenseControlPointLevel(SimulationWorld world)
     {
-        world.CombatTestSetLevel(
+        world.TestSetLevel(
             new SimpleLevel(
                 name: "adcp_setup_test",
                 mode: GameModeKind.ControlPoint,

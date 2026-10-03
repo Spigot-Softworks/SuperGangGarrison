@@ -28,18 +28,6 @@ public sealed partial class SimulationWorld
             (player, amount) => DamageRules.ApplyHealingWithFeedback(player, amount) > 0);
     }
 
-    internal void CombatTestAddCivvieMoneyPickup(
-        int ownerPlayerId,
-        PlayerTeam team,
-        float x,
-        float y,
-        int ticksRemaining = CivvieMoneyTrailRules.PickupLifetimeTicks)
-    {
-        CombatRuntime.CivvieMoneyTrailTracker.CombatTestAddPickup(ownerPlayerId, team, x, y, ticksRemaining);
-    }
-
-    internal int CombatTestCivvieMoneyPickupCount => CombatRuntime.CivvieMoneyTrailTracker.PickupCount;
-
     public IReadOnlyList<CivvieMoneyTrailSpawn> DrainPendingCivvieMoneyTrailSpawns()
     {
         return CombatRuntime.CivvieMoneyTrailTracker.DrainPendingSpawns();

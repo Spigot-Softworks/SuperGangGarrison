@@ -41,7 +41,7 @@ public sealed record ReplayScenario(
                 JoinLocalPlayer(world, PlayerClass.Soldier, PlayerTeam.Red);
                 JoinNetworkPlayer(world, 2, PlayerClass.Soldier, PlayerTeam.Blue);
 
-                if (!world.NetworkPlayerRules.TryGetNetworkPlayer(2, out var bluePlayer))
+                if (!world.NetworkPlayers.TryGetNetworkPlayer(2, out var bluePlayer))
                 {
                     throw new InvalidOperationException("The combat replay could not materialize slot 2.");
                 }
@@ -83,8 +83,8 @@ public sealed record ReplayScenario(
 
     private static void JoinLocalPlayer(SimulationWorld world, PlayerClass playerClass, PlayerTeam team)
     {
-        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
-        if (!world.NetworkPlayerRules.TrySetNetworkPlayerTeam(
+        world.NetworkPlayers.PrepareLocalPlayerJoin();
+        if (!world.NetworkPlayers.TrySetNetworkPlayerTeam(
                 SimulationWorld.LocalPlayerSlot,
                 team,
                 respawnLivePlayerImmediately: true))
@@ -92,7 +92,7 @@ public sealed record ReplayScenario(
             throw new InvalidOperationException("The replay could not configure the local player's team.");
         }
 
-        world.NetworkPlayerRules.CompleteLocalPlayerJoin(playerClass);
+        world.NetworkPlayers.CompleteLocalPlayerJoin(playerClass);
     }
 
     private static void JoinNetworkPlayer(
@@ -101,9 +101,9 @@ public sealed record ReplayScenario(
         PlayerClass playerClass,
         PlayerTeam team)
     {
-        if (!world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(slot)
-            || !world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, team, respawnLivePlayerImmediately: true)
-            || !world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, playerClass))
+        if (!world.NetworkPlayers.TryPrepareNetworkPlayerJoin(slot)
+            || !world.NetworkPlayers.TrySetNetworkPlayerTeam(slot, team, respawnLivePlayerImmediately: true)
+            || !world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(slot, playerClass))
         {
             throw new InvalidOperationException($"The replay could not join network player slot {slot}.");
         }

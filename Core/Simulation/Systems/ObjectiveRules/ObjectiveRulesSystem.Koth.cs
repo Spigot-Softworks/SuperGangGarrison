@@ -108,7 +108,7 @@ internal sealed partial class ObjectiveRulesSystem
         var objectiveWinner = ResolveKothObjectiveWinner();
         if (objectiveWinner.HasValue)
         {
-            _host.Decisions.TryEndRound(objectiveWinner, "koth_objective");
+            _host.DecisionGate.TryEndRound(objectiveWinner, "koth_objective");
             return;
         }
 
@@ -131,7 +131,7 @@ internal sealed partial class ObjectiveRulesSystem
             return;
         }
 
-        _host.Decisions.TryEndRound(GetKothTimerLeader(), "koth_time_limit");
+        _host.DecisionGate.TryEndRound(GetKothTimerLeader(), "koth_time_limit");
     }
 
     internal void ApplySnapshotKoth(SnapshotMessage snapshot)

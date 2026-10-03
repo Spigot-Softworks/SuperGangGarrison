@@ -732,7 +732,7 @@ internal sealed class PluginHost
             return false;
         }
 
-        return _worldGetter().NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player)
+        return _worldGetter().NetworkPlayers.TryGetNetworkPlayer(slot, out var player)
             && setter(player, ownerId, normalizedStateKey, value);
     }
 
@@ -744,7 +744,7 @@ internal sealed class PluginHost
             return false;
         }
 
-        return _worldGetter().NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player)
+        return _worldGetter().NetworkPlayers.TryGetNetworkPlayer(slot, out var player)
             && player.ClearReplicatedState(ownerId, normalizedStateKey);
     }
 

@@ -20,7 +20,7 @@ public sealed class WhippingCordSwingTests
             AimWorldX = 650f,
             AimWorldY = 500f,
         };
-        world.NetworkPlayerRules.SetLocalInput(heldInput);
+        world.NetworkPlayers.SetLocalInput(heldInput);
         for (var tick = 0; tick < 3; tick += 1)
         {
             world.AdvanceOneTick();
@@ -31,7 +31,7 @@ public sealed class WhippingCordSwingTests
         var anchorX = engineer.WhippingCordAnchorX;
         var anchorY = engineer.WhippingCordAnchorY;
         var ropeLength = engineer.WhippingCordRopeLength;
-        world.NetworkPlayerRules.SetLocalInput(heldInput with { AimWorldX = 150f, AimWorldY = 750f });
+        world.NetworkPlayers.SetLocalInput(heldInput with { AimWorldX = 150f, AimWorldY = 750f });
         for (var tick = 0; tick < 5; tick += 1)
         {
             world.AdvanceOneTick();
@@ -44,7 +44,7 @@ public sealed class WhippingCordSwingTests
 
         engineer.ApplyVelocityImpulse(-90f, 30f);
         var speedBeforeRelease = engineer.HorizontalSpeed;
-        world.NetworkPlayerRules.SetLocalInput(heldInput with { FirePrimary = false });
+        world.NetworkPlayers.SetLocalInput(heldInput with { FirePrimary = false });
         world.AdvanceOneTick();
 
         Assert.False(engineer.IsWhippingCordLatched);
@@ -65,9 +65,9 @@ public sealed class WhippingCordSwingTests
             AimWorldX = 650f,
             AimWorldY = 500f,
         };
-        world.NetworkPlayerRules.SetLocalInput(input);
+        world.NetworkPlayers.SetLocalInput(input);
         world.AdvanceOneTick();
-        world.NetworkPlayerRules.SetLocalInput(input with { FirePrimary = false });
+        world.NetworkPlayers.SetLocalInput(input with { FirePrimary = false });
         for (var tick = 0; tick < 4; tick += 1)
         {
             world.AdvanceOneTick();
@@ -140,7 +140,7 @@ public sealed class WhippingCordSwingTests
             AimWorldX = 650f,
             AimWorldY = 500f,
         };
-        world.NetworkPlayerRules.SetLocalInput(input);
+        world.NetworkPlayers.SetLocalInput(input);
         world.AdvanceOneTick();
         world.AdvanceOneTick();
         Assert.True(firstEnemy.Health < firstHealthBeforeStrike);
@@ -168,27 +168,27 @@ public sealed class WhippingCordSwingTests
         var world = new SimulationWorld();
         var redSpawn = new SpawnPoint(300f, 500f);
         var blueSpawn = new SpawnPoint(1700f, 500f);
-        world.CombatTestSetLevel(new SimpleLevel(
+        world.TestSetLevel(new SimpleLevel(
             "whipping-cord-swing", GameModeKind.TeamDeathmatch,
             new WorldBounds(2048f, 2048f), 1f, null, 1, 1, redSpawn,
             [redSpawn], [blueSpawn], [], [], floorY: 1024f,
             [new LevelSolid(0f, 1024f, 2048f, 1024f), .. additionalSolids],
             importedFromSource: false));
-        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
-        world.NetworkPlayerRules.SetLocalPlayerTeam(PlayerTeam.Red);
-        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Engineer);
+        world.NetworkPlayers.PrepareLocalPlayerJoin();
+        world.NetworkPlayers.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.NetworkPlayers.CompleteLocalPlayerJoin(PlayerClass.Engineer);
         world.LocalPlayer.SetSpawnRoomState(false);
-        world.NetworkPlayerRules.SetLocalInput(default);
-        world.NetworkPlayerRules.SetLocalPreviousInput(default);
+        world.NetworkPlayers.SetLocalInput(default);
+        world.NetworkPlayers.SetLocalPreviousInput(default);
         return world;
     }
 
     private static PlayerEntity AddEnemy(SimulationWorld world, byte slot, float x, float y)
     {
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(slot));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, PlayerTeam.Blue));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, PlayerClass.Scout));
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var enemy));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(slot, PlayerTeam.Blue));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(slot, PlayerClass.Scout));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(slot, out var enemy));
         enemy.TeleportTo(x, y);
         return enemy;
     }

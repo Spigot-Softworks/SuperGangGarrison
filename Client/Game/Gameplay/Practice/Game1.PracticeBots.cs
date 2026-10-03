@@ -148,7 +148,7 @@ public partial class Game1
             var slotsToRelease = new List<byte>(_practiceBotSlots.Keys);
             for (var index = 0; index < slotsToRelease.Count; index += 1)
             {
-                _world.NetworkPlayerRules.TryReleaseNetworkPlayerSlot(slotsToRelease[index]);
+                _world.NetworkPlayers.TryReleaseNetworkPlayerSlot(slotsToRelease[index]);
             }
         }
 
@@ -177,8 +177,8 @@ public partial class Game1
         for (var index = 0; index < staleSlots.Count; index += 1)
         {
             var slot = staleSlots[index];
-            _world.NetworkPlayerRules.TryClearNetworkPlayerSpawnOverride(slot);
-            _world.NetworkPlayerRules.TryReleaseNetworkPlayerSlot(slot);
+            _world.NetworkPlayers.TryClearNetworkPlayerSpawnOverride(slot);
+            _world.NetworkPlayers.TryReleaseNetworkPlayerSlot(slot);
             _practiceBotSlots.Remove(slot);
             _practiceBotDisplayNamePool.ReleaseSlot(slot);
         }
@@ -195,18 +195,18 @@ public partial class Game1
             _world.ClassRules.SetNetworkPlayerMapSpawnClassBehaviorBypass(desired.Slot, true);
             if (isNewSlot)
             {
-                _world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(desired.Slot);
+                _world.NetworkPlayers.TryPrepareNetworkPlayerJoin(desired.Slot);
             }
 
-            _world.NetworkPlayerRules.TrySetNetworkPlayerName(desired.Slot, desired.DisplayName);
+            _world.NetworkPlayers.TrySetNetworkPlayerName(desired.Slot, desired.DisplayName);
             if (isNewSlot || existing!.Team != desired.Team)
             {
-                _world.NetworkPlayerRules.TrySetNetworkPlayerTeam(desired.Slot, desired.Team);
+                _world.NetworkPlayers.TrySetNetworkPlayerTeam(desired.Slot, desired.Team);
             }
 
             if (isNewSlot || existing!.ClassId != desired.ClassId)
             {
-                _world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(desired.Slot, desired.ClassId);
+                _world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(desired.Slot, desired.ClassId);
             }
 
             _practiceBotSlots[desired.Slot] = desired;
@@ -706,7 +706,7 @@ public partial class Game1
         var setInputsStartTimestamp = ShouldMeasureClientPerformanceDurations() ? Stopwatch.GetTimestamp() : 0L;
         foreach (var entry in controlledSlots)
         {
-            _world.NetworkPlayerRules.TrySetNetworkPlayerInput(
+            _world.NetworkPlayers.TrySetNetworkPlayerInput(
                 entry.Key,
                 ApplyClientPerformanceForcedInput(inputsBySlot.GetValueOrDefault(entry.Key)));
         }
@@ -1037,8 +1037,8 @@ public partial class Game1
         {
             var slot = (byte)slotValue;
             if (!_practiceBotSlots.ContainsKey(slot)
-                || _world.NetworkPlayerRules.IsNetworkPlayerAwaitingJoin(slot)
-                || !_world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
+                || _world.NetworkPlayers.IsNetworkPlayerAwaitingJoin(slot)
+                || !_world.NetworkPlayers.TryGetNetworkPlayer(slot, out var player))
             {
                 continue;
             }
@@ -1068,7 +1068,7 @@ public partial class Game1
     {
         foreach (var slot in slots)
         {
-            _world.NetworkPlayerRules.TryClearNetworkPlayerSpawnOverride(slot);
+            _world.NetworkPlayers.TryClearNetworkPlayerSpawnOverride(slot);
         }
     }
 

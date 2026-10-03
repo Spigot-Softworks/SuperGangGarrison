@@ -18,7 +18,7 @@ internal sealed partial class LastToDieRulesSystem
 
     internal bool TrySetLastToDieSurvivorBuff(byte slot, bool enabled)
     {
-        if (!_host.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player)) return false;
+        if (!_host.NetworkPlayers.TryGetNetworkPlayer(slot, out var player)) return false;
         player.SetLastToDieSurvivorBuff(enabled);
         return true;
     }

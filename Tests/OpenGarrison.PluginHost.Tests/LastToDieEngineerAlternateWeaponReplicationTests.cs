@@ -56,9 +56,9 @@ public sealed class LastToDieEngineerAlternateWeaponReplicationTests
             ExperimentalEngineerAlternateWeaponMode.FreezeRay, ExperimentalEngineerAlternateWeaponMode.None,
             ExperimentalEngineerAlternateWeaponMode.EssenceExtractor })
         {
-            world.NetworkPlayerRules.SetLocalInput(default(PlayerInputSnapshot) with { SwapWeapon = true });
+            world.NetworkPlayers.SetLocalInput(default(PlayerInputSnapshot) with { SwapWeapon = true });
             world.AdvanceOneTick();
-            world.NetworkPlayerRules.SetLocalInput(default);
+            world.NetworkPlayers.SetLocalInput(default);
             for (var tick = 0; tick < 10; tick++)
             {
                 world.AdvanceOneTick();
@@ -80,16 +80,16 @@ public sealed class LastToDieEngineerAlternateWeaponReplicationTests
             EnableEngineerFreezeRay: mode == ExperimentalEngineerAlternateWeaponMode.FreezeRay);
         source.ConfigureExperimentalGameplaySettings(settings);
         Assert.True(source.Spawns.TryMoveLocalPlayerToControlPointSpawn());
-        Assert.True(source.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(2));
-        Assert.True(source.NetworkPlayerRules.TrySetNetworkPlayerTeam(2, PlayerTeam.Blue));
-        Assert.True(source.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Scout));
-        Assert.True(source.NetworkPlayerRules.TryGetNetworkPlayer(2, out var target));
+        Assert.True(source.NetworkPlayers.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(source.NetworkPlayers.TrySetNetworkPlayerTeam(2, PlayerTeam.Blue));
+        Assert.True(source.NetworkPlayers.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Scout));
+        Assert.True(source.NetworkPlayers.TryGetNetworkPlayer(2, out var target));
         target.ForceSetHealth(999);
         target.TeleportTo(source.LocalPlayer.X + 96f, source.LocalPlayer.Y);
         source.AdvanceOneTick();
-        source.NetworkPlayerRules.SetLocalInput(default(PlayerInputSnapshot) with { ToggleSecondaryWeapon = true });
+        source.NetworkPlayers.SetLocalInput(default(PlayerInputSnapshot) with { ToggleSecondaryWeapon = true });
         source.AdvanceOneTick();
-        source.NetworkPlayerRules.SetLocalInput(default);
+        source.NetworkPlayers.SetLocalInput(default);
         source.AdvanceOneTick();
         Assert.True(source.LocalPlayer.IsExperimentalOffhandSelected);
         Assert.Equal(mode, source.LocalPlayer.ExperimentalEngineerAlternateWeaponMode);
@@ -101,7 +101,7 @@ public sealed class LastToDieEngineerAlternateWeaponReplicationTests
         for (var tick = 0; tick < source.Config.TicksPerSecond * 3; tick++)
         {
             var input = default(PlayerInputSnapshot) with { FirePrimary = true, AimWorldX = target.X, AimWorldY = target.Y };
-            source.NetworkPlayerRules.SetLocalInput(input);
+            source.NetworkPlayers.SetLocalInput(input);
             source.AdvanceOneTick();
             Assert.True(source.LocalPlayer.IsExperimentalOffhandSelected);
             Assert.Equal(mode, source.LocalPlayer.ExperimentalEngineerAlternateWeaponMode);
@@ -109,7 +109,7 @@ public sealed class LastToDieEngineerAlternateWeaponReplicationTests
             Assert.True(receiver.SnapshotApply.ApplyProtocol64PlayerState(packet));
             Assert.Equal(mode, receiver.LocalPlayer.ExperimentalEngineerAlternateWeaponMode);
             Assert.Equal(source.LocalPlayer.MedicHealTargetId, receiver.LocalPlayer.MedicHealTargetId);
-            receiver.NetworkPlayerRules.SetLocalInput(input);
+            receiver.NetworkPlayers.SetLocalInput(input);
             receiver.AdvanceOneTick();
             Assert.True(receiver.LocalPlayer.IsExperimentalOffhandSelected);
             Assert.Equal(mode, receiver.LocalPlayer.ExperimentalEngineerAlternateWeaponMode);
@@ -151,8 +151,8 @@ public sealed class LastToDieEngineerAlternateWeaponReplicationTests
     private static SimulationWorld JoinedEngineerWorld()
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
-        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Engineer);
+        world.NetworkPlayers.PrepareLocalPlayerJoin();
+        world.NetworkPlayers.CompleteLocalPlayerJoin(PlayerClass.Engineer);
         world.LocalPlayer.SetSpawnRoomState(false);
         return world;
     }

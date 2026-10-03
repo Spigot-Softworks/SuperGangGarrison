@@ -20,7 +20,7 @@ internal sealed partial class LastToDieRulesSystem
         _pendingLastToDieSpyAfterlifeDeathsByPlayerId = [];
 
     internal bool IsLastToDieSpyAfterlifeWindowActive(byte slot) =>
-        _host.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player)
+        _host.NetworkPlayers.TryGetNetworkPlayer(slot, out var player)
         && player.IsLastToDieSpyAfterlifeActive
         && _pendingLastToDieSpyAfterlifeDeathsByPlayerId.ContainsKey(player.Id);
 
@@ -42,7 +42,7 @@ internal sealed partial class LastToDieRulesSystem
         bool recordKillFeed,
         int assistingPlayerId)
     {
-        if (!_host.NetworkPlayerRules.TryGetNetworkPlayerSlot(player, out _)
+        if (!_host.NetworkPlayers.TryGetNetworkPlayerSlot(player, out _)
             || _pendingLastToDieSpyAfterlifeDeathsByPlayerId.ContainsKey(player.Id)
             || !player.TryStartLastToDieSpyAfterlife(_host.Config.TicksPerSecond))
         {

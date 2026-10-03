@@ -268,7 +268,7 @@ public partial class Game1
         var hasLocalProfile = !_networkClient.IsSpectator
             && perksBySlot.TryGetValue(_networkClient.LocalPlayerSlot, out _);
         _world.LastToDieRules.TrySetLastToDieSurvivorBuff(SimulationWorld.LocalPlayerSlot, hasLocalProfile);
-        _world.NetworkPlayerRules.TrySetNetworkPlayerAutomaticRespawnSuppressed(
+        _world.NetworkPlayers.TrySetNetworkPlayerAutomaticRespawnSuppressed(
             SimulationWorld.LocalPlayerSlot, hasLocalProfile);
         if (hasLocalProfile)
         {

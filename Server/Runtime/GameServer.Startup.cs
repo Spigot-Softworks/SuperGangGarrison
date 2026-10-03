@@ -500,7 +500,7 @@ partial class GameServer
                     && ticks > 0
                     && _world.Frame % (_config.TicksPerSecond * 5) == 0)
                 {
-                    var activePlayableCount = _world.NetworkPlayerRules.EnumerateActiveNetworkPlayers().Count();
+                    var activePlayableCount = _world.NetworkPlayers.EnumerateActiveNetworkPlayers().Count();
                     Console.WriteLine(
                         $"[server] frame={_world.Frame} clients={_clientsBySlot.Count} " +
                         $"mode={_world.MatchRules.Mode} phase={_world.MatchState.Phase} hp={_world.LocalPlayer.Health}/{_world.LocalPlayer.MaxHealth} " +
@@ -798,7 +798,7 @@ partial class GameServer
         int ticksAdvanced,
         TimeSpan now)
     {
-        var activePlayableCount = _world.NetworkPlayerRules.EnumerateActiveNetworkPlayers().Count();
+        var activePlayableCount = _world.NetworkPlayers.EnumerateActiveNetworkPlayers().Count();
         var botMetrics = _botManager.Metrics;
         eventLog.Write(
             "server_loop_long_frame",
@@ -964,7 +964,7 @@ partial class GameServer
                 continue;
             }
 
-            var team = _world.NetworkPlayerRules.GetNetworkPlayerConfiguredTeam(entry.Key);
+            var team = _world.NetworkPlayers.GetNetworkPlayerConfiguredTeam(entry.Key);
             if (team == PlayerTeam.Red)
             {
                 redCount += 1;
@@ -1047,7 +1047,7 @@ partial class GameServer
 
     private ServerRegistrySnapshot CreateServerRegistrySnapshot()
     {
-        var players = _world.NetworkPlayerRules.EnumerateActiveNetworkPlayers().Count();
+        var players = _world.NetworkPlayers.EnumerateActiveNetworkPlayers().Count();
         var spectators = _clientsBySlot.Keys.Count(IsSpectatorSlot);
         return new ServerRegistrySnapshot(
             _serverName,

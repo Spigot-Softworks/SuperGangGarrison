@@ -17,7 +17,7 @@ internal interface IEntityPhaseHost
     PlayerEntity LocalPlayer { get; }
     byte LocalPlayerSlot { get; }
     MovementSystem Movement { get; }
-    NetworkPlayerSystem NetworkPlayerRules { get; }
+    NetworkPlayerSystem NetworkPlayers { get; }
     PickupSystem Pickups { get; }
     PlayerInputSystem PlayerInput { get; }
     NetworkPlayerRegistry PlayerRegistry { get; }

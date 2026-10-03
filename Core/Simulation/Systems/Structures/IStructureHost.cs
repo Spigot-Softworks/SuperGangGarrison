@@ -21,7 +21,7 @@ internal interface IStructureHost
     MapLogicSystem MapLogic { get; }
     MatchState MatchState { get; }
     IReadOnlyList<MineProjectileEntity> Mines { get; }
-    NetworkPlayerSystem NetworkPlayerRules { get; }
+    NetworkPlayerSystem NetworkPlayers { get; }
     PlayerDeathSystem PlayerDeaths { get; }
     ScorekeepingSystem Scorekeeping { get; }
     WorldEffectsSystem WorldEffects { get; }

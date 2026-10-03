@@ -87,7 +87,7 @@ public sealed class CivilianUmbrellaOpeningRegressionTests
 
     private static void Advance(SimulationWorld world, bool held)
     {
-        world.NetworkPlayerRules.SetLocalInput(default(PlayerInputSnapshot) with { FireSecondary = held,
+        world.NetworkPlayers.SetLocalInput(default(PlayerInputSnapshot) with { FireSecondary = held,
             AimWorldX = world.LocalPlayer.X + 256, AimWorldY = world.LocalPlayer.Y });
         world.AdvanceOneTick();
     }

@@ -110,7 +110,7 @@ internal sealed partial class SnapshotApplySystem
     {
         // Advance local aging one step per snapshot received so entries expire
         // at roughly the same rate as they do on the server.
-        _host.KillFeedRules.AdvanceKillFeed();
+        _host.KillFeed.AdvanceKillFeed();
 
         // Additive merge: only add entries whose EventId is not yet in the local
         // list. This prevents flicker when the kill feed is absent from a snapshot

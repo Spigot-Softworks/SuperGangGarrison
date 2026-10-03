@@ -9,7 +9,7 @@ internal interface IDecisionGateHost
     long Frame { get; }
     MatchRules MatchRules { get; }
     MatchState MatchState { get; set; }
-    NetworkPlayerSystem NetworkPlayerRules { get; }
+    NetworkPlayerSystem NetworkPlayers { get; }
     int RedCaps { get; set; }
 
     void QueuePendingMapChange();

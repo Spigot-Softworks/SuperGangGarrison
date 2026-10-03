@@ -145,17 +145,17 @@ public sealed class SimulationWorldGrenadeDamageTests
     private static PlayerEntity AddEnemy(SimulationWorld world, int id, float x, float y)
     {
         var networkId = checked((byte)id);
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(networkId));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(networkId, PlayerTeam.Blue));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(networkId, PlayerClass.Scout));
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(networkId, out var enemy));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(networkId));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(networkId, PlayerTeam.Blue));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(networkId, PlayerClass.Scout));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(networkId, out var enemy));
         enemy.TeleportTo(x, y);
         return enemy;
     }
 
     private static void SetCombatLevel(SimulationWorld world, SimpleLevel level)
     {
-        world.CombatTestSetLevel(level);
+        world.TestSetLevel(level);
     }
 
     private static GrenadeProjectileEntity SpawnGrenade(
@@ -166,12 +166,12 @@ public sealed class SimulationWorldGrenadeDamageTests
         float velocityX = 0f,
         float velocityY = 0f)
     {
-        return world.CombatTestSpawnGrenade(owner, x, y, velocityX, velocityY);
+        return world.TestSpawnGrenade(owner, x, y, velocityX, velocityY);
     }
 
     private static void ExplodeGrenade(SimulationWorld world, GrenadeProjectileEntity grenade)
     {
-        world.CombatTestExplodeGrenade(grenade);
+        world.TestExplodeGrenade(grenade);
     }
 
     private static void AdvanceGrenades(SimulationWorld world)

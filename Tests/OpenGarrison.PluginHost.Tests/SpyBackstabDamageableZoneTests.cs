@@ -18,7 +18,7 @@ public sealed class SpyBackstabDamageableZoneTests
             y: 21f,
             directionDegrees: 0f);
 
-        var hit = world.CombatTestGetNearestStabHit(mask, directionX: 1f, directionY: 0f);
+        var hit = world.TestGetNearestStabHit(mask, directionX: 1f, directionY: 0f);
 
         Assert.NotNull(hit);
         Assert.Equal(0, hit.Value.HitDamageableZoneRoomObjectIndex);
@@ -39,7 +39,7 @@ public sealed class SpyBackstabDamageableZoneTests
             y: 21f,
             directionDegrees: 0f);
 
-        var hit = world.CombatTestGetNearestStabHit(mask, directionX: 1f, directionY: 0f);
+        var hit = world.TestGetNearestStabHit(mask, directionX: 1f, directionY: 0f);
 
         Assert.Null(hit);
     }
@@ -57,7 +57,7 @@ public sealed class SpyBackstabDamageableZoneTests
             y: 21f,
             directionDegrees: 0f);
 
-        var hit = world.CombatTestGetNearestStabHit(mask, directionX: 1f, directionY: 0f);
+        var hit = world.TestGetNearestStabHit(mask, directionX: 1f, directionY: 0f);
         Assert.NotNull(hit);
         Assert.Equal(0, hit.Value.HitDamageableZoneRoomObjectIndex);
 
@@ -88,7 +88,7 @@ public sealed class SpyBackstabDamageableZoneTests
     private static SimulationWorld CreateWorld(IReadOnlyList<RoomObjectMarker> roomObjects)
     {
         var world = new SimulationWorld();
-        world.CombatTestSetLevel(new SimpleLevel(
+        world.TestSetLevel(new SimpleLevel(
             "spy-backstab-damageable-test",
             GameModeKind.TeamDeathmatch,
             new WorldBounds(512f, 512f),

@@ -137,12 +137,12 @@ public sealed class SimulationWorldRocketExplosionRegressionTests
         float speed = 0f,
         float directionRadians = 0f)
     {
-        return world.CombatTestSpawnRocket(owner, x, y, speed, directionRadians);
+        return world.TestSpawnRocket(owner, x, y, speed, directionRadians);
     }
 
     private static void InvokeCombatTestExplodeRocket(SimulationWorld world, RocketProjectileEntity rocket)
     {
-        world.CombatTestExplodeRocket(rocket);
+        world.TestExplodeRocket(rocket);
     }
 
     private static void InvokeAdvanceRockets(SimulationWorld world)
@@ -153,10 +153,10 @@ public sealed class SimulationWorldRocketExplosionRegressionTests
     private static PlayerEntity AddEnemy(SimulationWorld world, int id, float x, float y)
     {
         var networkId = checked((byte)id);
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(networkId));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(networkId, PlayerTeam.Blue));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(networkId, PlayerClass.Soldier));
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(networkId, out var enemy));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(networkId));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(networkId, PlayerTeam.Blue));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(networkId, PlayerClass.Soldier));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(networkId, out var enemy));
         enemy.TeleportTo(x, y);
         return enemy;
     }

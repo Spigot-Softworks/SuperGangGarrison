@@ -197,22 +197,22 @@ public sealed class SimulationWorldRocketSourceParityTests
     private static PlayerEntity AddEnemy(SimulationWorld world, int id, float x, float y, PlayerClass playerClass = PlayerClass.Scout)
     {
         var networkId = checked((byte)id);
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(networkId));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(networkId, PlayerTeam.Blue));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(networkId, playerClass));
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(networkId, out var enemy));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(networkId));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(networkId, PlayerTeam.Blue));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(networkId, playerClass));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(networkId, out var enemy));
         enemy.TeleportTo(x, y);
         return enemy;
     }
 
     private static void SetCombatLevel(SimulationWorld world, SimpleLevel level)
     {
-        world.CombatTestSetLevel(level);
+        world.TestSetLevel(level);
     }
 
     private static RocketProjectileEntity SpawnRocket(SimulationWorld world, PlayerEntity owner, float x, float y, float speed, float directionRadians)
     {
-        return world.CombatTestSpawnRocket(owner, x, y, speed, directionRadians);
+        return world.TestSpawnRocket(owner, x, y, speed, directionRadians);
     }
 
     private static void AdvanceRockets(SimulationWorld world)
@@ -227,7 +227,7 @@ public sealed class SimulationWorldRocketSourceParityTests
 
     private static (float Left, float Top, float Right, float Bottom) GetPlayerPresentationHitBounds(SimulationWorld world, PlayerEntity player)
     {
-        return world.CombatTestGetPlayerPresentationHitBounds(player);
+        return world.TestGetPlayerPresentationHitBounds(player);
     }
 
     private static string? GetPlayerPresentationBodySpriteName(SimulationWorld world, PlayerEntity player)

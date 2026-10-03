@@ -59,7 +59,7 @@ internal sealed partial class ClassRulesSystem
     {
         marker = default;
         return ShouldApplyMapSpawnClassBehaviorToSlot(slot)
-            && TryGetMapSpawnClassBehavior(_host.NetworkPlayerRules.GetNetworkPlayerConfiguredTeam(slot), out marker);
+            && TryGetMapSpawnClassBehavior(_host.NetworkPlayers.GetNetworkPlayerConfiguredTeam(slot), out marker);
     }
 
     internal bool TryGetMapForcedClassDefinition(byte slot, out CharacterClassDefinition definition)
@@ -82,7 +82,7 @@ internal sealed partial class ClassRulesSystem
             return true;
         }
 
-        return behavior.AllowTeamChange || _host.NetworkPlayerRules.IsNetworkPlayerAwaitingJoin(slot);
+        return behavior.AllowTeamChange || _host.NetworkPlayers.IsNetworkPlayerAwaitingJoin(slot);
     }
 
     internal bool CanNetworkPlayerSelectClassByMapBehavior(byte slot, CharacterClassDefinition definition)
@@ -92,7 +92,7 @@ internal sealed partial class ClassRulesSystem
             return true;
         }
 
-        if (!behavior.AllowClassChange && !_host.NetworkPlayerRules.IsNetworkPlayerAwaitingJoin(slot))
+        if (!behavior.AllowClassChange && !_host.NetworkPlayers.IsNetworkPlayerAwaitingJoin(slot))
         {
             return false;
         }

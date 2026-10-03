@@ -723,9 +723,9 @@ public sealed class DamageableLogicTests
             },
         ]);
         var world = CreateWorld([CreateDamageableZone(0, 100f)], graph);
-        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
-        world.NetworkPlayerRules.SetLocalPlayerTeam(PlayerTeam.Red);
-        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Engineer);
+        world.NetworkPlayers.PrepareLocalPlayerJoin();
+        world.NetworkPlayers.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.NetworkPlayers.CompleteLocalPlayerJoin(PlayerClass.Engineer);
 
         var blueSentry = new SentryEntity(
             id: 9001,
@@ -735,7 +735,7 @@ public sealed class DamageableLogicTests
             y: 10f,
             startDirectionX: 1f);
         blueSentry.ForceBuilt();
-        world.CombatTestAddSentry(blueSentry);
+        world.TestAddSentry(blueSentry);
 
         InvokeApplyExperimentalSentryStructuralTargetDamage(
             world,
@@ -965,7 +965,7 @@ public sealed class DamageableLogicTests
 
         var world = new SimulationWorld();
 
-        world.CombatTestSetLevel(new SimpleLevel(
+        world.TestSetLevel(new SimpleLevel(
 
             "damageable-heal-test",
 

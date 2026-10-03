@@ -150,7 +150,7 @@ public partial class Game1
         // the local simulation slot or list index as a network slot.
         foreach (var candidate in _world.RemoteSnapshotPlayers)
         {
-            if (_world.NetworkPlayerRules.TryGetPlayerNetworkSlot(candidate, out var candidateSlot) && candidateSlot == slot)
+            if (_world.NetworkPlayers.TryGetPlayerNetworkSlot(candidate, out var candidateSlot) && candidateSlot == slot)
             {
                 player = candidate;
                 return true;

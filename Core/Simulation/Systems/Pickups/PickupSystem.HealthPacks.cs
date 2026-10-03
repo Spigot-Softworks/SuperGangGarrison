@@ -25,7 +25,7 @@ internal sealed partial class PickupSystem
                     continue;
                 }
 
-                if (_host.Decisions.ShouldCancelPickup(
+                if (_host.DecisionGate.ShouldCancelPickup(
                         WorldPickupKind.HealthPack,
                         player,
                         healthPack.Id,

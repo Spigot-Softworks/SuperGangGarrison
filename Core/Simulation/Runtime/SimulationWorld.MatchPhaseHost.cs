@@ -3,7 +3,7 @@ namespace OpenGarrison.Core;
 public sealed partial class SimulationWorld : IMatchPhaseHost
 {
     void IMatchPhaseHost.AdvanceExperimentalRageState() => ExperimentalRules.AdvanceExperimentalRageState();
-    void IMatchPhaseHost.AdvanceKillFeed() => KillFeedRules.AdvanceKillFeed();
+    void IMatchPhaseHost.AdvanceKillFeed() => KillFeed.AdvanceKillFeed();
     void IMatchPhaseHost.AdvanceLocalDeathCam() => PlayerDeaths.AdvanceLocalDeathCam();
     void IMatchPhaseHost.AdvanceMedicUberEffects() => SupportRules.AdvanceMedicUberEffects();
     void IMatchPhaseHost.AdvanceVipState() => VipRules.AdvanceVipState();
@@ -16,6 +16,6 @@ public sealed partial class SimulationWorld : IMatchPhaseHost
     byte IMatchPhaseHost.LocalPlayerSlot => LocalPlayerSlot;
     void IMatchPhaseHost.TickForegroundSpriteJungle() => MapLogic.TickForegroundSpriteJungle();
     void IMatchPhaseHost.TickSpritesheetPlayback() => MapLogic.TickSpritesheetPlayback();
-    bool IMatchPhaseHost.TryGetNetworkPlayer(byte slot, out PlayerEntity player) => NetworkPlayerRules.TryGetNetworkPlayer(slot, out player);
+    bool IMatchPhaseHost.TryGetNetworkPlayer(byte slot, out PlayerEntity player) => NetworkPlayers.TryGetNetworkPlayer(slot, out player);
     void IMatchPhaseHost.UpdateAuxiliaryControlPointStateIfNeeded() => UpdateAuxiliaryControlPointStateIfNeeded();
 }

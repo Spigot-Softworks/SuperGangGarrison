@@ -995,7 +995,7 @@ public sealed class LastToDiePerkRuntimeTests
             null));
         Assert.False(world.LocalPlayer.IsAlive);
 
-        world.NetworkPlayerRules.ForceRespawnLocalPlayer();
+        world.NetworkPlayers.ForceRespawnLocalPlayer();
         world.LocalPlayer.ForceSetHealth(world.LocalPlayer.MaxHealth - 10);
         Assert.True(world.Abilities.TryApplyGameplayDamage(enemy.Id, 1f, world.LocalPlayer.Id, null));
 
@@ -1340,7 +1340,7 @@ public sealed class LastToDiePerkRuntimeTests
                 null);
         }
         Assert.False(world.LocalPlayer.IsAlive);
-        world.NetworkPlayerRules.ForceRespawnLocalPlayer();
+        world.NetworkPlayers.ForceRespawnLocalPlayer();
 
         Assert.Equal(0f, InvokeGetLastToDieEvasionChance(world, world.LocalPlayer));
     }
@@ -1891,8 +1891,8 @@ public sealed class LastToDiePerkRuntimeTests
     private static SimulationWorld CreateWorld(PlayerClass localClass)
     {
         var world = new SimulationWorld();
-        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
-        world.NetworkPlayerRules.CompleteLocalPlayerJoin(localClass);
+        world.NetworkPlayers.PrepareLocalPlayerJoin();
+        world.NetworkPlayers.CompleteLocalPlayerJoin(localClass);
         return world;
     }
 
@@ -1922,7 +1922,7 @@ public sealed class LastToDiePerkRuntimeTests
                 floorY: 2048f,
                 solids: solids ?? [],
                 importedFromSource: false));
-        world.NetworkPlayerRules.ForceRespawnLocalPlayer();
+        world.NetworkPlayers.ForceRespawnLocalPlayer();
         return world;
     }
 
@@ -1932,16 +1932,16 @@ public sealed class LastToDiePerkRuntimeTests
         PlayerClass playerClass,
         PlayerTeam team)
     {
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(slot));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, team));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, playerClass));
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(slot, team));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(slot, playerClass));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(slot, out var player));
         return player;
     }
 
     private static void SetCombatLevel(SimulationWorld world, SimpleLevel level)
     {
-        world.CombatTestSetLevel(level);
+        world.TestSetLevel(level);
     }
 
     private static float InvokeGetLastToDieEvasionChance(

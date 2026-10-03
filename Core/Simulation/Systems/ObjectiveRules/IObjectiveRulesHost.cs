@@ -13,12 +13,12 @@ internal interface IObjectiveRulesHost
     bool CompetitiveObjectivesLocked { get; }
     SimulationConfig Config { get; }
     float ConfiguredCaptureSpeedMultiplierPerPlayer { get; }
-    DecisionGate Decisions { get; }
+    DecisionGate DecisionGate { get; }
     ExperimentalRulesSystem ExperimentalRules { get; }
     ExplosionRulesSystem ExplosionRules { get; }
     long Frame { get; }
     bool IsVipModeActive { get; }
-    KillFeedSystem KillFeedRules { get; }
+    KillFeedSystem KillFeed { get; }
     LastToDieRulesSystem LastToDieRules { get; }
     SimpleLevel Level { get; }
     PlayerEntity LocalPlayer { get; }

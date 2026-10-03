@@ -120,7 +120,7 @@ public sealed class VipModeRulesTests
 
         Assert.True(world.TryLoadLevel("Dirtbowl"));
         world.VipRules.ConfigurePracticeVipRules(enabled: true);
-        world.NetworkPlayerRules.SetPendingLocalPlayerClass(PlayerClass.Quote);
+        world.NetworkPlayers.SetPendingLocalPlayerClass(PlayerClass.Quote);
 
         world.AdvanceOneTick();
 
@@ -142,7 +142,7 @@ public sealed class VipModeRulesTests
 
         Assert.True(world.TryLoadLevel("Dirtbowl"));
         world.VipRules.ConfigurePracticeVipRules(enabled: true);
-        world.NetworkPlayerRules.SetPendingLocalPlayerClass(PlayerClass.Quote);
+        world.NetworkPlayers.SetPendingLocalPlayerClass(PlayerClass.Quote);
         AdvancePastSetup(world);
 
         Assert.True(world.VipRules.TryGetVipSlot(PlayerTeam.Red, out var vipSlot));
@@ -163,9 +163,9 @@ public sealed class VipModeRulesTests
 
         Assert.True(world.TryLoadLevel("Dirtbowl"));
         world.VipRules.ConfigurePracticeVipRules(enabled: true);
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(botSlot));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(botSlot, PlayerTeam.Red));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(botSlot, PlayerClass.Soldier));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(botSlot));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(botSlot, PlayerTeam.Red));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(botSlot, PlayerClass.Soldier));
 
         world.AdvanceOneTick();
 
@@ -176,7 +176,7 @@ public sealed class VipModeRulesTests
         Assert.True(world.VipRules.TryGetVipSlot(PlayerTeam.Red, out var vipSlot));
         Assert.Equal(botSlot, vipSlot);
         Assert.Equal(PlayerClass.Scout, world.LocalPlayer.ClassId);
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(botSlot, out var bot));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(botSlot, out var bot));
         Assert.Equal(PlayerClass.Quote, bot.ClassId);
     }
 
@@ -189,17 +189,17 @@ public sealed class VipModeRulesTests
         Assert.True(world.TryLoadLevel("Dirtbowl"));
         world.VipRules.ConfigurePracticeVipRules(enabled: true);
         world.ClassRules.SetVipAllowDuplicateClasses(true);
-        world.NetworkPlayerRules.SetPendingLocalPlayerClass(PlayerClass.Quote);
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(botSlot));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(botSlot, PlayerTeam.Red));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(botSlot, PlayerClass.Quote));
+        world.NetworkPlayers.SetPendingLocalPlayerClass(PlayerClass.Quote);
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(botSlot));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(botSlot, PlayerTeam.Red));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(botSlot, PlayerClass.Quote));
 
         AdvancePastSetup(world);
 
         Assert.True(world.VipRules.TryGetVipSlot(PlayerTeam.Red, out var vipSlot));
         Assert.Equal(SimulationWorld.LocalPlayerSlot, vipSlot);
         Assert.Equal(PlayerClass.Quote, world.LocalPlayer.ClassId);
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(botSlot, out var bot));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(botSlot, out var bot));
         Assert.Equal(PlayerClass.Scout, bot.ClassId);
     }
 
@@ -210,7 +210,7 @@ public sealed class VipModeRulesTests
 
         Assert.True(world.TryLoadLevel("Dirtbowl"));
         world.VipRules.ConfigurePracticeVipRules(enabled: true);
-        world.NetworkPlayerRules.SetPendingLocalPlayerClass(PlayerClass.Quote);
+        world.NetworkPlayers.SetPendingLocalPlayerClass(PlayerClass.Quote);
         AdvancePastSetup(world);
         Assert.True(world.VipRules.TryGetVipSlot(PlayerTeam.Red, out var vipSlot));
         Assert.Equal(SimulationWorld.LocalPlayerSlot, vipSlot);
@@ -226,7 +226,7 @@ public sealed class VipModeRulesTests
 
             return WorldDecisionResult.Continue;
         };
-        world.NetworkPlayerRules.ForceKillLocalPlayer();
+        world.NetworkPlayers.ForceKillLocalPlayer();
         Assert.False(world.LocalPlayer.IsAlive);
 
         for (var tick = 0; tick < 5 && !world.LocalPlayer.IsAlive; tick += 1)
@@ -321,17 +321,17 @@ public sealed class VipModeRulesTests
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
         world.ClassRules.SetClassLimit(PlayerClass.Soldier, 1);
 
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(2));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(2, PlayerTeam.Red));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(2, PlayerTeam.Red));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
 
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(3));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(3, PlayerTeam.Red));
-        Assert.False(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(3, PlayerClass.Soldier));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(3));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(3, PlayerTeam.Red));
+        Assert.False(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(3, PlayerClass.Soldier));
 
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(4));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(4, PlayerTeam.Blue));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(4, PlayerClass.Soldier));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(4));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(4, PlayerTeam.Blue));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(4, PlayerClass.Soldier));
     }
 
     [Fact]
@@ -361,17 +361,17 @@ public sealed class VipModeRulesTests
     public void VipModeDefaultsToOneOfEachClassPerTeamUnlessDuplicatesAreAllowed()
     {
         var world = CreateSinglePointVipWorldWithLocalVip();
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(2));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(2, PlayerTeam.Red));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Scout));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(2, PlayerTeam.Red));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Scout));
 
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(3));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(3, PlayerTeam.Red));
-        Assert.False(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(3, PlayerClass.Scout));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(3));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(3, PlayerTeam.Red));
+        Assert.False(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(3, PlayerClass.Scout));
 
         world.ClassRules.SetVipAllowDuplicateClasses(true);
 
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(3, PlayerClass.Scout));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(3, PlayerClass.Scout));
     }
 
     [Fact]
@@ -396,7 +396,7 @@ public sealed class VipModeRulesTests
             $"expected teammate not to pause decay while VIP is alive, after={point.CappingTicks}");
 
         MoveAwayFromPoint(enemy);
-        world.NetworkPlayerRules.ForceKillLocalPlayer();
+        world.NetworkPlayers.ForceKillLocalPlayer();
         point.CappingTeam = PlayerTeam.Red;
         point.CappingTicks = 20f;
         MoveToPoint(teammate);
@@ -451,8 +451,8 @@ public sealed class VipModeRulesTests
     private static SimulationWorld CreateSinglePointVipWorldWithLocalVip()
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        world.CombatTestSetLevel(CreateSinglePointVipLevel());
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red, respawnLivePlayerImmediately: true));
+        world.TestSetLevel(CreateSinglePointVipLevel());
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red, respawnLivePlayerImmediately: true));
         Assert.True(world.VipRules.TrySetPreferredVipSlot(PlayerTeam.Red, SimulationWorld.LocalPlayerSlot));
 
         world.AdvanceOneTick();
@@ -468,10 +468,10 @@ public sealed class VipModeRulesTests
     private static SimulationWorld CreateSinglePointControlPointWorld(PlayerTeam team, PlayerClass playerClass)
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        world.CombatTestSetLevel(CreateSinglePointLevel(GameModeKind.ControlPoint, "cp_test_single_point"));
-        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, team, respawnLivePlayerImmediately: true));
-        world.NetworkPlayerRules.CompleteLocalPlayerJoin(playerClass);
+        world.TestSetLevel(CreateSinglePointLevel(GameModeKind.ControlPoint, "cp_test_single_point"));
+        world.NetworkPlayers.PrepareLocalPlayerJoin();
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, team, respawnLivePlayerImmediately: true));
+        world.NetworkPlayers.CompleteLocalPlayerJoin(playerClass);
         Assert.Equal(playerClass, world.LocalPlayer.ClassId);
         MoveAwayFromPoint(world.LocalPlayer);
         return world;
@@ -490,10 +490,10 @@ public sealed class VipModeRulesTests
 
     private static PlayerEntity JoinPlayer(SimulationWorld world, byte slot, PlayerTeam team, PlayerClass playerClass)
     {
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(slot));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, team));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, playerClass));
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(slot, team));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(slot, playerClass));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(slot, out var player));
         return player;
     }
 

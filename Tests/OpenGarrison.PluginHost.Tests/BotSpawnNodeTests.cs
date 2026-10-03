@@ -113,7 +113,7 @@ public sealed class BotSpawnNodeTests
             220f,
             out var slot));
 
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var bot));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(slot, out var bot));
         Assert.Equal(PlayerTeam.Blue, bot.Team);
         Assert.Equal(PlayerClass.Medic, bot.ClassId);
         Assert.Equal(240f, bot.X);
@@ -143,7 +143,7 @@ public sealed class BotSpawnNodeTests
             240f,
             out var slot));
 
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var bot));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(slot, out var bot));
         Assert.Equal(PlayerTeam.Blue, bot.Team);
         Assert.Equal(PlayerClass.Soldier, bot.ClassId);
         Assert.InRange(bot.X, 176f, 304f);
@@ -202,10 +202,10 @@ public sealed class BotSpawnNodeTests
             220f,
             out var slot));
 
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var bot));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(slot, out var bot));
         Assert.Equal("Doc Map", bot.DisplayName);
 
-        Assert.True(world.NetworkPlayerRules.ForceKillNetworkPlayer(slot));
+        Assert.True(world.NetworkPlayers.ForceKillNetworkPlayer(slot));
         botManager.AdvanceBotReactions();
 
         Assert.False(botManager.BotSlots.ContainsKey(slot));
@@ -234,7 +234,7 @@ public sealed class BotSpawnNodeTests
             220f,
             out var slot));
 
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var bot));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(slot, out var bot));
         Assert.Equal("Doc Map", bot.DisplayName);
     }
 
@@ -262,7 +262,7 @@ public sealed class BotSpawnNodeTests
             out var slot,
             deathTriggerNodeIndex: 3));
 
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var bot));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(slot, out var bot));
         Assert.True(bot.TryGetReplicatedStateBool(
             BotSpawnMetadata.VisualReplicatedStateOwnerId,
             BotSpawnMetadata.ForceNameplateReplicatedStateKey,
@@ -315,7 +315,7 @@ public sealed class BotSpawnNodeTests
             deathNodeIndex));
 
         botManager.AdvanceBotReactions();
-        Assert.True(world.NetworkPlayerRules.ForceKillNetworkPlayer(slot));
+        Assert.True(world.NetworkPlayers.ForceKillNetworkPlayer(slot));
         botManager.AdvanceBotReactions();
 
         Assert.True(graph.GetOutput(deathNodeIndex));
@@ -325,7 +325,7 @@ public sealed class BotSpawnNodeTests
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
         var spawn = new SpawnPoint(x, y);
-        world.CombatTestSetLevel(new SimpleLevel(
+        world.TestSetLevel(new SimpleLevel(
             "bot-spawn-test",
             GameModeKind.TeamDeathmatch,
             new WorldBounds(512f, 512f),
@@ -349,7 +349,7 @@ public sealed class BotSpawnNodeTests
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
         var fallbackSpawn = new SpawnPoint(40f, 160f);
-        world.CombatTestSetLevel(new SimpleLevel(
+        world.TestSetLevel(new SimpleLevel(
             "bot-spawn-floor-test",
             GameModeKind.TeamDeathmatch,
             new WorldBounds(512f, 320f),

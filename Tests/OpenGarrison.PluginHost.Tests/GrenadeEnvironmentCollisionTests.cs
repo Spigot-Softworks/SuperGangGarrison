@@ -135,7 +135,7 @@ public sealed class GrenadeEnvironmentCollisionTests
     {
         var world = new SimulationWorld();
         Assert.True(world.TrySetLocalClass(PlayerClass.Demoman));
-        world.CombatTestSetLevel(new SimpleLevel(
+        world.TestSetLevel(new SimpleLevel(
             name: "grenade_environment_collision_test",
             mode: GameModeKind.TeamDeathmatch,
             bounds: new WorldBounds(2048f, 2048f),
@@ -157,10 +157,10 @@ public sealed class GrenadeEnvironmentCollisionTests
     private static PlayerEntity AddBlueOwner(SimulationWorld world)
     {
         const byte playerId = 2;
-        Assert.True(world.TryPrepareNetworkPlayerJoin(playerId));
-        Assert.True(world.TrySetNetworkPlayerTeam(playerId, PlayerTeam.Blue));
-        Assert.True(world.TryApplyNetworkPlayerClassSelection(playerId, PlayerClass.Scout));
-        Assert.True(world.TryGetNetworkPlayer(playerId, out var owner));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(playerId));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(playerId, PlayerTeam.Blue));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(playerId, PlayerClass.Scout));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(playerId, out var owner));
         owner.TeleportTo(-500f, -500f);
         return owner;
     }
@@ -173,6 +173,6 @@ public sealed class GrenadeEnvironmentCollisionTests
         float velocityX,
         float velocityY)
     {
-        return world.CombatTestSpawnGrenade(owner, x, y, velocityX, velocityY);
+        return world.TestSpawnGrenade(owner, x, y, velocityX, velocityY);
     }
 }

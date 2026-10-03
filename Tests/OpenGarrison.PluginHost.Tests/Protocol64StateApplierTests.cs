@@ -216,7 +216,7 @@ public sealed class Protocol64StateApplierTests
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
         applier.ApplyToWorld(world);
 
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(2, out var player));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(2, out var player));
         Assert.Equal(StockGameplayModCatalog.GetClassId(PlayerClass.Scout), player.GameplayClassId);
         Assert.Equal(75, player.Health);
         Assert.Equal(123f, player.X);
@@ -267,7 +267,7 @@ public sealed class Protocol64StateApplierTests
 
         var receiver = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
         Assert.True(receiver.SnapshotApply.ApplyProtocol64PlayerState(state));
-        Assert.True(receiver.NetworkPlayerRules.IsNetworkPlayerBot(SimulationWorld.LocalPlayerSlot));
+        Assert.True(receiver.NetworkPlayers.IsNetworkPlayerBot(SimulationWorld.LocalPlayerSlot));
     }
 
     [Fact]
@@ -275,7 +275,7 @@ public sealed class Protocol64StateApplierTests
     {
         var receiver = CreateProtocol64ClientWithRemoteDemoknight();
         var remote = Assert.Single(receiver.RemoteSnapshotPlayers);
-        Assert.True(receiver.NetworkPlayerRules.TryGetPlayerNetworkSlot(remote, out var remoteServerSlot));
+        Assert.True(receiver.NetworkPlayers.TryGetPlayerNetworkSlot(remote, out var remoteServerSlot));
         Assert.Equal((byte)1, remoteServerSlot);
 
         receiver.SnapshotApply.ReconcileRemoteLastToDieDemoknightPresentation(new HashSet<byte> { 2 });
@@ -314,7 +314,7 @@ public sealed class Protocol64StateApplierTests
         Assert.True(source.LocalPlayer.TrySelectGameplayPrimaryItem(selectedPrimaryItemId));
 
         Assert.Equal(selectedPrimaryItemId, source.LocalPlayer.GameplayLoadoutState.PrimaryItemId);
-        source.NetworkPlayerRules.ForceKillLocalPlayer();
+        source.NetworkPlayers.ForceKillLocalPlayer();
         AdvanceUntilRespawn(source);
 
         var state = Assert.Single(new Protocol64StatePublisher(source).BuildPlayerStateBatch(1).Players);
@@ -410,10 +410,10 @@ public sealed class Protocol64StateApplierTests
     {
         var world = CreateJoinedWorld(PlayerClass.Scout);
         world.LocalPlayer.Spawn(PlayerTeam.Red, 100f, 0f);
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(2));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(2, PlayerTeam.Blue));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Spy));
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(2, out var enemySpy));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(2, PlayerTeam.Blue));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Spy));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(2, out var enemySpy));
         enemySpy.Spawn(PlayerTeam.Blue, 50f, 0f);
         Assert.True(enemySpy.TryToggleSpyCloak());
         for (var tick = 0; tick < 20; tick += 1)
@@ -452,19 +452,19 @@ public sealed class Protocol64StateApplierTests
             Protocol64StateApplyStatus.Applied,
             applier.ApplyPlayerStateBatch(new Protocol64PlayerStateBatch(1, 1, [local, spy])).Status);
         applier.ApplyToWorld(world);
-        Assert.Contains(world.NetworkPlayerRules.EnumerateReplicatedNetworkPlayers(), entry => entry.Slot == 2);
+        Assert.Contains(world.NetworkPlayers.EnumerateReplicatedNetworkPlayers(), entry => entry.Slot == 2);
 
         Assert.Equal(
             Protocol64StateApplyStatus.Applied,
             applier.ApplyPlayerStateBatch(new Protocol64PlayerStateBatch(2, 2, [local])).Status);
         applier.ApplyToWorld(world);
-        Assert.DoesNotContain(world.NetworkPlayerRules.EnumerateReplicatedNetworkPlayers(), entry => entry.Slot == 2);
+        Assert.DoesNotContain(world.NetworkPlayers.EnumerateReplicatedNetworkPlayers(), entry => entry.Slot == 2);
 
         Assert.Equal(
             Protocol64StateApplyStatus.Applied,
             applier.ApplyPlayerStateBatch(new Protocol64PlayerStateBatch(3, 3, [local, spy])).Status);
         applier.ApplyToWorld(world);
-        var reapplied = Assert.Single(world.NetworkPlayerRules.EnumerateReplicatedNetworkPlayers(), entry => entry.Slot == 2);
+        var reapplied = Assert.Single(world.NetworkPlayers.EnumerateReplicatedNetworkPlayers(), entry => entry.Slot == 2);
         Assert.Equal(PlayerClass.Spy, reapplied.Player.ClassId);
     }
 
@@ -472,9 +472,9 @@ public sealed class Protocol64StateApplierTests
     public void SameClassSlotReappearanceAdvancesGenerationPastRemovalTombstone()
     {
         var source = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        Assert.True(source.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(2));
-        Assert.True(source.NetworkPlayerRules.TrySetNetworkPlayerTeam(2, PlayerTeam.Red));
-        Assert.True(source.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Spy));
+        Assert.True(source.NetworkPlayers.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(source.NetworkPlayers.TrySetNetworkPlayerTeam(2, PlayerTeam.Red));
+        Assert.True(source.NetworkPlayers.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Spy));
         var publisher = new Protocol64StatePublisher(source);
         var applier = new Protocol64StateApplier();
 
@@ -484,14 +484,14 @@ public sealed class Protocol64StateApplierTests
         Assert.Equal(Protocol64StateApplyStatus.Applied, applier.ApplyPlayerStateBatch(firstBatch).Status);
         _ = publisher.BuildRosterState(1);
 
-        Assert.True(source.NetworkPlayerRules.TryReleaseNetworkPlayerSlot(2));
+        Assert.True(source.NetworkPlayers.TryReleaseNetworkPlayerSlot(2));
         _ = publisher.BuildPlayerStateBatch(2);
         var removedRoster = publisher.BuildRosterState(2);
         Assert.Equal(Protocol64StateApplyStatus.Applied, applier.ApplyRosterState(removedRoster).Status);
 
-        Assert.True(source.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(2));
-        Assert.True(source.NetworkPlayerRules.TrySetNetworkPlayerTeam(2, PlayerTeam.Red));
-        Assert.True(source.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Spy));
+        Assert.True(source.NetworkPlayers.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(source.NetworkPlayers.TrySetNetworkPlayerTeam(2, PlayerTeam.Red));
+        Assert.True(source.NetworkPlayers.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Spy));
         var rejoinedBatch = publisher.BuildPlayerStateBatch(3);
         var rejoined = Assert.Single(rejoinedBatch.Players, player => player.Slot == 2);
         Assert.Equal(2U, rejoined.Generation);
@@ -672,8 +672,8 @@ public sealed class Protocol64StateApplierTests
     private static SimulationWorld CreateJoinedWorld(PlayerClass playerClass)
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
-        world.NetworkPlayerRules.CompleteLocalPlayerJoin(playerClass);
+        world.NetworkPlayers.PrepareLocalPlayerJoin();
+        world.NetworkPlayers.CompleteLocalPlayerJoin(playerClass);
         return world;
     }
 
@@ -708,7 +708,7 @@ public sealed class Protocol64StateApplierTests
     {
         for (var tick = 0;
              tick < world.Config.TicksPerSecond * 6
-                && world.NetworkPlayerRules.GetNetworkPlayerRespawnTicks(SimulationWorld.LocalPlayerSlot) > 0;
+                && world.NetworkPlayers.GetNetworkPlayerRespawnTicks(SimulationWorld.LocalPlayerSlot) > 0;
              tick += 1)
         {
             world.AdvanceOneTick();

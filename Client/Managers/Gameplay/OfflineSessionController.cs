@@ -244,7 +244,7 @@ public sealed class OfflineSessionController
 
             if (openJoinMenus)
             {
-                _context._world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+                _context._world.NetworkPlayers.PrepareLocalPlayerJoin();
                 _context.ApplyPracticeDummyPreferencesBeforeJoin();
                 LogBrowserPracticeStartupStep("prepare-local-join");
             }

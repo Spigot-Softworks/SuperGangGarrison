@@ -494,7 +494,7 @@ sealed class SnapshotBroadcaster
             }
 
             if (NetworkPlayerSystem.IsPlayableNetworkPlayerSlot(client.Slot)
-                && _world.NetworkPlayerRules.IsNetworkPlayerAwaitingJoin(client.Slot))
+                && _world.NetworkPlayers.IsNetworkPlayerAwaitingJoin(client.Slot))
             {
                 spectatorCount += 1;
             }
@@ -540,7 +540,7 @@ sealed class SnapshotBroadcaster
             ConvertToArray(_world.ControlPoints, point => _world.Snapshots.ToSnapshotControlPointState(point)),
             ConvertToArray(_world.ObjectiveRules.Generators, generator => _world.Snapshots.ToSnapshotGeneratorState(generator)),
             LocalDeathCam: null,
-            ConvertToArray(_world.KillFeed, entry => _world.Snapshots.ToSnapshotKillFeedEntry(entry)),
+            ConvertToArray(_world.KillFeedEntries, entry => _world.Snapshots.ToSnapshotKillFeedEntry(entry)),
             visualEvents,
             damageEvents,
             soundEvents,
@@ -578,8 +578,8 @@ sealed class SnapshotBroadcaster
     {
         PlayerEntity? viewer = null;
         if (NetworkPlayerSystem.IsPlayableNetworkPlayerSlot(client.Slot)
-            && !_world.NetworkPlayerRules.IsNetworkPlayerAwaitingJoin(client.Slot)
-            && _world.NetworkPlayerRules.TryGetNetworkPlayer(client.Slot, out var viewerPlayer))
+            && !_world.NetworkPlayers.IsNetworkPlayerAwaitingJoin(client.Slot)
+            && _world.NetworkPlayers.TryGetNetworkPlayer(client.Slot, out var viewerPlayer))
         {
             viewer = viewerPlayer;
         }
@@ -600,7 +600,7 @@ sealed class SnapshotBroadcaster
                 continue;
             }
 
-            if (!_world.NetworkPlayerRules.TryGetNetworkPlayer(entry.Slot, out var player))
+            if (!_world.NetworkPlayers.TryGetNetworkPlayer(entry.Slot, out var player))
             {
                 continue;
             }
@@ -620,7 +620,7 @@ sealed class SnapshotBroadcaster
         // Add server bot players
         foreach (var (botSlot, botState) in _botManager.BotSlots)
         {
-            if (!_world.NetworkPlayerRules.TryGetNetworkPlayer(botSlot, out var botPlayer))
+            if (!_world.NetworkPlayers.TryGetNetworkPlayer(botSlot, out var botPlayer))
             {
                 continue;
             }
@@ -1125,7 +1125,7 @@ sealed class SnapshotBroadcaster
                 continue;
             }
 
-            if (_world.NetworkPlayerRules.TryGetNetworkPlayer(entry.Slot, out var player))
+            if (_world.NetworkPlayers.TryGetNetworkPlayer(entry.Slot, out var player))
             {
                 players.Add(_world.Snapshots.ToSnapshotPlayerState(entry.Slot, player, null, value => _stringCache.GetOrAddCacheId(value), entry.PingMilliseconds));
             }
@@ -1133,7 +1133,7 @@ sealed class SnapshotBroadcaster
 
         foreach (var (botSlot, _) in _botManager.BotSlots)
         {
-            if (_world.NetworkPlayerRules.TryGetNetworkPlayer(botSlot, out var botPlayer))
+            if (_world.NetworkPlayers.TryGetNetworkPlayer(botSlot, out var botPlayer))
             {
                 players.Add(_world.Snapshots.ToSnapshotPlayerState(botSlot, botPlayer, null, value => _stringCache.GetOrAddCacheId(value), isBot: true));
             }

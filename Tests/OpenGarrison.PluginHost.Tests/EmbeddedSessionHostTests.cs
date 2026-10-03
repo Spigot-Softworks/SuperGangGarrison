@@ -50,12 +50,12 @@ public sealed class EmbeddedSessionHostTests
             Pump(host, clients, () => clients.All(c => c.LastToDieState.Snapshot?.Phase == LastToDieWirePhase.Playing));
             foreach (var client in clients)
             {
-                Assert.True(host.World.NetworkPlayerRules.TryGetNetworkPlayer(client.LocalPlayerSlot, out var player));
+                Assert.True(host.World.NetworkPlayers.TryGetNetworkPlayer(client.LocalPlayerSlot, out var player));
                 Assert.Equal(PlayerTeam.Red, player.Team);
                 Assert.True(player.HasLastToDieSurvivorBuff);
                 Assert.Equal(PlayerClass.Spy, player.ClassId);
             }
-            Assert.All(host.World.NetworkPlayerRules.EnumerateActiveNetworkPlayers().Where(p => p.Player.Team == PlayerTeam.Blue),
+            Assert.All(host.World.NetworkPlayers.EnumerateActiveNetworkPlayers().Where(p => p.Player.Team == PlayerTeam.Blue),
                 p => Assert.True(p.Slot > host.Options.MaximumPlayers, "Enemies must not occupy human room seats."));
 
             // Exercise the client console route, including authority checks, without a graphics device.

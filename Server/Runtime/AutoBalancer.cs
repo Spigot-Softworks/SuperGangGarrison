@@ -51,7 +51,7 @@ sealed class AutoBalancer
 
         var redCount = 0;
         var blueCount = 0;
-        foreach (var entry in _world.NetworkPlayerRules.EnumerateActiveNetworkPlayers())
+        foreach (var entry in _world.NetworkPlayers.EnumerateActiveNetworkPlayers())
         {
             if (entry.Player.Team == PlayerTeam.Red)
             {
@@ -103,7 +103,7 @@ sealed class AutoBalancer
         var candidateSlot = (byte)0;
         PlayerEntity? candidate = null;
         var bestScore = float.MaxValue;
-        foreach (var entry in _world.NetworkPlayerRules.EnumerateActiveNetworkPlayers())
+        foreach (var entry in _world.NetworkPlayers.EnumerateActiveNetworkPlayers())
         {
             if (entry.Player.Team != targetTeam || !entry.Player.IsAlive)
             {
@@ -135,8 +135,8 @@ sealed class AutoBalancer
         }
 
         var newTeam = targetTeam == PlayerTeam.Red ? PlayerTeam.Blue : PlayerTeam.Red;
-        _world.NetworkPlayerRules.TrySetNetworkPlayerTeam(candidateSlot, newTeam);
-        _world.NetworkPlayerRules.ForceKillNetworkPlayer(candidateSlot);
+        _world.NetworkPlayers.TrySetNetworkPlayerTeam(candidateSlot, newTeam);
+        _world.NetworkPlayers.ForceKillNetworkPlayer(candidateSlot);
         _log($"[server] auto-balance moved \"{candidate.DisplayName}\" slot={candidateSlot} to {newTeam}.");
         SendAutoBalanceNotice(new AutoBalanceNoticeMessage(
             AutoBalanceNoticeKind.Applied,

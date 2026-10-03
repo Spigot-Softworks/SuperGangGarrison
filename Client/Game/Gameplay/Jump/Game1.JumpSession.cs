@@ -307,9 +307,9 @@ public partial class Game1
     {
         _world.PracticeDummies.DespawnEnemyDummy();
         _world.PracticeDummies.DespawnFriendlyDummy();
-        _world.NetworkPlayerRules.SetLocalPlayerTeam(PlayerTeam.Red);
-        _world.NetworkPlayerRules.PrepareLocalPlayerJoin();
-        _world.NetworkPlayerRules.CompleteLocalPlayerJoin(playerClass);
+        _world.NetworkPlayers.SetLocalPlayerTeam(PlayerTeam.Red);
+        _world.NetworkPlayers.PrepareLocalPlayerJoin();
+        _world.NetworkPlayers.CompleteLocalPlayerJoin(playerClass);
     }
 
     public void DrawJumpMenu()

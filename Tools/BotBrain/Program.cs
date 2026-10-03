@@ -231,19 +231,19 @@ if (!world.TryLoadLevel(options.MapName, options.AreaIndex, preservePlayerStats:
 RunNeutralPreTicks(world, options.PreTicks);
 world.PracticeDummies.DespawnEnemyDummy();
 world.PracticeDummies.DespawnFriendlyDummy();
-world.NetworkPlayerRules.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, options.Team);
+world.NetworkPlayers.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, options.Team);
 world.LocalPlayer.Kill();
 
 var spawn = world.Level.GetSpawn(options.Team, 0);
-world.NetworkPlayerRules.TrySetNetworkPlayerSpawnOverride(options.BotSlot, spawn.X, spawn.Y);
-world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(options.BotSlot);
-world.NetworkPlayerRules.TrySetNetworkPlayerTeam(options.BotSlot, options.Team);
-if (!world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(options.BotSlot, options.PlayerClass))
+world.NetworkPlayers.TrySetNetworkPlayerSpawnOverride(options.BotSlot, spawn.X, spawn.Y);
+world.NetworkPlayers.TryPrepareNetworkPlayerJoin(options.BotSlot);
+world.NetworkPlayers.TrySetNetworkPlayerTeam(options.BotSlot, options.Team);
+if (!world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(options.BotSlot, options.PlayerClass))
 {
     throw new InvalidOperationException($"Could not spawn slot {options.BotSlot} as {options.Team} {options.PlayerClass}.");
 }
 
-if (!world.NetworkPlayerRules.TryGetNetworkPlayer(options.BotSlot, out var bot))
+if (!world.NetworkPlayers.TryGetNetworkPlayer(options.BotSlot, out var bot))
 {
     throw new InvalidOperationException($"Could not resolve bot slot {options.BotSlot}.");
 }
@@ -267,7 +267,7 @@ if (options.SpawnEnemyDummy)
         world.EnemyPlayer.ResolveBlockingOverlap(world.Level, enemyTeam);
     }
 
-    world.NetworkPlayerRules.SetEnemyInput(default);
+    world.NetworkPlayers.SetEnemyInput(default);
     Console.WriteLine($"enemyDummy=enabled team={enemyTeam} pos=({world.EnemyPlayer.X:0.0},{world.EnemyPlayer.Y:0.0})");
 }
 
@@ -496,7 +496,7 @@ for (var tick = 1; tick <= options.Ticks; tick += 1)
         Console.WriteLine($"activeRoute tick={tick} carrying={bot.IsCarryingIntel} goalNode={brain.CurrentGoalNode} pathWaypoints={brain.CurrentPathCount} route={FormatRoute(graph, brain.CurrentPath)}");
     }
 
-    if (!world.NetworkPlayerRules.TrySetNetworkPlayerInput(options.BotSlot, input))
+    if (!world.NetworkPlayers.TrySetNetworkPlayerInput(options.BotSlot, input))
     {
         throw new InvalidOperationException($"Failed to set bot input for slot {options.BotSlot}.");
     }
@@ -1004,15 +1004,15 @@ BotBrainProofEvaluation EvaluateCandidateAsset(BotNavigationAsset candidateAsset
 
     candidateWorld.PracticeDummies.DespawnEnemyDummy();
     candidateWorld.PracticeDummies.DespawnFriendlyDummy();
-    candidateWorld.NetworkPlayerRules.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, options.Team);
+    candidateWorld.NetworkPlayers.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, options.Team);
     candidateWorld.LocalPlayer.Kill();
 
     var candidateSpawn = candidateWorld.Level.GetSpawn(options.Team, 0);
-    candidateWorld.NetworkPlayerRules.TrySetNetworkPlayerSpawnOverride(options.BotSlot, candidateSpawn.X, candidateSpawn.Y);
-    candidateWorld.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(options.BotSlot);
-    candidateWorld.NetworkPlayerRules.TrySetNetworkPlayerTeam(options.BotSlot, options.Team);
-    if (!candidateWorld.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(options.BotSlot, options.PlayerClass)
-        || !candidateWorld.NetworkPlayerRules.TryGetNetworkPlayer(options.BotSlot, out var candidateBot))
+    candidateWorld.NetworkPlayers.TrySetNetworkPlayerSpawnOverride(options.BotSlot, candidateSpawn.X, candidateSpawn.Y);
+    candidateWorld.NetworkPlayers.TryPrepareNetworkPlayerJoin(options.BotSlot);
+    candidateWorld.NetworkPlayers.TrySetNetworkPlayerTeam(options.BotSlot, options.Team);
+    if (!candidateWorld.NetworkPlayers.TryApplyNetworkPlayerClassSelection(options.BotSlot, options.PlayerClass)
+        || !candidateWorld.NetworkPlayers.TryGetNetworkPlayer(options.BotSlot, out var candidateBot))
     {
         return new BotBrainProofEvaluation(false, -1, 0f, 0, 0, "spawn_failed");
     }
@@ -1044,7 +1044,7 @@ BotBrainProofEvaluation EvaluateCandidateAsset(BotNavigationAsset candidateAsset
             candidateJumpTicks += 1;
         }
 
-        if (!candidateWorld.NetworkPlayerRules.TrySetNetworkPlayerInput(options.BotSlot, input))
+        if (!candidateWorld.NetworkPlayers.TrySetNetworkPlayerInput(options.BotSlot, input))
         {
             return new BotBrainProofEvaluation(false, -1, candidateMovement, candidateJumpTicks, candidateSemanticRecoveries, "input_failed");
         }
@@ -1570,7 +1570,7 @@ static TraversalSoakRunResult RunBotTraversalSoakMap(
     world.PracticeDummies.DespawnFriendlyDummy();
     if (!includeLocal)
     {
-        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        world.NetworkPlayers.PrepareLocalPlayerJoin();
     }
 
     var controllers = new Dictionary<byte, BotBrainController>();
@@ -1639,7 +1639,7 @@ static TraversalSoakRunResult RunBotTraversalSoakMap(
         var inputs = new Dictionary<byte, PlayerInputSnapshot>(controllers.Count);
         foreach (var (slot, controller) in controllers)
         {
-            if (!world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var bot))
+            if (!world.NetworkPlayers.TryGetNetworkPlayer(slot, out var bot))
             {
                 continue;
             }
@@ -1681,7 +1681,7 @@ static TraversalSoakRunResult RunBotTraversalSoakMap(
 
         foreach (var (slot, input) in inputs)
         {
-            world.NetworkPlayerRules.TrySetNetworkPlayerInput(slot, input);
+            world.NetworkPlayers.TrySetNetworkPlayerInput(slot, input);
         }
 
         var worldAdvanceStart = Stopwatch.GetTimestamp();
@@ -1718,7 +1718,7 @@ static TraversalSoakRunResult RunBotTraversalSoakMap(
 
         foreach (var (slot, controller) in controllers)
         {
-            if (!world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var bot))
+            if (!world.NetworkPlayers.TryGetNetworkPlayer(slot, out var bot))
             {
                 continue;
             }
@@ -1833,16 +1833,16 @@ static bool TryConfigureTraversalSoakBot(
     bot = null!;
     if (slot == SimulationWorld.LocalPlayerSlot)
     {
-        world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, team);
-        world.NetworkPlayerRules.SetPendingLocalPlayerClass(classId);
-        world.NetworkPlayerRules.ForceRespawnLocalPlayer();
-        return world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out bot);
+        world.NetworkPlayers.TrySetNetworkPlayerTeam(slot, team);
+        world.NetworkPlayers.SetPendingLocalPlayerClass(classId);
+        world.NetworkPlayers.ForceRespawnLocalPlayer();
+        return world.NetworkPlayers.TryGetNetworkPlayer(slot, out bot);
     }
 
-    return world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(slot)
-        && world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, team)
-        && world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, classId)
-        && world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out bot);
+    return world.NetworkPlayers.TryPrepareNetworkPlayerJoin(slot)
+        && world.NetworkPlayers.TrySetNetworkPlayerTeam(slot, team)
+        && world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(slot, classId)
+        && world.NetworkPlayers.TryGetNetworkPlayer(slot, out bot);
 }
 
 static void ObserveTraversalSoakBotPreAdvance(
@@ -2246,7 +2246,7 @@ static void RunPracticeRosterSimulation(
 
     world.PracticeDummies.DespawnEnemyDummy();
     world.PracticeDummies.DespawnFriendlyDummy();
-    world.NetworkPlayerRules.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, localTeam);
+    world.NetworkPlayers.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, localTeam);
     world.LocalPlayer.Kill();
 
     var controllers = new Dictionary<byte, BotBrainController>();
@@ -2276,7 +2276,7 @@ static void RunPracticeRosterSimulation(
         var inputs = new Dictionary<byte, PlayerInputSnapshot>(controllers.Count);
         foreach (var (slot, controller) in controllers)
         {
-            if (!world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var bot) || !bot.IsAlive)
+            if (!world.NetworkPlayers.TryGetNetworkPlayer(slot, out var bot) || !bot.IsAlive)
             {
                 continue;
             }
@@ -2288,7 +2288,7 @@ static void RunPracticeRosterSimulation(
 
         foreach (var (slot, input) in inputs)
         {
-            world.NetworkPlayerRules.TrySetNetworkPlayerInput(slot, input);
+            world.NetworkPlayers.TrySetNetworkPlayerInput(slot, input);
         }
 
         world.AdvanceOneTick();
@@ -2297,7 +2297,7 @@ static void RunPracticeRosterSimulation(
 
         foreach (var (slot, controller) in controllers)
         {
-            if (!world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var bot))
+            if (!world.NetworkPlayers.TryGetNetworkPlayer(slot, out var bot))
             {
                 continue;
             }
@@ -2345,10 +2345,10 @@ static void AppendPracticeRosterBots(
         var classId = classCycle[(index + classOffset) % classCycle.Count];
         var slot = nextSlot;
         nextSlot += 1;
-        world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(slot);
-        world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, team);
-        if (!world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, classId)
-            || !world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var bot))
+        world.NetworkPlayers.TryPrepareNetworkPlayerJoin(slot);
+        world.NetworkPlayers.TrySetNetworkPlayerTeam(slot, team);
+        if (!world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(slot, classId)
+            || !world.NetworkPlayers.TryGetNetworkPlayer(slot, out var bot))
         {
             continue;
         }
@@ -2771,8 +2771,8 @@ static void RunNeutralPreTicks(SimulationWorld world, int ticks)
         return;
     }
 
-    world.NetworkPlayerRules.SetLocalInput(default);
-    world.NetworkPlayerRules.SetEnemyInput(default);
+    world.NetworkPlayers.SetLocalInput(default);
+    world.NetworkPlayers.SetEnemyInput(default);
     for (var tick = 0; tick < ticks; tick += 1)
     {
         world.AdvanceOneTick();
@@ -5444,12 +5444,12 @@ internal static class BotBrainToolCommandHelpers
 
         const byte botSlot = 2;
         var spawn = world.Level.GetSpawn(team, 0);
-        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
-        world.NetworkPlayerRules.TrySetNetworkPlayerSpawnOverride(botSlot, spawn.X, spawn.Y);
-        if (!world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(botSlot)
-            || !world.NetworkPlayerRules.TrySetNetworkPlayerTeam(botSlot, team)
-            || !world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(botSlot, classId)
-            || !world.NetworkPlayerRules.TryGetNetworkPlayer(botSlot, out var bot))
+        world.NetworkPlayers.PrepareLocalPlayerJoin();
+        world.NetworkPlayers.TrySetNetworkPlayerSpawnOverride(botSlot, spawn.X, spawn.Y);
+        if (!world.NetworkPlayers.TryPrepareNetworkPlayerJoin(botSlot)
+            || !world.NetworkPlayers.TrySetNetworkPlayerTeam(botSlot, team)
+            || !world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(botSlot, classId)
+            || !world.NetworkPlayers.TryGetNetworkPlayer(botSlot, out var bot))
         {
             Console.WriteLine($"directDriveLab=spawn_failed map={mapName} area={area} team={team} class={classId}");
             return;
@@ -5524,7 +5524,7 @@ internal static class BotBrainToolCommandHelpers
                     $"progress:{trace.Progress:0.0} score:{trace.Score:0.0} candidates:{trace.Candidates} simTicks:{trace.SimTicks} cpuMs:{trace.ElapsedMilliseconds:0.000}";
             }
 
-            if (!world.NetworkPlayerRules.TrySetNetworkPlayerInput(botSlot, input))
+            if (!world.NetworkPlayers.TrySetNetworkPlayerInput(botSlot, input))
             {
                 Console.WriteLine($"directDriveLab=input_failed tick={tick}");
                 return;
@@ -5701,11 +5701,11 @@ internal static class BotBrainToolCommandHelpers
         }
 
         const byte botSlot = 2;
-        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
-        if (!world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(botSlot)
-            || !world.NetworkPlayerRules.TrySetNetworkPlayerTeam(botSlot, team)
-            || !world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(botSlot, classId)
-            || !world.NetworkPlayerRules.TryGetNetworkPlayer(botSlot, out var bot))
+        world.NetworkPlayers.PrepareLocalPlayerJoin();
+        if (!world.NetworkPlayers.TryPrepareNetworkPlayerJoin(botSlot)
+            || !world.NetworkPlayers.TrySetNetworkPlayerTeam(botSlot, team)
+            || !world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(botSlot, classId)
+            || !world.NetworkPlayers.TryGetNetworkPlayer(botSlot, out var bot))
         {
             return LocalMotionLabCaseResult.Failed("spawn_failed", scenario, mode, xOffset, bottomOffset, horizontalSpeed, verticalSpeed);
         }
@@ -5807,7 +5807,7 @@ internal static class BotBrainToolCommandHelpers
                 previousMove = move;
             }
 
-            if (!world.NetworkPlayerRules.TrySetNetworkPlayerInput(botSlot, input))
+            if (!world.NetworkPlayers.TrySetNetworkPlayerInput(botSlot, input))
             {
                 return LocalMotionLabCaseResult.Failed("input_failed", scenario, mode, xOffset, bottomOffset, horizontalSpeed, verticalSpeed);
             }

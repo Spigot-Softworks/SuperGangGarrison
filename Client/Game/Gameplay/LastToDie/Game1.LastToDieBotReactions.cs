@@ -199,12 +199,12 @@ public partial class Game1
         var bots = new Dictionary<byte, PlayerEntity>();
         foreach (var entry in _practiceBotSlots)
         {
-            if (entry.Value.Team == localTeam || !_world.NetworkPlayerRules.TryGetNetworkPlayer(entry.Key, out var player))
+            if (entry.Value.Team == localTeam || !_world.NetworkPlayers.TryGetNetworkPlayer(entry.Key, out var player))
             {
                 continue;
             }
 
-            if (_world.NetworkPlayerRules.IsNetworkPlayerAwaitingJoin(entry.Key))
+            if (_world.NetworkPlayers.IsNetworkPlayerAwaitingJoin(entry.Key))
             {
                 continue;
             }
@@ -281,7 +281,7 @@ public partial class Game1
             return false;
         }
 
-        if (!_world.NetworkPlayerRules.TryTriggerNetworkPlayerChatBubble(slot, bubbleFrame))
+        if (!_world.NetworkPlayers.TryTriggerNetworkPlayerChatBubble(slot, bubbleFrame))
         {
             return false;
         }
@@ -307,7 +307,7 @@ public partial class Game1
 
         var maxDistanceSquared = LastToDieBotReactionAwarenessDistance * LastToDieBotReactionAwarenessDistance;
         return Vector2.DistanceSquared(new Vector2(bot.X, bot.Y), new Vector2(target.X, target.Y)) <= maxDistanceSquared
-            && _world.CombatTestHasLineOfSight(bot, target);
+            && _world.TestHasLineOfSight(bot, target);
     }
 
     private bool CanLastToDieBotSeeObservedDeath(
@@ -334,7 +334,7 @@ public partial class Game1
                 continue;
             }
 
-            if (_world.CombatTestHasObstacleLineOfSight(bot.X, bot.Y, death.Position.X, death.Position.Y))
+            if (_world.TestHasObstacleLineOfSight(bot.X, bot.Y, death.Position.X, death.Position.Y))
             {
                 return true;
             }

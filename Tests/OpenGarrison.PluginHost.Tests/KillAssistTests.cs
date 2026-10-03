@@ -7,10 +7,10 @@ public sealed class KillAssistTests
 {
     private static PlayerEntity Join(SimulationWorld world, byte slot, PlayerTeam team)
     {
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(slot));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, team));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, PlayerClass.Soldier));
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(slot, team));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(slot, PlayerClass.Soldier));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(slot, out var player));
         return player;
     }
 
@@ -22,8 +22,8 @@ public sealed class KillAssistTests
     public void OnlyMostRecentOtherDamageWithinSevenSecondsEarnsAssist(int elapsedTicks, bool earnsAssist)
     {
         var world = new SimulationWorld();
-        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Soldier);
-        world.NetworkPlayerRules.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red);
+        world.NetworkPlayers.CompleteLocalPlayerJoin(PlayerClass.Soldier);
+        world.NetworkPlayers.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red);
         var victim = world.LocalPlayer;
         var killer = Join(world, 2, PlayerTeam.Blue);
         var earlier = Join(world, 3, PlayerTeam.Blue);
@@ -38,7 +38,7 @@ public sealed class KillAssistTests
         Assert.Equal(0, earlier.Assists);
         Assert.Equal(earnsAssist ? 1 : 0, latest.Assists);
         Assert.Equal(earnsAssist ? 0.5f : 0f, latest.Points);
-        var entry = Assert.Single(world.KillFeed);
+        var entry = Assert.Single(world.KillFeedEntries);
         Assert.Equal(earnsAssist ? latest.Id : -1, entry.AssistPlayerId);
         Assert.Equal(earnsAssist ? latest.DisplayName : "", entry.AssistName);
         Assert.Equal(killer.Id, entry.KillerPlayerId);
@@ -49,13 +49,13 @@ public sealed class KillAssistTests
     public void HealingDoesNotReplaceTheMostRecentDamageContributor()
     {
         var world = new SimulationWorld();
-        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Soldier);
-        world.NetworkPlayerRules.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red);
+        world.NetworkPlayers.CompleteLocalPlayerJoin(PlayerClass.Soldier);
+        world.NetworkPlayers.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red);
         var victim = world.LocalPlayer;
         var killer = Join(world, 2, PlayerTeam.Blue);
         var contributor = Join(world, 3, PlayerTeam.Blue);
         var medic = Join(world, 4, PlayerTeam.Blue);
-        Assert.True(world.NetworkPlayerRules.TryForceNetworkPlayerClassSelectionAndRespawn(4, PlayerClass.Medic));
+        Assert.True(world.NetworkPlayers.TryForceNetworkPlayerClassSelectionAndRespawn(4, PlayerClass.Medic));
         medic.SetMedicHealingTarget(killer);
         Assert.Equal(killer.Id, medic.MedicHealTargetId);
         world.Combat.ApplyPlayerDamage(victim, 5, contributor);
@@ -63,15 +63,15 @@ public sealed class KillAssistTests
         world.PlayerDeaths.KillPlayer(victim, false, killer, "RocketKL");
         Assert.Equal(0, medic.Assists);
         Assert.Equal(1, contributor.Assists);
-        Assert.Equal(contributor.Id, Assert.Single(world.KillFeed).AssistPlayerId);
+        Assert.Equal(contributor.Id, Assert.Single(world.KillFeedEntries).AssistPlayerId);
     }
 
     [Fact]
     public void ContributorStillGetsAssistAfterDying()
     {
         var world = new SimulationWorld();
-        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Soldier);
-        world.NetworkPlayerRules.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red);
+        world.NetworkPlayers.CompleteLocalPlayerJoin(PlayerClass.Soldier);
+        world.NetworkPlayers.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red);
         var victim = world.LocalPlayer;
         var killer = Join(world, 2, PlayerTeam.Blue);
         var contributor = Join(world, 3, PlayerTeam.Blue);
@@ -80,15 +80,15 @@ public sealed class KillAssistTests
         world.Combat.ApplyPlayerDamage(victim, 5, killer);
         world.PlayerDeaths.KillPlayer(victim, false, killer, "RocketKL");
         Assert.Equal(1, contributor.Assists);
-        Assert.Equal(contributor.Id, Assert.Single(world.KillFeed).AssistPlayerId);
+        Assert.Equal(contributor.Id, Assert.Single(world.KillFeedEntries).AssistPlayerId);
     }
 
     [Fact]
     public void AssisterCanEarnRevengeFromTheKillTheyHelpedComplete()
     {
         var world = new SimulationWorld();
-        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Soldier);
-        world.NetworkPlayerRules.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red);
+        world.NetworkPlayers.CompleteLocalPlayerJoin(PlayerClass.Soldier);
+        world.NetworkPlayers.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red);
         var victim = world.LocalPlayer;
         var killer = Join(world, 2, PlayerTeam.Blue);
         var assistant = Join(world, 3, PlayerTeam.Blue);
@@ -104,7 +104,7 @@ public sealed class KillAssistTests
         Assert.Equal(1, assistant.GetDominationKillCount(victim.Id));
         Assert.Equal(0, victim.GetDominationKillCount(assistant.Id));
         Assert.Equal(1, killer.GetDominationKillCount(victim.Id));
-        var revenge = Assert.Single(world.KillFeed.Where(entry => entry.SpecialType == KillFeedSpecialType.Revenge));
+        var revenge = Assert.Single(world.KillFeedEntries.Where(entry => entry.SpecialType == KillFeedSpecialType.Revenge));
         Assert.Equal(assistant.Id, revenge.KillerPlayerId);
         Assert.Equal(victim.Id, revenge.VictimPlayerId);
     }
@@ -113,8 +113,8 @@ public sealed class KillAssistTests
     public void AssisterCanEarnDominationOnTheKillTheyHelpedComplete()
     {
         var world = new SimulationWorld();
-        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Soldier);
-        world.NetworkPlayerRules.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red);
+        world.NetworkPlayers.CompleteLocalPlayerJoin(PlayerClass.Soldier);
+        world.NetworkPlayers.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red);
         var victim = world.LocalPlayer;
         var killer = Join(world, 2, PlayerTeam.Blue);
         var assistant = Join(world, 3, PlayerTeam.Blue);
@@ -129,7 +129,7 @@ public sealed class KillAssistTests
 
         Assert.Equal(4, assistant.GetDominationKillCount(victim.Id));
         Assert.Equal(1, killer.GetDominationKillCount(victim.Id));
-        var domination = Assert.Single(world.KillFeed.Where(entry => entry.SpecialType == KillFeedSpecialType.Domination));
+        var domination = Assert.Single(world.KillFeedEntries.Where(entry => entry.SpecialType == KillFeedSpecialType.Domination));
         Assert.Equal(assistant.Id, domination.KillerPlayerId);
         Assert.Equal(victim.Id, domination.VictimPlayerId);
     }
@@ -148,6 +148,6 @@ public sealed class KillAssistTests
         world.CombatFeedback.UpdateDominationStateForKill(victim, killer, killer);
 
         Assert.Equal(4, killer.GetDominationKillCount(victim.Id));
-        Assert.Single(world.KillFeed.Where(entry => entry.SpecialType == KillFeedSpecialType.Domination));
+        Assert.Single(world.KillFeedEntries.Where(entry => entry.SpecialType == KillFeedSpecialType.Domination));
     }
 }

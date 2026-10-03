@@ -255,7 +255,7 @@ internal sealed partial class ServerOutboundMessaging
 
         if (world.VipRules.VipRequiresDualVip && firstTargetToken == 0)
         {
-            team = world.NetworkPlayerRules.GetNetworkPlayerConfiguredTeam(target.Slot);
+            team = world.NetworkPlayers.GetNetworkPlayerConfiguredTeam(target.Slot);
         }
 
         TryStartVipVote(client, target.Slot, team);
@@ -281,11 +281,11 @@ internal sealed partial class ServerOutboundMessaging
         }
         else if (team is not PlayerTeam.Red and not PlayerTeam.Blue)
         {
-            team = world.NetworkPlayerRules.GetNetworkPlayerConfiguredTeam(target.Slot);
+            team = world.NetworkPlayers.GetNetworkPlayerConfiguredTeam(target.Slot);
         }
 
         if (world.VipRules.VipRequiresDualVip
-            && world.NetworkPlayerRules.GetNetworkPlayerConfiguredTeam(target.Slot) != team)
+            && world.NetworkPlayers.GetNetworkPlayerConfiguredTeam(target.Slot) != team)
         {
             SendSystemMessage(client.Slot, $"{target.Name} is not on the {team} team.");
             return;
@@ -308,7 +308,7 @@ internal sealed partial class ServerOutboundMessaging
     {
         if (!TryGetClientByVoteIdentity(targetIdentity, out var target)
             || !IsEligibleVoteParticipant(target)
-            || (world.VipRules.VipRequiresDualVip && world.NetworkPlayerRules.GetNetworkPlayerConfiguredTeam(target.Slot) != team))
+            || (world.VipRules.VipRequiresDualVip && world.NetworkPlayers.GetNetworkPlayerConfiguredTeam(target.Slot) != team))
         {
             return false;
         }
@@ -570,7 +570,7 @@ internal sealed partial class ServerOutboundMessaging
             target?.UserId,
             target is null ? string.Empty : GetVoteIdentity(target),
             target?.Name ?? string.Empty,
-            target is null ? null : world.NetworkPlayerRules.GetNetworkPlayerConfiguredTeam(target.Slot),
+            target is null ? null : world.NetworkPlayers.GetNetworkPlayerConfiguredTeam(target.Slot),
             level?.Name ?? string.Empty,
             level?.MapAreaIndex ?? 0);
 
@@ -773,7 +773,7 @@ internal sealed partial class ServerOutboundMessaging
             .Select(candidate => new VoteMenuPlayerEntry(
                 candidate.Slot,
                 candidate.Name,
-                (byte)world.NetworkPlayerRules.GetNetworkPlayerConfiguredTeam(candidate.Slot),
+                (byte)world.NetworkPlayers.GetNetworkPlayerConfiguredTeam(candidate.Slot),
                 candidate.IsGagged))
             .ToArray();
         var customVotes = _pluginVoteRegistry.GetCatalog()
@@ -831,8 +831,8 @@ internal sealed partial class ServerOutboundMessaging
     {
         return client.IsAuthorized
             && !ServerHelpers.IsSpectatorSlot(client.Slot)
-            && world.NetworkPlayerRules.TryGetNetworkPlayer(client.Slot, out _)
-            && !world.NetworkPlayerRules.IsNetworkPlayerAwaitingJoin(client.Slot);
+            && world.NetworkPlayers.TryGetNetworkPlayer(client.Slot, out _)
+            && !world.NetworkPlayers.IsNetworkPlayerAwaitingJoin(client.Slot);
     }
 
     private static string GetVoteIdentity(ClientSession client)

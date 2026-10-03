@@ -7,19 +7,19 @@ internal interface IPlayerDeathHost : ISimulationWorldState, ISimulationPlayerDi
 {
     CombatSystem Combat { get; }
     CombatFeedbackSystem CombatFeedback { get; }
-    DecisionGate Decisions { get; }
+    DecisionGate DecisionGate { get; }
     PracticeDummyState DummyState { get; }
     PlayerEntity EnemyPlayer { get; }
     bool EnemyPlayerEnabled { get; }
     EntityStore EntityStore { get; }
     ExperimentalRulesSystem ExperimentalRules { get; }
     ExplosionRulesSystem ExplosionRules { get; }
-    KillFeedSystem KillFeedRules { get; }
+    KillFeedSystem KillFeed { get; }
     LastToDieRulesSystem LastToDieRules { get; }
     LocalDeathCamState? LocalDeathCam { get; set; }
     MatchRules MatchRules { get; }
     MatchSettingsState MatchSettings { get; }
-    NetworkPlayerSystem NetworkPlayerRules { get; }
+    NetworkPlayerSystem NetworkPlayers { get; }
     ObjectiveRulesSystem ObjectiveRules { get; }
     PickupSystem Pickups { get; }
     NetworkPlayerRegistry PlayerRegistry { get; }

@@ -1011,10 +1011,10 @@ internal static class Og2AlphaNavigationDiagnostics
         world.LocalPlayer.Kill();
 
         const byte botSlot = 2;
-        if (!world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(botSlot)
-            || !world.NetworkPlayerRules.TrySetNetworkPlayerTeam(botSlot, team)
-            || !world.NetworkPlayerRules.TryForceNetworkPlayerClassSelectionAndRespawn(botSlot, playerClass)
-            || !world.NetworkPlayerRules.TryGetNetworkPlayer(botSlot, out var bot))
+        if (!world.NetworkPlayers.TryPrepareNetworkPlayerJoin(botSlot)
+            || !world.NetworkPlayers.TrySetNetworkPlayerTeam(botSlot, team)
+            || !world.NetworkPlayers.TryForceNetworkPlayerClassSelectionAndRespawn(botSlot, playerClass)
+            || !world.NetworkPlayers.TryGetNetworkPlayer(botSlot, out var bot))
         {
             return CaptureTrialResult.Failed(world.MatchRules.Mode, "bot_setup_failed");
         }
@@ -1041,7 +1041,7 @@ internal static class Og2AlphaNavigationDiagnostics
 
         for (var tick = 1; tick <= maxTicks; tick += 1)
         {
-            if (!world.NetworkPlayerRules.TryGetNetworkPlayer(botSlot, out bot))
+            if (!world.NetworkPlayers.TryGetNetworkPlayer(botSlot, out bot))
             {
                 return CaptureTrialResult.Failed(world.MatchRules.Mode, "bot_removed", startX, startY);
             }
@@ -1074,7 +1074,7 @@ internal static class Og2AlphaNavigationDiagnostics
             if (bot.IsAlive)
             {
                 var input = controller.Think(bot, world, team);
-                world.NetworkPlayerRules.TrySetNetworkPlayerInput(botSlot, input);
+                world.NetworkPlayers.TrySetNetworkPlayerInput(botSlot, input);
 
                 if (traceInputs
                     && (traceAllInputs || bot.IsCarryingIntel)
@@ -1134,7 +1134,7 @@ internal static class Og2AlphaNavigationDiagnostics
             }
             else
             {
-                world.NetworkPlayerRules.TrySetNetworkPlayerInput(botSlot, default);
+                world.NetworkPlayers.TrySetNetworkPlayerInput(botSlot, default);
             }
 
             world.AdvanceOneTick();

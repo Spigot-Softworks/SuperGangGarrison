@@ -234,7 +234,7 @@ public sealed class SimulationWorldSnapshotPresentationTests
 
         Assert.True(world.SnapshotApply.ApplySnapshot(roundTrippedSnapshot, localPlayerSlot: 1));
 
-        var entry = Assert.Single(world.KillFeed);
+        var entry = Assert.Single(world.KillFeedEntries);
         Assert.Equal(killFeedEntry.EventId, entry.EventId);
         Assert.Equal("Local", entry.KillerName);
         Assert.Equal("Remote", entry.VictimName);
@@ -324,7 +324,7 @@ public sealed class SimulationWorldSnapshotPresentationTests
         Assert.Empty(world.RemoteSnapshotPlayers);
         var scoreboardPlayer = Assert.Single(world.RemoteSnapshotScoreboardPlayers);
         Assert.Equal(remoteSpy.PlayerId, scoreboardPlayer.Id);
-        Assert.True(world.NetworkPlayerRules.TryGetPlayerNetworkSlot(scoreboardPlayer, out var slot));
+        Assert.True(world.NetworkPlayers.TryGetPlayerNetworkSlot(scoreboardPlayer, out var slot));
         Assert.Equal(remoteSpy.Slot, slot);
     }
 
@@ -354,14 +354,14 @@ public sealed class SimulationWorldSnapshotPresentationTests
         Assert.Empty(world.RemoteSnapshotPlayers);
         var hiddenScoreboardPlayer = Assert.Single(world.RemoteSnapshotScoreboardPlayers);
         Assert.Equal(remoteSpy.PlayerId, hiddenScoreboardPlayer.Id);
-        Assert.True(world.NetworkPlayerRules.TryGetPlayerNetworkSlot(hiddenScoreboardPlayer, out var hiddenSlot));
+        Assert.True(world.NetworkPlayers.TryGetPlayerNetworkSlot(hiddenScoreboardPlayer, out var hiddenSlot));
         Assert.Equal(remoteSpy.Slot, hiddenSlot);
 
         Assert.True(world.SnapshotApply.ApplySnapshot(visibleAgainSnapshot, localPlayerSlot: 1));
 
         var visibleScoreboardPlayer = Assert.Single(world.RemoteSnapshotScoreboardPlayers);
         Assert.Equal(remoteSpy.PlayerId, visibleScoreboardPlayer.Id);
-        Assert.True(world.NetworkPlayerRules.TryGetPlayerNetworkSlot(visibleScoreboardPlayer, out var visibleSlot));
+        Assert.True(world.NetworkPlayers.TryGetPlayerNetworkSlot(visibleScoreboardPlayer, out var visibleSlot));
         Assert.Equal(remoteSpy.Slot, visibleSlot);
     }
 

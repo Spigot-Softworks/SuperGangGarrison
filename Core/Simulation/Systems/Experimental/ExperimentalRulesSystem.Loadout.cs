@@ -28,7 +28,7 @@ internal sealed partial class ExperimentalRulesSystem
         for (var index = 0; index < SimulationConstants.NetworkPlayerSlots.Count; index += 1)
         {
             var slot = SimulationConstants.NetworkPlayerSlots[index];
-            if (_host.NetworkPlayerRules.IsNetworkPlayerEnabled(slot) && _host.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
+            if (_host.NetworkPlayers.IsNetworkPlayerEnabled(slot) && _host.NetworkPlayers.TryGetNetworkPlayer(slot, out var player))
             {
                 SyncExperimentalGameplayLoadout(slot, player);
             }

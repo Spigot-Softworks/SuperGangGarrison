@@ -49,7 +49,7 @@ public sealed class KothHudOvertimeTests
             out var decodedSnapshot));
 
         var client = new SimulationWorld();
-        Assert.True(client.ApplySnapshot(Assert.IsType<SnapshotMessage>(decodedSnapshot)));
+        Assert.True(client.SnapshotApply.ApplySnapshot(Assert.IsType<SnapshotMessage>(decodedSnapshot)));
         Assert.True(client.MatchState.IsOvertime);
         Assert.True(IsTeamTimerOvertime(client, PlayerTeam.Red));
     }
@@ -121,9 +121,9 @@ public sealed class KothHudOvertimeTests
             world.MatchRules.Mode,
             team,
             world.ControlPoints,
-            world.KothRedTimerTicksRemaining,
-            world.KothBlueTimerTicksRemaining,
-            world.KothUnlockTicksRemaining,
+            world.ObjectiveRules.KothRedTimerTicksRemaining,
+            world.ObjectiveRules.KothBlueTimerTicksRemaining,
+            world.ObjectiveRules.KothUnlockTicksRemaining,
             world.MatchState.TimeRemainingTicks,
             world.MatchState.IsOvertime,
             world.MatchState.IsEnded);

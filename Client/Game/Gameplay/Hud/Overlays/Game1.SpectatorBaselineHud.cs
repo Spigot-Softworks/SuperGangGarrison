@@ -105,9 +105,9 @@ public partial class Game1
 
     private void DrawSpectatorDeadBoardRow(PlayerEntity player, int boardX, int rowY, Vector2 iconPosition)
     {
-        if (_world.NetworkPlayerRules.TryGetPlayerNetworkSlot(player, out var slot))
+        if (_world.NetworkPlayers.TryGetPlayerNetworkSlot(player, out var slot))
         {
-            var respawnTicks = _world.NetworkPlayerRules.GetNetworkPlayerRespawnTicks(slot);
+            var respawnTicks = _world.NetworkPlayers.GetNetworkPlayerRespawnTicks(slot);
             if (respawnTicks > 0)
             {
                 var respawnSeconds = MathF.Ceiling(respawnTicks / (float)Math.Max(1, _config.TicksPerSecond));

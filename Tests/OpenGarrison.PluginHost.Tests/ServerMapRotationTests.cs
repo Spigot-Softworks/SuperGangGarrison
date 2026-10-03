@@ -333,13 +333,13 @@ public sealed class ServerMapRotationTests
 
     private static void ForceMapChangeReady(SimulationWorld world, PlayerTeam? winner = null)
     {
-        world.CombatTestSetMatchState(world.MatchState with { Phase = MatchPhase.Ended, WinnerTeam = winner });
+        world.TestSetMatchState(world.MatchState with { Phase = MatchPhase.Ended, WinnerTeam = winner });
 
         world.Lifecycle.MapChangeReady = true;
     }
 
     private static void SetWorldFrame(SimulationWorld world, long frame)
     {
-        world.CombatTestSetFrame(frame);
+        world.TestSetFrame(frame);
     }
 }

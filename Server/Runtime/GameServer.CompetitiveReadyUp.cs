@@ -25,7 +25,7 @@ partial class GameServer
             if (!client.IsAuthorized
                 || client.IsWatchOnly
                 || !NetworkPlayerSystem.IsPlayableNetworkPlayerSlot(client.Slot)
-                || _world.NetworkPlayerRules.IsNetworkPlayerAwaitingJoin(client.Slot))
+                || _world.NetworkPlayers.IsNetworkPlayerAwaitingJoin(client.Slot))
             {
                 continue;
             }

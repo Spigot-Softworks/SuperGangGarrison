@@ -6,19 +6,19 @@ public sealed partial class SimulationWorld : IPlayerDeathHost
         => AllocateEntityId();
     CombatSystem IPlayerDeathHost.Combat => Combat;
     CombatFeedbackSystem IPlayerDeathHost.CombatFeedback => CombatFeedback;
-    DecisionGate IPlayerDeathHost.Decisions => Decisions;
+    DecisionGate IPlayerDeathHost.DecisionGate => DecisionGate;
     PracticeDummyState IPlayerDeathHost.DummyState => DummyState;
     PlayerEntity IPlayerDeathHost.EnemyPlayer => EnemyPlayer;
     bool IPlayerDeathHost.EnemyPlayerEnabled => EnemyPlayerEnabled;
     EntityStore IPlayerDeathHost.EntityStore => EntityStore;
     ExperimentalRulesSystem IPlayerDeathHost.ExperimentalRules => ExperimentalRules;
     ExplosionRulesSystem IPlayerDeathHost.ExplosionRules => ExplosionRules;
-    KillFeedSystem IPlayerDeathHost.KillFeedRules => KillFeedRules;
+    KillFeedSystem IPlayerDeathHost.KillFeed => KillFeed;
     LastToDieRulesSystem IPlayerDeathHost.LastToDieRules => LastToDieRules;
     LocalDeathCamState? IPlayerDeathHost.LocalDeathCam { get => LocalDeathCam; set => LocalDeathCam = value; }
     MatchRules IPlayerDeathHost.MatchRules => MatchRules;
     MatchSettingsState IPlayerDeathHost.MatchSettings => MatchSettings;
-    NetworkPlayerSystem IPlayerDeathHost.NetworkPlayerRules => NetworkPlayerRules;
+    NetworkPlayerSystem IPlayerDeathHost.NetworkPlayers => NetworkPlayers;
     ObjectiveRulesSystem IPlayerDeathHost.ObjectiveRules => ObjectiveRules;
     PickupSystem IPlayerDeathHost.Pickups => Pickups;
     NetworkPlayerRegistry IPlayerDeathHost.PlayerRegistry => PlayerRegistry;

@@ -67,8 +67,8 @@ public sealed class DynamicRagdollRegressionTests
     {
         var game = CreateGame(Level());
         var world = (SimulationWorld)typeof(Game1).GetField("_world", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!.GetValue(game)!;
-        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
-        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Scout);
+        world.NetworkPlayers.PrepareLocalPlayerJoin();
+        world.NetworkPlayers.CompleteLocalPlayerJoin(PlayerClass.Scout);
         var pose = Body(true);
         Invoke(game, "TryCaptureElkondoRagdollWeapon", pose, world.LocalPlayer);
         Assert.Empty(pose.WeaponSpriteName);
@@ -473,7 +473,7 @@ public sealed class DynamicRagdollRegressionTests
     {
         var game = (Game1)RuntimeHelpers.GetUninitializedObject(typeof(Game1));
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        world.CombatTestReplaceLevel(level);
+        world.TestReplaceLevel(level);
         Set(game, "_world", world);
         // The dead-body renderer is resolved through the service container, which
         // the constructor normally populates.

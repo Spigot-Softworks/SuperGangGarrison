@@ -197,7 +197,7 @@ public sealed partial class SimulationWorld
 
         MapRuntime.LogicControlPointInputSignature = 0;
 
-        NetworkPlayerRules.TrySetNetworkPlayerRespawnTicks(LocalPlayerSlot, 0);
+        NetworkPlayers.TrySetNetworkPlayerRespawnTicks(LocalPlayerSlot, 0);
         DummyState.EnemyRespawnTicks = 0;
         LocalDeathCam = null;
         PresentationEvents.ClearForRoundRestart();
@@ -308,20 +308,20 @@ public sealed partial class SimulationWorld
         for (var index = 0; index < NetworkPlayerSlots.Count; index += 1)
         {
             var slot = NetworkPlayerSlots[index];
-            if (slot != LocalPlayerSlot && !NetworkPlayerRules.IsNetworkPlayerEnabled(slot))
+            if (slot != LocalPlayerSlot && !NetworkPlayers.IsNetworkPlayerEnabled(slot))
             {
                 continue;
             }
 
-            if (!NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
+            if (!NetworkPlayers.TryGetNetworkPlayer(slot, out var player))
             {
                 continue;
             }
 
             ObjectiveRules.TryDropCarriedIntel(player);
             ReadyUp.TrySetNetworkPlayerReady(slot, ready: false);
-            NetworkPlayerRules.TrySetNetworkPlayerAwaitingJoin(slot, true);
-            NetworkPlayerRules.TrySetNetworkPlayerRespawnTicks(slot, 0);
+            NetworkPlayers.TrySetNetworkPlayerAwaitingJoin(slot, true);
+            NetworkPlayers.TrySetNetworkPlayerRespawnTicks(slot, 0);
             PlayerDeaths.SetNetworkPlayerDeathCam(slot, null);
             player.ClearMedicHealingTarget();
             player.Kill();

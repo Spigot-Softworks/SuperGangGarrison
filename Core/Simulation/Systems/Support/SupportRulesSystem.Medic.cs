@@ -394,7 +394,7 @@ internal sealed partial class SupportRulesSystem
 
             if (player.IsMedicKritzUberDeliveryActive)
             {
-                _host.NetworkPlayerRules.TryGetPlayerNetworkSlot(player, out var providerSlot);
+                _host.NetworkPlayers.TryGetPlayerNetworkSlot(player, out var providerSlot);
                 var criticalDamageMultiplier = LastToDieRulesSystem.GetLastToDieMedicKritzCriticalDamageMultiplier(player);
                 player.RefreshKritzCritBoost(
                     player.Id,
@@ -416,7 +416,7 @@ internal sealed partial class SupportRulesSystem
             {
                 if (player.IsMedicKritzUberDeliveryActive)
                 {
-                    _host.NetworkPlayerRules.TryGetPlayerNetworkSlot(player, out var providerSlot);
+                    _host.NetworkPlayers.TryGetPlayerNetworkSlot(player, out var providerSlot);
                     healTarget.RefreshKritzCritBoost(
                         player.Id,
                         providerSlot,

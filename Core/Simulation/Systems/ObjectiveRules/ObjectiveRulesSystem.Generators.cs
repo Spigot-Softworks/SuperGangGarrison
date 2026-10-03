@@ -79,7 +79,7 @@ internal sealed partial class ObjectiveRulesSystem
         }
 
         var winner = _host.GetOpposingTeam(generator.Team);
-        if (!_host.Decisions.TryAwardTeamScore(winner, 1, "generator_destroyed"))
+        if (!_host.DecisionGate.TryAwardTeamScore(winner, 1, "generator_destroyed"))
         {
             return;
         }
@@ -88,10 +88,10 @@ internal sealed partial class ObjectiveRulesSystem
         _host.WorldEffects.RegisterWorldSoundEvent("RevolverSnd", generator.Marker.CenterX, generator.Marker.CenterY);
         _host.WorldEffects.RegisterWorldSoundEvent("CPBeginCapSnd", generator.Marker.CenterX, generator.Marker.CenterY);
         _host.WorldEffects.RegisterVisualEffect("Explosion", generator.Marker.CenterX, generator.Marker.CenterY, count: 2);
-        _host.KillFeedRules.RecordGeneratorDestroyedObjectiveLog(winner);
+        _host.KillFeed.RecordGeneratorDestroyedObjectiveLog(winner);
         ApplyGeneratorExplosion(generator);
 
-        _host.Decisions.TryEndRound(winner, "generator_destroyed");
+        _host.DecisionGate.TryEndRound(winner, "generator_destroyed");
     }
 
     internal void ApplyGeneratorExplosion(GeneratorState generator)

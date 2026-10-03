@@ -93,7 +93,7 @@ public sealed class ScrGamemodeTests
             RedStartingScore: 9,
             BlueStartingScore: 2));
 
-        world.ObjectiveRules.CombatTestFinalizeScrRoundStart();
+        world.ObjectiveRules.TestFinalizeScrRoundStart();
         Assert.False(world.MatchState.IsEnded);
 
         Assert.True(world.ObjectiveRules.TryModifyTeamScore(PlayerTeam.Red, 1, "logic_score"));
@@ -111,7 +111,7 @@ public sealed class ScrGamemodeTests
             RedStartingScore: 8,
             BlueStartingScore: 4));
 
-        world.ObjectiveRules.CombatTestFinalizeScrRoundStart();
+        world.ObjectiveRules.TestFinalizeScrRoundStart();
 
         Assert.True(world.MatchState.IsEnded);
         Assert.Equal(PlayerTeam.Blue, world.MatchState.WinnerTeam);
@@ -127,7 +127,7 @@ public sealed class ScrGamemodeTests
             RedStartingScore: 12,
             BlueStartingScore: 7));
 
-        world.ObjectiveRules.CombatTestFinalizeScrRoundStart();
+        world.ObjectiveRules.TestFinalizeScrRoundStart();
 
         Assert.True(world.MatchState.IsEnded);
         Assert.Equal(PlayerTeam.Red, world.MatchState.WinnerTeam);
@@ -152,7 +152,7 @@ public sealed class ScrGamemodeTests
         var world = CreateScrWorldWithCpScoreTrigger(MapLogicSignalMode.Impulse);
         Assert.Equal(0, world.RedCaps);
 
-        world.Spawns.CombatTestSetControlPointOwner(1, PlayerTeam.Red);
+        world.Spawns.TestSetControlPointOwner(1, PlayerTeam.Red);
         world.MapLogic.RefreshMapLogicRuntimeIfControlPointInputsChanged();
         Assert.Equal(1, world.RedCaps);
 
@@ -194,7 +194,7 @@ public sealed class ScrGamemodeTests
             RedStartingScore: 0,
             BlueStartingScore: 0);
         var world = new SimulationWorld();
-        world.CombatTestSetLevel(new SimpleLevel(
+        world.TestSetLevel(new SimpleLevel(
             name: "scr_damage_score_test",
             mode: GameModeKind.Scr,
             bounds: new WorldBounds(1024f, 768f),
@@ -224,7 +224,7 @@ public sealed class ScrGamemodeTests
             scrSettings: settings,
             logicGraph: graph,
             logicScoreTriggers: scoreTriggers));
-        world.ObjectiveRules.CombatTestFinalizeScrRoundStart();
+        world.ObjectiveRules.TestFinalizeScrRoundStart();
         Assert.Equal(0, world.RedCaps);
 
         Assert.True(world.MapLogic.TryApplyDamageableZoneDamage(0, 10f, PlayerTeam.Red));
@@ -242,7 +242,7 @@ public sealed class ScrGamemodeTests
         var world = CreateScrWorldWithCpScoreTrigger(MapLogicSignalMode.Latch);
         Assert.Equal(0, world.RedCaps);
 
-        world.Spawns.CombatTestSetControlPointOwner(1, PlayerTeam.Red);
+        world.Spawns.TestSetControlPointOwner(1, PlayerTeam.Red);
         world.MapLogic.RefreshMapLogicRuntimeIfControlPointInputsChanged();
         Assert.Equal(1, world.RedCaps);
 
@@ -283,7 +283,7 @@ public sealed class ScrGamemodeTests
             RoundEndWin: ScrRoundEndWin.MorePoints,
             RedStartingScore: 0,
             BlueStartingScore: 0));
-        world.ObjectiveRules.CombatTestFinalizeScrRoundStart();
+        world.ObjectiveRules.TestFinalizeScrRoundStart();
 
         var marker = new RoomObjectMarker(
             RoomObjectType.ControlPoint,
@@ -349,7 +349,7 @@ public sealed class ScrGamemodeTests
             RedStartingScore: 0,
             BlueStartingScore: 0);
         var world = new SimulationWorld();
-        world.CombatTestSetLevel(new SimpleLevel(
+        world.TestSetLevel(new SimpleLevel(
             name: "scr_cp_score_test",
             mode: GameModeKind.Scr,
             bounds: new WorldBounds(1024f, 768f),
@@ -378,14 +378,14 @@ public sealed class ScrGamemodeTests
             scrSettings: settings,
             logicGraph: graph,
             logicScoreTriggers: scoreTriggers));
-        world.ObjectiveRules.CombatTestFinalizeScrRoundStart();
+        world.ObjectiveRules.TestFinalizeScrRoundStart();
         return world;
     }
 
     private static SimulationWorld CreateScrWorld(CustomMapScrSettings settings)
     {
         var world = new SimulationWorld();
-        world.CombatTestSetLevel(new SimpleLevel(
+        world.TestSetLevel(new SimpleLevel(
             name: "scr_test",
             mode: GameModeKind.Scr,
             bounds: new WorldBounds(1024f, 768f),

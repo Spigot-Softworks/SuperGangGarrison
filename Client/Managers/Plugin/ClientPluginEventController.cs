@@ -95,7 +95,7 @@ public sealed class ClientPluginEventController
             _clientPluginPreviousLocalPrimaryCooldownTicks = _context._world.LocalPlayer.PrimaryCooldownTicks;
             _clientPluginPreviousLocalCarryingIntel = _context._world.LocalPlayer.IsCarryingIntel;
             _clientPluginPreviousLocalBurning = _context._world.LocalPlayer.IsBurning;
-            _clientPluginPreviousKillFeedCount = _context._world.KillFeed.Count;
+            _clientPluginPreviousKillFeedCount = _context._world.KillFeedEntries.Count;
             _clientPluginPreviousObjectiveStates.Clear();
             _clientPluginPreviousGeneratorStates.Clear();
             for (var index = 0; index < _context._world.ControlPoints.Count; index += 1)
@@ -534,19 +534,19 @@ public sealed class ClientPluginEventController
             var pluginHost = _context._clientPluginHost;
             if (pluginHost is null)
             {
-                _clientPluginPreviousKillFeedCount = _context._world.KillFeed.Count;
+                _clientPluginPreviousKillFeedCount = _context._world.KillFeedEntries.Count;
                 return;
             }
 
-            if (_context._world.KillFeed.Count < _clientPluginPreviousKillFeedCount)
+            if (_context._world.KillFeedEntries.Count < _clientPluginPreviousKillFeedCount)
             {
                 _clientPluginPreviousKillFeedCount = 0;
             }
 
             var localPlayerId = _context.GetClientPluginLocalPlayerId();
-            for (var index = _clientPluginPreviousKillFeedCount; index < _context._world.KillFeed.Count; index += 1)
+            for (var index = _clientPluginPreviousKillFeedCount; index < _context._world.KillFeedEntries.Count; index += 1)
             {
-                var entry = _context._world.KillFeed[index];
+                var entry = _context._world.KillFeedEntries[index];
                 var killFeedEvent = new ClientKillFeedEvent(
                     entry.KillerPlayerId,
                     entry.KillerName,
@@ -570,16 +570,16 @@ public sealed class ClientPluginEventController
                 }
             }
 
-            _clientPluginPreviousKillFeedCount = _context._world.KillFeed.Count;
+            _clientPluginPreviousKillFeedCount = _context._world.KillFeedEntries.Count;
         }
 
         private KillFeedEntry? FindLatestKillFeedEntryForVictim(int victimPlayerId)
         {
-            for (var index = _context._world.KillFeed.Count - 1; index >= 0; index -= 1)
+            for (var index = _context._world.KillFeedEntries.Count - 1; index >= 0; index -= 1)
             {
-                if (_context._world.KillFeed[index].VictimPlayerId == victimPlayerId)
+                if (_context._world.KillFeedEntries[index].VictimPlayerId == victimPlayerId)
                 {
-                    return _context._world.KillFeed[index];
+                    return _context._world.KillFeedEntries[index];
                 }
             }
 

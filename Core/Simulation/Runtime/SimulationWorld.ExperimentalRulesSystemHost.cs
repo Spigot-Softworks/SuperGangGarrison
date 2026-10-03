@@ -14,7 +14,7 @@ public sealed partial class SimulationWorld : IExperimentalRulesHost
     PlayerEntity IExperimentalRulesHost.LocalPlayer => LocalPlayer;
     MapLogicSystem IExperimentalRulesHost.MapLogic => MapLogic;
     MatchSettingsState IExperimentalRulesHost.MatchSettings => MatchSettings;
-    NetworkPlayerSystem IExperimentalRulesHost.NetworkPlayerRules => NetworkPlayerRules;
+    NetworkPlayerSystem IExperimentalRulesHost.NetworkPlayers => NetworkPlayers;
     ObjectiveRulesSystem IExperimentalRulesHost.ObjectiveRules => ObjectiveRules;
     ObjectiveStateStore IExperimentalRulesHost.Objectives => Objectives;
     PickupSystem IExperimentalRulesHost.Pickups => Pickups;

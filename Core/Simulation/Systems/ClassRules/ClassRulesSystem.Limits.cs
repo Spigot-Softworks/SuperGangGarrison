@@ -82,19 +82,19 @@ internal sealed partial class ClassRulesSystem
             return true;
         }
 
-        var team = _host.NetworkPlayerRules.GetNetworkPlayerConfiguredTeam(slot);
+        var team = _host.NetworkPlayers.GetNetworkPlayerConfiguredTeam(slot);
         var currentCount = 0;
         foreach (var candidateSlot in SimulationConstants.NetworkPlayerSlots)
         {
             if (candidateSlot == slot
-                || !_host.NetworkPlayerRules.IsNetworkPlayerEnabled(candidateSlot)
-                || _host.NetworkPlayerRules.IsNetworkPlayerAwaitingJoin(candidateSlot)
-                || _host.NetworkPlayerRules.GetNetworkPlayerConfiguredTeam(candidateSlot) != team)
+                || !_host.NetworkPlayers.IsNetworkPlayerEnabled(candidateSlot)
+                || _host.NetworkPlayers.IsNetworkPlayerAwaitingJoin(candidateSlot)
+                || _host.NetworkPlayers.GetNetworkPlayerConfiguredTeam(candidateSlot) != team)
             {
                 continue;
             }
 
-            var candidateDefinition = _host.NetworkPlayerRules.GetNetworkPlayerClassDefinition(candidateSlot);
+            var candidateDefinition = _host.NetworkPlayers.GetNetworkPlayerClassDefinition(candidateSlot);
             if (!CharacterClassCatalog.RuntimeRegistry.TryGetClassBinding(candidateDefinition.GameplayClassId, out var candidateBinding)
                 || candidateBinding.PlayerClass != binding.PlayerClass)
             {

@@ -84,7 +84,7 @@ public sealed class CivilDefenseTurretRegressionTests
             Assert.False(world.PlayerInput.TryHandleExperimentalSoldierCivilDefenseTurret(world.LocalPlayer));
         Assert.Single(world.CivilDefenseTurrets);
         Assert.Equal(0, world.LocalPlayer.PrimaryCooldownTicks);
-        world.NetworkPlayerRules.ForceRespawnLocalPlayer();
+        world.NetworkPlayers.ForceRespawnLocalPlayer();
         Assert.False(world.PlayerInput.TryHandleExperimentalSoldierCivilDefenseTurret(world.LocalPlayer));
         Assert.Single(world.CivilDefenseTurrets);
     }
@@ -107,11 +107,11 @@ public sealed class CivilDefenseTurretRegressionTests
         var world = new SimulationWorld(new SimulationConfig { EnableEnemyTrainingDummy = false, EnableFriendlySupportDummy = false });
         var solids = new List<LevelSolid> { new(0, 550, 1600, 50) };
         if (wall) solids.Add(new(500, 400, 20, 150));
-        world.CombatTestSetLevel(new SimpleLevel("turret_regression", GameModeKind.CaptureTheFlag,
+        world.TestSetLevel(new SimpleLevel("turret_regression", GameModeKind.CaptureTheFlag,
             new WorldBounds(1600, 600), 1, null, 1, 1, new(400, 100), [new(400, 100)], [new(1400, 100)],
             [], [], 550, solids, false));
-        world.NetworkPlayerRules.SetPendingLocalPlayerClass(PlayerClass.Soldier);
-        world.NetworkPlayerRules.ForceRespawnLocalPlayer();
+        world.NetworkPlayers.SetPendingLocalPlayerClass(PlayerClass.Soldier);
+        world.NetworkPlayers.ForceRespawnLocalPlayer();
         for (var tick = 0; tick < 90; tick++) world.AdvanceOneTick();
         return world;
     }

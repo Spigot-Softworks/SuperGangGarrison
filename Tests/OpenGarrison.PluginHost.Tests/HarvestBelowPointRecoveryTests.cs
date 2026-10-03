@@ -27,9 +27,9 @@ public sealed class HarvestBelowPointRecoveryTests(ITestOutputHelper output)
         {
             var world = new SimulationWorld(new SimulationConfig { EnableEnemyTrainingDummy = false, EnableFriendlySupportDummy = false });
             Assert.True(world.TryLoadLevel("gg2_koth_harvest"));
-            world.NetworkPlayerRules.SetPendingLocalPlayerClass(playerClass);
-            Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Blue));
-            world.NetworkPlayerRules.ForceRespawnLocalPlayer();
+            world.NetworkPlayers.SetPendingLocalPlayerClass(playerClass);
+            Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Blue));
+            world.NetworkPlayers.ForceRespawnLocalPlayer();
             var player = world.LocalPlayer;
             var point = Assert.Single(world.ControlPoints);
             point.Team = null;
@@ -37,10 +37,10 @@ public sealed class HarvestBelowPointRecoveryTests(ITestOutputHelper output)
             PlayerEntity? enemy = null;
             if (enemyOnPoint)
             {
-                Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(2));
-                Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(2, PlayerTeam.Red));
-                Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Heavy));
-                Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(2, out enemy));
+                Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(2));
+                Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(2, PlayerTeam.Red));
+                Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Heavy));
+                Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(2, out enemy));
                 enemy.TeleportTo(point.HealingAuraCenterX, point.HealingAuraCenterY);
                 // Let the target settle onto the point's platform first.
                 for (var tick = 0; tick < 30; tick++) world.AdvanceOneTick();
@@ -68,7 +68,7 @@ public sealed class HarvestBelowPointRecoveryTests(ITestOutputHelper output)
                 else if (controller.RequiresPerTickNavigationThink
                     && controller.TryAdvanceCachedNavigation(player, world, player.Team, input, out var updated))
                     input = updated;
-                world.NetworkPlayerRules.TrySetNetworkPlayerInput(SimulationWorld.LocalPlayerSlot, input);
+                world.NetworkPlayers.TrySetNetworkPlayerInput(SimulationWorld.LocalPlayerSlot, input);
                 world.AdvanceOneTick();
                 if (tick % 30 == 0)
                     output.WriteLine($"{tick}: ({player.X:0},{player.Y:0}) point=({point.HealingAuraCenterX},{point.HealingAuraCenterY}) graph={controller.LastNavigationGraphSource} direct={controller.LastDirectDriveTrace} path={controller.CurrentPathIndex}/{controller.CurrentPathCount} recovery={controller.LastSemanticRecoveryTrace}");

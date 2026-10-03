@@ -401,7 +401,7 @@ internal sealed partial class ServerOutboundMessaging(
         foreach (var (_, client) in clientsBySlot.OrderBy(static pair => pair.Key))
         {
             var isSpectator = ServerHelpers.IsSpectatorSlot(client.Slot);
-            if (!isSpectator && world.NetworkPlayerRules.TryGetNetworkPlayer(client.Slot, out var player))
+            if (!isSpectator && world.NetworkPlayers.TryGetNetworkPlayer(client.Slot, out var player))
             {
                 entries.Add(new ServerDetailsRosterEntry(
                     client.Slot,
@@ -543,7 +543,7 @@ internal sealed partial class ServerOutboundMessaging(
     private PlayerTeam? TryGetClientChatTeam(ClientSession client)
     {
         return NetworkPlayerSystem.IsPlayableNetworkPlayerSlot(client.Slot)
-            && world.NetworkPlayerRules.TryGetNetworkPlayer(client.Slot, out var player)
+            && world.NetworkPlayers.TryGetNetworkPlayer(client.Slot, out var player)
             ? player.Team
             : null;
     }

@@ -101,7 +101,7 @@ internal sealed class EntityTickPhase : IEntityTickPhase
 
         foreach (var slot in _host.PlayerRegistry.EnabledAdditionalSlots)
         {
-            if (_host.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player)
+            if (_host.NetworkPlayers.TryGetNetworkPlayer(slot, out var player)
                 && player.IsAlive
                 && player.IsSniperScoped
                 && !player.IsSniperBowEquipped)
@@ -210,9 +210,9 @@ internal sealed class EntityTickPhase : IEntityTickPhase
         void AdvancePlayerSlot(byte slot)
         {
             var startTimestamp = SlowPlayerTracingEnabled ? Stopwatch.GetTimestamp() : 0L;
-            _host.NetworkPlayerRules.AdvancePlayableNetworkPlayer(slot);
+            _host.NetworkPlayers.AdvancePlayableNetworkPlayer(slot);
             if (_host.LastToDieState.StageNumber > 0 && _host.IsNetworkPlayerActive(slot)
-                && _host.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var survivor))
+                && _host.NetworkPlayers.TryGetNetworkPlayer(slot, out var survivor))
             {
                 survivor.AdvanceLastToDieSurvivorRegeneration(_host.Config.TicksPerSecond);
             }
@@ -285,7 +285,7 @@ internal sealed class EntityTickPhase : IEntityTickPhase
             }
 
             var slot = slots[index];
-            var className = _host.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player)
+            var className = _host.NetworkPlayers.TryGetNetworkPlayer(slot, out var player)
                 ? player.ClassId.ToString()
                 : "missing";
             builder.Append(slot.ToString(CultureInfo.InvariantCulture));
@@ -315,7 +315,7 @@ internal sealed class EntityTickPhase : IEntityTickPhase
             return;
         }
 
-        var className = _host.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player)
+        var className = _host.NetworkPlayers.TryGetNetworkPlayer(slot, out var player)
             ? player.ClassId.ToString()
             : "missing";
         var line = string.Create(

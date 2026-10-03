@@ -91,8 +91,8 @@ public sealed class PlayerDamageResolutionTests
     private static SimulationWorld CreateWorld(PlayerClass localClass)
     {
         var world = new SimulationWorld();
-        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
-        world.NetworkPlayerRules.CompleteLocalPlayerJoin(localClass);
+        world.NetworkPlayers.PrepareLocalPlayerJoin();
+        world.NetworkPlayers.CompleteLocalPlayerJoin(localClass);
         return world;
     }
 
@@ -102,10 +102,10 @@ public sealed class PlayerDamageResolutionTests
         PlayerClass playerClass,
         PlayerTeam team)
     {
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(slot));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, team));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, playerClass));
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(slot, team));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(slot, playerClass));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(slot, out var player));
         return player;
     }
 }

@@ -560,7 +560,7 @@ internal sealed partial class PlayerInputSystem
         for (var index = 0; index < SimulationConstants.NetworkPlayerSlots.Count; index += 1)
         {
             var slot = SimulationConstants.NetworkPlayerSlots[index];
-            if (_host.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var networkPlayer) && networkPlayer.Id == player.Id)
+            if (_host.NetworkPlayers.TryGetNetworkPlayer(slot, out var networkPlayer) && networkPlayer.Id == player.Id)
             {
                 return slot;
             }

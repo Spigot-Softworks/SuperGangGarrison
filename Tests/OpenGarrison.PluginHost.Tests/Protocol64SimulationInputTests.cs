@@ -11,7 +11,7 @@ public sealed class Protocol64SimulationInputTests
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
         var spawn = new SpawnPoint(100f, 100f);
-        world.CombatTestSetLevel(new SimpleLevel(
+        world.TestSetLevel(new SimpleLevel(
             "protocol64-input-edge-test",
             GameModeKind.TeamDeathmatch,
             new WorldBounds(512f, 512f),
@@ -28,14 +28,14 @@ public sealed class Protocol64SimulationInputTests
             [],
             importedFromSource: false));
 
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(
             SimulationWorld.LocalPlayerSlot,
             PlayerTeam.Red,
             respawnLivePlayerImmediately: true));
 
         for (var tick = 0; tick < 120 && !world.LocalPlayer.IsGrounded; tick += 1)
         {
-            world.NetworkPlayerRules.TrySetNetworkPlayerInput(SimulationWorld.LocalPlayerSlot, default);
+            world.NetworkPlayers.TrySetNetworkPlayerInput(SimulationWorld.LocalPlayerSlot, default);
             world.AdvanceOneTick();
         }
 
@@ -43,7 +43,7 @@ public sealed class Protocol64SimulationInputTests
         world.LocalPlayer.SetExperimentalBonusAirJumps(1);
 
         var jump = default(PlayerInputSnapshot) with { Up = true };
-        world.NetworkPlayerRules.TrySetNetworkPlayerInput(
+        world.NetworkPlayers.TrySetNetworkPlayerInput(
             SimulationWorld.LocalPlayerSlot,
             jump,
             InputButtons.Up);
@@ -51,7 +51,7 @@ public sealed class Protocol64SimulationInputTests
         Assert.False(world.LocalPlayer.IsGrounded);
         var remainingAfterFirstJump = world.LocalPlayer.RemainingAirJumps;
 
-        world.NetworkPlayerRules.TrySetNetworkPlayerInput(
+        world.NetworkPlayers.TrySetNetworkPlayerInput(
             SimulationWorld.LocalPlayerSlot,
             jump,
             InputButtons.Up);

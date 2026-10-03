@@ -7,7 +7,7 @@ public sealed partial class SimulationWorld : IPickupHost
     int IPickupHost.AllocateEntityId() => AllocateEntityId();
     WorldBounds IPickupHost.Bounds => Bounds;
     DamageRulesSystem IPickupHost.DamageRules => DamageRules;
-    DecisionGate IPickupHost.Decisions => Decisions;
+    DecisionGate IPickupHost.DecisionGate => DecisionGate;
     EntityStore IPickupHost.EntityStore => EntityStore;
     IEnumerable<PlayerEntity> IPickupHost.EnumerateSimulatedPlayers() => EnumerateSimulatedPlayers();
     ExperimentalRulesSystem IPickupHost.ExperimentalRules => ExperimentalRules;

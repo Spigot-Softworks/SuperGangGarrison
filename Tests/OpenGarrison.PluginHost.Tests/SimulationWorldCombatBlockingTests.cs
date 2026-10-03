@@ -112,7 +112,7 @@ public sealed class SimulationWorldCombatBlockingTests
                 new LevelSolid(solidLeft, 80f, 32f, 32f),
             ]));
         Assert.True(world.TrySetLocalClass(PlayerClass.Demoman));
-        world.NetworkPlayerRules.ForceRespawnLocalPlayer();
+        world.NetworkPlayers.ForceRespawnLocalPlayer();
         var player = world.LocalPlayer;
         player.TeleportTo(80f, 96f);
 
@@ -138,7 +138,7 @@ public sealed class SimulationWorldCombatBlockingTests
             new RoomObjectMarker(RoomObjectType.TeamGate, 104f, 64f, 48f, 96f, "RedGate", PlayerTeam.Red),
         ]));
         Assert.True(world.TrySetLocalClass(PlayerClass.Soldier));
-        world.NetworkPlayerRules.ForceRespawnLocalPlayer();
+        world.NetworkPlayers.ForceRespawnLocalPlayer();
         world.LocalPlayer.TeleportTo(128f, 96f);
         world.ObjectiveRules.BlueIntel.Drop(world.LocalPlayer.X, world.LocalPlayer.Y, returnTicks: 300);
 
@@ -158,7 +158,7 @@ public sealed class SimulationWorldCombatBlockingTests
         }
 
         Assert.Equal(playerClass, world.LocalPlayer.ClassId);
-        world.NetworkPlayerRules.ForceRespawnLocalPlayer();
+        world.NetworkPlayers.ForceRespawnLocalPlayer();
         return world;
     }
 
@@ -188,17 +188,17 @@ public sealed class SimulationWorldCombatBlockingTests
 
     private static PlayerEntity AddNetworkPlayer(SimulationWorld world, byte slot, PlayerTeam team, PlayerClass playerClass, float x, float y)
     {
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(slot));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, team));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, playerClass));
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(slot, team));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(slot, playerClass));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(slot, out var player));
         player.TeleportTo(x, y);
         return player;
     }
 
     private static void SetCombatLevel(SimulationWorld world, SimpleLevel level)
     {
-        world.CombatTestSetLevel(level);
+        world.TestSetLevel(level);
     }
 
     private static (float Distance, PlayerEntity? HitPlayer) ResolveRifleHit(
@@ -208,7 +208,7 @@ public sealed class SimulationWorldCombatBlockingTests
         float directionY,
         float maxDistance)
     {
-        var result = world.CombatTestResolveRifleHit(attacker, directionX, directionY, maxDistance);
+        var result = world.TestResolveRifleHit(attacker, directionX, directionY, maxDistance);
         return (result.Distance, result.HitPlayer);
     }
 
@@ -219,13 +219,13 @@ public sealed class SimulationWorldCombatBlockingTests
         float directionY,
         float maxDistance)
     {
-        var result = world.CombatTestGetNearestShotHit(shot, directionX, directionY, maxDistance);
+        var result = world.TestGetNearestShotHit(shot, directionX, directionY, maxDistance);
         return result is { } hit ? (hit.Distance, hit.HitPlayer) : null;
     }
 
     private static MineProjectileEntity SpawnMine(SimulationWorld world, PlayerEntity owner, float x, float y, bool stickied)
     {
-        return world.CombatTestSpawnMine(owner, x, y, 0f, 0f, stickied);
+        return world.TestSpawnMine(owner, x, y, 0f, 0f, stickied);
     }
 
     private static void ExplodeOldestMine(SimulationWorld world, int ownerId, bool triggerNearbyMines)

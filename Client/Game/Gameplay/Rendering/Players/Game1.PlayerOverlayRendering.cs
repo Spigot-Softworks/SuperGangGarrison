@@ -266,7 +266,7 @@ public partial class Game1
             return true;
         }
 
-        return _world.NetworkPlayerRules.TryGetPlayerNetworkSlot(player, out slot);
+        return _world.NetworkPlayers.TryGetPlayerNetworkSlot(player, out slot);
     }
 
     private void DrawWriteBubble(PlayerEntity player, Vector2 cameraPosition)

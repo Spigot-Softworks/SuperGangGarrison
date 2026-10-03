@@ -226,13 +226,13 @@ public sealed class TopDownMovementTests
                 Assert.True(world.TryLoadLevel("ctf_hangar"));
 
                 const byte botSlot = 2;
-                Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(botSlot));
-                Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(botSlot, team));
+                Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(botSlot));
+                Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(botSlot, team));
                 // The current packaged Hangar routes through authored fire
                 // zones. Use Pyro so this remains a navigation/capture test
                 // instead of repeatedly dying to the map's afterburn hazard.
-                Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(botSlot, PlayerClass.Pyro));
-                Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(botSlot, out var bot));
+                Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(botSlot, PlayerClass.Pyro));
+                Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(botSlot, out var bot));
 
                 // The canonical Hangar map ships its OG2 graph. This assertion
                 // keeps the integration harness on the same graph handoff as
@@ -268,7 +268,7 @@ public sealed class TopDownMovementTests
                     var inputs = controller.BuildInputs(world, controlledSlots);
 
                     Assert.True(inputs.TryGetValue(botSlot, out var input));
-                    Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerInput(botSlot, input));
+                    Assert.True(world.NetworkPlayers.TrySetNetworkPlayerInput(botSlot, input));
                     world.AdvanceOneTick();
 
                     var score = team == PlayerTeam.Red ? world.RedCaps : world.BlueCaps;
@@ -346,10 +346,10 @@ public sealed class TopDownMovementTests
     {
         var level = CreateTopDownLevel();
         var world = new SimulationWorld();
-        world.CombatTestSetLevel(level);
+        world.TestSetLevel(level);
         Assert.True(world.TrySetLocalClass(PlayerClass.Soldier));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red));
-        world.NetworkPlayerRules.ForceRespawnLocalPlayer();
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red));
+        world.NetworkPlayers.ForceRespawnLocalPlayer();
         var player = world.LocalPlayer;
         player.TeleportTo(160f, 300f);
         player.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: null, facingDirectionX: 1f);
@@ -396,10 +396,10 @@ public sealed class TopDownMovementTests
             EnableEnemyTrainingDummy = false,
             EnableFriendlySupportDummy = false,
         });
-        world.CombatTestSetLevel(level);
+        world.TestSetLevel(level);
         Assert.True(world.TrySetLocalClass(PlayerClass.Soldier));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red));
-        world.NetworkPlayerRules.ForceRespawnLocalPlayer();
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red));
+        world.NetworkPlayers.ForceRespawnLocalPlayer();
         var player = world.LocalPlayer;
         player.TeleportTo(160f, 300f);
         player.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: null, facingDirectionX: 1f);
@@ -442,14 +442,14 @@ public sealed class TopDownMovementTests
             EnableEnemyTrainingDummy = false,
             EnableFriendlySupportDummy = false,
         });
-        world.CombatTestSetLevel(level);
+        world.TestSetLevel(level);
         Assert.True(world.TrySetLocalClass(PlayerClass.Soldier));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red));
-        world.NetworkPlayerRules.ForceRespawnLocalPlayer();
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(2));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(2, PlayerTeam.Red));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(2, out var ally));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red));
+        world.NetworkPlayers.ForceRespawnLocalPlayer();
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(2, PlayerTeam.Red));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(2, out var ally));
 
         var local = world.LocalPlayer;
         local.TeleportTo(240f, 240f);
@@ -482,13 +482,13 @@ public sealed class TopDownMovementTests
             EnableEnemyTrainingDummy = false,
             EnableFriendlySupportDummy = false,
         });
-        world.CombatTestSetLevel(level);
+        world.TestSetLevel(level);
 
         const byte botSlot = 2;
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(botSlot));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(botSlot, PlayerTeam.Red));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(botSlot, PlayerClass.Soldier));
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(botSlot, out var bot));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(botSlot));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(botSlot, PlayerTeam.Red));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(botSlot, PlayerClass.Soldier));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(botSlot, out var bot));
         bot.TeleportTo(240f, 240f);
         bot.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: null, facingDirectionX: 1f);
 
@@ -513,10 +513,10 @@ public sealed class TopDownMovementTests
         Assert.True(practiceController.RequiresPerTickNavigationThink(botSlot));
 
         const byte enemySlot = 3;
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(enemySlot));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(enemySlot, PlayerTeam.Blue));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(enemySlot, PlayerClass.Scout));
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(enemySlot, out var enemy));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(enemySlot));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(enemySlot, PlayerTeam.Blue));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(enemySlot, PlayerClass.Scout));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(enemySlot, out var enemy));
         enemy.TeleportTo(320f, 240f);
         enemy.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: null, facingDirectionX: -1f);
 
@@ -710,10 +710,10 @@ public sealed class TopDownMovementTests
     {
         var level = CreateTopDownLevel(name: $"topdown_ally_route_{Guid.NewGuid():N}");
         var world = CreateWorldForTopDownLevel(level);
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(2));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(2, PlayerTeam.Red));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(2, out var ally));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(2, PlayerTeam.Red));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(2, out var ally));
 
         var player = world.LocalPlayer;
         player.TeleportTo(240f, 240f);
@@ -850,10 +850,10 @@ public sealed class TopDownMovementTests
             EnableEnemyTrainingDummy = false,
             EnableFriendlySupportDummy = false,
         });
-        world.CombatTestSetLevel(level);
+        world.TestSetLevel(level);
         Assert.True(world.TrySetLocalClass(PlayerClass.Soldier));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red));
-        world.NetworkPlayerRules.ForceRespawnLocalPlayer();
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red));
+        world.NetworkPlayers.ForceRespawnLocalPlayer();
         world.LocalPlayer.RestoreMovementProbeState(
             isGrounded: true,
             remainingAirJumps: null,

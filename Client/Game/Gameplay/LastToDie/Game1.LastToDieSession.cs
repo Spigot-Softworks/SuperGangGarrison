@@ -1030,7 +1030,7 @@ public sealed class LastToDieStageSpecialRoundState
         {
             var slot = entry.Key;
             var slotState = entry.Value;
-            if (slotState.Team != enemyTeam || !_world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
+            if (slotState.Team != enemyTeam || !_world.NetworkPlayers.TryGetNetworkPlayer(slot, out var player))
             {
                 continue;
             }
@@ -1069,7 +1069,7 @@ public sealed class LastToDieStageSpecialRoundState
                      && enemyIndex == 0)
             {
                 _lastToDieRun.CurrentSpecialRound.HaxtonSlot = slot;
-                _world.NetworkPlayerRules.TrySetNetworkPlayerName(slot, "Haxton");
+                _world.NetworkPlayers.TrySetNetworkPlayerName(slot, "Haxton");
                 _world.ServerTuning.TrySetNetworkPlayerScale(slot, LastToDieHaxtonScale);
                 ApplyLastToDieEnemyMaxHealthOverride(
                     slot,
@@ -1134,7 +1134,7 @@ public sealed class LastToDieStageSpecialRoundState
     private void ApplyLastToDieSniperHuntsmanLoadout(byte slot, PlayerClass classId)
     {
         if (classId != PlayerClass.Sniper
-            || !_world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player)
+            || !_world.NetworkPlayers.TryGetNetworkPlayer(slot, out var player)
             || player.IsSniperBowEquipped)
         {
             return;
@@ -1143,7 +1143,7 @@ public sealed class LastToDieStageSpecialRoundState
         // The stock Sniper loadout exposes the Huntsman as the secondary item. Keep
         // Last To Die enemy snipers on that slot; the normal bot input path then uses
         // primary fire to charge/release the bow and cannot scope the rifle.
-        _world.NetworkPlayerRules.TrySetNetworkPlayerGameplayEquippedSlot(slot, GameplayEquipmentSlot.Secondary);
+        _world.NetworkPlayers.TrySetNetworkPlayerGameplayEquippedSlot(slot, GameplayEquipmentSlot.Secondary);
     }
 
     private void EnforceLastToDieSniperHuntsmanLoadouts()
@@ -1168,7 +1168,7 @@ public sealed class LastToDieStageSpecialRoundState
 
     private bool IsLastToDieHaxtonPlayer(PlayerEntity player)
     {
-        return _world.NetworkPlayerRules.TryGetPlayerNetworkSlot(player, out var slot)
+        return _world.NetworkPlayers.TryGetPlayerNetworkSlot(player, out var slot)
             && IsLastToDieHaxtonSlot(slot);
     }
 
@@ -1181,7 +1181,7 @@ public sealed class LastToDieStageSpecialRoundState
 
     private bool ShouldForceLastToDieSpecialEnemyHealthBar(PlayerEntity player)
     {
-        return _world.NetworkPlayerRules.TryGetPlayerNetworkSlot(player, out var slot)
+        return _world.NetworkPlayers.TryGetPlayerNetworkSlot(player, out var slot)
             && (IsLastToDieHaxtonSlot(slot) || IsLastToDieGigaSlot(slot));
     }
 
@@ -1258,9 +1258,9 @@ public sealed class LastToDieStageSpecialRoundState
 
         var playerClass = GetLastToDieSurvivorPlayerClass(_lastToDieRun.SurvivorKind);
         var stageRules = ResolveLastToDieStageRuleProfile(_lastToDieRun.SurvivorKind, _lastToDieRun.CurrentLevelName);
-        _world.NetworkPlayerRules.PrepareLocalPlayerJoin();
-        _world.NetworkPlayerRules.SetLocalPlayerTeam(PlayerTeam.Red);
-        _world.NetworkPlayerRules.CompleteLocalPlayerJoin(playerClass);
+        _world.NetworkPlayers.PrepareLocalPlayerJoin();
+        _world.NetworkPlayers.SetLocalPlayerTeam(PlayerTeam.Red);
+        _world.NetworkPlayers.CompleteLocalPlayerJoin(playerClass);
         _world.LastToDieRules.ConfigureLastToDieStage(_lastToDieRun.StageNumber);
         _world.LastToDieRules.TrySetLastToDieSurvivorBuff(SimulationWorld.LocalPlayerSlot, enabled: true);
         if (stageRules.SpawnLocalPlayerAtOwnIntel)
@@ -1389,7 +1389,7 @@ public sealed class LastToDieStageSpecialRoundState
     private bool IsLastToDieHaxtonEliminated(LastToDieRunState run)
     {
         return run.CurrentSpecialRound.HaxtonSlot.HasValue
-            && (!_world.NetworkPlayerRules.TryGetNetworkPlayer(run.CurrentSpecialRound.HaxtonSlot.Value, out var player) || !player.IsAlive);
+            && (!_world.NetworkPlayers.TryGetNetworkPlayer(run.CurrentSpecialRound.HaxtonSlot.Value, out var player) || !player.IsAlive);
     }
 
     private static bool IsLastToDieSpecialRoundClearByElimination(LastToDieRunState run)
@@ -2549,7 +2549,7 @@ public sealed class LastToDieStageSpecialRoundState
     {
         if (_world.LocalPlayer.IsAlive)
         {
-            _world.NetworkPlayerRules.ForceKillLocalPlayer();
+            _world.NetworkPlayers.ForceKillLocalPlayer();
             TriggerLastToDieDeathFocusFailure();
             return;
         }

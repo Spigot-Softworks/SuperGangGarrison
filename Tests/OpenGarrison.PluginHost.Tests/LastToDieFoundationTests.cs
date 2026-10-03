@@ -336,12 +336,12 @@ public sealed class LastToDieFoundationTests
     public void HostedLegacyBuildProfilesRemainIsolatedPerNetworkSlot()
     {
         var world = new SimulationWorld();
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(2));
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(3));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Demoman));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(3, PlayerClass.Demoman));
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(2, out var boosted));
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(3, out var stock));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(3));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Demoman));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(3, PlayerClass.Demoman));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(2, out var boosted));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(3, out var stock));
 
         var baseRunPower = stock.ClassDefinition.RunPower;
         Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
@@ -361,14 +361,14 @@ public sealed class LastToDieFoundationTests
     public void HostedServerTracksCombosForActualSurvivors()
     {
         var world = new SimulationWorld();
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(2));
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(3));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(3, PlayerClass.Heavy));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(2, PlayerTeam.Red, respawnLivePlayerImmediately: true));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(3, PlayerTeam.Blue, respawnLivePlayerImmediately: true));
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(2, out var attacker));
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(3, out var target));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(3));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(3, PlayerClass.Heavy));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(2, PlayerTeam.Red, respawnLivePlayerImmediately: true));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(3, PlayerTeam.Blue, respawnLivePlayerImmediately: true));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(2, out var attacker));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(3, out var target));
         Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(2, [], refillHealth: true));
 
         Assert.True(world.Abilities.TryApplyGameplayDamage(target.Id, 20f, attacker.Id, null));
@@ -382,9 +382,9 @@ public sealed class LastToDieFoundationTests
     public void HostedClientPredictionInstallsAndClearsLegacyProfileWithoutCreatingServerRuntime()
     {
         var world = new SimulationWorld();
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(2));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Demoman));
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(2, out var player));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Demoman));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(2, out var player));
         var baseRunPower = player.ClassDefinition.RunPower;
 
         Assert.True(world.LastToDieRules.TryApplyLastToDiePlayerPredictionProfile(
@@ -413,12 +413,12 @@ public sealed class LastToDieFoundationTests
     public void HostedEngineerLegacyBuildSynchronizesMetalCapacityImmediately()
     {
         var world = new SimulationWorld();
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(2));
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(3));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Engineer));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(3, PlayerClass.Engineer));
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(2, out var recycler));
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(3, out var stock));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(3));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Engineer));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(3, PlayerClass.Engineer));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(2, out var recycler));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(3, out var stock));
 
         Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             2,
@@ -434,22 +434,22 @@ public sealed class LastToDieFoundationTests
     public void HostedSoldierLegacyDamageRewardAppliesImmediatelyAndPerSlot()
     {
         var world = new SimulationWorld();
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(2));
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(3));
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(4));
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(5));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(3, PlayerClass.Soldier));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(4, PlayerClass.Heavy));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(5, PlayerClass.Heavy));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(2, PlayerTeam.Red, respawnLivePlayerImmediately: true));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(3, PlayerTeam.Red, respawnLivePlayerImmediately: true));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(4, PlayerTeam.Blue, respawnLivePlayerImmediately: true));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(5, PlayerTeam.Blue, respawnLivePlayerImmediately: true));
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(2, out var sadist));
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(3, out var stock));
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(4, out var firstTarget));
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(5, out var secondTarget));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(3));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(4));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(5));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(3, PlayerClass.Soldier));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(4, PlayerClass.Heavy));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(5, PlayerClass.Heavy));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(2, PlayerTeam.Red, respawnLivePlayerImmediately: true));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(3, PlayerTeam.Red, respawnLivePlayerImmediately: true));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(4, PlayerTeam.Blue, respawnLivePlayerImmediately: true));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(5, PlayerTeam.Blue, respawnLivePlayerImmediately: true));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(2, out var sadist));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(3, out var stock));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(4, out var firstTarget));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(5, out var secondTarget));
 
         Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             2,
@@ -470,14 +470,14 @@ public sealed class LastToDieFoundationTests
     public void EndlessEnemyScalingChangesMovementAndOutgoingDamagePerSlot()
     {
         var world = new SimulationWorld();
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(2));
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(3));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(3, PlayerClass.Heavy));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(2, PlayerTeam.Blue, respawnLivePlayerImmediately: true));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(3, PlayerTeam.Red, respawnLivePlayerImmediately: true));
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(2, out var enemy));
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(3, out var survivor));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(3));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(3, PlayerClass.Heavy));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(2, PlayerTeam.Blue, respawnLivePlayerImmediately: true));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(3, PlayerTeam.Red, respawnLivePlayerImmediately: true));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(2, out var enemy));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(3, out var survivor));
         var healthBefore = survivor.Health;
 
         Assert.True(world.ServerTuning.TrySetNetworkPlayerLastToDieEnemyScaling(2, 1.15f, 1.15f));

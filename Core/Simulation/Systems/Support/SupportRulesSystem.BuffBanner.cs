@@ -47,7 +47,7 @@ internal sealed partial class SupportRulesSystem
                 continue;
             }
 
-            var providerSlot = _host.NetworkPlayerRules.TryGetPlayerNetworkSlot(source, out var resolvedSlot)
+            var providerSlot = _host.NetworkPlayers.TryGetPlayerNetworkSlot(source, out var resolvedSlot)
                 ? resolvedSlot
                 : int.MaxValue;
             var radiusSquared = source.BuffBannerRadius * source.BuffBannerRadius;

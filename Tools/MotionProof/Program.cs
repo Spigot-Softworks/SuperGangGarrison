@@ -2668,10 +2668,10 @@ internal static class MotionProofRunner
     {
         enemy = default!;
         var enemyTeam = GetOpposingTeam(options.Team);
-        return world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin((byte)EnemySlot)
-            && world.NetworkPlayerRules.TrySetNetworkPlayerTeam((byte)EnemySlot, enemyTeam)
-            && world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection((byte)EnemySlot, options.EnemyClassId)
-            && world.NetworkPlayerRules.TryGetNetworkPlayer((byte)EnemySlot, out enemy);
+        return world.NetworkPlayers.TryPrepareNetworkPlayerJoin((byte)EnemySlot)
+            && world.NetworkPlayers.TrySetNetworkPlayerTeam((byte)EnemySlot, enemyTeam)
+            && world.NetworkPlayers.TryApplyNetworkPlayerClassSelection((byte)EnemySlot, options.EnemyClassId)
+            && world.NetworkPlayers.TryGetNetworkPlayer((byte)EnemySlot, out enemy);
     }
 
     private static MotionGoal[] BuildCombatSmokeTargets(
@@ -2750,12 +2750,12 @@ internal static class MotionProofRunner
         {
             var input = BuildCombatInput(world, bot, enemy);
             _ = input.Up && !previousBotInput.Up;
-            if (!world.NetworkPlayerRules.TrySetNetworkPlayerInput((byte)BotSlot, input))
+            if (!world.NetworkPlayers.TrySetNetworkPlayerInput((byte)BotSlot, input))
             {
                 throw new InvalidOperationException("failed_to_apply_combat_input");
             }
 
-            world.NetworkPlayerRules.TrySetNetworkPlayerInput((byte)EnemySlot, BuildIdleCombatTargetInput(enemy));
+            world.NetworkPlayers.TrySetNetworkPlayerInput((byte)EnemySlot, BuildIdleCombatTargetInput(enemy));
             world.AdvanceOneTick();
             previousBotInput = input;
         }
@@ -3200,11 +3200,11 @@ internal static class MotionProofRunner
         }
 
         RunNeutralPreTicks(world, options.PreTicks);
-        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
-        if (!world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(BotSlot)
-            || !world.NetworkPlayerRules.TrySetNetworkPlayerTeam(BotSlot, options.Team)
-            || !world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(BotSlot, options.ClassId)
-            || !world.NetworkPlayerRules.TryGetNetworkPlayer(BotSlot, out bot))
+        world.NetworkPlayers.PrepareLocalPlayerJoin();
+        if (!world.NetworkPlayers.TryPrepareNetworkPlayerJoin(BotSlot)
+            || !world.NetworkPlayers.TrySetNetworkPlayerTeam(BotSlot, options.Team)
+            || !world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(BotSlot, options.ClassId)
+            || !world.NetworkPlayers.TryGetNetworkPlayer(BotSlot, out bot))
         {
             failureReason = "failed_to_spawn_probe_player";
             return null;
@@ -3366,8 +3366,8 @@ internal static class MotionProofRunner
             return;
         }
 
-        world.NetworkPlayerRules.SetLocalInput(default);
-        world.NetworkPlayerRules.SetEnemyInput(default);
+        world.NetworkPlayers.SetLocalInput(default);
+        world.NetworkPlayers.SetEnemyInput(default);
         for (var tick = 0; tick < ticks; tick += 1)
         {
             world.AdvanceOneTick();
@@ -4151,7 +4151,7 @@ internal static class MotionProofRunner
                 var input = action.GetInput(actionTick, bot);
                 var jumpPressed = input.Up && !previousInput.Up;
                 _ = jumpPressed;
-                if (!world.NetworkPlayerRules.TrySetNetworkPlayerInput(BotSlot, input))
+                if (!world.NetworkPlayers.TrySetNetworkPlayerInput(BotSlot, input))
                 {
                     throw new InvalidOperationException("failed_to_apply_replay_input");
                 }
@@ -4183,7 +4183,7 @@ internal static class MotionProofRunner
             DebugKill: false);
         for (var tick = 0; tick < ticks; tick += 1)
         {
-            if (!world.NetworkPlayerRules.TrySetNetworkPlayerInput(BotSlot, input))
+            if (!world.NetworkPlayers.TrySetNetworkPlayerInput(BotSlot, input))
             {
                 throw new InvalidOperationException("failed_to_apply_hold_input");
             }

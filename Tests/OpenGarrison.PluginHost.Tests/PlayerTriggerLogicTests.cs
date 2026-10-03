@@ -329,7 +329,7 @@ public sealed class PlayerTriggerLogicTests
             },
         ]);
         var world = new SimulationWorld();
-        world.CombatTestSetLevel(new SimpleLevel(
+        world.TestSetLevel(new SimpleLevel(
             "player-trigger-test",
             GameModeKind.TeamDeathmatch,
             new WorldBounds(512f, 512f),
@@ -347,9 +347,9 @@ public sealed class PlayerTriggerLogicTests
             importedFromSource: false,
             logicGraph: graph));
 
-        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
-        world.NetworkPlayerRules.SetLocalPlayerTeam(PlayerTeam.Red);
-        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Scout);
+        world.NetworkPlayers.PrepareLocalPlayerJoin();
+        world.NetworkPlayers.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.NetworkPlayers.CompleteLocalPlayerJoin(PlayerClass.Scout);
         world.LocalPlayer.TeleportTo(10f, 10f);
 
         world.MapLogic.TickMapLogicTimers();
@@ -374,7 +374,7 @@ public sealed class PlayerTriggerLogicTests
             },
         ]);
         var world = new SimulationWorld();
-        world.CombatTestSetLevel(new SimpleLevel(
+        world.TestSetLevel(new SimpleLevel(
             "player-trigger-frame-test",
             GameModeKind.TeamDeathmatch,
             new WorldBounds(512f, 512f),
@@ -392,9 +392,9 @@ public sealed class PlayerTriggerLogicTests
             importedFromSource: false,
             logicGraph: graph));
 
-        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
-        world.NetworkPlayerRules.SetLocalPlayerTeam(PlayerTeam.Red);
-        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Soldier);
+        world.NetworkPlayers.PrepareLocalPlayerJoin();
+        world.NetworkPlayers.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.NetworkPlayers.CompleteLocalPlayerJoin(PlayerClass.Soldier);
         world.LocalPlayer.TeleportTo(128f, 100f);
 
         world.MapLogic.TickMapLogicTimersOncePerFrame();
@@ -420,7 +420,7 @@ public sealed class PlayerTriggerLogicTests
             },
         ]);
         var world = new SimulationWorld();
-        world.CombatTestSetLevel(new SimpleLevel(
+        world.TestSetLevel(new SimpleLevel(
             "player-trigger-after-tick-test",
             GameModeKind.TeamDeathmatch,
             new WorldBounds(512f, 512f),
@@ -438,9 +438,9 @@ public sealed class PlayerTriggerLogicTests
             importedFromSource: false,
             logicGraph: graph));
 
-        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
-        world.NetworkPlayerRules.SetLocalPlayerTeam(PlayerTeam.Red);
-        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Soldier);
+        world.NetworkPlayers.PrepareLocalPlayerJoin();
+        world.NetworkPlayers.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.NetworkPlayers.CompleteLocalPlayerJoin(PlayerClass.Soldier);
         world.LocalPlayer.TeleportTo(128f, 100f);
 
         var simulator = new FixedStepSimulator(world);

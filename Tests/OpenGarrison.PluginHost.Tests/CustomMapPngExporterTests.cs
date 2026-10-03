@@ -1455,6 +1455,6 @@ public sealed class CustomMapPngExporterTests
 
     private static void SetWorldLevel(SimulationWorld world, SimpleLevel level)
     {
-        world.CombatTestSetLevel(level);
+        world.TestSetLevel(level);
     }
 }

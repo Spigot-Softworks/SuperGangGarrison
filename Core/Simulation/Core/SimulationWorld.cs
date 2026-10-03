@@ -45,7 +45,7 @@ public sealed partial class SimulationWorld
     internal LocalSimulationState LocalState { get; } = new();
     internal MatchLifecycleState Lifecycle { get; } = new();
     internal SimulationRandomStreams Randoms { get; } = new();
-    internal NetworkPlayerSystem NetworkPlayerRules { get; }
+    internal NetworkPlayerSystem NetworkPlayers { get; }
     internal GameplayAbilitySystem Abilities { get; }
     internal ObjectiveRulesSystem ObjectiveRules { get; }
     internal PickupSystem Pickups { get; }
@@ -67,13 +67,13 @@ public sealed partial class SimulationWorld
     internal ClassRulesSystem ClassRules { get; }
     internal ScorekeepingSystem Scorekeeping { get; }
     internal AdminCommandsSystem AdminCommands { get; }
-    internal KillFeedSystem KillFeedRules { get; }
+    internal KillFeedSystem KillFeed { get; }
     internal PlayerRemainsSystem PlayerRemains { get; }
     internal SpawnSystem Spawns { get; }
     internal PlayerDeathSystem PlayerDeaths { get; }
     internal PlayerInputSystem PlayerInput { get; }
     internal SnapshotApplySystem SnapshotApply { get; }
-    internal DecisionGate Decisions { get; }
+    internal DecisionGate DecisionGate { get; }
     internal DamageRulesSystem DamageRules { get; }
 
     public long Frame { get; private set; }
@@ -182,7 +182,7 @@ public sealed partial class SimulationWorld
 
     public LocalDeathCamState? LocalDeathCam { get; private set; }
 
-    public IReadOnlyList<KillFeedEntry> KillFeed => PresentationEvents.KillFeed;
+    public IReadOnlyList<KillFeedEntry> KillFeedEntries => PresentationEvents.KillFeed;
 
     public IReadOnlyList<CombatTrace> CombatTraces => PresentationEvents.CombatTraces;
 
@@ -331,7 +331,7 @@ public sealed partial class SimulationWorld
         Pickups = new PickupSystem(this);
         ObjectiveRules = new ObjectiveRulesSystem(this);
         Abilities = new GameplayAbilitySystem(this);
-        NetworkPlayerRules = new NetworkPlayerSystem(this);
+        NetworkPlayers = new NetworkPlayerSystem(this);
         LastToDieRules = new LastToDieRulesSystem(this);
         ExperimentalRules = new ExperimentalRulesSystem(this);
         SupportRules = new SupportRulesSystem(this);
@@ -349,13 +349,13 @@ public sealed partial class SimulationWorld
         ClassRules = new ClassRulesSystem(this);
         Scorekeeping = new ScorekeepingSystem(this);
         AdminCommands = new AdminCommandsSystem(this);
-        KillFeedRules = new KillFeedSystem(this);
+        KillFeed = new KillFeedSystem(this);
         PlayerRemains = new PlayerRemainsSystem(this);
         Spawns = new SpawnSystem(this);
         PlayerDeaths = new PlayerDeathSystem(this);
         PlayerInput = new PlayerInputSystem(this);
         SnapshotApply = new SnapshotApplySystem(this);
-        Decisions = new DecisionGate(this);
+        DecisionGate = new DecisionGate(this);
         DamageRules = new DamageRulesSystem(this);
         _runtime = new SimulationRuntime(this, new EntityTickPhase(this), new MatchTickPhase(this, new MatchObjectiveSystem(this)));
         _playerCounts = new PlayerCountQueries(this);
@@ -405,13 +405,13 @@ public sealed partial class SimulationWorld
     {
         if (health <= 0)
         {
-            NetworkPlayerRules.ForceKillLocalPlayer();
+            NetworkPlayers.ForceKillLocalPlayer();
             return;
         }
 
         if (!LocalPlayer.IsAlive)
         {
-            NetworkPlayerRules.ForceRespawnLocalPlayer();
+            NetworkPlayers.ForceRespawnLocalPlayer();
         }
 
         LocalPlayer.ForceSetHealth(health);
@@ -426,7 +426,7 @@ public sealed partial class SimulationWorld
     {
         if (!LocalPlayer.IsAlive)
         {
-            NetworkPlayerRules.ForceRespawnLocalPlayer();
+            NetworkPlayers.ForceRespawnLocalPlayer();
         }
 
         LocalPlayer.TeleportTo(
@@ -453,16 +453,16 @@ public sealed partial class SimulationWorld
     public bool TrySetLocalClass(string gameplayClassId)
     {
         var definition = ClassRules.ResolveMapForcedClassDefinition(LocalPlayerSlot, CharacterClassCatalog.GetDefinition(gameplayClassId));
-        if (string.Equals(definition.GameplayClassId, NetworkPlayerRules.GetNetworkPlayerClassDefinition(LocalPlayerSlot).GameplayClassId, StringComparison.Ordinal))
+        if (string.Equals(definition.GameplayClassId, NetworkPlayers.GetNetworkPlayerClassDefinition(LocalPlayerSlot).GameplayClassId, StringComparison.Ordinal))
         {
             // Allow same-class selection to commit a pending team swap.
             // Use TryApplyNetworkPlayerClassChange so spawn-room and respawn-timer rules are respected.
-            return (LocalPlayer.Team != NetworkPlayerRules.GetNetworkPlayerConfiguredTeam(LocalPlayerSlot)
-                    || NetworkPlayerRules.HasPendingNetworkPlayerTeamSelection(LocalPlayerSlot))
-                && NetworkPlayerRules.TryApplyNetworkPlayerClassChange(LocalPlayerSlot, definition);
+            return (LocalPlayer.Team != NetworkPlayers.GetNetworkPlayerConfiguredTeam(LocalPlayerSlot)
+                    || NetworkPlayers.HasPendingNetworkPlayerTeamSelection(LocalPlayerSlot))
+                && NetworkPlayers.TryApplyNetworkPlayerClassChange(LocalPlayerSlot, definition);
         }
 
-        return NetworkPlayerRules.TryApplyNetworkPlayerClassChange(LocalPlayerSlot, definition);
+        return NetworkPlayers.TryApplyNetworkPlayerClassChange(LocalPlayerSlot, definition);
     }
 
 

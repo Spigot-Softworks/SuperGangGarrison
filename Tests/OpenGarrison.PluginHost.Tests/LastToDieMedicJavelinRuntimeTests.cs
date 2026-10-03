@@ -258,7 +258,7 @@ public sealed class LastToDieMedicJavelinRuntimeTests
         var javelin = SpawnKritzM2(world, owner, 120f, 100f, 20f, 0f);
         var ownerId = owner.Id;
 
-        Assert.True(world.NetworkPlayerRules.TryReleaseNetworkPlayerSlot(2));
+        Assert.True(world.NetworkPlayers.TryReleaseNetworkPlayerSlot(2));
         Assert.Contains(javelin, world.Needles);
         AdvanceUntilAnchored(world, javelin);
 
@@ -292,7 +292,7 @@ public sealed class LastToDieMedicJavelinRuntimeTests
         var publisher = new Protocol64StatePublisher(source);
         _ = publisher.BuildProjectileStates(10);
         var ownerId = owner.Id;
-        Assert.True(source.NetworkPlayerRules.TryReleaseNetworkPlayerSlot(2));
+        Assert.True(source.NetworkPlayers.TryReleaseNetworkPlayerSlot(2));
         var state = Assert.Single(publisher.BuildProjectileStates(11));
         Assert.Equal((byte)0b1001, state.LastToDieMedicKritzM2Payload);
         Assert.Equal(ownerId, state.LastToDieMedicJavelinOwnerPlayerId);
@@ -347,7 +347,7 @@ public sealed class LastToDieMedicJavelinRuntimeTests
             EnableEnemyTrainingDummy = false,
             EnableFriendlySupportDummy = false,
         });
-        world.CombatTestSetLevel(new SimpleLevel(
+        world.TestSetLevel(new SimpleLevel(
             name: "ltd_medic_javelin_test",
             mode: GameModeKind.CaptureTheFlag,
             bounds: new WorldBounds(1000f, 480f),
@@ -363,8 +363,8 @@ public sealed class LastToDieMedicJavelinRuntimeTests
             floorY: 400f,
             solids,
             importedFromSource: false));
-        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
-        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Medic);
+        world.NetworkPlayers.PrepareLocalPlayerJoin();
+        world.NetworkPlayers.CompleteLocalPlayerJoin(PlayerClass.Medic);
         world.LocalPlayer.SetSpawnRoomState(false);
         return world;
     }
@@ -375,10 +375,10 @@ public sealed class LastToDieMedicJavelinRuntimeTests
         PlayerClass playerClass,
         PlayerTeam team)
     {
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(slot));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, team));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, playerClass));
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(slot, team));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(slot, playerClass));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(slot, out var player));
         player.SetSpawnRoomState(false);
         return player;
     }

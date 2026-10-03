@@ -8,7 +8,7 @@ public sealed partial class SimulationWorld : IVipRulesHost
     PlayerEntity IVipRulesHost.LocalPlayer => LocalPlayer;
     MatchRules IVipRulesHost.MatchRules => MatchRules;
     MatchState IVipRulesHost.MatchState { get => MatchState; set => MatchState = value; }
-    NetworkPlayerSystem IVipRulesHost.NetworkPlayerRules => NetworkPlayerRules;
+    NetworkPlayerSystem IVipRulesHost.NetworkPlayers => NetworkPlayers;
     ObjectiveStateStore IVipRulesHost.Objectives => Objectives;
     SimulationRandomStreams IVipRulesHost.Randoms => Randoms;
     VipState IVipRulesHost.VipState => VipState;

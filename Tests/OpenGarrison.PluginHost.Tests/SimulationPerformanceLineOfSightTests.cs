@@ -27,7 +27,7 @@ public sealed class SimulationPerformanceLineOfSightTests
 
             Assert.Equal(
                 HasFullScanLineOfSight(solids, originX, originY, target.X, target.Y - (target.Height / 4f)),
-                world.CombatTestHasLineOfSight(attacker, target));
+                world.TestHasLineOfSight(attacker, target));
             Assert.Equal(
                 HasFullScanLineOfSight(solids, originX, originY, targetX, targetY),
                 HasSentryLineOfSight(world, sentry, target));
@@ -73,7 +73,7 @@ public sealed class SimulationPerformanceLineOfSightTests
             EnableEnemyTrainingDummy = false,
             EnableFriendlySupportDummy = false,
         });
-        world.CombatTestSetLevel(new SimpleLevel(
+        world.TestSetLevel(new SimpleLevel(
             name: "simulation_performance_los",
             mode: GameModeKind.CaptureTheFlag,
             bounds: new WorldBounds(8_192f, 8_192f),
@@ -99,11 +99,11 @@ public sealed class SimulationPerformanceLineOfSightTests
         float x,
         float y)
     {
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(slot));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, team));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, PlayerClass.Scout));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(slot, team));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(slot, PlayerClass.Scout));
 
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(slot, out var player));
         player.TeleportTo(x, y);
         player.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: null, facingDirectionX: 1f);
         return player;

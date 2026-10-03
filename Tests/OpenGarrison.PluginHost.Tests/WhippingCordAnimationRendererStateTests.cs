@@ -13,9 +13,9 @@ public sealed class WhippingCordAnimationRendererStateTests
     public void UntickedRemoteBackswingCannotReviveAfterReleaseOrACompletedLaterSwing()
     {
         var source = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        source.PrepareLocalPlayerJoin();
-        source.SetLocalPlayerTeam(PlayerTeam.Red);
-        source.CompleteLocalPlayerJoin(PlayerClass.Engineer);
+        source.NetworkPlayers.PrepareLocalPlayerJoin();
+        source.NetworkPlayers.SetLocalPlayerTeam(PlayerTeam.Red);
+        source.NetworkPlayers.CompleteLocalPlayerJoin(PlayerClass.Engineer);
         Assert.True(source.LocalPlayer.TrySelectGameplayPrimaryItem(WhippingCordCatalog.ItemId));
         source.LocalPlayer.LatchWhippingCord(480f, 320f, 75f);
         var stringCache = new SnapshotStringCache();
@@ -39,7 +39,7 @@ public sealed class WhippingCordAnimationRendererStateTests
             PlayerClass.Scout,
             isAlive: true,
             gibDeaths: 0);
-        Assert.True(receiver.ApplySnapshot(
+        Assert.True(receiver.SnapshotApply.ApplySnapshot(
             SimulationWorldSnapshotPresentationTests.CreateSnapshot(
                 receiver,
                 frame: 1,

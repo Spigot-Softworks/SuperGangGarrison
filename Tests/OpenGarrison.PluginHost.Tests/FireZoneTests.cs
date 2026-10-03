@@ -44,10 +44,10 @@ public sealed class FireZoneTests
             [],
             importedFromSource: false);
         var world = new SimulationWorld();
-        world.CombatTestSetLevel(level);
-        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
-        world.NetworkPlayerRules.SetLocalPlayerTeam(PlayerTeam.Red);
-        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Scout);
+        world.TestSetLevel(level);
+        world.NetworkPlayers.PrepareLocalPlayerJoin();
+        world.NetworkPlayers.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.NetworkPlayers.CompleteLocalPlayerJoin(PlayerClass.Scout);
         world.LocalPlayer.TeleportTo(10f, 10f);
 
         InvokeRoomHazards(world, world.LocalPlayer);

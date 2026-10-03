@@ -301,8 +301,8 @@ public sealed class GameplayBuffHudAndReplicationTests
     public void LegacySnapshotHydratesSpawnRoomEligibilityEvenWhenRuntimeStateIsFull()
     {
         var source = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        source.NetworkPlayerRules.PrepareLocalPlayerJoin();
-        source.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Engineer);
+        source.NetworkPlayers.PrepareLocalPlayerJoin();
+        source.NetworkPlayers.CompleteLocalPlayerJoin(PlayerClass.Engineer);
         var receiver = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
 
         var nextEntry = 0;

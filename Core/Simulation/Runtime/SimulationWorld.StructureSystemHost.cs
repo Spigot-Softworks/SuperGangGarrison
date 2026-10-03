@@ -24,7 +24,7 @@ public sealed partial class SimulationWorld : IStructureHost
     MapLogicSystem IStructureHost.MapLogic => MapLogic;
     MatchState IStructureHost.MatchState => MatchState;
     IReadOnlyList<MineProjectileEntity> IStructureHost.Mines => Mines;
-    NetworkPlayerSystem IStructureHost.NetworkPlayerRules => NetworkPlayerRules;
+    NetworkPlayerSystem IStructureHost.NetworkPlayers => NetworkPlayers;
     PlayerDeathSystem IStructureHost.PlayerDeaths => PlayerDeaths;
     ScorekeepingSystem IStructureHost.Scorekeeping => Scorekeeping;
     WorldEffectsSystem IStructureHost.WorldEffects => WorldEffects;

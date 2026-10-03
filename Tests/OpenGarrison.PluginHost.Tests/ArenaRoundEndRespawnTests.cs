@@ -9,17 +9,17 @@ public sealed class ArenaRoundEndRespawnTests
     public void DeadArenaPlayerDoesNotRespawnDuringRoundEndHumiliation()
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        world.CombatTestSetLevel(CreateArenaLevel());
-        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red, respawnLivePlayerImmediately: true));
-        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Scout);
+        world.TestSetLevel(CreateArenaLevel());
+        world.NetworkPlayers.PrepareLocalPlayerJoin();
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red, respawnLivePlayerImmediately: true));
+        world.NetworkPlayers.CompleteLocalPlayerJoin(PlayerClass.Scout);
 
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(2));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(2, PlayerTeam.Blue));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Scout));
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(2, out var bluePlayer));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(2, PlayerTeam.Blue));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Scout));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(2, out var bluePlayer));
 
-        Assert.True(world.NetworkPlayerRules.ForceKillNetworkPlayer(2));
+        Assert.True(world.NetworkPlayers.ForceKillNetworkPlayer(2));
         world.AdvanceOneTick();
 
         Assert.True(world.MatchState.IsEnded);
@@ -32,7 +32,7 @@ public sealed class ArenaRoundEndRespawnTests
         }
 
         Assert.False(bluePlayer.IsAlive);
-        Assert.Equal(0, world.NetworkPlayerRules.GetNetworkPlayerRespawnTicks(2));
+        Assert.Equal(0, world.NetworkPlayers.GetNetworkPlayerRespawnTicks(2));
     }
 
     private static SimpleLevel CreateArenaLevel()

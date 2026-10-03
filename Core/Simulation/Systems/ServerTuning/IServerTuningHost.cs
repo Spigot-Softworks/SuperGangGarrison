@@ -10,7 +10,7 @@ internal interface IServerTuningHost : ISimulationWorldState, ISimulationPlayerD
     PlayerEntity FriendlyDummy { get; }
     PlayerEntity LocalPlayer { get; }
     MatchSettingsState MatchSettings { get; }
-    NetworkPlayerSystem NetworkPlayerRules { get; }
+    NetworkPlayerSystem NetworkPlayers { get; }
     NetworkPlayerRegistry PlayerRegistry { get; }
     SpawnSystem Spawns { get; }
 

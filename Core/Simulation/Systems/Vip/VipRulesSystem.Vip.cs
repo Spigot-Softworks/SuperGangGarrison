@@ -97,8 +97,8 @@ internal sealed partial class VipRulesSystem
     {
         if (!IsVipModeActive
             || !IsVipTeamRequired(team)
-            || !_host.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player)
-            || _host.NetworkPlayerRules.IsNetworkPlayerAwaitingJoin(slot)
+            || !_host.NetworkPlayers.TryGetNetworkPlayer(slot, out var player)
+            || _host.NetworkPlayers.IsNetworkPlayerAwaitingJoin(slot)
             || !NetworkPlayerSystem.IsPlayableNetworkPlayerSlot(slot)
             || !player.IsAlive)
         {
@@ -169,7 +169,7 @@ internal sealed partial class VipRulesSystem
 
     private bool IsVipPlayer(PlayerEntity player)
     {
-        return _host.NetworkPlayerRules.TryGetNetworkPlayerSlot(player, out var slot) && IsVipSlot(slot);
+        return _host.NetworkPlayers.TryGetNetworkPlayerSlot(player, out var slot) && IsVipSlot(slot);
     }
 
     internal void ApplyVipDeathTimerPenalty(PlayerEntity victim, PlayerEntity? killer)
@@ -214,7 +214,7 @@ internal sealed partial class VipRulesSystem
     private bool IsVipDead(PlayerTeam team)
     {
         return _host.VipState.SlotsByTeam.TryGetValue(team, out var slot)
-            && _host.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var vip)
+            && _host.NetworkPlayers.TryGetNetworkPlayer(slot, out var vip)
             && !vip.IsAlive;
     }
 
@@ -293,7 +293,7 @@ internal sealed partial class VipRulesSystem
         }
 
         var candidates = new List<byte>();
-        foreach (var entry in _host.NetworkPlayerRules.EnumerateActiveNetworkPlayers())
+        foreach (var entry in _host.NetworkPlayers.EnumerateActiveNetworkPlayers())
         {
             if (IsVipCandidateSlot(entry.Slot, team, allowTeamMove: RequiresDualVip() ? entry.Player.Team == team : true))
             {
@@ -303,7 +303,7 @@ internal sealed partial class VipRulesSystem
 
         if (candidates.Count == 0 && !RequiresDualVip())
         {
-            foreach (var entry in _host.NetworkPlayerRules.EnumerateActiveNetworkPlayers())
+            foreach (var entry in _host.NetworkPlayers.EnumerateActiveNetworkPlayers())
             {
                 if (IsVipCandidateSlot(entry.Slot, team, allowTeamMove: true))
                 {
@@ -324,8 +324,8 @@ internal sealed partial class VipRulesSystem
 
     private bool IsVipCandidateSlot(byte slot, PlayerTeam team, bool allowTeamMove)
     {
-        if (!_host.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player)
-            || _host.NetworkPlayerRules.IsNetworkPlayerAwaitingJoin(slot)
+        if (!_host.NetworkPlayers.TryGetNetworkPlayer(slot, out var player)
+            || _host.NetworkPlayers.IsNetworkPlayerAwaitingJoin(slot)
             || !player.IsAlive
             || _host.VipState.SlotsByTeam.Any(entry => entry.Value == slot && entry.Key != team))
         {
@@ -339,7 +339,7 @@ internal sealed partial class VipRulesSystem
     {
         if (_host.VipState.PreferredSlotsByTeam.TryGetValue(team, out var preferredSlot)
             && IsVipCandidateSlot(preferredSlot, team, allowTeamMove: false)
-            && _host.NetworkPlayerRules.TryGetNetworkPlayer(preferredSlot, out var preferredPlayer)
+            && _host.NetworkPlayers.TryGetNetworkPlayer(preferredSlot, out var preferredPlayer)
             && IsCivilianClass(preferredPlayer.ClassDefinition))
         {
             slot = preferredSlot;
@@ -354,7 +354,7 @@ internal sealed partial class VipRulesSystem
         }
 
         byte? civilianCandidate = null;
-        foreach (var entry in _host.NetworkPlayerRules.EnumerateActiveNetworkPlayers())
+        foreach (var entry in _host.NetworkPlayers.EnumerateActiveNetworkPlayers())
         {
             if (entry.Slot == SimulationConstants.LocalPlayerSlot)
             {
@@ -377,7 +377,7 @@ internal sealed partial class VipRulesSystem
         }
 
         var botCandidates = new List<byte>();
-        foreach (var entry in _host.NetworkPlayerRules.EnumerateActiveNetworkPlayers())
+        foreach (var entry in _host.NetworkPlayers.EnumerateActiveNetworkPlayers())
         {
             if (entry.Slot == SimulationConstants.LocalPlayerSlot)
             {
@@ -410,8 +410,8 @@ internal sealed partial class VipRulesSystem
 
     private bool IsValidVipSlot(byte slot, PlayerTeam team)
     {
-        return _host.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player)
-            && !_host.NetworkPlayerRules.IsNetworkPlayerAwaitingJoin(slot)
+        return _host.NetworkPlayers.TryGetNetworkPlayer(slot, out var player)
+            && !_host.NetworkPlayers.IsNetworkPlayerAwaitingJoin(slot)
             && player.Team == team;
     }
 
@@ -422,29 +422,29 @@ internal sealed partial class VipRulesSystem
             ForceVipSlot(entry.Value, entry.Key);
         }
 
-        foreach (var entry in _host.NetworkPlayerRules.EnumerateActiveNetworkPlayers())
+        foreach (var entry in _host.NetworkPlayers.EnumerateActiveNetworkPlayers())
         {
             if (IsVipSlot(entry.Slot) || !entry.Player.IsCivilian)
             {
                 continue;
             }
 
-            _host.NetworkPlayerRules.TryApplyNetworkPlayerClassChange(entry.Slot, CharacterClassCatalog.Scout, enforceClassLimit: false);
+            _host.NetworkPlayers.TryApplyNetworkPlayerClassChange(entry.Slot, CharacterClassCatalog.Scout, enforceClassLimit: false);
         }
     }
 
     private void ForceVipSlot(byte slot, PlayerTeam team)
     {
-        if (!_host.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
+        if (!_host.NetworkPlayers.TryGetNetworkPlayer(slot, out var player))
         {
             return;
         }
 
         var civilianDefinition = CharacterClassCatalog.Civilian;
-        _host.NetworkPlayerRules.TrySetNetworkPlayerClassDefinition(slot, civilianDefinition);
+        _host.NetworkPlayers.TrySetNetworkPlayerClassDefinition(slot, civilianDefinition);
         if (player.Team != team)
         {
-            _host.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, team, respawnLivePlayerImmediately: true);
+            _host.NetworkPlayers.TrySetNetworkPlayerTeam(slot, team, respawnLivePlayerImmediately: true);
         }
 
         if (!player.IsCivilian)
@@ -478,7 +478,7 @@ internal sealed partial class VipRulesSystem
 
         foreach (var entry in _host.VipState.SlotsByTeam.ToArray())
         {
-            if (!_host.NetworkPlayerRules.TryGetNetworkPlayer(entry.Value, out _) || _host.NetworkPlayerRules.IsNetworkPlayerAwaitingJoin(entry.Value))
+            if (!_host.NetworkPlayers.TryGetNetworkPlayer(entry.Value, out _) || _host.NetworkPlayers.IsNetworkPlayerAwaitingJoin(entry.Value))
             {
                 _host.VipState.SlotsByTeam.Remove(entry.Key);
                 _host.VipState.AssignmentVersion += 1;

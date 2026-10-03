@@ -18,7 +18,7 @@ internal interface IExperimentalRulesHost : ISimulationWorldState, ISimulationPl
     PlayerEntity LocalPlayer { get; }
     MapLogicSystem MapLogic { get; }
     MatchSettingsState MatchSettings { get; }
-    NetworkPlayerSystem NetworkPlayerRules { get; }
+    NetworkPlayerSystem NetworkPlayers { get; }
     ObjectiveRulesSystem ObjectiveRules { get; }
     ObjectiveStateStore Objectives { get; }
     PickupSystem Pickups { get; }

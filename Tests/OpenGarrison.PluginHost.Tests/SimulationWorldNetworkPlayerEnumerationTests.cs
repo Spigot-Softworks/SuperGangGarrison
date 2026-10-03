@@ -12,37 +12,37 @@ public sealed class SimulationWorldNetworkPlayerEnumerationTests
 
         Assert.Equal(
             [(byte)SimulationWorld.LocalPlayerSlot],
-            world.NetworkPlayerRules.EnumerateReplicatedNetworkPlayers().Select(entry => entry.Slot));
+            world.NetworkPlayers.EnumerateReplicatedNetworkPlayers().Select(entry => entry.Slot));
         Assert.Equal(
             [(byte)SimulationWorld.LocalPlayerSlot],
-            world.NetworkPlayerRules.EnumerateActiveNetworkPlayers().Select(entry => entry.Slot));
+            world.NetworkPlayers.EnumerateActiveNetworkPlayers().Select(entry => entry.Slot));
     }
 
     [Fact]
     public void AwaitingRemoteJoinIsReplicatedButNotActive()
     {
         var world = new SimulationWorld();
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(4));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(4));
 
         Assert.Equal(
             [
                 (byte)SimulationWorld.LocalPlayerSlot,
                 (byte)4,
             ],
-            world.NetworkPlayerRules.EnumerateReplicatedNetworkPlayers().Select(entry => entry.Slot));
+            world.NetworkPlayers.EnumerateReplicatedNetworkPlayers().Select(entry => entry.Slot));
         Assert.Equal(
             [(byte)SimulationWorld.LocalPlayerSlot],
-            world.NetworkPlayerRules.EnumerateActiveNetworkPlayers().Select(entry => entry.Slot));
+            world.NetworkPlayers.EnumerateActiveNetworkPlayers().Select(entry => entry.Slot));
     }
 
     [Fact]
     public void ActiveRemoteSlotsRemainInSlotOrderWithoutMaterializingUnusedSlots()
     {
         var world = new SimulationWorld();
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(7));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(7, PlayerClass.Heavy));
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(2));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Scout));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(7));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(7, PlayerClass.Heavy));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Scout));
 
         Assert.Equal(
             [
@@ -50,9 +50,9 @@ public sealed class SimulationWorldNetworkPlayerEnumerationTests
                 (byte)2,
                 (byte)7,
             ],
-            world.NetworkPlayerRules.EnumerateActiveNetworkPlayers().Select(entry => entry.Slot));
+            world.NetworkPlayers.EnumerateActiveNetworkPlayers().Select(entry => entry.Slot));
         Assert.DoesNotContain(
-            world.NetworkPlayerRules.EnumerateReplicatedNetworkPlayers(),
+            world.NetworkPlayers.EnumerateReplicatedNetworkPlayers(),
             entry => entry.Slot is 3 or 6 or 8);
     }
 }

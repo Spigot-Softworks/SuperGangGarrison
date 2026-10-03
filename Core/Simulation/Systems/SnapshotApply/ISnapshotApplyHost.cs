@@ -21,14 +21,14 @@ internal interface ISnapshotApplyHost : ISimulationWorldState, ISimulationPlayer
     PlayerEntity FriendlyDummy { get; }
     bool FriendlyDummyEnabled { get; set; }
     IReadOnlyList<GrenadeProjectileEntity> Grenades { get; }
-    KillFeedSystem KillFeedRules { get; }
+    KillFeedSystem KillFeed { get; }
     LocalDeathCamState? LocalDeathCam { get; set; }
     PlayerEntity LocalPlayer { get; }
     MatchRules MatchRules { get; set; }
     MatchState MatchState { get; set; }
     IReadOnlyList<MineProjectileEntity> Mines { get; }
     IReadOnlyList<NeedleProjectileEntity> Needles { get; }
-    NetworkPlayerSystem NetworkPlayerRules { get; }
+    NetworkPlayerSystem NetworkPlayers { get; }
     ObjectiveRulesSystem ObjectiveRules { get; }
     ObjectiveStateStore Objectives { get; }
     NetworkPlayerRegistry PlayerRegistry { get; }

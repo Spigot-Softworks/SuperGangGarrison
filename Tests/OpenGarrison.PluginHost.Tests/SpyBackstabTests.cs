@@ -28,7 +28,7 @@ public sealed class SpyBackstabTests
     {
         var world = new SimulationWorld();
         Assert.True(world.TrySetLocalClass(PlayerClass.Spy));
-        world.NetworkPlayerRules.ForceRespawnLocalPlayer();
+        world.NetworkPlayers.ForceRespawnLocalPlayer();
 
         var player = world.LocalPlayer;
         Assert.True(player.TryToggleSpyCloak());
@@ -51,7 +51,7 @@ public sealed class SpyBackstabTests
     {
         var world = new SimulationWorld();
         Assert.True(world.TrySetLocalClass(PlayerClass.Spy));
-        world.NetworkPlayerRules.ForceRespawnLocalPlayer();
+        world.NetworkPlayers.ForceRespawnLocalPlayer();
 
         var player = world.LocalPlayer;
         Assert.True(player.TryToggleSpyCloak());
@@ -100,7 +100,7 @@ public sealed class SpyBackstabTests
         spy.TeleportTo(0f, 0f);
         Assert.True(spy.TryToggleSpyCloak());
 
-        world.NetworkPlayerRules.SetLocalInput(CreatePrimaryInput(spy.X + 256f, spy.Y));
+        world.NetworkPlayers.SetLocalInput(CreatePrimaryInput(spy.X + 256f, spy.Y));
         world.AdvanceOneTick();
 
         var animation = Assert.Single(world.StabAnimations);
@@ -122,7 +122,7 @@ public sealed class SpyBackstabTests
         var spy = world.LocalPlayer;
         Assert.True(spy.TryToggleSpyCloak());
 
-        world.NetworkPlayerRules.SetLocalInput(CreatePrimaryInput(spy.X + 256f, spy.Y));
+        world.NetworkPlayers.SetLocalInput(CreatePrimaryInput(spy.X + 256f, spy.Y));
         world.AdvanceOneTick();
 
         Assert.Single(world.StabAnimations);
@@ -141,13 +141,13 @@ public sealed class SpyBackstabTests
         var spy = world.LocalPlayer;
         Assert.True(spy.TryToggleSpyCloak());
 
-        world.NetworkPlayerRules.SetLocalInput(CreateCombatInput(spy.X + 256f, spy.Y, fireSecondary: true));
+        world.NetworkPlayers.SetLocalInput(CreateCombatInput(spy.X + 256f, spy.Y, fireSecondary: true));
         world.AdvanceOneTick();
 
         Assert.True(spy.IsSpyCloaked);
         Assert.Equal((byte)1, spy.LastToDieProfessionalFireChordState);
 
-        world.NetworkPlayerRules.SetLocalInput(default);
+        world.NetworkPlayers.SetLocalInput(default);
         world.AdvanceOneTick();
 
         Assert.False(spy.IsSpyCloaked);
@@ -167,7 +167,7 @@ public sealed class SpyBackstabTests
         Assert.True(spy.TryToggleSpyCloak());
         var fullMeter = spy.LastToDieSpyCloakMeterMaximumUnits;
 
-        world.NetworkPlayerRules.SetLocalInput(CreateCombatInput(
+        world.NetworkPlayers.SetLocalInput(CreateCombatInput(
             enemy.X,
             enemy.Y,
             firePrimary: true,
@@ -180,7 +180,7 @@ public sealed class SpyBackstabTests
         Assert.Equal((byte)2, spy.LastToDieProfessionalFireChordState);
         Assert.Equal(fullMeter - (fullMeter / 5), spy.LastToDieSpyCloakMeterUnits);
 
-        world.NetworkPlayerRules.SetLocalInput(default);
+        world.NetworkPlayers.SetLocalInput(default);
         world.AdvanceOneTick();
 
         Assert.True(spy.IsSpyCloaked);
@@ -200,7 +200,7 @@ public sealed class SpyBackstabTests
         var enemy = AddEnemy(world, slot: 2, x: 24f, y: 0f);
         Assert.True(spy.TryToggleSpyCloak());
 
-        world.NetworkPlayerRules.SetLocalInput(CreatePrimaryInput(enemy.X, enemy.Y));
+        world.NetworkPlayers.SetLocalInput(CreatePrimaryInput(enemy.X, enemy.Y));
         world.AdvanceOneTick();
 
         var animation = Assert.Single(world.StabAnimations);
@@ -208,7 +208,7 @@ public sealed class SpyBackstabTests
         Assert.Equal(11, animation.LifetimeTicks);
         Assert.Equal(6, spy.SpyBackstabWindupTicksRemaining);
 
-        world.NetworkPlayerRules.SetLocalInput(default);
+        world.NetworkPlayers.SetLocalInput(default);
         for (var tick = 0; tick < 7; tick += 1)
         {
             world.AdvanceOneTick();
@@ -360,7 +360,7 @@ public sealed class SpyBackstabTests
                 floorY: 2048f,
                 solids: solids ?? [],
                 importedFromSource: false));
-        world.NetworkPlayerRules.ForceRespawnLocalPlayer();
+        world.NetworkPlayers.ForceRespawnLocalPlayer();
         return world;
     }
 
@@ -391,16 +391,16 @@ public sealed class SpyBackstabTests
                 floorY: 2048f,
                 solids: solids ?? [],
                 importedFromSource: false));
-        world.NetworkPlayerRules.ForceRespawnLocalPlayer();
+        world.NetworkPlayers.ForceRespawnLocalPlayer();
         return world;
     }
 
     private static PlayerEntity AddEnemy(SimulationWorld world, byte slot, float x, float y)
     {
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(slot));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, PlayerTeam.Blue));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, PlayerClass.Scout));
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var enemy));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(slot, PlayerTeam.Blue));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(slot, PlayerClass.Scout));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(slot, out var enemy));
         enemy.TeleportTo(x, y);
         return enemy;
     }
@@ -429,14 +429,14 @@ public sealed class SpyBackstabTests
 
     private static void SetCombatLevel(SimulationWorld world, SimpleLevel level)
     {
-        world.CombatTestSetLevel(level);
+        world.TestSetLevel(level);
     }
 
     private static (float Distance, float HitX, float HitY, PlayerEntity? HitPlayer, SentryEntity? HitSentry, int HitDamageableZoneRoomObjectIndex) GetNearestStabHit(
         SimulationWorld world,
         StabMaskEntity mask)
     {
-        return Assert.NotNull(world.CombatTestGetNearestStabHit(mask, mask.FacingLeft ? -1f : 1f, 0f));
+        return Assert.NotNull(world.TestGetNearestStabHit(mask, mask.FacingLeft ? -1f : 1f, 0f));
     }
 
     private static void InvokeFirePrimaryWeapon(SimulationWorld world, PlayerEntity player, float aimWorldX, float aimWorldY)

@@ -10021,9 +10021,9 @@ public partial class Game1
     {
         _world.PracticeDummies.DespawnEnemyDummy();
         _world.PracticeDummies.DespawnFriendlyDummy();
-        _world.NetworkPlayerRules.SetLocalPlayerTeam(PlayerTeam.Red);
-        _world.NetworkPlayerRules.PrepareLocalPlayerJoin();
-        _world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Soldier);
+        _world.NetworkPlayers.SetLocalPlayerTeam(PlayerTeam.Red);
+        _world.NetworkPlayers.PrepareLocalPlayerJoin();
+        _world.NetworkPlayers.CompleteLocalPlayerJoin(PlayerClass.Soldier);
     }
 
     private void LoadGarrisonBuilderEditorAssets()

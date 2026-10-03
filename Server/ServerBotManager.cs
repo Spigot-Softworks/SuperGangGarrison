@@ -147,7 +147,7 @@ internal sealed class ServerBotManager
     {
         botSlot = 0;
         if (!NetworkPlayerSystem.IsPlayableNetworkPlayerSlot(sourceSlot)
-            || !_world.NetworkPlayerRules.TryGetNetworkPlayer(sourceSlot, out _))
+            || !_world.NetworkPlayers.TryGetNetworkPlayer(sourceSlot, out _))
         {
             return false;
         }
@@ -166,7 +166,7 @@ internal sealed class ServerBotManager
     {
         botSlot = 0;
         if (!NetworkPlayerSystem.IsPlayableNetworkPlayerSlot(sourceSlot)
-            || !_world.NetworkPlayerRules.TryGetNetworkPlayer(sourceSlot, out var source))
+            || !_world.NetworkPlayers.TryGetNetworkPlayer(sourceSlot, out var source))
         {
             return false;
         }
@@ -196,7 +196,7 @@ internal sealed class ServerBotManager
     {
         botSlot = 0;
         if (!NetworkPlayerSystem.IsPlayableNetworkPlayerSlot(targetSlot)
-            || !_world.NetworkPlayerRules.TryGetNetworkPlayer(targetSlot, out var target))
+            || !_world.NetworkPlayers.TryGetNetworkPlayer(targetSlot, out var target))
         {
             return false;
         }
@@ -229,7 +229,7 @@ internal sealed class ServerBotManager
     {
         botSlot = 0;
         if (!NetworkPlayerSystem.IsPlayableNetworkPlayerSlot(ownerSlot)
-            || !_world.NetworkPlayerRules.TryGetNetworkPlayer(ownerSlot, out var owner))
+            || !_world.NetworkPlayers.TryGetNetworkPlayer(ownerSlot, out var owner))
         {
             return false;
         }
@@ -278,7 +278,7 @@ internal sealed class ServerBotManager
     {
         botSlot = 0;
         if (!NetworkPlayerSystem.IsPlayableNetworkPlayerSlot(targetSlot)
-            || !_world.NetworkPlayerRules.TryGetNetworkPlayer(targetSlot, out var target))
+            || !_world.NetworkPlayers.TryGetNetworkPlayer(targetSlot, out var target))
         {
             return false;
         }
@@ -324,12 +324,12 @@ internal sealed class ServerBotManager
 
         _world.ClassRules.SetNetworkPlayerMapSpawnClassBehaviorBypass(slot, true);
         var resolvedDisplayName = ResolveBotDisplayName(slot, team, displayName);
-        if (!_world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(slot)
-            || !_world.NetworkPlayerRules.TrySetNetworkPlayerName(slot, resolvedDisplayName)
-            || !_world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, team))
+        if (!_world.NetworkPlayers.TryPrepareNetworkPlayerJoin(slot)
+            || !_world.NetworkPlayers.TrySetNetworkPlayerName(slot, resolvedDisplayName)
+            || !_world.NetworkPlayers.TrySetNetworkPlayerTeam(slot, team))
         {
-            _world.NetworkPlayerRules.TryReleaseNetworkPlayerSlot(slot);
-            _world.NetworkPlayerRules.TryClearNetworkPlayerSpawnOverride(slot);
+            _world.NetworkPlayers.TryReleaseNetworkPlayerSlot(slot);
+            _world.NetworkPlayers.TryClearNetworkPlayerSpawnOverride(slot);
             _world.ClassRules.SetNetworkPlayerMapSpawnClassBehaviorBypass(slot, false);
             _botDisplayNamePool.ReleaseSlot(slot);
             return false;
@@ -337,7 +337,7 @@ internal sealed class ServerBotManager
 
         if (ltdSpawnX.HasValue && ltdSpawnY.HasValue)
         {
-            _world.NetworkPlayerRules.TrySetNetworkPlayerSpawnOverride(slot, ltdSpawnX.Value, ltdSpawnY.Value);
+            _world.NetworkPlayers.TrySetNetworkPlayerSpawnOverride(slot, ltdSpawnX.Value, ltdSpawnY.Value);
         }
 
         if (!isDummy)
@@ -345,17 +345,17 @@ internal sealed class ServerBotManager
             ConfigureBotControllerSpawnOverrides(slot, team, classId);
         }
 
-        if (!_world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, classId))
+        if (!_world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(slot, classId))
         {
-            _world.NetworkPlayerRules.TryReleaseNetworkPlayerSlot(slot);
-            _world.NetworkPlayerRules.TryClearNetworkPlayerSpawnOverride(slot);
+            _world.NetworkPlayers.TryReleaseNetworkPlayerSlot(slot);
+            _world.NetworkPlayers.TryClearNetworkPlayerSpawnOverride(slot);
             _world.ClassRules.SetNetworkPlayerMapSpawnClassBehaviorBypass(slot, false);
             _botDisplayNamePool.ReleaseSlot(slot);
             ConfigureBotControllerSpawnOverrides();
             return false;
         }
 
-        if (_world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
+        if (_world.NetworkPlayers.TryGetNetworkPlayer(slot, out var player))
         {
             ApplyMapBotReplicatedStates(player, forceNameplate, forceHealthBar, deathTriggerNodeIndex);
             resolvedDisplayName = player.DisplayName;
@@ -397,8 +397,8 @@ internal sealed class ServerBotManager
             return false;
         }
 
-        _world.NetworkPlayerRules.TryReleaseNetworkPlayerSlot(slot);
-        _world.NetworkPlayerRules.TryClearNetworkPlayerSpawnOverride(slot);
+        _world.NetworkPlayers.TryReleaseNetworkPlayerSlot(slot);
+        _world.NetworkPlayers.TryClearNetworkPlayerSpawnOverride(slot);
         _botDisplayNamePool.ReleaseSlot(slot);
         _inputCache.Remove(slot);
         _inputCacheAgeTicks.Remove(slot);
@@ -421,7 +421,7 @@ internal sealed class ServerBotManager
         }
 
         ConfigureBotControllerSpawnOverrides(slot, team, state.ClassId);
-        if (!_world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, team))
+        if (!_world.NetworkPlayers.TrySetNetworkPlayerTeam(slot, team))
         {
             ConfigureBotControllerSpawnOverrides();
             return false;
@@ -442,7 +442,7 @@ internal sealed class ServerBotManager
             return false;
         }
 
-        if (_world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player) && player.ClassId == classId)
+        if (_world.NetworkPlayers.TryGetNetworkPlayer(slot, out var player) && player.ClassId == classId)
         {
             _botSlots[slot] = state.WithClassId(classId);
             ConfigureBotControllerSpawnOverrides();
@@ -450,7 +450,7 @@ internal sealed class ServerBotManager
         }
 
         ConfigureBotControllerSpawnOverrides(slot, state.Team, classId);
-        if (!_world.NetworkPlayerRules.TryForceNetworkPlayerClassSelectionAndRespawn(slot, classId))
+        if (!_world.NetworkPlayers.TryForceNetworkPlayerClassSelectionAndRespawn(slot, classId))
         {
             ConfigureBotControllerSpawnOverrides();
             return false;
@@ -490,7 +490,7 @@ internal sealed class ServerBotManager
         var displayName = !string.IsNullOrWhiteSpace(name)
             ? name.Trim()
             : isDummy ? $"{team} Dummy" : string.Empty;
-        _world.NetworkPlayerRules.TrySetNetworkPlayerSpawnOverride(slot, x, y);
+        _world.NetworkPlayers.TrySetNetworkPlayerSpawnOverride(slot, x, y);
         try
         {
             var added = TryAddBot(
@@ -509,7 +509,7 @@ internal sealed class ServerBotManager
                 deathTriggerNodeIndex);
             if (added && respawn && respawnMode == BotSpawnRespawnMode.Node)
             {
-                _world.NetworkPlayerRules.TrySetNetworkPlayerSpawnOverride(slot, x, y);
+                _world.NetworkPlayers.TrySetNetworkPlayerSpawnOverride(slot, x, y);
             }
 
             return added;
@@ -518,7 +518,7 @@ internal sealed class ServerBotManager
         {
             if (!respawn || respawnMode != BotSpawnRespawnMode.Node)
             {
-                _world.NetworkPlayerRules.TryClearNetworkPlayerSpawnOverride(slot);
+                _world.NetworkPlayers.TryClearNetworkPlayerSpawnOverride(slot);
             }
         }
     }
@@ -702,7 +702,7 @@ internal sealed class ServerBotManager
     {
         foreach (var slot in _botSlots.Keys.ToArray())
         {
-            _world.NetworkPlayerRules.TryReleaseNetworkPlayerSlot(slot);
+            _world.NetworkPlayers.TryReleaseNetworkPlayerSlot(slot);
         }
         _botSlots.Clear();
         _inputCache.Clear();
@@ -734,14 +734,14 @@ internal sealed class ServerBotManager
             var slot = entry.Key;
             var state = entry.Value;
 
-            if (!_world.NetworkPlayerRules.TrySetNetworkPlayerName(slot, state.DisplayName)
-                || !_world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, state.Team)
-                || !_world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, state.ClassId))
+            if (!_world.NetworkPlayers.TrySetNetworkPlayerName(slot, state.DisplayName)
+                || !_world.NetworkPlayers.TrySetNetworkPlayerTeam(slot, state.Team)
+                || !_world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(slot, state.ClassId))
             {
                 continue;
             }
 
-            if (_world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
+            if (_world.NetworkPlayers.TryGetNetworkPlayer(slot, out var player))
             {
                 ApplyMapBotReplicatedStates(
                     player,
@@ -750,7 +750,7 @@ internal sealed class ServerBotManager
                     state.DeathTriggerNodeIndex);
             }
 
-            if (_world.NetworkPlayerRules.IsNetworkPlayerAwaitingJoin(slot))
+            if (_world.NetworkPlayers.IsNetworkPlayerAwaitingJoin(slot))
             {
                 continue;
             }
@@ -786,7 +786,7 @@ internal sealed class ServerBotManager
 
         // Build observed events from the local player (for Last-to-Die style reactions)
         BotObservedEvents? observedEvents = null;
-        if (_world.NetworkPlayerRules.TryGetNetworkPlayer(SimulationWorld.LocalPlayerSlot, out var localPlayer) && localPlayer != null)
+        if (_world.NetworkPlayers.TryGetNetworkPlayer(SimulationWorld.LocalPlayerSlot, out var localPlayer) && localPlayer != null)
         {
             var observedDeaths = CollectObservedBotDeaths();
             observedEvents = new BotObservedEvents
@@ -815,7 +815,7 @@ internal sealed class ServerBotManager
             var state = entry.Value;
             if (state.Source is not (ServerBotSource.MapSpawn or ServerBotSource.LastToDieCompanion)
                 || state.Respawn
-                || !_world.NetworkPlayerRules.TryGetNetworkPlayer(entry.Key, out var player)
+                || !_world.NetworkPlayers.TryGetNetworkPlayer(entry.Key, out var player)
                 || player.IsAlive)
             {
                 continue;
@@ -846,7 +846,7 @@ internal sealed class ServerBotManager
             if (state.Source != ServerBotSource.MapSpawn
                 || state.DeathTriggerNodeIndex < 0
                 || state.DeathTriggerNodeIndex >= _world.Level.LogicGraph.Nodes.Count
-                || !_world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
+                || !_world.NetworkPlayers.TryGetNetworkPlayer(slot, out var player))
             {
                 _staleSlotsBuffer.Add(slot);
                 continue;
@@ -875,7 +875,7 @@ internal sealed class ServerBotManager
         foreach (var entry in _botSlots)
         {
             var slot = entry.Key;
-            if (!_world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var bot) || bot is null)
+            if (!_world.NetworkPlayers.TryGetNetworkPlayer(slot, out var bot) || bot is null)
             {
                 continue;
             }
@@ -925,7 +925,7 @@ internal sealed class ServerBotManager
         {
             if (inputs.TryGetValue(entry.Key, out var input))
             {
-                _world.NetworkPlayerRules.TrySetNetworkPlayerInput(entry.Key, input);
+                _world.NetworkPlayers.TrySetNetworkPlayerInput(entry.Key, input);
             }
         }
         var applyMs = GetElapsedMilliseconds(applyStartTimestamp);
@@ -942,12 +942,12 @@ internal sealed class ServerBotManager
                 continue;
             }
 
-            if (_world.NetworkPlayerRules.IsNetworkPlayerAwaitingJoin(entry.Key))
+            if (_world.NetworkPlayers.IsNetworkPlayerAwaitingJoin(entry.Key))
             {
                 continue;
             }
 
-            if (!_world.NetworkPlayerRules.TryGetNetworkPlayer(entry.Key, out var player))
+            if (!_world.NetworkPlayers.TryGetNetworkPlayer(entry.Key, out var player))
             {
                 continue;
             }
@@ -1099,8 +1099,8 @@ internal sealed class ServerBotManager
     private bool TryBuildFollowHealerInput(byte healerSlot, byte targetSlot, out PlayerInputSnapshot input)
     {
         input = default;
-        if (!_world.NetworkPlayerRules.TryGetNetworkPlayer(healerSlot, out var healer)
-            || !_world.NetworkPlayerRules.TryGetNetworkPlayer(targetSlot, out var target))
+        if (!_world.NetworkPlayers.TryGetNetworkPlayer(healerSlot, out var healer)
+            || !_world.NetworkPlayers.TryGetNetworkPlayer(targetSlot, out var target))
         {
             return false;
         }
@@ -1144,7 +1144,7 @@ internal sealed class ServerBotManager
             var shouldThink = cacheMissing
                 || frame - lastThinkFrame >= thinkIntervalTicks
                 || _botController.RequiresPerTickCombatThink(slot, _world);
-            if (_world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
+            if (_world.NetworkPlayers.TryGetNetworkPlayer(slot, out var player))
             {
                 if (_lastObservedBotAliveBySlot.TryGetValue(slot, out var wasAlive)
                     && wasAlive != player.IsAlive)

@@ -42,19 +42,19 @@ public sealed class NeutralJumpPadTests
         Assert.True(pad.IsBuilt);
         Assert.True(pad.HasLanded);
 
-        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
-        world.NetworkPlayerRules.SetLocalPlayerTeam(PlayerTeam.Red);
-        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Scout);
+        world.NetworkPlayers.PrepareLocalPlayerJoin();
+        world.NetworkPlayers.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.NetworkPlayers.CompleteLocalPlayerJoin(PlayerClass.Scout);
         world.LocalPlayer.SetSpawnRoomState(false);
         Assert.True(world.TryApplyJumpPadJumpBoostForPrediction(
             PlacePlayerOnPad(world.LocalPlayer, pad),
             jumped: true));
         Assert.True(world.LocalPlayer.VerticalSpeed < -world.LocalPlayer.JumpSpeed);
 
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(2));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(2, PlayerTeam.Blue));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Scout));
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(2, out var bluePlayer));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(2, PlayerTeam.Blue));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Scout));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(2, out var bluePlayer));
         bluePlayer.SetSpawnRoomState(false);
         PlacePlayerOnPad(bluePlayer, pad);
         Assert.True(world.TryApplyJumpPadJumpBoostForPrediction(bluePlayer, jumped: true));
@@ -86,7 +86,7 @@ public sealed class NeutralJumpPadTests
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
         var spawn = new SpawnPoint(256f, 256f);
-        world.CombatTestSetLevel(new SimpleLevel(
+        world.TestSetLevel(new SimpleLevel(
             name: "neutral-jump-pad-test",
             mode: GameModeKind.TeamDeathmatch,
             bounds: new WorldBounds(512f, 512f),

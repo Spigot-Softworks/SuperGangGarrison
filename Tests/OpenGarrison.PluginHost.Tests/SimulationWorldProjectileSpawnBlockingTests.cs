@@ -67,12 +67,12 @@ public sealed class SimulationWorldProjectileSpawnBlockingTests
         float targetY,
         PlayerTeam shotTeam)
     {
-        return world.CombatTestIsProjectileSpawnBlocked(originX, originY, targetX, targetY, shotTeam);
+        return world.TestIsProjectileSpawnBlocked(originX, originY, targetX, targetY, shotTeam);
     }
 
     private static void SetLevel(SimulationWorld world, SimpleLevel level)
     {
-        world.CombatTestSetLevel(level);
+        world.TestSetLevel(level);
     }
 
     private static SimpleLevel CreateLevel(IReadOnlyList<LevelSolid>? solids = null, IReadOnlyList<RoomObjectMarker>? roomObjects = null)

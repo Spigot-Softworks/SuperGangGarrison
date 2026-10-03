@@ -130,8 +130,8 @@ public sealed class VoiceChatTests
             [3] = new(3, 13, new IPEndPoint(IPAddress.Loopback, 30003), "Unauthenticated", TimeSpan.Zero) { IsAuthorized = false },
         };
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(1); world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(2);
-        world.NetworkPlayerRules.TrySetNetworkPlayerTeam(1, PlayerTeam.Red); world.NetworkPlayerRules.TrySetNetworkPlayerTeam(2, PlayerTeam.Blue);
+        world.NetworkPlayers.TryPrepareNetworkPlayerJoin(1); world.NetworkPlayers.TryPrepareNetworkPlayerJoin(2);
+        world.NetworkPlayers.TrySetNetworkPlayerTeam(1, PlayerTeam.Red); world.NetworkPlayers.TrySetNetworkPlayerTeam(2, PlayerTeam.Blue);
         var sent = new List<(ServerTransportPeer Peer, IProtocolMessage Message)>();
         var now = 0d;
         using var server = new ServerAudioService(new(), clients, world, (peer, message) => sent.Add((peer, message)), () => now, _ => { });

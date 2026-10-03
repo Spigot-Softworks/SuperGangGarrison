@@ -299,7 +299,7 @@ public partial class Game1
             VoteYesCount = _votePresentationState?.YesVotes ?? 0,
             VoteActive = _votePresentationState is { IsComplete: false, RemainingTicks: > 0 },
             SurvivorBuffActive = _world.LocalPlayer.HasLastToDieSurvivorBuff,
-            AutomaticRespawnSuppressed = _world.NetworkPlayerRules.IsNetworkPlayerAutomaticRespawnSuppressed(_world.LocalPlayer),
+            AutomaticRespawnSuppressed = _world.NetworkPlayers.IsNetworkPlayerAutomaticRespawnSuppressed(_world.LocalPlayer),
             DroppedWeaponPickupsEnabled = _world.LastToDieRules.IsLastToDieGameplaySettingEnabled(settings => settings.EnableEnemyDroppedWeapons),
             JoiningOverlayVisible = _loadingOverlayState.Visible && _loadingOverlayState.IsJoining,
         };

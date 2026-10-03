@@ -276,7 +276,7 @@ public sealed class BotBrainPracticeBotController : IPracticeBotController
         {
             if (!controlledSlots.TryGetValue(slot, out var controlledSlot)
                 || !cachedInputs.TryGetValue(slot, out var cachedInput)
-                || !world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player)
+                || !world.NetworkPlayers.TryGetNetworkPlayer(slot, out var player)
                 || !_controllersBySlot.TryGetValue(slot, out var controller))
             {
                 continue;
@@ -317,7 +317,7 @@ public sealed class BotBrainPracticeBotController : IPracticeBotController
         foreach (var (slot, controlledSlot) in controlledSlots)
         {
             if (!_controllersBySlot.TryGetValue(slot, out var controller)
-                || !world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
+                || !world.NetworkPlayers.TryGetNetworkPlayer(slot, out var player))
             {
                 continue;
             }
@@ -439,7 +439,7 @@ public sealed class BotBrainPracticeBotController : IPracticeBotController
         ref int workItemCount)
     {
         if (!controlledSlots.TryGetValue(slot, out var controlledSlot)
-            || !world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
+            || !world.NetworkPlayers.TryGetNetworkPlayer(slot, out var player))
         {
             return;
         }

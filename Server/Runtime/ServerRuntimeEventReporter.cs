@@ -44,7 +44,7 @@ internal sealed class ServerRuntimeEventReporter(
         _lastObservedRedCaps = world.RedCaps;
         _lastObservedBlueCaps = world.BlueCaps;
         _lastObservedMatchPhase = world.MatchState.Phase;
-        _lastObservedKillFeedCount = world.KillFeed.Count;
+        _lastObservedKillFeedCount = world.KillFeedEntries.Count;
         _lastObservedPlayerAliveById.Clear();
         _lastObservedAbilityStateByPlayerAndKey.Clear();
         _lastAbilityStateSummaryFrame = world.Frame;
@@ -60,7 +60,7 @@ internal sealed class ServerRuntimeEventReporter(
         _observedSpawnedPlayerIds.Clear();
         _lastObservedControlPointStates.Clear();
         _lastObservedGeneratorDestroyedStates.Clear();
-        foreach (var (_, player) in world.NetworkPlayerRules.EnumerateActiveNetworkPlayers())
+        foreach (var (_, player) in world.NetworkPlayers.EnumerateActiveNetworkPlayers())
         {
             _lastObservedPlayerAliveById[player.Id] = player.IsAlive;
             _lastObservedPlayerCapsById[player.Id] = player.Caps;
@@ -153,7 +153,7 @@ internal sealed class ServerRuntimeEventReporter(
             _lastObservedBlueCaps = world.BlueCaps;
         }
 
-        var killFeed = world.KillFeed;
+        var killFeed = world.KillFeedEntries;
         if (killFeed.Count < _lastObservedKillFeedCount)
         {
             _lastObservedKillFeedCount = 0;
@@ -295,7 +295,7 @@ internal sealed class ServerRuntimeEventReporter(
     private void PublishPlayerCapEvents()
     {
         var activePlayerIds = new HashSet<int>();
-        foreach (var (slot, player) in world.NetworkPlayerRules.EnumerateActiveNetworkPlayers())
+        foreach (var (slot, player) in world.NetworkPlayers.EnumerateActiveNetworkPlayers())
         {
             activePlayerIds.Add(player.Id);
             var previousCaps = _lastObservedPlayerCapsById.GetValueOrDefault(player.Id, player.Caps);
@@ -379,7 +379,7 @@ internal sealed class ServerRuntimeEventReporter(
     {
         var pluginHost = pluginHostGetter();
         var observedKeys = new HashSet<(int PlayerId, string OwnerId, string StateKey)>();
-        foreach (var (_, player) in world.NetworkPlayerRules.EnumerateActiveNetworkPlayers())
+        foreach (var (_, player) in world.NetworkPlayers.EnumerateActiveNetworkPlayers())
         {
             foreach (var entry in GameplayAbilityReplicatedState.CreateEntries(player))
             {
@@ -680,7 +680,7 @@ internal sealed class ServerRuntimeEventReporter(
     {
         var activePlayerIds = new HashSet<int>();
         var pluginHost = pluginHostGetter();
-        foreach (var (slot, player) in world.NetworkPlayerRules.EnumerateActiveNetworkPlayers())
+        foreach (var (slot, player) in world.NetworkPlayers.EnumerateActiveNetworkPlayers())
         {
             activePlayerIds.Add(player.Id);
             var wasAlive = _lastObservedPlayerAliveById.GetValueOrDefault(player.Id, player.IsAlive);
@@ -887,7 +887,7 @@ internal sealed class ServerRuntimeEventReporter(
             return null;
         }
 
-        foreach (var (_, player) in world.NetworkPlayerRules.EnumerateActiveNetworkPlayers())
+        foreach (var (_, player) in world.NetworkPlayers.EnumerateActiveNetworkPlayers())
         {
             if (player.Id == playerId)
             {
@@ -900,9 +900,9 @@ internal sealed class ServerRuntimeEventReporter(
 
     private KillFeedEntry? FindLatestKillFeedEntryForVictim(int victimPlayerId)
     {
-        for (var index = world.KillFeed.Count - 1; index >= 0; index -= 1)
+        for (var index = world.KillFeedEntries.Count - 1; index >= 0; index -= 1)
         {
-            var entry = world.KillFeed[index];
+            var entry = world.KillFeedEntries[index];
             if (entry.VictimPlayerId == victimPlayerId)
             {
                 return entry;
@@ -914,7 +914,7 @@ internal sealed class ServerRuntimeEventReporter(
 
     private PlayerEntity? FindPlayerCarryingEnemyIntel(PlayerTeam team)
     {
-        foreach (var (_, player) in world.NetworkPlayerRules.EnumerateActiveNetworkPlayers())
+        foreach (var (_, player) in world.NetworkPlayers.EnumerateActiveNetworkPlayers())
         {
             if (player.Team == team && player.IsCarryingIntel)
             {
@@ -929,7 +929,7 @@ internal sealed class ServerRuntimeEventReporter(
     {
         PlayerEntity? closest = null;
         var closestDistanceSquared = float.MaxValue;
-        foreach (var (_, player) in world.NetworkPlayerRules.EnumerateActiveNetworkPlayers())
+        foreach (var (_, player) in world.NetworkPlayers.EnumerateActiveNetworkPlayers())
         {
             if (team.HasValue && player.Team != team.Value)
             {

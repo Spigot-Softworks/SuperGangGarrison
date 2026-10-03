@@ -98,21 +98,21 @@ public sealed class ServerBotAutofillTests
 
         Assert.True(botManager.TryAddBot(2, PlayerTeam.Red, PlayerClass.Soldier, "Red 1"));
         Assert.True(botManager.TryAddBot(3, PlayerTeam.Blue, PlayerClass.Medic, "Blue 1"));
-        Assert.False(world.NetworkPlayerRules.IsNetworkPlayerAwaitingJoin(2));
-        Assert.False(world.NetworkPlayerRules.IsNetworkPlayerAwaitingJoin(3));
+        Assert.False(world.NetworkPlayers.IsNetworkPlayerAwaitingJoin(2));
+        Assert.False(world.NetworkPlayers.IsNetworkPlayerAwaitingJoin(3));
 
         world.ResetPlayersToAwaitingJoinForFreshMap();
 
-        Assert.True(world.NetworkPlayerRules.IsNetworkPlayerAwaitingJoin(2));
-        Assert.True(world.NetworkPlayerRules.IsNetworkPlayerAwaitingJoin(3));
+        Assert.True(world.NetworkPlayers.IsNetworkPlayerAwaitingJoin(2));
+        Assert.True(world.NetworkPlayers.IsNetworkPlayerAwaitingJoin(3));
 
         var restored = botManager.ReactivateBotsAfterMapChange();
 
         Assert.Equal(2, restored);
-        Assert.False(world.NetworkPlayerRules.IsNetworkPlayerAwaitingJoin(2));
-        Assert.False(world.NetworkPlayerRules.IsNetworkPlayerAwaitingJoin(3));
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(2, out var redBot));
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(3, out var blueBot));
+        Assert.False(world.NetworkPlayers.IsNetworkPlayerAwaitingJoin(2));
+        Assert.False(world.NetworkPlayers.IsNetworkPlayerAwaitingJoin(3));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(2, out var redBot));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(3, out var blueBot));
         Assert.True(redBot!.IsAlive);
         Assert.True(blueBot!.IsAlive);
         Assert.Equal(PlayerTeam.Red, redBot.Team);

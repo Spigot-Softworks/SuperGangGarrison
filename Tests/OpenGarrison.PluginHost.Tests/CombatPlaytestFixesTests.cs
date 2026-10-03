@@ -34,7 +34,7 @@ public sealed class CombatPlaytestFixesTests
         Assert.True(sniper.TryToggleSniperScope());
         Assert.True(sniper.IsSniperScoped);
 
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerGameplayEquippedSlot(
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerGameplayEquippedSlot(
             SimulationWorld.LocalPlayerSlot,
             GameplayEquipmentSlot.Secondary));
 
@@ -49,10 +49,10 @@ public sealed class CombatPlaytestFixesTests
         var spy = world.LocalPlayer;
         spy.TeleportTo(0f, 0f);
         var target = AddNetworkPlayer(world, 2, PlayerClass.Scout, PlayerTeam.Blue, 24f, 0f);
-        world.CombatTestAddSentry(new SentryEntity(100, 2, PlayerTeam.Blue, 8f, 0f, 1f, isDispenser: true));
+        world.TestAddSentry(new SentryEntity(100, 2, PlayerTeam.Blue, 8f, 0f, 1f, isDispenser: true));
         var mask = new StabMaskEntity(101, spy.Id, spy.Team, spy.X, spy.Y, directionDegrees: 0f);
 
-        var hit = Assert.NotNull(world.CombatTestGetNearestStabHit(mask, 1f, 0f));
+        var hit = Assert.NotNull(world.TestGetNearestStabHit(mask, 1f, 0f));
         Assert.Same(target, hit.HitPlayer);
         Assert.Null(hit.HitSentry);
     }
@@ -62,11 +62,11 @@ public sealed class CombatPlaytestFixesTests
     {
         var world = CreateCombatWorld(PlayerClass.Pyro);
         var pyro = world.LocalPlayer;
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerGameplayEquippedSlot(
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerGameplayEquippedSlot(
             SimulationWorld.LocalPlayerSlot,
             GameplayEquipmentSlot.Secondary));
         pyro.AddImpulse(-600f, 0f);
-        world.NetworkPlayerRules.SetLocalInput(default(PlayerInputSnapshot) with
+        world.NetworkPlayers.SetLocalInput(default(PlayerInputSnapshot) with
         {
             FirePrimary = true,
             AimWorldX = pyro.X + 256f,
@@ -82,7 +82,7 @@ public sealed class CombatPlaytestFixesTests
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
         var spawn = new SpawnPoint(256f, 256f);
-        world.CombatTestSetLevel(new SimpleLevel(
+        world.TestSetLevel(new SimpleLevel(
             name: "combat-playtest-fixes-test",
             mode: GameModeKind.TeamDeathmatch,
             bounds: new WorldBounds(512f, 512f),
@@ -114,7 +114,7 @@ public sealed class CombatPlaytestFixesTests
         });
         if (openLevel)
         {
-            world.CombatTestSetLevel(new SimpleLevel(
+            world.TestSetLevel(new SimpleLevel(
                 name: "combat-playtest-fixes-open",
                 mode: GameModeKind.TeamDeathmatch,
                 bounds: new WorldBounds(2048f, 1024f),
@@ -144,8 +144,8 @@ public sealed class CombatPlaytestFixesTests
                 solids: [],
                 importedFromSource: false));
         }
-        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
-        world.NetworkPlayerRules.CompleteLocalPlayerJoin(playerClass);
+        world.NetworkPlayers.PrepareLocalPlayerJoin();
+        world.NetworkPlayers.CompleteLocalPlayerJoin(playerClass);
         world.LocalPlayer.SetSpawnRoomState(false);
         return world;
     }
@@ -158,10 +158,10 @@ public sealed class CombatPlaytestFixesTests
         float x,
         float y)
     {
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(slot));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, team));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, playerClass));
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(slot, team));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(slot, playerClass));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(slot, out var player));
         player.TeleportTo(x, y);
         return player;
     }

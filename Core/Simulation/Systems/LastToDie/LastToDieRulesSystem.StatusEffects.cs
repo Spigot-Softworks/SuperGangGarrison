@@ -13,7 +13,7 @@ internal sealed partial class LastToDieRulesSystem
         var target = _host.FindPlayerById(targetPlayerId);
         if (target is null
             || !target.IsAlive
-            || !_host.NetworkPlayerRules.TryGetPlayerNetworkSlot(target, out _)
+            || !_host.NetworkPlayers.TryGetPlayerNetworkSlot(target, out _)
             || !TryNormalizeLastToDieStatusEffect(requestedSpec, out var spec))
         {
             return false;

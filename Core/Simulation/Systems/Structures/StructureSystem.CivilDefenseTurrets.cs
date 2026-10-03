@@ -142,7 +142,7 @@ internal sealed partial class StructureSystem
     public bool TryDeployLastToDieDefenseBattery(byte ownerSlot)
     {
         if (_host.ClientPredictionMode
-            || !_host.NetworkPlayerRules.TryGetNetworkPlayer(ownerSlot, out var owner)
+            || !_host.NetworkPlayers.TryGetNetworkPlayer(ownerSlot, out var owner)
             || !owner.IsAlive)
         {
             return false;

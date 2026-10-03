@@ -28,7 +28,7 @@ internal sealed partial class ExperimentalRulesSystem
         // network slot. The local-player check remains the practice/offline
         // fallback for worlds without an authoritative Last to Die build.
         return ReferenceEquals(player, _host.LocalPlayer)
-            || (_host.NetworkPlayerRules.TryGetPlayerNetworkSlot(player, out var slot)
+            || (_host.NetworkPlayers.TryGetPlayerNetworkSlot(player, out var slot)
                 && _host.LastToDieRules.TryGetLastToDieLegacyGameplaySettings(slot, out _));
     }
 

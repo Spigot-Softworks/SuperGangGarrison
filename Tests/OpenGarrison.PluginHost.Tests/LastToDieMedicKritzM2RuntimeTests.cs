@@ -230,7 +230,7 @@ public sealed class LastToDieMedicKritzM2RuntimeTests
             EnableEnemyTrainingDummy = false,
             EnableFriendlySupportDummy = false,
         });
-        world.CombatTestSetLevel(new SimpleLevel(
+        world.TestSetLevel(new SimpleLevel(
             name: "ltd_medic_kritz_m2_test",
             mode: GameModeKind.CaptureTheFlag,
             bounds: new WorldBounds(640f, 480f),
@@ -246,8 +246,8 @@ public sealed class LastToDieMedicKritzM2RuntimeTests
             floorY: 400f,
             solids: [new LevelSolid(0f, 400f, 640f, 80f)],
             importedFromSource: false));
-        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
-        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Medic);
+        world.NetworkPlayers.PrepareLocalPlayerJoin();
+        world.NetworkPlayers.CompleteLocalPlayerJoin(PlayerClass.Medic);
         world.LocalPlayer.SetSpawnRoomState(false);
         return world;
     }
@@ -258,10 +258,10 @@ public sealed class LastToDieMedicKritzM2RuntimeTests
         PlayerClass playerClass,
         PlayerTeam team)
     {
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(slot));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, team));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, playerClass));
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(slot, team));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(slot, playerClass));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(slot, out var player));
         player.SetSpawnRoomState(false);
         return player;
     }

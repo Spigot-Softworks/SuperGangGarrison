@@ -25,7 +25,7 @@ internal sealed partial class LastToDieRulesSystem
             entry.Value.MedicSupportRelayActiveLinkTargetPlayerId = null;
             entry.Value.MedicSupportRelayCooldownUntilFrameByTargetPlayerId.Clear();
             entry.Value.ShroudGraceTicksRemaining = 0;
-            if (_host.NetworkPlayerRules.TryGetNetworkPlayer(entry.Key, out var player))
+            if (_host.NetworkPlayers.TryGetNetworkPlayer(entry.Key, out var player))
             {
                 entry.Value.WasSpyCloaked = player.IsAlive
                     && player.ClassId == PlayerClass.Spy
@@ -54,7 +54,7 @@ internal sealed partial class LastToDieRulesSystem
         bool runKillProgressionOwner = true)
     {
         ArgumentNullException.ThrowIfNull(perks);
-        if (!_host.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
+        if (!_host.NetworkPlayers.TryGetNetworkPlayer(slot, out var player))
         {
             return false;
         }
@@ -250,7 +250,7 @@ internal sealed partial class LastToDieRulesSystem
 
     internal bool TrySetLastToDiePlayerRunKills(byte slot, int runKills)
     {
-        if (!_host.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player)
+        if (!_host.NetworkPlayers.TryGetNetworkPlayer(slot, out var player)
             || !_host.LastToDieState.PerkRuntimesBySlot.TryGetValue(slot, out var runtime))
         {
             return false;
@@ -290,7 +290,7 @@ internal sealed partial class LastToDieRulesSystem
 
     internal bool TryActivateLastToDieSecondChance(PlayerEntity player)
     {
-        if (!_host.NetworkPlayerRules.TryGetPlayerNetworkSlot(player, out var slot)
+        if (!_host.NetworkPlayers.TryGetPlayerNetworkSlot(player, out var slot)
             || !_host.LastToDieState.PerkRuntimesBySlot.TryGetValue(slot, out var runtime)
             || !runtime.Modifiers.UniversalModifiers.SecondChance
             || runtime.SecondChanceConsumed
@@ -314,7 +314,7 @@ internal sealed partial class LastToDieRulesSystem
 
     internal void ApplyLastToDieKillRewards(PlayerEntity killer)
     {
-        if (!_host.NetworkPlayerRules.TryGetPlayerNetworkSlot(killer, out var slot)
+        if (!_host.NetworkPlayers.TryGetPlayerNetworkSlot(killer, out var slot)
             || !_host.LastToDieState.PerkRuntimesBySlot.TryGetValue(slot, out var runtime))
         {
             return;
@@ -359,7 +359,7 @@ internal sealed partial class LastToDieRulesSystem
     internal ExperimentalGameplaySettings GetLastToDieGameplaySettings(PlayerEntity? player)
     {
         return player is not null
-            && _host.NetworkPlayerRules.TryGetPlayerNetworkSlot(player, out var slot)
+            && _host.NetworkPlayers.TryGetPlayerNetworkSlot(player, out var slot)
             && TryGetLastToDieLegacyGameplaySettings(slot, out var settings)
             ? settings
             : _host.ExperimentalGameplaySettings;
@@ -398,7 +398,7 @@ internal sealed partial class LastToDieRulesSystem
         bool secondChanceConsumed = false)
     {
         ArgumentNullException.ThrowIfNull(ownedPerkIds);
-        if (!_host.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
+        if (!_host.NetworkPlayers.TryGetNetworkPlayer(slot, out var player))
         {
             return false;
         }
@@ -477,12 +477,12 @@ internal sealed partial class LastToDieRulesSystem
     {
         ConfigureLastToDieStage(0);
         ClearLastToDiePlayerPredictionProfile(SimulationConstants.LocalPlayerSlot);
-        _host.NetworkPlayerRules.TrySetNetworkPlayerAutomaticRespawnSuppressed(SimulationConstants.LocalPlayerSlot, false);
+        _host.NetworkPlayers.TrySetNetworkPlayerAutomaticRespawnSuppressed(SimulationConstants.LocalPlayerSlot, false);
     }
 
     internal bool ClearLastToDiePlayerPredictionProfile(byte slot)
     {
-        if (!_host.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
+        if (!_host.NetworkPlayers.TryGetNetworkPlayer(slot, out var player))
         {
             return false;
         }
@@ -505,7 +505,7 @@ internal sealed partial class LastToDieRulesSystem
     {
         if (attacker.ClassId != PlayerClass.Spy
             || !attacker.LastToDieSpyRevolverProfile.DeadlyEnabled
-            || !_host.NetworkPlayerRules.TryGetPlayerNetworkSlot(attacker, out var slot)
+            || !_host.NetworkPlayers.TryGetPlayerNetworkSlot(attacker, out var slot)
             || !_host.LastToDieState.PerkRuntimesBySlot.TryGetValue(slot, out var runtime)
             || runtime.Modifiers.SpyRevolverProfile is not { DeadlyEnabled: true }
             || runtime.RevolverCriticalRandom is null)
@@ -566,7 +566,7 @@ internal sealed partial class LastToDieRulesSystem
         var appliesNeurotoxin = false;
         var appliesJavelin = false;
         if (owner.ClassId == PlayerClass.Medic
-            && _host.NetworkPlayerRules.TryGetPlayerNetworkSlot(owner, out var slot)
+            && _host.NetworkPlayers.TryGetPlayerNetworkSlot(owner, out var slot)
             && _host.LastToDieState.PerkRuntimesBySlot.TryGetValue(slot, out var runtime))
         {
             appliesHailMary = runtime.Modifiers.MedicHailMaryEnabled;
@@ -582,7 +582,7 @@ internal sealed partial class LastToDieRulesSystem
 
     internal bool TryGetLastToDieSniperConquistadorStacks(byte slot, out int stacks)
     {
-        if (_host.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player)
+        if (_host.NetworkPlayers.TryGetNetworkPlayer(slot, out var player)
             && player.ClassId == PlayerClass.Sniper
             && _host.LastToDieState.PerkRuntimesBySlot.TryGetValue(slot, out var runtime)
             && runtime.Modifiers.SniperProfile is { ConquistadorEnabled: true }
@@ -598,7 +598,7 @@ internal sealed partial class LastToDieRulesSystem
 
     internal bool TryRestoreLastToDieSniperConquistadorStacks(byte slot, int stacks)
     {
-        if (!_host.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player)
+        if (!_host.NetworkPlayers.TryGetNetworkPlayer(slot, out var player)
             || player.ClassId != PlayerClass.Sniper
             || !_host.LastToDieState.PerkRuntimesBySlot.TryGetValue(slot, out var runtime)
             || runtime.Modifiers.SniperProfile is not { ConquistadorEnabled: true }
@@ -618,7 +618,7 @@ internal sealed partial class LastToDieRulesSystem
             return false;
         }
 
-        return _host.NetworkPlayerRules.TryGetPlayerNetworkSlot(player, out var slot)
+        return _host.NetworkPlayers.TryGetPlayerNetworkSlot(player, out var slot)
             && _host.LastToDieState.PerkRuntimesBySlot.TryGetValue(slot, out var runtime)
             && runtime.Modifiers.RogueCommanderEnabled;
     }
@@ -628,7 +628,7 @@ internal sealed partial class LastToDieRulesSystem
         return player.IsAlive
             && player.ClassId == PlayerClass.Medic
             && player.IsMedicRegularUberDeliveryActive
-            && _host.NetworkPlayerRules.TryGetPlayerNetworkSlot(player, out var slot)
+            && _host.NetworkPlayers.TryGetPlayerNetworkSlot(player, out var slot)
             && _host.LastToDieState.PerkRuntimesBySlot.TryGetValue(slot, out var runtime)
             && runtime.Modifiers.MedicFieldCommanderEnabled;
     }
@@ -661,7 +661,7 @@ internal sealed partial class LastToDieRulesSystem
             || !attacker.IsAlive
             || ReferenceEquals(attacker, target)
             || attacker.Team == target.Team
-            || !_host.NetworkPlayerRules.TryGetPlayerNetworkSlot(attacker, out var slot)
+            || !_host.NetworkPlayers.TryGetPlayerNetworkSlot(attacker, out var slot)
             || !_host.LastToDieState.PerkRuntimesBySlot.TryGetValue(slot, out var runtime)
             || attacker.Health >= attacker.MaxHealth)
         {
@@ -723,7 +723,7 @@ internal sealed partial class LastToDieRulesSystem
             || attacker.ClassId != PlayerClass.Sniper
             || ReferenceEquals(attacker, target)
             || attacker.Team == target.Team
-            || !_host.NetworkPlayerRules.TryGetPlayerNetworkSlot(attacker, out var slot)
+            || !_host.NetworkPlayers.TryGetPlayerNetworkSlot(attacker, out var slot)
             || !_host.LastToDieState.PerkRuntimesBySlot.TryGetValue(slot, out var runtime)
             || runtime.Modifiers.SniperProfile is not { OverkillerEnabled: true }
             || !attacker.LastToDieSniperProfile.OverkillerEnabled
@@ -770,11 +770,11 @@ internal sealed partial class LastToDieRulesSystem
             || attacker.ClassId != PlayerClass.Sniper
             || ReferenceEquals(attacker, target)
             || attacker.Team == target.Team
-            || !_host.NetworkPlayerRules.TryGetPlayerNetworkSlot(attacker, out var attackerSlot)
+            || !_host.NetworkPlayers.TryGetPlayerNetworkSlot(attacker, out var attackerSlot)
             || !_host.LastToDieState.PerkRuntimesBySlot.TryGetValue(attackerSlot, out var runtime)
             || runtime.Modifiers.SniperProfile is not { SpottedEnabled: true }
             || !attacker.LastToDieSniperProfile.SpottedEnabled
-            || !_host.NetworkPlayerRules.TryGetPlayerNetworkSlot(target, out var targetSlot))
+            || !_host.NetworkPlayers.TryGetPlayerNetworkSlot(target, out var targetSlot))
         {
             return;
         }
@@ -789,7 +789,7 @@ internal sealed partial class LastToDieRulesSystem
         if (!killer.IsAlive
             || killer.ClassId != PlayerClass.Sniper
             || killer.Team == victim.Team
-            || !_host.NetworkPlayerRules.TryGetPlayerNetworkSlot(killer, out var killerSlot)
+            || !_host.NetworkPlayers.TryGetPlayerNetworkSlot(killer, out var killerSlot)
             || !_host.LastToDieState.PerkRuntimesBySlot.TryGetValue(killerSlot, out var runtime)
             || runtime.Modifiers.SniperProfile is not { ConquistadorEnabled: true }
             || !killer.LastToDieSniperProfile.ConquistadorEnabled)
@@ -815,7 +815,7 @@ internal sealed partial class LastToDieRulesSystem
     {
         if (medic.ClassId != PlayerClass.Medic
             || target.MaxHealth <= 0
-            || !_host.NetworkPlayerRules.TryGetPlayerNetworkSlot(medic, out var slot)
+            || !_host.NetworkPlayers.TryGetPlayerNetworkSlot(medic, out var slot)
             || !_host.LastToDieState.PerkRuntimesBySlot.TryGetValue(slot, out var runtime)
             || !runtime.Modifiers.MedicTraumaSurgeonEnabled)
         {
@@ -835,7 +835,7 @@ internal sealed partial class LastToDieRulesSystem
     internal float GetLastToDieMedicUberChargeGainMultiplier(PlayerEntity medic)
     {
         if (medic.ClassId != PlayerClass.Medic
-            || !_host.NetworkPlayerRules.TryGetPlayerNetworkSlot(medic, out var slot)
+            || !_host.NetworkPlayers.TryGetPlayerNetworkSlot(medic, out var slot)
             || !_host.LastToDieState.PerkRuntimesBySlot.TryGetValue(slot, out var runtime))
         {
             return 1f;
@@ -859,7 +859,7 @@ internal sealed partial class LastToDieRulesSystem
         if (appliedTargetHealing <= 0
             || !medic.IsAlive
             || medic.ClassId != PlayerClass.Medic
-            || !_host.NetworkPlayerRules.TryGetPlayerNetworkSlot(medic, out var slot)
+            || !_host.NetworkPlayers.TryGetPlayerNetworkSlot(medic, out var slot)
             || !_host.LastToDieState.PerkRuntimesBySlot.TryGetValue(slot, out var runtime)
             || runtime.Modifiers.MedicHomeostasisHealingFraction <= 0f)
         {
@@ -902,7 +902,7 @@ internal sealed partial class LastToDieRulesSystem
             return;
         }
 
-        if (!_host.NetworkPlayerRules.TryGetPlayerNetworkSlot(target, out var slot)
+        if (!_host.NetworkPlayers.TryGetPlayerNetworkSlot(target, out var slot)
             || !_host.LastToDieState.PerkRuntimesBySlot.TryGetValue(slot, out var runtime))
         {
             return;
@@ -1056,7 +1056,7 @@ internal sealed partial class LastToDieRulesSystem
             multiplier *= LastToDieSniperProfile.AsceticDamageMultiplier;
         }
 
-        if (!_host.NetworkPlayerRules.TryGetPlayerNetworkSlot(attacker, out var slot)
+        if (!_host.NetworkPlayers.TryGetPlayerNetworkSlot(attacker, out var slot)
             || !_host.LastToDieState.PerkRuntimesBySlot.TryGetValue(slot, out var runtime))
         {
             return MathF.Max(0.05f, multiplier);
@@ -1078,7 +1078,7 @@ internal sealed partial class LastToDieRulesSystem
             if (damageTraits.HasFlag(PlayerDamageTraits.BenefitFromLastToDieSpotted)
                 && runtime.Modifiers.SniperProfile is { SpottedEnabled: true }
                 && attacker.LastToDieSniperProfile.SpottedEnabled
-                && _host.NetworkPlayerRules.TryGetPlayerNetworkSlot(target, out var targetSlot)
+                && _host.NetworkPlayers.TryGetPlayerNetworkSlot(target, out var targetSlot)
                 && attacker.LastToDieSniperMarkedTargetSlot == targetSlot)
             {
                 sniperDamageBonus += LastToDieSniperProfile.SpottedDamageMultiplier - 1f;
@@ -1156,7 +1156,7 @@ internal sealed partial class LastToDieRulesSystem
         PlayerEntity target,
         PlayerDamageTraits damageTraits)
     {
-        if (!_host.NetworkPlayerRules.TryGetPlayerNetworkSlot(target, out var slot)
+        if (!_host.NetworkPlayers.TryGetPlayerNetworkSlot(target, out var slot)
             || !_host.LastToDieState.PerkRuntimesBySlot.TryGetValue(slot, out var runtime))
         {
             return 1f;
@@ -1193,7 +1193,7 @@ internal sealed partial class LastToDieRulesSystem
 
         var cloakedEvasionChance = 0f;
         var stoicEvasionChance = 0f;
-        if (_host.NetworkPlayerRules.TryGetPlayerNetworkSlot(target, out var slot)
+        if (_host.NetworkPlayers.TryGetPlayerNetworkSlot(target, out var slot)
             && _host.LastToDieState.PerkRuntimesBySlot.TryGetValue(slot, out var runtime))
         {
             if (target.ClassId == PlayerClass.Spy && runtime.Modifiers.CloakedEvasionChance > 0f)
@@ -1224,7 +1224,7 @@ internal sealed partial class LastToDieRulesSystem
             0f,
             0.95f);
         var universalEvasionChance = 0f;
-        if (_host.NetworkPlayerRules.TryGetPlayerNetworkSlot(target, out var universalSlot)
+        if (_host.NetworkPlayers.TryGetPlayerNetworkSlot(target, out var universalSlot)
             && _host.LastToDieState.PerkRuntimesBySlot.TryGetValue(universalSlot, out var universalRuntime)
             && universalRuntime.Modifiers.UniversalModifiers.FightOrFlight
             && target.MaxHealth > 0
@@ -1249,7 +1249,7 @@ internal sealed partial class LastToDieRulesSystem
     internal bool RollLastToDieEvasion(PlayerEntity target, float totalEvasionChance)
     {
         if (totalEvasionChance <= 0f
-            || !_host.NetworkPlayerRules.TryGetPlayerNetworkSlot(target, out var slot)
+            || !_host.NetworkPlayers.TryGetPlayerNetworkSlot(target, out var slot)
             || !_host.LastToDieState.PerkRuntimesBySlot.TryGetValue(slot, out var runtime)
             || runtime.EvasionRandom is null)
         {
@@ -1312,7 +1312,7 @@ internal sealed partial class LastToDieRulesSystem
         runtime.InfiniteSlayWorksDamageAccumulator = 0f;
         runtime.WasSpyCloaked = false;
         runtime.ShroudGraceTicksRemaining = 0;
-        if (_host.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
+        if (_host.NetworkPlayers.TryGetNetworkPlayer(slot, out var player))
         {
             player.ResetLastToDieSpyCloakDynamicState();
             player.ResetLastToDieSpyInfiltrateDynamicState();

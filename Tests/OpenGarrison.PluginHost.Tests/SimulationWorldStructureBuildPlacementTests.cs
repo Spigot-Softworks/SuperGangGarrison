@@ -182,7 +182,7 @@ public sealed class SimulationWorldStructureBuildPlacementTests
     private static SimulationWorld CreateEngineerWorld(IReadOnlyList<LevelSolid> solids)
     {
         var world = new SimulationWorld();
-        world.CombatTestSetLevel(new SimpleLevel(
+        world.TestSetLevel(new SimpleLevel(
             name: "sentry_build_placement_test",
             mode: GameModeKind.TeamDeathmatch,
             bounds: new WorldBounds(512f, 512f),
@@ -198,9 +198,9 @@ public sealed class SimulationWorldStructureBuildPlacementTests
             floorY: 480f,
             solids: solids,
             importedFromSource: false));
-        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
-        world.NetworkPlayerRules.SetLocalPlayerTeam(PlayerTeam.Red);
-        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Engineer);
+        world.NetworkPlayers.PrepareLocalPlayerJoin();
+        world.NetworkPlayers.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.NetworkPlayers.CompleteLocalPlayerJoin(PlayerClass.Engineer);
         return world;
     }
 }

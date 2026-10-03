@@ -112,12 +112,12 @@ public sealed class Protocol64HeldInputOrderingTests
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
         var spawn = new SpawnPoint(100, 100);
-        world.CombatTestSetLevel(new SimpleLevel("held-input-order", GameModeKind.TeamDeathmatch,
+        world.TestSetLevel(new SimpleLevel("held-input-order", GameModeKind.TeamDeathmatch,
             new WorldBounds(512, 512), 1, null, 1, 1, spawn, [spawn], [spawn], [], [],
             floorY: 512, [], importedFromSource: false));
         world.TrySetLocalClass(playerClass);
         Assert.Equal(playerClass, world.LocalPlayer.ClassId);
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red,
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red,
             respawnLivePlayerImmediately: true));
         var client = new ClientSession(SimulationWorld.LocalPlayerSlot, 1,
             new IPEndPoint(IPAddress.Loopback, 8190), "Tester", TimeSpan.Zero)

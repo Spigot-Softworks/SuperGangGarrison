@@ -57,7 +57,7 @@ public sealed class CatapultRuntimeTests
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
         var spawn = new SpawnPoint(100f, 100f);
-        world.CombatTestSetLevel(new SimpleLevel(
+        world.TestSetLevel(new SimpleLevel(
             "catapult-runtime-test",
             GameModeKind.TeamDeathmatch,
             new WorldBounds(512f, 512f),
@@ -84,7 +84,7 @@ public sealed class CatapultRuntimeTests
             floorY: 512f,
             [],
             importedFromSource: false));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(
             SimulationWorld.LocalPlayerSlot,
             PlayerTeam.Red,
             respawnLivePlayerImmediately: true));

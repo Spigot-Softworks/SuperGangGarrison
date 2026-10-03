@@ -161,7 +161,7 @@ internal sealed class SnapshotTransientEventBuffer(ulong transientEventReplayTic
 
     private static PlayerEntity? FindReplicatedNetworkPlayerById(SimulationWorld world, int playerId)
     {
-        foreach (var (_, player) in world.NetworkPlayerRules.EnumerateReplicatedNetworkPlayers())
+        foreach (var (_, player) in world.NetworkPlayers.EnumerateReplicatedNetworkPlayers())
         {
             if (player.Id == playerId)
             {

@@ -415,7 +415,7 @@ public partial class Game1
 
         foreach (var player in EnumerateRemotePlayersForView())
         {
-            if (_world.NetworkPlayerRules.TryGetPlayerNetworkSlot(player, out var slot))
+            if (_world.NetworkPlayers.TryGetPlayerNetworkSlot(player, out var slot))
             {
                 yield return (slot, player);
             }

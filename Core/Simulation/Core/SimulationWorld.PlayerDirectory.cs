@@ -5,14 +5,14 @@ public sealed partial class SimulationWorld
 {
     private bool IsNetworkPlayerActive(byte slot)
     {
-        return NetworkPlayerRules.IsNetworkPlayerEnabled(slot);
+        return NetworkPlayers.IsNetworkPlayerEnabled(slot);
     }
 
     private PlayerTeam GetNetworkPlayerTeam(byte slot)
     {
-        return NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player)
+        return NetworkPlayers.TryGetNetworkPlayer(slot, out var player)
             ? player.Team
-            : NetworkPlayerRules.GetNetworkPlayerConfiguredTeam(slot);
+            : NetworkPlayers.GetNetworkPlayerConfiguredTeam(slot);
     }
 
     private PlayerEntity? FindPlayerById(int playerId)
@@ -38,9 +38,9 @@ public sealed partial class SimulationWorld
     // Includes debug dummy players when enabled.
     private IEnumerable<PlayerEntity> EnumerateSimulatedPlayers()
     {
-        foreach (var slot in NetworkPlayerRules.EnumerateEnabledNetworkPlayerSlots())
+        foreach (var slot in NetworkPlayers.EnumerateEnabledNetworkPlayerSlots())
         {
-            if (!NetworkPlayerRules.IsNetworkPlayerEnabled(slot) || !NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
+            if (!NetworkPlayers.IsNetworkPlayerEnabled(slot) || !NetworkPlayers.TryGetNetworkPlayer(slot, out var player))
             {
                 continue;
             }

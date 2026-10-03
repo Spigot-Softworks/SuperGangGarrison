@@ -60,10 +60,10 @@ internal sealed partial class SnapshotApplySystem
                     _host.RemoteSnapshots.Players.Remove(formerRemote);
                 _host.ClientSnapshots.AuthoritativeLocalPlayerId = (int)state.PlayerId;
                 _host.LocalPlayer.ApplyProtocol64State(state, classDefinition, _host.Config.TicksPerSecond);
-                _host.NetworkPlayerRules.TrySetNetworkPlayerConfiguredTeam(SimulationConstants.LocalPlayerSlot, (PlayerTeam)state.Team);
-                _host.NetworkPlayerRules.ApplySnapshotNetworkPlayerBot(SimulationConstants.LocalPlayerSlot, state.IsBot);
+                _host.NetworkPlayers.TrySetNetworkPlayerConfiguredTeam(SimulationConstants.LocalPlayerSlot, (PlayerTeam)state.Team);
+                _host.NetworkPlayers.ApplySnapshotNetworkPlayerBot(SimulationConstants.LocalPlayerSlot, state.IsBot);
                 if (state.IsAlive)
-                    _host.NetworkPlayerRules.TrySetNetworkPlayerAwaitingJoin(SimulationConstants.LocalPlayerSlot, false);
+                    _host.NetworkPlayers.TrySetNetworkPlayerAwaitingJoin(SimulationConstants.LocalPlayerSlot, false);
                 return true;
             }
 
@@ -77,26 +77,26 @@ internal sealed partial class SnapshotApplySystem
                 _host.RemoteSnapshots.PlayersBySlot[slot] = remote;
             }
             remote.ApplyProtocol64State(state, classDefinition, _host.Config.TicksPerSecond);
-            _host.NetworkPlayerRules.ApplySnapshotNetworkPlayerBot(slot, state.IsBot);
+            _host.NetworkPlayers.ApplySnapshotNetworkPlayerBot(slot, state.IsBot);
             if (!_host.RemoteSnapshots.Players.Contains(remote))
                 _host.RemoteSnapshots.Players.Add(remote);
             return true;
         }
         if (slot != SimulationConstants.LocalPlayerSlot)
         {
-            _host.NetworkPlayerRules.EnsureAdditionalNetworkPlayer(slot);
-            _host.NetworkPlayerRules.SetNetworkPlayerEnabled(slot, true);
+            _host.NetworkPlayers.EnsureAdditionalNetworkPlayer(slot);
+            _host.NetworkPlayers.SetNetworkPlayerEnabled(slot, true);
         }
 
-        if (!_host.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
+        if (!_host.NetworkPlayers.TryGetNetworkPlayer(slot, out var player))
         {
             return false;
         }
 
         player.ApplyProtocol64State(state, classDefinition, _host.Config.TicksPerSecond);
-        _host.NetworkPlayerRules.TrySetNetworkPlayerConfiguredTeam(slot, (PlayerTeam)state.Team);
-        _host.NetworkPlayerRules.ApplySnapshotNetworkPlayerBot(slot, state.IsBot);
-        _host.NetworkPlayerRules.TrySetNetworkPlayerAwaitingJoin(slot, !state.IsAlive);
+        _host.NetworkPlayers.TrySetNetworkPlayerConfiguredTeam(slot, (PlayerTeam)state.Team);
+        _host.NetworkPlayers.ApplySnapshotNetworkPlayerBot(slot, state.IsBot);
+        _host.NetworkPlayers.TrySetNetworkPlayerAwaitingJoin(slot, !state.IsAlive);
         return true;
     }
 
@@ -125,7 +125,7 @@ internal sealed partial class SnapshotApplySystem
             _host.RemoteSnapshots.Players.Remove(remote);
             return true;
         }
-        return _host.NetworkPlayerRules.TryReleaseNetworkPlayerSlot((byte)identity.Slot);
+        return _host.NetworkPlayers.TryReleaseNetworkPlayerSlot((byte)identity.Slot);
     }
 
     internal bool ApplyProtocol64ProjectileState(Protocol64ProjectileState state, byte? clientLocalPlayerSlot = null)
@@ -143,7 +143,7 @@ internal sealed partial class SnapshotApplySystem
             ? state.OwnerSlot == clientLocalPlayerSlot.Value
                 ? (owner = _host.LocalPlayer) is not null
                 : _host.RemoteSnapshots.PlayersBySlot.TryGetValue((byte)state.OwnerSlot, out owner)
-            : _host.NetworkPlayerRules.TryGetNetworkPlayer((byte)state.OwnerSlot, out owner);
+            : _host.NetworkPlayers.TryGetNetworkPlayer((byte)state.OwnerSlot, out owner);
         var ownerId = state.LastToDieMedicJavelinOwnerPlayerId > 0
             ? state.LastToDieMedicJavelinOwnerPlayerId
             : hasLiveOwner

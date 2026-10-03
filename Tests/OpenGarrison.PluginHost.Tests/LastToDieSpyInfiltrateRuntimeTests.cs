@@ -35,7 +35,7 @@ public sealed class LastToDieSpyInfiltrateRuntimeTests
             AimWorldX = 1000f,
             AimWorldY = 100f,
         };
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerInput(SimulationWorld.LocalPlayerSlot, pressed));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerInput(SimulationWorld.LocalPlayerSlot, pressed));
         world.AdvanceOneTick();
 
         Assert.True(player.IsLastToDieSpyInfiltrateDashing);
@@ -43,7 +43,7 @@ public sealed class LastToDieSpyInfiltrateRuntimeTests
         Assert.Equal(180, player.LastToDieSpyInfiltrateCooldownTicksRemaining);
         for (var tick = 1; tick < player.LastToDieSpyInfiltrateDurationTicks; tick += 1)
         {
-            Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerInput(SimulationWorld.LocalPlayerSlot, default));
+            Assert.True(world.NetworkPlayers.TrySetNetworkPlayerInput(SimulationWorld.LocalPlayerSlot, default));
             world.AdvanceOneTick();
         }
 
@@ -70,21 +70,21 @@ public sealed class LastToDieSpyInfiltrateRuntimeTests
             InteractWeapon = true,
             AimWorldX = 1000f,
         };
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerInput(SimulationWorld.LocalPlayerSlot, held));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerInput(SimulationWorld.LocalPlayerSlot, held));
         world.AdvanceOneTick();
 
         for (var tick = 0; tick < 180; tick += 1)
         {
-            Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerInput(SimulationWorld.LocalPlayerSlot, held));
+            Assert.True(world.NetworkPlayers.TrySetNetworkPlayerInput(SimulationWorld.LocalPlayerSlot, held));
             world.AdvanceOneTick();
         }
 
         Assert.Equal(0, world.LocalPlayer.LastToDieSpyInfiltrateCooldownTicksRemaining);
         Assert.False(world.LocalPlayer.IsLastToDieSpyInfiltrateDashing);
 
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerInput(SimulationWorld.LocalPlayerSlot, default));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerInput(SimulationWorld.LocalPlayerSlot, default));
         world.AdvanceOneTick();
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerInput(SimulationWorld.LocalPlayerSlot, held));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerInput(SimulationWorld.LocalPlayerSlot, held));
         world.AdvanceOneTick();
 
         Assert.True(world.LocalPlayer.IsLastToDieSpyInfiltrateDashing);
@@ -103,7 +103,7 @@ public sealed class LastToDieSpyInfiltrateRuntimeTests
             [LastToDiePerkIds.Spy.Infiltrate],
             resetDynamicState: true));
 
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerInput(
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerInput(
             SimulationWorld.LocalPlayerSlot,
             default(PlayerInputSnapshot) with
             {
@@ -308,10 +308,10 @@ public sealed class LastToDieSpyInfiltrateRuntimeTests
     private static SimulationWorld CreateSpyWorld(IReadOnlyList<LevelSolid>? solids = null)
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
-        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Spy);
+        world.NetworkPlayers.PrepareLocalPlayerJoin();
+        world.NetworkPlayers.CompleteLocalPlayerJoin(PlayerClass.Spy);
         var spawn = new SpawnPoint(100f, 100f);
-        world.CombatTestSetLevel(new SimpleLevel(
+        world.TestSetLevel(new SimpleLevel(
             "ltd-spy-infiltrate-test",
             GameModeKind.TeamDeathmatch,
             new WorldBounds(1024f, 512f),
@@ -337,10 +337,10 @@ public sealed class LastToDieSpyInfiltrateRuntimeTests
         PlayerClass playerClass,
         PlayerTeam team)
     {
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(slot));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, team));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, playerClass));
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(slot, team));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(slot, playerClass));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(slot, out var player));
         return player;
     }
 }

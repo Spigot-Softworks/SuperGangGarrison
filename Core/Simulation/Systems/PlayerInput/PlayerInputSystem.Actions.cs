@@ -482,7 +482,7 @@ internal sealed partial class PlayerInputSystem
         }
 
         if (player.ClassId == PlayerClass.Sniper
-            && _host.NetworkPlayerRules.TryGetPlayerNetworkSlot(player, out var sniperSlot)
+            && _host.NetworkPlayers.TryGetPlayerNetworkSlot(player, out var sniperSlot)
             && (_host.LastToDieState.PerkRuntimesBySlot.ContainsKey(sniperSlot)
                 || _host.LastToDieState.LegacyGameplaySettingsBySlot.ContainsKey(sniperSlot)))
         {

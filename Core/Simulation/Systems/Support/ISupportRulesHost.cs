@@ -11,7 +11,7 @@ internal interface ISupportRulesHost : ISimulationWorldState, ISimulationPlayerD
     CombatResolver GeometryResolver { get; }
     LastToDieRulesSystem LastToDieRules { get; }
     PlayerEntity LocalPlayer { get; }
-    NetworkPlayerSystem NetworkPlayerRules { get; }
+    NetworkPlayerSystem NetworkPlayers { get; }
     PlayerDeathSystem PlayerDeaths { get; }
     PlayerPresentationBoundsSystem PresentationBounds { get; }
     ScorekeepingSystem Scorekeeping { get; }

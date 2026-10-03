@@ -82,7 +82,7 @@ internal sealed partial class PracticeDummySystem
 
         _host.EnemyPlayerEnabled = false;
         _host.DummyState.EnemyRespawnTicks = 0;
-        _host.NetworkPlayerRules.ClearEnemyInputOverride();
+        _host.NetworkPlayers.ClearEnemyInputOverride();
         _host.EnemyPlayer.ClearMedicHealingTarget();
         _host.EnemyPlayer.Kill();
     }
@@ -116,7 +116,7 @@ internal sealed partial class PracticeDummySystem
         _host.DummyState.CombatClassDefinition = classDefinition;
         ResetPracticeCombatDummyStats();
         _host.DummyState.EnemyRespawnTicks = 0;
-        _host.NetworkPlayerRules.ClearEnemyInputOverride();
+        _host.NetworkPlayers.ClearEnemyInputOverride();
         _host.EnemyPlayer.ClearMedicHealingTarget();
         SpawnPracticeCombatDummyResolved(playRespawnSound: false);
     }

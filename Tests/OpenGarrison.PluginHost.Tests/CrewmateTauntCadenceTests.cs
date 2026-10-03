@@ -100,18 +100,18 @@ public sealed class CrewmateTauntCadenceTests
     public void CivilianTauntKeepsItsFrameNineHealAndHasNoMoneyBurst()
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
-        world.NetworkPlayerRules.SetLocalPlayerTeam(PlayerTeam.Red);
-        world.NetworkPlayerRules.CompleteLocalPlayerJoin("civilian");
+        world.NetworkPlayers.PrepareLocalPlayerJoin();
+        world.NetworkPlayers.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.NetworkPlayers.CompleteLocalPlayerJoin("civilian");
         var player = world.LocalPlayer;
         var startingHealth = player.MaxHealth - 30;
         player.ForceSetHealth(startingHealth);
 
-        world.NetworkPlayerRules.SetLocalInput(default(PlayerInputSnapshot) with { Taunt = true });
+        world.NetworkPlayers.SetLocalInput(default(PlayerInputSnapshot) with { Taunt = true });
         world.AdvanceOneTick();
         Assert.True(player.CivvieTauntHealPending);
 
-        world.NetworkPlayerRules.SetLocalInput(default);
+        world.NetworkPlayers.SetLocalInput(default);
         while (player.CivvieTauntHealPending && player.TauntFrameIndex < 9f)
         {
             Assert.Equal(startingHealth, player.Health);
@@ -128,20 +128,20 @@ public sealed class CrewmateTauntCadenceTests
     private static SimulationWorld CreateQuoteWorld(string gameplayClassId)
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
-        world.NetworkPlayerRules.SetLocalPlayerTeam(PlayerTeam.Red);
-        world.NetworkPlayerRules.CompleteLocalPlayerJoin(gameplayClassId);
+        world.NetworkPlayers.PrepareLocalPlayerJoin();
+        world.NetworkPlayers.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.NetworkPlayers.CompleteLocalPlayerJoin(gameplayClassId);
         return world;
     }
 
     private static void StartQuoteTaunt(SimulationWorld world)
     {
-        world.NetworkPlayerRules.SetLocalInput(default(PlayerInputSnapshot) with { UseAbility = true });
+        world.NetworkPlayers.SetLocalInput(default(PlayerInputSnapshot) with { UseAbility = true });
         world.AdvanceOneTick();
         Assert.True(world.LocalPlayer.IsTaunting);
         Assert.True(world.LocalPlayer.CivvieTauntHealPending);
 
-        world.NetworkPlayerRules.SetLocalInput(default);
+        world.NetworkPlayers.SetLocalInput(default);
         world.AdvanceOneTick();
     }
 

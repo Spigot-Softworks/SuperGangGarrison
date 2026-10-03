@@ -256,7 +256,7 @@ public static class CombatDecisionResolver
     {
         if (!candidate.IsChatBubbleVisible
             || candidate.ChatBubbleFrameIndex != ChatBubbleFrameCatalog.Medic
-            || !world.NetworkPlayerRules.TryGetPlayerNetworkSlot(candidate, out var slot))
+            || !world.NetworkPlayers.TryGetPlayerNetworkSlot(candidate, out var slot))
         {
             return false;
         }
@@ -1490,7 +1490,7 @@ public static class CombatDecisionResolver
             return false;
         }
 
-        return world.CombatTestIsFriendlyPlayerFirstRifleContact(
+        return world.TestIsFriendlyPlayerFirstRifleContact(
             self,
             self.X,
             self.Y,
@@ -1599,7 +1599,7 @@ public static class CombatDecisionResolver
 
         foreach (var slot in SimulationWorld.NetworkPlayerSlots)
         {
-            if (world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
+            if (world.NetworkPlayers.TryGetNetworkPlayer(slot, out var player))
             {
                 yield return player;
             }

@@ -9,7 +9,7 @@ internal interface IPickupHost
 {
     WorldBounds Bounds { get; }
     DamageRulesSystem DamageRules { get; }
-    DecisionGate Decisions { get; }
+    DecisionGate DecisionGate { get; }
     EntityStore EntityStore { get; }
     ExperimentalRulesSystem ExperimentalRules { get; }
     LastToDieRulesSystem LastToDieRules { get; }

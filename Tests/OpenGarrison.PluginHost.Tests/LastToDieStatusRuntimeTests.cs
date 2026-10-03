@@ -185,7 +185,7 @@ public sealed class LastToDieStatusRuntimeTests
                 durationTicks,
                 movementSpeedMultiplier: 0.8f)));
 
-        Assert.True(world.NetworkPlayerRules.TryReleaseNetworkPlayerSlot(3));
+        Assert.True(world.NetworkPlayers.TryReleaseNetworkPlayerSlot(3));
 
         var remaining = Assert.Single(world.LastToDieRules.GetLastToDieStatusEffects(target.Id));
         Assert.Equal(world.LocalPlayer.Id, remaining.SourcePlayerId);
@@ -225,8 +225,8 @@ public sealed class LastToDieStatusRuntimeTests
             EnableEnemyTrainingDummy = false,
             EnableFriendlySupportDummy = false,
         });
-        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
-        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Spy);
+        world.NetworkPlayers.PrepareLocalPlayerJoin();
+        world.NetworkPlayers.CompleteLocalPlayerJoin(PlayerClass.Spy);
         return world;
     }
 
@@ -236,10 +236,10 @@ public sealed class LastToDieStatusRuntimeTests
         PlayerClass playerClass,
         PlayerTeam team)
     {
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(slot));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, team));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, playerClass));
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(slot, team));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(slot, playerClass));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(slot, out var player));
         return player;
     }
 

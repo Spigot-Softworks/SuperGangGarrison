@@ -63,7 +63,7 @@ public sealed class CoopHeldFireRegressionTests
             BlueBots = 0,
             Seed = 123,
         });
-        host.World.CombatTestSetLevel(CreateEmptyLevel());
+        host.World.TestSetLevel(CreateEmptyLevel());
 
         var owner = new NetworkGameClient();
         var guest = new NetworkGameClient();
@@ -88,10 +88,10 @@ public sealed class CoopHeldFireRegressionTests
         guest.QueueTeamSelection(PlayerTeam.Red);
         guest.QueueClassSelection(guestClass);
         PumpUntil(session, () =>
-            host.World.NetworkPlayerRules.TryGetNetworkPlayer(1, out var ownerPlayer)
+            host.World.NetworkPlayers.TryGetNetworkPlayer(1, out var ownerPlayer)
             && ownerPlayer.IsAlive
             && ownerPlayer.ClassId == PlayerClass.Scout
-            && host.World.NetworkPlayerRules.TryGetNetworkPlayer(2, out var guestPlayer)
+            && host.World.NetworkPlayers.TryGetNetworkPlayer(2, out var guestPlayer)
             && guestPlayer.IsAlive
             && guestPlayer.ClassId == guestClass);
         return session;
@@ -177,7 +177,7 @@ public sealed class CoopHeldFireRegressionTests
             && guest.LastToDieState.Snapshot?.Phase == LastToDieWirePhase.Playing);
 
         PumpLastToDieUntil(session, () =>
-            host.World.NetworkPlayerRules.TryGetNetworkPlayer(guest.LocalPlayerSlot, out var player)
+            host.World.NetworkPlayers.TryGetNetworkPlayer(guest.LocalPlayerSlot, out var player)
             && player.IsAlive
             && player.ClassId == guestClass);
 
@@ -186,7 +186,7 @@ public sealed class CoopHeldFireRegressionTests
 
     private static PlayerEntity GetGuestPlayer(TestSession session)
     {
-        Assert.True(session.Host.World.NetworkPlayerRules.TryGetNetworkPlayer(session.Guest.LocalPlayerSlot, out var player));
+        Assert.True(session.Host.World.NetworkPlayers.TryGetNetworkPlayer(session.Guest.LocalPlayerSlot, out var player));
         return player;
     }
 

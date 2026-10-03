@@ -7,9 +7,9 @@ public sealed partial class SimulationWorld : IMatchObjectiveHost
 
     IEnumerable<PlayerEntity> IPlayerCountHost.EnumerateSimulatedPlayers() => EnumerateSimulatedPlayers();
 
-    bool IPlayerCountHost.TryGetNetworkPlayerSlot(PlayerEntity player, out byte slot) => NetworkPlayerRules.TryGetNetworkPlayerSlot(player, out slot);
+    bool IPlayerCountHost.TryGetNetworkPlayerSlot(PlayerEntity player, out byte slot) => NetworkPlayers.TryGetNetworkPlayerSlot(player, out slot);
 
-    bool IPlayerCountHost.IsNetworkPlayerAwaitingJoin(byte slot) => NetworkPlayerRules.IsNetworkPlayerAwaitingJoin(slot);
+    bool IPlayerCountHost.IsNetworkPlayerAwaitingJoin(byte slot) => NetworkPlayers.IsNetworkPlayerAwaitingJoin(slot);
 
     bool IPlayerCountHost.CanPlayerContributeToControlPoint(PlayerEntity player) => LastToDieRules.CanPlayerContributeToControlPoint(player);
 
@@ -50,7 +50,7 @@ public sealed partial class SimulationWorld : IMatchObjectiveHost
 
     void IMatchObjectiveHost.TryScoreCarriedIntel(PlayerEntity player) => ObjectiveRules.TryScoreCarriedIntel(player);
 
-    void IMatchObjectiveHost.RecordIntelReturnedObjectiveLog(PlayerTeam team) => KillFeedRules.RecordIntelReturnedObjectiveLog(team);
+    void IMatchObjectiveHost.RecordIntelReturnedObjectiveLog(PlayerTeam team) => KillFeed.RecordIntelReturnedObjectiveLog(team);
 
     void IMatchObjectiveHost.EvaluateMapLogicIntelTriggersIfNeeded() => MapLogic.EvaluateMapLogicIntelTriggersIfNeeded();
 

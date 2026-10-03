@@ -7723,7 +7723,7 @@ public sealed class BotBrainController
         var repulsionX = 0f;
         var repulsionY = 0f;
         var hasNearbyAlly = false;
-        foreach (var (_, ally) in world.NetworkPlayerRules.EnumerateActiveNetworkPlayers())
+        foreach (var (_, ally) in world.NetworkPlayers.EnumerateActiveNetworkPlayers())
         {
             if (ReferenceEquals(ally, self)
                 || !ally.IsAlive

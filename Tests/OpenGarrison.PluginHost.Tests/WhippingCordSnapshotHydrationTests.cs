@@ -12,9 +12,9 @@ public sealed class WhippingCordSnapshotHydrationTests
     public void SnapshotHydratesWhippingCordLatchAndAnchorEvenWhenRuntimeStateStorageIsFull()
     {
         var source = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        source.PrepareLocalPlayerJoin();
-        source.SetLocalPlayerTeam(PlayerTeam.Red);
-        source.CompleteLocalPlayerJoin(PlayerClass.Engineer);
+        source.NetworkPlayers.PrepareLocalPlayerJoin();
+        source.NetworkPlayers.SetLocalPlayerTeam(PlayerTeam.Red);
+        source.NetworkPlayers.CompleteLocalPlayerJoin(PlayerClass.Engineer);
         Assert.True(source.LocalPlayer.TrySelectGameplayPrimaryItem(WhippingCordCatalog.ItemId));
         source.LocalPlayer.LatchWhippingCord(480f, 320f, 75f);
 
@@ -86,7 +86,7 @@ public sealed class WhippingCordSnapshotHydrationTests
             localPlayer,
             remotePlayer);
 
-        Assert.True(receiver.ApplySnapshot(snapshot, localPlayerSlot: 1));
+        Assert.True(receiver.SnapshotApply.ApplySnapshot(snapshot, localPlayerSlot: 1));
 
         var appliedPlayer = Assert.Single(receiver.RemoteSnapshotPlayers);
         Assert.Equal(24, remotePlayer.ReplicatedStates!.Count);

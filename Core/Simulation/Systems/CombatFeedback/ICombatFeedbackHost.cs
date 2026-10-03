@@ -6,10 +6,10 @@ namespace OpenGarrison.Core;
 internal interface ICombatFeedbackHost : ISimulationWorldState, ISimulationPlayerDirectory
 {
     CombatRuntimeState CombatRuntime { get; }
-    KillFeedSystem KillFeedRules { get; }
+    KillFeedSystem KillFeed { get; }
     LastToDieRulesSystem LastToDieRules { get; }
     PlayerEntity LocalPlayer { get; }
-    NetworkPlayerSystem NetworkPlayerRules { get; }
+    NetworkPlayerSystem NetworkPlayers { get; }
     SimulationRandomStreams Randoms { get; }
 
     bool IsNetworkPlayerActive(byte slot);

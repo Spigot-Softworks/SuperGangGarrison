@@ -233,7 +233,7 @@ internal sealed class ServerAdminOperations(
         }
 
         var world = worldGetter();
-        if (!world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
+        if (!world.NetworkPlayers.TryGetNetworkPlayer(slot, out var player))
         {
             return false;
         }
@@ -243,39 +243,39 @@ internal sealed class ServerAdminOperations(
             return false;
         }
 
-        return world.NetworkPlayerRules.TrySetNetworkPlayerGameplayLoadout(slot, resolvedLoadoutId);
+        return world.NetworkPlayers.TrySetNetworkPlayerGameplayLoadout(slot, resolvedLoadoutId);
     }
 
     public bool TrySetGameplaySecondaryItem(byte slot, string? itemId)
     {
         return NetworkPlayerSystem.IsPlayableNetworkPlayerSlot(slot)
-            && worldGetter().NetworkPlayerRules.TrySetNetworkPlayerGameplaySecondaryItem(slot, itemId);
+            && worldGetter().NetworkPlayers.TrySetNetworkPlayerGameplaySecondaryItem(slot, itemId);
     }
 
     public bool TrySetGameplayAcquiredItem(byte slot, string? itemId)
     {
         return NetworkPlayerSystem.IsPlayableNetworkPlayerSlot(slot)
-            && worldGetter().NetworkPlayerRules.TrySetNetworkPlayerGameplayAcquiredItem(slot, itemId);
+            && worldGetter().NetworkPlayers.TrySetNetworkPlayerGameplayAcquiredItem(slot, itemId);
     }
 
     public bool TryGrantGameplayItem(byte slot, string itemId)
     {
         return NetworkPlayerSystem.IsPlayableNetworkPlayerSlot(slot)
             && !string.IsNullOrWhiteSpace(itemId)
-            && (gameplayOwnershipServiceGetter()?.TryGrantItem(slot, itemId) ?? worldGetter().NetworkPlayerRules.TryGrantNetworkPlayerGameplayItem(slot, itemId));
+            && (gameplayOwnershipServiceGetter()?.TryGrantItem(slot, itemId) ?? worldGetter().NetworkPlayers.TryGrantNetworkPlayerGameplayItem(slot, itemId));
     }
 
     public bool TryRevokeGameplayItem(byte slot, string itemId)
     {
         return NetworkPlayerSystem.IsPlayableNetworkPlayerSlot(slot)
             && !string.IsNullOrWhiteSpace(itemId)
-            && (gameplayOwnershipServiceGetter()?.TryRevokeItem(slot, itemId) ?? worldGetter().NetworkPlayerRules.TryRevokeNetworkPlayerGameplayItem(slot, itemId));
+            && (gameplayOwnershipServiceGetter()?.TryRevokeItem(slot, itemId) ?? worldGetter().NetworkPlayers.TryRevokeNetworkPlayerGameplayItem(slot, itemId));
     }
 
     public bool TrySetGameplayEquippedSlot(byte slot, GameplayEquipmentSlot equippedSlot)
     {
         return NetworkPlayerSystem.IsPlayableNetworkPlayerSlot(slot)
-            && worldGetter().NetworkPlayerRules.TrySetNetworkPlayerGameplayEquippedSlot(slot, equippedSlot);
+            && worldGetter().NetworkPlayers.TrySetNetworkPlayerGameplayEquippedSlot(slot, equippedSlot);
     }
 
     public bool TryForceKill(byte slot)
@@ -285,7 +285,7 @@ internal sealed class ServerAdminOperations(
             return false;
         }
 
-        return worldGetter().NetworkPlayerRules.ForceKillNetworkPlayer(slot);
+        return worldGetter().NetworkPlayers.ForceKillNetworkPlayer(slot);
     }
 
     public bool TryExplodePlayer(byte slot)
@@ -311,7 +311,7 @@ internal sealed class ServerAdminOperations(
         enabled = false;
         var world = worldGetter();
         if (!NetworkPlayerSystem.IsPlayableNetworkPlayerSlot(slot)
-            || !world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
+            || !world.NetworkPlayers.TryGetNetworkPlayer(slot, out var player))
         {
             return false;
         }
@@ -331,7 +331,7 @@ internal sealed class ServerAdminOperations(
         frozen = false;
         var world = worldGetter();
         if (!NetworkPlayerSystem.IsPlayableNetworkPlayerSlot(slot)
-            || !world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
+            || !world.NetworkPlayers.TryGetNetworkPlayer(slot, out var player))
         {
             return false;
         }
@@ -373,7 +373,7 @@ internal sealed class ServerAdminOperations(
         }
 
         var world = worldGetter();
-        if (!world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player)
+        if (!world.NetworkPlayers.TryGetNetworkPlayer(slot, out var player)
             || !player.IsAlive
             || player.IsUbered)
         {

@@ -7,7 +7,7 @@ internal interface IClassRulesHost : ISimulationWorldState, ISimulationPlayerDir
 {
     bool IsVipModeActive { get; }
     MatchSettingsState MatchSettings { get; }
-    NetworkPlayerSystem NetworkPlayerRules { get; }
+    NetworkPlayerSystem NetworkPlayers { get; }
     NetworkPlayerRegistry PlayerRegistry { get; }
     SpawnSystem Spawns { get; }
     VipState VipState { get; }

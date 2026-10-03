@@ -78,7 +78,7 @@ public sealed class DirtbowlStageTransitionTests
 
     private static void SetEndedMatchState(SimulationWorld world, PlayerTeam winner)
     {
-        world.CombatTestSetMatchState(world.MatchState with { Phase = MatchPhase.Ended, WinnerTeam = winner });
+        world.TestSetMatchState(world.MatchState with { Phase = MatchPhase.Ended, WinnerTeam = winner });
     }
 
 }

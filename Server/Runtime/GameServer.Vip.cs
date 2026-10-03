@@ -89,7 +89,7 @@ partial class GameServer
                 continue;
             }
 
-            var clientTeam = _world.NetworkPlayerRules.GetNetworkPlayerConfiguredTeam(client.Slot);
+            var clientTeam = _world.NetworkPlayers.GetNetworkPlayerConfiguredTeam(client.Slot);
             if (clientTeam == team)
             {
                 _adminOperations.SendSystemMessage(client.Slot, message);
@@ -135,7 +135,7 @@ partial class GameServer
             return true;
         }
 
-        if (_world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player) && !string.IsNullOrWhiteSpace(player.DisplayName))
+        if (_world.NetworkPlayers.TryGetNetworkPlayer(slot, out var player) && !string.IsNullOrWhiteSpace(player.DisplayName))
         {
             playerName = player.DisplayName;
             return true;

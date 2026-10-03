@@ -12,7 +12,7 @@ public sealed partial class SimulationWorld : IPlayerInputHost
     LastToDieRulesSystem IPlayerInputHost.LastToDieRules => LastToDieRules;
     LastToDieState IPlayerInputHost.LastToDieState => LastToDieState;
     MovementSystem IPlayerInputHost.Movement => Movement;
-    NetworkPlayerSystem IPlayerInputHost.NetworkPlayerRules => NetworkPlayerRules;
+    NetworkPlayerSystem IPlayerInputHost.NetworkPlayers => NetworkPlayers;
     ObjectiveRulesSystem IPlayerInputHost.ObjectiveRules => ObjectiveRules;
     PickupSystem IPlayerInputHost.Pickups => Pickups;
     PlayerDeathSystem IPlayerInputHost.PlayerDeaths => PlayerDeaths;

@@ -182,12 +182,12 @@ internal sealed partial class ObjectiveRulesSystem
                 if (point.Team == PlayerTeam.Red && previousBlueCappers > 0 && previousRedCappers == 0 && redCappers > 0)
                 {
                     _host.WorldEffects.RegisterWorldSoundEvent("CPDefendedSnd", point.Marker.CenterX, point.Marker.CenterY);
-                    _host.KillFeedRules.RecordControlPointDefendedObjectiveLog(PlayerTeam.Red, redCappersByPoint[index]);
+                    _host.KillFeed.RecordControlPointDefendedObjectiveLog(PlayerTeam.Red, redCappersByPoint[index]);
                 }
                 else if (point.Team == PlayerTeam.Blue && previousRedCappers > 0 && previousBlueCappers == 0 && blueCappers > 0)
                 {
                     _host.WorldEffects.RegisterWorldSoundEvent("CPDefendedSnd", point.Marker.CenterX, point.Marker.CenterY);
-                    _host.KillFeedRules.RecordControlPointDefendedObjectiveLog(PlayerTeam.Blue, blueCappersByPoint[index]);
+                    _host.KillFeed.RecordControlPointDefendedObjectiveLog(PlayerTeam.Blue, blueCappersByPoint[index]);
                 }
             }
 
@@ -453,7 +453,7 @@ internal sealed partial class ObjectiveRulesSystem
             }
         }
 
-        _host.KillFeedRules.RecordControlPointCapturedObjectiveLog(team, capperIds);
+        _host.KillFeed.RecordControlPointCapturedObjectiveLog(team, capperIds);
         ClearCaptureParticipants(point);
 
         if (_host.Objectives.ControlPoints.SetupMode)

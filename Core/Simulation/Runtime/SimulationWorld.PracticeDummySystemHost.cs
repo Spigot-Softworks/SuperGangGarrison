@@ -12,7 +12,7 @@ public sealed partial class SimulationWorld : IPracticeDummyHost
     PlayerTeam IPracticeDummyHost.LocalPlayerTeam => LocalPlayerTeam;
     LocalSimulationState IPracticeDummyHost.LocalState => LocalState;
     MovementSystem IPracticeDummyHost.Movement => Movement;
-    NetworkPlayerSystem IPracticeDummyHost.NetworkPlayerRules => NetworkPlayerRules;
+    NetworkPlayerSystem IPracticeDummyHost.NetworkPlayers => NetworkPlayers;
     PlayerDeathSystem IPracticeDummyHost.PlayerDeaths => PlayerDeaths;
     PlayerInputSystem IPracticeDummyHost.PlayerInput => PlayerInput;
     SimulationRandomStreams IPracticeDummyHost.Randoms => Randoms;

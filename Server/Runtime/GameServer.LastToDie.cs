@@ -441,16 +441,16 @@ partial class GameServer
 
         var survivors = LastToDieSurvivorCatalog.CreateStock();
         var survivor = survivors.GetRequired(new LastToDieSurvivorId(participant.SurvivorId));
-        _world.NetworkPlayerRules.TrySetNetworkPlayerAutomaticRespawnSuppressed(participant.Slot, suppressed: true);
-        _world.NetworkPlayerRules.TrySetNetworkPlayerTeam(
+        _world.NetworkPlayers.TrySetNetworkPlayerAutomaticRespawnSuppressed(participant.Slot, suppressed: true);
+        _world.NetworkPlayers.TrySetNetworkPlayerTeam(
             participant.Slot,
             PlayerTeam.Red,
             respawnLivePlayerImmediately: true);
-        _world.NetworkPlayerRules.TryForceNetworkPlayerClassSelectionAndRespawn(
+        _world.NetworkPlayers.TryForceNetworkPlayerClassSelectionAndRespawn(
             participant.Slot,
             survivor.GameplayClassId);
         _world.Spawns.TryMoveNetworkPlayerToLastToDieObjectiveSpawn(participant.Slot);
-        if (!_world.NetworkPlayerRules.TryGetNetworkPlayer(participant.Slot, out var player))
+        if (!_world.NetworkPlayers.TryGetNetworkPlayer(participant.Slot, out var player))
         {
             return;
         }
@@ -704,7 +704,7 @@ partial class GameServer
         foreach (var participant in session.GetParticipants())
         {
             var scoreUnits = 0;
-            if (_world.NetworkPlayerRules.TryGetNetworkPlayer(participant.Slot, out var player))
+            if (_world.NetworkPlayers.TryGetNetworkPlayer(participant.Slot, out var player))
             {
                 var scaledScore = player.Points * 100f;
                 scoreUnits = !float.IsFinite(scaledScore) || scaledScore <= 0f
@@ -776,7 +776,7 @@ partial class GameServer
                 or LastToDiePhase.RewardChoice
                 or LastToDiePhase.Won
                 or LastToDiePhase.Lost
-            && _world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
+            && _world.NetworkPlayers.TryGetNetworkPlayer(slot, out var player))
         {
             var scaledScore = player.Points * 100f;
             if (float.IsFinite(scaledScore) && scaledScore > 0f)
@@ -806,7 +806,7 @@ partial class GameServer
             }
 
             var slot = entry.Key;
-            if (!_world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var enemy))
+            if (!_world.NetworkPlayers.TryGetNetworkPlayer(slot, out var enemy))
             {
                 _lastToDieEnemySpawnPreparedWhileDead.Remove(slot);
                 continue;
@@ -877,7 +877,7 @@ partial class GameServer
         foreach (var participant in session.GetParticipants().Where(participant => participant.IsConnected))
         {
             if (!playersById.TryGetValue(participant.PlayerId, out var directorPlayer)
-                || !_world.NetworkPlayerRules.TryGetNetworkPlayer(participant.Slot, out var worldPlayer))
+                || !_world.NetworkPlayers.TryGetNetworkPlayer(participant.Slot, out var worldPlayer))
             {
                 continue;
             }

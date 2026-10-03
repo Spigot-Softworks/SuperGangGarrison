@@ -11,7 +11,7 @@ internal interface IVipRulesHost : ISimulationWorldState, ISimulationPlayerDirec
     PlayerEntity LocalPlayer { get; }
     MatchRules MatchRules { get; }
     MatchState MatchState { get; set; }
-    NetworkPlayerSystem NetworkPlayerRules { get; }
+    NetworkPlayerSystem NetworkPlayers { get; }
     ObjectiveStateStore Objectives { get; }
     SimulationRandomStreams Randoms { get; }
     VipState VipState { get; }

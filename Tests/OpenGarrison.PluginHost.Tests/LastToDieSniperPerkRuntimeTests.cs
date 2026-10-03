@@ -731,7 +731,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
             [LastToDiePerkIds.Sniper.Spotted, LastToDiePerkIds.Sniper.Conquistador]));
         sniper.SetLastToDieSniperMarkedTargetSlot(2);
         Assert.True(sniper.TryIncrementLastToDieSniperConquistadorStacks());
-        world.NetworkPlayerRules.ForceKillLocalPlayer();
+        world.NetworkPlayers.ForceKillLocalPlayer();
         Assert.Equal((byte)0, sniper.LastToDieSniperMarkedTargetSlot);
         Assert.Equal(0, sniper.LastToDieSniperConquistadorStacks);
     }
@@ -1083,8 +1083,8 @@ public sealed class LastToDieSniperPerkRuntimeTests
         _ = SpawnTestArrow(world, sniper, 0f, PlayerEntity.SniperBowMinDamage);
         Assert.Equal(2, world.Needles.Count);
 
-        world.NetworkPlayerRules.SetLocalPreviousInput(default);
-        world.NetworkPlayerRules.SetLocalInput(new PlayerInputSnapshot(
+        world.NetworkPlayers.SetLocalPreviousInput(default);
+        world.NetworkPlayers.SetLocalInput(new PlayerInputSnapshot(
             Left: false,
             Right: false,
             Up: false,
@@ -1158,7 +1158,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
             [LastToDiePerkIds.Sniper.Decapitator]));
         Assert.True(bodySniper.TryToggleSniperScope());
         AdvanceSourceTicks(bodySniper, bodySniper.LastToDieSniperRifleFullChargeTicks);
-        var bodyBounds = bodyWorld.CombatTestGetPlayerPresentationHitBounds(bodyTarget);
+        var bodyBounds = bodyWorld.TestGetPlayerPresentationHitBounds(bodyTarget);
 
         FireRifle(
             bodyWorld,
@@ -1420,8 +1420,8 @@ public sealed class LastToDieSniperPerkRuntimeTests
             Assert.True(world.TryLoadLevel("Harvest"));
         }
 
-        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
-        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Sniper);
+        world.NetworkPlayers.PrepareLocalPlayerJoin();
+        world.NetworkPlayers.CompleteLocalPlayerJoin(PlayerClass.Sniper);
         if (enableExperimentalWeapons)
         {
             world.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings());
@@ -1440,7 +1440,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
             EnableEnemyTrainingDummy = false,
             EnableFriendlySupportDummy = false,
         });
-        world.CombatTestSetLevel(new SimpleLevel(
+        world.TestSetLevel(new SimpleLevel(
             name: "ltd_sniper_ordered_hit_test",
             mode: GameModeKind.CaptureTheFlag,
             bounds: new WorldBounds(800f, 480f),
@@ -1456,8 +1456,8 @@ public sealed class LastToDieSniperPerkRuntimeTests
             floorY: 480f,
             solids: solids ?? [],
             importedFromSource: false));
-        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
-        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Sniper);
+        world.NetworkPlayers.PrepareLocalPlayerJoin();
+        world.NetworkPlayers.CompleteLocalPlayerJoin(PlayerClass.Sniper);
         return world;
     }
 
@@ -1468,10 +1468,10 @@ public sealed class LastToDieSniperPerkRuntimeTests
         float x,
         float y)
     {
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(slot));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, team));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, PlayerClass.Heavy));
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(slot, team));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(slot, PlayerClass.Heavy));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(slot, out var player));
         player.TeleportTo(x, y);
         return player;
     }
@@ -1507,7 +1507,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
         SimulationWorld world,
         PlayerEntity target)
     {
-        var bounds = world.CombatTestGetPlayerPresentationHitBounds(target);
+        var bounds = world.TestGetPlayerPresentationHitBounds(target);
         return (
             (bounds.Left + bounds.Right) * 0.5f,
             bounds.Top - LastToDieSniperProfile.DecapitatorHeadshotZoneSize + 0.01f);

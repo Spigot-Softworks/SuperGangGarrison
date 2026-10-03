@@ -490,7 +490,7 @@ public partial class Game1
         var minY = y - (3f * scale);
         var maxY = y + (104f * scale);
         KillFeedEntry? previousEntry = null;
-        foreach (var entry in _world.KillFeed)
+        foreach (var entry in _world.KillFeedEntries)
         {
             if (previousEntry is not null && ShouldSuppressDuplicateKillFeedEntry(previousEntry, entry))
             {
@@ -829,9 +829,9 @@ public partial class Game1
         var killerPlayerId = deathCam.FocusPlayerId;
         if (killerPlayerId <= 0)
         {
-            for (var index = _world.KillFeed.Count - 1; index >= 0; index -= 1)
+            for (var index = _world.KillFeedEntries.Count - 1; index >= 0; index -= 1)
             {
-                var entry = _world.KillFeed[index];
+                var entry = _world.KillFeedEntries[index];
                 if (entry.VictimPlayerId == _world.LocalPlayer.Id && entry.KillerPlayerId > 0)
                 {
                     killerPlayerId = entry.KillerPlayerId;

@@ -603,8 +603,8 @@ public partial class Game1
         var tick = IsPracticeSessionActive ? _practiceSessionElapsedTicks : 0;
         foreach (var entry in controlledSlots)
         {
-            if (!_world.NetworkPlayerRules.TryGetNetworkPlayer(entry.Key, out var player)
-                || _world.NetworkPlayerRules.IsNetworkPlayerAwaitingJoin(entry.Key)
+            if (!_world.NetworkPlayers.TryGetNetworkPlayer(entry.Key, out var player)
+                || _world.NetworkPlayers.IsNetworkPlayerAwaitingJoin(entry.Key)
                 || !player.IsAlive)
             {
                 continue;

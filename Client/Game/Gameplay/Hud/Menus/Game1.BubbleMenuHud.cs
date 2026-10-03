@@ -699,7 +699,7 @@ public partial class Game1
             return;
         }
 
-        _world.NetworkPlayerRules.SetLocalPlayerChatBubble(bubbleFrame);
+        _world.NetworkPlayers.SetLocalPlayerChatBubble(bubbleFrame);
     }
 
     // When the sniper has binoculars active, a left-click on a player emits the

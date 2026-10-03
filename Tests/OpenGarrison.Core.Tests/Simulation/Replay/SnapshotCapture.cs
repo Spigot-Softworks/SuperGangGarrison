@@ -22,7 +22,7 @@ internal sealed class SnapshotCapture
         var viewer = world.LocalPlayerAwaitingJoin ? null : world.LocalPlayer;
         foreach (var slot in SimulationWorld.NetworkPlayerSlots)
         {
-            if (!world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
+            if (!world.NetworkPlayers.TryGetNetworkPlayer(slot, out var player))
             {
                 continue;
             }
@@ -32,8 +32,8 @@ internal sealed class SnapshotCapture
                 player,
                 viewer,
                 value => _stringCache.GetOrAddCacheId(value),
-                world.NetworkPlayerRules.GetNetworkPlayerPingMilliseconds(slot),
-                world.NetworkPlayerRules.IsNetworkPlayerBot(slot)));
+                world.NetworkPlayers.GetNetworkPlayerPingMilliseconds(slot),
+                world.NetworkPlayers.IsNetworkPlayerBot(slot)));
         }
 
         var visualEvents = ConvertVisualEvents(snapshots, world.DrainPendingVisualEvents(), world.Frame);
@@ -124,7 +124,7 @@ internal sealed class SnapshotCapture
                 .ToArray(),
             LocalDeathCam: snapshots.ToSnapshotDeathCamState(
                 world.GetNetworkPlayerDeathCam(SimulationWorld.LocalPlayerSlot)),
-            KillFeed: world.KillFeed
+            KillFeed: world.KillFeedEntries
                 .Select(entry => snapshots.ToSnapshotKillFeedEntry(entry))
                 .ToArray(),
             VisualEvents: visualEvents,

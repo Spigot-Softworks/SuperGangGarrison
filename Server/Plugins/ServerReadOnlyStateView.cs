@@ -43,7 +43,7 @@ internal sealed class ServerReadOnlyStateView(
             PlayerTeam? team = null;
             PlayerClass? playerClass = null;
             PlayerEntity? player = null;
-            if (!isSpectator && world.NetworkPlayerRules.TryGetNetworkPlayer(client.Slot, out var networkPlayer))
+            if (!isSpectator && world.NetworkPlayers.TryGetNetworkPlayer(client.Slot, out var networkPlayer))
             {
                 player = networkPlayer;
                 team = networkPlayer.Team;
@@ -379,7 +379,7 @@ internal sealed class ServerReadOnlyStateView(
     public IReadOnlyList<OpenGarrisonServerGameplayItemInfo> GetOwnedGameplayItems(byte slot)
     {
         var world = worldGetter();
-        if (!world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
+        if (!world.NetworkPlayers.TryGetNetworkPlayer(slot, out var player))
         {
             return Array.Empty<OpenGarrisonServerGameplayItemInfo>();
         }
@@ -424,7 +424,7 @@ internal sealed class ServerReadOnlyStateView(
     public IReadOnlyList<OpenGarrisonServerGameplaySelectableItemInfo> GetAvailableGameplaySecondaryItems(byte slot)
     {
         var world = worldGetter();
-        if (!world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
+        if (!world.NetworkPlayers.TryGetNetworkPlayer(slot, out var player))
         {
             return Array.Empty<OpenGarrisonServerGameplaySelectableItemInfo>();
         }
@@ -460,7 +460,7 @@ internal sealed class ServerReadOnlyStateView(
     public IReadOnlyList<OpenGarrisonServerGameplaySelectableItemInfo> GetAvailableGameplayAcquiredItems(byte slot)
     {
         var world = worldGetter();
-        if (!world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
+        if (!world.NetworkPlayers.TryGetNetworkPlayer(slot, out var player))
         {
             return Array.Empty<OpenGarrisonServerGameplaySelectableItemInfo>();
         }
@@ -492,7 +492,7 @@ internal sealed class ServerReadOnlyStateView(
     public IReadOnlyList<OpenGarrisonServerGameplayLoadoutInfo> GetAvailableGameplayLoadouts(byte slot)
     {
         var world = worldGetter();
-        if (!world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
+        if (!world.NetworkPlayers.TryGetNetworkPlayer(slot, out var player))
         {
             return Array.Empty<OpenGarrisonServerGameplayLoadoutInfo>();
         }
@@ -515,7 +515,7 @@ internal sealed class ServerReadOnlyStateView(
 
     public bool TryGetPlayerReplicatedStateInt(byte slot, string ownerPluginId, string stateKey, out int value)
     {
-        if (worldGetter().NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
+        if (worldGetter().NetworkPlayers.TryGetNetworkPlayer(slot, out var player))
         {
             return TryGetPlayerReplicatedStateInt(player, ownerPluginId, stateKey, out value);
         }
@@ -526,7 +526,7 @@ internal sealed class ServerReadOnlyStateView(
 
     public bool TryGetPlayerReplicatedStateFloat(byte slot, string ownerPluginId, string stateKey, out float value)
     {
-        if (worldGetter().NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
+        if (worldGetter().NetworkPlayers.TryGetNetworkPlayer(slot, out var player))
         {
             return TryGetPlayerReplicatedStateFloat(player, ownerPluginId, stateKey, out value);
         }
@@ -537,7 +537,7 @@ internal sealed class ServerReadOnlyStateView(
 
     public bool TryGetPlayerReplicatedStateBool(byte slot, string ownerPluginId, string stateKey, out bool value)
     {
-        if (worldGetter().NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
+        if (worldGetter().NetworkPlayers.TryGetNetworkPlayer(slot, out var player))
         {
             return TryGetPlayerReplicatedStateBool(player, ownerPluginId, stateKey, out value);
         }
@@ -712,7 +712,7 @@ internal sealed class ServerReadOnlyStateView(
 
     private static bool TryGetNetworkPlayerByPlayerId(SimulationWorld world, int playerId, out PlayerEntity player)
     {
-        foreach (var (_, networkPlayer) in world.NetworkPlayerRules.EnumerateActiveNetworkPlayers())
+        foreach (var (_, networkPlayer) in world.NetworkPlayers.EnumerateActiveNetworkPlayers())
         {
             if (networkPlayer.Id == playerId)
             {

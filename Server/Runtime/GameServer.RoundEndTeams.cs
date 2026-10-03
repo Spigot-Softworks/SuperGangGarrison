@@ -194,7 +194,7 @@ partial class GameServer
         var players = new List<(byte Slot, PlayerTeam Team)>();
         foreach (var slot in slots)
         {
-            var team = _world.NetworkPlayerRules.GetNetworkPlayerConfiguredTeam(slot);
+            var team = _world.NetworkPlayers.GetNetworkPlayerConfiguredTeam(slot);
             if (team is PlayerTeam.Red or PlayerTeam.Blue)
             {
                 players.Add((slot, team));
@@ -217,7 +217,7 @@ partial class GameServer
     {
         var applied = _botManager.BotSlots.ContainsKey(assignment.Slot)
             ? _botManager.TrySetBotTeam(assignment.Slot, assignment.Team)
-            : _world.NetworkPlayerRules.TrySetNetworkPlayerTeam(assignment.Slot, assignment.Team);
+            : _world.NetworkPlayers.TrySetNetworkPlayerTeam(assignment.Slot, assignment.Team);
         if (!applied)
         {
             return false;
@@ -280,8 +280,8 @@ partial class GameServer
         {
             if (client.IsAuthorized
                 && !ServerHelpers.IsSpectatorSlot(client.Slot)
-                && _world.NetworkPlayerRules.TryGetNetworkPlayer(client.Slot, out _)
-                && !_world.NetworkPlayerRules.IsNetworkPlayerAwaitingJoin(client.Slot))
+                && _world.NetworkPlayers.TryGetNetworkPlayer(client.Slot, out _)
+                && !_world.NetworkPlayers.IsNetworkPlayerAwaitingJoin(client.Slot))
             {
                 slots.Add(client.Slot);
             }
@@ -290,7 +290,7 @@ partial class GameServer
         var players = new List<(byte Slot, PlayerTeam Team)>();
         foreach (var slot in slots)
         {
-            var team = _world.NetworkPlayerRules.GetNetworkPlayerConfiguredTeam(slot);
+            var team = _world.NetworkPlayers.GetNetworkPlayerConfiguredTeam(slot);
             if (team is PlayerTeam.Red or PlayerTeam.Blue)
             {
                 players.Add((slot, team));

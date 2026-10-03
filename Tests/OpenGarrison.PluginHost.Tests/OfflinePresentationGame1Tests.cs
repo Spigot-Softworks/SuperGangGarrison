@@ -86,7 +86,7 @@ public sealed class OfflinePresentationGame1Tests
 
     private static GrenadeProjectileEntity SpawnGrenade(SimulationWorld world, PlayerEntity owner, float x, float y)
     {
-        return world.CombatTestSpawnGrenade(owner, x, y, 0f, 0f);
+        return world.TestSpawnGrenade(owner, x, y, 0f, 0f);
     }
 
     private static void SetField(Game1 game, string name, object value)

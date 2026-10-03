@@ -13,7 +13,7 @@ internal interface IPlayerInputHost : ISimulationWorldState, ISimulationPlayerDi
     LastToDieRulesSystem LastToDieRules { get; }
     LastToDieState LastToDieState { get; }
     MovementSystem Movement { get; }
-    NetworkPlayerSystem NetworkPlayerRules { get; }
+    NetworkPlayerSystem NetworkPlayers { get; }
     ObjectiveRulesSystem ObjectiveRules { get; }
     PickupSystem Pickups { get; }
     PlayerDeathSystem PlayerDeaths { get; }

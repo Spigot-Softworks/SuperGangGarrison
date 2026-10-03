@@ -589,11 +589,11 @@ public partial class Game1
                 }
                 break;
             case "killme":
-                _world.NetworkPlayerRules.ForceKillLocalPlayer();
+                _world.NetworkPlayers.ForceKillLocalPlayer();
                 AddConsoleLine("local player killed");
                 break;
             case "respawn_me":
-                _world.NetworkPlayerRules.ForceRespawnLocalPlayer();
+                _world.NetworkPlayers.ForceRespawnLocalPlayer();
                 AddConsoleLine("local player respawned");
                 break;
             case "build_sentry":

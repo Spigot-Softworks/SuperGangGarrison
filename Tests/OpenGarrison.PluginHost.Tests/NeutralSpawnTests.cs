@@ -80,8 +80,8 @@ public sealed class NeutralSpawnTests
             redSpawns: [new SpawnPoint(10f, 10f), neutralSpawn],
             blueSpawns: [new SpawnPoint(90f, 90f), neutralSpawn]);
 
-        var redPool = world.Spawns.CombatTestGetTeamSpawnSelectionPool(PlayerTeam.Red);
-        var bluePool = world.Spawns.CombatTestGetTeamSpawnSelectionPool(PlayerTeam.Blue);
+        var redPool = world.Spawns.TestGetTeamSpawnSelectionPool(PlayerTeam.Red);
+        var bluePool = world.Spawns.TestGetTeamSpawnSelectionPool(PlayerTeam.Blue);
 
         Assert.Contains(redPool, spawn => spawn.X == 55f && spawn.Y == 55f);
         Assert.Contains(bluePool, spawn => spawn.X == 55f && spawn.Y == 55f);
@@ -92,7 +92,7 @@ public sealed class NeutralSpawnTests
         IReadOnlyList<SpawnPoint> blueSpawns)
     {
         var world = new SimulationWorld();
-        world.CombatTestSetLevel(new SimpleLevel(
+        world.TestSetLevel(new SimpleLevel(
             "neutral_spawn_test",
             GameModeKind.CaptureTheFlag,
             new WorldBounds(1024f, 768f),

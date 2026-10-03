@@ -50,7 +50,7 @@ public sealed class ForwardSpawnControlPointLinkTests
             if (reverse) { red.Reverse(); blue.Reverse(); }
             ForwardSpawnMetadata.ApplyForwardSpawnControlPointLinks(red, blue, 2);
             var world = new SimulationWorld(new SimulationConfig { EnableEnemyTrainingDummy = false, EnableFriendlySupportDummy = false });
-            world.CombatTestSetLevel(new SimpleLevel("spawn_matrix", GameModeKind.ControlPoint, new WorldBounds(1600, 600),
+            world.TestSetLevel(new SimpleLevel("spawn_matrix", GameModeKind.ControlPoint, new WorldBounds(1600, 600),
                 1, null, 1, 1, red[0], red, blue, [],
                 [new(RoomObjectType.ControlPoint, 600, 200, 48, 24, "ControlPointNeutralS", SourceName: "ControlPoint1"),
                  new(RoomObjectType.ControlPoint, 900, 200, 48, 24, "ControlPointNeutralS", SourceName: "ControlPoint2")],
@@ -58,10 +58,10 @@ public sealed class ForwardSpawnControlPointLinkTests
             foreach (var first in new PlayerTeam?[] { PlayerTeam.Red, PlayerTeam.Blue, null, PlayerTeam.Red })
             foreach (var second in new PlayerTeam?[] { PlayerTeam.Red, PlayerTeam.Blue, null, PlayerTeam.Blue })
             {
-                world.Spawns.CombatTestSetControlPointOwner(1, first);
-                world.Spawns.CombatTestSetControlPointOwner(2, second);
-                var r = Assert.Single(world.Spawns.CombatTestGetTeamSpawnSelectionPool(PlayerTeam.Red));
-                var b = Assert.Single(world.Spawns.CombatTestGetTeamSpawnSelectionPool(PlayerTeam.Blue));
+                world.Spawns.TestSetControlPointOwner(1, first);
+                world.Spawns.TestSetControlPointOwner(2, second);
+                var r = Assert.Single(world.Spawns.TestGetTeamSpawnSelectionPool(PlayerTeam.Red));
+                var b = Assert.Single(world.Spawns.TestGetTeamSpawnSelectionPool(PlayerTeam.Blue));
                 Assert.Equal(second == PlayerTeam.Red ? 2 : 1, r.LegacySpawnSlot);
                 Assert.Equal(first == PlayerTeam.Blue ? 2 : 1, b.LegacySpawnSlot);
             }

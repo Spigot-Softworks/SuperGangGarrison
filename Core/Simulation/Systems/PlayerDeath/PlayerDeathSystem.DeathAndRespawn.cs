@@ -140,7 +140,7 @@ internal sealed partial class PlayerDeathSystem
 
             if (_host.MatchRules.Mode == GameModeKind.TeamDeathmatch && killer.Team != player.Team)
             {
-                _host.Decisions.TryAwardTeamScore(killer.Team, 1, "team_deathmatch_kill", killer.Id);
+                _host.DecisionGate.TryAwardTeamScore(killer.Team, 1, "team_deathmatch_kill", killer.Id);
             }
         }
 
@@ -154,10 +154,10 @@ internal sealed partial class PlayerDeathSystem
                 ObjectiveRulesSystem.GetPlayerIntelReturnTicks(player));
             player.DropIntel(ObjectiveRulesSystem.IntelPickupCooldownTicksAfterDrop);
             _host.WorldEffects.RegisterWorldSoundEvent("IntelDropSnd", player.X, player.Y);
-            _host.KillFeedRules.RecordIntelDroppedObjectiveLog(player);
+            _host.KillFeed.RecordIntelDroppedObjectiveLog(player);
             if (killer is not null && !ReferenceEquals(killer, player))
             {
-                _host.KillFeedRules.RecordIntelDefendedObjectiveLog(killer);
+                _host.KillFeed.RecordIntelDefendedObjectiveLog(killer);
             }
         }
 
@@ -178,7 +178,7 @@ internal sealed partial class PlayerDeathSystem
 
         if (recordKillFeed)
         {
-            _host.KillFeedRules.RecordKillFeedEntry(player, killer, weaponSpriteName ?? "DeadKL", killFeedMessage, assistingPlayer: assistingPlayer);
+            _host.KillFeed.RecordKillFeedEntry(player, killer, weaponSpriteName ?? "DeadKL", killFeedMessage, assistingPlayer: assistingPlayer);
         }
 
         if (killer is not null && !ReferenceEquals(killer, player))
@@ -191,7 +191,7 @@ internal sealed partial class PlayerDeathSystem
             : player.IsInSpawnRoom
                 ? 1
                 : _host.MatchSettings.RespawnTicks;
-        var hasNetworkSlot = _host.NetworkPlayerRules.TryGetNetworkPlayerSlot(player, out var slot);
+        var hasNetworkSlot = _host.NetworkPlayers.TryGetNetworkPlayerSlot(player, out var slot);
 
         var shouldCreateDeathCam = createDeathCam
             && hasNetworkSlot
@@ -261,7 +261,7 @@ internal sealed partial class PlayerDeathSystem
         {
             _host.LastToDieRules.ClearLastToDieSniperMarksTargeting(slot);
             _host.LastToDieRules.ResetLastToDiePerkRuntimeOnDeath(slot);
-            _host.NetworkPlayerRules.TrySetNetworkPlayerRespawnTicks(slot, respawnTicks);
+            _host.NetworkPlayers.TrySetNetworkPlayerRespawnTicks(slot, respawnTicks);
         }
         else if (ReferenceEquals(player, _host.EnemyPlayer))
         {
@@ -405,9 +405,9 @@ internal sealed partial class PlayerDeathSystem
 
     internal void AdvanceNetworkRespawnTimer(byte slot)
     {
-        if (_host.NetworkPlayerRules.IsNetworkPlayerAwaitingJoin(slot)
+        if (_host.NetworkPlayers.IsNetworkPlayerAwaitingJoin(slot)
             || _host.PlayerRegistry.AutomaticRespawnSuppressedSlots.Contains(slot)
-            || !_host.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
+            || !_host.NetworkPlayers.TryGetNetworkPlayer(slot, out var player))
         {
             return;
         }
@@ -417,11 +417,11 @@ internal sealed partial class PlayerDeathSystem
             return;
         }
 
-        var respawnTicks = _host.NetworkPlayerRules.GetNetworkPlayerRespawnTicks(slot);
+        var respawnTicks = _host.NetworkPlayers.GetNetworkPlayerRespawnTicks(slot);
         if (respawnTicks > 0)
         {
             respawnTicks -= 1;
-            _host.NetworkPlayerRules.TrySetNetworkPlayerRespawnTicks(slot, respawnTicks);
+            _host.NetworkPlayers.TrySetNetworkPlayerRespawnTicks(slot, respawnTicks);
         }
 
         if (respawnTicks > 0)

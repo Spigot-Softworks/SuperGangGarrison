@@ -94,7 +94,7 @@ internal static class ServerRuntimeBootstrapFactory
             log,
             mapRotationShuffleEnabled);
         world.PracticeDummies.DespawnEnemyDummy();
-        world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(SimulationWorld.LocalPlayerSlot);
+        world.NetworkPlayers.TryPrepareNetworkPlayerJoin(SimulationWorld.LocalPlayerSlot);
 
         var simulator = new FixedStepSimulator(world);
         var clock = new ServerClock();

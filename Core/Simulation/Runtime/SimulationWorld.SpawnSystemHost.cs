@@ -3,7 +3,7 @@ namespace OpenGarrison.Core;
 public sealed partial class SimulationWorld : ISpawnHost
 {
     ClassRulesSystem ISpawnHost.ClassRules => ClassRules;
-    DecisionGate ISpawnHost.Decisions => Decisions;
+    DecisionGate ISpawnHost.DecisionGate => DecisionGate;
     PracticeDummyState ISpawnHost.DummyState => DummyState;
     PlayerEntity ISpawnHost.EnemyPlayer => EnemyPlayer;
     bool ISpawnHost.EnemyPlayerEnabled => EnemyPlayerEnabled;
@@ -14,7 +14,7 @@ public sealed partial class SimulationWorld : ISpawnHost
     MatchLifecycleState ISpawnHost.Lifecycle => Lifecycle;
     LocalSimulationState ISpawnHost.LocalState => LocalState;
     MatchRules ISpawnHost.MatchRules => MatchRules;
-    NetworkPlayerSystem ISpawnHost.NetworkPlayerRules => NetworkPlayerRules;
+    NetworkPlayerSystem ISpawnHost.NetworkPlayers => NetworkPlayers;
     ObjectiveRulesSystem ISpawnHost.ObjectiveRules => ObjectiveRules;
     ObjectiveStateStore ISpawnHost.Objectives => Objectives;
     NetworkPlayerRegistry ISpawnHost.PlayerRegistry => PlayerRegistry;

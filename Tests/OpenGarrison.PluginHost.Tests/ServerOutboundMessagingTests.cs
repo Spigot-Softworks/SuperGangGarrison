@@ -17,7 +17,7 @@ public sealed class ServerOutboundMessagingTests
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
         Assert.True(world.TryLoadLevel("vip_egypt"));
-        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Scout);
+        world.NetworkPlayers.CompleteLocalPlayerJoin(PlayerClass.Scout);
         JoinNetworkPlayer(world, 2);
         JoinNetworkPlayer(world, 3);
 
@@ -253,7 +253,7 @@ public sealed class ServerOutboundMessagingTests
     private static SimulationWorld CreateJoinedWorld(int playerCount)
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Scout);
+        world.NetworkPlayers.CompleteLocalPlayerJoin(PlayerClass.Scout);
         for (byte slot = 2; slot <= playerCount; slot += 1)
         {
             JoinNetworkPlayer(world, slot);
@@ -272,10 +272,10 @@ public sealed class ServerOutboundMessagingTests
 
     private static void JoinNetworkPlayer(SimulationWorld world, byte slot)
     {
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(slot));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, slot == 2 ? PlayerTeam.Blue : PlayerTeam.Red));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(slot, slot == 2 ? PlayerTeam.Blue : PlayerTeam.Red));
         var playerClass = slot == 2 ? PlayerClass.Scout : PlayerClass.Soldier;
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, playerClass));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(slot, playerClass));
     }
 
     private sealed class ThrowingServerMessageTransport : IServerMessageTransport

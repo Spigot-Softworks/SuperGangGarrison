@@ -18,7 +18,7 @@ internal interface ILastToDieHost : ISimulationWorldState, ISimulationPlayerDire
     MatchRules MatchRules { get; }
     MatchSettingsState MatchSettings { get; }
     IReadOnlyList<NeedleProjectileEntity> Needles { get; }
-    NetworkPlayerSystem NetworkPlayerRules { get; }
+    NetworkPlayerSystem NetworkPlayers { get; }
     IReadOnlyList<byte> NetworkPlayerSlots { get; }
     ObjectiveRulesSystem ObjectiveRules { get; }
     ObjectiveStateStore Objectives { get; }

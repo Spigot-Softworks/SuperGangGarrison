@@ -13,7 +13,7 @@ public sealed partial class SimulationWorld : ILastToDieHost
     MatchRules ILastToDieHost.MatchRules => MatchRules;
     MatchSettingsState ILastToDieHost.MatchSettings => MatchSettings;
     IReadOnlyList<NeedleProjectileEntity> ILastToDieHost.Needles => Needles;
-    NetworkPlayerSystem ILastToDieHost.NetworkPlayerRules => NetworkPlayerRules;
+    NetworkPlayerSystem ILastToDieHost.NetworkPlayers => NetworkPlayers;
     IReadOnlyList<byte> ILastToDieHost.NetworkPlayerSlots => NetworkPlayerSlots;
     ObjectiveRulesSystem ILastToDieHost.ObjectiveRules => ObjectiveRules;
     ObjectiveStateStore ILastToDieHost.Objectives => Objectives;

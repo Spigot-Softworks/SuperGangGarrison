@@ -12,7 +12,7 @@ public sealed partial class SimulationWorld : ISupportRulesHost
         => GetThickLineIntersectionDistanceToPlayer(originX, originY, endX, endY, player, maxDistance, thicknessRadius);
     LastToDieRulesSystem ISupportRulesHost.LastToDieRules => LastToDieRules;
     PlayerEntity ISupportRulesHost.LocalPlayer => LocalPlayer;
-    NetworkPlayerSystem ISupportRulesHost.NetworkPlayerRules => NetworkPlayerRules;
+    NetworkPlayerSystem ISupportRulesHost.NetworkPlayers => NetworkPlayers;
     PlayerDeathSystem ISupportRulesHost.PlayerDeaths => PlayerDeaths;
     PlayerPresentationBoundsSystem ISupportRulesHost.PresentationBounds => PresentationBounds;
     ScorekeepingSystem ISupportRulesHost.Scorekeeping => Scorekeeping;

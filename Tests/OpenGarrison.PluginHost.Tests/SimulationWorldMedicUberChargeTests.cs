@@ -90,9 +90,9 @@ public sealed class SimulationWorldMedicUberChargeTests
     {
         var world = new SimulationWorld();
         SetOpenCombatLevel(world);
-        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
-        world.NetworkPlayerRules.SetLocalPlayerTeam(PlayerTeam.Red);
-        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Medic);
+        world.NetworkPlayers.PrepareLocalPlayerJoin();
+        world.NetworkPlayers.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.NetworkPlayers.CompleteLocalPlayerJoin(PlayerClass.Medic);
         medic = world.LocalPlayer;
         medic.TeleportTo(100f, 100f);
 
@@ -108,17 +108,17 @@ public sealed class SimulationWorldMedicUberChargeTests
         float x,
         float y)
     {
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(slot));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, team));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, playerClass));
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(slot, team));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(slot, playerClass));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(slot, out var player));
         player.TeleportTo(x, y);
         return player;
     }
 
     private static void SetOpenCombatLevel(SimulationWorld world)
     {
-        world.CombatTestSetLevel(
+        world.TestSetLevel(
             new SimpleLevel(
                 name: "medigun_uber_charge_test",
                 mode: GameModeKind.CaptureTheFlag,

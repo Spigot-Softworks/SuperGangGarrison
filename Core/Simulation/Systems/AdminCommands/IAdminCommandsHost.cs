@@ -5,7 +5,7 @@ namespace OpenGarrison.Core;
 /// </summary>
 internal interface IAdminCommandsHost : ISimulationWorldState, ISimulationPlayerDirectory
 {
-    NetworkPlayerSystem NetworkPlayerRules { get; }
+    NetworkPlayerSystem NetworkPlayers { get; }
     PlayerDeathSystem PlayerDeaths { get; }
     StructureSystem Structures { get; }
     WorldEffectsSystem WorldEffects { get; }

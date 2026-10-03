@@ -21,7 +21,7 @@ internal sealed partial class CombatFeedbackSystem
     {
         return player is not null
             && (ReferenceEquals(player, _host.LocalPlayer)
-                || _host.NetworkPlayerRules.TryGetPlayerNetworkSlot(player, out var slot) && _host.IsNetworkPlayerActive(slot));
+                || _host.NetworkPlayers.TryGetPlayerNetworkSlot(player, out var slot) && _host.IsNetworkPlayerActive(slot));
     }
 
     private static bool ShouldTrackKillStreakForPlayer(PlayerEntity? player)
@@ -90,7 +90,7 @@ internal sealed partial class CombatFeedbackSystem
             return;
         }
 
-        _host.KillFeedRules.RecordKillFeedAnnouncement(killer, template.Prefix, template.Highlight, template.Suffix);
+        _host.KillFeed.RecordKillFeedAnnouncement(killer, template.Prefix, template.Highlight, template.Suffix);
     }
 
     private void TryRecordKillSpreeAnnouncement(PlayerEntity killer, int killStreak)
@@ -113,6 +113,6 @@ internal sealed partial class CombatFeedbackSystem
             return;
         }
 
-        _host.KillFeedRules.RecordKillFeedAnnouncement(killer, template.Prefix, template.Highlight, template.Suffix);
+        _host.KillFeed.RecordKillFeedAnnouncement(killer, template.Prefix, template.Highlight, template.Suffix);
     }
 }

@@ -141,10 +141,10 @@ public sealed class SimulationWorldStingerRocketTests
         var owner = world.LocalPlayer;
         owner.TeleportTo(100f, 100f);
 
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(2));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(2, owner.Team));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(2, out var teammate));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(2, owner.Team));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(2, out var teammate));
         teammate.TeleportTo(owner.X + 16f, owner.Y);
         teammate.ApplyVelocityImpulse(0f, -4f);
 
@@ -173,10 +173,10 @@ public sealed class SimulationWorldStingerRocketTests
         var owner = world.LocalPlayer;
         owner.TeleportTo(100f, 100f);
 
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(2));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(2, owner.Team));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(2, out var teammate));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(2, owner.Team));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(2, out var teammate));
         teammate.TeleportTo(owner.X + 16f, owner.Y);
         teammate.ApplyVelocityImpulse(0f, -4f);
         var speedBefore = GetPlayerSpeedMagnitude(teammate);
@@ -205,15 +205,15 @@ public sealed class SimulationWorldStingerRocketTests
     {
         var world = CreateSoldierWorld(new ExperimentalGameplaySettings(EnableSoldierDangerClose: true));
 
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(2));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(2, PlayerTeam.Blue));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Scout));
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(2, out var firstVictim));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(2, PlayerTeam.Blue));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Scout));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(2, out var firstVictim));
 
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(3));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(3, PlayerTeam.Blue));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(3, PlayerClass.Scout));
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(3, out var secondVictim));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(3));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(3, PlayerTeam.Blue));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(3, PlayerClass.Scout));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(3, out var secondVictim));
 
         firstVictim.TeleportTo(world.LocalPlayer.X + 20f, world.LocalPlayer.Y);
         secondVictim.TeleportTo(firstVictim.X + 4f, firstVictim.Y);

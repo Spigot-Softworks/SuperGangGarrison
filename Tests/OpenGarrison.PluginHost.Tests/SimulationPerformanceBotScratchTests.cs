@@ -15,7 +15,7 @@ public sealed class SimulationPerformanceBotScratchTests
             EnableEnemyTrainingDummy = false,
             EnableFriendlySupportDummy = false,
         });
-        world.CombatTestSetLevel(new SimpleLevel(
+        world.TestSetLevel(new SimpleLevel(
             name: "simulation_performance_bot_scratch",
             mode: GameModeKind.CaptureTheFlag,
             bounds: new WorldBounds(1_024f, 768f),
@@ -33,10 +33,10 @@ public sealed class SimulationPerformanceBotScratchTests
             importedFromSource: false));
 
         const byte botSlot = 2;
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(botSlot));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(botSlot, PlayerTeam.Red));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(botSlot, PlayerClass.Scout));
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(botSlot, out var bot));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(botSlot));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(botSlot, PlayerTeam.Red));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(botSlot, PlayerClass.Scout));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(botSlot, out var bot));
         bot.TeleportTo(64f, 64f);
         bot.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: null, facingDirectionX: 1f);
 

@@ -29,7 +29,7 @@ public partial class Game1
         }
 
         _mapBotDeathLogicPulseSeenSlots.Clear();
-        foreach (var (slot, player) in _world.NetworkPlayerRules.EnumerateReplicatedNetworkPlayers())
+        foreach (var (slot, player) in _world.NetworkPlayers.EnumerateReplicatedNetworkPlayers())
         {
             if (!player.TryGetReplicatedStateInt(
                     BotSpawnMetadata.VisualReplicatedStateOwnerId,

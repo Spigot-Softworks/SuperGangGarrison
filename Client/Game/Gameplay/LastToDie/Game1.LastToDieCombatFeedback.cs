@@ -576,7 +576,7 @@ public partial class Game1
         var latestObservedEventId = _lastToDieObservedCombatAnnouncementEventId;
         string? latestAnnouncementText = null;
 
-        foreach (var entry in _world.KillFeed)
+        foreach (var entry in _world.KillFeedEntries)
         {
             if (entry.EventId <= _lastToDieObservedCombatAnnouncementEventId)
             {
@@ -620,7 +620,7 @@ public partial class Game1
     {
         ulong latestEventId = 0;
         var localPlayerId = _world.LocalPlayer.Id;
-        foreach (var entry in _world.KillFeed)
+        foreach (var entry in _world.KillFeedEntries)
         {
             if (IsLocalLastToDieCombatAnnouncement(
                     IsAnyLastToDieSessionActive,

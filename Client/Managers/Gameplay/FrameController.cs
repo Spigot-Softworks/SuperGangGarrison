@@ -211,7 +211,7 @@ public sealed class FrameController
             if (_context._startupSplashOpen)
             {
                 _context.AdvanceStartupSplashTicks(clientTicks, keyboard, mouse);
-                _context._world.NetworkPlayerRules.SetLocalInput(default);
+                _context._world.NetworkPlayers.SetLocalInput(default);
                 _context._previousKeyboard = keyboard;
                 _context._previousMouse = mouse;
                 _context.IsMouseVisible = false;
@@ -230,7 +230,7 @@ public sealed class FrameController
                 _context.ProcessNetworkMessages();
             }
 
-            _context._world.NetworkPlayerRules.SetLocalInput(default);
+            _context._world.NetworkPlayers.SetLocalInput(default);
             _context._previousKeyboard = keyboard;
             _context._previousMouse = mouse;
             _context.IsMouseVisible = !_context._mainMenuChromeHidden && !_context.ShouldUseSoftwareMenuCursor();
@@ -321,7 +321,7 @@ public partial class Game1
 
     private void ReleaseGameplayInputForFocusLoss()
     {
-        _world.NetworkPlayerRules.SetLocalInput(default);
+        _world.NetworkPlayers.SetLocalInput(default);
         _localPredictionState.LatestPredictedLocalInput = default;
         _localPredictionState.PreviousPredictedLocalInput = default;
         _latchedJumpPressSequence = 0;
@@ -337,7 +337,7 @@ public partial class Game1
             return;
         }
 
-        _world.NetworkPlayerRules.SetLocalInput(default);
+        _world.NetworkPlayers.SetLocalInput(default);
         _previousKeyboard = default;
         _previousMouse = releasedMouse;
         IsMouseVisible = true;

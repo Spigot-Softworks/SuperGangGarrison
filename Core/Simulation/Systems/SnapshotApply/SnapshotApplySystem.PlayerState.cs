@@ -50,16 +50,16 @@ internal sealed partial class SnapshotApplySystem
                 _host.PlayerRemains.SpawnClientPlayerGibsFromNetworkDeath(_host.LocalPlayer);
             }
 
-            _host.NetworkPlayerRules.TrySetNetworkPlayerAwaitingJoin(SimulationConstants.LocalPlayerSlot, localPlayerState.IsAwaitingJoin);
-            _host.NetworkPlayerRules.TrySetNetworkPlayerRespawnTicks(SimulationConstants.LocalPlayerSlot, localPlayerState.RespawnTicks);
-            _host.NetworkPlayerRules.ApplySnapshotNetworkPlayerPingMilliseconds(SimulationConstants.LocalPlayerSlot, localPlayerState.PingMilliseconds);
-            _host.NetworkPlayerRules.TrySetNetworkPlayerConfiguredTeam(SimulationConstants.LocalPlayerSlot, _host.LocalPlayer.Team);
+            _host.NetworkPlayers.TrySetNetworkPlayerAwaitingJoin(SimulationConstants.LocalPlayerSlot, localPlayerState.IsAwaitingJoin);
+            _host.NetworkPlayers.TrySetNetworkPlayerRespawnTicks(SimulationConstants.LocalPlayerSlot, localPlayerState.RespawnTicks);
+            _host.NetworkPlayers.ApplySnapshotNetworkPlayerPingMilliseconds(SimulationConstants.LocalPlayerSlot, localPlayerState.PingMilliseconds);
+            _host.NetworkPlayers.TrySetNetworkPlayerConfiguredTeam(SimulationConstants.LocalPlayerSlot, _host.LocalPlayer.Team);
             return;
         }
 
-        _host.NetworkPlayerRules.TrySetNetworkPlayerAwaitingJoin(SimulationConstants.LocalPlayerSlot, true);
-        _host.NetworkPlayerRules.TrySetNetworkPlayerRespawnTicks(SimulationConstants.LocalPlayerSlot, 0);
-        _host.NetworkPlayerRules.ApplySnapshotNetworkPlayerPingMilliseconds(SimulationConstants.LocalPlayerSlot, -1);
+        _host.NetworkPlayers.TrySetNetworkPlayerAwaitingJoin(SimulationConstants.LocalPlayerSlot, true);
+        _host.NetworkPlayers.TrySetNetworkPlayerRespawnTicks(SimulationConstants.LocalPlayerSlot, 0);
+        _host.NetworkPlayers.ApplySnapshotNetworkPlayerPingMilliseconds(SimulationConstants.LocalPlayerSlot, -1);
         _host.ClientSnapshots.AuthoritativeLocalPlayerId = null;
         _host.LocalDeathCam = null;
         _host.LocalPlayer.ClearMedicHealingTarget();
@@ -88,7 +88,7 @@ internal sealed partial class SnapshotApplySystem
 
         _host.EnemyPlayerEnabled = false;
         _host.DummyState.EnemyRespawnTicks = 0;
-        _host.NetworkPlayerRules.ClearEnemyInputOverride();
+        _host.NetworkPlayers.ClearEnemyInputOverride();
         _host.EnemyPlayer.Kill();
         _host.FriendlyDummyEnabled = false;
         _host.FriendlyDummy.Kill();
@@ -97,7 +97,7 @@ internal sealed partial class SnapshotApplySystem
 
         if (localPlayerState is not null && !localPlayerState.IsSpectator)
         {
-            _host.NetworkPlayerRules.TrySetNetworkPlayerConfiguredTeam(SimulationConstants.LocalPlayerSlot, _host.LocalPlayer.Team);
+            _host.NetworkPlayers.TrySetNetworkPlayerConfiguredTeam(SimulationConstants.LocalPlayerSlot, _host.LocalPlayer.Team);
         }
     }
 

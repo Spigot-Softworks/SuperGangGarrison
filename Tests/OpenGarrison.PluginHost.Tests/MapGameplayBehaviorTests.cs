@@ -56,9 +56,9 @@ public sealed class MapGameplayBehaviorTests
                 AllowTeamChange: false,
                 AllowClassChange: false));
 
-        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red));
-        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Scout);
+        world.NetworkPlayers.PrepareLocalPlayerJoin();
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red));
+        world.NetworkPlayers.CompleteLocalPlayerJoin(PlayerClass.Scout);
 
         Assert.Equal(PlayerTeam.Red, world.LocalPlayer.Team);
         Assert.Equal(PlayerClass.Soldier, world.LocalPlayer.ClassId);
@@ -102,7 +102,7 @@ public sealed class MapGameplayBehaviorTests
             220f,
             out var slot));
 
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var bot));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(slot, out var bot));
         Assert.Equal(PlayerTeam.Red, bot.Team);
         Assert.Equal(PlayerClass.Medic, bot.ClassId);
         Assert.Equal(240f, bot.X);
@@ -113,7 +113,7 @@ public sealed class MapGameplayBehaviorTests
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
         var fallbackSpawn = new SpawnPoint(40f, 160f);
-        world.CombatTestSetLevel(new SimpleLevel(
+        world.TestSetLevel(new SimpleLevel(
             "map-gameplay-behavior-test",
             GameModeKind.TeamDeathmatch,
             new WorldBounds(512f, 512f),

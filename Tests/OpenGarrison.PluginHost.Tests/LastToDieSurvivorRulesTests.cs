@@ -94,7 +94,7 @@ public sealed class LastToDieSurvivorRulesTests
         Advance(world, world.Config.TicksPerSecond);
         Assert.Equal(50, world.LocalPlayer.Health);
         world.ClientPredictionMode = false;
-        world.NetworkPlayerRules.TrySetNetworkPlayerAutomaticRespawnSuppressed(1, true);
+        world.NetworkPlayers.TrySetNetworkPlayerAutomaticRespawnSuppressed(1, true);
         world.LocalPlayer.Kill();
         Advance(world, world.Config.TicksPerSecond * 2);
         Assert.False(world.LocalPlayer.IsAlive);
@@ -160,15 +160,15 @@ public sealed class LastToDieSurvivorRulesTests
         var world = CreateWorld(PlayerClass.Soldier);
         Assert.True(world.LastToDieRules.TryApplyLastToDiePlayerPredictionProfile(1, []));
         world.LastToDieRules.TrySetLastToDieSurvivorBuff(1, true);
-        world.NetworkPlayerRules.TrySetNetworkPlayerAutomaticRespawnSuppressed(1, true);
+        world.NetworkPlayers.TrySetNetworkPlayerAutomaticRespawnSuppressed(1, true);
         Assert.True(world.LastToDieRules.IsLastToDieGameplaySettingEnabled(settings => settings.EnableEnemyDroppedWeapons));
         world.LastToDieRules.ResetLastToDieClientSession();
         world.ConfigureExperimentalGameplaySettings(new());
         world.ConfigureMatchDefaults(respawnSeconds: 1);
         Assert.False(world.LastToDieRules.IsLastToDieGameplaySettingEnabled(settings => settings.EnableEnemyDroppedWeapons));
-        Assert.False(world.NetworkPlayerRules.IsNetworkPlayerAutomaticRespawnSuppressed(world.LocalPlayer));
+        Assert.False(world.NetworkPlayers.IsNetworkPlayerAutomaticRespawnSuppressed(world.LocalPlayer));
         Assert.False(world.LocalPlayer.HasLastToDieSurvivorBuff);
-        world.NetworkPlayerRules.ForceKillLocalPlayer();
+        world.NetworkPlayers.ForceKillLocalPlayer();
         Advance(world, 35);
         Assert.True(world.LocalPlayer.IsAlive);
         var enemy = AddPlayer(world, 2, PlayerTeam.Blue, PlayerClass.Scout);
@@ -186,7 +186,7 @@ public sealed class LastToDieSurvivorRulesTests
     public void HostedSoldierDropsDoNotDependOnTheUnusedLocalPlayerTeam(PlayerTeam localTeam)
     {
         var world = CreateWorld(PlayerClass.Scout);
-        world.NetworkPlayerRules.SetLocalPlayerTeam(localTeam);
+        world.NetworkPlayers.SetLocalPlayerTeam(localTeam);
         var soldier = AddPlayer(world, 2, PlayerTeam.Red, PlayerClass.Soldier);
         var enemy = AddPlayer(world, 3, PlayerTeam.Blue, PlayerClass.Scout);
         Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(2, []));
@@ -206,21 +206,21 @@ public sealed class LastToDieSurvivorRulesTests
     {
         var world = new SimulationWorld(new SimulationConfig { TicksPerSecond = tickRate, EnableLocalDummies = false });
         var spawn = new SpawnPoint(100f, 100f);
-        world.CombatTestSetLevel(new SimpleLevel("survivor-test", GameModeKind.TeamDeathmatch,
+        world.TestSetLevel(new SimpleLevel("survivor-test", GameModeKind.TeamDeathmatch,
             new WorldBounds(1600f, 512f), 1f, null, 1, 1, spawn, [spawn], [new SpawnPoint(1000f, 100f)],
             [], [], 512f, [], importedFromSource: false));
-        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
-        world.NetworkPlayerRules.SetLocalPlayerTeam(PlayerTeam.Red);
-        world.NetworkPlayerRules.CompleteLocalPlayerJoin(playerClass);
+        world.NetworkPlayers.PrepareLocalPlayerJoin();
+        world.NetworkPlayers.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.NetworkPlayers.CompleteLocalPlayerJoin(playerClass);
         return world;
     }
 
     private static PlayerEntity AddPlayer(SimulationWorld world, byte slot, PlayerTeam team, PlayerClass playerClass)
     {
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(slot));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, team));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, playerClass));
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(slot, team));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(slot, playerClass));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(slot, out var player));
         player.TeleportTo(slot * 300f, 100f);
         return player;
     }

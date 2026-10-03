@@ -19,9 +19,9 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
 
         var world = new SimulationWorld();
 
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin((byte)SimulationWorld.MaxPlayableNetworkPlayers));
-        Assert.False(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin((byte)(SimulationWorld.MaxPlayableNetworkPlayers + 1)));
-        Assert.False(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(SimulationWorld.FirstSpectatorSlot));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin((byte)SimulationWorld.MaxPlayableNetworkPlayers));
+        Assert.False(world.NetworkPlayers.TryPrepareNetworkPlayerJoin((byte)(SimulationWorld.MaxPlayableNetworkPlayers + 1)));
+        Assert.False(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(SimulationWorld.FirstSpectatorSlot));
     }
 
     [Fact]
@@ -29,7 +29,7 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
     {
         var world = CreateWorldWithLocalClass(PlayerClass.Soldier);
 
-        var changed = world.NetworkPlayerRules.TrySetNetworkPlayerGameplayLoadout(SimulationWorld.LocalPlayerSlot, "soldier.black-box");
+        var changed = world.NetworkPlayers.TrySetNetworkPlayerGameplayLoadout(SimulationWorld.LocalPlayerSlot, "soldier.black-box");
 
         Assert.True(changed);
         Assert.Equal("soldier.black-box", world.LocalPlayer.SelectedGameplayLoadoutId);
@@ -44,13 +44,13 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
     {
         var world = new SimulationWorld();
 
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(2));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
 
-        var changed = world.NetworkPlayerRules.TrySetNetworkPlayerGameplayLoadout(2, "soldier.direct-hit");
+        var changed = world.NetworkPlayers.TrySetNetworkPlayerGameplayLoadout(2, "soldier.direct-hit");
 
         Assert.True(changed);
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(2, out var remotePlayer));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(2, out var remotePlayer));
         Assert.Equal(PlayerClass.Soldier, remotePlayer.ClassId);
         Assert.Equal("soldier.direct-hit", remotePlayer.SelectedGameplayLoadoutId);
         Assert.Equal("soldier.direct-hit", remotePlayer.GameplayLoadoutState.LoadoutId);
@@ -63,10 +63,10 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
     {
         var world = new SimulationWorld();
 
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(2));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
 
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(2, out var remotePlayer));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(2, out var remotePlayer));
         Assert.Equal("soldier.stock", remotePlayer.SelectedGameplayLoadoutId);
         Assert.Equal("weapon.soldier-shotgun", remotePlayer.GameplayLoadoutState.SecondaryItemId);
         Assert.Null(remotePlayer.GameplayLoadoutState.UtilityItemId);
@@ -82,15 +82,15 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
         world.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings(
             EnableSecondaryAbilities: true));
 
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(2));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerAutomaticRespawnSuppressed(2, suppressed: true));
-        Assert.True(world.NetworkPlayerRules.TryForceNetworkPlayerClassSelectionAndRespawn(2, PlayerClass.Medic));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerAutomaticRespawnSuppressed(2, suppressed: true));
+        Assert.True(world.NetworkPlayers.TryForceNetworkPlayerClassSelectionAndRespawn(2, PlayerClass.Medic));
 
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(2, out var medic));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(2, out var medic));
         Assert.True(medic.HasAlternatePrimaryWeapons);
         Assert.True(medic.HasExperimentalOffhandWeapon);
         Assert.Equal("weapon.medic-needlegun", medic.GameplayLoadoutState.SecondaryItemId);
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerGameplayPrimaryItem(2, "weapon.medigun.crit"));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerGameplayPrimaryItem(2, "weapon.medigun.crit"));
         Assert.Equal("weapon.medigun.crit", medic.GameplayLoadoutState.PrimaryItemId);
         Assert.Equal(PrimaryWeaponKind.Medigun, medic.PrimaryWeapon.Kind);
     }
@@ -101,10 +101,10 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
         var world = new SimulationWorld();
         var gameplayClassId = CharacterClassCatalog.Soldier.GameplayClassId;
 
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(2));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(2, gameplayClassId));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(2, gameplayClassId));
 
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(2, out var remotePlayer));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(2, out var remotePlayer));
         Assert.Equal(PlayerClass.Soldier, remotePlayer.ClassId);
         Assert.Equal(gameplayClassId, remotePlayer.GameplayClassId);
         Assert.Equal("soldier.stock", remotePlayer.SelectedGameplayLoadoutId);
@@ -116,7 +116,7 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
     {
         var world = CreateWorldWithLocalClass(PlayerClass.Heavy);
 
-        var changed = world.NetworkPlayerRules.TrySetNetworkPlayerGameplayEquippedSlot(SimulationWorld.LocalPlayerSlot, GameplayEquipmentSlot.Secondary);
+        var changed = world.NetworkPlayers.TrySetNetworkPlayerGameplayEquippedSlot(SimulationWorld.LocalPlayerSlot, GameplayEquipmentSlot.Secondary);
 
         Assert.True(changed);
         Assert.Equal(GameplayEquipmentSlot.Secondary, world.LocalPlayer.SelectedGameplayEquippedSlot);
@@ -126,7 +126,7 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
             GameplayAbilityConstants.SpecialChannel,
             BuiltInGameplayBehaviorIds.HeavySandvich));
 
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerGameplayEquippedSlot(
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerGameplayEquippedSlot(
             SimulationWorld.LocalPlayerSlot,
             GameplayEquipmentSlot.Primary));
         Assert.True(world.LocalPlayer.HasGameplayAbilityBehavior(
@@ -139,15 +139,15 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
     {
         const byte slot = 2;
         var world = new SimulationWorld();
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(slot));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, PlayerTeam.Red));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, PlayerClass.Pyro));
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var pyro));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(slot, PlayerTeam.Red));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(slot, PlayerClass.Pyro));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(slot, out var pyro));
         pyro.SetSpawnRoomState(false);
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerGameplaySecondaryItem(slot, "weapon.rocketlauncher"));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerGameplayEquippedSlot(slot, GameplayEquipmentSlot.Secondary));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerGameplaySecondaryItem(slot, "weapon.rocketlauncher"));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerGameplayEquippedSlot(slot, GameplayEquipmentSlot.Secondary));
 
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerInput(slot, SecondaryInput(pyro)));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerInput(slot, SecondaryInput(pyro)));
         world.AdvanceOneTick();
 
         Assert.Equal(0, pyro.PyroAirblastCooldownTicks);
@@ -156,10 +156,10 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
             abilityEvent => abilityEvent.PlayerId == pyro.Id
                 && abilityEvent.ItemId == "ability.pyro-airblast");
 
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerInput(slot, default));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerInput(slot, default));
         world.AdvanceOneTick();
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerGameplayEquippedSlot(slot, GameplayEquipmentSlot.Primary));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerInput(slot, SecondaryInput(pyro)));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerGameplayEquippedSlot(slot, GameplayEquipmentSlot.Primary));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerInput(slot, SecondaryInput(pyro)));
         world.AdvanceOneTick();
 
         Assert.True(pyro.PyroAirblastCooldownTicks > 0);
@@ -176,7 +176,7 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
     {
         var world = CreateWorldWithLocalClass(PlayerClass.Soldier);
 
-        var changed = world.NetworkPlayerRules.TrySetNetworkPlayerGameplayEquippedSlot(SimulationWorld.LocalPlayerSlot, GameplayEquipmentSlot.Secondary);
+        var changed = world.NetworkPlayers.TrySetNetworkPlayerGameplayEquippedSlot(SimulationWorld.LocalPlayerSlot, GameplayEquipmentSlot.Secondary);
 
         Assert.True(changed);
         Assert.Equal(GameplayEquipmentSlot.Secondary, world.LocalPlayer.SelectedGameplayEquippedSlot);
@@ -192,7 +192,7 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
         var initialLoadoutId = world.LocalPlayer.SelectedGameplayLoadoutId;
         var initialState = world.LocalPlayer.GameplayLoadoutState;
 
-        var changed = world.NetworkPlayerRules.TrySetNetworkPlayerGameplayLoadout(SimulationWorld.LocalPlayerSlot, "soldier.not-a-real-loadout");
+        var changed = world.NetworkPlayers.TrySetNetworkPlayerGameplayLoadout(SimulationWorld.LocalPlayerSlot, "soldier.not-a-real-loadout");
 
         Assert.False(changed);
         Assert.Equal(initialLoadoutId, world.LocalPlayer.SelectedGameplayLoadoutId);
@@ -207,7 +207,7 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
         var originalTeam = world.LocalPlayer.Team;
         var oppositeTeam = originalTeam == PlayerTeam.Red ? PlayerTeam.Blue : PlayerTeam.Red;
 
-        Assert.True(world.NetworkPlayerRules.TryRequestNetworkPlayerTeamSelection(SimulationWorld.LocalPlayerSlot, oppositeTeam));
+        Assert.True(world.NetworkPlayers.TryRequestNetworkPlayerTeamSelection(SimulationWorld.LocalPlayerSlot, oppositeTeam));
         Assert.True(world.LocalPlayer.IsAlive);
         Assert.Equal(originalTeam, world.LocalPlayer.Team);
 
@@ -215,7 +215,7 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
 
         Assert.True(changed);
         Assert.False(world.LocalPlayer.IsAlive);
-        Assert.True(world.NetworkPlayerRules.GetNetworkPlayerRespawnTicks(SimulationWorld.LocalPlayerSlot) > 1);
+        Assert.True(world.NetworkPlayers.GetNetworkPlayerRespawnTicks(SimulationWorld.LocalPlayerSlot) > 1);
 
         for (var tick = 0; tick < world.Config.TicksPerSecond * 6; tick += 1)
         {
@@ -231,23 +231,23 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
     {
         var world = new SimulationWorld();
 
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(2));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(2, out var player));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(2, out var player));
         player.SetSpawnRoomState(false);
         var originalTeam = player.Team;
         var oppositeTeam = originalTeam == PlayerTeam.Red ? PlayerTeam.Blue : PlayerTeam.Red;
 
-        Assert.True(world.NetworkPlayerRules.TryRequestNetworkPlayerTeamSelection(2, oppositeTeam));
+        Assert.True(world.NetworkPlayers.TryRequestNetworkPlayerTeamSelection(2, oppositeTeam));
 
         Assert.True(player.IsAlive);
         Assert.Equal(originalTeam, player.Team);
-        Assert.Equal(oppositeTeam, world.NetworkPlayerRules.GetNetworkPlayerConfiguredTeam(2));
+        Assert.Equal(oppositeTeam, world.NetworkPlayers.GetNetworkPlayerConfiguredTeam(2));
 
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
 
         Assert.False(player.IsAlive);
-        Assert.True(world.NetworkPlayerRules.GetNetworkPlayerRespawnTicks(2) > 1);
+        Assert.True(world.NetworkPlayers.GetNetworkPlayerRespawnTicks(2) > 1);
 
         AdvanceUntilRespawn(world, 2);
 
@@ -260,19 +260,19 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
     {
         var world = new SimulationWorld();
 
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(2));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(2, out var player));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(2, out var player));
         player.SetSpawnRoomState(false);
         var originalTeam = player.Team;
 
-        Assert.True(world.NetworkPlayerRules.TryRequestNetworkPlayerTeamSelection(2, originalTeam));
+        Assert.True(world.NetworkPlayers.TryRequestNetworkPlayerTeamSelection(2, originalTeam));
         Assert.True(player.IsAlive);
 
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
 
         Assert.False(player.IsAlive);
-        Assert.True(world.NetworkPlayerRules.GetNetworkPlayerRespawnTicks(2) > 1);
+        Assert.True(world.NetworkPlayers.GetNetworkPlayerRespawnTicks(2) > 1);
 
         AdvanceUntilRespawn(world, 2);
 
@@ -285,7 +285,7 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
     public void TrySetLocalClassOutsideSpawnSpawnsCorpseForClassChange()
     {
         var world = CreateWorldWithLocalClass(PlayerClass.Soldier);
-        world.NetworkPlayerRules.ForceRespawnLocalPlayer();
+        world.NetworkPlayers.ForceRespawnLocalPlayer();
         _ = world.DrainPendingSoundEvents();
         world.LocalPlayer.TeleportTo(512f, 256f);
         world.LocalPlayer.SetSpawnRoomState(false);
@@ -337,7 +337,7 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
         var world = CreateWorldWithLocalClass(PlayerClass.Soldier);
         world.LocalPlayer.SetSpawnRoomState(false);
 
-        world.NetworkPlayerRules.ForceKillLocalPlayer();
+        world.NetworkPlayers.ForceKillLocalPlayer();
         _ = world.DrainPendingSoundEvents();
 
         for (var tick = 0; tick < world.Config.TicksPerSecond * 6 && !world.LocalPlayer.IsAlive; tick += 1)
@@ -361,8 +361,8 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
         world.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings(
             EnableSecondaryAbilities: true));
         InstallPrimaryWeaponSwapCabinetAtLocalPlayer(world);
-        world.NetworkPlayerRules.SetLocalInput(default);
-        world.NetworkPlayerRules.SetLocalPreviousInput(default);
+        world.NetworkPlayers.SetLocalInput(default);
+        world.NetworkPlayers.SetLocalPreviousInput(default);
 
         Assert.True(world.LocalPlayer.IsAlive);
         Assert.True(world.LocalPlayer.HasAlternatePrimaryWeapons);
@@ -373,7 +373,7 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
         Assert.Equal(GameplayEquipmentSlot.Primary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
 
         world.LocalPlayer.SetSpawnRoomState(false);
-        world.NetworkPlayerRules.ForceKillLocalPlayer();
+        world.NetworkPlayers.ForceKillLocalPlayer();
 
         // A settings/snapshot resync can run while the player is dead. This
         // must not forget the persistent selected-primary identity.
@@ -382,10 +382,10 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
 
         // A same-class team confirmation is another real resync path used by
         // the network lifecycle while a player is awaiting respawn.
-        Assert.True(world.NetworkPlayerRules.TryRequestNetworkPlayerTeamSelection(
+        Assert.True(world.NetworkPlayers.TryRequestNetworkPlayerTeamSelection(
             SimulationWorld.LocalPlayerSlot,
             world.LocalPlayer.Team));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(
             SimulationWorld.LocalPlayerSlot,
             playerClass));
         Assert.False(world.LocalPlayer.IsAlive);
@@ -414,7 +414,7 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
         Assert.Equal(primaryItemId, world.LocalPlayer.SelectedGameplayPrimaryItemId);
         Assert.Equal(GameplayEquipmentSlot.Primary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
 
-        world.NetworkPlayerRules.ForceKillLocalPlayer();
+        world.NetworkPlayers.ForceKillLocalPlayer();
         AdvanceUntilRespawn(world, SimulationWorld.LocalPlayerSlot);
 
         Assert.True(world.LocalPlayer.IsAlive);
@@ -427,11 +427,11 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
     public void LastToDieRespawnSuppressionKeepsDeadParticipantDeadUntilStageRespawn()
     {
         var world = CreateWorldWithLocalClass(PlayerClass.Soldier);
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerAutomaticRespawnSuppressed(
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerAutomaticRespawnSuppressed(
             SimulationWorld.LocalPlayerSlot,
             suppressed: true));
 
-        world.NetworkPlayerRules.ForceKillLocalPlayer();
+        world.NetworkPlayers.ForceKillLocalPlayer();
         for (var tick = 0; tick < world.Config.TicksPerSecond * 8; tick += 1)
         {
             world.AdvanceOneTick();
@@ -439,7 +439,7 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
 
         Assert.False(world.LocalPlayer.IsAlive);
         Assert.Null(world.LocalDeathCam);
-        Assert.True(world.NetworkPlayerRules.TryForceNetworkPlayerClassSelectionAndRespawn(
+        Assert.True(world.NetworkPlayers.TryForceNetworkPlayerClassSelectionAndRespawn(
             SimulationWorld.LocalPlayerSlot,
             PlayerClass.Soldier));
         Assert.True(world.LocalPlayer.IsAlive);
@@ -455,7 +455,7 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
         var world = CreateWorldWithLocalClass(playerClass);
         world.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings(
             EnableSecondaryAbilities: true));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerAutomaticRespawnSuppressed(
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerAutomaticRespawnSuppressed(
             SimulationWorld.LocalPlayerSlot,
             suppressed: true));
         world.LocalPlayer.SetSpawnRoomState(false);
@@ -477,7 +477,7 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
         world.LocalPlayer.SetSpawnRoomState(false);
         world.TeleportLocalPlayer(512f, 256f);
         Assert.False(world.Structures.IsNearPrimaryWeaponSwapStation(world.LocalPlayer));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerGameplaySecondaryItem(
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerGameplaySecondaryItem(
             SimulationWorld.LocalPlayerSlot,
             "weapon.soldier-shotgun"));
         Assert.True(world.LocalPlayer.HasAlternatePrimaryWeapons);
@@ -498,8 +498,8 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
         world.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings(
             EnableSecondaryAbilities: true));
         InstallPrimaryWeaponSwapCabinetAtLocalPlayer(world);
-        world.NetworkPlayerRules.SetLocalInput(default);
-        world.NetworkPlayerRules.SetLocalPreviousInput(default);
+        world.NetworkPlayers.SetLocalInput(default);
+        world.NetworkPlayers.SetLocalPreviousInput(default);
         var primaryItemId = world.LocalPlayer.GameplayLoadoutState.PrimaryItemId;
 
         Assert.True(world.LocalPlayer.HasAlternatePrimaryWeapons);
@@ -510,7 +510,7 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
         Assert.Equal(primaryItemId, world.LocalPlayer.GameplayLoadoutState.PrimaryItemId);
         Assert.Equal(GameplayEquipmentSlot.Secondary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
 
-        world.NetworkPlayerRules.SetLocalInput(default);
+        world.NetworkPlayers.SetLocalInput(default);
         world.AdvanceOneTick();
         PressSecondaryWeaponToggle(world);
 
@@ -534,7 +534,7 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
         const float pointX = 320f;
         const float pointY = 240f;
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        world.CombatTestSetLevel(new SimpleLevel(
+        world.TestSetLevel(new SimpleLevel(
             name: "ltd_network_objective_spawn",
             mode: GameModeKind.KingOfTheHill,
             bounds: new WorldBounds(640f, 480f),
@@ -561,10 +561,10 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
             solids: [new LevelSolid(0f, 320f, 640f, 160f)],
             importedFromSource: false));
 
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(2));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(2, PlayerTeam.Red));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Medic));
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(2, out var remotePlayer));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(2, PlayerTeam.Red));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Medic));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(2, out var remotePlayer));
         world.LocalPlayer.SetMedicHealingTarget(remotePlayer);
         Assert.Equal(remotePlayer.Id, world.LocalPlayer.MedicHealTargetId);
         Assert.True(world.Spawns.TryMoveNetworkPlayerToLastToDieObjectiveSpawn(2));
@@ -582,7 +582,7 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
     {
         const byte enemySlot = 3;
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        world.CombatTestSetLevel(new SimpleLevel(
+        world.TestSetLevel(new SimpleLevel(
             name: "ltd_enemy_ingress",
             mode: GameModeKind.KingOfTheHill,
             bounds: new WorldBounds(640f, 240f),
@@ -618,11 +618,11 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
             solids: [new LevelSolid(0f, 180f, 640f, 60f)],
             importedFromSource: false));
 
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(enemySlot));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(enemySlot, PlayerTeam.Blue));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(enemySlot, PlayerClass.Scout));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(enemySlot));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(enemySlot, PlayerTeam.Blue));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(enemySlot, PlayerClass.Scout));
         Assert.True(world.Spawns.TryMoveNetworkPlayerToLastToDieEnemySpawn(enemySlot, PlayerTeam.Red));
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(enemySlot, out var enemy));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(enemySlot, out var enemy));
 
         var ingressX = enemy.X;
         Assert.Equal(PlayerTeam.Blue, enemy.Team);
@@ -631,23 +631,23 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
         Assert.False(enemy.IsInSpawnRoom);
         Assert.False(enemy.IsInsideBlockingTeamGate(world.Level, enemy.Team));
 
-        Assert.True(world.NetworkPlayerRules.ForceKillNetworkPlayer(enemySlot));
+        Assert.True(world.NetworkPlayers.ForceKillNetworkPlayer(enemySlot));
         Assert.True(world.Spawns.TryConfigureNetworkPlayerLastToDieEnemySpawn(
             enemySlot,
             PlayerTeam.Blue,
             repositionAlivePlayer: false));
-        Assert.True(world.NetworkPlayerRules.TryForceNetworkPlayerClassSelectionAndRespawn(enemySlot, PlayerClass.Scout));
+        Assert.True(world.NetworkPlayers.TryForceNetworkPlayerClassSelectionAndRespawn(enemySlot, PlayerClass.Scout));
         Assert.InRange(enemy.X, 320.01f, 639.99f);
         Assert.NotEqual(ingressX, enemy.X);
         Assert.False(enemy.IsInSpawnRoom);
         Assert.False(enemy.IsInsideBlockingTeamGate(world.Level, enemy.Team));
 
-        Assert.True(world.NetworkPlayerRules.ForceKillNetworkPlayer(enemySlot));
+        Assert.True(world.NetworkPlayers.ForceKillNetworkPlayer(enemySlot));
         Assert.True(world.Spawns.TryConfigureNetworkPlayerLastToDieEnemySpawn(
             enemySlot,
             PlayerTeam.Red,
             repositionAlivePlayer: false));
-        Assert.True(world.NetworkPlayerRules.TryForceNetworkPlayerClassSelectionAndRespawn(enemySlot, PlayerClass.Scout));
+        Assert.True(world.NetworkPlayers.TryForceNetworkPlayerClassSelectionAndRespawn(enemySlot, PlayerClass.Scout));
         Assert.Equal(ingressX, enemy.X);
     }
 
@@ -671,12 +671,12 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
         const byte enemySlot = 3;
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
         Assert.True(world.TryLoadLevel(levelName, mapAreaIndex: 1, preservePlayerStats: false));
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(enemySlot));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(enemySlot, PlayerTeam.Blue));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(enemySlot, PlayerClass.Scout));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(enemySlot));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(enemySlot, PlayerTeam.Blue));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(enemySlot, PlayerClass.Scout));
 
         Assert.True(world.Spawns.TryMoveNetworkPlayerToLastToDieEnemySpawn(enemySlot, PlayerTeam.Red));
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(enemySlot, out var enemy));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(enemySlot, out var enemy));
         Assert.Equal(PlayerTeam.Blue, enemy.Team);
         Assert.False(enemy.IsInSpawnRoom);
         Assert.False(enemy.IsInsideBlockingTeamGate(world.Level, enemy.Team));
@@ -691,10 +691,10 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
         const byte slot = 3;
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
         Assert.True(world.TryLoadLevel("gg2_koth_harvest", mapAreaIndex: 1, preservePlayerStats: false));
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(slot));
-        world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, enemyTeam);
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, PlayerClass.Soldier));
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var enemy));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(slot));
+        world.NetworkPlayers.TrySetNetworkPlayerTeam(slot, enemyTeam);
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(slot, PlayerClass.Soldier));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(slot, out var enemy));
         Assert.Equal(enemyTeam, enemy.Team);
         var doors = world.Level.GetBlockingTeamGates(enemyTeam, false)
             .Where(gate => gate.Type == RoomObjectType.TeamGate && gate.Team == spawnSide).ToArray();
@@ -706,9 +706,9 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
                 Assert.True(world.Spawns.TryMoveNetworkPlayerToLastToDieEnemySpawn(slot, spawnSide));
             else
             {
-                Assert.True(world.NetworkPlayerRules.ForceKillNetworkPlayer(slot));
+                Assert.True(world.NetworkPlayers.ForceKillNetworkPlayer(slot));
                 Assert.True(world.Spawns.TryConfigureNetworkPlayerLastToDieEnemySpawn(slot, spawnSide, repositionAlivePlayer: false));
-                Assert.True(world.NetworkPlayerRules.TryForceNetworkPlayerClassSelectionAndRespawn(slot, PlayerClass.Soldier));
+                Assert.True(world.NetworkPlayers.TryForceNetworkPlayerClassSelectionAndRespawn(slot, PlayerClass.Soldier));
             }
 
             Assert.False(enemy.IsInSpawnRoom);
@@ -720,7 +720,7 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
             var startX = enemy.X;
             for (var tick = 0; tick < 30; tick++)
             {
-                Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerInput(slot, default(PlayerInputSnapshot) with
+                Assert.True(world.NetworkPlayers.TrySetNetworkPlayerInput(slot, default(PlayerInputSnapshot) with
                 {
                     Right = spawnSide == PlayerTeam.Red,
                     Left = spawnSide == PlayerTeam.Blue,
@@ -739,9 +739,9 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
     {
         var world = CreateWorldWithLocalClass(PlayerClass.Soldier);
 
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(2));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Scout));
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(2, out var remotePlayer));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Scout));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(2, out var remotePlayer));
 
         var expectedHealth = Math.Max(1, remotePlayer.MaxHealth - 5);
         remotePlayer.ForceSetHealth(expectedHealth);
@@ -749,7 +749,7 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
         var expectedPositionY = remotePlayer.Y;
 
         var oppositeTeam = world.LocalPlayer.Team == PlayerTeam.Red ? PlayerTeam.Blue : PlayerTeam.Red;
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, oppositeTeam));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, oppositeTeam));
 
         Assert.Equal(expectedHealth, remotePlayer.Health);
         Assert.Equal(expectedPositionX, remotePlayer.X);
@@ -764,11 +764,11 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
         world.LocalPlayer.SetSpawnRoomState(false);
         var oppositeTeam = world.LocalPlayer.Team == PlayerTeam.Red ? PlayerTeam.Blue : PlayerTeam.Red;
 
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, oppositeTeam));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, oppositeTeam));
 
         Assert.False(world.LocalPlayer.IsAlive);
         Assert.Equal(oppositeTeam, world.LocalPlayer.Team);
-        Assert.True(world.NetworkPlayerRules.GetNetworkPlayerRespawnTicks(SimulationWorld.LocalPlayerSlot) > 1);
+        Assert.True(world.NetworkPlayers.GetNetworkPlayerRespawnTicks(SimulationWorld.LocalPlayerSlot) > 1);
         Assert.Empty(world.DeadBodies);
         Assert.Empty(world.PlayerGibs);
 
@@ -782,9 +782,9 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
     public void NetworkPlayerMaxHealthOverrideClampsAndClearsPlayerHealth()
     {
         var world = new SimulationWorld();
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(2));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Heavy));
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(2, out var remotePlayer));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Heavy));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(2, out var remotePlayer));
 
         Assert.True(world.ServerTuning.TrySetNetworkPlayerMaxHealthOverride(2, 25));
         Assert.Equal(25, remotePlayer.MaxHealth);
@@ -802,25 +802,25 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
     {
         var world = new SimulationWorld();
 
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(2));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Heavy));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Heavy));
         Assert.True(world.ServerTuning.TrySetNetworkPlayerMaxHealthOverride(2, 25));
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(2, out var remotePlayer));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(2, out var remotePlayer));
         Assert.Equal(25, remotePlayer.MaxHealth);
 
-        Assert.True(world.NetworkPlayerRules.TryReleaseNetworkPlayerSlot(2));
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(2));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Heavy));
+        Assert.True(world.NetworkPlayers.TryReleaseNetworkPlayerSlot(2));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Heavy));
 
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(2, out remotePlayer));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(2, out remotePlayer));
         Assert.Equal(CharacterClassCatalog.Heavy.MaxHealth, remotePlayer.MaxHealth);
     }
 
     private static SimulationWorld CreateWorldWithLocalClass(PlayerClass playerClass)
     {
         var world = new SimulationWorld();
-        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
-        world.NetworkPlayerRules.CompleteLocalPlayerJoin(playerClass);
+        world.NetworkPlayers.PrepareLocalPlayerJoin();
+        world.NetworkPlayers.CompleteLocalPlayerJoin(playerClass);
         _ = world.DrainPendingSoundEvents();
         Assert.Equal(playerClass, world.LocalPlayer.ClassId);
         return world;
@@ -828,7 +828,7 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
 
     private static void PressWeaponSwap(SimulationWorld world)
     {
-        world.NetworkPlayerRules.SetLocalInput(new PlayerInputSnapshot(
+        world.NetworkPlayers.SetLocalInput(new PlayerInputSnapshot(
             Left: false,
             Right: false,
             Up: false,
@@ -848,7 +848,7 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
 
     private static void PressSecondaryWeaponToggle(SimulationWorld world)
     {
-        world.NetworkPlayerRules.SetLocalInput(default(PlayerInputSnapshot) with
+        world.NetworkPlayers.SetLocalInput(default(PlayerInputSnapshot) with
         {
             AimWorldX = world.LocalPlayer.X + 96f,
             AimWorldY = world.LocalPlayer.Y,
@@ -860,7 +860,7 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
     private static void InstallPrimaryWeaponSwapCabinetAtLocalPlayer(SimulationWorld world)
     {
         var spawn = new SpawnPoint(world.LocalPlayer.X, world.LocalPlayer.Y);
-        world.CombatTestSetLevel(new SimpleLevel(
+        world.TestSetLevel(new SimpleLevel(
             name: "locked_primary_respawn",
             mode: GameModeKind.TeamDeathmatch,
             bounds: new WorldBounds(640f, 480f),
@@ -892,7 +892,7 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
 
     private static void AdvanceUntilRespawn(SimulationWorld world, byte slot)
     {
-        for (var tick = 0; tick < world.Config.TicksPerSecond * 6 && world.NetworkPlayerRules.GetNetworkPlayerRespawnTicks(slot) > 0; tick += 1)
+        for (var tick = 0; tick < world.Config.TicksPerSecond * 6 && world.NetworkPlayers.GetNetworkPlayerRespawnTicks(slot) > 0; tick += 1)
         {
             world.AdvanceOneTick();
         }

@@ -23,7 +23,7 @@ public sealed partial class SimulationWorld : IEntityPhaseHost
     PlayerEntity IEntityPhaseHost.LocalPlayer => LocalPlayer;
     byte IEntityPhaseHost.LocalPlayerSlot => LocalPlayerSlot;
     MovementSystem IEntityPhaseHost.Movement => Movement;
-    NetworkPlayerSystem IEntityPhaseHost.NetworkPlayerRules => NetworkPlayerRules;
+    NetworkPlayerSystem IEntityPhaseHost.NetworkPlayers => NetworkPlayers;
     PickupSystem IEntityPhaseHost.Pickups => Pickups;
     PlayerInputSystem IEntityPhaseHost.PlayerInput => PlayerInput;
     NetworkPlayerRegistry IEntityPhaseHost.PlayerRegistry => PlayerRegistry;

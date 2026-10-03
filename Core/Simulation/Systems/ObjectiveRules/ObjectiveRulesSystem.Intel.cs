@@ -57,7 +57,7 @@ internal sealed partial class ObjectiveRulesSystem
             GetPlayerIntelReturnTicks(player));
         player.DropIntel(IntelPickupCooldownTicksAfterDrop);
         _host.WorldEffects.RegisterWorldSoundEvent("IntelDropSnd", player.X, player.Y);
-        _host.KillFeedRules.RecordIntelDroppedObjectiveLog(player);
+        _host.KillFeed.RecordIntelDroppedObjectiveLog(player);
     }
 
     internal void TryPickUpEnemyIntel(PlayerEntity player)
@@ -88,7 +88,7 @@ internal sealed partial class ObjectiveRulesSystem
             return;
         }
 
-        if (_host.Decisions.ShouldCancelPickup(
+        if (_host.DecisionGate.ShouldCancelPickup(
                 WorldPickupKind.Intelligence,
                 player,
                 (int)enemyIntel.Team,
@@ -104,7 +104,7 @@ internal sealed partial class ObjectiveRulesSystem
         player.PickUpIntel(carriedRechargeTicks);
         HaltSpySuperjumpHorizontalMomentumOnIntelPickup(player);
         _host.WorldEffects.RegisterWorldSoundEvent("IntelGetSnd", player.X, player.Y);
-        _host.KillFeedRules.RecordIntelPickedUpObjectiveLog(player);
+        _host.KillFeed.RecordIntelPickedUpObjectiveLog(player);
     }
 
     internal static void HaltSpySuperjumpHorizontalMomentumOnIntelPickup(PlayerEntity player)
@@ -131,7 +131,7 @@ internal sealed partial class ObjectiveRulesSystem
         }
 
         if (_host.MatchRules.Mode != GameModeKind.Scr
-            && !_host.Decisions.TryAwardTeamScore(player.Team, 1, "intel_capture", player.Id))
+            && !_host.DecisionGate.TryAwardTeamScore(player.Team, 1, "intel_capture", player.Id))
         {
             return;
         }
@@ -140,13 +140,13 @@ internal sealed partial class ObjectiveRulesSystem
         _host.Scorekeeping.AwardObjectiveCapturePoints(player);
         GetEnemyIntelState(player.Team).ResetToBase();
         _host.WorldEffects.RegisterWorldSoundEvent("IntelPutSnd", player.X, player.Y);
-        _host.KillFeedRules.RecordIntelCapturedObjectiveLog(player);
+        _host.KillFeed.RecordIntelCapturedObjectiveLog(player);
 
         if (_host.MatchRules.Mode != GameModeKind.Scr
             && player.Team == PlayerTeam.Red
             && ShouldEndMatchOnRedTeamIntelCapture())
         {
-            _host.Decisions.TryEndRound(PlayerTeam.Red, "special_red_intel_capture");
+            _host.DecisionGate.TryEndRound(PlayerTeam.Red, "special_red_intel_capture");
         }
     }
 

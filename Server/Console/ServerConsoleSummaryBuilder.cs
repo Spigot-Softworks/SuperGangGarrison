@@ -28,7 +28,7 @@ internal sealed class ServerConsoleSummaryBuilder(
     {
         var world = worldGetter();
         var clients = clientsGetter();
-        var activePlayableCount = world.NetworkPlayerRules.EnumerateActiveNetworkPlayers().Count();
+        var activePlayableCount = world.NetworkPlayers.EnumerateActiveNetworkPlayers().Count();
         var spectatorCount = clients.Keys.Count(IsSpectatorSlot);
         var uptime = FormatDuration(uptimeGetter());
         var lobbyValue = useLobbyServer ? $"enabled {lobbyHost}:{lobbyPort}" : "disabled";
@@ -110,7 +110,7 @@ internal sealed class ServerConsoleSummaryBuilder(
             var role = "Spectator";
             if (!IsSpectatorSlot(client.Slot))
             {
-                role = world.NetworkPlayerRules.TryGetNetworkPlayer(client.Slot, out var player)
+                role = world.NetworkPlayers.TryGetNetworkPlayer(client.Slot, out var player)
                     ? player.Team.ToString()
                     : "Unassigned";
             }

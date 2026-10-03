@@ -15,7 +15,7 @@ internal interface IPracticeDummyHost : ISimulationWorldState, ISimulationPlayer
     PlayerTeam LocalPlayerTeam { get; }
     LocalSimulationState LocalState { get; }
     MovementSystem Movement { get; }
-    NetworkPlayerSystem NetworkPlayerRules { get; }
+    NetworkPlayerSystem NetworkPlayers { get; }
     PlayerDeathSystem PlayerDeaths { get; }
     PlayerInputSystem PlayerInput { get; }
     SimulationRandomStreams Randoms { get; }

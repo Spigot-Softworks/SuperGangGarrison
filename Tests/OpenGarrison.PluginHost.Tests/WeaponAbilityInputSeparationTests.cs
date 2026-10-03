@@ -24,16 +24,16 @@ public sealed class WeaponAbilityInputSeparationTests
         var equipped = world.LocalPlayer.GameplayLoadoutState.EquippedItemId;
         var utility = KeyboardInputMapper.BuildGameplaySnapshot(bindings,
             new KeyboardState(Keys.Q), new MouseState(), 0, 0, 0, 0);
-        world.NetworkPlayerRules.SetLocalInput(utility);
+        world.NetworkPlayers.SetLocalInput(utility);
         world.AdvanceOneTick();
         Assert.Equal(equipped, world.LocalPlayer.GameplayLoadoutState.EquippedItemId);
-        world.NetworkPlayerRules.SetLocalInput(default);
+        world.NetworkPlayers.SetLocalInput(default);
         for (var tick = 0; tick < 30; tick++) world.AdvanceOneTick();
         var swap = KeyboardInputMapper.BuildGameplaySnapshot(bindings,
             new KeyboardState(Keys.RightControl), new MouseState(), 0, 0, 0, 0);
         Assert.True(swap.SwapWeapon);
         Assert.False(swap.UseAbility);
-        world.NetworkPlayerRules.SetLocalInput(swap);
+        world.NetworkPlayers.SetLocalInput(swap);
         world.AdvanceOneTick();
         Assert.True(world.LocalPlayer.IsExperimentalOffhandSelected);
     }
@@ -56,7 +56,7 @@ public sealed class WeaponAbilityInputSeparationTests
         Assert.True(input.UseAbility);
         Assert.False(input.SwapWeapon);
 
-        world.NetworkPlayerRules.SetLocalInput(input);
+        world.NetworkPlayers.SetLocalInput(input);
         world.AdvanceOneTick();
 
         Assert.Equal(equippedSlot, player.GameplayLoadoutState.EquippedSlot);
@@ -81,7 +81,7 @@ public sealed class WeaponAbilityInputSeparationTests
         Assert.True(input.SwapWeapon);
         Assert.False(input.UseAbility);
 
-        world.NetworkPlayerRules.SetLocalInput(input);
+        world.NetworkPlayers.SetLocalInput(input);
         world.AdvanceOneTick();
 
         Assert.True(player.IsExperimentalOffhandSelected);
@@ -93,8 +93,8 @@ public sealed class WeaponAbilityInputSeparationTests
         var world = new SimulationWorld();
         world.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings(
             EnableSecondaryAbilities: true));
-        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
-        world.NetworkPlayerRules.CompleteLocalPlayerJoin(playerClass);
+        world.NetworkPlayers.PrepareLocalPlayerJoin();
+        world.NetworkPlayers.CompleteLocalPlayerJoin(playerClass);
         return world;
     }
 

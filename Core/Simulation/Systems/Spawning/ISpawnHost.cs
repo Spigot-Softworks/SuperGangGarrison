@@ -6,7 +6,7 @@ namespace OpenGarrison.Core;
 internal interface ISpawnHost : ISimulationWorldState, ISimulationPlayerDirectory
 {
     ClassRulesSystem ClassRules { get; }
-    DecisionGate Decisions { get; }
+    DecisionGate DecisionGate { get; }
     PracticeDummyState DummyState { get; }
     PlayerEntity EnemyPlayer { get; }
     bool EnemyPlayerEnabled { get; }
@@ -17,7 +17,7 @@ internal interface ISpawnHost : ISimulationWorldState, ISimulationPlayerDirector
     MatchLifecycleState Lifecycle { get; }
     LocalSimulationState LocalState { get; }
     MatchRules MatchRules { get; }
-    NetworkPlayerSystem NetworkPlayerRules { get; }
+    NetworkPlayerSystem NetworkPlayers { get; }
     ObjectiveRulesSystem ObjectiveRules { get; }
     ObjectiveStateStore Objectives { get; }
     NetworkPlayerRegistry PlayerRegistry { get; }

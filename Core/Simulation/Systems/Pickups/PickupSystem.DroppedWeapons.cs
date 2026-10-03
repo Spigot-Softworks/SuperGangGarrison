@@ -36,7 +36,7 @@ internal sealed partial class PickupSystem
 
             var previousWeaponClassId = player.AcquiredWeaponClassId;
             var pickedWeaponClassId = nearbyWeapon.WeaponClassId;
-            if (_host.Decisions.ShouldCancelPickup(
+            if (_host.DecisionGate.ShouldCancelPickup(
                     WorldPickupKind.DroppedWeapon,
                     player,
                     nearbyWeapon.Id,

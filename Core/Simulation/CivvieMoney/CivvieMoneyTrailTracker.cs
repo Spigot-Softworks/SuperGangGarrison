@@ -218,7 +218,7 @@ public sealed class CivvieMoneyTrailTracker
         }
     }
 
-    public void CombatTestAddPickup(
+    public void TestAddPickup(
         int ownerPlayerId,
         PlayerTeam team,
         float x,

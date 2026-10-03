@@ -28,12 +28,12 @@ internal sealed class Protocol64StatePublisher
     {
         _world = world ?? throw new ArgumentNullException(nameof(world));
         _lastProcessedInputSequenceProvider = lastProcessedInputSequenceProvider ?? (_ => 0u);
-        _isBotSlotProvider = isBotSlotProvider ?? world.NetworkPlayerRules.IsNetworkPlayerBot;
+        _isBotSlotProvider = isBotSlotProvider ?? world.NetworkPlayers.IsNetworkPlayerBot;
     }
 
     public Protocol64PlayerStateBatch BuildPlayerStateBatch(uint stateTick, byte? viewerSlot = null)
     {
-        var entries = _world.NetworkPlayerRules.EnumerateReplicatedNetworkPlayers().ToArray();
+        var entries = _world.NetworkPlayers.EnumerateReplicatedNetworkPlayers().ToArray();
         PreparePlayerIdentities(entries);
         var viewer = ResolveViewer(viewerSlot);
         var players = entries
@@ -45,7 +45,7 @@ internal sealed class Protocol64StatePublisher
 
     public Protocol64RosterState BuildRosterState(uint stateTick)
     {
-        var entries = _world.NetworkPlayerRules.EnumerateReplicatedNetworkPlayers().ToArray();
+        var entries = _world.NetworkPlayers.EnumerateReplicatedNetworkPlayers().ToArray();
         PreparePlayerIdentities(entries);
         var players = entries
             .Select(entry => ToPlayerIdentity(entry.Slot, entry.Player))
@@ -81,7 +81,7 @@ internal sealed class Protocol64StatePublisher
         uint stateTick,
         byte? viewerSlot = null)
     {
-        var entries = _world.NetworkPlayerRules.EnumerateReplicatedNetworkPlayers().ToArray();
+        var entries = _world.NetworkPlayers.EnumerateReplicatedNetworkPlayers().ToArray();
         PreparePlayerIdentities(entries);
         var viewer = ResolveViewer(viewerSlot);
         var players = entries
@@ -104,8 +104,8 @@ internal sealed class Protocol64StatePublisher
     {
         if (!viewerSlot.HasValue
             || !NetworkPlayerSystem.IsPlayableNetworkPlayerSlot(viewerSlot.Value)
-            || _world.NetworkPlayerRules.IsNetworkPlayerAwaitingJoin(viewerSlot.Value)
-            || !_world.NetworkPlayerRules.TryGetNetworkPlayer(viewerSlot.Value, out var viewer))
+            || _world.NetworkPlayers.IsNetworkPlayerAwaitingJoin(viewerSlot.Value)
+            || !_world.NetworkPlayers.TryGetNetworkPlayer(viewerSlot.Value, out var viewer))
         {
             return null;
         }
@@ -447,7 +447,7 @@ internal sealed class Protocol64StatePublisher
         bool suppressRocketSmokeTrail = false,
         byte flareStyle = 0)
     {
-        var owner = _world.NetworkPlayerRules.EnumerateReplicatedNetworkPlayers()
+        var owner = _world.NetworkPlayers.EnumerateReplicatedNetworkPlayers()
             .FirstOrDefault(entry => entry.Player.Id == ownerId);
         var ownerSlot = owner.Player is null ? (ushort)0 : owner.Slot;
         var ownerGeneration = owner.Player is null ? 0u : GetPlayerGeneration(owner.Slot, owner.Player);

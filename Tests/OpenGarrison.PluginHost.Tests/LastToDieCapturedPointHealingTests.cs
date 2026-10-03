@@ -22,10 +22,10 @@ public sealed class LastToDieCapturedPointHealingTests
                 EnableCapturedPointHealingAura = true,
             });
 
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(2));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(2, PlayerTeam.Red));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(2, playerClass));
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(2, out var remotePlayer));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(2, PlayerTeam.Red));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(2, playerClass));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(2, out var remotePlayer));
 
         var point = Assert.Single(world.ControlPoints);
         point.Team = PlayerTeam.Red;
@@ -113,7 +113,7 @@ public sealed class LastToDieCapturedPointHealingTests
             EnableEnemyTrainingDummy = false,
             EnableFriendlySupportDummy = false,
         });
-        world.CombatTestSetLevel(new SimpleLevel(
+        world.TestSetLevel(new SimpleLevel(
             name: "ltd_koth_healing_test",
             mode: GameModeKind.KingOfTheHill,
             bounds: new WorldBounds(1024f, 512f),

@@ -18,14 +18,14 @@ public sealed partial class SimulationWorld : ISnapshotApplyHost
     PlayerEntity ISnapshotApplyHost.FriendlyDummy => FriendlyDummy;
     bool ISnapshotApplyHost.FriendlyDummyEnabled { get => FriendlyDummyEnabled; set => FriendlyDummyEnabled = value; }
     IReadOnlyList<GrenadeProjectileEntity> ISnapshotApplyHost.Grenades => Grenades;
-    KillFeedSystem ISnapshotApplyHost.KillFeedRules => KillFeedRules;
+    KillFeedSystem ISnapshotApplyHost.KillFeed => KillFeed;
     LocalDeathCamState? ISnapshotApplyHost.LocalDeathCam { get => LocalDeathCam; set => LocalDeathCam = value; }
     PlayerEntity ISnapshotApplyHost.LocalPlayer => LocalPlayer;
     MatchRules ISnapshotApplyHost.MatchRules { get => MatchRules; set => MatchRules = value; }
     MatchState ISnapshotApplyHost.MatchState { get => MatchState; set => MatchState = value; }
     IReadOnlyList<MineProjectileEntity> ISnapshotApplyHost.Mines => Mines;
     IReadOnlyList<NeedleProjectileEntity> ISnapshotApplyHost.Needles => Needles;
-    NetworkPlayerSystem ISnapshotApplyHost.NetworkPlayerRules => NetworkPlayerRules;
+    NetworkPlayerSystem ISnapshotApplyHost.NetworkPlayers => NetworkPlayers;
     ObjectiveRulesSystem ISnapshotApplyHost.ObjectiveRules => ObjectiveRules;
     ObjectiveStateStore ISnapshotApplyHost.Objectives => Objectives;
     NetworkPlayerRegistry ISnapshotApplyHost.PlayerRegistry => PlayerRegistry;

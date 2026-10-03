@@ -93,7 +93,7 @@ public partial class Game1
                 continue;
             }
 
-            var bounds = _world.CombatTestGetPlayerPresentationHitBounds(player);
+            var bounds = _world.TestGetPlayerPresentationHitBounds(player);
             var renderPosition = GetRenderPosition(player);
             var offsetX = renderPosition.X - player.X;
             var offsetY = renderPosition.Y - player.Y;

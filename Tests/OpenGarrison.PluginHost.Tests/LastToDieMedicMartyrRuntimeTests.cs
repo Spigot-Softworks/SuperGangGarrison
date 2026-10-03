@@ -262,12 +262,12 @@ public sealed class LastToDieMedicMartyrRuntimeTests
             EnableEnemyTrainingDummy = false,
             EnableFriendlySupportDummy = false,
         });
-        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(
+        world.NetworkPlayers.PrepareLocalPlayerJoin();
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(
             SimulationWorld.LocalPlayerSlot,
             PlayerTeam.Red,
             respawnLivePlayerImmediately: true));
-        world.NetworkPlayerRules.CompleteLocalPlayerJoin(localClass);
+        world.NetworkPlayers.CompleteLocalPlayerJoin(localClass);
         return world;
     }
 
@@ -277,10 +277,10 @@ public sealed class LastToDieMedicMartyrRuntimeTests
         PlayerClass playerClass,
         PlayerTeam team)
     {
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(slot));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, team));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, playerClass));
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(slot, team));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(slot, playerClass));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(slot, out var player));
         return player;
     }
 

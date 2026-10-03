@@ -11,14 +11,14 @@ public sealed partial class SimulationWorld : IObjectiveRulesHost
     bool IObjectiveRulesHost.CompetitiveObjectivesLocked => ReadyUp.CompetitiveObjectivesLocked;
     SimulationConfig IObjectiveRulesHost.Config => Config;
     float IObjectiveRulesHost.ConfiguredCaptureSpeedMultiplierPerPlayer => ConfiguredCaptureSpeedMultiplierPerPlayer;
-    DecisionGate IObjectiveRulesHost.Decisions => Decisions;
+    DecisionGate IObjectiveRulesHost.DecisionGate => DecisionGate;
     IEnumerable<PlayerEntity> IObjectiveRulesHost.EnumerateSimulatedPlayers() => EnumerateSimulatedPlayers();
     ExperimentalRulesSystem IObjectiveRulesHost.ExperimentalRules => ExperimentalRules;
     ExplosionRulesSystem IObjectiveRulesHost.ExplosionRules => ExplosionRules;
     long IObjectiveRulesHost.Frame => Frame;
     PlayerTeam IObjectiveRulesHost.GetOpposingTeam(PlayerTeam team) => GetOpposingTeam(team);
     bool IObjectiveRulesHost.IsVipModeActive => VipRules.IsVipModeActive;
-    KillFeedSystem IObjectiveRulesHost.KillFeedRules => KillFeedRules;
+    KillFeedSystem IObjectiveRulesHost.KillFeed => KillFeed;
     LastToDieRulesSystem IObjectiveRulesHost.LastToDieRules => LastToDieRules;
     SimpleLevel IObjectiveRulesHost.Level => Level;
     PlayerEntity IObjectiveRulesHost.LocalPlayer => LocalPlayer;

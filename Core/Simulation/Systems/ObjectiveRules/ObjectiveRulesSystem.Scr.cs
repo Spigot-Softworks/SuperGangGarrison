@@ -2,7 +2,6 @@ namespace OpenGarrison.Core;
 
 internal sealed partial class ObjectiveRulesSystem
 {
-
     internal bool TryModifyTeamScore(PlayerTeam team, int delta, string reason, int actorPlayerId = -1)
     {
         if (_host.MatchRules.Mode != GameModeKind.Scr || delta == 0 || _host.MatchState.IsEnded)
@@ -64,17 +63,17 @@ internal sealed partial class ObjectiveRulesSystem
         {
             if (redQualifies && blueQualifies)
             {
-                return _host.Decisions.TryEndRound(settings.ResolveRoundEndWinner(_host.RedCaps, _host.BlueCaps), "scr_start_tiebreak");
+                return _host.DecisionGate.TryEndRound(settings.ResolveRoundEndWinner(_host.RedCaps, _host.BlueCaps), "scr_start_tiebreak");
             }
 
             if (redQualifies)
             {
-                return _host.Decisions.TryEndRound(PlayerTeam.Red, "scr_start_threshold");
+                return _host.DecisionGate.TryEndRound(PlayerTeam.Red, "scr_start_threshold");
             }
 
             if (blueQualifies)
             {
-                return _host.Decisions.TryEndRound(PlayerTeam.Blue, "scr_start_threshold");
+                return _host.DecisionGate.TryEndRound(PlayerTeam.Blue, "scr_start_threshold");
             }
 
             UpdateScrQualificationTracking();
@@ -84,13 +83,13 @@ internal sealed partial class ObjectiveRulesSystem
         if (!_host.Objectives.Scr.RedWasQualified && redQualifies)
         {
             UpdateScrQualificationTracking();
-            return _host.Decisions.TryEndRound(PlayerTeam.Red, "scr_threshold");
+            return _host.DecisionGate.TryEndRound(PlayerTeam.Red, "scr_threshold");
         }
 
         if (!_host.Objectives.Scr.BlueWasQualified && blueQualifies)
         {
             UpdateScrQualificationTracking();
-            return _host.Decisions.TryEndRound(PlayerTeam.Blue, "scr_threshold");
+            return _host.DecisionGate.TryEndRound(PlayerTeam.Blue, "scr_threshold");
         }
 
         UpdateScrQualificationTracking();
@@ -133,11 +132,6 @@ internal sealed partial class ObjectiveRulesSystem
         ApplyScrLevelMatchSettings();
         ApplyScrStartingScores();
         TryEvaluateScrThresholdCrossing(isRoundStart: true);
-    }
-
-    internal void CombatTestFinalizeScrRoundStart()
-    {
-        FinalizeScrRoundStart();
     }
 
     internal void UpdateScrQualificationTracking()

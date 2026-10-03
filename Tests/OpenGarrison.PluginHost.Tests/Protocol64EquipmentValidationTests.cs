@@ -83,8 +83,8 @@ public sealed class Protocol64EquipmentValidationTests
     private static SimulationWorld JoinedWorld(PlayerClass playerClass)
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
-        world.NetworkPlayerRules.CompleteLocalPlayerJoin(playerClass);
+        world.NetworkPlayers.PrepareLocalPlayerJoin();
+        world.NetworkPlayers.CompleteLocalPlayerJoin(playerClass);
         world.LocalPlayer.SetSpawnRoomState(false);
         return world;
     }

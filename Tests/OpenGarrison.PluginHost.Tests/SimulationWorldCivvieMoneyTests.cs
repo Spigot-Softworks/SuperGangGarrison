@@ -14,7 +14,7 @@ public sealed class SimulationWorldCivvieMoneyTests
         ally.ForceSetHealth(ally.MaxHealth - 2);
 
         var pickupX = ally.Right + 16f;
-        world.CombatTestAddCivvieMoneyPickup(
+        world.TestAddCivvieMoneyPickup(
             world.LocalPlayer.Id,
             PlayerTeam.Red,
             pickupX,
@@ -23,7 +23,7 @@ public sealed class SimulationWorldCivvieMoneyTests
         world.AdvanceOneTick();
 
         Assert.Equal(ally.MaxHealth, ally.Health);
-        Assert.Equal(0, world.CombatTestCivvieMoneyPickupCount);
+        Assert.Equal(0, world.TestCivvieMoneyPickupCount);
         Assert.Contains(world.PendingHealingEvents, healing => healing.TargetPlayerId == ally.Id && healing.Amount == 2);
     }
 
@@ -35,7 +35,7 @@ public sealed class SimulationWorldCivvieMoneyTests
         ally.TeleportTo(100f, 100f);
         ally.ForceSetHealth(ally.MaxHealth);
 
-        world.CombatTestAddCivvieMoneyPickup(
+        world.TestAddCivvieMoneyPickup(
             world.LocalPlayer.Id,
             PlayerTeam.Red,
             ally.X,
@@ -44,16 +44,16 @@ public sealed class SimulationWorldCivvieMoneyTests
         world.AdvanceOneTick();
 
         Assert.Equal(ally.MaxHealth, ally.Health);
-        Assert.Equal(1, world.CombatTestCivvieMoneyPickupCount);
+        Assert.Equal(1, world.TestCivvieMoneyPickupCount);
         Assert.DoesNotContain(world.PendingHealingEvents, healing => healing.TargetPlayerId == ally.Id);
     }
 
     private static PlayerEntity AddRedAlly(SimulationWorld world, byte slot)
     {
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(slot));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, PlayerTeam.Red));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, PlayerClass.Scout));
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(slot, PlayerTeam.Red));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(slot, PlayerClass.Scout));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(slot, out var player));
         return player;
     }
 }

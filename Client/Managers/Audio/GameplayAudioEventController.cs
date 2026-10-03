@@ -220,9 +220,9 @@ public sealed class GameplayAudioEventController
                 return;
             }
 
-            for (var index = 0; index < _context._world.KillFeed.Count; index += 1)
+            for (var index = 0; index < _context._world.KillFeedEntries.Count; index += 1)
             {
-                var entry = _context._world.KillFeed[index];
+                var entry = _context._world.KillFeedEntries[index];
                 if (entry.EventId == 0
                     || entry.SpecialType == OpenGarrison.Core.KillFeedSpecialType.None
                     || !Game1.ShouldProcessNetworkEvent(entry.EventId, _processedKillFeedEventIds, _processedKillFeedEventOrder))

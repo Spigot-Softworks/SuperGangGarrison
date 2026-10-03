@@ -277,7 +277,7 @@ public sealed class TeleportRuntimeTests
     private static SimulationWorld CreateWorld(IReadOnlyList<RoomObjectMarker> roomObjects)
     {
         var world = new SimulationWorld();
-        world.CombatTestSetLevel(new SimpleLevel(
+        world.TestSetLevel(new SimpleLevel(
             "teleport-runtime-test",
             GameModeKind.TeamDeathmatch,
             new WorldBounds(512f, 512f),
@@ -298,9 +298,9 @@ public sealed class TeleportRuntimeTests
 
     private static void PreparePlayer(SimulationWorld world, PlayerTeam team, float x, float y)
     {
-        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
-        world.NetworkPlayerRules.SetLocalPlayerTeam(team);
-        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Scout);
+        world.NetworkPlayers.PrepareLocalPlayerJoin();
+        world.NetworkPlayers.SetLocalPlayerTeam(team);
+        world.NetworkPlayers.CompleteLocalPlayerJoin(PlayerClass.Scout);
         world.LocalPlayer.TeleportTo(x, y);
     }
 

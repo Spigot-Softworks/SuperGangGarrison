@@ -237,7 +237,7 @@ public sealed class BotBrainChatBubbleController
         PruneObservedHumanTaunters(world, state, controlledTeamsBySlot);
 
         var shouldTaunt = false;
-        foreach (var (candidateSlot, candidate) in world.NetworkPlayerRules.EnumerateActiveNetworkPlayers())
+        foreach (var (candidateSlot, candidate) in world.NetworkPlayers.EnumerateActiveNetworkPlayers())
         {
             if (candidateSlot == slot
                 || controlledTeamsBySlot.ContainsKey(candidateSlot)
@@ -282,7 +282,7 @@ public sealed class BotBrainChatBubbleController
         IReadOnlyDictionary<byte, PlayerTeam> controlledTeamsBySlot,
         int playerId)
     {
-        foreach (var (slot, player) in world.NetworkPlayerRules.EnumerateActiveNetworkPlayers())
+        foreach (var (slot, player) in world.NetworkPlayers.EnumerateActiveNetworkPlayers())
         {
             if (!controlledTeamsBySlot.ContainsKey(slot)
                 && player.Id == playerId
@@ -488,7 +488,7 @@ public sealed class BotBrainChatBubbleController
             return false;
         }
 
-        return world.NetworkPlayerRules.TryTriggerNetworkPlayerChatBubble(slot, reaction.Frame);
+        return world.NetworkPlayers.TryTriggerNetworkPlayerChatBubble(slot, reaction.Frame);
     }
 
     private static void MarkReaction(BotBrainChatBubbleState state, long frame, BotBrainChatBubbleReaction reaction)
@@ -752,7 +752,7 @@ public sealed class BotBrainChatBubbleController
                 return;
             }
 
-            if (!world.NetworkPlayerRules.TryGetNetworkPlayer(entry.Key, out var ally) || !ally.IsAlive)
+            if (!world.NetworkPlayers.TryGetNetworkPlayer(entry.Key, out var ally) || !ally.IsAlive)
             {
                 continue;
             }
@@ -894,7 +894,7 @@ public sealed class BotBrainChatBubbleController
             return;
         }
 
-        if (!world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
+        if (!world.NetworkPlayers.TryGetNetworkPlayer(slot, out var player))
         {
             return;
         }
@@ -904,7 +904,7 @@ public sealed class BotBrainChatBubbleController
             return;
         }
 
-        if (!world.NetworkPlayerRules.TryTriggerNetworkPlayerChatBubble(slot, FrameHappy))
+        if (!world.NetworkPlayers.TryTriggerNetworkPlayerChatBubble(slot, FrameHappy))
         {
             return;
         }
@@ -1012,7 +1012,7 @@ public sealed class BotBrainChatBubbleController
         foreach (var entry in controlledTeamsBySlot)
         {
             if (entry.Value != team
-                || !world.NetworkPlayerRules.TryGetNetworkPlayer(entry.Key, out var candidate)
+                || !world.NetworkPlayers.TryGetNetworkPlayer(entry.Key, out var candidate)
                 || !candidate.IsAlive
                 || candidate.Id != playerId)
             {

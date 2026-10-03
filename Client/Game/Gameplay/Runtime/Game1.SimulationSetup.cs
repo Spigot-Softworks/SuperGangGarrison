@@ -27,8 +27,8 @@ public partial class Game1
         _world = new SimulationWorld(_config);
         ApplyBloodPresentationSettingsToWorld();
         _simulator = new FixedStepSimulator(_world);
-        _world.NetworkPlayerRules.SetLocalPlayerName(localPlayerName);
-        _world.NetworkPlayerRules.SetLocalPlayerBadgeMask(localPlayerBadgeMask);
+        _world.NetworkPlayers.SetLocalPlayerName(localPlayerName);
+        _world.NetworkPlayers.SetLocalPlayerBadgeMask(localPlayerBadgeMask);
         _gameplayManager.PresentationState.ResetObservedGameplayMapIdentity();
     }
 }

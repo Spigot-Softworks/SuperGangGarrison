@@ -872,7 +872,7 @@ public sealed class LastToDieMedicPerkRuntimeTests
             status => Assert.Equal(world.Config.TicksPerSecond * 3, status.RemainingTicks));
 
         var disconnectedMedicId = lowerSlotMedic.Id;
-        Assert.True(world.NetworkPlayerRules.TryReleaseNetworkPlayerSlot(2));
+        Assert.True(world.NetworkPlayers.TryReleaseNetworkPlayerSlot(2));
         for (var tick = 0; tick < 20; tick += 1)
         {
             world.AdvanceOneTick();
@@ -915,7 +915,7 @@ public sealed class LastToDieMedicPerkRuntimeTests
             PlayerDamageTraits.CanApplyOnHitEffects);
         var directDamageEvent = Assert.Single(world.DrainPendingDamageEvents());
         Assert.Equal(medic.Id, directDamageEvent.AssistedByPlayerId);
-        world.NetworkPlayerRules.ForceKillLocalPlayer();
+        world.NetworkPlayers.ForceKillLocalPlayer();
         for (var tick = 0; tick < (world.Config.TicksPerSecond * 3) + 1; tick += 1)
         {
             world.AdvanceOneTick();
@@ -959,7 +959,7 @@ public sealed class LastToDieMedicPerkRuntimeTests
             teammate,
             PlayerDamageTraits.CanApplyOnHitEffects);
         _ = world.DrainPendingDamageEvents();
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(
             SimulationWorld.LocalPlayerSlot,
             PlayerTeam.Blue,
             respawnLivePlayerImmediately: true));
@@ -984,8 +984,8 @@ public sealed class LastToDieMedicPerkRuntimeTests
     private static SimulationWorld CreateWorld(PlayerClass localPlayerClass)
     {
         var world = new SimulationWorld();
-        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
-        world.NetworkPlayerRules.CompleteLocalPlayerJoin(localPlayerClass);
+        world.NetworkPlayers.PrepareLocalPlayerJoin();
+        world.NetworkPlayers.CompleteLocalPlayerJoin(localPlayerClass);
         return world;
     }
 
@@ -997,7 +997,7 @@ public sealed class LastToDieMedicPerkRuntimeTests
             EnableEnemyTrainingDummy = false,
             EnableFriendlySupportDummy = false,
         });
-        world.CombatTestSetLevel(new SimpleLevel(
+        world.TestSetLevel(new SimpleLevel(
             name: "ltd_medic_link_los_test",
             mode: GameModeKind.CaptureTheFlag,
             bounds: new WorldBounds(500f, 400f),
@@ -1013,8 +1013,8 @@ public sealed class LastToDieMedicPerkRuntimeTests
             floorY: 400f,
             solids: [new LevelSolid(190f, 0f, 20f, 350f)],
             importedFromSource: false));
-        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
-        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Medic);
+        world.NetworkPlayers.PrepareLocalPlayerJoin();
+        world.NetworkPlayers.CompleteLocalPlayerJoin(PlayerClass.Medic);
         return world;
     }
 
@@ -1023,7 +1023,7 @@ public sealed class LastToDieMedicPerkRuntimeTests
         const float pointX = 320f;
         const float pointY = 240f;
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        world.CombatTestSetLevel(new SimpleLevel(
+        world.TestSetLevel(new SimpleLevel(
             name: "ltd_field_commander_capture_test",
             mode: GameModeKind.ControlPoint,
             bounds: new WorldBounds(640f, 480f),
@@ -1057,12 +1057,12 @@ public sealed class LastToDieMedicPerkRuntimeTests
             floorY: 320f,
             solids: [new LevelSolid(0f, 320f, 640f, 160f)],
             importedFromSource: false));
-        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(
+        world.NetworkPlayers.PrepareLocalPlayerJoin();
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(
             SimulationWorld.LocalPlayerSlot,
             PlayerTeam.Red,
             respawnLivePlayerImmediately: true));
-        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Medic);
+        world.NetworkPlayers.CompleteLocalPlayerJoin(PlayerClass.Medic);
         if (fieldCommanderEnabled)
         {
             Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
@@ -1093,10 +1093,10 @@ public sealed class LastToDieMedicPerkRuntimeTests
         PlayerClass playerClass,
         PlayerTeam team)
     {
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(slot));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, team));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, playerClass));
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(slot, team));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(slot, playerClass));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(slot, out var player));
         return player;
     }
 
@@ -1148,7 +1148,7 @@ public sealed class LastToDieMedicPerkRuntimeTests
 
     private static void SetWorldFrame(SimulationWorld world, long frame)
     {
-        world.CombatTestSetFrame(frame);
+        world.TestSetFrame(frame);
     }
 
     private static PlayerEntity? InvokeResolveExsanguinationMedic(

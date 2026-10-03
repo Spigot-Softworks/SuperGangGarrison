@@ -45,8 +45,8 @@ public sealed class BuildWheelTests
         const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
         var game = (Game1)RuntimeHelpers.GetUninitializedObject(typeof(Game1));
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
-        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Engineer);
+        world.NetworkPlayers.PrepareLocalPlayerJoin();
+        world.NetworkPlayers.CompleteLocalPlayerJoin(PlayerClass.Engineer);
         typeof(Game1).GetField("_world", flags)!.SetValue(game, world);
         // _clientSettings is now a computed property backed by the service container.
         var services = new ClientServiceContainer();

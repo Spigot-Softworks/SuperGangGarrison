@@ -56,7 +56,7 @@ internal sealed partial class CombatFeedbackSystem
 
         if (specialType != KillFeedSpecialType.None)
         {
-            _host.KillFeedRules.RecordKillFeedEntry(victim, participant, "DominationKL", messageText, specialType: specialType);
+            _host.KillFeed.RecordKillFeedEntry(victim, participant, "DominationKL", messageText, specialType: specialType);
         }
     }
 }

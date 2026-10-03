@@ -366,7 +366,7 @@ public partial class Game1
             return true;
         }
 
-        return _world.NetworkPlayerRules.TryGetPlayerNetworkSlot(player, out slot);
+        return _world.NetworkPlayers.TryGetPlayerNetworkSlot(player, out slot);
     }
 
     private void OpenScoreboardContextMenu(ScoreboardPlayerRow row, Point point)
@@ -682,7 +682,7 @@ public partial class Game1
             var hasNetworkSlot = TryGetScoreboardPlayerNetworkSlot(player, out var playerSlot);
             var isBot = hasNetworkSlot
                 && (_networkClient.IsConnected
-                    ? _world.NetworkPlayerRules.IsNetworkPlayerBot(playerSlot)
+                    ? _world.NetworkPlayers.IsNetworkPlayerBot(playerSlot)
                     : _practiceBotSlots.ContainsKey(playerSlot));
             if (TryGetScoreboardPlayerNetworkSlot(player, out var slot)
                 && _scoreboardHoveredPlayerRow is { } hoveredRow
@@ -803,7 +803,7 @@ public partial class Game1
         }
         else if (TryGetScoreboardPlayerNetworkSlot(player, out var slot))
         {
-            pingMilliseconds = _world.NetworkPlayerRules.GetNetworkPlayerPingMilliseconds(slot);
+            pingMilliseconds = _world.NetworkPlayers.GetNetworkPlayerPingMilliseconds(slot);
         }
 
         return pingMilliseconds >= 0

@@ -167,7 +167,7 @@ public sealed class BotReactionController : IBotReactionController
         // On client: this is LocalPlayer
         // On server: this could be a configurable observer or omitted for pure ambient reactions
         PlayerEntity? targetPlayer = null;
-        if (world.NetworkPlayerRules.TryGetNetworkPlayer(SimulationWorld.LocalPlayerSlot, out var local))
+        if (world.NetworkPlayers.TryGetNetworkPlayer(SimulationWorld.LocalPlayerSlot, out var local))
         {
             targetPlayer = local;
         }
@@ -203,7 +203,7 @@ public sealed class BotReactionController : IBotReactionController
         {
             var slot = entry.Key;
 
-            if (!world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var bot) || bot is null)
+            if (!world.NetworkPlayers.TryGetNetworkPlayer(slot, out var bot) || bot is null)
             {
                 continue;
             }
@@ -395,7 +395,7 @@ public sealed class BotReactionController : IBotReactionController
             return false;
         }
 
-        if (!world.NetworkPlayerRules.TryTriggerNetworkPlayerChatBubble(slot, bubbleFrame))
+        if (!world.NetworkPlayers.TryTriggerNetworkPlayerChatBubble(slot, bubbleFrame))
         {
             return false;
         }
@@ -422,7 +422,7 @@ public sealed class BotReactionController : IBotReactionController
         var distanceSquared = dx * dx + dy * dy;
 
         return distanceSquared <= maxDistanceSquared
-            && world.CombatTestHasLineOfSight(bot, target);
+            && world.TestHasLineOfSight(bot, target);
     }
 
     private static bool CanBotSeeObservedDeath(
@@ -455,7 +455,7 @@ public sealed class BotReactionController : IBotReactionController
                 continue;
             }
 
-            if (world.CombatTestHasObstacleLineOfSight(bot.X, bot.Y, death.X, death.Y))
+            if (world.TestHasObstacleLineOfSight(bot.X, bot.Y, death.X, death.Y))
             {
                 return true;
             }

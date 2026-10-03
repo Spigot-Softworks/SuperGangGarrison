@@ -92,7 +92,7 @@ public sealed class SimulationWorldCompetitiveReadyUpTests
 
     private static void SetAttackDefenseControlPointLevel(SimulationWorld world)
     {
-        world.CombatTestSetLevel(
+        world.TestSetLevel(
             new SimpleLevel(
                 name: "adcp_competitive_ready_test",
                 mode: GameModeKind.ControlPoint,

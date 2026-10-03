@@ -164,10 +164,10 @@ internal sealed class ServerIncomingMessageDispatcher(
                     inputClient.PingMilliseconds = input.PingMilliseconds;
                     if (input.ChatBubbleFrameIndex >= 0)
                     {
-                        world.NetworkPlayerRules.TryTriggerNetworkPlayerChatBubble(inputClient.Slot, input.ChatBubbleFrameIndex);
+                        world.NetworkPlayers.TryTriggerNetworkPlayerChatBubble(inputClient.Slot, input.ChatBubbleFrameIndex);
                     }
 
-                    world.NetworkPlayerRules.SetNetworkPlayerIsTypingChatMessage(inputClient.Slot, input.Buttons.HasFlag(InputButtons.IsTypingChatMessage));
+                    world.NetworkPlayers.SetNetworkPlayerIsTypingChatMessage(inputClient.Slot, input.Buttons.HasFlag(InputButtons.IsTypingChatMessage));
                 }
                 break;
             case ControlCommandMessage command:
@@ -467,7 +467,7 @@ internal sealed class ServerIncomingMessageDispatcher(
         clientsBySlot[assignedSlot] = client;
         if (NetworkPlayerSystem.IsPlayableNetworkPlayerSlot(assignedSlot))
         {
-            world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(assignedSlot);
+            world.NetworkPlayers.TryPrepareNetworkPlayerJoin(assignedSlot);
         }
         sessionManager.ApplyClientProfile(assignedSlot, clientName, hello.BadgeMask, hello.FriendCode, hello.PlayerCardJson);
 

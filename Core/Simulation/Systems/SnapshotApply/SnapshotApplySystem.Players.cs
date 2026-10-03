@@ -396,8 +396,8 @@ internal sealed partial class SnapshotApplySystem
             var previousGibDeaths = player.GibDeaths;
             SynchronizeNetworkGibDeathPresentationCount(player.Id, appliedSnapshotPlayer.GibDeaths);
             ApplySnapshotPlayer(player, appliedSnapshotPlayer);
-            _host.NetworkPlayerRules.ApplySnapshotNetworkPlayerPingMilliseconds(appliedSnapshotPlayer.Slot, appliedSnapshotPlayer.PingMilliseconds);
-            _host.NetworkPlayerRules.ApplySnapshotNetworkPlayerBot(appliedSnapshotPlayer.Slot, appliedSnapshotPlayer.IsBot);
+            _host.NetworkPlayers.ApplySnapshotNetworkPlayerPingMilliseconds(appliedSnapshotPlayer.Slot, appliedSnapshotPlayer.PingMilliseconds);
+            _host.NetworkPlayers.ApplySnapshotNetworkPlayerBot(appliedSnapshotPlayer.Slot, appliedSnapshotPlayer.IsBot);
             if (hadRemotePlayer
                 && wasAlive
                 && !player.IsAlive
@@ -442,8 +442,8 @@ internal sealed partial class SnapshotApplySystem
             if (_host.RemoteSnapshots.PlayersBySlot.Remove(slot))
             {
                 _host.ReadyUp.ApplySnapshotNetworkPlayerReady(slot, ready: false);
-                _host.NetworkPlayerRules.ApplySnapshotNetworkPlayerPingMilliseconds(slot, -1);
-                _host.NetworkPlayerRules.ApplySnapshotNetworkPlayerBot(slot, isBot: false);
+                _host.NetworkPlayers.ApplySnapshotNetworkPlayerPingMilliseconds(slot, -1);
+                _host.NetworkPlayers.ApplySnapshotNetworkPlayerBot(slot, isBot: false);
                 _host.ClientSnapshots.PresentedGibDeathCountsByPlayerId.Remove(removedPlayer.Id);
             }
         }
@@ -488,7 +488,7 @@ internal sealed partial class SnapshotApplySystem
             }
 
             ApplySnapshotPlayer(player, appliedSnapshotPlayer);
-            _host.NetworkPlayerRules.ApplySnapshotNetworkPlayerBot(appliedSnapshotPlayer.Slot, appliedSnapshotPlayer.IsBot);
+            _host.NetworkPlayers.ApplySnapshotNetworkPlayerBot(appliedSnapshotPlayer.Slot, appliedSnapshotPlayer.IsBot);
             _host.RemoteSnapshots.ScoreboardPlayers.Add(player);
         }
 
@@ -530,7 +530,7 @@ internal sealed partial class SnapshotApplySystem
             _host.RemoteSnapshots.ScoreboardPlayersBySlot.Remove(slot);
             if (!_host.RemoteSnapshots.PlayersBySlot.ContainsKey(slot))
             {
-                _host.NetworkPlayerRules.ApplySnapshotNetworkPlayerBot(slot, isBot: false);
+                _host.NetworkPlayers.ApplySnapshotNetworkPlayerBot(slot, isBot: false);
             }
         }
     }

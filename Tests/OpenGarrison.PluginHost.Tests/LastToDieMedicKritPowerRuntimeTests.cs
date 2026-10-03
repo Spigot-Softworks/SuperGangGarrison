@@ -190,7 +190,7 @@ public sealed class LastToDieMedicKritPowerRuntimeTests
 
         Assert.Equal(3.5f, Assert.IsType<ArrowProjectileEntity>(world.Needles[0]).CriticalDamageMultiplier);
         Assert.Equal(3.5f, sniper.LastToDieSniperVolleyState.Payload.CriticalDamageMultiplier);
-        Assert.True(world.NetworkPlayerRules.TryReleaseNetworkPlayerSlot(2));
+        Assert.True(world.NetworkPlayers.TryReleaseNetworkPlayerSlot(2));
         sniper.HydrateKritzCritBoost(false, 0, 0, int.MaxValue, 1f);
 
         for (var tick = 0; tick < LastToDieSniperProfile.MenageATroisArrowIntervalSourceTicks; tick += 1)
@@ -208,17 +208,17 @@ public sealed class LastToDieMedicKritPowerRuntimeTests
         AssertExplosionMultiplier(
             static (world, owner, x, y) => world.Projectiles.SpawnRocket(owner, x, y, 0f, 0f),
             static world => world.Rockets[^1],
-            static (world, projectile) => world.CombatTestExplodeRocket((RocketProjectileEntity)projectile),
+            static (world, projectile) => world.TestExplodeRocket((RocketProjectileEntity)projectile),
             RocketProjectileEntity.ExplosionDamage);
         AssertExplosionMultiplier(
             static (world, owner, x, y) => world.Projectiles.SpawnMine(owner, x, y, 0f, 0f),
             static world => world.Mines[^1],
-            static (world, projectile) => world.CombatTestExplodeMine((MineProjectileEntity)projectile),
+            static (world, projectile) => world.TestExplodeMine((MineProjectileEntity)projectile),
             MineProjectileEntity.BaseExplosionDamage);
         AssertExplosionMultiplier(
             static (world, owner, x, y) => world.Projectiles.SpawnGrenade(owner, x, y, 0f, 0f),
             static world => world.Grenades[^1],
-            static (world, projectile) => world.CombatTestExplodeGrenade((GrenadeProjectileEntity)projectile),
+            static (world, projectile) => world.TestExplodeGrenade((GrenadeProjectileEntity)projectile),
             GrenadeProjectileEntity.BaseExplosionDamage);
     }
 
@@ -390,7 +390,7 @@ public sealed class LastToDieMedicKritPowerRuntimeTests
         Assert.Equal(3.5f, Assert.Single(resync.Players).KritzCritBoostDamageMultiplier);
         Assert.Equal(3.5f, Assert.Single(resync.Projectiles).CriticalDamageMultiplier);
 
-        source.CombatTestExplodeRocket(rocket);
+        source.TestExplodeRocket(rocket);
         source.AdvanceOneTick();
         Assert.Empty(publisher.BuildProjectileStates(12));
         var lifecycle = Assert.Single(publisher.BuildProjectileLifecycleEvents());
@@ -507,7 +507,7 @@ public sealed class LastToDieMedicKritPowerRuntimeTests
             EnableEnemyTrainingDummy = false,
             EnableFriendlySupportDummy = false,
         });
-        world.CombatTestSetLevel(new SimpleLevel(
+        world.TestSetLevel(new SimpleLevel(
             name: "ltd_medic_krit_power_test",
             mode: GameModeKind.CaptureTheFlag,
             bounds: new WorldBounds(1000f, 480f),
@@ -523,8 +523,8 @@ public sealed class LastToDieMedicKritPowerRuntimeTests
             floorY: 480f,
             solids: [],
             importedFromSource: false));
-        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
-        world.NetworkPlayerRules.CompleteLocalPlayerJoin(playerClass);
+        world.NetworkPlayers.PrepareLocalPlayerJoin();
+        world.NetworkPlayers.CompleteLocalPlayerJoin(playerClass);
         world.LocalPlayer.SetSpawnRoomState(false);
         return world;
     }
@@ -537,10 +537,10 @@ public sealed class LastToDieMedicKritPowerRuntimeTests
         float x,
         float y)
     {
-        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(slot));
-        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, team));
-        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, playerClass));
-        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player));
+        Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(slot, team));
+        Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(slot, playerClass));
+        Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(slot, out var player));
         player.TeleportTo(x, y);
         player.SetSpawnRoomState(false);
         return player;
